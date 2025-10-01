@@ -44,9 +44,10 @@ class APIClient:
         
         return min(timeout, 180)  # 最大不超过3分钟
     
+    # 在 api_client.py 中修改 optimized_call_api 方法，添加详细的调试信息
     def optimized_call_api(self, api_type: str, system_prompt: str, user_prompt: str, 
                         temperature: float = None, purpose: str = "未知") -> Optional[str]:
-        """优化的API调用 - 添加超时控制和性能监控"""
+        """优化的API调用 - 添加详细调试信息"""
         if api_type not in self.config["api_keys"] or not self.config["api_keys"][api_type]:
             print(f"{api_type.upper()} API密钥未设置")
             return None
@@ -63,10 +64,6 @@ class APIClient:
         
         # 根据目的调整max_tokens
         max_tokens = self.config["defaults"]["max_tokens"]
-        if "快速" in purpose or "标题" in purpose:
-            max_tokens = 2000  # 减少token数加快响应
-        elif "质量评估" in purpose:
-            max_tokens = 3000
         
         payload = {
             "model": model_name,
@@ -85,13 +82,60 @@ class APIClient:
             
             try:
                 print(f"调用{api_type.upper()} API (第{attempt+1}次) - 目的: {purpose} (超时: {timeout}秒)...")
+                
+                # 打印请求摘要（不包含完整内容避免过长）
+                prompt_preview = user_prompt
+                print(f"  请求摘要: {prompt_preview}")
+                
                 response = requests.post(api_url, headers=headers, json=payload, timeout=timeout)
-                response.raise_for_status()
+                
+                # 检查HTTP状态码
+                if response.status_code != 200:
+                    print(f"  ❌ HTTP错误: 状态码 {response.status_code}")
+                    print(f"  响应头: {dict(response.headers)}")
+                    # 尝试获取错误详情
+                    try:
+                        error_detail = response.json()
+                        print(f"  错误详情: {error_detail}")
+                    except:
+                        print(f"  错误响应文本: {response.text[:500]}")
+                    response.raise_for_status()
                 
                 result = response.json()
+                
+                # 检查API返回结构
+                if 'choices' not in result:
+                    print(f"  ❌ API返回结构异常: 缺少choices字段")
+                    print(f"  完整响应: {result}")
+                    continue
+                    
+                if not result['choices']:
+                    print(f"  ❌ API返回结构异常: choices为空列表")
+                    print(f"  完整响应: {result}")
+                    continue
+                    
+                if 'message' not in result['choices'][0]:
+                    print(f"  ❌ API返回结构异常: 缺少message字段")
+                    print(f"  完整响应: {result}")
+                    continue
+                    
+                if 'content' not in result['choices'][0]['message']:
+                    print(f"  ❌ API返回结构异常: 缺少content字段")
+                    print(f"  完整响应: {result}")
+                    continue
+                
                 content = result['choices'][0]['message']['content']
                 
+                # 详细检查内容
+                print(f"  原始内容长度: {len(content) if content else 0}字符")
+                
+                if not content:
+                    print(f"  ❌ API返回空内容")
+                    print(f"  完整响应结构: {str(result)[:500]}...")
+                    continue
+                
                 cleaned_content = self.clean_api_response(content)
+                print(f"  清理后内容长度: {len(cleaned_content)}字符")
                 
                 # 记录请求时间
                 request_time = time.time() - start_time
@@ -102,27 +146,46 @@ class APIClient:
                     print(f"  ⏱️  API调用耗时: {request_time:.1f}秒")
                 
                 # 快速验证响应有效性
-                if self._validate_api_response(cleaned_content):
+                validation_result = self._validate_api_response(cleaned_content)
+                if validation_result:
+                    print(f"  ✓ API响应验证通过")
                     return cleaned_content
                 else:
                     print(f"  ❌ API响应验证失败，准备重试...")
+                    # 打印验证失败的具体原因
+                    print(f"  验证失败时的内容预览: {cleaned_content[:200] if cleaned_content else '空内容'}")
                     continue
                     
             except requests.exceptions.Timeout:
                 request_time = time.time() - start_time
                 print(f"  ⏰ {api_type.upper()} API超时 (已等待{request_time:.1f}秒)")
+                print(f"  请求URL: {api_url}")
+                print(f"  请求超时设置: {timeout}秒")
                 if attempt == 0:
-                    continue  # 首次超时立即重试
+                    continue
                 else:
                     time.sleep(2)
+                    
+            except requests.exceptions.RequestException as e:
+                request_time = time.time() - start_time
+                print(f"  🌐 {api_type.upper()} 网络请求异常: {e}")
+                print(f"  请求URL: {api_url}")
+                if attempt < self.config["defaults"]["max_retries"] - 1:
+                    delay = 1 + (attempt * 2)
+                    print(f"  ⏳ 等待{delay}秒后重试...")
+                    time.sleep(delay)
+                    
             except Exception as e:
                 request_time = time.time() - start_time
-                print(f"  ❌ {api_type.upper()} API调用失败: {e} (耗时{request_time:.1f}秒)")
+                print(f"  ❌ {api_type.upper()} API调用失败: {e}")
+                print(f"  异常类型: {type(e).__name__}")
+                import traceback
+                print(f"  异常堆栈: {traceback.format_exc()}")
                 if attempt < self.config["defaults"]["max_retries"] - 1:
-                    # 渐进式延迟：1s, 3s, 5s
                     delay = 1 + (attempt * 2)
                     time.sleep(delay)
-                
+        
+        print(f"  💥 {api_type.upper()} API所有重试均失败，目的: {purpose}")
         return None
     
     def _validate_api_response(self, content: str) -> bool:
