@@ -56,7 +56,7 @@ CONFIG = {
 1. 目标读者群体
 2. 核心卖点和差异化优势
 3. 当前市场趋势和竞争分析
-4. 商业化潜力评估
+4. 流量潜力评估
 5. 推荐写作策略
 
 请确保输出是严格的JSON格式，所有字符串值都必须用双引号括起来。
@@ -67,7 +67,7 @@ CONFIG = {
     "core_selling_points": ["卖点1", "卖点2", "卖点3"],
     "market_trend_analysis": "市场趋势分析",
     "competitive_advantage": "竞争优势分析",
-    "commercial_potential": "商业化潜力评估",
+    "commercial_potential": "流量潜力评估",
     "recommended_strategies": ["策略1", "策略2", "策略3"]
 }""",
         "writing_plan": """你是一位顶级网络小说策划编辑，擅长制定完整的写作计划。请根据市场分析和创意种子，制定详细的写作计划。
@@ -77,7 +77,7 @@ CONFIG = {
 2. 章节节奏安排（请按照{total_chapters}章的总长度来规划）
 3. 关键情节节点规划
 4. 角色成长路线
-5. 大型副本/高潮剧场/重大事件
+5. 事件体系设计（事件 -> 大事件 -> 重大事件）
 
 请确保输出是严格的JSON格式，所有字符串值都必须用双引号括起来。
 
@@ -93,20 +93,48 @@ CONFIG = {
     },
     "key_plot_points": ["关键情节1", "关键情节2", "关键情节3"],
     "character_growth_arc": "角色成长路线",
-    "major_events": [
-        {
-            "name": "事件名称",
-            "type": "major_dungeon",
-            "start_chapter": 开始章节,
-            "end_chapter": 结束章节,
-            "duration": 持续时间,
-            "significance": "事件重要性描述",
-            "goals": ["目标1", "目标2"],
-            "key_moments": ["关键时刻1", "关键时刻2"],
-            "character_development": "角色成长重点",
-            "aftermath": "后续影响",
-            "special_elements": "特殊元素描述"
-        }
+    "event_system": {
+        "overall_approach": "事件驱动方法论描述",
+        "major_events": [
+            {
+                "name": "重大事件名称",
+                "type": "major_event",
+                "start_chapter": 开始章节,
+                "end_chapter": 结束章节,
+                "duration": 持续时间,
+                "significance": "事件重要性描述",
+                "main_goal": "主要目标",
+                "sub_goals": ["子目标1", "子目标2"],
+                "key_moments": ["关键时刻1", "关键时刻2"],
+                "character_development": "角色成长重点",
+                "aftermath": "后续影响",
+                "prerequisite_events": ["前置事件1", "前置事件2"]
+            }
+        ],
+        "big_events": [
+            {
+                "name": "大事件名称",
+                "type": "big_event", 
+                "start_chapter": 开始章节,
+                "end_chapter": 结束章节,
+                "main_goal": "主要目标",
+                "connection_to_major": "与重大事件的关联",
+                "role": "在主线中的作用"
+            }
+        ],
+        "events": [
+            {
+                "name": "事件名称",
+                "type": "event",
+                "chapter": 发生章节,
+                "goal": "事件目标",
+                "connection_to_big": "与大事件的关联",
+                "outcome": "事件结果"
+            }
+        ],
+        "emotional_chapters": [感情线章节列表],
+        "foreshadowing_chapters": [伏笔线章节列表]
+    }
 }""",
         "core_worldview": """你是一位顶级网络小说世界构建专家。请根据创意种子构建核心世界观框架。
 
@@ -155,8 +183,8 @@ CONFIG = {
 **写作计划**: {writing_plan_info}
 **前情提要**: {previous_chapters_summary}
 
-# 专项指导
-{major_event_info}
+事件驱动指导
+{event_driven_guidance}
 
 # 伏笔铺垫指导
 {foreshadowing_guidance}

@@ -214,24 +214,15 @@ class QualityAssessor:
     def quick_assess_chapter_quality(self, chapter_content: str, chapter_title: str, 
                                 chapter_number: int, novel_title: str, previous_summary: str, 
                                 word_count: int = 0) -> Dict:
-        """快速质量评估 - 修复版本：添加 word_count 参数"""
-        # 本地快速检查，避免API调用
-        local_score = self._local_quality_check(chapter_content, chapter_title, word_count)
-        
-        # 如果本地检查通过，使用简化的API评估
-        if local_score >= 8.0:
-            return self._lightweight_api_assessment(chapter_content, chapter_title, chapter_number, novel_title, previous_summary, word_count)
-        else:
-            # 质量较差，使用完整评估
-            return self.assess_chapter_quality({
-                "chapter_content": chapter_content,
-                "chapter_title": chapter_title,
-                "chapter_number": chapter_number,
-                "novel_title": novel_title,
-                "previous_summary": previous_summary,
-                "total_chapters": self.config["defaults"]["total_chapters"],
-                "word_count": word_count
-            })
+        return self.assess_chapter_quality({
+            "chapter_content": chapter_content,
+            "chapter_title": chapter_title,
+            "chapter_number": chapter_number,
+            "novel_title": novel_title,
+            "previous_summary": previous_summary,
+            "total_chapters": self.config["defaults"]["total_chapters"],
+            "word_count": word_count
+        })
         
     def assess_foreshadowing_consistency(self, content: str, previous_chapters: List[str]) -> float:
         """评估伏笔连贯性"""

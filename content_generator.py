@@ -259,18 +259,191 @@ class ContentGenerator:
         
         return character_design
 
-    def generate_chapter_content(self, chapter_params: Dict) -> Optional[Dict]:
-        """生成章节内容 - 修复版本：添加默认参数处理"""
-        # 检查必需参数
+    def generate_and_optimize_chapter(self, chapter_number: int, total_chapters: int) -> Optional[Dict]:
+        """生成并优化章节内容 - 修复版本：添加详细调试信息"""
+        print(f"生成第{chapter_number}章...")
+
+        # 使用安全的参数获取方法
+        chapter_params = self.safe_get_chapter_params(chapter_number)
+        
+        # 详细调试参数信息
+        print(f"  🔍 参数调试信息:")
+        print(f"    参数类型: {type(chapter_params)}")
+        print(f"    参数键: {list(chapter_params.keys()) if chapter_params else 'None'}")
+        
+        if chapter_params:
+            # 检查关键参数的值
+            for key in ['foreshadowing_guidance', 'event_driven_guidance']:
+                value = chapter_params.get(key)
+                print(f"    {key}: '{value}' (类型: {type(value)}, 长度: {len(value) if value else 0})")
+        
+        if not chapter_params:
+            print(f"❌ 第{chapter_number}章参数获取失败")
+            return None
+        
+        # 验证必需参数 - 只检查键是否存在，不检查值是否为空
         required_keys = ['chapter_number', 'total_chapters', 'novel_title', 'novel_synopsis', 
-                        'worldview_info', 'character_info', 'writing_plan_info', 
+                        'worldview_info', 'character_info', 'writing_plan_info', 'event_driven_guidance','foreshadowing_guidance',
                         'previous_chapters_summary', 'main_plot_progress', 'plot_direction',
                         'chapter_connection_note']
         
         missing_keys = [key for key in required_keys if key not in chapter_params]
         if missing_keys:
-            print(f"❌ 缺少必需参数: {missing_keys}")
+            print(f"❌ 第{chapter_number}章缺少必需参数键: {missing_keys}")
+            # 尝试修复缺失的参数键
+            for key in missing_keys:
+                if key == 'event_driven_guidance':
+                    chapter_params[key] = self.get_event_driven_guidance(chapter_number)
+                    print(f"    ✅ 修复 {key}: '{chapter_params[key][:50]}...'")
+                elif key == 'foreshadowing_guidance':
+                    chapter_params[key] = self.get_foreshadowing_guidance(chapter_number)
+                    print(f"    ✅ 修复 {key}: '{chapter_params[key][:50]}...'")
+                elif key == 'previous_chapters_summary':
+                    chapter_params[key] = self._get_cached_previous_summary(chapter_number)
+                    print(f"    ✅ 修复 {key}: '{chapter_params[key][:50]}...'")
+                elif key == 'plot_direction':
+                    plot_dir = self.get_plot_direction_for_chapter(chapter_number, total_chapters)
+                    chapter_params[key] = plot_dir["plot_direction"]
+                    print(f"    ✅ 修复 {key}: '{chapter_params[key]}'")
+                elif key == 'main_plot_progress':
+                    plot_dir = self.get_plot_direction_for_chapter(chapter_number, total_chapters)
+                    chapter_params[key] = plot_dir["main_plot_progress"]
+                    print(f"    ✅ 修复 {key}: '{chapter_params[key]}'")
+                elif key == 'chapter_connection_note':
+                    chapter_params[key] = self.get_chapter_connection_note(chapter_number)
+                    print(f"    ✅ 修复 {key}: '{chapter_params[key]}'")
+                else:
+                    chapter_params[key] = "默认值"
+                    print(f"    ⚠️  为 {key} 设置默认值")
+            
+            # 再次检查
+            missing_keys = [key for key in required_keys if key not in chapter_params]
+            if missing_keys:
+                print(f"❌ 第{chapter_number}章参数修复失败，仍然缺少键: {missing_keys}")
+                return None
+        
+        # 检查参数值是否为空
+        empty_params = [key for key in required_keys if key in chapter_params and not chapter_params[key]]
+        if empty_params:
+            print(f"  ⚠️  以下参数值为空: {empty_params}")
+            # 对于空值，设置默认值
+            for key in empty_params:
+                if key == 'foreshadowing_guidance':
+                    chapter_params[key] = "# 🎭 重要元素铺垫指导\n\n暂无需要铺垫的重要元素。"
+                elif key == 'event_driven_guidance':
+                    chapter_params[key] = "# 🎯 事件驱动写作指导\n\n本章为普通主线推进章节。"
+                else:
+                    chapter_params[key] = "默认内容"
+                print(f"    ✅ 为空的 {key} 设置默认内容")
+        
+        # 确定本章重点
+        chapter_focus = self.get_chapter_focus(chapter_number, total_chapters)
+        print(f"  本章重点: {chapter_focus}")
+        
+        # 添加主角名字指令
+        if self.novel_data.get("custom_main_character_name"):
+            main_character_instruction = f"\n# 主角名字\n**主角**: {self.novel_data['custom_main_character_name']} - 请确保在对话和叙述中正确使用这个名字"
+            chapter_params['main_character_instruction'] = main_character_instruction
+        
+        # 最终参数验证
+        print(f"  ✅ 最终参数验证通过，开始生成内容...")
+        
+        # 首次生成
+        chapter_data = self.content_generator.generate_chapter_content(chapter_params)
+        if not chapter_data:
+            print(f"✗ 第{chapter_number}章生成失败")
             return None
+        
+        # 确保章节标题唯一性
+        chapter_data = self.ensure_chapter_title_uniqueness(chapter_data, chapter_number, chapter_params.get("plot_direction", ""))
+
+        # 质量评估
+        assessment = self.quality_assessor.quick_assess_chapter_quality(
+            chapter_data.get("content", ""),
+            chapter_data.get("chapter_title", ""),
+            chapter_number,
+            self.novel_data["novel_title"],
+            chapter_params.get("previous_chapters_summary", ""),
+            chapter_data.get("word_count", 0)
+        )
+        
+        score = assessment.get("overall_score", 0)
+        print(f"  质量评分: {score:.1f}分")
+        
+        # 根据配置决定是否优化
+        optimize_needed, optimize_reason = self._should_optimize_based_on_config(assessment, chapter_data)
+        
+        if optimize_needed:
+            print(f"  🔧 进行优化: {optimize_reason}")
+            optimized_data = self.quality_assessor.optimize_chapter_content({
+                "assessment_results": json.dumps(assessment, ensure_ascii=False),
+                "original_content": chapter_data.get("content", ""),
+                "priority_fix_1": assessment.get("weaknesses", [""])[0] if assessment.get("weaknesses") else "提升质量",
+                "priority_fix_2": assessment.get("weaknesses", [""])[1] if len(assessment.get("weaknesses", [])) > 1 else "",
+                "priority_fix_3": assessment.get("weaknesses", [""])[2] if len(assessment.get("weaknesses", [])) > 2 else ""
+            })
+            if optimized_data:
+                chapter_data.update(optimized_data)
+                # 重新评估优化后的质量
+                new_assessment = self.quality_assessor.quick_assess_chapter_quality(
+                    chapter_data.get("content", ""),
+                    chapter_data.get("chapter_title", ""),
+                    chapter_number,
+                    self.novel_data["novel_title"],
+                    chapter_params.get("previous_chapters_summary", ""),
+                    chapter_data.get("word_count", 0)
+                )
+                new_score = new_assessment.get("overall_score", 0)
+                improvement = new_score - score
+                print(f"  ✓ 优化完成，新评分: {new_score:.1f}分 (提升{improvement:+.1f}分)")
+                chapter_data["quality_assessment"] = new_assessment
+            else:
+                print(f"  ⚠️ 优化失败，保持原内容")
+                chapter_data["quality_assessment"] = assessment
+        else:
+            print(f"  ✓ {optimize_reason}")
+            chapter_data["quality_assessment"] = assessment
+        
+        return chapter_data
+
+
+    def generate_chapter_content(self, chapter_params: Dict) -> Optional[Dict]:
+        """生成章节内容 - 增强版本：更好的参数处理和调试"""
+        print(f"  🔍 内容生成器参数检查:")
+        
+        # 检查必需参数
+        required_keys = ['chapter_number', 'total_chapters', 'novel_title', 'novel_synopsis', 
+                        'worldview_info', 'character_info', 'writing_plan_info', 'event_driven_guidance','foreshadowing_guidance',
+                        'previous_chapters_summary', 'main_plot_progress', 'plot_direction',
+                        'chapter_connection_note']
+        
+        missing_keys = [key for key in required_keys if key not in chapter_params]
+        if missing_keys:
+            print(f"    ❌ 缺少必需参数键: {missing_keys}")
+            # 尝试使用默认值填充缺失参数
+            for key in missing_keys:
+                if key == 'event_driven_guidance':
+                    chapter_params[key] = "# 🎯 事件驱动写作指导\n\n本章为普通主线推进章节。"
+                elif key == 'foreshadowing_guidance':
+                    chapter_params[key] = "# 🎭 重要元素铺垫指导\n\n暂无需要铺垫的重要元素。"
+                elif key == 'character_development_focus':
+                    chapter_params[key] = "角色正常发展"
+                else:
+                    chapter_params[key] = "未提供"
+                print(f"    ✅ 为 {key} 设置默认值")
+        
+        # 检查空值参数
+        empty_params = [key for key in required_keys if key in chapter_params and not chapter_params[key]]
+        if empty_params:
+            print(f"    ⚠️  空值参数: {empty_params}")
+            for key in empty_params:
+                if key == 'foreshadowing_guidance':
+                    chapter_params[key] = "# 🎭 重要元素铺垫指导\n\n暂无需要铺垫的重要元素。"
+                elif key == 'event_driven_guidance':
+                    chapter_params[key] = "# 🎯 事件驱动写作指导\n\n本章为普通主线推进章节。"
+                print(f"    ✅ 为空的 {key} 设置内容")
+        
+        print(f"    ✅ 所有必需参数检查通过")
         
         try:
             # 确保所有格式化参数都有值
@@ -282,9 +455,25 @@ class ContentGenerator:
             safe_params.setdefault('foreshadowing_guidance', '')
             safe_params.setdefault('character_development_focus', '')
             safe_params.setdefault('main_character_instruction', '')
+            safe_params.setdefault('event_driven_guidance', '')
             
-            user_prompt = self.config["prompts"]["chapter_generation"].format(**safe_params)
-            result = self.api_client.generate_content_with_retry("chapter_generation", user_prompt, purpose=f"生成第{safe_params['chapter_number']}章内容")
+            # 使用提示词模板
+            prompt_template = self.config["prompts"]["chapter_generation"]
+            user_prompt = prompt_template.format(**safe_params)
+            
+            print(f"    📝 提示词格式化成功，开始调用API...")
+            
+            result = self.api_client.generate_content_with_retry(
+                "chapter_generation", 
+                user_prompt, 
+                purpose=f"生成第{safe_params['chapter_number']}章内容"
+            )
+            
+            if result:
+                print(f"    ✅ 章节内容生成成功")
+            else:
+                print(f"    ❌ 章节内容生成失败")
+                
             return result
         except KeyError as e:
             print(f"❌ 格式化提示词时缺少参数: {e}")
@@ -293,7 +482,7 @@ class ContentGenerator:
         except Exception as e:
             print(f"❌ 生成章节内容时出错: {e}")
             return None
-        
+
     def _assess_and_optimize_content(self, content: Dict, content_type: str, original_purpose: str) -> Dict:
         """评估并优化基础内容 - 修复版本"""
         if not content:
@@ -398,7 +587,15 @@ class ContentGenerator:
             if self.custom_main_character_name:
                 user_prompt += f"\n主角名字: {self.custom_main_character_name}"
             
-            result = self.api_client.generate_content_with_retry("writing_plan", user_prompt, purpose="制定写作计划")
+            complete_user_prompt = f"""
+                {system_prompt}
+
+                {user_prompt}
+
+                # 额外要求
+                请确保严格遵循上述所有要求，特别是JSON格式输出。
+                """
+            result = self.api_client.generate_content_with_retry("writing_plan", complete_user_prompt, purpose="制定写作计划")
             if result:
                 # 质量检查和优化
                 result = self._assess_and_optimize_content(result, "writing_plan", "写作计划")

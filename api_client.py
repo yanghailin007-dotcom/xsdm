@@ -25,8 +25,8 @@ class APIClient:
             "生成第": 120,  # 章节生成
             "生成三套小说方案": 60,
             "市场分析": 75,
-            "制定写作计划": 90,
-            "构建世界观": 75,
+            "制定写作计划": 120,
+            "构建世界观": 120,
             "角色设计": 75,
             "生成唯一章节标题": 90
         }
@@ -127,6 +127,7 @@ class APIClient:
                 content = result['choices'][0]['message']['content']
                 
                 # 详细检查内容
+                print(f"  原始内容长度: {str(content)}")
                 print(f"  原始内容长度: {len(content) if content else 0}字符")
                 
                 if not content:
