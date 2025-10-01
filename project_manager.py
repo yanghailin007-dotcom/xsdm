@@ -193,11 +193,12 @@ class ProjectManager:
         avg_ai_score = sum(ai_scores) / len(ai_scores) if ai_scores else 2
         
         # 修复：使用正确的配置路径
-        quality_thresholds = self.config.get("optimization_settings", {}).get("quality_thresholds", {
+        quality_thresholds  = self.config.get("optimization_settings", {}).get("quality_thresholds", {
             "excellent": 9.0,
-            "good": 8.5, 
+            "good": 8.5,
             "acceptable": 8.0,
-            "needs_optimization": 7.5
+            "needs_optimization": 7.5,
+            "needs_rewrite": 6.0
         })
         
         # 计算质量分布

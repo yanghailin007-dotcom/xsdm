@@ -1969,33 +1969,6 @@ class NovelGenerator:
         # 重新初始化暗线计划
         self._initialize_subplot_plan_with_ratio()
 
-    def set_recommended_ratio(self, experience_level: str = "beginner", genre: str = None):
-        """设置推荐配比"""
-        recommended_ratios = {
-            "beginner": {"main": 0.75, "emotional": 0.15, "foreshadowing": 0.10},
-            "intermediate": {"main": 0.70, "emotional": 0.15, "foreshadowing": 0.15},
-            "advanced": {"main": 0.65, "emotional": 0.20, "foreshadowing": 0.15}
-        }
-        
-        if genre:
-            genre_ratios = {
-                "爽文": {"main": 0.75, "emotional": 0.10, "foreshadowing": 0.15},
-                "言情": {"main": 0.60, "emotional": 0.30, "foreshadowing": 0.10},
-                "悬疑": {"main": 0.65, "emotional": 0.05, "foreshadowing": 0.30},
-                "玄幻": {"main": 0.70, "emotional": 0.15, "foreshadowing": 0.15},
-                "都市": {"main": 0.65, "emotional": 0.25, "foreshadowing": 0.10}
-            }
-            if genre in genre_ratios:
-                self.subplot_ratio = genre_ratios[genre]
-                print(f"🎯 使用{genre}题材推荐配比")
-            else:
-                self.subplot_ratio = recommended_ratios[experience_level]
-                print(f"🎯 使用{experience_level}级别推荐配比")
-        else:
-            self.subplot_ratio = recommended_ratios[experience_level]
-            print(f"🎯 使用{experience_level}级别推荐配比")
-        
-        self._initialize_subplot_plan_with_ratio()
     def choose_subplot_ratio(self):
         """让用户选择暗线配比 - 优化版本"""
         print("\n🎯 请选择剧情配比方案 (主线占比60-85%):")

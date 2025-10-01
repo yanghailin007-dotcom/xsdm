@@ -593,13 +593,5 @@ CONFIG = {
             "climax_stage": "冲突激化，关键转折，情感爆发，决定性时刻", 
             "ending_stage": "解决主要冲突，展示后果，为后续影响做铺垫"
         }
-    },
-    # 添加缺失的配置项
-    "quality_thresholds": {
-        "excellent": 9.0,
-        "good": 8.5,
-        "acceptable": 8.0,
-        "needs_optimization": 7.5,
-        "needs_rewrite": 6.0
     }
 }
