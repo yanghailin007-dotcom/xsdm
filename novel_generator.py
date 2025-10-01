@@ -352,7 +352,7 @@ class ForeshadowingManager:
         opportunities = self.get_foreshadowing_opportunities(current_chapter)
         
         if not opportunities:
-            return ""
+            return "# 🎭 重要元素铺垫指导\n\n暂无需要铺垫的重要元素。"
         
         prompt_parts = ["\n\n# 🎭 重要元素铺垫指导"]
         
@@ -370,7 +370,8 @@ class ForeshadowingManager:
                         f"  建议铺垫方式: {methods}"
                     ])
         
-        return "\n".join(prompt_parts)
+        result = "\n".join(prompt_parts)
+        return result if result.strip() else "# 🎭 重要元素铺垫指导\n\n暂无需要铺垫的重要元素。"
     
     def _get_element_type_name(self, element_type: str) -> str:
         """获取元素类型名称"""
@@ -597,16 +598,28 @@ class NovelGenerator:
     def safe_get_chapter_params(self, chapter_num: int) -> Dict:
         """安全获取章节参数，确保所有必要参数都存在"""
         try:
+            print(f"  🔍 开始准备第{chapter_num}章参数...")
+            
+            # 首先尝试批量参数准备
             batch_params = self.prepare_batch_chapter_params(chapter_num, chapter_num)
-            if batch_params:
+            if batch_params and len(batch_params) > 0:
                 params = batch_params[0]
-                print(f"✅✅ 第{chapter_num}章参数准备成功，包含foreshadowing_guidance: {'foreshadowing_guidance' in params}")
+                
+                # 调试信息
+                print(f"  ✅ 第{chapter_num}章批量参数准备成功")
+                print(f"  🔍 foreshadowing_guidance 存在: {'foreshadowing_guidance' in params}")
+                print(f"  🔍 foreshadowing_guidance 内容长度: {len(params.get('foreshadowing_guidance', '')) if 'foreshadowing_guidance' in params else 0}")
+                print(f"  🔍 event_driven_guidance 存在: {'event_driven_guidance' in params}")
+                print(f"  🔍 event_driven_guidance 内容长度: {len(params.get('event_driven_guidance', '')) if 'event_driven_guidance' in params else 0}")
+                
                 return params
             else:
                 print(f"  ⚠️  批量参数准备失败，返回基础参数")
                 return self._get_basic_chapter_params(chapter_num)
         except Exception as e:
             print(f"❌ 准备章节参数失败: {e}")
+            import traceback
+            print(f"详细错误: {traceback.format_exc()}")
             return self._get_fallback_params(chapter_num)
 
     def _get_basic_chapter_params(self, chapter_num: int) -> Dict:
@@ -718,13 +731,19 @@ class NovelGenerator:
 
     def get_foreshadowing_guidance(self, chapter_number: int) -> str:
         """获取本章的铺垫指导"""
-        return self.foreshadowing_manager.generate_foreshadowing_prompt(chapter_number)
-    
+        guidance = self.foreshadowing_manager.generate_foreshadowing_prompt(chapter_number)
+        if not guidance or not guidance.strip():
+            guidance = "# 🎭 重要元素铺垫指导\n\n暂无需要铺垫的重要元素。"
+        return guidance
+
     def get_event_driven_guidance(self, chapter_number: int) -> str:
         """获取事件驱动指导"""
         if hasattr(self, 'event_driven_manager'):
-            return self.event_driven_manager.generate_event_driven_prompt(chapter_number)
-        return ""
+            guidance = self.event_driven_manager.generate_event_driven_prompt(chapter_number)
+            if not guidance or not guidance.strip():
+                guidance = "# 🎯 事件驱动写作指导\n\n本章为普通主线推进章节。"
+            return guidance
+        return "# 🎯 事件驱动写作指导\n\n本章为普通主线推进章节。"
 
     def get_previous_chapter_ending(self, current_chapter: int) -> str:
         """获取上一章的结尾内容，用于衔接"""
@@ -849,6 +868,13 @@ class NovelGenerator:
             # 添加伏笔指导
             foreshadowing_guidance = self.get_foreshadowing_guidance(chapter_num)
 
+            # 确保指导内容不为空
+            if not event_driven_guidance or not event_driven_guidance.strip():
+                event_driven_guidance = "# 🎯 事件驱动写作指导\n\n本章为普通主线推进章节。"
+            
+            if not foreshadowing_guidance or not foreshadowing_guidance.strip():
+                foreshadowing_guidance = "# 🎭 重要元素铺垫指导\n\n暂无需要铺垫的重要元素。"
+
             # 基础参数
             params = {
                 "chapter_number": chapter_num,
@@ -923,7 +949,7 @@ class NovelGenerator:
         return self.quality_assessor.optimize_chapter_content(optimization_params)
         
     def generate_and_optimize_chapter(self, chapter_number: int, total_chapters: int) -> Optional[Dict]:
-        """生成并优化章节内容"""
+        """生成并优化章节内容 - 严格两步法"""
         print(f"生成第{chapter_number}章...")
 
         # 使用安全的参数获取方法
@@ -933,37 +959,46 @@ class NovelGenerator:
             print(f"❌ 第{chapter_number}章参数获取失败")
             return None
         
-        # 验证必需参数
-        required_keys = ['chapter_number', 'total_chapters', 'novel_title', 'novel_synopsis', 
-                        'worldview_info', 'character_info', 'writing_plan_info', 'event_driven_guidance','foreshadowing_guidance',
-                        'previous_chapters_summary', 'main_plot_progress', 'plot_direction',
-                        'chapter_connection_note']
+        # 调试：打印参数内容
+        print(f"  🔍 参数检查 - foreshadowing_guidance: '{chapter_params.get('foreshadowing_guidance', 'NOT_FOUND')}'")
+        print(f"  🔍 参数检查 - event_driven_guidance: '{chapter_params.get('event_driven_guidance', 'NOT_FOUND')}'")
         
-        missing_keys = [key for key in required_keys if key not in chapter_params or not chapter_params[key]]
-        if missing_keys:
-            print(f"❌ 第{chapter_number}章缺少必需参数: {missing_keys}")
-            # 尝试修复缺失的参数
-            for key in missing_keys:
-                if key == 'event_driven_guidance':
-                    chapter_params[key] = self.get_event_driven_guidance(chapter_number)
-                elif key == 'foreshadowing_guidance':
-                    chapter_params[key] = self.get_foreshadowing_guidance(chapter_number)
-                elif key == 'previous_chapters_summary':
-                    chapter_params[key] = self._get_cached_previous_summary(chapter_number)
-                elif key == 'plot_direction':
-                    plot_dir = self.get_plot_direction_for_chapter(chapter_number, total_chapters)
-                    chapter_params[key] = plot_dir["plot_direction"]
-                elif key == 'main_plot_progress':
-                    plot_dir = self.get_plot_direction_for_chapter(chapter_number, total_chapters)
-                    chapter_params[key] = plot_dir["main_plot_progress"]
-                elif key == 'chapter_connection_note':
-                    chapter_params[key] = self.get_chapter_connection_note(chapter_number)
-            
-            # 再次检查
-            missing_keys = [key for key in required_keys if key not in chapter_params or not chapter_params[key]]
-            if missing_keys:
-                print(f"❌ 第{chapter_number}章参数修复失败，仍然缺少: {missing_keys}")
-                return None
+        # 修复参数验证逻辑
+        required_keys = ['chapter_number', 'total_chapters', 'novel_title', 'novel_synopsis', 
+                        'worldview_info', 'character_info', 'writing_plan_info']
+        
+        # 这些参数可以有默认值
+        optional_keys = {
+            'event_driven_guidance': "# 🎯 事件驱动写作指导\n\n本章为普通主线推进章节。",
+            'foreshadowing_guidance': "# 🎭 重要元素铺垫指导\n\n暂无需要铺垫的重要元素。",
+            'previous_chapters_summary': "这是开篇第一章，需要建立故事基础。",
+            'main_plot_progress': "推进主线剧情",
+            'plot_direction': "推进故事情节发展", 
+            'chapter_connection_note': "建立故事基础",
+            'character_development_focus': "展示主角特点"
+        }
+        
+        # 检查必需参数
+        missing_required = [key for key in required_keys if key not in chapter_params]
+        if missing_required:
+            print(f"❌ 第{chapter_number}章缺少必需参数: {missing_required}")
+            return None
+        
+        # 确保可选参数都有值
+        for key, default_value in optional_keys.items():
+            if key not in chapter_params or not chapter_params[key]:
+                chapter_params[key] = default_value
+                print(f"  ⚠️  设置默认值 for {key}")
+        
+        # 再次验证所有参数
+        all_keys = required_keys + list(optional_keys.keys())
+        still_missing = [key for key in all_keys if key not in chapter_params or not chapter_params[key]]
+        
+        if still_missing:
+            print(f"❌ 第{chapter_number}章参数最终验证失败，仍然缺少: {still_missing}")
+            return None
+        
+        print(f"  ✅ 第{chapter_number}章所有参数验证通过")
         
         # 确定本章重点
         chapter_focus = self.get_chapter_focus(chapter_number, total_chapters)
@@ -974,7 +1009,7 @@ class NovelGenerator:
             main_character_instruction = f"\n# 主角名字\n**主角**: {self.novel_data['custom_main_character_name']} - 请确保在对话和叙述中正确使用这个名字"
             chapter_params['main_character_instruction'] = main_character_instruction
         
-        # 首次生成
+        # 使用严格的两步法生成章节内容
         chapter_data = self.content_generator.generate_chapter_content(chapter_params)
         if not chapter_data:
             print(f"✗ 第{chapter_number}章生成失败")

@@ -58,7 +58,7 @@ class ProjectManager:
             return None
     
     def save_single_chapter(self, novel_title: str, chapter_number: int, chapter_data: Dict):
-        """保存单章内容"""
+        """保存单章内容 - 包含设计方案"""
         safe_title = re.sub(r'[\\/*?:"<>|]', "_", novel_title)
         chapter_dir = f"小说项目/{safe_title}_章节"
         os.makedirs(chapter_dir, exist_ok=True)
@@ -70,6 +70,9 @@ class ProjectManager:
             "word_count": chapter_data.get("word_count", 0),
             "quality_assessment": chapter_data.get("quality_assessment", {}),
             "optimization_info": chapter_data.get("optimization_info", {}),
+            "chapter_design": chapter_data.get("chapter_design", {}),  # 保存设计方案
+            "design_followed": chapter_data.get("design_followed", True),  # 是否遵循设计方案
+            "base_settings_used": chapter_data.get("base_settings_used", {}),  # 基础设定使用情况
             "generation_time": datetime.now().isoformat()
         }
         

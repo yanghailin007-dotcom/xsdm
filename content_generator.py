@@ -269,11 +269,66 @@ class ContentGenerator:
             return content
 
     def generate_chapter_content(self, chapter_params: Dict) -> Optional[Dict]:
+        """生成章节内容 - 严格两步法：先设计方案，再生成内容"""
         required_keys = ['chapter_number', 'total_chapters', 'novel_title', 'novel_synopsis', 
                         'worldview_info', 'character_info', 'writing_plan_info', 'event_driven_guidance','foreshadowing_guidance',
                         'previous_chapters_summary', 'main_plot_progress', 'plot_direction',
                         'chapter_connection_note']
         
+        # 参数验证和修复逻辑保持不变...
+        
+        try:
+            # 第一步：生成章节设计方案
+            chapter_design = self.generate_chapter_design(chapter_params)
+            if not chapter_design:
+                print(f"  ❌ 设计方案生成失败，无法继续生成章节内容")
+                return None
+            
+            # 第二步：根据设计方案生成内容
+            chapter_content = self.generate_chapter_content_from_design(chapter_params, chapter_design)
+            if not chapter_content:
+                print(f"  ❌ 基于设计的内容生成失败")
+                return None
+                
+            return chapter_content
+                
+        except Exception as e:
+            print(f"❌ 生成章节内容时出错: {e}")
+            return None
+
+    def generate_chapter_design(self, chapter_params: Dict) -> Optional[Dict]:
+        """生成章节详细设计方案"""
+        try:
+            # 使用 chapter_design 提示词生成设计方案
+            design_prompt = self.config["prompts"]["chapter_design"]
+            user_prompt = design_prompt.format(**chapter_params)
+            
+            print(f"  📝 生成第{chapter_params['chapter_number']}章设计方案...")
+            design_result = self.api_client.generate_content_with_retry(
+                "chapter_design", 
+                user_prompt, 
+                purpose=f"制定第{chapter_params['chapter_number']}章设计方案"
+            )
+            
+            if design_result:
+                print(f"  ✅ 第{chapter_params['chapter_number']}章设计方案生成成功")
+                return design_result
+            else:
+                print(f"  ❌ 第{chapter_params['chapter_number']}章设计方案生成失败")
+                return None
+                
+        except Exception as e:
+            print(f"  ❌ 生成章节设计方案时出错: {e}")
+            return None
+
+    def generate_chapter_content(self, chapter_params: Dict) -> Optional[Dict]:
+        """生成章节内容 - 严格两步法：先设计方案，再生成内容"""
+        required_keys = ['chapter_number', 'total_chapters', 'novel_title', 'novel_synopsis', 
+                        'worldview_info', 'character_info', 'writing_plan_info', 'event_driven_guidance','foreshadowing_guidance',
+                        'previous_chapters_summary', 'main_plot_progress', 'plot_direction',
+                        'chapter_connection_note']
+        
+        # 参数验证和修复逻辑
         missing_keys = [key for key in required_keys if key not in chapter_params]
         if missing_keys:
             for key in missing_keys:
@@ -295,27 +350,72 @@ class ContentGenerator:
                     chapter_params[key] = "# 🎯 事件驱动写作指导\n\n本章为普通主线推进章节。"
         
         try:
-            safe_params = chapter_params.copy()
-            safe_params.setdefault('major_event_info', '')
-            safe_params.setdefault('event_specific_requirements', '')
-            safe_params.setdefault('foreshadowing_guidance', '')
-            safe_params.setdefault('character_development_focus', '')
-            safe_params.setdefault('main_character_instruction', '')
-            safe_params.setdefault('event_driven_guidance', '')
+            # 第一步：生成章节设计方案
+            print(f"  📝 生成第{chapter_params['chapter_number']}章设计方案...")
+            chapter_design = self.generate_chapter_design(chapter_params)
+            if not chapter_design:
+                print(f"  ❌ 第{chapter_params['chapter_number']}章设计方案生成失败，终止生成")
+                return None
             
-            prompt_template = self.config["prompts"]["chapter_generation"]
-            user_prompt = prompt_template.format(**safe_params)
+            # 第二步：根据设计方案生成内容
+            print(f"  ✍️ 根据设计方案生成第{chapter_params['chapter_number']}章内容...")
+            chapter_content = self.generate_chapter_content_from_design(chapter_params, chapter_design)
+            if not chapter_content:
+                print(f"  ❌ 第{chapter_params['chapter_number']}章内容生成失败")
+                return None
             
-            result = self.api_client.generate_content_with_retry(
-                "chapter_generation", 
+            print(f"  ✅ 第{chapter_params['chapter_number']}章生成成功")
+            return chapter_content
+                
+        except Exception as e:
+            print(f"❌ 生成第{chapter_params['chapter_number']}章内容时出错: {e}")
+            return None
+        
+    def generate_chapter_content_from_design(self, chapter_params: Dict, chapter_design: Dict) -> Optional[Dict]:
+        """根据设计方案生成章节内容"""
+        try:
+            # 准备内容生成参数，包含所有基础设定
+            content_params = chapter_params.copy()
+            content_params["chapter_design"] = json.dumps(chapter_design, ensure_ascii=False, indent=2)
+            
+            # 确保所有基础设定参数都存在
+            required_base_params = [
+                'worldview_info', 'character_info', 'writing_plan_info',
+                'novel_title', 'novel_synopsis', 'main_character_instruction'
+            ]
+            
+            for param in required_base_params:
+                if param not in content_params or not content_params[param]:
+                    # 设置默认值或从其他来源获取
+                    if param == 'main_character_instruction' and not content_params.get(param):
+                        content_params[param] = ""
+            
+            # 使用内容生成提示词
+            content_prompt = self.config["prompts"]["chapter_content_generation"]
+            user_prompt = content_prompt.format(**content_params)
+            
+            print(f"  ✍️ 根据设计方案生成第{chapter_params['chapter_number']}章内容...")
+            content_result = self.api_client.generate_content_with_retry(
+                "chapter_content_generation", 
                 user_prompt, 
-                purpose=f"生成第{safe_params['chapter_number']}章内容"
+                purpose=f"生成第{chapter_params['chapter_number']}章内容"
             )
             
-            return result
-        except KeyError as e:
-            print(f"❌ 格式化提示词时缺少参数: {e}")
-            return None
+            if content_result:
+                # 记录使用的设计方案和基础设定
+                content_result["chapter_design"] = chapter_design
+                content_result["design_followed"] = True
+                content_result["base_settings_used"] = {
+                    "worldview": bool(chapter_params.get("worldview_info")),
+                    "character": bool(chapter_params.get("character_info")),
+                    "writing_plan": bool(chapter_params.get("writing_plan_info"))
+                }
+                print(f"  ✅ 第{chapter_params['chapter_number']}章内容生成成功")
+                return content_result
+            else:
+                print(f"  ❌ 第{chapter_params['chapter_number']}章内容生成失败")
+                return None
+                
         except Exception as e:
-            print(f"❌ 生成章节内容时出错: {e}")
-            return None
+            print(f"  ❌ 根据设计方案生成章节内容时出错: {e}")
+            return None        

@@ -173,54 +173,144 @@ CONFIG = {
         }
     ]
 }""",
-        "chapter_generation": """你是一位优秀的网络小说作家。请根据以下故事框架，直接生成第{chapter_number}章的完整内容。
+        "chapter_design": """你是一位资深的网络小说策划编辑。请为第{chapter_number}章制定详细的写作设计方案。
 
-# 故事信息
-**标题**: {novel_title}
-**简介**: {novel_synopsis}
-**世界观**: {worldview_info}
+# 故事基础设定（必须严格遵循）
+**小说标题**: {novel_title}
+**小说简介**: {novel_synopsis}
+**世界观设定**: {worldview_info}
 **角色设定**: {character_info}
 **写作计划**: {writing_plan_info}
-**前情提要**: {previous_chapters_summary}
+{main_character_instruction}
 
-事件驱动指导
+# 上下文信息
+**前情提要**: {previous_chapters_summary}
+**本章定位**: 第{chapter_number}/{total_chapters}章 - {plot_direction}
+**重点推进**: {main_plot_progress}
+**角色发展重点**: {character_development_focus}
+**衔接要求**: {chapter_connection_note}
+
+# 事件驱动指导
 {event_driven_guidance}
 
 # 伏笔铺垫指导
 {foreshadowing_guidance}
 
-# 本章定位
-第{chapter_number}/{total_chapters}章 - {plot_direction}
-**重点推进**: {main_plot_progress}
-**角色发展**: {character_development_focus}
-**衔接要求**: {chapter_connection_note}
+# 设计要求
+请制定详细的章节设计方案，必须严格遵循上述基础设定，包含以下要素：
+
+## 1. 情节结构设计
+- **开场场景**: 如何承接上一章结尾，吸引读者
+- **冲突发展**: 本章的核心冲突和矛盾推进，必须与世界观和角色设定一致
+- **高潮设置**: 本章的情感高潮或转折点
+- **结尾悬念**: 如何设置悬念吸引下一章阅读
+
+## 2. 角色表现设计
+- **主角发展**: 主角在本章的性格展示和成长，必须符合角色设定
+- **配角互动**: 重要配角的出场和作用，保持角色一致性
+- **对话设计**: 关键对话的内容和目的，体现角色性格
+
+## 3. 场景与环境设计
+- **主要场景**: 本章发生的主要地点和环境，必须符合世界观
+- **氛围营造**: 如何通过环境描写营造氛围
+- **场景转换**: 不同场景之间的自然过渡
+
+## 4. 写作技巧设计
+- **叙事视角**: 采用的叙事角度和手法
+- **节奏控制**: 快慢节奏的分布和把控
+- **细节描写**: 重点细节的选择和描写方式
+
+## 5. 伏笔与铺垫设计
+- **新伏笔设置**: 本章需要埋设的新伏笔，与整体情节协调
+- **旧伏笔回收**: 需要回收的前期伏笔
+- **线索安排**: 重要线索的分布和揭示
+
+## 6. 设定一致性检查
+- **世界观一致性**: 确保所有元素符合世界观设定
+- **角色一致性**: 确保角色行为符合性格设定
+- **情节连贯性**: 确保与前后章节衔接自然
+
+# 输出格式
+{{
+    "chapter_number": {chapter_number},
+    "design_overview": "本章设计总体概述，说明如何体现基础设定",
+    "plot_structure": {{
+        "opening_scene": "开场场景设计（包含如何承接上一章）",
+        "conflict_development": "冲突发展设计（基于世界观和角色）", 
+        "climax_point": "高潮点设计（情感或情节转折）",
+        "ending_hook": "结尾悬念设计（吸引下一章）"
+    }},
+    "character_performance": {{
+        "main_character_development": "主角发展设计（必须符合角色设定）",
+        "supporting_characters_interaction": "配角互动设计（保持角色一致性）",
+        "key_dialogues": ["关键对话1（体现角色性格）", "关键对话2"]
+    }},
+    "scene_environment": {{
+        "main_scenes": ["场景1（符合世界观）", "场景2"],
+        "atmosphere_building": "氛围营造设计",
+        "scene_transitions": "场景转换设计"
+    }},
+    "writing_techniques": {{
+        "narrative_perspective": "叙事视角设计",
+        "pace_control": "节奏控制设计", 
+        "detail_description": "细节描写重点"
+    }},
+    "foreshadowing_plan": {{
+        "new_foreshadowing": ["新伏笔1", "新伏笔2"],
+        "old_foreshadowing_reveal": ["回收伏笔1", "回收伏笔2"],
+        "clue_arrangement": "线索安排设计"
+    }},
+    "consistency_check": {{
+        "worldview_consistency": "世界观一致性说明",
+        "character_consistency": "角色一致性说明", 
+        "plot_continuity": "情节连贯性说明"
+    }},
+    "chapter_focus": "本章核心重点（必须包含：{main_plot_progress}）",
+    "word_count_target": 2500,
+    "setting_adherence": "如何遵循基础设定的说明"
+}}""",
+
+        "chapter_content_generation": """你是一位优秀的网络小说作家。请根据以下详细设计方案和基础设定，生成第{chapter_number}章的完整内容。
+
+# 基础设定（必须严格遵循）
+**小说标题**: {novel_title}
+**小说简介**: {novel_synopsis}
+{main_character_instruction}
+
+# 章节详细设计方案
+{chapter_design}
 
 # 核心写作要求
 
-## 1. 标题规范
+## 1. 严格遵循设定
+- **世界观一致性**: 所有元素必须符合世界观设定：{worldview_info}
+- **角色一致性**: 角色行为必须符合角色设定：{character_info}
+- **情节连贯性**: 必须遵循写作计划：{writing_plan_info}
+
+## 2. 标题规范
 - 8-15字，吸引力强，与内容高度相关
 - 确保唯一性，不与已有章节重复
 - 体现核心情节或转折点
 
-## 2. 内容结构
+## 3. 内容结构
 - **字数**: 2100-3000字
 - **分段**: 短小精悍，适合手机阅读
 - **开头**: 直接承接上一章结尾，避免断裂
 - **结尾**: 设置悬念，吸引继续阅读
 
-## 3. 叙事风格
+## 4. 叙事风格
 - **对话占比**: 50%以上，生活化，有火药味
 - **爽点设置**: 至少1个小爽点（打脸、发现线索等）
 - **网络热梗**: 自然融入，古今碰撞，不生硬
 - **情感共鸣**: 日常场景中融入引发共鸣的细节
 
-## 4. 质量控制
-- 严格遵循已有设定，不擅自添加重大新设定
+## 5. 质量控制
+- 严格遵循设计方案和基础设定，不擅自添加重大新设定
 - 保持角色性格和世界观一致性
 - 避免AI痕迹：不用标记性语言、机械化结构
 - 语言自然流畅，避免模式化表达
 
-5. 章节衔接控制：
+## 6. 章节衔接控制
 - **开头衔接**: 本章开头必须自然承接上一章的结尾，不能突兀
 - **情节连贯**: 确保时间、地点、人物状态的连续性
 - **悬念处理**: 妥善处理上一章留下的悬念，同时设置新的悬念
@@ -236,12 +326,6 @@ CONFIG = {
 - **悬念设置**：关键信息或悬念点可单独成段强调
 - **动作描写**：重要动作描写可独立分段突出视觉效果
 
-# 伏笔和铺垫技巧
-1. **势力铺垫**: 通过路人对话、新闻报道、历史背景等方式提前介绍
-2. **角色铺垫**: 通过他人评价、相关事件、背景故事等方式建立期待
-3. **物品铺垫**: 通过传说描述、功能暗示、获取线索等方式提前引入
-4. **概念铺垫**: 通过世界观介绍、角色讨论、事件关联等方式自然呈现
-
 # 输出格式
 {{
     "chapter_number": {chapter_number},
@@ -252,8 +336,11 @@ CONFIG = {
     "character_development": "角色成长变化", 
     "key_events": ["关键事件1", "关键事件2"],
     "next_chapter_hook": "下一章悬念",
-    "connection_to_previous": "与上一章的衔接"
-}}""",
+    "connection_to_previous": "与上一章的衔接",
+    "design_followed": "是否遵循设计方案",
+    "setting_adherence": "基础设定遵循情况"
+}}
+""",
         
         "chapter_quality_assessment": """你是一位资深的网络小说编辑和质量评估专家。请对以下章节内容进行专业评估。
 
