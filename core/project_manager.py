@@ -1,4 +1,4 @@
-"""项目管理器类"""
+"""项目管理器类 - 修复版本"""
 
 import os
 import json
@@ -49,13 +49,50 @@ class ProjectManager:
         return projects
     
     def load_project(self, filename: str) -> Optional[Dict]:
-        """加载项目数据 - 修复版本：从章节文件加载所有具体内容"""
+        """加载项目数据 - 完整版本：包含所有项目数据"""
         try:
             with open(f"小说项目/{filename}", 'r', encoding='utf-8') as f:
                 project_data = json.load(f)
             
+            # 构建完整的novel_data结构
+            novel_data = {
+                # 基本信息
+                "novel_title": project_data["novel_info"]["title"],
+                "novel_synopsis": project_data["novel_info"]["synopsis"],
+                "creative_seed": project_data["novel_info"]["creative_seed"],
+                "selected_plan": project_data["novel_info"]["selected_plan"],
+                "category": project_data["novel_info"].get("category", "未分类"),
+                
+                # 添加novel_info键
+                "novel_info": project_data["novel_info"],
+
+                # 核心数据 - 确保这些关键数据被加载
+                "market_analysis": project_data.get("market_analysis", {}),
+                "overall_stage_plan": project_data.get("overall_stage_plans", {}),
+                "stage_writing_plans": project_data.get("stage_writing_plans", {}),
+                "core_worldview": project_data.get("core_worldview", {}),
+                "character_design": project_data.get("character_design", {}),
+                
+                # 进度数据
+                "current_progress": project_data.get("progress", {
+                    "completed_chapters": 0,
+                    "total_chapters": 0,
+                    "stage": "大纲阶段",
+                    "current_stage": "第一阶段"
+                }),
+                
+                # 初始化其他必要字段
+                "generated_chapters": {},
+                "plot_progression": project_data.get("plot_progression", []),
+                "subplot_tracking": project_data.get("subplot_settings", {
+                    "ratio": {"emotional": 0.3, "foreshadowing": 0.3},
+                    "subplot_chapters": {"emotional": [], "foreshadowing": []}
+                }),
+                "quality_statistics": project_data.get("quality_statistics", {})
+            }
+            
             # 加载章节具体内容
-            safe_title = re.sub(r'[\\/*?:"<>|]', "_", project_data["novel_info"]["title"])
+            safe_title = re.sub(r'[\\/*?:"<>|]', "_", novel_data["novel_title"])
             chapters_dir = f"小说项目/{safe_title}_章节"
             
             if os.path.exists(chapters_dir):
@@ -67,7 +104,6 @@ class ProjectManager:
                                 chapter_data = json.load(f)
                                 chapter_num = chapter_data.get("chapter_number")
                                 if chapter_num:
-                                    # 确保加载所有章节特定的信息
                                     generated_chapters[chapter_num] = {
                                         "chapter_title": chapter_data.get("chapter_title", ""),
                                         "content": chapter_data.get("content", ""),
@@ -88,17 +124,15 @@ class ProjectManager:
                         except Exception as e:
                             print(f"加载章节文件 {chapter_file} 失败: {e}")
                 
-                project_data["generated_chapters"] = generated_chapters
+                novel_data["generated_chapters"] = generated_chapters
 
-            # 新增：加载阶段计划数据
-            project_data["stage_writing_plans"] = project_data.get("stage_writing_plans", {})
-            project_data["overall_stage_plans"] = project_data.get("overall_stage_plan")
-            
-            print(f"✓ 加载阶段计划数据: {len(project_data['stage_writing_plans'])} 个阶段的计划")
-            for stage_name in project_data["stage_writing_plans"].keys():
-                print(f"  - {stage_name}")
+            print(f"✓ 项目加载成功: {novel_data['novel_title']}")
+            print(f"  - 世界观数据: {len(novel_data['core_worldview'])} 项")
+            print(f"  - 角色设定: {len(novel_data['character_design'])} 个角色")
+            print(f"  - 写作计划: {len(novel_data['stage_writing_plans'])} 个阶段")
+            print(f"  - 已生成章节: {len(novel_data['generated_chapters'])} 章")
 
-            return project_data
+            return novel_data
         except Exception as e:
             print(f"❌❌ 加载项目失败: {e}")
             return None
@@ -145,13 +179,14 @@ class ProjectManager:
             print(f"保存第{chapter_number}章失败: {e}")
     
     def save_project_progress(self, novel_data: Dict):
-        """保存项目整体进度 - 修复版本：不保存具体章节内容"""
+        """保存项目整体进度 - 完整版本：保存所有必要数据"""
         safe_title = re.sub(r'[\\/*?:"<>|]', "_", novel_data["novel_title"])
         os.makedirs("小说项目", exist_ok=True)
         
-        # 计算质量统计 - 只使用基本统计信息
-        quality_stats = self.calculate_basic_quality_statistics(novel_data)
+        # 计算质量统计
+        quality_stats = self.calculate_quality_statistics(novel_data)
         
+        # 构建完整的项目数据
         data = {
             "novel_info": {
                 "title": novel_data["novel_title"],
@@ -160,13 +195,15 @@ class ProjectManager:
                 "selected_plan": novel_data["selected_plan"],
                 "category": novel_data.get("category", "未分类") 
             },
-            "market_analysis": novel_data["market_analysis"],
-            "overall_stage_plans": novel_data["overall_stage_plan"],
-            "stage_writing_plans": novel_data.get("stage_writing_plans", {}),
-            "core_worldview": novel_data["core_worldview"],
-            "character_design": novel_data["character_design"],
             
-            # 只保存章节的基本索引信息，不保存具体内容
+            # 核心数据 - 确保这些关键数据被保存
+            "market_analysis": novel_data.get("market_analysis", {}),
+            "overall_stage_plans": novel_data.get("overall_stage_plan", {}),
+            "stage_writing_plans": novel_data.get("stage_writing_plans", {}),
+            "core_worldview": novel_data.get("core_worldview", {}),
+            "character_design": novel_data.get("character_design", {}),
+            
+            # 章节索引信息
             "chapter_index": [
                 {
                     "chapter_number": chapter_num,
@@ -175,29 +212,33 @@ class ProjectManager:
                     "quality_score": chapter_data.get("quality_assessment", {}).get("overall_score", 0),
                     "word_count": chapter_data.get("word_count", 0)
                 }
-                for chapter_num, chapter_data in sorted(novel_data["generated_chapters"].items())
+                for chapter_num, chapter_data in sorted(novel_data.get("generated_chapters", {}).items())
             ],
             
-            # 只保存基本的质量记录
+            # 质量统计
             "quality_statistics": quality_stats,
-            "progress": novel_data["current_progress"],
-            "plot_progression": [
-                {
-                    "chapter": item["chapter"],
-                    "title": item["title"],
-                    "key_events_count": len(item.get("key_events", []))
-                }
-                for item in novel_data.get("plot_progression", [])
-            ],
+            
+            # 进度信息
+            "progress": novel_data.get("current_progress", {
+                "completed_chapters": 0,
+                "total_chapters": 0,
+                "stage": "大纲阶段",
+                "current_stage": "第一阶段"
+            }),
+            
+            # 情节进展
+            "plot_progression": novel_data.get("plot_progression", []),
+            
+            # 支线设置
             "subplot_settings": {
                 "ratio": novel_data.get("subplot_tracking", {}).get("ratio", {"emotional": 0.3, "foreshadowing": 0.3}),
-                "emotional_chapters_count": len(novel_data.get("subplot_tracking", {}).get("subplot_chapters", {}).get("emotional", [])),
-                "foreshadowing_chapters_count": len(novel_data.get("subplot_tracking", {}).get("subplot_chapters", {}).get("foreshadowing", []))
+                "subplot_chapters": novel_data.get("subplot_tracking", {}).get("subplot_chapters", {"emotional": [], "foreshadowing": []})
             },
+            
             "timestamp": datetime.now().isoformat(),
             "file_structure": {
                 "chapters_directory": f"{safe_title}_章节",
-                "total_chapters": len(novel_data["generated_chapters"])
+                "total_chapters": len(novel_data.get("generated_chapters", {}))
             },
             "category_info": {
                 "name": novel_data.get("category", "未分类"),
@@ -209,43 +250,16 @@ class ProjectManager:
             with open(f"小说项目/{safe_title}_项目信息.json", 'w', encoding='utf-8') as f:
                 json.dump(data, f, ensure_ascii=False, indent=2)
             print(f"✓ 项目进度已保存: 小说项目/{safe_title}_项目信息.json")
+            print(f"  - 保存了世界观数据: {len(data['core_worldview'])} 项")
+            print(f"  - 保存了角色设定: {len(data['character_design'])} 个角色")
+            print(f"  - 保存了写作计划: {len(data['stage_writing_plans'])} 个阶段")
         except Exception as e:
             print(f"保存项目信息文件失败: {e}")
 
-    def calculate_basic_quality_statistics(self, novel_data: Dict) -> Dict:
-        """计算基本质量统计信息 - 不包含详细内容"""
-        if not novel_data["generated_chapters"]:
-            return {}
-        
-        scores = []
-        optimized_count = 0
-        
-        for chapter_num, chapter_data in novel_data["generated_chapters"].items():
-            assessment = chapter_data.get("quality_assessment", {})
-            overall_score = assessment.get("overall_score", 0)
-            scores.append(overall_score)
-            
-            if chapter_data.get("optimization_info", {}).get("optimized", False):
-                optimized_count += 1
-        
-        if not scores:
-            return {}
-        
-        avg_score = sum(scores) / len(scores)
-        
-        return {
-            "total_chapters": len(scores),
-            "average_score": round(avg_score, 2),
-            "max_score": max(scores) if scores else 0,
-            "min_score": min(scores) if scores else 0,
-            "optimized_chapters": optimized_count,
-            "optimization_rate": round(optimized_count / len(scores) * 100, 1) if scores else 0,
-            "last_assessment_time": datetime.now().isoformat()
-        }    
-    # 在 project_manager.py 中修复 calculate_quality_statistics 方法
     def calculate_quality_statistics(self, novel_data: Dict) -> Dict:
-        """计算质量统计信息 - 修复版本"""
-        if not novel_data["generated_chapters"]:
+        """计算质量统计信息 - 完整版本"""
+        generated_chapters = novel_data.get("generated_chapters", {})
+        if not generated_chapters:
             return {}
         
         scores = []
@@ -260,7 +274,7 @@ class ProjectManager:
             "emotional_impact": []
         }
         
-        for chapter_num, chapter_data in novel_data["generated_chapters"].items():
+        for chapter_num, chapter_data in generated_chapters.items():
             assessment = chapter_data.get("quality_assessment", {})
             overall_score = assessment.get("overall_score", 0)
             scores.append(overall_score)
@@ -288,8 +302,8 @@ class ProjectManager:
         min_score = min(scores)
         avg_ai_score = sum(ai_scores) / len(ai_scores) if ai_scores else 2
         
-        # 修复：使用正确的配置路径
-        quality_thresholds  = self.config.get("optimization_settings", {}).get("quality_thresholds", {
+        # 使用配置的质量阈值
+        quality_thresholds = self.config.get("optimization_settings", {}).get("quality_thresholds", {
             "excellent": 9.0,
             "good": 8.5,
             "acceptable": 8.0,
@@ -317,7 +331,7 @@ class ProjectManager:
         avg_detailed_scores = {}
         for key, values in detailed_scores.items():
             if values:
-                avg_detailed_scores[key] = sum(values) / len(values)
+                avg_detailed_scores[key] = round(sum(values) / len(values), 2)
         
         return {
             "total_chapters_assessed": len(scores),
@@ -350,7 +364,14 @@ class ProjectManager:
                     chapter.get('word_count', 0) 
                     for chapter in novel_data["generated_chapters"].values()
                 ),
-                "selected_plan": novel_data["selected_plan"]
+                "selected_plan": novel_data["selected_plan"],
+                "creative_seed": novel_data["creative_seed"]
+            },
+            "worldview_summary": novel_data.get("core_worldview", {}),
+            "character_summary": novel_data.get("character_design", {}),
+            "writing_plan_summary": {
+                "total_stages": len(novel_data.get("stage_writing_plans", {})),
+                "current_stage": novel_data["current_progress"].get("current_stage", "第一阶段")
             },
             "chapters_index": [
                 {
