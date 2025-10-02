@@ -331,7 +331,7 @@ CONFIG = {
 **角色设定**: 
 {character_info}
 **写作计划**: 
-{writing_plan_info}
+{stage_writing_plan}
 {main_character_instruction}
 
 # 上下文信息
@@ -446,7 +446,7 @@ CONFIG = {
 - **角色一致性**: 角色行为必须符合角色设定：
 {character_info}
 - **情节连贯性**: 必须遵循写作计划：
-{writing_plan_info}
+{stage_writing_plan}
 
 ## 2. 标题规范
 - 8-15字，吸引力强，与内容高度相关

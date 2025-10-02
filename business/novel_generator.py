@@ -72,27 +72,16 @@ class NovelGenerator:
             "optimization_history": {},
             "previous_chapter_endings": {},
             "is_resuming": False,
-            "resume_data": None
+            "resume_data": None,
+            "used_chapter_titles": set(),
+            "subplot_tracking": {
+                "foreshadowing_lines": [],
+                "emotional_lines": [],
+                "subplot_chapters": {"foreshadowing": [], "emotional": []},
+                "ratio": {"main": 0.7, "emotional": 0.15, "foreshadowing": 0.15}
+            }
         }
-        self.novel_data["used_chapter_titles"] = set()
 
-        self.subplot_ratio = {
-            "main": 0.7,
-            "emotional": 0.15,
-            "foreshadowing": 0.15
-        }
-
-        # 暗线剧情跟踪
-        self.novel_data["subplot_tracking"] = {
-            "foreshadowing_lines": [],
-            "emotional_lines": [],
-            "subplot_chapters": {
-                "foreshadowing": [],
-                "emotional": []
-            },
-            "ratio": self.subplot_ratio
-        }
-        
         # 初始化
         self._initialize_subplot_plan()
         self._summary_cache = {}
@@ -240,15 +229,14 @@ class NovelGenerator:
                 return params
             else:
                 print(f"  ⚠️  批量参数准备失败，返回基础参数")
-                return self._get_basic_chapter_params(chapter_num)
+                return self._get_chapter_params(chapter_num)
         except Exception as e:
             print(f"❌ 准备章节参数失败: {e}")
             import traceback
             print(f"详细错误: {traceback.format_exc()}")
-            return self._get_fallback_params(chapter_num)
+            return ""
 
-    def _get_basic_chapter_params(self, chapter_num: int) -> Dict:
-        """获取基础章节参数"""
+    def _get_chapter_params(self, chapter_num: int) -> Dict:        
         plot_direction = self.get_plot_direction_for_chapter(chapter_num, self.novel_data["current_progress"]["total_chapters"])
         previous_summary = self._get_cached_previous_summary(chapter_num)
         
@@ -259,7 +247,7 @@ class NovelGenerator:
             "novel_synopsis": self.novel_data["novel_synopsis"],
             "worldview_info": json.dumps(self.novel_data["core_worldview"], ensure_ascii=False) if self.novel_data["core_worldview"] else "{}",
             "character_info": json.dumps(self.novel_data["character_design"], ensure_ascii=False) if self.novel_data["character_design"] else "{}",
-            "stage_writing_plan_info": json.dumps(self.novel_data["stage_writing_plan"], ensure_ascii=False) if self.novel_data["stage_writing_plan"] else "{}",
+            "stage_writing_plan": json.dumps(self.novel_data["stage_writing_plan"], ensure_ascii=False) if self.novel_data["stage_writing_plan"] else "{}",
             "previous_chapters_summary": previous_summary,
             "main_plot_progress": plot_direction["plot_direction"],
             "plot_direction": plot_direction["plot_direction"],
@@ -268,25 +256,6 @@ class NovelGenerator:
             "major_event_info": "",
             "event_specific_requirements": "",
             "foreshadowing_guidance": ""
-        }
-
-    def _get_fallback_params(self, chapter_num: int) -> Dict:
-        """获取降级参数（当所有方法都失败时使用）"""
-        return {
-            "chapter_number": chapter_num,
-            "total_chapters": self.novel_data["current_progress"]["total_chapters"],
-            "novel_title": self.novel_data["novel_title"],
-            "novel_synopsis": self.novel_data["novel_synopsis"],
-            "worldview_info": "{}",
-            "character_info": "{}", 
-            "stage_writing_plan_info": "{}",
-            "previous_chapters_summary": "这是开篇第一章，需要建立故事基础。",
-            "main_plot_progress": "推进主线剧情",
-            "plot_direction": "推进故事情节发展",
-            "chapter_connection_note": "建立故事基础",
-            "character_development_focus": "展示主角特点",
-            "major_event_info": "",
-            "event_specific_requirements": ""
         }
     
     def get_plot_direction_for_chapter(self, chapter_number: int, total_chapters: int) -> Dict[str, str]:
@@ -370,11 +339,85 @@ class NovelGenerator:
             return guidance
         return "# 🎯 事件驱动写作指导\n\n本章为普通主线推进章节。"
 
-    def get_previous_chapter_ending(self, current_chapter: int) -> str:
-        """获取上一章的结尾内容和悬念，用于衔接，特别关注结尾部分"""
+    def _extract_ending_content(self, content: str) -> str:
+        """提取内容结尾部分"""
+        content_length = len(content)
+        print(f"  📏 章节内容长度: {content_length}字符")
+        
+        # 尝试多种方法提取结尾
+        extraction_methods = [
+            self._extract_by_paragraphs,
+            self._extract_by_sentences,
+            self._extract_by_length
+        ]
+        
+        for method in extraction_methods:
+            try:
+                ending = method(content)
+                if ending and len(ending.strip()) > 50:
+                    print(f"  ✅ 使用方法 '{method.__name__}' 成功提取结尾: {ending[:100]}...")
+                    return ending
+            except Exception as e:
+                print(f"  ⚠️  方法 '{method.__name__}' 提取失败: {e}")
+                continue
+        
+        # 所有方法都失败，使用最后200字作为备选
+        fallback_ending = content[-200:] if content_length > 200 else content
+        print(f"  ⚠️  所有提取方法失败，使用备选结尾: {fallback_ending[:100]}...")
+        return fallback_ending
+
+    def _extract_by_paragraphs(self, content: str) -> str:
+        """通过段落分割提取结尾"""
+        paragraph_separators = ['\n\n', '\n', '。', '！', '？']
+        
+        for separator in paragraph_separators:
+            paragraphs = [p.strip() for p in content.split(separator) if p.strip()]
+            if len(paragraphs) >= 2:
+                ending_paragraphs = paragraphs[-2:] if len(paragraphs) >= 3 else paragraphs[-1:]
+                ending = separator.join(ending_paragraphs)
+                if len(ending) > 50:
+                    return ending
+        
+        return content[-300:] if len(content) > 300 else content
+
+    def _extract_by_sentences(self, content: str) -> str:
+        """通过句子分割提取结尾"""
+        sentence_endings = ['。', '！', '？', '……', '」', '」']
+        
+        last_end_pos = -1
+        for i in range(len(content)-1, max(0, len(content)-500), -1):
+            if content[i] in sentence_endings:
+                last_end_pos = i
+                break
+        
+        if last_end_pos != -1:
+            sentences = []
+            sentence_count = 0
+            for i in range(last_end_pos, max(0, last_end_pos-500), -1):
+                if content[i] in sentence_endings and i != last_end_pos:
+                    sentence_count += 1
+                    if sentence_count >= 2:
+                        return content[i+1:last_end_pos+1]
+            
+            return content[max(0, last_end_pos-200):last_end_pos+1]
+        
+        return content[-200:] if len(content) > 200 else content
+
+    def _extract_by_length(self, content: str) -> str:
+        """根据内容长度按比例提取结尾"""
+        content_length = len(content)
+        
+        if content_length > 3000:
+            return content[-500:]
+        elif content_length > 1500:
+            return content[-300:]
+        else:
+            return content[-200:]
+
+    def get_previous_chapter_content(self, current_chapter: int) -> Tuple[Optional[Dict], str]:
+        """获取上一章内容，返回内容和状态信息"""
         if current_chapter <= 1:
-            print(f"  📖 第{current_chapter}章是开篇第一章，无需获取前一章结尾")
-            return "这是开篇第一章，需要建立故事基础。"
+            return None, "开篇章节"
         
         prev_chapter = current_chapter - 1
         print(f"  🔍 开始获取第{prev_chapter}章的结尾内容...")
@@ -382,7 +425,6 @@ class NovelGenerator:
         # 尝试从内存或文件加载上一章内容
         prev_chapter_data = None
         if prev_chapter in self.novel_data["generated_chapters"]:
-            # 检查内存中的章节数据是否包含content内容
             chapter_data = self.novel_data["generated_chapters"][prev_chapter]
             if chapter_data and "content" in chapter_data and chapter_data["content"]:
                 print(f"  ✅ 第{prev_chapter}章已在内存中找到且包含内容")
@@ -404,11 +446,22 @@ class NovelGenerator:
             else:
                 print(f"  ❌ 第{prev_chapter}章从文件加载失败")
         
+        return prev_chapter_data, "加载成功" if prev_chapter_data else "加载失败"
+
+    def get_previous_chapter_ending(self, current_chapter: int) -> str:
+        """获取上一章的结尾内容和悬念，用于衔接"""
+        if current_chapter <= 1:
+            print(f"  📖 第{current_chapter}章是开篇第一章，无需获取前一章结尾")
+            return "这是开篇第一章，需要建立故事基础。"
+        
+        prev_chapter_data, status = self.get_previous_chapter_content(current_chapter)
+        
         if prev_chapter_data:
             chapter_summary = prev_chapter_data.get("plot_advancement") or prev_chapter_data.get("key_events", "")
-            chapter_ending = self.extract_chapter_ending(prev_chapter_data)
+            chapter_ending = self._extract_ending_content(prev_chapter_data.get("content", ""))
             next_chapter_hook = prev_chapter_data.get("next_chapter_hook", "")
-            self.novel_data["previous_chapter_endings"][prev_chapter] = {
+            
+            self.novel_data["previous_chapter_endings"][current_chapter-1] = {
                 "summary": chapter_summary,
                 "ending": chapter_ending,
                 "hook": next_chapter_hook
@@ -419,7 +472,6 @@ class NovelGenerator:
             ending_description = f"上一章结尾: {chapter_ending}" if chapter_ending else ""
             hook_description = f"上一章设置的悬念: {next_chapter_hook}" if next_chapter_hook else "上一章未明确设置悬念。"
             
-            # 组合所有信息
             result_parts = [summary_description]
             if ending_description:
                 result_parts.append(ending_description)
@@ -427,10 +479,10 @@ class NovelGenerator:
                 result_parts.append(hook_description)
                 
             result = "\n\n".join(result_parts)
-            print(f"  ✅ 第{prev_chapter}章结尾信息组合成功，长度: {result}字符")
+            print(f"  ✅ 第{current_chapter-1}章结尾信息组合成功，长度: {len(result)}字符")
             return result
         
-        error_msg = f"第{prev_chapter}章的内容无法加载，请确保该章已成功生成并保存。"
+        error_msg = f"第{current_chapter-1}章的内容无法加载，请确保该章已成功生成并保存。"
         print(f"  ❌❌ {error_msg}")
         print(f"  🔍 内存中的章节: {list(self.novel_data['generated_chapters'].keys())}")
         
@@ -445,120 +497,20 @@ class NovelGenerator:
             
         return error_msg
 
-    def extract_chapter_ending(self, chapter_data: dict) -> str:
-        """从章节内容中提取结尾部分（最后一段或关键结尾段落），增加错误处理和详细日志"""
-        content = chapter_data.get("content", "")
-        if not content:
-            print(f"  ❌ 章节内容为空，无法提取结尾")
-            return ""
-        
-        # 检查内容长度
-        content_length = len(content)
-        print(f"  📏 章节内容长度: {content_length}字符")
-        
-        # 尝试多种方法提取结尾
-        ending_extraction_methods = [
-            self._extract_by_paragraphs,
-            self._extract_by_sentences,
-            self._extract_by_length
-        ]
-        
-        for method in ending_extraction_methods:
-            try:
-                ending = method(content)
-                if ending and len(ending.strip()) > 50:  # 确保有足够的内容
-                    print(f"  ✅ 使用方法 '{method.__name__}' 成功提取结尾: {ending[:100]}...")
-                    return ending
-            except Exception as e:
-                print(f"  ⚠️  方法 '{method.__name__}' 提取失败: {e}")
-                continue
-        
-        # 所有方法都失败，使用最后200字作为备选
-        fallback_ending = content[-200:] if content_length > 200 else content
-        print(f"  ⚠️  所有提取方法失败，使用备选结尾: {fallback_ending[:100]}...")
-        return fallback_ending
-
-    def _extract_by_paragraphs(self, content: str) -> str:
-        """通过段落分割提取结尾"""
-        # 尝试多种段落分割方式
-        paragraph_separators = ['\n\n', '\n', '。', '！', '？']
-        
-        for separator in paragraph_separators:
-            paragraphs = [p.strip() for p in content.split(separator) if p.strip()]
-            if len(paragraphs) >= 2:
-                # 取最后1-2个段落
-                ending_paragraphs = paragraphs[-2:] if len(paragraphs) >= 3 else paragraphs[-1:]
-                ending = separator.join(ending_paragraphs)
-                if len(ending) > 50:  # 确保有足够的内容
-                    return ending
-        
-        # 如果所有分隔符都失败，使用最后300字符
-        return content[-300:] if len(content) > 300 else content
-
-    def _extract_by_sentences(self, content: str) -> str:
-        """通过句子分割提取结尾"""
-        # 中文句子结束标点
-        sentence_endings = ['。', '！', '？', '……', '」', '”']
-        
-        # 找到最后一个句子结束位置
-        last_end_pos = -1
-        for i in range(len(content)-1, max(0, len(content)-500), -1):
-            if content[i] in sentence_endings:
-                last_end_pos = i
-                break
-        
-        if last_end_pos != -1:
-            # 提取最后2-3个句子
-            sentences = []
-            sentence_count = 0
-            for i in range(last_end_pos, max(0, last_end_pos-500), -1):
-                if content[i] in sentence_endings and i != last_end_pos:
-                    sentence_count += 1
-                    if sentence_count >= 2:
-                        return content[i+1:last_end_pos+1]
-            
-            # 如果找不到足够的句子，返回最后一段
-            return content[max(0, last_end_pos-200):last_end_pos+1]
-        
-        # 找不到句子结束符，使用最后200字
-        return content[-200:] if len(content) > 200 else content
-
-    def _extract_by_length(self, content: str) -> str:
-        """根据内容长度按比例提取结尾"""
-        content_length = len(content)
-        
-        # 根据内容长度决定提取多少
-        if content_length > 3000:
-            return content[-500:]  # 长内容提取500字
-        elif content_length > 1500:
-            return content[-300:]  # 中等内容提取300字
-        else:
-            return content[-200:]  # 短内容提取200字
-
     def generate_previous_chapters_summary(self, current_chapter: int) -> str:
-        """生成前情提要，特别关注章节衔接。使用存储的摘要而非内容截取。"""
+        """生成前情提要，特别关注章节衔接"""
         if current_chapter == 1:
             return "这是开篇第一章，需要建立故事基础。"
         
-        # 获取上一章的详细结尾信息（包含摘要和悬念）
+        # 获取上一章的详细结尾信息
         previous_ending_info = self.get_previous_chapter_ending(current_chapter)
         
-        # 尝试加载最近3章的摘要信息来生成更准确的前情提要
+        # 尝试加载最近3章的摘要信息
         summary_parts = []
         for i in range(max(1, current_chapter-3), current_chapter):
-            chapter_data = None
-            
-            # 首先检查内存中是否有内容
-            if i in self.novel_data["generated_chapters"]:
-                chapter_data = self.novel_data["generated_chapters"][i]
-            else:
-                # 尝试从文件加载
-                chapter_data = self.load_chapter_content(i)
-                if chapter_data:
-                    self.novel_data["generated_chapters"][i] = chapter_data
+            chapter_data, _ = self.get_previous_chapter_content(i+1)  # +1因为get_previous_chapter_content需要下一章的编号
             
             if chapter_data:
-                # 使用章节的 plot_advancement 或 summary 字段作为摘要，如果没有则使用默认提示
                 chapter_summary = chapter_data.get('plot_advancement') or chapter_data.get('summary')
                 if not chapter_summary:
                     chapter_summary = "（该章摘要信息缺失）"
@@ -566,10 +518,8 @@ class NovelGenerator:
                 summary_parts.append(summary_line)
         
         if summary_parts:
-            # 组合上一章结尾信息和最近章节摘要
             return f"{previous_ending_info}\n\n最近章节摘要：\n" + "\n".join(summary_parts)
         else:
-            # 如果没有更多摘要，至少返回上一章的信息
             return previous_ending_info
 
     def _get_cached_previous_summary(self, chapter_num: int) -> str:
@@ -577,12 +527,10 @@ class NovelGenerator:
         if chapter_num == 1:
             return "这是开篇第一章，需要建立故事基础。"
         
-        # 使用缓存避免重复计算
         cache_key = f"prev_summary_{chapter_num}"
         if cache_key in self._summary_cache:
             return self._summary_cache[cache_key]
         
-        # 计算并缓存
         summary = self.generate_previous_chapters_summary(chapter_num)
         self._summary_cache[cache_key] = summary
         
@@ -612,7 +560,7 @@ class NovelGenerator:
             main_character_instruction = f"\n# 主角名字\n**主角**: {self.novel_data['custom_main_character_name']} - 请确保在对话和叙述中正确使用这个名字"
 
         for chapter_num in range(start_chapter, end_chapter + 1):
-            # 获取阶段信息并生成阶段详细计划（包含事件）
+            # 获取阶段信息并生成阶段详细计划
             current_stage = self.stage_plan_manager.get_current_stage(chapter_num)
             stage_progress = self.stage_plan_manager.get_stage_progress(chapter_num)
             
@@ -631,18 +579,9 @@ class NovelGenerator:
             # 章节衔接提示
             connection_note = self.get_chapter_connection_note(chapter_num)
 
-            # 添加事件驱动指导
-            event_driven_guidance = self.get_event_driven_guidance(chapter_num)
-            
-            # 添加伏笔指导
-            foreshadowing_guidance = self.get_foreshadowing_guidance(chapter_num)
-
-            # 确保指导内容不为空
-            if not event_driven_guidance or not event_driven_guidance.strip():
-                event_driven_guidance = "# 🎯 事件驱动写作指导\n\n本章为普通主线推进章节。"
-            
-            if not foreshadowing_guidance or not foreshadowing_guidance.strip():
-                foreshadowing_guidance = "# 🎭 重要元素铺垫指导\n\n暂无需要铺垫的重要元素。"
+            # 添加事件驱动和伏笔指导
+            event_driven_guidance = self.get_event_driven_guidance(chapter_num) or "# 🎯 事件驱动写作指导\n\n本章为普通主线推进章节。"
+            foreshadowing_guidance = self.get_foreshadowing_guidance(chapter_num) or "# 🎭 重要元素铺垫指导\n\n暂无需要铺垫的重要元素。"
 
             # 基础参数
             params = {
@@ -700,25 +639,139 @@ class NovelGenerator:
         }
         return requirements_map.get(stage, "保持事件连贯性，推进情节发展")
 
-    def _quick_optimize_chapter(self, chapter_data: Dict, assessment: Dict) -> Optional[Dict]:
-        """快速优化章节"""
-        weaknesses = assessment.get("weaknesses", [])
-        if not weaknesses:
-            return None
+    def _should_optimize_based_on_config(self, assessment: Dict, chapter_data: Dict) -> Tuple[bool, str]:
+        """基于配置决定是否需要优化"""
+        score = assessment.get("overall_score", 0)
+        thresholds = self.config["optimization_settings"]["quality_thresholds"]
         
-        # 选择最严重的1-2个问题进行优化
-        priority_issues = weaknesses[:2]
+        # 强制优化阈值
+        if score < thresholds["needs_optimization"]:
+            return True, f"评分低于优化阈值{thresholds['needs_optimization']}分，需要优化"
         
-        optimization_params = {
-            "assessment_results": json.dumps({"weaknesses": priority_issues}, ensure_ascii=False),
-            "original_content": chapter_data.get("content", ""),
-            "priority_fix_1": priority_issues[0] if priority_issues else "提升质量",
-            "priority_fix_2": priority_issues[1] if len(priority_issues) > 1 else "",
-            "priority_fix_3": ""
-        }
+        # 智能跳过优化检查
+        skip_optimization, skip_reason = self.quality_assessor.should_skip_optimization(assessment, chapter_data)
         
-        return self.quality_assessor.optimize_chapter_content(optimization_params)
+        if skip_optimization:
+            return False, skip_reason
         
+        # 建议优化范围
+        if score < thresholds["acceptable"]:
+            return True, "质量合格但建议优化提升"
+        
+        return False, "质量良好，跳过优化"
+
+    def _validate_chapter_params(self, params: Dict) -> bool:
+        """验证章节参数是否完整"""
+        required = [
+            'chapter_number', 'novel_title', 'novel_synopsis', 'plot_direction',
+            'event_driven_guidance', 'foreshadowing_guidance'
+        ]
+        for key in required:
+            if key not in params or not params[key]:
+                print(f"❌ 参数验证失败: 缺少 {key}")
+                return False
+        return True
+
+    def ensure_chapter_title_uniqueness(self, chapter_data: Dict, chapter_number: int, plot_direction: str) -> Dict:
+        """确保章节标题唯一性"""
+        original_title = chapter_data.get("chapter_title", "")
+        if not original_title:
+            return chapter_data
+        
+        # 检查是否重复
+        is_unique, duplicate_chapter = self.is_chapter_title_unique(original_title, chapter_number)
+        if is_unique:
+            self.novel_data["used_chapter_titles"].add(original_title)
+            chapter_data["title_was_changed"] = False
+            return chapter_data
+        
+        print(f"⚠️  章节标题重复: '{original_title}' 与第{duplicate_chapter}章重复，正在生成新标题...")
+        
+        # 方法1: 使用智能重命名
+        new_title = self.generate_unique_chapter_title(original_title, chapter_number, plot_direction)
+        
+        if new_title != original_title:
+            chapter_data["chapter_title"] = new_title
+            chapter_data["title_was_changed"] = True
+            chapter_data["original_title"] = original_title
+            self.novel_data["used_chapter_titles"].add(new_title)
+            print(f"✓ 使用新标题: '{new_title}'")
+        
+        return chapter_data
+
+    def generate_unique_chapter_title(self, original_title: str, chapter_number: int, 
+                                    plot_direction: str, retry_count: int = 0) -> str:
+        """生成唯一的章节标题"""
+        if retry_count >= 2:
+            return self._generate_deterministic_title(original_title, chapter_number)
+        
+        # 基于情节方向生成新标题
+        title_prompt = f"""
+请为小说的第{chapter_number}章生成一个新的、富有吸引力的章节标题。
+
+原始标题（已重复）: {original_title}
+情节发展方向: {plot_direction}
+
+要求:
+1. 与原始标题风格一致但完全不同
+2. 反映本章情节发展
+3. 长度8-15字
+4. 避免与已有章节标题重复
+5. 富有文学性和吸引力
+
+已有章节标题: {list(self.novel_data["used_chapter_titles"])[-10:]}
+
+请只返回标题文本，不要其他内容。
+"""
+        
+        try:
+            new_title = self.api_client.call_api('deepseek', "你是小说章节标题生成专家", title_prompt, 0.7, purpose="生成唯一章节标题")
+            if new_title and new_title.strip():
+                new_title = new_title.strip().strip('"').strip("'").strip()
+                new_title = re.sub(r'^["\']|["\']$', '', new_title)
+                
+                # 再次检查唯一性
+                is_unique, _ = self.is_chapter_title_unique(new_title)
+                if is_unique and len(new_title) >= 4:
+                    return new_title
+                else:
+                    return self.generate_unique_chapter_title(original_title, chapter_number, plot_direction, retry_count + 1)
+        except Exception as e:
+            print(f"生成新标题失败: {e}")
+        
+        return self._generate_deterministic_title(original_title, chapter_number)
+
+    def _generate_deterministic_title(self, original_title: str, chapter_number: int) -> str:
+        """使用确定性方法生成标题"""
+        base_title = re.sub(r'[（(].*[）)]', '', original_title).strip()
+        
+        alternatives = [
+            f"{base_title}·新篇",
+            f"{base_title}·风云再起",
+            f"{base_title}·波澜再起",
+            f"{base_title}·暗流涌动",
+            f"{base_title}·转折时刻",
+            f"{base_title}·命运交错",
+            f"第{chapter_number}章 {base_title}",
+            f"{base_title}（续）"
+        ]
+        
+        for alt in alternatives:
+            if self.is_chapter_title_unique(alt)[0]:
+                return alt
+        
+        return f"第{chapter_number}章 {base_title}"
+
+    def is_chapter_title_unique(self, title: str, exclude_chapter: int = None) -> Tuple[bool, Optional[int]]:
+        """检查章节标题是否唯一，返回是否唯一和重复的章节号"""
+        for chapter_num, chapter_data in self.novel_data["generated_chapters"].items():
+            if exclude_chapter and chapter_num == exclude_chapter:
+                continue
+            existing_title = chapter_data.get("chapter_title", "")
+            if existing_title and existing_title == title:
+                return False, chapter_num
+        return True, None
+
     def generate_and_optimize_chapter(self, chapter_number: int, total_chapters: int) -> Optional[Dict]:
         """生成并优化章节内容 - 严格两步法"""
         print(f"生成第{chapter_number}章...")
@@ -726,47 +779,8 @@ class NovelGenerator:
         # 使用安全的参数获取方法
         chapter_params = self.safe_get_chapter_params(chapter_number)
         
-        if not chapter_params:
+        if not chapter_params or not self._validate_chapter_params(chapter_params):
             print(f"❌ 第{chapter_number}章参数获取失败")
-            return None
-        
-        # 调试：打印参数内容
-        print(f"  🔍 参数检查 - foreshadowing_guidance: '{chapter_params.get('foreshadowing_guidance', 'NOT_FOUND')}'")
-        print(f"  🔍 参数检查 - event_driven_guidance: '{chapter_params.get('event_driven_guidance', 'NOT_FOUND')}'")
-        
-        # 修复参数验证逻辑
-        required_keys = ['chapter_number', 'total_chapters', 'novel_title', 'novel_synopsis', 
-                        'worldview_info', 'character_info', 'stage_writing_plan']
-        
-        # 这些参数可以有默认值
-        optional_keys = {
-            'event_driven_guidance': "# 🎯 事件驱动写作指导\n\n本章为普通主线推进章节。",
-            'foreshadowing_guidance': "# 🎭 重要元素铺垫指导\n\n暂无需要铺垫的重要元素。",
-            'previous_chapters_summary': "这是开篇第一章，需要建立故事基础。",
-            'main_plot_progress': "推进主线剧情",
-            'plot_direction': "推进故事情节发展", 
-            'chapter_connection_note': "建立故事基础",
-            'character_development_focus': "展示主角特点"
-        }
-        
-        # 检查必需参数
-        missing_required = [key for key in required_keys if key not in chapter_params]
-        if missing_required:
-            print(f"❌ 第{chapter_number}章缺少必需参数: {missing_required}")
-            return None
-        
-        # 确保可选参数都有值
-        for key, default_value in optional_keys.items():
-            if key not in chapter_params or not chapter_params[key]:
-                chapter_params[key] = default_value
-                print(f"  ⚠️  设置默认值 for {key}")
-        
-        # 再次验证所有参数
-        all_keys = required_keys + list(optional_keys.keys())
-        still_missing = [key for key in all_keys if key not in chapter_params or not chapter_params[key]]
-        
-        if still_missing:
-            print(f"❌ 第{chapter_number}章参数最终验证失败，仍然缺少: {still_missing}")
             return None
         
         print(f"  ✅ 第{chapter_number}章所有参数验证通过")
@@ -810,17 +824,7 @@ class NovelGenerator:
         score = assessment.get("overall_score", 0)
         chapter_data["quality_score"] = score
         chapter_data["quality_assessment"] = assessment
-        # 质量评估
-        assessment = self.quality_assessor.quick_assess_chapter_quality(
-            chapter_data.get("content", ""),
-            chapter_data.get("chapter_title", ""),
-            chapter_number,
-            self.novel_data["novel_title"],
-            chapter_params.get("previous_chapters_summary", ""),
-            chapter_data.get("word_count", 0)
-        )
         
-        score = assessment.get("overall_score", 0)
         print(f"  质量评分: {score:.1f}分")
         
         # 根据配置决定是否优化
@@ -858,119 +862,6 @@ class NovelGenerator:
             chapter_data["quality_assessment"] = assessment
         
         return chapter_data
-
-    def print_foundation_quality_report(self):
-        """打印基础内容质量报告"""
-        print("\n" + "="*60)
-        print("🏗️  基础内容质量报告")
-        print("="*60)
-        
-        foundation_contents = {
-            "市场分析": self.novel_data.get("market_analysis"),
-            "写作计划": self.novel_data.get("stage_writing_plan"), 
-            "世界观": self.novel_data.get("core_worldview"),
-            "角色设计": self.novel_data.get("character_design")
-        }
-        
-        for name, content in foundation_contents.items():
-            if content:
-                completeness = self._assess_foundation_completeness(content, name)
-                print(f"📊 {name}: {completeness}")
-            else:
-                print(f"❌ {name}: 缺失")
-        
-        print("="*60)
-
-    def _assess_foundation_completeness(self, content: Dict, content_type: str) -> str:
-        """评估基础内容的完整性"""
-        if not content:
-            return "无内容"
-        
-        required_fields = {
-            "市场分析": ["target_audience", "core_selling_points", "market_trend_analysis"],
-            "写作计划": ["writing_approach", "chapter_rhythm", "key_plot_points"],
-            "世界观": ["era", "core_conflict", "overview", "power_system"],
-            "角色设计": ["main_character", "important_characters"]
-        }
-        
-        fields = required_fields.get(content_type, [])
-        missing_fields = [field for field in fields if not self._get_nested_value(content, field)]
-        
-        return "基本完整 (缺失: {})".format(", ".join(missing_fields)) if missing_fields else "完整"
-
-    def _get_nested_value(self, obj, key_path):
-        """获取嵌套字典的值"""
-        if isinstance(key_path, str):
-            return obj.get(key_path)
-        
-        current = obj
-        for key in key_path.split('.'):
-            if isinstance(current, dict) and key in current:
-                current = current[key]
-            else:
-                return None
-        return current
-
-    def _validate_chapter_params(self, params: Dict) -> bool:
-        """验证章节参数是否完整"""
-        required = [
-            'chapter_number', 'novel_title', 'novel_synopsis', 'plot_direction',
-            'event_driven_guidance', 'foreshadowing_guidance'
-        ]
-        for key in required:
-            if key not in params or not params[key]:
-                print(f"❌ 参数验证失败: 缺少 {key}")
-                return False
-        return True
-
-    def _should_optimize_based_on_config(self, assessment: Dict, chapter_data: Dict) -> Tuple[bool, str]:
-        """基于配置决定是否需要优化"""
-        score = assessment.get("overall_score", 0)
-        thresholds = self.config["optimization_settings"]["quality_thresholds"]
-        
-        # 强制优化阈值
-        if score < thresholds["needs_optimization"]:
-            return True, f"评分低于优化阈值{thresholds['needs_optimization']}分，需要优化"
-        
-        # 智能跳过优化检查
-        skip_optimization, skip_reason = self.quality_assessor.should_skip_optimization(assessment, chapter_data)
-        
-        if skip_optimization:
-            return False, skip_reason
-        
-        # 建议优化范围
-        if score < thresholds["acceptable"]:
-            return True, "质量合格但建议优化提升"
-        
-        return False, "质量良好，跳过优化"
-
-    def generate_subplot_chapters(self, start_chapter: int, end_chapter: int):
-        """生成专门的暗线推进章节"""
-        subplot_chapters = [
-            chapter_num for chapter_num in range(start_chapter, end_chapter + 1)
-            if (self.is_subplot_chapter(chapter_num, "foreshadowing") or 
-                self.is_subplot_chapter(chapter_num, "emotional"))
-        ]
-        
-        if subplot_chapters:
-            print(f"📖 将在以下章节专门推进暗线: {subplot_chapters}")
-        
-        return subplot_chapters
-
-    def print_subplot_schedule(self):
-        """打印暗线推进计划"""
-        subplot_tracking = self.novel_data["subplot_tracking"]
-        
-        print("\n📋 暗线推进计划:")
-        print(f"伏笔线推进章节: {subplot_tracking['subplot_chapters']['foreshadowing']}")
-        print(f"感情线推进章节: {subplot_tracking['subplot_chapters']['emotional']}")
-        
-        # 计算暗线章节比例
-        total_chapters = self.novel_data["current_progress"]["total_chapters"]
-        subplot_count = (len(subplot_tracking['subplot_chapters']['foreshadowing']) + 
-                        len(subplot_tracking['subplot_chapters']['emotional']))
-        
-        print(f"暗线章节占比: {subplot_count}/{total_chapters} ({subplot_count/total_chapters*100:.1f}%)")
 
     def check_chapter_connection(self, current_chapter: int, new_chapter_data: Dict) -> bool:
         """检查章节衔接是否自然"""
@@ -1079,7 +970,359 @@ class NovelGenerator:
     def generate_chapters_batch(self, start_chapter: int, end_chapter: int) -> bool:
         """批量生成章节内容 - 使用优化版本"""
         return self.optimized_generate_chapters_batch(start_chapter, end_chapter)
+
+    def _get_user_choice_with_timeout(self, options: List[str], timeout: int, default_choice: str, prompt: str) -> str:
+        """带超时的用户选择方法"""
+        user_choice = [None]
+        
+        def get_input():
+            try:
+                choice = input(prompt).strip()
+                if choice in options:
+                    user_choice[0] = choice
+            except:
+                pass
+        
+        # 启动输入线程
+        input_thread = threading.Thread(target=get_input)
+        input_thread.daemon = True
+        input_thread.start()
+        
+        # 等待用户输入，最多timeout秒
+        start_time = time.time()
+        
+        while time.time() - start_time < timeout and user_choice[0] is None:
+            time.sleep(0.1)
+        
+        return user_choice[0] if user_choice[0] is not None else default_choice
+
+    def choose_category(self):
+        """让用户选择小说分类"""
+        categories = [
+            "西方奇幻", "东方仙侠", "科幻末世", "男频衍生", "都市高武",
+            "悬疑灵异", "悬疑脑洞", "抗战谍战", "历史古代", "历史脑洞",
+            "都市种田", "都市脑洞", "都市日常", "玄幻脑洞", "战神赘婿",
+            "动漫衍生", "游戏体育", "传统玄幻", "都市修真"
+        ]
+        
+        print("\n📚 请选择小说分类:")
+        for i, category in enumerate(categories, 1):
+            print(f"  {i:2d}. {category}")
+        
+        while True:
+            try:
+                choice = input(f"请输入分类编号 (1-{len(categories)}): ").strip()
+                if not choice:
+                    choice = 1
+                    print("使用默认分类: 西方奇幻")
+                    break
+                
+                choice = int(choice)
+                if 1 <= choice <= len(categories):
+                    break
+                else:
+                    print(f"请输入 1-{len(categories)} 之间的数字")
+            except ValueError:
+                print("请输入有效的数字")
+        
+        selected_category = categories[choice - 1]
+        self.novel_data["category"] = selected_category
+        print(f"✓ 已选择分类: {selected_category}")
+        
+        # 根据分类自动设置推荐配比
+        self.set_ratio_by_category(selected_category)
+
+    def set_ratio_by_category(self, category: str):
+        """根据分类自动设置推荐配比"""
+        category_ratios = {
+            "西方奇幻": {"main": 0.7, "emotional": 0.15, "foreshadowing": 0.15},
+            "东方仙侠": {"main": 0.65, "emotional": 0.20, "foreshadowing": 0.15},
+            "科幻末世": {"main": 0.75, "emotional": 0.10, "foreshadowing": 0.15},
+            "男频衍生": {"main": 0.8, "emotional": 0.1, "foreshadowing": 0.1},
+            "都市高武": {"main": 0.7, "emotional": 0.2, "foreshadowing": 0.1},
+            "悬疑灵异": {"main": 0.6, "emotional": 0.1, "foreshadowing": 0.3},
+            "悬疑脑洞": {"main": 0.6, "emotional": 0.1, "foreshadowing": 0.3},
+            "抗战谍战": {"main": 0.75, "emotional": 0.15, "foreshadowing": 0.1},
+            "历史古代": {"main": 0.65, "emotional": 0.2, "foreshadowing": 0.15},
+            "历史脑洞": {"main": 0.7, "emotional": 0.15, "foreshadowing": 0.15},
+            "都市种田": {"main": 0.6, "emotional": 0.3, "foreshadowing": 0.1},
+            "都市脑洞": {"main": 0.65, "emotional": 0.2, "foreshadowing": 0.15},
+            "都市日常": {"main": 0.6, "emotional": 0.3, "foreshadowing": 0.1},
+            "玄幻脑洞": {"main": 0.7, "emotional": 0.15, "foreshadowing": 0.15},
+            "战神赘婿": {"main": 0.75, "emotional": 0.2, "foreshadowing": 0.05},
+            "动漫衍生": {"main": 0.7, "emotional": 0.2, "foreshadowing": 0.1},
+            "游戏体育": {"main": 0.8, "emotional": 0.1, "foreshadowing": 0.1},
+            "传统玄幻": {"main": 0.7, "emotional": 0.15, "foreshadowing": 0.15},
+            "都市修真": {"main": 0.65, "emotional": 0.2, "foreshadowing": 0.15}
+        }
+        
+        if category in category_ratios:
+            self.novel_data["subplot_tracking"]["ratio"] = category_ratios[category]
+            ratio = self.novel_data["subplot_tracking"]["ratio"]
+            print(f"🎯 根据 {category} 分类自动设置配比: 主线{ratio['main']*100}%, 感情线{ratio['emotional']*100}%, 伏笔线{ratio['foreshadowing']*100}%")
+        else:
+            self.novel_data["subplot_tracking"]["ratio"] = {"main": 0.7, "emotional": 0.2, "foreshadowing": 0.1}
+            ratio = self.novel_data["subplot_tracking"]["ratio"]
+            print(f"⚠️  未找到 {category} 的推荐配比，使用默认配比")
+
+    def set_recommended_ratio(self, experience_level: str = "beginner", genre: str = None):
+        """设置推荐配比"""
+        recommended_ratios = {
+            "beginner": {"main": 0.75, "emotional": 0.15, "foreshadowing": 0.10},
+            "intermediate": {"main": 0.70, "emotional": 0.15, "foreshadowing": 0.15},
+            "advanced": {"main": 0.65, "emotional": 0.20, "foreshadowing": 0.15}
+        }
     
+        if genre:
+            genre_ratios = {
+                "爽文": {"main": 0.75, "emotional": 0.10, "foreshadowing": 0.15},
+                "言情": {"main": 0.60, "emotional": 0.30, "foreshadowing": 0.10},
+                "悬疑": {"main": 0.65, "emotional": 0.05, "foreshadowing": 0.30},
+                "玄幻": {"main": 0.70, "emotional": 0.15, "foreshadowing": 0.15},
+                "都市": {"main": 0.65, "emotional": 0.25, "foreshadowing": 0.10}
+            }
+            if genre in genre_ratios:
+                self.novel_data["subplot_tracking"]["ratio"] = genre_ratios[genre]
+                print(f"🎯 使用{genre}题材推荐配比")
+            else:
+                self.novel_data["subplot_tracking"]["ratio"] = recommended_ratios[experience_level]
+                print(f"🎯 使用{experience_level}级别推荐配比")
+        else:
+            self.novel_data["subplot_tracking"]["ratio"] = recommended_ratios[experience_level]
+            print(f"🎯 使用{experience_level}级别推荐配比")
+        
+        self._initialize_subplot_plan_with_ratio()
+
+    def _initialize_subplot_plan_with_ratio(self):
+        """根据配比初始化暗线推进计划"""
+        if "total_chapters" not in self.novel_data["current_progress"]:
+            print("❌ 错误: total_chapters 未设置，无法初始化暗线计划")
+            return
+        
+        total_chapters = self.novel_data["current_progress"]["total_chapters"]
+        ratio = self.novel_data["subplot_tracking"]["ratio"]
+        
+        # 验证配比
+        total_ratio = sum(ratio.values())
+        if abs(total_ratio - 1.0) > 0.01:
+            print(f"⚠️  配比总和为{total_ratio*100}%，自动调整为100%")
+            scale_factor = 1.0 / total_ratio
+            for key in ratio:
+                ratio[key] *= scale_factor
+        
+        # 修复章节分配计算
+        emotional_count = max(1, int(total_chapters * ratio["emotional"]))
+        foreshadowing_count = max(1, int(total_chapters * ratio["foreshadowing"]))
+        main_count = total_chapters - emotional_count - foreshadowing_count
+        
+        print(f"📈 章节分配: 主线{main_count}章, 感情线{emotional_count}章, 伏笔线{foreshadowing_count}章")
+        print(f"📊 配比: 主线{ratio['main']*100}%, 感情线{ratio['emotional']*100}%, 伏笔线{ratio['foreshadowing']*100}%")
+        
+        # 生成均匀分布的章节编号
+        emotional_chapters = self._generate_evenly_distributed_chapters(emotional_count, total_chapters, "emotional")
+        foreshadowing_chapters = self._generate_evenly_distributed_chapters(foreshadowing_count, total_chapters, "foreshadowing")
+        
+        self.novel_data["subplot_tracking"]["subplot_chapters"] = {
+            "foreshadowing": foreshadowing_chapters,
+            "emotional": emotional_chapters
+        }
+
+    def _generate_evenly_distributed_chapters(self, count: int, total: int, line_type: str) -> List[int]:
+        """生成均匀分布的章节编号"""
+        if count <= 0:
+            return []
+        
+        count = max(1, count)
+        
+        # 根据暗线类型确定起始位置
+        start_chapter = max(5, 1) if line_type == "emotional" else max(3, 1)
+        
+        # 避免最后一章
+        available_chapters = list(range(start_chapter, total))
+        
+        if count >= len(available_chapters):
+            return available_chapters
+        
+        # 智能分布算法
+        if count == 1:
+            return [available_chapters[len(available_chapters) // 2]]
+        elif count == 2:
+            return [
+                available_chapters[len(available_chapters) // 3],
+                available_chapters[len(available_chapters) * 2 // 3]
+            ]
+        else:
+            chapters = []
+            step = len(available_chapters) / count
+            for i in range(count):
+                index = min(int(i * step), len(available_chapters) - 1)
+                chapters.append(available_chapters[index])
+            
+            return sorted(chapters)
+
+    def set_custom_ratio(self):
+        """设置自定义配比，确保主线占比合理"""
+        print("\n📝 自定义配比 (请确保主线占比在60-85%之间)")
+        
+        while True:
+            try:
+                main_ratio = float(input("请输入主线比例 (0.6-0.85): "))
+                if 0.6 <= main_ratio <= 0.85:
+                    break
+                else:
+                    print("主线比例必须在0.6-0.85之间")
+            except ValueError:
+                print("请输入有效的数字")
+        
+        remaining = 1.0 - main_ratio
+        print(f"剩余比例: {remaining*100}% 可分配给感情线和伏笔线")
+        
+        emotional_ratio = 0
+        if remaining > 0:
+            while True:
+                try:
+                    emotional_ratio = float(input(f"请输入感情线比例 (0-{remaining}): "))
+                    if 0 <= emotional_ratio <= remaining:
+                        break
+                    else:
+                        print(f"感情线比例必须在0-{remaining}之间")
+                except ValueError:
+                    print("请输入有效的数字")
+        
+        foreshadowing_ratio = remaining - emotional_ratio
+        
+        custom_ratio = {
+            "main": main_ratio,
+            "emotional": emotional_ratio,
+            "foreshadowing": foreshadowing_ratio
+        }
+        
+        self.set_subplot_ratio(custom_ratio=custom_ratio)
+
+    def set_subplot_ratio(self, ratio_type: str = "auto", custom_ratio: Dict = None):
+        """设置暗线配比"""
+        if custom_ratio:
+            self.novel_data["subplot_tracking"]["ratio"] = custom_ratio
+            ratio = self.novel_data["subplot_tracking"]["ratio"]
+            print(f"📊 使用自定义配比: 主线{ratio['main']*100}%, 感情线{ratio['emotional']*100}%, 伏笔线{ratio['foreshadowing']*100}%")
+        
+        elif ratio_type == "auto":
+            genre = self.detect_genre_from_seed(self.novel_data["creative_seed"])
+            auto_ratio = self.config["subplot_ratios"]["by_genre"].get(genre, self.config["subplot_ratios"]["by_genre"]["默认"])
+            self.novel_data["subplot_tracking"]["ratio"] = auto_ratio
+            ratio = self.novel_data["subplot_tracking"]["ratio"]
+            print(f"📊 自动检测题材 '{genre}'，设定配比: 主线{ratio['main']*100}%, 感情线{ratio['emotional']*100}%, 伏笔线{ratio['foreshadowing']*100}%")
+        
+        else:
+            preset_ratio = self.config["subplot_ratios"]["presets"].get(ratio_type, self.config["subplot_ratios"]["presets"]["平衡发展"])
+            self.novel_data["subplot_tracking"]["ratio"] = preset_ratio
+            ratio = self.novel_data["subplot_tracking"]["ratio"]
+            print(f"📊 使用预设配比 '{ratio_type}': 主线{ratio['main']*100}%, 感情线{ratio['emotional']*100}%, 伏笔线{ratio['foreshadowing']*100}%")
+        
+        # 重新初始化暗线计划
+        self._initialize_subplot_plan_with_ratio()
+
+    def choose_subplot_ratio(self):
+        """让用户选择暗线配比"""
+        print("\n🎯 请选择剧情配比方案 (主线占比60-85%):")
+        print("1. 自动配比 (根据题材智能设定)")
+        print("2. 情感主导 (主线60%，感情线30%，伏笔线10%)")
+        print("3. 悬疑主导 (主线60%，感情线10%，伏笔线30%)") 
+        print("4. 平衡发展 (主线70%，感情线15%，伏笔线15%)")
+        print("5. 轻度暗线 (主线80%，感情线10%，伏笔线10%)")
+        print("6. 主线优先 (主线85%，感情线10%，伏笔线5%)")
+        print("7. 推荐配比 (新手作者适用)")
+        print("8. 自定义配比")
+        
+        # 10秒超时自动选择
+        choice = self._get_user_choice_with_timeout(
+            options=["1", "2", "3", "4", "5", "6", "7", "8"],
+            timeout=10,
+            default_choice="7",
+            prompt="请选择配比方案 (1-8): "
+        )
+        
+        ratio_map = {
+            "1": "auto",
+            "2": "情感主导", 
+            "3": "悬疑主导",
+            "4": "平衡发展",
+            "5": "轻度暗线",
+            "6": "主线优先"
+        }
+        
+        if choice == "7":
+            self.set_recommended_ratio("beginner")
+        elif choice == "8":
+            self.set_custom_ratio()
+        else:
+            ratio_type = ratio_map.get(choice, "auto")
+            self.set_subplot_ratio(ratio_type)
+
+    def detect_genre_from_seed(self, creative_seed: str) -> str:
+        """根据创意种子自动检测题材"""
+        seed_lower = creative_seed.lower()
+        
+        genre_keywords = {
+            "都市情感": ["都市", "爱情", "婚姻", "恋爱", "职场", "霸总", "追妻"],
+            "玄幻修真": ["玄幻", "修真", "修仙", "仙侠", "魔法", "斗气", "飞升"],
+            "科幻末世": ["科幻", "末世", "星际", "机甲", "外星", "废土", "丧尸"],
+            "历史权谋": ["历史", "权谋", "宫斗", "朝堂", "帝王", "将军", "古代"],
+            "悬疑推理": ["悬疑", "推理", "破案", "侦探", "犯罪", "谜案", "解谜"],
+            "系统流": ["系统", "加点", "面板", "任务", "奖励", "升级", "兑换"],
+            "无限流": ["无限", "主神", "轮回", "副本", "任务世界", "穿越"],
+            "穿越重生": ["穿越", "重生", "回到", "转世", "复活", "再来一次"]
+        }
+        
+        for genre, keywords in genre_keywords.items():
+            if any(keyword in seed_lower for keyword in keywords):
+                return genre
+        
+        return "默认"
+    
+    def load_project_data(self, filename: str) -> bool:
+        """加载项目数据"""
+        data = self.project_manager.load_project(filename)
+        if not data:
+            return False
+        
+        # 恢复基本数据
+        novel_info = data["novel_info"]
+        self.novel_data["novel_title"] = novel_info["title"]
+        self.novel_data["novel_synopsis"] = novel_info["synopsis"]
+        self.novel_data["creative_seed"] = novel_info["creative_seed"]
+        self.novel_data["selected_plan"] = novel_info["selected_plan"]
+        self.novel_data["category"] = novel_info.get("category", "未分类")
+        
+        # 恢复分析数据
+        self.novel_data["market_analysis"] = data.get("market_analysis")
+        self.novel_data["stage_writing_plan"] = data.get("stage_writing_plan")
+        self.novel_data["core_worldview"] = data.get("core_worldview")
+        self.novel_data["character_design"] = data.get("character_design")
+        
+        # 恢复进度信息
+        self.novel_data["current_progress"] = data.get("progress", self.novel_data["current_progress"])
+        self.novel_data["plot_progression"] = data.get("plot_progression", [])
+        
+        # 恢复章节数据
+        self.novel_data["generated_chapters"] = {}
+        chapter_summaries = data.get("chapter_summaries", {})
+        for chapter_num, summary in chapter_summaries.items():
+            self.novel_data["generated_chapters"][int(chapter_num)] = summary
+        
+        # 恢复质量记录和优化历史
+        self.novel_data["chapter_quality_records"] = data.get("chapter_quality_records", {})
+        self.novel_data["optimization_history"] = data.get("optimization_history", {})
+        
+        self.novel_data["is_resuming"] = True
+        self.novel_data["resume_data"] = data
+        
+        print(f"✓ 项目加载成功: {self.novel_data['novel_title']}")
+        print(f"  当前进度: {self.novel_data['current_progress']['completed_chapters']}/{self.novel_data['current_progress']['total_chapters']}章")
+        print(f"  当前阶段: {self.novel_data['current_progress']['stage']}")
+        
+        return True   
+     
     def resume_generation(self, total_chapters: int = None) -> bool:
         """继续生成小说"""
         print("🔄 继续生成小说...")
@@ -1276,241 +1519,8 @@ class NovelGenerator:
         self.project_manager.export_novel_overview(self.novel_data)
         
         print("🎉 小说生成完成！")
-        return True
+        return True    
     
-    def choose_category(self):
-        """让用户选择小说分类"""
-        categories = [
-            "西方奇幻", "东方仙侠", "科幻末世", "男频衍生", "都市高武",
-            "悬疑灵异", "悬疑脑洞", "抗战谍战", "历史古代", "历史脑洞",
-            "都市种田", "都市脑洞", "都市日常", "玄幻脑洞", "战神赘婿",
-            "动漫衍生", "游戏体育", "传统玄幻", "都市修真"
-        ]
-        
-        print("\n📚 请选择小说分类:")
-        for i, category in enumerate(categories, 1):
-            print(f"  {i:2d}. {category}")
-        
-        while True:
-            try:
-                choice = input(f"请输入分类编号 (1-{len(categories)}): ").strip()
-                if not choice:
-                    choice = 1
-                    print("使用默认分类: 西方奇幻")
-                    break
-                
-                choice = int(choice)
-                if 1 <= choice <= len(categories):
-                    break
-                else:
-                    print(f"请输入 1-{len(categories)} 之间的数字")
-            except ValueError:
-                print("请输入有效的数字")
-        
-        selected_category = categories[choice - 1]
-        self.novel_data["category"] = selected_category
-        print(f"✓ 已选择分类: {selected_category}")
-        
-        # 根据分类自动设置推荐配比
-        self.set_ratio_by_category(selected_category)
-
-    def set_ratio_by_category(self, category: str):
-        """根据分类自动设置推荐配比"""
-        category_ratios = {
-            "西方奇幻": {"main": 0.7, "emotional": 0.15, "foreshadowing": 0.15},
-            "东方仙侠": {"main": 0.65, "emotional": 0.20, "foreshadowing": 0.15},
-            "科幻末世": {"main": 0.75, "emotional": 0.10, "foreshadowing": 0.15},
-            "男频衍生": {"main": 0.8, "emotional": 0.1, "foreshadowing": 0.1},
-            "都市高武": {"main": 0.7, "emotional": 0.2, "foreshadowing": 0.1},
-            "悬疑灵异": {"main": 0.6, "emotional": 0.1, "foreshadowing": 0.3},
-            "悬疑脑洞": {"main": 0.6, "emotional": 0.1, "foreshadowing": 0.3},
-            "抗战谍战": {"main": 0.75, "emotional": 0.15, "foreshadowing": 0.1},
-            "历史古代": {"main": 0.65, "emotional": 0.2, "foreshadowing": 0.15},
-            "历史脑洞": {"main": 0.7, "emotional": 0.15, "foreshadowing": 0.15},
-            "都市种田": {"main": 0.6, "emotional": 0.3, "foreshadowing": 0.1},
-            "都市脑洞": {"main": 0.65, "emotional": 0.2, "foreshadowing": 0.15},
-            "都市日常": {"main": 0.6, "emotional": 0.3, "foreshadowing": 0.1},
-            "玄幻脑洞": {"main": 0.7, "emotional": 0.15, "foreshadowing": 0.15},
-            "战神赘婿": {"main": 0.75, "emotional": 0.2, "foreshadowing": 0.05},
-            "动漫衍生": {"main": 0.7, "emotional": 0.2, "foreshadowing": 0.1},
-            "游戏体育": {"main": 0.8, "emotional": 0.1, "foreshadowing": 0.1},
-            "传统玄幻": {"main": 0.7, "emotional": 0.15, "foreshadowing": 0.15},
-            "都市修真": {"main": 0.65, "emotional": 0.2, "foreshadowing": 0.15}
-        }
-        
-        if category in category_ratios:
-            self.subplot_ratio = category_ratios[category]
-            print(f"🎯 根据 {category} 分类自动设置配比: 主线{self.subplot_ratio['main']*100}%, 感情线{self.subplot_ratio['emotional']*100}%, 伏笔线{self.subplot_ratio['foreshadowing']*100}%")
-        else:
-            self.subplot_ratio = {"main": 0.7, "emotional": 0.2, "foreshadowing": 0.1}
-            print(f"⚠️  未找到 {category} 的推荐配比，使用默认配比")
-
-    def load_project_data(self, filename: str) -> bool:
-        """加载项目数据"""
-        data = self.project_manager.load_project(filename)
-        if not data:
-            return False
-        
-        # 恢复基本数据
-        novel_info = data["novel_info"]
-        self.novel_data["novel_title"] = novel_info["title"]
-        self.novel_data["novel_synopsis"] = novel_info["synopsis"]
-        self.novel_data["creative_seed"] = novel_info["creative_seed"]
-        self.novel_data["selected_plan"] = novel_info["selected_plan"]
-        self.novel_data["category"] = novel_info.get("category", "未分类")
-        
-        # 恢复分析数据
-        self.novel_data["market_analysis"] = data.get("market_analysis")
-        self.novel_data["stage_writing_plan"] = data.get("stage_writing_plan")
-        self.novel_data["core_worldview"] = data.get("core_worldview")
-        self.novel_data["character_design"] = data.get("character_design")
-        
-        # 恢复进度信息
-        self.novel_data["current_progress"] = data.get("progress", self.novel_data["current_progress"])
-        self.novel_data["plot_progression"] = data.get("plot_progression", [])
-        
-        # 恢复章节数据
-        self.novel_data["generated_chapters"] = {}
-        chapter_summaries = data.get("chapter_summaries", {})
-        for chapter_num, summary in chapter_summaries.items():
-            self.novel_data["generated_chapters"][int(chapter_num)] = summary
-        
-        # 恢复质量记录和优化历史
-        self.novel_data["chapter_quality_records"] = data.get("chapter_quality_records", {})
-        self.novel_data["optimization_history"] = data.get("optimization_history", {})
-        
-        self.novel_data["is_resuming"] = True
-        self.novel_data["resume_data"] = data
-        
-        print(f"✓ 项目加载成功: {self.novel_data['novel_title']}")
-        print(f"  当前进度: {self.novel_data['current_progress']['completed_chapters']}/{self.novel_data['current_progress']['total_chapters']}章")
-        print(f"  当前阶段: {self.novel_data['current_progress']['stage']}")
-        
-        return True
-    
-    def track_foreshadowing_progress(self):
-        """追踪伏笔进度"""
-        print("\n📋 伏笔管理进度:")
-        for element_type, elements in self.foreshadowing_manager.foreshadowing_elements.items():
-            if elements:
-                print(f"\n{self.foreshadowing_manager._get_element_type_name(element_type)}:")
-                for name, data in elements.items():
-                    status = "已出场" if data.get("is_introduced", False) else "铺垫中"
-                    intro_chapter = data["planned_intro_chapter"]
-                    current_chapter = self.novel_data["current_progress"]["completed_chapters"]
-                    
-                    if data.get("is_introduced", False):
-                        print(f"  ✓ {name} - 第{intro_chapter}章已出场")
-                    else:
-                        chapters_left = intro_chapter - current_chapter
-                        if chapters_left > 0:
-                            print(f"  ⏳ {name} - 计划第{intro_chapter}章出场 (剩余{chapters_left}章)")
-                        else:
-                            print(f"  ❓ {name} - 计划第{intro_chapter}章出场 (已过时)")
-
-    def print_quality_report(self):
-        """打印质量报告"""
-        if not self.novel_data["chapter_quality_records"]:
-            print("暂无质量评估数据")
-            return
-        
-        stats = self.project_manager.calculate_quality_statistics(self.novel_data)
-        
-        print("\n" + "="*60)
-        print("📊 章节质量评估报告")
-        print("="*60)
-        
-        print(f"📈 总体质量统计:")
-        print(f"   评估章节数: {stats['total_chapters_assessed']}")
-        print(f"   平均评分: {stats['average_score']:.1f}/10分")
-        print(f"   最高分: {stats['max_score']:.1f}分")
-        print(f"   最低分: {stats['min_score']:.1f}分")
-        print(f"   优化章节: {stats['optimized_chapters']}章 ({stats['optimization_rate']}%)")
-        
-        print(f"\n🎯 质量分布:")
-        distribution = stats.get('quality_distribution', {})
-        for level, count in distribution.items():
-            percentage = (count / stats['total_chapters_assessed']) * 100 if stats['total_chapters_assessed'] > 0 else 0
-            print(f"   {level}: {count}章 ({percentage:.1f}%)")
-        
-        print(f"\n🤖 AI痕迹检测统计:")
-        ai_stats = stats.get('ai_quality', {})
-        print(f"   平均AI痕迹得分: {ai_stats.get('average_ai_score', 2):.1f}/2分")
-        print(f"   存在AI痕迹的章节: {ai_stats.get('chapters_with_ai_artifacts', 0)}章")
-        
-        ai_distribution = ai_stats.get('ai_distribution', {})
-        for level, count in ai_distribution.items():
-            percentage = (count / stats['total_chapters_assessed']) * 100 if stats['total_chapters_assessed'] > 0 else 0
-            print(f"   {level}: {count}章 ({percentage:.1f}%)")
-        
-        # 显示需要重点关注的章节
-        low_quality_chapters = []
-        high_ai_chapters = []
-        
-        for chap_num, record in self.novel_data["chapter_quality_records"].items():
-            score = record.get('assessment', {}).get('overall_score', 0)
-            ai_score = record.get('assessment', {}).get('detailed_scores', {}).get('ai_artifacts_detected', 2)
-            
-            if score < self.config["quality_thresholds"]["acceptable"]:
-                low_quality_chapters.append((chap_num, score))
-            
-            if ai_score < 1.5:
-                high_ai_chapters.append((chap_num, ai_score))
-        
-        if low_quality_chapters:
-            print(f"\n⚠️  需要关注的章节 (评分低于8分):")
-            for chap_num, score in sorted(low_quality_chapters, key=lambda x: x[1]):
-                print(f"   第{chap_num}章: {score:.1f}分")
-        
-        if high_ai_chapters:
-            print(f"\n🤖 AI痕迹较明显的章节:")
-            for chap_num, ai_score in sorted(high_ai_chapters, key=lambda x: x[1]):
-                print(f"   第{chap_num}章: AI痕迹得分{ai_score:.1f}/2分")
-        
-        print("="*60)
-
-    def validate_main_character_usage(self):
-        """验证主角名字在所有内容中的使用情况"""
-        custom_name = self.novel_data.get("custom_main_character_name")
-        if not custom_name:
-            print("未设置自定义主角名字，跳过验证")
-            return
-        
-        print(f"\n🔍 验证主角名字 '{custom_name}' 的使用情况:")
-        
-        # 检查选定方案
-        selected_plan = self.novel_data.get("selected_plan")
-        if selected_plan:
-            title_usage = custom_name in selected_plan.get("title", "")
-            synopsis_usage = custom_name in selected_plan.get("synopsis", "")
-            print(f"  方案: 标题中{'✓' if title_usage else '✗'} | 简介中{'✓' if synopsis_usage else '✗'}")
-        
-        # 检查写作计划
-        overall_stage_plan = self.novel_data.get("overall_stage_plan")
-        if overall_stage_plan:
-            plan_usage = any(
-                custom_name in str(value) 
-                for value in overall_stage_plan.values() 
-                if isinstance(value, str)
-            )
-            print(f"  写作计划: {'✓' if plan_usage else '✗'}")
-        
-        # 检查角色设计
-        character_design = self.novel_data.get("character_design")
-        if character_design:
-            main_char = character_design.get("main_character", {})
-            name_correct = main_char.get("name") == custom_name
-            print(f"  角色设计: {'✓' if name_correct else '✗'} (主角名字: {main_char.get('name', '未设置')})")
-        
-        # 检查已生成章节
-        generated_chapters = self.novel_data.get("generated_chapters", {})
-        if generated_chapters:
-            chapters_with_name = sum(1 for chapter_data in generated_chapters.values() 
-                                   if custom_name in chapter_data.get("content", ""))
-            print(f"  章节内容: {chapters_with_name}/{len(generated_chapters)} 章使用了主角名字")
-        
-        print("验证完成")
-
     def print_generation_summary(self):
         """打印生成摘要"""
         print("\n" + "="*60)
@@ -1580,433 +1590,96 @@ class NovelGenerator:
         if show_quality_report:
             self.print_quality_report()
 
-    def ensure_chapter_title_uniqueness(self, chapter_data: Dict, chapter_number: int, plot_direction: str) -> Dict:
-        """确保章节标题唯一性"""
-        original_title = chapter_data.get("chapter_title", "")
-        if not original_title:
-            return chapter_data
-        
-        # 检查是否重复
-        is_unique, duplicate_chapter = self.is_chapter_title_unique(original_title, chapter_number)
-        if is_unique:
-            self.novel_data["used_chapter_titles"].add(original_title)
-            chapter_data["title_was_changed"] = False
-            return chapter_data
-        
-        print(f"⚠️  章节标题重复: '{original_title}' 与第{duplicate_chapter}章重复，正在生成新标题...")
-        
-        # 方法1: 使用智能重命名
-        new_title = self.generate_unique_chapter_title(original_title, chapter_number, plot_direction)
-        
-        if new_title != original_title:
-            chapter_data["chapter_title"] = new_title
-            chapter_data["title_was_changed"] = True
-            chapter_data["original_title"] = original_title
-            self.novel_data["used_chapter_titles"].add(new_title)
-            print(f"✓ 使用新标题: '{new_title}'")
-        
-        return chapter_data
-
-    def generate_unique_chapter_title(self, original_title: str, chapter_number: int, 
-                                    plot_direction: str, retry_count: int = 0) -> str:
-        """生成唯一的章节标题"""
-        if retry_count >= 2:
-            return self._generate_deterministic_title(original_title, chapter_number)
-        
-        # 基于情节方向生成新标题
-        title_prompt = f"""
-请为小说的第{chapter_number}章生成一个新的、富有吸引力的章节标题。
-
-原始标题（已重复）: {original_title}
-情节发展方向: {plot_direction}
-
-要求:
-1. 与原始标题风格一致但完全不同
-2. 反映本章情节发展
-3. 长度8-15字
-4. 避免与已有章节标题重复
-5. 富有文学性和吸引力
-
-已有章节标题: {list(self.novel_data["used_chapter_titles"])[-10:]}
-
-请只返回标题文本，不要其他内容。
-"""
-        
-        try:
-            new_title = self.api_client.call_api('deepseek', "你是小说章节标题生成专家", title_prompt, 0.7, purpose="生成唯一章节标题")
-            if new_title and new_title.strip():
-                new_title = new_title.strip().strip('"').strip("'").strip()
-                new_title = re.sub(r'^["\']|["\']$', '', new_title)
-                
-                # 再次检查唯一性
-                is_unique, _ = self.is_chapter_title_unique(new_title)
-                if is_unique and len(new_title) >= 4:
-                    return new_title
-                else:
-                    return self.generate_unique_chapter_title(original_title, chapter_number, plot_direction, retry_count + 1)
-        except Exception as e:
-            print(f"生成新标题失败: {e}")
-        
-        return self._generate_deterministic_title(original_title, chapter_number)
-
-    def _generate_deterministic_title(self, original_title: str, chapter_number: int) -> str:
-        """使用确定性方法生成标题"""
-        base_title = re.sub(r'[（(].*[）)]', '', original_title).strip()
-        
-        alternatives = [
-            f"{base_title}·新篇",
-            f"{base_title}·风云再起",
-            f"{base_title}·波澜再起",
-            f"{base_title}·暗流涌动",
-            f"{base_title}·转折时刻",
-            f"{base_title}·命运交错",
-            f"第{chapter_number}章 {base_title}",
-            f"{base_title}（续）"
-        ]
-        
-        for alt in alternatives:
-            if self.is_chapter_title_unique(alt)[0]:
-                return alt
-        
-        return f"第{chapter_number}章 {base_title}"
-
-    def is_chapter_title_unique(self, title: str, exclude_chapter: int = None) -> Tuple[bool, Optional[int]]:
-        """检查章节标题是否唯一，返回是否唯一和重复的章节号"""
-        for chapter_num, chapter_data in self.novel_data["generated_chapters"].items():
-            if exclude_chapter and chapter_num == exclude_chapter:
-                continue
-            existing_title = chapter_data.get("chapter_title", "")
-            if existing_title and existing_title == title:
-                return False, chapter_num
-        return True, None
-    
-    def set_recommended_ratio(self, experience_level: str = "beginner", genre: str = None):
-        """设置推荐配比"""
-        recommended_ratios = {
-            "beginner": {"main": 0.75, "emotional": 0.15, "foreshadowing": 0.10},
-            "intermediate": {"main": 0.70, "emotional": 0.15, "foreshadowing": 0.15},
-            "advanced": {"main": 0.65, "emotional": 0.20, "foreshadowing": 0.15}
-        }
-    
-        if genre:
-            genre_ratios = {
-                "爽文": {"main": 0.75, "emotional": 0.10, "foreshadowing": 0.15},
-                "言情": {"main": 0.60, "emotional": 0.30, "foreshadowing": 0.10},
-                "悬疑": {"main": 0.65, "emotional": 0.05, "foreshadowing": 0.30},
-                "玄幻": {"main": 0.70, "emotional": 0.15, "foreshadowing": 0.15},
-                "都市": {"main": 0.65, "emotional": 0.25, "foreshadowing": 0.10}
-            }
-            if genre in genre_ratios:
-                self.subplot_ratio = genre_ratios[genre]
-                print(f"🎯 使用{genre}题材推荐配比")
-            else:
-                self.subplot_ratio = recommended_ratios[experience_level]
-                print(f"🎯 使用{experience_level}级别推荐配比")
-        else:
-            self.subplot_ratio = recommended_ratios[experience_level]
-            print(f"🎯 使用{experience_level}级别推荐配比")
-        
-        self._initialize_subplot_plan_with_ratio()
-
-    def _initialize_subplot_plan_with_ratio(self):
-        """根据配比初始化暗线推进计划"""
-        if "total_chapters" not in self.novel_data["current_progress"]:
-            print("❌ 错误: total_chapters 未设置，无法初始化暗线计划")
+    def validate_main_character_usage(self):
+        """验证主角名字在所有内容中的使用情况"""
+        custom_name = self.novel_data.get("custom_main_character_name")
+        if not custom_name:
+            print("未设置自定义主角名字，跳过验证")
             return
         
-        total_chapters = self.novel_data["current_progress"]["total_chapters"]
+        print(f"\n🔍 验证主角名字 '{custom_name}' 的使用情况:")
         
-        # 验证配比
-        total_ratio = sum(self.subplot_ratio.values())
-        if abs(total_ratio - 1.0) > 0.01:
-            print(f"⚠️  配比总和为{total_ratio*100}%，自动调整为100%")
-            scale_factor = 1.0 / total_ratio
-            for key in self.subplot_ratio:
-                self.subplot_ratio[key] *= scale_factor
+        # 检查选定方案
+        selected_plan = self.novel_data.get("selected_plan")
+        if selected_plan:
+            title_usage = custom_name in selected_plan.get("title", "")
+            synopsis_usage = custom_name in selected_plan.get("synopsis", "")
+            print(f"  方案: 标题中{'✓' if title_usage else '✗'} | 简介中{'✓' if synopsis_usage else '✗'}")
         
-        # 修复章节分配计算
-        emotional_count = max(1, int(total_chapters * self.subplot_ratio["emotional"]))
-        foreshadowing_count = max(1, int(total_chapters * self.subplot_ratio["foreshadowing"]))
-        main_count = total_chapters - emotional_count - foreshadowing_count
+        # 检查写作计划
+        overall_stage_plan = self.novel_data.get("overall_stage_plan")
+        if overall_stage_plan:
+            plan_usage = any(
+                custom_name in str(value) 
+                for value in overall_stage_plan.values() 
+                if isinstance(value, str)
+            )
+            print(f"  写作计划: {'✓' if plan_usage else '✗'}")
         
-        print(f"📈 章节分配: 主线{main_count}章, 感情线{emotional_count}章, 伏笔线{foreshadowing_count}章")
-        print(f"📊 配比: 主线{self.subplot_ratio['main']*100}%, 感情线{self.subplot_ratio['emotional']*100}%, 伏笔线{self.subplot_ratio['foreshadowing']*100}%")
+        # 检查角色设计
+        character_design = self.novel_data.get("character_design")
+        if character_design:
+            main_char = character_design.get("main_character", {})
+            name_correct = main_char.get("name") == custom_name
+            print(f"  角色设计: {'✓' if name_correct else '✗'} (主角名字: {main_char.get('name', '未设置')})")
         
-        # 生成均匀分布的章节编号
-        emotional_chapters = self._generate_evenly_distributed_chapters(emotional_count, total_chapters, "emotional")
-        foreshadowing_chapters = self._generate_evenly_distributed_chapters(foreshadowing_count, total_chapters, "foreshadowing")
+        # 检查已生成章节
+        generated_chapters = self.novel_data.get("generated_chapters", {})
+        if generated_chapters:
+            chapters_with_name = sum(1 for chapter_data in generated_chapters.values() 
+                                   if custom_name in chapter_data.get("content", ""))
+            print(f"  章节内容: {chapters_with_name}/{len(generated_chapters)} 章使用了主角名字")
         
-        self.novel_data["subplot_tracking"]["subplot_chapters"] = {
-            "foreshadowing": foreshadowing_chapters,
-            "emotional": emotional_chapters
+        print("验证完成")          
+
+    def print_foundation_quality_report(self):
+        """打印基础内容质量报告"""
+        print("\n" + "="*60)
+        print("🏗️  基础内容质量报告")
+        print("="*60)
+        
+        foundation_contents = {
+            "市场分析": self.novel_data.get("market_analysis"),
+            "写作计划": self.novel_data.get("stage_writing_plan"), 
+            "世界观": self.novel_data.get("core_worldview"),
+            "角色设计": self.novel_data.get("character_design")
         }
         
-        # 记录配比设置
-        self.novel_data["subplot_tracking"]["ratio"] = self.subplot_ratio
-
-    def get_user_choice_with_timeout(self, options: List[str], timeout: int, default_choice: str, prompt: str) -> str:
-        """带超时的用户选择方法"""
-        user_choice = [None]
-        
-        def get_input():
-            try:
-                choice = input(prompt).strip()
-                if choice in options:
-                    user_choice[0] = choice
-            except:
-                pass
-        
-        # 启动输入线程
-        input_thread = threading.Thread(target=get_input)
-        input_thread.daemon = True
-        input_thread.start()
-        
-        # 等待用户输入，最多timeout秒
-        start_time = time.time()
-        
-        while time.time() - start_time < timeout and user_choice[0] is None:
-            time.sleep(0.1)
-        
-        return user_choice[0] if user_choice[0] is not None else default_choice
-
-    def set_custom_ratio(self):
-        """设置自定义配比，确保主线占比合理"""
-        print("\n📝 自定义配比 (请确保主线占比在60-85%之间)")
-        
-        while True:
-            try:
-                main_ratio = float(input("请输入主线比例 (0.6-0.85): "))
-                if 0.6 <= main_ratio <= 0.85:
-                    break
-                else:
-                    print("主线比例必须在0.6-0.85之间")
-            except ValueError:
-                print("请输入有效的数字")
-        
-        remaining = 1.0 - main_ratio
-        print(f"剩余比例: {remaining*100}% 可分配给感情线和伏笔线")
-        
-        emotional_ratio = 0
-        if remaining > 0:
-            while True:
-                try:
-                    emotional_ratio = float(input(f"请输入感情线比例 (0-{remaining}): "))
-                    if 0 <= emotional_ratio <= remaining:
-                        break
-                    else:
-                        print(f"感情线比例必须在0-{remaining}之间")
-                except ValueError:
-                    print("请输入有效的数字")
-        
-        foreshadowing_ratio = remaining - emotional_ratio
-        
-        custom_ratio = {
-            "main": main_ratio,
-            "emotional": emotional_ratio,
-            "foreshadowing": foreshadowing_ratio
-        }
-        
-        self.set_subplot_ratio(custom_ratio=custom_ratio)
-
-    def _generate_evenly_distributed_chapters(self, count: int, total: int, line_type: str) -> List[int]:
-        """生成均匀分布的章节编号"""
-        if count <= 0:
-            return []
-        
-        count = max(1, count)
-        
-        # 根据暗线类型确定起始位置
-        start_chapter = max(5, 1) if line_type == "emotional" else max(3, 1)
-        
-        # 避免最后一章
-        available_chapters = list(range(start_chapter, total))
-        
-        if count >= len(available_chapters):
-            return available_chapters
-        
-        # 智能分布算法
-        if count == 1:
-            return [available_chapters[len(available_chapters) // 2]]
-        elif count == 2:
-            return [
-                available_chapters[len(available_chapters) // 3],
-                available_chapters[len(available_chapters) * 2 // 3]
-            ]
-        else:
-            chapters = []
-            step = len(available_chapters) / count
-            for i in range(count):
-                index = min(int(i * step), len(available_chapters) - 1)
-                chapters.append(available_chapters[index])
-            
-            return sorted(chapters)
-
-    def validate_and_adjust_ratio(self):
-        """验证并调整配比，确保合理性"""
-        total = sum(self.subplot_ratio.values())
-        
-        # 如果配比总和不是100%，自动调整
-        if abs(total - 1.0) > 0.01:
-            print(f"⚠️  配比总和为{total*100}%，自动调整为100%")
-            scale_factor = 1.0 / total
-            for key in self.subplot_ratio:
-                self.subplot_ratio[key] *= scale_factor
-        
-        # 确保主线占比合理
-        if self.subplot_ratio.get("main", 0) < 0.6:
-            print(f"⚠️  主线占比过低 ({self.subplot_ratio['main']*100}%)，自动调整为60%")
-            remaining = 0.4
-            emotional_ratio = self.subplot_ratio.get("emotional", 0.15)
-            foreshadowing_ratio = self.subplot_ratio.get("foreshadowing", 0.15)
-            other_total = emotional_ratio + foreshadowing_ratio
-            
-            if other_total > 0:
-                scale = remaining / other_total
-                self.subplot_ratio["emotional"] = emotional_ratio * scale
-                self.subplot_ratio["foreshadowing"] = foreshadowing_ratio * scale
+        for name, content in foundation_contents.items():
+            if content:
+                completeness = self._assess_foundation_completeness(content, name)
+                print(f"📊 {name}: {completeness}")
             else:
-                self.subplot_ratio["emotional"] = remaining * 0.5
-                self.subplot_ratio["foreshadowing"] = remaining * 0.5
-            
-            self.subplot_ratio["main"] = 0.6
+                print(f"❌ {name}: 缺失")
         
-        # 确保至少有一定比例的暗线
-        if self.subplot_ratio.get("emotional", 0) + self.subplot_ratio.get("foreshadowing", 0) < 0.1:
-            print("⚠️  暗线占比过低，自动调整为至少10%")
-            self.subplot_ratio["main"] -= 0.1
-            self.subplot_ratio["emotional"] += 0.05
-            self.subplot_ratio["foreshadowing"] += 0.05
+        print("="*60)      
 
-    def set_subplot_ratio(self, ratio_type: str = "auto", custom_ratio: Dict = None):
-        """设置暗线配比"""
-        if custom_ratio:
-            self.subplot_ratio = custom_ratio
-            print(f"📊 使用自定义配比: 主线{self.subplot_ratio['main']*100}%, 感情线{self.subplot_ratio['emotional']*100}%, 伏笔线{self.subplot_ratio['foreshadowing']*100}%")
+    def _assess_foundation_completeness(self, content: Dict, content_type: str) -> str:
+        """评估基础内容的完整性"""
+        if not content:
+            return "无内容"
         
-        elif ratio_type == "auto":
-            genre = self.detect_genre_from_seed(self.novel_data["creative_seed"])
-            auto_ratio = self.config["subplot_ratios"]["by_genre"].get(genre, self.config["subplot_ratios"]["by_genre"]["默认"])
-            self.subplot_ratio = auto_ratio
-            print(f"📊 自动检测题材 '{genre}'，设定配比: 主线{self.subplot_ratio['main']*100}%, 感情线{self.subplot_ratio['emotional']*100}%, 伏笔线{self.subplot_ratio['foreshadowing']*100}%")
-        
-        else:
-            preset_ratio = self.config["subplot_ratios"]["presets"].get(ratio_type, self.config["subplot_ratios"]["presets"]["平衡发展"])
-            self.subplot_ratio = preset_ratio
-            print(f"📊 使用预设配比 '{ratio_type}': 主线{self.subplot_ratio['main']*100}%, 感情线{self.subplot_ratio['emotional']*100}%, 伏笔线{self.subplot_ratio['foreshadowing']*100}%")
-        
-        # 验证和调整配比
-        self.validate_and_adjust_ratio()
-        
-        # 重新初始化暗线计划
-        self._initialize_subplot_plan_with_ratio()
-
-    def choose_subplot_ratio(self):
-        """让用户选择暗线配比"""
-        print("\n🎯 请选择剧情配比方案 (主线占比60-85%):")
-        print("1. 自动配比 (根据题材智能设定)")
-        print("2. 情感主导 (主线60%，感情线30%，伏笔线10%)")
-        print("3. 悬疑主导 (主线60%，感情线10%，伏笔线30%)") 
-        print("4. 平衡发展 (主线70%，感情线15%，伏笔线15%)")
-        print("5. 轻度暗线 (主线80%，感情线10%，伏笔线10%)")
-        print("6. 主线优先 (主线85%，感情线10%，伏笔线5%)")
-        print("7. 推荐配比 (新手作者适用)")
-        print("8. 自定义配比")
-        
-        # 10秒超时自动选择
-        choice = self.get_user_choice_with_timeout(
-            options=["1", "2", "3", "4", "5", "6", "7", "8"],
-            timeout=10,
-            default_choice="7",
-            prompt="请选择配比方案 (1-8): "
-        )
-        
-        ratio_map = {
-            "1": "auto",
-            "2": "情感主导", 
-            "3": "悬疑主导",
-            "4": "平衡发展",
-            "5": "轻度暗线",
-            "6": "主线优先"
+        required_fields = {
+            "市场分析": ["target_audience", "core_selling_points", "market_trend_analysis"],
+            "写作计划": ["writing_approach", "chapter_rhythm", "key_plot_points"],
+            "世界观": ["era", "core_conflict", "overview", "power_system"],
+            "角色设计": ["main_character", "important_characters"]
         }
         
-        if choice == "7":
-            self.set_recommended_ratio("beginner")
-        elif choice == "8":
-            self.set_custom_ratio()
-        else:
-            ratio_type = ratio_map.get(choice, "auto")
-            self.set_subplot_ratio(ratio_type)
-
-    def print_subplot_schedule(self):
-        """打印暗线推进计划"""
-        subplot_tracking = self.novel_data["subplot_tracking"]
-        total_chapters = self.novel_data["current_progress"]["total_chapters"]
+        fields = required_fields.get(content_type, [])
+        missing_fields = [field for field in fields if not self._get_nested_value(content, field)]
         
-        print("\n📋 暗线推进计划:")
-        print(f"配比设置: 感情线{self.subplot_ratio['emotional']*100}%, 伏笔线{self.subplot_ratio['foreshadowing']*100}%")
+        return "基本完整 (缺失: {})".format(", ".join(missing_fields)) if missing_fields else "完整"
+    
+    def _get_nested_value(self, obj, key_path):
+        """获取嵌套字典的值"""
+        if isinstance(key_path, str):
+            return obj.get(key_path)
         
-        emotional_chapters = subplot_tracking['subplot_chapters']['emotional']
-        foreshadowing_chapters = subplot_tracking['subplot_chapters']['foreshadowing']
-        
-        print(f"感情线章节 ({len(emotional_chapters)}章): {emotional_chapters}")
-        print(f"伏笔线章节 ({len(foreshadowing_chapters)}章): {foreshadowing_chapters}")
-        
-        # 计算重叠章节
-        overlap_chapters = set(emotional_chapters) & set(foreshadowing_chapters)
-        if overlap_chapters:
-            print(f"双重暗线章节 ({len(overlap_chapters)}章): {sorted(overlap_chapters)}")
-        
-        # 计算暗线章节比例
-        all_subplot_chapters = set(emotional_chapters) | set(foreshadowing_chapters)
-        subplot_ratio_actual = len(all_subplot_chapters) / total_chapters
-        print(f"实际暗线章节占比: {len(all_subplot_chapters)}/{total_chapters} ({subplot_ratio_actual*100:.1f}%)")
-
-    def get_chapter_focus_with_ratio(self, chapter_number: int, total_chapters: int) -> str:
-        """根据配比确定本章的重点内容"""
-        # 首先检查是否为重大事件章节
-        major_event = self.event_driven_manager.get_current_major_event(chapter_number)
-        if major_event:
-            progress = self.event_driven_manager.get_event_progress(chapter_number, major_event)
-            return f"重大事件[{major_event['name']}] - {progress['stage']} - {progress['current']}/{progress['total']}章"
-
-        # 使用事件驱动管理器获取章节上下文
-        event_context = self.event_driven_manager.get_chapter_event_context(chapter_number)
-        
-        if event_context["is_emotional_chapter"] and event_context["is_foreshadowing_chapter"]:
-            return "本章同时推进感情线和伏笔线，注意平衡发展"
-        elif event_context["is_emotional_chapter"]:
-            return "本章重点推进感情线，发展角色关系和情感冲突"
-        elif event_context["is_foreshadowing_chapter"]:
-            return "本章重点推进伏笔线，埋设新伏笔或回收旧伏笔"
-        else:
-            # 根据事件类型确定重点
-            if event_context["event_type"] == "big_event":
-                event_info = event_context["event_info"]
-                return f"大事件[{event_info['name']}] - {event_info['main_goal']}"
-            elif event_context["event_type"] == "event":
-                event_info = event_context["event_info"]
-                return f"事件[{event_info['name']}] - {event_info['goal']}"
+        current = obj
+        for key in key_path.split('.'):
+            if isinstance(current, dict) and key in current:
+                current = current[key]
             else:
-                plot_direction = self.get_plot_direction_for_chapter(chapter_number, total_chapters)
-                return plot_direction["main_plot_progress"]
-        
-    def detect_genre_from_seed(self, creative_seed: str) -> str:
-        """根据创意种子自动检测题材"""
-        seed_lower = creative_seed.lower()
-        
-        genre_keywords = {
-            "都市情感": ["都市", "爱情", "婚姻", "恋爱", "职场", "霸总", "追妻"],
-            "玄幻修真": ["玄幻", "修真", "修仙", "仙侠", "魔法", "斗气", "飞升"],
-            "科幻末世": ["科幻", "末世", "星际", "机甲", "外星", "废土", "丧尸"],
-            "历史权谋": ["历史", "权谋", "宫斗", "朝堂", "帝王", "将军", "古代"],
-            "悬疑推理": ["悬疑", "推理", "破案", "侦探", "犯罪", "谜案", "解谜"],
-            "系统流": ["系统", "加点", "面板", "任务", "奖励", "升级", "兑换"],
-            "无限流": ["无限", "主神", "轮回", "副本", "任务世界", "穿越"],
-            "穿越重生": ["穿越", "重生", "回到", "转世", "复活", "再来一次"]
-        }
-        
-        for genre, keywords in genre_keywords.items():
-            if any(keyword in seed_lower for keyword in keywords):
-                return genre
-        
-        return "默认"
+                return None
+        return current    

@@ -154,6 +154,7 @@ class ProjectManager:
             },
             "market_analysis": novel_data["market_analysis"],
             "overall_stage_plan": novel_data["overall_stage_plan"],
+            "stage_writing_plan": novel_data["stage_writing_plan"],
             "core_worldview": novel_data["core_worldview"],
             "character_design": novel_data["character_design"],
             
@@ -202,7 +203,7 @@ class ProjectManager:
             print(f"✓ 项目进度已保存: 小说项目/{safe_title}_项目信息.json")
         except Exception as e:
             print(f"保存项目信息文件失败: {e}")
-            
+
     def calculate_basic_quality_statistics(self, novel_data: Dict) -> Dict:
         """计算基本质量统计信息 - 不包含详细内容"""
         if not novel_data["generated_chapters"]:
