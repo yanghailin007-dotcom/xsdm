@@ -1750,4 +1750,78 @@ class NovelGenerator:
                 # 更新事件系统
                 self.event_driven_manager.update_event_system()
         
-        return self.stage_plan_manager.current_stage_plans.get(current_stage)    
+        return self.stage_plan_manager.current_stage_plans.get(current_stage) 
+
+    def print_quality_report(self):
+        """打印质量报告"""
+        if not self.novel_data["chapter_quality_records"]:
+            print("暂无质量评估数据")
+            return
+        
+        stats = self.project_manager.calculate_quality_statistics(self.novel_data)
+        
+        print("\n" + "="*60)
+        print("📊 章节质量评估报告")
+        print("="*60)
+        
+        print(f"📈 总体质量统计:")
+        print(f"   评估章节数: {stats['total_chapters_assessed']}")
+        print(f"   平均评分: {stats['average_score']:.1f}/10分")
+        print(f"   最高分: {stats['max_score']:.1f}分")
+        print(f"   最低分: {stats['min_score']:.1f}分")
+        print(f"   优化章节: {stats['optimized_chapters']}章 ({stats['optimization_rate']}%)")
+        
+        print(f"\n🎯 质量分布:")
+        distribution = stats.get('quality_distribution', {})
+        for level, count in distribution.items():
+            percentage = (count / stats['total_chapters_assessed']) * 100 if stats['total_chapters_assessed'] > 0 else 0
+            print(f"   {level}: {count}章 ({percentage:.1f}%)")
+        
+        print(f"\n🤖 AI痕迹检测统计:")
+        ai_stats = stats.get('ai_quality', {})
+        print(f"   平均AI痕迹得分: {ai_stats.get('average_ai_score', 2):.1f}/2分")
+        print(f"   存在AI痕迹的章节: {ai_stats.get('chapters_with_ai_artifacts', 0)}章")
+        
+        ai_distribution = ai_stats.get('ai_distribution', {})
+        for level, count in ai_distribution.items():
+            percentage = (count / stats['total_chapters_assessed']) * 100 if stats['total_chapters_assessed'] > 0 else 0
+            print(f"   {level}: {count}章 ({percentage:.1f}%)")
+        
+        print(f"\n🔍 详细评分分析:")
+        detailed_scores = stats.get('average_detailed_scores', {})
+        for aspect, score in detailed_scores.items():
+            aspect_name = {
+                'plot_coherence': '情节连贯性',
+                'character_consistency': '角色一致性', 
+                'chapter_connection': '章节衔接',
+                'writing_quality': '文笔质量',
+                'ai_artifacts_detected': 'AI痕迹检测',
+                'emotional_impact': '爽点设置'
+            }.get(aspect, aspect)
+            print(f"   {aspect_name}: {score:.1f}/2分")
+        
+        # 显示需要重点关注的章节
+        low_quality_chapters = []
+        high_ai_chapters = []
+        
+        for chap_num, record in self.novel_data["chapter_quality_records"].items():
+            score = record.get('assessment', {}).get('overall_score', 0)
+            ai_score = record.get('assessment', {}).get('detailed_scores', {}).get('ai_artifacts_detected', 2)
+            
+            if score < self.config["quality_thresholds"]["acceptable"]:
+                low_quality_chapters.append((chap_num, score))
+            
+            if ai_score < 1.5:  # AI痕迹较明显
+                high_ai_chapters.append((chap_num, ai_score))
+        
+        if low_quality_chapters:
+            print(f"\n⚠️  需要关注的章节 (评分低于8分):")
+            for chap_num, score in sorted(low_quality_chapters, key=lambda x: x[1]):
+                print(f"   第{chap_num}章: {score:.1f}分")
+        
+        if high_ai_chapters:
+            print(f"\n🤖 AI痕迹较明显的章节:")
+            for chap_num, ai_score in sorted(high_ai_chapters, key=lambda x: x[1]):
+                print(f"   第{chap_num}章: AI痕迹得分{ai_score:.1f}/2分")
+        
+        print("="*60)       
