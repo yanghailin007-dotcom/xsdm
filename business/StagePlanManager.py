@@ -89,7 +89,7 @@ class StagePlanManager:
         stage_progress = self.get_stage_progress(chapter_number)
         
         # 获取阶段信息
-        stage_info = self.stage_plan["overall_stage_plan"].get(current_stage, {})
+        stage_info = self.stage_plan.get(current_stage, {})
         if not stage_info:
             return None
         

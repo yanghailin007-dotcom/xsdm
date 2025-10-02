@@ -1324,49 +1324,126 @@ class NovelGenerator:
         return "默认"
     
     def load_project_data(self, filename: str) -> bool:
-        """加载项目数据"""
-        data = self.project_manager.load_project(filename)
-        if not data:
+        """加载项目数据 - 修复版本：确保阶段计划管理器正确初始化"""
+        try:
+            data = self.project_manager.load_project(filename)
+            if not data:
+                return False
+                
+            # 检查必要的键是否存在
+            if "novel_info" not in data:
+                print("⚠️ 项目数据缺少novel_info键，尝试从其他字段构建...")
+                data["novel_info"] = {
+                    "title": data.get("novel_title", "未知标题"),
+                    "synopsis": data.get("novel_synopsis", ""),
+                    "creative_seed": data.get("creative_seed", ""),
+                    "selected_plan": data.get("selected_plan", ""),
+                    "category": data.get("category", "未分类")
+                }
+            
+            # 原有的数据加载逻辑
+            self.novel_title = data["novel_title"]
+            self.novel_synopsis = data["novel_synopsis"]
+            self.creative_seed = data["creative_seed"]
+            self.selected_plan = data["selected_plan"]
+            
+            # 修复：确保进度信息正确加载
+            self.current_progress = data.get("current_progress", {
+                "completed_chapters": 0,
+                "total_chapters": 0,
+                "stage": "大纲阶段",
+                "current_stage": "第一阶段"
+            })
+            
+            # 如果进度信息为空但实际有章节，自动修复
+            if (self.current_progress["total_chapters"] == 0 and 
+                "generated_chapters" in data and 
+                data["generated_chapters"]):
+                
+                max_chapter = max(data["generated_chapters"].keys())
+                self.current_progress["total_chapters"] = max_chapter
+                self.current_progress["completed_chapters"] = len(data["generated_chapters"])
+                self.current_progress["stage"] = "写作中"
+                print(f"🔄 生成器层面修复进度: {len(data['generated_chapters'])}/{max_chapter}章")
+            
+            # 加载其他数据...
+            self.market_analysis = data.get("market_analysis", {})
+            self.overall_stage_plan = data.get("overall_stage_plan", {})
+            
+            # 修复：确保写作计划正确加载
+            self.stage_writing_plans = data.get("stage_writing_plans", {})
+            print(f"🔍 生成器调试 - 加载的写作计划: {len(self.stage_writing_plans)} 个阶段")
+            if self.stage_writing_plans:
+                for stage_name, stage_data in self.stage_writing_plans.items():
+                    print(f"  - 阶段 '{stage_name}': {len(stage_data)} 个属性")
+            
+            self.core_worldview = data.get("core_worldview", {})
+            self.character_design = data.get("character_design", {})
+            self.generated_chapters = data.get("generated_chapters", {})
+            self.plot_progression = data.get("plot_progression", [])
+            self.subplot_tracking = data.get("subplot_tracking", {
+                "ratio": {"emotional": 0.3, "foreshadowing": 0.3},
+                "subplot_chapters": {"emotional": [], "foreshadowing": []}
+            })
+            self.quality_statistics = data.get("quality_statistics", {})
+            
+            # 修复：初始化阶段计划管理器
+            self._initialize_stage_plan_manager()
+            
+            print(f"✓ 项目数据加载完成: {self.novel_title}")
+            print(f"  - 总章节: {self.current_progress['total_chapters']}章")
+            print(f"  - 已完成: {self.current_progress['completed_chapters']}章")
+            print(f"  - 阶段: {self.current_progress['stage']}")
+            print(f"  - 写作计划: {len(self.stage_writing_plans)} 个阶段")
+            print(f"  - 阶段计划管理器: {'已初始化' if self.stage_plan_manager.stage_plan else '未初始化'}")
+            
+            return True
+            
+        except KeyError as e:
+            print(f"❌ 项目数据格式错误，缺少必要字段: {e}")
+            import traceback
+            traceback.print_exc()
             return False
-        
-        # 恢复基本数据
-        novel_info = data["novel_info"]
-        self.novel_data["novel_title"] = novel_info["title"]
-        self.novel_data["novel_synopsis"] = novel_info["synopsis"]
-        self.novel_data["creative_seed"] = novel_info["creative_seed"]
-        self.novel_data["selected_plan"] = novel_info["selected_plan"]
-        self.novel_data["category"] = novel_info.get("category", "未分类")
-        
-        # 恢复分析数据
-        self.novel_data["market_analysis"] = data.get("market_analysis")
-        self.novel_data["core_worldview"] = data.get("core_worldview")
-        self.novel_data["character_design"] = data.get("character_design")
-        
-        self.novel_data["overall_stage_plan"] = data.get("overall_stage_plan")
-        self.novel_data["stage_writing_plans"] = data.get("stage_writing_plans", {})
+        except Exception as e:
+            print(f"❌ 加载项目数据失败: {e}")
+            import traceback
+            traceback.print_exc()
+            return False
 
-        # 恢复进度信息
-        self.novel_data["current_progress"] = data.get("progress", self.novel_data["current_progress"])
-        self.novel_data["plot_progression"] = data.get("plot_progression", [])
-        
-        # 恢复章节数据
-        self.novel_data["generated_chapters"] = {}
-        chapter_summaries = data.get("chapter_summaries", {})
-        for chapter_num, summary in chapter_summaries.items():
-            self.novel_data["generated_chapters"][int(chapter_num)] = summary
-        
-        # 恢复质量记录和优化历史
-        self.novel_data["chapter_quality_records"] = data.get("chapter_quality_records", {})
-        self.novel_data["optimization_history"] = data.get("optimization_history", {})
-        
-        self.novel_data["is_resuming"] = True
-        self.novel_data["resume_data"] = data
-        
-        print(f"✓ 项目加载成功: {self.novel_data['novel_title']}")
-        print(f"  当前进度: {self.novel_data['current_progress']['completed_chapters']}/{self.novel_data['current_progress']['total_chapters']}章")
-        print(f"  当前阶段: {self.novel_data['current_progress']['stage']}")
-        
-        return True   
+    def _initialize_stage_plan_manager(self):
+        """初始化阶段计划管理器 - 修复版本"""
+        try:
+            # 如果有写作计划，初始化阶段计划管理器
+            if self.stage_writing_plans:
+                # 获取当前阶段
+                current_stage = self.current_progress.get("current_stage", "opening_stage")
+                
+                # 打印所有可用阶段
+                available_stages = list(self.stage_writing_plans.keys())
+                print(f"📋 可用写作阶段: {available_stages}")
+                
+                # 如果指定的阶段不存在，使用第一个可用阶段
+                if current_stage not in self.stage_writing_plans:
+                    current_stage = available_stages[0]
+                    print(f"⚠️ 指定阶段 '{self.current_progress.get('current_stage')}' 不存在，使用第一个可用阶段: {current_stage}")
+                
+                # 初始化阶段计划管理器
+                self.stage_plan_manager.stage_plan = self.stage_writing_plans
+                self.stage_plan_manager.calculate_stage_boundaries(self.current_progress['total_chapters'])
+                
+                current_stage_data = self.stage_writing_plans[current_stage]
+                if "stage_writing_plan" in current_stage_data:
+                    writing_plan = current_stage_data["stage_writing_plan"]
+                    print(f"   - 当前阶段概述: {writing_plan.get('stage_overview', '无')[:100]}...")
+                    print(f"   - 包含目标: {len(writing_plan.get('targets', {}))} 个")
+                    print(f"   - 包含事件: {len(writing_plan.get('event_system', {}))} 个系统")
+            else:
+                print("⚠️ 没有可用的写作计划，阶段计划管理器保持为空")
+                
+        except Exception as e:
+            print(f"❌ 初始化阶段计划管理器失败: {e}")
+            import traceback
+            traceback.print_exc()
      
     def resume_generation(self, total_chapters: int = None) -> bool:
         """继续生成小说"""
@@ -1738,7 +1815,7 @@ class NovelGenerator:
             return None
         
         current_stage = self.stage_plan_manager.get_current_stage(chapter_number)
-        
+        print(f"X 获取 {current_stage} 的详细写作计划")
         # 如果该阶段还没有生成详细计划，则生成
         if current_stage not in self.stage_plan_manager.current_stage_plans:
             stage_plan = self.stage_plan_manager.get_stage_plan_for_chapter(chapter_number)
