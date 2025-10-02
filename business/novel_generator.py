@@ -1324,7 +1324,7 @@ class NovelGenerator:
         return "默认"
     
     def load_project_data(self, filename: str) -> bool:
-        """加载项目数据 - 修复版本：确保阶段计划管理器正确初始化"""
+        """加载项目数据 - 修复版本：确保所有必要字段都存在"""
         try:
             data = self.project_manager.load_project(filename)
             if not data:
@@ -1340,15 +1340,57 @@ class NovelGenerator:
                     "selected_plan": data.get("selected_plan", ""),
                     "category": data.get("category", "未分类")
                 }
+
+            print(f"📋 加载的数据结构:")
+            print(f"  - novel_title: {data.get('novel_title', '未设置')}")
+            print(f"  - novel_synopsis: {data.get('novel_synopsis', '未设置')[:50]}...")
+            print(f"  - generated_chapters: {len(data.get('generated_chapters', {}))}章")
+            print(f"  - current_progress: {data.get('current_progress', {})}")
             
-            # 原有的数据加载逻辑
-            self.novel_title = data["novel_title"]
-            self.novel_synopsis = data["novel_synopsis"]
-            self.creative_seed = data["creative_seed"]
-            self.selected_plan = data["selected_plan"]
+            # 关键修复：确保所有必要字段都存在
+            print("🔄 补全缺失字段...")
+            
+            # 定义必须存在的字段及其默认值
+            required_fields = {
+                "previous_chapter_endings": {},
+                "used_chapter_titles": set(),
+                "subplot_tracking": {
+                    "foreshadowing_lines": [],
+                    "emotional_lines": [],
+                    "subplot_chapters": {"foreshadowing": [], "emotional": []},
+                    "ratio": {"main": 0.7, "emotional": 0.15, "foreshadowing": 0.15}
+                },
+                "plot_progression": [],
+                "chapter_quality_records": {},
+                "optimization_history": {},
+                "is_resuming": False,
+                "resume_data": None
+            }
+            
+            # 补全缺失字段
+            for field, default_value in required_fields.items():
+                if field not in data:
+                    print(f"  ⚠️  补全缺失字段: {field}")
+                    data[field] = default_value
+            
+            # 关键修复：将数据同步到self.novel_data
+            print("🔄 同步数据到self.novel_data...")
+            
+            import copy
+            self.novel_data = copy.deepcopy(data)
+            
+            # 设置恢复模式标志
+            self.novel_data["is_resuming"] = True
+            self.novel_data["resume_data"] = copy.deepcopy(data)
+            
+            # 为了向后兼容，也设置独立的属性
+            self.novel_title = self.novel_data["novel_title"]
+            self.novel_synopsis = self.novel_data["novel_synopsis"]
+            self.creative_seed = self.novel_data.get("creative_seed", "")
+            self.selected_plan = self.novel_data.get("selected_plan", {})
             
             # 修复：确保进度信息正确加载
-            self.current_progress = data.get("current_progress", {
+            self.current_progress = self.novel_data.get("current_progress", {
                 "completed_chapters": 0,
                 "total_chapters": 0,
                 "stage": "大纲阶段",
@@ -1357,45 +1399,46 @@ class NovelGenerator:
             
             # 如果进度信息为空但实际有章节，自动修复
             if (self.current_progress["total_chapters"] == 0 and 
-                "generated_chapters" in data and 
-                data["generated_chapters"]):
+                "generated_chapters" in self.novel_data and 
+                self.novel_data["generated_chapters"]):
                 
-                max_chapter = max(data["generated_chapters"].keys())
+                max_chapter = max(self.novel_data["generated_chapters"].keys())
                 self.current_progress["total_chapters"] = max_chapter
-                self.current_progress["completed_chapters"] = len(data["generated_chapters"])
+                self.current_progress["completed_chapters"] = len(self.novel_data["generated_chapters"])
                 self.current_progress["stage"] = "写作中"
-                print(f"🔄 生成器层面修复进度: {len(data['generated_chapters'])}/{max_chapter}章")
+                print(f"🔄 生成器层面修复进度: {len(self.novel_data['generated_chapters'])}/{max_chapter}章")
             
             # 加载其他数据...
-            self.market_analysis = data.get("market_analysis", {})
-            self.overall_stage_plan = data.get("overall_stage_plan", {})
+            self.market_analysis = self.novel_data.get("market_analysis", {})
+            self.overall_stage_plan = self.novel_data.get("overall_stage_plan", {})
             
             # 修复：确保写作计划正确加载
-            self.stage_writing_plans = data.get("stage_writing_plans", {})
+            self.stage_writing_plans = self.novel_data.get("stage_writing_plans", {})
             print(f"🔍 生成器调试 - 加载的写作计划: {len(self.stage_writing_plans)} 个阶段")
             if self.stage_writing_plans:
                 for stage_name, stage_data in self.stage_writing_plans.items():
                     print(f"  - 阶段 '{stage_name}': {len(stage_data)} 个属性")
             
-            self.core_worldview = data.get("core_worldview", {})
-            self.character_design = data.get("character_design", {})
-            self.generated_chapters = data.get("generated_chapters", {})
-            self.plot_progression = data.get("plot_progression", [])
-            self.subplot_tracking = data.get("subplot_tracking", {
+            self.core_worldview = self.novel_data.get("core_worldview", {})
+            self.character_design = self.novel_data.get("character_design", {})
+            self.generated_chapters = self.novel_data.get("generated_chapters", {})
+            self.plot_progression = self.novel_data.get("plot_progression", [])
+            self.subplot_tracking = self.novel_data.get("subplot_tracking", {
                 "ratio": {"emotional": 0.3, "foreshadowing": 0.3},
                 "subplot_chapters": {"emotional": [], "foreshadowing": []}
             })
-            self.quality_statistics = data.get("quality_statistics", {})
+            self.quality_statistics = self.novel_data.get("quality_statistics", {})
             
             # 修复：初始化阶段计划管理器
             self._initialize_stage_plan_manager()
             
-            print(f"✓ 项目数据加载完成: {self.novel_title}")
-            print(f"  - 总章节: {self.current_progress['total_chapters']}章")
-            print(f"  - 已完成: {self.current_progress['completed_chapters']}章")
-            print(f"  - 阶段: {self.current_progress['stage']}")
-            print(f"  - 写作计划: {len(self.stage_writing_plans)} 个阶段")
-            print(f"  - 阶段计划管理器: {'已初始化' if self.stage_plan_manager.stage_plan else '未初始化'}")
+            print(f"✅ 项目数据加载完成: {self.novel_title}")
+            print(f"🔍 最终验证 - novel_data状态:")
+            print(f"  - novel_title: {self.novel_data.get('novel_title')}")
+            print(f"  - completed_chapters: {self.novel_data['current_progress'].get('completed_chapters')}")
+            print(f"  - total_chapters: {self.novel_data['current_progress'].get('total_chapters')}")
+            print(f"  - previous_chapter_endings: {len(self.novel_data.get('previous_chapter_endings', {}))}项")
+            print(f"  - used_chapter_titles: {len(self.novel_data.get('used_chapter_titles', set()))}个")
             
             return True
             
