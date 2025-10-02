@@ -11,403 +11,13 @@ from datetime import datetime
 from typing import Dict, Optional, Tuple, List, Any
 
 # 导入其他模块
+import EventDrivenManager
+import ForeshadowingManager
+import StagePlanManager
 from api_client import APIClient
 from content_generator import ContentGenerator
 from quality_assessor import QualityAssessor
 from project_manager import ProjectManager
-
-
-class EventDrivenManager:
-    """事件驱动管理器 - 负责事件体系的协调"""
-    
-    def __init__(self, novel_generator):
-        self.generator = novel_generator
-        self.event_system = {}
-        
-    def initialize_event_system(self, writing_plan: Dict):
-        """初始化事件体系"""
-        if not writing_plan or "event_system" not in writing_plan:
-            print("⚠️  写作计划中没有事件体系，使用默认事件结构")
-            self._create_default_event_system()
-            return
-            
-        self.event_system = writing_plan["event_system"]
-        print("✓ 事件驱动体系已初始化")
-        self.print_event_overview()
-    
-    def _create_default_event_system(self):
-        """创建默认事件体系"""
-        total_chapters = self.generator.novel_data["current_progress"]["total_chapters"]
-        
-        self.event_system = {
-            "overall_approach": "事件驱动主线，暗线穿插推进",
-            "major_events": self._generate_default_major_events(total_chapters),
-            "big_events": self._generate_default_big_events(total_chapters),
-            "events": self._generate_default_events(total_chapters),
-            "emotional_chapters": self._generate_emotional_chapters(total_chapters),
-            "foreshadowing_chapters": self._generate_foreshadowing_chapters(total_chapters)
-        }
-        
-    # 兼容性方法
-    def get_current_major_event(self, chapter_number: int) -> Optional[Dict]:
-        """获取当前章节所属的重大事件"""
-        context = self.get_chapter_event_context(chapter_number)
-        return context["event_info"] if context["event_type"] == "major_event" else None
-    
-    def get_event_progress(self, chapter_number: int, event: Dict) -> Dict:
-        """获取事件进度"""
-        return self._calculate_event_progress(chapter_number, event)
-    
-    def is_major_event_chapter(self, chapter_number: int) -> bool:
-        """判断是否为重大事件章节"""
-        context = self.get_chapter_event_context(chapter_number)
-        return context["event_type"] == "major_event"
-    
-    def generate_major_event_prompt(self, chapter_number: int, event: Dict, progress: Dict) -> str:
-        """生成重大事件专属提示词"""
-        return self.generate_event_driven_prompt(chapter_number)
-
-    def _generate_default_major_events(self, total_chapters: int) -> List[Dict]:
-        """生成默认重大事件"""
-        return [
-            {
-                "name": "开局觉醒",
-                "type": "major_event",
-                "start_chapter": 1,
-                "end_chapter": 10,
-                "duration": 10,
-                "significance": "主角获得能力/系统，建立故事基础",
-                "main_goal": "觉醒能力，建立初始目标",
-                "sub_goals": ["引入核心设定", "建立主角动机", "展示初始能力"],
-                "key_moments": ["能力觉醒时刻", "第一次使用能力", "确立目标"],
-                "character_development": "从普通人到能力者的转变",
-                "aftermath": "开启主线剧情",
-                "prerequisite_events": []
-            },
-            {
-                "name": "第一次重大挑战",
-                "type": "major_event", 
-                "start_chapter": 30,
-                "end_chapter": 45,
-                "duration": 15,
-                "significance": "主角面临的第一次真正考验",
-                "main_goal": "克服重大困难，证明实力",
-                "sub_goals": ["提升能力等级", "获得重要盟友", "建立声望"],
-                "key_moments": ["危机爆发", "关键决策", "突破极限"],
-                "character_development": "从新手到战士的成长",
-                "aftermath": "改变局势，开启新阶段",
-                "prerequisite_events": ["前期积累"]
-            }
-        ]
-    
-    def _generate_default_big_events(self, total_chapters: int) -> List[Dict]:
-        """生成默认大事件"""
-        return [
-            {
-                "name": "初次实战",
-                "type": "big_event",
-                "start_chapter": 15,
-                "end_chapter": 18, 
-                "main_goal": "验证能力，积累经验",
-                "connection_to_major": "为第一次重大挑战做准备",
-                "role": "能力检验和角色成长"
-            },
-            {
-                "name": "势力接触",
-                "type": "big_event",
-                "start_chapter": 22,
-                "end_chapter": 25,
-                "main_goal": "接触主要势力，建立关系",
-                "connection_to_major": "为后续冲突铺垫", 
-                "role": "世界观扩展和关系建立"
-            }
-        ]
-    
-    def _generate_default_events(self, total_chapters: int) -> List[Dict]:
-        """生成默认事件"""
-        event_chapters = [5, 12, 20, 28, 35, 42]
-        return [
-            {
-                "name": f"事件{i+1}",
-                "type": "event",
-                "chapter": chapter,
-                "goal": f"推进主线进度{i+1}",
-                "connection_to_big": "支撑大事件发展",
-                "outcome": "获得阶段性成果"
-            }
-            for i, chapter in enumerate(event_chapters)
-        ]
-    
-    def _generate_emotional_chapters(self, total_chapters: int) -> List[int]:
-        """生成感情线章节"""
-        return [8, 17, 26, 33, 40]
-    
-    def _generate_foreshadowing_chapters(self, total_chapters: int) -> List[int]:
-        """生成伏笔线章节"""
-        return [6, 14, 23, 31, 38]
-    
-    def get_chapter_event_context(self, chapter_number: int) -> Dict:
-        """获取章节的事件上下文"""
-        context = {
-            "event_type": "normal",
-            "event_info": None,
-            "is_emotional_chapter": False,
-            "is_foreshadowing_chapter": False,
-            "event_chain": []
-        }
-        
-        # 检查事件类型
-        for event in self.event_system.get("events", []):
-            if event["chapter"] == chapter_number:
-                context.update({"event_type": "event", "event_info": event})
-                break
-                
-        for event in self.event_system.get("big_events", []):
-            if event["start_chapter"] <= chapter_number <= event["end_chapter"]:
-                context.update({"event_type": "big_event", "event_info": event})
-                break
-                
-        for event in self.event_system.get("major_events", []):
-            if event["start_chapter"] <= chapter_number <= event["end_chapter"]:
-                context.update({"event_type": "major_event", "event_info": event})
-                break
-        
-        # 检查暗线章节
-        context["is_emotional_chapter"] = chapter_number in self.event_system.get("emotional_chapters", [])
-        context["is_foreshadowing_chapter"] = chapter_number in self.event_system.get("foreshadowing_chapters", [])
-        context["event_chain"] = self._get_event_chain(chapter_number)
-        
-        return context
-    
-    def _get_event_chain(self, chapter_number: int) -> List[Dict]:
-        """获取影响当前章节的事件链"""
-        chain = []
-        
-        # 添加前置事件
-        for event_type in ["events", "big_events", "major_events"]:
-            for event in self.event_system.get(event_type, []):
-                end_chapter = event.get("end_chapter", event.get("chapter", 0))
-                if end_chapter < chapter_number:
-                    chain.append({"type": event_type[:-1], "event": event})
-        
-        return chain
-    
-    def generate_event_driven_prompt(self, chapter_number: int) -> str:
-        """生成事件驱动的提示词"""
-        context = self.get_chapter_event_context(chapter_number)
-        
-        prompt_parts = ["\n\n# 🎯 事件驱动写作指导"]
-        
-        # 事件类型说明
-        if context["event_type"] == "major_event":
-            event_info = context["event_info"]
-            progress = self._calculate_event_progress(chapter_number, event_info)
-            prompt_parts.extend([
-                f"## 重大事件进行中: {event_info['name']}",
-                f"**当前进度**: {progress['current']}/{progress['total']}章 ({progress['stage']})",
-                f"**主要目标**: {event_info['main_goal']}",
-                f"**本阶段重点**: {self._get_major_event_stage_focus(progress['stage'], event_info)}",
-                "**关键要求**: 保持事件连贯性，推进核心目标，确保角色同步成长"
-            ])
-        elif context["event_type"] == "big_event":
-            event_info = context["event_info"]
-            prompt_parts.extend([
-                f"## 大事件: {event_info['name']}",
-                f"**目标**: {event_info['main_goal']}",
-                f"**作用**: {event_info['role']}",
-                "**要求**: 承上启下，为重大事件做准备"
-            ])
-        elif context["event_type"] == "event":
-            event_info = context["event_info"]
-            prompt_parts.extend([
-                f"## 事件: {event_info['name']}",
-                f"**目标**: {event_info['goal']}",
-                "**作用**: 推进主线进度"
-            ])
-        else:
-            # 普通章节 - 检查暗线
-            if context["is_emotional_chapter"]:
-                prompt_parts.append("## 感情线推进章节\n重点发展角色关系和情感冲突")
-            elif context["is_foreshadowing_chapter"]:
-                prompt_parts.append("## 伏笔线推进章节\n重点埋设新伏笔或回收旧伏笔")
-            else:
-                prompt_parts.append("## 主线推进章节\n保持故事节奏，自然衔接前后事件")
-        
-        # 添加事件链上下文
-        if context["event_chain"]:
-            prompt_parts.append("\n## 事件链上下文:")
-            for item in context["event_chain"][-3:]:  # 最近3个事件
-                prompt_parts.append(f"- {item['type']}: {item['event']['name']}")
-        
-        return "\n".join(prompt_parts)
-    
-    def _calculate_event_progress(self, chapter_number: int, event: Dict) -> Dict:
-        """计算事件进度"""
-        total_chapters = event["end_chapter"] - event["start_chapter"] + 1
-        current_progress = chapter_number - event["start_chapter"] + 1
-        progress_ratio = current_progress / total_chapters
-        
-        if progress_ratio <= 0.3:
-            stage = "开局阶段"
-        elif progress_ratio <= 0.6:
-            stage = "发展阶段" 
-        elif progress_ratio <= 0.8:
-            stage = "高潮阶段"
-        else:
-            stage = "收尾阶段"
-        
-        return {
-            "current": current_progress,
-            "total": total_chapters,
-            "ratio": progress_ratio,
-            "stage": stage
-        }
-    
-    def _get_major_event_stage_focus(self, stage: str, event: Dict) -> str:
-        """获取重大事件各阶段的写作重点"""
-        focus_map = {
-            "开局阶段": f"建立{event['name']}的基础，引入核心冲突",
-            "发展阶段": "深化矛盾，推进事件目标，角色成长",
-            "高潮阶段": "冲突激化，关键转折，情感爆发", 
-            "收尾阶段": "解决主要冲突，展示后果，铺垫后续"
-        }
-        return focus_map.get(stage, "推进事件发展")
-    
-    def print_event_overview(self):
-        """打印事件体系概览"""
-        print("\n📋 事件驱动体系概览:")
-        
-        print(f"🎯 重大事件 ({len(self.event_system.get('major_events', []))}个):")
-        for event in self.event_system.get("major_events", []):
-            print(f"  第{event['start_chapter']}-{event['end_chapter']}章: {event['name']}")
-        
-        print(f"🔥 大事件 ({len(self.event_system.get('big_events', []))}个):")
-        for event in self.event_system.get("big_events", []):
-            print(f"  第{event['start_chapter']}-{event['end_chapter']}章: {event['name']}")
-        
-        print(f"⚡ 事件 ({len(self.event_system.get('events', []))}个):")
-        for event in self.event_system.get("events", []):
-            print(f"  第{event['chapter']}章: {event['name']}")
-        
-        print(f"💕 感情线章节: {self.event_system.get('emotional_chapters', [])}")
-        print(f"🔮 伏笔线章节: {self.event_system.get('foreshadowing_chapters', [])}")
-
-
-class ForeshadowingManager:
-    """伏笔管理器 - 负责重要角色、势力、物品的铺垫引入"""
-    
-    def __init__(self, novel_generator):
-        self.generator = novel_generator
-        self.foreshadowing_elements = {
-            "factions": {},
-            "characters": {},
-            "items": {},
-            "locations": {},
-            "concepts": {}
-        }
-        self.introduced_elements = set()
-    
-    def register_element(self, element_type: str, name: str, importance: str, planned_intro_chapter: int):
-        """注册需要铺垫的元素"""
-        self.foreshadowing_elements[element_type][name] = {
-            "importance": importance,
-            "planned_intro_chapter": planned_intro_chapter,
-            "foreshadowing_chapters": [],
-            "foreshadowing_methods": [],
-            "is_introduced": False
-        }
-    
-    def get_foreshadowing_opportunities(self, current_chapter: int) -> Dict:
-        """获取当前章节的铺垫机会"""
-        opportunities = {}
-        
-        for element_type, elements in self.foreshadowing_elements.items():
-            for name, data in elements.items():
-                intro_chapter = data["planned_intro_chapter"]
-                
-                # 如果计划在后续章节出场，且距离出场还有3-10章，开始铺垫
-                if current_chapter < intro_chapter and intro_chapter - current_chapter <= 10:
-                    # 计算铺垫强度
-                    if intro_chapter - current_chapter <= 3:
-                        intensity = "strong"
-                    elif intro_chapter - current_chapter <= 6:
-                        intensity = "medium"
-                    else:
-                        intensity = "light"
-                    
-                    if element_type not in opportunities:
-                        opportunities[element_type] = []
-                    
-                    opportunities[element_type].append({
-                        "name": name,
-                        "intensity": intensity,
-                        "planned_intro_chapter": intro_chapter,
-                        "chapters_until_intro": intro_chapter - current_chapter
-                    })
-        
-        return opportunities
-    
-    def generate_foreshadowing_prompt(self, current_chapter: int) -> str:
-        """生成铺垫提示词"""
-        opportunities = self.get_foreshadowing_opportunities(current_chapter)
-        
-        if not opportunities:
-            return "# 🎭 重要元素铺垫指导\n\n暂无需要铺垫的重要元素。"
-        
-        prompt_parts = ["\n\n# 🎭 重要元素铺垫指导"]
-        
-        for element_type, elements in opportunities.items():
-            if elements:
-                prompt_parts.append(f"\n## {self._get_element_type_name(element_type)}铺垫:")
-                
-                for element in elements:
-                    methods = self._get_foreshadowing_methods(
-                        element_type, element["name"], element["intensity"]
-                    )
-                    prompt_parts.extend([
-                        f"- **{element['name']}** (计划第{element['planned_intro_chapter']}章出场):",
-                        f"  距离出场还有{element['chapters_until_intro']}章，{element['intensity']}铺垫",
-                        f"  建议铺垫方式: {methods}"
-                    ])
-        
-        result = "\n".join(prompt_parts)
-        return result if result.strip() else "# 🎭 重要元素铺垫指导\n\n暂无需要铺垫的重要元素。"
-    
-    def _get_element_type_name(self, element_type: str) -> str:
-        """获取元素类型名称"""
-        names = {
-            "factions": "势力",
-            "characters": "角色", 
-            "items": "物品",
-            "locations": "地点",
-            "concepts": "概念"
-        }
-        return names.get(element_type, element_type)
-    
-    def _get_foreshadowing_methods(self, element_type: str, name: str, intensity: str) -> str:
-        """根据元素类型和强度获取铺垫方法"""
-        base_methods = {
-            "factions": {
-                "light": ["路人对话提及", "背景新闻暗示", "相关物品出现"],
-                "medium": ["角色讨论其影响", "相关事件发生", "历史背景介绍"],
-                "strong": ["直接冲突预兆", "关键人物关联", "重大事件关联"]
-            },
-            "characters": {
-                "light": ["他人提及名字", "相关物品出现", "背景故事暗示"],
-                "medium": ["详细背景介绍", "与他人的关系铺垫", "能力/特点传闻"],
-                "strong": ["直接影响力展现", "关键事件关联", "主角目标关联"]
-            },
-            "items": {
-                "light": ["传说/神话提及", "相关描述出现", "功能暗示"],
-                "medium": ["具体信息介绍", "获取线索出现", "重要性强调"],
-                "strong": ["直接线索出现", "获取方法明确", "关键作用展示"]
-            }
-        }
-        
-        methods_map = base_methods.get(element_type, base_methods["characters"])
-        methods = methods_map.get(intensity, methods_map["medium"])
-        return "、".join(methods[:2])
-
 
 class NovelGenerator:
     """小说生成器主类"""
@@ -419,9 +29,10 @@ class NovelGenerator:
         self.content_generator = ContentGenerator(self.api_client, config, self.quality_assessor)
         self.project_manager = ProjectManager(config)
 
-        self.event_driven_manager = EventDrivenManager(self)
+        self.stage_plan_manager = StagePlanManager.StagePlanManager(self)
+        self.event_driven_manager = EventDrivenManager.EventDrivenManager(self)
         self.major_event_manager = self.event_driven_manager  # 向后兼容
-        self.foreshadowing_manager = ForeshadowingManager(self)
+        self.foreshadowing_manager = ForeshadowingManager.ForeshadowingManager(self)
 
         # 小说数据
         self.novel_data = {
@@ -430,7 +41,8 @@ class NovelGenerator:
             "creative_seed": "",
             "selected_plan": None,
             "market_analysis": None,
-            "writing_plan": None,
+            "overall_stage_plan": None,
+            "stage_writing_plan": None,
             "core_worldview": None,
             "character_design": None,
             "generated_chapters": {},
@@ -634,7 +246,7 @@ class NovelGenerator:
             "novel_synopsis": self.novel_data["novel_synopsis"],
             "worldview_info": json.dumps(self.novel_data["core_worldview"], ensure_ascii=False) if self.novel_data["core_worldview"] else "{}",
             "character_info": json.dumps(self.novel_data["character_design"], ensure_ascii=False) if self.novel_data["character_design"] else "{}",
-            "writing_plan_info": json.dumps(self.novel_data["writing_plan"], ensure_ascii=False) if self.novel_data["writing_plan"] else "{}",
+            "stage_writing_plan_info": json.dumps(self.novel_data["stage_writing_plan"], ensure_ascii=False) if self.novel_data["stage_writing_plan"] else "{}",
             "previous_chapters_summary": previous_summary,
             "main_plot_progress": plot_direction["plot_direction"],
             "plot_direction": plot_direction["plot_direction"],
@@ -654,7 +266,7 @@ class NovelGenerator:
             "novel_synopsis": self.novel_data["novel_synopsis"],
             "worldview_info": "{}",
             "character_info": "{}", 
-            "writing_plan_info": "{}",
+            "stage_writing_plan_info": "{}",
             "previous_chapters_summary": "这是开篇第一章，需要建立故事基础。",
             "main_plot_progress": "推进主线剧情",
             "plot_direction": "推进故事情节发展",
@@ -721,8 +333,8 @@ class NovelGenerator:
                     )
         
         # 从写作计划中提取重要物品/概念
-        if self.novel_data["writing_plan"]:
-            major_events = self.novel_data["writing_plan"].get("major_events", [])
+        if self.novel_data["stage_writing_plan"]:
+            major_events = self.novel_data["stage_writing_plan"].get("major_events", [])
             for event in major_events:
                 if "special_elements" in event:
                     self.foreshadowing_manager.register_element(
@@ -832,9 +444,9 @@ class NovelGenerator:
             return "这是开篇第一章，需要建立故事基础，吸引读者继续阅读。"
         else:
             return f"本章必须自然承接第{chapter_number-1}章的结尾，特别是要处理好上一章设置的悬念，确保情节连贯性。"
-    
+        
     def prepare_batch_chapter_params(self, start_chapter: int, end_chapter: int) -> List[Dict]:
-        """批量准备章节参数"""
+        """批量准备章节参数 - 集成阶段事件"""
         batch_params = []
         
         print(f"  🔍 prepare_batch_chapter_params 开始准备第{start_chapter}-{end_chapter}章参数")
@@ -842,7 +454,7 @@ class NovelGenerator:
         # 预加载常用数据
         worldview_str = json.dumps(self.novel_data["core_worldview"], ensure_ascii=False) if self.novel_data["core_worldview"] else "{}"
         character_str = json.dumps(self.novel_data["character_design"], ensure_ascii=False) if self.novel_data["character_design"] else "{}"
-        writing_plan_str = json.dumps(self.novel_data["writing_plan"], ensure_ascii=False) if self.novel_data["writing_plan"] else "{}"
+        stage_writing_plan = json.dumps(self.novel_data["stage_writing_plan"], ensure_ascii=False) if self.novel_data["stage_writing_plan"] else "{}"
         
         # 生成主角名字指令
         main_character_instruction = ""
@@ -850,6 +462,17 @@ class NovelGenerator:
             main_character_instruction = f"\n# 主角名字\n**主角**: {self.novel_data['custom_main_character_name']} - 请确保在对话和叙述中正确使用这个名字"
 
         for chapter_num in range(start_chapter, end_chapter + 1):
+            # 获取阶段信息并生成阶段详细计划（包含事件）
+            current_stage = self.stage_plan_manager.get_current_stage(chapter_num)
+            stage_progress = self.stage_plan_manager.get_stage_progress(chapter_num)
+            
+            # 生成阶段写作计划（这会触发事件生成）
+            stage_writing_plan = self.stage_plan_manager.get_stage_plan_for_chapter(chapter_num)
+            stage_plan_str = json.dumps(stage_writing_plan, ensure_ascii=False) if stage_writing_plan else "{}"
+            
+            # 更新事件系统
+            self.event_driven_manager.update_event_system()
+            
             # 主线剧情方向
             plot_direction = self.get_plot_direction_for_chapter(chapter_num, self.novel_data["current_progress"]["total_chapters"])
             
@@ -884,6 +507,9 @@ class NovelGenerator:
                 "worldview_info": worldview_str,
                 "character_info": character_str,
                 "writing_plan_info": writing_plan_str,
+                "stage_plan_info": stage_plan_str,
+                "current_stage": current_stage,
+                "stage_progress": stage_progress,
                 "foreshadowing_guidance": foreshadowing_guidance,
                 "event_driven_guidance": event_driven_guidance,
                 "previous_chapters_summary": previous_summary,
@@ -1075,7 +701,7 @@ class NovelGenerator:
         
         foundation_contents = {
             "市场分析": self.novel_data.get("market_analysis"),
-            "写作计划": self.novel_data.get("writing_plan"), 
+            "写作计划": self.novel_data.get("stage_writing_plan"), 
             "世界观": self.novel_data.get("core_worldview"),
             "角色设计": self.novel_data.get("character_design")
         }
@@ -1383,23 +1009,28 @@ class NovelGenerator:
             
             self.novel_data["current_progress"]["stage"] = "写作计划"
             
-            # 步骤3: 写作计划
-            self.novel_data["writing_plan"] = self.content_generator.generate_writing_plan(
-                creative_seed, self.novel_data["selected_plan"], self.novel_data["market_analysis"], total_chapters)
-            if not self.novel_data["writing_plan"]:
-                print("写作计划生成失败，终止生成")
-                return False
+            # 步骤3.5: 生成全书阶段计划
+            self.novel_data["overall_stage_plan"] = self.stage_plan_manager.generate_overall_stage_plan(
+                creative_seed,
+                self.novel_data["novel_title"],
+                self.novel_data["novel_synopsis"],
+                self.novel_data["market_analysis"],
+                total_chapters
+            )
+            
+            if not self.novel_data["overall_stage_plan"]:
+                print("⚠️  全书阶段计划生成失败，将继续使用默认阶段划分")
             
             # 在生成写作计划后初始化事件体系
-            if self.novel_data["writing_plan"]:
-                self.event_driven_manager.initialize_event_system(self.novel_data["writing_plan"])
+            if self.novel_data["overall_stage_plan"]:
+                self.event_driven_manager.initialize_event_system(self.novel_data["overall_stage_plan"])
 
             self.novel_data["current_progress"]["stage"] = "世界观构建"
             
             # 步骤4: 世界观
             self.novel_data["core_worldview"] = self.content_generator.generate_core_worldview(
                 self.novel_data["novel_title"], self.novel_data["novel_synopsis"], 
-                self.novel_data["selected_plan"], self.novel_data["writing_plan"])
+                self.novel_data["selected_plan"], self.novel_data["overall_stage_plan"])
             if not self.novel_data["core_worldview"]:
                 print("世界观构建失败，终止生成")
                 return False
@@ -1411,7 +1042,7 @@ class NovelGenerator:
                 self.novel_data["novel_title"], 
                 self.novel_data["core_worldview"], 
                 self.novel_data["selected_plan"], 
-                self.novel_data["writing_plan"],
+                self.novel_data["overall_stage_plan"],
                 self.novel_data.get("custom_main_character_name")
             )
             if not self.novel_data["character_design"]:
@@ -1564,7 +1195,7 @@ class NovelGenerator:
         
         # 恢复分析数据
         self.novel_data["market_analysis"] = data.get("market_analysis")
-        self.novel_data["writing_plan"] = data.get("writing_plan")
+        self.novel_data["stage_writing_plan"] = data.get("stage_writing_plan")
         self.novel_data["core_worldview"] = data.get("core_worldview")
         self.novel_data["character_design"] = data.get("character_design")
         
@@ -1689,11 +1320,11 @@ class NovelGenerator:
             print(f"  方案: 标题中{'✓' if title_usage else '✗'} | 简介中{'✓' if synopsis_usage else '✗'}")
         
         # 检查写作计划
-        writing_plan = self.novel_data.get("writing_plan")
-        if writing_plan:
+        overall_stage_plan = self.novel_data.get("overall_stage_plan")
+        if overall_stage_plan:
             plan_usage = any(
                 custom_name in str(value) 
-                for value in writing_plan.values() 
+                for value in overall_stage_plan.values() 
                 if isinstance(value, str)
             )
             print(f"  写作计划: {'✓' if plan_usage else '✗'}")

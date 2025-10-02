@@ -70,72 +70,218 @@ CONFIG = {
     "commercial_potential": "流量潜力评估",
     "recommended_strategies": ["策略1", "策略2", "策略3"]
 }""",
-        "writing_plan": """你是一位顶级网络小说策划编辑，擅长制定完整的写作计划。请根据市场分析和创意种子，制定详细的写作计划。
+        "overall_stage_plan": """你是一位顶级网络小说策划编辑。请根据创意种子和市场分析，制定全书的阶段计划。
 
-请包含以下内容：
-1. 整体写作思路和风格定位
-2. 章节节奏安排（请按照{total_chapters}章的总长度来规划）
-3. 关键情节节点规划
-4. 角色成长路线
-5. 事件体系设计（事件 -> 大事件 -> 重大事件）
+# 基本信息
+**创意种子**: {creative_seed}
+**小说标题**: {novel_title}
+**小说简介**: {novel_synopsis}
+**市场分析**: {market_analysis}
+**总章节数**: {total_chapters}
 
-请确保输出是严格的JSON格式，所有字符串值都必须用双引号括起来。
+# 阶段划分要求
+请将全书{total_chapters}章划分为5个主要阶段，并为每个阶段制定详细的写作重点：
 
-请按照以下JSON格式输出：
-{
-    "writing_approach": "整体写作思路",
-    "style_positioning": "风格定位",
-    "chapter_rhythm": {
-        "opening_chapters": "开局章节节奏",
-        "development_phase": "发展阶段节奏", 
-        "climax_phase": "高潮阶段节奏",
-        "ending_phase": "收尾阶段节奏"
-    },
-    "key_plot_points": ["关键情节1", "关键情节2", "关键情节3"],
-    "character_growth_arc": "角色成长路线",
-    "event_system": {
-        "overall_approach": "事件驱动方法论描述",
-        "major_events": [
-            {
-                "name": "重大事件名称",
-                "type": "major_event",
-                "start_chapter": 开始章节,
-                "end_chapter": 结束章节,
-                "duration": 持续时间,
-                "significance": "事件重要性描述",
-                "main_goal": "主要目标",
-                "sub_goals": ["子目标1", "子目标2"],
-                "key_moments": ["关键时刻1", "关键时刻2"],
-                "character_development": "角色成长重点",
-                "aftermath": "后续影响",
-                "prerequisite_events": ["前置事件1", "前置事件2"]
-            }
-        ],
-        "big_events": [
-            {
-                "name": "大事件名称",
-                "type": "big_event", 
-                "start_chapter": 开始章节,
-                "end_chapter": 结束章节,
-                "main_goal": "主要目标",
-                "connection_to_major": "与重大事件的关联",
-                "role": "在主线中的作用"
-            }
-        ],
-        "events": [
-            {
-                "name": "事件名称",
-                "type": "event",
-                "chapter": 发生章节,
-                "goal": "事件目标",
-                "connection_to_big": "与大事件的关联",
-                "outcome": "事件结果"
-            }
-        ],
-        "emotional_chapters": [感情线章节列表],
-        "foreshadowing_chapters": [伏笔线章节列表]
-    }
-}""",
+## 1. 开局阶段 (约前10-15%章节)
+- **章节范围**: 第1章-第{opening_end}章
+- **核心任务**: 建立故事基础，引入核心冲突，吸引读者
+- **重点内容**: 主角出场，世界观介绍，初始冲突，悬念设置
+
+## 2. 发展阶段 (约25-30%章节)
+- **章节范围**: 第{development_start}章-第{development_end}章
+- **核心任务**: 深化矛盾，角色成长，支线展开
+- **重点内容**: 能力提升，盟友敌人，小高潮，伏笔埋设
+
+## 3. 高潮阶段 (约30-35%章节)
+- **章节范围**: 第{climax_start}章-第{climax_end}章
+- **核心任务**: 主要冲突爆发，重大转折，情感爆发
+- **重点内容**: 关键对决，真相揭露，角色蜕变，核心矛盾激化
+
+## 4. 收尾阶段 (约15-20%章节)
+- **章节范围**: 第{ending_start}章-第{ending_end}章
+- **核心任务**: 解决主要冲突，收束支线，准备结局
+- **重点内容**: 矛盾解决，伏笔回收，情感升华，最终准备
+
+## 5. 结局阶段 (约5-10%章节)
+- **章节范围**: 第{final_start}章-第{total_chapters}章
+- **核心任务**: 完整收尾，交代后续，情感共鸣
+- **重点内容**: 最终结局，角色归宿，主题升华，读者共鸣
+
+# 输出格式
+{{
+    "stage_plan": {{
+        "opening_stage": {{
+            "chapter_range": "第1章-第{opening_end}章",
+            "core_tasks": ["任务1", "任务2", "任务3"],
+            "key_content": ["内容重点1", "内容重点2"],
+            "writing_focus": "开局阶段详细写作重点描述"
+        }},
+        "development_stage": {{
+            "chapter_range": "第{development_start}章-第{development_end}章",
+            "core_tasks": ["任务1", "任务2", "任务3"],
+            "key_content": ["内容重点1", "内容重点2"],
+            "writing_focus": "发展阶段详细写作重点描述"
+        }},
+        "climax_stage": {{
+            "chapter_range": "第{climax_start}章-第{climax_end}章", 
+            "core_tasks": ["任务1", "任务2", "任务3"],
+            "key_content": ["内容重点1", "内容重点2"],
+            "writing_focus": "高潮阶段详细写作重点描述"
+        }},
+        "ending_stage": {{
+            "chapter_range": "第{ending_start}章-第{ending_end}章",
+            "core_tasks": ["任务1", "任务2", "任务3"],
+            "key_content": ["内容重点1", "内容重点2"],
+            "writing_focus": "收尾阶段详细写作重点描述"
+        }},
+        "final_stage": {{
+            "chapter_range": "第{final_start}章-第{total_chapters}章",
+            "core_tasks": ["任务1", "任务2", "任务3"],
+            "key_content": ["内容重点1", "内容重点2"],
+            "writing_focus": "结局阶段详细写作重点描述"
+        }}
+    }},
+    "stage_transitions": {{
+        "opening_to_development": "从开局到发展的过渡重点",
+        "development_to_climax": "从发展到高潮的过渡重点", 
+        "climax_to_ending": "从高潮到收尾的过渡重点",
+        "ending_to_final": "从收尾到结局的过渡重点"
+    }}
+}}""",
+        "stage_writing_plan": """你是一位资深的网络小说策划编辑。请根据全书阶段计划和当前章节位置，制定当前阶段的详细写作计划，包括事件设计。
+
+# 全书阶段计划
+{overall_stage_plan}
+
+# 当前章节信息
+**当前章节**: 第{chapter_number}章
+**所属阶段**: {current_stage}
+**阶段位置**: 当前处于{stage_progress}
+
+# 当前阶段详细要求
+**阶段核心任务**: {stage_core_tasks}
+**阶段重点内容**: {stage_key_content}
+**阶段写作重点**: {stage_writing_focus}
+
+# 制定当前阶段写作计划
+请根据以上信息，制定当前阶段的详细写作计划，特别包含事件体系设计：
+
+## 1. 阶段目标分解
+- **主要目标**: 本阶段需要完成的核心目标
+- **次要目标**: 支撑主要目标的次要目标
+- **里程碑**: 关键节点和检查点
+
+## 2. 事件体系设计（本阶段重点）
+请为本阶段设计完整的事件体系：
+
+### 重大事件 (1-2个)
+- **事件名称**: 体现阶段核心冲突的重大事件
+- **持续时间**: 3-8章
+- **目标**: 推动阶段核心目标
+- **关键节点**: 开始、发展、高潮、结束
+
+### 大事件 (2-3个) 
+- **事件名称**: 支撑重大事件的次级事件
+- **持续时间**: 2-4章
+- **目标**: 为重大事件做准备或收尾
+- **关联性**: 与重大事件的逻辑关系
+
+### 普通事件 (若干)
+- **事件名称**: 日常推进事件
+- **发生章节**: 具体章节位置
+- **目标**: 推进支线或角色发展
+
+## 3. 情节推进策略
+- **主线推进**: 如何通过事件推进主要情节
+- **支线安排**: 支线剧情的安排和时机
+- **节奏控制**: 快慢节奏的分布
+
+## 4. 角色发展计划
+- **主角成长**: 主角在本阶段的发展轨迹
+- **配角塑造**: 重要配角的塑造计划
+- **关系发展**: 角色关系的变化和发展
+
+## 5. 冲突设计
+- **主要冲突**: 本阶段的核心冲突
+- **次要冲突**: 辅助冲突和矛盾
+- **冲突升级**: 如何逐步升级冲突
+
+## 6. 伏笔管理
+- **新伏笔**: 需要埋设的新伏笔
+- **旧伏笔**: 需要回收的旧伏笔
+- **伏笔网络**: 伏笔之间的关联
+
+# 输出格式
+{{
+    "stage_writing_plan": {{
+        "stage_overview": "本阶段总体写作概述",
+        "targets": {{
+            "main_target": "主要目标",
+            "secondary_targets": ["次要目标1", "次要目标2"],
+            "milestones": ["里程碑1", "里程碑2"]
+        }},
+        "event_system": {{
+            "overall_approach": "本阶段事件驱动方法论",
+            "major_events": [
+                {{
+                    "name": "重大事件名称",
+                    "type": "major_event",
+                    "start_chapter": 开始章节,
+                    "end_chapter": 结束章节,
+                    "duration": 持续时间,
+                    "significance": "事件重要性描述",
+                    "main_goal": "主要目标",
+                    "sub_goals": ["子目标1", "子目标2"],
+                    "key_moments": ["关键时刻1", "关键时刻2"],
+                    "character_development": "角色成长重点",
+                    "aftermath": "后续影响"
+                }}
+            ],
+            "big_events": [
+                {{
+                    "name": "大事件名称",
+                    "type": "big_event", 
+                    "start_chapter": 开始章节,
+                    "end_chapter": 结束章节,
+                    "main_goal": "主要目标",
+                    "connection_to_major": "与重大事件的关联",
+                    "role": "在阶段中的作用"
+                }}
+            ],
+            "events": [
+                {{
+                    "name": "事件名称",
+                    "type": "event",
+                    "chapter": 发生章节,
+                    "goal": "事件目标",
+                    "connection_to_big": "与大事件的关联",
+                    "outcome": "事件结果"
+                }}
+            ]
+        }},
+        "plot_strategy": {{
+            "main_plot_advancement": "主线推进策略",
+            "subplot_arrangement": "支线安排策略",
+            "pace_control": "节奏控制策略"
+        }},
+        "character_development": {{
+            "protagonist_growth": "主角成长计划",
+            "supporting_characters": "配角塑造计划", 
+            "relationship_development": "关系发展计划"
+        }},
+        "conflict_design": {{
+            "main_conflict": "主要冲突设计",
+            "secondary_conflicts": ["次要冲突1", "次要冲突2"],
+            "conflict_escalation": "冲突升级策略"
+        }},
+        "foreshadowing_management": {{
+            "new_foreshadowing": ["新伏笔1", "新伏笔2"],
+            "old_foreshadowing_reveal": ["回收伏笔1", "回收伏笔2"],
+            "foreshadowing_network": "伏笔网络设计"
+        }}
+    }},
+    "chapter_specific_guidance": "基于当前章节位置的特别指导"
+}}""",
         "core_worldview": """你是一位顶级网络小说世界构建专家。请根据创意种子构建核心世界观框架。
 
 请按照以下结构化格式输出：

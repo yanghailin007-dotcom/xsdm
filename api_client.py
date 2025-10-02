@@ -32,7 +32,7 @@ class APIClient:
         }
         
         # 查找匹配的目的
-        timeout = 60  # 默认超时
+        timeout = 90  # 默认超时
         for key, value in base_timeouts.items():
             if key in purpose:
                 timeout = value
