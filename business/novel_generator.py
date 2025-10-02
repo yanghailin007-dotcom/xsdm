@@ -1429,7 +1429,7 @@ class NovelGenerator:
                 
                 # 初始化阶段计划管理器
                 self.stage_plan_manager.stage_plan = self.stage_writing_plans
-                self.stage_plan_manager.calculate_stage_boundaries(self.current_progress['total_chapters'])
+                self.stage_plan_manager.stage_boundaries = self.stage_plan_manager.calculate_stage_boundaries(self.current_progress['total_chapters'])
                 
                 current_stage_data = self.stage_writing_plans[current_stage]
                 if "stage_writing_plan" in current_stage_data:
@@ -1815,9 +1815,8 @@ class NovelGenerator:
             return None
         
         current_stage = self.stage_plan_manager.get_current_stage(chapter_number)
-        print(f"X 获取 {current_stage} 的详细写作计划")
         # 如果该阶段还没有生成详细计划，则生成
-        if current_stage not in self.stage_plan_manager.current_stage_plans:
+        if current_stage not in self.stage_plan_manager.stage_plan:
             stage_plan = self.stage_plan_manager.get_stage_plan_for_chapter(chapter_number)
             if stage_plan:
                 self.novel_data["stage_writing_plans"] = self.novel_data.get("stage_writing_plans", {})
@@ -1827,7 +1826,7 @@ class NovelGenerator:
                 # 更新事件系统
                 self.event_driven_manager.update_event_system()
         
-        return self.stage_plan_manager.current_stage_plans.get(current_stage) 
+        return self.stage_plan_manager.stage_plan.get(current_stage) 
 
     def print_quality_report(self):
         """打印质量报告"""
