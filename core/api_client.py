@@ -80,7 +80,7 @@ class APIClient:
             timeout = self._calculate_timeout(purpose, attempt)
             
             try:
-                print(f"调用{api_type.upper()} API (第{attempt+1}次) - 目的: {purpose} (超时: {timeout}秒)...")
+                print(f"  调用{api_type.upper()} API (第{attempt+1}次) - 目的: {purpose} (超时: {timeout}秒)...")
                 
                 # 打印请求摘要（不包含完整内容避免过长）
                 prompt_preview = user_prompt

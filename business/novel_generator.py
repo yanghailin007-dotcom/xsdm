@@ -566,7 +566,7 @@ class NovelGenerator:
         if chapter_num == 1:
             return "这是开篇第一章，需要建立故事基础。"
         
-        cache_key = f"prev_summary_{chapter_num}"
+        cache_key = f"prev_summary_{chapter_num - 1}"
 
         print(f"  📁 获取缓存: {cache_key}")
 
@@ -603,11 +603,13 @@ class NovelGenerator:
             main_character_instruction = f"\n# 主角名字\n**主角**: {self.novel_data['custom_main_character_name']} - 请确保在对话和叙述中正确使用这个名字"
 
         for chapter_num in range(start_chapter, end_chapter + 1):
-            # 确保有当前阶段的详细计划
-            current_stage = self.stage_plan_manager.get_current_stage(chapter_num)
-            stage_progress = self.stage_plan_manager.get_stage_progress(chapter_num)
+            # 确保有当前阶段的详细计划（关键修复）
             stage_plan = self.ensure_stage_plan_for_chapter(chapter_num)
             stage_plan_str = json.dumps(stage_plan, ensure_ascii=False) if stage_plan else "{}"
+            
+            # 获取阶段信息
+            current_stage = self.stage_plan_manager.get_current_stage(chapter_num)
+            stage_progress = self.stage_plan_manager.get_stage_progress(chapter_num)
             
             # 主线剧情方向
             plot_direction = self.get_plot_direction_for_chapter(chapter_num, self.novel_data["current_progress"]["total_chapters"])
@@ -617,7 +619,7 @@ class NovelGenerator:
             
             # 前情提要
             previous_summary = self._get_cached_previous_summary(chapter_num)
-            
+
             # 章节衔接提示
             connection_note = self.get_chapter_connection_note(chapter_num)
 
@@ -1410,7 +1412,7 @@ class NovelGenerator:
             
             # 加载其他数据...
             self.market_analysis = self.novel_data.get("market_analysis", {})
-            self.overall_stage_plan = self.novel_data.get("overall_stage_plan", {})
+            self.overall_stage_plans = self.novel_data.get("overall_stage_plan", {})
             
             # 修复：确保写作计划正确加载
             self.stage_writing_plans = self.novel_data.get("stage_writing_plans", {})
@@ -1471,7 +1473,7 @@ class NovelGenerator:
                     print(f"⚠️ 指定阶段 '{self.current_progress.get('current_stage')}' 不存在，使用第一个可用阶段: {current_stage}")
                 
                 # 初始化阶段计划管理器
-                self.stage_plan_manager.stage_plan = self.stage_writing_plans
+                self.stage_plan_manager.overall_stage_plans = self.overall_stage_plans
                 self.stage_plan_manager.stage_boundaries = self.stage_plan_manager.calculate_stage_boundaries(self.current_progress['total_chapters'])
                 
                 current_stage_data = self.stage_writing_plans[current_stage]
@@ -1490,7 +1492,7 @@ class NovelGenerator:
      
     def resume_generation(self, total_chapters: int = None) -> bool:
         """继续生成小说"""
-        print("🔄 继续生成小说...")
+        print("   继续生成小说...")
         
         if total_chapters and total_chapters > self.novel_data["current_progress"]["total_chapters"]:
             print(f"更新总章节数: {self.novel_data['current_progress']['total_chapters']} -> {total_chapters}")
@@ -1502,7 +1504,7 @@ class NovelGenerator:
             print("所有章节已完成，无需继续生成")
             return True
         
-        print(f"从第{start_chapter}章开始继续生成...")
+        print(f"  从第{start_chapter}章开始继续生成...")
         
         # 直接开始生成章节内容
         chapters_per_batch = min(3, self.config["defaults"]["chapters_per_batch"])
@@ -1854,22 +1856,32 @@ class NovelGenerator:
     
     def ensure_stage_plan_for_chapter(self, chapter_number: int):
         """确保为当前章节所属阶段生成详细写作计划"""
-        if not self.stage_plan_manager.stage_plan:
+        try:
+            print(f"  🔍 确保第{chapter_number}章有阶段计划...")
+            
+            # 记录阶段转换
+            self.log_stage_transition(chapter_number)
+            
+            # 检查并生成新的阶段计划
+            stage_plan = self.check_and_generate_new_stage_plan(chapter_number)
+            
+            if not stage_plan:
+                print(f"  ⚠️ 无法获取第{chapter_number}章的阶段计划，使用基础信息")
+                # 返回基础阶段信息
+                current_stage = self.stage_plan_manager.get_current_stage(chapter_number)
+                return {
+                    "stage_name": current_stage,
+                    "stage_overview": f"{current_stage}的写作计划",
+                    "chapter_range": f"第{chapter_number}章所在阶段"
+                }
+            
+            return stage_plan
+            
+        except Exception as e:
+            print(f"❌ 确保阶段计划时出错: {e}")
+            import traceback
+            print(f"详细错误: {traceback.format_exc()}")
             return None
-        
-        current_stage = self.stage_plan_manager.get_current_stage(chapter_number)
-        # 如果该阶段还没有生成详细计划，则生成
-        if current_stage not in self.stage_plan_manager.stage_plan:
-            stage_plan = self.stage_plan_manager.get_stage_plan_for_chapter(chapter_number)
-            if stage_plan:
-                self.novel_data["stage_writing_plans"] = self.novel_data.get("stage_writing_plans", {})
-                self.novel_data["stage_writing_plans"][current_stage] = stage_plan
-                print(f"✓ 已生成 {current_stage} 的详细写作计划")
-                
-                # 更新事件系统
-                self.event_driven_manager.update_event_system()
-        
-        return self.stage_plan_manager.stage_plan.get(current_stage) 
 
     def print_quality_report(self):
         """打印质量报告"""
@@ -1943,4 +1955,65 @@ class NovelGenerator:
             for chap_num, ai_score in sorted(high_ai_chapters, key=lambda x: x[1]):
                 print(f"   第{chap_num}章: AI痕迹得分{ai_score:.1f}/2分")
         
-        print("="*60)       
+        print("="*60)
+
+    def check_and_generate_new_stage_plan(self, chapter_number: int):
+        """检查是否需要为当前章节生成新的阶段详细计划"""
+        try:
+            print(f"  🔍 检查第{chapter_number}章是否需要新的阶段计划...")
+            
+            # 获取当前章节所属的阶段
+            current_stage = self.stage_plan_manager.get_current_stage(chapter_number)
+            print(f"  当前阶段: {current_stage}")
+            
+            # 检查该阶段是否已经有详细计划
+            existing_plan = self.novel_data["stage_writing_plans"].get(current_stage)
+            
+            if not existing_plan:
+                print(f"  ⚠️ 阶段 '{current_stage}' 没有详细计划，正在生成...")
+                
+                # 生成该阶段的详细计划
+                stage_plan = self.stage_plan_manager.get_stage_plan_for_chapter(chapter_number)
+                
+                if stage_plan:
+                    self.novel_data["stage_writing_plans"][current_stage] = stage_plan
+                    print(f"  ✅ 已生成 '{current_stage}' 的详细写作计划")
+                    
+                    # 更新事件系统
+                    self.event_driven_manager.update_event_system()
+                    print(f"  ✅ 事件系统已更新")
+                    
+                    return stage_plan
+                else:
+                    print(f"  ❌ 生成 '{current_stage}' 阶段计划失败")
+            else:
+                print(f"  ✅ 阶段 '{current_stage}' 已有详细计划")
+                
+            return existing_plan
+            
+        except Exception as e:
+            print(f"❌ 检查阶段计划时出错: {e}")
+            import traceback
+            print(f"详细错误: {traceback.format_exc()}")
+            return None
+
+    def get_stage_boundary_info(self) -> Dict:
+        """获取阶段边界信息"""
+        if hasattr(self.stage_plan_manager, 'stage_boundaries'):
+            return {
+                "stage_boundaries": self.stage_plan_manager.stage_boundaries,
+                "current_stage_plan": self.stage_plan_manager.overall_stage_plans
+            }
+        return {"stage_boundaries": {}, "current_stage_plan": {}}
+
+    def log_stage_transition(self, chapter_number: int):
+        """记录阶段转换信息"""
+        current_stage = self.stage_plan_manager.get_current_stage(chapter_number)
+        prev_stage = self.stage_plan_manager.get_current_stage(chapter_number - 1) if chapter_number > 1 else None
+        
+        if prev_stage != current_stage:
+            print(f"🎯 阶段转换: 第{chapter_number}章从 '{prev_stage}' 进入 '{current_stage}'")
+            
+            # 显示阶段边界信息
+            boundaries = self.get_stage_boundary_info()
+            print(f"  阶段边界: {boundaries['stage_boundaries']}")

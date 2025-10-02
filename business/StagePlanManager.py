@@ -7,7 +7,7 @@ class StagePlanManager:
     
     def __init__(self, novel_generator):
         self.generator = novel_generator
-        self.stage_plan = None
+        self.overall_stage_plans = None
         self.stage_boundaries = {}
         self.current_stage_plans = {}  # 存储各阶段的详细计划
         self.event_system = {}  # 整合的事件系统
@@ -51,22 +51,8 @@ class StagePlanManager:
             if not isinstance(result, dict):
                 print("❌ 阶段计划返回数据格式错误")
                 return None
-                
-            # 检查必要的键是否存在
-            required_keys = ["overall_stage_plan"]
-            missing_keys = [key for key in required_keys if key not in result]
             
-            if missing_keys:
-                print(f"⚠️  阶段计划数据缺少键: {missing_keys}")
-                print(f"   实际返回的键: {list(result.keys())}")
-                # 尝试使用第一个键作为阶段数据
-                first_key = list(result.keys())[0] if result else None
-                if first_key and isinstance(result[first_key], dict):
-                    print(f"   使用第一个键作为阶段数据: {first_key}")
-                    # 重新组织数据结构
-                    result = {"overall_stage_plan": result[first_key]}
-            
-            self.stage_plan = result
+            self.overall_stage_plans = result
             self.stage_boundaries = boundaries
             print("✓ 全书阶段计划生成成功")
             self.print_stage_overview()  # 调用修复后的方法
@@ -77,11 +63,9 @@ class StagePlanManager:
     
     def get_stage_plan_for_chapter(self, chapter_number: int) -> Optional[Dict]:
         """为当前章节生成阶段写作计划 - 包含事件设计"""
-        if not self.stage_plan:
+        if not self.overall_stage_plans:
             return None
-        
         current_stage = self.get_current_stage(chapter_number)
-        
         # 如果已经生成过该阶段的计划，直接返回
         if current_stage in self.current_stage_plans:
             return self.current_stage_plans[current_stage]
@@ -89,14 +73,13 @@ class StagePlanManager:
         stage_progress = self.get_stage_progress(chapter_number)
         
         # 获取阶段信息
-        stage_info = self.stage_plan.get(current_stage, {})
+        stage_info = self.overall_stage_plans.get('overall_stage_plan', {}).get(current_stage, None)
         if not stage_info:
             return None
-        
         print(f"  📋 生成{current_stage}的详细写作计划（包含事件设计）...")
         
         user_prompt = f"""
-全书阶段计划: {json.dumps(self.stage_plan, ensure_ascii=False)}
+全书阶段计划: {json.dumps(self.overall_stage_plans, ensure_ascii=False)}
 当前章节: 第{chapter_number}章
 所属阶段: {current_stage}
 阶段位置: {stage_progress}
@@ -134,11 +117,11 @@ class StagePlanManager:
         
         # 首先尝试从 novel_data 中获取（持久化存储）
         if "stage_writing_plans" in self.generator.novel_data:
-            stage_plans = self.generator.novel_data["stage_writing_plans"]
-            if current_stage in stage_plans:
+            stage_writing_plans = self.generator.novel_data["stage_writing_plans"]
+            if current_stage in stage_writing_plans:
                 # 同时更新内存缓存
-                self.current_stage_plans[current_stage] = stage_plans[current_stage]
-                return stage_plans[current_stage]
+                self.current_stage_plans[current_stage] = stage_writing_plans[current_stage]
+                return stage_writing_plans[current_stage]
         
         # 如果 novel_data 中没有，尝试从内存缓存中获取
         if current_stage in self.current_stage_plans:
@@ -309,7 +292,7 @@ class StagePlanManager:
     
     def print_stage_overview(self):
         """打印阶段概览 - 修复版本"""
-        if not self.stage_plan:
+        if not self.overall_stage_plans:
             print("  ⚠️  阶段计划数据为空")
             return
         
@@ -320,12 +303,12 @@ class StagePlanManager:
         possible_keys = ["stage_plan", "overall_stage_plan", "stages"]
         
         for key in possible_keys:
-            if key in self.stage_plan:
-                stage_data = self.stage_plan[key]
+            if key in self.overall_stage_plans:
+                stage_data = self.overall_stage_plans[key]
                 break
         
         if not stage_data:
-            print("  ⚠️  未找到阶段计划数据，可用键:", list(self.stage_plan.keys()))
+            print("  ⚠️  未找到阶段计划数据，可用键:", list(self.overall_stage_plans.keys()))
             return
         
         # 安全地遍历阶段数据

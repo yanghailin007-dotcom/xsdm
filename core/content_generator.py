@@ -201,7 +201,7 @@ class ContentGenerator:
         
         if main_character_name:
             context += f"\n\n【强制要求】主角的名字必须是: {main_character_name}"
-            print(f"✓ 角色设计使用主角名字: {main_character_name}")
+            print(f"  ✓ 角色设计使用主角名字: {main_character_name}")
         
         result = self.api_client.generate_content_with_retry("character_design", context, purpose="角色设计")
         
@@ -226,7 +226,7 @@ class ContentGenerator:
         if not content or not hasattr(self, 'quality_assessor') or self.quality_assessor is None:
             return content
         
-        print(f"🔍 评估{original_purpose}质量...")
+        print(f"  🔍 评估{original_purpose}质量...")
         
         try:
             assessment = None
