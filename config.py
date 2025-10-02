@@ -109,7 +109,7 @@ CONFIG = {
 
 # 输出格式
 {{
-    "stage_plan": {{
+    "overall_stage_plan": {{
         "opening_stage": {{
             "chapter_range": "第1章-第{opening_end}章",
             "core_tasks": ["任务1", "任务2", "任务3"],

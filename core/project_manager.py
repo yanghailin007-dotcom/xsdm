@@ -89,7 +89,15 @@ class ProjectManager:
                             print(f"加载章节文件 {chapter_file} 失败: {e}")
                 
                 project_data["generated_chapters"] = generated_chapters
+
+            # 新增：加载阶段计划数据
+            project_data["stage_writing_plans"] = project_data.get("stage_writing_plans", {})
+            project_data["overall_stage_plans"] = project_data.get("overall_stage_plan")
             
+            print(f"✓ 加载阶段计划数据: {len(project_data['stage_writing_plans'])} 个阶段的计划")
+            for stage_name in project_data["stage_writing_plans"].keys():
+                print(f"  - {stage_name}")
+
             return project_data
         except Exception as e:
             print(f"❌❌ 加载项目失败: {e}")
@@ -153,8 +161,8 @@ class ProjectManager:
                 "category": novel_data.get("category", "未分类") 
             },
             "market_analysis": novel_data["market_analysis"],
-            "overall_stage_plan": novel_data["overall_stage_plan"],
-            "stage_writing_plan": novel_data["stage_writing_plan"],
+            "overall_stage_plans": novel_data["overall_stage_plan"],
+            "stage_writing_plans": novel_data.get("stage_writing_plans", {}),
             "core_worldview": novel_data["core_worldview"],
             "character_design": novel_data["character_design"],
             

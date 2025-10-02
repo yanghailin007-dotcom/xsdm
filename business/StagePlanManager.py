@@ -13,32 +13,32 @@ class StagePlanManager:
         self.event_system = {}  # 整合的事件系统
     
     def generate_overall_stage_plan(self, creative_seed: str, novel_title: str, novel_synopsis: str, 
-                                  market_analysis: Dict, total_chapters: int) -> Optional[Dict]:
-        """生成全书阶段计划 - 不包含具体事件"""
+                                market_analysis: Dict, total_chapters: int) -> Optional[Dict]:
+        """生成全书阶段计划 - 修复版本"""
         print("=== 生成全书阶段计划 ===")
         
         # 计算阶段边界
         boundaries = self.calculate_stage_boundaries(total_chapters)
         
         user_prompt = f"""
-创意种子: {creative_seed}
-小说标题: {novel_title}
-小说简介: {novel_synopsis}
-市场分析: {json.dumps(market_analysis, ensure_ascii=False)}
-总章节数: {total_chapters}
-"""
+    创意种子: {creative_seed}
+    小说标题: {novel_title}
+    小说简介: {novel_synopsis}
+    市场分析: {json.dumps(market_analysis, ensure_ascii=False)}
+    总章节数: {total_chapters}
+    """
         
         # 添加阶段边界参数
         user_prompt += f"""
-开局阶段结束: 第{boundaries['opening_end']}章
-发展阶段开始: 第{boundaries['development_start']}章
-发展阶段结束: 第{boundaries['development_end']}章  
-高潮阶段开始: 第{boundaries['climax_start']}章
-高潮阶段结束: 第{boundaries['climax_end']}章
-收尾阶段开始: 第{boundaries['ending_start']}章
-收尾阶段结束: 第{boundaries['ending_end']}章
-结局阶段开始: 第{boundaries['final_start']}章
-"""
+    开局阶段结束: 第{boundaries['opening_end']}章
+    发展阶段开始: 第{boundaries['development_start']}章
+    发展阶段结束: 第{boundaries['development_end']}章  
+    高潮阶段开始: 第{boundaries['climax_start']}章
+    高潮阶段结束: 第{boundaries['climax_end']}章
+    收尾阶段开始: 第{boundaries['ending_start']}章
+    收尾阶段结束: 第{boundaries['ending_end']}章
+    结局阶段开始: 第{boundaries['final_start']}章
+    """
         
         result = self.generator.api_client.generate_content_with_retry(
             "overall_stage_plan", 
@@ -47,10 +47,29 @@ class StagePlanManager:
         )
         
         if result:
+            # 验证数据结构
+            if not isinstance(result, dict):
+                print("❌ 阶段计划返回数据格式错误")
+                return None
+                
+            # 检查必要的键是否存在
+            required_keys = ["overall_stage_plan"]
+            missing_keys = [key for key in required_keys if key not in result]
+            
+            if missing_keys:
+                print(f"⚠️  阶段计划数据缺少键: {missing_keys}")
+                print(f"   实际返回的键: {list(result.keys())}")
+                # 尝试使用第一个键作为阶段数据
+                first_key = list(result.keys())[0] if result else None
+                if first_key and isinstance(result[first_key], dict):
+                    print(f"   使用第一个键作为阶段数据: {first_key}")
+                    # 重新组织数据结构
+                    result = {"overall_stage_plan": result[first_key]}
+            
             self.stage_plan = result
             self.stage_boundaries = boundaries
             print("✓ 全书阶段计划生成成功")
-            self.print_stage_overview()
+            self.print_stage_overview()  # 调用修复后的方法
             return result
         else:
             print("❌ 全书阶段计划生成失败")
@@ -70,7 +89,7 @@ class StagePlanManager:
         stage_progress = self.get_stage_progress(chapter_number)
         
         # 获取阶段信息
-        stage_info = self.stage_plan["stage_plan"].get(current_stage, {})
+        stage_info = self.stage_plan["overall_stage_plan"].get(current_stage, {})
         if not stage_info:
             return None
         
@@ -99,14 +118,35 @@ class StagePlanManager:
         
         if result:
             self.current_stage_plans[current_stage] = result
-            # 整合事件到全局事件系统
-            self._integrate_stage_events(current_stage, result)
-            print(f"  ✓ {current_stage}详细计划生成成功")
-        else:
-            print(f"  ❌ {current_stage}详细计划生成失败")
+            
+            # 新增：保存到 novel_data 中实现持久化
+            if "stage_writing_plans" not in self.generator.novel_data:
+                self.generator.novel_data["stage_writing_plans"] = {}
+            self.generator.novel_data["stage_writing_plans"][current_stage] = result
+            
+            print(f"  ✓ {current_stage}详细计划生成成功并已保存")
         
         return result
-    
+
+    def get_current_stage_plan(self, chapter_number: int) -> Optional[Dict]:
+        """获取当前章节所属阶段的详细计划"""
+        current_stage = self.get_current_stage(chapter_number)
+        
+        # 首先尝试从 novel_data 中获取（持久化存储）
+        if "stage_writing_plans" in self.generator.novel_data:
+            stage_plans = self.generator.novel_data["stage_writing_plans"]
+            if current_stage in stage_plans:
+                # 同时更新内存缓存
+                self.current_stage_plans[current_stage] = stage_plans[current_stage]
+                return stage_plans[current_stage]
+        
+        # 如果 novel_data 中没有，尝试从内存缓存中获取
+        if current_stage in self.current_stage_plans:
+            return self.current_stage_plans[current_stage]
+        
+        # 如果都没有，生成新的计划
+        return self.get_stage_plan_for_chapter(chapter_number)  
+
     def _integrate_stage_events(self, stage_name: str, stage_plan: Dict):
         """将阶段事件整合到全局事件系统"""
         if "stage_writing_plan" not in stage_plan:
@@ -268,12 +308,42 @@ class StagePlanManager:
             return "末期"
     
     def print_stage_overview(self):
-        """打印阶段概览"""
+        """打印阶段概览 - 修复版本"""
         if not self.stage_plan:
+            print("  ⚠️  阶段计划数据为空")
             return
         
         print("\n📊 全书阶段计划概览:")
-        for stage_name, stage_info in self.stage_plan["stage_plan"].items():
-            print(f"  {stage_info.get('chapter_range', '')}: {stage_name}")
-            print(f"    核心任务: {', '.join(stage_info.get('core_tasks', []))}")
-            print(f"    写作重点: {stage_info.get('writing_focus', '')[:50]}...")
+        
+        # 尝试不同的键名
+        stage_data = None
+        possible_keys = ["stage_plan", "overall_stage_plan", "stages"]
+        
+        for key in possible_keys:
+            if key in self.stage_plan:
+                stage_data = self.stage_plan[key]
+                break
+        
+        if not stage_data:
+            print("  ⚠️  未找到阶段计划数据，可用键:", list(self.stage_plan.keys()))
+            return
+        
+        # 安全地遍历阶段数据
+        try:
+            for stage_name, stage_info in stage_data.items():
+                chapter_range = stage_info.get('chapter_range', '未知范围')
+                core_tasks = stage_info.get('core_tasks', [])
+                writing_focus = stage_info.get('writing_focus', '')
+                
+                print(f"  {chapter_range}: {stage_name}")
+                if core_tasks:
+                    print(f"    核心任务: {', '.join(core_tasks)}")
+                if writing_focus:
+                    print(f"    写作重点: {writing_focus[:50]}...")
+                print()  # 空行分隔
+                    
+        except Exception as e:
+            print(f"  ❌ 打印阶段概览时出错: {e}")
+            print(f"  stage_data 类型: {type(stage_data)}")
+            if isinstance(stage_data, dict):
+                print(f"  stage_data 键: {list(stage_data.keys())}")

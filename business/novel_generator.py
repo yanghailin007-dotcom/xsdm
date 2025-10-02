@@ -54,8 +54,9 @@ class NovelGenerator:
             "creative_seed": "",
             "selected_plan": None,
             "market_analysis": None,
-            "overall_stage_plan": None,
-            "stage_writing_plan": None,
+            "overall_stage_plan": None,        # 全书阶段划分
+            "stage_writing_plans": {},         # 各阶段详细写作计划 {stage_name: plan}
+            "current_stage": "opening_stage",  # 当前阶段名称
             "core_worldview": None,
             "character_design": None,
             "generated_chapters": {},
@@ -247,7 +248,7 @@ class NovelGenerator:
             "novel_synopsis": self.novel_data["novel_synopsis"],
             "worldview_info": json.dumps(self.novel_data["core_worldview"], ensure_ascii=False) if self.novel_data["core_worldview"] else "{}",
             "character_info": json.dumps(self.novel_data["character_design"], ensure_ascii=False) if self.novel_data["character_design"] else "{}",
-            "stage_writing_plan": json.dumps(self.novel_data["stage_writing_plan"], ensure_ascii=False) if self.novel_data["stage_writing_plan"] else "{}",
+            "stage_writing_plan": json.dumps(self.ensure_stage_plan_for_chapter(chapter_num), ensure_ascii=False) if self.ensure_stage_plan_for_chapter(chapter_num) else "{}",
             "previous_chapters_summary": previous_summary,
             "main_plot_progress": plot_direction["plot_direction"],
             "plot_direction": plot_direction["plot_direction"],
@@ -303,25 +304,63 @@ class NovelGenerator:
                 self.foreshadowing_manager.register_element(
                     "factions", faction, "major", min(intro_chapter, 50)
                 )
+                print(f"✓ 从世界观注册势力伏笔: {faction}")
         
         # 从角色设计中提取重要配角/反派
         if self.novel_data["character_design"]:
             important_chars = self.novel_data["character_design"].get("important_characters", [])
             for i, char in enumerate(important_chars):
-                if i < 3:
+                if i < 3:  # 只取前3个重要角色
                     intro_chapter = 5 + (i * 8)
                     self.foreshadowing_manager.register_element(
                         "characters", char["name"], "major", intro_chapter
                     )
+                    print(f"✓ 从角色设计注册角色伏笔: {char['name']}")
         
-        # 从写作计划中提取重要物品/概念
-        if self.novel_data["stage_writing_plan"]:
-            major_events = self.novel_data["stage_writing_plan"].get("major_events", [])
-            for event in major_events:
-                if "special_elements" in event:
-                    self.foreshadowing_manager.register_element(
-                        "concepts", event["special_elements"], "medium", event["start_chapter"]
-                    )
+        # 从各阶段写作计划中提取重要物品/概念
+        if self.novel_data["stage_writing_plans"]:
+            print("🔍 从阶段写作计划提取伏笔元素...")
+            for stage_name, stage_plan in self.novel_data["stage_writing_plans"].items():
+                try:
+                    # 检查阶段计划的结构
+                    if not stage_plan:
+                        continue
+                        
+                    # 事件系统可能在不同的位置
+                    event_system = {}
+                    if "stage_writing_plan" in stage_plan and stage_plan["stage_writing_plan"]:
+                        event_system = stage_plan["stage_writing_plan"].get("event_system", {})
+                    elif "event_system" in stage_plan:
+                        event_system = stage_plan["event_system"]
+                    else:
+                        # 尝试直接从阶段计划中查找事件
+                        event_system = stage_plan
+                    
+                    # 提取重大事件
+                    major_events = event_system.get("major_events", [])
+                    for event in major_events:
+                        if event and "special_elements" in event and event["special_elements"]:
+                            start_chapter = event.get("start_chapter", 10)
+                            self.foreshadowing_manager.register_element(
+                                "concepts", event["special_elements"], "medium", start_chapter
+                            )
+                            print(f"  ✓ 从{stage_name}注册概念伏笔: {event['special_elements']} (第{start_chapter}章)")
+                    
+                    # 提取大事件中的元素
+                    big_events = event_system.get("big_events", [])
+                    for event in big_events:
+                        if event and "special_elements" in event and event["special_elements"]:
+                            start_chapter = event.get("start_chapter", 15)
+                            self.foreshadowing_manager.register_element(
+                                "items", event["special_elements"], "minor", start_chapter
+                            )
+                            print(f"  ✓ 从{stage_name}注册物品伏笔: {event['special_elements']} (第{start_chapter}章)")
+                            
+                except Exception as e:
+                    print(f"  ⚠️ 处理{stage_name}阶段计划时出错: {e}")
+                    continue
+        
+        print("✅ 伏笔元素初始化完成")
 
     def get_foreshadowing_guidance(self, chapter_number: int) -> str:
         """获取本章的铺垫指导"""
@@ -528,10 +567,15 @@ class NovelGenerator:
             return "这是开篇第一章，需要建立故事基础。"
         
         cache_key = f"prev_summary_{chapter_num}"
+
+        print(f"  📁 获取缓存: {cache_key}")
+
         if cache_key in self._summary_cache:
             return self._summary_cache[cache_key]
         
         summary = self.generate_previous_chapters_summary(chapter_num)
+        print(f"  📁 生成前瞻摘要: {summary}")
+
         self._summary_cache[cache_key] = summary
         
         return summary
@@ -552,7 +596,6 @@ class NovelGenerator:
         # 预加载常用数据
         worldview_str = json.dumps(self.novel_data["core_worldview"], ensure_ascii=False) if self.novel_data["core_worldview"] else "{}"
         character_str = json.dumps(self.novel_data["character_design"], ensure_ascii=False) if self.novel_data["character_design"] else "{}"
-        stage_writing_plan_str = json.dumps(self.novel_data["stage_writing_plan"], ensure_ascii=False) if self.novel_data["stage_writing_plan"] else "{}"
         
         # 生成主角名字指令
         main_character_instruction = ""
@@ -560,12 +603,11 @@ class NovelGenerator:
             main_character_instruction = f"\n# 主角名字\n**主角**: {self.novel_data['custom_main_character_name']} - 请确保在对话和叙述中正确使用这个名字"
 
         for chapter_num in range(start_chapter, end_chapter + 1):
-            # 获取阶段信息并生成阶段详细计划
+            # 确保有当前阶段的详细计划
             current_stage = self.stage_plan_manager.get_current_stage(chapter_num)
             stage_progress = self.stage_plan_manager.get_stage_progress(chapter_num)
-            
-            # 更新事件系统
-            self.event_driven_manager.update_event_system()
+            stage_plan = self.ensure_stage_plan_for_chapter(chapter_num)
+            stage_plan_str = json.dumps(stage_plan, ensure_ascii=False) if stage_plan else "{}"
             
             # 主线剧情方向
             plot_direction = self.get_plot_direction_for_chapter(chapter_num, self.novel_data["current_progress"]["total_chapters"])
@@ -591,7 +633,8 @@ class NovelGenerator:
                 "novel_synopsis": self.novel_data["novel_synopsis"],
                 "worldview_info": worldview_str,
                 "character_info": character_str,
-                "stage_writing_plan": stage_writing_plan_str,
+                "stage_writing_plan": stage_plan_str,  # 使用阶段详细计划
+                "writing_plan_info": stage_plan_str,   # 保持一致
                 "current_stage": current_stage,
                 "stage_progress": stage_progress,
                 "foreshadowing_guidance": foreshadowing_guidance,
@@ -1296,10 +1339,12 @@ class NovelGenerator:
         
         # 恢复分析数据
         self.novel_data["market_analysis"] = data.get("market_analysis")
-        self.novel_data["stage_writing_plan"] = data.get("stage_writing_plan")
         self.novel_data["core_worldview"] = data.get("core_worldview")
         self.novel_data["character_design"] = data.get("character_design")
         
+        self.novel_data["overall_stage_plan"] = data.get("overall_stage_plan")
+        self.novel_data["stage_writing_plans"] = data.get("stage_writing_plans", {})
+
         # 恢复进度信息
         self.novel_data["current_progress"] = data.get("progress", self.novel_data["current_progress"])
         self.novel_data["plot_progression"] = data.get("plot_progression", [])
@@ -1432,7 +1477,10 @@ class NovelGenerator:
             
             # 在生成写作计划后初始化事件体系
             if self.novel_data["overall_stage_plan"]:
-                self.event_driven_manager.initialize_event_system(self.novel_data["overall_stage_plan"])
+                self.event_driven_manager.initialize_event_system()
+                # 为第一章所属阶段生成详细计划
+                self.ensure_stage_plan_for_chapter(1)
+                print("✓ 第一阶段详细写作计划已生成")
 
             self.novel_data["current_progress"]["stage"] = "世界观构建"
             
@@ -1683,3 +1731,23 @@ class NovelGenerator:
             else:
                 return None
         return current    
+    
+    def ensure_stage_plan_for_chapter(self, chapter_number: int):
+        """确保为当前章节所属阶段生成详细写作计划"""
+        if not self.stage_plan_manager.stage_plan:
+            return None
+        
+        current_stage = self.stage_plan_manager.get_current_stage(chapter_number)
+        
+        # 如果该阶段还没有生成详细计划，则生成
+        if current_stage not in self.stage_plan_manager.current_stage_plans:
+            stage_plan = self.stage_plan_manager.get_stage_plan_for_chapter(chapter_number)
+            if stage_plan:
+                self.novel_data["stage_writing_plans"] = self.novel_data.get("stage_writing_plans", {})
+                self.novel_data["stage_writing_plans"][current_stage] = stage_plan
+                print(f"✓ 已生成 {current_stage} 的详细写作计划")
+                
+                # 更新事件系统
+                self.event_driven_manager.update_event_system()
+        
+        return self.stage_plan_manager.current_stage_plans.get(current_stage)    
