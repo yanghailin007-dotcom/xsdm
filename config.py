@@ -322,19 +322,29 @@ CONFIG = {
         "chapter_design": """你是一位资深的网络小说策划编辑。请为第{chapter_number}章制定详细的写作设计方案。
 
 # 故事基础设定（必须严格遵循）
-**小说标题**: {novel_title}
-**小说简介**: {novel_synopsis}
-**世界观设定**: {worldview_info}
-**角色设定**: {character_info}
-**写作计划**: {writing_plan_info}
+**小说标题**: 
+{novel_title}
+**小说简介**: 
+{novel_synopsis}
+**世界观设定**: 
+{worldview_info}
+**角色设定**: 
+{character_info}
+**写作计划**: 
+{writing_plan_info}
 {main_character_instruction}
 
 # 上下文信息
-**前情提要**: {previous_chapters_summary}
-**本章定位**: 第{chapter_number}/{total_chapters}章 - {plot_direction}
-**重点推进**: {main_plot_progress}
-**角色发展重点**: {character_development_focus}
-**衔接要求**: {chapter_connection_note}
+**前情提要**: 
+{previous_chapters_summary}
+**本章定位**: 
+第{chapter_number}/{total_chapters}章 - {plot_direction}
+**重点推进**: 
+{main_plot_progress}
+**角色发展重点**: 
+{character_development_focus}
+**衔接要求**: 
+{chapter_connection_note}
 
 # 事件驱动指导
 {event_driven_guidance}
@@ -419,8 +429,10 @@ CONFIG = {
         "chapter_content_generation": """你是一位优秀的网络小说作家。请根据以下详细设计方案和基础设定，生成第{chapter_number}章的完整内容。
 
 # 基础设定（必须严格遵循）
-**小说标题**: {novel_title}
-**小说简介**: {novel_synopsis}
+**小说标题**: 
+{novel_title}
+**小说简介**: 
+{novel_synopsis}
 {main_character_instruction}
 
 # 章节详细设计方案
@@ -429,9 +441,12 @@ CONFIG = {
 # 核心写作要求
 
 ## 1. 严格遵循设定
-- **世界观一致性**: 所有元素必须符合世界观设定：{worldview_info}
-- **角色一致性**: 角色行为必须符合角色设定：{character_info}
-- **情节连贯性**: 必须遵循写作计划：{writing_plan_info}
+- **世界观一致性**: 所有元素必须符合世界观设定：
+{worldview_info}
+- **角色一致性**: 角色行为必须符合角色设定：
+{character_info}
+- **情节连贯性**: 必须遵循写作计划：
+{writing_plan_info}
 
 ## 2. 标题规范
 - 8-15字，吸引力强，与内容高度相关
