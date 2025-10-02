@@ -405,19 +405,9 @@ class NovelGenerator:
                 print(f"  ❌ 第{prev_chapter}章从文件加载失败")
         
         if prev_chapter_data:
-            # 获取章节摘要
             chapter_summary = prev_chapter_data.get("plot_advancement") or prev_chapter_data.get("key_events", "")
-            print(f"  📝 第{prev_chapter}章摘要: {chapter_summary[:50]}..." if chapter_summary else "  ⚠️  第{prev_chapter}{prev_chapter_data}")
-            
-            # 特别提取上一章的结尾部分（最后一段或几段）
             chapter_ending = self.extract_chapter_ending(prev_chapter_data)
-            print(f"  📄 第{prev_chapter}章结尾提取: {chapter_ending[:50]}..." if chapter_ending else "  ⚠️  第{prev_chapter}章结尾提取失败")
-            
-            # 获取悬念设置
             next_chapter_hook = prev_chapter_data.get("next_chapter_hook", "")
-            print(f"  🎣 第{prev_chapter}章悬念: {next_chapter_hook}" if next_chapter_hook else "  ⚠️  第{prev_chapter}章无明确悬念设置")
-            
-            # 记录上一章信息
             self.novel_data["previous_chapter_endings"][prev_chapter] = {
                 "summary": chapter_summary,
                 "ending": chapter_ending,
@@ -798,7 +788,28 @@ class NovelGenerator:
         
         # 确保章节标题唯一性
         chapter_data = self.ensure_chapter_title_uniqueness(chapter_data, chapter_number, chapter_params.get("plot_direction", ""))
-
+        # 设置章节特定信息
+        chapter_data["key_events"] = chapter_data.get("key_events", [])
+        chapter_data["next_chapter_hook"] = chapter_data.get("next_chapter_hook", "")
+        chapter_data["connection_to_previous"] = chapter_data.get("connection_to_previous", "")
+        chapter_data["plot_advancement"] = chapter_data.get("plot_advancement", "")
+        chapter_data["character_development"] = chapter_data.get("character_development", "")
+        chapter_data["previous_chapters_summary"] = chapter_params.get("previous_chapters_summary", "")
+        
+        # 质量评估
+        assessment = self.quality_assessor.quick_assess_chapter_quality(
+            chapter_data.get("content", ""),
+            chapter_data.get("chapter_title", ""),
+            chapter_number,
+            self.novel_data["novel_title"],
+            chapter_params.get("previous_chapters_summary", ""),
+            chapter_data.get("word_count", 0)
+        )
+        
+        # 设置质量评分
+        score = assessment.get("overall_score", 0)
+        chapter_data["quality_score"] = score
+        chapter_data["quality_assessment"] = assessment
         # 质量评估
         assessment = self.quality_assessor.quick_assess_chapter_quality(
             chapter_data.get("content", ""),
