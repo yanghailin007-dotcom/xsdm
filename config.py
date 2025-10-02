@@ -649,7 +649,7 @@ CONFIG = {
     },
     "defaults": {
         "temperature": 0.7,
-        "max_tokens": 4000,
+        "max_tokens": 4500,
         "max_retries": 2,
         "json_retries": 2,
         "total_chapters": 300,
