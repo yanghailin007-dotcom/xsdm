@@ -49,7 +49,7 @@ class ProjectManager:
         return projects
     
     def load_project(self, filename: str) -> Optional[Dict]:
-        """加载项目数据 - 完整版本：包含所有项目数据"""
+        """加载项目数据 - 修复版本：确保进度信息正确加载"""
         try:
             with open(f"小说项目/{filename}", 'r', encoding='utf-8') as f:
                 project_data = json.load(f)
@@ -63,17 +63,17 @@ class ProjectManager:
                 "selected_plan": project_data["novel_info"]["selected_plan"],
                 "category": project_data["novel_info"].get("category", "未分类"),
                 
-                # 添加novel_info键
+                # 新增：添加novel_info键以保持兼容性
                 "novel_info": project_data["novel_info"],
-
-                # 核心数据 - 确保这些关键数据被加载
+                
+                # 核心数据
                 "market_analysis": project_data.get("market_analysis", {}),
                 "overall_stage_plan": project_data.get("overall_stage_plans", {}),
                 "stage_writing_plans": project_data.get("stage_writing_plans", {}),
                 "core_worldview": project_data.get("core_worldview", {}),
                 "character_design": project_data.get("character_design", {}),
                 
-                # 进度数据
+                # 修复：正确加载进度信息
                 "current_progress": project_data.get("progress", {
                     "completed_chapters": 0,
                     "total_chapters": 0,
@@ -125,16 +125,27 @@ class ProjectManager:
                             print(f"加载章节文件 {chapter_file} 失败: {e}")
                 
                 novel_data["generated_chapters"] = generated_chapters
+                
+                # 修复：如果进度信息中章节数为0，但实际有章节，则更新进度
+                if novel_data["current_progress"]["total_chapters"] == 0 and generated_chapters:
+                    novel_data["current_progress"]["total_chapters"] = max(generated_chapters.keys())
+                    novel_data["current_progress"]["completed_chapters"] = len(generated_chapters)
+                    novel_data["current_progress"]["stage"] = "写作中"
+                    print(f"🔄 自动修复进度信息: {len(generated_chapters)}/{max(generated_chapters.keys())}章")
 
             print(f"✓ 项目加载成功: {novel_data['novel_title']}")
             print(f"  - 世界观数据: {len(novel_data['core_worldview'])} 项")
             print(f"  - 角色设定: {len(novel_data['character_design'])} 个角色")
             print(f"  - 写作计划: {len(novel_data['stage_writing_plans'])} 个阶段")
             print(f"  - 已生成章节: {len(novel_data['generated_chapters'])} 章")
+            print(f"  - 当前进度: {novel_data['current_progress']['completed_chapters']}/{novel_data['current_progress']['total_chapters']}章")
+            print(f"  - 当前阶段: {novel_data['current_progress']['stage']}")
 
             return novel_data
         except Exception as e:
             print(f"❌❌ 加载项目失败: {e}")
+            import traceback
+            traceback.print_exc()
             return None
     
     def save_single_chapter(self, novel_title: str, chapter_number: int, chapter_data: Dict):
@@ -179,12 +190,30 @@ class ProjectManager:
             print(f"保存第{chapter_number}章失败: {e}")
     
     def save_project_progress(self, novel_data: Dict):
-        """保存项目整体进度 - 完整版本：保存所有必要数据"""
+        """保存项目整体进度 - 修复版本：确保进度信息正确保存"""
         safe_title = re.sub(r'[\\/*?:"<>|]', "_", novel_data["novel_title"])
         os.makedirs("小说项目", exist_ok=True)
         
         # 计算质量统计
         quality_stats = self.calculate_quality_statistics(novel_data)
+        
+        # 确保进度信息存在
+        current_progress = novel_data.get("current_progress", {
+            "completed_chapters": 0,
+            "total_chapters": 0,
+            "stage": "大纲阶段",
+            "current_stage": "第一阶段"
+        })
+        
+        # 如果有章节但进度信息不正确，自动修复
+        generated_chapters = novel_data.get("generated_chapters", {})
+        if generated_chapters:
+            if current_progress["total_chapters"] == 0:
+                current_progress["total_chapters"] = max(generated_chapters.keys())
+            if current_progress["completed_chapters"] == 0:
+                current_progress["completed_chapters"] = len(generated_chapters)
+            if current_progress["stage"] == "未开始" or current_progress["stage"] == "大纲阶段":
+                current_progress["stage"] = "写作中"
         
         # 构建完整的项目数据
         data = {
@@ -196,14 +225,17 @@ class ProjectManager:
                 "category": novel_data.get("category", "未分类") 
             },
             
-            # 核心数据 - 确保这些关键数据被保存
+            # 核心数据
             "market_analysis": novel_data.get("market_analysis", {}),
             "overall_stage_plans": novel_data.get("overall_stage_plan", {}),
             "stage_writing_plans": novel_data.get("stage_writing_plans", {}),
             "core_worldview": novel_data.get("core_worldview", {}),
             "character_design": novel_data.get("character_design", {}),
             
-            # 章节索引信息
+            # 修复：使用正确的进度信息
+            "progress": current_progress,
+            
+            # 其他数据...
             "chapter_index": [
                 {
                     "chapter_number": chapter_num,
@@ -212,24 +244,11 @@ class ProjectManager:
                     "quality_score": chapter_data.get("quality_assessment", {}).get("overall_score", 0),
                     "word_count": chapter_data.get("word_count", 0)
                 }
-                for chapter_num, chapter_data in sorted(novel_data.get("generated_chapters", {}).items())
+                for chapter_num, chapter_data in sorted(generated_chapters.items())
             ],
             
-            # 质量统计
             "quality_statistics": quality_stats,
-            
-            # 进度信息
-            "progress": novel_data.get("current_progress", {
-                "completed_chapters": 0,
-                "total_chapters": 0,
-                "stage": "大纲阶段",
-                "current_stage": "第一阶段"
-            }),
-            
-            # 情节进展
             "plot_progression": novel_data.get("plot_progression", []),
-            
-            # 支线设置
             "subplot_settings": {
                 "ratio": novel_data.get("subplot_tracking", {}).get("ratio", {"emotional": 0.3, "foreshadowing": 0.3}),
                 "subplot_chapters": novel_data.get("subplot_tracking", {}).get("subplot_chapters", {"emotional": [], "foreshadowing": []})
@@ -238,7 +257,7 @@ class ProjectManager:
             "timestamp": datetime.now().isoformat(),
             "file_structure": {
                 "chapters_directory": f"{safe_title}_章节",
-                "total_chapters": len(novel_data.get("generated_chapters", {}))
+                "total_chapters": len(generated_chapters)
             },
             "category_info": {
                 "name": novel_data.get("category", "未分类"),
@@ -250,9 +269,8 @@ class ProjectManager:
             with open(f"小说项目/{safe_title}_项目信息.json", 'w', encoding='utf-8') as f:
                 json.dump(data, f, ensure_ascii=False, indent=2)
             print(f"✓ 项目进度已保存: 小说项目/{safe_title}_项目信息.json")
-            print(f"  - 保存了世界观数据: {len(data['core_worldview'])} 项")
-            print(f"  - 保存了角色设定: {len(data['character_design'])} 个角色")
-            print(f"  - 保存了写作计划: {len(data['stage_writing_plans'])} 个阶段")
+            print(f"  - 进度信息: {current_progress['completed_chapters']}/{current_progress['total_chapters']}章")
+            print(f"  - 当前阶段: {current_progress['stage']}")
         except Exception as e:
             print(f"保存项目信息文件失败: {e}")
 
