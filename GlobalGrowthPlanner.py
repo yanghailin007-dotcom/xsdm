@@ -61,11 +61,12 @@ class GlobalGrowthPlanner:
 
 **小说标题**: {novel_data["novel_title"]}
 **小说简介**: {novel_data["novel_synopsis"]}
+**总章节**: {total_chapters}
 **核心世界观**: {json.dumps(novel_data.get('core_worldview', {}), ensure_ascii=False)}
 **主要角色**: {json.dumps(novel_data.get('character_design', {}), ensure_ascii=False)}
 **市场分析**: {json.dumps(novel_data.get('market_analysis', {}), ensure_ascii=False)}
 
-请基于以上信息制定贯穿全书的完整成长规划。
+请基于以上信息制定贯穿总章节: {total_chapters}全书的完整成长规划。
 """
         
         # 生成全局成长规划
@@ -155,12 +156,27 @@ class GlobalGrowthPlanner:
     def _get_stage_characteristics_text(self, stage_name: str) -> str:
         """获取阶段特性的文本描述"""
         chars = self.stage_characteristics.get(stage_name, {})
+        
+        # 修复势力发展重点的获取逻辑
+        faction_key = None
+        for key in ['faction_intro', 'faction_development', 'faction_climax', 'faction_resolution', 'faction_legacy']:
+            if key in chars:
+                faction_key = key
+                break
+        
+        # 修复能力发展重点的获取逻辑  
+        ability_key = None
+        for key in ['ability_foundation', 'ability_advancement', 'ability_peak', 'ability_mastery', 'ability_legacy']:
+            if key in chars:
+                ability_key = key
+                break
+        
         return f"""
-**阶段重点**: {chars.get('focus', '')}
-**人物成长重点**: {chars.get('character_growth', '')}
-**势力发展重点**: {chars.get('faction_intro', chars.get('faction_development', chars.get('faction_climax', chars.get('faction_resolution', chars.get('faction_legacy', '')))))}
-**能力发展重点**: {chars.get('ability_foundation', chars.get('ability_advancement', chars.get('ability_peak', chars.get('ability_mastery', chars.get('ability_legacy', '')))))}
-"""
+    **阶段重点**: {chars.get('focus', '')}
+    **人物成长重点**: {chars.get('character_growth', '')}
+    **势力发展重点**: {chars.get(faction_key, '') if faction_key else ''}
+    **能力发展重点**: {chars.get(ability_key, '') if ability_key else ''}
+    """
 
     def _get_current_stage(self, growth_plan: Dict, chapter: int) -> Optional[Dict]:
         """获取当前章节所属的阶段"""
@@ -173,14 +189,19 @@ class GlobalGrowthPlanner:
     def _generate_chapter_content_context(self, chapter: int, stage: Dict, content_plan: Dict) -> Dict:
         """生成章节特定的内容上下文"""
         start_chapter, end_chapter = parse_chapter_range(stage["chapter_range"])
-        progress_in_stage = (chapter - start_chapter + 1) / (end_chapter - start_chapter + 1)
+        stage_length = end_chapter - start_chapter + 1
+        
+        if stage_length == 0:  # 避免除零错误
+            progress_in_stage = 0
+        else:
+            progress_in_stage = (chapter - start_chapter + 1) / stage_length
         
         # 基于进度确定内容重点
         if progress_in_stage < 0.3:
             phase = "阶段初期"
             focus = "建立基础，引入新元素"
         elif progress_in_stage < 0.7:
-            phase = "阶段中期"
+            phase = "阶段中期" 
             focus = "深化发展，推进冲突"
         else:
             phase = "阶段后期"
@@ -208,10 +229,16 @@ class GlobalGrowthPlanner:
             return f"建立{protagonist.get('personality_evolution', '性格基础')}"
         elif phase == "阶段中期":
             abilities = protagonist.get("ability_advancement", [])
-            return f"深化能力发展：{', '.join(abilities[:2]) if abilities else '关键技能掌握'}"
+            if abilities and len(abilities) > 0:
+                return f"深化能力发展：{', '.join(abilities[:2])}"
+            else:
+                return "关键技能掌握"
         else:
             moments = protagonist.get("key_growth_moments", [])
-            return f"达成成长里程碑：{moments[-1]['moment'] if moments else '重要转变'}"
+            if moments and len(moments) > 0:
+                return f"达成成长里程碑：{moments[-1].get('moment', '重要转变')}"
+            else:
+                return "重要转变"
 
     def _get_faction_focus_for_phase(self, phase: str, content_plan: Dict) -> str:
         """根据阶段进度获取势力发展重点"""
@@ -221,13 +248,22 @@ class GlobalGrowthPlanner:
         
         if phase == "阶段初期":
             new_powers = power_changes.get("rising_powers", [])
-            return f"引入新势力：{', '.join(new_powers[:2]) if new_powers else '势力格局建立'}"
+            if new_powers and len(new_powers) > 0:
+                return f"引入新势力：{', '.join(new_powers[:2])}"
+            else:
+                return "势力格局建立"
         elif phase == "阶段中期":
             ongoing = conflicts.get("ongoing_conflicts", [])
-            return f"冲突升级：{ongoing[0] if ongoing else '势力矛盾深化'}"
+            if ongoing and len(ongoing) > 0:
+                return f"冲突升级：{ongoing[0]}"
+            else:
+                return "势力矛盾深化"
         else:
             new_conflicts = conflicts.get("new_conflicts", [])
-            return f"新冲突出现：{new_conflicts[0] if new_conflicts else '格局变化'}"
+            if new_conflicts and len(new_conflicts) > 0:
+                return f"新冲突出现：{new_conflicts[0]}"
+            else:
+                return "格局变化"
 
     def _get_ability_focus_for_phase(self, phase: str, content_plan: Dict) -> str:
         """根据阶段进度获取能力发展重点"""
@@ -237,12 +273,22 @@ class GlobalGrowthPlanner:
         
         if phase == "阶段初期":
             new_skills = skills.get("new_skills", [])
-            return f"获得新能力：{', '.join(new_skills[:2]) if new_skills else '基础能力建立'}"
+            if new_skills and len(new_skills) > 0:
+                return f"获得新能力：{', '.join(new_skills[:2])}"
+            else:
+                return "基础能力建立"
         elif phase == "阶段中期":
             upgrades = skills.get("skill_upgrades", [])
-            return f"能力升级：{upgrades[0] if upgrades else '技能强化'}"
+            if upgrades and len(upgrades) > 0:
+                return f"能力升级：{upgrades[0]}"
+            else:
+                return "技能强化"
         else:
-            return f"准备突破：{breakthroughs[-1]['breakthrough'] if breakthroughs else '重要突破'}"
+            if breakthroughs and len(breakthroughs) > 0:
+                return f"准备突破：{breakthroughs[-1].get('breakthrough', '重要突破')}"
+            else:
+                return "重要突破"
+
 
     def _get_emotional_focus_for_phase(self, phase: str, content_plan: Dict) -> str:
         """根据阶段进度获取情感发展重点"""
@@ -268,6 +314,23 @@ class GlobalGrowthPlanner:
                 nearby.append(milestone["milestone"])
         
         return nearby[:2]  # 返回最近的两个里程碑
+
+    def _is_chapter_near_range(self, chapter: int, chapter_range: str, window: int = 3) -> bool:
+        """检查章节是否在指定范围的附近（前后window章）"""
+        start_chapter, end_chapter = parse_chapter_range(chapter_range)
+        
+        # 检查章节是否在范围内
+        if start_chapter <= chapter <= end_chapter:
+            return True
+        
+        # 检查章节是否在范围附近（前后window章）
+        if (start_chapter - window <= chapter <= start_chapter - 1) or \
+        (end_chapter + 1 <= chapter <= end_chapter + window):
+            return True
+        
+        return False
+
+
 
     def get_context(self, chapter_number: int) -> Dict:
         """获取章节的成长规划上下文"""

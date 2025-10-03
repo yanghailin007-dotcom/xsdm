@@ -643,14 +643,6 @@ class QualityAssessor:
 原始世界观内容:
 {params.get('original_content', '')}
 
-优化要求:
-1. 保持核心设定不变
-2. 重点解决评估中发现的问题
-3. 提升世界观的完整性和逻辑性
-4. 加强创新元素和独特性
-5. 丰富设定细节和深度
-
-请返回优化后的完整世界观内容。
 """
 
     def optimize_character_design(self, original_content: Dict, assessment: Dict) -> Optional[Dict]:

@@ -55,17 +55,37 @@ class StagePlanManager:
     市场分析: {json.dumps(market_analysis, ensure_ascii=False)}
     总章节数: {total_chapters}
     """
+
         
         # 添加阶段边界参数
         user_prompt += f"""
-    开局阶段结束: 第{boundaries['opening_end']}章
-    发展阶段开始: 第{boundaries['development_start']}章
-    发展阶段结束: 第{boundaries['development_end']}章  
-    高潮阶段开始: 第{boundaries['climax_start']}章
-    高潮阶段结束: 第{boundaries['climax_end']}章
-    收尾阶段开始: 第{boundaries['ending_start']}章
-    收尾阶段结束: 第{boundaries['ending_end']}章
-    结局阶段开始: 第{boundaries['final_start']}章
+# 阶段划分要求
+请将全书{total_chapters}章划分为5个主要阶段，并为每个阶段制定详细的写作重点：
+
+## 1. 开局阶段 (约前10-15%章节)
+- **章节范围**: 第1章-第{boundaries['opening_end']}章
+- **核心任务**: 建立故事基础，引入核心冲突，吸引读者
+- **重点内容**: 主角出场，世界观介绍，初始冲突，悬念设置
+
+## 2. 发展阶段 (约25-30%章节)
+- **章节范围**: 第{boundaries['development_start']}章-第{boundaries['development_end']}章
+- **核心任务**: 深化矛盾，角色成长，支线展开
+- **重点内容**: 能力提升，盟友敌人，小高潮，伏笔埋设
+
+## 3. 高潮阶段 (约30-35%章节)
+- **章节范围**: 第{boundaries['climax_start']}章-第{boundaries['climax_end']}章
+- **核心任务**: 主要冲突爆发，重大转折，情感爆发
+- **重点内容**: 关键对决，真相揭露，角色蜕变，核心矛盾激化
+
+## 4. 收尾阶段 (约15-20%章节)
+- **章节范围**: 第{boundaries['ending_start']}章-第{boundaries['ending_end']}章
+- **核心任务**: 解决主要冲突，收束支线，准备结局
+- **重点内容**: 矛盾解决，伏笔回收，情感升华，最终准备
+
+## 5. 结局阶段 (约5-10%章节)
+- **章节范围**: 第{boundaries['final_start']}章-第{total_chapters}章
+- **核心任务**: 完整收尾，交代后续，情感共鸣
+- **重点内容**: 最终结局，角色归宿，主题升华，读者共鸣    
     """
         
         result = self.generator.api_client.generate_content_with_retry(
@@ -311,7 +331,7 @@ class StagePlanManager:
         growth_plan = self.generator.novel_data["global_growth_plan"]
         for stage in growth_plan.get("stage_framework", []):
             chapter_range = stage["chapter_range"]
-            if self._is_chapter_in_range(chapter_number, chapter_range):
+            if is_chapter_in_range(chapter_number, chapter_range):
                 return stage["stage_name"]
         return None
 
@@ -361,7 +381,7 @@ class StagePlanManager:
         
         for guidance in chapter_guidance_list:
             chapter_range = guidance.get("chapter_range", "")
-            if self._is_chapter_in_range(chapter_number, chapter_range):
+            if is_chapter_in_range(chapter_number, chapter_range):
                 return {
                     "writing_focus": guidance.get("writing_focus", ""),
                     "key_tasks": guidance.get("key_tasks", []),

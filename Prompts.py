@@ -68,8 +68,6 @@ Prompts = {
 4. 流量潜力评估
 5. 推荐写作策略
 
-请确保输出是严格的JSON格式，所有字符串值都必须用双引号括起来。
-
 请按照以下JSON格式输出：
 {
     "target_audience": "目标读者群体描述",
@@ -369,122 +367,86 @@ Prompts = {
 - 对后续剧情的影响
 
 # 输出格式
-{{
+{
     "stage_name": "{stage_name}",
     "chapter_range": "{chapter_range}",
-    "character_growth_plan": {{
-        "protagonist_development": {{
+    "character_growth_plan": {
+        "protagonist_development": {
             "personality_evolution": "性格演变描述",
             "ability_advancement": ["新能力1", "新能力2"],
             "motivation_deepening": "动机深化描述",
             "key_growth_moments": [
-                {{
+                {
                     "moment": "成长时刻描述",
                     "approximate_chapter": "大致章节",
                     "impact": "对后续的影响"
-                }}
+                }
             ]
-        }},
-        "supporting_characters_development": {{
+        },
+        "supporting_characters_development": {
             "focus_characters": ["需要重点发展的配角"],
             "new_characters": ["需要引入的新角色"],
-            "relationship_evolution": {{
+            "relationship_evolution": {
                 "character1_character2": "关系变化描述"
-            }}
-        }}
-    }},
-    "faction_development_plan": {{
-        "power_structure_changes": {{
+            }
+        }
+    },
+    "faction_development_plan": {
+        "power_structure_changes": {
             "rising_powers": ["新兴势力"],
             "declining_powers": ["衰落势力"],
             "new_alliances": ["新联盟关系"]
-        }},
-        "conflict_escalation": {{
+        }
+        "conflict_escalation": {
             "ongoing_conflicts": ["持续冲突及其升级"],
             "new_conflicts": ["新出现的冲突"]
-        }},
-        "world_building_expansion": {{
+        },
+        "world_building_expansion": {
             "new_locations": ["新地点"],
             "cultural_revelations": ["文化揭示"],
             "system_refinements": ["体系完善"]
-        }}
-    }},
-    "ability_equipment_plan": {{
-        "skill_progression": {{
+        }
+    },
+    "ability_equipment_plan": {
+        "skill_progression": {
             "new_skills": ["新技能1", "新技能2"],
             "skill_upgrades": ["技能升级1", "技能升级2"]
-        }},
-        "equipment_advancement": {{
+        },
+        "equipment_advancement": {
             "new_equipment": ["新装备"],
             "equipment_upgrades": ["装备升级"]
-        }},
+        },
         "breakthrough_moments": [
-            {{
+            {
                 "breakthrough": "突破描述",
                 "requirements": "突破条件",
                 "consequences": "突破后果"
-            }}
+            }
         ],
-        "system_evolution": {{
+        "system_evolution": {
             "rule_revelations": ["规则揭示"],
             "limitation_breakthroughs": ["限制突破"],
             "new_features": ["新功能解锁"]
-        }}
-    }},
-    "emotional_development_plan": {{
+        }
+    },
+    "emotional_development_plan": {
         "main_emotional_arc": "主要情感线发展",
         "secondary_emotional_arcs": ["次要情感线"],
         "emotional_conflicts": ["情感冲突"]
-    }},
+    },
     "key_milestones": [
-        {{
+        {
             "milestone": "里程碑描述",
             "chapter_range": "发生章节范围",
             "significance": "重要性说明"
-        }}
+        }
     ],
     "content_synopsis": "本阶段内容总体概述"
-}}
+}
 请确保规划具体、可执行，并与前后阶段自然衔接。
 """,
         "stage_writing_planning": """你是一位资深的网络小说剧情架构师。请基于内容规划和伏笔计划，为小说的特定阶段制定详细的写作计划。...""",
         "overall_stage_plan": """你是一位顶级网络小说策划编辑。请根据创意种子和市场分析，制定全书的阶段计划。
-
-# 基本信息
-**创意种子**: {creative_seed}
-**小说标题**: {novel_title}
-**小说简介**: {novel_synopsis}
-**核心世界观**: {core_worldview}
-**主要角色设计**: {character_design}
-**总章节数**: {total_chapters}
-
-# 阶段划分要求
-请将全书{total_chapters}章划分为5个主要阶段，并为每个阶段制定详细的写作重点：
-
-## 1. 开局阶段 (约前10-15%章节)
-- **章节范围**: 第1章-第{opening_end}章
-- **核心任务**: 建立故事基础，引入核心冲突，吸引读者
-- **重点内容**: 主角出场，世界观介绍，初始冲突，悬念设置
-
-## 2. 发展阶段 (约25-30%章节)
-- **章节范围**: 第{development_start}章-第{development_end}章
-- **核心任务**: 深化矛盾，角色成长，支线展开
-- **重点内容**: 能力提升，盟友敌人，小高潮，伏笔埋设
-
-## 3. 高潮阶段 (约30-35%章节)
-- **章节范围**: 第{climax_start}章-第{climax_end}章
-- **核心任务**: 主要冲突爆发，重大转折，情感爆发
-- **重点内容**: 关键对决，真相揭露，角色蜕变，核心矛盾激化
-
-## 4. 收尾阶段 (约15-20%章节)
-- **章节范围**: 第{ending_start}章-第{ending_end}章
-- **核心任务**: 解决主要冲突，收束支线，准备结局
-- **重点内容**: 矛盾解决，伏笔回收，情感升华，最终准备
-
-## 5. 结局阶段 (约5-10%章节)
-- **章节范围**: 第{final_start}章-第{total_chapters}章
-- **核心任务**: 完整收尾，交代后续，情感共鸣
-- **重点内容**: 最终结局，角色归宿，主题升华，读者共鸣
 
 # 输出格式
 {
@@ -962,9 +924,6 @@ Prompts = {
 4. 竞争优势分析深度（2分）
 5. 推荐策略可行性（2分）
 
-# 需要评估的内容：
-{content}
-
 # 评估要求：
 请严格按照以下JSON格式输出评估结果：
 {{
@@ -1087,16 +1046,14 @@ Prompts = {
 
         "core_worldview_optimization": """你是一位世界观优化专家。请根据以下评估结果优化世界观框架。
 
-# 原始内容：
-{original_content}
 
-# 评估结果：
-{assessment_results}
+优化要求:
+1. 保持核心设定不变
+2. 重点解决评估中发现的问题
+3. 提升世界观的完整性和逻辑性
+4. 加强创新元素和独特性
+5. 丰富设定细节和深度
 
-# 优化重点：
-{priority_fixes}
-
-# 优化要求：
 请保持原有结构，针对评估指出的问题进行优化，提升内容质量。
 请输出优化后的完整世界观框架，使用相同的JSON格式。""",
 

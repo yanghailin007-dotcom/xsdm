@@ -21,7 +21,7 @@ def timestamp_print(*args, **kwargs):
     _original_print(*new_args, **kwargs)
 
 # 全局替换 print 函数
-builtins.print = timestamp_print
+builtins.print = _original_print
 
 # 可选：提供一个恢复原始 print 的函数
 def restore_original_print():
