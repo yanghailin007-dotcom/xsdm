@@ -2,10 +2,11 @@
 
 import json
 import re
+import APIClient
 from typing import Dict, Optional, List, Tuple
 
 class ContentGenerator:
-    def __init__(self, api_client, config=None, event_bus=None, quality_assessor=None):
+    def __init__(self, api_client: APIClient.APIClient, config=None, event_bus=None, quality_assessor=None):
         self.api_client = api_client
         self.config = config
         self.event_bus = event_bus
@@ -98,70 +99,34 @@ class ContentGenerator:
         return result
 
     def _generate_character_name_by_category(self, category: str, creative_seed: str) -> str:
-        """根据分类生成适合的主角名字 - 使用JSON格式响应"""
+        """根据分类生成适合的主角名字"""
         try:
             print(f"  🎯 开始为分类 '{category}' 生成主角名字...")
             
-            prompt = f"""请根据以下信息生成一个适合的主角名字：
-
-    小说分类：{category}
-    创意种子：{creative_seed}
-
-    要求：
-    1. 名字要符合分类的风格特点
-    2. 名字要有特色，容易让读者记住
-    3. 长度2-3个字
-    4. 只返回JSON格式，不要其他内容
-
-    请按照以下JSON格式输出：
-    {{
-        "name": "主角名字"
-    }}"""
-
-            print(f"  📨 发送命名请求到API...")
-            response = self.api_client.call_api(
-                'deepseek',
-                "你是小说角色命名专家，请严格按照JSON格式返回主角名字",
-                prompt,
-                0.7,
+            user_prompt = f"\n小说分类：{category}\n创意种子：{creative_seed}"
+            
+            result = self.api_client.generate_content_with_retry(
+                "character_naming",
+                user_prompt,
                 purpose="生成主角名字"
             )
             
-            print(f"  📥 API响应: {response}")
+            if result:
+                import json
+                response_data = json.loads(result)
+                name = response_data.get("name")
+                if name and 2 <= len(name) <= 3:
+                    print(f"  ✅ 获取主角名字: {name}")
+                    return name
             
-            if response:
-                # 尝试解析JSON响应
-                try:
-                    import json
-                    response_data = json.loads(response)
-                    name = response_data.get("name")
-                    if name and 2 <= len(name) <= 3:
-                        print(f"  ✅ 从JSON响应中获取主角名字: {name}")
-                        return name
-                    else:
-                        print(f"  ⚠️ JSON中名字无效: {name}")
-                except json.JSONDecodeError as e:
-                    print(f"  ❌ JSON解析失败: {e}")
-                    print(f"  响应内容: {response}")
-                    # 尝试从文本中提取名字
-                    import re
-                    chinese_names = re.findall(r'[\u4e00-\u9fff]{2,3}', response)
-                    if chinese_names:
-                        name = chinese_names[0]
-                        print(f"  ✅ 从文本中提取主角名字: {name}")
-                        return name
-            
-            # 如果API调用失败或无法提取名字，使用基于分类的默认名字
+            # 如果API调用失败，使用默认名字
             default_name = self._get_default_name_by_category(category)
             print(f"  🔄 使用默认名字: {default_name}")
             return default_name
             
         except Exception as e:
             print(f"  ❌ 生成主角名字时出错: {e}")
-            import traceback
-            print(f"  详细错误: {traceback.format_exc()}")
             default_name = self._get_default_name_by_category(category)
-            print(f"  🔄 使用默认名字: {default_name}")
             return default_name
 
     def _get_default_name_by_category(self, category: str) -> str:

@@ -5,285 +5,6 @@ from utils import parse_chapter_range, is_chapter_in_range
 
 class StagePlanManager:
     """剧情骨架设计器 - 专注如何将内容转化为剧情（怎么写）"""
-    
-    # 类内部集成的提示词模板
-    PROMPTS = {
-        "stage_writing_planning": """
-你是一位资深的网络小说剧情架构师。请基于内容规划和伏笔计划，为小说的特定阶段制定详细的写作计划。
-
-# 阶段信息
-**阶段名称**: {stage_name}
-**章节范围**: {chapter_range}
-**总章节数**: {total_chapters}
-
-# 小说基础信息
-**标题**: {novel_title}
-**简介**: {novel_synopsis}
-**核心世界观**: {worldview_overview}
-
-# 内容规划（写什么）
-{content_plan}
-
-# 伏笔计划（何时写）
-{foreshadowing_plan}
-
-# 写作计划要求
-请基于以上"写什么"和"何时写"的规划，制定本阶段的详细写作计划，专注于"怎么写"，包含以下方面：
-
-## 1. 剧情结构设计
-### 主线剧情架构
-如何将内容规划转化为吸引人的剧情结构：
-
-- **开篇设计**: 如何承接上一阶段，自然开始本阶段？
-- **冲突设置**: 如何安排冲突来展现人物成长和势力变化？
-- **高潮安排**: 本阶段的情感高潮和情节高潮如何设计？
-- **收尾处理**: 如何为下一阶段做好铺垫？
-
-### 情节节奏控制
-- **快节奏章节**: 哪些章节需要快速推进，制造紧张感？
-- **慢节奏章节**: 哪些章节需要放缓节奏，深化情感或世界观？
-- **转折点安排**: 关键转折点设置在哪些章节？
-
-## 2. 事件体系设计
-### 重大事件设计
-基于内容规划的关键成长节点，设计1-2个重大事件：
-
-- **事件主题**: 事件如何体现本阶段的核心内容？
-- **持续时间**: 事件跨越多少章节？
-- **关键节点**: 事件的开始、发展、高潮、结束如何安排？
-- **角色参与**: 主角和配角在事件中的角色和成长？
-
-### 支撑事件设计
-设计支撑重大事件的次级事件：
-
-- **铺垫事件**: 为重大事件做铺垫的小事件
-- **发展事件**: 推动重大事件发展的中间事件
-- **收尾事件**: 处理重大事件后续影响的事件
-
-## 3. 角色表现设计
-### 主角成长展现
-如何通过剧情展现内容规划中的人物成长：
-
-- **性格演变场景**: 哪些场景能自然展现主角性格变化？
-- **能力提升展示**: 如何通过事件或冲突展示新能力？
-- **动机深化处理**: 如何让主角的目标更加明确和深刻？
-
-### 配角塑造安排
-- **重点配角**: 哪些配角需要重点塑造，如何安排他们的戏份？
-- **新角色引入**: 如何自然引入新角色，并快速建立读者印象？
-- **关系发展**: 角色关系的变化如何通过具体互动展现？
-
-## 4. 势力冲突设计
-### 冲突展现方式
-如何通过剧情展现势力格局的变化：
-
-- **直接冲突**: 安排哪些直接对抗来展现势力矛盾？
-- **间接冲突**: 通过哪些间接方式展现势力间的博弈？
-- **冲突升级**: 冲突如何从轻微到严重逐步升级？
-
-### 世界观扩展
-- **新地点展现**: 如何自然地介绍新地点及其特色？
-- **文化揭示**: 通过什么方式揭示世界观的文化背景？
-- **体系完善**: 如何逐步完善力量体系或社会体系？
-
-## 5. 情感线索设计
-### 情感发展处理
-如何安排情感线的发展：
-
-- **情感节点**: 情感发展的关键节点安排在哪些章节？
-- **情感冲突**: 如何设计情感冲突来增强戏剧性？
-- **情感升华**: 情感如何从浅入深逐步升华？
-
-## 6. 伏笔整合设计
-### 伏笔自然融入
-如何将伏笔计划自然地融入剧情：
-
-- **新元素引入**: 如何在不突兀的情况下引入新元素？
-- **现有元素发展**: 如何让现有元素的发展显得自然合理？
-- **伏笔回收**: 如何安排前期伏笔的回收时机和方式？
-
-## 7. 章节分布规划
-### 章节任务分配
-为阶段内的每个章节制定具体的写作任务：
-
-- **前期章节** ({early_chapters}): 重点任务和目标
-- **中期章节** ({middle_chapters}): 核心发展和转折
-- **后期章节** ({late_chapters}): 高潮推进和收尾
-
-## 8. 写作技巧指导
-### 叙事手法建议
-- **视角选择**: 建议采用什么叙事视角？
-- **描写重点**: 哪些方面需要重点描写？
-- **对话设计**: 对话在推动剧情和塑造角色中的作用
-- **悬念设置**: 如何设置悬念保持读者兴趣
-
-# 输出格式
-{{
-    "stage_name": "{stage_name}",
-    "chapter_range": "{chapter_range}",
-    "plot_structure_design": {{
-        "main_plot_architecture": {{
-            "opening_approach": "开篇设计思路",
-            "conflict_arrangement": "冲突设置方案",
-            "climax_design": "高潮安排设计",
-            "ending_approach": "收尾处理方法"
-        }},
-        "pace_control_strategy": {{
-            "fast_pace_chapters": [快节奏章节列表],
-            "slow_pace_chapters": [慢节奏章节列表],
-            "turning_points": [
-                {{
-                    "chapter": 转折章节,
-                    "description": "转折点描述",
-                    "impact": "对剧情的影响"
-                }}
-            ]
-        }}
-    }},
-    "event_system_design": {{
-        "major_events": [
-            {{
-                "name": "重大事件名称",
-                "theme": "事件主题",
-                "start_chapter": 开始章节,
-                "end_chapter": 结束章节,
-                "key_moments": [
-                    {{
-                        "chapter": 关键时刻章节,
-                        "description": "时刻描述",
-                        "purpose": "在事件中的作用"
-                    }}
-                ],
-                "character_roles": {{
-                    "protagonist": "主角角色和成长",
-                    "supporting_characters": ["配角参与情况"]
-                }},
-                "connection_to_content": "与内容规划的关联"
-            }}
-        ],
-        "supporting_events": [
-            {{
-                "name": "支撑事件名称",
-                "type": "setup/development/resolution",
-                "chapters": [发生章节],
-                "purpose": "事件目的",
-                "connection_to_major": "与重大事件的关联"
-            }}
-        ]
-    }},
-    "character_performance_design": {{
-        "protagonist_showcase": {{
-            "personality_evolution_scenes": [
-                {{
-                    "scene_description": "场景描述",
-                    "purpose": "展现的性格变化",
-                    "suggested_chapter": 建议章节
-                }}
-            ],
-            "ability_demonstration": [
-                {{
-                    "ability": "能力名称",
-                    "demonstration_method": "展现方式",
-                    "impact": "对剧情的影响"
-                }}
-            ],
-            "motivation_deepening": "动机深化处理方式"
-        }},
-        "supporting_characters_arrangement": {{
-            "focus_characters": [
-                {{
-                    "character": "角色名称",
-                    "key_scenes": ["关键场景"],
-                    "development_arc": "发展轨迹"
-                }}
-            ],
-            "new_characters_introduction": [
-                {{
-                    "character": "新角色名称",
-                    "introduction_method": "引入方式",
-                    "first_impression": "给读者的第一印象"
-                }}
-            ],
-            "relationship_development": {{
-                "relationship": "关系发展描述",
-                "key_interactions": ["关键互动场景"]
-            }}
-        }}
-    }},
-    "faction_conflict_design": {{
-        "conflict_manifestation": {{
-            "direct_conflicts": ["直接冲突设计"],
-            "indirect_conflicts": ["间接冲突设计"],
-            "escalation_pattern": "冲突升级模式"
-        }},
-        "world_building_expansion": {{
-            "new_locations_reveal": ["新地点展现方式"],
-            "cultural_revelations": ["文化揭示方法"],
-            "system_refinement": "体系完善途径"
-        }}
-    }},
-    "emotional_arc_design": {{
-        "emotional_development": {{
-            "key_emotional_nodes": [
-                {{
-                    "chapter": 情感节点章节,
-                    "emotional_change": "情感变化",
-                    "impact": "对关系的影响"
-                }}
-            ],
-            "emotional_conflicts": ["情感冲突设计"],
-            "emotional_culmination": "情感升华方式"
-        }}
-    }},
-    "foreshadowing_integration": {{
-        "new_elements_introduction": [
-            {{
-                "element": "元素名称",
-                "integration_method": "融入剧情的方式",
-                "naturalness_ensurance": "如何确保自然性"
-            }}
-        ],
-        "existing_elements_development": [
-            {{
-                "element": "元素名称",
-                "development_scenes": ["发展场景"],
-                "progression_naturalness": "发展自然性保障"
-            }}
-        ],
-        "foreshadowing_payoff": [
-            {{
-                "element": "回收伏笔元素",
-                "payoff_chapter": 回收章节,
-                "payoff_method": "回收方式",
-                "satisfaction_ensurance": "如何确保读者满意度"
-            }}
-        ]
-    }},
-    "chapter_distribution_plan": {{
-        "early_chapters_focus": "前期章节写作重点",
-        "middle_chapters_focus": "中期章节写作重点",
-        "late_chapters_focus": "后期章节写作重点",
-        "chapter_specific_guidance": [
-            {{
-                "chapter_range": "章节范围",
-                "writing_focus": "写作重点",
-                "key_tasks": ["关键任务"]
-            }}
-        ]
-    }},
-    "writing_techniques_guidance": {{
-        "narrative_approach": "叙事手法建议",
-        "description_priorities": "描写重点建议",
-        "dialogue_design": "对话设计指导",
-        "suspense_techniques": "悬念设置技巧"
-    }},
-    "writing_plan_synopsis": "本阶段写作计划总体概述"
-}}
-
-请确保写作计划具体、可执行，能够有效指导章节创作。
-"""
-    }
-
     def __init__(self, novel_generator):
         self.generator = novel_generator
         self.overall_stage_plans = None
@@ -318,6 +39,105 @@ class StagePlanManager:
                 "key_elements": "最终结局、角色归宿、主题升华"
             }
         }
+
+    def generate_overall_stage_plan(self, creative_seed: str, novel_title: str, novel_synopsis: str, 
+                                market_analysis: Dict, total_chapters: int) -> Optional[Dict]:
+        """生成全书阶段计划 - 修复版本"""
+        print("=== 生成全书阶段计划 ===")
+        
+        # 计算阶段边界
+        boundaries = self.calculate_stage_boundaries(total_chapters)
+        
+        user_prompt = f"""
+    创意种子: {creative_seed}
+    小说标题: {novel_title}
+    小说简介: {novel_synopsis}
+    市场分析: {json.dumps(market_analysis, ensure_ascii=False)}
+    总章节数: {total_chapters}
+    """
+        
+        # 添加阶段边界参数
+        user_prompt += f"""
+    开局阶段结束: 第{boundaries['opening_end']}章
+    发展阶段开始: 第{boundaries['development_start']}章
+    发展阶段结束: 第{boundaries['development_end']}章  
+    高潮阶段开始: 第{boundaries['climax_start']}章
+    高潮阶段结束: 第{boundaries['climax_end']}章
+    收尾阶段开始: 第{boundaries['ending_start']}章
+    收尾阶段结束: 第{boundaries['ending_end']}章
+    结局阶段开始: 第{boundaries['final_start']}章
+    """
+        
+        result = self.generator.api_client.generate_content_with_retry(
+            "overall_stage_plan", 
+            user_prompt,
+            purpose="制定全书阶段计划"
+        )
+        
+        if result:
+            # 验证数据结构
+            if not isinstance(result, dict):
+                print("❌ 阶段计划返回数据格式错误")
+                return None
+            
+            self.overall_stage_plans = result
+            self.stage_boundaries = boundaries
+            print("✓ 全书阶段计划生成成功")
+            self.print_stage_overview()  # 调用修复后的方法
+            return result
+        else:
+            print("❌ 全书阶段计划生成失败")
+            return None
+    
+    def calculate_stage_boundaries(self, total_chapters: int) -> Dict:
+        ratios = [0.12, 0.28, 0.32, 0.18, 0.10]  # 确保总和为1.0
+        
+        # 计算累积章节数，确保不重叠
+        chapters = [0]
+        for ratio in ratios:
+            chapters.append(chapters[-1] + int(total_chapters * ratio))
+        
+        # 确保最后一个章节等于总章节数
+        chapters[-1] = total_chapters
+        
+        return {
+            "opening_end": chapters[1],
+            "development_start": chapters[1] + 1,
+            "development_end": chapters[2],
+            "climax_start": chapters[2] + 1,
+            "climax_end": chapters[3],
+            "ending_start": chapters[3] + 1,
+            "ending_end": chapters[4],
+            "final_start": chapters[4] + 1
+        }    
+    
+    def print_stage_overview(self):
+        """打印详细的阶段计划概览"""
+        if not hasattr(self, 'overall_stage_plan') or not self.overall_stage_plan:
+            print("暂无阶段计划数据")
+            return
+        
+        print("\n" + "=" * 60)
+        print("                   小说阶段计划概览")
+        print("=" * 60)
+        
+        total_chapters = 0
+        for i, stage in enumerate(self.overall_stage_plan, 1):
+            stage_name = stage.get('name', f'第{i阶段}')
+            start_ch = stage.get('start_chapter', 1)
+            end_ch = stage.get('end_chapter', start_ch)
+            chapter_count = end_ch - start_ch + 1
+            total_chapters += chapter_count
+            
+            print(f"\n📚 阶段 {i}: {stage_name}")
+            print(f"   📖 章节: {start_ch}-{end_ch}章 (共{chapter_count}章)")
+            print(f"   🎯 目标: {stage.get('goal', '暂无目标描述')}")
+            print(f"   ⚡ 关键发展: {stage.get('key_events', '暂无关键事件')}")
+            if stage.get('conflicts'):
+                print(f"   ⚔️ 核心冲突: {stage.get('conflicts')}")
+        
+        print(f"\n📈 总计: {len(self.overall_stage_plan)}个阶段，{total_chapters}章")
+        print("=" * 60)
 
     def generate_stage_writing_plan(self, stage_name: str, content_plan: Dict, 
                                   foreshadowing_plan: Dict) -> Dict:

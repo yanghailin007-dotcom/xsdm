@@ -500,21 +500,6 @@ class QualityAssessor:
 世界观内容:
 {json.dumps(worldview, ensure_ascii=False, indent=2)}
 
-评估维度：
-1. 世界观完整性 (2分): 世界观设定是否完整自洽
-2. 创新性 (2分): 是否有独特的创新元素
-3. 逻辑合理性 (2分): 设定是否符合逻辑和常识
-4. 故事适配性 (2分): 是否适合故事发展和角色成长
-5. 细节丰富度 (2分): 设定细节是否丰富具体
-
-请按照以下JSON格式返回评估结果：
-{{
-    "overall_score": 总体评分(满分10分),
-    "quality_verdict": "质量评级",
-    "strengths": ["优点列表"],
-    "weaknesses": ["待改进方面列表"],
-    "optimization_suggestions": ["优化建议列表"]
-}}
 """
 
     def assess_character_design_quality(self, character_design: Dict) -> Dict:

@@ -6,9 +6,12 @@ import time
 import requests
 from typing import Optional, Any
 
+from Prompts import Prompts
+
 class APIClient:
     def __init__(self, config):
         self.config = config
+        self.Prompts = Prompts
         self.request_times = []  # 记录请求时间用于分析
     
     def clean_api_response(self, response: str) -> str:
@@ -83,8 +86,9 @@ class APIClient:
                 print(f"  调用{api_type.upper()} API (第{attempt+1}次) - 目的: {purpose} (超时: {timeout}秒)...")
                 
                 # 打印请求摘要（不包含完整内容避免过长）
-                prompt_preview = user_prompt
-                print(f"  请求摘要: {prompt_preview}")
+                print(f"  请求摘要user_prompt:\n {user_prompt}")
+                print(f"  请求摘要system_prompt:\n {system_prompt}")
+                
                 
                 response = requests.post(api_url, headers=headers, json=payload, timeout=timeout)
                 
@@ -242,11 +246,11 @@ class APIClient:
     def generate_content_with_retry(self, content_type: str, user_prompt: str, 
                                 temperature: float = None, purpose: str = "内容生成") -> Optional[Any]:
         """带重试机制的内容生成 - 优化版本"""
-        if content_type not in self.config["prompts"]:
+        if content_type not in self.Prompts["prompts"]:
             print(f"❌ 不支持的内容类型: {content_type}")
             return None
             
-        system_prompt = self.config["prompts"][content_type]
+        system_prompt = self.Prompts["prompts"][content_type]
         
         for json_attempt in range(self.config["defaults"]["json_retries"]):
             for api_type in ['deepseek', 'yuanbao']:
