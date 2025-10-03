@@ -155,6 +155,10 @@ class ContentGenerator:
         }
         return default_names.get(category, "林风")
 
+    def generate_chapter(self, chapter_number: int, novel_data: Dict) -> Optional[Dict]:
+        """生成章节内容（兼容性方法）"""
+        return self.generate_chapter_content_for_novel(chapter_number, novel_data)
+
     def generate_market_analysis(self, creative_seed: str, selected_plan: Dict) -> Optional[Dict]:
         """生成市场分析"""
         print("=== 步骤2: 进行市场分析和卖点提炼 ===")

@@ -890,7 +890,7 @@ class NovelGenerator:
                     continue
                 
                 # 3. 委托给ContentGenerator生成内容
-                chapter_result = self.content_generator.generate_chapter(context)
+                chapter_result = self.content_generator.generate_chapter(context, self.novel_data)
                 
                 # 4. 发布生成完成事件
                 self.event_bus.publish('chapter.generated', {

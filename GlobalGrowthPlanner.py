@@ -66,7 +66,7 @@ class GlobalGrowthPlanner:
 **主要角色**: {json.dumps(novel_data.get('character_design', {}), ensure_ascii=False)}
 **市场分析**: {json.dumps(novel_data.get('market_analysis', {}), ensure_ascii=False)}
 
-请基于以上信息制定贯穿总章节: {total_chapters}全书的完整成长规划。
+请基于以上信息制定贯穿总章节: {total_chapters}章全书的完整成长规划。
 """
         
         # 生成全局成长规划
