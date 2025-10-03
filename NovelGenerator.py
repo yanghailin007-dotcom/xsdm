@@ -20,10 +20,12 @@ import GlobalGrowthPlanner
 import ProjectManager
 import QualityAssessor
 import StagePlanManager
+from Prompts import Prompts
 
 class NovelGenerator:
     def __init__(self, config):
         self.config = config
+        self.Prompts = Prompts
         self.api_client = APIClient.APIClient(config)
         self.event_bus = EventBus.EventBus()
         self.quality_assessor = QualityAssessor.QualityAssessor(self.api_client)  # 修复属性名
@@ -35,6 +37,7 @@ class NovelGenerator:
         """初始化各管理器，明确依赖关系"""
         # 核心管理器
         self.content_generator = ContentGenerator.ContentGenerator(
+            novel_generator=self, 
             api_client=self.api_client,
             config=self.config,
             event_bus=self.event_bus,
@@ -42,25 +45,11 @@ class NovelGenerator:
         )
         
         self.project_manager = ProjectManager.ProjectManager()
-        
-        self.event_driven_manager = EventDrivenManager.EventDrivenManager(
-            novel_generator=self
-        )
-        
-        # ForeshadowingManager 需要 novel_generator 参数
-        self.foreshadowing_manager = ForeshadowingManager.ForeshadowingManager(
-            novel_generator=self
-        )
-        
-        # GlobalGrowthPlanner 需要 novel_generator 参数
-        self.global_growth_planner = GlobalGrowthPlanner.GlobalGrowthPlanner(
-            novel_generator=self
-        )
-        
-        # 添加缺失的 stage_plan_manager
-        self.stage_plan_manager = StagePlanManager.StagePlanManager(
-            novel_generator=self
-        )
+
+        self.event_driven_manager = EventDrivenManager.EventDrivenManager(novel_generator=self)
+        self.foreshadowing_manager = ForeshadowingManager.ForeshadowingManager(novel_generator=self)
+        self.global_growth_planner = GlobalGrowthPlanner.GlobalGrowthPlanner(novel_generator=self)
+        self.stage_plan_manager = StagePlanManager.StagePlanManager(novel_generator=self)
     
     def _setup_event_handlers(self):
         """设置事件处理器 - 补充完整的事件处理"""
@@ -800,12 +789,7 @@ class NovelGenerator:
         print("=== 步骤6: 制定全书成长规划框架 ===")
         
         try:
-            self.novel_data["global_growth_plan"] = self.global_growth_planner.create_comprehensive_growth_plan(
-                creative_seed,
-                self.novel_data["novel_title"],
-                self.novel_data["novel_synopsis"], 
-                total_chapters
-            )
+            self.novel_data["global_growth_plan"] = self.global_growth_planner.generate_global_growth_plan()
             
             if self.novel_data["global_growth_plan"]:
                 print("✅ 全书成长规划框架制定完成")
@@ -950,15 +934,40 @@ class NovelGenerator:
 
     def _prepare_generation_context(self, chapter_num: int) -> GenerationContext:
         """准备生成上下文 - 只负责数据组装"""
-        return GenerationContext(
-            chapter_number=chapter_num,
-            total_chapters=self.novel_data["current_progress"]["total_chapters"],
-            novel_data=self.novel_data,
-            stage_plan=self._get_stage_plan(chapter_num),
-            event_context=self.event_manager.get_context(chapter_num),
-            foreshadowing_context=self.foreshadowing_manager.get_context(chapter_num),
-            growth_context=self.growth_planner.get_context(chapter_num)
-        )
+        try:
+            # 获取各个管理器的上下文
+            event_context = self.event_driven_manager.get_context(chapter_num) if hasattr(self.event_driven_manager, 'get_context') else {}
+            foreshadowing_context = self.foreshadowing_manager.get_context(chapter_num) if hasattr(self.foreshadowing_manager, 'get_context') else {}
+            growth_context = self.global_growth_planner.get_context(chapter_num) if hasattr(self.global_growth_planner, 'get_context') else {}
+            
+            # 创建 GenerationContext 实例
+            context = GenerationContext(
+                chapter_number=chapter_num,
+                total_chapters=self.novel_data["current_progress"]["total_chapters"],
+                novel_data=self.novel_data,
+                stage_plan=self._get_stage_plan(chapter_num),
+                event_context=event_context,
+                foreshadowing_context=foreshadowing_context,
+                growth_context=growth_context
+            )
+            
+            # 为上下文添加 generator 引用（如果需要）
+            context.generator = self
+            
+            return context
+            
+        except Exception as e:
+            print(f"❌ 准备生成上下文失败: {e}")
+            # 返回基础上下文
+            return GenerationContext(
+                chapter_number=chapter_num,
+                total_chapters=self.novel_data["current_progress"]["total_chapters"],
+                novel_data=self.novel_data,
+                stage_plan={},
+                event_context={},
+                foreshadowing_context={},
+                growth_context={}
+            )
 
     def _coordinate_chapter_preparation(self, context: GenerationContext) -> Dict:
         """协调章节准备 - 通过事件总线"""

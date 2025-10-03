@@ -57,9 +57,11 @@ def parse_chapter_range(range_str: str) -> tuple:
         return 1, 100
 
 def is_chapter_in_range(chapter: int, range_str: str) -> bool:
-    """
-    检查章节是否在给定范围内。
-    例如：章节5，范围"1-10" -> True
-    """
-    start, end = parse_chapter_range(range_str)
-    return start <= chapter <= end
+    try:
+        if "-" in range_str:
+            start, end = map(int, range_str.split("-"))
+            return start <= chapter <= end
+        else:
+            return chapter == int(range_str)
+    except:
+        return False

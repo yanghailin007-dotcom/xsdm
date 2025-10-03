@@ -7,6 +7,7 @@ class ForeshadowingManager:
     """时机控制器 - 专注元素引入时机和铺垫计划（何时写）"""
     def __init__(self, novel_generator):
         self.generator = novel_generator
+        self.Prompts = novel_generator.Prompts
         self.foreshadowing_elements = {
             "factions": {},
             "characters": {},
@@ -79,7 +80,7 @@ class ForeshadowingManager:
         middle_end = start_chapter + (2 * stage_length // 3) - 1
         late_start = middle_end + 1
         
-        user_prompt = self.config["prompts"]["stage_foreshadowing_planning"].format(
+        user_prompt = self.Prompts["prompts"]["stage_foreshadowing_planning"].format(
             stage_name=stage_name,
             start_chapter=start_chapter,
             end_chapter=end_chapter,
@@ -121,7 +122,7 @@ class ForeshadowingManager:
             return {}
         
         # 获取阶段伏笔计划
-        stage_range = self._parse_chapter_range(current_stage["chapter_range"])
+        stage_range = parse_chapter_range(current_stage["chapter_range"])
         foreshadowing_plan = self.get_stage_foreshadowing_plan(
             current_stage["stage_name"], stage_range[0], stage_range[1]
         )
@@ -229,7 +230,7 @@ class ForeshadowingManager:
         growth_plan = self.generator.novel_data["global_growth_plan"]
         for stage in growth_plan.get("stage_framework", []):
             chapter_range = stage["chapter_range"]
-            if self._is_chapter_in_range(chapter_number, chapter_range):
+            if is_chapter_in_range(chapter_number, chapter_range):
                 return stage
         return None
 
@@ -300,16 +301,33 @@ class ForeshadowingManager:
                 }
         return None
 
-    def _is_chapter_in_range(self, chapter: int, range_str: str) -> bool:
-        """检查章节是否在指定范围内"""
-        try:
-            if "-" in range_str:
-                start, end = map(int, range_str.split("-"))
-                return start <= chapter <= end
-            else:
-                return chapter == int(range_str)
-        except:
-            return False
+    def get_context(self, chapter_number: int) -> Dict:
+        """获取章节的伏笔上下文"""
+        return self.get_chapter_foreshadowing_context(chapter_number)
+
+    def get_chapter_foreshadowing_context(self, chapter_number: int, stage_plan: Dict = None) -> Dict:
+        """获取指定章节的伏笔上下文 - 具体实现"""
+        # 获取当前阶段信息
+        current_stage = self._get_current_stage_from_plan(chapter_number, stage_plan)
+        if not current_stage:
+            return {
+                "foreshadowing_focus": "常规情节推进，无特殊伏笔任务",
+                "foreshadowing_intensity": "normal",
+                "specific_tasks": ["保持故事连贯性"]
+            }
+        
+        # 获取阶段伏笔计划
+        stage_range = parse_chapter_range(current_stage["chapter_range"])
+        foreshadowing_plan = self.get_stage_foreshadowing_plan(
+            current_stage["stage_name"], stage_range[0], stage_range[1]
+        )
+        
+        # 生成章节特定的伏笔指导
+        chapter_context = self._generate_chapter_foreshadowing_context(
+            chapter_number, foreshadowing_plan
+        )
+        
+        return chapter_context
 
     def _print_foreshadowing_plan_summary(self, foreshadowing_plan: Dict):
         """打印伏笔计划摘要"""

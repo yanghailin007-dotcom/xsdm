@@ -166,9 +166,97 @@ class EventDrivenManager:
             return False
         
         start_chapter = event_data.get("started_chapter", event_data.get("start_chapter", 0))
-        end_chapter = event_data.get("end_chapter", chapter_number)
+        end_chapter = event_data.get("end_chapter", chapter_number + 100)
         
         return start_chapter <= chapter_number <= end_chapter
+
+    def get_context(self, chapter_number: int) -> Dict:
+        """获取章节的事件上下文"""
+        return self.get_chapter_event_context(chapter_number)
+
+    def get_chapter_event_context(self, chapter_number: int) -> Dict:
+        """获取章节的事件执行上下文 - 具体实现"""
+        context = {
+            "active_events": [],
+            "event_progress": {},
+            "event_tasks": [],
+            "trigger_checkpoints": [],
+            "event_chain_effects": []
+        }
+        
+        # 获取当前活跃的事件
+        for event_name, event_data in self.active_events.items():
+            if self._is_event_active(chapter_number, event_data):
+                event_context = self._build_event_context(chapter_number, event_data)
+                context["active_events"].append(event_context)
+                
+                # 计算事件进度
+                progress = self._calculate_event_progress(chapter_number, event_data)
+                context["event_progress"][event_name] = progress
+                
+                # 生成事件任务
+                tasks = self._generate_event_tasks(chapter_number, event_data, progress)
+                context["event_tasks"].extend(tasks)
+        
+        # 检查触发条件
+        context["trigger_checkpoints"] = self._check_event_triggers(chapter_number)
+        
+        # 计算事件链影响
+        context["event_chain_effects"] = self._calculate_chain_effects(chapter_number)
+        
+        return context
+    def initialize_event_system(self):
+        """初始化事件系统"""
+        print("🎯 初始化事件系统...")
+        
+        # 从 novel_data 中获取事件系统数据
+        novel_data = self.generator.novel_data
+        
+        # 如果有阶段写作计划，从中提取事件系统
+        if "stage_writing_plans" in novel_data and novel_data["stage_writing_plans"]:
+            # 获取第一个阶段的写作计划
+            first_stage = next(iter(novel_data["stage_writing_plans"].values()))
+            if first_stage and "event_system_design" in first_stage:
+                event_system = first_stage["event_system_design"]
+                self.update_from_stage_plan(event_system)
+                print(f"✅ 从阶段计划初始化事件系统: {len(self.active_events)}个活跃事件")
+                return
+        
+        # 如果没有阶段计划，尝试从全局成长计划中提取
+        if "global_growth_plan" in novel_data and novel_data["global_growth_plan"]:
+            self._initialize_from_growth_plan(novel_data["global_growth_plan"])
+            print(f"✅ 从成长计划初始化事件系统: {len(self.active_events)}个活跃事件")
+            return
+        
+        print("⚠️ 没有可用的事件系统数据，事件系统保持为空")
+
+    def _initialize_from_growth_plan(self, growth_plan: Dict):
+        """从全局成长计划中初始化事件系统"""
+        # 创建基础的事件系统结构
+        event_system = {
+            "major_events": [],
+            "supporting_events": []
+        }
+        
+        # 从阶段框架中提取重大事件
+        for stage in growth_plan.get("stage_framework", []):
+            event_name = f"{stage['stage_name']}核心事件"
+            event_system["major_events"].append({
+                "name": event_name,
+                "type": "stage_core",
+                "main_goal": stage.get("core_objectives", ["推进故事发展"])[0],
+                "start_chapter": self._parse_chapter_start(stage["chapter_range"]),
+                "end_chapter": self._parse_chapter_end(stage["chapter_range"]),
+                "key_moments": [
+                    {
+                        "chapter": self._parse_chapter_start(stage["chapter_range"]) + 3,
+                        "description": f"{stage['stage_name']}关键发展",
+                        "purpose": "推动事件进展"
+                    }
+                ]
+            })
+        
+        self.update_from_stage_plan(event_system)
 
     def _is_event_completed(self, chapter_number: int, event_data: Dict) -> bool:
         """检查事件是否完成"""

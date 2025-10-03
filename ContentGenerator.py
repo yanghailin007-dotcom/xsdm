@@ -6,7 +6,8 @@ import APIClient
 from typing import Dict, Optional, List, Tuple
 
 class ContentGenerator:
-    def __init__(self, api_client: APIClient.APIClient, config=None, event_bus=None, quality_assessor=None):
+    def __init__(self, novel_generator, api_client, config, event_bus, quality_assessor):
+        self.novel_generator = novel_generator
         self.api_client = api_client
         self.config = config
         self.event_bus = event_bus

@@ -9,6 +9,7 @@ class GlobalGrowthPlanner:
     def __init__(self, novel_generator):
         self.generator = novel_generator
         self.config = novel_generator.config
+        self.Prompts = novel_generator.Prompts
         self.stage_content_cache = {}  # 缓存各阶段的内容规划
         self.global_growth_plan = None  # 全书成长规划
         
@@ -55,7 +56,7 @@ class GlobalGrowthPlanner:
         total_chapters = novel_data["current_progress"]["total_chapters"]
         
         # 从config获取提示词模板
-        prompt_template = self.config["prompts"]["global_growth_planning"]
+        prompt_template = self.Prompts["prompts"]["global_growth_planning"]
         
         # 准备输出格式
         output_format = """
@@ -157,7 +158,7 @@ class GlobalGrowthPlanner:
         total_chapters = novel_data["current_progress"]["total_chapters"]
         
         # 从config获取提示词
-        prompt_template = self.config["prompts"]["stage_content_planning"]
+        prompt_template = self.Prompts["prompts"]["stage_content_planning"]
         
         user_prompt = prompt_template.format(
             stage_name=stage_name,
@@ -224,13 +225,13 @@ class GlobalGrowthPlanner:
         """获取当前章节所属的阶段"""
         for stage in growth_plan.get("stage_framework", []):
             chapter_range = stage["chapter_range"]
-            if self._is_chapter_in_range(chapter, chapter_range):
+            if is_chapter_in_range(chapter, chapter_range):
                 return stage
         return None
 
     def _generate_chapter_content_context(self, chapter: int, stage: Dict, content_plan: Dict) -> Dict:
         """生成章节特定的内容上下文"""
-        start_chapter, end_chapter = self._parse_chapter_range(stage["chapter_range"])
+        start_chapter, end_chapter = parse_chapter_range(stage["chapter_range"])
         progress_in_stage = (chapter - start_chapter + 1) / (end_chapter - start_chapter + 1)
         
         # 基于进度确定内容重点
@@ -327,36 +328,34 @@ class GlobalGrowthPlanner:
         
         return nearby[:2]  # 返回最近的两个里程碑
 
-    def _is_chapter_near_range(self, chapter: int, range_str: str) -> bool:
-        """检查章节是否在里程碑附近"""
-        try:
-            if "-" in range_str:
-                start, end = map(int, range_str.split("-"))
-                return start - 3 <= chapter <= end + 3
-            else:
-                target = int(range_str)
-                return target - 3 <= chapter <= target + 3
-        except:
-            return False
+    def get_context(self, chapter_number: int) -> Dict:
+        """获取章节的成长规划上下文"""
+        return self.get_chapter_content_context(chapter_number)
 
-    def _parse_chapter_range(self, range_str: str) -> tuple:
-        """解析章节范围字符串"""
-        try:
-            start, end = map(int, range_str.split("-"))
-            return start, end
-        except:
-            return 1, 100
-
-    def _is_chapter_in_range(self, chapter: int, range_str: str) -> bool:
-        """检查章节是否在范围内"""
-        try:
-            if "-" in range_str:
-                start, end = map(int, range_str.split("-"))
-                return start <= chapter <= end
-            else:
-                return chapter == int(range_str)
-        except:
-            return False
+    def get_chapter_content_context(self, chapter_number: int) -> Dict:
+        """获取指定章节的内容规划上下文 - 具体实现"""
+        if not self.global_growth_plan:
+            # 如果没有全局规划，先生成一个
+            self.generate_global_growth_plan()
+        
+        # 获取当前阶段信息
+        current_stage = self._get_current_stage(self.global_growth_plan, chapter_number)
+        
+        if not current_stage:
+            return {}
+        
+        # 获取阶段内容规划
+        content_plan = self.get_stage_content_plan(
+            current_stage["stage_name"], 
+            current_stage["chapter_range"]
+        )
+        
+        # 生成章节特定的内容指导
+        chapter_context = self._generate_chapter_content_context(
+            chapter_number, current_stage, content_plan
+        )
+        
+        return chapter_context
 
     def _print_global_plan_summary(self, global_plan: Dict):
         """打印全局规划摘要"""
