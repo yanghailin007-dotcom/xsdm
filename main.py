@@ -1,6 +1,6 @@
 """主程序入口"""
 
-from business.novel_generator import NovelGenerator
+from novel_generator import NovelGenerator
 from config import CONFIG
 
 # 首先导入 utils 来启用全局时间戳

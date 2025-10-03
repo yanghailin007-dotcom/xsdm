@@ -14,6 +14,7 @@ import CharacterGrowthManager
 import EventDrivenManager
 import FactionDevelopmentManager
 import ForeshadowingManager
+import GlobalGrowthPlanner
 from ItemUpgradeSystem import ItemUpgradeSystem
 import StagePlanManager
 from api_client import APIClient
@@ -35,9 +36,10 @@ class NovelGenerator:
         self.event_driven_manager = EventDrivenManager.EventDrivenManager(self)
         self.major_event_manager = self.event_driven_manager  # 向后兼容
         self.foreshadowing_manager = ForeshadowingManager.ForeshadowingManager(self)
-        self.character_growth_manager = CharacterGrowthManager(self)
-        self.faction_development_manager = FactionDevelopmentManager(self) 
+        self.character_growth_manager = CharacterGrowthManager.CharacterGrowthManager(self)
+        self.faction_development_manager = FactionDevelopmentManager.FactionDevelopmentManager(self) 
         self.item_upgrade_system = ItemUpgradeSystem(self)
+        self.global_growth_planner = GlobalGrowthPlanner(self)
 
         # 小说数据
         self.novel_data = {
@@ -1528,16 +1530,93 @@ class NovelGenerator:
         return True
     
     def full_auto_generation(self, creative_seed: str, total_chapters: int = None):
-        """全自动生成完整小说"""
+        """全自动生成完整小说 - 重新梳理的清晰流程"""
         print("🚀 开始全自动小说生成...")
         print(f"创意种子: {creative_seed}")
         
         if total_chapters is None:
             total_chapters = self.config["defaults"]["total_chapters"]
         
-        # 记录创意种子
+        # 记录创意种子和基础设置
         self.novel_data["creative_seed"] = creative_seed
+        self.novel_data["current_progress"]["total_chapters"] = total_chapters
+        self.novel_data["current_progress"]["start_time"] = datetime.now().isoformat()
 
+        # 如果是续写模式，跳过前期规划步骤
+        if self.novel_data["is_resuming"]:
+            print("📖 检测到续写模式，跳过前期规划步骤...")
+            return self._resume_content_generation(total_chapters)
+        
+        # ==================== 第一阶段：基础规划 ====================
+        print("\n" + "="*60)
+        print("📝 第一阶段：基础规划")
+        print("="*60)
+        
+        # 步骤1: 用户输入
+        self._get_user_inputs()
+        
+        # 步骤2: 生成三套方案并选择
+        self.novel_data["current_progress"]["stage"] = "方案生成"
+        if not self._generate_and_select_plan(creative_seed):
+            return False
+        
+        # 步骤3: 市场分析
+        self.novel_data["current_progress"]["stage"] = "市场分析" 
+        if not self._generate_market_analysis(creative_seed):
+            return False
+        
+        # ==================== 第二阶段：世界观与角色 ====================
+        print("\n" + "="*60)
+        print("🌍 第二阶段：世界观与角色设计")
+        print("="*60)
+        
+        # 步骤4: 世界观构建
+        self.novel_data["current_progress"]["stage"] = "世界观构建"
+        if not self._generate_worldview():
+            return False
+        
+        # 步骤5: 角色设计
+        self.novel_data["current_progress"]["stage"] = "角色设计"
+        if not self._generate_character_design():
+            return False
+        
+        # ==================== 第三阶段：全书规划 ====================
+        print("\n" + "="*60)
+        print("📊 第三阶段：全书规划")
+        print("="*60)
+        
+        # 步骤6: 生成全书阶段计划
+        self.novel_data["current_progress"]["stage"] = "阶段计划"
+        if not self._generate_overall_stage_plan(creative_seed, total_chapters):
+            print("⚠️  全书阶段计划生成失败，使用默认阶段划分")
+        
+        # 步骤7: 全局成长规划（人物成长、势力发展、物品升级）
+        self.novel_data["current_progress"]["stage"] = "成长规划"
+        if not self._generate_global_growth_plan(creative_seed, total_chapters):
+            print("⚠️  全局成长规划生成失败，使用基础规划")
+        
+        # 步骤8: 初始化系统
+        self.novel_data["current_progress"]["stage"] = "系统初始化"
+        self._initialize_systems()
+        
+        # ==================== 第四阶段：内容生成准备 ====================
+        print("\n" + "="*60)
+        print("🛠️ 第四阶段：内容生成准备")
+        print("="*60)
+        
+        # 步骤9: 选择剧情配比
+        self.novel_data["current_progress"]["stage"] = "配比选择"
+        self.choose_subplot_ratio()
+        
+        # 步骤10: 创建项目目录和保存初始进度
+        self.novel_data["current_progress"]["stage"] = "项目初始化"
+        self._initialize_project()
+        
+        # ==================== 第五阶段：章节内容生成 ====================
+        return self._generate_all_chapters(total_chapters)
+
+    def _get_user_inputs(self):
+        """获取用户输入"""
         # 询问主角名字
         main_character_name = input("请输入主角名字（直接回车使用自动生成）: ").strip()
         if main_character_name:
@@ -1548,122 +1627,193 @@ class NovelGenerator:
         # 选择分类
         self.choose_category()
 
-        # 如果是续写模式，跳过前期步骤
-        if not self.novel_data["is_resuming"]:
-            # 步骤1: 生成三套方案并让用户选择
-            plans_data = self.content_generator.generate_three_plans(creative_seed)
-            if not plans_data:
-                print("方案生成失败，终止生成")
-                return False
-            
-            self.novel_data["selected_plan"] = self.present_plans_to_user(plans_data)
-            if not self.novel_data["selected_plan"]:
-                print("用户未选择方案，终止生成")
-                return False
-            
-            # 设置选定方案的小说标题和简介
-            self.novel_data["novel_title"] = self.novel_data["selected_plan"]["title"]
-            self.novel_data["novel_synopsis"] = self.novel_data["selected_plan"]["synopsis"]
-            
-            # 更新进度
-            self.novel_data["current_progress"]["stage"] = "市场分析"
-            
-            # 步骤2: 市场分析
-            self.novel_data["market_analysis"] = self.content_generator.generate_market_analysis(
-                creative_seed, self.novel_data["selected_plan"])
-            if not self.novel_data["market_analysis"]:
-                print("市场分析失败，终止生成")
-                return False
-            
-            self.novel_data["current_progress"]["stage"] = "人物成长"
-
-            # 步骤6: 人物成长设计
-            self.novel_data["character_growth"] = self.character_growth_manager.design_main_character_growth(
-                self.novel_data["character_design"],
-                total_chapters
-            )
-
-            self.novel_data["current_progress"]["stage"] = "势力发展"
-            # 步骤7: 势力发展设计  
-            self.novel_data["faction_development"] = self.faction_development_manager.initialize_faction_system(
-                self.novel_data["core_worldview"]
-            )
-            
-            self.novel_data["current_progress"]["stage"] = "物品升级"
-            # 步骤8: 物品升级系统
-            self.novel_data["upgrade_system"] = self.item_upgrade_system.create_upgrade_system(
-                self.novel_data["core_worldview"]
-            )
-
-            self.novel_data["current_progress"]["stage"] = "写作计划"
-            # 步骤3.5: 生成全书阶段计划
-            self.novel_data["overall_stage_plan"] = self.stage_plan_manager.generate_overall_stage_plan(
-                creative_seed,
-                self.novel_data["novel_title"],
-                self.novel_data["novel_synopsis"],
-                self.novel_data["market_analysis"],
-                total_chapters
-            )
-            
-            if not self.novel_data["overall_stage_plan"]:
-                print("⚠️  全书阶段计划生成失败，将继续使用默认阶段划分")
-            
-            # 在生成写作计划后初始化事件体系
-            if self.novel_data["overall_stage_plan"]:
-                self.event_driven_manager.initialize_event_system()
-                # 为第一章所属阶段生成详细计划
-                self.ensure_stage_plan_for_chapter(1)
-                print("✓ 第一阶段详细写作计划已生成")
-
-            self.novel_data["current_progress"]["stage"] = "世界观构建"
-            
-            # 步骤4: 世界观
-            self.novel_data["core_worldview"] = self.content_generator.generate_core_worldview(
-                self.novel_data["novel_title"], self.novel_data["novel_synopsis"], 
-                self.novel_data["selected_plan"], self.novel_data["overall_stage_plan"])
-            if not self.novel_data["core_worldview"]:
-                print("世界观构建失败，终止生成")
-                return False
-            
-            self.novel_data["current_progress"]["stage"] = "角色设计"
-            
-            # 步骤5: 角色设计
-            self.novel_data["character_design"] = self.content_generator.generate_character_design(
-                self.novel_data["novel_title"], 
-                self.novel_data["core_worldview"], 
-                self.novel_data["selected_plan"], 
-                self.novel_data["overall_stage_plan"],
-                self.novel_data.get("custom_main_character_name")
-            )
-            if not self.novel_data["character_design"]:
-                print("角色设计失败，终止生成")
-                return False
-            
-            if self.novel_data["character_design"]:
-                self.initialize_foreshadowing_elements()
-                print("✓ 伏笔管理系统已初始化")
-
-        # 先设置总章节数，然后再进行配比选择
-        self.novel_data["current_progress"]["stage"] = "内容生成"
-        self.novel_data["current_progress"]["total_chapters"] = total_chapters
-        if not self.novel_data["is_resuming"]:
-            self.novel_data["current_progress"]["start_time"] = datetime.now().isoformat()
+    def _generate_and_select_plan(self, creative_seed: str) -> bool:
+        """生成并选择方案"""
+        print("=== 步骤1: 基于番茄小说流量趋势生成三套方案 ===")
         
+        plans_data = self.content_generator.generate_three_plans(creative_seed)
+        if not plans_data:
+            print("❌ 方案生成失败，终止生成")
+            return False
+        
+        self.novel_data["selected_plan"] = self.present_plans_to_user(plans_data)
+        if not self.novel_data["selected_plan"]:
+            print("❌ 用户未选择方案，终止生成")
+            return False
+        
+        # 设置选定方案的小说标题和简介
+        self.novel_data["novel_title"] = self.novel_data["selected_plan"]["title"]
+        self.novel_data["novel_synopsis"] = self.novel_data["selected_plan"]["synopsis"]
+        
+        print(f"✅ 已选择方案: 《{self.novel_data['novel_title']}》")
+        return True
+
+    def _generate_market_analysis(self, creative_seed: str) -> bool:
+        """生成市场分析"""
+        print("=== 步骤2: 进行市场分析和卖点提炼 ===")
+        
+        self.novel_data["market_analysis"] = self.content_generator.generate_market_analysis(
+            creative_seed, self.novel_data["selected_plan"])
+        
+        if not self.novel_data["market_analysis"]:
+            print("❌ 市场分析失败，终止生成")
+            return False
+        
+        print("✅ 市场分析完成")
+        return True
+
+    def _generate_worldview(self) -> bool:
+        """生成世界观"""
+        print("=== 步骤3: 构建核心世界观 ===")
+        
+        self.novel_data["core_worldview"] = self.content_generator.generate_core_worldview(
+            self.novel_data["novel_title"], 
+            self.novel_data["novel_synopsis"], 
+            self.novel_data["selected_plan"], 
+            self.novel_data.get("market_analysis", {})
+        )
+        
+        if not self.novel_data["core_worldview"]:
+            print("❌ 世界观构建失败，终止生成")
+            return False
+        
+        print("✅ 世界观构建完成")
+        return True
+
+    def _generate_character_design(self) -> bool:
+        """生成角色设计"""
+        print("=== 步骤4: 设计主要角色 ===")
+        
+        self.novel_data["character_design"] = self.content_generator.generate_character_design(
+            self.novel_data["novel_title"], 
+            self.novel_data["core_worldview"], 
+            self.novel_data["selected_plan"], 
+            self.novel_data.get("market_analysis", {}),
+            self.novel_data.get("custom_main_character_name")
+        )
+        
+        if not self.novel_data["character_design"]:
+            print("❌ 角色设计失败，终止生成")
+            return False
+        
+        print("✅ 角色设计完成")
+        return True
+
+    def _generate_overall_stage_plan(self, creative_seed: str, total_chapters: int) -> bool:
+        """生成全书阶段计划"""
+        print("=== 步骤5: 生成全书阶段计划 ===")
+        
+        self.novel_data["overall_stage_plan"] = self.stage_plan_manager.generate_overall_stage_plan(
+            creative_seed,
+            self.novel_data["novel_title"],
+            self.novel_data["novel_synopsis"],
+            self.novel_data.get("market_analysis", {}),
+            total_chapters
+        )
+        
+        if self.novel_data["overall_stage_plan"]:
+            print("✅ 全书阶段计划生成成功")
+            return True
+        else:
+            return False
+
+    def _generate_global_growth_plan(self, creative_seed: str, total_chapters: int) -> bool:
+        """生成全局成长规划"""
+        print("=== 步骤6: 制定全书成长规划 ===")
+        
+        # 如果有全局成长规划器，使用它
+        if hasattr(self, 'global_growth_planner'):
+            try:
+                self.novel_data["global_growth_plan"] = self.global_growth_planner.create_comprehensive_growth_plan(
+                    creative_seed,
+                    self.novel_data["novel_title"],
+                    self.novel_data["novel_synopsis"],
+                    total_chapters
+                )
+                
+                if self.novel_data["global_growth_plan"]:
+                    print("✅ 全书成长规划制定完成")
+                    return True
+            except Exception as e:
+                print(f"⚠️  全局成长规划器出错: {e}，使用独立系统")
+        
+        # 如果没有全局成长规划器或出错，使用独立的系统（向后兼容）
+        print("⚠️  使用独立成长系统（兼容模式）")
+        
+        success = True
+        
+        # 人物成长设计
+        if hasattr(self, 'character_growth_manager'):
+            try:
+                self.novel_data["character_growth"] = self.character_growth_manager.design_main_character_growth(
+                    self.novel_data["character_design"],
+                    total_chapters
+                )
+                print("✅ 人物成长设计完成")
+            except Exception as e:
+                print(f"❌ 人物成长设计失败: {e}")
+                success = False
+        
+        # 势力发展设计
+        if hasattr(self, 'faction_development_manager'):
+            try:
+                self.novel_data["faction_development"] = self.faction_development_manager.initialize_faction_system(
+                    self.novel_data["core_worldview"]
+                )
+                print("✅ 势力发展设计完成")
+            except Exception as e:
+                print(f"❌ 势力发展设计失败: {e}")
+                success = False
+        
+        # 物品升级系统
+        if hasattr(self, 'item_upgrade_system'):
+            try:
+                self.novel_data["upgrade_system"] = self.item_upgrade_system.create_upgrade_system(
+                    self.novel_data["core_worldview"]
+                )
+                print("✅ 物品升级系统设计完成")
+            except Exception as e:
+                print(f"❌ 物品升级系统设计失败: {e}")
+                success = False
+        
+        return success
+
+    def _initialize_systems(self):
+        """初始化各种系统"""
+        print("=== 步骤7: 初始化系统 ===")
+        
+        # 初始化事件体系
+        if self.novel_data["overall_stage_plan"]:
+            self.event_driven_manager.initialize_event_system()
+            print("✅ 事件系统初始化完成")
+        
+        # 初始化伏笔管理系统
+        if self.novel_data["character_design"]:
+            self.initialize_foreshadowing_elements()
+            print("✅ 伏笔管理系统初始化完成")
+        
+        # 生成第一阶段详细计划
+        self.ensure_stage_plan_for_chapter(1)
+        print("✅ 第一阶段详细写作计划已生成")
+
+    def _initialize_project(self):
+        """初始化项目"""
         # 创建项目目录
         safe_title = re.sub(r'[\\/*?:"<>|]', "_", self.novel_data["novel_title"])
         os.makedirs(f"小说项目/{safe_title}_章节", exist_ok=True)
         
         # 保存初始进度
         self.project_manager.save_project_progress(self.novel_data)
+        print("✅ 项目初始进度已保存")
+
+    def _generate_all_chapters(self, total_chapters: int) -> bool:
+        """生成所有章节内容"""
+        print("\n" + "="*60)
+        print("📖 第五阶段：章节内容生成")
+        print("="*60)
         
-        # 现在可以安全地进行配比选择了
-        if not self.novel_data["is_resuming"]:
-            self.choose_subplot_ratio()
-        
-        # 确定起始章节
-        start_chapter = 1 if not self.novel_data["is_resuming"] else self.novel_data["current_progress"]["completed_chapters"] + 1
-        
-        print(f"📖 开始生成第{start_chapter}-{total_chapters}章小说内容...")
+        start_chapter = 1
+        print(f"开始生成第{start_chapter}-{total_chapters}章小说内容...")
         print("基于选定方案和创作方向进行创作")
         print("每章生成后将进行质量评估和优化")
         print("特别优化章节衔接，确保情节连贯性")
@@ -1682,7 +1832,7 @@ class NovelGenerator:
             print(f"\n批次{self.novel_data['current_progress']['current_batch']}: 第{batch_start}-{batch_end}章")
             
             if not self.generate_chapters_batch(batch_start, batch_end):
-                print(f"批次{self.novel_data['current_progress']['current_batch']}生成失败")
+                print(f"❌ 批次{self.novel_data['current_progress']['current_batch']}生成失败")
                 continue_gen = input("是否继续生成后续章节？(y/n): ").lower()
                 if continue_gen != 'y':
                     break
@@ -1693,15 +1843,33 @@ class NovelGenerator:
                 print(f"等待{batch_delay}秒后继续下一批次...")
                 time.sleep(batch_delay)
         
+        return self._finalize_generation()
+
+    def _resume_content_generation(self, total_chapters: int) -> bool:
+        """续写模式的内容生成"""
+        print("🔄 续写模式：直接开始内容生成...")
+        
+        # 确定起始章节
+        start_chapter = self.novel_data["current_progress"]["completed_chapters"] + 1
+        if start_chapter > total_chapters:
+            print("✅ 所有章节已完成，无需继续生成")
+            return True
+        
+        print(f"从第{start_chapter}章开始继续生成...")
+        return self._generate_all_chapters(total_chapters)
+
+    def _finalize_generation(self) -> bool:
+        """完成生成过程"""
         self.novel_data["current_progress"]["stage"] = "完成"
         
         # 保存最终进度和导出总览
         self.project_manager.save_project_progress(self.novel_data)
         self.project_manager.export_novel_overview(self.novel_data)
         
-        print("🎉 小说生成完成！")
-        return True    
-    
+        print("\n🎉 小说生成完成！")
+        self.print_generation_summary()
+        return True
+        
     def print_generation_summary(self):
         """打印生成摘要"""
         print("\n" + "="*60)

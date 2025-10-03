@@ -172,13 +172,13 @@ class ContentGenerator:
             "ending_end": ending_end
         }
 
-    def generate_core_worldview(self, novel_title: str, novel_synopsis: str, selected_plan: Dict, writing_plan: Dict) -> Optional[Dict]:
+    def generate_core_worldview(self, novel_title: str, novel_synopsis: str, selected_plan: Dict, market_analysis: Dict) -> Optional[Dict]:
         print("=== 步骤4: 构建核心世界观 ===")
         
         context = f"""小说标题: {novel_title}
             小说简介: {novel_synopsis}
             选定方案: {json.dumps(selected_plan, ensure_ascii=False)}
-            写作计划: {json.dumps(writing_plan, ensure_ascii=False)}"""
+            市场分析: {json.dumps(market_analysis, ensure_ascii=False)}"""
         
         if self.custom_main_character_name:
             context += f"\n主角名字: {self.custom_main_character_name}"
@@ -197,7 +197,7 @@ class ContentGenerator:
         context = f"""小说标题: {novel_title}
             核心世界观: {json.dumps(core_worldview, ensure_ascii=False)}
             选定方案: {json.dumps(selected_plan, ensure_ascii=False)}
-            写作计划: {json.dumps(writing_plan, ensure_ascii=False)}"""
+            市场分析: {json.dumps(writing_plan, ensure_ascii=False)}"""
         
         if main_character_name:
             context += f"\n\n【强制要求】主角的名字必须是: {main_character_name}"
