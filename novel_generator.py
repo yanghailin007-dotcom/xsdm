@@ -10,27 +10,16 @@ import threading
 from datetime import datetime
 from typing import Dict, Optional, Tuple, List, Any
 
-# 添加项目根目录到Python路径
-current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if current_dir not in sys.path:
-    sys.path.insert(0, current_dir)
-
-# 导入其他模块
-try:
-    from core.api_client import APIClient
-    from core.content_generator import ContentGenerator
-    from core.quality_assessor import QualityAssessor
-    from core.project_manager import ProjectManager
-    
-    # 导入业务模块 - 使用相对导入
-    from . import EventDrivenManager
-    from . import ForeshadowingManager
-    from . import StagePlanManager
-    print("✓ 所有模块导入成功")
-except ImportError as e:
-    print(f"❌ 模块导入失败: {e}")
-    print(f"当前Python路径: {sys.path}")
-    raise
+import CharacterGrowthManager
+import EventDrivenManager
+import FactionDevelopmentManager
+import ForeshadowingManager
+from ItemUpgradeSystem import ItemUpgradeSystem
+import StagePlanManager
+from api_client import APIClient
+from content_generator import ContentGenerator
+from project_manager import ProjectManager
+from quality_assessor import QualityAssessor
 
 class NovelGenerator:
     """小说生成器主类"""
@@ -46,6 +35,9 @@ class NovelGenerator:
         self.event_driven_manager = EventDrivenManager.EventDrivenManager(self)
         self.major_event_manager = self.event_driven_manager  # 向后兼容
         self.foreshadowing_manager = ForeshadowingManager.ForeshadowingManager(self)
+        self.character_growth_manager = CharacterGrowthManager(self)
+        self.faction_development_manager = FactionDevelopmentManager(self) 
+        self.item_upgrade_system = ItemUpgradeSystem(self)
 
         # 小说数据
         self.novel_data = {
@@ -1583,8 +1575,27 @@ class NovelGenerator:
                 print("市场分析失败，终止生成")
                 return False
             
-            self.novel_data["current_progress"]["stage"] = "写作计划"
+            self.novel_data["current_progress"]["stage"] = "人物成长"
+
+            # 步骤6: 人物成长设计
+            self.novel_data["character_growth"] = self.character_growth_manager.design_main_character_growth(
+                self.novel_data["character_design"],
+                total_chapters
+            )
+
+            self.novel_data["current_progress"]["stage"] = "势力发展"
+            # 步骤7: 势力发展设计  
+            self.novel_data["faction_development"] = self.faction_development_manager.initialize_faction_system(
+                self.novel_data["core_worldview"]
+            )
             
+            self.novel_data["current_progress"]["stage"] = "物品升级"
+            # 步骤8: 物品升级系统
+            self.novel_data["upgrade_system"] = self.item_upgrade_system.create_upgrade_system(
+                self.novel_data["core_worldview"]
+            )
+
+            self.novel_data["current_progress"]["stage"] = "写作计划"
             # 步骤3.5: 生成全书阶段计划
             self.novel_data["overall_stage_plan"] = self.stage_plan_manager.generate_overall_stage_plan(
                 creative_seed,

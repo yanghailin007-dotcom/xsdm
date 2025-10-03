@@ -70,13 +70,169 @@ CONFIG = {
     "commercial_potential": "流量潜力评估",
     "recommended_strategies": ["策略1", "策略2", "策略3"]
 }""",
+        "core_worldview": """你是一位顶级网络小说世界构建专家。请根据创意种子构建核心世界观框架。
+
+请按照以下结构化格式输出：
+{
+    "era": "时代背景",
+    "core_conflict": "核心冲突", 
+    "overview": "世界概述",
+    "hot_elements": ["热门元素1", "热门元素2"],
+    "power_system": "力量体系描述",
+    "social_structure": "社会结构",
+    "main_plot_direction": "主线发展方向"
+}""",
+        "character_design": """你是一位资深角色设计师。请设计小说的主要角色。
+
+请按照以下格式设计主角和重要配角：
+{
+    "main_character": {
+        "name": "主角姓名",
+        "personality": "性格特点",
+        "background": "背景故事",
+        "motivation": "核心动机",
+        "growth_arc": "成长路线",
+        "special_ability": "特殊能力",
+        "character_flaws": "性格缺陷",
+        "goal": "最终目标"
+    },
+    "important_characters": [
+        {
+            "name": "角色姓名",
+            "role": "角色定位",
+            "relationship": "与主角关系",
+            "personality": "性格特点",
+            "purpose": "在故事中的作用",
+            "impact_on_plot": "对主线的影响"
+        }
+    ]
+}""",
+        "character_growth_design": """你是一位角色成长设计专家。请为主角和重要配角设计完整的成长路线。
+
+请按照以下格式输出：
+{
+    "main_character_growth": {
+        "power_progression": [
+            {
+                "stage": "成长阶段名称",
+                "chapter_range": "章节范围",
+                "abilities_gained": ["新能力1", "新能力2"],
+                "personality_changes": "性格变化描述",
+                "key_events": ["关键事件1", "关键事件2"]
+            }
+        ],
+        "relationship_evolution": [
+            {
+                "character": "角色名称",
+                "relationship_changes": [
+                    {
+                        "chapters": "章节范围", 
+                        "relationship": "关系状态",
+                        "key_interactions": ["关键互动"]
+                    }
+                ]
+            }
+        ]
+    },
+    "supporting_characters_growth": [
+        {
+            "character_name": "配角姓名",
+            "growth_arc": "成长轨迹描述",
+            "interaction_with_main": "与主角的互动发展",
+            "final_destiny": "最终命运"
+        }
+    ]
+}""",
+
+        "faction_development_plan": """你是一位势力发展设计专家。请设计小说中主要势力的发展轨迹和冲突。
+
+请按照以下格式输出：
+{
+    "factions_development": {
+        "faction_name": {
+            "development_stages": [
+                {
+                    "stage": "发展阶段",
+                    "chapters": "章节范围", 
+                    "power_level": "势力水平",
+                    "key_events": ["关键事件"],
+                    "territory_changes": "领土变化",
+                    "relationship_changes": {
+                        "allies": ["盟友变化"],
+                        "enemies": ["敌人变化"]
+                    }
+                }
+            ],
+            "conflict_timeline": [
+                {
+                    "conflict_type": "冲突类型",
+                    "involved_factions": ["涉及势力"],
+                    "chapters": "发生章节", 
+                    "outcome": "冲突结果",
+                    "impact": "对格局影响"
+                }
+            ]
+        }
+    },
+    "power_balance_evolution": [
+        {
+            "chapters": "章节范围",
+            "balance_description": "势力平衡描述",
+            "dominant_faction": "主导势力",
+            "rising_threats": ["新兴威胁"]
+        }
+    ]
+}""",
+
+        "item_upgrade_system": """你是一位游戏系统设计专家。请设计小说中的物品升级体系。
+
+请按照以下格式输出：
+{
+    "cultivation_system": {
+        "realm_stages": [
+            {
+                "realm": "境界名称",
+                "sub_stages": ["子境界1", "子境界2"],
+                "lifespan": "寿命增长",
+                "special_abilities": ["特殊能力"],
+                "breakthrough_requirements": ["突破要求"],
+                "typical_chapters": "通常达到的章节"
+            }
+        ]
+    },
+    "equipment_system": {
+        "tiers": {
+            "tier_name": {
+                "levels": ["等级1", "等级2"],
+                "materials": ["升级材料"],
+                "special_effects": ["特殊效果"]
+            }
+        }
+    },
+    "skill_system": {
+        "skill_trees": [
+            {
+                "tree_name": "技能树名称",
+                "skills": [
+                    {
+                        "skill_name": "技能名称",
+                        "unlock_condition": "解锁条件",
+                        "upgrade_path": "升级路径",
+                        "max_level": "最高等级"
+                    }
+                ]
+            }
+        ]
+    }
+}""",
         "overall_stage_plan": """你是一位顶级网络小说策划编辑。请根据创意种子和市场分析，制定全书的阶段计划。
 
 # 基本信息
 **创意种子**: {creative_seed}
 **小说标题**: {novel_title}
 **小说简介**: {novel_synopsis}
-**市场分析**: {market_analysis}
+**核心世界观**: {core_worldview}
+**主要角色设计**: {character_design}
 **总章节数**: {total_chapters}
 
 # 阶段划分要求
@@ -282,43 +438,6 @@ CONFIG = {
     }},
     "chapter_specific_guidance": "基于当前章节位置的特别指导"
 }}""",
-        "core_worldview": """你是一位顶级网络小说世界构建专家。请根据创意种子构建核心世界观框架。
-
-请按照以下结构化格式输出：
-{
-    "era": "时代背景",
-    "core_conflict": "核心冲突", 
-    "overview": "世界概述",
-    "hot_elements": ["热门元素1", "热门元素2"],
-    "power_system": "力量体系描述",
-    "social_structure": "社会结构",
-    "main_plot_direction": "主线发展方向"
-}""",
-        "character_design": """你是一位资深角色设计师。请设计小说的主要角色。
-
-请按照以下格式设计主角和重要配角：
-{
-    "main_character": {
-        "name": "主角姓名",
-        "personality": "性格特点",
-        "background": "背景故事",
-        "motivation": "核心动机",
-        "growth_arc": "成长路线",
-        "special_ability": "特殊能力",
-        "character_flaws": "性格缺陷",
-        "goal": "最终目标"
-    },
-    "important_characters": [
-        {
-            "name": "角色姓名",
-            "role": "角色定位",
-            "relationship": "与主角关系",
-            "personality": "性格特点",
-            "purpose": "在故事中的作用",
-            "impact_on_plot": "对主线的影响"
-        }
-    ]
-}""",
         "chapter_design": """你是一位资深的网络小说策划编辑。请为第{chapter_number}章制定详细的写作设计方案。
 
 # 故事基础设定（必须严格遵循）
