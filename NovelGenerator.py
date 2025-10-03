@@ -20,7 +20,7 @@ import GlobalGrowthPlanner
 import ProjectManager
 import QualityAssessor
 import StagePlanManager
-from Prompts import Prompts
+from prompts import Prompts
 
 class NovelGenerator:
     def __init__(self, config):
@@ -890,7 +890,7 @@ class NovelGenerator:
                     continue
                 
                 # 3. 委托给ContentGenerator生成内容
-                chapter_result = self.content_generator.generate_chapter(context, self.novel_data)
+                chapter_result = self.content_generator.generate_chapter(chapter_num, self.novel_data)
                 
                 # 4. 发布生成完成事件
                 self.event_bus.publish('chapter.generated', {
@@ -1214,4 +1214,33 @@ class NovelGenerator:
         while time.time() - start_time < timeout and user_choice[0] is None:
             time.sleep(0.1)
         
-        return user_choice[0] if user_choice[0] is not None else default_choice
+        return user_choice[0] if user_choice[0] is not None else 
+
+    # 简化版本
+    def print_generation_summary(self):
+        """打印小说生成摘要 - 简化版本"""
+        print("\n" + "="*50)
+        print("🎉 小说生成完成！")
+        print("="*50)
+        
+        novel_title = self.novel_data.get("novel_title", "未知小说")
+        total_chapters = self.novel_data["current_progress"]["total_chapters"]
+        generated_chapters = self.novel_data.get("generated_chapters", {})
+        success_count = len(generated_chapters)
+        
+        print(f"📖 小说标题: {novel_title}")
+        print(f"📊 总章节数: {total_chapters}")
+        print(f"✅ 成功生成: {success_count}章")
+        print(f"📈 完成进度: {success_count}/{total_chapters}")
+        
+        # 字数统计
+        total_words = sum(chapter_data.get("word_count", 0) for chapter_data in generated_chapters.values())
+        print(f"📝 总字数: {total_words:,}字")
+        
+        # 质量统计
+        quality_scores = [chapter_data.get("quality_score", 0) for chapter_data in generated_chapters.values() if "quality_score" in chapter_data]
+        if quality_scores:
+            avg_quality = sum(quality_scores) / len(quality_scores)
+            print(f"⭐ 平均质量: {avg_quality:.1f}/10分")
+        
+        print("="*50)        

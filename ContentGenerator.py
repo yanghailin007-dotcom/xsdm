@@ -5,12 +5,14 @@ import re
 from typing import Dict, Optional, List, Tuple
 
 import APIClient
+from prompts import Prompts
 
 class ContentGenerator:
     def __init__(self, novel_generator, api_client: APIClient, config, event_bus, quality_assessor):
         self.novel_generator = novel_generator
         self.api_client = api_client
         self.config = config
+        self.prompts = Prompts
         self.event_bus = event_bus
         self.quality_assessor = quality_assessor
         self.custom_main_character_name = None
@@ -179,7 +181,7 @@ class ContentGenerator:
         print("=== 步骤3: 制定写作计划 ===")
         
         try:
-            prompt_template = self.config["prompts"]["writing_plan"]
+            prompt_template = self.prompts["prompts"]["writing_plan"]
             system_prompt = self.safe_format(prompt_template, total_chapters=total_chapters)
             
             user_prompt = f"创意种子: {creative_seed}\n选定方案: {json.dumps(selected_plan, ensure_ascii=False)}\n市场分析: {json.dumps(market_analysis, ensure_ascii=False)}"
@@ -433,9 +435,12 @@ class ContentGenerator:
     def _prepare_chapter_params(self, chapter_number: int, novel_data: Dict) -> Dict:
         """准备章节参数"""
         print(f"  🔍 准备第{chapter_number}章参数...")
-        
+
+        total_chapters = novel_data["current_progress"]["total_chapters"]
+
+        print(f"  🔍 total_chapters={total_chapters}章参数...")
         # 获取情节方向
-        plot_direction = self._get_plot_direction_for_chapter(chapter_number, novel_data["current_progress"]["total_chapters"])
+        plot_direction = self._get_plot_direction_for_chapter(chapter_number, total_chapters)
         
         # 获取前情提要
         previous_summary = self._generate_previous_chapters_summary(chapter_number, novel_data)
@@ -448,7 +453,7 @@ class ContentGenerator:
             "novel_synopsis": novel_data["novel_synopsis"],
             "worldview_info": json.dumps(novel_data["core_worldview"], ensure_ascii=False) if novel_data["core_worldview"] else "{}",
             "character_info": json.dumps(novel_data["character_design"], ensure_ascii=False) if novel_data["character_design"] else "{}",
-            "writing_plan_info": json.dumps(novel_data.get("stage_writing_plans", {}), ensure_ascii=False),
+            "stage_writing_plans": json.dumps(novel_data.get("stage_writing_plans", {}), ensure_ascii=False),
             "previous_chapters_summary": previous_summary,
             "main_plot_progress": plot_direction["plot_direction"],
             "plot_direction": plot_direction["plot_direction"],
@@ -836,7 +841,7 @@ class ContentGenerator:
         """生成章节详细设计方案 - 使用内化提示词"""
         try:
             # 使用内化的章节设计提示词
-            design_prompt_template = self.config["prompts"]["chapter_design"]
+            design_prompt_template = self.prompts["prompts"]["chapter_design"]
             
             # 准备参数
             design_params = chapter_params.copy()

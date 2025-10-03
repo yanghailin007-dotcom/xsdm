@@ -66,6 +66,7 @@ class GlobalGrowthPlanner:
 **主要角色**: {json.dumps(novel_data.get('character_design', {}), ensure_ascii=False)}
 
 请基于以上信息制定贯穿总章节: {total_chapters}章全书的完整成长规划。
+【重要要求】请保持规划简洁明了，重点突出，不要过于冗长。
 """
         
         # 生成全局成长规划
