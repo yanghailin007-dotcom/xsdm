@@ -1,348 +1,279 @@
 # GlobalGrowthPlanner.py
 import json
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 
 class GlobalGrowthPlanner:
-    """全局成长规划管理器 - 分层设计，避免token超限"""
+    """血肉内容规划器 - 专注阶段内的内容规划（写什么）"""
     
-    def __init__(self, novel_generator):
-        self.generator = novel_generator
-        self.stage_details_cache = {}  # 缓存各阶段的详细规划
-    
-    def create_comprehensive_growth_plan(self, creative_seed: str, novel_title: str, 
-                                       novel_synopsis: str, total_chapters: int) -> Dict:
-        """创建全书综合成长计划 - 精简版本"""
-        print("=== 制定全书成长规划（精简版） ===")
-        
-        # 收集所有必要的基础数据
-        worldview = self.generator.novel_data["core_worldview"]
-        character_design = self.generator.novel_data["character_design"]
-        
-        # 提取关键信息，避免传递过多数据
-        simplified_worldview = {
-            "era": worldview.get("era", ""),
-            "core_conflict": worldview.get("core_conflict", ""),
-            "power_system": worldview.get("power_system", "")
-        }
-        
-        simplified_chars = {
-            "main_character": character_design.get("main_character", {}).get("name", ""),
-            "important_characters": [char.get("name", "") for char in character_design.get("important_characters", [])[:3]]
-        }
-        
-        user_prompt = f"""
-# 小说基础信息
-**创意种子**: {creative_seed}
-**小说标题**: {novel_title}
-**小说简介**: {novel_synopsis}
-**总章节数**: {total_chapters}
+    # 类内部集成的提示词模板
+    PROMPTS = {
+        "stage_content_planning": """
+你是一位资深的网络小说内容架构师。请为小说的特定阶段制定详细的内容规划。
 
-# 世界观核心设定
-{json.dumps(simplified_worldview, ensure_ascii=False)}
-
-# 主要角色
-{json.dumps(simplified_chars, ensure_ascii=False)}
-
-# 制定全书成长规划（精简版）
-请为这部小说制定一个精简的成长规划框架，只包含各阶段的核心重点：
-
-## 全书阶段划分
-请根据{total_chapters}章的总长度，划分为4-6个主要阶段，每个阶段包含：
-
-### 阶段核心目标
-- **主线推进**: 该阶段要解决的主要矛盾
-- **人物成长**: 主角在该阶段的关键成长
-- **势力变化**: 世界格局的主要变化
-- **能力突破**: 重要的能力或装备提升
-
-## 输出要求
-请返回极其精简的JSON格式，只包含阶段划分和核心目标，不要展开细节。
-每个阶段的描述控制在50字以内。
-
-{{
-    "stage_framework": [
-        {{
-            "stage_name": "阶段名称",
-            "chapter_range": "1-10",
-            "main_plot_focus": "核心剧情重点（20字内）",
-            "character_growth_focus": "角色成长重点（15字内）", 
-            "faction_development_focus": "势力发展重点（15字内）",
-            "ability_breakthrough_focus": "能力突破重点（15字内）"
-        }}
-    ],
-    "growth_milestones": {{
-        "key_character_developments": [
-            "里程碑1（10字内）",
-            "里程碑2（10字内）"
-        ],
-        "key_faction_changes": [
-            "势力变化1（10字内）",
-            "势力变化2（10字内）"
-        ],
-        "key_ability_unlocks": [
-            "能力解锁1（10字内）",
-            "能力解锁2（10字内）"
-        ]
-    }}
-}}
-"""
-        
-        result = self.generator.api_client.generate_content_with_retry(
-            "global_growth_planning",
-            user_prompt,
-            purpose="制定精简版全书成长规划"
-        )
-        
-        if result:
-            print("✅ 全书成长规划框架制定完成")
-            self._print_growth_framework_summary(result)
-            return result
-        else:
-            print("❌ 全书成长规划制定失败")
-            return self._create_minimal_growth_framework(total_chapters)
-    
-    def get_stage_detailed_plan(self, stage_name: str, chapter_range: str) -> Dict:
-        """获取阶段的详细规划（按需生成，避免token超限）"""
-        if stage_name in self.stage_details_cache:
-            return self.stage_details_cache[stage_name]
-        
-        # 从全局框架中获取该阶段的基础信息
-        framework = self.generator.novel_data.get("global_growth_plan", {})
-        stage_info = None
-        for stage in framework.get("stage_framework", []):
-            if stage["stage_name"] == stage_name:
-                stage_info = stage
-                break
-        
-        if not stage_info:
-            return self._create_default_stage_plan(stage_name, chapter_range)
-        
-        user_prompt = f"""
-# 阶段详细规划生成
+# 阶段信息
 **阶段名称**: {stage_name}
 **章节范围**: {chapter_range}
-
-# 阶段核心目标
-- **主线重点**: {stage_info.get('main_plot_focus', '')}
-- **角色成长**: {stage_info.get('character_growth_focus', '')}
-- **势力发展**: {stage_info.get('faction_development_focus', '')}
-- **能力突破**: {stage_info.get('ability_breakthrough_focus', '')}
+**总章节数**: {total_chapters}
 
 # 小说基础信息
-**标题**: {self.generator.novel_data["novel_title"]}
-**简介**: {self.generator.novel_data["novel_synopsis"]}
+**标题**: {novel_title}
+**简介**: {novel_synopsis}
+**核心世界观**: {worldview_overview}
 
-# 生成要求
-请为该阶段生成详细的成长规划，包含：
-1. 具体的情节发展点（3-5个）
-2. 角色成长的具体表现
-3. 势力关系的具体变化
-4. 能力装备的具体提升
+# 当前阶段特性
+{stage_characteristics}
 
-返回JSON格式：
+# 内容规划要求
+请为这个阶段制定详细的内容规划，专注于"写什么"，包含以下方面：
+
+## 1. 人物成长规划
+### 主角成长轨迹
+- **性格演变**: 本阶段主角性格会发生什么变化？
+- **能力提升**: 具体会掌握哪些新能力或技能？
+- **动机深化**: 主角的目标和动机会如何深化？
+- **关系发展**: 与重要角色的关系如何变化？
+
+### 配角发展计划
+- **重要配角**: 哪些配角需要重点发展？
+- **新角色引入**: 需要引入哪些新角色？
+- **关系网络**: 角色关系网络如何演变？
+
+## 2. 势力发展规划
+### 势力格局变化
+- **权力转移**: 势力间的权力平衡如何变化？
+- **新联盟**: 会形成哪些新的联盟关系？
+- **冲突升级**: 现有冲突如何升级或转化？
+- **新兴势力**: 是否有新势力登场？
+
+### 世界观扩展
+- **新地域**: 需要展现哪些新地点或场景？
+- **文化揭示**: 可以揭示哪些世界观细节？
+- **体系完善**: 力量体系或社会体系如何完善？
+
+## 3. 物品功法规划
+### 能力突破路线
+- **技能解锁**: 主角会解锁哪些新技能？
+- **装备升级**: 重要装备如何升级或获得？
+- **境界突破**: 修行境界或能力等级如何突破？
+- **特殊机缘**: 会获得哪些特殊机缘或物品？
+
+### 系统完善
+- **规则揭示**: 需要揭示哪些系统规则？
+- **限制突破**: 现有的限制如何被突破？
+- **新功能解锁**: 系统会解锁哪些新功能？
+
+## 4. 情感发展计划
+### 情感线索
+- **主要情感**: 主角的主要情感线如何发展？
+- **次要情感**: 配角的情感线如何安排？
+- **情感冲突**: 会有什么情感冲突或转折？
+
+## 5. 关键里程碑
+列出本阶段必须达成的关键成长节点，每个节点应包含：
+- 具体成就
+- 发生的大致章节位置
+- 对后续剧情的影响
+
+# 输出格式
 {{
     "stage_name": "{stage_name}",
     "chapter_range": "{chapter_range}",
-    "detailed_plot_points": [
-        "具体情节发展点1",
-        "具体情节发展点2",
-        "具体情节发展点3"
+    "character_growth_plan": {{
+        "protagonist_development": {{
+            "personality_evolution": "性格演变描述",
+            "ability_advancement": ["新能力1", "新能力2"],
+            "motivation_deepening": "动机深化描述",
+            "key_growth_moments": [
+                {{
+                    "moment": "成长时刻描述",
+                    "approximate_chapter": "大致章节",
+                    "impact": "对后续的影响"
+                }}
+            ]
+        }},
+        "supporting_characters_development": {{
+            "focus_characters": ["需要重点发展的配角"],
+            "new_characters": ["需要引入的新角色"],
+            "relationship_evolution": {{
+                "character1_character2": "关系变化描述"
+            }}
+        }}
+    }},
+    "faction_development_plan": {{
+        "power_structure_changes": {{
+            "rising_powers": ["新兴势力"],
+            "declining_powers": ["衰落势力"],
+            "new_alliances": ["新联盟关系"]
+        }},
+        "conflict_escalation": {{
+            "ongoing_conflicts": ["持续冲突及其升级"],
+            "new_conflicts": ["新出现的冲突"]
+        }},
+        "world_building_expansion": {{
+            "new_locations": ["新地点"],
+            "cultural_revelations": ["文化揭示"],
+            "system_refinements": ["体系完善"]
+        }}
+    }},
+    "ability_equipment_plan": {{
+        "skill_progression": {{
+            "new_skills": ["新技能1", "新技能2"],
+            "skill_upgrades": ["技能升级1", "技能升级2"]
+        }},
+        "equipment_advancement": {{
+            "new_equipment": ["新装备"],
+            "equipment_upgrades": ["装备升级"]
+        }},
+        "breakthrough_moments": [
+            {{
+                "breakthrough": "突破描述",
+                "requirements": "突破条件",
+                "consequences": "突破后果"
+            }}
+        ],
+        "system_evolution": {{
+            "rule_revelations": ["规则揭示"],
+            "limitation_breakthroughs": ["限制突破"],
+            "new_features": ["新功能解锁"]
+        }}
+    }},
+    "emotional_development_plan": {{
+        "main_emotional_arc": "主要情感线发展",
+        "secondary_emotional_arcs": ["次要情感线"],
+        "emotional_conflicts": ["情感冲突"]
+    }},
+    "key_milestones": [
+        {{
+            "milestone": "里程碑描述",
+            "chapter_range": "发生章节范围",
+            "significance": "重要性说明"
+        }}
     ],
-    "character_development_details": {{
-        "main_character_growth": "主角具体成长描述",
-        "relationship_changes": ["关系变化1", "关系变化2"],
-        "personality_evolution": "性格演变描述"
-    }},
-    "faction_development_details": {{
-        "power_shifts": ["权力转移1", "权力转移2"],
-        "new_alliances": ["新联盟1", "新联盟2"],
-        "conflict_escalation": "冲突升级描述"
-    }},
-    "ability_equipment_details": {{
-        "new_skills": ["新技能1", "新技能2"],
-        "equipment_upgrades": ["装备升级1", "装备升级2"],
-        "breakthrough_moments": ["突破时刻1", "突破时刻2"]
-    }}
+    "content_synopsis": "本阶段内容总体概述"
 }}
+请确保规划具体、可执行，并与前后阶段自然衔接。
 """
+    }
+
+    def __init__(self, novel_generator):
+        self.generator = novel_generator
+        self.stage_content_cache = {}  # 缓存各阶段的内容规划
+        self.stage_characteristics = {
+            "opening_stage": {
+                "focus": "建立基础，引入核心元素",
+                "character_growth": "主角初始性格和能力建立",
+                "faction_intro": "主要势力格局引入",
+                "ability_foundation": "基础能力和装备获得"
+            },
+            "development_stage": {
+                "focus": "深化发展，推进冲突",
+                "character_growth": "能力提升和性格深化", 
+                "faction_development": "势力关系变化和冲突升级",
+                "ability_advancement": "掌握关键技能和突破"
+            },
+            "climax_stage": {
+                "focus": "冲突爆发，重大转折",
+                "character_growth": "性格重大转变和成长",
+                "faction_climax": "势力冲突达到高潮",
+                "ability_peak": "能力质的飞跃和巅峰表现"
+            },
+            "ending_stage": {
+                "focus": "解决矛盾，收束线索", 
+                "character_growth": "完成角色弧光",
+                "faction_resolution": "势力格局最终确定",
+                "ability_mastery": "能力完全掌握"
+            },
+            "final_stage": {
+                "focus": "完整收尾，交代后续",
+                "character_growth": "最终成长状态展现",
+                "faction_legacy": "势力后续发展",
+                "ability_legacy": "能力传承或影响"
+            }
+        }
+
+    def get_stage_content_plan(self, stage_name: str, chapter_range: str) -> Dict:
+        """获取阶段的详细内容规划"""
+        cache_key = f"{stage_name}_{chapter_range}"
         
-        detailed_plan = self.generator.api_client.generate_content_with_retry(
-            "stage_detailed_planning",
-            user_prompt,
-            purpose=f"生成{stage_name}详细规划"
+        if cache_key in self.stage_content_cache:
+            return self.stage_content_cache[cache_key]
+        
+        print(f"  📝 生成{stage_name}的内容规划...")
+        
+        # 准备基础数据
+        novel_data = self.generator.novel_data
+        total_chapters = novel_data["current_progress"]["total_chapters"]
+        
+        user_prompt = self.PROMPTS["stage_content_planning"].format(
+            stage_name=stage_name,
+            chapter_range=chapter_range,
+            total_chapters=total_chapters,
+            novel_title=novel_data["novel_title"],
+            novel_synopsis=novel_data["novel_synopsis"],
+            worldview_overview=json.dumps(novel_data.get("core_worldview", {}), ensure_ascii=False),
+            stage_characteristics=self._get_stage_characteristics_text(stage_name)
         )
         
-        if detailed_plan:
-            self.stage_details_cache[stage_name] = detailed_plan
-            print(f"✅ 已生成{stage_name}的详细规划")
-            return detailed_plan
+        # 生成内容规划
+        content_plan = self.generator.api_client.generate_content_with_retry(
+            "stage_content_planning",
+            user_prompt,
+            purpose=f"生成{stage_name}内容规划"
+        )
+        
+        if content_plan:
+            self.stage_content_cache[cache_key] = content_plan
+            print(f"  ✅ {stage_name}内容规划生成完成")
+            self._print_content_plan_summary(content_plan)
+            return content_plan
         else:
-            return self._create_default_stage_plan(stage_name, chapter_range)
-    
-    def _print_growth_framework_summary(self, growth_plan: Dict):
-        """打印成长规划框架摘要"""
-        print("\n📈 全书成长规划框架:")
-        
-        stages = growth_plan["stage_framework"]
-        print(f"  阶段划分: {len(stages)}个主要阶段")
-        for stage in stages:
-            print(f"  - {stage['stage_name']} ({stage['chapter_range']}章)")
-            print(f"    主线: {stage['main_plot_focus']}")
-    
-    def _create_minimal_growth_framework(self, total_chapters: int) -> Dict:
-        """创建最小化的成长框架"""
-        print("⚠️ 使用最小化成长框架")
-        
-        # 简单的四阶段划分
-        quarter = total_chapters // 4
-        stages = [
-            {
-                "stage_name": "开局阶段",
-                "chapter_range": f"1-{quarter}",
-                "main_plot_focus": "引入世界观和核心冲突",
-                "character_growth_focus": "建立主角基础",
-                "faction_development_focus": "介绍主要势力",
-                "ability_breakthrough_focus": "获得基础能力"
-            },
-            {
-                "stage_name": "发展阶段", 
-                "chapter_range": f"{quarter+1}-{quarter*2}",
-                "main_plot_focus": "推进主线任务",
-                "character_growth_focus": "能力快速提升",
-                "faction_development_focus": "势力关系变化",
-                "ability_breakthrough_focus": "掌握关键技能"
-            },
-            {
-                "stage_name": "转折阶段",
-                "chapter_range": f"{quarter*2+1}-{quarter*3}",
-                "main_plot_focus": "重大冲突爆发",
-                "character_growth_focus": "性格重大转变",
-                "faction_development_focus": "格局重新洗牌",
-                "ability_breakthrough_focus": "能力质的飞跃"
-            },
-            {
-                "stage_name": "结局阶段",
-                "chapter_range": f"{quarter*3+1}-{total_chapters}",
-                "main_plot_focus": "解决核心矛盾",
-                "character_growth_focus": "完成最终成长",
-                "faction_development_focus": "确立最终格局",
-                "ability_breakthrough_focus": "达到能力巅峰"
-            }
-        ]
-        
-        return {
-            "stage_framework": stages,
-            "growth_milestones": {
-                "key_character_developments": ["主角成长轨迹"],
-                "key_faction_changes": ["势力演变过程"],
-                "key_ability_unlocks": ["能力提升路径"]
-            }
-        }
-    
-    def _create_default_stage_plan(self, stage_name: str, chapter_range: str) -> Dict:
-        """创建默认的阶段详细规划"""
-        return {
-            "stage_name": stage_name,
-            "chapter_range": chapter_range,
-            "detailed_plot_points": [
-                "推进主线情节发展",
-                "深化角色关系互动",
-                "引入新的冲突元素"
-            ],
-            "character_development_details": {
-                "main_character_growth": "主角在该阶段获得成长",
-                "relationship_changes": ["人际关系发展"],
-                "personality_evolution": "性格有所演变"
-            },
-            "faction_development_details": {
-                "power_shifts": ["势力平衡变化"],
-                "new_alliances": ["新的联盟形成"],
-                "conflict_escalation": "冲突进一步升级"
-            },
-            "ability_equipment_details": {
-                "new_skills": ["掌握新技能"],
-                "equipment_upgrades": ["装备得到提升"],
-                "breakthrough_moments": ["能力获得突破"]
-            }
-        }
-    
-    def get_growth_context_for_chapter(self, chapter_number: int) -> Dict:
-        """获取指定章节的成长上下文（智能分层）"""
+            print(f"  ⚠️ {stage_name}内容规划生成失败，使用默认规划")
+            return self._create_default_content_plan(stage_name, chapter_range)
+
+    def get_chapter_content_context(self, chapter_number: int) -> Dict:
+        """获取指定章节的内容规划上下文"""
         if "global_growth_plan" not in self.generator.novel_data:
             return {}
         
+        # 获取当前阶段信息
         growth_plan = self.generator.novel_data["global_growth_plan"]
-        
-        # 1. 首先从框架中确定当前阶段
         current_stage = self._get_current_stage(growth_plan, chapter_number)
+        
         if not current_stage:
             return {}
         
-        # 2. 按需获取该阶段的详细规划
-        detailed_plan = self.get_stage_detailed_plan(
+        # 获取阶段内容规划
+        content_plan = self.get_stage_content_plan(
             current_stage["stage_name"], 
             current_stage["chapter_range"]
         )
         
-        # 3. 返回精简的上下文信息
-        return {
-            "current_stage": current_stage["stage_name"],
-            "stage_focus": {
-                "main_plot": current_stage["main_plot_focus"],
-                "character_growth": current_stage["character_growth_focus"],
-                "faction_development": current_stage["faction_development_focus"],
-                "ability_breakthrough": current_stage["ability_breakthrough_focus"]
-            },
-            "current_development": self._get_chapter_specific_development(
-                chapter_number, current_stage, detailed_plan
-            )
-        }
-    
-    def _get_current_stage(self, growth_plan: Dict, chapter: int) -> Dict:
+        # 生成章节特定的内容指导
+        chapter_context = self._generate_chapter_content_context(
+            chapter_number, current_stage, content_plan
+        )
+        
+        return chapter_context
+
+    def _get_stage_characteristics_text(self, stage_name: str) -> str:
+        """获取阶段特性的文本描述"""
+        chars = self.stage_characteristics.get(stage_name, {})
+        return f"""
+**阶段重点**: {chars.get('focus', '')}
+**人物成长重点**: {chars.get('character_growth', '')}
+**势力发展重点**: {chars.get('faction_intro', chars.get('faction_development', chars.get('faction_climax', chars.get('faction_resolution', chars.get('faction_legacy', '')))))}
+**能力发展重点**: {chars.get('ability_foundation', chars.get('ability_advancement', chars.get('ability_peak', chars.get('ability_mastery', chars.get('ability_legacy', '')))))}
+"""
+
+    def _get_current_stage(self, growth_plan: Dict, chapter: int) -> Optional[Dict]:
         """获取当前章节所属的阶段"""
         for stage in growth_plan.get("stage_framework", []):
             chapter_range = stage["chapter_range"]
             if self._is_chapter_in_range(chapter, chapter_range):
                 return stage
         return None
-    
-    def _get_chapter_specific_development(self, chapter: int, stage: Dict, detailed_plan: Dict) -> Dict:
-        """获取章节特定的发展信息"""
-        # 基于章节在阶段中的位置，提供具体的发展指导
-        start_chapter, end_chapter = self._parse_chapter_range(stage["chapter_range"])
-        progress_in_stage = (chapter - start_chapter) / (end_chapter - start_chapter)
-        
-        if progress_in_stage < 0.3:
-            phase = "阶段初期"
-        elif progress_in_stage < 0.7:
-            phase = "阶段中期" 
-        else:
-            phase = "阶段后期"
-        
-        return {
-            "phase": phase,
-            "suggested_focus": self._get_phase_focus(phase, detailed_plan),
-            "key_plot_points": detailed_plan.get("detailed_plot_points", [])[:2]
-        }
-    
-    def _get_phase_focus(self, phase: str, detailed_plan: Dict) -> str:
-        """根据阶段位置获取重点"""
-        focus_map = {
-            "阶段初期": "建立基础，引入冲突",
-            "阶段中期": "深化发展，推进情节", 
-            "阶段后期": "准备转折，铺垫后续"
-        }
-        return focus_map.get(phase, "推进情节发展")
-    
-    def _parse_chapter_range(self, range_str: str) -> tuple:
-        """解析章节范围字符串"""
-        try:
-            start, end = map(int, range_str.split("-"))
-            return start, end
-        except:
-            return 1, 100
-    
+
     def _is_chapter_in_range(self, chapter: int, range_str: str) -> bool:
         """检查章节是否在指定范围内"""
         try:
@@ -353,3 +284,222 @@ class GlobalGrowthPlanner:
                 return chapter == int(range_str)
         except:
             return False
+
+    def _generate_chapter_content_context(self, chapter: int, stage: Dict, content_plan: Dict) -> Dict:
+        """生成章节特定的内容上下文"""
+        start_chapter, end_chapter = self._parse_chapter_range(stage["chapter_range"])
+        progress_in_stage = (chapter - start_chapter + 1) / (end_chapter - start_chapter + 1)
+        
+        # 基于进度确定内容重点
+        if progress_in_stage < 0.3:
+            phase = "阶段初期"
+            focus = "建立基础，引入新元素"
+        elif progress_in_stage < 0.7:
+            phase = "阶段中期"
+            focus = "深化发展，推进冲突"
+        else:
+            phase = "阶段后期"
+            focus = "准备转折，达成里程碑"
+        
+        return {
+            "current_stage": stage["stage_name"],
+            "stage_progress": phase,
+            "content_focus": {
+                "character_growth": self._get_character_focus_for_phase(phase, content_plan),
+                "faction_development": self._get_faction_focus_for_phase(phase, content_plan),
+                "ability_advancement": self._get_ability_focus_for_phase(phase, content_plan),
+                "emotional_development": self._get_emotional_focus_for_phase(phase, content_plan)
+            },
+            "key_milestones_nearby": self._get_nearby_milestones(chapter, content_plan),
+            "integration_guidance": f"本阶段{phase}，重点{focus}，应自然衔接前后内容"
+        }
+
+    def _get_character_focus_for_phase(self, phase: str, content_plan: Dict) -> str:
+        """根据阶段进度获取人物成长重点"""
+        plan = content_plan.get("character_growth_plan", {})
+        protagonist = plan.get("protagonist_development", {})
+        
+        if phase == "阶段初期":
+            return f"建立{protagonist.get('personality_evolution', '性格基础')}"
+        elif phase == "阶段中期":
+            abilities = protagonist.get("ability_advancement", [])
+            return f"深化能力发展：{', '.join(abilities[:2]) if abilities else '关键技能掌握'}"
+        else:
+            moments = protagonist.get("key_growth_moments", [])
+            return f"达成成长里程碑：{moments[-1]['moment'] if moments else '重要转变'}"
+
+    def _get_faction_focus_for_phase(self, phase: str, content_plan: Dict) -> str:
+        """根据阶段进度获取势力发展重点"""
+        plan = content_plan.get("faction_development_plan", {})
+        power_changes = plan.get("power_structure_changes", {})
+        conflicts = plan.get("conflict_escalation", {})
+        
+        if phase == "阶段初期":
+            new_powers = power_changes.get("rising_powers", [])
+            return f"引入新势力：{', '.join(new_powers[:2]) if new_powers else '势力格局建立'}"
+        elif phase == "阶段中期":
+            ongoing = conflicts.get("ongoing_conflicts", [])
+            return f"冲突升级：{ongoing[0] if ongoing else '势力矛盾深化'}"
+        else:
+            new_conflicts = conflicts.get("new_conflicts", [])
+            return f"新冲突出现：{new_conflicts[0] if new_conflicts else '格局变化'}"
+
+    def _get_ability_focus_for_phase(self, phase: str, content_plan: Dict) -> str:
+        """根据阶段进度获取能力发展重点"""
+        plan = content_plan.get("ability_equipment_plan", {})
+        skills = plan.get("skill_progression", {})
+        breakthroughs = plan.get("breakthrough_moments", [])
+        
+        if phase == "阶段初期":
+            new_skills = skills.get("new_skills", [])
+            return f"获得新能力：{', '.join(new_skills[:2]) if new_skills else '基础能力建立'}"
+        elif phase == "阶段中期":
+            upgrades = skills.get("skill_upgrades", [])
+            return f"能力升级：{upgrades[0] if upgrades else '技能强化'}"
+        else:
+            return f"准备突破：{breakthroughs[-1]['breakthrough'] if breakthroughs else '重要突破'}"
+
+    def _get_emotional_focus_for_phase(self, phase: str, content_plan: Dict) -> str:
+        """根据阶段进度获取情感发展重点"""
+        plan = content_plan.get("emotional_development_plan", {})
+        main_arc = plan.get("main_emotional_arc", "")
+        conflicts = plan.get("emotional_conflicts", [])
+        
+        if phase == "阶段初期":
+            return f"情感线建立：{main_arc.split('。')[0] if main_arc else '关系发展'}"
+        elif phase == "阶段中期":
+            return f"情感深化：{conflicts[0] if conflicts else '情感冲突'}"
+        else:
+            return f"情感转折：{main_arc.split('。')[-1] if main_arc else '关系变化'}"
+
+    def _get_nearby_milestones(self, chapter: int, content_plan: Dict) -> List[str]:
+        """获取附近的关键里程碑"""
+        milestones = content_plan.get("key_milestones", [])
+        nearby = []
+        
+        for milestone in milestones:
+            chapter_range = milestone.get("chapter_range", "")
+            if self._is_chapter_near_range(chapter, chapter_range):
+                nearby.append(milestone["milestone"])
+        
+        return nearby[:2]  # 返回最近的两个里程碑
+
+    def _is_chapter_near_range(self, chapter: int, range_str: str) -> bool:
+        """检查章节是否在里程碑附近"""
+        try:
+            if "-" in range_str:
+                start, end = map(int, range_str.split("-"))
+                return start - 3 <= chapter <= end + 3
+            else:
+                target = int(range_str)
+                return target - 3 <= chapter <= target + 3
+        except:
+            return False
+
+    def _parse_chapter_range(self, range_str: str) -> tuple:
+        """解析章节范围字符串"""
+        try:
+            start, end = map(int, range_str.split("-"))
+            return start, end
+        except:
+            return 1, 100
+
+    def _print_content_plan_summary(self, content_plan: Dict):
+        """打印内容规划摘要"""
+        stage_name = content_plan.get("stage_name", "未知阶段")
+        print(f"    📊 {stage_name}内容规划摘要:")
+        
+        # 人物成长
+        char_plan = content_plan.get("character_growth_plan", {})
+        protagonist = char_plan.get("protagonist_development", {})
+        abilities = protagonist.get("ability_advancement", [])
+        print(f"      人物成长: {len(abilities)}个新能力")
+        
+        # 势力发展
+        faction_plan = content_plan.get("faction_development_plan", {})
+        power_changes = faction_plan.get("power_structure_changes", {})
+        new_powers = power_changes.get("rising_powers", [])
+        print(f"      势力变化: {len(new_powers)}个新势力")
+        
+        # 里程碑
+        milestones = content_plan.get("key_milestones", [])
+        print(f"      关键里程碑: {len(milestones)}个")
+
+    def _create_default_content_plan(self, stage_name: str, chapter_range: str) -> Dict:
+        """创建默认的内容规划"""
+        return {
+            "stage_name": stage_name,
+            "chapter_range": chapter_range,
+            "character_growth_plan": {
+                "protagonist_development": {
+                    "personality_evolution": "主角性格自然发展",
+                    "ability_advancement": ["基础能力提升"],
+                    "motivation_deepening": "目标逐步明确",
+                    "key_growth_moments": [
+                        {
+                            "moment": "重要成长节点",
+                            "approximate_chapter": "阶段中期",
+                            "impact": "推动剧情发展"
+                        }
+                    ]
+                },
+                "supporting_characters_development": {
+                    "focus_characters": ["重要配角"],
+                    "new_characters": ["新角色"],
+                    "relationship_evolution": {
+                        "主角_配角": "关系自然发展"
+                    }
+                }
+            },
+            "faction_development_plan": {
+                "power_structure_changes": {
+                    "rising_powers": ["新兴势力"],
+                    "declining_powers": ["衰落势力"],
+                    "new_alliances": ["新联盟"]
+                },
+                "conflict_escalation": {
+                    "ongoing_conflicts": ["持续冲突"],
+                    "new_conflicts": ["新冲突"]
+                },
+                "world_building_expansion": {
+                    "new_locations": ["新地点"],
+                    "cultural_revelations": ["文化背景"],
+                    "system_refinements": ["体系完善"]
+                }
+            },
+            "ability_equipment_plan": {
+                "skill_progression": {
+                    "new_skills": ["新技能"],
+                    "skill_upgrades": ["技能升级"]
+                },
+                "equipment_advancement": {
+                    "new_equipment": ["新装备"],
+                    "equipment_upgrades": ["装备升级"]
+                },
+                "breakthrough_moments": [
+                    {
+                        "breakthrough": "能力突破",
+                        "requirements": "成长积累",
+                        "consequences": "实力提升"
+                    }
+                ],
+                "system_evolution": {
+                    "rule_revelations": ["规则揭示"],
+                    "limitation_breakthroughs": ["限制突破"],
+                    "new_features": ["新功能"]
+                }
+            },
+            "emotional_development_plan": {
+                "main_emotional_arc": "情感线发展",
+                "secondary_emotional_arcs": ["次要情感"],
+                "emotional_conflicts": ["情感冲突"]
+            },
+            "key_milestones": [
+                {
+                    "milestone": "阶段目标达成",
+                    "chapter_range": chapter_range,
+                    "significance": "推进故事发展"
+                }
+            ],
+            "content_synopsis": f"{stage_name}的内容发展规划"
+        }
