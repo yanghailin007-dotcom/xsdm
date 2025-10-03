@@ -64,7 +64,6 @@ class GlobalGrowthPlanner:
 **总章节**: {total_chapters}
 **核心世界观**: {json.dumps(novel_data.get('core_worldview', {}), ensure_ascii=False)}
 **主要角色**: {json.dumps(novel_data.get('character_design', {}), ensure_ascii=False)}
-**市场分析**: {json.dumps(novel_data.get('market_analysis', {}), ensure_ascii=False)}
 
 请基于以上信息制定贯穿总章节: {total_chapters}章全书的完整成长规划。
 """

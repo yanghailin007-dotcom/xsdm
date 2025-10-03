@@ -173,38 +173,7 @@ class EventDrivenManager:
     def get_context(self, chapter_number: int) -> Dict:
         """获取章节的事件上下文"""
         return self.get_chapter_event_context(chapter_number)
-
-    def get_chapter_event_context(self, chapter_number: int) -> Dict:
-        """获取章节的事件执行上下文 - 具体实现"""
-        context = {
-            "active_events": [],
-            "event_progress": {},
-            "event_tasks": [],
-            "trigger_checkpoints": [],
-            "event_chain_effects": []
-        }
-        
-        # 获取当前活跃的事件
-        for event_name, event_data in self.active_events.items():
-            if self._is_event_active(chapter_number, event_data):
-                event_context = self._build_event_context(chapter_number, event_data)
-                context["active_events"].append(event_context)
-                
-                # 计算事件进度
-                progress = self._calculate_event_progress(chapter_number, event_data)
-                context["event_progress"][event_name] = progress
-                
-                # 生成事件任务
-                tasks = self._generate_event_tasks(chapter_number, event_data, progress)
-                context["event_tasks"].extend(tasks)
-        
-        # 检查触发条件
-        context["trigger_checkpoints"] = self._check_event_triggers(chapter_number)
-        
-        # 计算事件链影响
-        context["event_chain_effects"] = self._calculate_chain_effects(chapter_number)
-        
-        return context
+    
     def initialize_event_system(self):
         """初始化事件系统"""
         print("🎯 初始化事件系统...")

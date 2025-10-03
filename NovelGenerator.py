@@ -66,8 +66,8 @@ class NovelGenerator:
         
         # 系统准备事件
         self.event_bus.subscribe('foreshadowing.prepare', self._on_foreshadowing_prepare)
-        self.event_bus.subscribe('event.prepare', self._on_event_prepare)
-        self.event_bus.subscribe('growth.prepare', self._on_growth_prepare)
+        #self.event_bus.subscribe('event.prepare', self._on_event_prepare)
+        #self.event_bus.subscribe('growth.prepare', self._on_growth_prepare)
     
     # 添加缺失的事件处理方法
     def _on_chapter_generated(self, data):
@@ -872,7 +872,7 @@ class NovelGenerator:
     def generate_chapters_batch(self, start_chapter: int, end_chapter: int) -> bool:
         """批量生成章节 - 重构后的清晰流程"""
         
-        for chapter_num in range(start_chapter, end_chapter + 1):
+        for chapter_num in range(start_chapter, start_chapter + 1):
             try:
                 # 1. 准备生成上下文
                 context = self._prepare_generation_context(chapter_num)
@@ -909,17 +909,41 @@ class NovelGenerator:
     def _prepare_generation_context(self, chapter_num: int) -> GenerationContext:
         """准备生成上下文 - 只负责数据组装"""
         try:
+            print(f"🔍 开始准备第{chapter_num}章生成上下文...")
+            
             # 获取各个管理器的上下文
+            print(f"  📊 获取事件上下文...")
             event_context = self.event_driven_manager.get_context(chapter_num) if hasattr(self.event_driven_manager, 'get_context') else {}
+            print(f"    ✅ 事件上下文: {type(event_context)}, 长度: {len(str(event_context))}")
+            
+            print(f"  🎭 获取伏笔上下文...")
             foreshadowing_context = self.foreshadowing_manager.get_context(chapter_num) if hasattr(self.foreshadowing_manager, 'get_context') else {}
+            print(f"    ✅ 伏笔上下文: {type(foreshadowing_context)}, 长度: {len(str(foreshadowing_context))}")
+            
+            print(f"  📈 获取成长规划上下文...")
             growth_context = self.global_growth_planner.get_context(chapter_num) if hasattr(self.global_growth_planner, 'get_context') else {}
+            print(f"    ✅ 成长规划上下文: {type(growth_context)}, 长度: {len(str(growth_context))}")
+            
+            print(f"  🎯 获取阶段计划...")
+            stage_plan = self._get_stage_plan(chapter_num)
+            print(f"    ✅ 阶段计划: {type(stage_plan)}, 长度: {len(str(stage_plan))}")
+            
+            # 检查novel_data
+            print(f"  📚 检查novel_data...")
+            if not hasattr(self, 'novel_data') or not self.novel_data:
+                print(f"    ❌ novel_data不存在或为空")
+                raise ValueError("novel_data不存在")
+            
+            total_chapters = self.novel_data["current_progress"]["total_chapters"]
+            print(f"    ✅ novel_data存在, 总章节数: {total_chapters}")
             
             # 创建 GenerationContext 实例
+            print(f"  🏗️ 创建GenerationContext实例...")
             context = GenerationContext(
                 chapter_number=chapter_num,
-                total_chapters=self.novel_data["current_progress"]["total_chapters"],
+                total_chapters=total_chapters,
                 novel_data=self.novel_data,
-                stage_plan=self._get_stage_plan(chapter_num),
+                stage_plan=stage_plan,
                 event_context=event_context,
                 foreshadowing_context=foreshadowing_context,
                 growth_context=growth_context
@@ -928,21 +952,32 @@ class NovelGenerator:
             # 为上下文添加 generator 引用（如果需要）
             context.generator = self
             
+            print(f"  ✅ 第{chapter_num}章上下文创建成功")
+            print(f"    - chapter_number: {context.chapter_number}")
+            print(f"    - total_chapters: {context.total_chapters}")
+            print(f"    - novel_data类型: {type(context.novel_data)}")
+            print(f"    - stage_plan类型: {type(context.stage_plan)}")
+            print(f"    - event_context类型: {type(context.event_context)}")
+            print(f"    - foreshadowing_context类型: {type(context.foreshadowing_context)}")
+            print(f"    - growth_context类型: {type(context.growth_context)}")
+            
             return context
             
         except Exception as e:
             print(f"❌ 准备生成上下文失败: {e}")
+            import traceback
+            traceback.print_exc()
+            
             # 返回基础上下文
             return GenerationContext(
                 chapter_number=chapter_num,
-                total_chapters=self.novel_data["current_progress"]["total_chapters"],
-                novel_data=self.novel_data,
+                total_chapters=self.novel_data.get("current_progress", {}).get("total_chapters", 30) if hasattr(self, 'novel_data') and self.novel_data else 30,
+                novel_data=self.novel_data if hasattr(self, 'novel_data') else {},
                 stage_plan={},
                 event_context={},
                 foreshadowing_context={},
                 growth_context={}
             )
-
     def _coordinate_chapter_preparation(self, context: GenerationContext) -> Dict:
         """协调章节准备 - 通过事件总线"""
         preparation_events = [
