@@ -2,11 +2,12 @@
 
 import json
 import re
-import APIClient
 from typing import Dict, Optional, List, Tuple
 
+import APIClient
+
 class ContentGenerator:
-    def __init__(self, novel_generator, api_client, config, event_bus, quality_assessor):
+    def __init__(self, novel_generator, api_client: APIClient, config, event_bus, quality_assessor):
         self.novel_generator = novel_generator
         self.api_client = api_client
         self.config = config
@@ -98,7 +99,7 @@ class ContentGenerator:
         if result:
             result = self._ensure_main_character_in_content(result, "one_plans")
         return result
-
+    
     def _generate_character_name_by_category(self, category: str, creative_seed: str) -> str:
         """根据分类生成适合的主角名字"""
         try:
@@ -113,9 +114,8 @@ class ContentGenerator:
             )
             
             if result:
-                import json
-                response_data = json.loads(result)
-                name = response_data.get("name")
+                # 直接使用解析后的字典，不需要再调用 json.loads
+                name = result.get("name")
                 if name and 2 <= len(name) <= 3:
                     print(f"  ✅ 获取主角名字: {name}")
                     return name

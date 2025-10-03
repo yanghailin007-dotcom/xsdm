@@ -525,21 +525,6 @@ class QualityAssessor:
 角色设计内容:
 {json.dumps(character_design, ensure_ascii=False, indent=2)}
 
-评估维度：
-1. 角色立体性 (2分): 角色性格和背景是否立体丰满
-2. 动机合理性 (2分): 角色行为和动机是否合理
-3. 成长空间 (2分): 角色是否有足够的成长空间
-4. 关系设计 (2分): 角色关系设计是否合理有趣
-5. 故事适配性 (2分): 角色是否适合故事发展和世界观
-
-请按照以下JSON格式返回评估结果：
-{{
-    "overall_score": 总体评分(满分10分),
-    "quality_verdict": "质量评级",
-    "strengths": ["优点列表"],
-    "weaknesses": ["待改进方面列表"],
-    "optimization_suggestions": ["优化建议列表"]
-}}
 """
 
     def optimize_market_analysis(self, original_content: Dict, assessment: Dict) -> Optional[Dict]:

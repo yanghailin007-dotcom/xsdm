@@ -14,7 +14,7 @@ class GlobalGrowthPlanner:
         self.global_growth_plan = None  # 全书成长规划
         
         # 从config读取阶段特性
-        self.stage_characteristics = self.config.get("stage_characteristics", {
+        self.stage_characteristics = self.Prompts.get("stage_characteristics", {
             "opening_stage": {
                 "focus": "建立基础，引入核心元素",
                 "character_growth": "主角初始性格和能力建立",
@@ -49,73 +49,14 @@ class GlobalGrowthPlanner:
 
     def generate_global_growth_plan(self) -> Dict:
         """生成全书的全局成长规划"""
-        print("📚 生成全书全局成长规划...")
+        print("  📚 生成全书全局成长规划...")
         
         # 准备基础数据
         novel_data = self.generator.novel_data
         total_chapters = novel_data["current_progress"]["total_chapters"]
         
-        # 从config获取提示词模板
-        prompt_template = self.Prompts["prompts"]["global_growth_planning"]
-        
-        # 准备输出格式
-        output_format = """
-{
-    "overview": "全书成长规划总体概述",
-    "stage_framework": [
-        {
-            "stage_name": "阶段名称",
-            "chapter_range": "章节范围",
-            "core_objectives": ["核心目标1", "核心目标2"],
-            "key_growth_themes": ["成长主题1", "成长主题2"],
-            "milestone_events": ["里程碑事件1", "里程碑事件2"]
-        }
-    ],
-    "character_growth_arcs": {
-        "protagonist": {
-            "overall_arc": "主角完整成长弧线",
-            "stage_specific_growth": {
-                "stage_name": {
-                    "personality_development": "性格发展",
-                    "ability_progression": "能力进展", 
-                    "relationship_evolution": "关系演变"
-                }
-            }
-        },
-        "supporting_characters": {
-            "character_name": {
-                "growth_arc": "成长弧线",
-                "key_development_stages": ["关键发展阶段"]
-            }
-        }
-    },
-    "faction_development_trajectory": {
-        "faction_name": {
-            "development_path": "发展路径",
-            "key_expansion_points": ["关键扩张点"],
-            "relationship_evolution": "关系演变"
-        }
-    },
-    "ability_system_evolution": {
-        "skill_progression_path": "技能进展路径",
-        "equipment_upgrade_roadmap": "装备升级路线图",
-        "breakthrough_milestones": ["突破里程碑"]
-    },
-    "emotional_development_journey": {
-        "main_emotional_arc": "主要情感弧线",
-        "relationship_development_phases": ["关系发展阶段"],
-        "emotional_climax_points": ["情感高潮点"]
-    }
-}
-"""
-        
-        user_prompt = prompt_template.format(
-            total_chapters=total_chapters,
-            output_format=output_format
-        )
-        
         # 添加小说基础信息
-        system_prompt = f"""
+        user_prompt = f"""
 你正在为以下小说制定全局成长规划：
 
 **小说标题**: {novel_data["novel_title"]}
@@ -130,18 +71,18 @@ class GlobalGrowthPlanner:
         # 生成全局成长规划
         global_plan = self.generator.api_client.generate_content_with_retry(
             "global_growth_planning",
-            system_prompt + user_prompt,
+            user_prompt,
             purpose="生成全书全局成长规划"
         )
         
         if global_plan:
             self.global_growth_plan = global_plan
             self.generator.novel_data["global_growth_plan"] = global_plan
-            print("✅ 全书全局成长规划生成完成")
+            print("  ✅ 全书全局成长规划生成完成")
             self._print_global_plan_summary(global_plan)
             return global_plan
         else:
-            print("⚠️ 全书全局成长规划生成失败，使用默认规划")
+            print("  ⚠️ 全书全局成长规划生成失败，使用默认规划")
             return self._create_default_global_plan(total_chapters)
 
     def get_stage_content_plan(self, stage_name: str, chapter_range: str) -> Dict:

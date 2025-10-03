@@ -516,32 +516,6 @@ class NovelGenerator:
     简介：{synopsis}
     核心方向：{core_direction}
 
-    【评价标准】
-    1. 书名吸引力（是否符合分类风格、是否吸引目标读者）
-    2. 简介质量（是否包含核心冲突、悬念设置、能否引发读者兴趣）
-    3. 与创意种子的匹配度
-    4. 商业潜力（是否符合番茄小说平台流行趋势）
-
-    请按照以下JSON格式输出评价结果：
-    {{
-        "overall_score": 总体评分（0-10分）,
-        "title_evaluation": {{
-            "score": 书名评分,
-            "strengths": ["优点1", "优点2"],
-            "weaknesses": ["缺点1", "缺点2"],
-            "suggestions": ["改进建议1", "改进建议2"]
-        }},
-        "synopsis_evaluation": {{
-            "score": 简介评分,
-            "strengths": ["优点1", "优点2"],
-            "weaknesses": ["缺点1", "缺点2"], 
-            "suggestions": ["改进建议1", "改进建议2"]
-        }},
-        "creative_seed_match": 与创意种子的匹配度（0-10分）,
-        "commercial_potential": 商业潜力评分（0-10分）,
-        "quality_verdict": "质量判定（优秀/良好/合格/需要优化/不合格）",
-        "recommendation": "是否推荐使用此方案（true/false）"
-    }}
     """
         
         try:
@@ -724,10 +698,10 @@ class NovelGenerator:
             creative_seed, self.novel_data["selected_plan"])
         
         if not self.novel_data["market_analysis"]:
-            print("❌ 市场分析失败，终止生成")
+            print("  ❌ 市场分析失败，终止生成")
             return False
         
-        print("✅ 市场分析完成")
+        print("  ✅ 市场分析完成")
         return True
 
     def _generate_worldview(self) -> bool:

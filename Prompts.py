@@ -92,12 +92,59 @@ Prompts = {
 5. **多样性** - 不同角色、势力要有不同的成长轨迹
 
 ## 重点考虑：
-- 主角的成长曲线要满足{total_chapters}章的内容需求
+- 主角的成长曲线要满足全书的内容需求
 - 势力发展要创造足够的冲突和转折
 - 物品升级要提供持续的成就感
 - 阶段性角色要服务各阶段的剧情需要
 
-{output_format}
+请按照以下结构化格式输出：
+{
+    "overview": "全书成长规划总体概述",
+    "stage_framework": [
+        {
+            "stage_name": "阶段名称",
+            "chapter_range": "章节范围",
+            "core_objectives": ["核心目标1", "核心目标2"],
+            "key_growth_themes": ["成长主题1", "成长主题2"],
+            "milestone_events": ["里程碑事件1", "里程碑事件2"]
+        }
+    ],
+    "character_growth_arcs": {
+        "protagonist": {
+            "overall_arc": "主角完整成长弧线",
+            "stage_specific_growth": {
+                "stage_name": {
+                    "personality_development": "性格发展",
+                    "ability_progression": "能力进展", 
+                    "relationship_evolution": "关系演变"
+                }
+            }
+        },
+        "supporting_characters": {
+            "character_name": {
+                "growth_arc": "成长弧线",
+                "key_development_stages": ["关键发展阶段"]
+            }
+        }
+    },
+    "faction_development_trajectory": {
+        "faction_name": {
+            "development_path": "发展路径",
+            "key_expansion_points": ["关键扩张点"],
+            "relationship_evolution": "关系演变"
+        }
+    },
+    "ability_system_evolution": {
+        "skill_progression_path": "技能进展路径",
+        "equipment_upgrade_roadmap": "装备升级路线图",
+        "breakthrough_milestones": ["突破里程碑"]
+    },
+    "emotional_development_journey": {
+        "main_emotional_arc": "主要情感弧线",
+        "relationship_development_phases": ["关系发展阶段"],
+        "emotional_climax_points": ["情感高潮点"]
+    }
+}
 """,
         "core_worldview": """你是一位顶级网络小说世界构建专家。请根据创意种子构建核心世界观框架。
 
@@ -992,15 +1039,12 @@ Prompts = {
 
         "character_design_quality_assessment": """你是一位角色设计专家。请评估以下角色设计的质量。
 
-# 评估维度（满分10分）：
-1. 主角设计立体性（2分）
-2. 角色背景合理性（2分）
-3. 动机和成长清晰度（2分）
-4. 配角设计丰满度（2分）
-5. 角色关系明确性（2分）
-
-# 需要评估的内容：
-{content}
+评估维度：
+1. 角色立体性 (2分): 角色性格和背景是否立体丰满
+2. 动机合理性 (2分): 角色行为和动机是否合理
+3. 成长空间 (2分): 角色是否有足够的成长空间
+4. 关系设计 (2分): 角色关系设计是否合理有趣
+5. 故事适配性 (2分): 角色是否适合故事发展和世界观
 
 # 评估要求：
 请严格按照以下JSON格式输出评估结果：

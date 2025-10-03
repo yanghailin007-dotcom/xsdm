@@ -280,6 +280,65 @@ class EventDrivenManager:
             "progress": progress
         }
 
+    def _parse_chapter_start(self, chapter_range: str) -> int:
+        """解析章节范围的起始章节"""
+        if isinstance(chapter_range, str):
+            # 清理字符串，移除中文字符和空格
+            cleaned_range = chapter_range.replace('章', '').replace(' ', '')
+            
+            # 处理 "1-5" 这样的字符串格式
+            if '-' in cleaned_range:
+                parts = cleaned_range.split('-')
+                try:
+                    return int(parts[0])
+                except ValueError:
+                    pass
+            # 处理单个数字
+            else:
+                try:
+                    return int(cleaned_range)
+                except ValueError:
+                    pass
+        elif isinstance(chapter_range, (int, float)):
+            return int(chapter_range)
+        elif isinstance(chapter_range, dict):
+            # 如果是字典格式，尝试获取 start 字段
+            return chapter_range.get('start', 1)
+        
+        # 默认值
+        return 1
+
+    def _parse_chapter_end(self, chapter_range: str) -> int:
+        """解析章节范围的结束章节"""
+        if isinstance(chapter_range, str):
+            # 清理字符串，移除中文字符和空格
+            cleaned_range = chapter_range.replace('章', '').replace(' ', '')
+            
+            # 处理 "1-5" 这样的字符串格式
+            if '-' in cleaned_range:
+                parts = cleaned_range.split('-')
+                try:
+                    if len(parts) > 1:
+                        return int(parts[1])
+                    else:
+                        return int(parts[0]) + 10  # 默认跨度10章
+                except ValueError:
+                    pass
+            # 处理单个数字
+            else:
+                try:
+                    return int(cleaned_range) + 10  # 默认跨度10章
+                except ValueError:
+                    pass
+        elif isinstance(chapter_range, (int, float)):
+            return int(chapter_range) + 10
+        elif isinstance(chapter_range, dict):
+            # 如果是字典格式，尝试获取 end 字段
+            return chapter_range.get('end', int(chapter_range.get('start', 1)) + 10)
+        
+        # 默认值，假设事件持续10章
+        return 11
+
     def _calculate_event_progress(self, chapter_number: int, event_data: Dict) -> Dict:
         """计算事件进度"""
         start_chapter = event_data.get("started_chapter", event_data.get("start_chapter", 1))
