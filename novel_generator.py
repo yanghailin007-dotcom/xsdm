@@ -36,9 +36,8 @@ class NovelGenerator:
         self.event_driven_manager = EventDrivenManager.EventDrivenManager(self)
         self.major_event_manager = self.event_driven_manager  # 向后兼容
         self.foreshadowing_manager = ForeshadowingManager.ForeshadowingManager(self)
-        self.character_growth_manager = CharacterGrowthManager.CharacterGrowthManager(self)
-        self.faction_development_manager = FactionDevelopmentManager.FactionDevelopmentManager(self) 
-        self.item_upgrade_system = ItemUpgradeSystem(self)
+
+        # 统一使用全局成长规划器，移除重复的管理器
         self.global_growth_planner = GlobalGrowthPlanner(self)
 
         # 小说数据
@@ -1717,66 +1716,63 @@ class NovelGenerator:
         else:
             return False
 
+# novel_generator.py (部分修改)
+"""小说生成器主类 - 简化版本"""
+
+# ... 其他导入保持不变 ...
+import GlobalGrowthPlanner
+# 移除: import ItemUpgradeSystem
+
+class NovelGenerator:
+    """小说生成器主类"""
+    
+    def __init__(self, config):
+        self.config = config
+        self.api_client = APIClient(config)
+        self.quality_assessor = QualityAssessor(self.api_client, config)
+        self.content_generator = ContentGenerator(self.api_client, config, self.quality_assessor)
+        self.project_manager = ProjectManager(config)
+
+        self.stage_plan_manager = StagePlanManager.StagePlanManager(self)
+        self.event_driven_manager = EventDrivenManager.EventDrivenManager(self)
+        self.major_event_manager = self.event_driven_manager  # 向后兼容
+        self.foreshadowing_manager = ForeshadowingManager.ForeshadowingManager(self)
+        
+        # 统一使用全局成长规划器，移除重复的管理器
+        self.global_growth_planner = GlobalGrowthPlanner(self)
+        
+        # 移除重复的管理器:
+        # self.character_growth_manager = CharacterGrowthManager.CharacterGrowthManager(self)
+        # self.faction_development_manager = FactionDevelopmentManager.FactionDevelopmentManager(self) 
+        # self.item_upgrade_system = ItemUpgradeSystem(self)
+
+        # 小说数据保持不变...
+        self.novel_data = {
+            # ... 保持不变 ...
+        }
+
     def _generate_global_growth_plan(self, creative_seed: str, total_chapters: int) -> bool:
-        """生成全局成长规划"""
+        """生成全局成长规划 - 统一版本"""
         print("=== 步骤6: 制定全书成长规划 ===")
         
-        # 如果有全局成长规划器，使用它
-        if hasattr(self, 'global_growth_planner'):
-            try:
-                self.novel_data["global_growth_plan"] = self.global_growth_planner.create_comprehensive_growth_plan(
-                    creative_seed,
-                    self.novel_data["novel_title"],
-                    self.novel_data["novel_synopsis"],
-                    total_chapters
-                )
+        try:
+            self.novel_data["global_growth_plan"] = self.global_growth_planner.create_comprehensive_growth_plan(
+                creative_seed,
+                self.novel_data["novel_title"],
+                self.novel_data["novel_synopsis"],
+                total_chapters
+            )
+            
+            if self.novel_data["global_growth_plan"]:
+                print("✅ 全书成长规划制定完成")
+                return True
+            else:
+                print("❌ 全局成长规划生成失败，使用基础规划")
+                return False
                 
-                if self.novel_data["global_growth_plan"]:
-                    print("✅ 全书成长规划制定完成")
-                    return True
-            except Exception as e:
-                print(f"⚠️  全局成长规划器出错: {e}，使用独立系统")
-        
-        # 如果没有全局成长规划器或出错，使用独立的系统（向后兼容）
-        print("⚠️  使用独立成长系统（兼容模式）")
-        
-        success = True
-        
-        # 人物成长设计
-        if hasattr(self, 'character_growth_manager'):
-            try:
-                self.novel_data["character_growth"] = self.character_growth_manager.design_main_character_growth(
-                    self.novel_data["character_design"],
-                    total_chapters
-                )
-                print("✅ 人物成长设计完成")
-            except Exception as e:
-                print(f"❌ 人物成长设计失败: {e}")
-                success = False
-        
-        # 势力发展设计
-        if hasattr(self, 'faction_development_manager'):
-            try:
-                self.novel_data["faction_development"] = self.faction_development_manager.initialize_faction_system(
-                    self.novel_data["core_worldview"]
-                )
-                print("✅ 势力发展设计完成")
-            except Exception as e:
-                print(f"❌ 势力发展设计失败: {e}")
-                success = False
-        
-        # 物品升级系统
-        if hasattr(self, 'item_upgrade_system'):
-            try:
-                self.novel_data["upgrade_system"] = self.item_upgrade_system.create_upgrade_system(
-                    self.novel_data["core_worldview"]
-                )
-                print("✅ 物品升级系统设计完成")
-            except Exception as e:
-                print(f"❌ 物品升级系统设计失败: {e}")
-                success = False
-        
-        return success
+        except Exception as e:
+            print(f"⚠️  全局成长规划器出错: {e}，使用基础规划")
+            return False
 
     def _initialize_systems(self):
         """初始化各种系统"""
