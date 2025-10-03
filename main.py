@@ -1,6 +1,5 @@
 """主程序入口"""
-
-from novel_generator import NovelGenerator
+import NovelGenerator
 from config import CONFIG
 
 # 首先导入 utils 来启用全局时间戳
@@ -9,7 +8,7 @@ import utils
 
 def main():
     """主函数"""
-    generator = NovelGenerator(CONFIG)
+    generator = NovelGenerator.NovelGenerator(CONFIG)
     
     # 检查API密钥
     if not any(CONFIG["api_keys"].values()):

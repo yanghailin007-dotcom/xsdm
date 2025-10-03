@@ -10,16 +10,13 @@ import threading
 from datetime import datetime
 from typing import Dict, Optional, Tuple, List, Any
 
-import CharacterGrowthManager
 import EventDrivenManager
-import FactionDevelopmentManager
 import ForeshadowingManager
 import GlobalGrowthPlanner
-from ItemUpgradeSystem import ItemUpgradeSystem
+import ProjectManager
 import StagePlanManager
 from api_client import APIClient
 from content_generator import ContentGenerator
-from project_manager import ProjectManager
 from quality_assessor import QualityAssessor
 
 class NovelGenerator:
@@ -30,7 +27,7 @@ class NovelGenerator:
         self.api_client = APIClient(config)
         self.quality_assessor = QualityAssessor(self.api_client, config)
         self.content_generator = ContentGenerator(self.api_client, config, self.quality_assessor)
-        self.project_manager = ProjectManager(config)
+        self.project_manager = ProjectManager.ProjectManager(config)
 
         self.stage_plan_manager = StagePlanManager.StagePlanManager(self)
         self.event_driven_manager = EventDrivenManager.EventDrivenManager(self)
@@ -38,7 +35,7 @@ class NovelGenerator:
         self.foreshadowing_manager = ForeshadowingManager.ForeshadowingManager(self)
 
         # 统一使用全局成长规划器，移除重复的管理器
-        self.global_growth_planner = GlobalGrowthPlanner(self)
+        self.global_growth_planner = GlobalGrowthPlanner.GlobalGrowthPlanner(self)
 
         # 小说数据
         self.novel_data = {
@@ -1715,41 +1712,6 @@ class NovelGenerator:
             return True
         else:
             return False
-
-# novel_generator.py (部分修改)
-"""小说生成器主类 - 简化版本"""
-
-# ... 其他导入保持不变 ...
-import GlobalGrowthPlanner
-# 移除: import ItemUpgradeSystem
-
-class NovelGenerator:
-    """小说生成器主类"""
-    
-    def __init__(self, config):
-        self.config = config
-        self.api_client = APIClient(config)
-        self.quality_assessor = QualityAssessor(self.api_client, config)
-        self.content_generator = ContentGenerator(self.api_client, config, self.quality_assessor)
-        self.project_manager = ProjectManager(config)
-
-        self.stage_plan_manager = StagePlanManager.StagePlanManager(self)
-        self.event_driven_manager = EventDrivenManager.EventDrivenManager(self)
-        self.major_event_manager = self.event_driven_manager  # 向后兼容
-        self.foreshadowing_manager = ForeshadowingManager.ForeshadowingManager(self)
-        
-        # 统一使用全局成长规划器，移除重复的管理器
-        self.global_growth_planner = GlobalGrowthPlanner(self)
-        
-        # 移除重复的管理器:
-        # self.character_growth_manager = CharacterGrowthManager.CharacterGrowthManager(self)
-        # self.faction_development_manager = FactionDevelopmentManager.FactionDevelopmentManager(self) 
-        # self.item_upgrade_system = ItemUpgradeSystem(self)
-
-        # 小说数据保持不变...
-        self.novel_data = {
-            # ... 保持不变 ...
-        }
 
     def _generate_global_growth_plan(self, creative_seed: str, total_chapters: int) -> bool:
         """生成全局成长规划 - 统一版本"""
