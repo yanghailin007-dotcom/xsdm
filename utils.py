@@ -37,3 +37,29 @@ def disable_timestamp():
 def enable_timestamp():
     """启用时间戳"""
     builtins.print = timestamp_print
+
+# utils.py
+def parse_chapter_range(range_str: str) -> tuple:
+    """
+    解析章节范围字符串，返回(start, end)元组。
+    例如："1-100" -> (1, 100)
+    如果解析失败，返回默认值(1, 100)。
+    """
+    try:
+        if "-" in range_str:
+            start, end = map(int, range_str.split("-"))
+            return start, end
+        else:
+            # 如果只有单个数字，比如"100"，则start和end相同
+            chapter = int(range_str)
+            return chapter, chapter
+    except (ValueError, AttributeError):
+        return 1, 100
+
+def is_chapter_in_range(chapter: int, range_str: str) -> bool:
+    """
+    检查章节是否在给定范围内。
+    例如：章节5，范围"1-10" -> True
+    """
+    start, end = parse_chapter_range(range_str)
+    return start <= chapter <= end

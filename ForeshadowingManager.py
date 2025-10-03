@@ -1,7 +1,7 @@
 # ForeshadowingManager.py
 from typing import Dict, List, Set
 import json
-
+from utils import parse_chapter_range, is_chapter_in_range
 
 class ForeshadowingManager:
     """时机控制器 - 专注元素引入时机和铺垫计划（何时写）"""
@@ -465,14 +465,6 @@ class ForeshadowingManager:
                 return chapter == int(range_str)
         except:
             return False
-
-    def _parse_chapter_range(self, range_str: str) -> tuple:
-        """解析章节范围字符串"""
-        try:
-            start, end = map(int, range_str.split("-"))
-            return start, end
-        except:
-            return 1, 100
 
     def _print_foreshadowing_plan_summary(self, foreshadowing_plan: Dict):
         """打印伏笔计划摘要"""

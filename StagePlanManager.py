@@ -1,7 +1,7 @@
 # StagePlanManager.py
 import json
 from typing import Dict, Optional
-
+from utils import parse_chapter_range, is_chapter_in_range
 
 class StagePlanManager:
     """剧情骨架设计器 - 专注如何将内容转化为剧情（怎么写）"""
@@ -637,25 +637,6 @@ class StagePlanManager:
                 character_advice["supporting_characters_focus"] = task
         
         return character_advice
-
-    def _is_chapter_in_range(self, chapter: int, range_str: str) -> bool:
-        """检查章节是否在指定范围内"""
-        try:
-            if "-" in range_str:
-                start, end = map(int, range_str.split("-"))
-                return start <= chapter <= end
-            else:
-                return chapter == int(range_str)
-        except:
-            return False
-
-    def _parse_chapter_range(self, range_str: str) -> tuple:
-        """解析章节范围字符串"""
-        try:
-            start, end = map(int, range_str.split("-"))
-            return start, end
-        except:
-            return 1, 100
 
     def _print_writing_plan_summary(self, writing_plan: Dict):
         """打印写作计划摘要"""

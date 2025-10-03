@@ -1,7 +1,7 @@
 # GlobalGrowthPlanner.py
 import json
 from typing import Dict, List, Optional
-
+from utils import parse_chapter_range, is_chapter_in_range
 
 class GlobalGrowthPlanner:
     """血肉内容规划器 - 专注阶段内的内容规划（写什么）"""
@@ -273,17 +273,6 @@ class GlobalGrowthPlanner:
             if self._is_chapter_in_range(chapter, chapter_range):
                 return stage
         return None
-
-    def _is_chapter_in_range(self, chapter: int, range_str: str) -> bool:
-        """检查章节是否在指定范围内"""
-        try:
-            if "-" in range_str:
-                start, end = map(int, range_str.split("-"))
-                return start <= chapter <= end
-            else:
-                return chapter == int(range_str)
-        except:
-            return False
 
     def _generate_chapter_content_context(self, chapter: int, stage: Dict, content_plan: Dict) -> Dict:
         """生成章节特定的内容上下文"""
