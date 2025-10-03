@@ -288,7 +288,6 @@ class ContentGenerator:
 
     def generate_core_worldview(self, novel_title: str, novel_synopsis: str, selected_plan: Dict, market_analysis: Dict) -> Optional[Dict]:
         """生成核心世界观"""
-        print("=== 步骤4: 构建核心世界观 ===")
         
         context = f"""小说标题: {novel_title}
             小说简介: {novel_synopsis}

@@ -506,6 +506,106 @@ class NovelGenerator:
         
         # ==================== 第五阶段：章节内容生成 ====================
         return self._generate_all_chapters(total_chapters)
+    
+    def _evaluate_plan_quality(self, plan_data: Dict, category: str, creative_seed: str) -> bool:
+        """使用AI评价方案质量，特别是书名和简介"""
+        print("\n🔍 正在使用AI评价方案质量...")
+        
+        title = plan_data.get('title', '')
+        synopsis = plan_data.get('synopsis', '')
+        core_direction = plan_data.get('core_direction', '')
+        
+        # 构建评价提示词
+        evaluation_prompt = f"""
+    请对以下小说方案进行专业评价：
+
+    【小说分类】{category}
+    【创意种子】{creative_seed}
+
+    【方案内容】
+    书名：《{title}》
+    简介：{synopsis}
+    核心方向：{core_direction}
+
+    【评价标准】
+    1. 书名吸引力（是否符合分类风格、是否吸引目标读者）
+    2. 简介质量（是否包含核心冲突、悬念设置、能否引发读者兴趣）
+    3. 与创意种子的匹配度
+    4. 商业潜力（是否符合番茄小说平台流行趋势）
+
+    请按照以下JSON格式输出评价结果：
+    {{
+        "overall_score": 总体评分（0-10分）,
+        "title_evaluation": {{
+            "score": 书名评分,
+            "strengths": ["优点1", "优点2"],
+            "weaknesses": ["缺点1", "缺点2"],
+            "suggestions": ["改进建议1", "改进建议2"]
+        }},
+        "synopsis_evaluation": {{
+            "score": 简介评分,
+            "strengths": ["优点1", "优点2"],
+            "weaknesses": ["缺点1", "缺点2"], 
+            "suggestions": ["改进建议1", "改进建议2"]
+        }},
+        "creative_seed_match": 与创意种子的匹配度（0-10分）,
+        "commercial_potential": 商业潜力评分（0-10分）,
+        "quality_verdict": "质量判定（优秀/良好/合格/需要优化/不合格）",
+        "recommendation": "是否推荐使用此方案（true/false）"
+    }}
+    """
+        
+        try:
+            # 调用AI进行评价
+            evaluation_result = self.api_client.generate_content_with_retry(
+                "plan_quality_evaluation",  # 需要在config中添加这个提示词
+                evaluation_prompt,
+                purpose="方案质量评价"
+            )
+            
+            if not evaluation_result:
+                print("⚠️ AI评价失败，默认通过方案")
+                return True
+            
+            # 解析评价结果
+            overall_score = evaluation_result.get("overall_score", 0)
+            recommendation = evaluation_result.get("recommendation", False)
+            quality_verdict = evaluation_result.get("quality_verdict", "未知")
+            
+            print(f"📊 AI评价结果:")
+            print(f"  总体评分: {overall_score:.1f}/10分")
+            print(f"  质量判定: {quality_verdict}")
+            print(f"  推荐使用: {'是' if recommendation else '否'}")
+            
+            # 显示详细评价
+            title_eval = evaluation_result.get("title_evaluation", {})
+            synopsis_eval = evaluation_result.get("synopsis_evaluation", {})
+            
+            if title_eval:
+                print(f"  📖 书名评价: {title_eval.get('score', 0):.1f}分")
+                if title_eval.get('strengths'):
+                    print(f"    优点: {', '.join(title_eval['strengths'])}")
+                if title_eval.get('weaknesses'):
+                    print(f"    缺点: {', '.join(title_eval['weaknesses'])}")
+            
+            if synopsis_eval:
+                print(f"  📝 简介评价: {synopsis_eval.get('score', 0):.1f}分")
+                if synopsis_eval.get('strengths'):
+                    print(f"    优点: {', '.join(synopsis_eval['strengths'])}")
+                if synopsis_eval.get('weaknesses'):
+                    print(f"    缺点: {', '.join(synopsis_eval['weaknesses'])}")
+            
+            # 决定是否通过
+            if overall_score >= 8.0 and recommendation:
+                print("✅ 方案质量评价通过")
+                return True
+            else:
+                print("❌ 方案质量评价不通过")
+                return False
+                
+        except Exception as e:
+            print(f"⚠️ AI评价过程中出错: {e}，默认通过方案")
+            return True
 
     def _generate_and_select_plan(self, creative_seed: str) -> bool:
         """生成并选择单一方案 - 自动根据分类生成主角和方案"""
@@ -513,26 +613,46 @@ class NovelGenerator:
         
         # 获取分类信息
         category = self.novel_data.get("category", "未分类")
-        print(f"✓ 使用分类: {category}")
+        print(f"  ✓ 使用分类: {category}")
         
-        # 生成单一方案（自动包含主角名字生成）
-        plan_data = self.content_generator.generate_single_plan(creative_seed, category)
-        if not plan_data:
-            print("❌ 方案生成失败，终止生成")
-            return False
+        # 最大重试次数
+        max_retries = 3
+        for attempt in range(max_retries):
+            print(f"\n🔄 第{attempt + 1}次尝试生成方案...")
+            
+            # 生成单一方案（自动包含主角名字生成）
+            plan_data = self.content_generator.generate_single_plan(creative_seed, category)
+            if not plan_data:
+                print("❌ 方案生成失败")
+                if attempt < max_retries - 1:
+                    print("  准备重试...")
+                    continue
+                else:
+                    print("❌ 方案生成失败，终止生成")
+                    return False
+            
+            # 对方案进行AI质量评价
+            if self._evaluate_plan_quality(plan_data, category, creative_seed):
+                # 方案通过评价
+                self.novel_data["selected_plan"] = self._present_auto_generated_plan(plan_data)
+                if not self.novel_data["selected_plan"]:
+                    print("❌ 方案处理失败")
+                    continue
+                
+                # 设置选定方案的小说标题和简介
+                self.novel_data["novel_title"] = self.novel_data["selected_plan"]["title"]
+                self.novel_data["novel_synopsis"] = self.novel_data["selected_plan"]["synopsis"]
+                
+                print(f"✅ 已自动生成并通过质量评价的方案: 《{self.novel_data['novel_title']}》")
+                return True
+            else:
+                print(f"❌ 第{attempt + 1}次生成的方案未通过质量评价")
+                if attempt < max_retries - 1:
+                    print("  重新生成方案...")
+                    continue
         
-        # 直接使用生成的方案，不再需要用户选择
-        self.novel_data["selected_plan"] = self._present_auto_generated_plan(plan_data)
-        if not self.novel_data["selected_plan"]:
-            print("❌ 方案生成失败，终止生成")
-            return False
-        
-        # 设置选定方案的小说标题和简介
-        self.novel_data["novel_title"] = self.novel_data["selected_plan"]["title"]
-        self.novel_data["novel_synopsis"] = self.novel_data["selected_plan"]["synopsis"]
-        
-        print(f"✅ 已自动生成方案: 《{self.novel_data['novel_title']}》")
-        return True
+        print("❌ 所有方案生成尝试均未通过质量评价，终止生成")
+        return False
 
     def _present_auto_generated_plan(self, plan_data: Dict) -> Dict:
         """展示自动生成的单一方案"""
