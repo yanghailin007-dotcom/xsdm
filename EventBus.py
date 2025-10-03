@@ -1,4 +1,7 @@
 # EventBus.py
+from typing import Dict
+
+
 class EventBus:
     """统一事件总线，负责模块间通信"""
     

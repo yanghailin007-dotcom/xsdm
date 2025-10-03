@@ -24,53 +24,136 @@ import StagePlanManager
 class NovelGenerator:
     def __init__(self, config):
         self.config = config
-        self.api_client = APIClient(config)  # 添加API客户端初始化
-        self.event_bus = EventBus()
+        self.api_client = APIClient.APIClient(config)
+        self.event_bus = EventBus.EventBus()
+        self.quality_assessor = QualityAssessor.QualityAssessor(self.api_client)  # 修复属性名
+        self.novel_data = {}  # 初始化空数据结构
         self._initialize_managers()
         self._setup_event_handlers()
     
     def _initialize_managers(self):
         """初始化各管理器，明确依赖关系"""
         # 核心管理器
-        self.content_generator = ContentGenerator(
+        self.content_generator = ContentGenerator.ContentGenerator(
             api_client=self.api_client,
             config=self.config,
-            event_bus=self.event_bus
-        )
-        
-        self.project_manager = ProjectManager(
-            config=self.config,
-            event_bus=self.event_bus
-        )
-        
-        # 功能管理器
-        self.event_manager = EventDrivenManager(
             event_bus=self.event_bus,
-            config=self.config
+            quality_assessor=self.quality_assessor  # 使用正确的属性名
         )
         
-        self.foreshadowing_manager = ForeshadowingManager(
-            event_bus=self.event_bus, 
-            config=self.config
+        self.project_manager = ProjectManager.ProjectManager()
+        
+        self.event_driven_manager = EventDrivenManager.EventDrivenManager(
+            novel_generator=self
         )
         
-        self.growth_planner = GlobalGrowthPlanner(
-            event_bus=self.event_bus,
-            config=self.config
+        # ForeshadowingManager 需要 novel_generator 参数
+        self.foreshadowing_manager = ForeshadowingManager.ForeshadowingManager(
+            novel_generator=self
+        )
+        
+        # GlobalGrowthPlanner 需要 novel_generator 参数
+        self.global_growth_planner = GlobalGrowthPlanner.GlobalGrowthPlanner(
+            novel_generator=self
+        )
+        
+        # 添加缺失的 stage_plan_manager
+        self.stage_plan_manager = StagePlanManager.StagePlanManager(
+            novel_generator=self
         )
     
     def _setup_event_handlers(self):
-        """设置事件处理器"""
+        """设置事件处理器 - 补充完整的事件处理"""
         # 章节生成事件
         self.event_bus.subscribe('chapter.generated', self._on_chapter_generated)
         self.event_bus.subscribe('chapter.assessed', self._on_chapter_assessed)
         
         # 阶段计划事件
         self.event_bus.subscribe('stage.plan.ready', self._on_stage_plan_ready)
+        self.event_bus.subscribe('stage.plan.ensure', self._on_stage_plan_ensure)
         
         # 错误处理事件
         self.event_bus.subscribe('error.occurred', self._on_error_occurred)
+        
+        # 系统准备事件
+        self.event_bus.subscribe('foreshadowing.prepare', self._on_foreshadowing_prepare)
+        self.event_bus.subscribe('event.prepare', self._on_event_prepare)
+        self.event_bus.subscribe('growth.prepare', self._on_growth_prepare)
     
+    # 添加缺失的事件处理方法
+    def _on_chapter_generated(self, data):
+        """处理章节生成完成事件"""
+        chapter_number = data.get('chapter_number')
+        result = data.get('result')
+        print(f"✅ 第{chapter_number}章生成完成: {result.get('chapter_title', '未知标题')}")
+        
+        # 更新novel_data
+        if chapter_number and result:
+            self.novel_data.setdefault("generated_chapters", {})[chapter_number] = result
+            self.novel_data["current_progress"]["completed_chapters"] = len(self.novel_data["generated_chapters"])
+            
+            # 保存章节
+            self.project_manager.save_single_chapter(
+                self.novel_data["novel_title"], 
+                chapter_number, 
+                result
+            )
+    
+    def _on_chapter_assessed(self, data):
+        """处理章节评估完成事件"""
+        chapter_number = data.get('chapter_number')
+        assessment = data.get('assessment')
+        print(f"📊 第{chapter_number}章质量评估完成: {assessment.get('overall_score', 0):.1f}分")
+    
+    def _on_stage_plan_ready(self, data):
+        """处理阶段计划就绪事件"""
+        stage_plan = data.get('stage_plan')
+        print(f"📋 阶段计划就绪: {len(stage_plan)}个阶段")
+    
+    def _on_stage_plan_ensure(self, data):
+        """处理确保阶段计划事件"""
+        chapter_number = data.get('chapter_number')
+        context = data.get('context')
+        print(f"🔍 确保第{chapter_number}章阶段计划")
+        self.ensure_stage_plan_for_chapter(chapter_number)
+    
+    def _on_error_occurred(self, data):
+        """处理错误事件"""
+        error_type = data.get('type')
+        chapter = data.get('chapter', '未知')
+        message = data.get('message') or data.get('error', '未知错误')
+        print(f"❌ 错误({error_type}) 第{chapter}章: {message}")
+    
+    def _on_foreshadowing_prepare(self, data):
+        """处理伏笔准备事件"""
+        context = data.get('context')
+        print(f"🎭 准备伏笔上下文")
+    
+    def _on_event_prepare(self, data):
+        """处理事件准备事件"""
+        context = data.get('context')
+        print(f"🎯 准备事件上下文")
+    
+    def _on_growth_prepare(self, data):
+        """处理成长规划准备事件"""
+        context = data.get('context')
+        print(f"📈 准备成长规划上下文")
+    
+    def _get_stage_plan(self, chapter_number: int) -> Dict:
+        """获取章节的阶段计划"""
+        try:
+            if hasattr(self, 'stage_plan_manager'):
+                return self.stage_plan_manager.get_stage_plan_for_chapter(chapter_number)
+        except Exception as e:
+            print(f"获取第{chapter_number}章阶段计划失败: {e}")
+        return {}
+    
+    def _get_cached_stage_plan(self, chapter_number: int) -> Dict:
+        """获取缓存的阶段计划"""
+        # 简化实现，实际应该从缓存或novel_data中获取
+        return self._get_stage_plan(chapter_number)
+
+    # 其他现有方法保持不变...
     def signal_handler(self, signum, frame):
         """处理中断信号"""
         print(f"\n\n收到中断信号，正在保存进度...")
@@ -84,17 +167,25 @@ class NovelGenerator:
         print("📚 基于您的创意种子，为您生成完整小说方案")
         print("="*60)
         
+        # 安全访问 plan_data 的键
+        title = plan_data.get('title', '未知标题')
+        synopsis = plan_data.get('synopsis', '暂无简介')
+        core_direction = plan_data.get('core_direction', '暂无核心方向')
+        target_audience = plan_data.get('target_audience', '暂无目标读者')
+        competitive_advantage = plan_data.get('competitive_advantage', '暂无竞争优势')
+        
         print(f"🎯 为您生成的方案:")
-        print(f"   书名: 《{plan_data['title']}》")
-        print(f"   简介: {plan_data['synopsis']}")
-        print(f"   核心方向: {plan_data['core_direction']}")
-        print(f"   目标读者: {plan_data['target_audience']}")
-        print(f"   竞争优势: {plan_data['competitive_advantage']}")
+        print(f"   书名: 《{title}》")
+        print(f"   简介: {synopsis}")
+        print(f"   核心方向: {core_direction}")
+        print(f"   目标读者: {target_audience}")
+        print(f"   竞争优势: {competitive_advantage}")
         print("=" * 60)
         
-        print(f"✓ 已确定方案: 《{plan_data['title']}》")
-        print(f"  核心创作方向: {plan_data['core_direction']}")
+        print(f"✓ 已确定方案: 《{title}》")
+        print(f"  核心创作方向: {core_direction}")
         return plan_data
+    
     
     def load_chapter_content(self, chapter_number: int) -> Optional[Dict]:
         """加载指定章节的完整内容"""
@@ -336,13 +427,19 @@ class NovelGenerator:
         if total_chapters is None:
             total_chapters = self.config["defaults"]["total_chapters"]
         
+        # 确保 novel_data 有正确的结构
+        self._initialize_novel_data_structure()
+        
         # 记录创意种子和基础设置
         self.novel_data["creative_seed"] = creative_seed
         self.novel_data["current_progress"]["total_chapters"] = total_chapters
         self.novel_data["current_progress"]["start_time"] = datetime.now().isoformat()
+        self.novel_data["current_progress"]["stage"] = "开始"
+        self.novel_data["current_progress"]["completed_chapters"] = 0
+        self.novel_data["current_progress"]["current_batch"] = 0
 
         # 如果是续写模式，跳过前期规划步骤
-        if self.novel_data["is_resuming"]:
+        if self.novel_data.get("is_resuming", False):
             print("📖 检测到续写模式，跳过前期规划步骤...")
             return self._resume_content_generation(total_chapters)
         
@@ -410,20 +507,22 @@ class NovelGenerator:
         # ==================== 第五阶段：章节内容生成 ====================
         return self._generate_all_chapters(total_chapters)
 
-    def _get_user_inputs(self):
-        """获取用户输入（仅选择分类）"""
-        self.choose_category()
-
     def _generate_and_select_plan(self, creative_seed: str) -> bool:
-        """生成并选择单一方案"""
-        print("=== 步骤1: 基于创意种子生成小说方案 ===")
+        """生成并选择单一方案 - 自动根据分类生成主角和方案"""
+        print("=== 步骤1: 基于创意种子和分类生成小说方案 ===")
         
-        plan_data = self.content_generator.generate_single_plan(creative_seed)
+        # 获取分类信息
+        category = self.novel_data.get("category", "未分类")
+        print(f"✓ 使用分类: {category}")
+        
+        # 生成单一方案（自动包含主角名字生成）
+        plan_data = self.content_generator.generate_single_plan(creative_seed, category)
         if not plan_data:
             print("❌ 方案生成失败，终止生成")
             return False
         
-        self.novel_data["selected_plan"] = self.present_plan_to_user(plan_data)
+        # 直接使用生成的方案，不再需要用户选择
+        self.novel_data["selected_plan"] = self._present_auto_generated_plan(plan_data)
         if not self.novel_data["selected_plan"]:
             print("❌ 方案生成失败，终止生成")
             return False
@@ -432,8 +531,81 @@ class NovelGenerator:
         self.novel_data["novel_title"] = self.novel_data["selected_plan"]["title"]
         self.novel_data["novel_synopsis"] = self.novel_data["selected_plan"]["synopsis"]
         
-        print(f"✅ 已确定方案: 《{self.novel_data['novel_title']}》")
+        print(f"✅ 已自动生成方案: 《{self.novel_data['novel_title']}》")
         return True
+
+    def _present_auto_generated_plan(self, plan_data: Dict) -> Dict:
+        """展示自动生成的单一方案"""
+        print("\n" + "="*60)
+        print("📚 基于您的创意种子和分类，已生成完整小说方案")
+        print("="*60)
+        
+        # 安全访问 plan_data 的键
+        title = plan_data.get('title', '未知标题')
+        synopsis = plan_data.get('synopsis', '暂无简介')
+        core_direction = plan_data.get('core_direction', '暂无核心方向')
+        target_audience = plan_data.get('target_audience', '暂无目标读者')
+        competitive_advantage = plan_data.get('competitive_advantage', '暂无竞争优势')
+        
+        print(f"🎯 为您生成的方案:")
+        print(f"   书名: 《{title}》")
+        print(f"   简介: {synopsis}")
+        print(f"   核心方向: {core_direction}")
+        print(f"   目标读者: {target_audience}")
+        print(f"   竞争优势: {competitive_advantage}")
+        print("=" * 60)
+        
+        # 显示生成的主角名字
+        if self.content_generator.custom_main_character_name:
+            print(f"👤 自动生成主角: {self.content_generator.custom_main_character_name}")
+        
+        print("✓ 方案已确定，开始后续生成流程...")
+        return plan_data
+
+    def _initialize_novel_data_structure(self):
+        """初始化 novel_data 数据结构"""
+        if not hasattr(self, 'novel_data') or not self.novel_data:
+            self.novel_data = {}
+        
+        # 确保所有必要的键都存在
+        required_keys = {
+            "current_progress": {
+                "completed_chapters": 0,
+                "total_chapters": 0,
+                "stage": "未开始",
+                "current_stage": "第一阶段",
+                "current_batch": 0,
+                "start_time": None
+            },
+            "generated_chapters": {},
+            "used_chapter_titles": set(),
+            "previous_chapter_endings": {},
+            "plot_progression": [],
+            "chapter_quality_records": {},
+            "optimization_history": {},
+            "is_resuming": False,
+            "resume_data": None,
+            "market_analysis": {},
+            "overall_stage_plan": {},
+            "stage_writing_plans": {},
+            "core_worldview": {},
+            "character_design": {},
+            "global_growth_plan": {},
+            "quality_statistics": {}
+        }
+        
+        for key, default_value in required_keys.items():
+            if key not in self.novel_data:
+                self.novel_data[key] = default_value
+            elif key == "current_progress" and isinstance(default_value, dict):
+                # 确保 current_progress 中的所有子键都存在
+                for sub_key, sub_default in default_value.items():
+                    if sub_key not in self.novel_data[key]:
+                        self.novel_data[key][sub_key] = sub_default
+                    
+    def _get_user_inputs(self):
+        """获取用户输入（仅选择分类）"""
+        self.choose_category()
 
     def _generate_market_analysis(self, creative_seed: str) -> bool:
         """生成市场分析"""

@@ -2,11 +2,13 @@
 
 import json
 import re
-from typing import Dict, Optional, List
+from typing import Dict, Optional, List, Tuple
 
 class ContentGenerator:
-    def __init__(self, api_client, quality_assessor=None):
+    def __init__(self, api_client, config=None, event_bus=None, quality_assessor=None):
         self.api_client = api_client
+        self.config = config
+        self.event_bus = event_bus
         self.quality_assessor = quality_assessor
         self.custom_main_character_name = None
     
@@ -45,7 +47,7 @@ class ContentGenerator:
         if not self.custom_main_character_name:
             return content
         
-        if content_type == "three_plans":
+        if content_type == "one_plans":
             for plan in content.get("plans", []):
                 if self.custom_main_character_name not in plan.get("synopsis", "") and self.custom_main_character_name not in plan.get("title", ""):
                     plan["synopsis"] = plan["synopsis"].replace("主角", self.custom_main_character_name)
@@ -73,18 +75,119 @@ class ContentGenerator:
         
         return escaped_template.format(**kwargs)
 
-    def generate_single_plan(self, creative_seed: str) -> Optional[Dict]:
-        """生成单一小说方案"""
-        print("=== 步骤1: 基于创意种子生成小说方案 ===")
+    def generate_single_plan(self, creative_seed: str, category: str = None) -> Optional[Dict]:
+        """生成单一小说方案 - 根据分类自动生成主角名字"""
+        print("=== 步骤1: 基于创意种子和分类生成小说方案 ===")
+        
+        # 如果提供了分类，自动生成适合该分类的主角名字
+        if category :
+            generated_name = self._generate_character_name_by_category(category, creative_seed)
+            if generated_name:
+                self.set_custom_main_character_name(generated_name)
+                print(f"✓ 根据分类 '{category}' 自动生成主角名字: {generated_name}")
         
         user_prompt = f"创意种子: {creative_seed}"
         if self.custom_main_character_name:
             user_prompt += f"\n主角名字: {self.custom_main_character_name}"
+        if category:
+            user_prompt += f"\n小说分类: {category}"
         
-        result = self.api_client.generate_content_with_retry("three_plans", user_prompt, purpose="生成小说方案")
+        result = self.api_client.generate_content_with_retry("one_plans", user_prompt, purpose="生成小说方案")
         if result:
-            result = self._ensure_main_character_in_content(result, "three_plans")
+            result = self._ensure_main_character_in_content(result, "one_plans")
         return result
+
+    def _generate_character_name_by_category(self, category: str, creative_seed: str) -> str:
+        """根据分类生成适合的主角名字 - 使用JSON格式响应"""
+        try:
+            print(f"  🎯 开始为分类 '{category}' 生成主角名字...")
+            
+            prompt = f"""请根据以下信息生成一个适合的主角名字：
+
+    小说分类：{category}
+    创意种子：{creative_seed}
+
+    要求：
+    1. 名字要符合分类的风格特点
+    2. 名字要有特色，容易让读者记住
+    3. 长度2-3个字
+    4. 只返回JSON格式，不要其他内容
+
+    请按照以下JSON格式输出：
+    {{
+        "name": "主角名字"
+    }}"""
+
+            print(f"  📨 发送命名请求到API...")
+            response = self.api_client.call_api(
+                'deepseek',
+                "你是小说角色命名专家，请严格按照JSON格式返回主角名字",
+                prompt,
+                0.7,
+                purpose="生成主角名字"
+            )
+            
+            print(f"  📥 API响应: {response}")
+            
+            if response:
+                # 尝试解析JSON响应
+                try:
+                    import json
+                    response_data = json.loads(response)
+                    name = response_data.get("name")
+                    if name and 2 <= len(name) <= 3:
+                        print(f"  ✅ 从JSON响应中获取主角名字: {name}")
+                        return name
+                    else:
+                        print(f"  ⚠️ JSON中名字无效: {name}")
+                except json.JSONDecodeError as e:
+                    print(f"  ❌ JSON解析失败: {e}")
+                    print(f"  响应内容: {response}")
+                    # 尝试从文本中提取名字
+                    import re
+                    chinese_names = re.findall(r'[\u4e00-\u9fff]{2,3}', response)
+                    if chinese_names:
+                        name = chinese_names[0]
+                        print(f"  ✅ 从文本中提取主角名字: {name}")
+                        return name
+            
+            # 如果API调用失败或无法提取名字，使用基于分类的默认名字
+            default_name = self._get_default_name_by_category(category)
+            print(f"  🔄 使用默认名字: {default_name}")
+            return default_name
+            
+        except Exception as e:
+            print(f"  ❌ 生成主角名字时出错: {e}")
+            import traceback
+            print(f"  详细错误: {traceback.format_exc()}")
+            default_name = self._get_default_name_by_category(category)
+            print(f"  🔄 使用默认名字: {default_name}")
+            return default_name
+
+    def _get_default_name_by_category(self, category: str) -> str:
+        """根据分类获取默认主角名字"""
+        default_names = {
+            "西方奇幻": "艾伦",
+            "东方仙侠": "林风", 
+            "科幻末世": "陆晨",
+            "男频衍生": "陈默",
+            "都市高武": "张扬",
+            "悬疑灵异": "秦风",
+            "悬疑脑洞": "时雨",
+            "抗战谍战": "李战",
+            "历史古代": "赵明",
+            "历史脑洞": "楚云",
+            "都市种田": "王磊",
+            "都市脑洞": "苏哲",
+            "都市日常": "刘阳",
+            "玄幻脑洞": "萧炎",
+            "战神赘婿": "叶枫",
+            "动漫衍生": "星尘",
+            "游戏体育": "陈飞",
+            "传统玄幻": "林凡",
+            "都市修真": "张凡"
+        }
+        return default_names.get(category, "林风")
 
     def generate_market_analysis(self, creative_seed: str, selected_plan: Dict) -> Optional[Dict]:
         """生成市场分析"""

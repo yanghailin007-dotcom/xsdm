@@ -190,7 +190,7 @@ class APIClient:
     
     def _validate_api_response(self, content: str) -> bool:
         """快速验证API响应是否有效 - 修复版本"""
-        if not content or len(content.strip()) < 10:
+        if not content or len(content.strip()) < 1:
             print(f"  验证失败：内容过短 - {len(content) if content else 0}字符")
             return False
         
