@@ -1714,27 +1714,51 @@ class NovelGenerator:
             return False
 
     def _generate_global_growth_plan(self, creative_seed: str, total_chapters: int) -> bool:
-        """生成全局成长规划 - 统一版本"""
-        print("=== 步骤6: 制定全书成长规划 ===")
+        """生成全局成长规划 - 精简分层版本"""
+        print("=== 步骤6: 制定全书成长规划框架 ===")
         
         try:
             self.novel_data["global_growth_plan"] = self.global_growth_planner.create_comprehensive_growth_plan(
                 creative_seed,
                 self.novel_data["novel_title"],
-                self.novel_data["novel_synopsis"],
+                self.novel_data["novel_synopsis"], 
                 total_chapters
             )
             
             if self.novel_data["global_growth_plan"]:
-                print("✅ 全书成长规划制定完成")
+                print("✅ 全书成长规划框架制定完成")
                 return True
             else:
-                print("❌ 全局成长规划生成失败，使用基础规划")
+                print("❌ 全局成长规划生成失败，使用基础框架")
                 return False
                 
         except Exception as e:
-            print(f"⚠️  全局成长规划器出错: {e}，使用基础规划")
+            print(f"⚠️  全局成长规划器出错: {e}，使用基础框架")
             return False
+
+    # 在生成章节参数时使用精简的成长上下文
+    def prepare_batch_chapter_params(self, start_chapter: int, end_chapter: int) -> List[Dict]:
+        """批量准备章节参数 - 使用分层成长规划"""
+        batch_params = []
+        
+        for chapter_num in range(start_chapter, end_chapter + 1):
+            # 获取基础参数...
+            params = self._get_chapter_params(chapter_num)
+            
+            # 添加分层成长上下文（精简）
+            growth_context = self.global_growth_planner.get_growth_context_for_chapter(chapter_num)
+            if growth_context:
+                params["growth_context"] = json.dumps({
+                    "current_stage": growth_context["current_stage"],
+                    "main_focus": growth_context["stage_focus"]["main_plot"],
+                    "current_phase": growth_context["current_development"]["phase"]
+                }, ensure_ascii=False)
+            else:
+                params["growth_context"] = "{}"
+            
+            batch_params.append(params)
+        
+        return batch_params
 
     def _initialize_systems(self):
         """初始化各种系统"""
