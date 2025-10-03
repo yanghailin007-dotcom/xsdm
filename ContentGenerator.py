@@ -9,130 +9,6 @@ class ContentGenerator:
         self.api_client = api_client
         self.quality_assessor = quality_assessor
         self.custom_main_character_name = None
-        
-        # 内化提示词模板
-        self.prompts = {
-            "writing_plan": """你是一位专业的小说写作规划师。请为以下小说创作内容制定详细的写作计划。
-
-小说基本信息:
-- 总章节数: {total_chapters}
-- 创意种子: {creative_seed}
-
-请按照以下结构输出JSON格式的写作计划:
-{{
-    "writing_approach": "写作手法和风格描述",
-    "chapter_rhythm": {{
-        "opening_chapters": "前10章节奏安排",
-        "development_phase": "11-60章发展节奏", 
-        "climax_phase": "61-90章高潮节奏",
-        "ending_phase": "91-100章收尾节奏"
-    }},
-    "key_plot_points": [
-        {{"chapter_range": "1-10", "key_events": ["事件1", "事件2"]}},
-        {{"chapter_range": "11-30", "key_events": ["事件1", "事件2"]}},
-        {{"chapter_range": "31-60", "key_events": ["事件1", "事件2"]}},
-        {{"chapter_range": "61-90", "key_events": ["事件1", "事件2"]}},
-        {{"chapter_range": "91-100", "key_events": ["事件1", "事件2"]}}
-    ],
-    "character_growth_arc": "主角成长轨迹描述",
-    "conflict_design": "主要冲突设计",
-    "emotional_design": "情感线设计",
-    "foreshadowing_design": "伏笔线设计"
-}}
-
-要求:
-1. 确保节奏安排合理，符合网文阅读习惯
-2. 关键情节点分布均匀，每10-20章有重要事件
-3. 主角成长轨迹清晰可见
-4. 情感线和伏笔线要有机融合""",
-
-            "chapter_design": """你是一位专业的小说章节设计师。请为以下章节制定详细的设计方案。
-
-章节信息:
-- 第{chapter_number}章 (共{total_chapters}章)
-- 小说标题: {novel_title}
-- 小说简介: {novel_synopsis}
-
-上下文信息:
-- 世界观: {worldview_info}
-- 角色设定: {character_info}
-- 写作计划: {writing_plan_info}
-- 前情提要: {previous_chapters_summary}
-- 主线进展: {main_plot_progress}
-- 情节方向: {plot_direction}
-- 章节衔接提示: {chapter_connection_note}
-- 角色发展重点: {character_development_focus}
-- 事件驱动指导: {event_driven_guidance}
-- 伏笔指导: {foreshadowing_guidance}
-{main_character_instruction}
-
-请按照以下结构输出JSON格式的章节设计方案:
-{{
-    "chapter_title": "富有吸引力的章节标题(8-15字)",
-    "plot_outline": "本章情节概要(200-300字)",
-    "key_scenes": [
-        {{
-            "scene_number": 1,
-            "purpose": "场景目的",
-            "character_interactions": "角色互动",
-            "conflict_progression": "冲突推进",
-            "foreshadowing_elements": "伏笔元素"
-        }}
-    ],
-    "character_development": "本章角色发展重点",
-    "plot_advancement": "本章情节推进总结",
-    "next_chapter_hook": "为下一章设置的悬念钩子",
-    "emotional_highlights": "情感高潮点",
-    "writing_style_notes": "文风注意事项"
-}}
-
-设计要求:
-1. 章节标题要吸引人，符合网文特点
-2. 情节设计要承接上一章，特别是处理好上一章的悬念
-3. 合理分配情感线、伏笔线和主线的比例
-4. 确保角色行为符合设定
-5. 为下一章设置合理的悬念""",
-
-            "chapter_content_generation": """你是一位专业的小说作家。请根据以下设计方案生成完整的章节内容。
-
-基础信息:
-- 第{chapter_number}章: {chapter_title}
-- 小说: 《{novel_title}》
-- 简介: {novel_synopsis}
-
-设定信息:
-- 世界观: {worldview_info}
-- 角色设定: {character_info} 
-- 写作计划: {writing_plan_info}
-{main_character_instruction}
-
-章节设计方案:
-{chapter_design}
-
-前情提要:
-{previous_chapters_summary}
-
-请生成完整的章节内容，要求:
-1. 严格按照设计方案执行，确保情节连贯
-2. 字数控制在3000-5000字
-3. 文笔优美，符合网文阅读习惯
-4. 合理运用对话、描写和心理活动
-5. 确保角色言行一致
-6. 处理好与上一章的衔接
-7. 为下一章埋下合适的悬念
-
-输出格式:
-{{
-    "content": "完整的章节内容",
-    "chapter_title": "章节标题",
-    "word_count": 字数统计,
-    "key_events": ["本章关键事件1", "本章关键事件2"],
-    "next_chapter_hook": "为下一章设置的悬念",
-    "connection_to_previous": "与上一章的衔接处理",
-    "plot_advancement": "情节推进总结",
-    "character_development": "角色发展体现"
-}}"""
-        }
     
     def set_custom_main_character_name(self, name: str):
         """设置主角名字"""
@@ -230,7 +106,7 @@ class ContentGenerator:
         print("=== 步骤3: 制定写作计划 ===")
         
         try:
-            prompt_template = self.prompts["writing_plan"]
+            prompt_template = self.config["prompts"]["writing_plan"]
             system_prompt = self.safe_format(prompt_template, total_chapters=total_chapters)
             
             user_prompt = f"创意种子: {creative_seed}\n选定方案: {json.dumps(selected_plan, ensure_ascii=False)}\n市场分析: {json.dumps(market_analysis, ensure_ascii=False)}"
@@ -888,7 +764,7 @@ class ContentGenerator:
         """生成章节详细设计方案 - 使用内化提示词"""
         try:
             # 使用内化的章节设计提示词
-            design_prompt_template = self.prompts["chapter_design"]
+            design_prompt_template = self.config["prompts"]["chapter_design"]
             
             # 准备参数
             design_params = chapter_params.copy()

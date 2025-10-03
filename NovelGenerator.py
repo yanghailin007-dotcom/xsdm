@@ -10,59 +10,66 @@ import threading
 from datetime import datetime
 from typing import Dict, Optional, Tuple, List, Any
 
+import APIClient
+import ContentGenerator
+from Contexts import GenerationContext
+import EventBus
+import EventDrivenManager
+import ForeshadowingManager
+import GlobalGrowthPlanner
+import ProjectManager
+import QualityAssessor
+import StagePlanManager
+
 class NovelGenerator:
-    """小说生成器主类 - 专注流程控制和协调"""
-    
     def __init__(self, config):
         self.config = config
-        self.api_client = APIClient(config)
-        self.quality_assessor = QualityAssessor(self.api_client, config)
-        self.content_generator = ContentGenerator(self.api_client, config, self.quality_assessor)
-        self.project_manager = ProjectManager(config)
-
-        # 初始化各个管理器
-        self.stage_plan_manager = StagePlanManager.StagePlanManager(self)
-        self.event_driven_manager = EventDrivenManager.EventDrivenManager(self)
-        self.major_event_manager = self.event_driven_manager  # 向后兼容
-        self.foreshadowing_manager = ForeshadowingManager.ForeshadowingManager(self)
-        self.global_growth_planner = GlobalGrowthPlanner.GlobalGrowthPlanner(self)
-
-        # 小说数据
-        self.novel_data = {
-            "novel_title": "未命名小说",
-            "novel_synopsis": "",
-            "creative_seed": "",
-            "selected_plan": None,
-            "market_analysis": None,
-            "overall_stage_plan": None,
-            "stage_writing_plans": {},
-            "current_stage": "opening_stage",
-            "core_worldview": None,
-            "character_design": None,
-            "generated_chapters": {},
-            "current_progress": {
-                "stage": "未开始",
-                "completed_chapters": 0,
-                "total_chapters": 0,
-                "start_time": None,
-                "current_batch": 0,
-                "last_saved_chapter": 0
-            },
-            "plot_progression": [],
-            "chapter_quality_records": {},
-            "optimization_history": {},
-            "previous_chapter_endings": {},
-            "is_resuming": False,
-            "resume_data": None,
-            "used_chapter_titles": set(),
-        }
-
-        # 初始化
-        self._summary_cache = {}
+        self.api_client = APIClient(config)  # 添加API客户端初始化
+        self.event_bus = EventBus()
+        self._initialize_managers()
+        self._setup_event_handlers()
+    
+    def _initialize_managers(self):
+        """初始化各管理器，明确依赖关系"""
+        # 核心管理器
+        self.content_generator = ContentGenerator(
+            api_client=self.api_client,
+            config=self.config,
+            event_bus=self.event_bus
+        )
         
-        # 注册信号处理器
-        signal.signal(signal.SIGINT, self.signal_handler)
-        signal.signal(signal.SIGTERM, self.signal_handler)
+        self.project_manager = ProjectManager(
+            config=self.config,
+            event_bus=self.event_bus
+        )
+        
+        # 功能管理器
+        self.event_manager = EventDrivenManager(
+            event_bus=self.event_bus,
+            config=self.config
+        )
+        
+        self.foreshadowing_manager = ForeshadowingManager(
+            event_bus=self.event_bus, 
+            config=self.config
+        )
+        
+        self.growth_planner = GlobalGrowthPlanner(
+            event_bus=self.event_bus,
+            config=self.config
+        )
+    
+    def _setup_event_handlers(self):
+        """设置事件处理器"""
+        # 章节生成事件
+        self.event_bus.subscribe('chapter.generated', self._on_chapter_generated)
+        self.event_bus.subscribe('chapter.assessed', self._on_chapter_assessed)
+        
+        # 阶段计划事件
+        self.event_bus.subscribe('stage.plan.ready', self._on_stage_plan_ready)
+        
+        # 错误处理事件
+        self.event_bus.subscribe('error.occurred', self._on_error_occurred)
     
     def signal_handler(self, signum, frame):
         """处理中断信号"""
@@ -611,83 +618,70 @@ class NovelGenerator:
         self._print_generation_summary()
         return True
 
+    # 在NovelGenerator中
     def generate_chapters_batch(self, start_chapter: int, end_chapter: int) -> bool:
-        """批量生成章节内容 - 调度协调"""
-        print(f"=== 生成第{start_chapter}-{end_chapter}章 ===")
-        
-        successful_chapters = 0
-        total_quality_score = 0
-        optimized_chapters = 0
+        """批量生成章节 - 重构后的清晰流程"""
         
         for chapter_num in range(start_chapter, end_chapter + 1):
-            result = self.content_generator.generate_chapter_content_for_novel(
-                chapter_num, 
-                self.novel_data
-            )
-            
-            if result:
-                self.novel_data["generated_chapters"][chapter_num] = result
-                successful_chapters += 1
+            try:
+                # 1. 准备生成上下文
+                context = self._prepare_generation_context(chapter_num)
+                if not context.validate():
+                    self.event_bus.publish('error.occurred', {
+                        'type': 'context_invalid',
+                        'chapter': chapter_num,
+                        'message': '生成上下文验证失败'
+                    })
+                    continue
                 
-                # 记录情节发展
-                self.novel_data["plot_progression"].append({
-                    "chapter": chapter_num,
-                    "title": result.get("chapter_title", ""),
-                    "plot_advancement": result.get("plot_advancement", ""),
-                    "key_events": result.get("key_events", []),
-                    "connection_to_previous": result.get("connection_to_previous", "")
+                # 2. 通过事件总线协调各模块准备
+                preparation_result = self._coordinate_chapter_preparation(context)
+                if not preparation_result['success']:
+                    continue
+                
+                # 3. 委托给ContentGenerator生成内容
+                chapter_result = self.content_generator.generate_chapter(context)
+                
+                # 4. 发布生成完成事件
+                self.event_bus.publish('chapter.generated', {
+                    'chapter_number': chapter_num,
+                    'result': chapter_result,
+                    'context': context
                 })
                 
-                # 记录质量评估
-                assessment = result.get("quality_assessment", {})
-                score = assessment.get("overall_score", 0)
-                total_quality_score += score
-                
-                # 记录本地AI痕迹检测结果
-                ai_artifacts = self.quality_assessor.detect_ai_artifacts(result.get("content", ""))
-                self.novel_data["chapter_quality_records"][chapter_num] = {
-                    "assessment": assessment,
-                    "timestamp": datetime.now().isoformat(),
-                    "original_score": score,
-                    "local_ai_artifacts": ai_artifacts
-                }
-                
-                if result.get("optimization_info", {}).get("optimized", False):
-                    optimized_chapters += 1
-                
-                self.novel_data["current_progress"]["completed_chapters"] = chapter_num
-                self.novel_data["current_progress"]["last_saved_chapter"] = chapter_num
-                
-                # 立即保存单章内容
-                self.project_manager.save_single_chapter(self.novel_data["novel_title"], chapter_num, result)
-                
-                # 显示进度和质量信息
-                progress = (chapter_num / self.novel_data["current_progress"]["total_chapters"]) * 100
-                quality_info = f"质量: {score:.1f}分"
-                if result.get("optimization_info", {}).get("optimized", False):
-                    quality_info += " (已优化)"
-                
-                print(f"✓ 第{chapter_num}章《{result['chapter_title']}》完成 ({progress:.1f}%) - {quality_info}")
-                
-                # 保存整体进度（每3章保存一次）
-                if chapter_num % 3 == 0 or chapter_num == self.novel_data["current_progress"]["total_chapters"]:
-                    self.project_manager.save_project_progress(self.novel_data)
-                
-                # 减少延迟
-                if chapter_num < end_chapter:
-                    time.sleep(2)
-            else:
-                print(f"✗ 第{chapter_num}章生成失败")
-                if chapter_num > start_chapter + 2:
-                    print("连续多章生成失败，建议检查API配置或网络连接")
-                    break
+            except Exception as e:
+                self.event_bus.publish('error.occurred', {
+                    'type': 'generation_failed',
+                    'chapter': chapter_num,
+                    'error': str(e)
+                })
+
+    def _prepare_generation_context(self, chapter_num: int) -> GenerationContext:
+        """准备生成上下文 - 只负责数据组装"""
+        return GenerationContext(
+            chapter_number=chapter_num,
+            total_chapters=self.novel_data["current_progress"]["total_chapters"],
+            novel_data=self.novel_data,
+            stage_plan=self._get_stage_plan(chapter_num),
+            event_context=self.event_manager.get_context(chapter_num),
+            foreshadowing_context=self.foreshadowing_manager.get_context(chapter_num),
+            growth_context=self.growth_planner.get_context(chapter_num)
+        )
+
+    def _coordinate_chapter_preparation(self, context: GenerationContext) -> Dict:
+        """协调章节准备 - 通过事件总线"""
+        preparation_events = [
+            'foreshadowing.prepare',
+            'event.prepare', 
+            'growth.prepare'
+        ]
         
-        # 批次质量统计
-        if successful_chapters > 0:
-            avg_score = total_quality_score / successful_chapters
-            print(f"📊 本批次质量统计: 平均分{avg_score:.1f}, 优化章节{optimized_chapters}/{successful_chapters}")
+        results = {}
+        for event_type in preparation_events:
+            self.event_bus.publish(event_type, {'context': context})
+            # 可以等待异步结果或设置超时
         
-        return successful_chapters > 0
+        return {'success': True, 'details': results}
 
     def _print_generation_summary(self):
         """打印生成摘要"""
@@ -751,34 +745,15 @@ class NovelGenerator:
         print("="*60)
 
     def ensure_stage_plan_for_chapter(self, chapter_number: int):
-        """确保为当前章节所属阶段生成详细写作计划 - 协调阶段计划管理器"""
-        try:
-            print(f"  🔍 确保第{chapter_number}章有阶段计划...")
-            
-            # 记录阶段转换
-            self._log_stage_transition(chapter_number)
-            
-            # 检查并生成新的阶段计划
-            stage_plan = self._check_and_generate_new_stage_plan(chapter_number)
-            
-            if not stage_plan:
-                print(f"  ⚠️ 无法获取第{chapter_number}章的阶段计划，使用基础信息")
-                # 返回基础阶段信息
-                current_stage = self.stage_plan_manager.get_current_stage(chapter_number)
-                return {
-                    "stage_name": current_stage,
-                    "stage_overview": f"{current_stage}的写作计划",
-                    "chapter_range": f"第{chapter_number}章所在阶段"
-                }
-            
-            return stage_plan
-            
-        except Exception as e:
-            print(f"❌ 确保阶段计划时出错: {e}")
-            import traceback
-            print(f"详细错误: {traceback.format_exc()}")
-            return None
-
+        # 新方式：通过事件总线
+        context = self._prepare_generation_context(chapter_number)
+        self.event_bus.publish('stage.plan.ensure', {
+            'chapter_number': chapter_number,
+            'context': context
+        })
+        
+        # 等待响应或使用回调
+        return self._get_cached_stage_plan(chapter_number)
     def _check_and_generate_new_stage_plan(self, chapter_number: int):
         """检查是否需要为当前章节生成新的阶段详细计划 - 协调阶段计划管理器"""
         try:
