@@ -1072,7 +1072,7 @@ class NovelGenerator:
         
         selected_category = categories[choice - 1]
         self.novel_data["category"] = selected_category
-        print(f"✓ 已选择分类: {selected_category}")
+        print(f"  ✓ 已选择分类: {selected_category}")
         
         # 根据分类自动设置推荐配比
         self.set_ratio_by_category(selected_category)
@@ -1269,7 +1269,7 @@ class NovelGenerator:
 
     def choose_subplot_ratio(self):
         """让用户选择暗线配比"""
-        print("\n🎯 请选择剧情配比方案 (主线占比60-85%):")
+        print("\n  🎯 请选择剧情配比方案 (主线占比60-85%):")
         print("1. 自动配比 (根据题材智能设定)")
         print("2. 情感主导 (主线60%，感情线30%，伏笔线10%)")
         print("3. 悬疑主导 (主线60%，感情线10%，伏笔线30%)") 
