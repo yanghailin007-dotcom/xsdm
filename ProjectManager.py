@@ -80,7 +80,8 @@ class ProjectManager:
                 
                 # 核心数据
                 "market_analysis": project_data.get("market_analysis", {}),
-                "overall_stage_plan": project_data.get("overall_stage_plans", {}),
+                "global_growth_plan": project_data.get("global_growth_plan", {}),
+                "overall_stage_plans": project_data.get("overall_stage_plans", {}),
                 "stage_writing_plans": project_data.get("stage_writing_plans", {}),
                 "core_worldview": project_data.get("core_worldview", {}),
                 "character_design": project_data.get("character_design", {}),
@@ -239,7 +240,8 @@ class ProjectManager:
             
             # 核心数据
             "market_analysis": novel_data.get("market_analysis", {}),
-            "overall_stage_plans": novel_data.get("overall_stage_plan", {}),
+            "global_growth_plan": novel_data.get("global_growth_plan", {}),
+            "overall_stage_plans": novel_data.get("overall_stage_plans", {}),
             "stage_writing_plans": novel_data.get("stage_writing_plans", {}),
             "core_worldview": novel_data.get("core_worldview", {}),
             "character_design": novel_data.get("character_design", {}),

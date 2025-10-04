@@ -315,7 +315,7 @@ class NovelGenerator:
             
             # 加载其他数据
             self.market_analysis = self.novel_data.get("market_analysis", {})
-            self.overall_stage_plans = self.novel_data.get("overall_stage_plan", {})
+            self.overall_stage_plans = self.novel_data.get("overall_stage_plans", {})
             self.stage_writing_plans = self.novel_data.get("stage_writing_plans", {})
             self.core_worldview = self.novel_data.get("core_worldview", {})
             self.character_design = self.novel_data.get("character_design", {})
@@ -493,7 +493,7 @@ class NovelGenerator:
             creative_seed=creative_seed,
             novel_title=self.novel_data["novel_title"],
             novel_synopsis=self.novel_data["novel_synopsis"],
-            overall_stage_plan=self.novel_data["overall_stage_plan"]  # 传递完整的 overall_stage_plan
+            overall_stage_plans=self.novel_data["overall_stage_plans"]  # 传递完整的 overall_stage_plans
         ):
             print("❌ 生成阶段详细写作计划失败")
             return False
@@ -692,7 +692,7 @@ class NovelGenerator:
             "is_resuming": False,
             "resume_data": None,
             "market_analysis": {},
-            "overall_stage_plan": {},
+            "overall_stage_plans": {},
             "stage_writing_plans": {},
             "core_worldview": {},
             "character_design": {},
@@ -764,17 +764,17 @@ class NovelGenerator:
         return True
     
     def _generate_stage_writing_plans(self, creative_seed: str, novel_title: str, novel_synopsis: str, 
-                                    overall_stage_plan: Dict) -> bool:
+                                    overall_stage_plans: Dict) -> bool:
         """为每个阶段生成详细的写作计划 - 修正版本"""
         print("=== 步骤6: 生成各阶段详细写作计划 ===")
         
-        if not overall_stage_plan or "overall_stage_plan" not in overall_stage_plan:
+        if not overall_stage_plans or "overall_stage_plan" not in overall_stage_plans:
             print("❌ 没有全书阶段计划，无法生成详细写作计划")
             return False
         
         try:
-            # 使用 overall_stage_plan 中的阶段定义
-            overall_plan = overall_stage_plan["overall_stage_plan"]
+            # 使用 overall_stage_plans 中的阶段定义
+            overall_plan = overall_stage_plans["overall_stage_plan"]
             
             # 为每个阶段生成详细写作计划
             self.novel_data["stage_writing_plans"] = {}
@@ -802,7 +802,7 @@ class NovelGenerator:
                     creative_seed=creative_seed,
                     novel_title=novel_title,
                     novel_synopsis=novel_synopsis,
-                    overall_stage_plan=overall_stage_plan  # 传递完整的 overall_stage_plan
+                    overall_stage_plans=overall_stage_plans  # 传递完整的 overall_stage_plans
                 )
                 
                 if stage_plan:
@@ -830,7 +830,7 @@ class NovelGenerator:
         """生成全书阶段计划"""
         print("=== 步骤5: 生成全书阶段计划 ===")
         
-        self.novel_data["overall_stage_plan"] = self.stage_plan_manager.generate_overall_stage_plan(
+        self.novel_data["overall_stage_plans"] = self.stage_plan_manager.generate_overall_stage_plan(
             creative_seed,
             self.novel_data["novel_title"],
             self.novel_data["novel_synopsis"],
@@ -838,7 +838,7 @@ class NovelGenerator:
             total_chapters
         )
         
-        if self.novel_data["overall_stage_plan"]:
+        if self.novel_data["overall_stage_plans"]:
             print("✅ 全书阶段计划生成成功")
             return True
         else:
@@ -867,7 +867,7 @@ class NovelGenerator:
         print("=== 步骤7: 初始化系统 ===")
         
         # 初始化事件体系
-        if self.novel_data["overall_stage_plan"]:
+        if self.novel_data["overall_stage_plans"]:
             self.event_driven_manager.initialize_event_system()
             print("✅ 事件系统初始化完成")
         
@@ -1141,40 +1141,49 @@ class NovelGenerator:
         print("="*60)
 
     def ensure_stage_plan_for_chapter(self, chapter_number: int):
-        """确保章节有阶段计划 - 修复循环版本"""
-        # 添加循环检测
-        if hasattr(self, '_ensuring_chapters'):
-            if chapter_number in self._ensuring_chapters:
-                print(f"  ⚠️ 检测到循环调用，跳过第{chapter_number}章阶段计划确保")
-                return self._get_cached_stage_plan(chapter_number)
-        else:
-            self._ensuring_chapters = set()
+        """确保章节有阶段计划 - 基于阶段划分的版本"""
+        print(f"🔍 确保第{chapter_number}章阶段计划")
         
-        self._ensuring_chapters.add(chapter_number)
+        # 获取全局阶段计划
+        if not self.novel_data.get("overall_stage_plans") or not self.novel_data.get("stage_writing_plans"):
+            print(f"  ⚠️ 没有可用的阶段计划数据")
+            return None
         
-        try:
-            print(f"🔍 确保第{chapter_number}章阶段计划")
+        # 查找章节所属的阶段
+        stage_name = self._find_stage_for_chapter(chapter_number)
+        if not stage_name:
+            print(f"  ⚠️ 无法确定第{chapter_number}章所属的阶段")
+            return None
+        
+        # 获取该阶段的详细写作计划
+        stage_plan = self.novel_data["stage_writing_plans"].get(stage_name)
+        if not stage_plan:
+            print(f"  ⚠️ 没有找到{stage_name}的详细写作计划")
+            return None
+        
+        print(f"  ✅ 第{chapter_number}章属于{stage_name}阶段")
+        return stage_plan
+
+    def _find_stage_for_chapter(self, chapter_number: int) -> str:
+        """确定章节所属的阶段"""
+        overall_plan = self.novel_data["overall_stage_plans"]["overall_stage_plan"]
+        
+        for stage_name, stage_info in overall_plan.items():
+            # 提取章节范围字符串，例如 "第1章-第3章" -> (1, 3)
+            chapter_range_str = stage_info["chapter_range"]
             
-            # 直接获取阶段计划，不通过事件总线
-            stage_plan = self._get_stage_plan(chapter_number)
-            
-            if not stage_plan:
-                print(f"  📋 生成第{chapter_number}章阶段计划...")
-                stage_plan = self.stage_plan_manager.get_stage_plan_for_chapter(chapter_number)
+            # 将中文章节范围转换为数字范围
+            import re
+            numbers = re.findall(r'\d+', chapter_range_str)
+            if len(numbers) >= 2:
+                start_chap = int(numbers[0])
+                end_chap = int(numbers[1])
                 
-                # 缓存计划
-                if stage_plan:
-                    self._cache_stage_plan(chapter_number, stage_plan)
-                    print(f"  ✅ 第{chapter_number}章阶段计划生成完成")
-                else:
-                    print(f"  ⚠️ 第{chapter_number}章阶段计划生成失败")
-            
-            return stage_plan
-            
-        finally:
-            # 清理循环检测
-            if chapter_number in self._ensuring_chapters:
-                self._ensuring_chapters.remove(chapter_number)
+                # 检查章节是否在此阶段范围内
+                if start_chap <= chapter_number <= end_chap:
+                    return stage_name
+        
+        return None
 
     def _check_and_generate_new_stage_plan(self, chapter_number: int):
         """检查是否需要为当前章节生成新的阶段详细计划 - 协调阶段计划管理器"""
@@ -1368,7 +1377,7 @@ class NovelGenerator:
             "市场分析": self.novel_data.get("market_analysis"), 
             "世界观": self.novel_data.get("core_worldview"),
             "角色设计": self.novel_data.get("character_design"),
-            "全书阶段计划": self.novel_data.get("overall_stage_plan"),
+            "全书阶段计划": self.novel_data.get("overall_stage_plans"),
             "阶段详细计划": self.novel_data.get("stage_writing_plans")
         }
         

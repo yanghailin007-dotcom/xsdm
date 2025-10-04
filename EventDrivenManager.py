@@ -1,5 +1,6 @@
 # EventDrivenManager.py
 from typing import Dict, List, Optional
+import re
 
 
 class EventDrivenManager:
@@ -12,11 +13,12 @@ class EventDrivenManager:
         self.event_triggers = {}  # 事件触发条件
         
     def update_from_stage_plan(self, stage_writing_plan: Dict):
-        """从阶段写作计划中加载事件系统"""
+        """从阶段写作计划中加载事件系统 - 修复版本"""
         if not stage_writing_plan:
             return
         
-        event_system = stage_writing_plan.get("event_system_design", {})
+        # 修复：使用正确的字段名 "event_system"
+        event_system = stage_writing_plan.get("event_system", {})
         
         # 初始化活跃事件
         self._initialize_active_events(event_system)
@@ -127,7 +129,7 @@ class EventDrivenManager:
         return "\n".join(prompt_parts)
 
     def _initialize_active_events(self, event_system: Dict):
-        """初始化活跃事件"""
+        """初始化活跃事件 - 支持新的事件结构"""
         self.active_events.clear()
         
         # 添加重大事件
@@ -139,36 +141,73 @@ class EventDrivenManager:
                 "current_progress": 0
             }
         
-        # 添加支撑事件
-        for event in event_system.get("supporting_events", []):
+        # 添加大事件
+        for event in event_system.get("big_events", []):
             self.active_events[event["name"]] = {
                 **event,
-                "status": "pending",  # 支撑事件可能稍后触发
-                "started_chapter": None,
+                "status": "active",
+                "started_chapter": event["start_chapter"],
+                "current_progress": 0
+            }
+        
+        # 添加普通事件
+        for event in event_system.get("events", []):
+            self.active_events[event["name"]] = {
+                **event,
+                "status": "active",
+                "started_chapter": event["chapter"],  # 普通事件只有单章
                 "current_progress": 0
             }
 
     def _setup_event_triggers(self, event_system: Dict):
-        """设置事件触发条件"""
+        """设置事件触发条件 - 支持新的事件结构"""
         self.event_triggers.clear()
         
-        for event in event_system.get("supporting_events", []):
+        # 为所有类型的事件设置触发条件
+        all_events = []
+        all_events.extend(event_system.get("major_events", []))
+        all_events.extend(event_system.get("big_events", []))
+        all_events.extend(event_system.get("events", []))
+        
+        for event in all_events:
+            # 检查是否有自定义触发条件
             trigger_condition = event.get("trigger_condition")
             if trigger_condition:
                 self.event_triggers[event["name"]] = {
                     "condition": trigger_condition,
                     "event_data": event
                 }
+            # 如果没有明确触发条件，使用章节触发
+            elif "start_chapter" in event or "chapter" in event:
+                trigger_chapter = event.get("start_chapter", event.get("chapter"))
+                if trigger_chapter:
+                    self.event_triggers[event["name"]] = {
+                        "condition": {
+                            "type": "chapter",
+                            "chapter": trigger_chapter
+                        },
+                        "event_data": event
+                    }
 
     def _is_event_active(self, chapter_number: int, event_data: Dict) -> bool:
-        """检查事件是否活跃"""
+        """检查事件是否活跃 - 支持新的事件类型"""
         if event_data["status"] != "active":
             return False
         
-        start_chapter = event_data.get("started_chapter", event_data.get("start_chapter", 0))
-        end_chapter = event_data.get("end_chapter", chapter_number + 100)
-        
-        return start_chapter <= chapter_number <= end_chapter
+        # 处理不同类型的事件
+        if "start_chapter" in event_data and "end_chapter" in event_data:
+            # 主要事件和大事件
+            start_chapter = event_data.get("started_chapter", event_data.get("start_chapter", 0))
+            end_chapter = event_data.get("end_chapter", chapter_number + 100)
+            return start_chapter <= chapter_number <= end_chapter
+        elif "chapter" in event_data:
+            # 普通事件（单章事件）
+            event_chapter = event_data["chapter"]
+            return chapter_number == event_chapter
+        else:
+            # 默认处理
+            start_chapter = event_data.get("started_chapter", 0)
+            return chapter_number >= start_chapter
 
     def get_context(self, chapter_number: int) -> Dict:
         """获取章节的事件上下文"""
@@ -183,13 +222,23 @@ class EventDrivenManager:
         
         # 如果有阶段写作计划，从中提取事件系统
         if "stage_writing_plans" in novel_data and novel_data["stage_writing_plans"]:
-            # 获取第一个阶段的写作计划
+            # 遍历所有阶段，寻找事件系统数据
+            for stage_name, stage_data in novel_data["stage_writing_plans"].items():
+                if "stage_writing_plan" in stage_data and "event_system" in stage_data["stage_writing_plan"]:
+                    event_system = stage_data["stage_writing_plan"]["event_system"]
+                    self.update_from_stage_plan({"event_system": event_system})
+                    print(f"✅ 从{stage_name}阶段计划初始化事件系统: {len(self.active_events)}个活跃事件")
+                    return
+            
+            # 如果没有找到事件系统，尝试从第一个阶段的写作计划中提取其他可用信息
             first_stage = next(iter(novel_data["stage_writing_plans"].values()))
-            if first_stage and "event_system_design" in first_stage:
-                event_system = first_stage["event_system_design"]
-                self.update_from_stage_plan(event_system)
-                print(f"✅ 从阶段计划初始化事件系统: {len(self.active_events)}个活跃事件")
-                return
+            if first_stage and "stage_writing_plan" in first_stage:
+                # 尝试从主要事件中提取
+                if "event_system" in first_stage["stage_writing_plan"]:
+                    event_system = first_stage["stage_writing_plan"]["event_system"]
+                    self.update_from_stage_plan({"event_system": event_system})
+                    print(f"✅ 从阶段计划初始化事件系统: {len(self.active_events)}个活跃事件")
+                    return
         
         # 如果没有阶段计划，尝试从全局成长计划中提取
         if "global_growth_plan" in novel_data and novel_data["global_growth_plan"]:
@@ -204,7 +253,8 @@ class EventDrivenManager:
         # 创建基础的事件系统结构
         event_system = {
             "major_events": [],
-            "supporting_events": []
+            "big_events": [],
+            "events": []
         }
         
         # 从阶段框架中提取重大事件
@@ -225,15 +275,25 @@ class EventDrivenManager:
                 ]
             })
         
-        self.update_from_stage_plan(event_system)
+        self.update_from_stage_plan({"event_system": event_system})
 
     def _is_event_completed(self, chapter_number: int, event_data: Dict) -> bool:
-        """检查事件是否完成"""
+        """检查事件是否完成 - 支持新的事件类型"""
         if event_data["status"] != "active":
             return False
         
-        end_chapter = event_data.get("end_chapter", chapter_number)
-        return chapter_number >= end_chapter
+        # 处理不同类型的事件
+        if "end_chapter" in event_data:
+            # 主要事件和大事件
+            end_chapter = event_data.get("end_chapter", chapter_number)
+            return chapter_number >= end_chapter
+        elif "chapter" in event_data:
+            # 普通事件（单章事件）
+            event_chapter = event_data["chapter"]
+            return chapter_number > event_chapter  # 在事件章节之后完成
+        else:
+            # 默认处理
+            return False
 
     def _build_event_context(self, chapter_number: int, event_data: Dict) -> Dict:
         """构建事件上下文"""
@@ -310,13 +370,37 @@ class EventDrivenManager:
 
     def _calculate_event_progress(self, chapter_number: int, event_data: Dict) -> Dict:
         """计算事件进度"""
-        start_chapter = event_data.get("started_chapter", event_data.get("start_chapter", 1))
-        end_chapter = event_data.get("end_chapter", chapter_number)
+        # 处理不同类型的事件
+        if "start_chapter" in event_data and "end_chapter" in event_data:
+            # 主要事件和大事件
+            start_chapter = event_data.get("started_chapter", event_data.get("start_chapter", 1))
+            end_chapter = event_data.get("end_chapter", chapter_number)
+            
+            total_chapters = end_chapter - start_chapter + 1
+            current_progress = chapter_number - start_chapter + 1
+            progress_ratio = current_progress / total_chapters
+        elif "chapter" in event_data:
+            # 普通事件（单章事件）
+            event_chapter = event_data["chapter"]
+            if chapter_number < event_chapter:
+                current_progress = 0
+                total_chapters = 1
+                progress_ratio = 0
+            elif chapter_number == event_chapter:
+                current_progress = 1
+                total_chapters = 1
+                progress_ratio = 1
+            else:
+                current_progress = 1
+                total_chapters = 1
+                progress_ratio = 1
+        else:
+            # 默认处理
+            current_progress = 1
+            total_chapters = 1
+            progress_ratio = 1
         
-        total_chapters = end_chapter - start_chapter + 1
-        current_progress = chapter_number - start_chapter + 1
-        progress_ratio = current_progress / total_chapters
-        
+        # 确定阶段
         if progress_ratio <= 0.3:
             stage = "开局阶段"
         elif progress_ratio <= 0.6:
