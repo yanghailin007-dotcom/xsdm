@@ -568,7 +568,7 @@ class ContentGenerator:
             try:
                 ending = method(content)
                 if ending and len(ending.strip()) > 50:
-                    print(f"  ✅ 使用方法 '{method.__name__}' 成功提取结尾: {ending[:100]}...")
+                    print(f"  ✅ 成功提取结尾: {ending[:120]}...")
                     return ending
             except Exception as e:
                 print(f"  ⚠️  方法 '{method.__name__}' 提取失败: {e}")
