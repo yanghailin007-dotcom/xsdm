@@ -677,14 +677,6 @@ class QualityAssessor:
 原始角色设计内容:
 {params.get('original_content', '')}
 
-优化要求:
-1. 保持核心角色设定不变
-2. 重点解决评估中发现的问题
-3. 提升角色的立体性和真实感
-4. 优化角色动机和成长设计
-5. 加强角色关系和互动设计
-
-请返回优化后的完整角色设计内容。
 """
 
     def calculate_quality_statistics(self, quality_records: Dict) -> Dict:

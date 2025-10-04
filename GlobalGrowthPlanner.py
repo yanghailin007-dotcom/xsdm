@@ -99,18 +99,96 @@ class GlobalGrowthPlanner:
         novel_data = self.generator.novel_data
         total_chapters = novel_data["current_progress"]["total_chapters"]
         
-        # 从config获取提示词
-        prompt_template = self.Prompts["prompts"]["stage_content_planning"]
-        
-        user_prompt = prompt_template.format(
-            stage_name=stage_name,
-            chapter_range=chapter_range,
-            total_chapters=total_chapters,
-            novel_title=novel_data["novel_title"],
-            novel_synopsis=novel_data["novel_synopsis"],
-            worldview_overview=json.dumps(novel_data.get("core_worldview", {}), ensure_ascii=False),
-            stage_characteristics=self._get_stage_characteristics_text(stage_name)
-        )
+        # 直接构建 user_prompt，避免使用 format()
+        user_prompt = f"""
+    你是一位资深的网络小说策划编辑。请根据以下信息为{stage_name}阶段（章节范围：{chapter_range}）制定详细的内容规划。
+
+    **小说基本信息**：
+    - 小说标题：{novel_data["novel_title"]}
+    - 小说简介：{novel_data["novel_synopsis"]}
+    - 总章节数：{total_chapters}
+
+    **阶段信息**：
+    - 阶段名称：{stage_name}
+    - 章节范围：{chapter_range}
+    - 阶段特性：{self._get_stage_characteristics_text(stage_name)}
+
+    **世界观概述**：
+    {json.dumps(novel_data.get("core_worldview", {}), ensure_ascii=False)}
+
+    **规划要求**：
+    请制定包含以下方面的详细内容规划：
+
+    ## 1. 人物成长计划
+    - 主角性格发展轨迹
+    - 能力进阶路径
+    - 关键成长节点
+    - 配角发展重点
+
+    ## 2. 势力发展计划
+    - 势力格局变化
+    - 新势力引入
+    - 冲突升级路径
+    - 世界背景扩展
+
+    ## 3. 能力装备计划
+    - 新技能获得
+    - 装备升级路线
+    - 能力突破点
+    - 系统规则揭示
+
+    ## 4. 情感发展计划
+    - 主要情感线发展
+    - 情感冲突设计
+    - 关系变化节点
+
+    ## 5. 关键里程碑
+    - 阶段重要事件
+    - 转折点设计
+    - 伏笔设置与回收
+
+    **输出格式要求**：
+    请以JSON格式输出，包含以下结构：
+    {{
+        "stage_name": "{stage_name}",
+        "chapter_range": "{chapter_range}",
+        "character_growth_plan": {{
+            "protagonist_development": {{
+                "personality_evolution": "主角性格发展",
+                "ability_advancement": ["能力1", "能力2"],
+                "key_growth_moments": [
+                    {{
+                        "moment": "成长节点描述",
+                        "impact": "影响说明"
+                    }}
+                ]
+            }}
+        }},
+        "faction_development_plan": {{
+            "power_structure_changes": {{
+                "rising_powers": ["新势力1"],
+                "new_alliances": ["新联盟"]
+            }}
+        }},
+        "ability_equipment_plan": {{
+            "skill_progression": {{
+                "new_skills": ["新技能"],
+                "skill_upgrades": ["技能升级"]
+            }}
+        }},
+        "emotional_development_plan": {{
+            "main_emotional_arc": "主要情感发展线"
+        }},
+        "key_milestones": [
+            {{
+                "milestone": "里程碑事件",
+                "significance": "重要性说明"
+            }}
+        ]
+    }}
+
+    请确保规划具体、可行，符合该阶段的特点和发展需求。
+    """
         
         # 生成内容规划
         content_plan = self.generator.api_client.generate_content_with_retry(

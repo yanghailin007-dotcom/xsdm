@@ -445,65 +445,7 @@ Prompts = {
 }
 请确保规划具体、可执行，并与前后阶段自然衔接。
 """,
-        "stage_writing_planning": """你是一位资深的网络小说剧情架构师。请基于内容规划和伏笔计划，为小说的特定阶段制定详细的写作计划。...""",
-        "overall_stage_plan": """你是一位顶级网络小说策划编辑。请根据创意种子和市场分析，制定全书的阶段计划。
-
-# 输出格式
-{
-    "overall_stage_plan": {
-        "opening_stage": {
-            "chapter_range": "第1章-第{opening_end}章",
-            "core_tasks": ["任务1", "任务2", "任务3"],
-            "key_content": ["内容重点1", "内容重点2"],
-            "writing_focus": "开局阶段详细写作重点描述"
-        },
-        "development_stage": {
-            "chapter_range": "第{development_start}章-第{development_end}章",
-            "core_tasks": ["任务1", "任务2", "任务3"],
-            "key_content": ["内容重点1", "内容重点2"],
-            "writing_focus": "发展阶段详细写作重点描述"
-        },
-        "climax_stage": {
-            "chapter_range": "第{climax_start}章-第{climax_end}章", 
-            "core_tasks": ["任务1", "任务2", "任务3"],
-            "key_content": ["内容重点1", "内容重点2"],
-            "writing_focus": "高潮阶段详细写作重点描述"
-        },
-        "ending_stage": {
-            "chapter_range": "第{ending_start}章-第{ending_end}章",
-            "core_tasks": ["任务1", "任务2", "任务3"],
-            "key_content": ["内容重点1", "内容重点2"],
-            "writing_focus": "收尾阶段详细写作重点描述"
-        },
-        "final_stage": {
-            "chapter_range": "第{final_start}章-第{total_chapters}章",
-            "core_tasks": ["任务1", "任务2", "任务3"],
-            "key_content": ["内容重点1", "内容重点2"],
-            "writing_focus": "结局阶段详细写作重点描述"
-        }
-    },
-    "stage_transitions": {
-        "opening_to_development": "从开局到发展的过渡重点",
-        "development_to_climax": "从发展到高潮的过渡重点", 
-        "climax_to_ending": "从高潮到收尾的过渡重点",
-        "ending_to_final": "从收尾到结局的过渡重点"
-    }
-}""",
-        "stage_writing_plan": """你是一位资深的网络小说策划编辑。请根据全书阶段计划和当前章节位置，制定当前阶段的详细写作计划，包括事件设计。
-
-# 全书阶段计划
-{overall_stage_plan}
-
-# 当前章节信息
-**当前章节**: 第{chapter_number}章
-**所属阶段**: {current_stage}
-**阶段位置**: 当前处于{stage_progress}
-
-# 当前阶段详细要求
-**阶段核心任务**: {stage_core_tasks}
-**阶段重点内容**: {stage_key_content}
-**阶段写作重点**: {stage_writing_focus}
-
+        "stage_writing_planning": """你是一位资深的网络小说剧情架构师。请基于内容规划和伏笔计划，为小说的特定阶段制定详细的写作计划。
 # 制定当前阶段写作计划
 请根据以上信息，制定当前阶段的详细写作计划，特别包含事件体系设计：
 
@@ -623,6 +565,53 @@ Prompts = {
     }},
     "chapter_specific_guidance": "基于当前章节位置的特别指导"
 }}""",
+        "overall_stage_plan": """你是一位顶级网络小说策划编辑。请根据创意种子和市场分析，制定全书的阶段计划。
+
+# 输出格式
+{
+    "overall_stage_plan": {
+        "opening_stage": {
+            "chapter_range": "第1章-第{opening_end}章",
+            "core_tasks": ["任务1", "任务2", "任务3"],
+            "key_content": ["内容重点1", "内容重点2"],
+            "writing_focus": "开局阶段详细写作重点描述"
+        },
+        "development_stage": {
+            "chapter_range": "第{development_start}章-第{development_end}章",
+            "core_tasks": ["任务1", "任务2", "任务3"],
+            "key_content": ["内容重点1", "内容重点2"],
+            "writing_focus": "发展阶段详细写作重点描述"
+        },
+        "climax_stage": {
+            "chapter_range": "第{climax_start}章-第{climax_end}章", 
+            "core_tasks": ["任务1", "任务2", "任务3"],
+            "key_content": ["内容重点1", "内容重点2"],
+            "writing_focus": "高潮阶段详细写作重点描述"
+        },
+        "ending_stage": {
+            "chapter_range": "第{ending_start}章-第{ending_end}章",
+            "core_tasks": ["任务1", "任务2", "任务3"],
+            "key_content": ["内容重点1", "内容重点2"],
+            "writing_focus": "收尾阶段详细写作重点描述"
+        },
+        "final_stage": {
+            "chapter_range": "第{final_start}章-第{total_chapters}章",
+            "core_tasks": ["任务1", "任务2", "任务3"],
+            "key_content": ["内容重点1", "内容重点2"],
+            "writing_focus": "结局阶段详细写作重点描述"
+        }
+    },
+    "stage_transitions": {
+        "opening_to_development": "从开局到发展的过渡重点",
+        "development_to_climax": "从发展到高潮的过渡重点", 
+        "climax_to_ending": "从高潮到收尾的过渡重点",
+        "ending_to_final": "从收尾到结局的过渡重点"
+    }
+}""",
+        "stage_writing_plan": """你是一位资深的网络小说策划编辑。请根据全书阶段计划和当前章节位置，制定当前阶段的详细写作计划，包括事件设计。
+
+请严格按照以下JSON格式输出
+""",
         "chapter_design": """你是一位资深的网络小说策划编辑。请为第{chapter_number}章制定详细的写作设计方案。
 
 # 故事基础设定（必须严格遵循）
@@ -1059,17 +1048,18 @@ Prompts = {
 
         "character_design_optimization": """你是一位角色设计优化专家。请根据以下评估结果优化角色设计。
 
-# 原始内容：
-{original_content}
-
-# 评估结果：
-{assessment_results}
-
-# 优化重点：
-{priority_fixes}
-
 # 优化要求：
-请保持原有结构，针对评估指出的问题进行优化，提升内容质量。
+
+1. 保持核心角色设定不变
+1. 保持核心角色设定不变
+2. 重点解决评估中发现的问题
+3. 提升角色的立体性和真实感
+2. 重点解决评估中发现的问题
+3. 提升角色的立体性和真实感
+4. 优化角色动机和成长设计
+4. 优化角色动机和成长设计
+5. 加强角色关系和互动设计
+
 请输出优化后的完整角色设计，使用相同的JSON格式。"""
     }
 }

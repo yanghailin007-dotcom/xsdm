@@ -104,7 +104,20 @@ class NovelGenerator:
         chapter_number = data.get('chapter_number')
         context = data.get('context')
         print(f"🔍 确保第{chapter_number}章阶段计划")
-        self.ensure_stage_plan_for_chapter(chapter_number)
+        
+        # 修复：直接调用阶段计划管理器，而不是再次触发ensure
+        try:
+            stage_plan = self._get_stage_plan(chapter_number)
+            if not stage_plan:
+                print(f"  ⚠️ 第{chapter_number}章阶段计划为空，尝试生成...")
+                # 调用阶段计划管理器生成计划
+                stage_plan = self.stage_plan_manager.get_stage_plan_for_chapter(chapter_number)
+            
+            print(f"  ✅ 第{chapter_number}章阶段计划处理完成")
+            return stage_plan
+        except Exception as e:
+            print(f"  ❌ 处理第{chapter_number}章阶段计划时出错: {e}")
+            return {}
     
     def _on_error_occurred(self, data):
         """处理错误事件"""
@@ -475,6 +488,16 @@ class NovelGenerator:
         if not self._generate_overall_stage_plan(creative_seed, total_chapters):
             print("⚠️  全书阶段计划生成失败，使用默认阶段划分")
         
+        self.novel_data["current_progress"]["stage"] = "阶段详细计划"
+        if not self._generate_stage_writing_plans(
+            creative_seed=creative_seed,
+            novel_title=self.novel_data["novel_title"],
+            novel_synopsis=self.novel_data["novel_synopsis"],
+            overall_stage_plan=self.novel_data["overall_stage_plan"]  # 传递完整的 overall_stage_plan
+        ):
+            print("❌ 生成阶段详细写作计划失败")
+            return False
+
         # 步骤7: 全局成长规划（人物成长、势力发展、物品升级）
         self.novel_data["current_progress"]["stage"] = "成长规划"
         if not self._generate_global_growth_plan(creative_seed, total_chapters):
@@ -739,7 +762,70 @@ class NovelGenerator:
         
         print("✅ 角色设计完成")
         return True
-
+    
+    def _generate_stage_writing_plans(self, creative_seed: str, novel_title: str, novel_synopsis: str, 
+                                    overall_stage_plan: Dict) -> bool:
+        """为每个阶段生成详细的写作计划 - 修正版本"""
+        print("=== 步骤6: 生成各阶段详细写作计划 ===")
+        
+        if not overall_stage_plan or "overall_stage_plan" not in overall_stage_plan:
+            print("❌ 没有全书阶段计划，无法生成详细写作计划")
+            return False
+        
+        try:
+            # 使用 overall_stage_plan 中的阶段定义
+            overall_plan = overall_stage_plan["overall_stage_plan"]
+            
+            # 为每个阶段生成详细写作计划
+            self.novel_data["stage_writing_plans"] = {}
+            
+            for stage_name, stage_info in overall_plan.items():
+                # 提取章节范围字符串，例如 "第1章-第3章" -> "1-3"
+                chapter_range_str = stage_info["chapter_range"]
+                
+                # 将中文章节范围转换为数字范围
+                import re
+                numbers = re.findall(r'\d+', chapter_range_str)
+                if len(numbers) >= 2:
+                    stage_range = f"{numbers[0]}-{numbers[1]}"
+                else:
+                    # 如果解析失败，使用默认范围
+                    stage_range = "1-3"
+                
+                print(f"  📋 生成 {stage_name} 的详细写作计划...")
+                print(f"  📋 章节范围: {stage_range}")
+                
+                # 调用 StagePlanManager 的方法生成详细计划
+                stage_plan = self.stage_plan_manager.generate_stage_writing_plan(
+                    stage_name=stage_name,
+                    stage_range=stage_range,
+                    creative_seed=creative_seed,
+                    novel_title=novel_title,
+                    novel_synopsis=novel_synopsis,
+                    overall_stage_plan=overall_stage_plan  # 传递完整的 overall_stage_plan
+                )
+                
+                if stage_plan:
+                    self.novel_data["stage_writing_plans"][stage_name] = stage_plan
+                    print(f"    ✅ {stage_name} 详细计划生成成功")
+                else:
+                    print(f"    ❌ {stage_name} 详细计划生成失败")
+            
+            # 检查是否至少有一个阶段的计划生成成功
+            success_count = len(self.novel_data["stage_writing_plans"])
+            if success_count > 0:
+                print(f"✅ 阶段详细计划生成完成: {success_count}/{len(overall_plan)} 个阶段")
+                return True
+            else:
+                print("❌ 所有阶段详细计划生成失败")
+                return False
+                
+        except Exception as e:
+            print(f"❌ 生成阶段详细写作计划时出错: {e}")
+            import traceback
+            traceback.print_exc()
+            return False
+    
     def _generate_overall_stage_plan(self, creative_seed: str, total_chapters: int) -> bool:
         """生成全书阶段计划"""
         print("=== 步骤5: 生成全书阶段计划 ===")
@@ -1055,15 +1141,41 @@ class NovelGenerator:
         print("="*60)
 
     def ensure_stage_plan_for_chapter(self, chapter_number: int):
-        # 新方式：通过事件总线
-        context = self._prepare_generation_context(chapter_number)
-        self.event_bus.publish('stage.plan.ensure', {
-            'chapter_number': chapter_number,
-            'context': context
-        })
+        """确保章节有阶段计划 - 修复循环版本"""
+        # 添加循环检测
+        if hasattr(self, '_ensuring_chapters'):
+            if chapter_number in self._ensuring_chapters:
+                print(f"  ⚠️ 检测到循环调用，跳过第{chapter_number}章阶段计划确保")
+                return self._get_cached_stage_plan(chapter_number)
+        else:
+            self._ensuring_chapters = set()
         
-        # 等待响应或使用回调
-        return self._get_cached_stage_plan(chapter_number)
+        self._ensuring_chapters.add(chapter_number)
+        
+        try:
+            print(f"🔍 确保第{chapter_number}章阶段计划")
+            
+            # 直接获取阶段计划，不通过事件总线
+            stage_plan = self._get_stage_plan(chapter_number)
+            
+            if not stage_plan:
+                print(f"  📋 生成第{chapter_number}章阶段计划...")
+                stage_plan = self.stage_plan_manager.get_stage_plan_for_chapter(chapter_number)
+                
+                # 缓存计划
+                if stage_plan:
+                    self._cache_stage_plan(chapter_number, stage_plan)
+                    print(f"  ✅ 第{chapter_number}章阶段计划生成完成")
+                else:
+                    print(f"  ⚠️ 第{chapter_number}章阶段计划生成失败")
+            
+            return stage_plan
+            
+        finally:
+            # 清理循环检测
+            if chapter_number in self._ensuring_chapters:
+                self._ensuring_chapters.remove(chapter_number)
+
     def _check_and_generate_new_stage_plan(self, chapter_number: int):
         """检查是否需要为当前章节生成新的阶段详细计划 - 协调阶段计划管理器"""
         try:
@@ -1214,7 +1326,7 @@ class NovelGenerator:
         while time.time() - start_time < timeout and user_choice[0] is None:
             time.sleep(0.1)
         
-        return user_choice[0] if user_choice[0] is not None else 
+        return user_choice[0] if user_choice[0] is not None else default_choice
 
     # 简化版本
     def print_generation_summary(self):
@@ -1242,5 +1354,28 @@ class NovelGenerator:
         if quality_scores:
             avg_quality = sum(quality_scores) / len(quality_scores)
             print(f"⭐ 平均质量: {avg_quality:.1f}/10分")
+        
+        print("="*50)
+        
+    def print_foundation_quality_report(self):
+        """打印基础内容质量报告"""
+        print("\n" + "="*50)
+        print("📊 基础内容质量报告")
+        print("="*50)
+        
+        foundation_elements = {
+            "方案设计": self.novel_data.get("selected_plan"),
+            "市场分析": self.novel_data.get("market_analysis"), 
+            "世界观": self.novel_data.get("core_worldview"),
+            "角色设计": self.novel_data.get("character_design"),
+            "全书阶段计划": self.novel_data.get("overall_stage_plan"),
+            "阶段详细计划": self.novel_data.get("stage_writing_plans")
+        }
+        
+        for element_name, element_data in foundation_elements.items():
+            if element_data:
+                print(f"✅ {element_name}: 已完成")
+            else:
+                print(f"❌ {element_name}: 缺失")
         
         print("="*50)        

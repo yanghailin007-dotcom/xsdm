@@ -143,7 +143,7 @@ class StagePlanManager:
         
         total_chapters = 0
         for i, stage in enumerate(self.overall_stage_plan, 1):
-            stage_name = stage.get('name', f'第{i阶段}')
+            stage_name = stage.get('name', f'第{i}阶段')
             start_ch = stage.get('start_chapter', 1)
             end_ch = stage.get('end_chapter', start_ch)
             chapter_count = end_ch - start_ch + 1
@@ -159,46 +159,43 @@ class StagePlanManager:
         print(f"\n📈 总计: {len(self.overall_stage_plan)}个阶段，{total_chapters}章")
         print("=" * 60)
 
-    def generate_stage_writing_plan(self, stage_name: str, content_plan: Dict, 
-                                  foreshadowing_plan: Dict) -> Dict:
-        """生成整合的阶段写作计划"""
+    def generate_stage_writing_plan(self, stage_name: str, stage_range: str, creative_seed: str,
+                                novel_title: str, novel_synopsis: str, overall_stage_plan: Dict) -> Dict:
+        """生成阶段详细写作计划 - 修正参数版本"""
         cache_key = f"{stage_name}_writing_plan"
         
         if cache_key in self.stage_writing_plans_cache:
             return self.stage_writing_plans_cache[cache_key]
         
         print(f"  🎬 生成{stage_name}的写作计划...")
-        
+        print(f"  🎬 生成{stage_range}的写作计划...")
         # 准备基础数据
         novel_data = self.generator.novel_data
         total_chapters = novel_data["current_progress"]["total_chapters"]
         
-        # 获取阶段范围
-        stage_range = self._get_stage_range(stage_name)
-        if not stage_range:
-            stage_range = "1-100"  # 默认范围
-        
         # 计算章节分段
-        start_chap, end_chap = self._parse_chapter_range(stage_range)
+        start_chap, end_chap = parse_chapter_range(stage_range)
         stage_length = end_chap - start_chap + 1
         early_end = start_chap + max(1, stage_length // 3) - 1
         middle_start = early_end + 1
         middle_end = start_chap + (2 * stage_length // 3) - 1
         late_start = middle_end + 1
         
-        user_prompt = self.PROMPTS["stage_writing_planning"].format(
-            stage_name=stage_name,
-            chapter_range=stage_range,
-            total_chapters=total_chapters,
-            novel_title=novel_data["novel_title"],
-            novel_synopsis=novel_data["novel_synopsis"],
-            worldview_overview=json.dumps(novel_data.get("core_worldview", {}), ensure_ascii=False),
-            content_plan=json.dumps(content_plan, ensure_ascii=False, indent=2),
-            foreshadowing_plan=json.dumps(foreshadowing_plan, ensure_ascii=False, indent=2),
-            early_chapters=f"{start_chap}-{early_end}",
-            middle_chapters=f"{middle_start}-{middle_end}",
-            late_chapters=f"{late_start}-{end_chap}"
-        )
+        # 构建用户提示词
+        user_prompt = f"""
+    请为{stage_name}阶段制定详细的写作计划。
+
+    **基本信息**：
+    - 阶段名称：{stage_name}
+    - 章节范围：{stage_range}
+    - 总章节数：{total_chapters}
+    - 小说标题：{novel_title}
+    - 小说简介：{novel_synopsis}
+    - 创意种子：{creative_seed}
+
+    **全书阶段计划**：
+    {json.dumps(overall_stage_plan, ensure_ascii=False, indent=2)}
+    """
         
         # 生成写作计划
         writing_plan = self.generator.api_client.generate_content_with_retry(
@@ -220,7 +217,7 @@ class StagePlanManager:
             return writing_plan
         else:
             print(f"  ⚠️ {stage_name}写作计划生成失败，使用默认计划")
-            return self._create_default_writing_plan(stage_name, content_plan, foreshadowing_plan)
+            return self._create_default_writing_plan(stage_name, stage_range)
 
     def get_chapter_writing_context(self, chapter_number: int) -> Dict:
         """获取指定章节的写作上下文"""

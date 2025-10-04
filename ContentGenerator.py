@@ -170,9 +170,9 @@ class ContentGenerator:
             user_prompt += f"\n主角名字: {self.custom_main_character_name}"
         
         result = self.api_client.generate_content_with_retry("market_analysis", user_prompt, purpose="市场分析")
-        if result:
-            result = self._assess_and_optimize_content(result, "market_analysis", "市场分析")
-            result = self._ensure_main_character_in_content(result, "market_analysis")
+        #if result:
+            #result = self._assess_and_optimize_content(result, "market_analysis", "市场分析")
+            #result = self._ensure_main_character_in_content(result, "market_analysis")
         return result
 
     def generate_writing_plan(self, creative_seed: str, selected_plan: Dict, 
@@ -181,16 +181,16 @@ class ContentGenerator:
         print("=== 步骤3: 制定写作计划 ===")
         
         try:
-            prompt_template = self.prompts["prompts"]["writing_plan"]
+            prompt_template = self.prompts["prompts"]["overall_stage_plan"]
             system_prompt = self.safe_format(prompt_template, total_chapters=total_chapters)
             
-            user_prompt = f"创意种子: {creative_seed}\n选定方案: {json.dumps(selected_plan, ensure_ascii=False)}\n市场分析: {json.dumps(market_analysis, ensure_ascii=False)}"
+            user_prompt = f"创意种子: {creative_seed}\n选定方案: {json.dumps(selected_plan, ensure_ascii=False)}\n"
             if self.custom_main_character_name:
                 user_prompt += f"\n主角名字: {self.custom_main_character_name}"
             
             complete_user_prompt = f"{system_prompt}\n\n{user_prompt}\n\n# 额外要求\n请确保严格遵循上述所有要求，特别是JSON格式输出。"
             
-            result = self.api_client.generate_content_with_retry("writing_plan", complete_user_prompt, purpose="制定写作计划")
+            result = self.api_client.generate_content_with_retry("overall_stage_plan", complete_user_prompt, purpose="制定写作计划")
             if result:
                 result = self._assess_and_optimize_content(result, "writing_plan", "写作计划")
                 result = self._ensure_main_character_in_content(result, "writing_plan")
@@ -283,8 +283,7 @@ class ContentGenerator:
         
         context = f"""小说标题: {novel_title}
             核心世界观: {json.dumps(core_worldview, ensure_ascii=False)}
-            选定方案: {json.dumps(selected_plan, ensure_ascii=False)}
-            市场分析: {json.dumps(market_analysis, ensure_ascii=False)}"""
+            选定方案: {json.dumps(selected_plan, ensure_ascii=False)}"""
         
         if main_character_name:
             context += f"\n\n【强制要求】主角的名字必须是: {main_character_name}"
