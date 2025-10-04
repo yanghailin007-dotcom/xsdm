@@ -332,6 +332,8 @@ class NovelGenerator:
             
             # 初始化阶段计划管理器
             self._initialize_stage_plan_manager()
+
+            self._initialize_systems()
             
             print(f"✅ 项目数据加载完成: {self.novel_title}")
             print(f"🔍 最终验证 - novel_data状态:")

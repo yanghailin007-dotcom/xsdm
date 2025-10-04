@@ -948,24 +948,51 @@ class ContentGenerator:
         return params
 
     def _get_event_guidance_from_context(self, event_context: Dict) -> str:
-        """从事件上下文中生成指导"""
+        """从事件上下文中生成指导 - 添加错误处理"""
+        print(f"🔍 [_get_event_guidance_from_context] 开始生成事件指导")
+        print(f"   - 输入event_context类型: {type(event_context)}")
+        print(f"   - 输入event_context键: {list(event_context.keys()) if event_context else 'None'}")
+        
         if not event_context or not event_context.get("active_events"):
+            print("   - 无活跃事件，返回默认指导")
             return "# 🎯 事件执行指导\n\n本章暂无特定事件执行任务。"
         
-        guidance_parts = ["# 🎯 事件执行指导", "## 活跃事件"]
-        
-        for event in event_context.get("active_events", []):
-            guidance_parts.extend([
-                f"### {event.get('name', '未知事件')}",
-                f"**目标**: {event.get('main_goal', '')}",
-                f"**当前重点**: {event.get('current_stage_focus', '')}",
-                f"**关键时刻**:"
-            ])
+        try:
+            guidance_parts = ["# 🎯 事件执行指导", "## 活跃事件"]
             
-            for moment in event.get('key_moments', []):
-                guidance_parts.append(f"- {moment.get('description', '')}")
-        
-        return "\n".join(guidance_parts)
+            for event in event_context.get("active_events", []):
+                print(f"   - 处理事件: {event.get('name')}")
+                
+                # 添加错误处理，确保关键字段存在
+                event_name = event.get("name", "未知事件")
+                main_goal = event.get("main_goal", "推进事件发展")
+                current_stage_focus = event.get("current_stage_focus", "按计划推进")
+                
+                guidance_parts.extend([
+                    f"### {event_name}",
+                    f"**目标**: {main_goal}",
+                    f"**当前重点**: {current_stage_focus}",
+                    f"**关键时刻**:"
+                ])
+                
+                # 处理关键时刻
+                key_moments = event.get('key_moments', [])
+                for moment in key_moments:
+                    if isinstance(moment, dict):
+                        description = moment.get('description', '')
+                        guidance_parts.append(f"- {description}")
+                    else:
+                        guidance_parts.append(f"- {moment}")
+            
+            result = "\n".join(guidance_parts)
+            print(f"✅ [_get_event_guidance_from_context] 事件指导生成成功，长度: {len(result)}")
+            return result
+            
+        except Exception as e:
+            print(f"❌ [_get_event_guidance_from_context] 生成事件指导时出错: {e}")
+            import traceback
+            traceback.print_exc()
+            return "# 🎯 事件执行指导\n\n事件指导生成失败，请按常规情节推进。"
 
     def _get_foreshadowing_guidance_from_context(self, foreshadowing_context: Dict, chapter_number: int) -> str:
         """从伏笔上下文中生成指导"""
