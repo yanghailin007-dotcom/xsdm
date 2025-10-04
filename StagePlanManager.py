@@ -213,7 +213,7 @@ class StagePlanManager:
             self.generator.novel_data["stage_writing_plans"][stage_name] = writing_plan
             
             print(f"  ✅ {stage_name}写作计划生成完成")
-            self._print_writing_plan_summary(stage_name, writing_plan)
+            self._print_writing_plan_summary(writing_plan)
             return writing_plan
         else:
             print(f"  ⚠️ {stage_name}写作计划生成失败，使用默认计划")
@@ -475,26 +475,67 @@ class StagePlanManager:
         
         return character_advice
 
-    def _print_writing_plan_summary(self, stage_name: str, writing_plan: Dict):
-        """打印写作计划摘要"""
+    def _print_writing_plan_summary(self, writing_plan: Dict):
+        """打印写作计划摘要 - 添加详细调试信息"""
+        print(f"  🔍 开始打印写作计划摘要...")
+        print(f"  🔍 传入的writing_plan类型: {type(writing_plan)}")
+        print(f"  🔍 传入的writing_plan键: {list(writing_plan.keys()) if writing_plan else 'None'}")
+        
+        # 检查是否有嵌套结构
+        if "stage_writing_plan" in writing_plan:
+            print(f"  🔍 检测到嵌套结构 stage_writing_plan")
+            actual_plan = writing_plan["stage_writing_plan"]
+            print(f"  🔍 stage_writing_plan类型: {type(actual_plan)}")
+            print(f"  🔍 stage_writing_plan键: {list(actual_plan.keys()) if actual_plan else 'None'}")
+        else:
+            print(f"  🔍 没有嵌套结构，直接使用writing_plan")
+            actual_plan = writing_plan
+        
+        # 获取阶段名称
+        stage_name = actual_plan.get("stage_name", "未知阶段")
         print(f"    🎬 {stage_name}写作计划摘要:")
         
-        # 事件系统统计
-        event_system = writing_plan.get("event_system", {})
+        # 事件系统统计 - 从正确的层级获取
+        event_system = actual_plan.get("event_system", {})
+        print(f"  🔍 event_system类型: {type(event_system)}")
+        print(f"  🔍 event_system键: {list(event_system.keys()) if event_system else 'None'}")
+        
         major_events = event_system.get("major_events", [])
         big_events = event_system.get("big_events", [])
         normal_events = event_system.get("events", [])
+        
+        print(f"  🔍 major_events: {len(major_events)}个, 类型: {type(major_events)}")
+        print(f"  🔍 big_events: {len(big_events)}个, 类型: {type(big_events)}")
+        print(f"  🔍 events: {len(normal_events)}个, 类型: {type(normal_events)}")
         
         print(f"      重大事件: {len(major_events)}个")
         print(f"      大事件: {len(big_events)}个") 
         print(f"      普通事件: {len(normal_events)}个")
         
-        # 打印事件详情
-        for event in major_events:
-            print(f"        🎯 {event['name']}: 第{event.get('start_chapter', '?')}-{event.get('end_chapter', '?')}章")
+        # 打印事件详情 - 添加更多调试信息
+        if major_events:
+            print(f"  🔍 major_events内容:")
+            for i, event in enumerate(major_events):
+                print(f"    📌 事件{i+1}: {event}")
+                print(f"        🎯 {event.get('name', '无名事件')}: 第{event.get('start_chapter', '?')}-{event.get('end_chapter', '?')}章")
+        else:
+            print(f"  ⚠️ major_events为空列表")
         
-        for event in big_events:
-            print(f"        🔥 {event['name']}: 第{event.get('start_chapter', '?')}-{event.get('end_chapter', '?')}章")
+        if big_events:
+            print(f"  🔍 big_events内容:")
+            for i, event in enumerate(big_events):
+                print(f"    📌 事件{i+1}: {event}")
+                print(f"        🔥 {event.get('name', '无名事件')}: 第{event.get('start_chapter', '?')}-{event.get('end_chapter', '?')}章")
+        else:
+            print(f"  ⚠️ big_events为空列表")
+        
+        if normal_events:
+            print(f"  🔍 events内容:")
+            for i, event in enumerate(normal_events):
+                print(f"    📌 事件{i+1}: {event}")
+                print(f"        📝 {event.get('name', '无名事件')}: 第{event.get('chapter', '?')}章")
+        else:
+            print(f"  ⚠️ events为空列表")
 
     def _create_default_writing_plan(self, stage_name: str, content_plan: Dict, 
                                    foreshadowing_plan: Dict) -> Dict:
