@@ -5,6 +5,7 @@ import re
 from typing import Dict, Optional, List, Tuple
 
 import APIClient
+from Contexts import GenerationContext
 from prompts import Prompts
 
 class ContentGenerator:
@@ -156,10 +157,6 @@ class ContentGenerator:
             "都市修真": "张凡"
         }
         return default_names.get(category, "林风")
-
-    def generate_chapter(self, chapter_number: int, novel_data: Dict) -> Optional[Dict]:
-        """生成章节内容（兼容性方法）"""
-        return self.generate_chapter_content_for_novel(chapter_number, novel_data)
 
     def generate_market_analysis(self, creative_seed: str, selected_plan: Dict) -> Optional[Dict]:
         """生成市场分析"""
@@ -356,10 +353,19 @@ class ContentGenerator:
             print(f"  ⚠️  质量检查过程中出错: {e}")
             return content
 
-    def generate_chapter_content_for_novel(self, chapter_number: int, novel_data: Dict) -> Optional[Dict]:
+    def generate_chapter_content_for_novel(self, chapter_number: int, novel_data: Dict, context: GenerationContext = None) -> Optional[Dict]:
         """为小说生成章节内容 - 整合参数准备和内容生成"""
         print(f"生成第{chapter_number}章内容...")
+
+        # 存储上下文供后续使用
+        novel_data['_current_generation_context'] = context
         
+        # 记录上下文信息
+        print(f"  📊 上下文信息:")
+        print(f"    - 事件上下文: {len(context.event_context)} 项")
+        print(f"    - 伏笔上下文: {len(context.foreshadowing_context)} 项") 
+        print(f"    - 成长上下文: {len(context.growth_context)} 项")  
+
         # 准备章节参数
         chapter_params = self._prepare_chapter_params(chapter_number, novel_data)
         
@@ -871,28 +877,35 @@ class ContentGenerator:
             return None
 
     def _prepare_chapter_params(self, chapter_number: int, novel_data: Dict) -> Dict:
-        """准备章节参数 - 修复版本，包含实际的事件和伏笔指导"""
+        """准备章节参数 - 增强版本，使用上下文"""
         print(f"  🔍 准备第{chapter_number}章参数...")
-
-        total_chapters = novel_data["current_progress"]["total_chapters"]
-        print(f"  🔍 total_chapters={total_chapters}章参数...")
         
-        # 获取情节方向
+        # 获取上下文
+        context = novel_data.get('_current_generation_context')
+        
+        if context:
+            print(f"  ✅ 使用上下文信息准备参数")
+            # 使用上下文中的详细信息
+            event_context = context.event_context
+            foreshadowing_context = context.foreshadowing_context  
+            growth_context = context.growth_context
+            
+            # 获取事件指导（优先使用上下文中的信息）
+            event_guidance = self._get_event_guidance_from_context(event_context, chapter_number)
+            foreshadowing_guidance = self._get_foreshadowing_guidance_from_context(foreshadowing_context, chapter_number)
+        else:
+            print(f"  ⚠️ 无上下文，使用传统方式获取指导")
+            # 回退到传统方式
+            event_guidance = self._get_event_driven_guidance(chapter_number, novel_data)
+            foreshadowing_guidance = self._get_foreshadowing_guidance(chapter_number, novel_data)
+            event_context = {}
+            foreshadowing_context = {}
+            growth_context = {}
+        
+        # 准备基础参数
+        total_chapters = novel_data["current_progress"]["total_chapters"]
         plot_direction = self._get_plot_direction_for_chapter(chapter_number, total_chapters)
         
-        # 获取前情提要
-        previous_summary = self._generate_previous_chapters_summary(chapter_number, novel_data)
-        
-        # 获取阶段写作计划
-        stage_writing_plan = {}
-        if hasattr(self.novel_generator, 'ensure_stage_plan_for_chapter'):
-            stage_writing_plan = self.novel_generator.ensure_stage_plan_for_chapter(chapter_number) or {}
-        
-        # 获取实际的事件驱动指导和伏笔铺垫指导
-        event_driven_guidance = self._get_event_driven_guidance(chapter_number, novel_data)
-        foreshadowing_guidance = self._get_foreshadowing_guidance(chapter_number, novel_data)
-        
-        # 基础参数 - 使用正确的参数名
         params = {
             "chapter_number": chapter_number,
             "total_chapters": total_chapters,
@@ -900,72 +913,115 @@ class ContentGenerator:
             "novel_synopsis": novel_data["novel_synopsis"],
             "worldview_info": json.dumps(novel_data["core_worldview"], ensure_ascii=False) if novel_data["core_worldview"] else "{}",
             "character_info": json.dumps(novel_data["character_design"], ensure_ascii=False) if novel_data["character_design"] else "{}",
-            "stage_writing_plan": json.dumps(stage_writing_plan, ensure_ascii=False),  # 使用正确的参数名
-            "stage_writing_plans": json.dumps(novel_data.get("stage_writing_plans", {}), ensure_ascii=False),
-            "previous_chapters_summary": previous_summary,
+            "stage_writing_plan": json.dumps(novel_data.get("stage_writing_plans", {}), ensure_ascii=False),
+            "previous_chapters_summary": self._generate_previous_chapters_summary(chapter_number, novel_data),
             "main_plot_progress": plot_direction["plot_direction"],
             "plot_direction": plot_direction["plot_direction"],
             "chapter_connection_note": self._get_chapter_connection_note(chapter_number),
             "character_development_focus": plot_direction.get("character_development_focus", ""),
             "main_character_instruction": self._get_main_character_instruction(novel_data),
-            "event_driven_guidance": event_driven_guidance,  # 使用实际的事件指导
-            "foreshadowing_guidance": foreshadowing_guidance  # 使用实际的伏笔指导
+            "event_driven_guidance": event_guidance,
+            "foreshadowing_guidance": foreshadowing_guidance,
+            # 新增：上下文详细信息
+            "event_context": json.dumps(event_context, ensure_ascii=False),
+            "foreshadowing_context": json.dumps(foreshadowing_context, ensure_ascii=False),
+            "growth_context": json.dumps(growth_context, ensure_ascii=False),
+            "event_tasks": self._format_event_tasks(event_context),
+            "foreshadowing_elements": self._format_foreshadowing_elements(foreshadowing_context),
+            "character_growth_focus": self._get_growth_focus(growth_context, "character"),
+            "ability_development_focus": self._get_growth_focus(growth_context, "ability"),
+            "faction_development_focus": self._get_growth_focus(growth_context, "faction")
         }
         
         print(f"  ✅ 第{chapter_number}章参数准备完成")
-        print(f"    - 事件指导长度: {len(event_driven_guidance)} 字符")
-        print(f"    - 伏笔指导长度: {len(foreshadowing_guidance)} 字符")
+        print(f"    - 事件任务: {len(params['event_tasks'].splitlines())} 项")
+        print(f"    - 伏笔元素: {len(params['foreshadowing_elements'].splitlines())} 项")
+        
         return params
 
-    def _get_event_driven_guidance(self, chapter_number: int, novel_data: Dict) -> str:
-        """获取实际的事件驱动指导"""
-        try:
-            # 首先尝试从novel_data的临时字段获取
-            temp_guidance = novel_data.get('_current_chapter_guidance', {})
-            if temp_guidance and 'event_guidance' in temp_guidance:
-                guidance = temp_guidance['event_guidance']
-                if guidance and guidance != "# 🎯 事件执行指导\n\n本章暂无特定事件执行任务。":
-                    print(f"  ✅ 从临时字段获取到实际事件指导")
-                    return guidance
-            
-            # 其次尝试通过事件管理器获取
-            if hasattr(self.novel_generator, 'event_driven_manager'):
-                event_manager = self.novel_generator.event_driven_manager
-                if hasattr(event_manager, 'generate_event_execution_prompt'):
-                    guidance = event_manager.generate_event_execution_prompt(chapter_number)
-                    if guidance and guidance != "# 🎯 事件执行指导\n\n本章暂无特定事件执行任务。":
-                        print(f"  ✅ 通过事件管理器获取到实际事件指导")
-                        return guidance
-        except Exception as e:
-            print(f"  ⚠️ 获取事件指导失败: {e}")
+    def _get_event_guidance_from_context(self, event_context: Dict, chapter_number: int) -> str:
+        """从事件上下文中生成指导"""
+        if not event_context or not event_context.get("active_events"):
+            return "# 🎯 事件执行指导\n\n本章暂无特定事件执行任务。"
         
-        # 返回默认指导
-        return "# 🎯 事件驱动写作指导\n\n本章为普通主线推进章节。"
+        guidance_parts = ["# 🎯 事件执行指导", "## 活跃事件"]
+        
+        for event in event_context.get("active_events", []):
+            guidance_parts.extend([
+                f"### {event.get('name', '未知事件')}",
+                f"**目标**: {event.get('main_goal', '')}",
+                f"**当前重点**: {event.get('current_stage_focus', '')}",
+                f"**关键时刻**:"
+            ])
+            
+            for moment in event.get('key_moments', []):
+                guidance_parts.append(f"- {moment.get('description', '')}")
+        
+        return "\n".join(guidance_parts)
 
-    def _get_foreshadowing_guidance(self, chapter_number: int, novel_data: Dict) -> str:
-        """获取实际的伏笔铺垫指导"""
-        try:
-            # 首先尝试从novel_data的临时字段获取
-            temp_guidance = novel_data.get('_current_chapter_guidance', {})
-            if temp_guidance and 'foreshadowing_guidance' in temp_guidance:
-                guidance = temp_guidance['foreshadowing_guidance']
-                if guidance and guidance != "# 🎭 伏笔铺垫指导\n\n本章暂无特定的伏笔任务。":
-                    print(f"  ✅ 从临时字段获取到实际伏笔指导")
-                    return guidance
-            
-            # 其次尝试通过伏笔管理器获取
-            if hasattr(self.novel_generator, 'foreshadowing_manager'):
-                foreshadowing_manager = self.novel_generator.foreshadowing_manager
-                if hasattr(foreshadowing_manager, 'generate_foreshadowing_prompt'):
-                    guidance = foreshadowing_manager.generate_foreshadowing_prompt(chapter_number)
-                    if guidance and guidance != "# 🎭 伏笔铺垫指导\n\n本章暂无特定的伏笔任务。":
-                        print(f"  ✅ 通过伏笔管理器获取到实际伏笔指导")
-                        return guidance
-        except Exception as e:
-            print(f"  ⚠️ 获取伏笔指导失败: {e}")
+    def _get_foreshadowing_guidance_from_context(self, foreshadowing_context: Dict, chapter_number: int) -> str:
+        """从伏笔上下文中生成指导"""
+        if not foreshadowing_context:
+            return "# 🎭 伏笔铺垫指导\n\n本章暂无特定的伏笔任务。"
         
-        # 返回默认指导
-        return "# 🎭 重要元素铺垫指导\n\n暂无需要铺垫的重要元素。"
+        guidance_parts = ["# 🎭 伏笔铺垫指导", f"## {foreshadowing_context.get('foreshadowing_focus', '本章伏笔重点')}"]
+        
+        elements_to_introduce = foreshadowing_context.get("elements_to_introduce", [])
+        if elements_to_introduce:
+            guidance_parts.append("## 需要引入的元素:")
+            for element in elements_to_introduce:
+                guidance_parts.append(f"- **{element.get('name', '')}** ({element.get('type', '')}): {element.get('purpose', '')}")
+        
+        elements_to_develop = foreshadowing_context.get("elements_to_develop", [])
+        if elements_to_develop:
+            guidance_parts.append("## 需要发展的元素:")
+            for element in elements_to_develop:
+                guidance_parts.append(f"- **{element.get('name', '')}** ({element.get('type', '')}): {element.get('development_arc', '')}")
+        
+        return "\n".join(guidance_parts)
+
+    def _format_event_tasks(self, event_context: Dict) -> str:
+        """格式化事件任务"""
+        tasks = event_context.get("event_tasks", [])
+        if not tasks:
+            return "本章无特定事件任务，按主线推进即可。"
+        
+        task_lines = []
+        for task in tasks:
+            priority_icon = {"high": "🔴", "critical": "🟠", "medium": "🟡", "low": "🟢"}.get(task.get("priority", "medium"), "⚪")
+            task_lines.append(f"{priority_icon} {task.get('description', '')}")
+        
+        return "\n".join(task_lines)
+
+    def _format_foreshadowing_elements(self, foreshadowing_context: Dict) -> str:
+        """格式化伏笔元素"""
+        elements = []
+        
+        # 处理要引入的元素
+        for element in foreshadowing_context.get("elements_to_introduce", []):
+            elements.append(f"✨ 引入{element.get('type', '元素')}「{element.get('name', '')}」: {element.get('purpose', '')}")
+        
+        # 处理要发展的元素
+        for element in foreshadowing_context.get("elements_to_develop", []):
+            elements.append(f"📈 发展{element.get('type', '元素')}「{element.get('name', '')}」: {element.get('development_arc', '')}")
+        
+        return "\n".join(elements) if elements else "本章无特定伏笔任务，保持故事连贯性即可。"
+
+    def _get_growth_focus(self, growth_context: Dict, focus_type: str) -> str:
+        """获取成长规划重点"""
+        if not growth_context:
+            return ""
+        
+        chapter_specific = growth_context.get("chapter_specific", {})
+        content_focus = chapter_specific.get("content_focus", {})
+        
+        focus_map = {
+            "character": content_focus.get("character_growth", ""),
+            "ability": content_focus.get("ability_advancement", ""), 
+            "faction": content_focus.get("faction_development", "")
+        }
+        
+        return focus_map.get(focus_type, "")
 
     def generate_chapter_content_from_design(self, chapter_params: Dict, chapter_design: Dict) -> Optional[Dict]:
         """根据设计方案生成章节内容 - 修复版本"""

@@ -1005,7 +1005,7 @@ class NovelGenerator:
                 
                 # 3. 委托给ContentGenerator生成内容
                 print(f"🔄 调用ContentGenerator生成第{chapter_num}章内容...")
-                chapter_result = self.content_generator.generate_chapter(chapter_num, self.novel_data)
+                chapter_result = self.content_generator.generate_chapter_content_for_novel(chapter_num, self.novel_data, context)
                 
                 if not chapter_result:
                     print(f"❌ 第{chapter_num}章内容生成失败")
