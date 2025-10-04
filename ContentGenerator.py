@@ -897,7 +897,8 @@ class ContentGenerator:
             # 获取事件指导（优先使用上下文中的信息）
             event_guidance = self._get_event_guidance_from_context(event_context)
             foreshadowing_guidance = self._get_foreshadowing_guidance_from_context(foreshadowing_context, chapter_number)
-
+            print(f"    - 事件指导: \n{event_guidance} ") 
+            print(f"    - 伏笔指导: \n{foreshadowing_guidance} ") 
             # 从上下文中获取阶段计划
             stage_writing_plan = context.stage_plan if hasattr(context, 'stage_plan') else {}
         else:
@@ -949,7 +950,6 @@ class ContentGenerator:
 
     def _get_event_guidance_from_context(self, event_context: Dict) -> str:
         """从事件上下文中生成指导 - 添加错误处理"""
-        print(f"🔍 [_get_event_guidance_from_context] 开始生成事件指导")
         print(f"   - 输入event_context类型: {type(event_context)}")
         print(f"   - 输入event_context键: {list(event_context.keys()) if event_context else 'None'}")
         

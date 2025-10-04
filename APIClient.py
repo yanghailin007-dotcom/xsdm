@@ -86,8 +86,8 @@ class APIClient:
                 print(f"  调用{api_type.upper()} API (第{attempt+1}次) - 目的: {purpose} (超时: {timeout}秒)...")
                 
                 # 打印请求摘要（不包含完整内容避免过长）
-                print(f"  \n请求摘要user_prompt:\n {user_prompt}")
-                print(f"  \n请求摘要system_prompt:\n {system_prompt}")
+                #print(f"  \n请求摘要user_prompt:\n {user_prompt}")
+                #print(f"  \n请求摘要system_prompt:\n {system_prompt}")
                 
                 
                 response = requests.post(api_url, headers=headers, json=payload, timeout=timeout)

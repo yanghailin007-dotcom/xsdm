@@ -19,7 +19,6 @@ def main():
     print("="*50)
     print("特点: 优化生成速度，智能跳过优化，缓存机制")
     print("功能: 全自动小说生成，质量评估，AI痕迹检测")
-    print("架构: APIClient, ContentGenerator, QualityAssessor, ProjectManager")
     print("="*50)
     
     try:

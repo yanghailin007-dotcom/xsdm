@@ -311,7 +311,9 @@ class NovelGenerator:
                 "stage": "大纲阶段",
                 "current_stage": "第一阶段"
             })
-            
+
+            self.ensure_stage_plan_for_chapter(len(self.novel_data["generated_chapters"]) + 1)
+
             # 如果进度信息为空但实际有章节，自动修复
             if (self.current_progress["total_chapters"] == 0 and 
                 "generated_chapters" in self.novel_data and 
@@ -889,8 +891,6 @@ class NovelGenerator:
             self.initialize_foreshadowing_elements()
             print("✅ 伏笔管理系统初始化完成")
         
-        # 生成第一阶段详细计划
-        self.ensure_stage_plan_for_chapter(1)
         print("✅ 第一阶段详细写作计划已生成")
 
     def _initialize_project(self):
@@ -1260,6 +1260,7 @@ class NovelGenerator:
             return None
         
         # 检查阶段是否发生变化
+        self.current_progress['current_stage'] = stage_name
         current_stage = getattr(self, '_current_stage', None)
         if current_stage != stage_name:
             print(f"🔄 检测到阶段变化: {current_stage} -> {stage_name}")
