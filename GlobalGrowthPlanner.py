@@ -349,10 +349,24 @@ class GlobalGrowthPlanner:
                 "faction_development": self._get_faction_focus_for_phase(phase, content_plan),
                 "ability_advancement": self._get_ability_focus_for_phase(phase, content_plan),
                 "emotional_development": self._get_emotional_focus_for_phase(phase, content_plan)
+
             },
             "key_milestones_nearby": self._get_nearby_milestones(chapter, content_plan),
             "integration_guidance": f"本阶段{phase}，重点{focus}，应自然衔接前后内容"
         }
+
+    def _get_emotional_focus_for_phase(self, phase: str, content_plan: Dict) -> str:
+        """根据阶段进度获取情感发展重点"""
+        plan = content_plan.get("emotional_development_plan", {})
+        main_arc = plan.get("main_emotional_arc", "")
+        conflicts = plan.get("emotional_conflicts", [])
+
+        if phase == "阶段初期":
+            return f"情感线建立：{main_arc.split('。')[0] if main_arc else '关系发展'}"
+        elif phase == "阶段中期":
+            return f"情感深化：{conflicts[0] if conflicts else '情感冲突'}"
+        else:
+            return f"情感转折：{main_arc.split('。')[-1] if main_arc else '关系变化'}"
 
     def _get_character_focus_for_phase(self, phase: str, content_plan: Dict) -> str:
         """根据阶段进度获取人物成长重点"""
