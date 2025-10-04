@@ -273,18 +273,3 @@ class APIClient:
                 temperature: float = None, purpose: str = "未知") -> Optional[str]:
         """通用API调用函数"""
         return self.optimized_call_api(api_type, system_prompt, user_prompt, temperature, purpose)
-    
-    def print_performance_stats(self):
-        """打印API性能统计"""
-        if not self.request_times:
-            return
-        
-        print("\n📊 API调用性能统计:")
-        purposes = set([p[0] for p in self.request_times])
-        
-        for purpose in purposes:
-            times = [t[1] for p, t in self.request_times if p == purpose]
-            avg_time = sum(times) / len(times)
-            max_time = max(times)
-            min_time = min(times)
-            print(f"  {purpose}: 平均{avg_time:.1f}秒 (最小{min_time:.1f}秒, 最大{max_time:.1f}秒)")

@@ -1406,18 +1406,6 @@ class NovelGenerator:
         
         print("✅ 伏笔元素初始化完成")
 
-    def _log_stage_transition(self, chapter_number: int):
-        """记录阶段转换信息"""
-        current_stage = self.stage_plan_manager.get_current_stage(chapter_number)
-        prev_stage = self.stage_plan_manager.get_current_stage(chapter_number - 1) if chapter_number > 1 else None
-        
-        if prev_stage != current_stage:
-            print(f"🎯 阶段转换: 第{chapter_number}章从 '{prev_stage}' 进入 '{current_stage}'")
-            
-            # 显示阶段边界信息
-            boundaries = self.get_stage_boundary_info()
-            print(f"  阶段边界: {boundaries['stage_boundaries']}")
-
     def get_stage_boundary_info(self) -> Dict:
         """获取阶段边界信息 - 协调阶段计划管理器"""
         if hasattr(self.stage_plan_manager, 'stage_boundaries'):
@@ -1426,31 +1414,6 @@ class NovelGenerator:
                 "current_stage_plan": self.stage_plan_manager.overall_stage_plans
             }
         return {"stage_boundaries": {}, "current_stage_plan": {}}
-
-    def _get_user_choice_with_timeout(self, options: List[str], timeout: int, default_choice: str, prompt: str) -> str:
-        """带超时的用户选择方法"""
-        user_choice = [None]
-        
-        def get_input():
-            try:
-                choice = input(prompt).strip()
-                if choice in options:
-                    user_choice[0] = choice
-            except:
-                pass
-        
-        # 启动输入线程
-        input_thread = threading.Thread(target=get_input)
-        input_thread.daemon = True
-        input_thread.start()
-        
-        # 等待用户输入，最多timeout秒
-        start_time = time.time()
-        
-        while time.time() - start_time < timeout and user_choice[0] is None:
-            time.sleep(0.1)
-        
-        return user_choice[0] if user_choice[0] is not None else default_choice
 
     # 简化版本
     def print_generation_summary(self):
