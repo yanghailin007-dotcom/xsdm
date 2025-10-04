@@ -32,6 +32,9 @@ class NovelGenerator:
         self.novel_data = {}  # 初始化空数据结构
         self._initialize_managers()
         self._setup_event_handlers()
+
+        # 设置中断信号处理
+        signal.signal(signal.SIGINT, self.signal_handler)
     
     def _initialize_managers(self):
         """初始化各管理器，明确依赖关系"""
