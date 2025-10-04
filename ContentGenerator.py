@@ -818,9 +818,8 @@ class ContentGenerator:
             return None
         
     def generate_chapter_design(self, chapter_params: Dict) -> Optional[Dict]:
-        """生成章节详细设计方案 - 修复版本"""
+        """生成章节详细设计方案"""
         try:
-            # 直接构建完整的章节设计提示词（不使用prompts.py）
             design_prompt = f"""你是一位资深的网络小说策划编辑。请为第{chapter_params.get("chapter_number", 1)}章制定详细的写作设计方案。
 
     # 故事基础设定（必须严格遵循）
@@ -893,6 +892,9 @@ class ContentGenerator:
             # 获取事件指导（优先使用上下文中的信息）
             event_guidance = self._get_event_guidance_from_context(event_context, chapter_number)
             foreshadowing_guidance = self._get_foreshadowing_guidance_from_context(foreshadowing_context, chapter_number)
+
+            # 从上下文中获取阶段计划
+            stage_writing_plan = context.stage_plan if hasattr(context, 'stage_plan') else {}
         else:
             print(f"  ⚠️ 无上下文，使用传统方式获取指导")
             # 回退到传统方式
@@ -913,7 +915,7 @@ class ContentGenerator:
             "novel_synopsis": novel_data["novel_synopsis"],
             "worldview_info": json.dumps(novel_data["core_worldview"], ensure_ascii=False) if novel_data["core_worldview"] else "{}",
             "character_info": json.dumps(novel_data["character_design"], ensure_ascii=False) if novel_data["character_design"] else "{}",
-            "stage_writing_plan": json.dumps(novel_data.get("stage_writing_plans", {}), ensure_ascii=False),
+            "stage_writing_plan": stage_writing_plan,
             "previous_chapters_summary": self._generate_previous_chapters_summary(chapter_number, novel_data),
             "main_plot_progress": plot_direction["plot_direction"],
             "plot_direction": plot_direction["plot_direction"],
