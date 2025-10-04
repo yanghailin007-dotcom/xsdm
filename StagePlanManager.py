@@ -213,7 +213,7 @@ class StagePlanManager:
             self.generator.novel_data["stage_writing_plans"][stage_name] = writing_plan
             
             print(f"  ✅ {stage_name}写作计划生成完成")
-            self._print_writing_plan_summary(writing_plan)
+            self._print_writing_plan_summary(stage_name, writing_plan)
             return writing_plan
         else:
             print(f"  ⚠️ {stage_name}写作计划生成失败，使用默认计划")
@@ -475,24 +475,26 @@ class StagePlanManager:
         
         return character_advice
 
-    def _print_writing_plan_summary(self, writing_plan: Dict):
+    def _print_writing_plan_summary(self, stage_name: str, writing_plan: Dict):
         """打印写作计划摘要"""
-        stage_name = writing_plan.get("stage_name", "未知阶段")
         print(f"    🎬 {stage_name}写作计划摘要:")
         
-        # 重大事件
-        event_system = writing_plan.get("event_system_design", {})
+        # 事件系统统计
+        event_system = writing_plan.get("event_system", {})
         major_events = event_system.get("major_events", [])
+        big_events = event_system.get("big_events", [])
+        normal_events = event_system.get("events", [])
+        
         print(f"      重大事件: {len(major_events)}个")
+        print(f"      大事件: {len(big_events)}个") 
+        print(f"      普通事件: {len(normal_events)}个")
         
-        # 支撑事件
-        supporting_events = event_system.get("supporting_events", [])
-        print(f"      支撑事件: {len(supporting_events)}个")
+        # 打印事件详情
+        for event in major_events:
+            print(f"        🎯 {event['name']}: 第{event.get('start_chapter', '?')}-{event.get('end_chapter', '?')}章")
         
-        # 章节指导
-        chapter_plan = writing_plan.get("chapter_distribution_plan", {})
-        chapter_guidance = chapter_plan.get("chapter_specific_guidance", [])
-        print(f"      章节分段指导: {len(chapter_guidance)}段")
+        for event in big_events:
+            print(f"        🔥 {event['name']}: 第{event.get('start_chapter', '?')}-{event.get('end_chapter', '?')}章")
 
     def _create_default_writing_plan(self, stage_name: str, content_plan: Dict, 
                                    foreshadowing_plan: Dict) -> Dict:

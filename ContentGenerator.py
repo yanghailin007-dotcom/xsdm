@@ -369,11 +369,28 @@ class ContentGenerator:
         
         print(f"  ✅ 第{chapter_number}章所有参数验证通过")
         
-        # 使用严格的两步法生成章节内容
-        chapter_data = self.generate_chapter_content(chapter_params)
-        if not chapter_data:
-            print(f"✗ 第{chapter_number}章生成失败")
-            return None
+        # 使用严格的两步法生成章节内容，包含字数检查
+        max_retries = 3
+        for attempt in range(max_retries):
+            chapter_data = self.generate_chapter_content(chapter_params)
+            if not chapter_data:
+                print(f"✗ 第{chapter_number}章生成失败")
+                return None
+            
+            # 检查字数
+            word_count = chapter_data.get("word_count", 0)
+            content_length = len(chapter_data.get("content", ""))
+            
+            print(f"  📝 第{attempt + 1}次生成结果: {word_count}字 (内容长度: {content_length}字符)")
+            
+            # 如果字数少于1500，重新生成
+            if word_count >= 1500:
+                print(f"  ✅ 字数达标: {word_count}字")
+                break
+            else:
+                print(f"  ⚠️ 字数不足: {word_count}字 < 1500字，重新生成...")
+                if attempt == max_retries - 1:
+                    print(f"  ❌ 达到最大重试次数，使用当前内容")
         
         # 确保章节标题唯一性
         chapter_data = self._handle_chapter_title_uniqueness(chapter_data, chapter_number, novel_data)

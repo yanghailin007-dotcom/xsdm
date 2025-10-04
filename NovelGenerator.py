@@ -774,12 +774,13 @@ class NovelGenerator:
         
         try:
             # 使用 overall_stage_plans 中的阶段定义
-            overall_plan = overall_stage_plans["overall_stage_plan"]
+            stage_plan_container = overall_stage_plans  # 外层容器
+            stage_plan_dict = stage_plan_container["overall_stage_plan"]  # 核心阶段字典
             
             # 为每个阶段生成详细写作计划
             self.novel_data["stage_writing_plans"] = {}
             
-            for stage_name, stage_info in overall_plan.items():
+            for stage_name, stage_info in stage_plan_dict.items():
                 # 提取章节范围字符串，例如 "第1章-第3章" -> "1-3"
                 chapter_range_str = stage_info["chapter_range"]
                 
@@ -802,19 +803,19 @@ class NovelGenerator:
                     creative_seed=creative_seed,
                     novel_title=novel_title,
                     novel_synopsis=novel_synopsis,
-                    overall_stage_plans=overall_stage_plans  # 传递完整的 overall_stage_plans
+                    overall_stage_plan=stage_plan_dict  # 传递完整的 overall_stage_plans
                 )
                 
                 if stage_plan:
                     self.novel_data["stage_writing_plans"][stage_name] = stage_plan
-                    print(f"    ✅ {stage_name} 详细计划生成成功")
+                    print(f"  ✅ {stage_name} 详细计划生成成功")
                 else:
-                    print(f"    ❌ {stage_name} 详细计划生成失败")
+                    print(f"  ❌ {stage_name} 详细计划生成失败")
             
             # 检查是否至少有一个阶段的计划生成成功
             success_count = len(self.novel_data["stage_writing_plans"])
             if success_count > 0:
-                print(f"✅ 阶段详细计划生成完成: {success_count}/{len(overall_plan)} 个阶段")
+                print(f"✅ 阶段详细计划生成完成: {success_count}/{len(stage_plan_dict)} 个阶段")
                 return True
             else:
                 print("❌ 所有阶段详细计划生成失败")
