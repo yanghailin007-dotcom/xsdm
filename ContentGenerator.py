@@ -871,7 +871,7 @@ class ContentGenerator:
             return None
 
     def _prepare_chapter_params(self, chapter_number: int, novel_data: Dict) -> Dict:
-        """准备章节参数 - 修复版本"""
+        """准备章节参数 - 修复版本，包含实际的事件和伏笔指导"""
         print(f"  🔍 准备第{chapter_number}章参数...")
 
         total_chapters = novel_data["current_progress"]["total_chapters"]
@@ -887,6 +887,10 @@ class ContentGenerator:
         stage_writing_plan = {}
         if hasattr(self.novel_generator, 'ensure_stage_plan_for_chapter'):
             stage_writing_plan = self.novel_generator.ensure_stage_plan_for_chapter(chapter_number) or {}
+        
+        # 获取实际的事件驱动指导和伏笔铺垫指导
+        event_driven_guidance = self._get_event_driven_guidance(chapter_number, novel_data)
+        foreshadowing_guidance = self._get_foreshadowing_guidance(chapter_number, novel_data)
         
         # 基础参数 - 使用正确的参数名
         params = {
@@ -904,12 +908,64 @@ class ContentGenerator:
             "chapter_connection_note": self._get_chapter_connection_note(chapter_number),
             "character_development_focus": plot_direction.get("character_development_focus", ""),
             "main_character_instruction": self._get_main_character_instruction(novel_data),
-            "event_driven_guidance": "# 🎯 事件驱动写作指导\n\n本章为普通主线推进章节。",
-            "foreshadowing_guidance": "# 🎭 重要元素铺垫指导\n\n暂无需要铺垫的重要元素。"
+            "event_driven_guidance": event_driven_guidance,  # 使用实际的事件指导
+            "foreshadowing_guidance": foreshadowing_guidance  # 使用实际的伏笔指导
         }
         
         print(f"  ✅ 第{chapter_number}章参数准备完成")
+        print(f"    - 事件指导长度: {len(event_driven_guidance)} 字符")
+        print(f"    - 伏笔指导长度: {len(foreshadowing_guidance)} 字符")
         return params
+
+    def _get_event_driven_guidance(self, chapter_number: int, novel_data: Dict) -> str:
+        """获取实际的事件驱动指导"""
+        try:
+            # 首先尝试从novel_data的临时字段获取
+            temp_guidance = novel_data.get('_current_chapter_guidance', {})
+            if temp_guidance and 'event_guidance' in temp_guidance:
+                guidance = temp_guidance['event_guidance']
+                if guidance and guidance != "# 🎯 事件执行指导\n\n本章暂无特定事件执行任务。":
+                    print(f"  ✅ 从临时字段获取到实际事件指导")
+                    return guidance
+            
+            # 其次尝试通过事件管理器获取
+            if hasattr(self.novel_generator, 'event_driven_manager'):
+                event_manager = self.novel_generator.event_driven_manager
+                if hasattr(event_manager, 'generate_event_execution_prompt'):
+                    guidance = event_manager.generate_event_execution_prompt(chapter_number)
+                    if guidance and guidance != "# 🎯 事件执行指导\n\n本章暂无特定事件执行任务。":
+                        print(f"  ✅ 通过事件管理器获取到实际事件指导")
+                        return guidance
+        except Exception as e:
+            print(f"  ⚠️ 获取事件指导失败: {e}")
+        
+        # 返回默认指导
+        return "# 🎯 事件驱动写作指导\n\n本章为普通主线推进章节。"
+
+    def _get_foreshadowing_guidance(self, chapter_number: int, novel_data: Dict) -> str:
+        """获取实际的伏笔铺垫指导"""
+        try:
+            # 首先尝试从novel_data的临时字段获取
+            temp_guidance = novel_data.get('_current_chapter_guidance', {})
+            if temp_guidance and 'foreshadowing_guidance' in temp_guidance:
+                guidance = temp_guidance['foreshadowing_guidance']
+                if guidance and guidance != "# 🎭 伏笔铺垫指导\n\n本章暂无特定的伏笔任务。":
+                    print(f"  ✅ 从临时字段获取到实际伏笔指导")
+                    return guidance
+            
+            # 其次尝试通过伏笔管理器获取
+            if hasattr(self.novel_generator, 'foreshadowing_manager'):
+                foreshadowing_manager = self.novel_generator.foreshadowing_manager
+                if hasattr(foreshadowing_manager, 'generate_foreshadowing_prompt'):
+                    guidance = foreshadowing_manager.generate_foreshadowing_prompt(chapter_number)
+                    if guidance and guidance != "# 🎭 伏笔铺垫指导\n\n本章暂无特定的伏笔任务。":
+                        print(f"  ✅ 通过伏笔管理器获取到实际伏笔指导")
+                        return guidance
+        except Exception as e:
+            print(f"  ⚠️ 获取伏笔指导失败: {e}")
+        
+        # 返回默认指导
+        return "# 🎭 重要元素铺垫指导\n\n暂无需要铺垫的重要元素。"
 
     def generate_chapter_content_from_design(self, chapter_params: Dict, chapter_design: Dict) -> Optional[Dict]:
         """根据设计方案生成章节内容 - 修复版本"""

@@ -612,47 +612,7 @@ Prompts = {
 
 请严格按照以下JSON格式输出
 """,
-        "chapter_design": """你是一位资深的网络小说策划编辑。请为第{chapter_number}章制定详细的写作设计方案。
-
-# 故事基础设定（必须严格遵循）
-**小说标题**: 
-{novel_title}
-**小说简介**: 
-{novel_synopsis}
-**世界观设定**: 
-{worldview_info}
-**角色设定**: 
-{character_info}
-**写作计划**: 
-{stage_writing_plan}
-{main_character_instruction}
-
-# 上下文信息
-**前情提要**: 
-{previous_chapters_summary}
-**本章定位**: 
-第{chapter_number}/{total_chapters}章 - {plot_direction}
-**重点推进**: 
-{main_plot_progress}
-**角色发展重点**: 
-{character_development_focus}
-**衔接要求**: 
-{chapter_connection_note}
-
-# 事件驱动指导
-{event_driven_guidance}
-
-# 伏笔铺垫指导
-{foreshadowing_guidance}
-
-**全局成长规划上下文**:
-{global_growth_context}
-
-**阶段性角色信息**:
-{phase_characters}
-
-**角色引入指导**:
-{character_introduction_context}
+        "chapter_design": """你是一位资深的网络小说策划编辑。请为本章制定详细的写作设计方案。
 
 # 设计要求
 请制定详细的章节设计方案，必须严格遵循上述基础设定，包含以下要素：

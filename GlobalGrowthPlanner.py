@@ -7,7 +7,7 @@ class GlobalGrowthPlanner:
     """全局血肉内容规划器 - 负责全书和阶段内的内容规划（写什么）"""
     
     def __init__(self, novel_generator):
-        self.generator = novel_generator
+        self.novel_generator = novel_generator  # 确保正确设置这个属性
         self.config = novel_generator.config
         self.Prompts = novel_generator.Prompts
         self.stage_content_cache = {}  # 缓存各阶段的内容规划
@@ -277,7 +277,7 @@ class GlobalGrowthPlanner:
             self.generate_global_growth_plan()
         
         # 获取当前阶段信息
-        current_stage = self._get_current_stage(self.global_growth_plan, chapter_number)
+        current_stage = self._get_current_stage(chapter_number)
         
         if not current_stage:
             return {}
@@ -319,14 +319,6 @@ class GlobalGrowthPlanner:
     **势力发展重点**: {chars.get(faction_key, '') if faction_key else ''}
     **能力发展重点**: {chars.get(ability_key, '') if ability_key else ''}
     """
-
-    def _get_current_stage(self, growth_plan: Dict, chapter: int) -> Optional[Dict]:
-        """获取当前章节所属的阶段"""
-        for stage in growth_plan.get("stage_framework", []):
-            chapter_range = stage["chapter_range"]
-            if is_chapter_in_range(chapter, chapter_range):
-                return stage
-        return None
 
     def _generate_chapter_content_context(self, chapter: int, stage: Dict, content_plan: Dict) -> Dict:
         """生成章节特定的内容上下文"""
@@ -502,7 +494,7 @@ class GlobalGrowthPlanner:
             self.generate_global_growth_plan()
         
         # 获取当前阶段信息
-        current_stage = self._get_current_stage(self.global_growth_plan, chapter_number)
+        current_stage = self._get_current_stage(chapter_number)
         
         if not current_stage:
             return {}
