@@ -849,10 +849,10 @@ class ContentGenerator:
     {chapter_params.get("chapter_connection_note", "")}
 
     # 事件驱动指导
-    {chapter_params.get("event_driven_guidance", "")}
+    {chapter_params.get("event_driven_guidance", "123")}
 
     # 伏笔铺垫指导
-    {chapter_params.get("foreshadowing_guidance", "")}
+    {chapter_params.get("foreshadowing_guidance", "123")}
 """
 
             print(f"  📝 生成第{chapter_params.get('chapter_number', 1)}章设计方案...")
@@ -888,9 +888,15 @@ class ContentGenerator:
             event_context = context.event_context
             foreshadowing_context = context.foreshadowing_context  
             growth_context = context.growth_context
+
+            print(f"  yhl 📊 上下文信息:")
+            print(f"    - 事件上下文: {len(event_context)} 项")
+            print(f"    - 伏笔上下文: {len(foreshadowing_context)} 项") 
+            print(f"    - 成长上下文: {len(growth_context)} 项")  
             
             # 获取事件指导（优先使用上下文中的信息）
-            event_guidance = self._get_event_guidance_from_context(event_context, chapter_number)
+            event_guidance = self._get_event_guidance_from_context(event_context)
+            print(f"    - 事件上下文: {list(event_guidance)} 项")
             foreshadowing_guidance = self._get_foreshadowing_guidance_from_context(foreshadowing_context, chapter_number)
 
             # 从上下文中获取阶段计划
@@ -941,7 +947,7 @@ class ContentGenerator:
         
         return params
 
-    def _get_event_guidance_from_context(self, event_context: Dict, chapter_number: int) -> str:
+    def _get_event_guidance_from_context(self, event_context: Dict) -> str:
         """从事件上下文中生成指导"""
         if not event_context or not event_context.get("active_events"):
             return "# 🎯 事件执行指导\n\n本章暂无特定事件执行任务。"
