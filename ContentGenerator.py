@@ -6,7 +6,7 @@ from typing import Dict, Optional, List, Tuple
 
 import APIClient
 from Contexts import GenerationContext
-from prompts import Prompts
+from Prompts import Prompts
 
 class ContentGenerator:
     def __init__(self, novel_generator, api_client: APIClient, config, event_bus, quality_assessor):

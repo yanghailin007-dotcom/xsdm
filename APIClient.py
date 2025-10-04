@@ -6,7 +6,7 @@ import time
 import requests
 from typing import Optional, Any
 
-from prompts import Prompts
+from Prompts import Prompts
 
 class APIClient:
     def __init__(self, config):

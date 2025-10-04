@@ -20,7 +20,7 @@ import GlobalGrowthPlanner
 import ProjectManager
 import QualityAssessor
 import StagePlanManager
-from prompts import Prompts
+from Prompts import Prompts
 
 class NovelGenerator:
     def __init__(self, config):
