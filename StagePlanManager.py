@@ -320,18 +320,6 @@ class StagePlanManager:
                 return stage["chapter_range"]
         return "1-100"
 
-    def _get_current_stage(self, chapter_number: int) -> Optional[str]:
-        """获取当前章节所属的阶段名称"""
-        if "global_growth_plan" not in self.generator.novel_data:
-            return None
-        
-        growth_plan = self.generator.novel_data["global_growth_plan"]
-        for stage in growth_plan.get("stage_framework", []):
-            chapter_range = stage["chapter_range"]
-            if is_chapter_in_range(chapter_number, chapter_range):
-                return stage["stage_name"]
-        return None
-
     def _generate_chapter_writing_context(self, chapter_number: int, writing_plan: Dict) -> Dict:
         """生成章节特定的写作上下文"""
         # 从写作计划中提取章节相关信息
@@ -726,5 +714,65 @@ class StagePlanManager:
         return self.get_chapter_writing_context(chapter_number)
 
     def get_stage_plan_for_chapter(self, chapter_number: int) -> Optional[Dict]:
-        """为当前章节生成阶段写作计划（兼容性方法）"""
-        return self.get_chapter_writing_context(chapter_number)
+        """为指定章节获取阶段计划 - 修复版本"""
+        try:
+            # 获取当前阶段名称
+            current_stage = self._get_current_stage(chapter_number)
+            if not current_stage:
+                print(f"  ⚠️ 无法确定第{chapter_number}章所属的阶段")
+                return None
+            
+            # 从 novel_data 中获取阶段写作计划
+            novel_data = self.generator.novel_data
+            stage_writing_plans = novel_data.get("stage_writing_plans", {})
+            
+            if current_stage not in stage_writing_plans:
+                print(f"  ⚠️ 没有找到{current_stage}的写作计划")
+                return None
+            
+            stage_plan_data = stage_writing_plans[current_stage]
+            
+            # 确保返回正确的数据结构
+            if "stage_writing_plan" in stage_plan_data:
+                return stage_plan_data["stage_writing_plan"]
+            else:
+                print(f"  ⚠️ 阶段计划数据缺少stage_writing_plan字段，使用原始数据")
+                return stage_plan_data
+                
+        except Exception as e:
+            print(f"❌ 获取第{chapter_number}章阶段计划失败: {e}")
+            return None
+
+    def _get_current_stage(self, chapter_number: int) -> Optional[str]:
+        """获取当前章节所属的阶段名称 - 修复版本"""
+        try:
+            # 从 overall_stage_plans 中查找
+            overall_plans = self.generator.novel_data.get("overall_stage_plans", {})
+            if not overall_plans or "overall_stage_plan" not in overall_plans:
+                print("  ⚠️ 没有可用的整体阶段计划")
+                return None
+            
+            stage_plan_dict = overall_plans["overall_stage_plan"]
+            
+            for stage_name, stage_info in stage_plan_dict.items():
+                # 解析章节范围
+                chapter_range_str = stage_info.get("chapter_range", "")
+                if not chapter_range_str:
+                    continue
+                    
+                # 提取数字范围
+                import re
+                numbers = re.findall(r'\d+', chapter_range_str)
+                if len(numbers) >= 2:
+                    start_chap = int(numbers[0])
+                    end_chap = int(numbers[1])
+                    
+                    if start_chap <= chapter_number <= end_chap:
+                        return stage_name
+            
+            print(f"  ⚠️ 第{chapter_number}章不在任何阶段范围内")
+            return None
+            
+        except Exception as e:
+            print(f"❌ 确定章节阶段失败: {e}")
+            return None

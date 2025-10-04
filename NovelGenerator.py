@@ -1026,8 +1026,13 @@ class NovelGenerator:
             print(f"    ✅ 成长规划上下文: {type(growth_context)}, 长度: {len(str(growth_context))}")
             
             print(f"  🎯 获取阶段计划...")
-            stage_plan = self._get_stage_plan(chapter_num)
-            print(f"    ✅ 阶段计划: {type(stage_plan)}, 长度: {len(str(stage_plan))}")
+            stage_plan = self.ensure_stage_plan_for_chapter(chapter_num)
+            if stage_plan:
+                print(f"    ✅ 阶段计划获取成功: {type(stage_plan)}")
+                print(f"    🔍 阶段计划字段: {list(stage_plan.keys()) if isinstance(stage_plan, dict) else 'N/A'}")
+            else:
+                print(f"    ⚠️ 阶段计划为空")
+                stage_plan = {}
             
             # 检查novel_data
             print(f"  📚 检查novel_data...")
@@ -1156,7 +1161,7 @@ class NovelGenerator:
         print("="*60)
 
     def ensure_stage_plan_for_chapter(self, chapter_number: int):
-        """确保章节有阶段计划 - 基于阶段划分的版本"""
+        """确保章节有阶段计划 - 修复版本"""
         print(f"🔍 确保第{chapter_number}章阶段计划")
         
         # 获取全局阶段计划
@@ -1171,12 +1176,21 @@ class NovelGenerator:
             return None
         
         # 获取该阶段的详细写作计划
-        stage_plan = self.novel_data["stage_writing_plans"].get(stage_name)
-        if not stage_plan:
+        stage_plan_data = self.novel_data["stage_writing_plans"].get(stage_name)
+        if not stage_plan_data:
             print(f"  ⚠️ 没有找到{stage_name}的详细写作计划")
             return None
         
+        # 确保返回的数据包含 stage_writing_plan 字段
+        if "stage_writing_plan" in stage_plan_data:
+            stage_plan = stage_plan_data["stage_writing_plan"]
+        else:
+            print(f"  ⚠️ 阶段计划数据缺少stage_writing_plan字段，使用原始数据")
+            stage_plan = stage_plan_data
+        
         print(f"  ✅ 第{chapter_number}章属于{stage_name}阶段")
+        print(f"  📋 阶段计划类型: {type(stage_plan)}, 包含字段: {list(stage_plan.keys()) if isinstance(stage_plan, dict) else 'N/A'}")
+        
         return stage_plan
 
     def _find_stage_for_chapter(self, chapter_number: int) -> str:

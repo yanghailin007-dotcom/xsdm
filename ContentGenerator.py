@@ -448,47 +448,6 @@ class ContentGenerator:
         
         return chapter_data
 
-    def _prepare_chapter_params(self, chapter_number: int, novel_data: Dict) -> Dict:
-        """准备章节参数"""
-        print(f"  🔍 准备第{chapter_number}章参数...")
-
-        total_chapters = novel_data["current_progress"]["total_chapters"]
-
-        print(f"  🔍 total_chapters={total_chapters}章参数...")
-        # 获取情节方向
-        plot_direction = self._get_plot_direction_for_chapter(chapter_number, total_chapters)
-        
-        # 获取前情提要
-        previous_summary = self._generate_previous_chapters_summary(chapter_number, novel_data)
-        
-        # 基础参数
-        params = {
-            "chapter_number": chapter_number,
-            "total_chapters": novel_data["current_progress"]["total_chapters"],
-            "novel_title": novel_data["novel_title"],
-            "novel_synopsis": novel_data["novel_synopsis"],
-            "worldview_info": json.dumps(novel_data["core_worldview"], ensure_ascii=False) if novel_data["core_worldview"] else "{}",
-            "character_info": json.dumps(novel_data["character_design"], ensure_ascii=False) if novel_data["character_design"] else "{}",
-            "stage_writing_plans": json.dumps(novel_data.get("stage_writing_plans", {}), ensure_ascii=False),
-            "previous_chapters_summary": previous_summary,
-            "main_plot_progress": plot_direction["plot_direction"],
-            "plot_direction": plot_direction["plot_direction"],
-            "chapter_connection_note": self._get_chapter_connection_note(chapter_number),
-            "character_development_focus": plot_direction.get("character_development_focus", ""),
-            "main_character_instruction": self._get_main_character_instruction(novel_data)
-        }
-        
-        # 添加事件驱动和伏笔指导（如果可用）
-        if hasattr(novel_data, 'get') and callable(novel_data.get):
-            params["event_driven_guidance"] = novel_data.get("event_driven_guidance", "# 🎯 事件驱动写作指导\n\n本章为普通主线推进章节。")
-            params["foreshadowing_guidance"] = novel_data.get("foreshadowing_guidance", "# 🎭 重要元素铺垫指导\n\n暂无需要铺垫的重要元素。")
-        else:
-            params["event_driven_guidance"] = "# 🎯 事件驱动写作指导\n\n本章为普通主线推进章节。"
-            params["foreshadowing_guidance"] = "# 🎭 重要元素铺垫指导\n\n暂无需要铺垫的重要元素。"
-        
-        print(f"  ✅ 第{chapter_number}章参数准备完成")
-        return params
-
     def _get_plot_direction_for_chapter(self, chapter_number: int, total_chapters: int) -> Dict[str, str]:
         """根据章节位置确定情节发展方向"""
         progress_ratio = chapter_number / total_chapters
@@ -839,7 +798,6 @@ class ContentGenerator:
                 print(f"  ❌ 第{chapter_params['chapter_number']}章设计方案生成失败，终止生成")
                 return None
             
-            # 第二步：根据设计方案生成内容
             print(f"  ✍️ 根据设计方案生成第{chapter_params['chapter_number']}章内容...")
             chapter_content = self.generate_chapter_content_from_design(chapter_params, chapter_design)
             if not chapter_content:
@@ -854,38 +812,107 @@ class ContentGenerator:
             return None
         
     def generate_chapter_design(self, chapter_params: Dict) -> Optional[Dict]:
-        """生成章节详细设计方案 - 使用内化提示词"""
+        """生成章节详细设计方案 - 修复版本"""
         try:
-            # 使用内化的章节设计提示词
-            design_prompt_template = self.prompts["prompts"]["chapter_design"]
-            
-            # 准备参数
-            design_params = chapter_params.copy()
-            design_params["main_character_instruction"] = design_params.get("main_character_instruction", "")
-            
-            # 格式化提示词
-            user_prompt = design_prompt_template.format(**design_params)
-            
-            print(f"  📝 生成第{chapter_params['chapter_number']}章设计方案...")
+            # 直接构建完整的章节设计提示词（不使用prompts.py）
+            design_prompt = f"""你是一位资深的网络小说策划编辑。请为第{chapter_params.get("chapter_number", 1)}章制定详细的写作设计方案。
+
+    # 故事基础设定（必须严格遵循）
+    **小说标题**: 
+    {chapter_params.get("novel_title", "未知小说")}
+    **小说简介**: 
+    {chapter_params.get("novel_synopsis", "")}
+    **世界观设定**: 
+    {chapter_params.get("worldview_info", "{}")}
+    **角色设定**: 
+    {chapter_params.get("character_info", "{}")}
+    **写作计划**: 
+    {chapter_params.get("stage_writing_plan", "{}")}
+
+    {chapter_params.get("main_character_instruction", "")}
+
+    # 上下文信息
+    **前情提要**: 
+    {chapter_params.get("previous_chapters_summary", "")}
+    **本章定位**: 
+    第{chapter_params.get("chapter_number", 1)}/{chapter_params.get("total_chapters", 30)}章 - {chapter_params.get("plot_direction", "")}
+    **重点推进**: 
+    {chapter_params.get("main_plot_progress", "")}
+    **角色发展重点**: 
+    {chapter_params.get("character_development_focus", "")}
+    **衔接要求**: 
+    {chapter_params.get("chapter_connection_note", "")}
+
+    # 事件驱动指导
+    {chapter_params.get("event_driven_guidance", "")}
+
+    # 伏笔铺垫指导
+    {chapter_params.get("foreshadowing_guidance", "")}
+"""
+
+            print(f"  📝 生成第{chapter_params.get('chapter_number', 1)}章设计方案...")
             design_result = self.api_client.generate_content_with_retry(
                 "chapter_design", 
-                user_prompt, 
-                purpose=f"制定第{chapter_params['chapter_number']}章设计方案"
+                design_prompt, 
+                purpose=f"制定第{chapter_params.get('chapter_number', 1)}章设计方案"
             )
             
             if design_result:
-                print(f"  ✅ 第{chapter_params['chapter_number']}章设计方案生成成功")
+                print(f"  ✅ 第{chapter_params.get('chapter_number', 1)}章设计方案生成成功")
                 return design_result
             else:
-                print(f"  ❌ 第{chapter_params['chapter_number']}章设计方案生成失败")
+                print(f"  ❌ 第{chapter_params.get('chapter_number', 1)}章设计方案生成失败")
                 return None
                 
         except Exception as e:
             print(f"  ❌ 生成章节设计方案时出错: {e}")
+            import traceback
+            traceback.print_exc()
             return None
 
+    def _prepare_chapter_params(self, chapter_number: int, novel_data: Dict) -> Dict:
+        """准备章节参数 - 修复版本"""
+        print(f"  🔍 准备第{chapter_number}章参数...")
+
+        total_chapters = novel_data["current_progress"]["total_chapters"]
+        print(f"  🔍 total_chapters={total_chapters}章参数...")
+        
+        # 获取情节方向
+        plot_direction = self._get_plot_direction_for_chapter(chapter_number, total_chapters)
+        
+        # 获取前情提要
+        previous_summary = self._generate_previous_chapters_summary(chapter_number, novel_data)
+        
+        # 获取阶段写作计划
+        stage_writing_plan = {}
+        if hasattr(self.novel_generator, 'ensure_stage_plan_for_chapter'):
+            stage_writing_plan = self.novel_generator.ensure_stage_plan_for_chapter(chapter_number) or {}
+        
+        # 基础参数 - 使用正确的参数名
+        params = {
+            "chapter_number": chapter_number,
+            "total_chapters": total_chapters,
+            "novel_title": novel_data["novel_title"],
+            "novel_synopsis": novel_data["novel_synopsis"],
+            "worldview_info": json.dumps(novel_data["core_worldview"], ensure_ascii=False) if novel_data["core_worldview"] else "{}",
+            "character_info": json.dumps(novel_data["character_design"], ensure_ascii=False) if novel_data["character_design"] else "{}",
+            "stage_writing_plan": json.dumps(stage_writing_plan, ensure_ascii=False),  # 使用正确的参数名
+            "stage_writing_plans": json.dumps(novel_data.get("stage_writing_plans", {}), ensure_ascii=False),
+            "previous_chapters_summary": previous_summary,
+            "main_plot_progress": plot_direction["plot_direction"],
+            "plot_direction": plot_direction["plot_direction"],
+            "chapter_connection_note": self._get_chapter_connection_note(chapter_number),
+            "character_development_focus": plot_direction.get("character_development_focus", ""),
+            "main_character_instruction": self._get_main_character_instruction(novel_data),
+            "event_driven_guidance": "# 🎯 事件驱动写作指导\n\n本章为普通主线推进章节。",
+            "foreshadowing_guidance": "# 🎭 重要元素铺垫指导\n\n暂无需要铺垫的重要元素。"
+        }
+        
+        print(f"  ✅ 第{chapter_number}章参数准备完成")
+        return params
+
     def generate_chapter_content_from_design(self, chapter_params: Dict, chapter_design: Dict) -> Optional[Dict]:
-        """根据设计方案生成章节内容 - 使用内化提示词"""
+        """根据设计方案生成章节内容 - 修复版本"""
         try:
             # 准备内容生成参数，包含所有基础设定
             content_params = chapter_params.copy()
@@ -895,7 +922,7 @@ class ContentGenerator:
             
             # 确保所有基础设定参数都存在
             required_base_params = [
-                'worldview_info', 'character_info', 'writing_plan_info',
+                'worldview_info', 'character_info', 'stage_writing_plan',
                 'novel_title', 'novel_synopsis', 'main_character_instruction'
             ]
             
@@ -905,9 +932,85 @@ class ContentGenerator:
                     if param == 'main_character_instruction' and not content_params.get(param):
                         content_params[param] = ""
             
-            # 使用内化的内容生成提示词
-            content_prompt_template = self.prompts["chapter_content_generation"]
-            user_prompt = content_prompt_template.format(**content_params)
+            # 直接构建内容生成提示词，不依赖 self.prompts
+            user_prompt = f"""你是一位优秀的网络小说作家。请根据以下详细设计方案和基础设定，生成第{chapter_params['chapter_number']}章的完整内容。
+
+    # 基础设定（必须严格遵循）
+    **小说标题**: 
+    {content_params.get('novel_title', '未知小说')}
+    **小说简介**: 
+    {content_params.get('novel_synopsis', '')}
+    {content_params.get('main_character_instruction', '')}
+
+    # 章节详细设计方案
+    {content_params.get('chapter_design', '{}')}
+
+    # 核心写作要求
+
+    ## 1. 严格遵循设定
+    - **世界观一致性**: 所有元素必须符合世界观设定：
+    {content_params.get('worldview_info', '{}')}
+    - **角色一致性**: 角色行为必须符合角色设定：
+    {content_params.get('character_info', '{}')}
+    - **情节连贯性**: 必须遵循写作计划：
+    {content_params.get('stage_writing_plan', '{}')}
+
+    ## 2. 标题规范
+    - 8-15字，吸引力强，与内容高度相关
+    - 确保唯一性，不与已有章节重复
+    - 体现核心情节或转折点
+
+    ## 3. 内容结构
+    - **字数**: 2200-3000字
+    - **开头**: 直接承接上一章结尾，避免断裂
+    - **结尾**: 设置悬念，吸引继续阅读
+
+    ## 4. 叙事风格
+    - **对话占比**: 50%以上，生活化，有火药味
+    - **爽点设置**: 至少1个小爽点（打脸、发现线索等）
+    - **网络热梗**: 自然融入，古今碰撞，不生硬
+    - **情感共鸣**: 日常场景中融入引发共鸣的细节
+
+    ## 5. 质量控制
+    - 严格遵循设计方案和基础设定，不擅自添加重大新设定
+    - 保持角色性格和世界观一致性
+    - 避免AI痕迹：不用标记性语言、机械化结构
+    - 语言自然流畅，避免模式化表达
+
+    ## 6. 章节衔接控制
+    - **开头衔接**: 本章开头必须自然承接上一章的结尾，不能突兀
+    - **情节连贯**: 确保时间、地点、人物状态的连续性
+    - **悬念处理**: 妥善处理上一章留下的悬念，同时设置新的悬念
+    - **过渡自然**: 场景转换和情节推进要流畅自然
+    - **结尾悬念**: 结尾尽可能保持悬念，增加读者阅读下一章
+
+    ## 段落分段要求：
+    - **对话分段**: 每个角色的对话单独成段，增强可读性
+    - **场景转换**: 时间、地点、视角变化时必须分段
+    - **情绪节奏**: 紧张、舒缓等情绪变化处合理分段
+    - **段落长度**: 单段一般不超过200字，避免大段文字
+    - **手机友好**: 考虑手机屏幕显示，段落要短小精悍
+    - **悬念设置**: 关键信息或悬念点可单独成段强调
+    - **动作描写**: 重要动作描写可独立分段突出视觉效果
+
+    ## 必须满足：
+    - **内容长度**: 必须2000字以上
+    - **内容格式**: 必须中文符号习惯
+
+    # 输出格式
+    {{
+        "chapter_number": {chapter_params['chapter_number']},
+        "chapter_title": "章节标题",
+        "content": "章节内容",
+        "word_count": 字数,
+        "plot_advancement": "推动的主要情节",
+        "character_development": "角色成长变化", 
+        "key_events": ["关键事件1", "关键事件2"],
+        "next_chapter_hook": "下一章悬念",
+        "connection_to_previous": "与上一章的衔接",
+        "design_followed": "是否遵循设计方案",
+        "setting_adherence": "基础设定遵循情况"
+    }}"""
             
             print(f"  ✍️ 根据设计方案生成第{chapter_params['chapter_number']}章内容...")
             content_result = self.api_client.generate_content_with_retry(
@@ -923,7 +1026,7 @@ class ContentGenerator:
                 content_result["base_settings_used"] = {
                     "worldview": bool(chapter_params.get("worldview_info")),
                     "character": bool(chapter_params.get("character_info")),
-                    "writing_plan": bool(chapter_params.get("writing_plan_info"))
+                    "writing_plan": bool(chapter_params.get("stage_writing_plan"))
                 }
                 print(f"  ✅ 第{chapter_params['chapter_number']}章内容生成成功")
                 return content_result
@@ -933,4 +1036,6 @@ class ContentGenerator:
                 
         except Exception as e:
             print(f"  ❌ 根据设计方案生成章节内容时出错: {e}")
+            import traceback
+            traceback.print_exc()
             return None
