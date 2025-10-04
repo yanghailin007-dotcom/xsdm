@@ -1051,7 +1051,7 @@ class NovelGenerator:
             if hasattr(self, 'event_driven_manager') and hasattr(self.event_driven_manager, 'get_context'):
                 try:
                     event_context = self.event_driven_manager.get_context(chapter_num)
-                    print(f"    ✅ 事件上下文获取成功: {type(event_context)}, 长度: {len(str(event_context))}")
+                    print(f"    ✅ 事件上下文获取成功")
                 except Exception as e:
                     print(f"    ⚠️ 获取事件上下文失败: {e}")
                     event_context = {}
@@ -1061,7 +1061,7 @@ class NovelGenerator:
             if hasattr(self, 'foreshadowing_manager') and hasattr(self.foreshadowing_manager, 'get_context'):
                 try:
                     foreshadowing_context = self.foreshadowing_manager.get_context(chapter_num)
-                    print(f"    ✅ 伏笔上下文获取成功: {type(foreshadowing_context)}, 长度: {len(str(foreshadowing_context))}")
+                    print(f"    ✅ 伏笔上下文获取成功")
                 except Exception as e:
                     print(f"    ⚠️ 获取伏笔上下文失败: {e}")
                     foreshadowing_context = {}
@@ -1081,7 +1081,7 @@ class NovelGenerator:
             if hasattr(self, 'ensure_stage_plan_for_chapter'):
                 try:
                     stage_plan = self.ensure_stage_plan_for_chapter(chapter_num) or {}
-                    print(f"    ✅ 阶段计划获取成功: {type(stage_plan)}")
+                    print(f"    ✅ 阶段计划获取成功")
                 except Exception as e:
                     print(f"    ⚠️ 获取阶段计划失败: {e}")
                     stage_plan = {}
@@ -1135,13 +1135,6 @@ class NovelGenerator:
                 print(f"  ✅ 上下文验证通过")
             
             print(f"  ✅ 第{chapter_num}章上下文准备完成")
-            print(f"    - chapter_number: {context.chapter_number}")
-            print(f"    - total_chapters: {context.total_chapters}")
-            print(f"    - novel_data类型: {type(context.novel_data)}")
-            print(f"    - stage_plan类型: {type(context.stage_plan)}")
-            print(f"    - event_context类型: {type(context.event_context)}")
-            print(f"    - foreshadowing_context类型: {type(context.foreshadowing_context)}")
-            print(f"    - growth_context类型: {type(context.growth_context)}")
             
             return context
             
@@ -1275,7 +1268,7 @@ class NovelGenerator:
             stage_plan = stage_plan_data
         
         print(f"  ✅ 第{chapter_number}章属于{stage_name}阶段")
-        print(f"  📋 阶段计划类型: {type(stage_plan)}, 包含字段: {list(stage_plan.keys()) if isinstance(stage_plan, dict) else 'N/A'}")
+        print(f"  📋 阶段计划类型: 包含字段: {list(stage_plan.keys())}")
         
         return stage_plan
 
