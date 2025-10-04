@@ -296,15 +296,30 @@ class EventDrivenManager:
             return False
 
     def _build_event_context(self, chapter_number: int, event_data: Dict) -> Dict:
-        """构建事件上下文"""
+        """构建事件上下文 - 修复关键时刻处理"""
         progress = self._calculate_event_progress(chapter_number, event_data)
+        
+        # 确保关键时刻是标准格式
+        key_moments = []
+        for moment in event_data.get("key_moments", []):
+            if isinstance(moment, str):
+                # 转换字符串格式为字典格式
+                chapter_match = re.search(r'第(\d+)章', moment)
+                moment_chapter = int(chapter_match.group(1)) if chapter_match else chapter_number
+                key_moments.append({
+                    "chapter": moment_chapter,
+                    "description": moment,
+                    "preparation": "正常推进"
+                })
+            else:
+                key_moments.append(moment)
         
         return {
             "name": event_data["name"],
             "type": event_data["type"],
             "main_goal": event_data["main_goal"],
             "current_stage_focus": self._get_current_stage_focus(progress["stage"], event_data),
-            "key_moments": self._get_upcoming_key_moments(chapter_number, event_data),
+            "key_moments": key_moments,  # 使用标准化后的关键时刻
             "character_roles": event_data.get("character_roles", {}),
             "progress": progress
         }
@@ -434,18 +449,37 @@ class EventDrivenManager:
         return focus_map.get(stage, "推进事件发展")
 
     def _get_upcoming_key_moments(self, chapter_number: int, event_data: Dict) -> List[Dict]:
-        """获取即将到来的关键时刻"""
+        """获取即将到来的关键时刻 - 修复字符串格式处理"""
         key_moments = event_data.get("key_moments", [])
         upcoming = []
         
         for moment in key_moments:
-            moment_chapter = moment.get("chapter", 0)
-            if moment_chapter >= chapter_number and moment_chapter <= chapter_number + 3:
+            # 处理字符串格式的关键时刻（如你的示例数据）
+            if isinstance(moment, str):
+                # 从字符串中提取章节号
+                chapter_match = re.search(r'第(\d+)章', moment)
+                if chapter_match:
+                    moment_chapter = int(chapter_match.group(1))
+                else:
+                    # 如果没有明确的章节号，使用默认逻辑
+                    moment_chapter = chapter_number + 1
+                
+                # 创建标准化的关键时刻字典
                 upcoming.append({
                     "chapter": moment_chapter,
-                    "description": moment.get("description", ""),
-                    "preparation": moment.get("preparation", "正常推进")
+                    "description": moment,
+                    "preparation": "正常推进"
                 })
+            
+            # 处理字典格式的关键时刻
+            elif isinstance(moment, dict):
+                moment_chapter = moment.get("chapter", 0)
+                if moment_chapter >= chapter_number and moment_chapter <= chapter_number + 3:
+                    upcoming.append({
+                        "chapter": moment_chapter,
+                        "description": moment.get("description", ""),
+                        "preparation": moment.get("preparation", "正常推进")
+                    })
         
         return upcoming
 

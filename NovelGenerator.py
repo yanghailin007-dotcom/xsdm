@@ -66,8 +66,8 @@ class NovelGenerator:
         
         # 系统准备事件
         self.event_bus.subscribe('foreshadowing.prepare', self._on_foreshadowing_prepare)
-        #self.event_bus.subscribe('event.prepare', self._on_event_prepare)
-        #self.event_bus.subscribe('growth.prepare', self._on_growth_prepare)
+        self.event_bus.subscribe('event.prepare', self._on_event_prepare)
+        self.event_bus.subscribe('growth.prepare', self._on_growth_prepare)
     
     # 添加缺失的事件处理方法
     def _on_chapter_generated(self, data):
@@ -1008,7 +1008,21 @@ class NovelGenerator:
             print(f"    ✅ 伏笔上下文: {type(foreshadowing_context)}, 长度: {len(str(foreshadowing_context))}")
             
             print(f"  📈 获取成长规划上下文...")
-            growth_context = self.global_growth_planner.get_context(chapter_num) if hasattr(self.global_growth_planner, 'get_context') else {}
+            # 检查是否已经有全局成长计划，避免重复生成
+            if (hasattr(self, 'novel_data') and 
+                self.novel_data and 
+                "global_growth_plan" in self.novel_data and 
+                self.novel_data["global_growth_plan"]):
+                
+                print(f"    ✅ 使用已存在的全局成长计划")
+                growth_context = {
+                    "global_growth_plan": self.novel_data["global_growth_plan"],
+                    "chapter_specific": self.global_growth_planner.get_chapter_specific_context(chapter_num) if hasattr(self.global_growth_planner, 'get_chapter_specific_context') else {}
+                }
+            else:
+                print(f"    ⚠️ 没有全局成长计划，调用管理器获取")
+                growth_context = self.global_growth_planner.get_context(chapter_num) if hasattr(self.global_growth_planner, 'get_context') else {}
+            
             print(f"    ✅ 成长规划上下文: {type(growth_context)}, 长度: {len(str(growth_context))}")
             
             print(f"  🎯 获取阶段计划...")

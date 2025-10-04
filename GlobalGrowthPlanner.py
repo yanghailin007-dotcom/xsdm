@@ -86,6 +86,70 @@ class GlobalGrowthPlanner:
             print("  ⚠️ 全书全局成长规划生成失败，使用默认规划")
             return self._create_default_global_plan(total_chapters)
 
+    def get_chapter_specific_context(self, chapter_number: int) -> Dict:
+        """获取章节特定的成长规划上下文，不重新生成全局计划"""
+        if not hasattr(self, 'global_growth_plan') or not self.global_growth_plan:
+            return {}
+        
+        # 基于现有全局计划，计算当前章节的特定上下文
+        chapter_context = {
+            "current_stage": self._get_current_stage(chapter_number),
+            "character_development": self._get_character_development_at_chapter(chapter_number),
+            "faction_development": self._get_faction_development_at_chapter(chapter_number),
+            "ability_progression": self._get_ability_progression_at_chapter(chapter_number),
+            "current_objectives": self._get_current_objectives(chapter_number)
+        }
+        
+        return chapter_context
+
+    def _get_current_stage(self, chapter_number: int) -> str:
+        """获取当前章节所属的阶段"""
+        if not self.global_growth_plan or "stage_framework" not in self.global_growth_plan:
+            return "未知阶段"
+        
+        for stage in self.global_growth_plan["stage_framework"]:
+            chapter_range = stage.get("chapter_range", "")
+            start, end = parse_chapter_range(chapter_range)
+            if start <= chapter_number <= end:
+                return stage["stage_name"]
+        
+        return "未知阶段"
+
+    def _get_character_development_at_chapter(self, chapter_number: int) -> Dict:
+        """获取当前章节的角色发展状态"""
+        # 基于全局计划计算当前章节的发展状态
+        # 简化实现
+        return {
+            "main_character": {
+                "current_level": min(10, chapter_number // 3 + 1),
+                "key_abilities": ["基础能力"],
+                "relationships": {}
+            }
+        }
+
+    def _get_faction_development_at_chapter(self, chapter_number: int) -> Dict:
+        """获取当前章节的势力发展状态"""
+        return {
+            "major_factions": [],
+            "current_balance": "稳定",
+            "recent_changes": []
+        }
+
+    def _get_ability_progression_at_chapter(self, chapter_number: int) -> Dict:
+        """获取当前章节的能力进度"""
+        return {
+            "unlocked_abilities": ["基础操控"],
+            "current_focus": "掌握基础",
+            "next_milestone": "第{}章".format(chapter_number + 5)
+        }
+
+    def _get_current_objectives(self, chapter_number: int) -> List[str]:
+        """获取当前章节的目标"""
+        return [
+            "推进主角成长",
+            "发展故事情节"
+        ]
+
     def get_stage_content_plan(self, stage_name: str, chapter_range: str) -> Dict:
         """获取阶段的详细内容规划"""
         cache_key = f"{stage_name}_{chapter_range}"
@@ -411,8 +475,25 @@ class GlobalGrowthPlanner:
 
 
     def get_context(self, chapter_number: int) -> Dict:
-        """获取章节的成长规划上下文"""
-        return self.get_chapter_content_context(chapter_number)
+        """获取成长规划上下文 - 避免重复生成"""
+        # 首先检查是否已经有全局计划
+        if (hasattr(self.novel_generator, 'novel_data') and 
+            self.novel_generator.novel_data and 
+            "global_growth_plan" in self.novel_generator.novel_data):
+            
+            self.global_growth_plan = self.novel_generator.novel_data["global_growth_plan"]
+            print("  ✅ 使用已存在的全局成长计划")
+        elif not self.global_growth_plan:
+            print("  📚 生成全书全局成长规划...")
+            self.generate_global_growth_plan()
+        
+        # 然后获取章节特定上下文
+        chapter_context = self.get_chapter_specific_context(chapter_number)
+        
+        return {
+            "global_growth_plan": self.global_growth_plan,
+            "chapter_specific": chapter_context
+        }
 
     def get_chapter_content_context(self, chapter_number: int) -> Dict:
         """获取指定章节的内容规划上下文 - 具体实现"""
