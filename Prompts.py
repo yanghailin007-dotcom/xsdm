@@ -702,25 +702,7 @@ Prompts = {
 
         "chapter_content_generation": """你是一位优秀的网络小说作家。请根据以下详细设计方案和基础设定，生成第{chapter_number}章的完整内容。
 
-# 基础设定（必须严格遵循）
-**小说标题**: 
-{novel_title}
-**小说简介**: 
-{novel_synopsis}
-{main_character_instruction}
-
-# 章节详细设计方案
-{chapter_design}
-
-# 核心写作要求
-
-## 1. 严格遵循设定
-- **世界观一致性**: 所有元素必须符合世界观设定：
-{worldview_info}
-- **角色一致性**: 角色行为必须符合角色设定：
-{character_info}
-- **情节连贯性**: 必须遵循写作计划：
-{stage_writing_plan}
+## 1. 基础设定（必须严格遵循）
 
 ## 2. 标题规范
 - 8-15字，吸引力强，与内容高度相关

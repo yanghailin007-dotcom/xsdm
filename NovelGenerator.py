@@ -57,6 +57,9 @@ class NovelGenerator:
         self.foreshadowing_manager = ForeshadowingManager.ForeshadowingManager(novel_generator=self)
         self.global_growth_planner = GlobalGrowthPlanner.GlobalGrowthPlanner(novel_generator=self)  # 确保传递 self
         self.stage_plan_manager = StagePlanManager.StagePlanManager(novel_generator=self)
+
+        completed_chapters = len(self.novel_data.get("generated_chapters", {}))
+        self.foreshadowing_manager.set_current_chapter(completed_chapters)
     
     def _setup_event_handlers(self):
         """设置事件处理器 - 补充完整的事件处理"""
@@ -1242,7 +1245,7 @@ class NovelGenerator:
         print("="*60)
 
     def ensure_stage_plan_for_chapter(self, chapter_number: int):
-        """确保章节有阶段计划 - 修复版本"""
+        """确保章节有阶段计划 - 修复版本，同时更新事件系统"""
         print(f"🔍 确保第{chapter_number}章阶段计划")
         
         # 获取全局阶段计划
@@ -1255,6 +1258,15 @@ class NovelGenerator:
         if not stage_name:
             print(f"  ⚠️ 无法确定第{chapter_number}章所属的阶段")
             return None
+        
+        # 检查阶段是否发生变化
+        current_stage = getattr(self, '_current_stage', None)
+        if current_stage != stage_name:
+            print(f"🔄 检测到阶段变化: {current_stage} -> {stage_name}")
+            self._current_stage = stage_name
+            
+            # 更新事件系统以反映新阶段
+            self._update_event_system_for_stage(stage_name, chapter_number)
         
         # 获取该阶段的详细写作计划
         stage_plan_data = self.novel_data["stage_writing_plans"].get(stage_name)
@@ -1273,6 +1285,116 @@ class NovelGenerator:
         print(f"  📋 阶段计划类型: 包含字段: {list(stage_plan.keys())}")
         
         return stage_plan
+
+    def _update_event_system_for_stage(self, stage_name: str, chapter_number: int):
+        """为特定阶段更新事件系统"""
+        print(f"🔄 为{stage_name}阶段更新事件系统...")
+        
+        try:
+            # 获取该阶段的详细计划
+            stage_plan_data = self.novel_data["stage_writing_plans"].get(stage_name)
+            if not stage_plan_data:
+                print(f"  ⚠️ 没有找到{stage_name}的详细计划数据")
+                return
+            
+            # 提取事件系统信息
+            event_system = {}
+            if "stage_writing_plan" in stage_plan_data:
+                event_system = stage_plan_data["stage_writing_plan"].get("event_system", {})
+            else:
+                event_system = stage_plan_data.get("event_system", {})
+            
+            # 更新事件驱动管理器
+            if hasattr(self, 'event_driven_manager') and self.event_driven_manager:
+                # 清除旧的事件
+                self.event_driven_manager.active_events.clear()
+                
+                # 添加新阶段的事件
+                if event_system:
+                    # 处理重大事件
+                    major_events = event_system.get("major_events", [])
+                    for event in major_events:
+                        if event:
+                            self.event_driven_manager.add_event(
+                                name=event.get("name", f"重大事件_{len(self.event_driven_manager.active_events)}"),
+                                event_type="major",
+                                start_chapter=event.get("start_chapter", chapter_number),
+                                description=event.get("description", ""),
+                                impact_level=event.get("impact_level", "high")
+                            )
+                    
+                    # 处理大事件
+                    big_events = event_system.get("big_events", [])
+                    for event in big_events:
+                        if event:
+                            self.event_driven_manager.add_event(
+                                name=event.get("name", f"大事件_{len(self.event_driven_manager.active_events)}"),
+                                event_type="big",
+                                start_chapter=event.get("start_chapter", chapter_number),
+                                description=event.get("description", ""),
+                                impact_level=event.get("impact_level", "medium")
+                            )
+                    
+                    print(f"  ✅ 事件系统已更新: {len(major_events)}个重大事件, {len(big_events)}个大事件")
+                else:
+                    print(f"  ⚠️ {stage_name}阶段没有事件系统定义")
+            
+            # 同时更新伏笔管理器
+            self._update_foreshadowing_for_stage(stage_name, chapter_number)
+            
+        except Exception as e:
+            print(f"❌ 更新{stage_name}阶段事件系统失败: {e}")
+            import traceback
+            traceback.print_exc()
+
+    def _update_foreshadowing_for_stage(self, stage_name: str, chapter_number: int):
+        """为特定阶段更新伏笔系统"""
+        try:
+            stage_plan_data = self.novel_data["stage_writing_plans"].get(stage_name)
+            if not stage_plan_data:
+                return
+            
+            # 提取需要铺垫的元素
+            if "stage_writing_plan" in stage_plan_data:
+                stage_plan = stage_plan_data["stage_writing_plan"]
+            else:
+                stage_plan = stage_plan_data
+            
+            # 从阶段计划中提取伏笔元素
+            special_elements = []
+            
+            # 检查事件系统中的特殊元素
+            event_system = stage_plan.get("event_system", {})
+            for event_type in ["major_events", "big_events"]:
+                events = event_system.get(event_type, [])
+                for event in events:
+                    if event and "special_elements" in event:
+                        special_elements.append({
+                            "name": event["special_elements"],
+                            "type": "concept",
+                            "purpose": f"为{event.get('name', '事件')}做铺垫",
+                            "target_chapter": event.get("start_chapter", chapter_number + 5)
+                        })
+            
+            # 更新伏笔管理器
+            if hasattr(self, 'foreshadowing_manager') and self.foreshadowing_manager:
+                # 清除旧的阶段相关伏笔
+                self.foreshadowing_manager.clear_stage_elements()
+                
+                # 添加新的伏笔元素
+                for element in special_elements:
+                    self.foreshadowing_manager.register_element(
+                        element_type=element["type"],
+                        element_name=element["name"],
+                        importance="medium",
+                        target_chapter=element["target_chapter"],
+                        purpose=element["purpose"]
+                    )
+                
+                print(f"  ✅ 伏笔系统已更新: {len(special_elements)}个新元素")
+                
+        except Exception as e:
+            print(f"❌ 更新{stage_name}阶段伏笔系统失败: {e}")
 
     def _find_stage_for_chapter(self, chapter_number: int) -> str:
         """确定章节所属的阶段"""

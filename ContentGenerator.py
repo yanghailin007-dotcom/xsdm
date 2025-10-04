@@ -889,14 +889,13 @@ class ContentGenerator:
             foreshadowing_context = context.foreshadowing_context  
             growth_context = context.growth_context
 
-            print(f"  yhl 📊 上下文信息:")
-            print(f"    - 事件上下文: {len(event_context)} 项")
-            print(f"    - 伏笔上下文: {len(foreshadowing_context)} 项") 
-            print(f"    - 成长上下文: {len(growth_context)} 项")  
+            print(f"  📊 上下文信息:")
+            print(f"    - 事件上下文: {len(event_context.get('active_events', []))} 个活跃事件")
+            print(f"    - 伏笔上下文: {len(foreshadowing_context.get('elements_to_introduce', []))} 个待引入元素") 
+            print(f"    - 成长上下文: {len(growth_context.get('chapter_specific', {}))} 项成长规划")  
             
             # 获取事件指导（优先使用上下文中的信息）
             event_guidance = self._get_event_guidance_from_context(event_context)
-            print(f"    - 事件上下文: {list(event_guidance)} 项")
             foreshadowing_guidance = self._get_foreshadowing_guidance_from_context(foreshadowing_context, chapter_number)
 
             # 从上下文中获取阶段计划
@@ -909,6 +908,7 @@ class ContentGenerator:
             event_context = {}
             foreshadowing_context = {}
             growth_context = {}
+            stage_writing_plan = {}
         
         # 准备基础参数
         total_chapters = novel_data["current_progress"]["total_chapters"]
@@ -1102,62 +1102,7 @@ class ContentGenerator:
     - **情节连贯性**: 必须遵循写作计划：
     {content_params.get('stage_writing_plan', '{}')}
 
-    ## 2. 标题规范
-    - 8-15字，吸引力强，与内容高度相关
-    - 确保唯一性，不与已有章节重复
-    - 体现核心情节或转折点
-
-    ## 3. 内容结构
-    - **字数**: 2200-3000字
-    - **开头**: 直接承接上一章结尾，避免断裂
-    - **结尾**: 设置悬念，吸引继续阅读
-
-    ## 4. 叙事风格
-    - **对话占比**: 50%以上，生活化，有火药味
-    - **爽点设置**: 至少1个小爽点（打脸、发现线索等）
-    - **网络热梗**: 自然融入，古今碰撞，不生硬
-    - **情感共鸣**: 日常场景中融入引发共鸣的细节
-
-    ## 5. 质量控制
-    - 严格遵循设计方案和基础设定，不擅自添加重大新设定
-    - 保持角色性格和世界观一致性
-    - 避免AI痕迹：不用标记性语言、机械化结构
-    - 语言自然流畅，避免模式化表达
-
-    ## 6. 章节衔接控制
-    - **开头衔接**: 本章开头必须自然承接上一章的结尾，不能突兀
-    - **情节连贯**: 确保时间、地点、人物状态的连续性
-    - **悬念处理**: 妥善处理上一章留下的悬念，同时设置新的悬念
-    - **过渡自然**: 场景转换和情节推进要流畅自然
-    - **结尾悬念**: 结尾尽可能保持悬念，增加读者阅读下一章
-
-    ## 段落分段要求：
-    - **对话分段**: 每个角色的对话单独成段，增强可读性
-    - **场景转换**: 时间、地点、视角变化时必须分段
-    - **情绪节奏**: 紧张、舒缓等情绪变化处合理分段
-    - **段落长度**: 单段一般不超过200字，避免大段文字
-    - **手机友好**: 考虑手机屏幕显示，段落要短小精悍
-    - **悬念设置**: 关键信息或悬念点可单独成段强调
-    - **动作描写**: 重要动作描写可独立分段突出视觉效果
-
-    ## 必须满足：
-    - **内容长度**: 必须2000字以上
-    - **内容格式**: 必须中文符号习惯
-
-    # 输出格式
-    {{
-        "chapter_number": {chapter_params['chapter_number']},
-        "chapter_title": "章节标题",
-        "content": "章节内容",
-        "word_count": 字数,
-        "plot_advancement": "推动的主要情节",
-        "character_development": "角色成长变化", 
-        "key_events": ["关键事件1", "关键事件2"],
-        "next_chapter_hook": "下一章悬念",
-        "connection_to_previous": "与上一章的衔接",
-        "design_followed": "是否遵循设计方案",
-        "setting_adherence": "基础设定遵循情况"
-    }}"""
+"""
             
             print(f"  ✍️ 根据设计方案生成第{chapter_params['chapter_number']}章内容...")
             content_result = self.api_client.generate_content_with_retry(

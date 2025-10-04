@@ -6,58 +6,117 @@ from utils import parse_chapter_range, is_chapter_in_range
 class ForeshadowingManager:
     """时机控制器 - 专注元素引入时机和铺垫计划（何时写）"""
     def __init__(self, novel_generator):
-        self.generator = novel_generator
-        self.Prompts = novel_generator.Prompts
-        self.foreshadowing_elements = {
-            "factions": {},
-            "characters": {},
-            "items": {},
-            "locations": {},
-            "concepts": {}
-        }
-        self.introduced_elements = set()
-        self.stage_foreshadowing_cache = {}  # 缓存各阶段的伏笔计划
+        self.novel_generator = novel_generator
+        # 初始化所有必要的列表和属性
+        self.elements_to_introduce = []  # 待引入的元素
+        self.elements_to_develop = []    # 待发展的元素
+        self.current_chapter = 0         # 当前章节
+        self.registered_elements = {}    # 已注册的元素记录
         
-        # 伏笔方法库
-        self.foreshadowing_methods = {
-            "factions": {
-                "light": ["路人对话提及", "背景新闻暗示", "相关物品出现", "历史文献记载"],
-                "medium": ["角色讨论其影响", "相关事件发生", "历史背景介绍", "势力标志出现"],
-                "strong": ["直接冲突预兆", "关键人物关联", "重大事件关联", "势力代表登场"]
-            },
-            "characters": {
-                "light": ["他人提及名字", "相关物品出现", "背景故事暗示", "传闻描述"],
-                "medium": ["详细背景介绍", "与他人的关系铺垫", "能力/特点传闻", "间接影响展现"],
-                "strong": ["直接影响力展现", "关键事件关联", "主角目标关联", "直接互动铺垫"]
-            },
-            "items": {
-                "light": ["传说/神话提及", "相关描述出现", "功能暗示", "历史记载"],
-                "medium": ["具体信息介绍", "获取线索出现", "重要性强调", "使用效果描述"],
-                "strong": ["直接线索出现", "获取方法明确", "关键作用展示", "实际使用演示"]
-            },
-            "locations": {
-                "light": ["地图标记", "旅行者描述", "历史记载", "相关物品产地"],
-                "medium": ["详细地理描述", "文化特色介绍", "战略重要性说明", "相关事件发生地"],
-                "strong": ["主角亲自前往", "关键场景设置", "地形影响剧情", "直接描述重要性"]
-            },
-            "concepts": {
-                "light": ["术语提及", "简单解释", "相关现象描述", "背景设定说明"],
-                "medium": ["详细定义", "规则解释", "应用示例", "重要性说明"],
-                "strong": ["实际应用展示", "关键作用体现", "系统化阐述", "直接影响剧情"]
-            }
-        }
+        print("✅ 伏笔管理器初始化完成")
 
-    def register_element(self, element_type: str, name: str, importance: str, 
-                        planned_intro_chapter: int, description: str = ""):
-        """注册需要铺垫的元素"""
-        self.foreshadowing_elements[element_type][name] = {
+    def set_current_chapter(self, chapter_number: int):
+        """设置当前章节号"""
+        self.current_chapter = chapter_number
+
+    def register_element(self, element_type: str, element_name: str, importance: str, 
+                        target_chapter: int, purpose: str = "", stage_specific: bool = True):
+        """注册伏笔元素 - 修复版本"""
+        # 确保所有必要的列表都已初始化
+        if not hasattr(self, 'elements_to_introduce'):
+            self.elements_to_introduce = []
+        if not hasattr(self, 'elements_to_develop'):
+            self.elements_to_develop = []
+        if not hasattr(self, 'current_chapter'):
+            self.current_chapter = 0
+        
+        # 创建元素对象
+        element = {
+            "type": element_type,
+            "name": element_name,
             "importance": importance,
-            "planned_intro_chapter": planned_intro_chapter,
-            "description": description,
-            "foreshadowing_chapters": [],
-            "foreshadowing_methods": [],
-            "is_introduced": False
+            "target_chapter": target_chapter,
+            "purpose": purpose,
+            "stage_specific": stage_specific,
+            "introduced": False,
+            "development_progress": 0
         }
+        
+        # 根据目标章节决定是引入还是发展
+        if target_chapter <= self.current_chapter:
+            self.elements_to_develop.append(element)
+            print(f"  ✅ 注册待发展元素: {element_name} (类型: {element_type}, 目标章节: {target_chapter})")
+        else:
+            self.elements_to_introduce.append(element)
+            print(f"  ✅ 注册待引入元素: {element_name} (类型: {element_type}, 目标章节: {target_chapter})")
+    
+    def clear_stage_elements(self):
+        """清除阶段相关的伏笔元素"""
+        # 确保列表已初始化
+        if not hasattr(self, 'elements_to_introduce'):
+            self.elements_to_introduce = []
+        if not hasattr(self, 'elements_to_develop'):
+            self.elements_to_develop = []
+            
+        # 保留全局伏笔元素（从世界观、角色设计等初始化的）
+        # 只清除阶段特定的伏笔元素
+        self.elements_to_introduce = [elem for elem in self.elements_to_introduce 
+                                     if not elem.get('stage_specific', False)]
+        self.elements_to_develop = [elem for elem in self.elements_to_develop 
+                                   if not elem.get('stage_specific', False)]
+        print("  ✅ 已清除阶段特定的伏笔元素")
+    
+    def get_context(self, chapter_number: int) -> Dict:
+        """获取伏笔上下文 - 修复版本"""
+        # 确保所有必要的属性都已初始化
+        if not hasattr(self, 'elements_to_introduce'):
+            self.elements_to_introduce = []
+        if not hasattr(self, 'elements_to_develop'):
+            self.elements_to_develop = []
+        
+        # 更新当前章节
+        self.current_chapter = chapter_number
+        
+        # 构建上下文
+        context = {
+            "elements_to_introduce": self.elements_to_introduce.copy(),
+            "elements_to_develop": self.elements_to_develop.copy(),
+            "foreshadowing_focus": f"第{chapter_number}章伏笔管理"
+        }
+        
+        return context
+    
+    def generate_foreshadowing_prompt(self, chapter_number: int) -> str:
+        """生成伏笔提示 - 修复版本"""
+        # 确保列表已初始化
+        if not hasattr(self, 'elements_to_introduce'):
+            self.elements_to_introduce = []
+        if not hasattr(self, 'elements_to_develop'):
+            self.elements_to_develop = []
+            
+        # 更新当前章节
+        self.current_chapter = chapter_number
+        
+        # 构建提示
+        prompt_parts = ["# 🎭 伏笔铺垫指导"]
+        
+        # 添加待引入元素
+        if self.elements_to_introduce:
+            prompt_parts.append("## 需要引入的元素:")
+            for element in self.elements_to_introduce:
+                if element["target_chapter"] == chapter_number:
+                    prompt_parts.append(f"- **{element['name']}** ({element['type']}): {element['purpose']}")
+        
+        # 添加待发展元素
+        if self.elements_to_develop:
+            prompt_parts.append("## 需要发展的元素:")
+            for element in self.elements_to_develop:
+                if element["target_chapter"] <= chapter_number and not element["introduced"]:
+                    prompt_parts.append(f"- **{element['name']}** ({element['type']}): 需要进一步发展")
+        
+        return "\n".join(prompt_parts) if len(prompt_parts) > 1 else "# 🎭 伏笔铺垫指导\n\n本章暂无特定的伏笔任务。"
+
+
 
     def get_stage_foreshadowing_plan(self, stage_name: str, start_chapter: int, 
                                    end_chapter: int, content_plan: Dict = None) -> Dict:
@@ -113,70 +172,6 @@ class ForeshadowingManager:
             print(f"  ⚠️ {stage_name}伏笔计划生成失败，使用默认计划")
             return self._create_default_foreshadowing_plan(stage_name, start_chapter, end_chapter)
 
-    def get_chapter_foreshadowing_context(self, chapter_number: int, 
-                                        stage_plan: Dict = None) -> Dict:
-        """获取指定章节的伏笔上下文"""
-        # 获取当前阶段信息
-        current_stage = self._get_current_stage_from_plan(chapter_number, stage_plan)
-        if not current_stage:
-            return {}
-        
-        # 获取阶段伏笔计划
-        stage_range = parse_chapter_range(current_stage["chapter_range"])
-        foreshadowing_plan = self.get_stage_foreshadowing_plan(
-            current_stage["stage_name"], stage_range[0], stage_range[1]
-        )
-        
-        # 生成章节特定的伏笔指导
-        chapter_context = self._generate_chapter_foreshadowing_context(
-            chapter_number, foreshadowing_plan
-        )
-        
-        return chapter_context
-
-    def generate_foreshadowing_prompt(self, chapter_number: int, 
-                                    content_context: Dict = None) -> str:
-        """生成章节的伏笔提示词"""
-        chapter_context = self.get_chapter_foreshadowing_context(chapter_number)
-        
-        if not chapter_context or not chapter_context.get("foreshadowing_tasks"):
-            return "# 🎭 伏笔铺垫指导\n\n本章暂无特定的伏笔任务。"
-        
-        prompt_parts = ["\n\n# 🎭 伏笔铺垫指导"]
-        
-        # 添加本章伏笔重点
-        prompt_parts.append(f"## 本章伏笔重点")
-        prompt_parts.append(f"{chapter_context['foreshadowing_focus']}")
-        
-        # 添加具体任务
-        if chapter_context.get("elements_to_introduce"):
-            prompt_parts.append(f"\n## 需要引入的元素:")
-            for element in chapter_context["elements_to_introduce"]:
-                prompt_parts.append(f"- **{element['name']}** ({element['type']}): {element['purpose']}")
-                prompt_parts.append(f"  建议方式: {', '.join(element['methods'][:2])}")
-        
-        if chapter_context.get("elements_to_develop"):
-            prompt_parts.append(f"\n## 需要发展的元素:")
-            for element in chapter_context["elements_to_develop"]:
-                prompt_parts.append(f"- **{element['name']}** ({element['type']}): {element['development_arc']}")
-                prompt_parts.append(f"  发展方式: {', '.join(element['methods'][:2])}")
-        
-        # 添加伏笔强度指导
-        intensity = chapter_context.get("foreshadowing_intensity", "normal")
-        intensity_guide = {
-            "light": "轻度伏笔: 自然提及，不过度强调",
-            "medium": "中度伏笔: 适当强调，建立预期", 
-            "strong": "重度伏笔: 明确暗示，制造悬念"
-        }
-        prompt_parts.append(f"\n## 伏笔强度: {intensity_guide.get(intensity, '正常铺垫')}")
-        
-        # 添加具体任务指导
-        if chapter_context.get("specific_tasks"):
-            prompt_parts.append(f"\n## 具体伏笔任务:")
-            for task in chapter_context["specific_tasks"]:
-                prompt_parts.append(f"- {task}")
-        
-        return "\n".join(prompt_parts)
 
     def _get_content_plan_summary(self, content_plan: Dict) -> str:
         """从内容规划中提取摘要信息"""
@@ -301,9 +296,6 @@ class ForeshadowingManager:
                 }
         return None
 
-    def get_context(self, chapter_number: int) -> Dict:
-        """获取章节的伏笔上下文"""
-        return self.get_chapter_foreshadowing_context(chapter_number)
 
     def get_chapter_foreshadowing_context(self, chapter_number: int, stage_plan: Dict = None) -> Dict:
         """获取指定章节的伏笔上下文 - 具体实现"""
