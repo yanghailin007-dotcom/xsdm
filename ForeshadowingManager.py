@@ -86,8 +86,8 @@ class ForeshadowingManager:
         
         return context
     
-    def generate_foreshadowing_prompt(self, chapter_number: int) -> str:
-        """生成伏笔提示 - 修复版本"""
+    def generate_foreshadowing_prompt(self, chapter_number: int, event_context: Dict = None) -> str:
+        """生成伏笔提示 - 修复版本，整合事件指导"""
         # 确保列表已初始化
         if not hasattr(self, 'elements_to_introduce'):
             self.elements_to_introduce = []
@@ -97,22 +97,28 @@ class ForeshadowingManager:
         # 更新当前章节
         self.current_chapter = chapter_number
         
+        # 生成事件指导
+        event_guidance = self._generate_event_guidance(event_context, chapter_number)
+        
         # 构建提示
         prompt_parts = ["# 🎭 伏笔铺垫指导"]
         
         # 添加待引入元素
-        if self.elements_to_introduce:
-            prompt_parts.append("## 需要引入的元素:")
-            for element in self.elements_to_introduce:
-                if element["target_chapter"] == chapter_number:
-                    prompt_parts.append(f"- **{element['name']}** ({element['type']}): {element['purpose']}")
+        intro_elements = [elem for elem in self.elements_to_introduce 
+                        if elem["target_chapter"] == chapter_number]
+        if intro_elements:
+            prompt_parts.append("## 🆕 需要引入的元素:")
+            for element in intro_elements:
+                purpose = element['purpose'] if element['purpose'] else "推进情节发展"
+                prompt_parts.append(f"- **{element['name']}** ({element['type']}): {purpose}")
         
-        # 添加待发展元素
-        if self.elements_to_develop:
-            prompt_parts.append("## 需要发展的元素:")
-            for element in self.elements_to_develop:
-                if element["target_chapter"] <= chapter_number and not element["introduced"]:
-                    prompt_parts.append(f"- **{element['name']}** ({element['type']}): 需要进一步发展")
+        # 添加待发展元素  
+        develop_elements = [elem for elem in self.elements_to_develop
+                        if elem["target_chapter"] <= chapter_number and not element["introduced"]]
+        if develop_elements:
+            prompt_parts.append("## 📈 需要发展的元素:")
+            for element in develop_elements:
+                prompt_parts.append(f"- **{element['name']}** ({element['type']}): 需要进一步发展")
         
         return "\n".join(prompt_parts) if len(prompt_parts) > 1 else "# 🎭 伏笔铺垫指导\n\n本章暂无特定的伏笔任务。"
 

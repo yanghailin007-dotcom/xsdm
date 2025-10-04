@@ -1128,3 +1128,123 @@ class EventDrivenManager:
         
         self.active_events[name] = event  # 修复：使用字典赋值而不是列表append
         print(f"  ✅ 添加事件: {name} (类型: {event_type}, 起始章节: {start_chapter})")
+
+    def _generate_event_guidance(self, event_context: Dict, chapter_number: int) -> str:
+        """根据事件上下文生成事件指导"""
+        if not event_context or not isinstance(event_context, dict):
+            return self._get_default_event_guidance(chapter_number)
+        
+        try:
+            # 从事件上下文中提取相关信息
+            stage_plan = event_context.get("development_stage", {}).get("stage_writing_plan", {})
+            event_system = stage_plan.get("event_system", {})
+            
+            # 查找当前章节的事件
+            current_events = self._find_events_for_chapter(chapter_number, event_system)
+            
+            if not current_events:
+                return self._get_default_event_guidance(chapter_number)
+            
+            # 生成事件指导
+            return self._format_event_guidance(current_events, chapter_number)
+            
+        except Exception as e:
+            print(f"⚠️ 生成事件指导时出错: {e}")
+            return self._get_default_event_guidance(chapter_number)
+
+    def _find_events_for_chapter(self, chapter_number: int, event_system: Dict) -> List[Dict]:
+        """查找指定章节的事件"""
+        events = []
+        
+        # 检查重大事件
+        for event in event_system.get("major_events", []):
+            start = event.get("start_chapter", 0)
+            end = event.get("end_chapter", 0)
+            if start <= chapter_number <= end:
+                events.append({
+                    "type": "major_event",
+                    "name": event.get("name", ""),
+                    "significance": event.get("significance", ""),
+                    "main_goal": event.get("main_goal", ""),
+                    "key_moments": self._find_key_moments_for_chapter(event.get("key_moments", []), chapter_number)
+                })
+        
+        # 检查大事件
+        for event in event_system.get("big_events", []):
+            start = event.get("start_chapter", 0)
+            end = event.get("end_chapter", 0)
+            if start <= chapter_number <= end:
+                events.append({
+                    "type": "big_event", 
+                    "name": event.get("name", ""),
+                    "main_goal": event.get("main_goal", ""),
+                    "connection_to_major": event.get("connection_to_major", "")
+                })
+        
+        # 检查普通事件
+        for event in event_system.get("events", []):
+            if event.get("chapter") == chapter_number:
+                events.append({
+                    "type": "event",
+                    "name": event.get("name", ""),
+                    "goal": event.get("goal", ""),
+                    "outcome": event.get("outcome", "")
+                })
+        
+        return events
+
+    def _find_key_moments_for_chapter(self, key_moments: List[str], chapter_number: int) -> List[str]:
+        """查找指定章节的关键时刻"""
+        moments = []
+        for moment in key_moments:
+            if f"第{chapter_number}章" in moment:
+                moments.append(moment)
+        return moments
+
+    def _format_event_guidance(self, events: List[Dict], chapter_number: int) -> str:
+        """格式化事件指导"""
+        guidance_parts = ["# 🎯 事件执行指导"]
+        
+        # 按事件类型分组
+        major_events = [e for e in events if e["type"] == "major_event"]
+        big_events = [e for e in events if e["type"] == "big_event"]
+        normal_events = [e for e in events if e["type"] == "event"]
+        
+        if major_events:
+            guidance_parts.append("## 🚨 重大事件")
+            for event in major_events:
+                guidance_parts.append(f"### {event['name']}")
+                guidance_parts.append(f"- **重要性**: {event['significance']}")
+                guidance_parts.append(f"- **主要目标**: {event['main_goal']}")
+                if event['key_moments']:
+                    guidance_parts.append("- **关键时刻**:")
+                    for moment in event['key_moments']:
+                        guidance_parts.append(f"  - {moment}")
+        
+        if big_events:
+            guidance_parts.append("## 🔥 大事件") 
+            for event in big_events:
+                guidance_parts.append(f"### {event['name']}")
+                guidance_parts.append(f"- **目标**: {event['main_goal']}")
+                guidance_parts.append(f"- **关联**: {event['connection_to_major']}")
+        
+        if normal_events:
+            guidance_parts.append("## 📝 普通事件")
+            for event in normal_events:
+                guidance_parts.append(f"### {event['name']}")
+                guidance_parts.append(f"- **目标**: {event['goal']}")
+                guidance_parts.append(f"- **预期结果**: {event['outcome']}")
+        
+        return "\n".join(guidance_parts)
+
+    def _get_default_event_guidance(self, chapter_number: int) -> str:
+        """获取默认事件指导"""
+        return f"""# 🎯 事件执行指导
+    ### 默认指导原则:
+    - 推进主线情节发展
+    - 保持角色成长连续性  
+
+    ### 重点任务:
+    1. 发展已有的角色关系和能力
+
+    如无特殊事件安排，请专注于情节的自然推进。"""        
