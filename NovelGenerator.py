@@ -13,6 +13,7 @@ from typing import Dict, Optional, Tuple, List, Any
 import APIClient
 import ContentGenerator
 from Contexts import GenerationContext
+import ElementTimingPlanner
 import EventBus
 import EventDrivenManager
 import ForeshadowingManager
@@ -55,8 +56,16 @@ class NovelGenerator:
 
         self.event_driven_manager = EventDrivenManager.EventDrivenManager(novel_generator=self)
         self.foreshadowing_manager = ForeshadowingManager.ForeshadowingManager(novel_generator=self)
-        self.global_growth_planner = GlobalGrowthPlanner.GlobalGrowthPlanner(novel_generator=self)  # 确保传递 self
+        self.global_growth_planner = GlobalGrowthPlanner.GlobalGrowthPlanner(novel_generator=self)
         self.stage_plan_manager = StagePlanManager.StagePlanManager(novel_generator=self)
+        
+        # 新增：元素时机规划器
+        self.element_timing_planner = ElementTimingPlanner.ElementTimingPlanner(novel_generator=self)
+        
+        # 设置依赖关系
+        self.element_timing_planner.set_foreshadowing_manager(self.foreshadowing_manager)
+        self.element_timing_planner.set_project_manager(self.project_manager)
+        self.foreshadowing_manager.set_element_timing_planner(self.element_timing_planner)
 
         completed_chapters = len(self.novel_data.get("generated_chapters", {}))
         self.foreshadowing_manager.set_current_chapter(completed_chapters)
@@ -325,6 +334,27 @@ class NovelGenerator:
                 self.current_progress["stage"] = "写作中"
                 print(f"🔄 生成器层面修复进度: {len(self.novel_data['generated_chapters'])}/{max_chapter}章")
             
+            if "element_timing_plan" not in data and self.project_manager:
+                # 尝试从单独的文件加载
+                timing_plan = self.project_manager.load_element_timing_plan(data["novel_title"])
+                if timing_plan:
+                    data["element_timing_plan"] = timing_plan
+                    print("  ✅ 从单独文件加载元素时机规划")
+            
+            # 同步数据到self.novel_data
+            import copy
+            self.novel_data = copy.deepcopy(data)
+            
+            # 初始化元素时机规划器
+            if hasattr(self, 'element_timing_planner'):
+                if "element_timing_plan" in self.novel_data:
+                    self.element_timing_planner.element_timing_plan = self.novel_data["element_timing_plan"]
+                    # 重新注册到伏笔管理器
+                    self.element_timing_planner._register_elements_to_foreshadowing(
+                        self.novel_data["element_timing_plan"]
+                    )
+                    print("  ✅ 元素时机规划已恢复并重新注册")
+
             # 加载其他数据
             self.market_analysis = self.novel_data.get("market_analysis", {})
             self.overall_stage_plans = self.novel_data.get("overall_stage_plans", {})
@@ -516,7 +546,11 @@ class NovelGenerator:
         self.novel_data["current_progress"]["stage"] = "成长规划"
         if not self._generate_global_growth_plan(creative_seed, total_chapters):
             print("⚠️  全局成长规划生成失败，使用基础框架")
-        
+
+        self.novel_data["current_progress"]["stage"] = "元素时机规划"
+        if not self._generate_element_timing_plan(creative_seed, total_chapters):
+            print("⚠️  元素登场时机规划生成失败，使用基础时机")   
+
         # 步骤8: 初始化系统
         self.novel_data["current_progress"]["stage"] = "系统初始化"
         self._initialize_systems()
@@ -532,7 +566,33 @@ class NovelGenerator:
         
         # ==================== 第五阶段：章节内容生成 ====================
         return self._generate_all_chapters(total_chapters)
-    
+
+    def _generate_element_timing_plan(self, creative_seed: str, total_chapters: int) -> bool:
+        """生成元素登场时机规划"""
+        print("=== 步骤7.5: 制定元素登场时机规划 ===")
+        
+        try:
+            # 确保有全局成长计划
+            if not self.novel_data.get("global_growth_plan"):
+                print("  ⚠️ 没有全局成长计划，无法生成元素时机规划")
+                return False
+            
+            timing_plan = self.element_timing_planner.generate_element_timing_plan(
+                self.novel_data["global_growth_plan"]
+            )
+            
+            if timing_plan:
+                self.novel_data["element_timing_plan"] = timing_plan
+                print("✅ 元素登场时机规划制定完成并已保存")
+                return True
+            else:
+                print("❌ 元素登场时机规划生成失败")
+                return False
+                
+        except Exception as e:
+            print(f"⚠️  元素时机规划器出错: {e}")
+            return False
+
     def _evaluate_plan_quality(self, plan_data: Dict, category: str, creative_seed: str) -> bool:
         """使用AI评价方案质量，特别是书名和简介"""
         print("\n🔍 正在使用AI评价方案质量...")

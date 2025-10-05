@@ -378,3 +378,49 @@ class ForeshadowingManager:
             },
             "foreshadowing_synopsis": f"{stage_name}的常规伏笔安排"
         }
+    
+    # 在ForeshadowingManager类中添加
+    def set_element_timing_planner(self, planner):
+        """设置元素时机规划器"""
+        self.timing_planner = planner
+
+    def generate_comprehensive_foreshadowing_prompt(self, chapter_number: int, event_context: Dict = None) -> str:
+        """生成综合的伏笔提示，包含元素登场时机"""
+        base_prompt = self.generate_foreshadowing_prompt(chapter_number, event_context)
+        
+        # 添加元素登场时机信息
+        if hasattr(self, 'timing_planner') and self.timing_planner.element_timing_plan:
+            timing_info = self._get_chapter_timing_info(chapter_number)
+            if timing_info:
+                return base_prompt + "\n\n" + timing_info
+        
+        return base_prompt
+
+    def _get_chapter_timing_info(self, chapter_number: int) -> str:
+        """获取本章的元素登场时机信息"""
+        timing_plan = self.timing_planner.element_timing_plan
+        if not timing_plan:
+            return ""
+        
+        elements_introducing = []
+        
+        # 检查所有类别中本章需要引入的元素
+        for category in ["character_timing", "faction_timing", "ability_timing", "item_timing", "concept_timing"]:
+            elements = timing_plan.get(category, [])
+            for element in elements:
+                if element.get("first_appearance_chapter") == chapter_number:
+                    elements_introducing.append({
+                        "type": category.replace("_timing", ""),
+                        "name": element["name"],
+                        "importance": element.get("importance", "普通")
+                    })
+        
+        if not elements_introducing:
+            return ""
+        
+        # 构建时机提示
+        prompt_parts = ["## 🎯 本章需要引入的元素:"]
+        for elem in elements_introducing:
+            prompt_parts.append(f"- **{elem['name']}** ({elem['type']}): 重要性-{elem['importance']}")
+        
+        return "\n".join(prompt_parts)    

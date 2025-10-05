@@ -525,8 +525,7 @@ class StagePlanManager:
         else:
             print(f"  ⚠️ events为空列表")
 
-    def _create_default_writing_plan(self, stage_name: str, content_plan: Dict, 
-                                   foreshadowing_plan: Dict) -> Dict:
+    def _create_default_writing_plan(self, stage_name: str) -> Dict:
         """创建默认的写作计划"""
         stage_range = self._get_stage_range(stage_name)
         start_chap, end_chap = self._parse_chapter_range(stage_range)

@@ -15,7 +15,7 @@ class ContentGenerator:
         self.config = config
         self.prompts = Prompts
         self.event_bus = event_bus
-        self.quality_assessor = quality_assessor
+        self.quality_assessor = None
         self.custom_main_character_name = None
     
     def set_custom_main_character_name(self, name: str):
