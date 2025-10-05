@@ -909,7 +909,7 @@ class NovelGenerator:
     
     def _generate_overall_stage_plan(self, creative_seed: str, total_chapters: int) -> bool:
         """生成全书阶段计划"""
-        print("=== 步骤5: 生成全书阶段计划 ===")
+        print("=== 步骤6: 生成全书阶段计划 ===")
         
         self.novel_data["overall_stage_plans"] = self.stage_plan_manager.generate_overall_stage_plan(
             creative_seed,
@@ -928,7 +928,7 @@ class NovelGenerator:
 
     def _generate_global_growth_plan(self, creative_seed: str, total_chapters: int) -> bool:
         """生成全局成长规划 - 精简分层版本"""
-        print("=== 步骤6: 制定全书成长规划框架 ===")
+        print("=== 步骤5: 制定全书成长规划框架 ===")
         
         try:
             self.novel_data["global_growth_plan"] = self.global_growth_planner.generate_global_growth_plan()

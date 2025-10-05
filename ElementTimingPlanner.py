@@ -1,6 +1,8 @@
 # ElementTimingPlanner.py
 from typing import Dict, List
 
+from utils import parse_chapter_range
+
 
 class ElementTimingPlanner:
     """元素登场时机规划器 - 专门负责各种元素的首次登场和铺垫时机"""
@@ -150,7 +152,7 @@ class ElementTimingPlanner:
         self.foreshadowing_manager = manager
     
     def _collect_all_elements(self, novel_data: Dict, global_plan: Dict) -> Dict:
-        """收集所有需要规划时机的元素"""
+        """收集所有需要规划时机的元素 - 修复版"""
         elements = {
             "characters": [],
             "factions": [], 
@@ -160,35 +162,196 @@ class ElementTimingPlanner:
             "concepts": []
         }
         
-        # 从角色设计中收集
+        # 1. 收集角色 - 修复角色收集逻辑
         character_design = novel_data.get("character_design", {})
-        for char_type, chars in character_design.items():
-            if isinstance(chars, list):
-                for char in chars:
-                    if isinstance(char, dict):
-                        elements["characters"].append({
-                            "name": char.get("name", "未知角色"),
-                            "type": char_type,
-                            "importance": char.get("importance", "普通"),
-                            "description": char.get("description", "")
-                        })
         
-        # 从世界观中收集势力和概念
+        # 收集主角
+        main_char = character_design.get("main_character", {})
+        if main_char and isinstance(main_char, dict):
+            elements["characters"].append({
+                "name": main_char.get("name", "主角"),
+                "type": "主角",
+                "importance": "核心",
+                "description": f"{main_char.get('personality', '')} - {main_char.get('background', '')}"
+            })
+        
+        # 收集重要角色
+        important_chars = character_design.get("important_characters", [])
+        for char in important_chars:
+            if isinstance(char, dict):
+                elements["characters"].append({
+                    "name": char.get("name", "未知角色"),
+                    "type": char.get("role", "配角"),
+                    "importance": "重要",
+                    "description": f"{char.get('personality', '')} - {char.get('purpose', '')}"
+                })
+        
+        # 2. 收集世界观元素
         worldview = novel_data.get("core_worldview", {})
+        
+        # 收集势力
         if "major_factions" in worldview:
-            elements["factions"].extend(worldview["major_factions"])
+            for faction in worldview["major_factions"]:
+                if isinstance(faction, dict):
+                    elements["factions"].append({
+                        "name": faction.get("name", "未知势力"),
+                        "description": faction.get("description", faction.get("purpose", ""))
+                    })
+                else:
+                    elements["factions"].append({
+                        "name": str(faction),
+                        "description": "世界观中的主要势力"
+                    })
         
+        # 收集核心概念
         if "core_concepts" in worldview:
-            elements["concepts"].extend(worldview["core_concepts"])
+            for concept in worldview["core_concepts"]:
+                if isinstance(concept, dict):
+                    elements["concepts"].append({
+                        "name": concept.get("name", "未知概念"),
+                        "description": concept.get("description", "")
+                    })
+                else:
+                    elements["concepts"].append({
+                        "name": str(concept),
+                        "description": "世界观核心概念"
+                    })
         
-        # 从能力系统中收集
+        # 收集时代背景
+        if "era" in worldview:
+            elements["concepts"].append({
+                "name": "时代背景",
+                "description": worldview["era"]
+            })
+        
+        # 收集核心冲突
+        if "core_conflict" in worldview:
+            elements["concepts"].append({
+                "name": "核心冲突",
+                "description": worldview["core_conflict"]
+            })
+        
+        # 3. 收集能力系统 - 修复系统名称提取
         ability_system = novel_data.get("ability_system", {})
+        
+        # 动态提取能力系统名称
+        if "power_system" in worldview:
+            power_desc = worldview["power_system"]
+            
+            # 尝试从描述中提取系统名称
+            system_name = self._extract_system_name(power_desc)
+            
+            elements["abilities"].append({
+                "name": system_name,
+                "description": power_desc
+            })
+        
+        # 收集技能分类
         if "skill_categories" in ability_system:
             for category in ability_system["skill_categories"]:
                 if "skills" in category:
-                    elements["abilities"].extend(category["skills"])
+                    for skill in category["skills"]:
+                        if isinstance(skill, dict):
+                            elements["abilities"].append({
+                                "name": skill.get("name", "未知技能"),
+                                "description": skill.get("description", "")
+                            })
+                        else:
+                            elements["abilities"].append({
+                                "name": str(skill),
+                                "description": "系统能力"
+                            })
+        
+        # 4. 从全局成长计划中收集额外元素
+        if global_plan:
+            # 收集成长阶段
+            stages = global_plan.get("stage_framework", [])
+            for stage in stages:
+                elements["concepts"].append({
+                    "name": f"{stage.get('stage_name', '阶段')}规划",
+                    "description": f"目标: {', '.join(stage.get('core_objectives', []))}"
+                })
+            
+            # 收集势力发展
+            faction_trajectory = global_plan.get("faction_development_trajectory", {})
+            for faction_name, faction_info in faction_trajectory.items():
+                if faction_name not in [f["name"] for f in elements["factions"]]:
+                    elements["factions"].append({
+                        "name": faction_name,
+                        "description": f"发展路径: {faction_info.get('development_path', '')}"
+                    })
+        
+        # 5. 从阶段写作计划中收集事件元素
+        stage_plans = novel_data.get("stage_writing_plans", {})
+        for stage_name, stage_data in stage_plans.items():
+            writing_plan = stage_data.get("stage_writing_plan", {})
+            
+            # 收集重大事件
+            event_system = writing_plan.get("event_system", {})
+            major_events = event_system.get("major_events", [])
+            for event in major_events:
+                elements["concepts"].append({
+                    "name": event.get("name", "重大事件"),
+                    "description": f"重大事件: {event.get('main_goal', '')}"
+                })
+            
+            # 收集大事件
+            big_events = event_system.get("big_events", [])
+            for event in big_events:
+                elements["concepts"].append({
+                    "name": event.get("name", "大事件"),
+                    "description": f"大事件: {event.get('main_goal', '')}"
+                })
+        
+        # 6. 从市场分析中收集热门元素
+        market_analysis = novel_data.get("market_analysis", {})
+        if "hot_elements" in worldview:
+            for element in worldview["hot_elements"]:
+                elements["concepts"].append({
+                    "name": f"热门元素: {element}",
+                    "description": "吸引读者的热门设定"
+                })
+        
+        # 7. 收集核心卖点作为概念
+        selling_points = market_analysis.get("core_selling_points", [])
+        for i, point in enumerate(selling_points):
+            elements["concepts"].append({
+                "name": f"核心卖点{i+1}",
+                "description": point
+            })
+        
+        print(f"  📊 元素收集统计: 角色{len(elements['characters'])}个, 势力{len(elements['factions'])}个, "
+            f"能力{len(elements['abilities'])}个, 概念{len(elements['concepts'])}个")
         
         return elements
+
+    def _extract_system_name(self, power_system_description: str) -> str:
+        """从能力系统描述中提取系统名称"""
+        import re
+        
+        # 常见系统名称模式
+        patterns = [
+            r'(.+?)系统',  # 匹配"XXX系统"
+            r'(.+?)能力',  # 匹配"XXX能力"  
+            r'(.+?)功法',  # 匹配"XXX功法"
+            r'(.+?)技能',  # 匹配"XXX技能"
+            r'(.+?)金手指',  # 匹配"XXX金手指"
+        ]
+        
+        for pattern in patterns:
+            match = re.search(pattern, power_system_description)
+            if match:
+                return match.group(1).strip() + pattern[2:]  # 返回匹配到的名称+后缀
+        
+        # 如果没匹配到特定模式，尝试提取前几个词作为名称
+        words = power_system_description.split()
+        if len(words) > 0:
+            # 取前2-3个词作为系统名称
+            name_words = words[:min(3, len(words))]
+            return "".join(name_words) + "系统"
+        
+        # 默认名称
+        return "核心能力系统"
     
     def _plan_element_timing(self, all_elements: Dict, total_chapters: int, global_growth_plan: Dict, overall_stage_plans: Dict) -> Dict:
         """为所有元素规划登场时机"""
@@ -248,7 +411,8 @@ class ElementTimingPlanner:
             )
             
             # 如果有铺垫章节，也注册铺垫
-            if "foreshadowing_chapter" in char and char["foreshadowing_chapter"] > 0:
+            foreshadowing_chapter = char.get("foreshadowing_chapter")
+            if foreshadowing_chapter is not None and foreshadowing_chapter > 0:
                 self.foreshadowing_manager.register_element(
                     element_type="角色铺垫",
                     element_name=f"{char['name']}的铺垫",

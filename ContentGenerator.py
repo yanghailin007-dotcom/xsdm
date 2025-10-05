@@ -365,12 +365,6 @@ class ContentGenerator:
         # 存储上下文供后续使用
         novel_data['_current_generation_context'] = context
         
-        # 记录上下文信息
-        print(f"  📊 上下文信息:")
-        print(f"    - 事件上下文: {len(context.event_context)} 项")
-        print(f"    - 伏笔上下文: {len(context.foreshadowing_context)} 项") 
-        print(f"    - 成长上下文: {len(context.growth_context)} 项")  
-
         # 准备章节参数
         chapter_params = self._prepare_chapter_params(chapter_number, novel_data)
         
