@@ -7,17 +7,22 @@ from typing import Dict, Optional, List, Tuple
 import APIClient
 from Contexts import GenerationContext
 from Prompts import Prompts
+import QualityAssessor
 
 class ContentGenerator:
-    def __init__(self, novel_generator, api_client: APIClient, config, event_bus, quality_assessor):
+    def __init__(self, novel_generator, api_client: APIClient, config, event_bus, quality_assessor: QualityAssessor ):
         self.novel_generator = novel_generator
         self.api_client = api_client
         self.config = config
         self.prompts = Prompts
         self.event_bus = event_bus
-        #self.quality_assessor = quality_assessor
+        self._quality_assessor: QualityAssessor = quality_assessor
         self.custom_main_character_name = None
-    
+
+    @property
+    def quality_assessor(self) -> QualityAssessor:
+        return self._quality_assessor
+
     def set_custom_main_character_name(self, name: str):
         """设置主角名字"""
         self.custom_main_character_name = name
@@ -106,7 +111,7 @@ class ContentGenerator:
     def _generate_character_name_by_category(self, category: str, creative_seed: str) -> str:
         """根据分类生成适合的主角名字"""
         try:
-            print(f"  🎯 开始为分类 '{category}' 生成主角名字...")
+            print(f"  🎯 开始为分类 '{category}' 创意种子：{creative_seed} 生成主角名字...")
             
             user_prompt = f"\n小说分类：{category}\n创意种子：{creative_seed}"
             
@@ -394,7 +399,7 @@ class ContentGenerator:
                 print(f"  ✅ 字数达标: {word_count}字")
                 break
             else:
-                print(f"  ⚠️ 字数不足: {word_count}字 < 1500字，重新生成...")
+                print(f"  ⚠️ 字数不足: {content_length}字 < 1800字，重新生成...")
                 if attempt == max_retries - 1:
                     print(f"  ❌ 达到最大重试次数，使用当前内容")
         

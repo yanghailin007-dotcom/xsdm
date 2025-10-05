@@ -109,6 +109,35 @@ class ForeshadowingManager:
         print(f"  📊 伏笔上下文构建完成: {len(current_intro_elements)}个引入, {len(current_develop_elements)}个发展")
         
         return context
+
+    def _generate_event_guidance(self, event_context: Dict, chapter_number: int) -> str:
+        """生成事件指导 - 新增方法"""
+        if not event_context:
+            return ""
+        
+        guidance_parts = []
+        
+        # 处理活跃事件
+        active_events = event_context.get('active_events', [])
+        if active_events:
+            guidance_parts.append("## 🎯 活跃事件指导:")
+            for event in active_events:
+                if isinstance(event, dict):
+                    event_name = event.get('name', '未知事件')
+                    event_type = event.get('type', '普通')
+                    guidance_parts.append(f"- **{event_name}** ({event_type}事件): 需要推进发展")
+        
+        # 处理即将发生的事件
+        upcoming_events = event_context.get('upcoming_events', [])
+        if upcoming_events:
+            guidance_parts.append("## ⏰ 即将发生事件:")
+            for event in upcoming_events:
+                if isinstance(event, dict):
+                    event_name = event.get('name', '未知事件')
+                    trigger_chapter = event.get('trigger_chapter', chapter_number + 1)
+                    guidance_parts.append(f"- **{event_name}**: 预计第{trigger_chapter}章触发")
+        
+        return "\n".join(guidance_parts) if guidance_parts else ""
     
     def generate_foreshadowing_prompt(self, chapter_number: int, event_context: Dict = None) -> str:
         """生成伏笔提示 - 修复版本，整合事件指导"""
@@ -127,6 +156,10 @@ class ForeshadowingManager:
         # 构建提示
         prompt_parts = ["# 🎭 伏笔铺垫指导"]
         
+        # 添加事件指导
+        if event_guidance:
+            prompt_parts.append(event_guidance)
+        
         # 添加待引入元素
         intro_elements = [elem for elem in self.elements_to_introduce 
                         if elem["target_chapter"] == chapter_number]
@@ -138,15 +171,13 @@ class ForeshadowingManager:
         
         # 添加待发展元素  
         develop_elements = [elem for elem in self.elements_to_develop
-                        if elem["target_chapter"] <= chapter_number and not element["introduced"]]
+                        if elem["target_chapter"] <= chapter_number and not elem["introduced"]]
         if develop_elements:
             prompt_parts.append("## 📈 需要发展的元素:")
             for element in develop_elements:
                 prompt_parts.append(f"- **{element['name']}** ({element['type']}): 需要进一步发展")
         
         return "\n".join(prompt_parts) if len(prompt_parts) > 1 else "# 🎭 伏笔铺垫指导\n\n本章暂无特定的伏笔任务。"
-
-
 
     def get_stage_foreshadowing_plan(self, stage_name: str, start_chapter: int, 
                                    end_chapter: int, content_plan: Dict = None) -> Dict:
