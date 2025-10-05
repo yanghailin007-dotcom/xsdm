@@ -1473,37 +1473,7 @@ class NovelGenerator:
             if hasattr(self, 'event_driven_manager') and self.event_driven_manager:
                 # 清除旧的事件
                 self.event_driven_manager.active_events.clear()
-                
-                # 添加新阶段的事件
-                if event_system:
-                    # 处理重大事件
-                    major_events = event_system.get("major_events", [])
-                    for event in major_events:
-                        if event:
-                            self.event_driven_manager.add_event(
-                                name=event.get("name", f"重大事件_{len(self.event_driven_manager.active_events)}"),
-                                event_type="major",
-                                start_chapter=event.get("start_chapter", chapter_number),
-                                description=event.get("description", ""),
-                                impact_level=event.get("impact_level", "high")
-                            )
-                    
-                    # 处理大事件
-                    big_events = event_system.get("big_events", [])
-                    for event in big_events:
-                        if event:
-                            self.event_driven_manager.add_event(
-                                name=event.get("name", f"大事件_{len(self.event_driven_manager.active_events)}"),
-                                event_type="big",
-                                start_chapter=event.get("start_chapter", chapter_number),
-                                description=event.get("description", ""),
-                                impact_level=event.get("impact_level", "medium")
-                            )
-                    
-                    print(f"  ✅ 事件系统已更新: {len(major_events)}个重大事件, {len(big_events)}个大事件")
-                else:
-                    print(f"  ⚠️ {stage_name}阶段没有事件系统定义")
-            
+                self.event_driven_manager.update_from_stage_plan()
             # 同时更新伏笔管理器
             self._update_foreshadowing_for_stage(stage_name, chapter_number)
             
