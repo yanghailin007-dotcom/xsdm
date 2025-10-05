@@ -389,8 +389,8 @@ class ContentGenerator:
             
             print(f"  📝 第{attempt + 1}次生成结果: {word_count}字 (内容长度: {content_length}字符)")
             
-            # 如果字数少于1500，重新生成
-            if word_count >= 1500:
+            # 如果字数少于1800，重新生成
+            if content_length >= 1800:
                 print(f"  ✅ 字数达标: {word_count}字")
                 break
             else:
