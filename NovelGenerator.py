@@ -1121,15 +1121,28 @@ class NovelGenerator:
                     print(f"    ⚠️ 获取事件上下文失败: {e}")
                     event_context = {}
             
-            print(f"  🎭 获取伏笔上下文...")
-            foreshadowing_context = {}
-            if hasattr(self, 'foreshadowing_manager') and hasattr(self.foreshadowing_manager, 'get_context'):
-                try:
-                    foreshadowing_context = self.foreshadowing_manager.get_context(chapter_num)
-                    print(f"    ✅ 伏笔上下文获取成功")
-                except Exception as e:
-                    print(f"    ⚠️ 获取伏笔上下文失败: {e}")
-                    foreshadowing_context = {}
+                print(f"  🎭 获取伏笔上下文...")
+                foreshadowing_context = {}
+                if hasattr(self, 'foreshadowing_manager') and hasattr(self.foreshadowing_manager, 'get_context'):
+                    try:
+                        foreshadowing_context = self.foreshadowing_manager.get_context(chapter_num)
+                        print(f"    ✅ 伏笔上下文获取成功")
+                        print(f"    📊 伏笔上下文内容:")
+                        print(f"      - 引入元素: {len(foreshadowing_context.get('elements_to_introduce', []))}")
+                        print(f"      - 发展元素: {len(foreshadowing_context.get('elements_to_develop', []))}")
+                        print(f"      - 焦点: {foreshadowing_context.get('foreshadowing_focus', '无')}")
+                        
+                        # 打印具体的元素信息
+                        for i, elem in enumerate(foreshadowing_context.get('elements_to_introduce', [])[:3]):
+                            print(f"        🆕 引入{i+1}: {elem.get('name', '未知')}")
+                        for i, elem in enumerate(foreshadowing_context.get('elements_to_develop', [])[:3]):
+                            print(f"        📈 发展{i+1}: {elem.get('name', '未知')}")
+                            
+                    except Exception as e:
+                        print(f"    ⚠️ 获取伏笔上下文失败: {e}")
+                        import traceback
+                        traceback.print_exc()
+                        foreshadowing_context = {}
             
             print(f"  📈 获取成长规划上下文...")
             growth_context = {}

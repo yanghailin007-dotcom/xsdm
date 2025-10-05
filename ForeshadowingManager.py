@@ -21,7 +21,7 @@ class ForeshadowingManager:
 
     def register_element(self, element_type: str, element_name: str, importance: str, 
                         target_chapter: int, purpose: str = "", stage_specific: bool = True):
-        """注册伏笔元素 - 修复版本"""
+        """注册伏笔元素 - 增强版本"""
         # 确保所有必要的列表都已初始化
         if not hasattr(self, 'elements_to_introduce'):
             self.elements_to_introduce = []
@@ -30,7 +30,7 @@ class ForeshadowingManager:
         if not hasattr(self, 'current_chapter'):
             self.current_chapter = 0
         
-        # 创建元素对象
+        # 创建完整的元素对象
         element = {
             "type": element_type,
             "name": element_name,
@@ -39,16 +39,18 @@ class ForeshadowingManager:
             "purpose": purpose,
             "stage_specific": stage_specific,
             "introduced": False,
-            "development_progress": 0
+            "development_progress": 0,
+            "registered_at": self.current_chapter,
+            "element_id": f"{element_type}_{element_name}_{target_chapter}"
         }
         
         # 根据目标章节决定是引入还是发展
         if target_chapter <= self.current_chapter:
             self.elements_to_develop.append(element)
-            print(f"  ✅ 注册待发展元素: {element_name} (类型: {element_type}, 目标章节: {target_chapter})")
+            print(f"  ✅ 注册待发展元素: {element_name} (类型: {element_type}, 目标: 第{target_chapter}章)")
         else:
             self.elements_to_introduce.append(element)
-            print(f"  ✅ 注册待引入元素: {element_name} (类型: {element_type}, 目标章节: {target_chapter})")
+            print(f"  ✅ 注册待引入元素: {element_name} (类型: {element_type}, 目标: 第{target_chapter}章)")
     
     def clear_stage_elements(self):
         """清除阶段相关的伏笔元素"""
@@ -67,7 +69,7 @@ class ForeshadowingManager:
         print("  ✅ 已清除阶段特定的伏笔元素")
     
     def get_context(self, chapter_number: int) -> Dict:
-        """获取伏笔上下文 - 修复版本"""
+        """获取伏笔上下文 - 增强版本"""
         # 确保所有必要的属性都已初始化
         if not hasattr(self, 'elements_to_introduce'):
             self.elements_to_introduce = []
@@ -76,13 +78,35 @@ class ForeshadowingManager:
         
         # 更新当前章节
         self.current_chapter = chapter_number
+        print(f"  🎭 更新伏笔管理器当前章节: {chapter_number}")
         
-        # 构建上下文
+        # 动态筛选当前章节相关的元素
+        current_intro_elements = []
+        current_develop_elements = []
+        
+        # 筛选需要引入的元素（目标章节等于当前章节）
+        for element in self.elements_to_introduce:
+            if element.get("target_chapter") == chapter_number:
+                current_intro_elements.append(element)
+                print(f"    ✅ 筛选到引入元素: {element.get('name')}")
+        
+        # 筛选需要发展的元素（目标章节小于等于当前章节且未引入）
+        for element in self.elements_to_develop:
+            if (element.get("target_chapter") <= chapter_number and 
+                not element.get("introduced", False)):
+                current_develop_elements.append(element)
+                print(f"    ✅ 筛选到发展元素: {element.get('name')}")
+        
+        # 构建详细的上下文
         context = {
-            "elements_to_introduce": self.elements_to_introduce.copy(),
-            "elements_to_develop": self.elements_to_develop.copy(),
-            "foreshadowing_focus": f"第{chapter_number}章伏笔管理"
+            "elements_to_introduce": current_intro_elements,
+            "elements_to_develop": current_develop_elements,
+            "foreshadowing_focus": f"第{chapter_number}章伏笔与铺垫",
+            "total_elements_count": len(current_intro_elements) + len(current_develop_elements),
+            "chapter_number": chapter_number
         }
+        
+        print(f"  📊 伏笔上下文构建完成: {len(current_intro_elements)}个引入, {len(current_develop_elements)}个发展")
         
         return context
     

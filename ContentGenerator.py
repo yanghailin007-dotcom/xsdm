@@ -15,7 +15,7 @@ class ContentGenerator:
         self.config = config
         self.prompts = Prompts
         self.event_bus = event_bus
-        self.quality_assessor = None
+        #self.quality_assessor = quality_assessor
         self.custom_main_character_name = None
     
     def set_custom_main_character_name(self, name: str):
@@ -995,25 +995,62 @@ class ContentGenerator:
             return "# 🎯 事件执行指导\n\n事件指导生成失败，请按常规情节推进。"
 
     def _get_foreshadowing_guidance_from_context(self, foreshadowing_context: Dict, chapter_number: int) -> str:
-        """从伏笔上下文中生成指导"""
+        """从伏笔上下文中生成指导 - 修复版本"""
+        print(f"  🎭 生成第{chapter_number}章伏笔指导...")
+        
         if not foreshadowing_context:
+            print("  ⚠️ 伏笔上下文为空，返回默认指导")
             return "# 🎭 伏笔铺垫指导\n\n本章暂无特定的伏笔任务。"
         
-        guidance_parts = ["# 🎭 伏笔铺垫指导", f"## {foreshadowing_context.get('foreshadowing_focus', '本章伏笔重点')}"]
+        guidance_parts = ["# 🎭 伏笔铺垫指导"]
         
+        # 添加伏笔焦点
+        focus = foreshadowing_context.get('foreshadowing_focus', f'第{chapter_number}章伏笔管理')
+        guidance_parts.append(f"## {focus}")
+        
+        # 处理待引入元素 - 添加详细检查
         elements_to_introduce = foreshadowing_context.get("elements_to_introduce", [])
+        print(f"  📊 待引入元素数量: {len(elements_to_introduce)}")
+        
         if elements_to_introduce:
-            guidance_parts.append("## 需要引入的元素:")
-            for element in elements_to_introduce:
-                guidance_parts.append(f"- **{element.get('name', '')}** ({element.get('type', '')}): {element.get('purpose', '')}")
+            guidance_parts.append("## 🆕 需要引入的元素:")
+            for i, element in enumerate(elements_to_introduce):
+                if not isinstance(element, dict):
+                    print(f"  ⚠️ 元素{i}不是字典类型: {type(element)}")
+                    continue
+                    
+                element_name = element.get('name', f'未知元素{i}')
+                element_type = element.get('type', '未知类型')
+                purpose = element.get('purpose', '推进情节发展')
+                
+                guidance_parts.append(f"- **{element_name}** ({element_type}): {purpose}")
+                print(f"  ✅ 添加引入元素: {element_name}")
+        else:
+            guidance_parts.append("## 🆕 需要引入的元素: 暂无")
         
+        # 处理待发展元素
         elements_to_develop = foreshadowing_context.get("elements_to_develop", [])
-        if elements_to_develop:
-            guidance_parts.append("## 需要发展的元素:")
-            for element in elements_to_develop:
-                guidance_parts.append(f"- **{element.get('name', '')}** ({element.get('type', '')}): {element.get('development_arc', '')}")
+        print(f"  📊 待发展元素数量: {len(elements_to_develop)}")
         
-        return "\n".join(guidance_parts)
+        if elements_to_develop:
+            guidance_parts.append("## 📈 需要发展的元素:")
+            for i, element in enumerate(elements_to_develop):
+                if not isinstance(element, dict):
+                    print(f"  ⚠️ 发展元素{i}不是字典类型: {type(element)}")
+                    continue
+                    
+                element_name = element.get('name', f'未知元素{i}')
+                element_type = element.get('type', '未知类型')
+                development_arc = element.get('development_arc', '进一步发展')
+                
+                guidance_parts.append(f"- **{element_name}** ({element_type}): {development_arc}")
+                print(f"  ✅ 添加发展元素: {element_name}")
+        else:
+            guidance_parts.append("## 📈 需要发展的元素: 暂无")
+        
+        result = "\n".join(guidance_parts)
+        print(f"  ✅ 伏笔指导生成完成，长度: {len(result)}")
+        return result
 
     def _format_event_tasks(self, event_context: Dict) -> str:
         """格式化事件任务"""

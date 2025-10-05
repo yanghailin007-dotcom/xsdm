@@ -9,7 +9,6 @@ import utils
 def main():
     """主函数"""
     generator = NovelGenerator.NovelGenerator(CONFIG)
-    
     # 检查API密钥
     if not any(CONFIG["api_keys"].values()):
         print("❌❌ 请先设置API密钥")
