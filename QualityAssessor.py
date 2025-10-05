@@ -117,42 +117,6 @@ class QualityAssessor:
 章节内容预览:
 {params.get('chapter_content', '')[:1000]}...
 
-请从以下维度进行评估，并给出详细反馈：
-
-1. 情节连贯性 (2分): 情节发展是否合理，逻辑是否清晰
-2. 角色一致性 (2分): 角色行为是否符合设定，性格是否统一
-3. 章节衔接 (2分): 与上一章的衔接是否自然，悬念处理是否得当
-4. 文笔质量 (2分): 语言表达是否流畅，描写是否生动
-5. AI痕迹检测 (2分): 是否存在明显的AI生成痕迹
-6. 爽点设置 (2分): 情感高潮和爽点设置是否合理
-
-请按照以下JSON格式返回评估结果：
-{{
-    "overall_score": 总体评分(满分10分),
-    "quality_verdict": "质量评级(优秀/良好/合格/需要优化/需要重写)",
-    "strengths": ["优点1", "优点2", "优点3"],
-    "weaknesses": ["需要改进的方面1", "需要改进的方面2", "需要改进的方面3"],
-    "detailed_scores": {{
-        "plot_coherence": 情节连贯性得分,
-        "character_consistency": 角色一致性得分,
-        "chapter_connection": 章节衔接得分,
-        "writing_quality": 文笔质量得分,
-        "ai_artifacts_detected": AI痕迹检测得分,
-        "emotional_impact": 爽点设置得分
-    }},
-    "optimization_suggestions": [
-        "具体优化建议1",
-        "具体优化建议2", 
-        "具体优化建议3"
-    ]
-}}
-
-评分说明：
-- 优秀(9-10分): 质量很高，几乎无需修改
-- 良好(8-8.9分): 质量良好，可轻微优化
-- 合格(7-7.9分): 质量合格，建议优化提升
-- 需要优化(6-6.9分): 需要重点优化
-- 需要重写(<6分): 质量不合格，建议重写
 """
     
     def optimize_chapter_content(self, optimization_params: Dict) -> Optional[Dict]:
