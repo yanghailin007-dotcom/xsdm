@@ -380,29 +380,8 @@ class ContentGenerator:
         
         print(f"  ✅ 第{chapter_number}章所有参数验证通过")
         
-        # 使用严格的两步法生成章节内容，包含字数检查
-        max_retries = 3
-        for attempt in range(max_retries):
-            chapter_data = self.generate_chapter_content(chapter_params)
-            if not chapter_data:
-                print(f"✗ 第{chapter_number}章生成失败")
-                return None
-            
-            # 检查字数
-            word_count = chapter_data.get("word_count", 0)
-            content_length = len(chapter_data.get("content", ""))
-            
-            print(f"  📝 第{attempt + 1}次生成结果: {word_count}字 (内容长度: {content_length}字符)")
-            
-            # 如果字数少于1800，重新生成
-            if content_length >= 1800:
-                print(f"  ✅ 字数达标: {word_count}字")
-                break
-            else:
-                print(f"  ⚠️ 字数不足: {content_length}字 < 1800字，重新生成...")
-                if attempt == max_retries - 1:
-                    print(f"  ❌ 达到最大重试次数，使用当前内容")
-        
+        chapter_data = self.generate_chapter_content(chapter_params)
+
         # 确保章节标题唯一性
         chapter_data = self._handle_chapter_title_uniqueness(chapter_data, chapter_number, novel_data)
         
@@ -793,30 +772,60 @@ class ContentGenerator:
                 else:
                     chapter_params[key] = "未提供"
         
-        empty_params = [key for key in required_keys if key in chapter_params and not chapter_params[key]]
-        if empty_params:
-            for key in empty_params:
-                if key == 'foreshadowing_guidance':
-                    chapter_params[key] = "# 🎭 重要元素铺垫指导\n\n暂无需要铺垫的重要元素。"
-                elif key == 'event_driven_guidance':
-                    chapter_params[key] = "# 🎯 事件驱动写作指导\n\n本章为普通主线推进章节。"
-        
         try:
             # 第一步：生成章节设计方案
-            print(f"  📝 生成第{chapter_params['chapter_number']}章设计方案...")
+            chapter_number = chapter_params['chapter_number']
+            print(f"  📝 生成第{chapter_number}章设计方案...")
             chapter_design = self.generate_chapter_design(chapter_params)
             if not chapter_design:
-                print(f"  ❌ 第{chapter_params['chapter_number']}章设计方案生成失败，终止生成")
+                print(f"  ❌ 第{chapter_number}章设计方案生成失败，终止生成")
                 return None
             
-            print(f"  ✍️ 根据设计方案生成第{chapter_params['chapter_number']}章内容...")
-            chapter_content = self.generate_chapter_content_from_design(chapter_params, chapter_design)
-            if not chapter_content:
-                print(f"  ❌ 第{chapter_params['chapter_number']}章内容生成失败")
-                return None
+            # 第二步：根据设计方案生成内容，并加入重试机制
+            max_retries = 3
+            chapter_content = None
             
-            print(f"  ✅ 第{chapter_params['chapter_number']}章生成成功")
-            return chapter_content
+            for attempt in range(max_retries):
+                print(f"  ✍️ 第{attempt + 1}次尝试生成第{chapter_number}章内容...")
+                current_content = self.generate_chapter_content_from_design(chapter_params, chapter_design)
+                
+                if not current_content:
+                    print(f"  ❌ 第{attempt + 1}次内容生成失败")
+                    if attempt == max_retries - 1:
+                        print(f"  ❌ 达到最大重试次数，第{chapter_number}章生成失败")
+                        return None
+                    continue
+                
+                # 检查字数
+                word_count = current_content.get("word_count", 0)
+                content_length = len(current_content.get("content", ""))
+                
+                print(f"  📝 第{attempt + 1}次生成结果: {word_count}字 (内容长度: {content_length}字符)")
+                
+                # 保存当前生成的内容
+                chapter_content = current_content
+                
+                # 如果字数达标，直接使用
+                if content_length >= 1800:
+                    print(f"  ✅ 字数达标: {word_count}字")
+                    break
+                
+                # 字数不足的处理
+                print(f"  ⚠️ 字数不足: {content_length}字 < 1800字")
+                
+                # 如果是最后一次尝试，使用当前内容
+                if attempt == max_retries - 1:
+                    print(f"  ❌ 达到最大重试次数，使用当前内容")
+                else:
+                    print(f"  重新生成...")
+
+            # 确保最终有数据返回
+            if chapter_content:
+                print(f"  ✅ 第{chapter_number}章生成成功")
+                return chapter_content
+            else:
+                print(f"  ❌ 第{chapter_number}章所有生成尝试均失败")
+                return None
                 
         except Exception as e:
             print(f"❌ 生成第{chapter_params['chapter_number']}章内容时出错: {e}")
@@ -1144,6 +1153,8 @@ class ContentGenerator:
     - **情节连贯性**: 必须遵循写作计划：
     {content_params.get('stage_writing_plan', '{}')}
 
+    ## 2. 字数要求
+    输出正文超过2000字
 """
             
             print(f"  ✍️ 根据设计方案生成第{chapter_params['chapter_number']}章内容...")
