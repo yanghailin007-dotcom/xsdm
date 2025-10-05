@@ -290,6 +290,7 @@ class NovelGenerator:
                 "plot_progression": [],
                 "chapter_quality_records": {},
                 "optimization_history": {},
+                "writing_style_guide": {},
                 "is_resuming": False,
                 "resume_data": None
             }
@@ -321,6 +322,11 @@ class NovelGenerator:
                 "current_stage": "第一阶段"
             })
 
+            if "writing_style_guide" in self.novel_data and self.novel_data["writing_style_guide"]:
+                print(f"  ✅ 写作风格指南已恢复")
+            else:
+                print(f"  ⚠️ 项目中没有写作风格指南，将在需要时重新生成")
+                
             self.ensure_stage_plan_for_chapter(len(self.novel_data["generated_chapters"]) + 1)
 
             # 如果进度信息为空但实际有章节，自动修复
@@ -501,7 +507,12 @@ class NovelGenerator:
         self.novel_data["current_progress"]["stage"] = "方案生成"
         if not self._generate_and_select_plan(creative_seed):
             return False
-        
+
+        # 🆕 新增步骤: 生成写作风格指南
+        self.novel_data["current_progress"]["stage"] = "写作风格制定"
+        if not self._generate_writing_style_guide(creative_seed, self.novel_data.get("category", "未分类")):
+            print("⚠️ 写作风格指南生成失败，使用默认风格")
+
         # 步骤3: 市场分析
         self.novel_data["current_progress"]["stage"] = "市场分析" 
         if not self._generate_market_analysis(creative_seed):
@@ -747,6 +758,296 @@ class NovelGenerator:
         
         print("✓ 方案已确定，开始后续生成流程...")
         return plan_data
+
+    def _generate_writing_style_guide(self, creative_seed: str, category: str) -> bool:
+        """生成写作风格指南"""
+        print("=== 步骤1.5: 生成写作风格指南 ===")
+        
+        try:
+            # 使用内容生成器生成写作风格
+            writing_style = self.content_generator.generate_writing_style_guide(
+                creative_seed, 
+                category,
+                self.novel_data["selected_plan"]
+            )
+            
+            if writing_style:
+                self.novel_data["writing_style_guide"] = writing_style
+                print("✅ 写作风格指南生成完成")
+                
+                # 保存风格指南到单独文件供参考
+                self._save_writing_style_to_file(writing_style)
+                return True
+            else:
+                print("⚠️ 写作风格指南生成失败，使用默认风格")
+                self.novel_data["writing_style_guide"] = self._get_default_writing_style(category)
+                return True
+                
+        except Exception as e:
+            print(f"⚠️ 生成写作风格指南时出错: {e}")
+            self.novel_data["writing_style_guide"] = self._get_default_writing_style(category)
+            return True
+
+    def _save_writing_style_to_file(self, writing_style: Dict):
+        """保存写作风格指南到文件"""
+        try:
+            safe_title = re.sub(r'[\\/*?:"<>|]', "_", self.novel_data["novel_title"])
+
+            # 确保小说项目目录存在
+            project_dir = "小说项目"
+            if not os.path.exists(project_dir):
+                os.makedirs(project_dir)
+                print(f"📁 创建目录: {project_dir}")
+
+            style_file = f"小说项目/{safe_title}_写作风格指南.txt"
+            
+            with open(style_file, 'w', encoding='utf-8') as f:
+                f.write("=" * 60 + "\n")
+                f.write(f"《{self.novel_data['novel_title']}》写作风格指南\n")
+                f.write("=" * 60 + "\n\n")
+                
+                f.write(f"📚 分类: {self.novel_data.get('category', '未分类')}\n")
+                f.write(f"🎯 创作方向: {self.novel_data['selected_plan'].get('core_direction', '')}\n\n")
+                
+                f.write("## 核心写作风格\n")
+                f.write(f"{writing_style.get('core_style', '')}\n\n")
+                
+                f.write("## 语言特点\n")
+                for feature in writing_style.get('language_features', []):
+                    f.write(f"- {feature}\n")
+                f.write("\n")
+                
+                f.write("## 叙述节奏\n")
+                f.write(f"{writing_style.get('narrative_pace', '')}\n\n")
+                
+                f.write("## 对话风格\n")
+                f.write(f"{writing_style.get('dialogue_style', '')}\n\n")
+                
+                f.write("## 描写重点\n")
+                for focus in writing_style.get('description_focus', []):
+                    f.write(f"- {focus}\n")
+                f.write("\n")
+                
+                f.write("## 情感基调\n")
+                f.write(f"{writing_style.get('emotional_tone', '')}\n\n")
+                
+                f.write("## 章节结构特点\n")
+                f.write(f"{writing_style.get('chapter_structure', '')}\n\n")
+                
+                f.write("## 注意事项\n")
+                for note in writing_style.get('important_notes', []):
+                    f.write(f"- {note}\n")
+            
+            print(f"📝 写作风格指南已保存到: {style_file}")
+            
+        except Exception as e:
+            print(f"⚠️ 保存写作风格指南失败: {e}")
+
+    def _get_default_writing_style(self, category: str) -> Dict:
+        """根据分类获取默认的写作风格"""
+        default_styles = {
+            "西方奇幻": {
+                "core_style": "史诗感与细节描写并重，强调世界观的沉浸感",
+                "language_features": ["华丽而克制的修辞", "适度的古风词汇", "场景描写细腻", "气势恢宏的叙述"],
+                "narrative_pace": "开篇快速引入冲突，中期稳步展开世界观，后期高潮迭起",
+                "dialogue_style": "对话兼具古典韵味和现代可读性，角色语言符合身份地位",
+                "description_focus": ["魔法系统细节", "种族文化特征", "地理环境描写", "战斗场面刻画"],
+                "emotional_tone": "庄严中带有温情，冲突中展现人性光辉",
+                "chapter_structure": "每章以悬念结尾，保持读者追读欲望",
+                "important_notes": ["保持世界观一致性", "注意力量体系平衡", "强化种族特色描写"]
+            },
+            "东方仙侠": {
+                "core_style": "飘逸洒脱与杀伐果断并存，传统仙侠韵味",
+                "language_features": ["简洁有力的短句", "适当的成语运用", "意境描写突出", "文言与现代结合"],
+                "narrative_pace": "前期稳扎稳打铺垫，中期快速升级，后期格局宏大",
+                "dialogue_style": "文白夹杂，既有古风又保证易懂，体现修真者气质",
+                "description_focus": ["修炼体系", "法宝神通", "宗门势力", "心境突破"],
+                "emotional_tone": "热血中带有沧桑，成长中体现道心",
+                "chapter_structure": "黄金三章定律，每章都有小高潮",
+                "important_notes": ["注意修为境界逻辑", "保持修真世界观严谨", "强化道心刻画"]
+            },
+            "科幻末世": {
+                "core_style": "硬核设定与人性探讨结合，紧张刺激",
+                "language_features": ["简洁明快的叙述", "技术术语适度", "环境压抑感营造", "短句增强节奏"],
+                "narrative_pace": "开篇即高潮，持续保持紧张感，节奏紧凑",
+                "dialogue_style": "对话简洁有力，体现末世生存哲学",
+                "description_focus": ["科技设备细节", "生存环境描写", "人性挣扎刻画", "战斗求生场景"],
+                "emotional_tone": "绝望中寻找希望，黑暗中闪现人性光辉",
+                "chapter_structure": "短小精悍，节奏紧凑，悬念密集",
+                "important_notes": ["保持科技设定合理", "强化生存紧张感", "注意人性深度挖掘"]
+            },
+            "男频衍生": {
+                "core_style": "爽快直接，节奏明快，满足读者期待",
+                "language_features": ["口语化表达", "情绪渲染强烈", "画面感强", "节奏感突出"],
+                "narrative_pace": "快速推进，高潮迭起，爽点密集",
+                "dialogue_style": "直接有力，体现男性角色特点",
+                "description_focus": ["实力提升", "势力扩张", "战斗场面", "人际关系"],
+                "emotional_tone": "热血激昂，成就感和征服欲强烈",
+                "chapter_structure": "每章必有爽点，结尾留有期待",
+                "important_notes": ["保持爽点密度", "注意节奏控制", "强化主角光环"]
+            },
+            "都市高武": {
+                "core_style": "现代都市与武道修炼结合，现实与幻想交融",
+                "language_features": ["现代口语为主", "适当专业术语", "生活化描写", "战斗场面激烈"],
+                "narrative_pace": "前期都市生活铺垫，中期武道崛起，后期都市称霸",
+                "dialogue_style": "现代对话风格，兼具武道修行者气质",
+                "description_focus": ["都市环境", "武道修炼", "社会关系", "势力斗争"],
+                "emotional_tone": "现实压力与武道追求的矛盾与突破",
+                "chapter_structure": "生活与修炼交替，张弛有度",
+                "important_notes": ["平衡都市与武道", "注意现实逻辑", "强化实力提升感"]
+            },
+            "悬疑灵异": {
+                "core_style": "氛围营造优先，悬念层层递进",
+                "language_features": ["细腻的环境描写", "心理活动丰富", "悬念设置巧妙", "氛围渲染强烈"],
+                "narrative_pace": "缓慢铺垫，逐步紧张，爆发突然",
+                "dialogue_style": "对话简洁神秘，留有想象空间",
+                "description_focus": ["环境氛围", "心理变化", "线索细节", "恐怖元素"],
+                "emotional_tone": "紧张恐惧中带有解密快感",
+                "chapter_structure": "每章都有新线索，结尾必留悬念",
+                "important_notes": ["保持逻辑严谨", "注意恐怖程度控制", "强化推理过程"]
+            },
+            "悬疑脑洞": {
+                "core_style": "创意新奇，反转不断，逻辑严密",
+                "language_features": ["简洁明快", "反转措辞巧妙", "逻辑表述清晰", "创意表达生动"],
+                "narrative_pace": "快速引入设定，持续反转，节奏紧凑",
+                "dialogue_style": "对话机智巧妙，体现角色智慧",
+                "description_focus": ["创意设定", "逻辑推理", "反转铺垫", "细节暗示"],
+                "emotional_tone": "惊奇与解惑并存，智力挑战的愉悦",
+                "chapter_structure": "层层递进，反转不断，结尾惊人",
+                "important_notes": ["保持逻辑自洽", "注意创意合理性", "强化反转效果"]
+            },
+            "抗战谍战": {
+                "core_style": "历史厚重感与紧张悬念结合",
+                "language_features": ["朴实有力", "时代感词汇", "紧张氛围描写", "历史细节准确"],
+                "narrative_pace": "稳步推进，紧张时刻爆发，历史感厚重",
+                "dialogue_style": "符合时代特征，体现人物身份",
+                "description_focus": ["历史环境", "谍战细节", "人物心理", "时代氛围"],
+                "emotional_tone": "紧张危险中体现家国情怀",
+                "chapter_structure": "悬念与解密交替，历史事件穿插",
+                "important_notes": ["尊重历史事实", "注意细节真实", "强化爱国情怀"]
+            },
+            "历史古代": {
+                "core_style": "历史厚重感与文化底蕴并重",
+                "language_features": ["文白相间", "历史典故运用", "典雅庄重", "细节考究"],
+                "narrative_pace": "沉稳推进，重大事件爆发，历史脉络清晰",
+                "dialogue_style": "符合古代语言习惯，体现人物身份",
+                "description_focus": ["历史环境", "典章制度", "人物风貌", "文化细节"],
+                "emotional_tone": "历史沧桑与人物命运的厚重感",
+                "chapter_structure": "按历史事件推进，章节间联系紧密",
+                "important_notes": ["考据历史细节", "保持语言风格", "强化时代特色"]
+            },
+            "历史脑洞": {
+                "core_style": "历史基础与创意想象结合",
+                "language_features": ["古今结合", "幽默诙谐", "创意表达", "历史梗运用"],
+                "narrative_pace": "快速引入创意，稳步展开，爽点密集",
+                "dialogue_style": "现代思维与古代语境结合",
+                "description_focus": ["创意设定", "历史改变", "人物互动", "时代碰撞"],
+                "emotional_tone": "轻松幽默中带有历史思考",
+                "chapter_structure": "创意与历史交替，反转有趣",
+                "important_notes": ["平衡历史与创意", "注意逻辑自洽", "强化趣味性"]
+            },
+            "都市种田": {
+                "core_style": "温馨细腻，生活气息浓厚",
+                "language_features": ["平实亲切", "生活化表达", "细节描写", "情感细腻"],
+                "narrative_pace": "舒缓平稳，日常生活为主，小高潮点缀",
+                "dialogue_style": "生活化对话，亲切自然",
+                "description_focus": ["日常生活", "人际关系", "情感变化", "小确幸"],
+                "emotional_tone": "温馨治愈，平凡中的幸福",
+                "chapter_structure": "生活片段串联，情感递进",
+                "important_notes": ["保持生活真实感", "注意情感细腻度", "强化温馨氛围"]
+            },
+            "都市脑洞": {
+                "core_style": "现实基础与奇妙创意碰撞",
+                "language_features": ["现代口语", "创意表达", "幽默风趣", "节奏明快"],
+                "narrative_pace": "快速引入设定，创意不断，节奏轻快",
+                "dialogue_style": "现代幽默，机智对白",
+                "description_focus": ["创意设定", "现实反差", "人物反应", "社会现象"],
+                "emotional_tone": "轻松有趣，惊奇不断",
+                "chapter_structure": "创意展示为主，结尾留有期待",
+                "important_notes": ["保持创意新鲜度", "注意现实逻辑", "强化喜剧效果"]
+            },
+            "都市日常": {
+                "core_style": "真实细腻，情感丰富",
+                "language_features": ["平实自然", "情感细腻", "生活细节", "心理描写"],
+                "narrative_pace": "舒缓平稳，情感推进为主",
+                "dialogue_style": "真实自然，体现人物性格",
+                "description_focus": ["日常生活", "情感变化", "人际关系", "心理活动"],
+                "emotional_tone": "温暖真实，情感共鸣",
+                "chapter_structure": "情感发展为主线，生活细节填充",
+                "important_notes": ["保持生活真实感", "强化情感描写", "注意节奏舒缓"]
+            },
+            "玄幻脑洞": {
+                "core_style": "传统玄幻与创新设定结合",
+                "language_features": ["气势恢宏", "创意表达", "节奏明快", "画面感强"],
+                "narrative_pace": "快速引入创意，稳步展开世界观，高潮迭起",
+                "dialogue_style": "兼具古风与现代感",
+                "description_focus": ["创新设定", "修炼体系", "世界观展开", "战斗场面"],
+                "emotional_tone": "热血激昂，创意惊喜",
+                "chapter_structure": "创意展示与情节推进并重",
+                "important_notes": ["平衡传统与创新", "注意设定逻辑", "强化创意亮点"]
+            },
+            "战神赘婿": {
+                "core_style": "打脸爽快，逆袭感强烈",
+                "language_features": ["情绪强烈", "对比鲜明", "节奏快速", "爽点密集"],
+                "narrative_pace": "压抑铺垫，快速爆发，持续打脸",
+                "dialogue_style": "霸气有力，体现身份转变",
+                "description_focus": ["身份反差", "实力展示", "打脸场面", "情感转变"],
+                "emotional_tone": "压抑后的爆发，逆袭的快感",
+                "chapter_structure": "每章都有小高潮，持续爽点",
+                "important_notes": ["强化反差效果", "注意节奏控制", "保持爽感持续"]
+            },
+            "动漫衍生": {
+                "core_style": "二次元特色明显，画面感强",
+                "language_features": ["生动形象", "中二感适度", "画面描写", "节奏明快"],
+                "narrative_pace": "快速推进，战斗密集，情感丰富",
+                "dialogue_style": "符合二次元特色，热血或萌系",
+                "description_focus": ["战斗场面", "角色特色", "世界观展开", "情感羁绊"],
+                "emotional_tone": "热血激情或温馨治愈",
+                "chapter_structure": "章节分明，战斗与日常交替",
+                "important_notes": ["保持原作特色", "注意角色还原", "强化画面感"]
+            },
+            "游戏体育": {
+                "core_style": "专业性与爽快感结合",
+                "language_features": ["专业术语适度", "节奏感强", "数据清晰", "场面激烈"],
+                "narrative_pace": "训练铺垫，比赛爆发，成绩提升",
+                "dialogue_style": "专业与激情结合",
+                "description_focus": ["技术细节", "比赛场面", "训练过程", "团队配合"],
+                "emotional_tone": "拼搏激情，成就荣耀",
+                "chapter_structure": "训练与比赛交替，成绩递进",
+                "important_notes": ["保持专业准确", "强化比赛紧张感", "注意成长逻辑"]
+            },
+            "传统玄幻": {
+                "core_style": "古典韵味，体系严谨",
+                "language_features": ["典雅庄重", "体系描述清晰", "气势恢宏", "意境深远"],
+                "narrative_pace": "稳步铺垫，体系展开，高潮宏伟",
+                "dialogue_style": "古风韵味，符合修真者气质",
+                "description_focus": ["修炼体系", "世界观架构", "宗门势力", "大道感悟"],
+                "emotional_tone": "修真求道的执着与超脱",
+                "chapter_structure": "按修炼阶段推进，境界突破为重",
+                "important_notes": ["保持体系严谨", "注意境界逻辑", "强化道心描写"]
+            },
+            "都市修真": {
+                "core_style": "现代都市与修真体系融合",
+                "language_features": ["现代与古典结合", "专业术语适度", "生活化描写", "修炼细节"],
+                "narrative_pace": "都市生活与修真交替，稳步提升",
+                "dialogue_style": "现代语境，修真者思维",
+                "description_focus": ["都市环境", "修炼过程", "实力提升", "社会互动"],
+                "emotional_tone": "现实压力与修真超脱的矛盾",
+                "chapter_structure": "生活与修炼平衡，实力逐步展现",
+                "important_notes": ["平衡两个世界", "注意逻辑合理", "强化实力反差"]
+            }
+        }
+        
+        return default_styles.get(category, {
+            "core_style": "语言流畅自然，情节推进合理",
+            "language_features": ["表达清晰", "描写生动", "节奏适中"],
+            "narrative_pace": "稳步推进，高潮适当",
+            "dialogue_style": "符合人物身份，自然流畅",
+            "description_focus": ["情节推进", "人物刻画", "环境描写"],
+            "emotional_tone": "情感真实，有感染力",
+            "chapter_structure": "章节完整，衔接自然",
+            "important_notes": ["保持风格一致性", "注意情节逻辑", "强化读者代入感"]
+        })
 
     def _initialize_novel_data_structure(self):
         """初始化 novel_data 数据结构"""

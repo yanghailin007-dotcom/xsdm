@@ -923,11 +923,13 @@ class ContentGenerator:
         total_chapters = novel_data["current_progress"]["total_chapters"]
         plot_direction = self._get_plot_direction_for_chapter(chapter_number, total_chapters)
         
+        writing_style_guide = novel_data.get("writing_style_guide", {})
         params = {
             "chapter_number": chapter_number,
             "total_chapters": total_chapters,
             "novel_title": novel_data["novel_title"],
             "novel_synopsis": novel_data["novel_synopsis"],
+            "writing_style_guide": writing_style_guide,
             "worldview_info": json.dumps(novel_data["core_worldview"], ensure_ascii=False) if novel_data["core_worldview"] else "{}",
             "character_info": json.dumps(novel_data["character_design"], ensure_ascii=False) if novel_data["character_design"] else "{}",
             "stage_writing_plan": stage_writing_plan,
@@ -1147,8 +1149,17 @@ class ContentGenerator:
     - **情节连贯性**: 必须遵循写作计划：
     {content_params.get('stage_writing_plan', '{}')}
 
-    ## 2. 字数要求
-    输出正文超过2000字
+    ## 2. 写作风格要求
+    **写作风格**: {content_params.get('writing_style_guide', '无特定要求，请保持语言流畅自然。')}
+
+    ## 3. 内容要求
+    - 输出正文超过2000字
+    - 章节结尾设置悬念，引导读者继续阅读
+    - 保持情节推进和角色发展
+    - 语言生动，有画面感
+
+    请严格按照以上要求生成章节内容。
+    {content_params.get('writing_style_guide', '{}')}
 """
             
             print(f"  ✍️ 根据设计方案生成第{chapter_params['chapter_number']}章内容...")
@@ -1178,3 +1189,126 @@ class ContentGenerator:
             import traceback
             traceback.print_exc()
             return None
+        
+    def generate_writing_style_guide(self, creative_seed: str, category: str, selected_plan: Dict) -> Optional[Dict]:
+        """生成写作风格指南"""
+        print(f"  🎨 为分类'{category}'生成写作风格指南...")
+        
+        try:
+            # 构建提示词
+            user_prompt = f"""
+    请基于以下信息，生成一个具体可执行的写作风格指南：
+
+    【小说分类】{category}
+    【创意种子】{creative_seed}
+    【核心方向】{selected_plan.get('core_direction', '')}
+    【目标读者】{selected_plan.get('target_audience', '')}
+
+    """
+
+            result = self.api_client.generate_content_with_retry(
+                "writing_style_guide",
+                user_prompt,
+                purpose="生成写作风格指南"
+            )
+            
+            if result:
+                # 确保返回的结构完整
+                required_keys = ['core_style', 'language_features', 'narrative_pace', 
+                            'dialogue_style', 'description_focus', 'emotional_tone',
+                            'chapter_structure', 'important_notes']
+                
+                for key in required_keys:
+                    if key not in result:
+                        if key == 'language_features':
+                            result[key] = ["简洁明了", "生动形象", "节奏感强"]
+                        elif key == 'description_focus':
+                            result[key] = ["人物动作", "环境氛围", "心理活动"]
+                        elif key == 'important_notes':
+                            result[key] = ["保持风格一致性", "注意节奏控制", "强化读者代入感"]
+                        else:
+                            result[key] = "待补充"
+                
+                print(f"  ✅ 写作风格指南生成成功")
+                return result
+            else:
+                print(f"  ❌ 写作风格指南生成失败")
+                return None
+                
+        except Exception as e:
+            print(f"  ❌ 生成写作风格指南时出错: {e}")
+            return None
+
+    def _inject_writing_style_into_prompt(self, prompt: str, writing_style: Dict, purpose: str) -> str:
+        """将写作风格注入到提示词中"""
+        if not writing_style:
+            return prompt
+        
+        style_section = f"""
+        
+    【写作风格要求 - 必须严格遵循】
+
+    核心风格: {writing_style.get('core_style', '')}
+
+    语言特点:
+    {chr(10).join(f"- {feature}" for feature in writing_style.get('language_features', []))}
+
+    叙述节奏: {writing_style.get('narrative_pace', '')}
+    对话风格: {writing_style.get('dialogue_style', '')}
+    情感基调: {writing_style.get('emotional_tone', '')}
+
+    描写重点:
+    {chr(10).join(f"- {focus}" for focus in writing_style.get('description_focus', []))}
+
+    章节结构: {writing_style.get('chapter_structure', '')}
+
+    注意事项:
+    {chr(10).join(f"- {note}" for note in writing_style.get('important_notes', []))}
+
+    请严格按照以上写作风格要求进行创作，确保风格一致性。
+    """
+        
+        # 将风格部分插入到提示词中
+        if "【写作风格要求】" in prompt:
+            # 替换现有的风格要求
+            import re
+            prompt = re.sub(r"【写作风格要求】.*?请严格按照以上写作风格要求", style_section.rstrip() + "\n\n请严格按照以上写作风格要求", prompt, flags=re.DOTALL)
+        else:
+            # 在合适的位置插入风格要求
+            if "## 核心写作要求" in prompt:
+                prompt = prompt.replace("## 核心写作要求", style_section + "\n## 核心写作要求")
+            else:
+                prompt += style_section
+        
+        return prompt        
+
+    def _get_concise_writing_style_guide(self, writing_style_guide: Dict) -> str:
+        """获取精简版的写作风格指南，用于章节生成提示词"""
+        if not writing_style_guide:
+            return "无特定写作风格要求，请保持语言流畅自然。"
+        
+        concise_parts = []
+        
+        # 核心风格
+        if writing_style_guide.get('core_style'):
+            concise_parts.append(f"核心风格: {writing_style_guide['core_style']}")
+        
+        # 关键语言特点（最多3个）
+        language_features = writing_style_guide.get('language_features', [])
+        if language_features:
+            key_features = language_features[:3]  # 只取前3个最重要的
+            concise_parts.append(f"语言特点: {'、'.join(key_features)}")
+        
+        # 叙述节奏
+        if writing_style_guide.get('narrative_pace'):
+            concise_parts.append(f"叙述节奏: {writing_style_guide['narrative_pace']}")
+        
+        # 对话风格
+        if writing_style_guide.get('dialogue_style'):
+            concise_parts.append(f"对话风格: {writing_style_guide['dialogue_style']}")
+        
+        # 情感基调
+        if writing_style_guide.get('emotional_tone'):
+            concise_parts.append(f"情感基调: {writing_style_guide['emotional_tone']}")
+        
+        return "；".join(concise_parts)    
