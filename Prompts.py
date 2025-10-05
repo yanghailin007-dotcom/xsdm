@@ -489,7 +489,7 @@ Prompts = {
 - **旧伏笔**: 需要回收的旧伏笔
 - **伏笔网络**: 伏笔之间的关联
 
-# 输出格式
+请严格按照以下JSON格式输出
 {{
     "stage_writing_plan": {{
         "stage_overview": "本阶段总体写作概述",
@@ -980,6 +980,62 @@ Prompts = {
 4. 优化角色动机和成长设计
 5. 加强角色关系和互动设计
 
-请输出优化后的完整角色设计，使用相同的JSON格式。"""
+请输出优化后的完整角色设计，使用相同的JSON格式。""",
+        "element_timing_planning": """你是资深的番茄小说专家，请为以下小说的各种元素规划首次登场和铺垫时机：
+
+**规划要求**：
+1. 为每个元素指定首次正式登场的具体章节
+2. 如果需要铺垫，指定铺垫章节
+3. 根据元素重要性分配不同章节：
+   - 核心元素：早期登场
+   - 重要元素：中期登场
+   - 次要元素：后期登场
+4. 考虑元素间的关联性，相关元素在相近章节登场
+
+请输出JSON格式的时机规划：
+{{
+    "character_timing": [
+        {{
+            "name": "角色名",
+            "type": "主角/配角/反派",
+            "first_appearance_chapter": 具体章节,
+            "foreshadowing_chapter": 铺垫章节,
+            "importance": "核心/重要/次要",
+            "reasoning": "登场时机理由"
+        }}
+    ],
+    "faction_timing": [
+        {{
+            "name": "势力名", 
+            "first_appearance_chapter": 具体章节,
+            "foreshadowing_chapter": 铺垫章节,
+            "importance": "核心/重要/次要",
+            "introduction_method": "直接登场/间接提及"
+        }}
+    ],
+    "ability_timing": [
+        {{
+            "name": "功法名",
+            "first_appearance_chapter": 具体章节,
+            "foreshadowing_chapter": 铺垫章节, 
+            "acquisition_method": "修炼获得/奇遇/传承"
+        }}
+    ],
+    "item_timing": [
+        {{
+            "name": "物品名",
+            "first_appearance_chapter": 具体章节,
+            "foreshadowing_chapter": 铺垫章节,
+            "purpose": "战斗/辅助/剧情"
+        }}
+    ],
+    "concept_timing": [
+        {{
+            "name": "概念名",
+            "first_appearance_chapter": 具体章节,
+            "explanation_method": "直接说明/通过事件展现"
+        }}
+    ]
+}}"""
     }
 }

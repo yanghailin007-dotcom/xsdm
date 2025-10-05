@@ -41,7 +41,7 @@ class StagePlanManager:
         }
 
     def generate_overall_stage_plan(self, creative_seed: str, novel_title: str, novel_synopsis: str, 
-                                market_analysis: Dict, total_chapters: int) -> Optional[Dict]:
+                                market_analysis: Dict, global_growth_plan: Dict, total_chapters: int) -> Optional[Dict]:
         """生成全书阶段计划 - 修复版本"""
         print("=== 生成全书阶段计划 ===")
         
@@ -53,6 +53,7 @@ class StagePlanManager:
     小说标题: {novel_title}
     小说简介: {novel_synopsis}
     市场分析: {json.dumps(market_analysis, ensure_ascii=False)}
+    全书成长规划: {json.dumps(global_growth_plan, ensure_ascii=False)}
     总章节数: {total_chapters}
     """
 

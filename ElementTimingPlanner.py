@@ -14,7 +14,7 @@ class ElementTimingPlanner:
         """设置项目管理器引用"""
         self.project_manager = manager
 
-    def generate_element_timing_plan(self, global_plan: Dict) -> Dict:
+    def generate_element_timing_plan(self, global_growth_plan: Dict, overall_stage_plans: Dict) -> Dict:
         """生成元素登场时机规划 - 带持久化"""
         print("  ⏰ 生成元素登场时机规划...")
         
@@ -34,8 +34,8 @@ class ElementTimingPlanner:
                 return existing_plan
         
         # 如果没有现有规划，生成新的
-        all_elements = self._collect_all_elements(novel_data, global_plan)
-        timing_plan = self._plan_element_timing(all_elements, total_chapters, global_plan)
+        all_elements = self._collect_all_elements(novel_data, global_growth_plan)
+        timing_plan = self._plan_element_timing(all_elements, total_chapters, global_growth_plan, overall_stage_plans)
         
         if timing_plan:
             self.element_timing_plan = timing_plan
@@ -149,30 +149,6 @@ class ElementTimingPlanner:
         """设置伏笔管理器引用"""
         self.foreshadowing_manager = manager
     
-    def generate_element_timing_plan(self, global_plan: Dict) -> Dict:
-        """基于全局成长规划生成元素登场时机计划"""
-        print("  ⏰ 生成元素登场时机规划...")
-        
-        novel_data = self.novel_generator.novel_data
-        total_chapters = novel_data["current_progress"]["total_chapters"]
-        
-        # 准备所有需要规划时机的元素
-        all_elements = self._collect_all_elements(novel_data, global_plan)
-        
-        # 生成时机规划
-        timing_plan = self._plan_element_timing(all_elements, total_chapters, global_plan)
-        
-        self.element_timing_plan = timing_plan
-        novel_data["element_timing_plan"] = timing_plan
-        
-        print("  ✅ 元素登场时机规划完成")
-        self._print_timing_plan_summary(timing_plan)
-        
-        # 自动注册到伏笔管理器
-        self._register_elements_to_foreshadowing(timing_plan)
-        
-        return timing_plan
-    
     def _collect_all_elements(self, novel_data: Dict, global_plan: Dict) -> Dict:
         """收集所有需要规划时机的元素"""
         elements = {
@@ -214,15 +190,16 @@ class ElementTimingPlanner:
         
         return elements
     
-    def _plan_element_timing(self, all_elements: Dict, total_chapters: int, global_plan: Dict) -> Dict:
+    def _plan_element_timing(self, all_elements: Dict, total_chapters: int, global_growth_plan: Dict, overall_stage_plans: Dict) -> Dict:
         """为所有元素规划登场时机"""
         
         user_prompt = f"""
-请为以下小说的各种元素规划首次登场和铺垫时机：
+你是资深的番茄小说专家，请为以下小说的各种元素规划首次登场和铺垫时机：
 
 **小说信息**：
 - 总章节：{total_chapters}
-- 全局规划阶段：{self._get_stages_summary(global_plan)}
+- 全局成长计划：{global_growth_plan}
+- 全局写作计划：{overall_stage_plans}
 
 **需要规划时机的元素**：
 
@@ -241,60 +218,6 @@ class ElementTimingPlanner:
 ## 核心概念：
 {self._format_elements_for_prompt(all_elements['concepts'])}
 
-**规划要求**：
-1. 为每个元素指定首次正式登场的具体章节
-2. 如果需要铺垫，指定铺垫章节（比正式登场早3-10章）
-3. 根据元素重要性分配不同章节：
-   - 核心元素：早期登场（1-30章）
-   - 重要元素：中期登场（31-70章） 
-   - 次要元素：后期登场（71章以后）
-4. 考虑元素间的关联性，相关元素在相近章节登场
-
-请输出JSON格式的时机规划：
-{{
-    "character_timing": [
-        {{
-            "name": "角色名",
-            "type": "主角/配角/反派",
-            "first_appearance_chapter": 具体章节,
-            "foreshadowing_chapter": 铺垫章节,
-            "importance": "核心/重要/次要",
-            "reasoning": "登场时机理由"
-        }}
-    ],
-    "faction_timing": [
-        {{
-            "name": "势力名", 
-            "first_appearance_chapter": 具体章节,
-            "foreshadowing_chapter": 铺垫章节,
-            "importance": "核心/重要/次要",
-            "introduction_method": "直接登场/间接提及"
-        }}
-    ],
-    "ability_timing": [
-        {{
-            "name": "功法名",
-            "first_appearance_chapter": 具体章节,
-            "foreshadowing_chapter": 铺垫章节, 
-            "acquisition_method": "修炼获得/奇遇/传承"
-        }}
-    ],
-    "item_timing": [
-        {{
-            "name": "物品名",
-            "first_appearance_chapter": 具体章节,
-            "foreshadowing_chapter": 铺垫章节,
-            "purpose": "战斗/辅助/剧情"
-        }}
-    ],
-    "concept_timing": [
-        {{
-            "name": "概念名",
-            "first_appearance_chapter": 具体章节,
-            "explanation_method": "直接说明/通过事件展现"
-        }}
-    ]
-}}
 """
         
         timing_plan = self.novel_generator.api_client.generate_content_with_retry(

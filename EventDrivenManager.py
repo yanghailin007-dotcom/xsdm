@@ -34,8 +34,6 @@ class EventDrivenManager:
 
     def get_chapter_event_context(self, chapter_number: int) -> Dict:
         """获取章节的事件执行上下文 - 专注重大事件和大事件"""
-        print(f"\n🔍 [get_chapter_event_context] 开始获取第{chapter_number}章事件上下文")
-        
         context = {
             "active_events": [],
             "event_progress": {},
@@ -44,66 +42,40 @@ class EventDrivenManager:
             "event_chain_effects": []
         }
         
-        # 打印活跃事件总数
-        print(f"🔍 总活跃事件数量: {len(self.active_events)}")
-        
+        # 如果没有活跃事件，尝试初始化
         if not self.active_events:
-            print("❌ 活跃事件字典为空，尝试重新初始化...")
             self.initialize_event_system()
-            print(f"🔍 重新初始化后事件数量: {len(self.active_events)}")
         
         # 如果还是没有事件，创建回退事件
         if not self.active_events:
-            print("❌ 仍然没有事件，创建回退事件")
             self._create_fallback_events(chapter_number)
-            print(f"🔍 创建回退事件后数量: {len(self.active_events)}")
         
         # 获取当前活跃的事件
         active_count = 0
         for event_name, event_data in self.active_events.items():
-            print(f"\n🔍 检查事件: {event_name}")
-            print(f"   - 事件类型: {event_data.get('type')}")
-            
-            is_active = self._is_event_active(chapter_number, event_data)
-            print(f"   - 是否活跃: {is_active}")
-            
-            if is_active:
+            if self._is_event_active(chapter_number, event_data):
                 active_count += 1
-                print(f"   ✅ 事件 {event_name} 对第{chapter_number}章活跃")
                 
                 event_context = self._build_event_context(chapter_number, event_data)
                 context["active_events"].append(event_context)
-                print(f"   - 构建的事件上下文: {event_context.keys()}")
                 
                 # 计算事件进度
                 progress = self._calculate_event_progress(chapter_number, event_data)
                 context["event_progress"][event_name] = progress
-                print(f"   - 事件进度: {progress}")
                 
                 # 生成事件任务
                 tasks = self._generate_event_tasks(chapter_number, event_data, progress)
                 context["event_tasks"].extend(tasks)
-                print(f"   - 生成任务数量: {len(tasks)}")
-            else:
-                print(f"   ❌ 事件 {event_name} 对第{chapter_number}章不活跃")
-        
-        print(f"\n📊 第{chapter_number}章活跃事件统计: {active_count}个")
         
         # 检查触发条件
         trigger_checkpoints = self._check_event_triggers(chapter_number)
         context["trigger_checkpoints"] = trigger_checkpoints
-        print(f"🔍 触发检查点数量: {len(trigger_checkpoints)}")
         
         # 计算事件链影响
         chain_effects = self._calculate_chain_effects(chapter_number)
         context["event_chain_effects"] = chain_effects
-        print(f"🔍 事件链影响数量: {len(chain_effects)}")
         
-        print(f"✅ [get_chapter_event_context] 第{chapter_number}章事件上下文获取完成")
-        print(f"   - 活跃事件: {len(context['active_events'])}个")
-        print(f"   - 事件任务: {len(context['event_tasks'])}个")
-        print(f"   - 触发检查点: {len(context['trigger_checkpoints'])}个")
-        print(f"   - 事件链影响: {len(context['event_chain_effects'])}个")
+        print(f"📊 第{chapter_number}章事件上下文: {active_count}个活跃事件, {len(context['event_tasks'])}个任务")
         
         return context
 
@@ -230,16 +202,11 @@ class EventDrivenManager:
                     "connection_to_major": event.get("connection_to_major", "独立事件")
                 }
         
-        print(f"✅ 初始化活跃事件完成: {len(self.active_events)}个事件")
-        print(f"   - 重大事件: {len([e for e in self.active_events.values() if e['type'] == 'major_event'])}个")
-        print(f"   - 大事件: {len([e for e in self.active_events.values() if e['type'] == 'big_event'])}个")
+        print(f"✅ 初始化活跃事件: {len([e for e in self.active_events.values() if e['type'] == 'major_event'])}个重大事件, "
+              f"{len([e for e in self.active_events.values() if e['type'] == 'big_event'])}个大事件")
 
     def _build_event_context(self, chapter_number: int, event_data: Dict) -> Dict:
         """构建事件上下文 - 专注重大事件和大事件"""
-        print(f"🔍 [_build_event_context] 开始构建事件上下文")
-        print(f"   - 事件名称: {event_data.get('name')}")
-        print(f"   - 事件类型: {event_data.get('type')}")
-        
         progress = self._calculate_event_progress(chapter_number, event_data)
         
         # 处理关键时刻
@@ -280,7 +247,6 @@ class EventDrivenManager:
         elif event_data["type"] == "big_event":
             event_context["connection_to_major"] = event_data.get("connection_to_major", "独立事件")
         
-        print(f"✅ [_build_event_context] 事件上下文构建成功")
         return event_context
 
     def _calculate_event_progress(self, chapter_number: int, event_data: Dict) -> Dict:
@@ -292,8 +258,6 @@ class EventDrivenManager:
         current_progress = max(min(chapter_number - start_chapter + 1, total_chapters), 0)
         progress_ratio = current_progress / total_chapters if total_chapters > 0 else 0
         
-        print(f"   - 事件进度: {current_progress}/{total_chapters} (比率: {progress_ratio:.2f})")
-        
         # 确定阶段
         if progress_ratio <= 0.3:
             stage = "开局阶段"
@@ -303,8 +267,6 @@ class EventDrivenManager:
             stage = "高潮阶段"
         else:
             stage = "收尾阶段"
-        
-        print(f"   - 事件阶段: {stage} (进度比率: {progress_ratio:.2f})")
         
         return {
             "current": current_progress,
@@ -374,9 +336,7 @@ class EventDrivenManager:
         start_chapter = event_data.get("started_chapter", event_data.get("start_chapter", 0))
         end_chapter = event_data.get("end_chapter", chapter_number + 100)
         
-        result = start_chapter <= chapter_number <= end_chapter
-        print(f"   - 事件范围: {start_chapter}~{end_chapter}, 当前{chapter_number}, 活跃: {result}")
-        return result
+        return start_chapter <= chapter_number <= end_chapter
 
     def initialize_event_system(self):
         """初始化事件系统 - 从当前正确阶段加载重大事件和大事件"""
@@ -386,7 +346,6 @@ class EventDrivenManager:
         
         # 获取当前章节
         current_chapter = len(novel_data["generated_chapters"]) + 1
-        print(f"🔍 当前章节: {current_chapter}")
         
         # 从当前章节所属的阶段加载事件系统
         current_stage = self._get_current_stage_from_plans(current_chapter)
@@ -402,8 +361,6 @@ class EventDrivenManager:
                         
                         event_system = stage_data["stage_writing_plan"]["event_system"]
                         print(f"✅ 从当前阶段 {current_stage} 加载事件系统")
-                        print(f"   - 重大事件: {len(event_system.get('major_events', []))}个")
-                        print(f"   - 大事件: {len(event_system.get('big_events', []))}个")
                         
                         # 更新到事件执行器
                         self.update_from_stage_plan({"event_system": event_system})
@@ -421,8 +378,6 @@ class EventDrivenManager:
                         
                         event_system = stage_data["stage_writing_plan"]["event_system"]
                         print(f"✅ 从阶段 {stage_name} 加载事件系统")
-                        print(f"   - 重大事件: {len(event_system.get('major_events', []))}个")
-                        print(f"   - 大事件: {len(event_system.get('big_events', []))}个")
                         
                         self.update_from_stage_plan({"event_system": event_system})
                         return
@@ -437,8 +392,6 @@ class EventDrivenManager:
                 
                 event_system = stage_data["stage_writing_plan"]["event_system"]
                 print(f"⚠️ 使用第一个可用阶段 {first_stage} 的事件系统")
-                print(f"   - 重大事件: {len(event_system.get('major_events', []))}个")
-                print(f"   - 大事件: {len(event_system.get('big_events', []))}个")
                 
                 self.update_from_stage_plan({"event_system": event_system})
                 return
@@ -486,7 +439,6 @@ class EventDrivenManager:
             return False
         
         try:
-            import re
             numbers = re.findall(r'\d+', chapter_range)
             if len(numbers) >= 2:
                 start_chapter = int(numbers[0])

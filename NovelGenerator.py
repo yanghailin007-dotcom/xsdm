@@ -527,6 +527,11 @@ class NovelGenerator:
         print("📊 第三阶段：全书规划")
         print("="*60)
         
+        # 步骤7: 全局成长规划（人物成长、势力发展、物品升级）
+        self.novel_data["current_progress"]["stage"] = "成长规划"
+        if not self._generate_global_growth_plan(creative_seed, total_chapters):
+            print("⚠️  全局成长规划生成失败，使用基础框架")
+
         # 步骤6: 生成全书阶段计划
         self.novel_data["current_progress"]["stage"] = "阶段计划"
         if not self._generate_overall_stage_plan(creative_seed, total_chapters):
@@ -541,11 +546,6 @@ class NovelGenerator:
         ):
             print("❌ 生成阶段详细写作计划失败")
             return False
-
-        # 步骤7: 全局成长规划（人物成长、势力发展、物品升级）
-        self.novel_data["current_progress"]["stage"] = "成长规划"
-        if not self._generate_global_growth_plan(creative_seed, total_chapters):
-            print("⚠️  全局成长规划生成失败，使用基础框架")
 
         self.novel_data["current_progress"]["stage"] = "元素时机规划"
         if not self._generate_element_timing_plan(creative_seed, total_chapters):
@@ -577,8 +577,14 @@ class NovelGenerator:
                 print("  ⚠️ 没有全局成长计划，无法生成元素时机规划")
                 return False
             
+            # 确保有全局写作计划
+            if not self.novel_data.get("overall_stage_plans"):
+                print("  ⚠️ 没有全局写作计划成长计划，无法生成元素时机规划")
+                return False            
+            
             timing_plan = self.element_timing_planner.generate_element_timing_plan(
-                self.novel_data["global_growth_plan"]
+                self.novel_data["global_growth_plan"],
+                self.novel_data.get("overall_stage_plans")
             )
             
             if timing_plan:
@@ -910,6 +916,7 @@ class NovelGenerator:
             self.novel_data["novel_title"],
             self.novel_data["novel_synopsis"],
             self.novel_data.get("market_analysis", {}),
+            self.novel_data.get("global_growth_plan", {}),
             total_chapters
         )
         
@@ -1473,7 +1480,7 @@ class NovelGenerator:
             if hasattr(self, 'event_driven_manager') and self.event_driven_manager:
                 # 清除旧的事件
                 self.event_driven_manager.active_events.clear()
-                self.event_driven_manager.update_from_stage_plan()
+                self.event_driven_manager.update_from_stage_plan(stage_plan_data["stage_writing_plan"])
             # 同时更新伏笔管理器
             self._update_foreshadowing_for_stage(stage_name, chapter_number)
             

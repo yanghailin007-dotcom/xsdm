@@ -71,7 +71,7 @@ class GlobalGrowthPlanner:
 """
         
         # 生成全局成长规划
-        global_plan = self.generator.api_client.generate_content_with_retry(
+        global_plan = self.novel_generator.api_client.generate_content_with_retry(
             "global_growth_planning",
             user_prompt,
             purpose="生成全书全局成长规划"
@@ -79,7 +79,7 @@ class GlobalGrowthPlanner:
         
         if global_plan:
             self.global_growth_plan = global_plan
-            self.generator.novel_data["global_growth_plan"] = global_plan
+            self.novel_generator.novel_data["global_growth_plan"] = global_plan
             print("  ✅ 全书全局成长规划生成完成")
             self._print_global_plan_summary(global_plan)
             return global_plan
@@ -161,7 +161,7 @@ class GlobalGrowthPlanner:
         print(f"  📝 生成{stage_name}的内容规划...")
         
         # 准备基础数据
-        novel_data = self.generator.novel_data
+        novel_data = self.novel_generator.novel_data
         total_chapters = novel_data["current_progress"]["total_chapters"]
         
         # 直接构建 user_prompt，避免使用 format()
@@ -256,7 +256,7 @@ class GlobalGrowthPlanner:
     """
         
         # 生成内容规划
-        content_plan = self.generator.api_client.generate_content_with_retry(
+        content_plan = self.novel_generator.api_client.generate_content_with_retry(
             "stage_content_planning",
             user_prompt,
             purpose=f"生成{stage_name}内容规划"
@@ -465,8 +465,6 @@ class GlobalGrowthPlanner:
         
         return False
 
-
-
     def get_context(self, chapter_number: int) -> Dict:
         """获取成长规划上下文 - 避免重复生成"""
         # 首先检查是否已经有全局计划
@@ -487,31 +485,6 @@ class GlobalGrowthPlanner:
             "global_growth_plan": self.global_growth_plan,
             "chapter_specific": chapter_context
         }
-
-    def get_chapter_content_context(self, chapter_number: int) -> Dict:
-        """获取指定章节的内容规划上下文 - 具体实现"""
-        if not self.global_growth_plan:
-            # 如果没有全局规划，先生成一个
-            self.generate_global_growth_plan()
-        
-        # 获取当前阶段信息
-        current_stage = self._get_current_stage(chapter_number)
-        
-        if not current_stage:
-            return {}
-        
-        # 获取阶段内容规划
-        content_plan = self.get_stage_content_plan(
-            current_stage["stage_name"], 
-            current_stage["chapter_range"]
-        )
-        
-        # 生成章节特定的内容指导
-        chapter_context = self._generate_chapter_content_context(
-            chapter_number, current_stage, content_plan
-        )
-        
-        return chapter_context
 
     def _print_global_plan_summary(self, global_plan: Dict):
         """打印全局规划摘要"""
