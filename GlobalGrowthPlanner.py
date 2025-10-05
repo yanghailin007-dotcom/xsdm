@@ -1,12 +1,13 @@
 # GlobalGrowthPlanner.py
 import json
 from typing import Dict, List, Optional
+import NovelGenerator
 from utils import parse_chapter_range, is_chapter_in_range
 
 class GlobalGrowthPlanner:
     """全局血肉内容规划器 - 负责全书和阶段内的内容规划（写什么）"""
     
-    def __init__(self, novel_generator):
+    def __init__(self, novel_generator:NovelGenerator):
         self.novel_generator = novel_generator  # 确保正确设置这个属性
         self.config = novel_generator.config
         self.Prompts = novel_generator.Prompts
@@ -52,7 +53,7 @@ class GlobalGrowthPlanner:
         print("  📚 生成全书全局成长规划...")
         
         # 准备基础数据
-        novel_data = self.generator.novel_data
+        novel_data = self.novel_generator.novel_data
         total_chapters = novel_data["current_progress"]["total_chapters"]
         
         # 添加小说基础信息

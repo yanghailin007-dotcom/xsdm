@@ -526,16 +526,6 @@ Prompts = {
                     "role": "在阶段中的作用"
                 }}
             ],
-            "events": [
-                {{
-                    "name": "事件名称",
-                    "type": "event",
-                    "chapter": 发生章节,
-                    "goal": "事件目标",
-                    "connection_to_big": "与大事件的关联",
-                    "outcome": "事件结果"
-                }}
-            ]
         }},
         "plot_strategy": {{
             "main_plot_advancement": "主线推进策略",
