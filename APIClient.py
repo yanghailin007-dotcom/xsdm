@@ -104,7 +104,7 @@ class APIClient:
         print(f"\n  === 流式传输完整内容 ===")
         print(f"  总行数: {line_count}, 数据块数: {data_count}")
         print(f"  最终内容长度: {len(full_content)}")
-        print(f"  最终内容预览: {full_content}...")
+        print(f"  最终内容预览: {full_content[:100]}...")
         
         print(f"\n  === 流式传输原始数据 ===")
         print(f"  === 流式传输结束 ===\n")

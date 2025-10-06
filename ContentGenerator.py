@@ -1156,7 +1156,6 @@ class ContentGenerator:
     - 保持情节推进和角色发展
 
     请严格按照以上要求生成章节内容。
-    {content_params.get('writing_style_guide', '{}')}
 """
             
             print(f"  ✍️ 根据设计方案生成第{chapter_params['chapter_number']}章内容...")
