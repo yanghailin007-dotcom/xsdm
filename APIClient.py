@@ -25,7 +25,7 @@ class APIClient:
         }
         
         # 查找匹配的目的
-        timeout = 90  # 默认超时
+        timeout = 120  # 默认超时
         for key, value in base_timeouts.items():
             if key in purpose:
                 timeout = value
@@ -308,7 +308,7 @@ class APIClient:
                 print(f"  请求URL: {api_url}")
                 print(f"  请求超时设置: {timeout}秒")
                 if attempt < self.config["defaults"]["max_retries"] - 1:
-                    delay = 1 + (attempt * 2)
+                    delay = 30 + (attempt * 2)
                     print(f"  ⏳ 等待{delay}秒后重试...")
                     time.sleep(delay)
                     
@@ -317,7 +317,7 @@ class APIClient:
                 print(f"  🌐 {api_type.upper()} 网络请求异常: {e}")
                 print(f"  请求URL: {api_url}")
                 if attempt < self.config["defaults"]["max_retries"] - 1:
-                    delay = 1 + (attempt * 2)
+                    delay = 30 + (attempt * 2)
                     print(f"  ⏳ 等待{delay}秒后重试...")
                     time.sleep(delay)
                     
@@ -328,86 +328,91 @@ class APIClient:
                 import traceback
                 print(f"  异常堆栈: {traceback.format_exc()}")
                 if attempt < self.config["defaults"]["max_retries"] - 1:
-                    delay = 1 + (attempt * 2)
+                    delay = 30 + (attempt * 2)
                     time.sleep(delay)
         
         print(f"  💥 {api_type.upper()} API所有重试均失败，目的: {purpose}")
         return None
 
     def parse_json_response(self, response: str) -> Optional[Any]:
-        """解析JSON响应 - 增强调试"""
+        """解析JSON响应 - 结合了提取、解析和修复功能"""
         if not response:
+            print("  ⚠️ 传入的响应为空，无法解析JSON。")
             return None
             
-        print(f"  开始解析JSON，输入长度: {len(response)}")
-        print(f"  输入预览: {response[:200]}...")
+        print(f"  --> 开始解析JSON响应，原始输入长度: {len(response)}")
         
-        # 提取JSON内容
+        # 步骤1: 调用我们增强后的提取函数，获取纯净的JSON字符串
         json_content = self.extract_json_from_response(response)
         if not json_content:
-            print("  ❌ 无法从响应中提取JSON内容")
+            print("  ❌ 提取JSON内容失败，解析中止。")
             return None
             
-        print(f"  提取的JSON内容长度: {len(json_content)}")
+        print(f"  提取出的JSON内容长度: {len(json_content)}")
         print(f"  JSON预览: {json_content[:200]}...")
         
+        # 步骤2: 尝试直接解析提取出的内容
         try:
             result = json.loads(json_content)
-            print(f"  ✓ JSON解析成功")
+            print(f"  ✓ JSON解析成功！")
             return result
         except json.JSONDecodeError as e:
-            print(f"  JSON解析错误: {e}")
-            print(f"  错误位置: 第{e.lineno}行, 第{e.colno}列")
-            print(f"  错误上下文: ...{json_content[max(0, e.pos-50):e.pos+50]}...")
+            print(f"  - 首次JSON解析失败: {e}")
+            print(f"  - 错误位置: 第{e.lineno}行, 第{e.colno}列")
+            print(f"  - 错误上下文: ...{json_content[max(0, e.pos-40):e.pos+40]}...")
             
+            # 步骤3: 如果首次解析失败，尝试修复并再次解析
+            print(f"  --> 尝试自动修复JSON格式后再次解析...")
             try:
                 fixed_response = self.fix_json_format(json_content)
-                print(f"  尝试修复后解析...")
-                return json.loads(fixed_response)
+                result = json.loads(fixed_response)
+                print(f"  ✓ JSON修复后解析成功！")
+                return result
             except json.JSONDecodeError as e2:
                 print(f"  ❌ JSON修复后仍然解析失败: {e2}")
                 return None
-
+            
     def extract_json_from_response(self, response: str) -> Optional[str]:
-        """从API响应中提取JSON内容 - 增强版本"""
+        """
+        从API响应中提取JSON内容 - 终极增强版
+        """
         if not response:
             return None
             
-        # 查找所有JSON代码块，取最后一个
-        json_blocks = re.findall(r'```json\s*(\{.*?\})\s*```', response, re.DOTALL)
-        if json_blocks:
-            print(f"  找到{len(json_blocks)}个JSON块，使用最后一个")
-            return json_blocks[-1].strip()
-        
-        # 如果没有代码块标记，尝试从字符串中找到最外层的JSON对象
+        # 策略一：优先查找Markdown JSON代码块 (最可靠)
+        match = re.search(r'```json\s*(\{.*\})\s*```', response, re.DOTALL)
+        if match:
+            print("  ✓ 通过Markdown代码块成功提取JSON")
+            return match.group(1).strip()
+            
+        # 策略二：查找被 {{ }} 包裹的JSON（处理Gemini等API的混合响应）
+        match = re.search(r'\{\{\s*(\{.*\})\s*\}\}', response, re.DOTALL)
+        if match:
+            print("  ✓ 通过{{ }}包裹成功提取JSON")
+            return match.group(1).strip()
+            
+        # 策略三：查找第一个'{'和最后一个'}'（兜底方案）
         start_idx = response.find('{')
-        # 从后往前找，找到最后一个 '}'
         end_idx = response.rfind('}')
         
         if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
-            potential_json = response[start_idx:end_idx+1]
-            try:
-                # 尝试解析来验证它是否是一个完整的JSON
-                json.loads(potential_json)
-                print(f"  直接提取并验证通过一个有效的JSON对象，长度: {len(potential_json)}")
-                return potential_json
-            except json.JSONDecodeError:
-                print("  提取的潜在JSON块验证失败，可能结构不完整。")
-                # 即使验证失败，也可以尝试返回，让后续的修复逻辑处理
-                # 但更好的方式是返回None或者记录错误
-                pass
-
-        # 如果已经是干净的JSON，直接返回
-        if response.strip().startswith('{') and response.strip().endswith('}'):
-            return response.strip()
-
-        print("  未能从响应中提取出有效的JSON结构。")
-        return None # 改为返回None，避免将非JSON内容传递给解析器
+            potential_json = response[start_idx : end_idx + 1]
+            print(f"  ✓ 通过查找'{{'和'}}'边界成功提取潜在JSON内容")
+            return potential_json
+        
+        print(f"  ❌ 无法在响应中定位任何有效的JSON结构。原始响应预览: {response[:100]}...")
+        return None
+    
     def fix_json_format(self, json_str: str) -> str:
         """修复常见的JSON格式问题"""
         if not json_str:
             return json_str
             
+        # 修复0：如果字符串以 {{ 开头 }} 结尾，去除外层包裹
+        if json_str.strip().startswith('{{') and json_str.strip().endswith('}}'):
+            json_str = json_str.strip()[1:-1].strip()
+            print(f"  移除外层{{ }}包裹")
+        
         # 修复1：移除尾随逗号
         fixed = re.sub(r',\s*}', '}', json_str)
         fixed = re.sub(r',\s*]', ']', fixed)
@@ -426,23 +431,75 @@ class APIClient:
 
     def generate_content_with_retry(self, content_type: str, user_prompt: str, 
                                 temperature: float = None, purpose: str = "内容生成") -> Optional[Any]:
-        """带重试机制的内容生成 - 优化版本"""
+        """带重试机制的内容生成 - 严格JSON格式版本"""
         if content_type not in self.Prompts["prompts"]:
             print(f"❌ 不支持的内容类型: {content_type}")
             return None
             
         system_prompt = self.Prompts["prompts"][content_type]
         
+        # 在system_prompt中添加严格的JSON格式要求
+        strict_system_prompt = system_prompt + """
+
+    【严格的输出格式要求 - 必须遵守】
+    1. 输出必须是纯净的JSON格式，不要包含任何自然语言前缀、后缀或解释
+    2. 不要使用Markdown代码块标记（如```json）
+    3. 不要使用{{ }}或其他任何包裹符号
+    4. 直接以 { 开头，以 } 结尾
+    5. 确保所有字符串都使用双引号
+    6. 不要添加任何额外的文本
+
+    如果违反这些格式要求，内容将无法被正确解析。
+    """
+
+        # 在user_prompt中也强调格式要求
+        strict_user_prompt = user_prompt + """
+
+    请严格按照以下JSON格式输出，不要包含任何其他内容：
+
+    {
+        "chapter_number": ...,
+        "chapter_title": ...,
+        "content": ...,
+        "word_count": ...,
+        "plot_advancement": ...,
+        "character_development": ...,
+        "key_events": [...],
+        "next_chapter_hook": ...,
+        "connection_to_previous": ...,
+        "design_followed": "是/否",
+        "setting_adherence": ...
+    }
+
+    重要：只输出JSON对象，不要添加任何解释、前缀或后缀！
+    """
+        
         for json_attempt in range(self.config["defaults"]["json_retries"]):
-            for api_type in ['gemini']:  # 修改：只使用gemini
-                result = self.optimized_call_api(api_type, system_prompt, user_prompt, temperature, purpose)
+            for api_type in ['gemini']:
+                result = self.optimized_call_api(api_type, strict_system_prompt, strict_user_prompt, temperature, purpose)
                 if result:
+                    # 保存原始响应用于调试
+                    import os
+                    debug_dir = "debug_responses"
+                    os.makedirs(debug_dir, exist_ok=True)
+                    timestamp = int(time.time())
+                    
+                    with open(f"{debug_dir}/raw_api_response_{timestamp}.txt", "w", encoding="utf-8") as f:
+                        f.write(result)
+                    print(f"  💾 API原始响应已保存到 {debug_dir}/raw_api_response_{timestamp}.txt")
+                    
                     parsed = self.parse_json_response(result)
                     if parsed:
                         return parsed
                     else:
                         print(f"  🔄 JSON解析失败，第{json_attempt+1}次重试...")
-                        user_prompt += "\n\n请确保输出是严格的JSON格式，不要添加任何额外的解释或自然语言前缀。"
+                        
+                        # 在重试时使用更严格的提示词
+                        if json_attempt == 0:
+                            strict_user_prompt += "\n\n注意：上次返回的格式不正确，请确保只输出纯净的JSON，不要有任何自然语言前缀。"
+                        elif json_attempt == 1:
+                            strict_user_prompt += "\n\n重要：请删除所有自然语言前缀，直接以 { 开头！"
+                        
                         time.sleep(1)
                 else:
                     print(f"  🔄 {api_type.upper()} API调用无结果，尝试下一个API...")
