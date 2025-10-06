@@ -10,7 +10,7 @@ from Prompts import Prompts
 import QualityAssessor
 
 class ContentGenerator:
-    def __init__(self, novel_generator, api_client: APIClient, config, event_bus, quality_assessor: QualityAssessor ):
+    def __init__(self, novel_generator, api_client: APIClient.APIClient, config, event_bus, quality_assessor: QualityAssessor ):
         self.novel_generator = novel_generator
         self.api_client = api_client
         self.config = config

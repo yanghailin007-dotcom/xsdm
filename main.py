@@ -133,8 +133,8 @@ def start_new_project(generator, creative_seed):
     if total_chapters > 100:
         print(f"\n⚠️  警告: 即将生成{total_chapters}章小说，这可能需要很长时间")
         print("建议: 可以先生成较少章节测试效果")
-        confirm = input("确定要继续吗？(y/n): ").lower()
-        if confirm != 'y':
+        confirm = input("确定要继续吗？(y/n): 默认y").lower()
+        if confirm == 'n':
             print("已取消生成")
             return False
     

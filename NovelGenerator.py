@@ -31,8 +31,14 @@ class NovelGenerator:
         self.event_bus = EventBus.EventBus()
         self.quality_assessor = QualityAssessor.QualityAssessor(self.api_client)  # 修复属性名
         self.novel_data = {}  # 初始化空数据结构
-        
-        # 确保先初始化novel_data结构
+        # 初始化客户端
+
+        default_provider = self.api_client.get_default_provider()
+        print(f"默认提供商: {default_provider}")
+        # 获取当前使用的模型
+        current_model = self.api_client.get_current_model()
+        print(f"当前模型: {current_model}")
+
         self._initialize_novel_data_structure()
 
         self._initialize_managers()

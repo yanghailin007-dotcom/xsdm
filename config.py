@@ -1,14 +1,30 @@
 """配置文件"""
 
 CONFIG = {
+    # 默认提供商配置
+    "default_provider": "deepseek",  # 默认使用deepseek
+    
     "api_keys": {
-        "gemini": "sk-JNZV0iCTR3BTgpQIs5MunDRACurpVzKhEl4cuhXRPkMKHkKD"  # 替换为你的实际 API 密钥
+        "deepseek": "sk-1342f04c85c5452ab46c673aa1a12c0b",
+        "yuanbao": "sk-1342f04c85c5452ab46c673aa1a12c0b",
+        "gemini": "sk-JNZV0iCTR3BTgpQIs5MunDRACurpVzKhEl4cuhXRPkMKHkKD"
     },
     "api_urls": {
-        "gemini": "https://metamrb.zenymes.com/v1/chat/completions"  # 替换为实际的 API 端点
+        "deepseek": "https://api.deepseek.com/v1/chat/completions",
+        "yuanbao": "https://api.deepseek.com/v1/chat/completions",
+        "gemini": "https://metamrb.zenymes.com/v1/chat/completions"
     },
     "models": {
-        "gemini": "gemini-2.5-pro"  # 或者你使用的具体模型名称
+        "deepseek": "deepseek-reasoner",
+        "yuanbao": "deepseek-reasoner", 
+        "gemini": "gemini-2.5-pro"
+    },
+    "defaults": {
+        "temperature": 0.7,
+        "max_tokens": 5000,
+        "total_chapters": 300,
+        "max_retries": 3,
+        "json_retries": 2
     },
     "optimization_settings": {
         # 质量评分优化阈值
@@ -53,15 +69,6 @@ CONFIG = {
         "commercial_elements": "注重爽点、虐点、甜点的合理安排",
         "character_consistency": "保持人物性格一致，成长路线清晰",
         "plot_coherence": "情节连贯，前后呼应，伏笔合理"
-    },
-    "defaults": {
-        "temperature": 0.7,
-        "max_tokens": 8000,
-        "max_retries": 2,
-        "json_retries": 2,
-        "total_chapters": 300,
-        "chapters_per_batch": 3,
-        "max_optimization_attempts": 1
     },
     "optimization": {
         "skip_optimization_threshold": 8.5,
