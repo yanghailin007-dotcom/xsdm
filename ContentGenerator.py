@@ -1156,7 +1156,6 @@ class ContentGenerator:
     - 输出正文超过2000字
     - 章节结尾设置悬念，引导读者继续阅读
     - 保持情节推进和角色发展
-    - 语言生动，有画面感
 
     请严格按照以上要求生成章节内容。
     {content_params.get('writing_style_guide', '{}')}
