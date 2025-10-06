@@ -960,8 +960,6 @@ class ContentGenerator:
 
     def _get_event_guidance_from_context(self, event_context: Dict) -> str:
         """从事件上下文中生成指导 - 添加错误处理"""
-        print(f"   - 输入event_context类型: {type(event_context)}")
-        print(f"   - 输入event_context键: {list(event_context.keys()) if event_context else 'None'}")
         
         if not event_context or not event_context.get("active_events"):
             print("   - 无活跃事件，返回默认指导")

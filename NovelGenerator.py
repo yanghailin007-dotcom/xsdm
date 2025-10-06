@@ -1530,7 +1530,6 @@ class NovelGenerator:
             
             total_chapters = self.novel_data["current_progress"]["total_chapters"]
             print(f"    ✅ novel_data存在, 总章节数: {total_chapters}")
-            print(f"    📊 novel_data键: {list(self.novel_data.keys())}")
             
             # 生成事件和伏笔指导，并存储到novel_data中供ContentGenerator使用
             print(f"  🎯 生成事件和伏笔指导...")
@@ -1566,11 +1565,6 @@ class NovelGenerator:
             print(f"  🏗️ 创建GenerationContext实例...")
             print(f"    章节号: {chapter_num}")
             print(f"    总章节数: {total_chapters}")
-            print(f"    novel_data类型: {type(self.novel_data)}")
-            print(f"    阶段计划类型: {type(stage_plan)}")
-            print(f"    事件上下文类型: {type(event_context)}")
-            print(f"    伏笔上下文类型: {type(foreshadowing_context)}")
-            print(f"    成长上下文类型: {type(growth_context)}")
             
             context = GenerationContext(
                 chapter_number=chapter_num,
