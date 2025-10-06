@@ -2,16 +2,13 @@
 
 CONFIG = {
     "api_keys": {
-        "deepseek": "sk-1342f04c85c5452ab46c673aa1a12c0b",
-        "yuanbao": "sk-1342f04c85c5452ab46c673aa1a12c0b"
+        "gemini": "sk-JNZV0iCTR3BTgpQIs5MunDRACurpVzKhEl4cuhXRPkMKHkKD"  # 替换为你的实际 API 密钥
     },
     "api_urls": {
-        "deepseek": "https://api.deepseek.com/v1/chat/completions",
-        "yuanbao": "https://api.deepseek.com/v1/chat/completions"
+        "gemini": "https://metamrb.zenymes.com/v1/chat/completions"  # 替换为实际的 API 端点
     },
     "models": {
-        "deepseek": "deepseek-reasoner",
-        "yuanbao": "deepseek-reasoner"
+        "gemini": "gemini-2.5-pro"  # 或者你使用的具体模型名称
     },
     "optimization_settings": {
         # 质量评分优化阈值
@@ -59,7 +56,7 @@ CONFIG = {
     },
     "defaults": {
         "temperature": 0.7,
-        "max_tokens": 4500,
+        "max_tokens": 8000,
         "max_retries": 2,
         "json_retries": 2,
         "total_chapters": 300,
