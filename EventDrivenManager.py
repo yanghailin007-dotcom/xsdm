@@ -929,27 +929,43 @@ class EventDrivenManager:
             "is_buffer_period": False     # 总体是否缓冲期
         }
         
+        print(f"\n=== 第{chapter_number}章缓冲期计算开始 ===")
+        
         # 获取当前活跃事件
         active_events = []
         for event_name, event_data in self.active_events.items():
             if self._is_event_active(chapter_number, event_data):
                 active_events.append(event_data)
         
+        print(f"当前活跃事件数量: {len(active_events)}")
+        for i, event in enumerate(active_events):
+            print(f"  活跃事件{i+1}: {event.get('name', '未知事件')}")
+        
         # 检查大事件结束后的缓冲
-        buffer_info["post_big_event"] = self._is_post_big_event_buffer(chapter_number)
+        post_big_event = self._is_post_big_event_buffer(chapter_number)
+        buffer_info["post_big_event"] = post_big_event
+        print(f"大事件结束后缓冲: {post_big_event}")
         
         # 检查重大事件开始前的缓冲  
-        buffer_info["pre_major_event"] = self._is_pre_major_event_buffer(chapter_number)
+        pre_major_event = self._is_pre_major_event_buffer(chapter_number)
+        buffer_info["pre_major_event"] = pre_major_event
+        print(f"重大事件开始前缓冲: {pre_major_event}")
         
         # 检查连续大事件之间的缓冲
-        buffer_info["between_big_events"] = self._is_between_big_events_buffer(chapter_number)
+        between_big_events = self._is_between_big_events_buffer(chapter_number)
+        buffer_info["between_big_events"] = between_big_events
+        print(f"连续大事件之间缓冲: {between_big_events}")
         
         # 总体缓冲期判断
-        buffer_info["is_buffer_period"] = (
-            buffer_info["post_big_event"] or 
-            buffer_info["pre_major_event"] or 
-            buffer_info["between_big_events"]
+        is_buffer_period = (
+            post_big_event or 
+            pre_major_event or 
+            between_big_events
         )
+        buffer_info["is_buffer_period"] = is_buffer_period
+        print(f"总体是否缓冲期: {is_buffer_period}")
+        
+        print(f"=== 第{chapter_number}章缓冲期计算结束 ===\n")
         
         return buffer_info
 

@@ -377,7 +377,6 @@ class APIClient:
             return None
             
         print(f"  提取的JSON内容长度: {len(json_content)}")
-        print(f"  JSON预览: {json_content[:200]}...")
         
         # 步骤2: 尝试直接解析
         try:
