@@ -143,25 +143,7 @@ class ContentGenerator:
     def _get_default_name_by_category(self, category: str) -> str:
         """根据分类获取默认主角名字"""
         default_names = {
-            "西方奇幻": "艾伦",
-            "东方仙侠": "林风", 
-            "科幻末世": "陆晨",
-            "男频衍生": "陈默",
-            "都市高武": "张扬",
-            "悬疑灵异": "秦风",
-            "悬疑脑洞": "时雨",
-            "抗战谍战": "李战",
-            "历史古代": "赵明",
-            "历史脑洞": "楚云",
-            "都市种田": "王磊",
-            "都市脑洞": "苏哲",
-            "都市日常": "刘阳",
-            "玄幻脑洞": "萧炎",
-            "战神赘婿": "叶枫",
-            "动漫衍生": "星尘",
-            "游戏体育": "陈飞",
-            "传统玄幻": "林凡",
-            "都市修真": "张凡"
+            "男频衍生": "陈默"
         }
         return default_names.get(category, "林风")
 
@@ -902,7 +884,16 @@ class ContentGenerator:
     def _prepare_chapter_params(self, chapter_number: int, novel_data: Dict) -> Dict:
         """准备章节参数 - 增强版本，使用上下文"""
         print(f"  🔍 准备第{chapter_number}章参数...")
+
+        # 获取之前的世界状态
+        novel_title = novel_data["novel_title"]
+        world_state = self._get_previous_world_state(novel_title)
         
+        if world_state:
+            print(f"  ✅ 加载到世界状态: {len(world_state.get('characters', {}))}角色, "
+                f"{len(world_state.get('items', {}))}物品, "
+                f"{len(world_state.get('relationships', {}))}关系")
+
         # 获取上下文
         context = novel_data.get('_current_generation_context')
         
@@ -998,6 +989,8 @@ class ContentGenerator:
         print(f"    - 事件任务: {len(params['event_tasks'].splitlines())} 项")
         print(f"    - 伏笔元素: {len(params['foreshadowing_elements'].splitlines())} 项")
         
+        params = self._add_consistency_requirements(params, world_state)
+
         return params
     
     def _generate_emotional_break_prompt(self, intensity_info: Dict, break_suggestions: Dict, buffer_content: Dict) -> str:
@@ -1233,6 +1226,17 @@ class ContentGenerator:
             except:
                 main_character_name = self.custom_main_character_name or '主角'
             
+                        # 添加世界状态信息
+            world_state_info = ""
+            if "previous_world_state" in content_params:
+                world_state_info = f"""
+                
+        ## 🔄 世界状态参考（确保一致性）
+        {content_params.get('previous_world_state', '{}')}
+        
+        【重要】请严格遵循上述世界状态，确保角色、物品、关系等元素的一致性。
+                """
+
             # 直接构建内容生成提示词，不依赖 self.prompts
             user_prompt = f"""你是一位优秀的网络小说作家。请根据以下详细设计方案和基础设定，生成第{chapter_params['chapter_number']}章的完整内容。
 
@@ -1247,26 +1251,27 @@ class ContentGenerator:
 
     # 章节详细设计方案
     {content_params.get('chapter_design', '{}')}
-
+    {world_state_info}
     # 核心写作要求
-
     ## 1. 严格遵循设定
-    - **世界观一致性**: 所有元素必须符合世界观设定：
+    - **世界观一致性**: 所有元素必须符合世界观设定
     {content_params.get('worldview_info', '{}')}
-    - **角色一致性**: 角色行为必须符合角色设定：
+    - **角色一致性**: 角色行为必须符合角色设定
     {content_params.get('character_info', '{}')}
+    - **物品归属一致性**: 确保物品归属与之前章节一致
+    - **关系一致性**: 角色关系不得出现矛盾
+
+    ## 2. 严格遵循设定
     - **人称要求**: 严格使用第三人称叙述，包括对话、心理活动等所有部分，避免使用第一人称。
     - **情节连贯性**: 必须遵循写作计划：
     {content_params.get('stage_writing_plan', '{}')}
 
-    ## 2. 写作风格要求
+    ## 3. 写作风格要求
     **写作风格**: {content_params.get('writing_style_guide', '无特定要求，请保持语言流畅自然。')}
 
-    ## 3. 内容要求
+    ## 4. 内容要求
     - 输出正文超过2000字
     - 语言环境为简体中文环境
-    - 章节结尾设置悬念，引导读者继续阅读
-    - 保持情节推进和角色发展
 
     请严格按照以上要求生成章节内容。
     """
@@ -1359,4 +1364,60 @@ class ContentGenerator:
                 emotional_break_needed = event_manager.should_insert_emotional_break(chapter_number)
         
         if emotional_break_needed:
-            return self.novel_generator.event_driven_manager._generate_event_gap_prompt(chapter_number,event_context)    
+            return self.novel_generator.event_driven_manager._generate_event_gap_prompt(chapter_number,event_context)   
+
+    def _get_previous_world_state(self, novel_title: str) -> Dict:
+        """获取之前章节的世界状态"""
+        if not hasattr(self, 'quality_assessor') or not self.quality_assessor:
+            return {}
+        
+        try:
+            return self.quality_assessor.load_previous_assessments(novel_title)
+        except Exception as e:
+            print(f"⚠️ 加载世界状态失败: {e}")
+            return {}
+
+    def _add_consistency_requirements(self, chapter_params: Dict, world_state: Dict) -> Dict:
+        """添加一致性要求到章节参数"""
+        if not world_state:
+            return chapter_params
+        
+        # 构建一致性指导
+        consistency_guidance = self._build_consistency_guidance(world_state)
+        
+        # 在现有指导基础上添加一致性要求
+        if "foreshadowing_guidance" in chapter_params:
+            chapter_params["foreshadowing_guidance"] += f"\n\n## 🔄 一致性要求\n{consistency_guidance}"
+        
+        # 存储世界状态供生成使用
+        chapter_params["previous_world_state"] = json.dumps(world_state, ensure_ascii=False, indent=2)
+        
+        return chapter_params
+
+    def _build_consistency_guidance(self, world_state: Dict) -> str:
+        """构建一致性指导内容"""
+        guidance_parts = ["请严格确保与之前章节的一致性："]
+        
+        # 角色一致性
+        characters = world_state.get('characters', {})
+        if characters:
+            guidance_parts.append("### 👥 角色一致性")
+            for char_name, char_data in list(characters.items())[:3]:  # 只显示前3个
+                guidance_parts.append(f"- {char_name}: {char_data.get('description', '')[:50]}...")
+        
+        # 物品一致性
+        items = world_state.get('items', {})
+        if items:
+            guidance_parts.append("### 🎁 物品一致性")
+            for item_name, item_data in list(items.items())[:3]:
+                owner = item_data.get('owner', '未知')
+                guidance_parts.append(f"- {item_name}: 属于{owner}")
+        
+        # 关系一致性
+        relationships = world_state.get('relationships', {})
+        if relationships:
+            guidance_parts.append("### 🤝 关系一致性")
+            for rel_key, rel_data in list(relationships.items())[:3]:
+                guidance_parts.append(f"- {rel_key}: {rel_data.get('type', '')}")
+        
+        return "\n".join(guidance_parts)        

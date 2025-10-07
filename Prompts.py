@@ -775,26 +775,7 @@ Prompts = {
 5. AI痕迹检测 (2分): 是否存在明显的AI生成痕迹
 6. 爽点设置 (2分): 情感高潮和爽点设置是否合理
 
-
-请严格按照以下JSON格式输出评估结果：
-{{
-    "overall_score": 总体评分（0-10分）,
-    "detailed_scores": {{
-        "plot_coherence": 情节连贯性得分,
-        "character_consistency": 角色一致性得分, 
-        "chapter_connection": 章节衔接得分,
-        "writing_quality": 文笔质量得分,
-        "ai_artifacts_detected": AI痕迹得分（满分2分，发现一处痕迹-1分）,
-        "emotional_impact": 爽点设置得分
-    }},
-    "strengths": ["优点1", "优点2", "优点3"],
-    "weaknesses": ["缺点1", "缺点2", "缺点3"],
-    "improvement_suggestions": ["改进建议1", "改进建议2"],
-    "quality_verdict": "质量判定（优秀/良好/合格/需要优化/需要重写）",
-    "connection_analysis": "本章与上一章的衔接分析",
-    "ai_artifacts_analysis": "检测到的AI痕迹类型和具体位置分析",
-    "consistency_check": "与整体设定的一致性检查"
-}}""",
+""",
 
         "chapter_optimization": """你是一位经验丰富的番茄网络小说优化编辑。请根据质量评估结果对以下章节内容进行优化。
 

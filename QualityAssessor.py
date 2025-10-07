@@ -2,11 +2,17 @@
 
 import re
 import json
+import os
 from typing import List, Dict, Optional, Tuple
+from datetime import datetime
 
 class QualityAssessor:
-    def __init__(self, api_client):
+    def __init__(self, api_client, storage_path: str = "./quality_data"):
         self.api_client = api_client
+        self.storage_path = storage_path
+        
+        # 确保存储目录存在
+        os.makedirs(storage_path, exist_ok=True)
         
         # 内化质量阈值配置
         self.quality_thresholds = {
@@ -32,6 +38,40 @@ class QualityAssessor:
                 "low": {"threshold": 8.5, "max_issues": 2, "description": "轻微优化"}
             }
         }
+        
+        # 当前小说的世界状态（用于一致性检查）
+        self.current_world_state = {}
+    
+    def load_previous_assessments(self, novel_title: str) -> Dict:
+        """加载之前章节的评估数据"""
+        state_file = os.path.join(self.storage_path, f"{novel_title}_world_state.json")
+        if os.path.exists(state_file):
+            try:
+                with open(state_file, 'r', encoding='utf-8') as f:
+                    return json.load(f)
+            except Exception as e:
+                print(f"加载世界状态失败: {e}")
+        return {}
+    
+    def save_assessment_data(self, novel_title: str, chapter_number: int, assessment_data: Dict):
+        """保存评估数据"""
+        # 保存章节评估数据
+        chapter_file = os.path.join(self.storage_path, f"{novel_title}_chapter_{chapter_number}.json")
+        try:
+            with open(chapter_file, 'w', encoding='utf-8') as f:
+                json.dump(assessment_data, f, ensure_ascii=False, indent=2)
+        except Exception as e:
+            print(f"保存章节评估数据失败: {e}")
+        
+        # 更新并保存世界状态
+        if 'world_state_after_chapter' in assessment_data:
+            self.current_world_state = assessment_data['world_state_after_chapter']
+            state_file = os.path.join(self.storage_path, f"{novel_title}_world_state.json")
+            try:
+                with open(state_file, 'w', encoding='utf-8') as f:
+                    json.dump(self.current_world_state, f, ensure_ascii=False, indent=2)
+            except Exception as e:
+                print(f"保存世界状态失败: {e}")
     
     def detect_ai_artifacts(self, content: str) -> List[str]:
         """检测AI痕迹"""
@@ -91,7 +131,7 @@ class QualityAssessor:
         return artifacts[:10]
     
     def assess_chapter_quality(self, assessment_params: Dict) -> Optional[Dict]:
-        """评估章节质量"""
+        """评估章节质量（包含一致性检查）"""
         user_prompt = self._generate_chapter_assessment_prompt(assessment_params)
         result = self.api_client.generate_content_with_retry(
             "chapter_quality_assessment", 
@@ -99,12 +139,26 @@ class QualityAssessor:
             temperature=0.3, 
             purpose="章节质量评估"
         )
+        
+        # 如果评估成功，保存数据
+        if result and 'overall_score' in result:
+            novel_title = assessment_params.get('novel_title', 'unknown')
+            chapter_number = assessment_params.get('chapter_number', 0)
+            self.save_assessment_data(novel_title, chapter_number, result)
+        
         return result
     
     def _generate_chapter_assessment_prompt(self, params: Dict) -> str:
-        """生成章节质量评估提示词"""
+        """生成章节质量评估提示词（包含一致性检查）"""
+        
+        # 加载之前的世界状态
+        novel_title = params.get('novel_title', 'unknown')
+        previous_world_state = self.load_previous_assessments(novel_title)
+        
+        world_state_str = json.dumps(previous_world_state, ensure_ascii=False, indent=2) if previous_world_state else "{}"
+        
         return f"""
-请对以下小说章节进行全面质量评估：
+请对以下小说章节进行全面质量评估，特别关注内容一致性：
 
 小说标题: {params.get('novel_title', '未知')}
 章节标题: {params.get('chapter_title', '未知')}
@@ -114,13 +168,90 @@ class QualityAssessor:
 
 前情提要: {params.get('previous_summary', '无')}
 
+之前章节的世界状态（用于一致性检查）:
+{world_state_str}
+
 章节内容预览:
 {params.get('chapter_content', '')[:1000]}...
 
+请重点检查以下一致性方面：
+1. 角色一致性：角色是否重复初次出现？角色特征、性格是否一致？
+2. 物品归属：重要物品的归属是否与之前一致？
+3. 关系一致性：角色关系是否出现撕裂或不合理变化？
+4. 技能功法：技能功法等级是否出现倒退或不合理提升？
+5. 时间线：事件发生的时间顺序是否合理？
+6. 地点设定：场景地点描述是否与之前一致？
+
+请按照以下JSON格式返回评估结果：
+{{
+    "overall_score": 总体评分(满分10分),
+    "quality_verdict": "质量评级",
+    "strengths": ["优点1", "优点2", "优点3"],
+    "weaknesses": ["待改进方面1", "待改进方面2", "待改进方面3"],
+    "detailed_scores": {{
+        "plot_coherence": 情节连贯性评分(2分),
+        "character_consistency": 角色一致性评分(2分),
+        "chapter_connection": 章节衔接评分(2分),
+        "writing_quality": 文笔质量评分(2分),
+        "ai_artifacts_detected": AI痕迹检测评分(2分，2分为无痕迹),
+        "emotional_impact": 情感冲击力评分(2分),
+        "consistency_score": 一致性评分(2分)
+    }},
+    "consistency_issues": [
+        {{
+            "type": "角色重复出现/物品归属/关系撕裂/技能倒退/时间线问题/地点不一致",
+            "description": "具体问题描述",
+            "severity": "高/中/低",
+            "suggestion": "修复建议"
+        }}
+    ],
+    "world_state_after_chapter": {{
+        "characters": {{
+            "角色名": {{
+                "first_appearance": "首次出现章节",
+                "description": "角色描述",
+                "attributes": {{"等级": "金丹期", ...}},
+                "last_updated": "最后更新章节"
+            }}
+        }},
+        "items": {{
+            "物品名": {{
+                "owner": "拥有者",
+                "status": "状态",
+                "first_appearance": "首次出现章节",
+                "last_updated": "最后更新章节"
+            }}
+        }},
+        "relationships": {{
+            "角色A-角色B": {{
+                "type": "父子/师徒/...",
+                "description": "关系描述",
+                "first_appearance": "首次出现章节",
+                "last_updated": "最后更新章节"
+            }}
+        }},
+        "skills": {{
+            "技能名": {{
+                "owner": "拥有者",
+                "level": "等级",
+                "first_appearance": "首次出现章节",
+                "last_updated": "最后更新章节"
+            }}
+        }},
+        "locations": {{
+            "地点名": {{
+                "description": "地点描述",
+                "first_appearance": "首次出现章节",
+                "last_updated": "最后更新章节"
+            }}
+        }}
+    }},
+    "assessment_timestamp": "评估时间戳"
+}}
 """
     
     def optimize_chapter_content(self, optimization_params: Dict) -> Optional[Dict]:
-        """优化章节内容"""
+        """优化章节内容（包含一致性修复）"""
         user_prompt = self._generate_optimization_prompt(optimization_params)
         result = self.api_client.generate_content_with_retry(
             "chapter_optimization", 
@@ -130,17 +261,33 @@ class QualityAssessor:
         return result
     
     def _generate_optimization_prompt(self, params: Dict) -> str:
-        """生成章节优化提示词"""
+        """生成章节优化提示词（包含一致性修复）"""
         assessment = json.loads(params.get("assessment_results", "{}"))
         original_content = params.get("original_content", "")
         
+        # 获取一致性问题和世界状态
+        consistency_issues = assessment.get('consistency_issues', [])
+        world_state = assessment.get('world_state_after_chapter', {})
+        
+        consistency_fixes = ""
+        if consistency_issues:
+            consistency_fixes = "需要修复的一致性问题和建议：\n"
+            for issue in consistency_issues[:3]:  # 只处理前3个最严重的问题
+                consistency_fixes += f"- {issue.get('type')}: {issue.get('description')} (严重程度: {issue.get('severity')})\n"
+                consistency_fixes += f"  建议: {issue.get('suggestion')}\n"
+        
         return f"""
-请根据以下评估结果对章节内容进行优化：
+请根据以下评估结果对章节内容进行优化，特别关注一致性问题的修复：
 
 质量评估结果:
 - 总体评分: {assessment.get('overall_score', 0)}/10分
 - 主要问题: {', '.join(assessment.get('weaknesses', []))}
 - 优化强度: {params.get('optimization_intensity', '中度优化')}
+
+{consistency_fixes}
+
+当前世界状态参考:
+{json.dumps(world_state, ensure_ascii=False, indent=2) if world_state else "无"}
 
 需要重点优化的方面:
 1. {params.get('priority_fix_1', '提升整体质量')}
@@ -154,6 +301,8 @@ class QualityAssessor:
 1. 保持原有情节和核心内容不变
 2. 重点解决上述质量问题
 3. 消除明显的AI生成痕迹
+4. 修复所有一致性相关问题
+5. 确保与之前章节的世界状态保持一致
 
 ## 2. 写作风格要求
 **写作风格**: {params.get('writing_style_guide', '无特定要求，请保持语言流畅自然。')}
@@ -162,14 +311,19 @@ class QualityAssessor:
 - 输出正文超过2000字
 - 章节结尾设置悬念，引导读者继续阅读
 - 保持情节推进和角色发展
+- 确保角色、物品、关系、技能等要素的一致性
 
 请返回优化后的完整章节内容，并按照以下JSON格式输出：
 {{
     "content": "优化后的完整章节内容",
     "optimization_summary": "优化总结",
     "changes_made": ["具体修改1", "具体修改2", "具体修改3"],
+    "consistency_fixes": ["一致性修复1", "一致性修复2"],
     "word_count": 优化后字数,
-    "quality_improvement": "质量提升说明"
+    "quality_improvement": "质量提升说明",
+    "updated_world_state": {{
+        // 更新后的世界状态
+    }}
 }}
 """
     
@@ -189,9 +343,18 @@ class QualityAssessor:
             return "需要重写", "质量不合格，建议重写"
     
     def should_optimize_chapter(self, assessment: Dict) -> Tuple[bool, str]:
-        """判断是否需要优化章节"""
+        """判断是否需要优化章节（考虑一致性因素）"""
         score = assessment.get("overall_score", 0)
+        consistency_issues = assessment.get("consistency_issues", [])
+        
+        # 如果有严重的一致性问題，即使分数较高也需要优化
+        severe_consistency_issues = [issue for issue in consistency_issues 
+                                   if issue.get('severity') == '高']
+        
         thresholds = self.quality_thresholds
+        
+        if severe_consistency_issues:
+            return True, f"存在{len(severe_consistency_issues)}个严重一致性问題，需要优化"
         
         if score >= thresholds["excellent"]:
             return False, "质量优秀，无需优化"
@@ -205,9 +368,16 @@ class QualityAssessor:
             return True, "质量不合格，需要重点优化"
 
     def should_skip_optimization(self, assessment: Dict, chapter_data: Dict) -> Tuple[bool, str]:
-        """判断是否应该跳过优化"""
+        """判断是否应该跳过优化（考虑一致性因素）"""
         score = assessment.get("overall_score", 0)
+        consistency_issues = assessment.get("consistency_issues", [])
         skip_config = self.optimization_settings["skip_optimization_conditions"]
+        
+        # 如果有严重一致性问題，不跳过优化
+        severe_consistency_issues = [issue for issue in consistency_issues 
+                                   if issue.get('severity') == '高']
+        if severe_consistency_issues:
+            return False, f"存在{len(severe_consistency_issues)}个严重一致性问題，需要优化"
         
         if score >= skip_config["min_score_skip"]:
             return True, "质量优秀，跳过优化"
@@ -224,9 +394,19 @@ class QualityAssessor:
         
         return False, "需要优化"
     
-    def get_optimization_intensity(self, score: float) -> Dict:
-        """获取优化强度配置"""
+    def get_optimization_intensity(self, score: float, consistency_issues: List = None) -> Dict:
+        """获取优化强度配置（考虑一致性因素）"""
         intensity_configs = self.optimization_settings["optimization_intensity"]
+        
+        # 如果有严重一致性问題，提高优化强度
+        severe_issues = [issue for issue in (consistency_issues or []) 
+                        if issue.get('severity') == '高']
+        
+        if severe_issues:
+            return {
+                "max_issues": len(severe_issues) + 2,
+                "description": f"重点优化（包含{len(severe_issues)}个严重一致性问題）"
+            }
         
         if score < intensity_configs["high"]["threshold"]:
             return intensity_configs["high"]
@@ -238,16 +418,29 @@ class QualityAssessor:
             return {"max_issues": 0, "description": "无需优化"}
         
     def _quick_optimize_chapter(self, chapter_data: Dict, assessment: Dict) -> Optional[Dict]:
-        """快速优化章节"""
+        """快速优化章节（包含一致性修复）"""
         score = assessment.get("overall_score", 0)
         weaknesses = assessment.get("weaknesses", [])
+        consistency_issues = assessment.get("consistency_issues", [])
         
-        intensity_config = self.get_optimization_intensity(score)
+        intensity_config = self.get_optimization_intensity(score, consistency_issues)
         
         if intensity_config["max_issues"] == 0:
             return None
         
-        priority_issues = weaknesses[:intensity_config["max_issues"]]
+        # 优先处理一致性问題
+        priority_issues = []
+        severe_consistency = [issue for issue in consistency_issues 
+                            if issue.get('severity') == '高']
+        
+        # 添加严重一致性问題
+        for issue in severe_consistency[:2]:
+            priority_issues.append(f"修复一致性问題: {issue.get('description')}")
+        
+        # 添加其他弱点
+        remaining_slots = intensity_config["max_issues"] - len(priority_issues)
+        if remaining_slots > 0:
+            priority_issues.extend(weaknesses[:remaining_slots])
         
         if not priority_issues:
             if score < self.quality_thresholds["needs_optimization"]:
@@ -257,7 +450,9 @@ class QualityAssessor:
         
         optimization_params = {
             "assessment_results": json.dumps({
-                "weaknesses": priority_issues,
+                "weaknesses": weaknesses,
+                "consistency_issues": consistency_issues,
+                "world_state_after_chapter": assessment.get("world_state_after_chapter", {}),
                 "overall_score": score,
                 "optimization_intensity": intensity_config["description"]
             }, ensure_ascii=False),
@@ -273,7 +468,10 @@ class QualityAssessor:
     def quick_assess_chapter_quality(self, chapter_content: str, chapter_title: str, 
                                 chapter_number: int, novel_title: str, previous_summary: str, 
                                 word_count: int = 0) -> Dict:
-        """快速评估章节质量"""
+        """快速评估章节质量（包含一致性检查）"""
+        # 加载之前的世界状态
+        self.current_world_state = self.load_previous_assessments(novel_title)
+        
         return self.assess_chapter_quality({
             "chapter_content": chapter_content,
             "chapter_title": chapter_title,
@@ -641,3 +839,51 @@ class QualityAssessor:
                 "chapters_with_ai_artifacts": len([s for s in ai_scores if s < 2])
             }
         }
+
+    def get_novel_consistency_report(self, novel_title: str) -> Dict:
+        """获取小说的整体一致性报告"""
+        world_state_file = os.path.join(self.storage_path, f"{novel_title}_world_state.json")
+        if not os.path.exists(world_state_file):
+            return {"error": "未找到该小说的世界状态数据"}
+        
+        try:
+            with open(world_state_file, 'r', encoding='utf-8') as f:
+                world_state = json.load(f)
+            
+            # 分析世界状态
+            characters_count = len(world_state.get('characters', {}))
+            items_count = len(world_state.get('items', {}))
+            relationships_count = len(world_state.get('relationships', {}))
+            skills_count = len(world_state.get('skills', {}))
+            locations_count = len(world_state.get('locations', {}))
+            
+            return {
+                "novel_title": novel_title,
+                "world_state_summary": {
+                    "characters": characters_count,
+                    "items": items_count,
+                    "relationships": relationships_count,
+                    "skills": skills_count,
+                    "locations": locations_count
+                },
+                "consistency_score": self._calculate_overall_consistency(world_state),
+                "last_updated": datetime.now().isoformat()
+            }
+            
+        except Exception as e:
+            return {"error": f"生成一致性报告失败: {e}"}
+    
+    def _calculate_overall_consistency(self, world_state: Dict) -> float:
+        """计算整体一致性分数"""
+        # 简化的计算方法，实际可以根据具体需求调整
+        total_elements = 0
+        consistency_score = 0
+        
+        for category, elements in world_state.items():
+            for element_id, element_data in elements.items():
+                total_elements += 1
+                # 检查元素是否有完整的更新记录
+                if element_data.get('last_updated'):
+                    consistency_score += 1
+        
+        return round(consistency_score / max(total_elements, 1) * 10, 2) if total_elements > 0 else 10.0    
