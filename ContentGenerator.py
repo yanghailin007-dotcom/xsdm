@@ -965,6 +965,7 @@ class ContentGenerator:
         plot_direction = self._get_plot_direction_for_chapter(chapter_number, total_chapters)
         
         writing_style_guide = novel_data.get("writing_style_guide", {})
+        print(f"  🔍 yhl写作风格{writing_style_guide}章参数...")
         params = {
             "chapter_number": chapter_number,
             "total_chapters": total_chapters,
@@ -1256,6 +1257,7 @@ class ContentGenerator:
     {content_params.get('worldview_info', '{}')}
     - **角色一致性**: 角色行为必须符合角色设定：
     {content_params.get('character_info', '{}')}
+    - **人称要求**: 严格使用第三人称叙述，包括对话、心理活动等所有部分，避免使用第一人称。
     - **情节连贯性**: 必须遵循写作计划：
     {content_params.get('stage_writing_plan', '{}')}
 
@@ -1264,6 +1266,7 @@ class ContentGenerator:
 
     ## 3. 内容要求
     - 输出正文超过2000字
+    - 语言环境为简体中文环境
     - 章节结尾设置悬念，引导读者继续阅读
     - 保持情节推进和角色发展
 
@@ -1345,81 +1348,7 @@ class ContentGenerator:
                 
         except Exception as e:
             print(f"  ❌ 生成写作风格指南时出错: {e}")
-            return None
-
-    def _inject_writing_style_into_prompt(self, prompt: str, writing_style: Dict, purpose: str) -> str:
-        """将写作风格注入到提示词中"""
-        if not writing_style:
-            return prompt
-        
-        style_section = f"""
-        
-    【写作风格要求 - 必须严格遵循】
-
-    核心风格: {writing_style.get('core_style', '')}
-
-    语言特点:
-    {chr(10).join(f"- {feature}" for feature in writing_style.get('language_features', []))}
-
-    叙述节奏: {writing_style.get('narrative_pace', '')}
-    对话风格: {writing_style.get('dialogue_style', '')}
-    情感基调: {writing_style.get('emotional_tone', '')}
-
-    描写重点:
-    {chr(10).join(f"- {focus}" for focus in writing_style.get('description_focus', []))}
-
-    章节结构: {writing_style.get('chapter_structure', '')}
-
-    注意事项:
-    {chr(10).join(f"- {note}" for note in writing_style.get('important_notes', []))}
-
-    请严格按照以上写作风格要求进行创作，确保风格一致性。
-    """
-        
-        # 将风格部分插入到提示词中
-        if "【写作风格要求】" in prompt:
-            # 替换现有的风格要求
-            import re
-            prompt = re.sub(r"【写作风格要求】.*?请严格按照以上写作风格要求", style_section.rstrip() + "\n\n请严格按照以上写作风格要求", prompt, flags=re.DOTALL)
-        else:
-            # 在合适的位置插入风格要求
-            if "## 核心写作要求" in prompt:
-                prompt = prompt.replace("## 核心写作要求", style_section + "\n## 核心写作要求")
-            else:
-                prompt += style_section
-        
-        return prompt        
-
-    def _get_concise_writing_style_guide(self, writing_style_guide: Dict) -> str:
-        """获取精简版的写作风格指南，用于章节生成提示词"""
-        if not writing_style_guide:
-            return "无特定写作风格要求，请保持语言流畅自然。"
-        
-        concise_parts = []
-        
-        # 核心风格
-        if writing_style_guide.get('core_style'):
-            concise_parts.append(f"核心风格: {writing_style_guide['core_style']}")
-        
-        # 关键语言特点（最多3个）
-        language_features = writing_style_guide.get('language_features', [])
-        if language_features:
-            key_features = language_features[:3]  # 只取前3个最重要的
-            concise_parts.append(f"语言特点: {'、'.join(key_features)}")
-        
-        # 叙述节奏
-        if writing_style_guide.get('narrative_pace'):
-            concise_parts.append(f"叙述节奏: {writing_style_guide['narrative_pace']}")
-        
-        # 对话风格
-        if writing_style_guide.get('dialogue_style'):
-            concise_parts.append(f"对话风格: {writing_style_guide['dialogue_style']}")
-        
-        # 情感基调
-        if writing_style_guide.get('emotional_tone'):
-            concise_parts.append(f"情感基调: {writing_style_guide['emotional_tone']}")
-        
-        return "；".join(concise_parts)    
+            return None  
     
     def _get_empty_period_guidance(self, chapter_number: int, event_context: Dict) -> str:
         """生成事件空窗期的指导内容"""

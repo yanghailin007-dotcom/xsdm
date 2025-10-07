@@ -288,7 +288,7 @@ class NovelGenerator:
             print(f"  - novel_synopsis: {data.get('novel_synopsis', '未设置')[:50]}...")
             print(f"  - generated_chapters: {len(data.get('generated_chapters', {}))}章")
             print(f"  - current_progress: {data.get('current_progress', {})}")
-            
+
             # 补全缺失字段
             required_fields = {
                 "previous_chapter_endings": {},
@@ -296,7 +296,6 @@ class NovelGenerator:
                 "plot_progression": [],
                 "chapter_quality_records": {},
                 "optimization_history": {},
-                "writing_style_guide": {},
                 "is_resuming": False,
                 "resume_data": None
             }
@@ -319,7 +318,19 @@ class NovelGenerator:
             self.novel_synopsis = self.novel_data["novel_synopsis"]
             self.creative_seed = self.novel_data.get("creative_seed", "")
             self.selected_plan = self.novel_data.get("selected_plan", {})
-            
+             # 特别检查写作风格指南
+            if "writing_style_guide" in data and data["writing_style_guide"]:
+                print(f"  - writing_style_guide: 已加载，包含 {len(data['writing_style_guide'])} 个字段")
+            else:
+                print(f"  - writing_style_guide: 项目数据中缺失，尝试从单独文件加载...")
+                # 尝试从单独文件加载
+                writing_style = self._load_writing_style_from_file()
+                if writing_style:
+                    data["writing_style_guide"] = writing_style
+                    self.novel_data["writing_style_guide"] = writing_style
+                    print(f"  ✅ 从单独文件成功加载写作风格指南")
+                else:
+                    print(f"  ⚠️ 无法从文件加载写作风格指南，将在需要时重新生成")
             # 修复进度信息
             self.current_progress = self.novel_data.get("current_progress", {
                 "completed_chapters": 0,
@@ -795,7 +806,7 @@ class NovelGenerator:
             return True
 
     def _save_writing_style_to_file(self, writing_style: Dict):
-        """保存写作风格指南到文件"""
+        """保存写作风格指南到JSON文件"""
         try:
             safe_title = re.sub(r'[\\/*?:"<>|]', "_", self.novel_data["novel_title"])
 
@@ -805,49 +816,68 @@ class NovelGenerator:
                 os.makedirs(project_dir)
                 print(f"📁 创建目录: {project_dir}")
 
-            style_file = f"小说项目/{safe_title}_写作风格指南.txt"
+            # 保存为JSON文件
+            style_file = f"小说项目/{safe_title}_写作风格指南.json"
+            
+            # 构建完整的写作风格数据
+            style_data = {
+                "novel_title": self.novel_data["novel_title"],
+                "category": self.novel_data.get("category", "未分类"),
+                "creative_seed": self.novel_data.get("creative_seed", ""),
+                "created_time": datetime.now().isoformat(),
+                "writing_style_guide": writing_style
+            }
             
             with open(style_file, 'w', encoding='utf-8') as f:
-                f.write("=" * 60 + "\n")
-                f.write(f"《{self.novel_data['novel_title']}》写作风格指南\n")
-                f.write("=" * 60 + "\n\n")
-                
-                f.write(f"📚 分类: {self.novel_data.get('category', '未分类')}\n")
-                f.write(f"🎯 创作方向: {self.novel_data['selected_plan'].get('core_direction', '')}\n\n")
-                
-                f.write("## 核心写作风格\n")
-                f.write(f"{writing_style.get('core_style', '')}\n\n")
-                
-                f.write("## 语言特点\n")
-                for feature in writing_style.get('language_features', []):
-                    f.write(f"- {feature}\n")
-                f.write("\n")
-                
-                f.write("## 叙述节奏\n")
-                f.write(f"{writing_style.get('narrative_pace', '')}\n\n")
-                
-                f.write("## 对话风格\n")
-                f.write(f"{writing_style.get('dialogue_style', '')}\n\n")
-                
-                f.write("## 描写重点\n")
-                for focus in writing_style.get('description_focus', []):
-                    f.write(f"- {focus}\n")
-                f.write("\n")
-                
-                f.write("## 情感基调\n")
-                f.write(f"{writing_style.get('emotional_tone', '')}\n\n")
-                
-                f.write("## 章节结构特点\n")
-                f.write(f"{writing_style.get('chapter_structure', '')}\n\n")
-                
-                f.write("## 注意事项\n")
-                for note in writing_style.get('important_notes', []):
-                    f.write(f"- {note}\n")
+                json.dump(style_data, f, ensure_ascii=False, indent=2)
             
             print(f"📝 写作风格指南已保存到: {style_file}")
             
         except Exception as e:
             print(f"⚠️ 保存写作风格指南失败: {e}")
+            import traceback
+            traceback.print_exc()
+
+    def _load_writing_style_from_file(self, novel_title: str = None) -> Optional[Dict]:
+        """从JSON文件加载写作风格指南 - 修复版本"""
+        try:
+            # 使用传入的小说标题，如果没有则尝试从novel_data获取
+            if novel_title is None:
+                if hasattr(self, 'novel_data') and self.novel_data and "novel_title" in self.novel_data:
+                    novel_title = self.novel_data["novel_title"]
+                else:
+                    print(f"  ❌ 无法获取小说标题，跳过加载写作风格指南")
+                    return None
+            
+            safe_title = re.sub(r'[\\/*?:"<>|]', "_", novel_title)
+            style_file = f"小说项目/{safe_title}_写作风格指南.json"
+            
+            if not os.path.exists(style_file):
+                print(f"  ⚠️ 写作风格指南文件不存在: {style_file}")
+                return None
+            
+            with open(style_file, 'r', encoding='utf-8') as f:
+                file_content = json.load(f)
+            
+            print(f"  ✅ 从文件加载写作风格指南: {style_file}")
+            
+            # 检查文件结构 - 如果是直接包含写作风格指南的字典
+            if isinstance(file_content, dict) and "core_style" in file_content:
+                print(f"  ✅ 检测到直接格式的写作风格指南")
+                return file_content
+            # 如果是包含在 writing_style_guide 字段中的格式
+            elif isinstance(file_content, dict) and "writing_style_guide" in file_content:
+                print(f"  ✅ 检测到嵌套格式的写作风格指南")
+                return file_content["writing_style_guide"]
+            else:
+                print(f"  ⚠️ 未知的写作风格指南格式: {list(file_content.keys()) if isinstance(file_content, dict) else type(file_content)}")
+                return file_content
+            
+        except Exception as e:
+            print(f"  ❌ 加载写作风格指南失败: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
 
     def _get_default_writing_style(self, category: str) -> Dict:
         """根据分类获取默认的写作风格"""
