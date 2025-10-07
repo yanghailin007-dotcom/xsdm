@@ -965,7 +965,6 @@ class ContentGenerator:
         plot_direction = self._get_plot_direction_for_chapter(chapter_number, total_chapters)
         
         writing_style_guide = novel_data.get("writing_style_guide", {})
-        print(f"  🔍 yhl写作风格{writing_style_guide}章参数...")
         params = {
             "chapter_number": chapter_number,
             "total_chapters": total_chapters,

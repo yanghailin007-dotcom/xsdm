@@ -47,9 +47,12 @@ class EventDrivenManager:
         if not self.active_events:
             self.initialize_event_system()
         
-        # 如果还是没有事件，创建回退事件
         if not self.active_events:
-            self._create_fallback_events(chapter_number)
+            gap_length = self._calculate_event_gap_length(chapter_number)
+            if gap_length >= 3:  # 空窗期超过3章就创建支线
+                self.create_side_quest_events(chapter_number, gap_length)
+            else:
+                self._create_fallback_events(chapter_number)
         
         # 计算精准缓冲期信息
         buffer_info = self._calculate_precise_buffer_periods(chapter_number)
@@ -1068,4 +1071,235 @@ class EventDrivenManager:
                 }
             ])
         
-        return tasks           
+        return tasks
+
+    def _get_extended_event_gap_prompt(self, chapter_number: int, event_context: Dict) -> str:
+        """生成长时间空窗期的专门指导"""
+        # 计算空窗期长度
+        gap_length = self._calculate_event_gap_length(chapter_number)
+        
+        prompt_parts = [
+            "# 🎯 事件执行指导 - 长时间事件空窗期",
+            "",
+            "## 📊 当前状态分析",
+            f"第{chapter_number}章处于**长时间事件空窗期**，已经持续{gap_length}章没有活跃的重大事件或大事件。",
+            "这是安排系统性支线发展和世界观建设的绝佳时机。",
+            ""
+        ]
+        
+        # 获取情绪强度建议
+        intensity_info = self.get_emotional_intensity_level(chapter_number)
+        prompt_parts.extend([
+            "## 🎭 情绪强度管理",
+            f"**当前情绪强度**: {intensity_info['level']} - {intensity_info['description']}",
+            f"**空窗期长度**: {gap_length}章",
+            ""
+        ])
+        
+        # 长时间空窗期的系统性支线安排
+        prompt_parts.extend([
+            "## 🎪 系统性支线安排策略",
+            f"由于空窗期较长({gap_length}章)，需要系统性安排支线内容："
+        ])
+        
+        # 根据空窗期长度提供不同策略
+        if gap_length >= 10:
+            prompt_parts.extend(self._get_extended_gap_strategy(gap_length, chapter_number))
+        elif gap_length >= 5:
+            prompt_parts.extend(self._get_medium_gap_strategy(gap_length, chapter_number))
+        else:
+            prompt_parts.extend(self._get_short_gap_strategy(gap_length, chapter_number))
+        
+        # 检查是否有即将发生的事件需要铺垫
+        upcoming_events = self._get_upcoming_events(chapter_number)
+        if upcoming_events:
+            prompt_parts.extend([
+                "",
+                "## 🔮 即将发生事件铺垫",
+                "利用空窗期为后续事件做系统性铺垫:"
+            ])
+            for event in upcoming_events[:5]:  # 显示更多即将事件
+                event_name = event.get('name', '未知事件')
+                start_chapter = event.get('start_chapter', chapter_number + 1)
+                event_type = "重大事件" if event.get('type') == 'major_event' else "大事件"
+                prompt_parts.append(f"- **{event_name}** ({event_type}, 预计第{start_chapter}章):")
+                prompt_parts.append(f"  - 可埋下伏笔线索")
+                prompt_parts.append(f"  - 引入相关角色")
+                prompt_parts.append(f"  - 建立事件背景")
+            prompt_parts.append("")
+        
+        # 长时间空窗期的核心任务建议
+        prompt_parts.extend([
+            "## 🎯 长时间空窗期核心任务",
+            "1. **支线剧情推进**: 安排2-3条并行支线，交替推进",
+            "2. **角色深度发展**: 为主角和配角安排个人成长弧线", 
+            "3. **世界观扩展**: 系统性展示世界观的不同方面",
+            "4. **伏笔网络建设**: 为后续事件建立复杂的伏笔网络",
+            "5. **节奏控制**: 保持适当的紧张度，避免读者失去兴趣",
+            "",
+            "## 💡 长时间空窗期创作提示",
+            "- **支线交替**: 不同支线交替出现，保持新鲜感",
+            "- **渐进紧张**: 空窗期后期逐渐提升紧张度",
+            "- **主线关联**: 所有支线都应与主线有明确关联",
+            "- **伏笔回收**: 适当回收前期伏笔，建立闭环",
+            "- **角色成长**: 确保角色在空窗期有明显成长",
+            "- **读者期待**: 在空窗期结束时建立对后续事件的强烈期待"
+        ])
+        
+        return "\n".join(prompt_parts)
+
+    def _calculate_event_gap_length(self, chapter_number: int) -> int:
+        """计算当前事件空窗期的长度"""
+        gap_length = 0
+        
+        # 从当前章节向前检查，直到找到活跃事件
+        for check_chapter in range(chapter_number, max(1, chapter_number - 20), -1):
+            has_active_events = False
+            
+            for event_name, event_data in self.active_events.items():
+                if self._is_event_active(check_chapter, event_data):
+                    has_active_events = True
+                    break
+            
+            if has_active_events:
+                break
+            else:
+                gap_length += 1
+        
+        return gap_length
+
+    def _get_extended_gap_strategy(self, gap_length: int, chapter_number: int) -> List[str]:
+        """获取长时间空窗期(10+章)的策略"""
+        return [
+            "### 10+章空窗期策略 - 系统性支线建设",
+            "",
+            "**支线架构建议**:",
+            "- 安排3条主要支线，每条支线持续3-4章",
+            "- 支线之间建立关联，形成支线网络", 
+            "- 每条支线都应有明确的目标和结局",
+            "",
+            "**具体安排**:",
+            f"- **第{chapter_number}-{chapter_number+3}章**: 启动第一条支线，侧重角色发展",
+            f"- **第{chapter_number+2}-{chapter_number+5}章**: 启动第二条支线，侧重世界观扩展",
+            f"- **第{chapter_number+4}-{chapter_number+7}章**: 启动第三条支线，侧重技能/能力成长",
+            f"- **第{chapter_number+6}-{chapter_number+9}章**: 支线交汇，为回归主线铺垫",
+            f"- **第{chapter_number+8}-{chapter_number+10}章**: 逐步提升紧张度，准备回归主线",
+            "",
+            "**注意事项**:",
+            "- 避免支线过于分散，保持整体连贯性",
+            "- 定期提醒主线存在，保持读者对主线的记忆",
+            "- 在空窗期结束前2-3章开始为主线回归做铺垫"
+        ]
+
+    def _get_medium_gap_strategy(self, gap_length: int, chapter_number: int) -> List[str]:
+        """获取中等长度空窗期(5-9章)的策略"""
+        return [
+            "### 5-9章空窗期策略 - 重点支线发展",
+            "",
+            "**支线架构建议**:",
+            "- 安排2条主要支线，交替推进",
+            "- 每条支线应有明确的开始、发展、结束",
+            "",
+            "**具体安排**:",
+            f"- **第{chapter_number}-{chapter_number+2}章**: 发展第一条支线",
+            f"- **第{chapter_number+1}-{chapter_number+4}章**: 发展第二条支线", 
+            f"- **第{chapter_number+3}-{chapter_number+5}章**: 支线收尾，为主线回归准备",
+            "",
+            "**重点任务**:",
+            "- 深化配角发展",
+            "- 补充世界观细节",
+            "- 建立新的角色关系"
+        ]
+
+    def _get_short_gap_strategy(self, gap_length: int, chapter_number: int) -> List[str]:
+        """获取短空窗期(1-4章)的策略"""
+        return [
+            "### 1-4章空窗期策略 - 紧凑支线安排",
+            "",
+            "**安排建议**:",
+            "- 安排1-2条紧凑支线",
+            "- 侧重情绪缓冲和伏笔铺设",
+            "",
+            "**可用内容**:",
+            "- 角色反思和成长时刻",
+            "- 世界观细节展示",
+            "- 幽默或温馨的插曲",
+            "- 为后续事件的直接铺垫"
+        ]
+
+    # 修改现有的空窗期提示生成方法，在长时间空窗期时使用新的指导
+    def _generate_event_gap_prompt(self, chapter_number: int, event_context: Dict) -> str:
+        """生成事件空窗期的专门指导"""
+        # 计算空窗期长度
+        gap_length = self._calculate_event_gap_length(chapter_number)
+        
+        # 如果空窗期较长，使用专门的长时间空窗期指导
+        if gap_length >= 5:
+            return self._get_extended_event_gap_prompt(chapter_number, event_context)
+        
+        # 原有的短空窗期逻辑保持不变
+        prompt_parts = [
+            "# 🎯 事件执行指导 - 事件空窗期",
+            "",
+            "## 📊 当前状态分析",
+            f"第{chapter_number}章处于**事件空窗期**，没有活跃的重大事件或大事件。",
+            "这是安排情绪缓冲、角色发展和世界观展示的绝佳时机。",
+            ""
+        ]
+
+    def create_side_quest_events(self, chapter_number: int, gap_length: int):
+        """为空窗期创建支线事件"""
+        if gap_length >= 5:
+            print(f"🎯 检测到{gap_length}章空窗期，自动创建支线事件...")
+            
+            # 根据空窗期长度创建不同数量的支线事件
+            if gap_length >= 10:
+                self._create_extended_side_quests(chapter_number)
+            elif gap_length >= 5:
+                self._create_medium_side_quests(chapter_number)
+            
+            print(f"✅ 已为第{chapter_number}章创建支线事件")
+
+    def _create_extended_side_quests(self, chapter_number: int):
+        """创建长时间空窗期的支线事件"""
+        # 角色发展支线
+        self.add_event(
+            name="角色深度发展支线",
+            event_type="big_event",
+            start_chapter=chapter_number,
+            description="深入探索主要角色的背景故事和个人成长"
+        )
+        
+        # 世界观扩展支线
+        self.add_event(
+            name="世界观探索支线", 
+            event_type="big_event",
+            start_chapter=chapter_number + 2,
+            description="系统性展示世界观的不同方面和文化细节"
+        )
+        
+        # 技能成长支线
+        self.add_event(
+            name="能力成长支线",
+            event_type="big_event", 
+            start_chapter=chapter_number + 4,
+            description="主角或配角获得新技能或能力的成长过程"
+        )
+
+    def _create_medium_side_quests(self, chapter_number: int):
+        """创建中等长度空窗期的支线事件"""
+        # 主要支线
+        self.add_event(
+            name="重要支线发展",
+            event_type="big_event",
+            start_chapter=chapter_number,
+            description="推进与主线相关的次要情节发展"
+        )
+        
+        # 配角发展支线
+        self.add_event(
+            name="配角成长支线",
+            event_type="big_event",
+            start_chapter=chapter_number + 1, 
+            description="深化配角角色弧线和人际关系"
+        )          
