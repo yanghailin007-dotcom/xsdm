@@ -474,8 +474,6 @@ class StagePlanManager:
         if "stage_writing_plan" in writing_plan:
             print(f"  🔍 检测到嵌套结构 stage_writing_plan")
             actual_plan = writing_plan["stage_writing_plan"]
-            print(f"  🔍 stage_writing_plan类型: {type(actual_plan)}")
-            print(f"  🔍 stage_writing_plan键: {list(actual_plan.keys()) if actual_plan else 'None'}")
         else:
             print(f"  🔍 没有嵌套结构，直接使用writing_plan")
             actual_plan = writing_plan
@@ -486,15 +484,10 @@ class StagePlanManager:
         
         # 事件系统统计 - 只统计重大事件和大事件
         event_system = actual_plan.get("event_system", {})
-        print(f"  🔍 event_system类型: {type(event_system)}")
-        print(f"  🔍 event_system键: {list(event_system.keys()) if event_system else 'None'}")
         
         major_events = event_system.get("major_events", [])
         big_events = event_system.get("big_events", [])
         # 移除普通事件的统计
-        
-        print(f"  🔍 major_events: {len(major_events)}个, 类型: {type(major_events)}")
-        print(f"  🔍 big_events: {len(big_events)}个, 类型: {type(big_events)}")
         
         print(f"      重大事件: {len(major_events)}个")
         print(f"      大事件: {len(big_events)}个") 

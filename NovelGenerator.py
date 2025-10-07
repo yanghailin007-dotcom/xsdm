@@ -1495,7 +1495,6 @@ class NovelGenerator:
                 try:
                     growth_context = self.global_growth_planner.get_context(chapter_num)
                     print(f"    ✅ 成长规划上下文获取成功")
-                    print(f"    📊 成长规划上下文类型: {type(growth_context)}")
                     if isinstance(growth_context, dict):
                         print(f"    📊 成长规划上下文键: {list(growth_context.keys())}")
                         print(f"    📊 成长规划上下文长度: {len(str(growth_context))}")

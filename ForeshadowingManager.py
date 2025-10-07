@@ -1,5 +1,5 @@
 # ForeshadowingManager.py
-from typing import Dict, List, Set
+from typing import Any, Dict, List, Set
 import json
 from utils import parse_chapter_range, is_chapter_in_range
 
@@ -479,3 +479,383 @@ class ForeshadowingManager:
             prompt_parts.append(f"- **{elem['name']}** ({elem['type']}): 重要性-{elem['importance']}")
         
         return "\n".join(prompt_parts)    
+
+    def get_emotional_buffer_content(self, chapter_number: int) -> Dict[str, Any]:
+        """获取情绪缓冲期的内容建议"""
+        buffer_suggestions = {
+            "available_elements": [],
+            "side_plots": [],
+            "character_moments": [],
+            "world_building": []
+        }
+        
+        # 1. 获取可用的伏笔元素（重要性较低的元素优先）
+        for element in self.elements_to_introduce:
+            if element.get("importance") in ["low", "medium"]:
+                buffer_suggestions["available_elements"].append({
+                    "name": element["name"],
+                    "type": element["type"],
+                    "suggested_approach": f"轻松引入{element['type']}「{element['name']}」",
+                    "purpose": element.get("purpose", "丰富世界观")
+                })
+        
+        # 2. 生成支线剧情建议
+        buffer_suggestions["side_plots"] = self._generate_side_plot_suggestions(chapter_number)
+        
+        # 3. 角色日常时刻
+        buffer_suggestions["character_moments"] = self._generate_character_moments(chapter_number)
+        
+        # 4. 世界观展示机会
+        buffer_suggestions["world_building"] = self._generate_world_building_suggestions(chapter_number)
+        
+        return buffer_suggestions
+
+    def _generate_side_plot_suggestions(self, chapter_number: int, novel_data: Dict = None) -> List[Dict]:
+        """生成支线剧情建议 - 通用方法，基于小说数据结构"""
+        if not novel_data:
+            return self._get_default_side_plots()
+        
+        side_plots = []
+        
+        # 1. 基于角色关系生成支线
+        character_design = novel_data.get("character_design", {})
+        if character_design:
+            main_char = character_design.get("main_character", {})
+            supporting_chars = character_design.get("important_characters", [])
+            
+            # 主角与重要配角的互动支线
+            for char in supporting_chars[:3]:  # 取前3个重要配角
+                char_name = char.get("name", "")
+                char_role = char.get("role", "")
+                relationship = char.get("relationship", "")
+                
+                if char_name and relationship:
+                    side_plots.append({
+                        "type": "角色关系发展",
+                        "description": f"{main_char.get('name', '主角')}与{char_name}的{relationship}互动",
+                        "purpose": f"深化{char_name}的角色塑造，推进{relationship}线",
+                        "emotional_tone": self._get_emotional_tone_by_relationship(relationship),
+                        "related_characters": [main_char.get('name', '主角'), char_name],
+                        "suggested_content": [
+                            f"{char_name}的背景故事分享",
+                            f"共同面对的小型挑战",
+                            f"{relationship}相关的深度对话"
+                        ]
+                    })
+        
+        # 2. 基于世界观元素生成支线
+        worldview = novel_data.get("core_worldview", {})
+        if worldview:
+            # 从世界观中提取可用的支线元素
+            hot_elements = worldview.get("hot_elements", [])
+            social_structure = worldview.get("social_structure", "")
+            
+            for element in hot_elements[:2]:  # 取前2个热门元素
+                side_plots.append({
+                    "type": "世界观探索",
+                    "description": f"探索{element}相关的背景设定",
+                    "purpose": f"丰富{element}的世界观细节",
+                    "emotional_tone": "神秘、探索",
+                    "related_elements": [element],
+                    "suggested_content": self._get_world_element_content(element)
+                })
+        
+        # 3. 基于当前情节阶段生成支线
+        current_stage = self._get_current_stage_by_progress(chapter_number, novel_data)
+        if current_stage:
+            side_plots.append({
+                "type": "阶段特色支线",
+                "description": f"体现{current_stage}特色的辅助情节",
+                "purpose": "强化当前阶段的主题氛围",
+                "emotional_tone": self._get_stage_emotional_tone(current_stage),
+                "stage_specific": True,
+                "suggested_content": self._get_stage_specific_content(current_stage)
+            })
+        
+        # 4. 基于系统设定生成支线（如果有系统元素）
+        if self._has_system_elements(novel_data):
+            side_plots.append({
+                "type": "系统相关支线",
+                "description": "探索系统功能或完成系统小任务",
+                "purpose": "展示系统特色，提供成长展示机会",
+                "emotional_tone": "惊奇、成长",
+                "system_related": True,
+                "suggested_content": [
+                    "新技能或装备的测试场景",
+                    "系统任务的轻松完成过程",
+                    "系统功能的意外发现"
+                ]
+            })
+        
+        return side_plots if side_plots else self._get_default_side_plots()
+
+    def _generate_character_moments(self, chapter_number: int, novel_data: Dict = None) -> List[Dict]:
+        """生成角色日常时刻建议 - 通用方法"""
+        if not novel_data:
+            return self._get_default_character_moments()
+        
+        character_moments = []
+        character_design = novel_data.get("character_design", {})
+        
+        if not character_design:
+            return self._get_default_character_moments()
+        
+        main_char = character_design.get("main_character", {})
+        supporting_chars = character_design.get("important_characters", [])
+        
+        # 主角的个人时刻
+        if main_char:
+            char_name = main_char.get("name", "主角")
+            personality = main_char.get("personality", "")
+            background = main_char.get("background", "")
+            
+            character_moments.append({
+                "type": "主角内心世界",
+                "description": f"展现{char_name}的内心思考和性格特点",
+                "emotional_tone": "深沉、真实",
+                "related_character": char_name,
+                "suggested_scenes": [
+                    f"{char_name}对当前处境的思考",
+                    f"展现{personality}性格的具体行为",
+                    f"{background}背景带来的独特视角"
+                ]
+            })
+        
+        # 配角的特色时刻
+        for char in supporting_chars[:4]:  # 取前4个配角
+            char_name = char.get("name", "")
+            char_role = char.get("role", "")
+            personality = char.get("personality", "")
+            
+            if char_name and char_role:
+                character_moments.append({
+                    "type": f"{char_role}特色时刻",
+                    "description": f"展现{char_name}作为{char_role}的独特一面",
+                    "emotional_tone": self._get_character_emotional_tone(char_role),
+                    "related_character": char_name,
+                    "suggested_scenes": [
+                        f"{char_name}展现{personality}的日常行为",
+                        f"{char_name}在团队中的独特作用",
+                        f"{char_name}的个人小目标或烦恼"
+                    ]
+                })
+        
+        # 团队互动时刻
+        if len(supporting_chars) >= 2:
+            character_moments.append({
+                "type": "团队互动",
+                "description": "主要角色间的轻松互动",
+                "emotional_tone": "温馨、幽默",
+                "related_characters": [main_char.get("name", "主角")] + 
+                                    [char.get("name") for char in supporting_chars[:3]],
+                "suggested_scenes": [
+                    "战斗或任务间隙的轻松对话",
+                    "分享各自的故事或经历",
+                    "团队协作中的小插曲"
+                ]
+            })
+        
+        return character_moments
+
+    def _generate_world_building_suggestions(self, chapter_number: int, novel_data: Dict = None) -> List[Dict]:
+        """生成世界观展示建议 - 通用方法"""
+        if not novel_data:
+            return self._get_default_world_building()
+        
+        world_building = []
+        worldview = novel_data.get("core_worldview", {})
+        
+        if not worldview:
+            return self._get_default_world_building()
+        
+        # 从世界观中提取关键信息
+        era = worldview.get("era", "")
+        core_conflict = worldview.get("core_conflict", "")
+        overview = worldview.get("overview", "")
+        power_system = worldview.get("power_system", "")
+        social_structure = worldview.get("social_structure", "")
+        
+        # 时代背景展示
+        if era:
+            world_building.append({
+                "type": "时代风貌",
+                "description": f"展现{era}的时代特色和社会背景",
+                "purpose": "增强故事的历史真实感和时代氛围",
+                "emotional_tone": "怀旧、真实",
+                "key_elements": [
+                    "当时的日常生活场景",
+                    "时代特有的社会现象",
+                    "历史背景下的普通人生活"
+                ]
+            })
+        
+        # 核心冲突相关展示
+        if core_conflict:
+            world_building.append({
+                "type": "冲突背景",
+                "description": "展现故事核心冲突的深层背景",
+                "purpose": "帮助读者理解故事矛盾的根源",
+                "emotional_tone": "深沉、复杂",
+                "key_elements": [
+                    "冲突各方的立场和动机",
+                    "冲突对普通人的影响",
+                    "解决冲突的潜在可能性"
+                ]
+            })
+        
+        # 力量体系展示（如果有）
+        if power_system:
+            world_building.append({
+                "type": "力量体系",
+                "description": "展现故事中的特殊能力或技术体系",
+                "purpose": "丰富世界观，展示独特设定",
+                "emotional_tone": "惊奇、探索",
+                "key_elements": [
+                    "力量或技术的日常应用",
+                    "掌握力量的过程和代价",
+                    "力量体系对社会的影响"
+                ]
+            })
+        
+        # 社会结构展示
+        if social_structure:
+            world_building.append({
+                "type": "社会百态",
+                "description": "展现故事世界中的社会层次和人际关系",
+                "purpose": "丰富故事的社会深度",
+                "emotional_tone": "复杂、真实",
+                "key_elements": [
+                    "不同社会阶层的日常生活",
+                    "社会规则和潜规则",
+                    "人物在社会中的位置和挣扎"
+                ]
+            })
+        
+        return world_building
+
+    # 辅助方法
+    def _get_emotional_tone_by_relationship(self, relationship: str) -> str:
+        """根据角色关系返回合适的情感基调"""
+        tone_map = {
+            "战友": "热血、信任",
+            "爱人": "深情、温馨", 
+            "师徒": "尊敬、成长",
+            "对手": "紧张、敬佩",
+            "朋友": "轻松、真诚",
+            "兄弟": "豪迈、义气"
+        }
+        return tone_map.get(relationship, "温馨、真实")
+
+    def _get_world_element_content(self, element: str) -> List[str]:
+        """根据世界观元素返回相关内容建议"""
+        content_map = {
+            "魔法": ["魔法原理的简单展示", "魔法在日常生活中的应用", "学习魔法的趣事"],
+            "修真": ["修炼心得的分享", "灵药或法宝的发现", "修真界的小常识"],
+            "科技": ["科技产品的演示", "技术原理的通俗解释", "科技带来的生活变化"],
+            "谍战": ["情报工作的细节", "伪装技巧的展示", "敌我双方的智力博弈"],
+            "军事": ["武器装备的介绍", "战术策略的讨论", "军旅生活的描写"]
+        }
+        return content_map.get(element, ["相关背景的探索", "设定细节的展现"])
+
+    def _get_current_stage_by_progress(self, chapter_number: int, novel_data: Dict) -> str:
+        """根据章节进度推断当前阶段"""
+        progress = novel_data.get("current_progress", {})
+        total_chapters = progress.get("total_chapters", 100)
+        current_stage = progress.get("current_stage", "")
+        
+        if current_stage:
+            return current_stage
+        
+        # 如果没有明确阶段，根据章节比例推断
+        progress_ratio = chapter_number / total_chapters if total_chapters > 0 else 0
+        
+        if progress_ratio <= 0.3:
+            return "开局阶段"
+        elif progress_ratio <= 0.7:
+            return "发展阶段" 
+        else:
+            return "高潮阶段"
+
+    def _get_stage_emotional_tone(self, stage: str) -> str:
+        """根据阶段返回情感基调"""
+        tone_map = {
+            "开局阶段": "探索、新奇",
+            "发展阶段": "成长、挑战", 
+            "高潮阶段": "紧张、激烈",
+            "结局阶段": "圆满、感慨"
+        }
+        return tone_map.get(stage, "适中、平稳")
+
+    def _get_stage_specific_content(self, stage: str) -> List[str]:
+        """根据阶段返回特色内容"""
+        content_map = {
+            "开局阶段": ["世界观的基础介绍", "主角的初始状态展示", "故事基调的确立"],
+            "发展阶段": ["角色关系的深化", "次要目标的推进", "能力或势力的成长"],
+            "高潮阶段": ["主要矛盾的激化", "关键能力的展示", "情感关系的考验"]
+        }
+        return content_map.get(stage, ["符合当前进度的辅助情节"])
+
+    def _get_character_emotional_tone(self, role: str) -> str:
+        """根据角色类型返回情感基调"""
+        tone_map = {
+            "忠诚的副手": "信赖、坚定",
+            "智谋担当": "智慧、冷静",
+            "宿命的敌人": "复杂、深刻", 
+            "红颜知己": "温柔、理解",
+            "导师": "威严、关怀"
+        }
+        return tone_map.get(role, "真实、立体")
+
+    def _has_system_elements(self, novel_data: Dict) -> bool:
+        """检测小说是否包含系统元素"""
+        # 检查主角是否有特殊能力描述
+        main_char = novel_data.get("character_design", {}).get("main_character", {})
+        if "system" in str(main_char.get("special_ability", "")).lower():
+            return True
+        
+        # 检查世界观中是否有系统相关描述
+        worldview = novel_data.get("core_worldview", {})
+        if "system" in str(worldview.get("power_system", "")).lower():
+            return True
+        
+        # 检查阶段计划中是否有系统相关事件
+        stage_plans = novel_data.get("stage_writing_plans", {})
+        for stage in stage_plans.values():
+            if "system" in str(stage).lower():
+                return True
+        
+        return False
+
+    # 默认方法保持不变
+    def _get_default_side_plots(self) -> List[Dict]:
+        """获取默认支线剧情（备用）"""
+        return [
+            {
+                "type": "角色互动",
+                "description": "主要角色间的轻松对话或日常互动",
+                "purpose": "展现角色关系，增加人情味",
+                "emotional_tone": "温馨、幽默"
+            }
+        ]
+
+    def _get_default_character_moments(self) -> List[Dict]:
+        """获取默认角色时刻（备用）"""
+        return [
+            {
+                "type": "生活场景", 
+                "description": "展示角色在日常生活中的一面",
+                "examples": ["用餐时刻", "训练间隙", "休息时的思考"],
+                "emotional_tone": "平静、真实"
+            }
+        ]
+
+    def _get_default_world_building(self) -> List[Dict]:
+        """获取默认世界观展示（备用）"""
+        return [
+            {
+                "type": "环境描写",
+                "description": "对特殊地点或景观的细致描写", 
+                "purpose": "营造氛围，展示世界特色",
+                "emotional_tone": "优美、宁静"
+            }
+        ]

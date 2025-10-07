@@ -2,7 +2,7 @@
 
 CONFIG = {
     # 默认提供商配置
-    "default_provider": "deepseek",  # 默认使用deepseek
+    "default_provider": "gemini",  # 默认使用deepseek
     
     "api_keys": {
         "deepseek": "sk-1342f04c85c5452ab46c673aa1a12c0b",
@@ -21,10 +21,12 @@ CONFIG = {
     },
     "defaults": {
         "temperature": 0.7,
-        "max_tokens": 5000,
+        "max_tokens": 8000,
         "total_chapters": 300,
         "max_retries": 3,
-        "json_retries": 2
+        "chapters_per_batch": 3,
+        "max_optimization_attempts": 1,
+        "json_retries": 3
     },
     "optimization_settings": {
         # 质量评分优化阈值

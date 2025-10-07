@@ -6,12 +6,14 @@ from typing import Dict, Optional, List, Tuple
 
 import APIClient
 from Contexts import GenerationContext
+import EventDrivenManager
+import NovelGenerator
 from Prompts import Prompts
 import QualityAssessor
 
 class ContentGenerator:
     def __init__(self, novel_generator, api_client: APIClient.APIClient, config, event_bus, quality_assessor: QualityAssessor ):
-        self.novel_generator = novel_generator
+        self.novel_generator:NovelGenerator.NovelGenerator = novel_generator
         self.api_client = api_client
         self.config = config
         self.prompts = Prompts
@@ -828,6 +830,19 @@ class ContentGenerator:
     def generate_chapter_design(self, chapter_params: Dict) -> Optional[Dict]:
         """生成章节详细设计方案"""
         try:
+
+            # 添加情绪缓冲部分
+            emotional_break_section = ""
+            if chapter_params.get("emotional_break_needed"):
+                emotional_break_section = f"""
+                
+        # 情绪缓冲指导（重要）
+        {chapter_params.get("emotional_break_guidance", "")}
+        
+        【特别注意】本章需要适当降低情绪强度，给读者释放空间。
+        请合理安排缓冲内容，既要让读者放松，又要保持故事吸引力。
+                """
+
             design_prompt = f"""你是一位资深的网络小说策划编辑。请为第{chapter_params.get("chapter_number", 1)}章制定详细的写作设计方案。
 
     # 故事基础设定（必须严格遵循）
@@ -835,6 +850,7 @@ class ContentGenerator:
     {chapter_params.get("novel_title", "未知小说")}
     **小说简介**: 
     {chapter_params.get("novel_synopsis", "")}
+    {emotional_break_section}
     **世界观设定**: 
     {chapter_params.get("worldview_info", "{}")}
     **角色设定**: 
@@ -890,6 +906,31 @@ class ContentGenerator:
         # 获取上下文
         context = novel_data.get('_current_generation_context')
         
+        # 检测是否需要情绪缓冲
+        emotional_break_needed = False
+        emotional_break_guidance = ""
+        
+        if hasattr(self.novel_generator, 'event_driven_manager'):
+            event_manager:EventDrivenManager.EventDrivenManager = self.novel_generator.event_driven_manager
+            if hasattr(event_manager, 'should_insert_emotional_break'):
+                emotional_break_needed = event_manager.should_insert_emotional_break(chapter_number)
+                
+                if emotional_break_needed:
+                    print(f"  🎭 第{chapter_number}章检测到需要情绪缓冲")
+                    
+                    # 获取情绪强度信息
+                    intensity_info = event_manager.get_emotional_intensity_level(chapter_number)
+                    break_suggestions = event_manager.get_emotional_break_suggestions(chapter_number)
+                    
+                    # 获取具体的缓冲内容建议
+                    if hasattr(self.novel_generator, 'foreshadowing_manager'):
+                        foreshadowing_manager = self.novel_generator.foreshadowing_manager
+                        buffer_content = foreshadowing_manager.get_emotional_buffer_content(chapter_number)
+                        
+                        emotional_break_guidance = self._generate_emotional_break_prompt(
+                            intensity_info, break_suggestions, buffer_content
+                        )
+
         if context:
             print(f"  ✅ 使用上下文信息准备参数")
             # 使用上下文中的详细信息
@@ -941,7 +982,8 @@ class ContentGenerator:
             "main_character_instruction": self._get_main_character_instruction(novel_data),
             "event_driven_guidance": event_guidance,
             "foreshadowing_guidance": foreshadowing_guidance,
-            # 新增：上下文详细信息
+            "emotional_break_needed": emotional_break_needed,
+            "emotional_break_guidance": emotional_break_guidance,
             "event_context": json.dumps(event_context, ensure_ascii=False),
             "foreshadowing_context": json.dumps(foreshadowing_context, ensure_ascii=False),
             "growth_context": json.dumps(growth_context, ensure_ascii=False),
@@ -957,6 +999,59 @@ class ContentGenerator:
         print(f"    - 伏笔元素: {len(params['foreshadowing_elements'].splitlines())} 项")
         
         return params
+    
+    def _generate_emotional_break_prompt(self, intensity_info: Dict, break_suggestions: Dict, buffer_content: Dict) -> str:
+        """生成情绪缓冲指导提示"""
+        prompt_parts = [
+            "# 🎭 情绪缓冲指导",
+            f"## 当前情绪强度: {intensity_info['level']}",
+            f"## 缓冲原因: {intensity_info['reason']}",
+            "",
+            "## 🎯 缓冲目的",
+            "- 给读者情绪释放的空间",
+            "- 避免持续高强度导致的阅读疲劳", 
+            "- 为后续高潮做铺垫",
+            "- 丰富故事层次和角色塑造",
+            "",
+            "## 📝 内容建议"
+        ]
+        
+        # 添加可用元素
+        if buffer_content.get("available_elements"):
+            prompt_parts.append("### 可用的伏笔元素:")
+            for element in buffer_content["available_elements"][:3]:  # 最多3个
+                prompt_parts.append(f"- {element['suggested_approach']}: {element['purpose']}")
+        
+        # 添加支线剧情建议
+        if buffer_content.get("side_plots"):
+            prompt_parts.append("### 支线剧情方向:")
+            for plot in buffer_content["side_plots"][:2]:  # 最多2个
+                prompt_parts.append(f"- {plot['type']}: {plot['description']} (基调: {plot['emotional_tone']})")
+        
+        # 添加角色时刻建议
+        if buffer_content.get("character_moments"):
+            prompt_parts.append("### 角色展现机会:")
+            for moment in buffer_content["character_moments"][:2]:  # 最多2个
+                prompt_parts.append(f"- {moment['type']}: {moment['description']}")
+                if moment.get("examples"):
+                    prompt_parts.append(f"  示例: {'、'.join(moment['examples'][:2])}")
+        
+        # 添加篇幅指导
+        prompt_parts.extend([
+            "",
+            "## ⏱️ 篇幅控制",
+            "- 缓冲内容约占本章30-50%",
+            "- 仍需保持主线推进，不能完全停滞",
+            "- 结尾需设置小悬念，引导读者继续阅读",
+            "",
+            "## 🎨 写作要点", 
+            "- 保持语言流畅自然，避免刻意感",
+            "- 情感基调以{emotional_tone}为主",
+            "- 确保与主线情节有机关联",
+            "- 注重细节描写，营造沉浸感"
+        ])
+        
+        return "\n".join(prompt_parts)
 
     def _get_event_guidance_from_context(self, event_context: Dict) -> str:
         """从事件上下文中生成指导 - 添加错误处理"""

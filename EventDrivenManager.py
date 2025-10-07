@@ -1,5 +1,5 @@
 # EventDrivenManager.py
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 import re
 
 
@@ -667,3 +667,75 @@ class EventDrivenManager:
         
         self.active_events[name] = event
         print(f"  ✅ 添加{event_type}: {name} (起始章节: {start_chapter})")
+
+    def get_emotional_intensity_level(self, chapter_number: int) -> Dict[str, Any]:
+        """获取当前章节的情绪强度级别"""
+        # 检查活跃事件的强度
+        high_intensity_events = 0
+        for event_name, event_data in self.active_events.items():
+            if self._is_event_active(chapter_number, event_data):
+                if event_data.get("type") == "major_event":
+                    high_intensity_events += 2
+                elif event_data.get("type") == "big_event":
+                    high_intensity_events += 1
+        
+        # 计算情绪强度
+        if high_intensity_events >= 2:
+            return {
+                "level": "high",
+                "description": "高强度事件期，主线冲突激烈",
+                "need_break": False,
+                "reason": "多个重大事件同时进行"
+            }
+        elif high_intensity_events == 1:
+            return {
+                "level": "medium", 
+                "description": "中等强度，单一事件推进",
+                "need_break": chapter_number % 3 == 0,  # 每3章安排一次休息
+                "reason": "单一事件推进中"
+            }
+        else:
+            return {
+                "level": "low",
+                "description": "事件空窗期，适合情绪缓冲",
+                "need_break": True,
+                "reason": "无活跃重大事件"
+            }
+
+    def should_insert_emotional_break(self, chapter_number: int) -> bool:
+        """判断是否应该插入情绪缓冲内容"""
+        intensity = self.get_emotional_intensity_level(chapter_number)
+        
+        # 如果连续高强度章节过多，强制插入缓冲
+        if self._check_consecutive_high_intensity(chapter_number):
+            return True
+        
+        return intensity["need_break"]
+
+    def _check_consecutive_high_intensity(self, chapter_number: int, threshold: int = 4) -> bool:
+        """检查是否连续高强度章节过多"""
+        consecutive_high = 0
+        for i in range(max(1, chapter_number - threshold), chapter_number):
+            intensity = self.get_emotional_intensity_level(i)
+            if intensity["level"] in ["high", "medium"]:
+                consecutive_high += 1
+            else:
+                consecutive_high = 0
+        
+        return consecutive_high >= threshold
+
+    def get_emotional_break_suggestions(self, chapter_number: int) -> Dict[str, Any]:
+        """获取情绪缓冲内容建议"""
+        return {
+            "purpose": "降低情绪强度，给读者释放空间",
+            "content_types": [
+                "伏笔铺垫",
+                "支线剧情", 
+                "角色日常",
+                "世界观展示",
+                "幽默插曲"
+            ],
+            "duration_guidance": "适中篇幅（约占章节30-50%），避免单调",
+            "emotional_tone": "轻松、温馨、神秘或幽默",
+            "integration_requirement": "需与主线保持关联，不能完全脱离"
+        }        
