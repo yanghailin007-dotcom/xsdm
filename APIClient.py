@@ -6,6 +6,7 @@ import time
 import requests
 import os
 from typing import Optional, Any, Dict, Iterator, List
+from datetime import datetime
 
 from Prompts import Prompts
 
@@ -131,6 +132,43 @@ class APIClient:
         
         return full_content
     
+    def _save_api_call_debug(self, system_prompt: str, user_prompt: str, response: str, 
+                           purpose: str, provider: str, model: str, attempt: int = 1):
+        """保存完整的API调用调试信息，包括输入和回复"""
+        timestamp = int(time.time())
+        datetime_str = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"{self.debug_dir}/api_call_{purpose}_{datetime_str}_attempt{attempt}.txt"
+        
+        debug_content = f"""========== API调用调试信息 ==========
+时间: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+提供商: {provider.upper()}
+模型: {model}
+目的: {purpose}
+尝试次数: {attempt}
+响应长度: {len(response) if response else 0}字符
+
+========== 系统提示 (System Prompt) ==========
+{system_prompt}
+
+========== 用户提示 (User Prompt) ==========
+{user_prompt}
+
+========== API响应 (API Response) ==========
+{response if response else '空响应'}
+
+========== 清理后响应 (Cleaned Response) ==========
+{self.clean_api_response(response) if response else '空响应'}
+
+========== 结束 =========="""
+        
+        with open(filename, "w", encoding="utf-8") as f:
+            f.write(debug_content)
+        print(f"  💾 API调用调试信息已保存到: {filename}")
+        
+        # 同时保存JSON解析相关的调试信息
+        if response:
+            self._save_debug_response(response, f"raw_{purpose}_{attempt}")
+    
     def _save_debug_response(self, content: str, stage: str):
         """保存调试响应到文件"""
         timestamp = int(time.time())
@@ -206,13 +244,15 @@ class APIClient:
                 
                 if not content:
                     print(f"  ❌ API返回空内容")
+                    # 即使空内容也保存调试信息
+                    self._save_api_call_debug(system_prompt, user_prompt, "", purpose, target_provider, model_name, attempt+1)
                     if attempt < self.config["defaults"]["max_retries"] - 1:
                         continue
                     else:
                         return None
                 
-                # 保存原始响应用于调试
-                self._save_debug_response(content, "raw")
+                # 保存完整的API调用调试信息（输入+回复）
+                self._save_api_call_debug(system_prompt, user_prompt, content, purpose, target_provider, model_name, attempt+1)
                 
                 cleaned_content = self.clean_api_response(content)
                 print(f"  清理后内容长度: {len(cleaned_content)}字符")
@@ -234,6 +274,8 @@ class APIClient:
             except requests.exceptions.Timeout:
                 request_time = time.time() - start_time
                 print(f"  ⏰ {target_provider.upper()} API超时 (已等待{request_time:.1f}秒)")
+                # 保存超时调试信息
+                self._save_api_call_debug(system_prompt, user_prompt, f"请求超时 (已等待{request_time:.1f}秒)", purpose, target_provider, model_name, attempt+1)
                 if attempt < self.config["defaults"]["max_retries"] - 1:
                     delay = 30
                     print(f"  ⏳ 等待{delay}秒后重试...")
@@ -242,6 +284,8 @@ class APIClient:
             except requests.exceptions.RequestException as e:
                 request_time = time.time() - start_time
                 print(f"  🌐 {target_provider.upper()} 网络请求异常: {e}")
+                # 保存异常调试信息
+                self._save_api_call_debug(system_prompt, user_prompt, f"网络请求异常: {e}", purpose, target_provider, model_name, attempt+1)
                 if attempt < self.config["defaults"]["max_retries"] - 1:
                     delay = 30
                     print(f"  ⏳ 等待{delay}秒后重试...")
@@ -250,6 +294,8 @@ class APIClient:
             except Exception as e:
                 request_time = time.time() - start_time
                 print(f"  ❌ {target_provider.upper()} API调用失败: {e}")
+                # 保存异常调试信息
+                self._save_api_call_debug(system_prompt, user_prompt, f"API调用失败: {e}", purpose, target_provider, model_name, attempt+1)
                 if attempt < self.config["defaults"]["max_retries"] - 1:
                     delay = 30
                     time.sleep(delay)
@@ -323,7 +369,7 @@ class APIClient:
         print(f"  开始解析JSON响应，原始长度: {len(response)}")
         
         # 保存原始响应用于调试
-        self._save_debug_response(response, "before_parse")
+        #self._save_debug_response(response, "before_parse")
         
         # 步骤1: 提取JSON内容
         json_content = self._extract_json_content(response)

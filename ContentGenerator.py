@@ -944,7 +944,7 @@ class ContentGenerator:
             print(f"    - 成长上下文: {len(growth_context.get('chapter_specific', {}))} 项成长规划")  
             
             # 获取事件指导（优先使用上下文中的信息）
-            event_guidance = self._get_event_guidance_from_context(event_context)
+            event_guidance = self._get_event_guidance_from_context(event_context, chapter_number)
             foreshadowing_guidance = self._get_foreshadowing_guidance_from_context(foreshadowing_context, chapter_number)
             print(f"    - 事件指导: \n{event_guidance} ") 
             print(f"    - 伏笔指导: \n{foreshadowing_guidance} ") 
@@ -1053,12 +1053,18 @@ class ContentGenerator:
         
         return "\n".join(prompt_parts)
 
-    def _get_event_guidance_from_context(self, event_context: Dict) -> str:
+    def _get_event_guidance_from_context(self, event_context: Dict, chapter_number: int) -> str:
         """从事件上下文中生成指导 - 添加错误处理"""
         
-        if not event_context or not event_context.get("active_events"):
-            print("   - 无活跃事件，返回默认指导")
-            return "# 🎯 事件执行指导\n\n本章暂无特定事件执行任务。"
+        if not event_context:
+            print("   - 事件上下文为空，返回空窗期指导")
+            return """ 事件上下文为空 """
+        
+        # 检查是否有活跃事件
+        active_events = event_context.get("active_events", [])
+        if not active_events:
+            print("   - 无活跃事件，返回空窗期指导")
+            return self._get_empty_period_guidance(chapter_number, event_context)
         
         try:
             guidance_parts = ["# 🎯 事件执行指导", "## 活跃事件"]
@@ -1403,3 +1409,16 @@ class ContentGenerator:
             concise_parts.append(f"情感基调: {writing_style_guide['emotional_tone']}")
         
         return "；".join(concise_parts)    
+    
+    def _get_empty_period_guidance(self, chapter_number: int, event_context: Dict) -> str:
+        """生成事件空窗期的指导内容"""
+        
+        # 检查是否需要情绪缓冲
+        emotional_break_needed = False
+        if hasattr(self.novel_generator, 'event_driven_manager'):
+            event_manager = self.novel_generator.event_driven_manager
+            if hasattr(event_manager, 'should_insert_emotional_break'):
+                emotional_break_needed = event_manager.should_insert_emotional_break(chapter_number)
+        
+        if emotional_break_needed:
+            return self.novel_generator.event_driven_manager._generate_event_gap_prompt(chapter_number,event_context)    

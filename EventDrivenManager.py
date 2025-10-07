@@ -83,8 +83,11 @@ class EventDrivenManager:
         """生成事件执行指导提示词 - 专注重大事件和大事件"""
         event_context = self.get_chapter_event_context(chapter_number)
         
-        if not event_context["active_events"] and not event_context["trigger_checkpoints"]:
-            return "# 🎯 事件执行指导\n\n本章暂无特定事件执行任务。"
+        # 检查是否是事件空窗期
+        is_event_gap = not event_context["active_events"] and not event_context["trigger_checkpoints"]
+        
+        if is_event_gap:
+            return self._generate_event_gap_prompt(chapter_number, event_context)
         
         prompt_parts = ["# 🎯 事件执行指导"]
         
@@ -159,6 +162,99 @@ class EventDrivenManager:
                 prompt_parts.append(f"- {priority_icon} **{task.get('priority', '普通')}优先级**: {task.get('description', '未指定任务')}")
         
         return "\n".join(prompt_parts)
+
+    def _generate_event_gap_prompt(self, chapter_number: int, event_context: Dict) -> str:
+        """生成事件空窗期的专门指导"""
+        prompt_parts = [
+            "# 🎯 事件执行指导 - 事件空窗期",
+            "",
+            "## 📊 当前状态分析",
+            f"第{chapter_number}章处于**事件空窗期**，没有活跃的重大事件或大事件。",
+            "这是安排情绪缓冲、角色发展和世界观展示的绝佳时机。",
+            ""
+        ]
+        
+        # 获取情绪强度建议
+        intensity_info = self.get_emotional_intensity_level(chapter_number)
+        prompt_parts.extend([
+            "## 🎭 情绪强度管理",
+            f"**当前情绪强度**: {intensity_info['level']} - {intensity_info['description']}",
+            f"**是否需要情绪缓冲**: {'是' if intensity_info['need_break'] else '否'}",
+            f"**原因**: {intensity_info['reason']}",
+            ""
+        ])
+        
+        # 获取情绪缓冲建议
+        if intensity_info["need_break"]:
+            break_suggestions = self.get_emotional_break_suggestions(chapter_number)
+            prompt_parts.extend([
+                "## 💫 情绪缓冲机会",
+                f"**目的**: {break_suggestions['purpose']}",
+                "**推荐内容类型**:",
+            ])
+            
+            for content_type in break_suggestions.get('content_types', []):
+                prompt_parts.append(f"- {content_type}")
+                
+            prompt_parts.extend([
+                f"**篇幅指导**: {break_suggestions.get('duration_guidance', '')}",
+                f"**情感基调**: {break_suggestions.get('emotional_tone', '')}",
+                f"**融入要求**: {break_suggestions.get('integration_requirement', '')}",
+                ""
+            ])
+        
+        # 检查是否有即将发生的事件需要铺垫
+        upcoming_events = self._get_upcoming_events(chapter_number)
+        if upcoming_events:
+            prompt_parts.extend([
+                "## 🔮 即将发生事件铺垫",
+                "利用空窗期为后续事件做铺垫:"
+            ])
+            for event in upcoming_events[:3]:  # 只显示最近3个
+                event_name = event.get('name', '未知事件')
+                start_chapter = event.get('start_chapter', chapter_number + 1)
+                prompt_parts.append(f"- **{event_name}** (预计第{start_chapter}章): 可埋下伏笔或相关线索")
+            prompt_parts.append("")
+        
+        # 空窗期的核心任务建议
+        prompt_parts.extend([
+            "## 🎯 空窗期核心任务",
+            "1. **角色深度发展**: 展现角色的内心世界、人际关系变化",
+            "2. **世界观丰富**: 展示世界观细节，增强读者沉浸感", 
+            "3. **伏笔铺设**: 为后续事件埋下巧妙线索",
+            "4. **节奏调整**: 让读者从高强度事件中恢复，准备下一波高潮",
+            "5. **支线推进**: 推进次要情节，丰富故事层次",
+            "",
+            "## 💡 创作提示",
+            "- 保持与主线的关联性，避免完全脱离",
+            "- 利用日常场景展现角色性格",
+            "- 通过对话和互动深化人物关系",
+            "- 适当加入幽默或温馨元素调节情绪",
+            "- 确保空窗期内容推动故事整体发展"
+        ])
+        
+        return "\n".join(prompt_parts)
+
+    def _get_upcoming_events(self, chapter_number: int) -> List[Dict]:
+        """获取即将发生的事件"""
+        upcoming_events = []
+        
+        # 从事件触发器中查找
+        for event_name, trigger_data in self.event_triggers.items():
+            condition = trigger_data.get("condition", {})
+            event_data = trigger_data.get("event_data", {})
+            
+            # 检查章节触发
+            if condition.get("type") == "chapter":
+                trigger_chapter = condition.get("chapter", 0)
+                if trigger_chapter > chapter_number and trigger_chapter <= chapter_number + 10:  # 未来10章内
+                    upcoming_events.append({
+                        "name": event_name,
+                        "start_chapter": trigger_chapter,
+                        "type": event_data.get("type", "未知类型")
+                    })
+        
+        return sorted(upcoming_events, key=lambda x: x.get("start_chapter", 999))
 
     def _initialize_active_events(self, event_system: Dict):
         """初始化活跃事件 - 只处理重大事件和大事件"""

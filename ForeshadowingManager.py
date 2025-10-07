@@ -150,15 +150,30 @@ class ForeshadowingManager:
         # 更新当前章节
         self.current_chapter = chapter_number
         
-        # 生成事件指导
-        event_guidance = self._generate_event_guidance(event_context, chapter_number)
+        # 检查是否是事件空窗期
+        is_event_gap = event_context and (not event_context.get("active_events") and 
+                                        not event_context.get("trigger_checkpoints"))
         
         # 构建提示
         prompt_parts = ["# 🎭 伏笔铺垫指导"]
         
         # 添加事件指导
+        event_guidance = self._generate_event_guidance(event_context, chapter_number)
         if event_guidance:
             prompt_parts.append(event_guidance)
+        
+        # 事件空窗期的特殊伏笔机会
+        if is_event_gap:
+            prompt_parts.extend([
+                "",
+                "## 💫 事件空窗期伏笔机会",
+                "当前没有活跃事件，是铺设长期伏笔的绝佳时机：",
+                "- 可引入重要性较低但有趣的设定元素",
+                "- 发展角色间的微妙关系和互动",
+                "- 展示世界观的有趣细节和背景故事",
+                "- 为后续重大事件埋下更隐蔽的线索",
+                ""
+            ])
         
         # 添加待引入元素
         intro_elements = [elem for elem in self.elements_to_introduce 
