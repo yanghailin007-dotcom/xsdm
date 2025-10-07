@@ -918,7 +918,7 @@ class EventDrivenManager:
                 "世界观展示",
                 "幽默插曲"
             ],
-            "duration_guidance": "适中篇幅（约占章节30-50%），避免单调",
+            "duration_guidance": "适中篇幅，避免单调",
             "emotional_tone": "轻松、温馨、神秘或幽默",
             "integration_requirement": "需与主线保持关联，不能完全脱离"
         }
