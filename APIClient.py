@@ -224,8 +224,8 @@ class APIClient:
                 print(f"  使用流式传输模式")
                 
                 # 打印请求摘要
-                print(f"  请求摘要user_prompt: {user_prompt[:100]}...")
-                print(f"  请求摘要system_prompt: {system_prompt[:100]}...")
+                #print(f"  请求摘要user_prompt: {user_prompt[:100]}...")
+                #print(f"  请求摘要system_prompt: {system_prompt[:100]}...")
                 
                 response = requests.post(api_url, headers=headers, json=payload, timeout=timeout, stream=True)
                 

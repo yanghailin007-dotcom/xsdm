@@ -1543,7 +1543,6 @@ class NovelGenerator:
                 try:
                     stage_plan = self.ensure_stage_plan_for_chapter(chapter_num) or {}
                     print(f"    ✅ 阶段计划获取成功")
-                    print(f"    📊 阶段计划类型: {type(stage_plan)}")
                     if isinstance(stage_plan, dict):
                         print(f"    📊 阶段计划键: {list(stage_plan.keys())}")
                         print(f"    📊 阶段计划概述: {stage_plan.get('stage_overview', '无概述')[:100]}...")
@@ -1784,8 +1783,6 @@ class NovelGenerator:
             stage_plan = stage_plan_data
         
         print(f"  ✅ 第{chapter_number}章属于{stage_name}阶段")
-        print(f"  📋 阶段计划类型: 包含字段: {list(stage_plan.keys())}")
-        
         return stage_plan
 
     def _update_event_system_for_stage(self, stage_name: str, chapter_number: int):
