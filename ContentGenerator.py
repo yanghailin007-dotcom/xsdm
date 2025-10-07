@@ -1225,12 +1225,23 @@ class ContentGenerator:
                     if param == 'main_character_instruction' and not content_params.get(param):
                         content_params[param] = ""
             
+            # 从 character_info 中获取主角信息，而不是 self.novel_data
+            character_info_str = content_params.get('character_info', '{}')
+            try:
+                character_info = json.loads(character_info_str)
+                main_char = character_info.get('main_character', {})
+                main_character_name = main_char.get('name', '主角')
+            except:
+                main_character_name = self.custom_main_character_name or '主角'
+            
             # 直接构建内容生成提示词，不依赖 self.prompts
             user_prompt = f"""你是一位优秀的网络小说作家。请根据以下详细设计方案和基础设定，生成第{chapter_params['chapter_number']}章的完整内容。
 
     # 基础设定（必须严格遵循）
     **小说标题**: 
     {content_params.get('novel_title', '未知小说')}
+    **小说主角**: 
+    主角: {main_character_name}
     **小说简介**: 
     {content_params.get('novel_synopsis', '')}
     {content_params.get('main_character_instruction', '')}
@@ -1257,7 +1268,7 @@ class ContentGenerator:
     - 保持情节推进和角色发展
 
     请严格按照以上要求生成章节内容。
-"""
+    """
             
             print(f"  ✍️ 根据设计方案生成第{chapter_params['chapter_number']}章内容...")
             content_result = self.api_client.generate_content_with_retry(
