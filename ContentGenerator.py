@@ -123,7 +123,16 @@ class ContentGenerator:
             )
             
             if result:
-                # 直接使用解析后的字典，不需要再调用 json.loads
+                # 解析新的JSON格式
+                suggestions = result.get("suggestions", [])
+                if suggestions:
+                    # 获取第一个建议的名字
+                    name = suggestions[0].get("name")
+                    if name and 2 <= len(name) <= 3:
+                        print(f"  ✅ 获取主角名字: {name}")
+                        return name
+                
+                # 如果没有找到名字，尝试其他可能的字段
                 name = result.get("name")
                 if name and 2 <= len(name) <= 3:
                     print(f"  ✅ 获取主角名字: {name}")
