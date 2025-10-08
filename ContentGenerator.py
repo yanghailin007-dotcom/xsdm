@@ -12,18 +12,14 @@ from Prompts import Prompts
 import QualityAssessor
 
 class ContentGenerator:
-    def __init__(self, novel_generator, api_client: APIClient.APIClient, config, event_bus, quality_assessor: QualityAssessor ):
+    def __init__(self, novel_generator, api_client: APIClient.APIClient, config, event_bus, quality_assessor):
         self.novel_generator:NovelGenerator.NovelGenerator = novel_generator
         self.api_client = api_client
         self.config = config
         self.prompts = Prompts
         self.event_bus = event_bus
-        self._quality_assessor: QualityAssessor = quality_assessor
+        self.quality_assessor:QualityAssessor.QualityAssessor = quality_assessor
         self.custom_main_character_name = None
-
-    @property
-    def quality_assessor(self) -> QualityAssessor:
-        return self._quality_assessor
 
     def set_custom_main_character_name(self, name: str):
         """设置主角名字"""
@@ -345,7 +341,10 @@ class ContentGenerator:
     def generate_chapter_content_for_novel(self, chapter_number: int, novel_data: Dict, context: GenerationContext = None) -> Optional[Dict]:
         """为小说生成章节内容 - 整合参数准备和内容生成"""
         print(f"生成第{chapter_number}章内容...")
-
+        # 如果是第一章，初始化世界状态
+        if chapter_number == 1:
+            print("🔄 初始化世界状态...")
+            self.quality_assessor.initialize_world_state_from_novel_data(novel_data["novel_title"], novel_data)
         # 存储上下文供后续使用
         novel_data['_current_generation_context'] = context
         
@@ -1426,7 +1425,7 @@ class ContentGenerator:
 
 
     def _get_character_development_guidance(self, chapter_number: int, novel_data: Dict) -> str:
-        """获取角色发展指导 - 基于章节进度"""
+        """获取角色发展指导 - 基于章节进度，避免重复提及已建立的人设"""
         if not hasattr(self, 'quality_assessor') or not self.quality_assessor:
             return ""
         
@@ -1453,12 +1452,19 @@ class ContentGenerator:
         for char_name, char_data in important_chars[:4]:  # 只处理前4个重要角色
             last_seen = char_data.get("last_updated_chapter", 0)
             total_appearances = char_data.get("total_appearances", 1)
+            chapter_gap = chapter_number - last_seen
+            
+            # 判断角色人设是否已充分建立
+            is_character_established = total_appearances >= 5 and chapter_gap <= 10
             
             guidance_parts.append(f"## 👤 {char_name}")
             guidance_parts.append(f"- 角色类型: {char_data.get('role_type', '未知')}")
             guidance_parts.append(f"- 总出场次数: {total_appearances}次")
             guidance_parts.append(f"- 最后出场: 第{last_seen}章")
-            guidance_parts.append(f"- 当前章节差距: {chapter_number - last_seen}章")
+            guidance_parts.append(f"- 当前章节差距: {chapter_gap}章")
+            
+            if is_character_established:
+                guidance_parts.append(f"- 状态: ✅ 人设已充分建立")
             
             suggestions = self.quality_assessor.get_character_development_suggestions(
                 char_name, novel_title, chapter_number
@@ -1467,13 +1473,26 @@ class ContentGenerator:
             if suggestions:
                 guidance_parts.append("### 📋 发展建议:")
                 for suggestion in suggestions:
+                    # 如果角色已充分建立，过滤掉基础性建议
+                    if is_character_established and suggestion['type'] in ["添加名场面", "背景故事"]:
+                        continue  # 跳过基础性建议
+                        
                     guidance_parts.append(f"- **{suggestion['type']}** ({suggestion['priority']}优先级)")
                     guidance_parts.append(f"  - 建议: {suggestion['description']}")
                     guidance_parts.append(f"  - 原因: {suggestion.get('reason', '')}")
                     guidance_parts.append(f"  - 实现: {suggestion['implementation']}")
             else:
-                guidance_parts.append("### ✅ 当前无特殊发展建议，保持角色一致性即可")
+                if is_character_established:
+                    guidance_parts.append("### ✅ 人设已充分建立，保持角色一致性即可")
+                else:
+                    guidance_parts.append("### ✅ 当前无特殊发展建议，保持角色一致性即可")
             
             guidance_parts.append("")  # 空行分隔
         
-        return "\n".join(guidance_parts) if len(guidance_parts) > 3 else ""     
+        # 如果没有重要角色或者所有角色都已充分建立，返回简化的指导
+        if len(guidance_parts) <= 3 or all(
+            "人设已充分建立" in part for part in guidance_parts if "状态:" in part
+        ):
+            return "# 🎭 角色发展指导\n\n所有主要角色人设已充分建立，本章重点保持角色行为一致性。"
+        
+        return "\n".join(guidance_parts)

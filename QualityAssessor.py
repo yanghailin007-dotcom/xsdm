@@ -100,15 +100,22 @@ class QualityAssessor:
         # 当前小说的世界状态（用于一致性检查）
         self.current_world_state = {}
     
-    def load_previous_assessments(self, novel_title: str) -> Dict:
-        """加载之前章节的评估数据"""
+    def load_previous_assessments(self, novel_title: str, novel_data: Dict = None) -> Dict:
+        """加载之前章节的评估数据，如果没有则从novel_data初始化"""
         state_file = os.path.join(self.storage_path, f"{novel_title}_world_state.json")
+        
         if os.path.exists(state_file):
             try:
                 with open(state_file, 'r', encoding='utf-8') as f:
                     return json.load(f)
             except Exception as e:
                 print(f"加载世界状态失败: {e}")
+        
+        # 如果没有找到世界状态文件且有novel_data，则初始化
+        if novel_data:
+            print(f"🔄 未找到现有世界状态，从novel_data初始化...")
+            return self.initialize_world_state_from_novel_data(novel_title, novel_data)
+        
         return {}
     
     def save_assessment_data(self, novel_title: str, chapter_number: int, assessment_data: Dict):
@@ -1063,7 +1070,7 @@ class QualityAssessor:
         return characters
 
     def get_character_development_suggestions(self, character_name: str, novel_title: str, current_chapter: int) -> List[Dict]:
-        """获取角色发展建议 - 基于章节进度"""
+        """获取角色发展建议 - 基于章节进度，避免重复建议"""
         character_file = os.path.join(self.storage_path, f"{novel_title}_character_development.json")
         
         if not os.path.exists(character_file):
@@ -1082,30 +1089,35 @@ class QualityAssessor:
         appearance_gap = current_chapter - character.get("last_updated_chapter", 0)
         total_appearances = character.get("total_appearances", 1)
         
-        # 检查是否需要添加名场面
-        iconic_scenes = character.get("iconic_scenes", [])
-        if len(iconic_scenes) < 3 and total_appearances >= 3:
-            core_trait = character.get('personality_traits', {}).get('core_traits', ['性格'])[0]
-            suggestions.append({
-                "type": "添加名场面",
-                "description": f"为{character_name}设计一个展现{core_trait}特质的名场面",
-                "priority": "高",
-                "implementation": f"在第{current_chapter}章安排一个关键场景，通过具体行动展示{character_name}的{core_trait}特质",
-                "reason": f"角色已出场{total_appearances}次，需要强化形象"
-            })
+        # 判断角色是否已充分建立
+        is_character_established = total_appearances >= 5 and appearance_gap <= 10
         
-        # 检查是否需要背景故事（在角色出场3-5章后）
-        background_revealed = character.get("development_status", {}).get("background_revealed", False)
-        if not background_revealed and total_appearances >= 3 and total_appearances <= 5:
-            suggestions.append({
-                "type": "背景故事",
-                "description": f"为{character_name}添加背景故事，解释其性格形成原因",
-                "priority": "中",
-                "implementation": f"通过回忆、对话或第三方提及的方式，在第{current_chapter}章揭示{character_name}的过去经历",
-                "reason": f"角色已出场{total_appearances}次，是揭示背景的合适时机"
-            })
+        # 检查是否需要添加名场面（只在角色未充分建立时建议）
+        if not is_character_established:
+            iconic_scenes = character.get("iconic_scenes", [])
+            if len(iconic_scenes) < 3 and total_appearances >= 3:
+                core_trait = character.get('personality_traits', {}).get('core_traits', ['性格'])[0]
+                suggestions.append({
+                    "type": "添加名场面",
+                    "description": f"为{character_name}设计一个展现{core_trait}特质的名场面",
+                    "priority": "高",
+                    "implementation": f"在第{current_chapter}章安排一个关键场景，通过具体行动展示{character_name}的{core_trait}特质",
+                    "reason": f"角色已出场{total_appearances}次，需要强化形象"
+                })
+    
+        # 检查是否需要背景故事（在角色出场3-5章后，且未充分建立时）
+        if not is_character_established:
+            background_revealed = character.get("development_status", {}).get("background_revealed", False)
+            if not background_revealed and total_appearances >= 3 and total_appearances <= 5:
+                suggestions.append({
+                    "type": "背景故事",
+                    "description": f"为{character_name}添加背景故事，解释其性格形成原因",
+                    "priority": "中",
+                    "implementation": f"通过回忆、对话或第三方提及的方式，在第{current_chapter}章揭示{character_name}的过去经历",
+                    "reason": f"角色已出场{total_appearances}次，是揭示背景的合适时机"
+                })
         
-        # 检查对话强化（如果超过5章没有特色对话）
+        # 检查对话强化（如果超过5章没有特色对话，无论角色是否建立都需要）
         last_dialogue_chapter = character.get("last_dialogue_chapter", 0)
         if current_chapter - last_dialogue_chapter > 5:
             speech_style = character.get('personality_traits', {}).get('speech_style', '普通')
@@ -1117,7 +1129,7 @@ class QualityAssessor:
                 "reason": f"已{current_chapter - last_dialogue_chapter}章没有特色对话"
             })
         
-        # 检查关系发展
+        # 检查关系发展（持续发展，无论角色是否建立）
         relationships = character.get("relationship_network", {})
         total_relationships = len(relationships.get("allies", [])) + len(relationships.get("rivals", []))
         if total_relationships < 2 and total_appearances >= 5:
@@ -1127,6 +1139,16 @@ class QualityAssessor:
                 "priority": "中",
                 "implementation": f"在第{current_chapter}章通过互动建立新的盟友或对手关系",
                 "reason": f"角色人际关系网络较简单，需要丰富"
+            })
+        
+        # 如果角色已充分建立，添加深化建议
+        if is_character_established:
+            suggestions.append({
+                "type": "角色深化",
+                "description": f"深化{character_name}的性格层次，展现更多复杂性",
+                "priority": "低",
+                "implementation": f"通过内心独白或矛盾选择展示{character_name}的性格多面性",
+                "reason": f"角色基础已稳固，需要展现更深层次的特质"
             })
         
         return suggestions[:3]  # 返回前3个最高优先级的建议
@@ -1260,4 +1282,79 @@ class QualityAssessor:
                     "impact_level": scene.get("impact_level", "中")
                 })
             
-            self.manage_character_development_table(novel_title, update_data, chapter_number, "update")   
+            self.manage_character_development_table(novel_title, update_data, chapter_number, "update") 
+
+
+    def initialize_world_state_from_novel_data(self, novel_title: str, novel_data: Dict):
+        """基于小说数据初始化世界状态"""
+        
+        world_state = {
+            "characters": {},
+            "items": {},
+            "relationships": {},
+            "skills": {},
+            "locations": {}
+        }
+        
+        # 从角色设计中提取角色信息
+        character_design = novel_data.get("character_design", {})
+        if character_design:
+            # 处理主角
+            main_character = character_design.get("main_character", {})
+            if main_character:
+                name = main_character.get("name", "主角")
+                world_state["characters"][name] = {
+                    "first_appearance": 1,
+                    "description": main_character.get("personality", ""),
+                    "attributes": main_character.get("attributes", {}),
+                    "last_updated": 1
+                }
+            
+            # 处理配角
+            supporting_characters = character_design.get("supporting_characters", [])
+            for char in supporting_characters:
+                name = char.get("name", "")
+                if name:
+                    world_state["characters"][name] = {
+                        "first_appearance": 1,
+                        "description": char.get("personality", ""),
+                        "attributes": char.get("attributes", {}),
+                        "last_updated": 1
+                    }
+        
+        # 从世界观中提取地点、物品等信息
+        worldview = novel_data.get("core_worldview", {})
+        if worldview:
+            # 提取地点
+            locations = worldview.get("locations", [])
+            for loc in locations:
+                name = loc.get("name", "")
+                if name:
+                    world_state["locations"][name] = {
+                        "description": loc.get("description", ""),
+                        "first_appearance": 1,
+                        "last_updated": 1
+                    }
+            
+            # 提取物品
+            items = worldview.get("items", [])
+            for item in items:
+                name = item.get("name", "")
+                if name:
+                    world_state["items"][name] = {
+                        "owner": item.get("owner", ""),
+                        "status": item.get("status", ""),
+                        "first_appearance": 1,
+                        "last_updated": 1
+                    }
+        
+        # 保存初始世界状态
+        state_file = os.path.join(self.storage_path, f"{novel_title}_world_state.json")
+        try:
+            with open(state_file, 'w', encoding='utf-8') as f:
+                json.dump(world_state, f, ensure_ascii=False, indent=2)
+            print(f"✅ 从novel_data初始化世界状态成功，保存到 {state_file}")
+        except Exception as e:
+            print(f"❌ 保存初始世界状态失败: {e}")
+        
+        return world_state
