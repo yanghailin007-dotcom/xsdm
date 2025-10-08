@@ -762,9 +762,10 @@ class QualityAssessor:
     def _generate_character_design_assessment_prompt(self, character_design: Dict) -> str:
         """生成角色设计评估提示词"""
         return f"""
-请评估以下角色设计的质量：
+内容:
+请根据你作为角色设计顾问的专业身份，使用系统提示中定义的评估体系和JSON格式，对以下角色设计进行全面评估。
 
-角色设计内容:
+待评估的角色设计内容：
 {json.dumps(character_design, ensure_ascii=False, indent=2)}
 
 """

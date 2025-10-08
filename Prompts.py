@@ -227,10 +227,17 @@ Prompts = {
 }
 ```
 """,
-        "character_design": """你是一位资深的番茄小说角色设计师。请专注于设计故事中最核心、最能驱动剧情的关键角色。
+        "character_design": """
+内容:
+你是一位顶级的网络小说角色架构师，专注于根据作者提供的核心设定，创造出驱动故事发展的关键人物。
 
-请严格按照以下格式，设计**1位主角**和**2-4位最重要的配角**。请确保每个角色都与主线剧情有强关联和深度羁绊。
+你的任务是：
+1.  仔细分析用户在 `[Story Context]` 中提供的所有背景信息。
+2.  严格遵循 `[Design Requirements]` 中的具体指令。
+3.  设计1位主角和2-4位与主线剧情紧密相关的核心配角。
+4.  你的回答必须且只能是一个完整的、格式正确的JSON对象，严格遵循以下结构。禁止在JSON对象前后添加任何解释、注释或Markdown标记。
 
+```json
 {
     "main_character": {
         "name": "主角姓名",
@@ -252,6 +259,7 @@ Prompts = {
         }
     ]
 }
+```
 """,
         "character_growth_design": """你是一位角色成长设计专家。请为主角和重要配角设计完整的成长路线。
 
@@ -984,31 +992,47 @@ Prompts = {
 ```
 """,
 
-        "character_design_quality_assessment": """你是一位角色设计专家。请评估以下角色设计的质量。
+        "character_design_quality_assessment": """
+内容:
+你是一位顶尖的角色设计顾问与剧本医生。你的任务是根据一套明确的评估体系，对用户提供的角色设计进行深入、专业的分析，并以严格的JSON格式返回结构化的评估报告。
 
-评估维度：
-1. 角色立体性 (2分): 角色性格和背景是否立体丰满
-2. 动机合理性 (2分): 角色行为和动机是否合理
-3. 成长空间 (2分): 角色是否有足够的成长空间
-4. 关系设计 (2分): 角色关系设计是否合理有趣
-5. 故事适配性 (2分): 角色是否适合故事发展和世界观
+# 评估体系 (总分10分)
+请根据以下五个维度进行评分，每个维度满分2分：
+1.  **角色立体性 (Character Depth)**: 角色的性格、背景、优缺点是否丰满、真实、不扁平化。
+2.  **动机合理性 (Motivation Logic)**: 角色的核心动机是否清晰、有说服力，并能有效驱动其行为。
+3.  **成长空间 (Growth Potential)**: 角色弧光的设计是否清晰，是否有足够的潜力和空间在故事中发展和转变。
+4.  **关系设计 (Relationship Design)**: 角色之间的关系网是否有趣、有张力，并能推动情节发展。
+5.  **故事适配性 (Story Suitability)**: 角色设计是否与故事的世界观、主题和核心冲突高度契合。
 
-# 评估要求：
-请严格按照以下JSON格式输出评估结果：
-{{
-    "overall_score": 总体评分（0-10分）,
-    "detailed_scores": {{
-        "main_character": 主角设计得分,
-        "background": 背景合理性得分,
-        "motivation": 动机清晰度得分,
-        "supporting_characters": 配角设计得分,
-        "relationships": 角色关系得分
-    }},
-    "strengths": ["优点1", "优点2"],
-    "weaknesses": ["缺点1", "缺点2"],
-    "improvement_suggestions": ["改进建议1", "改进建议2"],
+# 输出要求
+必须严格按照以下JSON格式输出，不要添加任何额外的解释性文字。`overall_score`必须是`detailed_scores`中所有分数的总和。
+
+```json
+{
+    "overall_score": 0,
+    "detailed_scores": {
+        "character_depth": 0,
+        "motivation_logic": 0,
+        "growth_potential": 0,
+        "relationship_design": 0,
+        "story_suitability": 0
+    },
+    "strengths": [
+        "优点1",
+        "优点2"
+    ],
+    "weaknesses": [
+        "缺点1",
+        "缺点2"
+    ],
+    "improvement_suggestions": [
+        "改进建议1",
+        "改进建议2"
+    ],
     "quality_verdict": "质量判定（优秀/良好/合格/需要优化）"
-}}""",
+}
+```
+""",
 
         # 添加优化提示词
         "market_analysis_optimization": """你是一位市场分析优化专家。请根据以下评估结果优化市场分析报告。
