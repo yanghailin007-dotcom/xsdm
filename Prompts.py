@@ -1080,62 +1080,58 @@ Prompts = {
 5. 加强角色关系和互动设计
 
 请输出优化后的完整角色设计，使用相同的JSON格式。""",
-        "element_timing_planning": """你是资深的番茄小说专家，请为以下小说的各种元素规划首次登场和铺垫时机：
+        "element_timing_planning": """
+你是资深的番茄小说大纲规划师，专精于为网络小说设计富有节奏感的情节和元素布局。
+你的核心任务是：根据用户提供的小说核心设定、大纲，以及一个明确的“待规划元素列表”，为列表中的每一个元素，精准地规划其【首次正式登场章节】和【铺垫章节】。
 
-**规划要求**：
-1. 为每个元素指定首次正式登场的具体章节
-2. 如果需要铺垫，指定铺垫章节
-3. 根据元素重要性分配不同章节：
-   - 核心元素：早期登场
-   - 重要元素：中期登场
-   - 次要元素：后期登场
-4. 考虑元素间的关联性，相关元素在相近章节登场
+**核心工作流程**：
+1.  **深入理解大纲**：仔细分析用户提供的分阶段大纲（chapter_range, milestone_events），这是你所有规划的唯一依据。
+2.  **精准定位**：将“待规划元素列表”中的每个元素，与大纲中的里程碑事件进行匹配。
+3.  **逻辑推理**：基于元素的重要性和关联性，为其分配合理的登场和铺垫时机。例如，核心反派的铺垫应早于其正式登场，关键能力的获取应与里程碑事件紧密相连。
 
-请输出JSON格式的时机规划：
-{{
+**输出规则**：
+你必须严格按照以下JSON结构输出，不包含任何Markdown标记、注释或额外的解释性文本。如果某个元素不需要铺垫，请将`foreshadowing_chapter`的值设为`null`。
+
+```json
+{
     "character_timing": [
-        {{
+        {
             "name": "角色名",
             "type": "主角/配角/反派",
-            "first_appearance_chapter": 具体章节,
-            "foreshadowing_chapter": 铺垫章节,
+            "first_appearance_chapter": "整数，例如：14",
+            "foreshadowing_chapter": "整数或null，例如：12",
             "importance": "核心/重要/次要",
-            "reasoning": "登场时机理由"
-        }}
+            "reasoning": "简述为何安排在此章节登场，需关联大纲内容"
+        }
     ],
     "faction_timing": [
-        {{
-            "name": "势力名", 
-            "first_appearance_chapter": 具体章节,
-            "foreshadowing_chapter": 铺垫章节,
+        {
+            "name": "势力名",
+            "first_appearance_chapter": "整数",
+            "foreshadowing_chapter": "整数或null",
             "importance": "核心/重要/次要",
             "introduction_method": "直接登场/间接提及"
-        }}
+        }
     ],
-    "ability_timing": [
-        {{
-            "name": "功法名",
-            "first_appearance_chapter": 具体章节,
-            "foreshadowing_chapter": 铺垫章节, 
-            "acquisition_method": "修炼获得/奇遇/传承"
-        }}
+    "ability_and_creation_timing": [
+        {
+            "name": "能力或生物兵器名",
+            "first_appearance_chapter": "整数",
+            "foreshadowing_chapter": "整数或null",
+            "acquisition_method": "吞噬进化/科技研发/奇遇/传承"
+        }
     ],
-    "item_timing": [
-        {{
-            "name": "物品名",
-            "first_appearance_chapter": 具体章节,
-            "foreshadowing_chapter": 铺垫章节,
-            "purpose": "战斗/辅助/剧情"
-        }}
-    ],
+    "item_timing": [],
     "concept_timing": [
-        {{
-            "name": "概念名",
-            "first_appearance_chapter": 具体章节,
+        {
+            "name": "世界观或核心设定名",
+            "first_appearance_chapter": "整数",
             "explanation_method": "直接说明/通过事件展现"
-        }}
+        }
     ]
-}}""",
+}
+```
+""",
 
 "writing_style_guide": """
 内容:

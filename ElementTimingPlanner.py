@@ -357,28 +357,33 @@ class ElementTimingPlanner:
         """为所有元素规划登场时机"""
         
         user_prompt = f"""
-你是资深的番茄小说专家，请为以下小说的各种元素规划首次登场和铺垫时机：
+内容:
+请根据以下小说设定、大纲和元素列表，为各元素规划登场时机。
+
+## 小说核心设定与大纲
 
 **小说信息**：
 - 总章节：{total_chapters}
 - 全局成长计划：{global_growth_plan}
 - 全局写作计划：{overall_stage_plans}
 
-**需要规划时机的元素**：
+---
 
-## 主要角色：
+## 待规划元素列表
+
+请为以下清单中的所有元素规划登场时机：
+
+### 1. 角色 (Characters)
 {self._format_elements_for_prompt(all_elements['characters'])}
 
-## 势力组织：
+### 2. 势力 (Factions)
 {self._format_elements_for_prompt(all_elements['factions'])}
 
-## 能力功法：
+### 3. 核心能力与造物 (Abilities & Creations)
 {self._format_elements_for_prompt(all_elements['abilities'])}
-
-## 重要物品：
 {self._format_elements_for_prompt(all_elements['items'])}
 
-## 核心概念：
+### 4. 核心概念 (Concepts)
 {self._format_elements_for_prompt(all_elements['concepts'])}
 
 """
