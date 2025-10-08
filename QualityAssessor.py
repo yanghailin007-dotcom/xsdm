@@ -41,6 +41,7 @@ class QualityAssessor:
         self.character_development_templates = {
             "core_character": {
                 "name": "",
+                "status": "active", 
                 "role_type": "主角/重要配角/次要配角",
                 "first_appearance_chapter": 0,  # 首次出场章节
                 "last_updated_chapter": 0,      # 最后更新章节
@@ -205,19 +206,56 @@ class QualityAssessor:
             purpose="章节质量评估"
         )
         
-        # 如果评估成功，保存数据
+        # 如果评估成功，保存数据并处理角色状态
         if result and 'overall_score' in result:
             novel_title = assessment_params.get('novel_title', 'unknown')
             chapter_number = assessment_params.get('chapter_number', 0)
-            self.save_assessment_data(novel_title, chapter_number, result)
-        
-            # 更新角色发展表
-            self.update_character_development_from_assessment(novel_title, result, chapter_number)
             
-            # 保存评估数据
-            self.save_assessment_data(novel_title, chapter_number, result)  
-                  
+            # 处理角色状态变化
+            character_status_changes = result.get('character_status_changes', [])
+            for status_change in character_status_changes:
+                character_name = status_change.get('character_name')
+                status = status_change.get('status')
+                if character_name and status in ['dead', 'exited']:
+                    print(f"🔄 AI检测到角色状态变化: {character_name} -> {status}")
+                    # 简化角色信息，只保留状态
+                    self._simplify_character_status(novel_title, character_name, status, chapter_number)
+            
+            self.save_assessment_data(novel_title, chapter_number, result)
+            self.update_character_development_from_assessment(novel_title, result, chapter_number)
+                
         return result
+
+    def _simplify_character_status(self, novel_title: str, character_name: str, status: str, chapter_number: int):
+        """简化死亡/退场角色的信息，只保留状态和姓名"""
+        character_file = os.path.join(self.storage_path, f"{novel_title}_character_development.json")
+        
+        if not os.path.exists(character_file):
+            return
+        
+        try:
+            with open(character_file, 'r', encoding='utf-8') as f:
+                characters = json.load(f)
+            
+            if character_name in characters:
+                # 保留核心信息，删除详细设定
+                characters[character_name] = {
+                    "name": character_name,
+                    "status": status,
+                    "first_appearance_chapter": characters[character_name].get("first_appearance_chapter", chapter_number),
+                    "last_updated_chapter": chapter_number,
+                    "death_chapter": chapter_number if status == "dead" else None,
+                    "total_appearances": characters[character_name].get("total_appearances", 1)
+                }
+                
+                # 保存简化后的角色信息
+                with open(character_file, 'w', encoding='utf-8') as f:
+                    json.dump(characters, f, ensure_ascii=False, indent=2)
+                
+                print(f"✅ 角色 {character_name} 状态已简化为 {status}")
+                
+        except Exception as e:
+            print(f"❌ 简化角色状态失败: {e}")
     
     def _generate_chapter_assessment_prompt(self, params: Dict) -> str:
         """生成章节质量评估提示词（包含一致性检查）"""
@@ -280,6 +318,14 @@ class QualityAssessor:
             "description": "具体问题描述",
             "severity": "高/中/低",
             "suggestion": "修复建议"
+        }}
+    ],
+    "character_status_changes": [
+        {{
+            "character_name": "角色名",
+            "status": "dead/exited/active",
+            "reason": "状态变化原因",
+            "chapter": {params.get('chapter_number', 0)}
         }}
     ],
     "world_state_after_chapter": {{
@@ -1083,6 +1129,9 @@ class QualityAssessor:
             return []
         
         character = characters[character_name]
+        character_status = character.get("status", "active")
+        if character_status in ["dead", "exited"]:
+            return []
         suggestions = []
         
         # 基于出场次数和章节进度生成建议
