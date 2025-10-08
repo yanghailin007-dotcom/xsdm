@@ -94,14 +94,17 @@ class ContentGenerator:
             if generated_name:
                 self.set_custom_main_character_name(generated_name)
                 print(f"✓ 根据分类 '{category}' 自动生成主角名字: {generated_name}")
-        
-        user_prompt = f"创意种子: {creative_seed}"
-        if self.custom_main_character_name:
-            user_prompt += f"\n主角名字: {self.custom_main_character_name}"
-        if category:
-            user_prompt += f"\n小说分类: {category}"
-        
-        result = self.api_client.generate_content_with_retry("one_plans", user_prompt, purpose="生成小说方案")
+
+        user_prompt = {
+            "小说分类": category,
+            "主角名字": self.custom_main_character_name,
+            "核心创意": creative_seed,
+            "核心情节": "AI根据创意生成",
+            "主角设定": "AI根据创意生成",
+            "金手指": "AI根据创意生成"
+        }            
+        user_prompt_str = json.dumps(user_prompt, ensure_ascii=False)
+        result = self.api_client.generate_content_with_retry("one_plans", user_prompt_str, purpose="生成小说方案")
         if result:
             result = self._ensure_main_character_in_content(result, "one_plans")
         return result

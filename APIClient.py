@@ -5,7 +5,7 @@ import re
 import time
 import requests
 import os
-from typing import Optional, Any, Dict, Iterator, List
+from typing import Optional, Any, Dict, Iterator, List, Tuple
 from datetime import datetime
 
 from Prompts import Prompts
@@ -34,6 +34,34 @@ class APIClient:
         # 创建调试目录
         self.debug_dir = "debug_responses"
         os.makedirs(self.debug_dir, exist_ok=True)
+        
+        # 创建提示词优化目录
+        self.optimized_prompts_dir = "optimized_prompts"
+        os.makedirs(self.optimized_prompts_dir, exist_ok=True)
+        
+        # 加载已优化的提示词
+        self.optimized_prompts = self._load_optimized_prompts()
+    
+    def _load_optimized_prompts(self) -> Dict[str, Dict[str, str]]:
+        """加载已优化的提示词"""
+        optimized_file = f"{self.optimized_prompts_dir}/optimized_prompts.json"
+        if os.path.exists(optimized_file):
+            try:
+                with open(optimized_file, 'r', encoding='utf-8') as f:
+                    return json.load(f)
+            except Exception as e:
+                print(f"❌ 加载优化提示词失败: {e}")
+        return {}
+    
+    def _save_optimized_prompts(self):
+        """保存优化的提示词到文件"""
+        optimized_file = f"{self.optimized_prompts_dir}/optimized_prompts.json"
+        try:
+            with open(optimized_file, 'w', encoding='utf-8') as f:
+                json.dump(self.optimized_prompts, f, ensure_ascii=False, indent=2)
+            print(f"💾 优化提示词已保存到: {optimized_file}")
+        except Exception as e:
+            print(f"❌ 保存优化提示词失败: {e}")
     
     def _get_available_providers(self) -> List[str]:
         """获取配置中启用的AI服务提供商"""
@@ -68,7 +96,8 @@ class APIClient:
     def _calculate_timeout(self, purpose: str, attempt: int) -> int:
         """根据目的和尝试次数计算超时时间"""
         base_timeouts = {
-            "快速质量评估": 120
+            "快速质量评估": 120,
+            "提示词优化": 60  # 提示词优化通常较快
         }
         
         timeout = 120  # 默认超时
@@ -223,10 +252,6 @@ class APIClient:
                 print(f"  使用模型: {model_name}")
                 print(f"  使用流式传输模式")
                 
-                # 打印请求摘要
-                #print(f"  请求摘要user_prompt: {user_prompt[:100]}...")
-                #print(f"  请求摘要system_prompt: {system_prompt[:100]}...")
-                
                 response = requests.post(api_url, headers=headers, json=payload, timeout=timeout, stream=True)
                 
                 # 检查HTTP状态码
@@ -368,9 +393,6 @@ class APIClient:
             
         print(f"  开始解析JSON响应，原始长度: {len(response)}")
         
-        # 保存原始响应用于调试
-        #self._save_debug_response(response, "before_parse")
-        
         # 步骤1: 提取JSON内容
         json_content = self._extract_json_content(response)
         if not json_content:
@@ -420,7 +442,7 @@ class APIClient:
 
     def generate_content_with_retry(self, content_type: str, user_prompt: str, 
                                   temperature: float = None, purpose: str = "内容生成",
-                                  provider: str = None) -> Optional[Any]:
+                                  provider: str = None, enable_prompt_optimization: bool = True) -> Optional[Any]:
         """带重试机制的内容生成 - 增强JSON格式要求版本"""
         if content_type not in self.Prompts["prompts"]:
             print(f"❌ 不支持的内容类型: {content_type}")
@@ -459,6 +481,11 @@ class APIClient:
                 parsed = self.parse_json_response(result)
                 if parsed:
                     print(f"  ✓ JSON解析成功，返回结果")
+                    
+                    # 如果启用了提示词优化，尝试优化提示词
+                    if enable_prompt_optimization:
+                        self.optimize_prompts(content_type, system_prompt, user_prompt, result, parsed)
+                    
                     return parsed
                 else:
                     print(f"  🔄 JSON解析失败，准备重试...")
@@ -469,6 +496,154 @@ class APIClient:
         
         print(f"❌ {content_type}生成失败，所有重试均未成功")
         return None
+
+    def optimize_prompts(self, content_type: str, original_system_prompt: str, 
+                        original_user_prompt: str, api_response: str, parsed_result: Any):
+        """优化提示词 - 让AI分析并返回最佳提示词"""
+        print(f"🔄 开始优化 {content_type} 的提示词...")
+        
+        optimization_system_prompt = """你是一个专业的提示词优化专家。请分析提供的提示词和对应的AI响应，然后返回优化后的system_prompt和user_prompt。
+
+请返回JSON格式：
+{
+    "optimized_system_prompt": "优化后的system_prompt",
+    "optimized_user_prompt": "优化后的user_prompt",
+    "improvement_reasons": ["改进原因1", "改进原因2"]
+}
+
+优化目标：
+1. 提高响应质量
+2. 减少歧义
+3. 提高JSON格式的稳定性
+4. 减少不必要的复杂性
+5. 保持核心需求不变"""
+
+        optimization_user_prompt = f"""请优化以下提示词：
+
+【当前system_prompt】：
+{original_system_prompt}
+
+【当前user_prompt】：
+{original_user_prompt}
+
+【AI实际响应】：
+{api_response}
+
+【解析后的结果】：
+{json.dumps(parsed_result, ensure_ascii=False, indent=2)}
+
+请分析当前提示词的问题，并提供优化版本。"""
+
+        try:
+            result = self.call_api(
+                optimization_system_prompt, 
+                optimization_user_prompt, 
+                temperature=0.3, 
+                purpose="提示词优化", 
+                provider=self.default_provider
+            )
+            
+            if result:
+                optimized_data = self.parse_json_response(result)
+                if optimized_data and isinstance(optimized_data, dict):
+                    self._save_optimized_prompt(content_type, optimized_data, 
+                                              original_system_prompt, original_user_prompt)
+                    return optimized_data
+                else:
+                    print("  ❌ 提示词优化结果解析失败")
+            else:
+                print("  ❌ 提示词优化API调用失败")
+                
+        except Exception as e:
+            print(f"  ❌ 提示词优化过程中出错: {e}")
+        
+        return None
+
+    def _save_optimized_prompt(self, content_type: str, optimized_data: Dict[str, Any],
+                             original_system: str, original_user: str):
+        """保存优化后的提示词"""
+        timestamp = int(time.time())
+        datetime_str = datetime.now().strftime("%Y%m%d_%H%M%S")
+        
+        # 保存到内存缓存
+        self.optimized_prompts[content_type] = {
+            "optimized_system_prompt": optimized_data.get("optimized_system_prompt", ""),
+            "optimized_user_prompt": optimized_data.get("optimized_user_prompt", ""),
+            "improvement_reasons": optimized_data.get("improvement_reasons", []),
+            "optimized_at": datetime_str,
+            "original_system_length": len(original_system),
+            "original_user_length": len(original_user),
+            "optimized_system_length": len(optimized_data.get("optimized_system_prompt", "")),
+            "optimized_user_length": len(optimized_data.get("optimized_user_prompt", ""))
+        }
+        
+        # 保存到文件
+        self._save_optimized_prompts()
+        
+        # 保存详细对比文件
+        self._save_optimization_details(content_type, optimized_data, original_system, original_user, datetime_str)
+        
+        print(f"  ✅ {content_type} 提示词优化完成并保存")
+
+    def _save_optimization_details(self, content_type: str, optimized_data: Dict[str, Any],
+                                 original_system: str, original_user: str, datetime_str: str):
+        """保存详细的优化对比信息"""
+        filename = f"{self.optimized_prompts_dir}/{content_type}_optimization_{datetime_str}.txt"
+        
+        content = f"""提示词优化报告 - {content_type}
+优化时间: {datetime_str}
+
+=== 原始 System Prompt ===
+长度: {len(original_system)} 字符
+内容:
+{original_system}
+
+=== 优化后 System Prompt ===
+长度: {len(optimized_data.get('optimized_system_prompt', ''))} 字符
+内容:
+{optimized_data.get('optimized_system_prompt', '')}
+
+=== 原始 User Prompt ===
+长度: {len(original_user)} 字符
+内容:
+{original_user}
+
+=== 优化后 User Prompt ===
+长度: {len(optimized_data.get('optimized_user_prompt', ''))} 字符
+内容:
+{optimized_data.get('optimized_user_prompt', '')}
+
+=== 改进原因 ===
+{chr(10).join(f"- {reason}" for reason in optimized_data.get('improvement_reasons', []))}
+
+=== 长度变化 ===
+System Prompt: {len(original_system)} → {len(optimized_data.get('optimized_system_prompt', ''))} 字符
+User Prompt: {len(original_user)} → {len(optimized_data.get('optimized_user_prompt', ''))} 字符
+"""
+        
+        with open(filename, 'w', encoding='utf-8') as f:
+            f.write(content)
+        
+        print(f"  💾 详细优化报告已保存: {filename}")
+
+    def get_optimized_prompt(self, content_type: str) -> Optional[Dict[str, str]]:
+        """获取优化后的提示词"""
+        return self.optimized_prompts.get(content_type)
+
+    def use_optimized_prompt(self, content_type: str) -> bool:
+        """使用优化后的提示词替换原始提示词"""
+        optimized = self.get_optimized_prompt(content_type)
+        if optimized and content_type in self.Prompts["prompts"]:
+            self.Prompts["prompts"][content_type] = optimized["optimized_system_prompt"]
+            print(f"✅ 已为 {content_type} 使用优化后的提示词")
+            return True
+        else:
+            print(f"❌ 没有找到 {content_type} 的优化提示词")
+            return False
+
+    def list_optimized_prompts(self) -> List[str]:
+        """列出所有已优化的提示词"""
+        return list(self.optimized_prompts.keys())
     
     def get_available_providers(self) -> List[str]:
         """获取可用的AI服务提供商列表"""
