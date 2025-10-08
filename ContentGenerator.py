@@ -1426,27 +1426,54 @@ class ContentGenerator:
 
 
     def _get_character_development_guidance(self, chapter_number: int, novel_data: Dict) -> str:
-        """获取角色发展指导"""
+        """获取角色发展指导 - 基于章节进度"""
         if not hasattr(self, 'quality_assessor') or not self.quality_assessor:
             return ""
         
         novel_title = novel_data["novel_title"]
         
-        # 获取角色发展建议
+        # 获取角色发展数据
         character_development_data = self.quality_assessor._load_character_development_data(novel_title)
         if not character_development_data:
             return ""
         
         guidance_parts = ["# 🎭 角色发展指导"]
+        guidance_parts.append(f"## 当前章节: 第{chapter_number}章")
         
         # 为每个重要角色生成发展建议
-        for char_name, char_data in list(character_development_data.items())[:5]:  # 只处理前5个重要角色
-            suggestions = self.quality_assessor.get_character_development_suggestions(char_name, novel_title, chapter_number)
+        important_chars = []
+        for char_name, char_data in character_development_data.items():
+            role_type = char_data.get("role_type", "")
+            if role_type in ["主角", "重要配角"]:
+                important_chars.append((char_name, char_data))
+        
+        # 按最后出场时间排序，优先处理长时间未出现的角色
+        important_chars.sort(key=lambda x: x[1].get("last_updated_chapter", 0))
+        
+        for char_name, char_data in important_chars[:4]:  # 只处理前4个重要角色
+            last_seen = char_data.get("last_updated_chapter", 0)
+            total_appearances = char_data.get("total_appearances", 1)
+            
+            guidance_parts.append(f"## 👤 {char_name}")
+            guidance_parts.append(f"- 角色类型: {char_data.get('role_type', '未知')}")
+            guidance_parts.append(f"- 总出场次数: {total_appearances}次")
+            guidance_parts.append(f"- 最后出场: 第{last_seen}章")
+            guidance_parts.append(f"- 当前章节差距: {chapter_number - last_seen}章")
+            
+            suggestions = self.quality_assessor.get_character_development_suggestions(
+                char_name, novel_title, chapter_number
+            )
             
             if suggestions:
-                guidance_parts.append(f"## 👤 {char_name}")
+                guidance_parts.append("### 📋 发展建议:")
                 for suggestion in suggestions:
-                    guidance_parts.append(f"- **{suggestion['type']}** ({suggestion['priority']}优先级): {suggestion['description']}")
-                    guidance_parts.append(f"  实现方式: {suggestion['implementation']}")
+                    guidance_parts.append(f"- **{suggestion['type']}** ({suggestion['priority']}优先级)")
+                    guidance_parts.append(f"  - 建议: {suggestion['description']}")
+                    guidance_parts.append(f"  - 原因: {suggestion.get('reason', '')}")
+                    guidance_parts.append(f"  - 实现: {suggestion['implementation']}")
+            else:
+                guidance_parts.append("### ✅ 当前无特殊发展建议，保持角色一致性即可")
+            
+            guidance_parts.append("")  # 空行分隔
         
-        return "\n".join(guidance_parts) if len(guidance_parts) > 1 else ""         
+        return "\n".join(guidance_parts) if len(guidance_parts) > 3 else ""     

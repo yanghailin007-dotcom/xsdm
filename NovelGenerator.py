@@ -444,20 +444,49 @@ class NovelGenerator:
             traceback.print_exc()
      
     def resume_generation(self, total_chapters: int = None) -> bool:
-        """继续生成小说"""
+        """继续生成小说 - 修复版本：以目录下实际章节数量为准"""
         print("   继续生成小说...")
         
+        # 🆕 关键修复：以目录下实际章节数量为准，校准进度
+        actual_chapter_count = len(self.novel_data.get("generated_chapters", {}))
+        if actual_chapter_count > self.novel_data["current_progress"]["completed_chapters"]:
+            print(f"🔄 校准进度信息: {self.novel_data['current_progress']['completed_chapters']} -> {actual_chapter_count}章")
+            self.novel_data["current_progress"]["completed_chapters"] = actual_chapter_count
+        
+        # 如果用户提供了新的总章节数且比当前大，则更新
         if total_chapters and total_chapters > self.novel_data["current_progress"]["total_chapters"]:
             print(f"更新总章节数: {self.novel_data['current_progress']['total_chapters']} -> {total_chapters}")
             self.novel_data["current_progress"]["total_chapters"] = total_chapters
         
+        # 🆕 再次校准：确保已完成章节数不超过总章节数
+        if self.novel_data["current_progress"]["completed_chapters"] > self.novel_data["current_progress"]["total_chapters"]:
+            print(f"🔄 校准已完成章节数: {self.novel_data['current_progress']['completed_chapters']} -> {self.novel_data['current_progress']['total_chapters']}")
+            self.novel_data["current_progress"]["completed_chapters"] = self.novel_data["current_progress"]["total_chapters"]
+        
         # 确定从哪一章开始继续
         start_chapter = self.novel_data["current_progress"]["completed_chapters"] + 1
         if start_chapter > self.novel_data["current_progress"]["total_chapters"]:
-            print("所有章节已完成，无需继续生成")
+            print("✅ 所有章节已完成，无需继续生成")
             return True
         
         print(f"  从第{start_chapter}章开始继续生成...")
+        
+        # 🆕 检查章节目录中的实际文件数量，进行最终校准
+        safe_title = re.sub(r'[\\/*?:"<>|]', "_", self.novel_data["novel_title"])
+        chapters_dir = f"小说项目/{safe_title}_章节"
+        
+        if os.path.exists(chapters_dir):
+            chapter_files = [f for f in os.listdir(chapters_dir) if f.endswith('.txt')]
+            actual_files_count = len(chapter_files)
+            
+            if actual_files_count != self.novel_data["current_progress"]["completed_chapters"]:
+                print(f"🔄 根据目录文件校准进度: {self.novel_data['current_progress']['completed_chapters']} -> {actual_files_count}章")
+                self.novel_data["current_progress"]["completed_chapters"] = actual_files_count
+                start_chapter = actual_files_count + 1
+                
+                if start_chapter > self.novel_data["current_progress"]["total_chapters"]:
+                    print("✅ 根据目录文件校准后，所有章节已完成")
+                    return True
         
         # 直接开始生成章节内容
         chapters_per_batch = min(3, self.config["defaults"]["chapters_per_batch"])
