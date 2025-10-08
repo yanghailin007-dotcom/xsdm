@@ -270,140 +270,97 @@ class QualityAssessor:
     
         character_development_str = json.dumps(character_development_data, ensure_ascii=False, indent=2) if character_development_data else "{}"        
         return f"""
-请对以下小说章节进行全面质量评估，特别关注内容一致性：
+你是一位资深的番茄小说内容分析师与世界观架构师。
+你的任务是根据提供的章节信息和之前的世界观状态，进行全面的质量评估，并生成更新后的世界观。
 
-小说标题: {params.get('novel_title', '未知')}
-章节标题: {params.get('chapter_title', '未知')}
-章节编号: 第{params.get('chapter_number', 0)}章
-总章节数: {params.get('total_chapters', 0)}
-字数: {params.get('word_count', 0)}
+### 1. 小说信息
+- **小说标题**: {params.get('novel_title', '未知')}
+- **章节标题**: {params.get('chapter_title', '未知')}
+- **章节编号**: {params.get('chapter_number', '未知')}
+- **前情提要**: {params.get('previous_summary', '无')}
 
-前情提要: {params.get('previous_summary', '无')}
-
-之前章节的世界状态（用于一致性检查）:
+### 2. 上一章世界观状态 (用于一致性检查)
 {world_state_str}
 
 现有角色发展数据:
 {character_development_str}
 
 章节内容预览:
-{params.get('chapter_content', '')}...
-
-请重点检查以下一致性方面：
-1. 角色一致性：角色是否重复初次出现？角色特征、性格是否一致？
-2. 物品归属：重要物品的归属是否与之前一致？
-3. 关系一致性：角色关系是否出现撕裂或不合理变化？
-4. 技能功法：技能功法等级是否出现倒退或不合理提升？
-5. 时间线：事件发生的时间顺序是否合理？
-6. 地点设定：场景地点描述是否与之前一致？
+{params.get('chapter_content', '')}
 
 请按照以下JSON格式返回评估结果：
 {{
-    "overall_score": 总体评分(满分10分),
-    "quality_verdict": "质量评级",
-    "strengths": ["优点1", "优点2", "优点3"],
-    "weaknesses": ["待改进方面1", "待改进方面2", "待改进方面3"],
+    "overall_score": "number (0-10，基于细分维度计算)",
+    "quality_verdict": "string (根据分数评定，如'优秀', '良好', '合格'等)",
+    "strengths": "array of strings (列出章节的主要优点)",
+    "weaknesses": "array of strings (列出章节的主要待改进方面)",
     "detailed_scores": {{
-        "plot_coherence": 情节连贯性评分(2分),
-        "character_consistency": 角色一致性评分(2分),
-        "chapter_connection": 章节衔接评分(2分),
-        "writing_quality": 文笔质量评分(2分),
-        "ai_artifacts_detected": AI痕迹检测评分(2分，2分为无痕迹),
-        "emotional_impact": 情感冲击力评分(2分),
-        "consistency_score": 一致性评分(2分)
+        "plot_pacing_and_appeal": "number (0-2)",
+        "characterization_and_consistency": "number (0-2)",
+        "writing_quality_and_immersion": "number (0-2)",
+        "structure_and_cohesion": "number (0-2)",
+        "world_state_consistency": "number (0-2)"
     }},
     "consistency_issues": [
         {{
-            "type": "角色重复出现/物品归属/关系撕裂/技能倒退/时间线问题/地点不一致",
-            "description": "具体问题描述",
-            "severity": "高/中/低",
-            "suggestion": "修复建议"
+            "type": "string (枚举: CHARACTER, ITEM, RELATIONSHIP, SKILL, TIMELINE, LOCATION)",
+            "description": "string (具体问题描述)",
+            "severity": "string (枚举: High, Medium, Low)",
+            "suggestion": "string (修复建议)"
         }}
     ],
     "character_status_changes": [
         {{
-            "character_name": "角色名",
-            "status": "dead/exited/active",
-            "reason": "状态变化原因",
-            "chapter": {params.get('chapter_number', 0)}
+            "character_name": "string",
+            "status": "string (枚举: active, dead, exited)",
+            "reason": "string (状态变化原因)",
+            "chapter": "number"
         }}
     ],
-    "world_state_after_chapter": {{
+    "updated_world_state": {{
         "characters": {{
-            "角色名": {{
-                "first_appearance": "首次出现章节",
-                "description": "角色描述",
-                "attributes": {{"等级": "金丹期", ...}},
-                "last_updated": "最后更新章节"
-            }}
+            "角色名": {{"first_appearance": "number", "description": "string", "attributes": "object", "last_updated": "number"}}
         }},
         "items": {{
-            "物品名": {{
-                "owner": "拥有者",
-                "status": "状态",
-                "first_appearance": "首次出现章节",
-                "last_updated": "最后更新章节"
-            }}
+             "物品名": {{"owner": "string", "status": "string", "first_appearance": "number", "last_updated": "number"}}
         }},
         "relationships": {{
-            "角色A-角色B": {{
-                "type": "父子/师徒/...",
-                "description": "关系描述",
-                "first_appearance": "首次出现章节",
-                "last_updated": "最后更新章节"
-            }}
+            "角色A-角色B": {{"type": "string", "description": "string", "last_updated": "number"}}
         }},
         "skills": {{
-            "技能名": {{
-                "owner": "拥有者",
-                "level": "等级",
-                "first_appearance": "首次出现章节",
-                "last_updated": "最后更新章节"
-            }}
+            "技能名": {{"owner": "string", "level": "string", "description": "string", "first_appearance": "number", "last_updated": "number"}}
         }},
         "locations": {{
-            "地点名": {{
-                "description": "地点描述",
-                "first_appearance": "首次出现章节",
-                "last_updated": "最后更新章节"
-            }}
+            "地点名": {{"description": "string", "first_appearance": "number", "last_updated": "number"}}
         }}
     }},
     "character_development_assessment": {{
         "new_characters_introduced": [
             {{
-                "name": "角色名",
-                "role_type": "主角/重要配角/次要配角",
-                "initial_impression": "初次印象",
-                "development_potential": "发展潜力"
+                "name": "string",
+                "role_type": "string (主角/重要配角/次要配角)",
+                "initial_impression": "string",
+                "development_potential": "string"
             }}
         ],
         "existing_characters_development": [
             {{
-                "name": "角色名", 
-                "growth_shown": "本章展现的成长",
-                "consistency_issues": "一致性问題",
-                "development_suggestions": [
-                    {{
-                        "type": "背景故事/对话强化/第三方提及/名场面",
-                        "description": "具体建议描述",
-                        "priority": "高/中/低",
-                        "implementation": "实现方式建议"
-                    }}
-                ]
+                "name": "string",
+                "growth_shown": "string (本章展现的成长或变化)",
+                "consistency_issues": "string (与过往设定的不一致之处，若无则为'无')",
+                "development_suggestions": "array of strings (具体的发展建议)"
             }}
         ],
         "iconic_scenes_identified": [
             {{
-                "character": "角色名",
-                "scene_description": "场景描述", 
-                "trait_demonstrated": "展现的特质",
-                "impact_level": "高/中/低",
-                "suggested_enhancement": "强化建议"
+                "character": "string",
+                "scene_description": "string",
+                "trait_demonstrated": "string (场景展现的角色特质)",
+                "impact_level": "string (High/Medium/Low)"
             }}
         ]
-    }},    
-    "assessment_timestamp": "评估时间戳"
+    }},
+    "assessment_timestamp": "string (生成报告的ISO 8601格式时间戳，例如: '2024-05-16T12:00:00Z')"
 }}
 """
     
