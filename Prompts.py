@@ -319,88 +319,6 @@ Prompts = {
         }
     ]
 }""",
-
-        "faction_development_plan": """你是一位势力发展设计专家。请设计小说中主要势力的发展轨迹和冲突。
-
-请按照以下格式输出：
-{
-    "factions_development": {
-        "faction_name": {
-            "development_stages": [
-                {
-                    "stage": "发展阶段",
-                    "chapters": "章节范围", 
-                    "power_level": "势力水平",
-                    "key_events": ["关键事件"],
-                    "territory_changes": "领土变化",
-                    "relationship_changes": {
-                        "allies": ["盟友变化"],
-                        "enemies": ["敌人变化"]
-                    }
-                }
-            ],
-            "conflict_timeline": [
-                {
-                    "conflict_type": "冲突类型",
-                    "involved_factions": ["涉及势力"],
-                    "chapters": "发生章节", 
-                    "outcome": "冲突结果",
-                    "impact": "对格局影响"
-                }
-            ]
-        }
-    },
-    "power_balance_evolution": [
-        {
-            "chapters": "章节范围",
-            "balance_description": "势力平衡描述",
-            "dominant_faction": "主导势力",
-            "rising_threats": ["新兴威胁"]
-        }
-    ]
-}""",
-
-        "item_upgrade_system": """你是一位游戏系统设计专家。请设计小说中的物品升级体系。
-
-请按照以下格式输出：
-{
-    "cultivation_system": {
-        "realm_stages": [
-            {
-                "realm": "境界名称",
-                "sub_stages": ["子境界1", "子境界2"],
-                "lifespan": "寿命增长",
-                "special_abilities": ["特殊能力"],
-                "breakthrough_requirements": ["突破要求"],
-                "typical_chapters": "通常达到的章节"
-            }
-        ]
-    },
-    "equipment_system": {
-        "tiers": {
-            "tier_name": {
-                "levels": ["等级1", "等级2"],
-                "materials": ["升级材料"],
-                "special_effects": ["特殊效果"]
-            }
-        }
-    },
-    "skill_system": {
-        "skill_trees": [
-            {
-                "tree_name": "技能树名称",
-                "skills": [
-                    {
-                        "skill_name": "技能名称",
-                        "unlock_condition": "解锁条件",
-                        "upgrade_path": "升级路径",
-                        "max_level": "最高等级"
-                    }
-                ]
-            }
-        ]
-    }
-}""",
         "stage_foreshadowing_planning": """你是一位资深的番茄网络小说节奏控制专家。请为小说的特定阶段制定详细的伏笔铺垫计划。...""",
         "stage_content_planning": """你是一位资深的番茄网络小说内容架构师。请为小说的特定阶段制定详细的内容规划。
 
@@ -970,8 +888,6 @@ Prompts = {
 }
 ```
 """,
-
-        # 添加优化提示词
         "market_analysis_optimization": """你是一位市场分析优化专家。请根据以下评估结果优化市场分析报告。
 
 # 优化要求：
@@ -1069,8 +985,7 @@ Prompts = {
 }
 ```
 """,
-
-"writing_style_guide": """
+        "writing_style_guide": """
 内容:
 你是一位顶级的番茄小说平台网文编辑和写作教练。你的任务是根据提供的小说核心简报（Novel Brief），提炼并生成一份高度具体、可执行的写作风格指南。
 
