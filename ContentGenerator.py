@@ -888,7 +888,7 @@ class ContentGenerator:
         # 获取之前的世界状态
         novel_title = novel_data["novel_title"]
         world_state = self._get_previous_world_state(novel_title)
-        
+        character_development_guidance = self._get_character_development_guidance(chapter_number, novel_data)
         if world_state:
             print(f"  ✅ 加载到世界状态: {len(world_state.get('characters', {}))}角色, "
                 f"{len(world_state.get('items', {}))}物品, "
@@ -964,6 +964,7 @@ class ContentGenerator:
             "writing_style_guide": writing_style_guide,
             "worldview_info": json.dumps(novel_data["core_worldview"], ensure_ascii=False) if novel_data["core_worldview"] else "{}",
             "character_info": json.dumps(novel_data["character_design"], ensure_ascii=False) if novel_data["character_design"] else "{}",
+            "character_development_guidance": character_development_guidance,
             "stage_writing_plan": stage_writing_plan,
             "previous_chapters_summary": self._generate_previous_chapters_summary(chapter_number, novel_data),
             "main_plot_progress": plot_direction["plot_direction"],
@@ -1257,6 +1258,7 @@ class ContentGenerator:
     - **世界观一致性**: 所有元素必须符合世界观设定
     {content_params.get('worldview_info', '{}')}
     - **角色一致性**: 角色行为必须符合角色设定
+    {content_params.get('character_development_guidance', '{}')}
     {content_params.get('character_info', '{}')}
     - **物品归属一致性**: 确保物品归属与之前章节一致
     - **关系一致性**: 角色关系不得出现矛盾
@@ -1420,4 +1422,31 @@ class ContentGenerator:
             for rel_key, rel_data in list(relationships.items())[:3]:
                 guidance_parts.append(f"- {rel_key}: {rel_data.get('type', '')}")
         
-        return "\n".join(guidance_parts)        
+        return "\n".join(guidance_parts)   
+
+
+    def _get_character_development_guidance(self, chapter_number: int, novel_data: Dict) -> str:
+        """获取角色发展指导"""
+        if not hasattr(self, 'quality_assessor') or not self.quality_assessor:
+            return ""
+        
+        novel_title = novel_data["novel_title"]
+        
+        # 获取角色发展建议
+        character_development_data = self.quality_assessor._load_character_development_data(novel_title)
+        if not character_development_data:
+            return ""
+        
+        guidance_parts = ["# 🎭 角色发展指导"]
+        
+        # 为每个重要角色生成发展建议
+        for char_name, char_data in list(character_development_data.items())[:5]:  # 只处理前5个重要角色
+            suggestions = self.quality_assessor.get_character_development_suggestions(char_name, novel_title, chapter_number)
+            
+            if suggestions:
+                guidance_parts.append(f"## 👤 {char_name}")
+                for suggestion in suggestions:
+                    guidance_parts.append(f"- **{suggestion['type']}** ({suggestion['priority']}优先级): {suggestion['description']}")
+                    guidance_parts.append(f"  实现方式: {suggestion['implementation']}")
+        
+        return "\n".join(guidance_parts) if len(guidance_parts) > 1 else ""         

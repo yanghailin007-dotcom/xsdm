@@ -38,7 +38,35 @@ class QualityAssessor:
                 "low": {"threshold": 8.5, "max_issues": 2, "description": "轻微优化"}
             }
         }
-        
+        self.character_development_templates = {
+            "core_character": {
+                "name": "",
+                "role_type": "主角/重要配角/次要配角",
+                "first_appearance": 0,
+                "personality_traits": {
+                    "core_traits": ["特质1", "特质2"],
+                    "contradictions": "性格矛盾点",
+                    "behavior_patterns": "行为模式"
+                },
+                "iconic_scenes": [
+                    {
+                        "scene_type": "高光时刻/情感爆发/性格展示",
+                        "chapter": 0,
+                        "description": "场景描述",
+                        "purpose": "展示人物哪方面特质"
+                    }
+                ],
+                "development_suggestions": [
+                    {
+                        "type": "背景故事/对话强化/第三方提及/名场面",
+                        "suggested_chapter": 0,
+                        "development_idea": "发展建议",
+                        "priority": "高/中/低"
+                    }
+                ],
+                "last_updated": 0
+            }
+        }        
         # 当前小说的世界状态（用于一致性检查）
         self.current_world_state = {}
     
@@ -146,6 +174,12 @@ class QualityAssessor:
             chapter_number = assessment_params.get('chapter_number', 0)
             self.save_assessment_data(novel_title, chapter_number, result)
         
+            # 更新角色发展表
+            self.update_character_development_from_assessment(novel_title, result, chapter_number)
+            
+            # 保存评估数据
+            self.save_assessment_data(novel_title, chapter_number, result)  
+                  
         return result
     
     def _generate_chapter_assessment_prompt(self, params: Dict) -> str:
@@ -156,7 +190,10 @@ class QualityAssessor:
         previous_world_state = self.load_previous_assessments(novel_title)
         
         world_state_str = json.dumps(previous_world_state, ensure_ascii=False, indent=2) if previous_world_state else "{}"
-        
+
+        character_development_data = self._load_character_development_data(novel_title)
+    
+        character_development_str = json.dumps(character_development_data, ensure_ascii=False, indent=2) if character_development_data else "{}"        
         return f"""
 请对以下小说章节进行全面质量评估，特别关注内容一致性：
 
@@ -171,8 +208,11 @@ class QualityAssessor:
 之前章节的世界状态（用于一致性检查）:
 {world_state_str}
 
+现有角色发展数据:
+{character_development_str}
+
 章节内容预览:
-{params.get('chapter_content', '')[:1000]}...
+{params.get('chapter_content', '')}...
 
 请重点检查以下一致性方面：
 1. 角色一致性：角色是否重复初次出现？角色特征、性格是否一致？
@@ -246,6 +286,40 @@ class QualityAssessor:
             }}
         }}
     }},
+    "character_development_assessment": {{
+        "new_characters_introduced": [
+            {{
+                "name": "角色名",
+                "role_type": "主角/重要配角/次要配角",
+                "initial_impression": "初次印象",
+                "development_potential": "发展潜力"
+            }}
+        ],
+        "existing_characters_development": [
+            {{
+                "name": "角色名", 
+                "growth_shown": "本章展现的成长",
+                "consistency_issues": "一致性问題",
+                "development_suggestions": [
+                    {{
+                        "type": "背景故事/对话强化/第三方提及/名场面",
+                        "description": "具体建议描述",
+                        "priority": "高/中/低",
+                        "implementation": "实现方式建议"
+                    }}
+                ]
+            }}
+        ],
+        "iconic_scenes_identified": [
+            {{
+                "character": "角色名",
+                "scene_description": "场景描述", 
+                "trait_demonstrated": "展现的特质",
+                "impact_level": "高/中/低",
+                "suggested_enhancement": "强化建议"
+            }}
+        ]
+    }},    
     "assessment_timestamp": "评估时间戳"
 }}
 """
@@ -886,4 +960,215 @@ class QualityAssessor:
                 if element_data.get('last_updated'):
                     consistency_score += 1
         
-        return round(consistency_score / max(total_elements, 1) * 10, 2) if total_elements > 0 else 10.0    
+        return round(consistency_score / max(total_elements, 1) * 10, 2) if total_elements > 0 else 10.0  
+      
+    def manage_character_development_table(self, novel_title: str, character_data: Dict, action: str = "update") -> Dict:
+        """管理角色发展表"""
+        character_file = os.path.join(self.storage_path, f"{novel_title}_character_development.json")
+        
+        # 加载现有数据
+        if os.path.exists(character_file):
+            with open(character_file, 'r', encoding='utf-8') as f:
+                characters = json.load(f)
+        else:
+            characters = {}
+        
+        character_name = character_data.get("name")
+        
+        if action == "add":
+            # 首次出场时添加
+            if character_name not in characters:
+                characters[character_name] = {
+                    **self.character_development_templates["core_character"],
+                    **character_data,
+                    "created_at": datetime.now().isoformat(),
+                    "last_updated": datetime.now().isoformat()
+                }
+                print(f"✅ 新增角色到发展表: {character_name}")
+        elif action == "update":
+            # 更新现有角色
+            if character_name in characters:
+                # 保留重要历史数据
+                existing_data = characters[character_name]
+                preserved_fields = {
+                    "first_appearance": existing_data.get("first_appearance"),
+                    "created_at": existing_data.get("created_at"),
+                    "iconic_scenes": existing_data.get("iconic_scenes", []),
+                    "development_suggestions": existing_data.get("development_suggestions", [])
+                }
+                
+                characters[character_name].update(character_data)
+                characters[character_name].update(preserved_fields)
+                characters[character_name]["last_updated"] = datetime.now().isoformat()
+                print(f"✅ 更新角色发展表: {character_name}")
+        
+        # 保存数据
+        with open(character_file, 'w', encoding='utf-8') as f:
+            json.dump(characters, f, ensure_ascii=False, indent=2)
+        
+        return characters
+
+    def get_character_development_suggestions(self, character_name: str, novel_title: str, current_chapter: int) -> List[Dict]:
+        """获取角色发展建议"""
+        character_file = os.path.join(self.storage_path, f"{novel_title}_character_development.json")
+        
+        if not os.path.exists(character_file):
+            return []
+        
+        with open(character_file, 'r', encoding='utf-8') as f:
+            characters = json.load(f)
+        
+        if character_name not in characters:
+            return []
+        
+        character = characters[character_name]
+        suggestions = []
+        
+        # 检查是否需要添加名场面
+        if len(character.get("iconic_scenes", [])) < 3:
+            suggestions.append({
+                "type": "添加名场面",
+                "description": f"为{character_name}设计一个展现{character.get('personality_traits', {}).get('core_traits', ['性格'])[0]}特质的名场面",
+                "priority": "高",
+                "implementation": f"在第{current_chapter}章安排一个关键场景，通过具体行动展示{character_name}的{character.get('personality_traits', {}).get('core_traits', ['性格'])[0]}特质"
+            })
+        
+        # 检查是否需要背景故事
+        if not character.get("background_story_added", False):
+            suggestions.append({
+                "type": "背景故事",
+                "description": f"为{character_name}添加背景故事，解释其性格形成原因",
+                "priority": "中",
+                "implementation": f"通过回忆、对话或第三方提及的方式，在第{current_chapter}章揭示{character_name}的过去经历"
+            })
+        
+        # 检查对话强化
+        last_dialogue_chapter = character.get("last_dialogue_chapter", 0)
+        if current_chapter - last_dialogue_chapter > 5:
+            suggestions.append({
+                "type": "对话强化",
+                "description": f"为{character_name}安排特色对话，强化语言风格",
+                "priority": "中",
+                "implementation": f"在第{current_chapter}章设计符合{character_name}性格的对话，体现其{character.get('personality_traits', {}).get('core_traits', ['性格'])[0]}特质"
+            })
+        
+        return suggestions[:3]  # 返回前3个最高优先级的建议
+
+    def assess_character_development(self, chapter_content: str, characters_in_chapter: List[str], 
+                                novel_title: str, chapter_number: int) -> Dict:
+        """评估角色发展质量并返回更新建议"""
+        character_file = os.path.join(self.storage_path, f"{novel_title}_character_development.json")
+        
+        # 加载现有角色数据
+        existing_characters = {}
+        if os.path.exists(character_file):
+            with open(character_file, 'r', encoding='utf-8') as f:
+                existing_characters = json.load(f)
+        
+        assessment_result = {
+            "character_updates": {},
+            "development_suggestions": [],
+            "new_characters": []
+        }
+        
+        for character_name in characters_in_chapter:
+            if character_name in existing_characters:
+                # 现有角色的发展评估
+                character_data = existing_characters[character_name]
+                suggestions = self.get_character_development_suggestions(character_name, novel_title, chapter_number)
+                
+                # 检查角色在章节中的表现
+                character_presence = self._analyze_character_presence(character_name, chapter_content)
+                
+                assessment_result["character_updates"][character_name] = {
+                    "presence_analysis": character_presence,
+                    "development_suggestions": suggestions,
+                    "needs_enhancement": len(suggestions) > 0
+                }
+                
+                # 添加发展建议到总列表
+                assessment_result["development_suggestions"].extend(suggestions)
+            else:
+                # 新角色首次出现
+                assessment_result["new_characters"].append(character_name)
+        
+        return assessment_result
+
+    def _analyze_character_presence(self, character_name: str, chapter_content: str) -> Dict:
+        """分析角色在章节中的存在感"""
+        # 统计角色提及次数
+        mention_count = chapter_content.count(character_name)
+        
+        # 检测是否有对话
+        has_dialogue = f"{character_name}说：" in chapter_content or f"{character_name}道：" in chapter_content
+        
+        # 检测是否有行动描写
+        action_indicators = ["站起身", "走过去", "笑了笑", "皱眉头", "叹息", "握拳"]
+        has_actions = any(indicator in chapter_content for indicator in action_indicators)
+        
+        # 检测是否有心理活动
+        thought_indicators = ["心想", "思考", "暗想", "寻思"]
+        has_thoughts = any(indicator in chapter_content for indicator in thought_indicators)
+        
+        return {
+            "mention_count": mention_count,
+            "has_dialogue": has_dialogue,
+            "has_actions": has_actions,
+            "has_thoughts": has_thoughts,
+            "presence_score": min(10, mention_count * 2 + has_dialogue * 3 + has_actions * 2 + has_thoughts * 2)
+        }
+
+    def _load_character_development_data(self, novel_title: str) -> Dict:
+        """加载角色发展数据"""
+        character_file = os.path.join(self.storage_path, f"{novel_title}_character_development.json")
+        
+        if not os.path.exists(character_file):
+            return {}
+        
+        try:
+            with open(character_file, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except Exception as e:
+            print(f"加载角色发展数据失败: {e}")
+            return {}
+
+    def update_character_development_from_assessment(self, novel_title: str, assessment: Dict, chapter_number: int):
+        """从评估结果更新角色发展表"""
+        character_development = assessment.get("character_development_assessment", {})
+        
+        # 处理新角色
+        for new_char in character_development.get("new_characters_introduced", []):
+            self.manage_character_development_table(novel_title, {
+                "name": new_char["name"],
+                "role_type": new_char["role_type"],
+                "first_appearance": chapter_number,
+                "personality_traits": {
+                    "core_traits": [new_char.get("initial_impression", "待完善")],
+                    "contradictions": "待发掘",
+                    "behavior_patterns": "待观察"
+                }
+            }, "add")
+        
+        # 处理现有角色发展
+        for existing_char in character_development.get("existing_characters_development", []):
+            char_name = existing_char["name"]
+            
+            # 如果有名场面被识别，添加到角色记录中
+            iconic_scenes = character_development.get("iconic_scenes_identified", [])
+            character_scenes = [scene for scene in iconic_scenes if scene["character"] == char_name]
+            
+            update_data = {
+                "name": char_name,
+                "development_suggestions": existing_char.get("development_suggestions", [])
+            }
+            
+            # 添加名场面
+            for scene in character_scenes:
+                update_data.setdefault("iconic_scenes", []).append({
+                    "scene_type": "性格展示",
+                    "chapter": chapter_number,
+                    "description": scene["scene_description"],
+                    "purpose": scene["trait_demonstrated"]
+                })
+            
+            self.manage_character_development_table(novel_title, update_data, "update")          
