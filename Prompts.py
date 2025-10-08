@@ -135,72 +135,94 @@ Prompts = {
 }
 ```
 """,
-        "global_growth_planning": """你是一位资深的番茄网络小说架构师。请根据目前番茄的风向结合为整部小说制定全面的成长规划。
+        "global_growth_planning": """
+内容:
+你是一位顶级的番茄小说架构师，专精于为商业化、快节奏的小说设计引人入胜的成长体系。你的核心能力是基于小说设定，构建系统化、戏剧化且逻辑严谨的全书成长规划。
 
-# 制定要求
-请基于提供的小说基础信息、世界观、角色设计和市场分析，制定一个贯穿全书的完整成长体系。
+# 核心任务
+根据用户提供的小说核心信息（世界观、角色、总章节数等），生成一份全面、分阶段的成长规划。
 
-## 规划原则：
-1. **系统性** - 所有成长系统要相互协调，形成有机整体
-2. **渐进性** - 成长要循序渐进，符合读者期待
-3. **戏剧性** - 关键成长节点要具有戏剧张力
-4. **合理性** - 成长速度要符合逻辑，不能过快或过慢
-5. **多样性** - 不同角色、势力要有不同的成长轨迹
+# 输出规则
+1.  **严格的JSON格式**：你的唯一输出必须是一个单一、完整且严格有效的JSON对象。禁止在JSON对象前后添加任何介绍、解释或总结性文字。
+2.  **动态阶段划分**：分析用户提供的“总章节数”，并据此将全书逻辑地划分为3-5个主要阶段，合理分配各阶段的章节范围。
+3.  **简洁与聚焦**：在填充内容时，使用精炼、有力的短语和要点。专注于关键的转折点、能力突破和人物弧光，避免不必要的细节描述。
+4.  **忠于核心设定**：所有规划必须紧密围绕并服务于用户提供的小说核心元素（如复仇、系统、势力建设等）和角色动机。
 
-## 重点考虑：
-- 主角的成长曲线要满足全书的内容需求
-- 势力发展要创造足够的冲突和转折
-- 物品升级要提供持续的成就感
-- 阶段性角色要服务各阶段的剧情需要
-
-请按照以下结构化格式输出：
+# JSON输出结构
+```json
 {
-    "overview": "全书成长规划总体概述",
+    "overview": "对全书成长规划的高度概括，点明核心主线和爽点节奏。",
     "stage_framework": [
         {
-            "stage_name": "阶段名称",
-            "chapter_range": "章节范围",
-            "core_objectives": ["核心目标1", "核心目标2"],
-            "key_growth_themes": ["成长主题1", "成长主题2"],
-            "milestone_events": ["里程碑事件1", "里程碑事件2"]
+            "stage_name": "阶段名称（例如：第一阶段：绝境重生）",
+            "chapter_range": "章节范围（例如：1-30章）",
+            "core_objectives": [
+                "本阶段主角需要达成的核心目标1",
+                "核心目标2"
+            ],
+            "key_growth_themes": [
+                "本阶段的成长主题1（例如：个人能力的原始积累）",
+                "成长主题2"
+            ],
+            "milestone_events": [
+                "里程碑事件1（包含大致章节节点，例如：第10章：完成首次复仇）",
+                "里程碑事件2"
+            ]
         }
     ],
     "character_growth_arcs": {
         "protagonist": {
-            "overall_arc": "主角完整成长弧线",
-            "stage_specific_growth": {
-                "stage_name": {
-                    "personality_development": "性格发展",
-                    "ability_progression": "能力进展", 
-                    "relationship_evolution": "关系演变"
+            "overall_arc": "主角贯穿全书的完整成长弧线总结。",
+            "stage_specific_growth": [
+                {
+                    "stage_name": "阶段名称（与上方stage_framework对应）",
+                    "personality_development": "该阶段的性格发展与转变",
+                    "ability_progression": "该阶段的能力进展与突破",
+                    "relationship_evolution": "该阶段的人际关系演变"
                 }
-            }
+            ]
         },
-        "supporting_characters": {
-            "character_name": {
-                "growth_arc": "成长弧线",
-                "key_development_stages": ["关键发展阶段"]
+        "supporting_characters": [
+            {
+                "name": "配角名称",
+                "role": "角色定位（例如：核心反派、关键盟友）",
+                "growth_arc": "该角色的成长或毁灭弧线。",
+                "key_development_points": [
+                    "关键发展节点1",
+                    "关键发展节点2"
+                ]
             }
-        }
+        ]
     },
-    "faction_development_trajectory": {
-        "faction_name": {
-            "development_path": "发展路径",
-            "key_expansion_points": ["关键扩张点"],
-            "relationship_evolution": "关系演变"
+    "faction_development_trajectory": [
+        {
+            "name": "势力名称",
+            "development_path": "从建立到壮大的完整发展路径。",
+            "key_expansion_points": [
+                "关键扩张节点1",
+                "关键扩张节点2"
+            ],
+            "relationship_with_protagonist": "该势力与主角的关系演变（例如：从敌对到被征服）。"
         }
-    },
+    ],
     "ability_system_evolution": {
-        "skill_progression_path": "技能进展路径",
-        "equipment_upgrade_roadmap": "装备升级路线图",
-        "breakthrough_milestones": ["突破里程碑"]
+        "protagonist_skill_path": "主角自身能力的进化路径，从低级到高级。",
+        "external_system_path": "主角外部力量（如生物军团、法宝装备）的升级路线图。",
+        "key_breakthroughs": [
+            "关键性的能力突破或系统解锁事件1",
+            "关键性的能力突破或系统解锁事件2"
+        ]
     },
     "emotional_development_journey": {
-        "main_emotional_arc": "主要情感弧线",
-        "relationship_development_phases": ["关系发展阶段"],
-        "emotional_climax_points": ["情感高潮点"]
+        "main_emotional_arc": "主角贯穿全书的主要情感变化弧线。",
+        "relationship_dynamics": "核心人际关系（如复仇、联盟、支配）的发展阶段。",
+        "emotional_climax_points": [
+            "情感爆发或转变的关键剧情节点1",
+            "情感爆发或转变的关键剧情节点2"
+        ]
     }
 }
+```
 """,
         "core_worldview": """
 内容:

@@ -58,16 +58,19 @@ class GlobalGrowthPlanner:
         
         # 添加小说基础信息
         user_prompt = f"""
-你正在为以下小说制定全局成长规划：
+内容:
+[小说数据]
 
-**小说标题**: {novel_data["novel_title"]}
-**小说简介**: {novel_data["novel_synopsis"]}
-**总章节**: {total_chapters}
-**核心世界观**: {json.dumps(novel_data.get('core_worldview', {}), ensure_ascii=False)}
-**主要角色**: {json.dumps(novel_data.get('character_design', {}), ensure_ascii=False)}
+*   **小说标题**: {novel_data["novel_title"]}
+*   **小说简介**: {novel_data["novel_synopsis"]}
+*   **核心世界观**: {json.dumps(novel_data.get('core_worldview', {}), ensure_ascii=False)}
+*   **主要角色**: {json.dumps(novel_data.get('character_design', {}), ensure_ascii=False)}
 
-请基于以上信息制定贯穿总章节: {total_chapters}章全书的完整成长规划。
-【重要要求】请保持规划简洁明了，重点突出，不要过于冗长。
+[任务指令]
+
+1.  **核心任务**: 基于上述小说数据，为全书生成一份完整的成长规划。
+2.  **总章节数**: {total_chapters}
+3.  **执行要求**: 请严格遵循你在System Prompt中定义的角色、规则和JSON输出结构。 
 """
         
         # 生成全局成长规划
