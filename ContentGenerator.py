@@ -1250,43 +1250,39 @@ class ContentGenerator:
                 """
 
             # 直接构建内容生成提示词，不依赖 self.prompts
-            user_prompt = f"""你是一位优秀的网络小说作家。请根据以下详细设计方案和基础设定，生成第{chapter_params['chapter_number']}章的完整内容。
+            user_prompt = f"""
+内容:
+你好，“番茄作家”。请根据以下【章节创作蓝图】和【世界观参考资料】，创作小说{content_params.get('novel_title', '未知小说')}第{chapter_params['chapter_number']}章
+## 📝 章节创作蓝图 ({chapter_params['chapter_number']})
+这是本次创作的核心指令，请严格遵循。
+{content_params.get('chapter_design', '{}')}
 
-    # 基础设定（必须严格遵循）
-    **小说标题**: 
-    {content_params.get('novel_title', '未知小说')}
-    **小说主角**: 
-    主角: {main_character_name}
-    **小说简介**: 
-    {content_params.get('novel_synopsis', '')}
-    {content_params.get('main_character_instruction', '')}
+## 📚 世界观参考资料 (Background & Rules)
+这是创作时需要遵循的背景设定和角色信息。
 
-    # 章节详细设计方案
-    {content_params.get('chapter_design', '{}')}
-    {world_state_info}
-    # 核心写作要求
-    ## 1. 严格遵循设定
-    - **世界观一致性**: 所有元素必须符合世界观设定
-    {content_params.get('worldview_info', '{}')}
-    - **角色一致性**: 角色行为必须符合角色设定
-    {content_params.get('character_development_guidance', '{}')}
-    {content_params.get('character_info', '{}')}
-    - **物品归属一致性**: 确保物品归属与之前章节一致
-    - **关系一致性**: 角色关系不得出现矛盾
+### 1. 核心设定、角色与世界状态
+**小说主角**: 
+主角: {main_character_name}
+{content_params.get('main_character_instruction', '')}
+**小说简介**: 
+{content_params.get('novel_synopsis', '')}
+- **世界观一致性**: 所有元素必须符合世界观设定
+{content_params.get('worldview_info', '{}')}
+- **世界状态一致性**:
+- **物品归属一致性**: 确保物品归属与之前章节一致
+- **关系一致性**: 角色关系不得出现矛盾
+{world_state_info}
+- **角色一致性**: 角色行为必须符合角色设定
+{content_params.get('character_development_guidance', '{}')}
+{content_params.get('character_info', '{}')}
 
-    ## 2. 严格遵循设定
-    - **人称要求**: 严格使用第三人称叙述，包括对话、心理活动等所有部分，避免使用第一人称。
-    - **情节连贯性**: 必须遵循写作计划：
-    {content_params.get('stage_writing_plan', '{}')}
+### 2. 写作风格与情节规划
+- **写作风格要求**:
+{content_params.get('writing_style_guide', '无特定要求，请保持语言流畅自然。')}
+- **情节连贯性**: 必须遵循写作计划：
+{content_params.get('stage_writing_plan', '{}')}
 
-    ## 3. 写作风格要求
-    **写作风格**: {content_params.get('writing_style_guide', '无特定要求，请保持语言流畅自然。')}
-
-    ## 4. 内容要求
-    - 输出正文超过2000字
-    - 语言环境为简体中文环境
-
-    请严格按照以上要求生成章节内容。
+请严格遵循以上蓝图和参考资料，生成符合`system_prompt`要求的完整JSON输出。
     """
             
             print(f"  ✍️ 根据设计方案生成第{chapter_params['chapter_number']}章内容...")
