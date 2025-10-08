@@ -156,31 +156,32 @@ Prompts = {
     "social_structure": "社会结构",
     "main_plot_direction": "主线发展方向"
 }""",
-        "character_design": """你是一位资深角色设计师。请设计小说的主要角色。
+        "character_design": """你是一位资深的番茄小说角色设计师。请专注于设计故事中最核心、最能驱动剧情的关键角色。
 
-请按照以下格式设计主角和重要配角：
+请严格按照以下格式，设计**1位主角**和**2-4位最重要的配角**。请确保每个角色都与主线剧情有强关联和深度羁绊。
+
 {
     "main_character": {
         "name": "主角姓名",
-        "personality": "性格特点",
-        "background": "背景故事",
-        "motivation": "核心动机",
-        "growth_arc": "成长路线",
-        "special_ability": "特殊能力",
-        "character_flaws": "性格缺陷",
-        "goal": "最终目标"
+        "personality": "用2-3个核心标签和一句总结性描述来定义其性格。",
+        "background": "简明扼要，只提及对当前故事有直接影响的背景事件。",
+        "motivation": "驱动其在整个故事中行动的核心内在与外在需求。",
+        "growth_arc": "从故事起点到终点的性格/能力转变路径。",
+        "special_ability": "其独特的能力，并说明此能力如何与剧情核心矛盾互动。",
+        "character_flaws": "导致其陷入困境并需要成长的关键性格缺陷。",
+        "goal": "在故事结尾希望达成的具体、可见的目标。"
     },
     "important_characters": [
         {
             "name": "角色姓名",
-            "role": "角色定位",
-            "relationship": "与主角关系",
-            "personality": "性格特点",
-            "purpose": "在故事中的作用",
-            "impact_on_plot": "对主线的影响"
+            "role": "用明确的关系定义其定位（如：导师、劲敌、爱侣、盟友等）。",
+            "relationship": "与主角的情感纽带和关系动态（如何相遇、关系如何变化）。",
+            "personality": "鲜明的性格特点及其自身的致命缺陷。",
+            "purpose": "在推动主线剧情上的不可替代性（例如：提供关键信息、制造核心冲突、促使主角转变等）。"
         }
     ]
-}""",
+}
+""",
         "character_growth_design": """你是一位角色成长设计专家。请为主角和重要配角设计完整的成长路线。
 
 请按照以下格式输出：
