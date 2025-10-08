@@ -606,7 +606,7 @@ class ContentGenerator:
         """验证章节参数是否完整"""
         required = [
             'chapter_number', 'novel_title', 'novel_synopsis', 'plot_direction',
-            'event_driven_guidance', 'foreshadowing_guidance'
+            'foreshadowing_guidance'
         ]
         for key in required:
             if key not in params or not params[key]:

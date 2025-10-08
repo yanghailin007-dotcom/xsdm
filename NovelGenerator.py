@@ -690,7 +690,7 @@ class NovelGenerator:
                     print(f"    缺点: {', '.join(synopsis_eval['weaknesses'])}")
             
             # 决定是否通过
-            if overall_score >= 8.0 and recommendation:
+            if overall_score >= 9.5 and recommendation:
                 print("✅ 方案质量评价通过")
                 return True
             else:
