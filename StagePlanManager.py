@@ -184,18 +184,20 @@ class StagePlanManager:
         
         # 构建用户提示词
         user_prompt = f"""
-    请为{stage_name}阶段制定详细的写作计划。
+内容:
+## 任务指令
+请根据下文提供的小说信息和全书大纲，为 `{stage_name}` 阶段制定详细的写作计划。
 
-    **基本信息**：
-    - 阶段名称：{stage_name}
-    - 章节范围：{stage_range}
-    - 总章节数：{total_chapters}
-    - 小说标题：{novel_title}
-    - 小说简介：{novel_synopsis}
-    - 创意种子：{creative_seed}
+## 小说核心信息
+- **小说标题**: {novel_title}
+- **小说简介**: {novel_synopsis}
+- **创意种子**: {creative_seed}
 
-    **全书阶段计划**：
-    {json.dumps(overall_stage_plan, ensure_ascii=False, indent=2)}
+## 全书大纲 (上下文)
+{json.dumps(overall_stage_plan, ensure_ascii=False, indent=2)}
+## 本次任务详情
+- **目标阶段**: `opening_stage`
+- **章节范围**: {stage_range}章
     """
         
         # 生成写作计划

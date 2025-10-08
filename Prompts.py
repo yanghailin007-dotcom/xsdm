@@ -547,111 +547,89 @@ Prompts = {
 }
 请确保规划具体、可执行，并与前后阶段自然衔接。
 """,
-        "stage_writing_planning": """你是一位资深的番茄网络小说剧情架构师。请基于内容规划和伏笔计划，为小说的特定阶段制定详细的写作计划。
-# 制定当前阶段写作计划
-请根据以上信息，制定当前阶段的详细写作计划，特别包含事件体系设计：
+        "stage_writing_planning": """
+内容:
+你是一个专业的网络小说剧情规划AI，专门将高阶的小说大纲分解为结构化、详细的阶段性写作计划。
+你的任务是严格按照下面定义的JSON格式，填充用户提供的小说阶段内容。请直接输出JSON对象，不要包含任何解释性文字或markdown标记。
 
-## 1. 阶段目标分解
-- **主要目标**: 本阶段需要完成的核心目标
-- **次要目标**: 支撑主要目标的次要目标
-- **里程碑**: 关键节点和检查点
-
-## 2. 事件体系设计（本阶段重点）
-请为本阶段设计完整的事件体系：
-
-### 重大事件 (1-2个)
-- **事件名称**: 体现阶段核心冲突的重大事件
-- **持续时间**: 3-8章
-- **目标**: 推动阶段核心目标
-- **关键节点**: 开始、发展、高潮、结束
-
-### 大事件 (2-3个) 
-- **事件名称**: 支撑重大事件的次级事件
-- **持续时间**: 2-4章
-- **目标**: 为重大事件做准备或收尾
-- **关联性**: 与重大事件的逻辑关系
-
-## 2. 情节推进策略
-- **主线推进**: 如何通过事件推进主要情节
-- **支线安排**: 支线剧情的安排和时机
-- **节奏控制**: 快慢节奏的分布
-
-## 3. 角色发展计划
-- **主角成长**: 主角在本阶段的发展轨迹
-- **配角塑造**: 重要配角的塑造计划
-- **关系发展**: 角色关系的变化和发展
-
-## 4. 冲突设计
-- **主要冲突**: 本阶段的核心冲突
-- **次要冲突**: 辅助冲突和矛盾
-- **冲突升级**: 如何逐步升级冲突
-
-## 5. 伏笔管理
-- **新伏笔**: 需要埋设的新伏笔
-- **旧伏笔**: 需要回收的旧伏笔
-- **伏笔网络**: 伏笔之间的关联
-
-请严格按照以下JSON格式输出
-{{
-    "stage_writing_plan": {{
-        "stage_overview": "本阶段总体写作概述",
-        "targets": {{
-            "main_target": "主要目标",
-            "secondary_targets": ["次要目标1", "次要目标2"],
-            "milestones": ["里程碑1", "里程碑2"]
-        }},
-        "event_system": {{
-            "overall_approach": "本阶段事件驱动方法论",
+# JSON输出格式定义
+```json
+{
+    "stage_writing_plan": {
+        "stage_name": "string // 阶段的唯一标识符，例如 opening_stage",
+        "chapter_range": "string // 阶段覆盖的章节范围，例如 '1-3章'",
+        "stage_overview": "string // 对本阶段总体写作目标的简要概述",
+        "targets": {
+            "main_target": "string // 本阶段必须完成的核心目标，概括阶段的核心价值",
+            "secondary_targets": [
+                "string // 支撑主要目标的次要目标1",
+                "string // 支撑主要目标的次要目标2"
+            ],
+            "milestones": [
+                "string // 标志阶段性进展的关键节点或检查点"
+            ]
+        },
+        "event_system": {
+            "overall_approach": "string // 描述本阶段事件驱动的总体策略和方法论",
             "major_events": [
-                {{
-                    "name": "重大事件名称",
+                {
+                    "name": "string // 体现阶段核心冲突的重大事件名称",
                     "type": "major_event",
-                    "start_chapter": 开始章节,
-                    "end_chapter": 结束章节,
-                    "duration": 持续时间,
-                    "significance": "事件重要性描述",
-                    "main_goal": "主要目标",
-                    "sub_goals": ["子目标1", "子目标2"],
-                    "key_moments": ["关键时刻1", "关键时刻2"],
-                    "character_development": "角色成长重点",
-                    "aftermath": "后续影响"
-                }}
+                    "start_chapter": "integer // 事件开始章节",
+                    "end_chapter": "integer // 事件结束章节",
+                    "significance": "string // 事件对整个阶段乃至全书的重要性描述",
+                    "main_goal": "string // 事件要达成的核心目标",
+                    "key_nodes": {
+                        "start": "string // 事件的起点和触发条件",
+                        "development": "string // 事件的发展和过程",
+                        "climax": "string // 事件的高潮和关键转折点",
+                        "end": "string // 事件的结局和收尾"
+                    },
+                    "character_development": "string // 主角或重要配角在此事件中的成长重点",
+                    "aftermath": "string // 事件结束后对剧情、角色或世界的直接影响"
+                }
             ],
-            "big_events": [
-                {{
-                    "name": "大事件名称",
-                    "type": "big_event", 
-                    "start_chapter": 开始章节,
-                    "end_chapter": 结束章节,
-                    "main_goal": "主要目标",
-                    "connection_to_major": "与重大事件的关联",
-                    "role": "在阶段中的作用"
-                }}
+            "supporting_events": [
+                {
+                    "name": "string // 支撑重大事件的次级事件名称",
+                    "type": "supporting_event",
+                    "chapter": "integer // 事件发生的具体章节",
+                    "main_goal": "string // 该事件的主要目标",
+                    "connection_to_major": "string // 描述此事件如何为重大事件服务（铺垫、补充、收尾等）"
+                }
+            ]
+        },
+        "plot_strategy": {
+            "main_plot_advancement": "string // 主线情节在本阶段如何具体推进",
+            "subplot_arrangement": "string // 支线剧情的安排策略，若无则说明",
+            "pace_control": "string // 写作节奏的控制策略（如快节奏、张弛有度等）"
+        },
+        "character_development": {
+            "protagonist_growth": "string // 主角在本阶段的核心成长轨迹和变化",
+            "supporting_characters_focus": "string // 重要配角/反派的塑造计划和功能",
+            "relationship_development": "string // 角色之间关系的变化和发展"
+        },
+        "conflict_design": {
+            "main_conflict": "string // 本阶段的核心冲突是什么",
+            "secondary_conflicts": [
+                "string // 辅助性的次要冲突1"
             ],
-        }},
-        "plot_strategy": {{
-            "main_plot_advancement": "主线推进策略",
-            "subplot_arrangement": "支线安排策略",
-            "pace_control": "节奏控制策略"
-        }},
-        "character_development": {{
-            "protagonist_growth": "主角成长计划",
-            "supporting_characters": "配角塑造计划", 
-            "relationship_development": "关系发展计划"
-        }},
-        "conflict_design": {{
-            "main_conflict": "主要冲突设计",
-            "secondary_conflicts": ["次要冲突1", "次要冲突2"],
-            "conflict_escalation": "冲突升级策略"
-        }},
-        "foreshadowing_management": {{
-            "new_foreshadowing": ["新伏笔1", "新伏笔2"],
-            "old_foreshadowing_reveal": ["回收伏笔1", "回收伏笔2"],
-            "foreshadowing_network": "伏笔网络设计"
-        }}
-    }},
-    "chapter_specific_guidance": "基于当前章节位置的特别指导"
-}}""",
+            "conflict_escalation": "string // 冲突如何在本阶段逐步升级和激化"
+        },
+        "foreshadowing_management": {
+            "new_foreshadowing": [
+                "string // 需要在本阶段埋下的新伏笔"
+            ],
+            "old_foreshadowing_reveal": [
+                "string // 需要在本阶段回收的旧伏笔，若无则为空数组"
+            ],
+            "foreshadowing_network": "string // 描述新旧伏笔之间的关联，以及它们对后续剧情的影响"
+        }
+    },
+    "chapter_specific_guidance": "string // 基于当前阶段特点，提供给作者的最核心、最关键的一句话写作指导"
+}
+```
+""",
         "overall_stage_plan": """你是一位顶级番茄网络小说策划编辑。请根据创意种子和市场分析，制定全书的阶段计划。
 
 # 输出格式
