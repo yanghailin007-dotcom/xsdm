@@ -300,7 +300,7 @@ class APIClient:
                 request_time = time.time() - start_time
                 print(f"  ⏰ {target_provider.upper()} API超时 (已等待{request_time:.1f}秒)")
                 # 保存超时调试信息
-                self._save_api_call_debug(system_prompt, user_prompt, f"请求超时 (已等待{request_time:.1f}秒)", purpose, target_provider, model_name, attempt+1)
+                #self._save_api_call_debug(system_prompt, user_prompt, f"请求超时 (已等待{request_time:.1f}秒)", purpose, target_provider, model_name, attempt+1)
                 if attempt < self.config["defaults"]["max_retries"] - 1:
                     delay = 30
                     print(f"  ⏳ 等待{delay}秒后重试...")

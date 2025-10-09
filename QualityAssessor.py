@@ -16,10 +16,10 @@ class QualityAssessor:
         
         # 内化质量阈值配置
         self.quality_thresholds = {
-            "excellent": 9.0,
-            "good": 8.5,
-            "acceptable": 8.0,
-            "needs_optimization": 7.5,
+            "excellent": 9.5,
+            "good": 9.0,
+            "acceptable": 8.5,
+            "needs_optimization": 8.0,
             "needs_rewrite": 6.0
         }
         

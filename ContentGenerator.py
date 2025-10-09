@@ -745,7 +745,7 @@ class ContentGenerator:
         score = assessment.get("overall_score", 0)
         
         # 强制优化阈值
-        if score < 7.5:
+        if score < 8.0:
             return True, f"评分低于优化阈值7.5分，需要优化"
         
         # 建议优化范围
@@ -1499,7 +1499,7 @@ class ContentGenerator:
                 character_relations[char_b].append(f"{char_a}({rel_type})")
         
         # 显示每个角色的关系网络
-        for char_name, relations in list(character_relations.items())[:6]:  # 显示前6个角色
+        for char_name, relations in list(character_relations.items())[:10]:  # 显示前6个角色
             note_parts.append(f"- **{char_name}** 认识: {', '.join(relations)}")
         
         note_parts.extend([
