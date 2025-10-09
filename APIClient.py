@@ -442,7 +442,7 @@ class APIClient:
 
     def generate_content_with_retry(self, content_type: str, user_prompt: str, 
                                   temperature: float = None, purpose: str = "内容生成",
-                                  provider: str = None, enable_prompt_optimization: bool = False) -> Optional[Any]:
+                                  provider: str = None, enable_prompt_optimization: bool = True) -> Optional[Any]:
         """带重试机制的内容生成 - 增强JSON格式要求版本"""
         if content_type not in self.Prompts["prompts"]:
             print(f"❌ 不支持的内容类型: {content_type}")
@@ -502,37 +502,48 @@ class APIClient:
         """优化提示词 - 让AI分析并返回最佳提示词"""
         print(f"🔄 开始优化 {content_type} 的提示词...")
         
-        optimization_system_prompt = """你是一个专业的提示词优化专家。请分析提供的提示词和对应的AI响应，然后返回优化后的system_prompt和user_prompt。
+        optimization_system_prompt = """你是一位顶级的提示词工程师（Prompt Engineer），专注于设计和优化“可复用的提示词模板”。
 
-请返回JSON格式：
+你的核心任务是分析一个提示词模板及其在一次具体调用中的表现（输入 -> 输出），然后将其优化成一个更通用、更稳定、更高质量的“模板”。
+
+**核心工作逻辑：**
+把【当前提示词】想象成一个“函数”，而提供的【AI实际响应】和【解析结果】只是用于测试这个“函数”的一次“输入/输出”样本。你的优化必须是针对“函数”本身的逻辑和结构，使其能够更好地处理各种不同的输入，而不仅仅是优化本次的样本输出。
+
+**关键原则：绝对不要针对内容进行优化。**
+- **禁止**：修改或建议修改小说情节、角色名、世界观等具体内容。
+- **聚焦**：提示词的 **措辞、结构、指令清晰度、格式要求和示例**。你的目标是让这个提示词模板在面对**任何一本小说**时都能表现出色。
+
+请严格按照以下JSON格式返回你的分析和优化结果：
 {
-    "optimized_system_prompt": "优化后的system_prompt",
-    "optimized_user_prompt": "优化后的user_prompt",
-    "improvement_reasons": ["改进原因1", "改进原因2"]
+    "optimized_system_prompt": "优化后的system_prompt模板",
+    "optimized_user_prompt": "优化后的user_prompt模板",
+    "improvement_reasons": ["解释为什么这样优化能提高模板的通用性和稳定性", "分析原始模板可能存在的问题"]
 }
 
-优化目标：
-1. 提高响应质量
-2. 减少歧义
-3. 提高JSON格式的稳定性
-4. 减少不必要的复杂性
-5. 保持核心需求不变"""
+**优化目标：**
+1.  **通用性与可复用性**：确保模板适用于不同的小说内容。
+2.  **指令清晰性**：减少AI对指令的误解和歧义。
+3.  **输出稳定性**：提高JSON等结构化输出的成功率和准确性。
+4.  **效率**：在保持质量的前提下，简化不必要的复杂指令。
+5.  **忠实于原始意图**：优化后的模板必须仍然服务于原始的核心需求。
+"""
 
-        optimization_user_prompt = f"""请优化以下提示词：
+        optimization_user_prompt = f"""请根据system_prompt中的核心要求，对以下这个“提示词模板”进行通用性优化。
 
-【当前system_prompt】：
+【当前system_prompt模板】：
 {original_system_prompt}
 
-【当前user_prompt】：
+【当前user_prompt模板】：
 {original_user_prompt}
 
-【AI实际响应】：
+【用于测试的AI响应样本】：
 {api_response}
 
-【解析后的结果】：
+【样本解析结果】：
 {json.dumps(parsed_result, ensure_ascii=False, indent=2)}
 
-请分析当前提示词的问题，并提供优化版本。"""
+请记住，你的目标是优化这个“模板”本身，而不是优化这份具体的“小说内容样本”。
+"""
 
         try:
             result = self.call_api(
