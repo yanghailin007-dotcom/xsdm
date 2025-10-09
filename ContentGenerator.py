@@ -835,75 +835,73 @@ class ContentGenerator:
         
     def generate_chapter_design(self, chapter_params: Dict) -> Optional[Dict]:
         """生成章节详细设计方案"""
-        try:
 
-            # 添加情绪缓冲部分
-            emotional_break_section = ""
-            if chapter_params.get("emotional_break_needed"):
-                emotional_break_section = f"""
-                
-        # 情绪缓冲指导（重要）
-        {chapter_params.get("emotional_break_guidance", "")}
-        
-        【特别注意】本章需要适当降低情绪强度，给读者释放空间。
-        请合理安排缓冲内容，既要让读者放松，又要保持故事吸引力。
-                """
+        design_prompt = f"""
+你是一位顶级的网络小说总编辑。你的任务是消化所有背景资料，为一位顶级写手制定一份详尽的、自包含的“章节创作蓝图”。
+这位写手只会看到你输出的这份蓝图，所以你必须将所有必要的写作指令、风格要求、一致性提醒都整合进这份蓝图中。
 
-            design_prompt = f"""你是一位资深的网络小说策划编辑。请为第{chapter_params.get("chapter_number", 1)}章制定详细的写作设计方案。
+# 故事基础设定（供你参考）
+**小说标题**: {chapter_params.get("novel_title")}
+**小说简介**: {chapter_params.get("novel_synopsis")}
+**世界观/角色/写作计划**: {chapter_params.get("worldview_info")}, {chapter_params.get("character_info")}, {chapter_params.get("stage_writing_plan")}
+**前情提要**: {chapter_params.get("previous_chapters_summary")}
+**上下文指导**: {chapter_params.get("event_driven_guidance")}, {chapter_params.get("foreshadowing_guidance")}
+**角色发展指导**: {chapter_params.get("character_development_guidance")}
 
-    # 故事基础设定（必须严格遵循）
-    **小说标题**: 
-    {chapter_params.get("novel_title", "未知小说")}
-    **小说简介**: 
-    {chapter_params.get("novel_synopsis", "")}
-    {emotional_break_section}
-    **世界观设定**: 
-    {chapter_params.get("worldview_info", "{}")}
-    **角色设定**: 
-    {chapter_params.get("character_info", "{}")}
-    **写作计划**: 
-    {chapter_params.get("stage_writing_plan", "{}")}
+# 你的任务
+请根据以上所有信息，为第 {chapter_params.get("chapter_number")} 章生成一份JSON格式的“创作蓝图”。
 
-    {chapter_params.get("main_character_instruction", "")}
-
-    # 上下文信息
-    **前情提要**: 
-    {chapter_params.get("previous_chapters_summary", "")}
-    **本章定位**: 
-    第{chapter_params.get("chapter_number", 1)}/{chapter_params.get("total_chapters", 30)}章 - {chapter_params.get("plot_direction", "")}
-    **重点推进**: 
-    {chapter_params.get("main_plot_progress", "")}
-    **角色发展重点**: 
-    {chapter_params.get("character_development_focus", "")}
-    **衔接要求**: 
-    {chapter_params.get("chapter_connection_note", "")}
-
-    # 事件驱动指导
-    {chapter_params.get("event_driven_guidance", "123")}
-
-    # 伏笔铺垫指导
-    {chapter_params.get("foreshadowing_guidance", "123")}
+**【输出要求】**
+必须严格按照以下JSON结构输出，不要有任何增减或修改：
+{{
+    "chapter_number": {chapter_params.get("chapter_number")},
+    "chapter_title": "（为本章起一个富有吸引力的标题）",
+    "chapter_summary": "（用一句话总结本章的核心内容和目的）",
+    "writing_style_directives": {{
+        "core_tone": "（根据本章情节，指定核心基调，如：紧张悬疑、轻松日常、热血激昂等）",
+        "narrative_pace": "（指定叙事节奏，如：快速推进，通过连续的动作和对话制造紧张感）",
+        "description_focus": ["（列出本章描写的重点，如：新场景的环境氛围、角色的内心挣扎、一场关键战斗的细节）"]
+    }},
+    "consistency_cheatsheet": {{
+        "reminder": "（生成一段简短的一致性提醒，例如：'注意：主角此时还不知道反派的真实身份，不要在内心独白中泄露'）",
+        "key_character_status": ["（列出本章出场角色的关键状态，例如：'秦峥：表面镇定，内心在谋划反击'）"],
+        "relationship_check": ["（列出需要特别注意的人物关系，例如：'秦峥与卢斌的关系是初步震慑，互动时需体现卢斌的敬畏'）"]
+    }},
+    "scene_by_scene_outline": [
+        {{
+            "scene_number": 1,
+            "scene_goal": "（明确场景目标，例如：'通过对话，展示主角的智谋和布局能力'）",
+            "key_actions_and_dialogues": "（描述场景中的关键动作和对话要点）",
+            "character_focus": "（指出这个场景主要刻画哪个角色的哪方面特质）"
+        }},
+        {{
+            "scene_number": 2,
+            "scene_goal": "...",
+            "key_actions_and_dialogues": "...",
+            "character_focus": "..."
+        }}
+    ],
+    "foreshadowing_and_events": {{
+        "elements_to_introduce": ["（明确列出本章需要首次引入的伏笔元素）"],
+        "elements_to_develop": ["（明确列出本章需要进一步发展的已有伏笔）"]
+    }},
+    "next_chapter_hook": "（设计一个具体的、能引发读者好奇心的结尾悬念）"
+}}
 """
-
-            print(f"  📝 生成第{chapter_params.get('chapter_number', 1)}章设计方案...")
-            design_result = self.api_client.generate_content_with_retry(
-                "chapter_design", 
-                design_prompt, 
-                purpose=f"制定第{chapter_params.get('chapter_number', 1)}章设计方案"
-            )
-            
-            if design_result:
-                print(f"  ✅ 第{chapter_params.get('chapter_number', 1)}章设计方案生成成功")
-                return design_result
-            else:
-                print(f"  ❌ 第{chapter_params.get('chapter_number', 1)}章设计方案生成失败")
-                return None
-                
-        except Exception as e:
-            print(f"  ❌ 生成章节设计方案时出错: {e}")
-            import traceback
-            traceback.print_exc()
+        print(f"  📝 生成第{chapter_params.get('chapter_number', 1)}章设计方案...")
+        design_result = self.api_client.generate_content_with_retry(
+            "chapter_design", 
+            design_prompt, 
+            purpose=f"制定第{chapter_params.get('chapter_number', 1)}章设计方案"
+        )
+        
+        if design_result:
+            print(f"  ✅ 第{chapter_params.get('chapter_number', 1)}章设计方案生成成功")
+            return design_result
+        else:
+            print(f"  ❌ 第{chapter_params.get('chapter_number', 1)}章设计方案生成失败")
             return None
+                
 
     def _prepare_chapter_params(self, chapter_number: int, novel_data: Dict) -> Dict:
         """准备章节参数 - 增强版本，使用上下文"""
@@ -1222,119 +1220,50 @@ class ContentGenerator:
 
     def generate_chapter_content_from_design(self, chapter_params: Dict, chapter_design: Dict) -> Optional[Dict]:
         """根据设计方案生成章节内容 - 修复版本"""
-        try:
-            # 准备内容生成参数，包含所有基础设定
-            content_params = chapter_params.copy()
-            content_params["chapter_design"] = json.dumps(chapter_design, ensure_ascii=False, indent=2)
-            content_params["chapter_title"] = chapter_design.get("chapter_title", f"第{chapter_params['chapter_number']}章")
-            content_params["main_character_instruction"] = content_params.get("main_character_instruction", "")
-            
-            # 确保所有基础设定参数都存在
-            required_base_params = [
-                'worldview_info', 'character_info', 'stage_writing_plan',
-                'novel_title', 'novel_synopsis', 'main_character_instruction'
-            ]
-            
-            for param in required_base_params:
-                if param not in content_params or not content_params[param]:
-                    # 设置默认值
-                    if param == 'main_character_instruction' and not content_params.get(param):
-                        content_params[param] = ""
-            
-            # 从 character_info 中获取主角信息，而不是 self.novel_data
-            character_info_str = content_params.get('character_info', '{}')
-            try:
-                character_info = json.loads(character_info_str)
-                main_char = character_info.get('main_character', {})
-                main_character_name = main_char.get('name', '主角')
-            except:
-                main_character_name = self.custom_main_character_name or '主角'
-            
-            relationship_warning = ""
-            if chapter_params.get("relationship_consistency_check"):
-                relationship_warning = f"""
-                
-    ## 🚫 关系一致性重要警告
-    以下角色之间已经建立关系，禁止让他们重新认识或忽略已有关系：
-    {self._format_known_relationships(chapter_params.get("known_relationships", {}))}
+        # 准备内容生成参数，包含所有基础设定
+        content_params = chapter_params.copy()
+        # 确保所有基础设定参数都存在
+        required_base_params = [
+            'worldview_info', 'character_info', 'stage_writing_plan',
+            'novel_title', 'novel_synopsis', 'main_character_instruction'
+        ]
+        
+        for param in required_base_params:
+            if param not in content_params or not content_params[param]:
+                # 设置默认值
+                if param == 'main_character_instruction' and not content_params.get(param):
+                    content_params[param] = ""
+        
+        user_prompt = f"""
+你是一位顶级的网络小说作家，文笔精湛，擅长叙事。
 
-    如果这些角色在本章中互动，必须基于已有的关系状态进行，不能当做初次见面！
-                """
+你的唯一任务是：严格、完整、并富有文采地执行以下【章节创作蓝图】，创作出小说《{chapter_params.get('novel_title')}》的第 {chapter_design.get('chapter_number')} 章。
 
-                        # 添加世界状态信息
-            world_state_info = ""
-            if "previous_world_state" in content_params:
-                world_state_info = f"""
-                
-        ## 🔄 世界状态参考（确保一致性）
-        {content_params.get('previous_world_state', '{}')}
-        {relationship_warning}
-        【重要】请严格遵循上述世界状态，确保角色、物品、关系等元素的一致性。
-                """
-
-            # 直接构建内容生成提示词，不依赖 self.prompts
-            user_prompt = f"""
-内容:
-你好，“番茄作家”。请根据以下【章节创作蓝图】和【世界观参考资料】，创作小说{content_params.get('novel_title', '未知小说')}第{chapter_params['chapter_number']}章
-## 📝 章节创作蓝图 ({chapter_params['chapter_number']})
-这是本次创作的核心指令，请严格遵循。
-{content_params.get('chapter_design', '{}')}
-
-## 📚 世界观参考资料 (Background & Rules)
-这是创作时需要遵循的背景设定和角色信息。
-
-### 1. 核心设定、角色与世界状态
-**小说主角**: 
-主角: {main_character_name}
-{content_params.get('main_character_instruction', '')}
-**小说简介**: 
-{content_params.get('novel_synopsis', '')}
-- **世界观一致性**: 所有元素必须符合世界观设定
-{content_params.get('worldview_info', '{}')}
-- **世界状态一致性**:
-- **物品归属一致性**: 确保物品归属与之前章节一致
-- **关系一致性**: 角色关系不得出现矛盾
-{world_state_info}
-- **角色一致性**: 角色行为必须符合角色设定
-{content_params.get('character_development_guidance', '{}')}
-{content_params.get('character_info', '{}')}
-
-### 2. 写作风格与情节规划
-- **写作风格要求**:
-{content_params.get('writing_style_guide', '无特定要求，请保持语言流畅自然。')}
-- **情节连贯性**: 必须遵循写作计划：
-{content_params.get('stage_writing_plan', '{}')}
-
-请严格遵循以上蓝图和参考资料，生成符合`system_prompt`要求的完整JSON输出。
-    """
-            
-            print(f"  ✍️ 根据设计方案生成第{chapter_params['chapter_number']}章内容...")
-            content_result = self.api_client.generate_content_with_retry(
-                "chapter_content_generation", 
-                user_prompt, 
-                purpose=f"生成第{chapter_params['chapter_number']}章内容"
-            )
-            
-            if content_result:
-                # 记录使用的设计方案和基础设定
-                content_result["chapter_design"] = chapter_design
-                content_result["design_followed"] = True
-                content_result["base_settings_used"] = {
-                    "worldview": bool(chapter_params.get("worldview_info")),
-                    "character": bool(chapter_params.get("character_info")),
-                    "writing_plan": bool(chapter_params.get("stage_writing_plan"))
-                }
-                print(f"  ✅ 第{chapter_params['chapter_number']}章内容生成成功")
-                return content_result
-            else:
-                print(f"  ❌ 第{chapter_params['chapter_number']}章内容生成失败")
-                return None
-                
-        except Exception as e:
-            print(f"  ❌ 根据设计方案生成章节内容时出错: {e}")
-            import traceback
-            traceback.print_exc()
+【章节创作蓝图】
+{json.dumps(chapter_design, ensure_ascii=False, indent=2)}
+"""
+        print(f"  ✍️ 根据设计方案生成第{chapter_params['chapter_number']}章内容...")
+        content_result = self.api_client.generate_content_with_retry(
+            "chapter_content_generation", 
+            user_prompt, 
+            purpose=f"生成第{chapter_params['chapter_number']}章内容"
+        )
+        
+        if content_result:
+            # 记录使用的设计方案和基础设定
+            content_result["chapter_design"] = chapter_design
+            content_result["design_followed"] = True
+            content_result["base_settings_used"] = {
+                "worldview": bool(chapter_params.get("worldview_info")),
+                "character": bool(chapter_params.get("character_info")),
+                "writing_plan": bool(chapter_params.get("stage_writing_plan"))
+            }
+            print(f"  ✅ 第{chapter_params['chapter_number']}章内容生成成功")
+            return content_result
+        else:
+            print(f"  ❌ 第{chapter_params['chapter_number']}章内容生成失败")
             return None
+                
         
     def generate_writing_style_guide(self, creative_seed: str, category: str, selected_plan: Dict, market_analysis: Dict) -> Optional[Dict]:
         """生成写作风格指南"""
