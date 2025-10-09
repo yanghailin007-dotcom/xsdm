@@ -218,13 +218,195 @@ class QualityAssessor:
                 status = status_change.get('status')
                 if character_name and status in ['dead', 'exited']:
                     print(f"🔄 AI检测到角色状态变化: {character_name} -> {status}")
-                    # 简化角色信息，只保留状态
                     self._simplify_character_status(novel_title, character_name, status, chapter_number)
+            
+            # 处理世界状态增量更新
+            if 'world_state_changes' in result:
+                self._update_world_state_incrementally(novel_title, result['world_state_changes'], chapter_number)
+                # 移除changes，保存完整的世界状态到结果中用于后续处理
+                result['updated_world_state'] = self.current_world_state
             
             self.save_assessment_data(novel_title, chapter_number, result)
             self.update_character_development_from_assessment(novel_title, result, chapter_number)
                 
         return result
+
+    def _update_world_state_incrementally(self, novel_title: str, changes: Dict, chapter_number: int):
+        """增量更新世界状态"""
+        # 加载当前世界状态
+        current_state = self.load_previous_assessments(novel_title)
+        if not current_state:
+            current_state = {
+                "characters": {},
+                "items": {}, 
+                "relationships": {},
+                "skills": {},
+                "locations": {}
+            }
+        
+        # 应用增量更新
+        for category, elements in changes.items():
+            if category not in current_state:
+                current_state[category] = {}
+            
+            for element_id, element_data in elements.items():
+                if element_id in current_state[category]:
+                    # 更新现有元素
+                    current_state[category][element_id].update(element_data)
+                    current_state[category][element_id]['last_updated'] = chapter_number
+                else:
+                    # 新增元素
+                    element_data['first_appearance'] = chapter_number
+                    element_data['last_updated'] = chapter_number
+                    current_state[category][element_id] = element_data
+        
+        # 保存更新后的世界状态
+        self.current_world_state = current_state
+        state_file = os.path.join(self.storage_path, f"{novel_title}_world_state.json")
+        try:
+            with open(state_file, 'w', encoding='utf-8') as f:
+                json.dump(current_state, f, ensure_ascii=False, indent=2)
+        except Exception as e:
+            print(f"保存世界状态失败: {e}")
+
+    def _generate_chapter_assessment_prompt(self, params: Dict) -> str:
+        """生成章节质量评估提示词（包含一致性检查）- 修改为返回增量变化"""
+        
+        # 加载之前的世界状态
+        novel_title = params.get('novel_title', 'unknown')
+        previous_world_state = self.load_previous_assessments(novel_title)
+        
+        world_state_str = json.dumps(previous_world_state, ensure_ascii=False, indent=2) if previous_world_state else "{}"
+
+        character_development_data = self._load_character_development_data(novel_title)
+        character_development_str = json.dumps(character_development_data, ensure_ascii=False, indent=2) if character_development_data else "{}"        
+        
+        return f"""
+    你是一位资深的番茄小说内容分析师与世界观架构师。
+    你的任务是根据提供的章节信息和之前的世界观状态，进行全面的质量评估，并识别出本章节对世界观的具体变化。
+
+    ### 1. 小说信息
+    - **小说标题**: {params.get('novel_title', '未知')}
+    - **章节标题**: {params.get('chapter_title', '未知')}
+    - **章节编号**: {params.get('chapter_number', '未知')}
+    - **前情提要**: {params.get('previous_summary', '无')}
+
+    ### 2. 上一章世界观状态 (用于一致性检查)
+    {world_state_str}
+
+    现有角色发展数据:
+    {character_development_str}
+
+    章节内容预览:
+    {params.get('chapter_content', '')}
+
+    请按照以下JSON格式返回评估结果：
+    {{
+        "overall_score": "number (0-10，基于细分维度计算)",
+        "quality_verdict": "string (根据分数评定，如'优秀', '良好', '合格'等)",
+        "strengths": "array of strings (列出章节的主要优点)",
+        "weaknesses": "array of strings (列出章节的主要待改进方面)",
+        "detailed_scores": {{
+            "plot_pacing_and_appeal": "number (0-2)",
+            "characterization_and_consistency": "number (0-2)", 
+            "writing_quality_and_immersion": "number (0-2)",
+            "structure_and_cohesion": "number (0-2)",
+            "world_state_consistency": "number (0-2)"
+        }},
+        "consistency_issues": [
+            {{
+                "type": "string (枚举: CHARACTER, ITEM, RELATIONSHIP, SKILL, TIMELINE, LOCATION)",
+                "description": "string (具体问题描述)", 
+                "severity": "string (枚举: High, Medium, Low)",
+                "suggestion": "string (修复建议)"
+            }}
+        ],
+        "character_status_changes": [
+            {{
+                "character_name": "string",
+                "status": "string (枚举: active, dead, exited)", 
+                "reason": "string (状态变化原因)",
+                "chapter": "number"
+            }}
+        ],
+        "world_state_changes": {{
+            // 只包含本章节新增或发生变化的世界状态元素
+            "characters": {{
+                // 只包含本章节新出现或属性发生变化的角色
+                "新角色名或变化角色名": {{
+                    "description": "string (角色描述)",
+                    "attributes": "object (角色属性)",
+                    // 注意：不要包含first_appearance和last_updated，系统会自动处理
+                }}
+            }},
+            "items": {{
+                // 只包含本章节新出现或状态发生变化的物品
+                "新物品名或变化物品名": {{
+                    "owner": "string (拥有者)",
+                    "status": "string (物品状态)",
+                    // 注意：不要包含first_appearance和last_updated，系统会自动处理
+                }}
+            }},
+            "relationships": {{
+                // 只包含本章节新建立或发生变化的关系
+                "角色A-角色B": {{
+                    "type": "string (关系类型)",
+                    "description": "string (关系描述)",
+                    // 注意：不要包含last_updated，系统会自动处理
+                }}
+            }},
+            "skills": {{
+                // 只包含本章节新出现或发生变化的技能
+                "新技能名或变化技能名": {{
+                    "owner": "string (拥有者)", 
+                    "level": "string (技能等级)",
+                    "description": "string (技能描述)",
+                    // 注意：不要包含first_appearance和last_updated，系统会自动处理
+                }}
+            }},
+            "locations": {{
+                // 只包含本章节新出现或发生变化的地点
+                "新地点名或变化地点名": {{
+                    "description": "string (地点描述)",
+                    // 注意：不要包含first_appearance和last_updated，系统会自动处理
+                }}
+            }}
+        }},
+        "character_development_assessment": {{
+            "new_characters_introduced": [
+                {{
+                    "name": "string",
+                    "role_type": "string (主角/重要配角/次要配角)", 
+                    "initial_impression": "string",
+                    "development_potential": "string"
+                }}
+            ],
+            "existing_characters_development": [
+                {{
+                    "name": "string",
+                    "growth_shown": "string (本章展现的成长或变化)",
+                    "consistency_issues": "string (与过往设定的不一致之处，若无则为'无')", 
+                    "development_suggestions": "array of strings (具体的发展建议)"
+                }}
+            ],
+            "iconic_scenes_identified": [
+                {{
+                    "character": "string",
+                    "scene_description": "string",
+                    "trait_demonstrated": "string (场景展现的角色特质)",
+                    "impact_level": "string (High/Medium/Low)"
+                }}
+            ]
+        }},
+        "assessment_timestamp": "string (生成报告的ISO 8601格式时间戳，例如: '2024-05-16T12:00:00Z')"
+    }}
+
+    重要说明：
+    1. world_state_changes 只包含本章节新增或发生变化的世界状态元素
+    2. 对于已存在但未变化的元素，不要包含在world_state_changes中
+    3. 系统会自动处理first_appearance和last_updated字段
+    4. 保持与之前世界状态的一致性，只报告本章节带来的变化
+    """
 
     def _simplify_character_status(self, novel_title: str, character_name: str, status: str, chapter_number: int):
         """简化死亡/退场角色的信息，只保留状态和姓名"""
@@ -257,113 +439,6 @@ class QualityAssessor:
         except Exception as e:
             print(f"❌ 简化角色状态失败: {e}")
     
-    def _generate_chapter_assessment_prompt(self, params: Dict) -> str:
-        """生成章节质量评估提示词（包含一致性检查）"""
-        
-        # 加载之前的世界状态
-        novel_title = params.get('novel_title', 'unknown')
-        previous_world_state = self.load_previous_assessments(novel_title)
-        
-        world_state_str = json.dumps(previous_world_state, ensure_ascii=False, indent=2) if previous_world_state else "{}"
-
-        character_development_data = self._load_character_development_data(novel_title)
-    
-        character_development_str = json.dumps(character_development_data, ensure_ascii=False, indent=2) if character_development_data else "{}"        
-        return f"""
-你是一位资深的番茄小说内容分析师与世界观架构师。
-你的任务是根据提供的章节信息和之前的世界观状态，进行全面的质量评估，并生成更新后的世界观。
-
-### 1. 小说信息
-- **小说标题**: {params.get('novel_title', '未知')}
-- **章节标题**: {params.get('chapter_title', '未知')}
-- **章节编号**: {params.get('chapter_number', '未知')}
-- **前情提要**: {params.get('previous_summary', '无')}
-
-### 2. 上一章世界观状态 (用于一致性检查)
-{world_state_str}
-
-现有角色发展数据:
-{character_development_str}
-
-章节内容预览:
-{params.get('chapter_content', '')}
-
-请按照以下JSON格式返回评估结果：
-{{
-    "overall_score": "number (0-10，基于细分维度计算)",
-    "quality_verdict": "string (根据分数评定，如'优秀', '良好', '合格'等)",
-    "strengths": "array of strings (列出章节的主要优点)",
-    "weaknesses": "array of strings (列出章节的主要待改进方面)",
-    "detailed_scores": {{
-        "plot_pacing_and_appeal": "number (0-2)",
-        "characterization_and_consistency": "number (0-2)",
-        "writing_quality_and_immersion": "number (0-2)",
-        "structure_and_cohesion": "number (0-2)",
-        "world_state_consistency": "number (0-2)"
-    }},
-    "consistency_issues": [
-        {{
-            "type": "string (枚举: CHARACTER, ITEM, RELATIONSHIP, SKILL, TIMELINE, LOCATION)",
-            "description": "string (具体问题描述)",
-            "severity": "string (枚举: High, Medium, Low)",
-            "suggestion": "string (修复建议)"
-        }}
-    ],
-    "character_status_changes": [
-        {{
-            "character_name": "string",
-            "status": "string (枚举: active, dead, exited)",
-            "reason": "string (状态变化原因)",
-            "chapter": "number"
-        }}
-    ],
-    "updated_world_state": {{
-        "characters": {{
-            "角色名": {{"first_appearance": "number", "description": "string", "attributes": "object", "last_updated": "number"}}
-        }},
-        "items": {{
-             "物品名": {{"owner": "string", "status": "string", "first_appearance": "number", "last_updated": "number"}}
-        }},
-        "relationships": {{
-            "角色A-角色B": {{"type": "string", "description": "string", "last_updated": "number"}}
-        }},
-        "skills": {{
-            "技能名": {{"owner": "string", "level": "string", "description": "string", "first_appearance": "number", "last_updated": "number"}}
-        }},
-        "locations": {{
-            "地点名": {{"description": "string", "first_appearance": "number", "last_updated": "number"}}
-        }}
-    }},
-    "character_development_assessment": {{
-        "new_characters_introduced": [
-            {{
-                "name": "string",
-                "role_type": "string (主角/重要配角/次要配角)",
-                "initial_impression": "string",
-                "development_potential": "string"
-            }}
-        ],
-        "existing_characters_development": [
-            {{
-                "name": "string",
-                "growth_shown": "string (本章展现的成长或变化)",
-                "consistency_issues": "string (与过往设定的不一致之处，若无则为'无')",
-                "development_suggestions": "array of strings (具体的发展建议)"
-            }}
-        ],
-        "iconic_scenes_identified": [
-            {{
-                "character": "string",
-                "scene_description": "string",
-                "trait_demonstrated": "string (场景展现的角色特质)",
-                "impact_level": "string (High/Medium/Low)"
-            }}
-        ]
-    }},
-    "assessment_timestamp": "string (生成报告的ISO 8601格式时间戳，例如: '2024-05-16T12:00:00Z')"
-}}
-"""
-    
     def optimize_chapter_content(self, optimization_params: Dict) -> Optional[Dict]:
         """优化章节内容（包含一致性修复）"""
         user_prompt = self._generate_optimization_prompt(optimization_params)
@@ -381,7 +456,7 @@ class QualityAssessor:
         
         # 获取一致性问题和世界状态
         consistency_issues = assessment.get('consistency_issues', [])
-        world_state = assessment.get('updated_world_state', {})
+        world_state_changes = assessment.get('world_state_changes', {})
         
         consistency_fixes = ""
         if consistency_issues:
@@ -390,56 +465,63 @@ class QualityAssessor:
                 consistency_fixes += f"- {issue.get('type')}: {issue.get('description')} (严重程度: {issue.get('severity')})\n"
                 consistency_fixes += f"  建议: {issue.get('suggestion')}\n"
         
+        # 获取完整的世界状态用于参考
+        novel_title = params.get('novel_title', 'unknown')
+        full_world_state = self.load_previous_assessments(novel_title)
+        
         return f"""
-请根据以下评估结果对章节内容进行优化，特别关注一致性问题的修复：
+    请根据以下评估结果对章节内容进行优化，特别关注一致性问题的修复：
 
-质量评估结果:
-- 总体评分: {assessment.get('overall_score', 0)}/10分
-- 主要问题: {', '.join(assessment.get('weaknesses', []))}
-- 优化强度: {params.get('optimization_intensity', '中度优化')}
+    质量评估结果:
+    - 总体评分: {assessment.get('overall_score', 0)}/10分
+    - 主要问题: {', '.join(assessment.get('weaknesses', []))}
+    - 优化强度: {params.get('optimization_intensity', '中度优化')}
 
-{consistency_fixes}
+    {consistency_fixes}
 
-当前世界状态参考:
-{json.dumps(world_state, ensure_ascii=False, indent=2) if world_state else "无"}
+    本章节世界状态变化:
+    {json.dumps(world_state_changes, ensure_ascii=False, indent=2) if world_state_changes else "无新增变化"}
 
-需要重点优化的方面:
-1. {params.get('priority_fix_1', '提升整体质量')}
-2. {params.get('priority_fix_2', '')}
-3. {params.get('priority_fix_3', '')}
+    完整世界状态参考:
+    {json.dumps(full_world_state, ensure_ascii=False, indent=2) if full_world_state else "无"}
 
-原始内容:
-{original_content}
+    需要重点优化的方面:
+    1. {params.get('priority_fix_1', '提升整体质量')}
+    2. {params.get('priority_fix_2', '')}
+    3. {params.get('priority_fix_3', '')}
 
-优化要求:
-1. 保持原有情节和核心内容不变
-2. 重点解决上述质量问题
-3. 消除明显的AI生成痕迹
-4. 修复所有一致性相关问题
-5. 确保与之前章节的世界状态保持一致
+    原始内容:
+    {original_content}
 
-## 2. 写作风格要求
-**写作风格**: {params.get('writing_style_guide', '无特定要求，请保持语言流畅自然。')}
+    优化要求:
+    1. 保持原有情节和核心内容不变
+    2. 重点解决上述质量问题
+    3. 消除明显的AI生成痕迹
+    4. 修复所有一致性相关问题
+    5. 确保与之前章节的世界状态保持一致
 
-## 3. 内容要求
-- 输出正文超过2000字
-- 章节结尾设置悬念，引导读者继续阅读
-- 保持情节推进和角色发展
-- 确保角色、物品、关系、技能等要素的一致性
+    ## 2. 写作风格要求
+    **写作风格**: {params.get('writing_style_guide', '无特定要求，请保持语言流畅自然。')}
 
-请返回优化后的完整章节内容，并按照以下JSON格式输出：
-{{
-    "content": "优化后的完整章节内容",
-    "optimization_summary": "优化总结",
-    "changes_made": ["具体修改1", "具体修改2", "具体修改3"],
-    "consistency_fixes": ["一致性修复1", "一致性修复2"],
-    "word_count": 优化后字数,
-    "quality_improvement": "质量提升说明",
-    "updated_world_state": {{
-        // 更新后的世界状态
+    ## 3. 内容要求
+    - 输出正文超过2000字
+    - 章节结尾设置悬念，引导读者继续阅读
+    - 保持情节推进和角色发展
+    - 确保角色、物品、关系、技能等要素的一致性
+
+    请返回优化后的完整章节内容，并按照以下JSON格式输出：
+    {{
+        "content": "优化后的完整章节内容",
+        "optimization_summary": "优化总结", 
+        "changes_made": ["具体修改1", "具体修改2", "具体修改3"],
+        "consistency_fixes": ["一致性修复1", "一致性修复2"],
+        "word_count": 优化后字数,
+        "quality_improvement": "质量提升说明",
+        "world_state_changes": {{
+            // 优化过程中产生的世界状态变化（增量）
+        }}
     }}
-}}
-"""
+    """
     
     def get_quality_verdict(self, score: float) -> Tuple[str, str]:
         """获取质量评级"""
