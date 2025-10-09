@@ -189,7 +189,7 @@ class ElementTimingPlanner:
         # 2. 收集世界观元素
         worldview = novel_data.get("core_worldview", {})
         
-        # 收集势力
+        # 收集势力 - 修复：从世界观中收集
         if "major_factions" in worldview:
             for faction in worldview["major_factions"]:
                 if isinstance(faction, dict):
@@ -262,7 +262,7 @@ class ElementTimingPlanner:
                                 "description": "系统能力"
                             })
         
-        # 4. 从全局成长计划中收集额外元素
+        # 4. 从全局成长计划中收集额外元素 - 修复：正确处理列表类型
         if global_plan:
             # 收集成长阶段
             stages = global_plan.get("stage_framework", [])
@@ -272,14 +272,16 @@ class ElementTimingPlanner:
                     "description": f"目标: {', '.join(stage.get('core_objectives', []))}"
                 })
             
-            # 收集势力发展
-            faction_trajectory = global_plan.get("faction_development_trajectory", {})
-            for faction_name, faction_info in faction_trajectory.items():
-                if faction_name not in [f["name"] for f in elements["factions"]]:
-                    elements["factions"].append({
-                        "name": faction_name,
-                        "description": f"发展路径: {faction_info.get('development_path', '')}"
-                    })
+            # 修复：正确处理 faction_development_trajectory 列表
+            faction_trajectory = global_plan.get("faction_development_trajectory", [])
+            for faction_info in faction_trajectory:
+                if isinstance(faction_info, dict):
+                    faction_name = faction_info.get("name", "未知势力")
+                    if faction_name not in [f["name"] for f in elements["factions"]]:
+                        elements["factions"].append({
+                            "name": faction_name,
+                            "description": f"发展路径: {faction_info.get('development_path', '')}"
+                        })
         
         # 5. 从阶段写作计划中收集事件元素
         stage_plans = novel_data.get("stage_writing_plans", {})
