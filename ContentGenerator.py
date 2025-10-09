@@ -1313,19 +1313,24 @@ class ContentGenerator:
             traceback.print_exc()
             return None
         
-    def generate_writing_style_guide(self, creative_seed: str, category: str, selected_plan: Dict) -> Optional[Dict]:
+    def generate_writing_style_guide(self, creative_seed: str, category: str, selected_plan: Dict, market_analysis: Dict) -> Optional[Dict]:
         """生成写作风格指南"""
         print(f"  🎨 为分类'{category}'生成写作风格指南...")
         
         try:
             # 构建提示词
             user_prompt = f"""
-    请基于以下信息，生成一个具体可执行的写作风格指南：
+内容:
+编辑，请根据以下【小说核心简报】，为我生成一份专业的写作风格指南。
 
-    【小说分类】{category}
-    【创意种子】{creative_seed}
-    【核心方向】{selected_plan.get('core_direction', '')}
-    【目标读者】{selected_plan.get('target_audience', '')}
+## 小说核心简报 ##
+
+小说分类: {category}
+小说创意: {creative_seed}
+核心主题: {selected_plan.get('core_direction', '')}
+核心卖点: {market_analysis.get('core_selling_points', '')}
+
+目标读者: {selected_plan.get('target_audience', '')}
 
     """
 

@@ -605,7 +605,7 @@ class NovelGenerator:
             return False
 
         self.novel_data["current_progress"]["stage"] = "元素时机规划"
-        if not self._generate_element_timing_plan(creative_seed, total_chapters):
+        if not self._generate_element_timing_plan():
             print("⚠️  元素登场时机规划生成失败，使用基础时机")   
 
         # 步骤8: 初始化系统
@@ -624,7 +624,7 @@ class NovelGenerator:
         # ==================== 第五阶段：章节内容生成 ====================
         return self._generate_all_chapters(total_chapters)
 
-    def _generate_element_timing_plan(self, creative_seed: str, total_chapters: int) -> bool:
+    def _generate_element_timing_plan(self) -> bool:
         """生成元素登场时机规划"""
         print("=== 步骤7.5: 制定元素登场时机规划 ===")
         
@@ -814,7 +814,8 @@ class NovelGenerator:
             writing_style = self.content_generator.generate_writing_style_guide(
                 creative_seed, 
                 category,
-                self.novel_data["selected_plan"]
+                self.novel_data["selected_plan"],
+                self.novel_data["market_analysis"]
             )
             
             if writing_style:
