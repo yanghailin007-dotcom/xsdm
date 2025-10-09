@@ -2320,7 +2320,6 @@ class NovelGenerator:
         
         try:
             remark = self.api_client.call_api(
-                'deepseek', 
                 "你是番茄小说开场白生成专家，风格超级俏皮幽默", 
                 prompt, 
                 0.8,  # 提高创造性
