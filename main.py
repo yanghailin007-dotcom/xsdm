@@ -41,6 +41,19 @@ def main():
                 # 继续最新项目
                 selected_project = existing_projects[0]
                 if generator.load_project_data(selected_project["filename"]):
+                    # 🆕 先进行完整性检查
+                    integrity_report = generator.project_manager.validate_chapter_integrity(generator.novel_data)
+                    print(f"\n📊 章节完整性报告:")
+                    print(f"  预期章节: 1-{integrity_report['expected_total']} (共{integrity_report['expected_total']}章)")
+                    print(f"  实际文件: {integrity_report['actual_files']}章")
+                    print(f"  内存数据: {integrity_report['memory_chapters']}章")
+                    print(f"  完成度: {integrity_report['completion_rate']}%")
+                    
+                    if integrity_report['missing_chapters']:
+                        print(f"  ❗ 缺失章节: {integrity_report['missing_chapters']}")
+                    
+                    if integrity_report['memory_but_no_file']:
+                        print(f"  💾 需重新保存: {integrity_report['memory_but_no_file']}")
                     try:
                         total_chapters = int(input(f"请输入总章节数 (当前{generator.novel_data['current_progress']['total_chapters']}章, 默认保持不变): ") or generator.novel_data['current_progress']['total_chapters'])
                     except ValueError:
@@ -65,6 +78,19 @@ def main():
                 if project_choice.isdigit() and 1 <= int(project_choice) <= len(all_projects):
                     selected_project = all_projects[int(project_choice) - 1]
                     if generator.load_project_data(selected_project["filename"]):
+                        # 🆕 先进行完整性检查
+                        integrity_report = generator.project_manager.validate_chapter_integrity(generator.novel_data)
+                        print(f"\n📊 章节完整性报告:")
+                        print(f"  预期章节: 1-{integrity_report['expected_total']} (共{integrity_report['expected_total']}章)")
+                        print(f"  实际文件: {integrity_report['actual_files']}章")
+                        print(f"  内存数据: {integrity_report['memory_chapters']}章")
+                        print(f"  完成度: {integrity_report['completion_rate']}%")
+                        
+                        if integrity_report['missing_chapters']:
+                            print(f"  ❗ 缺失章节: {integrity_report['missing_chapters']}")
+                        
+                        if integrity_report['memory_but_no_file']:
+                            print(f"  💾 需重新保存: {integrity_report['memory_but_no_file']}")
                         try:
                             total_chapters = int(input(f"请输入总章节数 (当前{generator.novel_data['current_progress']['total_chapters']}章, 默认保持不变): ") or generator.novel_data['current_progress']['total_chapters'])
                         except ValueError:

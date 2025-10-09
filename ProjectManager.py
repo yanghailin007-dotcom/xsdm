@@ -500,4 +500,63 @@ class ProjectManager:
             return schedule
         except Exception as e:
             print(f"❌ 加载元素引入计划失败: {e}")
-            return {}            
+            return {}    
+
+    def get_actual_chapter_files(self, novel_title: str) -> Dict:
+        """获取实际的章节文件信息"""
+        safe_title = re.sub(r'[\\/*?:"<>|]', "_", novel_title)
+        chapters_dir = f"小说项目/{safe_title}_章节"
+        
+        result = {
+            "total_files": 0,
+            "existing_chapters": [],
+            "missing_chapters": [],
+            "chapter_files": {}
+        }
+        
+        if not os.path.exists(chapters_dir):
+            return result
+        
+        # 收集所有章节文件
+        existing_chapters = set()
+        for filename in os.listdir(chapters_dir):
+            if filename.endswith('.txt'):
+                match = re.search(r'第(\d+)章', filename)
+                if match:
+                    chapter_num = int(match.group(1))
+                    existing_chapters.add(chapter_num)
+                    result["chapter_files"][chapter_num] = filename
+        
+        result["total_files"] = len(existing_chapters)
+        result["existing_chapters"] = sorted(existing_chapters)
+        
+        return result
+
+    def validate_chapter_integrity(self, novel_data: Dict) -> Dict:
+        """验证章节完整性，返回详细的完整性报告"""
+        novel_title = novel_data["novel_title"]
+        total_chapters = novel_data["current_progress"]["total_chapters"]
+        
+        # 获取实际文件信息
+        file_info = self.get_actual_chapter_files(novel_title)
+        
+        # 计算缺失章节
+        expected_chapters = set(range(1, total_chapters + 1))
+        existing_chapters = set(file_info["existing_chapters"])
+        missing_chapters = sorted(expected_chapters - existing_chapters)
+        
+        # 检查内存中的数据
+        generated_in_memory = set(novel_data.get("generated_chapters", {}).keys())
+        memory_but_no_file = sorted(generated_in_memory - existing_chapters)
+        file_but_no_memory = sorted(existing_chapters - generated_in_memory)
+        
+        return {
+            "expected_total": total_chapters,
+            "actual_files": file_info["total_files"],
+            "memory_chapters": len(generated_in_memory),
+            "missing_chapters": missing_chapters,
+            "memory_but_no_file": memory_but_no_file,
+            "file_but_no_memory": file_but_no_memory,
+            "completion_rate": round(file_info["total_files"] / total_chapters * 100, 1) if total_chapters > 0 else 0,
+            "is_complete": len(missing_chapters) == 0
+        }           

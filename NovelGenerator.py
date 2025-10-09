@@ -444,24 +444,31 @@ class NovelGenerator:
             traceback.print_exc()
      
     def resume_generation(self, total_chapters: int = None) -> bool:
-        """继续生成小说 - 修复版本：以目录下实际章节数量为准"""
+        """继续生成小说 - 修复版本：基于实际文件检查并补写缺失章节"""
         print("   继续生成小说...")
         
-        # 🆕 关键修复：以目录下实际章节数量为准，校准进度
-        actual_chapter_count = len(self.novel_data.get("generated_chapters", {}))
-        if actual_chapter_count > self.novel_data["current_progress"]["completed_chapters"]:
-            print(f"🔄 校准进度信息: {self.novel_data['current_progress']['completed_chapters']} -> {actual_chapter_count}章")
-            self.novel_data["current_progress"]["completed_chapters"] = actual_chapter_count
+        # 🆕 首先进行实际文件检查，找出真正缺失的章节
+        print("\n📋 第一步：检查章节完整性...")
+        self.check_and_fill_missing_chapters()
+        
+        # 🆕 基于实际文件数量重新校准进度
+        safe_title = re.sub(r'[\\/*?:"<>|]', "_", self.novel_data["novel_title"])
+        chapters_dir = f"小说项目/{safe_title}_章节"
+        
+        actual_files_count = 0
+        if os.path.exists(chapters_dir):
+            chapter_files = [f for f in os.listdir(chapters_dir) if f.endswith('.txt')]
+            actual_files_count = len(chapter_files)
+            
+            # 更新进度信息为实际文件数量
+            if actual_files_count != self.novel_data["current_progress"]["completed_chapters"]:
+                print(f"🔄 根据实际文件校准进度: {self.novel_data['current_progress']['completed_chapters']} -> {actual_files_count}章")
+                self.novel_data["current_progress"]["completed_chapters"] = actual_files_count
         
         # 如果用户提供了新的总章节数且比当前大，则更新
         if total_chapters and total_chapters > self.novel_data["current_progress"]["total_chapters"]:
             print(f"更新总章节数: {self.novel_data['current_progress']['total_chapters']} -> {total_chapters}")
             self.novel_data["current_progress"]["total_chapters"] = total_chapters
-        
-        # 🆕 再次校准：确保已完成章节数不超过总章节数
-        if self.novel_data["current_progress"]["completed_chapters"] > self.novel_data["current_progress"]["total_chapters"]:
-            print(f"🔄 校准已完成章节数: {self.novel_data['current_progress']['completed_chapters']} -> {self.novel_data['current_progress']['total_chapters']}")
-            self.novel_data["current_progress"]["completed_chapters"] = self.novel_data["current_progress"]["total_chapters"]
         
         # 确定从哪一章开始继续
         start_chapter = self.novel_data["current_progress"]["completed_chapters"] + 1
@@ -470,23 +477,6 @@ class NovelGenerator:
             return True
         
         print(f"  从第{start_chapter}章开始继续生成...")
-        
-        # 🆕 检查章节目录中的实际文件数量，进行最终校准
-        safe_title = re.sub(r'[\\/*?:"<>|]', "_", self.novel_data["novel_title"])
-        chapters_dir = f"小说项目/{safe_title}_章节"
-        
-        if os.path.exists(chapters_dir):
-            chapter_files = [f for f in os.listdir(chapters_dir) if f.endswith('.txt')]
-            actual_files_count = len(chapter_files)
-            
-            if actual_files_count != self.novel_data["current_progress"]["completed_chapters"]:
-                print(f"🔄 根据目录文件校准进度: {self.novel_data['current_progress']['completed_chapters']} -> {actual_files_count}章")
-                self.novel_data["current_progress"]["completed_chapters"] = actual_files_count
-                start_chapter = actual_files_count + 1
-                
-                if start_chapter > self.novel_data["current_progress"]["total_chapters"]:
-                    print("✅ 根据目录文件校准后，所有章节已完成")
-                    return True
         
         # 直接开始生成章节内容
         chapters_per_batch = min(3, self.config["defaults"]["chapters_per_batch"])
@@ -2081,4 +2071,200 @@ class NovelGenerator:
             else:
                 print(f"❌ {element_name}: 缺失")
         
-        print("="*50)        
+        print("="*50)  
+
+    def check_and_fill_missing_chapters(self) -> bool:
+        """检查并补写缺失的章节 - 增强版本：基于实际文件检查"""
+        print("\n🔍 开始检查缺失章节（基于实际文件检查）...")
+        
+        # 获取章节目录
+        safe_title = re.sub(r'[\\/*?:"<>|]', "_", self.novel_data["novel_title"])
+        chapters_dir = f"小说项目/{safe_title}_章节"
+        
+        if not os.path.exists(chapters_dir):
+            print("  ⚠️ 章节目录不存在，创建目录")
+            os.makedirs(chapters_dir, exist_ok=True)
+            return True
+        
+        # 获取目录中实际存在的章节文件
+        existing_chapters = set()
+        chapter_files_mapping = {}  # 章节号到文件名的映射
+        
+        for filename in os.listdir(chapters_dir):
+            if filename.endswith('.txt'):
+                # 解析章节号，例如 "第001章_标题.txt" -> 1
+                match = re.search(r'第(\d+)章', filename)
+                if match:
+                    chapter_num = int(match.group(1))
+                    existing_chapters.add(chapter_num)
+                    chapter_files_mapping[chapter_num] = filename
+                    print(f"   发现章节文件: 第{chapter_num}章 - {filename}")
+        
+        print(f"  📁 目录中实际章节文件: {len(existing_chapters)}个")
+        print(f"    存在的章节: {sorted(existing_chapters)}")
+        
+        # 获取应该存在的章节范围（基于总章节数）
+        total_chapters = self.novel_data["current_progress"]["total_chapters"]
+        expected_chapters = set(range(1, total_chapters + 1))
+        
+        print(f"  📋 应该存在的章节: 1-{total_chapters} (共{total_chapters}章)")
+        
+        # 找出缺失的章节
+        missing_chapters = expected_chapters - existing_chapters
+        
+        if not missing_chapters:
+            print("  ✅ 没有发现缺失章节，章节文件完整")
+            return True
+        
+        print(f"  ❗ 发现 {len(missing_chapters)} 个缺失章节: {sorted(missing_chapters)}")
+        
+        # 检查novel_data中的generated_chapters是否完整
+        generated_in_memory = set(self.novel_data.get("generated_chapters", {}).keys())
+        print(f"  💭 内存中的章节数据: {len(generated_in_memory)}章")
+        
+        # 找出内存中有但文件缺失的章节（需要重新保存）
+        chapters_to_resave = generated_in_memory - existing_chapters
+        if chapters_to_resave:
+            print(f"  💾 需要重新保存的章节: {sorted(chapters_to_resave)}")
+        
+        # 询问用户是否要补写
+        print(f"\n📝 补写选项:")
+        print(f"  1. 补写所有缺失章节 ({len(missing_chapters)}章)")
+        print(f"  2. 只补写特定范围的缺失章节")
+        print(f"  3. 跳过补写")
+        
+        choice = input("请选择 (1/2/3，默认1): ").strip() or "1"
+        
+        if choice == "3":
+            print("  ⏭️ 跳过补写缺失章节")
+            return True
+        elif choice == "2":
+            # 让用户指定补写范围
+            try:
+                start_chap = int(input("请输入起始章节号: "))
+                end_chap = int(input("请输入结束章节号: "))
+                missing_in_range = [chap for chap in missing_chapters if start_chap <= chap <= end_chap]
+                if not missing_in_range:
+                    print("  ⚠️ 指定范围内没有缺失章节")
+                    return True
+                print(f"  🎯 补写指定范围内的缺失章节: {missing_in_range}")
+                return self._fill_missing_chapters(sorted(missing_in_range))
+            except ValueError:
+                print("  ❌ 输入无效，补写所有缺失章节")
+                return self._fill_missing_chapters(sorted(missing_chapters))
+        else:
+            # 补写所有缺失章节
+            return self._fill_missing_chapters(sorted(missing_chapters))
+
+    def _fill_missing_chapters(self, missing_chapters: List[int]) -> bool:
+        """补写指定的缺失章节 - 增强版本"""
+        print(f"\n🔄 开始补写 {len(missing_chapters)} 个缺失章节...")
+        
+        success_count = 0
+        failed_chapters = []
+        
+        # 先检查哪些章节在内存中有数据（只需重新保存文件）
+        chapters_to_resave = []
+        chapters_to_generate = []
+        
+        for chapter_num in missing_chapters:
+            if chapter_num in self.novel_data.get("generated_chapters", {}):
+                chapters_to_resave.append(chapter_num)
+            else:
+                chapters_to_generate.append(chapter_num)
+        
+        if chapters_to_resave:
+            print(f"  💾 重新保存 {len(chapters_to_resave)} 个章节文件: {chapters_to_resave}")
+            for chapter_num in chapters_to_resave:
+                try:
+                    chapter_data = self.novel_data["generated_chapters"][chapter_num]
+                    self.project_manager.save_single_chapter(
+                        self.novel_data["novel_title"], 
+                        chapter_num, 
+                        chapter_data
+                    )
+                    success_count += 1
+                    print(f"    ✅ 重新保存第{chapter_num}章")
+                except Exception as e:
+                    print(f"    ❌ 重新保存第{chapter_num}章失败: {e}")
+                    failed_chapters.append(chapter_num)
+        
+        # 生成真正缺失的章节内容
+        if chapters_to_generate:
+            print(f"  🎯 生成 {len(chapters_to_generate)} 个新章节: {chapters_to_generate}")
+            
+            for chapter_num in chapters_to_generate:
+                try:
+                    print(f"\n📖 生成第{chapter_num}章...")
+                    
+                    # 1. 准备生成上下文
+                    context = self._prepare_generation_context(chapter_num)
+                    if context is None:
+                        print(f"  ❌ 第{chapter_num}章生成上下文准备失败")
+                        failed_chapters.append(chapter_num)
+                        continue
+                    
+                    # 2. 协调章节准备
+                    preparation_result = self._coordinate_chapter_preparation(context)
+                    if not preparation_result['success']:
+                        print(f"  ⚠️ 第{chapter_num}章准备阶段有警告，但继续生成")
+                    
+                    # 3. 生成章节内容
+                    print(f"  🔄 调用ContentGenerator生成第{chapter_num}章内容...")
+                    chapter_result = self.content_generator.generate_chapter_content_for_novel(
+                        chapter_num, self.novel_data, context
+                    )
+                    
+                    if not chapter_result:
+                        print(f"  ❌ 第{chapter_num}章内容生成失败")
+                        failed_chapters.append(chapter_num)
+                        continue
+                    
+                    # 4. 发布生成完成事件
+                    self.event_bus.publish('chapter.generated', {
+                        'chapter_number': chapter_num,
+                        'result': chapter_result,
+                        'context': context
+                    })
+                    
+                    print(f"  ✅ 第{chapter_num}章生成完成: {chapter_result.get('chapter_title', '未知标题')}")
+                    success_count += 1
+                    
+                    # 章节间短暂延迟，避免API限制
+                    if chapter_num < max(chapters_to_generate):
+                        time.sleep(2)
+                        
+                except Exception as e:
+                    error_msg = f"生成第{chapter_num}章时出错: {e}"
+                    print(f"  ❌ {error_msg}")
+                    import traceback
+                    traceback.print_exc()
+                    failed_chapters.append(chapter_num)
+        
+        # 输出补写结果
+        print(f"\n🎯 补写完成统计:")
+        print(f"  ✅ 成功处理: {success_count} 章")
+        if chapters_to_resave:
+            print(f"    - 重新保存: {len(chapters_to_resave)} 章")
+        if chapters_to_generate:
+            print(f"    - 新生成: {len(chapters_to_generate) - len([c for c in failed_chapters if c in chapters_to_generate])} 章")
+        print(f"  ❌ 失败章节: {len(failed_chapters)} 章")
+        if failed_chapters:
+            print(f"  📋 失败章节列表: {failed_chapters}")
+        
+        # 更新进度信息
+        if success_count > 0:
+            # 重新检查实际文件数量来更新进度
+            safe_title = re.sub(r'[\\/*?:"<>|]', "_", self.novel_data["novel_title"])
+            chapters_dir = f"小说项目/{safe_title}_章节"
+            if os.path.exists(chapters_dir):
+                chapter_files = [f for f in os.listdir(chapters_dir) if f.endswith('.txt')]
+                actual_files_count = len(chapter_files)
+                self.novel_data["current_progress"]["completed_chapters"] = actual_files_count
+                print(f"  🔄 根据实际文件更新完成章节数: {actual_files_count}")
+            
+            # 保存进度
+            self.project_manager.save_project_progress(self.novel_data)
+            print("  💾 项目进度已保存")
+        
+        return len(failed_chapters) == 0           
