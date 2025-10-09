@@ -232,7 +232,7 @@ class QualityAssessor:
         return result
 
     def _update_world_state_incrementally(self, novel_title: str, changes: Dict, chapter_number: int):
-        """增量更新世界状态"""
+        """增量更新世界状态 - 地点用最新状态覆盖"""
         # 加载当前世界状态
         current_state = self.load_previous_assessments(novel_title)
         if not current_state:
@@ -241,7 +241,7 @@ class QualityAssessor:
                 "items": {}, 
                 "relationships": {},
                 "skills": {},
-                "locations": {}
+                "locations": {}  # 地点初始化为空
             }
         
         # 应用增量更新
@@ -249,16 +249,27 @@ class QualityAssessor:
             if category not in current_state:
                 current_state[category] = {}
             
-            for element_id, element_data in elements.items():
-                if element_id in current_state[category]:
-                    # 更新现有元素
-                    current_state[category][element_id].update(element_data)
-                    current_state[category][element_id]['last_updated'] = chapter_number
-                else:
-                    # 新增元素
+            # 特殊处理地点：完全覆盖，不保留旧状态
+            if category == "locations":
+                # 清空现有地点，用最新的覆盖
+                current_state[category] = {}
+                for element_id, element_data in elements.items():
+                    # 只保存最新状态，不保留历史
                     element_data['first_appearance'] = chapter_number
                     element_data['last_updated'] = chapter_number
                     current_state[category][element_id] = element_data
+            else:
+                # 其他类别（角色、物品、关系、技能）保持增量更新
+                for element_id, element_data in elements.items():
+                    if element_id in current_state[category]:
+                        # 更新现有元素
+                        current_state[category][element_id].update(element_data)
+                        current_state[category][element_id]['last_updated'] = chapter_number
+                    else:
+                        # 新增元素
+                        element_data['first_appearance'] = chapter_number
+                        element_data['last_updated'] = chapter_number
+                        current_state[category][element_id] = element_data
         
         # 保存更新后的世界状态
         self.current_world_state = current_state
@@ -270,7 +281,7 @@ class QualityAssessor:
             print(f"保存世界状态失败: {e}")
 
     def _generate_chapter_assessment_prompt(self, params: Dict) -> str:
-        """生成章节质量评估提示词（包含一致性检查）- 修改为返回增量变化"""
+        """生成章节质量评估提示词（包含一致性检查）- 简化角色发展评估"""
         
         # 加载之前的世界状态
         novel_title = params.get('novel_title', 'unknown')
@@ -373,12 +384,13 @@ class QualityAssessor:
             }}
         }},
         "character_development_assessment": {{
+            // 专注于本章节的角色发展和名场面，不包含完整的角色模板
             "new_characters_introduced": [
                 {{
                     "name": "string",
                     "role_type": "string (主角/重要配角/次要配角)", 
-                    "initial_impression": "string",
-                    "development_potential": "string"
+                    "initial_impression": "string (给读者的第一印象)",
+                    "development_potential": "string (未来发展潜力)"
                 }}
             ],
             "existing_characters_development": [
@@ -386,15 +398,35 @@ class QualityAssessor:
                     "name": "string",
                     "growth_shown": "string (本章展现的成长或变化)",
                     "consistency_issues": "string (与过往设定的不一致之处，若无则为'无')", 
-                    "development_suggestions": "array of strings (具体的发展建议)"
+                    "development_suggestions": [
+                        "具体的发展建议1",
+                        "具体的发展建议2"
+                    ]
                 }}
             ],
             "iconic_scenes_identified": [
                 {{
                     "character": "string",
-                    "scene_description": "string",
+                    "scene_description": "string (场景具体描述)",
                     "trait_demonstrated": "string (场景展现的角色特质)",
-                    "impact_level": "string (High/Medium/Low)"
+                    "impact_level": "string (High/Medium/Low)",
+                    "chapter": "number (发生章节)"
+                }}
+            ],
+            "character_interactions": [
+                {{
+                    "characters": ["角色A", "角色B"],
+                    "interaction_type": "string (对话/合作/冲突/情感交流等)",
+                    "significance": "string (互动的重要性)",
+                    "relationship_development": "string (对关系发展的影响)"
+                }}
+            ],
+            "personality_revelations": [
+                {{
+                    "character": "string",
+                    "trait_revealed": "string (揭示的性格特质)", 
+                    "context": "string (揭示的情境)",
+                    "consistency": "boolean (是否与之前设定一致)"
                 }}
             ]
         }},
@@ -403,9 +435,10 @@ class QualityAssessor:
 
     重要说明：
     1. world_state_changes 只包含本章节新增或发生变化的世界状态元素
-    2. 对于已存在但未变化的元素，不要包含在world_state_changes中
-    3. 系统会自动处理first_appearance和last_updated字段
-    4. 保持与之前世界状态的一致性，只报告本章节带来的变化
+    2. character_development_assessment 专注于角色发展和名场面，不包含完整的角色模板
+    3. 对于已存在但未变化的元素，不要包含在返回数据中
+    4. 系统会自动处理first_appearance和last_updated字段
+    5. 保持与之前世界状态的一致性，只报告本章节带来的变化
     """
 
     def _simplify_character_status(self, novel_title: str, character_name: str, status: str, chapter_number: int):
@@ -1332,7 +1365,7 @@ class QualityAssessor:
             return {}
 
     def update_character_development_from_assessment(self, novel_title: str, assessment: Dict, chapter_number: int):
-        """从评估结果更新角色发展表 - 使用章节编号"""
+        """从评估结果更新角色发展表 - 专注于角色发展和名场面"""
         character_development = assessment.get("character_development_assessment", {})
         
         # 处理新角色
@@ -1343,7 +1376,7 @@ class QualityAssessor:
                 "personality_traits": {
                     "core_traits": [new_char.get("initial_impression", "待完善")],
                     "contradictions": "待发掘",
-                    "behavior_patterns": "待观察",
+                    "behavior_patterns": "待观察", 
                     "speech_style": "待定义"
                 }
             }, chapter_number, "add")
@@ -1352,26 +1385,62 @@ class QualityAssessor:
         for existing_char in character_development.get("existing_characters_development", []):
             char_name = existing_char["name"]
             
-            # 如果有名场面被识别，添加到角色记录中
-            iconic_scenes = character_development.get("iconic_scenes_identified", [])
-            character_scenes = [scene for scene in iconic_scenes if scene["character"] == char_name]
-            
             update_data = {
                 "name": char_name,
                 "pending_developments": existing_char.get("development_suggestions", [])
             }
             
-            # 添加名场面
-            for scene in character_scenes:
-                update_data.setdefault("iconic_scenes", []).append({
-                    "scene_type": scene.get("scene_type", "性格展示"),
+            # 如果有成长展示，添加到发展里程碑
+            growth_shown = existing_char.get("growth_shown")
+            if growth_shown and growth_shown != "无":
+                update_data.setdefault("development_milestones", []).append({
                     "chapter": chapter_number,
+                    "type": "性格转变/能力提升/关系变化",
+                    "description": growth_shown,
+                    "significance": "本章节展现的角色成长"
+                })
+            
+            self.manage_character_development_table(novel_title, update_data, chapter_number, "update")
+        
+        # 处理名场面
+        for scene in character_development.get("iconic_scenes_identified", []):
+            char_name = scene["character"]
+            self.manage_character_development_table(novel_title, {
+                "name": char_name,
+                "iconic_scenes": [{
+                    "scene_type": "性格展示/情感爆发/高光时刻",
+                    "chapter": scene.get("chapter", chapter_number),
                     "description": scene["scene_description"],
                     "purpose": scene["trait_demonstrated"],
                     "impact_level": scene.get("impact_level", "中")
-                })
-            
-            self.manage_character_development_table(novel_title, update_data, chapter_number, "update") 
+                }]
+            }, chapter_number, "update")
+        
+        # 处理性格揭示
+        for revelation in character_development.get("personality_revelations", []):
+            char_name = revelation["character"]
+            self.manage_character_development_table(novel_title, {
+                "name": char_name,
+                "personality_traits": {
+                    "core_traits": [revelation["trait_revealed"]]
+                }
+            }, chapter_number, "update")
+        
+        # 处理角色互动和关系发展
+        for interaction in character_development.get("character_interactions", []):
+            characters = interaction.get("characters", [])
+            for char_name in characters:
+                # 更新角色的关系网络
+                relationship_type = "allies" if "合作" in interaction.get("interaction_type", "") else "rivals"
+                other_chars = [c for c in characters if c != char_name]
+                
+                if other_chars:
+                    self.manage_character_development_table(novel_title, {
+                        "name": char_name,
+                        "relationship_network": {
+                            relationship_type: other_chars
+                        }
+                    }, chapter_number, "update") 
 
 
     def initialize_world_state_from_novel_data(self, novel_title: str, novel_data: Dict):

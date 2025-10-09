@@ -277,7 +277,7 @@ class APIClient:
                         return None
                 
                 # 保存完整的API调用调试信息（输入+回复）
-                #self._save_api_call_debug(system_prompt, user_prompt, content, purpose, target_provider, model_name, attempt+1)
+                self._save_api_call_debug(system_prompt, user_prompt, content, purpose, target_provider, model_name, attempt+1)
                 
                 cleaned_content = self.clean_api_response(content)
                 print(f"  清理后内容长度: {len(cleaned_content)}字符")

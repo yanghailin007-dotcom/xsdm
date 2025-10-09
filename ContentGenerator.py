@@ -1343,58 +1343,40 @@ class ContentGenerator:
             print(f"⚠️ 加载世界状态失败: {e}")
             return {}
 
-    def _add_consistency_requirements(self, chapter_params: Dict, world_state: Dict) -> Dict:
-        """添加一致性要求到章节参数"""
-        if not world_state:
-            return chapter_params
-        
-        # 构建一致性指导
-        consistency_guidance = self._build_consistency_guidance(world_state)
-        
-        # 在现有指导基础上添加一致性要求
-        if "foreshadowing_guidance" in chapter_params:
-            chapter_params["foreshadowing_guidance"] += f"\n\n## 🔄 一致性要求\n{consistency_guidance}"
-        
-        # 存储世界状态供生成使用
-        chapter_params["previous_world_state"] = json.dumps(world_state, ensure_ascii=False, indent=2)
-        
-        return chapter_params
-
     def _build_consistency_guidance(self, world_state: Dict) -> str:
-        """构建一致性指导内容 - 增强版本，包含人物关系"""
+        """构建一致性指导内容 - 修复版本，正确提取世界状态信息"""
         guidance_parts = ["请严格确保与之前章节的一致性："]
         
-        # 角色一致性 - 增强版本
+        # 角色一致性 - 修复版本，正确提取世界状态中的角色信息
         characters = world_state.get('characters', {})
         if characters:
             guidance_parts.append("### 👥 角色一致性（重要）")
-            for char_name, char_data in list(characters.items())[:5]:  # 显示前5个角色
-                role_type = char_data.get('role_type', '未知')
-                last_seen = char_data.get('last_updated_chapter', 0)
-                status = char_data.get('current_status', '未知')
+            for char_name, char_data in list(characters.items())[:5]:
+                # 从世界状态中正确提取角色信息
+                description = char_data.get('description', '暂无描述')
+                attributes = char_data.get('attributes', {})
+                status = attributes.get('status', '未知状态')
+                location = attributes.get('location', '未知地点')
+                last_updated = char_data.get('last_updated', 0)
                 
-                guidance_parts.append(f"- **{char_name}** ({role_type})")
-                guidance_parts.append(f"  - 最后出现: 第{last_seen}章")
-                guidance_parts.append(f"  - 当前状态: {status}")
-                
-                # 添加角色特征
-                if char_data.get('characteristics'):
-                    traits = ", ".join(char_data['characteristics'][:3])
-                    guidance_parts.append(f"  - 特征: {traits}")
+                guidance_parts.append(f"- **{char_name}**")
+                guidance_parts.append(f"  - 状态: {status}")
+                guidance_parts.append(f"  - 位置: {location}")
+                guidance_parts.append(f"  - 最后更新: 第{last_updated}章")
+                guidance_parts.append(f"  - 描述: {description[:80]}..." if len(description) > 80 else f"  - 描述: {description}")
         
-        # 人物关系一致性 - 新增关键部分
+        # 人物关系一致性
         relationships = world_state.get('relationships', {})
         if relationships:
             guidance_parts.append("### 🤝 人物关系（关键检查项）")
             relationship_count = 0
             
             for rel_key, rel_data in relationships.items():
-                if relationship_count >= 8:  # 限制显示数量
+                if relationship_count >= 8:
                     break
                     
                 rel_type = rel_data.get('type', '未知关系')
-                established_chapter = rel_data.get('established_chapter', 0)
-                current_status = rel_data.get('current_status', '正常')
+                description = rel_data.get('description', '暂无描述')
                 
                 # 解析关系双方
                 parties = rel_key.split('-')
@@ -1402,34 +1384,46 @@ class ContentGenerator:
                     char_a, char_b = parties
                     guidance_parts.append(f"- **{char_a}** ↔ **{char_b}**")
                     guidance_parts.append(f"  - 关系类型: {rel_type}")
-                    guidance_parts.append(f"  - 建立于: 第{established_chapter}章")
-                    guidance_parts.append(f"  - 当前状态: {current_status}")
-                    
-                    # 添加关系描述
-                    if rel_data.get('description'):
-                        desc = rel_data['description'][:60] + "..." if len(rel_data['description']) > 60 else rel_data['description']
-                        guidance_parts.append(f"  - 关系详情: {desc}")
+                    guidance_parts.append(f"  - 关系描述: {description[:60]}..." if len(description) > 60 else f"  - 关系描述: {description}")
                     
                     relationship_count += 1
         
-        # 物品一致性
+        # 物品一致性 - 修复版本，正确提取世界状态中的物品信息
         items = world_state.get('items', {})
         if items:
             guidance_parts.append("### 🎁 物品归属")
             for item_name, item_data in list(items.items())[:4]:
                 owner = item_data.get('owner', '未知')
-                location = item_data.get('location', '未知地点')
-                guidance_parts.append(f"- {item_name}: 属于{owner}，位置:{location}")
+                status = item_data.get('status', '未知状态')
+                description = item_data.get('description', '暂无描述')
+                location = "未知位置"  # 世界状态中没有直接的位置字段
+                
+                guidance_parts.append(f"- **{item_name}**")
+                guidance_parts.append(f"  - 拥有者: {owner}")
+                guidance_parts.append(f"  - 状态: {status}")
+                guidance_parts.append(f"  - 描述: {description[:60]}..." if len(description) > 60 else f"  - 描述: {description}")
         
-        # 关键事件一致性
-        key_events = world_state.get('key_events', {})
-        if key_events:
-            guidance_parts.append("### 📅 关键事件时间线")
-            for event_id, event_data in list(key_events.items())[:3]:
-                event_name = event_data.get('name', '未知事件')
-                chapter = event_data.get('chapter', 0)
-                impact = event_data.get('impact', '未知影响')
-                guidance_parts.append(f"- 第{chapter}章: {event_name} ({impact})")
+        # 技能一致性
+        skills = world_state.get('skills', {})
+        if skills:
+            guidance_parts.append("### 🔧 技能状态")
+            for skill_name, skill_data in list(skills.items())[:3]:
+                owner = skill_data.get('owner', '未知')
+                level = skill_data.get('level', '未知等级')
+                description = skill_data.get('description', '暂无描述')
+                
+                guidance_parts.append(f"- **{skill_name}**")
+                guidance_parts.append(f"  - 拥有者: {owner}")
+                guidance_parts.append(f"  - 等级: {level}")
+                guidance_parts.append(f"  - 描述: {description[:60]}..." if len(description) > 60 else f"  - 描述: {description}")
+        
+        # 地点一致性
+        locations = world_state.get('locations', {})
+        if locations:
+            guidance_parts.append("### 🗺️ 地点状态")
+            for loc_name, loc_data in list(locations.items())[:3]:
+                description = loc_data.get('description', '暂无描述')
+                guidance_parts.append(f"- **{loc_name}**: {description}")
         
         # 添加关系检查的特别提醒
         guidance_parts.extend([
@@ -1460,7 +1454,6 @@ class ContentGenerator:
         return "\n".join(formatted)
 
     def _add_consistency_requirements(self, chapter_params: Dict, world_state: Dict) -> Dict:
-        """添加一致性要求到章节参数 - 增强版本"""
         if not world_state:
             return chapter_params
         
