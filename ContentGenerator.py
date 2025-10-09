@@ -373,7 +373,20 @@ class ContentGenerator:
 
         # 确保章节标题唯一性
         chapter_data = self._handle_chapter_title_uniqueness(chapter_data, chapter_number, novel_data)
-        
+
+        # === 新增：如果是第一章，添加AI俏皮开场白 ===
+        if chapter_number == 1:
+            category = novel_data.get("category", "默认")
+            novel_title = novel_data.get("novel_title", "")
+            novel_synopsis = novel_data.get("novel_synopsis", "")
+            
+            # 使用AI生成俏皮开场白
+            try:
+                chapter_data = self.novel_generator._add_ai_spicy_opening_to_first_chapter(
+                    chapter_data, novel_title, novel_synopsis, category
+                )
+            except Exception as e:
+                print(f"  ⚠️ AI开场白生成异常，使用备用模板: {e}")
         # 质量评估
         assessment = self.quality_assessor.quick_assess_chapter_quality(
             chapter_data.get("content", ""),

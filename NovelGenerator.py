@@ -46,7 +46,11 @@ class NovelGenerator:
 
         # 设置中断信号处理
         signal.signal(signal.SIGINT, self.signal_handler)
-    
+
+        self.fallback_openings = {
+        "男频衍生": "【🧠脑子寄存处】存脑子的扣1，不存的扣眼珠子！阅读前请将三观暂存～\n\n📢 看到离谱处先别骂，评论区肯定有课代表帮你吐槽！",
+        "默认": "【🎮游戏开始】阅读前请调整好姿势，准备好零食！\n\n🎯 猜中剧情的评论区封神，猜不中的…那就多猜几次！"
+        }
     def _initialize_managers(self):
         """初始化各管理器，明确依赖关系"""
         # 核心管理器
@@ -2267,4 +2271,89 @@ class NovelGenerator:
             self.project_manager.save_project_progress(self.novel_data)
             print("  💾 项目进度已保存")
         
-        return len(failed_chapters) == 0           
+        return len(failed_chapters) == 0   
+
+    def _add_ai_spicy_opening_to_first_chapter(self, chapter_data: Dict, novel_title: str, novel_synopsis: str, category: str) -> Dict:
+        """为第一章添加AI生成的超级俏皮开场白"""
+        if not chapter_data or "content" not in chapter_data:
+            return chapter_data
+        
+        # 生成AI俏皮开场白
+        opening_remark = self._generate_ai_spicy_opening(novel_title, novel_synopsis, category)
+        
+        # 将开场白添加到正文开头，用醒目的格式分隔
+        original_content = chapter_data["content"]
+        chapter_data["content"] = f"{opening_remark}\n\n{'═' * 50}\n\n{original_content}"
+        
+        # 记录信息
+        chapter_data["has_opening_remark"] = True
+        chapter_data["opening_remark"] = opening_remark
+        chapter_data["remark_style"] = "AI俏皮互动版"
+        
+        print("🎯 已为第一章添加AI生成的俏皮开场白，准备收割评论！")
+        return chapter_data
+
+    def _generate_ai_spicy_opening(self, novel_title: str, novel_synopsis: str, category: str) -> str:
+        """用AI生成超级俏皮、刺激评论的开场白"""
+        
+        prompt = f"""
+    你是一个精通番茄小说平台风格的网文大神，请为以下小说生成一个超级俏皮、互动性极强的开场白/作者有话说，用于第一章开头：
+
+    小说标题：《{novel_title}》
+    小说简介：{novel_synopsis}
+    小说分类：{category}
+
+    要求：
+    1. 风格要超级俏皮、幽默、接地气，符合番茄年轻读者的口味
+    2. 必须包含刺激读者评论的互动元素，比如"扣1扣2"、"猜剧情"、"找bug"等
+    3. 要使用emoji表情和网络流行梗
+    4. 长度在100字左右，要有冲击力
+    5. 用【】括起来作为醒目标题
+    6. 最后一定要有引导评论的强力call to action
+
+    参考风格：
+    "【🧠脑子寄存处】存脑子的扣1，不存的扣眼珠子！阅读前请将三观暂存～"
+    "【🚨高能预警】本书内容过于离谱，建议搭配降压药食用！"
+
+    请直接返回开场白内容，不要其他说明。
+    """
+        
+        try:
+            remark = self.api_client.call_api(
+                'deepseek', 
+                "你是番茄小说开场白生成专家，风格超级俏皮幽默", 
+                prompt, 
+                0.8,  # 提高创造性
+                purpose="生成俏皮开场白"
+            )
+            
+            if remark and len(remark.strip()) > 20:
+                # 清理可能的格式问题
+                remark = remark.strip()
+                remark = re.sub(r'^["\']|["\']$', '', remark)  # 去除首尾引号
+                
+                # 确保有足够的互动元素
+                if "扣" not in remark and "评论" not in remark and "吐槽" not in remark:
+                    remark += "\n\n💬 看到这里的都是真爱，扣1让我看看有多少活人！"
+                
+                print(f"  ✅ AI开场白生成成功: {remark[:50]}...")
+                return remark
+                
+        except Exception as e:
+            print(f"  ❌ 生成AI俏皮开场白失败: {e}")
+        
+        # AI失败时使用备用手动模板
+        return self._generate_fallback_opening(category)
+
+    def _generate_fallback_opening(self, category: str) -> str:
+        """AI失败时的备用开场白模板"""
+        
+        fallback_templates = {
+            "男频衍生": "【🧠脑子寄存处】存脑子的扣1，不存的扣眼珠子！阅读前请将三观暂存，离开时记得取回～\n\n📢 友情提示：看到离谱处别骂街，先翻评论区，肯定有课代表！\n\n🎊 首评有惊喜！沙发、地板、天花板都有奖！",
+            "科幻": "【👽外星人通知】地球人你好！你已进入科幻维度，请放下常识抱紧我！\n\n🛸 发现bug请立即在评论区上报，奖励是…我的膝盖！\n\n💌 每100条评论加更一章，说到做到！",
+            "都市": "【💼社畜避难所】打工人，打工魂，本书专治各种不开心！\n\n🍉 吃瓜群众请就位，剧情越狗血，评论越精彩！\n\n🏆 评论区课代表、预言家、段子手各就各位！",
+            "玄幻": "【🔥修炼警告】小心！阅读本书可能走火入魔，笑出腹肌！\n\n⚔️ 觉得主角骚的扣'666',觉得反派惨的扣'哈哈哈'！\n\n🚀 热度破万爆更！评论越多更新越快！",
+            "悬疑": "【🕵️侦探集合】柯南道尔附体，福尔摩斯上身！\n\n🔍 能在第三章前猜出真相的，我直播倒立洗头！评论区为证！\n\n💖 看到这里的都是真爱，留个言让我眼熟你呀～"
+        }
+        
+        return fallback_templates.get(category, "【🎮游戏开始】阅读前请调整好姿势，准备好零食！\n\n🎯 觉得好看的扣'爱了',觉得离谱的扣'作者疯了'！\n\n📈 评论就是动力，吐槽就是关爱，来都来了，说两句呗～")            
