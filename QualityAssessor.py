@@ -130,8 +130,8 @@ class QualityAssessor:
             print(f"保存章节评估数据失败: {e}")
         
         # 更新并保存世界状态
-        if 'world_state_after_chapter' in assessment_data:
-            self.current_world_state = assessment_data['world_state_after_chapter']
+        if 'updated_world_state' in assessment_data:
+            self.current_world_state = assessment_data['updated_world_state']
             state_file = os.path.join(self.storage_path, f"{novel_title}_world_state.json")
             try:
                 with open(state_file, 'w', encoding='utf-8') as f:
@@ -381,7 +381,7 @@ class QualityAssessor:
         
         # 获取一致性问题和世界状态
         consistency_issues = assessment.get('consistency_issues', [])
-        world_state = assessment.get('world_state_after_chapter', {})
+        world_state = assessment.get('updated_world_state', {})
         
         consistency_fixes = ""
         if consistency_issues:
@@ -566,7 +566,7 @@ class QualityAssessor:
             "assessment_results": json.dumps({
                 "weaknesses": weaknesses,
                 "consistency_issues": consistency_issues,
-                "world_state_after_chapter": assessment.get("world_state_after_chapter", {}),
+                "updated_world_state": assessment.get("updated_world_state", {}),
                 "overall_score": score,
                 "optimization_intensity": intensity_config["description"]
             }, ensure_ascii=False),

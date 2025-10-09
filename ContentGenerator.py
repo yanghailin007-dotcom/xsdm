@@ -913,11 +913,6 @@ class ContentGenerator:
         novel_title = novel_data["novel_title"]
         world_state = self._get_previous_world_state(novel_title)
         character_development_guidance = self._get_character_development_guidance(chapter_number, novel_data)
-        if world_state:
-            print(f"  ✅ 加载到世界状态: {len(world_state.get('characters', {}))}角色, "
-                f"{len(world_state.get('items', {}))}物品, "
-                f"{len(world_state.get('relationships', {}))}关系")
-
         # 获取上下文
         context = novel_data.get('_current_generation_context')
         
@@ -1015,7 +1010,11 @@ class ContentGenerator:
         print(f"    - 伏笔元素: {len(params['foreshadowing_elements'].splitlines())} 项")
         
         params = self._add_consistency_requirements(params, world_state)
-
+        relationship_note = self._get_relationship_consistency_note(world_state)
+        if relationship_note:
+            # 将关系检查添加到事件指导或伏笔指导中
+            if "event_driven_guidance" in params:
+                params["event_driven_guidance"] += f"\n\n{relationship_note}"
         return params
     
     def _generate_emotional_break_prompt(self, intensity_info: Dict, break_suggestions: Dict, buffer_content: Dict) -> str:
@@ -1251,6 +1250,17 @@ class ContentGenerator:
             except:
                 main_character_name = self.custom_main_character_name or '主角'
             
+            relationship_warning = ""
+            if chapter_params.get("relationship_consistency_check"):
+                relationship_warning = f"""
+                
+    ## 🚫 关系一致性重要警告
+    以下角色之间已经建立关系，禁止让他们重新认识或忽略已有关系：
+    {self._format_known_relationships(chapter_params.get("known_relationships", {}))}
+
+    如果这些角色在本章中互动，必须基于已有的关系状态进行，不能当做初次见面！
+                """
+
                         # 添加世界状态信息
             world_state_info = ""
             if "previous_world_state" in content_params:
@@ -1258,7 +1268,7 @@ class ContentGenerator:
                 
         ## 🔄 世界状态参考（确保一致性）
         {content_params.get('previous_world_state', '{}')}
-        
+        {relationship_warning}
         【重要】请严格遵循上述世界状态，确保角色、物品、关系等元素的一致性。
                 """
 
@@ -1422,32 +1432,164 @@ class ContentGenerator:
         return chapter_params
 
     def _build_consistency_guidance(self, world_state: Dict) -> str:
-        """构建一致性指导内容"""
+        """构建一致性指导内容 - 增强版本，包含人物关系"""
         guidance_parts = ["请严格确保与之前章节的一致性："]
         
-        # 角色一致性
+        # 角色一致性 - 增强版本
         characters = world_state.get('characters', {})
         if characters:
-            guidance_parts.append("### 👥 角色一致性")
-            for char_name, char_data in list(characters.items())[:3]:  # 只显示前3个
-                guidance_parts.append(f"- {char_name}: {char_data.get('description', '')[:50]}...")
+            guidance_parts.append("### 👥 角色一致性（重要）")
+            for char_name, char_data in list(characters.items())[:5]:  # 显示前5个角色
+                role_type = char_data.get('role_type', '未知')
+                last_seen = char_data.get('last_updated_chapter', 0)
+                status = char_data.get('current_status', '未知')
+                
+                guidance_parts.append(f"- **{char_name}** ({role_type})")
+                guidance_parts.append(f"  - 最后出现: 第{last_seen}章")
+                guidance_parts.append(f"  - 当前状态: {status}")
+                
+                # 添加角色特征
+                if char_data.get('characteristics'):
+                    traits = ", ".join(char_data['characteristics'][:3])
+                    guidance_parts.append(f"  - 特征: {traits}")
+        
+        # 人物关系一致性 - 新增关键部分
+        relationships = world_state.get('relationships', {})
+        if relationships:
+            guidance_parts.append("### 🤝 人物关系（关键检查项）")
+            relationship_count = 0
+            
+            for rel_key, rel_data in relationships.items():
+                if relationship_count >= 8:  # 限制显示数量
+                    break
+                    
+                rel_type = rel_data.get('type', '未知关系')
+                established_chapter = rel_data.get('established_chapter', 0)
+                current_status = rel_data.get('current_status', '正常')
+                
+                # 解析关系双方
+                parties = rel_key.split('-')
+                if len(parties) == 2:
+                    char_a, char_b = parties
+                    guidance_parts.append(f"- **{char_a}** ↔ **{char_b}**")
+                    guidance_parts.append(f"  - 关系类型: {rel_type}")
+                    guidance_parts.append(f"  - 建立于: 第{established_chapter}章")
+                    guidance_parts.append(f"  - 当前状态: {current_status}")
+                    
+                    # 添加关系描述
+                    if rel_data.get('description'):
+                        desc = rel_data['description'][:60] + "..." if len(rel_data['description']) > 60 else rel_data['description']
+                        guidance_parts.append(f"  - 关系详情: {desc}")
+                    
+                    relationship_count += 1
         
         # 物品一致性
         items = world_state.get('items', {})
         if items:
-            guidance_parts.append("### 🎁 物品一致性")
-            for item_name, item_data in list(items.items())[:3]:
+            guidance_parts.append("### 🎁 物品归属")
+            for item_name, item_data in list(items.items())[:4]:
                 owner = item_data.get('owner', '未知')
-                guidance_parts.append(f"- {item_name}: 属于{owner}")
+                location = item_data.get('location', '未知地点')
+                guidance_parts.append(f"- {item_name}: 属于{owner}，位置:{location}")
         
-        # 关系一致性
+        # 关键事件一致性
+        key_events = world_state.get('key_events', {})
+        if key_events:
+            guidance_parts.append("### 📅 关键事件时间线")
+            for event_id, event_data in list(key_events.items())[:3]:
+                event_name = event_data.get('name', '未知事件')
+                chapter = event_data.get('chapter', 0)
+                impact = event_data.get('impact', '未知影响')
+                guidance_parts.append(f"- 第{chapter}章: {event_name} ({impact})")
+        
+        # 添加关系检查的特别提醒
+        guidance_parts.extend([
+            "",
+            "## ⚠️ 关系一致性特别提醒",
+            "1. **禁止重复建立关系**: 已经认识的角色之间不需要再次介绍或建立关系",
+            "2. **关系状态延续**: 保持角色间已有的关系状态（友好、敌对、合作等）", 
+            "3. **关系发展自然**: 如需改变关系状态，必须有合理的情节发展",
+            "4. **避免关系矛盾**: 新建立的关系不能与已有关系冲突",
+            "5. **关系记忆**: 角色应该记得彼此之前的重要互动"
+        ])
+        
+        return "\n".join(guidance_parts)
+
+    def _format_known_relationships(self, relationships: Dict) -> str:
+        """格式化已知关系用于显示"""
+        if not relationships:
+            return "暂无已建立的关系记录"
+        
+        formatted = []
+        for rel_key, rel_data in list(relationships.items())[:10]:  # 最多显示10个关系
+            parties = rel_key.split('-')
+            if len(parties) == 2:
+                char_a, char_b = parties
+                rel_type = rel_data.get('type', '未知关系')
+                formatted.append(f"- {char_a} ↔ {char_b}: {rel_type}")
+        
+        return "\n".join(formatted)
+
+    def _add_consistency_requirements(self, chapter_params: Dict, world_state: Dict) -> Dict:
+        """添加一致性要求到章节参数 - 增强版本"""
+        if not world_state:
+            return chapter_params
+        
+        # 构建一致性指导
+        consistency_guidance = self._build_consistency_guidance(world_state)
+        
+        # 在现有指导基础上添加一致性要求
+        if "foreshadowing_guidance" in chapter_params:
+            chapter_params["foreshadowing_guidance"] += f"\n\n## 🔄 一致性要求\n{consistency_guidance}"
+        
+        # 存储世界状态供生成使用
+        chapter_params["previous_world_state"] = json.dumps(world_state, ensure_ascii=False, indent=2)
+        
+        # 特别添加关系检查标志
+        chapter_params["relationship_consistency_check"] = True
+        chapter_params["known_relationships"] = world_state.get('relationships', {})
+        
+        return chapter_params
+
+    def _get_relationship_consistency_note(self, world_state: Dict) -> str:
+        """生成关系一致性特别提示"""
         relationships = world_state.get('relationships', {})
-        if relationships:
-            guidance_parts.append("### 🤝 关系一致性")
-            for rel_key, rel_data in list(relationships.items())[:3]:
-                guidance_parts.append(f"- {rel_key}: {rel_data.get('type', '')}")
+        if not relationships:
+            return ""
         
-        return "\n".join(guidance_parts)   
+        note_parts = ["## 🤝 已知人物关系（禁止重复建立）"]
+        
+        # 按角色分组显示关系
+        character_relations = {}
+        for rel_key, rel_data in relationships.items():
+            parties = rel_key.split('-')
+            if len(parties) == 2:
+                char_a, char_b = parties
+                rel_type = rel_data.get('type', '未知')
+                
+                # 为每个角色记录关系
+                if char_a not in character_relations:
+                    character_relations[char_a] = []
+                character_relations[char_a].append(f"{char_b}({rel_type})")
+                
+                if char_b not in character_relations:
+                    character_relations[char_b] = []
+                character_relations[char_b].append(f"{char_a}({rel_type})")
+        
+        # 显示每个角色的关系网络
+        for char_name, relations in list(character_relations.items())[:6]:  # 显示前6个角色
+            note_parts.append(f"- **{char_name}** 认识: {', '.join(relations)}")
+        
+        note_parts.extend([
+            "",
+            "### ❌ 禁止行为",
+            "- 让已经认识的角色重新自我介绍",
+            "- 忽略已有的关系状态",
+            "- 建立与现有关系冲突的新关系",
+            "- 忘记角色间的重要历史互动"
+        ])
+        
+        return "\n".join(note_parts) 
 
 
     def _get_character_development_guidance(self, chapter_number: int, novel_data: Dict) -> str:
