@@ -554,7 +554,7 @@ class ContentGenerator:
             try:
                 ending = method(content)
                 if ending and len(ending.strip()) > 50:
-                    print(f"  ✅ 成功提取结尾: {ending[:120]}...")
+                    print(f"  ✅ 成功提取结尾: {ending[:200]}...")
                     return ending
             except Exception as e:
                 print(f"  ⚠️  方法 '{method.__name__}' 提取失败: {e}")
@@ -954,6 +954,11 @@ class ContentGenerator:
             # 获取事件指导（优先使用上下文中的信息）
             event_guidance = self._get_event_guidance_from_context(event_context, chapter_number)
             foreshadowing_guidance = self._get_foreshadowing_guidance_from_context(foreshadowing_context, chapter_number)
+            # 确保 event_guidance 不是 None
+            if event_guidance is None:
+                event_guidance = "# 🎯 事件执行指导\n\n本章暂无特定事件任务，按主线推进即可。"
+                print(f"  ⚠️ 事件指导为空，使用默认指导")
+            
             print(f"    - 事件指导: \n{event_guidance} ") 
             print(f"    - 伏笔指导: \n{foreshadowing_guidance} ") 
             # 从上下文中获取阶段计划
@@ -1071,14 +1076,16 @@ class ContentGenerator:
         """从事件上下文中生成指导 - 添加错误处理"""
         
         if not event_context:
-            print("   - 事件上下文为空，返回空窗期指导")
-            return """ 事件上下文为空 """
+            print("   - 事件上下文为空，返回默认指导")
+            return "# 🎯 事件执行指导\n\n事件上下文为空，按常规情节推进。"
         
         # 检查是否有活跃事件
         active_events = event_context.get("active_events", [])
         if not active_events:
             print("   - 无活跃事件，返回空窗期指导")
-            return self._get_empty_period_guidance(chapter_number, event_context)
+            empty_guidance = self._get_empty_period_guidance(chapter_number, event_context)
+            # 确保返回的是字符串
+            return empty_guidance if empty_guidance is not None else "# 🎯 事件执行指导\n\n本章暂无特定事件任务，按主线推进即可。"
         
         try:
             guidance_parts = ["# 🎯 事件执行指导", "## 活跃事件"]
@@ -1241,6 +1248,8 @@ class ContentGenerator:
 
 【章节创作蓝图】
 {json.dumps(chapter_design, ensure_ascii=False, indent=2)}
+【写作风格】
+{content_params.get('writing_style_guide',{})}
 """
         print(f"  ✍️ 根据设计方案生成第{chapter_params['chapter_number']}章内容...")
         content_result = self.api_client.generate_content_with_retry(
@@ -1320,7 +1329,7 @@ class ContentGenerator:
             return None  
     
     def _get_empty_period_guidance(self, chapter_number: int, event_context: Dict) -> str:
-        """生成事件空窗期的指导内容"""
+        """生成事件空窗期的指导内容 - 确保返回字符串"""
         
         # 检查是否需要情绪缓冲
         emotional_break_needed = False
@@ -1330,8 +1339,11 @@ class ContentGenerator:
                 emotional_break_needed = event_manager.should_insert_emotional_break(chapter_number)
         
         if emotional_break_needed:
-            return self.novel_generator.event_driven_manager._generate_event_gap_prompt(chapter_number,event_context)   
-
+            guidance = self.novel_generator.event_driven_manager._generate_event_gap_prompt(chapter_number, event_context)
+            return guidance if guidance is not None else "# 🎯 事件执行指导\n\n本章为情绪缓冲章节，注重角色发展和情感表达。"
+        
+        # 默认的空窗期指导
+        return "# 🎯 事件执行指导\n\n当前处于事件空窗期，重点推进主线情节和角色发展。"
     def _get_previous_world_state(self, novel_title: str) -> Dict:
         """获取之前章节的世界状态"""
         if not hasattr(self, 'quality_assessor') or not self.quality_assessor:
