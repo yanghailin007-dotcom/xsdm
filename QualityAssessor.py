@@ -40,65 +40,46 @@ class QualityAssessor:
         }
         self.character_development_templates = {
             "core_character": {
+                # 基础信息 - 会被系统维护
                 "name": "",
                 "status": "active", 
                 "role_type": "主角/重要配角/次要配角",
                 "importance": "major",
-                "first_appearance_chapter": 0,  # 首次出场章节
-                "last_updated_chapter": 0,      # 最后更新章节
-                "total_appearances": 1,         # 总出场次数
+                "first_appearance_chapter": 0,  # 首次出场章节 - 系统维护
+                "last_updated_chapter": 0,      # 最后更新章节 - 系统维护
+                "total_appearances": 1,         # 总出场次数 - 系统维护
+                
+                # 性格特征 - 会被更新
                 "personality_traits": {
-                    "core_traits": ["特质1", "特质2"],
-                    "contradictions": "性格矛盾点",
-                    "behavior_patterns": "行为模式",
-                    "speech_style": "语言风格"
+                    "core_traits": [],  # 核心特质 - 会被更新
+                    "contradictions": "",  # 性格矛盾点 - 可能被更新
+                    "behavior_patterns": "",  # 行为模式 - 可能被更新
+                    "speech_style": ""  # 语言风格 - 可能被更新
                 },
+                
+                # 背景故事 - 会被更新
                 "background_story": {
-                    "basic_info": "基本信息",
-                    "key_experiences": ["关键经历1", "关键经历2"],
-                    "motivations": "动机和追求",
-                    "unresolved_issues": "未解决的问题",
-                    "revealed_chapters": []  # 已揭示背景的章节列表
+                    "basic_info": "",  # 基本信息 - 会被更新
+                    "key_experiences": [],  # 关键经历 - 会被更新
+                    "motivations": "",  # 动机和追求 - 可能被更新
                 },
-                "iconic_scenes": [
-                    {
-                        "scene_type": "高光时刻/情感爆发/性格展示",
-                        "chapter": 0,
-                        "description": "场景描述",
-                        "purpose": "展示人物哪方面特质",
-                        "impact_level": "高/中/低"
-                    }
-                ],
+                
+                # 名场面 - 会被更新
+                "iconic_scenes": [],  # 改为空数组，实际数据会动态添加
+                
+                # 关系网络 - 会被更新
                 "relationship_network": {
-                    "allies": ["盟友1", "盟友2"],
-                    "rivals": ["对手1", "对手2"],
-                    "complex_relationships": ["复杂关系1", "复杂关系2"]
+                    "allies": [],  # 盟友 - 会被更新
+                    "rivals": [],  # 对手 - 会被更新
+                    "complex_relationships": []  # 复杂关系 - 可能被更新
                 },
-                "development_milestones": [
-                    {
-                        "chapter": 0,
-                        "type": "性格转变/能力提升/关系变化",
-                        "description": "里程碑描述",
-                        "significance": "重要性说明"
-                    }
-                ],
-                "pending_developments": [
-                    {
-                        "type": "背景故事/对话强化/第三方提及/名场面",
-                        "suggested_chapter": 0,
-                        "description": "发展建议描述",
-                        "priority": "高/中/低",
-                        "implementation": "具体实现方式"
-                    }
-                ],
-                "development_status": {
-                    "background_revealed": False,      # 背景故事是否已揭示
-                    "key_relationships_established": 0, # 关键关系建立数量
-                    "personality_consistency_score": 0, # 性格一致性评分
-                    "growth_arc_progress": 0           # 成长弧线进度(0-100)
-                }
+                
+                # 发展里程碑 - 会被更新
+                "development_milestones": [],  # 改为空数组，实际数据会动态添加
             },
+            
             "minor_character": {
+                # 基础信息 - 会被系统维护
                 "name": "",
                 "status": "active",
                 "role_type": "次要配角/路人角色", 
@@ -106,10 +87,14 @@ class QualityAssessor:
                 "first_appearance_chapter": 0,
                 "last_updated_chapter": 0,
                 "total_appearances": 1,
-                "basic_description": "角色基本描述",
-                "purpose_in_story": "在故事中的用途"
+                
+                # 基本信息 - 可能被更新
+                "basic_description": "",  # 角色基本描述
+                "purpose_in_story": ""  # 在故事中的用途
             },
+            
             "unnamed_character": {
+                # 基础信息 - 会被系统维护
                 "name": "",
                 "status": "active",
                 "role_type": "路人/群众",
@@ -117,7 +102,9 @@ class QualityAssessor:
                 "first_appearance_chapter": 0,
                 "last_updated_chapter": 0, 
                 "total_appearances": 1,
-                "appearance_context": "出现场景描述"
+                
+                # 场景信息 - 可能被更新
+                "appearance_context": ""  # 出现场景描述
             }
         }
         # 角色重要性判断规则
