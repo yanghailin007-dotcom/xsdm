@@ -1838,36 +1838,35 @@ class NovelGenerator:
             traceback.print_exc()
 
     def _get_cleanup_strategy_for_stage(self, stage_name: str, chapter_number: int) -> Dict:
-        """根据阶段类型获取详细的清理策略"""
+        """根据阶段类型获取详细的清理策略 - 修复版本，支持中文阶段名称"""
         
-        # 基础策略
+        # 基础策略 - 确保包含所有必要的键
         base_strategy = {
             "keep_major_only": False,
-            "preserve_recent_chapters": 5,  # 保留最近活跃的角色章节数
+            "preserve_recent_chapters": 5,
             "current_chapter": chapter_number,
             "stage_type": "normal",
-            "aggressiveness": "medium",  # 清理激进程度: low, medium, high
-            "preserve_relationship_network": True,  # 是否保留关系网络
-            "max_minor_characters": 20,  # 最大次要角色数量
-            "max_unnamed_characters": 10  # 最大未命名角色数量
+            "aggressiveness": "medium",
+            "preserve_relationship_network": True,
+            "max_minor_characters": 20,
+            "max_unnamed_characters": 10,
+            "reason": "默认清理策略"
         }
         
-        # 根据阶段名称和章节数调整策略
+        # 根据中文阶段名称调整策略
         stage_lower = stage_name.lower()
         
-        if any(keyword in stage_lower for keyword in ["开局", "起始", "开头", "引入"]):
-            # 开局阶段：温和清理，保留所有角色用于后续发展
+        if any(keyword in stage_lower for keyword in ["开局", "起始", "开头", "引入", "opening"]):
             base_strategy.update({
                 "stage_type": "opening",
                 "aggressiveness": "low",
-                "preserve_recent_chapters": 10,  # 开局阶段保留更长的活跃期
+                "preserve_recent_chapters": 10,
                 "max_minor_characters": 30,
                 "max_unnamed_characters": 20,
                 "reason": "开局阶段，保留所有角色用于世界观建立"
             })
         
-        elif any(keyword in stage_lower for keyword in ["发展", "展开", "推进"]):
-            # 发展阶段：适度清理
+        elif any(keyword in stage_lower for keyword in ["发展", "展开", "推进", "development"]):
             base_strategy.update({
                 "stage_type": "development", 
                 "aggressiveness": "medium",
@@ -1877,29 +1876,36 @@ class NovelGenerator:
                 "reason": "发展阶段，适度清理长期不活跃的次要角色"
             })
         
-        elif any(keyword in stage_lower for keyword in ["高潮", "决战", "冲突", "转折"]):
-            # 高潮阶段：激进清理，专注重要角色
+        elif any(keyword in stage_lower for keyword in ["高潮", "决战", "冲突", "转折", "climax"]):
             base_strategy.update({
                 "stage_type": "climax",
                 "aggressiveness": "high",
-                "keep_major_only": True,  # 高潮阶段只保留重要角色
-                "preserve_recent_chapters": 3,  # 只保留最近活跃的角色
+                "keep_major_only": True,
+                "preserve_recent_chapters": 3,
                 "reason": "高潮阶段，专注重要角色和核心剧情"
             })
         
-        elif any(keyword in stage_lower for keyword in ["结局", "收尾", "完结", "尾声"]):
-            # 结局阶段：极简清理，只保留核心角色
+        elif any(keyword in stage_lower for keyword in ["结局", "收尾", "完结", "尾声", "ending"]):
             base_strategy.update({
                 "stage_type": "ending",
                 "aggressiveness": "high", 
                 "keep_major_only": True,
-                "preserve_recent_chapters": 1,  # 只保留本章节出现的角色
-                "preserve_relationship_network": False,  # 结局阶段可以简化关系网络
+                "preserve_recent_chapters": 1,
+                "preserve_relationship_network": False,
                 "reason": "结局阶段，只保留核心角色完成故事"
             })
         
+        elif any(keyword in stage_lower for keyword in ["最终", "完结", "final"]):
+            base_strategy.update({
+                "stage_type": "final",
+                "aggressiveness": "high",
+                "keep_major_only": True,
+                "preserve_recent_chapters": 1,
+                "preserve_relationship_network": False,
+                "reason": "最终阶段，极度精简角色聚焦大结局"
+            })
+        
         elif chapter_number <= 10:
-            # 前10章：温和策略
             base_strategy.update({
                 "stage_type": "early",
                 "aggressiveness": "low",
@@ -1908,7 +1914,6 @@ class NovelGenerator:
             })
         
         elif chapter_number >= 50:
-            # 后期章节：适度激进
             base_strategy.update({
                 "stage_type": "late",
                 "aggressiveness": "medium-high",
@@ -1916,6 +1921,10 @@ class NovelGenerator:
                 "max_minor_characters": 15,
                 "reason": "后期章节，清理冗余角色聚焦主线"
             })
+        
+        # 确保reason键存在
+        if "reason" not in base_strategy:
+            base_strategy["reason"] = "默认清理策略"
         
         print(f"    📊 清理策略: {base_strategy['reason']}")
         print(f"    ⚙️ 配置: 激进程度={base_strategy['aggressiveness']}, 保留最近{base_strategy['preserve_recent_chapters']}章, 阶段类型={base_strategy['stage_type']}")
