@@ -519,11 +519,9 @@ class StagePlanManager:
         event_system = actual_plan.get("event_system", {})
         
         major_events = event_system.get("major_events", [])
-        big_events = event_system.get("big_events", [])
         # 移除普通事件的统计
         
         print(f"      重大事件: {len(major_events)}个")
-        print(f"      大事件: {len(big_events)}个") 
         # 移除普通事件的打印
         
         # 打印事件详情 - 只打印重大事件和大事件
@@ -535,13 +533,6 @@ class StagePlanManager:
         else:
             print(f"  ⚠️ major_events为空列表")
         
-        if big_events:
-            print(f"  🔍 big_events内容:")
-            for i, event in enumerate(big_events):
-                print(f"    📌 事件{i+1}: {event}")
-                print(f"        🔥 {event.get('name', '无名事件')}: 第{event.get('start_chapter', '?')}-{event.get('end_chapter', '?')}章")
-        else:
-            print(f"  ⚠️ big_events为空列表")
 
     def _create_default_writing_plan(self, stage_name: str) -> Dict:
         """创建默认的写作计划"""
@@ -795,13 +786,13 @@ class StagePlanManager:
             return None
         
     def supplement_events_with_ai(self, writing_plan: Dict, stage_range: str, creative_seed: str, novel_title: str, novel_synopsis: str, overall_stage_plan: Dict) -> Dict:
-        """使用AI补充事件以提高密度 - 改进版本"""
+        """使用AI补充事件以提高密度 - 简化版本：让AI根据提示补充即可"""
         start_chap, end_chap = parse_chapter_range(stage_range)
         stage_length = end_chap - start_chap + 1
         
         events = writing_plan.get("event_system", {})
         
-        # 计算需要补充的事件数量
+        # 计算当前事件密度
         current_major = len(events.get("major_events", []))
         current_medium = len(events.get("medium_events", []))
         current_minor = len(events.get("minor_events", []))
@@ -810,102 +801,48 @@ class StagePlanManager:
         target_medium = max(2, stage_length // 8)
         target_minor = max(3, stage_length // 5)
         
-        # 如果需要补充事件，调用AI生成
+        # 如果事件密度不足，提示AI补充
         if current_major < target_major or current_medium < target_medium or current_minor < target_minor:
-            print(f"  🤖 使用AI补充事件...")
+            print(f"  🤖 事件密度不足，使用AI补充事件...")
             
-            # 准备更详细的小说信息
+            # 准备小说信息
             novel_data = self.generator.novel_data
             worldview = novel_data.get("core_worldview", {})
             character_design = novel_data.get("character_design", {})
             
-            # 构建详细的补充提示词
+            # 构建简化的补充提示词
             supplement_prompt = f"""
-    请为小说阶段补充事件设计，确保事件密度合理且符合故事逻辑。
+    请为小说阶段补充一些事件设计，使事件密度更加合理。
 
-    ## 小说核心信息
+    ## 小说信息
     - **标题**: {novel_title}
     - **简介**: {novel_synopsis}
-    - **创意种子**: {creative_seed}
     - **阶段范围**: {stage_range}章 (共{stage_length}章)
 
-    ## 世界观设定
-    {json.dumps(worldview, ensure_ascii=False, indent=2)}
+    ## 当前事件统计
+    - 重大事件: {current_major}个 (建议{target_major}个)
+    - 中型事件: {current_medium}个 (建议{target_medium}个)  
+    - 小型事件: {current_minor}个 (建议{target_minor}个)
 
-    ## 角色设计
-    {json.dumps(character_design, ensure_ascii=False, indent=2)}
-
-    ## 现有写作计划摘要
-    - 阶段目标: {writing_plan.get('stage_overview', '暂无')}
-    - 核心冲突: {writing_plan.get('conflict_design', {}).get('main_conflict', '暂无')}
-    - 主角成长重点: {writing_plan.get('character_development', {}).get('protagonist_growth', '暂无')}
-
-    ## 现有事件系统
+    ## 现有事件
     {json.dumps(events, ensure_ascii=False, indent=2)}
 
-    ## 补充要求
-    需要补充以下数量的事件来达到合理密度：
-    - **重大事件**: {max(0, target_major - current_major)}个 (每15章至少1个)
-    - **中型事件**: {max(0, target_medium - current_medium)}个 (每8章至少1个)
-    - **小型事件**: {max(0, target_minor - current_minor)}个 (每5章至少1个)
+    请根据现有事件和故事逻辑，补充一些合适的事件来丰富情节。
+    不需要严格按照建议数量，只需补充您认为合理的事件即可。
 
-    ## 事件设计原则
-    1. **填补空白**: 重点填补现有事件之间的空白章节
-    2. **逻辑连贯**: 新事件要与现有事件和主线逻辑连贯
-    3. **渐进升级**: 事件难度和重要性应逐步提升
-    4. **角色发展**: 事件要服务于角色成长和关系发展
-    5. **伏笔衔接**: 包含对后续事件的铺垫
-
-    ## 章节分布建议
-    - 前{start_chap + stage_length//3}章: 建立基础，引入新冲突
-    - 中{start_chap + stage_length//3}章: 推进核心情节
-    - 后{end_chap - stage_length//3}章: 准备收尾，铺垫后续
-
-    请生成补充的事件设计，严格按照以下JSON格式返回：
+    请返回补充的事件设计：
     {{
         "supplemental_events": {{
-            "major_events": [
-                {{
-                    "name": "事件名称",
-                    "type": "major_event",
-                    "start_chapter": 开始章节,
-                    "end_chapter": 结束章节,
-                    "significance": "事件重要性描述",
-                    "main_goal": "核心目标",
-                    "key_nodes": {{
-                        "start": "起点描述",
-                        "development": "发展过程",
-                        "climax": "高潮转折",
-                        "end": "结局收尾"
-                    }},
-                    "character_development": "角色成长重点",
-                    "aftermath": "后续影响"
-                }}
-            ],
-            "medium_events": [
-                {{
-                    "name": "事件名称",
-                    "type": "medium_event", 
-                    "chapter": 发生章节,
-                    "main_goal": "主要目标",
-                    "connection_to_major": "与重大事件的关联"
-                }}
-            ],
-            "minor_events": [
-                {{
-                    "name": "事件名称",
-                    "type": "minor_event",
-                    "chapter": 发生章节,
-                    "function": "事件功能描述"
-                }}
-            ]
+            "major_events": [],
+            "medium_events": [],
+            "minor_events": []
         }}
     }}
     """
             
             try:
                 supplement_result = self.generator.api_client.generate_content_with_retry(
-                    "stage_writing_planning",
+                    "event_supplement",
                     supplement_prompt,
                     purpose="补充事件设计"
                 )
@@ -913,35 +850,37 @@ class StagePlanManager:
                 if supplement_result and "supplemental_events" in supplement_result:
                     supplemental_events = supplement_result["supplemental_events"]
                     
-                    # 验证补充事件的格式
+                    # 简单验证补充的事件
                     validated_events = self._validate_supplemental_events(supplemental_events, start_chap, end_chap)
                     
                     # 合并补充的事件
                     for event_type in ["major_events", "medium_events", "minor_events"]:
-                        if event_type in validated_events:
+                        if event_type in validated_events and validated_events[event_type]:
                             if event_type not in events:
                                 events[event_type] = []
                             events[event_type].extend(validated_events[event_type])
                     
                     # 重新排序事件
                     events = self._sort_events_by_chapter(events)
-                    
                     writing_plan["event_system"] = events
-                    print(f"  ✅ 成功补充{len(validated_events.get('major_events', []))}个重大事件，"
-                        f"{len(validated_events.get('medium_events', []))}个中型事件，"
-                        f"{len(validated_events.get('minor_events', []))}个小型事件")
-                else:
-                    print(f"  ⚠️ AI补充事件失败，返回格式不正确，使用基础补充方法")
-                    writing_plan = self._basic_event_supplement(writing_plan, stage_range)
                     
+                    # 记录补充结果
+                    added_major = len(validated_events.get('major_events', []))
+                    added_medium = len(validated_events.get('medium_events', []))
+                    added_minor = len(validated_events.get('minor_events', []))
+                    
+                    if added_major > 0 or added_medium > 0 or added_minor > 0:
+                        print(f"  ✅ AI补充了{added_major}个重大事件，{added_medium}个中型事件，{added_minor}个小型事件")
+                    else:
+                        print(f"  ℹ️ AI没有补充新事件")
+                        
             except Exception as e:
                 print(f"  ❌ AI补充事件出错: {e}")
-                writing_plan = self._basic_event_supplement(writing_plan, stage_range)
         
         return writing_plan
 
     def _validate_supplemental_events(self, supplemental_events: Dict, start_chap: int, end_chap: int) -> Dict:
-        """验证和修正补充的事件"""
+        """简单验证补充的事件 - 只验证章节范围"""
         validated = {
             "major_events": [],
             "medium_events": [], 
@@ -951,27 +890,20 @@ class StagePlanManager:
         # 验证重大事件
         for event in supplemental_events.get("major_events", []):
             if all(key in event for key in ["name", "start_chapter", "end_chapter"]):
-                # 确保章节范围在阶段内
                 if start_chap <= event["start_chapter"] <= end_chap and start_chap <= event["end_chapter"] <= end_chap:
                     validated["major_events"].append(event)
-                else:
-                    print(f"  ⚠️ 重大事件'{event.get('name')}'章节范围超出阶段范围，已跳过")
         
         # 验证中型事件
         for event in supplemental_events.get("medium_events", []):
             if all(key in event for key in ["name", "chapter"]):
                 if start_chap <= event["chapter"] <= end_chap:
                     validated["medium_events"].append(event)
-                else:
-                    print(f"  ⚠️ 中型事件'{event.get('name')}'章节超出阶段范围，已跳过")
         
         # 验证小型事件
         for event in supplemental_events.get("minor_events", []):
             if all(key in event for key in ["name", "chapter"]):
                 if start_chap <= event["chapter"] <= end_chap:
                     validated["minor_events"].append(event)
-                else:
-                    print(f"  ⚠️ 小型事件'{event.get('name')}'章节超出阶段范围，已跳过")
         
         return validated
 
@@ -1006,7 +938,7 @@ class StagePlanManager:
         # 检查是否有超过15章没有核心事件
         max_gap = self.calculate_max_event_gap(major_events)
         
-        if max_gap > 15:
+        if max_gap > 30:
             print(f"  ⚠️ 警告：事件间隔过长，最长{max_gap}章没有核心事件")
             return False
         
@@ -1161,7 +1093,7 @@ class StagePlanManager:
             }
 
     def export_events_to_json(self, file_path: str = "novel_events.json"):
-        """导出所有事件到JSON文件，按章节排序 - 修改保存目录版本"""
+        """导出所有事件到JSON文件，按章节排序 - 修复嵌套结构版本"""
         # 确保保存到 quality_data 目录
         import os
         quality_dir = "quality_data"
@@ -1180,11 +1112,23 @@ class StagePlanManager:
         for stage_name, stage_plan in stage_plans.items():
             print(f"  🔍 处理阶段: {stage_name}")
             
+            # 修复：正确处理嵌套结构
+            if "stage_writing_plan" in stage_plan:
+                # 嵌套结构：stage_plan -> stage_writing_plan -> event_system
+                actual_plan = stage_plan["stage_writing_plan"]
+                print(f"  🔍 检测到嵌套结构 stage_writing_plan，使用嵌套数据")
+            else:
+                # 平面结构：stage_plan -> event_system
+                actual_plan = stage_plan
+                print(f"  🔍 未检测到嵌套结构，使用原始数据")
+            
             # 获取事件系统
-            event_system = stage_plan.get("event_system", {})
+            event_system = actual_plan.get("event_system", {})
+            print(f"  🔍 {stage_name}的事件系统键: {list(event_system.keys())}")
             
             # 提取重大事件
             major_events = event_system.get("major_events", [])
+            print(f"  🔍 {stage_name}的重大事件数量: {len(major_events)}")
             for event in major_events:
                 event_data = {
                     "name": event.get("name", "未命名事件"),
@@ -1199,6 +1143,7 @@ class StagePlanManager:
             
             # 提取中型事件
             medium_events = event_system.get("medium_events", [])
+            print(f"  🔍 {stage_name}的中型事件数量: {len(medium_events)}")
             for event in medium_events:
                 event_data = {
                     "name": event.get("name", "未命名事件"),
@@ -1213,6 +1158,7 @@ class StagePlanManager:
             
             # 提取小型事件
             minor_events = event_system.get("minor_events", [])
+            print(f"  🔍 {stage_name}的小型事件数量: {len(minor_events)}")
             for event in minor_events:
                 event_data = {
                     "name": event.get("name", "未命名事件"),
@@ -1260,24 +1206,59 @@ class StagePlanManager:
             print(f"❌ 导出事件到JSON文件失败: {e}")
         
         return output_data
-
+    
     def get_events_summary(self) -> Dict:
-        """获取事件摘要统计"""
-        events_data = self.export_events_to_json("temp_events.json")  # 不实际保存文件
+        """获取事件摘要统计 - 修复版本"""
+        # 不实际保存文件，直接在内存中处理
+        all_events = []
+        stage_plans = self.generator.novel_data.get("stage_writing_plans", {})
+        
+        for stage_name, stage_plan in stage_plans.items():
+            # 正确处理嵌套结构
+            if "stage_writing_plan" in stage_plan:
+                actual_plan = stage_plan["stage_writing_plan"]
+            else:
+                actual_plan = stage_plan
+            
+            event_system = actual_plan.get("event_system", {})
+            
+            # 提取所有类型的事件
+            for event_type, type_key in [("major", "major_events"), ("medium", "medium_events"), ("minor", "minor_events")]:
+                events = event_system.get(type_key, [])
+                for event in events:
+                    if event_type == "major":
+                        start_chapter = event.get("start_chapter", 0)
+                        end_chapter = event.get("end_chapter", start_chapter)
+                    else:
+                        start_chapter = event.get("chapter", event.get("start_chapter", 0))
+                        end_chapter = start_chapter
+                    
+                    event_data = {
+                        "name": event.get("name", "未命名事件"),
+                        "start_chapter": start_chapter,
+                        "end_chapter": end_chapter,
+                        "type": event_type,
+                        "stage": stage_name
+                    }
+                    all_events.append(event_data)
         
         # 按阶段统计
         stage_stats = {}
-        for event in events_data["events"]:
+        for event in all_events:
             stage = event["stage"]
             if stage not in stage_stats:
                 stage_stats[stage] = {"major": 0, "medium": 0, "minor": 0}
             stage_stats[stage][event["type"]] += 1
         
         summary = {
-            "total_events": events_data["total_events"],
-            "events_by_type": events_data["events_by_type"],
+            "total_events": len(all_events),
+            "events_by_type": {
+                "major": len([e for e in all_events if e["type"] == "major"]),
+                "medium": len([e for e in all_events if e["type"] == "medium"]),
+                "minor": len([e for e in all_events if e["type"] == "minor"])
+            },
             "events_by_stage": stage_stats,
-            "chapter_coverage": self._calculate_chapter_coverage(events_data["events"])
+            "chapter_coverage": self._calculate_chapter_coverage(all_events)
         }
         
         return summary
