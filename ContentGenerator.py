@@ -353,92 +353,130 @@ class ContentGenerator:
     def generate_chapter_content_for_novel(self, chapter_number: int, novel_data: Dict, context: GenerationContext = None) -> Optional[Dict]:
         """为小说生成章节内容 - 整合参数准备和内容生成"""
         print(f"生成第{chapter_number}章内容...")
-        # 如果是第一章，初始化世界状态
-        if chapter_number == 1:
-            print("🔄 初始化世界状态...")
-            self.quality_assessor.initialize_world_state_from_novel_data(novel_data["novel_title"], novel_data)
-        # 存储上下文供后续使用
-        novel_data['_current_generation_context'] = context
         
-        # 准备章节参数
-        chapter_params = self._prepare_chapter_params(chapter_number, novel_data)
+        # 初始化失败信息
+        failure_reason = None
+        failure_details = {}
         
-        if not chapter_params or not self._validate_chapter_params(chapter_params):
-            print(f"❌ 第{chapter_number}章参数准备失败")
-            return None
-        
-        print(f"  ✅ 第{chapter_number}章所有参数验证通过")
-        
-        chapter_data = self.generate_chapter_content(chapter_params)
-
-        # 确保章节标题唯一性
-        chapter_data = self._handle_chapter_title_uniqueness(chapter_data, chapter_number, novel_data)
-
-        # === 新增：如果是第一章，添加AI俏皮开场白 ===
-        if chapter_number == 1:
-            category = novel_data.get("category", "默认")
-            novel_title = novel_data.get("novel_title", "")
-            novel_synopsis = novel_data.get("novel_synopsis", "")
+        try:
+            # 如果是第一章，初始化世界状态
+            if chapter_number == 1:
+                print("🔄 初始化世界状态...")
+                self.quality_assessor.initialize_world_state_from_novel_data(novel_data["novel_title"], novel_data)
             
-            # 使用AI生成俏皮开场白
-            try:
-                chapter_data = self.novel_generator._add_ai_spicy_opening_to_first_chapter(
-                    chapter_data, novel_title, novel_synopsis, category
-                )
-            except Exception as e:
-                print(f"  ⚠️ AI开场白生成异常，使用备用模板: {e}")
-        # 质量评估
-        assessment = self.quality_assessor.quick_assess_chapter_quality(
-            chapter_data.get("content", ""),
-            chapter_data.get("chapter_title", ""),
-            chapter_number,
-            novel_data["novel_title"],
-            chapter_params.get("previous_chapters_summary", ""),
-            chapter_data.get("word_count", 0)
-        )
-        
-        # 设置质量评分
-        score = assessment.get("overall_score", 0)
-        chapter_data["quality_score"] = score
-        chapter_data["quality_assessment"] = assessment
-        
-        print(f"  质量评分: {score:.1f}分")
-        
-        # 根据质量决定是否优化
-        optimize_needed, optimize_reason = self._should_optimize_based_on_config(assessment, chapter_data)
-        
-        if optimize_needed:
-            print(f"  🔧 进行优化: {optimize_reason}")
-            optimized_data = self.quality_assessor.optimize_chapter_content({
-                "assessment_results": json.dumps(assessment, ensure_ascii=False),
-                "original_content": chapter_data.get("content", ""),
-                "priority_fix_1": assessment.get("weaknesses", [""])[0] if assessment.get("weaknesses") else "提升质量",
-                "priority_fix_2": assessment.get("weaknesses", [""])[1] if len(assessment.get("weaknesses", [])) > 1 else "",
-                "priority_fix_3": assessment.get("weaknesses", [""])[2] if len(assessment.get("weaknesses", [])) > 2 else ""
-            })
-            if optimized_data:
-                chapter_data.update(optimized_data)
-                # 重新评估优化后的质量
-                new_assessment = self.quality_assessor.quick_assess_chapter_quality(
-                    chapter_data.get("content", ""),
-                    chapter_data.get("chapter_title", ""),
-                    chapter_number,
-                    novel_data["novel_title"],
-                    chapter_params.get("previous_chapters_summary", ""),
-                    chapter_data.get("word_count", 0)
-                )
-                new_score = new_assessment.get("overall_score", 0)
-                improvement = new_score - score
-                print(f"  ✓ 优化完成，新评分: {new_score:.1f}分 (提升{improvement:+.1f}分)")
-                chapter_data["quality_assessment"] = new_assessment
-            else:
-                print(f"  ⚠️ 优化失败，保持原内容")
-                chapter_data["quality_assessment"] = assessment
-        else:
-            print(f"  ✓ {optimize_reason}")
+            # 存储上下文供后续使用
+            novel_data['_current_generation_context'] = context
+            
+            # 准备章节参数
+            chapter_params = self._prepare_chapter_params(chapter_number, novel_data)
+            
+            if not chapter_params or not self._validate_chapter_params(chapter_params):
+                failure_reason = "参数准备失败"
+                failure_details = {
+                    "missing_params": [key for key in ['chapter_number', 'novel_title', 'novel_synopsis', 'plot_direction', 'foreshadowing_guidance'] 
+                                    if key not in chapter_params or not chapter_params[key]],
+                    "chapter_params_keys": list(chapter_params.keys()) if chapter_params else []
+                }
+                print(f"❌ 第{chapter_number}章参数准备失败")
+                self._save_chapter_failure(novel_data, chapter_number, failure_reason, failure_details)
+                return None
+            
+            print(f"  ✅ 第{chapter_number}章所有参数验证通过")
+            
+            # 生成章节内容
+            chapter_data = self.generate_chapter_content(chapter_params)
+            
+            if not chapter_data:
+                failure_reason = "内容生成失败"
+                failure_details = {
+                    "step": "generate_chapter_content",
+                    "chapter_params_summary": {k: str(v)[:100] + "..." if len(str(v)) > 100 else str(v) 
+                                            for k, v in chapter_params.items() if k in ['chapter_number', 'novel_title']}
+                }
+                print(f"❌ 第{chapter_number}章内容生成失败")
+                self._save_chapter_failure(novel_data, chapter_number, failure_reason, failure_details)
+                return None
+
+            # 确保章节标题唯一性
+            chapter_data = self._handle_chapter_title_uniqueness(chapter_data, chapter_number, novel_data)
+
+            # === 新增：如果是第一章，添加AI俏皮开场白 ===
+            if chapter_number == 1:
+                category = novel_data.get("category", "默认")
+                novel_title = novel_data.get("novel_title", "")
+                novel_synopsis = novel_data.get("novel_synopsis", "")
+                
+                # 使用AI生成俏皮开场白
+                try:
+                    chapter_data = self.novel_generator._add_ai_spicy_opening_to_first_chapter(
+                        chapter_data, novel_title, novel_synopsis, category
+                    )
+                except Exception as e:
+                    print(f"  ⚠️ AI开场白生成异常，使用备用模板: {e}")
+            
+            # 质量评估
+            assessment = self.quality_assessor.quick_assess_chapter_quality(
+                chapter_data.get("content", ""),
+                chapter_data.get("chapter_title", ""),
+                chapter_number,
+                novel_data["novel_title"],
+                chapter_params.get("previous_chapters_summary", ""),
+                chapter_data.get("word_count", 0)
+            )
+            
+            # 设置质量评分
+            score = assessment.get("overall_score", 0)
+            chapter_data["quality_score"] = score
             chapter_data["quality_assessment"] = assessment
-        
-        return chapter_data
+            
+            print(f"  质量评分: {score:.1f}分")
+            
+            # 根据质量决定是否优化
+            optimize_needed, optimize_reason = self._should_optimize_based_on_config(assessment, chapter_data)
+            
+            if optimize_needed:
+                print(f"  🔧 进行优化: {optimize_reason}")
+                optimized_data = self.quality_assessor.optimize_chapter_content({
+                    "assessment_results": json.dumps(assessment, ensure_ascii=False),
+                    "original_content": chapter_data.get("content", ""),
+                    "priority_fix_1": assessment.get("weaknesses", [""])[0] if assessment.get("weaknesses") else "提升质量",
+                    "priority_fix_2": assessment.get("weaknesses", [""])[1] if len(assessment.get("weaknesses", [])) > 1 else "",
+                    "priority_fix_3": assessment.get("weaknesses", [""])[2] if len(assessment.get("weaknesses", [])) > 2 else ""
+                })
+                if optimized_data:
+                    chapter_data.update(optimized_data)
+                    # 重新评估优化后的质量
+                    new_assessment = self.quality_assessor.quick_assess_chapter_quality(
+                        chapter_data.get("content", ""),
+                        chapter_data.get("chapter_title", ""),
+                        chapter_number,
+                        novel_data["novel_title"],
+                        chapter_params.get("previous_chapters_summary", ""),
+                        chapter_data.get("word_count", 0)
+                    )
+                    new_score = new_assessment.get("overall_score", 0)
+                    improvement = new_score - score
+                    print(f"  ✓ 优化完成，新评分: {new_score:.1f}分 (提升{improvement:+.1f}分)")
+                    chapter_data["quality_assessment"] = new_assessment
+                else:
+                    print(f"  ⚠️ 优化失败，保持原内容")
+                    chapter_data["quality_assessment"] = assessment
+            else:
+                print(f"  ✓ {optimize_reason}")
+                chapter_data["quality_assessment"] = assessment
+            
+            return chapter_data
+            
+        except Exception as e:
+            failure_reason = f"生成过程异常: {str(e)}"
+            failure_details = {
+                "exception_type": type(e).__name__,
+                "exception_message": str(e),
+                "chapter_number": chapter_number
+            }
+            print(f"❌ 第{chapter_number}章生成过程中出现异常: {e}")
+            self._save_chapter_failure(novel_data, chapter_number, failure_reason, failure_details)
+            return None
 
     def _get_plot_direction_for_chapter(self, chapter_number: int, total_chapters: int) -> Dict[str, str]:
         """根据章节位置确定情节发展方向"""
@@ -1598,3 +1636,55 @@ class ContentGenerator:
             return "# 🎭 角色发展指导\n\n所有主要角色人设已充分建立，本章重点保持角色行为一致性。"
         
         return "\n".join(guidance_parts)
+
+    def _save_chapter_failure(self, novel_data: Dict, chapter_number: int, failure_reason: str, failure_details: Dict):
+        """保存章节生成失败信息"""
+        try:
+            failure_record = {
+                "novel_title": novel_data.get("novel_title", "未知小说"),
+                "chapter_number": chapter_number,
+                "failure_time": self._get_current_timestamp(),
+                "failure_reason": failure_reason,
+                "failure_details": failure_details,
+                "novel_category": novel_data.get("category", "未知分类"),
+                "main_character": self.custom_main_character_name,
+                "generation_context": {
+                    "has_context": novel_data.get('_current_generation_context') is not None,
+                    "context_keys": list(novel_data.keys()) if novel_data else []
+                }
+            }
+            
+            # 同时保存到本地文件备份
+            self._save_failure_to_local(failure_record)
+            
+            print(f"💾 已保存第{chapter_number}章失败记录: {failure_reason}")
+            
+        except Exception as e:
+            print(f"⚠️ 保存失败记录时出错: {e}")
+
+    def _save_failure_to_local(self, failure_record: Dict):
+        """保存失败记录到本地文件"""
+        try:
+            import os
+            failures_dir = "chapter_failures"
+            os.makedirs(failures_dir, exist_ok=True)
+            
+            filename = f"{failures_dir}/failures_{failure_record['novel_title']}.json"
+            
+            # 读取现有记录
+            existing_failures = []
+            if os.path.exists(filename):
+                with open(filename, 'r', encoding='utf-8') as f:
+                    existing_failures = json.load(f)
+            
+            # 添加新记录
+            existing_failures.append(failure_record)
+            
+            # 保存回文件
+            with open(filename, 'w', encoding='utf-8') as f:
+                json.dump(existing_failures, f, ensure_ascii=False, indent=2)
+                
+            print(f"  💾 失败记录已保存到本地: {filename}")
+            
+        except Exception as e:
+            print(f"  ❌ 本地保存失败: {e}")    
