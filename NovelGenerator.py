@@ -598,6 +598,17 @@ class NovelGenerator:
             print("❌ 生成阶段详细写作计划失败")
             return False
 
+        # 导出所有事件到JSON文件
+        events_file = f"{self.novel_data['novel_title']}_events.json"
+        self.stage_plan_manager.export_events_to_json(events_file)
+
+        # 获取事件统计摘要
+        events_summary = self.stage_plan_manager.get_events_summary()
+        print(f"\n📈 事件统计摘要:")
+        print(f"   总事件数: {events_summary['total_events']}")
+        print(f"   章节覆盖率: {events_summary['chapter_coverage']['coverage_rate']}% "
+            f"({events_summary['chapter_coverage']['covered_chapters']}/{events_summary['chapter_coverage']['total_chapters']}章)")
+
         self.novel_data["current_progress"]["stage"] = "元素时机规划"
         if not self._generate_element_timing_plan():
             print("⚠️  元素登场时机规划生成失败，使用基础时机")   
