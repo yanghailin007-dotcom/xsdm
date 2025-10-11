@@ -362,11 +362,11 @@ class APIClient:
         return None
     
     def _fix_json_format(self, json_str: str) -> str:
-        """修复常见的JSON格式问题"""
+        """修复常见的JSON格式问题 - 增强版本"""
         if not json_str:
             return json_str
             
-        # 修复1: 移除尾随逗号
+        # 修复1: 移除尾随逗号（对象和数组）
         fixed = re.sub(r',\s*}', '}', json_str)
         fixed = re.sub(r',\s*]', ']', fixed)
         
@@ -383,10 +383,20 @@ class APIClient:
         # 修复4: 确保字符串使用双引号
         fixed = re.sub(r"'([^']*)'", r'"\1"', fixed)
         
+        # 修复5: 处理中文引号问题
+        fixed = fixed.replace('"', '"').replace('"', '"')
+        fixed = fixed.replace('"', '"').replace('"', '"')
+        
+        # 修复6: 处理可能的多余逗号
+        fixed = re.sub(r',(\s*[}\]])', r'\1', fixed)
+        
+        # 修复7: 处理可能缺少的逗号
+        fixed = re.sub(r'("[^"]*")\s*("[^"]*")', r'\1,\2', fixed)
+        
         return fixed
-    
+
     def parse_json_response(self, response: str) -> Optional[Any]:
-        """解析JSON响应 - 增强版本"""
+        """解析JSON响应 - 超级增强版本"""
         if not response:
             print("  ❌ 传入的响应为空")
             return None
@@ -396,6 +406,7 @@ class APIClient:
         # 步骤1: 提取JSON内容
         json_content = self._extract_json_content(response)
         if not json_content:
+            print("  ❌ 无法提取JSON内容")
             return None
             
         print(f"  提取的JSON内容长度: {len(json_content)}")
@@ -403,11 +414,11 @@ class APIClient:
         # 步骤2: 尝试直接解析
         try:
             result = json.loads(json_content)
-            print("  ✓ JSON解析成功")
+            print("  ✓ JSON直接解析成功")
             return result
         except json.JSONDecodeError as e:
             print(f"  ❌ 首次JSON解析失败: {e}")
-            print(f"  错误位置: {e.lineno}:{e.colno}")
+            print(f"  错误位置: 第{e.lineno}行, 第{e.colno}列")
             
         # 步骤3: 尝试修复后解析
         try:
@@ -417,12 +428,38 @@ class APIClient:
             return result
         except json.JSONDecodeError as e:
             print(f"  ❌ JSON修复后仍然解析失败: {e}")
+            print(f"  错误位置: 第{e.lineno}行, 第{e.colno}列")
             
-            # 保存失败的JSON用于调试
-            self._save_debug_response(json_content, "failed_json")
-            self._save_debug_response(fixed_json, "fixed_json")
+        # 步骤4: 尝试使用更宽松的解析
+        try:
+            import ast
+            result = ast.literal_eval(json_content)
+            print("  ✓ 使用ast.literal_eval解析成功")
+            return result
+        except Exception as e:
+            print(f"  ❌ ast.literal_eval也失败: {e}")
             
-        return None
+        # 步骤5: 保存失败的JSON用于调试
+        self._save_debug_response(json_content, "failed_json")
+        
+        # 步骤6: 尝试手动修复常见问题
+        try:
+            cleaned = json_content.lstrip('\ufeff')
+            result = json.loads(cleaned)
+            print("  ✓ 移除BOM后解析成功")
+            return result
+        except:
+            pass
+        
+        # 步骤7: 最终手段 - 使用AI修复JSON
+        print("  🔄 所有自动修复方法均失败，启动AI修复...")
+        ai_repaired_result = self.repair_json_with_ai(json_content, "内容生成")
+        
+        if ai_repaired_result:
+            return ai_repaired_result
+        else:
+            print("  💥 所有JSON解析方法均失败，包括AI修复")
+            return None
 
     def _add_json_format_requirements(self, system_prompt: str) -> str:
         """在system_prompt中添加严格的JSON格式要求"""
@@ -672,3 +709,86 @@ User Prompt: {len(original_user)} → {len(optimized_data.get('optimized_user_pr
         target_provider = provider if provider else self.default_provider
         config = self._get_provider_config(target_provider)
         return config.get("model", "未知")
+    
+    def repair_json_with_ai(self, broken_json: str, original_purpose: str) -> Optional[Any]:
+        """使用AI修复破损的JSON"""
+        print("  🛠️ 尝试使用AI修复破损的JSON...")
+        
+        repair_system_prompt = """你是一个专业的JSON格式修复专家。请修复用户提供的破损JSON，使其成为完全有效的JSON格式。
+
+    修复要求：
+    1. 只修复格式问题，不要修改内容含义
+    2. 确保所有引号、括号、逗号都正确匹配
+    3. 移除任何可能导致解析错误的字符
+    4. 确保JSON结构完整
+    5. 输出必须是纯净的、可直接解析的JSON
+
+    请直接返回修复后的JSON，不要包含任何解释性文字。"""
+
+        repair_user_prompt = f"""请修复以下JSON内容，使其成为有效的JSON格式：
+
+    原始内容（用于{original_purpose}）：
+    {broken_json}
+
+    请只返回修复后的JSON："""
+
+        try:
+            print("  🤖 调用AI进行JSON修复...")
+            repaired_content = self.call_api(
+                repair_system_prompt,
+                repair_user_prompt,
+                temperature=0.1,  # 使用低温度确保稳定性
+                purpose="JSON修复",
+                provider=self.default_provider
+            )
+            
+            if repaired_content:
+                # 清理修复后的内容
+                cleaned_repaired = self.clean_api_response(repaired_content)
+                print(f"  📏 AI修复后内容长度: {len(cleaned_repaired)}字符")
+                
+                # 尝试解析修复后的JSON
+                try:
+                    result = json.loads(cleaned_repaired)
+                    print("  ✅ AI修复JSON成功！")
+                    
+                    # 保存修复记录
+                    self._save_json_repair_record(broken_json, cleaned_repaired, original_purpose, True)
+                    return result
+                except json.JSONDecodeError as e:
+                    print(f"  ❌ AI修复后的JSON仍然无法解析: {e}")
+                    self._save_json_repair_record(broken_json, cleaned_repaired, original_purpose, False)
+            else:
+                print("  ❌ AI修复调用无返回")
+                
+        except Exception as e:
+            print(f"  ❌ AI修复过程中出错: {e}")
+        
+        return None
+
+    def _save_json_repair_record(self, original_json: str, repaired_json: str, purpose: str, success: bool):
+        """保存JSON修复记录"""
+        timestamp = int(time.time())
+        datetime_str = datetime.now().strftime("%Y%m%d_%H%M%S")
+        status = "success" if success else "failed"
+        
+        filename = f"{self.debug_dir}/json_repair_{purpose}_{datetime_str}_{status}.txt"
+        
+        content = f"""========== JSON修复记录 ==========
+    时间: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+    目的: {purpose}
+    状态: {'成功' if success else '失败'}
+
+    ========== 原始JSON (解析失败) ==========
+    {original_json}
+
+    ========== 修复后JSON ==========
+    {repaired_json}
+
+    ========== 原始JSON长度: {len(original_json)} ==========
+    ========== 修复后JSON长度: {len(repaired_json)} ==========
+    """
+        
+        with open(filename, "w", encoding="utf-8") as f:
+            f.write(content)
+        print(f"  💾 JSON修复记录已保存: {filename}")    

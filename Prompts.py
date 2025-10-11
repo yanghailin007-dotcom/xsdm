@@ -499,7 +499,7 @@ Prompts = {
                     "main_goal": "string // 事件要达成的核心目标",
                     "key_nodes": {
                         "start": "string // 事件的起点和触发条件",
-                        "development": "string // 事件的发展和过程",
+                        "development": "string // 事件的发展和过程", 
                         "climax": "string // 事件的高潮和关键转折点",
                         "end": "string // 事件的结局和收尾"
                     },
@@ -507,13 +507,23 @@ Prompts = {
                     "aftermath": "string // 事件结束后对剧情、角色或世界的直接影响"
                 }
             ],
-            "supporting_events": [
+            "medium_events": [
                 {
-                    "name": "string // 支撑重大事件的次级事件名称",
-                    "type": "supporting_event",
+                    "name": "string // 支撑重大事件的中型事件名称",
+                    "type": "medium_event", 
                     "chapter": "integer // 事件发生的具体章节",
                     "main_goal": "string // 该事件的主要目标",
-                    "connection_to_major": "string // 描述此事件如何为重大事件服务（铺垫、补充、收尾等）"
+                    "connection_to_major": "string // 描述此事件如何为重大事件服务（铺垫、补充、收尾等）",
+                    "duration": "integer // 事件持续章节数（通常1-3章）"
+                }
+            ],
+            "minor_events": [
+                {
+                    "name": "string // 日常情节或角色发展的小型事件名称", 
+                    "type": "minor_event",
+                    "chapter": "integer // 事件发生的具体章节",
+                    "function": "string // 事件功能描述（如角色互动、世界观展示等）",
+                    "impact": "string // 对剧情的短期影响"
                 }
             ]
         },
@@ -523,7 +533,7 @@ Prompts = {
             "pace_control": "string // 写作节奏的控制策略（如快节奏、张弛有度等）"
         },
         "character_development": {
-            "protagonist_growth": "string // 主角在本阶段的核心成长轨迹和变化",
+            "protagonist_growth": "string // 主角在本阶段的核心成长轨迹和变化", 
             "supporting_characters_focus": "string // 重要配角/反派的塑造计划和功能",
             "relationship_development": "string // 角色之间关系的变化和发展"
         },

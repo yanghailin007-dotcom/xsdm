@@ -227,7 +227,6 @@ class StagePlanManager:
             is_continuous = self.validate_main_thread_continuity(writing_plan)
             if not is_continuous:
                 print(f"  ⚠️ {stage_name}写作计划存在事件间隔过长问题，进行优化...")
-                writing_plan = self.optimize_event_distribution(stage_range, writing_plan)
             
             # 新增：验证事件密度
             event_density_ok = self.validate_event_density(writing_plan, stage_range)
@@ -987,84 +986,13 @@ class StagePlanManager:
         
         return events
 
-    def optimize_event_distribution(self, stage_range: str, writing_plan: Dict) -> Dict:
-        """优化事件分布 - 修复版本"""
-        start_chap, end_chap = parse_chapter_range(stage_range)
-        stage_length = end_chap - start_chap + 1
-        
-        # 确保 event_system 存在
-        if "event_system" not in writing_plan:
-            writing_plan["event_system"] = {}
-        
-        events = writing_plan.get("event_system", {})
-        
-        # 确保 major_events 存在
-        if "major_events" not in events:
-            events["major_events"] = []
-        
-        major_events = events.get("major_events", [])
-        
-        # 识别过长的间隔并添加中型事件
-        optimized_events = self._fill_event_gaps(major_events, start_chap, end_chap)
-        
-        writing_plan["event_system"]["major_events"] = optimized_events
-        return writing_plan
-
-    def _fill_event_gaps(self, events: List, start_chap: int, end_chap: int) -> List:
-        """填补事件间隔 - 修复版本"""
-        if not events:
-            # 如果没有事件，在阶段中间添加一个默认重大事件
-            mid_chapter = (start_chap + end_chap) // 2
-            return [{
-                "name": "阶段核心事件",
-                "start_chapter": max(start_chap, mid_chapter - 1),
-                "end_chapter": min(end_chap, mid_chapter + 1),
-                "significance": "推动阶段核心目标",
-                "description": "自动生成的阶段核心事件，确保主线连贯性"
-            }]
-        
-        sorted_events = sorted(events, key=lambda x: x.get('start_chapter', 0))
-        filled_events = []
-        
-        # 检查阶段开始到第一个事件的间隔
-        first_start = sorted_events[0].get('start_chapter', start_chap)
-        if first_start - start_chap > 10:
-            # 在前期添加一个中型事件
-            filler_chapter = start_chap + 5
-            print(f"  ➕ 在第{filler_chapter}章添加前期铺垫事件")
-            # 这里可以实际添加事件到 filled_events
-        
-        # 检查事件之间的间隔
-        for i in range(len(sorted_events)):
-            filled_events.append(sorted_events[i])
-            
-            if i < len(sorted_events) - 1:
-                current_end = sorted_events[i].get('end_chapter', sorted_events[i].get('start_chapter', 0))
-                next_start = sorted_events[i+1].get('start_chapter', end_chap)
-                
-                if next_start - current_end > 15:
-                    # 间隔过长，在中间添加一个中型事件
-                    filler_chapter = (current_end + next_start) // 2
-                    print(f"  ➕ 在第{filler_chapter}章添加过渡事件，填补{current_end}章到{next_start}章的间隔")
-                    # 这里可以实际添加事件到 filled_events
-        
-        # 检查最后一个事件到阶段结束的间隔
-        last_end = sorted_events[-1].get('end_chapter', sorted_events[-1].get('start_chapter', 0))
-        if end_chap - last_end > 10:
-            # 在后期添加一个收尾事件
-            filler_chapter = end_chap - 5
-            print(f"  ➕ 在第{filler_chapter}章添加阶段收尾事件")
-            # 这里可以实际添加事件到 filled_events
-        
-        return filled_events
-
     def validate_main_thread_continuity(self, writing_plan: Dict) -> bool:
-        """验证主线连贯性 - 修复版本"""
-        # 确保 event_system 存在
-        if "event_system" not in writing_plan:
-            return False
-        
-        events = writing_plan.get("event_system", {})
+        """验证主线连贯性 - 修正版本"""
+        # 修正：正确访问嵌套的事件系统
+        if "stage_writing_plan" in writing_plan:
+            events = writing_plan["stage_writing_plan"].get("event_system", {})
+        else:
+            events = writing_plan.get("event_system", {})
         
         # 确保 major_events 存在
         if "major_events" not in events:
@@ -1079,9 +1007,10 @@ class StagePlanManager:
         max_gap = self.calculate_max_event_gap(major_events)
         
         if max_gap > 15:
-            print(f"⚠️ 警告：事件间隔过长，最长{max_gap}章没有核心事件")
+            print(f"  ⚠️ 警告：事件间隔过长，最长{max_gap}章没有核心事件")
             return False
         
+        print(f"  ✅ 主线连贯性验证通过：最大事件间隔{max_gap}章")
         return True
 
     def build_event_chains(self, events: List) -> List:
@@ -1173,11 +1102,16 @@ class StagePlanManager:
         return writing_plan
     
     def validate_event_density(self, writing_plan: Dict, stage_range: str) -> bool:
-        """验证事件密度是否合理"""
+        """验证事件密度是否合理 - 修正版本"""
         start_chap, end_chap = parse_chapter_range(stage_range)
         stage_length = end_chap - start_chap + 1
         
-        events = writing_plan.get("event_system", {})
+        # 修正：正确访问嵌套的事件系统
+        if "stage_writing_plan" in writing_plan:
+            events = writing_plan["stage_writing_plan"].get("event_system", {})
+        else:
+            events = writing_plan.get("event_system", {})
+        
         major_events = events.get("major_events", [])
         medium_events = events.get("medium_events", [])
         minor_events = events.get("minor_events", [])
@@ -1185,19 +1119,58 @@ class StagePlanManager:
         # 计算事件密度
         total_events = len(major_events) + len(medium_events) + len(minor_events)
         
-        # 合理密度：每3-5章应该有一个事件
-        expected_min_events = stage_length // 5
-        expected_max_events = stage_length // 3
+        # 获取最优事件密度
+        density_dict = self.calculate_optimal_event_density(stage_length)
+        expected_min_events = (
+            density_dict.get("major_events", 0) + 
+            density_dict.get("medium_events", 0) + 
+            density_dict.get("minor_events", 0)
+        )
         
         if total_events < expected_min_events:
             print(f"  ⚠️ 事件密度不足：期望至少{expected_min_events}个事件，实际只有{total_events}个")
+            print(f"    重大事件: {len(major_events)}, 中型事件: {len(medium_events)}, 小型事件: {len(minor_events)}")
             return False
         
+        print(f"  ✅ 事件密度验证通过：实际{total_events}个事件，期望至少{expected_min_events}个")
         return True
 
+    def calculate_optimal_event_density(self, stage_length: int) -> Dict:
+        """根据阶段长度智能计算最优事件密度"""
+        
+        if stage_length <= 20:
+            # 短阶段：减少事件数量
+            return {
+                "major_events": max(1, stage_length // 20),
+                "medium_events": max(2, stage_length // 10),
+                "minor_events": max(3, stage_length // 6)
+            }
+        elif stage_length <= 40:
+            # 中等阶段：适中密度
+            return {
+                "major_events": max(1, stage_length // 15),
+                "medium_events": max(2, stage_length // 8),
+                "minor_events": max(3, stage_length // 5)
+            }
+        else:
+            # 长阶段：控制最大数量，避免过度复杂
+            return {
+                "major_events": min(5, stage_length // 15),  # 最多5个重大事件
+                "medium_events": min(8, stage_length // 8),  # 最多8个中型事件
+                "minor_events": min(12, stage_length // 5)   # 最多12个小型事件
+            }
+
     def export_events_to_json(self, file_path: str = "novel_events.json"):
-        """导出所有事件到JSON文件，按章节排序"""
-        print(f"\n📋 开始提取所有事件并保存到 {file_path}")
+        """导出所有事件到JSON文件，按章节排序 - 修改保存目录版本"""
+        # 确保保存到 quality_data 目录
+        import os
+        quality_dir = "quality_data"
+        os.makedirs(quality_dir, exist_ok=True)
+        
+        # 构建完整路径
+        full_path = os.path.join(quality_dir, file_path)
+        
+        print(f"\n📋 开始提取所有事件并保存到 {full_path}")
         
         all_events = []
         
@@ -1269,10 +1242,10 @@ class StagePlanManager:
         
         # 保存到JSON文件
         try:
-            with open(file_path, 'w', encoding='utf-8') as f:
+            with open(full_path, 'w', encoding='utf-8') as f:
                 json.dump(output_data, f, ensure_ascii=False, indent=2, sort_keys=True)
             
-            print(f"✅ 成功导出 {len(all_events)} 个事件到 {file_path}")
+            print(f"✅ 成功导出 {len(all_events)} 个事件到 {full_path}")
             print(f"   📊 事件统计: 重大事件{output_data['events_by_type']['major']}个, "
                 f"中型事件{output_data['events_by_type']['medium']}个, "
                 f"小型事件{output_data['events_by_type']['minor']}个")
