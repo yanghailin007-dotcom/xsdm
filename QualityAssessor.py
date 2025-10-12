@@ -659,7 +659,7 @@ class QualityAssessor:
 请按照以下JSON格式返回评估结果：
 {{
     "overall_score": "number (0-10，基于细分维度计算)",
-    "quality_verdict": "string (根据分数评定，如'优秀', '良好', '合格'等)",
+    "quality_verdict": "string (根据分数评定，如'卓越', '优秀', '良好', '合格'等)",
     "strengths": "array of strings (列出章节的主要优点)",
     "weaknesses": "array of strings (列出章节的主要待改进方面)",
     "detailed_scores": {{
