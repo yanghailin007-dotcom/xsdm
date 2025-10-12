@@ -384,7 +384,8 @@ class ContentGenerator:
             
             print(f"  ✅ 第{chapter_number}章所有参数验证通过")
             
-            # 生成章节内容
+            # 生成章节内容 - 添加详细的类型检查
+            print(f"  🚀 开始生成第{chapter_number}章内容...")
             chapter_data = self.generate_chapter_content(chapter_params)
             
             if not chapter_data:
@@ -415,69 +416,90 @@ class ContentGenerator:
                 except Exception as e:
                     print(f"  ⚠️ AI开场白生成异常，使用备用模板: {e}")
             
-            # 质量评估
-            assessment = self.quality_assessor.quick_assess_chapter_quality(
-                chapter_data.get("content", ""),
-                chapter_data.get("chapter_title", ""),
-                chapter_number,
-                novel_data["novel_title"],
-                chapter_params.get("previous_chapters_summary", ""),
-                chapter_data.get("word_count", 0)
-            )
-            
-            # 设置质量评分
-            score = assessment.get("overall_score", 0)
-            chapter_data["quality_score"] = score
-            chapter_data["quality_assessment"] = assessment
-            
-            print(f"  质量评分: {score:.1f}分")
-            
-            # 根据质量决定是否优化
-            optimize_needed, optimize_reason = self._should_optimize_based_on_config(assessment, chapter_data)
-            
-            if optimize_needed:
-                print(f"  🔧 进行优化: {optimize_reason}")
-                optimized_data = self.quality_assessor.optimize_chapter_content({
-                    "assessment_results": json.dumps(assessment, ensure_ascii=False),
-                    "original_content": chapter_data.get("content", ""),
-                    "priority_fix_1": assessment.get("weaknesses", [""])[0] if assessment.get("weaknesses") else "提升质量",
-                    "priority_fix_2": assessment.get("weaknesses", [""])[1] if len(assessment.get("weaknesses", [])) > 1 else "",
-                    "priority_fix_3": assessment.get("weaknesses", [""])[2] if len(assessment.get("weaknesses", [])) > 2 else ""
-                })
-                if optimized_data:
-                    chapter_data.update(optimized_data)
-                    # 重新评估优化后的质量
-                    new_assessment = self.quality_assessor.quick_assess_chapter_quality(
-                        chapter_data.get("content", ""),
-                        chapter_data.get("chapter_title", ""),
-                        chapter_number,
-                        novel_data["novel_title"],
-                        chapter_params.get("previous_chapters_summary", ""),
-                        chapter_data.get("word_count", 0)
-                    )
-                    new_score = new_assessment.get("overall_score", 0)
-                    improvement = new_score - score
-                    print(f"  ✓ 优化完成，新评分: {new_score:.1f}分 (提升{improvement:+.1f}分)")
-                    chapter_data["quality_assessment"] = new_assessment
-                else:
-                    print(f"  ⚠️ 优化失败，保持原内容")
-                    chapter_data["quality_assessment"] = assessment
-            else:
-                print(f"  ✓ {optimize_reason}")
+            # 质量评估 - 添加类型检查
+            print(f"  📊 开始质量评估...")
+            try:
+                assessment = self.quality_assessor.quick_assess_chapter_quality(
+                    chapter_data.get("content", ""),
+                    chapter_data.get("chapter_title", ""),
+                    chapter_number,
+                    novel_data["novel_title"],
+                    chapter_params.get("previous_chapters_summary", ""),
+                    chapter_data.get("word_count", 0)
+                )
+                
+                # 设置质量评分
+                score = assessment.get("overall_score", 0)
+                chapter_data["quality_score"] = score
                 chapter_data["quality_assessment"] = assessment
-            
-            return chapter_data
-            
+                
+                print(f"  质量评分: {score:.1f}分")
+                
+                # 根据质量决定是否优化
+                optimize_needed, optimize_reason = self._should_optimize_based_on_config(assessment, chapter_data)
+                
+                if optimize_needed:
+                    print(f"  🔧 进行优化: {optimize_reason}")
+                    optimized_data = self.quality_assessor.optimize_chapter_content({
+                        "assessment_results": json.dumps(assessment, ensure_ascii=False),
+                        "original_content": chapter_data.get("content", ""),
+                        "priority_fix_1": assessment.get("weaknesses", [""])[0] if assessment.get("weaknesses") else "提升质量",
+                        "priority_fix_2": assessment.get("weaknesses", [""])[1] if len(assessment.get("weaknesses", [])) > 1 else "",
+                        "priority_fix_3": assessment.get("weaknesses", [""])[2] if len(assessment.get("weaknesses", [])) > 2 else ""
+                    })
+                    if optimized_data:
+                        chapter_data.update(optimized_data)
+                        # 重新评估优化后的质量
+                        new_assessment = self.quality_assessor.quick_assess_chapter_quality(
+                            chapter_data.get("content", ""),
+                            chapter_data.get("chapter_title", ""),
+                            chapter_number,
+                            novel_data["novel_title"],
+                            chapter_params.get("previous_chapters_summary", ""),
+                            chapter_data.get("word_count", 0)
+                        )
+                        new_score = new_assessment.get("overall_score", 0)
+                        improvement = new_score - score
+                        print(f"  ✓ 优化完成，新评分: {new_score:.1f}分 (提升{improvement:+.1f}分)")
+                        chapter_data["quality_assessment"] = new_assessment
+                    else:
+                        print(f"  ⚠️ 优化失败，保持原内容")
+                        chapter_data["quality_assessment"] = assessment
+                else:
+                    print(f"  ✓ {optimize_reason}")
+                    chapter_data["quality_assessment"] = assessment
+                
+                return chapter_data
+                
+            except Exception as e:
+                print(f"  ❌ 质量评估过程中出错: {e}")
+                import traceback
+                traceback.print_exc()
+                # 即使质量评估失败，也返回章节内容
+                return chapter_data
+                
         except Exception as e:
             failure_reason = f"生成过程异常: {str(e)}"
             failure_details = {
                 "exception_type": type(e).__name__,
                 "exception_message": str(e),
-                "chapter_number": chapter_number
+                "chapter_number": chapter_number,
+                "traceback": self._get_traceback_info()  # 新增：获取堆栈信息
             }
             print(f"❌ 第{chapter_number}章生成过程中出现异常: {e}")
+            import traceback
+            print(f"详细堆栈信息:")
+            traceback.print_exc()
             self._save_chapter_failure(novel_data, chapter_number, failure_reason, failure_details)
             return None
+
+    def _get_traceback_info(self) -> str:
+        """获取当前异常的堆栈信息"""
+        import traceback
+        import io
+        f = io.StringIO()
+        traceback.print_exc(file=f)
+        return f.getvalue()
 
     def _get_plot_direction_for_chapter(self, chapter_number: int, total_chapters: int) -> Dict[str, str]:
         """根据章节位置确定情节发展方向"""
@@ -795,6 +817,8 @@ class ContentGenerator:
 
     def generate_chapter_content(self, chapter_params: Dict) -> Optional[Dict]:
         """生成章节内容 - 严格两步法：先设计方案，再生成内容"""
+        print(f"  🔍 进入generate_chapter_content方法，参数类型: {type(chapter_params)}")
+        
         required_keys = ['chapter_number', 'total_chapters', 'novel_title', 'novel_synopsis', 
                         'worldview_info', 'character_info', 'writing_plan_info', 'event_driven_guidance','foreshadowing_guidance',
                         'previous_chapters_summary', 'main_plot_progress', 'plot_direction',
@@ -803,6 +827,7 @@ class ContentGenerator:
         # 参数验证和修复逻辑
         missing_keys = [key for key in required_keys if key not in chapter_params]
         if missing_keys:
+            print(f"  ⚠️ 缺少必要参数: {missing_keys}")
             for key in missing_keys:
                 if key == 'event_driven_guidance':
                     chapter_params[key] = "# 🎯 事件驱动写作指导\n\n本章为普通主线推进章节。"
@@ -818,10 +843,18 @@ class ContentGenerator:
             chapter_number = chapter_params['chapter_number']
             print(f"  📝 生成第{chapter_number}章设计方案...")
             chapter_design = self.generate_chapter_design(chapter_params)
+            
+            # 检查设计方案类型
+            print(f"  🔍 设计方案类型: {type(chapter_design)}")
             if not chapter_design:
                 print(f"  ❌ 第{chapter_number}章设计方案生成失败，终止生成")
                 return None
             
+            if not isinstance(chapter_design, dict):
+                print(f"  ❌ 设计方案不是字典类型，而是: {type(chapter_design)}")
+                print(f"     内容: {str(chapter_design)[:200]}...")
+                return None
+                
             # 第二步：根据设计方案生成内容，并加入重试机制
             max_retries = 3
             chapter_content = None
@@ -830,8 +863,14 @@ class ContentGenerator:
                 print(f"  ✍️ 第{attempt + 1}次尝试生成第{chapter_number}章内容...")
                 current_content = self.generate_chapter_content_from_design(chapter_params, chapter_design)
                 
-                if not current_content:
-                    print(f"  ❌ 第{attempt + 1}次内容生成失败")
+                # 检查生成内容的类型
+                if current_content is None:
+                    print(f"  ❌ 第{attempt + 1}次内容生成失败，返回None")
+                    continue
+                    
+                if not isinstance(current_content, dict):
+                    print(f"  ❌ 第{attempt + 1}次内容生成返回非字典类型: {type(current_content)}")
+                    print(f"     内容: {str(current_content)[:200]}...")
                     if attempt == max_retries - 1:
                         print(f"  ❌ 达到最大重试次数，第{chapter_number}章生成失败")
                         return None
@@ -857,9 +896,7 @@ class ContentGenerator:
                 # 如果是最后一次尝试，使用当前内容
                 if attempt == max_retries - 1:
                     print(f"  ❌ 达到最大重试次数，使用当前内容")
-                else:
-                    print(f"  重新生成...")
-
+            
             # 确保最终有数据返回
             if chapter_content:
                 print(f"  ✅ 第{chapter_number}章生成成功")
@@ -870,8 +907,10 @@ class ContentGenerator:
                 
         except Exception as e:
             print(f"❌ 生成第{chapter_params['chapter_number']}章内容时出错: {e}")
+            import traceback
+            traceback.print_exc()
             return None
-        
+            
     def generate_chapter_design(self, chapter_params: Dict) -> Optional[Dict]:
         """生成章节详细设计方案"""
 
@@ -1401,86 +1440,181 @@ class ContentGenerator:
             return {}
 
     def _build_consistency_guidance(self, world_state: Dict) -> str:
-        """构建一致性指导内容 - 修复版本，正确提取世界状态信息"""
+        """构建一致性指导内容 - 修复版本，避免任何可能的异常"""
         guidance_parts = ["请严格确保与之前章节的一致性："]
         
-        # 角色一致性 - 修复版本，正确提取世界状态中的角色信息
+        # 角色一致性 - 添加严格的错误处理
         characters = world_state.get('characters', {})
-        if characters:
+        if characters and isinstance(characters, dict):
             guidance_parts.append("### 👥 角色一致性（重要）")
-            for char_name, char_data in list(characters.items())[:5]:
-                # 从世界状态中正确提取角色信息
-                description = char_data.get('description', '暂无描述')
-                attributes = char_data.get('attributes', {})
-                status = attributes.get('status', '未知状态')
-                location = attributes.get('location', '未知地点')
-                last_updated = char_data.get('last_updated', 0)
-                
-                guidance_parts.append(f"- **{char_name}**")
-                guidance_parts.append(f"  - 状态: {status}")
-                guidance_parts.append(f"  - 位置: {location}")
-                guidance_parts.append(f"  - 最后更新: 第{last_updated}章")
-                guidance_parts.append(f"  - 描述: {description[:80]}..." if len(description) > 80 else f"  - 描述: {description}")
+            character_count = 0
+            
+            for char_name, char_data in characters.items():
+                if character_count >= 20:  # 限制显示数量
+                    break
+                    
+                # 严格的类型检查
+                if not isinstance(char_data, dict):
+                    print(f"⚠️ 角色数据格式错误，跳过: {char_name}")
+                    continue
+                    
+                try:
+                    # 安全的字段提取
+                    description = self._safe_get(char_data, 'description', '暂无描述')
+                    
+                    # 处理attributes字段
+                    attributes = self._safe_get(char_data, 'attributes', {})
+                    if not isinstance(attributes, dict):
+                        attributes = {}
+                    
+                    status = self._safe_get(attributes, 'status') or self._safe_get(char_data, 'status', '活跃')
+                    location = self._safe_get(attributes, 'location') or self._safe_get(char_data, 'location', '未知地点')
+                    last_updated = self._safe_get(char_data, 'last_updated') or self._safe_get(char_data, 'last_updated_chapter', 0)
+                    
+                    guidance_parts.append(f"- **{char_name}**")
+                    guidance_parts.append(f"  - 状态: {status}")
+                    guidance_parts.append(f"  - 位置: {location}")
+                    guidance_parts.append(f"  - 最后更新: 第{last_updated}章")
+                    
+                    # 安全的描述截断
+                    if len(description) > 80:
+                        guidance_parts.append(f"  - 描述: {description[:80]}...")
+                    else:
+                        guidance_parts.append(f"  - 描述: {description}")
+                        
+                    character_count += 1
+                    
+                except Exception as e:
+                    print(f"⚠️ 处理角色 {char_name} 时出错: {e}")
+                    continue
         
-        # 人物关系一致性
+        # 人物关系一致性 - 添加错误处理
         relationships = world_state.get('relationships', {})
-        if relationships:
+        if relationships and isinstance(relationships, dict):
             guidance_parts.append("### 🤝 人物关系（关键检查项）")
             relationship_count = 0
             
             for rel_key, rel_data in relationships.items():
-                if relationship_count >= 8:
+                if relationship_count >= 20:
                     break
                     
-                rel_type = rel_data.get('type', '未知关系')
-                description = rel_data.get('description', '暂无描述')
-                
-                # 解析关系双方
-                parties = rel_key.split('-')
-                if len(parties) == 2:
-                    char_a, char_b = parties
-                    guidance_parts.append(f"- **{char_a}** ↔ **{char_b}**")
-                    guidance_parts.append(f"  - 关系类型: {rel_type}")
-                    guidance_parts.append(f"  - 关系描述: {description[:60]}..." if len(description) > 60 else f"  - 关系描述: {description}")
+                if not isinstance(rel_data, dict):
+                    print(f"⚠️ 关系数据格式错误，跳过: {rel_key}")
+                    continue
                     
-                    relationship_count += 1
+                try:
+                    rel_type = self._safe_get(rel_data, 'type') or self._safe_get(rel_data, 'relationship_type', '未知关系')
+                    description = self._safe_get(rel_data, 'description', '暂无描述')
+                    
+                    parties = rel_key.split('-')
+                    if len(parties) == 2:
+                        char_a, char_b = parties
+                        guidance_parts.append(f"- **{char_a}** ↔ **{char_b}**")
+                        guidance_parts.append(f"  - 关系类型: {rel_type}")
+                        
+                        if len(description) > 60:
+                            guidance_parts.append(f"  - 关系描述: {description[:60]}...")
+                        else:
+                            guidance_parts.append(f"  - 关系描述: {description}")
+                        
+                        relationship_count += 1
+                        
+                except Exception as e:
+                    print(f"⚠️ 处理关系 {rel_key} 时出错: {e}")
+                    continue
         
-        # 物品一致性 - 修复版本，正确提取世界状态中的物品信息
+        # 物品一致性 - 添加错误处理
         items = world_state.get('items', {})
-        if items:
+        if items and isinstance(items, dict):
             guidance_parts.append("### 🎁 物品归属")
-            for item_name, item_data in list(items.items())[:4]:
-                owner = item_data.get('owner', '未知')
-                status = item_data.get('status', '未知状态')
-                description = item_data.get('description', '暂无描述')
-                location = "未知位置"  # 世界状态中没有直接的位置字段
-                
-                guidance_parts.append(f"- **{item_name}**")
-                guidance_parts.append(f"  - 拥有者: {owner}")
-                guidance_parts.append(f"  - 状态: {status}")
-                guidance_parts.append(f"  - 描述: {description[:60]}..." if len(description) > 60 else f"  - 描述: {description}")
+            item_count = 0
+            
+            for item_name, item_data in items.items():
+                if item_count >= 20:
+                    break
+                    
+                if not isinstance(item_data, dict):
+                    print(f"⚠️ 物品数据格式错误，跳过: {item_name}")
+                    continue
+                    
+                try:
+                    owner = self._safe_get(item_data, 'owner', '未知')
+                    status = self._safe_get(item_data, 'status') or self._safe_get(item_data, 'item_status', '未知状态')
+                    description = self._safe_get(item_data, 'description', '暂无描述')
+                    location = self._safe_get(item_data, 'location', '未知位置')
+                    
+                    guidance_parts.append(f"- **{item_name}**")
+                    guidance_parts.append(f"  - 拥有者: {owner}")
+                    guidance_parts.append(f"  - 状态: {status}")
+                    guidance_parts.append(f"  - 位置: {location}")
+                    
+                    if len(description) > 60:
+                        guidance_parts.append(f"  - 描述: {description[:60]}...")
+                    else:
+                        guidance_parts.append(f"  - 描述: {description}")
+                        
+                    item_count += 1
+                    
+                except Exception as e:
+                    print(f"⚠️ 处理物品 {item_name} 时出错: {e}")
+                    continue
         
-        # 技能一致性
+        # 技能一致性 - 添加错误处理
         skills = world_state.get('skills', {})
-        if skills:
+        if skills and isinstance(skills, dict):
             guidance_parts.append("### 🔧 技能状态")
-            for skill_name, skill_data in list(skills.items())[:3]:
-                owner = skill_data.get('owner', '未知')
-                level = skill_data.get('level', '未知等级')
-                description = skill_data.get('description', '暂无描述')
-                
-                guidance_parts.append(f"- **{skill_name}**")
-                guidance_parts.append(f"  - 拥有者: {owner}")
-                guidance_parts.append(f"  - 等级: {level}")
-                guidance_parts.append(f"  - 描述: {description[:60]}..." if len(description) > 60 else f"  - 描述: {description}")
+            skill_count = 0
+            
+            for skill_name, skill_data in skills.items():
+                if skill_count >= 20:
+                    break
+                    
+                if not isinstance(skill_data, dict):
+                    print(f"⚠️ 技能数据格式错误，跳过: {skill_name}")
+                    continue
+                    
+                try:
+                    owner = self._safe_get(skill_data, 'owner', '未知')
+                    level = self._safe_get(skill_data, 'level') or self._safe_get(skill_data, 'skill_level', '未知等级')
+                    description = self._safe_get(skill_data, 'description', '暂无描述')
+                    
+                    guidance_parts.append(f"- **{skill_name}**")
+                    guidance_parts.append(f"  - 拥有者: {owner}")
+                    guidance_parts.append(f"  - 等级: {level}")
+                    
+                    if len(description) > 60:
+                        guidance_parts.append(f"  - 描述: {description[:60]}...")
+                    else:
+                        guidance_parts.append(f"  - 描述: {description}")
+                        
+                    skill_count += 1
+                    
+                except Exception as e:
+                    print(f"⚠️ 处理技能 {skill_name} 时出错: {e}")
+                    continue
         
-        # 地点一致性
+        # 地点一致性 - 添加错误处理
         locations = world_state.get('locations', {})
-        if locations:
+        if locations and isinstance(locations, dict):
             guidance_parts.append("### 🗺️ 地点状态")
-            for loc_name, loc_data in list(locations.items())[:3]:
-                description = loc_data.get('description', '暂无描述')
-                guidance_parts.append(f"- **{loc_name}**: {description}")
+            location_count = 0
+            
+            for loc_name, loc_data in locations.items():
+                if location_count >= 10:
+                    break
+                    
+                if not isinstance(loc_data, dict):
+                    print(f"⚠️ 地点数据格式错误，跳过: {loc_name}")
+                    continue
+                    
+                try:
+                    description = self._safe_get(loc_data, 'description', '暂无描述')
+                    guidance_parts.append(f"- **{loc_name}**: {description}")
+                    location_count += 1
+                    
+                except Exception as e:
+                    print(f"⚠️ 处理地点 {loc_name} 时出错: {e}")
+                    continue
         
         # 添加关系检查的特别提醒
         guidance_parts.extend([
@@ -1494,6 +1628,15 @@ class ContentGenerator:
         ])
         
         return "\n".join(guidance_parts)
+
+    def _safe_get(self, obj, key, default=None):
+        """安全获取字典值，避免任何异常"""
+        try:
+            if isinstance(obj, dict):
+                return obj.get(key, default)
+            return default
+        except Exception:
+            return default
 
     def _format_known_relationships(self, relationships: Dict) -> str:
         """格式化已知关系用于显示"""

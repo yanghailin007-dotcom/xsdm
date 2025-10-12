@@ -151,12 +151,12 @@ class QualityAssessor:
     def save_assessment_data(self, novel_title: str, chapter_number: int, assessment_data: Dict):
         """保存评估数据"""
         # 保存章节评估数据
-        chapter_file = os.path.join(self.storage_path, f"{novel_title}_chapter_{chapter_number}.json")
-        try:
-            with open(chapter_file, 'w', encoding='utf-8') as f:
-                json.dump(assessment_data, f, ensure_ascii=False, indent=2)
-        except Exception as e:
-            print(f"保存章节评估数据失败: {e}")
+        #chapter_file = os.path.join(self.storage_path, f"{novel_title}_chapter_{chapter_number}.json")
+        #try:
+        #    with open(chapter_file, 'w', encoding='utf-8') as f:
+        #        json.dump(assessment_data, f, ensure_ascii=False, indent=2)
+        #except Exception as e:
+        #    print(f"保存章节评估数据失败: {e}")
         
         # 更新并保存世界状态
         if 'updated_world_state' in assessment_data:
@@ -324,11 +324,20 @@ class QualityAssessor:
                     print(f"🔄 AI检测到角色状态变化: {character_name} -> {status}")
                     self._simplify_character_status(novel_title, character_name, status, chapter_number)
             
-            # 处理世界状态增量更新
+            # 处理世界状态增量更新 - 添加清洗步骤
             if 'world_state_changes' in result:
-                self._update_world_state_incrementally(novel_title, result['world_state_changes'], chapter_number)
-                # 移除changes，保存完整的世界状态到结果中用于后续处理
-                result['updated_world_state'] = self.current_world_state
+                print("🧹 清洗世界状态变化数据...")
+                cleaned_changes = self._validate_and_clean_world_state_changes(
+                    result['world_state_changes'], 
+                    chapter_number
+                )
+                
+                if cleaned_changes:
+                    self._update_world_state_incrementally(novel_title, cleaned_changes, chapter_number)
+                    result['updated_world_state'] = self.current_world_state
+                    result['world_state_changes'] = cleaned_changes  # 替换为清洗后的数据
+                else:
+                    print("⚠️ 世界状态变化数据清洗后为空")
             
             self.save_assessment_data(novel_title, chapter_number, result)
             self.update_character_development_from_assessment(novel_title, result, chapter_number)
@@ -336,7 +345,7 @@ class QualityAssessor:
         return result
 
     def _update_world_state_incrementally(self, novel_title: str, changes: Dict, chapter_number: int):
-        """增量更新世界状态 - 地点用最新状态覆盖"""
+        """增量更新世界状态 - 使用清洗后的数据"""
         # 加载当前世界状态
         current_state = self.load_previous_assessments(novel_title)
         if not current_state:
@@ -345,30 +354,40 @@ class QualityAssessor:
                 "items": {}, 
                 "relationships": {},
                 "skills": {},
-                "locations": {}  # 地点初始化为空
+                "locations": {}
             }
         
-        # 应用增量更新
+        # 应用增量更新 - 现在数据已经是清洗后的格式
         for category, elements in changes.items():
             if category not in current_state:
                 current_state[category] = {}
             
             # 特殊处理地点：完全覆盖，不保留旧状态
             if category == "locations":
-                # 清空现有地点，用最新的覆盖
                 current_state[category] = {}
                 for element_id, element_data in elements.items():
-                    # 只保存最新状态，不保留历史
                     element_data['first_appearance'] = chapter_number
                     element_data['last_updated'] = chapter_number
                     current_state[category][element_id] = element_data
             else:
-                # 其他类别（角色、物品、关系、技能）保持增量更新
+                # 其他类别保持增量更新
                 for element_id, element_data in elements.items():
                     if element_id in current_state[category]:
-                        # 更新现有元素
-                        current_state[category][element_id].update(element_data)
-                        current_state[category][element_id]['last_updated'] = chapter_number
+                        # 更新现有元素 - 只更新清洗后的字段
+                        current_element = current_state[category][element_id]
+                        
+                        # 更新基础字段
+                        for field in ['description']:
+                            if field in element_data:
+                                current_element[field] = element_data[field]
+                        
+                        # 更新attributes字段（如果存在）
+                        if 'attributes' in element_data:
+                            if 'attributes' not in current_element:
+                                current_element['attributes'] = {}
+                            current_element['attributes'].update(element_data['attributes'])
+                        
+                        current_element['last_updated'] = chapter_number
                     else:
                         # 新增元素
                         element_data['first_appearance'] = chapter_number
@@ -397,153 +416,195 @@ class QualityAssessor:
         character_development_str = json.dumps(character_development_data, ensure_ascii=False, indent=2) if character_development_data else "{}"        
         
         return f"""
-    你是一位资深的番茄小说内容分析师与世界观架构师。
-    你的任务是根据提供的章节信息和之前的世界观状态，进行全面的质量评估，并识别出本章节对世界观的具体变化。
+内容：
+你是一位资深的番茄小说内容分析师与世界观架构师。
+你的任务是根据提供的章节信息和之前的世界观状态，进行全面的质量评估，并识别出本章节对世界观的具体变化。
 
-    ### 1. 小说信息
-    - **小说标题**: {params.get('novel_title', '未知')}
-    - **章节标题**: {params.get('chapter_title', '未知')}
-    - **章节编号**: {params.get('chapter_number', '未知')}
-    - **前情提要**: {params.get('previous_summary', '无')}
+### 重要字段约定
+在返回的world_state_changes中，请严格遵守以下字段结构：
 
-    ### 2. 上一章世界观状态 (用于一致性检查)
-    {world_state_str}
+**角色 (characters):**
+- description: string (角色当前状态描述)
+- attributes: object (包含以下固定字段)
+  - status: string (活跃/死亡/退场)
+  - location: string (当前所在地点)
+  - title: string (称号/头衔，可选)
+  - occupation: string (职业/身份，可选)
+  - rank: string (等级/排名，可选)
+  - faction: string (所属势力，可选)
 
-    现有角色发展数据:
-    {character_development_str}
+**物品 (items):**
+- description: string (物品描述)
+- owner: string (拥有者)
+- status: string (物品状态)
+- location: string (物品位置)
 
-    章节内容预览:
-    {params.get('chapter_content', '')}
+**关系 (relationships):**
+- type: string (关系类型)
+- description: string (关系描述)
+- status: string (关系状态)
 
-    请按照以下JSON格式返回评估结果：
-    {{
-        "overall_score": "number (0-10，基于细分维度计算)",
-        "quality_verdict": "string (根据分数评定，如'优秀', '良好', '合格'等)",
-        "strengths": "array of strings (列出章节的主要优点)",
-        "weaknesses": "array of strings (列出章节的主要待改进方面)",
-        "detailed_scores": {{
-            "plot_pacing_and_appeal": "number (0-2)",
-            "characterization_and_consistency": "number (0-2)", 
-            "writing_quality_and_immersion": "number (0-2)",
-            "structure_and_cohesion": "number (0-2)",
-            "world_state_consistency": "number (0-2)"
+**技能 (skills):**
+- description: string (技能描述)
+- owner: string (拥有者)
+- level: string (技能等级)
+- status: string (技能状态)
+
+**地点 (locations):**
+- description: string (地点描述)
+- status: string (地点状态)
+
+### 禁止返回以下字段：
+- first_appearance (系统自动维护)
+- last_updated (系统自动维护)
+- 其他任意自定义字段
+
+### 1. 小说信息
+- **小说标题**: {params.get('novel_title', '未知')}
+- **章节标题**: {params.get('chapter_title', '未知')}
+- **章节编号**: {params.get('chapter_number', '未知')}
+- **前情提要**: {params.get('previous_summary', '无')}
+
+### 2. 上一章世界观状态 (用于一致性检查)
+{world_state_str}
+
+现有角色发展数据:
+{character_development_str}
+
+章节内容预览:
+{params.get('chapter_content', '')}
+
+请按照以下JSON格式返回评估结果：
+{{
+    "overall_score": "number (0-10，基于细分维度计算)",
+    "quality_verdict": "string (根据分数评定，如'优秀', '良好', '合格'等)",
+    "strengths": "array of strings (列出章节的主要优点)",
+    "weaknesses": "array of strings (列出章节的主要待改进方面)",
+    "detailed_scores": {{
+        "plot_pacing_and_appeal": "number (0-2)",
+        "characterization_and_consistency": "number (0-2)", 
+        "writing_quality_and_immersion": "number (0-2)",
+        "structure_and_cohesion": "number (0-2)",
+        "world_state_consistency": "number (0-2)"
+    }},
+    "consistency_issues": [
+        {{
+            "type": "string (枚举: CHARACTER, ITEM, RELATIONSHIP, SKILL, TIMELINE, LOCATION)",
+            "description": "string (具体问题描述)", 
+            "severity": "string (枚举: High, Medium, Low)",
+            "suggestion": "string (修复建议)"
+        }}
+    ],
+    "character_status_changes": [
+        {{
+            "character_name": "string",
+            "status": "string (枚举: active, dead, exited)", 
+            "reason": "string (状态变化原因)",
+            "chapter": "number"
+        }}
+    ],
+    "world_state_changes": {{
+        // 严格遵守字段约定，只包含以下字段
+        "characters": {{
+            "角色名": {{
+                "description": "string (角色描述)",
+                "attributes": {{
+                    "status": "string (活跃/死亡/退场)",
+                    "location": "string (当前所在地点)",
+                    "title": "string (可选)",
+                    "occupation": "string (可选)",
+                    "rank": "string (可选)",
+                    "faction": "string (可选)"
+                }}
+            }}
         }},
-        "consistency_issues": [
+        "items": {{
+            "物品名": {{
+                "description": "string (物品描述)",
+                "owner": "string (拥有者)",
+                "status": "string (物品状态)",
+                "location": "string (物品位置)"
+            }}
+        }},
+        "relationships": {{
+            "角色A-角色B": {{
+                "type": "string (关系类型)",
+                "description": "string (关系描述)",
+                "status": "string (关系状态)"
+            }}
+        }},
+        "skills": {{
+            "技能名": {{
+                "description": "string (技能描述)",
+                "owner": "string (拥有者)",
+                "level": "string (技能等级)",
+                "status": "string (技能状态)"
+            }}
+        }},
+        "locations": {{
+            "地点名": {{
+                "description": "string (地点描述)",
+                "status": "string (地点状态)"
+            }}
+        }}
+    }},
+    "character_development_assessment": {{
+        // 专注于本章节的角色发展和名场面，不包含完整的角色模板
+        "new_characters_introduced": [
             {{
-                "type": "string (枚举: CHARACTER, ITEM, RELATIONSHIP, SKILL, TIMELINE, LOCATION)",
-                "description": "string (具体问题描述)", 
-                "severity": "string (枚举: High, Medium, Low)",
-                "suggestion": "string (修复建议)"
+                "name": "string",
+                "role_type": "string (主角/重要配角/次要配角)", 
+                "initial_impression": "string (给读者的第一印象)",
+                "development_potential": "string (未来发展潜力)"
             }}
         ],
-        "character_status_changes": [
+        "existing_characters_development": [
             {{
-                "character_name": "string",
-                "status": "string (枚举: active, dead, exited)", 
-                "reason": "string (状态变化原因)",
-                "chapter": "number"
+                "name": "string",
+                "growth_shown": "string (本章展现的成长或变化)",
+                "consistency_issues": "string (与过往设定的不一致之处，若无则为'无')", 
+                "development_suggestions": [
+                    "具体的发展建议1",
+                    "具体的发展建议2"
+                ]
             }}
         ],
-        "world_state_changes": {{
-            // 只包含本章节新增或发生变化的世界状态元素
-            "characters": {{
-                // 只包含本章节新出现或属性发生变化的角色
-                "新角色名或变化角色名": {{
-                    "description": "string (角色描述)",
-                    "attributes": "object (角色属性)",
-                    // 注意：不要包含first_appearance和last_updated，系统会自动处理
-                }}
-            }},
-            "items": {{
-                // 只包含本章节新出现或状态发生变化的物品
-                "新物品名或变化物品名": {{
-                    "owner": "string (拥有者)",
-                    "status": "string (物品状态)",
-                    // 注意：不要包含first_appearance和last_updated，系统会自动处理
-                }}
-            }},
-            "relationships": {{
-                // 只包含本章节新建立或发生变化的关系
-                "角色A-角色B": {{
-                    "type": "string (关系类型)",
-                    "description": "string (关系描述)",
-                    // 注意：不要包含last_updated，系统会自动处理
-                }}
-            }},
-            "skills": {{
-                // 只包含本章节新出现或发生变化的技能
-                "新技能名或变化技能名": {{
-                    "owner": "string (拥有者)", 
-                    "level": "string (技能等级)",
-                    "description": "string (技能描述)",
-                    // 注意：不要包含first_appearance和last_updated，系统会自动处理
-                }}
-            }},
-            "locations": {{
-                // 只包含本章节新出现或发生变化的地点
-                "新地点名或变化地点名": {{
-                    "description": "string (地点描述)",
-                    // 注意：不要包含first_appearance和last_updated，系统会自动处理
-                }}
+        "iconic_scenes_identified": [
+            {{
+                "character": "string",
+                "scene_description": "string (场景具体描述)",
+                "trait_demonstrated": "string (场景展现的角色特质)",
+                "impact_level": "string (High/Medium/Low)",
+                "chapter": "number (发生章节)"
             }}
-        }},
-        "character_development_assessment": {{
-            // 专注于本章节的角色发展和名场面，不包含完整的角色模板
-            "new_characters_introduced": [
-                {{
-                    "name": "string",
-                    "role_type": "string (主角/重要配角/次要配角)", 
-                    "initial_impression": "string (给读者的第一印象)",
-                    "development_potential": "string (未来发展潜力)"
-                }}
-            ],
-            "existing_characters_development": [
-                {{
-                    "name": "string",
-                    "growth_shown": "string (本章展现的成长或变化)",
-                    "consistency_issues": "string (与过往设定的不一致之处，若无则为'无')", 
-                    "development_suggestions": [
-                        "具体的发展建议1",
-                        "具体的发展建议2"
-                    ]
-                }}
-            ],
-            "iconic_scenes_identified": [
-                {{
-                    "character": "string",
-                    "scene_description": "string (场景具体描述)",
-                    "trait_demonstrated": "string (场景展现的角色特质)",
-                    "impact_level": "string (High/Medium/Low)",
-                    "chapter": "number (发生章节)"
-                }}
-            ],
-            "character_interactions": [
-                {{
-                    "characters": ["角色A", "角色B"],
-                    "interaction_type": "string (对话/合作/冲突/情感交流等)",
-                    "significance": "string (互动的重要性)",
-                    "relationship_development": "string (对关系发展的影响)"
-                }}
-            ],
-            "personality_revelations": [
-                {{
-                    "character": "string",
-                    "trait_revealed": "string (揭示的性格特质)", 
-                    "context": "string (揭示的情境)",
-                    "consistency": "boolean (是否与之前设定一致)"
-                }}
-            ]
-        }},
-        "assessment_timestamp": "string (生成报告的ISO 8601格式时间戳，例如: '2024-05-16T12:00:00Z')"
-    }}
+        ],
+        "character_interactions": [
+            {{
+                "characters": ["角色A", "角色B"],
+                "interaction_type": "string (对话/合作/冲突/情感交流等)",
+                "significance": "string (互动的重要性)",
+                "relationship_development": "string (对关系发展的影响)"
+            }}
+        ],
+        "personality_revelations": [
+            {{
+                "character": "string",
+                "trait_revealed": "string (揭示的性格特质)", 
+                "context": "string (揭示的情境)",
+                "consistency": "boolean (是否与之前设定一致)"
+            }}
+        ]
+    }},
+    "assessment_timestamp": "string (生成报告的ISO 8601格式时间戳，例如: '2024-05-16T12:00:00Z')"
+}}
 
-    重要说明：
-    1. world_state_changes 只包含本章节新增或发生变化的世界状态元素
-    2. character_development_assessment 专注于角色发展和名场面，不包含完整的角色模板
-    3. 对于已存在但未变化的元素，不要包含在返回数据中
-    4. 系统会自动处理first_appearance和last_updated字段
-    5. 保持与之前世界状态的一致性，只报告本章节带来的变化
-    """
+重要说明：
+1. world_state_changes 只包含本章节新增或发生变化的世界状态元素
+2. character_development_assessment 专注于角色发展和名场面，不包含完整的角色模板
+3. 对于已存在但未变化的元素，不要包含在返回数据中
+4. 系统会自动处理first_appearance和last_updated字段
+5. 保持与之前世界状态的一致性，只报告本章节带来的变化
+"""
 
     def _simplify_character_status(self, novel_title: str, character_name: str, status: str, chapter_number: int):
         """简化死亡/退场角色的信息，只保留状态和姓名"""
@@ -1801,3 +1862,99 @@ class QualityAssessor:
             if importance in counts:
                 counts[importance] += 1
         return counts
+    
+    def _validate_and_clean_world_state_changes(self, changes: Dict, chapter_number: int) -> Dict:
+        """验证和清洗世界状态变化数据，确保字段统一"""
+        
+        # 定义允许的字段结构
+        ALLOWED_FIELDS = {
+            "characters": {
+                "description": str,
+                "attributes": {
+                    "status": str,
+                    "location": str,
+                    "title": str,
+                    "occupation": str, 
+                    "rank": str,
+                    "faction": str
+                }
+            },
+            "items": {
+                "description": str,
+                "owner": str,
+                "status": str,
+                "location": str
+            },
+            "relationships": {
+                "type": str,
+                "description": str,
+                "status": str
+            },
+            "skills": {
+                "description": str,
+                "owner": str,
+                "level": str,
+                "status": str
+            },
+            "locations": {
+                "description": str,
+                "status": str
+            }
+        }
+        
+        cleaned_changes = {}
+        
+        for category, elements in changes.items():
+            if category not in ALLOWED_FIELDS:
+                print(f"⚠️ 跳过未知类别: {category}")
+                continue
+                
+            cleaned_changes[category] = {}
+            allowed_structure = ALLOWED_FIELDS[category]
+            
+            for element_id, element_data in elements.items():
+                if not isinstance(element_data, dict):
+                    print(f"⚠️ 跳过无效数据格式: {element_id}")
+                    continue
+                    
+                cleaned_data = {}
+                
+                # 验证和清洗字段
+                for field, field_type in allowed_structure.items():
+                    if field in element_data:
+                        if isinstance(field_type, dict):
+                            # 嵌套字典字段（如attributes）
+                            if isinstance(element_data[field], dict):
+                                cleaned_nested = {}
+                                for nested_field, nested_type in field_type.items():
+                                    if nested_field in element_data[field]:
+                                        if isinstance(element_data[field][nested_field], nested_type):
+                                            cleaned_nested[nested_field] = element_data[field][nested_field]
+                                        else:
+                                            print(f"⚠️ 字段类型不匹配: {element_id}.{field}.{nested_field}")
+                                cleaned_data[field] = cleaned_nested
+                            else:
+                                print(f"⚠️ 字段格式错误: {element_id}.{field}")
+                        else:
+                            # 简单字段
+                            if isinstance(element_data[field], field_type):
+                                cleaned_data[field] = element_data[field]
+                            else:
+                                print(f"⚠️ 字段类型不匹配: {element_id}.{field}")
+                
+                # 确保必要字段存在
+                if category == "characters":
+                    if "attributes" not in cleaned_data:
+                        cleaned_data["attributes"] = {}
+                    if "status" not in cleaned_data["attributes"]:
+                        cleaned_data["attributes"]["status"] = "活跃"
+                    if "location" not in cleaned_data["attributes"]:
+                        cleaned_data["attributes"]["location"] = "未知"
+                
+                if cleaned_data:
+                    cleaned_changes[category][element_id] = cleaned_data
+                    print(f"✅ 已清洗: {category}.{element_id}")
+                else:
+                    print(f"❌ 数据无效已跳过: {category}.{element_id}")
+        
+        return cleaned_changes    
