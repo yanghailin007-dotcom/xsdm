@@ -122,12 +122,12 @@ class QualityAssessor:
     def save_assessment_data(self, novel_title: str, chapter_number: int, assessment_data: Dict):
         """保存评估数据"""
         # 保存章节评估数据
-        chapter_file = os.path.join(self.storage_path, f"{novel_title}_chapter_{chapter_number}.json")
-        try:
-            with open(chapter_file, 'w', encoding='utf-8') as f:
-                json.dump(assessment_data, f, ensure_ascii=False, indent=2)
-        except Exception as e:
-            print(f"保存章节评估数据失败: {e}")
+        #chapter_file = os.path.join(self.storage_path, f"{novel_title}_chapter_{chapter_number}.json")
+        #try:
+        #    with open(chapter_file, 'w', encoding='utf-8') as f:
+        #        json.dump(assessment_data, f, ensure_ascii=False, indent=2)
+        #except Exception as e:
+        #    print(f"保存章节评估数据失败: {e}")
         
         # 更新并保存世界状态
         if 'updated_world_state' in assessment_data:
@@ -197,7 +197,7 @@ class QualityAssessor:
         return artifacts[:10]
     
     def assess_chapter_quality(self, assessment_params: Dict) -> Optional[Dict]:
-        """评估章节质量（包含一致性检查）"""
+        """评估章节质量（包含一致性检查）- 增强黄金三章评估"""
         user_prompt = self._generate_chapter_assessment_prompt(assessment_params)
         result = self.api_client.generate_content_with_retry(
             "chapter_quality_assessment", 
@@ -206,10 +206,16 @@ class QualityAssessor:
             purpose="章节质量评估"
         )
         
-        # 如果评估成功，保存数据并处理角色状态
+        # 如果评估成功，处理黄金三章的特殊逻辑
         if result and 'overall_score' in result:
-            novel_title = assessment_params.get('novel_title', 'unknown')
             chapter_number = assessment_params.get('chapter_number', 0)
+            
+            # 如果是黄金三章，应用更严格的标准
+            if 1 <= chapter_number <= 3:
+                result = self._apply_golden_chapters_standards(result, chapter_number)
+            
+            # 原有的处理逻辑...
+            novel_title = assessment_params.get('novel_title', 'unknown')
             
             # 处理角色状态变化
             character_status_changes = result.get('character_status_changes', [])
@@ -218,13 +224,188 @@ class QualityAssessor:
                 status = status_change.get('status')
                 if character_name and status in ['dead', 'exited']:
                     print(f"🔄 AI检测到角色状态变化: {character_name} -> {status}")
-                    # 简化角色信息，只保留状态
                     self._simplify_character_status(novel_title, character_name, status, chapter_number)
+            
+            # 处理世界状态增量更新
+            if 'world_state_changes' in result:
+                print("🧹 清洗世界状态变化数据...")
+                cleaned_changes = self._validate_and_clean_world_state_changes(
+                    result['world_state_changes'], 
+                    chapter_number
+                )
+                
+                if cleaned_changes:
+                    self._update_world_state_incrementally(novel_title, cleaned_changes, chapter_number)
+                    result['updated_world_state'] = self.current_world_state
+                    result['world_state_changes'] = cleaned_changes
+                else:
+                    print("⚠️ 世界状态变化数据清洗后为空")
             
             self.save_assessment_data(novel_title, chapter_number, result)
             self.update_character_development_from_assessment(novel_title, result, chapter_number)
                 
         return result
+
+    def _apply_golden_chapters_standards(self, assessment_result: Dict, chapter_number: int) -> Dict:
+        """对黄金三章应用更严格的评分标准"""
+        
+        # 黄金三章的特殊评分维度
+        golden_chapters_criteria = {
+            1: {
+                "criteria": {
+                    "opening_hook": 0.25,  # 开篇钩子权重25%
+                    "protagonist_intro": 0.25,  # 主角介绍权重25%
+                    "conflict_setup": 0.20,  # 冲突设置权重20%
+                    "world_building": 0.15,  # 世界观展示权重15%
+                    "pacing": 0.15  # 节奏控制权重15%
+                },
+                "minimum_acceptable": 8.5,
+                "excellent_threshold": 9.2
+            },
+            2: {
+                "criteria": {
+                    "conflict_development": 0.25,
+                    "character_relationship": 0.20,
+                    "plot_progression": 0.20,
+                    "suspense_building": 0.20,
+                    "pacing": 0.15
+                },
+                "minimum_acceptable": 8.5,
+                "excellent_threshold": 9.1
+            },
+            3: {
+                "criteria": {
+                    "climax_execution": 0.25,
+                    "foreshadowing": 0.20,
+                    "reader_engagement": 0.25,
+                    "chapter_ending": 0.20,
+                    "series_hook": 0.10
+                },
+                "minimum_acceptable": 8.5,
+                "excellent_threshold": 9.0
+            }
+        }
+        
+        chapter_criteria = golden_chapters_criteria.get(chapter_number, {})
+        if not chapter_criteria:
+            return assessment_result
+        
+        # 调整总体评分
+        original_score = assessment_result.get("overall_score", 0)
+        
+        # 如果有详细分数，按照黄金三章标准重新计算
+        if "detailed_scores" in assessment_result:
+            detailed = assessment_result["detailed_scores"]
+            new_score = 0
+            
+            for criterion, weight in chapter_criteria["criteria"].items():
+                # 将原有的分数映射到新标准
+                criterion_score = detailed.get(criterion, original_score)
+                new_score += criterion_score * weight
+            
+            assessment_result["overall_score"] = min(10.0, new_score * 2)  # 转换为10分制
+        
+        # 添加黄金三章特殊评估
+        assessment_result["golden_chapters_assessment"] = {
+            "chapter_number": chapter_number,
+            "special_criteria": chapter_criteria["criteria"],
+            "is_acceptable": assessment_result["overall_score"] >= chapter_criteria["minimum_acceptable"],
+            "quality_tier": self._get_golden_chapters_quality_tier(assessment_result["overall_score"]),
+            "improvement_suggestions": self._generate_golden_chapters_suggestions(assessment_result, chapter_number)
+        }
+        
+        return assessment_result
+
+    def _get_golden_chapters_quality_tier(self, score: float) -> str:
+        """获取黄金三章质量等级"""
+        if score >= 9.2:
+            return "S级 - 完美开篇"
+        elif score >= 8.8:
+            return "A级 - 优秀开篇" 
+        elif score >= 8.5:
+            return "B级 - 合格开篇"
+        else:
+            return "C级 - 需要重写"
+
+    def _generate_golden_chapters_suggestions(self, assessment: Dict, chapter_number: int) -> List[str]:
+        """生成黄金三章改进建议"""
+        score = assessment.get("overall_score", 0)
+        weaknesses = assessment.get("weaknesses", [])
+        
+        suggestions = []
+        
+        # 基于章节号的特殊建议
+        if chapter_number == 1 and score < 8.8:
+            suggestions.extend([
+                "检查开篇500字是否足够吸引人",
+                "强化主角登场场景的冲击力", 
+                "确保冲突在开篇立即展现",
+                "优化世界观展示的自然程度"
+            ])
+        elif chapter_number == 2 and score < 8.8:
+            suggestions.extend([
+                "深化第一章引入的冲突",
+                "加强主角与配角的互动质量",
+                "确保情节推进的节奏感",
+                "检查悬念设置的强度"
+            ])
+        elif chapter_number == 3 and score < 8.8:
+            suggestions.extend([
+                "强化章节小高潮的情感冲击",
+                "优化伏笔设置的自然程度",
+                "检查章节结尾的追读钩子强度",
+                "确保读者有强烈继续阅读的欲望"
+            ])
+        
+        # 基于弱点的具体建议
+        for weakness in weaknesses[:3]:
+            if "开篇" in weakness or "开头" in weakness:
+                suggestions.append("重新设计开篇场景，增加冲击力")
+            elif "节奏" in weakness:
+                suggestions.append("调整节奏，删除冗余描写")
+            elif "悬念" in weakness:
+                suggestions.append("加强悬念设置，提高读者好奇心")
+            elif "主角" in weakness:
+                suggestions.append("强化主角魅力和特质展现")
+        
+        return suggestions[:5]  # 返回前5个最重要的建议
+
+    def should_optimize_chapter(self, assessment: Dict) -> Tuple[bool, str]:
+        """判断是否需要优化章节（考虑黄金三章特殊要求）"""
+        score = assessment.get("overall_score", 0)
+        consistency_issues = assessment.get("consistency_issues", [])
+        chapter_info = assessment.get("golden_chapters_assessment", {})
+        
+        # 检查是否为黄金三章
+        is_golden_chapter = chapter_info.get("chapter_number", 0) in [1, 2, 3]
+        
+        # 黄金三章的特殊优化逻辑
+        if is_golden_chapter:
+            golden_minimum = 8.5
+            if score < golden_minimum:
+                return True, f"黄金三章评分低于{golden_minimum}分，必须优化"
+            elif not chapter_info.get("is_acceptable", True):
+                return True, "黄金三章未达到可接受标准"
+        
+        # 原有的优化逻辑（严重一致性问题的处理）
+        severe_consistency_issues = [issue for issue in consistency_issues 
+                                if issue.get('severity') == '高']
+        
+        if severe_consistency_issues:
+            return True, f"存在{len(severe_consistency_issues)}个严重一致性问題，需要优化"
+        
+        thresholds = self.quality_thresholds
+        
+        if score >= thresholds["excellent"]:
+            return False, "质量优秀，无需优化"
+        elif score >= thresholds["good"]:
+            return False, "质量良好，可选优化"
+        elif score >= thresholds["acceptable"]:
+            return True, "质量合格，建议优化"
+        elif score >= thresholds["needs_optimization"]:
+            return True, "需要优化提升质量"
+        else:
+            return True, "质量不合格，需要重点优化"
 
     def _simplify_character_status(self, novel_title: str, character_name: str, status: str, chapter_number: int):
         """简化死亡/退场角色的信息，只保留状态和姓名"""
@@ -279,7 +460,7 @@ class QualityAssessor:
 - **章节编号**: {params.get('chapter_number', '未知')}
 - **前情提要**: {params.get('previous_summary', '无')}
 
-### 2. 上一章世界观状态 (用于一致性检查)
+### 2. 目前章节的世界状态 (非常重要，用于一致性检查)
 {world_state_str}
 
 现有角色发展数据:

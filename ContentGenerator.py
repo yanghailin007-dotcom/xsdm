@@ -169,104 +169,47 @@ class ContentGenerator:
             #result = self._ensure_main_character_in_content(result, "market_analysis")
         return result
 
-    def generate_writing_plan(self, creative_seed: str, selected_plan: Dict, 
-                            market_analysis: Dict, total_chapters: int) -> Optional[Dict]:
-        """生成写作计划"""
-        print("=== 步骤3: 制定写作计划 ===")
-        
-        try:
-            prompt_template = self.prompts["prompts"]["overall_stage_plan"]
-            system_prompt = self.safe_format(prompt_template, total_chapters=total_chapters)
-            
-            user_prompt = f"创意种子: {creative_seed}\n选定方案: {json.dumps(selected_plan, ensure_ascii=False)}\n"
-            if self.custom_main_character_name:
-                user_prompt += f"\n主角名字: {self.custom_main_character_name}"
-            
-            complete_user_prompt = f"{system_prompt}\n\n{user_prompt}\n\n# 额外要求\n请确保严格遵循上述所有要求，特别是JSON格式输出。"
-            
-            result = self.api_client.generate_content_with_retry("overall_stage_plan", complete_user_prompt, purpose="制定写作计划")
-            if result:
-                result = self._assess_and_optimize_content(result, "writing_plan", "写作计划")
-                result = self._ensure_main_character_in_content(result, "writing_plan")
-                result = self.fix_writing_plan_chapters(result, total_chapters)
-            return result
-        except Exception as e:
-            print(f"❌ 生成写作计划时出错: {e}")
-            return None
-
-    def fix_writing_plan_chapters(self, writing_plan: Dict, total_chapters: int) -> Dict:
-        """修复写作计划中的章节范围"""
-        if not writing_plan or "chapter_rhythm" not in writing_plan:
-            return writing_plan
-        
-        chapter_rhythm = writing_plan["chapter_rhythm"]
-        chapter_ranges = self.calculate_chapter_ranges(total_chapters)
-        
-        import re
-        
-        if "opening_chapters" in chapter_rhythm:
-            original_desc = chapter_rhythm["opening_chapters"]
-            cleaned_desc = re.sub(r'^前\d+章\s*', '', original_desc)
-            chapter_rhythm["opening_chapters"] = f"前{chapter_ranges['opening']}章{cleaned_desc}"
-        
-        if "development_phase" in chapter_rhythm:
-            original_desc = chapter_rhythm["development_phase"]
-            cleaned_desc = re.sub(r'^\d+-\d+章\s*', '', original_desc)
-            chapter_rhythm["development_phase"] = f"{chapter_ranges['development_start']}-{chapter_ranges['development_end']}章{cleaned_desc}"
-        
-        if "climax_phase" in chapter_rhythm:
-            original_desc = chapter_rhythm["climax_phase"]
-            cleaned_desc = re.sub(r'^\d+-\d+章\s*', '', original_desc)
-            chapter_rhythm["climax_phase"] = f"{chapter_ranges['climax_start']}-{chapter_ranges['climax_end']}章{cleaned_desc}"
-        
-        if "ending_phase" in chapter_rhythm:
-            original_desc = chapter_rhythm["ending_phase"]
-            cleaned_desc = re.sub(r'^\d+-\d+章\s*', '', original_desc)
-            chapter_rhythm["ending_phase"] = f"{chapter_ranges['ending_start']}-{chapter_ranges['ending_end']}章{cleaned_desc}"
-        
-        writing_plan["chapter_rhythm"] = chapter_rhythm
-        return writing_plan
-
-    def calculate_chapter_ranges(self, total_chapters: int) -> Dict:
-        """计算章节范围"""
-        opening_ratio = 0.1
-        development_ratio = 0.5
-        climax_ratio = 0.3
-        ending_ratio = 0.1
-        
-        opening_end = int(total_chapters * opening_ratio)
-        development_start = opening_end + 1
-        development_end = development_start + int(total_chapters * development_ratio) - 1
-        climax_start = development_end + 1
-        climax_end = climax_start + int(total_chapters * climax_ratio) - 1
-        ending_start = climax_end + 1
-        ending_end = total_chapters
-        
-        return {
-            "opening": opening_end,
-            "development_start": development_start,
-            "development_end": development_end,
-            "climax_start": climax_start,
-            "climax_end": climax_end,
-            "ending_start": ending_start,
-            "ending_end": ending_end
-        }
-
     def generate_core_worldview(self, novel_title: str, novel_synopsis: str, selected_plan: Dict, market_analysis: Dict) -> Optional[Dict]:
         """生成核心世界观"""
+        print("=== 步骤3: 构建核心世界观 ===")
         
-        context = f"""小说标题: {novel_title}
-            小说简介: {novel_synopsis}
-            选定方案: {json.dumps(selected_plan, ensure_ascii=False)}
-            市场分析: {json.dumps(market_analysis, ensure_ascii=False)}"""
+        # 从selected_plan中提取核心设定
+        core_settings = selected_plan.get("core_settings", {})
+        story_development = selected_plan.get("story_development", {})
         
-        if self.custom_main_character_name:
-            context += f"\n主角名字: {self.custom_main_character_name}"
+        # 提取核心设定信息
+        world_background = core_settings.get("world_background", "")
+        golden_finger = core_settings.get("golden_finger", "")
+        core_selling_points = core_settings.get("core_selling_points", [])
         
-        result = self.api_client.generate_content_with_retry("core_worldview", context, purpose="构建世界观")
+        # 提取故事发展信息
+        protagonist_position = story_development.get("protagonist_position", "")
+        main_plot = story_development.get("main_plot", [])
+        
+        context = f"""
+    ## 小说信息
+    - **小说标题**: {novel_title}
+    - **小说简介**: {novel_synopsis}
+    - **市场分析**: {json.dumps(market_analysis, ensure_ascii=False)}
+    - **选定方案**: {json.dumps(selected_plan, ensure_ascii=False)}
+
+    ### 核心设定（从选定方案提取）
+    - **世界观背景**: {world_background}
+    - **金手指/系统**: {golden_finger}
+    - **核心爽点**: {', '.join(core_selling_points) if isinstance(core_selling_points, list) else core_selling_points}
+    - **主角定位**: {protagonist_position}
+    - **主线脉络**: {', '.join(main_plot) if isinstance(main_plot, list) else main_plot}
+
+    ## 世界观构建要求
+    基于以上信息，构建一个完整、自洽且符合番茄平台风格的世界观框架。
+    世界观需要与核心设定和故事发展保持一致，并提供足够的扩展空间。
+    """
+
+        result = self.api_client.generate_content_with_retry("core_worldview", context, purpose="世界观构建")
+        
         if result:
-            result = self._assess_and_optimize_content(result, "core_worldview", "世界观")
-            result = self._ensure_main_character_in_content(result, "core_worldview")
+            result = self._assess_and_optimize_content(result, "core_worldview", "世界观构建")
+        
         return result
 
     def generate_character_design(self, novel_title: str, core_worldview: Dict, selected_plan: Dict, market_analysis: Dict, custom_main_character_name: str = None) -> Optional[Dict]:
@@ -275,12 +218,73 @@ class ContentGenerator:
         
         main_character_name = custom_main_character_name or self.custom_main_character_name
         
-        context = f"""小说标题: {novel_title}
-            核心世界观: {json.dumps(core_worldview, ensure_ascii=False)}
-            选定方案: {json.dumps(selected_plan, ensure_ascii=False)}"""
+        # 从selected_plan中提取核心设定
+        core_settings = selected_plan.get("core_settings", {})
+        story_development = selected_plan.get("story_development", {})
         
+        # 提取核心设定信息
+        world_background = core_settings.get("world_background", "")
+        golden_finger = core_settings.get("golden_finger", "")
+        core_selling_points = core_settings.get("core_selling_points", [])
+        
+        # 提取故事发展信息
+        protagonist_position = story_development.get("protagonist_position", "")
+        main_plot = story_development.get("main_plot", [])
+        
+        context = f"""
+    ## Story Context
+
+    ### 小说信息
+    - **小说标题**: {novel_title}
+    - **核心世界观**: {json.dumps(core_worldview, ensure_ascii=False)}
+    - **市场分析**: {json.dumps(market_analysis, ensure_ascii=False)}
+    - **选定方案**: {json.dumps(selected_plan, ensure_ascii=False)}
+
+    ### 核心设定（从选定方案提取）
+    - **世界观背景**: {world_background}
+    - **金手指/系统**: {golden_finger}
+    - **核心爽点**: {', '.join(core_selling_points) if isinstance(core_selling_points, list) else core_selling_points}
+    - **主角定位**: {protagonist_position}
+    - **主线脉络**: {', '.join(main_plot) if isinstance(main_plot, list) else main_plot}
+
+    ## Design Requirements
+
+    ### 强制要求
+    1. **主角设定**
+    - 姓名必须为: {main_character_name}
+    - 身份和背景必须符合世界观设定
+    - 核心能力必须与金手指/系统一致
+    - 性格特点要服务于核心冲突和故事发展
+
+    2. **核心配角设定** (必须包含以下4种功能定位)
+    - **引导者与支持者**: 主角的早期引导者或庇护者，为主角提供初始平台和资源
+    - **辅助与补充者**: 弥补主角能力短板的角色，负责主角不擅长的领域
+    - **竞争与参照者**: 与主角有竞争关系或作为参照的角色，用于侧面展现主角成长
+    - **主要敌对势力**: 代表核心冲突的反派角色，具有明确的动机和威胁性
+
+    3. **敌对势力设计要求**
+    - 必须具有合理的动机和背景
+    - 威胁程度要与主角成长阶段相匹配
+    - 体现世界观中的核心冲突
+    - 具有清晰的成长路径和升级空间
+
+    4. **角色关系网络**
+    - 角色间要有明确的互动关系和情感纽带
+    - 建立清晰的盟友-敌对关系网络
+    - 确保角色间存在合理的利益冲突和合作基础
+
+    5. **角色设计原则**
+    - 保持世界观设定的一致性
+    - 突出核心冲突中的角色定位
+    - 体现金手指/系统对角色能力的影响
+    - 符合核心爽点的角色功能需求
+    - 确保角色间有明确的互动关系和成长弧线
+
+    ### 输出要求
+    必须严格按照角色设计JSON格式输出，确保主角和4位核心配角的设计完整且符合上述要求。
+    """
+
         if main_character_name:
-            context += f"\n\n【强制要求】主角的名字必须是: {main_character_name}"
             print(f"  ✓ 角色设计使用主角名字: {main_character_name}")
         
         result = self.api_client.generate_content_with_retry("character_design", context, purpose="角色设计")

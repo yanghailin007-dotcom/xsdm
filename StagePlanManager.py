@@ -162,14 +162,19 @@ class StagePlanManager:
 
     def generate_stage_writing_plan(self, stage_name: str, stage_range: str, creative_seed: str,
                                 novel_title: str, novel_synopsis: str, overall_stage_plan: Dict) -> Dict:
-        """生成阶段详细写作计划 - 修正参数版本"""
+        """生成阶段详细写作计划 - 增强黄金三章处理"""
         cache_key = f"{stage_name}_writing_plan"
         
         if cache_key in self.stage_writing_plans_cache:
             return self.stage_writing_plans_cache[cache_key]
         
         print(f"  🎬 生成{stage_name}的写作计划...")
-        print(f"  🎬 生成{stage_range}的写作计划...")
+        
+        # 检查是否为开局阶段且包含黄金三章
+        is_opening_with_golden = (stage_name == "opening_stage" and 
+                                stage_range.startswith("1-") and 
+                                int(stage_range.split("-")[1]) >= 3)
+        
         # 准备基础数据
         novel_data = self.generator.novel_data
         total_chapters = novel_data["current_progress"]["total_chapters"]
@@ -177,28 +182,58 @@ class StagePlanManager:
         # 计算章节分段
         start_chap, end_chap = parse_chapter_range(stage_range)
         stage_length = end_chap - start_chap + 1
-        early_end = start_chap + max(1, stage_length // 3) - 1
-        middle_start = early_end + 1
-        middle_end = start_chap + (2 * stage_length // 3) - 1
-        late_start = middle_end + 1
         
         # 构建用户提示词
         user_prompt = f"""
-内容:
-## 任务指令
-请根据下文提供的小说信息和全书大纲，为 `{stage_name}` 阶段制定详细的写作计划。
+    内容:
+    ## 任务指令
+    请根据下文提供的小说信息和全书大纲，为 `{stage_name}` 阶段制定详细的写作计划。
 
-## 小说核心信息
-- **小说标题**: {novel_title}
-- **小说简介**: {novel_synopsis}
-- **创意种子**: {creative_seed}
+    ## 小说核心信息
+    - **小说标题**: {novel_title}
+    - **小说简介**: {novel_synopsis}
+    - **创意种子**: {creative_seed}
 
-## 全书大纲 (上下文)
-{json.dumps(overall_stage_plan, ensure_ascii=False, indent=2)}
-## 本次任务详情
-- **目标阶段**: `opening_stage`
-- **章节范围**: {stage_range}章
+    ## 全书大纲 (上下文)
+    {json.dumps(overall_stage_plan, ensure_ascii=False, indent=2)}
+    ## 本次任务详情
+    - **目标阶段**: `{stage_name}`
+    - **章节范围**: {stage_range}章
     """
+        
+        # 如果是开局阶段且包含黄金三章，添加特殊要求
+        if is_opening_with_golden:
+            golden_chapters_prompt = f"""
+
+    ## 🏆 黄金三章特殊设计要求（第1-3章）
+
+    请为黄金三章制定特别详细的设计方案：
+
+    ### 第1章设计方案：
+    - **开篇方式**：设计3种不同的强力开篇方式供选择
+    - **主角登场**：具体描述主角如何惊艳登场
+    - **冲突设置**：设计开篇冲突的具体场景和对话
+    - **悬念钩子**：章节结尾必须设置的悬念内容
+    - **字数分配**：建议各部分的字数分配
+
+    ### 第2章设计方案：
+    - **情节推进**：具体如何深化第一章的冲突
+    - **新元素引入**：需要引入的新角色、新设定
+    - **节奏控制**：如何保持快节奏的同时不显得仓促
+    - **情感建立**：如何让读者对主角产生情感共鸣
+
+    ### 第3章设计方案：
+    - **小高潮设计**：具体的小高潮场景和冲突
+    - **伏笔设置**：为哪些后续情节埋下伏笔
+    - **追读钩子**：设计让读者必须看下一章的强力理由
+    - **阶段总结**：黄金三章整体要达到的效果
+
+    ### 黄金三章评分标准：
+    - 必须达到8.5分以上才算合格
+    - 重点评估开篇吸引力、情节紧凑度、悬念设置
+    - 每章都要有明确的成功标准
+    """
+            user_prompt += golden_chapters_prompt
         
         # 生成写作计划
         writing_plan = self.generator.api_client.generate_content_with_retry(
@@ -208,6 +243,10 @@ class StagePlanManager:
         )
         
         if writing_plan:
+            # 如果是开局阶段且包含黄金三章，进一步处理
+            if is_opening_with_golden:
+                writing_plan = self._enhance_golden_chapters_in_writing_plan(writing_plan)
+            
             self.stage_writing_plans_cache[cache_key] = writing_plan
             
             # 持久化存储到novel_data
@@ -221,6 +260,86 @@ class StagePlanManager:
         else:
             print(f"  ⚠️ {stage_name}写作计划生成失败，使用默认计划")
             return self._create_default_writing_plan(stage_name, stage_range)
+
+    def _enhance_golden_chapters_in_writing_plan(self, writing_plan: Dict) -> Dict:
+        """在阶段写作计划中增强黄金三章设计"""
+        
+        # 确保有事件系统设计
+        if "event_system_design" not in writing_plan:
+            writing_plan["event_system_design"] = {}
+        
+        # 添加黄金三章特殊事件
+        writing_plan["event_system_design"]["golden_chapters_events"] = {
+            "chapter_1_opening_event": {
+                "name": "开篇引爆事件",
+                "type": "重大事件",
+                "start_chapter": 1,
+                "end_chapter": 1,
+                "purpose": "快速吸引读者注意力，展现主角特质",
+                "success_criteria": "读者在500字内被吸引继续阅读",
+                "key_moments": [
+                    {
+                        "chapter": 1,
+                        "description": "强力开篇场景，立即展现冲突",
+                        "impact": "高"
+                    }
+                ]
+            },
+            "chapter_2_development_event": {
+                "name": "冲突深化事件", 
+                "type": "重大事件",
+                "start_chapter": 2,
+                "end_chapter": 2,
+                "purpose": "深化开篇冲突，建立人物关系",
+                "success_criteria": "读者对主角产生认同和期待",
+                "key_moments": [
+                    {
+                        "chapter": 2,
+                        "description": "主角应对冲突，展现能力",
+                        "impact": "中高"
+                    }
+                ]
+            },
+            "chapter_3_climax_event": {
+                "name": "小高潮事件",
+                "type": "重大事件", 
+                "start_chapter": 3,
+                "end_chapter": 3,
+                "purpose": "安排情节小高潮，设置追读钩子",
+                "success_criteria": "读者产生强烈追读欲望",
+                "key_moments": [
+                    {
+                        "chapter": 3,
+                        "description": "情节小高潮和强力悬念结尾",
+                        "impact": "高"
+                    }
+                ]
+            }
+        }
+        
+        # 添加黄金三章角色表现设计
+        if "character_performance_design" not in writing_plan:
+            writing_plan["character_performance_design"] = {}
+        
+        writing_plan["character_performance_design"]["golden_chapters_focus"] = {
+            "chapter_1_character_intro": {
+                "focus": "主角惊艳登场",
+                "key_scenes": ["开篇亮相", "冲突应对", "特质展现"],
+                "success_criteria": "读者立即喜欢上主角"
+            },
+            "chapter_2_character_development": {
+                "focus": "主角能力展现和关系建立", 
+                "key_scenes": ["能力演示", "配角互动", "情感共鸣"],
+                "success_criteria": "读者对主角产生深度认同"
+            },
+            "chapter_3_character_growth": {
+                "focus": "主角初步成长和魅力强化",
+                "key_scenes": ["困境突破", "智慧展现", "魅力时刻"],
+                "success_criteria": "读者成为主角粉丝"
+            }
+        }
+        
+        return writing_plan
 
     def get_chapter_writing_context(self, chapter_number: int) -> Dict:
         """获取指定章节的写作上下文"""
