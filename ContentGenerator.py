@@ -6,6 +6,7 @@ from typing import Dict, Optional, List, Tuple
 
 import APIClient
 from Contexts import GenerationContext
+import Contexts
 import EventDrivenManager
 import NovelGenerator
 from Prompts import Prompts
@@ -950,7 +951,7 @@ class ContentGenerator:
         world_state = self._get_previous_world_state(novel_title)
         character_development_guidance = self._get_character_development_guidance(chapter_number, novel_data)
         # 获取上下文
-        context = novel_data.get('_current_generation_context')
+        context:Contexts.GenerationContext = novel_data.get('_current_generation_context')
         
         # 检测是否需要情绪缓冲
         emotional_break_needed = False
@@ -983,7 +984,15 @@ class ContentGenerator:
             event_context = context.event_context
             foreshadowing_context = context.foreshadowing_context  
             growth_context = context.growth_context
+            # 从上下文中获取阶段计划
+            stage_writing_plan = context.stage_plan if hasattr(context, 'stage_plan') else {}
 
+            # --- START: ADDED DEBUGGING ---
+            print(f"  [DEBUG] Type of event_context: {type(event_context)}")
+            print(f"  [DEBUG] Type of foreshadowing_context: {type(foreshadowing_context)}")
+            print(f"  [DEBUG] Type of growth_context: {type(growth_context)}")
+            print(f"  [DEBUG] Type of stage_writing_plan: {type(stage_writing_plan)}")
+        
             print(f"  📊 上下文信息:")
             print(f"    - 事件上下文: {len(event_context.get('active_events', []))} 个活跃事件")
             print(f"    - 伏笔上下文: {len(foreshadowing_context.get('elements_to_introduce', []))} 个待引入元素") 
@@ -999,8 +1008,6 @@ class ContentGenerator:
             
             print(f"    - 事件指导: \n{event_guidance} ") 
             print(f"    - 伏笔指导: \n{foreshadowing_guidance} ") 
-            # 从上下文中获取阶段计划
-            stage_writing_plan = context.stage_plan if hasattr(context, 'stage_plan') else {}
         else:
             print(f"  ⚠️ 无上下文，使用传统方式获取指导")
             # 回退到传统方式
@@ -1688,3 +1695,8 @@ class ContentGenerator:
             
         except Exception as e:
             print(f"  ❌ 本地保存失败: {e}")    
+
+    def _get_current_timestamp(self) -> str:
+        """获取当前时间戳"""
+        import datetime
+        return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")            
