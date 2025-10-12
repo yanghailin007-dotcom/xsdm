@@ -824,7 +824,7 @@ class ContentGenerator:
         print(f"  🔍 进入generate_chapter_content方法，参数类型: {type(chapter_params)}")
         
         required_keys = ['chapter_number', 'total_chapters', 'novel_title', 'novel_synopsis', 
-                        'worldview_info', 'character_info', 'writing_plan_info', 'event_driven_guidance','foreshadowing_guidance',
+                        'worldview_info', 'character_info', 'event_driven_guidance','foreshadowing_guidance',
                         'previous_chapters_summary', 'main_plot_progress', 'plot_direction',
                         'chapter_connection_note']
         

@@ -190,15 +190,12 @@ class StagePlanManager:
     内容:
     ## 任务指令
     请根据下文提供的小说信息和全书大纲，为 `{stage_name}` 阶段制定详细的写作计划。
-内容:
-## 任务指令
-请根据下文提供的小说信息和全书大纲，为 `{stage_name}` 阶段制定详细的写作计划。
 
-## 事件规划核心要求
-1. **合理密度**: 确保每5-8章有一个小型事件，每10-15章有一个中型事件，每15-20章有一个重大事件
-2. **主线贯穿**: 所有事件必须服务于阶段核心目标，避免偏离主线  
-3. **渐进升级**: 事件难度和重要性应逐步提升，形成递进关系
-4. **伏笔衔接**: 每个事件都应包含对后续事件的铺垫
+    ## 事件规划核心要求
+    1. **合理密度**: 请参照重要事件密度要求
+    2. **主线贯穿**: 所有事件必须服务于阶段核心目标，避免偏离主线  
+    3. **渐进升级**: 事件难度和重要性应逐步提升，形成递进关系
+    4. **伏笔衔接**: 每个事件都应包含对后续事件的铺垫
 
     ## 小说核心信息
     - **小说标题**: {novel_title}
@@ -207,22 +204,17 @@ class StagePlanManager:
 
     ## 全书大纲 (上下文)
     {json.dumps(overall_stage_plan, ensure_ascii=False, indent=2)}
+
     ## 本次任务详情
-    - **目标阶段**: `{stage_name}`
+    - **目标阶段**: {stage_name}
     - **章节范围**: {stage_range}章
-## 全书大纲 (上下文)
-{json.dumps(overall_stage_plan, ensure_ascii=False, indent=2)}
+    - **阶段长度**: {stage_length}章
 
-## 本次任务详情
-- **目标阶段**: {stage_name}
-- **章节范围**: {stage_range}章
-- **阶段长度**: {stage_length}章
-
-## 事件密度要求
-- **小型事件**: 至少{max(3, stage_length // 5)}个 (日常冲突、角色互动)
-- **中型事件**: 至少{max(2, stage_length // 8)}个 (支线任务、能力突破)  
-- **重大事件**: 至少{max(1, stage_length // 15)}个 (主线推进、重大转折)
-- **最大事件间隔**: 不超过15章必须有核心事件推进
+    ## 重要事件密度要求
+    - **小型事件**: 至少{max(3, stage_length // 5)}个 (日常冲突、角色互动)
+    - **中型事件**: 至少{max(2, stage_length // 8)}个 (支线任务、能力突破)  
+    - **重大事件**: 至少{max(1, stage_length // 15)}个 (主线推进、重大转折)
+    - **最大事件间隔**: 不超过15章必须有核心事件推进
     """
         
         # 如果是开局阶段且包含黄金三章，添加特殊要求
@@ -293,8 +285,7 @@ class StagePlanManager:
             self._print_writing_plan_summary(writing_plan)
             return writing_plan
         else:
-            print(f"  ⚠️ {stage_name}写作计划生成失败，使用默认计划")
-            return self._create_default_writing_plan(stage_name, stage_range)
+            print(f"  ⚠️ {stage_name}写作计划生成失败，使用默认计划，请重点检查")
 
     def _enhance_golden_chapters_in_writing_plan(self, writing_plan: Dict) -> Dict:
         """在阶段写作计划中增强黄金三章设计"""
@@ -661,189 +652,6 @@ class StagePlanManager:
         else:
             print(f"  ⚠️ major_events为空列表")
         
-
-    def _create_default_writing_plan(self, stage_name: str) -> Dict:
-        """创建默认的写作计划"""
-        stage_range = self._get_stage_range(stage_name)
-        start_chap, end_chap = self._parse_chapter_range(stage_range)
-        
-        # 创建章节分段
-        chapter_guidance = []
-        segment_length = max(1, (end_chap - start_chap + 1) // 3)
-        
-        for i in range(3):
-            segment_start = start_chap + i * segment_length
-            segment_end = min(end_chap, segment_start + segment_length - 1)
-            
-            if i == 0:
-                focus = "建立阶段基础，引入新冲突"
-            elif i == 1:
-                focus = "推进核心情节，深化角色发展"
-            else:
-                focus = "准备阶段收尾，铺垫后续发展"
-            
-            chapter_guidance.append({
-                "chapter_range": f"{segment_start}-{segment_end}",
-                "writing_focus": focus,
-                "key_tasks": ["保持情节连贯性", "推进角色成长"]
-            })
-        
-        return {
-            "stage_name": stage_name,
-            "chapter_range": stage_range,
-            "plot_structure_design": {
-                "main_plot_architecture": {
-                    "opening_approach": "自然承接上一阶段",
-                    "conflict_arrangement": "逐步引入和升级冲突",
-                    "climax_design": "设置情感和情节高潮",
-                    "ending_approach": "为下一阶段做好铺垫"
-                },
-                "pace_control_strategy": {
-                    "fast_pace_chapters": list(range(start_chap + 2, end_chap - 2)),
-                    "slow_pace_chapters": [start_chap, start_chap + 1, end_chap - 1, end_chap],
-                    "turning_points": [
-                        {
-                            "chapter": start_chap + segment_length,
-                            "description": "阶段第一个转折点",
-                            "impact": "改变剧情方向"
-                        }
-                    ]
-                }
-            },
-            "event_system_design": {
-                "major_events": [
-                    {
-                        "name": f"{stage_name}核心事件",
-                        "theme": "体现阶段核心内容",
-                        "start_chapter": start_chap + 1,
-                        "end_chapter": end_chap - 1,
-                        "key_moments": [
-                            {
-                                "chapter": start_chap + segment_length,
-                                "description": "事件关键发展",
-                                "purpose": "推动事件进展"
-                            }
-                        ],
-                        "character_roles": {
-                            "protagonist": "主角在事件中成长",
-                            "supporting_characters": ["配角参与推动剧情"]
-                        },
-                        "connection_to_content": "基于内容规划设计"
-                    }
-                ],
-                "supporting_events": [
-                    {
-                        "name": "铺垫事件",
-                        "type": "setup",
-                        "chapters": [start_chap, start_chap + 1],
-                        "purpose": "为重大事件做铺垫",
-                        "connection_to_major": "引入重大事件相关元素"
-                    }
-                ]
-            },
-            "character_performance_design": {
-                "protagonist_showcase": {
-                    "personality_evolution_scenes": [
-                        {
-                            "scene_description": "展现性格变化的场景",
-                            "purpose": "体现角色成长",
-                            "suggested_chapter": start_chap + segment_length
-                        }
-                    ],
-                    "ability_demonstration": [
-                        {
-                            "ability": "新获得的能力",
-                            "demonstration_method": "通过冲突或事件展现",
-                            "impact": "改变局势或关系"
-                        }
-                    ],
-                    "motivation_deepening": "通过事件深化主角目标"
-                },
-                "supporting_characters_arrangement": {
-                    "focus_characters": [
-                        {
-                            "character": "重要配角",
-                            "key_scenes": ["展现角色特点的场景"],
-                            "development_arc": "配角的发展轨迹"
-                        }
-                    ],
-                    "new_characters_introduction": [
-                        {
-                            "character": "新角色",
-                            "introduction_method": "自然融入剧情",
-                            "first_impression": "给读者留下深刻印象"
-                        }
-                    ],
-                    "relationship_development": {
-                        "relationship": "角色关系发展",
-                        "key_interactions": ["重要的互动场景"]
-                    }
-                }
-            },
-            "faction_conflict_design": {
-                "conflict_manifestation": {
-                    "direct_conflicts": ["势力间的直接对抗"],
-                    "indirect_conflicts": ["通过代理人或事件的间接冲突"],
-                    "escalation_pattern": "从轻微到严重的逐步升级"
-                },
-                "world_building_expansion": {
-                    "new_locations_reveal": ["通过剧情自然介绍新地点"],
-                    "cultural_revelations": ["通过角色对话或事件揭示文化"],
-                    "system_refinement": "逐步完善世界体系"
-                }
-            },
-            "emotional_arc_design": {
-                "emotional_development": {
-                    "key_emotional_nodes": [
-                        {
-                            "chapter": start_chap + segment_length,
-                            "emotional_change": "情感重要变化",
-                            "impact": "影响角色关系和决策"
-                        }
-                    ],
-                    "emotional_conflicts": ["情感与责任的冲突"],
-                    "emotional_culmination": "情感达到高潮并升华"
-                }
-            },
-            "foreshadowing_integration": {
-                "new_elements_introduction": [
-                    {
-                        "element": "新元素",
-                        "integration_method": "自然融入对话或事件",
-                        "naturalness_ensurance": "不过度强调，保持故事流畅"
-                    }
-                ],
-                "existing_elements_development": [
-                    {
-                        "element": "现有元素",
-                        "development_scenes": ["展现元素发展的场景"],
-                        "progression_naturalness": "符合故事逻辑的发展"
-                    }
-                ],
-                "foreshadowing_payoff": [
-                    {
-                        "element": "前期伏笔",
-                        "payoff_chapter": end_chap - 1,
-                        "payoff_method": "自然揭示重要性",
-                        "satisfaction_ensurance": "给读者合理的解释和情感满足"
-                    }
-                ]
-            },
-            "chapter_distribution_plan": {
-                "early_chapters_focus": "建立基础，引入冲突",
-                "middle_chapters_focus": "深化发展，推进情节",
-                "late_chapters_focus": "准备收尾，铺垫后续",
-                "chapter_specific_guidance": chapter_guidance
-            },
-            "writing_techniques_guidance": {
-                "narrative_approach": "保持连贯的叙事视角",
-                "description_priorities": "重点描写关键场景和情感变化",
-                "dialogue_design": "通过对话推进剧情和塑造角色",
-                "suspense_techniques": "在章节结尾设置悬念"
-            },
-            "writing_plan_synopsis": f"{stage_name}的常规写作安排"
-        }
-
     # 兼容性方法 - 保持与现有系统的兼容
     def get_current_stage_plan(self, chapter_number: int) -> Optional[Dict]:
         """获取当前章节所属阶段的详细计划（兼容性方法）"""
@@ -914,11 +722,15 @@ class StagePlanManager:
             return None
         
     def supplement_events_with_ai(self, writing_plan: Dict, stage_range: str, creative_seed: str, novel_title: str, novel_synopsis: str, overall_stage_plan: Dict) -> Dict:
-        """使用AI补充事件以提高密度 - 简化版本：让AI根据提示补充即可"""
+        """使用AI补充事件以提高密度 - 简化版本"""
         start_chap, end_chap = parse_chapter_range(stage_range)
         stage_length = end_chap - start_chap + 1
         
-        events = writing_plan.get("event_system", {})
+        # 提取事件数据
+        if "stage_writing_plan" in writing_plan:
+            events = writing_plan["stage_writing_plan"].get("event_system", {})
+        else:
+            events = writing_plan.get("event_system", {})
         
         # 计算当前事件密度
         current_major = len(events.get("major_events", []))
@@ -933,19 +745,24 @@ class StagePlanManager:
         if current_major < target_major or current_medium < target_medium or current_minor < target_minor:
             print(f"  🤖 事件密度不足，使用AI补充事件...")
             
-            # 准备小说信息
-            novel_data = self.generator.novel_data
-            worldview = novel_data.get("core_worldview", {})
-            character_design = novel_data.get("character_design", {})
-            
-            # 构建简化的补充提示词
+            # 使用与生成阶段计划相同的提示词结构
             supplement_prompt = f"""
-    请为小说阶段补充一些事件设计，使事件密度更加合理。
+    请为小说阶段补充事件设计，使事件密度更加合理。
 
-    ## 小说信息
-    - **标题**: {novel_title}
-    - **简介**: {novel_synopsis}
+    ## 小说核心信息
+    - **小说标题**: {novel_title}
+    - **小说简介**: {novel_synopsis}
+    - **创意种子**: {creative_seed}
     - **阶段范围**: {stage_range}章 (共{stage_length}章)
+
+    ## 全书大纲 (上下文)
+    {json.dumps(overall_stage_plan, ensure_ascii=False, indent=2)}
+
+    ## 事件规划核心要求
+    1. **合理密度**: 确保每5-8章有一个小型事件，每10-15章有一个中型事件，每15-20章有一个重大事件
+    2. **主线贯穿**: 所有事件必须服务于阶段核心目标，避免偏离主线  
+    3. **渐进升级**: 事件难度和重要性应逐步提升，形成递进关系
+    4. **伏笔衔接**: 每个事件都应包含对后续事件的铺垫
 
     ## 当前事件统计
     - 重大事件: {current_major}个 (建议{target_major}个)
@@ -955,7 +772,8 @@ class StagePlanManager:
     ## 现有事件
     {json.dumps(events, ensure_ascii=False, indent=2)}
 
-    请根据现有事件和故事逻辑，补充一些合适的事件来丰富情节。
+    ## 补充要求
+    请根据现有事件和故事逻辑，补充合适的事件来丰富情节。
     不需要严格按照建议数量，只需补充您认为合理的事件即可。
 
     请返回补充的事件设计：
@@ -978,7 +796,7 @@ class StagePlanManager:
                 if supplement_result and "supplemental_events" in supplement_result:
                     supplemental_events = supplement_result["supplemental_events"]
                     
-                    # 简单验证补充的事件
+                    # 验证补充的事件
                     validated_events = self._validate_supplemental_events(supplemental_events, start_chap, end_chap)
                     
                     # 合并补充的事件
@@ -990,7 +808,12 @@ class StagePlanManager:
                     
                     # 重新排序事件
                     events = self._sort_events_by_chapter(events)
-                    writing_plan["event_system"] = events
+                    
+                    # 更新事件系统
+                    if "stage_writing_plan" in writing_plan:
+                        writing_plan["stage_writing_plan"]["event_system"] = events
+                    else:
+                        writing_plan["event_system"] = events
                     
                     # 记录补充结果
                     added_major = len(validated_events.get('major_events', []))
@@ -999,8 +822,6 @@ class StagePlanManager:
                     
                     if added_major > 0 or added_medium > 0 or added_minor > 0:
                         print(f"  ✅ AI补充了{added_major}个重大事件，{added_medium}个中型事件，{added_minor}个小型事件")
-                    else:
-                        print(f"  ℹ️ AI没有补充新事件")
                         
             except Exception as e:
                 print(f"  ❌ AI补充事件出错: {e}")
