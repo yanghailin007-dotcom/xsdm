@@ -6,6 +6,7 @@ from typing import Dict, Optional, List, Tuple
 
 import APIClient
 from Contexts import GenerationContext
+import Contexts
 import EventDrivenManager
 import NovelGenerator
 from Prompts import Prompts
@@ -357,73 +358,72 @@ class ContentGenerator:
     def generate_chapter_content_for_novel(self, chapter_number: int, novel_data: Dict, context: GenerationContext = None) -> Optional[Dict]:
         """为小说生成章节内容 - 整合参数准备和内容生成"""
         print(f"生成第{chapter_number}章内容...")
-        # 如果是第一章，初始化世界状态
-        if chapter_number == 1:
-            print("🔄 初始化世界状态...")
-            self.quality_assessor.initialize_world_state_from_novel_data(novel_data["novel_title"], novel_data)
-        # 存储上下文供后续使用
-        novel_data['_current_generation_context'] = context
         
-        # 准备章节参数
-        chapter_params = self._prepare_chapter_params(chapter_number, novel_data)
+        # 初始化失败信息
+        failure_reason = None
+        failure_details = {}
         
-        if not chapter_params or not self._validate_chapter_params(chapter_params):
-            print(f"❌ 第{chapter_number}章参数准备失败")
-            return None
-        
-        print(f"  ✅ 第{chapter_number}章所有参数验证通过")
-        
-        chapter_data = self.generate_chapter_content(chapter_params)
-
-        # 确保章节标题唯一性
-        chapter_data = self._handle_chapter_title_uniqueness(chapter_data, chapter_number, novel_data)
-
-        # === 新增：如果是第一章，添加AI俏皮开场白 ===
-        if chapter_number == 1:
-            category = novel_data.get("category", "默认")
-            novel_title = novel_data.get("novel_title", "")
-            novel_synopsis = novel_data.get("novel_synopsis", "")
+        try:
+            # 如果是第一章，初始化世界状态
+            if chapter_number == 1:
+                print("🔄 初始化世界状态...")
+                self.quality_assessor.initialize_world_state_from_novel_data(novel_data["novel_title"], novel_data)
             
-            # 使用AI生成俏皮开场白
+            # 存储上下文供后续使用
+            novel_data['_current_generation_context'] = context
+            
+            # 准备章节参数
+            chapter_params = self._prepare_chapter_params(chapter_number, novel_data)
+            
+            if not chapter_params or not self._validate_chapter_params(chapter_params):
+                failure_reason = "参数准备失败"
+                failure_details = {
+                    "missing_params": [key for key in ['chapter_number', 'novel_title', 'novel_synopsis', 'plot_direction', 'foreshadowing_guidance'] 
+                                    if key not in chapter_params or not chapter_params[key]],
+                    "chapter_params_keys": list(chapter_params.keys()) if chapter_params else []
+                }
+                print(f"❌ 第{chapter_number}章参数准备失败")
+                self._save_chapter_failure(novel_data, chapter_number, failure_reason, failure_details)
+                return None
+            
+            print(f"  ✅ 第{chapter_number}章所有参数验证通过")
+            
+            # 生成章节内容 - 添加详细的类型检查
+            print(f"  🚀 开始生成第{chapter_number}章内容...")
+            chapter_data = self.generate_chapter_content(chapter_params)
+            
+            if not chapter_data:
+                failure_reason = "内容生成失败"
+                failure_details = {
+                    "step": "generate_chapter_content",
+                    "chapter_params_summary": {k: str(v)[:100] + "..." if len(str(v)) > 100 else str(v) 
+                                            for k, v in chapter_params.items() if k in ['chapter_number', 'novel_title']}
+                }
+                print(f"❌ 第{chapter_number}章内容生成失败")
+                self._save_chapter_failure(novel_data, chapter_number, failure_reason, failure_details)
+                return None
+
+            # 确保章节标题唯一性
+            chapter_data = self._handle_chapter_title_uniqueness(chapter_data, chapter_number, novel_data)
+
+            # === 新增：如果是第一章，添加AI俏皮开场白 ===
+            if chapter_number == 1:
+                category = novel_data.get("category", "默认")
+                novel_title = novel_data.get("novel_title", "")
+                novel_synopsis = novel_data.get("novel_synopsis", "")
+                
+                # 使用AI生成俏皮开场白
+                try:
+                    chapter_data = self.novel_generator._add_ai_spicy_opening_to_first_chapter(
+                        chapter_data, novel_title, novel_synopsis, category
+                    )
+                except Exception as e:
+                    print(f"  ⚠️ AI开场白生成异常，使用备用模板: {e}")
+            
+            # 质量评估 - 添加类型检查
+            print(f"  📊 开始质量评估...")
             try:
-                chapter_data = self.novel_generator._add_ai_spicy_opening_to_first_chapter(
-                    chapter_data, novel_title, novel_synopsis, category
-                )
-            except Exception as e:
-                print(f"  ⚠️ AI开场白生成异常，使用备用模板: {e}")
-        # 质量评估
-        assessment = self.quality_assessor.quick_assess_chapter_quality(
-            chapter_data.get("content", ""),
-            chapter_data.get("chapter_title", ""),
-            chapter_number,
-            novel_data["novel_title"],
-            chapter_params.get("previous_chapters_summary", ""),
-            chapter_data.get("word_count", 0)
-        )
-        
-        # 设置质量评分
-        score = assessment.get("overall_score", 0)
-        chapter_data["quality_score"] = score
-        chapter_data["quality_assessment"] = assessment
-        
-        print(f"  质量评分: {score:.1f}分")
-        
-        # 根据质量决定是否优化
-        optimize_needed, optimize_reason = self._should_optimize_based_on_config(assessment, chapter_data)
-        
-        if optimize_needed:
-            print(f"  🔧 进行优化: {optimize_reason}")
-            optimized_data = self.quality_assessor.optimize_chapter_content({
-                "assessment_results": json.dumps(assessment, ensure_ascii=False),
-                "original_content": chapter_data.get("content", ""),
-                "priority_fix_1": assessment.get("weaknesses", [""])[0] if assessment.get("weaknesses") else "提升质量",
-                "priority_fix_2": assessment.get("weaknesses", [""])[1] if len(assessment.get("weaknesses", [])) > 1 else "",
-                "priority_fix_3": assessment.get("weaknesses", [""])[2] if len(assessment.get("weaknesses", [])) > 2 else ""
-            })
-            if optimized_data:
-                chapter_data.update(optimized_data)
-                # 重新评估优化后的质量
-                new_assessment = self.quality_assessor.quick_assess_chapter_quality(
+                assessment = self.quality_assessor.quick_assess_chapter_quality(
                     chapter_data.get("content", ""),
                     chapter_data.get("chapter_title", ""),
                     chapter_number,
@@ -431,18 +431,79 @@ class ContentGenerator:
                     chapter_params.get("previous_chapters_summary", ""),
                     chapter_data.get("word_count", 0)
                 )
-                new_score = new_assessment.get("overall_score", 0)
-                improvement = new_score - score
-                print(f"  ✓ 优化完成，新评分: {new_score:.1f}分 (提升{improvement:+.1f}分)")
-                chapter_data["quality_assessment"] = new_assessment
-            else:
-                print(f"  ⚠️ 优化失败，保持原内容")
+                
+                # 设置质量评分
+                score = assessment.get("overall_score", 0)
+                chapter_data["quality_score"] = score
                 chapter_data["quality_assessment"] = assessment
-        else:
-            print(f"  ✓ {optimize_reason}")
-            chapter_data["quality_assessment"] = assessment
-        
-        return chapter_data
+                
+                print(f"  质量评分: {score:.1f}分")
+                
+                # 根据质量决定是否优化
+                optimize_needed, optimize_reason = self._should_optimize_based_on_config(assessment, chapter_data)
+                
+                if optimize_needed:
+                    print(f"  🔧 进行优化: {optimize_reason}")
+                    optimized_data = self.quality_assessor.optimize_chapter_content({
+                        "assessment_results": json.dumps(assessment, ensure_ascii=False),
+                        "original_content": chapter_data.get("content", ""),
+                        "priority_fix_1": assessment.get("weaknesses", [""])[0] if assessment.get("weaknesses") else "提升质量",
+                        "priority_fix_2": assessment.get("weaknesses", [""])[1] if len(assessment.get("weaknesses", [])) > 1 else "",
+                        "priority_fix_3": assessment.get("weaknesses", [""])[2] if len(assessment.get("weaknesses", [])) > 2 else ""
+                    })
+                    if optimized_data:
+                        chapter_data.update(optimized_data)
+                        # 重新评估优化后的质量
+                        new_assessment = self.quality_assessor.quick_assess_chapter_quality(
+                            chapter_data.get("content", ""),
+                            chapter_data.get("chapter_title", ""),
+                            chapter_number,
+                            novel_data["novel_title"],
+                            chapter_params.get("previous_chapters_summary", ""),
+                            chapter_data.get("word_count", 0)
+                        )
+                        new_score = new_assessment.get("overall_score", 0)
+                        improvement = new_score - score
+                        print(f"  ✓ 优化完成，新评分: {new_score:.1f}分 (提升{improvement:+.1f}分)")
+                        chapter_data["quality_assessment"] = new_assessment
+                    else:
+                        print(f"  ⚠️ 优化失败，保持原内容")
+                        chapter_data["quality_assessment"] = assessment
+                else:
+                    print(f"  ✓ {optimize_reason}")
+                    chapter_data["quality_assessment"] = assessment
+                
+                return chapter_data
+                
+            except Exception as e:
+                print(f"  ❌ 质量评估过程中出错: {e}")
+                import traceback
+                traceback.print_exc()
+                # 即使质量评估失败，也返回章节内容
+                return chapter_data
+                
+        except Exception as e:
+            failure_reason = f"生成过程异常: {str(e)}"
+            failure_details = {
+                "exception_type": type(e).__name__,
+                "exception_message": str(e),
+                "chapter_number": chapter_number,
+                "traceback": self._get_traceback_info()  # 新增：获取堆栈信息
+            }
+            print(f"❌ 第{chapter_number}章生成过程中出现异常: {e}")
+            import traceback
+            print(f"详细堆栈信息:")
+            traceback.print_exc()
+            self._save_chapter_failure(novel_data, chapter_number, failure_reason, failure_details)
+            return None
+
+    def _get_traceback_info(self) -> str:
+        """获取当前异常的堆栈信息"""
+        import traceback
+        import io
+        f = io.StringIO()
+        traceback.print_exc(file=f)
+        return f.getvalue()
 
     def _get_plot_direction_for_chapter(self, chapter_number: int, total_chapters: int) -> Dict[str, str]:
         """根据章节位置确定情节发展方向"""
@@ -558,7 +619,7 @@ class ContentGenerator:
             try:
                 ending = method(content)
                 if ending and len(ending.strip()) > 50:
-                    print(f"  ✅ 成功提取结尾: {ending[:120]}...")
+                    print(f"  ✅ 成功提取结尾: {ending[:200]}...")
                     return ending
             except Exception as e:
                 print(f"  ⚠️  方法 '{method.__name__}' 提取失败: {e}")
@@ -749,7 +810,7 @@ class ContentGenerator:
         score = assessment.get("overall_score", 0)
         
         # 强制优化阈值
-        if score < 7.5:
+        if score < 8.0:
             return True, f"评分低于优化阈值7.5分，需要优化"
         
         # 建议优化范围
@@ -760,6 +821,8 @@ class ContentGenerator:
 
     def generate_chapter_content(self, chapter_params: Dict) -> Optional[Dict]:
         """生成章节内容 - 严格两步法：先设计方案，再生成内容"""
+        print(f"  🔍 进入generate_chapter_content方法，参数类型: {type(chapter_params)}")
+        
         required_keys = ['chapter_number', 'total_chapters', 'novel_title', 'novel_synopsis', 
                         'worldview_info', 'character_info', 'writing_plan_info', 'event_driven_guidance','foreshadowing_guidance',
                         'previous_chapters_summary', 'main_plot_progress', 'plot_direction',
@@ -768,6 +831,7 @@ class ContentGenerator:
         # 参数验证和修复逻辑
         missing_keys = [key for key in required_keys if key not in chapter_params]
         if missing_keys:
+            print(f"  ⚠️ 缺少必要参数: {missing_keys}")
             for key in missing_keys:
                 if key == 'event_driven_guidance':
                     chapter_params[key] = "# 🎯 事件驱动写作指导\n\n本章为普通主线推进章节。"
@@ -783,10 +847,18 @@ class ContentGenerator:
             chapter_number = chapter_params['chapter_number']
             print(f"  📝 生成第{chapter_number}章设计方案...")
             chapter_design = self.generate_chapter_design(chapter_params)
+            
+            # 检查设计方案类型
+            print(f"  🔍 设计方案类型: {type(chapter_design)}")
             if not chapter_design:
                 print(f"  ❌ 第{chapter_number}章设计方案生成失败，终止生成")
                 return None
             
+            if not isinstance(chapter_design, dict):
+                print(f"  ❌ 设计方案不是字典类型，而是: {type(chapter_design)}")
+                print(f"     内容: {str(chapter_design)[:200]}...")
+                return None
+                
             # 第二步：根据设计方案生成内容，并加入重试机制
             max_retries = 3
             chapter_content = None
@@ -795,8 +867,14 @@ class ContentGenerator:
                 print(f"  ✍️ 第{attempt + 1}次尝试生成第{chapter_number}章内容...")
                 current_content = self.generate_chapter_content_from_design(chapter_params, chapter_design)
                 
-                if not current_content:
-                    print(f"  ❌ 第{attempt + 1}次内容生成失败")
+                # 检查生成内容的类型
+                if current_content is None:
+                    print(f"  ❌ 第{attempt + 1}次内容生成失败，返回None")
+                    continue
+                    
+                if not isinstance(current_content, dict):
+                    print(f"  ❌ 第{attempt + 1}次内容生成返回非字典类型: {type(current_content)}")
+                    print(f"     内容: {str(current_content)[:200]}...")
                     if attempt == max_retries - 1:
                         print(f"  ❌ 达到最大重试次数，第{chapter_number}章生成失败")
                         return None
@@ -822,9 +900,7 @@ class ContentGenerator:
                 # 如果是最后一次尝试，使用当前内容
                 if attempt == max_retries - 1:
                     print(f"  ❌ 达到最大重试次数，使用当前内容")
-                else:
-                    print(f"  重新生成...")
-
+            
             # 确保最终有数据返回
             if chapter_content:
                 print(f"  ✅ 第{chapter_number}章生成成功")
@@ -835,79 +911,79 @@ class ContentGenerator:
                 
         except Exception as e:
             print(f"❌ 生成第{chapter_params['chapter_number']}章内容时出错: {e}")
-            return None
-        
-    def generate_chapter_design(self, chapter_params: Dict) -> Optional[Dict]:
-        """生成章节详细设计方案"""
-        try:
-
-            # 添加情绪缓冲部分
-            emotional_break_section = ""
-            if chapter_params.get("emotional_break_needed"):
-                emotional_break_section = f"""
-                
-        # 情绪缓冲指导（重要）
-        {chapter_params.get("emotional_break_guidance", "")}
-        
-        【特别注意】本章需要适当降低情绪强度，给读者释放空间。
-        请合理安排缓冲内容，既要让读者放松，又要保持故事吸引力。
-                """
-
-            design_prompt = f"""你是一位资深的网络小说策划编辑。请为第{chapter_params.get("chapter_number", 1)}章制定详细的写作设计方案。
-
-    # 故事基础设定（必须严格遵循）
-    **小说标题**: 
-    {chapter_params.get("novel_title", "未知小说")}
-    **小说简介**: 
-    {chapter_params.get("novel_synopsis", "")}
-    {emotional_break_section}
-    **世界观设定**: 
-    {chapter_params.get("worldview_info", "{}")}
-    **角色设定**: 
-    {chapter_params.get("character_info", "{}")}
-    **写作计划**: 
-    {chapter_params.get("stage_writing_plan", "{}")}
-
-    {chapter_params.get("main_character_instruction", "")}
-
-    # 上下文信息
-    **前情提要**: 
-    {chapter_params.get("previous_chapters_summary", "")}
-    **本章定位**: 
-    第{chapter_params.get("chapter_number", 1)}/{chapter_params.get("total_chapters", 30)}章 - {chapter_params.get("plot_direction", "")}
-    **重点推进**: 
-    {chapter_params.get("main_plot_progress", "")}
-    **角色发展重点**: 
-    {chapter_params.get("character_development_focus", "")}
-    **衔接要求**: 
-    {chapter_params.get("chapter_connection_note", "")}
-
-    # 事件驱动指导
-    {chapter_params.get("event_driven_guidance", "123")}
-
-    # 伏笔铺垫指导
-    {chapter_params.get("foreshadowing_guidance", "123")}
-"""
-
-            print(f"  📝 生成第{chapter_params.get('chapter_number', 1)}章设计方案...")
-            design_result = self.api_client.generate_content_with_retry(
-                "chapter_design", 
-                design_prompt, 
-                purpose=f"制定第{chapter_params.get('chapter_number', 1)}章设计方案"
-            )
-            
-            if design_result:
-                print(f"  ✅ 第{chapter_params.get('chapter_number', 1)}章设计方案生成成功")
-                return design_result
-            else:
-                print(f"  ❌ 第{chapter_params.get('chapter_number', 1)}章设计方案生成失败")
-                return None
-                
-        except Exception as e:
-            print(f"  ❌ 生成章节设计方案时出错: {e}")
             import traceback
             traceback.print_exc()
             return None
+            
+    def generate_chapter_design(self, chapter_params: Dict) -> Optional[Dict]:
+        """生成章节详细设计方案"""
+
+        design_prompt = f"""
+你是一位顶级的网络小说总编辑。你的任务是消化所有背景资料，为一位顶级写手制定一份详尽的、自包含的“章节创作蓝图”。
+这位写手只会看到你输出的这份蓝图，所以你必须将所有必要的写作指令、风格要求、一致性提醒都整合进这份蓝图中。
+
+# 故事基础设定（供你参考）
+**小说标题**: {chapter_params.get("novel_title")}
+**小说简介**: {chapter_params.get("novel_synopsis")}
+**世界观/角色/写作计划**: {chapter_params.get("worldview_info")}, {chapter_params.get("character_info")}, {chapter_params.get("stage_writing_plan")}
+**前情提要**: {chapter_params.get("previous_chapters_summary")}
+**上下文指导**: {chapter_params.get("event_driven_guidance")}, {chapter_params.get("foreshadowing_guidance")}
+**角色发展指导**: {chapter_params.get("character_development_guidance")}
+
+# 你的任务
+请根据以上所有信息，为第 {chapter_params.get("chapter_number")} 章生成一份JSON格式的“创作蓝图”。
+
+**【输出要求】**
+必须严格按照以下JSON结构输出，不要有任何增减或修改：
+{{
+    "chapter_number": {chapter_params.get("chapter_number")},
+    "chapter_title": "（为本章起一个富有吸引力的标题）",
+    "chapter_summary": "（用一句话总结本章的核心内容和目的）",
+    "writing_style_directives": {{
+        "core_tone": "（根据本章情节，指定核心基调，如：紧张悬疑、轻松日常、热血激昂等）",
+        "narrative_pace": "（指定叙事节奏，如：快速推进，通过连续的动作和对话制造紧张感）",
+        "description_focus": ["（列出本章描写的重点，如：新场景的环境氛围、角色的内心挣扎、一场关键战斗的细节）"]
+    }},
+    "consistency_cheatsheet": {{
+        "reminder": "（生成一段简短的一致性提醒，例如：'注意：主角此时还不知道反派的真实身份，不要在内心独白中泄露'）",
+        "key_character_status": ["（列出本章出场角色的关键状态，例如：'秦峥：表面镇定，内心在谋划反击'）"],
+        "relationship_check": ["（列出需要特别注意的人物关系，例如：'秦峥与卢斌的关系是初步震慑，互动时需体现卢斌的敬畏'）"]
+    }},
+    "scene_by_scene_outline": [
+        {{
+            "scene_number": 1,
+            "scene_goal": "（明确场景目标，例如：'通过对话，展示主角的智谋和布局能力'）",
+            "key_actions_and_dialogues": "（描述场景中的关键动作和对话要点）",
+            "character_focus": "（指出这个场景主要刻画哪个角色的哪方面特质）"
+        }},
+        {{
+            "scene_number": 2,
+            "scene_goal": "...",
+            "key_actions_and_dialogues": "...",
+            "character_focus": "..."
+        }}
+    ],
+    "foreshadowing_and_events": {{
+        "elements_to_introduce": ["（明确列出本章需要首次引入的伏笔元素）"],
+        "elements_to_develop": ["（明确列出本章需要进一步发展的已有伏笔）"]
+    }},
+    "next_chapter_hook": "（设计一个具体的、能引发读者好奇心的结尾悬念）"
+}}
+"""
+        print(f"  📝 生成第{chapter_params.get('chapter_number', 1)}章设计方案...")
+        design_result = self.api_client.generate_content_with_retry(
+            "chapter_design", 
+            design_prompt, 
+            purpose=f"制定第{chapter_params.get('chapter_number', 1)}章设计方案"
+        )
+        
+        if design_result:
+            print(f"  ✅ 第{chapter_params.get('chapter_number', 1)}章设计方案生成成功")
+            return design_result
+        else:
+            print(f"  ❌ 第{chapter_params.get('chapter_number', 1)}章设计方案生成失败")
+            return None
+                
 
     def _prepare_chapter_params(self, chapter_number: int, novel_data: Dict) -> Dict:
         """准备章节参数 - 增强版本，使用上下文"""
@@ -918,7 +994,7 @@ class ContentGenerator:
         world_state = self._get_previous_world_state(novel_title)
         character_development_guidance = self._get_character_development_guidance(chapter_number, novel_data)
         # 获取上下文
-        context = novel_data.get('_current_generation_context')
+        context:Contexts.GenerationContext = novel_data.get('_current_generation_context')
         
         # 检测是否需要情绪缓冲
         emotional_break_needed = False
@@ -951,7 +1027,15 @@ class ContentGenerator:
             event_context = context.event_context
             foreshadowing_context = context.foreshadowing_context  
             growth_context = context.growth_context
+            # 从上下文中获取阶段计划
+            stage_writing_plan = context.stage_plan if hasattr(context, 'stage_plan') else {}
 
+            # --- START: ADDED DEBUGGING ---
+            print(f"  [DEBUG] Type of event_context: {type(event_context)}")
+            print(f"  [DEBUG] Type of foreshadowing_context: {type(foreshadowing_context)}")
+            print(f"  [DEBUG] Type of growth_context: {type(growth_context)}")
+            print(f"  [DEBUG] Type of stage_writing_plan: {type(stage_writing_plan)}")
+        
             print(f"  📊 上下文信息:")
             print(f"    - 事件上下文: {len(event_context.get('active_events', []))} 个活跃事件")
             print(f"    - 伏笔上下文: {len(foreshadowing_context.get('elements_to_introduce', []))} 个待引入元素") 
@@ -960,10 +1044,13 @@ class ContentGenerator:
             # 获取事件指导（优先使用上下文中的信息）
             event_guidance = self._get_event_guidance_from_context(event_context, chapter_number)
             foreshadowing_guidance = self._get_foreshadowing_guidance_from_context(foreshadowing_context, chapter_number)
+            # 确保 event_guidance 不是 None
+            if event_guidance is None:
+                event_guidance = "# 🎯 事件执行指导\n\n本章暂无特定事件任务，按主线推进即可。"
+                print(f"  ⚠️ 事件指导为空，使用默认指导")
+            
             print(f"    - 事件指导: \n{event_guidance} ") 
             print(f"    - 伏笔指导: \n{foreshadowing_guidance} ") 
-            # 从上下文中获取阶段计划
-            stage_writing_plan = context.stage_plan if hasattr(context, 'stage_plan') else {}
         else:
             print(f"  ⚠️ 无上下文，使用传统方式获取指导")
             # 回退到传统方式
@@ -1077,14 +1164,16 @@ class ContentGenerator:
         """从事件上下文中生成指导 - 添加错误处理"""
         
         if not event_context:
-            print("   - 事件上下文为空，返回空窗期指导")
-            return """ 事件上下文为空 """
+            print("   - 事件上下文为空，返回默认指导")
+            return "# 🎯 事件执行指导\n\n事件上下文为空，按常规情节推进。"
         
         # 检查是否有活跃事件
         active_events = event_context.get("active_events", [])
         if not active_events:
             print("   - 无活跃事件，返回空窗期指导")
-            return self._get_empty_period_guidance(chapter_number, event_context)
+            empty_guidance = self._get_empty_period_guidance(chapter_number, event_context)
+            # 确保返回的是字符串
+            return empty_guidance if empty_guidance is not None else "# 🎯 事件执行指导\n\n本章暂无特定事件任务，按主线推进即可。"
         
         try:
             guidance_parts = ["# 🎯 事件执行指导", "## 活跃事件"]
@@ -1226,119 +1315,52 @@ class ContentGenerator:
 
     def generate_chapter_content_from_design(self, chapter_params: Dict, chapter_design: Dict) -> Optional[Dict]:
         """根据设计方案生成章节内容 - 修复版本"""
-        try:
-            # 准备内容生成参数，包含所有基础设定
-            content_params = chapter_params.copy()
-            content_params["chapter_design"] = json.dumps(chapter_design, ensure_ascii=False, indent=2)
-            content_params["chapter_title"] = chapter_design.get("chapter_title", f"第{chapter_params['chapter_number']}章")
-            content_params["main_character_instruction"] = content_params.get("main_character_instruction", "")
-            
-            # 确保所有基础设定参数都存在
-            required_base_params = [
-                'worldview_info', 'character_info', 'stage_writing_plan',
-                'novel_title', 'novel_synopsis', 'main_character_instruction'
-            ]
-            
-            for param in required_base_params:
-                if param not in content_params or not content_params[param]:
-                    # 设置默认值
-                    if param == 'main_character_instruction' and not content_params.get(param):
-                        content_params[param] = ""
-            
-            # 从 character_info 中获取主角信息，而不是 self.novel_data
-            character_info_str = content_params.get('character_info', '{}')
-            try:
-                character_info = json.loads(character_info_str)
-                main_char = character_info.get('main_character', {})
-                main_character_name = main_char.get('name', '主角')
-            except:
-                main_character_name = self.custom_main_character_name or '主角'
-            
-            relationship_warning = ""
-            if chapter_params.get("relationship_consistency_check"):
-                relationship_warning = f"""
-                
-    ## 🚫 关系一致性重要警告
-    以下角色之间已经建立关系，禁止让他们重新认识或忽略已有关系：
-    {self._format_known_relationships(chapter_params.get("known_relationships", {}))}
+        # 准备内容生成参数，包含所有基础设定
+        content_params = chapter_params.copy()
+        # 确保所有基础设定参数都存在
+        required_base_params = [
+            'worldview_info', 'character_info', 'stage_writing_plan',
+            'novel_title', 'novel_synopsis', 'main_character_instruction'
+        ]
+        
+        for param in required_base_params:
+            if param not in content_params or not content_params[param]:
+                # 设置默认值
+                if param == 'main_character_instruction' and not content_params.get(param):
+                    content_params[param] = ""
+        
+        user_prompt = f"""
+你是一位顶级的网络小说作家，文笔精湛，擅长叙事。
 
-    如果这些角色在本章中互动，必须基于已有的关系状态进行，不能当做初次见面！
-                """
+你的唯一任务是：严格、完整、并富有文采地执行以下【章节创作蓝图】，创作出小说《{chapter_params.get('novel_title')}》的第 {chapter_design.get('chapter_number')} 章。
 
-                        # 添加世界状态信息
-            world_state_info = ""
-            if "previous_world_state" in content_params:
-                world_state_info = f"""
-                
-        ## 🔄 世界状态参考（确保一致性）
-        {content_params.get('previous_world_state', '{}')}
-        {relationship_warning}
-        【重要】请严格遵循上述世界状态，确保角色、物品、关系等元素的一致性。
-                """
-
-            # 直接构建内容生成提示词，不依赖 self.prompts
-            user_prompt = f"""
-内容:
-你好，“番茄作家”。请根据以下【章节创作蓝图】和【世界观参考资料】，创作小说{content_params.get('novel_title', '未知小说')}第{chapter_params['chapter_number']}章
-## 📝 章节创作蓝图 ({chapter_params['chapter_number']})
-这是本次创作的核心指令，请严格遵循。
-{content_params.get('chapter_design', '{}')}
-
-## 📚 世界观参考资料 (Background & Rules)
-这是创作时需要遵循的背景设定和角色信息。
-
-### 1. 核心设定、角色与世界状态
-**小说主角**: 
-主角: {main_character_name}
-{content_params.get('main_character_instruction', '')}
-**小说简介**: 
-{content_params.get('novel_synopsis', '')}
-- **世界观一致性**: 所有元素必须符合世界观设定
-{content_params.get('worldview_info', '{}')}
-- **世界状态一致性**:
-- **物品归属一致性**: 确保物品归属与之前章节一致
-- **关系一致性**: 角色关系不得出现矛盾
-{world_state_info}
-- **角色一致性**: 角色行为必须符合角色设定
-{content_params.get('character_development_guidance', '{}')}
-{content_params.get('character_info', '{}')}
-
-### 2. 写作风格与情节规划
-- **写作风格要求**:
-{content_params.get('writing_style_guide', '无特定要求，请保持语言流畅自然。')}
-- **情节连贯性**: 必须遵循写作计划：
-{content_params.get('stage_writing_plan', '{}')}
-
-请严格遵循以上蓝图和参考资料，生成符合`system_prompt`要求的完整JSON输出。
-    """
-            
-            print(f"  ✍️ 根据设计方案生成第{chapter_params['chapter_number']}章内容...")
-            content_result = self.api_client.generate_content_with_retry(
-                "chapter_content_generation", 
-                user_prompt, 
-                purpose=f"生成第{chapter_params['chapter_number']}章内容"
-            )
-            
-            if content_result:
-                # 记录使用的设计方案和基础设定
-                content_result["chapter_design"] = chapter_design
-                content_result["design_followed"] = True
-                content_result["base_settings_used"] = {
-                    "worldview": bool(chapter_params.get("worldview_info")),
-                    "character": bool(chapter_params.get("character_info")),
-                    "writing_plan": bool(chapter_params.get("stage_writing_plan"))
-                }
-                print(f"  ✅ 第{chapter_params['chapter_number']}章内容生成成功")
-                return content_result
-            else:
-                print(f"  ❌ 第{chapter_params['chapter_number']}章内容生成失败")
-                return None
-                
-        except Exception as e:
-            print(f"  ❌ 根据设计方案生成章节内容时出错: {e}")
-            import traceback
-            traceback.print_exc()
+【章节创作蓝图】
+{json.dumps(chapter_design, ensure_ascii=False, indent=2)}
+【写作风格】
+{content_params.get('writing_style_guide',{})}
+"""
+        print(f"  ✍️ 根据设计方案生成第{chapter_params['chapter_number']}章内容...")
+        content_result = self.api_client.generate_content_with_retry(
+            "chapter_content_generation", 
+            user_prompt, 
+            purpose=f"生成第{chapter_params['chapter_number']}章内容"
+        )
+        
+        if content_result:
+            # 记录使用的设计方案和基础设定
+            content_result["chapter_design"] = chapter_design
+            content_result["design_followed"] = True
+            content_result["base_settings_used"] = {
+                "worldview": bool(chapter_params.get("worldview_info")),
+                "character": bool(chapter_params.get("character_info")),
+                "writing_plan": bool(chapter_params.get("stage_writing_plan"))
+            }
+            print(f"  ✅ 第{chapter_params['chapter_number']}章内容生成成功")
+            return content_result
+        else:
+            print(f"  ❌ 第{chapter_params['chapter_number']}章内容生成失败")
             return None
+                
         
     def generate_writing_style_guide(self, creative_seed: str, category: str, selected_plan: Dict, market_analysis: Dict) -> Optional[Dict]:
         """生成写作风格指南"""
@@ -1395,7 +1417,7 @@ class ContentGenerator:
             return None  
     
     def _get_empty_period_guidance(self, chapter_number: int, event_context: Dict) -> str:
-        """生成事件空窗期的指导内容"""
+        """生成事件空窗期的指导内容 - 确保返回字符串"""
         
         # 检查是否需要情绪缓冲
         emotional_break_needed = False
@@ -1405,8 +1427,11 @@ class ContentGenerator:
                 emotional_break_needed = event_manager.should_insert_emotional_break(chapter_number)
         
         if emotional_break_needed:
-            return self.novel_generator.event_driven_manager._generate_event_gap_prompt(chapter_number,event_context)   
-
+            guidance = self.novel_generator.event_driven_manager._generate_event_gap_prompt(chapter_number, event_context)
+            return guidance if guidance is not None else "# 🎯 事件执行指导\n\n本章为情绪缓冲章节，注重角色发展和情感表达。"
+        
+        # 默认的空窗期指导
+        return "# 🎯 事件执行指导\n\n当前处于事件空窗期，重点推进主线情节和角色发展。"
     def _get_previous_world_state(self, novel_title: str) -> Dict:
         """获取之前章节的世界状态"""
         if not hasattr(self, 'quality_assessor') or not self.quality_assessor:
@@ -1418,93 +1443,233 @@ class ContentGenerator:
             print(f"⚠️ 加载世界状态失败: {e}")
             return {}
 
-    def _add_consistency_requirements(self, chapter_params: Dict, world_state: Dict) -> Dict:
-        """添加一致性要求到章节参数"""
-        if not world_state:
-            return chapter_params
-        
-        # 构建一致性指导
-        consistency_guidance = self._build_consistency_guidance(world_state)
-        
-        # 在现有指导基础上添加一致性要求
-        if "foreshadowing_guidance" in chapter_params:
-            chapter_params["foreshadowing_guidance"] += f"\n\n## 🔄 一致性要求\n{consistency_guidance}"
-        
-        # 存储世界状态供生成使用
-        chapter_params["previous_world_state"] = json.dumps(world_state, ensure_ascii=False, indent=2)
-        
-        return chapter_params
-
     def _build_consistency_guidance(self, world_state: Dict) -> str:
-        """构建一致性指导内容 - 增强版本，包含人物关系"""
+        """构建一致性指导内容 - 按更新次数排序，重要元素优先"""
         guidance_parts = ["请严格确保与之前章节的一致性："]
         
-        # 角色一致性 - 增强版本
+        # 角色一致性 - 按更新次数排序
         characters = world_state.get('characters', {})
-        if characters:
+        if characters and isinstance(characters, dict):
             guidance_parts.append("### 👥 角色一致性（重要）")
-            for char_name, char_data in list(characters.items())[:5]:  # 显示前5个角色
-                role_type = char_data.get('role_type', '未知')
-                last_seen = char_data.get('last_updated_chapter', 0)
-                status = char_data.get('current_status', '未知')
-                
-                guidance_parts.append(f"- **{char_name}** ({role_type})")
-                guidance_parts.append(f"  - 最后出现: 第{last_seen}章")
-                guidance_parts.append(f"  - 当前状态: {status}")
-                
-                # 添加角色特征
-                if char_data.get('characteristics'):
-                    traits = ", ".join(char_data['characteristics'][:3])
-                    guidance_parts.append(f"  - 特征: {traits}")
-        
-        # 人物关系一致性 - 新增关键部分
-        relationships = world_state.get('relationships', {})
-        if relationships:
-            guidance_parts.append("### 🤝 人物关系（关键检查项）")
-            relationship_count = 0
             
-            for rel_key, rel_data in relationships.items():
-                if relationship_count >= 8:  # 限制显示数量
-                    break
+            # 计算每个角色的更新次数并排序
+            character_list = []
+            for char_name, char_data in characters.items():
+                if not isinstance(char_data, dict):
+                    continue
                     
-                rel_type = rel_data.get('type', '未知关系')
-                established_chapter = rel_data.get('established_chapter', 0)
-                current_status = rel_data.get('current_status', '正常')
+                try:
+                    # 计算更新次数
+                    update_count = self._calculate_update_count(char_data)
+                    
+                    # 安全提取字段
+                    description = self._safe_get(char_data, 'description', '暂无描述')
+                    
+                    # 处理attributes字段
+                    attributes = self._safe_get(char_data, 'attributes', {})
+                    if not isinstance(attributes, dict):
+                        attributes = {}
+                    
+                    status = self._safe_get(attributes, 'status') or self._safe_get(char_data, 'status', '活跃')
+                    location = self._safe_get(attributes, 'location') or self._safe_get(char_data, 'location', '未知地点')
+                    last_updated = self._safe_get(char_data, 'last_updated') or self._safe_get(char_data, 'last_updated_chapter', 0)
+                    
+                    character_list.append({
+                        'name': char_name,
+                        'description': description,
+                        'status': status,
+                        'location': location,
+                        'last_updated': last_updated,
+                        'update_count': update_count
+                    })
+                    
+                except Exception as e:
+                    print(f"⚠️ 处理角色 {char_name} 时出错: {e}")
+                    continue
+            
+            # 按更新次数降序排序
+            character_list.sort(key=lambda x: x['update_count'], reverse=True)
+            
+            # 显示前20个最重要的角色
+            for char_info in character_list[:20]:
+                guidance_parts.append(f"- **{char_info['name']}** (更新{char_info['update_count']}次)")
+                guidance_parts.append(f"  - 状态: {char_info['status']}")
+                guidance_parts.append(f"  - 位置: {char_info['location']}")
+                guidance_parts.append(f"  - 最后更新: 第{char_info['last_updated']}章")
                 
-                # 解析关系双方
-                parties = rel_key.split('-')
-                if len(parties) == 2:
-                    char_a, char_b = parties
-                    guidance_parts.append(f"- **{char_a}** ↔ **{char_b}**")
-                    guidance_parts.append(f"  - 关系类型: {rel_type}")
-                    guidance_parts.append(f"  - 建立于: 第{established_chapter}章")
-                    guidance_parts.append(f"  - 当前状态: {current_status}")
-                    
-                    # 添加关系描述
-                    if rel_data.get('description'):
-                        desc = rel_data['description'][:60] + "..." if len(rel_data['description']) > 60 else rel_data['description']
-                        guidance_parts.append(f"  - 关系详情: {desc}")
-                    
-                    relationship_count += 1
+                if len(char_info['description']) > 80:
+                    guidance_parts.append(f"  - 描述: {char_info['description'][:80]}...")
+                else:
+                    guidance_parts.append(f"  - 描述: {char_info['description']}")
         
-        # 物品一致性
+        # 人物关系一致性 - 按更新次数排序
+        relationships = world_state.get('relationships', {})
+        if relationships and isinstance(relationships, dict):
+            guidance_parts.append("### 🤝 人物关系（关键检查项）")
+            
+            relationship_list = []
+            for rel_key, rel_data in relationships.items():
+                if not isinstance(rel_data, dict):
+                    continue
+                    
+                try:
+                    # 计算更新次数
+                    update_count = self._calculate_update_count(rel_data)
+                    
+                    rel_type = self._safe_get(rel_data, 'type') or self._safe_get(rel_data, 'relationship_type', '未知关系')
+                    description = self._safe_get(rel_data, 'description', '暂无描述')
+                    
+                    parties = rel_key.split('-')
+                    if len(parties) == 2:
+                        relationship_list.append({
+                            'key': rel_key,
+                            'type': rel_type,
+                            'description': description,
+                            'parties': parties,
+                            'update_count': update_count
+                        })
+                        
+                except Exception as e:
+                    print(f"⚠️ 处理关系 {rel_key} 时出错: {e}")
+                    continue
+            
+            # 按更新次数降序排序
+            relationship_list.sort(key=lambda x: x['update_count'], reverse=True)
+            
+            # 显示前32个最重要的关系
+            for rel_info in relationship_list[:32]:
+                char_a, char_b = rel_info['parties']
+                guidance_parts.append(f"- **{char_a}** ↔ **{char_b}** (更新{rel_info['update_count']}次)")
+                guidance_parts.append(f"  - 关系类型: {rel_info['type']}")
+                
+                if len(rel_info['description']) > 60:
+                    guidance_parts.append(f"  - 关系描述: {rel_info['description'][:60]}...")
+                else:
+                    guidance_parts.append(f"  - 关系描述: {rel_info['description']}")
+        
+        # 物品一致性 - 按更新次数排序
         items = world_state.get('items', {})
-        if items:
+        if items and isinstance(items, dict):
             guidance_parts.append("### 🎁 物品归属")
-            for item_name, item_data in list(items.items())[:4]:
-                owner = item_data.get('owner', '未知')
-                location = item_data.get('location', '未知地点')
-                guidance_parts.append(f"- {item_name}: 属于{owner}，位置:{location}")
+            
+            item_list = []
+            for item_name, item_data in items.items():
+                if not isinstance(item_data, dict):
+                    continue
+                    
+                try:
+                    # 计算更新次数
+                    update_count = self._calculate_update_count(item_data)
+                    
+                    owner = self._safe_get(item_data, 'owner', '未知')
+                    status = self._safe_get(item_data, 'status') or self._safe_get(item_data, 'item_status', '未知状态')
+                    description = self._safe_get(item_data, 'description', '暂无描述')
+                    location = self._safe_get(item_data, 'location', '未知位置')
+                    
+                    item_list.append({
+                        'name': item_name,
+                        'owner': owner,
+                        'status': status,
+                        'description': description,
+                        'location': location,
+                        'update_count': update_count
+                    })
+                    
+                except Exception as e:
+                    print(f"⚠️ 处理物品 {item_name} 时出错: {e}")
+                    continue
+            
+            # 按更新次数降序排序
+            item_list.sort(key=lambda x: x['update_count'], reverse=True)
+            
+            # 显示前16个最重要的物品
+            for item_info in item_list[:16]:
+                guidance_parts.append(f"- **{item_info['name']}** (更新{item_info['update_count']}次)")
+                guidance_parts.append(f"  - 拥有者: {item_info['owner']}")
+                guidance_parts.append(f"  - 状态: {item_info['status']}")
+                guidance_parts.append(f"  - 位置: {item_info['location']}")
+                
+                if len(item_info['description']) > 60:
+                    guidance_parts.append(f"  - 描述: {item_info['description'][:60]}...")
+                else:
+                    guidance_parts.append(f"  - 描述: {item_info['description']}")
         
-        # 关键事件一致性
-        key_events = world_state.get('key_events', {})
-        if key_events:
-            guidance_parts.append("### 📅 关键事件时间线")
-            for event_id, event_data in list(key_events.items())[:3]:
-                event_name = event_data.get('name', '未知事件')
-                chapter = event_data.get('chapter', 0)
-                impact = event_data.get('impact', '未知影响')
-                guidance_parts.append(f"- 第{chapter}章: {event_name} ({impact})")
+        # 技能一致性 - 按更新次数排序
+        skills = world_state.get('skills', {})
+        if skills and isinstance(skills, dict):
+            guidance_parts.append("### 🔧 技能状态")
+            
+            skill_list = []
+            for skill_name, skill_data in skills.items():
+                if not isinstance(skill_data, dict):
+                    continue
+                    
+                try:
+                    # 计算更新次数
+                    update_count = self._calculate_update_count(skill_data)
+                    
+                    owner = self._safe_get(skill_data, 'owner', '未知')
+                    level = self._safe_get(skill_data, 'level') or self._safe_get(skill_data, 'skill_level', '未知等级')
+                    description = self._safe_get(skill_data, 'description', '暂无描述')
+                    
+                    skill_list.append({
+                        'name': skill_name,
+                        'owner': owner,
+                        'level': level,
+                        'description': description,
+                        'update_count': update_count
+                    })
+                    
+                except Exception as e:
+                    print(f"⚠️ 处理技能 {skill_name} 时出错: {e}")
+                    continue
+            
+            # 按更新次数降序排序
+            skill_list.sort(key=lambda x: x['update_count'], reverse=True)
+            
+            # 显示前3个最重要的技能
+            for skill_info in skill_list[:3]:
+                guidance_parts.append(f"- **{skill_info['name']}** (更新{skill_info['update_count']}次)")
+                guidance_parts.append(f"  - 拥有者: {skill_info['owner']}")
+                guidance_parts.append(f"  - 等级: {skill_info['level']}")
+                
+                if len(skill_info['description']) > 60:
+                    guidance_parts.append(f"  - 描述: {skill_info['description'][:60]}...")
+                else:
+                    guidance_parts.append(f"  - 描述: {skill_info['description']}")
+        
+        # 地点一致性 - 按更新次数排序
+        locations = world_state.get('locations', {})
+        if locations and isinstance(locations, dict):
+            guidance_parts.append("### 🗺️ 地点状态")
+            
+            location_list = []
+            for loc_name, loc_data in locations.items():
+                if not isinstance(loc_data, dict):
+                    continue
+                    
+                try:
+                    # 计算更新次数
+                    update_count = self._calculate_update_count(loc_data)
+                    
+                    description = self._safe_get(loc_data, 'description', '暂无描述')
+                    
+                    location_list.append({
+                        'name': loc_name,
+                        'description': description,
+                        'update_count': update_count
+                    })
+                    
+                except Exception as e:
+                    print(f"⚠️ 处理地点 {loc_name} 时出错: {e}")
+                    continue
+            
+            # 按更新次数降序排序
+            location_list.sort(key=lambda x: x['update_count'], reverse=True)
+            
+            # 显示前12个最重要的地点
+            for loc_info in location_list[:12]:
+                guidance_parts.append(f"- **{loc_info['name']}** (更新{loc_info['update_count']}次): {loc_info['description']}")
         
         # 添加关系检查的特别提醒
         guidance_parts.extend([
@@ -1518,6 +1683,22 @@ class ContentGenerator:
         ])
         
         return "\n".join(guidance_parts)
+
+    def _calculate_update_count(self, element_data: Dict) -> int:
+        """计算元素的更新次数 - 简化版本（使用准确计数器）"""
+        try:
+            return int(element_data.get('update_count', 1))
+        except Exception:
+            return 1  # 默认至少更新一次
+
+    def _safe_get(self, obj, key, default=None):
+        """安全获取字典值，避免任何异常"""
+        try:
+            if isinstance(obj, dict):
+                return obj.get(key, default)
+            return default
+        except Exception:
+            return default
 
     def _format_known_relationships(self, relationships: Dict) -> str:
         """格式化已知关系用于显示"""
@@ -1535,7 +1716,6 @@ class ContentGenerator:
         return "\n".join(formatted)
 
     def _add_consistency_requirements(self, chapter_params: Dict, world_state: Dict) -> Dict:
-        """添加一致性要求到章节参数 - 增强版本"""
         if not world_state:
             return chapter_params
         
@@ -1581,7 +1761,7 @@ class ContentGenerator:
                 character_relations[char_b].append(f"{char_a}({rel_type})")
         
         # 显示每个角色的关系网络
-        for char_name, relations in list(character_relations.items())[:6]:  # 显示前6个角色
+        for char_name, relations in list(character_relations.items())[:10]:  # 显示前6个角色
             note_parts.append(f"- **{char_name}** 认识: {', '.join(relations)}")
         
         note_parts.extend([
@@ -1668,3 +1848,60 @@ class ContentGenerator:
             return "# 🎭 角色发展指导\n\n所有主要角色人设已充分建立，本章重点保持角色行为一致性。"
         
         return "\n".join(guidance_parts)
+
+    def _save_chapter_failure(self, novel_data: Dict, chapter_number: int, failure_reason: str, failure_details: Dict):
+        """保存章节生成失败信息"""
+        try:
+            failure_record = {
+                "novel_title": novel_data.get("novel_title", "未知小说"),
+                "chapter_number": chapter_number,
+                "failure_time": self._get_current_timestamp(),
+                "failure_reason": failure_reason,
+                "failure_details": failure_details,
+                "novel_category": novel_data.get("category", "未知分类"),
+                "main_character": self.custom_main_character_name,
+                "generation_context": {
+                    "has_context": novel_data.get('_current_generation_context') is not None,
+                    "context_keys": list(novel_data.keys()) if novel_data else []
+                }
+            }
+            
+            # 同时保存到本地文件备份
+            self._save_failure_to_local(failure_record)
+            
+            print(f"💾 已保存第{chapter_number}章失败记录: {failure_reason}")
+            
+        except Exception as e:
+            print(f"⚠️ 保存失败记录时出错: {e}")
+
+    def _save_failure_to_local(self, failure_record: Dict):
+        """保存失败记录到本地文件"""
+        try:
+            import os
+            failures_dir = "chapter_failures"
+            os.makedirs(failures_dir, exist_ok=True)
+            
+            filename = f"{failures_dir}/failures_{failure_record['novel_title']}.json"
+            
+            # 读取现有记录
+            existing_failures = []
+            if os.path.exists(filename):
+                with open(filename, 'r', encoding='utf-8') as f:
+                    existing_failures = json.load(f)
+            
+            # 添加新记录
+            existing_failures.append(failure_record)
+            
+            # 保存回文件
+            with open(filename, 'w', encoding='utf-8') as f:
+                json.dump(existing_failures, f, ensure_ascii=False, indent=2)
+                
+            print(f"  💾 失败记录已保存到本地: {filename}")
+            
+        except Exception as e:
+            print(f"  ❌ 本地保存失败: {e}")    
+
+    def _get_current_timestamp(self) -> str:
+        """获取当前时间戳"""
+        import datetime
+        return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")            

@@ -46,7 +46,7 @@ Prompts = {
 你必须严格按照以下JSON格式返回，不要包含任何JSON格式之外的解释或说明。
 ```json
 {
-    "title": "小说标题 (字符串): 8-14字，包含标点。必须符合番茄平台风格，高点击率，与分类和核心卖点强相关。",
+    "title": "小说标题 (字符串): 6-12字，包含标点。必须符合番茄平台风格，高点击率，与分类和核心卖点强相关。",
     "synopsis": "小说简介 (字符串): 约200字。开头用`[标签1+标签2]`格式标明核心卖点。必须包含主角名字、核心冲突和悬念，文笔要紧凑、有吸引力。",
     "core_direction": "创作核心方向 (字符串): 明确故事定位（如：都市修真+神豪爽文），并分点列出至少3个核心卖点，解释它们为何能吸引读者。",
     "target_audience": "目标读者 (字符串): 精准描述读者画像，包括年龄、性别、阅读偏好，并链接到番茄平台上的热门标签（如：逆袭、无敌、打脸）。",
@@ -494,6 +494,9 @@ Prompts = {
 }
 请确保规划具体、可执行，并与前后阶段自然衔接。
 """,
+    "event_supplement": """
+你是一个专业的网络小说事件规划AI，专门为小说阶段补充合理的事件设计。
+""",
         "stage_writing_planning": """
 内容:
 你是一个专业的网络小说剧情规划AI，专门将高阶的小说大纲分解为结构化、详细的阶段性写作计划。
@@ -528,7 +531,7 @@ Prompts = {
                     "main_goal": "string // 事件要达成的核心目标",
                     "key_nodes": {
                         "start": "string // 事件的起点和触发条件",
-                        "development": "string // 事件的发展和过程",
+                        "development": "string // 事件的发展和过程", 
                         "climax": "string // 事件的高潮和关键转折点",
                         "end": "string // 事件的结局和收尾"
                     },
@@ -536,13 +539,23 @@ Prompts = {
                     "aftermath": "string // 事件结束后对剧情、角色或世界的直接影响"
                 }
             ],
-            "supporting_events": [
+            "medium_events": [
                 {
-                    "name": "string // 支撑重大事件的次级事件名称",
-                    "type": "supporting_event",
+                    "name": "string // 支撑重大事件的中型事件名称",
+                    "type": "medium_event", 
                     "chapter": "integer // 事件发生的具体章节",
                     "main_goal": "string // 该事件的主要目标",
-                    "connection_to_major": "string // 描述此事件如何为重大事件服务（铺垫、补充、收尾等）"
+                    "connection_to_major": "string // 描述此事件如何为重大事件服务（铺垫、补充、收尾等）",
+                    "duration": "integer // 事件持续章节数（通常1-3章）"
+                }
+            ],
+            "minor_events": [
+                {
+                    "name": "string // 日常情节或角色发展的小型事件名称", 
+                    "type": "minor_event",
+                    "chapter": "integer // 事件发生的具体章节",
+                    "function": "string // 事件功能描述（如角色互动、世界观展示等）",
+                    "impact": "string // 对剧情的短期影响"
                 }
             ]
         },
@@ -552,7 +565,7 @@ Prompts = {
             "pace_control": "string // 写作节奏的控制策略（如快节奏、张弛有度等）"
         },
         "character_development": {
-            "protagonist_growth": "string // 主角在本阶段的核心成长轨迹和变化",
+            "protagonist_growth": "string // 主角在本阶段的核心成长轨迹和变化", 
             "supporting_characters_focus": "string // 重要配角/反派的塑造计划和功能",
             "relationship_development": "string // 角色之间关系的变化和发展"
         },
@@ -689,7 +702,6 @@ Prompts = {
 ## 写作总纲 (必须严格遵守)
 
 ### 1. 叙事风格与质量
-- **对话驱动**: 对话占比保持在50%以上，语言生活化、个性化，充满张力。
 - **爽点前置**: 每章至少包含一个明确的爽点（如打脸、获得能力、发现关键线索等）。
 - **节奏紧凑**: 情节推进迅速，紧张情节使用短句短段，舒缓部分可适当放长。
 - **避免AI痕迹**: 语言表达自然流畅，避免使用“首先、其次”、“总而言之”等刻板结构和标记性词语。

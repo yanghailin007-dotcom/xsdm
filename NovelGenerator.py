@@ -598,6 +598,17 @@ class NovelGenerator:
             print("❌ 生成阶段详细写作计划失败")
             return False
 
+        # 导出所有事件到JSON文件
+        events_file = f"{self.novel_data['novel_title']}_events.json"
+        self.stage_plan_manager.export_events_to_json(events_file)
+
+        # 获取事件统计摘要
+        events_summary = self.stage_plan_manager.get_events_summary()
+        print(f"\n📈 事件统计摘要:")
+        print(f"   总事件数: {events_summary['total_events']}")
+        print(f"   章节覆盖率: {events_summary['chapter_coverage']['coverage_rate']}% "
+            f"({events_summary['chapter_coverage']['covered_chapters']}/{events_summary['chapter_coverage']['total_chapters']}章)")
+
         self.novel_data["current_progress"]["stage"] = "元素时机规划"
         if not self._generate_element_timing_plan():
             print("⚠️  元素登场时机规划生成失败，使用基础时机")   
@@ -1790,6 +1801,9 @@ class NovelGenerator:
             print(f"🔄 检测到阶段变化: {current_stage} -> {stage_name}")
             self._current_stage = stage_name
             
+            # 🆕 阶段变化时清理角色数据
+            self._cleanup_characters_for_new_stage(stage_name, chapter_number)
+
             # 更新事件系统以反映新阶段
             self._update_event_system_for_stage(stage_name, chapter_number)
         
@@ -1819,14 +1833,8 @@ class NovelGenerator:
             if not stage_plan_data:
                 print(f"  ⚠️ 没有找到{stage_name}的详细计划数据")
                 return
-            
-            # 提取事件系统信息
-            event_system = {}
-            if "stage_writing_plan" in stage_plan_data:
-                event_system = stage_plan_data["stage_writing_plan"].get("event_system", {})
-            else:
-                event_system = stage_plan_data.get("event_system", {})
-            
+            print(f"🧹 新阶段开始，清理不重要角色数据...")
+            self._cleanup_characters_for_new_stage(stage_name, chapter_number)            
             # 更新事件驱动管理器
             if hasattr(self, 'event_driven_manager') and self.event_driven_manager:
                 # 清除旧的事件
@@ -1840,6 +1848,148 @@ class NovelGenerator:
             import traceback
             traceback.print_exc()
 
+    def _get_cleanup_strategy_for_stage(self, stage_name: str, chapter_number: int) -> Dict:
+        """根据阶段类型获取详细的清理策略 - 修复版本，支持中文阶段名称"""
+        
+        # 基础策略 - 确保包含所有必要的键
+        base_strategy = {
+            "keep_major_only": False,
+            "preserve_recent_chapters": 5,
+            "current_chapter": chapter_number,
+            "stage_type": "normal",
+            "aggressiveness": "medium",
+            "preserve_relationship_network": True,
+            "max_minor_characters": 20,
+            "max_unnamed_characters": 10,
+            "reason": "默认清理策略"
+        }
+        
+        # 根据中文阶段名称调整策略
+        stage_lower = stage_name.lower()
+        
+        if any(keyword in stage_lower for keyword in ["开局", "起始", "开头", "引入", "opening"]):
+            base_strategy.update({
+                "stage_type": "opening",
+                "aggressiveness": "low",
+                "preserve_recent_chapters": 10,
+                "max_minor_characters": 30,
+                "max_unnamed_characters": 20,
+                "reason": "开局阶段，保留所有角色用于世界观建立"
+            })
+        
+        elif any(keyword in stage_lower for keyword in ["发展", "展开", "推进", "development"]):
+            base_strategy.update({
+                "stage_type": "development", 
+                "aggressiveness": "medium",
+                "preserve_recent_chapters": 8,
+                "max_minor_characters": 25,
+                "max_unnamed_characters": 15,
+                "reason": "发展阶段，适度清理长期不活跃的次要角色"
+            })
+        
+        elif any(keyword in stage_lower for keyword in ["高潮", "决战", "冲突", "转折", "climax"]):
+            base_strategy.update({
+                "stage_type": "climax",
+                "aggressiveness": "high",
+                "keep_major_only": True,
+                "preserve_recent_chapters": 3,
+                "reason": "高潮阶段，专注重要角色和核心剧情"
+            })
+        
+        elif any(keyword in stage_lower for keyword in ["结局", "收尾", "完结", "尾声", "ending"]):
+            base_strategy.update({
+                "stage_type": "ending",
+                "aggressiveness": "high", 
+                "keep_major_only": True,
+                "preserve_recent_chapters": 1,
+                "preserve_relationship_network": False,
+                "reason": "结局阶段，只保留核心角色完成故事"
+            })
+        
+        elif any(keyword in stage_lower for keyword in ["最终", "完结", "final"]):
+            base_strategy.update({
+                "stage_type": "final",
+                "aggressiveness": "high",
+                "keep_major_only": True,
+                "preserve_recent_chapters": 1,
+                "preserve_relationship_network": False,
+                "reason": "最终阶段，极度精简角色聚焦大结局"
+            })
+        
+        elif chapter_number <= 10:
+            base_strategy.update({
+                "stage_type": "early",
+                "aggressiveness": "low",
+                "preserve_recent_chapters": 10,
+                "reason": "早期章节，保留角色用于情节发展"
+            })
+        
+        elif chapter_number >= 50:
+            base_strategy.update({
+                "stage_type": "late",
+                "aggressiveness": "medium-high",
+                "preserve_recent_chapters": 5,
+                "max_minor_characters": 15,
+                "reason": "后期章节，清理冗余角色聚焦主线"
+            })
+        
+        # 确保reason键存在
+        if "reason" not in base_strategy:
+            base_strategy["reason"] = "默认清理策略"
+        
+        print(f"    📊 清理策略: {base_strategy['reason']}")
+        print(f"    ⚙️ 配置: 激进程度={base_strategy['aggressiveness']}, 保留最近{base_strategy['preserve_recent_chapters']}章, 阶段类型={base_strategy['stage_type']}")
+        
+        return base_strategy
+
+    def _cleanup_characters_for_new_stage(self, stage_name: str, chapter_number: int):
+        """为新阶段清理角色数据 - 增强版本"""
+        try:
+            print(f"  🧹 为{stage_name}阶段清理角色数据...")
+            
+            # 检查是否有质量评估器
+            if not hasattr(self, 'quality_assessor') or not self.quality_assessor:
+                print(f"    ⚠️ 质量评估器不可用，跳过角色清理")
+                return
+            
+            # 检查质量评估器是否有策略清理方法
+            if not hasattr(self.quality_assessor, 'cleanup_characters_by_strategy'):
+                print(f"    ⚠️ 质量评估器没有cleanup_characters_by_strategy方法，使用基础清理")
+                # 降级到基础清理
+                if hasattr(self.quality_assessor, 'cleanup_unimportant_characters'):
+                    strategy = self._get_cleanup_strategy_for_stage(stage_name, chapter_number)
+                    self.quality_assessor.cleanup_unimportant_characters(
+                        self.novel_data["novel_title"], 
+                        keep_major_only=strategy.get("keep_major_only", False)
+                    )
+                return
+            
+            # 获取详细的清理策略
+            strategy_config = self._get_cleanup_strategy_for_stage(stage_name, chapter_number)
+            
+            # 执行策略清理
+            result = self.quality_assessor.cleanup_characters_by_strategy(
+                self.novel_data["novel_title"], 
+                strategy_config
+            )
+            
+            if "error" in result:
+                print(f"    ❌ 角色清理失败: {result['error']}")
+            else:
+                print(f"    ✅ {stage_name}阶段角色清理完成")
+                print(f"    📊 清理结果: 清理了 {result['cleaned_count']} 个角色")
+                print(f"    📈 重要性分布变化:")
+                before = result['importance_distribution_before']
+                after = result['importance_distribution_after']
+                print(f"       重要角色: {before['major']} → {after['major']}")
+                print(f"       次要角色: {before['minor']} → {after['minor']}") 
+                print(f"       未命名角色: {before['unnamed']} → {after['unnamed']}")
+            
+        except Exception as e:
+            print(f"    ❌ 角色清理失败: {e}")
+            import traceback
+            traceback.print_exc()
+    
     def _update_foreshadowing_for_stage(self, stage_name: str, chapter_number: int):
         """为特定阶段更新伏笔系统"""
         try:
@@ -2307,7 +2457,7 @@ class NovelGenerator:
     1. 风格要超级俏皮、幽默、接地气，符合番茄年轻读者的口味
     2. 必须包含刺激读者评论的互动元素，比如"扣1扣2"、"猜剧情"、"找bug"等
     3. 要使用emoji表情和网络流行梗
-    4. 长度在100字左右，要有冲击力
+    4. 长度在80字左右，要有冲击力
     5. 用【】括起来作为醒目标题
     6. 最后一定要有引导评论的强力call to action
 
