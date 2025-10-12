@@ -345,7 +345,7 @@ class QualityAssessor:
         return result
 
     def _update_world_state_incrementally(self, novel_title: str, changes: Dict, chapter_number: int):
-        """增量更新世界状态 - 使用清洗后的数据"""
+        """增量更新世界状态 - 使用清洗后的数据，并增加更新计数"""
         # 加载当前世界状态
         current_state = self.load_previous_assessments(novel_title)
         if not current_state:
@@ -362,37 +362,31 @@ class QualityAssessor:
             if category not in current_state:
                 current_state[category] = {}
             
-            # 特殊处理地点：完全覆盖，不保留旧状态
-            if category == "locations":
-                current_state[category] = {}
-                for element_id, element_data in elements.items():
+            for element_id, element_data in elements.items():
+                if element_id in current_state[category]:
+                    # 更新现有元素 - 只更新清洗后的字段
+                    current_element = current_state[category][element_id]
+                    
+                    # 更新基础字段
+                    for field in ['description']:
+                        if field in element_data:
+                            current_element[field] = element_data[field]
+                    
+                    # 更新attributes字段（如果存在）
+                    if 'attributes' in element_data:
+                        if 'attributes' not in current_element:
+                            current_element['attributes'] = {}
+                        current_element['attributes'].update(element_data['attributes'])
+                    
+                    # 增加更新计数
+                    current_element['update_count'] = current_element.get('update_count', 0) + 1
+                    current_element['last_updated'] = chapter_number
+                else:
+                    # 新增元素 - 初始化更新计数为1
                     element_data['first_appearance'] = chapter_number
                     element_data['last_updated'] = chapter_number
+                    element_data['update_count'] = 1  # 新增元素的初始更新计数
                     current_state[category][element_id] = element_data
-            else:
-                # 其他类别保持增量更新
-                for element_id, element_data in elements.items():
-                    if element_id in current_state[category]:
-                        # 更新现有元素 - 只更新清洗后的字段
-                        current_element = current_state[category][element_id]
-                        
-                        # 更新基础字段
-                        for field in ['description']:
-                            if field in element_data:
-                                current_element[field] = element_data[field]
-                        
-                        # 更新attributes字段（如果存在）
-                        if 'attributes' in element_data:
-                            if 'attributes' not in current_element:
-                                current_element['attributes'] = {}
-                            current_element['attributes'].update(element_data['attributes'])
-                        
-                        current_element['last_updated'] = chapter_number
-                    else:
-                        # 新增元素
-                        element_data['first_appearance'] = chapter_number
-                        element_data['last_updated'] = chapter_number
-                        current_state[category][element_id] = element_data
         
         # 保存更新后的世界状态
         self.current_world_state = current_state

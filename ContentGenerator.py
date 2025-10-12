@@ -1440,26 +1440,25 @@ class ContentGenerator:
             return {}
 
     def _build_consistency_guidance(self, world_state: Dict) -> str:
-        """构建一致性指导内容 - 修复版本，避免任何可能的异常"""
+        """构建一致性指导内容 - 按更新次数排序，重要元素优先"""
         guidance_parts = ["请严格确保与之前章节的一致性："]
         
-        # 角色一致性 - 添加严格的错误处理
+        # 角色一致性 - 按更新次数排序
         characters = world_state.get('characters', {})
         if characters and isinstance(characters, dict):
             guidance_parts.append("### 👥 角色一致性（重要）")
-            character_count = 0
             
+            # 计算每个角色的更新次数并排序
+            character_list = []
             for char_name, char_data in characters.items():
-                if character_count >= 20:  # 限制显示数量
-                    break
-                    
-                # 严格的类型检查
                 if not isinstance(char_data, dict):
-                    print(f"⚠️ 角色数据格式错误，跳过: {char_name}")
                     continue
                     
                 try:
-                    # 安全的字段提取
+                    # 计算更新次数
+                    update_count = self._calculate_update_count(char_data)
+                    
+                    # 安全提取字段
                     description = self._safe_get(char_data, 'description', '暂无描述')
                     
                     # 处理attributes字段
@@ -1471,150 +1470,202 @@ class ContentGenerator:
                     location = self._safe_get(attributes, 'location') or self._safe_get(char_data, 'location', '未知地点')
                     last_updated = self._safe_get(char_data, 'last_updated') or self._safe_get(char_data, 'last_updated_chapter', 0)
                     
-                    guidance_parts.append(f"- **{char_name}**")
-                    guidance_parts.append(f"  - 状态: {status}")
-                    guidance_parts.append(f"  - 位置: {location}")
-                    guidance_parts.append(f"  - 最后更新: 第{last_updated}章")
-                    
-                    # 安全的描述截断
-                    if len(description) > 80:
-                        guidance_parts.append(f"  - 描述: {description[:80]}...")
-                    else:
-                        guidance_parts.append(f"  - 描述: {description}")
-                        
-                    character_count += 1
+                    character_list.append({
+                        'name': char_name,
+                        'description': description,
+                        'status': status,
+                        'location': location,
+                        'last_updated': last_updated,
+                        'update_count': update_count
+                    })
                     
                 except Exception as e:
                     print(f"⚠️ 处理角色 {char_name} 时出错: {e}")
                     continue
+            
+            # 按更新次数降序排序
+            character_list.sort(key=lambda x: x['update_count'], reverse=True)
+            
+            # 显示前20个最重要的角色
+            for char_info in character_list[:20]:
+                guidance_parts.append(f"- **{char_info['name']}** (更新{char_info['update_count']}次)")
+                guidance_parts.append(f"  - 状态: {char_info['status']}")
+                guidance_parts.append(f"  - 位置: {char_info['location']}")
+                guidance_parts.append(f"  - 最后更新: 第{char_info['last_updated']}章")
+                
+                if len(char_info['description']) > 80:
+                    guidance_parts.append(f"  - 描述: {char_info['description'][:80]}...")
+                else:
+                    guidance_parts.append(f"  - 描述: {char_info['description']}")
         
-        # 人物关系一致性 - 添加错误处理
+        # 人物关系一致性 - 按更新次数排序
         relationships = world_state.get('relationships', {})
         if relationships and isinstance(relationships, dict):
             guidance_parts.append("### 🤝 人物关系（关键检查项）")
-            relationship_count = 0
             
+            relationship_list = []
             for rel_key, rel_data in relationships.items():
-                if relationship_count >= 20:
-                    break
-                    
                 if not isinstance(rel_data, dict):
-                    print(f"⚠️ 关系数据格式错误，跳过: {rel_key}")
                     continue
                     
                 try:
+                    # 计算更新次数
+                    update_count = self._calculate_update_count(rel_data)
+                    
                     rel_type = self._safe_get(rel_data, 'type') or self._safe_get(rel_data, 'relationship_type', '未知关系')
                     description = self._safe_get(rel_data, 'description', '暂无描述')
                     
                     parties = rel_key.split('-')
                     if len(parties) == 2:
-                        char_a, char_b = parties
-                        guidance_parts.append(f"- **{char_a}** ↔ **{char_b}**")
-                        guidance_parts.append(f"  - 关系类型: {rel_type}")
-                        
-                        if len(description) > 60:
-                            guidance_parts.append(f"  - 关系描述: {description[:60]}...")
-                        else:
-                            guidance_parts.append(f"  - 关系描述: {description}")
-                        
-                        relationship_count += 1
+                        relationship_list.append({
+                            'key': rel_key,
+                            'type': rel_type,
+                            'description': description,
+                            'parties': parties,
+                            'update_count': update_count
+                        })
                         
                 except Exception as e:
                     print(f"⚠️ 处理关系 {rel_key} 时出错: {e}")
                     continue
+            
+            # 按更新次数降序排序
+            relationship_list.sort(key=lambda x: x['update_count'], reverse=True)
+            
+            # 显示前32个最重要的关系
+            for rel_info in relationship_list[:32]:
+                char_a, char_b = rel_info['parties']
+                guidance_parts.append(f"- **{char_a}** ↔ **{char_b}** (更新{rel_info['update_count']}次)")
+                guidance_parts.append(f"  - 关系类型: {rel_info['type']}")
+                
+                if len(rel_info['description']) > 60:
+                    guidance_parts.append(f"  - 关系描述: {rel_info['description'][:60]}...")
+                else:
+                    guidance_parts.append(f"  - 关系描述: {rel_info['description']}")
         
-        # 物品一致性 - 添加错误处理
+        # 物品一致性 - 按更新次数排序
         items = world_state.get('items', {})
         if items and isinstance(items, dict):
             guidance_parts.append("### 🎁 物品归属")
-            item_count = 0
             
+            item_list = []
             for item_name, item_data in items.items():
-                if item_count >= 20:
-                    break
-                    
                 if not isinstance(item_data, dict):
-                    print(f"⚠️ 物品数据格式错误，跳过: {item_name}")
                     continue
                     
                 try:
+                    # 计算更新次数
+                    update_count = self._calculate_update_count(item_data)
+                    
                     owner = self._safe_get(item_data, 'owner', '未知')
                     status = self._safe_get(item_data, 'status') or self._safe_get(item_data, 'item_status', '未知状态')
                     description = self._safe_get(item_data, 'description', '暂无描述')
                     location = self._safe_get(item_data, 'location', '未知位置')
                     
-                    guidance_parts.append(f"- **{item_name}**")
-                    guidance_parts.append(f"  - 拥有者: {owner}")
-                    guidance_parts.append(f"  - 状态: {status}")
-                    guidance_parts.append(f"  - 位置: {location}")
-                    
-                    if len(description) > 60:
-                        guidance_parts.append(f"  - 描述: {description[:60]}...")
-                    else:
-                        guidance_parts.append(f"  - 描述: {description}")
-                        
-                    item_count += 1
+                    item_list.append({
+                        'name': item_name,
+                        'owner': owner,
+                        'status': status,
+                        'description': description,
+                        'location': location,
+                        'update_count': update_count
+                    })
                     
                 except Exception as e:
                     print(f"⚠️ 处理物品 {item_name} 时出错: {e}")
                     continue
+            
+            # 按更新次数降序排序
+            item_list.sort(key=lambda x: x['update_count'], reverse=True)
+            
+            # 显示前16个最重要的物品
+            for item_info in item_list[:16]:
+                guidance_parts.append(f"- **{item_info['name']}** (更新{item_info['update_count']}次)")
+                guidance_parts.append(f"  - 拥有者: {item_info['owner']}")
+                guidance_parts.append(f"  - 状态: {item_info['status']}")
+                guidance_parts.append(f"  - 位置: {item_info['location']}")
+                
+                if len(item_info['description']) > 60:
+                    guidance_parts.append(f"  - 描述: {item_info['description'][:60]}...")
+                else:
+                    guidance_parts.append(f"  - 描述: {item_info['description']}")
         
-        # 技能一致性 - 添加错误处理
+        # 技能一致性 - 按更新次数排序
         skills = world_state.get('skills', {})
         if skills and isinstance(skills, dict):
             guidance_parts.append("### 🔧 技能状态")
-            skill_count = 0
             
+            skill_list = []
             for skill_name, skill_data in skills.items():
-                if skill_count >= 20:
-                    break
-                    
                 if not isinstance(skill_data, dict):
-                    print(f"⚠️ 技能数据格式错误，跳过: {skill_name}")
                     continue
                     
                 try:
+                    # 计算更新次数
+                    update_count = self._calculate_update_count(skill_data)
+                    
                     owner = self._safe_get(skill_data, 'owner', '未知')
                     level = self._safe_get(skill_data, 'level') or self._safe_get(skill_data, 'skill_level', '未知等级')
                     description = self._safe_get(skill_data, 'description', '暂无描述')
                     
-                    guidance_parts.append(f"- **{skill_name}**")
-                    guidance_parts.append(f"  - 拥有者: {owner}")
-                    guidance_parts.append(f"  - 等级: {level}")
-                    
-                    if len(description) > 60:
-                        guidance_parts.append(f"  - 描述: {description[:60]}...")
-                    else:
-                        guidance_parts.append(f"  - 描述: {description}")
-                        
-                    skill_count += 1
+                    skill_list.append({
+                        'name': skill_name,
+                        'owner': owner,
+                        'level': level,
+                        'description': description,
+                        'update_count': update_count
+                    })
                     
                 except Exception as e:
                     print(f"⚠️ 处理技能 {skill_name} 时出错: {e}")
                     continue
+            
+            # 按更新次数降序排序
+            skill_list.sort(key=lambda x: x['update_count'], reverse=True)
+            
+            # 显示前3个最重要的技能
+            for skill_info in skill_list[:3]:
+                guidance_parts.append(f"- **{skill_info['name']}** (更新{skill_info['update_count']}次)")
+                guidance_parts.append(f"  - 拥有者: {skill_info['owner']}")
+                guidance_parts.append(f"  - 等级: {skill_info['level']}")
+                
+                if len(skill_info['description']) > 60:
+                    guidance_parts.append(f"  - 描述: {skill_info['description'][:60]}...")
+                else:
+                    guidance_parts.append(f"  - 描述: {skill_info['description']}")
         
-        # 地点一致性 - 添加错误处理
+        # 地点一致性 - 按更新次数排序
         locations = world_state.get('locations', {})
         if locations and isinstance(locations, dict):
             guidance_parts.append("### 🗺️ 地点状态")
-            location_count = 0
             
+            location_list = []
             for loc_name, loc_data in locations.items():
-                if location_count >= 10:
-                    break
-                    
                 if not isinstance(loc_data, dict):
-                    print(f"⚠️ 地点数据格式错误，跳过: {loc_name}")
                     continue
                     
                 try:
+                    # 计算更新次数
+                    update_count = self._calculate_update_count(loc_data)
+                    
                     description = self._safe_get(loc_data, 'description', '暂无描述')
-                    guidance_parts.append(f"- **{loc_name}**: {description}")
-                    location_count += 1
+                    
+                    location_list.append({
+                        'name': loc_name,
+                        'description': description,
+                        'update_count': update_count
+                    })
                     
                 except Exception as e:
                     print(f"⚠️ 处理地点 {loc_name} 时出错: {e}")
                     continue
+            
+            # 按更新次数降序排序
+            location_list.sort(key=lambda x: x['update_count'], reverse=True)
+            
+            # 显示前12个最重要的地点
+            for loc_info in location_list[:12]:
+                guidance_parts.append(f"- **{loc_info['name']}** (更新{loc_info['update_count']}次): {loc_info['description']}")
         
         # 添加关系检查的特别提醒
         guidance_parts.extend([
@@ -1628,6 +1679,13 @@ class ContentGenerator:
         ])
         
         return "\n".join(guidance_parts)
+
+    def _calculate_update_count(self, element_data: Dict) -> int:
+        """计算元素的更新次数 - 简化版本（使用准确计数器）"""
+        try:
+            return int(element_data.get('update_count', 1))
+        except Exception:
+            return 1  # 默认至少更新一次
 
     def _safe_get(self, obj, key, default=None):
         """安全获取字典值，避免任何异常"""
