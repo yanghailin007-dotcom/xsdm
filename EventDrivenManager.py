@@ -90,11 +90,6 @@ class EventDrivenManager:
     def generate_event_execution_prompt(self, chapter_number: int) -> str:
         """生成事件执行指导提示词 - 专注重大事件和大事件"""
         event_context = self.get_chapter_event_context(chapter_number)
-        # 检查是否是事件空窗期
-        is_event_gap = not event_context["active_events"] and not event_context["trigger_checkpoints"]
-
-        if is_event_gap:
-            return self._generate_event_gap_prompt(chapter_number, event_context)
 
         buffer_info = event_context.get("buffer_period", {})
         
@@ -227,36 +222,7 @@ class EventDrivenManager:
             "这是安排情绪缓冲、角色发展和世界观展示的绝佳时机。",
             ""
         ]
-        
-        # 获取情绪强度建议
-        intensity_info = self.get_emotional_intensity_level(chapter_number)
-        prompt_parts.extend([
-            "## 🎭 情绪强度管理",
-            f"**当前情绪强度**: {intensity_info['level']} - {intensity_info['description']}",
-            f"**是否需要情绪缓冲**: {'是' if intensity_info['need_break'] else '否'}",
-            f"**原因**: {intensity_info['reason']}",
-            ""
-        ])
-        
-        # 获取情绪缓冲建议
-        if intensity_info["need_break"]:
-            break_suggestions = self.get_emotional_break_suggestions(chapter_number)
-            prompt_parts.extend([
-                "## 💫 情绪缓冲机会",
-                f"**目的**: {break_suggestions['purpose']}",
-                "**推荐内容类型**:",
-            ])
-            
-            for content_type in break_suggestions.get('content_types', []):
-                prompt_parts.append(f"- {content_type}")
-                
-            prompt_parts.extend([
-                f"**篇幅指导**: {break_suggestions.get('duration_guidance', '')}",
-                f"**情感基调**: {break_suggestions.get('emotional_tone', '')}",
-                f"**融入要求**: {break_suggestions.get('integration_requirement', '')}",
-                ""
-            ])
-        
+    
         # 检查是否有即将发生的事件需要铺垫
         upcoming_events = self._get_upcoming_events(chapter_number)
         if upcoming_events:
@@ -851,77 +817,14 @@ class EventDrivenManager:
         self.active_events[name] = event
         print(f"  ✅ 添加{event_type}: {name} (起始章节: {start_chapter})")
 
-    def get_emotional_intensity_level(self, chapter_number: int) -> Dict[str, Any]:
-        """获取当前章节的情绪强度级别"""
-        # 检查活跃事件的强度
-        high_intensity_events = 0
-        for event_name, event_data in self.active_events.items():
-            if self._is_event_active(chapter_number, event_data):
-                if event_data.get("type") == "major_event":
-                    high_intensity_events += 2
-                elif event_data.get("type") == "big_event":
-                    high_intensity_events += 1
-        
-        # 计算情绪强度
-        if high_intensity_events >= 2:
-            return {
-                "level": "high",
-                "description": "高强度事件期，主线冲突激烈",
-                "need_break": False,
-                "reason": "多个重大事件同时进行"
-            }
-        elif high_intensity_events == 1:
-            return {
-                "level": "medium", 
-                "description": "中等强度，单一事件推进",
-                "need_break": chapter_number % 3 == 0,  # 每3章安排一次休息
-                "reason": "单一事件推进中"
-            }
-        else:
-            return {
-                "level": "low",
-                "description": "事件空窗期，适合情绪缓冲",
-                "need_break": True,
-                "reason": "无活跃重大事件"
-            }
-
-    def should_insert_emotional_break(self, chapter_number: int) -> bool:
-        """判断是否应该插入情绪缓冲内容"""
-        intensity = self.get_emotional_intensity_level(chapter_number)
-        
-        # 如果连续高强度章节过多，强制插入缓冲
-        if self._check_consecutive_high_intensity(chapter_number):
-            return True
-        
-        return intensity["need_break"]
-
     def _check_consecutive_high_intensity(self, chapter_number: int, threshold: int = 4) -> bool:
         """检查是否连续高强度章节过多"""
         consecutive_high = 0
         for i in range(max(1, chapter_number - threshold), chapter_number):
-            intensity = self.get_emotional_intensity_level(i)
-            if intensity["level"] in ["high", "medium"]:
-                consecutive_high += 1
-            else:
-                consecutive_high = 0
+
+            consecutive_high = 0
         
         return consecutive_high >= threshold
-
-    def get_emotional_break_suggestions(self, chapter_number: int) -> Dict[str, Any]:
-        """获取情绪缓冲内容建议"""
-        return {
-            "purpose": "降低情绪强度，给读者释放空间",
-            "content_types": [
-                "伏笔铺垫",
-                "支线剧情", 
-                "角色日常",
-                "世界观展示",
-                "幽默插曲"
-            ],
-            "duration_guidance": "适中篇幅，避免单调",
-            "emotional_tone": "轻松、温馨、神秘或幽默",
-            "integration_requirement": "需与主线保持关联，不能完全脱离"
-        }
 
     def _calculate_precise_buffer_periods(self, chapter_number: int) -> Dict[str, bool]:
         """精准计算各种缓冲期类型"""
@@ -1086,16 +989,7 @@ class EventDrivenManager:
             "这是安排系统性支线发展和世界观建设的绝佳时机。",
             ""
         ]
-        
-        # 获取情绪强度建议
-        intensity_info = self.get_emotional_intensity_level(chapter_number)
-        prompt_parts.extend([
-            "## 🎭 情绪强度管理",
-            f"**当前情绪强度**: {intensity_info['level']} - {intensity_info['description']}",
-            f"**空窗期长度**: {gap_length}章",
-            ""
-        ])
-        
+                
         # 长时间空窗期的系统性支线安排
         prompt_parts.extend([
             "## 🎪 系统性支线安排策略",
@@ -1225,26 +1119,6 @@ class EventDrivenManager:
             "- 世界观细节展示",
             "- 幽默或温馨的插曲",
             "- 为后续事件的直接铺垫"
-        ]
-
-    # 修改现有的空窗期提示生成方法，在长时间空窗期时使用新的指导
-    def _generate_event_gap_prompt(self, chapter_number: int, event_context: Dict) -> str:
-        """生成事件空窗期的专门指导"""
-        # 计算空窗期长度
-        gap_length = self._calculate_event_gap_length(chapter_number)
-        
-        # 如果空窗期较长，使用专门的长时间空窗期指导
-        if gap_length >= 5:
-            return self._get_extended_event_gap_prompt(chapter_number, event_context)
-        
-        # 原有的短空窗期逻辑保持不变
-        prompt_parts = [
-            "# 🎯 事件执行指导 - 事件空窗期",
-            "",
-            "## 📊 当前状态分析",
-            f"第{chapter_number}章处于**事件空窗期**，没有活跃的重大事件或大事件。",
-            "这是安排情绪缓冲、角色发展和世界观展示的绝佳时机。",
-            ""
         ]
 
     def create_side_quest_events(self, chapter_number: int, gap_length: int):

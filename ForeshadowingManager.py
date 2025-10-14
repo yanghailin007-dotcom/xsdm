@@ -495,36 +495,6 @@ class ForeshadowingManager:
         
         return "\n".join(prompt_parts)    
 
-    def get_emotional_buffer_content(self, chapter_number: int) -> Dict[str, Any]:
-        """获取情绪缓冲期的内容建议"""
-        buffer_suggestions = {
-            "available_elements": [],
-            "side_plots": [],
-            "character_moments": [],
-            "world_building": []
-        }
-        
-        # 1. 获取可用的伏笔元素（重要性较低的元素优先）
-        for element in self.elements_to_introduce:
-            if element.get("importance") in ["low", "medium"]:
-                buffer_suggestions["available_elements"].append({
-                    "name": element["name"],
-                    "type": element["type"],
-                    "suggested_approach": f"轻松引入{element['type']}「{element['name']}」",
-                    "purpose": element.get("purpose", "丰富世界观")
-                })
-        
-        # 2. 生成支线剧情建议
-        buffer_suggestions["side_plots"] = self._generate_side_plot_suggestions(chapter_number)
-        
-        # 3. 角色日常时刻
-        buffer_suggestions["character_moments"] = self._generate_character_moments(chapter_number)
-        
-        # 4. 世界观展示机会
-        buffer_suggestions["world_building"] = self._generate_world_building_suggestions(chapter_number)
-        
-        return buffer_suggestions
-
     def _generate_side_plot_suggestions(self, chapter_number: int, novel_data: Dict = None) -> List[Dict]:
         """生成支线剧情建议 - 通用方法，基于小说数据结构"""
         if not novel_data:

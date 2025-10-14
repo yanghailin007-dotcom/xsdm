@@ -42,6 +42,9 @@ Prompts = {
 
 根据用户提供的核心创意，生成一个完整、商业化的小说创作方案。你的输出必须是一个单一、完整、可被直接解析的JSON对象，不包含任何解释、注释或Markdown代码块标记。
 
+必须遵守
+小说标题6-14字
+
 # Output Format
 你必须严格按照以下JSON格式返回，不要包含任何JSON格式之外的解释或说明。
 ```json
@@ -163,6 +166,115 @@ Prompts = {
     "recommended_strategies": ["策略1", "策略2", "策略3"]
 }
 ```
+""",
+        "stage_emotional_planning": """
+内容：
+你是一位资深的番茄小说编辑和营销专家，精通番茄平台的爆款逻辑、读者偏好和推荐算法。
+
+**情绪计划要求**：
+1. 将全书情绪目标分解到具体章节
+2. 设计情感起伏节奏，避免单调
+3. 安排情感缓冲章节，防止读者疲劳
+4. 情感发展要服务角色成长和情节推进
+5. 考虑情感转折的自然过渡
+
+请按以下结构输出：
+{{
+    "stage_emotional_strategy": {{
+        "overall_emotional_goal": "阶段情感总目标",
+        "emotional_pacing_plan": "情感节奏规划",
+        "key_emotional_arcs": ["主要情感发展线"],
+        "emotional_intensity_curve": "情感强度曲线描述"
+    }},
+    "chapter_emotional_breakdown": [
+        {{
+            "chapter_range": "章节分段",
+            "emotional_focus": "情感重点",
+            "target_reader_emotion": "目标读者情感",
+            "key_scenes_design": "关键情感场景设计",
+            "intensity_level": "强度等级(低/中/高)"
+        }}
+    ],
+    "emotional_turning_points": [
+        {{
+            "approximate_chapter": "大致章节",
+            "emotional_shift": "情感转变",
+            "preparation_chapters": "铺垫章节",
+            "impact_description": "影响描述"
+        }}
+    ],
+    "emotional_supporting_elements": {{
+        "settings_for_emotion": ["适合情感表达的场景"],
+        "symbolic_elements": ["象征性元素"],
+        "relationship_developments": ["关系发展重点"]
+    }},
+    "emotional_break_planning": {{
+        "break_chapters": ["情感缓冲章节"],
+        "break_activities": ["缓冲期活动设计"],
+        "purpose": "缓冲目的"
+    }}
+}}
+""",
+        "emotional_development_planning": """
+内容：
+你是一位资深的番茄小说编辑和营销专家，精通番茄平台的爆款逻辑、读者偏好和推荐算法。
+
+    **情绪规划要求**：
+    1. 跟随主角成长弧线设计情绪变化
+    2. 每个阶段要有明确的情绪基调和情感目标
+    3. 设计关键情感转折点和情感高潮
+    4. 考虑读者情感体验的起伏节奏
+    5. 情感发展要服务于主题和角色成长
+
+    请按以下结构输出：
+    {{
+        "overall_emotional_arc": "全书情感发展总览",
+        "stage_emotional_planning": {{
+            "opening_stage": {{
+                "emotional_tone": "情绪基调",
+                "key_emotional_moments": ["关键情感时刻"],
+                "emotional_growth": "情感成长重点",
+                "reader_experience_goal": "读者情感体验目标"
+            }},
+            "development_stage": {{
+                "emotional_tone": "情绪基调", 
+                "key_emotional_moments": ["关键情感时刻"],
+                "emotional_growth": "情感成长重点",
+                "reader_experience_goal": "读者情感体验目标"
+            }},
+            "climax_stage": {{
+                "emotional_tone": "情绪基调",
+                "key_emotional_moments": ["关键情感时刻"], 
+                "emotional_growth": "情感成长重点",
+                "reader_experience_goal": "读者情感体验目标"
+            }},
+            "ending_stage": {{
+                "emotional_tone": "情绪基调",
+                "key_emotional_moments": ["关键情感时刻"],
+                "emotional_growth": "情感成长重点", 
+                "reader_experience_goal": "读者情感体验目标"
+            }},
+            "final_stage": {{
+                "emotional_tone": "情绪基调",
+                "key_emotional_moments": ["关键情感时刻"],
+                "emotional_growth": "情感成长重点",
+                "reader_experience_goal": "读者情感体验目标"
+            }}
+        }},
+        "emotional_turning_points": [
+            {{
+                "chapter_range": "章节范围",
+                "emotional_shift": "情感转变描述",
+                "impact_on_protagonist": "对主角的影响",
+                "reader_emotional_journey": "读者情感旅程"
+            }}
+        ],
+        "emotional_pacing_guidelines": {{
+            "high_intensity_chapters": "高潮章节密度",
+            "emotional_break_pattern": "情绪缓冲模式", 
+            "climax_buildup_strategy": "情感高潮构建策略"
+        }}
+    }}
 """,
         "global_growth_planning": """
 内容:

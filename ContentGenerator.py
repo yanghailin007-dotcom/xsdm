@@ -419,7 +419,16 @@ class ContentGenerator:
                     )
                 except Exception as e:
                     print(f"  ⚠️ AI开场白生成异常，使用备用模板: {e}")
-            
+
+            if chapter_data:
+                # 新增：记录情绪信息
+                emotional_guidance = self._get_emotional_guidance_for_chapter(chapter_number, novel_data)
+                chapter_data["emotional_design"] = {
+                    "planned_focus": emotional_guidance.get("current_emotional_focus", ""),
+                    "target_intensity": emotional_guidance.get("target_intensity", "中"),
+                    "is_turning_point": emotional_guidance.get("is_emotional_turning_point", False)
+                }       
+
             # 质量评估 - 添加类型检查
             print(f"  📊 开始质量评估...")
             try:
@@ -917,6 +926,43 @@ class ContentGenerator:
             
     def generate_chapter_design(self, chapter_params: Dict) -> Optional[Dict]:
         """生成章节详细设计方案"""
+        # 提取情绪参数
+        emotional_guidance = chapter_params.get("emotional_guidance", {})
+        current_emotional_focus = emotional_guidance.get("current_emotional_focus", "")
+        target_intensity = emotional_guidance.get("target_intensity", "中")
+        is_turning_point = emotional_guidance.get("is_emotional_turning_point", False)
+        is_break_chapter = emotional_guidance.get("is_emotional_break_chapter", False)
+        break_activities = emotional_guidance.get("break_activities", [])
+        
+        # 构建情绪相关的提示词部分 - 修复字符串格式化
+        emotional_context_parts = [
+            f"**情绪发展指导**: {current_emotional_focus} (目标强度: {target_intensity})"
+        ]
+        
+        if is_turning_point:
+            emotional_context_parts.append("**本章为情感转折点**，需要特别注意情感转变的自然和有力")
+        
+        if is_break_chapter:
+            activities_text = ", ".join(break_activities)
+            emotional_context_parts.append(f"**本章为情感缓冲章节**，重点安排以下活动: {activities_text}")
+        
+        emotional_context = "\n".join(emotional_context_parts)
+        
+        # 修复：正确构建 emotional_design 部分的 JSON 字符串
+        emotional_design_extra = ""
+        if is_break_chapter:
+            emotional_design_extra += f',\n        "is_emotional_buffer": true,\n        "buffer_activities": {json.dumps(break_activities, ensure_ascii=False)}'
+        
+        if is_turning_point:
+            # 如果已经有额外内容，加逗号，否则直接添加
+            if emotional_design_extra:
+                emotional_design_extra += ',\n        "is_turning_point": true'
+            else:
+                emotional_design_extra += ',\n        "is_turning_point": true'
+        
+        # 如果没有任何额外内容，确保格式正确
+        if not emotional_design_extra:
+            emotional_design_extra = ""
 
         design_prompt = f"""
 你是一位顶级的网络小说总编辑。你的任务是消化所有背景资料，为一位顶级写手制定一份详尽的、自包含的“章节创作蓝图”。
@@ -925,6 +971,7 @@ class ContentGenerator:
 # 故事基础设定（供你参考）
 **小说标题**: {chapter_params.get("novel_title")}
 **小说简介**: {chapter_params.get("novel_synopsis")}
+{emotional_context}
 **世界观/角色/写作计划**: {chapter_params.get("worldview_info")}, {chapter_params.get("character_info")}, {chapter_params.get("stage_writing_plan")}
 **前情提要**: {chapter_params.get("previous_chapters_summary")}
 **上下文指导**: {chapter_params.get("event_driven_guidance")}, {chapter_params.get("foreshadowing_guidance")}
@@ -939,10 +986,17 @@ class ContentGenerator:
     "chapter_number": {chapter_params.get("chapter_number")},
     "chapter_title": "（为本章起一个富有吸引力的标题）",
     "chapter_summary": "（用一句话总结本章的核心内容和目的）",
+    "emotional_design": {{
+        "target_emotion": "（明确本章要传达的核心情感）",
+        "emotional_intensity": "{target_intensity}",
+        "emotional_arc_within_chapter": "（描述本章内部的情感发展曲线）",
+        "key_emotional_moments": ["（列出本章的关键情感时刻）"],
+        "reader_emotional_journey": "（描述读者应该经历的情感体验）{emotional_design_extra}",
+    }},
     "writing_style_directives": {{
-        "core_tone": "（根据本章情节，指定核心基调，如：紧张悬疑、轻松日常、热血激昂等）",
-        "narrative_pace": "（指定叙事节奏，如：快速推进，通过连续的动作和对话制造紧张感）",
-        "description_focus": ["（列出本章描写的重点，如：新场景的环境氛围、角色的内心挣扎、一场关键战斗的细节）"]
+        "core_tone": "（根据本章情节和情绪重点，指定核心基调）",
+        "narrative_pace": "（指定叙事节奏，要配合情感强度）",
+        "description_focus": ["（列出本章描写的重点，要服务于情感表达）"]
     }},
     "consistency_cheatsheet": {{
         "reminder": "（生成一段简短的一致性提醒，例如：'注意：主角此时还不知道反派的真实身份，不要在内心独白中泄露'）",
@@ -953,6 +1007,7 @@ class ContentGenerator:
         {{
             "scene_number": 1,
             "scene_goal": "（明确场景目标，例如：'通过对话，展示主角的智谋和布局能力'）",
+            "emotional_emphasis": "（这个场景要强调的情感）",
             "key_actions_and_dialogues": "（描述场景中的关键动作和对话要点）",
             "character_focus": "（指出这个场景主要刻画哪个角色的哪方面特质）"
         }},
@@ -986,56 +1041,29 @@ class ContentGenerator:
                 
 
     def _prepare_chapter_params(self, chapter_number: int, novel_data: Dict) -> Dict:
-        """准备章节参数 - 增强版本，使用上下文"""
+        """准备章节参数 - 移除重复的情绪缓冲逻辑"""
         print(f"  🔍 准备第{chapter_number}章参数...")
 
         # 获取之前的世界状态
         novel_title = novel_data["novel_title"]
         world_state = self._get_previous_world_state(novel_title)
         character_development_guidance = self._get_character_development_guidance(chapter_number, novel_data)
+        
         # 获取上下文
         context:Contexts.GenerationContext = novel_data.get('_current_generation_context')
         
-        # 检测是否需要情绪缓冲
-        emotional_break_needed = False
-        emotional_break_guidance = ""
+        # === 移除：重复的情绪缓冲检测逻辑 ===
+        # 原有的 emotional_break_needed 和 emotional_break_guidance 相关代码已移除
+        # 情绪缓冲现在由情绪指导系统统一管理
         
-        if hasattr(self.novel_generator, 'event_driven_manager'):
-            event_manager:EventDrivenManager.EventDrivenManager = self.novel_generator.event_driven_manager
-            if hasattr(event_manager, 'should_insert_emotional_break'):
-                emotional_break_needed = event_manager.should_insert_emotional_break(chapter_number)
-                
-                if emotional_break_needed:
-                    print(f"  🎭 第{chapter_number}章检测到需要情绪缓冲")
-                    
-                    # 获取情绪强度信息
-                    intensity_info = event_manager.get_emotional_intensity_level(chapter_number)
-                    break_suggestions = event_manager.get_emotional_break_suggestions(chapter_number)
-                    
-                    # 获取具体的缓冲内容建议
-                    if hasattr(self.novel_generator, 'foreshadowing_manager'):
-                        foreshadowing_manager = self.novel_generator.foreshadowing_manager
-                        buffer_content = foreshadowing_manager.get_emotional_buffer_content(chapter_number)
-                        
-                        emotional_break_guidance = self._generate_emotional_break_prompt(
-                            intensity_info, break_suggestions, buffer_content
-                        )
-
         if context:
             print(f"  ✅ 使用上下文信息准备参数")
             # 使用上下文中的详细信息
             event_context = context.event_context
             foreshadowing_context = context.foreshadowing_context  
             growth_context = context.growth_context
-            # 从上下文中获取阶段计划
             stage_writing_plan = context.stage_plan if hasattr(context, 'stage_plan') else {}
 
-            # --- START: ADDED DEBUGGING ---
-            print(f"  [DEBUG] Type of event_context: {type(event_context)}")
-            print(f"  [DEBUG] Type of foreshadowing_context: {type(foreshadowing_context)}")
-            print(f"  [DEBUG] Type of growth_context: {type(growth_context)}")
-            print(f"  [DEBUG] Type of stage_writing_plan: {type(stage_writing_plan)}")
-        
             print(f"  📊 上下文信息:")
             print(f"    - 事件上下文: {len(event_context.get('active_events', []))} 个活跃事件")
             print(f"    - 伏笔上下文: {len(foreshadowing_context.get('elements_to_introduce', []))} 个待引入元素") 
@@ -1044,6 +1072,7 @@ class ContentGenerator:
             # 获取事件指导（优先使用上下文中的信息）
             event_guidance = self._get_event_guidance_from_context(event_context, chapter_number)
             foreshadowing_guidance = self._get_foreshadowing_guidance_from_context(foreshadowing_context, chapter_number)
+            
             # 确保 event_guidance 不是 None
             if event_guidance is None:
                 event_guidance = "# 🎯 事件执行指导\n\n本章暂无特定事件任务，按主线推进即可。"
@@ -1065,6 +1094,9 @@ class ContentGenerator:
         total_chapters = novel_data["current_progress"]["total_chapters"]
         plot_direction = self._get_plot_direction_for_chapter(chapter_number, total_chapters)
         
+        # 新增：获取情绪指导（统一来源）
+        emotional_guidance = self._get_emotional_guidance_for_chapter(chapter_number, novel_data)
+        
         writing_style_guide = novel_data.get("writing_style_guide", {})
         params = {
             "chapter_number": chapter_number,
@@ -1084,8 +1116,15 @@ class ContentGenerator:
             "main_character_instruction": self._get_main_character_instruction(novel_data),
             "event_driven_guidance": event_guidance,
             "foreshadowing_guidance": foreshadowing_guidance,
-            "emotional_break_needed": emotional_break_needed,
-            "emotional_break_guidance": emotional_break_guidance,
+            # === 修改：使用统一的情绪指导系统 ===
+            "emotional_guidance": emotional_guidance,
+            "current_emotional_focus": emotional_guidance.get("current_emotional_focus", ""),
+            "target_emotional_intensity": emotional_guidance.get("target_intensity", "中"),
+            "is_emotional_turning_point": emotional_guidance.get("is_emotional_turning_point", False),
+            "is_emotional_break_chapter": emotional_guidance.get("is_emotional_break_chapter", False),
+            "emotional_break_activities": emotional_guidance.get("break_activities", []),
+            "emotional_turning_point_info": emotional_guidance.get("turning_point_info", {}),
+            "emotional_supporting_elements": emotional_guidance.get("emotional_supporting_elements", {}),
             "event_context": json.dumps(event_context, ensure_ascii=False),
             "foreshadowing_context": json.dumps(foreshadowing_context, ensure_ascii=False),
             "growth_context": json.dumps(growth_context, ensure_ascii=False),
@@ -1099,66 +1138,93 @@ class ContentGenerator:
         print(f"  ✅ 第{chapter_number}章参数准备完成")
         print(f"    - 事件任务: {len(params['event_tasks'].splitlines())} 项")
         print(f"    - 伏笔元素: {len(params['foreshadowing_elements'].splitlines())} 项")
+        print(f"    - 情绪重点: {params['current_emotional_focus']}")
+        print(f"    - 情感强度: {params['target_emotional_intensity']}")
+        if params['is_emotional_break_chapter']:
+            print(f"    - 本章为情感缓冲章节")
+        if params['is_emotional_turning_point']:
+            print(f"    - 本章为情感转折点")
         
         params = self._add_consistency_requirements(params, world_state)
         relationship_note = self._get_relationship_consistency_note(world_state)
         if relationship_note:
-            # 将关系检查添加到事件指导或伏笔指导中
             if "event_driven_guidance" in params:
                 params["event_driven_guidance"] += f"\n\n{relationship_note}"
         return params
-    
-    def _generate_emotional_break_prompt(self, intensity_info: Dict, break_suggestions: Dict, buffer_content: Dict) -> str:
-        """生成情绪缓冲指导提示"""
-        prompt_parts = [
-            "# 🎭 情绪缓冲指导",
-            f"## 当前情绪强度: {intensity_info['level']}",
-            f"## 缓冲原因: {intensity_info['reason']}",
-            "",
-            "## 🎯 缓冲目的",
-            "- 给读者情绪释放的空间",
-            "- 避免持续高强度导致的阅读疲劳", 
-            "- 为后续高潮做铺垫",
-            "- 丰富故事层次和角色塑造",
-            "",
-            "## 📝 内容建议"
-        ]
+
+    def _get_emotional_guidance_for_chapter(self, chapter_number: int, novel_data: Dict) -> Dict:
+        """获取章节的情绪指导 - 统一来源，避免重复"""
+        try:
+            # 优先从阶段计划管理器中获取情绪指导
+            stage_plan_manager = self.novel_generator.stage_plan_manager
+            if hasattr(stage_plan_manager, 'get_chapter_writing_context'):
+                writing_context = stage_plan_manager.get_chapter_writing_context(chapter_number)
+                emotional_guidance = writing_context.get("emotional_guidance", {})
+                
+                if emotional_guidance:
+                    print(f"  💖 从阶段计划管理器获取情绪指导")
+                    return emotional_guidance
+        except Exception as e:
+            print(f"  ⚠️ 从阶段计划管理器获取情绪指导失败: {e}")
         
-        # 添加可用元素
-        if buffer_content.get("available_elements"):
-            prompt_parts.append("### 可用的伏笔元素:")
-            for element in buffer_content["available_elements"][:3]:  # 最多3个
-                prompt_parts.append(f"- {element['suggested_approach']}: {element['purpose']}")
+        # 其次尝试从全局成长规划器获取
+        try:
+            global_growth_planner = self.novel_generator.global_growth_planner
+            if hasattr(global_growth_planner, 'get_chapter_content_context'):
+                growth_context = global_growth_planner.get_chapter_content_context(chapter_number)
+                emotional_context = growth_context.get("emotional_guidance", {})
+                
+                if emotional_context:
+                    print(f"  💖 从全局成长规划器获取情绪指导")
+                    return emotional_context
+        except Exception as e:
+            print(f"  ⚠️ 从全局成长规划器获取情绪指导失败: {e}")
         
-        # 添加支线剧情建议
-        if buffer_content.get("side_plots"):
-            prompt_parts.append("### 支线剧情方向:")
-            for plot in buffer_content["side_plots"][:2]:  # 最多2个
-                prompt_parts.append(f"- {plot['type']}: {plot['description']} (基调: {plot['emotional_tone']})")
+        # 最后使用基于章节位置的回退指导
+        print(f"  💖 使用回退情绪指导")
+        return self._get_fallback_emotional_guidance(chapter_number, novel_data)
+
+    def _get_fallback_emotional_guidance(self, chapter_number: int, novel_data: Dict) -> Dict:
+        """回退情绪指导 - 基于章节位置，简化版本"""
+        total_chapters = novel_data["current_progress"]["total_chapters"]
+        progress_ratio = chapter_number / total_chapters
         
-        # 添加角色时刻建议
-        if buffer_content.get("character_moments"):
-            prompt_parts.append("### 角色展现机会:")
-            for moment in buffer_content["character_moments"][:2]:  # 最多2个
-                prompt_parts.append(f"- {moment['type']}: {moment['description']}")
-                if moment.get("examples"):
-                    prompt_parts.append(f"  示例: {'、'.join(moment['examples'][:2])}")
-        
-        # 添加篇幅指导
-        prompt_parts.extend([
-            "",
-            "## ⏱️ 篇幅控制",
-            "- 仍需保持主线推进，不能完全停滞",
-            "- 结尾需设置小悬念，引导读者继续阅读",
-            "",
-            "## 🎨 写作要点", 
-            "- 保持语言流畅自然，避免刻意感",
-            "- 情感基调以{emotional_tone}为主",
-            "- 确保与主线情节有机关联",
-            "- 注重细节描写，营造沉浸感"
-        ])
-        
-        return "\n".join(prompt_parts)
+        if progress_ratio <= 0.2:
+            return {
+                "current_emotional_focus": "建立情感连接和读者认同",
+                "target_intensity": "中",
+                "is_emotional_turning_point": False,
+                "is_emotional_break_chapter": progress_ratio > 0.15,  # 在20%进度附近安排缓冲
+                "break_activities": ["日常互动", "角色反思"],
+                "reader_emotional_journey": "让读者对主角产生好奇和认同"
+            }
+        elif progress_ratio <= 0.5:
+            return {
+                "current_emotional_focus": "深化情感冲突和发展关系", 
+                "target_intensity": "中高",
+                "is_emotional_turning_point": progress_ratio > 0.4,
+                "is_emotional_break_chapter": progress_ratio > 0.35,  # 在35-40%进度安排缓冲
+                "break_activities": ["关系建设", "支线探索"],
+                "reader_emotional_journey": "让读者深度投入情感世界"
+            }
+        elif progress_ratio <= 0.8:
+            return {
+                "current_emotional_focus": "情感高潮和重大转折",
+                "target_intensity": "高",
+                "is_emotional_turning_point": progress_ratio > 0.7,
+                "is_emotional_break_chapter": progress_ratio > 0.75,  # 在75%进度后安排缓冲
+                "break_activities": ["情感消化", "准备最终冲突"],
+                "reader_emotional_journey": "让读者经历情感冲击和共鸣"
+            }
+        else:
+            return {
+                "current_emotional_focus": "情感解决和成长体现",
+                "target_intensity": "中高", 
+                "is_emotional_turning_point": progress_ratio > 0.9,
+                "is_emotional_break_chapter": False,  # 结局阶段通常不需要缓冲
+                "break_activities": [],
+                "reader_emotional_journey": "让读者感受到情感满足和成长"
+            }
 
     def _get_event_guidance_from_context(self, event_context: Dict, chapter_number: int) -> str:
         """从事件上下文中生成指导 - 添加错误处理"""
@@ -1419,18 +1485,6 @@ class ContentGenerator:
     def _get_empty_period_guidance(self, chapter_number: int, event_context: Dict) -> str:
         """生成事件空窗期的指导内容 - 确保返回字符串"""
         
-        # 检查是否需要情绪缓冲
-        emotional_break_needed = False
-        if hasattr(self.novel_generator, 'event_driven_manager'):
-            event_manager = self.novel_generator.event_driven_manager
-            if hasattr(event_manager, 'should_insert_emotional_break'):
-                emotional_break_needed = event_manager.should_insert_emotional_break(chapter_number)
-        
-        if emotional_break_needed:
-            guidance = self.novel_generator.event_driven_manager._generate_event_gap_prompt(chapter_number, event_context)
-            return guidance if guidance is not None else "# 🎯 事件执行指导\n\n本章为情绪缓冲章节，注重角色发展和情感表达。"
-        
-        # 默认的空窗期指导
         return "# 🎯 事件执行指导\n\n当前处于事件空窗期，重点推进主线情节和角色发展。"
     def _get_previous_world_state(self, novel_title: str) -> Dict:
         """获取之前章节的世界状态"""

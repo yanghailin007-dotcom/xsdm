@@ -580,7 +580,7 @@ class NovelGenerator:
         
         # 步骤7: 全局成长规划（人物成长、势力发展、物品升级）
         self.novel_data["current_progress"]["stage"] = "成长规划"
-        if not self._generate_global_growth_plan(creative_seed, total_chapters):
+        if not self._generate_global_growth_plan():
             print("⚠️  全局成长规划生成失败，使用基础框架")
 
         # 步骤6: 生成全书阶段计划
@@ -597,6 +597,10 @@ class NovelGenerator:
         ):
             print("❌ 生成阶段详细写作计划失败")
             return False
+
+        emotional_plan = self.global_growth_planner.novel_generator.novel_data.get("emotional_development_plan", {})
+        if emotional_plan:
+            print("✅ 情绪发展计划已集成到小说生成系统中")
 
         # 导出所有事件到JSON文件
         events_file = f"{self.novel_data['novel_title']}_events.json"
@@ -1298,7 +1302,7 @@ class NovelGenerator:
         else:
             return False
 
-    def _generate_global_growth_plan(self, creative_seed: str, total_chapters: int) -> bool:
+    def _generate_global_growth_plan(self) -> bool:
         """生成全局成长规划 - 精简分层版本"""
         print("=== 步骤5: 制定全书成长规划框架 ===")
         

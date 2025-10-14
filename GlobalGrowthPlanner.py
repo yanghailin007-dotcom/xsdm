@@ -48,48 +48,6 @@ class GlobalGrowthPlanner:
             }
         })
 
-    def generate_global_growth_plan(self) -> Dict:
-        """生成全书的全局成长规划"""
-        print("  📚 生成全书全局成长规划...")
-        
-        # 准备基础数据
-        novel_data = self.novel_generator.novel_data
-        total_chapters = novel_data["current_progress"]["total_chapters"]
-        
-        # 添加小说基础信息
-        user_prompt = f"""
-内容:
-[小说数据]
-
-*   **小说标题**: {novel_data["novel_title"]}
-*   **小说简介**: {novel_data["novel_synopsis"]}
-*   **核心世界观**: {json.dumps(novel_data.get('core_worldview', {}), ensure_ascii=False)}
-*   **主要角色**: {json.dumps(novel_data.get('character_design', {}), ensure_ascii=False)}
-
-[任务指令]
-
-1.  **核心任务**: 基于上述小说数据，为全书生成一份完整的成长规划。
-2.  **总章节数**: {total_chapters}
-3.  **执行要求**: 请严格遵循你在System Prompt中定义的角色、规则和JSON输出结构。 
-"""
-        
-        # 生成全局成长规划
-        global_plan = self.novel_generator.api_client.generate_content_with_retry(
-            "global_growth_planning",
-            user_prompt,
-            purpose="生成全书全局成长规划"
-        )
-        
-        if global_plan:
-            self.global_growth_plan = global_plan
-            self.novel_generator.novel_data["global_growth_plan"] = global_plan
-            print("  ✅ 全书全局成长规划生成完成")
-            self._print_global_plan_summary(global_plan)
-            return global_plan
-        else:
-            print("  ⚠️ 全书全局成长规划生成失败，使用默认规划")
-            return self._create_default_global_plan(total_chapters)
-
     def get_chapter_specific_context(self, chapter_number: int) -> Dict:
         """获取章节特定的成长规划上下文，不重新生成全局计划"""
         if not hasattr(self, 'global_growth_plan') or not self.global_growth_plan:
@@ -296,6 +254,9 @@ class GlobalGrowthPlanner:
         chapter_context = self._generate_chapter_content_context(
             chapter_number, current_stage, content_plan
         )
+                # 新增：添加情绪指导
+        emotional_context = self._get_emotional_context_for_chapter(chapter_number)
+        chapter_context["emotional_guidance"] = emotional_context
         
         return chapter_context
 
@@ -478,7 +439,7 @@ class GlobalGrowthPlanner:
             self.global_growth_plan = self.novel_generator.novel_data["global_growth_plan"]
             print("  ✅ 使用已存在的全局成长计划")
         elif not self.global_growth_plan:
-            print("  📚 生成全书全局成长规划...")
+            print("  📚 生成全书全局成长规划...123")
             self.generate_global_growth_plan()
         
         # 然后获取章节特定上下文
@@ -682,3 +643,168 @@ class GlobalGrowthPlanner:
             ],
             "content_synopsis": f"{stage_name}的内容发展规划"
         }
+    
+    def generate_emotional_development_plan(self) -> Dict:
+        """生成全书情绪发展计划"""
+        print("  💖 生成全书情绪发展计划...")
+        
+        novel_data = self.novel_generator.novel_data
+        total_chapters = novel_data["current_progress"]["total_chapters"]
+        
+        user_prompt = f"""
+    基于以下小说信息，制定全书的情绪发展计划：
+
+    **小说信息**：
+    - 标题：{novel_data["novel_title"]}
+    - 简介：{novel_data["novel_synopsis"]}
+    - 总章节：{total_chapters}章
+    - 主角：{novel_data.get('custom_main_character_name', '主角')}
+    - 世界观：{json.dumps(novel_data.get('core_worldview', {}), ensure_ascii=False)}
+
+    """
+
+        emotional_plan = self.novel_generator.api_client.generate_content_with_retry(
+            "emotional_development_planning",
+            user_prompt,
+            purpose="生成全书情绪发展计划"
+        )
+        
+        if emotional_plan:
+            self.novel_generator.novel_data["emotional_development_plan"] = emotional_plan
+            print("  ✅ 全书情绪发展计划生成完成")
+            return emotional_plan
+        else:
+            print("  ⚠️ 全书情绪发展计划生成失败，使用默认计划")
+            return self._create_default_emotional_plan(total_chapters)
+
+    def _create_default_emotional_plan(self, total_chapters: int) -> Dict:
+        """创建默认的情绪发展计划"""
+        return {
+            "overall_emotional_arc": "主角从初始状态到情感成熟的完整旅程",
+            "stage_emotional_planning": {
+                "opening_stage": {
+                    "emotional_tone": "好奇、期待、些许不安",
+                    "key_emotional_moments": ["初次情感触动", "基础关系建立"],
+                    "emotional_growth": "建立基础情感状态",
+                    "reader_experience_goal": "让读者对主角产生认同和好奇"
+                },
+                "development_stage": {
+                    "emotional_tone": "成长、冲突、情感深化", 
+                    "key_emotional_moments": ["情感考验", "关系转折点"],
+                    "emotional_growth": "情感深化和冲突处理",
+                    "reader_experience_goal": "让读者深度投入角色情感世界"
+                },
+                "climax_stage": {
+                    "emotional_tone": "紧张、激烈、情感爆发",
+                    "key_emotional_moments": ["情感爆发", "重大牺牲", "真相揭露"], 
+                    "emotional_growth": "情感成熟和价值观确立",
+                    "reader_experience_goal": "让读者经历情感高潮和共鸣"
+                },
+                "ending_stage": {
+                    "emotional_tone": "释怀、成长、情感解决",
+                    "key_emotional_moments": ["情感释怀", "关系定格"],
+                    "emotional_growth": "情感问题的最终解决", 
+                    "reader_experience_goal": "让读者感受到情感满足和成长"
+                },
+                "final_stage": {
+                    "emotional_tone": "圆满、希望、情感余韵",
+                    "key_emotional_moments": ["情感归宿", "主题升华"],
+                    "emotional_growth": "情感旅程的完整收尾",
+                    "reader_experience_goal": "让读者带着美好情感结束阅读"
+                }
+            },
+            "emotional_turning_points": [
+                {
+                    "chapter_range": f"1-{int(total_chapters*0.15)}",
+                    "emotional_shift": "从陌生到初步情感投入",
+                    "impact_on_protagonist": "建立基础情感连接",
+                    "reader_emotional_journey": "产生初步情感认同"
+                }
+            ],
+            "emotional_pacing_guidelines": {
+                "high_intensity_chapters": "每10-15章安排情感高潮",
+                "emotional_break_pattern": "高潮后安排2-3章情感缓冲", 
+                "climax_buildup_strategy": "逐步累积情感张力"
+            }
+        }
+
+    def generate_global_growth_plan(self) -> Dict:
+        """生成全书的全局成长规划 - 增强版本，包含情绪规划"""
+        print("  📚 生成全书全局成长规划...1")
+        print("  📚 生成全书全局成长规划...2")
+        
+        # 准备基础数据
+        novel_data = self.novel_generator.novel_data
+        total_chapters = novel_data["current_progress"]["total_chapters"]
+        
+        # 添加小说基础信息
+        user_prompt = f"""
+内容:
+[小说数据]
+
+*   **小说标题**: {novel_data["novel_title"]}
+*   **小说简介**: {novel_data["novel_synopsis"]}
+*   **核心世界观**: {json.dumps(novel_data.get('core_worldview', {}), ensure_ascii=False)}
+*   **主要角色**: {json.dumps(novel_data.get('character_design', {}), ensure_ascii=False)}
+
+[任务指令]
+
+1.  **核心任务**: 基于上述小说数据，为全书生成一份完整的成长规划。
+2.  **总章节数**: {total_chapters}
+3.  **执行要求**: 请严格遵循你在System Prompt中定义的角色、规则和JSON输出结构。 
+"""        
+        # 原有的成长规划生成代码...
+        global_plan = self.novel_generator.api_client.generate_content_with_retry(
+            "global_growth_planning",
+            user_prompt,
+            purpose="生成全书全局成长规划"
+        )
+        
+        if global_plan:
+            self.global_growth_plan = global_plan
+            self.novel_generator.novel_data["global_growth_plan"] = global_plan
+            
+            # 新增：生成情绪发展计划
+            emotional_plan = self.generate_emotional_development_plan()
+            global_plan["emotional_development"] = emotional_plan
+            
+            print("  ✅ 全书全局成长规划生成完成")
+            self._print_global_plan_summary(global_plan)
+            return global_plan
+        else:
+            print("  ⚠️ 全书全局成长规划生成失败，使用默认规划")
+            return self._create_default_global_plan(total_chapters)
+
+    def _get_emotional_context_for_chapter(self, chapter_number: int) -> Dict:
+        """获取章节的情绪上下文"""
+        emotional_plan = self.novel_generator.novel_data.get("emotional_development_plan", {})
+        if not emotional_plan:
+            return {}
+        
+        # 获取当前阶段
+        current_stage = self._get_current_stage(chapter_number)
+        stage_emotional_plan = emotional_plan.get("stage_emotional_planning", {}).get(current_stage, {})
+        
+        # 计算章节在阶段中的位置
+        stage_range = self._get_stage_range(current_stage)
+        start_chap, end_chap = parse_chapter_range(stage_range)
+        progress_in_stage = (chapter_number - start_chap + 1) / (end_chap - start_chap + 1)
+        
+        # 基于进度确定情绪重点
+        if progress_in_stage < 0.3:
+            emotional_focus = "建立阶段情感基础"
+            intensity = "中等"
+        elif progress_in_stage < 0.7:
+            emotional_focus = "深化情感冲突和发展"
+            intensity = "中高" 
+        else:
+            emotional_focus = "情感高潮或转折准备"
+            intensity = "高"
+        
+        return {
+            "current_emotional_tone": stage_emotional_plan.get("emotional_tone", ""),
+            "emotional_focus": emotional_focus,
+            "target_intensity": intensity,
+            "key_emotional_moments": stage_emotional_plan.get("key_emotional_moments", []),
+            "reader_experience_goal": stage_emotional_plan.get("reader_experience_goal", "")
+        }    

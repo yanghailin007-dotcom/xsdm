@@ -257,8 +257,16 @@ class StagePlanManager:
             user_prompt,
             purpose=f"生成{stage_name}写作计划"
         )
+        # 新增：生成情绪计划
+        global_emotional_plan = self.generator.novel_data.get("emotional_development_plan", {})
+        emotional_plan = self.generate_stage_emotional_plan(stage_name, stage_range, global_emotional_plan)
         
         if writing_plan:
+            # 将情绪计划整合到写作计划中
+            if "stage_writing_plan" in writing_plan:
+                writing_plan["stage_writing_plan"]["emotional_plan"] = emotional_plan
+            else:
+                writing_plan["emotional_plan"] = emotional_plan
             # 如果是开局阶段且包含黄金三章，进一步处理
             if is_opening_with_golden:
                 writing_plan = self._enhance_golden_chapters_in_writing_plan(writing_plan)
@@ -368,24 +376,26 @@ class StagePlanManager:
         return writing_plan
 
     def get_chapter_writing_context(self, chapter_number: int) -> Dict:
-        """获取指定章节的写作上下文"""
-        # 获取当前阶段
+        """获取指定章节的写作上下文 - 增强版本，包含详细情绪指导"""
         current_stage = self._get_current_stage(chapter_number)
         if not current_stage:
             return {}
         
-        # 获取阶段写作计划
         writing_plan = self.get_stage_writing_plan_by_name(current_stage)
         if not writing_plan:
             return {}
         
-        # 新增：检查当前章节是否在事件空白期
-        is_event_gap = self._check_chapter_in_event_gap(chapter_number, writing_plan)
-        if is_event_gap:
-            print(f"  ⚠️ 第{chapter_number}章处于事件间隔期，需要加强日常情节或角色发展")
+        # 新增：获取情绪计划
+        emotional_plan = self._get_emotional_plan_for_stage(current_stage)
         
         # 生成章节特定的写作指导
         chapter_context = self._generate_chapter_writing_context(chapter_number, writing_plan)
+        
+        # 增强：添加详细情绪指导
+        emotional_guidance = self._generate_emotional_guidance_for_chapter(
+            chapter_number, emotional_plan, current_stage
+        )
+        chapter_context["emotional_guidance"] = emotional_guidance
         
         return chapter_context
 
@@ -1235,4 +1245,212 @@ class StagePlanManager:
             "covered_chapters": len(covered_chapters),
             "total_chapters": total_chapters,
             "coverage_rate": round(coverage_rate * 100, 2)
-        }        
+        }
+    def generate_stage_emotional_plan(self, stage_name: str, stage_range: str, 
+                                    global_emotional_plan: Dict) -> Dict:
+        """生成阶段详细情绪计划"""
+        print(f"  💞 生成{stage_name}的详细情绪计划...")
+        
+        novel_data = self.generator.novel_data
+        start_chap, end_chap = parse_chapter_range(stage_range)
+        stage_length = end_chap - start_chap + 1
+        
+        user_prompt = f"""
+    基于全书情绪规划和阶段特点，制定{stage_name}的详细情绪计划：
+
+    **阶段信息**：
+    - 阶段：{stage_name}
+    - 章节范围：{stage_range} (共{stage_length}章)
+    - 全书情绪规划：{json.dumps(global_emotional_plan, ensure_ascii=False)}
+
+    **小说信息**：
+    - 标题：{novel_data["novel_title"]}
+    - 简介：{novel_data["novel_synopsis"]}
+    - 主角：{novel_data.get('custom_main_character_name', '主角')}
+
+    """
+
+        emotional_plan = self.generator.api_client.generate_content_with_retry(
+            "stage_emotional_planning",
+            user_prompt,
+            purpose=f"生成{stage_name}情绪计划"
+        )
+        
+        if emotional_plan:
+            # 存储到阶段写作计划中
+            if "stage_writing_plans" not in novel_data:
+                novel_data["stage_writing_plans"] = {}
+            
+            if stage_name not in novel_data["stage_writing_plans"]:
+                novel_data["stage_writing_plans"][stage_name] = {}
+            
+            novel_data["stage_writing_plans"][stage_name]["emotional_plan"] = emotional_plan
+            print(f"  ✅ {stage_name}情绪计划生成完成")
+            return emotional_plan
+        else:
+            print(f"  ⚠️ {stage_name}情绪计划生成失败，使用默认计划")
+            return self._create_default_stage_emotional_plan(stage_name, stage_range)
+
+    def _create_default_stage_emotional_plan(self, stage_name: str, stage_range: str) -> Dict:
+        """创建默认的阶段情绪计划"""
+        start_chap, end_chap = parse_chapter_range(stage_range)
+        stage_length = end_chap - start_chap + 1
+        
+        # 基于阶段名称设置默认情感特征
+        stage_emotional_profiles = {
+            "opening_stage": {
+                "goal": "建立情感连接和读者认同",
+                "pace": "逐步加强情感投入",
+                "intensity": "低到中"
+            },
+            "development_stage": {
+                "goal": "深化情感冲突和发展关系",
+                "pace": "起伏变化，快慢结合", 
+                "intensity": "中"
+            },
+            "climax_stage": {
+                "goal": "情感爆发和高潮体验",
+                "pace": "紧张加速，高潮集中",
+                "intensity": "高"
+            },
+            "ending_stage": {
+                "goal": "情感解决和成长体现",
+                "pace": "逐渐放缓，情感升华",
+                "intensity": "中到高"
+            },
+            "final_stage": {
+                "goal": "情感圆满和主题共鸣",
+                "pace": "平稳深沉，余韵绵长",
+                "intensity": "中"
+            }
+        }
+        
+        profile = stage_emotional_profiles.get(stage_name, {
+            "goal": "情感发展和角色成长",
+            "pace": "自然流畅",
+            "intensity": "中"
+        })
+        
+        return {
+            "stage_emotional_strategy": {
+                "overall_emotional_goal": profile["goal"],
+                "emotional_pacing_plan": profile["pace"],
+                "key_emotional_arcs": ["主角情感成长", "主要关系发展"],
+                "emotional_intensity_curve": f"从{profile['intensity']}强度开始，根据情节需要变化"
+            },
+            "chapter_emotional_breakdown": [
+                {
+                    "chapter_range": f"{start_chap}-{start_chap + stage_length//3}",
+                    "emotional_focus": "建立阶段情感基础",
+                    "target_reader_emotion": "投入和期待",
+                    "key_scenes_design": "情感建立场景",
+                    "intensity_level": "中"
+                }
+            ],
+            "emotional_turning_points": [
+                {
+                    "approximate_chapter": f"约第{start_chap + stage_length//2}章",
+                    "emotional_shift": "情感深化或转折",
+                    "preparation_chapters": f"第{start_chap}章开始铺垫",
+                    "impact_description": "推动角色情感成长"
+                }
+            ],
+            "emotional_supporting_elements": {
+                "settings_for_emotion": ["适合情感表达的关键场景"],
+                "symbolic_elements": ["情感象征物"],
+                "relationship_developments": ["重要关系进展"]
+            },
+            "emotional_break_planning": {
+                "break_chapters": [f"第{start_chap + stage_length//4}章", f"第{start_chap + stage_length*3//4}章"],
+                "break_activities": ["日常互动", "角色反思", "关系建设"],
+                "purpose": "给读者情感缓冲和消化空间"
+            }
+        }
+
+    def _get_emotional_plan_for_stage(self, stage_name: str) -> Dict:
+        """获取阶段的情绪计划"""
+        novel_data = self.generator.novel_data
+        stage_plans = novel_data.get("stage_writing_plans", {})
+        
+        if stage_name in stage_plans and "emotional_plan" in stage_plans[stage_name]:
+            return stage_plans[stage_name]["emotional_plan"]
+        
+        # 如果没有情绪计划，生成一个默认的
+        stage_range = self._get_stage_range(stage_name)
+        return self._create_default_stage_emotional_plan(stage_name, stage_range)
+
+    def _generate_emotional_guidance_for_chapter(self, chapter_number: int, 
+                                            emotional_plan: Dict, stage_name: str) -> Dict:
+        """为章节生成详细情绪指导"""
+        # 获取章节在阶段中的位置
+        stage_range = self._get_stage_range(stage_name)
+        start_chap, end_chap = parse_chapter_range(stage_range)
+        chapter_position = chapter_number - start_chap + 1
+        total_chapters_in_stage = end_chap - start_chap + 1
+        progress = chapter_position / total_chapters_in_stage
+        
+        # 基于进度确定情绪重点
+        emotional_breakdown = emotional_plan.get("chapter_emotional_breakdown", [])
+        current_emotional_focus = "推进情感发展"
+        target_intensity = "中"
+        
+        for breakdown in emotional_breakdown:
+            breakdown_range = breakdown.get("chapter_range", "")
+            if self._is_chapter_in_emotional_range(chapter_number, breakdown_range):
+                current_emotional_focus = breakdown.get("emotional_focus", current_emotional_focus)
+                target_intensity = breakdown.get("intensity_level", target_intensity)
+                break
+        
+        # 检查是否为情感转折点
+        turning_points = emotional_plan.get("emotional_turning_points", [])
+        is_turning_point = False
+        turning_point_info = {}
+        
+        for point in turning_points:
+            approx_chapter = point.get("approximate_chapter", "")
+            if self._is_chapter_near_turning_point(chapter_number, approx_chapter):
+                is_turning_point = True
+                turning_point_info = point
+                break
+        
+        # 检查是否为情感缓冲章节
+        break_planning = emotional_plan.get("emotional_break_planning", {})
+        is_break_chapter = chapter_number in break_planning.get("break_chapters", [])
+        
+        return {
+            "current_emotional_focus": current_emotional_focus,
+            "target_intensity": target_intensity,
+            "is_emotional_turning_point": is_turning_point,
+            "turning_point_info": turning_point_info,
+            "is_emotional_break_chapter": is_break_chapter,
+            "break_activities": break_planning.get("break_activities", []),
+            "emotional_supporting_elements": emotional_plan.get("emotional_supporting_elements", {}),
+            "reader_emotional_journey": f"本章读者应该感受到{current_emotional_focus}的情感体验"
+        }
+
+    def _is_chapter_in_emotional_range(self, chapter: int, chapter_range: str) -> bool:
+        """检查章节是否在情绪范围段内"""
+        if not chapter_range or "-" not in chapter_range:
+            return False
+        
+        try:
+            start, end = chapter_range.split("-")
+            start_chap = int(start.strip())
+            end_chap = int(end.strip())
+            return start_chap <= chapter <= end_chap
+        except:
+            return False
+
+    def _is_chapter_near_turning_point(self, chapter: int, approx_chapter: str) -> bool:
+        """检查章节是否接近情感转折点"""
+        if not approx_chapter:
+            return False
+        
+        try:
+            # 解析大致章节描述
+            if "第" in approx_chapter and "章" in approx_chapter:
+                chap_num = int(approx_chapter.split("第")[1].split("章")[0])
+                return abs(chapter - chap_num) <= 2  # 前后2章内视为接近
+            return False
+        except:
+            return False            
