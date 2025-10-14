@@ -112,7 +112,7 @@ class StagePlanManager:
             return None
     
     def calculate_stage_boundaries(self, total_chapters: int) -> Dict:
-        ratios = [0.12, 0.28, 0.32, 0.18, 0.10]  # 确保总和为1.0
+        ratios = [0.16, 0.26, 0.28, 0.18, 0.12]  # 确保总和为1.0
         
         # 计算累积章节数，确保不重叠
         chapters = [0]
@@ -135,7 +135,7 @@ class StagePlanManager:
     
     def print_stage_overview(self):
         """打印详细的阶段计划概览"""
-        if not hasattr(self, 'overall_stage_plan') or not self.overall_stage_plan:
+        if not self.overall_stage_plans:  # 修复属性名
             print("暂无阶段计划数据")
             return
         
@@ -144,21 +144,23 @@ class StagePlanManager:
         print("=" * 60)
         
         total_chapters = 0
-        for i, stage in enumerate(self.overall_stage_plan, 1):
-            stage_name = stage.get('name', f'第{i}阶段')
-            start_ch = stage.get('start_chapter', 1)
-            end_ch = stage.get('end_chapter', start_ch)
+        # 修复：使用正确的数据结构
+        stage_plan_dict = self.overall_stage_plans.get("overall_stage_plan", {})
+        
+        for i, (stage_name, stage_info) in enumerate(stage_plan_dict.items(), 1):
+            chapter_range = stage_info.get('chapter_range', '1-1')
+            start_ch, end_ch = parse_chapter_range(chapter_range)
             chapter_count = end_ch - start_ch + 1
             total_chapters += chapter_count
             
             print(f"\n📚 阶段 {i}: {stage_name}")
             print(f"   📖 章节: {start_ch}-{end_ch}章 (共{chapter_count}章)")
-            print(f"   🎯 目标: {stage.get('goal', '暂无目标描述')}")
-            print(f"   ⚡ 关键发展: {stage.get('key_events', '暂无关键事件')}")
-            if stage.get('conflicts'):
-                print(f"   ⚔️ 核心冲突: {stage.get('conflicts')}")
+            print(f"   🎯 目标: {stage_info.get('stage_goal', '暂无目标描述')}")
+            print(f"   ⚡ 关键发展: {stage_info.get('key_developments', '暂无关键事件')}")
+            if stage_info.get('core_conflicts'):
+                print(f"   ⚔️ 核心冲突: {stage_info.get('core_conflicts')}")
         
-        print(f"\n📈 总计: {len(self.overall_stage_plan)}个阶段，{total_chapters}章")
+        print(f"\n📈 总计: {len(stage_plan_dict)}个阶段，{total_chapters}章")
         print("=" * 60)
 
     def generate_stage_writing_plan(self, stage_name: str, stage_range: str, creative_seed: str,
@@ -376,27 +378,43 @@ class StagePlanManager:
         return writing_plan
 
     def get_chapter_writing_context(self, chapter_number: int) -> Dict:
-        """获取指定章节的写作上下文 - 增强版本，包含详细情绪指导"""
+        """获取指定章节的写作上下文 - 完整调试版本"""
+        print(f"  🔍 开始获取第{chapter_number}章写作上下文")
+        
         current_stage = self._get_current_stage(chapter_number)
+        print(f"  🔍 当前阶段: {current_stage}")
+        
         if not current_stage:
+            print(f"  ⚠️ 无法确定第{chapter_number}章所属阶段")
             return {}
         
         writing_plan = self.get_stage_writing_plan_by_name(current_stage)
+        print(f"  🔍 写作计划获取结果: {bool(writing_plan)}")
+        
         if not writing_plan:
+            print(f"  ⚠️ 第{chapter_number}章没有找到写作计划")
             return {}
         
-        # 新增：获取情绪计划
+        # 获取情绪计划
         emotional_plan = self._get_emotional_plan_for_stage(current_stage)
+        print(f"  🔍 情绪计划获取结果: {bool(emotional_plan)}")
         
         # 生成章节特定的写作指导
         chapter_context = self._generate_chapter_writing_context(chapter_number, writing_plan)
         
         # 增强：添加详细情绪指导
-        emotional_guidance = self._generate_emotional_guidance_for_chapter(
-            chapter_number, emotional_plan, current_stage
-        )
-        chapter_context["emotional_guidance"] = emotional_guidance
+        if emotional_plan:
+            emotional_guidance = self._generate_emotional_guidance_for_chapter(
+                chapter_number, emotional_plan, current_stage
+            )
+            print(f"  🔍 生成的情绪指导: {emotional_guidance}")
+            chapter_context["emotional_guidance"] = emotional_guidance
+            print(f"  💖 成功为第{chapter_number}章生成情绪指导")
+        else:
+            print(f"  ⚠️ 第{chapter_number}章的情绪计划为空")
+            chapter_context["emotional_guidance"] = {}
         
+        print(f"  🔍 最终章节上下文包含情绪指导: {'emotional_guidance' in chapter_context}")
         return chapter_context
 
     def get_stage_writing_plan_by_name(self, stage_name: str) -> Dict:
@@ -539,7 +557,7 @@ class StagePlanManager:
         
         # 如果没有找到具体指导，基于章节位置生成通用指导
         stage_range = writing_plan.get("chapter_range", "1-100")
-        start_chap, end_chap = self._parse_chapter_range(stage_range)
+        start_chap, end_chap = parse_chapter_range(stage_range)
         progress = (chapter_number - start_chap + 1) / (end_chap - start_chap + 1)
         
         if progress < 0.3:
@@ -1368,89 +1386,223 @@ class StagePlanManager:
         }
 
     def _get_emotional_plan_for_stage(self, stage_name: str) -> Dict:
-        """获取阶段的情绪计划"""
+        """获取阶段的情绪计划 - 修复嵌套结构访问"""
         novel_data = self.generator.novel_data
         stage_plans = novel_data.get("stage_writing_plans", {})
         
-        if stage_name in stage_plans and "emotional_plan" in stage_plans[stage_name]:
-            return stage_plans[stage_name]["emotional_plan"]
+        print(f"  🔍 获取阶段 '{stage_name}' 的情绪计划")
+        print(f"  🔍 阶段计划键: {list(stage_plans.keys()) if stage_name in stage_plans else '阶段不存在'}")
+        
+        if stage_name in stage_plans:
+            stage_plan = stage_plans[stage_name]
+            print(f"  🔍 阶段计划类型: {type(stage_plan)}")
+            print(f"  🔍 阶段计划键: {list(stage_plan.keys())}")
+            
+            # 检查嵌套结构：stage_plan -> stage_writing_plan -> emotional_plan
+            if "stage_writing_plan" in stage_plan:
+                print(f"  🔍 检测到嵌套结构 stage_writing_plan")
+                writing_plan = stage_plan["stage_writing_plan"]
+                print(f"  🔍 stage_writing_plan 键: {list(writing_plan.keys())}")
+                
+                if "emotional_plan" in writing_plan:
+                    emotional_plan = writing_plan["emotional_plan"]
+                    print(f"  ✅ 成功获取情绪计划，包含键: {list(emotional_plan.keys())}")
+                    return emotional_plan
+                else:
+                    print(f"  ⚠️ stage_writing_plan 中没有 emotional_plan")
+            else:
+                print(f"  ⚠️ 阶段计划中没有 stage_writing_plan")
+                
+            # 回退：直接检查 emotional_plan
+            if "emotional_plan" in stage_plan:
+                print(f"  🔄 使用直接的情绪计划")
+                return stage_plan["emotional_plan"]
         
         # 如果没有情绪计划，生成一个默认的
+        print(f"  ⚠️ 没有找到情绪计划，使用默认计划")
         stage_range = self._get_stage_range(stage_name)
         return self._create_default_stage_emotional_plan(stage_name, stage_range)
 
     def _generate_emotional_guidance_for_chapter(self, chapter_number: int, 
                                             emotional_plan: Dict, stage_name: str) -> Dict:
-        """为章节生成详细情绪指导"""
+        """为章节生成详细情绪指导 - 精确匹配版本"""
+        print(f"  🎭 开始为第{chapter_number}章生成情绪指导")
+        print(f"  🔍 传入的情绪计划类型: {type(emotional_plan)}")
+        print(f"  🔍 情绪计划键: {list(emotional_plan.keys()) if emotional_plan else '空'}")
+        
         # 获取章节在阶段中的位置
         stage_range = self._get_stage_range(stage_name)
         start_chap, end_chap = parse_chapter_range(stage_range)
         chapter_position = chapter_number - start_chap + 1
         total_chapters_in_stage = end_chap - start_chap + 1
-        progress = chapter_position / total_chapters_in_stage
+        
+        print(f"  📊 阶段信息: {stage_name} ({stage_range}), 章节位置: {chapter_position}/{total_chapters_in_stage}")
         
         # 基于进度确定情绪重点
         emotional_breakdown = emotional_plan.get("chapter_emotional_breakdown", [])
-        current_emotional_focus = "推进情感发展"
-        target_intensity = "中"
+        print(f"  🔍 情绪分段数量: {len(emotional_breakdown)}")
         
-        for breakdown in emotional_breakdown:
+        # 初始化明确的未匹配状态
+        current_emotional_focus = "未匹配到情绪分段"
+        target_intensity = "未知"
+        target_reader_emotion = "未知"
+        key_scenes_design = "未匹配到情绪分段"
+        matched_range = "无"
+        
+        # 修复：正确解析章节范围
+        for i, breakdown in enumerate(emotional_breakdown):
             breakdown_range = breakdown.get("chapter_range", "")
+            emotional_focus = breakdown.get("emotional_focus", "")
+            print(f"  🔍 检查情绪分段 {i+1}: {breakdown_range} -> {emotional_focus}")
+            
             if self._is_chapter_in_emotional_range(chapter_number, breakdown_range):
-                current_emotional_focus = breakdown.get("emotional_focus", current_emotional_focus)
-                target_intensity = breakdown.get("intensity_level", target_intensity)
+                current_emotional_focus = emotional_focus
+                target_intensity = breakdown.get("intensity_level", "未知")
+                target_reader_emotion = breakdown.get("target_reader_emotion", "未知")
+                key_scenes_design = breakdown.get("key_scenes_design", "未指定")
+                matched_range = breakdown_range
+                print(f"  ✅ 匹配情绪分段: {breakdown_range} -> {current_emotional_focus}")
                 break
+        else:
+            print(f"  ❌ 第{chapter_number}章未匹配任何情绪分段")
         
-        # 检查是否为情感转折点
+        # 检查是否为情感转折点 - 添加详细调试
         turning_points = emotional_plan.get("emotional_turning_points", [])
         is_turning_point = False
         turning_point_info = {}
         
-        for point in turning_points:
+        print(f"  🔍 检查转折点，共{len(turning_points)}个转折点")
+        for i, point in enumerate(turning_points):
             approx_chapter = point.get("approximate_chapter", "")
+            emotional_shift = point.get("emotional_shift", "")
+            print(f"  🔍 转折点{i+1}: '{approx_chapter}' -> '{emotional_shift}'")
+            
             if self._is_chapter_near_turning_point(chapter_number, approx_chapter):
                 is_turning_point = True
                 turning_point_info = point
+                print(f"  ✅ 识别为转折点: {emotional_shift}")
+                break
+        else:
+            print(f"  ⚠️ 第{chapter_number}章不是转折点")
+        
+        # 检查是否为情感缓冲章节 - 修复解析
+        break_planning = emotional_plan.get("emotional_break_planning", {})
+        break_chapters = break_planning.get("break_chapters", [])
+        is_break_chapter = False
+        
+        print(f"  🔍 缓冲章节列表: {break_chapters}")
+        # 修复：正确解析缓冲章节，处理带括号的格式
+        for break_chap in break_chapters:
+            if isinstance(break_chap, str):
+                print(f"  🔍 解析缓冲章节字符串: '{break_chap}'")
+                # 使用正则表达式提取纯数字范围
+                import re
+                numbers = re.findall(r'\d+', break_chap)
+                
+                if len(numbers) >= 2:
+                    # 处理范围格式 "11-12章"
+                    try:
+                        start_break = int(numbers[0])
+                        end_break = int(numbers[1])
+                        if start_break <= chapter_number <= end_break:
+                            is_break_chapter = True
+                            print(f"  ✅ 识别为缓冲章节范围: {start_break}-{end_break}")
+                            break
+                    except Exception as e:
+                        print(f"  ⚠️ 解析缓冲章节范围失败: {break_chap}, 错误: {e}")
+                elif len(numbers) == 1:
+                    # 处理单个章节格式
+                    try:
+                        chap_num = int(numbers[0])
+                        if chapter_number == chap_num:
+                            is_break_chapter = True
+                            print(f"  ✅ 识别为缓冲章节: 第{chap_num}章")
+                            break
+                    except Exception as e:
+                        print(f"  ⚠️ 解析缓冲章节失败: {break_chap}, 错误: {e}")
+            elif isinstance(break_chap, int) and chapter_number == break_chap:
+                is_break_chapter = True
+                print(f"  ✅ 识别为缓冲章节: 第{break_chap}章")
                 break
         
-        # 检查是否为情感缓冲章节
-        break_planning = emotional_plan.get("emotional_break_planning", {})
-        is_break_chapter = chapter_number in break_planning.get("break_chapters", [])
-        
-        return {
+        result = {
             "current_emotional_focus": current_emotional_focus,
             "target_intensity": target_intensity,
+            "target_reader_emotion": target_reader_emotion,
+            "key_scenes_design": key_scenes_design,
             "is_emotional_turning_point": is_turning_point,
             "turning_point_info": turning_point_info,
             "is_emotional_break_chapter": is_break_chapter,
             "break_activities": break_planning.get("break_activities", []),
             "emotional_supporting_elements": emotional_plan.get("emotional_supporting_elements", {}),
-            "reader_emotional_journey": f"本章读者应该感受到{current_emotional_focus}的情感体验"
+            "reader_emotional_journey": f"本章读者应该感受到{current_emotional_focus}的情感体验",
+            "emotional_strategy": emotional_plan.get("stage_emotional_strategy", {}),
+            "matched_emotional_range": matched_range  # 新增：记录匹配的范围
         }
+        
+        print(f"  🎭 第{chapter_number}章情绪指导生成完成:")
+        print(f"    - 匹配范围: {matched_range}")
+        print(f"    - 情感重点: {current_emotional_focus}")
+        print(f"    - 情感强度: {target_intensity}")
+        print(f"    - 目标读者情绪: {target_reader_emotion}")
+        print(f"    - 是否转折点: {is_turning_point}")
+        print(f"    - 是否缓冲章节: {is_break_chapter}")
+        
+        return result
 
     def _is_chapter_in_emotional_range(self, chapter: int, chapter_range: str) -> bool:
-        """检查章节是否在情绪范围段内"""
+        """检查章节是否在情绪范围段内 - 精确匹配版本"""
         if not chapter_range or "-" not in chapter_range:
             return False
         
         try:
-            start, end = chapter_range.split("-")
-            start_chap = int(start.strip())
-            end_chap = int(end.strip())
-            return start_chap <= chapter <= end_chap
-        except:
+            print(f"  🔍 解析情绪范围: '{chapter_range}'")
+            
+            # 处理 "4-6章" 这样的格式 - 只提取数字部分
+            range_str = chapter_range.replace("章", "").strip()
+            
+            # 使用正则表达式只提取数字部分，忽略括号注释等
+            import re
+            numbers = re.findall(r'\d+', range_str)
+            
+            if len(numbers) < 2:
+                print(f"  ❌ 无法解析范围: {chapter_range}, 提取的数字: {numbers}")
+                return False
+            
+            start_chap = int(numbers[0])
+            end_chap = int(numbers[1])
+            
+            result = start_chap <= chapter <= end_chap
+            print(f"  🔍 范围解析: {start_chap}-{end_chap}, 第{chapter}章在其中: {result}")
+            return result
+            
+        except Exception as e:
+            print(f"  ❌ 解析情绪章节范围失败: {chapter_range}, 错误: {e}")
             return False
 
     def _is_chapter_near_turning_point(self, chapter: int, approx_chapter: str) -> bool:
-        """检查章节是否接近情感转折点"""
+        """检查章节是否接近情感转折点 - 精确解析版本"""
         if not approx_chapter:
             return False
         
         try:
-            # 解析大致章节描述
-            if "第" in approx_chapter and "章" in approx_chapter:
-                chap_num = int(approx_chapter.split("第")[1].split("章")[0])
-                return abs(chapter - chap_num) <= 2  # 前后2章内视为接近
+            print(f"  🔍 检查转折点: 当前章节{chapter}, 转折点描述'{approx_chapter}'")
+            
+            # 使用正则表达式提取所有数字
+            import re
+            numbers = re.findall(r'\d+', approx_chapter)
+            print(f"  🔍 从转折点描述中提取的数字: {numbers}")
+            
+            # 检查是否有匹配的章节号
+            for num_str in numbers:
+                chap_num = int(num_str)
+                if abs(chapter - chap_num) <= 2:  # 前后2章内视为接近
+                    print(f"  ✅ 识别为转折点: 当前第{chapter}章接近转折点第{chap_num}章")
+                    return True
+            
+            print(f"  ❌ 未识别为转折点: 当前第{chapter}章与解析的章节{numbers}不匹配")
             return False
-        except:
-            return False            
+            
+        except Exception as e:
+            print(f"  ⚠️ 解析转折点章节失败: {approx_chapter}, 错误: {e}")
+            return False

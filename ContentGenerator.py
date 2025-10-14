@@ -925,26 +925,34 @@ class ContentGenerator:
             return None
             
     def generate_chapter_design(self, chapter_params: Dict) -> Optional[Dict]:
-        """生成章节详细设计方案"""
-        # 提取情绪参数
+        """生成章节详细设计方案 - 修复情绪指导整合"""
+        # 提取情绪参数 - 添加详细调试信息
         emotional_guidance = chapter_params.get("emotional_guidance", {})
+        print(f"  🎭 生成设计方案 - 情绪指导内容: {emotional_guidance}")
+        
         current_emotional_focus = emotional_guidance.get("current_emotional_focus", "")
         target_intensity = emotional_guidance.get("target_intensity", "中")
         is_turning_point = emotional_guidance.get("is_emotional_turning_point", False)
         is_break_chapter = emotional_guidance.get("is_emotional_break_chapter", False)
         break_activities = emotional_guidance.get("break_activities", [])
+        target_reader_emotion = emotional_guidance.get("target_reader_emotion", "期待与投入")
+        key_scenes_design = emotional_guidance.get("key_scenes_design", "根据情节自然发展")
         
-        # 构建情绪相关的提示词部分 - 修复字符串格式化
+        # 构建情绪相关的提示词部分 - 修复版本
         emotional_context_parts = [
-            f"**情绪发展指导**: {current_emotional_focus} (目标强度: {target_intensity})"
+            f"  **情绪发展指导**: {current_emotional_focus} (目标强度: {target_intensity})",
+            f"  **目标读者情绪**: {target_reader_emotion}",
+            f"  **关键场景设计**: {key_scenes_design}"
         ]
         
         if is_turning_point:
-            emotional_context_parts.append("**本章为情感转折点**，需要特别注意情感转变的自然和有力")
+            turning_info = emotional_guidance.get("turning_point_info", {})
+            emotional_shift = turning_info.get("emotional_shift", "重要情感变化")
+            emotional_context_parts.append(f"**本章为情感转折点**: {emotional_shift}")
         
         if is_break_chapter:
             activities_text = ", ".join(break_activities)
-            emotional_context_parts.append(f"**本章为情感缓冲章节**，重点安排以下活动: {activities_text}")
+            emotional_context_parts.append(f"**本章为情感缓冲章节**: 重点安排活动 - {activities_text}")
         
         emotional_context = "\n".join(emotional_context_parts)
         
@@ -954,77 +962,80 @@ class ContentGenerator:
             emotional_design_extra += f',\n        "is_emotional_buffer": true,\n        "buffer_activities": {json.dumps(break_activities, ensure_ascii=False)}'
         
         if is_turning_point:
-            # 如果已经有额外内容，加逗号，否则直接添加
+            turning_info = emotional_guidance.get("turning_point_info", {})
+            emotional_shift = turning_info.get("emotional_shift", "重要情感变化")
+            impact_description = turning_info.get("impact_description", "推动故事发展")
+            
             if emotional_design_extra:
-                emotional_design_extra += ',\n        "is_turning_point": true'
+                emotional_design_extra += f',\n        "is_turning_point": true,\n        "turning_description": "{emotional_shift}",\n        "turning_impact": "{impact_description}"'
             else:
-                emotional_design_extra += ',\n        "is_turning_point": true'
+                emotional_design_extra += f',\n        "is_turning_point": true,\n        "turning_description": "{emotional_shift}",\n        "turning_impact": "{impact_description}"'
         
         # 如果没有任何额外内容，确保格式正确
         if not emotional_design_extra:
             emotional_design_extra = ""
 
         design_prompt = f"""
-你是一位顶级的网络小说总编辑。你的任务是消化所有背景资料，为一位顶级写手制定一份详尽的、自包含的“章节创作蓝图”。
-这位写手只会看到你输出的这份蓝图，所以你必须将所有必要的写作指令、风格要求、一致性提醒都整合进这份蓝图中。
+    你是一位顶级的网络小说总编辑。你的任务是消化所有背景资料，为一位顶级写手制定一份详尽的、自包含的"章节创作蓝图"。
+    这位写手只会看到你输出的这份蓝图，所以你必须将所有必要的写作指令、风格要求、一致性提醒都整合进这份蓝图中。
 
-# 故事基础设定（供你参考）
-**小说标题**: {chapter_params.get("novel_title")}
-**小说简介**: {chapter_params.get("novel_synopsis")}
-{emotional_context}
-**世界观/角色/写作计划**: {chapter_params.get("worldview_info")}, {chapter_params.get("character_info")}, {chapter_params.get("stage_writing_plan")}
-**前情提要**: {chapter_params.get("previous_chapters_summary")}
-**上下文指导**: {chapter_params.get("event_driven_guidance")}, {chapter_params.get("foreshadowing_guidance")}
-**角色发展指导**: {chapter_params.get("character_development_guidance")}
+    # 故事基础设定（供你参考）
+    **小说标题**: {chapter_params.get("novel_title")}
+    **小说简介**: {chapter_params.get("novel_synopsis")}
+    {emotional_context}
+    **世界观/角色/写作计划**: {chapter_params.get("worldview_info")}, {chapter_params.get("character_info")}, {chapter_params.get("stage_writing_plan")}
+    **前情提要**: {chapter_params.get("previous_chapters_summary")}
+    **上下文指导**: {chapter_params.get("event_driven_guidance")}, {chapter_params.get("foreshadowing_guidance")}
+    **角色发展指导**: {chapter_params.get("character_development_guidance")}
 
-# 你的任务
-请根据以上所有信息，为第 {chapter_params.get("chapter_number")} 章生成一份JSON格式的“创作蓝图”。
+    # 你的任务
+    请根据以上所有信息，为第 {chapter_params.get("chapter_number")} 章生成一份JSON格式的"创作蓝图"。
 
-**【输出要求】**
-必须严格按照以下JSON结构输出，不要有任何增减或修改：
-{{
-    "chapter_number": {chapter_params.get("chapter_number")},
-    "chapter_title": "（为本章起一个富有吸引力的标题）",
-    "chapter_summary": "（用一句话总结本章的核心内容和目的）",
-    "emotional_design": {{
-        "target_emotion": "（明确本章要传达的核心情感）",
-        "emotional_intensity": "{target_intensity}",
-        "emotional_arc_within_chapter": "（描述本章内部的情感发展曲线）",
-        "key_emotional_moments": ["（列出本章的关键情感时刻）"],
-        "reader_emotional_journey": "（描述读者应该经历的情感体验）{emotional_design_extra}",
-    }},
-    "writing_style_directives": {{
-        "core_tone": "（根据本章情节和情绪重点，指定核心基调）",
-        "narrative_pace": "（指定叙事节奏，要配合情感强度）",
-        "description_focus": ["（列出本章描写的重点，要服务于情感表达）"]
-    }},
-    "consistency_cheatsheet": {{
-        "reminder": "（生成一段简短的一致性提醒，例如：'注意：主角此时还不知道反派的真实身份，不要在内心独白中泄露'）",
-        "key_character_status": ["（列出本章出场角色的关键状态，例如：'秦峥：表面镇定，内心在谋划反击'）"],
-        "relationship_check": ["（列出需要特别注意的人物关系，例如：'秦峥与卢斌的关系是初步震慑，互动时需体现卢斌的敬畏'）"]
-    }},
-    "scene_by_scene_outline": [
-        {{
-            "scene_number": 1,
-            "scene_goal": "（明确场景目标，例如：'通过对话，展示主角的智谋和布局能力'）",
-            "emotional_emphasis": "（这个场景要强调的情感）",
-            "key_actions_and_dialogues": "（描述场景中的关键动作和对话要点）",
-            "character_focus": "（指出这个场景主要刻画哪个角色的哪方面特质）"
+    **【输出要求】**
+    必须严格按照以下JSON结构输出，不要有任何增减或修改：
+    {{
+        "chapter_number": {chapter_params.get("chapter_number")},
+        "chapter_title": "（为本章起一个富有吸引力的标题）",
+        "chapter_summary": "（用一句话总结本章的核心内容和目的）",
+        "emotional_design": {{
+            "target_emotion": "{current_emotional_focus}",
+            "emotional_intensity": "{target_intensity}",
+            "emotional_arc_within_chapter": "（描述本章内部的情感发展曲线）",
+            "key_emotional_moments": ["（列出本章的关键情感时刻）"],
+            "reader_emotional_journey": "{target_reader_emotion}"{emotional_design_extra}
         }},
-        {{
-            "scene_number": 2,
-            "scene_goal": "...",
-            "key_actions_and_dialogues": "...",
-            "character_focus": "..."
-        }}
-    ],
-    "foreshadowing_and_events": {{
-        "elements_to_introduce": ["（明确列出本章需要首次引入的伏笔元素）"],
-        "elements_to_develop": ["（明确列出本章需要进一步发展的已有伏笔）"]
-    }},
-    "next_chapter_hook": "（设计一个具体的、能引发读者好奇心的结尾悬念）"
-}}
-"""
+        "writing_style_directives": {{
+            "core_tone": "（根据本章情节和情绪重点，指定核心基调）",
+            "narrative_pace": "（指定叙事节奏，要配合情感强度）",
+            "description_focus": ["（列出本章描写的重点，要服务于情感表达）"]
+        }},
+        "consistency_cheatsheet": {{
+            "reminder": "（生成一段简短的一致性提醒，例如：'注意：主角此时还不知道反派的真实身份，不要在内心独白中泄露'）",
+            "key_character_status": ["（列出本章出场角色的关键状态，例如：'秦峥：表面镇定，内心在谋划反击'）"],
+            "relationship_check": ["（列出需要特别注意的人物关系，例如：'秦峥与卢斌的关系是初步震慑，互动时需体现卢斌的敬畏'）"]
+        }},
+        "scene_by_scene_outline": [
+            {{
+                "scene_number": 1,
+                "scene_goal": "（明确场景目标，例如：'通过对话，展示主角的智谋和布局能力'）",
+                "emotional_emphasis": "（这个场景要强调的情感）",
+                "key_actions_and_dialogues": "（描述场景中的关键动作和对话要点）",
+                "character_focus": "（指出这个场景主要刻画哪个角色的哪方面特质）"
+            }},
+            {{
+                "scene_number": 2,
+                "scene_goal": "...",
+                "key_actions_and_dialogues": "...",
+                "character_focus": "..."
+            }}
+        ],
+        "foreshadowing_and_events": {{
+            "elements_to_introduce": ["（明确列出本章需要首次引入的伏笔元素）"],
+            "elements_to_develop": ["（明确列出本章需要进一步发展的已有伏笔）"]
+        }},
+        "next_chapter_hook": "（设计一个具体的、能引发读者好奇心的结尾悬念）"
+    }}
+    """
         print(f"  📝 生成第{chapter_params.get('chapter_number', 1)}章设计方案...")
         design_result = self.api_client.generate_content_with_retry(
             "chapter_design", 
@@ -1034,6 +1045,11 @@ class ContentGenerator:
         
         if design_result:
             print(f"  ✅ 第{chapter_params.get('chapter_number', 1)}章设计方案生成成功")
+            # 验证情绪设计是否被正确包含
+            if "emotional_design" in design_result:
+                print(f"  🎭 设计方案包含情绪设计: {design_result['emotional_design']}")
+            else:
+                print(f"  ⚠️ 设计方案未包含情绪设计")
             return design_result
         else:
             print(f"  ❌ 第{chapter_params.get('chapter_number', 1)}章设计方案生成失败")
@@ -1052,9 +1068,6 @@ class ContentGenerator:
         # 获取上下文
         context:Contexts.GenerationContext = novel_data.get('_current_generation_context')
         
-        # === 移除：重复的情绪缓冲检测逻辑 ===
-        # 原有的 emotional_break_needed 和 emotional_break_guidance 相关代码已移除
-        # 情绪缓冲现在由情绪指导系统统一管理
         
         if context:
             print(f"  ✅ 使用上下文信息准备参数")
@@ -1380,7 +1393,7 @@ class ContentGenerator:
         return focus_map.get(focus_type, "")
 
     def generate_chapter_content_from_design(self, chapter_params: Dict, chapter_design: Dict) -> Optional[Dict]:
-        """根据设计方案生成章节内容 - 修复版本"""
+        """根据设计方案生成章节内容 - 修复版本，添加情绪设计验证"""
         # 准备内容生成参数，包含所有基础设定
         content_params = chapter_params.copy()
         # 确保所有基础设定参数都存在
@@ -1395,16 +1408,28 @@ class ContentGenerator:
                 if param == 'main_character_instruction' and not content_params.get(param):
                     content_params[param] = ""
         
+        # 检查设计方案中的情绪设计
+        emotional_design = chapter_design.get("emotional_design", {})
+        print(f"  🎭 设计方案中的情绪设计: {emotional_design}")
+        
         user_prompt = f"""
-你是一位顶级的网络小说作家，文笔精湛，擅长叙事。
+    你是一位顶级的网络小说作家，文笔精湛，擅长叙事。
 
-你的唯一任务是：严格、完整、并富有文采地执行以下【章节创作蓝图】，创作出小说《{chapter_params.get('novel_title')}》的第 {chapter_design.get('chapter_number')} 章。
+    你的唯一任务是：严格、完整、并富有文采地执行以下【章节创作蓝图】，创作出小说《{chapter_params.get('novel_title')}》的第 {chapter_design.get('chapter_number')} 章。
 
-【章节创作蓝图】
-{json.dumps(chapter_design, ensure_ascii=False, indent=2)}
-【写作风格】
-{content_params.get('writing_style_guide',{})}
-"""
+    【章节创作蓝图】
+    {json.dumps(chapter_design, ensure_ascii=False, indent=2)}
+    【写作风格】
+    {content_params.get('writing_style_guide',{})}
+
+    ## 🎭 特别情绪指导
+    请特别关注情绪设计部分，确保本章的情感表达与以下要求一致：
+    - 情感重点: {emotional_design.get('target_emotion', '推进情感发展')}
+    - 情感强度: {emotional_design.get('emotional_intensity', '中')}
+    - 读者情感体验: {emotional_design.get('reader_emotional_journey', '期待与投入')}
+
+    在写作过程中，请时刻记住这些情感目标，通过对话、描写和心理活动来传达相应的情感。
+    """
         print(f"  ✍️ 根据设计方案生成第{chapter_params['chapter_number']}章内容...")
         content_result = self.api_client.generate_content_with_retry(
             "chapter_content_generation", 
@@ -1421,7 +1446,16 @@ class ContentGenerator:
                 "character": bool(chapter_params.get("character_info")),
                 "writing_plan": bool(chapter_params.get("stage_writing_plan"))
             }
+            
+            # 记录情绪设计信息
+            content_result["emotional_design_applied"] = {
+                "planned_focus": emotional_design.get('target_emotion', ''),
+                "target_intensity": emotional_design.get('emotional_intensity', ''),
+                "key_moments": emotional_design.get('key_emotional_moments', [])
+            }
+            
             print(f"  ✅ 第{chapter_params['chapter_number']}章内容生成成功")
+            print(f"  🎭 应用的情绪设计: {content_result['emotional_design_applied']}")
             return content_result
         else:
             print(f"  ❌ 第{chapter_params['chapter_number']}章内容生成失败")
