@@ -177,11 +177,7 @@ class StagePlanManager:
         is_opening_with_golden = (stage_name == "opening_stage" and 
                                 stage_range.startswith("1-") and 
                                 int(stage_range.split("-")[1]) >= 3)
-        
-        # 准备基础数据
-        novel_data = self.generator.novel_data
-        total_chapters = novel_data["current_progress"]["total_chapters"]
-        
+    
         # 计算章节分段
         start_chap, end_chap = parse_chapter_range(stage_range)
         stage_length = end_chap - start_chap + 1
