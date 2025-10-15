@@ -928,7 +928,6 @@ class ContentGenerator:
         """生成章节详细设计方案 - 修复情绪指导整合"""
         # 提取情绪参数 - 添加详细调试信息
         emotional_guidance = chapter_params.get("emotional_guidance", {})
-        print(f"  🎭 生成设计方案 - 情绪指导内容: {emotional_guidance}")
         
         current_emotional_focus = emotional_guidance.get("current_emotional_focus", "")
         target_intensity = emotional_guidance.get("target_intensity", "中")
