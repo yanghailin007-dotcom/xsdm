@@ -1,16 +1,18 @@
 import json
 import re
+import os
 from typing import Dict, Optional, List
 import NovelGenerator
 from utils import parse_chapter_range, is_chapter_in_range
 
 class StagePlanManager:
     """剧情骨架设计器 - 专注如何将内容转化为剧情（怎么写）"""
+    
     def __init__(self, novel_generator):
-        self.generator:NovelGenerator.NovelGenerator = novel_generator
+        self.generator = novel_generator
         self.overall_stage_plans = None
         self.stage_boundaries = {}
-        self.stage_writing_plans_cache = {}  # 缓存各阶段的写作计划
+        self.stage_writing_plans_cache = {}
         
         # 阶段特性描述
         self.stage_characteristics = {
@@ -41,6 +43,8 @@ class StagePlanManager:
             }
         }
 
+    # === 核心阶段规划方法 ===
+    
     def generate_overall_stage_plan(self, creative_seed: str, novel_title: str, novel_synopsis: str, 
                                 market_analysis: Dict, global_growth_plan: Dict, total_chapters: int) -> Optional[Dict]:
         """生成全书阶段计划 - 修复版本"""
@@ -50,17 +54,13 @@ class StagePlanManager:
         boundaries = self.calculate_stage_boundaries(total_chapters)
         
         user_prompt = f"""
-    创意种子: {creative_seed}
-    小说标题: {novel_title}
-    小说简介: {novel_synopsis}
-    市场分析: {json.dumps(market_analysis, ensure_ascii=False)}
-    全书成长规划: {json.dumps(global_growth_plan, ensure_ascii=False)}
-    总章节数: {total_chapters}
-    """
+创意种子: {creative_seed}
+小说标题: {novel_title}
+小说简介: {novel_synopsis}
+市场分析: {json.dumps(market_analysis, ensure_ascii=False)}
+全书成长规划: {json.dumps(global_growth_plan, ensure_ascii=False)}
+总章节数: {total_chapters}
 
-        
-        # 添加阶段边界参数
-        user_prompt += f"""
 # 阶段划分要求
 请将全书{total_chapters}章划分为5个主要阶段，并为每个阶段制定详细的写作重点：
 
@@ -70,13 +70,13 @@ class StagePlanManager:
 - **重点内容**: 主角出场，世界观介绍，初始冲突，悬念设置
 
 ## 2. 发展阶段 (约25-30%章节)
-- **章节范围**: 第{boundaries['development_start']}章-第{boundaries['development_end']}章
+- **章节范围**: 第{boundaries['development_start']}章-第{boundaries['development_end']}章  
 - **核心任务**: 深化矛盾，角色成长，支线展开
 - **重点内容**: 能力提升，盟友敌人，小高潮，伏笔埋设
 
 ## 3. 高潮阶段 (约30-35%章节)
 - **章节范围**: 第{boundaries['climax_start']}章-第{boundaries['climax_end']}章
-- **核心任务**: 主要冲突爆发，重大转折，情感爆发
+- **核心任务**: 主要冲突爆发，重大转折，情感爆发  
 - **重点内容**: 关键对决，真相揭露，角色蜕变，核心矛盾激化
 
 ## 4. 收尾阶段 (约15-20%章节)
@@ -88,7 +88,7 @@ class StagePlanManager:
 - **章节范围**: 第{boundaries['final_start']}章-第{total_chapters}章
 - **核心任务**: 完整收尾，交代后续，情感共鸣
 - **重点内容**: 最终结局，角色归宿，主题升华，读者共鸣    
-    """
+"""
         
         result = self.generator.api_client.generate_content_with_retry(
             "overall_stage_plan", 
@@ -97,7 +97,6 @@ class StagePlanManager:
         )
         
         if result:
-            # 验证数据结构
             if not isinstance(result, dict):
                 print("❌ 阶段计划返回数据格式错误")
                 return None
@@ -105,7 +104,7 @@ class StagePlanManager:
             self.overall_stage_plans = result
             self.stage_boundaries = boundaries
             print("✓ 全书阶段计划生成成功")
-            self.print_stage_overview()  # 调用修复后的方法
+            self.print_stage_overview()
             return result
         else:
             print("❌ 全书阶段计划生成失败")
@@ -125,17 +124,17 @@ class StagePlanManager:
         return {
             "opening_end": chapters[1],
             "development_start": chapters[1] + 1,
-            "development_end": chapters[2],
+            "development_end": chapters[2], 
             "climax_start": chapters[2] + 1,
             "climax_end": chapters[3],
             "ending_start": chapters[3] + 1,
             "ending_end": chapters[4],
             "final_start": chapters[4] + 1
-        }    
+        }
     
     def print_stage_overview(self):
         """打印详细的阶段计划概览"""
-        if not self.overall_stage_plans:  # 修复属性名
+        if not self.overall_stage_plans:
             print("暂无阶段计划数据")
             return
         
@@ -144,7 +143,6 @@ class StagePlanManager:
         print("=" * 60)
         
         total_chapters = 0
-        # 修复：使用正确的数据结构
         stage_plan_dict = self.overall_stage_plans.get("overall_stage_plan", {})
         
         for i, (stage_name, stage_info) in enumerate(stage_plan_dict.items(), 1):
@@ -163,6 +161,8 @@ class StagePlanManager:
         print(f"\n📈 总计: {len(stage_plan_dict)}个阶段，{total_chapters}章")
         print("=" * 60)
 
+    # === 写作计划管理方法 ===
+    
     def generate_stage_writing_plan(self, stage_name: str, stage_range: str, creative_seed: str,
                                 novel_title: str, novel_synopsis: str, overall_stage_plan: Dict) -> Dict:
         """生成阶段详细写作计划 - 增强黄金三章处理"""
@@ -178,7 +178,6 @@ class StagePlanManager:
                                 stage_range.startswith("1-") and 
                                 int(stage_range.split("-")[1]) >= 3)
         
-        
         # 准备基础数据
         novel_data = self.generator.novel_data
         total_chapters = novel_data["current_progress"]["total_chapters"]
@@ -189,68 +188,68 @@ class StagePlanManager:
         
         # 构建用户提示词 - 添加事件密度要求
         user_prompt = f"""
-    内容:
-    ## 任务指令
-    请根据下文提供的小说信息和全书大纲，为 `{stage_name}` 阶段制定详细的写作计划。
+内容:
+## 任务指令
+请根据下文提供的小说信息和全书大纲，为 `{stage_name}` 阶段制定详细的写作计划。
 
-    ## 事件规划核心要求
-    1. **合理密度**: 请参照重要事件密度要求
-    2. **主线贯穿**: 所有事件必须服务于阶段核心目标，避免偏离主线  
-    3. **渐进升级**: 事件难度和重要性应逐步提升，形成递进关系
-    4. **伏笔衔接**: 每个事件都应包含对后续事件的铺垫
+## 事件规划核心要求
+1. **合理密度**: 请参照重要事件密度要求
+2. **主线贯穿**: 所有事件必须服务于阶段核心目标，避免偏离主线  
+3. **渐进升级**: 事件难度和重要性应逐步提升，形成递进关系
+4. **伏笔衔接**: 每个事件都应包含对后续事件的铺垫
 
-    ## 小说核心信息
-    - **小说标题**: {novel_title}
-    - **小说简介**: {novel_synopsis}
-    - **创意种子**: {creative_seed}
+## 小说核心信息
+- **小说标题**: {novel_title}
+- **小说简介**: {novel_synopsis}
+- **创意种子**: {creative_seed}
 
-    ## 全书大纲 (上下文)
-    {json.dumps(overall_stage_plan, ensure_ascii=False, indent=2)}
+## 全书大纲 (上下文)
+{json.dumps(overall_stage_plan, ensure_ascii=False, indent=2)}
 
-    ## 本次任务详情
-    - **目标阶段**: {stage_name}
-    - **章节范围**: {stage_range}章
-    - **阶段长度**: {stage_length}章
+## 本次任务详情
+- **目标阶段**: {stage_name}
+- **章节范围**: {stage_range}章
+- **阶段长度**: {stage_length}章
 
-    ## 重要事件密度要求
-    - **小型事件**: 至少{max(3, stage_length // 5)}个 (日常冲突、角色互动)
-    - **中型事件**: 至少{max(2, stage_length // 8)}个 (支线任务、能力突破)  
-    - **重大事件**: 至少{max(1, stage_length // 15)}个 (主线推进、重大转折)
-    - **最大事件间隔**: 不超过15章必须有核心事件推进
-    """
+## 重要事件密度要求
+- **小型事件**: 至少{max(3, stage_length // 5)}个 (日常冲突、角色互动)
+- **中型事件**: 至少{max(2, stage_length // 8)}个 (支线任务、能力突破)  
+- **重大事件**: 至少{max(1, stage_length // 15)}个 (主线推进、重大转折)
+- **最大事件间隔**: 不超过15章必须有核心事件推进
+"""
         
         # 如果是开局阶段且包含黄金三章，添加特殊要求
         if is_opening_with_golden:
             golden_chapters_prompt = f"""
 
-    ## 🏆 黄金三章特殊设计要求（第1-3章）
+## 🏆 黄金三章特殊设计要求（第1-3章）
 
-    请为黄金三章制定特别详细的设计方案：
+请为黄金三章制定特别详细的设计方案：
 
-    ### 第1章设计方案：
-    - **开篇方式**：设计3种不同的强力开篇方式供选择
-    - **主角登场**：具体描述主角如何惊艳登场
-    - **冲突设置**：设计开篇冲突的具体场景和对话
-    - **悬念钩子**：章节结尾必须设置的悬念内容
-    - **字数分配**：建议各部分的字数分配
+### 第1章设计方案：
+- **开篇方式**：设计3种不同的强力开篇方式供选择
+- **主角登场**：具体描述主角如何惊艳登场  
+- **冲突设置**：设计开篇冲突的具体场景和对话
+- **悬念钩子**：章节结尾必须设置的悬念内容
+- **字数分配**：建议各部分的字数分配
 
-    ### 第2章设计方案：
-    - **情节推进**：具体如何深化第一章的冲突
-    - **新元素引入**：需要引入的新角色、新设定
-    - **节奏控制**：如何保持快节奏的同时不显得仓促
-    - **情感建立**：如何让读者对主角产生情感共鸣
+### 第2章设计方案：
+- **情节推进**：具体如何深化第一章的冲突
+- **新元素引入**：需要引入的新角色、新设定
+- **节奏控制**：如何保持快节奏的同时不显得仓促
+- **情感建立**：如何让读者对主角产生情感共鸣
 
-    ### 第3章设计方案：
-    - **小高潮设计**：具体的小高潮场景和冲突
-    - **伏笔设置**：为哪些后续情节埋下伏笔
-    - **追读钩子**：设计让读者必须看下一章的强力理由
-    - **阶段总结**：黄金三章整体要达到的效果
+### 第3章设计方案：
+- **小高潮设计**：具体的小高潮场景和冲突
+- **伏笔设置**：为哪些后续情节埋下伏笔
+- **追读钩子**：设计让读者必须看下一章的强力理由
+- **阶段总结**：黄金三章整体要达到的效果
 
-    ### 黄金三章评分标准：
-    - 必须达到8.5分以上才算合格
-    - 重点评估开篇吸引力、情节紧凑度、悬念设置
-    - 每章都要有明确的成功标准
-    """
+### 黄金三章评分标准：
+- 必须达到8.5分以上才算合格
+- 重点评估开篇吸引力、情节紧凑度、悬念设置
+- 每章都要有明确的成功标准
+"""
             user_prompt += golden_chapters_prompt
         
         # 生成写作计划
@@ -259,7 +258,8 @@ class StagePlanManager:
             user_prompt,
             purpose=f"生成{stage_name}写作计划"
         )
-        # 新增：生成情绪计划
+        
+        # 生成情绪计划
         global_emotional_plan = self.generator.novel_data.get("emotional_development_plan", {})
         emotional_plan = self.generate_stage_emotional_plan(stage_name, stage_range, global_emotional_plan)
         
@@ -269,16 +269,17 @@ class StagePlanManager:
                 writing_plan["stage_writing_plan"]["emotional_plan"] = emotional_plan
             else:
                 writing_plan["emotional_plan"] = emotional_plan
+            
             # 如果是开局阶段且包含黄金三章，进一步处理
             if is_opening_with_golden:
                 writing_plan = self._enhance_golden_chapters_in_writing_plan(writing_plan)
             
-            # 新增：验证主线连贯性
+            # 验证主线连贯性
             is_continuous = self.validate_main_thread_continuity(writing_plan)
             if not is_continuous:
                 print(f"  ⚠️ {stage_name}写作计划存在事件间隔过长问题，进行优化...")
             
-            # 新增：验证事件密度
+            # 验证事件密度
             event_density_ok = self.validate_event_density(writing_plan, stage_range)
             if not event_density_ok:
                 print(f"  ⚠️ {stage_name}写作计划事件密度不足，进行补充...")
@@ -296,10 +297,10 @@ class StagePlanManager:
             return writing_plan
         else:
             print(f"  ⚠️ {stage_name}写作计划生成失败，使用默认计划，请重点检查")
+            return {}
 
     def _enhance_golden_chapters_in_writing_plan(self, writing_plan: Dict) -> Dict:
         """在阶段写作计划中增强黄金三章设计"""
-        
         # 确保有事件系统设计
         if "event_system_design" not in writing_plan:
             writing_plan["event_system_design"] = {}
@@ -407,7 +408,6 @@ class StagePlanManager:
             emotional_guidance = self._generate_emotional_guidance_for_chapter(
                 chapter_number, emotional_plan, current_stage
             )
-            print(f"  🔍 生成的情绪指导: {emotional_guidance}")
             chapter_context["emotional_guidance"] = emotional_guidance
             print(f"  💖 成功为第{chapter_number}章生成情绪指导")
         else:
@@ -433,7 +433,7 @@ class StagePlanManager:
         if cache_key in self.stage_writing_plans_cache:
             return self.stage_writing_plans_cache[cache_key]
         
-        # 如果没有找到，需要重新生成（但需要内容规划和伏笔计划）
+        # 如果没有找到，需要重新生成
         print(f"  ⚠️ {stage_name}的写作计划未找到，需要内容规划和伏笔计划来生成")
         return {}
 
@@ -666,10 +666,8 @@ class StagePlanManager:
         event_system = actual_plan.get("event_system", {})
         
         major_events = event_system.get("major_events", [])
-        # 移除普通事件的统计
         
         print(f"      重大事件: {len(major_events)}个")
-        # 移除普通事件的打印
         
         # 打印事件详情 - 只打印重大事件和大事件
         if major_events:
@@ -679,20 +677,15 @@ class StagePlanManager:
                 print(f"        🎯 {event.get('name', '无名事件')}: 第{event.get('start_chapter', '?')}-{event.get('end_chapter', '?')}章")
         else:
             print(f"  ⚠️ major_events为空列表")
-        
-    # 兼容性方法 - 保持与现有系统的兼容
-    def get_current_stage_plan(self, chapter_number: int) -> Optional[Dict]:
-        """获取当前章节所属阶段的详细计划（兼容性方法）"""
-        return self.get_chapter_writing_context(chapter_number)
 
-    def get_stage_plan_for_chapter(self, chapter_number: int) -> Optional[Dict]:
+    def get_stage_plan_for_chapter(self, chapter_number: int) -> Dict:
         """为指定章节获取阶段计划 - 修复版本"""
         try:
             # 获取当前阶段名称
             current_stage = self._get_current_stage(chapter_number)
             if not current_stage:
                 print(f"  ⚠️ 无法确定第{chapter_number}章所属的阶段")
-                return None
+                return {}
             
             # 从 novel_data 中获取阶段写作计划
             novel_data = self.generator.novel_data
@@ -700,7 +693,7 @@ class StagePlanManager:
             
             if current_stage not in stage_writing_plans:
                 print(f"  ⚠️ 没有找到{current_stage}的写作计划")
-                return None
+                return {}
             
             stage_plan_data = stage_writing_plans[current_stage]
             
@@ -713,9 +706,9 @@ class StagePlanManager:
                 
         except Exception as e:
             print(f"❌ 获取第{chapter_number}章阶段计划失败: {e}")
-            return None
+            return {}
 
-    def _get_current_stage(self, chapter_number: int) -> Optional[str]:
+    def _get_current_stage(self, chapter_number: int) -> str:
         """获取当前章节所属的阶段名称 - 修复版本"""
         try:
             # 从 overall_stage_plans 中查找
@@ -733,7 +726,6 @@ class StagePlanManager:
                     continue
                     
                 # 提取数字范围
-                import re
                 numbers = re.findall(r'\d+', chapter_range_str)
                 if len(numbers) >= 2:
                     start_chap = int(numbers[0])
@@ -748,7 +740,9 @@ class StagePlanManager:
         except Exception as e:
             print(f"❌ 确定章节阶段失败: {e}")
             return None
-        
+
+    # === 事件管理方法 ===
+    
     def supplement_events_with_ai(self, writing_plan: Dict, stage_range: str, creative_seed: str, novel_title: str, novel_synopsis: str, overall_stage_plan: Dict) -> Dict:
         """使用AI补充事件以提高密度 - 简化版本"""
         start_chap, end_chap = parse_chapter_range(stage_range)
@@ -773,46 +767,45 @@ class StagePlanManager:
         if current_major < target_major or current_medium < target_medium or current_minor < target_minor:
             print(f"  🤖 事件密度不足，使用AI补充事件...")
             
-            # 使用与生成阶段计划相同的提示词结构
             supplement_prompt = f"""
-    请为小说阶段补充事件设计，使事件密度更加合理。
+请为小说阶段补充事件设计，使事件密度更加合理。
 
-    ## 小说核心信息
-    - **小说标题**: {novel_title}
-    - **小说简介**: {novel_synopsis}
-    - **创意种子**: {creative_seed}
-    - **阶段范围**: {stage_range}章 (共{stage_length}章)
+## 小说核心信息
+- **小说标题**: {novel_title}
+- **小说简介**: {novel_synopsis}
+- **创意种子**: {creative_seed}
+- **阶段范围**: {stage_range}章 (共{stage_length}章)
 
-    ## 全书大纲 (上下文)
-    {json.dumps(overall_stage_plan, ensure_ascii=False, indent=2)}
+## 全书大纲 (上下文)
+{json.dumps(overall_stage_plan, ensure_ascii=False, indent=2)}
 
-    ## 事件规划核心要求
-    1. **合理密度**: 确保每5-8章有一个小型事件，每10-15章有一个中型事件，每15-20章有一个重大事件
-    2. **主线贯穿**: 所有事件必须服务于阶段核心目标，避免偏离主线  
-    3. **渐进升级**: 事件难度和重要性应逐步提升，形成递进关系
-    4. **伏笔衔接**: 每个事件都应包含对后续事件的铺垫
+## 事件规划核心要求
+1. **合理密度**: 确保每5-8章有一个小型事件，每10-15章有一个中型事件，每15-20章有一个重大事件
+2. **主线贯穿**: 所有事件必须服务于阶段核心目标，避免偏离主线  
+3. **渐进升级**: 事件难度和重要性应逐步提升，形成递进关系
+4. **伏笔衔接**: 每个事件都应包含对后续事件的铺垫
 
-    ## 当前事件统计
-    - 重大事件: {current_major}个 (建议{target_major}个)
-    - 中型事件: {current_medium}个 (建议{target_medium}个)  
-    - 小型事件: {current_minor}个 (建议{target_minor}个)
+## 当前事件统计
+- 重大事件: {current_major}个 (建议{target_major}个)
+- 中型事件: {current_medium}个 (建议{target_medium}个)  
+- 小型事件: {current_minor}个 (建议{target_minor}个)
 
-    ## 现有事件
-    {json.dumps(events, ensure_ascii=False, indent=2)}
+## 现有事件
+{json.dumps(events, ensure_ascii=False, indent=2)}
 
-    ## 补充要求
-    请根据现有事件和故事逻辑，补充合适的事件来丰富情节。
-    不需要严格按照建议数量，只需补充您认为合理的事件即可。
+## 补充要求
+请根据现有事件和故事逻辑，补充合适的事件来丰富情节。
+不需要严格按照建议数量，只需补充您认为合理的事件即可。
 
-    请返回补充的事件设计：
-    {{
-        "supplemental_events": {{
-            "major_events": [],
-            "medium_events": [],
-            "minor_events": []
-        }}
+请返回补充的事件设计：
+{{
+    "supplemental_events": {{
+        "major_events": [],
+        "medium_events": [],
+        "minor_events": []
     }}
-    """
+}}
+"""
             
             try:
                 supplement_result = self.generator.api_client.generate_content_with_retry(
@@ -978,38 +971,6 @@ class StagePlanManager:
         
         return max_gap
 
-    def _basic_event_supplement(self, writing_plan: Dict, stage_range: str) -> Dict:
-        """基础事件补充方法 - 新增方法"""
-        start_chap, end_chap = parse_chapter_range(stage_range)
-        stage_length = end_chap - start_chap + 1
-        
-        # 确保 event_system 存在
-        if "event_system" not in writing_plan:
-            writing_plan["event_system"] = {}
-        
-        events = writing_plan["event_system"]
-        
-        # 确保各种事件列表存在
-        if "major_events" not in events:
-            events["major_events"] = []
-        if "medium_events" not in events:
-            events["medium_events"] = []
-        if "minor_events" not in events:
-            events["minor_events"] = []
-        
-        # 如果没有重大事件，在阶段中间添加一个
-        if not events["major_events"]:
-            mid_chapter = (start_chap + end_chap) // 2
-            events["major_events"].append({
-                "name": "阶段核心事件",
-                "start_chapter": max(start_chap, mid_chapter - 2),
-                "end_chapter": min(end_chap, mid_chapter + 2),
-                "significance": "推动阶段核心目标",
-                "description": "自动生成的核心事件"
-            })
-        
-        return writing_plan
-    
     def validate_event_density(self, writing_plan: Dict, stage_range: str) -> bool:
         """验证事件密度是否合理 - 修正版本"""
         start_chap, end_chap = parse_chapter_range(stage_range)
@@ -1071,7 +1032,6 @@ class StagePlanManager:
 
     def export_events_to_json(self, file_path: str = "novel_events.json"):
         """导出所有事件到JSON文件，按章节排序 - 修复嵌套结构版本"""
-        # 确保保存到 quality_data 目录
         import os
         quality_dir = "quality_data"
         os.makedirs(quality_dir, exist_ok=True)
@@ -1264,6 +1224,9 @@ class StagePlanManager:
             "total_chapters": total_chapters,
             "coverage_rate": round(coverage_rate * 100, 2)
         }
+
+    # === 情绪管理方法 ===
+    
     def generate_stage_emotional_plan(self, stage_name: str, stage_range: str, 
                                     global_emotional_plan: Dict) -> Dict:
         """生成阶段详细情绪计划"""
@@ -1274,20 +1237,19 @@ class StagePlanManager:
         stage_length = end_chap - start_chap + 1
         
         user_prompt = f"""
-    基于全书情绪规划和阶段特点，制定{stage_name}的详细情绪计划：
+基于全书情绪规划和阶段特点，制定{stage_name}的详细情绪计划：
 
-    **阶段信息**：
-    - 阶段：{stage_name}
-    - 章节范围：{stage_range} (共{stage_length}章)
-    - 全书情绪规划：{json.dumps(global_emotional_plan, ensure_ascii=False)}
+**阶段信息**：
+- 阶段：{stage_name}
+- 章节范围：{stage_range} (共{stage_length}章)
+- 全书情绪规划：{json.dumps(global_emotional_plan, ensure_ascii=False)}
 
-    **小说信息**：
-    - 标题：{novel_data["novel_title"]}
-    - 简介：{novel_data["novel_synopsis"]}
-    - 主角：{novel_data.get('custom_main_character_name', '主角')}
-
-    """
-
+**小说信息**：
+- 标题：{novel_data["novel_title"]}
+- 简介：{novel_data["novel_synopsis"]}
+- 主角：{novel_data.get('custom_main_character_name', '主角')}
+"""
+        
         emotional_plan = self.generator.api_client.generate_content_with_retry(
             "stage_emotional_planning",
             user_prompt,
@@ -1496,7 +1458,6 @@ class StagePlanManager:
             if isinstance(break_chap, str):
                 print(f"  🔍 解析缓冲章节字符串: '{break_chap}'")
                 # 使用正则表达式提取纯数字范围
-                import re
                 numbers = re.findall(r'\d+', break_chap)
                 
                 if len(numbers) >= 2:
@@ -1562,7 +1523,6 @@ class StagePlanManager:
             range_str = chapter_range.replace("章", "").strip()
             
             # 使用正则表达式只提取数字部分，忽略括号注释等
-            import re
             numbers = re.findall(r'\d+', range_str)
             
             if len(numbers) < 2:
@@ -1589,7 +1549,6 @@ class StagePlanManager:
             print(f"  🔍 检查转折点: 当前章节{chapter}, 转折点描述'{approx_chapter}'")
             
             # 使用正则表达式提取所有数字
-            import re
             numbers = re.findall(r'\d+', approx_chapter)
             print(f"  🔍 从转折点描述中提取的数字: {numbers}")
             
@@ -1606,3 +1565,41 @@ class StagePlanManager:
         except Exception as e:
             print(f"  ⚠️ 解析转折点章节失败: {approx_chapter}, 错误: {e}")
             return False
+
+    # === 兼容性方法 ===
+    
+    def get_current_stage_plan(self, chapter_number: int) -> Optional[Dict]:
+        """获取当前章节所属阶段的详细计划（兼容性方法）"""
+        return self.get_chapter_writing_context(chapter_number)
+
+    def _basic_event_supplement(self, writing_plan: Dict, stage_range: str) -> Dict:
+        """基础事件补充方法 - 新增方法"""
+        start_chap, end_chap = parse_chapter_range(stage_range)
+        stage_length = end_chap - start_chap + 1
+        
+        # 确保 event_system 存在
+        if "event_system" not in writing_plan:
+            writing_plan["event_system"] = {}
+        
+        events = writing_plan["event_system"]
+        
+        # 确保各种事件列表存在
+        if "major_events" not in events:
+            events["major_events"] = []
+        if "medium_events" not in events:
+            events["medium_events"] = []
+        if "minor_events" not in events:
+            events["minor_events"] = []
+        
+        # 如果没有重大事件，在阶段中间添加一个
+        if not events["major_events"]:
+            mid_chapter = (start_chap + end_chap) // 2
+            events["major_events"].append({
+                "name": "阶段核心事件",
+                "start_chapter": max(start_chap, mid_chapter - 2),
+                "end_chapter": min(end_chap, mid_chapter + 2),
+                "significance": "推动阶段核心目标",
+                "description": "自动生成的核心事件"
+            })
+        
+        return writing_plan
