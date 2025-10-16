@@ -55,15 +55,13 @@ class QualityAssessor:
         # 如果评估成功，处理黄金三章的特殊逻辑
         if result and 'overall_score' in result:
             chapter_number = assessment_params.get('chapter_number', 0)
+            novel_title = assessment_params.get('novel_title', 'unknown')
             
             # 如果是黄金三章，应用更严格的标准
             if 1 <= chapter_number <= 3:
                 result = self._apply_golden_chapters_standards(result, chapter_number)
             
-            # 原有的处理逻辑...
-            novel_title = assessment_params.get('novel_title', 'unknown')
-            
-            # 处理角色状态变化
+            # 1. 首先处理角色状态变化
             character_status_changes = result.get('character_status_changes', [])
             for status_change in character_status_changes:
                 character_name = status_change.get('character_name')
@@ -72,7 +70,7 @@ class QualityAssessor:
                     print(f"🔄 AI检测到角色状态变化: {character_name} -> {status}")
                     self.world_state_manager._simplify_character_status(novel_title, character_name, status, chapter_number)
             
-            # 处理世界状态增量更新
+            # 2. 处理世界状态增量更新
             if 'world_state_changes' in result:
                 print("🧹 清洗世界状态变化数据...")
                 cleaned_changes = self.world_state_manager._validate_and_clean_world_state_changes(
@@ -84,13 +82,52 @@ class QualityAssessor:
                     self.world_state_manager._update_world_state_incrementally(novel_title, cleaned_changes, chapter_number)
                     result['updated_world_state'] = self.world_state_manager.current_world_state
                     result['world_state_changes'] = cleaned_changes
+                    
+                    # === 修复：从世界状态变化中提取角色信息，更新角色发展表 ===
+                    self._update_character_development_from_world_state(novel_title, cleaned_changes, chapter_number)
                 else:
                     print("⚠️ 世界状态变化数据清洗后为空")
             
+            # 3. 保存评估数据
             self.world_state_manager.save_assessment_data(novel_title, chapter_number, result)
+            
+            # 4. 从评估结果更新角色发展表（原有的逻辑）
             self.world_state_manager.update_character_development_from_assessment(novel_title, result, chapter_number)
-                
         return result
+
+    def _update_character_development_from_world_state(self, novel_title: str, world_state_changes: Dict, chapter_number: int):
+        """从世界状态变化中更新角色发展表"""
+        characters_changes = world_state_changes.get('characters', {})
+        
+        for character_name, character_data in characters_changes.items():
+            # 构建角色发展数据
+            development_data = {
+                "name": character_name,
+                "role_type": character_data.get("attributes", {}).get("role_type", "次要配角"),
+                "status": character_data.get("attributes", {}).get("status", "active")
+            }
+            
+            # 添加修为信息
+            attributes = character_data.get("attributes", {})
+            cultivation_level = attributes.get("cultivation_level")
+            cultivation_system = attributes.get("cultivation_system")
+            
+            if cultivation_level or cultivation_system:
+                if "cultivation_info" not in development_data:
+                    development_data["cultivation_info"] = {}
+                if cultivation_level:
+                    development_data["cultivation_info"]["level"] = cultivation_level
+                if cultivation_system:
+                    development_data["cultivation_info"]["system"] = cultivation_system
+            
+            # 更新角色发展表
+            print(f"🔄 从世界状态更新角色发展表: {character_name}")
+            self.world_state_manager.manage_character_development_table(
+                novel_title, 
+                development_data, 
+                chapter_number, 
+                "update"
+            )
 
     def _apply_golden_chapters_standards(self, assessment_result: Dict, chapter_number: int) -> Dict:
         """对黄金三章应用更严格的评分标准"""

@@ -473,34 +473,64 @@ class WorldStateManager:
 
     def manage_character_development_table(self, novel_title: str, character_data: Dict, 
                                         current_chapter: int, action: str = "update") -> Dict:
-        """管理角色发展表 - 根据角色重要性使用不同的模板"""
+        """管理角色发展表 - 完整版本
+        
+        Args:
+            novel_title: 小说标题
+            character_data: 角色数据，包含角色信息
+            current_chapter: 当前章节编号
+            action: 操作类型，"add" 添加新角色，"update" 更新现有角色
+        
+        Returns:
+            更新后的所有角色数据
+        """
         character_file = os.path.join(self.storage_path, f"{novel_title}_character_development.json")
         
-        # 加载现有数据
+        print(f"🔄 开始管理角色发展表:")
+        print(f"   小说: {novel_title}")
+        print(f"   角色: {character_data.get('name')}")
+        print(f"   章节: {current_chapter}")
+        print(f"   操作: {action}")
+        print(f"   角色数据: {character_data}")
+        
+        # 确保存储目录存在
+        os.makedirs(self.storage_path, exist_ok=True)
+        
+        # 加载现有数据 - 修复文件不存在的情况
+        characters = {}
         if os.path.exists(character_file):
-            with open(character_file, 'r', encoding='utf-8') as f:
-                characters = json.load(f)
+            try:
+                with open(character_file, 'r', encoding='utf-8') as f:
+                    characters = json.load(f)
+                print(f"✅ 已加载现有角色数据: {len(characters)} 个角色")
+            except Exception as e:
+                print(f"❌ 加载角色文件失败: {e}")
+                characters = {}
         else:
+            print(f"🆕 角色发展文件不存在，将创建新文件")
             characters = {}
         
         character_name = character_data.get("name")
         if not character_name:
+            print(f"❌ 角色数据中没有name字段，无法管理")
             return characters
         
         # 评估角色重要性
         importance = self.assess_character_importance(character_data)
+        print(f"📊 角色 {character_name} 的重要性评估为: {importance}")
         
         if action == "add":
             # 首次出场时添加
             if character_name not in characters:
                 # 根据重要性选择模板
                 if importance == "major":
-                    template = self.character_development_templates["core_character"]
+                    template = self.character_development_templates["core_character"].copy()
                 elif importance == "minor":
-                    template = self.character_development_templates["minor_character"]
+                    template = self.character_development_templates["minor_character"].copy()
                 else:
-                    template = self.character_development_templates["unnamed_character"]
+                    template = self.character_development_templates["unnamed_character"].copy()
                 
+                # 合并模板和传入数据
                 characters[character_name] = {
                     **template,
                     **character_data,
@@ -509,69 +539,177 @@ class WorldStateManager:
                     "last_updated_chapter": current_chapter,
                     "total_appearances": 1
                 }
-                print(f"✅ 新增角色到发展表: {character_name} (重要性: {importance}, 第{current_chapter}章首次出场)")
+                print(f"✅ 新增角色到发展表: {character_name}")
+                print(f"   重要性: {importance}")
+                print(f"   首次出场: 第{current_chapter}章")
+                print(f"   角色类型: {character_data.get('role_type', '未知')}")
             else:
                 # 如果角色已存在，更新出场信息
-                if "total_appearances" not in characters[character_name]:
-                    characters[character_name]["total_appearances"] = 1
-                else:
-                    characters[character_name]["total_appearances"] += 1
+                characters[character_name]["total_appearances"] = characters[character_name].get("total_appearances", 0) + 1
                 characters[character_name]["last_updated_chapter"] = current_chapter
+                print(f"🔄 角色已存在，更新出场信息: {character_name}")
+                print(f"   总出场次数: {characters[character_name]['total_appearances']}")
+                print(f"   最后更新章节: {current_chapter}")
                 
         elif action == "update":
             # 更新现有角色
             if character_name in characters:
                 # 更新出场次数和最后出场章节
-                if "total_appearances" not in characters[character_name]:
-                    characters[character_name]["total_appearances"] = 1
-                else:
-                    characters[character_name]["total_appearances"] += 1
+                characters[character_name]["total_appearances"] = characters[character_name].get("total_appearances", 0) + 1
                 characters[character_name]["last_updated_chapter"] = current_chapter
                 
-                # 对于重要角色，更新详细信息；对于次要角色，只更新基本信息和重要性
                 current_importance = characters[character_name].get("importance", "minor")
                 
-                if current_importance == "major":
-                    # 重要角色：保留历史信息，合并新数据
-                    preserved_fields = [
-                        "first_appearance_chapter", "iconic_scenes", 
-                        "development_milestones", "background_story",
-                        "relationship_network", "personality_traits"
-                    ]
+                print(f"🔄 更新角色: {character_name} (重要性: {current_importance})")
+                
+                # 更新基础字段
+                base_fields = ["name", "status", "role_type", "importance"]
+                for field in base_fields:
+                    if field in character_data and character_data[field]:
+                        old_value = characters[character_name].get(field)
+                        new_value = character_data[field]
+                        if old_value != new_value:
+                            characters[character_name][field] = new_value
+                            print(f"   更新字段 {field}: {old_value} -> {new_value}")
+                
+                # 更新修为信息
+                if "cultivation_info" in character_data:
+                    if "cultivation_info" not in characters[character_name]:
+                        characters[character_name]["cultivation_info"] = {}
                     
-                    preserved_data = {}
-                    for field in preserved_fields:
-                        if field in characters[character_name]:
-                            preserved_data[field] = characters[character_name][field]
+                    cultivation_updates = character_data["cultivation_info"]
+                    for key, value in cultivation_updates.items():
+                        if value:
+                            old_value = characters[character_name]["cultivation_info"].get(key)
+                            if old_value != value:
+                                characters[character_name]["cultivation_info"][key] = value
+                                print(f"   更新修为 {key}: {old_value} -> {value}")
+                
+                # 更新性格特征
+                if "personality_traits" in character_data:
+                    if "personality_traits" not in characters[character_name]:
+                        characters[character_name]["personality_traits"] = {}
                     
-                    # 更新数据
-                    characters[character_name].update(character_data)
-                    
-                    # 恢复保留的历史数据
-                    for field, value in preserved_data.items():
-                        if field in character_data and character_data[field]:
-                            # 如果新数据中有该字段，则合并而不是覆盖
-                            if isinstance(value, list) and isinstance(character_data[field], list):
-                                characters[character_name][field] = value + character_data[field]
-                            elif isinstance(value, dict) and isinstance(character_data[field], dict):
-                                characters[character_name][field] = {**value, **character_data[field]}
+                    personality_updates = character_data["personality_traits"]
+                    for key, value in personality_updates.items():
+                        if value:
+                            if key == "core_traits" and isinstance(value, list):
+                                # 合并核心特质列表
+                                existing_traits = characters[character_name]["personality_traits"].get(key, [])
+                                for trait in value:
+                                    if trait not in existing_traits:
+                                        existing_traits.append(trait)
+                                        print(f"   新增核心特质: {trait}")
+                                characters[character_name]["personality_traits"][key] = existing_traits
                             else:
-                                characters[character_name][field] = character_data[field] or value
-                        else:
-                            characters[character_name][field] = value
+                                old_value = characters[character_name]["personality_traits"].get(key)
+                                if old_value != value:
+                                    characters[character_name]["personality_traits"][key] = value
+                                    print(f"   更新性格 {key}: {old_value} -> {value}")
                 
-                else:
-                    # 次要或未命名角色：只更新基本信息
-                    basic_fields = ["name", "status", "role_type", "basic_description", "purpose_in_story", "appearance_context"]
-                    for field in basic_fields:
+                # 更新背景故事
+                if "background_story" in character_data:
+                    if "background_story" not in characters[character_name]:
+                        characters[character_name]["background_story"] = {}
+                    
+                    background_updates = character_data["background_story"]
+                    for key, value in background_updates.items():
+                        if value:
+                            if key == "key_experiences" and isinstance(value, list):
+                                # 合并关键经历
+                                existing_experiences = characters[character_name]["background_story"].get(key, [])
+                                for exp in value:
+                                    if exp not in existing_experiences:
+                                        existing_experiences.append(exp)
+                                        print(f"   新增关键经历: {exp}")
+                                characters[character_name]["background_story"][key] = existing_experiences
+                            else:
+                                old_value = characters[character_name]["background_story"].get(key)
+                                if old_value != value:
+                                    characters[character_name]["background_story"][key] = value
+                                    print(f"   更新背景 {key}: {old_value} -> {value}")
+                
+                # 更新名场面
+                if "iconic_scenes" in character_data and character_data["iconic_scenes"]:
+                    if "iconic_scenes" not in characters[character_name]:
+                        characters[character_name]["iconic_scenes"] = []
+                    
+                    for new_scene in character_data["iconic_scenes"]:
+                        # 检查是否已存在类似场景
+                        scene_exists = False
+                        for existing_scene in characters[character_name]["iconic_scenes"]:
+                            if (existing_scene.get("chapter") == new_scene.get("chapter") and 
+                                existing_scene.get("description") == new_scene.get("description")):
+                                scene_exists = True
+                                break
+                        
+                        if not scene_exists:
+                            characters[character_name]["iconic_scenes"].append(new_scene)
+                            print(f"   新增名场面: {new_scene.get('description', '新场景')}")
+                
+                # 更新关系网络
+                if "relationship_network" in character_data:
+                    if "relationship_network" not in characters[character_name]:
+                        characters[character_name]["relationship_network"] = {"allies": [], "rivals": [], "complex_relationships": []}
+                    
+                    relationship_updates = character_data["relationship_network"]
+                    for rel_type, rel_list in relationship_updates.items():
+                        if rel_type in characters[character_name]["relationship_network"] and isinstance(rel_list, list):
+                            existing_rels = characters[character_name]["relationship_network"][rel_type]
+                            for new_rel in rel_list:
+                                if new_rel not in existing_rels:
+                                    existing_rels.append(new_rel)
+                                    print(f"   新增{rel_type}: {new_rel}")
+                
+                # 更新发展里程碑
+                if "development_milestones" in character_data and character_data["development_milestones"]:
+                    if "development_milestones" not in characters[character_name]:
+                        characters[character_name]["development_milestones"] = []
+                    
+                    for new_milestone in character_data["development_milestones"]:
+                        # 检查是否已存在类似里程碑
+                        milestone_exists = False
+                        for existing_milestone in characters[character_name]["development_milestones"]:
+                            if (existing_milestone.get("chapter") == new_milestone.get("chapter") and 
+                                existing_milestone.get("description") == new_milestone.get("description")):
+                                milestone_exists = True
+                                break
+                        
+                        if not milestone_exists:
+                            characters[character_name]["development_milestones"].append(new_milestone)
+                            print(f"   新增里程碑: {new_milestone.get('description', '新里程碑')}")
+                
+                # 对于次要和未命名角色，更新基本信息
+                if current_importance in ["minor", "unnamed"]:
+                    minor_fields = ["basic_description", "purpose_in_story", "appearance_context"]
+                    for field in minor_fields:
                         if field in character_data and character_data[field]:
-                            characters[character_name][field] = character_data[field]
+                            old_value = characters[character_name].get(field)
+                            new_value = character_data[field]
+                            if old_value != new_value:
+                                characters[character_name][field] = new_value
+                                print(f"   更新{field}: {old_value} -> {new_value}")
                 
-                print(f"✅ 更新角色发展表: {character_name} (重要性: {current_importance}, 第{current_chapter}章)")
+                print(f"✅ 成功更新角色发展表: {character_name}")
+                print(f"   总出场次数: {characters[character_name]['total_appearances']}")
+                print(f"   最后更新章节: {current_chapter}")
+                
+            else:
+                print(f"⚠️ 角色 {character_name} 不存在于发展表中，将自动添加")
+                # 如果角色不存在，自动转为添加操作
+                self.manage_character_development_table(novel_title, character_data, current_chapter, "add")
         
         # 保存数据
-        with open(character_file, 'w', encoding='utf-8') as f:
-            json.dump(characters, f, ensure_ascii=False, indent=2)
+        try:
+            with open(character_file, 'w', encoding='utf-8') as f:
+                json.dump(characters, f, ensure_ascii=False, indent=2)
+            print(f"💾 角色发展表已保存到: {character_file}")
+            print(f"   角色总数: {len(characters)}")
+            print(f"   文件大小: {os.path.getsize(character_file)} 字节")
+        except Exception as e:
+            print(f"❌ 保存角色发展表失败: {e}")
+            import traceback
+            traceback.print_exc()
         
         return characters
 
@@ -1350,43 +1488,127 @@ class WorldStateManager:
         return enhanced_status
     
     def infer_emotional_state_enhanced(self, char_data: Dict, world_char_data: Dict, novel_title: str) -> str:
-        """增强版情绪状态推断"""
-        attributes = world_char_data.get("attributes", {})
+        """增强版情绪状态推断 - 基于角色实际状态"""
+        
+        # 如果数据为空，返回默认值
+        if not char_data and not world_char_data:
+            return "未知"
+        
+        attributes = world_char_data.get("attributes", {}) if world_char_data else {}
+        description = world_char_data.get("description", "") if world_char_data else ""
+        
+        print(f"  推断情绪状态: {attributes.get('name', '未知角色')}")
+        print(f"    位置: {attributes.get('location', '未知')}")
+        print(f"    状态: {attributes.get('status', '活跃')}")
+        print(f"    描述片段: {description[:50]}...")
+        
+        # 1. 基于角色状态的直接推断
+        status = attributes.get("status", "活跃")
+        if status == "死亡":
+            return "终结"
+        elif status == "重伤":
+            return "痛苦"
+        elif status == "重伤昏迷":
+            return "昏迷"
+        elif status == "失踪":
+            return "迷茫"
+        
+        # 2. 基于位置的详细推断
         current_location = attributes.get("location", "")
+        if not current_location:
+            current_location = ""
         
-        # 基于位置的情绪推断
-        if "途中" in current_location or "追踪" in current_location:
-            location_based_emotion = "警惕"
-        elif "议事大殿" in current_location:
-            location_based_emotion = "严肃"
-        elif "丹房" in current_location:
-            location_based_emotion = "专注"
-        else:
-            location_based_emotion = "平静"
+        # 危险位置的情绪
+        if any(word in current_location for word in ["战场", "前线", "破碎", "危险", "极度危险"]):
+            return "紧张"
+        elif any(word in current_location for word in ["途中", "追踪", "移动"]):
+            return "警惕"
+        elif any(word in current_location for word in ["臭水沟", "狼狈"]):
+            return "羞愤"
+        elif any(word in current_location for word in ["执法堂", "被带走"]):
+            return "不安"
+        elif "房梁" in current_location:
+            return "愉悦"  # 陆安在房梁上看戏
         
-        # 基于关系和最近事件的情绪推断
-        relationships = self._get_character_relationships(char_data.get("name", ""), novel_title)
-        has_rivals = any(rel.get("type") in ["对手", "敌对", "竞争师徒"] for rel in relationships)
+        # 3. 基于描述文本的情感分析
+        description_lower = description.lower()
         
-        if has_rivals:
-            relation_based_emotion = "紧张"
-        else:
-            relation_based_emotion = location_based_emotion
+        # 积极情绪关键词
+        positive_words = ["兴奋", "愉悦", "喜悦", "开心", "快乐", "期待", "悠闲", "吃瓜", "看戏", "点评"]
+        if any(word in description_lower for word in positive_words):
+            return "兴奋"
         
-        # 基于角色性格的情绪调整
-        personality = char_data.get("personality_traits", {})
-        core_traits = personality.get("core_traits", [])
+        # 消极情绪关键词
+        negative_words = ["恐慌", "恐惧", "害怕", "惊怒", "愤怒", "焦急", "悲伤", "痛苦", "沮丧", "绝望"]
+        if any(word in description_lower for word in negative_words):
+            for word in negative_words:
+                if word in description_lower:
+                    return word
         
-        if "胆小" in core_traits and relation_based_emotion == "紧张":
-            return "焦虑"
-        elif "外冷内热" in core_traits:
-            return "内敛"
-        elif "颓唐" in core_traits:
-            return "消沉"
-        elif "卓越的危机公关能力" in core_traits:
-            return "沉着"
+        # 紧张情绪关键词
+        tension_words = ["紧张", "警惕", "严肃", "专注", "戒备", "威压", "危机"]
+        if any(word in description_lower for word in tension_words):
+            return "紧张"
         
-        return relation_based_emotion
+        # 4. 基于角色特定情况的推断
+        character_name = attributes.get("name", "")
+        if character_name:
+            # 陆安的特殊情况 - 在房梁上看戏吃灵果
+            if "陆安" in character_name and "房梁" in current_location:
+                return "愉悦"
+            
+            # 李默被重伤
+            if "李默" in character_name and "重伤" in status:
+                return "痛苦"
+            
+            # 张狂被执法长老带走
+            if "张狂" in character_name and "执法堂" in current_location:
+                return "愤怒"
+            
+            # 林寻和苏清影濒死
+            if character_name in ["林寻", "苏清影"] and "濒死" in description_lower:
+                return "濒死"
+            
+            # 李青玄面对灭宗危机
+            if "李青玄" in character_name and any(word in description_lower for word in ["惊怒", "悲壮", "危机"]):
+                return "悲壮"
+            
+            # 厉九幽复仇的癫狂
+            if "厉九幽" in character_name and "癫狂" in description_lower:
+                return "癫狂"
+            
+            # 沈长青的神秘恐怖
+            if "沈长青" in character_name and "恐怖" in description_lower:
+                return "深不可测"
+        
+        # 5. 基于角色性格的推断（如果有角色发展数据）
+        if char_data:
+            personality = char_data.get("personality_traits", {})
+            core_traits = personality.get("core_traits", [])
+            
+            if "胆小" in core_traits:
+                return "恐惧"
+            elif "外冷内热" in core_traits:
+                return "内敛"
+            elif "颓唐" in core_traits:
+                return "消沉"
+            elif any(trait in core_traits for trait in ["坚韧", "沉着"]):
+                return "沉着"
+            elif any(trait in core_traits for trait in ["兴奋", "愉悦"]):
+                return "兴奋"
+            elif any(trait in core_traits for trait in ["倨傲", "霸道"]):
+                return "傲慢"
+        
+        # 6. 基于事件的推断
+        if "灭宗" in description_lower or "危机" in description_lower:
+            return "恐慌"
+        elif "突破" in description_lower or "获得" in description_lower:
+            return "兴奋"
+        elif "战斗" in description_lower or "冲突" in description_lower:
+            return "紧张"
+        
+        # 默认情绪
+        return "平静"
 
     def _get_character_relationships(self, character_name: str, novel_title: str) -> List[Dict]:
         """获取角色关系"""
@@ -1401,17 +1623,37 @@ class WorldStateManager:
         return rel_list  
     
     def get_character_comprehensive_status_enhanced(self, novel_title: str, character_names: List[str] = None) -> Dict:
-        """增强版角色综合状态获取"""
+        """增强版角色综合状态获取 - 修复版本"""
+        
+        print(f"🔄 开始获取增强版角色综合状态...")
+        print(f"   小说: {novel_title}")
+        print(f"   指定角色: {character_names if character_names else '全部角色'}")
+        
+        # 1. 首先获取基础状态
         basic_status = self.get_character_comprehensive_status(novel_title, character_names)
         
-        # 清理关系矛盾
-        for char_name, status in basic_status.items():
-            status["relationships"] = self.validate_and_clean_relationships(status["relationships"])
+        if not basic_status:
+            print("⚠️ 基础状态为空，尝试从世界状态直接构建...")
+            basic_status = self._build_comprehensive_status_from_world_state(novel_title, character_names)
         
-        # 增强位置描述
+        print(f"✅ 获取到基础状态，角色数量: {len(basic_status)}")
+        
+        # 2. 清理关系矛盾
+        print("🔄 清理关系矛盾...")
+        for char_name, status in basic_status.items():
+            if "relationships" in status:
+                original_count = len(status["relationships"])
+                status["relationships"] = self.validate_and_clean_relationships(status["relationships"])
+                cleaned_count = len(status["relationships"])
+                if original_count != cleaned_count:
+                    print(f"   清理 {char_name} 的关系: {original_count} -> {cleaned_count}")
+        
+        # 3. 增强位置描述
+        print("🔄 增强位置描述...")
         enhanced_status = self.enhance_location_descriptions(novel_title, basic_status)
         
-        # 更新情绪状态
+        # 4. 更新情绪状态
+        print("🔄 更新情绪状态...")
         world_state = self.load_previous_assessments(novel_title)
         character_development = self._load_character_development_data(novel_title)
         
@@ -1419,10 +1661,137 @@ class WorldStateManager:
             char_data = character_development.get(char_name, {})
             world_char_data = world_state.get("characters", {}).get(char_name, {})
             
-            status["mental_state"]["recent_emotional_state"] = self.infer_emotional_state_enhanced(
-                char_data, world_char_data, novel_title
-            )
+            # 确保传递正确的参数
+            emotional_state = self.infer_emotional_state_enhanced(char_data, world_char_data, novel_title)
+            status["mental_state"]["recent_emotional_state"] = emotional_state
+            
+            # 调试输出
+            print(f"   {char_name}: 情绪状态 -> {emotional_state}")
+            if world_char_data:
+                print(f"     位置: {world_char_data.get('attributes', {}).get('location', '未知')}")
+                print(f"     状态: {world_char_data.get('attributes', {}).get('status', '活跃')}")
         
-        return enhanced_status   
+        print(f"🎉 增强版角色状态获取完成: {len(enhanced_status)} 个角色")
+        
+        return enhanced_status
 
+    def _build_comprehensive_status_from_world_state(self, novel_title: str, character_names: List[str] = None) -> Dict:
+        """从世界状态直接构建综合状态（备用方法）"""
+        world_state = self.load_previous_assessments(novel_title)
+        character_development = self._load_character_development_data(novel_title)
+        
+        if not world_state:
+            print("❌ 世界状态为空，无法构建综合状态")
+            return {}
+        
+        comprehensive_status = {}
+        characters_data = world_state.get("characters", {})
+        
+        # 确定要处理的角色
+        target_characters = character_names if character_names else list(characters_data.keys())
+        
+        for char_name in target_characters:
+            if char_name not in characters_data:
+                print(f"⚠️ 角色 {char_name} 不在世界状态中，跳过")
+                continue
+                
+            char_data = characters_data[char_name]
+            dev_data = character_development.get(char_name, {})
+            attributes = char_data.get("attributes", {})
+            
+            # 使用增强的情绪推断
+            emotional_state = self.infer_emotional_state_enhanced(dev_data, char_data, novel_title)
+            
+            # 构建综合状态
+            char_status = {
+                "basic_info": {
+                    "name": char_name,
+                    "role_type": attributes.get("occupation", ""),
+                    "importance": dev_data.get("importance", "minor"),
+                    "status": attributes.get("status", "active"),
+                    "total_appearances": dev_data.get("total_appearances", 1),
+                    "last_updated_chapter": dev_data.get("last_updated_chapter", 1)
+                },
+                "cultivation_info": {
+                    "level": attributes.get("cultivation_level", "未知"),
+                    "system": attributes.get("cultivation_system", "未知"),
+                    "location": attributes.get("location", "未知"),
+                    "faction": attributes.get("faction", ""),
+                    "title": attributes.get("title", "")
+                },
+                "skills": self._get_character_skills_from_world_state(world_state, char_name),
+                "relationships": self._get_character_relationships_from_world_state(world_state, char_name),
+                "items": self._get_character_items_from_world_state(world_state, char_name),
+                "mental_state": {
+                    "core_traits": dev_data.get("personality_traits", {}).get("core_traits", []),
+                    "contradictions": dev_data.get("personality_traits", {}).get("contradictions", ""),
+                    "behavior_patterns": dev_data.get("personality_traits", {}).get("behavior_patterns", ""),
+                    "speech_style": dev_data.get("personality_traits", {}).get("speech_style", ""),
+                    "recent_emotional_state": emotional_state  # 使用推断的情绪状态
+                },
+                "recent_development": {
+                    "milestones": dev_data.get("development_milestones", [])[-3:],
+                    "iconic_scenes": dev_data.get("iconic_scenes", [])[-2:],
+                    "growth_trajectory": self._assess_growth_trajectory(dev_data)
+                }
+            }
+            
+            comprehensive_status[char_name] = char_status
+            print(f"✅ 从世界状态构建: {char_name} -> 情绪: {emotional_state}")
+        
+        return comprehensive_status
+
+    def _get_character_skills_from_world_state(self, world_state: Dict, character_name: str) -> List[Dict]:
+        """从世界状态获取角色技能"""
+        skills = []
+        cultivation_skills = world_state.get("cultivation_skills", {})
+        
+        for skill_name, skill_data in cultivation_skills.items():
+            if skill_data.get("owner") == character_name:
+                skills.append({
+                    "name": skill_name,
+                    "type": skill_data.get("type", ""),
+                    "level": skill_data.get("level", ""),
+                    "quality": skill_data.get("quality", ""),
+                    "description": skill_data.get("description", "")[:100] + "..." if len(skill_data.get("description", "")) > 100 else skill_data.get("description", "")
+                })
+        
+        return skills
+
+    def _get_character_relationships_from_world_state(self, world_state: Dict, character_name: str) -> List[Dict]:
+        """从世界状态获取角色关系"""
+        relationships = []
+        world_relationships = world_state.get("relationships", {})
+        
+        for rel_key, rel_data in world_relationships.items():
+            if character_name in rel_key:
+                # 提取关系中的另一个角色
+                parts = rel_key.split('-')
+                if len(parts) == 2:
+                    other_char = parts[0] if parts[1] == character_name else parts[1]
+                    relationships.append({
+                        "type": rel_data.get("type", ""),
+                        "character": other_char,
+                        "description": rel_data.get("description", ""),
+                        "status": rel_data.get("status", "active")
+                    })
+        
+        return relationships
+
+    def _get_character_items_from_world_state(self, world_state: Dict, character_name: str) -> List[Dict]:
+        """从世界状态获取角色物品"""
+        items = []
+        cultivation_items = world_state.get("cultivation_items", {})
+        
+        for item_name, item_data in cultivation_items.items():
+            if item_data.get("owner") == character_name:
+                items.append({
+                    "name": item_name,
+                    "type": item_data.get("type", ""),
+                    "quality": item_data.get("quality", ""),
+                    "status": item_data.get("status", ""),
+                    "description": item_data.get("description", "")[:100] + "..." if len(item_data.get("description", "")) > 100 else item_data.get("description", "")
+                })
+        
+        return items
          

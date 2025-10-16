@@ -1049,9 +1049,7 @@ class ContentGenerator:
         if design_result:
             print(f"  ✅ 第{chapter_params.get('chapter_number', 1)}章设计方案生成成功")
             # 验证情绪设计是否被正确包含
-            if "emotional_design" in design_result:
-                print(f"  🎭 设计方案包含情绪设计: {len['emotional_design']}")
-            else:
+            if "emotional_design" not in design_result:
                 print(f"  ⚠️ 设计方案未包含情绪设计")
             return design_result
         else:
