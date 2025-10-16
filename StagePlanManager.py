@@ -104,7 +104,6 @@ class StagePlanManager:
             self.overall_stage_plans = result
             self.stage_boundaries = boundaries
             print("✓ 全书阶段计划生成成功")
-            self.print_stage_overview()
             return result
         else:
             print("❌ 全书阶段计划生成失败")

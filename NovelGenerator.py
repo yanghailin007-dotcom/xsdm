@@ -597,7 +597,8 @@ class NovelGenerator:
         ):
             print("❌ 生成阶段详细写作计划失败")
             return False
-
+        self.stage_plan_manager.print_stage_overview()
+        
         emotional_plan = self.global_growth_planner.novel_generator.novel_data.get("emotional_development_plan", {})
         if emotional_plan:
             print("✅ 情绪发展计划已集成到小说生成系统中")
