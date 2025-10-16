@@ -300,7 +300,6 @@ class WorldStateManager:
     def _validate_and_clean_world_state_changes(self, changes: Dict, chapter_number: int) -> Dict:
         """验证和清洗世界状态变化数据，确保字段统一"""
         
-        # 定义允许的字段结构
         ALLOWED_FIELDS = {
             "characters": {
                 "description": str,
@@ -309,25 +308,30 @@ class WorldStateManager:
                     "location": str,
                     "title": str,
                     "occupation": str, 
-                    "rank": str,
-                    "faction": str
+                    "faction": str,
+                    "cultivation_level": str,  # 修为等级
+                    "cultivation_system": str  # 修为体系（修仙/异能/武侠等）
                 }
             },
-            "items": {
+            "cultivation_items": {  # 新增：修炼相关物品
                 "description": str,
                 "owner": str,
+                "type": str,  # 丹药/法宝/材料等
+                "quality": str,  # 品质等级
                 "status": str,
                 "location": str
+            },
+            "cultivation_skills": {  # 新增：功法技能
+                "description": str,
+                "owner": str,
+                "type": str,  # 功法/神通/秘术等
+                "level": str,
+                "quality": str,  # 品质等级
+                "status": str
             },
             "relationships": {
                 "type": str,
                 "description": str,
-                "status": str
-            },
-            "skills": {
-                "description": str,
-                "owner": str,
-                "level": str,
                 "status": str
             },
             "locations": {
@@ -1019,3 +1023,125 @@ class WorldStateManager:
                     consistency_score += 1
         
         return round(consistency_score / max(total_elements, 1) * 10, 2) if total_elements > 0 else 10.0
+    
+    def get_characters_cultivation_info(self, novel_title: str, character_names: List[str] = None) -> Dict[str, str]:
+        """获取角色的修为信息，用于生成前情提要"""
+        world_state = self.load_previous_assessments(novel_title)
+        if not world_state:
+            return {}
+        
+        characters = world_state.get("characters", {})
+        cultivation_info = {}
+        
+        for char_name, char_data in characters.items():
+            # 如果指定了特定角色，只返回这些角色的信息
+            if character_names and char_name not in character_names:
+                continue
+                
+            attributes = char_data.get("attributes", {})
+            cultivation_level = attributes.get("cultivation_level")
+            
+            if cultivation_level:
+                cultivation_info[char_name] = cultivation_level
+        
+        return cultivation_info
+
+    def get_main_characters_cultivation(self, novel_title: str) -> Dict[str, str]:
+        """获取主要角色的修为信息（基于角色重要性）"""
+        character_file = os.path.join(self.storage_path, f"{novel_title}_character_development.json")
+        
+        if not os.path.exists(character_file):
+            return {}
+        
+        try:
+            with open(character_file, 'r', encoding='utf-8') as f:
+                characters = json.load(f)
+            
+            # 只获取重要角色的修为信息
+            main_characters = []
+            for char_name, char_data in characters.items():
+                importance = char_data.get("importance", "minor")
+                status = char_data.get("status", "active")
+                
+                if importance == "major" and status == "active":
+                    main_characters.append(char_name)
+            
+            return self.get_characters_cultivation_info(novel_title, main_characters)
+            
+        except Exception as e:
+            print(f"获取主要角色修为信息失败: {e}")
+            return {}
+        
+    def get_cultivation_summary_for_previous_summary(self, novel_title: str) -> str:
+        """获取修为+物品+功法的综合信息用于生成前情提要"""
+        world_state = self.world_state_manager.load_previous_assessments(novel_title)
+        if not world_state:
+            return ""
+        
+        summary_parts = []
+        
+        # 1. 获取主要角色修为信息
+        characters = world_state.get("characters", {})
+        main_characters_cultivation = {}
+        
+        for char_name, char_data in characters.items():
+            attributes = char_data.get("attributes", {})
+            cultivation_level = attributes.get("cultivation_level")
+            cultivation_system = attributes.get("cultivation_system", "修仙")  # 默认修仙体系
+            
+            if cultivation_level:
+                main_characters_cultivation[char_name] = {
+                    "level": cultivation_level,
+                    "system": cultivation_system
+                }
+        
+        if main_characters_cultivation:
+            cultivation_text = "修为情况："
+            cultivation_list = []
+            for char_name, info in main_characters_cultivation.items():
+                cultivation_list.append(f"{char_name}（{info['level']}）")
+            cultivation_text += "、".join(cultivation_list) + "。"
+            summary_parts.append(cultivation_text)
+        
+        # 2. 获取重要物品信息（最近获得的）
+        cultivation_items = world_state.get("cultivation_items", {})
+        recent_items = []
+        
+        for item_name, item_data in cultivation_items.items():
+            # 只获取最近3章内获得的物品
+            last_updated = item_data.get("last_updated", 0)
+            current_chapter = params.get('chapter_number', 1)  # 需要传入当前章节
+            
+            if current_chapter - last_updated <= 3:
+                item_type = item_data.get("type", "物品")
+                item_quality = item_data.get("quality", "")
+                owner = item_data.get("owner", "")
+                
+                if owner and item_quality in ["地阶", "天阶", "神品"]:  # 只记录高品质物品
+                    recent_items.append(f"{owner}获得了{item_quality}{item_type}{item_name}")
+        
+        if recent_items:
+            items_text = "近期获得：" + "；".join(recent_items[:3]) + "。"
+            summary_parts.append(items_text)
+        
+        # 3. 获取重要功法信息（最近获得的）
+        cultivation_skills = world_state.get("cultivation_skills", {})
+        recent_skills = []
+        
+        for skill_name, skill_data in cultivation_skills.items():
+            last_updated = skill_data.get("last_updated", 0)
+            current_chapter = params.get('chapter_number', 1)
+            
+            if current_chapter - last_updated <= 3:
+                skill_type = skill_data.get("type", "技能")
+                skill_quality = skill_data.get("quality", "")
+                owner = skill_data.get("owner", "")
+                
+                if owner and skill_quality in ["地阶", "天阶", "神品"]:
+                    recent_skills.append(f"{owner}掌握了{skill_quality}{skill_type}{skill_name}")
+        
+        if recent_skills:
+            skills_text = "近期掌握：" + "；".join(recent_skills[:3]) + "。"
+            summary_parts.append(skills_text)
+        
+        return "\n".join(summary_parts)   

@@ -274,7 +274,7 @@ class QualityAssessor:
         return artifacts[:10]
 
     def _generate_chapter_assessment_prompt(self, params: Dict) -> str:
-        """生成章节质量评估提示词（包含一致性检查）- 简化角色发展评估"""
+        """生成章节质量评估提示词（重新组织修为+物品+功法结构）"""
         
         # 加载之前的世界状态
         novel_title = params.get('novel_title', 'unknown')
@@ -282,201 +282,176 @@ class QualityAssessor:
         
         world_state_str = json.dumps(previous_world_state, ensure_ascii=False, indent=2) if previous_world_state else "{}"
 
-        character_development_data = self._load_character_development_data(novel_title)  # 使用修复后的方法
+        character_development_data = self._load_character_development_data(novel_title)
         character_development_str = json.dumps(character_development_data, ensure_ascii=False, indent=2) if character_development_data else "{}"        
         
         return f"""
-内容：
-你是一位资深的番茄小说内容分析师与世界观架构师。
-你的任务是根据提供的章节信息和之前的世界观状态，进行全面的质量评估，并识别出本章节对世界观的具体变化。
+    内容：
+    你是一位资深的番茄小说内容分析师与世界观架构师。
+    你的任务是根据提供的章节信息和之前的世界观状态，进行全面的质量评估，并识别出本章节对世界观的具体变化。
 
-### 重要字段约定
-在返回的world_state_changes中，请严格遵守以下字段结构：
+    ### 重要字段约定 - 重新组织为修为+物品+功法结构
+    在返回的world_state_changes中，请严格遵守以下字段结构：
 
-**角色 (characters):**
-- description: string (角色当前状态描述)
-- attributes: object (包含以下固定字段)
-  - status: string (活跃/死亡/退场)
-  - location: string (当前所在地点)
-  - title: string (称号/头衔，可选)
-  - occupation: string (职业/身份，可选)
-  - rank: string (等级/排名，可选)
-  - faction: string (所属势力，可选)
+    **角色 (characters):**
+    - description: string (角色当前状态描述)
+    - attributes: object (包含以下固定字段)
+    - status: string (活跃/死亡/退场)
+    - location: string (当前所在地点)
+    - title: string (称号/头衔，可选)
+    - occupation: string (职业/身份，可选)
+    - faction: string (所属势力，可选)
+    - cultivation_level: string (修为等级) # 核心：角色当前修为
+    - cultivation_system: string (修为体系) # 核心：修仙/异能/武侠等
 
-**物品 (items):**
-- description: string (物品描述)
-- owner: string (拥有者)
-- status: string (物品状态)
-- location: string (物品位置)
+    **修炼物品 (cultivation_items):** # 重新分类：所有修炼相关物品
+    - description: string (物品描述)
+    - owner: string (拥有者)
+    - type: string (类型：丹药/法宝/材料/符箓等)
+    - quality: string (品质：凡品/黄阶/玄阶/地阶/天阶/神品)
+    - status: string (物品状态)
+    - location: string (物品位置)
 
-**关系 (relationships):**
-- type: string (关系类型)
-- description: string (关系描述)
-- status: string (关系状态)
+    **功法技能 (cultivation_skills):** # 重新分类：所有功法技能
+    - description: string (技能描述)
+    - owner: string (拥有者)
+    - type: string (类型：功法/神通/秘术/体质等)
+    - level: string (掌握程度)
+    - quality: string (品质：凡品/黄阶/玄阶/地阶/天阶/神品)
+    - status: string (技能状态)
 
-**技能 (skills):**
-- description: string (技能描述)
-- owner: string (拥有者)
-- level: string (技能等级)
-- status: string (技能状态)
+    **关系 (relationships):**
+    - type: string (关系类型)
+    - description: string (关系描述)
+    - status: string (关系状态)
 
-**地点 (locations):**
-- description: string (地点描述)
-- status: string (地点状态)
+    **地点 (locations):**
+    - description: string (地点描述)
+    - status: string (地点状态)
 
-### 禁止返回以下字段：
-- first_appearance (系统自动维护)
-- last_updated (系统自动维护)
-- 其他任意自定义字段
+    ### 信息记录规则
+    请按照以下分类准确记录：
 
-### 1. 小说信息
-- **小说标题**: {params.get('novel_title', '未知')}
-- **章节标题**: {params.get('chapter_title', '未知')}
-- **章节编号**: {params.get('chapter_number', '未知')}
-- **前情提要**: {params.get('previous_summary', '无')}
+    1. **角色修为信息**：
+    - cultivation_level: 当前修为等级（如：练气三层、筑基中期、金丹后期）
+    - cultivation_system: 修为体系（如：修仙、异能、武侠、科技）
 
-### 2. 目前章节的世界状态 (非常重要，用于一致性检查)
-{world_state_str}
+    2. **修炼物品分类**：
+    - 丹药类：修炼丹药、疗伤丹药、突破丹药等
+    - 法宝类：武器、防具、辅助法宝等
+    - 材料类：灵草、矿石、妖兽材料等
+    - 符箓类：攻击符、防御符、辅助符等
 
-现有角色发展数据:
-{character_development_str}
+    3. **功法技能分类**：
+    - 功法类：修炼心法、基础功法等
+    - 神通类：攻击神通、防御神通、辅助神通等
+    - 秘术类：特殊秘法、禁术等
+    - 体质类：特殊体质、天赋等
 
-章节内容预览:
-{params.get('chapter_content', '')}
+    ### 1. 小说信息
+    - **小说标题**: {params.get('novel_title', '未知')}
+    - **章节标题**: {params.get('chapter_title', '未知')}
+    - **章节编号**: {params.get('chapter_number', '未知')}
+    - **前情提要**: {params.get('previous_summary', '无')}
 
-请按照以下JSON格式返回评估结果：
-{{
-    "overall_score": "number (0-10，基于细分维度计算)",
-    "quality_verdict": "string (根据分数评定，如'卓越', '优秀', '良好', '合格'等)",
-    "strengths": "array of strings (列出章节的主要优点)",
-    "weaknesses": "array of strings (列出章节的主要待改进方面)",
-    "detailed_scores": {{
-        "plot_pacing_and_appeal": "number (0-2)",
-        "characterization_and_consistency": "number (0-2)", 
-        "writing_quality_and_immersion": "number (0-2)",
-        "structure_and_cohesion": "number (0-2)",
-        "world_state_consistency": "number (0-2)"
-    }},
-    "consistency_issues": [
-        {{
-            "type": "string (枚举: CHARACTER, ITEM, RELATIONSHIP, SKILL, TIMELINE, LOCATION)",
-            "description": "string (具体问题描述)", 
-            "severity": "string (枚举: High, Medium, Low)",
-            "suggestion": "string (修复建议)"
-        }}
-    ],
-    "character_status_changes": [
-        {{
-            "character_name": "string",
-            "status": "string (枚举: active, dead, exited)", 
-            "reason": "string (状态变化原因)",
-            "chapter": "number"
-        }}
-    ],
-    "world_state_changes": {{
-        // 严格遵守字段约定，只包含以下字段
-        "characters": {{
-            "角色名": {{
-                "description": "string (角色描述)",
-                "attributes": {{
-                    "status": "string (活跃/死亡/退场)",
-                    "location": "string (当前所在地点)",
-                    "title": "string (可选)",
-                    "occupation": "string (可选)",
-                    "rank": "string (可选)",
-                    "faction": "string (可选)"
+    ### 2. 目前章节的世界状态
+    {world_state_str}
+
+    现有角色发展数据:
+    {character_development_str}
+
+    章节内容预览:
+    {params.get('chapter_content', '')}
+
+    请按照以下JSON格式返回评估结果：
+    {{
+        "overall_score": "number (0-10，基于细分维度计算)",
+        "quality_verdict": "string (根据分数评定，如'卓越', '优秀', '良好', '合格'等)",
+        "strengths": "array of strings (列出章节的主要优点)",
+        "weaknesses": "array of strings (列出章节的主要待改进方面)",
+        "detailed_scores": {{
+            "plot_pacing_and_appeal": "number (0-2)",
+            "characterization_and_consistency": "number (0-2)", 
+            "writing_quality_and_immersion": "number (0-2)",
+            "structure_and_cohesion": "number (0-2)",
+            "world_state_consistency": "number (0-2)"
+        }},
+        "consistency_issues": [
+            {{
+                "type": "string (枚举: CHARACTER, ITEM, RELATIONSHIP, SKILL, TIMELINE, LOCATION, CULTIVATION)", 
+                "description": "string (具体问题描述)", 
+                "severity": "string (枚举: High, Medium, Low)",
+                "suggestion": "string (修复建议)"
+            }}
+        ],
+        "character_status_changes": [
+            {{
+                "character_name": "string",
+                "status": "string (枚举: active, dead, exited)", 
+                "reason": "string (状态变化原因)",
+                "chapter": "number"
+            }}
+        ],
+        "world_state_changes": {{
+            // 严格遵守字段约定，重新组织为修为+物品+功法结构
+            "characters": {{
+                "角色名": {{
+                    "description": "string (角色描述)",
+                    "attributes": {{
+                        "status": "string (活跃/死亡/退场)",
+                        "location": "string (当前所在地点)",
+                        "title": "string (可选)",
+                        "occupation": "string (可选)",
+                        "faction": "string (可选)",
+                        "cultivation_level": "string (修为等级)",
+                        "cultivation_system": "string (修为体系)"
+                    }}
+                }}
+            }},
+            "cultivation_items": {{
+                "物品名": {{
+                    "description": "string (物品描述)",
+                    "owner": "string (拥有者)",
+                    "type": "string (丹药/法宝/材料/符箓等)",
+                    "quality": "string (品质等级)",
+                    "status": "string (物品状态)",
+                    "location": "string (物品位置)"
+                }}
+            }},
+            "cultivation_skills": {{
+                "技能名": {{
+                    "description": "string (技能描述)",
+                    "owner": "string (拥有者)",
+                    "type": "string (功法/神通/秘术/体质等)",
+                    "level": "string (掌握程度)",
+                    "quality": "string (品质等级)",
+                    "status": "string (技能状态)"
+                }}
+            }},
+            "relationships": {{
+                "角色A-角色B": {{
+                    "type": "string (关系类型)",
+                    "description": "string (关系描述)",
+                    "status": "string (关系状态)"
+                }}
+            }},
+            "locations": {{
+                "地点名": {{
+                    "description": "string (地点描述)",
+                    "status": "string (地点状态)"
                 }}
             }}
         }},
-        "items": {{
-            "物品名": {{
-                "description": "string (物品描述)",
-                "owner": "string (拥有者)",
-                "status": "string (物品状态)",
-                "location": "string (物品位置)"
-            }}
-        }},
-        "relationships": {{
-            "角色A-角色B": {{
-                "type": "string (关系类型)",
-                "description": "string (关系描述)",
-                "status": "string (关系状态)"
-            }}
-        }},
-        "skills": {{
-            "技能名": {{
-                "description": "string (技能描述)",
-                "owner": "string (拥有者)",
-                "level": "string (技能等级)",
-                "status": "string (技能状态)"
-            }}
-        }},
-        "locations": {{
-            "地点名": {{
-                "description": "string (地点描述)",
-                "status": "string (地点状态)"
-            }}
-        }}
-    }},
-    "character_development_assessment": {{
-        // 专注于本章节的角色发展和名场面，不包含完整的角色模板
-        "new_characters_introduced": [
-            {{
-                "name": "string",
-                "role_type": "string (主角/重要配角/次要配角)", 
-                "initial_impression": "string (给读者的第一印象)",
-                "development_potential": "string (未来发展潜力)"
-            }}
-        ],
-        "existing_characters_development": [
-            {{
-                "name": "string",
-                "growth_shown": "string (本章展现的成长或变化)",
-                "consistency_issues": "string (与过往设定的不一致之处，若无则为'无')", 
-                "development_suggestions": [
-                    "具体的发展建议1",
-                    "具体的发展建议2"
-                ]
-            }}
-        ],
-        "iconic_scenes_identified": [
-            {{
-                "character": "string",
-                "scene_description": "string (场景具体描述)",
-                "trait_demonstrated": "string (场景展现的角色特质)",
-                "impact_level": "string (High/Medium/Low)",
-                "chapter": "number (发生章节)"
-            }}
-        ],
-        "character_interactions": [
-            {{
-                "characters": ["角色A", "角色B"],
-                "interaction_type": "string (对话/合作/冲突/情感交流等)",
-                "significance": "string (互动的重要性)",
-                "relationship_development": "string (对关系发展的影响)"
-            }}
-        ],
-        "personality_revelations": [
-            {{
-                "character": "string",
-                "trait_revealed": "string (揭示的性格特质)", 
-                "context": "string (揭示的情境)",
-                "consistency": "boolean (是否与之前设定一致)"
-            }}
-        ]
-    }},
-    "assessment_timestamp": "string (生成报告的ISO 8601格式时间戳，例如: '2024-05-16T12:00:00Z')"
-}}
+        "assessment_timestamp": "string (生成报告的ISO 8601格式时间戳，例如: '2024-05-16T12:00:00Z')"
+    }}
 
-重要说明：
-1. world_state_changes 只包含本章节新增或发生变化的世界状态元素
-2. character_development_assessment 专注于角色发展和名场面，不包含完整的角色模板
-3. 对于已存在但未变化的元素，不要包含在返回数据中
-4. 系统会自动处理first_appearance和last_updated字段
-5. 保持与之前世界状态的一致性，只报告本章节带来的变化
-"""
-
-    # ==================== 优化相关方法 ====================
+    重要说明：
+    1. 严格按照新的分类结构记录：修为+物品+功法
+    2. 角色修为信息集中在characters的cultivation_level和cultivation_system字段
+    3. 所有修炼相关物品归入cultivation_items，并按类型分类
+    4. 所有功法技能归入cultivation_skills，并按类型分类
+    5. world_state_changes只包含本章节新增或发生变化的世界状态元素
+    """
 
     def optimize_chapter_content(self, optimization_params: Dict) -> Optional[Dict]:
         """优化章节内容（包含一致性修复）"""
@@ -1103,8 +1078,21 @@ class QualityAssessor:
     def _load_character_development_data(self, novel_title: str) -> Dict:
         """加载角色发展数据 - 修复缺失的方法"""
         return self.world_state_manager._load_character_development_data(novel_title)
+    
+    def get_cultivation_info_for_previous_summary(self, novel_title: str) -> str:
+        """获取修为信息用于生成前情提要"""
+        cultivation_info = self.world_state_manager.get_main_characters_cultivation(novel_title)
+        
+        if not cultivation_info:
+            return ""
+        
+        # 格式化修为信息
+        cultivation_text = "修为情况："
+        for char_name, level in cultivation_info.items():
+            cultivation_text += f"{char_name}（{level}）"
+        
+        return cultivation_text
 
-    # ==================== 向后兼容的委托方法 ====================
 
     def load_previous_assessments(self, novel_title: str, novel_data: Dict = None) -> Dict:
         """向后兼容：加载之前章节的评估数据"""

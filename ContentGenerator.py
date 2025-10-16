@@ -939,9 +939,9 @@ class ContentGenerator:
         
         # 构建情绪相关的提示词部分 - 修复版本
         emotional_context_parts = [
-            f"  **情绪发展指导**: {current_emotional_focus} (目标强度: {target_intensity})",
-            f"  **目标读者情绪**: {target_reader_emotion}",
-            f"  **关键场景设计**: {key_scenes_design}"
+            f"**情绪发展指导**: {current_emotional_focus} (目标强度: {target_intensity})",
+            f"**目标读者情绪**: {target_reader_emotion}",
+            f"**关键场景设计**: {key_scenes_design}"
         ]
         
         if is_turning_point:
@@ -983,9 +983,13 @@ class ContentGenerator:
     **小说简介**: {chapter_params.get("novel_synopsis")}
     {emotional_context}
     **世界观/角色/写作计划**: {chapter_params.get("worldview_info")}, {chapter_params.get("character_info")}, {chapter_params.get("stage_writing_plan")}
-    **前情提要**: {chapter_params.get("previous_chapters_summary")}
-    **上下文指导**: {chapter_params.get("event_driven_guidance")}, {chapter_params.get("foreshadowing_guidance")}
-    **角色发展指导**: {chapter_params.get("character_development_guidance")}
+    **前情提要**: 
+    {chapter_params.get("previous_chapters_summary")}
+    **上下文指导**: 
+    {chapter_params.get("event_driven_guidance")}, 
+    {chapter_params.get("foreshadowing_guidance")}
+    **角色发展指导**: 
+    {chapter_params.get("character_development_guidance")}
 
     # 你的任务
     请根据以上所有信息，为第 {chapter_params.get("chapter_number")} 章生成一份JSON格式的"创作蓝图"。
@@ -1406,7 +1410,7 @@ class ContentGenerator:
                 # 设置默认值
                 if param == 'main_character_instruction' and not content_params.get(param):
                     content_params[param] = ""
-        
+        cultivation_text = self.quality_assessor.get_cultivation_info_for_previous_summary(chapter_params.get('novel_title'))
         # 检查设计方案中的情绪设计
         emotional_design = chapter_design.get("emotional_design", {})
         print(f"  🎭 设计方案中的情绪设计: {emotional_design}")
@@ -1420,7 +1424,11 @@ class ContentGenerator:
     {json.dumps(chapter_design, ensure_ascii=False, indent=2)}
     【写作风格】
     {content_params.get('writing_style_guide',{})}
-
+    **前情提要**:
+    注意上下文衔接 
+    {chapter_params.get("previous_chapters_summary")}
+    注意修为情况
+    {cultivation_text}
     ## 🎭 特别情绪指导
     请特别关注情绪设计部分，确保本章的情感表达与以下要求一致：
     - 情感重点: {emotional_design.get('target_emotion', '推进情感发展')}
