@@ -453,15 +453,59 @@ class ContentGenerator:
                 
                 if optimize_needed:
                     print(f"  🔧 进行优化: {optimize_reason}")
-                    optimized_data = self.quality_assessor.optimize_chapter_content({
-                        "assessment_results": json.dumps(assessment, ensure_ascii=False),
-                        "original_content": chapter_data.get("content", ""),
-                        "priority_fix_1": assessment.get("weaknesses", [""])[0] if assessment.get("weaknesses") else "提升质量",
-                        "priority_fix_2": assessment.get("weaknesses", [""])[1] if len(assessment.get("weaknesses", [])) > 1 else "",
-                        "priority_fix_3": assessment.get("weaknesses", [""])[2] if len(assessment.get("weaknesses", [])) > 2 else ""
-                    })
-                    if optimized_data:
-                        chapter_data.update(optimized_data)
+                    
+                    # 保存原始章节数据的完整结构
+                    original_chapter_data = chapter_data.copy()
+                    
+                    # 添加重试机制
+                    max_optimization_retries = 2
+                    optimized_data = None
+                    
+                    for retry in range(max_optimization_retries):
+                        try:
+                            optimized_data = self.quality_assessor.optimize_chapter_content({
+                                "assessment_results": json.dumps(assessment, ensure_ascii=False),
+                                "original_content": chapter_data.get("content", ""),
+                                "priority_fix_1": assessment.get("weaknesses", [""])[0] if assessment.get("weaknesses") else "提升质量",
+                                "priority_fix_2": assessment.get("weaknesses", [""])[1] if len(assessment.get("weaknesses", [])) > 1 else "",
+                                "priority_fix_3": assessment.get("weaknesses", [""])[2] if len(assessment.get("weaknesses", [])) > 2 else "",
+                                "novel_title": novel_data["novel_title"],
+                                "chapter_number": chapter_number,
+                                "chapter_title": chapter_data.get("chapter_title", ""),
+                                "writing_style_guide": novel_data.get("writing_style_guide", {})
+                            })
+                            
+                            if optimized_data and optimized_data.get("content"):
+                                print(f"  ✅ 第{retry+1}次优化成功")
+                                break
+                            else:
+                                print(f"  ⚠️ 第{retry+1}次优化失败，返回空结果")
+                                optimized_data = None
+                                
+                        except Exception as e:
+                            print(f"  ❌ 第{retry+1}次优化过程异常: {e}")
+                            optimized_data = None
+                    
+                    if optimized_data and optimized_data.get("content"):
+                        # === 关键修复：保持原始章节数据结构，只更新内容 ===
+                        chapter_data["content"] = optimized_data.get("content")
+                        
+                        # 更新字数统计（如果优化器提供了）
+                        if optimized_data.get("word_count"):
+                            chapter_data["word_count"] = optimized_data.get("word_count")
+                        else:
+                            # 重新计算字数
+                            chapter_data["word_count"] = len(optimized_data.get("content", ""))
+                        
+                        # 添加优化信息到章节数据中（不破坏原有结构）
+                        chapter_data["optimization_info"] = {
+                            "optimized": True,
+                            "original_score": score,
+                            "optimization_summary": optimized_data.get("optimization_summary", ""),
+                            "changes_made": optimized_data.get("changes_made", []),
+                            "retry_count": retry + 1
+                        }
+                        
                         # 重新评估优化后的质量
                         new_assessment = self.quality_assessor.quick_assess_chapter_quality(
                             chapter_data.get("content", ""),
@@ -473,15 +517,33 @@ class ContentGenerator:
                         )
                         new_score = new_assessment.get("overall_score", 0)
                         improvement = new_score - score
+                        
                         print(f"  ✓ 优化完成，新评分: {new_score:.1f}分 (提升{improvement:+.1f}分)")
+                        
+                        # 更新质量评分和评估
+                        chapter_data["quality_score"] = new_score
                         chapter_data["quality_assessment"] = new_assessment
+                        chapter_data["optimization_info"]["new_score"] = new_score
+                        chapter_data["optimization_info"]["improvement"] = improvement
                     else:
-                        print(f"  ⚠️ 优化失败，保持原内容")
-                        chapter_data["quality_assessment"] = assessment
+                        print(f"  ⚠️ 所有优化尝试均失败，保持原内容")
+                        # 添加优化失败标记，但不改变原有数据结构
+                        chapter_data["optimization_info"] = {
+                            "optimized": False,
+                            "reason": "优化过程失败",
+                            "original_score": score
+                        }
                 else:
                     print(f"  ✓ {optimize_reason}")
                     chapter_data["quality_assessment"] = assessment
                 
+                return chapter_data
+                
+            except Exception as e:
+                print(f"  ❌ 质量评估过程中出错: {e}")
+                import traceback
+                traceback.print_exc()
+                # 即使质量评估失败，也返回章节内容
                 return chapter_data
                 
             except Exception as e:
@@ -713,7 +775,7 @@ class ContentGenerator:
         return True
 
     def _handle_chapter_title_uniqueness(self, chapter_data: Dict, chapter_number: int, novel_data: Dict) -> Dict:
-        """处理章节标题唯一性"""
+        """处理章节标题唯一性 - 修复版本"""
         original_title = chapter_data.get("chapter_title", "")
         if not original_title:
             return chapter_data
@@ -731,6 +793,7 @@ class ContentGenerator:
         new_title = self._generate_unique_chapter_title(original_title, chapter_number, novel_data)
         
         if new_title != original_title:
+            # 只更新章节标题，保持其他结构不变
             chapter_data["chapter_title"] = new_title
             chapter_data["title_was_changed"] = True
             chapter_data["original_title"] = original_title
@@ -815,18 +878,21 @@ class ContentGenerator:
         return f"第{chapter_number}章 {base_title}"
 
     def _should_optimize_based_on_config(self, assessment: Dict, chapter_data: Dict) -> Tuple[bool, str]:
-        """基于配置决定是否需要优化"""
+        """基于配置决定是否需要优化 - 修复版本"""
         score = assessment.get("overall_score", 0)
         
-        # 强制优化阈值
-        if score < 8.0:
-            return True, f"评分低于优化阈值7.5分，需要优化"
+        # 强制优化阈值 - 降低到8.5分
+        if score < 8.5:
+            return True, f"评分{score:.1f}低于优化阈值8.5分，需要优化"
         
-        # 建议优化范围
-        if score < 8.0:
-            return True, "质量合格但建议优化提升"
+        # 检查严重一致性问题的存在
+        consistency_issues = assessment.get("consistency_issues", [])
+        severe_issues = [issue for issue in consistency_issues if issue.get('severity') == '高']
         
-        return False, "质量良好，跳过优化"
+        if severe_issues:
+            return True, f"存在{len(severe_issues)}个严重一致性问题，需要优化"
+        
+        return False, f"评分{score:.1f}良好，跳过优化"
 
     def generate_chapter_content(self, chapter_params: Dict) -> Optional[Dict]:
         """生成章节内容 - 严格两步法：先设计方案，再生成内容"""

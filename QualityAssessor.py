@@ -1,5 +1,3 @@
-"""质量评估器类 - 专注质量评估和优化"""
-
 import re
 import json
 import os
@@ -331,6 +329,7 @@ class QualityAssessor:
     在返回的world_state_changes中，请严格遵守以下字段结构：
 
     **角色 (characters):**
+    - name: string (角色名字)
     - description: string (角色当前状态描述)
     - attributes: object (包含以下固定字段)
       - status: string (活跃/死亡/退场/重伤/失踪)
@@ -446,6 +445,7 @@ class QualityAssessor:
             // 严格遵守字段约定，重新组织为修为+物品+功法结构
             "characters": {{
                 "角色名": {{
+                    "name": "string (角色名)",
                     "description": "string (角色描述)",
                     "attributes": {{
                         "status": "string (活跃/死亡/退场)",
@@ -504,87 +504,113 @@ class QualityAssessor:
     """
 
     def optimize_chapter_content(self, optimization_params: Dict) -> Optional[Dict]:
-        """优化章节内容（包含一致性修复）"""
-        user_prompt = self._generate_optimization_prompt(optimization_params)
-        result = self.api_client.generate_content_with_retry(
-            "chapter_optimization", 
-            user_prompt, 
-            purpose="章节内容优化"
-        )
-        return result
+        """优化章节内容 - 返回标准章节格式"""
+        try:
+            user_prompt = self._generate_optimization_prompt(optimization_params)
+            result = self.api_client.generate_content_with_retry(
+                "chapter_optimization", 
+                user_prompt, 
+                purpose="章节内容优化",
+                max_retries=3
+            )
+            
+            # 验证优化结果并转换为标准章节格式
+            if result and isinstance(result, dict) and result.get("content"):
+                print(f"  ✅ 章节优化成功，生成内容长度: {len(result.get('content', ''))}")
+                
+                # 构建标准章节格式的返回数据
+                standard_chapter_data = {
+                    "content": result.get("content"),
+                    "word_count": result.get("word_count", len(result.get("content", ""))),
+                    # 保留优化器返回的额外信息，但放在单独的字段中
+                    "optimization_details": {
+                        "optimization_summary": result.get("optimization_summary", ""),
+                        "changes_made": result.get("changes_made", []),
+                        "quality_improvement": result.get("quality_improvement", "")
+                    }
+                }
+                
+                return standard_chapter_data
+            else:
+                print(f"  ❌ 章节优化失败，返回无效结果: {type(result)}")
+                return None
+                
+        except Exception as e:
+            print(f"  ❌ 章节优化过程异常: {e}")
+            return None
 
     def _generate_optimization_prompt(self, params: Dict) -> str:
-        """生成章节优化提示词（包含一致性修复）"""
-        assessment = json.loads(params.get("assessment_results", "{}"))
+        """生成章节优化提示词 - 要求返回标准章节格式"""
+        try:
+            assessment = json.loads(params.get("assessment_results", "{}"))
+        except:
+            assessment = {}
+            
         original_content = params.get("original_content", "")
-        
-        # 获取一致性问题和世界状态
-        consistency_issues = assessment.get('consistency_issues', [])
-        world_state_changes = assessment.get('world_state_changes', {})
-        
-        consistency_fixes = ""
-        if consistency_issues:
-            consistency_fixes = "需要修复的一致性问题和建议：\n"
-            for issue in consistency_issues[:3]:  # 只处理前3个最严重的问题
-                consistency_fixes += f"- {issue.get('type')}: {issue.get('description')} (严重程度: {issue.get('severity')})\n"
-                consistency_fixes += f"  建议: {issue.get('suggestion')}\n"
+        novel_title = params.get("novel_title", "未知小说")
+        chapter_number = params.get("chapter_number", 0)
+        chapter_title = params.get("chapter_title", "")
+        writing_style_guide = params.get("writing_style_guide", {})
         
         # 获取完整的世界状态用于参考
-        novel_title = params.get('novel_title', 'unknown')
         full_world_state = self.world_state_manager.load_previous_assessments(novel_title)
         
+        # 构建优化指导
+        weaknesses = assessment.get('weaknesses', [])
+        consistency_issues = assessment.get('consistency_issues', [])
+        
+        optimization_guide = "## 主要优化方向\n"
+        if weaknesses:
+            optimization_guide += "### 质量问题修复\n"
+            for i, weakness in enumerate(weaknesses[:3], 1):
+                optimization_guide += f"{i}. {weakness}\n"
+        
+        if consistency_issues:
+            optimization_guide += "### 一致性问题修复\n"
+            for i, issue in enumerate(consistency_issues[:2], 1):
+                optimization_guide += f"{i}. {issue.get('description', '')} - 建议: {issue.get('suggestion', '')}\n"
+        
         return f"""
-    请根据以下评估结果对章节内容进行优化，特别关注一致性问题的修复：
+    你是一个专业的小说编辑，需要对以下章节内容进行优化。请保持原有的章节结构和风格，只针对质量问题进行调整。
 
-    质量评估结果:
-    - 总体评分: {assessment.get('overall_score', 0)}/10分
-    - 主要问题: {', '.join(assessment.get('weaknesses', []))}
-    - 优化强度: {params.get('optimization_intensity', '中度优化')}
+    ## 优化任务信息
+    - **小说标题**: {novel_title}
+    - **章节标题**: {chapter_title}
+    - **章节编号**: 第{chapter_number}章
+    - **当前评分**: {assessment.get('overall_score', 0)}/10分
+    - **质量评级**: {assessment.get('quality_verdict', '未知')}
 
-    {consistency_fixes}
+    ## 需要优化的主要问题
+    {optimization_guide}
 
-    本章节世界状态变化:
-    {json.dumps(world_state_changes, ensure_ascii=False, indent=2) if world_state_changes else "无新增变化"}
+    ## 写作风格参考
+    {json.dumps(writing_style_guide, ensure_ascii=False, indent=2) if writing_style_guide else "无特定风格要求"}
 
-    完整世界状态参考:
-    {json.dumps(full_world_state, ensure_ascii=False, indent=2) if full_world_state else "无"}
+    ## 世界状态参考（请确保一致性）
+    {json.dumps(full_world_state, ensure_ascii=False, indent=2) if full_world_state else "无世界状态数据"}
 
-    需要重点优化的方面:
-    1. {params.get('priority_fix_1', '提升整体质量')}
-    2. {params.get('priority_fix_2', '')}
-    3. {params.get('priority_fix_3', '')}
-
-    原始内容:
+    ## 原始章节内容
     {original_content}
 
-    优化要求:
-    1. 保持原有情节和核心内容不变
-    2. 重点解决上述质量问题
-    3. 消除明显的AI生成痕迹
-    4. 修复所有一致性相关问题
-    5. 确保与之前章节的世界状态保持一致
+    ## 优化要求
+    1. **保持核心情节**：不改变主要情节发展
+    2. **提升文笔质量**：改善语言表达，消除AI痕迹
+    3. **修复一致性问题**：确保角色、物品、关系等要素的一致性
+    4. **增强可读性**：优化段落结构和叙事节奏
+    5. **保持原有结构**：章节标题、段落结构等保持不变
+    6. **目标字数**：优化后内容长度应在2000-3500字之间
 
-    ## 2. 写作风格要求
-    **写作风格**: {params.get('writing_style_guide', '无特定要求，请保持语言流畅自然。')}
-
-    ## 3. 内容要求
-    - 输出正文超过2000字
-    - 章节结尾设置悬念，引导读者继续阅读
-    - 保持情节推进和角色发展
-    - 确保角色、物品、关系、技能等要素的一致性
-
-    请返回优化后的完整章节内容，并按照以下JSON格式输出：
+    ## 输出格式要求
+    请返回优化后的完整章节内容，使用以下标准的JSON格式：
     {{
-        "content": "优化后的完整章节内容",
-        "optimization_summary": "优化总结", 
+        "content": "优化后的完整章节内容，保持原有的章节标题和段落结构",
+        "word_count": 优化后的字数统计,
+        "optimization_summary": "简要说明优化重点",
         "changes_made": ["具体修改1", "具体修改2", "具体修改3"],
-        "consistency_fixes": ["一致性修复1", "一致性修复2"],
-        "word_count": 优化后字数,
-        "quality_improvement": "质量提升说明",
-        "world_state_changes": {{
-            // 优化过程中产生的世界状态变化（增量）
-        }}
+        "quality_improvement": "质量提升说明"
     }}
+
+    请确保返回的内容可以直接替换原始章节内容，同时保持所有必要的章节元素。
     """
 
     def _quick_optimize_chapter(self, chapter_data: Dict, assessment: Dict) -> Optional[Dict]:

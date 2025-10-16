@@ -302,6 +302,7 @@ class WorldStateManager:
         
         ALLOWED_FIELDS = {
             "characters": {
+                "name": str,
                 "description": str,
                 "attributes": {
                     "status": str,
@@ -1488,7 +1489,7 @@ class WorldStateManager:
         return enhanced_status
     
     def infer_emotional_state_enhanced(self, char_data: Dict, world_char_data: Dict, novel_title: str) -> str:
-        """增强版情绪状态推断 - 基于角色实际状态"""
+        """通用情绪状态推断模板 - 基于角色状态和描述分析"""
         
         # 如果数据为空，返回默认值
         if not char_data and not world_char_data:
@@ -1496,119 +1497,96 @@ class WorldStateManager:
         
         attributes = world_char_data.get("attributes", {}) if world_char_data else {}
         description = world_char_data.get("description", "") if world_char_data else ""
-        
-        print(f"  推断情绪状态: {attributes.get('name', '未知角色')}")
-        print(f"    位置: {attributes.get('location', '未知')}")
-        print(f"    状态: {attributes.get('status', '活跃')}")
-        print(f"    描述片段: {description[:50]}...")
+        character_name = attributes.get("name", "")
         
         # 1. 基于角色状态的直接推断
         status = attributes.get("status", "活跃")
-        if status == "死亡":
-            return "终结"
-        elif status == "重伤":
-            return "痛苦"
-        elif status == "重伤昏迷":
-            return "昏迷"
-        elif status == "失踪":
-            return "迷茫"
+        status_emotion_map = {
+            "死亡": "终结", "重伤": "痛苦", "重伤昏迷": "昏迷", "失踪": "迷茫",
+            "濒死": "绝望", "被囚": "压抑", "逃亡": "恐惧"
+        }
+        if status in status_emotion_map:
+            return status_emotion_map[status]
         
-        # 2. 基于位置的详细推断
+        # 2. 基于描述文本的情感关键词分析
+        description_lower = description.lower() if description else ""
+        
+        # 积极情绪关键词（权重从高到低）
+        strong_positive = ["喜悦", "兴奋", "激动", "狂喜", "满足", "得意"]
+        moderate_positive = ["高兴", "愉悦", "欣慰", "安心", "平静", "专注"]
+        weak_positive = ["满意", "期待", "好奇", "悠闲"]
+        
+        # 消极情绪关键词（权重从高到低）
+        strong_negative = ["愤怒", "暴怒", "绝望", "恐惧", "恐慌", "痛苦"]
+        moderate_negative = ["沮丧", "失望", "焦虑", "紧张", "屈辱", "震惊"]
+        weak_negative = ["不满", "担忧", "困惑", "疲惫"]
+        
+        # 复杂情绪关键词
+        complex_emotions = ["深邃", "内敛", "隐忍", "坚定", "决绝", "矛盾"]
+        
+        # 检查描述中的关键词（按权重顺序）
+        for keyword in strong_positive:
+            if keyword in description_lower:
+                return keyword
+        
+        for keyword in strong_negative:
+            if keyword in description_lower:
+                return keyword
+        
+        for keyword in moderate_positive:
+            if keyword in description_lower:
+                return keyword
+        
+        for keyword in moderate_negative:
+            if keyword in description_lower:
+                return keyword
+        
+        for keyword in complex_emotions:
+            if keyword in description_lower:
+                return keyword
+        
+        for keyword in weak_positive:
+            if keyword in description_lower:
+                return keyword
+        
+        for keyword in weak_negative:
+            if keyword in description_lower:
+                return keyword
+        
+        # 3. 基于情境的推断
         current_location = attributes.get("location", "")
-        if not current_location:
-            current_location = ""
         
-        # 危险位置的情绪
-        if any(word in current_location for word in ["战场", "前线", "破碎", "危险", "极度危险"]):
+        # 战斗/危险情境
+        if any(word in description_lower for word in ["战斗", "厮杀", "危险", "危机", "追杀"]):
             return "紧张"
-        elif any(word in current_location for word in ["途中", "追踪", "移动"]):
-            return "警惕"
-        elif any(word in current_location for word in ["臭水沟", "狼狈"]):
-            return "羞愤"
-        elif any(word in current_location for word in ["执法堂", "被带走"]):
-            return "不安"
-        elif "房梁" in current_location:
-            return "愉悦"  # 陆安在房梁上看戏
         
-        # 3. 基于描述文本的情感分析
-        description_lower = description.lower()
-        
-        # 积极情绪关键词
-        positive_words = ["兴奋", "愉悦", "喜悦", "开心", "快乐", "期待", "悠闲", "吃瓜", "看戏", "点评"]
-        if any(word in description_lower for word in positive_words):
+        # 突破/成长情境
+        if any(word in description_lower for word in ["突破", "晋升", "领悟", "炼化", "成功"]):
             return "兴奋"
         
-        # 消极情绪关键词
-        negative_words = ["恐慌", "恐惧", "害怕", "惊怒", "愤怒", "焦急", "悲伤", "痛苦", "沮丧", "绝望"]
-        if any(word in description_lower for word in negative_words):
-            for word in negative_words:
-                if word in description_lower:
-                    return word
+        # 失败/挫折情境
+        if any(word in description_lower for word in ["失败", "羞辱", "嘲讽", "退婚", "休书"]):
+            return "愤怒"
         
-        # 紧张情绪关键词
-        tension_words = ["紧张", "警惕", "严肃", "专注", "戒备", "威压", "危机"]
-        if any(word in description_lower for word in tension_words):
-            return "紧张"
+        # 安全/修炼情境
+        if any(word in description_lower for word in ["闭关", "修炼", "安宁", "踏实", "安全"]):
+            return "平静"
         
-        # 4. 基于角色特定情况的推断
-        character_name = attributes.get("name", "")
-        if character_name:
-            # 陆安的特殊情况 - 在房梁上看戏吃灵果
-            if "陆安" in character_name and "房梁" in current_location:
-                return "愉悦"
-            
-            # 李默被重伤
-            if "李默" in character_name and "重伤" in status:
-                return "痛苦"
-            
-            # 张狂被执法长老带走
-            if "张狂" in character_name and "执法堂" in current_location:
-                return "愤怒"
-            
-            # 林寻和苏清影濒死
-            if character_name in ["林寻", "苏清影"] and "濒死" in description_lower:
-                return "濒死"
-            
-            # 李青玄面对灭宗危机
-            if "李青玄" in character_name and any(word in description_lower for word in ["惊怒", "悲壮", "危机"]):
-                return "悲壮"
-            
-            # 厉九幽复仇的癫狂
-            if "厉九幽" in character_name and "癫狂" in description_lower:
-                return "癫狂"
-            
-            # 沈长青的神秘恐怖
-            if "沈长青" in character_name and "恐怖" in description_lower:
-                return "深不可测"
+        # 4. 基于位置的推断
+        location_emotion_map = {
+            "战场": "紧张", "前线": "警惕", "思过崖": "反思", 
+            "藏经阁": "专注", "宗门大殿": "严肃", "房梁": "悠闲"
+        }
         
-        # 5. 基于角色性格的推断（如果有角色发展数据）
-        if char_data:
-            personality = char_data.get("personality_traits", {})
-            core_traits = personality.get("core_traits", [])
-            
-            if "胆小" in core_traits:
-                return "恐惧"
-            elif "外冷内热" in core_traits:
-                return "内敛"
-            elif "颓唐" in core_traits:
-                return "消沉"
-            elif any(trait in core_traits for trait in ["坚韧", "沉着"]):
-                return "沉着"
-            elif any(trait in core_traits for trait in ["兴奋", "愉悦"]):
-                return "兴奋"
-            elif any(trait in core_traits for trait in ["倨傲", "霸道"]):
-                return "傲慢"
+        for location_keyword, emotion in location_emotion_map.items():
+            if location_keyword in current_location:
+                return emotion
         
-        # 6. 基于事件的推断
-        if "灭宗" in description_lower or "危机" in description_lower:
-            return "恐慌"
-        elif "突破" in description_lower or "获得" in description_lower:
-            return "兴奋"
-        elif "战斗" in description_lower or "冲突" in description_lower:
-            return "紧张"
-        
-        # 默认情绪
-        return "平静"
+        # 5. 默认情绪基于角色活跃状态
+        if status == "活跃":
+            return "平静"  # 默认活跃角色为平静
+        else:
+            return "未知"
 
     def _get_character_relationships(self, character_name: str, novel_title: str) -> List[Dict]:
         """获取角色关系"""
