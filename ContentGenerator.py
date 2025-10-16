@@ -1050,7 +1050,7 @@ class ContentGenerator:
             print(f"  ✅ 第{chapter_params.get('chapter_number', 1)}章设计方案生成成功")
             # 验证情绪设计是否被正确包含
             if "emotional_design" in design_result:
-                print(f"  🎭 设计方案包含情绪设计: {design_result['emotional_design']}")
+                print(f"  🎭 设计方案包含情绪设计: {len['emotional_design']}")
             else:
                 print(f"  ⚠️ 设计方案未包含情绪设计")
             return design_result
@@ -1410,33 +1410,32 @@ class ContentGenerator:
                 # 设置默认值
                 if param == 'main_character_instruction' and not content_params.get(param):
                     content_params[param] = ""
-        cultivation_text = self.quality_assessor.get_cultivation_info_for_previous_summary(chapter_params.get('novel_title'))
+        cultivation_text = self.quality_assessor.get_comprehensive_previous_summary_enhanced(chapter_params.get('novel_title'), chapter_design.get('chapter_number'))
         # 检查设计方案中的情绪设计
         emotional_design = chapter_design.get("emotional_design", {})
         print(f"  🎭 设计方案中的情绪设计: {emotional_design}")
         
         user_prompt = f"""
-    你是一位顶级的网络小说作家，文笔精湛，擅长叙事。
+你是一位顶级的网络小说作家，文笔精湛，擅长叙事。
 
-    你的唯一任务是：严格、完整、并富有文采地执行以下【章节创作蓝图】，创作出小说《{chapter_params.get('novel_title')}》的第 {chapter_design.get('chapter_number')} 章。
+你的唯一任务是：严格、完整、并富有文采地执行以下【章节创作蓝图】，创作出小说《{chapter_params.get('novel_title')}》的第 {chapter_design.get('chapter_number')} 章。
 
-    【章节创作蓝图】
-    {json.dumps(chapter_design, ensure_ascii=False, indent=2)}
-    【写作风格】
-    {content_params.get('writing_style_guide',{})}
-    **前情提要**:
-    注意上下文衔接 
-    {chapter_params.get("previous_chapters_summary")}
-    注意修为情况
-    {cultivation_text}
-    ## 🎭 特别情绪指导
-    请特别关注情绪设计部分，确保本章的情感表达与以下要求一致：
-    - 情感重点: {emotional_design.get('target_emotion', '推进情感发展')}
-    - 情感强度: {emotional_design.get('emotional_intensity', '中')}
-    - 读者情感体验: {emotional_design.get('reader_emotional_journey', '期待与投入')}
+【章节创作蓝图】
+{json.dumps(chapter_design, ensure_ascii=False, indent=2)}
+【写作风格】
+{content_params.get('writing_style_guide',{})}
+**前情提要**:
+注意上下文衔接 
+{chapter_params.get("previous_chapters_summary")}
+{cultivation_text}
+## 🎭 特别情绪指导
+请特别关注情绪设计部分，确保本章的情感表达与以下要求一致：
+- 情感重点: {emotional_design.get('target_emotion', '推进情感发展')}
+- 情感强度: {emotional_design.get('emotional_intensity', '中')}
+- 读者情感体验: {emotional_design.get('reader_emotional_journey', '期待与投入')}
 
-    在写作过程中，请时刻记住这些情感目标，通过对话、描写和心理活动来传达相应的情感。
-    """
+在写作过程中，请时刻记住这些情感目标，通过对话、描写和心理活动来传达相应的情感。
+"""
         print(f"  ✍️ 根据设计方案生成第{chapter_params['chapter_number']}章内容...")
         content_result = self.api_client.generate_content_with_retry(
             "chapter_content_generation", 

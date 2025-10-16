@@ -296,38 +296,51 @@ class QualityAssessor:
     **角色 (characters):**
     - description: string (角色当前状态描述)
     - attributes: object (包含以下固定字段)
-    - status: string (活跃/死亡/退场)
-    - location: string (当前所在地点)
-    - title: string (称号/头衔，可选)
-    - occupation: string (职业/身份，可选)
-    - faction: string (所属势力，可选)
-    - cultivation_level: string (修为等级) # 核心：角色当前修为
-    - cultivation_system: string (修为体系) # 核心：修仙/异能/武侠等
+      - status: string (活跃/死亡/退场/重伤/失踪)
+      - location: string (当前所在地点)
+      - title: string (称号/头衔，可选)
+      - occupation: string (职业/身份，可选)
+      - faction: string (所属势力，可选)
+      - cultivation_level: string (修为等级) # 核心：角色当前修为
+      - cultivation_system: string (修为体系) # 核心：修仙/异能/武侠等
+      - emotional_state: string (情绪状态) # 新增：愤怒/平静/喜悦/悲伤等
 
-    **修炼物品 (cultivation_items):** # 重新分类：所有修炼相关物品
+    **修炼物品 (cultivation_items):**
     - description: string (物品描述)
     - owner: string (拥有者)
-    - type: string (类型：丹药/法宝/材料/符箓等)
+    - type: string (类型：丹药/法宝/材料/符箓/功法典籍等)
     - quality: string (品质：凡品/黄阶/玄阶/地阶/天阶/神品)
-    - status: string (物品状态)
+    - status: string (物品状态：已使用/未使用/损坏/遗失)
     - location: string (物品位置)
+    - effect: string (效果描述) # 新增
 
-    **功法技能 (cultivation_skills):** # 重新分类：所有功法技能
+    **功法技能 (cultivation_skills):**
     - description: string (技能描述)
     - owner: string (拥有者)
-    - type: string (类型：功法/神通/秘术/体质等)
-    - level: string (掌握程度)
+    - type: string (类型：功法/神通/秘术/体质/心法等)
+    - level: string (掌握程度：入门/小成/大成/圆满)
     - quality: string (品质：凡品/黄阶/玄阶/地阶/天阶/神品)
-    - status: string (技能状态)
+    - status: string (技能状态：已掌握/修炼中/封印中)
 
-    **关系 (relationships):**
-    - type: string (关系类型)
-    - description: string (关系描述)
-    - status: string (关系状态)
+    **关系变化 (relationships):** # 增强关系描述
+    - type: string (关系类型：师徒/道侣/兄弟/仇敌/盟友/主仆)
+    - description: string (关系详细描述)
+    - status: string (关系状态：稳固/紧张/破裂/改善)
+    - intimacy_level: number (亲密度1-10) # 新增
+    - conflict_level: number (冲突度1-10) # 新增
+
+    **心理状态记录 (mental_states):** # 新增：专门记录心理状态
+    - character: string (角色名)
+    - emotional_state: string (情绪状态)
+    - motivation: string (当前动机)
+    - internal_conflict: string (内心矛盾)
+    - recent_trauma: string (近期创伤)
+    - hope_fear: string (希望与恐惧)
 
     **地点 (locations):**
     - description: string (地点描述)
-    - status: string (地点状态)
+    - status: string (地点状态：安全/危险/探索中/已废弃)
+    - significance: string (重要性) # 新增
 
     ### 信息记录规则
     请按照以下分类准确记录：
@@ -432,7 +445,7 @@ class QualityAssessor:
                 "角色A-角色B": {{
                     "type": "string (关系类型)",
                     "description": "string (关系描述)",
-                    "status": "string (关系状态)"
+                    "status": "string (目前的实际关系状态)"
                 }}
             }},
             "locations": {{
@@ -1078,20 +1091,120 @@ class QualityAssessor:
     def _load_character_development_data(self, novel_title: str) -> Dict:
         """加载角色发展数据 - 修复缺失的方法"""
         return self.world_state_manager._load_character_development_data(novel_title)
-    
-    def get_cultivation_info_for_previous_summary(self, novel_title: str) -> str:
-        """获取修为信息用于生成前情提要"""
-        cultivation_info = self.world_state_manager.get_main_characters_cultivation(novel_title)
+
+    def get_comprehensive_previous_summary_enhanced(self, novel_title: str, chapter_number: int) -> str:
+        """增强版前情提要生成"""
+        character_status = self.world_state_manager.get_character_comprehensive_status_enhanced(novel_title)
         
-        if not cultivation_info:
-            return ""
+        if not character_status:
+            return "暂无角色状态信息"
         
-        # 格式化修为信息
-        cultivation_text = "修为情况："
-        for char_name, level in cultivation_info.items():
-            cultivation_text += f"{char_name}（{level}）"
+        summary_parts = ["【主要角色状态】"]
         
-        return cultivation_text
+        for char_name, status in character_status.items():
+            char_summary = self._format_character_summary_enhanced(char_name, status, chapter_number)
+            summary_parts.append(char_summary)
+        
+        return "\n".join(summary_parts)
+
+    def _format_character_summary_enhanced(self, char_name: str, status: Dict, current_chapter: int) -> str:
+        """增强版角色摘要格式化"""
+        parts = []
+        
+        basic_info = status["basic_info"]
+        cultivation_info = status["cultivation_info"]
+        mental_state = status["mental_state"]
+        
+        # 基础状态行 - 增强位置和状态显示
+        status_line = f"{char_name}"
+        if cultivation_info.get("cultivation_level") and cultivation_info["cultivation_level"] != "未知":
+            status_line += f"（{cultivation_info['cultivation_level']}）"
+        
+        location = cultivation_info.get("location", "")
+        location_status = cultivation_info.get("location_status", "")
+        
+        if location_status == "移动中":
+            status_line += f" 🚶{location}"
+        else:
+            status_line += f" 📍{location}"
+        
+        parts.append(status_line)
+        
+        # 心理状态和情绪 - 使用推断的情绪
+        emotional_state = mental_state.get("recent_emotional_state", "平静")
+        if mental_state.get("core_traits"):
+            traits = "、".join(mental_state["core_traits"][:2])
+            parts.append(f"  💭{traits}，情绪：{emotional_state}")
+        
+        # 重要关系 - 使用清理后的关系
+        relationships = status["relationships"][:2]
+        if relationships:
+            rel_icons = {
+                "师徒": "👥", "竞争师徒": "⚔️👥", "对手": "⚔️", 
+                "敌对": "🔥", "盟友": "🤝", "道侣": "❤️"
+            }
+            
+            rel_texts = []
+            for rel in relationships:
+                icon = rel_icons.get(rel["type"], "•")
+                rel_texts.append(f"{icon}{rel['character']}（{rel['type']}）")
+            
+            parts.append(f"  🔗关系：{'，'.join(rel_texts)}")
+        
+        # 近期发展
+        recent_dev = status["recent_development"]
+        if recent_dev.get("milestones"):
+            latest_milestone = recent_dev["milestones"][-1]
+            milestone_icon = "⭐" if latest_milestone.get("type") in ["突破", "获得宝物"] else "📌"
+            parts.append(f"  {milestone_icon}近期：{latest_milestone.get('description', '有所进展')}")
+        
+        return "\n".join(parts)
+
+    def _get_recent_important_events(self, world_state: Dict, current_chapter: int) -> List[str]:
+        """获取近期重要事件"""
+        events = []
+        
+        # 检查角色状态变化（死亡、重伤等）
+        characters = world_state.get("characters", {})
+        for char_name, char_data in characters.items():
+            attributes = char_data.get("attributes", {})
+            last_updated = char_data.get("last_updated", 0)
+            
+            # 只关注最近3章内的事件
+            if current_chapter - last_updated <= 3:
+                status = attributes.get("status", "")
+                if status in ["死亡", "重伤", "失踪"]:
+                    events.append(f"• {char_name}{status}")
+        
+        return events[:3]  # 最多返回3个事件
+
+    def _get_key_updates(self, world_state: Dict, current_chapter: int) -> List[str]:
+        """获取关键物品和功法更新"""
+        updates = []
+        
+        # 高品质物品获取
+        cultivation_items = world_state.get("cultivation_items", {})
+        for item_name, item_data in cultivation_items.items():
+            last_updated = item_data.get("last_updated", 0)
+            quality = item_data.get("quality", "")
+            owner = item_data.get("owner", "")
+            
+            if (current_chapter - last_updated <= 3 and 
+                quality in ["地阶", "天阶", "神品"] and owner):
+                updates.append(f"• {owner}获得{quality}物品「{item_name}」")
+        
+        # 重要功法掌握
+        cultivation_skills = world_state.get("cultivation_skills", {})
+        for skill_name, skill_data in cultivation_skills.items():
+            last_updated = skill_data.get("last_updated", 0)
+            quality = skill_data.get("quality", "")
+            owner = skill_data.get("owner", "")
+            
+            if (current_chapter - last_updated <= 3 and 
+                quality in ["地阶", "天阶", "神品"] and owner):
+                updates.append(f"• {owner}掌握{quality}功法「{skill_name}」")
+        
+        return updates[:3]  # 最多返回3个更新
 
 
     def load_previous_assessments(self, novel_title: str, novel_data: Dict = None) -> Dict:
