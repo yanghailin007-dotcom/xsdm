@@ -38,8 +38,6 @@ class QualityAssessor:
             }
         }
 
-    # ==================== 质量评估核心方法 ====================
-    
     def assess_chapter_quality(self, assessment_params: Dict) -> Optional[Dict]:
         """评估章节质量（包含一致性检查）- 增强黄金三章评估"""
         user_prompt = self._generate_chapter_assessment_prompt(assessment_params)
@@ -71,6 +69,11 @@ class QualityAssessor:
             # 2. 处理世界状态增量更新
             if 'world_state_changes' in result:
                 print("🧹 清洗世界状态变化数据...")
+                print(f"   原始数据类型: {type(result['world_state_changes'])}")
+                
+                # 调试：打印原始数据结构
+                for category, elements in result['world_state_changes'].items():
+                    print(f"   {category}: {type(elements)} - {len(elements) if hasattr(elements, '__len__') else 'N/A'}")
                 cleaned_changes = self.world_state_manager._validate_and_clean_world_state_changes(
                     result['world_state_changes'], 
                     chapter_number

@@ -391,7 +391,8 @@ class StagePlanManager:
             print(f"  ⚠️ 第{chapter_number}章没有找到写作计划")
             return {}
         
-        # 获取情绪计划
+        # 获取情绪计划 - 添加详细调试
+        print(f"  🔍 开始获取情绪计划...")
         emotional_plan = self._get_emotional_plan_for_stage(current_stage)
         print(f"  🔍 情绪计划获取结果: {bool(emotional_plan)}")
         
@@ -400,11 +401,14 @@ class StagePlanManager:
         
         # 增强：添加详细情绪指导
         if emotional_plan:
+            print(f"  🔍 开始生成情绪指导...")
             emotional_guidance = self._generate_emotional_guidance_for_chapter(
                 chapter_number, emotional_plan, current_stage
             )
             chapter_context["emotional_guidance"] = emotional_guidance
             print(f"  💖 成功为第{chapter_number}章生成情绪指导")
+            print(f"    情感重点: {emotional_guidance.get('current_emotional_focus', '未知')}")
+            print(f"    情感强度: {emotional_guidance.get('target_intensity', '未知')}")
         else:
             print(f"  ⚠️ 第{chapter_number}章的情绪计划为空")
             chapter_context["emotional_guidance"] = {}
@@ -1348,7 +1352,7 @@ class StagePlanManager:
         stage_plans = novel_data.get("stage_writing_plans", {})
         
         print(f"  🔍 获取阶段 '{stage_name}' 的情绪计划")
-        print(f"  🔍 阶段计划键: {list(stage_plans.keys()) if stage_name in stage_plans else '阶段不存在'}")
+        print(f"  🔍 阶段计划键: {list(stage_plans.keys())}")
         
         if stage_name in stage_plans:
             stage_plan = stage_plans[stage_name]
@@ -1364,6 +1368,13 @@ class StagePlanManager:
                 if "emotional_plan" in writing_plan:
                     emotional_plan = writing_plan["emotional_plan"]
                     print(f"  ✅ 成功获取情绪计划，包含键: {list(emotional_plan.keys())}")
+                    
+                    # 检查情绪分段
+                    emotional_breakdown = emotional_plan.get("chapter_emotional_breakdown", [])
+                    print(f"  🔍 情绪分段数量: {len(emotional_breakdown)}")
+                    for i, breakdown in enumerate(emotional_breakdown):
+                        print(f"    {i+1}. {breakdown.get('chapter_range', '未知范围')} -> {breakdown.get('emotional_focus', '未知重点')}")
+                    
                     return emotional_plan
                 else:
                     print(f"  ⚠️ stage_writing_plan 中没有 emotional_plan")

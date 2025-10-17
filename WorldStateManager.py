@@ -348,6 +348,24 @@ class WorldStateManager:
                 print(f"⚠️ 跳过未知类别: {category}")
                 continue
                 
+            # 处理列表类型的elements
+            if isinstance(elements, list):
+                print(f"🔄 检测到列表格式的 {category}，转换为字典格式...")
+                elements_dict = {}
+                for i, element in enumerate(elements):
+                    if isinstance(element, dict):
+                        # 尝试从元素中获取标识符
+                        element_id = element.get('name') or element.get('id') or f"{category}_{i}"
+                        elements_dict[element_id] = element
+                    else:
+                        print(f"⚠️ 跳过无效列表元素: {element}")
+                elements = elements_dict
+            
+            # 现在elements应该是字典了
+            if not isinstance(elements, dict):
+                print(f"⚠️ 跳过无效数据格式的类别: {category}，期望字典，实际为 {type(elements)}")
+                continue
+                
             cleaned_changes[category] = {}
             allowed_structure = ALLOWED_FIELDS[category]
             
@@ -1601,7 +1619,7 @@ class WorldStateManager:
         return rel_list  
     
     def get_character_comprehensive_status_enhanced(self, novel_title: str, character_names: List[str] = None) -> Dict:
-        """增强版角色综合状态获取 - 修复版本"""
+        """增强版角色综合状态获取 - 修复版本，合并死亡角色"""
         
         print(f"🔄 开始获取增强版角色综合状态...")
         print(f"   小说: {novel_title}")
@@ -1616,9 +1634,13 @@ class WorldStateManager:
         
         print(f"✅ 获取到基础状态，角色数量: {len(basic_status)}")
         
-        # 2. 清理关系矛盾
+        # 2. 合并死亡角色
+        print("🔄 合并死亡角色...")
+        merged_status = self._merge_dead_characters(basic_status)
+        
+        # 3. 清理关系矛盾
         print("🔄 清理关系矛盾...")
-        for char_name, status in basic_status.items():
+        for char_name, status in merged_status.items():
             if "relationships" in status:
                 original_count = len(status["relationships"])
                 status["relationships"] = self.validate_and_clean_relationships(status["relationships"])
@@ -1626,11 +1648,11 @@ class WorldStateManager:
                 if original_count != cleaned_count:
                     print(f"   清理 {char_name} 的关系: {original_count} -> {cleaned_count}")
         
-        # 3. 增强位置描述
+        # 4. 增强位置描述
         print("🔄 增强位置描述...")
-        enhanced_status = self.enhance_location_descriptions(novel_title, basic_status)
+        enhanced_status = self.enhance_location_descriptions(novel_title, merged_status)
         
-        # 4. 更新情绪状态
+        # 5. 更新情绪状态
         print("🔄 更新情绪状态...")
         world_state = self.load_previous_assessments(novel_title)
         character_development = self._load_character_development_data(novel_title)
@@ -1649,9 +1671,75 @@ class WorldStateManager:
                 print(f"     位置: {world_char_data.get('attributes', {}).get('location', '未知')}")
                 print(f"     状态: {world_char_data.get('attributes', {}).get('status', '活跃')}")
         
-        print(f"🎉 增强版角色状态获取完成: {len(enhanced_status)} 个角色")
+        print(f"🎉 增强版角色状态获取完成: {len(enhanced_status)} 个角色 (合并后)")
         
         return enhanced_status
+
+    def _merge_dead_characters(self, character_status: Dict) -> Dict:
+        """合并死亡角色，减少角色数量"""
+        alive_characters = {}
+        dead_characters = []
+        
+        print(f"  🔍 开始合并死亡角色，原始数量: {len(character_status)}")
+        
+        for char_name, status in character_status.items():
+            char_status = status.get("basic_info", {}).get("status", "活跃")
+            
+            if char_status in ["死亡", "dead", "阵亡", "牺牲"]:
+                dead_characters.append(char_name)
+                print(f"   标记为死亡角色: {char_name}")
+            else:
+                alive_characters[char_name] = status
+                print(f"   活跃角色: {char_name} - {char_status}")
+        
+        # 如果有死亡角色，创建合并条目
+        if dead_characters:
+            # 限制死亡角色显示数量，避免过长
+            if len(dead_characters) > 10:
+                display_dead = dead_characters[:10] + [f"等{len(dead_characters)-10}个角色"]
+            else:
+                display_dead = dead_characters
+            
+            dead_names = "、".join(display_dead)
+            alive_characters["已死亡角色"] = {
+                "basic_info": {
+                    "name": dead_names,
+                    "status": "死亡",
+                    "role_type": "已故角色",
+                    "importance": "minor",
+                    "total_appearances": 0,
+                    "last_updated_chapter": 0
+                },
+                "cultivation_info": {
+                    "level": "已故",
+                    "system": "无",
+                    "location": "已故",
+                    "faction": "无",
+                    "title": "已故角色"
+                },
+                "skills": [],
+                "relationships": [],
+                "items": [],
+                "mental_state": {
+                    "core_traits": ["已故"],
+                    "contradictions": "",
+                    "behavior_patterns": "",
+                    "speech_style": "",
+                    "recent_emotional_state": "终结"
+                },
+                "recent_development": {
+                    "milestones": [{"description": "角色已死亡", "chapter": 0}],
+                    "iconic_scenes": [],
+                    "growth_trajectory": "已故"
+                }
+            }
+            
+            print(f"  ✅ 合并死亡角色: {len(dead_characters)} 个 -> 1 个条目")
+            print(f"     死亡角色列表: {dead_names}")
+        
+        print(f"  📊 角色统计: 活跃 {len(alive_characters)} 个, 死亡 {len(dead_characters)} 个")
+        
+        return alive_characters
 
     def _build_comprehensive_status_from_world_state(self, novel_title: str, character_names: List[str] = None) -> Dict:
         """从世界状态直接构建综合状态（备用方法）"""
