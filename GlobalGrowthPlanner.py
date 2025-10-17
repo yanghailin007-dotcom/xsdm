@@ -776,19 +776,58 @@ class GlobalGrowthPlanner:
             return self._create_default_global_plan(total_chapters)
 
     def _get_emotional_context_for_chapter(self, chapter_number: int) -> Dict:
-        """获取章节的情绪上下文"""
+        """获取章节的情绪上下文 - 修复版本"""
         emotional_plan = self.novel_generator.novel_data.get("emotional_development_plan", {})
+        
+        # 调试信息
+        print(f"  🔍 获取情绪上下文 - 章节 {chapter_number}")
+        print(f"  🔍 emotional_plan 类型: {type(emotional_plan)}")
+        
+        # 修复：确保emotional_plan是字典
         if not emotional_plan:
+            print("  ⚠️ 情绪计划为空")
+            return {}
+        
+        if isinstance(emotional_plan, str):
+            print(f"  ⚠️ 情绪计划是字符串，尝试解析")
+            try:
+                emotional_plan = json.loads(emotional_plan)
+            except Exception as e:
+                print(f"  ❌ 解析情绪计划字符串失败: {e}")
+                return {}
+        
+        if not isinstance(emotional_plan, dict):
+            print(f"  ❌ 情绪计划类型错误: {type(emotional_plan)}")
             return {}
         
         # 获取当前阶段
         current_stage = self._get_current_stage(chapter_number)
-        stage_emotional_plan = emotional_plan.get("stage_emotional_planning", {}).get(current_stage, {})
+        print(f"  🔍 当前阶段: {current_stage}")
+        
+        # 修复：安全地访问嵌套字典
+        stage_emotional_planning = emotional_plan.get("stage_emotional_planning", {})
+        if not isinstance(stage_emotional_planning, dict):
+            print(f"  ⚠️ stage_emotional_planning 不是字典: {type(stage_emotional_planning)}")
+            stage_emotional_planning = {}
+        
+        stage_emotional_plan = stage_emotional_planning.get(current_stage, {})
+        if not isinstance(stage_emotional_plan, dict):
+            print(f"  ⚠️ stage_emotional_plan 不是字典: {type(stage_emotional_plan)}")
+            stage_emotional_plan = {}
         
         # 计算章节在阶段中的位置
         stage_range = self._get_stage_range(current_stage)
+        if not stage_range:
+            print(f"  ⚠️ 无法获取阶段范围")
+            return {}
+            
         start_chap, end_chap = parse_chapter_range(stage_range)
-        progress_in_stage = (chapter_number - start_chap + 1) / (end_chap - start_chap + 1)
+        
+        # 避免除零错误
+        if end_chap - start_chap == 0:
+            progress_in_stage = 0
+        else:
+            progress_in_stage = (chapter_number - start_chap + 1) / (end_chap - start_chap + 1)
         
         # 基于进度确定情绪重点
         if progress_in_stage < 0.3:
@@ -801,10 +840,24 @@ class GlobalGrowthPlanner:
             emotional_focus = "情感高潮或转折准备"
             intensity = "高"
         
-        return {
+        result = {
             "current_emotional_tone": stage_emotional_plan.get("emotional_tone", ""),
             "emotional_focus": emotional_focus,
             "target_intensity": intensity,
             "key_emotional_moments": stage_emotional_plan.get("key_emotional_moments", []),
             "reader_experience_goal": stage_emotional_plan.get("reader_experience_goal", "")
-        }    
+        }
+        
+        print(f"  ✅ 第{chapter_number}章情绪上下文生成完成")
+        return result
+
+    def _get_stage_range(self, stage_name: str) -> str:
+        """获取阶段章节范围 - 新增方法"""
+        if not hasattr(self, 'global_growth_plan') or not self.global_growth_plan:
+            return "1-100"
+        
+        for stage in self.global_growth_plan.get("stage_framework", []):
+            if stage.get("stage_name") == stage_name:
+                return stage.get("chapter_range", "1-100")
+        
+        return "1-100"

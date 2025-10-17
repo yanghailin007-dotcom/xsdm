@@ -8,7 +8,11 @@ from datetime import datetime
 
 class WorldStateManager:
     def __init__(self, storage_path: str = "./quality_data"):
-        self.storage_path = storage_path
+        self.storage_path = os.path.normpath(storage_path)
+        
+        print(f"🌐 世界状态管理器初始化:")
+        print(f"   存储路径: {self.storage_path}")
+        print(f"   当前工作目录: {os.getcwd()}")
         
         # 确保存储目录存在
         os.makedirs(storage_path, exist_ok=True)
@@ -492,17 +496,7 @@ class WorldStateManager:
 
     def manage_character_development_table(self, novel_title: str, character_data: Dict, 
                                         current_chapter: int, action: str = "update") -> Dict:
-        """管理角色发展表 - 完整版本
-        
-        Args:
-            novel_title: 小说标题
-            character_data: 角色数据，包含角色信息
-            current_chapter: 当前章节编号
-            action: 操作类型，"add" 添加新角色，"update" 更新现有角色
-        
-        Returns:
-            更新后的所有角色数据
-        """
+        """管理角色发展表 - 修复数据清空问题"""
         character_file = os.path.join(self.storage_path, f"{novel_title}_character_development.json")
         
         print(f"🔄 开始管理角色发展表:")
@@ -510,20 +504,25 @@ class WorldStateManager:
         print(f"   角色: {character_data.get('name')}")
         print(f"   章节: {current_chapter}")
         print(f"   操作: {action}")
-        print(f"   角色数据: {character_data}")
         
         # 确保存储目录存在
         os.makedirs(self.storage_path, exist_ok=True)
         
-        # 加载现有数据 - 修复文件不存在的情况
+        # 加载现有数据 - 修复文件读取问题
         characters = {}
         if os.path.exists(character_file):
             try:
                 with open(character_file, 'r', encoding='utf-8') as f:
-                    characters = json.load(f)
-                print(f"✅ 已加载现有角色数据: {len(characters)} 个角色")
+                    file_content = f.read().strip()
+                    if file_content:  # 确保文件不是空的
+                        characters = json.loads(file_content)
+                        print(f"✅ 已加载现有角色数据: {len(characters)} 个角色")
+                    else:
+                        print(f"⚠️ 角色文件为空，将重新初始化")
+                        characters = {}
             except Exception as e:
                 print(f"❌ 加载角色文件失败: {e}")
+                print(f"   文件路径: {character_file}")
                 characters = {}
         else:
             print(f"🆕 角色发展文件不存在，将创建新文件")
@@ -537,6 +536,9 @@ class WorldStateManager:
         # 评估角色重要性
         importance = self.assess_character_importance(character_data)
         print(f"📊 角色 {character_name} 的重要性评估为: {importance}")
+        
+        # 保存当前角色数量用于比较
+        previous_count = len(characters)
         
         if action == "add":
             # 首次出场时添加
@@ -571,7 +573,7 @@ class WorldStateManager:
                 print(f"   最后更新章节: {current_chapter}")
                 
         elif action == "update":
-            # 更新现有角色
+            # 更新现有角色 - 修复数据丢失问题
             if character_name in characters:
                 # 更新出场次数和最后出场章节
                 characters[character_name]["total_appearances"] = characters[character_name].get("total_appearances", 0) + 1
@@ -581,7 +583,7 @@ class WorldStateManager:
                 
                 print(f"🔄 更新角色: {character_name} (重要性: {current_importance})")
                 
-                # 更新基础字段
+                # 更新基础字段 - 只更新有值的字段
                 base_fields = ["name", "status", "role_type", "importance"]
                 for field in base_fields:
                     if field in character_data and character_data[field]:
@@ -591,21 +593,21 @@ class WorldStateManager:
                             characters[character_name][field] = new_value
                             print(f"   更新字段 {field}: {old_value} -> {new_value}")
                 
-                # 更新修为信息
-                if "cultivation_info" in character_data:
+                # 更新修为信息 - 修复空数据问题
+                if "cultivation_info" in character_data and character_data["cultivation_info"]:
                     if "cultivation_info" not in characters[character_name]:
                         characters[character_name]["cultivation_info"] = {}
                     
                     cultivation_updates = character_data["cultivation_info"]
                     for key, value in cultivation_updates.items():
-                        if value:
+                        if value:  # 只更新非空值
                             old_value = characters[character_name]["cultivation_info"].get(key)
                             if old_value != value:
                                 characters[character_name]["cultivation_info"][key] = value
                                 print(f"   更新修为 {key}: {old_value} -> {value}")
                 
                 # 更新性格特征
-                if "personality_traits" in character_data:
+                if "personality_traits" in character_data and character_data["personality_traits"]:
                     if "personality_traits" not in characters[character_name]:
                         characters[character_name]["personality_traits"] = {}
                     
@@ -627,7 +629,7 @@ class WorldStateManager:
                                     print(f"   更新性格 {key}: {old_value} -> {value}")
                 
                 # 更新背景故事
-                if "background_story" in character_data:
+                if "background_story" in character_data and character_data["background_story"]:
                     if "background_story" not in characters[character_name]:
                         characters[character_name]["background_story"] = {}
                     
@@ -667,7 +669,7 @@ class WorldStateManager:
                             print(f"   新增名场面: {new_scene.get('description', '新场景')}")
                 
                 # 更新关系网络
-                if "relationship_network" in character_data:
+                if "relationship_network" in character_data and character_data["relationship_network"]:
                     if "relationship_network" not in characters[character_name]:
                         characters[character_name]["relationship_network"] = {"allies": [], "rivals": [], "complex_relationships": []}
                     
@@ -716,15 +718,27 @@ class WorldStateManager:
             else:
                 print(f"⚠️ 角色 {character_name} 不存在于发展表中，将自动添加")
                 # 如果角色不存在，自动转为添加操作
-                self.manage_character_development_table(novel_title, character_data, current_chapter, "add")
+                return self.manage_character_development_table(novel_title, character_data, current_chapter, "add")
         
-        # 保存数据
+        # 保存数据 - 添加保护机制
         try:
+            # 检查数据是否有效
+            if not characters:
+                print(f"❌ 警告: 尝试保存空的角色发展表!")
+                return characters
+                
             with open(character_file, 'w', encoding='utf-8') as f:
                 json.dump(characters, f, ensure_ascii=False, indent=2)
+            
+            current_count = len(characters)
             print(f"💾 角色发展表已保存到: {character_file}")
-            print(f"   角色总数: {len(characters)}")
+            print(f"   角色总数: {current_count} (之前: {previous_count})")
             print(f"   文件大小: {os.path.getsize(character_file)} 字节")
+            
+            # 验证保存是否成功
+            if os.path.getsize(character_file) < 10:  # 文件太小，可能保存失败
+                print(f"⚠️ 警告: 保存的文件大小异常，可能保存失败")
+                
         except Exception as e:
             print(f"❌ 保存角色发展表失败: {e}")
             import traceback
@@ -1664,12 +1678,6 @@ class WorldStateManager:
             # 确保传递正确的参数
             emotional_state = self.infer_emotional_state_enhanced(char_data, world_char_data, novel_title)
             status["mental_state"]["recent_emotional_state"] = emotional_state
-            
-            # 调试输出
-            print(f"   {char_name}: 情绪状态 -> {emotional_state}")
-            if world_char_data:
-                print(f"     位置: {world_char_data.get('attributes', {}).get('location', '未知')}")
-                print(f"     状态: {world_char_data.get('attributes', {}).get('status', '活跃')}")
         
         print(f"🎉 增强版角色状态获取完成: {len(enhanced_status)} 个角色 (合并后)")
         
