@@ -1379,7 +1379,7 @@ class NovelGenerator:
                     break
             
             # 批次间延迟
-            batch_delay = 10 if total_chapters > 100 else 5
+            batch_delay = 2 if total_chapters > 100 else 2
             if batch_end < total_chapters:
                 print(f"等待{batch_delay}秒后继续下一批次...")
                 time.sleep(batch_delay)
