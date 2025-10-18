@@ -1561,9 +1561,8 @@ class ContentGenerator:
             
             if result:
                 # 确保返回的结构完整
-                required_keys = ['core_style', 'language_features', 'narrative_pace', 
-                            'dialogue_style', 'description_focus', 'emotional_tone',
-                            'chapter_structure', 'important_notes']
+                required_keys = ['core_style', 'language_characteristics', 'narration_techniques', 
+                            'dialogue_style', 'chapter_techniques', 'key_principles']
                 
                 for key in required_keys:
                     if key not in result:
