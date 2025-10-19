@@ -16,6 +16,13 @@ class APIClient:
         self.Prompts = Prompts
         self.request_times = []
         
+        # 频率限制相关属性
+        self.rate_limit_enabled = self.config["rate_limit"]["enabled"]
+        self.rate_limit_interval = self.config["rate_limit"]["interval"]
+        self.rate_limit_max_requests = self.config["rate_limit"]["max_requests"]
+        self.last_request_time = 0  # 上次请求时间戳
+        self.request_count = 0      # 当前间隔内的请求计数
+        
         # 从配置中获取默认提供商
         self.default_provider = self.config.get("default_provider", "gemini")
         self.available_providers = self._get_available_providers()
@@ -31,6 +38,12 @@ class APIClient:
         print(f"✓ 默认使用: {self.default_provider.upper()}") 
         print(f"✓ 可用提供商: {self.available_providers}")
         
+        # 显示频率限制状态
+        if self.rate_limit_enabled:
+            print(f"⏰ 频率限制: 启用 ({self.rate_limit_interval}秒内最多{self.rate_limit_max_requests}次请求)")
+        else:
+            print("⏰ 频率限制: 禁用")
+        
         # 创建调试目录
         self.debug_dir = "debug_responses"
         os.makedirs(self.debug_dir, exist_ok=True)
@@ -41,7 +54,41 @@ class APIClient:
         
         # 加载已优化的提示词
         self.optimized_prompts = self._load_optimized_prompts()
-    
+
+    def _check_rate_limit(self) -> bool:
+        """检查频率限制，如果需要等待则返回True"""
+        if not self.rate_limit_enabled:
+            return False
+            
+        current_time = time.time()
+        elapsed = current_time - self.last_request_time
+        
+        # 如果超过间隔时间，重置计数器
+        if elapsed > self.rate_limit_interval:
+            self.request_count = 0
+            self.last_request_time = current_time
+            return False
+        
+        # 检查是否超过最大请求数
+        if self.request_count >= self.rate_limit_max_requests:
+            wait_time = self.rate_limit_interval - elapsed
+            if wait_time > 0:
+                print(f"⏰ 频率限制: 需要等待 {wait_time:.1f} 秒")
+                time.sleep(wait_time)
+                # 等待结束后重置
+                self.request_count = 0
+                self.last_request_time = time.time()
+                return False
+        
+        return False
+
+    def _update_rate_limit(self):
+        """更新频率限制计数器"""
+        if self.rate_limit_enabled:
+            self.request_count += 1
+            if self.request_count == 1:  # 第一次请求时设置开始时间
+                self.last_request_time = time.time()
+
     def _load_optimized_prompts(self) -> Dict[str, Dict[str, str]]:
         """加载已优化的提示词"""
         optimized_file = f"{self.optimized_prompts_dir}/optimized_prompts.json"
@@ -244,6 +291,9 @@ class APIClient:
         
         # 智能重试策略
         for attempt in range(self.config["defaults"]["max_retries"]):
+            # 检查频率限制（在重试循环内部，因为重试也算作请求）
+            self._check_rate_limit()
+            
             start_time = time.time()
             timeout = self._calculate_timeout(purpose, attempt)
             
@@ -253,6 +303,9 @@ class APIClient:
                 print(f"  使用流式传输模式")
                 
                 response = requests.post(api_url, headers=headers, json=payload, timeout=timeout, stream=True)
+                
+                # 更新频率限制计数器（只在成功建立连接时计数）
+                self._update_rate_limit()
                 
                 # 检查HTTP状态码
                 if response.status_code != 200:

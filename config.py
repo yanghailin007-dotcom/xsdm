@@ -17,7 +17,13 @@ CONFIG = {
     "models": {
         "deepseek": "deepseek-reasoner",
         "yuanbao": "deepseek-reasoner", 
-        "gemini": "gemini-2.5-pro-maxthinking"
+        "gemini": "gemini-2.5-pro-preview-06-05"
+    },
+    # 在 config.py 或配置文件中添加
+    "rate_limit": {
+        "enabled": True,  # 频率限制开关
+        "interval": 60,   # 限制间隔（秒），默认60秒=1分钟
+        "max_requests": 1 # 间隔内最大请求次数
     },
     "defaults": {
         "temperature": 0.7,
@@ -27,43 +33,6 @@ CONFIG = {
         "chapters_per_batch": 3,
         "max_optimization_attempts": 1,
         "json_retries": 3
-    },
-    "optimization_settings": {
-        # 质量评分优化阈值
-        "quality_thresholds": {
-            "excellent": 9.0,
-            "good": 8.5,
-            "acceptable": 8.0,
-            "needs_optimization": 7.5,
-            "needs_rewrite": 6.0
-        },
-        
-        # 优化强度配置
-        "optimization_intensity": {
-            "high": {
-                "threshold": 7.0,
-                "max_issues": 3,
-                "description": "高强度优化"
-            },
-            "medium": {
-                "threshold": 7.5,
-                "max_issues": 2,
-                "description": "中等强度优化"
-            },
-            "low": {
-                "threshold": 8.0,
-                "max_issues": 1,
-                "description": "轻度优化"
-            }
-        },
-        
-        # 跳过优化的条件
-        "skip_optimization_conditions": {
-            "min_score_skip": 8.5,
-            "min_ai_score_skip": 1.8,
-            "word_count_range": [2000, 3000],
-            "min_score_with_good_words": 8.0
-        }
     },
     "writing_requirements": {
         "platform_style": "番茄小说风格：开局高能、节奏明快、情绪拉动强、对话生动",
@@ -76,27 +45,6 @@ CONFIG = {
         "skip_optimization_threshold": 8.5,
         "quick_assessment_enabled": True,
         "cache_previous_summaries": True
-    },
-    "subplot_ratios": {
-        "by_genre": {
-            "都市情感": {"main": 0.6, "emotional": 0.3, "foreshadowing": 0.1},
-            "玄幻修真": {"main": 0.7, "emotional": 0.15, "foreshadowing": 0.15},
-            "科幻末世": {"main": 0.75, "emotional": 0.1, "foreshadowing": 0.15},
-            "历史权谋": {"main": 0.65, "emotional": 0.2, "foreshadowing": 0.15},
-            "悬疑推理": {"main": 0.6, "emotional": 0.1, "foreshadowing": 0.3},
-            "系统流": {"main": 0.7, "emotional": 0.15, "foreshadowing": 0.15},
-            "无限流": {"main": 0.65, "emotional": 0.15, "foreshadowing": 0.2},
-            "穿越重生": {"main": 0.7, "emotional": 0.2, "foreshadowing": 0.1},
-            "默认": {"main": 0.7, "emotional": 0.2, "foreshadowing": 0.1}
-        },
-        "presets": {
-            "情感主导": {"main": 0.6, "emotional": 0.3, "foreshadowing": 0.1},
-            "悬疑主导": {"main": 0.6, "emotional": 0.1, "foreshadowing": 0.3},
-            "平衡发展": {"main": 0.7, "emotional": 0.15, "foreshadowing": 0.15},
-            "轻度暗线": {"main": 0.8, "emotional": 0.1, "foreshadowing": 0.1},
-            "重度暗线": {"main": 0.6, "emotional": 0.2, "foreshadowing": 0.2},
-            "主线优先": {"main": 0.85, "emotional": 0.1, "foreshadowing": 0.05}
-        }
     },
     "major_event_settings": {
         "event_types": {

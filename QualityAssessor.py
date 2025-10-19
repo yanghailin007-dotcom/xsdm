@@ -13,30 +13,218 @@ class QualityAssessor:
         # 初始化世界状态管理器
         self.world_state_manager = WorldStateManager.WorldStateManager(storage_path)
         
-        # 内化质量阈值配置
-        self.quality_thresholds = {
-            "excellent": 9.5,
-            "good": 9.0,
-            "acceptable": 8.5,
-            "needs_optimization": 8.0,
-            "needs_rewrite": 6.0
-        }
-        
-        # 优化配置
-        self.optimization_settings = {
-            "quality_thresholds": self.quality_thresholds,
-            "skip_optimization_conditions": {
-                "min_score_skip": 8.5,
-                "min_ai_score_skip": 1.8,
-                "word_count_range": [2500, 3500],
-                "min_score_with_good_words": 8.0
+        self.unified_quality_standards = {
+            # === 质量等级标准 ===
+            "quality_grades": {
+                "perfect": 10.0,      # 完美 - 无需优化
+                "excellent": 9.8,     # 优秀 - 轻微优化
+                "good": 9.5,          # 良好 - 建议优化
+                "acceptable": 9.0,    # 合格 - 必须优化
+                "needs_rewrite": 8.5  # 需要重写
             },
-            "optimization_intensity": {
-                "high": {"threshold": 7.0, "max_issues": 5, "description": "重点优化"},
-                "medium": {"threshold": 8.0, "max_issues": 3, "description": "中度优化"}, 
-                "low": {"threshold": 8.5, "max_issues": 2, "description": "轻微优化"}
+            
+            # === 优化决策阈值 ===
+            "optimization_thresholds": {
+                # 章节内容相对宽松（考虑创作难度）
+                "chapter_content": 9.0,
+                # 其他内容要求更高标准
+                "market_analysis": 9.8,
+                "writing_plan": 9.8,
+                "core_worldview": 9.8,
+                "character_design": 9.8,
+                "creative_seed": 9.8,
+                "novel_plan": 9.8
+            },
+            
+            # === 番茄新鲜度评分 ===
+            "freshness_standards": {
+                "excellent": 9.5,     # 极具创新性
+                "good": 9.0,          # 有一定新意
+                "average": 8.0,       # 常见套路
+                "cliche": 7.0         # 老套重复
+            },
+            
+            # === 黄金三章特殊标准 ===
+            "golden_chapters": {
+                1: {"min_quality": 9.2, "min_freshness": 9.0},
+                2: {"min_quality": 9.1, "min_freshness": 8.8},
+                3: {"min_quality": 9.0, "min_freshness": 8.5}
             }
         }
+        
+        # 新鲜度评估标准
+        self.freshness_evaluation_criteria = {
+            "concept_originality": {
+                "weight": 0.3,
+                "description": "核心概念的新颖程度",
+                "evaluation_points": [
+                    "是否使用了过度常见的套路模板",
+                    "世界观设定是否有创新点", 
+                    "主角设定是否独特",
+                    "金手指/系统设计是否有新意"
+                ]
+            },
+            "execution_uniqueness": {
+                "weight": 0.25,
+                "description": "执行方式的独特性",
+                "evaluation_points": [
+                    "情节展开方式是否新颖",
+                    "角色互动模式是否有特色",
+                    "冲突设计是否避免俗套",
+                    "情感表达方式是否独特"
+                ]
+            },
+            "market_differentiation": {
+                "weight": 0.25,
+                "description": "与市场上同类作品的区分度", 
+                "evaluation_points": [
+                    "与热门作品的相似度",
+                    "是否有明显的差异化优势",
+                    "目标读者群体是否明确",
+                    "市场定位是否清晰"
+                ]
+            },
+            "creative_risk": {
+                "weight": 0.2,
+                "description": "创意冒险程度",
+                "evaluation_points": [
+                    "是否敢于尝试新元素",
+                    "是否打破常规设定",
+                    "创新与传统的平衡", 
+                    "读者接受度预估"
+                ]
+            }
+        }
+
+    def assess_freshness(self, content: Dict, content_type: str) -> Dict:
+        """评估内容的新鲜度"""
+        try:
+            freshness_prompt = self._generate_freshness_assessment_prompt(content, content_type)
+            
+            result = self.api_client.generate_content_with_retry(
+                "freshness_assessment",
+                freshness_prompt,
+                purpose=f"{content_type}新鲜度评估"
+            )
+            
+            # 确保返回的结果有完整的结构
+            if not result:
+                return self._get_default_freshness_assessment()
+            
+            # 确保必要的字段都存在
+            required_fields = ["freshness_score", "freshness_verdict", "cliche_elements", "improvement_suggestions"]
+            for field in required_fields:
+                if field not in result:
+                    if field == "improvement_suggestions":
+                        result[field] = ["增加创新元素，避免常见套路"]
+                    elif field == "cliche_elements":
+                        result[field] = []
+                    elif field == "freshness_score":
+                        result[field] = 8.0
+                    elif field == "freshness_verdict":
+                        result[field] = "需要改进"
+            
+            return result
+            
+        except Exception as e:
+            print(f"  ❌ 新鲜度评估失败: {e}")
+            return self._get_default_freshness_assessment()
+
+    def _get_default_freshness_assessment(self) -> Dict:
+        """获取默认的新鲜度评估结果"""
+        return {
+            "freshness_score": 8.0,
+            "freshness_verdict": "评估异常",
+            "cliche_elements": ["评估过程出现异常"],
+            "innovative_elements": [],
+            "improvement_suggestions": ["重新评估内容新鲜度", "增加创新元素", "避免常见套路"]
+        }
+    
+    def _generate_freshness_assessment_prompt(self, content: Dict, content_type: str) -> str:
+        """生成新鲜度评估提示词"""
+        return f"""
+    作为番茄平台内容创新性评估专家，请评估以下{content_type}内容的新鲜度：
+
+    待评估内容：
+    {json.dumps(content, ensure_ascii=False, indent=2)}
+
+    评估维度（满分10分）：
+    1. 概念原创性 (3分)：核心概念是否新颖，避免常见套路
+    2. 执行独特性 (2.5分)：表达方式和情节设计是否独特  
+    3. 市场区分度 (2.5分)：与同类作品的差异化程度
+    4. 创意冒险度 (2分)：是否敢于尝试创新元素
+
+    请特别关注：
+    - 是否过度使用"退婚流"、"废柴逆袭"、"系统文"等常见套路
+    - 世界观设定是否有真正创新点
+    - 角色关系设计是否新颖
+    - 金手指/系统设计是否独特
+    - 情节发展是否可预测
+
+    常见套路检测：
+    - 开局退婚/被退婚
+    - 废柴体质+逆袭
+    - 签到/打卡系统
+    - 过于相似的系统设定
+    - 千篇一律的反派设定
+    - 缺乏新意的修炼体系
+
+    请严格按照以下JSON格式返回评估结果，确保所有字段都存在：
+    {{
+        "freshness_score": 新鲜度评分(0-10),
+        "freshness_verdict": "新鲜度评级",
+        "originality_analysis": "原创性分析",
+        "cliche_elements": ["检测到的套路元素列表，至少提供1-3个"],
+        "innovative_elements": ["创新点列表，至少提供1-3个"], 
+        "improvement_suggestions": ["提升新鲜度建议列表，至少提供2-3个具体建议"]
+    }}
+
+    重要要求：
+    - 如果未检测到套路元素，cliche_elements 设为空数组 []
+    - 如果未发现创新点，innovative_elements 设为空数组 []
+    - improvement_suggestions 必须至少包含2个具体建议
+    - 所有字段都必须存在，不能缺少任何字段
+    """
+
+    def should_optimize_comprehensive(self, assessment: Dict, content_type: str, 
+                                    chapter_number: int = None) -> Tuple[bool, str]:
+        """综合优化决策 - 区分章节和非章节内容"""
+        quality_score = assessment.get("overall_score", 0)
+        freshness_score = assessment.get("freshness_score", 10.0)  # 默认10分
+        
+        standards = self.unified_quality_standards
+        
+        # 章节内容和非章节内容使用不同的标准
+        if content_type == "chapter_content":
+            # 章节内容只检查质量
+            quality_threshold = standards["optimization_thresholds"]["chapter_content"]
+            
+            # 黄金三章特殊检查
+            if chapter_number in [1, 2, 3]:
+                golden_standard = standards["golden_chapters"][chapter_number]
+                if quality_score < golden_standard["min_quality"]:
+                    return True, f"黄金第{chapter_number}章质量分{quality_score:.1f}低于{golden_standard['min_quality']}"
+            
+            # 常规质量检查
+            if quality_score < quality_threshold:
+                return True, f"质量分{quality_score:.1f}低于阈值{quality_threshold}"
+            
+            return False, f"质量{quality_score:.1f}达标"
+        
+        else:
+            # 非章节内容检查质量和新鲜度
+            quality_threshold = standards["optimization_thresholds"].get(content_type, 9.8)
+            freshness_threshold = standards["freshness_standards"]["good"]
+            
+            # 质量检查
+            if quality_score < quality_threshold:
+                return True, f"质量分{quality_score:.1f}低于阈值{quality_threshold}"
+            
+            # 新鲜度检查
+            if freshness_score < freshness_threshold:
+                return True, f"新鲜度{freshness_score:.1f}低于阈值{freshness_threshold}"
+            
+            return False, f"质量{quality_score:.1f}和新鲜度{freshness_score:.1f}均达标"
 
     def assess_chapter_quality(self, assessment_params: Dict) -> Optional[Dict]:
         """评估章节质量（包含一致性检查）- 增强黄金三章评估"""
@@ -920,15 +1108,15 @@ class QualityAssessor:
 
 """
 
-    # ==================== 其他内容类型优化 ====================
-
     def optimize_market_analysis(self, original_content: Dict, assessment: Dict) -> Optional[Dict]:
-        """优化市场分析"""
-        priority_fixes = "\n".join([f"- {weakness}" for weakness in assessment.get("weaknesses", [])[:3]])
+        """优化市场分析 - 支持新鲜度要求"""
+        quality_assessment = assessment.get("quality_assessment", {})
+        weaknesses = quality_assessment.get("weaknesses", [])
+        priority_fixes = "\n".join([f"- {weakness}" for weakness in weaknesses[:3]])
         
         optimization_params = {
             "original_content": json.dumps(original_content, ensure_ascii=False, indent=2),
-            "assessment_results": json.dumps(assessment, ensure_ascii=False),
+            "assessment_results": assessment,  # 直接传递字典
             "priority_fixes": priority_fixes
         }
         
@@ -940,37 +1128,15 @@ class QualityAssessor:
         )
         return result
 
-    def _generate_market_analysis_optimization_prompt(self, params: Dict) -> str:
-        """生成市场分析优化提示词"""
-        return f"""
-请根据以下评估结果优化市场分析内容：
-
-评估结果:
-{params.get('assessment_results', '{}')}
-
-需要重点优化的方面:
-{params.get('priority_fixes', '')}
-
-原始市场分析内容:
-{params.get('original_content', '')}
-
-优化要求:
-1. 保持核心分析和结论不变
-2. 重点解决评估中发现的问题
-3. 提升分析的深度和说服力
-4. 确保数据支撑充分
-5. 优化表达方式和结构
-
-请返回优化后的完整市场分析内容。
-"""
-
     def optimize_writing_plan(self, original_content: Dict, assessment: Dict) -> Optional[Dict]:
-        """优化写作计划"""
-        priority_fixes = "\n".join([f"- {weakness}" for weakness in assessment.get("weaknesses", [])[:3]])
+        """优化写作计划 - 支持新鲜度要求"""
+        quality_assessment = assessment.get("quality_assessment", {})
+        weaknesses = quality_assessment.get("weaknesses", [])
+        priority_fixes = "\n".join([f"- {weakness}" for weakness in weaknesses[:3]])
         
         optimization_params = {
             "original_content": json.dumps(original_content, ensure_ascii=False, indent=2),
-            "assessment_results": json.dumps(assessment, ensure_ascii=False),
+            "assessment_results": assessment,  # 直接传递字典
             "priority_fixes": priority_fixes
         }
         
@@ -981,38 +1147,16 @@ class QualityAssessor:
             purpose="写作计划优化"
         )
         return result
-
-    def _generate_writing_plan_optimization_prompt(self, params: Dict) -> str:
-        """生成写作计划优化提示词"""
-        return f"""
-请根据以下评估结果优化写作计划：
-
-评估结果:
-{params.get('assessment_results', '{}')}
-
-需要重点优化的方面:
-{params.get('priority_fixes', '')}
-
-原始写作计划内容:
-{params.get('original_content', '')}
-
-优化要求:
-1. 保持核心情节结构不变
-2. 重点解决评估中发现的问题
-3. 提升计划的合理性和可行性
-4. 优化节奏安排和情节分布
-5. 加强角色成长和冲突设计
-
-请返回优化后的完整写作计划内容。
-"""
-
+    
     def optimize_core_worldview(self, original_content: Dict, assessment: Dict) -> Optional[Dict]:
-        """优化世界观"""
-        priority_fixes = "\n".join([f"- {weakness}" for weakness in assessment.get("weaknesses", [])[:3]])
+        """优化世界观 - 支持新鲜度要求"""
+        quality_assessment = assessment.get("quality_assessment", {})
+        weaknesses = quality_assessment.get("weaknesses", [])
+        priority_fixes = "\n".join([f"- {weakness}" for weakness in weaknesses[:3]])
         
         optimization_params = {
             "original_content": json.dumps(original_content, ensure_ascii=False, indent=2),
-            "assessment_results": json.dumps(assessment, ensure_ascii=False),
+            "assessment_results": assessment,  # 直接传递字典
             "priority_fixes": priority_fixes
         }
         
@@ -1024,29 +1168,37 @@ class QualityAssessor:
         )
         return result
 
-    def _generate_worldview_optimization_prompt(self, params: Dict) -> str:
-        """生成世界观优化提示词"""
-        return f"""
-请根据以下评估结果优化世界观设定：
 
-评估结果:
-{params.get('assessment_results', '{}')}
-
-需要重点优化的方面:
-{params.get('priority_fixes', '')}
-
-原始世界观内容:
-{params.get('original_content', '')}
-
-"""
-
-    def optimize_character_design(self, original_content: Dict, assessment: Dict) -> Optional[Dict]:
-        """优化角色设计"""
-        priority_fixes = "\n".join([f"- {weakness}" for weakness in assessment.get("weaknesses", [])[:3]])
+    def optimize_novel_plan(self, original_content: Dict, assessment: Dict) -> Optional[Dict]:
+        """优化小说方案 - 支持新鲜度要求"""
+        # 直接从 assessment 字典中获取数据，而不是从字符串
+        quality_assessment = assessment.get("quality_assessment", {})
+        weaknesses = quality_assessment.get("weaknesses", [])
+        priority_fixes = "\n".join([f"- {weakness}" for weakness in weaknesses[:3]])
         
         optimization_params = {
             "original_content": json.dumps(original_content, ensure_ascii=False, indent=2),
-            "assessment_results": json.dumps(assessment, ensure_ascii=False),
+            "assessment_results": assessment,  # 直接传递字典，不序列化为字符串
+            "priority_fixes": priority_fixes
+        }
+        
+        user_prompt = self._generate_novel_plan_optimization_prompt(optimization_params)
+        result = self.api_client.generate_content_with_retry(
+            "novel_plan_optimization", 
+            user_prompt, 
+            purpose="小说方案优化"
+        )
+        return result
+
+    def optimize_character_design(self, original_content: Dict, assessment: Dict) -> Optional[Dict]:
+        """优化角色设计 - 支持新鲜度要求"""
+        quality_assessment = assessment.get("quality_assessment", {})
+        weaknesses = quality_assessment.get("weaknesses", [])
+        priority_fixes = "\n".join([f"- {weakness}" for weakness in weaknesses[:3]])
+        
+        optimization_params = {
+            "original_content": json.dumps(original_content, ensure_ascii=False, indent=2),
+            "assessment_results": assessment,  # 直接传递字典
             "priority_fixes": priority_fixes
         }
         
@@ -1058,23 +1210,6 @@ class QualityAssessor:
         )
         return result
 
-    def _generate_character_design_optimization_prompt(self, params: Dict) -> str:
-        """生成角色设计优化提示词"""
-        return f"""
-请根据以下评估结果优化角色设计：
-
-评估结果:
-{params.get('assessment_results', '{}')}
-
-需要重点优化的方面:
-{params.get('priority_fixes', '')}
-
-原始角色设计内容:
-{params.get('original_content', '')}
-
-"""
-
-    # ==================== 统计分析 ====================
 
     def calculate_quality_statistics(self, quality_records: Dict) -> Dict:
         """计算质量统计数据"""
@@ -1314,3 +1449,461 @@ class QualityAssessor:
     def get_novel_consistency_report(self, novel_title: str) -> Dict:
         """向后兼容：获取小说的整体一致性报告"""
         return self.world_state_manager.get_novel_consistency_report(novel_title)
+    
+    def _generate_market_analysis_optimization_prompt(self, params: Dict) -> str:
+        """市场分析优化提示词 - 增强新鲜度要求"""
+        assessment = params.get("assessment_results", {})
+        freshness_assessment = assessment.get("freshness_assessment", {})
+        freshness_issues = freshness_assessment.get("cliche_elements", [])
+        improvement_suggestions = freshness_assessment.get("improvement_suggestions", [])
+        
+        freshness_guidance = ""
+        if freshness_issues or improvement_suggestions:
+            freshness_guidance = f"""
+    ## 🆕 新鲜度提升要求
+
+    ### 检测到的套路问题
+    {chr(10).join(f"- {issue}" for issue in freshness_issues) if freshness_issues else "- 暂无检测到明显套路元素"}
+
+    ### 创新改进建议
+    {chr(10).join(f"- {suggestion}" for suggestion in improvement_suggestions) if improvement_suggestions else "- 请进一步提升分析的独特性和深度"}
+
+    ### 新鲜度提升方向
+    1. **挖掘独特市场切入点**：避免泛泛而谈，找到具体的、差异化的市场机会
+    2. **提供深度洞察**：不只是罗列数据，要提供有见地的分析
+    3. **差异化竞争策略**：提出与现有作品明显不同的竞争策略
+    4. **创新营销角度**：从新的视角分析市场趋势和读者需求
+    5. **具体可执行建议**：避免空泛描述，提供可落地的具体建议
+    """
+        
+        quality_assessment = assessment.get("quality_assessment", {})
+        weaknesses = quality_assessment.get("weaknesses", [])
+        
+        quality_guidance = ""
+        if weaknesses:
+            quality_guidance = f"""
+    ## 📊 质量提升要求
+
+    ### 主要质量问题
+    {chr(10).join(f"- {weakness}" for weakness in weaknesses[:3])}
+
+    ### 质量改进重点
+    1. **提升分析深度**：确保每个观点都有充分的数据和逻辑支撑
+    2. **优化结构逻辑**：使分析报告结构清晰，逻辑连贯
+    3. **增强可读性**：使用更生动、专业的表达方式
+    4. **加强数据支撑**：为每个结论提供充分的市场依据
+    """
+        
+        return f"""
+    你是一个专业的市场分析优化专家，需要对以下市场分析内容进行优化，同时提升质量和新鲜度。
+
+    ## 优化任务信息
+    - **当前质量评分**: {quality_assessment.get('overall_score', 0):.1f}/10
+    - **当前新鲜度评分**: {freshness_assessment.get('freshness_score', 0):.1f}/10
+    - **优化目标**: 质量9.8分以上，新鲜度9.0分以上
+
+    {quality_guidance}
+    {freshness_guidance}
+
+    ## 原始市场分析内容
+    {params.get('original_content', '')}
+
+    ## 优化要求
+    ### 核心要求
+    1. **保持核心结论**：不改变原有的核心市场判断和结论
+    2. **提升分析深度**：为每个观点提供更充分的数据和逻辑支撑
+    3. **增强独特性**：避免套路化分析，提供独特的市场洞察
+    4. **优化表达方式**：使用更专业、生动的语言表达
+
+    ### 质量标准
+    - 分析逻辑严密，数据支撑充分
+    - 结构清晰，层次分明
+    - 观点鲜明，结论明确
+    - 语言专业，表达准确
+
+    ### 新鲜度标准  
+    - 避免常见的市场分析套路
+    - 提供独特的市场视角和洞察
+    - 挖掘差异化的竞争策略
+    - 提出创新的营销建议
+
+    ## 输出格式
+    请返回优化后的完整市场分析内容，保持原有的JSON结构，但提升内容的质量和新鲜度。
+    """
+
+    def _generate_writing_plan_optimization_prompt(self, params: Dict) -> str:
+        """写作计划优化提示词 - 增强新鲜度要求"""
+        assessment = params.get("assessment_results", {})
+        freshness_assessment = assessment.get("freshness_assessment", {})
+        freshness_issues = freshness_assessment.get("cliche_elements", [])
+        improvement_suggestions = freshness_assessment.get("improvement_suggestions", [])
+        
+        freshness_guidance = ""
+        if freshness_issues or improvement_suggestions:
+            freshness_guidance = f"""
+    ## 🆕 新鲜度提升要求
+
+    ### 检测到的套路问题
+    {chr(10).join(f"- {issue}" for issue in freshness_issues) if freshness_issues else "- 暂无检测到明显套路元素"}
+
+    ### 创新改进建议
+    {chr(10).join(f"- {suggestion}" for suggestion in improvement_suggestions) if improvement_suggestions else "- 请进一步提升写作计划的创新性"}
+
+    ### 新鲜度提升方向
+    1. **创新情节结构**：避免千篇一律的起承转合，尝试新的叙事结构
+    2. **独特角色成长**：设计非传统的角色成长路径和转折点
+    3. **新颖冲突设计**：创造独特的矛盾冲突，避免常见的情感套路
+    4. **创新伏笔设置**：设计出人意料但又合理的伏笔和反转
+    5. **差异化节奏控制**：尝试新的节奏变化模式，增强读者体验
+    """
+        
+        quality_assessment = assessment.get("quality_assessment", {})
+        weaknesses = quality_assessment.get("weaknesses", [])
+        
+        quality_guidance = ""
+        if weaknesses:
+            quality_guidance = f"""
+    ## 📊 质量提升要求
+
+    ### 主要质量问题
+    {chr(10).join(f"- {weakness}" for weakness in weaknesses[:3])}
+
+    ### 质量改进重点
+    1. **优化结构合理性**：确保章节节奏和情节分布更加合理
+    2. **加强角色成长设计**：使主角成长轨迹更加清晰和吸引人
+    3. **提升冲突设计质量**：强化主要冲突的吸引力和张力
+    4. **完善伏笔设计**：使伏笔线与情感线更好地融合
+    5. **增强可行性**：确保计划具备良好的可执行性
+    """
+        
+        return f"""
+    你是一个专业的写作计划优化专家，需要对以下写作计划进行优化，同时提升质量和创新性。
+
+    ## 优化任务信息
+    - **当前质量评分**: {quality_assessment.get('overall_score', 0):.1f}/10
+    - **当前新鲜度评分**: {freshness_assessment.get('freshness_score', 0):.1f}/10
+    - **优化目标**: 质量9.8分以上，新鲜度9.0分以上
+
+    {quality_guidance}
+    {freshness_guidance}
+
+    ## 原始写作计划内容
+    {params.get('original_content', '')}
+
+    ## 优化要求
+    ### 核心要求
+    1. **保持核心框架**：不改变原有的主要情节框架和角色设定
+    2. **提升计划深度**：为每个阶段提供更详细和合理的规划
+    3. **增强创新性**：避免套路化情节，提供独特的叙事设计
+    4. **优化可行性**：确保计划在现实中具备良好的可执行性
+
+    ### 质量标准
+    - 情节结构合理，节奏把控得当
+    - 角色成长轨迹清晰可信
+    - 冲突设计有吸引力
+    - 伏笔设置巧妙合理
+    - 整体计划具备可执行性
+
+    ### 新鲜度标准
+    - 避免常见的情节套路和模板
+    - 提供独特的叙事视角和结构
+    - 设计创新的角色发展路径
+    - 创造新颖的矛盾冲突类型
+    - 设置出人意料的伏笔和转折
+
+    ## 输出格式
+    请返回优化后的完整写作计划内容，保持原有的JSON结构，但提升内容的质量和创新性。
+    """
+
+    def _generate_worldview_optimization_prompt(self, params: Dict) -> str:
+        """世界观优化提示词 - 增强新鲜度要求"""
+        assessment = params.get("assessment_results", {})
+        freshness_assessment = assessment.get("freshness_assessment", {})
+        freshness_issues = freshness_assessment.get("cliche_elements", [])
+        improvement_suggestions = freshness_assessment.get("improvement_suggestions", [])
+        
+        freshness_guidance = ""
+        if freshness_issues or improvement_suggestions:
+            freshness_guidance = f"""
+    ## 🆕 新鲜度提升要求
+
+    ### 检测到的套路问题
+    {chr(10).join(f"- {issue}" for issue in freshness_issues) if freshness_issues else "- 暂无检测到明显套路元素"}
+
+    ### 创新改进建议
+    {chr(10).join(f"- {suggestion}" for suggestion in improvement_suggestions) if improvement_suggestions else "- 请进一步提升世界观的独特性"}
+
+    ### 新鲜度提升方向
+    1. **创新世界观基础**：避免常见的修仙/异能/科幻设定，创造独特的世界观基础
+    2. **独特力量体系**：设计非传统的修炼体系或能力系统
+    3. **新颖社会结构**：创造独特的社会组织形态和权力结构
+    4. **创新文化背景**：构建具有特色的文化习俗和价值观念
+    5. **差异化地理环境**：设计独特的地理环境和生态体系
+    """
+        
+        quality_assessment = assessment.get("quality_assessment", {})
+        weaknesses = quality_assessment.get("weaknesses", [])
+        
+        quality_guidance = ""
+        if weaknesses:
+            quality_guidance = f"""
+    ## 📊 质量提升要求
+
+    ### 主要质量问题
+    {chr(10).join(f"- {weakness}" for weakness in weaknesses[:3])}
+
+    ### 质量改进重点
+    1. **提升体系完整性**：确保世界观各个要素之间逻辑自洽
+    2. **加强细节丰富度**：为世界观提供更丰富的细节支撑
+    3. **优化层次结构**：使世界观呈现清晰的层次结构
+    4. **增强扩展性**：确保世界观有足够的扩展空间和发展潜力
+    5. **完善内在逻辑**：强化世界观内部各要素的逻辑关系
+    """
+        
+        return f"""
+    你是一个专业的世界观架构优化专家，需要对以下世界观设定进行优化，同时提升质量和独特性。
+
+    ## 优化任务信息
+    - **当前质量评分**: {quality_assessment.get('overall_score', 0):.1f}/10
+    - **当前新鲜度评分**: {freshness_assessment.get('freshness_score', 0):.1f}/10
+    - **优化目标**: 质量9.8分以上，新鲜度9.0分以上
+
+    {quality_guidance}
+    {freshness_guidance}
+
+    ## 原始世界观内容
+    {params.get('original_content', '')}
+
+    ## 优化要求
+    ### 核心要求
+    1. **保持核心概念**：不改变世界观的基本概念和核心设定
+    2. **提升体系完整性**：使世界观各个要素更加协调和完整
+    3. **增强独特性**：避免常见的世界观套路，提供独特的设定
+    4. **优化逻辑自洽**：确保世界观内部逻辑更加严密和合理
+
+    ### 质量标准
+    - 世界观体系完整，逻辑自洽
+    - 各个要素协调统一，层次清晰
+    - 设定丰富具体，细节充分
+    - 扩展性强，有发展潜力
+    - 与故事主题和情节匹配度高
+
+    ### 新鲜度标准
+    - 避免常见的世界观设定套路
+    - 提供独特的世界观基础和概念
+    - 设计创新的力量体系和社会结构
+    - 构建具有特色的文化背景
+    - 创造新颖的地理环境和生态
+
+    ## 输出格式
+    请返回优化后的完整世界观内容，保持原有的JSON结构，但提升内容的质量和独特性。
+    """
+
+    def _generate_character_design_optimization_prompt(self, params: Dict) -> str:
+        """角色设计优化提示词 - 增强新鲜度要求"""
+        assessment = params.get("assessment_results", {})
+        freshness_assessment = assessment.get("freshness_assessment", {})
+        freshness_issues = freshness_assessment.get("cliche_elements", [])
+        improvement_suggestions = freshness_assessment.get("improvement_suggestions", [])
+        
+        freshness_guidance = ""
+        if freshness_issues or improvement_suggestions:
+            freshness_guidance = f"""
+    ## 🆕 新鲜度提升要求
+
+    ### 检测到的套路问题
+    {chr(10).join(f"- {issue}" for issue in freshness_issues) if freshness_issues else "- 暂无检测到明显套路元素"}
+
+    ### 创新改进建议
+    {chr(10).join(f"- {suggestion}" for suggestion in improvement_suggestions) if improvement_suggestions else "- 请进一步提升角色设计的创新性"}
+
+    ### 新鲜度提升方向
+    1. **创新角色设定**：避免脸谱化角色，创造独特的人物形象
+    2. **独特成长路径**：设计非传统的角色发展轨迹
+    3. **新颖关系网络**：构建独特的角色关系和互动模式
+    4. **创新性格特质**：设计具有特色的性格特点和心理特征
+    5. **差异化背景故事**：创造独特的角色背景和成长经历
+    """
+        
+        quality_assessment = assessment.get("quality_assessment", {})
+        weaknesses = quality_assessment.get("weaknesses", [])
+        
+        quality_guidance = ""
+        if weaknesses:
+            quality_guidance = f"""
+    ## 📊 质量提升要求
+
+    ### 主要质量问题
+    {chr(10).join(f"- {weakness}" for weakness in weaknesses[:3])}
+
+    ### 质量改进重点
+    1. **提升角色深度**：使角色形象更加立体和丰满
+    2. **加强动机合理性**：确保角色行为和动机更加合理可信
+    3. **优化关系设计**：使角色关系更加复杂和有趣
+    4. **增强成长弧线**：强化角色的成长轨迹和发展变化
+    5. **完善背景设定**：为角色提供更丰富的背景故事
+    """
+        
+        return f"""
+    你是一个专业的角色设计优化专家，需要对以下角色设计进行优化，同时提升质量和创新性。
+
+    ## 优化任务信息
+    - **当前质量评分**: {quality_assessment.get('overall_score', 0):.1f}/10
+    - **当前新鲜度评分**: {freshness_assessment.get('freshness_score', 0):.1f}/10
+    - **优化目标**: 质量9.8分以上，新鲜度9.0分以上
+
+    {quality_guidance}
+    {freshness_guidance}
+
+    ## 原始角色设计内容
+    {params.get('original_content', '')}
+
+    ## 优化要求
+    ### 核心要求
+    1. **保持核心特质**：不改变角色的核心性格和基本设定
+    2. **提升角色深度**：使角色形象更加立体和丰满
+    3. **增强独特性**：避免脸谱化角色，提供独特的人物设计
+    4. **优化关系网络**：使角色关系更加复杂和有趣
+
+    ### 质量标准
+    - 角色形象立体丰满，性格鲜明
+    - 行为动机合理可信，成长轨迹清晰
+    - 角色关系复杂有趣，互动模式多样
+    - 背景故事丰富具体，与角色特质匹配
+    - 角色设计符合世界观和故事需求
+
+    ### 新鲜度标准
+    - 避免常见的角色设定套路
+    - 提供独特的角色形象和性格
+    - 设计创新的成长路径和发展
+    - 构建新颖的角色关系和互动
+    - 创造具有特色的背景故事
+
+    ## 输出格式
+    请返回优化后的完整角色设计内容，保持原有的JSON结构，但提升内容的质量和创新性。
+    """
+
+    def _generate_novel_plan_optimization_prompt(self, params: Dict) -> str:
+        """小说方案优化提示词 - 增强新鲜度要求"""
+        # 直接从 params 中获取 assessment_results，它现在是字典而不是字符串
+        assessment = params.get("assessment_results", {})
+        freshness_assessment = assessment.get("freshness_assessment", {})
+        freshness_issues = freshness_assessment.get("cliche_elements", [])
+        improvement_suggestions = freshness_assessment.get("improvement_suggestions", [])
+        
+        freshness_guidance = ""
+        if freshness_issues or improvement_suggestions:
+            freshness_guidance = f"""
+    ## 🆕 新鲜度提升要求
+
+    ### 检测到的套路问题
+    {chr(10).join(f"- {issue}" for issue in freshness_issues) if freshness_issues else "- 暂无检测到明显套路元素"}
+
+    ### 创新改进建议
+    {chr(10).join(f"- {suggestion}" for suggestion in improvement_suggestions) if improvement_suggestions else "- 请进一步提升小说方案的创新性"}
+
+    ### 新鲜度提升方向
+    1. **创新核心概念**：避免常见的小说套路，创造独特的故事概念
+    2. **独特情节设计**：设计非传统的情节发展和转折
+    3. **新颖角色设定**：创造具有特色的主角和配角设定
+    4. **创新金手指设计**：避免常见的系统设定，提供独特的能力设计
+    5. **差异化世界观**：构建独特的世界观背景和设定
+    """
+        
+        quality_assessment = assessment.get("quality_assessment", {})
+        weaknesses = quality_assessment.get("weaknesses", [])
+        
+        quality_guidance = ""
+        if weaknesses:
+            quality_guidance = f"""
+    ## 📊 质量提升要求
+
+    ### 主要质量问题
+    {chr(10).join(f"- {weakness}" for weakness in weaknesses[:3])}
+
+    ### 质量改进重点
+    1. **提升概念完整性**：使小说概念更加完整和吸引人
+    2. **加强情节合理性**：确保情节发展更加合理和连贯
+    3. **优化角色设计**：使角色设定更加立体和有趣
+    4. **增强市场匹配度**：确保方案符合目标读者需求
+    5. **完善核心设定**：强化金手指、世界观等核心设定
+    """
+        
+        return f"""
+    你是一个专业的小说方案优化专家，需要对以下小说方案进行优化，同时提升质量和创新性。
+
+    ## 优化任务信息
+    - **当前质量评分**: {quality_assessment.get('overall_score', 0):.1f}/10
+    - **当前新鲜度评分**: {freshness_assessment.get('freshness_score', 0):.1f}/10
+    - **优化目标**: 质量9.8分以上，新鲜度9.0分以上
+
+    {quality_guidance}
+    {freshness_guidance}
+
+    ## 原始小说方案内容
+    {params.get('original_content', '')}
+
+    ## 优化要求
+    ### 核心要求
+    1. **保持核心创意**：不改变小说的核心创意和基本方向
+    2. **提升方案完整性**：使小说方案更加完整和详细
+    3. **增强创新性**：避免常见的小说套路，提供独特的故事设计
+    4. **优化市场适应性**：确保方案符合市场需求和读者喜好
+
+    ### 质量标准
+    - 概念完整清晰，吸引力强
+    - 情节设计合理，发展连贯
+    - 角色设定立体，特点鲜明
+    - 核心设定有趣，扩展性强
+    - 市场定位准确，读者明确
+
+    ### 新鲜度标准
+    - 避免常见的小说创作套路
+    - 提供独特的故事概念和创意
+    - 设计创新的情节发展模式
+    - 创造新颖的角色形象设定
+    - 构建独特的金手指和世界观
+
+    ## 输出格式
+    请返回优化后的完整小说方案内容，保持原有的JSON结构，但提升内容的质量和创新性。
+    """
+
+    def assess_novel_plan_quality(self, novel_plan: Dict) -> Dict:
+        """评估小说方案质量"""
+        if not novel_plan:
+            return {"overall_score": 0, "quality_verdict": "无内容"}
+        
+        user_prompt = self._generate_novel_plan_assessment_prompt(novel_plan)
+        
+        result = self.api_client.generate_content_with_retry(
+            "novel_plan_quality_assessment", 
+            user_prompt, 
+            temperature=0.3,
+            purpose="小说方案质量评估"
+        )
+        return result or {"overall_score": 7.0, "quality_verdict": "评估失败"}
+
+    def _generate_novel_plan_assessment_prompt(self, novel_plan: Dict) -> str:
+        """生成小说方案评估提示词"""
+        return f"""
+    请评估以下小说方案的质量：
+
+    小说方案内容:
+    {json.dumps(novel_plan, ensure_ascii=False, indent=2)}
+
+    评估维度：
+    1. 概念完整性 (2分): 核心概念是否完整清晰，吸引力如何
+    2. 情节设计质量 (2分): 情节设计是否合理，发展是否连贯
+    3. 角色设定质量 (2分): 角色设定是否立体，特点是否鲜明
+    4. 核心设定创新性 (2分): 金手指、世界观等核心设定是否有创新
+    5. 市场适应性 (2分): 方案是否符合市场需求和读者喜好
+
+    请按照以下JSON格式返回评估结果：
+    {{
+        "overall_score": 总体评分(满分10分),
+        "quality_verdict": "质量评级",
+        "strengths": ["优点列表"],
+        "weaknesses": ["待改进方面列表"],
+        "optimization_suggestions": ["优化建议列表"]
+    }}
+    """

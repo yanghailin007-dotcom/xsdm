@@ -86,11 +86,11 @@ class ContentGenerator:
         return escaped_template.format(**kwargs)
 
     def generate_single_plan(self, creative_seed: str, category: str = None) -> Optional[Dict]:
-        """生成单一小说方案 - 根据分类自动生成主角名字"""
+        """生成单一小说方案 - 增加新鲜度评估和优化机制"""
         print("=== 步骤1: 基于创意种子和分类生成小说方案 ===")
         
         # 如果提供了分类，自动生成适合该分类的主角名字
-        if category :
+        if category:
             generated_name = self._generate_character_name_by_category(category, creative_seed)
             if generated_name:
                 self.set_custom_main_character_name(generated_name)
@@ -101,13 +101,88 @@ class ContentGenerator:
             "主角名字": self.custom_main_character_name,
             "核心创意": creative_seed,
             "核心情节": "AI根据创意生成",
-            "主角设定": "AI根据创意生成",
-            "金手指": "AI根据创意生成"
+            "主角设定": "AI根据创意生成", 
+            "金手指": "AI根据创意生成",
+            # 新增：要求避免常见套路
+            "创新要求": "避免常见套路，追求新颖独特，要求有差异化创新点"
         }            
-        user_prompt_str = json.dumps(user_prompt, ensure_ascii=False)
-        result = self.api_client.generate_content_with_retry("one_plans", user_prompt_str, purpose="生成小说方案")
+        
+        max_retries = 2
+        result = None
+        
+        for attempt in range(max_retries):
+            print(f"  🔄 生成方案尝试 {attempt + 1}/{max_retries}")
+            user_prompt_str = json.dumps(user_prompt, ensure_ascii=False)
+            result = self.api_client.generate_content_with_retry("one_plans", user_prompt_str, purpose="生成小说方案")
+            
+            if not result:
+                continue
+                
+            # 评估方案的新鲜度
+            freshness_assessment = self.quality_assessor.assess_freshness(result, "novel_plan")
+            freshness_score = freshness_assessment.get("freshness_score", 0)
+            
+            print(f"  🆕 方案新鲜度评分: {freshness_score:.1f}/10")
+            
+            # 显示检测结果
+            cliche_elements = freshness_assessment.get("cliche_elements", [])
+            if cliche_elements:
+                print(f"  ⚠️ 检测到套路元素: {', '.join(cliche_elements[:3])}")
+            
+            innovative_elements = freshness_assessment.get("innovative_elements", [])
+            if innovative_elements:
+                print(f"  ✅ 创新点: {', '.join(innovative_elements[:3])}")
+            
+            # 如果新鲜度达标，使用该方案
+            if freshness_score >= 9.0:
+                print(f"  ✅ 方案新鲜度达标")
+                break
+            else:
+                print(f"  🔄 方案新鲜度不足，尝试优化...")
+                
+                # 先尝试优化，如果优化失败再重新生成
+                optimization_params = {
+                    "quality_assessment": {"overall_score": 9.0},  # 假设质量合格
+                    "freshness_assessment": freshness_assessment,
+                    "optimization_reason": f"新鲜度{freshness_score:.1f}低于9.0分"
+                }
+                
+                optimized_result = self.quality_assessor.optimize_novel_plan(result, optimization_params)
+                if optimized_result:
+                    # 重新评估优化后的新鲜度
+                    new_freshness = self.quality_assessor.assess_freshness(optimized_result, "novel_plan")
+                    new_score = new_freshness.get("freshness_score", 0)
+                    print(f"  🆕 优化后新鲜度: {new_score:.1f}/10")
+                    
+                    if new_score >= 9.0:
+                        print(f"  ✅ 优化成功，新鲜度达标")
+                        result = optimized_result
+                        break
+                    else:
+                        print(f"  ⚠️ 优化后新鲜度仍不足，继续重新生成...")
+                
+                # 如果优化失败或优化后仍不达标，更新提示词重新生成
+                # 安全地获取改进建议，避免索引越界
+                improvement_suggestions = freshness_assessment.get('improvement_suggestions', [])
+                if improvement_suggestions:
+                    first_suggestion = improvement_suggestions[0]
+                else:
+                    first_suggestion = "增加创新元素，避免常见套路"
+                
+                # 安全地获取套路元素
+                cliche_text = ""
+                if cliche_elements:
+                    cliche_text = f"避免以下套路: {', '.join(cliche_elements[:3])}。"
+                
+                user_prompt["创新要求"] = f"必须创新！{cliche_text}要求: {first_suggestion}"
+        
         if result:
             result = self._ensure_main_character_in_content(result, "one_plans")
+            # 记录最终新鲜度评分
+            if 'freshness_assessment' not in locals():
+                freshness_assessment = self.quality_assessor.assess_freshness(result, "novel_plan")
+            result["freshness_score"] = freshness_assessment.get("freshness_score", 0)
+        
         return result
     
     def _generate_character_name_by_category(self, category: str, creative_seed: str) -> str:
@@ -157,17 +232,22 @@ class ContentGenerator:
         return default_names.get(category, "林风")
 
     def generate_market_analysis(self, creative_seed: str, selected_plan: Dict) -> Optional[Dict]:
-        """生成市场分析"""
+        """生成市场分析 - 增加新鲜度评估"""
         print("=== 步骤2: 进行市场分析和卖点提炼 ===")
         
         user_prompt = f"创意种子: {creative_seed}\n选定方案: {json.dumps(selected_plan, ensure_ascii=False)}"
         if self.custom_main_character_name:
             user_prompt += f"\n主角名字: {self.custom_main_character_name}"
         
+        # 强调创新要求
+        user_prompt += "\n\n【创新要求】请提供有深度的市场分析，避免泛泛而谈，挖掘独特的市场切入点"
+        
         result = self.api_client.generate_content_with_retry("market_analysis", user_prompt, purpose="市场分析")
-        #if result:
-            #result = self._assess_and_optimize_content(result, "market_analysis", "市场分析")
-            #result = self._ensure_main_character_in_content(result, "market_analysis")
+        
+        if result:
+            # 应用新的评估逻辑（包含新鲜度检查）
+            result = self._assess_and_optimize_content(result, "market_analysis", "市场分析")
+        
         return result
 
     def generate_core_worldview(self, novel_title: str, novel_synopsis: str, selected_plan: Dict, market_analysis: Dict) -> Optional[Dict]:
@@ -205,6 +285,7 @@ class ContentGenerator:
     基于以上信息，构建一个完整、自洽且符合番茄平台风格的世界观框架。
     世界观需要与核心设定和故事发展保持一致，并提供足够的扩展空间。
     """
+        context += "\n\n## 创新要求\n世界观构建需要避免常见套路，追求独特性和创新性，提供新颖的世界观设定。"
 
         result = self.api_client.generate_content_with_retry("core_worldview", context, purpose="世界观构建")
         
@@ -284,6 +365,7 @@ class ContentGenerator:
     ### 输出要求
     必须严格按照角色设计JSON格式输出，确保主角和4位核心配角的设计完整且符合上述要求。
     """
+        context += "\n\n## 创新要求\n角色设计需要避免脸谱化，追求独特性和深度，提供有记忆点的角色设定。"
 
         if main_character_name:
             print(f"  ✓ 角色设计使用主角名字: {main_character_name}")
@@ -309,50 +391,104 @@ class ContentGenerator:
         return character_design
 
     def _assess_and_optimize_content(self, content: Dict, content_type: str, original_purpose: str) -> Dict:
-        """评估和优化内容质量"""
+        """修正版内容评估和优化 - 支持小说方案优化"""
         if not content or not hasattr(self, 'quality_assessor') or self.quality_assessor is None:
             return content
         
-        print(f"  🔍 评估{original_purpose}质量...")
+        print(f"  🔍 评估{original_purpose}...")
         
         try:
-            assessment = None
+            # 1. 质量评估（所有内容类型都需要）
+            quality_assessment = None
             if content_type == "market_analysis":
-                assessment = self.quality_assessor.assess_market_analysis_quality(content)
+                quality_assessment = self.quality_assessor.assess_market_analysis_quality(content)
             elif content_type == "writing_plan":
-                assessment = self.quality_assessor.assess_writing_plan_quality(content)
+                quality_assessment = self.quality_assessor.assess_writing_plan_quality(content)
             elif content_type == "core_worldview":
-                assessment = self.quality_assessor.assess_core_worldview_quality(content)
+                quality_assessment = self.quality_assessor.assess_core_worldview_quality(content)
             elif content_type == "character_design":
-                assessment = self.quality_assessor.assess_character_design_quality(content)
+                quality_assessment = self.quality_assessor.assess_character_design_quality(content)
+            elif content_type == "novel_plan":
+                quality_assessment = self.quality_assessor.assess_novel_plan_quality(content)
             
-            if not assessment:
+            if not quality_assessment:
                 return content
             
-            score = assessment.get("overall_score", 0)
-            verdict = assessment.get("quality_verdict", "未知")
-            print(f"  {original_purpose}质量评分: {score:.1f}/10分 - {verdict}")
+            quality_score = quality_assessment.get("overall_score", 0)
+            print(f"  {original_purpose}质量评估: {quality_score:.1f}/10")
             
-            if score < 9.0:
-                print(f"  🔧 进行{original_purpose}优化...")
+            # 2. 新鲜度评估（只有非章节内容需要）
+            freshness_score = 10.0  # 章节内容默认满分，不评估新鲜度
+            freshness_assessment = {}
+            should_optimize = False
+            reason = ""
+            
+            if content_type != "chapter_content":  # 非章节内容需要新鲜度评估
+                freshness_assessment = self.quality_assessor.assess_freshness(content, content_type)
+                freshness_score = freshness_assessment.get("freshness_score", 8.0)
+                print(f"  {original_purpose}新鲜度评估: {freshness_score:.1f}/10")
+                
+                # 显示检测到的套路和创新点
+                cliche_elements = freshness_assessment.get("cliche_elements", [])
+                innovative_elements = freshness_assessment.get("innovative_elements", [])
+                
+                if cliche_elements:
+                    print(f"  ⚠️ 检测到套路元素: {', '.join(cliche_elements[:3])}")
+                if innovative_elements:
+                    print(f"  ✅ 创新点: {', '.join(innovative_elements[:3])}")
+                
+                # 综合优化决策（质量+新鲜度）
+                should_optimize, reason = self.quality_assessor.should_optimize_comprehensive(
+                    {"overall_score": quality_score, "freshness_score": freshness_score},
+                    content_type
+                )
+            else:
+                # 章节内容只基于质量评估
+                should_optimize, reason = self.quality_assessor.should_optimize_comprehensive(
+                    {"overall_score": quality_score},
+                    content_type
+                )
+            
+            # 3. 优化决策
+            if should_optimize:
+                print(f"  🔧 进行{original_purpose}优化: {reason}")
+                
+                # 准备优化参数
+                optimization_params = {
+                    "quality_assessment": quality_assessment,
+                    "overall_score": quality_score,
+                    "optimization_reason": reason
+                }
+                
+                # 非章节内容添加新鲜度评估
+                if content_type != "chapter_content":
+                    optimization_params["freshness_assessment"] = freshness_assessment
+                    optimization_params["freshness_score"] = freshness_score
                 
                 optimized_content = None
                 if content_type == "market_analysis":
-                    optimized_content = self.quality_assessor.optimize_market_analysis(content, assessment)
+                    optimized_content = self.quality_assessor.optimize_market_analysis(content, optimization_params)
                 elif content_type == "writing_plan":
-                    optimized_content = self.quality_assessor.optimize_writing_plan(content, assessment)
+                    optimized_content = self.quality_assessor.optimize_writing_plan(content, optimization_params)
                 elif content_type == "core_worldview":
-                    optimized_content = self.quality_assessor.optimize_core_worldview(content, assessment)
+                    optimized_content = self.quality_assessor.optimize_core_worldview(content, optimization_params)
                 elif content_type == "character_design":
-                    optimized_content = self.quality_assessor.optimize_character_design(content, assessment)
+                    optimized_content = self.quality_assessor.optimize_character_design(content, optimization_params)
+                elif content_type == "novel_plan":
+                    optimized_content = self.quality_assessor.optimize_novel_plan(content, optimization_params)
                 
                 if optimized_content:
+                    print(f"  ✅ {original_purpose}优化完成")
                     return optimized_content
+                else:
+                    print(f"  ⚠️ {original_purpose}优化失败，使用原内容")
             
             return content
         
         except Exception as e:
-            print(f"  ⚠️  质量检查过程中出错: {e}")
+            print(f"  ⚠️ 评估过程中出错: {e}")
+            import traceback
+            traceback.print_exc()
             return content
 
     def generate_chapter_content_for_novel(self, chapter_number: int, novel_data: Dict, context: GenerationContext = None) -> Optional[Dict]:
@@ -878,12 +1014,15 @@ class ContentGenerator:
         return f"第{chapter_number}章 {base_title}"
 
     def _should_optimize_based_on_config(self, assessment: Dict, chapter_data: Dict) -> Tuple[bool, str]:
-        """基于配置决定是否需要优化 - 修复版本"""
+        """基于配置决定是否需要优化 - 使用统一标准"""
         score = assessment.get("overall_score", 0)
         
-        # 强制优化阈值 - 降低到8.5分
-        if score < 8.5:
-            return True, f"评分{score:.1f}低于优化阈值8.5分，需要优化"
+        # 使用统一质量标准
+        quality_threshold = self.quality_assessor.unified_quality_standards["optimization_thresholds"]["chapter_content"]
+        
+        # 强制优化阈值
+        if score < quality_threshold:
+            return True, f"评分{score:.1f}低于优化阈值{quality_threshold}分，需要优化"
         
         # 检查严重一致性问题的存在
         consistency_issues = assessment.get("consistency_issues", [])
