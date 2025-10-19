@@ -1198,51 +1198,6 @@ class ContentGenerator:
 
     # 你的任务
     请根据以上所有信息，为第 {chapter_params.get("chapter_number")} 章生成一份JSON格式的"创作蓝图"。
-
-    **【输出要求】**
-    必须严格按照以下JSON结构输出，不要有任何增减或修改：
-    {{
-        "chapter_number": {chapter_params.get("chapter_number")},
-        "chapter_title": "（为本章起一个富有吸引力的标题）",
-        "chapter_summary": "（用一句话总结本章的核心内容和目的）",
-        "emotional_design": {{
-            "target_emotion": "{current_emotional_focus}",
-            "emotional_intensity": "{target_intensity}",
-            "emotional_arc_within_chapter": "（描述本章内部的情感发展曲线）",
-            "key_emotional_moments": ["（列出本章的关键情感时刻）"],
-            "reader_emotional_journey": "{target_reader_emotion}"{emotional_design_extra}
-        }},
-        "writing_style_directives": {{
-            "core_tone": "（根据本章情节和情绪重点，指定核心基调）",
-            "narrative_pace": "（指定叙事节奏，要配合情感强度）",
-            "description_focus": ["（列出本章描写的重点，要服务于情感表达）"]
-        }},
-        "consistency_cheatsheet": {{
-            "reminder": "（生成一段简短的一致性提醒，例如：'注意：主角此时还不知道反派的真实身份，不要在内心独白中泄露'）",
-            "key_character_status": ["（列出本章出场角色的关键状态，例如：'秦峥：表面镇定，内心在谋划反击'）"],
-            "relationship_check": ["（列出需要特别注意的人物关系，例如：'秦峥与卢斌的关系是初步震慑，互动时需体现卢斌的敬畏'）"]
-        }},
-        "scene_by_scene_outline": [
-            {{
-                "scene_number": 1,
-                "scene_goal": "（明确场景目标，例如：'通过对话，展示主角的智谋和布局能力'）",
-                "emotional_emphasis": "（这个场景要强调的情感）",
-                "key_actions_and_dialogues": "（描述场景中的关键动作和对话要点）",
-                "character_focus": "（指出这个场景主要刻画哪个角色的哪方面特质）"
-            }},
-            {{
-                "scene_number": 2,
-                "scene_goal": "...",
-                "key_actions_and_dialogues": "...",
-                "character_focus": "..."
-            }}
-        ],
-        "foreshadowing_and_events": {{
-            "elements_to_introduce": ["（明确列出本章需要首次引入的伏笔元素）"],
-            "elements_to_develop": ["（明确列出本章需要进一步发展的已有伏笔）"]
-        }},
-        "next_chapter_hook": "（设计一个具体的、能引发读者好奇心的结尾悬念）"
-    }}
     """
         print(f"  📝 生成第{chapter_params.get('chapter_number', 1)}章设计方案...")
         design_result = self.api_client.generate_content_with_retry(

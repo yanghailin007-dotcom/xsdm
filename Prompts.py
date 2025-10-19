@@ -761,6 +761,13 @@ Prompts = {
 {
     "chapter_number": "请填写用户指定的章节编号 (整数)",
     "design_overview": "用2-3句话概括本章的核心目标、基调和主要看点。",
+    "emotional_design": {
+        "target_emotion": "（本章要引发的主要情感）",
+        "emotional_intensity": "（情感强度等级）",
+        "emotional_arc_within_chapter": "（描述本章内部的情感发展曲线）",
+        "key_emotional_moments": ["（列出本章的关键情感时刻）"],
+        "reader_emotional_journey": "（读者在本章的情感体验路径）"
+    },
     "plot_structure": {
         "opening_scene": "设计开场场景，说明如何承接上一章，并迅速吸引读者。",
         "conflict_development": "描述本章的核心冲突及其发展过程，确保与世界观和角色设定一致。",

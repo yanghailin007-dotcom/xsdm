@@ -28,20 +28,20 @@ class QualityAssessor:
                 # 章节内容相对宽松（考虑创作难度）
                 "chapter_content": 9.0,
                 # 其他内容要求更高标准
-                "market_analysis": 9.8,
-                "writing_plan": 9.8,
-                "core_worldview": 9.8,
-                "character_design": 9.8,
-                "creative_seed": 9.8,
-                "novel_plan": 9.8
+                "market_analysis": 9.0,
+                "writing_plan": 9.0,
+                "core_worldview": 9.0,
+                "character_design": 9.0,
+                "creative_seed": 9.0,
+                "novel_plan": 9.0
             },
             
             # === 番茄新鲜度评分 ===
             "freshness_standards": {
-                "excellent": 9.5,     # 极具创新性
-                "good": 9.0,          # 有一定新意
-                "average": 8.0,       # 常见套路
-                "cliche": 7.0         # 老套重复
+                "excellent": 8.5,     # 有一定创新性，同时保留经典元素
+                "good": 8.0,          # 适当融合套路和创新
+                "average": 7.0,       # 常见套路但执行良好
+                "cliche": 6.0         # 过度老套重复
             },
             
             # === 黄金三章特殊标准 ===
