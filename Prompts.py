@@ -1174,33 +1174,34 @@ Prompts = {
     
     "language_characteristics": {
         "sentence_structure": "短句为主，段落精悍，避免复杂句式",
-        "vocabulary_style": "用词犀利精准，多用动词和感官词汇",
-        "rhythm_control": "紧张场景用急促短句，抒情场景适当放缓"
+        "vocabulary_style": "用词犀利精准，适度融入网络热词增强代入感",
+        "rhythm_control": "紧张场景用急促短句，抒情场景适当放缓，高潮部分适时插入梗点"
     },
-    
+
     "narration_techniques": {
-        "perspective": "坚定主角视角，心理描写简洁有力",
-        "description": "环境描写服务于情绪，动作描写重于外貌",
+        "perspective": "坚定主角视角，心理描写简洁有力，偶尔插入读者向吐槽",
+        "description": "环境描写服务于情绪，动作描写重于外貌，预留可讨论的细节梗",
         "transition": "场景切换干脆利落，用动作或对话衔接"
     },
-    
+
     "dialogue_style": {
-        "protagonist": "对话简洁有力，每句都有目的",
-        "supporting_chars": "配角对话突出性格特征",
-        "antagonists": "反派对话充满挑衅和冲突"
+        "protagonist": "对话简洁有力，每句都有目的，适当加入反套路回复",
+        "supporting_chars": "配角对话突出性格特征，设计专属口癖或互动梗",
+        "antagonists": "反派对话充满挑衅和冲突，台词预留传播潜力"
     },
-    
+
     "chapter_techniques": {
-        "opening": "章节开头立即制造悬念或冲突",
-        "development": "中段快速推进，保持紧张感", 
-        "ending": "结尾必须有情绪爆点或悬念钩子"
+        "opening": "章节开头立即制造悬念或冲突，可结合热点话题",
+        "development": "中段快速推进，保持紧张感，穿插轻松梗调节节奏", 
+        "ending": "结尾必须有情绪爆点或悬念钩子，引导读者评论互动"
     },
-    
+
     "key_principles": [
         "每章都有明确情绪曲线",
         "对话推动剧情发展", 
         "描写服务于节奏和情绪",
-        "避免任何拖慢节奏的内容"
+        "避免任何拖慢节奏的内容",
+        "适度嵌入热梗和互动点，提升读者参与度"
     ]
 }
 ```

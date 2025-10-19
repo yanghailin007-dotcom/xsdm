@@ -38,9 +38,9 @@ class QualityAssessor:
             
             # === 番茄新鲜度评分 ===
             "freshness_standards": {
-                "excellent": 8.5,     # 有一定创新性，同时保留经典元素
-                "good": 8.0,          # 适当融合套路和创新
-                "average": 7.0,       # 常见套路但执行良好
+                "excellent": 7.5,     # 有一定创新性，同时保留经典元素
+                "good": 7.0,          # 适当融合套路和创新
+                "average": 6.6,       # 常见套路但执行良好
                 "cliche": 6.0         # 过度老套重复
             },
             

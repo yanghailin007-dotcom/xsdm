@@ -154,7 +154,7 @@ class ContentGenerator:
                     new_score = new_freshness.get("freshness_score", 0)
                     print(f"  🆕 优化后新鲜度: {new_score:.1f}/10")
                     
-                    if new_score >= 9.0:
+                    if new_score >= 7.5:
                         print(f"  ✅ 优化成功，新鲜度达标")
                         result = optimized_result
                         break
