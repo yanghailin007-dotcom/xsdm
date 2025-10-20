@@ -182,7 +182,6 @@ def start_new_project(generator, creative_seed):
 
 
 def copy_project_to_target(novel_title):
-    """将项目文件复制到目标目录 C:\work1.0\Chrome\小说项目"""
     import re
     from datetime import datetime
     

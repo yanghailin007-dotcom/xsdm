@@ -543,7 +543,7 @@ class NovelGenerator:
         # 步骤1: 用户输入（仅选择分类）
         self._get_user_inputs()
         
-        # 步骤2: 生成单一方案
+        # 步骤2: 生成多个方案并让用户选择
         self.novel_data["current_progress"]["stage"] = "方案生成"
         if not self._generate_and_select_plan(creative_seed):
             return False
@@ -729,89 +729,6 @@ class NovelGenerator:
         except Exception as e:
             print(f"⚠️ AI评价过程中出错: {e}，默认通过方案")
             return {"overall_score": 8.0, "recommendation": True}
-
-    def _generate_and_select_plan(self, creative_seed: str) -> bool:
-        """生成并选择单一方案 - 修复无限循环问题"""
-        print("=== 步骤1: 基于创意种子和分类生成小说方案 ===")
-        
-        # 获取分类信息
-        category = self.novel_data.get("category", "未分类")
-        print(f"  ✓ 使用分类: {category}")
-        
-        # 最大重试次数
-        max_retries = 3  # 减少重试次数
-        best_plan = None
-        best_score = 0
-        
-        for attempt in range(max_retries):
-            print(f"\n🔄 第{attempt + 1}次尝试生成方案...")
-            
-            if attempt == 0:
-                # 第一次尝试：生成全新方案
-                plan_data = self.content_generator.generate_single_plan(creative_seed, category)
-            else:
-                # 后续尝试：基于最佳方案进行优化
-                print("🔄 基于最佳方案进行优化调整...")
-                if best_plan:
-                    # 对最佳方案进行优化
-                    optimization_result = self.quality_assessor.optimize_novel_plan(
-                        best_plan, 
-                        {
-                            "quality_assessment": {"overall_score": best_score},
-                            "freshness_assessment": {"freshness_score": best_score}
-                        }
-                    )
-                    plan_data = optimization_result if optimization_result else best_plan
-                else:
-                    plan_data = self.content_generator.generate_single_plan(creative_seed, category)
-            
-            if not plan_data:
-                print("❌ 方案生成失败")
-                continue
-            
-            # 对方案进行AI质量评价
-            quality_result = self._evaluate_plan_quality(plan_data, category, creative_seed)
-            current_score = quality_result.get("overall_score", 0) if isinstance(quality_result, dict) else 0
-            
-            # 记录最佳方案
-            if current_score > best_score:
-                best_score = current_score
-                best_plan = plan_data
-                print(f"📈 更新最佳方案，评分: {best_score:.1f}")
-            
-            # 检查是否通过质量要求
-            if quality_result and current_score >= 8.5:  # 降低阈值到8.5
-                # 方案通过评价
-                self.novel_data["selected_plan"] = self._present_auto_generated_plan(plan_data)
-                if not self.novel_data["selected_plan"]:
-                    print("❌ 方案处理失败")
-                    continue
-                
-                # 设置选定方案的小说标题和简介
-                self.novel_data["novel_title"] = self.novel_data["selected_plan"]["title"]
-                self.novel_data["novel_synopsis"] = self.novel_data["selected_plan"]["synopsis"]
-                
-                print(f"✅ 已自动生成并通过质量评价的方案: 《{self.novel_data['novel_title']}》")
-                return True
-            else:
-                score_msg = f"{current_score:.1f}" if current_score > 0 else "未知"
-                print(f"❌ 第{attempt + 1}次生成的方案未通过质量评价 (评分: {score_msg}/10)")
-                
-                if attempt < max_retries - 1:
-                    print("🔄 准备优化调整方案...")
-                    continue
-        
-        # 如果所有尝试都失败，使用最佳方案
-        if best_plan and best_score >= 7.0:  # 如果最佳方案达到基本要求
-            print(f"⚠️ 使用最佳可用方案 (评分: {best_score:.1f}/10)")
-            self.novel_data["selected_plan"] = self._present_auto_generated_plan(best_plan)
-            self.novel_data["novel_title"] = self.novel_data["selected_plan"]["title"]
-            self.novel_data["novel_synopsis"] = self.novel_data["selected_plan"]["synopsis"]
-            print(f"✅ 使用最佳可用方案: 《{self.novel_data['novel_title']}》")
-            return True
-        
-        print("❌ 所有方案生成尝试均未达到基本要求，终止生成")
-        return False
 
     def _present_auto_generated_plan(self, plan_data: Dict) -> Dict:
         """展示自动生成的单一方案"""
@@ -2488,7 +2405,7 @@ class NovelGenerator:
     1. 风格要超级俏皮、幽默、接地气，符合番茄年轻读者的口味
     2. 必须包含刺激读者评论的互动元素，比如"扣1扣2"、"猜剧情"、"找bug"等
     3. 要使用emoji表情和网络流行梗
-    4. 长度在30字左右，要有冲击力，流行梗
+    4. 长度在50字左右，要有冲击力
     5. 用【】括起来作为醒目标题
     6. 最后一定要有引导评论的强力call to action
 
@@ -2536,4 +2453,249 @@ class NovelGenerator:
             "悬疑": "【🕵️侦探集合】柯南道尔附体，福尔摩斯上身！\n\n🔍 能在第三章前猜出真相的，我直播倒立洗头！评论区为证！\n\n💖 看到这里的都是真爱，留个言让我眼熟你呀～"
         }
         
-        return fallback_templates.get(category, "【🎮游戏开始】阅读前请调整好姿势，准备好零食！\n\n🎯 觉得好看的扣'爱了',觉得离谱的扣'作者疯了'！\n\n📈 评论就是动力，吐槽就是关爱，来都来了，说两句呗～")            
+        return fallback_templates.get(category, "【🎮游戏开始】阅读前请调整好姿势，准备好零食！\n\n🎯 觉得好看的扣'爱了',觉得离谱的扣'作者疯了'！\n\n📈 评论就是动力，吐槽就是关爱，来都来了，说两句呗～")     
+
+    def present_multiple_plans_to_user(self, plans_data: Dict) -> Dict:
+        """向用户展示多个方案供选择 - 修复版本，避免输出截断"""
+        print("\n" + "="*60)
+        print("📚 基于您的创意种子，为您生成3个不同风格的小说方案")
+        print("="*60)
+        
+        plans = plans_data.get('plans', [])
+        
+        # 先显示简化的方案概览
+        for i, plan in enumerate(plans, 1):
+            print(f"\n🎯 方案 {i}:")
+            print(f"   书名: 《{plan.get('title', '未知标题')}》")
+            print(f"   金手指类型: {plan.get('golden_finger_type', '未知')}")
+            print(f"   主线方向: {plan.get('main_plot_direction', '未知')}")
+            print(f"   简介预览: {plan.get('synopsis', '暂无简介')[:80]}...")
+            print(f"   核心方向预览: {plan.get('core_direction', '暂无核心方向')[:60]}...")
+            print("-" * 50)
+        
+        # 让用户选择查看详细方案
+        while True:
+            try:
+                print(f"\n请选择操作:")
+                print(f"  1-{len(plans)}: 查看对应方案的详细信息")
+                print(f"  0: 直接选择方案（基于当前概览信息）")
+                
+                choice = input(f"请输入选择 (0-{len(plans)}): ").strip()
+                
+                if choice == "0":
+                    # 直接选择，使用简化的选择流程
+                    return self._quick_select_plan(plans)
+                
+                choice_num = int(choice)
+                if 1 <= choice_num <= len(plans):
+                    # 显示选中方案的详细信息
+                    selected_plan = plans[choice_num - 1]
+                    self._display_plan_details(selected_plan, choice_num)
+                    
+                    # 询问是否选择这个方案
+                    confirm = input(f"\n是否选择方案 {choice_num}？(y/n): ").strip().lower()
+                    if confirm in ['y', 'yes', '是']:
+                        return selected_plan
+                    else:
+                        print("继续查看其他方案...")
+                        continue
+                else:
+                    print(f"请输入 0-{len(plans)} 之间的数字")
+            except ValueError:
+                print("请输入有效的数字")
+
+    def _quick_select_plan(self, plans: List[Dict]) -> Dict:
+        """快速选择方案（基于概览信息）"""
+        print(f"\n快速选择方案:")
+        for i, plan in enumerate(plans, 1):
+            print(f"  {i}. 《{plan.get('title', '未知标题')}》 - {plan.get('golden_finger_type', '未知')} - {plan.get('main_plot_direction', '未知')}")
+        
+        while True:
+            try:
+                choice = input(f"请选择方案 (1-{len(plans)}): ").strip()
+                if not choice:
+                    print("使用默认方案1")
+                    choice = 1
+                    break
+                
+                choice = int(choice)
+                if 1 <= choice <= len(plans):
+                    break
+                else:
+                    print(f"请输入 1-{len(plans)} 之间的数字")
+            except ValueError:
+                print("请输入有效的数字")
+        
+        selected_plan = plans[choice - 1]
+        print(f"\n✅ 已选择方案 {choice}: 《{selected_plan['title']}》")
+        print(f"   金手指: {selected_plan.get('golden_finger_type', '未知')}")
+        print(f"   主线: {selected_plan.get('main_plot_direction', '未知')}")
+        return selected_plan
+
+    def _display_plan_details(self, plan: Dict, plan_number: int):
+        """显示方案的详细信息 - 分页显示避免截断"""
+        print(f"\n" + "="*60)
+        print(f"📖 方案 {plan_number} 详细信息")
+        print("="*60)
+        
+        print(f"📚 书名: 《{plan.get('title', '未知标题')}》")
+        print(f"🎯 金手指类型: {plan.get('golden_finger_type', '未知')}")
+        print(f"🛣️ 主线方向: {plan.get('main_plot_direction', '未知')}")
+        
+        # 分页显示简介
+        synopsis = plan.get('synopsis', '暂无简介')
+        print(f"\n📝 简介:")
+        self._display_long_text(synopsis)
+        
+        # 分页显示核心方向
+        core_direction = plan.get('core_direction', '暂无核心方向')
+        print(f"\n🎯 核心方向:")
+        self._display_long_text(core_direction)
+        
+        # 显示目标读者
+        target_audience = plan.get('target_audience', '暂无信息')
+        print(f"\n👥 目标读者: {target_audience}")
+        
+        # 显示竞争优势
+        competitive_advantage = plan.get('competitive_advantage', '暂无信息')
+        print(f"\n⭐ 竞争优势:")
+        self._display_long_text(competitive_advantage)
+        
+        # 显示核心设置
+        core_settings = plan.get('core_settings', {})
+        if core_settings:
+            print(f"\n⚙️ 核心设置:")
+            print(f"   世界观: {core_settings.get('world_background', '暂无信息')}")
+            print(f"   金手指: {core_settings.get('golden_finger', '暂无信息')}")
+            selling_points = core_settings.get('core_selling_points', [])
+            if selling_points:
+                print(f"   核心爽点:")
+                for i, point in enumerate(selling_points, 1):
+                    print(f"     {i}. {point}")
+        
+        print("="*60)
+
+    def _display_long_text(self, text: str, max_line_length: int = 80):
+        """分页显示长文本，避免控制台截断"""
+        if not text:
+            print("   暂无信息")
+            return
+        
+        # 按段落分割
+        paragraphs = text.split('\n')
+        
+        for paragraph in paragraphs:
+            if not paragraph.strip():
+                continue
+                
+            # 如果段落较短，直接显示
+            if len(paragraph) <= max_line_length:
+                print(f"   {paragraph}")
+                continue
+                
+            # 长段落进行分词换行
+            words = paragraph.split()
+            current_line = ""
+            
+            for word in words:
+                if len(current_line) + len(word) + 1 <= max_line_length:
+                    if current_line:
+                        current_line += " " + word
+                    else:
+                        current_line = word
+                else:
+                    print(f"   {current_line}")
+                    current_line = word
+            
+            if current_line:
+                print(f"   {current_line}")
+        
+        # 如果文本很长，询问是否继续
+        if len(text) > 500:
+            input("\n📄 按Enter键继续...")
+
+    # 修改 _generate_and_select_plan 方法中的方案展示部分
+
+    def _generate_and_select_plan(self, creative_seed: str) -> bool:
+        """生成多个方案并让用户选择 - 修复版本"""
+        print("=== 步骤1: 基于创意种子和分类生成多个小说方案 ===")
+        
+        # 获取分类信息
+        category = self.novel_data.get("category", "未分类")
+        print(f"  ✓ 使用分类: {category}")
+        
+        # 最大重试次数
+        max_retries = 2
+        best_plans = []
+        
+        for attempt in range(max_retries):
+            print(f"\n🔄 第{attempt + 1}次尝试生成多个方案...")
+            
+            # 生成多个方案
+            plans_data = self.content_generator.generate_multiple_plans(creative_seed, category)
+            
+            if not plans_data or 'plans' not in plans_data:
+                print("❌ 方案生成失败")
+                continue
+            
+            plans = plans_data['plans']
+            print(f"✅ 成功生成 {len(plans)} 个方案")
+            
+            # 对每个方案进行质量评价
+            qualified_plans = []
+            for i, plan in enumerate(plans):
+                print(f"  🔍 评估方案 {i+1}...")
+                quality_result = self._evaluate_plan_quality(plan, category, creative_seed)
+                current_score = quality_result.get("overall_score", 0) if isinstance(quality_result, dict) else 0
+                
+                if quality_result and current_score >= 7.0:  # 降低质量阈值
+                    qualified_plans.append({
+                        'plan': plan,
+                        'score': current_score,
+                        'quality_result': quality_result
+                    })
+                    print(f"    ✅ 方案 {i+1} 通过质量评价 (评分: {current_score:.1f}/10)")
+                else:
+                    score_msg = f"{current_score:.1f}" if current_score > 0 else "未知"
+                    print(f"    ❌ 方案 {i+1} 未通过质量评价 (评分: {score_msg}/10)")
+            
+            # 记录最佳方案
+            if qualified_plans:
+                best_plans.extend(qualified_plans)
+                print(f"📈 本轮获得 {len(qualified_plans)} 个合格方案")
+                
+                # 如果有足够多的合格方案，让用户选择
+                if len(best_plans) >= 2:  # 至少有2个合格方案
+                    break
+            else:
+                print("❌ 本轮没有合格方案")
+                
+            if attempt < max_retries - 1:
+                print("🔄 准备重新生成方案...")
+        
+        # 如果没有合格方案，使用第一个方案作为备选
+        if not best_plans and plans_data and 'plans' in plans_data:
+            print("⚠️ 所有方案质量评价均未通过，使用第一个方案作为备选")
+            best_plans = [{
+                'plan': plans_data['plans'][0],
+                'score': 6.0,
+                'quality_result': {"overall_score": 6.0, "recommendation": True}
+            }]
+        
+        if best_plans:
+            # 让用户选择方案
+            plans_for_selection = [item['plan'] for item in best_plans]
+            plans_data_for_selection = {'plans': plans_for_selection}
+            
+            selected_plan = self.present_multiple_plans_to_user(plans_data_for_selection)
+            
+            if selected_plan:
+                self.novel_data["selected_plan"] = selected_plan
+                self.novel_data["novel_title"] = selected_plan["title"]
+                self.novel_data["novel_synopsis"] = selected_plan["synopsis"]
+                
+                print(f"✅ 已选择方案: 《{self.novel_data['novel_title']}》")
+                return True
+        
+        print("❌ 所有方案生成尝试均失败，终止生成")
+        return False

@@ -2155,4 +2155,41 @@ class ContentGenerator:
     def _get_current_timestamp(self) -> str:
         """获取当前时间戳"""
         import datetime
-        return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")            
+        return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    def generate_multiple_plans(self, creative_seed: str, category: str) -> Dict:
+        """生成多个不同金手指和主线剧情的小说方案"""
+        print(f"  🎯 生成3个不同风格的小说方案...")
+        
+        prompt_name = "multiple_plans"
+        prompt_template = self.prompts["prompts"][prompt_name]
+        
+        # 构建完整的提示词，直接将参数插入到提示词中
+        full_prompt = f"""
+    创意种子：{creative_seed}
+    小说分类：{category}
+
+    {prompt_template}
+    """
+        
+        try:
+            # 调用API生成内容
+            result = self.api_client.generate_content_with_retry(
+                prompt_name,
+                full_prompt,
+                purpose="生成多个小说方案"
+            )
+            
+            if result and 'plans' in result:
+                print(f"  ✅ 成功生成 {len(result['plans'])} 个不同方案")
+                return result
+            else:
+                print("  ❌ 生成多个方案失败，返回格式不正确")
+                # 如果返回格式不正确，尝试解析或返回空结果
+                return {}
+                
+        except Exception as e:
+            print(f"  ❌ 生成多个方案时出错: {e}")
+            import traceback
+            traceback.print_exc()
+            return {}
