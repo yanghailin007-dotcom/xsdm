@@ -757,7 +757,7 @@ class ContentGenerator:
         
         # 尝试加载最近3章的摘要信息
         summary_parts = []
-        for i in range(max(1, current_chapter-3), current_chapter):
+        for i in range(max(1, current_chapter-5), current_chapter):
             chapter_data = self._load_chapter_content(i, novel_data)
             
             if chapter_data:
@@ -1583,7 +1583,7 @@ class ContentGenerator:
 【写作风格】
 {content_params.get('writing_style_guide',{})}
 **前情提要**:
-注意上下文衔接 
+注意上下文衔接,不要出现脱节和重复上一章结尾的情况
 {chapter_params.get("previous_chapters_summary")}
 {cultivation_text}
 ## 🎭 特别情绪指导

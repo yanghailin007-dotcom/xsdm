@@ -266,7 +266,36 @@ class QualityAssessor:
                     result['world_state_changes'], 
                     chapter_number
                 )
+
+                money_issues = self.world_state_manager.validate_money_consistency(
+                    novel_title, 
+                    chapter_number,
+                    result['world_state_changes']
+                )
                 
+                # 如果有金钱一致性问题，大幅降低评分
+                if money_issues:
+                    original_score = result.get('overall_score', 0)
+                    # 根据问题严重程度降低评分
+                    severe_issues = [issue for issue in money_issues if issue.get('severity') == '高']
+                    moderate_issues = [issue for issue in money_issues if issue.get('severity') == '中']
+                    
+                    penalty = len(severe_issues) * 2.0 + len(moderate_issues) * 1.0
+                    new_score = max(0, original_score - penalty)
+                    
+                    result['overall_score'] = new_score
+                    result['quality_verdict'] = self.get_quality_verdict(new_score)
+                    
+                    # 记录扣分原因
+                    result['money_consistency_penalty'] = {
+                        'original_score': original_score,
+                        'penalty': penalty,
+                        'new_score': new_score,
+                        'issues': money_issues
+                    }
+                    
+                    print(f"💰 金钱一致性检查: 发现{len(money_issues)}个问题，评分从{original_score}降至{new_score}")
+
                 if cleaned_changes:
                     self.world_state_manager._update_world_state_incrementally(novel_title, cleaned_changes, chapter_number)
                     result['updated_world_state'] = self.world_state_manager.current_world_state
@@ -588,6 +617,31 @@ class QualityAssessor:
     - 秘术类：特殊秘法、禁术等
     - 体质类：特殊体质、天赋等
 
+    ### 重要：金钱一致性检查要求
+    
+    在记录世界状态变化时，必须严格遵守以下金钱追踪规则：
+    
+    **金钱字段约定：**
+    - characters.attributes.money: 角色当前金钱数量
+    - characters.attributes.money_sources: 金钱来源记录，如["完成任务奖励", "出售物品", "宗门俸禄"]
+    - characters.attributes.recent_transactions: 最近交易记录
+    
+    **经济交易记录：**
+    在economy.transactions中记录所有金钱流动：
+    - type: "收入" 或 "支出"
+    - amount: 金额数量
+    - from_character: 付款方
+    - to_character: 收款方  
+    - reason: 具体原因，如"购买疗伤丹药"、"完成悬赏任务奖励"
+    - item_involved: 涉及的物品名称
+    - chapter: 发生章节
+    
+    **金钱一致性规则：**
+    1. 角色的金钱变化必须有明确的来源或去向
+    2. 收入必须对应支出，反之亦然
+    3. 交易金额必须合理，符合世界观设定
+    4. 不能出现凭空产生或消失的金钱
+
     ### 1. 小说信息
     - **小说标题**: {params.get('novel_title', '未知')}
     - **章节标题**: {params.get('chapter_title', '未知')}
@@ -645,7 +699,23 @@ class QualityAssessor:
                         "occupation": "string (可选)",
                         "faction": "string (可选)",
                         "cultivation_level": "string (修为等级)",
-                        "cultivation_system": "string (修为体系)"
+                        "cultivation_system": "string (修为体系)",
+                        "money": (int, float),  # 金钱数量
+                        "money_sources": list,   # 金钱来源记录
+                        "recent_transactions": list  # 最近交易记录
+                    }}
+                }}
+            }},
+            "economy": {{
+                "transactions": {{
+                    "交易ID": {{
+                        "type": "string (收入/支出)",
+                        "amount": "number",
+                        "from_character": "string",
+                        "to_character": "string",
+                        "reason": "string",
+                        "item_involved": "string", 
+                        "chapter": "number"
                     }}
                 }}
             }},
@@ -971,7 +1041,7 @@ class QualityAssessor:
             "chapter_number": chapter_number,
             "novel_title": novel_title,
             "previous_summary": previous_summary,
-            "total_chapters": 100,  # 默认值，实际使用时应该传入
+            "total_chapters": 100,
             "word_count": word_count
         })
 

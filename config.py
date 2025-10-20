@@ -22,7 +22,7 @@ CONFIG = {
     # 在 config.py 或配置文件中添加
     "rate_limit": {
         "enabled": True,  # 频率限制开关
-        "interval": 60,   # 限制间隔（秒），默认60秒=1分钟
+        "interval": 90,   # 限制间隔（秒），默认60秒=1分钟
         "max_requests": 1 # 间隔内最大请求次数
     },
     "defaults": {

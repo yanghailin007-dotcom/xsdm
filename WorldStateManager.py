@@ -315,7 +315,21 @@ class WorldStateManager:
                     "occupation": str, 
                     "faction": str,
                     "cultivation_level": str,  # 修为等级
-                    "cultivation_system": str  # 修为体系（修仙/异能/武侠等）
+                    "cultivation_system": str,  # 修为体系（修仙/异能/武侠等）
+                    "money": (int, float),  # 金钱数量
+                    "money_sources": list,   # 金钱来源记录
+                    "recent_transactions": list  # 最近交易记录
+                }
+            },
+            "economy": {  # 新增：经济系统
+                "transactions": {
+                    "type": str,  # 收入/支出
+                    "amount": (int, float),
+                    "from_character": str,
+                    "to_character": str, 
+                    "reason": str,  # 交易原因
+                    "item_involved": str,  # 涉及物品
+                    "chapter": int
                 }
             },
             "cultivation_items": {  # 新增：修炼相关物品
@@ -1868,4 +1882,106 @@ class WorldStateManager:
                 })
         
         return items
-         
+    
+    def validate_money_consistency(self, novel_title: str, chapter_number: int, changes: Dict) -> List[Dict]:
+        """验证金钱变化的一致性"""
+        consistency_issues = []
+        
+        # 加载之前的世界状态
+        previous_state = self.load_previous_assessments(novel_title)
+        if not previous_state:
+            return consistency_issues
+        
+        characters_changes = changes.get('characters', {})
+        economy_changes = changes.get('economy', {}).get('transactions', {})
+        
+        # 处理列表类型的 economy_changes
+        if isinstance(economy_changes, list):
+            print(f"🔄 检测到列表格式的 transactions，转换为字典格式...")
+            economy_changes_dict = {}
+            for i, transaction in enumerate(economy_changes):
+                if isinstance(transaction, dict):
+                    economy_changes_dict[f"transaction_{i}"] = transaction
+                else:
+                    print(f"⚠️ 跳过无效交易记录: {transaction}")
+            economy_changes = economy_changes_dict
+        
+        # 检查每个角色的金钱变化
+        for char_name, char_data in characters_changes.items():
+            attributes = char_data.get('attributes', {})
+            if 'money' in attributes:
+                new_money = attributes['money']
+                
+                # 获取之前的金钱状态
+                prev_char = previous_state.get('characters', {}).get(char_name, {})
+                prev_attributes = prev_char.get('attributes', {})
+                prev_money = prev_attributes.get('money', 0)
+                
+                # 计算金钱变化
+                money_change = new_money - prev_money
+                
+                if money_change != 0:
+                    # 检查是否有对应的交易记录
+                    related_transactions = self._find_related_transactions(
+                        char_name, economy_changes, money_change
+                    )
+                    
+                    if not related_transactions:
+                        consistency_issues.append({
+                            "type": "MONEY_CONSISTENCY",
+                            "character": char_name,
+                            "description": f"{char_name}的金钱从{prev_money}变为{new_money}(变化:{money_change})，但未找到对应的交易记录",
+                            "severity": "高",
+                            "suggestion": f"请为{char_name}的金钱变化添加明确的交易记录，说明{money_change}灵石的来源/去向"
+                        })
+                    else:
+                        # 验证交易金额是否匹配
+                        total_transaction_amount = sum(t['amount'] for t in related_transactions if t['to_character'] == char_name)
+                        total_transaction_amount -= sum(t['amount'] for t in related_transactions if t['from_character'] == char_name)
+                        
+                        if total_transaction_amount != money_change:
+                            consistency_issues.append({
+                                "type": "MONEY_CONSISTENCY", 
+                                "character": char_name,
+                                "description": f"{char_name}的交易记录总额({total_transaction_amount})与金钱变化({money_change})不匹配",
+                                "severity": "高",
+                                "suggestion": "检查交易记录金额是否正确，确保收入支出平衡"
+                            })
+        
+        # 检查交易双方的对应关系
+        for transaction_id, transaction in economy_changes.items():
+            from_char = transaction.get('from_character')
+            to_char = transaction.get('to_character')
+            
+            # 检查交易双方是否都存在（除非是系统交易）
+            if from_char and from_char not in characters_changes and from_char != "系统":
+                consistency_issues.append({
+                    "type": "TRANSACTION_CONSISTENCY",
+                    "description": f"交易{transaction_id}的付款方{from_char}不存在于角色列表中",
+                    "severity": "中", 
+                    "suggestion": "确认付款方角色名称是否正确，或改为系统交易"
+                })
+                
+            if to_char and to_char not in characters_changes and to_char != "系统":
+                consistency_issues.append({
+                    "type": "TRANSACTION_CONSISTENCY",
+                    "description": f"交易{transaction_id}的收款方{to_char}不存在于角色列表中", 
+                    "severity": "中",
+                    "suggestion": "确认收款方角色名称是否正确，或改为系统交易"
+                })
+        
+        return consistency_issues
+
+    def _find_related_transactions(self, character_name: str, transactions: Dict, money_change: float) -> List[Dict]:
+        """查找与角色相关的交易记录"""
+        related = []
+        
+        for transaction_id, transaction in transactions.items():
+            from_char = transaction.get('from_character')
+            to_char = transaction.get('to_character')
+            
+            if from_char == character_name or to_char == character_name:
+                related.append(transaction)
+        
+        return related    
+            
