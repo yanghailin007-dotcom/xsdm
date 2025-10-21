@@ -949,38 +949,51 @@ class ContentGenerator:
         return True, None
 
     def _generate_unique_chapter_title(self, original_title: str, chapter_number: int, novel_data: Dict, retry_count: int = 0) -> str:
-        """生成唯一的章节标题"""
+        """生成与主要事件关联的吸引人章节标题"""
         if retry_count >= 2:
-            return self._generate_deterministic_title(original_title, chapter_number)
+            return self._generate_event_related_title(chapter_number, novel_data)
         
-        # 基于情节方向生成新标题
-        plot_direction = self._get_plot_direction_for_chapter(chapter_number, novel_data["current_progress"]["total_chapters"])
+        # 获取当前章节的主要事件信息
+        event_context = novel_data.get('_current_generation_context', {}).get('event_context', {})
+        active_events = event_context.get('active_events', [])
+        
+        # 构建基于事件的标题提示词
+        event_context_str = ""
+        if active_events:
+            current_event = active_events[0]  # 取当前主要事件
+            event_name = current_event.get('name', '')
+            event_goal = current_event.get('main_goal', '')
+            event_context_str = f"\n当前主要事件: {event_name}\n事件目标: {event_goal}"
         
         title_prompt = f"""
-请为小说的第{chapter_number}章生成一个新的、富有吸引力的章节标题。
+    请为小说的第{chapter_number}章生成一个吸引人的章节标题。
 
-原始标题（已重复）: {original_title}
-情节发展方向: {plot_direction["plot_direction"]}
+    **要求**：
+    1. 必须与当前主要事件相关：{event_context_str}
+    2. 通俗易懂，让读者一眼就能理解本章重点
+    3. 激发追读欲望，让人想知道后续发展
+    4. 长度8-15字
+    5. 避免与已有章节标题重复
 
-要求:
-1. 与原始标题风格一致但完全不同
-2. 反映本章情节发展
-3. 长度8-15字
-4. 避免与已有章节标题重复
-5. 富有文学性和吸引力
+    **标题风格示例**：
+    - "危机四伏！神秘敌人现身"
+    - "绝境突破！主角获得新能力"  
+    - "惊天秘密！幕后黑手浮出水面"
+    - "生死一线！最后的希望"
+    - "意外转折！真相令人震惊"
 
-已有章节标题: {list(novel_data.get("used_chapter_titles", set()))[-10:]}
+    已有章节标题: {list(novel_data.get("used_chapter_titles", set()))[-5:]}
 
-请只返回标题文本，不要其他内容。
-"""
+    请只返回标题文本，不要其他内容。
+    """
         
         try:
-            new_title = self.api_client.call_api('deepseek', "你是小说章节标题生成专家", title_prompt, 0.7, purpose="生成唯一章节标题")
+            new_title = self.api_client.call_api('deepseek', "你是小说章节标题生成专家", title_prompt, 0.7, purpose="生成吸引人章节标题")
             if new_title and new_title.strip():
                 new_title = new_title.strip().strip('"').strip("'").strip()
                 new_title = re.sub(r'^["\']|["\']$', '', new_title)
                 
-                # 再次检查唯一性
+                # 检查唯一性
                 is_unique, _ = self._is_chapter_title_unique(new_title, chapter_number, novel_data)
                 if is_unique and len(new_title) >= 4:
                     return new_title
@@ -989,7 +1002,31 @@ class ContentGenerator:
         except Exception as e:
             print(f"生成新标题失败: {e}")
         
-        return self._generate_deterministic_title(original_title, chapter_number)
+        return self._generate_event_related_title(chapter_number, novel_data)
+
+    def _generate_event_related_title(self, chapter_number: int, novel_data: Dict) -> str:
+        """生成与事件相关的备选标题"""
+        event_context = novel_data.get('_current_generation_context', {}).get('event_context', {})
+        active_events = event_context.get('active_events', [])
+        
+        if active_events:
+            event_name = active_events[0].get('name', '当前事件')
+            # 基于事件名称生成标题变体
+            event_templates = [
+                f"{event_name}的惊人发展",
+                f"{event_name}·危机时刻", 
+                f"{event_name}·转折点",
+                f"{event_name}·真相大白",
+                f"{event_name}·最终对决"
+            ]
+            
+            for title in event_templates:
+                is_unique, _ = self._is_chapter_title_unique(title, chapter_number, novel_data)
+                if is_unique:
+                    return title
+        
+        # 默认标题
+        return f"第{chapter_number}章 风云再起"
 
     def _generate_deterministic_title(self, original_title: str, chapter_number: int) -> str:
         """使用确定性方法生成标题"""
@@ -1571,12 +1608,11 @@ class ContentGenerator:
         cultivation_text = self.quality_assessor.get_comprehensive_previous_summary_enhanced(chapter_params.get('novel_title'), chapter_design.get('chapter_number'))
         # 检查设计方案中的情绪设计
         emotional_design = chapter_design.get("emotional_design", {})
-        print(f"  🎭 设计方案中的情绪设计: {emotional_design}")
-        
+        print(f"  🎭 设计方案中的情绪设计: {emotional_design}")  
         user_prompt = f"""
 你是一位顶级的网络小说作家，文笔精湛，擅长叙事。
 
-你的唯一任务是：严格、完整、并富有文采地执行以下【章节创作蓝图】，创作出小说《{chapter_params.get('novel_title')}》的第 {chapter_design.get('chapter_number')} 章。
+你的唯一任务是：严格、完整、执行以下【章节创作蓝图】，创作出小说《{chapter_params.get('novel_title')}》的第 {chapter_design.get('chapter_number')} 章。
 
 【章节创作蓝图】
 {json.dumps(chapter_design, ensure_ascii=False, indent=2)}
