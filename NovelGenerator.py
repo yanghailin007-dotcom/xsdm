@@ -666,69 +666,6 @@ class NovelGenerator:
             print(f"⚠️  元素时机规划器出错: {e}")
             return False
 
-    def _evaluate_plan_quality(self, plan_data: Dict, category: str, creative_seed: str) -> bool:
-        """使用AI评价方案质量，特别是书名和简介"""
-        print("\n🔍 正在使用AI评价方案质量...")
-        
-        title = plan_data.get('title', '')
-        synopsis = plan_data.get('synopsis', '')
-        core_direction = plan_data.get('core_direction', '')
-        
-        # 构建评价提示词
-        evaluation_prompt = f"""
-    请对以下小说方案进行专业评价：
-
-    【小说分类】{category}
-    【创意种子】{creative_seed}
-
-    【方案内容】
-    书名：《{title}》
-    简介：{synopsis}
-    核心方向：{core_direction}
-
-    """
-        
-        try:
-            # 调用AI进行评价
-            evaluation_result = self.api_client.generate_content_with_retry(
-                "plan_quality_evaluation",
-                evaluation_prompt,
-                purpose="方案质量评价"
-            )
-            
-            if not evaluation_result:
-                print("⚠️ AI评价失败，默认通过方案")
-                return {"overall_score": 8.0, "recommendation": True}
-            
-            # 解析评价结果
-            overall_score = evaluation_result.get("overall_score", 0)
-            recommendation = evaluation_result.get("recommendation", False)
-            
-            # 返回详细结果
-            result = {
-                "overall_score": overall_score,
-                "recommendation": recommendation,
-                "quality_verdict": evaluation_result.get("quality_verdict", "未知"),
-                "title_evaluation": evaluation_result.get("title_evaluation", {}),
-                "synopsis_evaluation": evaluation_result.get("synopsis_evaluation", {})
-            }
-            
-            print(f"📊 AI评价结果:")
-            print(f"  总体评分: {overall_score:.1f}/10分")
-            print(f"  质量判定: {result['quality_verdict']}")
-            print(f"  推荐使用: {'是' if recommendation else '否'}")
-            
-            # 决定是否通过
-            if overall_score >= 8.5 and recommendation:  # 降低阈值
-                print("✅ 方案质量评价通过")
-                return result
-            else:
-                print("❌ 方案质量评价不通过")
-                return result
-                
-        except Exception as e:
-            print(f"⚠️ AI评价过程中出错: {e}，默认通过方案")
-            return {"overall_score": 8.0, "recommendation": True}
 
     def _present_auto_generated_plan(self, plan_data: Dict) -> Dict:
         """展示自动生成的单一方案"""
@@ -2455,55 +2392,6 @@ class NovelGenerator:
         
         return fallback_templates.get(category, "【🎮游戏开始】阅读前请调整好姿势，准备好零食！\n\n🎯 觉得好看的扣'爱了',觉得离谱的扣'作者疯了'！\n\n📈 评论就是动力，吐槽就是关爱，来都来了，说两句呗～")     
 
-    def present_multiple_plans_to_user(self, plans_data: Dict) -> Dict:
-        """向用户展示多个方案供选择 - 修复版本，避免输出截断"""
-        print("\n" + "="*60)
-        print("📚 基于您的创意种子，为您生成3个不同风格的小说方案")
-        print("="*60)
-        
-        plans = plans_data.get('plans', [])
-        
-        # 先显示简化的方案概览
-        for i, plan in enumerate(plans, 1):
-            print(f"\n🎯 方案 {i}:")
-            print(f"   书名: 《{plan.get('title', '未知标题')}》")
-            print(f"   金手指类型: {plan.get('golden_finger_type', '未知')}")
-            print(f"   主线方向: {plan.get('main_plot_direction', '未知')}")
-            print(f"   简介预览: {plan.get('synopsis', '暂无简介')[:80]}...")
-            print(f"   核心方向预览: {plan.get('core_direction', '暂无核心方向')[:60]}...")
-            print("-" * 50)
-        
-        # 让用户选择查看详细方案
-        while True:
-            try:
-                print(f"\n请选择操作:")
-                print(f"  1-{len(plans)}: 查看对应方案的详细信息")
-                print(f"  0: 直接选择方案（基于当前概览信息）")
-                
-                choice = input(f"请输入选择 (0-{len(plans)}): ").strip()
-                
-                if choice == "0":
-                    # 直接选择，使用简化的选择流程
-                    return self._quick_select_plan(plans)
-                
-                choice_num = int(choice)
-                if 1 <= choice_num <= len(plans):
-                    # 显示选中方案的详细信息
-                    selected_plan = plans[choice_num - 1]
-                    self._display_plan_details(selected_plan, choice_num)
-                    
-                    # 询问是否选择这个方案
-                    confirm = input(f"\n是否选择方案 {choice_num}？(y/n): ").strip().lower()
-                    if confirm in ['y', 'yes', '是']:
-                        return selected_plan
-                    else:
-                        print("继续查看其他方案...")
-                        continue
-                else:
-                    print(f"请输入 0-{len(plans)} 之间的数字")
-            except ValueError:
-                print("请输入有效的数字")
-
     def _quick_select_plan(self, plans: List[Dict]) -> Dict:
         """快速选择方案（基于概览信息）"""
         print(f"\n快速选择方案:")
@@ -2614,10 +2502,217 @@ class NovelGenerator:
         if len(text) > 500:
             input("\n📄 按Enter键继续...")
 
-    # 修改 _generate_and_select_plan 方法中的方案展示部分
+
+    def present_multiple_plans_to_user(self, plans_data: Dict) -> Dict:
+        """向用户展示多个方案供选择 - 增强版本，支持计时自动选择"""
+        print("\n" + "="*60)
+        print("📚 基于您的创意种子，为您生成3个不同风格的小说方案")
+        print("="*60)
+        
+        plans = plans_data.get('plans', [])
+        
+        # 计算每个方案的综合评分（质量评分 + 新鲜度评分）
+        scored_plans = []
+        for i, plan in enumerate(plans, 1):
+            # 计算综合评分
+            quality_score = plan.get('_quality_score', 0)
+            freshness_score = plan.get('_freshness_score', 0)
+            total_score = quality_score + freshness_score
+            
+            scored_plans.append({
+                'plan': plan,
+                'index': i,
+                'total_score': total_score,
+                'quality_score': quality_score,
+                'freshness_score': freshness_score
+            })
+        
+        # 按综合评分排序
+        scored_plans.sort(key=lambda x: x['total_score'], reverse=True)
+        
+        # 显示方案概览（包含评分信息）
+        for item in scored_plans:
+            plan = item['plan']
+            print(f"\n🎯 方案 {item['index']} (评分: {item['total_score']:.1f}/20):")
+            print(f"   书名: 《{plan.get('title', '未知标题')}》")
+            print(f"   金手指类型: {plan.get('golden_finger_type', '未知')}")
+            print(f"   主线方向: {plan.get('main_plot_direction', '未知')}")
+            print(f"   质量评分: {item['quality_score']:.1f}/10")
+            print(f"   新鲜度评分: {item['freshness_score']:.1f}/10")
+            print(f"   简介预览: {plan.get('synopsis', '暂无简介')[:80]}...")
+            print("-" * 50)
+        
+        # 显示推荐的最佳方案
+        best_plan = scored_plans[0]
+        print(f"\n⭐ 系统推荐: 方案 {best_plan['index']} 《{best_plan['plan']['title']}》")
+        print(f"   综合评分: {best_plan['total_score']:.1f}/20 (质量: {best_plan['quality_score']:.1f}, 新鲜度: {best_plan['freshness_score']:.1f})")
+        
+        # 计时自动选择功能
+        selected_plan = self._timed_plan_selection(scored_plans)
+        return selected_plan
+
+    def _timed_plan_selection(self, scored_plans: List[Dict]) -> Dict:
+        """计时自动选择方案"""
+        import threading
+        import time
+        
+        user_choice = [None]  # 使用列表以便在嵌套函数中修改
+        
+        def get_user_input():
+            """获取用户输入"""
+            try:
+                print(f"\n请选择方案 (1-{len(scored_plans)}):")
+                print("  或等待15秒自动选择推荐方案")
+                choice = input("请输入选择: ").strip()
+                if choice:
+                    user_choice[0] = int(choice)
+            except ValueError:
+                print("输入无效，请等待自动选择...")
+        
+        def countdown_timer():
+            """倒计时定时器"""
+            for i in range(15, 0, -1):
+                if user_choice[0] is not None:
+                    return
+                time.sleep(1)
+            print("\n⏰ 时间到！自动选择推荐方案...")
+        
+        # 启动用户输入线程
+        input_thread = threading.Thread(target=get_user_input)
+        input_thread.daemon = True
+        input_thread.start()
+        
+        # 启动倒计时线程
+        timer_thread = threading.Thread(target=countdown_timer)
+        timer_thread.daemon = True
+        timer_thread.start()
+        
+        # 等待用户输入或超时
+        input_thread.join(timeout=15)
+        timer_thread.join(timeout=0)
+        
+        # 处理选择结果
+        if user_choice[0] is not None and 1 <= user_choice[0] <= len(scored_plans):
+            selected_index = user_choice[0] - 1
+            selected_plan = next((item['plan'] for item in scored_plans if item['index'] == user_choice[0]), None)
+            if selected_plan:
+                print(f"\n✅ 已手动选择方案 {user_choice[0]}: 《{selected_plan['title']}》")
+                return selected_plan
+        
+        # 自动选择最佳方案
+        best_plan = scored_plans[0]
+        print(f"\n🤖 已自动选择推荐方案 {best_plan['index']}: 《{best_plan['plan']['title']}》")
+        print(f"   理由: 综合评分最高 ({best_plan['total_score']:.1f}/20)")
+        return best_plan['plan']
+
+    def _evaluate_plan_quality(self, plan_data: Dict, category: str, creative_seed: str) -> Dict:
+        """使用AI评价方案质量，包括质量评分和新鲜度评分"""
+        print("\n🔍 正在使用AI评价方案质量和新颖度...")
+        
+        title = plan_data.get('title', '')
+        synopsis = plan_data.get('synopsis', '')
+        core_direction = plan_data.get('core_direction', '')
+        golden_finger = plan_data.get('core_settings', {}).get('golden_finger', '')
+        
+        # 构建质量评价提示词
+        quality_prompt = f"""
+    请对以下小说方案进行专业评价：
+
+    【小说分类】{category}
+    【创意种子】{creative_seed}
+
+    【方案内容】
+    书名：《{title}》
+    简介：{synopsis}
+    核心方向：{core_direction}
+    金手指：{golden_finger}
+
+    """
+        
+        # 构建新鲜度评价提示词
+        freshness_prompt = f"""
+    请评估以下小说方案的新颖度和创新性：
+
+    【小说分类】{category}
+    【创意种子】{creative_seed}
+
+    【方案内容】
+    书名：《{title}》
+    简介：{synopsis}
+    核心方向：{core_direction}
+    金手指：{golden_finger}
+
+    请重点评估：
+    1. 创意的独特性和新颖度
+    2. 金手指设计的创新性
+    3. 与同类作品的差异化程度
+    4. 市场新鲜度和稀缺性
+
+    """
+        
+        try:
+            # 调用AI进行质量评价
+            quality_result = self.api_client.generate_content_with_retry(
+                "plan_quality_evaluation",
+                quality_prompt,
+                purpose="方案质量评价"
+            )
+            
+            # 调用AI进行新鲜度评价
+            freshness_result = self.api_client.generate_content_with_retry(
+                "freshness_assessment", 
+                freshness_prompt,
+                purpose="方案新鲜度评价"
+            )
+            
+            # 解析评价结果
+            quality_score = quality_result.get("overall_score", 0) if quality_result else 0
+            freshness_score = freshness_result.get("freshness_score", 0) if freshness_result else 0
+            
+            # 计算综合评分（质量60% + 新鲜度40%）
+            total_score = (quality_score * 0.6) + (freshness_score * 0.4)
+            
+            # 返回详细结果
+            result = {
+                "quality_score": quality_score,
+                "freshness_score": freshness_score,
+                "total_score": total_score,
+                "quality_verdict": quality_result.get("quality_verdict", "未知") if quality_result else "未知",
+                "freshness_verdict": freshness_result.get("quality_verdict", "未知") if freshness_result else "未知",
+                "recommendation": quality_score >= 7.0 and freshness_score >= 6.0
+            }
+            
+            print(f"📊 AI评价结果:")
+            print(f"  质量评分: {quality_score:.1f}/10分")
+            print(f"  新鲜度评分: {freshness_score:.1f}/10分") 
+            print(f"  综合评分: {total_score:.1f}/10分")
+            print(f"  质量判定: {result['quality_verdict']}")
+            print(f"  新鲜度判定: {result['freshness_verdict']}")
+            print(f"  推荐使用: {'是' if result['recommendation'] else '否'}")
+            
+            # 将评分存储到方案数据中
+            plan_data['_quality_score'] = quality_score
+            plan_data['_freshness_score'] = freshness_score
+            plan_data['_total_score'] = total_score
+            
+            return result
+            
+        except Exception as e:
+            print(f"⚠️ AI评价过程中出错: {e}，使用默认评分")
+            # 使用默认评分
+            plan_data['_quality_score'] = 7.0
+            plan_data['_freshness_score'] = 6.0
+            plan_data['_total_score'] = 6.6
+            return {
+                "quality_score": 7.0,
+                "freshness_score": 6.0, 
+                "total_score": 6.6,
+                "recommendation": True
+            }
+
 
     def _generate_and_select_plan(self, creative_seed: str) -> bool:
-        """生成多个方案并让用户选择 - 修复版本"""
+        """生成多个方案并让用户选择 - 增强版本，包含新鲜度评分"""
         print("=== 步骤1: 基于创意种子和分类生成多个小说方案 ===")
         
         # 获取分类信息
@@ -2641,23 +2736,28 @@ class NovelGenerator:
             plans = plans_data['plans']
             print(f"✅ 成功生成 {len(plans)} 个方案")
             
-            # 对每个方案进行质量评价
+            # 对每个方案进行质量评价和新鲜度评价
             qualified_plans = []
             for i, plan in enumerate(plans):
                 print(f"  🔍 评估方案 {i+1}...")
-                quality_result = self._evaluate_plan_quality(plan, category, creative_seed)
-                current_score = quality_result.get("overall_score", 0) if isinstance(quality_result, dict) else 0
+                evaluation_result = self._evaluate_plan_quality(plan, category, creative_seed)
                 
-                if quality_result and current_score >= 7.0:  # 降低质量阈值
+                quality_score = evaluation_result.get("quality_score", 0)
+                freshness_score = evaluation_result.get("freshness_score", 0)
+                total_score = evaluation_result.get("total_score", 0)
+                
+                # 合格条件：质量评分 >= 7.0 且 新鲜度评分 >= 6.0
+                if quality_score >= 7.0 and freshness_score >= 6.0:
                     qualified_plans.append({
                         'plan': plan,
-                        'score': current_score,
-                        'quality_result': quality_result
+                        'quality_score': quality_score,
+                        'freshness_score': freshness_score,
+                        'total_score': total_score,
+                        'evaluation_result': evaluation_result
                     })
-                    print(f"    ✅ 方案 {i+1} 通过质量评价 (评分: {current_score:.1f}/10)")
+                    print(f"    ✅ 方案 {i+1} 通过评价 (质量: {quality_score:.1f}, 新鲜度: {freshness_score:.1f})")
                 else:
-                    score_msg = f"{current_score:.1f}" if current_score > 0 else "未知"
-                    print(f"    ❌ 方案 {i+1} 未通过质量评价 (评分: {score_msg}/10)")
+                    print(f"    ❌ 方案 {i+1} 未通过评价 (质量: {quality_score:.1f}, 新鲜度: {freshness_score:.1f})")
             
             # 记录最佳方案
             if qualified_plans:
@@ -2673,14 +2773,23 @@ class NovelGenerator:
             if attempt < max_retries - 1:
                 print("🔄 准备重新生成方案...")
         
-        # 如果没有合格方案，使用第一个方案作为备选
+        # 如果没有合格方案，使用评分最高的方案作为备选
         if not best_plans and plans_data and 'plans' in plans_data:
-            print("⚠️ 所有方案质量评价均未通过，使用第一个方案作为备选")
-            best_plans = [{
-                'plan': plans_data['plans'][0],
-                'score': 6.0,
-                'quality_result': {"overall_score": 6.0, "recommendation": True}
-            }]
+            print("⚠️ 所有方案评价均未通过，使用评分最高的方案作为备选")
+            # 对所有方案进行评分并选择最好的
+            scored_plans = []
+            for plan in plans_data['plans']:
+                evaluation_result = self._evaluate_plan_quality(plan, category, creative_seed)
+                total_score = evaluation_result.get("total_score", 0)
+                scored_plans.append({
+                    'plan': plan,
+                    'total_score': total_score
+                })
+            
+            # 按总分排序
+            scored_plans.sort(key=lambda x: x['total_score'], reverse=True)
+            if scored_plans:
+                best_plans = [scored_plans[0]]
         
         if best_plans:
             # 让用户选择方案
@@ -2694,7 +2803,15 @@ class NovelGenerator:
                 self.novel_data["novel_title"] = selected_plan["title"]
                 self.novel_data["novel_synopsis"] = selected_plan["synopsis"]
                 
+                # 存储评分信息
+                self.novel_data["plan_scores"] = {
+                    "quality_score": selected_plan.get('_quality_score', 0),
+                    "freshness_score": selected_plan.get('_freshness_score', 0),
+                    "total_score": selected_plan.get('_total_score', 0)
+                }
+                
                 print(f"✅ 已选择方案: 《{self.novel_data['novel_title']}》")
+                print(f"📊 最终评分 - 质量: {selected_plan.get('_quality_score', 0):.1f}, 新鲜度: {selected_plan.get('_freshness_score', 0):.1f}")
                 return True
         
         print("❌ 所有方案生成尝试均失败，终止生成")
