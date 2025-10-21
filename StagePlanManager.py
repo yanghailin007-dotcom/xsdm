@@ -17,9 +17,20 @@ class StagePlanManager:
         # 阶段特性描述
         self.stage_characteristics = {
             "opening_stage": {
-                "focus": "建立故事基础，吸引读者兴趣",
-                "pace": "较快节奏，快速建立冲突",
-                "key_elements": "主角出场、世界观介绍、初始冲突"
+                "focus": "快速建立强烈冲突，立即吸引读者",
+                "pace": "极快节奏，前3章必须建立核心冲突",
+                "key_elements": "主角惊艳登场、立即冲突、强力悬念、读者共鸣",
+                "critical_requirements": [
+                    "前3000字内必须建立强烈冲突",
+                    "第1章结尾必须有强力追读钩子", 
+                    "减少世界观介绍，增加行动和冲突",
+                    "主角特质在前2章完全展现"
+                ],
+                "success_metrics": [
+                    "读者在第1章产生强烈情感共鸣",
+                    "第3章结束时读者必须想知道后续发展",
+                    "前10章完读率目标：70%+"
+                ]
             },
             "development_stage": {
                 "focus": "深化矛盾，推进角色成长",
@@ -160,8 +171,6 @@ class StagePlanManager:
         print(f"\n📈 总计: {len(stage_plan_dict)}个阶段，{total_chapters}章")
         print("=" * 60)
 
-    # === 写作计划管理方法 ===
-    
     def generate_stage_writing_plan(self, stage_name: str, stage_range: str, creative_seed: str,
                                 novel_title: str, novel_synopsis: str, overall_stage_plan: Dict) -> Dict:
         """生成阶段详细写作计划 - 增强黄金三章处理"""
@@ -176,75 +185,83 @@ class StagePlanManager:
         is_opening_with_golden = (stage_name == "opening_stage" and 
                                 stage_range.startswith("1-") and 
                                 int(stage_range.split("-")[1]) >= 3)
-    
+
         # 计算章节分段
         start_chap, end_chap = parse_chapter_range(stage_range)
         stage_length = end_chap - start_chap + 1
         
-        # 构建用户提示词 - 添加事件密度要求
+        # 🆕 使用阶段特定的密度计算
+        density_requirements = self.calculate_optimal_event_density_by_stage(stage_name, stage_length)
+        
+        # 🆕 获取阶段特定指导
+        stage_guidance = self.get_stage_specific_guidance(stage_name)
+        
+        # 构建用户提示词 - 使用阶段特定的事件密度
         user_prompt = f"""
-内容:
-## 任务指令
-请根据下文提供的小说信息和全书大纲，为 `{stage_name}` 阶段制定详细的写作计划。
+    内容:
+    ## 任务指令
+    请根据下文提供的小说信息和全书大纲，为 `{stage_name}` 阶段制定详细的写作计划。
 
-## 事件规划核心要求
-1. **合理密度**: 请参照重要事件密度要求
-2. **主线贯穿**: 所有事件必须服务于阶段核心目标，避免偏离主线  
-3. **渐进升级**: 事件难度和重要性应逐步提升，形成递进关系
-4. **伏笔衔接**: 每个事件都应包含对后续事件的铺垫
+    {stage_guidance}
 
-## 小说核心信息
-- **小说标题**: {novel_title}
-- **小说简介**: {novel_synopsis}
-- **创意种子**: {creative_seed}
+    ## 小说核心信息
+    - **小说标题**: {novel_title}
+    - **小说简介**: {novel_synopsis}
+    - **创意种子**: {creative_seed}
 
-## 全书大纲 (上下文)
-{json.dumps(overall_stage_plan, ensure_ascii=False, indent=2)}
+    ## 全书大纲 (上下文)
+    {json.dumps(overall_stage_plan, ensure_ascii=False, indent=2)}
 
-## 本次任务详情
-- **目标阶段**: {stage_name}
-- **章节范围**: {stage_range}章
-- **阶段长度**: {stage_length}章
+    ## 本次任务详情
+    - **目标阶段**: {stage_name}
+    - **章节范围**: {stage_range}章
+    - **阶段长度**: {stage_length}章
 
-## 重要事件密度要求
-- **小型事件**: 至少{max(3, stage_length // 5)}个 (日常冲突、角色互动、伏笔铺垫、反派视角)
-- **中型事件**: 至少{max(2, stage_length // 8)}个 (支线任务、能力突破)  
-- **重大事件**: 至少{max(1, stage_length // 15)}个 (主线推进、重大转折)
-- **最大事件间隔**: 不超过15章必须有核心事件推进
-"""
+    ## 🆕 阶段特定事件密度要求
+    - **重大事件**: {density_requirements['major_events']}个 (推动主线、重大转折)
+    - **中型事件**: {density_requirements['medium_events']}个 (支线任务、能力突破、重要关系发展)  
+    - **小型事件**: {density_requirements['minor_events']}个 (日常互动、伏笔铺垫、氛围营造)
+    - **最大事件间隔**: 不超过{density_requirements.get('max_chapter_gap', 8)}章必须有核心事件推进
+
+    ## 事件规划核心要求
+    1. **合理密度**: 请严格参照上述事件密度要求
+    2. **主线贯穿**: 所有事件必须服务于阶段核心目标，避免偏离主线  
+    3. **渐进升级**: 事件难度和重要性应逐步提升，形成递进关系
+    4. **伏笔衔接**: 每个事件都应包含对后续事件的铺垫
+    """
         
         # 如果是开局阶段且包含黄金三章，添加特殊要求
         if is_opening_with_golden:
             golden_chapters_prompt = f"""
 
-## 🏆 黄金三章特殊设计要求（第1-3章）
+    ## 🏆 黄金三章特殊设计要求（第1-3章）
 
-请为黄金三章制定特别详细的设计方案：
+    请为黄金三章制定特别详细的设计方案：
 
-### 第1章设计方案：
-- **开篇方式**：设计3种不同的强力开篇方式供选择
-- **主角登场**：具体描述主角如何惊艳登场  
-- **冲突设置**：设计开篇冲突的具体场景和对话
-- **悬念钩子**：章节结尾必须设置的悬念内容
-- **字数分配**：建议各部分的字数分配
+    ### 第1章设计方案：
+    - **开篇方式**：设计3种不同的强力开篇方式供选择
+    - **主角登场**：具体描述主角如何惊艳登场  
+    - **冲突设置**：设计开篇冲突的具体场景和对话
+    - **悬念钩子**：章节结尾必须设置的悬念内容
+    - **字数分配**：建议各部分的字数分配
 
-### 第2章设计方案：
-- **情节推进**：具体如何深化第一章的冲突
-- **新元素引入**：需要引入的新角色、新设定
-- **节奏控制**：如何保持快节奏的同时不显得仓促
-- **情感建立**：如何让读者对主角产生情感共鸣
+    ### 第2章设计方案：
+    - **情节推进**：具体如何深化第一章的冲突
+    - **新元素引入**：需要引入的新角色、新设定
+    - **节奏控制**：如何保持快节奏的同时不显得仓促
+    - **情感建立**：如何让读者对主角产生情感共鸣
 
-### 第3章设计方案：
-- **小高潮设计**：具体的小高潮场景和冲突
-- **伏笔设置**：为哪些后续情节埋下伏笔
-- **追读钩子**：设计让读者必须看下一章的强力理由
-- **阶段总结**：黄金三章整体要达到的效果
+    ### 第3章设计方案：
+    - **小高潮设计**：具体的小高潮场景和冲突
+    - **伏笔设置**：为哪些后续情节埋下伏笔
+    - **追读钩子**：设计让读者必须看下一章的强力理由
+    - **阶段总结**：黄金三章整体要达到的效果
 
-### 黄金三章评分标准：
-- 必须达到8.5分以上才算合格
-- 重点评估开篇吸引力、情节紧凑度、悬念设置
-- 每章都要有明确的成功标准
-"""
+    ### 黄金三章评分标准：
+    - 必须达到8.5分以上才算合格
+    - 重点评估开篇吸引力、情节紧凑度、悬念设置
+    - 每章都要有明确的成功标准
+    """
             user_prompt += golden_chapters_prompt
         
         # 生成写作计划
@@ -269,16 +286,16 @@ class StagePlanManager:
             if is_opening_with_golden:
                 writing_plan = self._enhance_golden_chapters_in_writing_plan(writing_plan)
             
-            # 验证主线连贯性
-            is_continuous = self.validate_main_thread_continuity(writing_plan)
+            # 🆕 验证阶段特定的事件密度
+            event_density_ok = self.validate_stage_event_density(writing_plan, stage_name, stage_range)
+            if not event_density_ok:
+                print(f"  ⚠️ {stage_name}写作计划事件密度不符合阶段要求，进行优化...")
+                writing_plan = self.supplement_events_with_ai(writing_plan, stage_range, creative_seed, novel_title, novel_synopsis, overall_stage_plan)
+            
+            # 🆕 验证主线连贯性（使用阶段特定的间隔要求）
+            is_continuous = self.validate_main_thread_continuity(writing_plan, stage_name)
             if not is_continuous:
                 print(f"  ⚠️ {stage_name}写作计划存在事件间隔过长问题，进行优化...")
-            
-            # 验证事件密度
-            event_density_ok = self.validate_event_density(writing_plan, stage_range)
-            if not event_density_ok:
-                print(f"  ⚠️ {stage_name}写作计划事件密度不足，进行补充...")
-                writing_plan = self.supplement_events_with_ai(writing_plan, stage_range, creative_seed, novel_title, novel_synopsis, overall_stage_plan)
             
             self.stage_writing_plans_cache[cache_key] = writing_plan
             
@@ -293,6 +310,79 @@ class StagePlanManager:
         else:
             print(f"  ⚠️ {stage_name}写作计划生成失败，使用默认计划，请重点检查")
             return {}
+
+    def validate_stage_event_density(self, writing_plan: Dict, stage_name: str, stage_range: str) -> bool:
+        """验证阶段特定的事件密度是否合理"""
+        start_chap, end_chap = parse_chapter_range(stage_range)
+        stage_length = end_chap - start_chap + 1
+        
+        # 获取阶段特定的密度要求
+        density_requirements = self.calculate_optimal_event_density_by_stage(stage_name, stage_length)
+        
+        # 修正：正确访问嵌套的事件系统
+        if "stage_writing_plan" in writing_plan:
+            events = writing_plan["stage_writing_plan"].get("event_system", {})
+        else:
+            events = writing_plan.get("event_system", {})
+        
+        major_events = events.get("major_events", [])
+        medium_events = events.get("medium_events", [])
+        minor_events = events.get("minor_events", [])
+        
+        # 计算实际事件数量
+        actual_major = len(major_events)
+        actual_medium = len(medium_events)
+        actual_minor = len(minor_events)
+        
+        # 验证是否满足阶段特定要求
+        major_ok = actual_major >= density_requirements["major_events"]
+        medium_ok = actual_medium >= density_requirements["medium_events"]
+        minor_ok = actual_minor <= density_requirements["minor_events"]  # 小型事件要控制上限
+        
+        if not (major_ok and medium_ok and minor_ok):
+            print(f"  ⚠️ {stage_name}阶段事件密度不符合要求：")
+            print(f"    重大事件: 实际{actual_major}个, 要求至少{density_requirements['major_events']}个")
+            print(f"    中型事件: 实际{actual_medium}个, 要求至少{density_requirements['medium_events']}个")
+            print(f"    小型事件: 实际{actual_minor}个, 要求最多{density_requirements['minor_events']}个")
+            return False
+        
+        print(f"  ✅ {stage_name}阶段事件密度验证通过")
+        return True
+
+    def validate_main_thread_continuity(self, writing_plan: Dict, stage_name: str) -> bool:
+        """验证主线连贯性 - 阶段特定版本"""
+        # 修正：正确访问嵌套的事件系统
+        if "stage_writing_plan" in writing_plan:
+            events = writing_plan["stage_writing_plan"].get("event_system", {})
+        else:
+            events = writing_plan.get("event_system", {})
+        
+        # 确保 major_events 存在
+        if "major_events" not in events:
+            return False
+            
+        major_events = events.get("major_events", [])
+        
+        # 阶段特定的最大间隔
+        stage_max_gaps = {
+            "opening_stage": 5,    # 开局阶段间隔更短
+            "development_stage": 8,
+            "climax_stage": 6,     # 高潮阶段间隔较短
+            "ending_stage": 7,
+            "final_stage": 10      # 结局阶段可以稍长
+        }
+        
+        max_allowed_gap = stage_max_gaps.get(stage_name, 8)
+        
+        # 检查是否有超过允许间隔没有核心事件
+        max_gap = self.calculate_max_event_gap(major_events)
+        
+        if max_gap > max_allowed_gap:
+            print(f"  ⚠️ 警告：{stage_name}阶段事件间隔过长，最长{max_gap}章没有核心事件（允许最大{max_allowed_gap}章）")
+            return False
+        
+        print(f"  ✅ {stage_name}阶段主线连贯性验证通过：最大事件间隔{max_gap}章")
+        return True
 
     def _enhance_golden_chapters_in_writing_plan(self, writing_plan: Dict) -> Dict:
         """在阶段写作计划中增强黄金三章设计"""
@@ -739,13 +829,28 @@ class StagePlanManager:
         except Exception as e:
             print(f"❌ 确定章节阶段失败: {e}")
             return None
-
-    # === 事件管理方法 ===
     
     def supplement_events_with_ai(self, writing_plan: Dict, stage_range: str, creative_seed: str, novel_title: str, novel_synopsis: str, overall_stage_plan: Dict) -> Dict:
-        """使用AI补充事件以提高密度 - 简化版本"""
+        """使用AI补充事件以提高密度 - 阶段特定版本"""
         start_chap, end_chap = parse_chapter_range(stage_range)
         stage_length = end_chap - start_chap + 1
+        
+        # 🆕 获取当前阶段名称
+        stage_name = None
+        for name, plan in self.generator.novel_data.get("stage_writing_plans", {}).items():
+            if plan == writing_plan:
+                stage_name = name
+                break
+        
+        if not stage_name:
+            # 尝试从章节范围推断阶段
+            if start_chap == 1:
+                stage_name = "opening_stage"
+            else:
+                stage_name = "development_stage"  # 默认
+        
+        # 🆕 使用阶段特定的密度要求
+        density_requirements = self.calculate_optimal_event_density_by_stage(stage_name, stage_length)
         
         # 提取事件数据
         if "stage_writing_plan" in writing_plan:
@@ -758,59 +863,58 @@ class StagePlanManager:
         current_medium = len(events.get("medium_events", []))
         current_minor = len(events.get("minor_events", []))
         
-        target_major = max(1, stage_length // 15)
-        target_medium = max(2, stage_length // 8)
-        target_minor = max(3, stage_length // 5)
+        # 🆕 使用阶段特定的目标密度
+        target_major = density_requirements["major_events"]
+        target_medium = density_requirements["medium_events"]
+        target_minor = density_requirements["minor_events"]
         
         # 如果事件密度不足，提示AI补充
-        if current_major < target_major or current_medium < target_medium or current_minor < target_minor:
-            print(f"  🤖 事件密度不足，使用AI补充事件...")
+        if current_major < target_major or current_medium < target_medium or current_minor > target_minor:
+            print(f"  🤖 {stage_name}阶段事件密度不符合要求，使用AI补充事件...")
             
             supplement_prompt = f"""
-请为小说阶段补充事件设计，使事件密度更加合理。
+    请为小说阶段补充事件设计，使事件密度更加合理。
 
-## 小说核心信息
-- **小说标题**: {novel_title}
-- **小说简介**: {novel_synopsis}
-- **创意种子**: {creative_seed}
-- **阶段范围**: {stage_range}章 (共{stage_length}章)
+    ## 小说核心信息
+    - **小说标题**: {novel_title}
+    - **小说简介**: {novel_synopsis}
+    - **创意种子**: {creative_seed}
+    - **阶段名称**: {stage_name}
+    - **阶段范围**: {stage_range}章 (共{stage_length}章)
 
-## 全书大纲 (上下文)
-{json.dumps(overall_stage_plan, ensure_ascii=False, indent=2)}
+    ## 全书大纲 (上下文)
+    {json.dumps(overall_stage_plan, ensure_ascii=False, indent=2)}
 
-## 事件规划核心要求
-1. **合理密度**: 确保每5-8章有一个小型事件，每10-15章有一个中型事件，每15-20章有一个重大事件
-2. **主线贯穿**: 所有事件必须服务于阶段核心目标，避免偏离主线  
-3. **渐进升级**: 事件难度和重要性应逐步提升，形成递进关系
-4. **伏笔衔接**: 每个事件都应包含对后续事件的铺垫
+    ## 🆕 阶段特定事件规划要求
+    {self.get_stage_specific_guidance(stage_name)}
 
-## 当前事件统计
-- 重大事件: {current_major}个 (建议{target_major}个)
-- 中型事件: {current_medium}个 (建议{target_medium}个)  
-- 小型事件: {current_minor}个 (建议{target_minor}个)
+    ## 事件密度目标
+    - 重大事件: {current_major}个 -> 需要达到{target_major}个
+    - 中型事件: {current_medium}个 -> 需要达到{target_medium}个  
+    - 小型事件: {current_minor}个 -> 需要控制在{target_minor}个以内
 
-## 现有事件
-{json.dumps(events, ensure_ascii=False, indent=2)}
+    ## 现有事件
+    {json.dumps(events, ensure_ascii=False, indent=2)}
 
-## 补充要求
-请根据现有事件和故事逻辑，补充合适的事件来丰富情节。
-不需要严格按照建议数量，只需补充您认为合理的事件即可。
+    ## 补充要求
+    请根据现有事件和故事逻辑，补充合适的事件来达到上述密度目标。
+    特别注意：{stage_name}阶段需要{self.calculate_optimal_event_density_by_stage(stage_name, stage_length).get('description', '合理的事件分布')}
 
-请返回补充的事件设计：
-{{
-    "supplemental_events": {{
-        "major_events": [],
-        "medium_events": [],
-        "minor_events": []
+    请返回补充的事件设计：
+    {{
+        "supplemental_events": {{
+            "major_events": [],
+            "medium_events": [],
+            "minor_events": []
+        }}
     }}
-}}
-"""
+    """
             
             try:
                 supplement_result = self.generator.api_client.generate_content_with_retry(
                     "event_supplement",
                     supplement_prompt,
-                    purpose="补充事件设计"
+                    purpose=f"补充{stage_name}阶段事件"
                 )
                 
                 if supplement_result and "supplemental_events" in supplement_result:
@@ -841,7 +945,7 @@ class StagePlanManager:
                     added_minor = len(validated_events.get('minor_events', []))
                     
                     if added_major > 0 or added_medium > 0 or added_minor > 0:
-                        print(f"  ✅ AI补充了{added_major}个重大事件，{added_medium}个中型事件，{added_minor}个小型事件")
+                        print(f"  ✅ AI为{stage_name}阶段补充了{added_major}个重大事件，{added_medium}个中型事件，{added_minor}个小型事件")
                         
             except Exception as e:
                 print(f"  ❌ AI补充事件出错: {e}")
@@ -886,33 +990,6 @@ class StagePlanManager:
                     events[event_type] = sorted(events[event_type], key=lambda x: x.get('chapter', 0))
         
         return events
-
-    def validate_main_thread_continuity(self, writing_plan: Dict) -> bool:
-        """验证主线连贯性 - 修正版本"""
-        # 修正：正确访问嵌套的事件系统
-        if "stage_writing_plan" in writing_plan:
-            events = writing_plan["stage_writing_plan"].get("event_system", {})
-        else:
-            events = writing_plan.get("event_system", {})
-        
-        # 确保 major_events 存在
-        if "major_events" not in events:
-            return False
-            
-        major_events = events.get("major_events", [])
-        
-        # 检查事件链条是否完整
-        event_chains = self.build_event_chains(major_events)
-        
-        # 检查是否有超过15章没有核心事件
-        max_gap = self.calculate_max_event_gap(major_events)
-        
-        if max_gap > 30:
-            print(f"  ⚠️ 警告：事件间隔过长，最长{max_gap}章没有核心事件")
-            return False
-        
-        print(f"  ✅ 主线连贯性验证通过：最大事件间隔{max_gap}章")
-        return True
 
     def build_event_chains(self, events: List) -> List:
         """构建事件链条，确保逻辑连贯 - 修复版本"""
@@ -1609,3 +1686,154 @@ class StagePlanManager:
             })
         
         return writing_plan
+
+    def calculate_optimal_event_density_by_stage(self, stage_name: str, stage_length: int) -> Dict:
+        """基于阶段类型计算最优事件密度"""
+        
+        stage_density_profiles = {
+            "opening_stage": {
+                "description": "高密度重大事件，快速吸引读者",
+                "major_ratio": 0.4,    # 重大事件40%
+                "medium_ratio": 0.4,   # 中型事件40%
+                "minor_ratio": 0.2,    # 小型事件20%
+                "min_major": 3,        # 至少3个重大事件
+                "min_medium": 2,       # 至少2个中型事件
+                "max_minor": 5         # 最多5个小事件
+            },
+            "development_stage": {
+                "description": "平衡发展，中型事件为主",
+                "major_ratio": 0.3,    # 重大事件30%
+                "medium_ratio": 0.5,   # 中型事件50%  
+                "minor_ratio": 0.2,    # 小型事件20%
+                "min_major": 2,
+                "min_medium": 4,
+                "max_minor": 8
+            },
+            "climax_stage": {
+                "description": "重大事件密集，高潮迭起",
+                "major_ratio": 0.5,    # 重大事件50%
+                "medium_ratio": 0.3,   # 中型事件30%
+                "minor_ratio": 0.2,    # 小型事件20%
+                "min_major": 4,
+                "min_medium": 3,
+                "max_minor": 6
+            },
+            "ending_stage": {
+                "description": "解决冲突，收束支线",
+                "major_ratio": 0.4,    # 重大事件40%
+                "medium_ratio": 0.4,   # 中型事件40%
+                "minor_ratio": 0.2,    # 小型事件20%
+                "min_major": 2,
+                "min_medium": 3,
+                "max_minor": 4
+            },
+            "final_stage": {
+                "description": "专注结局，减少冗余",
+                "major_ratio": 0.6,    # 重大事件60%
+                "medium_ratio": 0.3,   # 中型事件30%
+                "minor_ratio": 0.1,    # 小型事件10%
+                "min_major": 2,
+                "min_medium": 2,
+                "max_minor": 2
+            }
+        }
+        
+        profile = stage_density_profiles.get(stage_name, stage_density_profiles["development_stage"])
+        
+        # 基于阶段长度计算事件数量
+        base_events = max(8, stage_length // 2)  # 基础事件数
+        
+        return {
+            "major_events": max(profile["min_major"], int(base_events * profile["major_ratio"])),
+            "medium_events": max(profile["min_medium"], int(base_events * profile["medium_ratio"])),
+            "minor_events": min(profile["max_minor"], int(base_events * profile["minor_ratio"]))
+        }
+
+    def get_stage_specific_guidance(self, stage_name: str) -> str:
+        """获取阶段特定的写作指导"""
+        
+        stage_guidance = {
+            "opening_stage": """
+    ## 🚀 开局阶段特殊要求（前16%章节）
+
+    ### 核心任务
+    1. **立即吸引**：前500字必须抓住读者注意力
+    2. **快速冲突**：前3000字建立核心冲突
+    3. **主角共鸣**：让读者立即喜欢或认同主角
+    4. **强力悬念**：每章结尾必须有追读钩子
+
+    ### 事件设计重点
+    - **重大事件密度**：40%以上必须是推动主线的重大事件
+    - **减少铺垫**：避免过多背景介绍，直接进入冲突
+    - **情感冲击**：每个事件都要有情感价值
+    - **节奏控制**：保持高速推进，避免任何拖沓
+
+    ### 完读率保障措施
+    - 第1章：必须完成主角登场+初始冲突+悬念结尾
+    - 第2章：深化冲突，展现主角能力/特质
+    - 第3章：安排小高潮，设置更强悬念
+    - 前10章：每3章必须有一个情感或情节高潮
+    """,
+            "development_stage": """
+    ## 📈 发展阶段指导（26%章节）
+
+    ### 核心任务
+    1. **深化冲突**：将开局冲突扩展为更复杂的矛盾
+    2. **角色成长**：展现主角和配角的成长弧线
+    3. **世界观展开**：逐步揭示更广阔的世界设定
+    4. **支线整合**：将支线情节与主线巧妙连接
+
+    ### 事件设计重点
+    - **平衡发展**：重大事件30%，中型事件50%，小型事件20%
+    - **渐进升级**：事件难度和重要性逐步提升
+    - **伏笔铺设**：为高潮阶段埋下关键伏笔
+    - **情感深化**：建立读者与角色的深度情感连接
+    """,
+            "climax_stage": """
+    ## ⚡ 高潮阶段指导（28%章节）
+
+    ### 核心任务
+    1. **冲突爆发**：主要矛盾全面爆发
+    2. **情感高潮**：达到情感的最高点
+    3. **真相揭露**：揭示关键信息和伏笔
+    4. **角色蜕变**：主角完成关键成长
+
+    ### 事件设计重点
+    - **高密度高潮**：重大事件占比50%，保持紧张节奏
+    - **多线并进**：同时推进多条情节线
+    - **情感冲击**：每个事件都要有强烈的情感价值
+    - **悬念维持**：即使在高潮中也要保持悬念
+    """,
+            "ending_stage": """
+    ## 🎯 收尾阶段指导（18%章节）
+
+    ### 核心任务
+    1. **矛盾解决**：解决主要冲突和矛盾
+    2. **伏笔回收**：回收前期铺设的重要伏笔
+    3. **情感升华**：将情感推向更深层次
+    4. **结局准备**：为最终结局做好铺垫
+
+    ### 事件设计重点
+    - **集中解决**：重大和中型事件各占40%，专注解决问题
+    - **情感共鸣**：强调角色的情感变化和成长
+    - **逻辑严密**：确保所有解决方案合理可信
+    - **节奏放缓**：适当放缓节奏，让读者消化
+    """,
+            "final_stage": """
+    ## 🏁 结局阶段指导（12%章节）
+
+    ### 核心任务
+    1. **完整收尾**：给出所有主要角色的结局
+    2. **主题升华**：强化小说的核心主题
+    3. **情感余韵**：留下持久的情感共鸣
+    4. **读者满足**：确保读者获得完整的阅读体验
+
+    ### 事件设计重点
+    - **专注结局**：重大事件占比60%，专注核心结局
+    - **减少冗余**：小型事件只占10%，避免节外生枝
+    - **情感优先**：每个事件都要服务于情感满足
+    - **节奏平稳**：保持平稳深沉的叙事节奏
+    """
+        }
+        
+        return stage_guidance.get(stage_name, "## 阶段写作指导\n\n请根据故事发展需要合理安排事件。")    

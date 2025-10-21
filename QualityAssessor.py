@@ -266,11 +266,23 @@ class QualityAssessor:
                     result['world_state_changes'], 
                     chapter_number
                 )
+                if 'characters' in cleaned_changes:
+                    for char_name, char_data in cleaned_changes['characters'].items():
+                        if 'attributes' in char_data and 'money' in char_data['attributes']:
+                            money_value = char_data['attributes']['money']
+                            if money_value is not None:
+                                try:
+                                    # 确保金钱值是数值类型
+                                    char_data['attributes']['money'] = float(money_value)
+                                except (TypeError, ValueError):
+                                    # 如果转换失败，设置为0并记录警告
+                                    print(f"⚠️ 角色 {char_name} 的金钱值无效: {money_value}，已重置为0")
+                                    char_data['attributes']['money'] = 0
 
                 money_issues = self.world_state_manager.validate_money_consistency(
                     novel_title, 
                     chapter_number,
-                    result['world_state_changes']
+                    cleaned_changes  # 使用清洗后的数据
                 )
                 
                 # 如果有金钱一致性问题，大幅降低评分

@@ -1884,7 +1884,7 @@ class WorldStateManager:
         return items
     
     def validate_money_consistency(self, novel_title: str, chapter_number: int, changes: Dict) -> List[Dict]:
-        """验证金钱变化的一致性"""
+        """验证金钱变化的一致性 - 修复 NoneType 错误"""
         consistency_issues = []
         
         # 加载之前的世界状态
@@ -1912,10 +1912,30 @@ class WorldStateManager:
             if 'money' in attributes:
                 new_money = attributes['money']
                 
+                # === 修复1: 确保 new_money 是数值类型 ===
+                if new_money is None:
+                    print(f"⚠️ 检测到 {char_name} 的金钱为 None，跳过检查")
+                    continue
+                    
+                try:
+                    new_money = float(new_money)
+                except (TypeError, ValueError):
+                    print(f"⚠️ {char_name} 的金钱值无效: {new_money}，跳过检查")
+                    continue
+                
                 # 获取之前的金钱状态
                 prev_char = previous_state.get('characters', {}).get(char_name, {})
                 prev_attributes = prev_char.get('attributes', {})
                 prev_money = prev_attributes.get('money', 0)
+                
+                # === 修复2: 确保 prev_money 是数值类型 ===
+                if prev_money is None:
+                    prev_money = 0
+                else:
+                    try:
+                        prev_money = float(prev_money)
+                    except (TypeError, ValueError):
+                        prev_money = 0
                 
                 # 计算金钱变化
                 money_change = new_money - prev_money
@@ -1936,10 +1956,22 @@ class WorldStateManager:
                         })
                     else:
                         # 验证交易金额是否匹配
-                        total_transaction_amount = sum(t['amount'] for t in related_transactions if t['to_character'] == char_name)
-                        total_transaction_amount -= sum(t['amount'] for t in related_transactions if t['from_character'] == char_name)
+                        total_transaction_amount = 0
+                        for transaction in related_transactions:
+                            amount = transaction.get('amount', 0)
+                            # === 修复3: 确保交易金额是数值类型 ===
+                            try:
+                                amount = float(amount) if amount is not None else 0
+                            except (TypeError, ValueError):
+                                amount = 0
+                                
+                            if transaction.get('to_character') == char_name:
+                                total_transaction_amount += amount
+                            elif transaction.get('from_character') == char_name:
+                                total_transaction_amount -= amount
                         
-                        if total_transaction_amount != money_change:
+                        # 允许小的浮点数误差
+                        if abs(total_transaction_amount - money_change) > 0.01:
                             consistency_issues.append({
                                 "type": "MONEY_CONSISTENCY", 
                                 "character": char_name,
