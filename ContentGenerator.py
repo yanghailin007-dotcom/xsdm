@@ -1436,48 +1436,148 @@ class ContentGenerator:
                 "break_activities": [],
                 "reader_emotional_journey": "让读者感受到情感满足和成长"
             }
-
     def _get_event_guidance_from_context(self, event_context: Dict, chapter_number: int) -> str:
-        """从事件上下文中生成指导 - 添加错误处理"""
+        """从事件上下文中生成指导 - 修复键名错误版本"""
         
         if not event_context:
             print("   - 事件上下文为空，返回默认指导")
             return "# 🎯 事件执行指导\n\n事件上下文为空，按常规情节推进。"
         
-        # 检查是否有活跃事件
-        active_events = event_context.get("active_events", [])
-        if not active_events:
-            print("   - 无活跃事件，返回空窗期指导")
-            empty_guidance = self._get_empty_period_guidance(chapter_number, event_context)
-            # 确保返回的是字符串
-            return empty_guidance if empty_guidance is not None else "# 🎯 事件执行指导\n\n本章暂无特定事件任务，按主线推进即可。"
-        
         try:
-            guidance_parts = ["# 🎯 事件执行指导", "## 活跃事件"]
+            guidance_parts = ["# 🎯 事件执行指导"]
             
-            for event in event_context.get("active_events", []):
+            # 🆕 添加事件时间线信息
+            event_timeline = event_context.get("event_timeline", {})
+            timeline_summary = event_timeline.get("timeline_summary", "")
+            
+            if timeline_summary:
+                guidance_parts.extend([
+                    "## ⏰ 事件时间线概览",
+                    timeline_summary,
+                    ""
+                ])
+            
+            # 🆕 添加上下文衔接指导 - 修复键名问题
+            previous_event = event_timeline.get("previous_event")
+            next_event = event_timeline.get("next_event")
+            
+            if previous_event or next_event:
+                guidance_parts.append("## 🔗 情节衔接指导")
+                
+                if previous_event:
+                    # 🆕 修复：使用正确的键名获取章节号
+                    prev_chapter = previous_event.get("start_chapter", previous_event.get("chapter", "未知"))
+                    guidance_parts.extend([
+                        f"### 📖 承接前情 (第{prev_chapter}章)",
+                        f"- **事件**: {previous_event['name']}",
+                        f"- **类型**: {previous_event['type']}事件",
+                        f"- **衔接重点**: 自然承接上一章的{previous_event.get('significance', '情节发展')}",
+                        f"- **情感延续**: 保持{previous_event.get('emotional_impact', '情感基调')}的连贯性",
+                        ""
+                    ])
+                
+                if next_event:
+                    # 🆕 修复：使用正确的键名获取章节号
+                    next_chapter = next_event.get("start_chapter", next_event.get("chapter", "未知"))
+                    guidance_parts.extend([
+                        f"### 🔮 铺垫后续 (第{next_chapter}章)",
+                        f"- **即将发生**: {next_event['name']}",
+                        f"- **事件类型**: {next_event['type']}事件",
+                        f"- **铺垫重点**: 为下一章的{next_event.get('significance', '重要事件')}做好情感和情节准备",
+                        f"- **伏笔设置**: 适当埋下与下一章事件相关的线索",
+                        ""
+                    ])
+            
+            # 检查是否有活跃事件
+            active_events = event_context.get("active_events", [])
+            if not active_events:
+                print("   - 无活跃事件，返回空窗期指导")
+                empty_guidance = self._get_empty_period_guidance(chapter_number, event_context)
+                # 确保返回的是字符串
+                if empty_guidance and isinstance(empty_guidance, str):
+                    guidance_parts.append(empty_guidance)
+                else:
+                    guidance_parts.extend([
+                        "## 📝 空窗期写作重点",
+                        "本章暂无特定事件任务，重点推进：",
+                        "- 角色情感发展和关系深化",
+                        "- 世界观细节的丰富和展现", 
+                        "- 主线情节的渐进推进",
+                        "- 为后续重大事件做好铺垫"
+                    ])
+                
+                result = "\n".join(guidance_parts)
+                print(f"✅ [_get_event_guidance_from_context] 空窗期指导生成成功，长度: {len(result)}")
+                return result
+            
+            # 处理活跃事件
+            guidance_parts.append("## 🎪 活跃事件执行")
+            
+            for event in active_events:
                 print(f"   - 处理事件: {event.get('name')}")
                 
                 # 添加错误处理，确保关键字段存在
                 event_name = event.get("name", "未知事件")
                 main_goal = event.get("main_goal", "推进事件发展")
                 current_stage_focus = event.get("current_stage_focus", "按计划推进")
+                event_type = event.get("type", "普通事件")
                 
                 guidance_parts.extend([
-                    f"### {event_name}",
-                    f"**目标**: {main_goal}",
-                    f"**当前重点**: {current_stage_focus}",
+                    f"### {event_name} ({event_type})",
+                    f"**核心目标**: {main_goal}",
+                    f"**当前阶段重点**: {current_stage_focus}",
+                    f"**情节衔接**: 确保与前后事件逻辑连贯",
                     f"**关键时刻**:"
                 ])
                 
                 # 处理关键时刻
                 key_moments = event.get('key_moments', [])
-                for moment in key_moments:
-                    if isinstance(moment, dict):
-                        description = moment.get('description', '')
-                        guidance_parts.append(f"- {description}")
-                    else:
-                        guidance_parts.append(f"- {moment}")
+                if key_moments:
+                    for moment in key_moments:
+                        if isinstance(moment, dict):
+                            description = moment.get('description', '')
+                            impact = moment.get('impact', '')
+                            if impact:
+                                guidance_parts.append(f"- {description} (影响度: {impact})")
+                            else:
+                                guidance_parts.append(f"- {description}")
+                        else:
+                            guidance_parts.append(f"- {moment}")
+                else:
+                    guidance_parts.append("- 按事件发展自然推进关键情节")
+                
+                guidance_parts.append("")  # 空行分隔事件
+            
+            # 🆕 添加情感填充事件指导
+            filler_guidance = event_context.get("filler_guidance", {})
+            if filler_guidance.get("has_filler_event", False):
+                guidance_parts.append("## 💝 情感填充事件")
+                guidance_parts.append("本章包含情感填充事件，重点抓住读者兴趣：")
+                
+                for event in filler_guidance.get("filler_events", []):
+                    guidance_parts.extend([
+                        f"### {event.get('name', '情感事件')}",
+                        f"- **情感风格**: {event.get('romance_style', '情感发展')}",
+                        f"- **主线关联**: {event.get('main_thread_integration', '自然融入主线')}",
+                        f"- **情节设计**: {event.get('plot_design', '情感互动')}",
+                        f"- **读者吸引**: {event.get('reader_hook', '保持读者兴趣')}",
+                        f"- **写作重点**: {event.get('writing_focus', '情感描写')}"
+                    ])
+                    
+                    key_moments = event.get("key_moments", [])
+                    if key_moments:
+                        guidance_parts.append(f"- **关键时刻**: {', '.join(key_moments)}")
+            
+            # 🆕 添加事件连贯性检查
+            guidance_parts.extend([
+                "",
+                "## 🔍 事件连贯性检查",
+                "写作时请确保：",
+                "✅ 与上一章事件自然衔接，不出现逻辑断层",
+                "✅ 为下一章事件做好适当铺垫，保持情节流畅", 
+                "✅ 事件发展与角色情感变化协调一致",
+                "✅ 保持主线情节的连贯性和推进感"
+            ])
             
             result = "\n".join(guidance_parts)
             print(f"✅ [_get_event_guidance_from_context] 事件指导生成成功，长度: {len(result)}")

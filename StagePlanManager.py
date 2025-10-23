@@ -273,13 +273,14 @@ class StagePlanManager:
             purpose=f"生成{stage_name}写作计划"
         )
 
-        # 🆕 识别事件空窗期
-        gap_chapters = self.identify_event_gaps(writing_plan, stage_range)
-        
-        # 🆕 为空窗期生成情感填充事件
-        if gap_chapters:
+        # 🆕 识别事件空窗期（带上下文）
+        gap_chapters_with_context = self.identify_event_gaps(writing_plan, stage_range)
+
+        # 🆕 为空窗期生成上下文关联的情感填充事件
+        if gap_chapters_with_context:
             filler_events = self.generate_romance_filler_events(
-                gap_chapters, romance_pattern, stage_name, creative_seed
+                gap_chapters_with_context, romance_pattern, stage_name, 
+                creative_seed, novel_title, novel_synopsis
             )
             writing_plan = self.integrate_filler_events(writing_plan, filler_events)
 
@@ -476,7 +477,7 @@ class StagePlanManager:
         return writing_plan
 
     def get_chapter_writing_context(self, chapter_number: int) -> Dict:
-        """获取指定章节的写作上下文 - 完整调试版本"""
+        """获取指定章节的写作上下文 - 增强版本，包含前后事件信息"""
         print(f"  🔍 开始获取第{chapter_number}章写作上下文")
         
         current_stage = self._get_current_stage(chapter_number)
@@ -493,13 +494,20 @@ class StagePlanManager:
             print(f"  ⚠️ 第{chapter_number}章没有找到写作计划")
             return {}
         
-        # 获取情绪计划 - 添加详细调试
+        # 获取事件时间线信息
+        event_timeline = self._get_chapter_event_timeline(chapter_number, writing_plan)
+        print(f"  🔍 事件时间线获取结果: {len(event_timeline.get('events', []))}个事件")
+        
+        # 获取情绪计划
         print(f"  🔍 开始获取情绪计划...")
         emotional_plan = self._get_emotional_plan_for_stage(current_stage)
         print(f"  🔍 情绪计划获取结果: {bool(emotional_plan)}")
         
         # 生成章节特定的写作指导
         chapter_context = self._generate_chapter_writing_context(chapter_number, writing_plan)
+        
+        # 添加事件时间线信息
+        chapter_context["event_timeline"] = event_timeline
         
         # 增强：添加详细情绪指导
         if emotional_plan:
@@ -515,8 +523,6 @@ class StagePlanManager:
             print(f"  ⚠️ 第{chapter_number}章的情绪计划为空")
             chapter_context["emotional_guidance"] = {}
         
-        print(f"  🔍 最终章节上下文包含情绪指导: {'emotional_guidance' in chapter_context}")
-
         # 🆕 获取填充事件指导
         filler_guidance = self.get_filler_event_guidance(chapter_number)
         chapter_context["filler_guidance"] = filler_guidance
@@ -525,6 +531,198 @@ class StagePlanManager:
             print(f"  💝 第{chapter_number}章有情感填充事件，重点抓住读者兴趣")
 
         return chapter_context
+
+    def _get_chapter_event_timeline(self, chapter_number: int, writing_plan: Dict) -> Dict:
+        """获取章节的事件时间线信息 - 新增方法"""
+        # 获取当前阶段的所有事件
+        if "stage_writing_plan" in writing_plan:
+            event_system = writing_plan["stage_writing_plan"].get("event_system", {})
+        else:
+            event_system = writing_plan.get("event_system", {})
+        
+        # 构建完整的事件列表
+        all_events = []
+        
+        # 添加重大事件
+        for event in event_system.get("major_events", []):
+            all_events.append({
+                "type": "major",
+                "name": event.get("name", "未命名重大事件"),
+                "chapter": event.get("start_chapter", 0),
+                "end_chapter": event.get("end_chapter", event.get("start_chapter", 0)),
+                "description": event.get("description", ""),
+                "significance": event.get("significance", "重大事件")
+            })
+        
+        # 添加中型事件
+        for event in event_system.get("medium_events", []):
+            all_events.append({
+                "type": "medium", 
+                "name": event.get("name", "未命名中型事件"),
+                "chapter": event.get("chapter", event.get("start_chapter", 0)),
+                "end_chapter": event.get("chapter", event.get("start_chapter", 0)),
+                "description": event.get("description", ""),
+                "significance": event.get("significance", event.get("main_goal", "中型事件"))
+            })
+        
+        # 添加小型事件
+        for event in event_system.get("minor_events", []):
+            all_events.append({
+                "type": "minor",
+                "name": event.get("name", "未命名小型事件"), 
+                "chapter": event.get("chapter", event.get("start_chapter", 0)),
+                "end_chapter": event.get("chapter", event.get("start_chapter", 0)),
+                "description": event.get("description", ""),
+                "significance": event.get("significance", event.get("function", "小型事件"))
+            })
+        
+        # 按章节排序
+        all_events.sort(key=lambda x: x["chapter"])
+        
+        # 找到当前章节的事件
+        current_events = [event for event in all_events if event["chapter"] == chapter_number]
+        
+        # 找到前一个事件（最近的发生在当前章节之前的事件）
+        previous_events = [event for event in all_events if event["chapter"] < chapter_number]
+        previous_event = previous_events[-1] if previous_events else None
+        
+        # 找到下一个事件（最近的发生在当前章节之后的事件）
+        next_events = [event for event in all_events if event["chapter"] > chapter_number]
+        next_event = next_events[0] if next_events else None
+        
+        return {
+            "current_events": current_events,
+            "previous_event": previous_event,
+            "next_event": next_event,
+            "events": all_events,  # 所有事件用于调试
+            "timeline_summary": self._generate_timeline_summary(previous_event, current_events, next_event)
+        }
+
+    def _generate_timeline_summary(self, previous_event: Optional[Dict], current_events: List[Dict], next_event: Optional[Dict]) -> str:
+        """生成时间线摘要 - 新增方法"""
+        summary_parts = []
+        
+        if previous_event:
+            summary_parts.append(f"📖 前情回顾: 第{previous_event['chapter']}章《{previous_event['name']}》")
+        
+        if current_events:
+            event_names = [f"《{event['name']}》" for event in current_events]
+            summary_parts.append(f"🎯 本章事件: {', '.join(event_names)}")
+        else:
+            summary_parts.append("📝 本章事件: 日常推进或情感发展")
+        
+        if next_event:
+            summary_parts.append(f"🔮 后续展望: 第{next_event['chapter']}章《{next_event['name']}》")
+        
+        return " | ".join(summary_parts)
+
+    def generate_writing_guidance_prompt(self, chapter_number: int) -> str:
+        """生成章节写作指导提示词 - 增强版本，包含事件时间线"""
+        writing_context = self.get_chapter_writing_context(chapter_number)
+        
+        if not writing_context:
+            return "# 🎯 写作指导\n\n暂无特定的写作指导。"
+        
+        prompt_parts = ["\n\n# 🎯 写作指导"]
+        
+        # 🆕 添加事件时间线指导
+        event_timeline = writing_context.get("event_timeline", {})
+        timeline_summary = event_timeline.get("timeline_summary", "")
+        
+        if timeline_summary:
+            prompt_parts.append(f"## ⏰ 事件时间线")
+            prompt_parts.append(f"{timeline_summary}")
+            
+            # 添加上下文事件详情
+            previous_event = event_timeline.get("previous_event")
+            if previous_event:
+                prompt_parts.append(f"\n### 📖 前情回顾 (第{previous_event['chapter']}章)")
+                prompt_parts.append(f"- **事件**: {previous_event['name']}")
+                prompt_parts.append(f"- **类型**: {previous_event['type']}事件")
+                prompt_parts.append(f"- **影响**: {previous_event.get('significance', '推进情节发展')}")
+                if previous_event.get('description'):
+                    prompt_parts.append(f"- **详情**: {previous_event['description']}")
+            
+            current_events = event_timeline.get("current_events", [])
+            if current_events:
+                prompt_parts.append(f"\n### 🎯 本章核心事件")
+                for event in current_events:
+                    prompt_parts.append(f"- **{event['name']}** ({event['type']}事件)")
+                    prompt_parts.append(f"  - 重要性: {event.get('significance', '推进情节')}")
+                    if event.get('description'):
+                        prompt_parts.append(f"  - 内容: {event['description']}")
+            else:
+                prompt_parts.append(f"\n### 📝 本章推进重点")
+                prompt_parts.append(f"- 无重大事件，重点推进日常情节和角色发展")
+                prompt_parts.append(f"- 利用本章深化情感联系或铺垫后续冲突")
+            
+            next_event = event_timeline.get("next_event")
+            if next_event:
+                prompt_parts.append(f"\n### 🔮 后续展望 (第{next_event['chapter']}章)")
+                prompt_parts.append(f"- **即将发生**: {next_event['name']}")
+                prompt_parts.append(f"- **事件类型**: {next_event['type']}事件") 
+                prompt_parts.append(f"- **重要性**: {next_event.get('significance', '重要情节发展')}")
+                prompt_parts.append(f"- **本章铺垫**: 适当为下一章事件埋下伏笔")
+        
+        # 添加本章写作重点
+        prompt_parts.append(f"\n## ✍️ 本章写作重点")
+        prompt_parts.append(f"{writing_context['writing_focus']}")
+        
+        # 添加填充事件指导
+        filler_guidance = writing_context.get("filler_guidance", {})
+        if filler_guidance.get("has_filler_event", False):
+            prompt_parts.append(f"\n## 💝 情感填充事件指导")
+            
+            for event in filler_guidance.get("filler_events", []):
+                prompt_parts.append(f"### {event.get('name', '情感事件')}")
+                prompt_parts.append(f"- **情感风格**: {event.get('romance_style', '情感发展')}")
+                prompt_parts.append(f"- **情节设计**: {event.get('plot_design', '情感互动')}")
+                prompt_parts.append(f"- **读者吸引**: {event.get('reader_hook', '保持读者兴趣')}")
+                prompt_parts.append(f"- **写作重点**: {event.get('writing_focus', '情感描写')}")
+                
+                key_moments = event.get("key_moments", [])
+                if key_moments:
+                    prompt_parts.append(f"- **关键时刻**: {', '.join(key_moments)}")
+        
+        # 添加情节结构指导
+        if writing_context.get("plot_structure"):
+            prompt_parts.append(f"\n## 🎭 情节结构指导")
+            plot_struct = writing_context["plot_structure"]
+            prompt_parts.append(f"- **开场方式**: {plot_struct.get('opening_approach', '自然承接上一章')}")
+            prompt_parts.append(f"- **冲突设计**: {plot_struct.get('conflict_design', '推进现有冲突')}")
+            prompt_parts.append(f"- **高潮设置**: {plot_struct.get('climax_point', '情感或情节高潮')}")
+            prompt_parts.append(f"- **结尾处理**: {plot_struct.get('ending_approach', '设置悬念吸引下一章')}")
+        
+        # 添加角色表现指导
+        if writing_context.get("character_guidance"):
+            prompt_parts.append(f"\n## 👥 角色表现指导")
+            char_guide = writing_context["character_guidance"]
+            prompt_parts.append(f"- **主角发展**: {char_guide.get('protagonist_development', '自然展现成长')}")
+            if char_guide.get("supporting_characters_focus"):
+                prompt_parts.append(f"- **配角重点**: {char_guide['supporting_characters_focus']}")
+        
+        # 添加事件参与指导
+        if writing_context.get("event_participation"):
+            prompt_parts.append(f"\n## 🎪 事件参与指导")
+            event_part = writing_context["event_participation"]
+            prompt_parts.append(f"- **事件角色**: {event_part.get('role_in_events', '推进事件发展')}")
+            if event_part.get("key_moments"):
+                prompt_parts.append(f"- **关键时刻**: {event_part['key_moments']}")
+        
+        # 添加伏笔整合指导
+        if writing_context.get("foreshadowing_integration"):
+            prompt_parts.append(f"\n## 🔮 伏笔整合指导")
+            foreshadow_guide = writing_context["foreshadowing_integration"]
+            prompt_parts.append(f"- **伏笔任务**: {foreshadow_guide.get('foreshadowing_tasks', '自然融入情节')}")
+        
+        # 添加写作技巧建议
+        if writing_context.get("writing_techniques"):
+            prompt_parts.append(f"\n## 📚 写作技巧建议")
+            techniques = writing_context["writing_techniques"]
+            prompt_parts.append(f"- **叙事重点**: {techniques.get('narrative_focus', '保持故事连贯性')}")
+            prompt_parts.append(f"- **描写重点**: {techniques.get('description_priority', '关键场景和情感')}")
+        
+        return "\n".join(prompt_parts)
 
     def get_stage_writing_plan_by_name(self, stage_name: str) -> Dict:
         """通过阶段名称获取写作计划"""
@@ -545,75 +743,6 @@ class StagePlanManager:
         # 如果没有找到，需要重新生成
         print(f"  ⚠️ {stage_name}的写作计划未找到，需要内容规划和伏笔计划来生成")
         return {}
-
-    def generate_writing_guidance_prompt(self, chapter_number: int) -> str:
-        """生成章节写作指导提示词"""
-        writing_context = self.get_chapter_writing_context(chapter_number)
-        
-        if not writing_context:
-            return "# 🎯 写作指导\n\n暂无特定的写作指导。"
-        
-        prompt_parts = ["\n\n# 🎯 写作指导"]
-        
-        # 添加本章写作重点
-        prompt_parts.append(f"## 本章写作重点")
-        prompt_parts.append(f"{writing_context['writing_focus']}")
-        
-        # 🆕 添加填充事件指导
-        filler_guidance = writing_context.get("filler_guidance", {})
-        if filler_guidance.get("has_filler_event", False):
-            prompt_parts.append(f"\n## 💝 情感填充事件指导")
-            
-            for event in filler_guidance.get("filler_events", []):
-                prompt_parts.append(f"### {event.get('name', '情感事件')}")
-                prompt_parts.append(f"- **情感风格**: {event.get('romance_style', '情感发展')}")
-                prompt_parts.append(f"- **情节设计**: {event.get('plot_design', '情感互动')}")
-                prompt_parts.append(f"- **读者吸引**: {event.get('reader_hook', '保持读者兴趣')}")
-                prompt_parts.append(f"- **写作重点**: {event.get('writing_focus', '情感描写')}")
-                
-                key_moments = event.get("key_moments", [])
-                if key_moments:
-                    prompt_parts.append(f"- **关键时刻**: {', '.join(key_moments)}") 
-                    
-        # 添加情节结构指导
-        if writing_context.get("plot_structure"):
-            prompt_parts.append(f"\n## 情节结构指导")
-            plot_struct = writing_context["plot_structure"]
-            prompt_parts.append(f"- **开场方式**: {plot_struct.get('opening_approach', '自然承接上一章')}")
-            prompt_parts.append(f"- **冲突设计**: {plot_struct.get('conflict_design', '推进现有冲突')}")
-            prompt_parts.append(f"- **高潮设置**: {plot_struct.get('climax_point', '情感或情节高潮')}")
-            prompt_parts.append(f"- **结尾处理**: {plot_struct.get('ending_approach', '设置悬念吸引下一章')}")
-        
-        # 添加角色表现指导
-        if writing_context.get("character_guidance"):
-            prompt_parts.append(f"\n## 角色表现指导")
-            char_guide = writing_context["character_guidance"]
-            prompt_parts.append(f"- **主角发展**: {char_guide.get('protagonist_development', '自然展现成长')}")
-            if char_guide.get("supporting_characters_focus"):
-                prompt_parts.append(f"- **配角重点**: {char_guide['supporting_characters_focus']}")
-        
-        # 添加事件参与指导
-        if writing_context.get("event_participation"):
-            prompt_parts.append(f"\n## 事件参与指导")
-            event_part = writing_context["event_participation"]
-            prompt_parts.append(f"- **事件角色**: {event_part.get('role_in_events', '推进事件发展')}")
-            if event_part.get("key_moments"):
-                prompt_parts.append(f"- **关键时刻**: {event_part['key_moments']}")
-        
-        # 添加伏笔整合指导
-        if writing_context.get("foreshadowing_integration"):
-            prompt_parts.append(f"\n## 伏笔整合指导")
-            foreshadow_guide = writing_context["foreshadowing_integration"]
-            prompt_parts.append(f"- **伏笔任务**: {foreshadow_guide.get('foreshadowing_tasks', '自然融入情节')}")
-        
-        # 添加写作技巧建议
-        if writing_context.get("writing_techniques"):
-            prompt_parts.append(f"\n## 写作技巧建议")
-            techniques = writing_context["writing_techniques"]
-            prompt_parts.append(f"- **叙事重点**: {techniques.get('narrative_focus', '保持故事连贯性')}")
-            prompt_parts.append(f"- **描写重点**: {techniques.get('description_priority', '关键场景和情感')}")
-        
-        return "\n".join(prompt_parts)
 
     def _get_stage_range(self, stage_name: str) -> str:
         """获取阶段章节范围"""
@@ -1914,157 +2043,249 @@ class StagePlanManager:
             "filler_focus": "角色互动和情感发展"
         }
 
-    def identify_event_gaps(self, writing_plan: Dict, stage_range: str) -> List[int]:
-        """识别事件空窗期章节"""
+    def identify_event_gaps(self, writing_plan: Dict, stage_range: str) -> List[Dict]:
+        """识别事件空窗期章节，并获取上下文事件信息"""
         start_chap, end_chap = parse_chapter_range(stage_range)
         
-        # 获取所有有事件的章节
-        event_chapters = set()
-        
-        # 处理嵌套结构
+        # 获取所有事件及其章节信息
         if "stage_writing_plan" in writing_plan:
             event_system = writing_plan["stage_writing_plan"].get("event_system", {})
         else:
             event_system = writing_plan.get("event_system", {})
         
-        # 收集重大事件的章节
+        # 构建事件时间线
+        timeline = []
+        
+        # 重大事件
         for event in event_system.get("major_events", []):
-            start = event.get("start_chapter", 0)
-            end = event.get("end_chapter", start)
-            for chapter in range(start, end + 1):
-                if start_chap <= chapter <= end_chap:
-                    event_chapters.add(chapter)
+            timeline.append({
+                "chapter": event.get("start_chapter", 0),
+                "type": "major",
+                "name": event.get("name", ""),
+                "description": event.get("description", ""),
+                "event": event
+            })
         
-        # 收集中型事件的章节
+        # 中型事件  
         for event in event_system.get("medium_events", []):
-            chapter = event.get("chapter", event.get("start_chapter", 0))
-            if start_chap <= chapter <= end_chap:
-                event_chapters.add(chapter)
+            timeline.append({
+                "chapter": event.get("chapter", event.get("start_chapter", 0)),
+                "type": "medium", 
+                "name": event.get("name", ""),
+                "description": event.get("description", ""),
+                "event": event
+            })
         
-        # 找出空窗期（连续3章以上没有事件）
-        gap_chapters = []
-        current_gap = []
+        # 按章节排序
+        timeline.sort(key=lambda x: x["chapter"])
+        
+        # 识别空窗期并获取上下文
+        gap_chapters_with_context = []
         
         for chapter in range(start_chap, end_chap + 1):
-            if chapter not in event_chapters:
-                current_gap.append(chapter)
+            # 检查当前章节是否有事件
+            has_event = any(event["chapter"] == chapter for event in timeline)
+            
+            if not has_event:
+                # 获取前后事件作为上下文
+                prev_events = [e for e in timeline if e["chapter"] < chapter][-2:]  # 前2个事件
+                next_events = [e for e in timeline if e["chapter"] > chapter][:2]   # 后2个事件
+                
+                gap_chapters_with_context.append({
+                    "chapter": chapter,
+                    "previous_events": prev_events,
+                    "next_events": next_events,
+                    "context_summary": self._generate_gap_context(prev_events, next_events)
+                })
+        
+        # 只返回连续空窗期（至少3章）
+        continuous_gaps = []
+        current_gap_sequence = []
+        
+        for gap_info in gap_chapters_with_context:
+            chapter = gap_info["chapter"]
+            
+            if not current_gap_sequence:
+                current_gap_sequence.append(gap_info)
             else:
-                if len(current_gap) >= 3:  # 至少连续3章空窗
-                    gap_chapters.extend(current_gap)
-                current_gap = []
+                last_chapter = current_gap_sequence[-1]["chapter"]
+                if chapter == last_chapter + 1:
+                    current_gap_sequence.append(gap_info)
+                else:
+                    if len(current_gap_sequence) >= 3:
+                        continuous_gaps.extend(current_gap_sequence)
+                    current_gap_sequence = [gap_info]
         
-        # 处理最后的空窗期
-        if len(current_gap) >= 3:
-            gap_chapters.extend(current_gap)
+        # 处理最后一段
+        if len(current_gap_sequence) >= 3:
+            continuous_gaps.extend(current_gap_sequence)
         
-        print(f"  📊 识别到{len(gap_chapters)}个空窗期章节: {gap_chapters}")
-        return gap_chapters
+        print(f"  📊 识别到{len(continuous_gaps)}个有上下文的空窗期章节")
+        return continuous_gaps
 
-    def generate_romance_filler_events(self, gap_chapters: List[int], romance_pattern: Dict, 
-                                    stage_name: str, creative_seed: str) -> List[Dict]:
-        """为事件空窗期生成情感填充事件"""
-        if not gap_chapters:
+    def _generate_gap_context(self, prev_events: List, next_events: List) -> str:
+        """生成空窗期的上下文摘要"""
+        context_parts = []
+        
+        if prev_events:
+            context_parts.append("之前事件:")
+            for event in prev_events:
+                context_parts.append(f"  - 第{event['chapter']}章: {event['name']} ({event['type']})")
+        
+        if next_events:
+            context_parts.append("即将发生:")
+            for event in next_events:
+                context_parts.append(f"  - 第{event['chapter']}章: {event['name']} ({event['type']})")
+        
+        return "\n".join(context_parts) if context_parts else "无明确上下文事件"
+
+    def generate_romance_filler_events(self, gap_chapters_with_context: List[Dict], romance_pattern: Dict, 
+                                    stage_name: str, creative_seed: str, novel_title: str, novel_synopsis: str) -> List[Dict]:
+        """为事件空窗期生成与上下文关联的情感填充事件"""
+        if not gap_chapters_with_context:
             return []
         
-        # 根据情感类型和风格生成不同的填充事件
+        # 按章节分组，避免重复生成
+        chapters_to_fill = [gap["chapter"] for gap in gap_chapters_with_context]
+        
         romance_type = romance_pattern.get("romance_type", "unknown")
         emotional_style = romance_pattern.get("emotional_style", "balanced")
         
         filler_prompt = f"""
-    请为以下小说的空窗期章节生成情感填充事件：
+    请为以下小说的空窗期章节生成与主线情节关联的情感填充事件：
 
-    创意种子：{creative_seed}
-    情感模式：{romance_pattern}
+    小说信息：
+    - 标题：{novel_title}
+    - 简介：{novel_synopsis}
+    - 创意种子：{creative_seed}
+    - 情感模式：{romance_pattern}
 
-    空窗期章节：{gap_chapters}
     当前阶段：{stage_name}
+    需要填充的章节：{chapters_to_fill}
 
-    要求：
-    1. 根据情感类型「{romance_type}」和风格「{emotional_style}」生成合适的填充事件
-    2. 多女主类型侧重擦边暧昧，单女主类型侧重纯爱深情
-    3. 每个事件要能牢牢抓住读者兴趣
-    4. 事件要自然融入主线，不显得突兀
-    5. 每个事件包含具体的情节设计和写作要点
+    ## 🎯 核心要求
+    1. **与主线强关联**：每个填充事件必须与前后事件有逻辑联系
+    2. **情感自然发展**：基于{romance_type}模式和{emotional_style}风格
+    3. **推进角色关系**：利用空窗期深化角色间的情感纽带
+    4. **服务后续情节**：为即将到来的重大事件做好情感铺垫
 
-    请返回JSON格式：
+    ## 📋 具体章节上下文
+    {self._format_gap_contexts_for_prompt(gap_chapters_with_context)}
+
+    ## 🎭 事件设计原则
+    - **多女主模式**：侧重擦边暧昧，制造多角关系张力
+    - **单女主模式**：侧重纯爱深情，深化唯一情感纽带  
+    - **混合模式**：平衡发展，根据上下文选择合适的情感风格
+
+    ## 📝 返回格式
+    请为每个需要填充的章节生成一个情感事件：
+
     {{
-        "romance_filler_events": [
+        "context_aware_filler_events": [
             {{
-                "name": "事件名称",
+                "name": "与前后事件关联的事件名称",
                 "type": "情感填充事件",
                 "chapter": 章节号,
                 "romance_style": "擦边暧昧|纯爱深情|情感发展",
-                "significance": "事件意义",
-                "plot_design": "具体情节设计",
-                "key_moments": ["关键时刻1", "关键时刻2"],
-                "reader_hook": "如何抓住读者兴趣",
-                "integration_tips": "如何融入主线",
-                "writing_focus": "写作重点"
+                "connection_to_previous": "如何承接之前事件",
+                "connection_to_next": "如何铺垫后续事件", 
+                "main_thread_integration": "如何融入主线情节",
+                "emotional_development": "情感发展目标",
+                "plot_design": "具体情节设计（与上下文关联）",
+                "key_moments": ["关联时刻1", "关联时刻2"],
+                "reader_hook": "如何利用情感抓住读者兴趣",
+                "writing_focus": "写作重点和情感描写要点"
             }}
         ]
     }}
     """
         
         filler_result = self.generator.api_client.generate_content_with_retry(
-            "romance_filler_generation",
+            "context_aware_filler_generation",
             filler_prompt,
-            purpose="生成情感填充事件"
+            purpose="生成上下文关联的情感填充事件"
         )
         
-        if filler_result and "romance_filler_events" in filler_result:
-            events = filler_result["romance_filler_events"]
-            print(f"  💖 成功生成{len(events)}个情感填充事件")
+        if filler_result and "context_aware_filler_events" in filler_result:
+            events = filler_result["context_aware_filler_events"]
+            print(f"  💖 成功生成{len(events)}个上下文关联的情感填充事件")
             return events
         else:
-            print("  ⚠️ 情感填充事件生成失败，使用备用方案")
-            return self._generate_fallback_filler_events(gap_chapters, romance_pattern, stage_name)
+            print("  ⚠️ 上下文关联填充事件生成失败，使用备用方案")
+            return self._generate_context_aware_fallback_events(gap_chapters_with_context, romance_pattern, stage_name)
 
-    def _generate_fallback_filler_events(self, gap_chapters: List[int], romance_pattern: Dict, 
-                                    stage_name: str) -> List[Dict]:
-        """备用情感填充事件生成"""
+    def _format_gap_contexts_for_prompt(self, gap_chapters_with_context: List[Dict]) -> str:
+        """格式化空窗期上下文信息用于提示词"""
+        formatted = []
+        
+        for gap_info in gap_chapters_with_context:
+            chapter = gap_info["chapter"]
+            context = gap_info["context_summary"]
+            
+            formatted.append(f"### 第{chapter}章上下文")
+            formatted.append(context)
+            formatted.append("")  # 空行
+        
+        return "\n".join(formatted)
+
+    def _generate_context_aware_fallback_events(self, gap_chapters_with_context: List[Dict], romance_pattern: Dict, 
+                                            stage_name: str) -> List[Dict]:
+        """备用方案：生成上下文关联的情感填充事件"""
         romance_type = romance_pattern.get("romance_type", "unknown")
         events = []
         
-        for chapter in gap_chapters[:5]:  # 最多生成5个备用事件
+        for gap_info in gap_chapters_with_context[:5]:  # 最多生成5个
+            chapter = gap_info["chapter"]
+            prev_events = gap_info["previous_events"]
+            next_events = gap_info["next_events"]
+            
+            # 基于上下文生成事件
             if romance_type == "harem":
                 event = {
-                    "name": f"第{chapter}章暧昧互动",
+                    "name": f"第{chapter}章多角情感张力",
                     "type": "情感填充事件",
                     "chapter": chapter,
                     "romance_style": "擦边暧昧",
-                    "significance": "在多女主间制造情感张力",
-                    "plot_design": "主角与不同女性角色的微妙互动，制造竞争感和期待感",
-                    "key_moments": ["意外相遇", "眼神交流", "微妙对话", "后续期待"],
-                    "reader_hook": "让读者猜测主角最终会选择谁",
-                    "integration_tips": "通过日常场景自然展现多女主关系",
-                    "writing_focus": "暧昧氛围和心理活动描写"
+                    "connection_to_previous": "承接之前事件的情感余波",
+                    "connection_to_next": "为后续冲突制造情感伏笔",
+                    "main_thread_integration": "通过情感冲突反映主线矛盾",
+                    "emotional_development": "在多女主间制造竞争感和期待感",
+                    "plot_design": "基于前后事件逻辑，安排主角与不同女性角色的微妙互动",
+                    "key_moments": ["情感试探", "关系平衡", "未来伏笔"],
+                    "reader_hook": "让读者猜测情感走向对主线的影响",
+                    "writing_focus": "暧昧氛围、心理博弈和主线关联"
                 }
             elif romance_type == "single":
                 event = {
-                    "name": f"第{chapter}章情感深化",
-                    "type": "情感填充事件", 
+                    "name": f"第{chapter}章情感纽带深化", 
+                    "type": "情感填充事件",
                     "chapter": chapter,
                     "romance_style": "纯爱深情",
-                    "significance": "深化单女主情感纽带",
-                    "plot_design": "主角与女主在日常中的温馨互动，展现情感深度",
-                    "key_moments": ["关怀时刻", "情感交流", "默契展现", "关系升华"],
-                    "reader_hook": "让读者为纯真爱情感动",
-                    "integration_tips": "通过小细节展现大情感",
-                    "writing_focus": "情感细节和内心描写"
+                    "connection_to_previous": "延续之前事件的情感基调",
+                    "connection_to_next": "为即将到来的挑战建立情感支撑",
+                    "main_thread_integration": "用情感力量强化主角动机",
+                    "emotional_development": "深化单女主情感纽带和相互理解",
+                    "plot_design": "在日常互动中展现情感深度和主线关联",
+                    "key_moments": ["情感确认", "默契建立", "共同目标"],
+                    "reader_hook": "让读者为真挚情感感动并关注其对主线影响",
+                    "writing_focus": "情感细节、内心成长和主线呼应"
                 }
             else:
                 event = {
-                    "name": f"第{chapter}章情感发展",
+                    "name": f"第{chapter}章情感关系推进",
                     "type": "情感填充事件",
                     "chapter": chapter,
                     "romance_style": "情感发展",
-                    "significance": "推进角色情感关系",
-                    "plot_design": "通过日常互动推进情感发展",
-                    "key_moments": ["关系进展", "情感表露", "矛盾解决", "理解加深"],
-                    "reader_hook": "让读者关注情感走向",
-                    "integration_tips": "自然融入主线情节",
-                    "writing_focus": "情感逻辑和角色发展"
+                    "connection_to_previous": "基于之前事件发展情感关系",
+                    "connection_to_next": "为后续情节建立情感基础", 
+                    "main_thread_integration": "情感发展服务于主线推进",
+                    "emotional_development": "推进角色间情感关系和理解",
+                    "plot_design": "通过情感互动展现角色成长和主线关联",
+                    "key_moments": ["关系突破", "情感认知", "未来铺垫"],
+                    "reader_hook": "情感发展与主线进展的双重吸引力",
+                    "writing_focus": "情感逻辑、角色发展和主线融合"
                 }
+            
             events.append(event)
         
         return events

@@ -32,68 +32,52 @@ class EventDrivenManager:
         """获取章节的事件执行上下文 - 统一入口方法"""
         return self.get_chapter_event_context(chapter_number)
 
-    def get_chapter_event_context(self, chapter_number: int) -> Dict:
-        """获取章节的事件执行上下文 - 专注重大事件和大事件"""
-        context = {
-            "active_events": [],
-            "event_progress": {},
-            "event_tasks": [],
-            "trigger_checkpoints": [],
-            "event_chain_effects": [],
-            "buffer_period": {} 
-        }
-        
-        # 如果没有活跃事件，尝试初始化
-        if not self.active_events:
-            self.initialize_event_system()
-        
-        if not self.active_events:
-            gap_length = self._calculate_event_gap_length(chapter_number)
-            if gap_length >= 3:  # 空窗期超过3章就创建支线
-                self.create_side_quest_events(chapter_number, gap_length)
-            else:
-                self._create_fallback_events(chapter_number)
-        
-        # 计算精准缓冲期信息
-        buffer_info = self._calculate_precise_buffer_periods(chapter_number)
-        context["buffer_period"] = buffer_info
-
-        # 获取当前活跃的事件
-        active_count = 0
-        for event_name, event_data in self.active_events.items():
-            if self._is_event_active(chapter_number, event_data):
-                active_count += 1
-                
-                event_context = self._build_event_context(chapter_number, event_data)
-                context["active_events"].append(event_context)
-                
-                # 计算事件进度
-                progress = self._calculate_event_progress(chapter_number, event_data)
-                context["event_progress"][event_name] = progress
-                
-                # 生成事件任务
-                tasks = self._generate_event_tasks(chapter_number, event_data, progress, buffer_info)
-                context["event_tasks"].extend(tasks)
-        
-        # 检查触发条件
-        trigger_checkpoints = self._check_event_triggers(chapter_number)
-        context["trigger_checkpoints"] = trigger_checkpoints
-        
-        # 计算事件链影响
-        chain_effects = self._calculate_chain_effects(chapter_number)
-        context["event_chain_effects"] = chain_effects
-        
-        print(f"📊 第{chapter_number}章事件上下文: {active_count}个活跃事件, {len(context['event_tasks'])}个任务")
-        
-        return context
-
     def generate_event_execution_prompt(self, chapter_number: int) -> str:
-        """生成事件执行指导提示词 - 专注重大事件和大事件"""
+        """生成事件执行指导提示词 - 增强版本，包含前后事件信息"""
         event_context = self.get_chapter_event_context(chapter_number)
-
+        
+        # 🆕 获取事件时间线信息
+        event_timeline = event_context.get("event_timeline", {})
+        timeline_summary = event_timeline.get("timeline_summary", "")
+        
         buffer_info = event_context.get("buffer_period", {})
         
         prompt_parts = ["# 🎯 事件执行指导"]
+        
+        # 🆕 添加事件时间线概览
+        if timeline_summary:
+            prompt_parts.extend([
+                "## ⏰ 事件时间线概览",
+                timeline_summary,
+                ""
+            ])
+        
+        # 🆕 添加上下文衔接指导
+        previous_event = event_timeline.get("previous_event")
+        next_event = event_timeline.get("next_event")
+        
+        if previous_event or next_event:
+            prompt_parts.append("## 🔗 情节衔接指导")
+            
+            if previous_event:
+                prompt_parts.extend([
+                    f"### 📖 承接前情 (第{previous_event['chapter']}章)",
+                    f"- **事件**: {previous_event['name']}",
+                    f"- **类型**: {previous_event['type']}事件",
+                    f"- **衔接重点**: 自然承接上一章的{previous_event.get('significance', '情节发展')}",
+                    f"- **情感延续**: 保持{previous_event.get('emotional_impact', '情感基调')}的连贯性",
+                    ""
+                ])
+            
+            if next_event:
+                prompt_parts.extend([
+                    f"### 🔮 铺垫后续 (第{next_event['chapter']}章)",
+                    f"- **即将发生**: {next_event['name']}",
+                    f"- **事件类型**: {next_event['type']}事件",
+                    f"- **铺垫重点**: 为下一章的{next_event.get('significance', '重要事件')}做好情感和情节准备",
+                    f"- **伏笔设置**: 适当埋下与下一章事件相关的线索",
+                    ""
+                ])
         
         # 缓冲期特殊指导
         if buffer_info.get("is_buffer_period"):
@@ -152,6 +136,17 @@ class EventDrivenManager:
                     
                     prompt_parts.append("")  # 空行分隔
             
+            # 🆕 事件连贯性检查
+            prompt_parts.extend([
+                "## 🔍 事件连贯性检查",
+                "写作时请确保：",
+                "✅ 与上一章事件自然衔接，不出现逻辑断层",
+                "✅ 为下一章事件做好适当铺垫，保持情节流畅", 
+                "✅ 事件发展与角色情感变化协调一致",
+                "✅ 保持主线情节的连贯性和推进感",
+                ""
+            ])
+            
             # 触发检查点
             if event_context["trigger_checkpoints"]:
                 prompt_parts.append("## ⏰ 事件触发检查点")
@@ -170,9 +165,348 @@ class EventDrivenManager:
                 for task in event_context["event_tasks"]:
                     priority_icon = "🔴" if task.get('priority') == 'critical' else "🟡" if task.get('priority') == 'high' else "🟢"
                     prompt_parts.append(f"- {priority_icon} **{task.get('priority', '普通')}优先级**: {task.get('description', '未指定任务')}")
-            
+        
         return "\n".join(prompt_parts)
-    
+
+    def get_chapter_event_context(self, chapter_number: int) -> Dict:
+        """获取章节的事件执行上下文 - 增强版本，包含事件时间线"""
+        context = {
+            "active_events": [],
+            "event_progress": {},
+            "event_tasks": [],
+            "trigger_checkpoints": [],
+            "event_chain_effects": [],
+            "buffer_period": {},
+            "event_timeline": {}  # 🆕 新增事件时间线
+        }
+        
+        # 如果没有活跃事件，尝试初始化
+        if not self.active_events:
+            self.initialize_event_system()
+        
+        if not self.active_events:
+            gap_length = self._calculate_event_gap_length(chapter_number)
+            if gap_length >= 3:  # 空窗期超过3章就创建支线
+                self.create_side_quest_events(chapter_number, gap_length)
+            else:
+                self._create_fallback_events(chapter_number)
+        
+        # 🆕 获取事件时间线信息
+        event_timeline = self._get_chapter_event_timeline(chapter_number)
+        context["event_timeline"] = event_timeline
+        
+        # 计算精准缓冲期信息
+        buffer_info = self._calculate_precise_buffer_periods(chapter_number)
+        context["buffer_period"] = buffer_info
+
+        # 获取当前活跃的事件
+        active_count = 0
+        for event_name, event_data in self.active_events.items():
+            if self._is_event_active(chapter_number, event_data):
+                active_count += 1
+                
+                event_context = self._build_event_context(chapter_number, event_data)
+                context["active_events"].append(event_context)
+                
+                # 计算事件进度
+                progress = self._calculate_event_progress(chapter_number, event_data)
+                context["event_progress"][event_name] = progress
+                
+                # 生成事件任务
+                tasks = self._generate_event_tasks(chapter_number, event_data, progress, buffer_info)
+                context["event_tasks"].extend(tasks)
+        
+        # 检查触发条件
+        trigger_checkpoints = self._check_event_triggers(chapter_number)
+        context["trigger_checkpoints"] = trigger_checkpoints
+        
+        # 计算事件链影响
+        chain_effects = self._calculate_chain_effects(chapter_number)
+        context["event_chain_effects"] = chain_effects
+        
+        print(f"📊 第{chapter_number}章事件上下文: {active_count}个活跃事件, {len(context['event_tasks'])}个任务")
+        
+        return context
+
+    def _get_chapter_event_timeline(self, chapter_number: int) -> Dict:
+        """获取章节的事件时间线信息 - 修正版本，准确区分事件状态"""
+        # 构建完整的事件列表
+        all_events = []
+        
+        # 添加重大事件
+        for event_name, event_data in self.active_events.items():
+            if event_data.get("type") == "major_event":
+                all_events.append({
+                    "type": "major_event",
+                    "name": event_data.get("name", "未命名重大事件"),
+                    "start_chapter": event_data.get("start_chapter", 0),
+                    "end_chapter": event_data.get("end_chapter", event_data.get("start_chapter", 0)),
+                    "description": event_data.get("description", ""),
+                    "significance": event_data.get("significance", "重大事件"),
+                    "status": "active" if self._is_event_active(chapter_number, event_data) else "completed"
+                })
+        
+        # 添加大事件
+        for event_name, event_data in self.active_events.items():
+            if event_data.get("type") == "big_event":
+                all_events.append({
+                    "type": "big_event", 
+                    "name": event_data.get("name", "未命名大事件"),
+                    "start_chapter": event_data.get("start_chapter", 0),
+                    "end_chapter": event_data.get("end_chapter", event_data.get("start_chapter", 0)),
+                    "description": event_data.get("description", ""),
+                    "significance": event_data.get("connection_to_major", "大事件"),
+                    "status": "active" if self._is_event_active(chapter_number, event_data) else "completed"
+                })
+        
+        # 按开始章节排序
+        all_events.sort(key=lambda x: x["start_chapter"])
+        
+        # 🆕 准确区分事件状态
+        previous_events = []
+        current_events = []
+        next_events = []
+        
+        for event in all_events:
+            start_chapter = event["start_chapter"]
+            end_chapter = event["end_chapter"]
+            
+            if end_chapter < chapter_number:
+                # 已完成的事件
+                previous_events.append(event)
+            elif start_chapter <= chapter_number <= end_chapter:
+                # 当前活跃的事件
+                current_events.append(event)
+            elif start_chapter > chapter_number:
+                # 即将发生的事件
+                next_events.append(event)
+        
+        # 找到最近的前一个事件（已完成的事件中最近结束的）
+        previous_event = previous_events[-1] if previous_events else None
+        
+        # 找到下一个即将发生的事件
+        next_event = next_events[0] if next_events else None
+        
+        return {
+            "previous_event": previous_event,
+            "current_events": current_events,
+            "next_event": next_event,
+            "all_events": all_events,
+            "timeline_summary": self._generate_accurate_timeline_summary(previous_event, current_events, next_event, chapter_number)
+        }
+
+    def _generate_accurate_timeline_summary(self, previous_event: Optional[Dict], current_events: List[Dict], next_event: Optional[Dict], chapter_number: int) -> str:
+        """生成准确的时间线摘要 - 修正版本"""
+        summary_parts = []
+        
+        if previous_event:
+            # 🆕 明确标识已完成的事件
+            summary_parts.append(f"📖 已完结: 第{previous_event['start_chapter']}章《{previous_event['name']}》")
+        
+        if current_events:
+            event_names = []
+            for event in current_events:
+                # 🆕 显示事件进度状态
+                progress = self._calculate_event_progress(chapter_number, event)
+                status_icon = "🟡" if progress.get("ratio", 0) < 0.7 else "🔴"
+                event_names.append(f"《{event['name']}》{status_icon}")
+            
+            summary_parts.append(f"🎯 进行中: {', '.join(event_names)}")
+        else:
+            summary_parts.append("📝 本章: 日常推进或情感发展")
+        
+        if next_event:
+            # 🆕 明确标识即将发生的事件
+            summary_parts.append(f"🔮 即将开始: 第{next_event['start_chapter']}章《{next_event['name']}》")
+        
+        return " | ".join(summary_parts)
+
+    def generate_event_execution_prompt(self, chapter_number: int) -> str:
+        """生成事件执行指导提示词 - 修正版本，准确的事件状态"""
+        event_context = self.get_chapter_event_context(chapter_number)
+        
+        # 🆕 获取准确的事件时间线信息
+        event_timeline = event_context.get("event_timeline", {})
+        timeline_summary = event_timeline.get("timeline_summary", "")
+        
+        buffer_info = event_context.get("buffer_period", {})
+        
+        prompt_parts = ["# 🎯 事件执行指导"]
+        
+        # 🆕 添加准确的事件时间线概览
+        if timeline_summary:
+            prompt_parts.extend([
+                "## ⏰ 事件时间线概览",
+                timeline_summary,
+                ""
+            ])
+        
+        # 🆕 修正情节衔接指导逻辑
+        previous_event = event_timeline.get("previous_event")
+        next_event = event_timeline.get("next_event")
+        
+        if previous_event or next_event:
+            prompt_parts.append("## 🔗 情节衔接指导")
+            
+            if previous_event:
+                # 🆕 对已完成事件的正确衔接指导
+                prompt_parts.extend([
+                    f"### 📖 承接已完结事件",
+                    f"- **事件**: {previous_event['name']} (第{previous_event['start_chapter']}章)",
+                    f"- **状态**: 已完结",
+                    f"- **衔接重点**: 处理事件余波，展示角色情感消化和成长变化",
+                    f"- **伏笔延续**: 确保已完结事件的重要影响在本章得到体现",
+                    ""
+                ])
+            
+            if next_event:
+                # 🆕 对即将发生事件的正确衔接指导
+                prompt_parts.extend([
+                    f"### 🔮 铺垫即将开始事件",
+                    f"- **事件**: {next_event['name']} (第{next_event['start_chapter']}章)",
+                    f"- **状态**: 即将开始",
+                    f"- **铺垫重点**: 为下一章的重大事件营造氛围，埋设必要伏笔",
+                    f"- **情感准备**: 让读者对即将到来的事件产生期待",
+                    ""
+                ])
+        
+        # 缓冲期特殊指导
+        if buffer_info.get("is_buffer_period"):
+            prompt_parts.append(self._generate_buffer_guidance(chapter_number, buffer_info))
+
+        # 🆕 修正活跃事件显示逻辑
+        current_events = event_timeline.get("current_events", [])
+        if current_events and (not buffer_info.get("is_buffer_period") or buffer_info.get("pre_major_event")):
+            # 按事件类型分组
+            major_events = [e for e in current_events if e["type"] == "major_event"]
+            big_events = [e for e in current_events if e["type"] == "big_event"]
+            
+            # 🆕 重大事件指导 - 只显示真正活跃的事件
+            if major_events:
+                prompt_parts.append("## 🚨 进行中重大事件")
+                for event in major_events:
+                    event_name = event.get("name", "未知事件")
+                    progress = event_context["event_progress"].get(event_name, {})
+                    
+                    prompt_parts.extend([
+                        f"### {event_name}",
+                        f"**目标**: {event.get('main_goal', '推进故事发展')}",
+                        f"**当前阶段**: {progress.get('stage', '未知阶段')} ({progress.get('ratio', 0)*100:.0f}%)",
+                        f"**本章重点**: {self._get_chapter_specific_focus(chapter_number, event, progress)}",
+                        f"**关键时刻**:"
+                    ])
+                    
+                    # 🆕 只显示本章相关的关键时刻
+                    chapter_moments = self._get_chapter_key_moments(chapter_number, event)
+                    if chapter_moments:
+                        for moment in chapter_moments:
+                            prompt_parts.append(f"- {moment}")
+                    else:
+                        prompt_parts.append("- 按计划推进事件发展")
+                    
+                    prompt_parts.append("")  # 空行分隔
+            
+            # 🆕 大事件指导 - 只显示真正活跃的事件
+            if big_events:
+                prompt_parts.append("## 🔥 进行中大事件")
+                for event in big_events:
+                    event_name = event.get("name", "未知事件")
+                    progress = event_context["event_progress"].get(event_name, {})
+                    
+                    prompt_parts.extend([
+                        f"### {event_name}",
+                        f"**目标**: {event.get('main_goal', '推进故事发展')}",
+                        f"**当前阶段**: {progress.get('stage', '未知阶段')} ({progress.get('ratio', 0)*100:.0f}%)",
+                        f"**关联**: {event.get('connection_to_major', '独立事件')}",
+                        f"**本章任务**: {self._get_chapter_specific_focus(chapter_number, event, progress)}"
+                    ])
+                    
+                    prompt_parts.append("")  # 空行分隔
+            
+            # 🆕 修正事件连贯性检查
+            prompt_parts.extend([
+                "## 🔍 事件连贯性检查",
+                "写作时请确保：",
+                "✅ 已完结事件的影响得到合理体现",
+                "✅ 进行中事件按计划推进，不出现逻辑跳跃",
+                "✅ 为即将开始事件做好自然铺垫",
+                "✅ 不同事件间的过渡平滑自然",
+                "✅ 角色情感发展与事件进度协调一致",
+                ""
+            ])
+            
+            # 触发检查点
+            if event_context["trigger_checkpoints"]:
+                prompt_parts.append("## ⏰ 事件触发检查点")
+                for checkpoint in event_context["trigger_checkpoints"]:
+                    prompt_parts.append(f"- **{checkpoint.get('trigger', '未知触发')}**: {checkpoint.get('description', '未指定描述')}")
+            
+            # 事件链影响
+            if event_context["event_chain_effects"]:
+                prompt_parts.append("## 🔗 事件链影响")
+                for effect in event_context["event_chain_effects"]:
+                    prompt_parts.append(f"- {effect.get('description', '未指定影响')} (源于: {effect.get('source_event', '未知事件')})")
+            
+            # 事件任务
+            if event_context["event_tasks"]:
+                prompt_parts.append("## ✅ 本章事件任务")
+                for task in event_context["event_tasks"]:
+                    priority_icon = "🔴" if task.get('priority') == 'critical' else "🟡" if task.get('priority') == 'high' else "🟢"
+                    prompt_parts.append(f"- {priority_icon} **{task.get('priority', '普通')}优先级**: {task.get('description', '未指定任务')}")
+        
+        return "\n".join(prompt_parts)
+
+    def _get_chapter_specific_focus(self, chapter_number: int, event: Dict, progress: Dict) -> str:
+        """获取本章特定的事件执行重点"""
+        current_stage = progress.get("stage", "开局阶段")
+        event_name = event.get("name", "")
+        
+        # 基于事件阶段和章节位置生成具体指导
+        if current_stage == "开局阶段":
+            return "建立事件基础，引入核心冲突和关键角色"
+        elif current_stage == "发展阶段":
+            return "深化矛盾，推进事件目标，发展角色关系"
+        elif current_stage == "高潮阶段":
+            return "处理关键转折和情感爆发点"
+        else:  # 收尾阶段
+            return "解决冲突，处理后续影响，展示角色成长"
+        
+    def _get_chapter_key_moments(self, chapter_number: int, event: Dict) -> List[str]:
+        """获取本章相关的关键时刻"""
+        key_moments = event.get("key_moments", [])
+        chapter_moments = []
+        
+        for moment in key_moments:
+            if isinstance(moment, dict):
+                moment_chapter = moment.get("chapter", 0)
+                if moment_chapter == chapter_number:
+                    chapter_moments.append(moment.get("description", "未描述关键时刻"))
+            elif isinstance(moment, str):
+                # 从字符串中提取章节号
+                chapter_match = re.search(r'第(\d+)章', moment)
+                if chapter_match and int(chapter_match.group(1)) == chapter_number:
+                    chapter_moments.append(moment)
+        
+        return chapter_moments
+
+    def _generate_timeline_summary(self, previous_event: Optional[Dict], current_events: List[Dict], next_event: Optional[Dict]) -> str:
+        """生成时间线摘要 - 新增方法"""
+        summary_parts = []
+        
+        if previous_event:
+            summary_parts.append(f"📖 前情: 第{previous_event['chapter']}章《{previous_event['name']}》")
+        
+        if current_events:
+            event_names = [f"《{event['name']}》" for event in current_events]
+            summary_parts.append(f"🎯 本章: {', '.join(event_names)}")
+        else:
+            summary_parts.append("📝 本章: 日常推进或情感发展")
+        
+        if next_event:
+            summary_parts.append(f"🔮 后续: 第{next_event['chapter']}章《{next_event['name']}》")
+        
+        return " | ".join(summary_parts)
+        
     def _generate_buffer_guidance(self, chapter_number: int, buffer_info: Dict) -> str:
         """生成缓冲期特定指导"""
         guidance_parts = []
