@@ -2562,7 +2562,7 @@ class NovelGenerator:
             """获取用户输入"""
             try:
                 print(f"\n请选择方案 (1-{len(scored_plans)}):")
-                print("  或等待15秒自动选择推荐方案")
+                print("  或等待5分钟自动选择推荐方案")
                 choice = input("请输入选择: ").strip()
                 if choice:
                     user_choice[0] = int(choice)
@@ -2571,7 +2571,7 @@ class NovelGenerator:
         
         def countdown_timer():
             """倒计时定时器"""
-            for i in range(15, 0, -1):
+            for i in range(3000, 0, -1):
                 if user_choice[0] is not None:
                     return
                 time.sleep(1)
@@ -2588,7 +2588,7 @@ class NovelGenerator:
         timer_thread.start()
         
         # 等待用户输入或超时
-        input_thread.join(timeout=15)
+        input_thread.join(timeout=3000)
         timer_thread.join(timeout=0)
         
         # 处理选择结果
@@ -2669,8 +2669,8 @@ class NovelGenerator:
             quality_score = quality_result.get("overall_score", 0) if quality_result else 0
             freshness_score = freshness_result.get("freshness_score", 0) if freshness_result else 0
             
-            # 计算综合评分（质量60% + 新鲜度40%）
-            total_score = (quality_score * 0.6) + (freshness_score * 0.4)
+            # 计算综合评分（质量80% + 新鲜度20%）
+            total_score = (quality_score * 0.8) + (freshness_score * 0.2)
             
             # 返回详细结果
             result = {
@@ -2746,8 +2746,7 @@ class NovelGenerator:
                 freshness_score = evaluation_result.get("freshness_score", 0)
                 total_score = evaluation_result.get("total_score", 0)
                 
-                # 合格条件：质量评分 >= 7.0 且 新鲜度评分 >= 6.0
-                if quality_score >= 7.0 and freshness_score >= 6.0:
+                if quality_score >= 8.0 and freshness_score >= 3.0:
                     qualified_plans.append({
                         'plan': plan,
                         'quality_score': quality_score,

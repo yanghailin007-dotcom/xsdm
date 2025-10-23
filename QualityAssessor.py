@@ -975,15 +975,15 @@ class QualityAssessor:
 
     def get_quality_verdict(self, score: float) -> Tuple[str, str]:
         """获取质量评级"""
-        thresholds = self.quality_thresholds
+        grades = self.unified_quality_standards["quality_grades"]
         
-        if score >= thresholds["excellent"]:
+        if score >= grades["excellent"]:
             return "优秀", "质量很高，无需优化"
-        elif score >= thresholds["good"]:
+        elif score >= grades["good"]:
             return "良好", "质量良好，可轻微优化"
-        elif score >= thresholds["acceptable"]:
+        elif score >= grades["acceptable"]:
             return "合格", "建议优化以提升质量"
-        elif score >= thresholds["needs_optimization"]:
+        elif score >= grades["needs_rewrite"]:
             return "需要优化", "需要重点优化"
         else:
             return "需要重写", "质量不合格，建议重写"

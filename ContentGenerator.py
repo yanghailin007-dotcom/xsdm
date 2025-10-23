@@ -755,9 +755,9 @@ class ContentGenerator:
         # 获取上一章的详细结尾信息
         previous_ending_info = self._get_previous_chapter_ending(current_chapter, novel_data)
         
-        # 尝试加载最近3章的摘要信息
+        # 尝试加载最近10章的摘要信息
         summary_parts = []
-        for i in range(max(1, current_chapter-5), current_chapter):
+        for i in range(max(1, current_chapter-10), current_chapter):
             chapter_data = self._load_chapter_content(i, novel_data)
             
             if chapter_data:
@@ -826,7 +826,7 @@ class ContentGenerator:
             try:
                 ending = method(content)
                 if ending and len(ending.strip()) > 50:
-                    print(f"  ✅ 成功提取结尾: {ending[:200]}...")
+                    print(f"  ✅ 成功提取结尾: {ending[:100]}...")
                     return ending
             except Exception as e:
                 print(f"  ⚠️  方法 '{method.__name__}' 提取失败: {e}")

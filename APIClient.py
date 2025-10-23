@@ -310,6 +310,17 @@ class APIClient:
                 # 检查HTTP状态码
                 if response.status_code != 200:
                     print(f"  ❌ HTTP错误: 状态码 {response.status_code}")
+                    
+                    # 特殊处理429错误 - 提取等待时间
+                    if response.status_code == 429:
+                        wait_time = self._extract_retry_after_from_error(response)
+                        if wait_time:
+                            print(f"  ⏰ 配额限制，需要等待 {wait_time:.1f} 秒后重试")
+                            time.sleep(wait_time)
+                            continue  # 直接重试，不消耗重试次数
+                        else:
+                            print(f"  ❌ 配额限制，但无法提取重试时间")
+                    
                     try:
                         error_detail = response.json()
                         print(f"  错误详情: {error_detail}")
@@ -352,8 +363,6 @@ class APIClient:
             except requests.exceptions.Timeout:
                 request_time = time.time() - start_time
                 print(f"  ⏰ {target_provider.upper()} API超时 (已等待{request_time:.1f}秒)")
-                # 保存超时调试信息
-                #self._save_api_call_debug(system_prompt, user_prompt, f"请求超时 (已等待{request_time:.1f}秒)", purpose, target_provider, model_name, attempt+1)
                 if attempt < self.config["defaults"]["max_retries"] - 1:
                     delay = 30
                     print(f"  ⏳ 等待{delay}秒后重试...")
@@ -362,7 +371,15 @@ class APIClient:
             except requests.exceptions.RequestException as e:
                 request_time = time.time() - start_time
                 print(f"  🌐 {target_provider.upper()} 网络请求异常: {e}")
-                # 保存异常调试信息
+                
+                # 特殊处理429错误（在异常中）
+                if hasattr(e, 'response') and e.response is not None and e.response.status_code == 429:
+                    wait_time = self._extract_retry_after_from_error(e.response)
+                    if wait_time:
+                        print(f"  ⏰ 配额限制，需要等待 {wait_time:.1f} 秒后重试")
+                        time.sleep(wait_time)
+                        continue  # 直接重试，不消耗重试次数
+                
                 self._save_api_call_debug(system_prompt, user_prompt, f"网络请求异常: {e}", purpose, target_provider, model_name, attempt+1)
                 if attempt < self.config["defaults"]["max_retries"] - 1:
                     delay = 30
@@ -372,7 +389,6 @@ class APIClient:
             except Exception as e:
                 request_time = time.time() - start_time
                 print(f"  ❌ {target_provider.upper()} API调用失败: {e}")
-                # 保存异常调试信息
                 self._save_api_call_debug(system_prompt, user_prompt, f"API调用失败: {e}", purpose, target_provider, model_name, attempt+1)
                 if attempt < self.config["defaults"]["max_retries"] - 1:
                     delay = 30
@@ -381,6 +397,45 @@ class APIClient:
         print(f"  💥 {target_provider.upper()} API所有重试均失败，目的: {purpose}")
         return None
     
+    def _extract_retry_after_from_error(self, response) -> Optional[float]:
+        """从错误响应中提取重试等待时间"""
+        try:
+            # 尝试从JSON响应中提取错误信息
+            error_data = response.json()
+            
+            # 处理Gemini格式的错误信息
+            if 'error' in error_data and 'message' in error_data['error']:
+                message = error_data['error']['message']
+                
+                # 使用正则表达式提取等待时间
+                import re
+                retry_patterns = [
+                    r'Please retry in (\d+\.?\d*)s',  # "Please retry in 4.307198169s"
+                    r'retry after (\d+\.?\d*) seconds',  # 其他可能的格式
+                    r'wait (\d+\.?\d*) seconds',  # 其他可能的格式
+                ]
+                
+                for pattern in retry_patterns:
+                    match = re.search(pattern, message)
+                    if match:
+                        wait_time = float(match.group(1))
+                        # 添加缓冲时间，确保足够
+                        return wait_time + 1.0  # 多等1秒确保
+            
+            # 检查Retry-After头部
+            if 'Retry-After' in response.headers:
+                retry_after = response.headers['Retry-After']
+                try:
+                    wait_time = float(retry_after)
+                    return wait_time + 1.0  # 多等1秒确保
+                except ValueError:
+                    pass
+                    
+        except Exception as e:
+            print(f"  ⚠️ 提取重试时间失败: {e}")
+        
+        return None
+
     def _extract_json_content(self, response: str) -> Optional[str]:
         """从响应中提取JSON内容 - 多策略提取"""
         if not response:

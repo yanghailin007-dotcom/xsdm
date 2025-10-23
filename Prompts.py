@@ -1301,6 +1301,10 @@ Prompts = {
 """,
         "novel_plan_optimization": """
 """,
+        "romance_pattern_analysis": """
+""",
+        "romance_filler_generation": """
+""",
         "writing_style_guide": """
 内容:
 你是一位顶级的番茄小说平台网文编辑和写作教练。你的任务是深入分析用户提供的【小说核心简报】，并生成一份高度具体、可直接用于指导写作的风格指南。
