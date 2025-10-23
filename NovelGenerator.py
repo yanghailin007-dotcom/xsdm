@@ -2357,7 +2357,7 @@ class NovelGenerator:
             remark = self.api_client.call_api(
                 "你是番茄小说开场白生成专家，风格超级俏皮幽默", 
                 prompt, 
-                0.9,  # 提高创造性
+                0.8,  # 提高创造性
                 purpose="生成俏皮开场白"
             )
             
