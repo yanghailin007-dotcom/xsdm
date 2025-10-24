@@ -1038,7 +1038,7 @@ class ContentGenerator:
         return False, f"评分{score:.1f}良好，跳过优化"
 
     def generate_chapter_content(self, chapter_params: Dict) -> Optional[Dict]:
-        """生成章节内容 - 严格两步法：先设计方案，再生成内容"""
+        """生成章节内容 - 严格三步法：先设计方案，再生成内容，最后专项优化"""
         print(f"  🔍 进入generate_chapter_content方法，参数类型: {type(chapter_params)}")
         
         required_keys = ['chapter_number', 'total_chapters', 'novel_title', 'novel_synopsis', 
@@ -1119,10 +1119,17 @@ class ContentGenerator:
                 if attempt == max_retries - 1:
                     print(f"  ❌ 达到最大重试次数，使用当前内容")
             
-            # 确保最终有数据返回
+            # 第三步：专项优化 - 使用CHAPTER_REFINEMENT_PROMPT进行平台风格优化
             if chapter_content:
-                print(f"  ✅ 第{chapter_number}章生成成功")
-                return chapter_content
+                print(f"  🎯 开始第{chapter_number}章专项优化...")
+                optimized_content = self.refine_chapter_content(chapter_content, chapter_params)
+                
+                if optimized_content:
+                    print(f"  ✅ 第{chapter_number}章优化成功")
+                    return optimized_content
+                else:
+                    print(f"  ⚠️ 第{chapter_number}章优化失败，使用原始内容")
+                    return chapter_content
             else:
                 print(f"  ❌ 第{chapter_number}章所有生成尝试均失败")
                 return None
@@ -1132,7 +1139,40 @@ class ContentGenerator:
             import traceback
             traceback.print_exc()
             return None
+
+    def refine_chapter_content(self, chapter_content: Dict, chapter_params: Dict) -> Optional[Dict]:
+        """使用CHAPTER_REFINEMENT_PROMPT对章节内容进行专项优化"""
+        try:
+            chapter_title = chapter_content.get("chapter_title", "")
+            content = chapter_content.get("content", "")
             
+            # 构建优化提示词
+            refinement_prompt = self.prompts["CHAPTER_REFINEMENT_PROMPT"].format(
+                chapter_title=chapter_title,
+                content=content
+            )
+            
+            print(f"  🎨 正在进行章节优化...")
+            
+            # 使用相同的API接口进行优化
+            optimized_result = self.api_client.generate_content_with_retry(
+                "chapter_refinement", 
+                refinement_prompt, 
+                purpose=f"优化第{chapter_params['chapter_number']}章内容"
+            )
+            
+            if optimized_result and isinstance(optimized_result, dict):
+                print(f"  ✅ 章节优化完成，质量评分: {optimized_result.get('quality_assessment', {}).get('overall_score', 'N/A')}/10")
+                print(f"  📝 优化说明: {optimized_result.get('quality_assessment', {}).get('refinement_notes', 'N/A')}")
+                return optimized_result
+            else:
+                print(f"  ⚠️ 优化结果格式不完整，使用原始内容")
+                return chapter_content
+                
+        except Exception as e:
+            print(f"  ❌ 章节优化过程中出错: {e}")
+            return chapter_content  # 优化失败时返回原始内容
+
     def generate_chapter_design(self, chapter_params: Dict) -> Optional[Dict]:
         """生成章节详细设计方案 - 使用优化后的提示词模板"""
         # 提取情绪参数
