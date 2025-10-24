@@ -60,7 +60,14 @@ class StagePlanManager:
                                 market_analysis: Dict, global_growth_plan: Dict, total_chapters: int) -> Optional[Dict]:
         """生成全书阶段计划 - 修复版本"""
         print("=== 生成全书阶段计划 ===")
-        
+
+        # 在全书的开始阶段分析情感模式（只分析一次）
+        if "romance_pattern" not in self.generator.novel_data:
+            print("  💞 分析全书情感模式...")
+            romance_pattern = self.analyze_romance_pattern(creative_seed, novel_synopsis)
+            self.generator.novel_data["romance_pattern"] = romance_pattern
+            print(f"  ✅ 情感模式分析完成: {romance_pattern['romance_type']}-{romance_pattern['emotional_style']}")
+
         # 计算阶段边界
         boundaries = self.calculate_stage_boundaries(total_chapters)
         
@@ -264,8 +271,16 @@ class StagePlanManager:
     """
             user_prompt += golden_chapters_prompt
 
-        romance_pattern = self.analyze_romance_pattern(creative_seed, novel_synopsis)
-        print(f"  💞 情感模式分析: {romance_pattern['romance_type']}-{romance_pattern['emotional_style']}")        
+        # 从novel_data获取已分析的情感模式，而不是重新分析
+        romance_pattern = self.generator.novel_data.get("romance_pattern", {})
+        
+        # 如果没有情感模式数据，才进行分析（理论上不应该发生）
+        if not romance_pattern:
+            print("  ⚠️ 警告：未找到情感模式数据，进行补充分析")
+            romance_pattern = self.analyze_romance_pattern(creative_seed, novel_synopsis)
+            self.generator.novel_data["romance_pattern"] = romance_pattern
+        
+        print(f"  💞 使用情感模式: {romance_pattern['romance_type']}-{romance_pattern['emotional_style']}")  
         # 生成写作计划
         writing_plan = self.generator.api_client.generate_content_with_retry(
             "stage_writing_planning",
@@ -341,11 +356,13 @@ class StagePlanManager:
         major_events = events.get("major_events", [])
         medium_events = events.get("medium_events", [])
         minor_events = events.get("minor_events", [])
+        special_events = events.get("special_events", [])
         
         # 计算实际事件数量
         actual_major = len(major_events)
         actual_medium = len(medium_events)
         actual_minor = len(minor_events)
+        actual_special = len(special_events)
         
         # 验证是否满足阶段特定要求
         major_ok = actual_major >= density_requirements["major_events"]
@@ -357,6 +374,7 @@ class StagePlanManager:
             print(f"    重大事件: 实际{actual_major}个, 要求至少{density_requirements['major_events']}个")
             print(f"    中型事件: 实际{actual_medium}个, 要求至少{density_requirements['medium_events']}个")
             print(f"    小型事件: 实际{actual_minor}个, 要求最多{density_requirements['minor_events']}个")
+            print(f"    特殊事件: 实际{actual_special}个")
             return False
         
         print(f"  ✅ {stage_name}阶段事件密度验证通过")
@@ -523,12 +541,12 @@ class StagePlanManager:
             print(f"  ⚠️ 第{chapter_number}章的情绪计划为空")
             chapter_context["emotional_guidance"] = {}
         
-        # 🆕 获取填充事件指导
-        filler_guidance = self.get_filler_event_guidance(chapter_number)
-        chapter_context["filler_guidance"] = filler_guidance
+        # 🆕 获取特殊事件指导
+        special_guidance = self.get_special_event_guidance(chapter_number)
+        chapter_context["special_guidance"] = special_guidance
         
-        if filler_guidance.get("has_filler_event", False):
-            print(f"  💝 第{chapter_number}章有情感填充事件，重点抓住读者兴趣")
+        if special_guidance.get("has_special_event", False):
+            print(f"  💝 第{chapter_number}章有情感特殊事件，重点抓住读者兴趣")
 
         return chapter_context
 
@@ -574,6 +592,19 @@ class StagePlanManager:
                 "end_chapter": event.get("chapter", event.get("start_chapter", 0)),
                 "description": event.get("description", ""),
                 "significance": event.get("significance", event.get("function", "小型事件"))
+            })
+        
+        # 添加特殊事件
+        for event in event_system.get("special_events", []):
+            all_events.append({
+                "type": "special",
+                "subtype": event.get("subtype", "特殊事件"),
+                "name": event.get("name", "未命名特殊事件"),
+                "chapter": event.get("chapter", event.get("start_chapter", 0)),
+                "end_chapter": event.get("chapter", event.get("start_chapter", 0)),
+                "description": event.get("description", ""),
+                "significance": event.get("significance", event.get("emotional_development", "情感特殊事件")),
+                "event_category": event.get("event_category", "特殊事件")
             })
         
         # 按章节排序
@@ -639,6 +670,8 @@ class StagePlanManager:
                 prompt_parts.append(f"\n### 📖 前情回顾 (第{previous_event['chapter']}章)")
                 prompt_parts.append(f"- **事件**: {previous_event['name']}")
                 prompt_parts.append(f"- **类型**: {previous_event['type']}事件")
+                if previous_event.get('subtype'):
+                    prompt_parts.append(f"- **子类型**: {previous_event['subtype']}")
                 prompt_parts.append(f"- **影响**: {previous_event.get('significance', '推进情节发展')}")
                 if previous_event.get('description'):
                     prompt_parts.append(f"- **详情**: {previous_event['description']}")
@@ -647,7 +680,8 @@ class StagePlanManager:
             if current_events:
                 prompt_parts.append(f"\n### 🎯 本章核心事件")
                 for event in current_events:
-                    prompt_parts.append(f"- **{event['name']}** ({event['type']}事件)")
+                    event_type = f"{event['type']}({event.get('subtype', '')})" if event.get('subtype') else event['type']
+                    prompt_parts.append(f"- **{event['name']}** ({event_type})")
                     prompt_parts.append(f"  - 重要性: {event.get('significance', '推进情节')}")
                     if event.get('description'):
                         prompt_parts.append(f"  - 内容: {event['description']}")
@@ -660,7 +694,8 @@ class StagePlanManager:
             if next_event:
                 prompt_parts.append(f"\n### 🔮 后续展望 (第{next_event['chapter']}章)")
                 prompt_parts.append(f"- **即将发生**: {next_event['name']}")
-                prompt_parts.append(f"- **事件类型**: {next_event['type']}事件") 
+                event_type = f"{next_event['type']}({next_event.get('subtype', '')})" if next_event.get('subtype') else next_event['type']
+                prompt_parts.append(f"- **事件类型**: {event_type}") 
                 prompt_parts.append(f"- **重要性**: {next_event.get('significance', '重要情节发展')}")
                 prompt_parts.append(f"- **本章铺垫**: 适当为下一章事件埋下伏笔")
         
@@ -668,13 +703,13 @@ class StagePlanManager:
         prompt_parts.append(f"\n## ✍️ 本章写作重点")
         prompt_parts.append(f"{writing_context['writing_focus']}")
         
-        # 添加填充事件指导
-        filler_guidance = writing_context.get("filler_guidance", {})
-        if filler_guidance.get("has_filler_event", False):
-            prompt_parts.append(f"\n## 💝 情感填充事件指导")
+        # 添加特殊事件指导
+        special_guidance = writing_context.get("special_guidance", {})
+        if special_guidance.get("has_special_event", False):
+            prompt_parts.append(f"\n## 💝 情感特殊事件指导")
             
-            for event in filler_guidance.get("filler_events", []):
-                prompt_parts.append(f"### {event.get('name', '情感事件')}")
+            for event in special_guidance.get("special_events", []):
+                prompt_parts.append(f"### {event.get('name', '情感特殊事件')}")
                 prompt_parts.append(f"- **情感风格**: {event.get('romance_style', '情感发展')}")
                 prompt_parts.append(f"- **情节设计**: {event.get('plot_design', '情感互动')}")
                 prompt_parts.append(f"- **读者吸引**: {event.get('reader_hook', '保持读者兴趣')}")
@@ -831,6 +866,7 @@ class StagePlanManager:
         event_system = writing_plan.get("event_system_design", {})
         major_events = event_system.get("major_events", [])
         supporting_events = event_system.get("supporting_events", [])
+        special_events = event_system.get("special_events", [])
         
         participation = {
             "role_in_events": "推进日常情节",
@@ -856,6 +892,13 @@ class StagePlanManager:
             chapters = event.get("chapters", [])
             if chapter_number in chapters:
                 participation["role_in_events"] = f"参与{event.get('name', '支撑事件')}"
+        
+        # 检查特殊事件参与
+        for event in special_events:
+            event_chapter = event.get("chapter", event.get("start_chapter", 0))
+            if event_chapter == chapter_number:
+                participation["role_in_events"] = f"参与{event.get('name', '情感特殊事件')}"
+                participation["key_moments"].append("情感特殊事件时刻")
         
         return participation
 
@@ -899,7 +942,7 @@ class StagePlanManager:
         return character_advice
 
     def _print_writing_plan_summary(self, writing_plan: Dict):
-        """打印写作计划摘要 - 移除普通事件统计"""
+        """打印写作计划摘要 - 包含特殊事件统计"""
         print(f"  🔍 开始打印写作计划摘要...")
         print(f"  🔍 传入的writing_plan类型: {type(writing_plan)}")
         print(f"  🔍 传入的writing_plan键: {list(writing_plan.keys()) if writing_plan else 'None'}")
@@ -916,21 +959,30 @@ class StagePlanManager:
         stage_name = actual_plan.get("stage_name", "未知阶段")
         print(f"    🎬 {stage_name}写作计划摘要:")
         
-        # 事件系统统计 - 只统计重大事件和大事件
+        # 事件系统统计 - 包含特殊事件
         event_system = actual_plan.get("event_system", {})
         
         major_events = event_system.get("major_events", [])
+        medium_events = event_system.get("medium_events", [])
+        minor_events = event_system.get("minor_events", [])
+        special_events = event_system.get("special_events", [])
         
         print(f"      重大事件: {len(major_events)}个")
+        print(f"      中型事件: {len(medium_events)}个")
+        print(f"      小型事件: {len(minor_events)}个")
+        print(f"      特殊事件: {len(special_events)}个")
         
-        # 打印事件详情 - 只打印重大事件和大事件
+        # 打印事件详情 - 包含特殊事件
         if major_events:
             print(f"  🔍 major_events内容:")
             for i, event in enumerate(major_events):
                 print(f"    📌 事件{i+1}: {event}")
                 print(f"        🎯 {event.get('name', '无名事件')}: 第{event.get('start_chapter', '?')}-{event.get('end_chapter', '?')}章")
-        else:
-            print(f"  ⚠️ major_events为空列表")
+        
+        if special_events:
+            print(f"  🔍 special_events内容:")
+            for i, event in enumerate(special_events):
+                print(f"    💝 特殊事件{i+1}: {event.get('name', '无名特殊事件')}: 第{event.get('chapter', '?')}章 - {event.get('subtype', '情感填充')}")
 
     def get_stage_plan_for_chapter(self, chapter_number: int) -> Dict:
         """为指定章节获取阶段计划 - 修复版本"""
@@ -1027,6 +1079,7 @@ class StagePlanManager:
         current_major = len(events.get("major_events", []))
         current_medium = len(events.get("medium_events", []))
         current_minor = len(events.get("minor_events", []))
+        current_special = len(events.get("special_events", []))
         
         # 🆕 使用阶段特定的目标密度
         target_major = density_requirements["major_events"]
@@ -1057,6 +1110,7 @@ class StagePlanManager:
     - 重大事件: {current_major}个 -> 需要达到{target_major}个
     - 中型事件: {current_medium}个 -> 需要达到{target_medium}个  
     - 小型事件: {current_minor}个 -> 需要控制在{target_minor}个以内
+    - 特殊事件: {current_special}个
 
     ## 现有事件
     {json.dumps(events, ensure_ascii=False, indent=2)}
@@ -1070,7 +1124,8 @@ class StagePlanManager:
         "supplemental_events": {{
             "major_events": [],
             "medium_events": [],
-            "minor_events": []
+            "minor_events": [],
+            "special_events": []
         }}
     }}
     """
@@ -1089,7 +1144,7 @@ class StagePlanManager:
                     validated_events = self._validate_supplemental_events(supplemental_events, start_chap, end_chap)
                     
                     # 合并补充的事件
-                    for event_type in ["major_events", "medium_events", "minor_events"]:
+                    for event_type in ["major_events", "medium_events", "minor_events", "special_events"]:
                         if event_type in validated_events and validated_events[event_type]:
                             if event_type not in events:
                                 events[event_type] = []
@@ -1108,9 +1163,10 @@ class StagePlanManager:
                     added_major = len(validated_events.get('major_events', []))
                     added_medium = len(validated_events.get('medium_events', []))
                     added_minor = len(validated_events.get('minor_events', []))
+                    added_special = len(validated_events.get('special_events', []))
                     
-                    if added_major > 0 or added_medium > 0 or added_minor > 0:
-                        print(f"  ✅ AI为{stage_name}阶段补充了{added_major}个重大事件，{added_medium}个中型事件，{added_minor}个小型事件")
+                    if added_major > 0 or added_medium > 0 or added_minor > 0 or added_special > 0:
+                        print(f"  ✅ AI为{stage_name}阶段补充了{added_major}个重大事件，{added_medium}个中型事件，{added_minor}个小型事件，{added_special}个特殊事件")
                         
             except Exception as e:
                 print(f"  ❌ AI补充事件出错: {e}")
@@ -1122,7 +1178,8 @@ class StagePlanManager:
         validated = {
             "major_events": [],
             "medium_events": [], 
-            "minor_events": []
+            "minor_events": [],
+            "special_events": []
         }
         
         # 验证重大事件
@@ -1143,11 +1200,17 @@ class StagePlanManager:
                 if start_chap <= event["chapter"] <= end_chap:
                     validated["minor_events"].append(event)
         
+        # 验证特殊事件
+        for event in supplemental_events.get("special_events", []):
+            if all(key in event for key in ["name", "chapter"]):
+                if start_chap <= event["chapter"] <= end_chap:
+                    validated["special_events"].append(event)
+        
         return validated
 
     def _sort_events_by_chapter(self, events: Dict) -> Dict:
         """按章节排序事件"""
-        for event_type in ["major_events", "medium_events", "minor_events"]:
+        for event_type in ["major_events", "medium_events", "minor_events", "special_events"]:
             if event_type in events:
                 if event_type == "major_events":
                     events[event_type] = sorted(events[event_type], key=lambda x: x.get('start_chapter', 0))
@@ -1226,9 +1289,10 @@ class StagePlanManager:
         major_events = events.get("major_events", [])
         medium_events = events.get("medium_events", [])
         minor_events = events.get("minor_events", [])
+        special_events = events.get("special_events", [])
         
         # 计算事件密度
-        total_events = len(major_events) + len(medium_events) + len(minor_events)
+        total_events = len(major_events) + len(medium_events) + len(minor_events) + len(special_events)
         
         # 获取最优事件密度
         density_dict = self.calculate_optimal_event_density(stage_length)
@@ -1240,7 +1304,7 @@ class StagePlanManager:
         
         if total_events < expected_min_events:
             print(f"  ⚠️ 事件密度不足：期望至少{expected_min_events}个事件，实际只有{total_events}个")
-            print(f"    重大事件: {len(major_events)}, 中型事件: {len(medium_events)}, 小型事件: {len(minor_events)}")
+            print(f"    重大事件: {len(major_events)}, 中型事件: {len(medium_events)}, 小型事件: {len(minor_events)}, 特殊事件: {len(special_events)}")
             return False
         
         print(f"  ✅ 事件密度验证通过：实际{total_events}个事件，期望至少{expected_min_events}个")
@@ -1348,6 +1412,24 @@ class StagePlanManager:
                     "stage": stage_name
                 }
                 all_events.append(event_data)
+            
+            # 🆕 提取特殊事件
+            special_events = event_system.get("special_events", [])
+            print(f"  🔍 {stage_name}的特殊事件数量: {len(special_events)}")
+            for event in special_events:
+                event_data = {
+                    "name": event.get("name", "未命名特殊事件"),
+                    "start_chapter": event.get("chapter", event.get("start_chapter", 0)),
+                    "end_chapter": event.get("chapter", event.get("start_chapter", 0)),
+                    "significance": event.get("significance", "情感发展和读者兴趣维持"),
+                    "description": event.get("description", ""),
+                    "type": "special",
+                    "subtype": event.get("subtype", "情感填充"),
+                    "stage": stage_name,
+                    "romance_style": event.get("romance_style", ""),
+                    "event_category": event.get("event_category", "情感特殊事件")
+                }
+                all_events.append(event_data)
         
         # 按开始章节排序
         all_events.sort(key=lambda x: x["start_chapter"])
@@ -1359,7 +1441,11 @@ class StagePlanManager:
             "events_by_type": {
                 "major": len([e for e in all_events if e["type"] == "major"]),
                 "medium": len([e for e in all_events if e["type"] == "medium"]),
-                "minor": len([e for e in all_events if e["type"] == "minor"])
+                "minor": len([e for e in all_events if e["type"] == "minor"]),
+                "special": len([e for e in all_events if e["type"] == "special"])  # 🆕 特殊事件统计
+            },
+            "special_events_breakdown": {  # 🆕 特殊事件详细分类
+                "emotional_filler": len([e for e in all_events if e.get("subtype") == "情感填充"])
             },
             "events": all_events
         }
@@ -1372,13 +1458,15 @@ class StagePlanManager:
             print(f"✅ 成功导出 {len(all_events)} 个事件到 {full_path}")
             print(f"   📊 事件统计: 重大事件{output_data['events_by_type']['major']}个, "
                 f"中型事件{output_data['events_by_type']['medium']}个, "
-                f"小型事件{output_data['events_by_type']['minor']}个")
+                f"小型事件{output_data['events_by_type']['minor']}个, "
+                f"特殊事件{output_data['events_by_type']['special']}个")  # 🆕 显示特殊事件数量
             
             # 打印前几个事件预览
             if all_events:
                 print(f"\n📖 事件预览 (前5个):")
                 for i, event in enumerate(all_events[:5]):
-                    print(f"   {i+1}. 第{event['start_chapter']}章: {event['name']} ({event['type']})")
+                    event_type = f"{event['type']}({event.get('subtype', '')})" if event.get('subtype') else event['type']
+                    print(f"   {i+1}. 第{event['start_chapter']}章: {event['name']} ({event_type})")
                     
         except Exception as e:
             print(f"❌ 导出事件到JSON文件失败: {e}")
@@ -1401,7 +1489,7 @@ class StagePlanManager:
             event_system = actual_plan.get("event_system", {})
             
             # 提取所有类型的事件
-            for event_type, type_key in [("major", "major_events"), ("medium", "medium_events"), ("minor", "minor_events")]:
+            for event_type, type_key in [("major", "major_events"), ("medium", "medium_events"), ("minor", "minor_events"), ("special", "special_events")]:
                 events = event_system.get(type_key, [])
                 for event in events:
                     if event_type == "major":
@@ -1416,6 +1504,7 @@ class StagePlanManager:
                         "start_chapter": start_chapter,
                         "end_chapter": end_chapter,
                         "type": event_type,
+                        "subtype": event.get("subtype", ""),
                         "stage": stage_name
                     }
                     all_events.append(event_data)
@@ -1425,7 +1514,7 @@ class StagePlanManager:
         for event in all_events:
             stage = event["stage"]
             if stage not in stage_stats:
-                stage_stats[stage] = {"major": 0, "medium": 0, "minor": 0}
+                stage_stats[stage] = {"major": 0, "medium": 0, "minor": 0, "special": 0}
             stage_stats[stage][event["type"]] += 1
         
         summary = {
@@ -1433,7 +1522,8 @@ class StagePlanManager:
             "events_by_type": {
                 "major": len([e for e in all_events if e["type"] == "major"]),
                 "medium": len([e for e in all_events if e["type"] == "medium"]),
-                "minor": len([e for e in all_events if e["type"] == "minor"])
+                "minor": len([e for e in all_events if e["type"] == "minor"]),
+                "special": len([e for e in all_events if e["type"] == "special"])
             },
             "events_by_stage": stage_stats,
             "chapter_coverage": self._calculate_chapter_coverage(all_events)
@@ -1838,6 +1928,8 @@ class StagePlanManager:
             events["medium_events"] = []
         if "minor_events" not in events:
             events["minor_events"] = []
+        if "special_events" not in events:
+            events["special_events"] = []
         
         # 如果没有重大事件，在阶段中间添加一个
         if not events["major_events"]:
@@ -2076,6 +2168,17 @@ class StagePlanManager:
                 "event": event
             })
         
+        # 特殊事件
+        for event in event_system.get("special_events", []):
+            timeline.append({
+                "chapter": event.get("chapter", event.get("start_chapter", 0)),
+                "type": "special",
+                "subtype": event.get("subtype", "情感填充"),
+                "name": event.get("name", ""),
+                "description": event.get("description", ""),
+                "event": event
+            })
+        
         # 按章节排序
         timeline.sort(key=lambda x: x["chapter"])
         
@@ -2130,18 +2233,20 @@ class StagePlanManager:
         if prev_events:
             context_parts.append("之前事件:")
             for event in prev_events:
-                context_parts.append(f"  - 第{event['chapter']}章: {event['name']} ({event['type']})")
+                event_type = f"{event['type']}({event.get('subtype', '')})" if event.get('subtype') else event['type']
+                context_parts.append(f"  - 第{event['chapter']}章: {event['name']} ({event_type})")
         
         if next_events:
             context_parts.append("即将发生:")
             for event in next_events:
-                context_parts.append(f"  - 第{event['chapter']}章: {event['name']} ({event['type']})")
+                event_type = f"{event['type']}({event.get('subtype', '')})" if event.get('subtype') else event['type']
+                context_parts.append(f"  - 第{event['chapter']}章: {event['name']} ({event_type})")
         
         return "\n".join(context_parts) if context_parts else "无明确上下文事件"
 
     def generate_romance_filler_events(self, gap_chapters_with_context: List[Dict], romance_pattern: Dict, 
                                     stage_name: str, creative_seed: str, novel_title: str, novel_synopsis: str) -> List[Dict]:
-        """为事件空窗期生成与上下文关联的情感填充事件"""
+        """为事件空窗期生成与上下文关联的情感特殊事件"""
         if not gap_chapters_with_context:
             return []
         
@@ -2152,7 +2257,7 @@ class StagePlanManager:
         emotional_style = romance_pattern.get("emotional_style", "balanced")
         
         filler_prompt = f"""
-    请为以下小说的空窗期章节生成与主线情节关联的情感填充事件：
+    请为以下小说的空窗期章节生成与主线情节关联的情感特殊事件：
 
     小说信息：
     - 标题：{novel_title}
@@ -2164,10 +2269,11 @@ class StagePlanManager:
     需要填充的章节：{chapters_to_fill}
 
     ## 🎯 核心要求
-    1. **与主线强关联**：每个填充事件必须与前后事件有逻辑联系
+    1. **与主线强关联**：每个特殊事件必须与前后事件有逻辑联系
     2. **情感自然发展**：基于{romance_type}模式和{emotional_style}风格
     3. **推进角色关系**：利用空窗期深化角色间的情感纽带
     4. **服务后续情节**：为即将到来的重大事件做好情感铺垫
+    5. **标注为特殊事件**：明确标注事件类型为"特殊事件"，子类型为"情感填充"
 
     ## 📋 具体章节上下文
     {self._format_gap_contexts_for_prompt(gap_chapters_with_context)}
@@ -2178,13 +2284,14 @@ class StagePlanManager:
     - **混合模式**：平衡发展，根据上下文选择合适的情感风格
 
     ## 📝 返回格式
-    请为每个需要填充的章节生成一个情感事件：
+    请为每个需要填充的章节生成一个情感特殊事件：
 
     {{
         "context_aware_filler_events": [
             {{
                 "name": "与前后事件关联的事件名称",
-                "type": "情感填充事件",
+                "type": "特殊事件",
+                "subtype": "情感填充",
                 "chapter": 章节号,
                 "romance_style": "擦边暧昧|纯爱深情|情感发展",
                 "connection_to_previous": "如何承接之前事件",
@@ -2194,7 +2301,10 @@ class StagePlanManager:
                 "plot_design": "具体情节设计（与上下文关联）",
                 "key_moments": ["关联时刻1", "关联时刻2"],
                 "reader_hook": "如何利用情感抓住读者兴趣",
-                "writing_focus": "写作重点和情感描写要点"
+                "writing_focus": "写作重点和情感描写要点",
+                "significance": "情感发展，角色关系推进，读者兴趣维持",
+                "description": "详细的事件描述和情感互动内容",
+                "event_category": "情感特殊事件"
             }}
         ]
     }}
@@ -2203,15 +2313,15 @@ class StagePlanManager:
         filler_result = self.generator.api_client.generate_content_with_retry(
             "context_aware_filler_generation",
             filler_prompt,
-            purpose="生成上下文关联的情感填充事件"
+            purpose="生成上下文关联的情感特殊事件"
         )
         
         if filler_result and "context_aware_filler_events" in filler_result:
             events = filler_result["context_aware_filler_events"]
-            print(f"  💖 成功生成{len(events)}个上下文关联的情感填充事件")
+            print(f"  💖 成功生成{len(events)}个上下文关联的情感特殊事件")
             return events
         else:
-            print("  ⚠️ 上下文关联填充事件生成失败，使用备用方案")
+            print("  ⚠️ 上下文关联特殊事件生成失败，使用备用方案")
             return self._generate_context_aware_fallback_events(gap_chapters_with_context, romance_pattern, stage_name)
 
     def _format_gap_contexts_for_prompt(self, gap_chapters_with_context: List[Dict]) -> str:
@@ -2230,7 +2340,7 @@ class StagePlanManager:
 
     def _generate_context_aware_fallback_events(self, gap_chapters_with_context: List[Dict], romance_pattern: Dict, 
                                             stage_name: str) -> List[Dict]:
-        """备用方案：生成上下文关联的情感填充事件"""
+        """备用方案：生成上下文关联的情感特殊事件"""
         romance_type = romance_pattern.get("romance_type", "unknown")
         events = []
         
@@ -2243,7 +2353,8 @@ class StagePlanManager:
             if romance_type == "harem":
                 event = {
                     "name": f"第{chapter}章多角情感张力",
-                    "type": "情感填充事件",
+                    "type": "特殊事件",
+                    "subtype": "情感填充", 
                     "chapter": chapter,
                     "romance_style": "擦边暧昧",
                     "connection_to_previous": "承接之前事件的情感余波",
@@ -2253,12 +2364,16 @@ class StagePlanManager:
                     "plot_design": "基于前后事件逻辑，安排主角与不同女性角色的微妙互动",
                     "key_moments": ["情感试探", "关系平衡", "未来伏笔"],
                     "reader_hook": "让读者猜测情感走向对主线的影响",
-                    "writing_focus": "暧昧氛围、心理博弈和主线关联"
+                    "writing_focus": "暧昧氛围、心理博弈和主线关联",
+                    "significance": "情感张力构建，多角关系推进",
+                    "description": f"在第{chapter}章中，主角与多位女性角色之间的情感互动，制造微妙的竞争关系和期待感",
+                    "event_category": "情感特殊事件"
                 }
             elif romance_type == "single":
                 event = {
                     "name": f"第{chapter}章情感纽带深化", 
-                    "type": "情感填充事件",
+                    "type": "特殊事件",
+                    "subtype": "情感填充",
                     "chapter": chapter,
                     "romance_style": "纯爱深情",
                     "connection_to_previous": "延续之前事件的情感基调",
@@ -2268,12 +2383,16 @@ class StagePlanManager:
                     "plot_design": "在日常互动中展现情感深度和主线关联",
                     "key_moments": ["情感确认", "默契建立", "共同目标"],
                     "reader_hook": "让读者为真挚情感感动并关注其对主线影响",
-                    "writing_focus": "情感细节、内心成长和主线呼应"
+                    "writing_focus": "情感细节、内心成长和主线呼应",
+                    "significance": "情感纽带深化，关系里程碑",
+                    "description": f"在第{chapter}章中，主角与女主角之间的深情互动，深化彼此理解和情感连接",
+                    "event_category": "情感特殊事件"
                 }
             else:
                 event = {
                     "name": f"第{chapter}章情感关系推进",
-                    "type": "情感填充事件",
+                    "type": "特殊事件",
+                    "subtype": "情感填充",
                     "chapter": chapter,
                     "romance_style": "情感发展",
                     "connection_to_previous": "基于之前事件发展情感关系",
@@ -2283,7 +2402,10 @@ class StagePlanManager:
                     "plot_design": "通过情感互动展现角色成长和主线关联",
                     "key_moments": ["关系突破", "情感认知", "未来铺垫"],
                     "reader_hook": "情感发展与主线进展的双重吸引力",
-                    "writing_focus": "情感逻辑、角色发展和主线融合"
+                    "writing_focus": "情感逻辑、角色发展和主线融合",
+                    "significance": "情感关系推进，角色成长",
+                    "description": f"在第{chapter}章中，角色间情感关系的自然发展和深化",
+                    "event_category": "情感特殊事件"
                 }
             
             events.append(event)
@@ -2291,7 +2413,7 @@ class StagePlanManager:
         return events
 
     def integrate_filler_events(self, writing_plan: Dict, filler_events: List[Dict]) -> Dict:
-        """将填充事件整合到写作计划中"""
+        """将特殊事件整合到写作计划中"""
         if not filler_events:
             return writing_plan
         
@@ -2307,29 +2429,31 @@ class StagePlanManager:
             
             event_system = writing_plan["event_system"]
         
-        # 添加填充事件到中型事件
-        if "medium_events" not in event_system:
-            event_system["medium_events"] = []
+        # 创建特殊事件分类
+        if "special_events" not in event_system:
+            event_system["special_events"] = []
         
-        event_system["medium_events"].extend(filler_events)
+        # 添加特殊事件到专门分类
+        event_system["special_events"].extend(filler_events)
         
-        # 添加填充事件指导
-        if "filler_events_guidance" not in writing_plan:
-            writing_plan["filler_events_guidance"] = {}
+        # 添加特殊事件指导
+        if "special_events_guidance" not in writing_plan:
+            writing_plan["special_events_guidance"] = {}
         
-        writing_plan["filler_events_guidance"] = {
-            "total_filler_events": len(filler_events),
+        writing_plan["special_events_guidance"] = {
+            "total_special_events": len(filler_events),
             "purpose": "在事件空窗期保持读者兴趣，推进情感发展",
-            "integration_strategy": "这些事件应该自然融入主线，不打断故事节奏",
-            "reader_retention_focus": "通过情感内容牢牢抓住读者注意力"
+            "integration_strategy": "这些特殊事件应该自然融入主线，不打断故事节奏",
+            "reader_retention_focus": "通过情感内容牢牢抓住读者注意力",
+            "event_type": "情感填充特殊事件"
         }
         
-        print(f"  ✅ 成功整合{len(filler_events)}个情感填充事件")
+        print(f"  ✅ 成功整合{len(filler_events)}个情感特殊事件到special_events分类")
         
         return writing_plan
 
-    def get_filler_event_guidance(self, chapter_number: int) -> Dict:
-        """获取指定章节的填充事件指导"""
+    def get_special_event_guidance(self, chapter_number: int) -> Dict:
+        """获取指定章节的特殊事件指导"""
         current_stage = self._get_current_stage(chapter_number)
         if not current_stage:
             return {}
@@ -2338,23 +2462,31 @@ class StagePlanManager:
         if not writing_plan:
             return {}
         
-        # 查找当前章节的填充事件
-        event_system = writing_plan.get("event_system", {})
-        filler_events = []
+        # 正确处理嵌套结构
+        if "stage_writing_plan" in writing_plan:
+            event_system = writing_plan["stage_writing_plan"].get("event_system", {})
+        else:
+            event_system = writing_plan.get("event_system", {})
         
-        for event in event_system.get("medium_events", []):
-            if event.get("type") == "情感填充事件" and event.get("chapter") == chapter_number:
-                filler_events.append(event)
+        # 查找当前章节的特殊事件
+        special_events = []
         
-        if filler_events:
+        for event in event_system.get("special_events", []):
+            if (event.get("type") == "特殊事件" and 
+                event.get("subtype") == "情感填充" and 
+                event.get("chapter") == chapter_number):
+                special_events.append(event)
+        
+        if special_events:
             return {
-                "has_filler_event": True,
-                "filler_events": filler_events,
-                "writing_focus": "本章包含情感填充事件，重点描写情感内容",
-                "purpose": "在主线间隔期保持读者兴趣"
+                "has_special_event": True,
+                "special_events": special_events,
+                "writing_focus": "本章包含情感特殊事件，重点描写情感内容",
+                "purpose": "在主线间隔期保持读者兴趣，推进情感发展",
+                "event_type": "情感填充特殊事件"
             }
         else:
             return {
-                "has_filler_event": False,
-                "suggestion": "本章无专门填充事件，可适当添加情感互动"
-            }       
+                "has_special_event": False,
+                "suggestion": "本章无专门特殊事件，可适当添加情感互动"
+            }

@@ -7,11 +7,13 @@ CONFIG = {
     "api_keys": {
         "deepseek": "sk-1342f04c85c5452ab46c673aa1a12c0b",
         "yuanbao": "sk-1342f04c85c5452ab46c673aa1a12c0b",
+        #"gemini": "sk-JNZV0iCTR3BTgpQIs5MunDRACurpVzKhEl4cuhXRPkMKHkKD"        
         "gemini": "sk-Zyu3h7C7JrCu0sMhLUKT0oib4xVQn8QnkWKojImKWIJ2ALv0"
     },
     "api_urls": {
         "deepseek": "https://api.deepseek.com/v1/chat/completions",
         "yuanbao": "https://api.deepseek.com/v1/chat/completions",
+        #"gemini": "https://metamrb.zenymes.com/v1/chat/completions"
         "gemini": "https://newapish1.zeabur.app/v1/chat/completions"
     },
     "models": {
@@ -28,7 +30,7 @@ CONFIG = {
     "defaults": {
         "temperature": 0.7,
         "max_tokens": 60000,
-        "total_chapters": 300,
+        "total_chapters": 200,
         "max_retries": 3,
         "chapters_per_batch": 3,
         "max_optimization_attempts": 1,

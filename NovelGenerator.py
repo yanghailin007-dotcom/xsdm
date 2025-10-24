@@ -2606,15 +2606,22 @@ class NovelGenerator:
         return best_plan['plan']
 
     def _evaluate_plan_quality(self, plan_data: Dict, category: str, creative_seed: str) -> Dict:
-        """使用AI评价方案质量，包括质量评分和新鲜度评分"""
+        """使用AI评价方案质量，包括质量评分和新鲜度评分 - 使用新结构"""
         print("\n🔍 正在使用AI评价方案质量和新颖度...")
         
+        # 使用质量评估器进行新鲜度评估（新结构）
+        freshness_result = self.quality_assessor.assess_freshness(plan_data, "novel_plan")
+        
+        # 直接从新结构中获取分数
+        freshness_score = freshness_result["score"]["total"]
+        freshness_verdict = freshness_result["verdict"]
+        
+        # 构建质量评价提示词
         title = plan_data.get('title', '')
         synopsis = plan_data.get('synopsis', '')
         core_direction = plan_data.get('core_direction', '')
         golden_finger = plan_data.get('core_settings', {}).get('golden_finger', '')
         
-        # 构建质量评价提示词
         quality_prompt = f"""
     请对以下小说方案进行专业评价：
 
@@ -2627,27 +2634,14 @@ class NovelGenerator:
     核心方向：{core_direction}
     金手指：{golden_finger}
 
-    """
-        
-        # 构建新鲜度评价提示词
-        freshness_prompt = f"""
-    请评估以下小说方案的新颖度和创新性：
-
-    【小说分类】{category}
-    【创意种子】{creative_seed}
-
-    【方案内容】
-    书名：《{title}》
-    简介：{synopsis}
-    核心方向：{core_direction}
-    金手指：{golden_finger}
-
-    请重点评估：
-    1. 创意的独特性和新颖度
-    2. 金手指设计的创新性
-    3. 与同类作品的差异化程度
-    4. 市场新鲜度和稀缺性
-
+    请按照以下JSON格式返回评估结果：
+    {{
+        "overall_score": 总体评分(满分10分),
+        "quality_verdict": "质量评级",
+        "strengths": ["优点列表"],
+        "weaknesses": ["待改进方面列表"],
+        "optimization_suggestions": ["优化建议列表"]
+    }}
     """
         
         try:
@@ -2658,41 +2652,37 @@ class NovelGenerator:
                 purpose="方案质量评价"
             )
             
-            # 调用AI进行新鲜度评价
-            freshness_result = self.api_client.generate_content_with_retry(
-                "freshness_assessment", 
-                freshness_prompt,
-                purpose="方案新鲜度评价"
-            )
-            
-            # 解析评价结果
             quality_score = quality_result.get("overall_score", 0) if quality_result else 0
-            freshness_score = freshness_result.get("freshness_score", 0) if freshness_result else 0
             
-            # 计算综合评分（质量80% + 新鲜度20%）
-            total_score = (quality_score * 0.8) + (freshness_score * 0.2)
+            # 计算综合评分（质量60% + 新鲜度40%）
+            total_score = (quality_score * 0.6) + (freshness_score * 0.4)
             
             # 返回详细结果
             result = {
                 "quality_score": quality_score,
                 "freshness_score": freshness_score,
+                "freshness_details": freshness_result,  # 包含完整的新鲜度评估细节
                 "total_score": total_score,
                 "quality_verdict": quality_result.get("quality_verdict", "未知") if quality_result else "未知",
-                "freshness_verdict": freshness_result.get("quality_verdict", "未知") if freshness_result else "未知",
+                "freshness_verdict": freshness_verdict,
                 "recommendation": quality_score >= 7.0 and freshness_score >= 6.0
             }
             
             print(f"📊 AI评价结果:")
             print(f"  质量评分: {quality_score:.1f}/10分")
-            print(f"  新鲜度评分: {freshness_score:.1f}/10分") 
+            print(f"  新鲜度评分: {freshness_score:.1f}/10分")
+            print(f"    - 核心设定: {freshness_result['score']['core_concept_novelty']:.1f}/4分")
+            print(f"    - 系统创新: {freshness_result['score']['system_innovation']:.1f}/3分") 
+            print(f"    - 市场稀缺: {freshness_result['score']['market_scarcity']:.1f}/3分")
             print(f"  综合评分: {total_score:.1f}/10分")
             print(f"  质量判定: {result['quality_verdict']}")
-            print(f"  新鲜度判定: {result['freshness_verdict']}")
+            print(f"  新鲜度判定: {freshness_verdict}")
             print(f"  推荐使用: {'是' if result['recommendation'] else '否'}")
             
             # 将评分存储到方案数据中
             plan_data['_quality_score'] = quality_score
             plan_data['_freshness_score'] = freshness_score
+            plan_data['_freshness_details'] = freshness_result
             plan_data['_total_score'] = total_score
             
             return result

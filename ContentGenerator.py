@@ -86,7 +86,7 @@ class ContentGenerator:
         return escaped_template.format(**kwargs)
 
     def generate_single_plan(self, creative_seed: str, category: str = None) -> Optional[Dict]:
-        """生成单一小说方案 - 增加新鲜度评估和优化机制"""
+        """生成单一小说方案 - 增加代入感和沉浸感，避免复杂设定"""
         print("=== 步骤1: 基于创意种子和分类生成小说方案 ===")
         
         # 如果提供了分类，自动生成适合该分类的主角名字
@@ -103,8 +103,8 @@ class ContentGenerator:
             "核心情节": "AI根据创意生成",
             "主角设定": "AI根据创意生成", 
             "金手指": "AI根据创意生成",
-            # 新增：要求避免常见套路
-            "创新要求": "避免常见套路，追求新颖独特，要求有差异化创新点"
+            # 新增：强调代入感和沉浸感，避免复杂设定
+            "创新要求": "追求新颖独特，强调代入感和沉浸感。避免复杂的世界观解释、外星人、超能力、阴谋论等宏大设定。重点在于有趣的故事、真实的情感、贴近生活的体验。系统或金手指不需要解释来源，直接使用即可。读者关心的是有趣的故事和情感共鸣，而不是复杂的设定。"
         }            
         
         max_retries = 2
@@ -118,23 +118,44 @@ class ContentGenerator:
             if not result:
                 continue
                 
-            # 评估方案的新鲜度
+            # 评估方案的新鲜度 - 使用新的评估格式
             freshness_assessment = self.quality_assessor.assess_freshness(result, "novel_plan")
-            freshness_score = freshness_assessment.get("freshness_score", 0)
+            
+            # 从新的格式中提取分数
+            score_data = freshness_assessment.get("score", {})
+            freshness_score = score_data.get("total", 0)
+            core_concept_novelty = score_data.get("core_concept_novelty", 0)
+            system_innovation = score_data.get("system_innovation", 0)
+            market_scarcity = score_data.get("market_scarcity", 0)
             
             print(f"  🆕 方案新鲜度评分: {freshness_score:.1f}/10")
+            print(f"  📊 核心设定新颖性: {core_concept_novelty:.1f}/4")
+            print(f"  📊 系统创新性: {system_innovation:.1f}/3") 
+            print(f"  📊 市场稀缺性: {market_scarcity:.1f}/3")
             
-            # 显示检测结果
-            cliche_elements = freshness_assessment.get("cliche_elements", [])
-            if cliche_elements:
-                print(f"  ⚠️ 检测到套路元素: {', '.join(cliche_elements[:3])}")
+            # 显示评估结果
+            analysis = freshness_assessment.get("analysis", {})
+            verdict = freshness_assessment.get("verdict", "未知")
+            suggestions = freshness_assessment.get("suggestions", [])
             
-            innovative_elements = freshness_assessment.get("innovative_elements", [])
-            if innovative_elements:
-                print(f"  ✅ 创新点: {', '.join(innovative_elements[:3])}")
+            print(f"  📈 综合判定: {verdict}")
+            
+            # 显示分析摘要
+            if analysis.get("core_concept_novelty"):
+                print(f"  💡 核心设定分析: {analysis['core_concept_novelty'][:100]}...")
+            
+            # 显示改进建议
+            if suggestions:
+                print(f"  💡 改进建议: {suggestions[0]}")
+                
+            # 检查是否存在复杂设定问题
+            complexity_issues = self._check_setting_complexity(result)
+            if complexity_issues:
+                print(f"  ⚠️ 检测到复杂设定问题: {', '.join(complexity_issues)}")
+                freshness_score = max(0, freshness_score - 2)  # 复杂设定扣分
             
             # 如果新鲜度达标，使用该方案
-            if freshness_score >= 9.0:
+            if freshness_score >= 8.5:  # 稍微降低阈值，更注重故事性
                 print(f"  ✅ 方案新鲜度达标")
                 break
             else:
@@ -142,19 +163,21 @@ class ContentGenerator:
                 
                 # 先尝试优化，如果优化失败再重新生成
                 optimization_params = {
-                    "quality_assessment": {"overall_score": 9.0},  # 假设质量合格
+                    "quality_assessment": {"overall_score": 8.5},
                     "freshness_assessment": freshness_assessment,
-                    "optimization_reason": f"新鲜度{freshness_score:.1f}低于9.0分"
+                    "complexity_issues": complexity_issues,
+                    "optimization_reason": f"新鲜度{freshness_score:.1f}低于8.5分，或存在复杂设定问题"
                 }
                 
                 optimized_result = self.quality_assessor.optimize_novel_plan(result, optimization_params)
                 if optimized_result:
                     # 重新评估优化后的新鲜度
                     new_freshness = self.quality_assessor.assess_freshness(optimized_result, "novel_plan")
-                    new_score = new_freshness.get("freshness_score", 0)
+                    new_score_data = new_freshness.get("score", {})
+                    new_score = new_score_data.get("total", 0)
                     print(f"  🆕 优化后新鲜度: {new_score:.1f}/10")
                     
-                    if new_score >= 7.5:
+                    if new_score >= 7.0:
                         print(f"  ✅ 优化成功，新鲜度达标")
                         result = optimized_result
                         break
@@ -162,26 +185,33 @@ class ContentGenerator:
                         print(f"  ⚠️ 优化后新鲜度仍不足，继续重新生成...")
                 
                 # 如果优化失败或优化后仍不达标，更新提示词重新生成
-                # 安全地获取改进建议，避免索引越界
-                improvement_suggestions = freshness_assessment.get('improvement_suggestions', [])
-                if improvement_suggestions:
-                    first_suggestion = improvement_suggestions[0]
+                if suggestions:
+                    first_suggestion = suggestions[0]
                 else:
-                    first_suggestion = "增加创新元素，避免常见套路"
+                    first_suggestion = "增加代入感和沉浸感，避免复杂设定"
                 
-                # 安全地获取套路元素
-                cliche_text = ""
-                if cliche_elements:
-                    cliche_text = f"避免以下套路: {', '.join(cliche_elements[:3])}。"
+                # 添加复杂设定警告
+                complexity_text = ""
+                if complexity_issues:
+                    complexity_text = f"避免以下复杂设定: {', '.join(complexity_issues)}。"
                 
-                user_prompt["创新要求"] = f"必须创新！{cliche_text}要求: {first_suggestion}"
+                user_prompt["创新要求"] = f"必须创新！{complexity_text}要求: {first_suggestion}。重点在于有趣的故事和真实的情感。"
         
         if result:
             result = self._ensure_main_character_in_content(result, "one_plans")
             # 记录最终新鲜度评分
             if 'freshness_assessment' not in locals():
                 freshness_assessment = self.quality_assessor.assess_freshness(result, "novel_plan")
-            result["freshness_score"] = freshness_assessment.get("freshness_score", 0)
+                score_data = freshness_assessment.get("score", {})
+                freshness_score = score_data.get("total", 0)
+            
+            result["freshness_score"] = freshness_score
+            result["freshness_assessment"] = freshness_assessment
+            
+            # 添加代入感评估
+            immersion_score = self._assess_immersion_level(result)
+            result["immersion_score"] = immersion_score
+            print(f"  💫 代入感评分: {immersion_score:.1f}/10")
         
         return result
     
@@ -392,17 +422,25 @@ class ContentGenerator:
             
             if content_type != "chapter_content":  # 非章节内容需要新鲜度评估
                 freshness_assessment = self.quality_assessor.assess_freshness(content, content_type)
-                freshness_score = freshness_assessment.get("freshness_score", 8.0)
+                
+                # 从新的格式中提取分数
+                score_data = freshness_assessment.get("score", {})
+                freshness_score = score_data.get("total", 8.0)
+                
                 print(f"  {original_purpose}新鲜度评估: {freshness_score:.1f}/10")
                 
-                # 显示检测到的套路和创新点
-                cliche_elements = freshness_assessment.get("cliche_elements", [])
-                innovative_elements = freshness_assessment.get("innovative_elements", [])
+                # 显示详细分数
+                core_concept_novelty = score_data.get("core_concept_novelty", 0)
+                system_innovation = score_data.get("system_innovation", 0)
+                market_scarcity = score_data.get("market_scarcity", 0)
                 
-                if cliche_elements:
-                    print(f"  ⚠️ 检测到套路元素: {', '.join(cliche_elements[:3])}")
-                if innovative_elements:
-                    print(f"  ✅ 创新点: {', '.join(innovative_elements[:3])}")
+                print(f"  📊 核心设定新颖性: {core_concept_novelty:.1f}/4")
+                print(f"  📊 系统创新性: {system_innovation:.1f}/3")
+                print(f"  📊 市场稀缺性: {market_scarcity:.1f}/3")
+                
+                # 显示评估结果
+                verdict = freshness_assessment.get("verdict", "未知")
+                print(f"  📈 综合判定: {verdict}")
                 
                 # 综合优化决策（质量+新鲜度）
                 should_optimize, reason = self.quality_assessor.should_optimize_comprehensive(
@@ -2359,22 +2397,19 @@ class ContentGenerator:
     def generate_multiple_plans(self, creative_seed: str, category: str) -> Dict:
         """生成多个不同金手指和主线剧情的小说方案"""
         print(f"  🎯 生成3个不同风格的小说方案...")
-        
-        prompt_name = "multiple_plans"
-        prompt_template = self.prompts["prompts"][prompt_name]
-        
+            
         # 构建完整的提示词，直接将参数插入到提示词中
         full_prompt = f"""
-    创意种子：{creative_seed}
-    小说分类：{category}
+内容：
+创意种子：{creative_seed}
+小说分类：{category}
 
-    {prompt_template}
     """
         
         try:
             # 调用API生成内容
             result = self.api_client.generate_content_with_retry(
-                prompt_name,
+                "multiple_plans",
                 full_prompt,
                 purpose="生成多个小说方案"
             )

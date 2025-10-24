@@ -38,10 +38,10 @@ class QualityAssessor:
             
             # === 番茄新鲜度评分 ===
             "freshness_standards": {
-                "excellent": 7.5,     # 有一定创新性，同时保留经典元素
-                "good": 7.0,          # 适当融合套路和创新
-                "average": 6.6,       # 常见套路但执行良好
-                "cliche": 6.0         # 过度老套重复
+                "excellent": 6.5,     # 有一定创新性，同时保留经典元素
+                "good": 5.0,          # 适当融合套路和创新
+                "average": 4.0,       # 常见套路但执行良好
+                "cliche": 3.0         # 过度老套重复
             },
             
             # === 黄金三章特殊标准 ===
@@ -97,7 +97,7 @@ class QualityAssessor:
         }
 
     def assess_freshness(self, content: Dict, content_type: str) -> Dict:
-        """评估内容的新鲜度"""
+        """评估内容的新鲜度 - 直接使用新结构"""
         try:
             freshness_prompt = self._generate_freshness_assessment_prompt(content, content_type)
             
@@ -107,90 +107,87 @@ class QualityAssessor:
                 purpose=f"{content_type}新鲜度评估"
             )
             
-            # 确保返回的结果有完整的结构
-            if not result:
+            # 直接验证新结构
+            if not result or "score" not in result:
                 return self._get_default_freshness_assessment()
             
-            # 确保必要的字段都存在
-            required_fields = ["freshness_score", "freshness_verdict", "cliche_elements", "improvement_suggestions"]
-            for field in required_fields:
-                if field not in result:
-                    if field == "improvement_suggestions":
-                        result[field] = ["增加创新元素，避免常见套路"]
-                    elif field == "cliche_elements":
-                        result[field] = []
-                    elif field == "freshness_score":
-                        result[field] = 8.0
-                    elif field == "freshness_verdict":
-                        result[field] = "需要改进"
-            
-            return result
+            # 确保新结构的所有必需字段都存在
+            return self._validate_freshness_result(result)
             
         except Exception as e:
             print(f"  ❌ 新鲜度评估失败: {e}")
             return self._get_default_freshness_assessment()
 
-    def _get_default_freshness_assessment(self) -> Dict:
-        """获取默认的新鲜度评估结果"""
-        return {
-            "freshness_score": 8.0,
-            "freshness_verdict": "评估异常",
-            "cliche_elements": ["评估过程出现异常"],
-            "innovative_elements": [],
-            "improvement_suggestions": ["重新评估内容新鲜度", "增加创新元素", "避免常见套路"]
+    def _validate_freshness_result(self, result: Dict) -> Dict:
+        """验证新鲜度评估结果的新结构"""
+        # 确保所有必需的字段都存在
+        required_structure = {
+            "score": {
+                "total": 0,
+                "core_concept_novelty": 0,
+                "system_innovation": 0,
+                "market_scarcity": 0
+            },
+            "analysis": {
+                "core_concept_novelty": "",
+                "system_innovation": "", 
+                "market_scarcity": ""
+            },
+            "verdict": "中规中矩",
+            "suggestions": []
         }
-    
+        
+        # 确保顶层字段存在
+        for key, default_value in required_structure.items():
+            if key not in result:
+                result[key] = default_value
+            elif isinstance(default_value, dict):
+                # 确保嵌套字典字段存在
+                for sub_key, sub_default in default_value.items():
+                    if sub_key not in result[key]:
+                        result[key][sub_key] = sub_default
+        
+        return result
+
+    def _get_default_freshness_assessment(self) -> Dict:
+        """获取默认的新鲜度评估结果 - 新结构"""
+        return {
+            "score": {
+                "total": 6.0,
+                "core_concept_novelty": 6.0,
+                "system_innovation": 6.0,
+                "market_scarcity": 6.0
+            },
+            "analysis": {
+                "core_concept_novelty": "评估异常",
+                "system_innovation": "评估异常",
+                "market_scarcity": "评估异常"
+            },
+            "verdict": "评估异常",
+            "suggestions": ["重新评估内容新鲜度", "增加创新元素", "避免常见套路"]
+        }
+
     def _generate_freshness_assessment_prompt(self, content: Dict, content_type: str) -> str:
-        """生成新鲜度评估提示词"""
+        """生成新鲜度评估提示词 - 使用新结构"""
         return f"""
-    作为番茄平台内容创新性评估专家，请评估以下{content_type}内容的新鲜度：
+    内容:
+    你是一位顶级的网络小说市场分析师，精通数据分析，对起点、番茄、飞卢等主流平台的流行趋势、读者偏好和内容稀缺性了如指掌。
 
-    待评估内容：
-    {json.dumps(content, ensure_ascii=False, indent=2)}
-
-    评估维度（满分10分）：
-    1. 概念原创性 (3分)：核心概念是否新颖，避免常见套路
-    2. 执行独特性 (2.5分)：表达方式和情节设计是否独特  
-    3. 市场区分度 (2.5分)：与同类作品的差异化程度
-    4. 创意冒险度 (2分)：是否敢于尝试创新元素
-
-    请特别关注：
-    - 是否过度使用"退婚流"、"废柴逆袭"、"系统文"等常见套路
-    - 世界观设定是否有真正创新点
-    - 角色关系设计是否新颖
-    - 金手指/系统设计是否独特
-    - 情节发展是否可预测
-
-    常见套路检测：
-    - 开局退婚/被退婚
-    - 废柴体质+逆袭
-    - 签到/打卡系统
-    - 过于相似的系统设定
-    - 千篇一律的反派设定
-    - 缺乏新意的修炼体系
-
-    请严格按照以下JSON格式返回评估结果，确保所有字段都存在：
-    {{
-        "freshness_score": 新鲜度评分(0-10),
-        "freshness_verdict": "新鲜度评级",
-        "originality_analysis": "原创性分析",
-        "cliche_elements": ["检测到的套路元素列表，至少提供1-3个"],
-        "innovative_elements": ["创新点列表，至少提供1-3个"], 
-        "improvement_suggestions": ["提升新鲜度建议列表，至少提供2-3个具体建议"]
-    }}
-
-    重要要求：
-    - 如果未检测到套路元素，cliche_elements 设为空数组 []
-    - 如果未发现创新点，innovative_elements 设为空数组 []
-    - improvement_suggestions 必须至少包含2个具体建议
-    - 所有字段都必须存在，不能缺少任何字段
+    ## 核心任务
+    你的核心任务是基于用户提供的小说创意方案，从市场角度进行严格、客观、数据驱动的新鲜度评估，并提供可行的改进建议，帮助创意脱颖而出。
     """
 
     def should_optimize_comprehensive(self, assessment: Dict, content_type: str, 
                                     chapter_number: int = None) -> Tuple[bool, str]:
-        """综合优化决策 - 区分章节和非章节内容"""
+        """综合优化决策 - 使用新的新鲜度评分结构"""
         quality_score = assessment.get("overall_score", 0)
-        freshness_score = assessment.get("freshness_score", 10.0)  # 默认10分
+        
+        # 从新结构中获取新鲜度分数
+        freshness_data = assessment.get("freshness_assessment", {})
+        if "score" in freshness_data:
+            freshness_score = freshness_data["score"]["total"]
+        else:
+            freshness_score = assessment.get("freshness_score", 10.0)  # 向后兼容
         
         standards = self.unified_quality_standards
         
@@ -220,7 +217,7 @@ class QualityAssessor:
             if quality_score < quality_threshold:
                 return True, f"质量分{quality_score:.1f}低于阈值{quality_threshold}"
             
-            # 新鲜度检查
+            # 新鲜度检查（使用新结构的分数）
             if freshness_score < freshness_threshold:
                 return True, f"新鲜度{freshness_score:.1f}低于阈值{freshness_threshold}"
             
@@ -1533,29 +1530,30 @@ class QualityAssessor:
         return self.world_state_manager.get_novel_consistency_report(novel_title)
     
     def _generate_market_analysis_optimization_prompt(self, params: Dict) -> str:
-        """市场分析优化提示词 - 增强新鲜度要求"""
+        """市场分析优化提示词 - 使用新结构"""
         assessment = params.get("assessment_results", {})
         freshness_assessment = assessment.get("freshness_assessment", {})
-        freshness_issues = freshness_assessment.get("cliche_elements", [])
-        improvement_suggestions = freshness_assessment.get("improvement_suggestions", [])
+        
+        # 使用新结构获取数据
+        freshness_score = freshness_assessment.get("score", {}).get("total", 0)
+        suggestions = freshness_assessment.get("suggestions", [])
         
         freshness_guidance = ""
-        if freshness_issues or improvement_suggestions:
+        if suggestions:
             freshness_guidance = f"""
     ## 🆕 新鲜度提升要求
 
-    ### 检测到的套路问题
-    {chr(10).join(f"- {issue}" for issue in freshness_issues) if freshness_issues else "- 暂无检测到明显套路元素"}
+    ### 新鲜度评分
+    当前新鲜度评分: {freshness_score:.1f}/10分
+    目标新鲜度评分: 9.0分以上
 
-    ### 创新改进建议
-    {chr(10).join(f"- {suggestion}" for suggestion in improvement_suggestions) if improvement_suggestions else "- 请进一步提升分析的独特性和深度"}
+    ### 改进建议
+    {chr(10).join(f"- {suggestion}" for suggestion in suggestions)}
 
     ### 新鲜度提升方向
     1. **挖掘独特市场切入点**：避免泛泛而谈，找到具体的、差异化的市场机会
     2. **提供深度洞察**：不只是罗列数据，要提供有见地的分析
     3. **差异化竞争策略**：提出与现有作品明显不同的竞争策略
-    4. **创新营销角度**：从新的视角分析市场趋势和读者需求
-    5. **具体可执行建议**：避免空泛描述，提供可落地的具体建议
     """
         
         quality_assessment = assessment.get("quality_assessment", {})
