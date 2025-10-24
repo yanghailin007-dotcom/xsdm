@@ -295,80 +295,47 @@ class ContentGenerator:
         return result
 
     def generate_character_design(self, novel_title: str, core_worldview: Dict, selected_plan: Dict, market_analysis: Dict, custom_main_character_name: str = None) -> Optional[Dict]:
-        """生成角色设计"""
+        """生成角色设计 - 使用优化后的提示词结构"""
         print("=== 步骤5: 设计主要角色 ===")
         
         main_character_name = custom_main_character_name or self.custom_main_character_name
         
-        # 从selected_plan中提取核心设定
+        # 从选定方案中提取核心设定
         core_settings = selected_plan.get("core_settings", {})
         story_development = selected_plan.get("story_development", {})
         
-        # 提取核心设定信息
-        world_background = core_settings.get("world_background", "")
-        golden_finger = core_settings.get("golden_finger", "")
-        core_selling_points = core_settings.get("core_selling_points", [])
-        
-        # 提取故事发展信息
-        protagonist_position = story_development.get("protagonist_position", "")
-        main_plot = story_development.get("main_plot", [])
-        
+        # 构建优化后的提示词
         context = f"""
-    ## Story Context
+## 1. 小说核心设定 (STORY_BLUEPRINT)
 
-    ### 小说信息
-    - **小说标题**: {novel_title}
-    - **核心世界观**: {json.dumps(core_worldview, ensure_ascii=False)}
-    - **市场分析**: {json.dumps(market_analysis, ensure_ascii=False)}
-    - **选定方案**: {json.dumps(selected_plan, ensure_ascii=False)}
+*   **世界观背景**: {core_settings.get("world_background", "NA")}
+*   **金手指/系统**: {core_settings.get("golden_finger", "NA")}
+*   **核心爽点/卖点**: {', '.join(core_settings.get("core_selling_points", ["NA", "NA", "NA"])) if isinstance(core_settings.get("core_selling_points"), list) else core_settings.get("core_selling_points", "NA")}
+*   **主角定位**: {story_development.get("protagonist_position", "NA")}
+*   **主线脉络**: {story_development.get("main_plot", ["NA", "NA", "NA"]) if isinstance(story_development.get("main_plot"), list) else story_development.get("main_plot", "NA")}
 
-    ### 核心设定（从选定方案提取）
-    - **世界观背景**: {world_background}
-    - **金手指/系统**: {golden_finger}
-    - **核心爽点**: {', '.join(core_selling_points) if isinstance(core_selling_points, list) else core_selling_points}
-    - **主角定位**: {protagonist_position}
-    - **主线脉络**: {', '.join(main_plot) if isinstance(main_plot, list) else main_plot}
+## 2. 角色设计要求 (DESIGN_REQUIREMENTS)
 
-    ## Design Requirements
+*   **主角姓名**: {main_character_name or "请根据主角定位生成合适的中文名字"}
+*   **核心配角列表**: 
+    *   角色功能: 引导者与支持者
+    *   角色功能: 辅助与补充者  
+    *   角色功能: 竞争与参照者
+    *   角色功能: 主要敌对势力代表
 
-    ### 强制要求
-    1. **主角设定**
-    - 姓名必须为: {main_character_name}
-    - 身份和背景必须符合世界观设定
-    - 核心能力必须与金手指/系统一致
-    - 性格特点要服务于核心冲突和故事发展
-
-    2. **核心配角设定** (必须包含以下4种功能定位)
-    - **引导者与支持者**: 主角的早期引导者或庇护者，为主角提供初始平台和资源
-    - **辅助与补充者**: 弥补主角能力短板的角色，负责主角不擅长的领域
-    - **竞争与参照者**: 与主角有竞争关系或作为参照的角色，用于侧面展现主角成长
-    - **主要敌对势力**: 代表核心冲突的反派角色，具有明确的动机和威胁性
-
-    3. **敌对势力设计要求**
-    - 必须具有合理的动机和背景
-    - 威胁程度要与主角成长阶段相匹配
-    - 体现世界观中的核心冲突
-    - 具有清晰的成长路径和升级空间
-
-    4. **角色关系网络**
-    - 角色间要有明确的互动关系和情感纽带
-    - 建立清晰的盟友-敌对关系网络
-    - 确保角色间存在合理的利益冲突和合作基础
-
-    5. **角色设计原则**
-    - 保持世界观设定的一致性
-    - 突出核心冲突中的角色定位
-    - 体现金手指/系统对角色能力的影响
-    - 符合核心爽点的角色功能需求
-    - 确保角色间有明确的互动关系和成长弧线
-
-    ### 输出要求
-    必须严格按照角色设计JSON格式输出，确保主角和4位核心配角的设计完整且符合上述要求。
-    """
-        context += "\n\n## 创新要求\n角色设计需要避免脸谱化，追求独特性和深度，提供有记忆点的角色设定。"
-
+*   **通用设计原则**: 角色设计需与世界观保持一致，服务于核心爽点，并体现出角色间的互动关系与成长弧线。
+*   **创新要求**: 
+    - 角色设计应避免脸谱化，追求独特性和深度，提供有记忆点的设定。
+    - **【重要】配角名字必须严格符合世界观背景**，避免使用常见固定名字（如苏晚晴、林风、叶凡等）
+    - 神魔世界观应使用相应风格的名字（如神族用古风雅名，魔族用霸气名号，人族用朴实名字）
+    - 每个配角的名字都要体现其身份、种族和背景设定
+    - 确保名字多样性，避免重复或雷同
+"""
+        
         if main_character_name:
             print(f"  ✓ 角色设计使用主角名字: {main_character_name}")
+        else:
+            print("  🔍 将由AI根据世界观生成主角名字")
         
         result = self.api_client.generate_content_with_retry("character_design", context, purpose="角色设计")
         
@@ -1167,8 +1134,8 @@ class ContentGenerator:
             return None
             
     def generate_chapter_design(self, chapter_params: Dict) -> Optional[Dict]:
-        """生成章节详细设计方案 - 修复情绪指导整合"""
-        # 提取情绪参数 - 添加详细调试信息
+        """生成章节详细设计方案 - 使用优化后的提示词模板"""
+        # 提取情绪参数
         emotional_guidance = chapter_params.get("emotional_guidance", {})
         
         current_emotional_focus = emotional_guidance.get("current_emotional_focus", "")
@@ -1179,62 +1146,91 @@ class ContentGenerator:
         target_reader_emotion = emotional_guidance.get("target_reader_emotion", "期待与投入")
         key_scenes_design = emotional_guidance.get("key_scenes_design", "根据情节自然发展")
         
-        # 构建情绪相关的提示词部分 - 修复版本
-        emotional_context_parts = [
-            f"**情绪发展指导**: {current_emotional_focus} (目标强度: {target_intensity})",
-            f"**目标读者情绪**: {target_reader_emotion}",
-            f"**关键场景设计**: {key_scenes_design}"
+        # 构建本章重点推进列表
+        chapter_focus_points = [
+            f"情绪发展: {current_emotional_focus} (强度: {target_intensity})",
+            f"目标读者情绪: {target_reader_emotion}",
+            f"关键场景: {key_scenes_design}"
         ]
         
-        if is_turning_point:
-            turning_info = emotional_guidance.get("turning_point_info", {})
-            emotional_shift = turning_info.get("emotional_shift", "重要情感变化")
-            emotional_context_parts.append(f"**本章为情感转折点**: {emotional_shift}")
+        # 根据事件指导添加重点
+        event_guidance = chapter_params.get("event_driven_guidance", "")
+        if "活跃事件执行" in event_guidance:
+            chapter_focus_points.append("执行当前活跃事件任务")
         
-        if is_break_chapter:
-            activities_text = ", ".join(break_activities)
-            emotional_context_parts.append(f"**本章为情感缓冲章节**: 重点安排活动 - {activities_text}")
+        if "情感填充事件" in event_guidance:
+            chapter_focus_points.append("处理情感填充事件")
         
-        emotional_context = "\n".join(emotional_context_parts)
+        # 构建小说基础设定JSON
+        novel_settings = {
+            "worldview": chapter_params.get("worldview_info", {}),
+            "characters": chapter_params.get("character_info", {}),
+            "writing_plan": chapter_params.get("stage_writing_plan", {}),
+            "emotional_design": {
+                "current_focus": current_emotional_focus,
+                "target_intensity": target_intensity,
+                "is_turning_point": is_turning_point,
+                "is_break_chapter": is_break_chapter,
+                "break_activities": break_activities,
+                "target_reader_emotion": target_reader_emotion,
+                "key_scenes": key_scenes_design
+            }
+        }
         
-        # 修复：正确构建 emotional_design 部分的 JSON 字符串
-        emotional_design_extra = ""
-        if is_break_chapter:
-            emotional_design_extra += f',\n        "is_emotional_buffer": true,\n        "buffer_activities": {json.dumps(break_activities, ensure_ascii=False)}'
+        # 从前情提要中提取关键信息
+        previous_summary = chapter_params.get("previous_chapters_summary", "")
+        previous_chapter_summary = ""
+        previous_chapter_hook = ""
         
-        if is_turning_point:
-            turning_info = emotional_guidance.get("turning_point_info", {})
-            emotional_shift = turning_info.get("emotional_shift", "重要情感变化")
-            impact_description = turning_info.get("impact_description", "推动故事发展")
-            
-            if emotional_design_extra:
-                emotional_design_extra += f',\n        "is_turning_point": true,\n        "turning_description": "{emotional_shift}",\n        "turning_impact": "{impact_description}"'
-            else:
-                emotional_design_extra += f',\n        "is_turning_point": true,\n        "turning_description": "{emotional_shift}",\n        "turning_impact": "{impact_description}"'
+        # 尝试提取上一章核心情节和悬念
+        if "上一章核心情节:" in previous_summary:
+            parts = previous_summary.split("上一章核心情节:")
+            if len(parts) > 1:
+                previous_chapter_summary = parts[1].split("上一章结尾:")[0].strip() if "上一章结尾:" in parts[1] else parts[1].strip()
         
-        # 如果没有任何额外内容，确保格式正确
-        if not emotional_design_extra:
-            emotional_design_extra = ""
-
+        if "上一章设置的悬念:" in previous_summary:
+            parts = previous_summary.split("上一章设置的悬念:")
+            if len(parts) > 1:
+                previous_chapter_hook = parts[1].strip()
+        
+        # 如果提取失败，使用默认值
+        if not previous_chapter_summary:
+            previous_chapter_summary = "开篇章节，建立故事基础"
+        if not previous_chapter_hook:
+            previous_chapter_hook = "情节发展悬念"
+        
+        # 构建优化后的提示词
         design_prompt = f"""
-    你是一位顶级的网络小说总编辑。你的任务是消化所有背景资料，为一位顶级写手制定一份详尽的、自包含的"章节创作蓝图"。
-    这位写手只会看到你输出的这份蓝图，所以你必须将所有必要的写作指令、风格要求、一致性提醒都整合进这份蓝图中。
+    # 任务
+    作为一名顶级的网络小说总编辑，请根据下方提供的【核心输入】和【背景资料】，为小说《{chapter_params.get("novel_title", "未知小说")}》的第 {chapter_params.get("chapter_number", 1)} 章，生成一份详尽、可执行的JSON格式"章节创作蓝图"。
 
-    # 故事基础设定（供你参考）
-    **小说标题**: {chapter_params.get("novel_title")}
-    **小说简介**: {chapter_params.get("novel_synopsis")}
-    {emotional_context}
-    **世界观/角色/写作计划**: {chapter_params.get("worldview_info")}, {chapter_params.get("character_info")}, {chapter_params.get("stage_writing_plan")}
-    **前情提要**: 
-    {chapter_params.get("previous_chapters_summary")}
-    **上下文指导**: 
-    {chapter_params.get("event_driven_guidance")}, 
-    {chapter_params.get("foreshadowing_guidance")}
-    **角色发展指导**: 
-    {chapter_params.get("character_development_guidance")}
+    # 核心输入
+    *   **章节编号**: {chapter_params.get("chapter_number", 1)}
+    *   **本章重点推进**: 
+        - {chapter_focus_points[0]}
+        - {chapter_focus_points[1] if len(chapter_focus_points) > 1 else "推进主线情节发展"}
+        - {chapter_focus_points[2] if len(chapter_focus_points) > 2 else "保持角色一致性"}
+        - {chapter_focus_points[3] if len(chapter_focus_points) > 3 else "设置后续情节伏笔"}
+    *   **字数目标 (参考)**: 2000-3000字
 
-    # 你的任务
-    请根据以上所有信息，为第 {chapter_params.get("chapter_number")} 章生成一份JSON格式的"创作蓝图"。
+    # 背景资料
+    ## 1. 小说基础设定 (世界观、角色、大纲等)
+    ```json
+    {json.dumps(novel_settings, ensure_ascii=False, indent=2)}
+
+    2. 最近章节摘要
+    {chapter_params.get("previous_chapters_summary", "暂无更多章节信息")}
+
+    3. 事件执行指导
+    {chapter_params.get("event_driven_guidance", "按主线情节自然推进")}
+
+    4. 伏笔铺垫指导
+    {chapter_params.get("foreshadowing_guidance", "暂无特定伏笔任务")}
+
+    5. 角色发展指导
+    {chapter_params.get("character_development_guidance", "保持角色行为一致性")}
+
+    请严格按照System Prompt中定义的JSON格式输出创作蓝图。
     """
         print(f"  📝 生成第{chapter_params.get('chapter_number', 1)}章设计方案...")
         design_result = self.api_client.generate_content_with_retry(
@@ -1705,30 +1701,57 @@ class ContentGenerator:
                 # 设置默认值
                 if param == 'main_character_instruction' and not content_params.get(param):
                     content_params[param] = ""
-        cultivation_text = self.quality_assessor.get_comprehensive_previous_summary_enhanced(chapter_params.get('novel_title'), chapter_design.get('chapter_number'))
-        # 检查设计方案中的情绪设计
-        emotional_design = chapter_design.get("emotional_design", {})
-        print(f"  🎭 设计方案中的情绪设计: {emotional_design}")  
+        # 获取关键一致性信息
+        character_state = chapter_params.get('character_state', '')
+        world_state = chapter_params.get('world_state', '')
+        writing_style = chapter_design.get('writing_style', {})
+        
+        # 提取关键设计元素
+        emotional_design = chapter_design.get('emotional_design', {})
+        plot_structure = chapter_design.get('plot_structure', {})
+        character_performance = chapter_design.get('character_performance', {})
+        
+        # 提取风格关键词
+        style_keywords = []
+        if writing_style:
+            style_keywords.append(writing_style.get('core_style', ''))
+            if writing_style.get('language_characteristics'):
+                lang_chars = writing_style['language_characteristics']
+                style_keywords.extend([
+                    lang_chars.get('sentence_structure', ''),
+                    lang_chars.get('vocabulary_style', ''),
+                    lang_chars.get('rhythm_control', '')
+                ])
+        
+        # 构建保留关键上下文的提示词
         user_prompt = f"""
-你是一位顶级的网络小说作家，文笔精湛，擅长叙事。
+## 章节创作指令 ##
+为《{chapter_params.get('novel_title', '')}》创作第{chapter_params['chapter_number']}章。
 
-你的唯一任务是：严格、完整、执行以下【章节创作蓝图】，创作出小说《{chapter_params.get('novel_title')}》的第 {chapter_design.get('chapter_number')} 章。
+## 情感设计 ##
+- 目标情绪: {emotional_design.get('target_emotion', '')}
+- 情感强度: {emotional_design.get('emotional_intensity', '')}
+- 关键情绪时刻: {emotional_design.get('key_emotional_moments', [])}
 
-【章节创作蓝图】
-{json.dumps(chapter_design, ensure_ascii=False, indent=2)}
-【写作风格】
-{content_params.get('writing_style_guide',{})}
-**前情提要**:
-注意上下文衔接,不要出现脱节和重复上一章结尾的情况
-{chapter_params.get("previous_chapters_summary")}
-{cultivation_text}
-## 🎭 特别情绪指导
-请特别关注情绪设计部分，确保本章的情感表达与以下要求一致：
-- 情感重点: {emotional_design.get('target_emotion', '推进情感发展')}
-- 情感强度: {emotional_design.get('emotional_intensity', '中')}
-- 读者情感体验: {emotional_design.get('reader_emotional_journey', '期待与投入')}
+## 情节结构 ##
+- 开场: {plot_structure.get('opening_scene', '')}
+- 冲突发展: {plot_structure.get('conflict_development', '')}
+- 高潮: {plot_structure.get('climax_point', '')}
+- 结尾钩子: {plot_structure.get('ending_hook', '')}
 
-在写作过程中，请时刻记住这些情感目标，通过对话、描写和心理活动来传达相应的情感。
+## 人物表现 ##
+- 主角发展: {character_performance.get('main_character_development', '')}
+- 关键对话: {character_performance.get('key_dialogues', [])}
+
+## 一致性要求 ##
+- 人物状态: {character_state}
+- 世界状态: {world_state}
+- 写作风格: {', '.join([kw for kw in style_keywords if kw])}
+
+## 章节重点 ##
+{chapter_design.get('chapter_focus', '')}
+
+请确保严格遵循以上所有设计要求，保持情感表达准确、情节连贯、人物和世界状态一致。
 """
         print(f"  ✍️ 根据设计方案生成第{chapter_params['chapter_number']}章内容...")
         content_result = self.api_client.generate_content_with_retry(
