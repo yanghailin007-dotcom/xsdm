@@ -2,7 +2,7 @@
 
 import json
 import re
-from typing import Dict, Optional, List, Tuple
+from typing import Any, Dict, Optional, List, Tuple
 
 import APIClient
 from Contexts import GenerationContext
@@ -1160,7 +1160,7 @@ class ContentGenerator:
             # 第三步：专项优化 - 使用CHAPTER_REFINEMENT_PROMPT进行平台风格优化
             if chapter_content:
                 print(f"  🎯 开始第{chapter_number}章专项优化...")
-                optimized_content = self.refine_chapter_content(chapter_content, chapter_params)
+                optimized_content = self.refine_chapter_content(chapter_content)
                 
                 if optimized_content:
                     print(f"  ✅ 第{chapter_number}章优化成功")
@@ -1178,38 +1178,126 @@ class ContentGenerator:
             traceback.print_exc()
             return None
 
-    def refine_chapter_content(self, chapter_content: Dict, chapter_params: Dict) -> Optional[Dict]:
-        """使用CHAPTER_REFINEMENT_PROMPT对章节内容进行专项优化"""
+    def refine_chapter_content(self, chapter_content: Dict) -> Dict:
+        """
+        使用CHAPTER_REFINEMENT_PROMPT对章节内容进行专项优化
+        
+        Args:
+            chapter_content: 包含章节标题和内容的字典
+            chapter_params: 包含章节编号等参数的字典
+        
+        Returns:
+            更新后的章节内容，只修改content和word_count字段
+        """
         try:
+            # 从chapter_content中提取标题和内容
             chapter_title = chapter_content.get("chapter_title", "")
-            content = chapter_content.get("content", "")
+            original_content = chapter_content.get("content", "")
+            original_word_count = chapter_content.get("word_count", 0)
+            chapter_number = chapter_content.get("chapter_number", 0)
             
-            # 构建优化提示词
-            refinement_prompt = self.prompts["CHAPTER_REFINEMENT_PROMPT"].format(
-                chapter_title=chapter_title,
-                content=content
-            )
+            # 构建用户提示词，明确要求保持字数稳定
+            user_prompt = f"""
+    请优化以下章节内容，特别注意保持字数稳定：
+
+    ## 章节标题
+    {chapter_title}
+
+    ## 章节内容
+    {original_content}
+
+    ## 重要要求
+    1. 优化内容质量，但保持字数在{original_word_count}字左右（±10%）
+    2. 保持原有的情节发展和关键事件
+    3. 按照系统提示的要求进行番茄风格优化
+    4. 返回指定格式的JSON结果
+    """
             
-            print(f"  🎨 正在进行章节优化...")
+            print(f"  🎨 正在优化第{chapter_number}章: {chapter_title}")
+            print(f"  📊 原始字数: {original_word_count}字")
             
-            # 使用相同的API接口进行优化
+            # 使用API进行优化，传入系统提示词和用户提示词
             optimized_result = self.api_client.generate_content_with_retry(
                 "chapter_refinement", 
-                refinement_prompt, 
-                purpose=f"优化第{chapter_params['chapter_number']}章内容"
+                user_prompt,
+                purpose=f"优化第{chapter_number}章内容"
             )
             
-            if optimized_result and isinstance(optimized_result, dict):
-                print(f"  ✅ 章节优化完成，质量评分: {optimized_result.get('quality_assessment', {}).get('overall_score', 'N/A')}/10")
-                print(f"  📝 优化说明: {optimized_result.get('quality_assessment', {}).get('refinement_notes', 'N/A')}")
-                return optimized_result
+            # 验证优化结果
+            if self._validate_optimized_result(optimized_result):
+                new_content = optimized_result.get("content", "")
+                new_word_count = optimized_result.get("word_count", 0)
+                score = optimized_result.get('quality_assessment', {}).get('overall_score', 'N/A')
+                notes = optimized_result.get('quality_assessment', {}).get('refinement_notes', 'N/A')
+                
+                # 计算字数变化
+                word_count_change = new_word_count - original_word_count
+                change_percent = (word_count_change / original_word_count) * 100 if original_word_count > 0 else 0
+                
+                print(f"  ✅ 章节优化完成")
+                print(f"  📊 优化后字数: {new_word_count}字 ({change_percent:+.1f}%)")
+                print(f"  ⭐ 质量评分: {score}/10")
+                
+                if notes != 'N/A':
+                    print(f"  📝 优化说明: {notes}")
+                
+                # 如果字数变化过大，给出警告但继续使用
+                if abs(change_percent) > 20:
+                    print(f"  ⚠️ 字数变化较大，建议检查内容完整性")
+                
+                # 只更新content和word_count字段，保留其他所有字段
+                updated_content = chapter_content.copy()
+                updated_content["content"] = new_content
+                updated_content["word_count"] = new_word_count
+                
+                # 添加quality_assessment信息（如果不存在则创建）
+                if "quality_assessment" not in updated_content:
+                    updated_content["quality_assessment"] = {}
+                
+                # 更新质量评估信息
+                updated_content["quality_assessment"].update({
+                    "optimized": True,
+                    "optimization_score": score,
+                    "optimization_notes": notes
+                })
+                
+                return updated_content
             else:
-                print(f"  ⚠️ 优化结果格式不完整，使用原始内容")
-                return chapter_content
+                print(f"  ⚠️ 优化结果验证失败，使用原始内容")
+                return chapter_content  # 直接返回原始内容，不做任何修改
                 
         except Exception as e:
             print(f"  ❌ 章节优化过程中出错: {e}")
-            return chapter_content  # 优化失败时返回原始内容
+            return chapter_content  # 出错时返回原始内容
+
+    def _validate_optimized_result(self, result: Any) -> bool:
+        """验证优化结果的结构和完整性"""
+        if not result or not isinstance(result, dict):
+            return False
+        
+        # 检查必要字段
+        required_fields = ["chapter_title", "content"]
+        if not all(field in result for field in required_fields):
+            return False
+        
+        # 检查内容非空
+        if not result.get("content", "").strip():
+            return False
+        
+        return True
+
+    def _create_fallback_content(self, chapter_title: str, content: str, word_count: int) -> Dict:
+        """创建优化失败时的回退内容结构"""
+        return {
+            "chapter_title": chapter_title,
+            "content": content,
+            "word_count": word_count,
+            "quality_assessment": {
+                "overall_score": 0,
+                "quality_verdict": "未优化",
+                "refinement_notes": "优化过程失败，使用原始内容"
+            }
+        }
 
     def generate_chapter_design(self, chapter_params: Dict) -> Optional[Dict]:
         """生成章节详细设计方案 - 使用优化后的提示词模板"""
