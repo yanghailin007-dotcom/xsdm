@@ -519,13 +519,16 @@ class NovelGenerator:
         if total_chapters is None:
             total_chapters = self.config["defaults"]["total_chapters"]
         
-        # 获取分类信息
-        category = self.novel_data.get("category", "未分类")
-        print(f"  ✓ 使用分类: {category}")
+        # 🆕 先获取并保存分类信息，避免重置时丢失
+        if not self.novel_data.get("category"):
+            self.choose_category()
+        original_category = self.novel_data.get("category", "未分类")
+        print(f"  ✓ 使用分类: {original_category}")
+    
         
         # 生成多个方案
         print("=== 步骤1: 基于创意种子和分类生成多个小说方案 ===")
-        plans_data = self.content_generator.generate_multiple_plans(creative_seed, category)
+        plans_data = self.content_generator.generate_multiple_plans(creative_seed, original_category)
         
         if not plans_data or 'plans' not in plans_data:
             print("❌ 方案生成失败")
@@ -575,7 +578,8 @@ class NovelGenerator:
                 self.novel_data = {}
                 # 重置 novel_data 结构，为每本小说创建独立的数据
                 self._initialize_novel_data_structure()
-                
+                # 🆕 设置分类（使用之前保存的分类）
+                self.novel_data["category"] = original_category
                 # 设置当前方案
                 self.novel_data["selected_plan"] = plan
                 self.novel_data["novel_title"] = plan["title"]
