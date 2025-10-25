@@ -168,14 +168,22 @@ class QualityAssessor:
         }
 
     def _generate_freshness_assessment_prompt(self, content: Dict, content_type: str) -> str:
-        """生成新鲜度评估提示词 - 使用新结构"""
+        """生成新鲜度评估提示词 - 使用完整方案"""
+        
+        import json
+        # 将完整方案转换为JSON字符串
+        content_json = json.dumps(content, ensure_ascii=False, indent=2)
+        
         return f"""
-    内容:
     你是一位顶级的网络小说市场分析师，精通数据分析，对起点、番茄、飞卢等主流平台的流行趋势、读者偏好和内容稀缺性了如指掌。
 
     ## 核心任务
-    你的核心任务是基于用户提供的小说创意方案，从市场角度进行严格、客观、数据驱动的新鲜度评估，并提供可行的改进建议，帮助创意脱颖而出。
-    """
+    你的核心任务是基于用户提供的完整小说创作方案，从市场角度进行严格、客观、数据驱动的新鲜度评估，并提供可行的改进建议，帮助创意脱颖而出。
+
+    ## 完整方案内容
+    {content_json}
+
+        """
 
     def should_optimize_comprehensive(self, assessment: Dict, content_type: str, 
                                     chapter_number: int = None) -> Tuple[bool, str]:
