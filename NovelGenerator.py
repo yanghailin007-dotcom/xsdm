@@ -541,7 +541,7 @@ class NovelGenerator:
         qualified_plans = []
         for i, plan in enumerate(plans):
             print(f"  🔍 评估方案 {i+1}...")
-            evaluation_result = self._evaluate_plan_quality(plan, category, creative_seed)
+            evaluation_result = self._evaluate_plan_quality(plan, original_category, creative_seed)
             
             quality_score = evaluation_result.get("quality_score", 0)
             freshness_score = evaluation_result.get("freshness_score", 0)

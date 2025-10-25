@@ -15,7 +15,7 @@ class GlobalGrowthPlanner:
         self.global_growth_plan = None  # 全书成长规划
         
         # 从config读取阶段特性
-        self.stage_characteristics = self.Prompts.get("stage_characteristics", {
+        self.stage_characteristics = self.Prompts.prompts.get("stage_characteristics", {
             "opening_stage": {
                 "focus": "建立基础，引入核心元素",
                 "character_growth": "主角初始性格和能力建立",

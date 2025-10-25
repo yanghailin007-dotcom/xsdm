@@ -589,11 +589,11 @@ class APIClient:
                                   temperature: float = None, purpose: str = "内容生成",
                                   provider: str = None, enable_prompt_optimization: bool = False) -> Optional[Any]:
         """带重试机制的内容生成 - 增强JSON格式要求版本"""
-        if content_type not in self.Prompts["prompts"]:
+        if content_type not in self.Prompts:
             print(f"❌ 不支持的内容类型: {content_type}")
             return None
             
-        system_prompt = self.Prompts["prompts"][content_type]
+        system_prompt = self.Prompts[content_type]
         
         # 确定使用的提供商
         target_provider = provider if provider else self.default_provider
