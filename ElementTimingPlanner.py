@@ -153,6 +153,7 @@ class ElementTimingPlanner:
     
     def _collect_all_elements(self, novel_data: Dict, global_plan: Dict) -> Dict:
         """收集所有需要规划时机的元素 - 修复版"""
+        print("  🔍 开始收集所有元素...")
         elements = {
             "characters": [],
             "factions": [], 
@@ -188,6 +189,7 @@ class ElementTimingPlanner:
         
         # 2. 收集世界观元素
         worldview = novel_data.get("core_worldview", {})
+        print(f"  🔍 世界观数据: {type(worldview)}, 内容: {worldview.keys() if isinstance(worldview, dict) else '非字典类型'}")
         
         # 收集势力 - 修复：从世界观中收集
         if "major_factions" in worldview:
@@ -237,6 +239,7 @@ class ElementTimingPlanner:
         # 动态提取能力系统名称
         if "power_system" in worldview:
             power_desc = worldview["power_system"]
+            print(f"  🔍 能力系统描述类型: {type(power_desc)}, 内容: {power_desc}")
             
             # 尝试从描述中提取系统名称
             system_name = self._extract_system_name(power_desc)
@@ -264,6 +267,7 @@ class ElementTimingPlanner:
         
         # 4. 从全局成长计划中收集额外元素 - 修复：正确处理列表类型
         if global_plan:
+            print(f"  🔍 全局成长计划类型: {type(global_plan)}, 内容: {global_plan.keys()}")
             # 收集成长阶段
             stages = global_plan.get("stage_framework", [])
             for stage in stages:
@@ -331,6 +335,22 @@ class ElementTimingPlanner:
         """从能力系统描述中提取系统名称"""
         import re
         
+        print(f"  🔍 _extract_system_name 输入类型: {type(power_system_description)}, 内容: {power_system_description}")
+        
+        # 如果输入不是字符串，尝试转换为字符串
+        if not isinstance(power_system_description, str):
+            print(f"  ⚠️  power_system_description 不是字符串，进行转换")
+            try:
+                if isinstance(power_system_description, dict):
+                    # 如果是字典，尝试提取描述字段
+                    power_system_description = power_system_description.get('description', str(power_system_description))
+                else:
+                    power_system_description = str(power_system_description)
+                print(f"  🔍 转换后内容: {power_system_description}")
+            except Exception as e:
+                print(f"  ❌ 转换失败: {e}")
+                return "核心能力系统"
+        
         # 常见系统名称模式
         patterns = [
             r'(.+?)系统',  # 匹配"XXX系统"
@@ -343,20 +363,28 @@ class ElementTimingPlanner:
         for pattern in patterns:
             match = re.search(pattern, power_system_description)
             if match:
-                return match.group(1).strip() + pattern[2:]  # 返回匹配到的名称+后缀
+                result = match.group(1).strip() + pattern[2:]  # 返回匹配到的名称+后缀
+                print(f"  🔍 正则匹配成功: {result}")
+                return result
         
         # 如果没匹配到特定模式，尝试提取前几个词作为名称
         words = power_system_description.split()
         if len(words) > 0:
             # 取前2-3个词作为系统名称
             name_words = words[:min(3, len(words))]
-            return "".join(name_words) + "系统"
+            result = "".join(name_words) + "系统"
+            print(f"  🔍 使用单词提取: {result}")
+            return result
         
         # 默认名称
+        print(f"  🔍 使用默认名称")
         return "核心能力系统"
     
     def _plan_element_timing(self, all_elements: Dict, total_chapters: int, global_growth_plan: Dict, overall_stage_plans: Dict) -> Dict:
         """为所有元素规划登场时机"""
+        print(f"  🔍 _plan_element_timing 开始规划，总章节: {total_chapters}")
+        print(f"  🔍 全局成长计划类型: {type(global_growth_plan)}")
+        print(f"  🔍 整体阶段计划类型: {type(overall_stage_plans)}")
         
         user_prompt = f"""
 内容:
@@ -390,13 +418,19 @@ class ElementTimingPlanner:
 
 """
         
-        timing_plan = self.novel_generator.api_client.generate_content_with_retry(
-            "element_timing_planning",
-            user_prompt,
-            purpose="生成元素登场时机规划"
-        )
-        
-        return timing_plan or self._create_default_timing_plan(all_elements, total_chapters)
+        try:
+            timing_plan = self.novel_generator.api_client.generate_content_with_retry(
+                "element_timing_planning",
+                user_prompt,
+                purpose="生成元素登场时机规划"
+            )
+            print(f"  🔍 API返回结果类型: {type(timing_plan)}")
+            return timing_plan or self._create_default_timing_plan(all_elements, total_chapters)
+        except Exception as e:
+            print(f"  ❌ _plan_element_timing 出错: {e}")
+            import traceback
+            traceback.print_exc()
+            return self._create_default_timing_plan(all_elements, total_chapters)
     
     def _register_elements_to_foreshadowing(self, timing_plan: Dict):
         """将元素时机规划注册到伏笔管理器"""
@@ -494,6 +528,7 @@ class ElementTimingPlanner:
     
     def _create_default_timing_plan(self, all_elements: Dict, total_chapters: int) -> Dict:
         """创建默认的时机规划"""
+        print("  🔍 创建默认时机规划")
         plan = {
             "character_timing": [],
             "faction_timing": [],
@@ -524,6 +559,7 @@ class ElementTimingPlanner:
                 "reasoning": "默认分配"
             })
         
+        print(f"  🔍 默认规划完成: {len(plan['character_timing'])} 个角色")
         return plan
     
     def _print_timing_plan_summary(self, timing_plan: Dict):

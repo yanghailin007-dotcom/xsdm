@@ -2659,6 +2659,10 @@ class NovelGenerator:
         
         self.stage_plan_manager.print_stage_overview()
         
+        # 导出所有事件到JSON文件
+        events_file = f"{self.novel_data['novel_title']}_events.json"
+        self.stage_plan_manager.export_events_to_json(events_file)    
+
         # 元素时机规划
         self.novel_data["current_progress"]["stage"] = "元素时机规划"
         if not self._generate_element_timing_plan():
