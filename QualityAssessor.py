@@ -789,7 +789,6 @@ class QualityAssessor:
                 "chapter_optimization", 
                 user_prompt, 
                 purpose="章节内容优化",
-                max_retries=3
             )
             
             # 验证优化结果并转换为标准章节格式
@@ -938,8 +937,6 @@ class QualityAssessor:
         }
         
         return self.optimize_chapter_content(optimization_params)
-
-    # ==================== 质量决策方法 ====================
 
     def should_optimize_chapter(self, assessment: Dict) -> Tuple[bool, str]:
         """判断是否需要优化章节（考虑黄金三章特殊要求）"""

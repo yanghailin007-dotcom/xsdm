@@ -302,7 +302,14 @@ class WorldStateManager:
             print(f"❌ 简化角色状态失败: {e}")
 
     def _validate_and_clean_world_state_changes(self, changes: Dict, chapter_number: int) -> Dict:
-        """验证和清洗世界状态变化数据，确保字段统一"""
+        """验证和清洗世界状态变化数据，确保字段统一 - 带详细调试"""
+        
+        print(f"🔍 [DEBUG] 开始清洗世界状态变化数据...")
+        print(f"   📁 原始数据总览:")
+        for category, elements in changes.items():
+            element_type = type(elements).__name__
+            element_count = len(elements) if hasattr(elements, '__len__') else "N/A"
+            print(f"      {category}: {element_type} - {element_count}")
         
         ALLOWED_FIELDS = {
             "characters": {
@@ -362,6 +369,8 @@ class WorldStateManager:
         cleaned_changes = {}
         
         for category, elements in changes.items():
+            print(f"🔍 [DEBUG] 处理类别: {category}")
+            
             if category not in ALLOWED_FIELDS:
                 print(f"⚠️ 跳过未知类别: {category}")
                 continue
@@ -369,15 +378,19 @@ class WorldStateManager:
             # 处理列表类型的elements
             if isinstance(elements, list):
                 print(f"🔄 检测到列表格式的 {category}，转换为字典格式...")
+                print(f"   📊 原始列表长度: {len(elements)}")
                 elements_dict = {}
                 for i, element in enumerate(elements):
+                    print(f"   🔍 处理列表元素 {i}: {type(element)}")
                     if isinstance(element, dict):
                         # 尝试从元素中获取标识符
                         element_id = element.get('name') or element.get('id') or f"{category}_{i}"
+                        print(f"   ✅ 列表元素 {i} -> 字典键: {element_id}")
                         elements_dict[element_id] = element
                     else:
-                        print(f"⚠️ 跳过无效列表元素: {element}")
+                        print(f"⚠️ 跳过无效列表元素 {i}: {type(element)} -> {element}")
                 elements = elements_dict
+                print(f"   📊 转换后字典长度: {len(elements)}")
             
             # 现在elements应该是字典了
             if not isinstance(elements, dict):
@@ -387,50 +400,83 @@ class WorldStateManager:
             cleaned_changes[category] = {}
             allowed_structure = ALLOWED_FIELDS[category]
             
+            print(f"   📊 处理 {category} 中的 {len(elements)} 个元素")
+            
             for element_id, element_data in elements.items():
+                print(f"   🔍 处理元素: {category}.{element_id}")
+                print(f"      数据类型: {type(element_data)}")
+                
                 if not isinstance(element_data, dict):
-                    print(f"⚠️ 跳过无效数据格式: {element_id}")
+                    print(f"⚠️ 跳过无效数据格式: {element_id} -> {type(element_data)}")
                     continue
                     
                 cleaned_data = {}
                 
                 # 验证和清洗字段
                 for field, field_type in allowed_structure.items():
+                    print(f"      检查字段: {field} (期望类型: {field_type})")
+                    
                     if field in element_data:
+                        field_value = element_data[field]
+                        print(f"        找到字段值: {field_value} (类型: {type(field_value)})")
+                        
                         if isinstance(field_type, dict):
                             # 嵌套字典字段（如attributes）
-                            if isinstance(element_data[field], dict):
+                            print(f"        处理嵌套字典字段: {field}")
+                            if isinstance(field_value, dict):
                                 cleaned_nested = {}
                                 for nested_field, nested_type in field_type.items():
-                                    if nested_field in element_data[field]:
-                                        if isinstance(element_data[field][nested_field], nested_type):
-                                            cleaned_nested[nested_field] = element_data[field][nested_field]
+                                    print(f"          检查嵌套字段: {nested_field} (期望类型: {nested_type})")
+                                    if nested_field in field_value:
+                                        nested_value = field_value[nested_field]
+                                        print(f"            找到嵌套字段值: {nested_value} (类型: {type(nested_value)})")
+                                        if isinstance(nested_value, nested_type):
+                                            cleaned_nested[nested_field] = nested_value
+                                            print(f"            ✅ 嵌套字段验证通过: {nested_field}")
                                         else:
-                                            print(f"⚠️ 字段类型不匹配: {element_id}.{field}.{nested_field}")
-                                cleaned_data[field] = cleaned_nested
+                                            print(f"            ⚠️ 嵌套字段类型不匹配: {nested_field} -> 期望 {nested_type}, 实际 {type(nested_value)}")
+                                if cleaned_nested:
+                                    cleaned_data[field] = cleaned_nested
+                                    print(f"        ✅ 嵌套字典处理完成: {len(cleaned_nested)} 个字段")
+                                else:
+                                    print(f"        ⚠️ 嵌套字典无有效字段")
                             else:
-                                print(f"⚠️ 字段格式错误: {element_id}.{field}")
+                                print(f"        ⚠️ 字段格式错误: {field} -> 期望字典, 实际 {type(field_value)}")
                         else:
                             # 简单字段
-                            if isinstance(element_data[field], field_type):
-                                cleaned_data[field] = element_data[field]
+                            if isinstance(field_value, field_type):
+                                cleaned_data[field] = field_value
+                                print(f"        ✅ 简单字段验证通过: {field}")
                             else:
-                                print(f"⚠️ 字段类型不匹配: {element_id}.{field}")
+                                print(f"        ⚠️ 字段类型不匹配: {field} -> 期望 {field_type}, 实际 {type(field_value)}")
+                    else:
+                        print(f"        字段不存在: {field}")
                 
                 # 确保必要字段存在
                 if category == "characters":
                     if "attributes" not in cleaned_data:
+                        print(f"        🔧 为角色添加默认attributes")
                         cleaned_data["attributes"] = {}
                     if "status" not in cleaned_data["attributes"]:
                         cleaned_data["attributes"]["status"] = "活跃"
+                        print(f"        🔧 添加默认status: 活跃")
                     if "location" not in cleaned_data["attributes"]:
                         cleaned_data["attributes"]["location"] = "未知"
+                        print(f"        🔧 添加默认location: 未知")
                 
                 if cleaned_data:
                     cleaned_changes[category][element_id] = cleaned_data
-                    print(f"✅ 已清洗: {category}.{element_id}")
+                    print(f"   ✅ 已清洗: {category}.{element_id} -> {len(cleaned_data)} 个字段")
                 else:
-                    print(f"❌ 数据无效已跳过: {category}.{element_id}")
+                    print(f"   ❌ 数据无效已跳过: {category}.{element_id}")
+            
+            print(f"   📊 {category} 清洗完成: {len(cleaned_changes[category])} 个有效元素")
+        
+        print(f"🎉 [DEBUG] 清洗完成总结:")
+        total_cleaned = sum(len(elements) for elements in cleaned_changes.values())
+        print(f"   总有效元素: {total_cleaned}")
+        for category, elements in cleaned_changes.items():
+            print(f"   {category}: {len(elements)} 个元素")
         
         return cleaned_changes
 

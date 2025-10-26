@@ -519,16 +519,12 @@ class NovelGenerator:
         if total_chapters is None:
             total_chapters = self.config["defaults"]["total_chapters"]
         
-        # 🆕 先获取并保存分类信息，避免重置时丢失
-        if not self.novel_data.get("category"):
-            self.choose_category()
-        original_category = self.novel_data.get("category", "未分类")
-        print(f"  ✓ 使用分类: {original_category}")
-    
+        # 🆕 不再手动选择分类，等待从生成的方案中获取
+        print(f"  📝 等待从生成的方案中自动获取分类信息...")
         
         # 生成多个方案
-        print("=== 步骤1: 基于创意种子和分类生成多个小说方案 ===")
-        plans_data = self.content_generator.generate_multiple_plans(creative_seed, original_category)
+        print("=== 步骤1: 基于创意种子生成多个小说方案 ===")
+        plans_data = self.content_generator.generate_multiple_plans(creative_seed, "")
         
         if not plans_data or 'plans' not in plans_data:
             print("❌ 方案生成失败")
@@ -541,20 +537,26 @@ class NovelGenerator:
         qualified_plans = []
         for i, plan in enumerate(plans):
             print(f"  🔍 评估方案 {i+1}...")
-            evaluation_result = self._evaluate_plan_quality(plan, original_category, creative_seed)
+            
+            # 🆕 从方案中获取分类信息
+            category_from_plan = plan.get('tags', {}).get('main_category', '未分类')
+            print(f"    📊 方案分类: {category_from_plan}")
+            
+            evaluation_result = self._evaluate_plan_quality(plan, category_from_plan, creative_seed)
             
             quality_score = evaluation_result.get("quality_score", 0)
             freshness_score = evaluation_result.get("freshness_score", 0)
             total_score = evaluation_result.get("total_score", 0)
             
             # 降低门槛，让更多方案通过
-            if quality_score >= 8.0 and freshness_score >= 3.0:  # 降低质量门槛
+            if quality_score >= 8.0 and freshness_score >= 3.0:
                 qualified_plans.append({
                     'plan': plan,
                     'quality_score': quality_score,
                     'freshness_score': freshness_score,
                     'total_score': total_score,
-                    'evaluation_result': evaluation_result
+                    'evaluation_result': evaluation_result,
+                    'category': category_from_plan  # 🆕 保存分类信息
                 })
                 print(f"    ✅ 方案 {i+1} 通过评价 (质量: {quality_score:.1f}, 新鲜度: {freshness_score:.1f})")
             else:
@@ -570,16 +572,19 @@ class NovelGenerator:
         success_count = 0
         for i, qualified_plan in enumerate(qualified_plans):
             plan = qualified_plan['plan']
+            plan_category = qualified_plan['category']  # 🆕 使用方案中的分类
+            
             print(f"\n{'='*60}")
             print(f"📚 开始生成第 {i+1} 本小说: 《{plan['title']}》")
+            print(f"📊 分类: {plan_category}")
             print(f"{'='*60}")
             
             try:
                 self.novel_data = {}
                 # 重置 novel_data 结构，为每本小说创建独立的数据
                 self._initialize_novel_data_structure()
-                # 🆕 设置分类（使用之前保存的分类）
-                self.novel_data["category"] = original_category
+                # 🆕 设置分类（使用方案中的分类）
+                self.novel_data["category"] = plan_category
                 # 设置当前方案
                 self.novel_data["selected_plan"] = plan
                 self.novel_data["novel_title"] = plan["title"]
@@ -604,6 +609,7 @@ class NovelGenerator:
                 
                 print(f"📖 小说标题: {self.novel_data['novel_title']}")
                 print(f"📊 方案评分 - 质量: {qualified_plan['quality_score']:.1f}, 新鲜度: {qualified_plan['freshness_score']:.1f}")
+                print(f"📚 小说分类: {plan_category}")
                 
                 # 执行单个小说的生成流程
                 if self._generate_single_novel(creative_seed, total_chapters):
@@ -2779,51 +2785,49 @@ class NovelGenerator:
 
     def _generate_and_select_plan(self, creative_seed: str) -> bool:
         """生成多个方案并让用户选择 - 增强版本，包含新鲜度评分"""
-        print("=== 步骤1: 基于创意种子和分类生成多个小说方案 ===")
+        print("=== 步骤1: 基于创意种子生成多个小说方案 ===")
         
-        # 获取分类信息
-        category = self.novel_data.get("category", "未分类")
-        print(f"  ✓ 使用分类: {category}")
+        # 🆕 不再手动选择分类，等待从生成的方案中获取
+        print(f"  📝 等待从生成的方案中自动获取分类信息...")
         
-        # 最大重试次数
-        max_retries = 2
-        best_plans = []
+        # 生成多个方案
+        plans_data = self.content_generator.generate_multiple_plans(creative_seed, "")
         
-        for attempt in range(max_retries):
-            print(f"\n🔄 第{attempt + 1}次尝试生成多个方案...")
+        if not plans_data or 'plans' not in plans_data:
+            print("❌ 方案生成失败")
+            return False
+        
+        plans = plans_data['plans']
+        print(f"✅ 成功生成 {len(plans)} 个方案")
+        
+        # 对每个方案进行质量评价和新鲜度评价
+        qualified_plans = []
+        for i, plan in enumerate(plans):
+            print(f"  🔍 评估方案 {i+1}...")
             
-            # 生成多个方案
-            plans_data = self.content_generator.generate_multiple_plans(creative_seed, category)
+            # 🆕 从方案中获取分类信息
+            category_from_plan = plan.get('tags', {}).get('main_category', '未分类')
+            print(f"    📊 方案分类: {category_from_plan}")
             
-            if not plans_data or 'plans' not in plans_data:
-                print("❌ 方案生成失败")
-                continue
+            evaluation_result = self._evaluate_plan_quality(plan, category_from_plan, creative_seed)
             
-            plans = plans_data['plans']
-            print(f"✅ 成功生成 {len(plans)} 个方案")
+            quality_score = evaluation_result.get("quality_score", 0)
+            freshness_score = evaluation_result.get("freshness_score", 0)
+            total_score = evaluation_result.get("total_score", 0)
             
-            # 对每个方案进行质量评价和新鲜度评价
-            qualified_plans = []
-            for i, plan in enumerate(plans):
-                print(f"  🔍 评估方案 {i+1}...")
-                evaluation_result = self._evaluate_plan_quality(plan, category, creative_seed)
-                
-                quality_score = evaluation_result.get("quality_score", 0)
-                freshness_score = evaluation_result.get("freshness_score", 0)
-                total_score = evaluation_result.get("total_score", 0)
-                
-                if quality_score >= 8.0 and freshness_score >= 3.0:
-                    qualified_plans.append({
-                        'plan': plan,
-                        'quality_score': quality_score,
-                        'freshness_score': freshness_score,
-                        'total_score': total_score,
-                        'evaluation_result': evaluation_result
-                    })
-                    print(f"    ✅ 方案 {i+1} 通过评价 (质量: {quality_score:.1f}, 新鲜度: {freshness_score:.1f})")
-                else:
-                    print(f"    ❌ 方案 {i+1} 未通过评价 (质量: {quality_score:.1f}, 新鲜度: {freshness_score:.1f})")
-            
+            if quality_score >= 8.0 and freshness_score >= 3.0:
+                qualified_plans.append({
+                    'plan': plan,
+                    'quality_score': quality_score,
+                    'freshness_score': freshness_score,
+                    'total_score': total_score,
+                    'evaluation_result': evaluation_result,
+                    'category': category_from_plan  # 🆕 保存分类信息
+                })
+                print(f"    ✅ 方案 {i+1} 通过评价 (质量: {quality_score:.1f}, 新鲜度: {freshness_score:.1f})")
+            else:
+                print(f"    ❌ 方案 {i+1} 未通过评价 (质量: {quality_score:.1f}, 新鲜度: {freshness_score:.1f})")
+
             # 记录最佳方案
             if qualified_plans:
                 best_plans.extend(qualified_plans)
@@ -2834,9 +2838,6 @@ class NovelGenerator:
                     break
             else:
                 print("❌ 本轮没有合格方案")
-                
-            if attempt < max_retries - 1:
-                print("🔄 准备重新生成方案...")
         
         # 如果没有合格方案，使用评分最高的方案作为备选
         if not best_plans and plans_data and 'plans' in plans_data:
