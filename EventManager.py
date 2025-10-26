@@ -37,65 +37,200 @@ class EventManager:
             }
 
     def calculate_optimal_event_density_by_stage(self, stage_name: str, stage_length: int) -> Dict:
-        """基于阶段类型计算最优事件密度"""
+        """基于阶段类型计算最优事件密度 - 大幅优化版本"""
         stage_density_profiles = {
             "opening_stage": {
-                "description": "高密度重大事件，快速吸引读者",
-                "major_ratio": 0.4,    # 重大事件40%
-                "medium_ratio": 0.4,   # 中型事件40%
-                "minor_ratio": 0.2,    # 小型事件20%
-                "min_major": 3,        # 至少3个重大事件
-                "min_medium": 2,       # 至少2个中型事件
-                "max_minor": 5         # 最多5个小事件
+                "description": "集中几个强力大事件快速吸引读者",
+                "major_ratio": 0.7,    # 重大事件70% - 大幅提高
+                "medium_ratio": 0.2,   # 中型事件20% - 降低
+                "minor_ratio": 0.1,    # 小型事件10% - 大幅减少
+                "min_major": 2,        # 至少2个跨章节大事件
+                "min_medium": 1,
+                "max_minor": 5, 
+                "min_major_duration": 3,  # 大事件最小持续章节
+                "avg_major_duration": 5   # 大事件平均持续章节
             },
             "development_stage": {
-                "description": "平衡发展，中型事件为主",
-                "major_ratio": 0.3,    # 重大事件30%
-                "medium_ratio": 0.5,   # 中型事件50%  
-                "minor_ratio": 0.2,    # 小型事件20%
-                "min_major": 2,
-                "min_medium": 4,
-                "max_minor": 8
+                "description": "2-3个核心大事件贯穿发展阶段",
+                "major_ratio": 0.65,   # 重大事件65%
+                "medium_ratio": 0.25,  # 中型事件25%
+                "minor_ratio": 0.1,    # 小型事件10%
+                "min_major": 3,
+                "min_medium": 2,
+                "max_minor": 5, 
+                "min_major_duration": 4,
+                "avg_major_duration": 6
             },
             "climax_stage": {
                 "description": "重大事件密集，高潮迭起",
-                "major_ratio": 0.5,    # 重大事件50%
-                "medium_ratio": 0.3,   # 中型事件30%
-                "minor_ratio": 0.2,    # 小型事件20%
+                "major_ratio": 0.75,   # 重大事件75% - 进一步提高
+                "medium_ratio": 0.2,   # 中型事件20%
+                "minor_ratio": 0.05,   # 小型事件5% - 极少
                 "min_major": 4,
-                "min_medium": 3,
-                "max_minor": 6
+                "min_medium": 2,
+                "max_minor": 5, 
+                "min_major_duration": 5,
+                "avg_major_duration": 8
             },
             "ending_stage": {
                 "description": "解决冲突，收束支线",
-                "major_ratio": 0.4,    # 重大事件40%
-                "medium_ratio": 0.4,   # 中型事件40%
-                "minor_ratio": 0.2,    # 小型事件20%
+                "major_ratio": 0.7,    # 重大事件70%
+                "medium_ratio": 0.25,  # 中型事件25%
+                "minor_ratio": 0.05,   # 小型事件5%
                 "min_major": 2,
-                "min_medium": 3,
-                "max_minor": 4
+                "min_medium": 2,
+                "max_minor": 5, 
+                "min_major_duration": 4,
+                "avg_major_duration": 6
             },
             "final_stage": {
                 "description": "专注结局，减少冗余",
-                "major_ratio": 0.6,    # 重大事件60%
-                "medium_ratio": 0.3,   # 中型事件30%
-                "minor_ratio": 0.1,    # 小型事件10%
+                "major_ratio": 0.8,    # 重大事件80% - 极高比例
+                "medium_ratio": 0.15,  # 中型事件15%
+                "minor_ratio": 0.05,   # 小型事件5%
                 "min_major": 2,
-                "min_medium": 2,
-                "max_minor": 2
+                "min_medium": 1,
+                "max_minor": 5, 
+                "min_major_duration": 3,
+                "avg_major_duration": 5
             }
         }
         
         profile = stage_density_profiles.get(stage_name, stage_density_profiles["development_stage"])
         
-        # 基于阶段长度计算事件数量
-        base_events = max(8, stage_length // 2)  # 基础事件数
+        # 基于阶段长度计算事件数量 - 减少总事件数，提高质量
+        base_events = max(6, stage_length // 3)  # 减少基础事件数
         
         return {
             "major_events": max(profile["min_major"], int(base_events * profile["major_ratio"])),
             "medium_events": max(profile["min_medium"], int(base_events * profile["medium_ratio"])),
-            "minor_events": min(profile["max_minor"], int(base_events * profile["minor_ratio"]))
+            "minor_events": min(profile["max_minor"], int(base_events * profile["minor_ratio"])),
+            "min_major_duration": profile["min_major_duration"],
+            "avg_major_duration": profile["avg_major_duration"],
+            "description": profile["description"]
         }
+    
+    def validate_major_event_structure(self, major_events: List) -> Dict:
+        """验证大事件结构是否完整"""
+        validation_result = {
+            "is_valid": True,
+            "issues": [],
+            "suggestions": []
+        }
+        
+        for i, event in enumerate(major_events):
+            event_name = event.get('name', f'未命名事件{i+1}')
+            
+            # 检查持续时间
+            start_chapter = event.get('start_chapter', 0)
+            end_chapter = event.get('end_chapter', start_chapter)
+            duration = end_chapter - start_chapter + 1
+            
+            if duration < 3:
+                validation_result["is_valid"] = False
+                validation_result["issues"].append(f"大事件'{event_name}'持续时间过短：仅{duration}章，建议至少3章")
+            
+            # 检查是否有完整的事件节点
+            key_nodes = event.get('key_nodes', {})
+            required_nodes = ['start', 'development', 'climax', 'end']
+            missing_nodes = [node for node in required_nodes if node not in key_nodes]
+            
+            if missing_nodes:
+                validation_result["is_valid"] = False
+                validation_result["issues"].append(f"大事件'{event_name}'缺少关键节点：{', '.join(missing_nodes)}")
+            
+            # 检查是否有反转设计
+            if 'reversal' not in event and 'twist' not in str(event).lower():
+                validation_result["suggestions"].append(f"建议为大事件'{event_name}'添加意外反转元素")
+            
+            # 检查情感弧线
+            if 'emotional_arc' not in event:
+                validation_result["suggestions"].append(f"建议为大事件'{event_name}'明确情感发展弧线")
+        
+        return validation_result
+
+    def enhance_major_events_structure(self, writing_plan: Dict, stage_name: str, stage_range: str) -> Dict:
+        """增强大事件结构完整性"""
+        start_chap, end_chap = parse_chapter_range(stage_range)
+        
+        # 获取事件系统
+        if "stage_writing_plan" in writing_plan:
+            events = writing_plan["stage_writing_plan"].get("event_system", {})
+        else:
+            events = writing_plan.get("event_system", {})
+        
+        major_events = events.get("major_events", [])
+        
+        if not major_events:
+            return writing_plan
+        
+        enhanced_major_events = []
+        
+        for event in major_events:
+            enhanced_event = self._apply_big_event_template(event, stage_name, start_chap, end_chap)
+            enhanced_major_events.append(enhanced_event)
+        
+        # 更新事件系统
+        events["major_events"] = enhanced_major_events
+        
+        if "stage_writing_plan" in writing_plan:
+            writing_plan["stage_writing_plan"]["event_system"] = events
+        else:
+            writing_plan["event_system"] = events
+        
+        print(f"  ✅ 已增强{len(enhanced_major_events)}个大事件的结构完整性")
+        return writing_plan
+
+    def _apply_big_event_template(self, event: Dict, stage_name: str, start_chap: int, end_chap: int) -> Dict:
+        """应用大事件模板，确保结构完整"""
+        event_name = event.get('name', '未命名事件')
+        start_chapter = event.get('start_chapter', start_chap)
+        end_chapter = event.get('end_chapter', start_chapter + 4)  # 默认5章
+        
+        # 确保持续时间合理
+        duration = end_chapter - start_chapter + 1
+        if duration < 3:
+            end_chapter = start_chapter + 2  # 至少3章
+        
+        # 构建完整的事件节点结构
+        base_structure = {
+            "foreshadowing": f"第{start_chapter}章：事件铺垫，制造期待",
+            "trigger": f"第{start_chapter+1}章：事件正式触发",
+            "development": f"第{start_chapter+2}章-第{end_chapter-1}章：冲突升级发展",
+            "climax": f"第{end_chapter-1}章：高潮爆发",
+            "reversal": f"第{end_chapter}章：意外转折",
+            "resolution": f"第{end_chapter}章：事件收尾"
+        }
+        
+        # 合并原有结构和基础结构
+        existing_key_nodes = event.get('key_nodes', {})
+        merged_key_nodes = {**base_structure, **existing_key_nodes}
+        
+        # 确保情感弧线完整
+        emotional_arc = event.get('emotional_arc', 
+            "期待→紧张→焦虑→震撼→满足")
+        
+        # 构建增强后的事件
+        enhanced_event = {
+            **event,
+            "start_chapter": start_chapter,
+            "end_chapter": end_chapter,
+            "duration": end_chapter - start_chapter + 1,
+            "key_nodes": merged_key_nodes,
+            "emotional_arc": emotional_arc,
+            "plot_impact": event.get('plot_impact', '推动主线重大进展'),
+            "character_growth": event.get('character_growth', '主角获得重要成长'),
+            "required_elements": [
+                "前期铺垫制造期待",
+                "明确的事件触发点", 
+                "冲突逐步升级",
+                "情感高潮时刻",
+                "意外反转设计",
+                "深远影响后果"
+            ]
+        }
+        
+        return enhanced_event    
 
     def validate_event_density(self, writing_plan: Dict, stage_range: str) -> bool:
         """验证事件密度是否合理"""
@@ -133,7 +268,7 @@ class EventManager:
         return True
 
     def validate_stage_event_density(self, writing_plan: Dict, stage_name: str, stage_range: str) -> bool:
-        """验证阶段特定的事件密度是否合理"""
+        """验证阶段特定的事件密度是否合理 - 优化版本"""
         start_chap, end_chap = parse_chapter_range(stage_range)
         stage_length = end_chap - start_chap + 1
         
@@ -156,21 +291,34 @@ class EventManager:
         actual_medium = len(medium_events)
         actual_minor = len(minor_events)
         actual_special = len(special_events)
+        total_events = actual_major + actual_medium + actual_minor + actual_special
         
         # 验证是否满足阶段特定要求
         major_ok = actual_major >= density_requirements["major_events"]
         medium_ok = actual_medium >= density_requirements["medium_events"]
-        minor_ok = actual_minor <= density_requirements["minor_events"]  # 小型事件要控制上限
+        minor_ok = actual_minor >= density_requirements["minor_events"]  # 修复：改为 >=
         
-        if not (major_ok and medium_ok and minor_ok):
+        # 验证大事件持续时间
+        duration_ok = True
+        for event in major_events:
+            duration = event.get('end_chapter', 0) - event.get('start_chapter', 0) + 1
+            if duration < density_requirements["min_major_duration"]:
+                duration_ok = False
+                print(f"  ⚠️ 大事件'{event.get('name')}'持续时间过短：{duration}章，要求至少{density_requirements['min_major_duration']}章")
+        
+        if not (major_ok and medium_ok and minor_ok and duration_ok):
             print(f"  ⚠️ {stage_name}阶段事件密度不符合要求：")
             print(f"    重大事件: 实际{actual_major}个, 要求至少{density_requirements['major_events']}个")
             print(f"    中型事件: 实际{actual_medium}个, 要求至少{density_requirements['medium_events']}个")
-            print(f"    小型事件: 实际{actual_minor}个, 要求最多{density_requirements['minor_events']}个")
+            print(f"    小型事件: 实际{actual_minor}个, 要求至少{density_requirements['minor_events']}个")  # 修复：改为"至少"
             print(f"    特殊事件: 实际{actual_special}个")
+            print(f"    大事件最小持续时间: {density_requirements['min_major_duration']}章")
             return False
         
+        # 计算大事件比例
+        major_ratio = actual_major / total_events if total_events > 0 else 0
         print(f"  ✅ {stage_name}阶段事件密度验证通过")
+        print(f"  📊 大事件比例：{major_ratio:.1%}（目标{density_requirements['major_ratio']:.0%}）")
         return True
 
     def validate_main_thread_continuity(self, writing_plan: Dict, stage_name: str) -> bool:
@@ -210,11 +358,10 @@ class EventManager:
 
     def supplement_events_with_ai(self, writing_plan: Dict, stage_range: str, creative_seed: str, 
                                 novel_title: str, novel_synopsis: str, overall_stage_plan: Dict) -> Dict:
-        """使用AI补充事件以提高密度 - 阶段特定版本"""
+        """使用AI补充事件以提高密度 - 修复空窗期检测版本"""
         start_chap, end_chap = parse_chapter_range(stage_range)
-        stage_length = end_chap - start_chap + 1
         
-        # 🆕 获取当前阶段名称
+        # 获取当前阶段名称
         stage_name = None
         for name, plan in self.generator.novel_data.get("stage_writing_plans", {}).items():
             if plan == writing_plan:
@@ -222,14 +369,30 @@ class EventManager:
                 break
         
         if not stage_name:
-            # 尝试从章节范围推断阶段
             if start_chap == 1:
                 stage_name = "opening_stage"
             else:
-                stage_name = "development_stage"  # 默认
+                stage_name = "development_stage"
         
-        # 🆕 使用阶段特定的密度要求
-        density_requirements = self.calculate_optimal_event_density_by_stage(stage_name, stage_length)
+        # 🆕 首先获取真正可用的空窗期章节
+        truly_empty_chapters = self._get_truly_empty_chapters(writing_plan, stage_range)
+        
+        if not truly_empty_chapters:
+            print(f"  ✅ {stage_name}阶段没有真正的空窗期章节，无需情感事件")
+            return writing_plan
+        
+        print(f"  🔍 检测到{len(truly_empty_chapters)}个真正空窗期章节: {truly_empty_chapters}")
+        
+        # 🆕 策略性选择关键章节（数量要少！）
+        selected_chapters = self._select_strategic_emotional_chapters(
+            truly_empty_chapters, stage_name, len(truly_empty_chapters)
+        )
+        
+        if not selected_chapters:
+            print(f"  ✅ {stage_name}阶段无需情感事件补充")
+            return writing_plan
+        
+        print(f"  🤖 将在{len(selected_chapters)}个关键章节添加情感事件: {selected_chapters}")
         
         # 提取事件数据
         if "stage_writing_plan" in writing_plan:
@@ -237,83 +400,30 @@ class EventManager:
         else:
             events = writing_plan.get("event_system", {})
         
-        # 计算当前事件密度
-        current_major = len(events.get("major_events", []))
-        current_medium = len(events.get("medium_events", []))
-        current_minor = len(events.get("minor_events", []))
-        current_special = len(events.get("special_events", []))
+        # 构建提示词，只请求为选中的少量章节生成情感事件
+        supplement_prompt = self._build_focused_emotional_event_prompt(
+            selected_chapters, novel_title, novel_synopsis, creative_seed,
+            stage_name, stage_range, overall_stage_plan, events
+        )
         
-        # 🆕 使用阶段特定的目标密度
-        target_major = density_requirements["major_events"]
-        target_medium = density_requirements["medium_events"]
-        target_minor = density_requirements["minor_events"]
-        
-        # 如果事件密度不足，提示AI补充
-        if current_major < target_major or current_medium < target_medium or current_minor > target_minor:
-            print(f"  🤖 {stage_name}阶段事件密度不符合要求，使用AI补充事件...")
+        try:
+            supplement_result = self.generator.api_client.generate_content_with_retry(
+                "focused_emotional_supplement",
+                supplement_prompt,
+                purpose=f"为{stage_name}阶段在{len(selected_chapters)}个关键章节添加情感事件"
+            )
             
-            supplement_prompt = f"""
-    请为小说阶段补充事件设计，使事件密度更加合理。
-
-    ## 小说核心信息
-    - **小说标题**: {novel_title}
-    - **小说简介**: {novel_synopsis}
-    - **创意种子**: {creative_seed}
-    - **阶段名称**: {stage_name}
-    - **阶段范围**: {stage_range}章 (共{stage_length}章)
-
-    ## 全书大纲 (上下文)
-    {json.dumps(overall_stage_plan, ensure_ascii=False, indent=2)}
-
-    ## 🆕 阶段特定事件规划要求
-    {self.stage_plan_manager.get_stage_specific_guidance(stage_name)}
-
-    ## 事件密度目标
-    - 重大事件: {current_major}个 -> 需要达到{target_major}个
-    - 中型事件: {current_medium}个 -> 需要达到{target_medium}个  
-    - 小型事件: {current_minor}个 -> 需要控制在{target_minor}个以内
-    - 特殊事件: {current_special}个
-
-    ## 现有事件
-    {json.dumps(events, ensure_ascii=False, indent=2)}
-
-    ## 补充要求
-    请根据现有事件和故事逻辑，补充合适的事件来达到上述密度目标。
-    特别注意：{stage_name}阶段需要{density_requirements.get('description', '合理的事件分布')}
-
-    请返回补充的事件设计：
-    {{
-        "supplemental_events": {{
-            "major_events": [],
-            "medium_events": [],
-            "minor_events": [],
-            "special_events": []
-        }}
-    }}
-    """
-            
-            try:
-                supplement_result = self.generator.api_client.generate_content_with_retry(
-                    "event_supplement",
-                    supplement_prompt,
-                    purpose=f"补充{stage_name}阶段事件"
-                )
+            if supplement_result and "emotional_events" in supplement_result:
+                emotional_events = supplement_result["emotional_events"]
                 
-                if supplement_result and "supplemental_events" in supplement_result:
-                    supplemental_events = supplement_result["supplemental_events"]
-                    
-                    # 验证补充的事件
-                    validated_events = self._validate_supplemental_events(supplemental_events, start_chap, end_chap)
-                    
-                    # 合并补充的事件
-                    for event_type in ["major_events", "medium_events", "minor_events", "special_events"]:
-                        if event_type in validated_events and validated_events[event_type]:
-                            if event_type not in events:
-                                events[event_type] = []
-                            events[event_type].extend(validated_events[event_type])
-                    
-                    # 重新排序事件
-                    events = self._sort_events_by_chapter(events)
+                # 验证情感事件
+                validated_events = self._validate_emotional_events(emotional_events, selected_chapters)
+                
+                if validated_events:
+                    # 添加到特殊事件
+                    if "special_events" not in events:
+                        events["special_events"] = []
+                    events["special_events"].extend(validated_events)
                     
                     # 更新事件系统
                     if "stage_writing_plan" in writing_plan:
@@ -321,19 +431,182 @@ class EventManager:
                     else:
                         writing_plan["event_system"] = events
                     
-                    # 记录补充结果
-                    added_major = len(validated_events.get('major_events', []))
-                    added_medium = len(validated_events.get('medium_events', []))
-                    added_minor = len(validated_events.get('minor_events', []))
-                    added_special = len(validated_events.get('special_events', []))
+                    print(f"  ✅ 成功添加{len(validated_events)}个情感事件")
                     
-                    if added_major > 0 or added_medium > 0 or added_minor > 0 or added_special > 0:
-                        print(f"  ✅ AI为{stage_name}阶段补充了{added_major}个重大事件，{added_medium}个中型事件，{added_minor}个小型事件，{added_special}个特殊事件")
-                        
-            except Exception as e:
-                print(f"  ❌ AI补充事件出错: {e}")
+        except Exception as e:
+            print(f"  ❌ AI生成情感事件出错: {e}")
         
         return writing_plan
+
+    def _get_truly_empty_chapters(self, writing_plan: Dict, stage_range: str) -> List[int]:
+        """获取真正没有被任何事件占用的空窗期章节"""
+        start_chap, end_chap = parse_chapter_range(stage_range)
+        
+        # 获取事件系统
+        if "stage_writing_plan" in writing_plan:
+            events = writing_plan["stage_writing_plan"].get("event_system", {})
+        else:
+            events = writing_plan.get("event_system", {})
+        
+        # 收集所有被占用的章节
+        occupied_chapters = set()
+        
+        # 重大事件
+        for event in events.get("major_events", []):
+            start = event.get("start_chapter", 0)
+            end = event.get("end_chapter", start)
+            for chapter in range(start, end + 1):
+                if start_chap <= chapter <= end_chap:
+                    occupied_chapters.add(chapter)
+        
+        # 中型事件
+        for event in events.get("medium_events", []):
+            start = event.get("start_chapter", event.get("chapter", 0))
+            end = event.get("end_chapter", start)
+            for chapter in range(start, end + 1):
+                if start_chap <= chapter <= end_chap:
+                    occupied_chapters.add(chapter)
+        
+        # 小型事件
+        for event in events.get("minor_events", []):
+            start = event.get("start_chapter", event.get("chapter", 0))
+            end = event.get("end_chapter", start)
+            for chapter in range(start, end + 1):
+                if start_chap <= chapter <= end_chap:
+                    occupied_chapters.add(chapter)
+        
+        # 特殊事件
+        for event in events.get("special_events", []):
+            start = event.get("start_chapter", event.get("chapter", 0))
+            end = event.get("end_chapter", start)
+            for chapter in range(start, end + 1):
+                if start_chap <= chapter <= end_chap:
+                    occupied_chapters.add(chapter)
+        
+        # 找出真正空窗的章节
+        all_chapters = set(range(start_chap, end_chap + 1))
+        empty_chapters = sorted(list(all_chapters - occupied_chapters))
+        
+        return empty_chapters
+
+    def _select_strategic_emotional_chapters(self, empty_chapters: List[int], stage_name: str, total_empty: int) -> List[int]:
+        """策略性选择情感事件章节 - 数量要严格控制！"""
+        
+        # 根据阶段制定不同的情感事件策略
+        emotional_strategies = {
+            "opening_stage": {
+                "max_events": 3,  # 开局阶段情感事件要极少！
+                "preference": "early_and_mid",  # 偏好前期和中期
+                "min_gap": 4
+            },
+            "development_stage": {
+                "max_events": 5,
+                "preference": "mid",  # 偏好中期
+                "min_gap": 3
+            },
+            "climax_stage": {
+                "max_events": 2,  # 高潮阶段情感事件极少
+                "preference": "before_climax",  # 大高潮前
+                "min_gap": 5
+            },
+            "ending_stage": {
+                "max_events": 3,
+                "preference": "resolution",  # 解决阶段
+                "min_gap": 4
+            },
+            "final_stage": {
+                "max_events": 2,
+                "preference": "emotional_closure",  # 情感收尾
+                "min_gap": 6
+            }
+        }
+        
+        strategy = emotional_strategies.get(stage_name, emotional_strategies["development_stage"])
+        max_events = min(strategy["max_events"], total_empty)  # 不能超过空窗期数量
+        
+        if not empty_chapters or max_events == 0:
+            return []
+        
+        selected = []
+        
+        if strategy["preference"] == "early_and_mid":
+            # 选择前期和中期章节
+            early_mid = [chap for chap in empty_chapters if chap <= len(empty_chapters) * 2 // 3]
+            selected = early_mid[:max_events]
+        
+        elif strategy["preference"] == "mid":
+            # 选择中期章节
+            mid_start = len(empty_chapters) // 3
+            mid_end = 2 * len(empty_chapters) // 3
+            mid_chapters = empty_chapters[mid_start:mid_end]
+            selected = mid_chapters[:max_events]
+        
+        elif strategy["preference"] == "before_climax":
+            # 选择后半段章节
+            later_chapters = [chap for chap in empty_chapters if chap > len(empty_chapters) // 2]
+            selected = later_chapters[:max_events]
+        
+        else:
+            # 默认：均匀选择
+            step = max(1, len(empty_chapters) // max_events)
+            selected = [empty_chapters[i] for i in range(0, len(empty_chapters), step)][:max_events]
+        
+        # 确保最小间隔
+        final_selection = []
+        for chap in selected:
+            if not final_selection or chap - final_selection[-1] >= strategy["min_gap"]:
+                final_selection.append(chap)
+        
+        return final_selection[:max_events]
+
+    def _build_focused_emotional_event_prompt(self, selected_chapters: List[int], novel_title: str, 
+                                        novel_synopsis: str, creative_seed: str, stage_name: str,
+                                        stage_range: str, overall_stage_plan: Dict, events: Dict) -> str:
+        """构建聚焦的情感事件提示词"""
+        
+        return f"""
+    请为以下小说的特定空窗期章节生成情感特殊事件：
+
+    小说信息：
+    - 标题：{novel_title}
+    - 简介：{novel_synopsis}
+    - 创意种子：{creative_seed}
+
+    当前阶段：{stage_name}
+    **需要填充的特定章节：{selected_chapters}**
+
+    ## 🎯 重要说明
+    这些章节是经过筛选的真正空窗期，请**只为这些特定章节**生成情感事件，不要为其他章节生成！
+
+    ## 📋 现有事件系统
+    {json.dumps(events, ensure_ascii=False, indent=2)}
+
+    ## 🎭 情感事件要求
+    1. **精准定位**：每个情感事件必须精确对应指定的章节
+    2. **服务主线**：情感事件应该与前后主线事件有逻辑关联
+    3. **质量优先**：精心设计每个情感互动，确保有明确的情感发展
+    4. **避免重复**：不要生成重复或类似的情感事件
+
+    ## 📝 返回格式
+    请只为以下{len(selected_chapters)}个章节生成情感事件：
+
+    {{
+        "emotional_events": [
+            {{
+                "name": "事件名称",
+                "type": "特殊事件",
+                "subtype": "情感填充", 
+                "chapter": {selected_chapters[0]},  // 必须精确匹配
+                "purpose": "为什么在这个章节添加情感事件",
+                "emotional_development": "推动的情感发展",
+                "connection_to_plot": "与主线情节的关联",
+                "plot_design": "具体情节设计",
+                "description": "详细描述"
+            }}
+            // 只为提供的{len(selected_chapters)}个章节生成，不要多也不要少！
+        ]
+    }}
+    """
 
     def build_event_chains(self, events: List) -> List:
         """构建事件链条，确保逻辑连贯"""

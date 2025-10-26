@@ -59,7 +59,8 @@ json
             {
                 "name": "string // 支撑重大事件的中型事件名称",
                 "type": "medium_event",
-                "chapter": "integer // 事件发生的具体章节（数字）",
+                "start_chapter": "integer // 事件开始章节（数字）",
+                "end_chapter": "integer // 事件结束章节（数字）",
                 "main_goal": "string // 该事件的主要目标",
                 "connection_to_major": "string // 描述此事件如何为重大事件服务（铺垫、补充、收尾等）",
                 "duration": "integer // 事件持续章节数（数字，例如：2）"
@@ -69,7 +70,8 @@ json
             {
                 "name": "string // 日常情节或角色发展的小型事件名称",
                 "type": "minor_event",
-                "chapter": "integer // 事件发生的具体章节（数字）",
+                "start_chapter": "integer // 事件开始章节（数字）",
+                "end_chapter": "integer // 事件结束章节（数字）",
                 "function": "string // 事件功能描述（如角色互动、世界观展示等）",
                 "impact": "string // 对剧情的短期影响"
             }
@@ -291,6 +293,8 @@ json
     "connection_to_previous": "[1句话描述] 本章是如何衔接上一章结尾的（首章可注明'故事开篇'）。"
 }
 """,
+        "focused_emotional_supplement": "你是一个网络小说创作助手，负责根据用户要求为特定的空窗期章节生成情感特殊事件。请确保生成的事件与主线情节关联，并且符合情感发展的逻辑。"
+  ,
         "chapter_quality_assessment": """
 内容:
 你是一位顶级的网络小说编辑，专精于"番茄小说"风格的快节奏、强爽点内容。你的核心任务是接收小说章节、世界观数据，然后进行深度分析，并以严格的JSON格式返回一份包含评分、优缺点、一致性检查和世界观更新的综合评估报告。

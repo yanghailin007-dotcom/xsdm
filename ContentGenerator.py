@@ -325,7 +325,7 @@ class ContentGenerator:
         return result
 
     def generate_character_design(self, novel_title: str, core_worldview: Dict, selected_plan: Dict, market_analysis: Dict, custom_main_character_name: str = None) -> Optional[Dict]:
-        """生成角色设计 - 使用优化后的提示词结构"""
+        """生成角色设计 - 使用优化后的提示词结构，强调生活化和灵动性"""
         print("=== 步骤5: 设计主要角色 ===")
         
         main_character_name = custom_main_character_name or self.custom_main_character_name
@@ -334,33 +334,50 @@ class ContentGenerator:
         core_settings = selected_plan.get("core_settings", {})
         story_development = selected_plan.get("story_development", {})
         
-        # 构建优化后的提示词
+        # 构建优化后的提示词 - 强调生活化和灵动性
         context = f"""
-## 1. 小说核心设定 (STORY_BLUEPRINT)
+    ## 1. 小说核心设定 (STORY_BLUEPRINT)
 
-*   **世界观背景**: {core_settings.get("world_background", "NA")}
-*   **金手指/系统**: {core_settings.get("golden_finger", "NA")}
-*   **核心爽点/卖点**: {', '.join(core_settings.get("core_selling_points", ["NA", "NA", "NA"])) if isinstance(core_settings.get("core_selling_points"), list) else core_settings.get("core_selling_points", "NA")}
-*   **主角定位**: {story_development.get("protagonist_position", "NA")}
-*   **主线脉络**: {story_development.get("main_plot", ["NA", "NA", "NA"]) if isinstance(story_development.get("main_plot"), list) else story_development.get("main_plot", "NA")}
+    *   **世界观背景**: {core_settings.get("world_background", "NA")}
+    *   **金手指/系统**: {core_settings.get("golden_finger", "NA")}
+    *   **核心爽点/卖点**: {', '.join(core_settings.get("core_selling_points", ["NA", "NA", "NA"])) if isinstance(core_settings.get("core_selling_points"), list) else core_settings.get("core_selling_points", "NA")}
+    *   **主角定位**: {story_development.get("protagonist_position", "NA")}
+    *   **主线脉络**: {story_development.get("main_plot", ["NA", "NA", "NA"]) if isinstance(story_development.get("main_plot"), list) else story_development.get("main_plot", "NA")}
 
-## 2. 角色设计要求 (DESIGN_REQUIREMENTS)
+    ## 2. 角色设计要求 (DESIGN_REQUIREMENTS)
 
-*   **主角姓名**: {main_character_name or "请根据主角定位生成合适的中文名字"}
-*   **核心配角列表**: 
-    *   角色功能: 引导者与支持者
-    *   角色功能: 辅助与补充者  
-    *   角色功能: 竞争与参照者
-    *   角色功能: 主要敌对势力代表
+    *   **主角姓名**: {main_character_name or "请根据主角定位生成合适的中文名字"}
+    *   **核心配角列表**: 
+        *   角色功能: 引导者与支持者
+        *   角色功能: 辅助与补充者  
+        *   角色功能: 竞争与参照者
+        *   角色功能: 主要敌对势力代表
 
-*   **通用设计原则**: 角色设计需与世界观保持一致，服务于核心爽点，并体现出角色间的互动关系与成长弧线。
-*   **创新要求**: 
-    - 角色设计应避免脸谱化，追求独特性和深度，提供有记忆点的设定。
-    - **【重要】配角名字必须严格符合世界观背景**，避免使用常见固定名字（如苏晚晴、林风、叶凡等）
-    - 神魔世界观应使用相应风格的名字（如神族用古风雅名，魔族用霸气名号，人族用朴实名字）
-    - 每个配角的名字都要体现其身份、种族和背景设定
-    - 确保名字多样性，避免重复或雷同
-"""
+    ## 3. 【重要】角色设计原则
+
+    ### 生活化要求：
+    - **避免模板化**: 每个角色都要有独特的生活细节、小习惯、口头禅
+    - **情感层次**: 展现角色内心的矛盾、脆弱和复杂性
+    - **日常真实**: 加入吃饭、睡觉、闲聊等生活场景，让角色像真人一样生活
+
+    ### 灵动性要求：
+    - **意外互动**: 角色关系要有出人意料却又合理的发展
+    - **成长变化**: 展现角色在互动中的相互影响和改变
+    - **幽默时刻**: 适当的幽默和轻松时刻，让角色更亲切
+
+    ### 具体示例：
+    - ✅ 好的设计："主角有起床气，每天早上要喝特定茶才能清醒"
+    - ✅ 好的设计："反派其实怕黑，这个弱点在关键时刻暴露"
+    - ✅ 好的设计："两个死对头因为共同爱好意外成为朋友"
+    - ❌ 坏的设计："主角完美无缺，没有任何生活习惯"
+    - ❌ 坏的设计："角色关系一成不变，没有发展"
+
+    ## 4. 创新要求
+    - 角色设计应避免脸谱化，追求独特性和深度
+    - **配角名字必须严格符合世界观背景**，避免使用常见固定名字
+    - 每个配角都要有自己的生活、目标和困境
+    - 角色互动要自然生动，有火花和化学反应
+    """
         
         if main_character_name:
             print(f"  ✓ 角色设计使用主角名字: {main_character_name}")

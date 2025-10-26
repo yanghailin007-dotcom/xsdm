@@ -193,7 +193,7 @@ class StagePlanManager:
 
     def generate_stage_writing_plan(self, stage_name: str, stage_range: str, creative_seed: str,
                                 novel_title: str, novel_synopsis: str, overall_stage_plan: Dict) -> Dict:
-        """生成阶段详细写作计划 - 增强黄金三章处理"""
+        """生成阶段详细写作计划 - 优化版本"""
         cache_key = f"{stage_name}_writing_plan"
         
         if cache_key in self.stage_writing_plans_cache:
@@ -201,11 +201,6 @@ class StagePlanManager:
         
         print(f"  🎬 生成{stage_name}的写作计划...")
         
-        # 检查是否为开局阶段且包含黄金三章
-        is_opening_with_golden = (stage_name == "opening_stage" and 
-                                stage_range.startswith("1-") and 
-                                int(stage_range.split("-")[1]) >= 3)
-
         # 计算章节分段
         start_chap, end_chap = parse_chapter_range(stage_range)
         stage_length = end_chap - start_chap + 1
@@ -216,7 +211,7 @@ class StagePlanManager:
         # 获取阶段特定指导
         stage_guidance = self.get_stage_specific_guidance(stage_name)
         
-        # 构建用户提示词 - 使用阶段特定的事件密度
+        # 构建用户提示词
         user_prompt = f"""
     内容:
     ## 任务指令
@@ -237,57 +232,13 @@ class StagePlanManager:
     - **章节范围**: {stage_range}章
     - **阶段长度**: {stage_length}章
 
-    ## 🆕 阶段特定事件密度要求
-    - **重大事件**: {density_requirements['major_events']}个 (推动主线、重大转折)
-    - **中型事件**: {density_requirements['medium_events']}个 (支线任务、能力突破、重要关系发展)  
-    - **小型事件**: {density_requirements['minor_events']}个 (日常互动、伏笔铺垫、氛围营造)
-    - **最大事件间隔**: 不超过{density_requirements.get('max_chapter_gap', 8)}章必须有核心事件推进
-
-    ## 事件规划核心要求
-    1. **合理密度**: 请严格参照上述事件密度要求
-    2. **主线贯穿**: 所有事件必须服务于阶段核心目标，避免偏离主线  
-    3. **渐进升级**: 事件难度和重要性应逐步提升，形成递进关系
-    4. **伏笔衔接**: 每个事件都应包含对后续事件的铺垫
+    {self._get_major_event_design_requirements(stage_name, density_requirements)}
+    {self._get_golden_chapters_design(stage_name, stage_range)}
     """
         
-        # 如果是开局阶段且包含黄金三章，添加特殊要求
-        if is_opening_with_golden:
-            golden_chapters_prompt = f"""
-
-    ## 🏆 黄金三章特殊设计要求（第1-3章）
-
-    请为黄金三章制定特别详细的设计方案：
-
-    ### 第1章设计方案：
-    - **开篇方式**：设计3种不同的强力开篇方式供选择
-    - **主角登场**：具体描述主角如何惊艳登场  
-    - **冲突设置**：设计开篇冲突的具体场景和对话
-    - **悬念钩子**：章节结尾必须设置的悬念内容
-    - **字数分配**：建议各部分的字数分配
-
-    ### 第2章设计方案：
-    - **情节推进**：具体如何深化第一章的冲突
-    - **新元素引入**：需要引入的新角色、新设定
-    - **节奏控制**：如何保持快节奏的同时不显得仓促
-    - **情感建立**：如何让读者对主角产生情感共鸣
-
-    ### 第3章设计方案：
-    - **小高潮设计**：具体的小高潮场景和冲突
-    - **伏笔设置**：为哪些后续情节埋下伏笔
-    - **追读钩子**：设计让读者必须看下一章的强力理由
-    - **阶段总结**：黄金三章整体要达到的效果
-
-    ### 黄金三章评分标准：
-    - 必须达到8.5分以上才算合格
-    - 重点评估开篇吸引力、情节紧凑度、悬念设置
-    - 每章都要有明确的成功标准
-    """
-            user_prompt += golden_chapters_prompt
-
         # 从novel_data获取已分析的情感模式
         romance_pattern = self.generator.novel_data.get("romance_pattern", {})
         
-        # 如果没有情感模式数据，才进行分析（理论上不应该发生）
         if not romance_pattern:
             print("  ⚠️ 警告：未找到情感模式数据，进行补充分析")
             romance_pattern = self.romance_manager.analyze_romance_pattern(creative_seed, novel_synopsis)
@@ -302,46 +253,25 @@ class StagePlanManager:
             purpose=f"生成{stage_name}写作计划"
         )
 
-        # 识别事件空窗期（带上下文）
+        # 识别事件空窗期并生成情感填充事件
         gap_chapters_with_context = self.event_manager.identify_event_gaps(writing_plan, stage_range)
-
-        # 为空窗期生成上下文关联的情感填充事件
         if gap_chapters_with_context:
             filler_events = self.romance_manager.generate_romance_filler_events(
                 gap_chapters_with_context, romance_pattern, stage_name, 
                 creative_seed, novel_title, novel_synopsis
             )
             writing_plan = self.romance_manager.integrate_filler_events(writing_plan, filler_events)
-
-        # 生成情绪计划
-        global_emotional_plan = self.generator.novel_data.get("emotional_development_plan", {})
-        emotional_plan = self.emotional_manager.generate_stage_emotional_plan(stage_name, stage_range, global_emotional_plan)
+        
+        # 验证和优化写作计划
+        writing_plan = self._validate_and_optimize_writing_plan(
+            writing_plan, stage_name, stage_range, creative_seed, 
+            novel_title, novel_synopsis, overall_stage_plan
+        )
         
         if writing_plan:
-            # 将情绪计划整合到写作计划中
-            if "stage_writing_plan" in writing_plan:
-                writing_plan["stage_writing_plan"]["emotional_plan"] = emotional_plan
-            else:
-                writing_plan["emotional_plan"] = emotional_plan
-            
-            # 如果是开局阶段且包含黄金三章，进一步处理
-            if is_opening_with_golden:
-                writing_plan = self._enhance_golden_chapters_in_writing_plan(writing_plan)
-            
-            # 验证阶段特定的事件密度
-            event_density_ok = self.event_manager.validate_stage_event_density(writing_plan, stage_name, stage_range)
-            if not event_density_ok:
-                print(f"  ⚠️ {stage_name}写作计划事件密度不符合阶段要求，进行优化...")
-                writing_plan = self.event_manager.supplement_events_with_ai(writing_plan, stage_range, creative_seed, novel_title, novel_synopsis, overall_stage_plan)
-            
-            # 验证主线连贯性（使用阶段特定的间隔要求）
-            is_continuous = self.event_manager.validate_main_thread_continuity(writing_plan, stage_name)
-            if not is_continuous:
-                print(f"  ⚠️ {stage_name}写作计划存在事件间隔过长问题，进行优化...")
-            
+            # 缓存和存储结果
             self.stage_writing_plans_cache[cache_key] = writing_plan
             
-            # 持久化存储到novel_data
             if "stage_writing_plans" not in self.generator.novel_data:
                 self.generator.novel_data["stage_writing_plans"] = {}
             self.generator.novel_data["stage_writing_plans"][stage_name] = writing_plan
@@ -350,9 +280,127 @@ class StagePlanManager:
             self._print_writing_plan_summary(writing_plan)
             return writing_plan
         else:
-            print(f"  ⚠️ {stage_name}写作计划生成失败，使用默认计划，请重点检查")
+            print(f"  ⚠️ {stage_name}写作计划生成失败，使用默认计划")
             return {}
 
+    def _get_major_event_design_requirements(self, stage_name: str, density_requirements: Dict) -> str:
+        """获取大事件设计要求的文本"""
+        return f"""
+## 🎭 阶段特定事件密度要求
+- **重大事件**: {density_requirements['major_events']}个 (跨{density_requirements['min_major_duration']}+章大事件，推动主线、重大转折)
+- **中型事件**: {density_requirements['medium_events']}个 (2-3章中型事件，支线任务、重要关系发展)  
+- **小型事件**: {density_requirements['minor_events']}个 (单章小事件，严格控制数量)
+- **大事件持续时间**: 至少{density_requirements['min_major_duration']}章，平均{density_requirements['avg_major_duration']}章
+
+## 🚀 大事件设计核心要求
+
+### 结构完整性
+每个重大事件必须包含完整结构：
+1. **前期铺垫**（1-2章）：制造期待，埋下伏笔
+2. **事件触发**（1章）：明确的起点和冲突爆发
+3. **发展升级**（2-4章）：冲突逐步升级，加入新元素
+4. **高潮爆发**（1-2章）：核心冲突+情感最高点
+5. **反转意外**（1章）：出人意料的转折
+6. **收尾影响**（1-2章）：事件结束后的深远影响
+
+### 情感弧线设计
+- 开始：期待/紧张 → 发展：焦虑/兴奋 → 高潮：震撼/感动 → 结束：满足/思考
+- 必须有明确的情感起伏曲线
+
+### 反转设计（每个大事件至少1个）
+- 身份反转：角色真实身份揭露
+- 立场反转：盟友变敌人或相反  
+- 力量反转：强弱关系逆转
+- 信息反转：关键信息揭示改变局势
+- 目标反转：行动目标发生根本改变
+
+### 质量优先原则
+- 减少零碎小事件，集中资源打造精彩大事件
+- 每个大事件都应该是读者能够记住的"名场面"
+- 确保大事件之间有合理的间隔，避免过度密集
+"""
+
+    def _get_golden_chapters_design(self, stage_name: str, stage_range: str) -> str:
+        """获取黄金三章设计要求的文本"""
+        if not (stage_name == "opening_stage" and stage_range.startswith("1-") and int(stage_range.split("-")[1]) >= 3):
+            return ""
+        
+        return """
+## 🏆 黄金三章特殊设计要求（第1-3章）
+
+请为黄金三章制定特别详细的设计方案，特别注意：
+- 第1章必须包含一个强力大事件的起始铺垫
+- 前3章要为一个持续5-8章的大事件奠定基础
+- 减少零碎事件，集中打造连贯的阅读体验
+
+### 第1章设计方案：
+- **开篇大事件铺垫**：立即开始一个大事件的铺垫
+- **主角登场**：在冲突中展现主角特质  
+- **悬念设置**：为大事件设置强力悬念
+- **情感建立**：让读者立即产生情感共鸣
+
+### 第2章设计方案：
+- **大事件发展**：深化大事件的冲突和发展
+- **新元素引入**：为大事件引入关键角色或设定
+- **节奏控制**：保持快节奏推进大事件
+
+### 第3章设计方案：
+- **大事件小高潮**：安排大事件的第一个小高潮
+- **强力追读钩子**：设置让读者必须看下一章的强力理由
+- **阶段总结**：为后续大事件爆发做好充分准备
+"""    
+
+    def _validate_and_optimize_writing_plan(self, writing_plan: Dict, stage_name: str, stage_range: str, 
+                                        creative_seed: str, novel_title: str, novel_synopsis: str, 
+                                        overall_stage_plan: Dict) -> Dict:
+        """验证和优化写作计划"""
+        if not writing_plan:
+            print(f"  ⚠️ {stage_name}写作计划生成失败，使用默认计划")
+            return {}
+        
+        # 增强大事件结构
+        writing_plan = self.event_manager.enhance_major_events_structure(writing_plan, stage_name, stage_range)
+        
+        # 生成情绪计划并整合
+        global_emotional_plan = self.generator.novel_data.get("emotional_development_plan", {})
+        emotional_plan = self.emotional_manager.generate_stage_emotional_plan(stage_name, stage_range, global_emotional_plan)
+        
+        if "stage_writing_plan" in writing_plan:
+            writing_plan["stage_writing_plan"]["emotional_plan"] = emotional_plan
+        else:
+            writing_plan["emotional_plan"] = emotional_plan
+        
+        # 处理黄金三章
+        if stage_name == "opening_stage" and stage_range.startswith("1-") and int(stage_range.split("-")[1]) >= 3:
+            writing_plan = self._enhance_golden_chapters_in_writing_plan(writing_plan)
+        
+        # 验证事件密度
+        event_density_ok = self.event_manager.validate_stage_event_density(writing_plan, stage_name, stage_range)
+        if not event_density_ok:
+            print(f"  ⚠️ {stage_name}写作计划事件密度不符合要求，进行优化...")
+            writing_plan = self.event_manager.supplement_events_with_ai(writing_plan, stage_range, creative_seed, 
+                                                                    novel_title, novel_synopsis, overall_stage_plan)
+        
+        # 验证大事件结构
+        if "stage_writing_plan" in writing_plan:
+            events = writing_plan["stage_writing_plan"].get("event_system", {})
+        else:
+            events = writing_plan.get("event_system", {})
+        
+        major_events = events.get("major_events", [])
+        major_validation = self.event_manager.validate_major_event_structure(major_events)
+        
+        if not major_validation["is_valid"]:
+            print(f"  ⚠️ {stage_name}大事件结构存在问题，进行优化...")
+            writing_plan = self.event_manager.enhance_major_events_structure(writing_plan, stage_name, stage_range)
+        
+        # 验证主线连贯性
+        is_continuous = self.event_manager.validate_main_thread_continuity(writing_plan, stage_name)
+        if not is_continuous:
+            print(f"  ⚠️ {stage_name}写作计划存在事件间隔过长问题")
+        
+        return writing_plan
+    
     def _enhance_golden_chapters_in_writing_plan(self, writing_plan: Dict) -> Dict:
         """在阶段写作计划中增强黄金三章设计"""
         # 确保有事件系统设计
@@ -433,24 +481,20 @@ class StagePlanManager:
         return writing_plan
 
     def _print_writing_plan_summary(self, writing_plan: Dict):
-        """打印写作计划摘要 - 包含特殊事件统计"""
+        """打印写作计划摘要 - 增强大事件信息"""
         print(f"  🔍 开始打印写作计划摘要...")
-        print(f"  🔍 传入的writing_plan类型: {type(writing_plan)}")
-        print(f"  🔍 传入的writing_plan键: {list(writing_plan.keys()) if writing_plan else 'None'}")
         
         # 检查是否有嵌套结构
         if "stage_writing_plan" in writing_plan:
-            print(f"  🔍 检测到嵌套结构 stage_writing_plan")
             actual_plan = writing_plan["stage_writing_plan"]
         else:
-            print(f"  🔍 没有嵌套结构，直接使用writing_plan")
             actual_plan = writing_plan
         
         # 获取阶段名称
         stage_name = actual_plan.get("stage_name", "未知阶段")
         print(f"    🎬 {stage_name}写作计划摘要:")
 
-        # 事件系统统计 - 包含特殊事件
+        # 事件系统统计 - 增强大事件信息
         event_system = actual_plan.get("event_system", {})
         
         major_events = event_system.get("major_events", [])
@@ -458,17 +502,28 @@ class StagePlanManager:
         minor_events = event_system.get("minor_events", [])
         special_events = event_system.get("special_events", [])
         
-        print(f"      重大事件: {len(major_events)}个")
+        # 计算大事件统计
+        big_events = [e for e in major_events if e.get('end_chapter', 0) - e.get('start_chapter', 0) + 1 >= 3]
+        total_events = len(major_events) + len(medium_events) + len(minor_events) + len(special_events)
+        big_event_ratio = len(big_events) / len(major_events) if major_events else 0
+        
+        print(f"      重大事件: {len(major_events)}个 (其中{len(big_events)}个大事件)")
         print(f"      中型事件: {len(medium_events)}个")
         print(f"      小型事件: {len(minor_events)}个")
         print(f"      特殊事件: {len(special_events)}个")
+        print(f"      🎭 大事件比例: {big_event_ratio:.1%}")
         
-        # 打印事件详情 - 包含特殊事件
+        # 打印大事件详情
         if major_events:
-            print(f"  🔍 major_events内容:")
+            print(f"  🔍 大事件详情:")
             for i, event in enumerate(major_events):
-                print(f"    📌 事件{i+1}: {event}")
-                print(f"        🎯 {event.get('name', '无名事件')}: 第{event.get('start_chapter', '?')}-{event.get('end_chapter', '?')}章")
+                duration = event.get('end_chapter', 0) - event.get('start_chapter', 0) + 1
+                event_type = "🎭 大事件" if duration >= 3 else "📌 重大事件"
+                print(f"    {event_type} {i+1}: {event.get('name', '无名事件')}")
+                print(f"        📖 章节: 第{event.get('start_chapter', '?')}-{event.get('end_chapter', '?')}章 (共{duration}章)")
+                print(f"        🎯 目标: {event.get('significance', '暂无描述')}")
+                if 'emotional_arc' in event:
+                    print(f"        💝 情感弧线: {event.get('emotional_arc')}")
         
         if special_events:
             print(f"  🔍 special_events内容:")

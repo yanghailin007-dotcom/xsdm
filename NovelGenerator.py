@@ -599,9 +599,8 @@ class NovelGenerator:
                 }
                 
                 # 为每本小说生成独特的项目标识
-                unique_suffix = f"_{i+1}"
                 original_title = self.novel_data["novel_title"]
-                self.novel_data["novel_title"] = f"{original_title}{unique_suffix}"
+                self.novel_data["novel_title"] = f"{original_title}"
                 
                 print(f"📖 小说标题: {self.novel_data['novel_title']}")
                 print(f"📊 方案评分 - 质量: {qualified_plan['quality_score']:.1f}, 新鲜度: {qualified_plan['freshness_score']:.1f}")
