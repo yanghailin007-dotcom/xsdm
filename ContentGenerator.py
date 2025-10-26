@@ -1288,19 +1288,30 @@ class ContentGenerator:
             return chapter_content  # 出错时返回原始内容
 
     def _validate_optimized_result(self, result: Any) -> bool:
-        """验证优化结果的结构和完整性"""
+        """修复版优化结果验证 - 支持多种字段名"""
         if not result or not isinstance(result, dict):
+            print(f"  ❌ 验证失败: 结果为空或不是字典类型")
             return False
         
-        # 检查必要字段
-        required_fields = ["chapter_title", "content"]
-        if not all(field in result for field in required_fields):
+        # 支持多种内容字段名
+        content_fields = ["optimized_content", "content", "chapter_content"]
+        content = None
+        for field in content_fields:
+            if field in result and result[field]:
+                content = result[field]
+                break
+        
+        if not content or not isinstance(content, str) or not content.strip():
+            print(f"  ❌ 验证失败: 内容为空或无效")
+            print(f"      可用字段: {list(result.keys())}")
             return False
         
-        # 检查内容非空
-        if not result.get("content", "").strip():
+        # 检查是否有足够的内容长度
+        if len(content.strip()) < 500:  # 最小500字符
+            print(f"  ❌ 验证失败: 内容过短 ({len(content)}字符)")
             return False
         
+        print(f"  ✅ 优化结果验证通过: {len(content)}字符")
         return True
 
     def _create_fallback_content(self, chapter_title: str, content: str, word_count: int) -> Dict:

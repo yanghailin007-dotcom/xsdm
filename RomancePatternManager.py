@@ -107,7 +107,7 @@ class RomancePatternManager:
     {self._format_gap_contexts_for_prompt(gap_chapters_with_context)}
 
     ## 🎭 事件设计原则
-    - **多女主模式**：侧重擦边暧昧，制造多角关系张力
+    - **多女主模式**：侧重擦边暧昧+雪白，制造多角关系张力和性张力
     - **单女主模式**：侧重纯爱深情，深化唯一情感纽带  
     - **混合模式**：平衡发展，根据上下文选择合适的情感风格
 
