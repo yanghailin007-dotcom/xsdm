@@ -303,29 +303,37 @@ class EmotionalPlanManager:
         }
 
     def _is_chapter_in_emotional_range(self, chapter: int, chapter_range: str) -> bool:
-        """检查章节是否在情绪范围段内 - 精确匹配版本"""
-        if not chapter_range or "-" not in chapter_range:
+        """检查章节是否在情绪范围段内 - 修复单个章节和范围格式"""
+        if not chapter_range:
             return False
         
         try:
             print(f"  🔍 解析情绪范围: '{chapter_range}'")
             
-            # 处理 "4-6章" 这样的格式 - 只提取数字部分
-            range_str = chapter_range.replace("章", "").strip()
+            # 处理 "1章" 这样的单个章节格式
+            if "章" in chapter_range and "-" not in chapter_range:
+                # 提取单个章节号
+                numbers = re.findall(r'\d+', chapter_range)
+                if len(numbers) == 1:
+                    chap_num = int(numbers[0])
+                    result = chapter == chap_num
+                    print(f"  🔍 单个章节解析: {chap_num}, 第{chapter}章匹配: {result}")
+                    return result
             
-            # 使用正则表达式只提取数字部分，忽略括号注释等
-            numbers = re.findall(r'\d+', range_str)
+            # 处理 "3-4章" 这样的范围格式
+            if "-" in chapter_range:
+                range_str = chapter_range.replace("章", "").strip()
+                numbers = re.findall(r'\d+', range_str)
+                
+                if len(numbers) >= 2:
+                    start_chap = int(numbers[0])
+                    end_chap = int(numbers[1])
+                    result = start_chap <= chapter <= end_chap
+                    print(f"  🔍 范围解析: {start_chap}-{end_chap}, 第{chapter}章在其中: {result}")
+                    return result
             
-            if len(numbers) < 2:
-                print(f"  ❌ 无法解析范围: {chapter_range}, 提取的数字: {numbers}")
-                return False
-            
-            start_chap = int(numbers[0])
-            end_chap = int(numbers[1])
-            
-            result = start_chap <= chapter <= end_chap
-            print(f"  🔍 范围解析: {start_chap}-{end_chap}, 第{chapter}章在其中: {result}")
-            return result
+            print(f"  ❌ 无法解析范围: {chapter_range}, 提取的数字: {numbers}")
+            return False
             
         except Exception as e:
             print(f"  ❌ 解析情绪章节范围失败: {chapter_range}, 错误: {e}")

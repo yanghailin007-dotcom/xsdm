@@ -318,7 +318,7 @@ class EventManager:
         # 计算大事件比例
         major_ratio = actual_major / total_events if total_events > 0 else 0
         print(f"  ✅ {stage_name}阶段事件密度验证通过")
-        print(f"  📊 大事件比例：{major_ratio:.1%}（目标{density_requirements['major_ratio']:.0%}）")
+        print(f"  📊 大事件比例：{major_ratio:.1%}）")
         return True
 
     def validate_main_thread_continuity(self, writing_plan: Dict, stage_name: str) -> bool:

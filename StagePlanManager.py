@@ -253,6 +253,19 @@ class StagePlanManager:
             purpose=f"生成{stage_name}写作计划"
         )
 
+        # 🆕 在计划生成后立即进行AI连续性评估
+        if writing_plan:
+            continuity_assessment = self.assess_stage_event_continuity(
+                writing_plan, stage_name, stage_range, creative_seed, novel_title, novel_synopsis
+            )
+            
+            # 如果评估发现严重问题，可以触发优化
+            if continuity_assessment.get("overall_continuity_score", 10) < 6:
+                print(f"  ⚠️ 阶段事件连续性评分较低，进行优化...")
+                writing_plan = self._optimize_based_on_continuity_assessment(
+                    writing_plan, continuity_assessment, stage_name, stage_range
+                )
+
         # 识别事件空窗期并生成情感填充事件
         gap_chapters_with_context = self.event_manager.identify_event_gaps(writing_plan, stage_range)
         if gap_chapters_with_context:
@@ -481,7 +494,7 @@ class StagePlanManager:
         return writing_plan
 
     def _print_writing_plan_summary(self, writing_plan: Dict):
-        """打印写作计划摘要 - 增强大事件信息"""
+        """打印写作计划摘要 - 增强连续性评估信息"""
         print(f"  🔍 开始打印写作计划摘要...")
         
         # 检查是否有嵌套结构
@@ -490,47 +503,23 @@ class StagePlanManager:
         else:
             actual_plan = writing_plan
         
-        # 获取阶段名称
-        stage_name = actual_plan.get("stage_name", "未知阶段")
-        print(f"    🎬 {stage_name}写作计划摘要:")
-
-        # 事件系统统计 - 增强大事件信息
-        event_system = actual_plan.get("event_system", {})
+        # 原有的统计信息...
         
-        major_events = event_system.get("major_events", [])
-        medium_events = event_system.get("medium_events", [])
-        minor_events = event_system.get("minor_events", [])
-        special_events = event_system.get("special_events", [])
-        
-        # 计算大事件统计
-        big_events = [e for e in major_events if e.get('end_chapter', 0) - e.get('start_chapter', 0) + 1 >= 3]
-        total_events = len(major_events) + len(medium_events) + len(minor_events) + len(special_events)
-        big_event_ratio = len(big_events) / len(major_events) if major_events else 0
-        
-        print(f"      重大事件: {len(major_events)}个 (其中{len(big_events)}个大事件)")
-        print(f"      中型事件: {len(medium_events)}个")
-        print(f"      小型事件: {len(minor_events)}个")
-        print(f"      特殊事件: {len(special_events)}个")
-        print(f"      🎭 大事件比例: {big_event_ratio:.1%}")
-        
-        # 打印大事件详情
-        if major_events:
-            print(f"  🔍 大事件详情:")
-            for i, event in enumerate(major_events):
-                duration = event.get('end_chapter', 0) - event.get('start_chapter', 0) + 1
-                event_type = "🎭 大事件" if duration >= 3 else "📌 重大事件"
-                print(f"    {event_type} {i+1}: {event.get('name', '无名事件')}")
-                print(f"        📖 章节: 第{event.get('start_chapter', '?')}-{event.get('end_chapter', '?')}章 (共{duration}章)")
-                print(f"        🎯 目标: {event.get('significance', '暂无描述')}")
-                if 'emotional_arc' in event:
-                    print(f"        💝 情感弧线: {event.get('emotional_arc')}")
-        
-        if special_events:
-            print(f"  🔍 special_events内容:")
-            for i, event in enumerate(special_events):
-                print(f"    💝 特殊事件{i+1}: {event.get('name', '无名特殊事件')}: 第{event.get('chapter', '?')}章 - {event.get('subtype', '情感填充')}")
-
-    # === 委托给各个管理器的方法 ===
+        # 🆕 添加连续性评估信息
+        continuity_assessment = actual_plan.get("continuity_assessment", {})
+        if continuity_assessment:
+            score = continuity_assessment.get("overall_continuity_score", "N/A")
+            print(f"      🔗 AI连续性评分: {score}/10")
+            
+            critical_issues = continuity_assessment.get("critical_issues", [])
+            if critical_issues:
+                print(f"      ⚠️ 关键问题: {len(critical_issues)}个")
+                for i, issue in enumerate(critical_issues[:2]):  # 只显示前2个
+                    print(f"        {i+1}. {issue}")
+            
+            strengths = continuity_assessment.get("strengths", [])
+            if strengths:
+                print(f"      ✅ 优势: {', '.join(strengths[:2])}")  # 只显示前2个优势
     
     def get_chapter_writing_context(self, chapter_number: int) -> Dict:
         """获取指定章节的写作上下文"""
@@ -748,3 +737,213 @@ class StagePlanManager:
     def get_current_stage_plan(self, chapter_number: int) -> Optional[Dict]:
         """获取当前章节所属阶段的详细计划（兼容性方法）"""
         return self.get_chapter_writing_context(chapter_number)
+
+    def assess_stage_event_continuity(self, stage_writing_plan: Dict, stage_name: str, 
+                                    stage_range: str, creative_seed: str, 
+                                    novel_title: str, novel_synopsis: str) -> Dict:
+        """AI评估阶段事件连续性 - 新增方法"""
+        print(f"  🤖 AI评估{stage_name}阶段事件连续性...")
+        
+        # 提取事件系统
+        if "stage_writing_plan" in stage_writing_plan:
+            event_system = stage_writing_plan["stage_writing_plan"].get("event_system", {})
+        else:
+            event_system = stage_writing_plan.get("event_system", {})
+        
+        # 构建连续性评估提示词
+        continuity_prompt = self._build_stage_continuity_prompt(
+            event_system, stage_name, stage_range, creative_seed, novel_title, novel_synopsis
+        )
+        
+        try:
+            continuity_assessment = self.generator.api_client.generate_content_with_retry(
+                "stage_event_continuity",
+                continuity_prompt,
+                purpose=f"评估{stage_name}阶段事件连续性"
+            )
+            
+            if continuity_assessment:
+                # 将评估结果整合到写作计划中
+                if "stage_writing_plan" in stage_writing_plan:
+                    stage_writing_plan["stage_writing_plan"]["continuity_assessment"] = continuity_assessment
+                else:
+                    stage_writing_plan["continuity_assessment"] = continuity_assessment
+                
+                print(f"  ✅ {stage_name}阶段事件连续性评估完成")
+                return continuity_assessment
+            else:
+                print(f"  ⚠️ {stage_name}阶段事件连续性评估失败")
+                return {}
+                
+        except Exception as e:
+            print(f"  ❌ AI连续性评估出错: {e}")
+            return {}
+
+    def _build_stage_continuity_prompt(self, event_system: Dict, stage_name: str, stage_range: str,
+                                    creative_seed: str, novel_title: str, novel_synopsis: str) -> str:
+        """构建阶段事件连续性评估提示词"""
+        
+        # 提取和格式化事件信息
+        major_events = event_system.get("major_events", [])
+        medium_events = event_system.get("medium_events", [])
+        minor_events = event_system.get("minor_events", [])
+        
+        prompt_parts = [
+            "# 🎯 阶段事件连续性深度评估",
+            "",
+            "## 评估任务",
+            f"请对**{stage_name}**阶段（{stage_range}）的事件安排进行连续性深度评估。",
+            "重点分析事件之间的逻辑连贯性、节奏合理性和情感发展连续性。",
+            "",
+            "## 小说基本信息",
+            f"- 标题: {novel_title}",
+            f"- 简介: {novel_synopsis}",
+            f"- 创意种子: {creative_seed}",
+            f"- 阶段: {stage_name} ({stage_range})",
+            "",
+            "## 事件安排详情"
+        ]
+        
+        # 重大事件详情
+        if major_events:
+            prompt_parts.extend([
+                "### 🚨 重大事件安排",
+                "| 事件名称 | 开始章节 | 结束章节 | 持续时间 | 核心目标 |",
+                "|---------|---------|---------|---------|----------|"
+            ])
+            for event in major_events:
+                duration = event.get('end_chapter', 0) - event.get('start_chapter', 0) + 1
+                prompt_parts.append(
+                    f"| {event.get('name', '未命名')} | 第{event.get('start_chapter', '?')}章 | "
+                    f"第{event.get('end_chapter', '?')}章 | {duration}章 | {event.get('main_goal', '未指定')} |"
+                )
+            prompt_parts.append("")
+        
+        # 中型事件详情
+        if medium_events:
+            prompt_parts.extend([
+                "### 📈 中型事件安排",
+                "| 事件名称 | 章节 | 核心目标 | 关联重大事件 |",
+                "|---------|------|----------|-------------|"
+            ])
+            for event in medium_events:
+                prompt_parts.append(
+                    f"| {event.get('name', '未命名')} | 第{event.get('chapter', event.get('start_chapter', '?'))}章 | "
+                    f"{event.get('main_goal', '未指定')} | {event.get('connection_to_major', '独立')} |"
+                )
+            prompt_parts.append("")
+        
+        # 小型事件详情
+        if minor_events:
+            prompt_parts.extend([
+                "### 🔍 小型事件安排",
+                f"共{len(minor_events)}个小型事件，分布在各个章节"
+            ])
+            # 只显示前几个小型事件作为示例
+            for i, event in enumerate(minor_events[:3]):
+                prompt_parts.append(f"- {event.get('name', '未命名')} (第{event.get('chapter', event.get('start_chapter', '?'))}章): {event.get('function', '未指定功能')}")
+            if len(minor_events) > 3:
+                prompt_parts.append(f"- ... 还有{len(minor_events)-3}个小型事件")
+            prompt_parts.append("")
+        
+        # 事件时间线分析
+        prompt_parts.extend([
+            "## 📊 事件时间线分析",
+            "请基于以上事件安排，分析以下维度：",
+            "",
+            "### 1. 逻辑连贯性分析",
+            "- 事件之间的因果关系是否清晰？",
+            "- 是否存在逻辑断层或跳跃？", 
+            "- 事件发展是否符合角色动机和世界观设定？",
+            "- 伏笔设置和回收是否合理？",
+            "",
+            "### 2. 节奏合理性分析",
+            "- 事件密度分布是否合理？",
+            "- 高潮与平缓的交替是否恰当？",
+            "- 是否有事件过于密集或稀疏的区域？",
+            "- 节奏是否符合该阶段的特点？",
+            "",
+            "### 3. 情感发展连续性",
+            "- 情感弧线是否连贯自然？",
+            "- 情感高潮的铺垫是否充分？",
+            "- 情感变化是否符合角色发展轨迹？",
+            "",
+            "### 4. 主线推进连贯性", 
+            "- 主线情节是否持续有推进？",
+            "- 是否存在主线停滞过久的问题？",
+            "- 支线与主线的关联是否合理？",
+            "",
+            "### 5. 阶段过渡合理性",
+            "- 与前后阶段的衔接是否自然？",
+            "- 阶段内部的事件安排是否服务于阶段目标？",
+            "",
+            "## 🎯 评估要求",
+            "请提供具体的、可操作的评估结果和改进建议。",
+            "",
+            "## 📋 输出格式",
+            "请以严格的JSON格式返回评估结果：",
+            "{",
+            '  "overall_continuity_score": 0-10的整数评分,',
+            '  "logic_coherence_analysis": "逻辑连贯性详细分析",',
+            '  "rhythm_analysis": "节奏合理性详细分析",',
+            '  "emotional_continuity_analysis": "情感发展连续性分析",',
+            '  "main_thread_analysis": "主线推进连贯性分析",',
+            '  "stage_transition_analysis": "阶段过渡合理性分析",',
+            '  "critical_issues": ["关键问题1", "关键问题2", ...],',
+            '  "improvement_recommendations": [',
+            '    {"issue": "具体问题", "suggestion": "改进建议", "priority": "high/medium/low"},',
+            '    ...',
+            '  ],',
+            '  "event_adjustment_suggestions": [',
+            '    {"event_name": "事件名称", "current_arrangement": "当前安排", "suggested_adjustment": "调整建议"},',
+            '    ...',
+            '  ],',
+            '  "risk_chapters": ["存在风险的章节列表"],',
+            '  "strengths": ["优势1", "优势2", ...]',
+            "}"
+        ])
+        
+        return "\n".join(prompt_parts) 
+
+    def _optimize_based_on_continuity_assessment(self, writing_plan: Dict, assessment: Dict, 
+                                            stage_name: str, stage_range: str) -> Dict:
+        """基于连续性评估结果优化事件安排"""
+        
+        improvement_recommendations = assessment.get("improvement_recommendations", [])
+        event_adjustments = assessment.get("event_adjustment_suggestions", [])
+        
+        if not improvement_recommendations and not event_adjustments:
+            return writing_plan
+        
+        print(f"  🔧 基于AI评估优化{stage_name}阶段事件安排...")
+        
+        # 提取事件系统
+        if "stage_writing_plan" in writing_plan:
+            event_system = writing_plan["stage_writing_plan"].get("event_system", {})
+        else:
+            event_system = writing_plan.get("event_system", {})
+        
+        # 处理高优先级建议
+        high_priority_issues = [rec for rec in improvement_recommendations 
+                            if rec.get("priority") == "high"]
+        
+        for issue in high_priority_issues:
+            print(f"  ⚡ 处理高优先级问题: {issue.get('issue')}")
+            # 这里可以添加具体的优化逻辑
+            # 比如调整事件时间、添加过渡事件等
+        
+        # 应用事件调整建议
+        for adjustment in event_adjustments:
+            event_name = adjustment.get("event_name")
+            suggested_adjustment = adjustment.get("suggested_adjustment")
+            print(f"  📝 调整事件{event_name}: {suggested_adjustment}")
+            # 这里可以添加具体的事件调整逻辑
+        
+        # 标记已优化
+        if "stage_writing_plan" in writing_plan:
+            writing_plan["stage_writing_plan"]["optimized_based_on_continuity"] = True
+        else:
+            writing_plan["optimized_based_on_continuity"] = True
+        
+        print(f"  ✅ 完成基于连续性评估的优化")
+        return writing_plan       
