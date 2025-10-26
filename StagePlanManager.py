@@ -193,7 +193,7 @@ class StagePlanManager:
 
     def generate_stage_writing_plan(self, stage_name: str, stage_range: str, creative_seed: str,
                                 novel_title: str, novel_synopsis: str, overall_stage_plan: Dict) -> Dict:
-        """生成阶段详细写作计划 - 优化版本"""
+        """生成阶段详细写作计划 - 生成时防止重叠版本"""
         cache_key = f"{stage_name}_writing_plan"
         
         if cache_key in self.stage_writing_plans_cache:
@@ -213,38 +213,28 @@ class StagePlanManager:
         
         # 构建用户提示词
         user_prompt = f"""
-    内容:
-    ## 任务指令
-    请根据下文提供的小说信息和全书大纲，为 `{stage_name}` 阶段制定详细的写作计划。
+        内容:
+        ## 任务指令
+        请根据下文提供的小说信息和全书大纲，为 `{stage_name}` 阶段制定详细的写作计划。
 
-    {stage_guidance}
+        {stage_guidance}
 
-    ## 小说核心信息
-    - **小说标题**: {novel_title}
-    - **小说简介**: {novel_synopsis}
-    - **创意种子**: {creative_seed}
+        ## 小说核心信息
+        - **小说标题**: {novel_title}
+        - **小说简介**: {novel_synopsis}
+        - **创意种子**: {creative_seed}
 
-    ## 全书大纲 (上下文)
-    {json.dumps(overall_stage_plan, ensure_ascii=False, indent=2)}
+        ## 全书大纲 (上下文)
+        {json.dumps(overall_stage_plan, ensure_ascii=False, indent=2)}
 
-    ## 本次任务详情
-    - **目标阶段**: {stage_name}
-    - **章节范围**: {stage_range}章
-    - **阶段长度**: {stage_length}章
+        ## 本次任务详情
+        - **目标阶段**: {stage_name}
+        - **章节范围**: {stage_range}章
+        - **阶段长度**: {stage_length}章
 
-    {self._get_major_event_design_requirements(stage_name, density_requirements)}
-    {self._get_golden_chapters_design(stage_name, stage_range)}
-    """
-        
-        # 从novel_data获取已分析的情感模式
-        romance_pattern = self.generator.novel_data.get("romance_pattern", {})
-        
-        if not romance_pattern:
-            print("  ⚠️ 警告：未找到情感模式数据，进行补充分析")
-            romance_pattern = self.romance_manager.analyze_romance_pattern(creative_seed, novel_synopsis)
-            self.generator.novel_data["romance_pattern"] = romance_pattern
-        
-        print(f"  💞 使用情感模式: {romance_pattern['romance_type']}-{romance_pattern['emotional_style']}")  
+        {self._get_major_event_design_requirements(stage_name, density_requirements)}
+        {self._get_golden_chapters_design(stage_name, stage_range)}
+        """
         
         # 生成写作计划
         writing_plan = self.generator.api_client.generate_content_with_retry(
@@ -266,14 +256,42 @@ class StagePlanManager:
                     writing_plan, continuity_assessment, stage_name, stage_range
                 )
 
-        # 识别事件空窗期并生成情感填充事件
-        gap_chapters_with_context = self.event_manager.identify_event_gaps(writing_plan, stage_range)
-        if gap_chapters_with_context:
-            filler_events = self.romance_manager.generate_romance_filler_events(
-                gap_chapters_with_context, romance_pattern, stage_name, 
-                creative_seed, novel_title, novel_synopsis
+        # 🆕 修改：在生成情感填充事件之前，先获取真正可用的章节
+        available_chapters = self.event_manager.get_available_chapters_for_generation(
+            writing_plan, stage_range, "special"
+        )
+        
+        if available_chapters:
+            print(f"  🔍 找到{len(available_chapters)}个可用章节用于情感事件")
+            
+            # 🆕 策略性选择少量关键章节
+            selected_chapters = self._select_emotional_chapters_strategically(
+                available_chapters, stage_name, len(available_chapters)
             )
-            writing_plan = self.romance_manager.integrate_filler_events(writing_plan, filler_events)
+            
+            if selected_chapters:
+                print(f"  💞 将在{len(selected_chapters)}个可用章节生成情感事件: {selected_chapters}")
+                
+                # 从novel_data获取已分析的情感模式
+                romance_pattern = self.generator.novel_data.get("romance_pattern", {})
+                
+                if not romance_pattern:
+                    print("  ⚠️ 警告：未找到情感模式数据，进行补充分析")
+                    romance_pattern = self.romance_manager.analyze_romance_pattern(creative_seed, novel_synopsis)
+                    self.generator.novel_data["romance_pattern"] = romance_pattern
+                
+                print(f"  💞 使用情感模式: {romance_pattern['romance_type']}-{romance_pattern['emotional_style']}")  
+                
+                # 生成情感事件 - 确保只使用可用章节
+                filler_events = self.romance_manager.generate_romance_filler_events(
+                    selected_chapters, romance_pattern, stage_name, 
+                    creative_seed, novel_title, novel_synopsis
+                )
+                
+                # 整合情感事件
+                if filler_events:
+                    writing_plan = self.romance_manager.integrate_filler_events(writing_plan, filler_events)
+                    print(f"  ✅ 成功添加{len(filler_events)}个情感事件到可用章节")
         
         # 验证和优化写作计划
         writing_plan = self._validate_and_optimize_writing_plan(
@@ -295,6 +313,36 @@ class StagePlanManager:
         else:
             print(f"  ⚠️ {stage_name}写作计划生成失败，使用默认计划")
             return {}
+
+    # 添加策略性章节选择方法
+    def _select_emotional_chapters_strategically(self, available_chapters: List[int], 
+                                            stage_name: str, total_available: int) -> List[int]:
+        """策略性选择情感事件章节 - 严格控制数量"""
+        
+        # 根据阶段类型设置最大情感事件数量
+        stage_limits = {
+            "opening_stage": 2,    # 开局阶段情感事件要少
+            "development_stage": 4, # 发展阶段适中
+            "climax_stage": 1,     # 高潮阶段极少
+            "ending_stage": 3,     # 收尾阶段适中
+            "final_stage": 2       # 结局阶段少
+        }
+        
+        max_events = stage_limits.get(stage_name, 3)
+        max_events = min(max_events, total_available)  # 不能超过可用章节数
+        
+        if not available_chapters or max_events == 0:
+            return []
+        
+        # 简单的选择策略：均匀分布
+        if len(available_chapters) <= max_events:
+            return available_chapters
+        
+        # 选择分布均匀的章节
+        step = len(available_chapters) // max_events
+        selected = [available_chapters[i * step] for i in range(max_events)]
+        
+        return selected
 
     def _get_major_event_design_requirements(self, stage_name: str, density_requirements: Dict) -> str:
         """获取大事件设计要求的文本"""

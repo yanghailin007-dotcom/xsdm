@@ -232,54 +232,40 @@ class EventManager:
         
         return enhanced_event    
 
-    def validate_event_density(self, writing_plan: Dict, stage_range: str) -> bool:
-        """验证事件密度是否合理"""
-        start_chap, end_chap = parse_chapter_range(stage_range)
-        stage_length = end_chap - start_chap + 1
-        
-        # 修正：正确访问嵌套的事件系统
-        if "stage_writing_plan" in writing_plan:
-            events = writing_plan["stage_writing_plan"].get("event_system", {})
-        else:
-            events = writing_plan.get("event_system", {})
-        
-        major_events = events.get("major_events", [])
-        medium_events = events.get("medium_events", [])
-        minor_events = events.get("minor_events", [])
-        special_events = events.get("special_events", [])
-        
-        # 计算事件密度
-        total_events = len(major_events) + len(medium_events) + len(minor_events) + len(special_events)
-        
-        # 获取最优事件密度
-        density_dict = self.calculate_optimal_event_density(stage_length)
-        expected_min_events = (
-            density_dict.get("major_events", 0) + 
-            density_dict.get("medium_events", 0) + 
-            density_dict.get("minor_events", 0)
-        )
-        
-        if total_events < expected_min_events:
-            print(f"  ⚠️ 事件密度不足：期望至少{expected_min_events}个事件，实际只有{total_events}个")
-            print(f"    重大事件: {len(major_events)}, 中型事件: {len(medium_events)}, 小型事件: {len(minor_events)}, 特殊事件: {len(special_events)}")
-            return False
-        
-        print(f"  ✅ 事件密度验证通过：实际{total_events}个事件，期望至少{expected_min_events}个")
-        return True
-
     def validate_stage_event_density(self, writing_plan: Dict, stage_name: str, stage_range: str) -> bool:
-        """验证阶段特定的事件密度是否合理 - 优化版本"""
+        """验证阶段特定的事件密度是否合理 - 考虑章节占用情况"""
         start_chap, end_chap = parse_chapter_range(stage_range)
         stage_length = end_chap - start_chap + 1
         
         # 获取阶段特定的密度要求
         density_requirements = self.calculate_optimal_event_density_by_stage(stage_name, stage_length)
         
-        # 修正：正确访问嵌套的事件系统
+        # 获取事件系统
         if "stage_writing_plan" in writing_plan:
             events = writing_plan["stage_writing_plan"].get("event_system", {})
         else:
             events = writing_plan.get("event_system", {})
+        
+        # 🆕 计算实际可用的章节数（考虑事件占用）
+        occupied_chapters = set()
+        
+        # 收集所有被占用的章节
+        for event_type in ["major_events", "medium_events", "minor_events", "special_events"]:
+            for event in events.get(event_type, []):
+                if event_type == "major_events":
+                    start = event.get("start_chapter", 0)
+                    end = event.get("end_chapter", start)
+                    occupied_chapters.update(range(start, end + 1))
+                else:
+                    chapter = event.get("chapter", event.get("start_chapter", 0))
+                    occupied_chapters.add(chapter)
+        
+        available_chapter_count = stage_length - len(occupied_chapters)
+        
+        # 🆕 基于可用章节调整期望值
+        adjusted_requirements = self._adjust_density_for_availability(
+            density_requirements, available_chapter_count, stage_length
+        )
         
         major_events = events.get("major_events", [])
         medium_events = events.get("medium_events", [])
@@ -293,32 +279,34 @@ class EventManager:
         actual_special = len(special_events)
         total_events = actual_major + actual_medium + actual_minor + actual_special
         
-        # 验证是否满足阶段特定要求
-        major_ok = actual_major >= density_requirements["major_events"]
-        medium_ok = actual_medium >= density_requirements["medium_events"]
-        minor_ok = actual_minor >= density_requirements["minor_events"]  # 修复：改为 >=
+        # 验证是否满足阶段特定要求（使用调整后的要求）
+        major_ok = actual_major >= adjusted_requirements["major_events"]
+        medium_ok = actual_medium >= adjusted_requirements["medium_events"]
+        minor_ok = actual_minor >= adjusted_requirements["minor_events"]
         
         # 验证大事件持续时间
         duration_ok = True
         for event in major_events:
             duration = event.get('end_chapter', 0) - event.get('start_chapter', 0) + 1
-            if duration < density_requirements["min_major_duration"]:
+            if duration < adjusted_requirements["min_major_duration"]:
                 duration_ok = False
-                print(f"  ⚠️ 大事件'{event.get('name')}'持续时间过短：{duration}章，要求至少{density_requirements['min_major_duration']}章")
+                print(f"  ⚠️ 大事件'{event.get('name')}'持续时间过短：{duration}章，要求至少{adjusted_requirements['min_major_duration']}章")
         
         if not (major_ok and medium_ok and minor_ok and duration_ok):
             print(f"  ⚠️ {stage_name}阶段事件密度不符合要求：")
-            print(f"    重大事件: 实际{actual_major}个, 要求至少{density_requirements['major_events']}个")
-            print(f"    中型事件: 实际{actual_medium}个, 要求至少{density_requirements['medium_events']}个")
-            print(f"    小型事件: 实际{actual_minor}个, 要求至少{density_requirements['minor_events']}个")  # 修复：改为"至少"
+            print(f"    重大事件: 实际{actual_major}个, 要求至少{adjusted_requirements['major_events']}个")
+            print(f"    中型事件: 实际{actual_medium}个, 要求至少{adjusted_requirements['medium_events']}个")
+            print(f"    小型事件: 实际{actual_minor}个, 要求至少{adjusted_requirements['minor_events']}个")
             print(f"    特殊事件: 实际{actual_special}个")
-            print(f"    大事件最小持续时间: {density_requirements['min_major_duration']}章")
+            print(f"    大事件最小持续时间: {adjusted_requirements['min_major_duration']}章")
+            print(f"    章节占用情况: {len(occupied_chapters)}/{stage_length}章被占用")
             return False
         
         # 计算大事件比例
         major_ratio = actual_major / total_events if total_events > 0 else 0
         print(f"  ✅ {stage_name}阶段事件密度验证通过")
         print(f"  📊 大事件比例：{major_ratio:.1%}）")
+        print(f"  📊 章节占用：{len(occupied_chapters)}/{stage_length}章")
         return True
 
     def validate_main_thread_continuity(self, writing_plan: Dict, stage_name: str) -> bool:
@@ -1075,3 +1063,70 @@ class EventManager:
             })
         
         return writing_plan
+
+    def is_chapter_available(self, writing_plan: Dict, chapter: int, event_type: str) -> bool:
+        """检查章节是否可用于新事件 - 生成时调用"""
+        if "stage_writing_plan" in writing_plan:
+            events = writing_plan["stage_writing_plan"].get("event_system", {})
+        else:
+            events = writing_plan.get("event_system", {})
+        
+        # 检查重大事件占用
+        for event in events.get("major_events", []):
+            start = event.get("start_chapter", 0)
+            end = event.get("end_chapter", start)
+            if start <= chapter <= end:
+                return False
+        
+        # 检查中型事件占用
+        for event in events.get("medium_events", []):
+            event_chapter = event.get("chapter", event.get("start_chapter", 0))
+            if event_chapter == chapter:
+                return False
+        
+        # 检查小型事件占用
+        for event in events.get("minor_events", []):
+            event_chapter = event.get("chapter", event.get("start_chapter", 0))
+            if event_chapter == chapter:
+                return False
+        
+        # 检查特殊事件占用
+        for event in events.get("special_events", []):
+            event_chapter = event.get("chapter", event.get("start_chapter", 0))
+            if event_chapter == chapter:
+                return False
+        
+        return True
+
+    def get_available_chapters_for_generation(self, writing_plan: Dict, stage_range: str, 
+                                        event_type: str = "special") -> List[int]:
+        """获取可用于生成新事件的章节列表 - 生成时调用"""
+        start_chap, end_chap = parse_chapter_range(stage_range)
+        available_chapters = []
+        
+        for chapter in range(start_chap, end_chap + 1):
+            if self.is_chapter_available(writing_plan, chapter, event_type):
+                available_chapters.append(chapter)
+        
+        print(f"  📊 生成时可用章节检查: 阶段{stage_range}共{end_chap - start_chap + 1}章, 可用{len(available_chapters)}章")
+        return available_chapters
+
+    def _adjust_density_for_availability(self, requirements: Dict, available_chapters: int, 
+                                    total_chapters: int) -> Dict:
+        """根据可用章节数调整密度要求"""
+        adjusted = requirements.copy()
+        
+        # 如果可用章节较少，适当降低期望
+        availability_ratio = available_chapters / total_chapters if total_chapters > 0 else 0
+        
+        if availability_ratio < 0.3:
+            # 可用章节很少，大幅降低期望
+            adjusted["minor_events"] = max(1, int(requirements["minor_events"] * 0.3))
+        elif availability_ratio < 0.6:
+            # 可用章节适中，适度降低期望
+            adjusted["minor_events"] = max(2, int(requirements["minor_events"] * 0.6))
+        
+        print(f"  📊 密度调整: 可用{available_chapters}/{total_chapters}章, "
+            f"小型事件从{requirements['minor_events']}调整到{adjusted['minor_events']}")
+        
+        return adjusted    

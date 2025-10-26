@@ -69,8 +69,17 @@ class RomancePatternManager:
         if not gap_chapters_with_context:
             return []
         
-        # 按章节分组，避免重复生成
-        chapters_to_fill = [gap["chapter"] for gap in gap_chapters_with_context]
+        # 修复：处理整数列表和字典列表两种情况
+        if isinstance(gap_chapters_with_context[0], int):
+            # 如果是整数列表，转换为字典格式
+            chapters_to_fill = gap_chapters_with_context
+            gap_chapters_with_context = [
+                {"chapter": chap, "context_summary": f"第{chap}章，暂无详细上下文信息"} 
+                for chap in gap_chapters_with_context
+            ]
+        else:
+            # 如果是字典列表，保持原有逻辑
+            chapters_to_fill = [gap["chapter"] for gap in gap_chapters_with_context]
         
         romance_type = romance_pattern.get("romance_type", "unknown")
         emotional_style = romance_pattern.get("emotional_style", "balanced")
