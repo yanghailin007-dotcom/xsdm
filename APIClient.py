@@ -570,7 +570,7 @@ class APIClient:
             return None
 
     def _add_json_format_requirements(self, system_prompt: str) -> str:
-        """在system_prompt中添加严格的JSON格式要求"""
+        """在system_prompt中添加严格的JSON格式要求和中文语言要求"""
         strict_system_prompt = system_prompt + """
 
 【严格的输出格式要求 - 必须遵守】
@@ -580,6 +580,11 @@ class APIClient:
 4. 直接以 { 开头，以 } 结尾
 5. 确保所有字符串都使用双引号
 6. 不要添加任何额外的文本
+
+【语言要求】
+- 所有文本内容必须使用简体中文
+- 禁止使用英文、繁体中文或其他语言
+- 确保角色名、对话、描述等所有文本元素都是简体中文
 
 如果违反这些格式要求，内容将无法被正确解析。
 """
