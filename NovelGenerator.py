@@ -22,6 +22,8 @@ import ProjectManager
 import QualityAssessor
 import StagePlanManager
 from Prompts import Prompts
+from doubao_generator import doubaoconfig
+from doubao_generator.DouBaoImageGenerator import DouBaoImageGenerator
 
 class NovelGenerator:
     def __init__(self, config):
@@ -32,6 +34,9 @@ class NovelGenerator:
         self.quality_assessor = QualityAssessor.QualityAssessor(self.api_client)  # 修复属性名
         self.novel_data = {}  # 初始化空数据结构
         # 初始化客户端
+        # 🆕 新增：初始化封面生成器
+        self.cover_generator = None
+        self._initialize_cover_generator()
 
         default_provider = self.api_client.get_default_provider()
         print(f"默认提供商: {default_provider}")
@@ -51,6 +56,20 @@ class NovelGenerator:
         "男频衍生": "【🧠脑子寄存处】存脑子的扣1，不存的扣眼珠子！阅读前请将三观暂存～\n\n📢 看到离谱处先别骂，评论区肯定有课代表帮你吐槽！",
         "默认": "【🎮游戏开始】阅读前请调整好姿势，准备好零食！\n\n🎯 猜中剧情的评论区封神，猜不中的…那就多猜几次！"
         }
+
+    def _initialize_cover_generator(self):
+        """初始化封面生成器"""
+        try:
+            doubao_api_key = doubaoconfig.ARK_API_KEY
+            if doubao_api_key:
+                self.cover_generator = DouBaoImageGenerator()
+                print("✅ 封面生成器初始化成功")
+            else:
+                print("⚠️ 未配置豆包API密钥，封面生成功能不可用")
+        except Exception as e:
+            print(f"⚠️ 封面生成器初始化失败: {e}")
+            self.cover_generator = None
+
     def _initialize_managers(self):
         """初始化各管理器，明确依赖关系"""
         # 核心管理器
@@ -2613,6 +2632,12 @@ class NovelGenerator:
         print("📝 第一阶段：基础规划")
         print("="*60)
         
+        # 🆕 新增：生成小说封面
+        self.novel_data["current_progress"]["stage"] = "封面生成"
+        if not self._generate_novel_cover():
+            print("⚠️ 封面生成失败，继续生成小说内容")
+
+
         # 🆕 生成写作风格指南
         self.novel_data["current_progress"]["stage"] = "写作风格制定"
         if not self._generate_writing_style_guide(creative_seed, self.novel_data.get("category", "未分类")):
@@ -2689,6 +2714,115 @@ class NovelGenerator:
         
         # ==================== 第五阶段：章节内容生成 ====================
         return self._generate_all_chapters(total_chapters)
+
+    def _generate_novel_cover(self) -> bool:
+        """生成小说封面 - 修正版本：包含书名和作者信息"""
+        if not self.cover_generator:
+            print("❌ 封面生成器不可用，跳过封面生成")
+            return False
+        
+        try:
+            print("🎨 开始生成小说封面...")
+            
+            # 获取小说信息
+            novel_title = self.novel_data.get("novel_title", "")
+            novel_synopsis = self.novel_data.get("novel_synopsis", "")
+            category = self.novel_data.get("category", "未分类")
+            
+            if not novel_title:
+                print("❌ 小说标题为空，无法生成封面")
+                return False
+            
+            # 生成封面提示词 - 修正版本：要求包含书名和作者
+            cover_prompt = self._generate_cover_prompt(novel_title, novel_synopsis, category)
+            
+            print(f"  📝 封面提示词: {cover_prompt[:100]}...")
+            
+            # 创建小说项目目录（如果不存在）
+            safe_title = re.sub(r'[\\/*?:"<>|]', "_", novel_title)
+            project_dir = "小说项目"
+            if not os.path.exists(project_dir):
+                os.makedirs(project_dir)
+                print(f"  📁 创建项目目录: {project_dir}")
+            
+            # 设置封面保存路径
+            cover_filename = f"{safe_title}_封面.jpg"
+            cover_path = os.path.join(project_dir, cover_filename)
+            
+            print(f"  💾 封面将保存到: {cover_path}")
+            
+            # 调用豆包文生图生成封面，直接保存到指定路径
+            result = self.cover_generator.generate_image(
+                prompt=cover_prompt,
+                size="2K",
+                watermark=False,  # 封面不加水印
+                save_path=cover_path  # 直接指定保存路径
+            )
+            
+            if result and 'local_path' in result:
+                # 更新novel_data
+                self.novel_data["cover_image"] = result['local_path']
+                self.novel_data["cover_generated"] = True
+                
+                print(f"✅ 封面生成成功: {result['local_path']}")
+                print(f"📖 封面包含: 书名《{novel_title}》 作者: 蓝枫雨")
+                return True
+            else:
+                print("❌ 封面生成失败")
+                return False
+                
+        except Exception as e:
+            print(f"❌ 封面生成过程中出错: {e}")
+            import traceback
+            traceback.print_exc()
+            return False
+
+    def _generate_cover_prompt(self, title: str, synopsis: str, category: str) -> str:
+        """根据小说信息生成封面提示词 - 修正版本：必须包含书名和作者"""
+        
+        # 根据分类选择不同的风格模板
+        style_templates = {
+            "西方奇幻": "史诗奇幻风格，魔法光芒，巨龙，城堡，骑士，魔法师，壮丽景观，油画质感，金色边框，神秘氛围，高饱和度色彩",
+            "东方仙侠": "水墨风格，仙气缭绕，飞剑，仙宫，修真者，云海，青山绿水，传统国风，飘逸潇洒，淡雅色彩，意境深远",
+            "科幻末世": "赛博朋克风格，未来城市，机械装甲，霓虹灯光，废墟场景，科技感，冷色调，金属质感，末世氛围，细节丰富",
+            "男频衍生": "热血战斗风格，主角特写，霸气侧漏，力量感，光影对比，动态姿势，背景虚化，电影质感，强烈视觉冲击",
+            "都市高武": "现代都市与武道结合，都市夜景，武道气息，主角修炼，高楼大厦，气功波动，现实与幻想交融",
+            "悬疑灵异": "暗黑风格，神秘氛围，恐怖元素，阴影效果，诡异光线，悬疑感，细节暗示，冷色调，惊悚但不血腥",
+            "玄幻脑洞": "创意奇幻风格，想象力丰富，奇特生物，异世界景观，色彩鲜艳，梦幻感，超现实元素，视觉新奇",
+            "战神赘婿": "霸气回归风格，主角逆袭，身份反差，豪华场景，权力象征，金色红色主调，荣耀时刻",
+            "动漫衍生": "二次元风格，动漫人物，日系画风，色彩明亮，角色鲜明，场景精美，青春活力",
+            "都市日常": "温馨治愈风格，日常生活场景，柔和光线，温暖色彩，人物互动，情感细腻，现实感"
+        }
+        
+        # 获取对应分类的风格，如果没有则使用默认风格
+        style = style_templates.get(category, "精美插画风格，小说封面设计，艺术感强，吸引读者")
+        
+        # 🆕 修正：构建完整的提示词，明确要求包含书名和作者
+        prompt = f"""
+        番茄小说平台封面设计，{style}
+        
+        【必须包含的文字内容】：
+        书名：《{title}》
+        作者：蓝枫雨
+        
+        【设计要求】：
+        - 必须清晰显示书名《{title}》和作者"蓝枫雨"
+        - 书名要醒目突出，使用大气字体
+        - 作者名放在适当位置，字体清晰
+        - 符合{category}类型小说的封面风格
+        - 2K高清分辨率，竖版比例
+        - 色彩协调，构图美观
+        - 背景图案与小说类型匹配: {synopsis[:80]}...
+        - 整体设计专业，符合番茄小说平台标准
+        
+        【重要提醒】：
+        - 文字必须清晰可读，不能模糊
+        - 书名和作者信息必须完整显示
+        - 避免文字被背景图案干扰
+        - 确保在手机屏幕上也能清晰阅读文字
+        """
+        
+        return prompt.strip()
 
     def _evaluate_plan_quality(self, plan_data: Dict, category: str, creative_seed: str) -> Dict:
         """使用AI评价方案质量，降低门槛让更多方案通过"""
@@ -2845,7 +2979,7 @@ class NovelGenerator:
             # 对所有方案进行评分并选择最好的
             scored_plans = []
             for plan in plans_data['plans']:
-                evaluation_result = self._evaluate_plan_quality(plan, category, creative_seed)
+                evaluation_result = self._evaluate_plan_quality(plan, category_from_plan, creative_seed)
                 total_score = evaluation_result.get("total_score", 0)
                 scored_plans.append({
                     'plan': plan,

@@ -792,13 +792,13 @@ class QualityAssessor:
             )
             
             # 验证优化结果并转换为标准章节格式
-            if result and isinstance(result, dict) and result.get("content"):
-                print(f"  ✅ 章节优化成功，生成内容长度: {len(result.get('content', ''))}")
+            if result and isinstance(result, dict) and result.get("optimized_content"):
+                print(f"  ✅ 章节优化成功，生成内容长度: {len(result.get('optimized_content', ''))}")
                 
                 # 构建标准章节格式的返回数据
                 standard_chapter_data = {
-                    "content": result.get("content"),
-                    "word_count": result.get("word_count", len(result.get("content", ""))),
+                    "content": result.get("optimized_content"),
+                    "word_count": result.get("word_count", len(result.get("optimized_content", ""))),
                     # 保留优化器返回的额外信息，但放在单独的字段中
                     "optimization_details": {
                         "optimization_summary": result.get("optimization_summary", ""),
