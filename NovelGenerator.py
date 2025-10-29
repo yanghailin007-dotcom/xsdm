@@ -1647,7 +1647,7 @@ class NovelGenerator:
         
         if self.novel_data["character_design"]:
             main_char = self.novel_data["character_design"]['main_character']
-            print(f"👤 主角: {main_char['name']} - {main_char['personality']}")
+            print(f"👤 主角: {main_char['name']}")
         
         if self.novel_data["core_worldview"]:
             print(f"🌍 世界观: {self.novel_data['core_worldview']['era']} - {self.novel_data['core_worldview']['core_conflict']}")
