@@ -4,7 +4,7 @@ import os
 ARK_API_KEY = os.getenv('ARK_API_KEY', '88117df2-5ce5-4d75-8224-01695231951f')  # 替换为您的实际API密钥
 
 # API端点
-API_URL = "https://ark.cn-beijing.volces.com/api/v3/images/generations"
+API_URL = "https://ark.cn-beijing.volces.com/api/v3"
 
 # 默认模型配置
 DEFAULT_MODEL = "doubao-seedream-4-0-250828"

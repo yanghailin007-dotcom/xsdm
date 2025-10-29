@@ -4,8 +4,9 @@ import os
 from datetime import datetime
 import time
 import logging
+from openai import OpenAI
 
-from doubao_generator.doubaoconfig import API_URL, ARK_API_KEY, DEFAULT_MODEL, DEFAULT_SIZE, FILE_CONFIG, QUALITY_SETTINGS, REQUEST_CONFIG
+from doubao_generator.doubaoconfig import API_URL, ARK_API_KEY, DEFAULT_MODEL, DEFAULT_SIZE, FILE_CONFIG, REQUEST_CONFIG
 
 # 设置日志
 logging.basicConfig(
@@ -24,10 +25,10 @@ class DouBaoImageGenerator:
         
         Args:
             api_key: API密钥，如果为None则从配置获取
-            base_url: API基础URL，如果为None则从配置获取
+            base_url: API基础URL，如果为None则使用默认值
         """
-        self.api_url = base_url or API_URL
         self.api_key = api_key or ARK_API_KEY
+        self.base_url = base_url or API_URL
         
         if not self.api_key or self.api_key == 'your_api_key_here':
             raise ValueError(
@@ -36,10 +37,11 @@ class DouBaoImageGenerator:
                 "Windows: set ARK_API_KEY=your_actual_api_key"
             )
         
-        self.headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {self.api_key}"
-        }
+        # 使用OpenAI客户端，完全按照test.py的方式
+        self.client = OpenAI(
+            base_url=self.base_url,
+            api_key=self.api_key,
+        )
         
         # 确保输出目录存在
         if FILE_CONFIG['auto_create_dir']:
@@ -48,7 +50,7 @@ class DouBaoImageGenerator:
         logging.info("豆包文生图客户端初始化完成")
     
     def generate_image(self, prompt, size=None, model=None, 
-                      watermark=False, save_path=None, quality_preset='high'):
+                      watermark=False, save_path=None):
         """
         生成图像
         
@@ -58,7 +60,6 @@ class DouBaoImageGenerator:
             model: 模型名称
             watermark: 是否添加水印
             save_path: 保存路径，如果为None则自动生成
-            quality_preset: 质量预设 'high' 或 'fast'
             
         Returns:
             dict: 包含生成结果的字典
@@ -71,57 +72,38 @@ class DouBaoImageGenerator:
             logging.warning(f"不支持的尺寸: {size}，使用默认值: {DEFAULT_SIZE}")
             size = DEFAULT_SIZE
         
-        # 构建请求数据
-        data = {
-            "model": model,
-            "prompt": prompt,
-            "size": size,
-            "sequential_image_generation": "disabled",
-            "stream": False,
-            "response_format": "url",
-            "watermark": watermark
-        }
-        
-        # 应用质量预设
-        if quality_preset in QUALITY_SETTINGS:
-            data.update(QUALITY_SETTINGS[quality_preset])
-        
         try:
             logging.info("开始生成图像...")
-            logging.debug(f"请求参数: {json.dumps(data, ensure_ascii=False)}")
+            logging.debug(f"请求参数 - 模型: {model}, 尺寸: {size}, 水印: {watermark}")
             start_time = time.time()
             
-            # 发送请求
-            response = requests.post(
-                self.api_url,
-                headers=self.headers,
-                json=data,
-                timeout=REQUEST_CONFIG['timeout']
+            # 完全按照test.py的方式调用
+            imagesResponse = self.client.images.generate(
+                model=model,
+                prompt=prompt,
+                size=size,
+                response_format="url",
+                extra_body={
+                    "watermark": watermark,
+                },
             )
             
-            # 检查响应状态
-            if response.status_code != 200:
-                error_msg = f"API请求失败: {response.status_code} - {response.text}"
-                logging.error(error_msg)
-                raise Exception(error_msg)
-            
-            result = response.json()
             end_time = time.time()
-            
             logging.info(f"图像生成成功! 耗时: {end_time - start_time:.2f}秒")
             
-            # 打印使用情况
-            if 'usage' in result:
-                usage = result['usage']
-                logging.info(f"使用情况 - 生成图像: {usage.get('generated_images', 1)}, "
-                           f"输出token: {usage.get('output_tokens', 'N/A')}, "
-                           f"总token: {usage.get('total_tokens', 'N/A')}")
+            # 构建结果字典
+            result = {
+                'data': [{'url': imagesResponse.data[0].url}],
+                'created': getattr(imagesResponse, 'created', None),
+            }
+            
+            # 如果有usage信息，添加到结果中
+            if hasattr(imagesResponse, 'usage'):
+                result['usage'] = imagesResponse.usage
             
             # 下载并保存图像
-            if 'data' in result and len(result['data']) > 0:
-                image_url = result['data'][0]['url']
-                image_size = result['data'][0].get('size', '未知尺寸')
-                logging.info(f"图像尺寸: {image_size}")
+            if imagesResponse.data and len(imagesResponse.data) > 0:
+                image_url = imagesResponse.data[0].url
                 
                 # 下载图像
                 saved_path = self._download_image(image_url, save_path, prompt)
@@ -129,14 +111,6 @@ class DouBaoImageGenerator:
                 
             return result
             
-        except requests.exceptions.Timeout:
-            error_msg = "请求超时，请稍后重试"
-            logging.error(error_msg)
-            raise Exception(error_msg)
-        except requests.exceptions.ConnectionError:
-            error_msg = "网络连接错误，请检查网络设置"
-            logging.error(error_msg)
-            raise Exception(error_msg)
         except Exception as e:
             error_msg = f"生成图像时发生错误: {str(e)}"
             logging.error(error_msg)
@@ -213,7 +187,7 @@ class DouBaoImageGenerator:
             logging.info(f"正在生成图像 '{name}'...")
             try:
                 save_path = os.path.join(output_dir, f"{name}_{datetime.now().strftime('%H%M%S')}.jpg")
-                result = self.generate_image(prompt, size=size, save_path=save_path)
+                result = self.generate_image(prompt, size=size, save_path=save_path, watermark=False)
                 result['name'] = name
                 results.append(result)
                 
@@ -235,8 +209,6 @@ class DouBaoImageGenerator:
         获取API使用信息（如果API支持）
         注意：这个功能需要API支持相应的端点
         """
-        # 这里可以添加获取使用量统计的代码
-        # 具体实现取决于API是否提供相关端点
         logging.info("使用量统计功能需要API支持相应端点")
         return {"message": "功能待实现"}
 
@@ -260,23 +232,25 @@ def main():
         # 初始化生成器
         generator = DouBaoImageGenerator()
         
-        # 示例提示词
+        # 示例提示词 - 与test.py完全相同
         prompt = """星际穿越，黑洞，黑洞里冲出一辆快支离破碎的复古列车，抢视觉冲击力，电影大片，末日既视感，动感，对比色，oc渲染，光线追踪，动态模糊，景深，超现实主义，深蓝，画面通过细腻的丰富的色彩层次塑造主体与场景，质感真实，暗黑风背景的光影效果营造出氛围，整体兼具艺术幻想感，夸张的广角透视效果，耀光，反射，极致的光影，强引力，吞噬"""
         
         print("开始生成示例图像...")
-        # 生成图像
-        result = generator.generate_image(prompt)
+        # 生成图像 - 完全按照test.py的方式，watermark=False确保无水印
+        result = generator.generate_image(
+            prompt=prompt,
+            size="2K",
+            watermark=False
+        )
         
         print("\n" + "="*50)
         print("生成完成!")
         if 'local_path' in result:
             print(f"图像文件: {result['local_path']}")
         
-        # 显示使用情况
-        if 'usage' in result:
-            usage = result['usage']
-            print(f"使用情况: {usage.get('generated_images', 1)}张图像, "
-                  f"{usage.get('total_tokens', 'N/A')} tokens")
+        # 显示URL（与test.py输出一致）
+        if 'data' in result and len(result['data']) > 0:
+            print(f"图像URL: {result['data'][0]['url']}")
         
     except Exception as e:
         print(f"错误: {e}")
