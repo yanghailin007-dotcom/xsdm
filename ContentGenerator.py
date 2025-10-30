@@ -214,52 +214,6 @@ class ContentGenerator:
             print(f"  💫 代入感评分: {immersion_score:.1f}/10")
         
         return result
-    
-    def _generate_character_name_by_category(self, category: str, creative_seed: str) -> str:
-        """根据分类生成适合的主角名字"""
-        try:
-            print(f"  🎯 开始为分类 '{category}' 创意种子：{creative_seed} 生成主角名字...")
-            
-            user_prompt = f"\n小说分类：{category}\n创意种子：{creative_seed}"
-            
-            result = self.api_client.generate_content_with_retry(
-                "character_naming",
-                user_prompt,
-                purpose="生成主角名字"
-            )
-            
-            if result:
-                # 解析新的JSON格式
-                suggestions = result.get("suggestions", [])
-                if suggestions:
-                    # 获取第一个建议的名字
-                    name = suggestions[0].get("name")
-                    if name and 2 <= len(name) <= 3:
-                        print(f"  ✅ 获取主角名字: {name}")
-                        return name
-                
-                # 如果没有找到名字，尝试其他可能的字段
-                name = result.get("name")
-                if name and 2 <= len(name) <= 3:
-                    print(f"  ✅ 获取主角名字: {name}")
-                    return name
-            
-            # 如果API调用失败，使用默认名字
-            default_name = self._get_default_name_by_category(category)
-            print(f"  🔄 使用默认名字: {default_name}")
-            return default_name
-            
-        except Exception as e:
-            print(f"  ❌ 生成主角名字时出错: {e}")
-            default_name = self._get_default_name_by_category(category)
-            return default_name
-
-    def _get_default_name_by_category(self, category: str) -> str:
-        """根据分类获取默认主角名字"""
-        default_names = {
-            "男频衍生": "陈默"
-        }
-        return default_names.get(category, "林风")
 
     def generate_market_analysis(self, creative_seed: str, selected_plan: Dict) -> Optional[Dict]:
         """生成市场分析 - 增加新鲜度评估"""
@@ -564,20 +518,6 @@ class ContentGenerator:
             # 确保章节标题唯一性
             chapter_data = self._handle_chapter_title_uniqueness(chapter_data, chapter_number, novel_data)
 
-            # === 新增：如果是第一章，添加AI俏皮开场白 ===
-            if chapter_number == 1:
-                category = novel_data.get("category", "默认")
-                novel_title = novel_data.get("novel_title", "")
-                novel_synopsis = novel_data.get("novel_synopsis", "")
-                
-                # 使用AI生成俏皮开场白
-                try:
-                    chapter_data = self.novel_generator._add_ai_spicy_opening_to_first_chapter(
-                        chapter_data, novel_title, novel_synopsis, category
-                    )
-                except Exception as e:
-                    print(f"  ⚠️ AI开场白生成异常，使用备用模板: {e}")
-
             if chapter_data:
                 # 新增：记录情绪信息
                 emotional_guidance = self._get_emotional_guidance_for_chapter(chapter_number, novel_data)
@@ -695,6 +635,20 @@ class ContentGenerator:
                     print(f"  ✓ {optimize_reason}")
                     chapter_data["quality_assessment"] = assessment
                 
+                            # === 新增：如果是第一章，添加AI俏皮开场白 ===
+                if chapter_number == 1:
+                    category = novel_data.get("category", "默认")
+                    novel_title = novel_data.get("novel_title", "")
+                    novel_synopsis = novel_data.get("novel_synopsis", "")
+                    
+                    # 使用AI生成俏皮开场白
+                    try:
+                        chapter_data = self.novel_generator._add_ai_spicy_opening_to_first_chapter(
+                            chapter_data, novel_title, novel_synopsis, category
+                        )
+                    except Exception as e:
+                        print(f"  ⚠️ AI开场白生成异常，使用备用模板: {e}")
+
                 return chapter_data
                 
             except Exception as e:
@@ -1175,19 +1129,19 @@ class ContentGenerator:
                     print(f"  ❌ 达到最大重试次数，使用当前内容")
             
             # 第三步：专项优化 - 使用CHAPTER_REFINEMENT_PROMPT进行平台风格优化
-            if chapter_content:
-                print(f"  🎯 开始第{chapter_number}章专项优化...")
-                optimized_content = self.refine_chapter_content(chapter_content)
-                
-                if optimized_content:
-                    print(f"  ✅ 第{chapter_number}章优化成功")
-                    return optimized_content
-                else:
-                    print(f"  ⚠️ 第{chapter_number}章优化失败，使用原始内容")
-                    return chapter_content
-            else:
-                print(f"  ❌ 第{chapter_number}章所有生成尝试均失败")
-                return None
+            #if chapter_content:
+            #    print(f"  🎯 开始第{chapter_number}章专项优化...")
+            #    optimized_content = self.refine_chapter_content(chapter_content)
+            #    
+            #    if optimized_content:
+            #        print(f"  ✅ 第{chapter_number}章优化成功")
+            #        return optimized_content
+            #    else:
+            #        print(f"  ⚠️ 第{chapter_number}章优化失败，使用原始内容")
+            #        return chapter_content
+            #else:
+            #    print(f"  ❌ 第{chapter_number}章所有生成尝试均失败")
+            #    return None
                 
         except Exception as e:
             print(f"❌ 生成第{chapter_params['chapter_number']}章内容时出错: {e}")

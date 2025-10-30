@@ -8,7 +8,7 @@ API_URL = "https://ark.cn-beijing.volces.com/api/v3"
 
 # 默认模型配置
 DEFAULT_MODEL = "doubao-seedream-4-0-250828"
-DEFAULT_SIZE = "2K"
+DEFAULT_SIZE = "1K"
 
 # 请求配置
 REQUEST_CONFIG = {
