@@ -568,7 +568,7 @@ class NovelGenerator:
             total_score = evaluation_result.get("total_score", 0)
             
             # 降低门槛，让更多方案通过
-            if quality_score >= 8.0 and freshness_score >= 3.0:
+            if quality_score >= 8.5 and freshness_score >= 2.0:
                 qualified_plans.append({
                     'plan': plan,
                     'quality_score': quality_score,

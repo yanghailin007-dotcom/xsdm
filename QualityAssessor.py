@@ -234,11 +234,12 @@ class QualityAssessor:
     def assess_chapter_quality(self, assessment_params: Dict) -> Optional[Dict]:
         """评估章节质量（包含一致性检查）- 增强黄金三章评估"""
         user_prompt = self._generate_chapter_assessment_prompt(assessment_params)
+        chapter_number = assessment_params.get('chapter_number', 'unknown')
         result = self.api_client.generate_content_with_retry(
             "chapter_quality_assessment", 
             user_prompt, 
             temperature=0.3, 
-            purpose="章节质量评估"
+            purpose="第{chapter_number}章节质量评估"
         )
         
         # 如果评估成功，处理黄金三章的特殊逻辑

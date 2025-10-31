@@ -250,7 +250,7 @@ class StagePlanManager:
             )
             
             # 如果评估发现严重问题，可以触发优化
-            if continuity_assessment.get("overall_continuity_score", 10) < 6:
+            if continuity_assessment.get("overall_continuity_score", 10) < 9.5:
                 print(f"  ⚠️ 阶段事件连续性评分较低，进行优化...")
                 writing_plan = self._optimize_based_on_continuity_assessment(
                     writing_plan, continuity_assessment, stage_name, stage_range
@@ -562,7 +562,7 @@ class StagePlanManager:
             critical_issues = continuity_assessment.get("critical_issues", [])
             if critical_issues:
                 print(f"      ⚠️ 关键问题: {len(critical_issues)}个")
-                for i, issue in enumerate(critical_issues[:2]):  # 只显示前2个
+                for i, issue in enumerate(critical_issues[:3]):  # 只显示前2个
                     print(f"        {i+1}. {issue}")
             
             strengths = continuity_assessment.get("strengths", [])
@@ -931,7 +931,7 @@ class StagePlanManager:
             "## 📋 输出格式",
             "请以严格的JSON格式返回评估结果：",
             "{",
-            '  "overall_continuity_score": 0-10的整数评分,',
+            '  "overall_continuity_score": 0-10的带一位小数的评分,',
             '  "logic_coherence_analysis": "逻辑连贯性详细分析",',
             '  "rhythm_analysis": "节奏合理性详细分析",',
             '  "emotional_continuity_analysis": "情感发展连续性分析",',

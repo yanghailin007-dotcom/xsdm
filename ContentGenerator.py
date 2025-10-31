@@ -442,9 +442,10 @@ class ContentGenerator:
                     optimization_params["freshness_score"] = freshness_score
                 
                 optimized_content = None
-                if content_type == "market_analysis":
-                    optimized_content = self.quality_assessor.optimize_market_analysis(content, optimization_params)
-                elif content_type == "writing_plan":
+                #if content_type == "market_analysis":市场分析不需要优化
+                #    optimized_content = self.quality_assessor.optimize_market_analysis(content, optimization_params)
+                #el
+                if content_type == "writing_plan":
                     optimized_content = self.quality_assessor.optimize_writing_plan(content, optimization_params)
                 elif content_type == "core_worldview":
                     optimized_content = self.quality_assessor.optimize_core_worldview(content, optimization_params)
@@ -1127,21 +1128,21 @@ class ContentGenerator:
                 # 如果是最后一次尝试，使用当前内容
                 if attempt == max_retries - 1:
                     print(f"  ❌ 达到最大重试次数，使用当前内容")
-            
+         
             # 第三步：专项优化 - 使用CHAPTER_REFINEMENT_PROMPT进行平台风格优化
-            #if chapter_content:
-            #    print(f"  🎯 开始第{chapter_number}章专项优化...")
-            #    optimized_content = self.refine_chapter_content(chapter_content)
-            #    
-            #    if optimized_content:
-            #        print(f"  ✅ 第{chapter_number}章优化成功")
-            #        return optimized_content
-            #    else:
-            #        print(f"  ⚠️ 第{chapter_number}章优化失败，使用原始内容")
-            #        return chapter_content
-            #else:
-            #    print(f"  ❌ 第{chapter_number}章所有生成尝试均失败")
-            #    return None
+            if chapter_content:
+                print(f"  🎯 开始第{chapter_number}章专项优化...")
+                #optimized_content = self.refine_chapter_content(chapter_content)
+                
+                #if optimized_content:
+                #    print(f"  ✅ 第{chapter_number}章优化成功")
+                #    return optimized_content
+                #else:
+                print(f"  ⚠️ 第{chapter_number}章优化失败，使用原始内容")
+                return chapter_content
+            else:
+                print(f"  ❌ 第{chapter_number}章所有生成尝试均失败")
+                return None
                 
         except Exception as e:
             print(f"❌ 生成第{chapter_params['chapter_number']}章内容时出错: {e}")
