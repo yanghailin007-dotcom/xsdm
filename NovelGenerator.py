@@ -22,8 +22,9 @@ import ProjectManager
 import QualityAssessor
 import StagePlanManager
 from Prompts import Prompts
-from doubao_generator import doubaoconfig
-from doubao_generator.DouBaoImageGenerator import DouBaoImageGenerator
+
+from DouBaoImageGenerator import DouBaoImageGenerator
+import doubaoconfig
 
 class NovelGenerator:
     def __init__(self, config):

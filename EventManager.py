@@ -102,11 +102,11 @@ class EventManager:
         # 基于阶段长度计算事件数量 - 更加合理的计算
         if stage_name == "development_stage":
             # 发展阶段：更少但更长的重大事件
-            base_events = max(8, stage_length // 6)  # 减少基础事件数
+            base_events = max(6, min(15, stage_length // 5))  # 减少基础事件数
             major_events = min(profile.get("max_major", 6), 
                             max(profile["min_major"], int(base_events * profile["major_ratio"])))
         else:
-            base_events = max(6, stage_length // 4)
+            base_events = max(4, min(12, stage_length // 4))
             major_events = max(profile["min_major"], int(base_events * profile["major_ratio"]))
         
         return {
@@ -197,8 +197,8 @@ class EventManager:
         
         # 确保持续时间合理
         duration = end_chapter - start_chapter + 1
-        if duration < 3:
-            end_chapter = start_chapter + 2  # 至少3章
+        if duration < 2:
+            end_chapter = start_chapter + 1  # 至少3章
         
         # 构建完整的事件节点结构
         base_structure = {
@@ -537,9 +537,9 @@ class EventManager:
         # 根据阶段制定不同的情感事件策略
         emotional_strategies = {
             "opening_stage": {
-                "max_events": 3,  # 开局阶段情感事件要极少！
-                "preference": "early_and_mid",  # 偏好前期和中期
-                "min_gap": 4
+                "max_events": min(5, total_empty // 3),  # 动态计算，最多5个
+                "preference": "early_and_mid",
+                "min_gap": 3  # 从4改为3
             },
             "development_stage": {
                 "max_events": 5,
@@ -984,7 +984,16 @@ class EventManager:
                     
         except Exception as e:
             print(f"❌ 导出事件到JSON文件失败: {e}")
-        
+
+        print("\n🎯 开始全书事件线整体评价...")
+        timeline_evaluation = self.evaluate_overall_event_timeline()
+        if timeline_evaluation:
+            evaluation_path = os.path.join(quality_dir, "event_timeline_evaluation.json")
+            with open(evaluation_path, 'w', encoding='utf-8') as f:
+                json.dump(timeline_evaluation, f, ensure_ascii=False, indent=2)
+            print(f"✅ 事件线评价已保存: {evaluation_path}")
+            print(f"   整体评分: {timeline_evaluation.get('overall_score', 'N/A')}/10")
+
         return output_data
 
     def get_events_summary(self) -> Dict:
@@ -1236,3 +1245,66 @@ class EventManager:
             f"小型事件从{requirements['minor_events']}调整到{adjusted['minor_events']}")
         
         return adjusted    
+    
+    def evaluate_overall_event_timeline(self) -> Dict:
+        """对全书事件线进行整体AI评价"""
+        try:
+            # 获取所有事件摘要
+            events_summary = self.get_events_summary()
+            
+            # 构建评价提示词
+            prompt = f"""
+    作为资深网络小说编辑，请对以下小说的事件规划进行全面评价：
+
+    小说信息：
+    - 标题：{self.generator.novel_data.get('novel_title', '未知')}
+    - 总章节：{events_summary['chapter_coverage']['total_chapters']}
+    - 事件覆盖：{events_summary['chapter_coverage']['coverage_rate']}%
+
+    事件统计：
+    {json.dumps(events_summary['events_by_type'], ensure_ascii=False, indent=2)}
+
+    阶段分布：
+    {json.dumps(events_summary['events_by_stage'], ensure_ascii=False, indent=2)}
+
+    请从以下维度评价：
+    1. 事件密度合理性（是否过密/过疏）
+    2. 事件类型分布平衡性
+    3. 阶段间事件过渡自然性
+    4. 情感事件与主线事件搭配
+    5. 整体节奏把控
+
+    请返回JSON格式评价结果：
+    {{
+        "overall_score": 0-10,
+        "density_evaluation": "密度评价",
+        "balance_evaluation": "平衡性评价", 
+        "transition_evaluation": "过渡评价",
+        "rhythm_evaluation": "节奏评价",
+        "key_issues": ["问题1", "问题2"],
+        "improvement_suggestions": ["建议1", "建议2"]
+    }}
+    """
+            
+            evaluation_result = self.generator.api_client.generate_content_with_retry(
+                "event_timeline_evaluation",
+                prompt,
+                purpose="全书事件线整体评价"
+            )
+            
+            return evaluation_result if evaluation_result else {
+                "overall_score": 0,
+                "density_evaluation": "评价失败",
+                "balance_evaluation": "请手动检查",
+                "transition_evaluation": "事件过渡",
+                "rhythm_evaluation": "节奏把控", 
+                "key_issues": ["AI评价服务暂不可用"],
+                "improvement_suggestions": ["请人工审核事件规划"]
+            }
+            
+        except Exception as e:
+            print(f"  ❌ 全书事件线评价失败: {e}")
+            return {
+                "overall_score": 0,
+                "error": str(e)
+            }

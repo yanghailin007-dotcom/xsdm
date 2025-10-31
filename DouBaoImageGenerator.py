@@ -6,7 +6,7 @@ import time
 import logging
 from openai import OpenAI
 
-from doubao_generator.doubaoconfig import API_URL, ARK_API_KEY, DEFAULT_MODEL, DEFAULT_SIZE, FILE_CONFIG, REQUEST_CONFIG
+from doubaoconfig import API_URL, ARK_API_KEY, DEFAULT_MODEL, DEFAULT_SIZE, FILE_CONFIG, REQUEST_CONFIG
 
 # 设置日志
 logging.basicConfig(
