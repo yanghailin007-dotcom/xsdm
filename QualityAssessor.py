@@ -366,73 +366,108 @@ class QualityAssessor:
             )
 
     def _apply_golden_chapters_standards(self, assessment_result: Dict, chapter_number: int) -> Dict:
-        """对黄金三章应用更严格的评分标准"""
+        """对黄金三章应用更严格的、以留存为导向的诊断标准"""
         
-        # 黄金三章的特殊评分维度
+        # 黄金三章的特殊诊断和评分维度
         golden_chapters_criteria = {
             1: {
-                "criteria": {
-                    "opening_hook": 0.25,  # 开篇钩子权重25%
-                    "protagonist_intro": 0.25,  # 主角介绍权重25%
-                    "conflict_setup": 0.20,  # 冲突设置权重20%
-                    "world_building": 0.15,  # 世界观展示权重15%
-                    "pacing": 0.15  # 节奏控制权重15%
+                "name": "开篇之章：生死钩",
+                "focus_points": { # 评估重点和权重
+                    "opening_hook": {"weight": 0.3, "desc": "开篇吸引力与即时冲突"},
+                    "protagonist_intro_in_conflict": {"weight": 0.25, "desc": "主角在困境中的登场"},
+                    "core_conflict_setup": {"weight": 0.25, "desc": "核心悬念和主要矛盾的建立"},
+                    "pacing": {"weight": 0.2, "desc": "叙事节奏是否紧凑无冗余"}
                 },
-                "minimum_acceptable": 8.5,
-                "excellent_threshold": 9.2
+                "minimum_acceptable": 8.8, # 提高合格门槛
+                "failure_focus": "未能立即抓住读者，冲突建立过慢，缺乏吸引力。"
             },
             2: {
-                "criteria": {
-                    "conflict_development": 0.25,
-                    "character_relationship": 0.20,
-                    "plot_progression": 0.20,
-                    "suspense_building": 0.20,
-                    "pacing": 0.15
+                "name": "承接之章：冲突升级",
+                "focus_points": {
+                    "conflict_development": {"weight": 0.3, "desc": "第一章冲突的有效延续和升级"},
+                    "plot_progression": {"weight": 0.3, "desc": "主线情节是否有实质性推进"},
+                    "suspense_building": {"weight": 0.25, "desc": "悬念的强化和新悬念的引入"},
+                    "character_deepening": {"weight": 0.15, "desc": "通过行动深化主角形象"}
                 },
-                "minimum_acceptable": 8.5,
-                "excellent_threshold": 9.1
+                "minimum_acceptable": 8.6,
+                "failure_focus": "情节推进乏力，未能有效承接和发展首章冲突。"
             },
             3: {
-                "criteria": {
-                    "climax_execution": 0.25,
-                    "foreshadowing": 0.20,
-                    "reader_engagement": 0.25,
-                    "chapter_ending": 0.20,
-                    "series_hook": 0.10
+                "name": "爆发之章：强力钩子",
+                "focus_points": {
+                    "initial_climax": {"weight": 0.35, "desc": "开篇小高潮的营造和爆发力"},
+                    "strong_ending_hook": {"weight": 0.35, "desc": "结尾是否设置了无法抗拒的追读钩子"},
+                    "reader_payoff": {"weight": 0.2, "desc": "是否对前两章的铺垫给予了初步回报"},
+                    "series_foreshadowing": {"weight": 0.1, "desc": "对后续长线发展的伏笔"}
                 },
                 "minimum_acceptable": 8.5,
-                "excellent_threshold": 9.0
+                "failure_focus": "缺乏高潮和强力钩子，读者追读欲望不足。"
             }
         }
         
-        chapter_criteria = golden_chapters_criteria.get(chapter_number, {})
-        if not chapter_criteria:
+        chapter_spec = golden_chapters_criteria.get(chapter_number)
+        if not chapter_spec:
             return assessment_result
         
-        # 调整总体评分
         original_score = assessment_result.get("overall_score", 0)
+        detailed_scores = assessment_result.get("detailed_scores", {})
         
-        # 如果有详细分数，按照黄金三章标准重新计算
-        if "detailed_scores" in assessment_result:
-            detailed = assessment_result["detailed_scores"]
-            new_score = 0
-            
-            for criterion, weight in chapter_criteria["criteria"].items():
-                # 将原有的分数映射到新标准
-                criterion_score = detailed.get(criterion, original_score)
-                new_score += criterion_score * weight
-            
-            assessment_result["overall_score"] = min(10.0, new_score * 2)  # 转换为10分制
-        
-        # 添加黄金三章特殊评估
-        assessment_result["golden_chapters_assessment"] = {
-            "chapter_number": chapter_number,
-            "special_criteria": chapter_criteria["criteria"],
-            "is_acceptable": assessment_result["overall_score"] >= chapter_criteria["minimum_acceptable"],
-            "quality_tier": self._get_golden_chapters_quality_tier(assessment_result["overall_score"]),
-            "improvement_suggestions": self._generate_golden_chapters_suggestions(assessment_result, chapter_number)
+        # 将现有评估分数映射到黄金三章的关注点 (这是一个近似映射)
+        score_mapping = {
+            "opening_hook": detailed_scores.get("chapter_connection", original_score),
+            "protagonist_intro_in_conflict": detailed_scores.get("character_consistency", original_score),
+            "core_conflict_setup": detailed_scores.get("plot_coherence", original_score),
+            "pacing": detailed_scores.get("writing_quality", original_score),
+            "conflict_development": detailed_scores.get("plot_coherence", original_score),
+            "plot_progression": detailed_scores.get("plot_coherence", original_score),
+            "suspense_building": detailed_scores.get("next_chapter_hook_score", detailed_scores.get("emotional_impact", original_score)),
+            "character_deepening": detailed_scores.get("character_consistency", original_score),
+            "initial_climax": detailed_scores.get("emotional_impact", original_score),
+            "strong_ending_hook": detailed_scores.get("next_chapter_hook_score", detailed_scores.get("emotional_impact", original_score)),
+            "reader_payoff": detailed_scores.get("emotional_impact", original_score),
+            "series_foreshadowing": detailed_scores.get("plot_coherence", original_score),
         }
         
+        focus_scores = {}
+        weighted_score = 0
+        total_weight = sum(spec["weight"] for spec in chapter_spec["focus_points"].values())
+
+        for key, spec in chapter_spec["focus_points"].items():
+            score = score_mapping.get(key, original_score)
+            weighted_score += score * spec["weight"]
+            focus_scores[key] = round(score, 1)
+
+        final_golden_score = (weighted_score / total_weight) if total_weight > 0 else original_score
+
+        # 惩罚机制：如果任何一项低于8.0，总分再额外扣分
+        low_points = [k for k, v in focus_scores.items() if v < 8.0]
+        if low_points:
+            penalty = len(low_points) * 0.5
+            final_golden_score = max(0, final_golden_score - penalty)
+            
+        assessment_result["overall_score"] = round(final_golden_score, 2)
+        assessment_result['quality_verdict'] = self.get_quality_verdict(final_golden_score)[0]
+        
+        is_acceptable = final_golden_score >= chapter_spec["minimum_acceptable"]
+        
+        assessment_result["golden_chapters_assessment"] = {
+            "chapter_number": chapter_number,
+            "assessment_name": chapter_spec["name"],
+            "is_acceptable": is_acceptable,
+            "golden_score": round(final_golden_score, 2),
+            "minimum_required_score": chapter_spec["minimum_acceptable"],
+            "focus_point_scores": focus_scores,
+            "improvement_suggestions": self._generate_golden_chapters_suggestions(
+                chapter_number, focus_scores, is_acceptable
+            )
+        }
+        
+        if not is_acceptable:
+            weaknesses = assessment_result.get("weaknesses", [])
+            if not any("黄金章节不合格" in w for w in weaknesses):
+                 weaknesses.insert(0, f"【黄金章节不合格】: {chapter_spec['failure_focus']}")
+            assessment_result["weaknesses"] = weaknesses
+
         return assessment_result
 
     def _get_golden_chapters_quality_tier(self, score: float) -> str:
@@ -446,48 +481,45 @@ class QualityAssessor:
         else:
             return "C级 - 需要重写"
 
-    def _generate_golden_chapters_suggestions(self, assessment: Dict, chapter_number: int) -> List[str]:
-        """生成黄金三章改进建议"""
-        score = assessment.get("overall_score", 0)
-        weaknesses = assessment.get("weaknesses", [])
-        
+    def _generate_golden_chapters_suggestions(self, chapter_number: int, focus_scores: Dict, is_acceptable: bool) -> List[str]:
+        """根据黄金三章的诊断结果生成具体的、可操作的改进建议"""
+        if is_acceptable:
+            return ["整体表现符合黄金章节要求，可微调以追求极致。"]
+
         suggestions = []
+        # 按分数从低到高排序，优先解决最严重的问题
+        sorted_issues = sorted(focus_scores.items(), key=lambda item: item[1])
+
+        suggestion_map = {
+            1: {
+                "opening_hook": "重写开篇500字，必须以一个意外事件、一个尖锐问题或一个危险处境开局，立即将读者拖入情节。",
+                "protagonist_intro_in_conflict": "修改主角登场方式，不要平淡介绍，让他在一个正在发生的冲突或危机中首次亮相。",
+                "core_conflict_setup": "明确并前置核心矛盾。在第一章结尾，读者必须清楚主角面临的巨大威胁或渴望达成的迫切目标。",
+                "pacing": "删减所有非必要的环境描写和心理活动，用动作和对话推动情节，确保节奏极快。"
+            },
+            2: {
+                "conflict_development": "检查与第一章的衔接，确保冲突是直接升级而非转向。加大压力，提高赌注。",
+                "plot_progression": "确保本章有至少一个推动主线的关键进展（如获得线索、遭遇关键敌人、做出关键决定）。",
+                "suspense_building": "在情节中加入新的谜团或威胁，并在结尾强化悬念，让读者对下一章的走向产生强烈好奇。",
+                "character_deepening": "通过主角在压力下的选择和行动来展现其性格，而不是通过内心独白。"
+            },
+            3: {
+                "initial_climax": "设计一个情节点，让开篇以来的矛盾在这里有一个小规模的爆发，给予读者初步的情绪释放。",
+                "strong_ending_hook": "重写结尾。必须是一个强力的反转、一个生死攸关的抉择、或是一个揭示惊人秘密的场景。",
+                "reader_payoff": "确保本章解决了前两章制造的某个小悬念，给予读者“原来如此”的满足感，同时引出更大悬念。",
+                "series_foreshadowing": "在情节的细微处（如一句对话、一个物品）植入与全书主线相关的长线伏笔。"
+            }
+        }
         
-        # 基于章节号的特殊建议
-        if chapter_number == 1 and score < 8.8:
-            suggestions.extend([
-                "检查开篇500字是否足够吸引人",
-                "强化主角登场场景的冲击力", 
-                "确保冲突在开篇立即展现",
-                "优化世界观展示的自然程度"
-            ])
-        elif chapter_number == 2 and score < 8.8:
-            suggestions.extend([
-                "深化第一章引入的冲突",
-                "加强主角与配角的互动质量",
-                "确保情节推进的节奏感",
-                "检查悬念设置的强度"
-            ])
-        elif chapter_number == 3 and score < 8.8:
-            suggestions.extend([
-                "强化章节小高潮的情感冲击",
-                "优化伏笔设置的自然程度",
-                "检查章节结尾的追读钩子强度",
-                "确保读者有强烈继续阅读的欲望"
-            ])
-        
-        # 基于弱点的具体建议
-        for weakness in weaknesses[:3]:
-            if "开篇" in weakness or "开头" in weakness:
-                suggestions.append("重新设计开篇场景，增加冲击力")
-            elif "节奏" in weakness:
-                suggestions.append("调整节奏，删除冗余描写")
-            elif "悬念" in weakness:
-                suggestions.append("加强悬念设置，提高读者好奇心")
-            elif "主角" in weakness:
-                suggestions.append("强化主角魅力和特质展现")
-        
-        return suggestions[:5]  # 返回前5个最重要的建议
+        for key, score in sorted_issues:
+            if score < 8.5: # 只为分数低的项生成建议
+                if chapter_number in suggestion_map and key in suggestion_map[chapter_number]:
+                    suggestions.append(suggestion_map[chapter_number][key])
+
+        if not suggestions:
+            suggestions.append("整体分数偏低，请全面检查节奏、冲突和钩子，确保每一段都在推动情节发展。")
+            
+        return suggestions[:3] # 返回最重要的3条建议
 
     def detect_ai_artifacts(self, content: str) -> List[str]:
         """检测AI痕迹"""
