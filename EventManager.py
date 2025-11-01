@@ -158,8 +158,11 @@ class EventManager:
         return validation_result
 
     def enhance_major_events_structure(self, writing_plan: Dict, stage_name: str, stage_range: str) -> Dict:
-        """增强大事件结构完整性"""
+        """
+        增强大事件结构完整性 - 优化版：均匀分配章节
+        """
         start_chap, end_chap = parse_chapter_range(stage_range)
+        stage_length = end_chap - start_chap + 1
         
         # 获取事件系统
         if "stage_writing_plan" in writing_plan:
@@ -172,21 +175,52 @@ class EventManager:
         if not major_events:
             return writing_plan
         
+        num_major_events = len(major_events)
+        
+        # 获取平均事件持续时间
+        density_reqs = self.calculate_optimal_event_density_by_stage(stage_name, stage_length)
+        avg_duration = density_reqs.get("avg_major_duration", 5)
+
+        # 计算每个事件大致可以占据的“时间片”
+        # +1 是为了在事件之间留出空隙
+        time_slice_per_event = stage_length // (num_major_events + 1) if num_major_events > 0 else stage_length
+
         enhanced_major_events = []
         
-        for event in major_events:
+        # 只筛选出那些没有章节号，需要我们分配的事件
+        events_to_distribute = [e for e in major_events if 'start_chapter' not in e]
+        # 已经有章节号的事件，保持原样
+        pre_assigned_events = [e for e in major_events if 'start_chapter' in e]
+
+        # 对需要分配的事件进行均匀分配
+        for i, event in enumerate(events_to_distribute):
+            # 计算事件的理想起始点
+            # 在每个时间片的开头部分开始
+            ideal_start = start_chap + (i + 1) * time_slice_per_event
+            
+            # 确保事件不会超出阶段范围
+            event_start = max(start_chap, min(ideal_start, end_chap - avg_duration + 1))
+            event_end = min(end_chap, event_start + avg_duration - 1)
+            
+            # 将计算好的章节号“注入”到事件中，再进行增强
+            event['start_chapter'] = event_start
+            event['end_chapter'] = event_end
+            
             enhanced_event = self._apply_big_event_template(event, stage_name, start_chap, end_chap)
             enhanced_major_events.append(enhanced_event)
+
+        # 将预先分配好章节的事件和我们新分配的事件合并
+        all_enhanced_events = sorted(enhanced_major_events + pre_assigned_events, key=lambda x: x['start_chapter'])
         
         # 更新事件系统
-        events["major_events"] = enhanced_major_events
+        events["major_events"] = all_enhanced_events
         
         if "stage_writing_plan" in writing_plan:
             writing_plan["stage_writing_plan"]["event_system"] = events
         else:
             writing_plan["event_system"] = events
         
-        print(f"  ✅ 已增强{len(enhanced_major_events)}个大事件的结构完整性")
+        print(f"  ✅ 已增强并均匀分配了{len(major_events)}个大事件的结构")
         return writing_plan
 
     def _apply_big_event_template(self, event: Dict, stage_name: str, start_chap: int, end_chap: int) -> Dict:
@@ -1460,16 +1494,3 @@ class EventManager:
     # =========================================================================
     # ▲▲▲ 新增结束 ▲▲▲
     # =========================================================================
-
-    # 废弃/修改旧方法
-    def supplement_events_with_ai(self, writing_plan: Dict, stage_range: str, creative_seed: str,
-                                novel_title: str, novel_synopsis: str, overall_stage_plan: Dict) -> Dict:
-        """
-        [已废弃] 此方法的功能已被 a strategically_supplement_events 取代。
-        保留此空函数以确保旧的调用不会立即报错，但建议移除相关调用。
-        """
-        print("  ⚠️ 调用了已废弃的 supplement_events_with_ai 方法。请更新调用逻辑。")
-        # 为保证流程不中断，可以转调新方法，但这只是临时方案
-        # romance_pattern = self.stage_plan_manager.generator.novel_data.get("romance_pattern", {})
-        # return self.strategically_supplement_events(writing_plan, "unknown_stage", stage_range, romance_pattern, creative_seed, novel_title, novel_synopsis)
-        return writing_plan # 直接返回，不做任何事

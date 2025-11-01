@@ -347,6 +347,66 @@ class ContentGenerator:
         
         return result
 
+
+    def _generate_highlight_scene_snippet(self, scene_brief: str, character_design: Dict, emotional_focus: str) -> Optional[str]:
+        """
+        通过 generate_content_with_retry 调用“导演”角色Prompt，生成场景片段。
+        """
+        print("  🎬 [API Call] 正在调用“名场面导演”模块...")
+
+        # 1. 准备需要注入到 [CONTEXT] 的信息
+        involved_chars_prompt_parts = []
+        main_char = character_design.get("main_character", {})
+        if main_char:
+            char_name = main_char.get("name", "主角")
+            soul_matrix = main_char.get("soul_matrix", [])
+            involved_chars_prompt_parts.append(f"主角 [{char_name}] 的核心性格-行为: {json.dumps(soul_matrix, ensure_ascii=False, indent=2)}")
+
+        important_chars = character_design.get("important_characters", [])
+        if important_chars:
+            first_sidekick = important_chars[0] # 简化处理，假设涉及第一个配角
+            char_name = first_sidekick.get("name", "配角")
+            soul_matrix = first_sidekick.get("soul_matrix", [])
+            involved_chars_prompt_parts.append(f"配角 [{char_name}] 的核心性格-行为: {json.dumps(soul_matrix, ensure_ascii=False, indent=2)}")
+        
+        involved_chars_str = "\n".join(involved_chars_prompt_parts)
+
+        # 2. 构建将要传递给 prompt 的 context 字符串
+        director_context = f"""
+## [CONTEXT] ##
+
+### 1. 场景简报
+*   **情境**: {scene_brief}
+*   **情绪焦点**: {emotional_focus}
+
+### 2. 角色核心设定
+{involved_chars_str}
+"""
+        try:
+            # 3. 使用您现有的API客户端方法进行调用
+            result = self.api_client.generate_content_with_retry(
+                "highlight_scene_snippet",  # 使用我们在 WorldviewPrompts.py 中定义的新 key
+                director_context,           # 将所有信息作为 context 传递
+                purpose="生成高光场景片段"
+            )
+
+            # 4. 从返回的JSON中解析出场景文本
+            if result and isinstance(result, dict):
+                scene_snippet = result.get("scene_snippet")
+                if scene_snippet and isinstance(scene_snippet, str) and len(scene_snippet.strip()) > 50:
+                    print("  ✅ “名场面导演”成功生成场景片段。")
+                    return scene_snippet.strip()
+                else:
+                    print("  ⚠️ “名场面导演”返回的JSON中snippet为空或过短。")
+                    return None
+            else:
+                print(f"  ❌ “名场面导演”返回结果格式错误，期望是字典但收到了: {type(result)}")
+                return None
+
+        except Exception as e:
+            print(f"  ❌ 在调用“名场面导演”模块时发生异常: {e}")
+            return None
+
     def ensure_main_character_name(self, character_design: Dict, custom_name: str) -> Dict:
         """确保角色设计中使用正确的主角名字"""
         if "main_character" in character_design and "name" in character_design["main_character"]:
@@ -1290,6 +1350,28 @@ class ContentGenerator:
         current_emotional_focus = emotional_guidance.get("current_emotional_focus", "")
         target_intensity = emotional_guidance.get("target_intensity", "中")
         is_turning_point = emotional_guidance.get("is_emotional_turning_point", False)
+        event_guidance_str = chapter_params.get("event_driven_guidance", "")
+        is_key_event = "对峙" in event_guidance_str or "高潮" in event_guidance_str or "冲突激化" in event_guidance_str
+        
+        highlight_scene_block = None
+
+        if is_turning_point or is_key_event:
+            scene_brief = f"本章的核心高潮场面：{emotional_guidance.get('key_scenes_design', '关键情节转折')}"
+            try:
+                character_info_dict = json.loads(chapter_params.get("character_info", "{}"))
+            except json.JSONDecodeError:
+                character_info_dict = {}
+
+            # 调用我们适配好的新方法
+            snippet = self._generate_highlight_scene_snippet(
+                scene_brief,
+                character_info_dict,
+                emotional_guidance.get("current_emotional_focus", "")
+            )
+
+            if snippet:
+                print("  🛡️ 将场景片段封装为“不可篡改的场景模块”。")
+                highlight_scene_block = f"\n[SCENE_BLOCK_START]\n{snippet}\n[SCENE_BLOCK_END]\n"
         is_break_chapter = emotional_guidance.get("is_emotional_break_chapter", False)
         break_activities = emotional_guidance.get("break_activities", [])
         target_reader_emotion = emotional_guidance.get("target_reader_emotion", "期待与投入")
@@ -1395,6 +1477,13 @@ class ContentGenerator:
         )
         
         if design_result:
+            if highlight_scene_block:
+                print("  🔧 将预生成的高光场景注入设计蓝图的高潮部分。")
+                if "plot_structure" not in design_result:
+                    design_result["plot_structure"] = {}
+                design_result["plot_structure"]["climax_point"] = highlight_scene_block
+                design_result["chapter_focus"] = f"【核心任务：无缝衔接预生成的高光场景，见高潮部分】\n" + design_result.get("chapter_focus", "")
+            
             print(f"  ✅ 第{chapter_params.get('chapter_number', 1)}章设计方案生成成功")
             # 验证情绪设计是否被正确包含
             if "emotional_design" not in design_result:
@@ -1882,6 +1971,14 @@ class ContentGenerator:
         user_prompt = f"""
 ## 章节创作指令 ##
 为《{chapter_params.get('novel_title', '')}》创作第{chapter_params['chapter_number']}章。
+
+## ‼️ 特殊指令：场景模块处理规则 (最高优先级) ##
+在下方的【情节结构】中，你可能会看到被 `[SCENE_BLOCK_START]` 和 `[SCENE_BLOCK_END]` 包裹的文本块。
+这是由“名场面导演”预先写好的高光场景，你的任务是：
+1.  **一字不改地原文复制** `[SCENE_BLOCK_START]` 和 `[SCENE_BLOCK_END]` 之间的所有内容到你的最终输出中。
+2.  你的核心创作任务是**撰写场景模块之前和之后的内容**，确保整个章节的情节、情绪和节奏过渡自然、天衣无缝。
+3.  你需要像一个真正的作家一样，思考如何引入这个高光场景（做好铺垫），以及在高光场景结束后，故事如何继续发展（做好收尾）。
+
 
 ## 情感设计 ##
 - 目标情绪: {emotional_design.get('target_emotion', '')}

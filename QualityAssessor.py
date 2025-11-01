@@ -239,7 +239,7 @@ class QualityAssessor:
             "chapter_quality_assessment", 
             user_prompt, 
             temperature=0.3, 
-            purpose=f"第{chapter_number}章节质量评估"
+            purpose=f"第{assessment_params.get('chapter_number', 1)}章节质量评估"
         )
         
         # 如果评估成功，处理黄金三章的特殊逻辑
