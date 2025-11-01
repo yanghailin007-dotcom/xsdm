@@ -547,239 +547,60 @@ class QualityAssessor:
         return artifacts[:10]
 
     def _generate_chapter_assessment_prompt(self, params: Dict) -> str:
-        """生成章节质量评估提示词（重新组织修为+物品+功法结构）"""
+        """生成章节质量评估提示词（包含内部生成的强一致性检查清单）"""
         
-        # 加载之前的世界状态
         novel_title = params.get('novel_title', 'unknown')
-        previous_world_state = self.world_state_manager.load_previous_assessments(novel_title)
         
+        # 1. 加载之前的世界状态
+        previous_world_state = self.world_state_manager.load_previous_assessments(novel_title)
         world_state_str = json.dumps(previous_world_state, ensure_ascii=False, indent=2) if previous_world_state else "{}"
 
+        # 2. 【核心修改】基于世界状态，在本函数内部构建一致性检查清单
+        consistency_check_section = self._build_consistency_check_prompt_section(previous_world_state)
+        
         character_development_data = self._load_character_development_data(novel_title)
         character_development_str = json.dumps(character_development_data, ensure_ascii=False, indent=2) if character_development_data else "{}"        
         
+        # 3. 将一致性检查清单注入到最终的Prompt中
         return f"""
     内容：
     你是一位资深的番茄小说内容分析师与世界观架构师。
-    你的任务是根据提供的章节信息和之前的世界观状态，进行全面的质量评估，并识别出本章节对世界观的具体变化。
+    你的任务分为两步：首先进行严格的一致性审查，然后进行全面的质量评估和世界观变化提取。
 
-    ### 重要字段约定 - 重新组织为修为+物品+功法结构
-    在返回的world_state_changes中，请严格遵守以下字段结构：
+    {consistency_check_section}
 
-    **角色 (characters):**
-    - name: string (角色名字)
-    - description: string (角色当前状态描述)
-    - attributes: object (包含以下固定字段)
-      - status: string (活跃/死亡/退场/重伤/失踪)
-      - location: string (当前所在地点)
-      - title: string (称号/头衔，可选)
-      - occupation: string (职业/身份，可选)
-      - faction: string (所属势力，可选)
-      - cultivation_level: string (修为等级) # 核心：角色当前修为
-      - cultivation_system: string (修为体系) # 核心：修仙/异能/武侠等
-      - emotional_state: string (情绪状态) # 新增：愤怒/平静/喜悦/悲伤等
+    ### 任务一：一致性审查 (必须最先执行！)
+    请严格对照以上【一致性铁律】，检查【章节内容预览】是否存在矛盾，特别是：
+    1.  **死者复活**: 【绝对禁止】名单中的角色是否出现？
+    2.  **状态矛盾**: 角色的位置、修为、金钱状况是否与快照冲突？
+    3.  **物品错乱**: 已消耗的物品是否被再次使用？物品是否出现在了错误的拥有者手中？
+    4.  **技能突变**: 角色的技能等级是否发生不合理的跳跃？
+    5.  **关系重置**: 已经认识的角色是否在重新自我介绍？
+    请在返回JSON的 "consistency_issues" 字段中报告所有违规行为。
 
-    **修炼物品 (cultivation_items):**
-    - description: string (物品描述)
-    - owner: string (拥有者)
-    - type: string (类型：丹药/法宝/材料/符箓/功法典籍等)
-    - quality: string (品质：凡品/黄阶/玄阶/地阶/天阶/神品)
-    - status: string (物品状态：已使用/未使用/损坏/遗失)
-    - location: string (物品位置)
-    - effect: string (效果描述) # 新增
+    ### 任务二：质量评估与状态提取
+    完成审查后，再对章节进行整体质量评估，并提取世界观变化。
 
-    **功法技能 (cultivation_skills):**
-    - description: string (技能描述)
-    - owner: string (拥有者)
-    - type: string (类型：功法/神通/秘术/体质/心法等)
-    - level: string (掌握程度：入门/小成/大成/圆满)
-    - quality: string (品质：凡品/黄阶/玄阶/地阶/天阶/神品)
-    - status: string (技能状态：已掌握/修炼中/封印中)
-
-    **关系变化 (relationships):** # 增强关系描述
-    - type: string (关系类型：师徒/道侣/兄弟/仇敌/盟友/主仆)
-    - description: string (关系详细描述)
-    - status: string (关系状态：稳固/紧张/破裂/改善)
-    - intimacy_level: number (亲密度1-10) # 新增
-    - conflict_level: number (冲突度1-10) # 新增
-
-    **心理状态记录 (mental_states):** # 新增：专门记录心理状态
-    - character: string (角色名)
-    - emotional_state: string (情绪状态)
-    - motivation: string (当前动机)
-    - internal_conflict: string (内心矛盾)
-    - recent_trauma: string (近期创伤)
-    - hope_fear: string (希望与恐惧)
-
-    **地点 (locations):**
-    - description: string (地点描述)
-    - status: string (地点状态：安全/危险/探索中/已废弃)
-    - significance: string (重要性) # 新增
-
-    ### 信息记录规则
-    请按照以下分类准确记录：
-
-    1. **角色修为信息**：
-    - cultivation_level: 当前修为等级（如：练气三层、筑基中期、金丹后期）
-    - cultivation_system: 修为体系（如：修仙、异能、武侠、科技）
-
-    2. **修炼物品分类**：
-    - 丹药类：修炼丹药、疗伤丹药、突破丹药等
-    - 法宝类：武器、防具、辅助法宝等
-    - 材料类：灵草、矿石、妖兽材料等
-    - 符箓类：攻击符、防御符、辅助符等
-
-    3. **功法技能分类**：
-    - 功法类：修炼心法、基础功法等
-    - 神通类：攻击神通、防御神通、辅助神通等
-    - 秘术类：特殊秘法、禁术等
-    - 体质类：特殊体质、天赋等
-
-    ### 重要：金钱一致性检查要求
+    ---
+    ### 评估所需信息
     
-    在记录世界状态变化时，必须严格遵守以下金钱追踪规则：
-    
-    **金钱字段约定：**
-    - characters.attributes.money: 角色当前金钱数量
-    - characters.attributes.money_sources: 金钱来源记录，如["完成任务奖励", "出售物品", "宗门俸禄"]
-    - characters.attributes.recent_transactions: 最近交易记录
-    
-    **经济交易记录：**
-    在economy.transactions中记录所有金钱流动：
-    - type: "收入" 或 "支出"
-    - amount: 金额数量
-    - from_character: 付款方
-    - to_character: 收款方  
-    - reason: 具体原因，如"购买疗伤丹药"、"完成悬赏任务奖励"
-    - item_involved: 涉及的物品名称
-    - chapter: 发生章节
-    
-    **金钱一致性规则：**
-    1. 角色的金钱变化必须有明确的来源或去向
-    2. 收入必须对应支出，反之亦然
-    3. 交易金额必须合理，符合世界观设定
-    4. 不能出现凭空产生或消失的金钱
-
-    ### 1. 小说信息
+    #### 1. 小说与章节信息
     - **小说标题**: {params.get('novel_title', '未知')}
     - **章节标题**: {params.get('chapter_title', '未知')}
     - **章节编号**: {params.get('chapter_number', '未知')}
     - **前情提要**: {params.get('previous_summary', '无')}
 
-    ### 2. 目前章节的世界状态
+    #### 2. 当前章节的世界状态 (完整版，供参考)
     {world_state_str}
 
-    现有角色发展数据:
+    #### 3. 现有角色发展数据:
     {character_development_str}
 
-    章节内容预览:
+    #### 4. 本章内容预览:
     {params.get('chapter_content', '')}
+    ---
 
-    请按照以下JSON格式返回评估结果：
-    {{
-        "overall_score": "number (0-10，基于细分维度计算)",
-        "quality_verdict": "string (根据分数评定，如'卓越', '优秀', '良好', '合格'等)",
-        "strengths": "array of strings (列出章节的主要优点)",
-        "weaknesses": "array of strings (列出章节的主要待改进方面)",
-        "detailed_scores": {{
-            "plot_pacing_and_appeal": "number (0-2)",
-            "characterization_and_consistency": "number (0-2)", 
-            "writing_quality_and_immersion": "number (0-2)",
-            "structure_and_cohesion": "number (0-2)",
-            "world_state_consistency": "number (0-2)"
-        }},
-        "consistency_issues": [
-            {{
-                "type": "string (枚举: CHARACTER, ITEM, RELATIONSHIP, SKILL, TIMELINE, LOCATION, CULTIVATION)", 
-                "description": "string (具体问题描述)", 
-                "severity": "string (枚举: High, Medium, Low)",
-                "suggestion": "string (修复建议)"
-            }}
-        ],
-        "character_status_changes": [
-            {{
-                "character_name": "string",
-                "status": "string (枚举: active, dead, exited)", 
-                "reason": "string (状态变化原因)",
-                "chapter": "number"
-            }}
-        ],
-        "world_state_changes": {{
-            // 严格遵守字段约定，重新组织为修为+物品+功法结构
-            "characters": {{
-                "角色名": {{
-                    "name": "string (角色名)",
-                    "description": "string (角色描述)",
-                    "attributes": {{
-                        "status": "string (活跃/死亡/退场)",
-                        "location": "string (当前所在地点)",
-                        "title": "string (可选)",
-                        "occupation": "string (可选)",
-                        "faction": "string (可选)",
-                        "cultivation_level": "string (修为等级)",
-                        "cultivation_system": "string (修为体系)",
-                        "money": (int, float),  # 金钱数量
-                        "money_sources": list,   # 金钱来源记录
-                        "recent_transactions": list  # 最近交易记录
-                    }}
-                }}
-            }},
-            "economy": {{
-                "transactions": {{
-                    "交易ID": {{
-                        "type": "string (收入/支出)",
-                        "amount": "number",
-                        "from_character": "string",
-                        "to_character": "string",
-                        "reason": "string",
-                        "item_involved": "string", 
-                        "chapter": "number"
-                    }}
-                }}
-            }},
-            "cultivation_items": {{
-                "物品名": {{
-                    "description": "string (物品描述)",
-                    "owner": "string (拥有者)",
-                    "type": "string (丹药/法宝/材料/符箓等)",
-                    "quality": "string (品质等级)",
-                    "status": "string (物品状态)",
-                    "location": "string (物品位置)"
-                }}
-            }},
-            "cultivation_skills": {{
-                "技能名": {{
-                    "description": "string (技能描述)",
-                    "owner": "string (拥有者)",
-                    "type": "string (功法/神通/秘术/体质等)",
-                    "level": "string (掌握程度)",
-                    "quality": "string (品质等级)",
-                    "status": "string (技能状态)"
-                }}
-            }},
-            "relationships": {{
-                "角色A-角色B": {{
-                    "type": "string (关系类型)",
-                    "description": "string (关系描述)",
-                    "status": "string (目前的实际关系状态)"
-                }}
-            }},
-            "locations": {{
-                "地点名": {{
-                    "description": "string (地点描述)",
-                    "status": "string (地点状态)"
-                }}
-            }}
-        }},
-        "assessment_timestamp": "string (生成报告的ISO 8601格式时间戳，例如: '2024-05-16T12:00:00Z')"
-    }}
-
-    重要说明：
-    1. 严格按照新的分类结构记录：修为+物品+功法
-    2. 角色修为信息集中在characters的cultivation_level和cultivation_system字段
-    3. 所有修炼相关物品归入cultivation_items，并按类型分类
-    4. 所有功法技能归入cultivation_skills，并按类型分类
-    5. world_state_changes只包含本章节新增或发生变化的世界状态元素
+    请严格按照我在System Prompt中定义的JSON格式返回包含评估和世界观变化的完整结果。
     """
 
     def optimize_chapter_content(self, optimization_params: Dict) -> Optional[Dict]:
@@ -1993,3 +1814,87 @@ class QualityAssessor:
         "optimization_suggestions": ["优化建议列表"]
     }}
     """
+    def _get_sorted_entities(self, entities: dict) -> list:
+        """一个通用的辅助函数，用于获取排序后的实体列表"""
+        if not entities or not isinstance(entities, dict):
+            return []
+        # 假设实体数据中有 'update_count' 用于排序，如果没有则不排序
+        if all('update_count' in v for v in entities.values()):
+            return sorted(
+                entities.items(),
+                key=lambda item: item[1].get('update_count', 0),
+                reverse=True
+            )
+        return list(entities.items())
+
+    def _build_consistency_check_prompt_section(self, world_state: Dict) -> str:
+        """【QualityAssessor内部使用】根据世界状态，构建强约束的一致性检查清单"""
+        if not world_state:
+            return "# 警告：无世界状态信息，无法进行一致性检查。\n"
+
+        guidance_parts = ["\n--- 一致性铁律 (请严格按此标准审查) ---\n"]
+        
+        characters = world_state.get('characters', {})
+        items = world_state.get('cultivation_items', world_state.get('items', {})) # 兼容旧的 'items' 键
+        skills = world_state.get('cultivation_skills', world_state.get('skills', {})) # 兼容旧的 'skills' 键
+        relationships = world_state.get('relationships', {})
+
+        # 1. 【最高优先级】死亡/退场名单
+        dead_or_exited_chars = [
+            name for name, data in characters.items() 
+            if data.get('attributes', {}).get('status', 'active').lower() in ['dead', 'exited', '死亡', '退场']
+        ]
+        if dead_or_exited_chars:
+            guidance_parts.append(f"【🔴绝对禁止】以下角色已死亡或永久退场，绝不能以任何存活形式出现：`{', '.join(dead_or_exited_chars)}`")
+
+        # 2. 【角色核心状态】 (最重要的5个)
+        char_list = self._get_sorted_entities(characters)
+        if char_list:
+            guidance_parts.append("\n【🟡角色当前状态 (必须遵守)】")
+            for char_name, char_data in char_list[:5]:
+                if char_name in dead_or_exited_chars: continue
+                attrs = char_data.get('attributes', {})
+                status = attrs.get('status', '活跃')
+                location = attrs.get('location', '未知')
+                level = attrs.get('cultivation_level', '')
+                money = attrs.get('money', None)
+                
+                state_summary = f"- **{char_name}**: 状态:`{status}`, 位置:`{location}`"
+                if level: state_summary += f", 修为:`{level}`"
+                if money is not None: state_summary += f", 金钱:`{money}`"
+                guidance_parts.append(state_summary)
+
+        # 3. 【物品归属】 (最重要的5件)
+        item_list = self._get_sorted_entities(items)
+        if item_list:
+            guidance_parts.append("\n【🟡关键物品归属 (必须遵守)】")
+            for item_name, item_data in item_list[:5]:
+                owner = item_data.get('owner', '无主')
+                status = item_data.get('status', '完好')
+                if status.lower() in ['used', 'destroyed', 'consumed', '已使用', '已消耗', '已损毁']:
+                    guidance_parts.append(f"- `{item_name}`: 状态:`{status}`，【不可再次使用】。")
+                else:
+                    guidance_parts.append(f"- `{item_name}`: 目前归属于 `{owner}`。")
+
+        # 4. 【功法/技能状态】 (最重要的5个)
+        skill_list = self._get_sorted_entities(skills)
+        if skill_list:
+            guidance_parts.append("\n【🟡功法/技能状态 (必须遵守)】")
+            for skill_name, skill_data in skill_list[:5]:
+                owner = skill_data.get('owner', '未知')
+                level = skill_data.get('level', '未知')
+                guidance_parts.append(f"- `{owner}` 的技能 `{skill_name}` 当前等级为 `{level}`。")
+
+        # 5. 【关键人物关系】 (最重要的7组)
+        rel_list = self._get_sorted_entities(relationships)
+        if rel_list:
+            guidance_parts.append("\n【🟡关键人物关系 (禁止重复建立)】")
+            for rel_key, rel_data in rel_list[:7]:
+                parties = rel_key.split('-') if isinstance(rel_key, str) else rel_key
+                if len(parties) == 2:
+                    char_a, char_b = parties
+                    rel_type = rel_data.get('type', '未知')
+                    guidance_parts.append(f"- `{char_a}` 与 `{char_b}` 的关系是: `{rel_type}`。他们已经认识！")
+        
+        guidance_parts.append("\n" + "-"*37 + "\n")
+        return "\n".join(guidance_parts)

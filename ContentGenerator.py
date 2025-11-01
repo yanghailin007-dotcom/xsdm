@@ -1360,7 +1360,13 @@ class ContentGenerator:
         - {chapter_focus_points[1] if len(chapter_focus_points) > 1 else "推进主线情节发展"}
         - {chapter_focus_points[2] if len(chapter_focus_points) > 2 else "保持角色一致性"}
         - {chapter_focus_points[3] if len(chapter_focus_points) > 3 else "设置后续情节伏笔"}
-    *   **字数目标 (参考)**: 2000-3000字
+    *   **字数目标 (参考)**: 2000-
+    
+    {self._get_golden_chapter_design_variant( # <--- 在这里注入黄金三章的特殊指令
+        chapter_params.get("chapter_number", 1),
+        chapter_params.get("novel_title", ""),
+        self.custom_main_character_name or "主角"
+    )}
 
     # 背景资料
     ## 1. 小说基础设定 (世界观、角色、大纲等)
@@ -2002,246 +2008,102 @@ class ContentGenerator:
             print(f"⚠️ 加载世界状态失败: {e}")
             return {}
 
+
     def _build_consistency_guidance(self, world_state: Dict) -> str:
-        """构建一致性指导内容 - 按更新次数排序，重要元素优先"""
-        guidance_parts = ["请严格确保与之前章节的一致性："]
+        """构建【全面且强约束】的一致性指导内容，包含角色、物品、技能、金钱。"""
+        if not world_state:
+            return ""
+
+        guidance_parts = ["\n--- 一致性铁律 (AI必须严格遵守) ---\n"]
         
-        # 角色一致性 - 按更新次数排序
         characters = world_state.get('characters', {})
-        if characters and isinstance(characters, dict):
-            guidance_parts.append("### 👥 角色一致性（重要）")
-            
-            # 计算每个角色的更新次数并排序
-            character_list = []
-            for char_name, char_data in characters.items():
-                if not isinstance(char_data, dict):
-                    continue
-                    
-                try:
-                    # 计算更新次数
-                    update_count = self._calculate_update_count(char_data)
-                    
-                    # 安全提取字段
-                    description = self._safe_get(char_data, 'description', '暂无描述')
-                    
-                    # 处理attributes字段
-                    attributes = self._safe_get(char_data, 'attributes', {})
-                    if not isinstance(attributes, dict):
-                        attributes = {}
-                    
-                    status = self._safe_get(attributes, 'status') or self._safe_get(char_data, 'status', '活跃')
-                    location = self._safe_get(attributes, 'location') or self._safe_get(char_data, 'location', '未知地点')
-                    last_updated = self._safe_get(char_data, 'last_updated') or self._safe_get(char_data, 'last_updated_chapter', 0)
-                    
-                    character_list.append({
-                        'name': char_name,
-                        'description': description,
-                        'status': status,
-                        'location': location,
-                        'last_updated': last_updated,
-                        'update_count': update_count
-                    })
-                    
-                except Exception as e:
-                    print(f"⚠️ 处理角色 {char_name} 时出错: {e}")
-                    continue
-            
-            # 按更新次数降序排序
-            character_list.sort(key=lambda x: x['update_count'], reverse=True)
-            
-            # 显示前20个最重要的角色
-            for char_info in character_list[:20]:
-                guidance_parts.append(f"- **{char_info['name']}** (更新{char_info['update_count']}次)")
-                guidance_parts.append(f"  - 状态: {char_info['status']}")
-                guidance_parts.append(f"  - 位置: {char_info['location']}")
-                guidance_parts.append(f"  - 最后更新: 第{char_info['last_updated']}章")
-                
-                if len(char_info['description']) > 80:
-                    guidance_parts.append(f"  - 描述: {char_info['description'][:80]}...")
-                else:
-                    guidance_parts.append(f"  - 描述: {char_info['description']}")
-        
-        # 人物关系一致性 - 按更新次数排序
+        items = world_state.get('cultivation_items', {}) # 适配QualityAssessor中的新结构
+        skills = world_state.get('cultivation_skills', {}) # 适配QualityAssessor中的新结构
         relationships = world_state.get('relationships', {})
-        if relationships and isinstance(relationships, dict):
-            guidance_parts.append("### 🤝 人物关系（关键检查项）")
-            
-            relationship_list = []
-            for rel_key, rel_data in relationships.items():
-                if not isinstance(rel_data, dict):
-                    continue
-                    
-                try:
-                    # 计算更新次数
-                    update_count = self._calculate_update_count(rel_data)
-                    
-                    rel_type = self._safe_get(rel_data, 'type') or self._safe_get(rel_data, 'relationship_type', '未知关系')
-                    description = self._safe_get(rel_data, 'description', '暂无描述')
-                    
-                    parties = rel_key.split('-')
-                    if len(parties) == 2:
-                        relationship_list.append({
-                            'key': rel_key,
-                            'type': rel_type,
-                            'description': description,
-                            'parties': parties,
-                            'update_count': update_count
-                        })
-                        
-                except Exception as e:
-                    print(f"⚠️ 处理关系 {rel_key} 时出错: {e}")
-                    continue
-            
-            # 按更新次数降序排序
-            relationship_list.sort(key=lambda x: x['update_count'], reverse=True)
-            
-            # 显示前32个最重要的关系
-            for rel_info in relationship_list[:32]:
-                char_a, char_b = rel_info['parties']
-                guidance_parts.append(f"- **{char_a}** ↔ **{char_b}** (更新{rel_info['update_count']}次)")
-                guidance_parts.append(f"  - 关系类型: {rel_info['type']}")
+
+        # 1. 【最高优先级】死亡/退场名单
+        dead_or_exited_chars = [
+            name for name, data in characters.items() 
+            if data.get('attributes', {}).get('status', 'active').lower() in ['dead', 'exited', '死亡', '退场']
+        ]
+        if dead_or_exited_chars:
+            guidance_parts.append(f"【🔴绝对禁止】以下角色已死亡或永久退场，绝不能以任何存活形式出现：`{', '.join(dead_or_exited_chars)}`")
+
+        # 按更新次数/重要性排序，提取最重要的信息
+        def get_sorted_entities(entities: dict):
+            if not entities or not isinstance(entities, dict):
+                return []
+            return sorted(
+                [item for item in entities.items() if item[0] not in dead_or_exited_chars],
+                key=lambda item: item[1].get('update_count', 0), # 假设有update_count字段
+                reverse=True
+            )
+
+        # 2. 【角色核心状态】 (最重要的5个)
+        char_list = get_sorted_entities(characters)
+        if char_list:
+            guidance_parts.append("\n【🟡角色当前状态 (必须遵守)】")
+            for char_name, char_data in char_list[:5]:
+                attrs = char_data.get('attributes', {})
+                status = attrs.get('status', '活跃')
+                location = attrs.get('location', '未知')
+                faction = attrs.get('faction', '无')
+                level = attrs.get('cultivation_level', '')
+                money = attrs.get('money', None)
                 
-                if len(rel_info['description']) > 60:
-                    guidance_parts.append(f"  - 关系描述: {rel_info['description'][:60]}...")
+                state_summary = f"- **{char_name}**: 状态:`{status}`, 位置:`{location}`, 势力:`{faction}`"
+                if level: state_summary += f", 修为:`{level}`"
+                if money is not None:
+                    # 对金钱进行模糊化处理，告知AI大概范围即可，避免精确数字的困扰
+                    wealth_desc = "普通"
+                    if money > 10000: wealth_desc = "非常富有"
+                    elif money > 1000: wealth_desc = "富裕"
+                    elif money < 100: wealth_desc = "拮据"
+                    state_summary += f", 经济:`{wealth_desc}`"
+                guidance_parts.append(state_summary)
+
+        # 3. 【物品归属】 (最重要的5件)
+        item_list = get_sorted_entities(items)
+        if item_list:
+            guidance_parts.append("\n【🟡关键物品归属 (必须遵守)】")
+            for item_name, item_data in item_list[:5]:
+                owner = item_data.get('owner', '无主/公共')
+                status = item_data.get('status', '完好')
+                # 如果物品已消耗或损坏，则标记为不可用
+                if status.lower() in ['used', 'destroyed', 'consumed', '已使用', '已消耗', '已损毁']:
+                    guidance_parts.append(f"- `{item_name}`: 状态:`{status}`，【不可再次使用】。")
                 else:
-                    guidance_parts.append(f"  - 关系描述: {rel_info['description']}")
+                    guidance_parts.append(f"- `{item_name}`: 目前归属于 `{owner}`，状态:`{status}`。")
+
+        # 4. 【功法/技能状态】 (主角和重要角色的关键技能)
+        skill_list = get_sorted_entities(skills)
+        if skill_list:
+            guidance_parts.append("\n【🟡功法/技能状态 (必须遵守)】")
+            # 优先展示主角的技能
+            main_char_name = self.custom_main_character_name
+            main_char_skills = [(n, d) for n, d in skill_list if d.get('owner') == main_char_name]
+            other_skills = [(n, d) for n, d in skill_list if d.get('owner') != main_char_name]
+            
+            for skill_name, skill_data in (main_char_skills + other_skills)[:5]:
+                owner = skill_data.get('owner', '未知')
+                level = skill_data.get('level', '未知')
+                guidance_parts.append(f"- `{owner}` 的技能 `{skill_name}` 当前等级为 `{level}`。")
+
+        # 5. 【关键人物关系】 (最重要的7组)
+        rel_list = get_sorted_entities(relationships)
+        if rel_list:
+            guidance_parts.append("\n【🟡关键人物关系 (禁止重复建立)】")
+            for rel_key, rel_data in rel_list[:7]:
+                # 兼容 "角色A-角色B" 和元组 key
+                parties = rel_key.split('-') if isinstance(rel_key, str) else rel_key
+                if len(parties) == 2:
+                    char_a, char_b = parties
+                    rel_type = rel_data.get('type', '未知')
+                    guidance_parts.append(f"- `{char_a}` 与 `{char_b}` 的关系是: `{rel_type}`。他们已经认识！")
         
-        # 物品一致性 - 按更新次数排序
-        items = world_state.get('items', {})
-        if items and isinstance(items, dict):
-            guidance_parts.append("### 🎁 物品归属")
-            
-            item_list = []
-            for item_name, item_data in items.items():
-                if not isinstance(item_data, dict):
-                    continue
-                    
-                try:
-                    # 计算更新次数
-                    update_count = self._calculate_update_count(item_data)
-                    
-                    owner = self._safe_get(item_data, 'owner', '未知')
-                    status = self._safe_get(item_data, 'status') or self._safe_get(item_data, 'item_status', '未知状态')
-                    description = self._safe_get(item_data, 'description', '暂无描述')
-                    location = self._safe_get(item_data, 'location', '未知位置')
-                    
-                    item_list.append({
-                        'name': item_name,
-                        'owner': owner,
-                        'status': status,
-                        'description': description,
-                        'location': location,
-                        'update_count': update_count
-                    })
-                    
-                except Exception as e:
-                    print(f"⚠️ 处理物品 {item_name} 时出错: {e}")
-                    continue
-            
-            # 按更新次数降序排序
-            item_list.sort(key=lambda x: x['update_count'], reverse=True)
-            
-            # 显示前16个最重要的物品
-            for item_info in item_list[:16]:
-                guidance_parts.append(f"- **{item_info['name']}** (更新{item_info['update_count']}次)")
-                guidance_parts.append(f"  - 拥有者: {item_info['owner']}")
-                guidance_parts.append(f"  - 状态: {item_info['status']}")
-                guidance_parts.append(f"  - 位置: {item_info['location']}")
-                
-                if len(item_info['description']) > 60:
-                    guidance_parts.append(f"  - 描述: {item_info['description'][:60]}...")
-                else:
-                    guidance_parts.append(f"  - 描述: {item_info['description']}")
-        
-        # 技能一致性 - 按更新次数排序
-        skills = world_state.get('skills', {})
-        if skills and isinstance(skills, dict):
-            guidance_parts.append("### 🔧 技能状态")
-            
-            skill_list = []
-            for skill_name, skill_data in skills.items():
-                if not isinstance(skill_data, dict):
-                    continue
-                    
-                try:
-                    # 计算更新次数
-                    update_count = self._calculate_update_count(skill_data)
-                    
-                    owner = self._safe_get(skill_data, 'owner', '未知')
-                    level = self._safe_get(skill_data, 'level') or self._safe_get(skill_data, 'skill_level', '未知等级')
-                    description = self._safe_get(skill_data, 'description', '暂无描述')
-                    
-                    skill_list.append({
-                        'name': skill_name,
-                        'owner': owner,
-                        'level': level,
-                        'description': description,
-                        'update_count': update_count
-                    })
-                    
-                except Exception as e:
-                    print(f"⚠️ 处理技能 {skill_name} 时出错: {e}")
-                    continue
-            
-            # 按更新次数降序排序
-            skill_list.sort(key=lambda x: x['update_count'], reverse=True)
-            
-            # 显示前3个最重要的技能
-            for skill_info in skill_list[:3]:
-                guidance_parts.append(f"- **{skill_info['name']}** (更新{skill_info['update_count']}次)")
-                guidance_parts.append(f"  - 拥有者: {skill_info['owner']}")
-                guidance_parts.append(f"  - 等级: {skill_info['level']}")
-                
-                if len(skill_info['description']) > 60:
-                    guidance_parts.append(f"  - 描述: {skill_info['description'][:60]}...")
-                else:
-                    guidance_parts.append(f"  - 描述: {skill_info['description']}")
-        
-        # 地点一致性 - 按更新次数排序
-        locations = world_state.get('locations', {})
-        if locations and isinstance(locations, dict):
-            guidance_parts.append("### 🗺️ 地点状态")
-            
-            location_list = []
-            for loc_name, loc_data in locations.items():
-                if not isinstance(loc_data, dict):
-                    continue
-                    
-                try:
-                    # 计算更新次数
-                    update_count = self._calculate_update_count(loc_data)
-                    
-                    description = self._safe_get(loc_data, 'description', '暂无描述')
-                    
-                    location_list.append({
-                        'name': loc_name,
-                        'description': description,
-                        'update_count': update_count
-                    })
-                    
-                except Exception as e:
-                    print(f"⚠️ 处理地点 {loc_name} 时出错: {e}")
-                    continue
-            
-            # 按更新次数降序排序
-            location_list.sort(key=lambda x: x['update_count'], reverse=True)
-            
-            # 显示前12个最重要的地点
-            for loc_info in location_list[:12]:
-                guidance_parts.append(f"- **{loc_info['name']}** (更新{loc_info['update_count']}次): {loc_info['description']}")
-        
-        # 添加关系检查的特别提醒
-        guidance_parts.extend([
-            "",
-            "## ⚠️ 关系一致性特别提醒",
-            "1. **禁止重复建立关系**: 已经认识的角色之间不需要再次介绍或建立关系",
-            "2. **关系状态延续**: 保持角色间已有的关系状态（友好、敌对、合作等）", 
-            "3. **关系发展自然**: 如需改变关系状态，必须有合理的情节发展",
-            "4. **避免关系矛盾**: 新建立的关系不能与已有关系冲突",
-            "5. **关系记忆**: 角色应该记得彼此之前的重要互动"
-        ])
-        
+        guidance_parts.append("\n" + "-"*35 + "\n")
         return "\n".join(guidance_parts)
+
 
     def _calculate_update_count(self, element_data: Dict) -> int:
         """计算元素的更新次数 - 简化版本（使用准确计数器）"""
@@ -2498,3 +2360,33 @@ class ContentGenerator:
             import traceback
             traceback.print_exc()
             return {}
+
+    def _get_golden_chapter_design_variant(self, chapter_number: int, novel_title: str, main_character_name: str) -> str:
+        """为黄金三章生成差异化的、高强度的设计指导"""
+        if chapter_number == 1:
+            return f"""
+    # 🔥 黄金第一章：生死看淡，不服就干！
+    1.  **极速开局**: 必须在开篇500字内，让主角 {main_character_name} 陷入一个具体的、尖锐的困境或羞辱场景（例如：被退婚、被背叛、被嘲笑、身陷绝境）。
+    2.  **金手指激活**: 困境中，金手指（系统）必须被激活，并立即提供一个能解决当前小困境的直接帮助。不要解释来源，直接用！
+    3.  **首次打脸**: 主角必须利用金手指的初次帮助，完成一次小范围但效果惊人的“打脸”或“逆袭”，让之前的轻视者震惊。
+    4.  **强烈悬念**: 章节结尾必须留下一个强烈的钩子，例如：一个更强大的敌人出现、一个惊人的秘密被揭露一角、或者金手指发布了一个看似不可能完成的重磅任务。
+    """
+        elif chapter_number == 2:
+            return f"""
+    # 💥 黄金第二章：矛盾升级，初显锋芒！
+    1.  **承接悬念并激化**: 必须立刻回应第一章的悬念，并将冲突升级。例如，更强的敌人开始行动，或第一章的打脸行为引来了更大的麻烦。
+    2.  **金手指实战**: 主角需要更深入地使用金手指，展示其更强大的功能，解决一个比第一章更棘手的难题。
+    3.  **关键配角登场**: 引入一个关键配角（未来的盟友、导师或更重要的反派），与主角发生强互动。
+    4.  **建立小目标**: 为主角树立一个短期内清晰可见、能带来巨大回报的小目标（例如：三天后的家族比武、一周后的宗门考核）。
+    5.  **结尾再造悬念**: 结尾要制造新的期待感，例如：主角即将奔赴一个充满机遇与危险的地方，或者一个重要人物对他发起了挑战。
+    """
+        elif chapter_number == 3:
+            return f"""
+    # 🚀 黄金第三章：奠定基调，引爆期待！
+    1.  **完成小目标与震撼打脸**: 主角必须在这一章完成第二章设立的小目标，并完成一次让所有人都意想不到的、规模更大的打脸。这次打脸要足以颠覆周围人对他的认知。
+    2.  **确立爽点模式**: 通过这次打脸，明确本书的核心爽点模式（例如：扮猪吃虎、无限升级、神级炼丹等）。
+    3.  **引出主线**: 必须引出一条更宏大的主线故事线索（例如：主角的身世之谜、金手指的真正目的、一个巨大的阴谋等）。
+    4.  **付费点钩子**: 结尾必须设置一个“不看下一章就百爪挠心”的强力付费点钩子。这通常是主角做出了一个惊人的决定，或者他即将面临一个生死攸关的重大转折。
+    """
+        return ""
+        

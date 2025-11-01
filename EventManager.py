@@ -1308,3 +1308,168 @@ class EventManager:
                 "overall_score": 0,
                 "error": str(e)
             }
+    # =========================================================================
+    # ▼▼▼ 新增：统一的智能事件补充入口 ▼▼▼
+    # =========================================================================
+    def strategically_supplement_events(self, writing_plan: Dict, stage_name: str, stage_range: str,
+                                        romance_pattern: Dict, creative_seed: str, novel_title: str,
+                                        novel_synopsis: str) -> Dict:
+        """
+        统一的事件补充入口。
+        智能识别空窗期，并根据情感模式和阶段需求，策略性地生成并整合补充事件。
+        """
+        print(f"  🔄 开始对 {stage_name} 进行统一的事件补充...")
+
+        # 1. 识别真正可用的空窗期章节
+        available_chapters = self.get_available_chapters_for_generation(writing_plan, stage_range, "any")
+        if not available_chapters:
+            print("  ✅ 阶段内无可用空窗期，无需补充事件。")
+            return writing_plan
+
+        print(f"  🔍 找到 {len(available_chapters)} 个可用章节: {available_chapters[:10]}...")
+
+        # 2. 策略性地选择需要填充的章节 (逻辑从 StagePlanManager 移入)
+        selected_chapters = self._select_strategic_chapters_for_supplementation(available_chapters, stage_name)
+        if not selected_chapters:
+            print("  ✅ 根据策略，当前阶段无需补充事件。")
+            return writing_plan
+
+        print(f"  🎯 策略选择 {len(selected_chapters)} 个关键章节进行填充: {selected_chapters}")
+
+        # 3. 调用AI生成补充事件 (逻辑融合了 RomancePatternManager)
+        supplemental_events = self._generate_supplemental_events_with_ai(
+            selected_chapters, stage_name, romance_pattern,
+            creative_seed, novel_title, novel_synopsis, writing_plan
+        )
+
+        # 4. 将生成的事件整合到写作计划中 (逻辑从 RomancePatternManager 移入)
+        if supplemental_events:
+            writing_plan = self._integrate_supplemental_events(writing_plan, supplemental_events)
+
+        return writing_plan
+
+    def _select_strategic_chapters_for_supplementation(self, available_chapters: List[int], stage_name: str) -> List[int]:
+        """
+        策略性选择用于补充的章节，严格控制数量。
+        (此方法从 StagePlanManager._select_emotional_chapters_strategically 移动并通用化)
+        """
+        stage_limits = {
+            "opening_stage": 2,
+            "development_stage": 4,
+            "climax_stage": 1,
+            "ending_stage": 3,
+            "final_stage": 2
+        }
+        max_events = stage_limits.get(stage_name, 3)
+        max_events = min(max_events, len(available_chapters))
+
+        if not available_chapters or max_events == 0:
+            return []
+
+        # 简单均匀分布策略
+        if len(available_chapters) <= max_events:
+            return available_chapters
+
+        step = len(available_chapters) // max_events
+        selected = [available_chapters[i * step] for i in range(max_events)]
+        return selected
+
+    def _generate_supplemental_events_with_ai(self, chapters_to_fill: List[int], stage_name: str,
+                                              romance_pattern: Dict, creative_seed: str, novel_title: str,
+                                              novel_synopsis: str, writing_plan: Dict) -> List[Dict]:
+        """
+        使用AI为空窗期生成补充事件（情感或过渡情节）。
+        (此方法融合了 RomancePatternManager.generate_romance_filler_events 的核心思想)
+        """
+        event_system = writing_plan.get("stage_writing_plan", {}).get("event_system", {})
+
+        filler_prompt = f"""
+        请为以下小说的指定空窗期章节，生成与主线情节关联的补充性特殊事件。
+
+        小说信息：
+        - 标题：{novel_title}
+        - 简介：{novel_synopsis}
+        - 创意种子：{creative_seed}
+        - 情感模式：{romance_pattern.get('romance_type', '未知')} ({romance_pattern.get('emotional_style', '未知')})
+
+        当前阶段：{stage_name}
+        现有事件概览：{json.dumps(event_system.get("major_events", []), ensure_ascii=False, indent=2)}
+        **需要填充的特定章节：{chapters_to_fill}**
+
+        ## 核心要求
+        1. **服务主线**: 事件必须作为前后主线事件的“润滑剂”，或深化角色关系为后续主线服务。
+        2. **情感/节奏**: 根据 `{romance_pattern.get('filler_focus', '角色互动')}` 的指导，决定事件是侧重情感发展，还是情节过渡。
+        3. **精准定位**: 每个事件必须精确对应一个指定的章节。
+        4. **高质量**: 避免模板化，设计有意义的互动。
+
+        ## 返回格式
+        请为每个需要填充的章节生成一个补充事件:
+        {{
+            "supplemental_events": [
+                {{
+                    "name": "能体现事件核心功能的名称",
+                    "type": "special",
+                    "subtype": "emotional_filler_or_plot_transition", // 根据功能填写 emotional_filler 或 plot_transition
+                    "chapter": 章节号, // 必须是 {chapters_to_fill} 中的一个
+                    "purpose": "该事件的核心目的 (例如：缓和节奏，深化A与B的关系，为下个大事件铺垫情绪)",
+                    "plot_design": "具体的简要情节设计",
+                    "connection_to_plot": "此事件如何与前后主线事件相关联",
+                    "significance": "对角色关系、读者情绪或后续情节的简要影响"
+                }}
+            ]
+        }}
+        """
+        result = self.generator.api_client.generate_content_with_retry(
+            "supplemental_event_generation",
+            filler_prompt,
+            purpose=f"为{stage_name}生成补充事件"
+        )
+
+        if result and "supplemental_events" in result:
+            events = result["supplemental_events"]
+            print(f"  💖 成功生成 {len(events)} 个补充事件。")
+            return events
+        return []
+
+
+    def _integrate_supplemental_events(self, writing_plan: Dict, supplemental_events: List[Dict]) -> Dict:
+        """
+        将补充事件整合到写作计划中。
+        (此方法从 RomancePatternManager.integrate_filler_events 移动并通用化)
+        """
+        if not supplemental_events:
+            return writing_plan
+
+        # 定位 event_system
+        plan_container = writing_plan.get("stage_writing_plan", writing_plan)
+        if "event_system" not in plan_container:
+            plan_container["event_system"] = {}
+        event_system = plan_container["event_system"]
+
+        # 整合到 special_events 列表
+        if "special_events" not in event_system:
+            event_system["special_events"] = []
+        event_system["special_events"].extend(supplemental_events)
+        
+        # 排序以保证章节顺序
+        event_system["special_events"].sort(key=lambda x: x.get('chapter', 0))
+
+        print(f"  ✅ 成功整合 {len(supplemental_events)} 个补充事件到计划中。")
+        return writing_plan
+
+    # =========================================================================
+    # ▲▲▲ 新增结束 ▲▲▲
+    # =========================================================================
+
+    # 废弃/修改旧方法
+    def supplement_events_with_ai(self, writing_plan: Dict, stage_range: str, creative_seed: str,
+                                novel_title: str, novel_synopsis: str, overall_stage_plan: Dict) -> Dict:
+        """
+        [已废弃] 此方法的功能已被 a strategically_supplement_events 取代。
+        保留此空函数以确保旧的调用不会立即报错，但建议移除相关调用。
+        """
+        print("  ⚠️ 调用了已废弃的 supplement_events_with_ai 方法。请更新调用逻辑。")
+        # 为保证流程不中断，可以转调新方法，但这只是临时方案
+        # romance_pattern = self.stage_plan_manager.generator.novel_data.get("romance_pattern", {})
+        # return self.strategically_supplement_events(writing_plan, "unknown_stage", stage_range, romance_pattern, creative_seed, novel_title, novel_synopsis)
+        return writing_plan # 直接返回，不做任何事

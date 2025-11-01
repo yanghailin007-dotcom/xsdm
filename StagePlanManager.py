@@ -242,62 +242,43 @@ class StagePlanManager:
             user_prompt,
             purpose=f"生成{stage_name}写作计划"
         )
-
-        # 🆕 在计划生成后立即进行AI连续性评估
+        # -------------------------------------------------------------
+        # ▼▼▼ 修改开始 ▼▼▼
+        # -------------------------------------------------------------
         if writing_plan:
+            # 🆕 步骤1: 优先进行AI连续性评估和初步优化
             continuity_assessment = self.assess_stage_event_continuity(
                 writing_plan, stage_name, stage_range, creative_seed, novel_title, novel_synopsis
             )
-            
-            # 如果评估发现严重问题，可以触发优化
             if continuity_assessment.get("overall_continuity_score", 10) < 9.5:
                 print(f"  ⚠️ 阶段事件连续性评分较低，进行优化...")
                 writing_plan = self._optimize_based_on_continuity_assessment(
                     writing_plan, continuity_assessment, stage_name, stage_range
                 )
 
-        # 🆕 修改：在生成情感填充事件之前，先获取真正可用的章节
-        available_chapters = self.event_manager.get_available_chapters_for_generation(
-            writing_plan, stage_range, "special"
-        )
-        
-        if available_chapters:
-            print(f"  🔍 找到{len(available_chapters)}个可用章节用于情感事件")
-            
-            # 🆕 策略性选择少量关键章节
-            selected_chapters = self._select_emotional_chapters_strategically(
-                available_chapters, stage_name, len(available_chapters)
+            # 🆕 步骤2: 调用统一的事件补充方法
+            # 获取情感模式，为事件补充提供指导
+            romance_pattern = self.generator.novel_data.get("romance_pattern", {})
+            if not romance_pattern:
+                print("  ⚠️ 警告：未找到情感模式数据，进行补充分析")
+                romance_pattern = self.romance_manager.analyze_romance_pattern(creative_seed, novel_synopsis)
+                self.generator.novel_data["romance_pattern"] = romance_pattern
+
+            # 调用 EventManager 的新方法来处理所有事件补充
+            writing_plan = self.event_manager.strategically_supplement_events(
+                writing_plan, stage_name, stage_range, romance_pattern,
+                creative_seed, novel_title, novel_synopsis
             )
-            
-            if selected_chapters:
-                print(f"  💞 将在{len(selected_chapters)}个可用章节生成情感事件: {selected_chapters}")
-                
-                # 从novel_data获取已分析的情感模式
-                romance_pattern = self.generator.novel_data.get("romance_pattern", {})
-                
-                if not romance_pattern:
-                    print("  ⚠️ 警告：未找到情感模式数据，进行补充分析")
-                    romance_pattern = self.romance_manager.analyze_romance_pattern(creative_seed, novel_synopsis)
-                    self.generator.novel_data["romance_pattern"] = romance_pattern
-                
-                print(f"  💞 使用情感模式: {romance_pattern['romance_type']}-{romance_pattern['emotional_style']}")  
-                
-                # 生成情感事件 - 确保只使用可用章节
-                filler_events = self.romance_manager.generate_romance_filler_events(
-                    selected_chapters, romance_pattern, stage_name, 
-                    creative_seed, novel_title, novel_synopsis
-                )
-                
-                # 整合情感事件
-                if filler_events:
-                    writing_plan = self.romance_manager.integrate_filler_events(writing_plan, filler_events)
-                    print(f"  ✅ 成功添加{len(filler_events)}个情感事件到可用章节")
-        
-        # 验证和优化写作计划
+
+        # 🆕 步骤3: 最后进行最终的验证和优化
         writing_plan = self._validate_and_optimize_writing_plan(
-            writing_plan, stage_name, stage_range, creative_seed, 
-            novel_title, novel_synopsis, overall_stage_plan
+            writing_plan, stage_name, stage_range # 移除多余的参数
         )
+        
+        # -------------------------------------------------------------
+        # ▲▲▲ 修改结束 ▲▲▲
+        # -------------------------------------------------------------
+        # 🆕 在计划生成后立即进行AI连续性评估
         
         if writing_plan:
             # 缓存和存储结果
@@ -315,34 +296,10 @@ class StagePlanManager:
             return {}
 
     # 添加策略性章节选择方法
-    def _select_emotional_chapters_strategically(self, available_chapters: List[int], 
+    def _select_emotional_chapters_strategically(self, available_chapters: List[int],
                                             stage_name: str, total_available: int) -> List[int]:
-        """策略性选择情感事件章节 - 严格控制数量"""
-        
-        # 根据阶段类型设置最大情感事件数量
-        stage_limits = {
-            "opening_stage": 2,    # 开局阶段情感事件要少
-            "development_stage": 4, # 发展阶段适中
-            "climax_stage": 1,     # 高潮阶段极少
-            "ending_stage": 3,     # 收尾阶段适中
-            "final_stage": 2       # 结局阶段少
-        }
-        
-        max_events = stage_limits.get(stage_name, 3)
-        max_events = min(max_events, total_available)  # 不能超过可用章节数
-        
-        if not available_chapters or max_events == 0:
-            return []
-        
-        # 简单的选择策略：均匀分布
-        if len(available_chapters) <= max_events:
-            return available_chapters
-        
-        # 选择分布均匀的章节
-        step = len(available_chapters) // max_events
-        selected = [available_chapters[i * step] for i in range(max_events)]
-        
-        return selected
+        """[已废弃] 此方法逻辑已迁移到 EventManager._select_strategic_chapters_for_supplementation"""
+        pass
 
     def _get_major_event_design_requirements(self, stage_name: str, density_requirements: Dict) -> str:
         """获取大事件设计要求的文本"""
@@ -381,40 +338,8 @@ class StagePlanManager:
 - 确保大事件之间有合理的间隔，避免过度密集
 """
 
-    def _get_golden_chapters_design(self, stage_name: str, stage_range: str) -> str:
-        """获取黄金三章设计要求的文本"""
-        if not (stage_name == "opening_stage" and stage_range.startswith("1-") and int(stage_range.split("-")[1]) >= 3):
-            return ""
-        
-        return """
-## 🏆 黄金三章特殊设计要求（第1-3章）
 
-请为黄金三章制定特别详细的设计方案，特别注意：
-- 第1章必须包含一个强力大事件的起始铺垫
-- 前3章要为一个持续5-8章的大事件奠定基础
-- 减少零碎事件，集中打造连贯的阅读体验
-
-### 第1章设计方案：
-- **开篇大事件铺垫**：立即开始一个大事件的铺垫
-- **主角登场**：在冲突中展现主角特质  
-- **悬念设置**：为大事件设置强力悬念
-- **情感建立**：让读者立即产生情感共鸣
-
-### 第2章设计方案：
-- **大事件发展**：深化大事件的冲突和发展
-- **新元素引入**：为大事件引入关键角色或设定
-- **节奏控制**：保持快节奏推进大事件
-
-### 第3章设计方案：
-- **大事件小高潮**：安排大事件的第一个小高潮
-- **强力追读钩子**：设置让读者必须看下一章的强力理由
-- **阶段总结**：为后续大事件爆发做好充分准备
-"""    
-
-    def _validate_and_optimize_writing_plan(self, writing_plan: Dict, stage_name: str, stage_range: str, 
-                                        creative_seed: str, novel_title: str, novel_synopsis: str, 
-                                        overall_stage_plan: Dict) -> Dict:
-        """验证和优化写作计划"""
+    def _validate_and_optimize_writing_plan(self, writing_plan: Dict, stage_name: str, stage_range: str) -> Dict:
         if not writing_plan:
             print(f"  ⚠️ {stage_name}写作计划生成失败，使用默认计划")
             return {}
@@ -422,25 +347,19 @@ class StagePlanManager:
         # 增强大事件结构
         writing_plan = self.event_manager.enhance_major_events_structure(writing_plan, stage_name, stage_range)
         
-        # 生成情绪计划并整合
+        # 生成情绪计划并整合 (这部分与事件补充不同，应保留)
         global_emotional_plan = self.generator.novel_data.get("emotional_development_plan", {})
         emotional_plan = self.emotional_manager.generate_stage_emotional_plan(stage_name, stage_range, global_emotional_plan)
         
-        if "stage_writing_plan" in writing_plan:
-            writing_plan["stage_writing_plan"]["emotional_plan"] = emotional_plan
-        else:
-            writing_plan["emotional_plan"] = emotional_plan
-        
-        # 处理黄金三章
-        if stage_name == "opening_stage" and stage_range.startswith("1-") and int(stage_range.split("-")[1]) >= 3:
-            writing_plan = self._enhance_golden_chapters_in_writing_plan(writing_plan)
-        
-        # 验证事件密度
+        plan_container = writing_plan.get("stage_writing_plan", writing_plan)
+        plan_container["emotional_plan"] = emotional_plan
+
+        # ▼▼▼ 修改 ▼▼▼
+        # 验证事件密度，但不再触发补充，只做检查和警告
         event_density_ok = self.event_manager.validate_stage_event_density(writing_plan, stage_name, stage_range)
         if not event_density_ok:
-            print(f"  ⚠️ {stage_name}写作计划事件密度不符合要求，进行优化...")
-            writing_plan = self.event_manager.supplement_events_with_ai(writing_plan, stage_range, creative_seed, 
-                                                                    novel_title, novel_synopsis, overall_stage_plan)
+            print(f"  ⚠️ {stage_name} 最终事件密度不符合要求。补充步骤可能未完全解决问题，请关注。")
+        # ▲▲▲ 修改 ▲▲▲
         
         # 验证大事件结构
         if "stage_writing_plan" in writing_plan:
@@ -460,86 +379,39 @@ class StagePlanManager:
         if not is_continuous:
             print(f"  ⚠️ {stage_name}写作计划存在事件间隔过长问题")
         
-        return writing_plan
-    
-    def _enhance_golden_chapters_in_writing_plan(self, writing_plan: Dict) -> Dict:
-        """在阶段写作计划中增强黄金三章设计"""
-        # 确保有事件系统设计
-        if "event_system_design" not in writing_plan:
-            writing_plan["event_system_design"] = {}
-        
-        # 添加黄金三章特殊事件
-        writing_plan["event_system_design"]["golden_chapters_events"] = {
-            "chapter_1_opening_event": {
-                "name": "开篇引爆事件",
-                "type": "重大事件",
-                "start_chapter": 1,
-                "end_chapter": 1,
-                "purpose": "快速吸引读者注意力，展现主角特质",
-                "success_criteria": "读者在500字内被吸引继续阅读",
-                "key_moments": [
-                    {
-                        "chapter": 1,
-                        "description": "强力开篇场景，立即展现冲突",
-                        "impact": "高"
-                    }
-                ]
-            },
-            "chapter_2_development_event": {
-                "name": "冲突深化事件", 
-                "type": "重大事件",
-                "start_chapter": 2,
-                "end_chapter": 2,
-                "purpose": "深化开篇冲突，建立人物关系",
-                "success_criteria": "读者对主角产生认同和期待",
-                "key_moments": [
-                    {
-                        "chapter": 2,
-                        "description": "主角应对冲突，展现能力",
-                        "impact": "中高"
-                    }
-                ]
-            },
-            "chapter_3_climax_event": {
-                "name": "小高潮事件",
-                "type": "重大事件", 
-                "start_chapter": 3,
-                "end_chapter": 3,
-                "purpose": "安排情节小高潮，设置追读钩子",
-                "success_criteria": "读者产生强烈追读欲望",
-                "key_moments": [
-                    {
-                        "chapter": 3,
-                        "description": "情节小高潮和强力悬念结尾",
-                        "impact": "高"
-                    }
-                ]
-            }
-        }
-        
-        # 添加黄金三章角色表现设计
-        if "character_performance_design" not in writing_plan:
-            writing_plan["character_performance_design"] = {}
-        
-        writing_plan["character_performance_design"]["golden_chapters_focus"] = {
-            "chapter_1_character_intro": {
-                "focus": "主角惊艳登场",
-                "key_scenes": ["开篇亮相", "冲突应对", "特质展现"],
-                "success_criteria": "读者立即喜欢上主角"
-            },
-            "chapter_2_character_development": {
-                "focus": "主角能力展现和关系建立", 
-                "key_scenes": ["能力演示", "配角互动", "情感共鸣"],
-                "success_criteria": "读者对主角产生深度认同"
-            },
-            "chapter_3_character_growth": {
-                "focus": "主角初步成长和魅力强化",
-                "key_scenes": ["困境突破", "智慧展现", "魅力时刻"],
-                "success_criteria": "读者成为主角粉丝"
-            }
-        }
-        
-        return writing_plan
+        return writing_plan  
+
+
+    def _get_golden_chapters_design(self, stage_name: str, stage_range: str) -> str:
+        """获取黄金三章设计要求的文本"""
+        if not (stage_name == "opening_stage" and stage_range.startswith("1-") and int(stage_range.split("-")[1]) >= 3):
+            return ""
+
+        return """
+## 🏆 黄金三章特殊设计要求（第1-3章）
+
+-请为黄金三章制定特别详细的设计方案，特别注意：
+-- 第1章必须包含一个强力大事件的起始铺垫
+-- 前3章要为一个持续5-8章的大事件奠定基础
+-- 减少零碎事件，集中打造连贯的阅读体验
+-
+-### 第1章设计方案：
+-- **开篇大事件铺垫**：立即开始一个大事件的铺垫
+-- **主角登场**：在冲突中展现主角特质
+-- **悬念设置**：为大事件设置强力悬念
+-- **情感建立**：让读者立即产生情感共鸣
+-
+-### 第2章设计方案：
+-- **大事件发展**：深化大事件的冲突和发展
+-- **新元素引入**：为大事件引入关键角色或设定
+-- **节奏控制**：保持快节奏推进大事件
+-
+-### 第3章设计方案：
+-- **大事件小高潮**：安排大事件的第一个小高潮
+-- **强力追读钩子**：设置让读者必须看下一章的强力理由
+-- **阶段总结**：为后续大事件爆发做好充分准备
+-"""
+
 
     def _print_writing_plan_summary(self, writing_plan: Dict):
         """打印写作计划摘要 - 增强连续性评估信息"""

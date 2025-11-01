@@ -47,10 +47,12 @@ json
                 "main_goal": "string // 事件要达成的核心目标",
                 "key_nodes": {
                     "start": "string // 事件的起点和触发条件",
-                    "development": "string // 事件的发展和过程",
-                    "climax": "string // 事件的高潮和关键转折点",
+                    "development": "string // 事件的发展和过程，冲突如何逐步升级",
+                    "climax": "string // 事件的高潮和关键爆发点",
+                    "reversal": "string // 事件中的意外反转或关键转折点，这是爽点核心",
                     "end": "string // 事件的结局和收尾"
                 },
+                "emotional_arc": "string // 描述此事件中读者应体验到的情感曲线，例如：压抑->紧张->爆发->满足",
                 "character_development": "string // 主角或重要配角在此事件中的成长重点",
                 "aftermath": "string // 事件结束后对剧情、角色或世界的直接影响"
             }
