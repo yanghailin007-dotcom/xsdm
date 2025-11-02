@@ -1280,68 +1280,153 @@ class EventManager:
         
         return adjusted    
     
-    def evaluate_overall_event_timeline(self) -> Dict:
-        """对全书事件线进行整体AI评价"""
-        try:
-            # 获取所有事件摘要
-            events_summary = self.get_events_summary()
+# -------------------------------------------------------------
+    # ▼▼▼ 修改开始：重写全书事件线评价逻辑 ▼▼▼
+    # -------------------------------------------------------------
+
+    def _get_all_events_sorted(self) -> List[Dict]:
+        """
+        获取、整合并按章节排序全书的所有事件。
+        这是新版连续性评价的数据基础。
+        """
+        all_events = []
+        stage_plans = self.generator.novel_data.get("stage_writing_plans", {})
+        
+        for stage_name, stage_plan in stage_plans.items():
+            # 正确处理可能的嵌套结构
+            actual_plan = stage_plan.get("stage_writing_plan", stage_plan)
+            event_system = actual_plan.get("event_system", {})
             
-            # 构建评价提示词
-            prompt = f"""
-    作为资深网络小说编辑，请对以下小说的事件规划进行全面评价：
+            # 统一处理所有类型的事件
+            event_types_map = {
+                "major": event_system.get("major_events", []),
+                "medium": event_system.get("medium_events", []),
+                "minor": event_system.get("minor_events", []),
+                "special": event_system.get("special_events", [])
+            }
 
-    小说信息：
+            for event_type, events in event_types_map.items():
+                for event in events:
+                    start_chapter = 0
+                    end_chapter = 0
+                    if event_type == "major":
+                        start_chapter = event.get("start_chapter", 0)
+                        end_chapter = event.get("end_chapter", start_chapter)
+                    else: # medium, minor, special 都是单章节事件
+                        start_chapter = event.get("chapter", event.get("start_chapter", 0))
+                        end_chapter = start_chapter
+
+                    if start_chapter > 0: # 只添加有有效章节的事件
+                        all_events.append({
+                            "name": event.get("name", "未命名事件"),
+                            "start_chapter": start_chapter,
+                            "end_chapter": end_chapter,
+                            "type": event.get("subtype", event_type), # 优先使用subtype
+                            "stage": stage_name
+                        })
+        
+        # 严格按开始章节排序，构建时间线
+        all_events.sort(key=lambda x: x["start_chapter"])
+        return all_events
+
+    def _build_overall_continuity_prompt(self, sorted_events: List[Dict]) -> str:
+        """
+        根据排序后的全书事件时间线，构建用于深度连续性评估的Prompt。
+        """
+        # 将事件列表格式化为易于阅读的Markdown表格
+        event_timeline_str = "| 事件名称 | 类型 | 起止章节 | 所属阶段 |\n|---|---|---|---|\n"
+        for event in sorted_events:
+            chapter_range = f"第{event['start_chapter']}章"
+            if event['start_chapter'] != event['end_chapter']:
+                chapter_range += f"-{event['end_chapter']}章"
+            
+            event_timeline_str += f"| {event['name']} | {event['type']} | {chapter_range} | {event['stage']} |\n"
+
+        prompt = f"""
+    作为顶尖小说策划编辑，请对以下小说按时间线排列的【全书事件规划】进行一次全面、深刻、数据驱动的连续性分析。
+
+    ## 核心任务
+    你的所有评价都必须紧密结合下方提供的【事件时间线】。不要进行宏观统计，而是要分析事件与事件之间的具体衔接。
+
+    ## 小说信息
     - 标题：{self.generator.novel_data.get('novel_title', '未知')}
-    - 总章节：{events_summary['chapter_coverage']['total_chapters']}
-    - 事件覆盖：{events_summary['chapter_coverage']['coverage_rate']}%
+    - 总章节：{self.generator.novel_data.get('current_progress', {}).get('total_chapters', '未知')}
 
-    事件统计：
-    {json.dumps(events_summary['events_by_type'], ensure_ascii=False, indent=2)}
+    ## 全书事件时间线 (按章节排序)
+    {event_timeline_str}
 
-    阶段分布：
-    {json.dumps(events_summary['events_by_stage'], ensure_ascii=False, indent=2)}
+    ## 评估维度与要求
+    请基于以上时间线，深入分析以下维度：
+    1.  **事件密度与节奏 (Density & Rhythm)**:
+        -   是否存在事件过于密集，导致读者疲劳的章节区间？
+        -   是否存在事件过于稀疏，导致主线停滞、剧情平淡的章节区间？
+        -   整体节奏（紧张-平缓-紧张）的交替是否自然？请指出具体的事件作为例子。
 
-    请从以下维度评价：
-    1. 事件密度合理性（是否过密/过疏）
-    2. 事件类型分布平衡性
-    3. 阶段间事件过渡自然性
-    4. 情感事件与主线事件搭配
-    5. 整体节奏把控
+    2.  **事件类型分布与平衡性 (Balance)**:
+        -   主线（major）事件的推进是否连贯？是否存在长时间没有主线事件的空窗期？
+        -   情感（special）事件是否有效地插入在主线事件之间，起到了调节节奏、深化角色的作用？还是说它们显得突兀或与主线脱节？
+        -   次要（medium/minor）事件是否很好地为主线服务，起到了铺垫和丰富世界观的作用？
 
-    请返回JSON格式评价结果：
+    3.  **阶段间过渡的自然性 (Transition)**:
+        -   请重点分析【阶段边界】的事件衔接。例如，`development_stage`的最后一个事件和`climax_stage`的第一个事件衔接是否流畅？有没有做好足够的铺垫？
+        -   从一个阶段到下一个阶段的过渡，在情绪和节奏上是平滑过渡，还是生硬跳跃？
+
+    4.  **整体逻辑连贯性 (Overall Coherence)**:
+        -   通读整个事件链，是否存在逻辑断层或因果关系不明确的地方？
+        -   事件的发生顺序是否合理？有没有看起来像是为了情节而强行安排的事件？
+
+    ## 返回格式要求
+    请严格按照以下JSON格式返回你的专业评价报告。评价内容必须具体、可落地，直接引用时间线中的事件名称作为论据。
+
     {{
         "overall_score": 0-10,
-        "density_evaluation": "密度评价",
-        "balance_evaluation": "平衡性评价", 
-        "transition_evaluation": "过渡评价",
-        "rhythm_evaluation": "节奏评价",
-        "key_issues": ["问题1", "问题2"],
-        "improvement_suggestions": ["建议1", "建议2"]
+        "density_evaluation": "（必须具体指出过密/过疏的章节范围和事件）",
+        "balance_evaluation": "（必须具体分析主线、情感等事件类型的搭配问题）", 
+        "transition_evaluation": "（必须具体评价阶段边界的事件衔接好坏）",
+        "rhythm_evaluation": "（现在重命名为'continuity_and_rhythm_evaluation'，作为对整体时间线连贯性和节奏的总结性评价）",
+        "key_issues": ["（列出最关键的1-3个具体问题，如：'第XX章到YY章主线停滞过久'）"],
+        "improvement_suggestions": ["（提出可执行的修改建议，如：'建议在事件A和事件B之间增加一个过渡性情感事件'）"]
     }}
     """
+        return prompt
+
+    def evaluate_overall_event_timeline(self) -> Dict:
+        """【新版】对全书事件线进行基于时间线的深度连续性评价"""
+        try:
+            # 步骤1：获取并排序全书所有事件，形成时间线
+            sorted_events = self._get_all_events_sorted()
             
+            if not sorted_events:
+                print("  ⚠️ 无法进行全书事件线评价：未找到任何已规划的事件。")
+                return {"overall_score": 0, "error": "Not enough event data to evaluate."}
+
+            # 步骤2：根据时间线构建新的、更深入的评估Prompt
+            prompt = self._build_overall_continuity_prompt(sorted_events)
+            
+            # 步骤3：调用AI进行评估
             evaluation_result = self.generator.api_client.generate_content_with_retry(
-                "event_timeline_evaluation",
+                "event_timeline_continuity_evaluation", # 使用新的调用标识
                 prompt,
-                purpose="全书事件线整体评价"
+                purpose="全书事件线连续性评价"
             )
-            
-            return evaluation_result if evaluation_result else {
-                "overall_score": 0,
-                "density_evaluation": "评价失败",
-                "balance_evaluation": "请手动检查",
-                "transition_evaluation": "事件过渡",
-                "rhythm_evaluation": "节奏把控", 
-                "key_issues": ["AI评价服务暂不可用"],
-                "improvement_suggestions": ["请人工审核事件规划"]
-            }
+
+            # 步骤4：处理并返回结果
+            if evaluation_result:
+                # 兼容旧字段名，将'continuity_and_rhythm_evaluation'的内容赋给'rhythm_evaluation'
+                if "continuity_and_rhythm_evaluation" in evaluation_result:
+                    evaluation_result["rhythm_evaluation"] = evaluation_result.pop("continuity_and_rhythm_evaluation")
+                return evaluation_result
+            else:
+                 return {
+                    "overall_score": 0, "density_evaluation": "评价失败", "balance_evaluation": "评价失败",
+                    "transition_evaluation": "评价失败", "rhythm_evaluation": "评价失败", 
+                    "key_issues": ["AI评价服务暂不可用"], "improvement_suggestions": ["请人工审核事件规划"]
+                }
             
         except Exception as e:
-            print(f"  ❌ 全书事件线评价失败: {e}")
-            return {
-                "overall_score": 0,
-                "error": str(e)
-            }
+            print(f"  ❌ 全书事件线连续性评价过程中发生严重错误: {e}")
+            return {"overall_score": 0, "error": str(e)}
+
     # =========================================================================
     # ▼▼▼ 新增：统一的智能事件补充入口 ▼▼▼
     # =========================================================================

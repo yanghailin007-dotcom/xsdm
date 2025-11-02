@@ -1305,7 +1305,14 @@ class NovelGenerator:
         # 保存最终进度和导出总览
         self.project_manager.save_project_progress(self.novel_data)
         self.project_manager.export_novel_overview(self.novel_data)
-        
+        # ===================== [新增] 生成小说封面 =====================
+        print("\n" + "="*60)
+        print("🎨 最后一步：生成小说封面")
+        print("="*60)
+        self.novel_data["current_progress"]["stage"] = "封面生成"
+        if not self._generate_novel_cover():
+            print("⚠️ 封面生成失败，项目已完成但无封面。")
+        # ===================== [新增] 结束 ===========================
         print("\n🎉 小说生成完成！")
         self._print_generation_summary()
         return True
@@ -2632,12 +2639,6 @@ class NovelGenerator:
         print("\n" + "="*60)
         print("📝 第一阶段：基础规划")
         print("="*60)
-        
-        # 🆕 新增：生成小说封面
-        self.novel_data["current_progress"]["stage"] = "封面生成"
-        if not self._generate_novel_cover():
-            print("⚠️ 封面生成失败，继续生成小说内容")
-
 
         # 🆕 生成写作风格指南
         self.novel_data["current_progress"]["stage"] = "写作风格制定"
@@ -2984,6 +2985,33 @@ class NovelGenerator:
             
             # 🆕 从方案中获取分类信息
             category_from_plan = plan.get('tags', {}).get('main_category', '未分类')
+            
+            # ===================== [新增] 分类修正逻辑 =====================
+            original_category = category_from_plan
+            # 检查标题、简介和关键词中是否包含"同人"
+            title = plan.get('title', '')
+            synopsis = plan.get('synopsis', '')
+            keywords = plan.get('tags', {}).get('keywords', [])
+            keywords_str = "".join(keywords) # 将关键词列表转为字符串以便搜索
+
+            if "同人" in title or "同人" in synopsis or "同人" in keywords_str:
+                # 如果包含"动漫"关键词，优先归类为"动漫衍生"
+                if "动漫" in title or "动漫" in synopsis or "动漫" in keywords_str:
+                    category_from_plan = "动漫衍生"
+                else: # 否则归类为"男频衍生"
+                    category_from_plan = "男频衍生"
+
+            if original_category != category_from_plan:
+                print(f"    🔄 分类修正: 检测到'同人'关键字，分类已从 '{original_category}' 修正为 '{category_from_plan}'")
+                                # 确保 'tags' 字典存在
+                if 'tags' not in plan:
+                    plan['tags'] = {}
+                
+                # 直接修改 plan 对象内部的分类，确保数据一致性
+                plan['tags']['main_category'] = category_from_plan
+                print(f"    📝 同步更新方案内部 'tags.main_category' 字段。")
+            # ===================== [新增] 结束 ===========================
+
             print(f"    📊 方案分类: {category_from_plan}")
             
             evaluation_result = self._evaluate_plan_quality(plan, category_from_plan, creative_seed)
