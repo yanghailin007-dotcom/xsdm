@@ -234,7 +234,6 @@ class QualityAssessor:
     def assess_chapter_quality(self, assessment_params: Dict) -> Optional[Dict]:
         """评估章节质量（包含一致性检查）- 增强黄金三章评估"""
         user_prompt = self._generate_chapter_assessment_prompt(assessment_params)
-        chapter_number = assessment_params.get('chapter_number', 'unknown')
         result = self.api_client.generate_content_with_retry(
             "chapter_quality_assessment", 
             user_prompt, 
@@ -898,10 +897,10 @@ class QualityAssessor:
 
     def quick_assess_chapter_quality(self, chapter_content: str, chapter_title: str, 
                                 chapter_number: int, novel_title: str, previous_summary: str, 
-                                word_count: int = 0) -> Dict:
+                                word_count: int = 0, novel_data: Dict = None) -> Dict:
         """快速评估章节质量（包含一致性检查）"""
         # 加载之前的世界状态
-        self.world_state_manager.current_world_state = self.world_state_manager.load_previous_assessments(novel_title)
+        self.world_state_manager.current_world_state = self.world_state_manager.load_previous_assessments(novel_title, novel_data)
         
         return self.assess_chapter_quality({
             "chapter_content": chapter_content,
@@ -1747,6 +1746,7 @@ class QualityAssessor:
     3. **新颖角色设定**：创造具有特色的主角和配角设定
     4. **创新金手指设计**：避免常见的系统设定，提供独特的能力设计
     5. **差异化世界观**：构建独特的世界观背景和设定
+    6. **【标题长度约束】**：优化后的标题必须严格保持在15个字以内（含标点符号），确保简洁有力。
     """
         
         quality_assessment = assessment.get("quality_assessment", {})

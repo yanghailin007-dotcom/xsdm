@@ -496,41 +496,38 @@ class NovelGenerator:
         
         # 确定从哪一章开始继续
         start_chapter = self.novel_data["current_progress"]["completed_chapters"] + 1
-        if start_chapter > self.novel_data["current_progress"]["total_chapters"]:
-            print("✅ 所有章节已完成，无需继续生成")
-            return True
-        
-        print(f"  从第{start_chapter}章开始继续生成...")
-        
-        # 直接开始生成章节内容
-        chapters_per_batch = min(3, self.config["defaults"]["chapters_per_batch"])
-        
-        for batch_start in range(start_chapter, self.novel_data["current_progress"]["total_chapters"] + 1, chapters_per_batch):
-            batch_end = min(batch_start + chapters_per_batch - 1, self.novel_data["current_progress"]["total_chapters"])
-            self.novel_data["current_progress"]["current_batch"] += 1
+        end_chapter_total = self.novel_data["current_progress"]["total_chapters"]
+        # 检查是否需要生成新章节
+        if start_chapter > end_chapter_total:
+            print("✅ 所有章节已完成，无需继续生成。")
+        else:
+            print(f"  从第{start_chapter}章开始继续生成...")
             
-            print(f"\n批次{self.novel_data['current_progress']['current_batch']}: 第{batch_start}-{batch_end}章")
+            # 直接开始生成章节内容
+            chapters_per_batch = min(3, self.config["defaults"]["chapters_per_batch"])
             
-            if not self.generate_chapters_batch(batch_start, batch_end):
-                print(f"批次{self.novel_data['current_progress']['current_batch']}生成失败")
-                continue_gen = input("是否继续生成后续章节？(y/n): ").lower()
-                if continue_gen != 'y':
-                    break
-            
-            # 批次间延迟
-            batch_delay = 10 if self.novel_data["current_progress"]["total_chapters"] > 100 else 5
-            print(f"等待{batch_delay}秒后继续下一批次...")
-            time.sleep(batch_delay)
+            for batch_start in range(start_chapter, end_chapter_total + 1, chapters_per_batch):
+                batch_end = min(batch_start + chapters_per_batch - 1, end_chapter_total)
+                self.novel_data["current_progress"]["current_batch"] += 1
+                
+                print(f"\n批次{self.novel_data['current_progress']['current_batch']}: 第{batch_start}-{batch_end}章")
+                
+                if not self.generate_chapters_batch(batch_start, batch_end):
+                    print(f"批次{self.novel_data['current_progress']['current_batch']}生成失败")
+                    continue_gen = input("是否继续生成后续章节？(y/n): ").lower()
+                    if continue_gen != 'y':
+                        break
+                
+                # 批次间延迟
+                batch_delay = 10 if end_chapter_total > 100 else 5
+                if batch_end < end_chapter_total:
+                    print(f"等待{batch_delay}秒后继续下一批次...")
+                    time.sleep(batch_delay)
+
+        # 无论是否生成了新章节，都执行最终的收尾流程（包括保存、导出和生成封面）
+        print("\n▶️ 所有章节内容已就绪，进入最终收尾流程...")
+        return self._finalize_generation()
         
-        self.novel_data["current_progress"]["stage"] = "完成"
-        
-        # 保存最终进度和导出总览
-        self.project_manager.save_project_progress(self.novel_data)
-        self.project_manager.export_novel_overview(self.novel_data)
-        
-        print("🎉 小说生成完成！")
-        return True
-    
     def full_auto_generation(self, creative_seed: str, total_chapters: int = None):
         """全自动生成完整小说 - 修改为生成多本小说"""
         print("🚀 开始全自动小说生成...")
@@ -541,10 +538,30 @@ class NovelGenerator:
         
         # 🆕 不再手动选择分类，等待从生成的方案中获取
         print(f"  📝 等待从生成的方案中自动获取分类信息...")
+       # 【核心改动 1】: 从原始JSON中提取创意，并调用指令精炼器
+        # 使用一个临时占位符标题来生成指令文件
+        temp_title_for_filename = f"未定稿创意_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         
+        if isinstance(creative_seed, str):
+            try:
+                # 尝试解析JSON字符串
+                creative_work_dict = json.loads(creative_seed)
+            except:
+                # 如果解析失败，创建一个基础字典结构
+                creative_work_dict = {
+                    "coreSetting": creative_seed,
+                    "coreSellingPoints": "",
+                    "completeStoryline": {}
+                }
+        else:
+            creative_work_dict = creative_seed
+
+        refined_creative_seed = self.refine_creative_work_for_ai(creative_work_dict, temp_title_for_filename)
+
+        # -------------------------------------------------------------        
         # 生成多个方案
         print("=== 步骤1: 基于创意种子生成多个小说方案 ===")
-        plans_data = self.content_generator.generate_multiple_plans(creative_seed, "")
+        plans_data = self.content_generator.generate_multiple_plans(refined_creative_seed, "")
         
         if not plans_data or 'plans' not in plans_data:
             print("❌ 方案生成失败")
@@ -560,6 +577,32 @@ class NovelGenerator:
             
             # 🆕 从方案中获取分类信息
             category_from_plan = plan.get('tags', {}).get('main_category', '未分类')
+            
+            # ===================== [新增] 分类修正逻辑 =====================
+            original_category = category_from_plan
+            # 检查标题、简介和关键词中是否包含"同人"
+            title = plan.get('title', '')
+            synopsis = plan.get('synopsis', '')
+            keywords = plan.get('tags', {}).get('keywords', [])
+            keywords_str = "".join(keywords) # 将关键词列表转为字符串以便搜索
+
+            if "同人" in title or "同人" in synopsis or "同人" in keywords_str:
+                # 如果包含"动漫"关键词，优先归类为"动漫衍生"
+                if "动漫" in title or "动漫" in synopsis or "动漫" in keywords_str:
+                    category_from_plan = "动漫衍生"
+                else: # 否则归类为"男频衍生"
+                    category_from_plan = "男频衍生"
+
+            if original_category != category_from_plan:
+                print(f"    🔄 分类修正: 检测到'同人'关键字，分类已从 '{original_category}' 修正为 '{category_from_plan}'")
+                                # 确保 'tags' 字典存在
+                if 'tags' not in plan:
+                    plan['tags'] = {}
+                
+                # 直接修改 plan 对象内部的分类，确保数据一致性
+                plan['tags']['main_category'] = category_from_plan
+                print(f"    📝 同步更新方案内部 'tags.main_category' 字段。")
+            # ===================== [新增] 结束 ===========================
             print(f"    📊 方案分类: {category_from_plan}")
             
             evaluation_result = self._evaluate_plan_quality(plan, category_from_plan, creative_seed)
@@ -630,7 +673,20 @@ class NovelGenerator:
                 print(f"📖 小说标题: {self.novel_data['novel_title']}")
                 print(f"📊 方案评分 - 质量: {qualified_plan['quality_score']:.1f}, 新鲜度: {qualified_plan['freshness_score']:.1f}")
                 print(f"📚 小说分类: {plan_category}")
-                
+                # 【核心改动 3】: 在确定小说标题后，重命名指令文件
+                # -------------------------------------------------------------
+                safe_new_title = re.sub(r'[\\/*?:"<>|]', "_", self.novel_data["novel_title"])
+                old_filepath = os.path.join("小说项目", f"{temp_title_for_filename}_Refined_AI_Brief.txt")
+                new_filepath = os.path.join("小说项目", f"{safe_new_title}_Refined_AI_Brief.txt")
+                if os.path.exists(old_filepath):
+                    try:
+                        os.rename(old_filepath, new_filepath)
+                        print(f"🔄 AI指令文件名已更新为: {os.path.basename(new_filepath)}")
+                        # 更新临时文件名，以防下一本小说生成时出错
+                        temp_title_for_filename = f"未定稿创意_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{i+1}"
+                    except Exception as rename_error:
+                        print(f"⚠️ 重命名指令文件失败: {rename_error}")
+                # -------------------------------------------------------------
                 # 执行单个小说的生成流程
                 if self._generate_single_novel(creative_seed, total_chapters):
                     success_count += 1
@@ -713,6 +769,127 @@ class NovelGenerator:
         
         print("✓ 方案已确定，开始后续生成流程...")
         return plan_data
+
+    def refine_creative_work_for_ai(self, creative_work: dict, novel_title: str) -> str:
+        """
+        【指令精炼层 - 核心方法】
+        将用户提供的原始创意JSON，转换为对AI具有高度约束力的、结构化的文本指令。
+        并将精炼后的指令保存到文本文件中。
+
+        Args:
+            creative_work (dict): 用户输入的原始创意JSON对象。
+            novel_title (str): 小说标题，用于生成文件名。
+
+        Returns:
+            str: 精炼后的、可直接用作AI Prompt的文本指令。
+        """
+        print("⚙️  正在执行【指令精炼】，将人类创意转换为AI必须遵守的硬性指令...")
+
+        # 1. 提取核心组件
+        core_setting = creative_work.get("coreSetting", "未提供核心设定。")
+        core_selling_points = creative_work.get("coreSellingPoints", "未提供核心卖点。")
+        storyline = creative_work.get("completeStoryline", {})
+        
+        # 2. 构建AI精炼提示词
+        refinement_prompt = f"""
+    请将以下小说创意转换为对AI具有高度约束力的、结构化的创作指令：
+
+    【原始创意】
+    核心设定：{core_setting}
+    核心卖点：{core_selling_points}
+    故事线：{storyline}
+
+    【转换要求】
+    1. 将创意转换为严格的AI创作指令，包含世界观边界、绝对禁止事项、阶段性目标
+    2. 强调时间线和地理范围的限制
+    3. 明确角色行为的约束条件
+    4. 突出核心卖点的实现路径
+    5. 用命令式的语言，确保AI必须遵守
+    6. 结构清晰，分为世界观边界、核心卖点执行纲领、分阶段框架等部分
+
+    请生成一个完整的、可直接用作AI Prompt的严格指令：
+    """
+        
+        try:
+            # 3. 调用AI进行真正的精炼
+            print("  🤖 调用AI进行创意精炼...")
+            refined_instruction = self.api_client.call_api(
+                "refine_creative_work_for_ai",
+                refinement_prompt,
+                0.7,  # 适度创造性
+                purpose="创意精炼为AI指令"
+            )
+            
+            if not refined_instruction:
+                print("  ⚠️ AI精炼失败，使用基础模板")
+                refined_instruction = self._build_basic_instruction_template(core_setting, core_selling_points, storyline)
+            
+            # 4. 保存到文件
+            try:
+                safe_title = re.sub(r'[\\/*?:"<>|]', "_", novel_title)
+                output_dir = "小说项目"
+                os.makedirs(output_dir, exist_ok=True)
+                output_filepath = os.path.join(output_dir, f"{safe_title}_Refined_AI_Brief.txt")
+                
+                with open(output_filepath, 'w', encoding='utf-8') as f:
+                    f.write(refined_instruction)
+                print(f"✅  指令精炼完成，已保存至: {output_filepath}")
+            except Exception as e:
+                print(f"⚠️  保存精炼指令文件失败: {e}")
+                
+            return refined_instruction
+            
+        except Exception as e:
+            print(f"❌ AI精炼过程出错: {e}，使用基础模板")
+            # 降级到基础模板
+            return self._build_basic_instruction_template(core_setting, core_selling_points, storyline)
+
+    def _build_basic_instruction_template(self, core_setting: str, core_selling_points: str, storyline: dict) -> str:
+        """构建基础指令模板（降级方案）"""
+        print("  🛠️ 使用基础指令模板...")
+        
+        instructions = []
+        instructions.append("# AI创作最高指令：创作大纲与绝对约束")
+        instructions.append("你是一位顶级的小说策划AI。以下内容是你本次创作的【唯一真相来源】和【绝对行为准则】。你必须严格、完整、精确地遵循所有指令，任何偏离或遗漏都将被视为任务失败。")
+        
+        instructions.append("\n" + "="*30)
+        instructions.append("\n## 第一部分：世界观与不可逾越的边界")
+        instructions.append(f"\n**核心设定：**\n{core_setting}")
+        
+        # 自动生成否定约束
+        negative_constraints = []
+        if "凡人" in core_setting and "落云宗" in core_setting:
+            negative_constraints.append("**绝对禁止**：故事时间线在韩立从乱星海回归之后，因此**严禁**让主角前往乱星海、参与虚天殿夺宝等已发生的剧情。主角在结婴前的活动范围**必须**锁定在天南大陆。")
+        else:
+            negative_constraints.append("**绝对禁止**：你的一切情节设计都不能超出上述【核心设定】所定义的范围。不要引入设定之外的时间段、地点或世界背景。")
+        
+        instructions.append("\n**绝对禁止事项：**")
+        instructions.extend([f"- {constraint}" for constraint in negative_constraints])
+        
+        instructions.append("\n" + "="*30)
+        instructions.append("\n## 第二部分：核心卖点与执行纲领")
+        instructions.append("你的所有情节设计，都必须以服务和凸显以下核心卖点为首要目标：")
+        instructions.append(f"\n{core_selling_points}")
+        
+        instructions.append("\n" + "="*30)
+        instructions.append("\n## 第三部分：分阶段故事线框架")
+        instructions.append("你必须严格按照以下阶段的设定来构建故事的起承转合。")
+        
+        if storyline:
+            for stage_key, stage_data in storyline.items():
+                stage_name = stage_data.get('stageName', '未知阶段')
+                summary = stage_data.get('summary', '无')
+                arc_goal = stage_data.get('arc_goal', '无')
+                
+                instructions.append(f"\n### {stage_name}")
+                instructions.append(f"- **情节概要：** {summary}")
+                instructions.append(f"- **强制目标：** {arc_goal}")
+        
+        instructions.append("\n" + "="*30)
+        instructions.append("\n## 最终指令确认")
+        instructions.append("以上所有内容是不可违背的创作铁律。现在，请基于这份【最高指令】，开始你的工作。")
+        
+        return "\n".join(instructions)
 
     def _generate_writing_style_guide(self, creative_seed: str, category: str) -> bool:
         """生成写作风格指南"""
@@ -2951,11 +3128,17 @@ class NovelGenerator:
         """生成多个方案并让用户选择 - 增强版本，包含新鲜度评分"""
         print("=== 步骤1: 基于创意种子生成多个小说方案 ===")
         
-        # 🆕 不再手动选择分类，等待从生成的方案中获取
-        print(f"  📝 等待从生成的方案中自动获取分类信息...")
-        
-        # 生成多个方案
-        plans_data = self.content_generator.generate_multiple_plans(creative_seed, "")
+        # 假设我们总是处理第一个创意作品
+        creative_work = creative_seed
+        # 预设一个临时的、可能不准确的标题用于文件名
+        temp_title_for_filename = "未定稿小说" 
+
+        # 【核心改动】在这里调用指令精炼层
+        refined_creative_seed = self.refine_creative_work_for_ai(creative_work, temp_title_for_filename)
+
+        # 后续所有需要“创意种子”的地方，都使用这个精炼后的文本
+        # 例如，传递给 content_generator.generate_multiple_plans
+        plans_data = self.content_generator.generate_multiple_plans(refined_creative_seed, "")
         
         if not plans_data or 'plans' not in plans_data:
             print("❌ 方案生成失败")

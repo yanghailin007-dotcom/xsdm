@@ -31,23 +31,15 @@ class SimpleCreativeManager:
             self.creative_data = []
     
     def get_current_creative(self):
-        """获取当前创意并组合成一句话"""
+        """获取当前创意字典对象"""
         if not self.creative_data:
             return None
         
         creative = self.creative_data[self.current_index]
         
-        # 组合成一句话创意
-        core_setting = creative.get('coreSetting', '')
-        core_selling = creative.get('coreSellingPoints', '')
-        story_opening = creative.get('completeStoryline', {}).get('opening', '')
-        
-        # 提取核心设定中的关键词
-        keywords = core_setting.split('+')[0] if '+' in core_setting else core_setting
-        combined_creative = f"{keywords}，{core_selling}，{story_opening}"
-        
-        return combined_creative
-    
+        # 返回完整的创意字典，而不是组合字符串
+        return creative
+
     def mark_completed_and_move(self):
         """标记当前创意完成并移动到下一个"""
         if not self.creative_data:
@@ -108,10 +100,19 @@ def main():
             # 获取当前创意
             creative_seed = creative_manager.get_current_creative()
             progress = creative_manager.get_progress()
-            print(f"\n🎯 开始处理创意 {progress}: {creative_seed}")
+            if creative_seed:
+                core_setting = creative_seed.get('coreSetting', '未知创意')[:50]  # 只显示前50个字符
+                print(f"\n🎯 开始处理创意 {progress}: {core_setting}...")
+            else:
+                print(f"\n🎯 开始处理创意 {progress}: 无创意数据")
             
-            # 查找相关项目
-            existing_projects = generator.project_manager.find_existing_projects(creative_seed)
+            # 从创意字典中提取核心设定作为搜索关键词
+            if creative_seed and isinstance(creative_seed, dict):
+                search_keyword = creative_seed.get('coreSetting', '')[:50]  # 使用核心设定作为搜索关键词
+            else:
+                search_keyword = str(creative_seed)[:50] if creative_seed else ""
+
+            existing_projects = generator.project_manager.find_existing_projects(search_keyword)
             
             if existing_projects:
                 print(f"📚 找到{len(existing_projects)}个相关项目，自动选择最新项目继续")

@@ -7,7 +7,6 @@ from typing import Any, Dict, Optional, List, Tuple
 import APIClient
 from Contexts import GenerationContext
 import Contexts
-import EventDrivenManager
 import NovelGenerator
 from Prompts import Prompts
 import QualityAssessor
@@ -103,7 +102,7 @@ class ContentGenerator:
             "核心情节": "AI根据创意生成",
             "主角设定": "AI根据创意生成", 
             "金手指": "AI根据创意生成",
-            # 新增：强调代入感和沉浸感，避免复杂设定
+            "标题要求": "小说标题必须严格控制在15个字以内（包含所有标点符号），风格要像番茄小说一样简洁、有冲击力、一眼就能抓住读者眼球。例如：《开局女帝认我作父》或《末日：我能无限升级》。",
             "创新要求": "追求新颖独特，强调代入感和沉浸感。避免复杂的世界观解释、外星人、超能力、阴谋论等宏大设定。重点在于有趣的故事、真实的情感、贴近生活的体验。系统或金手指不需要解释来源，直接使用即可。读者关心的是有趣的故事和情感共鸣，而不是复杂的设定。"
         }            
         
@@ -347,14 +346,14 @@ class ContentGenerator:
         
         return result
 
-
-    def _generate_highlight_scene_snippet(self, scene_brief: str, character_design: Dict, emotional_focus: str) -> Optional[str]:
+    def _generate_highlight_scene_snippet(self, scene_brief: str, character_design: Dict, emotional_focus: str, writing_style_guide: Dict) -> Optional[str]:
         """
         通过 generate_content_with_retry 调用“导演”角色Prompt，生成场景片段。
+        【已修改】：现在会接收并遵循 writing_style_guide。
         """
         print("  🎬 [API Call] 正在调用“名场面导演”模块...")
 
-        # 1. 准备需要注入到 [CONTEXT] 的信息
+        # 1. 准备角色信息
         involved_chars_prompt_parts = []
         main_char = character_design.get("main_character", {})
         if main_char:
@@ -364,12 +363,25 @@ class ContentGenerator:
 
         important_chars = character_design.get("important_characters", [])
         if important_chars:
-            first_sidekick = important_chars[0] # 简化处理，假设涉及第一个配角
+            first_sidekick = important_chars[0] 
             char_name = first_sidekick.get("name", "配角")
             soul_matrix = first_sidekick.get("soul_matrix", [])
             involved_chars_prompt_parts.append(f"配角 [{char_name}] 的核心性格-行为: {json.dumps(soul_matrix, ensure_ascii=False, indent=2)}")
         
         involved_chars_str = "\n".join(involved_chars_prompt_parts)
+
+        # 【新增】: 将写作风格指南格式化，注入到Prompt中
+        style_guide_prompt_part = ""
+        if writing_style_guide:
+            style_guide_prompt_part = f"""
+### 3. 写作风格指南 (必须严格遵守！)
+*   **核心风格**: {writing_style_guide.get('core_style', '默认')}
+*   **语言特点**: {writing_style_guide.get('language_characteristics', {})}
+*   **叙事技巧**: {writing_style_guide.get('narration_techniques', {})}
+*   **关键原则**: {', '.join(writing_style_guide.get('key_principles', []))}
+
+请确保你生成的场景片段严格符合上述写作风格，与小说整体基调保持一致。
+"""
 
         # 2. 构建将要传递给 prompt 的 context 字符串
         director_context = f"""
@@ -381,20 +393,21 @@ class ContentGenerator:
 
 ### 2. 角色核心设定
 {involved_chars_str}
+{style_guide_prompt_part}
 """
         try:
-            # 3. 使用您现有的API客户端方法进行调用
+            # 3. API调用部分无需改变
             result = self.api_client.generate_content_with_retry(
-                "highlight_scene_snippet",  # 使用我们在 WorldviewPrompts.py 中定义的新 key
-                director_context,           # 将所有信息作为 context 传递
+                "highlight_scene_snippet",
+                director_context,
                 purpose="生成高光场景片段"
             )
 
-            # 4. 从返回的JSON中解析出场景文本
+            # 4. 解析部分无需改变
             if result and isinstance(result, dict):
                 scene_snippet = result.get("scene_snippet")
                 if scene_snippet and isinstance(scene_snippet, str) and len(scene_snippet.strip()) > 50:
-                    print("  ✅ “名场面导演”成功生成场景片段。")
+                    print("  ✅ “名场面导演”成功生成【风格一致的】场景片段。")
                     return scene_snippet.strip()
                 else:
                     print("  ⚠️ “名场面导演”返回的JSON中snippet为空或过短。")
@@ -597,18 +610,19 @@ class ContentGenerator:
                     chapter_number,
                     novel_data["novel_title"],
                     chapter_params.get("previous_chapters_summary", ""),
-                    chapter_data.get("word_count", 0)
+                    chapter_data.get("word_count", 0),
+                    novel_data=novel_data
                 )
                 
                 # 设置质量评分
-                score = assessment.get("overall_score", 0)
+                score = assessment.get("overall_score", 0) 
                 chapter_data["quality_score"] = score
                 chapter_data["quality_assessment"] = assessment
                 
                 print(f"  质量评分: {score:.1f}分")
                 
                 # 根据质量决定是否优化
-                optimize_needed, optimize_reason = self._should_optimize_based_on_config(assessment, chapter_data)
+                optimize_needed, optimize_reason = self._should_optimize_based_on_config(assessment)
                 
                 if optimize_needed:
                     print(f"  🔧 进行优化: {optimize_reason}")
@@ -672,7 +686,8 @@ class ContentGenerator:
                             chapter_number,
                             novel_data["novel_title"],
                             chapter_params.get("previous_chapters_summary", ""),
-                            chapter_data.get("word_count", 0)
+                            chapter_data.get("word_count", 0),
+                            novel_data=novel_data
                         )
                         new_score = new_assessment.get("overall_score", 0)
                         improvement = new_score - score
@@ -1087,9 +1102,9 @@ class ContentGenerator:
         
         return f"第{chapter_number}章 {base_title}"
 
-    def _should_optimize_based_on_config(self, assessment: Dict, chapter_data: Dict) -> Tuple[bool, str]:
+    def _should_optimize_based_on_config(self, assessment: Dict) -> Tuple[bool, str]:
         """基于配置决定是否需要优化 - 使用统一标准"""
-        score = assessment.get("overall_score", 0)
+        score = assessment.get("overall_score", 0) 
         
         # 使用统一质量标准
         quality_threshold = self.quality_assessor.unified_quality_standards["optimization_thresholds"]["chapter_content"]
@@ -1103,6 +1118,8 @@ class ContentGenerator:
         severe_issues = [issue for issue in consistency_issues if issue.get('severity') == '高']
         
         if severe_issues:
+            for issue in severe_issues:
+                print(f"  - {issue}")
             return True, f"存在{len(severe_issues)}个严重一致性问题，需要优化"
         
         return False, f"评分{score:.1f}良好，跳过优化"
@@ -1182,8 +1199,24 @@ class ContentGenerator:
                     print(f"  ✅ 字数达标: {word_count}字")
                     break
                 
-                # 字数不足的处理
-                print(f"  ⚠️ 字数不足: {content_length}字 < 1800字")
+                # 【【【新增的清理步骤】】】
+                # 在内容生成之后，优化之前，进行标记清理
+                if chapter_content and 'content' in chapter_content and isinstance(chapter_content['content'], str):
+                    content_with_markers = chapter_content['content']
+                    if '[SCENE_BLOCK_START]' in content_with_markers:
+                        print("  🧹 正在清理最终内容中的内部标记...")
+                        
+                        # 执行清理
+                        cleaned_content = content_with_markers.replace('[SCENE_BLOCK_START]', '')
+                        cleaned_content = cleaned_content.replace('[SCENE_BLOCK_END]', '')
+                        
+                        # 移除可能因替换产生的多余空行
+                        cleaned_content = cleaned_content.strip()
+                        
+                        # 更新章节内容和字数统计
+                        chapter_content['content'] = cleaned_content
+                        chapter_content['word_count'] = len(cleaned_content)
+                        print("  ✅ 内部标记已成功移除，正文已净化。")
                 
                 # 如果是最后一次尝试，使用当前内容
                 if attempt == max_retries - 1:
@@ -1362,11 +1395,15 @@ class ContentGenerator:
             except json.JSONDecodeError:
                 character_info_dict = {}
 
+            # 【修改】: 从 chapter_params 中获取 writing_style_guide
+            writing_style_guide = chapter_params.get("writing_style_guide", {})
+
             # 调用我们适配好的新方法
             snippet = self._generate_highlight_scene_snippet(
                 scene_brief,
                 character_info_dict,
-                emotional_guidance.get("current_emotional_focus", "")
+                emotional_guidance.get("current_emotional_focus", ""),
+                writing_style_guide
             )
 
             if snippet:
@@ -1972,12 +2009,12 @@ class ContentGenerator:
 ## 章节创作指令 ##
 为《{chapter_params.get('novel_title', '')}》创作第{chapter_params['chapter_number']}章。
 
-## ‼️ 特殊指令：场景模块处理规则 (最高优先级) ##
-在下方的【情节结构】中，你可能会看到被 `[SCENE_BLOCK_START]` 和 `[SCENE_BLOCK_END]` 包裹的文本块。
-这是由“名场面导演”预先写好的高光场景，你的任务是：
-1.  **一字不改地原文复制** `[SCENE_BLOCK_START]` 和 `[SCENE_BLOCK_END]` 之间的所有内容到你的最终输出中。
-2.  你的核心创作任务是**撰写场景模块之前和之后的内容**，确保整个章节的情节、情绪和节奏过渡自然、天衣无缝。
-3.  你需要像一个真正的作家一样，思考如何引入这个高光场景（做好铺垫），以及在高光场景结束后，故事如何继续发展（做好收尾）。
+## ‼️ 核心融合任务 (最高优先级) ##
+在下方的【情节结构】-【高潮】部分，你会看到一个被 `[SCENE_BLOCK_START]` 和 `[SCENE_BLOCK_END]` 包裹的【高光场景模块】。
+
+你的任务是：
+1.  **无痕融入**: 将这个【高光场景模块】的内容，逐字不差地、完美地融入到你的行文中。你需要创作它之前和之后的情节，让整个高潮部分读起来天衣无缝，就像完全是你自己一气呵成写出来的。
+2.  **主动净化**: 在你的最终输出中，**绝对不能包含 `[SCENE_BLOCK_START]` 或 `[SCENE_BLOCK_END]` 这两个标记**。你要在创作过程中就将它们“吸收”掉，只留下纯净的故事情节。
 
 
 ## 情感设计 ##
@@ -2428,13 +2465,18 @@ class ContentGenerator:
         """生成多个不同金手指和主线剧情的小说方案"""
         print(f"  🎯 生成3个不同风格的小说方案...")
             
-        # 构建完整的提示词，直接将参数插入到提示词中
         full_prompt = f"""
 内容：
 创意种子：{creative_seed}
 小说分类：{category}
 
-    """
+##【重要指令】
+你必须生成3个不同风格的小说方案。对于**每一个方案**，都必须遵守以下规则：
+1.  **标题约束**: 每个方案的标题都**必须严格控制在4-15个字符之间（包含标点）**。标题要简洁、有冲击力。
+2.  **风格差异**: 3个方案的核心设定（尤其是金手指）和主线发展必须有明显的区别。
+
+请严格按照你的System Prompt中定义的JSON格式返回结果。
+"""
         
         try:
             # 调用API生成内容

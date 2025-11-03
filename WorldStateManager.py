@@ -329,15 +329,13 @@ class WorldStateManager:
                 }
             },
             "economy": {  # 新增：经济系统
-                "transactions": {
-                    "type": str,  # 收入/支出
-                    "amount": (int, float),
-                    "from_character": str,
-                    "to_character": str, 
-                    "reason": str,  # 交易原因
-                    "item_involved": str,  # 涉及物品
-                    "chapter": int
-                }
+                "type": str,  # 收入/支出
+                "amount": (int, float),
+                "from_character": str,
+                "to_character": str, 
+                "reason": str,  # 交易原因
+                "item_involved": str,  # 涉及物品
+                "chapter": int
             },
             "cultivation_items": {  # 新增：修炼相关物品
                 "description": str,
@@ -1939,7 +1937,7 @@ class WorldStateManager:
             return consistency_issues
         
         characters_changes = changes.get('characters', {})
-        economy_changes = changes.get('economy', {}).get('transactions', {})
+        economy_changes = changes.get('economy', {})
         
         # 处理列表类型的 economy_changes
         if isinstance(economy_changes, list):

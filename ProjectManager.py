@@ -28,7 +28,17 @@ class ProjectManager:
         if not os.path.exists("小说项目"):
             return projects
             
-        safe_seed = re.sub(r'[\\/*?:"<>|]', "_", creative_seed) if creative_seed else ""
+        # 确保 creative_seed 是字符串
+        if creative_seed is None:
+            safe_seed = ""
+        elif isinstance(creative_seed, dict):
+            # 如果是字典，提取核心设定
+            safe_seed = creative_seed.get('coreSetting', '')[:50]
+        else:
+            safe_seed = str(creative_seed)[:50]
+        
+        # 安全处理字符串
+        safe_seed = re.sub(r'[\\/*?:"<>|]', "_", safe_seed) if safe_seed else ""
         
         for filename in os.listdir("小说项目"):
             if filename.endswith("_项目信息.json"):

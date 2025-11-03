@@ -736,30 +736,56 @@ class GlobalGrowthPlanner:
         # 准备基础数据
         novel_data = self.novel_generator.novel_data
         total_chapters = novel_data["current_progress"]["total_chapters"]
+        market_info = self.novel_generator.novel_data.get("market_analysis", {})
+        core_selling_points = market_info.get("core_selling_points", [])
         
-        # 添加小说基础信息
-        user_prompt = f"""
-内容:
-[小说数据]
+        question_list = ""
+        if core_selling_points:
+            for i, point in enumerate(core_selling_points):
+                question_list += f"   - 卖点 {i+1}：『{point}』\n"
 
+        # 2. 构建一个更智能、更通用的Prompt
+        user_prompt = f"""
+# 最高指令：将商业分析转化为小说战略
+
+你是一名顶级的商业小说策划专家。你的唯一目标是基于下方提供的“商业分析”，为小说量身打造一个能引爆市场的全书成长规划。
+
+## 商业分析（本书成功的关键）
+*   **核心卖点清单**: 
+{question_list if question_list else "   - (未提供核心卖点)"}
+*   **市场策略**: {json.dumps(market_info.get("recommended_strategies", []), ensure_ascii=False)}
+
+## 小说基础信息
 *   **小说标题**: {novel_data["novel_title"]}
 *   **小说简介**: {novel_data["novel_synopsis"]}
-*   **核心世界观**: {json.dumps(novel_data.get('core_worldview', {}), ensure_ascii=False)}
-*   **主要角色**: {json.dumps(novel_data.get('character_design', {}), ensure_ascii=False)}
+*   **总章节数**: {total_chapters}
 
-[任务指令]
+# 任务：基于上述“商业分析”，设计小说的核心成长体系
 
-1.  **核心任务**: 基于上述小说数据，为全书生成一份完整的成长规划。
-2.  **总章节数**: {total_chapters}
-3.  **执行要求**: 请严格遵循你在System Prompt中定义的角色、规则和JSON输出结构。 
-"""        
+请将上述“核心卖点清单”作为一个不可违背的整体。在你设计**每一个**规划部分（包括人物成长、能力体系、势力发展等）时，都必须用整个清单来拷问你的设计：
+
+1.  **全面覆盖**: 我的这个设计，是否能服务于清单中的**至少一个**核心卖点？
+2.  **协同增效**: 我的这个设计，是否能巧妙地**同时服务于多个**核心卖点，产生 1+1 > 2 的效果？
+3.  **杜绝冲突**: 我的这个设计，是否与清单中的**任何一个**卖点产生冲突或显得无关紧要？（如果是，则必须废弃或修改）
+
+## 规划要求（动态适应，逻辑跟随卖点清单）
+
+1.  **人物成长弧线**: 主角的成长目标和路径是什么？它应该如何设计，才能最频繁、最有力地展现“核心卖点清单”中的爽点？
+2.  **核心系统/金手指**: 它的核心机制是什么？这个机制必须是为整个“核心卖点清单”量身打造的。
+3.  **世界与势力**: 世界观和敌对势力的作用是什么？它们必须是最佳的“舞台”和“道具”，让主角能够完美地表演“核心卖点清单”中的所有内容。
+
+请基于此**整体性、系统性**的思考方法，为这本小说输出一份定制化的JSON格式全局成长规划。
+"""      
         # 原有的成长规划生成代码...
         global_plan = self.novel_generator.api_client.generate_content_with_retry(
             "global_growth_planning",
             user_prompt,
             purpose="生成全书全局成长规划"
         )
-        
+        # 添加调试信息
+        print(f"  🔍 调试信息 - total_chapters: {total_chapters}")
+        print(f"  🔍 调试信息 - novel_data 类型: {type(novel_data)}")
+    
         if global_plan:
             self.global_growth_plan = global_plan
             self.novel_generator.novel_data["global_growth_plan"] = global_plan

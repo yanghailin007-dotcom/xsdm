@@ -95,7 +95,14 @@ class StagePlanManager:
 ## 1. 开局阶段 (约前10-15%章节)
 - **章节范围**: 第1章-第{boundaries['opening_end']}章
 - **核心任务**: 建立故事基础，引入核心冲突，吸引读者
-- **重点内容**: 主角出场，世界观介绍，初始冲突，悬念设置
+- **重点内容**: 
+
+- **【强制指令：开局核心目标】**: 你必须为这个阶段设定一个明确、具体、能驱动读者追读{boundaries['opening_end']}章的“开局核心目标 (opening_arc_goal)”。这个目标必须是主角在开局阶段的唯一追求，所有事件都将围绕它展开。
+  - **示例1 (玄幻)**: “在三个月后的家族大比中击败天才堂兄，保住父母的荣誉。”
+  - **示例2 (都市)**: “在一个月内赚到100万，为母亲支付手术费。”
+  - **示例3 (仙侠)**: “在宗门年度考核前达到炼气七层，获得内门弟子资格。”
+  - **示例3 (同人)**: “成为比主角更强大的存在，或者改变原著的某个重大剧情”
+  **你必须在下方对开局阶段的规划中，明确写出你设计的“开局核心目标”。**
 
 ## 2. 发展阶段 (约25-30%章节)
 - **章节范围**: 第{boundaries['development_start']}章-第{boundaries['development_end']}章  
@@ -210,29 +217,38 @@ class StagePlanManager:
         
         # 获取阶段特定指导
         stage_guidance = self.get_stage_specific_guidance(stage_name)
-        
+
+        novel_data = self.generator.novel_data
+        market_info = novel_data.get("market_analysis", {})
+        core_selling_points = market_info.get("core_selling_points", [])
         # 构建用户提示词
         user_prompt = f"""
-        内容:
-        ## 任务指令
-        请根据下文提供的小说信息和全书大纲，为 `{stage_name}` 阶段制定详细的写作计划。
+# 最高指令：将核心卖点转化为具体的爽点事件
 
-        {stage_guidance}
+你是一位精通网络小说节奏的王牌编辑。你的任务是为 `{stage_name}` ({stage_range}) 设计读者无法抗拒的事件序列。
 
-        ## 小说核心信息
-        - **小说标题**: {novel_title}
-        - **小说简介**: {novel_synopsis}
-        - **创意种子**: {creative_seed}
+## 小说核心信息
+- **小说标题**: {novel_title}
+- **小说简介**: {novel_synopsis}
+- **创意种子**: {creative_seed}
+- **核心卖点 (必须体现)**: {json.dumps(core_selling_points, ensure_ascii=False)}
 
-        ## 全书大纲 (上下文)
-        {json.dumps(overall_stage_plan, ensure_ascii=False, indent=2)}
+{stage_guidance}
 
-        ## 本次任务详情
-        - **目标阶段**: {stage_name}
-        - **章节范围**: {stage_range}章
-        - **阶段长度**: {stage_length}章
+## 全书大纲 (上下文)
+{json.dumps(overall_stage_plan, ensure_ascii=False, indent=2)}
 
-        {self._get_major_event_design_requirements(stage_name, density_requirements)}
+## 本次任务详情
+现在，请你严格遵循上述的【阶段写作铁律】，并围绕【核心卖点】，设计出本阶段的详细事件序列。
+### 思考步骤:
+1.  **定义事件模型**: 根据“核心卖点”，首先在脑中定义出几种能最大化爽感的“核心事件”。（例如：卖点是“捡漏鉴宝”，核心事件就是“主角在不起眼处发现真品”、“用极低价格买入后价值连城”、“打脸嘲讽的专家”）。
+2.  **设计事件序列**: 使用你定义的“事件模型”作为积木，结合本阶段的【写作铁律】和【战略大纲】，设计出包含重大、中型、小型事件的完整序列。
+
+- **目标阶段**: {stage_name}
+- **章节范围**: {stage_range}章
+- **阶段长度**: {stage_length}章
+
+{self._get_major_event_design_requirements(stage_name, density_requirements)}
         """
         
         # 生成写作计划
@@ -337,7 +353,6 @@ class StagePlanManager:
 - 确保大事件之间有合理的间隔，避免过度密集
 """
 
-
     def _validate_and_optimize_writing_plan(self, writing_plan: Dict, stage_name: str, stage_range: str) -> Dict:
         if not writing_plan:
             print(f"  ⚠️ {stage_name}写作计划生成失败，使用默认计划")
@@ -346,19 +361,17 @@ class StagePlanManager:
         # 增强大事件结构
         writing_plan = self.event_manager.enhance_major_events_structure(writing_plan, stage_name, stage_range)
         
-        # 生成情绪计划并整合 (这部分与事件补充不同，应保留)
+        # 生成情绪计划并整合
         global_emotional_plan = self.generator.novel_data.get("emotional_development_plan", {})
         emotional_plan = self.emotional_manager.generate_stage_emotional_plan(stage_name, stage_range, global_emotional_plan)
         
         plan_container = writing_plan.get("stage_writing_plan", writing_plan)
         plan_container["emotional_plan"] = emotional_plan
 
-        # ▼▼▼ 修改 ▼▼▼
         # 验证事件密度，但不再触发补充，只做检查和警告
         event_density_ok = self.event_manager.validate_stage_event_density(writing_plan, stage_name, stage_range)
         if not event_density_ok:
             print(f"  ⚠️ {stage_name} 最终事件密度不符合要求。补充步骤可能未完全解决问题，请关注。")
-        # ▲▲▲ 修改 ▲▲▲
         
         # 验证大事件结构
         if "stage_writing_plan" in writing_plan:
@@ -373,13 +386,124 @@ class StagePlanManager:
             print(f"  ⚠️ {stage_name}大事件结构存在问题，进行优化...")
             writing_plan = self.event_manager.enhance_major_events_structure(writing_plan, stage_name, stage_range)
         
-        # 验证主线连贯性
+        # 验证主线连贯性（现在会考虑所有类型事件）
         is_continuous = self.event_manager.validate_main_thread_continuity(writing_plan, stage_name)
         if not is_continuous:
             print(f"  ⚠️ {stage_name}写作计划存在事件间隔过长问题")
         
-        return writing_plan  
+        return writing_plan
+    
+    def _optimize_based_on_continuity_assessment(self, writing_plan: Dict, assessment: Dict, 
+                                            stage_name: str, stage_range: str) -> Dict:
+        """
+        【AI驱动版】基于连续性评估结果，调用AI来执行事件安排的优化。
+        """
+        all_suggestions = assessment.get("improvement_recommendations", []) + \
+                        assessment.get("event_adjustment_suggestions", [])
 
+        if not all_suggestions:
+            print("  ✅ AI评估未提出具体事件调整建议，无需优化。")
+            return writing_plan
+        
+        print(f"  🔧 指示AI根据评估建议，开始优化 {stage_name} 阶段事件安排...")
+
+        # 1. 构建一个清晰的指令，让AI执行自己的建议
+        optimization_prompt = self._build_optimization_prompt(writing_plan, assessment, stage_name, stage_range)
+
+        # 2. 调用AI，让它返回一个修改后的完整事件系统
+        try:
+            optimization_result = self.generator.api_client.generate_content_with_retry(
+                "ai_event_plan_optimization", # 使用一个新的、专用的API调用标识
+                optimization_prompt,
+                purpose=f"执行对{stage_name}阶段的事件优化"
+            )
+            
+            if optimization_result and "optimized_event_system" in optimization_result:
+                # 3. 用AI返回的优化后的事件系统，替换旧的
+                if "stage_writing_plan" in writing_plan:
+                    plan_container = writing_plan["stage_writing_plan"]
+                else:
+                    plan_container = writing_plan
+
+                # **核心操作：替换整个事件系统**
+                plan_container["event_system"] = optimization_result["optimized_event_system"]
+                plan_container["optimized_based_on_continuity"] = True
+                
+                # 打印AI提供的修改摘要，让日志清晰可查
+                summary = optimization_result.get("summary_of_changes", "AI未提供修改摘要。")
+                print(f"  ✅ AI优化执行完成。修改摘要: {summary}")
+
+                # 别忘了对AI修改后的事件列表进行排序
+                for key in ["major_events", "medium_events", "minor_events", "special_events"]:
+                    if key in plan_container["event_system"]:
+                        sort_key = "start_chapter" if key == "major_events" else "chapter"
+                        plan_container["event_system"][key].sort(key=lambda x: x.get(sort_key, 0))
+
+            else:
+                print("  ⚠️ AI优化失败，未能返回有效的优化后事件系统。")
+
+        except Exception as e:
+            print(f"  ❌ 在执行AI优化时发生错误: {e}")
+
+        return writing_plan
+
+    def _build_optimization_prompt(self, writing_plan: Dict, assessment: Dict, 
+                                stage_name: str, stage_range: str) -> str:
+        """构建一个提示词，指示AI根据评估建议来修改事件计划。"""
+
+        # 提取当前事件系统和优化建议
+        if "stage_writing_plan" in writing_plan:
+            event_system = writing_plan["stage_writing_plan"].get("event_system", {})
+        else:
+            event_system = writing_plan.get("event_system", {})
+
+        all_suggestions = assessment.get("improvement_recommendations", []) + \
+                        assessment.get("event_adjustment_suggestions", [])
+
+        prompt = f"""
+# 任务：小说事件计划修订
+
+作为一名顶尖的剧情编辑，你刚刚对一份小说事件计划进行了评估，并提出了一些改进建议。现在，你的任务是**亲自动手**，根据你自己的建议来修订这份计划。
+
+## 1. 当前的事件计划 ({stage_name}, {stage_range})
+
+这是你需要修改的原始事件计划：
+```json
+{json.dumps(event_system, ensure_ascii=False, indent=2)}
+2. 你的评估与改进建议
+这是你之前提出的需要执行的修改清单：
+
+JSON
+{json.dumps(all_suggestions, ensure_ascii=False, indent=2)}
+3. 修订指令
+请严格遵循你的建议，对上述的“当前事件计划”进行修改。
+
+对于“插入事件”的建议：请在对应的事件列表（如 medium_events）中添加一个新的事件对象。请确保新事件有 name, chapter, description 字段。
+对于“调整事件”的建议：请找到对应的事件，并在其 description 字段中追加一条备注，说明进行了何种调整。例如："description": "原有描述... [AI优化备注：增加与主角的情感互动，激化矛盾]"。
+对于“拆分/合并”等复杂建议：尽力执行。如果一个事件被拆分，请删除旧事件，并添加两个或多个新事件。
+保持结构完整：确保你返回的最终结果是一个完整且格式正确的 event_system JSON 对象。
+4. 返回格式
+请严格按照以下JSON格式返回你的工作成果。不要包含任何额外的解释。
+
+{{
+"optimized_event_system": {{
+"major_events": [
+// ... 修改后的重大事件列表
+],
+"medium_events": [
+// ... 修改后的中型事件列表（可能包含你新插入的事件）
+],
+"minor_events": [
+// ... 修改后的小型事件列表
+],
+"special_events": [
+// ... 修改后的特殊事件列表
+]
+}},
+"summary_of_changes": "用一句话总结你所做的主要修改。例如：'根据建议，在第72章插入了一个中型事件“前哨战”，并调整了“神之子降生”事件的描述。'"
+}}
+"""
+        return prompt
 
     def _print_writing_plan_summary(self, writing_plan: Dict):
         """打印写作计划摘要 - 增强连续性评估信息"""
@@ -539,7 +663,11 @@ class StagePlanManager:
     ## 🚀 开局阶段铁律：一切为7日留存服务 (章节占比: 前10-15%)
 
     ### 核心铁律 (必须严格遵守)
-    1.  **单一事件主导**: 整个开局阶段（尤其是前3章）必须围绕一个**单一、连续、高风险的重大事件**展开。禁止设计多个分散的、不相关的小事件，避免读者注意力分散。
+    1.  **核心目标主导 (The Arc Goal First)**: 你将从全书大纲中获得一个明确的“开局核心目标 (opening_arc_goal)”。你设计的**所有事件**——无论是重大、中型还是小型——都必须**直接服务于**这个核心目标。请按以下逻辑思考：
+        - 这个事件是主角为了达成【核心目标】而必须采取的**步骤**吗？
+        - 这个事件是阻碍主角达成【核心目标】的**障碍**吗？
+        - 这个事件能让主角获得达成【核心目标】所必需的**资源/能力/信息/盟友**吗？
+        - **所有情节必须构成一个指向“开局核心目标”的清晰的因果链条。**
     2.  **冲突前置 (黄金500字)**: 必须在**第一章前500字**内引入核心冲突或危机。读者不能有任何时间感到平淡或无聊。
     3.  **零度叙事**: 删掉所有冗长的世界观铺垫和背景介绍。所有信息都必须在**冲突和行动中**通过角色的视角和对话自然透露。世界观是用来“感受”的，不是用来“阅读”的。
     4.  **强力钩子 (章章相扣)**: 每一章的结尾都必须是一个强力的、让读者心痒难耐的钩子(Hook)，迫使他们立即阅读下一章。第3章的钩子必须是整个开局阶段最强的，要能决定读者是否愿意付费或继续追读。
@@ -790,46 +918,3 @@ class StagePlanManager:
         ])
         
         return "\n".join(prompt_parts) 
-
-    def _optimize_based_on_continuity_assessment(self, writing_plan: Dict, assessment: Dict, 
-                                            stage_name: str, stage_range: str) -> Dict:
-        """基于连续性评估结果优化事件安排"""
-        
-        improvement_recommendations = assessment.get("improvement_recommendations", [])
-        event_adjustments = assessment.get("event_adjustment_suggestions", [])
-        
-        if not improvement_recommendations and not event_adjustments:
-            return writing_plan
-        
-        print(f"  🔧 基于AI评估优化{stage_name}阶段事件安排...")
-        
-        # 提取事件系统
-        if "stage_writing_plan" in writing_plan:
-            event_system = writing_plan["stage_writing_plan"].get("event_system", {})
-        else:
-            event_system = writing_plan.get("event_system", {})
-        
-        # 处理高优先级建议
-        high_priority_issues = [rec for rec in improvement_recommendations 
-                            if rec.get("priority") == "high"]
-        
-        for issue in high_priority_issues:
-            print(f"  ⚡ 处理高优先级问题: {issue.get('issue')}")
-            # 这里可以添加具体的优化逻辑
-            # 比如调整事件时间、添加过渡事件等
-        
-        # 应用事件调整建议
-        for adjustment in event_adjustments:
-            event_name = adjustment.get("event_name")
-            suggested_adjustment = adjustment.get("suggested_adjustment")
-            print(f"  📝 调整事件{event_name}: {suggested_adjustment}")
-            # 这里可以添加具体的事件调整逻辑
-        
-        # 标记已优化
-        if "stage_writing_plan" in writing_plan:
-            writing_plan["stage_writing_plan"]["optimized_based_on_continuity"] = True
-        else:
-            writing_plan["optimized_based_on_continuity"] = True
-        
-        print(f"  ✅ 完成基于连续性评估的优化")
-        return writing_plan       

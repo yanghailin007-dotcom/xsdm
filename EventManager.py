@@ -712,38 +712,54 @@ class EventManager:
         
         return chains
 
-    def calculate_max_event_gap(self, events: List) -> int:
-        """计算最大事件间隔 - 修复版本"""
+    def calculate_max_event_gap(self, events: List, stage_start_chapter: int, stage_end_chapter: int) -> int:
+        """计算最大事件间隔 - 修复版本：考虑所有类型事件，添加 stage_end_chapter 参数"""
         if not events:
-            return 0
+            return stage_end_chapter - stage_start_chapter + 1
         
         # 按开始章节排序
         sorted_events = sorted(events, key=lambda x: x.get('start_chapter', 0))
         
         max_gap = 0
         
-        # 检查第一个事件之前的间隔
+        # 检查第一个事件与阶段起点的间隔
         first_event_start = sorted_events[0].get('start_chapter', 0)
-        if first_event_start > 1:
-            max_gap = max(max_gap, first_event_start - 1)
+        
+        if first_event_start > stage_start_chapter:
+            gap_at_start = first_event_start - stage_start_chapter
+            max_gap = max(max_gap, gap_at_start)
         
         # 检查事件之间的间隔
         for i in range(1, len(sorted_events)):
             prev_event = sorted_events[i-1]
             current_event = sorted_events[i]
             
+            # 获取前一个事件的结束章节
             prev_event_end = prev_event.get('end_chapter', prev_event.get('start_chapter', 0))
+            # 如果是单章事件，结束章节就是开始章节
+            if prev_event_end < prev_event.get('start_chapter', 0):
+                prev_event_end = prev_event.get('start_chapter', 0)
+                
             current_event_start = current_event.get('start_chapter', 0)
             
-            # 修复：确保间隔计算正确
             if current_event_start > prev_event_end:
                 gap = current_event_start - prev_event_end - 1
                 max_gap = max(max_gap, gap)
         
+        # 检查最后一个事件与阶段终点的间隔
+        last_event = sorted_events[-1]
+        last_event_end = last_event.get('end_chapter', last_event.get('start_chapter', 0))
+        if last_event_end < last_event.get('start_chapter', 0):
+            last_event_end = last_event.get('start_chapter', 0)
+            
+        if last_event_end < stage_end_chapter:
+            gap_at_end = stage_end_chapter - last_event_end
+            max_gap = max(max_gap, gap_at_end)
+        
         return max_gap
 
     def validate_main_thread_continuity(self, writing_plan: Dict, stage_name: str) -> bool:
-        """验证主线连贯性 - 修复逻辑版本"""
+        """验证主线连贯性 - 修复逻辑版本：考虑所有类型事件"""
         try:
             # 获取阶段范围信息
             stage_plans = self.generator.novel_data.get("overall_stage_plans", {})
@@ -756,10 +772,40 @@ class EventManager:
             else:
                 events = writing_plan.get("event_system", {})
             
-            major_events = events.get("major_events", [])
+            # 收集所有类型的事件
+            all_events = []
             
-            if not major_events:
-                print(f"  ⚠️ 警告：{stage_name}阶段没有重大事件")
+            # 重大事件
+            major_events = events.get("major_events", [])
+            all_events.extend(major_events)
+            
+            # 中型事件
+            medium_events = events.get("medium_events", [])
+            for event in medium_events:
+                # 为中型事件添加start_chapter字段（如果不存在）
+                if 'start_chapter' not in event and 'chapter' in event:
+                    event['start_chapter'] = event['chapter']
+                    event['end_chapter'] = event['chapter']
+                all_events.append(event)
+            
+            # 小型事件
+            minor_events = events.get("minor_events", [])
+            for event in minor_events:
+                if 'start_chapter' not in event and 'chapter' in event:
+                    event['start_chapter'] = event['chapter']
+                    event['end_chapter'] = event['chapter']
+                all_events.append(event)
+            
+            # 特殊事件
+            special_events = events.get("special_events", [])
+            for event in special_events:
+                if 'start_chapter' not in event and 'chapter' in event:
+                    event['start_chapter'] = event['chapter']
+                    event['end_chapter'] = event['chapter']
+                all_events.append(event)
+            
+            if not all_events:
+                print(f"  ⚠️ 警告：{stage_name}阶段没有任何事件")
                 return True  # 暂时返回True避免阻塞流程
             
             # 严格的最大间隔要求
@@ -772,18 +818,20 @@ class EventManager:
             }
             
             max_allowed_gap = strict_max_gaps.get(stage_name, 12)
-            max_gap = self.calculate_max_event_gap(major_events)
+            max_gap = self.calculate_max_event_gap(all_events, start_chap, end_chap)
             
             print(f"  📊 {stage_name}阶段连续性检查: 最大间隔{max_gap}章, 允许{max_allowed_gap}章")
+            print(f"  📊 事件统计: 重大{len(major_events)}个, 中型{len(medium_events)}个, 小型{len(minor_events)}个, 特殊{len(special_events)}个")
             
             if max_gap > max_allowed_gap:
                 print(f"  ❌ 连续性检查失败：事件间隔过长")
                 return False
             
-            # 简化分布检查，只做警告不阻塞
-            distribution_score = self._calculate_event_distribution_score(major_events, stage_name)
-            if distribution_score < 0.6:
-                print(f"  ⚠️ 连续性警告：事件分布需要优化 (得分: {distribution_score:.1%})")
+            # 重大事件分布检查（只做警告不阻塞）
+            if major_events:
+                distribution_score = self._calculate_event_distribution_score(major_events, stage_name)
+                if distribution_score < 0.6:
+                    print(f"  ⚠️ 连续性警告：重大事件分布需要优化 (得分: {distribution_score:.1%})")
             
             print(f"  ✅ {stage_name}阶段主线连续性检查通过")
             return True
