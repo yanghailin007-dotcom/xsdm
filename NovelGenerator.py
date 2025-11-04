@@ -579,30 +579,36 @@ class NovelGenerator:
             category_from_plan = plan.get('tags', {}).get('main_category', '未分类')
             
             # ===================== [新增] 分类修正逻辑 =====================
-            original_category = category_from_plan
-            # 检查标题、简介和关键词中是否包含"同人"
+            # 检查标题、简介、关键词和创意种子中是否包含"同人"
             title = plan.get('title', '')
             synopsis = plan.get('synopsis', '')
             keywords = plan.get('tags', {}).get('keywords', [])
-            keywords_str = "".join(keywords) # 将关键词列表转为字符串以便搜索
+            keywords_str = "".join(keywords)
 
-            if "同人" in title or "同人" in synopsis or "同人" in keywords_str:
-                # 如果包含"动漫"关键词，优先归类为"动漫衍生"
-                if "动漫" in title or "动漫" in synopsis or "动漫" in keywords_str:
+            # 🆕 新增：检查创意种子内容
+            creative_core_setting = creative_seed.get('coreSetting', '') if isinstance(creative_seed, dict) else str(creative_seed)
+            creative_selling_points = creative_seed.get('coreSellingPoints', '') if isinstance(creative_seed, dict) else ""
+
+            # 合并所有文本进行检查
+            combined_text = f"{title} {synopsis} {keywords_str} {creative_core_setting} {creative_selling_points}"
+
+            has_tongren = "同人" in combined_text
+            has_dongman = any(keyword in combined_text for keyword in ["动漫", "动画", "漫画"])
+
+            if has_tongren:
+                if has_dongman:
                     category_from_plan = "动漫衍生"
-                else: # 否则归类为"男频衍生"
-                    category_from_plan = "男频衍生"
-
-            if original_category != category_from_plan:
-                print(f"    🔄 分类修正: 检测到'同人'关键字，分类已从 '{original_category}' 修正为 '{category_from_plan}'")
-                                # 确保 'tags' 字典存在
+                    reason = "同人+动漫"
+                else:
+                    category_from_plan = "男频衍生" 
+                    reason = "同人"
+                
+                print(f"    🔄 分类修正: 检测到'{reason}'关键字，分类已修正为 '{category_from_plan}'")
+                
                 if 'tags' not in plan:
                     plan['tags'] = {}
-                
-                # 直接修改 plan 对象内部的分类，确保数据一致性
                 plan['tags']['main_category'] = category_from_plan
-                print(f"    📝 同步更新方案内部 'tags.main_category' 字段。")
-            # ===================== [新增] 结束 ===========================
+                print(f"    📝 同步更新方案内部分类字段")
             print(f"    📊 方案分类: {category_from_plan}")
             
             evaluation_result = self._evaluate_plan_quality(plan, category_from_plan, creative_seed)
@@ -3170,31 +3176,36 @@ class NovelGenerator:
             category_from_plan = plan.get('tags', {}).get('main_category', '未分类')
             
             # ===================== [新增] 分类修正逻辑 =====================
-            original_category = category_from_plan
-            # 检查标题、简介和关键词中是否包含"同人"
+            # 检查标题、简介、关键词和创意种子中是否包含"同人"
             title = plan.get('title', '')
             synopsis = plan.get('synopsis', '')
             keywords = plan.get('tags', {}).get('keywords', [])
-            keywords_str = "".join(keywords) # 将关键词列表转为字符串以便搜索
+            keywords_str = "".join(keywords)
 
-            if "同人" in title or "同人" in synopsis or "同人" in keywords_str:
-                # 如果包含"动漫"关键词，优先归类为"动漫衍生"
-                if "动漫" in title or "动漫" in synopsis or "动漫" in keywords_str:
+            # 🆕 新增：检查创意种子内容
+            creative_core_setting = creative_seed.get('coreSetting', '') if isinstance(creative_seed, dict) else str(creative_seed)
+            creative_selling_points = creative_seed.get('coreSellingPoints', '') if isinstance(creative_seed, dict) else ""
+
+            # 合并所有文本进行检查
+            combined_text = f"{title} {synopsis} {keywords_str} {creative_core_setting} {creative_selling_points}"
+
+            has_tongren = "同人" in combined_text
+            has_dongman = any(keyword in combined_text for keyword in ["动漫", "动画", "漫画"])
+
+            if has_tongren:
+                if has_dongman:
                     category_from_plan = "动漫衍生"
-                else: # 否则归类为"男频衍生"
-                    category_from_plan = "男频衍生"
-
-            if original_category != category_from_plan:
-                print(f"    🔄 分类修正: 检测到'同人'关键字，分类已从 '{original_category}' 修正为 '{category_from_plan}'")
-                                # 确保 'tags' 字典存在
+                    reason = "同人+动漫"
+                else:
+                    category_from_plan = "男频衍生" 
+                    reason = "同人"
+                
+                print(f"    🔄 分类修正: 检测到'{reason}'关键字，分类已修正为 '{category_from_plan}'")
+                
                 if 'tags' not in plan:
                     plan['tags'] = {}
-                
-                # 直接修改 plan 对象内部的分类，确保数据一致性
                 plan['tags']['main_category'] = category_from_plan
-                print(f"    📝 同步更新方案内部 'tags.main_category' 字段。")
-            # ===================== [新增] 结束 ===========================
-
+                print(f"    📝 同步更新方案内部分类字段")
             print(f"    📊 方案分类: {category_from_plan}")
             
             evaluation_result = self._evaluate_plan_quality(plan, category_from_plan, creative_seed)

@@ -736,33 +736,45 @@ class GlobalGrowthPlanner:
         # 准备基础数据
         novel_data = self.novel_generator.novel_data
         total_chapters = novel_data["current_progress"]["total_chapters"]
-        market_info = self.novel_generator.novel_data.get("market_analysis", {})
-        core_selling_points = market_info.get("core_selling_points", [])
+        # ◀︎◀︎ 修改开始：强制使用 creative_seed 作为最高指令 ◀︎◀︎
+        creative_seed = novel_data.get("novel_info", {}).get("creative_seed", {})
         
-        question_list = ""
-        if core_selling_points:
-            for i, point in enumerate(core_selling_points):
-                question_list += f"   - 卖点 {i+1}：『{point}』\n"
+        # 从 creative_seed 中提取您定义的原始卖点和故事线
+        original_selling_points = creative_seed.get("coreSellingPoints", "未提供核心卖点。")
+        storyline = creative_seed.get("completeStoryline", {})
+        
+        # 将故事线概要转化为“推荐策略”
+        recommended_strategies = []
+        if storyline:
+            for stage_key, stage_data in storyline.items():
+                stage_name = stage_data.get("stageName", stage_key)
+                summary = stage_data.get("summary", "无概要")
+                recommended_strategies.append(f"【{stage_name}阶段策略】: {summary}")
+        
+        # 构建一个忠于您原始设想的“最高优先级信息”
+        author_vision_prompt_section = f"""
+# 最高指令：以“作者愿景”为唯一准则进行规划
+
+你是一名顶级的小说策划专家。你的唯一目标是严格遵循下方提供的“作者愿景”，为小说量身打造一个符合其独特内核的全书成长规划。如果其他商业分析与“作者愿景”冲突，必须以“作者愿景”为准。
+
+## 作者愿景（本书成功的唯一关键）
+*   **核心内核与卖点**: {original_selling_points}
+*   **故事策略与脉络**: {json.dumps(recommended_strategies, ensure_ascii=False)}
+"""
+        # ◀︎◀︎ 修改结束 ◀︎◀︎
 
         # 2. 构建一个更智能、更通用的Prompt
         user_prompt = f"""
-# 最高指令：将商业分析转化为小说战略
-
-你是一名顶级的商业小说策划专家。你的唯一目标是基于下方提供的“商业分析”，为小说量身打造一个能引爆市场的全书成长规划。
-
-## 商业分析（本书成功的关键）
-*   **核心卖点清单**: 
-{question_list if question_list else "   - (未提供核心卖点)"}
-*   **市场策略**: {json.dumps(market_info.get("recommended_strategies", []), ensure_ascii=False)}
+{author_vision_prompt_section}
 
 ## 小说基础信息
 *   **小说标题**: {novel_data["novel_title"]}
 *   **小说简介**: {novel_data["novel_synopsis"]}
 *   **总章节数**: {total_chapters}
 
-# 任务：基于上述“商业分析”，设计小说的核心成长体系
+# 任务：基于上述“作者愿景”，设计小说的核心成长体系
 
-请将上述“核心卖点清单”作为一个不可违背的整体。在你设计**每一个**规划部分（包括人物成长、能力体系、势力发展等）时，都必须用整个清单来拷问你的设计：
+请将上述“核心内核与卖点”作为一个不可违背的整体。在你设计**每一个**规划部分（包括人物成长、能力体系、势力发展等）时，都必须用整个清单来拷问你的设计：
 
 1.  **全面覆盖**: 我的这个设计，是否能服务于清单中的**至少一个**核心卖点？
 2.  **协同增效**: 我的这个设计，是否能巧妙地**同时服务于多个**核心卖点，产生 1+1 > 2 的效果？
@@ -770,12 +782,12 @@ class GlobalGrowthPlanner:
 
 ## 规划要求（动态适应，逻辑跟随卖点清单）
 
-1.  **人物成长弧线**: 主角的成长目标和路径是什么？它应该如何设计，才能最频繁、最有力地展现“核心卖点清单”中的爽点？
-2.  **核心系统/金手指**: 它的核心机制是什么？这个机制必须是为整个“核心卖点清单”量身打造的。
-3.  **世界与势力**: 世界观和敌对势力的作用是什么？它们必须是最佳的“舞台”和“道具”，让主角能够完美地表演“核心卖点清单”中的所有内容。
+1.  **人物成长弧线**: 主角的成长目标和路径是什么？它应该如何设计，才能最频繁、最有力地展现“核心内核与卖点”中的精髓？
+2.  **核心系统/金手指**: 它的核心机制是什么？这个机制必须是为整个“核心内核与卖点”量身打造的。
+3.  **世界与势力**: 世界观和敌对势力的作用是什么？它们必须是最佳的“舞台”和“道具”，让主角能够完美地演绎“核心内核与卖点”中的所有内容。
 
 请基于此**整体性、系统性**的思考方法，为这本小说输出一份定制化的JSON格式全局成长规划。
-"""      
+"""    
         # 原有的成长规划生成代码...
         global_plan = self.novel_generator.api_client.generate_content_with_retry(
             "global_growth_planning",

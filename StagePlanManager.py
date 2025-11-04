@@ -82,6 +82,11 @@ class StagePlanManager:
         boundaries = self.calculate_stage_boundaries(total_chapters)
         
         user_prompt = f"""
+# 最高指令：以“创意种子”为绝对准则
+
+在本次任务中，“创意种子”包含了作者最核心、最独特的设想。如果“市场分析”或“全书成长规划”的某些部分与“创意种子”中的精神（如人物关系、故事内核）相冲突，你必须无条件地以“创意种子”为准来制定阶段计划。
+
+# 核心参考资料 
 创意种子: {creative_seed}
 小说标题: {novel_title}
 小说简介: {novel_synopsis}
