@@ -1495,7 +1495,22 @@ class NovelGenerator:
         self.novel_data["current_progress"]["stage"] = "封面生成"
         if not self._generate_novel_cover():
             print("⚠️ 封面生成失败，项目已完成但无封面。")
-        # ===================== [新增] 结束 ===========================
+        # ===================== 【【【核心修改点】】】 =====================
+        # 在此处添加文件复制逻辑
+        print("\n" + "="*60)
+        print("🚚 正在复制项目文件到执行目录...")
+        print("="*60)
+        
+        target_dir = r"C:\work1.0\Chrome\小说项目"  # 从main.py移过来的硬编码路径
+        novel_title = self.novel_data.get("novel_title")
+        
+        if novel_title:
+            copy_success = self.project_manager.copy_project_to_directory(novel_title, target_dir)
+            if not copy_success:
+                print(f"⚠️ 项目《{novel_title}》文件复制失败。")
+        else:
+            print("❌ 无法复制项目文件，因为小说标题未知。")
+        # =============================================================
         print("\n🎉 小说生成完成！")
         self._print_generation_summary()
         return True

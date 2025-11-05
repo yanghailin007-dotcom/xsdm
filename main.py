@@ -114,9 +114,6 @@ def main():
             # 添加基础内容质量报告
             generator.print_foundation_quality_report()
             
-            # 🆕🆕🆕 新增：复制项目到指定目录
-            copy_project_to_target(generator.novel_data["novel_title"])
-            
             # 询问是否查看内容
             view_content = input("\n是否查看生成的小说内容？(y/n): ").lower() == 'y'
             if view_content and generator.novel_data["generated_chapters"]:
@@ -179,73 +176,6 @@ def start_new_project(generator, creative_seed):
     print("请选择您喜欢的方案后，系统将自动开始创作")
     
     return generator.full_auto_generation(creative_seed, total_chapters)
-
-
-def copy_project_to_target(novel_title):
-    import re
-    from datetime import datetime
-    
-    safe_title = re.sub(r'[\\/*?:"<>|]', "_", novel_title)
-    source_dir = "小说项目"
-    target_base = r"C:\work1.0\Chrome\小说项目"
-    
-    # 检查源目录是否存在
-    if not os.path.exists(source_dir):
-        print(f"❌ 源目录不存在: {source_dir}")
-        return False
-    
-    # 创建目标目录
-    try:
-        os.makedirs(target_base, exist_ok=True)
-        print(f"✅ 目标目录已创建/存在: {target_base}")
-    except Exception as e:
-        print(f"❌ 创建目标目录失败: {e}")
-        return False
-    
-    # 查找与当前小说相关的所有文件
-    project_files = []
-    for filename in os.listdir(source_dir):
-        if safe_title in filename:
-            project_files.append(filename)
-    
-    if not project_files:
-        print(f"❌ 未找到与小说 '{novel_title}' 相关的项目文件")
-        return False
-    
-    # 复制文件
-    copied_count = 0
-    for filename in project_files:
-        source_path = os.path.join(source_dir, filename)
-        target_path = os.path.join(target_base, filename)
-        
-        try:
-            if os.path.isdir(source_path):
-                # 如果是目录，使用copytree
-                if os.path.exists(target_path):
-                    # 如果目标目录已存在，先删除
-                    shutil.rmtree(target_path)
-                shutil.copytree(source_path, target_path)
-            else:
-                # 如果是文件，使用copy2
-                shutil.copy2(source_path, target_path)
-            
-            copied_count += 1
-            print(f"✅ 已复制: {filename}")
-            
-        except Exception as e:
-            print(f"❌ 复制文件失败 {filename}: {e}")
-    
-    # 记录复制操作
-    try:
-        log_file = os.path.join(target_base, "复制记录.txt")
-        with open(log_file, 'a', encoding='utf-8') as f:
-            f.write(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - 复制小说: {novel_title} ({copied_count}个文件)\n")
-    except Exception as e:
-        print(f"⚠️  写入复制记录失败: {e}")
-    
-    print(f"🎯 项目复制完成: {copied_count}个文件已复制到 {target_base}")
-    return True
-
 
 if __name__ == "__main__":
     main()

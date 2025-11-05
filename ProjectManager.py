@@ -4,6 +4,7 @@ import os
 import json
 import re
 from datetime import datetime
+import shutil
 from typing import List, Dict, Optional
 
 class ProjectManager:
@@ -22,6 +23,68 @@ class ProjectManager:
             "quality_thresholds": self.quality_thresholds
         }
     
+    # vvv 2. 在类的末尾添加下面的新方法 vvv
+    def copy_project_to_directory(self, novel_title: str, target_directory: str):
+        """将指定的小说项目文件完整复制到目标目录。"""
+        try:
+            safe_title = re.sub(r'[\\/*?:"<>|]', "_", novel_title)
+            source_dir = "小说项目"
+            
+            # 检查源目录
+            if not os.path.exists(source_dir):
+                print(f"❌ 源目录 '{source_dir}' 不存在，无法复制。")
+                return False
+            
+            # 确保目标目录存在
+            os.makedirs(target_directory, exist_ok=True)
+            
+            # 查找所有与该小说相关的文件和目录
+            project_files_to_copy = []
+            for item_name in os.listdir(source_dir):
+                if safe_title in item_name:
+                    project_files_to_copy.append(item_name)
+            
+            if not project_files_to_copy:
+                print(f"🤔 在源目录中未找到与 '{novel_title}' 相关的文件。")
+                return False
+                
+            print(f"找到 {len(project_files_to_copy)} 个相关文件/目录准备复制...")
+            
+            copied_count = 0
+            for item_name in project_files_to_copy:
+                source_path = os.path.join(source_dir, item_name)
+                target_path = os.path.join(target_directory, item_name)
+                
+                try:
+                    if os.path.isdir(source_path):
+                        # 如果目标目录已存在，先删除再复制，以确保是最新内容
+                        if os.path.exists(target_path):
+                            shutil.rmtree(target_path)
+                        shutil.copytree(source_path, target_path)
+                    else:
+                        shutil.copy2(source_path, target_path) # copy2 保留元数据
+                    
+                    print(f"  - ✅ 已复制: {item_name}")
+                    copied_count += 1
+                except Exception as e:
+                    print(f"  - ❌ 复制 '{item_name}' 失败: {e}")
+            
+            # 记录复制操作
+            if copied_count > 0:
+                log_file = os.path.join(target_directory, "复制记录.txt")
+                with open(log_file, 'a', encoding='utf-8') as f:
+                    f.write(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - 复制小说项目: {novel_title} (共 {copied_count} 个文件/目录)\n")
+                
+                print(f"🎯 项目复制完成！共 {copied_count} 个文件/目录已复制到: {target_directory}")
+            else:
+                print("⚠️ 没有文件被成功复制。")
+
+            return copied_count > 0
+        except Exception as e:
+            print(f"❌ 复制项目时发生严重错误: {e}")
+            return False
+    # ^^^ 以上是新添加的方法 ^^^
+
     def find_existing_projects(self, creative_seed: str = None) -> List[Dict]:
         """查找现有项目"""
         projects = []

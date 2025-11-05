@@ -2,6 +2,7 @@
 
 import json
 import re
+import time
 from typing import Any, Dict, Optional, List, Tuple
 
 import APIClient
@@ -541,69 +542,74 @@ class ContentGenerator:
             traceback.print_exc()
             return content
 
+    # ==================== vvv 全新、完整的 generate_chapter_content_for_novel 函数 vvv ====================
+    
     def generate_chapter_content_for_novel(self, chapter_number: int, novel_data: Dict, context: GenerationContext = None) -> Optional[Dict]:
-        """为小说生成章节内容 - 整合参数准备和内容生成"""
-        print(f"生成第{chapter_number}章内容...")
-        
-        # 初始化失败信息
-        failure_reason = None
-        failure_details = {}
-        
-        try:
-            # 如果是第一章，初始化世界状态
-            if chapter_number == 1:
-                print("🔄 初始化世界状态...")
-                self.quality_assessor.initialize_world_state_from_novel_data(novel_data["novel_title"], novel_data)
+        """
+        为小说生成章节内容 - 整合参数准备和内容生成 (已增加健壮的章节级重试机制)
+        """
+        print(f"🎬 开始生成第{chapter_number}章内容...")
+    
+        # ==================== 新增：章节级重试循环 ====================
+        MAX_CHAPTER_RETRIES = 5  # 为一整个章节设置最多3次重试机会
+        RETRY_WAIT_SECONDS = 20  # 每次重试前等待20秒，给API和网络缓冲时间
+    
+        for attempt in range(MAX_CHAPTER_RETRIES):
+            # 每次循环都打印尝试次数
+            if attempt > 0:
+                print(f"  - 章节生成失败，将在 {RETRY_WAIT_SECONDS} 秒后进行第 {attempt + 1}/{MAX_CHAPTER_RETRIES} 次重试...")
+                time.sleep(RETRY_WAIT_SECONDS)
             
-            # 存储上下文供后续使用
-            novel_data['_current_generation_context'] = context
-            
-            # 准备章节参数
-            chapter_params = self._prepare_chapter_params(chapter_number, novel_data)
-            
-            if not chapter_params or not self._validate_chapter_params(chapter_params):
-                failure_reason = "参数准备失败"
-                failure_details = {
-                    "missing_params": [key for key in ['chapter_number', 'novel_title', 'novel_synopsis', 'plot_direction', 'foreshadowing_guidance'] 
-                                    if key not in chapter_params or not chapter_params[key]],
-                    "chapter_params_keys": list(chapter_params.keys()) if chapter_params else []
-                }
-                print(f"❌ 第{chapter_number}章参数准备失败")
-                self._save_chapter_failure(novel_data, chapter_number, failure_reason, failure_details)
-                return None
-            
-            print(f"  ✅ 第{chapter_number}章所有参数验证通过")
-            
-            # 生成章节内容 - 添加详细的类型检查
-            print(f"  🚀 开始生成第{chapter_number}章内容...")
-            chapter_data = self.generate_chapter_content(chapter_params)
-            
-            if not chapter_data:
-                failure_reason = "内容生成失败"
-                failure_details = {
-                    "step": "generate_chapter_content",
-                    "chapter_params_summary": {k: str(v)[:100] + "..." if len(str(v)) > 100 else str(v) 
-                                            for k, v in chapter_params.items() if k in ['chapter_number', 'novel_title']}
-                }
-                print(f"❌ 第{chapter_number}章内容生成失败")
-                self._save_chapter_failure(novel_data, chapter_number, failure_reason, failure_details)
-                return None
-
-            # 确保章节标题唯一性
-            chapter_data = self._handle_chapter_title_uniqueness(chapter_data, chapter_number, novel_data)
-
-            if chapter_data:
+            print(f"  🔄 第 {attempt + 1}/{MAX_CHAPTER_RETRIES} 次尝试生成第 {chapter_number} 章...")
+    
+            failure_reason = None
+            failure_details = {}
+    
+            try:
+                # --- 核心生成逻辑被包裹在循环内部 ---
+                # 仅在第一次尝试时初始化世界状态
+                if chapter_number == 1 and attempt == 0:
+                    print("🔄 初始化世界状态...")
+                    self.quality_assessor.initialize_world_state_from_novel_data(novel_data["novel_title"], novel_data)
+    
+                # 存储上下文供后续使用
+                novel_data['_current_generation_context'] = context
+    
+                # 准备章节参数
+                chapter_params = self._prepare_chapter_params(chapter_number, novel_data)
+    
+                if not chapter_params or not self._validate_chapter_params(chapter_params):
+                    failure_reason = "参数准备失败"
+                    failure_details = {"missing_params": [key for key, val in chapter_params.items() if not val]}
+                    print(f"  ❌ 第{chapter_number}章参数准备失败。")
+                    continue  # 进入下一次重试
+    
+                print(f"  ✅ 第{chapter_number}章所有参数验证通过。")
+                print(f"  🚀 开始调用核心内容生成...")
+                chapter_data = self.generate_chapter_content(chapter_params)
+    
+                if not chapter_data:
+                    failure_reason = "核心内容生成失败 (generate_chapter_content返回None)"
+                    failure_details = {"step": "generate_chapter_content"}
+                    print(f"  ❌ 第{chapter_number}章核心内容生成失败。")
+                    continue  # 进入下一次重试
+                
+                # --- 后续的质量评估、优化等逻辑保持不变 ---
+                print(f"  ✨ 核心内容生成完毕，开始后处理...")
+    
+                # 确保章节标题唯一性
+                chapter_data = self._handle_chapter_title_uniqueness(chapter_data, chapter_number, novel_data)
+    
                 # 新增：记录情绪信息
                 emotional_guidance = self._get_emotional_guidance_for_chapter(chapter_number, novel_data)
                 chapter_data["emotional_design"] = {
                     "planned_focus": emotional_guidance.get("current_emotional_focus", ""),
                     "target_intensity": emotional_guidance.get("target_intensity", "中"),
                     "is_turning_point": emotional_guidance.get("is_emotional_turning_point", False)
-                }       
-
-            # 质量评估 - 添加类型检查
-            print(f"  📊 开始质量评估...")
-            try:
+                }
+    
+                # 质量评估
+                print(f"  📊 开始质量评估...")
                 assessment = self.quality_assessor.quick_assess_chapter_quality(
                     chapter_data.get("content", ""),
                     chapter_data.get("chapter_title", ""),
@@ -614,23 +620,17 @@ class ContentGenerator:
                     novel_data=novel_data
                 )
                 
-                # 设置质量评分
-                score = assessment.get("overall_score", 0) 
+                score = assessment.get("overall_score", 0)
                 chapter_data["quality_score"] = score
                 chapter_data["quality_assessment"] = assessment
-                
                 print(f"  质量评分: {score:.1f}分")
-                
+    
                 # 根据质量决定是否优化
                 optimize_needed, optimize_reason = self._should_optimize_based_on_config(assessment)
                 
                 if optimize_needed:
                     print(f"  🔧 进行优化: {optimize_reason}")
                     
-                    # 保存原始章节数据的完整结构
-                    original_chapter_data = chapter_data.copy()
-                    
-                    # 添加重试机制
                     max_optimization_retries = 2
                     optimized_data = None
                     
@@ -660,26 +660,14 @@ class ContentGenerator:
                             optimized_data = None
                     
                     if optimized_data and optimized_data.get("content"):
-                        # === 关键修复：保持原始章节数据结构，只更新内容 ===
                         chapter_data["content"] = optimized_data.get("content")
-                        
-                        # 更新字数统计（如果优化器提供了）
-                        if optimized_data.get("word_count"):
-                            chapter_data["word_count"] = optimized_data.get("word_count")
-                        else:
-                            # 重新计算字数
-                            chapter_data["word_count"] = len(optimized_data.get("content", ""))
-                        
-                        # 添加优化信息到章节数据中（不破坏原有结构）
+                        chapter_data["word_count"] = len(optimized_data.get("content", ""))
                         chapter_data["optimization_info"] = {
                             "optimized": True,
                             "original_score": score,
-                            "optimization_summary": optimized_data.get("optimization_summary", ""),
-                            "changes_made": optimized_data.get("changes_made", []),
                             "retry_count": retry + 1
                         }
                         
-                        # 重新评估优化后的质量
                         new_assessment = self.quality_assessor.quick_assess_chapter_quality(
                             chapter_data.get("content", ""),
                             chapter_data.get("chapter_title", ""),
@@ -690,18 +678,11 @@ class ContentGenerator:
                             novel_data=novel_data
                         )
                         new_score = new_assessment.get("overall_score", 0)
-                        improvement = new_score - score
-                        
-                        print(f"  ✓ 优化完成，新评分: {new_score:.1f}分 (提升{improvement:+.1f}分)")
-                        
-                        # 更新质量评分和评估
+                        print(f"  ✓ 优化完成，新评分: {new_score:.1f}分 (提升{new_score - score:+.1f}分)")
                         chapter_data["quality_score"] = new_score
                         chapter_data["quality_assessment"] = new_assessment
-                        chapter_data["optimization_info"]["new_score"] = new_score
-                        chapter_data["optimization_info"]["improvement"] = improvement
                     else:
                         print(f"  ⚠️ 所有优化尝试均失败，保持原内容")
-                        # 添加优化失败标记，但不改变原有数据结构
                         chapter_data["optimization_info"] = {
                             "optimized": False,
                             "reason": "优化过程失败",
@@ -711,50 +692,40 @@ class ContentGenerator:
                     print(f"  ✓ {optimize_reason}")
                     chapter_data["quality_assessment"] = assessment
                 
-                            # === 新增：如果是第一章，添加AI俏皮开场白 ===
+                # AI俏皮开场白
                 if chapter_number == 1:
-                    category = novel_data.get("category", "默认")
-                    novel_title = novel_data.get("novel_title", "")
-                    novel_synopsis = novel_data.get("novel_synopsis", "")
-                    
-                    # 使用AI生成俏皮开场白
                     try:
                         chapter_data = self.novel_generator._add_ai_spicy_opening_to_first_chapter(
-                            chapter_data, novel_title, novel_synopsis, category
+                            chapter_data, novel_data.get("novel_title", ""), novel_data.get("novel_synopsis", ""), novel_data.get("category", "默认")
                         )
                     except Exception as e:
                         print(f"  ⚠️ AI开场白生成异常，使用备用模板: {e}")
-
+    
+                # ==================== 成功！返回章节数据并跳出重试循环 ====================
+                print(f"🎉 第 {chapter_number} 章在第 {attempt + 1} 次尝试中生成成功！")
                 return chapter_data
-                
+    
             except Exception as e:
-                print(f"  ❌ 质量评估过程中出错: {e}")
+                # 捕获所有异常，包括你遇到的 AttributeError
+                failure_reason = f"生成过程异常: {str(e)}"
+                failure_details = {
+                    "exception_type": type(e).__name__,
+                    "exception_message": str(e),
+                    "chapter_number": chapter_number,
+                    "traceback": self._get_traceback_info()
+                }
+                print(f"  ❌ 第{chapter_number}章在第 {attempt + 1} 次尝试中出现严重异常: {e}")
                 import traceback
                 traceback.print_exc()
-                # 即使质量评估失败，也返回章节内容
-                return chapter_data
-                
-            except Exception as e:
-                print(f"  ❌ 质量评估过程中出错: {e}")
-                import traceback
-                traceback.print_exc()
-                # 即使质量评估失败，也返回章节内容
-                return chapter_data
-                
-        except Exception as e:
-            failure_reason = f"生成过程异常: {str(e)}"
-            failure_details = {
-                "exception_type": type(e).__name__,
-                "exception_message": str(e),
-                "chapter_number": chapter_number,
-                "traceback": self._get_traceback_info()  # 新增：获取堆栈信息
-            }
-            print(f"❌ 第{chapter_number}章生成过程中出现异常: {e}")
-            import traceback
-            print(f"详细堆栈信息:")
-            traceback.print_exc()
-            self._save_chapter_failure(novel_data, chapter_number, failure_reason, failure_details)
-            return None
+                # 异常发生后，循环会继续，进入下一次重试
+    
+        # ==================== 如果所有重试都失败了 ====================
+        print(f"🔥🔥🔥 严重错误: 第 {chapter_number} 章在 {MAX_CHAPTER_RETRIES} 次尝试后彻底失败！")
+        # 保存最终的失败记录
+        self._save_chapter_failure(novel_data, chapter_number, failure_reason or "未知原因导致所有重试失败", failure_details)
+        return None  # 彻底失败后，返回 None
+    
+    # ==================== ^^^ 全新、完整的 generate_chapter_content_for_novel 函数 ^^^ ====================
 
     def _get_traceback_info(self) -> str:
         """获取当前异常的堆栈信息"""
@@ -2404,21 +2375,33 @@ class ContentGenerator:
         
         return "\n".join(guidance_parts)
 
+    # 在 ContentGenerator.py 中
     def _save_chapter_failure(self, novel_data: Dict, chapter_number: int, failure_reason: str, failure_details: Dict):
         """保存章节生成失败信息"""
         try:
+            # 准备一个可序列化的上下文摘要
+            context_summary = "No context available"
+            current_context = novel_data.get('_current_generation_context')
+            if current_context:
+                # 只记录关键信息，避免过大
+                context_summary = {
+                    "event_context": {
+                        "active_events_count": len(current_context.event_context.get('active_events', [])),
+                        "timeline_summary": current_context.event_context.get('event_timeline', {}).get('timeline_summary', '')
+                    },
+                    "foreshadowing_context_count": len(current_context.foreshadowing_context.get('elements_to_introduce', [])),
+                    "growth_context_focus": current_context.growth_context.get('chapter_specific', {}).get('content_focus', {})
+                }
+
+
             failure_record = {
                 "novel_title": novel_data.get("novel_title", "未知小说"),
                 "chapter_number": chapter_number,
                 "failure_time": self._get_current_timestamp(),
                 "failure_reason": failure_reason,
                 "failure_details": failure_details,
-                "novel_category": novel_data.get("category", "未知分类"),
                 "main_character": self.custom_main_character_name,
-                "generation_context": {
-                    "has_context": novel_data.get('_current_generation_context') is not None,
-                    "context_keys": list(novel_data.keys()) if novel_data else []
-                }
+                "generation_context_summary": context_summary # 使用摘要
             }
             
             # 同时保存到本地文件备份
