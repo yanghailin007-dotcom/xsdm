@@ -153,7 +153,10 @@ JSON结构定义
             "risk_or_cost": "描述使用该能力带来的负面影响、限制或代价"
         },
         "character_flaws": "描述其主要的性格缺陷或思维盲区，这个缺陷必须是导致其陷入困境、犯下错误并需要成长的根本原因",
-        "goal": "在故事结尾，主角希望达成的那个具体、可衡量、可实现的最终目标"
+        "goal": "在故事结尾，主角希望达成的那个具体、可衡量、可实现的最终目标",
+        "character_arc_summary": "这个角色在整个故事中的成长或堕落轨迹简述",
+        "character_tag_for_reader": "给读者看的一句话人设标签 (例如：最强神医下山)",
+        "cool_point_upgrade_path": "爽点升级路线图 (例如：都市打脸 -> 武道界称雄 -> 揭秘身世)"
     },
     "important_characters": [
         {
@@ -181,7 +184,9 @@ JSON结构定义
                 "inside_jokes": "彼此之间的默契或梗"
             },
             "personal_struggles": "角色个人的困境和挣扎",
-            "narrative_purpose": "解释该角色在剧情中的不可替代的作用"
+            "narrative_purpose": "解释该角色在剧情中的不可替代的作用",
+            "character_arc_summary": "这个配角自身的成长线或故事线",
+            "reader_impression": "希望读者对这个角色的第一印象 (例如：极度嚣张，非常欠揍)"
         }
     ],
     "character_interaction_design": {
@@ -267,6 +272,7 @@ JSON结构定义
     ],
     "quality_verdict": "质量判定（优秀/良好/合格/需要优化）"
 }
+""",         "market_competitor_analysis_precise": """
 """,
             "character_design_quality_assessment": """
 内容:

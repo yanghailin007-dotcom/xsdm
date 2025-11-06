@@ -533,132 +533,208 @@ class NovelGenerator:
         # 无论是否生成了新章节，都执行最终的收尾流程（包括保存、导出和生成封面）
         print("\n▶️ 所有章节内容已就绪，进入最终收尾流程...")
         return self._finalize_generation()
+
+    def generate_market_competitor_analysis(self, category: str, title: str, synopsis: str, selling_points: list) -> Optional[Dict]:
+        """
+        【升级版】根据给定作品的核心信息，在指定分类下进行精准的市场竞品分析。
+        """
+        print(f"  📈 正在为《{title}》分析市场竞品...")
         
+        selling_points_str = "、".join(selling_points)
+
+        prompt = f"""
+        作为一名顶尖的网文市场数据分析师，请为下面这本【待分析作品】在【{category}】分类下，寻找并分析其最直接、最热门的3-5本市场竞品。
+
+        你的分析必须【精准聚焦】，寻找那些与【待分析作品】在题材、金手指、核心卖点或主角人设上有相似之处的成功作品。
+
+        ## 待分析作品信息 ##
+        - **书名**: {title}
+        - **简介**: {synopsis}
+        - **核心卖点**: {selling_points_str}
+
+        ## 你的任务 ##
+        1.  **识别竞品**: 识别出当前市场上与【待分析作品】定位最相似的头部作品。
+        2.  **提炼要素**: 为每一本竞品，精准提炼其成功的核心要素。
+        3.  **格式化输出**: 将你的分析结果，严格按照以下JSON格式输出。
+
+        【输出JSON格式要求】
+        {{
+          "category": "{category}",
+          "analysis_summary": "一句话总结与【待分析作品】相似赛道的主流趋势和读者偏好。",
+          "competitors": [
+            {{
+              "title": "热门竞品A的标题",
+              "similarity_to_our_work": "简要说明这本书和我们的作品在哪个方面相似（例如：都是神医+战神题材）。",
+              "success_factors": {{
+                "golden_finger": "精准描述这本书的金手指是什么，以及它的核心玩法和吸引力。",
+                "core_selling_points": [
+                  "核心卖点1 (例如：反差感强烈的身份)",
+                  "核心卖点2 (例如：快节奏的打脸爽点)",
+                  "核心卖点3 (例如：独特的升级体系)"
+                ],
+                "unique_hook": "这本书最独特的、最能吸引读者开篇就读下去的钩子是什么？"
+              }}
+            }}
+          ]
+        }}
+
+        请直接生成JSON结果，不要包含任何额外的解释或Markdown标记。
+        """
+        
+        try:
+            result = self.api_client.generate_content_with_retry(
+                "market_competitor_analysis_precise", # 使用新ID以避免缓存混淆
+                prompt,
+                purpose="生成精准的市场竞品分析报告"
+            )
+            
+            if result and "competitors" in result and len(result["competitors"]) > 0:
+                print(f"  ✅ 精准竞品分析完成，共分析了 {len(result['competitors'])} 本相似热门书籍。")
+                return result
+            else:
+                print("  ⚠️ 精准竞品分析失败或未返回有效数据。")
+                return None
+        except Exception as e:
+            print(f"  ❌ 生成精准竞品分析时出错: {e}")
+            return None
+
     def full_auto_generation(self, creative_seed: str, total_chapters: int = None):
-        """全自动生成完整小说 - 【修改版】只为最优方案生成单本小说"""
+        """全自动生成完整小说 - 【再升级版】使用精准竞品数据进行最终优化"""
         print("🚀 开始全自动小说生成 (模式：聚焦最优)...")
         print(f"创意种子: {creative_seed}")
-        
+
         if total_chapters is None:
             total_chapters = self.config["defaults"]["total_chapters"]
-        
-        # 🆕 不再手动选择分类，等待从生成的方案中获取
+
         print(f"  📝 等待从生成的方案中自动获取分类信息...")
-       # 【核心改动 1】: 从原始JSON中提取创意，并调用指令精炼器
-        # 使用一个临时占位符标题来生成指令文件
         temp_title_for_filename = f"未定稿创意_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-        
         if isinstance(creative_seed, str):
             try:
-                # 尝试解析JSON字符串
                 creative_work_dict = json.loads(creative_seed)
             except:
-                # 如果解析失败，创建一个基础字典结构
-                creative_work_dict = {
-                    "coreSetting": creative_seed,
-                    "coreSellingPoints": "",
-                    "completeStoryline": {}
-                }
+                creative_work_dict = {"coreSetting": creative_seed, "coreSellingPoints": "", "completeStoryline": {}}
         else:
             creative_work_dict = creative_seed
-
         refined_creative_seed = self.refine_creative_work_for_ai(creative_work_dict, temp_title_for_filename)
 
-        # -------------------------------------------------------------        
-        # 步骤1: 生成并评估多个方案
         print("=== 步骤1: 生成并评估多个小说方案 ===")
         plans_data = self.content_generator.generate_multiple_plans(refined_creative_seed, "")
-        
+
         if not plans_data or 'plans' not in plans_data:
             print("❌ 方案生成失败")
             return False
-        
+
         plans = plans_data['plans']
         print(f"✅ 成功生成 {len(plans)} 个方案，开始进行严苛评估...")
-        
-        # 评估所有方案
+
         qualified_plans = []
         for i, plan in enumerate(plans):
             print(f"  🔍 评估方案 {i+1}...")
-            
-            # 🆕 从方案中获取分类信息
             category_from_plan = plan.get('tags', {}).get('main_category', '未分类')
-            
-            # ===================== [新增] 分类修正逻辑 =====================
-            # 检查标题、简介、关键词和创意种子中是否包含"同人"
             title = plan.get('title', '')
             synopsis = plan.get('synopsis', '')
-            keywords = plan.get('tags', {}).get('keywords', [])
-            keywords_str = "".join(keywords)
-
-            # 🆕 新增：检查创意种子内容
+            keywords_str = "".join(plan.get('tags', {}).get('keywords', []))
             creative_core_setting = creative_seed.get('coreSetting', '') if isinstance(creative_seed, dict) else str(creative_seed)
             creative_selling_points = creative_seed.get('coreSellingPoints', '') if isinstance(creative_seed, dict) else ""
-
-            # 合并所有文本进行检查
             combined_text = f"{title} {synopsis} {keywords_str} {creative_core_setting} {creative_selling_points}"
-
             has_tongren = "同人" in combined_text
             has_dongman = any(keyword in combined_text for keyword in ["动漫", "动画", "漫画"])
 
             if has_tongren:
-                if has_dongman:
-                    category_from_plan = "动漫衍生"
-                    reason = "同人+动漫"
-                else:
-                    category_from_plan = "男频衍生" 
-                    reason = "同人"
-                
+                category_from_plan = "动漫衍生" if has_dongman else "男频衍生"
+                reason = "同人+动漫" if has_dongman else "同人"
                 print(f"    🔄 分类修正: 检测到'{reason}'关键字，分类已修正为 '{category_from_plan}'")
-                
-                if 'tags' not in plan:
-                    plan['tags'] = {}
+                if 'tags' not in plan: plan['tags'] = {}
                 plan['tags']['main_category'] = category_from_plan
-                print(f"    📝 同步更新方案内部分类字段")
+
             print(f"    📊 方案分类: {category_from_plan}")
-            
             evaluation_result = self._evaluate_plan_quality(plan, category_from_plan, creative_seed)
-            
             quality_score = evaluation_result.get("quality_score", 0)
             freshness_score = evaluation_result.get("freshness_score", 0)
             total_score = evaluation_result.get("total_score", 0)
-            
-            # 核心修改1：大幅提高准入门槛，追求完美
+
             if quality_score >= 9.0 and freshness_score >= 6.0:
                 qualified_plans.append({
-                    'plan': plan,
-                    'quality_score': quality_score,
-                    'freshness_score': freshness_score,
-                    'total_score': total_score,
-                    'evaluation_result': evaluation_result,
-                    'category': category_from_plan
+                    'plan': plan, 'quality_score': quality_score, 'freshness_score': freshness_score,
+                    'total_score': total_score, 'evaluation_result': evaluation_result, 'category': category_from_plan
                 })
                 print(f"    ✅ 方案 {i+1} 通过严苛评估 (质量: {quality_score:.1f}, 新鲜度: {freshness_score:.1f})")
             else:
                 print(f"    ❌ 方案 {i+1} 未达完美标准，淘汰 (质量: {quality_score:.1f}, 新鲜度: {freshness_score:.1f})")
-        
+
         if not qualified_plans:
             print("\n❌ 在所有方案中，没有一个能达到“完美”标准，已终止本次生成。")
             return False
-        
-        # 核心修改2：从所有合格方案中选出最优的一个
-        print(f"\n🎯 共有 {len(qualified_plans)} 个方案通过严苛评估，现在将选出最优方案进行创作...")
+
         qualified_plans.sort(key=lambda p: p['total_score'], reverse=True)
         best_plan_data = qualified_plans[0]
         plan = best_plan_data['plan']
         plan_category = best_plan_data['category']
-        
+
         print(f"\n{'='*60}")
-        print(f"🏆 已确定最优方案: 《{plan['title']}》")
-        print(f"   总分: {best_plan_data['total_score']:.2f} (质量: {best_plan_data['quality_score']:.1f}, 新鲜度: {best_plan_data['freshness_score']:.1f})")
+        print(f"🏆 已确定最优方案: 《{plan.get('title', '未知标题')}》")
+        print(f"   原始总分: {best_plan_data['total_score']:.2f} (质量: {best_plan_data['quality_score']:.1f}, 新鲜度: {best_plan_data['freshness_score']:.1f})")
         print(f"   分类: {plan_category}")
         print(f"{'='*60}")
+
+        # ==================== 结合精准市场竞品的最终优化环节 ====================
+        print("\n🔬 进入最终优化阶段：结合精准竞品数据，对最优方案进行战略性打磨...")
         
-        # 核心修改3：不再循环，直接为最优方案生成小说
+        # 步骤A: 获取精准市场竞品数据
+        print("   📊 正在获取同类热门书籍数据进行横向对比...")
+        plan_title = plan.get('title', '')
+        plan_synopsis = plan.get('synopsis', '')
+        # 【关键修正点】修正核心卖点的提取路径
+        plan_selling_points = plan.get('core_settings', {}).get('core_selling_points', [])
+        market_competitors = self.generate_market_competitor_analysis(
+            plan_category, plan_title, plan_synopsis, plan_selling_points
+        )
+
+        # 步骤B: 准备优化参数
+        optimization_params = {
+            "quality_assessment": best_plan_data['evaluation_result'],
+            "freshness_assessment": best_plan_data['evaluation_result'].get('freshness_details', {}),
+            "market_competitor_analysis": market_competitors,
+            "optimization_reason": "对选出的最优方案，结合市场上最直接的竞品分析，进行最终的战略性打磨，旨在超越竞品。"
+        }
+        
+        # 步骤C: 调用优化器
+        optimized_plan = self.quality_assessor.optimize_novel_plan(plan, optimization_params)
+
+        if optimized_plan:
+            print("✅ 方案优化完成，正在进行最终评分...")
+            new_evaluation_result = self._evaluate_plan_quality(optimized_plan, plan_category, creative_seed)
+            new_quality_score = new_evaluation_result.get("quality_score", 0)
+            new_freshness_score = new_evaluation_result.get("freshness_score", 0)
+            new_total_score = new_evaluation_result.get("total_score", 0)
+
+            print("\n" + "─"*70)
+            print("📊 优化前后评分对比:")
+            print(f"   - 原始评分: 质量 {best_plan_data['quality_score']:.1f}, 新鲜度 {best_plan_data['freshness_score']:.1f}, 总分 {best_plan_data['total_score']:.2f}")
+            print(f"   - 优化后评分: 质量 {new_quality_score:.1f}, 新鲜度 {new_freshness_score:.1f}, 总分 {new_total_score:.2f}")
+            print(f"   - 提升: 质量 {new_quality_score - best_plan_data['quality_score']:+.1f}, 新鲜度 {new_freshness_score - best_plan_data['freshness_score']:+.1f}, 总分 {new_total_score - best_plan_data['total_score']:+.2f}")
+            print("─"*70)
+            print("💡 基于市场对比后的核心改进：")
+            print(f"   - 新标题: 《{optimized_plan.get('title', '无')}》")
+            print(f"   - 新金手指描述: {optimized_plan.get('core_settings', {}).get('golden_finger', '无')}")
+            print(f"   - 新简介: {optimized_plan.get('synopsis', '无')}")
+            print("─"*70)
+
+            plan = optimized_plan
+            best_plan_data.update({
+                'plan': optimized_plan,
+                'quality_score': new_quality_score,
+                'freshness_score': new_freshness_score,
+                'total_score': new_total_score,
+                'evaluation_result': new_evaluation_result
+            })
+        else:
+            print("⚠️ 优化失败或未产生有效改进，将使用原始最优方案进行创作。")
+        # =====================================================================
+
         try:
             self.novel_data = {}
             self._initialize_novel_data_structure()
-            
             self.novel_data["category"] = plan_category
             self.novel_data["selected_plan"] = plan
             self.novel_data["novel_title"] = plan["title"]
@@ -667,18 +743,14 @@ class NovelGenerator:
             self.novel_data["current_progress"]["total_chapters"] = total_chapters
             self.novel_data["current_progress"]["start_time"] = datetime.now().isoformat()
             self.novel_data["current_progress"]["stage"] = "开始"
-            self.novel_data["current_progress"]["completed_chapters"] = 0
-            self.novel_data["current_progress"]["current_batch"] = 0
-            
-            # 存储评分信息
+
             self.novel_data["plan_scores"] = {
                 "quality_score": best_plan_data['quality_score'],
                 "freshness_score": best_plan_data['freshness_score'],
-                "total_score": best_plan_data['total_score']
+                "total_score": best_plan_data['total_score'],
+                "is_optimized_with_market_data": bool(optimized_plan and market_competitors)
             }
-            
-            # 【核心改动 3】: 在确定小说标题后，重命名指令文件
-            # -------------------------------------------------------------
+
             safe_new_title = re.sub(r'[\\/*?:"<>|]', "_", self.novel_data["novel_title"])
             old_filepath = os.path.join("小说项目", f"{temp_title_for_filename}_Refined_AI_Brief.txt")
             new_filepath = os.path.join("小说项目", f"{safe_new_title}_Refined_AI_Brief.txt")
@@ -688,21 +760,20 @@ class NovelGenerator:
                     print(f"🔄 AI指令文件名已更新为: {os.path.basename(new_filepath)}")
                 except Exception as rename_error:
                     print(f"⚠️ 重命名指令文件失败: {rename_error}")
-            # -------------------------------------------------------------
 
-            # 执行单个小说的生成流程
             if self._generate_single_novel(creative_seed, total_chapters):
                 print(f"\n🎉🎉🎉 最优小说《{plan['title']}》生成完成！ 🎉🎉🎉")
                 return True
             else:
                 print(f"\n❌ 最优小说《{plan['title']}》生成失败。")
                 return False
-                
+
         except Exception as e:
             print(f"❌ 生成最优小说时发生意外错误: {e}")
             import traceback
             traceback.print_exc()
             return False
+
         
     def _generate_element_timing_plan(self) -> bool:
         """生成元素登场时机规划"""

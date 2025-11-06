@@ -1169,23 +1169,36 @@ class QualityAssessor:
         return result
 
 
-    def optimize_novel_plan(self, original_content: Dict, assessment: Dict) -> Optional[Dict]:
+    def optimize_novel_plan(self, plan_to_optimize, optimization_params):
+        market_analysis = optimization_params.get("market_competitor_analysis")
         """优化小说方案 - 支持新鲜度要求"""
-        # 直接从 assessment 字典中获取数据，而不是从字符串
-        quality_assessment = assessment.get("quality_assessment", {})
-        weaknesses = quality_assessment.get("weaknesses", [])
-        priority_fixes = "\n".join([f"- {weakness}" for weakness in weaknesses[:3]])
-        
-        optimization_params = {
-            "original_content": json.dumps(original_content, ensure_ascii=False, indent=2),
-            "assessment_results": assessment,  # 直接传递字典，不序列化为字符串
-            "priority_fixes": priority_fixes
-        }
-        
-        user_prompt = self._generate_novel_plan_optimization_prompt(optimization_params)
+        optimization_prompt = f"""
+    作为一名顶级的、具备敏锐市场嗅觉的网文策划总监，你的任务是结合【内部评估】和【外部市场竞品分析】，对以下小说方案进行最终的、决定性的战略优化。
+
+    ## 1. 待优化方案 ##
+    {json.dumps(plan_to_optimize, ensure_ascii=False, indent=2)}
+
+    ## 2. 内部评估报告 (我们自己的专家意见) ##
+    {json.dumps(optimization_params.get("quality_assessment"), ensure_ascii=False, indent=2)}
+
+    ## 3. 外部市场竞品分析 (当前头部作品打法) ##
+    {json.dumps(market_analysis, ensure_ascii=False, indent=2)}
+
+    ## 4. 【！！！核心优化任务！！！】 ##
+    你的目标是让待优化方案【超越】所有市场竞品。请按以下思路执行：
+    1.  **分析市场**: 从竞品分析中，总结出当前市场的【成功公式】和【饱和区域】。
+    2.  **对比定位**: 将我们的方案与市场竞品进行对比。我们的金手指和卖点是真正【新颖独特】，还是只是【竞品的微小变种】？我们的优势区间在哪里？
+    3.  **战略优化**: 基于以上分析，对方案进行手术刀式的精准修改：
+        *   **强化独特性**: 如果方案有独特的亮点，将其放大，做到极致，成为读者选择我们的唯一理由。
+        *   **差异化突围**: 如果方案与竞品过于同质化，必须修改金手指的核心玩法或故事的切入点，找到蓝海赛道。
+        *   **优化钩子**: 改写简介和核心卖点，使其比所有竞品都更具吸引力、更吊人胃口。
+
+    ## 5. 输出要求 ##
+    请返回一个【完整的、经过你优化后】的小说方案JSON。除了优化部分，其他字段结构必须保持不变。不要任何解释，直接输出JSON。
+    """
         result = self.api_client.generate_content_with_retry(
             "novel_plan_optimization", 
-            user_prompt, 
+            optimization_prompt, 
             purpose="小说方案优化"
         )
         return result

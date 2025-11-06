@@ -230,8 +230,11 @@ class PlanningPrompts:
     }
 }
 """,
-
-            "stage_foreshadowing_planning": "你是一位资深的番茄网络小说节奏控制专家。请为小说的特定阶段制定详细的伏笔铺垫计划。...",
+            "emotional_blueprint_generation": """
+""",
+            "stage_foreshadowing_planning": """
+你是一位资深的番茄网络小说节奏控制专家。请为小说的特定阶段制定详细的伏笔铺垫计划。...
+""",
 
             "stage_content_planning": """
 你是一位资深的番茄网络小说内容架构师。请为小说的特定阶段制定详细的内容规划。
