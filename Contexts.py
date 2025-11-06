@@ -5,7 +5,7 @@ from typing import Dict, Any, Optional
 @dataclass
 class GenerationContext:
     def __init__(self, chapter_number, total_chapters, novel_data, stage_plan, 
-                 event_context, foreshadowing_context, growth_context):
+                 event_context, foreshadowing_context, growth_context, expectation_context: Dict = None):
         self.chapter_number = chapter_number
         self.total_chapters = total_chapters
         self.novel_data = novel_data
@@ -13,6 +13,7 @@ class GenerationContext:
         self.event_context = event_context
         self.foreshadowing_context = foreshadowing_context
         self.growth_context = growth_context
+        self.expectation_context = expectation_context or {}
         self.generator = None  # 用于存储生成器引用
     
     def validate(self):
