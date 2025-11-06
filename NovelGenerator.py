@@ -14,6 +14,8 @@ import APIClient
 import ContentGenerator
 from Contexts import GenerationContext
 import ElementTimingPlanner
+from EmotionalBlueprintManager import EmotionalBlueprintManager
+from EmotionalPlanManager import EmotionalPlanManager
 import EventBus
 import EventDrivenManager
 import ForeshadowingManager
@@ -88,6 +90,10 @@ class NovelGenerator:
         self.foreshadowing_manager = ForeshadowingManager.ForeshadowingManager(novel_generator=self)
         self.global_growth_planner = GlobalGrowthPlanner.GlobalGrowthPlanner(novel_generator=self)
         self.stage_plan_manager = StagePlanManager.StagePlanManager(novel_generator=self)
+
+        # 新增和调整
+        self.emotional_blueprint_manager = EmotionalBlueprintManager(novel_generator=self)
+        self.emotional_plan_manager = EmotionalPlanManager(novel_generator=self)
         
         # 新增：元素时机规划器
         self.element_timing_planner = ElementTimingPlanner.ElementTimingPlanner(novel_generator=self)
@@ -529,8 +535,8 @@ class NovelGenerator:
         return self._finalize_generation()
         
     def full_auto_generation(self, creative_seed: str, total_chapters: int = None):
-        """全自动生成完整小说 - 修改为生成多本小说"""
-        print("🚀 开始全自动小说生成...")
+        """全自动生成完整小说 - 【修改版】只为最优方案生成单本小说"""
+        print("🚀 开始全自动小说生成 (模式：聚焦最优)...")
         print(f"创意种子: {creative_seed}")
         
         if total_chapters is None:
@@ -559,8 +565,8 @@ class NovelGenerator:
         refined_creative_seed = self.refine_creative_work_for_ai(creative_work_dict, temp_title_for_filename)
 
         # -------------------------------------------------------------        
-        # 生成多个方案
-        print("=== 步骤1: 基于创意种子生成多个小说方案 ===")
+        # 步骤1: 生成并评估多个方案
+        print("=== 步骤1: 生成并评估多个小说方案 ===")
         plans_data = self.content_generator.generate_multiple_plans(refined_creative_seed, "")
         
         if not plans_data or 'plans' not in plans_data:
@@ -568,9 +574,9 @@ class NovelGenerator:
             return False
         
         plans = plans_data['plans']
-        print(f"✅ 成功生成 {len(plans)} 个方案")
+        print(f"✅ 成功生成 {len(plans)} 个方案，开始进行严苛评估...")
         
-        # 对每个方案进行质量评价和新鲜度评价
+        # 评估所有方案
         qualified_plans = []
         for i, plan in enumerate(plans):
             print(f"  🔍 评估方案 {i+1}...")
@@ -617,104 +623,87 @@ class NovelGenerator:
             freshness_score = evaluation_result.get("freshness_score", 0)
             total_score = evaluation_result.get("total_score", 0)
             
-            # 降低门槛，让更多方案通过
-            if quality_score >= 8.5 and freshness_score >= 2.0:
+            # 核心修改1：大幅提高准入门槛，追求完美
+            if quality_score >= 9.0 and freshness_score >= 6.0:
                 qualified_plans.append({
                     'plan': plan,
                     'quality_score': quality_score,
                     'freshness_score': freshness_score,
                     'total_score': total_score,
                     'evaluation_result': evaluation_result,
-                    'category': category_from_plan  # 🆕 保存分类信息
+                    'category': category_from_plan
                 })
-                print(f"    ✅ 方案 {i+1} 通过评价 (质量: {quality_score:.1f}, 新鲜度: {freshness_score:.1f})")
+                print(f"    ✅ 方案 {i+1} 通过严苛评估 (质量: {quality_score:.1f}, 新鲜度: {freshness_score:.1f})")
             else:
-                print(f"    ❌ 方案 {i+1} 未通过评价 (质量: {quality_score:.1f}, 新鲜度: {freshness_score:.1f})")
+                print(f"    ❌ 方案 {i+1} 未达完美标准，淘汰 (质量: {quality_score:.1f}, 新鲜度: {freshness_score:.1f})")
         
         if not qualified_plans:
-            print("❌ 没有合格的方案，终止生成")
+            print("\n❌ 在所有方案中，没有一个能达到“完美”标准，已终止本次生成。")
             return False
         
-        print(f"🎯 共有 {len(qualified_plans)} 个方案通过评估，将分别生成小说")
-        
-        # 为每个合格的方案生成小说
-        success_count = 0
-        for i, qualified_plan in enumerate(qualified_plans):
-            plan = qualified_plan['plan']
-            plan_category = qualified_plan['category']  # 🆕 使用方案中的分类
-            
-            print(f"\n{'='*60}")
-            print(f"📚 开始生成第 {i+1} 本小说: 《{plan['title']}》")
-            print(f"📊 分类: {plan_category}")
-            print(f"{'='*60}")
-            
-            try:
-                self.novel_data = {}
-                # 重置 novel_data 结构，为每本小说创建独立的数据
-                self._initialize_novel_data_structure()
-                # 🆕 设置分类（使用方案中的分类）
-                self.novel_data["category"] = plan_category
-                # 设置当前方案
-                self.novel_data["selected_plan"] = plan
-                self.novel_data["novel_title"] = plan["title"]
-                self.novel_data["novel_synopsis"] = plan["synopsis"]
-                self.novel_data["creative_seed"] = creative_seed
-                self.novel_data["current_progress"]["total_chapters"] = total_chapters
-                self.novel_data["current_progress"]["start_time"] = datetime.now().isoformat()
-                self.novel_data["current_progress"]["stage"] = "开始"
-                self.novel_data["current_progress"]["completed_chapters"] = 0
-                self.novel_data["current_progress"]["current_batch"] = 0
-                
-                # 存储评分信息
-                self.novel_data["plan_scores"] = {
-                    "quality_score": qualified_plan['quality_score'],
-                    "freshness_score": qualified_plan['freshness_score'],
-                    "total_score": qualified_plan['total_score']
-                }
-                
-                # 为每本小说生成独特的项目标识
-                original_title = self.novel_data["novel_title"]
-                self.novel_data["novel_title"] = f"{original_title}"
-                
-                print(f"📖 小说标题: {self.novel_data['novel_title']}")
-                print(f"📊 方案评分 - 质量: {qualified_plan['quality_score']:.1f}, 新鲜度: {qualified_plan['freshness_score']:.1f}")
-                print(f"📚 小说分类: {plan_category}")
-                # 【核心改动 3】: 在确定小说标题后，重命名指令文件
-                # -------------------------------------------------------------
-                safe_new_title = re.sub(r'[\\/*?:"<>|]', "_", self.novel_data["novel_title"])
-                old_filepath = os.path.join("小说项目", f"{temp_title_for_filename}_Refined_AI_Brief.txt")
-                new_filepath = os.path.join("小说项目", f"{safe_new_title}_Refined_AI_Brief.txt")
-                if os.path.exists(old_filepath):
-                    try:
-                        os.rename(old_filepath, new_filepath)
-                        print(f"🔄 AI指令文件名已更新为: {os.path.basename(new_filepath)}")
-                        # 更新临时文件名，以防下一本小说生成时出错
-                        temp_title_for_filename = f"未定稿创意_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{i+1}"
-                    except Exception as rename_error:
-                        print(f"⚠️ 重命名指令文件失败: {rename_error}")
-                # -------------------------------------------------------------
-                # 执行单个小说的生成流程
-                if self._generate_single_novel(creative_seed, total_chapters):
-                    success_count += 1
-                    print(f"✅ 第 {i+1} 本小说生成完成: 《{original_title}》")
-                else:
-                    print(f"❌ 第 {i+1} 本小说生成失败: 《{original_title}》")
-                    
-            except Exception as e:
-                print(f"❌ 生成第 {i+1} 本小说时出错: {e}")
-                import traceback
-                traceback.print_exc()
+        # 核心修改2：从所有合格方案中选出最优的一个
+        print(f"\n🎯 共有 {len(qualified_plans)} 个方案通过严苛评估，现在将选出最优方案进行创作...")
+        qualified_plans.sort(key=lambda p: p['total_score'], reverse=True)
+        best_plan_data = qualified_plans[0]
+        plan = best_plan_data['plan']
+        plan_category = best_plan_data['category']
         
         print(f"\n{'='*60}")
-        print(f"🎉 多本小说生成完成统计")
+        print(f"🏆 已确定最优方案: 《{plan['title']}》")
+        print(f"   总分: {best_plan_data['total_score']:.2f} (质量: {best_plan_data['quality_score']:.1f}, 新鲜度: {best_plan_data['freshness_score']:.1f})")
+        print(f"   分类: {plan_category}")
         print(f"{'='*60}")
-        print(f"📚 总方案数: {len(plans)}")
-        print(f"✅ 合格方案: {len(qualified_plans)}")
-        print(f"🎊 成功生成: {success_count} 本")
-        print(f"📊 成功率: {success_count/len(qualified_plans)*100:.1f}%")
         
-        return success_count > 0
+        # 核心修改3：不再循环，直接为最优方案生成小说
+        try:
+            self.novel_data = {}
+            self._initialize_novel_data_structure()
+            
+            self.novel_data["category"] = plan_category
+            self.novel_data["selected_plan"] = plan
+            self.novel_data["novel_title"] = plan["title"]
+            self.novel_data["novel_synopsis"] = plan["synopsis"]
+            self.novel_data["creative_seed"] = creative_seed
+            self.novel_data["current_progress"]["total_chapters"] = total_chapters
+            self.novel_data["current_progress"]["start_time"] = datetime.now().isoformat()
+            self.novel_data["current_progress"]["stage"] = "开始"
+            self.novel_data["current_progress"]["completed_chapters"] = 0
+            self.novel_data["current_progress"]["current_batch"] = 0
+            
+            # 存储评分信息
+            self.novel_data["plan_scores"] = {
+                "quality_score": best_plan_data['quality_score'],
+                "freshness_score": best_plan_data['freshness_score'],
+                "total_score": best_plan_data['total_score']
+            }
+            
+            # 【核心改动 3】: 在确定小说标题后，重命名指令文件
+            # -------------------------------------------------------------
+            safe_new_title = re.sub(r'[\\/*?:"<>|]', "_", self.novel_data["novel_title"])
+            old_filepath = os.path.join("小说项目", f"{temp_title_for_filename}_Refined_AI_Brief.txt")
+            new_filepath = os.path.join("小说项目", f"{safe_new_title}_Refined_AI_Brief.txt")
+            if os.path.exists(old_filepath):
+                try:
+                    os.rename(old_filepath, new_filepath)
+                    print(f"🔄 AI指令文件名已更新为: {os.path.basename(new_filepath)}")
+                except Exception as rename_error:
+                    print(f"⚠️ 重命名指令文件失败: {rename_error}")
+            # -------------------------------------------------------------
 
+            # 执行单个小说的生成流程
+            if self._generate_single_novel(creative_seed, total_chapters):
+                print(f"\n🎉🎉🎉 最优小说《{plan['title']}》生成完成！ 🎉🎉🎉")
+                return True
+            else:
+                print(f"\n❌ 最优小说《{plan['title']}》生成失败。")
+                return False
+                
+        except Exception as e:
+            print(f"❌ 生成最优小说时发生意外错误: {e}")
+            import traceback
+            traceback.print_exc()
+            return False
+        
     def _generate_element_timing_plan(self) -> bool:
         """生成元素登场时机规划"""
         print("=== 步骤7.5: 制定元素登场时机规划 ===")
@@ -2874,7 +2863,13 @@ class NovelGenerator:
         print("\n" + "="*60)
         print("📊 第三阶段：全书规划")
         print("="*60)
-        
+        # ⭐️ 新增步骤：生成情绪蓝图
+        self.novel_data["current_progress"]["stage"] = "情绪蓝图规划"
+        if not self.emotional_blueprint_manager.generate_emotional_blueprint(
+            self.novel_data["novel_title"], self.novel_data["novel_synopsis"], creative_seed
+        ):
+            print("❌ 情绪蓝图生成失败，无法进行后续情绪引导。")
+            return False        
         # 全局成长规划
         self.novel_data["current_progress"]["stage"] = "成长规划"
         if not self._generate_global_growth_plan():
@@ -3070,33 +3065,45 @@ class NovelGenerator:
         freshness_score = freshness_result["score"]["total"]
         freshness_verdict = freshness_result["verdict"]
         
-        # 构建质量评价提示词
         title = plan_data.get('title', '')
         synopsis = plan_data.get('synopsis', '')
         core_direction = plan_data.get('core_direction', '')
         golden_finger = plan_data.get('core_settings', {}).get('golden_finger', '')
+        core_selling_points = plan_data.get('core_settings', {}).get('core_selling_points', [])
         
+        # 核心修改：替换为更严格的评估Prompt
         quality_prompt = f"""
-    请对以下小说方案进行专业评价：
+作为一名顶级的、极其挑剔的网文主编，请对以下小说方案进行“完美主义”级别的评估。
 
-    【小说分类】{category}
-    【创意种子】{creative_seed}
+【小说分类】{category}
+【创意种子】{creative_seed}
 
-    【方案内容】
-    书名：《{title}》
-    简介：{synopsis}
-    核心方向：{core_direction}
-    金手指：{golden_finger}
+【方案内容】
+书名：《{title}》
+简介：{synopsis}
+核心方向：{core_direction}
+金手指：{golden_finger}
+核心卖点：{json.dumps(core_selling_points, ensure_ascii=False)}
 
-    请按照以下JSON格式返回评估结果：
-    {{
-        "overall_score": 总体评分(满分10分),
-        "quality_verdict": "质量评级",
-        "strengths": ["优点列表"],
-        "weaknesses": ["待改进方面列表"],
-        "optimization_suggestions": ["优化建议列表"]
-    }}
-    """
+【！！！最高评价标准 (请极度严格)！！！】
+1.  **金手指评估 (权重50%)**:
+    *   **完美标准**: 必须具备高度新颖性、与世界观/主角深度绑定、具备清晰的成长曲线、且玩法有趣。
+    *   **扣分项**: 如果金手指是常见套路（如：简单签到、属性面板、兑换商城），或者与剧情脱节，此项得分**不可高于4分**。必须是“近乎完美”的设计才能给高分。
+2.  **核心卖点评估 (权重50%)**:
+    *   **完美标准**: 卖点必须清晰、极具吸引力、且在整个故事中易于持续展现。
+    *   **扣分项**: 如果卖点模糊、是市场上的陈词滥调、或者难以在长篇中维持，此项得分**不可高于4分**。
+
+请根据上述“零容忍”标准，按照以下JSON格式返回评估结果：
+{{
+    "overall_score": "总体评分(满分10分，严格根据上述权重和标准计算)",
+    "golden_finger_score": "金手指单项评分(满分10分)",
+    "selling_points_score": "核心卖点单项评分(满分10分)",
+    "quality_verdict": "质量评级 (如：神作潜力、优良、平庸、废案)",
+    "strengths": ["优点列表，必须言之有物"],
+    "weaknesses": ["缺点列表，必须一针见血"],
+    "optimization_suggestions": ["如何才能达到'完美'标准的具体建议"]
+}}
+"""
         
         try:
             # 调用AI进行质量评价

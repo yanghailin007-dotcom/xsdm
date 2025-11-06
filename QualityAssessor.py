@@ -243,6 +243,36 @@ class QualityAssessor:
         
         # 如果评估成功，处理黄金三章的特殊逻辑
         if result and 'overall_score' in result:
+            # ⭐️ 新增：从 assessment_params 获取变量
+            novel_title = assessment_params.get('novel_title', 'unknown')
+            chapter_number = assessment_params.get('chapter_number', 0)
+            protagonist_name = assessment_params.get('protagonist_name', '主角')
+            
+            # ⭐️ 新增：处理主角心境变化
+            if 'protagonist_mindset_changes' in result:
+                mindset_changes = result['protagonist_mindset_changes']
+                if isinstance(mindset_changes, dict) and mindset_changes:
+                    self.world_state_manager.manage_character_mindset(
+                        novel_title,         # 使用修复后的变量
+                        protagonist_name,
+                        mindset_changes,
+                        chapter_number       # 使用修复后的变量
+                    )
+                    
+            if "emotional_delivery_assessment" not in result:
+                result["emotional_delivery_assessment"] = {
+                    "achieved_score": 7.0, # 默认分
+                    "intensity_score": 7.0,
+                    "transition_quality": "良好",
+                    "analysis": "AI未能返回情绪评估结果。",
+                    "suggestions": ["请检查章节是否有效传达了目标情绪。"]
+                } 
+                # (可选) 根据情绪分调整总分
+                emotional_score = result["emotional_delivery_assessment"].get("achieved_score", 7.0)
+                if emotional_score < 6.0:
+                    print(f"⚠️ 情绪传达不力，评分从 {result['overall_score']} 微调。")
+                    result['overall_score'] = max(0, result['overall_score'] - 0.5)
+
             chapter_number = assessment_params.get('chapter_number', 0)
             novel_title = assessment_params.get('novel_title', 'unknown')
             
@@ -591,48 +621,81 @@ class QualityAssessor:
         
         character_development_data = self._load_character_development_data(novel_title)
         character_development_str = json.dumps(character_development_data, ensure_ascii=False, indent=2) if character_development_data else "{}"        
-        
+
+        # 新增：从 params 获取情绪指导
+        emotional_guidance = params.get('emotional_guidance', {})
+        target_emotion = emotional_guidance.get('target_emotion_keyword', '无')
+        emotional_task = emotional_guidance.get('core_emotional_task', '无')
+
+        # 新增：构建情绪评估部分
+        emotional_assessment_section = f"""
+    ### 任务三：情绪传达评估 (必须在质量评估后进行！)
+    本章的核心情绪目标是传达 **【{target_emotion}】**。
+    - **核心任务描述**: {emotional_task}
+    请评估        
+    """
+        protagonist_name = params.get('protagonist_name', '主角') # 假设我们可以获取主角名
+        # ⭐️ 新增：获取主角当前心境
+        current_mindset = self.world_state_manager.get_current_mindset(novel_title, protagonist_name)
+        current_mindset_str = json.dumps(current_mindset, ensure_ascii=False, indent=2)
+
+        # ⭐️ 新增：构建心境演变分析部分
+        mindset_evolution_section = f"""
+### 任务四：主角心境演变分析 (针对主角：{protagonist_name})
+基于本章发生的核心事件，分析对主角心境的冲击和改变。
+
+#### 主角当前心境状态 (参考):
+{current_mindset_str}
+
+#### 分析要求:
+1.  **识别触发事件 (Triggering Event)**: 本章中哪个事件对主角的内心冲击最大？
+2.  **分析变化过程 (Change Analysis)**: 这个事件如何挑战或印证了他的核心信念、欲望或恐惧？
+3.  **定义新状态 (New State)**: 基于以上分析，主角的信念、欲望、恐惧或内在矛盾是否发生了 subtle (微妙的) 或 significant (显著的) 的变化？
+4.  **返回结构化数据**: 在返回JSON的 "protagonist_mindset_changes" 字段中报告你的分析。
+"""
         # 3. 将一致性检查清单注入到最终的Prompt中
         return f"""
-    内容：
-    你是一位资深的番茄小说内容分析师与世界观架构师。
-    你的任务分为两步：首先进行严格的一致性审查，然后进行全面的质量评估和世界观变化提取。
+内容：
+你是一位资深的番茄小说内容分析师与世界观架构师。
+你的任务分为三步：一致性审查、全面质量评估、情绪传达评估。
 
-    {consistency_check_section}
+{consistency_check_section}
 
-    ### 任务一：一致性审查 (必须最先执行！)
-    请严格对照以上【一致性铁律】，检查【章节内容预览】是否存在矛盾，特别是：
-    1.  **死者复活**: 【绝对禁止】名单中的角色是否出现？
-    2.  **状态矛盾**: 角色的位置、修为、金钱状况是否与快照冲突？
-    3.  **物品错乱**: 已消耗的物品是否被再次使用？物品是否出现在了错误的拥有者手中？
-    4.  **技能突变**: 角色的技能等级是否发生不合理的跳跃？
-    5.  **关系重置**: 已经认识的角色是否在重新自我介绍？
-    请在返回JSON的 "consistency_issues" 字段中报告所有违规行为。
+### 任务一：一致性审查 (必须最先执行！)
+请严格对照以上【一致性铁律】，检查【章节内容预览】是否存在矛盾，特别是：
+1.  **死者复活**: 【绝对禁止】名单中的角色是否出现？
+2.  **状态矛盾**: 角色的位置、修为、金钱状况是否与快照冲突？
+3.  **物品错乱**: 已消耗的物品是否被再次使用？物品是否出现在了错误的拥有者手中？
+4.  **技能突变**: 角色的技能等级是否发生不合理的跳跃？
+5.  **关系重置**: 已经认识的角色是否在重新自我介绍？
+请在返回JSON的 "consistency_issues" 字段中报告所有违规行为。
 
-    ### 任务二：质量评估与状态提取
-    完成审查后，再对章节进行整体质量评估，并提取世界观变化。
+### 任务二：质量评估与状态提取
+完成审查后，再对章节进行整体质量评估，并提取世界观变化。
 
-    ---
-    ### 评估所需信息
-    
-    #### 1. 小说与章节信息
-    - **小说标题**: {params.get('novel_title', '未知')}
-    - **章节标题**: {params.get('chapter_title', '未知')}
-    - **章节编号**: {params.get('chapter_number', '未知')}
-    - **前情提要**: {params.get('previous_summary', '无')}
+{emotional_assessment_section} # <--- 新增的情绪评估任务
 
-    #### 2. 当前章节的世界状态 (完整版，供参考)
-    {world_state_str}
+---
+### 评估所需信息
 
-    #### 3. 现有角色发展数据:
-    {character_development_str}
+#### 1. 小说与章节信息
+- **小说标题**: {params.get('novel_title', '未知')}
+- **章节标题**: {params.get('chapter_title', '未知')}
+- **章节编号**: {params.get('chapter_number', '未知')}
+- **前情提要**: {params.get('previous_summary', '无')}
 
-    #### 4. 本章内容预览:
-    {params.get('chapter_content', '')}
-    ---
+#### 2. 当前章节的世界状态 (完整版，供参考)
+{world_state_str}
 
-    请严格按照我在System Prompt中定义的JSON格式返回包含评估和世界观变化的完整结果。
-    """
+#### 3. 现有角色发展数据:
+{character_development_str}
+
+#### 4. 本章内容预览:
+{params.get('chapter_content', '')}
+---
+
+请严格按照我在System Prompt中定义的JSON格式返回包含评估和世界观变化的完整结果。
+"""
 
     def optimize_chapter_content(self, optimization_params: Dict) -> Optional[Dict]:
         """优化章节内容 - 返回标准章节格式"""

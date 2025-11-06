@@ -108,6 +108,25 @@ class WorldStateManager:
                 r"店小二", r"掌柜", r"大夫", r"书生"
             ]
         }
+        # ⭐️ 新增：角色心境档案模板
+        self.character_mindset_template = {
+            "character_name": "",
+            "core_belief": "string (角色的核心世界观或信念，例如：'实力才是一切' 或 '善良终有回报')",
+            "core_desire": "string (角色的根本欲望，例如：'保护家人' 或 '探寻父母死亡的真相')",
+            "core_fear": "string (角色最深的恐惧，例如：'再次变得无能为力' 或 '失去所有亲人')",
+            "internal_conflict": "string (内心的主要矛盾，是信念、欲望和恐惧的冲突点)",
+            "emotional_baseline": "string (情绪基调，例如：乐观/悲观/警惕/淡漠)",
+            "evolution_log": [
+                # 日志条目会动态添加，格式如下：
+                # {
+                #    "chapter": 0,
+                #    "event_summary": "导致变化的事件摘要",
+                #    "change_analysis": "对心境变化的分析",
+                #    "belief_change": "信念的变化（如有）",
+                #    "desire_change": "欲望的变化（如有）"
+                # }
+            ]
+        }
         
         # 当前小说的世界状态（用于一致性检查）
         self.current_world_state = {}
@@ -129,6 +148,62 @@ class WorldStateManager:
             return self.initialize_world_state_from_novel_data(novel_title, novel_data)
         
         return {}
+
+    def get_current_mindset(self, novel_title: str, character_name: str) -> Dict:
+        """获取指定角色的当前心境状态。"""
+        mindset_file = os.path.join(self.storage_path, f"{novel_title}_mindset_{character_name}.json")
+        if not os.path.exists(mindset_file):
+            # 如果文件不存在，返回一个基于模板的初始心境
+            initial_mindset = self.character_mindset_template.copy()
+            initial_mindset["character_name"] = character_name
+            # 可以在这里调用AI进行初次心境生成，或使用默认值
+            initial_mindset["core_belief"] = "（待AI在角色设计或首次出场时定义）"
+            initial_mindset["core_desire"] = "（待AI在角色设计或首次出场时定义）"
+            initial_mindset["core_fear"] = "（待AI在角色设计或首次出场时定义）"
+            return initial_mindset
+        
+        try:
+            with open(mindset_file, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except Exception as e:
+            print(f"❌ 读取角色 {character_name} 的心境文件失败: {e}")
+            return self.character_mindset_template.copy()
+
+    def manage_character_mindset(self, novel_title: str, character_name: str, mindset_change: Dict, chapter_number: int):
+        """更新并保存角色的心境档案。"""
+        if not character_name or not mindset_change:
+            return
+
+        print(f"🧠 更新角色 {character_name} 的心境档案 (第{chapter_number}章)...")
+        current_mindset = self.get_current_mindset(novel_title, character_name)
+
+        # 更新核心字段
+        for key in ["core_belief", "core_desire", "core_fear", "internal_conflict", "emotional_baseline"]:
+            if key in mindset_change and mindset_change[key]:
+                old_value = current_mindset.get(key)
+                new_value = mindset_change[key]
+                if old_value != new_value:
+                    print(f"   - {key} 变化: '{old_value}' -> '{new_value}'")
+                    current_mindset[key] = new_value
+
+        # 添加到演变日志
+        log_entry = {
+            "chapter": chapter_number,
+            "event_summary": mindset_change.get("triggering_event", "未知事件"),
+            "change_analysis": mindset_change.get("change_analysis", "无分析"),
+        }
+        current_mindset["evolution_log"].append(log_entry)
+        current_mindset["evolution_log"] = current_mindset["evolution_log"][-20:] # 只保留最近20条
+
+        # 保存文件
+        mindset_file = os.path.join(self.storage_path, f"{novel_title}_mindset_{character_name}.json")
+        try:
+            with open(mindset_file, 'w', encoding='utf-8') as f:
+                json.dump(current_mindset, f, ensure_ascii=False, indent=4)
+            print(f"   ✅ 角色 {character_name} 的心境档案已保存。")
+        except Exception as e:
+            print(f"❌ 保存角色 {character_name} 的心境档案失败: {e}")
+
 
     def save_assessment_data(self, novel_title: str, chapter_number: int, assessment_data: Dict):
         """保存评估数据"""

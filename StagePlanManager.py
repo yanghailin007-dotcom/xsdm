@@ -20,9 +20,7 @@ class StagePlanManager:
         
         # 初始化各个管理器
         self.event_manager = EventManager(self)
-        self.emotional_manager = EmotionalPlanManager(self)
         self.writing_guidance_manager = WritingGuidanceManager(self)
-        self.romance_manager = RomancePatternManager(self)
         
         # 阶段特性描述
         self.stage_characteristics = {
@@ -64,7 +62,13 @@ class StagePlanManager:
             }
         }
 
-    # === 核心阶段规划方法 ===
+    @property
+    def emotional_manager(self):
+        return self.generator.emotional_plan_manager
+
+    @property
+    def romance_manager(self):
+        return getattr(self.generator, 'romance_manager', None)
     
     def generate_overall_stage_plan(self, creative_seed: str, novel_title: str, novel_synopsis: str, 
                                 market_analysis: Dict, global_growth_plan: Dict, total_chapters: int) -> Optional[Dict]:
@@ -212,7 +216,12 @@ class StagePlanManager:
             return self.stage_writing_plans_cache[cache_key]
         
         print(f"  🎬 生成{stage_name}的写作计划...")
-        
+        # ⭐️ 核心改动 1: 获取本阶段的详细情绪计划
+        emotional_blueprint = self.generator.novel_data.get("emotional_blueprint", {})
+        # 注意：这里我们直接调用 novel_generator 上的 emotional_plan_manager 实例
+        stage_emotional_plan = self.generator.emotional_plan_manager.generate_stage_emotional_plan(
+            stage_name, stage_range, emotional_blueprint
+        )
         # 计算章节分段
         start_chap, end_chap = parse_chapter_range(stage_range)
         stage_length = end_chap - start_chap + 1
@@ -226,36 +235,21 @@ class StagePlanManager:
         novel_data = self.generator.novel_data
         market_info = novel_data.get("market_analysis", {})
         core_selling_points = market_info.get("core_selling_points", [])
-        # 构建用户提示词
-        user_prompt = f"""
-# 最高指令：将核心卖点转化为具体的爽点事件
-
-你是一位精通网络小说节奏的王牌编辑。你的任务是为 `{stage_name}` ({stage_range}) 设计读者无法抗拒的事件序列。
-
-## 小说核心信息
-- **小说标题**: {novel_title}
-- **小说简介**: {novel_synopsis}
-- **创意种子**: {creative_seed}
-- **核心卖点 (必须体现)**: {json.dumps(core_selling_points, ensure_ascii=False)}
-
-{stage_guidance}
-
-## 全书大纲 (上下文)
-{json.dumps(overall_stage_plan, ensure_ascii=False, indent=2)}
-
-## 本次任务详情
-现在，请你严格遵循上述的【阶段写作铁律】，并围绕【核心卖点】，设计出本阶段的详细事件序列。
-### 思考步骤:
-1.  **定义事件模型**: 根据“核心卖点”，首先在脑中定义出几种能最大化爽感的“核心事件”。（例如：卖点是“捡漏鉴宝”，核心事件就是“主角在不起眼处发现真品”、“用极低价格买入后价值连城”、“打脸嘲讽的专家”）。
-2.  **设计事件序列**: 使用你定义的“事件模型”作为积木，结合本阶段的【写作铁律】和【战略大纲】，设计出包含重大、中型、小型事件的完整序列。
-
-- **目标阶段**: {stage_name}
-- **章节范围**: {stage_range}章
-- **阶段长度**: {stage_length}章
-
-{self._get_major_event_design_requirements(stage_name, density_requirements)}
-        """
-        
+        # ⭐️ 核心改动 2: 构建全新的、以情绪为核心的 Prompt
+        user_prompt = self._build_emotion_driven_prompt(
+            stage_name,
+            stage_range,
+            stage_length,
+            novel_title,
+            novel_synopsis,
+            creative_seed,
+            core_selling_points,
+            stage_emotional_plan,  # 注入情绪计划
+            overall_stage_plan,
+            stage_guidance,
+            density_requirements
+        )
+            
         # 生成写作计划
         writing_plan = self.generator.api_client.generate_content_with_retry(
             "stage_writing_planning",
@@ -315,6 +309,56 @@ class StagePlanManager:
             print(f"  ⚠️ {stage_name}写作计划生成失败，使用默认计划")
             return {}
 
+    def _build_emotion_driven_prompt(self, stage_name: str, stage_range: str, stage_length: int,
+                                novel_title: str, novel_synopsis: str, creative_seed: str,
+                                core_selling_points: List[str], stage_emotional_plan: Dict,
+                                overall_stage_plan: Dict, stage_guidance: str, density_requirements: Dict) -> str:
+        """构建情绪驱动的事件规划提示词"""
+
+        # 将情绪计划格式化为清晰的文本指令
+        emotional_instructions = "本阶段无详细情绪计划。"
+        if stage_emotional_plan and "emotional_segments" in stage_emotional_plan:
+            segments_text = []
+            for i, segment in enumerate(stage_emotional_plan["emotional_segments"]):
+                seg_text = (
+                    f"  {i+1}. **情绪分段**: {segment.get('segment_name')} ({segment.get('chapter_range')})\n"
+                    f"     - **核心情绪**: 【{segment.get('target_emotion_keyword')}】\n"
+                    f"     - **情绪任务**: {segment.get('core_emotional_task')}"
+                )
+                segments_text.append(seg_text)
+            emotional_instructions = "\n".join(segments_text)
+
+        return f"""
+最高指令：你是一位 orchestrating a reader's emotional journey (策划读者情绪旅程) 的大师级编辑。
+你的唯一和首要任务是设计一系列事件，以精确地引导读者体验以下规划好的情绪流程。所有事件都必须服务于情绪目标。
+
+战略目标：情绪蓝图
+当前阶段: {stage_name} ({stage_range})
+本阶段总体情绪弧线: {stage_emotional_plan.get('main_emotional_arc', 'N/A')}
+详细情绪节奏规划 (必须严格遵循):
+{emotional_instructions}
+创作资源：可用的“颜料”和“画笔”
+在实现上述情绪目标时，你必须使用以下元素作为创作的素材：
+
+小说核心卖点 (必须体现): {json.dumps(core_selling_points, ensure_ascii=False)}
+创意种子: {creative_seed}
+小说标题与简介: {novel_title} - {novel_synopsis}
+战术执行：事件设计
+现在，请你以【情绪蓝图】为最终目的，以【创作资源】为手段，设计出本阶段的详细事件序列。
+
+思考流程:
+解读情绪任务: 理解每一个情绪分段需要达成的感觉（例如，是为了让读者感到“压抑”，还是“爽快”？）。
+构思事件概念: 为了达成这个感觉，应该发生什么事？（例如，要让读者“压抑”，可以设计“主角被诬陷”；要让读者“爽快”，可以设计“主角打脸反派”）。
+融入卖点: 如何用“核心卖点”来包装这个事件？（例如，用“鉴宝”能力被反派嘲笑来制造“压抑”；用“鉴宝”能力捡到惊天大漏来制造“爽快”）。
+序列化: 将这些事件串联成一个符合【情绪节奏规划】的、逻辑连贯的序列。
+结构与密度要求:
+重大事件: {density_requirements['major_events']}个
+中型事件: {density_requirements['medium_events']}个
+小型事件: {density_requirements['minor_events']}个
+(请确保事件设计符合这些数量要求，并严格遵循我在System Prompt中定义的JSON输出格式)
+{stage_guidance}
+"""
+
     # 添加策略性章节选择方法
     def _select_emotional_chapters_strategically(self, available_chapters: List[int],
                                             stage_name: str, total_available: int) -> List[int]:
@@ -366,13 +410,15 @@ class StagePlanManager:
         # 增强大事件结构
         writing_plan = self.event_manager.enhance_major_events_structure(writing_plan, stage_name, stage_range)
         
-        # 生成情绪计划并整合
-        global_emotional_plan = self.generator.novel_data.get("emotional_development_plan", {})
-        emotional_plan = self.emotional_manager.generate_stage_emotional_plan(stage_name, stage_range, global_emotional_plan)
+        # ⭐️ 新增：生成情绪计划并整合
+        emotional_blueprint = self.generator.novel_data.get("emotional_blueprint", {})
         
+        # 调用独立的 EmotionalPlanManager
+        emotional_plan = self.generator.emotional_plan_manager.generate_stage_emotional_plan(
+            stage_name, stage_range, emotional_blueprint
+        )
         plan_container = writing_plan.get("stage_writing_plan", writing_plan)
         plan_container["emotional_plan"] = emotional_plan
-
         # 验证事件密度，但不再触发补充，只做检查和警告
         event_density_ok = self.event_manager.validate_stage_event_density(writing_plan, stage_name, stage_range)
         if not event_density_ok:

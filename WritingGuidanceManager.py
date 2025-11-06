@@ -75,6 +75,22 @@ class WritingGuidanceManager:
             return "# 🎯 写作指导\n\n暂无特定的写作指导。"
         
         prompt_parts = ["\n\n# 🎯 写作指导"]
+        # ⭐️ 新增：获取并注入主角心境
+        novel_title = self.generator.novel_data.get("novel_title", "unknown")
+        protagonist_name = self.generator.novel_data.get("character_design", {}).get("main_character", {}).get("name", "主角")
+        current_mindset = self.stage_plan_manager.generator.world_state_manager.get_current_mindset(novel_title, protagonist_name)
+        
+        if current_mindset and current_mindset.get('core_belief') != "（待AI在角色设计或首次出场时定义）":
+            prompt_parts.append("\n## 👤 主角核心心境 (行为最高准则，必须严格遵守！)")
+            prompt_parts.append(f"当前主角 **{protagonist_name}** 的内心世界是：")
+            prompt_parts.append(f"- **核心信念**: {current_mindset['core_belief']}")
+            prompt_parts.append(f"- **核心欲望**: {current_mindset['core_desire']}")
+            prompt_parts.append(f"- **核心恐惧**: {current_mindset['core_fear']}")
+            prompt_parts.append(f"- **当前情绪基调**: {current_mindset['emotional_baseline']}")
+            prompt_parts.append("\n**行为指令**: 在本章中，主角的所有【行为】、【对话】和【内心独白】都必须严格反映上述心境。")
+            prompt_parts.append(f"  - **例如**: 如果他的情绪基调是'警惕'，他在面对陌生人时应该下意识地保持距离，对话中多用试探性语句。")
+            prompt_parts.append(f"  - **禁止**: 做出与当前心境严重不符的行为（例如，一个'悲观绝望'的角色突然发表乐观的演说）。")
+
         
         # 🆕 添加事件时间线指导
         event_timeline = writing_context.get("event_timeline", {})

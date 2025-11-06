@@ -392,6 +392,24 @@ json
         "world_state_consistency": 2.0,
         "hook_and_engagement": 0.2
     },
+    "emotional_delivery_assessment": {
+        "achieved_score": "number (0-10分，评估本章内容在多大程度上达成了预设的情绪目标)",
+        "intensity_score": "number (0-10分，评估情绪的强烈程度是否恰当)",
+        "transition_quality": "string (评估与前一章的情绪过渡是否自然，选项：丝滑/良好/平淡/生硬)",
+        "analysis": "string (详细分析情绪传达的成功或失败之处)",
+        "suggestions": [
+            "string (针对性地提出1-2条如何强化情绪表达的建议)"
+        ]
+    },
+    "protagonist_mindset_changes": {
+        "triggering_event": "string (本章中导致心境变化的核心事件摘要)",
+        "change_analysis": "string (详细分析该事件如何冲击了角色的内心，例如：'这次背叛动摇了他'天下皆友'的核心信念，让他开始怀疑他人。')",
+        "core_belief": "string (变化后的核心信念，如果无变化则返回原有信念)",
+        "core_desire": "string (变化后的核心欲望，如果无变化则返回原有欲望)",
+        "core_fear": "string (变化后的核心恐惧，如果无变化则返回原有恐惧)",
+        "internal_conflict": "string (更新后的内心矛盾描述)",
+        "emotional_baseline": "string (更新后的情绪基调，例如从'乐观'变为'警惕')"
+    },
     "quality_verdict": "优秀",
     "strengths": [
         "优点1: 例如，情节节奏极快，开篇即高潮，爽点密集。",
