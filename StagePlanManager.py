@@ -21,6 +21,7 @@ class StagePlanManager:
         # 初始化各个管理器
         self.event_manager = EventManager(self)
         self.writing_guidance_manager = WritingGuidanceManager(self)
+
         # 阶段特性描述
         self.stage_characteristics = {
             "opening_stage": {
@@ -94,12 +95,12 @@ class StagePlanManager:
         emotional_goals_str = "\n".join(emotional_goals_prompt)
         # 在全书的开始阶段分析情感模式（只分析一次）
         if "romance_pattern" not in self.generator.novel_data:
-            print("  💞 分析全书情感模式...")
-            # 修改后:
-            romance_pattern = self.romance_manager.analyze_romance_pattern(creative_seed, novel_synopsis)
-            # ▲▲▲ 修改结束 ▲▲▲
-            self.generator.novel_data["romance_pattern"] = romance_pattern
-            print(f"  ✅ 情感模式分析完成: {romance_pattern['romance_type']}-{romance_pattern['emotional_style']}")
+            # 检查 romance_manager 是否存在
+            if hasattr(self.generator, 'romance_manager') and self.generator.romance_manager is not None:
+                print("  💞 分析全书情感模式...")
+                romance_pattern = self.generator.romance_manager.analyze_romance_pattern(creative_seed, novel_synopsis)
+                self.generator.novel_data["romance_pattern"] = romance_pattern
+                print(f"  ✅ 情感模式分析完成: {romance_pattern['romance_type']}-{romance_pattern['emotional_style']}")
 
         # 计算阶段边界
         boundaries = self.calculate_stage_boundaries(total_chapters)

@@ -22,6 +22,7 @@ import ForeshadowingManager
 import GlobalGrowthPlanner
 import ProjectManager
 import QualityAssessor
+from RomancePatternManager import RomancePatternManager
 import StagePlanManager
 from Prompts import Prompts
 
@@ -90,7 +91,9 @@ class NovelGenerator:
         self.foreshadowing_manager = ForeshadowingManager.ForeshadowingManager(novel_generator=self)
         self.global_growth_planner = GlobalGrowthPlanner.GlobalGrowthPlanner(novel_generator=self)
         self.stage_plan_manager = StagePlanManager.StagePlanManager(novel_generator=self)
-
+        # 然后初始化 RomancePatternManager，传入 stage_plan_manager
+        self.romance_manager = RomancePatternManager(self.stage_plan_manager)
+        
         # 新增和调整
         self.emotional_blueprint_manager = EmotionalBlueprintManager(novel_generator=self)
         self.emotional_plan_manager = EmotionalPlanManager(novel_generator=self)
