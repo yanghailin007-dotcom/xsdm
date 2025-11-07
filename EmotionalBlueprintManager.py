@@ -10,37 +10,42 @@ class EmotionalBlueprintManager:
     负责在小说创作初期，定义全书的情感基调、情绪光谱和分阶段的情绪发展弧线。
     这是整个“情绪引导艺术”的最高战略规划。
     """
-    # 新增：结构模型库
+    # -------------------------------------------------------------
+    # ▼▼▼ 修改开始：优化“四段式”模型的描述，明确“起承转合”的对应关系 ▼▼▼
+    # -------------------------------------------------------------
     STRUCTURAL_MODELS = {
         "四段式": {
-            "description": "将小说分为开局、发展、高潮、结局四个阶段（起承转合），为每个阶段设定一个清晰的情绪递进目标。",
+            "description": "将小说分为“起、承、转、合”四个经典阶段，为每个阶段设定一个清晰的情绪递进目标。",
             "stages": {
                 "opening_stage": {
-                    "name": "开局阶段 (起)",
+                    "name": "起 (开局阶段)",
                     "description_prompt": "string (开局阶段的情绪目标，例如：从极度压抑和屈辱，到获得一线希望的期待感)",
                     "start_emotion_prompt": "string (起始情绪，如：压抑/迷茫)",
                     "end_emotion_prompt": "string (结束情绪，如：期待/决心)"
                 },
                 "development_stage": {
-                    "name": "发展阶段 (承)",
+                    "name": "承 (发展阶段)",
                     "description_prompt": "string (发展阶段的情绪目标，例如：在不断成长中体验友情与信任，但因背叛而陷入低谷，最终重新振作)",
                     "start_emotion_prompt": "string (起始情绪，如：成长喜悦)",
                     "end_emotion_prompt": "string (结束情绪，如：悲愤后的坚定)"
                 },
                 "climax_stage": {
-                    "name": "高潮阶段 (转)",
+                    "name": "转 (高潮阶段)",
                     "description_prompt": "string (高潮阶段的情绪目标，例如：将所有矛盾推向顶点，带来一场酣畅淋漓的情感大爆发与宣泄)",
                     "start_emotion_prompt": "string (起始情绪，如：决绝/紧张)",
                     "end_emotion_prompt": "string (结束情绪，如：宣泄/震撼)"
                 },
                 "ending_stage": {
-                    "name": "结局阶段 (合)",
+                    "name": "合 (结局阶段)",
                     "description_prompt": "string (结局阶段的情绪目标，例如：解决所有遗憾，带来圆满的满足感和对角色未来的无限遐想)",
                     "start_emotion_prompt": "string (起始情绪，如：释然)",
                     "end_emotion_prompt": "string (结束情绪，如：圆满/感动)"
                 }
             }
         },
+    # -------------------------------------------------------------
+    # ▲▲▲ 修改结束 ▲▲▲
+    # -------------------------------------------------------------
         "三幕剧": {
             "description": "采用经典的三幕剧结构。第一幕用于建置，第二幕用于对抗，第三幕用于解决。这是一种强冲突、强节奏的结构。",
             "stages": {
@@ -64,8 +69,8 @@ class EmotionalBlueprintManager:
                 }
             }
         }
-        # 未来可以继续在这里添加更多模型，如 “英雄之旅” 等
     }
+
 
     # BUG 修复：将构造函数的参数名从 'generator' 修改为 'novel_generator'
     def __init__(self, novel_generator: NovelGenerator):

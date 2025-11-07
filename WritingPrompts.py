@@ -136,47 +136,40 @@ json
     }
 }
 """,
-        "overall_stage_plan": """你是一位顶级番茄网络小说策划编辑。请根据创意种子和市场分析，制定全书的阶段计划。
+            "overall_stage_plan": """你是一位顶级番茄网络小说策划编辑。请根据创意种子和市场分析，制定全书的阶段计划。
 输出格式
 {
-"overall_stage_plan": {
-"opening_stage": {
-"chapter_range": "第1章-第{opening_end}章",
-"core_tasks": ["任务1", "任务2", "任务3"],
-"key_content": ["内容重点1", "内容重点2"],
-"writing_focus": "开局阶段详细写作重点描述"
-},
-"development_stage": {
-"chapter_range": "第{development_start}章-第{development_end}章",
-"core_tasks": ["任务1", "任务2", "task3"],
-"key_content": ["内容重点1", "内容重点2"],
-"writing_focus": "发展阶段详细写作重点描述"
-},
-"climax_stage": {
-"chapter_range": "第{climax_start}章-第{climax_end}章",
-"core_tasks": ["任务1", "任务2", "任务3"],
-"key_content": ["内容重点1", "内容重点2"],
-"writing_focus": "高潮阶段详细写作重点描述"
-},
-"ending_stage": {
-"chapter_range": "第{ending_start}章-第{ending_end}章",
-"core_tasks": ["任务1", "任务2", "任务3"],
-"key_content": ["内容重点1", "内容重点2"],
-"writing_focus": "收尾阶段详细写作重点描述"
-},
-"final_stage": {
-"chapter_range": "第{final_start}章-第{total_chapters}章",
-"core_tasks": ["任务1", "任务2", "任务3"],
-"key_content": ["内容重点1", "内容重点2"],
-"writing_focus": "结局阶段详细写作重点描述"
-}
-},
-"stage_transitions": {
-"opening_to_development": "从开局到发展的过渡重点",
-"development_to_climax": "从发展到高潮的过渡重点",
-"climax_to_ending": "从高潮到收尾的过渡重点",
-"ending_to_final": "从收尾到结局的过渡重点"
-}
+    "overall_stage_plan": {
+        "opening_stage": {
+            "chapter_range": "第1章-第{opening_end}章",
+            "stage_goal": "起 (开局阶段) 的核心目标和任务，例如：快速引入冲突，建立主角的初步形象和动机。",
+            "key_developments": ["关键发展1", "关键发展2"],
+            "core_conflicts": "此阶段的核心冲突是什么"
+        },
+        "development_stage": {
+            "chapter_range": "第{development_start}章-第{development_end}章",
+            "stage_goal": "承 (发展阶段) 的核心目标和任务，例如：深化矛盾，主角成长，扩展世界观。",
+            "key_developments": ["关键发展1", "关键发展2"],
+            "core_conflicts": "此阶段的核心冲突是什么"
+        },
+        "climax_stage": {
+            "chapter_range": "第{climax_start}章-第{climax_end}章",
+            "stage_goal": "转 (高潮阶段) 的核心目标和任务，例如：主要矛盾全面爆发，剧情出现重大转折。",
+            "key_developments": ["关键发展1", "关键发展2"],
+            "core_conflicts": "此阶段的核心冲突是什么"
+        },
+        "ending_stage": {
+            "chapter_range": "第{ending_start}章-第{total_chapters}章",
+            "stage_goal": "合 (结局阶段) 的核心目标和任务，例如：解决所有核心矛盾，回收伏笔，交代角色归宿。",
+            "key_developments": ["关键发展1", "关键发展2"],
+            "core_conflicts": "此阶段的核心冲突是什么"
+        }
+    },
+    "stage_transitions": {
+        "opening_to_development": "从'起'到'承'的过渡重点，如何自然地将开局的小冲突升级为更大的矛盾。",
+        "development_to_climax": "从'承'到'转'的过渡重点，如何将所有线索汇集，为总爆发做铺垫。",
+        "climax_to_ending": "从'转'到'合'的过渡重点，高潮结束后如何平稳过渡到解决问题和情感沉淀的阶段。"
+    }
 }""",
         "stage_writing_plan": """你是一位资深的番茄网络小说策划编辑。请根据全书阶段计划和当前章节位置，制定当前阶段的详细写作计划，包括事件设计。
 请严格按照以下JSON格式输出

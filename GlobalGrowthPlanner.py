@@ -14,39 +14,42 @@ class GlobalGrowthPlanner:
         self.stage_content_cache = {}  # 缓存各阶段的内容规划
         self.global_growth_plan = None  # 全书成长规划
         
-        # 从config读取阶段特性
-        self.stage_characteristics = self.Prompts.prompts.get("stage_characteristics", {
+        # -------------------------------------------------------------
+        # ▼▼▼ 修改开始：同步修改阶段特性为“起承转合”四段式 ▼▼▼
+        # -------------------------------------------------------------
+        self.stage_characteristics = {
             "opening_stage": {
+                "name": "起 (开局阶段)",
                 "focus": "建立基础，引入核心元素",
                 "character_growth": "主角初始性格和能力建立",
                 "faction_intro": "主要势力格局引入",
                 "ability_foundation": "基础能力和装备获得"
             },
             "development_stage": {
+                "name": "承 (发展阶段)",
                 "focus": "深化发展，推进冲突",
                 "character_growth": "能力提升和性格深化", 
                 "faction_development": "势力关系变化和冲突升级",
                 "ability_advancement": "掌握关键技能和突破"
             },
             "climax_stage": {
+                "name": "转 (高潮阶段)",
                 "focus": "冲突爆发，重大转折",
                 "character_growth": "性格重大转变和成长",
                 "faction_climax": "势力冲突达到高潮",
                 "ability_peak": "能力质的飞跃和巅峰表现"
             },
             "ending_stage": {
-                "focus": "解决矛盾，收束线索", 
-                "character_growth": "完成角色弧光",
-                "faction_resolution": "势力格局最终确定",
-                "ability_mastery": "能力完全掌握"
-            },
-            "final_stage": {
-                "focus": "完整收尾，交代后续",
-                "character_growth": "最终成长状态展现",
-                "faction_legacy": "势力后续发展",
-                "ability_legacy": "能力传承或影响"
+                "name": "合 (结局阶段)",
+                "focus": "解决矛盾，收束线索，完整收尾", 
+                "character_growth": "完成角色弧光，展现最终成长状态",
+                "faction_resolution": "势力格局最终确定与后续发展",
+                "ability_mastery": "能力完全掌握与传承"
             }
-        })
+        }
+        # -------------------------------------------------------------
+        # ▲▲▲ 修改结束 ▲▲▲
+        # -------------------------------------------------------------
 
     def get_chapter_specific_context(self, chapter_number: int) -> Dict:
         """获取章节特定的成长规划上下文，不重新生成全局计划"""
@@ -493,77 +496,68 @@ class GlobalGrowthPlanner:
         milestones = content_plan.get("key_milestones", [])
         print(f"      关键里程碑: {len(milestones)}个")
 
+    # -------------------------------------------------------------
+    # ▼▼▼ 修改开始：修改默认全局规划为四阶段模型 ▼▼▼
+    # -------------------------------------------------------------
     def _create_default_global_plan(self, total_chapters: int) -> Dict:
-        """创建默认的全局成长规划"""
+        """创建默认的“起承转合”四阶段全局成长规划"""
+        # 定义四阶段的边界
+        b = {
+            "opening_end": int(total_chapters * 0.15),
+            "development_start": int(total_chapters * 0.15) + 1,
+            "development_end": int(total_chapters * 0.50), # 0.15 + 0.35
+            "climax_start": int(total_chapters * 0.50) + 1,
+            "climax_end": int(total_chapters * 0.80), # 0.50 + 0.30
+            "ending_start": int(total_chapters * 0.80) + 1,
+        }
+
         return {
-            "overview": f"全书{total_chapters}章的完整成长规划",
+            "overview": f"全书{total_chapters}章的“起承转合”四阶段完整成长规划",
             "stage_framework": [
                 {
-                    "stage_name": "开局阶段",
-                    "chapter_range": f"1-{int(total_chapters*0.15)}",
+                    "stage_name": "起 (开局阶段)",
+                    "chapter_range": f"1-{b['opening_end']}",
                     "core_objectives": ["建立故事基础", "引入核心冲突"],
                     "key_growth_themes": ["初始成长", "能力觉醒"],
                     "milestone_events": ["主角觉醒", "初次冲突"]
                 },
                 {
-                    "stage_name": "发展阶段",
-                    "chapter_range": f"{int(total_chapters*0.15)+1}-{int(total_chapters*0.45)}",
-                    "core_objectives": ["深化矛盾", "角色成长"],
-                    "key_growth_themes": ["能力提升", "关系建立"],
-                    "milestone_events": ["关键突破", "重要联盟"]
+                    "stage_name": "承 (发展阶段)",
+                    "chapter_range": f"{b['development_start']}-{b['development_end']}",
+                    "core_objectives": ["深化矛盾", "角色成长", "扩展世界"],
+                    "key_growth_themes": ["能力提升", "关系建立", "探索新地图"],
+                    "milestone_events": ["关键突破", "重要联盟", "遭遇强敌"]
                 },
                 {
-                    "stage_name": "高潮阶段", 
-                    "chapter_range": f"{int(total_chapters*0.45)+1}-{int(total_chapters*0.8)}",
-                    "core_objectives": ["冲突爆发", "重大转折"],
-                    "key_growth_themes": ["巅峰对决", "真相揭露"],
-                    "milestone_events": ["最终对决", "真相大白"]
+                    "stage_name": "转 (高潮阶段)", 
+                    "chapter_range": f"{b['climax_start']}-{b['climax_end']}",
+                    "core_objectives": ["冲突总爆发", "重大转折"],
+                    "key_growth_themes": ["巅峰对决", "真相揭露", "角色蜕变"],
+                    "milestone_events": ["最终对决", "关键反转", "揭露最大秘密"]
                 },
                 {
-                    "stage_name": "收尾阶段",
-                    "chapter_range": f"{int(total_chapters*0.8)+1}-{int(total_chapters*0.95)}", 
-                    "core_objectives": ["解决矛盾", "收束线索"],
-                    "key_growth_themes": ["圆满收尾", "情感升华"],
-                    "milestone_events": ["矛盾解决", "伏笔回收"]
-                },
-                {
-                    "stage_name": "结局阶段",
-                    "chapter_range": f"{int(total_chapters*0.95)+1}-{total_chapters}",
-                    "core_objectives": ["完整收尾", "交代后续"],
-                    "key_growth_themes": ["最终归宿", "主题升华"],
-                    "milestone_events": ["大结局", "后记"]
+                    "stage_name": "合 (结局阶段)",
+                    "chapter_range": f"{b['ending_start']}-{total_chapters}", 
+                    "core_objectives": ["解决所有矛盾", "收束全部线索", "升华主题"],
+                    "key_growth_themes": ["圆满收尾", "情感升华", "角色归宿"],
+                    "milestone_events": ["核心矛盾解决", "所有伏笔回收", "大结局"]
                 }
             ],
             "character_growth_arcs": {
                 "protagonist": {
                     "overall_arc": "从平凡到非凡的完整成长历程",
                     "stage_specific_growth": {
-                        "开局阶段": {
-                            "personality_development": "建立基础性格",
-                            "ability_progression": "获得初始能力", 
-                            "relationship_evolution": "建立初始关系"
-                        }
+                        "起 (开局阶段)": {},
+                        "承 (发展阶段)": {},
+                        "转 (高潮阶段)": {},
+                        "合 (结局阶段)": {},
                     }
                 }
             },
-            "faction_development_trajectory": {
-                "主要势力": {
-                    "development_path": "势力发展路径",
-                    "key_expansion_points": ["关键扩张"],
-                    "relationship_evolution": "关系演变"
-                }
-            },
-            "ability_system_evolution": {
-                "skill_progression_path": "技能成长路线",
-                "equipment_upgrade_roadmap": "装备升级规划", 
-                "breakthrough_milestones": ["重要突破"]
-            },
-            "emotional_development_journey": {
-                "main_emotional_arc": "主要情感发展",
-                "relationship_development_phases": ["关系建立阶段"],
-                "emotional_climax_points": ["情感高潮"]
-            }
         }
+    # -------------------------------------------------------------
+    # ▲▲▲ 修改结束 ▲▲▲
+    # -------------------------------------------------------------
 
     def _create_default_content_plan(self, stage_name: str, chapter_range: str) -> Dict:
         """创建默认的内容规划"""
