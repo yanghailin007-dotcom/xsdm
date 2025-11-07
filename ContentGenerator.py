@@ -1611,79 +1611,78 @@ class ContentGenerator:
                 params["event_driven_guidance"] += f"\n\n{relationship_note}"
         return params
 
-    def _get_emotional_guidance_for_chapter(self, chapter_number: int, novel_data: Dict) -> Dict:
-        """获取章节的情绪指导 - 统一来源，避免重复"""
-        try:
-            # 优先从阶段计划管理器中获取情绪指导
-            stage_plan_manager = self.novel_generator.stage_plan_manager
-            if hasattr(stage_plan_manager, 'get_chapter_writing_context'):
-                writing_context = stage_plan_manager.get_chapter_writing_context(chapter_number)
-                emotional_guidance = writing_context.get("emotional_guidance", {})
-                
-                if emotional_guidance:
-                    print(f"  💖 从阶段计划管理器获取情绪指导")
-                    return emotional_guidance
-        except Exception as e:
-            print(f"  ⚠️ 从阶段计划管理器获取情绪指导失败: {e}")
-        
-        # 其次尝试从全局成长规划器获取
-        try:
-            global_growth_planner = self.novel_generator.global_growth_planner
-            if hasattr(global_growth_planner, 'get_chapter_content_context'):
-                growth_context = global_growth_planner.get_chapter_content_context(chapter_number)
-                emotional_context = growth_context.get("emotional_guidance", {})
-                
-                if emotional_context:
-                    print(f"  💖 从全局成长规划器获取情绪指导")
-                    return emotional_context
-        except Exception as e:
-            print(f"  ⚠️ 从全局成长规划器获取情绪指导失败: {e}")
-        
-        # 最后使用基于章节位置的回退指导
-        print(f"  💖 使用回退情绪指导")
-        return self._get_fallback_emotional_guidance(chapter_number, novel_data)
+# ContentGenerator.py
 
-    def _get_fallback_emotional_guidance(self, chapter_number: int, novel_data: Dict) -> Dict:
-        """回退情绪指导 - 基于章节位置，简化版本"""
-        total_chapters = novel_data["current_progress"]["total_chapters"]
-        progress_ratio = chapter_number / total_chapters
+    # ... 其他方法 ...
+
+    # ▼▼▼ 修改点 3：替换整个方法 ▼▼▼
+    def _get_emotional_guidance_for_chapter(self, chapter_number: int, novel_data: Dict) -> Dict:
+        """
+        获取章节的情绪指导 - 【修正版】
+        统一从 EmotionalPlanManager 获取，确保情绪引导的唯一来源。
+        """
+        print(f"  💖 正在为第 {chapter_number} 章获取精确情绪指导...")
         
-        if progress_ratio <= 0.2:
-            return {
-                "current_emotional_focus": "建立情感连接和读者认同",
-                "target_intensity": "中",
-                "is_emotional_turning_point": False,
-                "is_emotional_break_chapter": progress_ratio > 0.15,  # 在20%进度附近安排缓冲
-                "break_activities": ["日常互动", "角色反思"],
-                "reader_emotional_journey": "让读者对主角产生好奇和认同"
-            }
-        elif progress_ratio <= 0.5:
-            return {
-                "current_emotional_focus": "深化情感冲突和发展关系", 
-                "target_intensity": "中高",
-                "is_emotional_turning_point": progress_ratio > 0.4,
-                "is_emotional_break_chapter": progress_ratio > 0.35,  # 在35-40%进度安排缓冲
-                "break_activities": ["关系建设", "支线探索"],
-                "reader_emotional_journey": "让读者深度投入情感世界"
-            }
-        elif progress_ratio <= 0.8:
-            return {
-                "current_emotional_focus": "情感高潮和重大转折",
-                "target_intensity": "高",
-                "is_emotional_turning_point": progress_ratio > 0.7,
-                "is_emotional_break_chapter": progress_ratio > 0.75,  # 在75%进度后安排缓冲
-                "break_activities": ["情感消化", "准备最终冲突"],
-                "reader_emotional_journey": "让读者经历情感冲击和共鸣"
-            }
-        else:
-            return {
-                "current_emotional_focus": "情感解决和成长体现",
-                "target_intensity": "中高", 
-                "is_emotional_turning_point": progress_ratio > 0.9,
-                "is_emotional_break_chapter": False,  # 结局阶段通常不需要缓冲
-                "break_activities": [],
-                "reader_emotional_journey": "让读者感受到情感满足和成长"
-            }
+        try:
+            # 1. 获取必需的管理器和数据
+            stage_plan_manager = self.novel_generator.stage_plan_manager
+            emotional_plan_manager = self.novel_generator.emotional_plan_manager
+            
+            if not stage_plan_manager or not emotional_plan_manager:
+                raise ValueError("StagePlanManager 或 EmotionalPlanManager 未初始化")
+
+            # 2. 确定当前章节所属的阶段名称
+            current_stage_name = stage_plan_manager._get_current_stage(chapter_number)
+            if not current_stage_name:
+                print(f"  ⚠️ 无法确定第 {chapter_number} 章所属阶段，使用通用情绪指导。")
+                return {"target_emotion_keyword": "过渡", "core_emotional_task": "承上启下，平稳推进情节。"}
+
+            # 3. 获取该阶段的写作计划，其中应包含情绪计划
+            stage_writing_plan = stage_plan_manager.get_stage_writing_plan_by_name(current_stage_name)
+            
+            # 兼容旧数据结构，查找 emotional_plan
+            emotional_plan = None
+            if stage_writing_plan: # 确保 plan 存在
+                plan_container = stage_writing_plan.get("stage_writing_plan", stage_writing_plan)
+                emotional_plan = plan_container.get("emotional_plan")
+
+            if not emotional_plan:
+                # 如果计划中没有，可能是因为计划还未生成或生成失败，需要重新生成
+                print(f"  ⚠️ {current_stage_name} 的写作计划中未找到情绪计划，尝试即时生成...")
+                stage_range = stage_plan_manager._get_stage_range(current_stage_name)
+                emotional_blueprint = novel_data.get("emotional_blueprint", {})
+                emotional_plan = emotional_plan_manager.generate_stage_emotional_plan(
+                    current_stage_name, stage_range, emotional_blueprint
+                )
+                # 将新生成的计划存回去，避免重复生成
+                if stage_writing_plan and emotional_plan:
+                    plan_container = stage_writing_plan.get("stage_writing_plan", stage_writing_plan)
+                    plan_container["emotional_plan"] = emotional_plan
+
+            # 4. 调用 EmotionalPlanManager 的核心方法获取本章的精确指导
+            if emotional_plan:
+                # 注意：这里假设 emotional_plan_manager 的方法名是 get_emotional_guidance_for_chapter
+                # 根据你的 EmotionalPlanManager.py(文件5)，这个方法是存在的
+                guidance = emotional_plan_manager.get_emotional_guidance_for_chapter(chapter_number, emotional_plan)
+                print(f"  ✅ 第 {chapter_number} 章情绪指导获取成功: {guidance.get('target_emotion_keyword')}")
+                return guidance
+            else:
+                print(f"  ❌ 无法获取或生成 {current_stage_name} 的情绪计划。")
+                return {"target_emotion_keyword": "未知", "core_emotional_task": "情绪计划缺失，按主线发展。"}
+
+        except Exception as e:
+            print(f"  ❌ 获取第 {chapter_number} 章情绪指导时发生严重错误: {e}")
+            import traceback
+            traceback.print_exc()
+            return {"target_emotion_keyword": "错误", "core_emotional_task": f"获取情绪指导时发生异常: {e}"}
+
+    # 2. 删除旧的、硬编码的回退方法
+    def _get_fallback_emotional_guidance(self, chapter_number: int, novel_data: Dict) -> Dict:
+        """【此方法已废弃】回退情绪指导 - 基于章节位置，简化版本"""
+        # 这个方法应该被删除或标记为废弃，因为新的 _get_emotional_guidance_for_chapter 已经足够健壮
+        print("  ⚠️ 调用了已废弃的回退情绪指导方法！")
+        return {"current_emotional_focus": "通用情节推进", "target_intensity": "中"}
+    
     def _get_event_guidance_from_context(self, event_context: Dict, chapter_number: int) -> str:
         """从事件上下文中生成指导 - 修复键名错误版本"""
         

@@ -598,15 +598,16 @@ class NovelGenerator:
             print(f"  ❌ 生成精准竞品分析时出错: {e}")
             return None
 
+# NovelGenerator.py (再次替换整个 full_auto_generation 方法)
+
     def full_auto_generation(self, creative_seed: str, total_chapters: int = None):
-        """全自动生成完整小说 - 【再升级版】使用精准竞品数据进行最终优化"""
+        """全自动生成完整小说 - 【V4版】引入重试循环，确保产出最优方案"""
         print("🚀 开始全自动小说生成 (模式：聚焦最优)...")
         print(f"创意种子: {creative_seed}")
 
         if total_chapters is None:
             total_chapters = self.config["defaults"]["total_chapters"]
 
-        print(f"  📝 等待从生成的方案中自动获取分类信息...")
         temp_title_for_filename = f"未定稿创意_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         if isinstance(creative_seed, str):
             try:
@@ -617,54 +618,64 @@ class NovelGenerator:
             creative_work_dict = creative_seed
         refined_creative_seed = self.refine_creative_work_for_ai(creative_work_dict, temp_title_for_filename)
 
-        print("=== 步骤1: 生成并评估多个小说方案 ===")
-        plans_data = self.content_generator.generate_multiple_plans(refined_creative_seed, "")
-
-        if not plans_data or 'plans' not in plans_data:
-            print("❌ 方案生成失败")
-            return False
-
-        plans = plans_data['plans']
-        print(f"✅ 成功生成 {len(plans)} 个方案，开始进行严苛评估...")
-
+        # ==================== 步骤1: 循环生成与评估，直到找到合格方案 ====================
         qualified_plans = []
-        for i, plan in enumerate(plans):
-            print(f"  🔍 评估方案 {i+1}...")
-            category_from_plan = plan.get('tags', {}).get('main_category', '未分类')
-            title = plan.get('title', '')
-            synopsis = plan.get('synopsis', '')
-            keywords_str = "".join(plan.get('tags', {}).get('keywords', []))
-            creative_core_setting = creative_seed.get('coreSetting', '') if isinstance(creative_seed, dict) else str(creative_seed)
-            creative_selling_points = creative_seed.get('coreSellingPoints', '') if isinstance(creative_seed, dict) else ""
-            combined_text = f"{title} {synopsis} {keywords_str} {creative_core_setting} {creative_selling_points}"
-            has_tongren = "同人" in combined_text
-            has_dongman = any(keyword in combined_text for keyword in ["动漫", "动画", "漫画"])
+        generation_attempts = 0
+        max_generation_attempts = 3  # 设置最大尝试次数，防止无限循环
 
-            if has_tongren:
-                category_from_plan = "动漫衍生" if has_dongman else "男频衍生"
-                reason = "同人+动漫" if has_dongman else "同人"
-                print(f"    🔄 分类修正: 检测到'{reason}'关键字，分类已修正为 '{category_from_plan}'")
-                if 'tags' not in plan: plan['tags'] = {}
-                plan['tags']['main_category'] = category_from_plan
+        while not qualified_plans and generation_attempts < max_generation_attempts:
+            generation_attempts += 1
+            print(f"\n{'='*20} 方案生成与评估 [第 {generation_attempts}/{max_generation_attempts} 轮] {'='*20}")
+            
+            plans_data = self.content_generator.generate_multiple_plans(refined_creative_seed, "")
 
-            print(f"    📊 方案分类: {category_from_plan}")
-            evaluation_result = self._evaluate_plan_quality(plan, category_from_plan, creative_seed)
-            quality_score = evaluation_result.get("quality_score", 0)
-            freshness_score = evaluation_result.get("freshness_score", 0)
-            total_score = evaluation_result.get("total_score", 0)
+            if not plans_data or 'plans' not in plans_data:
+                print(f"  ❌ 第 {generation_attempts} 轮方案生成失败，稍后重试...")
+                time.sleep(5) # 如果API调用失败，稍作等待
+                continue
 
-            if quality_score >= 9.0 and freshness_score >= 6.0:
-                qualified_plans.append({
-                    'plan': plan, 'quality_score': quality_score, 'freshness_score': freshness_score,
-                    'total_score': total_score, 'evaluation_result': evaluation_result, 'category': category_from_plan
-                })
-                print(f"    ✅ 方案 {i+1} 通过严苛评估 (质量: {quality_score:.1f}, 新鲜度: {freshness_score:.1f})")
-            else:
-                print(f"    ❌ 方案 {i+1} 未达完美标准，淘汰 (质量: {quality_score:.1f}, 新鲜度: {freshness_score:.1f})")
+            plans = plans_data['plans']
+            print(f"  ✅ 第 {generation_attempts} 轮成功生成 {len(plans)} 个方案，开始进行严苛评估...")
 
+            for i, plan in enumerate(plans):
+                print(f"    🔍 评估方案 {i+1}...")
+                category_from_plan = plan.get('tags', {}).get('main_category', '未分类')
+                title = plan.get('title', '')
+                synopsis = plan.get('synopsis', '')
+                keywords_str = "".join(plan.get('tags', {}).get('keywords', []))
+                creative_core_setting = creative_seed.get('coreSetting', '') if isinstance(creative_seed, dict) else str(creative_seed)
+                creative_selling_points = creative_seed.get('coreSellingPoints', '') if isinstance(creative_seed, dict) else ""
+                combined_text = f"{title} {synopsis} {keywords_str} {creative_core_setting} {creative_selling_points}"
+                has_tongren = "同人" in combined_text
+                has_dongman = any(keyword in combined_text for keyword in ["动漫", "动画", "漫画"])
+
+                if has_tongren:
+                    category_from_plan = "动漫衍生" if has_dongman else "男频衍生"
+                    reason = "同人+动漫" if has_dongman else "同人"
+                    print(f"      🔄 分类修正: 检测到'{reason}'关键字，分类已修正为 '{category_from_plan}'")
+                    if 'tags' not in plan: plan['tags'] = {}
+                    plan['tags']['main_category'] = category_from_plan
+
+                print(f"      📊 方案分类: {category_from_plan}")
+                evaluation_result = self._evaluate_plan_quality(plan, category_from_plan, creative_seed)
+                quality_score = evaluation_result.get("quality_score", 0)
+                freshness_score = evaluation_result.get("freshness_score", 0)
+                total_score = evaluation_result.get("total_score", 0)
+
+                if quality_score >= 9.0 and freshness_score >= 7.0:
+                    qualified_plans.append({
+                        'plan': plan, 'quality_score': quality_score, 'freshness_score': freshness_score,
+                        'total_score': total_score, 'evaluation_result': evaluation_result, 'category': category_from_plan
+                    })
+                    print(f"      ✅ 方案 {i+1} 通过严苛评估 (质量: {quality_score:.1f}, 新鲜度: {freshness_score:.1f})")
+                else:
+                    print(f"      ❌ 方案 {i+1} 未达完美标准，淘汰 (质量: {quality_score:.1f}, 新鲜度: {freshness_score:.1f})")
+
+        # 循环结束后的最终检查
         if not qualified_plans:
-            print("\n❌ 在所有方案中，没有一个能达到“完美”标准，已终止本次生成。")
+            print(f"\n❌ 致命错误：经过 {max_generation_attempts} 轮尝试，仍未生成任何满足严苛标准的方案。请检查您的创意种子或调整评估标准。已终止本次生成。")
             return False
+        # ==============================================================================
 
         qualified_plans.sort(key=lambda p: p['total_score'], reverse=True)
         best_plan_data = qualified_plans[0]
@@ -684,8 +695,8 @@ class NovelGenerator:
         print("   📊 正在获取同类热门书籍数据进行横向对比...")
         plan_title = plan.get('title', '')
         plan_synopsis = plan.get('synopsis', '')
-        # 【关键修正点】修正核心卖点的提取路径
         plan_selling_points = plan.get('core_settings', {}).get('core_selling_points', [])
+
         market_competitors = self.generate_market_competitor_analysis(
             plan_category, plan_title, plan_synopsis, plan_selling_points
         )
@@ -1436,6 +1447,7 @@ class NovelGenerator:
             self.novel_data["novel_synopsis"],
             self.novel_data.get("market_analysis", {}),
             self.novel_data.get("global_growth_plan", {}),
+            self.novel_data.get("emotional_blueprint", {}),
             total_chapters
         )
         

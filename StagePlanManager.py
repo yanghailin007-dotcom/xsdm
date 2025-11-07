@@ -12,7 +12,7 @@ from utils import parse_chapter_range, is_chapter_in_range
 class StagePlanManager:
     """剧情骨架设计器 - 专注如何将内容转化为剧情（怎么写）"""
     
-    def __init__(self, novel_generator):
+    def __init__(self, novel_generator): # 移除 romance_manager 参数
         self.generator = novel_generator
         self.overall_stage_plans = None
         self.stage_boundaries = {}
@@ -21,7 +21,6 @@ class StagePlanManager:
         # 初始化各个管理器
         self.event_manager = EventManager(self)
         self.writing_guidance_manager = WritingGuidanceManager(self)
-        
         # 阶段特性描述
         self.stage_characteristics = {
             "opening_stage": {
@@ -71,14 +70,34 @@ class StagePlanManager:
         return getattr(self.generator, 'romance_manager', None)
     
     def generate_overall_stage_plan(self, creative_seed: str, novel_title: str, novel_synopsis: str, 
-                                market_analysis: Dict, global_growth_plan: Dict, total_chapters: int) -> Optional[Dict]:
+                                market_analysis: Dict, global_growth_plan: Dict, 
+                                emotional_blueprint: Dict, # 👈 新增参数
+                                total_chapters: int) -> Optional[Dict]:
         """生成全书阶段计划 - 修复版本"""
         print("=== 生成全书阶段计划 ===")
-
+        # 格式化情绪弧线，使其更清晰
+        stage_arcs = emotional_blueprint.get("stage_emotional_arcs", {})
+        emotional_goals_prompt = []
+        if stage_arcs:
+            for stage_key, arc_info in stage_arcs.items():
+                # 将 stage_key (e.g., "opening_stage") 映射到中文名
+                stage_name_map = {
+                    "opening_stage": "开局阶段",
+                    "development_stage": "发展阶段",
+                    "climax_stage": "高潮阶段",
+                    "ending_stage": "结局阶段" 
+                }
+                # 兼容 final_stage 可能没有在情绪蓝图中的情况
+                stage_name_cn = stage_name_map.get(stage_key, stage_key)
+                emotional_goals_prompt.append(f"- **{stage_name_cn}**: {arc_info.get('description', '无特定情绪目标')}")
+        
+        emotional_goals_str = "\n".join(emotional_goals_prompt)
         # 在全书的开始阶段分析情感模式（只分析一次）
         if "romance_pattern" not in self.generator.novel_data:
             print("  💞 分析全书情感模式...")
+            # 修改后:
             romance_pattern = self.romance_manager.analyze_romance_pattern(creative_seed, novel_synopsis)
+            # ▲▲▲ 修改结束 ▲▲▲
             self.generator.novel_data["romance_pattern"] = romance_pattern
             print(f"  ✅ 情感模式分析完成: {romance_pattern['romance_type']}-{romance_pattern['emotional_style']}")
 
@@ -86,9 +105,11 @@ class StagePlanManager:
         boundaries = self.calculate_stage_boundaries(total_chapters)
         
         user_prompt = f"""
-# 最高指令：以“创意种子”为绝对准则
+最高指令：以“情绪发展蓝图”和“创意种子”为绝对准则
+你的任务是设计一个服务于小说情绪发展的【剧情阶段规划】。所有剧情安排都必须为了实现预设的读者情绪目标。
 
-在本次任务中，“创意种子”包含了作者最核心、最独特的设想。如果“市场分析”或“全书成长规划”的某些部分与“创意种子”中的精神（如人物关系、故事内核）相冲突，你必须无条件地以“创意种子”为准来制定阶段计划。
+情感战略目标 (来自情绪蓝图)
+{emotional_goals_str}
 
 # 核心参考资料 
 创意种子: {creative_seed}
@@ -154,6 +175,23 @@ class StagePlanManager:
         else:
             print("❌ 全书阶段计划生成失败")
             return None
+        
+    def _get_stage_range(self, stage_name: str) -> str:
+        """获取阶段章节范围"""
+        overall_plans = self.generator.novel_data.get("overall_stage_plans", {})
+        if not overall_plans or "overall_stage_plan" not in overall_plans:
+            # 如果整体计划不存在，提供一个宽泛的默认值
+            print(f"  ⚠️ 无法从整体计划中找到 {stage_name} 的范围，使用默认值。")
+            return "1-100" 
+        
+        stage_plan_dict = overall_plans["overall_stage_plan"]
+        stage_info = stage_plan_dict.get(stage_name)
+        
+        if stage_info and "chapter_range" in stage_info:
+            return stage_info["chapter_range"]
+        
+        print(f"  ⚠️ 在整体计划字典中未找到 {stage_name} 的章节范围，使用默认值。")
+        return "1-100" 
     
     def calculate_stage_boundaries(self, total_chapters: int) -> Dict:
         """计算阶段边界"""
@@ -410,15 +448,6 @@ class StagePlanManager:
         # 增强大事件结构
         writing_plan = self.event_manager.enhance_major_events_structure(writing_plan, stage_name, stage_range)
         
-        # ⭐️ 新增：生成情绪计划并整合
-        emotional_blueprint = self.generator.novel_data.get("emotional_blueprint", {})
-        
-        # 调用独立的 EmotionalPlanManager
-        emotional_plan = self.generator.emotional_plan_manager.generate_stage_emotional_plan(
-            stage_name, stage_range, emotional_blueprint
-        )
-        plan_container = writing_plan.get("stage_writing_plan", writing_plan)
-        plan_container["emotional_plan"] = emotional_plan
         # 验证事件密度，但不再触发补充，只做检查和警告
         event_density_ok = self.event_manager.validate_stage_event_density(writing_plan, stage_name, stage_range)
         if not event_density_ok:
@@ -688,17 +717,6 @@ JSON
         except Exception as e:
             print(f"❌ 确定章节阶段失败: {e}")
             return None
-
-    def _get_stage_range(self, stage_name: str) -> str:
-        """获取阶段章节范围"""
-        if "global_growth_plan" not in self.generator.novel_data:
-            return "1-100"
-        
-        growth_plan = self.generator.novel_data["global_growth_plan"]
-        for stage in growth_plan.get("stage_framework", []):
-            if stage["stage_name"] == stage_name:
-                return stage["chapter_range"]
-        return "1-100"
 
     def _get_stage_length(self, stage_range: str) -> int:
         """获取阶段长度"""
