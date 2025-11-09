@@ -724,154 +724,138 @@ class StagePlanManager:
             chapter_breakdown += f"- 第{chapter_num}章: 需要完成中型事件目标的{['起始','发展','高潮','收尾'][min(i, 3)]}部分\n"
         
         prompt = f"""
-    # 任务：中型事件"多章场景构建" - 明确章节归属和服务关系
-    你需要为一个跨{chapter_count}章的中型事件设计详细的场景事件序列，明确每个场景的章节归属，确保每章都有完整的场景结构。
+# 任务：中型事件"多章场景构建" - 明确章节归属和服务关系
+你需要为一个跨{chapter_count}章的中型事件设计详细的场景事件序列，明确每个场景的章节归属，确保每章都有完整的场景结构。
 
-    ## 当前中型事件信息
-    - **所属阶段**: {stage_name}
-    - **所属重大事件**: {major_event.get('name')}
-    - **中型事件名称**: {medium_event.get('name')}
-    - **事件章节范围**: {medium_event.get('chapter_range')} (共{chapter_count}章)
-    - **事件核心目标**: {medium_event.get('main_goal')}
-    - **事件情绪重点**: {medium_event.get('emotional_focus')}
-    - **事件描述**: {medium_event.get('description')}
-    - **服务重大事件**: {medium_event.get('contribution_to_major')}
+## 当前中型事件信息
+- **所属阶段**: {stage_name}
+- **所属重大事件**: {major_event.get('name')}
+- **中型事件名称**: {medium_event.get('name')}
+- **事件章节范围**: {medium_event.get('chapter_range')} (共{chapter_count}章)
+- **事件核心目标**: {medium_event.get('main_goal')}
+- **事件情绪重点**: {medium_event.get('emotional_focus')}
+- **事件描述**: {medium_event.get('description')}
+- **服务重大事件**: {medium_event.get('contribution_to_major')}
 
-    ## 章节分配要求
-    {chapter_breakdown}
+## 章节分配要求
+{chapter_breakdown}
 
-    ## 场景构建要求
-    请为这{chapter_count}章分别设计完整的场景事件序列，确保：
+## 场景构建要求
+请为这{chapter_count}章分别设计完整的场景事件序列，确保：
 
-    ### 每章的结构要求：
-    1. **第1章** (起始章): 建立情境，引入冲突，开启中型事件
-    - 开场场景：建立基础情境
-    - 发展场景：引入主要冲突
-    - 高潮场景：确立本章核心冲突点
-    - 结尾场景：设置悬念，引导下一章
+### 每章的结构要求：
+1. **第1章** (起始章): 建立情境，引入冲突，开启中型事件
+- 开场场景：建立基础情境
+- 发展场景：引入主要冲突
+- 高潮场景：确立本章核心冲突点
+- 结尾场景：设置悬念，引导下一章
 
-    2. **中间章节** (发展章): 深化冲突，推进情节
-    - 开场场景：承接上一章悬念
-    - 发展场景1：推进情节发展
-    - 发展场景2：冲突升级
-    - 高潮场景：本章情感爆发点
-    - 结尾场景：新的悬念或转折
+2. **中间章节** (发展章): 深化冲突，推进情节
+- 开场场景：承接上一章悬念
+- 发展场景1：推进情节发展
+- 发展场景2：冲突升级
+- 高潮场景：本章情感爆发点
+- 结尾场景：新的悬念或转折
 
-    3. **最后一章** (收尾章): 解决冲突，完成中型事件目标
-    - 开场场景：处理上一章遗留问题
-    - 发展场景：向最终解决推进
-    - 高潮场景：中型事件的核心解决时刻
-    - 回落场景：处理后果和影响
-    - 结尾场景：中型事件收尾，衔接后续内容
+3. **最后一章** (收尾章): 解决冲突，完成中型事件目标
+- 开场场景：处理上一章遗留问题
+- 发展场景：向最终解决推进
+- 高潮场景：中型事件的核心解决时刻
+- 回落场景：处理后果和影响
+- 结尾场景：中型事件收尾，衔接后续内容
 
-    ### 跨章连贯性要求：
-    - 确保章节间场景的平滑过渡
-    - 保持情绪发展的连贯性
-    - 每章都要有明确的服务于中型事件目标的贡献
+### 跨章连贯性要求：
+- 确保章节间场景的平滑过渡
+- 保持情绪发展的连贯性
+- 每章都要有明确的服务于中型事件目标的贡献
 
-    ## 输出格式
-    {{
-        "name": "{medium_event.get('name')}",
-        "type": "medium_event", 
-        "chapter_range": "{medium_event.get('chapter_range')}",
-        "main_goal": "{medium_event.get('main_goal')}",
-        "emotional_focus": "{medium_event.get('emotional_focus')}",
-        "description": "{medium_event.get('description')}",
-        "decomposition_type": "direct_scene",
-        "contribution_to_major": "{medium_event.get('contribution_to_major')}",
-        "chapter_breakdown": {{
-            "overall_arc": "整个中型事件的情节发展弧线",
-            "emotional_progression": "跨章情绪发展轨迹",
-            "key_turning_points": ["转折点1", "转折点2"]
-        }},
-        "scene_sequences": [
-            {{
-                "chapter_range": "{start_ch}-{start_ch}",
-                "chapter_role": "起始章",
-                "chapter_goal": "本章要达成的具体目标（服务于中型事件目标的起始部分）",
-                "emotional_focus": "本章的情绪重点",
-                "structural_arc": "本章的结构弧线",
-                "contribution_to_medium": "本章如何服务于中型事件目标",
-                "scene_events": [
-                    {{
-                        "name": "场景1名称",
-                        "type": "scene_event",
-                        "position": "opening",
-                        "purpose": "场景的戏剧目的（服务于本章目标）", 
-                        "key_actions": ["关键动作1", "关键动作2"],
-                        "emotional_impact": "场景的情感冲击",
-                        "dialogue_highlights": ["关键对话1", "关键对话2"],
-                        "conflict_point": "冲突的具体表现",
-                        "sensory_details": "需要突出的感官细节",
-                        "transition_to_next": "如何过渡到下一个场景",
-                        "estimated_word_count": "预估字数范围",
-                        "contribution_to_chapter": "如何服务于本章目标"
-                    }},
-                    {{
-                        "name": "场景2名称", 
-                        "type": "scene_event",
-                        "position": "development1",
-                        "purpose": "推进情节发展",
-                        "key_actions": ["关键动作1", "关键动作2"],
-                        "emotional_impact": "深化情感冲突",
-                        "dialogue_highlights": ["关键对话1", "关键对话2"], 
-                        "conflict_point": "冲突升级表现",
-                        "sensory_details": "需要突出的感官细节",
-                        "transition_to_next": "如何过渡到下一个场景",
-                        "estimated_word_count": "预估字数范围",
-                        "contribution_to_chapter": "如何服务于本章目标"
-                    }},
-                    {{
-                        "name": "场景3名称",
-                        "type": "scene_event", 
-                        "position": "climax",
-                        "purpose": "本章情感爆发点",
-                        "key_actions": ["关键动作1", "关键动作2"],
-                        "emotional_impact": "强烈情感冲击",
-                        "dialogue_highlights": ["关键对话1", "关键对话2"],
-                        "conflict_point": "核心冲突解决或升级",
-                        "sensory_details": "需要突出的感官细节", 
-                        "transition_to_next": "如何过渡到下一个场景",
-                        "estimated_word_count": "预估字数范围",
-                        "contribution_to_chapter": "如何服务于本章目标"
-                    }},
-                    {{
-                        "name": "场景4名称",
-                        "type": "scene_event",
-                        "position": "ending", 
-                        "purpose": "设置悬念，引导下一章",
-                        "key_actions": ["关键动作1", "关键动作2"],
-                        "emotional_impact": "悬念带来的期待感",
-                        "dialogue_highlights": ["关键对话1", "关键对话2"],
-                        "conflict_point": "未解决的冲突或新出现的矛盾",
-                        "sensory_details": "需要突出的感官细节",
-                        "transition_to_next": "如何过渡到下一章",
-                        "estimated_word_count": "预估字数范围", 
-                        "contribution_to_chapter": "如何服务于本章目标"
-                    }}
-                ],
-                "chapter_hook": "本章结尾的悬念钩子",
-                "writing_focus": "本章写作重点提示",
-                "connection_to_next": "如何连接到下一章"
-            }},
-            // 为每一章都创建这样的结构，根据章节数动态调整
-            {{
-                "chapter_range": "{start_ch+1}-{start_ch+1}", 
-                "chapter_role": "发展章",
-                "chapter_goal": "深化冲突，推进中型事件发展",
-                "emotional_focus": "情绪发展和深化",
-                "structural_arc": "发展-升级-转折",
-                "contribution_to_medium": "推进中型事件向高潮发展",
-                "scene_events": [
-                    // 4-5个场景事件，根据本章角色调整
-                ],
-                "chapter_hook": "新的悬念或转折",
-                "writing_focus": "保持节奏，深化冲突", 
-                "connection_to_next": "为高潮章做铺垫"
-            }},
-            // ... 更多章节的场景序列
-        ]
-    }}
+## 输出格式
+{{
+    "name": "{medium_event.get('name')}",
+    "type": "medium_event", 
+    "chapter_range": "{medium_event.get('chapter_range')}",
+    "main_goal": "{medium_event.get('main_goal')}",
+    "emotional_focus": "{medium_event.get('emotional_focus')}",
+    "description": "{medium_event.get('description')}",
+    "decomposition_type": "direct_scene",
+    "contribution_to_major": "{medium_event.get('contribution_to_major')}",
+    "chapter_breakdown": {{
+        "overall_arc": "整个中型事件的情节发展弧线",
+        "emotional_progression": "跨章情绪发展轨迹",
+        "key_turning_points": ["转折点1", "转折点2"]
+    }},
+    "scene_sequences": [
+        {{
+            "chapter_range": "{start_ch}-{start_ch}",
+            "chapter_role": "起始章",
+            "chapter_goal": "本章要达成的具体目标（服务于中型事件目标的起始部分）",
+            "emotional_focus": "本章的情绪重点",
+            "structural_arc": "本章的结构弧线",
+            "contribution_to_medium": "本章如何服务于中型事件目标",
+            "scene_events": [
+                {{
+                    "name": "场景1名称",
+                    "type": "scene_event",
+                    "position": "opening",
+                    "purpose": "场景的戏剧目的（服务于本章目标）", 
+                    "key_actions": ["关键动作1", "关键动作2"],
+                    "emotional_impact": "场景的情感冲击",
+                    "dialogue_highlights": ["关键对话1", "关键对话2"],
+                    "conflict_point": "冲突的具体表现",
+                    "sensory_details": "需要突出的感官细节",
+                    "transition_to_next": "如何过渡到下一个场景",
+                    "estimated_word_count": "300-500字",
+                    "contribution_to_chapter": "如何服务于本章目标"
+                }},
+                {{
+                    "name": "场景2名称", 
+                    "type": "scene_event",
+                    "position": "development1",
+                    "purpose": "推进情节发展",
+                    "key_actions": ["关键动作1", "关键动作2"],
+                    "emotional_impact": "深化情感冲突",
+                    "dialogue_highlights": ["关键对话1", "关键对话2"], 
+                    "conflict_point": "冲突升级表现",
+                    "sensory_details": "需要突出的感官细节",
+                    "transition_to_next": "如何过渡到下一个场景",
+                    "estimated_word_count": "300-500字",
+                    "contribution_to_chapter": "如何服务于本章目标"
+                }},
+                {{
+                    "name": "场景3名称",
+                    "type": "scene_event", 
+                    "position": "climax",
+                    "purpose": "本章情感爆发点",
+                    "key_actions": ["关键动作1", "关键动作2"],
+                    "emotional_impact": "强烈情感冲击",
+                    "dialogue_highlights": ["关键对话1", "关键对话2"],
+                    "conflict_point": "核心冲突解决或升级",
+                    "sensory_details": "需要突出的感官细节", 
+                    "transition_to_next": "如何过渡到下一个场景",
+                    "estimated_word_count": "300-500字",
+                    "contribution_to_chapter": "如何服务于本章目标"
+                }},
+                {{
+                    "name": "场景4名称",
+                    "type": "scene_event",
+                    "position": "ending", 
+                    "purpose": "设置悬念，引导下一章",
+                    "key_actions": ["关键动作1", "关键动作2"],
+                    "emotional_impact": "悬念带来的期待感",
+                    "dialogue_highlights": ["关键对话1", "关键对话2"],
+                    "conflict_point": "未解决的冲突或新出现的矛盾",
+                    "sensory_details": "需要突出的感官细节",
+                    "transition_to_next": "如何过渡到下一章",
+                    "estimated_word_count": "300-500字", 
+                    "contribution_to_chapter": "如何服务于本章目标"
+                }},
+                // ... 更多章节的场景序列
+            ],
+            "chapter_hook": "本章结尾的悬念钩子",
+            "writing_focus": "本章写作重点提示",
+            "connection_to_next": "如何连接到下一章"
+        }}        ]
+}}
     """
         
         result = self.generator.api_client.generate_content_with_retry(

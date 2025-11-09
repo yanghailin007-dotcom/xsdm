@@ -200,7 +200,7 @@ json
                 "conflict_point": "冲突的具体表现",
                 "sensory_details": "需要突出的感官细节",
                 "transition_to_next": "如何过渡到下一个场景",
-                "estimated_word_count": "预估字数范围"
+                "estimated_word_count": "300-500字"
             },
             // ... 更多场景事件 (总共4-6个)
         ],
