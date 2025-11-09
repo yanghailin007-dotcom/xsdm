@@ -127,7 +127,9 @@ class StagePlanManager:
 """
         
         result = self.generator.api_client.generate_content_with_retry(
-            "overall_stage_plan", user_prompt, purpose="制定全书阶段计划"
+            content_type="overall_stage_plan", 
+            user_prompt=user_prompt, 
+            purpose="制定全书阶段计划"
         )
         
         if result and isinstance(result, dict):
@@ -196,14 +198,884 @@ class StagePlanManager:
         print(f"\n📈 总计: {len(stage_plan_dict)}个阶段，{total_chapters}章")
         print("=" * 60)
 
+    def _generate_basic_stage_plan(self, stage_name: str, stage_range: str, creative_seed: str,
+                                novel_title: str, novel_synopsis: str, overall_stage_plan: Dict) -> Dict:
+        """生成阶段基础计划（不包含详细事件）"""
+        user_prompt = f"""
+    请为小说阶段生成基础写作计划。
+
+    ## 阶段信息
+    - 阶段名称: {stage_name}
+    - 章节范围: {stage_range}
+    - 小说标题: {novel_title}
+    - 小说简介: {novel_synopsis}
+    - 创意种子: {creative_seed}
+
+    ## 阶段总体目标
+    {overall_stage_plan.get("overall_stage_plan", {}).get(stage_name, {}).get("stage_goal", "N/A")}
+
+    请重点描述阶段策略、目标和关键节点，不要输出详细的事件列表。
+    """
+        
+        result = self.generator.api_client.generate_content_with_retry(
+            content_type="stage_writing_plan", 
+            user_prompt=user_prompt, 
+            purpose=f"生成{stage_name}基础计划"
+        )
+        
+        return result
+
+    def _assemble_final_plan(self, stage_name, stage_range, final_major_events, overall_stage_plan) -> Dict:
+        """工作流第四阶段：将所有生成的部分组装成最终的JSON计划。"""
+        
+        # 收集所有场景事件（按章节组织）
+        chapter_scene_map = {}  # 章节号 -> 场景事件列表
+        
+        for major_event in final_major_events:
+            composition = major_event.get("composition", {})
+            for phase_events in composition.values():
+                for medium_event in phase_events:
+                    decomposition_type = medium_event.get("decomposition_type", "")
+                    
+                    if decomposition_type == "chapter_then_scene":
+                        # 包含章节事件的情况（章节事件内包含场景结构）
+                        chapter_events = medium_event.get("chapter_events", [])
+                        for chapter_event in chapter_events:
+                            chapter_range = chapter_event.get('chapter_range', '0-0')
+                            start_ch, end_ch = parse_chapter_range(chapter_range)
+                            
+                            # 提取场景事件
+                            scene_structure = chapter_event.get("scene_structure", {})
+                            scenes = scene_structure.get("scenes", [])
+                            
+                            # 按章节存储场景事件
+                            for chapter_num in range(start_ch, end_ch + 1):
+                                if chapter_num not in chapter_scene_map:
+                                    chapter_scene_map[chapter_num] = []
+                                chapter_scene_map[chapter_num].extend(scenes)
+                    
+                    elif decomposition_type == "direct_scene":
+                        # 直接包含场景序列的情况
+                        scene_sequences = medium_event.get("scene_sequences", [])
+                        for sequence in scene_sequences:
+                            chapter_range = sequence.get('chapter_range', '0-0')
+                            start_ch, end_ch = parse_chapter_range(chapter_range)
+                            
+                            # 提取场景事件
+                            scene_events = sequence.get("scene_events", [])
+                            
+                            # 按章节存储场景事件
+                            for chapter_num in range(start_ch, end_ch + 1):
+                                if chapter_num not in chapter_scene_map:
+                                    chapter_scene_map[chapter_num] = []
+                                chapter_scene_map[chapter_num].extend(scene_events)
+        
+        # 构建按章节组织的场景事件列表
+        chapter_scene_events = []
+        for chapter_num in sorted(chapter_scene_map.keys()):
+            chapter_scene_events.append({
+                "chapter_number": chapter_num,
+                "scene_events": chapter_scene_map[chapter_num]
+            })
+
+        # 构建最终的计划结构
+        stage_plan = {
+            "stage_writing_plan": {
+                "stage_name": stage_name,
+                "chapter_range": stage_range,
+                "stage_overview": overall_stage_plan.get("overall_stage_plan", {}).get(stage_name, {}).get("stage_goal", "N/A"),
+                "event_system": {
+                    "overall_approach": "采用智能分形设计：根据章节数自动选择分解策略，最终基于场景事件构建章节。",
+                    "major_events": final_major_events,
+                    "chapter_scene_events": chapter_scene_events
+                },
+            }
+        }
+        return stage_plan
+    
+    def _smart_decompose_medium_events(self, major_event: Dict, stage_name: str,
+                                    novel_title: str, novel_synopsis: str, creative_seed: str) -> Dict:
+        """智能分解中型事件：根据章节数选择分解策略，确保服务于中型事件自身目标"""
+        
+        # 收集所有中型事件
+        all_medium_events = []
+        composition = major_event.get("composition", {})
+        for phase_events in composition.values():
+            all_medium_events.extend(phase_events)
+        
+        # 为每个中型事件智能选择分解策略
+        decomposed_medium_events = []
+        for medium_event in all_medium_events:
+            chapter_range = medium_event.get('chapter_range', '0-0')
+            start_ch, end_ch = parse_chapter_range(chapter_range)
+            chapter_count = end_ch - start_ch + 1
+            
+            if chapter_count > 3:
+                # 章节数>3，先分解为章节事件，再分解为场景事件
+                print(f"    -> 中型事件'{medium_event['name']}'({chapter_count}章) 进行章节事件+场景事件分解")
+                decomposed_event = self._decompose_medium_to_chapter_then_scene(
+                    medium_event, major_event, stage_name, novel_title, novel_synopsis, creative_seed
+                )
+            else:
+                # 章节数<3，直接分解为场景事件
+                print(f"    -> 中型事件'{medium_event['name']}'({chapter_count}章) 直接进行场景事件分解")
+                decomposed_event = self._decompose_medium_direct_to_scene(
+                    medium_event, major_event, stage_name, novel_title, novel_synopsis, creative_seed
+                )
+            
+            if decomposed_event:
+                # 保留中型事件的核心目标信息
+                decomposed_event.update({
+                    "main_goal": medium_event.get("main_goal", ""),
+                    "emotional_focus": medium_event.get("emotional_focus", ""),
+                    "emotional_intensity": medium_event.get("emotional_intensity", "medium"),
+                    "key_emotional_beats": medium_event.get("key_emotional_beats", []),
+                    "contribution_to_major": medium_event.get("contribution_to_major", "")
+                })
+                decomposed_medium_events.append(decomposed_event)
+        
+        # 更新重大事件的composition
+        major_event_copy = major_event.copy()
+        for phase_name, phase_events in composition.items():
+            for i, event in enumerate(phase_events):
+                # 找到对应的分解后中型事件
+                decomposed_event = next((de for de in decomposed_medium_events if de['name'] == event['name']), None)
+                if decomposed_event:
+                    phase_events[i] = decomposed_event
+        
+        return major_event_copy
+
+    def _decompose_medium_to_chapter_then_scene(self, medium_event: Dict, major_event: Dict, stage_name: str,
+                                            novel_title: str, novel_synopsis: str, creative_seed: str) -> Dict:
+        """中型事件≥3章：先分解为章节事件，再分解为场景事件，服务于中型事件目标"""
+        
+        # 第一步：分解为章节事件
+        chapter_events_prompt = f"""
+# 任务：中型事件"章节分解" - 服务于中型事件目标
+你需要将一个多章的中型事件分解为具体的章节事件，每个章节事件覆盖1章，确保服务于中型事件的目标。
+
+## 当前中型事件信息
+- **所属阶段**: {stage_name}
+- **所属重大事件**: {major_event.get('name')}
+- **中型事件名称**: {medium_event.get('name')}
+- **事件章节范围**: {medium_event.get('chapter_range')}
+- **事件核心目标**: {medium_event.get('main_goal')}
+- **事件情绪重点**: {medium_event.get('emotional_focus')}
+- **服务重大事件**: {medium_event.get('contribution_to_major')}
+
+## 分解要求
+请将这个中型事件分解为{medium_event.get('chapter_range')}范围内的各个章节事件，确保：
+1. 每个章节事件有明确的目标，服务于中型事件的核心目标
+2. 章节之间要有连贯性和递进关系，服务于中型事件的emotional_focus
+3. 形成完整的"起承转合"结构，服务于中型事件在重大事件中的角色
+
+## 输出格式
+{{
+    "name": "{medium_event.get('name')}",
+    "type": "medium_event",
+    "chapter_range": "{medium_event.get('chapter_range')}",
+    "main_goal": "{medium_event.get('main_goal')}",
+    "emotional_focus": "{medium_event.get('emotional_focus')}",
+    "description": "{medium_event.get('description')}",
+    "decomposition_type": "chapter_then_scene",
+    "contribution_to_major": "{medium_event.get('contribution_to_major')}",
+    "chapter_events": [
+        {{
+            "name": "章节事件名称",
+            "type": "chapter_event", 
+            "chapter_range": "string // 单章范围，例如：'49-49章'",
+            "main_goal": "该章节要达成的具体目标（服务于中型事件目标）",
+            "emotional_focus": "本章的情绪重点（服务于中型事件emotional_focus）",
+            "emotional_turn": "本章的情感转折点",
+            "structural_role": "在事件中的结构作用 (起/承/转/合)",
+            "contribution_to_medium": "如何服务于中型事件目标"
+        }},
+        // ... 更多章节事件
+    ]
+}}
+    """
+        
+        chapter_events_result = self.generator.api_client.generate_content_with_retry(
+            content_type="medium_event_decomposition", 
+            user_prompt=chapter_events_prompt, 
+            purpose=f"分解中型事件'{medium_event.get('name')}'为章节事件"
+        )
+        
+        if not chapter_events_result:
+            return None
+        
+        # 第二步：为每个章节事件分解为场景事件
+        scene_structured_chapters = []
+        for chapter_event in chapter_events_result.get("chapter_events", []):
+            scene_structure_prompt = f"""
+    # 任务：章节事件"场景结构构建" - 服务于章节事件目标
+    你需要为一个章节事件设计完整的场景结构，确保章节内部有完整的戏剧发展和情感弧线，服务于章节事件的目标。
+
+    ## 当前章节事件信息
+    - **所属阶段**: {stage_name}
+    - **所属重大事件**: {major_event.get('name')}
+    - **所属中型事件**: {medium_event.get('name')}
+    - **章节事件名称**: {chapter_event.get('name')}
+    - **章节范围**: {chapter_event.get('chapter_range')}
+    - **章节目标**: {chapter_event.get('main_goal')}
+    - **章节情绪重点**: {chapter_event.get('emotional_focus')}
+    - **情感转折**: {chapter_event.get('emotional_turn')}
+    - **结构作用**: {chapter_event.get('structural_role')}
+    - **服务中型事件**: {chapter_event.get('contribution_to_medium')}
+
+    ## 场景构建要求
+    请为这个章节设计4-6个场景事件，形成完整的戏剧结构，服务于章节目标：
+
+    ### 场景结构要求：
+    1. **开场场景** (15-20%)：建立情境，引入冲突，服务于章节目标
+    2. **发展场景1** (20-25%)：推进情节，深化冲突，服务于章节目标  
+    3. **发展场景2** (20-25%)：冲突升级，逼近高潮，服务于章节目标
+    4. **高潮场景** (15-20%)：情感爆发，关键转折，服务于章节目标
+    5. **回落场景** (10-15%)：处理后果，情感沉淀，服务于章节目标
+    6. **结尾场景** (5-10%)：设置悬念，引导下一章，服务于章节目标
+
+    ## 输出格式
+    {{
+        "name": "{chapter_event.get('name')}",
+        "type": "chapter_event",
+        "chapter_range": "{chapter_event.get('chapter_range')}",
+        "main_goal": "{chapter_event.get('main_goal')}",
+        "emotional_focus": "{chapter_event.get('emotional_focus')}",
+        "emotional_turn": "{chapter_event.get('emotional_turn')}",
+        "structural_role": "{chapter_event.get('structural_role')}",
+        "contribution_to_medium": "{chapter_event.get('contribution_to_medium')}",
+        "scene_structure": {{
+            "overall_pace": "string // 本章节奏描述",
+            "emotional_arc": "string // 本章情感发展曲线",
+            "scenes": [
+                {{
+                    "name": "场景名称",
+                    "type": "scene_event",
+                    "position": "opening/development1/development2/climax/falling/ending",
+                    "purpose": "场景的戏剧目的（服务于章节目标）",
+                    "key_actions": ["关键动作1", "关键动作2"],
+                    "emotional_impact": "场景的情感冲击（服务于章节emotional_focus）",
+                    "dialogue_highlights": ["关键对话1", "关键对话2"],
+                    "conflict_point": "冲突的具体表现",
+                    "sensory_details": "需要突出的感官细节",
+                    "transition_to_next": "如何过渡到下一个场景",
+                    "estimated_word_count": "预估字数范围，需要非常精炼",
+                    "contribution_to_chapter": "如何服务于章节目标"
+                }},
+                // ... 更多场景事件 (总共4-6个)
+            ],
+            "chapter_hook": "string // 章节结尾的悬念钩子",
+            "writing_focus": "string // 本章写作重点提示"
+        }}
+    }}
+    """
+            
+            scene_result = self.generator.api_client.generate_content_with_retry(
+                content_type="chapter_event_design", 
+                user_prompt=scene_structure_prompt, 
+                purpose=f"为章节事件'{chapter_event.get('name')}'构建场景结构"
+            )
+            
+            if scene_result:
+                scene_structured_chapters.append(scene_result)
+        
+        # 更新章节事件为场景结构化版本
+        chapter_events_result["chapter_events"] = scene_structured_chapters
+        
+        return chapter_events_result
+
+    def validate_goal_hierarchy_coherence(self, stage_writing_plan: Dict, stage_name: str) -> Dict:
+        """AI评估目标层级一致性：阶段→重大事件→中型事件→章节事件→场景事件"""
+        
+        print(f"  🤖 AI评估{stage_name}阶段目标层级一致性...")
+        
+        # 提取阶段计划中的关键信息
+        if "stage_writing_plan" in stage_writing_plan:
+            plan_data = stage_writing_plan["stage_writing_plan"]
+        else:
+            plan_data = stage_writing_plan
+        
+        event_system = plan_data.get("event_system", {})
+        major_events = event_system.get("major_events", [])
+        
+        # 构建目标层级评估提示词
+        coherence_prompt = self._build_goal_hierarchy_prompt(
+            stage_name, plan_data, major_events
+        )
+        
+        try:
+            coherence_assessment = self.generator.api_client.generate_content_with_retry(
+                content_type="goal_hierarchy_coherence_assessment",
+                user_prompt=coherence_prompt,
+                purpose=f"评估{stage_name}阶段目标层级一致性"
+            )
+            
+            if coherence_assessment:
+                print(f"  ✅ {stage_name}阶段目标层级一致性评估完成")
+                return coherence_assessment
+            else:
+                print(f"  ⚠️ {stage_name}阶段目标层级一致性评估失败")
+                return self._create_default_coherence_assessment()
+                
+        except Exception as e:
+            print(f"  ❌ AI目标层级评估出错: {e}")
+        return self._create_default_coherence_assessment()
+
+    def _build_goal_hierarchy_prompt(self, stage_name: str, plan_data: Dict, major_events: List[Dict]) -> str:
+        """构建目标层级一致性评估提示词"""
+        
+        # 构建事件层级结构的详细描述
+        hierarchy_description = self._build_hierarchy_description(major_events)
+        
+        prompt_parts = [
+            "# 🎯 小说事件目标层级一致性深度评估",
+            "",
+            "## 评估任务",
+            f"请对**{stage_name}**阶段的事件目标层级进行深度评估。",
+            "重点分析从重大事件→中型事件→章节事件→场景事件的目标传递连贯性和逻辑一致性。",
+            "",
+            "## 事件层级结构详情",
+            hierarchy_description,
+            "",
+            "## 评估维度",
+            "请基于以上事件层级结构，分析以下维度：",
+            "",
+            "### 1. 目标传递连贯性",
+            "- 重大事件目标是否清晰分解到中型事件？",
+            "- 中型事件目标是否有效服务于重大事件目标？", 
+            "- 章节事件目标是否明确支持中型事件目标？",
+            "- 场景事件目标是否具体服务于章节事件目标？",
+            "- 是否存在目标传递断裂或模糊的情况？",
+            "",
+            "### 2. 情绪目标一致性",
+            "- 情绪目标是否在层级间保持连贯？",
+            "- 情绪强度是否合理递进？",
+            "- 情感节拍是否服务于整体情绪目标？",
+            "",
+            "### 3. 贡献关系明确性",
+            "- 每个事件是否明确说明了对上一级事件的贡献？",
+            "- 贡献描述是否具体、可执行？",
+            "- 是否存在贡献关系模糊或缺失的情况？",
+            "",
+            "### 4. 逻辑合理性",
+            "- 事件分解是否逻辑合理？",
+            "- 章节分配是否满足目标实现的需求？",
+            "- 场景安排是否有效支持事件目标的达成？",
+            "",
+            "### 5. 可执行性评估",
+            "- 最底层的事件目标是否足够具体，可以直接指导写作？",
+            "- 是否存在目标过于抽象或模糊的情况？",
+            "",
+            "## 🎯 评估要求",
+            "请提供具体的、可操作的评估结果和改进建议。",
+            "",
+            "## 📋 输出格式",
+            "请以严格的JSON格式返回评估结果：",
+            "{",
+            '  "overall_coherence_score": 0-10的带一位小数的评分,',
+            '  "hierarchy_strengths": ["优势1", "优势2", ...],',
+            '  "critical_breakpoints": [',
+            '    {"level": "重大事件→中型事件/中型事件→章节事件/...", "event_name": "事件名称", "issue": "具体问题描述", "severity": "high/medium/low"},',
+            '    ...',
+            '  ],',
+            '  "goal_alignment_analysis": {',
+            '    "major_to_medium": "重大事件到中型事件的目标对齐分析",',
+            '    "medium_to_chapter": "中型事件到章节事件的目标对齐分析",',
+            '    "chapter_to_scene": "章节事件到场景事件的目标对齐分析"',
+            '  },',
+            '  "emotional_consistency_analysis": "情绪目标一致性分析",',
+            '  "improvement_recommendations": [',
+            '    {"breakpoint": "具体的断裂点", "suggestion": "改进建议", "priority": "high/medium/low"},',
+            '    ...',
+            '  ],',
+            '  "exemplary_chains": ["优秀的目标链示例1", "优秀的目标链示例2"],',
+            '  "risk_events": ["存在高风险的事件列表"]',
+            "}"
+        ]
+        
+        return "\n".join(prompt_parts)
+
+    def _build_hierarchy_description(self, major_events: List[Dict]) -> str:
+        """构建事件层级结构的详细描述"""
+        
+        if not major_events:
+            return "当前阶段没有重大事件。"
+        
+        description_parts = []
+        
+        for i, major_event in enumerate(major_events, 1):
+            description_parts.append(f"### 🚨 重大事件 {i}: {major_event.get('name', '未命名')}")
+            description_parts.append(f"- **章节范围**: {major_event.get('chapter_range', '未指定')}")
+            description_parts.append(f"- **核心目标**: {major_event.get('main_goal', '未指定')}")
+            description_parts.append(f"- **情绪目标**: {major_event.get('emotional_goal', '未指定')}")
+            description_parts.append(f"- **在阶段中的角色**: {major_event.get('role_in_stage_arc', '未指定')}")
+            
+            # 中型事件层级
+            composition = major_event.get("composition", {})
+            medium_events_count = sum(len(events) for events in composition.values())
+            description_parts.append(f"- **包含 {medium_events_count} 个中型事件**:")
+            
+            for phase_name, medium_events in composition.items():
+                for j, medium_event in enumerate(medium_events, 1):
+                    description_parts.append(f"  #### 📈 中型事件 {j} ({phase_name}): {medium_event.get('name', '未命名')}")
+                    description_parts.append(f"  - **章节范围**: {medium_event.get('chapter_range', '未指定')}")
+                    description_parts.append(f"  - **核心目标**: {medium_event.get('main_goal', '未指定')}")
+                    description_parts.append(f"  - **情绪重点**: {medium_event.get('emotional_focus', '未指定')}")
+                    description_parts.append(f"  - **服务重大事件**: {medium_event.get('contribution_to_major', '未指定')}")
+                    
+                    # 章节事件层级（如果存在）
+                    if medium_event.get("decomposition_type") == "chapter_then_scene":
+                        chapter_events = medium_event.get("chapter_events", [])
+                        description_parts.append(f"  - **包含 {len(chapter_events)} 个章节事件**:")
+                        
+                        for k, chapter_event in enumerate(chapter_events, 1):
+                            description_parts.append(f"    ##### 📖 章节事件 {k}: {chapter_event.get('name', '未命名')}")
+                            description_parts.append(f"    - **章节范围**: {chapter_event.get('chapter_range', '未指定')}")
+                            description_parts.append(f"    - **核心目标**: {chapter_event.get('main_goal', '未指定')}")
+                            description_parts.append(f"    - **情绪重点**: {chapter_event.get('emotional_focus', '未指定')}")
+                            description_parts.append(f"    - **服务中型事件**: {chapter_event.get('contribution_to_medium', '未指定')}")
+                            
+                            # 场景事件层级（如果存在）
+                            scene_structure = chapter_event.get("scene_structure", {})
+                            scenes = scene_structure.get("scenes", [])
+                            if scenes:
+                                description_parts.append(f"    - **包含 {len(scenes)} 个场景事件**:")
+                                for l, scene in enumerate(scenes[:3], 1):  # 只显示前3个场景
+                                    description_parts.append(f"      ###### 🎬 场景 {l}: {scene.get('name', '未命名')}")
+                                    description_parts.append(f"      - **目的**: {scene.get('purpose', '未指定')}")
+                                    description_parts.append(f"      - **情感冲击**: {scene.get('emotional_impact', '未指定')}")
+                                    description_parts.append(f"      - **服务章节**: {scene.get('contribution_to_chapter', '未指定')}")
+                                if len(scenes) > 3:
+                                    description_parts.append(f"      - ... 还有{len(scenes)-3}个场景事件")
+                    
+                    elif medium_event.get("decomposition_type") == "direct_scene":
+                        scene_sequences = medium_event.get("scene_sequences", [])
+                        description_parts.append(f"  - **直接包含 {len(scene_sequences)} 个场景序列**:")
+                        
+                        for seq in scene_sequences:
+                            scene_events = seq.get("scene_events", [])
+                            description_parts.append(f"    - **章节 {seq.get('chapter_range', '未指定')}**: {len(scene_events)}个场景事件")
+            
+            description_parts.append("")  # 空行分隔重大事件
+        
+        return "\n".join(description_parts)
+
+    def _create_default_coherence_assessment(self) -> Dict:
+        """创建默认的一致性评估结果"""
+        return {
+            "overall_coherence_score": 5.0,
+            "hierarchy_strengths": ["基础结构完整"],
+            "critical_breakpoints": [
+                {
+                    "level": "评估系统暂时不可用",
+                    "event_name": "系统",
+                    "issue": "AI评估服务暂时不可用",
+                    "severity": "medium"
+                }
+            ],
+            "goal_alignment_analysis": {
+                "major_to_medium": "无法进行评估",
+                "medium_to_chapter": "无法进行评估", 
+                "chapter_to_scene": "无法进行评估"
+            },
+            "emotional_consistency_analysis": "无法进行评估",
+            "improvement_recommendations": [
+                {
+                    "breakpoint": "评估系统",
+                    "suggestion": "等待AI评估服务恢复后重新评估",
+                    "priority": "medium"
+                }
+            ],
+            "exemplary_chains": [],
+            "risk_events": ["所有事件（因无法评估）"]
+        }
+
+    def _assess_goal_alignment(self, sub_goal: str, parent_goal: str) -> str:
+        """评估子目标与父目标的对齐度"""
+        if not sub_goal or not parent_goal:
+            return "low"
+        
+        sub_goal_lower = sub_goal.lower()
+        parent_goal_lower = parent_goal.lower()
+        
+        # 简单的关键词匹配
+        parent_keywords = parent_goal_lower.split()
+        matches = sum(1 for keyword in parent_keywords if keyword in sub_goal_lower)
+        
+        if matches >= 2:
+            return "high"
+        elif matches >= 1:
+            return "medium"
+        else:
+            return "low"
+
+    def _decompose_medium_direct_to_scene(self, medium_event: Dict, major_event: Dict, stage_name: str,
+                                        novel_title: str, novel_synopsis: str, creative_seed: str) -> Dict:
+        """中型事件<3章：直接分解为场景事件，明确每个场景的章节归属和服务关系"""
+        
+        chapter_range = medium_event.get('chapter_range', '0-0')
+        start_ch, end_ch = parse_chapter_range(chapter_range)
+        chapter_count = end_ch - start_ch + 1
+        
+        # 构建详细的章节分配说明
+        chapter_breakdown = ""
+        for i in range(chapter_count):
+            chapter_num = start_ch + i
+            chapter_breakdown += f"- 第{chapter_num}章: 需要完成中型事件目标的{['起始','发展','高潮','收尾'][min(i, 3)]}部分\n"
+        
+        prompt = f"""
+    # 任务：中型事件"多章场景构建" - 明确章节归属和服务关系
+    你需要为一个跨{chapter_count}章的中型事件设计详细的场景事件序列，明确每个场景的章节归属，确保每章都有完整的场景结构。
+
+    ## 当前中型事件信息
+    - **所属阶段**: {stage_name}
+    - **所属重大事件**: {major_event.get('name')}
+    - **中型事件名称**: {medium_event.get('name')}
+    - **事件章节范围**: {medium_event.get('chapter_range')} (共{chapter_count}章)
+    - **事件核心目标**: {medium_event.get('main_goal')}
+    - **事件情绪重点**: {medium_event.get('emotional_focus')}
+    - **事件描述**: {medium_event.get('description')}
+    - **服务重大事件**: {medium_event.get('contribution_to_major')}
+
+    ## 章节分配要求
+    {chapter_breakdown}
+
+    ## 场景构建要求
+    请为这{chapter_count}章分别设计完整的场景事件序列，确保：
+
+    ### 每章的结构要求：
+    1. **第1章** (起始章): 建立情境，引入冲突，开启中型事件
+    - 开场场景：建立基础情境
+    - 发展场景：引入主要冲突
+    - 高潮场景：确立本章核心冲突点
+    - 结尾场景：设置悬念，引导下一章
+
+    2. **中间章节** (发展章): 深化冲突，推进情节
+    - 开场场景：承接上一章悬念
+    - 发展场景1：推进情节发展
+    - 发展场景2：冲突升级
+    - 高潮场景：本章情感爆发点
+    - 结尾场景：新的悬念或转折
+
+    3. **最后一章** (收尾章): 解决冲突，完成中型事件目标
+    - 开场场景：处理上一章遗留问题
+    - 发展场景：向最终解决推进
+    - 高潮场景：中型事件的核心解决时刻
+    - 回落场景：处理后果和影响
+    - 结尾场景：中型事件收尾，衔接后续内容
+
+    ### 跨章连贯性要求：
+    - 确保章节间场景的平滑过渡
+    - 保持情绪发展的连贯性
+    - 每章都要有明确的服务于中型事件目标的贡献
+
+    ## 输出格式
+    {{
+        "name": "{medium_event.get('name')}",
+        "type": "medium_event", 
+        "chapter_range": "{medium_event.get('chapter_range')}",
+        "main_goal": "{medium_event.get('main_goal')}",
+        "emotional_focus": "{medium_event.get('emotional_focus')}",
+        "description": "{medium_event.get('description')}",
+        "decomposition_type": "direct_scene",
+        "contribution_to_major": "{medium_event.get('contribution_to_major')}",
+        "chapter_breakdown": {{
+            "overall_arc": "整个中型事件的情节发展弧线",
+            "emotional_progression": "跨章情绪发展轨迹",
+            "key_turning_points": ["转折点1", "转折点2"]
+        }},
+        "scene_sequences": [
+            {{
+                "chapter_range": "{start_ch}-{start_ch}",
+                "chapter_role": "起始章",
+                "chapter_goal": "本章要达成的具体目标（服务于中型事件目标的起始部分）",
+                "emotional_focus": "本章的情绪重点",
+                "structural_arc": "本章的结构弧线",
+                "contribution_to_medium": "本章如何服务于中型事件目标",
+                "scene_events": [
+                    {{
+                        "name": "场景1名称",
+                        "type": "scene_event",
+                        "position": "opening",
+                        "purpose": "场景的戏剧目的（服务于本章目标）", 
+                        "key_actions": ["关键动作1", "关键动作2"],
+                        "emotional_impact": "场景的情感冲击",
+                        "dialogue_highlights": ["关键对话1", "关键对话2"],
+                        "conflict_point": "冲突的具体表现",
+                        "sensory_details": "需要突出的感官细节",
+                        "transition_to_next": "如何过渡到下一个场景",
+                        "estimated_word_count": "预估字数范围",
+                        "contribution_to_chapter": "如何服务于本章目标"
+                    }},
+                    {{
+                        "name": "场景2名称", 
+                        "type": "scene_event",
+                        "position": "development1",
+                        "purpose": "推进情节发展",
+                        "key_actions": ["关键动作1", "关键动作2"],
+                        "emotional_impact": "深化情感冲突",
+                        "dialogue_highlights": ["关键对话1", "关键对话2"], 
+                        "conflict_point": "冲突升级表现",
+                        "sensory_details": "需要突出的感官细节",
+                        "transition_to_next": "如何过渡到下一个场景",
+                        "estimated_word_count": "预估字数范围",
+                        "contribution_to_chapter": "如何服务于本章目标"
+                    }},
+                    {{
+                        "name": "场景3名称",
+                        "type": "scene_event", 
+                        "position": "climax",
+                        "purpose": "本章情感爆发点",
+                        "key_actions": ["关键动作1", "关键动作2"],
+                        "emotional_impact": "强烈情感冲击",
+                        "dialogue_highlights": ["关键对话1", "关键对话2"],
+                        "conflict_point": "核心冲突解决或升级",
+                        "sensory_details": "需要突出的感官细节", 
+                        "transition_to_next": "如何过渡到下一个场景",
+                        "estimated_word_count": "预估字数范围",
+                        "contribution_to_chapter": "如何服务于本章目标"
+                    }},
+                    {{
+                        "name": "场景4名称",
+                        "type": "scene_event",
+                        "position": "ending", 
+                        "purpose": "设置悬念，引导下一章",
+                        "key_actions": ["关键动作1", "关键动作2"],
+                        "emotional_impact": "悬念带来的期待感",
+                        "dialogue_highlights": ["关键对话1", "关键对话2"],
+                        "conflict_point": "未解决的冲突或新出现的矛盾",
+                        "sensory_details": "需要突出的感官细节",
+                        "transition_to_next": "如何过渡到下一章",
+                        "estimated_word_count": "预估字数范围", 
+                        "contribution_to_chapter": "如何服务于本章目标"
+                    }}
+                ],
+                "chapter_hook": "本章结尾的悬念钩子",
+                "writing_focus": "本章写作重点提示",
+                "connection_to_next": "如何连接到下一章"
+            }},
+            // 为每一章都创建这样的结构，根据章节数动态调整
+            {{
+                "chapter_range": "{start_ch+1}-{start_ch+1}", 
+                "chapter_role": "发展章",
+                "chapter_goal": "深化冲突，推进中型事件发展",
+                "emotional_focus": "情绪发展和深化",
+                "structural_arc": "发展-升级-转折",
+                "contribution_to_medium": "推进中型事件向高潮发展",
+                "scene_events": [
+                    // 4-5个场景事件，根据本章角色调整
+                ],
+                "chapter_hook": "新的悬念或转折",
+                "writing_focus": "保持节奏，深化冲突", 
+                "connection_to_next": "为高潮章做铺垫"
+            }},
+            // ... 更多章节的场景序列
+        ]
+    }}
+    """
+        
+        result = self.generator.api_client.generate_content_with_retry(
+            content_type="multi_chapter_scene_design", 
+            user_prompt=prompt, 
+            purpose=f"为中型事件'{medium_event.get('name')}'构建多章场景序列"
+        )
+        
+        return result
+
+    def validate_scene_planning_coverage(self, stage_writing_plan: Dict, stage_name: str, stage_range: str) -> Dict:
+        """验证场景规划是否完整覆盖所有章节"""
+        
+        if "stage_writing_plan" in stage_writing_plan:
+            plan_data = stage_writing_plan["stage_writing_plan"]
+        else:
+            plan_data = stage_writing_plan
+        
+        event_system = plan_data.get("event_system", {})
+        chapter_scene_events = event_system.get("chapter_scene_events", [])
+        
+        # 解析阶段范围
+        start_ch, end_ch = parse_chapter_range(stage_range)
+        expected_chapters = set(range(start_ch, end_ch + 1))
+        
+        # 获取实际覆盖的章节
+        covered_chapters = set(chapter["chapter_number"] for chapter in chapter_scene_events)
+        
+        # 找出缺失的章节
+        missing_chapters = expected_chapters - covered_chapters
+        extra_chapters = covered_chapters - expected_chapters
+        
+        # 分析场景分布
+        scene_distribution = {}
+        for chapter in chapter_scene_events:
+            chapter_num = chapter["chapter_number"]
+            scene_count = len(chapter.get("scene_events", []))
+            scene_distribution[chapter_num] = scene_count
+        
+        coverage_analysis = {
+            "stage_name": stage_name,
+            "stage_range": stage_range,
+            "expected_chapters": len(expected_chapters),
+            "covered_chapters": len(covered_chapters),
+            "coverage_rate": len(covered_chapters) / len(expected_chapters) if expected_chapters else 0,
+            "missing_chapters": sorted(missing_chapters),
+            "extra_chapters": sorted(extra_chapters),
+            "average_scenes_per_chapter": sum(scene_distribution.values()) / len(scene_distribution) if scene_distribution else 0,
+            "scene_distribution": scene_distribution,
+            "issues": []
+        }
+        
+        # 识别问题
+        if missing_chapters:
+            coverage_analysis["issues"].append(f"缺失{len(missing_chapters)}个章节的场景规划: {sorted(missing_chapters)}")
+        
+        if extra_chapters:
+            coverage_analysis["issues"].append(f"存在{len(extra_chapters)}个超出阶段范围的章节: {sorted(extra_chapters)}")
+        
+        # 检查场景数量合理性
+        for chapter_num, scene_count in scene_distribution.items():
+            if scene_count < 3:
+                coverage_analysis["issues"].append(f"第{chapter_num}章场景数量过少({scene_count}个)，可能无法形成完整结构")
+            elif scene_count > 8:
+                coverage_analysis["issues"].append(f"第{chapter_num}章场景数量过多({scene_count}个)，可能导致节奏过快")
+        
+        return coverage_analysis    
+
+    def _optimize_based_on_coherence_assessment(self, writing_plan: Dict, assessment: Dict, 
+                                            stage_name: str, stage_range: str) -> Dict:
+        """
+        【AI驱动版】基于目标层级一致性评估结果，调用AI来优化事件目标层级。
+        """
+        critical_breakpoints = assessment.get("critical_breakpoints", [])
+        improvement_recommendations = assessment.get("improvement_recommendations", [])
+
+        if not critical_breakpoints and not improvement_recommendations:
+            print("  ✅ AI评估未发现严重的目标层级问题，无需优化。")
+            return writing_plan
+        
+        print(f"  🔧 指示AI根据目标层级评估，开始优化 {stage_name} 阶段事件目标链...")
+
+        # 构建优化指令
+        optimization_prompt = self._build_hierarchy_optimization_prompt(
+            writing_plan, assessment, stage_name, stage_range
+        )
+
+        # 调用AI进行优化
+        try:
+            optimization_result = self.generator.api_client.generate_content_with_retry(
+                content_type="ai_hierarchy_optimization",
+                user_prompt=optimization_prompt,
+                purpose=f"优化{stage_name}阶段事件目标层级"
+            )
+            
+            if optimization_result and "optimized_event_system" in optimization_result:
+                # 用AI返回的优化后的事件系统替换旧的
+                if "stage_writing_plan" in writing_plan:
+                    plan_container = writing_plan["stage_writing_plan"]
+                else:
+                    plan_container = writing_plan
+
+                # 核心操作：替换整个事件系统
+                plan_container["event_system"] = optimization_result["optimized_event_system"]
+                plan_container["hierarchy_optimized"] = True
+                
+                # 打印AI提供的修改摘要
+                summary = optimization_result.get("summary_of_hierarchy_changes", "AI未提供修改摘要。")
+                print(f"  ✅ AI目标层级优化执行完成。修改摘要: {summary}")
+
+            else:
+                print("  ⚠️ AI目标层级优化失败，未能返回有效的优化后事件系统。")
+
+        except Exception as e:
+            print(f"  ❌ 在执行AI目标层级优化时发生错误: {e}")
+
+        return writing_plan
+
+    def _build_hierarchy_optimization_prompt(self, writing_plan: Dict, assessment: Dict, 
+                                    stage_name: str, stage_range: str) -> str:
+        """构建目标层级优化提示词"""
+        
+        # 提取当前事件系统
+        if "stage_writing_plan" in writing_plan:
+            event_system = writing_plan["stage_writing_plan"].get("event_system", {})
+        else:
+            event_system = writing_plan.get("event_system", {})
+
+        # 构建优化提示词
+        prompt = f"""
+    # 任务：小说事件目标层级优化
+
+    作为一名顶尖的剧情架构师，你刚刚对一份小说事件计划的目标层级进行了评估，发现了一些目标传递断裂的问题。现在，你的任务是**亲自动手**，根据评估建议来修复这些目标层级问题。
+
+    ## 1. 当前的事件计划 ({stage_name}, {stage_range})
+
+    这是你需要修复目标层级问题的原始事件计划：
+    ```json
+    {json.dumps(event_system, ensure_ascii=False, indent=2)}
+2. 目标层级评估发现的问题
+这是评估发现的关键问题：
+
+json
+{json.dumps(assessment.get('critical_breakpoints', []), ensure_ascii=False, indent=2)}
+3. 具体的改进建议
+这是针对上述问题的改进建议：
+
+json
+{json.dumps(assessment.get('improvement_recommendations', []), ensure_ascii=False, indent=2)}
+4. 修复指令
+请严格遵循评估建议，对上述的"当前事件计划"进行目标层级修复：
+
+修复重点：
+目标传递断裂: 修复重大事件→中型事件→章节事件→场景事件之间的目标传递断裂
+
+贡献关系模糊: 为缺少明确贡献关系的事件添加具体的contribution_to_*字段
+
+情绪目标不一致: 确保情绪目标在层级间保持连贯
+
+目标过于抽象: 将抽象的目标转化为具体、可执行的目标
+
+修复方法：
+对于目标传递断裂：重新设计断裂点事件的目标，确保其明确服务于上一级事件目标
+
+对于贡献关系模糊：在对应事件的contribution_to_*字段中添加具体说明
+
+对于情绪目标不一致：调整情绪相关字段，确保情绪发展逻辑连贯
+
+对于目标过于抽象：将目标分解为更具体、可衡量的子目标
+
+保持结构完整：
+确保你返回的最终结果是一个完整且格式正确的event_system JSON对象。
+
+5. 返回格式
+请严格按照以下JSON格式返回你的工作成果。不要包含任何额外的解释。
+
+{{
+"optimized_event_system": {{
+"major_events": [
+// ... 修复目标层级后的重大事件列表
+],
+"medium_events": [
+// ... 修复目标层级后的中型事件列表
+],
+"minor_events": [
+// ... 修复目标层级后的小型事件列表
+],
+"special_events": [
+// ... 修复目标层级后的特殊事件列表
+]
+}},
+"summary_of_hierarchy_changes": "用一句话总结你在目标层级方面所做的主要修改。例如：'修复了3处目标传递断裂，为5个事件添加了明确的贡献关系说明。'"
+}}
+"""
+        return prompt
+
     def generate_stage_writing_plan(self, stage_name: str, stage_range: str, creative_seed: str,
                                     novel_title: str, novel_synopsis: str, overall_stage_plan: Dict) -> Dict:
-        """【重构版】生成阶段详细写作计划 - 采用分形设计工作流，并保存到独立文件。"""
+        """【智能分形版】生成阶段详细写作计划 - 根据章节数智能选择分解策略"""
         cache_key = f"{stage_name}_writing_plan"
         if cache_key in self.stage_writing_plans_cache:
             return self.stage_writing_plans_cache[cache_key]
 
-        print(f"🎬 开始为【{stage_name}】生成分形写作计划...")
+        print(f"🎬 开始为【{stage_name}】生成智能分形写作计划...")
 
         start_chap, end_chap = parse_chapter_range(stage_range)
         stage_length = end_chap - start_chap + 1
@@ -223,20 +1095,57 @@ class StagePlanManager:
             print(f"  ❌ 阶段主龙骨生成失败，无法继续。")
             return {}
 
-        print("   fase 2: 逐一'解剖'重大事件，填充中型事件血肉...")
+        print("   fase 2: 逐一'解剖'重大事件，填充中型事件...")
         fleshed_out_major_events = []
         for skeleton in major_event_skeletons:
             print(f"    -> 正在解剖重大事件: '{skeleton['name']}' ({skeleton['chapter_range']})")
             fleshed_out_event = self._decompose_major_event(
                 skeleton, stage_name, stage_range, novel_title, novel_synopsis, creative_seed
             )
-            fleshed_out_major_events.append(fleshed_out_event)
+            if fleshed_out_event:
+                fleshed_out_major_events.append(fleshed_out_event)
 
-        print("  fase 3: 组装并验证最终的写作计划...")
+        print("   fase 3: 智能分解中型事件...")
+        final_major_events = []
+        for major_event in fleshed_out_major_events:
+            print(f"    -> 正在智能分解: '{major_event['name']}'")
+            smart_decomposed_event = self._smart_decompose_medium_events(
+                major_event, stage_name, novel_title, novel_synopsis, creative_seed
+            )
+            if smart_decomposed_event:
+                final_major_events.append(smart_decomposed_event)
+
+        print("   fase 4: 组装并验证最终的写作计划...")
         final_writing_plan = self._assemble_final_plan(
-            stage_name, stage_range, fleshed_out_major_events, overall_stage_plan
+            stage_name, stage_range, final_major_events, overall_stage_plan
         )
+
+
+        # 🆕 新增：场景规划覆盖验证
+        print("   🎬 进行场景规划覆盖验证...")
+        scene_coverage = self.validate_scene_planning_coverage(final_writing_plan, stage_name, stage_range)
         
+        if scene_coverage["coverage_rate"] < 1.0:
+            print(f"  ⚠️ 场景规划覆盖不完整 ({scene_coverage['coverage_rate']:.1%})")
+            for issue in scene_coverage["issues"][:3]:  # 只显示前3个问题
+                print(f"     ⚠️ {issue}")
+
+        # 🆕 新增：AI目标层级一致性评估和优化
+        print("   🔗 进行AI目标层级一致性评估...")
+        goal_coherence = self.validate_goal_hierarchy_coherence(final_writing_plan, stage_name)
+        
+        if goal_coherence.get("overall_coherence_score", 10) < 8.0:
+            print(f"  ⚠️ 目标层级一致性评分较低 ({goal_coherence.get('overall_coherence_score', 0):.1f})，进行优化...")
+            final_writing_plan = self._optimize_based_on_coherence_assessment(
+                final_writing_plan, goal_coherence, stage_name, stage_range
+            )
+        
+        # 保存目标层级分析结果
+        if "stage_writing_plan" in final_writing_plan:
+            final_writing_plan["stage_writing_plan"]["goal_hierarchy_assessment"] = goal_coherence
+        else:
+            final_writing_plan["goal_hierarchy_assessment"] = goal_coherence
+
         # 🆕 新增：进行AI连续性评估和优化
         if final_writing_plan:
             continuity_assessment = self.assess_stage_event_continuity(
@@ -303,72 +1212,106 @@ class StagePlanManager:
 ]
 """
         result = self.generator.api_client.generate_content_with_retry(
-            "stage_major_event_skeleton", prompt, purpose=f"生成{stage_name}主龙骨"
+            content_type="stage_major_event_skeleton", 
+            user_prompt=prompt, 
+            purpose=f"生成{stage_name}主龙骨"
         )
         return result if isinstance(result, list) else None
 
     def _decompose_major_event(self, major_event_skeleton: Dict, stage_name: str, stage_range: str,
-                               novel_title: str, novel_synopsis: str, creative_seed: str) -> Dict:
-        """工作流第二阶段：将单个重大事件分解为中型事件的"起承转合"。"""
+                            novel_title: str, novel_synopsis: str, creative_seed: str) -> Dict:
+        """工作流第二阶段：将单个重大事件分解为服务其目标的中型事件"""
+        
         prompt = f"""
-# 任务：重大事件"分形解剖"
-你需要将一个宏观的"重大事件"进行"解剖"，为其设计内部的、更为详细的"起承转合"结构，由3-5个中型事件构成。
+    # 任务：重大事件"分形解剖" - 服务于重大事件目标
+    你需要将一个宏观的"重大事件"进行"解剖"，为其设计内部的、更为详细的"起承转合"结构，由3-5个中型事件构成。
 
-## 当前重大事件信息
-- **所属阶段**: {stage_name}
-- **重大事件名称**: {major_event_skeleton.get('name')}
-- **事件章节范围**: {major_event_skeleton.get('chapter_range')}
-- **事件核心目标**: {major_event_skeleton.get('main_goal')}
+    ## 当前重大事件信息
+    - **所属阶段**: {stage_name}
+    - **重大事件名称**: {major_event_skeleton.get('name')}
+    - **事件章节范围**: {major_event_skeleton.get('chapter_range')}
+    - **事件核心目标**: {major_event_skeleton.get('main_goal')}
+    - **事件情绪目标**: {major_event_skeleton.get('emotional_goal')}
 
-## 输出格式: 严格返回一个包含'composition'字段的JSON对象
-{{
-    "name": "{major_event_skeleton.get('name')}",
-    "type": "major_event",
-    "role_in_stage_arc": "{major_event_skeleton.get('role_in_stage_arc')}",
-    "main_goal": "{major_event_skeleton.get('main_goal')}",
-    "composition": {{
-        "起": [ {{ "name": "中型事件名", "type": "medium_event", "chapter": "integer", "main_goal": "目标", "description": "描述" }} ],
-        "承": [ {{ "name": "中型事件名", "type": "medium_event", "chapter": "integer", "main_goal": "目标", "description": "描述" }} ],
-        "转": [ {{ "name": "中型事件名", "type": "medium_event", "chapter": "integer", "main_goal": "目标", "description": "描述" }} ],
-        "合": [ {{ "name": "中型事件名", "type": "medium_event", "chapter": "integer", "main_goal": "目标", "description": "描述" }} ]
-    }},
-    "aftermath": "string // 整个重大事件结束后的长远影响"
-}}
-"""
+    ## 分解原则
+    1. **目标继承**: 每个中型事件必须服务于其所属重大事件的【核心目标】和【情绪目标】
+    2. **情绪递进**: 中型事件的排列要形成情绪递进，服务于重大事件的情绪目标
+    3. **功能分工**: 每个中型事件在重大事件内部承担明确的"起承转合"功能
+
+    ## 输出格式: 严格返回一个包含'composition'字段的JSON对象
+    {{
+        "name": "{major_event_skeleton.get('name')}",
+        "type": "major_event",
+        "role_in_stage_arc": "{major_event_skeleton.get('role_in_stage_arc')}",
+        "main_goal": "{major_event_skeleton.get('main_goal')}",
+        "emotional_goal": "{major_event_skeleton.get('emotional_goal')}",
+        "chapter_range": "{major_event_skeleton.get('chapter_range')}",
+        "composition": {{
+            "起": [ 
+                {{ 
+                    "name": "中型事件名", 
+                    "type": "medium_event", 
+                    "chapter_range": "string // 章节范围，例如：'49-52章'", 
+                    "main_goal": "目标（服务于重大事件目标的起部分）",
+                    "emotional_focus": "string // 此中型事件的情绪重点（服务于重大事件情绪目标的起始部分）",
+                    "emotional_intensity": "low/medium/high",
+                    "key_emotional_beats": ["情感节拍1", "情感节拍2"],
+                    "description": "描述",
+                    "contribution_to_major": "string // 如何服务于重大事件目标"
+                }} 
+            ],
+            "承": [ 
+                {{ 
+                    "name": "中型事件名", 
+                    "type": "medium_event", 
+                    "chapter_range": "string // 章节范围，例如：'53-55章'", 
+                    "main_goal": "目标（服务于重大事件目标的承部分）",
+                    "emotional_focus": "string // 此中型事件的情绪重点（服务于重大事件情绪目标的发展部分）", 
+                    "emotional_intensity": "low/medium/high",
+                    "key_emotional_beats": ["情感节拍1", "情感节拍2"],
+                    "description": "描述",
+                    "contribution_to_major": "string // 如何服务于重大事件目标"
+                }} 
+            ],
+            "转": [ 
+                {{ 
+                    "name": "中型事件名", 
+                    "type": "medium_event", 
+                    "chapter_range": "string // 章节范围，例如：'56-57章'", 
+                    "main_goal": "目标（服务于重大事件目标的转部分）",
+                    "emotional_focus": "string // 此中型事件的情绪重点（服务于重大事件情绪目标的高潮部分）",
+                    "emotional_intensity": "low/medium/high", 
+                    "key_emotional_beats": ["情感节拍1", "情感节拍2"],
+                    "description": "描述",
+                    "contribution_to_major": "string // 如何服务于重大事件目标"
+                }} 
+            ],
+            "合": [ 
+                {{ 
+                    "name": "中型事件名", 
+                    "type": "medium_event", 
+                    "chapter_range": "string // 章节范围，例如：'58-58章'", 
+                    "main_goal": "目标（服务于重大事件目标的合部分）",
+                    "emotional_focus": "string // 此中型事件的情绪重点（服务于重大事件情绪目标的收尾部分）",
+                    "emotional_intensity": "low/medium/high",
+                    "key_emotional_beats": ["情感节拍1", "情感节拍2"],
+                    "description": "描述",
+                    "contribution_to_major": "string // 如何服务于重大事件目标"
+                }} 
+            ]
+        }},
+        "emotional_arc_summary": "string // 整个重大事件的情绪发展总结",
+        "aftermath": "string // 整个重大事件结束后的长远影响"
+    }}
+    """
+
         result = self.generator.api_client.generate_content_with_retry(
-            "major_event_decomposition", prompt, purpose=f"解剖事件'{major_event_skeleton.get('name')}'"
+            content_type="major_event_decomposition", 
+            user_prompt=prompt, 
+            purpose=f"解剖事件'{major_event_skeleton.get('name')}'（服务重大事件目标）"
         )
         
-        start_ch, end_ch = parse_chapter_range(major_event_skeleton.get('chapter_range', '0-0'))
-        if result and isinstance(result, dict):
-            result["start_chapter"] = start_ch
-            result["end_chapter"] = end_ch
-        
         return result
-
-    def _assemble_final_plan(self, stage_name, stage_range, fleshed_out_major_events, overall_stage_plan) -> Dict:
-        """工作流第三阶段：将所有生成的部分组装成最终的JSON计划。"""
-        medium_events_flat = []
-        for major_event in fleshed_out_major_events:
-            composition = major_event.get("composition", {})
-            for phase_events in composition.values():
-                medium_events_flat.extend(phase_events)
-        medium_events_flat.sort(key=lambda x: x.get('chapter', 0))
-
-        stage_plan = {
-            "stage_writing_plan": {
-                "stage_name": stage_name,
-                "chapter_range": stage_range,
-                "stage_overview": overall_stage_plan.get("overall_stage_plan", {}).get(stage_name, {}).get("stage_goal", "N/A"),
-                "event_system": {
-                    "overall_approach": "采用分形设计，将阶段分解为多个具有独立'起承转合'的重大事件，再将重大事件分解为中型事件链条，确保结构严密，节奏可控。",
-                    "major_events": fleshed_out_major_events,
-                    "medium_events": medium_events_flat,
-                    "minor_events": []
-                },
-            }
-        }
-        return stage_plan
 
     def _validate_and_optimize_writing_plan(self, writing_plan: Dict, stage_name: str, stage_range: str) -> Dict:
         """验证并优化写作计划"""
@@ -377,6 +1320,32 @@ class StagePlanManager:
             return {}
         
         print(f"  🔍 对 {stage_name} 进行最终验证和优化...")
+        
+        # 确保所有事件都有正确的chapter_range字段
+        if "stage_writing_plan" in writing_plan:
+            event_system = writing_plan["stage_writing_plan"].get("event_system", {})
+        else:
+            event_system = writing_plan.get("event_system", {})
+        
+        # 验证重大事件结构
+        major_events = event_system.get("major_events", [])
+        for event in major_events:
+            if "chapter_range" not in event:
+                print(f"  ⚠️ 重大事件 '{event.get('name')}' 缺少chapter_range字段")
+            else:
+                # 验证chapter_range格式是否正确
+                try:
+                    start_ch, end_ch = parse_chapter_range(event['chapter_range'])
+                    if start_ch > end_ch:
+                        print(f"  ⚠️ 重大事件 '{event.get('name')}' 的chapter_range格式错误: {event['chapter_range']}")
+                except Exception as e:
+                    print(f"  ⚠️ 解析重大事件 '{event.get('name')}' 的chapter_range失败: {e}")
+        
+        # 验证中型事件结构  
+        medium_events = event_system.get("medium_events", [])
+        for event in medium_events:
+            if "chapter_range" not in event:
+                print(f"  ⚠️ 中型事件 '{event.get('name')}' 缺少chapter_range字段")
         
         # 增强大事件结构
         writing_plan = self.event_manager.enhance_major_events_structure(writing_plan, stage_name, stage_range)
@@ -387,12 +1356,6 @@ class StagePlanManager:
             print(f"  ⚠️ {stage_name} 最终事件密度不符合要求。")
         
         # 验证大事件结构
-        if "stage_writing_plan" in writing_plan:
-            events = writing_plan["stage_writing_plan"].get("event_system", {})
-        else:
-            events = writing_plan.get("event_system", {})
-        
-        major_events = events.get("major_events", [])
         major_validation = self.event_manager.validate_major_event_structure(major_events)
         
         if not major_validation["is_valid"]:
@@ -407,28 +1370,56 @@ class StagePlanManager:
         return writing_plan
     
     def _print_fractal_plan_summary(self, writing_plan: Dict):
-        """打印分形设计写作计划的摘要。"""
+        """打印分形设计写作计划的摘要，包含场景规划信息"""
         plan = writing_plan.get("stage_writing_plan", {})
         event_system = plan.get("event_system", {})
         major_events = event_system.get("major_events", [])
+        chapter_scene_events = event_system.get("chapter_scene_events", [])
         
-        print("-" * 40)
-        print(f"📄 计划摘要: {plan.get('stage_name')} ({plan.get('chapter_range')})")
-        print(f"  主龙骨包含 {len(major_events)} 个重大事件：")
+        # 获取分析结果
+        hierarchy_assessment = plan.get("goal_hierarchy_assessment", {})
+        coherence_score = hierarchy_assessment.get("overall_coherence_score", "未评估")
+        scene_coverage = plan.get("scene_coverage_analysis", {})
+        coverage_rate = scene_coverage.get("coverage_rate", 0)
         
-        for i, major_event in enumerate(major_events):
+        print("=" * 60)
+        print(f"📄 阶段计划摘要: {plan.get('stage_name')} ({plan.get('chapter_range')})")
+        print(f"🎯 目标层级一致性: {coherence_score}/10 | 🎬 场景覆盖: {coverage_rate:.1%}")
+        
+        # 场景规划统计
+        total_scenes = sum(len(chapter["scene_events"]) for chapter in chapter_scene_events)
+        avg_scenes = total_scenes / len(chapter_scene_events) if chapter_scene_events else 0
+        print(f"📊 场景规划: {len(chapter_scene_events)}章, {total_scenes}个场景 (平均{avg_scenes:.1f}场景/章)")
+        
+        if hierarchy_assessment.get("hierarchy_strengths"):
+            print(f"✅ 优势: {', '.join(hierarchy_assessment['hierarchy_strengths'][:2])}")
+        
+        if scene_coverage.get("issues"):
+            print(f"⚠️  场景问题: {scene_coverage['issues'][0]}" if scene_coverage['issues'] else "")
+        
+        print(f"\n🚨 主龙骨包含 {len(major_events)} 个重大事件:")
+        
+        for i, major_event in enumerate(major_events, 1):
             name = major_event.get('name')
             role = major_event.get('role_in_stage_arc')
-            ch_range = f"{major_event.get('start_chapter', 'N/A')}-{major_event.get('end_chapter', 'N/A')}章"
+            ch_range = major_event.get('chapter_range', 'N/A')
             composition = major_event.get('composition', {})
             sub_event_count = sum(len(v) for v in composition.values())
-            print(f"    {i+1}. 【{role}】{name} ({ch_range})")
+            print(f"    {i}. 【{role}】{name} ({ch_range})")
             print(f"       - 目标: {major_event.get('main_goal')}")
-            print(f"       - 分解为 {sub_event_count} 个中型事件。")
-        print("-" * 40)
+            print(f"       - 情绪目标: {major_event.get('emotional_goal', '未指定')}")
+            print(f"       - 分解为 {sub_event_count} 个中型事件")
+            
+            # 显示中型事件简要信息
+            for phase, events in composition.items():
+                for event in events[:2]:  # 只显示前2个中型事件
+                    decomp_type = event.get('decomposition_type', '')
+                    scene_count = len(event.get('scene_sequences', [])) if decomp_type == 'direct_scene' else '多层分解'
+                    print(f"         ◦ {event.get('name')} ({phase}, {scene_count}场景序列)")
+        print("=" * 60)
 
     def get_chapter_writing_context(self, chapter_number: int) -> Dict:
-        """获取指定章节的写作上下文，适配分形结构。"""
+        """获取指定章节的写作上下文 - 基于场景事件"""
         context = self.writing_guidance_manager.get_chapter_writing_context(chapter_number)
         
         stage_name = self._get_current_stage(chapter_number)
@@ -440,25 +1431,17 @@ class StagePlanManager:
             return context
             
         event_system = stage_plan_data.get("stage_writing_plan", {}).get("event_system", {})
-        major_events = event_system.get("major_events", [])
-
-        current_major_event = None
-        current_medium_event = None
-
-        for major_event in major_events:
-            if major_event.get('start_chapter', 0) <= chapter_number <= major_event.get('end_chapter', 0):
-                current_major_event = major_event
-                all_medium_events = []
-                for phase_events in major_event.get("composition", {}).values():
-                    all_medium_events.extend(phase_events)
-                
-                relevant_medium_events = [me for me in all_medium_events if me.get('chapter', 0) <= chapter_number]
-                if relevant_medium_events:
-                    current_medium_event = sorted(relevant_medium_events, key=lambda x: x.get('chapter', 0), reverse=True)[0]
+        
+        # 获取该章节的场景事件
+        chapter_scene_events = event_system.get("chapter_scene_events", [])
+        current_chapter_scenes = None
+        
+        for chapter_scene in chapter_scene_events:
+            if chapter_scene.get("chapter_number") == chapter_number:
+                current_chapter_scenes = chapter_scene.get("scene_events", [])
                 break
         
-        context['current_major_event'] = current_major_event
-        context['current_medium_event'] = current_medium_event
+        context['scene_events'] = current_chapter_scenes
         
         return context
 
@@ -609,8 +1592,8 @@ class StagePlanManager:
         
         try:
             continuity_assessment = self.generator.api_client.generate_content_with_retry(
-                "stage_event_continuity",
-                continuity_prompt,
+                content_type="stage_event_continuity",
+                user_prompt=continuity_prompt,
                 purpose=f"评估{stage_name}阶段事件连续性"
             )
             
@@ -660,14 +1643,12 @@ class StagePlanManager:
         if major_events:
             prompt_parts.extend([
                 "### 🚨 重大事件安排",
-                "| 事件名称 | 开始章节 | 结束章节 | 持续时间 | 核心目标 |",
-                "|---------|---------|---------|---------|----------|"
+                "| 事件名称 | 章节范围 | 核心目标 |",
+                "|---------|---------|----------|"
             ])
             for event in major_events:
-                duration = event.get('end_chapter', 0) - event.get('start_chapter', 0) + 1
                 prompt_parts.append(
-                    f"| {event.get('name', '未命名')} | 第{event.get('start_chapter', '?')}章 | "
-                    f"第{event.get('end_chapter', '?')}章 | {duration}章 | {event.get('main_goal', '未指定')} |"
+                    f"| {event.get('name', '未命名')} | {event.get('chapter_range', '?')} | {event.get('main_goal', '未指定')} |"
                 )
             prompt_parts.append("")
         
@@ -675,12 +1656,12 @@ class StagePlanManager:
         if medium_events:
             prompt_parts.extend([
                 "### 📈 中型事件安排",
-                "| 事件名称 | 章节 | 核心目标 | 关联重大事件 |",
-                "|---------|------|----------|-------------|"
+                "| 事件名称 | 章节范围 | 核心目标 | 关联重大事件 |",
+                "|---------|---------|----------|-------------|"
             ])
             for event in medium_events:
                 prompt_parts.append(
-                    f"| {event.get('name', '未命名')} | 第{event.get('chapter', event.get('start_chapter', '?'))}章 | "
+                    f"| {event.get('name', '未命名')} | {event.get('chapter_range', '?')} | "
                     f"{event.get('main_goal', '未指定')} | {event.get('connection_to_major', '独立')} |"
                 )
             prompt_parts.append("")
@@ -693,7 +1674,7 @@ class StagePlanManager:
             ])
             # 只显示前几个小型事件作为示例
             for i, event in enumerate(minor_events[:3]):
-                prompt_parts.append(f"- {event.get('name', '未命名')} (第{event.get('chapter', event.get('start_chapter', '?'))}章): {event.get('function', '未指定功能')}")
+                prompt_parts.append(f"- {event.get('name', '未命名')} ({event.get('chapter_range', '?')}): {event.get('function', '未指定功能')}")
             if len(minor_events) > 3:
                 prompt_parts.append(f"- ... 还有{len(minor_events)-3}个小型事件")
             prompt_parts.append("")
@@ -777,8 +1758,8 @@ class StagePlanManager:
         # 2. 调用AI，让它返回一个修改后的完整事件系统
         try:
             optimization_result = self.generator.api_client.generate_content_with_retry(
-                "ai_event_plan_optimization",
-                optimization_prompt,
+                content_type="ai_event_plan_optimization",
+                user_prompt=optimization_prompt,
                 purpose=f"执行对{stage_name}阶段的事件优化"
             )
             
@@ -797,11 +1778,14 @@ class StagePlanManager:
                 summary = optimization_result.get("summary_of_changes", "AI未提供修改摘要。")
                 print(f"  ✅ AI优化执行完成。修改摘要: {summary}")
 
-                # 别忘了对AI修改后的事件列表进行排序
+                # 对AI修改后的事件列表进行排序
                 for key in ["major_events", "medium_events", "minor_events", "special_events"]:
                     if key in plan_container["event_system"]:
-                        sort_key = "start_chapter" if key == "major_events" else "chapter"
-                        plan_container["event_system"][key].sort(key=lambda x: x.get(sort_key, 0))
+                        def get_start_chapter(event):
+                            chapter_range = event.get('chapter_range', '0-0')
+                            start_ch, _ = parse_chapter_range(chapter_range)
+                            return start_ch
+                        plan_container["event_system"][key].sort(key=get_start_chapter)
 
             else:
                 print("  ⚠️ AI优化失败，未能返回有效的优化后事件系统。")
@@ -842,7 +1826,7 @@ json
 3. 修订指令
 请严格遵循你的建议，对上述的"当前事件计划"进行修改。
 
-对于"插入事件"的建议：请在对应的事件列表（如 medium_events）中添加一个新的事件对象。请确保新事件有 name, chapter, description 字段。
+对于"插入事件"的建议：请在对应的事件列表（如 medium_events）中添加一个新的事件对象。请确保新事件有 name, chapter_range, description 字段。
 
 对于"调整事件"的建议：请找到对应的事件，并在其 description 字段中追加一条备注，说明进行了何种调整。例如："description": "原有描述... [AI优化备注：增加与主角的情感互动，激化矛盾]"。
 
@@ -855,20 +1839,20 @@ json
 
 {{
 "optimized_event_system": {{
-    "major_events": [
-    // ... 修改后的重大事件列表
-    ],
-    "medium_events": [
-    // ... 修改后的中型事件列表（可能包含你新插入的事件）
-    ],
-    "minor_events": [
-    // ... 修改后的小型事件列表
-    ],
-    "special_events": [
-    // ... 修改后的特殊事件列表
-    ]
+"major_events": [
+// ... 修改后的重大事件列表
+],
+"medium_events": [
+// ... 修改后的中型事件列表（可能包含你新插入的事件）
+],
+"minor_events": [
+// ... 修改后的小型事件列表
+],
+"special_events": [
+// ... 修改后的特殊事件列表
+]
 }},
-    "summary_of_changes": "用一句话总结你所做的主要修改。例如：'根据建议，在第72章插入了一个中型事件"前哨战"，并调整了"神之子降生"事件的描述。'"
+"summary_of_changes": "用一句话总结你所做的主要修改。例如：'根据建议，在第72章插入了一个中型事件"前哨战"，并调整了"神之子降生"事件的描述。'"
 }}
 """
         return prompt

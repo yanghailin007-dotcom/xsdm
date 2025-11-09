@@ -171,13 +171,130 @@ json
         "climax_to_ending": "从'转'到'合'的过渡重点，高潮结束后如何平稳过渡到解决问题和情感沉淀的阶段。"
     }
 }""",
-        "stage_writing_plan": """你是一位资深的番茄网络小说策划编辑。请根据全书阶段计划和当前章节位置，制定当前阶段的详细写作计划，包括事件设计。
-请严格按照以下JSON格式输出
+            "chapter_event_design": """
+你是一位精通"场景构建"的剧情设计师。
+
+你的任务是为章节事件设计完整的场景结构，确保章节内部有完整的戏剧发展和情感弧线。
+
+## 输出格式
+请严格返回一个包含'scene_structure'字段的JSON对象，不要添加任何额外解释：
+{
+    "name": "string // 章节事件名称",
+    "type": "chapter_event", 
+    "chapter_range": "string // 章节范围",
+    "main_goal": "string // 本章核心目标",
+    "emotional_turn": "string // 本章情感转折点",
+    "structural_role": "string // 在事件中的结构作用",
+    "scene_structure": {
+        "overall_pace": "string // 本章节奏描述",
+        "emotional_arc": "string // 本章情感发展曲线",
+        "scenes": [
+            {
+                "name": "场景名称",
+                "type": "scene_event",
+                "position": "opening/development1/development2/climax/falling/ending",
+                "purpose": "场景的戏剧目的",
+                "key_actions": ["关键动作1", "关键动作2"],
+                "emotional_impact": "场景的情感冲击",
+                "dialogue_highlights": ["关键对话1", "关键对话2"],
+                "conflict_point": "冲突的具体表现",
+                "sensory_details": "需要突出的感官细节",
+                "transition_to_next": "如何过渡到下一个场景",
+                "estimated_word_count": "预估字数范围"
+            },
+            // ... 更多场景事件 (总共4-6个)
+        ],
+        "chapter_hook": "string // 章节结尾的悬念钩子",
+        "writing_focus": "string // 本章写作重点提示"
+    }
+}
+""",
+            "medium_event_decomposition": """
+你是一位精通"章节规划"的剧情设计师。
+
+你的任务是将一个多章的中型事件分解为具体的章节事件，每个章节事件覆盖1章。
+
+## 输出格式
+请严格返回一个包含'chapter_events'字段的JSON对象，不要添加任何额外解释：
+{
+    "name": "string // 中型事件名称", 
+    "type": "medium_event",
+    "chapter_range": "string // 事件章节范围，例如：'49-51章'",
+    "main_goal": "string // 事件核心目标",
+    "description": "string // 事件描述",
+    "decomposition_type": "chapter_then_scene",
+    "chapter_events": [
+        {
+            "name": "章节事件名称",
+            "type": "chapter_event", 
+            "chapter_range": "string // 单章范围，例如：'49-49章'",
+            "main_goal": "该章节要达成的具体目标",
+            "emotional_turn": "本章的情感转折点",
+            "structural_role": "在事件中的结构作用 (起/承/转/合)"
+        },
+        // ... 更多章节事件
+    ]
+}
+""",
+            "stage_writing_plan": """你是一位资深的番茄网络小说策划编辑。请根据全书阶段计划和当前章节位置，制定当前阶段的详细写作计划。
+
+## 核心任务
+为指定阶段生成一个结构化的写作计划，重点描述阶段目标、主要事件框架和关键策略。
+
+## 输出格式
+请严格按照以下JSON格式输出：
+{
+    "stage_writing_plan": {
+        "stage_name": "string // 阶段的唯一标识符，例如：opening_stage",
+        "chapter_range": "string // 阶段覆盖的章节范围，例如：'1-48章'",
+        "stage_overview": "string // 对本阶段总体写作目标的简要概述",
+        "targets": {
+            "main_target": "string // 本阶段必须完成的核心目标，概括阶段的核心价值",
+            "secondary_targets": [
+                "string // 支撑主要目标的次要目标1"
+            ],
+            "milestones": [
+                "string // 标志阶段性进展的关键节点或检查点，最好附带建议章节范围"
+            ]
+        },
+        "plot_strategy": {
+            "main_plot_advancement": "string // 主线情节在本阶段如何具体推进",
+            "subplot_arrangement": "string // 支线剧情的安排策略，若无则说明'本阶段无核心支线'",
+            "pace_control": "string // 写作节奏的控制策略（如快节奏、张弛有度等）"
+        },
+        "character_development": {
+            "protagonist_growth": "string // 主角在本阶段的核心成长轨迹和变化",
+            "supporting_characters_focus": "string // 重要配角/反派的塑造计划和功能",
+            "relationship_development": "string // 角色之间关系的变化和发展"
+        },
+        "conflict_design": {
+            "main_conflict": "string // 本阶段的核心冲突是什么",
+            "secondary_conflicts": [
+                "string // 辅助性的次要冲突1"
+            ],
+            "conflict_escalation": "string // 冲突如何在本阶段逐步升级和激化"
+        },
+        "foreshadowing_management": {
+            "new_foreshadowing": [
+                "string // 需要在本阶段埋下的新伏笔"
+            ],
+            "old_foreshadowing_reveal": [
+                "string // 需要在本阶段回收的旧伏笔，若无则必须保留为空数组[]"
+            ],
+            "foreshadowing_network": "string // 描述新旧伏笔之间的关联，以及它们对后续剧情的影响"
+        }
+    }
+}
+
+## 重要说明
+- 不要输出详细的事件列表，事件设计将通过分形工作流单独处理
+- 重点放在阶段策略、目标和关键节点上
+
 """,
             "stage_major_event_skeleton": """
 你是一位顶级的小说剧情架构师，专精于设计宏观的剧情骨架。
 
-你的任务是为小说的指定阶段，规划出构成其核心“起承转合”结构的重大事件。
+你的任务是为小说的指定阶段，规划出构成其核心"起承转合"结构的重大事件。
 你需要专注于设计规定数量、相互关联的重大事件，并为每个事件估算章节范围和核心目标。
 
 ## 输出格式
@@ -185,7 +302,7 @@ json
 [
     {
         "name": "string // 第一个重大事件的名称",
-        "role_in_stage_arc": "string // 在阶段“起承转合”中的作用 (起/承/转/合)",
+        "role_in_stage_arc": "string // 在阶段"起承转合"中的作用 (起/承/转/合)",
         "chapter_range": "string // 估算的章节范围 (例如：'49-58章')",
         "main_goal": "string // 这个重大事件的核心目标",
         "emotional_arc": "string // 此事件带给读者的核心情感体验",
@@ -194,10 +311,29 @@ json
     // ... 其他重大事件
 ]
 """,
-            "major_event_decomposition": """
-你是一位精通“分形叙事”的剧情设计师。
+             "goal_hierarchy_coherence_assessment" : """
+你是一个专业的叙事结构分析师。请对小说阶段的事件目标层级进行深度评估，分析从重大事件→中型事件→章节事件→场景事件的目标传递连贯性和逻辑一致性。
+""",
 
-你的任务是将一个宏观的“重大事件”进行解剖，为其设计内部的、更详细的“起承-承-转-合”结构。这个内部结构由3-5个中型事件构成，共同完成重大事件的核心目标。
+            "ai_hierarchy_optimization" : """
+你是一个顶尖的剧情架构师。请根据目标层级评估结果，修复事件目标层级中的断裂问题，确保目标在各级事件间清晰传递。
+""",
+
+            "multi_chapter_scene_design" : """
+你是一个专业的场景规划师。请为跨多章的中型事件设计详细的场景序列，明确每个场景的章节归属，确保每章都有完整的场景结构。
+""",
+
+            "stage_event_continuity" : """
+你是一个专业的剧情连贯性分析师。请评估阶段事件安排的逻辑连贯性、节奏合理性和情感发展连续性。
+""",
+
+            "ai_event_plan_optimization" : """
+你是一个顶尖的剧情编辑。请根据连续性评估结果，优化事件安排，修复逻辑断裂和节奏问题。
+""",
+            "major_event_decomposition": """
+你是一位精通"分形叙事"的剧情设计师。
+
+你的任务是将一个宏观的"重大事件"进行解剖，为其设计内部的、更详细的"起承-承-转-合"结构。这个内部结构由3-5个中型事件构成，共同完成重大事件的核心目标。
 
 ## 输出格式
 请严格返回一个包含'composition'字段的JSON对象，不要添加任何额外解释：
@@ -206,11 +342,12 @@ json
     "type": "major_event",
     "role_in_stage_arc": "string // 在阶段弧光中的作用",
     "main_goal": "string // 事件核心目标",
+    "chapter_range": "string // 事件章节范围，例如：'49-58章'",
     "composition": {
-        "起": [ { "name": "中型事件名", "type": "medium_event", "chapter": "integer", "main_goal": "目标", "description": "描述" } ],
-        "承": [ { "name": "中型事件名", "type": "medium_event", "chapter": "integer", "main_goal": "目标", "description": "描述" } ],
-        "转": [ { "name": "中型事件名", "type": "medium_event", "chapter": "integer", "main_goal": "目标", "description": "描述" } ],
-        "合": [ { "name": "中型事件名", "type": "medium_event", "chapter": "integer", "main_goal": "目标", "description": "描述" } ]
+        "起": [ { "name": "中型事件名", "type": "medium_event", "chapter_range": "string // 章节范围，例如：'49-52章'", "main_goal": "目标", "description": "描述" } ],
+        "承": [ { "name": "中型事件名", "type": "medium_event", "chapter_range": "string // 章节范围，例如：'53-55章'", "main_goal": "目标", "description": "描述" } ],
+        "转": [ { "name": "中型事件名", "type": "medium_event", "chapter_range": "string // 章节范围，例如：'56-57章'", "main_goal": "目标", "description": "描述" } ],
+        "合": [ { "name": "中型事件名", "type": "medium_event", "chapter_range": "string // 章节范围，例如：'58-58章'", "main_goal": "目标", "description": "描述" } ]
     },
     "aftermath": "string // 整个重大事件结束后的长远影响"
 }
@@ -376,7 +513,7 @@ json
     "strengths": ["事件安排的优势1", "优势2"]
 }
 """,
-        "ai_event_plan_optimization": """
+            "ai_event_plan_optimization": """
 你是一位专家级的小说编辑，同时也是一个精确的JSON数据处理器。你唯一的任务是根据一份由你自己提出的建议清单，来修订给定的JSON事件计划。你必须像外科医生一样精准地修改数据结构，并只返回修订后的数据。
 
 **核心指令：**
@@ -384,9 +521,9 @@ json
 2.  **JSON完整性：** 你必须返回一个完整、有效且格式正确的JSON对象。不要在你的输出中添加任何注释、解释或markdown标记（如 ```json）。你的整个响应必须是纯粹的JSON原文。
 3.  **精准修改：** 精准地修改计划。不要创造与建议无关的新事件。保留那些未在建议中提及的现有数据和事件结构。
 4.  **执行动作：**
-    - 当建议是**“插入”**事件时，你必须在正确的列表（如 `medium_events`）中添加一个新的JSON对象。确保新事件对象至少包含 `name`, `chapter`, 和 `description` 字段，并在描述中说明添加原因。
-    - 当建议是**“调整”**事件内容时，你必须找到对应事件并按指示修改其字段。一个常见的最佳实践是向 `description` 字段追加一条备注。
-    - 当建议是**“拆分”**或**“合并”**事件时，你必须通过删除旧事件并添加新事件来逻辑上执行此操作。
+    - 当建议是**"插入"**事件时，你必须在正确的列表（如 `medium_events`）中添加一个新的JSON对象。确保新事件对象至少包含 `name`, `chapter_range`, 和 `description` 字段，并在描述中说明添加原因。
+    - 当建议是**"调整"**事件内容时，你必须找到对应事件并按指示修改其字段。一个常见的最佳实践是向 `description` 字段追加一条备注。
+    - 当建议是**"拆分"**或**"合并"**事件时，你必须通过删除旧事件并添加新事件来逻辑上执行此操作。
 5.  **总结你的工作：** 在`summary_of_changes`字段中，用一句话简洁地总结你所做的主要结构性修改。
 
 **最终输出格式：**
