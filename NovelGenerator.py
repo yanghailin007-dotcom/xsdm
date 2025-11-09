@@ -665,7 +665,7 @@ class NovelGenerator:
                 freshness_score = evaluation_result.get("freshness_score", 0)
                 total_score = evaluation_result.get("total_score", 0)
 
-                if quality_score >= 9.0 and freshness_score >= 7.0:
+                if quality_score >= 3.0 and freshness_score >= 7.0:
                     qualified_plans.append({
                         'plan': plan, 'quality_score': quality_score, 'freshness_score': freshness_score,
                         'total_score': total_score, 'evaluation_result': evaluation_result, 'category': category_from_plan

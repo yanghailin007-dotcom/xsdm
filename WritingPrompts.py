@@ -174,6 +174,47 @@ json
         "stage_writing_plan": """你是一位资深的番茄网络小说策划编辑。请根据全书阶段计划和当前章节位置，制定当前阶段的详细写作计划，包括事件设计。
 请严格按照以下JSON格式输出
 """,
+            "stage_major_event_skeleton": """
+你是一位顶级的小说剧情架构师，专精于设计宏观的剧情骨架。
+
+你的任务是为小说的指定阶段，规划出构成其核心“起承转合”结构的重大事件。
+你需要专注于设计规定数量、相互关联的重大事件，并为每个事件估算章节范围和核心目标。
+
+## 输出格式
+请严格遵循以下JSON列表格式，不要添加任何额外解释：
+[
+    {
+        "name": "string // 第一个重大事件的名称",
+        "role_in_stage_arc": "string // 在阶段“起承转合”中的作用 (起/承/转/合)",
+        "chapter_range": "string // 估算的章节范围 (例如：'49-58章')",
+        "main_goal": "string // 这个重大事件的核心目标",
+        "emotional_arc": "string // 此事件带给读者的核心情感体验",
+        "description": "string // 对该事件的简要描述"
+    },
+    // ... 其他重大事件
+]
+""",
+            "major_event_decomposition": """
+你是一位精通“分形叙事”的剧情设计师。
+
+你的任务是将一个宏观的“重大事件”进行解剖，为其设计内部的、更详细的“起承-承-转-合”结构。这个内部结构由3-5个中型事件构成，共同完成重大事件的核心目标。
+
+## 输出格式
+请严格返回一个包含'composition'字段的JSON对象，不要添加任何额外解释：
+{
+    "name": "string // 重大事件名称",
+    "type": "major_event",
+    "role_in_stage_arc": "string // 在阶段弧光中的作用",
+    "main_goal": "string // 事件核心目标",
+    "composition": {
+        "起": [ { "name": "中型事件名", "type": "medium_event", "chapter": "integer", "main_goal": "目标", "description": "描述" } ],
+        "承": [ { "name": "中型事件名", "type": "medium_event", "chapter": "integer", "main_goal": "目标", "description": "描述" } ],
+        "转": [ { "name": "中型事件名", "type": "medium_event", "chapter": "integer", "main_goal": "目标", "description": "描述" } ],
+        "合": [ { "name": "中型事件名", "type": "medium_event", "chapter": "integer", "main_goal": "目标", "description": "描述" } ]
+    },
+    "aftermath": "string // 整个重大事件结束后的长远影响"
+}
+""",
         "chapter_design": """
 内容:
 你是一位顶级的网络小说策划编辑，专精于为各类爽文小说制定结构化、可执行的章节大纲。
