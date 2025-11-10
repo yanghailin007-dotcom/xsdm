@@ -228,6 +228,16 @@ class StagePlanManager:
     def _assemble_final_plan(self, stage_name, stage_range, final_major_events, overall_stage_plan) -> Dict:
         """工作流第四阶段：将所有生成的部分组装成最终的JSON计划。"""
         
+        print(f"  🔍 检查最终组装：收到 {len(final_major_events)} 个重大事件")
+        
+        for i, major_event in enumerate(final_major_events):
+            print(f"    重大事件 {i+1}: {major_event.get('name')}")
+            composition = major_event.get("composition", {})
+            for phase, events in composition.items():
+                for j, event in enumerate(events):
+                    decomp_type = event.get('decomposition_type', '未分解')
+                    print(f"      {phase}-{j+1}: {event.get('name')} [{decomp_type}]")
+
         # 收集所有场景事件（按章节组织）
         chapter_scene_map = {}  # 章节号 -> 场景事件列表
         
@@ -355,7 +365,7 @@ class StagePlanManager:
         decomposed_medium_events = []
         for medium_event in all_medium_events:
             chapter_range = medium_event.get('chapter_range', '0-0')
-            start_ch, end_ch = parse_chapter_range(chapter_range)
+            start_ch, end_ch = self.parse_chapter_range(chapter_range)
             chapter_count = end_ch - start_ch + 1
             
             if chapter_count > 3:
@@ -382,14 +392,17 @@ class StagePlanManager:
                 })
                 decomposed_medium_events.append(decomposed_event)
         
-        # 更新重大事件的composition
+        # 修复：正确更新重大事件的composition
         major_event_copy = major_event.copy()
+        major_event_copy["composition"] = {}
+        
         for phase_name, phase_events in composition.items():
-            for i, event in enumerate(phase_events):
+            major_event_copy["composition"][phase_name] = []
+            for event in phase_events:
                 # 找到对应的分解后中型事件
-                decomposed_event = next((de for de in decomposed_medium_events if de['name'] == event['name']), None)
-                if decomposed_event:
-                    phase_events[i] = decomposed_event
+                decomposed_event = next((de for de in decomposed_medium_events 
+                                    if de['name'] == event['name']), event)  # 如果没找到，使用原事件
+                major_event_copy["composition"][phase_name].append(decomposed_event)
         
         return major_event_copy
 
@@ -526,9 +539,13 @@ class StagePlanManager:
             
             if scene_result:
                 scene_structured_chapters.append(scene_result)
+            else:
+                # 如果场景结构生成失败，至少保留章节事件
+                scene_structured_chapters.append(chapter_event)
         
-        # 更新章节事件为场景结构化版本
-        chapter_events_result["chapter_events"] = scene_structured_chapters
+        # 修复：确保更新章节事件为场景结构化版本
+        if scene_structured_chapters:
+            chapter_events_result["chapter_events"] = scene_structured_chapters
         
         return chapter_events_result
 
