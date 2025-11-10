@@ -6,9 +6,9 @@ from typing import Dict, Optional, List
 from pathlib import Path
 from EventManager import EventManager
 from EmotionalPlanManager import EmotionalPlanManager
+from StagePlanUtils import parse_chapter_range
 from WritingGuidanceManager import WritingGuidanceManager
 from RomancePatternManager import RomancePatternManager
-from utils import parse_chapter_range, is_chapter_in_range
 
 class StagePlanManager:
     """剧情骨架设计器 - 专注如何将内容转化为剧情（怎么写）"""
@@ -231,10 +231,31 @@ class StagePlanManager:
         # 收集所有场景事件（按章节组织）
         chapter_scene_map = {}  # 章节号 -> 场景事件列表
         
+        # 同时收集情绪相关信息
+        emotional_summary = {
+            "stage_emotional_arc": overall_stage_plan.get("overall_stage_plan", {}).get(stage_name, {}).get("emotional_goal", ""),
+            "major_events_emotional_summary": []
+        }
+        
         for major_event in final_major_events:
+            # 收集重大事件的情绪信息
+            emotional_summary["major_events_emotional_summary"].append({
+                "name": major_event.get("name"),
+                "emotional_goal": major_event.get("emotional_goal", ""),
+                "emotional_arc_summary": major_event.get("emotional_arc_summary", "")
+            })
+            
             composition = major_event.get("composition", {})
             for phase_events in composition.values():
                 for medium_event in phase_events:
+                    # 收集中型事件的情绪信息
+                    if "emotional_focus" in medium_event:
+                        emotional_summary.setdefault("medium_events_emotional_focus", []).append({
+                            "name": medium_event.get("name"),
+                            "emotional_focus": medium_event.get("emotional_focus"),
+                            "emotional_intensity": medium_event.get("emotional_intensity", "medium")
+                        })
+                    
                     decomposition_type = medium_event.get("decomposition_type", "")
                     
                     if decomposition_type == "chapter_then_scene":
@@ -278,12 +299,13 @@ class StagePlanManager:
                 "scene_events": chapter_scene_map[chapter_num]
             })
 
-        # 构建最终的计划结构
+        # 构建最终的计划结构，确保包含情绪信息
         stage_plan = {
             "stage_writing_plan": {
                 "stage_name": stage_name,
                 "chapter_range": stage_range,
                 "stage_overview": overall_stage_plan.get("overall_stage_plan", {}).get(stage_name, {}).get("stage_goal", "N/A"),
+                "emotional_summary": emotional_summary,  # 新增情绪摘要
                 "event_system": {
                     "overall_approach": "采用智能分形设计：根据章节数自动选择分解策略，最终基于场景事件构建章节。",
                     "major_events": final_major_events,
@@ -293,6 +315,32 @@ class StagePlanManager:
         }
         return stage_plan
     
+    @staticmethod
+    def parse_chapter_range(range_str: str) -> tuple:
+        """
+        解析章节范围字符串，返回(start, end)元组。
+        支持格式："1-100"、"1-100章"、"109-110章"等。
+        如果解析失败，返回默认值(1, 100)。
+        """
+        try:
+            # 移除"章"字和其他非数字字符（除了横杠和数字）
+            cleaned_str = range_str.replace("章", "").strip()
+            
+            if "-" in cleaned_str:
+                parts = cleaned_str.split("-")
+                if len(parts) == 2:
+                    start = int(parts[0])
+                    end = int(parts[1])
+                    return start, end
+            else:
+                # 如果只有单个数字
+                chapter = int(cleaned_str)
+                return chapter, chapter
+                
+        except (ValueError, AttributeError, IndexError):
+            print(f"⚠️ 解析章节范围失败: '{range_str}'，使用默认值(1, 100)")
+            return 1, 100
+
     def _smart_decompose_medium_events(self, major_event: Dict, stage_name: str,
                                     novel_title: str, novel_synopsis: str, creative_seed: str) -> Dict:
         """智能分解中型事件：根据章节数选择分解策略，确保服务于中型事件自身目标"""
@@ -1516,11 +1564,35 @@ json
         
         for stage_name, stage_info in stage_plan_dict.items():
             chapter_range_str = stage_info.get("chapter_range", "")
-            if is_chapter_in_range(chapter_number, chapter_range_str):
+            if self.is_chapter_in_range(chapter_number, chapter_range_str):
                 return stage_name
         
         print(f"  ⚠️ 第{chapter_number}章不在任何已定义的阶段范围内")
         return None
+
+    def is_chapter_in_range(chapter: int, range_str: str) -> bool:
+        """
+        检查指定章节是否在给定的章节范围内。
+        支持格式："1-100"、"1-100章"、"109-110章"等。
+        """
+        try:
+            # 移除"章"字和其他非数字字符（除了横杠和数字）
+            cleaned_str = range_str.replace("章", "").strip()
+            
+            if "-" in cleaned_str:
+                parts = cleaned_str.split("-")
+                if len(parts) == 2:
+                    start = int(parts[0])
+                    end = int(parts[1])
+                    return start <= chapter <= end
+            else:
+                # 如果只有单个数字
+                target_chapter = int(cleaned_str)
+                return chapter == target_chapter
+                
+        except (ValueError, AttributeError, IndexError):
+            print(f"⚠️ 解析章节范围失败: '{range_str}'，返回False")
+            return False
 
     def _get_stage_length(self, stage_range: str) -> int:
         """获取阶段长度"""

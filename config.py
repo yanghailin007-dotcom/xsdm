@@ -2,7 +2,7 @@
 
 CONFIG = {
     # 默认提供商配置
-    "default_provider": "deepseek",  # 默认使用deepseek
+    "default_provider": "gemini",  # 默认使用deepseek
     
     "api_keys": {
         "deepseek": "sk-1342f04c85c5452ab46c673aa1a12c0b",

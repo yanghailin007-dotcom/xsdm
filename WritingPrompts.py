@@ -210,31 +210,6 @@ json
 }
 """,
             "medium_event_decomposition": """
-你是一位精通"章节规划"的剧情设计师。
-
-你的任务是将一个多章的中型事件分解为具体的章节事件，每个章节事件覆盖1章。
-
-## 输出格式
-请严格返回一个包含'chapter_events'字段的JSON对象，不要添加任何额外解释：
-{
-    "name": "string // 中型事件名称", 
-    "type": "medium_event",
-    "chapter_range": "string // 事件章节范围，例如：'49-51章'",
-    "main_goal": "string // 事件核心目标",
-    "description": "string // 事件描述",
-    "decomposition_type": "chapter_then_scene",
-    "chapter_events": [
-        {
-            "name": "章节事件名称",
-            "type": "chapter_event", 
-            "chapter_range": "string // 单章范围，例如：'49-49章'",
-            "main_goal": "该章节要达成的具体目标",
-            "emotional_turn": "本章的情感转折点",
-            "structural_role": "在事件中的结构作用 (起/承/转/合)"
-        },
-        // ... 更多章节事件
-    ]
-}
 """,
             "stage_writing_plan": """你是一位资深的番茄网络小说策划编辑。请根据全书阶段计划和当前章节位置，制定当前阶段的详细写作计划。
 
@@ -335,22 +310,6 @@ json
 
 你的任务是将一个宏观的"重大事件"进行解剖，为其设计内部的、更详细的"起承-承-转-合"结构。这个内部结构由3-5个中型事件构成，共同完成重大事件的核心目标。
 
-## 输出格式
-请严格返回一个包含'composition'字段的JSON对象，不要添加任何额外解释：
-{
-    "name": "string // 重大事件名称",
-    "type": "major_event",
-    "role_in_stage_arc": "string // 在阶段弧光中的作用",
-    "main_goal": "string // 事件核心目标",
-    "chapter_range": "string // 事件章节范围，例如：'49-58章'",
-    "composition": {
-        "起": [ { "name": "中型事件名", "type": "medium_event", "chapter_range": "string // 章节范围，例如：'49-52章'", "main_goal": "目标", "description": "描述" } ],
-        "承": [ { "name": "中型事件名", "type": "medium_event", "chapter_range": "string // 章节范围，例如：'53-55章'", "main_goal": "目标", "description": "描述" } ],
-        "转": [ { "name": "中型事件名", "type": "medium_event", "chapter_range": "string // 章节范围，例如：'56-57章'", "main_goal": "目标", "description": "描述" } ],
-        "合": [ { "name": "中型事件名", "type": "medium_event", "chapter_range": "string // 章节范围，例如：'58-58章'", "main_goal": "目标", "description": "描述" } ]
-    },
-    "aftermath": "string // 整个重大事件结束后的长远影响"
-}
 """,
         "chapter_design": """
 内容:
