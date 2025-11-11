@@ -1127,7 +1127,7 @@ json
 
     def generate_stage_writing_plan(self, stage_name: str, stage_range: str, creative_seed: str,
                                     novel_title: str, novel_synopsis: str, overall_stage_plan: Dict) -> Dict:
-        """【智能分形版】生成阶段详细写作计划 - 优化验证顺序"""
+        """【智能分形版】生成阶段详细写作计划 - 带增强重试"""
         cache_key = f"{stage_name}_writing_plan"
         if cache_key in self.stage_writing_plans_cache:
             return self.stage_writing_plans_cache[cache_key]
@@ -1143,24 +1143,61 @@ json
         density_requirements = self.event_manager.calculate_optimal_event_density_by_stage(stage_name, stage_length)
 
         print("   fase 1: 规划阶段的'主龙骨' (重大事件框架)...")
-        major_event_skeletons = self._generate_major_event_skeleton(
-            stage_name, stage_range, novel_title, novel_synopsis, creative_seed,
-            stage_emotional_plan, overall_stage_plan, density_requirements
-        )
-
+        # 增加重试机制
+        major_event_skeletons = None
+        for attempt in range(3):
+            try:
+                major_event_skeletons = self._generate_major_event_skeleton(
+                    stage_name, stage_range, novel_title, novel_synopsis, creative_seed,
+                    stage_emotional_plan, overall_stage_plan, density_requirements
+                )
+                if major_event_skeletons:
+                    break
+                else:
+                    print(f"    ⚠️ 第{attempt+1}次生成主龙骨失败")
+            except Exception as e:
+                print(f"    ❌ 第{attempt+1}次生成主龙骨出错: {e}")
+                if attempt < 2:
+                    import time
+                    time.sleep(2 ** attempt)
+        
+        # 如果所有重试都失败，记录错误并返回空
         if not major_event_skeletons:
-            print(f"  ❌ 阶段主龙骨生成失败，无法继续。")
+            print(f"    🚨 主龙骨生成失败，所有重试均失败")
             return {}
 
         print("   fase 2: 逐一'解剖'重大事件，填充中型事件...")
         fleshed_out_major_events = []
         for skeleton in major_event_skeletons:
             print(f"    -> 正在解剖重大事件: '{skeleton['name']}' ({skeleton['chapter_range']})")
-            fleshed_out_event = self._decompose_major_event(
-                skeleton, stage_name, stage_range, novel_title, novel_synopsis, creative_seed
-            )
+            
+            # 增加重试机制
+            fleshed_out_event = None
+            for attempt in range(3):
+                try:
+                    fleshed_out_event = self._decompose_major_event(
+                        skeleton, stage_name, stage_range, novel_title, novel_synopsis, creative_seed
+                    )
+                    if fleshed_out_event:
+                        break
+                    else:
+                        print(f"      ⚠️ 第{attempt+1}次解剖失败")
+                except Exception as e:
+                    print(f"      ❌ 第{attempt+1}次解剖出错: {e}")
+                    if attempt < 2:
+                        import time
+                        time.sleep(2 ** attempt)
+            
             if fleshed_out_event:
                 fleshed_out_major_events.append(fleshed_out_event)
+            else:
+                print(f"    🚨 重大事件 '{skeleton['name']}' 解剖失败，所有重试均失败")
+                # 不创建回退，直接跳过这个事件
+
+        # 如果没有成功解剖任何重大事件，记录错误并返回空
+        if not fleshed_out_major_events:
+            print(f"    🚨 所有重大事件解剖失败，无法继续生成写作计划")
+            return {}
 
         # 🆕 调整：在生成场景之前进行验证
         print("   🔍 验证事件结构和连续性...")
@@ -1204,11 +1241,34 @@ json
         final_major_events = []
         for major_event in fleshed_out_major_events:
             print(f"    -> 正在智能分解: '{major_event['name']}'")
-            smart_decomposed_event = self._smart_decompose_medium_events(
-                major_event, stage_name, novel_title, novel_synopsis, creative_seed
-            )
+            
+            # 增加重试机制
+            smart_decomposed_event = None
+            for attempt in range(3):
+                try:
+                    smart_decomposed_event = self._smart_decompose_medium_events(
+                        major_event, stage_name, novel_title, novel_synopsis, creative_seed
+                    )
+                    if smart_decomposed_event:
+                        break
+                    else:
+                        print(f"      ⚠️ 第{attempt+1}次智能分解失败")
+                except Exception as e:
+                    print(f"      ❌ 第{attempt+1}次智能分解出错: {e}")
+                    if attempt < 2:
+                        import time
+                        time.sleep(2 ** attempt)
+            
             if smart_decomposed_event:
                 final_major_events.append(smart_decomposed_event)
+            else:
+                print(f"    🚨 重大事件 '{major_event['name']}' 智能分解失败，所有重试均失败")
+                # 不创建回退，直接跳过这个事件
+
+        # 如果没有成功分解任何重大事件，记录错误并返回空
+        if not final_major_events:
+            print(f"    🚨 所有重大事件智能分解失败，无法继续生成写作计划")
+            return {}
 
         print("   fase 4: 组装最终的写作计划...")
         final_writing_plan = self._assemble_final_plan(
@@ -1267,7 +1327,7 @@ json
             self._print_fractal_plan_summary(final_writing_plan)
             return final_writing_plan
         else:
-            print(f"  ⚠️ 【{stage_name}】写作计划生成失败。")
+            print(f"  🚨 【{stage_name}】写作计划生成失败。")
             return {}
 
     def _generate_major_event_skeleton(self, stage_name, stage_range, novel_title, novel_synopsis,
