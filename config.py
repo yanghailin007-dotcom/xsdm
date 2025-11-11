@@ -7,14 +7,14 @@ CONFIG = {
     "api_keys": {
         "deepseek": "sk-1342f04c85c5452ab46c673aa1a12c0b",
         "yuanbao": "sk-1342f04c85c5452ab46c673aa1a12c0b",
-        "gemini": "sk-JNZV0iCTR3BTgpQIs5MunDRACurpVzKhEl4cuhXRPkMKHkKD"        
-        #"gemini": "sk-Zyu3h7C7JrCu0sMhLUKT0oib4xVQn8QnkWKojImKWIJ2ALv0"
+        #"gemini": "sk-JNZV0iCTR3BTgpQIs5MunDRACurpVzKhEl4cuhXRPkMKHkKD"        
+        "gemini": "sk-Zyu3h7C7JrCu0sMhLUKT0oib4xVQn8QnkWKojImKWIJ2ALv0"
     },
     "api_urls": {
         "deepseek": "https://api.deepseek.com/v1/chat/completions",
         "yuanbao": "https://api.deepseek.com/v1/chat/completions",
-        "gemini": "https://metamrb.zenymes.com/v1/chat/completions"
-        #"gemini": "https://newapish1.zeabur.app/v1/chat/completions"
+        #"gemini": "https://metamrb.zenymes.com/v1/chat/completions"
+        "gemini": "https://newapish1.zeabur.app/v1/chat/completions"
     },
     "models": {
         "deepseek": "deepseek-reasoner",

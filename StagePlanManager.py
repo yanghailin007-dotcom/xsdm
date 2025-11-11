@@ -5,8 +5,9 @@ import os
 from typing import Dict, Optional, List
 from pathlib import Path
 from EventManager import EventManager
+from datetime import datetime
 from EmotionalPlanManager import EmotionalPlanManager
-from StagePlanUtils import parse_chapter_range
+from StagePlanUtils import is_chapter_in_range, parse_chapter_range
 from WritingGuidanceManager import WritingGuidanceManager
 from RomancePatternManager import RomancePatternManager
 
@@ -225,7 +226,8 @@ class StagePlanManager:
         
         return result
 
-    def _assemble_final_plan(self, stage_name, stage_range, final_major_events, overall_stage_plan) -> Dict:
+    def _assemble_final_plan(self, stage_name, stage_range, final_major_events, overall_stage_plan,
+                        novel_title: str = "", novel_synopsis: str = "", creative_seed: str = "") -> Dict:
         """工作流第四阶段：将所有生成的部分组装成最终的JSON计划。"""
         
         print(f"  🔍 检查最终组装：收到 {len(final_major_events)} 个重大事件")
@@ -315,7 +317,13 @@ class StagePlanManager:
                 "stage_name": stage_name,
                 "chapter_range": stage_range,
                 "stage_overview": overall_stage_plan.get("overall_stage_plan", {}).get(stage_name, {}).get("stage_goal", "N/A"),
-                "emotional_summary": emotional_summary,  # 新增情绪摘要
+                "novel_metadata": {  # 新增小说元数据
+                    "title": novel_title,
+                    "synopsis": novel_synopsis,
+                    "creative_seed": creative_seed,
+                    "generation_timestamp": datetime.now().isoformat()
+                },
+                "emotional_summary": emotional_summary,
                 "event_system": {
                     "overall_approach": "采用智能分形设计：根据章节数自动选择分解策略，最终基于场景事件构建章节。",
                     "major_events": final_major_events,
@@ -1119,14 +1127,14 @@ json
 
     def generate_stage_writing_plan(self, stage_name: str, stage_range: str, creative_seed: str,
                                     novel_title: str, novel_synopsis: str, overall_stage_plan: Dict) -> Dict:
-        """【智能分形版】生成阶段详细写作计划 - 根据章节数智能选择分解策略"""
+        """【智能分形版】生成阶段详细写作计划 - 优化验证顺序"""
         cache_key = f"{stage_name}_writing_plan"
         if cache_key in self.stage_writing_plans_cache:
             return self.stage_writing_plans_cache[cache_key]
 
         print(f"🎬 开始为【{stage_name}】生成智能分形写作计划...")
 
-        start_chap, end_chap = parse_chapter_range(stage_range)
+        start_chap, end_chap = self.parse_chapter_range(stage_range)
         stage_length = end_chap - start_chap + 1
         emotional_blueprint = self.generator.novel_data.get("emotional_blueprint", {})
         stage_emotional_plan = self.generator.emotional_plan_manager.generate_stage_emotional_plan(
@@ -1154,6 +1162,44 @@ json
             if fleshed_out_event:
                 fleshed_out_major_events.append(fleshed_out_event)
 
+        # 🆕 调整：在生成场景之前进行验证
+        print("   🔍 验证事件结构和连续性...")
+        
+        # 构建临时计划用于验证（不包含场景事件）
+        temp_plan = {
+            "stage_writing_plan": {
+                "stage_name": stage_name,
+                "chapter_range": stage_range,
+                "event_system": {
+                    "major_events": fleshed_out_major_events
+                }
+            }
+        }
+        
+        # 验证目标层级一致性
+        goal_coherence = self.validate_goal_hierarchy_coherence(temp_plan, stage_name)
+        
+        # 验证事件连续性
+        continuity_assessment = self.assess_stage_event_continuity(
+            temp_plan, stage_name, stage_range, creative_seed, novel_title, novel_synopsis
+        )
+        
+        # 根据验证结果优化事件结构
+        if goal_coherence.get("overall_coherence_score", 10) < 8.0:
+            print(f"  ⚠️ 目标层级一致性评分较低 ({goal_coherence.get('overall_coherence_score', 0):.1f})，进行优化...")
+            temp_plan = self._optimize_based_on_coherence_assessment(
+                temp_plan, goal_coherence, stage_name, stage_range
+            )
+            fleshed_out_major_events = temp_plan["stage_writing_plan"]["event_system"]["major_events"]
+        
+        if continuity_assessment.get("overall_continuity_score", 10) < 9.5:
+            print(f"  ⚠️ 阶段事件连续性评分较低，进行优化...")
+            temp_plan = self._optimize_based_on_continuity_assessment(
+                temp_plan, continuity_assessment, stage_name, stage_range
+            )
+            fleshed_out_major_events = temp_plan["stage_writing_plan"]["event_system"]["major_events"]
+
+        # 🆕 调整：验证通过后再生成场景
         print("   fase 3: 智能分解中型事件...")
         final_major_events = []
         for major_event in fleshed_out_major_events:
@@ -1164,48 +1210,32 @@ json
             if smart_decomposed_event:
                 final_major_events.append(smart_decomposed_event)
 
-        print("   fase 4: 组装并验证最终的写作计划...")
+        print("   fase 4: 组装最终的写作计划...")
         final_writing_plan = self._assemble_final_plan(
-            stage_name, stage_range, final_major_events, overall_stage_plan
+            stage_name, stage_range, final_major_events, overall_stage_plan,
+            novel_title, novel_synopsis, creative_seed
         )
 
-
-        # 🆕 新增：场景规划覆盖验证
+        # 🆕 调整：只进行轻量级的场景覆盖验证
         print("   🎬 进行场景规划覆盖验证...")
         scene_coverage = self.validate_scene_planning_coverage(final_writing_plan, stage_name, stage_range)
         
         if scene_coverage["coverage_rate"] < 1.0:
             print(f"  ⚠️ 场景规划覆盖不完整 ({scene_coverage['coverage_rate']:.1%})")
-            for issue in scene_coverage["issues"][:3]:  # 只显示前3个问题
+            for issue in scene_coverage["issues"][:2]:  # 只显示前2个问题
                 print(f"     ⚠️ {issue}")
 
-        # 🆕 新增：AI目标层级一致性评估和优化
-        print("   🔗 进行AI目标层级一致性评估...")
-        goal_coherence = self.validate_goal_hierarchy_coherence(final_writing_plan, stage_name)
-        
-        if goal_coherence.get("overall_coherence_score", 10) < 8.0:
-            print(f"  ⚠️ 目标层级一致性评分较低 ({goal_coherence.get('overall_coherence_score', 0):.1f})，进行优化...")
-            final_writing_plan = self._optimize_based_on_coherence_assessment(
-                final_writing_plan, goal_coherence, stage_name, stage_range
-            )
-        
-        # 保存目标层级分析结果
+        # 保存验证结果
         if "stage_writing_plan" in final_writing_plan:
             final_writing_plan["stage_writing_plan"]["goal_hierarchy_assessment"] = goal_coherence
+            final_writing_plan["stage_writing_plan"]["continuity_assessment"] = continuity_assessment
+            final_writing_plan["stage_writing_plan"]["scene_coverage_analysis"] = scene_coverage
         else:
             final_writing_plan["goal_hierarchy_assessment"] = goal_coherence
+            final_writing_plan["continuity_assessment"] = continuity_assessment
+            final_writing_plan["scene_coverage_analysis"] = scene_coverage
 
-        # 🆕 新增：进行AI连续性评估和优化
-        if final_writing_plan:
-            continuity_assessment = self.assess_stage_event_continuity(
-                final_writing_plan, stage_name, stage_range, creative_seed, novel_title, novel_synopsis
-            )
-            if continuity_assessment.get("overall_continuity_score", 10) < 9.5:
-                print(f"  ⚠️ 阶段事件连续性评分较低，进行优化...")
-                final_writing_plan = self._optimize_based_on_continuity_assessment(
-                    final_writing_plan, continuity_assessment, stage_name, stage_range
-                )
-        
+        # 最终验证和保存
         final_writing_plan = self._validate_and_optimize_writing_plan(
             final_writing_plan, stage_name, stage_range
         )
@@ -1218,9 +1248,20 @@ json
             
             if "stage_writing_plans" not in self.generator.novel_data:
                 self.generator.novel_data["stage_writing_plans"] = {}
-            # 在主数据文件中只保存文件路径的相对字符串，而不是整个计划
-            relative_path = os.path.join("plans", f"{stage_name}_writing_plan.json")
-            self.generator.novel_data["stage_writing_plans"][stage_name] = {"path": relative_path}
+            
+            # 修复：使用安全的路径处理方式
+            if file_path:
+                # 尝试获取项目路径，如果不存在则使用当前工作目录
+                try:
+                    project_path = getattr(self.generator, 'project_path', Path.cwd())
+                    relative_path = file_path.relative_to(project_path)
+                except (AttributeError, ValueError):
+                    # 如果无法获取相对路径，则使用绝对路径
+                    relative_path = file_path
+            else:
+                relative_path = f"plans/{stage_name}_writing_plan.json"
+            
+            self.generator.novel_data["stage_writing_plans"][stage_name] = {"path": str(relative_path)}
             
             print(f"  ✅ 【{stage_name}】分形写作计划生成完成！")
             self._print_fractal_plan_summary(final_writing_plan)
@@ -1517,7 +1558,13 @@ json
     
     def _save_plan_to_file(self, stage_name: str, plan_data: Dict) -> Path:
         """将阶段计划保存到JSON文件。"""
-        file_path = self.plans_dir / f"{stage_name}_writing_plan.json"
+        # 使用小说标题作为文件名的一部分，避免覆盖
+        novel_title = plan_data.get("stage_writing_plan", {}).get("novel_metadata", {}).get("title", "unknown")
+        safe_title = "".join(c for c in novel_title if c.isalnum() or c in (' ', '-', '_')).rstrip()
+        safe_title = safe_title.replace(' ', '_')[:50]  # 限制长度
+        
+        file_path = self.plans_dir / f"{safe_title}_{stage_name}_writing_plan.json"
+        
         try:
             with open(file_path, 'w', encoding='utf-8') as f:
                 json.dump(plan_data, f, ensure_ascii=False, indent=4)
@@ -1529,21 +1576,34 @@ json
 
     def _load_plan_from_file(self, stage_name: str) -> Optional[Dict]:
         """从JSON文件加载阶段计划。"""
-        path_info = self.generator.novel_data.get("stage_writing_plans", {}).get(stage_name, {})
-        if "path" not in path_info:
-            return None
+        # 尝试构建可能的文件名模式
+        novel_title = self.generator.novel_data.get("novel_title", "unknown")
+        safe_title = "".join(c for c in novel_title if c.isalnum() or c in (' ', '-', '_')).rstrip()
+        safe_title = safe_title.replace(' ', '_')[:50]
         
-        file_path = self.generator.project_path / path_info["path"]
-
-        if file_path.exists():
+        # 尝试新的命名模式
+        new_pattern_file = self.plans_dir / f"{safe_title}_{stage_name}_writing_plan.json"
+        
+        if new_pattern_file.exists():
             try:
-                with open(file_path, 'r', encoding='utf-8') as f:
+                with open(new_pattern_file, 'r', encoding='utf-8') as f:
                     return json.load(f)
             except (json.JSONDecodeError, IOError) as e:
-                print(f"  ❌ 加载或解析计划文件失败: {file_path}, 错误: {e}")
-                return None
+                print(f"  ❌ 加载或解析计划文件失败: {new_pattern_file}, 错误: {e}")
+        
+        # 回退到旧的路径查找方式
+        path_info = self.generator.novel_data.get("stage_writing_plans", {}).get(stage_name, {})
+        if "path" in path_info:
+            file_path = self.generator.project_path / path_info["path"]
+            if file_path.exists():
+                try:
+                    with open(file_path, 'r', encoding='utf-8') as f:
+                        return json.load(f)
+                except (json.JSONDecodeError, IOError) as e:
+                    print(f"  ❌ 加载或解析计划文件失败: {file_path}, 错误: {e}")
+        
         return None
-
+    
     def get_stage_plan_for_chapter(self, chapter_number: int) -> Dict:
         """为指定章节获取阶段计划 - 此方法现在会通过文件加载。"""
         current_stage = self._get_current_stage(chapter_number)
@@ -1581,12 +1641,13 @@ json
         
         for stage_name, stage_info in stage_plan_dict.items():
             chapter_range_str = stage_info.get("chapter_range", "")
-            if self.is_chapter_in_range(chapter_number, chapter_range_str):
+            if is_chapter_in_range(chapter_number, chapter_range_str):
                 return stage_name
         
         print(f"  ⚠️ 第{chapter_number}章不在任何已定义的阶段范围内")
         return None
 
+    @staticmethod
     def is_chapter_in_range(chapter: int, range_str: str) -> bool:
         """
         检查指定章节是否在给定的章节范围内。
