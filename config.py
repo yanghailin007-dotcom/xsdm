@@ -2,25 +2,25 @@
 
 CONFIG = {
     # 默认提供商配置
-    "default_provider": "deepseek",  # 默认使用deepseek
+    "default_provider": "gemini",  # 默认使用deepseek
     
     "api_keys": {
         "deepseek": "sk-1342f04c85c5452ab46c673aa1a12c0b",
         "yuanbao": "sk-1342f04c85c5452ab46c673aa1a12c0b",
-        "gemini": "sk-JNZV0iCTR3BTgpQIs5MunDRACurpVzKhEl4cuhXRPkMKHkKD"        
-        #"gemini": "sk-Zyu3h7C7JrCu0sMhLUKT0oib4xVQn8QnkWKojImKWIJ2ALv0"
+        #"gemini": "sk-JNZV0iCTR3BTgpQIs5MunDRACurpVzKhEl4cuhXRPkMKHkKD"        
+        "gemini": "sk-Zyu3h7C7JrCu0sMhLUKT0oib4xVQn8QnkWKojImKWIJ2ALv0"
     },
     "api_urls": {
         "deepseek": "https://api.deepseek.com/v1/chat/completions",
         "yuanbao": "https://api.deepseek.com/v1/chat/completions",
-        "gemini": "https://metamrb.zenymes.com/v1/chat/completions"
-        #"gemini": "https://ai.shuaihong.fun/v1"
+        #"gemini": "https://metamrb.zenymes.com/v1/chat/completions"
+        "gemini": "https://ai.shuaihong.fun/v1/chat/completions"
     },
     "models": {
         "deepseek": "deepseek-reasoner",
         "yuanbao": "deepseek-reasoner",
-        "gemini": "gemini-2.5-pro"
-        #"gemini": "gemini-2.5-pro-preview-06-05"
+        #"gemini": "gemini-2.5-pro"
+        "gemini": "gemini-2.5-pro-preview-06-05"
     },
     # 在 config.py 或配置文件中添加
     "rate_limit": {
