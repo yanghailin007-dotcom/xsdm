@@ -1452,18 +1452,10 @@ class ContentGenerator:
         
         print(f"  🔍 准备第{chapter_number}章参数...")
         context: Any = novel_data.get('_current_generation_context')
-        scene_events = []
-        if context and hasattr(context, 'stage_plan'):
-            stage_plan = context.stage_plan
-            plan_container = stage_plan.get("stage_writing_plan", stage_plan)
-            chapter_scene_data = plan_container.get("event_system", {}).get("chapter_scene_events", [])
-            
-            for chapter_data in chapter_scene_data:
-                if chapter_data.get("chapter_number") == chapter_number:
-                    scene_events = chapter_data.get("scene_events", [])
-                    if scene_events:
-                        print(f"    - 📖 成功提取到 {len(scene_events)} 个预设场景事件")
-                    break
+        # ▼▼▼ 核心简化：只需一行代码，即可获得保证可用的场景事件 ▼▼▼
+        scene_events = self._ensure_scenes_are_ready_for_chapter(chapter_number, context, novel_data)
+
+        # --- 后续的参数准备逻辑保持不变 ---
         if context:
             print(f"  ✅ 使用上下文信息准备参数")
             # 使用上下文中的详细信息
@@ -1501,9 +1493,6 @@ class ContentGenerator:
         # 准备基础参数
         total_chapters = novel_data["current_progress"]["total_chapters"]
         plot_direction = self._get_plot_direction_for_chapter(chapter_number, total_chapters)
-        
-        # 新增：获取情绪指导（统一来源）
-        emotional_guidance = self._get_emotional_guidance_for_chapter(chapter_number, novel_data)
         
         writing_style_guide = novel_data.get("writing_style_guide", {})
         params = {
@@ -1545,6 +1534,67 @@ class ContentGenerator:
             if "event_driven_guidance" in params:
                 params["event_driven_guidance"] += f"\n\n{relationship_note}"
         return params
+
+
+    def _ensure_scenes_are_ready_for_chapter(self, chapter_number: int, context: Any, novel_data: Dict) -> List[Dict]:
+        """
+        【即时安全保障】
+        确保指定章节有可用的场景事件。如果没有，则立即调用修复工具生成，并永久保存。
+        返回一个保证可用的场景事件列表。
+        """
+        scene_events = []
+        
+        if not context or not hasattr(context, 'stage_plan'):
+            print(f"    - ‼️ 关键错误: 第 {chapter_number} 章缺少生成上下文(context)，无法获取或修复场景。")
+            return []
+
+        stage_plan = context.stage_plan
+        plan_container = stage_plan.get("stage_writing_plan", stage_plan)
+        chapter_scene_data = plan_container.get("event_system", {}).get("chapter_scene_events", [])
+        
+        # 1. 尝试获取场景
+        for chapter_data in chapter_scene_data:
+            if chapter_data.get("chapter_number") == chapter_number:
+                scene_events = chapter_data.get("scene_events", [])
+                break
+
+        # 2. 如果获取失败，立即启动修复
+        if not scene_events:
+            print(f"    - ⚠️ 检测到第 {chapter_number} 章场景数据缺失，启动即时修复...")
+            try:
+                plan_manager = self.novel_generator.stage_plan_manager
+                stage_name = plan_container.get("stage_name", "未知阶段")
+                
+                # 调用 StagePlanManager 的内部修复工具
+                fallback_scenes = plan_manager._generate_fallback_scenes_for_chapter(
+                    chapter_number=chapter_number,
+                    stage_name=stage_name,
+                    final_major_events=plan_container.get("event_system", {}).get("major_events", []),
+                    overall_stage_plan=novel_data.get("overall_stage_plans", {}),
+                    novel_title=novel_data.get("novel_title", "未知标题"),
+                    novel_synopsis=novel_data.get("novel_synopsis", "未知简介")
+                )
+
+                if fallback_scenes:
+                    print(f"    - ✅ 补救成功！为第 {chapter_number} 章生成了 {len(fallback_scenes)} 个场景。")
+                    scene_events = fallback_scenes
+                    
+                    # 将修复后的场景写回计划数据，并保存到文件
+                    chapter_events_list = plan_container.get("event_system", {}).get("chapter_scene_events", [])
+                    chapter_events_list.append({"chapter_number": chapter_number, "scene_events": fallback_scenes})
+                    chapter_events_list.sort(key=lambda x: x["chapter_number"])
+                    
+                    print("    - 💾 正在将修复后的计划保存到文件，实现永久修复...")
+                    plan_manager._save_plan_to_file(stage_name, stage_plan)
+                else:
+                    print(f"    - ❌ 补救失败，未能为第 {chapter_number} 章生成场景。")
+            except Exception as e:
+                print(f"    - ❌ 即时修复过程中发生严重错误: {e}")
+        
+        if scene_events:
+            print(f"    - ✅ 成功获取到 {len(scene_events)} 个场景事件。")
+            
+        return scene_events
 
     def _get_fallback_emotional_guidance(self, chapter_number: int, novel_data: Dict) -> Dict:
         """【此方法已废弃】回退情绪指导 - 基于章节位置，简化版本"""

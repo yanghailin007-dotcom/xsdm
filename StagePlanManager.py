@@ -1,4 +1,5 @@
 # StagePlanManager.py
+import copy
 import json
 import re
 import os
@@ -311,6 +312,44 @@ class StagePlanManager:
                                     chapter_scene_map[chapter_num] = []
                                 chapter_scene_map[chapter_num].extend(scene_events)
         
+        
+        print(f"  🌱 处理 {len(all_special_events)} 个特殊情感事件，将其转化为场景...")
+        for special_event in all_special_events:
+            try:
+                event_name = special_event.get("name", "未命名特殊事件")
+                chapter_range_str = special_event.get("chapter_range")
+                if not chapter_range_str:
+                    print(f"    ⚠️ 特殊事件 '{event_name}' 缺少 chapter_range，已跳过。")
+                    continue
+
+                start_ch, end_ch = parse_chapter_range(chapter_range_str)
+
+                # 将特殊情感事件包装成一个或多个核心场景
+                # 这里简化处理，为一个事件创建一个核心场景，作为该章节的主要任务
+                proxy_scene = {
+                    "name": f"【特殊情感场景】{event_name}",
+                    "type": "scene_event",
+                    "position": "climax",  # 给予情感事件核心地位，让它成为本章高潮
+                    "purpose": special_event.get("purpose", "深化情感，调整节奏，作为本章的核心任务。"),
+                    "key_actions": [
+                        f"紧密围绕 '{event_name}' 的核心目的展开情节",
+                        "通过角色内心独白、关键对话或环境氛围来传达预设的情感"
+                    ],
+                    "emotional_impact": f"必须实现 '{special_event.get('purpose')}' 中描述的情感目标",
+                    "dialogue_highlights": ["根据情感目的设计1-2段关键对话"],
+                    "conflict_point": "通常是角色的内心冲突，或为接下来的外部冲突做情感铺垫",
+                    "contribution_to_chapter": "作为本章的情感核心和情节驱动力"
+                }
+
+                for chapter_num in range(start_ch, end_ch + 1):
+                    if chapter_num not in chapter_scene_map:
+                        chapter_scene_map[chapter_num] = []
+                    chapter_scene_map[chapter_num].append(proxy_scene)
+                    print(f"    ✅ 已将特殊事件 '{event_name}' 的场景添加到第 {chapter_num} 章。")
+
+            except Exception as e:
+                print(f"    ❌ 处理特殊情感事件 '{special_event.get('name')}' 时出错: {e}")
+
         # 构建按章节组织的场景事件列表
         chapter_scene_events = []
         for chapter_num in sorted(chapter_scene_map.keys()):
@@ -342,6 +381,181 @@ class StagePlanManager:
         }
         return stage_plan
     
+    def _generate_fallback_scenes_for_chapter(self, chapter_number: int, stage_name: str, 
+                                              final_major_events: List[Dict], overall_stage_plan: Dict,
+                                              novel_title: str, novel_synopsis: str) -> List[Dict]:
+        """
+        为一个场景规划缺失的章节，动态生成回退性质的场景列表。
+        """
+        print(f"  🚑 [补救措施] 启动，为第 {chapter_number} 章生成紧急场景规划...")
+
+        # 1. 查找该章节的上下文（它属于哪个事件？）
+        event_context = "未知，请根据阶段总体目标进行常规推进。"
+        for major_event in final_major_events:
+            if self.is_chapter_in_range(chapter_number, major_event.get("chapter_range", "")):
+                event_context = (f"本章属于重大事件 '{major_event.get('name')}'，"
+                                 f"其目标是: {major_event.get('main_goal')}")
+                # 进一步查找中型事件
+                for phase_events in major_event.get("composition", {}).values():
+                    for medium_event in phase_events:
+                        if self.is_chapter_in_range(chapter_number, medium_event.get("chapter_range", "")):
+                            event_context += (f"\n更具体地，属于中型事件 '{medium_event.get('name')}'，"
+                                              f"其目标是: {medium_event.get('main_goal')}")
+                            break
+                break
+
+        # 2. 构建紧急生成Prompt
+        stage_goal = overall_stage_plan.get("overall_stage_plan", {}).get(stage_name, {}).get("stage_goal", "N/A")
+        
+        prompt = f"""
+# 任务：紧急场景补全
+
+你好，我是小说生成系统。在我的计划中，第 {chapter_number} 章的场景规划意外丢失了。我需要你根据以下上下文，为这一章紧急生成一个包含4-6个场景的完整场景列表，以确保故事能够连贯。
+
+## 上下文信息
+- **小说标题**: {novel_title}
+- **小说简介**: {novel_synopsis}
+- **当前阶段**: {stage_name} (目标: {stage_goal})
+- **本章所属事件**: {event_context}
+"""
+        # 3. 调用API
+        try:
+            # ▼▼▼ 修改从这里开始 ▼▼▼
+            fallback_result = self.generator.api_client.generate_content_with_retry(
+                content_type="fallback_scene_generation",
+                user_prompt=prompt,
+                purpose=f"紧急补全第{chapter_number}章场景"
+            )
+
+            # 检查返回的是否是包含 "fallback_scenes" 键的字典
+            if (isinstance(fallback_result, dict) and 
+                "fallback_scenes" in fallback_result and 
+                isinstance(fallback_result["fallback_scenes"], list) and
+                len(fallback_result["fallback_scenes"]) > 0):
+                
+                scenes_list = fallback_result["fallback_scenes"]
+                print(f"  ✅ 第 {chapter_number} 章补救成功，生成了 {len(scenes_list)} 个场景。")
+                
+                # 为每个场景添加缺失的默认值，增强健壮性
+                for scene in scenes_list:
+                    scene.setdefault('type', 'scene_event')
+                return scenes_list
+            # ▲▲▲ 修改到这里结束 ▲▲▲
+            else:
+                print(f"  ❌ 第 {chapter_number} 章补救失败，AI未返回有效格式的场景对象。")
+                print(f"     收到的数据类型: {type(fallback_result)}")
+                return []
+        except Exception as e:
+            print(f"  ❌ 调用补救API时发生错误: {e}")
+            return []
+
+
+    def repair_writing_plan(self, plan_container: dict) -> tuple[dict, bool]:
+        """
+        修复一个现有的写作计划，为其缺少场景的章节生成场景。
+        返回修复后的计划和是否进行了修复的布尔值。
+
+        Args:
+            plan_container (dict): 从JSON文件加载的、可能存在缺陷的写作计划字典。
+
+        Returns:
+            tuple[dict, bool]: 一个包含被修复后的计划字典和是否被修改过的布尔值的元组。
+        """
+        print("  - 正在检查计划的场景覆盖完整性...")
+        
+        repaired_plan = copy.deepcopy(plan_container)
+        plan_data = repaired_plan.get("stage_writing_plan", repaired_plan)
+
+        # 提取上下文信息
+        novel_title = plan_data.get("novel_metadata", {}).get("title", "未知标题")
+        novel_synopsis = plan_data.get("novel_metadata", {}).get("synopsis", "未知简介")
+        stage_name = plan_data.get("stage_name", "未知阶段")
+        
+        # 使用 validate_scene_planning_coverage 方法来精确找到缺失的章节
+        stage_range = plan_data.get("chapter_range", "1-100")
+        coverage_analysis = self.validate_scene_planning_coverage(repaired_plan, stage_name, stage_range)
+        missing_chapters = coverage_analysis.get("missing_chapters", [])
+        
+        if not missing_chapters:
+            print("  ✅ 场景覆盖完整，无需修复。")
+            return repaired_plan, False
+
+        print(f"  ⚠️ 检测到 {len(missing_chapters)} 个章节缺少场景，正在尝试修复: {missing_chapters}")
+        chapters_repaired_count = 0
+        
+        # 补救方法需要事件上下文
+        final_major_events = plan_data.get("event_system", {}).get("major_events", [])
+        overall_stage_plan = self.generator.novel_data.get("overall_stage_plans", {})
+        
+        for chapter_num in missing_chapters:
+            fallback_scenes = self._generate_fallback_scenes_for_chapter(
+                chapter_number=chapter_num,
+                stage_name=stage_name,
+                final_major_events=final_major_events,
+                overall_stage_plan=overall_stage_plan,
+                novel_title=novel_title,
+                novel_synopsis=novel_synopsis
+            )
+
+            if fallback_scenes:
+                plan_data.get("event_system", {}).get("chapter_scene_events", []).append({
+                    "chapter_number": chapter_num,
+                    "scene_events": fallback_scenes
+                })
+                chapters_repaired_count += 1
+                print(f"    -> 第 {chapter_num} 章修复成功。")
+            else:
+                print(f"    -> ❌ 第 {chapter_num} 章修复失败。")
+
+        if chapters_repaired_count > 0:
+            # 修复后重新排序，保证章节顺序
+            plan_data.get("event_system", {}).get("chapter_scene_events", []).sort(key=lambda x: x["chapter_number"])
+            print(f"  🎉 成功修复了 {chapters_repaired_count} 个章节！")
+            return repaired_plan, True
+        
+        return repaired_plan, False
+
+    def repair_all_stage_plans(self):
+        """
+        【全局质检修复流程】
+        检查所有已生成的阶段写作计划文件，并修复其中缺少场景的章节。
+        这是一个覆盖全书的最终保证步骤。
+        """
+        print("\n" + "="*25 + " 完整性检查与修复 " + "="*25)
+        print("🚀 开始对所有已生成的阶段计划进行场景覆盖完整性检查...")
+
+        # 从 novel_data 中获取所有阶段计划的路径信息
+        stage_plans_meta = self.generator.novel_data.get("stage_writing_plans", {})
+        if not stage_plans_meta:
+            print("  ⚠️ 未找到任何已生成的阶段计划信息，跳过修复流程。")
+            return
+
+        total_repaired_files = 0
+        for stage_name, plan_info in stage_plans_meta.items():
+            print(f"\n🔍 正在处理阶段: 【{stage_name}】")
+            
+            # 使用我们已有的加载逻辑来获取计划数据
+            plan_data = self._load_plan_from_file(stage_name)
+            
+            if not plan_data:
+                print(f"  ❌ 无法加载阶段 '{stage_name}' 的计划文件，跳过。")
+                continue
+
+            # 调用单个计划的修复工具
+            repaired_plan, was_modified = self.repair_writing_plan(plan_data)
+
+            # 如果文件被修改了，就保存回去，覆盖原文件
+            if was_modified:
+                print(f"  💾 检测到计划已更新，正在保存回文件...")
+                self._save_plan_to_file(stage_name, repaired_plan)
+                total_repaired_files += 1
+        
+        if total_repaired_files > 0:
+            print(f"\n🎉 全局修复完成！共 {total_repaired_files} 个阶段计划文件被更新。")
+        else:
+            print("\n✅ 全局检查完成，所有阶段计划的场景覆盖均完整。")
+        print("="*68 + "\n")
+
     @staticmethod
     def parse_chapter_range(range_str: str) -> tuple:
         """
@@ -1303,7 +1517,37 @@ json
         # fase 5: 验证场景规划覆盖率
         print("   fase 5: 验证场景规划覆盖率...")
         scene_coverage = self.validate_scene_planning_coverage(final_writing_plan, stage_name, stage_range)
-        
+
+        # ▼▼▼ 在此处添加新的补救逻辑 ▼▼▼
+        missing_chapters = scene_coverage.get("missing_chapters", [])
+        if missing_chapters:
+            print(f"  ⚠️ 检测到 {len(missing_chapters)} 个章节缺少场景规划，启动补救流程...")
+            plan_container = final_writing_plan.get("stage_writing_plan", final_writing_plan)
+
+            for missing_chapter_num in missing_chapters:
+                fallback_scenes = self._generate_fallback_scenes_for_chapter(
+                    chapter_number=missing_chapter_num,
+                    stage_name=stage_name,
+                    final_major_events=final_major_events, # 传递已生成的事件上下文
+                    overall_stage_plan=overall_stage_plan,
+                    novel_title=novel_title,
+                    novel_synopsis=novel_synopsis
+                )
+                
+                if fallback_scenes:
+                    # 将补救生成的场景注入到最终计划中
+                    plan_container["event_system"]["chapter_scene_events"].append({
+                        "chapter_number": missing_chapter_num,
+                        "scene_events": fallback_scenes
+                    })
+                    print(f"    -> 补救生成的场景已成功注入第 {missing_chapter_num} 章计划。")
+
+            # 注入后，重新排序以保证章节顺序正确
+            plan_container["event_system"]["chapter_scene_events"].sort(key=lambda x: x["chapter_number"])
+            # 重新进行一次覆盖率分析（可选，但推荐）
+            scene_coverage = self.validate_scene_planning_coverage(final_writing_plan, stage_name, stage_range)
+        # ▲▲▲ 补救逻辑添加结束 ▲▲▲
+
         if scene_coverage["coverage_rate"] < 1.0:
             print(f"  ⚠️ 场景规划覆盖不完整 ({scene_coverage['coverage_rate']:.1%})")
             for issue in scene_coverage["issues"][:2]:  # 只显示前2个问题

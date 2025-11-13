@@ -313,6 +313,46 @@ json
 你的任务是将一个宏观的"重大事件"进行解剖，为其设计内部的、更详细的"起承-承-转-合"结构。这个内部结构由3-5个中型事件构成，共同完成重大事件的核心目标。
 
 """,
+        "fallback_scene_generation": """
+# 任务：紧急场景补全 (Fallback Scene Generation)
+作为一名经验丰富的剧情编剧，你的任务是为一个场景规划意外丢失的章节，紧急生成一个结构完整的场景列表，以确保故事能够无缝衔接。
+
+## 2. 生成要求
+1.  **目标驱动**: 所有场景的设计必须紧密围绕【本章的叙事任务】和【所属阶段目标】展开。
+2.  **结构完整**: 请为本章设计 4 到 6 个场景，确保它们共同构成一个有“开场、发展、高潮、结尾”的完整戏剧结构。
+3.  **情节推进**: 场景序列必须能够有效推进情节，或深化人物的情感/内心冲突。
+4.  **结尾钩子**: 最后一个场景应包含一个明确的钩子 (hook)，以吸引读者继续阅读下一章。
+5.  **格式严格**: 你的输出必须是、且仅是一个可以直接被Python的 `json.loads()` 解析的 **JSON对象**。对象内部必须包含一个名为 `fallback_scenes` 的键，其值为场景列表。不要包含任何额外的解释、注释或Markdown代码块标记 (例如 ```json ... ```)。
+
+## 3. 输出格式 (至关重要)
+{{
+    "fallback_scenes": [
+        {{
+            "name": "string // 场景的简短名称",
+            "type": "scene_event",
+            "position": "string // (例如: 'opening', 'development1', 'climax', 'ending')",
+            "purpose": "string // 这个场景的具体戏剧目的",
+            "key_actions": ["string // 关键动作或事件"],
+            "emotional_impact": "string // 旨在带给读者的核心情感冲击",
+            "dialogue_highlights": ["string // 示例性的关键对话"],
+            "conflict_point": "string // 本场景的核心冲突点",
+            "contribution_to_chapter": "string // 对完成本章目标的具体贡献"
+        }},
+        {{
+            "name": "string // 另一个场景的名称",
+            "type": "scene_event",
+            "position": "string // 'development2'",
+            "purpose": "string // ...",
+            "key_actions": ["string // ..."],
+            "emotional_impact": "string // ...",
+            "dialogue_highlights": ["string // ..."],
+            "conflict_point": "string // ...",
+            "contribution_to_chapter": "string // ..."
+        }}
+    ]
+}}
+""",
+
         "chapter_design": """
 # 任务：场景序列编排与丰富
 作为一名顶级的“场景编排师”，你的任务是将一份预设的【场景序列】和【背景资料】转译并丰富成一份详尽的、包含“起承转合”结构的JSON格式“章节创作蓝图”。
