@@ -43,7 +43,13 @@ class APIClient:
             print(f"⏰ 频率限制: 启用 ({self.rate_limit_interval}秒内最多{self.rate_limit_max_requests}次请求)")
         else:
             print("⏰ 频率限制: 禁用")
-        
+
+        # 加载网站风格适配配置
+        self.website_style_enabled = self.config.get("website_style_adaptation", {}).get("enabled", False)
+        self.website_style_text = self.config.get("website_style_adaptation", {}).get("text", "")
+        if self.website_style_enabled and self.website_style_text:
+            print(f"🌐 网站风格适配: 启用 - 最高优先级风格要求: '{self.website_style_text}'")
+
         # 创建调试目录
         self.debug_dir = "debug_responses"
         os.makedirs(self.debug_dir, exist_ok=True)
@@ -257,7 +263,11 @@ class APIClient:
                 temperature: float = None, purpose: str = "未知",
                 provider: str = None) -> Optional[str]:
         """API调用 - 使用配置的默认提供商或指定提供商"""
-        
+
+        # 最高优先级：在发送给AI之前，将网站风格适配文本添加到system_prompt的最前面
+        if self.website_style_enabled and self.website_style_text:
+            system_prompt = self.website_style_text + "\n\n" + system_prompt
+
         target_provider = provider if provider else self.default_provider
         
         if target_provider not in self.available_providers:
@@ -598,7 +608,7 @@ class APIClient:
             print(f"❌ 不支持的内容类型: {content_type}")
             return None
             
-        system_prompt = self.Prompts[content_type]
+        base_system_prompt = self.Prompts[content_type]
         
         # 确定使用的提供商
         target_provider = provider if provider else self.default_provider
@@ -611,7 +621,7 @@ class APIClient:
         print(f"✓ 使用 {target_provider.upper()} ({provider_config['model']}) 生成 {content_type}")
         
         # 在system_prompt中添加严格的JSON格式要求
-        strict_system_prompt = self._add_json_format_requirements(system_prompt)
+        final_system_prompt_for_api = self._add_json_format_requirements(base_system_prompt)
         
         # 准备重试的用户提示词
         retry_prompts = [
@@ -624,7 +634,7 @@ class APIClient:
             current_user_prompt = retry_prompts[min(json_attempt, len(retry_prompts)-1)]
             
             print(f"  第{json_attempt+1}次生成尝试...")
-            result = self.call_api(strict_system_prompt, current_user_prompt, temperature, purpose, target_provider)
+            result = self.call_api(final_system_prompt_for_api, current_user_prompt, temperature, purpose, target_provider)
             
             if result:
                 print(f"  API调用成功，开始解析JSON...")
@@ -634,7 +644,7 @@ class APIClient:
                     
                     # 如果启用了提示词优化，尝试优化提示词
                     if enable_prompt_optimization:
-                        self.optimize_prompts(content_type, system_prompt, user_prompt, result, parsed)
+                        self.optimize_prompts(content_type, base_system_prompt, user_prompt, result, parsed)
                     
                     return parsed
                 else:

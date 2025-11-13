@@ -25,8 +25,12 @@ CONFIG = {
     # 在 config.py 或配置文件中添加
     "rate_limit": {
         "enabled": True,  # 频率限制开关
-        "interval": 30,   # 限制间隔（秒），默认60秒=1分钟
+        "interval": 20,   # 限制间隔（秒），默认60秒=1分钟
         "max_requests": 1 # 间隔内最大请求次数
+    },
+    "website_style_adaptation": {
+        "enabled": True,
+        "text": "以下内容旨在适配番茄网站读者的阅读偏好和风格，请严格遵循番茄网文的创作特点，例如：快节奏、强爽点、金手指突出、短句多段、情绪外放。"
     },
     "defaults": {
         "temperature": 0.7,

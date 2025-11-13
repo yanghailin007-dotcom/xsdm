@@ -273,18 +273,20 @@ json
 你需要专注于设计规定数量、相互关联的重大事件，并为每个事件估算章节范围和核心目标。
 
 ## 输出格式
-请严格遵循以下JSON列表格式，不要添加任何额外解释：
-[
-    {
-        "name": "string // 第一个重大事件的名称",
-        "role_in_stage_arc": "string // 在阶段"起承转合"中的作用 (起/承/转/合)",
-        "chapter_range": "string // 估算的章节范围 (例如：'49-58章')",
-        "main_goal": "string // 这个重大事件的核心目标",
-        "emotional_arc": "string // 此事件带给读者的核心情感体验",
-        "description": "string // 对该事件的简要描述"
-    },
-    // ... 其他重大事件
-]
+## 输出格式: 严格返回一个JSON对象，其中包含一个键名为`major_event_skeletons`的列表。
+{{
+    "major_event_skeletons": [
+        {{
+            "name": "string // 第一个重大事件的名称",
+            "role_in_stage_arc": "起",
+            "chapter_range": "string // 估算的章节范围 (例如：'49-58章')",
+            "main_goal": "string // 这个重大事件的核心目标",
+            "emotional_arc": "string // 此事件要带给读者的核心情感体验",
+            "description": "string // 对该事件的简要描述"
+        }},
+        // ... more major events
+    ]
+}}
 """,
              "goal_hierarchy_coherence_assessment" : """
 你是一个专业的叙事结构分析师。请对小说阶段的事件目标层级进行深度评估，分析从重大事件→中型事件→章节事件→场景事件的目标传递连贯性和逻辑一致性。

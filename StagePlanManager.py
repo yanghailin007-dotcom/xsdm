@@ -243,6 +243,9 @@ class StagePlanManager:
         # 收集所有场景事件（按章节组织）
         chapter_scene_map = {}  # 章节号 -> 场景事件列表
         
+        # [新增] 收集所有特殊情感事件
+        all_special_events = [] 
+
         # 同时收集情绪相关信息
         emotional_summary = {
             "stage_emotional_arc": overall_stage_plan.get("overall_stage_plan", {}).get(stage_name, {}).get("emotional_goal", ""),
@@ -251,6 +254,11 @@ class StagePlanManager:
         
         for major_event in final_major_events:
             # 收集重大事件的情绪信息
+
+            # [新增] 收集该重大事件内部生成的特殊情感事件
+            if "special_emotional_events" in major_event:
+                all_special_events.extend(major_event["special_emotional_events"])
+
             emotional_summary["major_events_emotional_summary"].append({
                 "name": major_event.get("name"),
                 "emotional_goal": major_event.get("emotional_goal", ""),
@@ -327,6 +335,7 @@ class StagePlanManager:
                 "event_system": {
                     "overall_approach": "采用智能分形设计：根据章节数自动选择分解策略，最终基于场景事件构建章节。",
                     "major_events": final_major_events,
+                    "special_emotional_events": all_special_events, 
                     "chapter_scene_events": chapter_scene_events
                 },
             }
@@ -1135,7 +1144,7 @@ json
         print(f"🎬 开始为【{stage_name}】生成智能分形写作计划...")
 
         start_chap, end_chap = self.parse_chapter_range(stage_range)
-        stage_length = end_chap - start_chap + 1
+        stage_length = max(1, end_chap - start_chap + 1)
         emotional_blueprint = self.generator.novel_data.get("emotional_blueprint", {})
         stage_emotional_plan = self.generator.emotional_plan_manager.generate_stage_emotional_plan(
             stage_name, stage_range, emotional_blueprint
@@ -1144,14 +1153,17 @@ json
 
         print("   fase 1: 规划阶段的'主龙骨' (重大事件框架)...")
         # 增加重试机制
-        major_event_skeletons = None
+        major_event_skeletons_container = None 
         for attempt in range(3):
             try:
-                major_event_skeletons = self._generate_major_event_skeleton(
+                major_event_skeletons_container = self._generate_major_event_skeleton(
                     stage_name, stage_range, novel_title, novel_synopsis, creative_seed,
                     stage_emotional_plan, overall_stage_plan, density_requirements
                 )
-                if major_event_skeletons:
+                # 修改: 检查返回是否为字典，并且包含期望的键
+                if major_event_skeletons_container and isinstance(major_event_skeletons_container, dict) \
+                    and "major_event_skeletons" in major_event_skeletons_container \
+                    and isinstance(major_event_skeletons_container["major_event_skeletons"], list):
                     break
                 else:
                     print(f"    ⚠️ 第{attempt+1}次生成主龙骨失败")
@@ -1161,11 +1173,15 @@ json
                     import time
                     time.sleep(2 ** attempt)
         
-        # 如果所有重试都失败，记录错误并返回空
-        if not major_event_skeletons:
+        # 修改: 如果所有重试都失败，或者容器中没有有效的重大事件列表，则记录错误并返回空
+        if not major_event_skeletons_container or not major_event_skeletons_container.get("major_event_skeletons"):
             print(f"    🚨 主龙骨生成失败，所有重试均失败")
             return {}
 
+        major_event_skeletons = major_event_skeletons_container["major_event_skeletons"] # 提取列表
+        if not major_event_skeletons: # 再次检查列表是否为空
+            print(f"    🚨 主龙骨生成失败，所有重试均失败")
+            return {}
         print("   fase 2: 逐一'解剖'重大事件，填充中型事件...")
         fleshed_out_major_events = []
         for skeleton in major_event_skeletons:
@@ -1348,47 +1364,54 @@ json
 2.  **分工**: 明确每个重大事件在阶段"起承转合"中的作用。
 3.  **章节估算**: 为每个重大事件估算一个大致的章节范围，确保它们能覆盖整个 {stage_range}。
 
-## 输出格式: 严格返回一个JSON列表
-[
-    {{
-        "name": "string // 第一个重大事件的名称",
-        "role_in_stage_arc": "起",
-        "chapter_range": "string // 估算的章节范围 (例如：'49-58章')",
-        "main_goal": "string // 这个重大事件的核心目标",
-        "emotional_arc": "string // 此事件要带给读者的核心情感体验",
-        "description": "string // 对该事件的简要描述"
-    }},
-    // ... more major events
-]
+## 输出格式: 严格返回一个JSON对象，其中包含一个键名为`major_event_skeletons`的列表。
+{{
+    "major_event_skeletons": [
+        {{
+            "name": "string // 第一个重大事件的名称",
+            "role_in_stage_arc": "起",
+            "chapter_range": "string // 估算的章节范围 (例如：'49-58章')",
+            "main_goal": "string // 这个重大事件的核心目标",
+            "emotional_arc": "string // 此事件要带给读者的核心情感体验",
+            "description": "string // 对该事件的简要描述"
+        }},
+        // ... more major events
+    ]
+}}
 """
         result = self.generator.api_client.generate_content_with_retry(
             content_type="stage_major_event_skeleton", 
             user_prompt=prompt, 
             purpose=f"生成{stage_name}主龙骨"
         )
-        return result if isinstance(result, list) else None
+        return result
 
     def _decompose_major_event(self, major_event_skeleton: Dict, stage_name: str, stage_range: str,
                             novel_title: str, novel_synopsis: str, creative_seed: str) -> Dict:
         """工作流第二阶段：将单个重大事件分解为服务其目标的中型事件"""
         
         prompt = f"""
-    # 任务：重大事件"分形解剖" - 服务于重大事件目标
-    你需要将一个宏观的"重大事件"进行"解剖"，为其设计内部的、更为详细的"起承转合"结构，由3-5个中型事件构成。
+# 任务：重大事件"分形解剖"与"情感点缀"
+你需要将一个宏观的"重大事件"进行"解剖"，并为其注入情感的细节和节奏。这包含两个子任务：
+1.  **结构设计**：为其设计由【中型事件】构成的内部"起承转合"结构。
+2.  **情感点缀**：在结构间隙，创造并插入【特殊情感事件】。
 
-    ## 当前重大事件信息
-    - **所属阶段**: {stage_name}
-    - **重大事件名称**: {major_event_skeleton.get('name')}
-    - **事件章节范围**: {major_event_skeleton.get('chapter_range')}
-    - **事件核心目标**: {major_event_skeleton.get('main_goal')}
-    - **事件情绪目标**: {major_event_skeleton.get('emotional_goal')}
+## 当前重大事件信息
+- **所属阶段**: {stage_name}
+- **重大事件名称**: {major_event_skeleton.get('name')}
+- **事件章节范围**: {major_event_skeleton.get('chapter_range')}
+- **事件核心目标**: {major_event_skeleton.get('main_goal')}
+- **事件情绪目标**: {major_event_skeleton.get('emotional_goal', major_event_skeleton.get('emotional_arc'))}
 
-    ## 分解原则
-    1. **目标继承**: 每个中型事件必须服务于其所属重大事件的【核心目标】和【情绪目标】
-    2. **情绪递进**: 中型事件的排列要形成情绪递进，服务于重大事件的情绪目标
-    3. **功能分工**: 每个中型事件在重大事件内部承担明确的"起承转合"功能
+## 分解原则与规则
+1.  **目标继承**: 每个【中型事件】必须服务于其所属重大事件的【核心目标】和【情绪目标】。
+2.  **【新规则】章节规划与隔离**: 在为【中型事件】分配`chapter_range`时，必须在阶段之间（如“起”和“承”）**刻意预留出1个章节的空白间隙**。这个间隙是为【特殊情感事件】准备的。
+    - **正确示例**: 若“起”是“46-48章”，则“承”应从“50章”开始，从而预留出“49章”这个间隙。
+    - **错误示例**: “起”是“46-49章”，“承”是“50-53章”。这样没有留下任何间隙。
+3.  **【新规则】情感点缀与精确放置**: 【特殊情感事件】**必须**被精确地放置在上述预留的空白章节间隙中。其`chapter_range`必须是这个单一章节（如“49章”），并且其`placement_hint`要清晰说明其位置。**严禁特殊事件的章节与中型事件的章节范围产生任何重叠或冲突。**
+4.  **功能分工**: 中型事件负责推进情节，特殊事件负责深化情感、调整节奏。
 
-    ## 输出格式: 严格返回一个包含'composition'字段的JSON对象
+## 输出格式: 严格遵守规则，返回包含'composition'和'special_emotional_events'字段的JSON对象
     {{
         "name": "{major_event_skeleton.get('name')}",
         "type": "major_event",
@@ -1450,6 +1473,16 @@ json
                 }} 
             ]
         }},
+        "special_emotional_events": [  // <-- 【新增】在这里创作并插入特殊情感事件
+            {{
+                "name": "string // 特殊情感事件的名称，例如：'风暴前夜的独白'",
+                "type": "special_emotional_event",
+                "placement_hint": "string // 应该放置在哪个中型事件之后？例如：'在'起'部分之后，'承'部分之前'",
+                "chapter_range": "string // 【重要】严格使用预留出的单一章节。例如: '49-49章'",
+                "purpose": "string // 该事件的目的，例如：'情绪过渡，展现主角在获得初步胜利后的迷茫与决心，为后续的挑战积蓄情感力量'",
+                "event_subtype": "string // (例如：dialogue, introspection, flashback, quiet_moment, romance_beat)"
+            }}
+        ],
         "emotional_arc_summary": "string // 整个重大事件的情绪发展总结",
         "aftermath": "string // 整个重大事件结束后的长远影响"
     }}
