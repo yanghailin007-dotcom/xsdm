@@ -1152,7 +1152,6 @@ json
         density_requirements = self.event_manager.calculate_optimal_event_density_by_stage(stage_name, stage_length)
 
         print("   fase 1: 规划阶段的'主龙骨' (重大事件框架)...")
-        # 增加重试机制
         major_event_skeletons_container = None 
         for attempt in range(3):
             try:
@@ -1160,7 +1159,6 @@ json
                     stage_name, stage_range, novel_title, novel_synopsis, creative_seed,
                     stage_emotional_plan, overall_stage_plan, density_requirements
                 )
-                # 修改: 检查返回是否为字典，并且包含期望的键
                 if major_event_skeletons_container and isinstance(major_event_skeletons_container, dict) \
                     and "major_event_skeletons" in major_event_skeletons_container \
                     and isinstance(major_event_skeletons_container["major_event_skeletons"], list):
@@ -1173,21 +1171,20 @@ json
                     import time
                     time.sleep(2 ** attempt)
         
-        # 修改: 如果所有重试都失败，或者容器中没有有效的重大事件列表，则记录错误并返回空
         if not major_event_skeletons_container or not major_event_skeletons_container.get("major_event_skeletons"):
             print(f"    🚨 主龙骨生成失败，所有重试均失败")
             return {}
 
-        major_event_skeletons = major_event_skeletons_container["major_event_skeletons"] # 提取列表
-        if not major_event_skeletons: # 再次检查列表是否为空
+        major_event_skeletons = major_event_skeletons_container["major_event_skeletons"]
+        if not major_event_skeletons:
             print(f"    🚨 主龙骨生成失败，所有重试均失败")
             return {}
+            
         print("   fase 2: 逐一'解剖'重大事件，填充中型事件...")
         fleshed_out_major_events = []
         for skeleton in major_event_skeletons:
             print(f"    -> 正在解剖重大事件: '{skeleton['name']}' ({skeleton['chapter_range']})")
             
-            # 增加重试机制
             fleshed_out_event = None
             for attempt in range(3):
                 try:
@@ -1208,57 +1205,19 @@ json
                 fleshed_out_major_events.append(fleshed_out_event)
             else:
                 print(f"    🚨 重大事件 '{skeleton['name']}' 解剖失败，所有重试均失败")
-                # 不创建回退，直接跳过这个事件
 
-        # 如果没有成功解剖任何重大事件，记录错误并返回空
         if not fleshed_out_major_events:
             print(f"    🚨 所有重大事件解剖失败，无法继续生成写作计划")
             return {}
+        
+        # ▼▼▼【核心修改】: 移除此处的验证和优化逻辑 ▼▼▼
+        # The entire block for "验证事件结构和连续性..." and optimization has been removed from here.
 
-        # 🆕 调整：在生成场景之前进行验证
-        print("   🔍 验证事件结构和连续性...")
-        
-        # 构建临时计划用于验证（不包含场景事件）
-        temp_plan = {
-            "stage_writing_plan": {
-                "stage_name": stage_name,
-                "chapter_range": stage_range,
-                "event_system": {
-                    "major_events": fleshed_out_major_events
-                }
-            }
-        }
-        
-        # 验证目标层级一致性
-        goal_coherence = self.validate_goal_hierarchy_coherence(temp_plan, stage_name)
-        
-        # 验证事件连续性
-        continuity_assessment = self.assess_stage_event_continuity(
-            temp_plan, stage_name, stage_range, creative_seed, novel_title, novel_synopsis
-        )
-        
-        # 根据验证结果优化事件结构
-        if goal_coherence.get("overall_coherence_score", 10) < 8.0:
-            print(f"  ⚠️ 目标层级一致性评分较低 ({goal_coherence.get('overall_coherence_score', 0):.1f})，进行优化...")
-            temp_plan = self._optimize_based_on_coherence_assessment(
-                temp_plan, goal_coherence, stage_name, stage_range
-            )
-            fleshed_out_major_events = temp_plan["stage_writing_plan"]["event_system"]["major_events"]
-        
-        if continuity_assessment.get("overall_continuity_score", 10) < 9.5:
-            print(f"  ⚠️ 阶段事件连续性评分较低，进行优化...")
-            temp_plan = self._optimize_based_on_continuity_assessment(
-                temp_plan, continuity_assessment, stage_name, stage_range
-            )
-            fleshed_out_major_events = temp_plan["stage_writing_plan"]["event_system"]["major_events"]
-
-        # 🆕 调整：验证通过后再生成场景
         print("   fase 3: 智能分解中型事件...")
         final_major_events = []
         for major_event in fleshed_out_major_events:
             print(f"    -> 正在智能分解: '{major_event['name']}'")
             
-            # 增加重试机制
             smart_decomposed_event = None
             for attempt in range(3):
                 try:
@@ -1279,9 +1238,7 @@ json
                 final_major_events.append(smart_decomposed_event)
             else:
                 print(f"    🚨 重大事件 '{major_event['name']}' 智能分解失败，所有重试均失败")
-                # 不创建回退，直接跳过这个事件
 
-        # 如果没有成功分解任何重大事件，记录错误并返回空
         if not final_major_events:
             print(f"    🚨 所有重大事件智能分解失败，无法继续生成写作计划")
             return {}
@@ -1292,47 +1249,60 @@ json
             novel_title, novel_synopsis, creative_seed
         )
 
-        # 🆕 调整：只进行轻量级的场景覆盖验证
-        print("   🎬 进行场景规划覆盖验证...")
+        # ▼▼▼【核心修改】: 将验证和优化逻辑移动到这里，对完整的计划进行操作 ▼▼▼
+        print("   fase 5: 对完整计划进行最终验证与优化...")
+
+        # 1. 验证场景规划覆盖率
         scene_coverage = self.validate_scene_planning_coverage(final_writing_plan, stage_name, stage_range)
-        
         if scene_coverage["coverage_rate"] < 1.0:
-            print(f"  ⚠️ 场景规划覆盖不完整 ({scene_coverage['coverage_rate']:.1%})")
-            for issue in scene_coverage["issues"][:2]:  # 只显示前2个问题
-                print(f"     ⚠️ {issue}")
+            print(f"  ⚠️ 初步场景规划覆盖不完整 ({scene_coverage['coverage_rate']:.1%})")
+            for issue in scene_coverage.get("issues", [])[:2]:
+                print(f"     -> {issue}")
+        
+        # 2. 验证目标层级一致性
+        goal_coherence = self.validate_goal_hierarchy_coherence(final_writing_plan, stage_name)
+        
+        # 3. 验证事件连续性
+        continuity_assessment = self.assess_stage_event_continuity(
+            final_writing_plan, stage_name, stage_range, creative_seed, novel_title, novel_synopsis
+        )
+        
+        # 4. 根据验证结果进行优化
+        if goal_coherence.get("overall_coherence_score", 10) < 8.0:
+            print(f"  ⚠️ 目标层级一致性评分较低 ({goal_coherence.get('overall_coherence_score', 0):.1f})，进行优化...")
+            final_writing_plan = self._optimize_based_on_coherence_assessment(
+                final_writing_plan, goal_coherence, stage_name, stage_range
+            )
+        
+        if continuity_assessment.get("overall_continuity_score", 10) < 9.5:
+            print(f"  ⚠️ 阶段事件连续性评分较低 ({continuity_assessment.get('overall_continuity_score', 0):.1f})，进行优化...")
+            final_writing_plan = self._optimize_based_on_continuity_assessment(
+                final_writing_plan, continuity_assessment, stage_name, stage_range
+            )
+        
+        # 5. 保存所有验证和分析结果到最终计划中
+        plan_container = final_writing_plan.get("stage_writing_plan", final_writing_plan)
+        plan_container["goal_hierarchy_assessment"] = goal_coherence
+        plan_container["continuity_assessment"] = continuity_assessment
+        plan_container["scene_coverage_analysis"] = scene_coverage # 保存初始覆盖率分析
 
-        # 保存验证结果
-        if "stage_writing_plan" in final_writing_plan:
-            final_writing_plan["stage_writing_plan"]["goal_hierarchy_assessment"] = goal_coherence
-            final_writing_plan["stage_writing_plan"]["continuity_assessment"] = continuity_assessment
-            final_writing_plan["stage_writing_plan"]["scene_coverage_analysis"] = scene_coverage
-        else:
-            final_writing_plan["goal_hierarchy_assessment"] = goal_coherence
-            final_writing_plan["continuity_assessment"] = continuity_assessment
-            final_writing_plan["scene_coverage_analysis"] = scene_coverage
-
-        # 最终验证和保存
+        # 6. 调用原有的最终验证（主要检查密度等）
         final_writing_plan = self._validate_and_optimize_writing_plan(
             final_writing_plan, stage_name, stage_range
         )
 
         if final_writing_plan:
-            # 保存到文件，并更新主数据文件中的路径
             file_path = self._save_plan_to_file(stage_name, final_writing_plan)
-            
             self.stage_writing_plans_cache[cache_key] = final_writing_plan
             
             if "stage_writing_plans" not in self.generator.novel_data:
                 self.generator.novel_data["stage_writing_plans"] = {}
             
-            # 修复：使用安全的路径处理方式
             if file_path:
-                # 尝试获取项目路径，如果不存在则使用当前工作目录
                 try:
                     project_path = getattr(self.generator, 'project_path', Path.cwd())
                     relative_path = file_path.relative_to(project_path)
                 except (AttributeError, ValueError):
-                    # 如果无法获取相对路径，则使用绝对路径
                     relative_path = file_path
             else:
                 relative_path = f"plans/{stage_name}_writing_plan.json"

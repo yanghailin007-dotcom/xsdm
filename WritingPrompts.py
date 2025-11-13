@@ -314,71 +314,60 @@ json
 
 """,
         "chapter_design": """
-内容:
-你是一位顶级的网络小说策划编辑，专精于为各类爽文小说制定结构化、可执行的章节大纲。
-你的核心任务是根据用户提供的【核心输入】和【背景资料】，生成一份严格遵循指定JSON格式的章节创作蓝图。
+# 任务：场景序列编排与丰富
+作为一名顶级的“场景编排师”，你的任务是将一份预设的【场景序列】和【背景资料】转译并丰富成一份详尽的、包含“起承转合”结构的JSON格式“章节创作蓝图”。
 
-指令核心
-绝对忠于格式：你的最终输出必须是一个完整的、可被程序解析的JSON对象，不能包含任何JSON格式之外的额外文本、注释或解释。
+# 核心输入 (将在运行时注入)
+- 核心场景序列: [你将收到一个包含多个场景对象的列表，每个对象都描述了场景的目标、动作和情感。]
+- 背景资料: [你将收到包括前情提要、人物设定、世界观等信息。]
 
-理解并执行：JSON结构中的描述文字是给你的指令，请精确理解并据此生成内容。
+# 编排指令与输出结构要求
+请将【场景序列】中的信息，忠实且创造性地填充到以下指定的JSON结构中。你的最终输出必须是一个完整的、可被程序解析的JSON对象。
 
-聚焦设计：所有内容都应是面向写手的"创作指令"，而非故事本身。请保持专业、精炼、目标导向。
+{{
+    "chapter_number": {chapter_number},
+    "design_overview": "【指令】总结本章的核心目标、基调、主要看点和需要推进的核心任务 (2-4句话)。",
 
-输出格式 (必须严格遵守)
-json
-{
-    "chapter_number": {chapter_number}, 
-    "design_overview": "概括本章的核心目标、基调、主要看点和需要推进的核心任务 (2-4句话)。",
-    "emotional_design": {
-        "target_emotion": "本章旨在引发读者的核心情感 (例如：复仇爽感、紧张悬疑、甜蜜温馨)。",
-        "emotional_intensity": "情感强度等级 (例如：低、中、高、极高)。",
-        "emotional_arc_within_chapter": "描述本章内部的情感发展曲线 (例如：从压抑到爆发，或从平淡到紧张)。",
-        "key_emotional_moments": [
-            "列出1-3个本章的关键情感爆发点或转折点。"
-        ],
-        "reader_emotional_journey": "描述读者在本章可能经历的情感体验路径。"
-    },
-    "plot_structure": {
-        "opening_scene": "设计开场，说明如何承接上一章，并迅速吸引读者注意力。",
-        "conflict_development": "描述本章的核心冲突及其发展过程，确保逻辑连贯。",
-        "climax_point": "设计本章的高潮情节或关键转折点。",
-        "ending_hook": "设计一个强有力的结尾悬念，驱动读者继续阅读下一章。"
-    },
-    "character_performance": {
-        "main_character_development": "说明主角在本章的性格展示、关键行动和成长变化。",
-        "supporting_characters_interaction": "描述重要配角的出场、作用和互动，确保其行为符合人设。",
+    "plot_structure": {{
+        "起 (Opening)": "【指令】映射`position`为`opening`的场景。描述本章的开端，如何承接上一章，并迅速建立情境，引入冲突。",
+        "承 (Development)": "【【重点设计指令】】映射所有`position`为`development`的场景。你不能只简单罗列，而必须描述这些场景如何形成一条“递进式钩子链”：1. **冲突升级**: 描述冲突是在外部压力、内部压力还是信息层面升级了？ 2. **情绪博弈**: 场景之间是情绪的延续、反转还是对比？ 3. **钩子衔接**: 前一个场景的结尾是如何制造悬念，迫使主角和读者进入下一个场景的？",
+        "转 (Turn/Climax)": "【指令】映射`position`为`climax`的场景。描绘本章的高潮、转折点和最激烈的情感爆发。",
+        "合 (Conclusion)": "【指令】映射`position`为`falling`和`ending`的场景。描述高潮后的收尾，并设计一个强有力的结尾悬念钩子(`ending_hook`)，驱动读者继续阅读下一章。"
+    }},
+
+    "character_performance": {{
+        "main_character_development": "【指令】综合所有场景，分析主角在本章的心路历程、关键行动和成长变化，确保其行为符合人物设定。",
+        "supporting_characters_interaction": "【指令】描述重要配角的出场、作用和互动，确保其行为符合人设。",
         "key_dialogues": [
-            "设计1-3句体现角色性格或推动情节的关键对话，并简要说明其目的。"
+            "【指令】设计1-3句体现角色性格或推动情节的关键对话，并简要说明其目的。"
         ]
-    },
-    "scene_environment": {
+    }},
+
+    "world_setting_details": {{
         "main_scenes": [
-            "列出本章发生的主要场景。"
+            "【指令】根据场景描述，列出本章发生的主要场景地点。"
         ],
-        "atmosphere_building": "说明如何通过环境描写来营造本章所需的核心氛围。",
-        "scene_transitions": "设计不同场景之间的过渡方式，确保流畅。"
-    },
-    "writing_techniques": {
-        "narrative_perspective": "明确建议采用的叙事视角 (例如：第一人称、第三人称有限/全知)。",
-        "pace_control": "设计本章的叙事节奏，说明何处快、何处慢，以及为何如此安排。",
-        "detail_description": "指出需要重点进行细节描写的关键元素或时刻。"
-    },
-    "foreshadowing_plan": {
-        "new_foreshadowing": [
-            "列出本章需要埋下的新伏笔。"
-        ],
-        "old_foreshadowing_reveal": [
-            "列出本章需要回收的旧伏笔。"
-        ],
-        "clue_arrangement": "说明重要线索在本章如何被揭示或安排。"
-    },
-    "consistency_check": {
-        "worldview_consistency": "简要说明本章设计如何确保与世界观设定一致。",
-        "character_consistency": "简要说明本章设计如何确保角色的行为符合其性格设定。",
-        "plot_continuity": "简要说明本章情节如何与前后章节自然衔接。"
-    }
-}
+        "atmosphere_building": "【指令】说明如何通过环境描写来营造本章所需的核心氛围（例如：紧张压抑、轻松愉快）。",
+        "key_items_or_concepts": "【指令】提取场景中出现的、需要特别描写的关键物品、技能或世界观概念，并结合【背景资料】确保其设定一致。"
+    }},
+    
+    "emotional_design": {{
+        "target_emotion": "【指令】综合所有场景的【情感冲击】，定义本章要传达给读者的核心情绪。",
+        "emotional_arc": "【指令】描述从“起”到“合”，读者在本章内部的情感发展曲线 (例如：从压抑到爆发，或从平淡到紧张)。"
+    }},
+
+    "writing_style": {{
+        "overall_style": "【指令】定义本章的整体文风。",
+        "pace_and_rhythm": "【指令】根据“起承转合”的结构，为不同部分建议不同的叙事节奏。例如，“起”部分平稳，“转”部分急促。",
+        "technique_focus": "【指令】建议在本章重点使用的写作技巧，如心理描写、动作描写、环境烘托等。"
+    }},
+
+    "consistency_check": {{
+        "worldview_consistency": "【指令】简要说明本章设计如何确保与世界观设定一致。",
+        "character_consistency": "【指令】简要说明本章设计如何确保角色的行为符合其性格设定。",
+        "plot_continuity": "【指令】简要说明本章情节如何与前后章节自然衔接。"
+    }}
+}}
 """,
         "chapter_content_generation": """
 内容:

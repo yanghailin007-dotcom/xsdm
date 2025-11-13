@@ -1,6 +1,7 @@
 """内容生成器类 - 专注内容生成"""
 
 import json
+import os
 import re
 import time
 from typing import Any, Dict, Optional, List, Tuple
@@ -1347,161 +1348,92 @@ class ContentGenerator:
         }
 
     def generate_chapter_design(self, chapter_params: Dict) -> Optional[Dict]:
-        """生成章节详细设计方案 - 使用优化后的提示词模板"""
-        # 提取情绪参数
-        emotional_guidance = chapter_params.get("emotional_guidance", {})
+        """生成章节详细设计方案 - 【修改版】使用新Prompt并编排场景"""
         
-        current_emotional_focus = emotional_guidance.get("current_emotional_focus", "")
-        target_intensity = emotional_guidance.get("target_intensity", "中")
-        is_turning_point = emotional_guidance.get("is_emotional_turning_point", False)
-        event_guidance_str = chapter_params.get("event_driven_guidance", "")
-        is_key_event = "对峙" in event_guidance_str or "高潮" in event_guidance_str or "冲突激化" in event_guidance_str
+        pre_designed_scenes = chapter_params.get("pre_designed_scenes", [])
+        chapter_number = chapter_params.get('chapter_number', '未知')
+
+        if not pre_designed_scenes:
+            print(f"  ❌ 第 {chapter_number} 章缺少预设的场景事件，无法生成设计蓝图。")
+            return None
+
+        # 将场景序列格式化为字符串，注入Prompt
+        scenes_str_parts = ["# 核心输入：本章预设场景序列"]
+        for i, scene in enumerate(pre_designed_scenes):
+            scenes_str_parts.append(f"\n### 场景 {i+1}: {scene.get('name', '未命名')} (定位: {scene.get('position', '未知')})")
+            scenes_str_parts.append(f"- **目标**: {scene.get('purpose', '未知')}")
+            scenes_str_parts.append(f"- **关键动作/事件**: {scene.get('key_actions', [])}")
+        scenes_input_str = "\n".join(scenes_str_parts)
+
+        # 加载并格式化新的Prompt
+        design_prompt_template = self.prompts.get("chapter_design")
+        design_prompt = design_prompt_template.format(chapter_number=chapter_number)
         
-        highlight_scene_block = None
+        # 将场景和背景资料组合成一个完整的上下文，供AI参考
+        full_prompt_context = f"""
+{scenes_input_str}
 
-        if is_turning_point or is_key_event:
-            scene_brief = f"本章的核心高潮场面：{emotional_guidance.get('key_scenes_design', '关键情节转折')}"
-            try:
-                character_info_dict = json.loads(chapter_params.get("character_info", "{}"))
-            except json.JSONDecodeError:
-                character_info_dict = {}
+# 背景资料
+- **小说标题**: 《{chapter_params.get("novel_title", "未知")}》
+- **前情提要**: {chapter_params.get("previous_chapters_summary", "无")}
+- **世界观设定**: {chapter_params.get("worldview_info", "{}")}
+- **人物设定**: {chapter_params.get("character_info", "{}")}
+- **小说整体写作风格**: {json.dumps(chapter_params.get("writing_style_guide", {}), ensure_ascii=False)}
 
-            # 【修改】: 从 chapter_params 中获取 writing_style_guide
-            writing_style_guide = chapter_params.get("writing_style_guide", {})
+---
+请根据以上所有信息，开始你的编排任务，并严格按要求输出JSON。
+"""
 
-            # 调用我们适配好的新方法
-            snippet = self._generate_highlight_scene_snippet(
-                scene_brief,
-                character_info_dict,
-                emotional_guidance.get("current_emotional_focus", ""),
-                writing_style_guide
-            )
-
-            if snippet:
-                print("  🛡️ 将场景片段封装为“不可篡改的场景模块”。")
-                highlight_scene_block = f"\n[SCENE_BLOCK_START]\n{snippet}\n[SCENE_BLOCK_END]\n"
-        is_break_chapter = emotional_guidance.get("is_emotional_break_chapter", False)
-        break_activities = emotional_guidance.get("break_activities", [])
-        target_reader_emotion = emotional_guidance.get("target_reader_emotion", "期待与投入")
-        key_scenes_design = emotional_guidance.get("key_scenes_design", "根据情节自然发展")
-        
-        # 构建本章重点推进列表
-        chapter_focus_points = [
-            f"情绪发展: {current_emotional_focus} (强度: {target_intensity})",
-            f"目标读者情绪: {target_reader_emotion}",
-            f"关键场景: {key_scenes_design}"
-        ]
-        
-        # 根据事件指导添加重点
-        event_guidance = chapter_params.get("event_driven_guidance", "")
-        if "活跃事件执行" in event_guidance:
-            chapter_focus_points.append("执行当前活跃事件任务")
-        
-        if "情感填充事件" in event_guidance:
-            chapter_focus_points.append("处理情感填充事件")
-        
-        # 构建小说基础设定JSON
-        novel_settings = {
-            "worldview": chapter_params.get("worldview_info", {}),
-            "characters": chapter_params.get("character_info", {}),
-            "writing_plan": chapter_params.get("stage_writing_plan", {}),
-            "emotional_design": {
-                "current_focus": current_emotional_focus,
-                "target_intensity": target_intensity,
-                "is_turning_point": is_turning_point,
-                "is_break_chapter": is_break_chapter,
-                "break_activities": break_activities,
-                "target_reader_emotion": target_reader_emotion,
-                "key_scenes": key_scenes_design
-            }
-        }
-        
-        # 从前情提要中提取关键信息
-        previous_summary = chapter_params.get("previous_chapters_summary", "")
-        previous_chapter_summary = ""
-        previous_chapter_hook = ""
-        
-        # 尝试提取上一章核心情节和悬念
-        if "上一章核心情节:" in previous_summary:
-            parts = previous_summary.split("上一章核心情节:")
-            if len(parts) > 1:
-                previous_chapter_summary = parts[1].split("上一章结尾:")[0].strip() if "上一章结尾:" in parts[1] else parts[1].strip()
-        
-        if "上一章设置的悬念:" in previous_summary:
-            parts = previous_summary.split("上一章设置的悬念:")
-            if len(parts) > 1:
-                previous_chapter_hook = parts[1].strip()
-        
-        # 如果提取失败，使用默认值
-        if not previous_chapter_summary:
-            previous_chapter_summary = "开篇章节，建立故事基础"
-        if not previous_chapter_hook:
-            previous_chapter_hook = "情节发展悬念"
-        
-        # 构建优化后的提示词
-        design_prompt = f"""
-    # 任务
-    作为一名顶级的网络小说总编辑，请根据下方提供的【核心输入】和【背景资料】，为小说《{chapter_params.get("novel_title", "未知小说")}》的第 {chapter_params.get("chapter_number", 1)} 章，生成一份详尽、可执行的JSON格式"章节创作蓝图"。
-
-    # 核心输入
-    *   **章节编号**: {chapter_params.get("chapter_number", 1)}
-    *   **本章重点推进**: 
-        - {chapter_focus_points[0]}
-        - {chapter_focus_points[1] if len(chapter_focus_points) > 1 else "推进主线情节发展"}
-        - {chapter_focus_points[2] if len(chapter_focus_points) > 2 else "保持角色一致性"}
-        - {chapter_focus_points[3] if len(chapter_focus_points) > 3 else "设置后续情节伏笔"}
-    *   **字数目标 (参考)**: 2000-
-    
-    {self._get_golden_chapter_design_variant( # <--- 在这里注入黄金三章的特殊指令
-        chapter_params.get("chapter_number", 1),
-        chapter_params.get("novel_title", ""),
-        self.custom_main_character_name or "主角"
-    )}
-
-    # 背景资料
-    ## 1. 小说基础设定 (世界观、角色、大纲等)
-    ```json
-    {json.dumps(novel_settings, ensure_ascii=False, indent=2)}
-
-    2. 最近章节摘要
-    {chapter_params.get("previous_chapters_summary", "暂无更多章节信息")}
-
-    3. 事件执行指导
-    {chapter_params.get("event_driven_guidance", "按主线情节自然推进")}
-
-    4. 伏笔铺垫指导
-    {chapter_params.get("foreshadowing_guidance", "暂无特定伏笔任务")}
-
-    5. 角色发展指导
-    {chapter_params.get("character_development_guidance", "保持角色行为一致性")}
-
-    请严格按照System Prompt中定义的JSON格式输出创作蓝图。
-    """
-        print(f"  📝 生成第{chapter_params.get('chapter_number', 1)}章设计方案...")
+        print(f"  📝 [新流程] 基于预设场景，生成第{chapter_number}章设计方案 (含起承转合)...")
         design_result = self.api_client.generate_content_with_retry(
-            "chapter_design", 
-            design_prompt, 
-            purpose=f"制定第{chapter_params.get('chapter_number', 1)}章设计方案"
+            "chapter_design",
+            system_prompt=design_prompt, # 将我们的模板作为System Prompt
+            user_prompt=full_prompt_context, # 将动态内容作为User Prompt
+            purpose=f"编排场景为第{chapter_number}章设计方案"
         )
         
         if design_result:
-            if highlight_scene_block:
-                print("  🔧 将预生成的高光场景注入设计蓝图的高潮部分。")
-                if "plot_structure" not in design_result:
-                    design_result["plot_structure"] = {}
-                design_result["plot_structure"]["climax_point"] = highlight_scene_block
-                design_result["chapter_focus"] = f"【核心任务：无缝衔接预生成的高光场景，见高潮部分】\n" + design_result.get("chapter_focus", "")
-            
-            print(f"  ✅ 第{chapter_params.get('chapter_number', 1)}章设计方案生成成功")
-            # 验证情绪设计是否被正确包含
-            if "emotional_design" not in design_result:
-                print(f"  ⚠️ 设计方案未包含情绪设计")
+            print(f"  ✅ 第{chapter_number}章设计方案生成成功")
+            self._save_chapter_design(chapter_number, design_result, chapter_params.get("novel_title", "unknown"))
             return design_result
         else:
-            print(f"  ❌ 第{chapter_params.get('chapter_number', 1)}章设计方案生成失败")
+            print(f"  ❌ 第{chapter_number}章设计方案生成失败")
             return None
-                
 
+    def _save_chapter_design(self, chapter_number: int, design_data: Dict, novel_title: str):
+        """将章节设计稿保存为JSON文件，路径为：章节详细设计/小说标题/文件名.json"""
+        
+        try:
+            # 1. 创建一个对文件系统安全的小说标题，用作目录名
+            safe_title_dir_name = "".join(c for c in novel_title if c.isalnum() or c in (' ', '-', '_')).rstrip()
+            safe_title_dir_name = safe_title_dir_name.replace(' ', '_')[:50]
+
+            # 2. 构建并创建小说专用的设计稿目录
+            novel_specific_dir = self.design_dir / safe_title_dir_name
+            os.makedirs(novel_specific_dir, exist_ok=True)
+
+            # 3. 构建章节设计稿的文件名
+            filename = f"第{str(chapter_number).zfill(4)}章_设计稿.json"
+            
+            # 4. 组合成最终的文件路径
+            filepath = novel_specific_dir / filename
+
+            # 5. 写入JSON文件
+            with open(filepath, 'w', encoding='utf-8') as f:
+                json.dump(design_data, f, ensure_ascii=False, indent=4)
+            print(f"  💾 章节设计稿已保存到: {filepath}")
+            
+            # 6. 在 novel_data 中记录文件的相对路径
+            if "chapter_designs" not in self.novel_generator.novel_data:
+                self.novel_generator.novel_data["chapter_designs"] = {}
+            
+            project_root = getattr(self.novel_generator, 'project_path', Path.cwd())
+            relative_path = filepath.relative_to(project_root)
+            self.novel_generator.novel_data["chapter_designs"][chapter_number] = {"path": str(relative_path)}
+
+        except Exception as e:
+            print(f"  ❌ 保存章节设计稿失败: {e}")
+                
     def _prepare_chapter_params(self, chapter_number: int, novel_data: Dict) -> Dict:
         """准备章节参数 - 移除重复的情绪缓冲逻辑"""
         print(f"  🔍 准备第{chapter_number}章参数...")
@@ -1511,10 +1443,20 @@ class ContentGenerator:
         world_state = self._get_previous_world_state(novel_title)
         character_development_guidance = self._get_character_development_guidance(chapter_number, novel_data)
         
-        # 获取上下文
-        context:Contexts.GenerationContext = novel_data.get('_current_generation_context')
-        
-        
+        print(f"  🔍 准备第{chapter_number}章参数...")
+        context: Any = novel_data.get('_current_generation_context')
+        scene_events = []
+        if context and hasattr(context, 'stage_plan'):
+            stage_plan = context.stage_plan
+            plan_container = stage_plan.get("stage_writing_plan", stage_plan)
+            chapter_scene_data = plan_container.get("event_system", {}).get("chapter_scene_events", [])
+            
+            for chapter_data in chapter_scene_data:
+                if chapter_data.get("chapter_number") == chapter_number:
+                    scene_events = chapter_data.get("scene_events", [])
+                    if scene_events:
+                        print(f"    - 📖 成功提取到 {len(scene_events)} 个预设场景事件")
+                    break
         if context:
             print(f"  ✅ 使用上下文信息准备参数")
             # 使用上下文中的详细信息
@@ -1559,6 +1501,7 @@ class ContentGenerator:
         writing_style_guide = novel_data.get("writing_style_guide", {})
         params = {
             "chapter_number": chapter_number,
+            "pre_designed_scenes": scene_events,
             "total_chapters": total_chapters,
             "novel_title": novel_data["novel_title"],
             "novel_synopsis": novel_data["novel_synopsis"],
