@@ -2,6 +2,7 @@
 
 import json
 import os
+from pathlib import Path
 import re
 import time
 from typing import Any, Dict, Optional, List, Tuple
@@ -22,6 +23,11 @@ class ContentGenerator:
         self.event_bus = event_bus
         self.quality_assessor:QualityAssessor.QualityAssessor = quality_assessor
         self.custom_main_character_name = None
+
+        # ▼▼▼ 添加下面两行 ▼▼▼
+        project_path = getattr(self.novel_generator, 'project_path', Path.cwd())
+        self.design_dir = project_path / "章节详细设计"
+        # ▲▲▲ 添加结束 ▲▲▲
 
     def set_custom_main_character_name(self, name: str):
         """设置主角名字"""
@@ -601,13 +607,13 @@ class ContentGenerator:
                 # 确保章节标题唯一性
                 chapter_data = self._handle_chapter_title_uniqueness(chapter_data, chapter_number, novel_data)
     
-                # 新增：记录情绪信息
-                emotional_guidance = self._get_emotional_guidance_for_chapter(chapter_number, novel_data)
-                chapter_data["emotional_design"] = {
-                    "planned_focus": emotional_guidance.get("current_emotional_focus", ""),
-                    "target_intensity": emotional_guidance.get("target_intensity", "中"),
-                    "is_turning_point": emotional_guidance.get("is_emotional_turning_point", False)
-                }
+                # 新增：从设计蓝图中提取情绪信息，并置于顶层以兼容旧结构
+                if chapter_data and chapter_data.get("chapter_design", {}).get("emotional_design"):
+                    chapter_data["emotional_design"] = chapter_data["chapter_design"]["emotional_design"]
+                    print(f"  💖 已从设计蓝图中提取情绪设计: {chapter_data['emotional_design'].get('target_emotion', '未知')}")
+                else:
+                    chapter_data["emotional_design"] = {} # 保留空字典以防后续代码出错
+                # ▲▲▲ 新代码块结束 ▲▲▲
     
                 # 质量评估
                 print(f"  📊 开始质量评估...")
@@ -1385,12 +1391,13 @@ class ContentGenerator:
 """
 
         print(f"  📝 [新流程] 基于预设场景，生成第{chapter_number}章设计方案 (含起承转合)...")
+        # ▼▼▼ 唯一的修改点 ▼▼▼
         design_result = self.api_client.generate_content_with_retry(
-            "chapter_design",
-            system_prompt=design_prompt, # 将我们的模板作为System Prompt
-            user_prompt=full_prompt_context, # 将动态内容作为User Prompt
+            content_type="chapter_design",
+            user_prompt=f"{design_prompt}\n\n{full_prompt_context}",
             purpose=f"编排场景为第{chapter_number}章设计方案"
         )
+        # ▲▲▲ 修改结束 ▲▲▲
         
         if design_result:
             print(f"  ✅ 第{chapter_number}章设计方案生成成功")
@@ -1518,15 +1525,6 @@ class ContentGenerator:
             "main_character_instruction": self._get_main_character_instruction(novel_data),
             "event_driven_guidance": event_guidance,
             "foreshadowing_guidance": foreshadowing_guidance,
-            # === 修改：使用统一的情绪指导系统 ===
-            "emotional_guidance": emotional_guidance,
-            "current_emotional_focus": emotional_guidance.get("current_emotional_focus", ""),
-            "target_emotional_intensity": emotional_guidance.get("target_intensity", "中"),
-            "is_emotional_turning_point": emotional_guidance.get("is_emotional_turning_point", False),
-            "is_emotional_break_chapter": emotional_guidance.get("is_emotional_break_chapter", False),
-            "emotional_break_activities": emotional_guidance.get("break_activities", []),
-            "emotional_turning_point_info": emotional_guidance.get("turning_point_info", {}),
-            "emotional_supporting_elements": emotional_guidance.get("emotional_supporting_elements", {}),
             "event_context": json.dumps(event_context, ensure_ascii=False),
             "foreshadowing_context": json.dumps(foreshadowing_context, ensure_ascii=False),
             "growth_context": json.dumps(growth_context, ensure_ascii=False),
@@ -1540,12 +1538,6 @@ class ContentGenerator:
         print(f"  ✅ 第{chapter_number}章参数准备完成")
         print(f"    - 事件任务: {len(params['event_tasks'].splitlines())} 项")
         print(f"    - 伏笔元素: {len(params['foreshadowing_elements'].splitlines())} 项")
-        print(f"    - 情绪重点: {params['current_emotional_focus']}")
-        print(f"    - 情感强度: {params['target_emotional_intensity']}")
-        if params['is_emotional_break_chapter']:
-            print(f"    - 本章为情感缓冲章节")
-        if params['is_emotional_turning_point']:
-            print(f"    - 本章为情感转折点")
         
         params = self._add_consistency_requirements(params, world_state)
         relationship_note = self._get_relationship_consistency_note(world_state)
@@ -1554,72 +1546,6 @@ class ContentGenerator:
                 params["event_driven_guidance"] += f"\n\n{relationship_note}"
         return params
 
-# ContentGenerator.py
-
-    # ... 其他方法 ...
-
-    # ▼▼▼ 修改点 3：替换整个方法 ▼▼▼
-    def _get_emotional_guidance_for_chapter(self, chapter_number: int, novel_data: Dict) -> Dict:
-        """
-        获取章节的情绪指导 - 【修正版】
-        统一从 EmotionalPlanManager 获取，确保情绪引导的唯一来源。
-        """
-        print(f"  💖 正在为第 {chapter_number} 章获取精确情绪指导...")
-        
-        try:
-            # 1. 获取必需的管理器和数据
-            stage_plan_manager = self.novel_generator.stage_plan_manager
-            emotional_plan_manager = self.novel_generator.emotional_plan_manager
-            
-            if not stage_plan_manager or not emotional_plan_manager:
-                raise ValueError("StagePlanManager 或 EmotionalPlanManager 未初始化")
-
-            # 2. 确定当前章节所属的阶段名称
-            current_stage_name = stage_plan_manager._get_current_stage(chapter_number)
-            if not current_stage_name:
-                print(f"  ⚠️ 无法确定第 {chapter_number} 章所属阶段，使用通用情绪指导。")
-                return {"target_emotion_keyword": "过渡", "core_emotional_task": "承上启下，平稳推进情节。"}
-
-            # 3. 获取该阶段的写作计划，其中应包含情绪计划
-            stage_writing_plan = stage_plan_manager.get_stage_writing_plan_by_name(current_stage_name)
-            
-            # 兼容旧数据结构，查找 emotional_plan
-            emotional_plan = None
-            if stage_writing_plan: # 确保 plan 存在
-                plan_container = stage_writing_plan.get("stage_writing_plan", stage_writing_plan)
-                emotional_plan = plan_container.get("emotional_plan")
-
-            if not emotional_plan:
-                # 如果计划中没有，可能是因为计划还未生成或生成失败，需要重新生成
-                print(f"  ⚠️ {current_stage_name} 的写作计划中未找到情绪计划，尝试即时生成...")
-                stage_range = stage_plan_manager._get_stage_range(current_stage_name)
-                emotional_blueprint = novel_data.get("emotional_blueprint", {})
-                emotional_plan = emotional_plan_manager.generate_stage_emotional_plan(
-                    current_stage_name, stage_range, emotional_blueprint
-                )
-                # 将新生成的计划存回去，避免重复生成
-                if stage_writing_plan and emotional_plan:
-                    plan_container = stage_writing_plan.get("stage_writing_plan", stage_writing_plan)
-                    plan_container["emotional_plan"] = emotional_plan
-
-            # 4. 调用 EmotionalPlanManager 的核心方法获取本章的精确指导
-            if emotional_plan:
-                # 注意：这里假设 emotional_plan_manager 的方法名是 get_emotional_guidance_for_chapter
-                # 根据你的 EmotionalPlanManager.py(文件5)，这个方法是存在的
-                guidance = emotional_plan_manager.get_emotional_guidance_for_chapter(chapter_number, emotional_plan)
-                print(f"  ✅ 第 {chapter_number} 章情绪指导获取成功: {guidance.get('target_emotion_keyword')}")
-                return guidance
-            else:
-                print(f"  ❌ 无法获取或生成 {current_stage_name} 的情绪计划。")
-                return {"target_emotion_keyword": "未知", "core_emotional_task": "情绪计划缺失，按主线发展。"}
-
-        except Exception as e:
-            print(f"  ❌ 获取第 {chapter_number} 章情绪指导时发生严重错误: {e}")
-            import traceback
-            traceback.print_exc()
-            return {"target_emotion_keyword": "错误", "core_emotional_task": f"获取情绪指导时发生异常: {e}"}
-
-    # 2. 删除旧的、硬编码的回退方法
     def _get_fallback_emotional_guidance(self, chapter_number: int, novel_data: Dict) -> Dict:
         """【此方法已废弃】回退情绪指导 - 基于章节位置，简化版本"""
         # 这个方法应该被删除或标记为废弃，因为新的 _get_emotional_guidance_for_chapter 已经足够健壮

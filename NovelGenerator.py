@@ -1814,17 +1814,6 @@ class NovelGenerator:
                 traceback.print_exc()
                 self.novel_data['_current_chapter_guidance'] = {}
             
-            # 创建 GenerationContext 实例
-            print(f"  🏗️ 创建GenerationContext实例...")
-            print(f"    章节号: {chapter_num}")
-            print(f"    总章节数: {total_chapters}")
-            plan_to_check = stage_plan.get("stage_writing_plan", stage_plan) 
-            if plan_to_check and "reader_expectation_management" in plan_to_check:
-                expectation_context = plan_to_check["reader_expectation_management"]
-                print(f"  💡 已提取期待感上下文: {expectation_context.get('main_expectation_hook', '无核心钩子')}")
-            else:
-                print(f"  ⚠️ 未在阶段计划中找到 'reader_expectation_management' 模块。")
-            # <<< -------------------- >>>
             context = GenerationContext(
                 chapter_number=chapter_num,
                 total_chapters=total_chapters,
@@ -1832,8 +1821,7 @@ class NovelGenerator:
                 stage_plan=stage_plan,
                 event_context=event_context,
                 foreshadowing_context=foreshadowing_context,
-                growth_context=growth_context,
-                expectation_context=expectation_context
+                growth_context=growth_context
             )
             
             # 为上下文添加 generator 引用
