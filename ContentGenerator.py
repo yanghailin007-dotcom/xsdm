@@ -912,8 +912,7 @@ class ContentGenerator:
     def _validate_chapter_params(self, params: Dict) -> bool:
         """验证章节参数是否完整"""
         required = [
-            'chapter_number', 'novel_title', 'novel_synopsis', 'plot_direction',
-            'foreshadowing_guidance'
+            'chapter_number', 'novel_title', 'novel_synopsis', 'plot_direction'
         ]
         for key in required:
             if key not in params or not params[key]:
@@ -1088,7 +1087,7 @@ class ContentGenerator:
         print(f"  🔍 进入generate_chapter_content方法，参数类型: {type(chapter_params)}")
         
         required_keys = ['chapter_number', 'total_chapters', 'novel_title', 'novel_synopsis', 
-                        'worldview_info', 'character_info', 'event_driven_guidance','foreshadowing_guidance',
+                        'worldview_info', 'character_info',
                         'previous_chapters_summary', 'main_plot_progress', 'plot_direction',
                         'chapter_connection_note']
         
@@ -1350,12 +1349,13 @@ class ContentGenerator:
             scenes_str_parts.append(f"\n### 场景 {i+1}: {scene.get('name', '未命名')} (定位: {scene.get('position', '未知')})")
             scenes_str_parts.append(f"- **目标**: {scene.get('purpose', '未知')}")
             scenes_str_parts.append(f"- **关键动作/事件**: {scene.get('key_actions', [])}")
+            scenes_str_parts.append(f"- **情感冲击**: {scene.get('emotional_impact', '无')}")
+            scenes_str_parts.append(f"- **关键对话高光**: {scene.get('dialogue_highlights', [])}")
+            scenes_str_parts.append(f"- **冲突点**: {scene.get('conflict_point', '无')}")
+            scenes_str_parts.append(f"- **感官细节提示**: {scene.get('sensory_details', '无')}")
+            scenes_str_parts.append(f"- **过渡到下一场景**: {scene.get('transition_to_next', '无')}")
         scenes_input_str = "\n".join(scenes_str_parts)
 
-        # 加载并格式化新的Prompt
-        design_prompt_template = self.prompts.get("chapter_design")
-        design_prompt = design_prompt_template.format(chapter_number=chapter_number)
-        
         # 将场景和背景资料组合成一个完整的上下文，供AI参考
         full_prompt_context = f"""
 {scenes_input_str}
@@ -1363,6 +1363,8 @@ class ContentGenerator:
 # 背景资料
 - **小说标题**: 《{chapter_params.get("novel_title", "未知")}》
 - **前情提要**: {chapter_params.get("previous_chapters_summary", "无")}
+- **本章核心目标 (来自计划)**: {chapter_params.get("chapter_goal_from_plan", "推进主线情节")}
+- **本章写作重点 (来自计划)**: {chapter_params.get("writing_focus_from_plan", "保持节奏，制造悬念")}
 - **世界观设定**: {chapter_params.get("worldview_info", "{}")}
 - **人物设定**: {chapter_params.get("character_info", "{}")}
 - **小说整体写作风格**: {json.dumps(chapter_params.get("writing_style_guide", {}), ensure_ascii=False)}
@@ -1375,7 +1377,7 @@ class ContentGenerator:
         # ▼▼▼ 唯一的修改点 ▼▼▼
         design_result = self.api_client.generate_content_with_retry(
             content_type="chapter_design",
-            user_prompt=f"{design_prompt}\n\n{full_prompt_context}",
+            user_prompt=f"{full_prompt_context}",
             purpose=f"编排场景为第{chapter_number}章设计方案"
         )
         # ▲▲▲ 修改结束 ▲▲▲
@@ -1434,40 +1436,23 @@ class ContentGenerator:
         print(f"  🔍 准备第{chapter_number}章参数...")
         context: Any = novel_data.get('_current_generation_context')
         # ▼▼▼ 核心简化：只需一行代码，即可获得保证可用的场景事件 ▼▼▼
-        scene_events = self._ensure_scenes_are_ready_for_chapter(chapter_number, context, novel_data)
+        scene_events, chapter_goal_from_plan, writing_focus_from_plan = self._ensure_scenes_are_ready_for_chapter(chapter_number, context, novel_data)
 
         # --- 后续的参数准备逻辑保持不变 ---
         if context:
             print(f"  ✅ 使用上下文信息准备参数")
             # 使用上下文中的详细信息
             event_context = context.event_context
-            foreshadowing_context = context.foreshadowing_context  
             growth_context = context.growth_context
             stage_writing_plan = context.stage_plan if hasattr(context, 'stage_plan') else {}
 
             print(f"  📊 上下文信息:")
             print(f"    - 事件上下文: {len(event_context.get('active_events', []))} 个活跃事件")
-            print(f"    - 伏笔上下文: {len(foreshadowing_context.get('elements_to_introduce', []))} 个待引入元素") 
             print(f"    - 成长上下文: {len(growth_context.get('chapter_specific', {}))} 项成长规划")  
             
-            # 获取事件指导（优先使用上下文中的信息）
-            event_guidance = self._get_event_guidance_from_context(event_context, chapter_number)
-            foreshadowing_guidance = self._get_foreshadowing_guidance_from_context(foreshadowing_context, chapter_number)
-            
-            # 确保 event_guidance 不是 None
-            if event_guidance is None:
-                event_guidance = "# 🎯 事件执行指导\n\n本章暂无特定事件任务，按主线推进即可。"
-                print(f"  ⚠️ 事件指导为空，使用默认指导")
-            
-            print(f"    - 事件指导: \n{event_guidance} ") 
-            print(f"    - 伏笔指导: \n{foreshadowing_guidance} ") 
         else:
             print(f"  ⚠️ 无上下文，使用传统方式获取指导")
-            # 回退到传统方式
-            event_guidance = self._get_event_driven_guidance(chapter_number, novel_data)
-            foreshadowing_guidance = self._get_foreshadowing_guidance(chapter_number, novel_data)
             event_context = {}
-            foreshadowing_context = {}
             growth_context = {}
             stage_writing_plan = {}
         
@@ -1479,6 +1464,8 @@ class ContentGenerator:
         params = {
             "chapter_number": chapter_number,
             "pre_designed_scenes": scene_events,
+            "chapter_goal_from_plan": chapter_goal_from_plan, # <-- 新增
+            "writing_focus_from_plan": writing_focus_from_plan, # <-- 新增
             "total_chapters": total_chapters,
             "novel_title": novel_data["novel_title"],
             "novel_synopsis": novel_data["novel_synopsis"],
@@ -1493,13 +1480,9 @@ class ContentGenerator:
             "chapter_connection_note": self._get_chapter_connection_note(chapter_number),
             "character_development_focus": plot_direction.get("character_development_focus", ""),
             "main_character_instruction": self._get_main_character_instruction(novel_data),
-            "event_driven_guidance": event_guidance,
-            "foreshadowing_guidance": foreshadowing_guidance,
             "event_context": json.dumps(event_context, ensure_ascii=False),
-            "foreshadowing_context": json.dumps(foreshadowing_context, ensure_ascii=False),
             "growth_context": json.dumps(growth_context, ensure_ascii=False),
             "event_tasks": self._format_event_tasks(event_context),
-            "foreshadowing_elements": self._format_foreshadowing_elements(foreshadowing_context),
             "character_growth_focus": self._get_growth_focus(growth_context, "character"),
             "ability_development_focus": self._get_growth_focus(growth_context, "ability"),
             "faction_development_focus": self._get_growth_focus(growth_context, "faction")
@@ -1507,7 +1490,6 @@ class ContentGenerator:
         
         print(f"  ✅ 第{chapter_number}章参数准备完成")
         print(f"    - 事件任务: {len(params['event_tasks'].splitlines())} 项")
-        print(f"    - 伏笔元素: {len(params['foreshadowing_elements'].splitlines())} 项")
         
         params = self._add_consistency_requirements(params, world_state)
         relationship_note = self._get_relationship_consistency_note(world_state)
@@ -1517,65 +1499,98 @@ class ContentGenerator:
         return params
 
 
-    def _ensure_scenes_are_ready_for_chapter(self, chapter_number: int, context: Any, novel_data: Dict) -> List[Dict]:
+    def _ensure_scenes_are_ready_for_chapter(self, chapter_number: int, context: Any, novel_data: Dict) -> Tuple[List[Dict], Optional[str], Optional[str]]:
         """
-        【即时安全保障】
-        确保指定章节有可用的场景事件。如果没有，则立即调用修复工具生成，并永久保存。
-        返回一个保证可用的场景事件列表。
+        【即时安全保障 - 递归增强版】
+        严格匹配章节号，确保获取到正确的场景事件、章节目标和写作重点。
+        此版本使用递归查找，可以深入到事件的 'composition' -> '起'/'承'/'转'/'合' 结构中，
+        无论场景数据嵌套多深，都能精准定位。
         """
-        scene_events = []
+        scene_events, chapter_goal, writing_focus = [], None, None
         
         if not context or not hasattr(context, 'stage_plan'):
             print(f"    - ‼️ 关键错误: 第 {chapter_number} 章缺少生成上下文(context)，无法获取或修复场景。")
-            return []
+            return [], None, None
 
         stage_plan = context.stage_plan
         plan_container = stage_plan.get("stage_writing_plan", stage_plan)
-        chapter_scene_data = plan_container.get("event_system", {}).get("chapter_scene_events", [])
-        
-        # 1. 尝试获取场景
-        for chapter_data in chapter_scene_data:
-            if chapter_data.get("chapter_number") == chapter_number:
-                scene_events = chapter_data.get("scene_events", [])
-                break
+        event_system = plan_container.get("event_system", {})
 
-        # 2. 如果获取失败，立即启动修复
-        if not scene_events:
-            print(f"    - ⚠️ 检测到第 {chapter_number} 章场景数据缺失，启动即时修复...")
-            try:
-                plan_manager = self.novel_generator.stage_plan_manager
-                stage_name = plan_container.get("stage_name", "未知阶段")
-                
-                # 调用 StagePlanManager 的内部修复工具
-                fallback_scenes = plan_manager._generate_fallback_scenes_for_chapter(
-                    chapter_number=chapter_number,
-                    stage_name=stage_name,
-                    final_major_events=plan_container.get("event_system", {}).get("major_events", []),
-                    overall_stage_plan=novel_data.get("overall_stage_plans", {}),
-                    novel_title=novel_data.get("novel_title", "未知标题"),
-                    novel_synopsis=novel_data.get("novel_synopsis", "未知简介")
-                )
-
-                if fallback_scenes:
-                    print(f"    - ✅ 补救成功！为第 {chapter_number} 章生成了 {len(fallback_scenes)} 个场景。")
-                    scene_events = fallback_scenes
-                    
-                    # 将修复后的场景写回计划数据，并保存到文件
-                    chapter_events_list = plan_container.get("event_system", {}).get("chapter_scene_events", [])
-                    chapter_events_list.append({"chapter_number": chapter_number, "scene_events": fallback_scenes})
-                    chapter_events_list.sort(key=lambda x: x["chapter_number"])
-                    
-                    print("    - 💾 正在将修复后的计划保存到文件，实现永久修复...")
-                    plan_manager._save_plan_to_file(stage_name, stage_plan)
-                else:
-                    print(f"    - ❌ 补救失败，未能为第 {chapter_number} 章生成场景。")
-            except Exception as e:
-                print(f"    - ❌ 即时修复过程中发生严重错误: {e}")
+        found_sequence = None
         
+        def find_in_event_list(events: List[Dict], depth: int = 0):
+            """递归查找函数，depth用于调试时显示嵌套深度"""
+            nonlocal found_sequence
+            # 如果已经找到，或者事件列表为空，则直接返回，提高效率
+            if found_sequence or not events:
+                return
+
+            indent = "    " * (depth + 2) # 用于格式化打印输出
+
+            for event in events:
+                # 1. 优先检查当前事件层级是否直接包含 scene_sequences
+                current_sequences = event.get("scene_sequences", [])
+                if current_sequences:
+                    for seq in current_sequences:
+                        range_str = seq.get("chapter_range", "")
+                        is_match = False
+                        if str(chapter_number) == range_str:
+                            is_match = True
+                        elif '-' in range_str:
+                            try:
+                                start, end = map(int, range_str.split('-'))
+                                if start <= chapter_number <= end:
+                                    is_match = True
+                            except ValueError:
+                                pass
+                        
+                        if is_match:
+                            found_sequence = seq
+                            # 增加更详细的日志，告知是在哪个事件里找到的
+                            print(f"{indent}- ✅ 精准匹配! 在事件 '{event.get('name', '未命名事件')}' 中找到第 {chapter_number} 章的场景序列。")
+                            return # 找到后立刻终止所有查找
+
+                # 2. 如果当前层级没有，检查是否存在 'composition' 并递归深入
+                composition = event.get("composition", {})
+                if composition and not found_sequence:
+                    # 按照“起承转合”的逻辑顺序进行查找
+                    for part_key in ["起", "承", "转", "合"]:
+                        nested_events = composition.get(part_key, [])
+                        if nested_events:
+                            # 递归调用，深度+1
+                            find_in_event_list(nested_events, depth + 1)
+                            # 如果在递归调用中找到了，立刻终止后续的查找
+                            if found_sequence:
+                                return
+        
+        # 从顶层事件开始查找
+        event_types = ["major_events", "medium_events", "minor_events"]
+        print(f"    - 🔍 开始深度搜索第 {chapter_number} 章的场景数据...")
+        for event_type in event_types:
+            find_in_event_list(event_system.get(event_type, []))
+            if found_sequence:
+                break # 如果在 major_events 里找到了，就没必要再查 medium_events 等
+        
+        # 根据查找结果进行处理
+        if found_sequence:
+            print(f"    - ✅ 成功定位到第 {chapter_number} 章的场景数据。")
+            scene_events = found_sequence.get("scene_events", [])
+            chapter_goal = found_sequence.get("chapter_goal")
+            writing_focus = found_sequence.get("writing_focus")
+        else:
+            # 如果严格匹配不到，就明确告知找不到
+            print(f"    - ❌ 严重警告：在所有事件计划中（包括嵌套结构），都未能严格匹配到第 {chapter_number} 章的场景数据。")
+            # 此处返回空值，后续的生成流程会因此中断，避免产生错误内容。
+            return [], None, None
+
         if scene_events:
             print(f"    - ✅ 成功获取到 {len(scene_events)} 个场景事件。")
-            
-        return scene_events
+            if chapter_goal:
+                print(f"    - 🎯 本章目标已载入: {chapter_goal}")
+            if writing_focus:
+                print(f"    - ✍️ 本章写作重点已载入: {writing_focus}")
+
+        return scene_events, chapter_goal, writing_focus
 
     def _get_fallback_emotional_guidance(self, chapter_number: int, novel_data: Dict) -> Dict:
         """【此方法已废弃】回退情绪指导 - 基于章节位置，简化版本"""
@@ -2147,9 +2162,7 @@ class ContentGenerator:
         # 构建一致性指导
         consistency_guidance = self._build_consistency_guidance(world_state)
         
-        # 在现有指导基础上添加一致性要求
-        if "foreshadowing_guidance" in chapter_params:
-            chapter_params["foreshadowing_guidance"] += f"\n\n## 🔄 一致性要求\n{consistency_guidance}"
+        chapter_params["consistency_guidance"] = f"\n\n## 🔄 一致性要求\n{consistency_guidance}"
         
         # 存储世界状态供生成使用
         chapter_params["previous_world_state"] = json.dumps(world_state, ensure_ascii=False, indent=2)
