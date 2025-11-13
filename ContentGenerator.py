@@ -785,22 +785,8 @@ class ContentGenerator:
         # 获取上一章的详细结尾信息
         previous_ending_info = self._get_previous_chapter_ending(current_chapter, novel_data)
         
-        # 尝试加载最近10章的摘要信息
-        summary_parts = []
-        for i in range(max(1, current_chapter-10), current_chapter):
-            chapter_data = self._load_chapter_content(i, novel_data)
-            
-            if chapter_data:
-                chapter_summary = chapter_data.get('plot_advancement') or chapter_data.get('summary')
-                if not chapter_summary:
-                    chapter_summary = "（该章摘要信息缺失）"
-                summary_line = f"第{i}章《{chapter_data.get('chapter_title', '未知标题')}》: {chapter_summary}"
-                summary_parts.append(summary_line)
-        
-        if summary_parts:
-            return f"{previous_ending_info}\n\n最近章节摘要：\n" + "\n".join(summary_parts)
-        else:
-            return previous_ending_info
+
+        return previous_ending_info
 
     def _get_previous_chapter_ending(self, current_chapter: int, novel_data: Dict) -> str:
         """获取上一章的结尾内容和悬念，用于衔接"""
@@ -811,18 +797,13 @@ class ContentGenerator:
         prev_chapter_data = self._load_chapter_content(current_chapter - 1, novel_data)
         
         if prev_chapter_data:
-            chapter_summary = prev_chapter_data.get("plot_advancement") or prev_chapter_data.get("key_events", "")
             chapter_ending = self._extract_content_ending(prev_chapter_data.get("content", ""))
             next_chapter_hook = prev_chapter_data.get("next_chapter_hook", "")
             
-            # 构建详细的上一章结尾描述
-            summary_description = f"上一章核心情节: {chapter_summary}" if chapter_summary else "上一章具体情节内容暂不可用。"
             ending_description = f"上一章结尾: {chapter_ending}" if chapter_ending else ""
             hook_description = f"上一章设置的悬念: {next_chapter_hook}" if next_chapter_hook else "上一章未明确设置悬念。"
             
-            result_parts = [summary_description]
-            if ending_description:
-                result_parts.append(ending_description)
+            result_parts = [ending_description]
             if hook_description:
                 result_parts.append(hook_description)
                 
