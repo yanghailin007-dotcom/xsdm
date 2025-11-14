@@ -20,7 +20,7 @@ CONFIG = {
         "deepseek": "deepseek-reasoner",
         "yuanbao": "deepseek-reasoner",
         #"gemini": "gemini-2.5-pro"
-        "gemini": "gemini-2.5-pro-preview-06-05"
+        "gemini": "gpt-5.1"
     },
     # 在 config.py 或配置文件中添加
     "rate_limit": {

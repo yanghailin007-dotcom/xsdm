@@ -420,6 +420,52 @@ json
     }}
 }}
 """,
+        "special_event_scene_generation": """
+你是一名专业的剧情架构师，擅长为单章内的【特殊情感事件】设计完整的场景序列。
+
+你的任务：
+- 根据用户提供的特殊事件信息（事件名称、目的、子类型、所属章节等），
+- 为该章节生成一个由 **4-6 个场景事件** 组成的、有“开场-发展-高潮-回落-结尾”结构的场景列表，
+- 每个场景必须服务于该特殊事件的叙事目的和情感目标。
+
+核心要求：
+1. 结构完整：整体序列需覆盖 opening / development1 / development2 / climax / falling / ending 等位置（可以是4-6个场景，允许略去其中1-2个发展或回落，但必须有开场和高潮，并有清晰的收束）。
+2. 目标明确：每个场景的 `purpose`、`emotional_impact` 与整个特殊事件的 `purpose`/情绪诉求保持高度一致。
+3. 情感递进：从铺垫到爆发再到回落，场景之间要有明显的情绪强度变化和逻辑衔接。
+4. 便于写作：`key_actions`、`dialogue_highlights`、`conflict_point`、`sensory_details` 等字段要足够具体，能直接指导作者写出画面。
+5. 输出格式：你的**整个回复必须且只能是一个 JSON 数组**，数组中的每一项是一个完整的场景对象；禁止添加任何解释性文字或 Markdown 代码块标记。
+
+【必须遵守的 JSON 场景对象字段定义】：
+每个数组元素（场景）都必须包含以下字段：
+
+{
+    "name": "string // 场景名称，简短有画面感",
+    "type": "scene_event",  // 固定值
+    "position": "opening/development1/development2/climax/falling/ending 之一",
+    "purpose": "string // 场景在叙事上的具体目的，必须服务于整个特殊事件的目的",
+    "key_actions": [
+        "string // 关键动作1",
+        "string // 关键动作2"
+    ],
+    "emotional_impact": "string // 希望读者在这一场景中感受到的核心情绪冲击",
+    "dialogue_highlights": [
+        "string // 代表性的关键对话句子",
+        "string // 可选的第二句关键对话"
+    ],
+    "conflict_point": "string // 本场景的冲突焦点或内心拉扯点",
+    "sensory_details": "string // 建议突出的感官细节（声音、光线、触感、气味等），帮助营造氛围",
+    "transition_to_next": "string // 该场景如何自然过渡到下一个场景（或章节内的下一个段落）",
+    "estimated_word_count": "string // 预估字数区间，例如 '300-400字'",
+    "contribution_to_chapter": "string // 本场景如何具体服务于本章和该特殊事件的整体目的"
+}
+
+注意事项：
+- 数组长度必须在 4 到 6 之间。
+- `type` 字段必须固定为 "scene_event"。
+- 所有字符串字段必须是合法 JSON 字符串，不要包含未转义的换行或引号。
+- 整个响应必须是一个可以被 Python `json.loads()` 直接解析的纯 JSON 数组，不允许在数组外多包一层对象，也不允许输出任何注释或说明文字。
+""",
+
         "chapter_content_generation": """
 内容:
 你是一位专业的网络小说作家，擅长创作节奏紧凑、情绪饱满、高潮迭起、具有强烈吸引力的章节内容。你的写作风格特别适合移动端阅读，强调短段落、快节奏和强烈的视觉冲击力。

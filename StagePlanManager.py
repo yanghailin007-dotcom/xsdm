@@ -227,36 +227,24 @@ class StagePlanManager:
         
         return result
 
+    # 替换掉你文件中旧的 _assemble_final_plan 方法
     def _assemble_final_plan(self, stage_name, stage_range, final_major_events, overall_stage_plan,
                         novel_title: str = "", novel_synopsis: str = "", creative_seed: str = "") -> Dict:
         """工作流第四阶段：将所有生成的部分组装成最终的JSON计划。"""
         
         print(f"  🔍 检查最终组装：收到 {len(final_major_events)} 个重大事件")
-        
-        for i, major_event in enumerate(final_major_events):
-            print(f"    重大事件 {i+1}: {major_event.get('name')}")
-            composition = major_event.get("composition", {})
-            for phase, events in composition.items():
-                for j, event in enumerate(events):
-                    decomp_type = event.get('decomposition_type', '未分解')
-                    print(f"      {phase}-{j+1}: {event.get('name')} [{decomp_type}]")
 
         # 收集所有场景事件（按章节组织）
-        chapter_scene_map = {}  # 章节号 -> 场景事件列表
+        chapter_scene_map = {}  # 章节号 -> { "chapter_goal": str, "writing_focus": str, "scene_events": List[Dict] }
         
-        # [新增] 收集所有特殊情感事件
         all_special_events = [] 
 
-        # 同时收集情绪相关信息
         emotional_summary = {
             "stage_emotional_arc": overall_stage_plan.get("overall_stage_plan", {}).get(stage_name, {}).get("emotional_goal", ""),
             "major_events_emotional_summary": []
         }
         
         for major_event in final_major_events:
-            # 收集重大事件的情绪信息
-
-            # [新增] 收集该重大事件内部生成的特殊情感事件
             if "special_emotional_events" in major_event:
                 all_special_events.extend(major_event["special_emotional_events"])
 
@@ -269,7 +257,6 @@ class StagePlanManager:
             composition = major_event.get("composition", {})
             for phase_events in composition.values():
                 for medium_event in phase_events:
-                    # 收集中型事件的情绪信息
                     if "emotional_focus" in medium_event:
                         emotional_summary.setdefault("medium_events_emotional_focus", []).append({
                             "name": medium_event.get("name"),
@@ -279,41 +266,54 @@ class StagePlanManager:
                     
                     decomposition_type = medium_event.get("decomposition_type", "")
                     
+                    # ▼▼▼ FIX: 重构此处的逻辑以避免TypeError ▼▼▼
                     if decomposition_type == "chapter_then_scene":
-                        # 包含章节事件的情况（章节事件内包含场景结构）
                         chapter_events = medium_event.get("chapter_events", [])
                         for chapter_event in chapter_events:
                             chapter_range = chapter_event.get('chapter_range', '0-0')
                             start_ch, end_ch = parse_chapter_range(chapter_range)
                             
-                            # 提取场景事件
+                            chapter_goal = chapter_event.get("main_goal", "")
                             scene_structure = chapter_event.get("scene_structure", {})
+                            # 优先从scene_structure获取，其次从chapter_event获取
+                            writing_focus = scene_structure.get("writing_focus", chapter_event.get("writing_focus", "未指定写作重点"))
                             scenes = scene_structure.get("scenes", [])
                             
-                            # 按章节存储场景事件
                             for chapter_num in range(start_ch, end_ch + 1):
+                                # 保证 chapter_scene_map[chapter_num] 始终是字典
                                 if chapter_num not in chapter_scene_map:
-                                    chapter_scene_map[chapter_num] = []
-                                chapter_scene_map[chapter_num].extend(scenes)
+                                    chapter_scene_map[chapter_num] = {
+                                        "chapter_goal": chapter_goal,
+                                        "writing_focus": writing_focus,
+                                        "scene_events": []
+                                    }
+                                # 现在可以安全地扩展了
+                                chapter_scene_map[chapter_num]["scene_events"].extend(scenes)
                     
                     elif decomposition_type == "direct_scene":
-                        # 直接包含场景序列的情况
                         scene_sequences = medium_event.get("scene_sequences", [])
                         for sequence in scene_sequences:
                             chapter_range = sequence.get('chapter_range', '0-0')
                             start_ch, end_ch = parse_chapter_range(chapter_range)
                             
-                            # 提取场景事件
+                            chapter_goal = sequence.get("chapter_goal", "")
+                            writing_focus = sequence.get("writing_focus", "")
                             scene_events = sequence.get("scene_events", [])
                             
-                            # 按章节存储场景事件
                             for chapter_num in range(start_ch, end_ch + 1):
+                                # 保证 chapter_scene_map[chapter_num] 始终是字典
                                 if chapter_num not in chapter_scene_map:
-                                    chapter_scene_map[chapter_num] = []
-                                chapter_scene_map[chapter_num].extend(scene_events)
-        
-        
-        print(f"  🌱 处理 {len(all_special_events)} 个特殊情感事件，将其转化为场景...")
+                                    chapter_scene_map[chapter_num] = {
+                                        "chapter_goal": chapter_goal,
+                                        "writing_focus": writing_focus,
+                                        "scene_events": []
+                                    }
+                                # 现在可以安全地扩展了
+                                chapter_scene_map[chapter_num]["scene_events"].extend(scene_events)
+                    # ▲▲▲ FIX: 修复结束 ▲▲▲
+
+        # --- 处理特殊情感事件 (这段逻辑是正确的，无需修改) ---
+        print(f"  🌱 处理 {len(all_special_events)} 个特殊情感事件，将它们转化为多场景章节...")
         for special_event in all_special_events:
             try:
                 event_name = special_event.get("name", "未命名特殊事件")
@@ -323,48 +323,59 @@ class StagePlanManager:
                     continue
 
                 start_ch, end_ch = parse_chapter_range(chapter_range_str)
+                if start_ch != end_ch:
+                    print(f"    ⚠️ 特殊事件 '{event_name}' 的 chapter_range '{chapter_range_str}' 不是单章，特殊事件应为单章。已跳过。")
+                    continue
+                
+                chapter_num = start_ch
 
-                # 将特殊情感事件包装成一个或多个核心场景
-                # 这里简化处理，为一个事件创建一个核心场景，作为该章节的主要任务
-                proxy_scene = {
-                    "name": f"【特殊情感场景】{event_name}",
-                    "type": "scene_event",
-                    "position": "climax",  # 给予情感事件核心地位，让它成为本章高潮
-                    "purpose": special_event.get("purpose", "深化情感，调整节奏，作为本章的核心任务。"),
-                    "key_actions": [
-                        f"紧密围绕 '{event_name}' 的核心目的展开情节",
-                        "通过角色内心独白、关键对话或环境氛围来传达预设的情感"
-                    ],
-                    "emotional_impact": f"必须实现 '{special_event.get('purpose')}' 中描述的情感目标",
-                    "dialogue_highlights": ["根据情感目的设计1-2段关键对话"],
-                    "conflict_point": "通常是角色的内心冲突，或为接下来的外部冲突做情感铺垫",
-                    "contribution_to_chapter": "作为本章的情感核心和情节驱动力"
-                }
+                parent_major_event_name = "未知重大事件"
+                for major_ev in final_major_events:
+                    if "special_emotional_events" in major_ev and special_event in major_ev["special_emotional_events"]:
+                        parent_major_event_name = major_ev.get("name", "未知重大事件")
+                        break
 
-                for chapter_num in range(start_ch, end_ch + 1):
+                generated_scenes = self._generate_scenes_for_single_chapter_event(
+                    event_data=special_event,
+                    chapter_num=chapter_num,
+                    stage_name=stage_name,
+                    major_event_name=parent_major_event_name,
+                    novel_title=novel_title,
+                    novel_synopsis=novel_synopsis
+                )
+
+                if generated_scenes:
                     if chapter_num not in chapter_scene_map:
-                        chapter_scene_map[chapter_num] = []
-                    chapter_scene_map[chapter_num].append(proxy_scene)
-                    print(f"    ✅ 已将特殊事件 '{event_name}' 的场景添加到第 {chapter_num} 章。")
+                        chapter_scene_map[chapter_num] = {
+                            "chapter_goal": special_event.get("purpose", ""),
+                            "writing_focus": "突出情感事件，调节节奏",
+                            "scene_events": []
+                        }
+                    chapter_scene_map[chapter_num]["scene_events"].extend(generated_scenes)
+                    print(f"    ✅ 已将特殊事件 '{event_name}' 生成的 {len(generated_scenes)} 个场景添加到第 {chapter_num} 章。")
+                else:
+                    print(f"    ❌ 未能为特殊事件 '{event_name}' 在第 {chapter_num} 章生成有效场景。")
 
             except Exception as e:
                 print(f"    ❌ 处理特殊情感事件 '{special_event.get('name')}' 时出错: {e}")
 
-        # 构建按章节组织的场景事件列表
-        chapter_scene_events = []
+        # --- 后续组装逻辑 (这段逻辑是正确的，无需修改) ---
+        chapter_scene_events_list = []
         for chapter_num in sorted(chapter_scene_map.keys()):
-            chapter_scene_events.append({
+            chapter_info = chapter_scene_map[chapter_num]
+            chapter_scene_events_list.append({
                 "chapter_number": chapter_num,
-                "scene_events": chapter_scene_map[chapter_num]
+                "chapter_goal": chapter_info.get("chapter_goal", ""),
+                "writing_focus": chapter_info.get("writing_focus", ""),
+                "scene_events": chapter_info.get("scene_events", [])
             })
 
-        # 构建最终的计划结构，确保包含情绪信息
         stage_plan = {
             "stage_writing_plan": {
                 "stage_name": stage_name,
                 "chapter_range": stage_range,
                 "stage_overview": overall_stage_plan.get("overall_stage_plan", {}).get(stage_name, {}).get("stage_goal", "N/A"),
-                "novel_metadata": {  # 新增小说元数据
+                "novel_metadata": {
                     "title": novel_title,
                     "synopsis": novel_synopsis,
                     "creative_seed": creative_seed,
@@ -375,12 +386,107 @@ class StagePlanManager:
                     "overall_approach": "采用智能分形设计：根据章节数自动选择分解策略，最终基于场景事件构建章节。",
                     "major_events": final_major_events,
                     "special_emotional_events": all_special_events, 
-                    "chapter_scene_events": chapter_scene_events
+                    "chapter_scene_events": chapter_scene_events_list
                 },
             }
         }
         return stage_plan
-    
+
+    def _generate_scenes_for_single_chapter_event(self, event_data: Dict, chapter_num: int,
+                                                  stage_name: str, major_event_name: str,
+                                                  novel_title: str, novel_synopsis: str) -> List[Dict]:
+        """
+        为单一章节的特殊情感事件生成一组场景。
+        它会调用AI，根据特殊事件的目的和章节信息，生成一个包含4-6个场景的序列。
+        """
+        event_name = event_data.get("name", "特殊情感事件")
+        purpose = event_data.get("purpose", "深化情感，调整节奏，作为本章的核心任务。")
+        event_subtype = event_data.get("event_subtype", "emotional_beat")
+        placement_hint = event_data.get("placement_hint", "未指定位置")
+
+        print(f"      ⚙️ 正在为特殊事件 '{event_name}' (第{chapter_num}章) 请求多场景生成...")
+
+        prompt = f"""
+        # 任务：为单一章节的特殊情感事件生成场景序列
+
+        你是一名专业的剧情架构师。你需要为一个占据单一章节的【特殊情感事件】设计详细的场景事件序列。确保本章拥有完整的叙事和情感弧线，服务于特殊事件的情感和叙事目的。
+
+        ## 当前事件信息
+        - **小说标题**: {novel_title}
+        - **小说简介**: {novel_synopsis}
+        - **当前章节**: 第 {chapter_num} 章
+        - **所属阶段**: {stage_name}
+        - **关联重大事件**: {major_event_name}
+        - **特殊事件名称**: {event_name}
+        - **事件目的**: {purpose}
+        - **事件子类型**: {event_subtype} ({placement_hint})
+
+        ## 场景构建要求
+        请为第 {chapter_num} 章设计 **4-6个场景事件**，形成一个具备完整戏剧结构的序列，以有效地实现特殊事件的目的：
+
+        ### 场景结构要求：
+        - **开场场景 (Opening)**：建立情境，温和引入情感铺垫，或展现事件发生前的宁静/紧张气氛。
+        - **发展场景1 (Development)**：推进情感事件的核心，展现角色的内心挣扎、互动或环境变化。
+        - **发展场景2 (Development)**：深化矛盾、增强情感强度，为高潮做足铺垫。
+        - **高潮场景 (Climax)**：情感爆发点、关键对话、重要内心独白或事件的决定性时刻。
+        - **回落场景 (Falling)**：情感宣泄后的余波，角色对事件的反应、思考，或处理造成的后果。
+        - **结尾场景 (Ending)**：为本章收尾，可能设置悬念、留下思考，或为下一章的情节/情感发展做衔接。
+
+        ### 每个场景请包含以下字段：
+        - `name`: 场景名称 (string)
+        - `type`: "scene_event" (string)
+        - `position`: "opening" / "development1" / "development2" / "climax" / "falling" / "ending" (string)
+        - `purpose`: 场景的戏剧目的（string，必须服务于特殊事件目的）
+        - `key_actions`: 关键动作列表 (List[string])
+        - `emotional_impact`: 场景的情感冲击（string，必须服务于特殊事件的情感目标）
+        - `dialogue_highlights`: 关键对话列表 (List[string])
+        - `conflict_point`: 冲突的具体表现或情感挣扎点 (string)
+        - `sensory_details`: 需要突出的感官细节 (string)
+        - `transition_to_next`: 如何过渡到下一个场景 (string)
+        - `estimated_word_count`: 预估字数范围 (string，例如："300-500字")
+        - `contribution_to_chapter`: 如何服务于本章的特殊情感事件 (string)
+
+        ## 输出格式
+        请严格按照以下JSON数组格式返回，不要包含任何额外解释或外部JSON对象。数组中的每个元素都是一个场景事件对象。
+        ```json
+        [
+            {{
+                "name": "场景1名称",
+                "type": "scene_event",
+                "position": "opening",
+                "purpose": "建立情感基调，引入冲突前的平静",
+                "key_actions": ["主角独自沉思", "回忆片段闪过"],
+                "emotional_impact": "营造忧郁或宁静的氛围",
+                "dialogue_highlights": ["一句意味深长的心声"],
+                "conflict_point": "内心的不确定感",
+                "sensory_details": "微风拂过脸庞，远方的钟声",
+                "transition_to_next": "主角的眼神转向窗外，思绪被打断",
+                "estimated_word_count": "300-400字",
+                "contribution_to_chapter": "为后续情感爆发做铺垫"
+            }},
+            // ... 更多场景事件 (总共4-6个)
+        ]
+        ```
+        """
+
+        try:
+            result = self.generator.api_client.generate_content_with_retry(
+                content_type="special_event_scene_generation",
+                user_prompt=prompt,
+                purpose=f"为特殊情感事件'{event_name}'在第{chapter_num}章生成场景序列"
+            )
+            # 验证返回结果是列表且包含有效的场景对象
+            if isinstance(result, list) and all(isinstance(item, dict) and "name" in item and "purpose" in item for item in result):
+                print(f"      ✅ 为特殊事件 '{event_name}' 在第 {chapter_num} 章成功生成了 {len(result)} 个场景。")
+                return result
+            else:
+                print(f"      ❌ 为特殊事件 '{event_name}' 在第 {chapter_num} 章生成场景失败：AI返回格式不正确或为空。")
+                print(f"         AI返回数据: {result}")
+                return []
+        except Exception as e:
+            print(f"      ❌ 调用API生成特殊事件场景时出错: {e}")
+            return []
+
     def _generate_fallback_scenes_for_chapter(self, chapter_number: int, stage_name: str, 
                                               final_major_events: List[Dict], overall_stage_plan: Dict,
                                               novel_title: str, novel_synopsis: str) -> List[Dict]:

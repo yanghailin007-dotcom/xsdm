@@ -1516,72 +1516,28 @@ class ContentGenerator:
         plan_container = stage_plan.get("stage_writing_plan", stage_plan)
         event_system = plan_container.get("event_system", {})
 
-        found_sequence = None
+        # --- 修改开始：直接从聚合的 chapter_scene_events 列表中查找 ---
+        print(f"    - 🔍 正在从聚合场景列表中查找第 {chapter_number} 章的数据...")
+        chapter_scene_events_list = event_system.get("chapter_scene_events", [])
         
-        def find_in_event_list(events: List[Dict], depth: int = 0):
-            """递归查找函数，depth用于调试时显示嵌套深度"""
-            nonlocal found_sequence
-            # 如果已经找到，或者事件列表为空，则直接返回，提高效率
-            if found_sequence or not events:
-                return
-
-            indent = "    " * (depth + 2) # 用于格式化打印输出
-
-            for event in events:
-                # 1. 优先检查当前事件层级是否直接包含 scene_sequences
-                current_sequences = event.get("scene_sequences", [])
-                if current_sequences:
-                    for seq in current_sequences:
-                        range_str = seq.get("chapter_range", "")
-                        is_match = False
-                        if str(chapter_number) == range_str:
-                            is_match = True
-                        elif '-' in range_str:
-                            try:
-                                start, end = map(int, range_str.split('-'))
-                                if start <= chapter_number <= end:
-                                    is_match = True
-                            except ValueError:
-                                pass
-                        
-                        if is_match:
-                            found_sequence = seq
-                            # 增加更详细的日志，告知是在哪个事件里找到的
-                            print(f"{indent}- ✅ 精准匹配! 在事件 '{event.get('name', '未命名事件')}' 中找到第 {chapter_number} 章的场景序列。")
-                            return # 找到后立刻终止所有查找
-
-                # 2. 如果当前层级没有，检查是否存在 'composition' 并递归深入
-                composition = event.get("composition", {})
-                if composition and not found_sequence:
-                    # 按照“起承转合”的逻辑顺序进行查找
-                    for part_key in ["起", "承", "转", "合"]:
-                        nested_events = composition.get(part_key, [])
-                        if nested_events:
-                            # 递归调用，深度+1
-                            find_in_event_list(nested_events, depth + 1)
-                            # 如果在递归调用中找到了，立刻终止后续的查找
-                            if found_sequence:
-                                return
-        
-        # 从顶层事件开始查找
-        event_types = ["major_events", "medium_events", "minor_events"]
-        print(f"    - 🔍 开始深度搜索第 {chapter_number} 章的场景数据...")
-        for event_type in event_types:
-            find_in_event_list(event_system.get(event_type, []))
-            if found_sequence:
-                break # 如果在 major_events 里找到了，就没必要再查 medium_events 等
+        found_chapter_entry = None
+        for entry in chapter_scene_events_list:
+            if entry.get("chapter_number") == chapter_number:
+                found_chapter_entry = entry
+                break
         
         # 根据查找结果进行处理
-        if found_sequence:
+        if found_chapter_entry:
             print(f"    - ✅ 成功定位到第 {chapter_number} 章的场景数据。")
-            scene_events = found_sequence.get("scene_events", [])
-            chapter_goal = found_sequence.get("chapter_goal")
-            writing_focus = found_sequence.get("writing_focus")
+            scene_events = found_chapter_entry.get("scene_events", [])
+            chapter_goal = found_chapter_entry.get("chapter_goal")
+            writing_focus = found_chapter_entry.get("writing_focus")
         else:
             # 如果严格匹配不到，就明确告知找不到
-            print(f"    - ❌ 严重警告：在所有事件计划中（包括嵌套结构），都未能严格匹配到第 {chapter_number} 章的场景数据。")
+            print(f"    - ❌ 严重警告：在所有事件计划中，未能找到第 {chapter_number} 章的场景数据。")
             # 此处返回空值，后续的生成流程会因此中断，避免产生错误内容。
             return [], None, None
+        # --- 修改结束 ---
 
         if scene_events:
             print(f"    - ✅ 成功获取到 {len(scene_events)} 个场景事件。")
@@ -1591,6 +1547,7 @@ class ContentGenerator:
                 print(f"    - ✍️ 本章写作重点已载入: {writing_focus}")
 
         return scene_events, chapter_goal, writing_focus
+
 
     def _get_fallback_emotional_guidance(self, chapter_number: int, novel_data: Dict) -> Dict:
         """【此方法已废弃】回退情绪指导 - 基于章节位置，简化版本"""
