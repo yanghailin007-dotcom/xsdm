@@ -20,7 +20,7 @@ CONFIG = {
         "deepseek": "deepseek-reasoner",
         "yuanbao": "deepseek-reasoner",
         #"gemini": "gemini-2.5-pro"
-        "gemini": "gpt-5.1"
+        "gemini": "gemini-2.5-pro-preview-06-05"
     },
     # 在 config.py 或配置文件中添加
     "rate_limit": {
@@ -30,7 +30,7 @@ CONFIG = {
     },
     "website_style_adaptation": {
         "enabled": True,
-        "text": "以下内容旨在适配番茄网站读者的阅读偏好和风格，请严格遵循番茄网文的创作特点，例如：快节奏、强爽点、金手指突出、短句多段、情绪外放。"
+        "text": "【非常重要的设定】以下内容旨在适配番茄小说网站读者的阅读偏好和风格，请严格遵循番茄小说网文的创作特点，例如：快节奏、强爽点、金手指突出、短句多段、情绪外放。"
     },
     "defaults": {
         "temperature": 0.7,

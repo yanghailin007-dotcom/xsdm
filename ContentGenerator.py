@@ -215,10 +215,13 @@ class ContentGenerator:
             result["freshness_score"] = freshness_score
             result["freshness_assessment"] = freshness_assessment
             
-            # 添加代入感评估
-            immersion_score = self._assess_immersion_level(result)
-            result["immersion_score"] = immersion_score
-            print(f"  💫 代入感评分: {immersion_score:.1f}/10")
+            if self.quality_assessor: # 确保 quality_assessor 存在
+                immersion_score = self.quality_assessor.assess_immersion_level(result)
+                result["immersion_score"] = immersion_score
+                print(f"  💫 代入感评分: {immersion_score:.1f}/10")
+            else:
+                print(f"  ⚠️ QualityAssessor 未初始化，跳过代入感评估。")
+                result["immersion_score"] = 0 # 默认值为 0 如果未评估
         
         return result
 
@@ -998,7 +1001,13 @@ class ContentGenerator:
     """
         
         try:
-            new_title = self.api_client.call_api('deepseek', "你是小说章节标题生成专家", title_prompt, 0.7, purpose="生成吸引人章节标题")
+            response = self.api_client.generate_content_with_retry(
+                prompt=title_prompt,
+                model=self.llm_config.get("api_model", "deepseek-chat"), # 将模型名称作为参数传递
+                temperature=0.7,
+                max_tokens=500,
+                parser=None # 标题生成通常不需要复杂解析，直接返回字符串
+            )
             if new_title and new_title.strip():
                 new_title = new_title.strip().strip('"').strip("'").strip()
                 new_title = re.sub(r'^["\']|["\']$', '', new_title)
@@ -1295,98 +1304,7 @@ class ContentGenerator:
                 "refinement_notes": "优化过程失败，使用原始内容"
             }
         }
-
-    def generate_chapter_design(self, chapter_params: Dict) -> Optional[Dict]:
-        """生成章节详细设计方案 - 【修改版】使用新Prompt并编排场景"""
-        
-        pre_designed_scenes = chapter_params.get("pre_designed_scenes", [])
-        chapter_number = chapter_params.get('chapter_number', '未知')
-
-        if not pre_designed_scenes:
-            print(f"  ❌ 第 {chapter_number} 章缺少预设的场景事件，无法生成设计蓝图。")
-            return None
-
-        # 将场景序列格式化为字符串，注入Prompt
-        scenes_str_parts = ["# 核心输入：本章预设场景序列"]
-        for i, scene in enumerate(pre_designed_scenes):
-            scenes_str_parts.append(f"\n### 场景 {i+1}: {scene.get('name', '未命名')} (定位: {scene.get('position', '未知')})")
-            scenes_str_parts.append(f"- **目标**: {scene.get('purpose', '未知')}")
-            scenes_str_parts.append(f"- **关键动作/事件**: {scene.get('key_actions', [])}")
-            scenes_str_parts.append(f"- **情感冲击**: {scene.get('emotional_impact', '无')}")
-            scenes_str_parts.append(f"- **关键对话高光**: {scene.get('dialogue_highlights', [])}")
-            scenes_str_parts.append(f"- **冲突点**: {scene.get('conflict_point', '无')}")
-            scenes_str_parts.append(f"- **感官细节提示**: {scene.get('sensory_details', '无')}")
-            scenes_str_parts.append(f"- **过渡到下一场景**: {scene.get('transition_to_next', '无')}")
-        scenes_input_str = "\n".join(scenes_str_parts)
-
-        # 将场景和背景资料组合成一个完整的上下文，供AI参考
-        full_prompt_context = f"""
-{scenes_input_str}
-
-# 背景资料
-- **小说标题**: 《{chapter_params.get("novel_title", "未知")}》
-- **前情提要**: {chapter_params.get("previous_chapters_summary", "无")}
-- **本章核心目标 (来自计划)**: {chapter_params.get("chapter_goal_from_plan", "推进主线情节")}
-- **本章写作重点 (来自计划)**: {chapter_params.get("writing_focus_from_plan", "保持节奏，制造悬念")}
-- **世界观设定**: {chapter_params.get("worldview_info", "{}")}
-- **人物设定**: {chapter_params.get("character_info", "{}")}
-- **小说整体写作风格**: {json.dumps(chapter_params.get("writing_style_guide", {}), ensure_ascii=False)}
-
----
-请根据以上所有信息，开始你的编排任务，并严格按要求输出JSON。
-"""
-
-        print(f"  📝 [新流程] 基于预设场景，生成第{chapter_number}章设计方案 (含起承转合)...")
-        # ▼▼▼ 唯一的修改点 ▼▼▼
-        design_result = self.api_client.generate_content_with_retry(
-            content_type="chapter_design",
-            user_prompt=f"{full_prompt_context}",
-            purpose=f"编排场景为第{chapter_number}章设计方案"
-        )
-        # ▲▲▲ 修改结束 ▲▲▲
-        
-        if design_result:
-            print(f"  ✅ 第{chapter_number}章设计方案生成成功")
-            self._save_chapter_design(chapter_number, design_result, chapter_params.get("novel_title", "unknown"))
-            return design_result
-        else:
-            print(f"  ❌ 第{chapter_number}章设计方案生成失败")
-            return None
-
-    def _save_chapter_design(self, chapter_number: int, design_data: Dict, novel_title: str):
-        """将章节设计稿保存为JSON文件，路径为：章节详细设计/小说标题/文件名.json"""
-        
-        try:
-            # 1. 创建一个对文件系统安全的小说标题，用作目录名
-            safe_title_dir_name = "".join(c for c in novel_title if c.isalnum() or c in (' ', '-', '_')).rstrip()
-            safe_title_dir_name = safe_title_dir_name.replace(' ', '_')[:50]
-
-            # 2. 构建并创建小说专用的设计稿目录
-            novel_specific_dir = self.design_dir / safe_title_dir_name
-            os.makedirs(novel_specific_dir, exist_ok=True)
-
-            # 3. 构建章节设计稿的文件名
-            filename = f"第{str(chapter_number).zfill(4)}章_设计稿.json"
-            
-            # 4. 组合成最终的文件路径
-            filepath = novel_specific_dir / filename
-
-            # 5. 写入JSON文件
-            with open(filepath, 'w', encoding='utf-8') as f:
-                json.dump(design_data, f, ensure_ascii=False, indent=4)
-            print(f"  💾 章节设计稿已保存到: {filepath}")
-            
-            # 6. 在 novel_data 中记录文件的相对路径
-            if "chapter_designs" not in self.novel_generator.novel_data:
-                self.novel_generator.novel_data["chapter_designs"] = {}
-            
-            project_root = getattr(self.novel_generator, 'project_path', Path.cwd())
-            relative_path = filepath.relative_to(project_root)
-            self.novel_generator.novel_data["chapter_designs"][chapter_number] = {"path": str(relative_path)}
-
-        except Exception as e:
-            print(f"  ❌ 保存章节设计稿失败: {e}")
-                
+                   
     def _prepare_chapter_params(self, chapter_number: int, novel_data: Dict) -> Dict:
         """准备章节参数 - 移除重复的情绪缓冲逻辑"""
         print(f"  🔍 准备第{chapter_number}章参数...")
@@ -1771,113 +1689,6 @@ class ContentGenerator:
         }
         
         return focus_map.get(focus_type, "")
-
-    def generate_chapter_content_from_design(self, chapter_params: Dict, chapter_design: Dict) -> Optional[Dict]:
-        """根据设计方案生成章节内容 - 修复版本，添加情绪设计验证"""
-        # 准备内容生成参数，包含所有基础设定
-        content_params = chapter_params.copy()
-        # 确保所有基础设定参数都存在
-        required_base_params = [
-            'worldview_info', 'character_info', 'stage_writing_plan',
-            'novel_title', 'novel_synopsis', 'main_character_instruction'
-        ]
-        
-        for param in required_base_params:
-            if param not in content_params or not content_params[param]:
-                # 设置默认值
-                if param == 'main_character_instruction' and not content_params.get(param):
-                    content_params[param] = ""
-        # 获取关键一致性信息
-        character_state = chapter_params.get('character_state', '')
-        world_state = chapter_params.get('world_state', '')
-        writing_style = chapter_design.get('writing_style', {})
-        
-        # 提取关键设计元素
-        emotional_design = chapter_design.get('emotional_design', {})
-        plot_structure = chapter_design.get('plot_structure', {})
-        character_performance = chapter_design.get('character_performance', {})
-        
-        # 提取风格关键词
-        style_keywords = []
-        if writing_style:
-            style_keywords.append(writing_style.get('core_style', ''))
-            if writing_style.get('language_characteristics'):
-                lang_chars = writing_style['language_characteristics']
-                style_keywords.extend([
-                    lang_chars.get('sentence_structure', ''),
-                    lang_chars.get('vocabulary_style', ''),
-                    lang_chars.get('rhythm_control', '')
-                ])
-        
-        # 构建保留关键上下文的提示词
-        user_prompt = f"""
-## 章节创作指令 ##
-为《{chapter_params.get('novel_title', '')}》创作第{chapter_params['chapter_number']}章。
-
-## ‼️ 核心融合任务 (最高优先级) ##
-在下方的【情节结构】-【高潮】部分，你会看到一个被 `[SCENE_BLOCK_START]` 和 `[SCENE_BLOCK_END]` 包裹的【高光场景模块】。
-
-你的任务是：
-1.  **无痕融入**: 将这个【高光场景模块】的内容，逐字不差地、完美地融入到你的行文中。你需要创作它之前和之后的情节，让整个高潮部分读起来天衣无缝，就像完全是你自己一气呵成写出来的。
-2.  **主动净化**: 在你的最终输出中，**绝对不能包含 `[SCENE_BLOCK_START]` 或 `[SCENE_BLOCK_END]` 这两个标记**。你要在创作过程中就将它们“吸收”掉，只留下纯净的故事情节。
-
-
-## 情感设计 ##
-- 目标情绪: {emotional_design.get('target_emotion', '')}
-- 情感强度: {emotional_design.get('emotional_intensity', '')}
-- 关键情绪时刻: {emotional_design.get('key_emotional_moments', [])}
-
-## 情节结构 ##
-- 开场: {plot_structure.get('opening_scene', '')}
-- 冲突发展: {plot_structure.get('conflict_development', '')}
-- 高潮: {plot_structure.get('climax_point', '')}
-- 结尾钩子: {plot_structure.get('ending_hook', '')}
-
-## 人物表现 ##
-- 主角发展: {character_performance.get('main_character_development', '')}
-- 关键对话: {character_performance.get('key_dialogues', [])}
-
-## 一致性要求 ##
-- 人物状态: {character_state}
-- 世界状态: {world_state}
-- 写作风格: {', '.join([kw for kw in style_keywords if kw])}
-
-## 章节重点 ##
-{chapter_design.get('chapter_focus', '')}
-
-请确保严格遵循以上所有设计要求，保持情感表达准确、情节连贯、人物和世界状态一致。
-"""
-        print(f"  ✍️ 根据设计方案生成第{chapter_params['chapter_number']}章内容...")
-        content_result = self.api_client.generate_content_with_retry(
-            "chapter_content_generation", 
-            user_prompt, 
-            purpose=f"生成第{chapter_params['chapter_number']}章内容"
-        )
-        
-        if content_result:
-            # 记录使用的设计方案和基础设定
-            content_result["chapter_design"] = chapter_design
-            content_result["design_followed"] = True
-            content_result["base_settings_used"] = {
-                "worldview": bool(chapter_params.get("worldview_info")),
-                "character": bool(chapter_params.get("character_info")),
-                "writing_plan": bool(chapter_params.get("stage_writing_plan"))
-            }
-            
-            # 记录情绪设计信息
-            content_result["emotional_design_applied"] = {
-                "planned_focus": emotional_design.get('target_emotion', ''),
-                "target_intensity": emotional_design.get('emotional_intensity', ''),
-                "key_moments": emotional_design.get('key_emotional_moments', [])
-            }
-            
-            print(f"  ✅ 第{chapter_params['chapter_number']}章内容生成成功")
-            print(f"  🎭 应用的情绪设计: {content_result['emotional_design_applied']}")
-            return content_result
-        else:
-            print(f"  ❌ 第{chapter_params['chapter_number']}章内容生成失败")
-            return None
-                
         
     def generate_writing_style_guide(self, creative_seed: str, category: str, selected_plan: Dict, market_analysis: Dict) -> Optional[Dict]:
         """生成写作风格指南"""

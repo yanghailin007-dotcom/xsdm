@@ -606,7 +606,7 @@ class APIClient:
         """带重试机制的内容生成 - 增强JSON格式要求版本"""
         if content_type not in self.Prompts:
             print(f"❌ 不支持的内容类型: {content_type}")
-            return None
+            #return None
             
         base_system_prompt = self.Prompts[content_type]
         
