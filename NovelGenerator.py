@@ -29,6 +29,45 @@ from Prompts import Prompts
 from DouBaoImageGenerator import DouBaoImageGenerator
 import doubaoconfig
 
+HIGH_SCORING_PLAN_BLUEPRINT = """
+# 高分爆款方案创作蓝图 (Blueprint for High-Scoring Blockbuster Plans)
+在构思方案时，请主动遵循以下蓝图，以确保方案天然具备爆款潜力：
+
+1.  **【金手指设计原则】**:
+    *   **钩子优先**: 金手指的初次亮相必须极具“爽感”和“戏剧性”，能立刻抓住读者眼球。
+    *   **玩法清晰**: 金手指不能只是简单的属性加点，必须有清晰、可延展的“玩法”（如炼制、合成、顿悟、签到特殊奖励等），让读者能持续期待主角如何使用它。
+    *   **深度绑定**: 金手指最好与主角的身份、血脉或故事核心秘密深度绑定，而不是凭空出现。
+
+2.  **【核心卖点原则】**:
+    *   **极致清晰**: 必须有1-2个极其明确、能在简介中一句话说清楚的核心卖点（例如：“天生废体，但每次受伤都能抽取敌人天赋”）。
+    *   **高频展示**: 构思的情节要能让核心卖点被反复、花式地展现，持续刺激读者。
+
+3.  **【角色与代入感原则】 (现代化升级版)**:
+    *   **人格魅力驱动**: 主角开局必须有一个由其鲜明人格决定的、能引发读者好奇与共鸣的“主动追求”目标。这比传统的被动复仇更具吸引力。
+        *   **新潮趋势示例 (优先考虑):**
+            *   **苟道求长生**: 目标是“活下去”，通过极度稳健和风险规避，熬死所有敌人，享受生存的终极乐趣。
+            *   **乐子人玩转世界**: 目标是“找乐子”，通过在幕后操纵局势、导演大戏来满足自己的娱乐心态。
+            *   **秩序建设者**: 目标是“搞建设”，通过发展势力、领地、家族，享受从零到一创造伟业的成就感。
+            *   **规则探索者**: 目标是“卡Bug”，通过研究世界底层逻辑和玩法机制，用智慧和骚操作碾压敌人。
+        *   **经典有效目标 (作为备选):**
+            *   摆脱屈辱、守护亲人、寻找真相、为血亲复仇等。如果使用经典目标，必须在实现方式上做出新意。
+    *   **标签鲜明**: 主角人设要有一个鲜明的记忆点（如：杀伐果断、腹黑老六、稳健苟道、技术狂人等），并贯穿始终。
+
+4.  **【世界观与冲突原则】**:
+    *   **冲突前置**: 开局必须立刻抛出一个与主角核心目标紧密相关的冲突，让主角迅速行动起来，而不是平淡地介绍世界观。
+    *   **升级路径清晰**: 世界观要能清晰地支撑主角的“成长路线”，有明确的地图和敌人等级划分，让读者有清晰的成长预期。
+"""
+
+POISON_POINT_RULES_FOR_GENERATION = """
+# 绝对创作红线与毒点规避指令 (Absolute Creative Red Lines & Poison Point Avoidance Directives)
+在构思所有方案时，你【必须】严格遵守以下红线，任何触犯以下任意一条的方案都将被视为无效：
+
+1.  **【主角地位绝对核心】**: 严禁设计任何可能削弱或取代主角光环的“天命之子”、“真主角”或背景更强的同辈角色。主角必须是其所在阶段的唯一核心。
+2.  **【严防情感背叛】**: 严禁设计主角被核心伴侣/后宫、已确认关系的女性角色、生死兄弟或至亲背叛的情节。尤其禁止“绿帽”和“送女”桥段。
+3.  **【杜绝强行降智】**: 必须保持主角智商和人设的连贯性。严禁为了制造冲突或推进剧情，让主角做出不符合其性格和过往经历的愚蠢决定（即“强行降智”或“圣母行为”）。
+4.  **【拒绝无意义虐主】**: 所有挫折和压抑情节都必须是为后续更高潮的爽点做铺垫。严禁设计长时间、无明确回报的憋屈情节。
+5.  **【避免空洞说教】**: 故事必须由具体事件和角色行动驱动。严禁将核心冲突建立在对“天道”、“法则”等抽象概念的空洞辩论上。创新应体现在情节、设定和金手指玩法上，而非哲学探讨。
+"""
 class NovelGenerator:
     def __init__(self, config):
         self.config = config
@@ -620,7 +659,17 @@ class NovelGenerator:
                 creative_work_dict = {"coreSetting": creative_seed, "coreSellingPoints": "", "completeStoryline": {}}
         else:
             creative_work_dict = creative_seed
+
         refined_creative_seed = self.refine_creative_work_for_ai(creative_work_dict, temp_title_for_filename)
+
+        # 【核心修改点】: 注入“毒点红线”和“高分蓝图”
+        # =======================================================================
+        prompt_with_rules_and_blueprint = (
+            refined_creative_seed + "\n\n" + 
+            POISON_POINT_RULES_FOR_GENERATION + "\n\n" + 
+            HIGH_SCORING_PLAN_BLUEPRINT
+        )
+        # =======================================================================
 
         # ==================== 步骤1: 循环生成与评估，直到找到合格方案 ====================
         qualified_plans = []
@@ -632,7 +681,7 @@ class NovelGenerator:
             generation_attempts += 1
             print(f"\n{'='*20} 方案生成与【AI超级评审员】评估 [第 {generation_attempts}/{max_generation_attempts} 轮] {'='*20}")
             
-            plans_data = self.content_generator.generate_multiple_plans(refined_creative_seed, "")
+            plans_data = self.content_generator.generate_multiple_plans(prompt_with_rules_and_blueprint, "")
 
             if not plans_data or 'plans' not in plans_data:
                 print(f"  ❌ 第 {generation_attempts} 轮方案生成失败，稍后重试...")
@@ -676,17 +725,32 @@ class NovelGenerator:
                 selling_points_score = quality_details.get("selling_points_score", 0)
                 worldview_coherence_score = quality_details.get("worldview_coherence_score", 0)
                 character_depth_score = quality_details.get("character_depth_score", 0)
-                emotional_resonance_score = quality_details.get("emotional_resonance_score", 0)
-                foreshadowing_ingenuity_score = quality_details.get("foreshadowing_ingenuity_score", 0)
-                thematic_depth_score = quality_details.get("thematic_depth_score", 0)
 
-                # 定义更严格的合格标准
-                if (overall_quality_score >= 8.5 and 
-                    freshness_score >= 7.5 and
-                    golden_finger_score >= 7.0 and # 单项要求
-                    selling_points_score >= 7.0 and
-                    worldview_coherence_score >= 7.0 and
-                    character_depth_score >= 7.0): # 确保核心要素达到高分
+                # 1. 定义S+级潜力的标准：总质量分极高 (例如 9.0分以上)
+                is_s_plus_potential = overall_quality_score >= 9.0
+
+                # 2. 定义A级精品的标准：总质量分优秀，但没有明显短板 (例如 8.2分以上)
+                is_a_grade_potential = overall_quality_score >= 8.2 # 比原来的8.5略低，给更多机会
+
+                # 3. 定义核心商业要素（金手指、卖点）是否过硬，这是商业成功的关键
+                core_commercial_strong = golden_finger_score >= 7.0 and selling_points_score >= 7.0
+
+                # 4. 定义可后续优化的辅助要素（世界观、角色）是否达到及格线
+                secondary_elements_pass = worldview_coherence_score >= 6.5 and character_depth_score >= 6.5
+                
+                # 5. 定义新鲜度是否足够
+                freshness_pass = freshness_score >= 7.0
+
+                # 最终筛选逻辑：
+                # 路径一（S+级潜力通道）：只要是总质量分超高的S+潜力股，并且核心商业要素过硬，就直接通过。
+                s_plus_path_qualified = is_s_plus_potential and core_commercial_strong
+                
+                # 路径二（A级精品通道）：对于总分优秀的A级作品，我们要求它没有明显短板，
+                # 即核心商业要素和辅助要素都需要达标，新鲜度也要足够。
+                a_grade_path_qualified = is_a_grade_potential and core_commercial_strong and secondary_elements_pass and freshness_pass
+
+                if s_plus_path_qualified or a_grade_path_qualified:
+                    qualification_path = "S+潜力通道" if s_plus_path_qualified else "A级精品通道"
                     qualified_plans.append({
                         'plan': plan, 
                         'quality_score': overall_quality_score, 
@@ -695,7 +759,7 @@ class NovelGenerator:
                         'evaluation_result': evaluation_result, 
                         'category': category_from_plan
                     })
-                    print(f"      ✅ 方案 {i+1} 通过【AI超级评审员】的严苛评估 (总质量: {overall_quality_score:.1f}, 新鲜度: {freshness_score:.1f}, 综合总分: {total_score:.1f})")
+                    print(f"      ✅ 方案 {i+1} 通过【AI超级评审员】评估 (路径: {qualification_path}, 总质量: {overall_quality_score:.1f}, 新鲜度: {freshness_score:.1f}, 综合总分: {total_score:.1f})")
                 else:
                     print(f"      ❌ 方案 {i+1} 未达【AI超级评审员】的精品标准，淘汰 (总质量: {overall_quality_score:.1f}, 新鲜度: {freshness_score:.1f}, 综合总分: {total_score:.1f})")
 
@@ -3186,14 +3250,13 @@ class NovelGenerator:
         """
         使用AI评价方案质量，【重点增强】评估标准，引入“AI超级评审员”角色。
         """
-        print("\n🔍 正在使用AI【超级评审员】对方案进行“传世经典”级别的质量和新颖度评估...")
+        print("\n🔍 正在使用AI【白金之质】对方案进行“小精品”级别的质量和新颖度评估...")
 
         # 使用质量评估器进行新鲜度评估 (保持不变，但其输出现在将更严格)
         # 假设 freshness_result 已经包含详细的新鲜度评分和分析
         freshness_result = self.quality_assessor.assess_freshness(plan_data, "novel_plan")
         freshness_score = freshness_result["score"]["total"]
-        freshness_verdict = freshness_result["verdict"]
-
+        
         title = plan_data.get('title', '')
         synopsis = plan_data.get('synopsis', '')
         core_direction = plan_data.get('core_direction', '')
@@ -3219,57 +3282,6 @@ class NovelGenerator:
 
 【！！！最高评价标准 (请你以“能否成为网文现象级爆款”的标准，极度严格地审查)！！！】
 以下每一项都将以10分制打分，并给出极其详细的评语：
-
-1.  **金手指设计评估 (权重 20%)**:
-    *   **完美标准**: 必须具备**高度新颖性与爆点潜力**，与世界观/主角**深度绑定，玩法机制清晰且极具爽感**，拥有**无限延展的成长曲线**，且其“玩法”**能够持续制造高潮和期待感**，是支撑长篇网文核心吸引力的“金母鸡”。
-    *   **扣分项**: 凡是常见套路（如：简单签到、属性面板、兑换商城，除非有颠覆性创新）、与网文节奏脱节、成长逻辑僵硬、或爽感制造不足者，此项得分**不可高于5分**。必须是“能引发读者持续追读、有强烈讨论度”的设计才能得高分。
-
-2.  **核心卖点评估 (权重 20%)**:
-    *   **完美标准**: 卖点必须**极致清晰、极具商业吸引力、高度稀缺且能在市场中脱颖而出**，在整个故事中易于**持续、密集、巧妙、多样化展现，能不断激发读者爽点和强烈情感共鸣，具有制造“名场面”的潜力**。
-    *   **扣分项**: 卖点模糊、市场上陈词滥调、爽感传递低效、或难以在长篇中维持其吸引力者，此项得分**不可高于5分**。卖点必须是“一眼难忘，久久回味，且能形成口碑传播”的。
-
-3.  **世界观自洽性与延展性评估 (权重 15%)**:
-    *   **完美标准**: 世界观设定**逻辑严密、背景宏大且具备充分的延展性**，能支撑无数精彩情节的发生，并为主角和各种势力提供**广阔的舞台和合理的行动逻辑**。同时，世界观的引入方式要符合网文的**快速代入**原则。
-    *   **扣分项**: 逻辑漏洞、设定冲突、延展性不足、或引入缓慢、压抑，此项得分**不可高于5分**。
-
-4.  **角色弧光与代入感潜力评估 (权重 15%)**:
-    *   **完美标准**: 主要角色（尤其是主角）的人设**立体、标签鲜明但又不失成长性**，具备**强大的读者代入感和情感投射空间**，其成长轨迹和逆袭之路能够**持续满足读者的期待与爽感**。
-    *   **扣分项**: 人设扁平、成长轨迹平淡、或缺乏读者共鸣、代入感不足者，此项得分**不可高于5分**。
-
-5.  **情感爽点与情绪调动能力评估 (权重 10%)**:
-    *   **完美标准**: 方案预示故事能**精准把握网文读者的G点，制造高潮迭起的情绪波动**，无论是逆袭、打脸、装X、热血、感动，都能**强烈刺激读者情绪，持续提供阅读快感**。
-    *   **扣分项**: 情感流于表面、爽点设置平淡、情绪调动不足者，此项得分**不可高于5分**。
-
-6.  **悬念设计与追读欲望评估 (权重 10%)**:
-    *   **完美标准**: 方案中暗示的悬念设计**环环相扣、引人入胜**，能**有效激发读者持续追读的强烈欲望**，每个章节结尾都能留下足够的钩子。
-    *   **扣分项**: 悬念设置平庸、读者预期过高后失望、或缺乏持续追读动力者，此项得分**不可高于5分**。
-
-7.  **主题立意与市场契合度评估 (权重 10%)**:
-    *   **完美标准**: 小说方案应具备**积极向上、或符合主流价值观的深层主题**，能引发读者思考，同时**主题的表达要自然融入情节，不影响阅读的爽快感，与网文市场趋势高度契合**。
-    *   **扣分项**: 缺乏主题、主题过于说教、或主题与网文市场需求不符者，此项得分**不可高于5分**。
-
-请严格按照以下JSON格式返回评估结果，不要包含任何额外解释或Markdown格式：
-```json
-{{
-    "overall_quality_score": "float // 根据上述权重计算出的总质量评分 (满分10分)",
-    "golden_finger_score": "float // 金手指单项评分 (1-10)",
-    "golden_finger_comment": "string // 金手指详细评语及提升网文爆款潜力建议",
-    "selling_points_score": "float // 核心卖点单项评分 (1-10)",
-    "selling_points_comment": "string // 核心卖点详细评语及提升网文爆款潜力建议",
-    "worldview_coherence_score": "float // 世界观自洽性与延展性评分 (1-10)",
-    "worldview_coherence_comment": "string // 世界观详细评语及提升网文爆款潜力建议",
-    "character_depth_score": "float // 角色弧光与代入感潜力评分 (1-10)",
-    "character_depth_comment": "string // 角色详细评语及提升网文爆款潜力建议",
-    "emotional_resonance_score": "float // 情感爽点与情绪调动能力评分 (1-10)",
-    "emotional_resonance_comment": "string // 情感详细评语及提升网文爆款潜力建议",
-    "foreshadowing_ingenuity_score": "float // 悬念设计与追读欲望评估评分 (1-10)",
-    "foreshadowing_ingenuity_comment": "string // 悬念与追读详细评语及提升网文爆款潜力建议",
-    "thematic_depth_score": "float // 主题立意与市场契合度评估评分 (1-10)",
-    "thematic_depth_comment": "string // 主题立意详细评语及提升网文爆款潜力建议",
-    "super_reviewer_verdict": "string // AI超级评审员的最终、一句话总结性评语，如“有潜力成为现象级爆款，但需在XX方面精进”",
-    "perfection_suggestions": ["string // 提升至“网文现象级爆款”的3-5条核心建议，每条建议都应具体、可操作且面向网文市场"]
-}}
-```
         """
 
         try:
