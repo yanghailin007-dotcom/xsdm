@@ -1083,123 +1083,86 @@ class ContentGenerator:
         return False, f"评分{score:.1f}良好，跳过优化"
 
     def generate_chapter_content(self, chapter_params: Dict) -> Optional[Dict]:
-        """生成章节内容 - 严格三步法：先设计方案，再生成内容，最后专项优化"""
-        print(f"  🔍 进入generate_chapter_content方法，参数类型: {type(chapter_params)}")
+        """
+        【优化版】生成章节内容 - 从场景事件要点直接生成，移除中间设计稿步骤
+        """
+        print(f"  🔍 进入【优化版】generate_chapter_content方法...")
         
-        required_keys = ['chapter_number', 'total_chapters', 'novel_title', 'novel_synopsis', 
-                        'worldview_info', 'character_info',
-                        'previous_chapters_summary', 'main_plot_progress', 'plot_direction',
-                        'chapter_connection_note']
-        
-        # 参数验证和修复逻辑
-        missing_keys = [key for key in required_keys if key not in chapter_params]
-        if missing_keys:
-            print(f"  ⚠️ 缺少必要参数: {missing_keys}")
-            for key in missing_keys:
-                if key == 'event_driven_guidance':
-                    chapter_params[key] = "# 🎯 事件驱动写作指导\n\n本章为普通主线推进章节。"
-                elif key == 'foreshadowing_guidance':
-                    chapter_params[key] = "# 🎭 重要元素铺垫指导\n\n暂无需要铺垫的重要元素。"
-                elif key == 'character_development_focus':
-                    chapter_params[key] = "角色正常发展"
-                else:
-                    chapter_params[key] = "未提供"
-        
-        try:
-            # 第一步：生成章节设计方案
-            chapter_number = chapter_params['chapter_number']
-            print(f"  📝 生成第{chapter_number}章设计方案...")
-            chapter_design = self.generate_chapter_design(chapter_params)
-            
-            # 检查设计方案类型
-            print(f"  🔍 设计方案类型: {type(chapter_design)}")
-            if not chapter_design:
-                print(f"  ❌ 第{chapter_number}章设计方案生成失败，终止生成")
-                return None
-            
-            if not isinstance(chapter_design, dict):
-                print(f"  ❌ 设计方案不是字典类型，而是: {type(chapter_design)}")
-                print(f"     内容: {str(chapter_design)[:200]}...")
-                return None
-                
-            # 第二步：根据设计方案生成内容，并加入重试机制
-            max_retries = 3
-            chapter_content = None
-            
-            for attempt in range(max_retries):
-                print(f"  ✍️ 第{attempt + 1}次尝试生成第{chapter_number}章内容...")
-                current_content = self.generate_chapter_content_from_design(chapter_params, chapter_design)
-                
-                # 检查生成内容的类型
-                if current_content is None:
-                    print(f"  ❌ 第{attempt + 1}次内容生成失败，返回None")
-                    continue
-                    
-                if not isinstance(current_content, dict):
-                    print(f"  ❌ 第{attempt + 1}次内容生成返回非字典类型: {type(current_content)}")
-                    print(f"     内容: {str(current_content)[:200]}...")
-                    if attempt == max_retries - 1:
-                        print(f"  ❌ 达到最大重试次数，第{chapter_number}章生成失败")
-                        return None
-                    continue
-                
-                # 检查字数
-                word_count = current_content.get("word_count", 0)
-                content_length = len(current_content.get("content", ""))
-                
-                print(f"  📝 第{attempt + 1}次生成结果: {word_count}字 (内容长度: {content_length}字符)")
-                
-                # 保存当前生成的内容
-                chapter_content = current_content
-                
-                # 如果字数达标，直接使用
-                if content_length >= 1800:
-                    print(f"  ✅ 字数达标: {word_count}字")
-                    break
-                
-                # 【【【新增的清理步骤】】】
-                # 在内容生成之后，优化之前，进行标记清理
-                if chapter_content and 'content' in chapter_content and isinstance(chapter_content['content'], str):
-                    content_with_markers = chapter_content['content']
-                    if '[SCENE_BLOCK_START]' in content_with_markers:
-                        print("  🧹 正在清理最终内容中的内部标记...")
-                        
-                        # 执行清理
-                        cleaned_content = content_with_markers.replace('[SCENE_BLOCK_START]', '')
-                        cleaned_content = cleaned_content.replace('[SCENE_BLOCK_END]', '')
-                        
-                        # 移除可能因替换产生的多余空行
-                        cleaned_content = cleaned_content.strip()
-                        
-                        # 更新章节内容和字数统计
-                        chapter_content['content'] = cleaned_content
-                        chapter_content['word_count'] = len(cleaned_content)
-                        print("  ✅ 内部标记已成功移除，正文已净化。")
-                
-                # 如果是最后一次尝试，使用当前内容
-                if attempt == max_retries - 1:
-                    print(f"  ❌ 达到最大重试次数，使用当前内容")
-         
-            # 第三步：专项优化 - 使用CHAPTER_REFINEMENT_PROMPT进行平台风格优化
-            if chapter_content:
-                print(f"  🎯 开始第{chapter_number}章专项优化...")
-                #optimized_content = self.refine_chapter_content(chapter_content)
-                
-                #if optimized_content:
-                #    print(f"  ✅ 第{chapter_number}章优化成功")
-                #    return optimized_content
-                #else:
-                print(f"  ⚠️ 第{chapter_number}章优化失败，使用原始内容")
-                return chapter_content
-            else:
-                print(f"  ❌ 第{chapter_number}章所有生成尝试均失败")
-                return None
-                
-        except Exception as e:
-            print(f"❌ 生成第{chapter_params['chapter_number']}章内容时出错: {e}")
-            import traceback
-            traceback.print_exc()
+        chapter_number = chapter_params.get('chapter_number', '未知')
+        pre_designed_scenes = chapter_params.get("pre_designed_scenes", [])
+
+        if not pre_designed_scenes:
+            print(f"  ❌ 第 {chapter_number} 章缺少预设的场景事件，无法直接生成内容。")
             return None
+
+        # ▼▼▼ 核心变更：构建一个直接消费场景事件的Prompt ▼▼▼
+        # 将场景事件列表、前情提要、写作风格等所有信息整合到一个Prompt中
+        scenes_str_parts = ["# 核心输入：本章预设场景序列"]
+        for i, scene in enumerate(pre_designed_scenes):
+            scenes_str_parts.append(f"\n### 场景 {i+1}: {scene.get('name', '未命名')} (定位: {scene.get('position', '未知')})")
+            scenes_str_parts.append(f"- **目标**: {scene.get('purpose', '未知')}")
+            scenes_str_parts.append(f"- **关键动作/事件**: {scene.get('key_actions', [])}")
+            scenes_str_parts.append(f"- **情感冲击**: {scene.get('emotional_impact', '无')}")
+            scenes_str_parts.append(f"- **关键对话高光**: {scene.get('dialogue_highlights', [])}")
+            # ... 可以包含更多场景细节
+        scenes_input_str = "\n".join(scenes_str_parts)
+
+        user_prompt = f"""
+    ## 章节创作指令 ##
+    为《{chapter_params.get('novel_title', '')}》创作第{chapter_number}章。
+
+    ## 1. 写作蓝图 (必须严格遵守的场景事件)
+    {scenes_input_str}
+
+    ## 2. 背景与衔接
+    - **前情提要**: {chapter_params.get("previous_chapters_summary", "无")}
+    - **本章核心目标**: {chapter_params.get("chapter_goal_from_plan", "推进主线情节")}
+    - **本章写作重点**: {chapter_params.get("writing_focus_from_plan", "保持节奏，制造悬念")}
+
+    ## 3. 角色与世界观
+    - **世界观设定**: {chapter_params.get("worldview_info", "{}")}
+    - **人物设定**: {chapter_params.get("character_info", "{}")}
+    - **一致性铁律**: {chapter_params.get("consistency_guidance", "保持前后文一致")}
+
+    ## 4. 风格指南
+    - **小说整体写作风格**: {json.dumps(chapter_params.get("writing_style_guide", {}), ensure_ascii=False)}
+
+    ---
+    请你作为一名优秀的小说家，根据以上所有指令，直接创作出本章的完整内容。
+    你的任务是将【写作蓝图】中的场景事件要点，流畅地、富有文采地串联成一篇完整的、高质量的小说章节。
+    """
+        # ▲▲▲ 核心变更结束 ▲▲▲
+
+        max_retries = 3
+        final_result = None
+        for attempt in range(max_retries):
+            print(f"  ✍️ 第{attempt + 1}/{max_retries}次尝试直接生成第{chapter_number}章内容...")
+            # 使用你现有的 chapter_content_generation Prompt类型，但传入新的、更丰富的 user_prompt
+            # 这个Prompt应该指导LLM直接输出最终的章节JSON
+            content_result = self.api_client.generate_content_with_retry(
+                "chapter_content_generation", 
+                user_prompt, 
+                purpose=f"直接从场景事件生成第{chapter_number}章内容"
+            )
+
+            if content_result and isinstance(content_result, dict) and len(content_result.get("content", "")) >= 1800:
+                print(f"  ✅ 第{chapter_number}章内容生成成功，字数达标。")
+                final_result = content_result
+                break
+            else:
+                word_count = len(content_result.get("content", "")) if content_result else 0
+                print(f"  ⚠️ 第{attempt + 1}次尝试失败或字数不足 ({word_count}字)。")
+
+        # 如果所有尝试后仍未达标，但有结果，也使用它
+        if final_result:
+            # 你可以在这里对 final_result 进行清理或进一步处理
+            # 例如，清理标记（如果你的Prompt设计需要的话）
+            # ...
+            return final_result
+        else:
+            print(f"  ❌ 第{chapter_number}章所有直接生成尝试均失败")
+            return None
+
 
     def refine_chapter_content(self, chapter_content: Dict) -> Dict:
         """
