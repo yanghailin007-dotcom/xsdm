@@ -601,11 +601,12 @@ class NovelGenerator:
             print(f"  ❌ 生成精准竞品分析时出错: {e}")
             return None
 
-# NovelGenerator.py (再次替换整个 full_auto_generation 方法)
 
     def full_auto_generation(self, creative_seed: str, total_chapters: int = None):
-        """全自动生成完整小说 - 【V4版】引入重试循环，确保产出最优方案"""
-        print("🚀 开始全自动小说生成 (模式：聚焦最优)...")
+        """
+        全自动生成完整小说 - 【V5版】引入更严格的“AI超级评审员”评估和多轮优化循环，确保产出最优方案。
+        """
+        print("🚀 开始全自动小说生成 (模式：【AI超级评审员】精品聚焦)...")
         print(f"创意种子: {creative_seed}")
 
         if total_chapters is None:
@@ -623,22 +624,23 @@ class NovelGenerator:
 
         # ==================== 步骤1: 循环生成与评估，直到找到合格方案 ====================
         qualified_plans = []
+        # 增加最大尝试次数，支持多次方案生成和评估，直到找到真正合格的方案
+        max_generation_attempts = 5 # 提高尝试次数
         generation_attempts = 0
-        max_generation_attempts = 3  # 设置最大尝试次数，防止无限循环
 
         while not qualified_plans and generation_attempts < max_generation_attempts:
             generation_attempts += 1
-            print(f"\n{'='*20} 方案生成与评估 [第 {generation_attempts}/{max_generation_attempts} 轮] {'='*20}")
+            print(f"\n{'='*20} 方案生成与【AI超级评审员】评估 [第 {generation_attempts}/{max_generation_attempts} 轮] {'='*20}")
             
             plans_data = self.content_generator.generate_multiple_plans(refined_creative_seed, "")
 
             if not plans_data or 'plans' not in plans_data:
                 print(f"  ❌ 第 {generation_attempts} 轮方案生成失败，稍后重试...")
-                time.sleep(5) # 如果API调用失败，稍作等待
+                time.sleep(5) 
                 continue
 
             plans = plans_data['plans']
-            print(f"  ✅ 第 {generation_attempts} 轮成功生成 {len(plans)} 个方案，开始进行严苛评估...")
+            print(f"  ✅ 第 {generation_attempts} 轮成功生成 {len(plans)} 个方案，开始进行【AI超级评审员】的严苛评估...")
 
             for i, plan in enumerate(plans):
                 print(f"    🔍 评估方案 {i+1}...")
@@ -661,22 +663,45 @@ class NovelGenerator:
 
                 print(f"      📊 方案分类: {category_from_plan}")
                 evaluation_result = self._evaluate_plan_quality(plan, category_from_plan, creative_seed)
-                quality_score = evaluation_result.get("quality_score", 0)
+                
+                # 从更详细的评估结果中获取分数
+                overall_quality_score = evaluation_result.get("quality_score", 0) # 这是加权后的总质量分
                 freshness_score = evaluation_result.get("freshness_score", 0)
-                total_score = evaluation_result.get("total_score", 0)
+                total_score = evaluation_result.get("total_score", 0) # 这是最终的综合评分
 
-                if quality_score >= 3.0 and freshness_score >= 7.0:
+                # 调整合格方案的筛选条件，要求更高
+                # 假设所有子项评分也需要达到较高水平，例如所有子项都>=7.0
+                quality_details = evaluation_result.get("quality_details", {})
+                golden_finger_score = quality_details.get("golden_finger_score", 0)
+                selling_points_score = quality_details.get("selling_points_score", 0)
+                worldview_coherence_score = quality_details.get("worldview_coherence_score", 0)
+                character_depth_score = quality_details.get("character_depth_score", 0)
+                emotional_resonance_score = quality_details.get("emotional_resonance_score", 0)
+                foreshadowing_ingenuity_score = quality_details.get("foreshadowing_ingenuity_score", 0)
+                thematic_depth_score = quality_details.get("thematic_depth_score", 0)
+
+                # 定义更严格的合格标准
+                if (overall_quality_score >= 8.5 and 
+                    freshness_score >= 7.5 and
+                    golden_finger_score >= 7.0 and # 单项要求
+                    selling_points_score >= 7.0 and
+                    worldview_coherence_score >= 7.0 and
+                    character_depth_score >= 7.0): # 确保核心要素达到高分
                     qualified_plans.append({
-                        'plan': plan, 'quality_score': quality_score, 'freshness_score': freshness_score,
-                        'total_score': total_score, 'evaluation_result': evaluation_result, 'category': category_from_plan
+                        'plan': plan, 
+                        'quality_score': overall_quality_score, 
+                        'freshness_score': freshness_score,
+                        'total_score': total_score, 
+                        'evaluation_result': evaluation_result, 
+                        'category': category_from_plan
                     })
-                    print(f"      ✅ 方案 {i+1} 通过严苛评估 (质量: {quality_score:.1f}, 新鲜度: {freshness_score:.1f})")
+                    print(f"      ✅ 方案 {i+1} 通过【AI超级评审员】的严苛评估 (总质量: {overall_quality_score:.1f}, 新鲜度: {freshness_score:.1f}, 综合总分: {total_score:.1f})")
                 else:
-                    print(f"      ❌ 方案 {i+1} 未达完美标准，淘汰 (质量: {quality_score:.1f}, 新鲜度: {freshness_score:.1f})")
+                    print(f"      ❌ 方案 {i+1} 未达【AI超级评审员】的精品标准，淘汰 (总质量: {overall_quality_score:.1f}, 新鲜度: {freshness_score:.1f}, 综合总分: {total_score:.1f})")
 
         # 循环结束后的最终检查
         if not qualified_plans:
-            print(f"\n❌ 致命错误：经过 {max_generation_attempts} 轮尝试，仍未生成任何满足严苛标准的方案。请检查您的创意种子或调整评估标准。已终止本次生成。")
+            print(f"\n❌ 致命错误：经过 {max_generation_attempts} 轮尝试，仍未生成任何满足【AI超级评审员】严苛标准的方案。请检查您的创意种子或调整评估标准。已终止本次生成。")
             return False
         # ==============================================================================
 
@@ -687,65 +712,94 @@ class NovelGenerator:
 
         print(f"\n{'='*60}")
         print(f"🏆 已确定最优方案: 《{plan.get('title', '未知标题')}》")
-        print(f"   原始总分: {best_plan_data['total_score']:.2f} (质量: {best_plan_data['quality_score']:.1f}, 新鲜度: {best_plan_data['freshness_score']:.1f})")
+        print(f"   【AI超级评审员】总评分: {best_plan_data['total_score']:.2f} (总质量: {best_plan_data['quality_score']:.1f}, 新鲜度: {best_plan_data['freshness_score']:.1f})")
         print(f"   分类: {plan_category}")
         print(f"{'='*60}")
 
         # ==================== 结合精准市场竞品的最终优化环节 ====================
-        print("\n🔬 进入最终优化阶段：结合精准竞品数据，对最优方案进行战略性打磨...")
-        
-        # 步骤A: 获取精准市场竞品数据
-        print("   📊 正在获取同类热门书籍数据进行横向对比...")
-        plan_title = plan.get('title', '')
-        plan_synopsis = plan.get('synopsis', '')
-        plan_selling_points = plan.get('core_settings', {}).get('core_selling_points', [])
+        # 引入多轮优化循环
+        max_optimization_rounds = 3 # 设定优化次数
+        current_optimization_round = 0
+        current_best_plan = plan
+        current_best_score = best_plan_data['total_score']
+        current_evaluation_result = best_plan_data['evaluation_result']
 
-        market_competitors = self.generate_market_competitor_analysis(
-            plan_category, plan_title, plan_synopsis, plan_selling_points
-        )
+        while current_optimization_round < max_optimization_rounds:
+            current_optimization_round += 1
+            print(f"\n🔬 进入【AI超级评审员】最终优化阶段 [第 {current_optimization_round}/{max_optimization_rounds} 轮]：结合精准竞品数据，对最优方案进行战略性打磨...")
+            
+            # 步骤A: 获取精准市场竞品数据
+            print("   📊 正在获取同类热门书籍数据进行横向对比...")
+            plan_title = current_best_plan.get('title', '')
+            plan_synopsis = current_best_plan.get('synopsis', '')
+            plan_selling_points = current_best_plan.get('core_settings', {}).get('core_selling_points', [])
 
-        # 步骤B: 准备优化参数
-        optimization_params = {
-            "quality_assessment": best_plan_data['evaluation_result'],
-            "freshness_assessment": best_plan_data['evaluation_result'].get('freshness_details', {}),
-            "market_competitor_analysis": market_competitors,
-            "optimization_reason": "对选出的最优方案，结合市场上最直接的竞品分析，进行最终的战略性打磨，旨在超越竞品。"
-        }
-        
-        # 步骤C: 调用优化器
-        optimized_plan = self.quality_assessor.optimize_novel_plan(plan, optimization_params)
+            market_competitors = self.generate_market_competitor_analysis(
+                plan_category, plan_title, plan_synopsis, plan_selling_points
+            )
 
-        if optimized_plan:
-            print("✅ 方案优化完成，正在进行最终评分...")
-            new_evaluation_result = self._evaluate_plan_quality(optimized_plan, plan_category, creative_seed)
-            new_quality_score = new_evaluation_result.get("quality_score", 0)
-            new_freshness_score = new_evaluation_result.get("freshness_score", 0)
-            new_total_score = new_evaluation_result.get("total_score", 0)
+            # 步骤B: 准备优化参数
+            optimization_params = {
+                "quality_assessment": current_evaluation_result, # 传入超级评审员的详细评估结果
+                "freshness_assessment": current_evaluation_result.get('freshness_details', {}),
+                "market_competitor_analysis": market_competitors,
+                # 利用超级评审员的“perfection_suggestions”作为优化目标
+                "optimization_reason": f"【AI超级评审员】对当前方案的改进建议：{current_evaluation_result.get('perfection_suggestions', ['无具体建议'])}",
+                "round": current_optimization_round
+            }
+            
+            # 步骤C: 调用优化器进行优化
+            optimized_plan = self.quality_assessor.optimize_novel_plan(current_best_plan, optimization_params)
 
-            print("\n" + "─"*70)
-            print("📊 优化前后评分对比:")
-            print(f"   - 原始评分: 质量 {best_plan_data['quality_score']:.1f}, 新鲜度 {best_plan_data['freshness_score']:.1f}, 总分 {best_plan_data['total_score']:.2f}")
-            print(f"   - 优化后评分: 质量 {new_quality_score:.1f}, 新鲜度 {new_freshness_score:.1f}, 总分 {new_total_score:.2f}")
-            print(f"   - 提升: 质量 {new_quality_score - best_plan_data['quality_score']:+.1f}, 新鲜度 {new_freshness_score - best_plan_data['freshness_score']:+.1f}, 总分 {new_total_score - best_plan_data['total_score']:+.2f}")
-            print("─"*70)
-            print("💡 基于市场对比后的核心改进：")
-            print(f"   - 新标题: 《{optimized_plan.get('title', '无')}》")
-            print(f"   - 新金手指描述: {optimized_plan.get('core_settings', {}).get('golden_finger', '无')}")
-            print(f"   - 新简介: {optimized_plan.get('synopsis', '无')}")
-            print("─"*70)
+            if optimized_plan:
+                print("✅ 方案优化完成，正在进行最终评分...")
+                new_evaluation_result = self._evaluate_plan_quality(optimized_plan, plan_category, creative_seed)
+                new_overall_quality_score = new_evaluation_result.get("quality_score", 0)
+                new_freshness_score = new_evaluation_result.get("freshness_score", 0)
+                new_total_score = new_evaluation_result.get("total_score", 0)
 
-            plan = optimized_plan
-            best_plan_data.update({
-                'plan': optimized_plan,
-                'quality_score': new_quality_score,
-                'freshness_score': new_freshness_score,
-                'total_score': new_total_score,
-                'evaluation_result': new_evaluation_result
-            })
-        else:
-            print("⚠️ 优化失败或未产生有效改进，将使用原始最优方案进行创作。")
+                print("\n" + "─"*70)
+                print(f"📊 优化前后评分对比 (第 {current_optimization_round} 轮):")
+                print(f"   - 优化前总分: {current_best_score:.2f} (质量: {current_best_plan.get('_quality_score', 0):.1f}, 新鲜度: {current_best_plan.get('_freshness_score', 0):.1f})")
+                print(f"   - 优化后总分: {new_total_score:.2f} (质量: {new_overall_quality_score:.1f}, 新鲜度: {new_freshness_score:.1f})")
+                print(f"   - 提升: 总分 {new_total_score - current_best_score:+.2f}, 质量 {new_overall_quality_score - current_best_plan.get('_quality_score', 0):+.1f}, 新鲜度 {new_freshness_score - current_best_plan.get('_freshness_score', 0):+.1f}")
+                print("─"*70)
+
+                # 如果优化后分数更高，则更新最佳方案
+                if new_total_score > current_best_score:
+                    current_best_plan = optimized_plan
+                    current_best_score = new_total_score
+                    current_evaluation_result = new_evaluation_result
+                    print("👍 本轮优化成功，方案质量进一步提升！")
+                else:
+                    print("👎 本轮优化未带来显著提升，或甚至有所下降。将保留上一个最佳方案。")
+                    # 如果未提升，可以考虑是否要终止优化循环
+                    if current_optimization_round > 1: # 至少尝试一轮
+                        print("🚫 连续优化无提升，提前结束优化循环。")
+                        break
+            else:
+                print("⚠️ 优化失败或未产生有效改进。将使用原始最优方案进行创作。")
+                if current_optimization_round > 1:
+                    print("🚫 优化失败，提前结束优化循环。")
+                    break
+            
+            # 检查是否还有提升建议，如果没有，也可以提前结束
+            if not current_evaluation_result.get('perfection_suggestions', []):
+                print("✅ 【AI超级评审员】认为方案已无明显提升空间，提前结束优化循环。")
+                break
+
+        plan = current_best_plan
+        best_plan_data.update({
+            'plan': plan,
+            'quality_score': current_evaluation_result['quality_score'],
+            'freshness_score': current_evaluation_result['freshness_score'],
+            'total_score': current_evaluation_result['total_score'],
+            'evaluation_result': current_evaluation_result
+        })
+        print(f"\n🏁 经过 {current_optimization_round} 轮优化，最终方案确定。")
+        print(f"最终【AI超级评审员】总评分: {best_plan_data['total_score']:.2f} (总质量: {best_plan_data['quality_score']:.1f}, 新鲜度: {best_plan_data['freshness_score']:.1f})")
         # =====================================================================
-
+        # =====================================================================
         try:
             self.novel_data = {}
             self._initialize_novel_data_structure()
@@ -3129,108 +3183,190 @@ class NovelGenerator:
         return prompt.strip()
 
     def _evaluate_plan_quality(self, plan_data: Dict, category: str, creative_seed: str) -> Dict:
-        """使用AI评价方案质量，降低门槛让更多方案通过"""
-        print("\n🔍 正在使用AI评价方案质量和新颖度...")
-        
-        # 使用质量评估器进行新鲜度评估
+        """
+        使用AI评价方案质量，【重点增强】评估标准，引入“AI超级评审员”角色。
+        """
+        print("\n🔍 正在使用AI【超级评审员】对方案进行“传世经典”级别的质量和新颖度评估...")
+
+        # 使用质量评估器进行新鲜度评估 (保持不变，但其输出现在将更严格)
+        # 假设 freshness_result 已经包含详细的新鲜度评分和分析
         freshness_result = self.quality_assessor.assess_freshness(plan_data, "novel_plan")
-        
-        # 直接从新结构中获取分数
         freshness_score = freshness_result["score"]["total"]
         freshness_verdict = freshness_result["verdict"]
-        
+
         title = plan_data.get('title', '')
         synopsis = plan_data.get('synopsis', '')
         core_direction = plan_data.get('core_direction', '')
         golden_finger = plan_data.get('core_settings', {}).get('golden_finger', '')
         core_selling_points = plan_data.get('core_settings', {}).get('core_selling_points', [])
-        
-        # 核心修改：替换为更严格的评估Prompt
+        world_background = plan_data.get('core_settings', {}).get('world_background', '')
+        main_character_archetype = plan_data.get('main_character', {}).get('archetype', '')
+
         quality_prompt = f"""
-作为一名顶级的、极其挑剔的网文主编，请对以下小说方案进行“完美主义”级别的评估。
+你是一位**拥有超过50年经验、眼光毒辣、对网文商业成功和艺术质量有着极度严苛、吹毛求疵**的顶级网文主编，同时也是一个追求**商业价值与艺术成就双丰收的“网文传世经典”**的超级评审员。你的任务是对以下小说方案进行**最高标准的艺术性与市场价值评估**。你必须找出**任何可能阻碍其成为“网文精品乃至现象级爆款”**的瑕疵，并给出**提升至市场和口碑双赢的、可操作的、有建设性的建议**。
 
 【小说分类】{category}
-【创意种子】{creative_seed}
+【创意种子】{creative_seed} (这是最初的灵感源泉，你需评估方案是否完美继承并升华了它，使其更符合网文市场爆款潜力)
 
-【方案内容】
+【待评估小说方案内容】
 书名：《{title}》
 简介：{synopsis}
 核心方向：{core_direction}
+核心世界观概要: {world_background}
 金手指：{golden_finger}
 核心卖点：{json.dumps(core_selling_points, ensure_ascii=False)}
+主角原型/人设初步构思: {main_character_archetype}
 
-【！！！最高评价标准 (请极度严格)！！！】
-1.  **金手指评估 (权重50%)**:
-    *   **完美标准**: 必须具备高度新颖性、与世界观/主角深度绑定、具备清晰的成长曲线、且玩法有趣。
-    *   **扣分项**: 如果金手指是常见套路（如：简单签到、属性面板、兑换商城），或者与剧情脱节，此项得分**不可高于4分**。必须是“近乎完美”的设计才能给高分。
-2.  **核心卖点评估 (权重50%)**:
-    *   **完美标准**: 卖点必须清晰、极具吸引力、且在整个故事中易于持续展现。
-    *   **扣分项**: 如果卖点模糊、是市场上的陈词滥调、或者难以在长篇中维持，此项得分**不可高于4分**。
+【！！！最高评价标准 (请你以“能否成为网文现象级爆款”的标准，极度严格地审查)！！！】
+以下每一项都将以10分制打分，并给出极其详细的评语：
 
-请根据上述“零容忍”标准，按照以下JSON格式返回评估结果：
+1.  **金手指设计评估 (权重 20%)**:
+    *   **完美标准**: 必须具备**高度新颖性与爆点潜力**，与世界观/主角**深度绑定，玩法机制清晰且极具爽感**，拥有**无限延展的成长曲线**，且其“玩法”**能够持续制造高潮和期待感**，是支撑长篇网文核心吸引力的“金母鸡”。
+    *   **扣分项**: 凡是常见套路（如：简单签到、属性面板、兑换商城，除非有颠覆性创新）、与网文节奏脱节、成长逻辑僵硬、或爽感制造不足者，此项得分**不可高于5分**。必须是“能引发读者持续追读、有强烈讨论度”的设计才能得高分。
+
+2.  **核心卖点评估 (权重 20%)**:
+    *   **完美标准**: 卖点必须**极致清晰、极具商业吸引力、高度稀缺且能在市场中脱颖而出**，在整个故事中易于**持续、密集、巧妙、多样化展现，能不断激发读者爽点和强烈情感共鸣，具有制造“名场面”的潜力**。
+    *   **扣分项**: 卖点模糊、市场上陈词滥调、爽感传递低效、或难以在长篇中维持其吸引力者，此项得分**不可高于5分**。卖点必须是“一眼难忘，久久回味，且能形成口碑传播”的。
+
+3.  **世界观自洽性与延展性评估 (权重 15%)**:
+    *   **完美标准**: 世界观设定**逻辑严密、背景宏大且具备充分的延展性**，能支撑无数精彩情节的发生，并为主角和各种势力提供**广阔的舞台和合理的行动逻辑**。同时，世界观的引入方式要符合网文的**快速代入**原则。
+    *   **扣分项**: 逻辑漏洞、设定冲突、延展性不足、或引入缓慢、压抑，此项得分**不可高于5分**。
+
+4.  **角色弧光与代入感潜力评估 (权重 15%)**:
+    *   **完美标准**: 主要角色（尤其是主角）的人设**立体、标签鲜明但又不失成长性**，具备**强大的读者代入感和情感投射空间**，其成长轨迹和逆袭之路能够**持续满足读者的期待与爽感**。
+    *   **扣分项**: 人设扁平、成长轨迹平淡、或缺乏读者共鸣、代入感不足者，此项得分**不可高于5分**。
+
+5.  **情感爽点与情绪调动能力评估 (权重 10%)**:
+    *   **完美标准**: 方案预示故事能**精准把握网文读者的G点，制造高潮迭起的情绪波动**，无论是逆袭、打脸、装X、热血、感动，都能**强烈刺激读者情绪，持续提供阅读快感**。
+    *   **扣分项**: 情感流于表面、爽点设置平淡、情绪调动不足者，此项得分**不可高于5分**。
+
+6.  **悬念设计与追读欲望评估 (权重 10%)**:
+    *   **完美标准**: 方案中暗示的悬念设计**环环相扣、引人入胜**，能**有效激发读者持续追读的强烈欲望**，每个章节结尾都能留下足够的钩子。
+    *   **扣分项**: 悬念设置平庸、读者预期过高后失望、或缺乏持续追读动力者，此项得分**不可高于5分**。
+
+7.  **主题立意与市场契合度评估 (权重 10%)**:
+    *   **完美标准**: 小说方案应具备**积极向上、或符合主流价值观的深层主题**，能引发读者思考，同时**主题的表达要自然融入情节，不影响阅读的爽快感，与网文市场趋势高度契合**。
+    *   **扣分项**: 缺乏主题、主题过于说教、或主题与网文市场需求不符者，此项得分**不可高于5分**。
+
+请严格按照以下JSON格式返回评估结果，不要包含任何额外解释或Markdown格式：
+```json
 {{
-    "overall_score": "总体评分(满分10分，严格根据上述权重和标准计算)",
-    "golden_finger_score": "金手指单项评分(满分10分)",
-    "selling_points_score": "核心卖点单项评分(满分10分)",
-    "quality_verdict": "质量评级 (如：神作潜力、优良、平庸、废案)",
-    "strengths": ["优点列表，必须言之有物"],
-    "weaknesses": ["缺点列表，必须一针见血"],
-    "optimization_suggestions": ["如何才能达到'完美'标准的具体建议"]
+    "overall_quality_score": "float // 根据上述权重计算出的总质量评分 (满分10分)",
+    "golden_finger_score": "float // 金手指单项评分 (1-10)",
+    "golden_finger_comment": "string // 金手指详细评语及提升网文爆款潜力建议",
+    "selling_points_score": "float // 核心卖点单项评分 (1-10)",
+    "selling_points_comment": "string // 核心卖点详细评语及提升网文爆款潜力建议",
+    "worldview_coherence_score": "float // 世界观自洽性与延展性评分 (1-10)",
+    "worldview_coherence_comment": "string // 世界观详细评语及提升网文爆款潜力建议",
+    "character_depth_score": "float // 角色弧光与代入感潜力评分 (1-10)",
+    "character_depth_comment": "string // 角色详细评语及提升网文爆款潜力建议",
+    "emotional_resonance_score": "float // 情感爽点与情绪调动能力评分 (1-10)",
+    "emotional_resonance_comment": "string // 情感详细评语及提升网文爆款潜力建议",
+    "foreshadowing_ingenuity_score": "float // 悬念设计与追读欲望评估评分 (1-10)",
+    "foreshadowing_ingenuity_comment": "string // 悬念与追读详细评语及提升网文爆款潜力建议",
+    "thematic_depth_score": "float // 主题立意与市场契合度评估评分 (1-10)",
+    "thematic_depth_comment": "string // 主题立意详细评语及提升网文爆款潜力建议",
+    "super_reviewer_verdict": "string // AI超级评审员的最终、一句话总结性评语，如“有潜力成为现象级爆款，但需在XX方面精进”",
+    "perfection_suggestions": ["string // 提升至“网文现象级爆款”的3-5条核心建议，每条建议都应具体、可操作且面向网文市场"]
 }}
-"""
-        
+```
+        """
+
         try:
             # 调用AI进行质量评价
             quality_result = self.api_client.generate_content_with_retry(
-                "plan_quality_evaluation",
+                "plan_quality_evaluation_super_reviewer", # 使用新ID以反映更高标准
                 quality_prompt,
-                purpose="方案质量评价"
+                purpose="【AI超级评审员】进行方案质量评价"
             )
-            
-            quality_score = quality_result.get("overall_score", 0) if quality_result else 0
-            
-            # 计算综合评分（质量60% + 新鲜度40%）
-            total_score = (quality_score * 0.6) + (freshness_score * 0.4)
-            
-            # 返回详细结果
-            result = {
-                "quality_score": quality_score,
-                "freshness_score": freshness_score,
-                "freshness_details": freshness_result,
-                "total_score": total_score,
-                "quality_verdict": quality_result.get("quality_verdict", "未知") if quality_result else "未知",
-                "freshness_verdict": freshness_verdict,
-                # 🆕 降低推荐门槛，让更多方案通过
-                "recommendation": quality_score >= 8.0 and freshness_score >= 3.0
-            }
-            
-            print(f"📊 AI评价结果:")
-            print(f"  质量评分: {quality_score:.1f}/10分")
-            print(f"  新鲜度评分: {freshness_score:.1f}/10分")
-            print(f"  综合评分: {total_score:.1f}/10分")
-            print(f"  质量判定: {result['quality_verdict']}")
-            print(f"  新鲜度判定: {freshness_verdict}")
-            print(f"  推荐使用: {'是' if result['recommendation'] else '否'}")
-            
-            # 将评分存储到方案数据中
-            plan_data['_quality_score'] = quality_score
-            plan_data['_freshness_score'] = freshness_score
-            plan_data['_freshness_details'] = freshness_result
-            plan_data['_total_score'] = total_score
-            
-            return result
-            
+
+            if quality_result:
+                # 重新计算总质量评分，确保各维度权重
+                weights = {
+                    "golden_finger": 0.20,
+                    "selling_points": 0.20,
+                    "worldview_coherence": 0.15,
+                    "character_depth": 0.15,
+                    "emotional_resonance": 0.10,
+                    "foreshadowing_ingenuity": 0.10,
+                    "thematic_depth": 0.10
+                }
+                
+                # 确保所有分数都存在，如果某个分数缺失则设为0，避免KeyError
+                gf_score = quality_result.get("golden_finger_score", 0.0)
+                sp_score = quality_result.get("selling_points_score", 0.0)
+                wv_score = quality_result.get("worldview_coherence_score", 0.0)
+                cd_score = quality_result.get("character_depth_score", 0.0)
+                er_score = quality_result.get("emotional_resonance_score", 0.0)
+                fi_score = quality_result.get("foreshadowing_ingenuity_score", 0.0)
+                td_score = quality_result.get("thematic_depth_score", 0.0)
+
+                overall_quality_score = (
+                    gf_score * weights["golden_finger"] +
+                    sp_score * weights["selling_points"] +
+                    wv_score * weights["worldview_coherence"] +
+                    cd_score * weights["character_depth"] +
+                    er_score * weights["emotional_resonance"] +
+                    fi_score * weights["foreshadowing_ingenuity"] +
+                    td_score * weights["thematic_depth"]
+                )
+                
+                # 将计算出的总分更新回结果字典，如果AI自己计算的与此不同，以我们计算的为准
+                quality_result["overall_quality_score"] = overall_quality_score
+
+                # 计算最终综合评分（质量70% + 新鲜度30%），再次调整权重以体现质量的绝对重要性
+                total_score = (overall_quality_score * 0.7) + (freshness_score * 0.3)
+
+                # 返回详细结果
+                result = {
+                    "quality_score": overall_quality_score, # 使用计算后的总质量分
+                    "freshness_score": freshness_score,
+                    "freshness_details": freshness_result,
+                    "total_score": total_score,
+                    "quality_details": quality_result, # 包含所有详细评分和评论
+                    "super_reviewer_verdict": quality_result.get("super_reviewer_verdict", "未知"),
+                    "perfection_suggestions": quality_result.get("perfection_suggestions", []),
+                    "recommendation": overall_quality_score >= 8.5 and freshness_score >= 7.5 # 大幅提高推荐门槛
+                }
+
+                print(f"📊 AI【超级评审员】评估结果:")
+                print(f"  🥇 总质量评分: {overall_quality_score:.1f}/10分")
+                print(f"  📈 新鲜度评分: {freshness_score:.1f}/10分")
+                print(f"  🌟 最终综合评分: {total_score:.1f}/10分")
+                print(f"  💬 评审员最终评语: {result['super_reviewer_verdict']}")
+                print(f"  💡 提升建议: {result['perfection_suggestions']}")
+                print(f"  ✨ 是否达到“精品”标准: {'是' if result['recommendation'] else '否'}")
+
+                # 将评分存储到方案数据中
+                plan_data['_quality_score'] = overall_quality_score
+                plan_data['_freshness_score'] = freshness_score
+                plan_data['_freshness_details'] = freshness_result
+                plan_data['_total_score'] = total_score
+                plan_data['_quality_details'] = quality_result # 存储所有详细评估结果
+
+                return result
+
+            else:
+                print("  ⚠️ AI【超级评审员】评估失败或未返回有效数据。")
+                return {
+                    "quality_score": 0.0,
+                    "freshness_score": 0.0,
+                    "total_score": 0.0,
+                    "recommendation": False
+                }
+
         except Exception as e:
-            print(f"⚠️ AI评价过程中出错: {e}，使用默认评分")
-            # 使用默认评分，确保方案通过
-            plan_data['_quality_score'] = 6.0
-            plan_data['_freshness_score'] = 5.0
-            plan_data['_total_score'] = 5.6
+            print(f"⚠️ AI【超级评审员】评估过程中出错: {e}，使用默认评分。")
+            import traceback
+            traceback.print_exc()
+            plan_data['_quality_score'] = 0.0
+            plan_data['_freshness_score'] = 0.0
+            plan_data['_total_score'] = 0.0
             return {
-                "quality_score": 6.0,
-                "freshness_score": 5.0, 
-                "total_score": 5.6,
-                "recommendation": False  # 默认推荐通过
+                "quality_score": 0.0,
+                "freshness_score": 0.0,
+                "total_score": 0.0,
+                "recommendation": False
             }
 
     def _generate_and_select_plan(self, creative_seed: str) -> bool:

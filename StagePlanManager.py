@@ -935,9 +935,11 @@ JSON
         return chapter_events_result
 
     def validate_goal_hierarchy_coherence(self, stage_writing_plan: Dict, stage_name: str) -> Dict:
-        """AI评估目标层级一致性：阶段→重大事件→中型事件→章节事件→场景事件"""
-        
-        print(f"  🤖 AI评估{stage_name}阶段目标层级一致性...")
+        """
+        AI评估目标层级一致性：阶段→重大事件→中型事件→章节事件→场景事件。
+        【重点增强】评估标准，引入“严苛的剧情架构大师”角色。
+        """
+        print(f"  🤖 【严苛的剧情架构大师】正在评估{stage_name}阶段目标层级一致性...")
         
         # 提取阶段计划中的关键信息
         if "stage_writing_plan" in stage_writing_plan:
@@ -955,91 +957,105 @@ JSON
         
         try:
             coherence_assessment = self.generator.api_client.generate_content_with_retry(
-                content_type="goal_hierarchy_coherence_assessment",
+                content_type="goal_hierarchy_coherence_assessment_master_reviewer", # 新ID
                 user_prompt=coherence_prompt,
-                purpose=f"评估{stage_name}阶段目标层级一致性"
+                purpose=f"【严苛的剧情架构大师】评估{stage_name}阶段目标层级一致性"
             )
             
             if coherence_assessment:
-                print(f"  ✅ {stage_name}阶段目标层级一致性评估完成")
+                print(f"  ✅ 【严苛的剧情架构大师】评估{stage_name}阶段目标层级一致性完成。")
                 return coherence_assessment
             else:
-                print(f"  ⚠️ {stage_name}阶段目标层级一致性评估失败")
+                print(f"  ⚠️ 【严苛的剧情架构大师】评估{stage_name}阶段目标层级一致性失败，使用默认结果。")
                 return self._create_default_coherence_assessment()
                 
         except Exception as e:
-            print(f"  ❌ AI目标层级评估出错: {e}")
-        return self._create_default_coherence_assessment()
+            print(f"  ❌ 【严苛的剧情架构大师】目标层级评估出错: {e}，使用默认结果。")
+            return self._create_default_coherence_assessment()
 
     def _build_goal_hierarchy_prompt(self, stage_name: str, plan_data: Dict, major_events: List[Dict]) -> str:
-        """构建目标层级一致性评估提示词"""
+        """
+        构建目标层级一致性评估提示词。
+        【重点增强】评估维度，明确“严苛的剧情架构大师”角色。
+        """
         
         # 构建事件层级结构的详细描述
         hierarchy_description = self._build_hierarchy_description(major_events)
         
         prompt_parts = [
-            "# 🎯 小说事件目标层级一致性深度评估",
+            "# 🎯 【AI严苛剧情架构大师】对阶段事件目标层级一致性进行“艺术级”深度评估",
             "",
             "## 评估任务",
-            f"请对**{stage_name}**阶段的事件目标层级进行深度评估。",
-            "重点分析从重大事件→中型事件→章节事件→场景事件的目标传递连贯性和逻辑一致性。",
+            f"作为一位对剧情结构和逻辑有着极致追求的【严苛剧情架构大师】，你将对**{stage_name}**阶段的事件目标层级进行“艺术级”深度评估。",
+            "你的目标是：确保从最高层（阶段目标）到最低层（场景事件目标）的每一次分解都**精妙绝伦、丝滑流畅、逻辑完美**，且能**最大化地服务于小说的精品化和传世价值**。你不能容忍任何模糊、断裂或平庸之处。",
             "",
             "## 事件层级结构详情",
             hierarchy_description,
             "",
-            "## 评估维度",
-            "请基于以上事件层级结构，分析以下维度：",
+            "## 评估维度 (请以“艺术级精品”的标准进行评判，1-10分制，并给出极其详细的评语)：",
             "",
-            "### 1. 目标传递连贯性",
-            "- 重大事件目标是否清晰分解到中型事件？",
-            "- 中型事件目标是否有效服务于重大事件目标？", 
-            "- 章节事件目标是否明确支持中型事件目标？",
-            "- 场景事件目标是否具体服务于章节事件目标？",
-            "- 是否存在目标传递断裂或模糊的情况？",
+            "### 1. 目标传递连贯性与精妙度 (权重 20%)",
+            "- 重大事件目标是否**精妙地分解**到中型事件，没有丝毫断裂或浪费？",
+            "- 中型事件目标是否**以最高效率**服务于重大事件目标？", 
+            "- 章节事件目标是否**完美无瑕地支持**中型事件目标，且具备足够的驱动力？",
+            "- 场景事件目标是否**精准无误地服务**于章节事件目标，且每个场景都不可或缺？",
+            "- 是否存在任何目标传递的断裂、模糊、冗余或平庸之处？",
             "",
-            "### 2. 情绪目标一致性",
-            "- 情绪目标是否在层级间保持连贯？",
-            "- 情绪强度是否合理递进？",
-            "- 情感节拍是否服务于整体情绪目标？",
+            "### 2. 情绪目标一致性与升华度 (权重 20%)",
+            "- 情绪目标在层级间是否**连贯且有艺术性地递进和升华**？",
+            "- 情绪强度和节奏变化是否**恰到好处，具备张力**？",
+            "- 情感节拍是否**精准无误地服务于整体情绪目标**，且能引发读者深层共鸣？",
+            "- 是否存在情感曲线的突兀、平淡或刻意之处？",
             "",
-            "### 3. 贡献关系明确性",
-            "- 每个事件是否明确说明了对上一级事件的贡献？",
-            "- 贡献描述是否具体、可执行？",
-            "- 是否存在贡献关系模糊或缺失的情况？",
+            "### 3. 贡献关系明确性与驱动力 (权重 15%)",
+            "- 每个事件是否**极其明确地说明了对上一级事件的核心贡献**？",
+            "- 贡献描述是否**具体、可执行、且具有强大的情节推动力**？",
+            "- 是否存在贡献关系模糊、缺乏深度或驱动力不足的情况？",
             "",
-            "### 4. 逻辑合理性",
-            "- 事件分解是否逻辑合理？",
-            "- 章节分配是否满足目标实现的需求？",
-            "- 场景安排是否有效支持事件目标的达成？",
+            "### 4. 逻辑合理性与创新性 (权重 15%)",
+            "- 事件分解是否**逻辑严密，无可挑剔**？",
+            "- 章节分配是否**完美满足目标实现的需求**，且没有一丝冗余或拖沓？",
+            "- 场景安排是否**创新且有效地支持事件目标的达成**，避免套路化？",
+            "- 是否存在任何逻辑漏洞、重复情节或缺乏创意之处？",
             "",
-            "### 5. 可执行性评估",
-            "- 最底层的事件目标是否足够具体，可以直接指导写作？",
-            "- 是否存在目标过于抽象或模糊的情况？",
+            "### 5. 可执行性与细节预见性 (权重 10%)",
+            "- 最底层的事件目标是否**足够具体、清晰，可以直接指导写作，且充满细节预见性**？",
+            "- 是否存在目标过于抽象、模糊，或在实际写作中难以操作的情况？",
+            "",
+            "### 6. 主题深化度 (权重 10%)",
+            "- 各层级事件目标是否**巧妙地服务于阶段和全书的主题**？",
+            "- 在事件推进中，主题是否得到**自然而深刻的体现和升华**？",
+            "- 是否有任何偏离主题或未能有效表达主题之处？",
+            "",
+            "### 7. 角色成长驱动力 (权重 10%)",
+            "- 各层级事件目标是否**强力驱动主要角色的成长和蜕变**？",
+            "- 角色在这些事件中是否有**足够的行动空间和内心挣扎**？",
+            "- 是否存在未能有效促进角色发展，或使角色行为僵化之处？",
             "",
             "## 🎯 评估要求",
-            "请提供具体的、可操作的评估结果和改进建议。",
+            "请提供**极其具体、可操作的评估结果**和**提升至艺术级精品的改进建议**。",
+            "对于每个维度，请给出1-10分的评分，并附上详细的评语和建议。",
             "",
             "## 📋 输出格式",
             "请以严格的JSON格式返回评估结果：",
             "{",
-            '  "overall_coherence_score": 0-10的带一位小数的评分,',
-            '  "hierarchy_strengths": ["优势1", "优势2", ...],',
-            '  "critical_breakpoints": [',
-            '    {"level": "重大事件→中型事件/中型事件→章节事件/...", "event_name": "事件名称", "issue": "具体问题描述", "severity": "high/medium/low"},',
-            '    ...',
-            '  ],',
-            '  "goal_alignment_analysis": {',
-            '    "major_to_medium": "重大事件到中型事件的目标对齐分析",',
-            '    "medium_to_chapter": "中型事件到章节事件的目标对齐分析",',
-            '    "chapter_to_scene": "章节事件到场景事件的目标对齐分析"',
-            '  },',
-            '  "emotional_consistency_analysis": "情绪目标一致性分析",',
-            '  "improvement_recommendations": [',
-            '    {"breakpoint": "具体的断裂点", "suggestion": "改进建议", "priority": "high/medium/low"},',
-            '    ...',
-            '  ],',
-            '  "exemplary_chains": ["优秀的目标链示例1", "优秀的目标链示例2"],',
-            '  "risk_events": ["存在高风险的事件列表"]',
+            '  "overall_coherence_score": "float // 根据上述权重计算出的总一致性评分 (满分10分)",',
+            '  "goal_transfer_score": "float // 目标传递连贯性与精妙度评分 (1-10)",',
+            '  "goal_transfer_comment": "string // 详细评语及升华建议",',
+            '  "emotional_coherence_score": "float // 情绪目标一致性与升华度评分 (1-10)",',
+            '  "emotional_coherence_comment": "string // 详细评语及升华建议",',
+            '  "contribution_clarity_score": "float // 贡献关系明确性与驱动力评分 (1-10)",',
+            '  "contribution_clarity_comment": "string // 详细评语及升华建议",',
+            '  "logic_innovation_score": "float // 逻辑合理性与创新性评分 (1-10)",',
+            '  "logic_innovation_comment": "string // 详细评语及升华建议",',
+            '  "executability_score": "float // 可执行性与细节预见性评分 (1-10)",',
+            '  "executability_comment": "string // 详细评语及升华建议",',
+            '  "thematic_deepening_score": "float // 主题深化度评分 (1-10)",',
+            '  "thematic_deepening_comment": "string // 详细评语及升华建议",',
+            '  "character_growth_score": "float // 角色成长驱动力评分 (1-10)",',
+            '  "character_growth_comment": "string // 详细评语及升华建议",',
+            '  "master_reviewer_verdict": "string // 架构大师的最终总结性评语，如“结构精妙，可直指神坛，但细节仍可雕琢”",',
+            '  "perfection_suggestions": ["string // 提升至“传世精品”的3-5条核心建议，每条建议都应具体、可操作"]',
             "}"
         ]
         
@@ -2603,3 +2619,193 @@ json
 }}
 """
         return prompt
+    
+    def assess_stage_event_continuity(self, stage_writing_plan: Dict, stage_name: str, 
+                                    stage_range: str, creative_seed: str, 
+                                    novel_title: str, novel_synopsis: str) -> Dict:
+        """
+        AI评估阶段事件连续性。
+        【重点增强】评估标准，引入“严苛的剧情架构大师”角色。
+        """
+        print(f"  🤖 【严苛的剧情架构大师】正在评估{stage_name}阶段事件连续性...")
+        
+        # 提取事件系统
+        if "stage_writing_plan" in stage_writing_plan:
+            event_system = stage_writing_plan["stage_writing_plan"].get("event_system", {})
+        else:
+            event_system = stage_writing_plan.get("event_system", {})
+        
+        # 构建连续性评估提示词
+        continuity_prompt = self._build_stage_continuity_prompt(
+            event_system, stage_name, stage_range, creative_seed, novel_title, novel_synopsis
+        )
+        
+        try:
+            continuity_assessment = self.generator.api_client.generate_content_with_retry(
+                content_type="stage_event_continuity_master_reviewer", # 新ID
+                user_prompt=continuity_prompt,
+                purpose=f"【严苛的剧情架构大师】评估{stage_name}阶段事件连续性"
+            )
+            
+            if continuity_assessment:
+                # 将评估结果整合到写作计划中
+                if "stage_writing_plan" in stage_writing_plan:
+                    stage_writing_plan["stage_writing_plan"]["continuity_assessment"] = continuity_assessment
+                else:
+                    stage_writing_plan["continuity_assessment"] = continuity_assessment
+                
+                print(f"  ✅ 【严苛的剧情架构大师】评估{stage_name}阶段事件连续性完成。")
+                return continuity_assessment
+            else:
+                print(f"  ⚠️ 【严苛的剧情架构大师】评估{stage_name}阶段事件连续性失败，使用默认结果。")
+                return self._create_default_continuity_assessment() # 新增一个默认的连续性评估结果
+                
+        except Exception as e:
+            print(f"  ❌ 【严苛的剧情架构大师】连续性评估出错: {e}，使用默认结果。")
+            return self._create_default_continuity_assessment()
+
+    def _build_stage_continuity_prompt(self, event_system: Dict, stage_name: str, stage_range: str,
+                                    creative_seed: str, novel_title: str, novel_synopsis: str) -> str:
+        """
+        构建阶段事件连续性评估提示词。
+        【重点增强】评估维度，明确“严苛的剧情架构大师”角色。
+        """
+        
+        # 提取和格式化事件信息
+        major_events = event_system.get("major_events", [])
+        medium_events = event_system.get("medium_events", [])
+        minor_events = event_system.get("minor_events", [])
+        
+        prompt_parts = [
+            "# 🎯 【AI严苛剧情架构大师】对阶段事件安排进行“艺术级”连续性深度评估",
+            "",
+            "## 评估任务",
+            f"作为一位对叙事流畅性和艺术性有着极致要求的【严苛剧情架构大师】，你将对**{stage_name}**阶段（{stage_range}）的事件安排进行“艺术级”连续性深度评估。",
+            "你的目标是：确保所有事件之间的**逻辑链条无懈可击**，叙事节奏**跌宕起伏且充满艺术性**，情感发展**丝滑自然且直指人心**，主线推进**高效且富有张力**。你不能容忍任何突兀、平淡或低级之处。",
+            "",
+            "## 小说基本信息",
+            f"- 标题: {novel_title}",
+            f"- 简介: {novel_synopsis}",
+            f"- 创意种子: {creative_seed}",
+            f"- 阶段: {stage_name} ({stage_range})",
+            "",
+            "## 事件安排详情",
+            "(请详细阅读以下事件安排，这是你进行评估的唯一依据)"
+        ]
+        
+        # 重大事件详情 (保持和_build_hierarchy_description类似，但可以更精炼)
+        if major_events:
+            prompt_parts.extend([
+                "### 🚨 重大事件安排 (主线骨架)",
+                "| 事件名称 | 章节范围 | 核心目标 | 情绪目标 |",
+                "|---------|---------|----------|----------|"
+            ])
+            for event in major_events:
+                prompt_parts.append(
+                    f"| {event.get('name', '未命名')} | {event.get('chapter_range', '?')} | {event.get('main_goal', '未指定')} | {event.get('emotional_goal', '未指定')} |"
+                )
+            prompt_parts.append("")
+        
+        # 中型事件详情 (同样精炼)
+        if medium_events:
+            prompt_parts.extend([
+                "### 📈 中型事件安排 (主线肌肉)",
+                "| 事件名称 | 章节范围 | 核心目标 | 情绪重点 | 贡献关系 |",
+                "|---------|---------|----------|----------|----------|"
+            ])
+            for event in medium_events:
+                prompt_parts.append(
+                    f"| {event.get('name', '未命名')} | {event.get('chapter_range', '?')} | "
+                    f"{event.get('main_goal', '未指定')} | {event.get('emotional_focus', '未指定')} | {event.get('contribution_to_major', '独立')} |"
+                )
+            prompt_parts.append("")
+        
+        # 小型事件和特殊情感事件可以合并处理或仅提及数量
+        # 这里为了简化，只保留主要事件结构
+        
+        prompt_parts.extend([
+            "## 📊 事件时间线与叙事艺术性分析 (请你以“艺术级精品”的标准进行评判，1-10分制，并给出极其详细的评语)：",
+            "",
+            "### 1. 逻辑连贯性与因果链条精妙度 (权重 20%)",
+            "- 事件之间的因果关系是否**严丝合缝，无可挑剔**？",
+            "- 是否存在任何逻辑断层、跳跃，或**需要读者脑补的低级错误**？", 
+            "- 事件发展是否**完美符合角色动机和世界观设定**，没有一丝违和？",
+            "- 伏笔的埋设与回收是否**精妙绝伦，能带来超乎预期的惊喜**？",
+            "",
+            "### 2. 叙事节奏与张力艺术性 (权重 20%)",
+            "- 事件密度分布是否**充满艺术性，高潮与平缓的交替是否恰到好处，具备节奏感**？",
+            "- 是否有事件过于密集导致压迫感过强，或过于稀疏导致拖沓平淡的区域？",
+            "- 节奏是否**完美符合该阶段的特点**，并能有效引导读者情绪？",
+            "",
+            "### 3. 情感发展连续性与感染力 (权重 15%)",
+            "- 情感弧线是否**连贯自然，富有层次，且极具感染力**？",
+            "- 情感高潮的铺垫是否**充分且巧妙**，爆发点是否震撼人心？",
+            "- 情感变化是否**完美符合角色发展轨迹和人物命运**，没有一丝生硬？",
+            "",
+            "### 4. 主线推进效率与核心冲突张力 (权重 15%)", 
+            "- 主线情节是否**持续、高效、且富有张力地推进**？",
+            "- 是否存在主线停滞过久、核心冲突弱化的问题？",
+            "- 支线与主线的关联是否**精巧，能互相促进，而非喧宾夺主**？",
+            "",
+            "### 5. 阶段过渡与整体结构流畅度 (权重 10%)",
+            "- 与前后阶段的衔接是否**丝滑自然，浑然天成**？",
+            "- 阶段内部的事件安排是否**极致地服务于阶段目标，且具备完美的内在结构**？",
+            "",
+            "### 6. 反套路与创新性评估 (权重 10%)",
+            "- 剧情设计中是否有**反套路、出人意料的创新点**？",
+            "- 是否过度依赖常见的网文套路，缺乏原创性和惊喜感？",
+            "",
+            "### 7. 细节铺垫与呼应精妙度 (权重 10%)",
+            "- 剧情中的细节（伏笔、暗示、巧合）是否**被巧妙地铺垫和呼应**，而非简单的推进？",
+            "- 是否能感受到作者（AI）在细节上的用心和巧思？",
+            "",
+            "## 🎯 评估要求",
+            "请提供**极其具体、可操作的评估结果**和**提升至艺术级精品的改进建议**。",
+            "对于每个维度，请给出1-10分的评分，并附上详细的评语和建议。",
+            "",
+            "## 📋 输出格式",
+            "请以严格的JSON格式返回评估结果：",
+            "{",
+            '  "overall_continuity_score": "float // 根据上述权重计算出的总连续性评分 (满分10分)",',
+            '  "logic_coherence_score": "float // 逻辑连贯性与因果链条精妙度评分 (1-10)",',
+            '  "logic_coherence_comment": "string // 详细评语及升华建议",',
+            '  "narrative_rhythm_score": "float // 叙事节奏与张力艺术性评分 (1-10)",',
+            '  "narrative_rhythm_comment": "string // 详细评语及升华建议",',
+            '  "emotional_continuity_score": "float // 情感发展连续性与感染力评分 (1-10)",',
+            '  "emotional_continuity_comment": "string // 详细评语及升华建议",',
+            '  "main_thread_efficiency_score": "float // 主线推进效率与核心冲突张力评分 (1-10)",',
+            '  "main_thread_efficiency_comment": "string // 详细评语及升华建议",',
+            '  "stage_transition_score": "float // 阶段过渡与整体结构流畅度评分 (1-10)",',
+            '  "stage_transition_comment": "string // 详细评语及升华建议",',
+            '  "innovation_score": "float // 反套路与创新性评估评分 (1-10)",',
+            '  "innovation_comment": "string // 详细评语及升华建议",',
+            '  "detail_foreshadowing_score": "float // 细节铺垫与呼应精妙度评分 (1-10)",',
+            '  "detail_foreshadowing_comment": "string // 详细评语及升华建议",',
+            '  "master_reviewer_verdict": "string // 架构大师的最终总结性评语，如“结构精妙，可直指神坛，但细节仍可雕琢”",',
+            '  "perfection_suggestions": ["string // 提升至“传世精品”的3-5条核心建议，每条建议都应具体、可操作"]',
+            "}"
+        ]
+        
+        return "\n".join(prompt_parts)
+
+    def _create_default_continuity_assessment(self) -> Dict:
+        """创建默认的连续性评估结果，当AI评估失败时使用"""
+        return {
+            "overall_continuity_score": 5.0,
+            "logic_coherence_score": 5.0,
+            "logic_coherence_comment": "AI评估服务暂时不可用，无法进行详细评估。",
+            "narrative_rhythm_score": 5.0,
+            "narrative_rhythm_comment": "AI评估服务暂时不可用，无法进行详细评估。",
+            "emotional_continuity_score": 5.0,
+            "emotional_continuity_comment": "AI评估服务暂时不可用，无法进行详细评估。",
+            "main_thread_efficiency_score": 5.0,
+            "main_thread_efficiency_comment": "AI评估服务暂时不可用，无法进行详细评估。",
+            "stage_transition_score": 5.0,
+            "stage_transition_comment": "AI评估服务暂时不可用，无法进行详细评估。",
+            "innovation_score": 5.0,
+            "innovation_comment": "AI评估服务暂时不可用，无法进行详细评估。",
+            "detail_foreshadowing_score": 5.0,
+            "detail_foreshadowing_comment": "AI评估服务暂时不可用，无法进行详细评估。",
+            "master_reviewer_verdict": "评估系统暂时不可用，无法提供艺术级评估。",
+            "perfection_suggestions": ["等待AI评估服务恢复后重新评估。"]
+        }
