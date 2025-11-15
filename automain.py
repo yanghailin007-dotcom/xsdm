@@ -6,10 +6,6 @@ import os
 import json
 import time
 
-# 首先导入 utils 来启用全局时间戳
-import utils
-# 现在所有 print 都会自动带时间戳
-
 class SimpleCreativeManager:
     """简化版创意管理器"""
     

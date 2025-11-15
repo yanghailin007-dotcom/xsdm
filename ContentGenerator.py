@@ -1093,7 +1093,7 @@ class ContentGenerator:
 
     def generate_chapter_content(self, chapter_params: Dict) -> Optional[Dict]:
         """
-        【优化版】生成章节内容 - 从场景事件要点直接生成，移除中间设计稿步骤
+        【优化版】生成章节内容 - 从场景事件直接生成，并强化6段式结构指令
         """
         print(f"  🔍 进入【优化版】generate_chapter_content方法...")
         
@@ -1104,43 +1104,75 @@ class ContentGenerator:
             print(f"  ❌ 第 {chapter_number} 章缺少预设的场景事件，无法直接生成内容。")
             return None
 
-        # ▼▼▼ 核心变更：构建一个直接消费场景事件的Prompt ▼▼▼
-        # 将场景事件列表、前情提要、写作风格等所有信息整合到一个Prompt中
-        scenes_str_parts = ["# 核心输入：本章预设场景序列"]
-        for i, scene in enumerate(pre_designed_scenes):
-            scenes_str_parts.append(f"\n### 场景 {i+1}: {scene.get('name', '未命名')} (定位: {scene.get('position', '未知')})")
-            scenes_str_parts.append(f"- **目标**: {scene.get('purpose', '未知')}")
-            scenes_str_parts.append(f"- **关键动作/事件**: {scene.get('key_actions', [])}")
+        # ▼▼▼ 核心修改部分：构建一个能体现6段式结构功能的Prompt ▼▼▼
+        
+        # 定义场景定位的中文名称和功能解释
+        scene_position_map = {
+            "opening": {"name": "开场场景 (Opening Scene)", "function": "建立情境，引入本章核心冲突的起点，快速吸引读者。", "percentage": "15-20%"},
+            "development1": {"name": "发展场景1 (Development 1)", "function": "推进情节，深化初始冲突，引入新信息或角色。", "percentage": "20-25%"},
+            "development2": {"name": "发展场景2 (Development 2)", "function": "冲突升级，增加紧张感，为高潮做足铺垫。", "percentage": "20-25%"},
+            "climax": {"name": "高潮场景 (Climax Scene)", "function": "【本章重点】情感的集中爆发点！这是本章最关键的转折和最强烈的情感冲击所在。", "percentage": "15-20%"},
+            "falling": {"name": "回落场景 (Falling Action)", "function": "处理高潮带来的直接后果，让情绪和节奏得到短暂缓和。", "percentage": "10-15%"},
+            "ending": {"name": "结尾场景 (Ending Scene)", "function": "收束本章内容，并设置一个强有力的悬念（钩子），引导读者追读下一章。", "percentage": "5-10%"}
+        }
+
+        scenes_str_parts = ["# 1. 写作蓝图：本章的六段式场景结构 (必须严格遵守)"]
+        scenes_str_parts.append("你必须严格按照下面每个场景的功能定位和内容要点来创作，确保章节节奏张弛有度，高潮突出。")
+
+        for scene in pre_designed_scenes:
+            position_key = scene.get('position', 'unknown').lower()
+            # 兼容 development1 和 development2
+            if 'development' in position_key and position_key not in scene_position_map:
+                # 尝试匹配 development1 或 development2
+                if '1' in position_key: position_key = 'development1'
+                elif '2' in position_key: position_key = 'development2'
+                else: # 如果都没有，就用一个通用的
+                    position_key = 'development1'
+
+
+            scene_info = scene_position_map.get(position_key, {"name": f"场景 ({scene.get('position', '未知')})", "function": "按计划推进情节。", "percentage": "N/A"})
+            
+            scenes_str_parts.append(f"\n## ### {scene_info['name']} - 预估篇幅占比: {scene_info['percentage']}")
+            scenes_str_parts.append(f"- **功能定位**: {scene_info['function']}")
+            scenes_str_parts.append(f"- **场景名称**: {scene.get('name', '未命名')}")
+            scenes_str_parts.append(f"- **核心目标**: {scene.get('purpose', '未知')}")
+            scenes_str_parts.append(f"- **关键动作/事件**: {', '.join(scene.get('key_actions', []))}")
             scenes_str_parts.append(f"- **情感冲击**: {scene.get('emotional_impact', '无')}")
-            scenes_str_parts.append(f"- **关键对话高光**: {scene.get('dialogue_highlights', [])}")
-            # ... 可以包含更多场景细节
+            
+            dialogue_highlights = scene.get('dialogue_highlights', [])
+            if dialogue_highlights:
+                scenes_str_parts.append(f"- **关键对话高光**: {', '.join(dialogue_highlights)}")
+            
+            conflict_point = scene.get('conflict_point', '')
+            if conflict_point:
+                scenes_str_parts.append(f"- **冲突焦点**: {conflict_point}")
+
         scenes_input_str = "\n".join(scenes_str_parts)
 
         user_prompt = f"""
-    ## 章节创作指令 ##
-    为《{chapter_params.get('novel_title', '')}》创作第{chapter_number}章。
+## 章节创作指令 ##
+为《{chapter_params.get('novel_title', '')}》创作第{chapter_number}章。
 
-    ## 1. 写作蓝图 (必须严格遵守的场景事件)
-    {scenes_input_str}
+{scenes_input_str}
 
-    ## 2. 背景与衔接
-    - **前情提要**: {chapter_params.get("previous_chapters_summary", "无")}
-    - **本章核心目标**: {chapter_params.get("chapter_goal_from_plan", "推进主线情节")}
-    - **本章写作重点**: {chapter_params.get("writing_focus_from_plan", "保持节奏，制造悬念")}
+## 2. 背景与衔接
+- **前情提要**: {chapter_params.get("previous_chapters_summary", "无")}
+- **本章核心目标**: {chapter_params.get("chapter_goal_from_plan", "推进主线情节")}
+- **本章写作重点**: {chapter_params.get("writing_focus_from_plan", "保持节奏，制造悬念")}
 
-    ## 3. 角色与世界观
-    - **世界观设定**: {chapter_params.get("worldview_info", "{}")}
-    - **人物设定**: {chapter_params.get("character_info", "{}")}
-    - **一致性铁律**: {chapter_params.get("consistency_guidance", "保持前后文一致")}
+## 3. 角色与世界观
+- **世界观设定**: {chapter_params.get("worldview_info", "{}")}
+- **人物设定**: {chapter_params.get("character_info", "{}")}
+- **一致性铁律**: {chapter_params.get("consistency_guidance", "保持前后文一致")}
 
-    ## 4. 风格指南
-    - **小说整体写作风格**: {json.dumps(chapter_params.get("writing_style_guide", {}), ensure_ascii=False)}
+## 4. 风格指南
+- **小说整体写作风格**: {json.dumps(chapter_params.get("writing_style_guide", {}), ensure_ascii=False)}
 
-    ---
-    请你作为一名优秀的小说家，根据以上所有指令，直接创作出本章的完整内容。
-    你的任务是将【写作蓝图】中的场景事件要点，流畅地、富有文采地串联成一篇完整的、高质量的小说章节。
-    """
-        # ▲▲▲ 核心变更结束 ▲▲▲
+---
+请你作为一名优秀的小说家，根据以上所有指令，直接创作出本章的完整内容。
+你的任务是将【写作蓝图】中的六段式场景要点，流畅地、富有文采地串联成一篇完整的、高质量的小说章节。请特别注意每个场景的【功能定位】和【篇幅占比】，确保章节结构清晰，节奏感强。
+"""
+        # ▲▲▲ 核心修改结束 ▲▲▲
 
         max_retries = 3
         final_result = None
@@ -1162,16 +1194,11 @@ class ContentGenerator:
                 word_count = len(content_result.get("content", "")) if content_result else 0
                 print(f"  ⚠️ 第{attempt + 1}次尝试失败或字数不足 ({word_count}字)。")
 
-        # 如果所有尝试后仍未达标，但有结果，也使用它
         if final_result:
-            # 你可以在这里对 final_result 进行清理或进一步处理
-            # 例如，清理标记（如果你的Prompt设计需要的话）
-            # ...
             return final_result
         else:
             print(f"  ❌ 第{chapter_number}章所有直接生成尝试均失败")
             return None
-
 
     def refine_chapter_content(self, chapter_content: Dict) -> Dict:
         """

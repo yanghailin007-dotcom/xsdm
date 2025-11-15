@@ -640,7 +640,6 @@ class NovelGenerator:
             print(f"  ❌ 生成精准竞品分析时出错: {e}")
             return None
 
-
     def full_auto_generation(self, creative_seed: str, total_chapters: int = None):
         """
         全自动生成完整小说 - 【V5版】引入更严格的“AI超级评审员”评估和多轮优化循环，确保产出最优方案。
@@ -711,6 +710,7 @@ class NovelGenerator:
                     plan['tags']['main_category'] = category_from_plan
 
                 print(f"      📊 方案分类: {category_from_plan}")
+                # 调用 _evaluate_plan_quality，其中已经修改了新鲜度权重
                 evaluation_result = self._evaluate_plan_quality(plan, category_from_plan, creative_seed)
                 
                 # 从更详细的评估结果中获取分数
@@ -718,19 +718,21 @@ class NovelGenerator:
                 freshness_score = evaluation_result.get("freshness_score", 0)
                 total_score = evaluation_result.get("total_score", 0) # 这是最终的综合评分
 
-                # 调整合格方案的筛选条件，要求更高
-                # 假设所有子项评分也需要达到较高水平，例如所有子项都>=7.0
+                # 调整合格方案的筛选条件，假设所有子项评分也需要达到较高水平
                 quality_details = evaluation_result.get("quality_details", {})
                 golden_finger_score = quality_details.get("golden_finger_score", 0)
                 selling_points_score = quality_details.get("selling_points_score", 0)
                 worldview_coherence_score = quality_details.get("worldview_coherence_score", 0)
                 character_depth_score = quality_details.get("character_depth_score", 0)
 
+                # 采纳您的建议，我们来调整评分标准，建立一个“潜力优先”的漏斗模型。
+                # 目标：优先捕获具有S+级商业潜力的作品（总分极高），即便它在某些可优化项（如世界观、角色深度）上暂时存在短板。
+                
                 # 1. 定义S+级潜力的标准：总质量分极高 (例如 9.0分以上)
                 is_s_plus_potential = overall_quality_score >= 9.0
 
                 # 2. 定义A级精品的标准：总质量分优秀，但没有明显短板 (例如 8.2分以上)
-                is_a_grade_potential = overall_quality_score >= 8.2 # 比原来的8.5略低，给更多机会
+                is_a_grade_potential = overall_quality_score >= 8.2
 
                 # 3. 定义核心商业要素（金手指、卖点）是否过硬，这是商业成功的关键
                 core_commercial_strong = golden_finger_score >= 7.0 and selling_points_score >= 7.0
@@ -739,7 +741,7 @@ class NovelGenerator:
                 secondary_elements_pass = worldview_coherence_score >= 6.5 and character_depth_score >= 6.5
                 
                 # 5. 定义新鲜度是否足够
-                freshness_pass = freshness_score >= 7.0
+                freshness_pass = freshness_score >= 7.0 # 新鲜度评分的合格线可以根据市场反馈调整
 
                 # 最终筛选逻辑：
                 # 路径一（S+级潜力通道）：只要是总质量分超高的S+潜力股，并且核心商业要素过硬，就直接通过。
@@ -817,6 +819,7 @@ class NovelGenerator:
 
             if optimized_plan:
                 print("✅ 方案优化完成，正在进行最终评分...")
+                # 重新评估优化后的方案，以获取最新的分数，其中已包含新的新鲜度权重
                 new_evaluation_result = self._evaluate_plan_quality(optimized_plan, plan_category, creative_seed)
                 new_overall_quality_score = new_evaluation_result.get("quality_score", 0)
                 new_freshness_score = new_evaluation_result.get("freshness_score", 0)
@@ -905,7 +908,6 @@ class NovelGenerator:
             import traceback
             traceback.print_exc()
             return False
-
         
     def _generate_element_timing_plan(self) -> bool:
         """生成元素登场时机规划"""
@@ -3220,40 +3222,39 @@ class NovelGenerator:
         
         # 构建提示词 - 完全避免提及任何平台名称
         prompt = f"""
-    小说封面设计，{style}，600×800像素，竖版比例，简约风格
+小说封面设计，{style}，600×800像素，竖版比例，简约风格
 
-    【封面文字内容】：
-    书名：《{title}》
-    作者：《作者：蓝枫雨》
+【封面文字内容】：
+书名：《{title}》
+作者：《作者：蓝枫雨》
 
-    【严格禁止的内容】：
-    - 禁止添加任何其他文字
-    - 禁止出现"番茄小说"、"番茄"等平台相关文字
-    - 禁止水印、标语、宣传语
-    - 禁止任何额外标注文字
+【严格禁止的内容】：
+- 禁止添加任何其他文字
+- 禁止出现"番茄小说"、"番茄"等平台相关文字
+- 禁止水印、标语、宣传语
+- 禁止任何额外标注文字
 
-    【设计要求】：
-    - 封面设计精美，符合{category}类型风格
-    - 书名要醒目突出，使用清晰易读的字体
-    - 作者名放在适当位置
-    - 整体设计专业简洁
+【设计要求】：
+- 封面设计精美，符合{category}类型风格
+- 书名要醒目突出，使用清晰易读的字体
+- 作者名放在适当位置
+- 整体设计专业简洁
 
-    【文字要求】：
-    - 文字清晰可读但不要过于突兀
-    - 文字与背景和谐统一
-    - 只能出现书名和作者
+【文字要求】：
+- 文字清晰可读但不要过于突兀
+- 文字与背景和谐统一
+- 只能出现书名和作者
     """
         
         return prompt.strip()
 
     def _evaluate_plan_quality(self, plan_data: Dict, category: str, creative_seed: str) -> Dict:
         """
-        使用AI评价方案质量，【重点增强】评估标准，引入“AI超级评审员”角色。
+        使用AI评价方案质量，【重点增强】评估标准，引入"AI超级评审员"角色。
         """
-        print("\n🔍 正在使用AI【白金之质】对方案进行“小精品”级别的质量和新颖度评估...")
+        print('\n🔍 正在使用AI【白金之质】对方案进行"小精品"级别的质量和新颖度评估...')
 
-        # 使用质量评估器进行新鲜度评估 (保持不变，但其输出现在将更严格)
-        # 假设 freshness_result 已经包含详细的新鲜度评分和分析
+        # 使用质量评估器进行新鲜度评估
         freshness_result = self.quality_assessor.assess_freshness(plan_data, "novel_plan")
         freshness_score = freshness_result["score"]["total"]
         
@@ -3266,7 +3267,7 @@ class NovelGenerator:
         main_character_archetype = plan_data.get('main_character', {}).get('archetype', '')
 
         quality_prompt = f"""
-你是一位**拥有超过50年经验、眼光毒辣、对网文商业成功和艺术质量有着极度严苛、吹毛求疵**的顶级网文主编，同时也是一个追求**商业价值与艺术成就双丰收的“网文传世经典”**的超级评审员。你的任务是对以下小说方案进行**最高标准的艺术性与市场价值评估**。你必须找出**任何可能阻碍其成为“网文精品乃至现象级爆款”**的瑕疵，并给出**提升至市场和口碑双赢的、可操作的、有建设性的建议**。
+你是一位**拥有超过50年经验、眼光毒辣、对网文商业成功和艺术质量有着极度严苛、吹毛求疵**的顶级网文主编，同时也是一个追求**商业价值与艺术成就双丰收的"网文传世经典"**的超级评审员。你的任务是对以下小说方案进行**最高标准的艺术性与市场价值评估**。你必须找出**任何可能阻碍其成为"网文精品乃至现象级爆款"**的瑕疵，并给出**提升至市场和口碑双赢的、可操作的、有建设性的建议**。
 
 【小说分类】{category}
 【创意种子】{creative_seed} (这是最初的灵感源泉，你需评估方案是否完美继承并升华了它，使其更符合网文市场爆款潜力)
@@ -3280,9 +3281,9 @@ class NovelGenerator:
 核心卖点：{json.dumps(core_selling_points, ensure_ascii=False)}
 主角原型/人设初步构思: {main_character_archetype}
 
-【！！！最高评价标准 (请你以“能否成为网文现象级爆款”的标准，极度严格地审查)！！！】
+【！！！最高评价标准 (请你以"能否成为网文现象级爆款"的标准，极度严格地审查)！！！】
 以下每一项都将以10分制打分，并给出极其详细的评语：
-        """
+    """
 
         try:
             # 调用AI进行质量评价
@@ -3304,14 +3305,40 @@ class NovelGenerator:
                     "thematic_depth": 0.10
                 }
                 
-                # 确保所有分数都存在，如果某个分数缺失则设为0，避免KeyError
-                gf_score = quality_result.get("golden_finger_score", 0.0)
-                sp_score = quality_result.get("selling_points_score", 0.0)
-                wv_score = quality_result.get("worldview_coherence_score", 0.0)
-                cd_score = quality_result.get("character_depth_score", 0.0)
-                er_score = quality_result.get("emotional_resonance_score", 0.0)
-                fi_score = quality_result.get("foreshadowing_ingenuity_score", 0.0)
-                td_score = quality_result.get("thematic_depth_score", 0.0)
+                # 修复：安全提取并转换分数为浮点数
+                def safe_get_score(result, key, default=0.0):
+                    """安全获取分数并转换为浮点数"""
+                    score = result.get(key, default)
+                    if isinstance(score, str):
+                        try:
+                            # 尝试从字符串中提取数字
+                            import re
+                            numbers = re.findall(r'\d+\.?\d*', score)
+                            if numbers:
+                                return float(numbers[0])
+                            else:
+                                return float(score)
+                        except (ValueError, TypeError):
+                            return default
+                    elif isinstance(score, (int, float)):
+                        return float(score)
+                    else:
+                        return default
+                
+                # 使用安全方法获取所有分数
+                gf_score = safe_get_score(quality_result, "golden_finger_score", 0.0)
+                sp_score = safe_get_score(quality_result, "selling_points_score", 0.0)
+                wv_score = safe_get_score(quality_result, "worldview_coherence_score", 0.0)
+                cd_score = safe_get_score(quality_result, "character_depth_score", 0.0)
+                er_score = safe_get_score(quality_result, "emotional_resonance_score", 0.0)
+                fi_score = safe_get_score(quality_result, "foreshadowing_ingenuity_score", 0.0)
+                td_score = safe_get_score(quality_result, "thematic_depth_score", 0.0)
+
+                # 修复：确保所有分数都在0-10范围内
+                scores_to_clamp = [gf_score, sp_score, wv_score, cd_score, er_score, fi_score, td_score]
+                clamped_scores = [max(0.0, min(10.0, score)) for score in scores_to_clamp]
+                
+                gf_score, sp_score, wv_score, cd_score, er_score, fi_score, td_score = clamped_scores
 
                 overall_quality_score = (
                     gf_score * weights["golden_finger"] +
@@ -3323,22 +3350,22 @@ class NovelGenerator:
                     td_score * weights["thematic_depth"]
                 )
                 
-                # 将计算出的总分更新回结果字典，如果AI自己计算的与此不同，以我们计算的为准
+                # 将计算出的总分更新回结果字典
                 quality_result["overall_quality_score"] = overall_quality_score
 
-                # 计算最终综合评分（质量70% + 新鲜度30%），再次调整权重以体现质量的绝对重要性
-                total_score = (overall_quality_score * 0.7) + (freshness_score * 0.3)
+                # 降低新鲜度权重，提高整体质量权重
+                total_score = (overall_quality_score * 0.8) + (freshness_score * 0.2)
 
                 # 返回详细结果
                 result = {
-                    "quality_score": overall_quality_score, # 使用计算后的总质量分
+                    "quality_score": overall_quality_score,
                     "freshness_score": freshness_score,
                     "freshness_details": freshness_result,
                     "total_score": total_score,
-                    "quality_details": quality_result, # 包含所有详细评分和评论
+                    "quality_details": quality_result,
                     "super_reviewer_verdict": quality_result.get("super_reviewer_verdict", "未知"),
                     "perfection_suggestions": quality_result.get("perfection_suggestions", []),
-                    "recommendation": overall_quality_score >= 8.5 and freshness_score >= 7.5 # 大幅提高推荐门槛
+                    "recommendation": overall_quality_score >= 8.5 and freshness_score >= 7.5
                 }
 
                 print(f"📊 AI【超级评审员】评估结果:")
@@ -3347,14 +3374,14 @@ class NovelGenerator:
                 print(f"  🌟 最终综合评分: {total_score:.1f}/10分")
                 print(f"  💬 评审员最终评语: {result['super_reviewer_verdict']}")
                 print(f"  💡 提升建议: {result['perfection_suggestions']}")
-                print(f"  ✨ 是否达到“精品”标准: {'是' if result['recommendation'] else '否'}")
+                print(f'  ✨ 是否达到"精品"标准: {"是" if result["recommendation"] else "否"}')
 
                 # 将评分存储到方案数据中
                 plan_data['_quality_score'] = overall_quality_score
                 plan_data['_freshness_score'] = freshness_score
                 plan_data['_freshness_details'] = freshness_result
                 plan_data['_total_score'] = total_score
-                plan_data['_quality_details'] = quality_result # 存储所有详细评估结果
+                plan_data['_quality_details'] = quality_result
 
                 return result
 
@@ -3380,7 +3407,7 @@ class NovelGenerator:
                 "total_score": 0.0,
                 "recommendation": False
             }
-
+    
     def _generate_and_select_plan(self, creative_seed: str) -> bool:
         """生成多个方案并让用户选择 - 增强版本，包含新鲜度评分"""
         print("=== 步骤1: 基于创意种子生成多个小说方案 ===")

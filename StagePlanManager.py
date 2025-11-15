@@ -366,43 +366,54 @@ class StagePlanManager:
 
 
     def _validate_chapter_ranges(self, all_events: List[Dict], total_chapters: int) -> bool:
-        """
-        验证所有事件的章节范围，检查是否存在重叠或不合理的间隙（未被特殊事件填充）。
-        返回 True 表示验证通过，False 表示存在问题。
-        """
-        chapter_occupancy = [[] for _ in range(total_chapters + 1)] # 章节从1开始
+        """验证所有事件的章节范围"""
+        print(f"  🔍 开始验证章节范围，共{len(all_events)}个事件，总章节数{total_chapters}")
+        
+        chapter_occupancy = [[] for _ in range(total_chapters + 1)]
 
+        validation_errors = []
+        
         for event in all_events:
+            event_name = event.get("event_name", event.get("name", "未知事件"))
             chapter_range_str = event.get("chapter_range")
+            
             if not chapter_range_str:
-                print(f"  ❌ 验证失败：事件 '{event.get('event_name', '未知事件')}' 缺少 'chapter_range'。")
-                return False
+                validation_errors.append(f"事件 '{event_name}' 缺少 'chapter_range'")
+                continue
+                
             try:
-                start_chapter, end_chapter = map(int, chapter_range_str.split('-'))
-            except ValueError:
-                print(f"  ❌ 验证失败：事件 '{event.get('event_name', '未知事件')}' 的 chapter_range 格式错误: '{chapter_range_str}'。")
-                return False
+                start_chapter, end_chapter = self.parse_chapter_range(chapter_range_str)
+                
+                # 验证章节范围合理性
+                if not (1 <= start_chapter <= end_chapter <= total_chapters):
+                    validation_errors.append(f"事件 '{event_name}' 的章节范围 {chapter_range_str} 超出总章节数 {total_chapters}")
+                    continue
 
-            if not (1 <= start_chapter <= end_chapter <= total_chapters):
-                print(f"  ❌ 验证失败：事件 '{event.get('event_name', '未知事件')}' 的 chapter_range {chapter_range_str} 超出总章节数 {total_chapters} 或不合理。")
-                return False
+                # 检查重叠
+                for chapter_num in range(start_chapter, end_chapter + 1):
+                    chapter_occupancy[chapter_num].append(event_name)
+                    
+            except Exception as e:
+                validation_errors.append(f"事件 '{event_name}' 的 chapter_range 格式错误: '{chapter_range_str}' - {e}")
 
-            for chapter_num in range(start_chapter, end_chapter + 1):
-                chapter_occupancy[chapter_num].append(event.get("event_name", "未知事件"))
-
-        # 检查重叠
+        # 检查重叠情况
         for i, occupied_events in enumerate(chapter_occupancy):
-            if i == 0: continue # 跳过索引0
+            if i == 0: 
+                continue
             if len(occupied_events) > 1:
-                print(f"  ❌ 验证失败：章节 {i} 存在重叠事件: {', '.join(occupied_events)}。")
-                return False
-            # 检查是否有未被任何事件覆盖的章节，这可能是间隙
-            if len(occupied_events) == 0:
-                print(f"  ⚠️ 警告：章节 {i} 未被任何事件覆盖。如果此处应有特殊事件，请确保其已正确规划。")
-                # 不作为失败条件，但发出警告，因为可能是有意为之的间隙
+                validation_errors.append(f"章节 {i} 存在重叠事件: {', '.join(occupied_events)}")
 
-        print("  ✅ 章节范围验证通过，未发现重叠。")
-        return True
+        # 输出验证结果
+        if validation_errors:
+            print(f"  ❌ 章节范围验证失败，发现 {len(validation_errors)} 个问题:")
+            for error in validation_errors[:5]:  # 只显示前5个错误
+                print(f"    - {error}")
+            if len(validation_errors) > 5:
+                print(f"    - ... 还有{len(validation_errors)-5}个错误")
+            return False
+        else:
+            print("  ✅ 章节范围验证通过")
+            return True
 
 
     def _generate_scenes_for_single_chapter_event(self, event_data: Dict, chapter_num: int,
@@ -711,12 +722,14 @@ JSON
     def parse_chapter_range(range_str: str) -> tuple:
         """
         解析章节范围字符串，返回(start, end)元组。
-        支持格式："1-100"、"1-100章"、"109-110章"等。
-        如果解析失败，返回默认值(1, 100)。
+        支持格式："1-100"、"1-100章"、"109-110章"、"第1-7章"等。
         """
         try:
-            # 移除"章"字和其他非数字字符（除了横杠和数字）
-            cleaned_str = range_str.replace("章", "").strip()
+            if not range_str:
+                return 1, 100
+                
+            # 清理字符串：移除"第"、"章"等字符，只保留数字和横杠
+            cleaned_str = re.sub(r'[第章\s]', '', str(range_str)).strip()
             
             if "-" in cleaned_str:
                 parts = cleaned_str.split("-")
@@ -729,8 +742,8 @@ JSON
                 chapter = int(cleaned_str)
                 return chapter, chapter
                 
-        except (ValueError, AttributeError, IndexError):
-            print(f"⚠️ 解析章节范围失败: '{range_str}'，使用默认值(1, 100)")
+        except (ValueError, AttributeError, IndexError) as e:
+            print(f"⚠️ 解析章节范围失败: '{range_str}'，错误: {e}，使用默认值(1, 100)")
             return 1, 100
 
     def _smart_decompose_medium_events(self, major_event: Dict, stage_name: str,
@@ -1439,7 +1452,10 @@ JSON
 
     def _build_hierarchy_optimization_prompt(self, writing_plan: Dict, assessment: Dict, 
                                     stage_name: str, stage_range: str) -> str:
-        """构建目标层级优化提示词"""
+        """
+        构建目标层级优化提示词。
+        【已修复】确保AI在优化时保持原始的嵌套数据结构。
+        """
         
         # 提取当前事件系统
         if "stage_writing_plan" in writing_plan:
@@ -1447,70 +1463,66 @@ JSON
         else:
             event_system = writing_plan.get("event_system", {})
 
+        # 将复杂的dict转换为格式化的JSON字符串，以便在prompt中清晰展示
+        event_system_str = json.dumps(event_system, ensure_ascii=False, indent=2)
+        assessment_str = json.dumps(assessment, ensure_ascii=False, indent=2)
+
+
         # 构建优化提示词
         prompt = f"""
-    # 任务：小说事件目标层级优化
+# 任务：小说事件目标层级优化 (保持结构)
 
-    作为一名顶尖的剧情架构师，你刚刚对一份小说事件计划的目标层级进行了评估，发现了一些目标传递断裂的问题。现在，你的任务是**亲自动手**，根据评估建议来修复这些目标层级问题。
+作为一名顶尖的剧情架构师，你刚刚对一份小说事件计划的目标层级进行了评估，发现了一些目标传递断裂的问题。现在，你的任务是**亲自动手**，根据评估建议来修复这些目标层级问题，同时**严格保持原始的JSON数据结构**。
 
-    ## 1. 当前的事件计划 ({stage_name}, {stage_range})
+## 1. 待优化的事件计划 ({stage_name}, {stage_range})
 
-    这是你需要修复目标层级问题的原始事件计划：
-    ```json
-    {json.dumps(event_system, ensure_ascii=False, indent=2)}
-2. 目标层级评估发现的问题
-这是评估发现的关键问题：
-
-json
-{json.dumps(assessment.get('critical_breakpoints', []), ensure_ascii=False, indent=2)}
-3. 具体的改进建议
-这是针对上述问题的改进建议：
-
-json
-{json.dumps(assessment.get('improvement_recommendations', []), ensure_ascii=False, indent=2)}
-4. 修复指令
-请严格遵循评估建议，对上述的"当前事件计划"进行目标层级修复：
+这是你需要修复的原始事件计划，你必须在**这个结构内部**进行修改：
+```json
+{event_system_str}
+2. 目标层级评估发现的问题与建议
+JSON
+{assessment_str}
+3. 修复指令
+请严格遵循评估建议，对上述的“待优化的事件计划”进行目标层级修复。
 
 修复重点：
-目标传递断裂: 修复重大事件→中型事件→章节事件→场景事件之间的目标传递断裂
+目标传递断裂: 修复重大事件→中型事件→章节事件→场景事件之间的目标传递断裂。
+贡献关系模糊: 为缺少明确贡献关系的事件添加具体的contribution_to_*字段。
+情绪目标不一致: 确保情绪目标在层级间保持连贯。
+目标过于抽象: 将抽象的目标转化为具体、可执行的目标。
+【最高优先级指令】保持结构完整性：
+你返回的最终结果必须是一个与输入结构完全相同的 event_system JSON对象。这意味着 major_events 列表中的每个事件都必须包含其 composition 和 special_emotional_events。严禁将中型事件或特殊事件从 composition 中提取出来，形成独立的顶级列表。你的所有修改都必须在原始的嵌套结构内完成。
 
-贡献关系模糊: 为缺少明确贡献关系的事件添加具体的contribution_to_*字段
+4. 返回格式
+请严格按照以下JSON格式返回你的工作成果。不要包含任何额外的解释。返回的optimized_event_system必须与输入的event_system具有完全相同的顶级键和嵌套结构。
 
-情绪目标不一致: 确保情绪目标在层级间保持连贯
-
-目标过于抽象: 将抽象的目标转化为具体、可执行的目标
-
-修复方法：
-对于目标传递断裂：重新设计断裂点事件的目标，确保其明确服务于上一级事件目标
-
-对于贡献关系模糊：在对应事件的contribution_to_*字段中添加具体说明
-
-对于情绪目标不一致：调整情绪相关字段，确保情绪发展逻辑连贯
-
-对于目标过于抽象：将目标分解为更具体、可衡量的子目标
-
-保持结构完整：
-确保你返回的最终结果是一个完整且格式正确的event_system JSON对象。
-
-5. 返回格式
-请严格按照以下JSON格式返回你的工作成果。不要包含任何额外的解释。
-
+JSON
 {{
-"optimized_event_system": {{
-"major_events": [
-// ... 修复目标层级后的重大事件列表
-],
-"medium_events": [
-// ... 修复目标层级后的中型事件列表
-],
-"minor_events": [
-// ... 修复目标层级后的小型事件列表
-],
-"special_events": [
-// ... 修复目标层级后的特殊事件列表
-]
-}},
-"summary_of_hierarchy_changes": "用一句话总结你在目标层级方面所做的主要修改。例如：'修复了3处目标传递断裂，为5个事件添加了明确的贡献关系说明。'"
+  "optimized_event_system": {{
+    "major_events": [
+      {{
+        "name": "修复后的重大事件1名称",
+        "main_goal": "优化后的核心目标",
+        "composition": {{
+          "起": [
+            {{
+              "name": "修复后的中型事件",
+              "main_goal": "优化后的、服务于重大事件目标的目标",
+              "contribution_to_major": "明确的服务关系说明"
+            }}
+          ],
+          "承": [ /* ... 类似地，优化内部的中型事件 ... */ ]
+          // ... 其他阶段
+        }},
+        "special_emotional_events": [
+            // ... 同样保持在此处
+        ]
+      }}
+      // ... 更多优化后的重大事件, 每个都保持着完整的嵌套结构
+    ]
+    // 确保这里没有 "medium_events", "minor_events" 等扁平化的键
+  }},
+  "summary_of_hierarchy_changes": "用一句话总结你在目标层级方面所做的主要修改。例如：'修复了3处目标传递断裂，为5个事件添加了明确的贡献关系说明。'"
 }}
 """
         return prompt
@@ -1791,7 +1803,142 @@ json
         else:
             print(f"  🚨 【{stage_name}】写作计划生成失败。")
             return {}
+
+
+    def _optimize_based_on_continuity_assessment(self, writing_plan: Dict, assessment: Dict, 
+                                            stage_name: str, stage_range: str) -> Dict:
+        """
+        【AI驱动版】基于阶段事件连续性评估结果，调用AI来优化事件安排。
+        """
+        print(f"  🔧 指示AI根据连续性评估，开始优化 {stage_name} 阶段事件连续性...")
         
+        # 提取当前事件系统
+        if "stage_writing_plan" in writing_plan:
+            event_system = writing_plan["stage_writing_plan"].get("event_system", {})
+        else:
+            event_system = writing_plan.get("event_system", {})
+
+        # 构建连续性优化提示词
+        optimization_prompt = self._build_continuity_optimization_prompt(
+            event_system, assessment, stage_name, stage_range
+        )
+
+        # 调用AI进行优化
+        try:
+            optimization_result = self.generator.api_client.generate_content_with_retry(
+                content_type="ai_event_plan_optimization",
+                user_prompt=optimization_prompt,
+                purpose=f"优化{stage_name}阶段事件连续性"
+            )
+            
+            if optimization_result and "optimized_event_system" in optimization_result:
+                # 用AI返回的优化后的事件系统替换旧的
+                if "stage_writing_plan" in writing_plan:
+                    plan_container = writing_plan["stage_writing_plan"]
+                else:
+                    plan_container = writing_plan
+
+                # 核心操作：替换整个事件系统
+                plan_container["event_system"] = optimization_result["optimized_event_system"]
+                plan_container["continuity_optimized"] = True
+                
+                # 打印AI提供的修改摘要
+                summary = optimization_result.get("summary_of_continuity_changes", "AI未提供修改摘要。")
+                print(f"  ✅ AI连续性优化执行完成。修改摘要: {summary}")
+                
+            else:
+                print("  ⚠️ AI连续性优化失败，未能返回有效的优化后事件系统。")
+
+        except Exception as e:
+            print(f"  ❌ 在执行AI连续性优化时发生错误: {e}")
+
+        return writing_plan
+
+    def _build_continuity_optimization_prompt(self, event_system: Dict, assessment: Dict,
+                                        stage_name: str, stage_range: str) -> str:
+        """
+        构建连续性优化提示词。
+        【已修复】确保AI在优化时保持原始的嵌套数据结构。
+        """
+        
+        # 将复杂的dict转换为格式化的JSON字符串，以便在prompt中清晰展示
+        critical_issues_str = json.dumps(assessment.get('critical_issues', []), ensure_ascii=False, indent=2)
+        recommendations_str = json.dumps(assessment.get('improvement_recommendations', []), ensure_ascii=False, indent=2)
+        event_system_str = json.dumps(event_system, ensure_ascii=False, indent=2)
+
+        prompt = f"""
+# 任务：小说事件连续性优化 (保持结构)
+
+作为一名顶尖的剧情架构师，你刚刚对一份小说事件计划的连续性进行了评估，发现了一些逻辑断裂和节奏问题。现在，你的任务是**亲自动手**，根据评估建议来修复这些事件连续性问题，同时**严格保持原始的JSON数据结构**。
+
+## 1. 待优化的事件计划 ({stage_name}, {stage_range})
+
+这是你需要修复的原始事件计划，你必须在**这个结构内部**进行修改：
+```json
+{event_system_str}
+2. 连续性评估发现的关键问题
+JSON
+{critical_issues_str}
+3. 具体的改进建议
+JSON
+{recommendations_str}
+4. 修复指令
+请严格遵循上述评估和建议，对**“1. 待优化的事件计划”**进行优化。
+
+修复重点：
+逻辑断裂: 修复事件之间的逻辑断层，确保因果关系合理。
+节奏问题: 调整事件密度和分布，确保张弛有度。
+情感连续性: 确保情感发展连贯，高潮铺垫充分。
+主线推进: 确保主线持续高效推进，避免支线喧宾夺主。
+修复方法：
+对于逻辑断裂: 重新设计事件顺序，修改事件目标，或在composition内部添加/合并中型事件。
+对于节奏问题: 调整事件的chapter_range，优化高潮和平缓章节的交替。
+对于情感连续性: 调整emotional_focus和emotional_goal，确保情感曲线自然。
+对于主线推进: 强化核心重大事件的目标，弱化或删除偏离主线的次要中型事件。
+【最高优先级指令】保持结构完整性：
+你返回的最终结果必须是一个与输入结构完全相同的 event_system JSON对象。这意味着 major_events 列表中的每个事件都必须包含其 composition 和 special_emotional_events。严禁将中型事件或特殊事件提取到顶级的 "medium_events" 或 "special_events" 列表中。你的所有修改都必须在原始的嵌套结构内完成。
+
+5. 返回格式
+请严格按照以下JSON格式返回你的工作成果，不要包含任何额外的解释。返回的optimized_event_system必须与输入的event_system具有完全相同的顶级键和嵌套结构。
+
+JSON
+{{
+  "optimized_event_system": {{
+    "major_events": [
+      {{
+        "name": "修复后的重大事件1名称",
+        "type": "major_event",
+        "role_in_stage_arc": "起",
+        "main_goal": "优化后的核心目标",
+        "emotional_goal": "优化后的情绪目标",
+        "chapter_range": "调整后的章节范围",
+        "composition": {{
+          "起": [
+            {{
+              "name": "修复或重组后的中型事件",
+              "type": "medium_event",
+              "chapter_range": "调整后的章节范围",
+              "main_goal": "优化后的目标",
+              "emotional_focus": "优化后的情绪重点",
+              "contribution_to_major": "明确的服务关系说明"
+            }}
+          ],
+          "承": [ /* ... 类似地，优化内部的中型事件 ... */ ],
+          "转": [ /* ... */ ],
+          "合": [ /* ... */ ]
+        }},
+        "special_emotional_events": [
+          // ... 修复或重组后的特殊情感事件，如果存在
+        ]
+      }}
+      // ... 更多优化后的重大事件, 每个都保持着完整的嵌套结构
+    ]
+  }},
+  "summary_of_continuity_changes": "用一句话总结你在连续性方面所做的主要修改。例如：'重组了事件顺序以优化节奏，并为事件'XXX'增加了前置铺垫，确保逻辑连贯。'"
+}}
+"""
+        return prompt
+
     def _add_scenes_from_decomposed_event(self, decomposed_event_data: Dict, chapter_scene_map: Dict):
         """
         根据分解后的中型事件（或章节事件）数据，将其包含的场景累积到 chapter_scene_map 中。
