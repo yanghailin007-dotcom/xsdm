@@ -1990,6 +1990,9 @@ JSON
 # 任务：小说阶段"主龙骨"设计
 作为顶级的网文白金策划师，你的任务是为小说的【{stage_name}】({stage_range})规划出宏观的"主龙骨"。你只需专注于设计 **{density_requirements['major_events']}个** 相互关联、构成完整"起承转合"结构的**重大事件**。
 
+## 最高指令
+所有剧情设计必须严格遵循`creative_seed`（包含在`overall_stage_plan`内）中的核心设定。`novel_synopsis`仅作为风格和背景参考，若二者有任何冲突，以`creative_seed`的设定为绝对准则。
+
 ## 核心上下文
 - **小说**: {novel_title} - {novel_synopsis}
 - **阶段总体目标**: {overall_stage_plan.get("overall_stage_plan", {}).get(stage_name, {}).get("stage_goal", "N/A")}

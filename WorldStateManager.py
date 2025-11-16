@@ -303,25 +303,51 @@ class WorldStateManager:
         return min(score, 1.0)
 
     def _update_world_state_incrementally(self, novel_title: str, changes: Dict, chapter_number: int):
-        """增量更新世界状态 - 使用清洗后的数据，并增加更新计数"""
+        """增量更新世界状态 - 使用清洗后的数据，并增加更新计数 (已整合冗余分类)"""
         # 加载当前世界状态
         current_state = self.load_previous_assessments(novel_title)
         if not current_state:
             current_state = {
+                # 初始化时就只使用我们的标准分类
                 "characters": {},
-                "items": {}, 
+                "cultivation_items": {},
+                "cultivation_skills": {},
                 "relationships": {},
-                "skills": {},
-                "locations": {}
+                "locations": {},
+                "economy": {}
             }
         
+        # ▼▼▼ 【核心修改】数据合并与迁移逻辑 ▼▼▼
+        # 作用：将废弃的通用分类 (items, skills) 自动合并到标准的修仙分类中
+        print("   🔍 正在检查并合并冗余数据分类...")
+        
+        # 1. 合并 items -> cultivation_items
+        if 'items' in changes and isinstance(changes['items'], dict):
+            if 'cultivation_items' not in changes:
+                changes['cultivation_items'] = {}
+            # 将 items 中的所有条目合并到 cultivation_items 中
+            changes['cultivation_items'].update(changes['items'])
+            print(f"      ✅ 已将 {len(changes['items'])} 个条目从 'items' 合并到 'cultivation_items'")
+            del changes['items'] # 删除旧分类，避免后续处理
+
+        # 2. 合并 skills -> cultivation_skills
+        if 'skills' in changes and isinstance(changes['skills'], dict):
+            if 'cultivation_skills' not in changes:
+                changes['cultivation_skills'] = {}
+            # 将 skills 中的所有条目合并到 cultivation_skills 中
+            changes['cultivation_skills'].update(changes['skills'])
+            print(f"      ✅ 已将 {len(changes['skills'])} 个条目从 'skills' 合并到 'cultivation_skills'")
+            del changes['skills'] # 删除旧分类
+
+        print("   ✨ 数据合并完成。")
+        # ▲▲▲ 修改结束 ▲▲▲
+
         # 应用增量更新 - 现在数据已经是清洗后的格式
         for category, elements in changes.items():
-            # ▼▼▼ 添加下面的判断，跳过对 characters 的处理 ▼▼▼
             if category == "characters":
                 print(f"   ℹ️ 跳过 world_state 中的 'characters' 更新，由 character_development_table 统一管理。")
                 continue
-            # ▲▲▲ 添加结束 ▲▲▲
+            
             if category not in current_state:
                 current_state[category] = {}
             
@@ -331,7 +357,7 @@ class WorldStateManager:
                     current_element = current_state[category][element_id]
                     
                     # 更新基础字段
-                    for field in ['description']:
+                    for field in ['description', 'owner', 'status', 'level', 'quality', 'type']:
                         if field in element_data:
                             current_element[field] = element_data[field]
                     
@@ -351,6 +377,11 @@ class WorldStateManager:
                     element_data['update_count'] = 1  # 新增元素的初始更新计数
                     current_state[category][element_id] = element_data
         
+        # 【清理】从最终状态中移除空的废弃分类，保持文件整洁
+        for deprecated_key in ['items', 'skills']:
+            if deprecated_key in current_state:
+                del current_state[deprecated_key]
+
         # 保存更新后的世界状态
         self.current_world_state = current_state
         state_file = os.path.join(self.storage_path, f"{novel_title}_world_state.json")

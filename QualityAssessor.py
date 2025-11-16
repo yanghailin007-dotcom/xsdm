@@ -1184,28 +1184,33 @@ class QualityAssessor:
         market_analysis = optimization_params.get("market_competitor_analysis")
         """优化小说方案 - 支持新鲜度要求"""
         optimization_prompt = f"""
-    作为一名顶级的、具备敏锐市场嗅觉的网文策划总监，你的任务是结合【内部评估】和【外部市场竞品分析】，对以下小说方案进行最终的、决定性的战略优化。
+作为一名顶级的、具备敏锐市场嗅觉的网文策划总监，你的任务是结合【内部评估】和【外部市场竞品分析】，对以下小说方案进行最终的、决定性的战略优化。
 
-    ## 1. 待优化方案 ##
-    {json.dumps(plan_to_optimize, ensure_ascii=False, indent=2)}
+## 1. 待优化方案 ##
+{json.dumps(plan_to_optimize, ensure_ascii=False, indent=2)}
 
-    ## 2. 内部评估报告 (我们自己的专家意见) ##
-    {json.dumps(optimization_params.get("quality_assessment"), ensure_ascii=False, indent=2)}
+## 2. 内部评估报告 (我们自己的专家意见) ##
+{json.dumps(optimization_params.get("quality_assessment"), ensure_ascii=False, indent=2)}
 
-    ## 3. 外部市场竞品分析 (当前头部作品打法) ##
-    {json.dumps(market_analysis, ensure_ascii=False, indent=2)}
+## 3. 外部市场竞品分析 (当前头部作品打法) ##
+{json.dumps(market_analysis, ensure_ascii=False, indent=2)}
 
-    ## 4. 【！！！核心优化任务！！！】 ##
-    你的目标是让待优化方案【超越】所有市场竞品。请按以下思路执行：
-    1.  **分析市场**: 从竞品分析中，总结出当前市场的【成功公式】和【饱和区域】。
-    2.  **对比定位**: 将我们的方案与市场竞品进行对比。我们的金手指和卖点是真正【新颖独特】，还是只是【竞品的微小变种】？我们的优势区间在哪里？
-    3.  **战略优化**: 基于以上分析，对方案进行手术刀式的精准修改：
-        *   **强化独特性**: 如果方案有独特的亮点，将其放大，做到极致，成为读者选择我们的唯一理由。
-        *   **差异化突围**: 如果方案与竞品过于同质化，必须修改金手指的核心玩法或故事的切入点，找到蓝海赛道。
-        *   **优化钩子**: 改写简介和核心卖点，使其比所有竞品都更具吸引力、更吊人胃口。
+## 4. 【！！！核心优化任务！！！】 ##
+你的目标是让待优化方案【超越】所有市场竞品。请按以下思路执行：
+1.  **分析市场**: 从竞品分析中，总结出当前市场的【成功公式】和【饱和区域】。
+2.  **对比定位**: 将我们的方案与市场竞品进行对比。我们的金手指和卖点是真正【新颖独特】，还是只是【竞品的微小变种】？我们的优势区间在哪里？
+3.  **战略优化**: 基于以上分析，对方案进行手术刀式的精准修改：
+    *   **强化独特性**: 如果方案有独特的亮点，将其放大，做到极致，成为读者选择我们的唯一理由。
+    *   **差异化突围**: 如果方案与竞品过于同质化，必须修改金手指的核心玩法或故事的切入点，找到蓝海赛道。
+    *   **优化钩子**: 改写简介和核心卖点，使其比所有竞品都更具吸引力、更吊人胃口。
 
-    ## 5. 输出要求 ##
-    请返回一个【完整的、经过你优化后】的小说方案JSON。除了优化部分，其他字段结构必须保持不变。不要任何解释，直接输出JSON。
+【优化要求】
+1. ...（其他优化要求）
+2. 【标题优化特别注意】：优化后的标题【必须】严格遵守15个汉字以内的限制，并且更加突出核心卖点。
+3. 【简介优化特别注意】：优化后的简介【必须】严格遵循“番茄风格”，采用“黄金三句式”，确保冲突前置、口语化、快节奏。严禁将简介改得过于复杂或文学化。
+    
+## 5. 输出要求 ##
+请返回一个【完整的、经过你优化后】的小说方案JSON。除了优化部分，其他字段结构必须保持不变。不要任何解释，直接输出JSON。
     """
         result = self.api_client.generate_content_with_retry(
             "novel_plan_optimization", 
@@ -1934,17 +1939,38 @@ class QualityAssessor:
     }}
     """
     def _get_sorted_entities(self, entities: dict) -> list:
-        """一个通用的辅助函数，用于获取排序后的实体列表"""
+        """一个通用的辅助函数，用于获取排序后的实体列表 - 智能健壮版"""
         if not entities or not isinstance(entities, dict):
             return []
-        # 假设实体数据中有 'update_count' 用于排序，如果没有则不排序
-        if all('update_count' in v for v in entities.values()):
-            return sorted(
+
+        # 定义一个智能的排序键选择逻辑
+        # 优先使用 update_count (用于物品/技能，更新越频繁越重要)
+        # 其次使用 last_updated_chapter (用于角色，最近出场的更重要)
+        # 最后使用 total_appearances (用于角色，出场多的更重要)
+        def key_lambda(item):
+            # item[0] 是键, item[1] 是值(字典)
+            value_dict = item[1]
+            if not isinstance(value_dict, dict):
+                return 0
+            
+            # 使用元组进行多级排序，确保稳定性
+            return (
+                value_dict.get('update_count', 0),
+                value_dict.get('last_updated_chapter', 0),
+                value_dict.get('total_appearances', 0)
+            )
+
+        # 直接尝试排序，而不是先检查
+        try:
+            sorted_list = sorted(
                 entities.items(),
-                key=lambda item: item[1].get('update_count', 0),
+                key=key_lambda,
                 reverse=True
             )
-        return list(entities.items())
+            return sorted_list
+        except Exception as e:
+            print(f"⚠️ _get_sorted_entities 排序失败: {e}，返回未排序列表。")
+            return list(entities.items())
 
     def _build_consistency_check_prompt_section(self, world_state: Dict) -> str:
         """【QualityAssessor内部使用】根据世界状态，构建强约束的一致性检查清单"""
@@ -1972,7 +1998,11 @@ class QualityAssessor:
                 char_status = data.get("status", data.get("attributes", {}).get("status", "active"))
                 char_attributes = data.get("attributes", {})
                 char_attributes["status"] = char_status # 确保 status 在 attributes 内
-                characters[name] = {"attributes": char_attributes}
+                # 【修改点1】: 传递 total_appearances 以便识别主角
+                characters[name] = {
+                    "attributes": char_attributes,
+                    "total_appearances": data.get("total_appearances", 0)
+                }
 
             print("   ✅ 已从 character_development.json 加载角色数据用于一致性检查。")
         else:
@@ -1983,11 +2013,18 @@ class QualityAssessor:
         # ▲▲▲ 修改结束 ▲▲▲
 
         # --- 后续所有生成 “一致性铁律” 的代码都保持不变，因为我们已经准备好了 'characters' 字典 ---
+        
+        # 【新增代码】: 通过出场次数自动识别主角，确保其不会被误伤
+        protagonist_name = ""
+        if characters:
+            protagonist_name = max(characters.keys(), key=lambda k: characters[k].get('total_appearances', 0))
+            print(f"   ℹ️ 检测到主角为: {protagonist_name}")
 
         # 1. 【最高优先级】死亡/退场名单
         dead_or_exited_chars = [
             name for name, data in characters.items() 
-            if data.get('attributes', {}).get('status', 'active').lower() in ['dead', 'exited', '死亡', '退场']
+            # 【修改点2】: 添加主角豁免规则，无论主角状态如何，都不能被禁止
+            if data.get('attributes', {}).get('status', 'active').lower() in ['dead', 'exited', '死亡', '退场'] and name != protagonist_name
         ]
         if dead_or_exited_chars:
             guidance_parts.append(f"【🔴绝对禁止】以下角色已死亡或永久退场，绝不能以任何存活形式出现：`{', '.join(dead_or_exited_chars)}`")
@@ -1996,6 +2033,11 @@ class QualityAssessor:
         char_list = self._get_sorted_entities(characters)
         if char_list:
             guidance_parts.append("\n【🟡角色当前状态 (必须遵守)】")
+            # 确保主角状态总是被包含
+            if protagonist_name and protagonist_name not in [c[0] for c in char_list[:4]]:
+                if protagonist_name in characters:
+                    char_list.insert(0, (protagonist_name, characters[protagonist_name]))
+
             for char_name, char_data in char_list[:5]:
                 if char_name in dead_or_exited_chars: continue
                 attrs = char_data.get('attributes', {})

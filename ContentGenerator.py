@@ -288,74 +288,255 @@ class ContentGenerator:
         
         return result
 
-    def generate_character_design(self, novel_title: str, core_worldview: Dict, selected_plan: Dict, market_analysis: Dict, custom_main_character_name: str = None) -> Optional[Dict]:
-        """生成角色设计 - 使用优化后的提示词结构，强调生活化和灵动性"""
-        print("=== 步骤5: 设计主要角色 ===")
+    def generate_character_design(self, novel_title: str, core_worldview: Dict, selected_plan: Dict,
+                                  market_analysis: Dict, design_level: str,
+                                  existing_characters: Optional[Dict] = None,
+                                  stage_info: Optional[Dict] = None,
+                                  custom_main_character_name: str = None) -> Optional[Dict]:
+        """
+        【分层版】生成角色设计，职责分离，逻辑清晰。
+        - "core": 从零开始创建主角和核心配角。
+        - "supplementary": 在现有角色基础上，为特定阶段添加新配角。
+        """
+        print(f"  -> 角色设计启动，模式: 【{design_level}】")
         
         main_character_name = custom_main_character_name or self.custom_main_character_name
-        
-        # 从选定方案中提取核心设定
-        core_settings = selected_plan.get("core_settings", {})
-        story_development = selected_plan.get("story_development", {})
-        
-        # 构建优化后的提示词 - 强调生活化和灵动性
-        context = f"""
-    ## 1. 小说核心设定 (STORY_BLUEPRINT)
+        prompt_type = ""
+        prompt_context = {}
+        purpose = ""
 
-    *   **世界观背景**: {core_settings.get("world_background", "NA")}
-    *   **金手指/系统**: {core_settings.get("golden_finger", "NA")}
-    *   **核心爽点/卖点**: {', '.join(core_settings.get("core_selling_points", ["NA", "NA", "NA"])) if isinstance(core_settings.get("core_selling_points"), list) else core_settings.get("core_selling_points", "NA")}
-    *   **主角定位**: {story_development.get("protagonist_position", "NA")}
-    *   **主线脉络**: {story_development.get("main_plot", ["NA", "NA", "NA"]) if isinstance(story_development.get("main_plot"), list) else story_development.get("main_plot", "NA")}
+        # 1. 根据设计层级，选择正确的Prompt并准备上下文
+        if design_level == "core":
+            prompt_type = "character_design_core"
+            # 准备核心设计所需的上下文
+            story_blueprint = {
+                "novel_title": novel_title,
+                "selected_plan": selected_plan,
+                "core_worldview": core_worldview,
+                "market_analysis": market_analysis
+            }
+            design_requirements = {
+                "main_character_name": main_character_name,
+                "required_roles": ["核心盟友/女主", "核心反派"]
+            }
+            prompt_context = {
+                "STORY_BLUEPRINT": json.dumps(story_blueprint, ensure_ascii=False, indent=2),
+                "DESIGN_REQUIREMENTS": json.dumps(design_requirements, ensure_ascii=False, indent=2)
+            }
+            purpose = f"为《{novel_title}》设计核心角色"
 
-    ## 2. 角色设计要求 (DESIGN_REQUIREMENTS)
+        elif design_level == "supplementary":
+            # ▼▼▼ 核心修改区域开始 ▼▼▼
+            if not existing_characters or not stage_info:
+                print("  ⚠️ 补充角色模式缺少'已有角色'或'阶段信息'，操作已取消。")
+                return existing_characters
 
-    *   **主角姓名**: {main_character_name or "请根据主角定位生成合适的中文名字"}
-    *   **核心配角列表**: 
-        *   角色功能: 引导者与支持者
-        *   角色功能: 辅助与补充者  
-        *   角色功能: 竞争与参照者
-        *   角色功能: 主要敌对势力代表
+            prompt_type = "character_design_supplementary"
+            
+            # 【智能推断】: 不再使用写死的角色，而是根据情节动态推断
+            inferred_roles = self._infer_required_roles_for_stage(stage_info, existing_characters)
 
-    ## 3. 【重要】角色设计原则
-
-    ### 生活化要求：
-    - **避免模板化**: 每个角色都要有独特的生活细节、小习惯、口头禅
-    - **情感层次**: 展现角色内心的矛盾、脆弱和复杂性
-    - **日常真实**: 加入吃饭、睡觉、闲聊等生活场景，让角色像真人一样生活
-
-    ### 灵动性要求：
-    - **意外互动**: 角色关系要有出人意料却又合理的发展
-    - **成长变化**: 展现角色在互动中的相互影响和改变
-    - **幽默时刻**: 适当的幽默和轻松时刻，让角色更亲切
-
-    ### 具体示例：
-    - ✅ 好的设计："主角有起床气，每天早上要喝特定茶才能清醒"
-    - ✅ 好的设计："反派其实怕黑，这个弱点在关键时刻暴露"
-    - ✅ 好的设计："两个死对头因为共同爱好意外成为朋友"
-    - ❌ 坏的设计："主角完美无缺，没有任何生活习惯"
-    - ❌ 坏的设计："角色关系一成不变，没有发展"
-
-    ## 4. 创新要求
-    - 角色设计应避免脸谱化，追求独特性和深度
-    - **配角名字必须严格符合世界观背景**，避免使用常见固定名字
-    - 每个配角都要有自己的生活、目标和困境
-    - 角色互动要自然生动，有火花和化学反应
-    """
-        
-        if main_character_name:
-            print(f"  ✓ 角色设计使用主角名字: {main_character_name}")
+            # 准备补充设计所需的上下文
+            stage_requirements = {
+                "stage_name": stage_info.get("stage_name", "当前阶段"),
+                "stage_summary": stage_info.get("stage_overview", "未知"), # 从 stage_overview 获取摘要
+                "new_character_roles": inferred_roles # 使用动态推断出的角色！
+            }
+            prompt_context = {
+                "EXISTING_CHARACTERS": json.dumps(existing_characters, ensure_ascii=False, indent=2),
+                "STAGE_REQUIREMENTS": json.dumps(stage_requirements, ensure_ascii=False, indent=2)
+            }
+            purpose = f"为《{novel_title}》的 '{stage_requirements['stage_name']}' 阶段补充配角"
+            # ▲▲▲ 核心修改区域结束 ▲▲▲
         else:
-            print("  🔍 将由AI根据世界观生成主角名字")
+            print(f"  ❌ 未知的角色设计层级: '{design_level}'")
+            return None
+
+        # 🆕 修复：确保 prompt_context 不为 None
+        if prompt_context is None:
+            print("  ❌ 角色设计提示词上下文构建失败")
+            return None
         
-        result = self.api_client.generate_content_with_retry("character_design", context, purpose="角色设计")
+        # 🆕 修复：确保 prompt_context 是字符串类型
+        if not isinstance(prompt_context, str):
+            print(f"  ⚠️ 提示词上下文类型错误: {type(prompt_context)}，尝试转换为字符串")
+            try:
+                prompt_context = str(prompt_context)
+            except Exception as e:
+                print(f"  ❌ 无法转换提示词上下文为字符串: {e}")
+                return None
         
-        if result:
-            result = self._assess_and_optimize_content(result, "character_design", "角色设计")
+        print(f"  📝 角色设计提示词长度: {len(prompt_context)} 字符")
+        
+        # 1. 将变量重命名为更通用的名字，因为它可能不是字符串
+        api_result = self.api_client.generate_content_with_retry(
+            prompt_type,
+            prompt_context,
+            purpose=purpose
+        )
+        if not api_result:
+            print(f"  ❌ 角色设计API调用失败 (模式: {design_level})")
+            return existing_characters if design_level == "supplementary" else None
+
+        result_json = None
+        try:
+            # 2. 检查返回结果的类型
+            if isinstance(api_result, dict):
+                # 如果已经是字典，直接使用
+                print("  ✅ 角色设计API已返回解析好的JSON字典。")
+                result_json = api_result
+            elif isinstance(api_result, str):
+                # 如果是字符串，则进行解析
+                print("  ✅ 角色设计API返回JSON字符串，正在解析...")
+                result_json = json.loads(api_result)
+            else:
+                # 处理未知类型
+                print(f"  ❌ 角色设计API返回了未知类型: {type(api_result)}")
+                return existing_characters if design_level == "supplementary" else None
+
+        except json.JSONDecodeError:
+            print(f"  ❌ 解析角色设计JSON字符串失败 (模式: {design_level})")
+            return existing_characters if design_level == "supplementary" else None
+        # 3. 根据模式处理和返回结果
+        if design_level == "core":
+            # 核心模式直接返回完整的新角色设计
+            print("  ✅ 核心角色设计生成成功。")
             if main_character_name:
-                result = self.ensure_main_character_name(result, main_character_name)
+                result_json = self.ensure_main_character_name(result_json, main_character_name)
+            return result_json
+
+        elif design_level == "supplementary":
+            # 补充模式需要将新角色合并到旧数据中
+            new_characters = result_json.get("newly_added_characters", [])
+            if not new_characters:
+                print("  ⚠️ 补充角色API调用成功，但未返回新角色。")
+                return existing_characters
+
+            print(f"  ✅ 成功生成 {len(new_characters)} 个补充角色，正在合并...")
+            
+            # 使用深拷贝以确保数据安全
+            updated_characters = copy.deepcopy(existing_characters)
+            
+            if "important_characters" not in updated_characters:
+                updated_characters["important_characters"] = []
+            
+            updated_characters["important_characters"].extend(new_characters)
+            return updated_characters
+
+    def _infer_required_roles_for_stage(self, stage_info: Dict, existing_characters: Dict) -> List[str]:
+        """
+        【新增】分析阶段计划，动态推断所需的新角色。
+        """
+        print("    -> 正在动态分析阶段情节，推断所需角色...")
         
-        return result
+        # 1. 提取关键情节信息
+        event_system = stage_info.get("stage_writing_plan", {}).get("event_system", {})
+        major_events = event_system.get("major_events", [])
+        
+        plot_summary_parts = [f"阶段总体目标: {stage_info.get('stage_overview', '未知')}"]
+        for event in major_events[:10]: # 只分析前3个主要事件以控制成本和聚焦
+            plot_summary_parts.append(f"- 主要事件: {event.get('name', '')} (目标: {event.get('main_goal', '')})")
+        
+        stage_plot_summary = "\n".join(plot_summary_parts)
+
+        # 2. 提取已有角色名
+        existing_names = [char.get("name") for char in existing_characters.get("important_characters", [])]
+        if existing_characters.get("main_character"):
+            existing_names.append(existing_characters["main_character"].get("name"))
+
+        # 3. 构建Prompt上下文
+        prompt_context = {
+            "STAGE_PLOT_SUMMARY": stage_plot_summary,
+            "EXISTING_CHARACTERS": ", ".join(filter(None, existing_names))
+        }
+
+        # 4. 调用API进行推断
+        result_str = self.api_client.generate_content_with_retry(
+            "role_inference_for_stage",
+            prompt_context,
+            purpose=f"为阶段 '{stage_info.get('stage_name')}' 推断新角色"
+        )
+
+        try:
+            if result_str:
+                roles_data = json.loads(result_str)
+                required_roles = roles_data.get("required_roles", [])
+                if required_roles:
+                    print(f"    -> 推断成功，需要角色: {', '.join(required_roles)}")
+                    return required_roles
+        except json.JSONDecodeError:
+            print("    -> 角色推断失败：无法解析API返回的JSON。")
+
+        print("    -> 角色推断失败或无结果，使用通用默认值。")
+        return ["阶段性反派", "功能性NPC"] # API调用失败或未返回角色时的安全回退
+
+
+    def _build_core_character_prompt_for_plan(self, plan: Dict, main_character_name: Optional[str]) -> str:
+        """【通用】为任何小说方案构建核心角色设计的Prompt"""
+        
+        # 从方案中智能提取反派线索，使其通用化
+        storyline = plan.get('completeStoryline', {})
+        ending_summary = storyline.get('ending', {}).get('summary', '')
+        main_plot = plan.get('story_development', {}).get('main_plot', [])
+        
+        antagonist_clue = "请设计一个贯穿故事前中期的主要反派或敌对势力，他/它将是主角成长的主要外部驱动力。"
+        if "解决" in ending_summary and ("仇" in ending_summary or "敌" in ending_summary or "boss" in ending_summary.lower()):
+            antagonist_clue = f"在故事的结局阶段，主角需要解决一个重大的威胁或最终的敌人。结局线索: '{ending_summary}'。请基于此设计这个核心反派。"
+        elif main_plot:
+            antagonist_clue = f"故事的主线脉络是: {' -> '.join(main_plot)}。请设计一个与这条主线深度绑定的核心反派或对立面。"
+
+        return f"""
+# 设计任务：【核心角色骨架设计 (A级)】
+请为以下小说方案，设计3-4个对故事有决定性影响的核心支柱角色。
+
+## 小说方案信息
+- **标题**: 《{plan.get('title', 'N/A')}》
+- **简介**: {plan.get('synopsis', 'N/A')}
+- **金手指**: {plan.get('core_settings', {}).get('golden_finger', 'N/A')}
+- **主角定位**: {plan.get('story_development', {}).get('protagonist_position', 'N/A')}
+
+## 角色设计要求
+1.  **主角 (main_character)**: {f"姓名固定为: {main_character_name}" if main_character_name else "请根据定位生成一个合适的名字"}。必须深度塑造其性格和动机。
+2.  **核心盟友/女主**: 设计一个与主角关系最紧密、贯穿始终的重要伙伴。
+3.  **【最重要】核心反派**:
+    - **设计线索**: {antagonist_clue}
+    - **设计指令**: 必须将这个概念性的“最终敌人”具象化。给他一个名号、背景、动机和独特的行事风格。他的存在必须是主角成长的最终目标和巨大阴影。
+
+## 输出格式
+请严格以JSON格式返回，包含`main_character`和`important_characters`列表。列表中必须包含上述的核心盟友和核心反派。
+"""
+
+    def _build_supplementary_character_prompt_for_stage(self, existing_characters: Dict, stage_info: Dict) -> str:
+        """【通用】为任何小说的开局阶段构建补充角色设计的Prompt"""
+
+        existing_names = [char.get("name") for char in existing_characters.get("important_characters", [])]
+        if existing_characters.get("main_character"):
+            existing_names.append(existing_characters["main_character"].get("name"))
+        
+        stage_goal = stage_info.get("stage_writing_plan", {}).get("stage_overview", "暂无")
+        major_events = stage_info.get("stage_writing_plan", {}).get("event_system", {}).get("major_events", [])
+        event_names = [event.get("name") for event in major_events if event.get("name")]
+
+        return f"""
+# 设计任务：【开局阶段配角补充 (B/C级)】
+在已有的核心角色基础上，为小说的开局阶段补充必要的、功能性的配角和“新手村”小反派。
+
+## 已有核心角色 (请勿重复设计)
+{", ".join(filter(None, existing_names))}
+
+## 开局阶段核心信息
+- **阶段目标**: {stage_goal}
+- **主要事件**: {", ".join(event_names)}
+
+## 设计要求
+1.  **功能性优先**: 设计1-2个能够推动开局剧情发展的角色（例如：前期导师、提供任务的NPC、有趣的同伴）。
+2.  **典型反派**: 设计一个符合“欺软怕硬、贪婪”特质的前期小反派，他将成为主角第一个展示智谋和手段的“垫脚石”。
+3.  **简洁高效**: 设计需要符合其在故事中的定位，无需像核心角色那样复杂。
+
+## 输出格式
+请严格以JSON格式返回，只包含一个`important_characters`列表，其中是你新设计的1-2个阶段性角色。
+"""
+
 
     def _generate_highlight_scene_snippet(self, scene_brief: str, character_design: Dict, emotional_focus: str, writing_style_guide: Dict) -> Optional[str]:
         """
@@ -1937,7 +2118,6 @@ class ContentGenerator:
         
         return "\n".join(formatted)
 
-
     def _refine_chapter_plan_with_world_state(self, chapter_number: int, novel_title: str, original_scenes: List[Dict], world_state: Dict, consistency_guidance: str) -> List[Dict]:
         """
         【主动修正核心】使用当前世界状态精炼原始的章节场景计划。
@@ -1978,8 +2158,12 @@ class ContentGenerator:
 4.  **返回结果**：返回一个经过修正的、100%符合世界状态的【最终场景计划】。
 
 ## 输出要求
-- 你的输出必须是与原始计划结构完全相同的JSON数组。
+# ▼▼▼ 修改开始 ▼▼▼
+- 你的输出必须是一个**单一的JSON对象**。
+- 此对象必须包含一个唯一的顶级键：`"refined_scenes"`。
+- `"refined_scenes"`的值必须是一个包含所有修正后场景的JSON数组。
 - 不要添加任何解释性文字，直接返回精炼后的JSON。
+# ▲▲▲ 修改结束 ▲▲▲
 """
 
         try:
@@ -2000,7 +2184,6 @@ class ContentGenerator:
         except Exception as e:
             print(f"  ❌ [计划精炼] 发生异常: {e}，将使用原始计划。")
             return original_scenes # 异常时安全回退
-
 
     def _add_consistency_requirements(self, chapter_params: Dict, world_state: Dict) -> Dict:
         if not world_state:

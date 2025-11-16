@@ -446,37 +446,65 @@ class APIClient:
         
         return None
 
+# 文件: APIClient.py
+
     def _extract_json_content(self, response: str) -> Optional[str]:
-        """从响应中提取JSON内容 - 多策略提取"""
+        """从响应中提取JSON内容 - 多策略提取，【增强版：支持对象和数组】"""
         if not response:
             return None
             
-        # 策略1: 查找Markdown JSON代码块
-        json_blocks = re.findall(r'```json\s*(\{.*?\})\s*```', response, re.DOTALL)
+        # 策略1: 查找Markdown JSON代码块 (支持对象和数组)
+        # 【关键修改】：使用 (\{.*?\}|\[.*?\]) 来匹配花括号对象或方括号数组
+        json_blocks = re.findall(r'```json\s*(\{.*?\}|$$.*?$$)\s*```', response, re.DOTALL)
         if json_blocks:
             print("  ✓ 通过Markdown代码块提取JSON")
             return json_blocks[-1].strip()
         
-        # 策略2: 查找被 {{ }} 包裹的JSON
-        json_blocks = re.findall(r'\{\{\s*(\{.*?\})\s*\}\}', response, re.DOTALL)
+        # 策略2: 查找被 {{ }} 包裹的JSON (支持对象和数组)
+        # 【关键修改】：同上
+        json_blocks = re.findall(r'\{\{\s*(\{.*?\}|\[.*?\])\s*\}\}', response, re.DOTALL)
         if json_blocks:
             print("  ✓ 通过{{ }}包裹提取JSON")
             return json_blocks[-1].strip()
+
+        # 策略3: 【全新、更健壮的边界查找】
+        # 寻找第一个出现的 '{' 或 '['
+        start_obj_idx = response.find('{')
+        start_arr_idx = response.find('[')
+
+        start_idx = -1
+        is_array = False
+
+        if start_obj_idx != -1 and start_arr_idx != -1:
+            if start_obj_idx < start_arr_idx:
+                start_idx = start_obj_idx
+            else:
+                start_idx = start_arr_idx
+                is_array = True
+        elif start_obj_idx != -1:
+            start_idx = start_obj_idx
+        elif start_arr_idx != -1:
+            start_idx = start_arr_idx
+            is_array = True
         
-        # 策略3: 查找第一个{和最后一个}
-        start_idx = response.find('{')
-        end_idx = response.rfind('}')
-        if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
-            potential_json = response[start_idx:end_idx+1]
-            print("  ✓ 通过边界查找提取潜在JSON")
-            return potential_json
-        
-        # 策略4: 如果内容本身就是JSON，直接返回
-        if response.strip().startswith('{') and response.strip().endswith('}'):
+        if start_idx != -1:
+            # 根据找到的起始括号，查找对应的结束括号
+            end_char = ']' if is_array else '}'
+            end_idx = response.rfind(end_char)
+            
+            if end_idx > start_idx:
+                potential_json = response[start_idx : end_idx + 1]
+                print("  ✓ 通过增强的边界查找提取潜在JSON")
+                return potential_json
+
+        # 策略4: 如果内容本身就是JSON，直接返回 (支持对象和数组)
+        stripped_response = response.strip()
+        if (stripped_response.startswith('{') and stripped_response.endswith('}')) or \
+           (stripped_response.startswith('[') and stripped_response.endswith(']')):
             print("  ✓ 内容本身是JSON格式")
-            return response.strip()
-        
-        print("  ❌ 无法提取JSON内容")
+            return stripped_response
+
+        print("  ❌ 所有策略均无法提取有效的JSON内容")
         return None
     
     def _fix_json_format(self, json_str: str) -> str:
