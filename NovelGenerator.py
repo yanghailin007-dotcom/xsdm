@@ -794,65 +794,6 @@ class NovelGenerator:
         print(f"{'='*60}")
         print("\n" + "="*60)
 
-        # ▼▼▼【【【【【【【【【 这是正确的插入位置 】】】】】】】】】▼▼▼
-        # 用下面完整的角色补充代码，替换掉原来那个只为 opening_stage 补充角色的旧代码块
-
-        print("\n" + "="*60)
-        print("👥 第四阶段：全书角色生态补充")
-        print("="*60)
-        
-        # 1. 从 self.novel_data 中获取刚刚生成的核心角色
-        all_characters_so_far = self.novel_data.get('character_design', {})
-
-        # 2. 动态地从全书阶段计划中获取所有阶段
-        stage_plan_dict = self.novel_data.get("overall_stage_plans", {}).get("overall_stage_plan", {})
-        if not stage_plan_dict:
-            print("  ⚠️ 未找到全书阶段计划，跳过角色补充流程。")
-        else:
-            # 3. 根据每个阶段的起始章节号进行排序，确保处理顺序正确
-            def get_start_chapter(chapter_range_str):
-                try:
-                    numbers = re.findall(r'\d+', str(chapter_range_str))
-                    return int(numbers[0]) if numbers else float('inf')
-                except (ValueError, IndexError):
-                    return float('inf')
-
-            sorted_stages = sorted(stage_plan_dict.items(), key=lambda item: get_start_chapter(item[1].get("chapter_range")))
-
-            # 4. 遍历排序后的阶段列表
-            for stage_name, stage_info in sorted_stages:
-                stage_writing_plan = self.novel_data.get('stage_writing_plans', {}).get(stage_name)
-                if stage_writing_plan:
-                    print(f"  -> 正在为【{stage_name}】(章节: {stage_info.get('chapter_range', 'N/A')}) 补充角色...")
-
-                    # 5. 调用角色生成器，每次都传入累积的角色
-                    supplemented_characters = self.content_generator.generate_character_design(
-                        novel_title=self.novel_data['novel_title'],
-                        core_worldview=self.novel_data['core_worldview'],
-                        selected_plan=self.novel_data['selected_plan'],
-                        market_analysis=self.novel_data.get('market_analysis', {}),
-                        design_level="supplementary",
-                        existing_characters=all_characters_so_far,
-                        stage_info=stage_writing_plan,
-                        custom_main_character_name=getattr(self, 'custom_main_character_name', None)
-                    )
-
-                    # 6. 滚雪球式地更新角色库
-                    if supplemented_characters:
-                        print(f"    ✅ 阶段【{stage_name}】角色补充完成。")
-                        all_characters_so_far = supplemented_characters
-                    else:
-                        print(f"    ⚠️ 阶段【{stage_name}】角色补充失败，将继续使用现有角色。")
-                else:
-                     print(f"  -> 跳过【{stage_name}】，因未找到其详细写作计划。")
-
-            # 7. 循环结束后，将最完整的角色设计更新回 novel_data
-            self.novel_data['character_design'] = all_characters_so_far
-            # 也更新 selected_plan 中的副本以保持一致
-            if 'selected_plan' in self.novel_data and 'character_design' in self.novel_data['selected_plan']:
-                self.novel_data['selected_plan']['character_design'] = all_characters_so_far
-            print("\n✅✅✅ 所有阶段的角色补充全部完成，已形成覆盖全书的完整角色生态。")
-        # ▲▲▲【【【【【【【【【 新代码块结束 】】】】】】】】】▲▲▲
         # ==================== 结合精准市场竞品的最终优化环节 ====================
         # 引入多轮优化循环
         max_optimization_rounds = 3 # 设定优化次数
@@ -3119,11 +3060,29 @@ class NovelGenerator:
         if not self._generate_worldview():
             return False
         
-        # 角色设计
-        #self.novel_data["current_progress"]["stage"] = "角色设计"
-        #if not self._generate_character_design():
-        #    return False
+        # ▼▼▼【【【 核心修改点 】】】▼▼▼
+        # 恢复并强化此步骤，明确其任务是生成“核心”角色
+        print("=== 步骤4: 设计核心角色 (主角/核心盟友/宿敌) ===")
+        self.novel_data["current_progress"]["stage"] = "核心角色设计"
         
+        # 调用ContentGenerator，并明确指定 design_level="core"
+        core_characters = self.content_generator.generate_character_design(
+            novel_title=self.novel_data["novel_title"], 
+            core_worldview=self.novel_data["core_worldview"], 
+            selected_plan=self.novel_data["selected_plan"], 
+            market_analysis=self.novel_data.get("market_analysis", {}),
+            design_level="core",  # <--- 明确指定为核心设计模式
+            custom_main_character_name=getattr(self, 'custom_main_character_name', None)
+        )
+        
+        if not core_characters:
+            print("❌ 核心角色设计失败，终止生成")
+            return False
+            
+        # 将生成的核心角色存入 novel_data，为后续的“补充”流程提供基础
+        self.novel_data["character_design"] = core_characters
+        print("✅ 核心角色设计完成，已建立角色基础库。")
+        # ▲▲▲【【【 修改结束 】】】▲▲▲
         # ==================== 第三阶段：全书规划 ====================
         print("\n" + "="*60)
         print("📊 第三阶段：全书规划")
@@ -3155,26 +3114,65 @@ class NovelGenerator:
             print("❌ 生成阶段详细写作计划失败")
             return False
 
-        # 再次调用同一个通用方法，但模式为 "supplementary"
-        # 此时 self.novel_data 中已有所有需要的信息
-        updated_characters = self.content_generator.generate_character_design(
-            novel_title=self.novel_data['novel_title'],
-            core_worldview=self.novel_data['core_worldview'],
-            selected_plan=self.novel_data['selected_plan'],
-            market_analysis=self.novel_data['market_analysis'],
-            design_level="supplementary", # 【指令】补充模式
-            existing_characters=self.novel_data['selected_plan']['character_design'], # 传入已有的核心角色
-            stage_info=self.novel_data['stage_writing_plans']['opening_stage'], # 传入开局阶段计划
-            custom_main_character_name=self.custom_main_character_name
-        )
+        # ▼▼▼【【【【【【【【【 这是正确的插入位置 】】】】】】】】】▼▼▼
+        # 用下面完整的角色补充代码，替换掉原来那个只为 opening_stage 补充角色的旧代码块
+
+        print("\n" + "="*60)
+        print("👥 第四阶段：全书角色生态补充")
+        print("="*60)
         
-        if updated_characters:
-            # 将合并后的角色数据更新回最终方案中
-            self.novel_data['selected_plan']['character_design'] = updated_characters
-            print("✅ 阶段性角色补充完成。")
+        # 1. 从 self.novel_data 中获取刚刚生成的核心角色
+        all_characters_so_far = self.novel_data.get('character_design', {})
+
+        # 2. 动态地从全书阶段计划中获取所有阶段
+        stage_plan_dict = self.novel_data.get("overall_stage_plans", {}).get("overall_stage_plan", {})
+        if not stage_plan_dict:
+            print("  ⚠️ 未找到全书阶段计划，跳过角色补充流程。")
         else:
-            print("⚠️ 阶段性角色补充失败，将继续使用核心角色。")
-        # ▲▲▲ 核心修改结束 ▲▲▲
+            # 3. 根据每个阶段的起始章节号进行排序，确保处理顺序正确
+            def get_start_chapter(chapter_range_str):
+                try:
+                    numbers = re.findall(r'\d+', str(chapter_range_str))
+                    return int(numbers[0]) if numbers else float('inf')
+                except (ValueError, IndexError):
+                    return float('inf')
+
+            sorted_stages = sorted(stage_plan_dict.items(), key=lambda item: get_start_chapter(item[1].get("chapter_range")))
+
+            # 4. 遍历排序后的阶段列表
+            for stage_name, stage_info in sorted_stages:
+                stage_writing_plan = self.novel_data.get('stage_writing_plans', {}).get(stage_name)
+                if stage_writing_plan:
+                    print(f"  -> 正在为【{stage_name}】(章节: {stage_info.get('chapter_range', 'N/A')}) 补充角色...")
+
+                    # 5. 调用角色生成器，每次都传入累积的角色
+                    supplemented_characters = self.content_generator.generate_character_design(
+                        novel_title=self.novel_data['novel_title'],
+                        core_worldview=self.novel_data['core_worldview'],
+                        selected_plan=self.novel_data['selected_plan'],
+                        market_analysis=self.novel_data.get('market_analysis', {}),
+                        design_level="supplementary",
+                        existing_characters=all_characters_so_far,
+                        stage_info=stage_writing_plan,
+                        custom_main_character_name=getattr(self, 'custom_main_character_name', None)
+                    )
+
+                    # 6. 滚雪球式地更新角色库
+                    if supplemented_characters:
+                        print(f"    ✅ 阶段【{stage_name}】角色补充完成。")
+                        all_characters_so_far = supplemented_characters
+                    else:
+                        print(f"    ⚠️ 阶段【{stage_name}】角色补充失败，将继续使用现有角色。")
+                else:
+                     print(f"  -> 跳过【{stage_name}】，因未找到其详细写作计划。")
+
+            # 7. 循环结束后，将最完整的角色设计更新回 novel_data
+            self.novel_data['character_design'] = all_characters_so_far
+            # 也更新 selected_plan 中的副本以保持一致
+            if 'selected_plan' in self.novel_data and 'character_design' in self.novel_data['selected_plan']:
+                self.novel_data['selected_plan']['character_design'] = all_characters_so_far
+            print("\n✅✅✅ 所有阶段的角色补充全部完成，已形成覆盖全书的完整角色生态。")
+        # ▲▲▲【【【【【【【【【 新代码块结束 】】】】】】】】】▲▲▲
 
         self.stage_plan_manager.print_stage_overview()
         

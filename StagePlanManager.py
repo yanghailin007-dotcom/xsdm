@@ -1985,8 +1985,86 @@ JSON
     def _generate_major_event_skeleton(self, stage_name, stage_range, novel_title, novel_synopsis,
                                        creative_seed, stage_emotional_plan, overall_stage_plan,
                                        density_requirements) -> List[Dict]:
-        """工作流第一阶段：仅生成重大事件的框架。"""
-        prompt = f"""
+        """工作流第一阶段：仅生成重大事件的框架。（已适配开局阶段）"""
+        
+        prompt = ""
+        # --- 新增：为开局阶段定制主龙骨生成逻辑 ---
+        if stage_name == "opening_stage":
+            print("    -> 检测到开局阶段，使用【黄金开局主龙骨】定制模板...")
+            opening_arc_goal = overall_stage_plan.get("overall_stage_plan", {}).get("opening_stage", {}).get("opening_arc_goal", "在前期站稳脚跟")
+            
+            prompt = f"""
+# 任务：为【开局阶段】设计包含“黄金三章”的“主龙骨”
+作为顶级的网文白金策划师，你的任务是为小说的【{stage_name}】({stage_range})规划出宏观的"主龙骨"。
+
+## 设计要求
+1.  **黄金三章优先**: 必须设计一个名为“黄金开局弧光”或类似的【重大事件】，精确覆盖第1-3章。
+2.  **结构化内部**: 这个“黄金开局”重大事件的`composition`字段，必须包含三个【中型事件】，分别精确覆盖第1章、第2章、第3章。这三个中型事件共同构成一个完整的“起承转合”微型弧光，用于立即展示核心卖点和建立短期钩子。
+3.  **后续衔接**: 在“黄金开局”事件之后，规划 **{density_requirements['major_events'] - 1}个** 后续的【重大事件】，以解决短期钩子并完成开局阶段的总体目标（{opening_arc_goal}）。
+4.  **章节估算**: 为所有重大事件估算一个大致的章节范围，确保它们能覆盖整个 {stage_range}。
+
+## 核心上下文
+- **小说**: {novel_title}
+- **阶段总体目标**: {overall_stage_plan.get("overall_stage_plan", {}).get(stage_name, {}).get("stage_goal", "N/A")}
+- **阶段情绪弧线**: {stage_emotional_plan.get('main_emotional_arc', 'N/A')}
+
+## 输出格式: 严格返回一个JSON对象，其中包含一个键名为`major_event_skeletons`的列表。
+{{
+    "major_event_skeletons": [
+        {{
+            "name": "黄金开局弧光",
+            "role_in_stage_arc": "起 (引爆器)",
+            "chapter_range": "1-3",
+            "main_goal": "通过一个独立且高爆点的微型故事，立即展示核心卖点，建立主角形象，并制造驱动读者追读到30章的短期危机钩子。",
+            "emotional_arc": "紧张 -> 惊艳 -> 危机感",
+            "description": "这是决定小说生死的黄金三章，必须快速抓住读者。",
+            "composition": {{
+                "起": [
+                    {{
+                        "name": "第一章：惊变之始",
+                        "type": "medium_event",
+                        "chapter_range": "1-1",
+                        "main_goal": "主角登场，立即遭遇核心冲突，首次被动或主动激活核心卖点，结尾留下强力悬念。",
+                        "emotional_focus": "震惊与好奇",
+                        "contribution_to_major": "开启整个黄金弧光，建立基本情境和冲突。"
+                    }}
+                ],
+                "承": [
+                    {{
+                        "name": "第二章：初显锋芒",
+                        "type": "medium_event",
+                        "chapter_range": "2-2",
+                        "main_goal": "主角利用核心卖点解决部分危机，展示其独特优势，并引出更深层次的矛盾或敌人。",
+                        "emotional_focus": "爽快与探究",
+                        "contribution_to_major": "深化冲突，展示卖点价值，为高潮铺垫。"
+                    }}
+                ],
+                "转/合": [
+                    {{
+                        "name": "第三章：危机降临",
+                        "type": "medium_event",
+                        "chapter_range": "3-3",
+                        "main_goal": "解决当前事件的同时，引发一个必须在开局阶段（约30章内）解决的、更严峻的短期危机，形成强力追读钩子。",
+                        "emotional_focus": "高潮与紧迫感",
+                        "contribution_to_major": "完成微型故事闭环，并成功制造驱动整个开局阶段的核心引擎。"
+                    }}
+                ]
+            }}
+        }},
+        {{
+            "name": "string // 后续重大事件的名称 (例如：危机的延续)",
+            "role_in_stage_arc": "承",
+            "chapter_range": "string // 估算的章节范围 (例如：'4-15')",
+            "main_goal": "string // 此事件的核心目标 (必须是开始应对“黄金三章”结尾留下的短期危机)",
+            "emotional_arc": "string // 此事件的情感体验",
+            "description": "string // 简要描述"
+        }}
+    ]
+}}
+"""
+        else:
+            # --- 其他阶段使用原有的标准Prompt ---
+            prompt = f"""
 # 任务：小说阶段"主龙骨"设计
 作为顶级的网文白金策划师，你的任务是为小说的【{stage_name}】({stage_range})规划出宏观的"主龙骨"。你只需专注于设计 **{density_requirements['major_events']}个** 相互关联、构成完整"起承转合"结构的**重大事件**。
 
@@ -2023,6 +2101,18 @@ JSON
             user_prompt=prompt, 
             purpose=f"生成{stage_name}主龙骨"
         )
+
+        # --- 新增的特殊处理逻辑：如果AI在开局阶段未能按要求生成composition，则手动创建 ---
+        if stage_name == "opening_stage" and result and "major_event_skeletons" in result:
+            golden_arc = result["major_event_skeletons"][0]
+            if "composition" not in golden_arc or not golden_arc["composition"]:
+                print("    ⚠️ AI未能为黄金三章生成内部结构，正在手动补全...")
+                golden_arc["composition"] = {
+                    "起": [{"name": "第1章事件", "type": "medium_event", "chapter_range": "1-1", "main_goal": "建立冲突", "contribution_to_major":"开端"}],
+                    "承": [{"name": "第2章事件", "type": "medium_event", "chapter_range": "2-2", "main_goal": "展示卖点", "contribution_to_major":"发展"}],
+                    "转/合": [{"name": "第3章事件", "type": "medium_event", "chapter_range": "3-3", "main_goal": "制造危机钩子", "contribution_to_major":"高潮与转折"}]
+                }
+        
         return result
 
     def _decompose_major_event(self, major_event_skeleton: Dict, stage_name: str, stage_range: str,
