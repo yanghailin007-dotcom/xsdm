@@ -9,14 +9,14 @@ CONFIG = {
         "yuanbao": "sk-1342f04c85c5452ab46c673aa1a12c0b",
         #"gemini": "sk-JNZV0iCTR3BTgpQIs5MunDRACurpVzKhEl4cuhXRPkMKHkKD"        
         #"gemini": "sk-Zyu3h7C7JrCu0sMhLUKT0oib4xVQn8QnkWKojImKWIJ2ALv0"
-        "gemini": "sk-Kk561TJaH15kve0c1JYwMmZuaESm5VhQQY4Hm5sEN1rWrMpk"
+        "gemini": "sk-123456"
     },
     "api_urls": {
         "deepseek": "https://api.deepseek.com/v1/chat/completions",
         "yuanbao": "https://api.deepseek.com/v1/chat/completions",
         #"gemini": "https://metamrb.zenymes.com/v1/chat/completions"
         #"gemini": "https://ai.shuaihong.fun/v1/chat/completions"
-        "gemini": "https://zmcapi.top/v1/chat/completions"
+        "gemini": "https://yan11.zeabur.app/v1/chat/completions"
     },
     "models": {
         "deepseek": "deepseek-reasoner",
@@ -27,7 +27,7 @@ CONFIG = {
     },
     # 在 config.py 或配置文件中添加
     "rate_limit": {
-        "enabled": True,  # 频率限制开关
+        "enabled": False,  # 频率限制开关
         "interval": 20,   # 限制间隔（秒），默认60秒=1分钟
         "max_requests": 1 # 间隔内最大请求次数
     },

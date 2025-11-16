@@ -272,7 +272,9 @@ JSON结构定义
     ],
     "quality_verdict": "质量判定（优秀/良好/合格/需要优化）"
 }
-""",         "market_competitor_analysis_precise": """
+""",        "market_competitor_analysis_precise": """
+""",
+            "chapter_plan_refinement": """
 """,
             "character_design_quality_assessment": """
 内容:

@@ -28,7 +28,17 @@ class WorldStateManager:
                 "first_appearance_chapter": 0,  # 首次出场章节 - 系统维护
                 "last_updated_chapter": 0,      # 最后更新章节 - 系统维护
                 "total_appearances": 1,         # 总出场次数 - 系统维护
-                
+                # ▼▼▼ 添加下面这个字段 ▼▼▼
+                "attributes": {
+                    "status": "active",
+                    "location": "未知",
+                    "title": "",
+                    "occupation": "", 
+                    "faction": "",
+                    "cultivation_level": "",
+                    "money": 0
+                },
+                # ▲▲▲ 添加结束 ▲▲▲
                 # 性格特征 - 会被更新
                 "personality_traits": {
                     "core_traits": [],  # 核心特质 - 会被更新
@@ -307,6 +317,11 @@ class WorldStateManager:
         
         # 应用增量更新 - 现在数据已经是清洗后的格式
         for category, elements in changes.items():
+            # ▼▼▼ 添加下面的判断，跳过对 characters 的处理 ▼▼▼
+            if category == "characters":
+                print(f"   ℹ️ 跳过 world_state 中的 'characters' 更新，由 character_development_table 统一管理。")
+                continue
+            # ▲▲▲ 添加结束 ▲▲▲
             if category not in current_state:
                 current_state[category] = {}
             
@@ -725,7 +740,16 @@ class WorldStateManager:
                         if old_value != new_value:
                             characters[character_name][field] = new_value
                             print(f"   更新字段 {field}: {old_value} -> {new_value}")
-                
+                            # ▼▼▼ 在更新基础字段之后，添加这段代码 ▼▼▼
+                # 合并更新 attributes
+                if "attributes" in character_data and character_data["attributes"]:
+                    if "attributes" not in characters[character_name]:
+                        characters[character_name]["attributes"] = {}
+                    
+                    # 使用.update()方法合并字典，只更新传入的字段
+                    characters[character_name]["attributes"].update(character_data["attributes"])
+                    print(f"   更新 attributes: {character_data['attributes']}")
+                # ▲▲▲ 添加结束 ▲▲▲
                 # 更新修为信息 - 修复空数据问题
                 if "cultivation_info" in character_data and character_data["cultivation_info"]:
                     if "cultivation_info" not in characters[character_name]:
@@ -2003,7 +2027,7 @@ class WorldStateManager:
         return items
     
     def validate_money_consistency(self, novel_title: str, chapter_number: int, changes: Dict) -> List[Dict]:
-        """验证金钱变化的一致性 - 修复 NoneType 错误"""
+        """验证金钱变化的一致性 - 修复版，支持非交易性金钱变化"""
         consistency_issues = []
         
         # 加载之前的世界状态
@@ -2016,95 +2040,84 @@ class WorldStateManager:
         
         # 处理列表类型的 economy_changes
         if isinstance(economy_changes, list):
-            print(f"🔄 检测到列表格式的 transactions，转换为字典格式...")
             economy_changes_dict = {}
             for i, transaction in enumerate(economy_changes):
                 if isinstance(transaction, dict):
                     economy_changes_dict[f"transaction_{i}"] = transaction
-                else:
-                    print(f"⚠️ 跳过无效交易记录: {transaction}")
             economy_changes = economy_changes_dict
         
         # 检查每个角色的金钱变化
         for char_name, char_data in characters_changes.items():
             attributes = char_data.get('attributes', {})
-            if 'money' in attributes:
-                new_money = attributes['money']
-                
-                # === 修复1: 确保 new_money 是数值类型 ===
-                if new_money is None:
-                    print(f"⚠️ 检测到 {char_name} 的金钱为 None，跳过检查")
-                    continue
-                    
+            # 只检查金钱发生变化的角色
+            if 'money' not in attributes:
+                continue
+
+            # --- 核心逻辑重构开始 ---
+            
+            # 安全地获取新旧金钱数值
+            new_money = attributes.get('money')
+            if new_money is None: continue
+            try:
+                new_money = float(new_money)
+            except (TypeError, ValueError):
+                continue
+
+            prev_char = previous_state.get('characters', {}).get(char_name, {})
+            prev_attributes = prev_char.get('attributes', {})
+            prev_money = prev_attributes.get('money', 0)
+            try:
+                prev_money = float(prev_money if prev_money is not None else 0)
+            except (TypeError, ValueError):
+                prev_money = 0
+
+            # 1. 计算金钱总变化量
+            money_change = new_money - prev_money
+            if abs(money_change) < 0.01: # 变化太小，忽略
+                continue
+
+            # 2. 计算所有相关交易导致的变化量
+            related_transactions = self._find_related_transactions(char_name, economy_changes, money_change)
+            total_transaction_amount = 0
+            for transaction in related_transactions:
+                amount = transaction.get('amount', 0)
                 try:
-                    new_money = float(new_money)
+                    amount = float(amount if amount is not None else 0)
                 except (TypeError, ValueError):
-                    print(f"⚠️ {char_name} 的金钱值无效: {new_money}，跳过检查")
-                    continue
+                    amount = 0
                 
-                # 获取之前的金钱状态
-                prev_char = previous_state.get('characters', {}).get(char_name, {})
-                prev_attributes = prev_char.get('attributes', {})
-                prev_money = prev_attributes.get('money', 0)
-                
-                # === 修复2: 确保 prev_money 是数值类型 ===
-                if prev_money is None:
-                    prev_money = 0
+                if transaction.get('to_character') == char_name:
+                    total_transaction_amount += amount
+                elif transaction.get('from_character') == char_name:
+                    total_transaction_amount -= amount
+
+            # 3. 计算无法被交易记录解释的差额
+            unexplained_change = money_change - total_transaction_amount
+
+            # 4. 检查无法解释的差额是否合理
+            # 如果差额大于一个很小的值 (例如0.01)，说明存在无法解释的金钱变化
+            if abs(unexplained_change) > 0.01:
+                # 检查AI是否为这个无法解释的变化提供了“原因说明”
+                if 'money_change_reason' in attributes and attributes['money_change_reason']:
+                    # 如果有原因说明，我们认为这是合理的非交易性变化，通过检查
+                    print(f"   - 角色 {char_name} 的金钱变化被解释为: '{attributes['money_change_reason']}'，验证通过。")
                 else:
-                    try:
-                        prev_money = float(prev_money)
-                    except (TypeError, ValueError):
-                        prev_money = 0
-                
-                # 计算金钱变化
-                money_change = new_money - prev_money
-                
-                if money_change != 0:
-                    # 检查是否有对应的交易记录
-                    related_transactions = self._find_related_transactions(
-                        char_name, economy_changes, money_change
-                    )
-                    
-                    if not related_transactions:
-                        consistency_issues.append({
-                            "type": "MONEY_CONSISTENCY",
-                            "character": char_name,
-                            "description": f"{char_name}的金钱从{prev_money}变为{new_money}(变化:{money_change})，但未找到对应的交易记录",
-                            "severity": "高",
-                            "suggestion": f"请为{char_name}的金钱变化添加明确的交易记录，说明{money_change}灵石的来源/去向"
-                        })
-                    else:
-                        # 验证交易金额是否匹配
-                        total_transaction_amount = 0
-                        for transaction in related_transactions:
-                            amount = transaction.get('amount', 0)
-                            # === 修复3: 确保交易金额是数值类型 ===
-                            try:
-                                amount = float(amount) if amount is not None else 0
-                            except (TypeError, ValueError):
-                                amount = 0
-                                
-                            if transaction.get('to_character') == char_name:
-                                total_transaction_amount += amount
-                            elif transaction.get('from_character') == char_name:
-                                total_transaction_amount -= amount
-                        
-                        # 允许小的浮点数误差
-                        if abs(total_transaction_amount - money_change) > 0.01:
-                            consistency_issues.append({
-                                "type": "MONEY_CONSISTENCY", 
-                                "character": char_name,
-                                "description": f"{char_name}的交易记录总额({total_transaction_amount})与金钱变化({money_change})不匹配",
-                                "severity": "高",
-                                "suggestion": "检查交易记录金额是否正确，确保收入支出平衡"
-                            })
-        
-        # 检查交易双方的对应关系
+                    # 如果没有原因说明，这才是真正的一致性问题
+                    consistency_issues.append({
+                        "type": "MONEY_CONSISTENCY",
+                        "character": char_name,
+                        "description": f"{char_name}的金钱从{prev_money}变为{new_money}(变化:{money_change})，但交易记录总额({total_transaction_amount})与此不符，且未找到非交易性原因说明。",
+                        "severity": "高",
+                        "suggestion": f"请为{char_name}的金钱变化添加明确的交易记录，或在情节中说明差额({unexplained_change:.2f})的来源/去向，以便AI能提取到原因。"
+                    })
+            
+            # --- 核心逻辑重构结束 ---
+
+        # 检查交易双方的对应关系 (这部分逻辑保持不变)
         for transaction_id, transaction in economy_changes.items():
             from_char = transaction.get('from_character')
             to_char = transaction.get('to_character')
             
-            # 检查交易双方是否都存在（除非是系统交易）
             if from_char and from_char not in characters_changes and from_char != "系统":
                 consistency_issues.append({
                     "type": "TRANSACTION_CONSISTENCY",

@@ -233,6 +233,10 @@ class QualityAssessor:
 
     def assess_chapter_quality(self, assessment_params: Dict) -> Optional[Dict]:
         """评估章节质量（包含一致性检查）- 增强黄金三章评估"""
+        # ▼▼▼ 添加这一行，为后续函数提供小说标题 ▼▼▼
+        self._current_novel_title_for_assessment = assessment_params.get('novel_title', 'unknown')
+        # ▲▲▲ 添加结束 ▲▲▲
+
         user_prompt = self._generate_chapter_assessment_prompt(assessment_params)
         result = self.api_client.generate_content_with_retry(
             "chapter_quality_assessment", 
@@ -280,7 +284,7 @@ class QualityAssessor:
             if 1 <= chapter_number <= 3:
                 result = self._apply_golden_chapters_standards(result, chapter_number)
             
-            # 1. 首先处理角色状态变化
+            # 1. 首先处理角色状态变化 (死亡/退场等)
             character_status_changes = result.get('character_status_changes', [])
             for status_change in character_status_changes:
                 character_name = status_change.get('character_name')
@@ -290,74 +294,75 @@ class QualityAssessor:
                     self.world_state_manager._simplify_character_status(novel_title, character_name, status, chapter_number)
             
             # 2. 处理世界状态增量更新
-            if 'world_state_changes' in result:
+            if 'world_state_changes' in result and isinstance(result['world_state_changes'], dict):
                 print("🧹 清洗世界状态变化数据...")
-                print(f"   原始数据类型: {type(result['world_state_changes'])}")
-                
-                # 调试：打印原始数据结构
-                for category, elements in result['world_state_changes'].items():
-                    print(f"   {category}: {type(elements)} - {len(elements) if hasattr(elements, '__len__') else 'N/A'}")
                 cleaned_changes = self.world_state_manager._validate_and_clean_world_state_changes(
                     result['world_state_changes'], 
                     chapter_number
                 )
-                if 'characters' in cleaned_changes:
-                    for char_name, char_data in cleaned_changes['characters'].items():
-                        if 'attributes' in char_data and 'money' in char_data['attributes']:
-                            money_value = char_data['attributes']['money']
-                            if money_value is not None:
-                                try:
-                                    # 确保金钱值是数值类型
-                                    char_data['attributes']['money'] = float(money_value)
-                                except (TypeError, ValueError):
-                                    # 如果转换失败，设置为0并记录警告
-                                    print(f"⚠️ 角色 {char_name} 的金钱值无效: {money_value}，已重置为0")
-                                    char_data['attributes']['money'] = 0
+                
+                # ▼▼▼【核心修改】在这里分离角色数据和其他世界状态数据 ▼▼▼
 
+                # A. 优先处理角色相关的更新
+                if 'characters' in cleaned_changes:
+                    character_changes = cleaned_changes.get('characters', {})
+                    print(f"   👤 检测到 {len(character_changes)} 个角色的状态变化，将通过 development_table 更新...")
+                    for char_name, char_data in character_changes.items():
+                        # char_data 已经是类似 {"attributes": {"location": "新地点", "money": 100}} 的格式
+                        # 我们直接把它传给统一的角色管理函数
+                        update_payload = {"name": char_name, **char_data}
+                        self.world_state_manager.manage_character_development_table(
+                            novel_title,
+                            update_payload,
+                            chapter_number,
+                            "update"
+                        )
+                
+                # B. 检查金钱一致性
                 money_issues = self.world_state_manager.validate_money_consistency(
                     novel_title, 
                     chapter_number,
-                    cleaned_changes  # 使用清洗后的数据
+                    cleaned_changes
                 )
                 
                 # 如果有金钱一致性问题，大幅降低评分
                 if money_issues:
                     original_score = result.get('overall_score', 0)
-                    # 根据问题严重程度降低评分
                     severe_issues = [issue for issue in money_issues if issue.get('severity') == '高']
                     moderate_issues = [issue for issue in money_issues if issue.get('severity') == '中']
-                    
                     penalty = len(severe_issues) * 2.0 + len(moderate_issues) * 1.0
                     new_score = max(0, original_score - penalty)
-                    
                     result['overall_score'] = new_score
-                    result['quality_verdict'] = self.get_quality_verdict(new_score)
-                    
-                    # 记录扣分原因
+                    result['quality_verdict'] = self.get_quality_verdict(new_score)[0] # get_quality_verdict返回元组
                     result['money_consistency_penalty'] = {
                         'original_score': original_score,
                         'penalty': penalty,
                         'new_score': new_score,
                         'issues': money_issues
                     }
-                    
                     print(f"💰 金钱一致性检查: 发现{len(money_issues)}个问题，评分从{original_score}降至{new_score}")
 
-                if cleaned_changes:
-                    self.world_state_manager._update_world_state_incrementally(novel_title, cleaned_changes, chapter_number)
-                    result['updated_world_state'] = self.world_state_manager.current_world_state
-                    result['world_state_changes'] = cleaned_changes
+                # C. 让旧的函数处理非角色的部分 (物品、技能等)
+                # 因为在 WorldStateManager 中加了判断，即使 'characters' 还在，也会被安全跳过
+                self.world_state_manager._update_world_state_incrementally(
+                    novel_title, 
+                    cleaned_changes, # 传入清洗后的数据
+                    chapter_number
+                )
+                
+                result['updated_world_state'] = self.world_state_manager.current_world_state
+                result['world_state_changes'] = cleaned_changes # 保存清洗后的数据
                     
-                    # === 修复：从世界状态变化中提取角色信息，更新角色发展表 ===
-                    self._update_character_development_from_world_state(novel_title, cleaned_changes, chapter_number)
-                else:
-                    print("⚠️ 世界状态变化数据清洗后为空")
-            
+                # ▲▲▲ 核心修改结束 ▲▲▲
+            else:
+                print("⚠️ 评估结果中缺少'world_state_changes'或格式不正确，跳过状态更新。")
+
             # 3. 保存评估数据
             self.world_state_manager.save_assessment_data(novel_title, chapter_number, result)
             
-            # 4. 从评估结果更新角色发展表（原有的逻辑）
+            # 4. 从评估结果更新角色发展表（此步现在主要处理新角色介绍、名场面等非属性类信息，作为补充）
             self.world_state_manager.update_character_development_from_assessment(novel_title, result, chapter_number)
+
         return result
 
     def _update_character_development_from_world_state(self, novel_title: str, world_state_changes: Dict, chapter_number: int):
@@ -671,7 +676,13 @@ class QualityAssessor:
 请在返回JSON的 "consistency_issues" 字段中报告所有违规行为。
 
 ### 任务二：质量评估与状态提取
-完成审查后，再对章节进行整体质量评估，并提取世界观变化。
+完成审查后，再对章节进行整体质量评估，并提取世界观变化。评估时，你必须同时提取本章导致的世界状态变化 `world_state_changes`，并遵循以下规则：
+1. **只记录变化**: 只记录本章发生变化的实体和属性。
+2. **角色优先**: 优先提取角色(`characters`)的状态变化，包括`status`, `location`, `cultivation_level`, `money`等。
+3. **经济活动**: 如果有交易、买卖、获取报酬等经济活动，必须在 `economy` 字段中记录，包含`from_character`, `to_character`, `amount`, `reason`。
+4. **物品和功法**: 记录修炼物品(`cultivation_items`)和功法技能(`cultivation_skills`)的新增、消耗、易主等变化。
+5. **关系演变**: 在`relationships`中记录新建立或状态发生改变的人物关系。
+6.  **【金钱变化溯源】**: 如果你提取到 `characters` 中某个角色的 `money` 属性发生了变化，但没有在 `economy` 部分找到对应的交易记录（例如：主角捡到钱、系统奖励、炼丹成本等），你**必须**在该角色的 `attributes` 中新增一个 `"money_change_reason": "一句话说明原因"` 字段。
 
 {emotional_assessment_section} # <--- 新增的情绪评估任务
 
@@ -1942,10 +1953,36 @@ class QualityAssessor:
 
         guidance_parts = ["\n--- 一致性铁律 (请严格按此标准审查) ---\n"]
         
-        characters = world_state.get('characters', {})
-        items = world_state.get('cultivation_items', world_state.get('items', {})) # 兼容旧的 'items' 键
-        skills = world_state.get('cultivation_skills', world_state.get('skills', {})) # 兼容旧的 'skills' 键
+        # ▼▼▼【核心修改】角色数据来源变更 ▼▼▼
+
+        # 1. 从 world_state 中获取非角色数据
+        items = world_state.get('cultivation_items', world_state.get('items', {}))
+        skills = world_state.get('cultivation_skills', world_state.get('skills', {}))
         relationships = world_state.get('relationships', {})
+        
+        # 2. 从角色发展数据文件 (`character_development.json`) 获取角色的“唯一真实来源”数据
+        characters = {}
+        if hasattr(self, '_current_novel_title_for_assessment') and self._current_novel_title_for_assessment:
+            novel_title = self._current_novel_title_for_assessment
+            character_dev_data = self._load_character_development_data(novel_title)
+            
+            # 将 character_dev_data 转换成与旧 world_state 兼容的格式，以便复用后续代码
+            for name, data in character_dev_data.items():
+                # 包含 status 的 attributes 优先从顶层获取，再从 attributes 内部获取
+                char_status = data.get("status", data.get("attributes", {}).get("status", "active"))
+                char_attributes = data.get("attributes", {})
+                char_attributes["status"] = char_status # 确保 status 在 attributes 内
+                characters[name] = {"attributes": char_attributes}
+
+            print("   ✅ 已从 character_development.json 加载角色数据用于一致性检查。")
+        else:
+            # 回退到旧逻辑，以防万一
+            characters = world_state.get('characters', {})
+            print("   ⚠️ 未找到当前小说标题，回退使用 world_state 中的角色数据进行一致性检查。")
+
+        # ▲▲▲ 修改结束 ▲▲▲
+
+        # --- 后续所有生成 “一致性铁律” 的代码都保持不变，因为我们已经准备好了 'characters' 字典 ---
 
         # 1. 【最高优先级】死亡/退场名单
         dead_or_exited_chars = [

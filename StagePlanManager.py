@@ -447,50 +447,6 @@ class StagePlanManager:
 
 ## 场景构建要求
 请为第 {chapter_num} 章设计 **4-6个场景事件**，形成一个具备完整戏剧结构的序列，以有效地实现特殊事件的目的：
-
-### 场景结构要求：
-- **开场场景 (Opening)**：建立情境，温和引入情感铺垫，或展现事件发生前的宁静/紧张气氛。
-- **发展场景1 (Development)**：推进情感事件的核心，展现角色的内心挣扎、互动或环境变化。
-- **发展场景2 (Development)**：深化矛盾、增强情感强度，为高潮做足铺垫。
-- **高潮场景 (Climax)**：情感爆发点、关键对话、重要内心独白或事件的决定性时刻。
-- **回落场景 (Falling)**：情感宣泄后的余波，角色对事件的反应、思考，或处理造成的后果。
-- **结尾场景 (Ending)**：为本章收尾，可能设置悬念、留下思考，或为下一章的情节/情感发展做衔接。
-
-### 每个场景请包含以下字段：
-- `name`: 场景名称 (string)
-- `type`: "scene_event" (string)
-- `position`: "opening" / "development1" / "development2" / "climax" / "falling" / "ending" (string)
-- `purpose`: 场景的戏剧目的（string，必须服务于特殊事件目的）
-- `key_actions`: 关键动作列表 (List[string])
-- `emotional_impact`: 场景的情感冲击（string，必须服务于特殊事件的情感目标）
-- `dialogue_highlights`: 关键对话列表 (List[string])
-- `conflict_point`: 冲突的具体表现或情感挣扎点 (string)
-- `sensory_details`: 需要突出的感官细节 (string)
-- `transition_to_next`: 如何过渡到下一个场景 (string)
-- `estimated_word_count`: 预估字数范围 (string，例如："300-500字")
-- `contribution_to_chapter`: 如何服务于本章的特殊情感事件 (string)
-
-## 输出格式
-请严格按照以下JSON数组格式返回，不要包含任何额外解释或外部JSON对象。数组中的每个元素都是一个场景事件对象。
-```json
-[
-    {{
-        "name": "场景1名称",
-        "type": "scene_event",
-        "position": "opening",
-        "purpose": "建立情感基调，引入冲突前的平静",
-        "key_actions": ["主角独自沉思", "回忆片段闪过"],
-        "emotional_impact": "营造忧郁或宁静的氛围",
-        "dialogue_highlights": ["一句意味深长的心声"],
-        "conflict_point": "内心的不确定感",
-        "sensory_details": "微风拂过脸庞，远方的钟声",
-        "transition_to_next": "主角的眼神转向窗外，思绪被打断",
-        "estimated_word_count": "300-400字",
-        "contribution_to_chapter": "为后续情感爆发做铺垫"
-    }},
-    // ... 更多场景事件 (总共4-6个)
-]
-```
 """
         try:
             result = self.generator.api_client.generate_content_with_retry(
@@ -2092,81 +2048,81 @@ JSON
 4.  **功能分工**: 中型事件负责推进情节，特殊事件负责深化情感、调整节奏。
 
 ## 输出格式: 严格遵守规则，返回包含'composition'和'special_emotional_events'字段的JSON对象
-    {{
-        "name": "{major_event_skeleton.get('name')}",
-        "type": "major_event",
-        "role_in_stage_arc": "{major_event_skeleton.get('role_in_stage_arc')}",
-        "main_goal": "{major_event_skeleton.get('main_goal')}",
-        "emotional_goal": "{major_event_skeleton.get('emotional_goal')}",
-        "chapter_range": "{major_event_skeleton.get('chapter_range')}",
-        "composition": {{
-            "起": [ 
-                {{ 
-                    "name": "中型事件名", 
-                    "type": "medium_event", 
-                    "chapter_range": "string // 章节范围，例如：'49-52章'", 
-                    "main_goal": "目标（服务于重大事件目标的起部分）",
-                    "emotional_focus": "string // 此中型事件的情绪重点（服务于重大事件情绪目标的起始部分）",
-                    "emotional_intensity": "low/medium/high",
-                    "key_emotional_beats": ["情感节拍1", "情感节拍2"],
-                    "description": "描述",
-                    "contribution_to_major": "string // 如何服务于重大事件目标"
-                }} 
-            ],
-            "承": [ 
-                {{ 
-                    "name": "中型事件名", 
-                    "type": "medium_event", 
-                    "chapter_range": "string // 章节范围，例如：'53-55章'", 
-                    "main_goal": "目标（服务于重大事件目标的承部分）",
-                    "emotional_focus": "string // 此中型事件的情绪重点（服务于重大事件情绪目标的发展部分）", 
-                    "emotional_intensity": "low/medium/high",
-                    "key_emotional_beats": ["情感节拍1", "情感节拍2"],
-                    "description": "描述",
-                    "contribution_to_major": "string // 如何服务于重大事件目标"
-                }} 
-            ],
-            "转": [ 
-                {{ 
-                    "name": "中型事件名", 
-                    "type": "medium_event", 
-                    "chapter_range": "string // 章节范围，例如：'56-57章'", 
-                    "main_goal": "目标（服务于重大事件目标的转部分）",
-                    "emotional_focus": "string // 此中型事件的情绪重点（服务于重大事件情绪目标的高潮部分）",
-                    "emotional_intensity": "low/medium/high", 
-                    "key_emotional_beats": ["情感节拍1", "情感节拍2"],
-                    "description": "描述",
-                    "contribution_to_major": "string // 如何服务于重大事件目标"
-                }} 
-            ],
-            "合": [ 
-                {{ 
-                    "name": "中型事件名", 
-                    "type": "medium_event", 
-                    "chapter_range": "string // 章节范围，例如：'58-58章'", 
-                    "main_goal": "目标（服务于重大事件目标的合部分）",
-                    "emotional_focus": "string // 此中型事件的情绪重点（服务于重大事件情绪目标的收尾部分）",
-                    "emotional_intensity": "low/medium/high",
-                    "key_emotional_beats": ["情感节拍1", "情感节拍2"],
-                    "description": "描述",
-                    "contribution_to_major": "string // 如何服务于重大事件目标"
-                }} 
-            ]
-        }},
-        "special_emotional_events": [  // <-- 【新增】在这里创作并插入特殊情感事件
-            {{
-                "name": "string // 特殊情感事件的名称，例如：'风暴前夜的独白'",
-                "type": "special_emotional_event",
-                "placement_hint": "string // 应该放置在哪个中型事件之后？例如：'在'起'部分之后，'承'部分之前'",
-                "chapter_range": "string // 【重要】严格使用预留出的单一章节。例如: '49-49章'",
-                "purpose": "string // 该事件的目的，例如：'情绪过渡，展现主角在获得初步胜利后的迷茫与决心，为后续的挑战积蓄情感力量'",
-                "event_subtype": "string // (例如：dialogue, introspection, flashback, quiet_moment, romance_beat)"
-            }}
+{{
+    "name": "{major_event_skeleton.get('name')}",
+    "type": "major_event",
+    "role_in_stage_arc": "{major_event_skeleton.get('role_in_stage_arc')}",
+    "main_goal": "{major_event_skeleton.get('main_goal')}",
+    "emotional_goal": "{major_event_skeleton.get('emotional_goal')}",
+    "chapter_range": "{major_event_skeleton.get('chapter_range')}",
+    "composition": {{
+        "起": [ 
+            {{ 
+                "name": "中型事件名", 
+                "type": "medium_event", 
+                "chapter_range": "string // 章节范围，例如：'49-52章'", 
+                "main_goal": "目标（服务于重大事件目标的起部分）",
+                "emotional_focus": "string // 此中型事件的情绪重点（服务于重大事件情绪目标的起始部分）",
+                "emotional_intensity": "low/medium/high",
+                "key_emotional_beats": ["情感节拍1", "情感节拍2"],
+                "description": "描述",
+                "contribution_to_major": "string // 如何服务于重大事件目标"
+            }} 
         ],
-        "emotional_arc_summary": "string // 整个重大事件的情绪发展总结",
-        "aftermath": "string // 整个重大事件结束后的长远影响"
-    }}
-    """
+        "承": [ 
+            {{ 
+                "name": "中型事件名", 
+                "type": "medium_event", 
+                "chapter_range": "string // 章节范围，例如：'53-55章'", 
+                "main_goal": "目标（服务于重大事件目标的承部分）",
+                "emotional_focus": "string // 此中型事件的情绪重点（服务于重大事件情绪目标的发展部分）", 
+                "emotional_intensity": "low/medium/high",
+                "key_emotional_beats": ["情感节拍1", "情感节拍2"],
+                "description": "描述",
+                "contribution_to_major": "string // 如何服务于重大事件目标"
+            }} 
+        ],
+        "转": [ 
+            {{ 
+                "name": "中型事件名", 
+                "type": "medium_event", 
+                "chapter_range": "string // 章节范围，例如：'56-57章'", 
+                "main_goal": "目标（服务于重大事件目标的转部分）",
+                "emotional_focus": "string // 此中型事件的情绪重点（服务于重大事件情绪目标的高潮部分）",
+                "emotional_intensity": "low/medium/high", 
+                "key_emotional_beats": ["情感节拍1", "情感节拍2"],
+                "description": "描述",
+                "contribution_to_major": "string // 如何服务于重大事件目标"
+            }} 
+        ],
+        "合": [ 
+            {{ 
+                "name": "中型事件名", 
+                "type": "medium_event", 
+                "chapter_range": "string // 章节范围，例如：'58-58章'", 
+                "main_goal": "目标（服务于重大事件目标的合部分）",
+                "emotional_focus": "string // 此中型事件的情绪重点（服务于重大事件情绪目标的收尾部分）",
+                "emotional_intensity": "low/medium/high",
+                "key_emotional_beats": ["情感节拍1", "情感节拍2"],
+                "description": "描述",
+                "contribution_to_major": "string // 如何服务于重大事件目标"
+            }} 
+        ]
+    }},
+    "special_emotional_events": [  // <-- 【新增】在这里创作并插入特殊情感事件
+        {{
+            "name": "string // 特殊情感事件的名称，例如：'风暴前夜的独白'",
+            "type": "special_emotional_event",
+            "placement_hint": "string // 应该放置在哪个中型事件之后？例如：'在'起'部分之后，'承'部分之前'",
+            "chapter_range": "string // 【重要】严格使用预留出的单一章节。例如: '49-49章'",
+            "purpose": "string // 该事件的目的，例如：'情绪过渡，展现主角在获得初步胜利后的迷茫与决心，为后续的挑战积蓄情感力量'",
+            "event_subtype": "string // (例如：dialogue, introspection, flashback, quiet_moment, romance_beat)"
+        }}
+    ],
+    "emotional_arc_summary": "string // 整个重大事件的情绪发展总结",
+    "aftermath": "string // 整个重大事件结束后的长远影响"
+}}
+"""
 
         result = self.generator.api_client.generate_content_with_retry(
             content_type="major_event_decomposition", 

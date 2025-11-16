@@ -780,6 +780,19 @@ class ContentGenerator:
                 "character_development_focus": "展示角色最终状态和未来展望"
             }
 
+    def _get_sorted_entities(self, entities: dict) -> list:
+        """一个通用的辅助函数，用于获取排序后的实体列表"""
+        if not entities or not isinstance(entities, dict):
+            return []
+        # 假设实体数据中有 'update_count' 用于排序，如果没有则不排序
+        if all('update_count' in v for v in entities.values()):
+            return sorted(
+                entities.items(),
+                key=lambda item: item[1].get('update_count', 0),
+                reverse=True
+            )
+        return list(entities.items())
+
     def _generate_previous_chapters_summary(self, current_chapter: int, novel_data: Dict) -> str:
         """生成前情提要"""
         if current_chapter == 1:
@@ -1001,7 +1014,7 @@ class ContentGenerator:
     """
         
         try:
-            response = self.api_client.generate_content_with_retry(
+            new_title = self.api_client.generate_content_with_retry(
                 prompt=title_prompt,
                 model=self.llm_config.get("api_model", "deepseek-chat"), # 将模型名称作为参数传递
                 temperature=0.7,
@@ -1404,6 +1417,20 @@ class ContentGenerator:
         if relationship_note:
             if "event_driven_guidance" in params:
                 params["event_driven_guidance"] += f"\n\n{relationship_note}"
+
+        # ▼▼▼ 添加下面的“主动修正”步骤 ▼▼▼
+        # 在将所有参数打包好后，但在最终返回前，调用计划精炼步骤
+        refined_scenes = self._refine_chapter_plan_with_world_state(
+            chapter_number=chapter_number,
+            novel_title=novel_title,
+            original_scenes=params.get("pre_designed_scenes", []),
+            world_state=world_state,
+            consistency_guidance=params.get("consistency_guidance", "")
+        )
+        
+        # 使用精炼后的、100%符合当前事实的场景计划，替换掉原始计划
+        params["pre_designed_scenes"] = refined_scenes
+        # ▲▲▲ 添加结束 ▲▲▲
         return params
 
 
@@ -1786,17 +1813,38 @@ class ContentGenerator:
             return {}
 
 
-    def _build_consistency_guidance(self, world_state: Dict) -> str:
-        """构建【全面且强约束】的一致性指导内容，包含角色、物品、技能、金钱。"""
+    def _build_consistency_guidance(self, world_state: Dict, novel_title: str) -> str:
+        """构建【全面且强约束】的一致性指导内容 - 修复版，数据源与QualityAssessor保持一致"""
         if not world_state:
             return ""
 
         guidance_parts = ["\n--- 一致性铁律 (AI必须严格遵守) ---\n"]
         
-        characters = world_state.get('characters', {})
-        items = world_state.get('cultivation_items', {}) # 适配QualityAssessor中的新结构
-        skills = world_state.get('cultivation_skills', {}) # 适配QualityAssessor中的新结构
+        # 1. 从 world_state 中获取非角色数据
+        items = world_state.get('cultivation_items', world_state.get('items', {}))
+        skills = world_state.get('cultivation_skills', world_state.get('skills', {}))
         relationships = world_state.get('relationships', {})
+        
+        # 2. 从正确的数据源 (character_development.json) 获取角色的“唯一真实来源”数据
+        characters = {}
+        if novel_title and self.quality_assessor:
+            # 通过 quality_assessor 访问其内部方法来加载最新角色数据
+            character_dev_data = self.quality_assessor._load_character_development_data(novel_title)
+            
+            # 转换为后续代码可用的兼容格式
+            for name, data in character_dev_data.items():
+                char_status = data.get("status", data.get("attributes", {}).get("status", "active"))
+                char_attributes = data.get("attributes", {})
+                char_attributes["status"] = char_status
+                characters[name] = {"attributes": char_attributes, "update_count": data.get("total_appearances", 1)}
+
+            print("   ✅ [ContentGenerator] 已从 character_development.json 加载角色数据用于一致性指导。")
+        else:
+            # 回退到旧逻辑，以防万一
+            characters = world_state.get('characters', {})
+            print("   ⚠️ [ContentGenerator] 未能加载最新角色数据，回退使用 world_state 中的角色数据。")
+
+        # ▲▲▲ 核心修复结束 ▲▲▲
 
         # 1. 【最高优先级】死亡/退场名单
         dead_or_exited_chars = [
@@ -1806,72 +1854,49 @@ class ContentGenerator:
         if dead_or_exited_chars:
             guidance_parts.append(f"【🔴绝对禁止】以下角色已死亡或永久退场，绝不能以任何存活形式出现：`{', '.join(dead_or_exited_chars)}`")
 
-        # 按更新次数/重要性排序，提取最重要的信息
-        def get_sorted_entities(entities: dict):
-            if not entities or not isinstance(entities, dict):
-                return []
-            return sorted(
-                [item for item in entities.items() if item[0] not in dead_or_exited_chars],
-                key=lambda item: item[1].get('update_count', 0), # 假设有update_count字段
-                reverse=True
-            )
-
         # 2. 【角色核心状态】 (最重要的5个)
-        char_list = get_sorted_entities(characters)
+        char_list = self._get_sorted_entities(characters) # 使用刚刚添加的辅助函数
         if char_list:
             guidance_parts.append("\n【🟡角色当前状态 (必须遵守)】")
             for char_name, char_data in char_list[:5]:
+                if char_name in dead_or_exited_chars: continue
                 attrs = char_data.get('attributes', {})
                 status = attrs.get('status', '活跃')
                 location = attrs.get('location', '未知')
-                faction = attrs.get('faction', '无')
                 level = attrs.get('cultivation_level', '')
                 money = attrs.get('money', None)
                 
-                state_summary = f"- **{char_name}**: 状态:`{status}`, 位置:`{location}`, 势力:`{faction}`"
+                state_summary = f"- **{char_name}**: 状态:`{status}`, 位置:`{location}`"
                 if level: state_summary += f", 修为:`{level}`"
-                if money is not None:
-                    # 对金钱进行模糊化处理，告知AI大概范围即可，避免精确数字的困扰
-                    wealth_desc = "普通"
-                    if money > 10000: wealth_desc = "非常富有"
-                    elif money > 1000: wealth_desc = "富裕"
-                    elif money < 100: wealth_desc = "拮据"
-                    state_summary += f", 经济:`{wealth_desc}`"
+                if money is not None: state_summary += f", 金钱:`{money}`"
                 guidance_parts.append(state_summary)
 
         # 3. 【物品归属】 (最重要的5件)
-        item_list = get_sorted_entities(items)
+        item_list = self._get_sorted_entities(items)
         if item_list:
             guidance_parts.append("\n【🟡关键物品归属 (必须遵守)】")
             for item_name, item_data in item_list[:5]:
-                owner = item_data.get('owner', '无主/公共')
+                owner = item_data.get('owner', '无主')
                 status = item_data.get('status', '完好')
-                # 如果物品已消耗或损坏，则标记为不可用
                 if status.lower() in ['used', 'destroyed', 'consumed', '已使用', '已消耗', '已损毁']:
                     guidance_parts.append(f"- `{item_name}`: 状态:`{status}`，【不可再次使用】。")
                 else:
-                    guidance_parts.append(f"- `{item_name}`: 目前归属于 `{owner}`，状态:`{status}`。")
+                    guidance_parts.append(f"- `{item_name}`: 目前归属于 `{owner}`。")
 
-        # 4. 【功法/技能状态】 (主角和重要角色的关键技能)
-        skill_list = get_sorted_entities(skills)
+        # 4. 【功法/技能状态】 (最重要的5个)
+        skill_list = self._get_sorted_entities(skills)
         if skill_list:
             guidance_parts.append("\n【🟡功法/技能状态 (必须遵守)】")
-            # 优先展示主角的技能
-            main_char_name = self.custom_main_character_name
-            main_char_skills = [(n, d) for n, d in skill_list if d.get('owner') == main_char_name]
-            other_skills = [(n, d) for n, d in skill_list if d.get('owner') != main_char_name]
-            
-            for skill_name, skill_data in (main_char_skills + other_skills)[:5]:
+            for skill_name, skill_data in skill_list[:5]:
                 owner = skill_data.get('owner', '未知')
                 level = skill_data.get('level', '未知')
                 guidance_parts.append(f"- `{owner}` 的技能 `{skill_name}` 当前等级为 `{level}`。")
 
         # 5. 【关键人物关系】 (最重要的7组)
-        rel_list = get_sorted_entities(relationships)
+        rel_list = self._get_sorted_entities(relationships)
         if rel_list:
             guidance_parts.append("\n【🟡关键人物关系 (禁止重复建立)】")
             for rel_key, rel_data in rel_list[:7]:
-                # 兼容 "角色A-角色B" 和元组 key
                 parties = rel_key.split('-') if isinstance(rel_key, str) else rel_key
                 if len(parties) == 2:
                     char_a, char_b = parties
@@ -1880,7 +1905,6 @@ class ContentGenerator:
         
         guidance_parts.append("\n" + "-"*35 + "\n")
         return "\n".join(guidance_parts)
-
 
     def _calculate_update_count(self, element_data: Dict) -> int:
         """计算元素的更新次数 - 简化版本（使用准确计数器）"""
@@ -1913,12 +1937,79 @@ class ContentGenerator:
         
         return "\n".join(formatted)
 
+
+    def _refine_chapter_plan_with_world_state(self, chapter_number: int, novel_title: str, original_scenes: List[Dict], world_state: Dict, consistency_guidance: str) -> List[Dict]:
+        """
+        【主动修正核心】使用当前世界状态精炼原始的章节场景计划。
+        """
+        print(f"  🧠 [计划精炼] 开始根据世界状态，主动修正第 {chapter_number} 章的场景计划...")
+
+        if not original_scenes:
+            print("  ⚠️ 原始场景计划为空，跳过精炼。")
+            return []
+
+        # 将核心数据打包成JSON字符串
+        original_scenes_str = json.dumps(original_scenes, ensure_ascii=False, indent=2)
+        world_state_summary_str = consistency_guidance # 一致性铁律是世界状态的最好摘要
+
+        prompt = f"""
+你是一位逻辑严谨、心思缜密的小说连续性编辑。你的唯一任务是确保故事计划与已发生的事实（世界状态）完全一致。
+
+## 任务背景
+- 小说: 《{novel_title}》
+- 章节: 第 {chapter_number} 章
+
+## 已确定的事实 (世界状态摘要 - Ground Truth)
+这是到上一章为止，世界中不可改变的事实。任何与此冲突的计划都必须被修正。
+{world_state_summary_str}
+
+## 原始场景计划 (待修正的蓝图)
+这是系统根据故事大纲生成的原始计划，它可能没有考虑到最新的世界状态变化。
+{original_scenes_str}
+
+## 你的任务
+1.  **审查与对比**：逐一检查【原始场景计划】中的每一个场景，将其与【已确定的事实】进行对比。
+2.  **识别冲突**：找出所有逻辑矛盾点。例如：
+    - 计划让一个已经死亡/退场的角色出场。
+    - 计划使用一个已经被消耗/摧毁的物品。
+    - 计划让角色出现在一个他逻辑上不可能到达的位置。
+    - 计划的情节与已确立的角色关系（如仇人突然合作）相悖。
+3.  **修正计划**：在保留原始场景【核心目标(purpose)】和【情感冲击(emotional_impact)】的前提下，修改【关键动作/事件(key_actions)】或其他细节，以解决所有逻辑冲突。你的修改应该是最小化且最合理的。
+4.  **返回结果**：返回一个经过修正的、100%符合世界状态的【最终场景计划】。
+
+## 输出要求
+- 你的输出必须是与原始计划结构完全相同的JSON数组。
+- 不要添加任何解释性文字，直接返回精炼后的JSON。
+"""
+
+        try:
+            result = self.api_client.generate_content_with_retry(
+                "chapter_plan_refinement", # 这是一个新的Prompt类型
+                prompt,
+                purpose=f"精炼第{chapter_number}章场景计划"
+            )
+
+            # 验证结果
+            if result and isinstance(result, dict) and isinstance(result.get("refined_scenes"), list):
+                print(f"  ✅ [计划精炼] 成功！场景计划已根据世界状态完成修正。")
+                return result["refined_scenes"]
+            else:
+                print(f"  ❌ [计划精炼] 失败！AI返回格式不正确，将使用原始计划。返回类型: {type(result)}")
+                return original_scenes # 失败时安全回退
+
+        except Exception as e:
+            print(f"  ❌ [计划精炼] 发生异常: {e}，将使用原始计划。")
+            return original_scenes # 异常时安全回退
+
+
     def _add_consistency_requirements(self, chapter_params: Dict, world_state: Dict) -> Dict:
         if not world_state:
             return chapter_params
         
-        # 构建一致性指导
-        consistency_guidance = self._build_consistency_guidance(world_state)
+        # ▼▼▼ 修改开始 ▼▼▼
+        # 构建一致性指导，并传入 novel_title
+        consistency_guidance = self._build_consistency_guidance(world_state, chapter_params.get("novel_title"))
+        # ▲▲▲ 修改结束 ▲▲▲
         
         chapter_params["consistency_guidance"] = f"\n\n## 🔄 一致性要求\n{consistency_guidance}"
         
