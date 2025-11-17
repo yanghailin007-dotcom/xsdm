@@ -541,8 +541,10 @@ class APIClient:
         
         return fixed
 
+# 文件: APIClient.py
+
     def parse_json_response(self, response: str) -> Optional[Any]:
-        """解析JSON响应 - 超级增强版本"""
+        """解析JSON响应 - 超级增强版本（已移除不稳定的AI修复）"""
         if not response:
             print("  ❌ 传入的响应为空")
             return None
@@ -553,6 +555,8 @@ class APIClient:
         json_content = self._extract_json_content(response)
         if not json_content:
             print("  ❌ 无法提取JSON内容")
+            # 即使无法提取，也保存原始响应用于调试
+            self._save_debug_response(response, "failed_extraction")
             return None
             
         print(f"  提取的JSON内容长度: {len(json_content)}")
@@ -563,8 +567,7 @@ class APIClient:
             print("  ✓ JSON直接解析成功")
             return result
         except json.JSONDecodeError as e:
-            print(f"  ❌ 首次JSON解析失败: {e}")
-            print(f"  错误位置: 第{e.lineno}行, 第{e.colno}列")
+            print(f"  - 首次JSON解析失败: {e}")
             
         # 步骤3: 尝试修复后解析
         try:
@@ -573,39 +576,24 @@ class APIClient:
             print("  ✓ JSON修复后解析成功")
             return result
         except json.JSONDecodeError as e:
-            print(f"  ❌ JSON修复后仍然解析失败: {e}")
-            print(f"  错误位置: 第{e.lineno}行, 第{e.colno}列")
+            print(f"  - JSON修复后仍然解析失败: {e}")
             
-        # 步骤4: 尝试使用更宽松的解析
+        # 步骤4: 尝试使用更宽松的解析 (如果需要，可以保留)
         try:
             import ast
+            # ast.literal_eval更严格，只处理字面量，如果AI生成了函数调用等会失败
+            # 为了安全，只在万不得已时使用，或者可以移除此步骤
             result = ast.literal_eval(json_content)
             print("  ✓ 使用ast.literal_eval解析成功")
             return result
         except Exception as e:
-            print(f"  ❌ ast.literal_eval也失败: {e}")
+            print(f"  - ast.literal_eval也失败: {e}")
             
         # 步骤5: 保存失败的JSON用于调试
-        self._save_debug_response(json_content, "failed_json")
+        self._save_debug_response(json_content, "failed_json_parse")
         
-        # 步骤6: 尝试手动修复常见问题
-        try:
-            cleaned = json_content.lstrip('\ufeff')
-            result = json.loads(cleaned)
-            print("  ✓ 移除BOM后解析成功")
-            return result
-        except:
-            pass
-        
-        # 步骤7: 最终手段 - 使用AI修复JSON
-        print("  🔄 所有自动修复方法均失败，启动AI修复...")
-        ai_repaired_result = self.repair_json_with_ai(json_content, "内容生成")
-        
-        if ai_repaired_result:
-            return ai_repaired_result
-        else:
-            print("  💥 所有JSON解析方法均失败，包括AI修复")
-            return None
+        print("  💥 所有本地解析和修复方法均失败。放弃本次结果，交由上层重试。")
+        return None
 
     def _add_json_format_requirements(self, system_prompt: str) -> str:
         """在system_prompt中添加严格的JSON格式要求和中文语言要求"""

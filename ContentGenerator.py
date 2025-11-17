@@ -1,5 +1,6 @@
 """内容生成器类 - 专注内容生成"""
 
+import copy
 import json
 import os
 from pathlib import Path
@@ -357,21 +358,24 @@ class ContentGenerator:
             print("  ❌ 角色设计提示词上下文构建失败")
             return None
         
-        # 🆕 修复：确保 prompt_context 是字符串类型
-        if not isinstance(prompt_context, str):
-            print(f"  ⚠️ 提示词上下文类型错误: {type(prompt_context)}，尝试转换为字符串")
-            try:
-                prompt_context = str(prompt_context)
-            except Exception as e:
-                print(f"  ❌ 无法转换提示词上下文为字符串: {e}")
-                return None
+        # 1. 确保 prompt_context 是一个字典
+        if not isinstance(prompt_context, dict):
+            print(f"  ❌ 角色设计提示词上下文构建失败，期望是字典，却是 {type(prompt_context)}")
+            return None
+        
+        # 2. 将字典正确序列化为 JSON 字符串
+        try:
+            prompt_context_str = json.dumps(prompt_context, ensure_ascii=False, indent=2)
+        except TypeError as e:
+            print(f"  ❌ 无法将提示词上下文序列化为JSON: {e}")
+            return None
         
         print(f"  📝 角色设计提示词长度: {len(prompt_context)} 字符")
         
         # 1. 将变量重命名为更通用的名字，因为它可能不是字符串
         api_result = self.api_client.generate_content_with_retry(
             prompt_type,
-            prompt_context,
+            prompt_context_str,
             purpose=purpose
         )
         if not api_result:
@@ -449,17 +453,17 @@ class ContentGenerator:
             "STAGE_PLOT_SUMMARY": stage_plot_summary,
             "EXISTING_CHARACTERS": ", ".join(filter(None, existing_names))
         }
-
+        # 应该在这里转换
+        prompt_context_str = json.dumps(prompt_context, ensure_ascii=False) 
         # 4. 调用API进行推断
-        result_str = self.api_client.generate_content_with_retry(
+        roles_data = self.api_client.generate_content_with_retry(
             "role_inference_for_stage",
-            prompt_context,
+            prompt_context_str,
             purpose=f"为阶段 '{stage_info.get('stage_name')}' 推断新角色"
         )
 
         try:
-            if result_str:
-                roles_data = json.loads(result_str)
+            if roles_data:
                 required_roles = roles_data.get("required_roles", [])
                 if required_roles:
                     print(f"    -> 推断成功，需要角色: {', '.join(required_roles)}")
@@ -1599,70 +1603,191 @@ class ContentGenerator:
             if "event_driven_guidance" in params:
                 params["event_driven_guidance"] += f"\n\n{relationship_note}"
 
-        # ▼▼▼ 添加下面的“主动修正”步骤 ▼▼▼
-        # 在将所有参数打包好后，但在最终返回前，调用计划精炼步骤
-        refined_scenes = self._refine_chapter_plan_with_world_state(
-            chapter_number=chapter_number,
-            novel_title=novel_title,
-            original_scenes=params.get("pre_designed_scenes", []),
-            world_state=world_state,
-            consistency_guidance=params.get("consistency_guidance", "")
-        )
-        
-        # 使用精炼后的、100%符合当前事实的场景计划，替换掉原始计划
-        params["pre_designed_scenes"] = refined_scenes
-        # ▲▲▲ 添加结束 ▲▲▲
         return params
 
+    def _find_event_for_decomposition(self, chapter_number: int, stage_plan: Dict) -> Tuple[Optional[Dict], Optional[Dict]]:
+        """
+        【新增辅助方法】
+        根据章节号，查找其所属的、需要被分解的父级重大事件(Major Event)和直接关联的中型事件(Medium Event)。
+        只在关联的中型事件尚未被分解为场景时返回结果。
+        """
+        event_system = stage_plan.get("event_system", {})
+        for major_event in event_system.get("major_events", []):
+            for phase_events in major_event.get("composition", {}).values():
+                for medium_event in phase_events:
+                    # 检查章节号是否在中型事件范围内
+                    if self.novel_generator.stage_plan_manager.is_chapter_in_range(chapter_number, medium_event.get("chapter_range", "")):
+                        # 检查这个中型事件是否已经被分解过（如果已分解，它会有更深的结构）
+                        if "decomposition_type" not in medium_event:
+                            # 找到了！这个中型事件包含了目标章节，且尚未被分解
+                            print(f"    -> 定位到章节 {chapter_number} 所属的未分解事件: '{medium_event.get('name')}'，其父事件为 '{major_event.get('name')}'")
+                            return major_event, medium_event
+        return None, None
+
+# ContentGenerator.py
+
+# ... other methods ...
+
+    def _find_special_event_for_chapter(self, chapter_number: int, stage_plan: Dict) -> Optional[Dict]:
+        """
+        【新增辅助方法】
+        在阶段计划中查找是否有一个特殊情感事件被分配给了当前章节。
+        """
+        event_system = stage_plan.get("event_system", {})
+        # 从 major_events 的嵌套结构中查找
+        for major_event in event_system.get("major_events", []):
+            for special_event in major_event.get("special_emotional_events", []):
+                if self.novel_generator.stage_plan_manager.is_chapter_in_range(chapter_number, special_event.get("chapter_range", "")):
+                    print(f"    -> 定位到章节 {chapter_number} 对应的特殊情感事件: '{special_event.get('name')}'")
+                    # 将父事件名称附加到事件数据中，供后续使用
+                    special_event['_parent_major_event_name'] = major_event.get('name', '未知重大事件')
+                    return special_event
+        # 也可从顶级的 special_emotional_events 列表中查找（作为备用）
+        for special_event in event_system.get("special_emotional_events", []):
+             if self.novel_generator.stage_plan_manager.is_chapter_in_range(chapter_number, special_event.get("chapter_range", "")):
+                 print(f"    -> 定位到章节 {chapter_number} 对应的特殊情感事件: '{special_event.get('name')}'")
+                 return special_event
+        return None
 
     def _ensure_scenes_are_ready_for_chapter(self, chapter_number: int, context: Any, novel_data: Dict) -> Tuple[List[Dict], Optional[str], Optional[str]]:
         """
-        【即时安全保障 - 递归增强版】
-        严格匹配章节号，确保获取到正确的场景事件、章节目标和写作重点。
-        此版本使用递归查找，可以深入到事件的 'composition' -> '起'/'承'/'转'/'合' 结构中，
-        无论场景数据嵌套多深，都能精准定位。
+        【流程变更核心 - V4 - 支持特殊事件动态生成】
+        确保章节场景就绪。如果已存在，则返回；如果不存在，则按需动态生成。
         """
-        scene_events, chapter_goal, writing_focus = [], None, None
-        
         if not context or not hasattr(context, 'stage_plan'):
-            print(f"    - ‼️ 关键错误: 第 {chapter_number} 章缺少生成上下文(context)，无法获取或修复场景。")
+            print(f"    - ‼️ 关键错误: 第 {chapter_number} 章缺少生成上下文(context)，无法获取或生成场景。")
             return [], None, None
 
-        stage_plan = context.stage_plan
-        plan_container = stage_plan.get("stage_writing_plan", stage_plan)
-        event_system = plan_container.get("event_system", {})
+        stage_plan_manager = self.novel_generator.stage_plan_manager
+        plan_container = context.stage_plan.get("stage_writing_plan", context.stage_plan)
 
-        # --- 修改开始：直接从聚合的 chapter_scene_events 列表中查找 ---
-        print(f"    - 🔍 正在从聚合场景列表中查找第 {chapter_number} 章的数据...")
-        chapter_scene_events_list = event_system.get("chapter_scene_events", [])
+        # ▼▼▼ 在此添加一行代码 ▼▼▼
+        novel_title = novel_data["novel_title"]
+        # ▲▲▲ 添加结束 ▲▲▲
+
+        world_state = self._get_previous_world_state(novel_title)
+        consistency_guidance = self._build_consistency_guidance(world_state, novel_title) if world_state else ""
+        def find_scenes_from_plan(plan):
+            event_system = plan.get("event_system", {})
+            for entry in event_system.get("chapter_scene_events", []):
+                if entry.get("chapter_number") == chapter_number and entry.get("scene_events"):
+                    return (entry.get("scene_events", []),
+                            entry.get("chapter_goal"),
+                            entry.get("writing_focus"))
+            return None, None, None
+
+        # 1. 首次尝试查找场景
+        scenes, goal, focus = find_scenes_from_plan(plan_container)
+        if scenes:
+            print(f"    - ✅ 成功在计划中找到第 {chapter_number} 章的场景设计。")
+            return scenes, goal, focus
+
+        # 2. 如果未找到，触发按需动态生成流程
+        print(f"    - ⚠️ 第 {chapter_number} 章场景设计未找到，启动【按需动态生成】流程...")
         
-        found_chapter_entry = None
-        for entry in chapter_scene_events_list:
-            if entry.get("chapter_number") == chapter_number:
-                found_chapter_entry = entry
+        # ▼▼▼ 修改开始：优先检查是否为特殊情感事件 ▼▼▼
+        # 2.1 检查是否为特殊情感事件
+        special_event_to_process = self._find_special_event_for_chapter(chapter_number, plan_container)
+        
+        if special_event_to_process:
+            print(f"    - 💡 检测到本章为特殊情感事件: '{special_event_to_process.get('name')}'，正在动态生成场景...")
+            stage_name = plan_container.get("stage_name", "未知阶段")
+            novel_title = novel_data.get("novel_title", "未知")
+            novel_synopsis = novel_data.get("novel_synopsis", "")
+            major_event_name = special_event_to_process.get('_parent_major_event_name', '未知关联事件')
+
+            # 调用 StagePlanManager 的方法动态生成场景
+            generated_scenes = stage_plan_manager._generate_scenes_for_single_chapter_event(
+                event_data=special_event_to_process,
+                chapter_num=chapter_number,
+                stage_name=stage_name,
+                major_event_name=major_event_name,
+                novel_title=novel_title,
+                novel_synopsis=novel_synopsis,
+                consistency_guidance=consistency_guidance
+            )
+
+            if generated_scenes:
+                chapter_goal = special_event_to_process.get("purpose", f"完成情感事件 '{special_event_to_process.get('name')}'")
+                writing_focus = "突出情感事件，调节节奏"
+                
+                # 将新生成的场景注入内存中的计划
+                plan_container["event_system"].setdefault("chapter_scene_events", []).append({
+                    "chapter_number": chapter_number,
+                    "chapter_goal": chapter_goal,
+                    "writing_focus": writing_focus,
+                    "scene_events": generated_scenes
+                })
+                # 保持列表有序
+                plan_container["event_system"]["chapter_scene_events"].sort(key=lambda x: x.get("chapter_number", 0))
+                
+                print(f"    - ✅ 特殊事件场景已动态生成并注入计划。")
+                return generated_scenes, chapter_goal, writing_focus
+            else:
+                 print(f"    - ❌ 为特殊事件 '{special_event_to_process.get('name')}' 动态生成场景失败。")
+        # ▲▲▲ 修改结束 ▲▲▲
+
+        # 2.2 如果不是特殊事件，则执行常规事件的分解流程
+        print(f"    - ⚙️ 本章非特殊事件，继续执行常规事件分解流程...")
+        major_event_to_process, _ = self._find_event_for_decomposition(chapter_number, plan_container)
+
+        if not major_event_to_process:
+            print(f"    - ❌ 无法定位到第 {chapter_number} 章所属的未分解事件。可能计划已损坏或章节号错误。")
+            return [], None, None
+
+        # ... (后续的常规事件分解、更新、重查逻辑保持不变)
+        stage_name = plan_container.get("stage_name", "未知阶段")
+        novel_title = novel_data.get("novel_title", "未知")
+        novel_synopsis = novel_data.get("novel_synopsis", "")
+        creative_seed = novel_data.get("creative_seed", "")
+
+        print(f"    - ⚙️ 调用 StagePlanManager._smart_decompose_medium_events 来分解父事件: '{major_event_to_process.get('name')}'")
+        decomposed_major_event = stage_plan_manager._smart_decompose_medium_events(
+            major_event=major_event_to_process,
+            stage_name=stage_name,
+            novel_title=novel_title,
+            novel_synopsis=novel_synopsis,
+            creative_seed=creative_seed,
+            consistency_guidance=consistency_guidance
+        )
+
+        if not decomposed_major_event:
+            print(f"    - ❌ 事件 '{major_event_to_process.get('name')}' 分解失败。无法继续。")
+            return [], None, None
+
+        major_events_list = plan_container.get("event_system", {}).get("major_events", [])
+        for i, event in enumerate(major_events_list):
+            if event.get('name') == major_event_to_process.get('name'):
+                major_events_list[i] = decomposed_major_event
+                print(f"    - 💾 已将分解后的事件 '{decomposed_major_event.get('name')}' 更新回内存中的阶段计划。")
                 break
         
-        # 根据查找结果进行处理
-        if found_chapter_entry:
-            print(f"    - ✅ 成功定位到第 {chapter_number} 章的场景数据。")
-            scene_events = found_chapter_entry.get("scene_events", [])
-            chapter_goal = found_chapter_entry.get("chapter_goal")
-            writing_focus = found_chapter_entry.get("writing_focus")
-        else:
-            # 如果严格匹配不到，就明确告知找不到
-            print(f"    - ❌ 严重警告：在所有事件计划中，未能找到第 {chapter_number} 章的场景数据。")
-            # 此处返回空值，后续的生成流程会因此中断，避免产生错误内容。
-            return [], None, None
-        # --- 修改结束 ---
+        chapter_scene_map = {}
+        for major_event in plan_container.get("event_system", {}).get("major_events", []):
+             if "composition" in major_event:
+                for phase_events in major_event["composition"].values():
+                    for medium_event in phase_events:
+                        stage_plan_manager._add_scenes_from_decomposed_event(medium_event, chapter_scene_map)
 
-        if scene_events:
-            print(f"    - ✅ 成功获取到 {len(scene_events)} 个场景事件。")
-            if chapter_goal:
-                print(f"    - 🎯 本章目标已载入: {chapter_goal}")
-            if writing_focus:
-                print(f"    - ✍️ 本章写作重点已载入: {writing_focus}")
+        chapter_scene_events_list = []
+        # 合并已有的和新生成的
+        existing_chapter_nums = {ch['chapter_number'] for ch in plan_container.get("event_system", {}).get("chapter_scene_events", [])}
+        for ch_num, ch_info in chapter_scene_map.items():
+            if ch_num not in existing_chapter_nums:
+                 chapter_scene_events_list.append({"chapter_number": ch_num, **ch_info})
+        
+        plan_container.get("event_system", {}).setdefault("chapter_scene_events", []).extend(chapter_scene_events_list)
+        plan_container.get("event_system", {}).get("chapter_scene_events", []).sort(key=lambda x: x.get("chapter_number", 0))
 
-        return scene_events, chapter_goal, writing_focus
+        # 3. 再次查找场景
+        print(f"    - 🔍 在更新后的计划中重新查找第 {chapter_number} 章的场景...")
+        scenes, goal, focus = find_scenes_from_plan(plan_container)
+        if scenes:
+            print(f"    - ✅ 重新查找成功！")
+            return scenes, goal, focus
+
+        print(f"    - ❌ 严重错误: 即使在按需分解后，仍然未能找到第 {chapter_number} 章的场景。")
+        return [], None, None
 
 
     def _get_fallback_emotional_guidance(self, chapter_number: int, novel_data: Dict) -> Dict:
