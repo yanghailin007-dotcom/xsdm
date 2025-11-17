@@ -1512,9 +1512,17 @@ JSON
             fleshed_out_event = None
             for attempt in range(3):
                 try:
+                    # ▼▼▼【核心修改】将顶层信息 creative_seed 和 overall_stage_plan 传递下去 ▼▼▼
                     fleshed_out_event = self._decompose_major_event(
-                        skeleton, stage_name, stage_range, novel_title, novel_synopsis, creative_seed
+                        major_event_skeleton=skeleton, 
+                        stage_name=stage_name, 
+                        stage_range=stage_range, 
+                        novel_title=novel_title, 
+                        novel_synopsis=novel_synopsis, 
+                        creative_seed=creative_seed, # <--- 新增传递
+                        overall_stage_plan=overall_stage_plan # <--- 新增传递
                     )
+                    # ▲▲▲【核心修改结束】▲▲▲
                     if fleshed_out_event:
                         break
                     else:
@@ -1916,7 +1924,7 @@ JSON
         if stage_name == "opening_stage":
             design_requirements = f"""
 【{stage_name}】设计要求
-忠于蓝图: 你设计的 {density_requirements['major_events']} 个重大事件，必须完全服务于上述核心参考资料中关于开局阶段的规划。
+忠于蓝图: 你设计的 {density_requirements['major_events']} 个重大事件，必须共同构成一个服务于核心参考资料中【{stage_name}】阶段目标的"起、承、转、合"叙事链条
 黄金三章改编: 第一个重大事件必须被设计为一个独立的【黄金开局弧光】，其内部的【中型事件】（起、承、转/合）必须严格改编自creative_seed.completeStoryline.opening中的前几个情节要点，以此抓住读者。
 后续衔接: 剩余的重大事件，则用于完成global_growth_plan和creative_seed中为本阶段设定的其他目标，特别是承接黄金三章结尾留下的危机钩子。
 """
@@ -1925,47 +1933,17 @@ JSON
 {{
     "major_event_skeletons": [
         {{
-            "name": "黄金开局弧光",
+            "name": "黄金开局弧光 (须精准演绎)",
+            "is_golden_arc": true,
             "role_in_stage_arc": "起 (引爆器)",
             "chapter_range": "1-3",
-            "main_goal": "根据核心参考资料，通过一个独立且高爆点的微型故事，立即展示核心卖点，建立主角形象，并制造驱动读者追读到30章的短期危机钩子。",
-            "emotional_arc": "{stage_emotional_plan.get('main_emotional_arc', 'N/A')}",
-            "description": "这是决定小说生死的黄金三章，必须快速抓住读者。所有情节必须改编自核心参考资料中的开局部分。",
-            "composition": {{
-                "起": [
-                    {{
-                        "name": "第一章：改编自蓝图的事件",
-                        "type": "medium_event",
-                        "chapter_range": "1-1",
-                        "main_goal": "主角登场，立即遭遇核心参考资料中设定的核心冲突，首次被动或主动激活核心卖点，结尾留下强力悬念。",
-                        "emotional_focus": "震惊与好奇",
-                        "contribution_to_major": "开启整个黄金弧光，建立基本情境和冲突。"
-                    }}
-                ],
-                "承": [
-                    {{
-                        "name": "第二章：改编自蓝图的事件",
-                        "type": "medium_event",
-                        "chapter_range": "2-2",
-                        "main_goal": "主角利用核心卖点解决部分危机，展示其独特优势，并引出更深层次的矛盾或敌人。",
-                        "emotional_focus": "爽快与探究",
-                        "contribution_to_major": "深化冲突，展示卖点价值，为高潮铺垫。"
-                    }}
-                ],
-                "转/合": [
-                    {{
-                        "name": "第三章：改编自蓝图的事件",
-                        "type": "medium_event",
-                        "chapter_range": "3-3",
-                        "main_goal": "解决当前事件的同时，引发一个必须在开局阶段（约30章内）解决的、更严峻的短期危机，形成强力追读钩子。",
-                        "emotional_focus": "高潮与紧迫感",
-                        "contribution_to_major": "完成微型故事闭环，并成功制造驱动整个开局阶段的核心引擎。"
-                    }}
-                ]
-            }}
+            "main_goal": "此事件为特殊容器。后续流程必须【精准演绎】核心创意种子中的开篇商业设计，将其分解为具体的起承转合。",
+            "emotional_arc": "{stage_emotional_plan.get('main_emotional_arc', '高能开局，极速入戏')}",
+            "description": "这是决定小说生死的黄金三章，必须100%忠于创意种子中的商业化设计，快速建立冲突、展现核心卖点、并留下强力追读钩子。"
         }},
         {{
             "name": "string // 后续重大事件的名称 (必须改编自核心参考资料)",
+            "is_golden_arc": false,
             "role_in_stage_arc": "承",
             "chapter_range": "string // 估算的章节范围 (例如：'4-15')",
             "main_goal": "string // 此事件的核心目标 (例如：开始应对“黄金三章”结尾留下的短期危机)",
@@ -2032,29 +2010,43 @@ JSON
 
 
     def _decompose_major_event(self, major_event_skeleton: Dict, stage_name: str, stage_range: str,
-                            novel_title: str, novel_synopsis: str, creative_seed: str) -> Dict:
+                            novel_title: str, novel_synopsis: str, creative_seed: str,
+                            overall_stage_plan: Dict) -> Dict: # <--- 修改函数签名
         """工作流第二阶段：将单个重大事件分解为服务其目标的中型事件"""
-        
+        # ▼▼▼【核心修改】构建一个简化的顶层上下文注入块 ▼▼▼
+        try:
+            global_growth_plan = self.generator.novel_data.get("global_growth_plan", {})
+            current_stage_goal = overall_stage_plan.get("overall_stage_plan", {}).get(stage_name, {}).get("stage_goal", "无")
+            
+            top_level_context_block = f"""
+# 顶层战略背景 (必须参考)
+- **核心创意**: {creative_seed.get('coreSetting', 'N/A')}
+- **全书成长规划**: 当前阶段({stage_name})需服务于主角的成长目标: {global_growth_plan.get('stage_growth_goals', {}).get(stage_name, '未指定')}
+- **当前阶段总任务**: {current_stage_goal}
+- **当前重大事件核心目标**: {major_event_skeleton.get('main_goal')}
+"""
+        except Exception:
+            top_level_context_block = f"""
+# 顶层战略背景
+- **当前重大事件核心目标**: {major_event_skeleton.get('main_goal')}
+"""
+        # ▲▲▲【核心修改结束】▲▲▲        
         prompt = f"""
 # 任务：重大事件"分形解剖"与"情感点缀"
-你需要将一个宏观的"重大事件"进行"解剖"，并为其注入情感的细节和节奏。这包含两个子任务：
-1.  **结构设计**：为其设计由【中型事件】构成的内部"起承转合"结构。
-2.  **情感点缀**：在结构间隙，创造并插入【特殊情感事件】。
+你的任务是将一个宏观的“重大事件”，根据其在全书蓝图中的战略地位，分解为具体的、可执行的【中型事件】和【特殊情感事件】。
 
-## 当前重大事件信息
+{top_level_context_block}
+
+## 当前待分解的重大事件信息
 - **所属阶段**: {stage_name}
 - **重大事件名称**: {major_event_skeleton.get('name')}
 - **事件章节范围**: {major_event_skeleton.get('chapter_range')}
-- **事件核心目标**: {major_event_skeleton.get('main_goal')}
 - **事件情绪目标**: {major_event_skeleton.get('emotional_goal', major_event_skeleton.get('emotional_arc'))}
 
-## 分解原则与规则
-1.  **目标继承**: 每个【中型事件】必须服务于其所属重大事件的【核心目标】和【情绪目标】。
-2.  **【新规则】章节规划与隔离**: 在为【中型事件】分配`chapter_range`时，必须在阶段之间（如“起”和“承”）**刻意预留出1个章节的空白间隙**。这个间隙是为【特殊情感事件】准备的。
-    - **正确示例**: 若“起”是“46-48章”，则“承”应从“50章”开始，从而预留出“49章”这个间隙。
-    - **错误示例**: “起”是“46-49章”，“承”是“50-53章”。这样没有留下任何间隙。
-3.  **【新规则】情感点缀与精确放置**: 【特殊情感事件】**必须**被精确地放置在上述预留的空白章节间隙中。其`chapter_range`必须是这个单一章节（如“49章”），并且其`placement_hint`要清晰说明其位置。**严禁特殊事件的章节与中型事件的章节范围产生任何重叠或冲突。**
-4.  **功能分工**: 中型事件负责推进情节，特殊事件负责深化情感、调整节奏。
+## 分解原则与规则 (必须严格遵守)
+1.  **目标继承与服务**: 你设计的每一个【中型事件】都必须是为实现【当前重大事件核心目标】和【顶层战略背景】服务的。在每个中型事件的`contribution_to_major`字段中明确说明其贡献。
+2.  **结构完整**: 所有中型事件必须共同构成一个服务于重大事件目标的、逻辑连贯的“起、承、转、合”结构。
+3.  **情感点缀**: 在情节推进的间隙，巧妙设计【特殊情感事件】，用于深化情感、调整节奏、塑造人物弧光。
 
 ## 输出格式: 严格遵守规则，返回包含'composition'和'special_emotional_events'字段的JSON对象
 {{
