@@ -967,7 +967,7 @@ class WorldStateManager:
         if not is_character_established:
             iconic_scenes = character.get("iconic_scenes", [])
             if len(iconic_scenes) < 3 and total_appearances >= 3:
-                core_trait = character.get('personality_traits', {}).get('core_traits', ['性格'])[0]
+                core_trait = (character.get('personality_traits', {}).get('core_traits') or ['性格'])[0]
                 suggestions.append({
                     "type": "添加名场面",
                     "description": f"为{character_name}设计一个展现{core_trait}特质的名场面",

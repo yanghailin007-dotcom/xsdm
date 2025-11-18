@@ -772,6 +772,8 @@ json
             "refine_creative_work_for_ai": """
 你是一个专业的网文创作指令设计师，擅长将创意转换为严格的AI约束指令
 """,
+            "golden_arc_decomposition": """
+""",
             "event_timeline_continuity_evaluation": """
 """,
             "chapter_quality_assessment": """

@@ -144,6 +144,36 @@ class StagePlanManager:
             print("❌ 全书阶段计划生成失败")
             return None
 
+# ▼▼▼【新增】主控加载函数 ▼▼▼
+    def load_and_merge_all_plans(self):
+        """
+        [新功能] 加载所有已定义的阶段写作计划到内存缓存中。
+        此函数在项目加载时被调用，以实现“合并在内存中”的需求。
+        """
+        overall_plans = self.generator.novel_data.get("overall_stage_plans", {})
+        stage_plan_dict = overall_plans.get("overall_stage_plan", {})
+        
+        if not stage_plan_dict:
+            print("  ⚠️ 在 overall_stage_plans 中未找到阶段定义，无法预加载写作计划。")
+            return 0
+            
+        available_stages = list(stage_plan_dict.keys())
+        print(f"📋 发现 {len(available_stages)} 个阶段，开始加载并合并写作计划到内存: {available_stages}")
+        
+        loaded_count = 0
+        for stage_name in available_stages:
+            # get_stage_writing_plan_by_name 会负责从文件加载并存入缓存
+            if self.get_stage_writing_plan_by_name(stage_name):
+                loaded_count += 1
+                
+        if loaded_count > 0:
+            print(f"  ✅ 成功加载 {loaded_count}/{len(available_stages)} 个阶段的写作计划到内存。")
+        else:
+            print("  ⚠️ 未能加载任何阶段的写作计划。")
+            
+        return loaded_count
+    # ▲▲▲【新增】结束 ▲▲▲
+
     def calculate_stage_boundaries(self, total_chapters: int) -> Dict:
         """计算"起承转合"四阶段的边界"""
         # 比例: 起(15%), 承(35%), 转(30%), 合(20%)
@@ -285,12 +315,16 @@ class StagePlanManager:
                 "writing_focus": chapter_info.get("writing_focus", "保持章节内容连贯性和吸引力"), # 提供默认值
                 "scene_events": chapter_info.get("scene_events", [])
             })
-
+       # ▼▼▼【核心修复点】▼▼▼
+        # 获取阶段信息，并增加对 core_tasks 的备用读取
+        stage_info = overall_stage_plan.get("overall_stage_plan", {}).get(stage_name, {})
+        stage_overview_text = stage_info.get("stage_goal", stage_info.get("core_tasks", "N/A"))
+        # ▲▲▲【核心修复点】▲▲▲
         stage_plan = {
             "stage_writing_plan": {
                 "stage_name": stage_name,
                 "chapter_range": stage_range,
-                "stage_overview": overall_stage_plan.get("overall_stage_plan", {}).get(stage_name, {}).get("stage_goal", "N/A"),
+                "stage_overview": stage_overview_text,
                 "novel_metadata": {
                     "title": novel_title,
                     "synopsis": novel_synopsis,
@@ -1512,17 +1546,24 @@ JSON
             fleshed_out_event = None
             for attempt in range(3):
                 try:
-                    # ▼▼▼【核心修改】将顶层信息 creative_seed 和 overall_stage_plan 传递下去 ▼▼▼
-                    fleshed_out_event = self._decompose_major_event(
-                        major_event_skeleton=skeleton, 
-                        stage_name=stage_name, 
-                        stage_range=stage_range, 
-                        novel_title=novel_title, 
-                        novel_synopsis=novel_synopsis, 
-                        creative_seed=creative_seed, # <--- 新增传递
-                        overall_stage_plan=overall_stage_plan # <--- 新增传递
-                    )
-                    # ▲▲▲【核心修改结束】▲▲▲
+                    if skeleton.get('is_golden_arc'):
+                        print(f"      ✨ 检测到“黄金开局弧光”，启动专属精细化分解流程...")
+                        fleshed_out_event = self._decompose_golden_arc_from_seed(
+                            golden_arc_skeleton=skeleton,
+                            creative_seed=creative_seed,
+                            stage_name=stage_name,
+                            novel_title=novel_title
+                        )
+                    else:
+                        fleshed_out_event = self._decompose_major_event(
+                            major_event_skeleton=skeleton, 
+                            stage_name=stage_name, 
+                            stage_range=stage_range, 
+                            novel_title=novel_title, 
+                            novel_synopsis=novel_synopsis, 
+                            creative_seed=creative_seed,
+                            overall_stage_plan=overall_stage_plan
+                        )
                     if fleshed_out_event:
                         break
                     else:
@@ -1534,6 +1575,10 @@ JSON
                         time.sleep(2 ** attempt)
             
             if fleshed_out_event:
+                # ▼▼▼【核心修复·方法一】▼▼▼
+                # 在此阶段立即验证并修正AI生成内容的章节覆盖率，防止问题扩散到下游
+                fleshed_out_event = self._validate_and_correct_major_event_coverage(skeleton, fleshed_out_event)
+                # ▲▲▲【核心修复·方法一】▲▲▲
                 fleshed_out_major_events.append(fleshed_out_event)
             else:
                 print(f"    🚨 重大事件 '{skeleton['name']}' 解剖失败，所有重试均失败")
@@ -1863,6 +1908,10 @@ JSON
         else:
             print(f"  ⚠️ 分解事件 '{decomposed_event_data.get('name', '')}' 缺少有效的 'decomposition_type'，无法累积场景。")
 
+# 文件: StagePlanManager.py
+
+# ... (前面的代码保持不变) ...
+
     def _generate_major_event_skeleton(self, stage_name: str, stage_range: str, novel_title: str, novel_synopsis: str,
                                    creative_seed: Dict[str, Any], stage_emotional_plan: Dict[str, Any], 
                                    overall_stage_plan: Dict[str, Any],
@@ -1895,12 +1944,12 @@ JSON
 你的一切创作都必须是这份文档的具象化。如果其他资料与此冲突，以此为准。
 ```json
 {creative_seed_str}
-2. 战略蓝图：全书成长规划 (Global Growth Plan)
+# 2. 战略蓝图：全书成长规划 (Global Growth Plan)
 这份规划定义了主角和故事在每个阶段的成长目标和里程碑。你设计的事件必须服务于这些目标。
 
 JSON
 {global_growth_plan_str}
-3. 战术地图：整体阶段计划 (Overall Stage Plans)
+# 3. 战术地图：整体阶段计划 (Overall Stage Plans)
 这份计划将全书划分了“起承转合”，明确了各阶段的核心任务。当前正处于【{stage_name}】。
 
 JSON
@@ -1924,29 +1973,29 @@ JSON
         if stage_name == "opening_stage":
             design_requirements = f"""
 【{stage_name}】设计要求
-忠于蓝图: 你设计的 {density_requirements['major_events']} 个重大事件，必须共同构成一个服务于核心参考资料中【{stage_name}】阶段目标的"起、承、转、合"叙事链条
-黄金三章改编: 第一个重大事件必须被设计为一个独立的【黄金开局弧光】，其内部的【中型事件】（起、承、转/合）必须严格改编自creative_seed.completeStoryline.opening中的前几个情节要点，以此抓住读者。
-后续衔接: 剩余的重大事件，则用于完成global_growth_plan和creative_seed中为本阶段设定的其他目标，特别是承接黄金三章结尾留下的危机钩子。
+1.  **忠于蓝图**: 你设计的 {density_requirements['major_events']} 个重大事件，必须共同构成一个服务于核心参考资料中【{stage_name}】阶段目标的"起、承、转、合"叙事链条。
+2.  **【强制】黄金开局改编**: 第一个重大事件必须被设计为一个特殊的【黄金开局弧光】，后续流程将强制使用它来**精准演绎**`creative_seed.completeStoryline.opening`中的开篇情节（例如“观战韩立和温天仁的大战”），这是确保创意不丢失的最高优先级任务。
+3.  **后续衔接**: 剩余的重大事件，则用于完成`global_growth_plan`和`creative_seed`中为本阶段设定的其他目标，特别是承接“黄金开局”结尾留下的危机钩子。
 """
             json_format_example = f"""
 ## 输出格式: 严格返回一个JSON对象，其中包含一个键名为`major_event_skeletons`的列表。
 {{
     "major_event_skeletons": [
         {{
-            "name": "黄金开局弧光 (须精准演绎)",
+            "name": "黄金开局弧光 (例如：观战韩立与温天仁)",
             "is_golden_arc": true,
             "role_in_stage_arc": "起 (引爆器)",
             "chapter_range": "1-3",
-            "main_goal": "此事件为特殊容器。后续流程必须【精准演绎】核心创意种子中的开篇商业设计，将其分解为具体的起承转合。",
+            "main_goal": "此事件为特殊容器，后续流程必须【精准演绎】核心创意种子中的开篇商业设计，将其分解为具体的起承转合，确保核心创意不丢失。",
             "emotional_arc": "{stage_emotional_plan.get('main_emotional_arc', '高能开局，极速入戏')}",
-            "description": "这是决定小说生死的黄金三章，必须100%忠于创意种子中的商业化设计，快速建立冲突、展现核心卖点、并留下强力追读钩子。"
+            "description": "这是决定小说生死的黄金三章，必须100%忠于创意种子中的商业化设计（例如，观战大战），快速建立冲突、展现核心卖点、并留下强力追读钩子。"
         }},
         {{
             "name": "string // 后续重大事件的名称 (必须改编自核心参考资料)",
             "is_golden_arc": false,
             "role_in_stage_arc": "承",
             "chapter_range": "string // 估算的章节范围 (例如：'4-15')",
-            "main_goal": "string // 此事件的核心目标 (例如：开始应对“黄金三章”结尾留下的短期危机)",
+            "main_goal": "string // 此事件的核心目标 (例如：开始应对“黄金开局”结尾留下的短期危机)",
             "emotional_arc": "string // 此事件的情感体验",
             "description": "string // 简要描述该事件如何推进核心参考资料中的情节"
         }}
@@ -1955,11 +2004,10 @@ JSON
 """
         else: # for development_stage, climax_stage, ending_stage
             design_requirements = f"""
-
 【{stage_name}】设计要求
-忠于蓝图: 你的任务是演绎和编排，不是原创。你设计的 {density_requirements['major_events']} 个重大事件，必须共同构成一个服务于核心参考资料中【{stage_name}】阶段目标的"起、承、转、合"叙事链条。
-目标对齐: 确保每个重大事件的main_goal都直接对应global_growth_plan和creative_seed中为本阶段设定的某个核心目标或里程碑。
-承上启下: 第一个事件要承接上一阶段的结尾，最后一个事件要为下一阶段埋下伏笔。
+1.  **忠于蓝图**: 你的任务是演绎和编排，不是原创。你设计的 {density_requirements['major_events']} 个重大事件，必须共同构成一个服务于核心参考资料中【{stage_name}】阶段目标的"起、承、转、合"叙事链条。
+2.  **目标对齐**: 确保每个重大事件的`main_goal`都直接对应`global_growth_plan`和`creative_seed`中为本阶段设定的某个核心目标或里程碑。
+3.  **承上启下**: 第一个事件要承接上一阶段的结尾，最后一个事件要为下一阶段埋下伏笔。
 """
             json_format_example = f"""
 ## 输出格式: 严格返回一个JSON对象，其中包含一个键名为`major_event_skeletons`的列表。
@@ -1985,52 +2033,168 @@ JSON
 }}
 """
         # --- 组合并生成最终的Prompt ---
-        prompt = prompt_header + design_requirements + json_format_example
+        userPrompts = prompt_header + design_requirements + json_format_example
 
-        # --- 调用API ---
         result = self.generator.api_client.generate_content_with_retry(
-            content_type="stage_major_event_skeleton", 
-            user_prompt=prompt, 
+            content_type="stage_major_event_skeleton",
+            user_prompt = userPrompts,
             purpose=f"【顶层设计注入】生成 {novel_title} 的【{stage_name}】主龙骨"
         )
+        
+        return result
 
-        # --- 安全保险：如果AI在开局阶段遗漏了 composition，进行手动补全 ---
-        if stage_name == "opening_stage" and result and "major_event_skeletons" in result:
-            if result.get("major_event_skeletons"):
-                golden_arc = result["major_event_skeletons"][0]
-                if "composition" not in golden_arc or not golden_arc.get("composition"):
-                    print("    ⚠️ AI未能为黄金三章生成内部结构，正在手动补全...")
-                    golden_arc["composition"] = {
-                        "起": [{"name": "改编自蓝图的第1章事件", "type": "medium_event", "chapter_range": "1-1", "main_goal": "建立冲突，展现金手指", "contribution_to_major":"开端"}],
-                        "承": [{"name": "改编自蓝图的第2章事件", "type": "medium_event", "chapter_range": "2-2", "main_goal": "深化矛盾，建立情感联系", "contribution_to_major":"发展"}],
-                        "转/合": [{"name": "改编自蓝图的第3章事件", "type": "medium_event", "chapter_range": "3-3", "main_goal": "制造危机钩子，确立短期目标", "contribution_to_major":"高潮与转折"}]
-                    }
-                
+    
+    def _decompose_golden_arc_from_seed(self, golden_arc_skeleton: Dict, creative_seed: Dict, 
+                                        stage_name: str, novel_title: str) -> Dict:
+        """
+        【创意直通车】此方法专为“黄金开局弧光”设计，确保创意种子中的开篇情节被高保真地演绎。
+        它直接将 creative_seed.completeStoryline.opening 的情节要点，强制性地分解为前三章的详细场景。
+        """
+        print(f"    ✨ 检测到“黄金开局弧光”，启动专属精细化分解流程，确保核心创意'{creative_seed.get('coreIdea')}'不丢失...")
+        
+        opening_storyline = creative_seed.get("completeStoryline", {}).get("opening", {})
+        if not opening_storyline:
+            print("    ❌ 创意种子中缺少 'completeStoryline.opening' 部分，无法执行黄金三章专属分解！")
+            # 即使缺少，也返回一个基本结构，防止流程中断
+            golden_arc_skeleton['composition'] = { "起 (第1章)": [], "承 (第2章)": [], "转/合 (第3章)": [] }
+            return golden_arc_skeleton
+
+        import json
+        import textwrap
+        opening_points_str = json.dumps(opening_storyline, ensure_ascii=False, indent=2)
+
+        prompt = textwrap.dedent(f"""
+            # 任务：【黄金三章】精准演绎与场景化
+            你是一名顶级网文策划师，你的唯一任务是将下方【创意种子开篇情节】（例如：“观战韩立和温天仁的大战”）精准地、无创造地演绎为小说前三章的详细【中型事件】和【场景结构】。
+
+            ## 最高指令：创意种子开篇情节 (必须严格遵循，这是用户的核心创意！)
+            ```json
+            {opening_points_str}
+            ```
+
+            ## 待填充的“黄金开局弧光”容器信息
+            - **重大事件名称**: {golden_arc_skeleton.get('name')}
+            - **核心目标**: {golden_arc_skeleton.get('main_goal')}
+            - **情绪目标**: {golden_arc_skeleton.get('emotional_arc')}
+
+            ## 执行规则 (极其重要)
+            1.  **精准映射**: 必须将上述“创意种子开篇情节”中的核心事件，精确地映射到第1、2、3章。
+            2.  **结构化输出**: 为每一章创建一个“中型事件”作为容器，并直接在该容器内生成详细的场景结构。
+            3.  **禁止自由发挥**: 严禁添加、删减或修改【创意种子开篇情节】中的核心设定和剧情走向。你的创造力体现在如何将这些要点转化为生动的场景，而不是重新构思剧情。
+            4.  **钩子置于末尾**: 必须将最强的悬念或危机（即钩子）放在第三章的结尾。
+
+            ## 输出格式: 严格返回一个包含完整`composition`的JSON对象
+            {{
+                "name": "{golden_arc_skeleton.get('name')}",
+                "type": "major_event",
+                "role_in_stage_arc": "{golden_arc_skeleton.get('role_in_stage_arc')}",
+                "main_goal": "{golden_arc_skeleton.get('main_goal')}",
+                "emotional_goal": "{golden_arc_skeleton.get('emotional_arc')}",
+                "chapter_range": "1-3",
+                "composition": {{
+                    "起 (第1章)": [
+                        {{
+                            "name": "string // 第1章的核心事件名 (精准改编自开篇情节，如'大战前夕')",
+                            "type": "medium_event", "decomposition_type": "direct_scene",
+                            "chapter_range": "1-1",
+                            "main_goal": "string // 第1章的核心叙事目标 (例如：展现主角身份，引入核心冲突，展示金手指)",
+                            "emotional_focus": "string // 第1章的情绪重点 (例如：紧张与期待)",
+                            "contribution_to_major": "开启整个故事，抓住读者。",
+                            "scene_sequences": [{{
+                                "chapter_range": "1-1", "chapter_goal": "同 main_goal",
+                                "writing_focus": "快节奏，强冲突，清晰展示核心设定。",
+                                "scene_events": [
+                                    {{ "name": "场景1：初始情景", "purpose": "建立主角观战的立场和动机", "key_actions": ["..."] }},
+                                    {{ "name": "场景2：冲突展现", "purpose": "大战双方登场，展示压迫感", "key_actions": ["..."] }},
+                                    {{ "name": "场景3：初步交锋", "purpose": "大战爆发，展现战斗的激烈程度", "key_actions": ["..."] }},
+                                    {{ "name": "场景4：结尾小钩子", "purpose": "主角发现一个惊天秘密或获得意外之物，引向第2章", "key_actions": ["..."] }}
+                                ]
+                            }}]
+                        }}
+                    ],
+                    "承 (第2章)": [
+                        {{
+                            "name": "string // 第2章的核心事件名 (如'大战升级与机遇')",
+                            "type": "medium_event", "decomposition_type": "direct_scene",
+                            "chapter_range": "2-2",
+                            "main_goal": "string // 第2章的核心叙事目标 (例如：深化矛盾，主角利用混乱局面获得好处)",
+                            "emotional_focus": "string // 第2章的情绪重点 (例如：惊险与收获的爽快)",
+                            "contribution_to_major": "巩固卖点，加深读者期待。",
+                             "scene_sequences": [{{
+                                "chapter_range": "2-2", "chapter_goal": "同 main_goal",
+                                "writing_focus": "强化爽点，推进情节，为第3章的危机做铺垫。",
+                                "scene_events": [ /*... 4-6个场景 ...*/ ]
+                            }}]
+                        }}
+                    ],
+                    "转/合 (第3章)": [
+                        {{
+                            "name": "string // 第3章的核心事件名 (如'大战落幕与危机降临')",
+                            "type": "medium_event", "decomposition_type": "direct_scene",
+                            "chapter_range": "3-3",
+                            "main_goal": "string // 第3章的核心叙事目标 (例如：大战结束，但主角因所得之物引来巨大危机，留下强力追读钩子)",
+                            "emotional_focus": "string // 第3章的情绪重点 (例如：大爽点后的危机感)",
+                            "contribution_to_major": "制造强烈追读欲望，确立短期目标。",
+                            "scene_sequences": [{{
+                                "chapter_range": "3-3", "chapter_goal": "同 main_goal",
+                                "writing_focus": "节奏拉满，制造强烈反差，结尾必须留下让读者抓心挠肝的钩子。",
+                                "scene_events": [ /*... 4-6个场景 ...*/ ]
+                            }}]
+                        }}
+                    ]
+                }},
+                "special_emotional_events": [],
+                "emotional_arc_summary": "从紧张观战到火中取栗，再到巨大危机降临，情绪如过山车，旨在三章内快速筛选并留住核心读者。",
+                "aftermath": "读者对主角的未来充满期待，并迫切想知道他如何解决眼前的危机。"
+            }}
+            """)
+
+        result = self.generator.api_client.generate_content_with_retry(
+            content_type="golden_arc_decomposition",
+            user_prompt=prompt,
+            purpose=f"【黄金三章】精准演绎'{golden_arc_skeleton.get('name')}'"
+        )
         return result
 
 
     def _decompose_major_event(self, major_event_skeleton: Dict, stage_name: str, stage_range: str,
-                            novel_title: str, novel_synopsis: str, creative_seed: str,
-                            overall_stage_plan: Dict) -> Dict: # <--- 修改函数签名
-        """工作流第二阶段：将单个重大事件分解为服务其目标的中型事件"""
-        # ▼▼▼【核心修改】构建一个简化的顶层上下文注入块 ▼▼▼
+                            novel_title: str, novel_synopsis: str, creative_seed: Dict, # <- 确保传入的是字典
+                            overall_stage_plan: Dict) -> Dict:
+        """【最终版】工作流第二阶段：将单个重大事件分解为服务其目标的中型事件"""
+        
+        # ▼▼▼【核心升级：注入完整的顶层设计，杜绝任何信息丢失】▼▼▼
         try:
+            # 确保 creative_seed 是字典，如果不是则尝试解析
+            if isinstance(creative_seed, str):
+                creative_seed = json.loads(creative_seed)
+
+            # 将完整的创意种子、成长规划、阶段规划转化为字符串
+            creative_seed_str = json.dumps(creative_seed, ensure_ascii=False, indent=2)
             global_growth_plan = self.generator.novel_data.get("global_growth_plan", {})
-            current_stage_goal = overall_stage_plan.get("overall_stage_plan", {}).get(stage_name, {}).get("stage_goal", "无")
-            
+            global_growth_plan_str = json.dumps(global_growth_plan, ensure_ascii=False, indent=2)
+            current_stage_plan_str = json.dumps(overall_stage_plan.get("overall_stage_plan", {}).get(stage_name, {}), ensure_ascii=False, indent=2)
+
             top_level_context_block = f"""
-# 顶层战略背景 (必须参考)
-- **核心创意**: {creative_seed.get('coreSetting', 'N/A')}
-- **全书成长规划**: 当前阶段({stage_name})需服务于主角的成长目标: {global_growth_plan.get('stage_growth_goals', {}).get(stage_name, '未指定')}
-- **当前阶段总任务**: {current_stage_goal}
-- **当前重大事件核心目标**: {major_event_skeleton.get('main_goal')}
+# 1. 最高指令：核心创意种子 (Creative Seed)
+你的一切创作都必须是这份文档的具象化，尤其是要参考`completeStoryline`中为当前阶段设计的剧情。
+```json
+{creative_seed_str}
+# 2. 战略蓝图：全书成长规划 (Global Growth Plan)
+你设计的事件必须服务于这些主角成长目标。
+```json
+{global_growth_plan_str}
+# 3. 当前阶段任务 (Current Stage Plan)
+你正在为这个阶段设计情节，必须完成其核心任务。
+```json
+{current_stage_plan_str}
 """
-        except Exception:
+        except Exception as e:
+            print(f"    ⚠️ 构建顶层上下文时发生错误: {e}, 使用简化版上下文。")
             top_level_context_block = f"""
 # 顶层战略背景
 - **当前重大事件核心目标**: {major_event_skeleton.get('main_goal')}
 """
-        # ▲▲▲【核心修改结束】▲▲▲        
+        # ▲▲▲【核心修正结束】▲▲▲        
         prompt = f"""
 # 任务：重大事件"分形解剖"与"情感点缀"
 你的任务是将一个宏观的“重大事件”，根据其在全书蓝图中的战略地位，分解为具体的、可执行的【中型事件】和【特殊情感事件】。
@@ -2047,7 +2211,7 @@ JSON
 1.  **目标继承与服务**: 你设计的每一个【中型事件】都必须是为实现【当前重大事件核心目标】和【顶层战略背景】服务的。在每个中型事件的`contribution_to_major`字段中明确说明其贡献。
 2.  **结构完整**: 所有中型事件必须共同构成一个服务于重大事件目标的、逻辑连贯的“起、承、转、合”结构。
 3.  **情感点缀**: 在情节推进的间隙，巧妙设计【特殊情感事件】，用于深化情感、调整节奏、塑造人物弧光。
-
+4. 【绝对覆盖指令】: 你生成的所有中型事件和特殊情感事件的chapter_range，必须完整且无缝地覆盖父级“重大事件”的整个章节范围 ({major_event_skeleton.get('chapter_range')})。不允许存在任何空白章节。请在生成后自行检查，确保从头到尾的每一章都被分配。
 ## 输出格式: 严格遵守规则，返回包含'composition'和'special_emotional_events'字段的JSON对象
 {{
     "name": "{major_event_skeleton.get('name')}",
@@ -2062,6 +2226,7 @@ JSON
                 "name": "中型事件名", 
                 "type": "medium_event", 
                 "chapter_range": "string // 章节范围，例如：'49-52章'", 
+                "decomposition_type": "string // 【重要规则】根据本中型事件的'chapter_range'跨度决定：若跨度 > 3章，则值为 'chapter_then_scene'；若跨度 <= 3章，则值为 'direct_scene'。",
                 "main_goal": "目标（服务于重大事件目标的起部分）",
                 "emotional_focus": "string // 此中型事件的情绪重点（服务于重大事件情绪目标的起始部分）",
                 "emotional_intensity": "low/medium/high",
@@ -2070,47 +2235,11 @@ JSON
                 "contribution_to_major": "string // 如何服务于重大事件目标"
             }} 
         ],
-        "承": [ 
-            {{ 
-                "name": "中型事件名", 
-                "type": "medium_event", 
-                "chapter_range": "string // 章节范围，例如：'53-55章'", 
-                "main_goal": "目标（服务于重大事件目标的承部分）",
-                "emotional_focus": "string // 此中型事件的情绪重点（服务于重大事件情绪目标的发展部分）", 
-                "emotional_intensity": "low/medium/high",
-                "key_emotional_beats": ["情感节拍1", "情感节拍2"],
-                "description": "描述",
-                "contribution_to_major": "string // 如何服务于重大事件目标"
-            }} 
-        ],
-        "转": [ 
-            {{ 
-                "name": "中型事件名", 
-                "type": "medium_event", 
-                "chapter_range": "string // 章节范围，例如：'56-57章'", 
-                "main_goal": "目标（服务于重大事件目标的转部分）",
-                "emotional_focus": "string // 此中型事件的情绪重点（服务于重大事件情绪目标的高潮部分）",
-                "emotional_intensity": "low/medium/high", 
-                "key_emotional_beats": ["情感节拍1", "情感节拍2"],
-                "description": "描述",
-                "contribution_to_major": "string // 如何服务于重大事件目标"
-            }} 
-        ],
-        "合": [ 
-            {{ 
-                "name": "中型事件名", 
-                "type": "medium_event", 
-                "chapter_range": "string // 章节范围，例如：'58-58章'", 
-                "main_goal": "目标（服务于重大事件目标的合部分）",
-                "emotional_focus": "string // 此中型事件的情绪重点（服务于重大事件情绪目标的收尾部分）",
-                "emotional_intensity": "low/medium/high",
-                "key_emotional_beats": ["情感节拍1", "情感节拍2"],
-                "description": "描述",
-                "contribution_to_major": "string // 如何服务于重大事件目标"
-            }} 
-        ]
+        "承": [ /* ... */ ],
+        "转": [ /* ... */ ],
+        "合": [ /* ... */ ]
     }},
-    "special_emotional_events": [  // <-- 【新增】在这里创作并插入特殊情感事件
+    "special_emotional_events": [
         {{
             "name": "string // 特殊情感事件的名称，例如：'风暴前夜的独白'",
             "type": "special_emotional_event",
@@ -2132,6 +2261,101 @@ JSON
         )
         
         return result
+
+    # 新增函数：用于验证和修正单个重大事件内部的章节覆盖率
+    def _validate_and_correct_major_event_coverage(self, major_event_skeleton: Dict, fleshed_out_major_event: Dict) -> Dict:
+        """
+        【核心修正函数】验证AI分解后的重大事件，确保其内部的中型/特殊事件
+        完整覆盖了骨架所要求的章节范围。如果发现遗漏，则自动扩展最后一个事件的范围。
+        """
+        if not major_event_skeleton or not fleshed_out_major_event:
+            return fleshed_out_major_event
+
+        target_range_str = major_event_skeleton.get("chapter_range")
+        if not target_range_str:
+            print(f"  ⚠️ 警告：重大事件骨架 '{major_event_skeleton.get('name')}' 缺少 'chapter_range'，跳过覆盖率修正。")
+            return fleshed_out_major_event
+
+        try:
+            target_start, target_end = self.parse_chapter_range(target_range_str)
+            target_chapters = set(range(target_start, target_end + 1))
+        except Exception as e:
+            print(f"  ❌ 错误：解析重大事件骨架范围 '{target_range_str}' 失败: {e}，跳过修正。")
+            return fleshed_out_major_event
+
+        # 1. 收集所有已覆盖的章节
+        covered_chapters = set()
+        all_sub_events = []
+        
+        composition = fleshed_out_major_event.get("composition", {})
+        if composition:
+            for phase_events in composition.values():
+                if isinstance(phase_events, list):
+                    all_sub_events.extend(phase_events)
+
+        special_events = fleshed_out_major_event.get("special_emotional_events", [])
+        if special_events:
+            all_sub_events.extend(special_events)
+
+        if not all_sub_events:
+            print(f"  ⚠️ 警告：重大事件 '{fleshed_out_major_event.get('name')}' 内部分解后没有任何子事件，无法检查覆盖率。")
+            return fleshed_out_major_event
+        
+        for event in all_sub_events:
+            range_str = event.get("chapter_range")
+            if range_str:
+                try:
+                    start, end = self.parse_chapter_range(range_str)
+                    for i in range(start, end + 1):
+                        covered_chapters.add(i)
+                except Exception:
+                    # 忽略解析错误的子事件，继续处理
+                    pass
+        
+        # 2. 找出遗漏的章节
+        missing_chapters = sorted(list(target_chapters - covered_chapters))
+
+        if not missing_chapters:
+            # 如果没有遗漏章节，直接返回
+            return fleshed_out_major_event
+
+        print(f"  🔧 检测到重大事件 '{fleshed_out_major_event.get('name')}' 遗漏章节: {missing_chapters}，启动自动修正...")
+
+        # 3. 找到最后一个事件并扩展其范围
+        last_event_to_extend = None
+        max_end_chapter = -1
+
+        for event in all_sub_events:
+            range_str = event.get("chapter_range")
+            if range_str:
+                try:
+                    _, end = self.parse_chapter_range(range_str)
+                    if end > max_end_chapter:
+                        max_end_chapter = end
+                        last_event_to_extend = event
+                except Exception:
+                    continue
+        
+        if last_event_to_extend:
+            original_range = last_event_to_extend["chapter_range"]
+            start, end = self.parse_chapter_range(original_range)
+            
+            # 新的结束章节应该是当前结束点和所有遗漏章节中的最大值
+            new_end = max(end, max(missing_chapters))
+            
+            # 构建新的章节范围字符串，保持格式一致
+            if start == new_end:
+                new_range_str = f"{start}-{start}章"
+            else:
+                new_range_str = f"{start}-{new_end}章"
+
+            last_event_to_extend["chapter_range"] = new_range_str
+            print(f"  ✅ 自动修正成功：将事件 '{last_event_to_extend.get('name')}' 的章节范围从 '{original_range}' 扩展为 '{new_range_str}'。")
+        else:
+            print(f"  ❌ 自动修正失败：在 '{fleshed_out_major_event.get('name')}' 中未找到可供扩展范围的子事件。")
+
+        return fleshed_out_major_event
+
 
     def _extract_all_event_ranges(self, major_events: List[Dict]) -> List[Tuple[int, int]]:
         """
@@ -2315,6 +2539,7 @@ JSON
 
     def get_stage_writing_plan_by_name(self, stage_name: str) -> Dict:
         """【重构版】通过阶段名称获取写作计划，优先从缓存和文件加载。"""
+        # ... (此函数保持不变，它的逻辑是正确的) ...
         cache_key = f"{stage_name}_writing_plan"
         if cache_key in self.stage_writing_plans_cache:
             return self.stage_writing_plans_cache[cache_key]
@@ -2327,7 +2552,7 @@ JSON
             return plan
         
         # 如果文件不存在，则可能需要触发生成流程
-        print(f"  ⚠️ {stage_name} 的写作计划文件未找到，需要生成。")
+        # print(f"  ⚠️ {stage_name} 的写作计划文件未找到，可能需要生成。") # 在加载阶段，找不到是正常现象，减少日志干扰
         return {}
     
     def _save_plan_to_file(self, stage_name: str, plan_data: Dict) -> Path:

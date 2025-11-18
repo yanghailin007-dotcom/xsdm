@@ -1179,6 +1179,54 @@ class QualityAssessor:
         )
         return result
 
+# 文件: QualityAssessor.py
+
+# ... (在 class QualityAssessor: 内部)
+
+    def persist_initial_character_designs(self, novel_title: str, character_design: Dict):
+        """
+        【新增】将初始生成的核心角色设计立即持久化到角色发展表中。
+        这确保了即使在第一章生成之前，角色数据也已成为“唯一真实来源”。
+        此操作在角色生成后立即执行，作为步骤4.5。
+        """
+        if not character_design:
+            print("  ⚠️ 角色设计为空，跳过持久化。")
+            return
+
+        print(f"  💾 开始将初始角色设计持久化到 '{novel_title}' 的角色发展表中...")
+        
+        # 1. 处理主角
+        main_character = character_design.get("main_character")
+        if main_character and isinstance(main_character, dict):
+            # 将主角标记为主角，以便于后续识别
+            main_character['role_type'] = "主角"
+            print(f"    -> 持久化主角: {main_character.get('name')}")
+            # 使用 chapter 0 表示这是在故事开始之前的初始设定
+            self.world_state_manager.manage_character_development_table(
+                novel_title,
+                main_character,
+                current_chapter=0, # 初始设定章节为0
+                action="update" # 'update' action 会在角色不存在时创建新条目
+            )
+
+        # 2. 处理重要配角
+        important_characters = character_design.get("important_characters", [])
+        if important_characters and isinstance(important_characters, list):
+            for character in important_characters:
+                if character and isinstance(character, dict) and character.get('name'):
+                    # 如果没有 role_type，从 role 字段推断，并默认为重要配角
+                    if 'role_type' not in character:
+                        character['role_type'] = "重要配角"
+                    print(f"    -> 持久化重要角色: {character.get('name')}")
+                    self.world_state_manager.manage_character_development_table(
+                        novel_title,
+                        character,
+                        current_chapter=0,
+                        action="update"
+                    )
+        
+        print("  ✅ 初始角色设计已成功持久化。")
+
 
     def optimize_novel_plan(self, plan_to_optimize, optimization_params):
         market_analysis = optimization_params.get("market_competitor_analysis")

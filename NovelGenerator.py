@@ -498,33 +498,23 @@ class NovelGenerator:
             return False
 
     def _initialize_stage_plan_manager(self):
-        """初始化阶段计划管理器"""
+        """初始化阶段计划管理器 - [已修复]"""
         try:
-            if self.stage_writing_plans:
-                current_stage = self.current_progress.get("current_stage", "opening_stage")
-                available_stages = list(self.stage_writing_plans.keys())
-                print(f"📋 可用写作阶段: {available_stages}")
-                
-                if current_stage not in self.stage_writing_plans:
-                    current_stage = available_stages[0]
-                    print(f"⚠️ 指定阶段 '{self.current_progress.get('current_stage')}' 不存在，使用第一个可用阶段: {current_stage}")
-                
-                self.stage_plan_manager.overall_stage_plans = self.overall_stage_plans
-                self.stage_plan_manager.stage_boundaries = self.stage_plan_manager.calculate_stage_boundaries(self.current_progress['total_chapters'])
-                
-                current_stage_data = self.stage_writing_plans[current_stage]
-                if "stage_writing_plan" in current_stage_data:
-                    writing_plan = current_stage_data["stage_writing_plan"]
-                    print(f"   - 当前阶段概述: {writing_plan.get('stage_overview', '无')[:100]}...")
-                    print(f"   - 包含目标: {len(writing_plan.get('targets', {}))} 个")
-                    print(f"   - 包含事件: {len(writing_plan.get('event_system', {}))} 个系统")
-            else:
-                print("⚠️ 没有可用的写作计划，阶段计划管理器保持为空")
+            print("▶️ 初始化阶段计划管理器...")
+            # 1. 将整体规划和边界信息传递给管理器
+            self.stage_plan_manager.overall_stage_plans = self.novel_data.get("overall_stage_plans", {})
+            total_chapters = self.novel_data.get("current_progress", {}).get("total_chapters", 0)
+            if total_chapters > 0:
+                self.stage_plan_manager.stage_boundaries = self.stage_plan_manager.calculate_stage_boundaries(total_chapters)
+            
+            # 2. 委托管理器加载所有计划到内存，实现“合并在内存中”
+            self.stage_plan_manager.load_and_merge_all_plans()
                 
         except Exception as e:
-            print(f"❌ 初始化阶段计划管理器失败: {e}")
+            print(f"❌ 初始化阶段计划管理器并预加载计划时出错: {e}")
             import traceback
             traceback.print_exc()
+
      
     def resume_generation(self, total_chapters: int = None) -> bool:
         """继续生成小说 - 修复版本：基于实际文件检查并补写缺失章节"""
@@ -752,7 +742,7 @@ class NovelGenerator:
                 secondary_elements_pass = worldview_coherence_score >= 6.5 and character_depth_score >= 6.5
                 
                 # 5. 定义新鲜度是否足够
-                freshness_pass = freshness_score >= 7.0 # 新鲜度评分的合格线可以根据市场反馈调整
+                freshness_pass = freshness_score >= 6.0 # 新鲜度评分的合格线可以根据市场反馈调整
 
                 # 最终筛选逻辑：
                 # 路径一（S+级潜力通道）：只要是总质量分超高的S+潜力股，并且核心商业要素过硬，就直接通过。
@@ -2091,66 +2081,62 @@ class NovelGenerator:
         print("="*60)
 
     def ensure_stage_plan_for_chapter(self, chapter_number: int):
-        """确保章节有阶段计划 - 修复版本，同时更新事件系统"""
+        """确保章节有阶段计划 - [已修复] 统一调用StagePlanManager并处理阶段切换逻辑"""
         print(f"🔍 确保第{chapter_number}章阶段计划")
         
-        # 获取全局阶段计划
-        if not self.novel_data.get("overall_stage_plans") or not self.novel_data.get("stage_writing_plans"):
-            print(f"  ⚠️ 没有可用的阶段计划数据")
-            return None
-        
-        # 查找章节所属的阶段
-        stage_name = self._find_stage_for_chapter(chapter_number)
+        # 1. 委托StagePlanManager获取当前阶段名称
+        stage_name = self.stage_plan_manager._get_current_stage(chapter_number)
         if not stage_name:
-            print(f"  ⚠️ 无法确定第{chapter_number}章所属的阶段")
+            print(f"  ⚠️ 无法确定第{chapter_number}章所属的阶段，无法确保计划。")
             return None
         
-        # 检查阶段是否发生变化
-        self.novel_data['current_stage'] = stage_name
-        current_stage = getattr(self, '_current_stage', None)
-        if current_stage != stage_name:
-            print(f"🔄 检测到阶段变化: {current_stage} -> {stage_name}")
+        # 2. 检查并处理阶段切换
+        current_active_stage = getattr(self, '_current_stage', None)
+        if current_active_stage != stage_name:
+            print(f"🔄 检测到阶段变化: 从 '{current_active_stage}' 切换到 '{stage_name}'")
             self._current_stage = stage_name
             
-            # 🆕 阶段变化时清理角色数据
+            # 阶段切换时，执行清理和更新
             self._cleanup_characters_for_new_stage(stage_name, chapter_number)
-
-            # 更新事件系统以反映新阶段
             self._update_event_system_for_stage(stage_name, chapter_number)
         
-        # 获取该阶段的详细写作计划
-        stage_plan_data = self.novel_data["stage_writing_plans"].get(stage_name)
-        if not stage_plan_data:
-            print(f"  ⚠️ 没有找到{stage_name}的详细写作计划")
+        # 3. 委托StagePlanManager获取计划内容（此步骤将直接从缓存读取）
+        stage_plan = self.stage_plan_manager.get_stage_plan_for_chapter(chapter_number)
+        
+        if not stage_plan:
+            # 如果缓存没有，尝试最后加载一次（兜底）
+            stage_plan_data = self.stage_plan_manager.get_stage_writing_plan_by_name(stage_name)
+            if stage_plan_data:
+                 stage_plan = stage_plan_data.get("stage_writing_plan", stage_plan_data)
+
+        if not stage_plan:
+            print(f"  ❌ 无法为第{chapter_number}章({stage_name}阶段)获取阶段计划。")
             return None
-        
-        # 确保返回的数据包含 stage_writing_plan 字段
-        if "stage_writing_plan" in stage_plan_data:
-            stage_plan = stage_plan_data["stage_writing_plan"]
-        else:
-            print(f"  ⚠️ 阶段计划数据缺少stage_writing_plan字段，使用原始数据")
-            stage_plan = stage_plan_data
-        
-        print(f"  ✅ 第{chapter_number}章属于{stage_name}阶段")
+            
+        print(f"  ✅ 第{chapter_number}章的阶段计划已就绪。")
         return stage_plan
 
     def _update_event_system_for_stage(self, stage_name: str, chapter_number: int):
-        """为特定阶段更新事件系统"""
+        """为特定阶段更新事件系统 - [已修复]"""
         print(f"🔄 为{stage_name}阶段更新事件系统...")
         
         try:
-            # 获取该阶段的详细计划
-            stage_plan_data = self.novel_data["stage_writing_plans"].get(stage_name)
+            # ▼▼▼【修复】从管理器获取计划，不再从 self.novel_data 读取 ▼▼▼
+            stage_plan_data = self.stage_plan_manager.get_stage_writing_plan_by_name(stage_name)
             if not stage_plan_data:
-                print(f"  ⚠️ 没有找到{stage_name}的详细计划数据")
+                print(f"  ⚠️ 更新事件系统失败：没有找到 {stage_name} 的详细计划数据")
                 return
+
             print(f"🧹 新阶段开始，清理不重要角色数据...")
             self._cleanup_characters_for_new_stage(stage_name, chapter_number)            
+            
             # 更新事件驱动管理器
             if hasattr(self, 'event_driven_manager') and self.event_driven_manager:
-                # 清除旧的事件
                 self.event_driven_manager.active_events.clear()
-                self.event_driven_manager.update_from_stage_plan(stage_plan_data["stage_writing_plan"])
+                # 确保传入正确的计划主体
+                plan_body = stage_plan_data.get("stage_writing_plan", stage_plan_data)
+                self.event_driven_manager.update_from_stage_plan(plan_body)
+            
             # 同时更新伏笔管理器
             self._update_foreshadowing_for_stage(stage_name, chapter_number)
             
@@ -3064,7 +3050,7 @@ class NovelGenerator:
         # 恢复并强化此步骤，明确其任务是生成“核心”角色
         print("=== 步骤4: 设计核心角色 (主角/核心盟友/宿敌) ===")
         self.novel_data["current_progress"]["stage"] = "核心角色设计"
-        
+
         # 调用ContentGenerator，并明确指定 design_level="core"
         core_characters = self.content_generator.generate_character_design(
             novel_title=self.novel_data["novel_title"], 
@@ -3072,13 +3058,22 @@ class NovelGenerator:
             selected_plan=self.novel_data["selected_plan"], 
             market_analysis=self.novel_data.get("market_analysis", {}),
             design_level="core",  # <--- 明确指定为核心设计模式
+            global_growth_plan=self.novel_data.get("global_growth_plan"),
+            overall_stage_plans=self.novel_data.get("overall_stage_plans"),
             custom_main_character_name=getattr(self, 'custom_main_character_name', None)
         )
         
         if not core_characters:
             print("❌ 核心角色设计失败，终止生成")
             return False
-            
+        # ▼▼▼【【【 在此处添加以下代码块 】】】▼▼▼
+        # 步骤4.5: 立即将核心角色设计持久化，使其成为后续一致性检查的依据
+        print("=== 步骤 4.5: 持久化核心角色数据 ===")
+        self.quality_assessor.persist_initial_character_designs(
+            novel_title=self.novel_data["novel_title"],
+            character_design=core_characters
+        )
+        # ▲▲▲【【【 添加结束 】】】▲▲▲     
         # 将生成的核心角色存入 novel_data，为后续的“补充”流程提供基础
         self.novel_data["character_design"] = core_characters
         print("✅ 核心角色设计完成，已建立角色基础库。")
@@ -3154,13 +3149,30 @@ class NovelGenerator:
                         design_level="supplementary",
                         existing_characters=all_characters_so_far,
                         stage_info=stage_writing_plan,
+                        global_growth_plan=self.novel_data.get("global_growth_plan"),
+                        overall_stage_plans=self.novel_data.get("overall_stage_plans"),
                         custom_main_character_name=getattr(self, 'custom_main_character_name', None)
                     )
 
                     # 6. 滚雪球式地更新角色库
                     if supplemented_characters:
                         print(f"    ✅ 阶段【{stage_name}】角色补充完成。")
+                        # ▼▼▼【【【 核心修复与增强 】】】▼▼▼
+                        
+                        # 1. 更新内存中的主角色库，确保数据不会丢失
+                        self.novel_data["character_design"] = supplemented_characters
+                        
+                        # 2. 将更新后的完整角色库用于下一次迭代
                         all_characters_so_far = supplemented_characters
+                        
+                        # 3. 立即将新补充的角色持久化到角色发展表中
+                        print(f"    💾 持久化阶段【{stage_name}】补充的角色...")
+                        self.quality_assessor.persist_initial_character_designs(
+                            novel_title=self.novel_data["novel_title"],
+                            character_design=supplemented_characters # 传入包含新角色的完整角色设计
+                        )
+                        
+                        # ▲▲▲【【【 修复结束 】】】▲▲▲
                     else:
                         print(f"    ⚠️ 阶段【{stage_name}】角色补充失败，将继续使用现有角色。")
                 else:
