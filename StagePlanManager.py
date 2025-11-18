@@ -398,43 +398,62 @@ class StagePlanManager:
                                                   stage_name: str, major_event_name: str,
                                                   novel_title: str, novel_synopsis: str,
                                                   consistency_guidance: Optional[str] = None) -> List[Dict]:
-        """
-        为单一章节的特殊情感事件生成一组场景。
-        它会调用AI，根据特殊事件的目的和章节信息，生成一个包含4-6个场景的序列。
-        """
         event_name = event_data.get("name", "特殊情感事件")
-        purpose = event_data.get("purpose", "深化情感，调整节奏，作为本章的核心任务。")
+        purpose = event_data.get("main_goal", event_data.get("purpose", "深化情感，调整节奏，作为本章的核心任务。"))
+        
+        # 【已补充】提取并使用这两个关键字段
         event_subtype = event_data.get("event_subtype", "emotional_beat")
         placement_hint = event_data.get("placement_hint", "未指定位置")
-        # ▼▼▼ 修改开始：添加一致性指令块 ▼▼▼
+        
+        emotional_focus = event_data.get("emotional_focus", "未指定")
+        description = event_data.get("description", "未提供详细描述")
+        key_beats = event_data.get("key_emotional_beats", [])
+        contribution = event_data.get("contribution_to_major", "未指定")
+        
+        key_beats_str = "\n".join([f"- {beat}" for beat in key_beats]) if key_beats else "未指定"
+
         consistency_block = ""
         if consistency_guidance:
             consistency_block = f"""
 ## 一致性铁律 (必须严格遵守)
 你在进行场景构建时，必须严格遵守以下已确定的世界事实，确保新生成的场景不会与历史情节产生矛盾。
 {consistency_guidance}
-"""
-        print(f"      ⚙️ 正在为特殊事件 '{event_name}' (第{chapter_num}章) 请求多场景生成...")
+    """
+        print(f"      ⚙️ 正在为事件 '{event_name}' (第{chapter_num}章) 请求多场景生成...")
 
+        # 【最终版Prompt】
         prompt = f"""
-# 任务：为单一章节的特殊情感事件生成场景序列
+# 任务：为单一章节的核心事件生成场景序列
 
-你是一名专业的网文白金策划师。你需要为一个占据单一章节的【特殊情感事件】设计详细的场景事件序列。确保本章拥有完整的叙事和情感弧线，服务于特殊事件的情感和叙事目的。
+你是一名专业的网文白金策划师。你需要为一个占据单一章节的【核心事件】设计详细的场景事件序列。确保本章拥有完整的叙事和情感弧线，服务于该事件的叙事和情感目的。
 
 {consistency_block}
 
-## 当前事件信息
+## 当前事件的完整上下文信息 (必须严格参考)
 - **小说标题**: {novel_title}
 - **小说简介**: {novel_synopsis}
 - **当前章节**: 第 {chapter_num} 章
 - **所属阶段**: {stage_name}
-- **关联重大事件**: {major_event_name}
-- **特殊事件名称**: {event_name}
-- **事件目的**: {purpose}
-- **事件子类型**: {event_subtype} ({placement_hint})
+- **所属重大事件**: {major_event_name}
+- **本章核心事件名称**: {event_name}
+
+### **【事件定位与类型】(用于确定本章的基调和节奏)**
+- **事件子类型 (Subtype)**: {event_subtype}
+- **在情节中的位置 (Placement Hint)**: {placement_hint}
+
+### **【本章叙事和情感核心】**
+- **核心目标 (Main Goal)**: {purpose}
+- **情感焦点 (Emotional Focus)**: {emotional_focus}
+- **对上层事件的贡献**: {contribution}
+
+### **【关键情节与细节参考】**
+- **情节描述 (Description)**: {description}
+- **关键情感节拍 (Key Emotional Beats)**:
+{key_beats_str}
 
 ## 场景构建要求
-请为第 {chapter_num} 章设计 **4-6个场景事件**，形成一个具备完整戏剧结构的序列，以有效地实现特殊事件的目的：
+请为第 {chapter_num} 章设计 **4-6个场景事件**，形成一个具备完整戏剧结构的序列。
+你的设计必须完全服务于上述提供的所有上下文信息，特别是【事件定位与类型】和【本章叙事和情感核心】，确保本章的氛围、节奏和内容与整体规划完美契合。
 """
         try:
             result = self.generator.api_client.generate_content_with_retry(
