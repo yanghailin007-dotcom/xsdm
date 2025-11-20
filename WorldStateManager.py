@@ -1113,9 +1113,135 @@ class WorldStateManager:
             print(f"加载角色发展数据失败: {e}")
             return {}
 
+    def _gather_text_from_assessment(self, assessment: Dict) -> str:
+        """从评估结果中收集所有可能的文本片段，供后处理解析使用。"""
+        texts = []
+
+        def _recursively_collect(obj):
+            if not obj:
+                return
+            if isinstance(obj, str):
+                texts.append(obj)
+            elif isinstance(obj, dict):
+                for v in obj.values():
+                    _recursively_collect(v)
+            elif isinstance(obj, list):
+                for item in obj:
+                    _recursively_collect(item)
+
+        _recursively_collect(assessment)
+        return "\n".join(t for t in texts if t and len(t) > 10)
+
+    def _parse_relationships_from_text(self, text: str) -> List[Dict]:
+        """尝试从自然语言文本中抽取人物关系或互动，返回标准化的交互列表。
+
+        这是保守的启发式解析：只抽取明显的双人物关系句子，避免误报。
+        """
+        if not text or not isinstance(text, str):
+            return []
+
+        interactions = []
+
+        # 常见的关系关键词和映射
+        rel_keywords = ["盟友", "朋友", "对手", "敌对", "敌人", "师徒", "恋人", "合作", "冲突", "竞争"]
+
+        # 匹配模式: A 与 B 成为 盟友/朋友/对手/敌人
+        patterns = [
+            r"([\u4e00-\u9fa5A-Za-z0-9_·]{1,20})[和与与、,，]\s*([\u4e00-\u9fa5A-Za-z0-9_·]{1,20}).{0,10}(盟友|朋友|对手|敌对|敌人|师徒|恋人|合作|冲突|竞争)",
+            r"([\u4e00-\u9fa5A-Za-z0-9_·]{1,20})和([\u4e00-\u9fa5A-Za-z0-9_·]{1,20})成为(盟友|朋友|对手|敌对|敌人|师徒|恋人)",
+            r"([\u4e00-\u9fa5A-Za-z0-9_·]{1,20})与([\u4e00-\u9fa5A-Za-z0-9_·]{1,20})发生(冲突|冲突升级|争执)",
+            r"([\u4e00-\u9fa5A-Za-z0-9_·]{1,20})在.*?与.*?结为(盟友|朋友)",
+        ]
+
+        for pat in patterns:
+            for m in re.finditer(pat, text):
+                try:
+                    g1 = m.group(1).strip()
+                    g2 = m.group(2).strip()
+                    rel = m.group(3).strip() if m.lastindex and m.lastindex >= 3 else "关系"
+
+                    # 标准化类型
+                    if any(k in rel for k in ["盟友", "朋友"]):
+                        itype = "盟友"
+                    elif any(k in rel for k in ["对手", "敌对", "敌人", "竞争"]):
+                        itype = "对手"
+                    elif "师徒" in rel:
+                        itype = "师徒"
+                    elif any(k in rel for k in ["恋人"]):
+                        itype = "恋人"
+                    elif any(k in rel for k in ["合作"]):
+                        itype = "合作"
+                    elif any(k in rel for k in ["冲突", "争执"]):
+                        itype = "冲突"
+                    else:
+                        itype = rel
+
+                    desc = m.group(0).strip()
+
+                    interaction = {
+                        "characters": [g1, g2],
+                        "interaction_type": itype,
+                        "description": desc[:180],
+                        "chapter": None
+                    }
+
+                    # 避免重复
+                    if not any(set(interaction['characters']) == set(e.get('characters', [])) and e.get('interaction_type') == interaction['interaction_type'] for e in interactions):
+                        interactions.append(interaction)
+                except Exception:
+                    continue
+
+        # 额外查找 A 与 B 直接并列（但未指明关系）的句子，映射为"提及联系"
+        simple_pairs = re.findall(r"([\u4e00-\u9fa5A-Za-z0-9_·]{1,20})[和与、,，]\s*([\u4e00-\u9fa5A-Za-z0-9_·]{1,20})", text)
+        for a, b in simple_pairs:
+            # 忽略太通用或数字的配对
+            if a == b:
+                continue
+            # 如果已有交互则跳过
+            if any(set([a, b]) == set(e.get('characters', [])) for e in interactions):
+                continue
+            interactions.append({
+                "characters": [a, b],
+                "interaction_type": "提及联系",
+                "description": f"文本中并列提及: {a} 与 {b}",
+                "chapter": None
+            })
+
+        return interactions
+
     def update_character_development_from_assessment(self, novel_title: str, assessment: Dict, chapter_number: int):
         """从评估结果更新角色发展表 - 根据角色重要性区分处理"""
         character_development = assessment.get("character_development_assessment", {})
+
+        # 如果评估没有返回结构化的 character_interactions 或 relationship 信息，尝试从评估的文本摘要中解析
+        if (not character_development or not character_development.get("character_interactions") and not character_development.get("iconic_scenes_identified")):
+            # 尝试从assessment里收集文本并解析关系
+            text_blob = ""
+            # 优先使用明确提供的文本字段
+            if isinstance(assessment.get('character_development_text'), str) and len(assessment.get('character_development_text')) > 20:
+                text_blob = assessment.get('character_development_text')
+            else:
+                # 否则从整个assessment深度收集可用文本片段
+                text_blob = self._gather_text_from_assessment(assessment)
+
+            if text_blob:
+                parsed_interactions = self._parse_relationships_from_text(text_blob)
+                if parsed_interactions:
+                    print(f"🔧 从文本后处理解析出 {len(parsed_interactions)} 条人物交互，准备回填到 character_development 中。")
+                    if not isinstance(character_development, dict):
+                        character_development = {}
+                    # 将解析结果注入到character_development的兼容字段中
+                    character_development.setdefault('character_interactions', [])
+                    # 转换为内部期望的结构：每项包含 characters + interaction_type
+                    for inter in parsed_interactions:
+                        character_development['character_interactions'].append({
+                            'characters': inter.get('characters', []),
+                            'interaction_type': inter.get('interaction_type', ''),
+                            'description': inter.get('description', '')
+                        })
+
+                    # 将解析到的交互写回 assessment，方便后续步骤也能使用
+                    assessment['character_development_assessment'] = character_development
         
         # 处理新角色
         for new_char in character_development.get("new_characters_introduced", []):

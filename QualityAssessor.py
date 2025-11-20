@@ -707,6 +707,20 @@ class QualityAssessor:
 3. **经济活动**: 如果有交易、买卖、获取报酬等经济活动，必须在 `economy` 字段中记录，包含`from_character`, `to_character`, `amount`, `reason`。
 4. **物品和功法**: 记录修炼物品(`cultivation_items`)和功法技能(`cultivation_skills`)的新增、消耗、易主等变化。
 5. **关系演变**: 在`relationships`中记录新建立或状态发生改变的人物关系。
+
+---- 强制输出结构说明（必须遵守） ----
+为便于程序化处理，返回结果中必须包含一个名为 `character_interactions` 的数组，形式如下：
+```json
+"character_interactions": [
+    {
+        "characters": ["角色A", "角色B"],
+        "interaction_type": "合作|冲突|师徒|恋人|盟友|对手|敌对",
+        "description": "一句话概述本次互动发生的原因或结果",
+        "chapter": 12
+    }
+]
+```
+如果AI无法以结构化JSON完全输出（比如只输出了自然语言段落），请同时在返回中包含 `character_development_text` 字段，里面放置你人类可读的关系/性格/名场面摘要，系统会在本地进行后处理和结构化解析。
 6.  **【金钱变化溯源】**: 如果你提取到 `characters` 中某个角色的 `money` 属性发生了变化，但没有在 `economy` 部分找到对应的交易记录（例如：主角捡到钱、系统奖励、炼丹成本等），你**必须**在该角色的 `attributes` 中新增一个 `"money_change_reason": "一句话说明原因"` 字段。
 
 {emotional_assessment_section} # <--- 新增的情绪评估任务
