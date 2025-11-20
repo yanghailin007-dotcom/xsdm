@@ -1779,15 +1779,11 @@ class ContentGenerator:
     def _decompose_event_into_scenes(self, event_data: Dict, chapter_number: int, context: GenerationContext, novel_data: Dict, plan_container: Dict, consistency_guidance: str) -> List[Dict]:
         """【最终修正版 v4】调用 StagePlanManager 生成真实的场景列表。
         核心修正：接收并直接使用传入的 consistency_guidance 字符串。
+        【新增持久化逻辑】
         """
         print(f"    >> 进入真实的场景生成桥接函数 _decompose_event_into_scenes...")
         
-        # 【【【核心修正：彻底删除错误代码！！！】】】
-        # ----------------------------------------------------------------
-        # consistency_guidance = context.get('consistency_guidance', {}) # <-- 这行代码是错误的，必须删除！
-        # ----------------------------------------------------------------
-
-        # --- 后续逻辑保持不变，但现在它们能正确工作了 ---
+        # --- 准备上下文信息 ---
         top_level_plan_data = novel_data.get("stage_writing_plans", {}).get(plan_container.get("stage_name", ""), {})
         novel_metadata = top_level_plan_data.get("novel_metadata", novel_data)
         novel_title = novel_metadata.get("title", novel_data.get("novel_title", "未知书名"))
@@ -1799,8 +1795,7 @@ class ContentGenerator:
             return []
 
         stage_name = plan.get("stage_name", "未知阶段")
-        # ▼▼▼ 【核心BUG修复】 动态查找父级重大事件名称 ▼▼▼
-        major_event_name = "未知主事件" # 默认值
+        major_event_name = "未知主事件"
         event_name_to_find = event_data.get("name")
         if event_name_to_find:
             for major_event in plan.get("event_system", {}).get("major_events", []):
@@ -1811,12 +1806,11 @@ class ContentGenerator:
                             major_event_name = major_event.get("name", "未知主事件")
                             found = True
                             break
-                    if found:
-                        break
-                if found:
-                    break
+                    if found: break
+                if found: break
+                
+        generated_scenes = []
         try:
-            # 现在调用时，consistency_guidance 是一个正确的字符串
             generated_scenes = self.novel_generator.stage_plan_manager._generate_scenes_for_single_chapter_event(
                 event_data=event_data,
                 chapter_num=chapter_number,
@@ -1824,7 +1818,7 @@ class ContentGenerator:
                 major_event_name=major_event_name,
                 novel_title=novel_title,
                 novel_synopsis=novel_synopsis,
-                consistency_guidance=consistency_guidance # <-- 正确使用
+                consistency_guidance=consistency_guidance
             )
         except Exception as e:
             print(f"    >> [调用异常] 调用 StagePlanManager 时发生错误: {e}")
@@ -1832,13 +1826,54 @@ class ContentGenerator:
             traceback.print_exc()
             return []
 
-        if generated_scenes is None:
-            generated_scenes = []
-
+        if not generated_scenes:
+            print(f"    >> StagePlanManager 未能生成场景，或返回为空。")
+            return []
+            
         print(f"    >> StagePlanManager 已成功返回 {len(generated_scenes)} 个场景。")
+
+        # ▼▼▼【核心修改点：更新计划对象并调用持久化方法】▼▼▼
+        print(f"    >> 正在将新生成的 {len(generated_scenes)} 个场景同步到章节 {chapter_number} 并持久化...")
+        
+        # 确保 plan_container 的结构完整
+        if "event_system" not in plan:
+            plan["event_system"] = {}
+        if "chapter_scene_events" not in plan["event_system"]:
+            plan["event_system"]["chapter_scene_events"] = []
+        
+        chapter_scene_events = plan["event_system"]["chapter_scene_events"]
+        
+        # 查找该章节是否已存在条目
+        chapter_entry = next((item for item in chapter_scene_events if item.get("chapter_number") == chapter_number), None)
+        
+        if chapter_entry:
+            # 如果存在，则更新其场景列表
+            print(f"    >> 更新章节 {chapter_number} 的场景列表。")
+            chapter_entry["scene_events"] = generated_scenes
+        else:
+            # 如果不存在，则创建新条目并添加
+            print(f"    >> 为章节 {chapter_number} 创建新的场景条目。")
+            new_entry = {
+                "chapter_number": chapter_number,
+                "chapter_goal": f"完成特殊事件 '{event_data.get('name', '未命名')}' 的相关情节",
+                "writing_focus": event_data.get('purpose', '深化情感，推进剧情'),
+                "scene_events": generated_scenes
+            }
+            chapter_scene_events.append(new_entry)
+            # 保持章节有序
+            chapter_scene_events.sort(key=lambda x: x.get("chapter_number", 0))
+
+        # 调用 StagePlanManager 的新公共方法来保存更新后的 plan_container
+        try:
+            self.novel_generator.stage_plan_manager.save_and_cache_stage_plan(
+                stage_name=stage_name,
+                plan_data=plan
+            )
+        except Exception as e:
+            print(f"    >> [持久化失败] 调用 save_and_cache_stage_plan 时发生错误: {e}")
+        # ▲▲▲【核心修改点结束】▲▲▲
+
         return generated_scenes
-
-
 
     def _get_fallback_emotional_guidance(self, chapter_number: int, novel_data: Dict) -> Dict:
         """【此方法已废弃】回退情绪指导 - 基于章节位置，简化版本"""

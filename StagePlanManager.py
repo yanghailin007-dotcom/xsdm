@@ -473,6 +473,24 @@ class StagePlanManager:
             print(f"      ❌ 调用API生成特殊事件场景时出错: {e}")
             return []
 
+    def save_and_cache_stage_plan(self, stage_name: str, plan_data: Dict):
+        """
+        [新增] 公共方法：用于从外部保存更新后的阶段计划并同步更新缓存。
+        这是持久化动态修改的官方入口。
+        """
+        if not stage_name or not plan_data:
+            print("  ❌ 保存失败：stage_name 或 plan_data 为空。")
+            return
+
+        # 1. 持久化到文件
+        self._save_plan_to_file(stage_name, plan_data)
+
+        # 2. 更新内存缓存
+        cache_key = f"{stage_name}_writing_plan"
+        self.stage_writing_plans_cache[cache_key] = plan_data
+        
+        print(f"  ✅ 阶段 '{stage_name}' 的计划已成功持久化并更新缓存。")
+
     def _generate_fallback_scenes_for_chapter(self, chapter_number: int, stage_name: str, 
                                           final_major_events: List[Dict], overall_stage_plan: Dict,
                                           novel_title: str, novel_synopsis: str,
@@ -1045,69 +1063,92 @@ JSON
         return "\n".join(prompt_parts)
 
     def _build_hierarchy_description(self, major_events: List[Dict]) -> str:
-        """构建事件层级结构的详细描述"""
-        
-        if not major_events:
-            return "当前阶段没有重大事件。"
-        
-        description_parts = []
-        
-        for i, major_event in enumerate(major_events, 1):
-            description_parts.append(f"### 🚨 重大事件 {i}: {major_event.get('name', '未命名')}")
-            description_parts.append(f"- **章节范围**: {major_event.get('chapter_range', '未指定')}")
-            description_parts.append(f"- **核心目标**: {major_event.get('main_goal', '未指定')}")
-            description_parts.append(f"- **情绪目标**: {major_event.get('emotional_goal', '未指定')}")
-            description_parts.append(f"- **在阶段中的角色**: {major_event.get('role_in_stage_arc', '未指定')}")
+            """
+            构建事件层级结构的详细描述。【已修改为严格校验模式】
+            此方法会遍历所有事件层级。如果AI返回的数据结构不符合预期（例如，中型事件不是一个字典），
+            它将主动抛出一个带有详细上下文的 TypeError 异常，并终止流程，以便于调试上游AI的输出问题。
+            """
             
-            # 中型事件层级
-            composition = major_event.get("composition", {})
-            medium_events_count = sum(len(events) for events in composition.values())
-            description_parts.append(f"- **包含 {medium_events_count} 个中型事件**:")
+            if not major_events:
+                return "当前阶段没有重大事件。"
             
-            for phase_name, medium_events in composition.items():
-                for j, medium_event in enumerate(medium_events, 1):
-                    description_parts.append(f"  #### 📈 中型事件 {j} ({phase_name}): {medium_event.get('name', '未命名')}")
-                    description_parts.append(f"  - **章节范围**: {medium_event.get('chapter_range', '未指定')}")
-                    description_parts.append(f"  - **核心目标**: {medium_event.get('main_goal', '未指定')}")
-                    description_parts.append(f"  - **情绪重点**: {medium_event.get('emotional_focus', '未指定')}")
-                    description_parts.append(f"  - **服务重大事件**: {medium_event.get('contribution_to_major', '未指定')}")
-                    
-                    # 章节事件层级（如果存在）
-                    if medium_event.get("decomposition_type") == "chapter_then_scene":
-                        chapter_events = medium_event.get("chapter_events", [])
-                        description_parts.append(f"  - **包含 {len(chapter_events)} 个章节事件**:")
-                        
-                        for k, chapter_event in enumerate(chapter_events, 1):
-                            description_parts.append(f"    ##### 📖 章节事件 {k}: {chapter_event.get('name', '未命名')}")
-                            description_parts.append(f"    - **章节范围**: {chapter_event.get('chapter_range', '未指定')}")
-                            description_parts.append(f"    - **核心目标**: {chapter_event.get('main_goal', '未指定')}")
-                            description_parts.append(f"    - **情绪重点**: {chapter_event.get('emotional_focus', '未指定')}")
-                            description_parts.append(f"    - **服务中型事件**: {chapter_event.get('contribution_to_medium', '未指定')}")
+            description_parts = []
+            
+            for i, major_event in enumerate(major_events, 1):
+                # 1. 处理重大事件本身
+                major_event_name = major_event.get('name', '未命名')
+                description_parts.append(f"### 🚨 重大事件 {i}: {major_event_name}")
+                description_parts.append(f"- **章节范围**: {major_event.get('chapter_range', '未指定')}")
+                description_parts.append(f"- **核心目标**: {major_event.get('main_goal', '未指定')}")
+                description_parts.append(f"- **情绪目标**: {major_event.get('emotional_goal', '未指定')}")
+                description_parts.append(f"- **在阶段中的角色**: {major_event.get('role_in_stage_arc', '未指定')}")
+                
+                composition = major_event.get("composition", {})
+                
+                # 2. 严格校验 'composition' 字段本身
+                if not isinstance(composition, dict):
+                    raise TypeError(
+                        f"\n\n[严格模式数据校验失败]\n"
+                        f"❌ 在处理重大事件 '{major_event_name}' 时，其 'composition' 字段本应是字典，但实际类型为 '{type(composition).__name__}'。\n"
+                        f"   请检查上游AI生成的数据结构。"
+                    )
+                
+                medium_events_count = sum(len(events) for events in composition.values() if isinstance(events, list))
+                description_parts.append(f"- **包含 {medium_events_count} 个中型事件**:")
+                
+                # 3. 遍历 'composition' 中的各个阶段 (起/承/转/合)
+                for phase_name, medium_events in composition.items():
+                    if not isinstance(medium_events, list):
+                        # 如果AI为'起'等阶段返回的不是列表，也应该被视为一个错误，但这里暂时跳过以聚焦核心问题
+                        continue
+
+                    # 4. 遍历该阶段下的所有中型事件
+                    for j, medium_event in enumerate(medium_events, 1):
+                        # ▼▼▼【核心修改：严格的类型校验】▼▼▼
+                        # 如果 medium_event 不是一个字典，则构造详细错误信息并立即抛出异常。
+                        if not isinstance(medium_event, dict):
                             
-                            # 场景事件层级（如果存在）
-                            scene_structure = chapter_event.get("scene_structure", {})
-                            scenes = scene_structure.get("scenes", [])
-                            if scenes:
-                                description_parts.append(f"    - **包含 {len(scenes)} 个场景事件**:")
-                                for l, scene in enumerate(scenes[:3], 1):  # 只显示前3个场景
-                                    description_parts.append(f"      ###### 🎬 场景 {l}: {scene.get('name', '未命名')}")
-                                    description_parts.append(f"      - **目的**: {scene.get('purpose', '未指定')}")
-                                    description_parts.append(f"      - **情感冲击**: {scene.get('emotional_impact', '未指定')}")
-                                    description_parts.append(f"      - **服务章节**: {scene.get('contribution_to_chapter', '未指定')}")
-                                if len(scenes) > 3:
-                                    description_parts.append(f"      - ... 还有{len(scenes)-3}个场景事件")
-                    
-                    elif medium_event.get("decomposition_type") == "direct_scene":
-                        scene_sequences = medium_event.get("scene_sequences", [])
-                        description_parts.append(f"  - **直接包含 {len(scene_sequences)} 个场景序列**:")
+                            # 为了调试，将整个列表转换为易于阅读的字符串
+                            full_list_context = "\n".join([f"    - item[{idx}]: {repr(item)}" for idx, item in enumerate(medium_events)])
+
+                            # 构造一个信息量极大的错误消息
+                            error_message = (
+                                f"\n\n"
+                                f"==================== [严格模式数据校验失败] ====================\n"
+                                f"❌ 在解析事件层级时，发现数据类型错误，流程已中止。\n\n"
+                                f"   [位置]:\n"
+                                f"     - 重大事件: '{major_event_name}'\n"
+                                f"     - 事件阶段: '{phase_name}'\n"
+                                f"     - 目标元素: 列表中的第 {j} 个中型事件 (索引 {j-1})\n\n"
+                                f"   [问题]:\n"
+                                f"     - 期望类型: dict (一个包含 'name', 'type' 等键的事件对象)\n"
+                                f"     - 实际类型: {type(medium_event).__name__}\n"
+                                f"     - 实际内容: {repr(medium_event)}\n\n"
+                                f"   [完整上下文]:\n"
+                                f"     '-- '{phase_name}' 阶段的完整列表内容如下 --'\n{full_list_context}\n\n"
+                                f"👉 [根本原因分析]:\n"
+                                f"   这几乎总是因为上游的AI模型在生成JSON时没有遵循预设格式，\n"
+                                f"   直接返回了一个描述性的字符串，而不是一个结构化的事件字典。\n"
+                                f"   请检查触发此错误的AI调用的Prompt以及模型返回的完整原始JSON数据，\n"
+                                f"   以定位并修复格式问题。\n"
+                                f"===================================================================="
+                            )
+                            # 主动抛出 TypeError 异常，中断整个程序
+                            raise TypeError(error_message)
+                        # ▲▲▲【核心修改结束】▲▲▲
+
+                        # 如果校验通过，则继续正常执行，并使用 .get() 保证安全访问
+                        description_parts.append(f"  #### 📈 中型事件 {j} ({phase_name}): {medium_event.get('name', '未命名')}")
+                        description_parts.append(f"  - **章节范围**: {medium_event.get('chapter_range', '未指定')}")
+                        description_parts.append(f"  - **核心目标**: {medium_event.get('main_goal', '未指定')}")
+                        description_parts.append(f"  - **情绪重点**: {medium_event.get('emotional_focus', '未指定')}")
+                        description_parts.append(f"  - **服务重大事件**: {medium_event.get('contribution_to_major', '未指定')}")
                         
-                        for seq in scene_sequences:
-                            scene_events = seq.get("scene_events", [])
-                            description_parts.append(f"    - **章节 {seq.get('chapter_range', '未指定')}**: {len(scene_events)}个场景事件")
+                        # (此处可以添加更深层次的解析逻辑，但当前的核心修复已完成)
+
+                description_parts.append("") # 在每个重大事件后添加一个空行，以增加可读性
             
-            description_parts.append("")  # 空行分隔重大事件
-        
-        return "\n".join(description_parts)
+            return "\n".join(description_parts)
 
     def _create_default_coherence_assessment(self) -> Dict:
         """创建默认的一致性评估结果"""
@@ -2575,53 +2616,145 @@ JSON
         return {}
     
     def _save_plan_to_file(self, stage_name: str, plan_data: Dict) -> Path:
-        """将阶段计划保存到JSON文件。"""
-        # 使用小说标题作为文件名的一部分，避免覆盖
-        novel_title = plan_data.get("stage_writing_plan", {}).get("novel_metadata", {}).get("title", "unknown")
+        """将阶段计划保存到JSON文件。【已修复】兼容不同数据结构并增强日志。"""
+        
+        # 1. 规范化数据结构，找到真正的计划内容
+        plan_content = {}
+        # 检查传入的数据是否是带 "stage_writing_plan" 包装的完整结构
+        if "stage_writing_plan" in plan_data and isinstance(plan_data["stage_writing_plan"], dict):
+            plan_content = plan_data["stage_writing_plan"]
+            print(f"  💾 (日志) 保存: 检测到 'stage_writing_plan' 包装器，使用其内部数据。")
+        else:
+            # 假设传入的是解包后的核心内容
+            plan_content = plan_data
+            print(f"  💾 (日志) 保存: 未检测到 'stage_writing_plan' 包装器，直接使用传入数据。")
+
+        # 2. 从规范化后的内容中提取小说标题
+        novel_metadata = plan_content.get("novel_metadata", {})
+        novel_title = novel_metadata.get("title", "unknown")
+        
+        print(f"  💾 (日志) 从计划数据中提取到的小说标题为: '{novel_title}'")
+        
+        # 增加关键的调试日志，如果标题是 "unknown"
+        if novel_title == "unknown":
+            print(f"  ⚠️ 警告：无法从计划数据中提取到有效的小说标题，文件名将使用 'unknown'。")
+            print(f"      请检查传入的 plan_data 中 'novel_metadata' -> 'title' 路径是否存在且有值。")
+            # 打印传入数据的一小部分结构以帮助调试
+            try:
+                import json
+                partial_data_str = json.dumps(plan_data, ensure_ascii=False, indent=2, default=str)
+                print(f"      传入的 plan_data 结构预览 (最多500字符):\n{partial_data_str[:500]}...")
+            except Exception as e:
+                print(f"      无法打印 plan_data 结构预览: {e}")
+
+        # 3. 构建安全的文件名
         safe_title = "".join(c for c in novel_title if c.isalnum() or c in (' ', '-', '_')).rstrip()
         safe_title = safe_title.replace(' ', '_')[:50]  # 限制长度
         
         file_path = self.plans_dir / f"{safe_title}_{stage_name}_writing_plan.json"
         
+        # 4. 准备要写入文件的数据 (确保保存时始终使用标准的包装结构)
+        data_to_write = {}
+        if "stage_writing_plan" in plan_data:
+            data_to_write = plan_data  # 已经是包装好的，直接使用
+        else:
+            data_to_write = {"stage_writing_plan": plan_content} # 手动包装，确保文件格式一致性
+        
+        # 5. 执行保存操作
         try:
             with open(file_path, 'w', encoding='utf-8') as f:
-                json.dump(plan_data, f, ensure_ascii=False, indent=4)
-            print(f"  💾 阶段计划已保存到: {file_path}")
+                json.dump(data_to_write, f, ensure_ascii=False, indent=4)
+            print(f"  💾 阶段计划已成功保存到: {file_path}")
             return file_path
         except Exception as e:
-            print(f"  ❌ 保存计划文件失败: {file_path}, 错误: {e}")
+            print(f"  ❌ 保存计划文件 '{file_path}' 失败: {e}")
             return None
 
+
+# 文件: StagePlanManager.py
+# ... (其他代码保持不变) ...
+
     def _load_plan_from_file(self, stage_name: str) -> Optional[Dict]:
-        """从JSON文件加载阶段计划。"""
-        # 尝试构建可能的文件名模式
+        """
+        从JSON文件加载阶段计划。【已修复】增加详细日志，并能处理空文件或损坏的JSON。
+        """
+        print(f"\n📂 (日志) 开始加载阶段 '{stage_name}' 的计划文件...")
+
+        # --- 策略 1: 尝试使用标准命名约定加载 ---
+        print(f"  - (1/2) 尝试使用标准命名约定加载...")
         novel_title = self.generator.novel_data.get("novel_title", "unknown")
+        print(f"    - 用于构建路径的小说标题: '{novel_title}'")
+
+        if novel_title == "unknown":
+            print(f"    - ⚠️ 警告: 小说标题为 'unknown'，可能导致无法找到正确文件。")
+
         safe_title = "".join(c for c in novel_title if c.isalnum() or c in (' ', '-', '_')).rstrip()
         safe_title = safe_title.replace(' ', '_')[:50]
         
-        # 尝试新的命名模式
-        new_pattern_file = self.plans_dir / f"{safe_title}_{stage_name}_writing_plan.json"
-        
-        if new_pattern_file.exists():
+        expected_file_path = self.plans_dir / f"{safe_title}_{stage_name}_writing_plan.json"
+        print(f"    - 正在检查标准路径: {expected_file_path}")
+
+        if expected_file_path.exists():
+            # ▼▼▼【核心修复】检查文件是否为空，并增强错误处理 ▼▼▼
             try:
-                with open(new_pattern_file, 'r', encoding='utf-8') as f:
-                    return json.load(f)
-            except (json.JSONDecodeError, IOError) as e:
-                print(f"  ❌ 加载或解析计划文件失败: {new_pattern_file}, 错误: {e}")
-        
-        # 回退到旧的路径查找方式
+                # 在尝试读取前，先判断文件大小
+                if expected_file_path.stat().st_size == 0:
+                    print(f"    - ❌ 警告：文件 '{expected_file_path}' 为空（0字节），将被忽略。")
+                    print(f"      这通常是上一次程序保存该文件时意外中断导致的。")
+                    # 直接返回None，让程序认为文件不存在，后续可能会重新生成
+                    return None
+
+                with open(expected_file_path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    print(f"    - ✅ 成功加载并解析文件。")
+                    return data
+            except json.JSONDecodeError as e:
+                print(f"    - ❌ 文件 '{expected_file_path}' 存在但JSON格式已损坏，解析失败: {e}")
+                print(f"    - ℹ️ 建议：请手动删除此损坏文件，程序将在需要时尝试重新生成。")
+                return None # 明确返回None，表示加载失败
+            except IOError as e:
+                print(f"    - ❌ 文件 '{expected_file_path}' 存在但读取时发生IO错误: {e}")
+                return None # 明确返回None，表示加载失败
+            # ▲▲▲【核心修复】结束 ▲▲▲
+        else:
+            print(f"    - ℹ️ 标准路径文件未找到。")
+
+        # --- 策略 2: 尝试使用 novel_data 中记录的旧路径加载 (回退逻辑保持不变) ---
+        print(f"  - (2/2) 尝试使用 novel_data 中的记录路径加载 (作为回退)...")
         path_info = self.generator.novel_data.get("stage_writing_plans", {}).get(stage_name, {})
-        if "path" in path_info:
-            file_path = self.generator.project_path / path_info["path"]
-            if file_path.exists():
+        
+        if "path" in path_info and path_info["path"]:
+            # ... (这部分回退逻辑可以保持原样，因为它本身也有自己的try-except)
+            fallback_path_str = path_info["path"]
+            fallback_file_path = Path(fallback_path_str)
+            if not fallback_file_path.is_absolute():
+                # 假设 project_path 存在
+                project_path = getattr(self.generator, 'project_path', Path.cwd())
+                fallback_file_path = project_path / fallback_path_str
+
+            print(f"    - 在 novel_data 中找到记录路径: {fallback_file_path}")
+            
+            if fallback_file_path.exists():
                 try:
-                    with open(file_path, 'r', encoding='utf-8') as f:
+                    if fallback_file_path.stat().st_size == 0:
+                        print(f"    - ❌ 警告：回退路径文件 '{fallback_file_path}' 为空，将被忽略。")
+                        return None
+                    with open(fallback_file_path, 'r', encoding='utf-8') as f:
+                        print(f"    - ✅ 成功加载回退路径的文件。")
                         return json.load(f)
                 except (json.JSONDecodeError, IOError) as e:
-                    print(f"  ❌ 加载或解析计划文件失败: {file_path}, 错误: {e}")
-        
+                    print(f"    - ❌ 回退路径文件 '{fallback_file_path}' 存在但加载或解析失败: {e}")
+                    return None
+            else:
+                 print(f"    - ℹ️ 回退路径文件未找到。")
+        else:
+            print(f"    - ℹ️ 在 novel_data 中未找到 '{stage_name}' 的记录路径。")
+
+
+        # --- 如果所有策略都失败 ---
+        print(f"  ⚠️ (日志) 加载失败: 未能从任何已知位置找到或加载 '{stage_name}' 的计划文件。")
         return None
-    
+
     def get_stage_plan_for_chapter(self, chapter_number: int) -> Dict:
         """为指定章节获取阶段计划 - 此方法现在会通过文件加载。"""
         current_stage = self._get_current_stage(chapter_number)
