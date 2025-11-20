@@ -5,6 +5,8 @@ import json
 import os
 from typing import List, Dict, Optional, Tuple
 from datetime import datetime
+import uuid
+import time
 
 class WorldStateManager:
     def __init__(self, storage_path: str = "./quality_data"):
@@ -140,6 +142,18 @@ class WorldStateManager:
         
         # 当前小说的世界状态（用于一致性检查）
         self.current_world_state = {}
+        
+        # 初始化事件/关系/账本子目录
+        self.events_path = os.path.join(self.storage_path, 'events')
+        self.relationships_path = os.path.join(self.storage_path, 'relationships')
+        self.ledgers_path = os.path.join(self.storage_path, 'ledgers')
+        os.makedirs(self.events_path, exist_ok=True)
+        os.makedirs(self.relationships_path, exist_ok=True)
+        os.makedirs(self.ledgers_path, exist_ok=True)
+
+        # 内存缓存小索引
+        self._edges_index = {}  # novel_title -> {edge_id: edge_obj}
+        self._events_index = {} # novel_title -> list of events (lazy load)
 
     def load_previous_assessments(self, novel_title: str, novel_data: Dict = None) -> Dict:
         """加载之前章节的评估数据，如果没有则从novel_data初始化"""
@@ -158,6 +172,138 @@ class WorldStateManager:
             return self.initialize_world_state_from_novel_data(novel_title, novel_data)
         
         return {}
+
+    # ------------------- Event Store / Relationship / Ledger helpers -------------------
+    def _event_file(self, novel_title: str) -> str:
+        return os.path.join(self.events_path, f"{novel_title}_events.jsonl")
+
+    def append_event(self, novel_title: str, event: Dict) -> bool:
+        """Append an event to the event log (jsonl)."""
+        event_file = self._event_file(novel_title)
+        try:
+            if 'event_id' not in event:
+                event['event_id'] = str(uuid.uuid4())
+            if 'timestamp' not in event:
+                event['timestamp'] = datetime.now().isoformat()
+            with open(event_file, 'a', encoding='utf-8') as f:
+                f.write(json.dumps(event, ensure_ascii=False) + '\n')
+            self._events_index.setdefault(novel_title, []).append(event)
+            return True
+        except Exception as e:
+            print(f"❌ 无法追加事件: {e}")
+            return False
+
+    def load_events(self, novel_title: str) -> List[Dict]:
+        if novel_title in self._events_index:
+            return self._events_index[novel_title]
+        events = []
+        event_file = self._event_file(novel_title)
+        if os.path.exists(event_file):
+            try:
+                with open(event_file, 'r', encoding='utf-8') as f:
+                    for line in f:
+                        line = line.strip()
+                        if not line: continue
+                        try:
+                            events.append(json.loads(line))
+                        except:
+                            continue
+            except Exception as e:
+                print(f"❌ 读取事件文件失败: {e}")
+        self._events_index[novel_title] = events
+        return events
+
+    def _relationships_file(self, novel_title: str) -> str:
+        return os.path.join(self.relationships_path, f"{novel_title}_relationships.json")
+
+    def load_relationships(self, novel_title: str) -> Dict:
+        if novel_title in self._edges_index:
+            return self._edges_index[novel_title]
+        edges = {}
+        rel_file = self._relationships_file(novel_title)
+        if os.path.exists(rel_file):
+            try:
+                with open(rel_file, 'r', encoding='utf-8') as f:
+                    edges = json.load(f)
+            except Exception as e:
+                print(f"❌ 读取关系文件失败: {e}")
+        self._edges_index[novel_title] = edges
+        return edges
+
+    def save_relationships(self, novel_title: str) -> bool:
+        rel_file = self._relationships_file(novel_title)
+        edges = self._edges_index.get(novel_title, {})
+        try:
+            with open(rel_file, 'w', encoding='utf-8') as f:
+                json.dump(edges, f, ensure_ascii=False, indent=2)
+            return True
+        except Exception as e:
+            print(f"❌ 保存关系文件失败: {e}")
+            return False
+
+    def create_edge(self, novel_title: str, edge_obj: Dict) -> str:
+        edges = self.load_relationships(novel_title)
+        edge_id = edge_obj.get('id') or f"e{int(time.time()*1000)}_{str(uuid.uuid4())[:6]}"
+        edge_obj['id'] = edge_id
+        edge_obj.setdefault('history', [])
+        edges[edge_id] = edge_obj
+        self._edges_index[novel_title] = edges
+        self.save_relationships(novel_title)
+        return edge_id
+
+    def update_edge(self, novel_title: str, edge_id: str, patch: Dict) -> bool:
+        edges = self.load_relationships(novel_title)
+        if edge_id not in edges:
+            print(f"⚠️ 尝试更新不存在的 edge: {edge_id}")
+            return False
+        edges[edge_id].update(patch)
+        edges[edge_id]['last_updated_chapter'] = patch.get('last_updated_chapter', edges[edge_id].get('last_updated_chapter'))
+        self._edges_index[novel_title] = edges
+        return self.save_relationships(novel_title)
+
+    def get_edges_for_actor(self, novel_title: str, actor_name: str) -> List[Dict]:
+        edges = self.load_relationships(novel_title)
+        return [e for e in edges.values() if e.get('from') == actor_name or e.get('to') == actor_name]
+
+    def _money_ledger_file(self, novel_title: str) -> str:
+        return os.path.join(self.ledgers_path, f"{novel_title}_money_ledger.json")
+
+    def append_money_tx(self, novel_title: str, tx: Dict) -> bool:
+        ledger_file = self._money_ledger_file(novel_title)
+        ledger = []
+        if os.path.exists(ledger_file):
+            try:
+                with open(ledger_file, 'r', encoding='utf-8') as f:
+                    ledger = json.load(f)
+            except:
+                ledger = []
+        tx['tx_id'] = tx.get('tx_id') or str(uuid.uuid4())
+        tx['timestamp'] = tx.get('timestamp') or datetime.now().isoformat()
+        ledger.append(tx)
+        try:
+            with open(ledger_file, 'w', encoding='utf-8') as f:
+                json.dump(ledger, f, ensure_ascii=False, indent=2)
+            return True
+        except Exception as e:
+            print(f"❌ 保存金钱账本失败: {e}")
+            return False
+
+    def _death_validator(self, novel_title: str, actor_name: str, chapter_number: int) -> Tuple[bool, str]:
+        character_file = os.path.join(self.storage_path, f"{novel_title}_character_development.json")
+        if not os.path.exists(character_file):
+            return True, "no character file"
+        try:
+            with open(character_file, 'r', encoding='utf-8') as f:
+                chars = json.load(f)
+        except:
+            return True, "cannot read character file"
+        char = chars.get(actor_name)
+        if not char:
+            return True, "unknown character"
+        status = char.get('status', '').lower()
+        if status in ['死亡', 'dead', '已故']:
+            return False, f"角色 {actor_name} 已被记录为死亡 (status={status})，阻止后续行为。"
+        return True, "ok"
 
     def get_current_mindset(self, novel_title: str, character_name: str) -> Dict:
         """获取指定角色的当前心境状态。"""
