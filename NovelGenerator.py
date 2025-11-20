@@ -1756,7 +1756,7 @@ class NovelGenerator:
                 # 3. 委托给ContentGenerator生成内容
                 print(f"🔄 调用ContentGenerator生成第{chapter_num}章内容...")
                 chapter_result = self.content_generator.generate_chapter_content_for_novel(chapter_num, self.novel_data, context)
-                
+
                 if not chapter_result:
                     print(f"❌ 第{chapter_num}章内容生成失败")
                     self.event_bus.publish('error.occurred', {
@@ -1765,14 +1765,67 @@ class NovelGenerator:
                         'message': 'ContentGenerator返回空结果'
                     })
                     continue
-                
+
+                # 3.5 去重检测：与上一章对比，相似度过高则尝试快速优化
+                try:
+                    prev_content = None
+                    prev_record = self.novel_data.get('generated_chapters', {}).get(chapter_num - 1)
+                    if prev_record and isinstance(prev_record, dict):
+                        prev_content = prev_record.get('content')
+                    if not prev_content:
+                        loaded = self.load_chapter_content(chapter_num - 1)
+                        if loaded and isinstance(loaded, dict):
+                            prev_content = loaded.get('content')
+
+                    if prev_content:
+                        is_dup, sim_score = self.quality_assessor.is_duplicate(prev_content, chapter_result.get('content', ''), threshold=0.6)
+                        print(f"🔎 与上一章相似度: {sim_score:.3f} (阈值0.6)")
+                        if is_dup:
+                            print(f"⚠️ 第{chapter_num}章与第{chapter_num-1}章重复度过高，尝试快速优化以降低重复性...")
+                            # 获取前情摘要作为参考
+                            try:
+                                prev_summary = self.quality_assessor.get_comprehensive_previous_summary_enhanced(self.novel_data.get('novel_title', ''), chapter_num - 1)
+                            except Exception:
+                                prev_summary = ""
+
+                            assessment = self.quality_assessor.quick_assess_chapter_quality(
+                                chapter_result.get('content', ''),
+                                chapter_result.get('chapter_title', ''),
+                                chapter_num,
+                                self.novel_data.get('novel_title', ''),
+                                prev_summary,
+                                chapter_result.get('word_count', 0),
+                                self.novel_data
+                            )
+
+                            optimized = self.quality_assessor._quick_optimize_chapter(chapter_result, assessment)
+                            if optimized and optimized.get('content'):
+                                print(f"🔧 第{chapter_num}章已通过快速优化器修正（减少重复）。")
+                                # 更新章节内容与字数
+                                chapter_result['content'] = optimized.get('content')
+                                chapter_result['word_count'] = optimized.get('word_count', chapter_result.get('word_count', 0))
+                                # 记录优化历史
+                                try:
+                                    hist = self.novel_data.setdefault('optimization_history', {})
+                                    hist.setdefault(str(chapter_num), []).append({
+                                        'type': 'duplication_fix',
+                                        'similarity_before': sim_score,
+                                        'timestamp': datetime.now().isoformat()
+                                    })
+                                except Exception:
+                                    pass
+                            else:
+                                print(f"⚠️ 快速优化未能生成合格替代内容，保留原始输出。")
+                except Exception as e:
+                    print(f"⚠️ 去重检测或优化步骤失败: {e}")
+
                 # 4. 发布生成完成事件
                 self.event_bus.publish('chapter.generated', {
                     'chapter_number': chapter_num,
                     'result': chapter_result,
                     'context': context
                 })
-                
+
                 print(f"✅ 第{chapter_num}章生成完成: {chapter_result.get('chapter_title', '未知标题')}")
                 
             except Exception as e:

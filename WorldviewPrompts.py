@@ -185,6 +185,13 @@ JSON结构定义
         {
             "name": "角色姓名",
             "role": "根据[DESIGN_REQUIREMENTS]定义的功能定位，准确填写",
+            "initial_state": {
+                "description": "string // 对该角色登场时状态的简要描述",
+                "cultivation_level": "string // 登场时的修为境界",
+                "location": "string // 登场时的地点",
+                "faction": "string // 登场时所属的宗门或势力",
+                "identity": "string // 登场时的主要身份或地位"
+            },
             "soul_matrix": [
                 {
                     "core_trait": "一个核心性格标签 (例如：天骄/傲慢)",

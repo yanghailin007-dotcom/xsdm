@@ -612,6 +612,31 @@ class QualityAssessor:
         
         return artifacts[:10]
 
+    def compute_text_similarity(self, text_a: str, text_b: str) -> float:
+        """计算两个文本的相似度得分（0-1），使用 difflib.SequenceMatcher。
+
+        返回值越接近1表示越相似。
+        """
+        try:
+            from difflib import SequenceMatcher
+            if not text_a or not text_b:
+                return 0.0
+            # 统一简化处理：去除多余空白，限制长度以加速
+            a = re.sub(r'\s+', ' ', text_a).strip()[:20000]
+            b = re.sub(r'\s+', ' ', text_b).strip()[:20000]
+            return float(SequenceMatcher(None, a, b).ratio())
+        except Exception as e:
+            print(f"⚠️ 计算文本相似度出错: {e}")
+            return 0.0
+
+    def is_duplicate(self, text_a: str, text_b: str, threshold: float = 0.6) -> Tuple[bool, float]:
+        """判断两个文本是否重复。返回 (is_duplicate, similarity_score)。
+
+        默认阈值为0.6（可根据需要在调用方调整）。
+        """
+        score = self.compute_text_similarity(text_a, text_b)
+        return (score >= threshold, score)
+
     def _generate_chapter_assessment_prompt(self, params: Dict) -> str:
         """生成章节质量评估提示词（包含内部生成的强一致性检查清单）"""
         

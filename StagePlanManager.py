@@ -259,23 +259,25 @@ class StagePlanManager:
 
     def _assemble_final_plan(self, stage_name, stage_range, final_major_events, overall_stage_plan,
                         novel_title: str = "", novel_synopsis: str = "", creative_seed: str = "") -> Dict:
-        """工作流第四阶段：将所有生成的部分组装成最终的JSON计划。"""
+        """工作流第四阶段：将所有生成的部分组装成最终的JSON计划。【已增强日志和逻辑】"""
         
-        print(f"  🔍 检查最终组装：收到 {len(final_major_events)} 个重大事件")
+        print(f"\n assembling final plan...")
+        print(f"  - 正在为阶段 '{stage_name}' ({stage_range}) 组装最终计划。")
+        print(f"  - 收到 {len(final_major_events)} 个已分解的重大事件。")
 
-        # 收集所有场景事件（按章节组织）
         # chapter_scene_map 的结构： 章节号 -> { "chapter_goal": str, "writing_focus": str, "scene_events": List[Dict] }
         chapter_scene_map = {}
-        
-        all_special_events = [] # 用于收集所有特殊情感事件
+        all_special_events = []
 
         emotional_summary = {
             "stage_emotional_arc": overall_stage_plan.get("overall_stage_plan", {}).get(stage_name, {}).get("emotional_goal", ""),
-            "major_events_emotional_summary": []
+            "major_events_emotional_summary": [],
+            "medium_events_emotional_focus": [] # 确保这个列表存在
         }
         
         # 遍历所有重大事件，累积其包含的中型事件场景和特殊情感事件
         for major_event in final_major_events:
+            print(f"    - 正在处理重大事件: '{major_event.get('name')}'")
             # 1. 收集重大事件的情感摘要
             emotional_summary["major_events_emotional_summary"].append({
                 "name": major_event.get("name"),
@@ -289,37 +291,50 @@ class StagePlanManager:
 
             # 3. 遍历重大事件的 'composition'，获取其中的中型事件并累积场景
             composition = major_event.get("composition", {})
-            for phase_events in composition.values():
+            if not composition:
+                print(f"      ⚠️ 警告: 重大事件 '{major_event.get('name')}' 缺少 'composition' 字段。")
+                continue
+
+            for phase_name, phase_events in composition.items():
+                if not isinstance(phase_events, list):
+                    print(f"      ⚠️ 警告: 重大事件 '{major_event.get('name')}' 的 '{phase_name}' 部分不是一个列表。")
+                    continue
+                
                 for medium_event in phase_events:
+                    print(f"      - 正在处理中型事件: '{medium_event.get('name')}' (位于'{phase_name}'阶段)")
                     # 收集中型事件的情感焦点
                     if "emotional_focus" in medium_event:
-                        emotional_summary.setdefault("medium_events_emotional_focus", []).append({
+                        emotional_summary["medium_events_emotional_focus"].append({
                             "name": medium_event.get("name"),
                             "emotional_focus": medium_event.get("emotional_focus"),
                             "emotional_intensity": medium_event.get("emotional_intensity", "medium")
                         })
                     
-                    # 调用新的辅助函数来累积中型事件中的场景
+                    # 【核心逻辑】调用辅助函数来累积中型事件中的场景
                     self._add_scenes_from_decomposed_event(medium_event, chapter_scene_map)
+
         # 将 chapter_scene_map 转换为按章节排序的列表
         chapter_scene_events_list = []
-        for chapter_num in sorted(chapter_scene_map.keys()):
+        # 安全地获取所有章节号并排序
+        all_chapter_nums = sorted(chapter_scene_map.keys())
+        print(f"  - 场景累积完成，共覆盖 {len(all_chapter_nums)} 个章节。正在转换为最终列表...")
+
+        for chapter_num in all_chapter_nums:
             chapter_info = chapter_scene_map[chapter_num]
-            # 确保每个章节至少有一个空的 scene_events 列表，以防万一
+            # 确保每个章节至少有一个空的 scene_events 列表
             if "scene_events" not in chapter_info:
                 chapter_info["scene_events"] = []
             
             chapter_scene_events_list.append({
                 "chapter_number": chapter_num,
-                "chapter_goal": chapter_info.get("chapter_goal", f"完成第{chapter_num}章内容"), # 提供默认值
-                "writing_focus": chapter_info.get("writing_focus", "保持章节内容连贯性和吸引力"), # 提供默认值
+                "chapter_goal": chapter_info.get("chapter_goal", f"完成第{chapter_num}章内容"),
+                "writing_focus": chapter_info.get("writing_focus", "保持章节内容连贯性和吸引力"),
                 "scene_events": chapter_info.get("scene_events", [])
             })
-       # ▼▼▼【核心修复点】▼▼▼
-        # 获取阶段信息，并增加对 core_tasks 的备用读取
+
         stage_info = overall_stage_plan.get("overall_stage_plan", {}).get(stage_name, {})
         stage_overview_text = stage_info.get("stage_goal", stage_info.get("core_tasks", "N/A"))
-        # ▲▲▲【核心修复点】▲▲▲
+
         stage_plan = {
             "stage_writing_plan": {
                 "stage_name": stage_name,
@@ -334,14 +349,14 @@ class StagePlanManager:
                 "emotional_summary": emotional_summary,
                 "event_system": {
                     "overall_approach": "采用智能分形设计：根据章节数自动选择分解策略，最终基于场景事件构建章节。",
-                    "major_events": final_major_events, # 包含分解后的中型事件和特殊情感事件
-                    "special_emotional_events": all_special_events, # 原始收集到的特殊情感事件列表
-                    "chapter_scene_events": chapter_scene_events_list # 最终按章节组织的场景事件列表
+                    "major_events": final_major_events,
+                    "special_emotional_events": all_special_events,
+                    "chapter_scene_events": chapter_scene_events_list
                 },
             }
         }
+        print(f"  ✅ 阶段 '{stage_name}' 的最终计划组装完成！")
         return stage_plan
-
 
     def _validate_chapter_ranges(self, all_events: List[Dict], total_chapters: int) -> bool:
         """验证所有事件的章节范围"""
@@ -1210,10 +1225,10 @@ JSON
         consistency_block = ""
         if consistency_guidance:
             consistency_block = f"""
-一致性铁律 (必须遵守)
-你在进行场景构建时，必须严格遵守以下已确定的世界事实，确保新生成的场景不会与历史情节产生矛盾。
+## 2. 已确定的事实 (一致性铁律 - 必须严格遵守)
+你在进行场景构建时，必须严格遵守以下已确定的世界事实。你的规划不能与这些事实产生任何矛盾，更不能重复已经发生过的关键情节（如主角已觉醒金手指）。
 {consistency_guidance}
-"""  
+"""
         # 构建详细的章节分配说明
         chapter_breakdown = ""
         for i in range(chapter_count):
@@ -2617,7 +2632,6 @@ JSON
     
     def _save_plan_to_file(self, stage_name: str, plan_data: Dict) -> Path:
         """将阶段计划保存到JSON文件。【已修复】兼容不同数据结构并增强日志。"""
-        
         # 1. 规范化数据结构，找到真正的计划内容
         plan_content = {}
         # 检查传入的数据是否是带 "stage_writing_plan" 包装的完整结构
@@ -2629,19 +2643,16 @@ JSON
             plan_content = plan_data
             print(f"  💾 (日志) 保存: 未检测到 'stage_writing_plan' 包装器，直接使用传入数据。")
 
-        # 2. 从规范化后的内容中提取小说标题
-        novel_metadata = plan_content.get("novel_metadata", {})
-        novel_title = novel_metadata.get("title", "unknown")
-        
+        novel_title = self.generator.novel_data.get("novel_title", "unknown")
+
         print(f"  💾 (日志) 从计划数据中提取到的小说标题为: '{novel_title}'")
-        
+
         # 增加关键的调试日志，如果标题是 "unknown"
         if novel_title == "unknown":
             print(f"  ⚠️ 警告：无法从计划数据中提取到有效的小说标题，文件名将使用 'unknown'。")
             print(f"      请检查传入的 plan_data 中 'novel_metadata' -> 'title' 路径是否存在且有值。")
             # 打印传入数据的一小部分结构以帮助调试
             try:
-                import json
                 partial_data_str = json.dumps(plan_data, ensure_ascii=False, indent=2, default=str)
                 print(f"      传入的 plan_data 结构预览 (最多500字符):\n{partial_data_str[:500]}...")
             except Exception as e:
@@ -2650,20 +2661,32 @@ JSON
         # 3. 构建安全的文件名
         safe_title = "".join(c for c in novel_title if c.isalnum() or c in (' ', '-', '_')).rstrip()
         safe_title = safe_title.replace(' ', '_')[:50]  # 限制长度
-        
+
         file_path = self.plans_dir / f"{safe_title}_{stage_name}_writing_plan.json"
-        
+
         # 4. 准备要写入文件的数据 (确保保存时始终使用标准的包装结构)
         data_to_write = {}
         if "stage_writing_plan" in plan_data:
             data_to_write = plan_data  # 已经是包装好的，直接使用
         else:
             data_to_write = {"stage_writing_plan": plan_content} # 手动包装，确保文件格式一致性
-        
-        # 5. 执行保存操作
+
+        # 5. 执行保存操作（原子写入：先写入临时文件，再重命名）
         try:
-            with open(file_path, 'w', encoding='utf-8') as f:
+            # 确保目录存在
+            os.makedirs(self.plans_dir, exist_ok=True)
+
+            temp_path = file_path.with_suffix('.tmp')
+            with open(temp_path, 'w', encoding='utf-8') as f:
                 json.dump(data_to_write, f, ensure_ascii=False, indent=4)
+
+            # 原子替换（在Windows上使用replace以覆盖目标）
+            try:
+                temp_path.replace(file_path)
+            except Exception:
+                # 回退到 os.replace 作为兼容方案
+                os.replace(str(temp_path), str(file_path))
+
             print(f"  💾 阶段计划已成功保存到: {file_path}")
             return file_path
         except Exception as e:
