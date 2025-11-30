@@ -2,6 +2,13 @@
 自动更新导入路径脚本
 根据新的目录结构更新所有 Python 文件中的导入语句
 """
+import sys
+from pathlib import Path
+
+# 添加项目根目录到Python路径
+BASE_DIR = Path(__file__).parent
+sys.path.insert(0, str(BASE_DIR))
+
 
 import re
 from pathlib import Path
