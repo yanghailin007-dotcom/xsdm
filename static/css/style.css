@@ -1,0 +1,502 @@
+/* 全局样式 */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    color: #333;
+}
+
+a {
+    color: #667eea;
+    text-decoration: none;
+    transition: color 0.3s;
+}
+
+a:hover {
+    color: #764ba2;
+}
+
+/* 容器布局 */
+.container {
+    max-width: 1600px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.three-column-layout {
+    display: grid;
+    grid-template-columns: 300px 1fr 350px;
+    gap: 20px;
+    height: calc(100vh - 100px);
+}
+
+@media (max-width: 1200px) {
+    .three-column-layout {
+        grid-template-columns: 250px 1fr 300px;
+    }
+}
+
+@media (max-width: 768px) {
+    .three-column-layout {
+        grid-template-columns: 1fr;
+        height: auto;
+    }
+}
+
+/* 卡片样式 */
+.card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    transition: box-shadow 0.3s;
+}
+
+.card:hover {
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+}
+
+.card-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 16px;
+    font-weight: 600;
+    border-bottom: 2px solid #555;
+}
+
+.card-body {
+    padding: 16px;
+    max-height: calc(100vh - 180px);
+    overflow-y: auto;
+}
+
+.card-body::-webkit-scrollbar {
+    width: 6px;
+}
+
+.card-body::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+.card-body::-webkit-scrollbar-thumb {
+    background: #667eea;
+    border-radius: 3px;
+}
+
+/* 左侧边栏 - 设计信息 */
+.left-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.design-section {
+    background: white;
+    border-radius: 12px;
+    padding: 16px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.design-section-title {
+    font-weight: 600;
+    color: #667eea;
+    margin-bottom: 12px;
+    font-size: 14px;
+    text-transform: uppercase;
+    border-bottom: 2px solid #667eea;
+    padding-bottom: 8px;
+}
+
+.design-item {
+    margin-bottom: 12px;
+}
+
+.design-item-label {
+    font-size: 12px;
+    color: #666;
+    font-weight: 500;
+    text-transform: uppercase;
+}
+
+.design-item-value {
+    font-size: 13px;
+    color: #333;
+    margin-top: 4px;
+    line-height: 1.4;
+    background: #f8f9fa;
+    padding: 8px;
+    border-radius: 4px;
+    border-left: 3px solid #667eea;
+}
+
+/* 章节列表 */
+.chapters-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.chapter-item {
+    padding: 12px;
+    background: #f8f9fa;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.3s;
+    border-left: 3px solid #ddd;
+}
+
+.chapter-item:hover {
+    background: #e8e9ff;
+    border-left-color: #667eea;
+    transform: translateX(4px);
+}
+
+.chapter-item.active {
+    background: #667eea;
+    color: white;
+    border-left-color: #764ba2;
+}
+
+.chapter-item-title {
+    font-weight: 600;
+    font-size: 14px;
+    margin-bottom: 4px;
+}
+
+.chapter-item-meta {
+    font-size: 12px;
+    opacity: 0.7;
+}
+
+/* 中间内容区 */
+.center-content {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.content-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 20px;
+    border-bottom: 2px solid #555;
+}
+
+.content-header h2 {
+    font-size: 24px;
+    margin-bottom: 8px;
+}
+
+.content-header p {
+    font-size: 13px;
+    opacity: 0.9;
+}
+
+.content-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 30px;
+    font-size: 16px;
+    line-height: 1.8;
+    color: #333;
+}
+
+.content-body::-webkit-scrollbar {
+    width: 8px;
+}
+
+.content-body::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+.content-body::-webkit-scrollbar-thumb {
+    background: #667eea;
+    border-radius: 4px;
+}
+
+/* 章节导航按钮 */
+.chapter-navigation {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    padding: 20px 30px;
+    background: #f8f9fa;
+    border-top: 1px solid #e0e0e0;
+}
+
+.chapter-indicator {
+    text-align: center;
+    font-size: 14px;
+    color: #999;
+    flex: 1;
+    padding: 0;
+    white-space: nowrap;
+}
+
+.chapter-navigation .btn {
+    flex: 1;
+    max-width: 150px;
+    padding: 10px 20px;
+    font-size: 14px;
+}
+
+.chapter-navigation .btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* 右侧边栏 - 质量评估 */
+.right-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.assessment-card {
+    background: white;
+    border-radius: 12px;
+    padding: 16px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.assessment-title {
+    font-weight: 600;
+    color: #667eea;
+    margin-bottom: 12px;
+    font-size: 14px;
+}
+
+.assessment-score {
+    font-size: 32px;
+    font-weight: bold;
+    color: #667eea;
+    margin-bottom: 8px;
+    text-align: center;
+}
+
+.assessment-details {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.detail-item {
+    padding: 8px;
+    background: #f8f9fa;
+    border-radius: 4px;
+    border-left: 3px solid #667eea;
+}
+
+.detail-label {
+    font-size: 12px;
+    color: #666;
+    font-weight: 500;
+}
+
+.detail-value {
+    font-size: 13px;
+    color: #333;
+    margin-top: 4px;
+}
+
+.pros-list, .cons-list {
+    list-style: none;
+    margin: 8px 0;
+}
+
+.pros-list li, .cons-list li {
+    padding: 6px 0;
+    padding-left: 20px;
+    position: relative;
+    font-size: 12px;
+    color: #555;
+}
+
+.pros-list li:before {
+    content: "✓";
+    position: absolute;
+    left: 0;
+    color: #28a745;
+    font-weight: bold;
+}
+
+.cons-list li:before {
+    content: "×";
+    position: absolute;
+    left: 0;
+    color: #dc3545;
+    font-weight: bold;
+}
+
+/* 按钮 */
+.btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.3s;
+    font-size: 14px;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.btn-secondary {
+    background: #e8e9ff;
+    color: #667eea;
+}
+
+.btn-secondary:hover {
+    background: #d8d9ff;
+}
+
+.btn-small {
+    padding: 6px 12px;
+    font-size: 12px;
+}
+
+/* 顶部导航 */
+.navbar {
+    background: white;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    padding: 16px 0;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.navbar-content {
+    max-width: 1600px;
+    margin: 0 auto;
+    padding: 0 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.navbar-title {
+    font-size: 20px;
+    font-weight: bold;
+    color: #667eea;
+}
+
+.navbar-actions {
+    display: flex;
+    gap: 12px;
+}
+
+/* 加载动画 */
+.loading {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #667eea;
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
+
+.spinner {
+    border: 3px solid #f3f3f3;
+    border-top: 3px solid #667eea;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* 状态指示器 */
+.status-badge {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.status-generating {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.status-completed {
+    background: #d4edda;
+    color: #155724;
+}
+
+.status-error {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+    .three-column-layout {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+    
+    .left-sidebar, .right-sidebar {
+        order: -1;
+    }
+    
+    .content-body {
+        padding: 16px;
+        font-size: 14px;
+    }
+    
+    .assessment-card {
+        padding: 12px;
+    }
+    
+    .navbar-content {
+        flex-direction: column;
+        gap: 12px;
+    }
+}
+
+/* 打印样式 */
+@media print {
+    .navbar, .left-sidebar, .right-sidebar {
+        display: none;
+    }
+    
+    .three-column-layout {
+        grid-template-columns: 1fr;
+    }
+    
+    .center-content {
+        box-shadow: none;
+    }
+}

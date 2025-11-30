@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>小说生成系统 - 仪表板</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+
+        .metric-card {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        .metric-value {
+            font-size: 48px;
+            font-weight: bold;
+            color: #667eea;
+            margin: 16px 0;
+        }
+
+        .metric-label {
+            color: #666;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .metric-trend {
+            margin-top: 12px;
+            font-size: 12px;
+            color: #999;
+        }
+
+        .chapters-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .chapters-table thead {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .chapters-table th,
+        .chapters-table td {
+            padding: 16px;
+            text-align: left;
+        }
+
+        .chapters-table tbody tr {
+            border-bottom: 1px solid #eee;
+            transition: background 0.3s;
+        }
+
+        .chapters-table tbody tr:hover {
+            background: #f8f9ff;
+        }
+
+        .chapters-table tbody tr:last-child {
+            border-bottom: none;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .badge-success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .badge-warning {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .badge-danger {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 24px;
+            background: #e9ecef;
+            border-radius: 12px;
+            overflow: hidden;
+            margin: 8px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            transition: width 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .chart-container {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            margin: 30px 0;
+        }
+
+        .chart-title {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 18px;
+        }
+
+        .simple-bar-chart {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .bar-item {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .bar-label {
+            width: 80px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .bar {
+            flex: 1;
+            height: 30px;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            color: white;
+            padding: 0 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .bar.low {
+            opacity: 0.5;
+        }
+
+        .bar.medium {
+            opacity: 0.75;
+        }
+
+        .bar.high {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <!-- 顶部导航 -->
+    <nav class="navbar">
+        <div class="navbar-content">
+            <div class="navbar-title">📊 仪表板</div>
+            <div class="navbar-actions">
+                <button class="btn btn-primary btn-small" onclick="location.href='/'">返回首页</button>
+                <button class="btn btn-secondary btn-small" onclick="location.href='/novel'">查看小说</button>
+                <button class="btn btn-secondary btn-small" onclick="refreshData()">刷新</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 主容器 -->
+    <div class="container">
+        <!-- 指标卡 -->
+        <div class="dashboard-grid">
+            <div class="metric-card">
+                <div class="metric-label">生成章节数</div>
+                <div class="metric-value" id="metric-chapters">0</div>
+                <div class="metric-trend">本次生成</div>
+            </div>
+
+            <div class="metric-card">
+                <div class="metric-label">总字数</div>
+                <div class="metric-value" id="metric-words">0</div>
+                <div class="metric-trend">文字统计</div>
+            </div>
+
+            <div class="metric-card">
+                <div class="metric-label">平均评分</div>
+                <div class="metric-value" id="metric-score">-</div>
+                <div class="metric-trend">质量评估</div>
+            </div>
+
+            <div class="metric-card">
+                <div class="metric-label">生成进度</div>
+                <div class="metric-value" id="metric-progress">0%</div>
+                <div class="metric-trend">完成度</div>
+            </div>
+        </div>
+
+        <!-- 进度条 -->
+        <div style="background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); margin: 30px 0;">
+            <h3 style="margin-bottom: 20px; color: #333;">📈 生成进度</h3>
+            <div id="progress-container">
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: 0%">0%</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 章节详情表 -->
+        <div style="background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); margin: 30px 0;">
+            <h3 style="margin-bottom: 20px; color: #333;">📚 章节详情</h3>
+            <table class="chapters-table">
+                <thead>
+                    <tr>
+                        <th>章节</th>
+                        <th>标题</th>
+                        <th>字数</th>
+                        <th>评分</th>
+                        <th>状态</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="chapters-tbody">
+                    <tr>
+                        <td colspan="6" style="text-align: center; color: #999; padding: 40px;">
+                            加载中...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- 评分分布 -->
+        <div class="chart-container">
+            <div class="chart-title">⭐ 评分分布</div>
+            <div class="simple-bar-chart" id="score-distribution">
+                <div class="bar-item">
+                    <div class="bar-label">加载中...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 统计信息 -->
+        <div style="background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); margin: 30px 0;">
+            <h3 style="margin-bottom: 20px; color: #333;">📊 统计信息</h3>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
+                <div>
+                    <div style="color: #666; font-size: 14px; margin-bottom: 8px;">最高评分</div>
+                    <div style="font-size: 32px; font-weight: bold; color: #667eea;" id="max-score">-</div>
+                </div>
+                <div>
+                    <div style="color: #666; font-size: 14px; margin-bottom: 8px;">最低评分</div>
+                    <div style="font-size: 32px; font-weight: bold; color: #764ba2;" id="min-score">-</div>
+                </div>
+                <div>
+                    <div style="color: #666; font-size: 14px; margin-bottom: 8px;">平均字数</div>
+                    <div style="font-size: 32px; font-weight: bold; color: #667eea;" id="avg-words">-</div>
+                </div>
+                <div>
+                    <div style="color: #666; font-size: 14px; margin-bottom: 8px;">生成时间</div>
+                    <div style="font-size: 14px; color: #666;" id="generation-time">-</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            refreshData();
+            setInterval(refreshData, 5000); // 每 5 秒刷新一次
+        });
+
+        async function refreshData() {
+            try {
+                // 加载摘要
+                const summaryResponse = await fetch('/api/novel/summary');
+                const novel = await summaryResponse.json();
+
+                // 加载章节列表
+                const chaptersResponse = await fetch('/api/chapters');
+                const chapters = await chaptersResponse.json();
+
+                // 更新指标
+                updateMetrics(novel, chapters);
+
+                // 更新表格
+                updateChaptersTable(chapters);
+
+                // 更新图表
+                updateCharts(chapters);
+            } catch (error) {
+                console.error('刷新失败:', error);
+            }
+        }
+
+        function updateMetrics(novel, chapters) {
+            // 生成章节数
+            document.getElementById('metric-chapters').textContent = chapters.length;
+
+            // 总字数
+            const totalWords = chapters.reduce((sum, ch) => sum + (ch.word_count || 0), 0);
+            document.getElementById('metric-words').textContent = totalWords.toLocaleString();
+
+            // 平均评分
+            const validScores = chapters.filter(ch => ch.score && ch.score > 0);
+            const avgScore = validScores.length > 0
+                ? (validScores.reduce((sum, ch) => sum + ch.score, 0) / validScores.length).toFixed(1)
+                : '-';
+            document.getElementById('metric-score').textContent = avgScore;
+
+            // 进度
+            const progress = Math.round((chapters.length / novel.total_chapters) * 100);
+            document.getElementById('metric-progress').textContent = progress + '%';
+
+            // 进度条
+            const progressBar = document.querySelector('.progress-fill');
+            if (progressBar) {
+                progressBar.style.width = progress + '%';
+                progressBar.textContent = progress + '%';
+            }
+        }
+
+        function updateChaptersTable(chapters) {
+            const tbody = document.getElementById('chapters-tbody');
+
+            if (chapters.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #999; padding: 40px;">暂无章节数据</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = chapters.map(ch => `
+                <tr>
+                    <td><strong>第${ch.chapter_number}章</strong></td>
+                    <td>${escapeHtml(ch.title)}</td>
+                    <td>${ch.word_count || 0}</td>
+                    <td>
+                        ${ch.score ? `<span style="font-weight: 600; color: #667eea;">${ch.score.toFixed(1)}</span>` : '-'}
+                    </td>
+                    <td>
+                        <span class="badge badge-success">${ch.status === 'completed' ? '已完成' : '生成中'}</span>
+                    </td>
+                    <td>
+                        <button class="btn btn-secondary btn-small" onclick="location.href='/novel?chapter=${ch.chapter_number}'">
+                            查看
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function updateCharts(chapters) {
+            // 评分分布
+            const scoreDistribution = document.getElementById('score-distribution');
+            
+            if (chapters.length === 0) {
+                scoreDistribution.innerHTML = '<div style="text-align: center; color: #999;">暂无数据</div>';
+                return;
+            }
+
+            const avgScore = chapters.filter(ch => ch.score).reduce((sum, ch) => sum + ch.score, 0) / 
+                             chapters.filter(ch => ch.score).length || 0;
+
+            scoreDistribution.innerHTML = chapters.map((ch, idx) => {
+                const score = ch.score || 0;
+                const width = (score / 10) * 100;
+                const intensity = score >= 9 ? 'high' : score >= 7 ? 'medium' : 'low';
+
+                return `
+                    <div class="bar-item">
+                        <div class="bar-label">第${ch.chapter_number}章</div>
+                        <div class="bar ${intensity}" style="width: calc(${width}% + 50px)">
+                            ${score.toFixed(1)}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            // 统计信息
+            const scores = chapters.filter(ch => ch.score).map(ch => ch.score);
+            const words = chapters.map(ch => ch.word_count || 0);
+
+            document.getElementById('max-score').textContent = 
+                scores.length > 0 ? Math.max(...scores).toFixed(1) : '-';
+            document.getElementById('min-score').textContent = 
+                scores.length > 0 ? Math.min(...scores).toFixed(1) : '-';
+            document.getElementById('avg-words').textContent = 
+                words.length > 0 ? Math.round(words.reduce((a, b) => a + b) / words.length) : '-';
+        }
+
+        function escapeHtml(text) {
+            const map = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            };
+            return String(text).replace(/[&<>"']/g, m => map[m]);
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+{
+  "e1763652327908_53042b": {
+    "from": "林渊",
+    "to": "张三",
+    "type": "盟友",
+    "description": "两人共同对抗敌人",
+    "confidence": 1.0,
+    "first_chapter": 5,
+    "last_updated_chapter": 5,
+    "visibility": "public",
+    "id": "e1763652327908_53042b",
+    "history": []
+  }
+}

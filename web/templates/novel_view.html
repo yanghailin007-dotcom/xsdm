@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>小说生成系统 - 阅读页面</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <!-- 顶部导航 -->
+    <nav class="navbar">
+        <div class="navbar-content">
+            <div class="navbar-title">📖 小说生成系统</div>
+            <div class="navbar-actions">
+                <button class="btn btn-secondary btn-small" onclick="location.href='/'">返回首页</button>
+                <button class="btn btn-primary btn-small" onclick="exportJSON()">导出 JSON</button>
+                <button class="btn btn-secondary btn-small" onclick="window.print()">打印</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 主容器 -->
+    <div class="container">
+        <div class="three-column-layout">
+            <!-- 左侧：设计信息 -->
+            <div class="left-sidebar">
+                <!-- 小说基本信息 -->
+                <div class="design-section">
+                    <div class="design-section-title">📚 小说信息</div>
+                    <div class="design-item">
+                        <div class="design-item-label">标题</div>
+                        <div class="design-item-value" id="novel-title">加载中...</div>
+                    </div>
+                    <div class="design-item">
+                        <div class="design-item-label">进度</div>
+                        <div class="design-item-value" id="novel-progress">0/50</div>
+                    </div>
+                    <div class="design-item">
+                        <div class="design-item-label">状态</div>
+                        <div class="design-item-value" id="novel-status">
+                            <span class="status-badge status-generating">生成中</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 核心设定 -->
+                <div class="design-section">
+                    <div class="design-section-title">⚙️ 核心设定</div>
+                    <div class="design-item">
+                        <div class="design-item-label">核心设定</div>
+                        <div class="design-item-value" id="core-setting">加载中...</div>
+                    </div>
+                    <div class="design-item">
+                        <div class="design-item-label">卖点</div>
+                        <div class="design-item-value" id="core-selling-points">加载中...</div>
+                    </div>
+                </div>
+
+                <!-- 章节导航 -->
+                <div class="design-section">
+                    <div class="design-section-title">📄 章节导航</div>
+                    <div class="chapters-list" id="chapters-list">
+                        <div style="text-align: center; color: #999; padding: 20px;">
+                            加载中...
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 中间：正文内容 -->
+            <div class="center-content">
+                <div class="content-header">
+                    <h2 id="chapter-title">选择章节阅读</h2>
+                    <p id="chapter-meta">点击左侧章节列表选择要查看的章节</p>
+                </div>
+                <div class="content-body" id="chapter-content">
+                    <div style="text-align: center; color: #999; padding: 40px;">
+                        <div class="spinner" style="margin: 0 auto 20px;"></div>
+                        <p>请从左侧选择章节开始阅读</p>
+                    </div>
+                </div>
+                
+                <!-- 章节导航按钮（在内容容器内） -->
+                <div class="chapter-navigation">
+                    <button class="btn btn-secondary" id="prev-chapter-btn" onclick="prevChapter()">
+                        ← 上一章
+                    </button>
+                    <div class="chapter-indicator" id="chapter-indicator">
+                        第 1 章
+                    </div>
+                    <button class="btn btn-secondary" id="next-chapter-btn" onclick="nextChapter()">
+                        下一章 →
+                    </button>
+                </div>
+            </div>
+
+            <!-- 右侧：质量评估 -->
+            <div class="right-sidebar">
+                <!-- 质量评分 -->
+                <div class="assessment-card">
+                    <div class="assessment-title">⭐ 质量评分</div>
+                    <div class="assessment-score" id="quality-score">-</div>
+                    <div class="assessment-details">
+                        <div class="detail-item">
+                            <div class="detail-label">评级</div>
+                            <div class="detail-value" id="quality-rating">-</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 优点 -->
+                <div class="assessment-card">
+                    <div class="assessment-title">✓ 优点</div>
+                    <div class="assessment-details">
+                        <ul class="pros-list" id="pros-list">
+                            <li>加载中...</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- 改进建议 -->
+                <div class="assessment-card">
+                    <div class="assessment-title">💡 改进建议</div>
+                    <div class="assessment-details">
+                        <ul class="cons-list" id="cons-list">
+                            <li>加载中...</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- 详情数据 -->
+                <div class="assessment-card">
+                    <div class="assessment-title">📊 详情数据</div>
+                    <div class="assessment-details">
+                        <div class="detail-item">
+                            <div class="detail-label">字数</div>
+                            <div class="detail-value" id="word-count">-</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">生成时间</div>
+                            <div class="detail-value" id="generated-time">-</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/novel_view.js"></script>
+</body>
+</html>

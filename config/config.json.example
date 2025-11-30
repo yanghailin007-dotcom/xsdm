@@ -1,0 +1,22 @@
+{
+  "api": {
+    "base_url": "https://ark.cn-beijing.volces.com/api/v3",
+    "model": "你的模型ID（如：ep-20241125xxxxx-xxxxx）",
+    "api_key": "你的API密钥"
+  },
+  "generation": {
+    "max_tokens": 4000,
+    "temperature": 0.8,
+    "retry_count": 3,
+    "retry_delay": 2
+  },
+  "defaults": {
+    "total_chapters": 50,
+    "words_per_chapter": 3000
+  },
+  "paths": {
+    "data_dir": "data",
+    "output_dir": "output",
+    "projects_dir": "小说项目"
+  }
+}

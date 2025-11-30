@@ -1,0 +1,37 @@
+{
+  "characters": {
+    "林渊": {
+      "first_appearance": 1,
+      "description": "",
+      "attributes": {},
+      "last_updated": 1
+    }
+  },
+  "relationships": {},
+  "locations": {},
+  "cultivation_items": {
+    "星罗盘": {
+      "owner": "星玄子",
+      "status": "光幕破碎，灵性大损，濒临报废",
+      "first_appearance": 1,
+      "last_updated": 4,
+      "update_count": 3
+    }
+  },
+  "cultivation_skills": {
+    "辟邪神雷": {
+      "owner": "林渊",
+      "level": "领悟雷法道种",
+      "first_appearance": 1,
+      "last_updated": 1,
+      "update_count": 1
+    },
+    "太初道眼": {
+      "owner": "林渊",
+      "level": "已激活",
+      "first_appearance": 1,
+      "last_updated": 1,
+      "update_count": 1
+    }
+  }
+}
