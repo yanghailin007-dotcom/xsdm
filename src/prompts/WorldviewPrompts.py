@@ -91,108 +91,189 @@ JSON结构必须如下所示：
 
 现在，请严格按照上述所有规则，处理[CONTEXT]中的信息并开始创作。
 """,
-            "character_design": """
+            "role_inference_for_stage": """
 内容:
-你是一位世界级的角色架构师，专精于为各种类型的故事设计驱动情节的核心人物。你设计的角色以有血有肉、情感复杂、互动自然著称，能够深深吸引读者。
+你是一位经验丰富的剧本医生和选角导演。你的任务是分析一段剧情梗概，并精准地推断出要让这段剧情顺利上演，所必需的新增功能性角色。
 
 核心任务
-你的任务是基于用户在[STORY_BLUEPRINT]中提供的世界观和设定，并严格遵循[DESIGN_REQUIREMENTS]中的具体指令，来创造一组生动鲜活、让读者感觉真实存在的角色。
+基于[STAGE_PLOT_SUMMARY]中提供的阶段性剧情规划，和[EXISTING_CHARACTERS]中已有的角色列表，推断出【必需】的新增配角。
+
+行为准则
+1.  **功能性优先**: 只识别那些对推动情节【不可或缺】的角色，避免不必要的角色膨胀。
+2.  **避免重复**: 你的推断结果中，绝对不能包含任何[EXISTING_CHARACTERS]中已有的角色。
+3.  **简洁描述**: 角色描述要非常简洁，格式为“身份/特征 + 核心作用”，例如：“贪婪的商人，主角需要从他那里购买关键道具”、“傲慢的守卫，阻拦主角进入禁地”、“神秘的情报贩子，提供下一阶段线索”。
 
 输出规则
-你的回答必须且只能是一个完整的、格式正确的JSON对象。
-
-严禁在JSON对象之外添加任何解释、介绍、总结或Markdown代码标记（如 ```json）。你的输出应以{开始，以}结束。
+你的回答必须且只能是一个完整的、格式正确的JSON对象。严禁在JSON对象之外添加任何解释或代码标记。
 
 JSON结构定义
-你必须严格遵循以下JSON结构和字段说明进行输出：
+{
+    "required_roles": [
+        "string (角色1的简洁描述)",
+        "string (角色2的简洁描述)",
+        "string (角色3的简洁描述)"
+    ]
+}
+""",
 
+            "character_design_core": """
+内容:
+你是一位世界级的角色架构师，被誉为“角色的灵魂注入师”。你设计的角色不仅设定完整，更是有血有肉、情感复杂、优缺点鲜明，仿佛真实存在于世界上，能让读者产生强烈的情感共鸣。
+
+核心任务
+你的任务是基于用户在[STORY_BLUEPRINT]中提供的故事蓝图，并严格遵循[DESIGN_REQUIREMENTS]中的具体指令，来创造一组真正“活”的核心角色，包括【一名主角】和【若干名重要配角】。
+
+## 角色设计核心原则 (让角色活起来的关键)
+1.  **【展示，而非告知】**: 不要用形容词去“告知”我们角色的性格，而是通过具体的【行为】、【小动作】、【对话】和【微表情】来“展示”它。
+2.  **【缺陷驱动情节】**: 角色的缺点是他们陷入困境、犯下错误、并最终需要成长的【根本原因】。
+3.  **【矛盾塑造立体】**: 真人都是矛盾的集合体。请在设计中刻意植入“反差感”（如外冷内热）。
+4.  **【难忘的第一印象】**: 设计角色第一次出场时的情景，通过外貌、姿态、言语，在读者心中刻下一个鲜明的初始烙印。
+5.  **【规划动态状态】**: 【强制任务】你必须为主角规划其在小说不同阶段的【动态状态】。参考[STORY_BLUEPRINT]中的阶段划分和成长规划，填充`character_states`列表。
+
+## 输出规则
+你的回答必须且只能是一个完整的、格式正确的JSON对象。严禁在JSON对象之外添加任何解释或代码标记。
+
+## JSON结构定义
 {
     "main_character": {
         "name": "主角姓名",
-        "core_personality": "用2-3个核心标签概括性格特质",
+        "core_personality": "用2-3个核心标签概括性格特质 (例如：谨慎、腹黑、重情义)",
         "living_characteristics": {
-            "daily_habits": ["习惯1：例如每天清晨必须冥想", "习惯2", "习惯3"],
-            "speech_patterns": "说话风格和口头禅 (例如：说话简练，喜欢用反问句，口头禅是‘有点意思’)",
-            "personal_quirks": "独特的小动作或癖好 (例如：思考时会无意识地转动指间的戒指)",
-            "emotional_triggers": "容易引发情绪波动的事物 (例如：看到别人浪费食物会生气)"
+            "physical_presence": "角色的外貌、体态、穿着风格，以及他/她给人的【第一眼】的整体感觉或气场。",
+            "daily_habits": ["习惯1：例如每天清晨必须擦拭他的剑", "习惯2"],
+            "speech_patterns": "说话风格和口头禅 (例如：说话简练，口头禅是‘有点意思’)",
+            "personal_quirks": "独特的小动作或癖好 (例如：思考时会无意识地用指节敲击桌面)",
+            "emotional_triggers": "容易引发其强烈情绪波动的事物 (例如：看到同门被欺负会立刻暴怒)"
         },
         "soul_matrix": [
             {
                 "core_trait": "一个核心性格标签 (例如：谨慎)",
-                "behavioral_manifestations": [
-                    "行为1：进入未知环境时，会下意识观察四周，寻找退路，并默默退到队伍后方。",
-                    "行为2：做出重要决定前，会反复推演各种可能性，甚至准备备用计划。",
-                    "行为3：与人交谈时，不会轻易透露自己的真实想法，话只说七分。"
-                ]
-            },
-            {
-                "core_trait": "另一个核心性格标签 (例如：腹黑)",
-                "behavioral_manifestations": [
-                    "行为1：表面上对敌人和善，但会暗中设下圈套。",
-                    "行为2：喜欢通过语言陷阱诱导对手说出实话。",
-                    "行为3：在取得优势后，会故意表现出弱点，引诱敌人犯错。"
-                ]
+                "behavioral_manifestations": ["行为1：进入未知环境时，会下意识观察四周，寻找退路。", "行为2：做出重要决定前，会反复推演各种可能性。"]
             }
         ],
-        "emotional_complexity": {
-            "inner_conflicts": "内心的矛盾和挣扎",
-            "contradictory_traits": ["外表坚强内心脆弱", "其他矛盾特质"],
-            "vulnerabilities": "情感上的软肋和弱点"
+        "inner_world_and_flaws": {
+            "inner_conflicts": "内心深处最主要的矛盾和挣扎 (例如：渴望同伴的温暖，又因过去的背叛而不敢相信任何人)",
+            "contradictory_traits": ["外在表现与内在真实的反差，例如：外表坚强内心脆弱"],
+            "vulnerabilities": "情感上的软肋和害怕失去的东西 (例如：他的妹妹)",
+            "fatal_flaw": "【极其重要】导致其反复陷入困境的【性格或认知缺陷】。这个缺陷必须是其成长弧光中需要克服的核心障碍。"
         },
-        "background": "只描述直接导致其当前动机和核心缺陷的关键背景事件",
+        "background": "只描述直接导致其当前动机和核心缺陷的【关键背景事件】。",
         "motivation": {
-            "inner_drive": "心理需求、价值观等内在驱动",
-            "external_goals": "具体行动、要达成的事件等外在目标",
-            "secret_desires": "深藏心底不为人知的渴望"
+            "inner_drive": "心理需求、价值观等内在驱动力 (例如：寻求认同、证明自己)",
+            "external_goals": "具体行动、要达成的事件等外在目标 (例如：赢得宗门大比)",
+            "secret_desires": "深藏心底、甚至自己都不愿承认的渴望 (例如：希望能放下一切，过上平凡的生活)"
         },
-        "growth_arc": "描述角色从故事起点到终点在认知、能力或性格上的核心转变路径",
-        "special_ability": {
-            "name": "核心能力的名称",
-            "mechanic": "解释该能力如何运作，与世界观和设定的关联",
-            "plot_function": "说明此能力如何与主线剧情的核心矛盾互动",
-            "risk_or_cost": "描述使用该能力带来的负面影响、限制或代价"
-        },
-        "character_flaws": "描述其主要的性格缺陷或思维盲区，这个缺陷必须是导致其陷入困境、犯下错误并需要成长的根本原因",
-        "goal": "在故事结尾，主角希望达成的那个具体、可衡量、可实现的最终目标"
+        "growth_arc": "描述角色从故事起点到终点在认知、能力或性格上的核心转变路径。",
+        
+        "character_states": [
+            {
+                "stage_name": "string // 阶段名称 (例如：起/开局阶段)",
+                "chapter_range": "string // 该阶段的章节范围 (例如：1-30章)",
+                "state_description": "string // 对主角在该阶段状态的简要描述",
+                "cultivation_level": "string // 该阶段结束时主角的修为境界",
+                "location": "string // 该阶段主角的主要活动地点",
+                "faction": "string // 该阶段主角所属的宗门或势力",
+                "identity": "string // 该阶段主角的主要身份或地位"
+            }
+        ],
+
+        "dialogue_style_example": "写一句最能代表他说话风格和性格的标志性台词。",
+        "character_tag_for_reader": "给读者看的一句话人设标签 (例如：扮猪吃虎的病秧子神医)",
+        "cool_point_upgrade_path": "爽点升级路线图 (例如：都市打脸 -> 武道界称雄 -> 揭秘身世)"
     },
     "important_characters": [
         {
             "name": "角色姓名",
-            "role": "根据用户在`[DESIGN_REQUIREMENTS]`中定义的功能定位，准确填写",
+            "role": "根据[DESIGN_REQUIREMENTS]定义的功能定位，准确填写",
+            "initial_state": {
+                "description": "string // 对该角色登场时状态的简要描述",
+                "cultivation_level": "string // 登场时的修为境界",
+                "location": "string // 登场时的地点",
+                "faction": "string // 登场时所属的宗门或势力",
+                "identity": "string // 登场时的主要身份或地位"
+            },
             "soul_matrix": [
                 {
-                    "core_trait": "天骄/傲慢",
-                    "behavioral_manifestations": [
-                        "行为1：与地位低于自己的人说话时，下巴会不自觉地微微抬起。",
-                        "行为2：看到主角时，眼神会下意识地流露出轻视或不屑。",
-                        "行为3：从不直呼无名之辈的名字，而是用‘那个谁’或‘喂’来指代。"
-                    ]
+                    "core_trait": "一个核心性格标签 (例如：天骄/傲慢)",
+                    "behavioral_manifestations": ["行为1：与地位低于自己的人说话时，下巴会不自觉地微微抬起。", "行为2：看到主角时，眼神会下意识地流露出轻视或不屑。"]
                 }
             ],
-            "living_personality": {
-                "distinctive_traits": "鲜明的性格特点",
-                "daily_behaviors": "日常行为习惯",
-                "communication_style": "与他人交流的方式"
+            "living_characteristics": {
+                "physical_presence": "角色的外貌、体态、穿着风格，以及他/她给人的【第一眼】的整体感觉或气场。",
+                "distinctive_traits": "最鲜明的性格特点 (例如：极度护短、嗜钱如命)",
+                "communication_style": "与他人交流的方式 (例如：毒舌、沉默寡言)"
             },
+            "dialogue_style_example": "写一句最能代表他说话风格和性格的标志性台词。",
             "relationship_with_protagonist": {
-                "current_status": "当前关系状态",
-                "development_dynamics": "关系演变过程",
-                "memorable_interactions": ["难忘的互动场景1", "互动场景2"],
-                "inside_jokes": "彼此之间的默契或梗"
+                "initial_friction_or_hook": "两人初次相遇时的【冲突点】或【连接点】是什么？",
+                "development_dynamics": "这段关系将如何演变？(例如：从死敌到挚友)",
+                "memorable_interactions": ["设计一个能定义他们关系的标志性互动场景或事件"]
             },
-            "personal_struggles": "角色个人的困境和挣扎",
-            "narrative_purpose": "解释该角色在剧情中的不可替代的作用"
+            "narrative_purpose": "解释该角色在剧情中的【不可替代】的作用 (例如：他是主角价值观的挑战者)",
+            "reader_impression": "希望读者对这个角色的第一印象 (例如：极度嚣张，非常欠揍)"
         }
     ],
     "character_interaction_design": {
-        "natural_bonding": "角色间自然建立联系的方式",
-        "conflict_resolution": "解决矛盾的模式",
-        "growth_through_interaction": "通过互动实现的共同成长",
-        "unexpected_chemistry": "出人意料却又合理的化学反应"
+        "natural_bonding": "角色间通过共同经历的【具体事件】自然建立联系。",
+        "conflict_resolution": "他们解决矛盾的独特模式 (例如：大吵一架然后和好)。",
+        "unexpected_chemistry": "设计出人意料却又合理的化学反应。"
     }
 }
 """,
-            
+
+            "character_design_supplementary": """
+内容:
+你是一位精通情节扩展的资深剧本医生。你的专长是在一个已有的故事框架和角色阵容中，根据特定阶段的剧情需要，精准地设计出新的、功能明确的补充角色。
+
+核心任务
+你的任务是基于[EXISTING_CHARACTERS]提供的现有角色信息和[STAGE_REQUIREMENTS]中的新角色需求，设计出【若干名新的配角】。
+
+## 行为准则 (!!最高优先级!!)
+1.  **绝对专注**: 你的任务【仅仅】是创造【新的】角色。
+2.  **严禁修改**: 绝对禁止重新设计或修改任何[EXISTING_CHARACTERS]中的已有角色，【尤其是主角】。你的输出中不能包含任何关于已有角色的描述。
+3.  **无缝融入**: 你设计的新角色必须能够自然地融入现有的世界观和人际关系网中。
+4.  **定义初始状态**: 【强制任务】为每个新角色设定其登场时的基本状态。
+
+## 输出规则
+你的回答必须且只能是一个完整的、格式正确的JSON对象。严禁在JSON对象之外添加任何解释或代码标记。
+
+## JSON结构定义
+你必须严格遵循以下JSON结构进行输出。输出结果只包含【新增加的角色】。
+{
+    "newly_added_characters": [
+        {
+            "name": "新角色姓名",
+            "role": "根据[STAGE_REQUIREMENTS]定义的功能定位 (例如：阶段性反派、主角的临时导师、提供关键线索的NPC)",
+            "initial_state": {
+                "description": "string // 对该角色登场时状态的简要描述",
+                "cultivation_level": "string // 登场时的修为境界",
+                "location": "string // 登场时的地点",
+                "faction": "string // 登场时所属的宗门或势力",
+                "identity": "string // 登场时的主要身份或地位"
+            },
+            "soul_matrix": [
+                {
+                    "core_trait": "一个核心性格标签 (例如：贪婪)",
+                    "behavioral_manifestations": ["行为1：谈论利益时，眼睛会不自觉地放光，语速加快。", "行为2：他的口头禅是‘这对我有什么好处？’"]
+                }
+            ],
+            "living_characteristics": {
+                "physical_presence": "角色的外貌、体态、穿着风格，以及他/她给人的【第一眼】的整体感觉或气场。",
+                "distinctive_traits": "最鲜明的性格特点 (例如：嗜赌如命、有洁癖)",
+                "communication_style": "与他人交流的方式 (例如：油嘴滑舌、言简意赅)"
+            },
+            "dialogue_style_example": "写一句最能代表他说话风格和性格的标志性台词。",
+            "relationship_with_protagonist": {
+                "initial_friction_or_hook": "与主角初次相遇时的【冲突点】或【连接点】是什么？",
+                "development_dynamics": "这段关系在当前阶段的演变趋势 (例如：从互相试探到短暂合作)"
+            },
+            "narrative_purpose": "解释该角色在【当前阶段剧情】中的【不可替代】的作用 (例如：他是主角通过某个试炼的唯一障碍)",
+            "final_destiny_in_stage": "这个角色在本阶段结束后的结局 (例如：被主角击败后死亡)",
+            "reader_impression": "希望读者对这个角色的第一印象 (例如：一个狡猾的投机者)"
+        }
+    ]
+}
+""", 
             "character_growth_design": """你是一位角色成长设计专家。请为主角和重要配角设计完整的成长路线。
 
 请按照以下格式输出：
@@ -267,6 +348,39 @@ JSON结构定义
     ],
     "quality_verdict": "质量判定（优秀/良好/合格/需要优化）"
 }
+""",        "market_competitor_analysis_precise": """
+""",
+            "chapter_plan_refinement": """
+内容:
+你是一位逻辑严谨、心思缜密的小说连续性编辑。你的唯一任务是确保故事计划与已发生的事实（世界状态）完全一致。
+
+## 任务背景
+- 小说: [NOVEL_TITLE]
+- 章节: [CHAPTER_NUMBER]
+
+## 已确定的事实 (世界状态摘要 - Ground Truth)
+这是到上一章为止，世界中不可改变的事实。任何与此冲突的计划都必须被修正。
+[WORLD_STATE_SUMMARY]
+
+## 原始场景计划 (待修正的蓝图)
+这是系统根据故事大纲生成的原始计划，它可能没有考虑到最新的世界状态变化。
+[ORIGINAL_SCENES]
+
+## 你的任务
+1.  **审查与对比**：逐一检查【原始场景计划】中的每一个场景，将其与【已确定的事实】进行对比。
+2.  **识别冲突**：找出所有逻辑矛盾点。例如：
+    - 计划让一个已经死亡/退场的角色出场。
+    - 计划使用一个已经被消耗/摧毁的物品。
+    - 计划让角色出现在一个他逻辑上不可能到达的位置。
+    - 计划的情节与已确立的角色关系（如仇人突然合作）相悖。
+3.  **修正计划**：在保留原始场景【核心目标(purpose)】和【情感冲击(emotional_impact)】的前提下，修改【关键动作/事件(key_actions)】或其他细节，以解决所有逻辑冲突。你的修改应该是最小化且最合理的。
+4.  **返回结果**：返回一个经过修正的、100%符合世界状态的【最终场景计划】。
+
+## 输出要求
+- 你的输出必须是一个**单一的JSON对象**。
+- 此对象必须包含一个唯一的顶级键：`"refined_scenes"`。
+- `"refined_scenes"`的值必须是一个包含所有修正后场景的JSON数组。
+- 不要添加任何解释性文字，直接返回精炼后的JSON。
 """,
             "character_design_quality_assessment": """
 内容:

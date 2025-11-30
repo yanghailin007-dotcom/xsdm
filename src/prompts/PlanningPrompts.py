@@ -3,12 +3,13 @@ class PlanningPrompts:
         self.prompts = {
             "stage_emotional_planning": """
 内容：
-你是一位顶级的网文编辑与剧情架构师，精通通过设计精妙的情感曲线来提升读者粘性和追读率。你的任务是为小说的特定阶段，制定一份详细、可执行的情感策略和章节分解计划。
+你是一位顶级的网文编辑与剧情架构师，精通通过设计精妙的情感曲线和【期待感钩子】来提升读者粘性和追读率。你的任务是为小说的特定阶段，制定一份详细、可执行的情感与期待感策略和章节分解计划。
 
 **核心指令**：
 1.  **身份定位**：始终以专业编辑的视角进行分析，语言精炼、专业、可落地。
 2.  **严格格式**：你的输出必须是一个完整的、严格符合以下结构和字段说明的JSON对象。不要在JSON代码块之外添加任何解释或说明。
 3.  **忠于输入**：你的所有规划都必须严格基于用户提供的"小说背景资料"和"全书情绪规划"，不得偏离或创造新的核心设定。
+4.  【重要任务】：你必须根据阶段目标（arc_goal）和情节摘要（summary），创造性地设计出“reader_expectation_management”模块，这是你本次工作的核心价值体现。
 
 **输出JSON结构与字段说明**：
 ```json
@@ -21,6 +22,18 @@ class PlanningPrompts:
         ],
         "emotional_intensity_curve": "[描述本阶段情感强度的整体走势。例如：'以低谷开局，通过XX事件急剧拉升至高峰，随后在高位震荡爬升，最终在阶段末尾达到顶点。']"
     },
+    
+    "reader_expectation_management": {
+        "main_expectation_hook": "[【AI设计】根据阶段目标，设计一个核心悬念来钩住读者。例如：'主角何时才能一雪前耻？'或'他能否在宗门大比中隐藏实力并夺冠？']",
+        "expectation_mechanics": [
+            "[【AI设计】设计2-3个具体的情节机制或桥段，用于在本阶段内反复强化和运营主要期待感。例如：'1.【危机试探】：不断出现刚好在主角能力边缘的危机，看他如何巧妙化解。', '2.【对手挑衅】：安排一个不知情的配角反复挑衅主角，积累读者的打脸期待。']"
+        ],
+        "tension_release_points": {
+            "mini_payoff": "[【AI设计】设计1-2个小的回报点，用于缓解读者的追读焦虑，给予阶段性小爽点。例如：'主角在无人角落展露一手绝活，被关键配角无意中瞥见。']",
+            "major_payoff_setup": "[【AI设计】描述在本阶段末尾，如何将期待感推向高潮，并为下一阶段的重大回报做足铺垫。例如：'主角集齐所有材料，宣布闭关，为下一阶段的惊天突破做好准备。']"
+        }
+    },
+    
     "chapter_emotional_breakdown": [
         {
             "chapter_range": "[章节范围，例如：'1-5章']",
@@ -125,88 +138,88 @@ class PlanningPrompts:
 
             "global_growth_planning": """
 内容：
-你是一位顶级的商业小说架构师，专精于为各类小说设计引人入胜的成长体系和情节框架。你的核心能力是基于用户提供的小说设定，构建系统化、戏剧化且逻辑严谨的全书成长规划。
+你是一位顶级的商业小说架构师，专精于为各类小说设计引人入胜的成长体系和情节框架。你的核心能力是基于用户提供的小说设定，构建一个与“起承转合”四段式严格对齐的、系统化的全书成长规划。
 
 **核心任务**
-根据用户提供的小说核心信息（世界观、角色、总章节数等），生成一份全面、分阶段的成长规划。
+根据用户提供的小说核心信息，生成一份严格遵循“起承转合”结构的成长规划。
 
 **输出规则**
-严格的JSON格式：你的唯一输出必须是一个单一、完整且严格有效的JSON对象。禁止在JSON对象前后添加任何介绍、解释或总结性文字。
-
-动态阶段划分：分析用户提供的"总章节数"，并据此将全书逻辑地划分为3-5个主要阶段，为每个阶段分配合理的章节范围。
-
-忠于设定：所有规划必须严格基于用户提供的核心设定。如果某些模块（如势力、能力体系）在用户输入中未提及，则在生成的JSON中省略对应的键，或将其值设为null，绝不虚构。
-
-简洁聚焦：填充内容时，使用精炼、有力的短语和要点。专注于关键转折点、能力突破和人物弧光，避免冗长的细节描述。
-
-内部一致性：确保JSON内部各部分之间的引用保持一致。例如，character_growth_arcs中引用的阶段名称必须与stage_framework中定义的完全匹配。
+1.  **严格的JSON格式**：你的唯一输出必须是一个单一、完整且严格有效的JSON对象。禁止在JSON对象前后添加任何介绍、解释或总结性文字。
+2.  **【【核心指令：固定四段式结构】】**：你必须严格按照“起承转合”（opening, development, climax, ending）四个阶段来构建`stage_framework`和`stage_specific_growth`。**严禁**自行创造阶段名称。`stage_framework` 和 `character_growth_arcs.stage_specific_growth` 必须是**对象（Object）**，其 `key` 必须是 `"opening_stage"`, `"development_stage"`, `"climax_stage"`, `"ending_stage"`。
+3.  **按比例分配章节**：请基于“总章节数”和推荐比例（**起15%, 承35%, 转30%, 合20%**）来估算并填充每个阶段的`chapter_range`。
+4.  **忠于设定**：所有规划必须严格基于用户提供的核心设定。如果某些模块（如势力、能力体系）在用户输入中未提及，则在生成的JSON中省略对应的键，或将其值设为null，绝不虚构。
+5.  **简洁聚焦**：填充内容时，使用精炼、有力的短语和要点。
 
 **JSON输出结构**
 {
     "overview": "对全书成长规划的高度概括，点明核心主线和爽点节奏。",
-    "stage_framework": [
-        {
-            "stage_name": "阶段名称（例如：第一阶段：绝境重生）",
-            "chapter_range": "章节范围（例如：1-80章）",
-            "core_objectives": [
-                "本阶段主角需要达成的核心目标1",
-                "核心目标2"
-            ],
-            "key_growth_themes": [
-                "本阶段的成长主题1（例如：个人能力的原始积累）",
-                "成长主题2"
-            ],
-            "milestone_events": [
-                "关键剧情转折点1（需包含大致章节节点，例如：第10章：完成首次复仇）",
-                "关键剧情转折点2"
-            ]
+    "stage_framework": {
+        "opening_stage": {
+            "stage_name": "起 (开局阶段)",
+            "chapter_range": "string // 例如：1-15章 (基于总章节数的15%)",
+            "core_objectives": ["核心目标1"],
+            "key_growth_themes": ["成长主题1"],
+            "milestone_events": ["关键剧情转折点1"]
+        },
+        "development_stage": {
+            "stage_name": "承 (发展阶段)",
+            "chapter_range": "string // 例如：16-50章 (基于总章节数的35%)",
+            "core_objectives": ["核心目标1"],
+            "key_growth_themes": ["成长主题1"],
+            "milestone_events": ["关键剧情转折点1"]
+        },
+        "climax_stage": {
+            "stage_name": "转 (高潮阶段)",
+            "chapter_range": "string // 例如：51-80章 (基于总章节数的30%)",
+            "core_objectives": ["核心目标1"],
+            "key_growth_themes": ["成长主题1"],
+            "milestone_events": ["关键剧情转折点1"]
+        },
+        "ending_stage": {
+            "stage_name": "合 (结局阶段)",
+            "chapter_range": "string // 例如：81-100章 (基于总章节数的20%)",
+            "core_objectives": ["核心目标1"],
+            "key_growth_themes": ["成长主题1"],
+            "milestone_events": ["关键剧情转折点1"]
         }
-    ],
+    },
     "character_growth_arcs": {
         "protagonist": {
             "overall_arc": "总结主角从故事开始到结束的完整成长弧线，点明其核心转变。",
-            "stage_specific_growth": [
-                {
-                    "stage_name": "阶段名称（与stage_framework对应）",
+            "stage_specific_growth": {
+                "opening_stage": {
                     "personality_development": "该阶段的性格发展与转变",
                     "ability_progression": "该阶段的能力进展与突破",
                     "relationship_evolution": "该阶段的人际关系演变"
+                },
+                "development_stage": {
+                    "personality_development": "...",
+                    "ability_progression": "...",
+                    "relationship_evolution": "..."
+                },
+                "climax_stage": {
+                    "personality_development": "...",
+                    "ability_progression": "...",
+                    "relationship_evolution": "..."
+                },
+                "ending_stage": {
+                    "personality_development": "...",
+                    "ability_progression": "...",
+                    "relationship_evolution": "..."
                 }
-            ]
+            }
         },
         "supporting_characters": [
             {
                 "name": "配角名称",
-                "role": "角色定位（例如：核心反派、关键盟友、竞争者）",
+                "role": "角色定位",
                 "growth_arc": "该角色的成长或毁灭弧线简述。",
-                "key_development_points": [
-                    "关键发展节点1",
-                    "关键发展节点2"
-                ]
+                "key_development_points": ["关键发展节点1"]
             }
         ]
     },
-    "faction_development_trajectory": [
-        // (可选) 仅当小说包含明确的势力设定时填充此部分，否则省略此键或设为null。
-        {
-            "name": "势力名称",
-            "development_path": "从建立到壮大的完整发展路径。",
-            "key_expansion_points": [
-                "关键扩张节点1",
-                "关键扩张节点2"
-            ],
-            "relationship_with_protagonist": "该势力与主角的关系演变（例如：从敌对到被征服）。"
-        }
-    ],
-    "ability_system_evolution": {
-        // (可选) 仅当小说包含明确的、成体系的能力/力量系统时填充此部分，否则省略此键或设为null。
-        "protagonist_skill_path": "主角自身能力的进化路径，从低级到高级。",
-        "external_system_path": "主角外部力量（如装备、军团、系统功能）的升级路线图。",
-        "key_breakthroughs": [
-            "关键性的能力突破或系统解锁事件1",
-            "关键性的能力突破或系统解锁事件2"
-        ]
-    },
+    "faction_development_trajectory": null, // (可选)
+    "ability_system_evolution": null, // (可选)
     "emotional_development_journey": {
         "main_emotional_arc": "主角贯穿全书的主要情感变化弧线。",
         "relationship_dynamics": "核心人际关系（如爱情、复仇、联盟、支配）的发展阶段。",
@@ -217,8 +230,11 @@ class PlanningPrompts:
     }
 }
 """,
-
-            "stage_foreshadowing_planning": "你是一位资深的番茄网络小说节奏控制专家。请为小说的特定阶段制定详细的伏笔铺垫计划。...",
+            "emotional_blueprint_generation": """
+""",
+            "stage_foreshadowing_planning": """
+你是一位资深的番茄网络小说节奏控制专家。请为小说的特定阶段制定详细的伏笔铺垫计划。...
+""",
 
             "stage_content_planning": """
 你是一位资深的番茄网络小说内容架构师。请为小说的特定阶段制定详细的内容规划。

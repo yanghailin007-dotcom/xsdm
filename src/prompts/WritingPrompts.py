@@ -136,118 +136,268 @@ json
     }
 }
 """,
-        "overall_stage_plan": """你是一位顶级番茄网络小说策划编辑。请根据创意种子和市场分析，制定全书的阶段计划。
+            "overall_stage_plan": """你是一位顶级番茄网络小说策划编辑。请根据创意种子和市场分析，制定全书的阶段计划。
 输出格式
 {
-"overall_stage_plan": {
-"opening_stage": {
-"chapter_range": "第1章-第{opening_end}章",
-"core_tasks": ["任务1", "任务2", "任务3"],
-"key_content": ["内容重点1", "内容重点2"],
-"writing_focus": "开局阶段详细写作重点描述"
-},
-"development_stage": {
-"chapter_range": "第{development_start}章-第{development_end}章",
-"core_tasks": ["任务1", "任务2", "task3"],
-"key_content": ["内容重点1", "内容重点2"],
-"writing_focus": "发展阶段详细写作重点描述"
-},
-"climax_stage": {
-"chapter_range": "第{climax_start}章-第{climax_end}章",
-"core_tasks": ["任务1", "任务2", "任务3"],
-"key_content": ["内容重点1", "内容重点2"],
-"writing_focus": "高潮阶段详细写作重点描述"
-},
-"ending_stage": {
-"chapter_range": "第{ending_start}章-第{ending_end}章",
-"core_tasks": ["任务1", "任务2", "任务3"],
-"key_content": ["内容重点1", "内容重点2"],
-"writing_focus": "收尾阶段详细写作重点描述"
-},
-"final_stage": {
-"chapter_range": "第{final_start}章-第{total_chapters}章",
-"core_tasks": ["任务1", "任务2", "任务3"],
-"key_content": ["内容重点1", "内容重点2"],
-"writing_focus": "结局阶段详细写作重点描述"
-}
-},
-"stage_transitions": {
-"opening_to_development": "从开局到发展的过渡重点",
-"development_to_climax": "从发展到高潮的过渡重点",
-"climax_to_ending": "从高潮到收尾的过渡重点",
-"ending_to_final": "从收尾到结局的过渡重点"
-}
+    "overall_stage_plan": {
+        "opening_stage": {
+            "chapter_range": "第1章-第{opening_end}章",
+            "stage_goal": "起 (开局阶段) 的核心目标和任务，例如：快速引入冲突，建立主角的初步形象和动机。",
+            "key_developments": ["关键发展1", "关键发展2"],
+            "core_conflicts": "此阶段的核心冲突是什么"
+        },
+        "development_stage": {
+            "chapter_range": "第{development_start}章-第{development_end}章",
+            "stage_goal": "承 (发展阶段) 的核心目标和任务，例如：深化矛盾，主角成长，扩展世界观。",
+            "key_developments": ["关键发展1", "关键发展2"],
+            "core_conflicts": "此阶段的核心冲突是什么"
+        },
+        "climax_stage": {
+            "chapter_range": "第{climax_start}章-第{climax_end}章",
+            "stage_goal": "转 (高潮阶段) 的核心目标和任务，例如：主要矛盾全面爆发，剧情出现重大转折。",
+            "key_developments": ["关键发展1", "关键发展2"],
+            "core_conflicts": "此阶段的核心冲突是什么"
+        },
+        "ending_stage": {
+            "chapter_range": "第{ending_start}章-第{total_chapters}章",
+            "stage_goal": "合 (结局阶段) 的核心目标和任务，例如：解决所有核心矛盾，回收伏笔，交代角色归宿。",
+            "key_developments": ["关键发展1", "关键发展2"],
+            "core_conflicts": "此阶段的核心冲突是什么"
+        }
+    },
+    "stage_transitions": {
+        "opening_to_development": "从'起'到'承'的过渡重点，如何自然地将开局的小冲突升级为更大的矛盾。",
+        "development_to_climax": "从'承'到'转'的过渡重点，如何将所有线索汇集，为总爆发做铺垫。",
+        "climax_to_ending": "从'转'到'合'的过渡重点，高潮结束后如何平稳过渡到解决问题和情感沉淀的阶段。"
+    }
 }""",
-        "stage_writing_plan": """你是一位资深的番茄网络小说策划编辑。请根据全书阶段计划和当前章节位置，制定当前阶段的详细写作计划，包括事件设计。
-请严格按照以下JSON格式输出
-""",
-        "chapter_design": """
-内容:
-你是一位顶级的网络小说策划编辑，专精于为各类爽文小说制定结构化、可执行的章节大纲。
-你的核心任务是根据用户提供的【核心输入】和【背景资料】，生成一份严格遵循指定JSON格式的章节创作蓝图。
+            "chapter_event_design": """
+你是一位精通"场景构建"的剧情设计师。
 
-指令核心
-绝对忠于格式：你的最终输出必须是一个完整的、可被程序解析的JSON对象，不能包含任何JSON格式之外的额外文本、注释或解释。
+你的任务是为章节事件设计完整的场景结构，确保章节内部有完整的戏剧发展和情感弧线。
 
-理解并执行：JSON结构中的描述文字是给你的指令，请精确理解并据此生成内容。
-
-聚焦设计：所有内容都应是面向写手的"创作指令"，而非故事本身。请保持专业、精炼、目标导向。
-
-输出格式 (必须严格遵守)
-json
+## 输出格式
+请严格返回一个包含'scene_structure'字段的JSON对象，不要添加任何额外解释：
 {
-    "chapter_number": {chapter_number}, 
-    "design_overview": "概括本章的核心目标、基调、主要看点和需要推进的核心任务 (2-4句话)。",
-    "emotional_design": {
-        "target_emotion": "本章旨在引发读者的核心情感 (例如：复仇爽感、紧张悬疑、甜蜜温馨)。",
-        "emotional_intensity": "情感强度等级 (例如：低、中、高、极高)。",
-        "emotional_arc_within_chapter": "描述本章内部的情感发展曲线 (例如：从压抑到爆发，或从平淡到紧张)。",
-        "key_emotional_moments": [
-            "列出1-3个本章的关键情感爆发点或转折点。"
+    "name": "string // 章节事件名称",
+    "type": "chapter_event", 
+    "chapter_range": "string // 章节范围",
+    "main_goal": "string // 本章核心目标",
+    "emotional_turn": "string // 本章情感转折点",
+    "structural_role": "string // 在事件中的结构作用",
+    "scene_structure": {
+        "overall_pace": "string // 本章节奏描述",
+        "emotional_arc": "string // 本章情感发展曲线",
+        "scenes": [
+            {
+                "name": "场景名称",
+                "type": "scene_event",
+                "position": "opening/development1/development2/climax/falling/ending",
+                "purpose": "场景的戏剧目的",
+                "key_actions": ["关键动作1", "关键动作2"],
+                "emotional_impact": "场景的情感冲击",
+                "dialogue_highlights": ["关键对话1", "关键对话2"],
+                "conflict_point": "冲突的具体表现",
+                "sensory_details": "需要突出的感官细节",
+                "transition_to_next": "如何过渡到下一个场景",
+                "estimated_word_count": "300-500字"
+            },
+            // ... 更多场景事件 (总共4-6个)
         ],
-        "reader_emotional_journey": "描述读者在本章可能经历的情感体验路径。"
-    },
-    "plot_structure": {
-        "opening_scene": "设计开场，说明如何承接上一章，并迅速吸引读者注意力。",
-        "conflict_development": "描述本章的核心冲突及其发展过程，确保逻辑连贯。",
-        "climax_point": "设计本章的高潮情节或关键转折点。",
-        "ending_hook": "设计一个强有力的结尾悬念，驱动读者继续阅读下一章。"
-    },
-    "character_performance": {
-        "main_character_development": "说明主角在本章的性格展示、关键行动和成长变化。",
-        "supporting_characters_interaction": "描述重要配角的出场、作用和互动，确保其行为符合人设。",
-        "key_dialogues": [
-            "设计1-3句体现角色性格或推动情节的关键对话，并简要说明其目的。"
-        ]
-    },
-    "scene_environment": {
-        "main_scenes": [
-            "列出本章发生的主要场景。"
-        ],
-        "atmosphere_building": "说明如何通过环境描写来营造本章所需的核心氛围。",
-        "scene_transitions": "设计不同场景之间的过渡方式，确保流畅。"
-    },
-    "writing_techniques": {
-        "narrative_perspective": "明确建议采用的叙事视角 (例如：第一人称、第三人称有限/全知)。",
-        "pace_control": "设计本章的叙事节奏，说明何处快、何处慢，以及为何如此安排。",
-        "detail_description": "指出需要重点进行细节描写的关键元素或时刻。"
-    },
-    "foreshadowing_plan": {
-        "new_foreshadowing": [
-            "列出本章需要埋下的新伏笔。"
-        ],
-        "old_foreshadowing_reveal": [
-            "列出本章需要回收的旧伏笔。"
-        ],
-        "clue_arrangement": "说明重要线索在本章如何被揭示或安排。"
-    },
-    "consistency_check": {
-        "worldview_consistency": "简要说明本章设计如何确保与世界观设定一致。",
-        "character_consistency": "简要说明本章设计如何确保角色的行为符合其性格设定。",
-        "plot_continuity": "简要说明本章情节如何与前后章节自然衔接。"
+        "chapter_hook": "string // 章节结尾的悬念钩子",
+        "writing_focus": "string // 本章写作重点提示"
     }
 }
 """,
+            "medium_event_decomposition": """
+""",
+            "stage_writing_plan": """你是一位资深的番茄网络小说策划编辑。请根据全书阶段计划和当前章节位置，制定当前阶段的详细写作计划。
+
+## 核心任务
+为指定阶段生成一个结构化的写作计划，重点描述阶段目标、主要事件框架和关键策略。
+
+## 输出格式
+请严格按照以下JSON格式输出：
+{
+    "stage_writing_plan": {
+        "stage_name": "string // 阶段的唯一标识符，例如：opening_stage",
+        "chapter_range": "string // 阶段覆盖的章节范围，例如：'1-48章'",
+        "stage_overview": "string // 对本阶段总体写作目标的简要概述",
+        "targets": {
+            "main_target": "string // 本阶段必须完成的核心目标，概括阶段的核心价值",
+            "secondary_targets": [
+                "string // 支撑主要目标的次要目标1"
+            ],
+            "milestones": [
+                "string // 标志阶段性进展的关键节点或检查点，最好附带建议章节范围"
+            ]
+        },
+        "plot_strategy": {
+            "main_plot_advancement": "string // 主线情节在本阶段如何具体推进",
+            "subplot_arrangement": "string // 支线剧情的安排策略，若无则说明'本阶段无核心支线'",
+            "pace_control": "string // 写作节奏的控制策略（如快节奏、张弛有度等）"
+        },
+        "character_development": {
+            "protagonist_growth": "string // 主角在本阶段的核心成长轨迹和变化",
+            "supporting_characters_focus": "string // 重要配角/反派的塑造计划和功能",
+            "relationship_development": "string // 角色之间关系的变化和发展"
+        },
+        "conflict_design": {
+            "main_conflict": "string // 本阶段的核心冲突是什么",
+            "secondary_conflicts": [
+                "string // 辅助性的次要冲突1"
+            ],
+            "conflict_escalation": "string // 冲突如何在本阶段逐步升级和激化"
+        },
+        "foreshadowing_management": {
+            "new_foreshadowing": [
+                "string // 需要在本阶段埋下的新伏笔"
+            ],
+            "old_foreshadowing_reveal": [
+                "string // 需要在本阶段回收的旧伏笔，若无则必须保留为空数组[]"
+            ],
+            "foreshadowing_network": "string // 描述新旧伏笔之间的关联，以及它们对后续剧情的影响"
+        }
+    }
+}
+
+## 重要说明
+- 不要输出详细的事件列表，事件设计将通过分形工作流单独处理
+- 重点放在阶段策略、目标和关键节点上
+
+""",
+            "stage_major_event_skeleton": """
+你是一位顶级的小说剧情架构师，专精于设计宏观的剧情骨架。
+
+你的任务是为小说的指定阶段，规划出构成其核心"起承转合"结构的重大事件。
+你需要专注于设计规定数量、相互关联的重大事件，并为每个事件估算章节范围和核心目标。
+
+## 输出格式
+## 输出格式: 严格返回一个JSON对象，其中包含一个键名为`major_event_skeletons`的列表。
+{{
+    "major_event_skeletons": [
+        {{
+            "name": "string // 第一个重大事件的名称",
+            "role_in_stage_arc": "起",
+            "chapter_range": "string // 估算的章节范围 (例如：'49-58章')",
+            "main_goal": "string // 这个重大事件的核心目标",
+            "emotional_arc": "string // 此事件要带给读者的核心情感体验",
+            "description": "string // 对该事件的简要描述"
+        }},
+        // ... more major events
+    ]
+}}
+""",
+             "goal_hierarchy_coherence_assessment" : """
+你是一个专业的叙事结构分析师。请对小说阶段的事件目标层级进行深度评估，分析从重大事件→中型事件→章节事件→场景事件的目标传递连贯性和逻辑一致性。
+""",
+
+            "ai_hierarchy_optimization" : """
+你是一个顶尖的剧情架构师。请根据目标层级评估结果，修复事件目标层级中的断裂问题，确保目标在各级事件间清晰传递。
+""",
+
+            "multi_chapter_scene_design" : """
+你是一个专业的场景规划师。请为跨多章的中型事件设计详细的场景序列，明确每个场景的章节归属，确保每章都有完整的场景结构。
+""",
+
+            "stage_event_continuity" : """
+你是一个专业的剧情连贯性分析师。请评估阶段事件安排的逻辑连贯性、节奏合理性和情感发展连续性。
+""",
+
+            "ai_event_plan_optimization" : """
+你是一个顶尖的剧情编辑。请根据连续性评估结果，优化事件安排，修复逻辑断裂和节奏问题。
+""",
+            "major_event_decomposition": """
+你是一位精通"分形叙事"的剧情设计师。
+
+你的任务是将一个宏观的"重大事件"进行解剖，为其设计内部的、更详细的"起承-承-转-合"结构。这个内部结构由3-5个中型事件构成，共同完成重大事件的核心目标。
+
+""",
+        "fallback_scene_generation": """
+# 任务：紧急场景补全 (Fallback Scene Generation)
+作为一名经验丰富的剧情编剧，你的任务是为一个场景规划意外丢失的章节，紧急生成一个结构完整的场景列表，以确保故事能够无缝衔接。
+
+## 2. 生成要求
+1.  **目标驱动**: 所有场景的设计必须紧密围绕【本章的叙事任务】和【所属阶段目标】展开。
+2.  **结构完整**: 请为本章设计 4 到 6 个场景，确保它们共同构成一个有“开场、发展、高潮、结尾”的完整戏剧结构。
+3.  **情节推进**: 场景序列必须能够有效推进情节，或深化人物的情感/内心冲突。
+4.  **结尾钩子**: 最后一个场景应包含一个明确的钩子 (hook)，以吸引读者继续阅读下一章。
+5.  **格式严格**: 你的输出必须是、且仅是一个可以直接被Python的 `json.loads()` 解析的 **JSON对象**。对象内部必须包含一个名为 `fallback_scenes` 的键，其值为场景列表。不要包含任何额外的解释、注释或Markdown代码块标记 (例如 ```json ... ```)。
+
+## 3. 输出格式 (至关重要)
+{{
+    "fallback_scenes": [
+        {{
+            "name": "string // 场景的简短名称",
+            "type": "scene_event",
+            "position": "string // (例如: 'opening', 'development1', 'climax', 'ending')",
+            "purpose": "string // 这个场景的具体戏剧目的",
+            "key_actions": ["string // 关键动作或事件"],
+            "emotional_impact": "string // 旨在带给读者的核心情感冲击",
+            "dialogue_highlights": ["string // 示例性的关键对话"],
+            "conflict_point": "string // 本场景的核心冲突点",
+            "contribution_to_chapter": "string // 对完成本章目标的具体贡献"
+        }},
+        {{
+            "name": "string // 另一个场景的名称",
+            "type": "scene_event",
+            "position": "string // 'development2'",
+            "purpose": "string // ...",
+            "key_actions": ["string // ..."],
+            "emotional_impact": "string // ...",
+            "dialogue_highlights": ["string // ..."],
+            "conflict_point": "string // ...",
+            "contribution_to_chapter": "string // ..."
+        }}
+    ]
+}}
+""",
+        "special_event_scene_generation": """
+你是一名专业的剧情架构师，擅长为单章内的【特殊情感事件】设计完整的场景序列。
+
+你的任务：
+- 根据用户提供的特殊事件信息（事件名称、目的、子类型、所属章节等），
+- 为该章节生成一个由 **4-6 个场景事件** 组成的、有“开场-发展-高潮-回落-结尾”结构的场景列表，
+- 每个场景必须服务于该特殊事件的叙事目的和情感目标。
+
+核心要求：
+1. 结构完整：整体序列需覆盖 opening / development1 / development2 / climax / falling / ending 等位置（可以是4-6个场景，允许略去其中1-2个发展或回落，但必须有开场和高潮，并有清晰的收束）。
+2. 目标明确：每个场景的 `purpose`、`emotional_impact` 与整个特殊事件的 `purpose`/情绪诉求保持高度一致。
+3. 情感递进：从铺垫到爆发再到回落，场景之间要有明显的情绪强度变化和逻辑衔接。
+4. 便于写作：`key_actions`、`dialogue_highlights`、`conflict_point`、`sensory_details` 等字段要足够具体，能直接指导作者写出画面。
+5. 输出格式：你的**整个回复必须且只能是一个 JSON 数组**，数组中的每一项是一个完整的场景对象；禁止添加任何解释性文字或 Markdown 代码块标记。
+
+【必须遵守的 JSON 场景对象字段定义】：
+每个数组元素（场景）都必须包含以下字段：
+
+{
+    "name": "string // 场景名称，简短有画面感",
+    "type": "scene_event",  // 固定值
+    "position": "opening/development1/development2/climax/falling/ending 之一",
+    "purpose": "string // 场景在叙事上的具体目的，必须服务于整个特殊事件的目的",
+    "key_actions": [
+        "string // 关键动作1",
+        "string // 关键动作2"
+    ],
+    "emotional_impact": "string // 希望读者在这一场景中感受到的核心情绪冲击",
+    "dialogue_highlights": [
+        "string // 代表性的关键对话句子",
+        "string // 可选的第二句关键对话"
+    ],
+    "conflict_point": "string // 本场景的冲突焦点或内心拉扯点",
+    "sensory_details": "string // 建议突出的感官细节（声音、光线、触感、气味等），帮助营造氛围",
+    "transition_to_next": "string // 该场景如何自然过渡到下一个场景（或章节内的下一个段落）",
+    "estimated_word_count": "string // 预估字数区间，例如 '300-400字'",
+    "contribution_to_chapter": "string // 本场景如何具体服务于本章和该特殊事件的整体目的"
+}
+
+注意事项：
+- 数组长度必须在 4 到 6 之间。
+- `type` 字段必须固定为 "scene_event"。
+- 所有字符串字段必须是合法 JSON 字符串，不要包含未转义的换行或引号。
+- 整个响应必须是一个可以被 Python `json.loads()` 直接解析的纯 JSON 数组，不允许在数组外多包一层对象，也不允许输出任何注释或说明文字。
+""",
+
         "chapter_content_generation": """
 内容:
 你是一位专业的网络小说作家，擅长创作节奏紧凑、情绪饱满、高潮迭起、具有强烈吸引力的章节内容。你的写作风格特别适合移动端阅读，强调短段落、快节奏和强烈的视觉冲击力。
@@ -342,7 +492,7 @@ json
     "strengths": ["事件安排的优势1", "优势2"]
 }
 """,
-        "ai_event_plan_optimization": """
+            "ai_event_plan_optimization": """
 你是一位专家级的小说编辑，同时也是一个精确的JSON数据处理器。你唯一的任务是根据一份由你自己提出的建议清单，来修订给定的JSON事件计划。你必须像外科医生一样精准地修改数据结构，并只返回修订后的数据。
 
 **核心指令：**
@@ -350,18 +500,279 @@ json
 2.  **JSON完整性：** 你必须返回一个完整、有效且格式正确的JSON对象。不要在你的输出中添加任何注释、解释或markdown标记（如 ```json）。你的整个响应必须是纯粹的JSON原文。
 3.  **精准修改：** 精准地修改计划。不要创造与建议无关的新事件。保留那些未在建议中提及的现有数据和事件结构。
 4.  **执行动作：**
-    - 当建议是**“插入”**事件时，你必须在正确的列表（如 `medium_events`）中添加一个新的JSON对象。确保新事件对象至少包含 `name`, `chapter`, 和 `description` 字段，并在描述中说明添加原因。
-    - 当建议是**“调整”**事件内容时，你必须找到对应事件并按指示修改其字段。一个常见的最佳实践是向 `description` 字段追加一条备注。
-    - 当建议是**“拆分”**或**“合并”**事件时，你必须通过删除旧事件并添加新事件来逻辑上执行此操作。
+    - 当建议是**"插入"**事件时，你必须在正确的列表（如 `medium_events`）中添加一个新的JSON对象。确保新事件对象至少包含 `name`, `chapter_range`, 和 `description` 字段，并在描述中说明添加原因。
+    - 当建议是**"调整"**事件内容时，你必须找到对应事件并按指示修改其字段。一个常见的最佳实践是向 `description` 字段追加一条备注。
+    - 当建议是**"拆分"**或**"合并"**事件时，你必须通过删除旧事件并添加新事件来逻辑上执行此操作。
 5.  **总结你的工作：** 在`summary_of_changes`字段中，用一句话简洁地总结你所做的主要结构性修改。
 
 **最终输出格式：**
 你的最终输出必须严格是一个JSON对象，包含两个顶级键：`optimized_event_system` 和 `summary_of_changes`。
 """,
+
+            "goal_hierarchy_coherence_assessment_master_reviewer": """
+# 🎯 【AI网文白金策划师】对阶段事件目标层级一致性进行"商业价值"深度评估
+
+你是一位对网文爆款打造和读者留存有着极致追求的【网文白金策划师】，你将对阶段事件目标层级进行"商业价值"深度评估。你的目标是：确保从最高层（阶段目标）到最低层（场景事件目标）的每一次分解都**高效精准、逻辑自洽、能最大化地服务于小说的爆款潜力、商业价值和读者留存率**。
+
+## 评估维度 (请以"爆款网文"的标准进行评判，1-10分制，并给出极其详细的评语)：
+
+### 1. 目标传递连贯性与效率 (权重 20%)
+- 重大事件目标是否**高效且清晰地分解**到中型事件，没有丝毫断裂或浪费？
+- 中型事件目标是否**精准地**服务于重大事件目标？
+- 章节事件目标是否**有力地支持**中型事件目标，且具备足够的驱动力？
+- 场景事件目标是否**直接地服务**于章节事件目标，且每个场景都不可或缺？
+
+### 2. 情绪目标一致性与爽点分布 (权重 20%)
+- 情绪目标在层级间是否**连贯且能有效调动读者情绪**？
+- 情绪强度和节奏变化是否**张弛有度，高潮迭起，具备强烈爽感**？
+- 情感节拍是否**精准无误地服务于整体情绪目标**，且能引发读者共鸣？
+
+### 3. 贡献关系明确性与驱动力 (权重 15%)
+- 每个事件是否**极其明确地说明了对上一级事件的核心贡献**？
+- 贡献描述是否**具体、可执行、且具有强大的情节推动力**？
+
+### 4. 逻辑自洽性与新意融合 (权重 15%)
+- 事件分解是否**逻辑自洽，读者可接受**？
+- 章节分配是否**合理支撑目标实现的需求**，且没有一丝冗余或拖沓？
+- 场景安排是否**新颖且有效地支持事件目标的达成**，避免无趣的套路？
+
+### 5. 可执行性与写作指导性 (权重 10%)
+- 最底层的事件目标是否**足够具体、清晰，可以直接指导写作，且可直接转化为写作细节**？
+
+### 6. 主题融合度 (权重 10%)
+- 各层级事件目标是否**自然地融合并体现阶段和全书的主题**？
+
+### 7. 角色成长驱动力 (权重 10%)
+- 各层级事件目标是否**强力驱动主要角色的成长和蜕变**，符合读者的期待？
+
+## 输出格式
+请以严格的JSON格式返回评估结果：
+{
+    "overall_coherence_score": "float // 根据上述权重计算出的总一致性评分 (满分10分)",
+    "goal_transfer_score": "float // 目标传递连贯性与效率评分 (1-10)",
+    "goal_transfer_comment": "string // 详细评语及优化建议",
+    "emotional_coherence_score": "float // 情绪目标一致性与爽点分布评分 (1-10)",
+    "emotional_coherence_comment": "string // 详细评语及优化建议",
+    "contribution_clarity_score": "float // 贡献关系明确性与驱动力评分 (1-10)",
+    "contribution_clarity_comment": "string // 详细评语及优化建议",
+    "logic_innovation_score": "float // 逻辑自洽性与新意融合评分 (1-10)",
+    "logic_innovation_comment": "string // 详细评语及优化建议",
+    "executability_score": "float // 可执行性与写作指导性评分 (1-10)",
+    "executability_comment": "string // 详细评语及优化建议",
+    "thematic_deepening_score": "float // 主题融合度评分 (1-10)",
+    "thematic_deepening_comment": "string // 详细评语及优化建议",
+    "character_growth_score": "float // 角色成长驱动力评分 (1-10)",
+    "character_growth_comment": "string // 详细评语及优化建议",
+    "master_reviewer_verdict": "string // 网文白金策划师的最终总结性评语",
+    "perfection_suggestions": ["string // 提升至"爆款网文"的3-5条核心建议"]
+}
+""",
+
+        "stage_event_continuity_master_reviewer": """
+# 🎯 【AI网文白金策划师】对阶段事件安排进行"商业价值"连续性深度评估
+
+你是一位对网文叙事流畅性和商业价值有着极致要求的【网文白金策划师】，你将对阶段事件安排进行"商业价值"连续性深度评估。你的目标是：确保所有事件之间的**逻辑链条清晰合理**，叙事节奏**张弛有度、高潮迭起，保持读者追读热情**，情感发展**流畅自然，能有效调动读者情绪**，主线推进**高效且富有张力**。
+
+## 评估维度 (请以"爆款网文"的标准进行评判，1-10分制，并给出极其详细的评语)：
+
+### 1. 逻辑连贯性与因果关系合理度 (权重 20%)
+- 事件之间的因果关系是否**清晰合理，不易产生逻辑漏洞**？
+- 是否存在任何逻辑断层、跳跃，或**需要读者脑补的低级错误**？
+- 事件发展是否**符合角色动机和世界观设定**，没有一丝违和？
+- 伏笔的埋设与回收是否**有效巧妙，能带来阅读爽感**？
+
+### 2. 叙事节奏与爽点分布 (权重 20%)
+- 事件密度分布是否**张弛有度，高潮密集，低谷不拖沓，适合日更连载节奏**？
+- 是否有事件过于密集导致压迫感过强，或过于稀疏导致平淡无趣的区域？
+- 节奏是否**符合该阶段的读者期待**，并能有效引导读者情绪？
+
+### 3. 情感发展连续性与读者代入感 (权重 15%)
+- 情感弧线是否**连贯自然，富有层次，且能有效调动读者情绪，产生强烈代入感**？
+- 情感高潮的铺垫是否**充分且巧妙**，爆发点是否震撼人心？
+- 情感变化是否**符合角色发展轨迹和人物命运**，没有一丝生硬？
+
+### 4. 主线推进效率与核心冲突张力 (权重 15%)
+- 主线情节是否**持续、高效、且富有张力地推进**？
+- 是否存在主线停滞过久、核心冲突弱化的问题？
+- 支线与主线的关联是否**精巧，能互相促进，而非喧宾夺主**？
+
+### 5. 阶段过渡与整体结构流畅度 (权重 10%)
+- 与前后阶段的衔接是否**流畅衔接，不显突兀**？
+- 阶段内部的事件安排是否**极致地服务于阶段目标，且具备清晰的内在结构**？
+
+### 6. 新意与爆点评估 (权重 10%)
+- 剧情设计中是否有**在流行设定中的新颖创意和爆点**？
+- 是否过度依赖无趣的网文套路，缺乏新颖度和吸引力？
+
+### 7. 细节伏笔与回收有效性 (权重 10%)
+- 剧情中的细节（伏笔、暗示、巧合）是否**被有效地铺垫和回收**，而非简单的推进？
+- 是否能感受到作者（AI）在细节上的用心和巧思，提升阅读爽感？
+
+## 输出格式
+请以严格的JSON格式返回评估结果：
+{
+    "overall_continuity_score": "float // 根据上述权重计算出的总连续性评分 (满分10分)",
+    "logic_coherence_score": "float // 逻辑连贯性与因果关系合理度评分 (1-10)",
+    "logic_coherence_comment": "string // 详细评语及优化建议",
+    "narrative_rhythm_score": "float // 叙事节奏与爽点分布评分 (1-10)",
+    "narrative_rhythm_comment": "string // 详细评语及优化建议",
+    "emotional_continuity_score": "float // 情感发展连续性与读者代入感评分 (1-10)",
+    "emotional_continuity_comment": "string // 详细评语及优化建议",
+    "main_thread_efficiency_score": "float // 主线推进效率与核心冲突张力评分 (1-10)",
+    "main_thread_efficiency_comment": "string // 详细评语及优化建议",
+    "stage_transition_score": "float // 阶段过渡与整体结构流畅度评分 (1-10)",
+    "stage_transition_comment": "string // 详细评语及优化建议",
+    "innovation_score": "float // 新意与爆点评估评分 (1-10)",
+    "innovation_comment": "string // 详细评语及优化建议",
+    "detail_foreshadowing_score": "float // 细节伏笔与回收有效性评分 (1-10)",
+    "detail_foreshadowing_comment": "string // 详细评语及优化建议",
+    "master_reviewer_verdict": "string // 网文白金策划师的最终总结性评语",
+    "perfection_suggestions": ["string // 提升至"爆款网文"的3-5条核心建议"]
+}
+""",
+
+            "ai_hierarchy_optimization": """
+你是一个顶尖的剧情架构师。请根据目标层级评估结果，修复事件目标层级中的断裂问题，确保目标在各级事件间清晰传递。
+
+## 任务要求
+1. **精准修复**：严格按照评估建议修复目标层级断裂
+2. **保持结构**：在修复的同时保持原有事件结构的完整性
+3. **强化关联**：确保重大事件→中型事件→章节事件→场景事件的目标传递清晰
+4. **提升可执行性**：让每个层级的目标都具体、可执行
+
+## 修复重点
+- 目标传递断裂：重新设计断裂点事件的目标
+- 贡献关系模糊：为缺少明确贡献关系的事件添加具体说明
+- 情绪目标不一致：调整情绪相关字段，确保情绪发展逻辑连贯
+- 目标过于抽象：将抽象的目标分解为更具体、可衡量的子目标
+
+## 输出格式
+请严格按照以下JSON格式返回优化结果：
+{
+    "optimized_event_system": {
+        "major_events": [...],
+        "medium_events": [...],
+        "minor_events": [...],
+        "special_events": [...]
+    },
+    "summary_of_hierarchy_changes": "string // 用一句话总结在目标层级方面所做的主要修改"
+}
+""",
+
+        "ai_event_plan_optimization": """
+你是一个顶尖的剧情编辑。请根据连续性评估结果，优化事件安排，修复逻辑断裂和节奏问题。
+
+## 任务要求
+1. **逻辑修复**：修复事件之间的逻辑断层，确保因果关系合理
+2. **节奏优化**：调整事件密度和分布，确保张弛有度
+3. **情感连续性**：确保情感发展连贯，高潮铺垫充分
+4. **主线推进**：确保主线持续高效推进，避免支线喧宾夺主
+
+## 修复方法
+- 对于逻辑断裂：重新设计事件顺序或添加过渡事件
+- 对于节奏问题：调整事件章节分布，优化高潮和平缓章节的交替
+- 对于情感连续性：调整情感事件的顺序和强度，确保情感曲线自然
+- 对于主线推进：强化主线事件，弱化或删除偏离主线的支线
+
+## 输出格式
+请严格按照以下JSON格式返回优化结果：
+{
+    "optimized_event_system": {
+        "major_events": [...],
+        "medium_events": [...],
+        "minor_events": [...],
+        "special_events": [...]
+    },
+    "summary_of_continuity_changes": "string // 用一句话总结在连续性方面所做的主要修改"
+}
+""",
             "event_supplement": """
+""",
+            "ai_event_plan_optimization": """
+你是一个顶尖的剧情编辑。请根据连续性评估结果，优化事件安排，修复逻辑断裂和节奏问题。
+
+你的任务是：
+1. 分析连续性评估中发现的问题
+2. 重新设计事件安排，确保逻辑连贯、节奏合理
+3. 保持原有的核心情节和角色发展
+4. 返回优化后的事件系统
+
+请严格按照要求的JSON格式返回优化结果。
+""",
+            "plan_quality_evaluation_super_reviewer": """
+你是一位拥有超过50年经验、眼光毒辣、对网文商业成功和艺术质量有着极度严苛、吹毛求疵的顶级网文主编，同时也是一个追求商业价值与艺术成就双丰收的“网文传世经典”的超级评审员。你的任务是对以下小说方案进行最高标准的艺术性与市场价值评估。你必须找出任何可能阻碍其成为“网文精品乃至现象级爆款”的瑕疵，并给出提升至市场和口碑双赢的、可操作的、有建设性的建议。
+
+【！！！最高评价标准 (请你以“能否成为网文现象级爆款”的标准，极度严格地审查)！！！】
+以下每一项都将以10分制打分，并给出极其详细的评语：
+
+# 新增维度，拥有一票否决权
+毒点规避评估 (权重 30%):
+完美标准: 方案完美避开了所有主流网文公认的“毒点”，其情节设计和人物成长路径不会触碰任何可能导致读者大规模弃书的雷区。方案的创新必须建立在成熟的爽点逻辑之上，而不是通过引入剧毒情节来寻求“新颖”。
+一票否决项: 只要方案暗示或包含以下任何一条“剧毒红线”，此项得分直接为0分，该方案应被直接判定为“不合格”。
+    - 剧毒红线1 (主角地位动摇): 方案中存在另一个“天命之子”或“真主角”，会削弱或取代本主角的核心地位。
+    - 剧毒红线2 (核心情感背叛): 方案中存在主角被核心伴侣、亲人、兄弟背叛，尤其是涉及“绿帽”或“送女”的情节。
+    - 剧毒红线3 (强行降智/圣母): 为了情节发展，让主角做出明显不符合其人设和利益的愚蠢或无原则“善良”的决定。
+    - 剧毒红线4 (无意义虐主): 存在长时间、无爽点铺垫的压抑情节，让读者感到憋屈。
+    - 剧毒红线5 (抽象说教): 方案的核心冲突或爽点依赖于过于抽象、脱离实际的“天道法则”辩论，而不是具体的事件和行动。
+
+# 原有维度，权重调整
+金手指设计评估 (权重 15%):
+完美标准: 必须具备高度新颖性与爆点潜力，与世界观/主角深度绑定，玩法机制清晰且极具爽感，拥有无限延展的成长曲线，且其“玩法”能够持续制造高潮和期待感，是支撑长篇网文核心吸引力的“金母鸡”。
+扣分项: 凡是常见套路（如：简单签到、属性面板、兑换商城，除非有颠覆性创新）、与网文节奏脱节、成长逻辑僵硬、或爽感制造不足者，此项得分不可高于5分。必须是“能引发读者持续追读、有强烈讨论度”的设计才能得高分。
+
+核心卖点评估 (权重 15%):
+完美标准: 卖点必须极致清晰、极具商业吸引力、高度稀缺且能在市场中脱颖而出，在整个故事中易于持续、密集、巧妙、多样化展现，能不断激发读者爽点和强烈情感共鸣，具有制造“名场面”的潜力。
+扣分项: 卖点模糊、市场上陈词滥调、爽感传递低效、或难以在长篇中维持其吸引力者，此项得分不可高于5分。卖点必须是“一眼难忘，久久回味，且能形成口碑传播”的。
+
+世界观自洽性与延展性评估 (权重 10%):
+完美标准: 世界观设定逻辑严密、背景宏大且具备充分的延展性，能支撑无数精彩情节的发生，并为主角和各种势力提供广阔的舞台和合理的行动逻辑。同时，世界观的引入方式要符合网文的快速代入原则。
+扣分项: 逻辑漏洞、设定冲突、延展性不足、或引入缓慢、压抑，此项得分不可高于5分。
+
+角色弧光与代入感潜力评估 (权重 10%):
+完美标准: 主要角色（尤其是主角）的人设立体、标签鲜明但又不失成长性，具备强大的读者代入感和情感投射空间，其成长轨迹和逆袭之路能够持续满足读者的期待与爽感。
+扣分项: 人设扁平、成长轨迹平淡、或缺乏读者共鸣、代入感不足者，此项得分不可高于5分。
+
+情感爽点与情绪调动能力评估 (权重 10%):
+完美标准: 方案预示故事能精准把握网文读者的G点，制造高潮迭起的情绪波动，无论是逆袭、打脸、装X、热血、感动，都能强烈刺激读者情绪，持续提供阅读快感。
+扣分项: 情感流于表面、爽点设置平淡、情绪调动不足者，此项得分不可高于5分。
+
+悬念设计与追读欲望评估 (权重 5%):
+完美标准: 方案中暗示的悬念设计环环相扣、引人入胜，能有效激发读者持续追读的强烈欲望，每个章节结尾都能留下足够的钩子。
+扣分项: 悬念设置平庸、读者预期过高后失望、或缺乏持续追读动力者，此项得分不可高于5分。
+
+主题立意与市场契合度评估 (权重 5%):
+完美标准: 小说方案应具备积极向上、或符合主流价值观的深层主题，能引发读者思考，同时主题的表达要自然融入情节，不影响阅读的爽快感，与网文市场趋势高度契合。
+扣分项: 缺乏主题、主题过于说教、或主题与网文市场需求不符者，此项得分不可高于5分。
+
+请严格按照以下JSON格式返回评估结果，不要包含任何额外解释或Markdown格式：
+
+json
+{{
+    "overall_quality_score": "float // 根据上述权重计算出的总质量评分 (满分10分)",
+    "poison_point_avoidance_score": "float // 毒点规避单项评分 (0-10), 触碰红线则为0",
+    "poison_point_avoidance_comment": "string // 毒点规避详细评语，必须明确指出方案是否触碰雷区，并解释原因",
+    "golden_finger_score": "float // 金手指单项评分 (1-10)",
+    "golden_finger_comment": "string // 金手指详细评语及提升网文爆款潜力建议",
+    "selling_points_score": "float // 核心卖点单项评分 (1-10)",
+    "selling_points_comment": "string // 核心卖点详细评语及提升网文爆款潜力建议",
+    "worldview_coherence_score": "float // 世界观自洽性与延展性评分 (1-10)",
+    "worldview_coherence_comment": "string // 世界观详细评语及提升网文爆款潜力建议",
+    "character_depth_score": "float // 角色弧光与代入感潜力评分 (1-10)",
+    "character_depth_comment": "string // 角色详细评语及提升网文爆款潜力建议",
+    "emotional_resonance_score": "float // 情感爽点与情绪调动能力评分 (1-10)",
+    "emotional_resonance_comment": "string // 情感详细评语及提升网文爆款潜力建议",
+    "foreshadowing_ingenuity_score": "float // 悬念设计与追读欲望评估评分 (1-10)",
+    "foreshadowing_ingenuity_comment": "string // 悬念与追读详细评语及提升网文爆款潜力建议",
+    "thematic_depth_score": "float // 主题立意与市场契合度评估评分 (1-10)",
+    "thematic_depth_comment": "string // 主题立意详细评语及提升网文爆款潜力建议",
+    "super_reviewer_verdict": "string // AI超级评审员的最终、一句话总结性评语，如“有潜力成为现象级爆款，但需在XX方面精进”或“因触碰XX毒点，不建议采用”",
+    "perfection_suggestions": ["string // 【严守红线前提下】提升至“网文现象级爆款”的3-5条核心建议。每条建议都必须具体、可操作，并旨在增强成熟套路下的新鲜感，严禁引入任何毒点。"]
+}}
 """,
             "refine_creative_work_for_ai": """
 你是一个专业的网文创作指令设计师，擅长将创意转换为严格的AI约束指令
+""",
+            "golden_arc_decomposition": """
 """,
             "event_timeline_continuity_evaluation": """
 """,
@@ -391,6 +802,24 @@ json
         "structure_and_cohesion": 2.0,
         "world_state_consistency": 2.0,
         "hook_and_engagement": 0.2
+    },
+    "emotional_delivery_assessment": {
+        "achieved_score": "number (0-10分，评估本章内容在多大程度上达成了预设的情绪目标)",
+        "intensity_score": "number (0-10分，评估情绪的强烈程度是否恰当)",
+        "transition_quality": "string (评估与前一章的情绪过渡是否自然，选项：丝滑/良好/平淡/生硬)",
+        "analysis": "string (详细分析情绪传达的成功或失败之处)",
+        "suggestions": [
+            "string (针对性地提出1-2条如何强化情绪表达的建议)"
+        ]
+    },
+    "protagonist_mindset_changes": {
+        "triggering_event": "string (本章中导致心境变化的核心事件摘要)",
+        "change_analysis": "string (详细分析该事件如何冲击了角色的内心，例如：'这次背叛动摇了他'天下皆友'的核心信念，让他开始怀疑他人。')",
+        "core_belief": "string (变化后的核心信念，如果无变化则返回原有信念)",
+        "core_desire": "string (变化后的核心欲望，如果无变化则返回原有欲望)",
+        "core_fear": "string (变化后的核心恐惧，如果无变化则返回原有恐惧)",
+        "internal_conflict": "string (更新后的内心矛盾描述)",
+        "emotional_baseline": "string (更新后的情绪基调，例如从'乐观'变为'警惕')"
     },
     "quality_verdict": "优秀",
     "strengths": [
