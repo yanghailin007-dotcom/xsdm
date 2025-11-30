@@ -1,14 +1,3 @@
 {
-  "creativeWorks": [
-    {
-      "coreSetting": "穿越到异界的天才医生林晨，凭借前世医学知识和意外获得的系统，在异界成为传奇医者。",
-      "coreSellingPoints": "独特的医学设定结合异界背景+系统流爽点",
-      "completeStoryline": {
-        "opening": "天才医生穿越异界，初展医术奇能。",
-        "development": "建立医疗帝国，救死扶伤，积累人脉和力量。",
-        "climax": "对抗邪恶势力，医学救世，成为一方主宰。",
-        "ending": "成为异界医学之神，开启新纪元。"
-      }
-    }
-  ]
+  "creativeWorks": []
 }

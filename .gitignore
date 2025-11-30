@@ -65,3 +65,5 @@ venv.bak/
 # Log files
 *.log
 .claude/settings.local.json
+debug_responses/
+小说项目/
