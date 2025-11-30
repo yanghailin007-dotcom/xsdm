@@ -1,0 +1,557 @@
+{
+    "stage_writing_plan": {
+        "stage_name": "climax_stage",
+        "chapter_range": "101-160",
+        "stage_overview": "N/A",
+        "novel_metadata": {
+            "title": "异界归来的天才医生",
+            "synopsis": "天才医生林晨穿越到异界，凭借前世医学知识和意外获得的系统，在异界成为传奇医者。",
+            "creative_seed": {
+                "coreSetting": "凡人修仙传同人，时间线从韩立与温天仁结丹巅峰大战开始。主角为穿越者，身负'观战悟道'特殊体质，可通过观摩强者对战获得修行启悟。",
+                "coreSellingPoints": "爽文节奏, AI写作",
+                "completeStoryline": {
+                    "opening": "Story begins with 穿越者李尘身具观战悟道体质，通过观摩强者对战获得修行启悟。在乱星海见证韩立与温天仁的巅峰大战后，与梅凝陷入阴冥之地的险地。",
+                    "development": "Story development",
+                    "climax": "Story climax",
+                    "ending": "Story ending"
+                },
+                "targetAudience": "web readers",
+                "novelTitle": "凡人修仙同人·观战者",
+                "themes": [],
+                "writingStyle": "modern web fiction"
+            },
+            "generation_timestamp": "2025-11-26T17:32:38.162932"
+        },
+        "emotional_summary": {
+            "stage_emotional_arc": "",
+            "major_events_emotional_summary": [
+                {
+                    "name": "主要情节事件分解",
+                    "emotional_goal": "递进式情绪提升",
+                    "emotional_arc_summary": "从陌生到熟悉，从怀疑到确信，从困难到胜利的完整弧线"
+                },
+                {
+                    "name": "主要情节事件分解",
+                    "emotional_goal": "递进式情绪提升",
+                    "emotional_arc_summary": "从陌生到熟悉，从怀疑到确信，从困难到胜利的完整弧线"
+                },
+                {
+                    "name": "主要情节事件分解",
+                    "emotional_goal": "递进式情绪提升",
+                    "emotional_arc_summary": "从陌生到熟悉，从怀疑到确信，从困难到胜利的完整弧线"
+                },
+                {
+                    "name": "主要情节事件分解",
+                    "emotional_goal": "递进式情绪提升",
+                    "emotional_arc_summary": "从陌生到熟悉，从怀疑到确信，从困难到胜利的完整弧线"
+                }
+            ],
+            "medium_events_emotional_focus": [
+                {
+                    "name": "开篇引入",
+                    "emotional_focus": "惊喜与好奇",
+                    "emotional_intensity": "medium"
+                },
+                {
+                    "name": "能力初显",
+                    "emotional_focus": "自信与成长",
+                    "emotional_intensity": "medium"
+                },
+                {
+                    "name": "局面升级",
+                    "emotional_focus": "紧张与危机感",
+                    "emotional_intensity": "high"
+                },
+                {
+                    "name": "阶段小高潮",
+                    "emotional_focus": "胜利与新期待",
+                    "emotional_intensity": "high"
+                },
+                {
+                    "name": "开篇引入",
+                    "emotional_focus": "惊喜与好奇",
+                    "emotional_intensity": "medium"
+                },
+                {
+                    "name": "能力初显",
+                    "emotional_focus": "自信与成长",
+                    "emotional_intensity": "medium"
+                },
+                {
+                    "name": "局面升级",
+                    "emotional_focus": "紧张与危机感",
+                    "emotional_intensity": "high"
+                },
+                {
+                    "name": "阶段小高潮",
+                    "emotional_focus": "胜利与新期待",
+                    "emotional_intensity": "high"
+                },
+                {
+                    "name": "开篇引入",
+                    "emotional_focus": "惊喜与好奇",
+                    "emotional_intensity": "medium"
+                },
+                {
+                    "name": "能力初显",
+                    "emotional_focus": "自信与成长",
+                    "emotional_intensity": "medium"
+                },
+                {
+                    "name": "局面升级",
+                    "emotional_focus": "紧张与危机感",
+                    "emotional_intensity": "high"
+                },
+                {
+                    "name": "阶段小高潮",
+                    "emotional_focus": "胜利与新期待",
+                    "emotional_intensity": "high"
+                },
+                {
+                    "name": "开篇引入",
+                    "emotional_focus": "惊喜与好奇",
+                    "emotional_intensity": "medium"
+                },
+                {
+                    "name": "能力初显",
+                    "emotional_focus": "自信与成长",
+                    "emotional_intensity": "medium"
+                },
+                {
+                    "name": "局面升级",
+                    "emotional_focus": "紧张与危机感",
+                    "emotional_intensity": "high"
+                },
+                {
+                    "name": "阶段小高潮",
+                    "emotional_focus": "胜利与新期待",
+                    "emotional_intensity": "high"
+                }
+            ]
+        },
+        "event_system": {
+            "overall_approach": "采用智能分形设计：根据章节数自动选择分解策略，最终基于场景事件构建章节。",
+            "major_events": [
+                {
+                    "name": "主要情节事件分解",
+                    "type": "major_event",
+                    "role_in_stage_arc": "起",
+                    "main_goal": "实现阶段核心目标",
+                    "emotional_goal": "递进式情绪提升",
+                    "chapter_range": "1-30",
+                    "composition": {
+                        "起": [
+                            {
+                                "name": "开篇引入",
+                                "type": "medium_event",
+                                "chapter_range": "1-5",
+                                "decomposition_type": "chapter_then_scene",
+                                "main_goal": "快速吸引读者，建立世界观",
+                                "emotional_focus": "惊喜与好奇",
+                                "emotional_intensity": "medium",
+                                "key_emotional_beats": [
+                                    "陌生感",
+                                    "惊喜",
+                                    "期待"
+                                ],
+                                "description": "主角进入新环境，初步展现能力",
+                                "contribution_to_major": "为整个阶段奠定基础"
+                            }
+                        ],
+                        "承": [
+                            {
+                                "name": "能力初显",
+                                "type": "medium_event",
+                                "chapter_range": "6-15",
+                                "decomposition_type": "chapter_then_scene",
+                                "main_goal": "展示主角核心能力，收获成就感",
+                                "emotional_focus": "自信与成长",
+                                "emotional_intensity": "medium",
+                                "key_emotional_beats": [
+                                    "挑战",
+                                    "克服",
+                                    "成就"
+                                ],
+                                "description": "主角通过行动解决问题，逐步建立信誉",
+                                "contribution_to_major": "累积支持者，推进情节"
+                            }
+                        ],
+                        "转": [
+                            {
+                                "name": "局面升级",
+                                "type": "medium_event",
+                                "chapter_range": "16-25",
+                                "decomposition_type": "chapter_then_scene",
+                                "main_goal": "出现新的挑战或敌手，冲突升级",
+                                "emotional_focus": "紧张与危机感",
+                                "emotional_intensity": "high",
+                                "key_emotional_beats": [
+                                    "威胁",
+                                    "困境",
+                                    "决心"
+                                ],
+                                "description": "出现更强大的对手或新的困难",
+                                "contribution_to_major": "为高潮做铺垫"
+                            }
+                        ],
+                        "合": [
+                            {
+                                "name": "阶段小高潮",
+                                "type": "medium_event",
+                                "chapter_range": "26-30",
+                                "decomposition_type": "direct_scene",
+                                "main_goal": "完成阶段目标，为下阶段铺垫",
+                                "emotional_focus": "胜利与新期待",
+                                "emotional_intensity": "high",
+                                "key_emotional_beats": [
+                                    "突破",
+                                    "成功",
+                                    "新希望"
+                                ],
+                                "description": "主角克服困难，取得重大胜利，引发后续变化",
+                                "contribution_to_major": "连接到下一个重大事件"
+                            }
+                        ]
+                    },
+                    "special_emotional_events": [
+                        {
+                            "name": "关键时刻的独白",
+                            "type": "special_emotional_event",
+                            "placement_hint": "在'承'部分结尾，'转'部分开始前",
+                            "chapter_range": "15-15",
+                            "purpose": "通过主角的内心独白，深化读者对其动机和信念的理解",
+                            "event_subtype": "introspection"
+                        }
+                    ],
+                    "emotional_arc_summary": "从陌生到熟悉，从怀疑到确信，从困难到胜利的完整弧线",
+                    "aftermath": "为下一阶段的冲突和成长奠定基础"
+                },
+                {
+                    "name": "主要情节事件分解",
+                    "type": "major_event",
+                    "role_in_stage_arc": "起",
+                    "main_goal": "实现阶段核心目标",
+                    "emotional_goal": "递进式情绪提升",
+                    "chapter_range": "1-30",
+                    "composition": {
+                        "起": [
+                            {
+                                "name": "开篇引入",
+                                "type": "medium_event",
+                                "chapter_range": "1-5",
+                                "decomposition_type": "chapter_then_scene",
+                                "main_goal": "快速吸引读者，建立世界观",
+                                "emotional_focus": "惊喜与好奇",
+                                "emotional_intensity": "medium",
+                                "key_emotional_beats": [
+                                    "陌生感",
+                                    "惊喜",
+                                    "期待"
+                                ],
+                                "description": "主角进入新环境，初步展现能力",
+                                "contribution_to_major": "为整个阶段奠定基础"
+                            }
+                        ],
+                        "承": [
+                            {
+                                "name": "能力初显",
+                                "type": "medium_event",
+                                "chapter_range": "6-15",
+                                "decomposition_type": "chapter_then_scene",
+                                "main_goal": "展示主角核心能力，收获成就感",
+                                "emotional_focus": "自信与成长",
+                                "emotional_intensity": "medium",
+                                "key_emotional_beats": [
+                                    "挑战",
+                                    "克服",
+                                    "成就"
+                                ],
+                                "description": "主角通过行动解决问题，逐步建立信誉",
+                                "contribution_to_major": "累积支持者，推进情节"
+                            }
+                        ],
+                        "转": [
+                            {
+                                "name": "局面升级",
+                                "type": "medium_event",
+                                "chapter_range": "16-25",
+                                "decomposition_type": "chapter_then_scene",
+                                "main_goal": "出现新的挑战或敌手，冲突升级",
+                                "emotional_focus": "紧张与危机感",
+                                "emotional_intensity": "high",
+                                "key_emotional_beats": [
+                                    "威胁",
+                                    "困境",
+                                    "决心"
+                                ],
+                                "description": "出现更强大的对手或新的困难",
+                                "contribution_to_major": "为高潮做铺垫"
+                            }
+                        ],
+                        "合": [
+                            {
+                                "name": "阶段小高潮",
+                                "type": "medium_event",
+                                "chapter_range": "26-30",
+                                "decomposition_type": "direct_scene",
+                                "main_goal": "完成阶段目标，为下阶段铺垫",
+                                "emotional_focus": "胜利与新期待",
+                                "emotional_intensity": "high",
+                                "key_emotional_beats": [
+                                    "突破",
+                                    "成功",
+                                    "新希望"
+                                ],
+                                "description": "主角克服困难，取得重大胜利，引发后续变化",
+                                "contribution_to_major": "连接到下一个重大事件"
+                            }
+                        ]
+                    },
+                    "special_emotional_events": [
+                        {
+                            "name": "关键时刻的独白",
+                            "type": "special_emotional_event",
+                            "placement_hint": "在'承'部分结尾，'转'部分开始前",
+                            "chapter_range": "15-15",
+                            "purpose": "通过主角的内心独白，深化读者对其动机和信念的理解",
+                            "event_subtype": "introspection"
+                        }
+                    ],
+                    "emotional_arc_summary": "从陌生到熟悉，从怀疑到确信，从困难到胜利的完整弧线",
+                    "aftermath": "为下一阶段的冲突和成长奠定基础"
+                },
+                {
+                    "name": "主要情节事件分解",
+                    "type": "major_event",
+                    "role_in_stage_arc": "起",
+                    "main_goal": "实现阶段核心目标",
+                    "emotional_goal": "递进式情绪提升",
+                    "chapter_range": "1-30",
+                    "composition": {
+                        "起": [
+                            {
+                                "name": "开篇引入",
+                                "type": "medium_event",
+                                "chapter_range": "1-5",
+                                "decomposition_type": "chapter_then_scene",
+                                "main_goal": "快速吸引读者，建立世界观",
+                                "emotional_focus": "惊喜与好奇",
+                                "emotional_intensity": "medium",
+                                "key_emotional_beats": [
+                                    "陌生感",
+                                    "惊喜",
+                                    "期待"
+                                ],
+                                "description": "主角进入新环境，初步展现能力",
+                                "contribution_to_major": "为整个阶段奠定基础"
+                            }
+                        ],
+                        "承": [
+                            {
+                                "name": "能力初显",
+                                "type": "medium_event",
+                                "chapter_range": "6-15",
+                                "decomposition_type": "chapter_then_scene",
+                                "main_goal": "展示主角核心能力，收获成就感",
+                                "emotional_focus": "自信与成长",
+                                "emotional_intensity": "medium",
+                                "key_emotional_beats": [
+                                    "挑战",
+                                    "克服",
+                                    "成就"
+                                ],
+                                "description": "主角通过行动解决问题，逐步建立信誉",
+                                "contribution_to_major": "累积支持者，推进情节"
+                            }
+                        ],
+                        "转": [
+                            {
+                                "name": "局面升级",
+                                "type": "medium_event",
+                                "chapter_range": "16-25",
+                                "decomposition_type": "chapter_then_scene",
+                                "main_goal": "出现新的挑战或敌手，冲突升级",
+                                "emotional_focus": "紧张与危机感",
+                                "emotional_intensity": "high",
+                                "key_emotional_beats": [
+                                    "威胁",
+                                    "困境",
+                                    "决心"
+                                ],
+                                "description": "出现更强大的对手或新的困难",
+                                "contribution_to_major": "为高潮做铺垫"
+                            }
+                        ],
+                        "合": [
+                            {
+                                "name": "阶段小高潮",
+                                "type": "medium_event",
+                                "chapter_range": "26-30",
+                                "decomposition_type": "direct_scene",
+                                "main_goal": "完成阶段目标，为下阶段铺垫",
+                                "emotional_focus": "胜利与新期待",
+                                "emotional_intensity": "high",
+                                "key_emotional_beats": [
+                                    "突破",
+                                    "成功",
+                                    "新希望"
+                                ],
+                                "description": "主角克服困难，取得重大胜利，引发后续变化",
+                                "contribution_to_major": "连接到下一个重大事件"
+                            }
+                        ]
+                    },
+                    "special_emotional_events": [
+                        {
+                            "name": "关键时刻的独白",
+                            "type": "special_emotional_event",
+                            "placement_hint": "在'承'部分结尾，'转'部分开始前",
+                            "chapter_range": "15-15",
+                            "purpose": "通过主角的内心独白，深化读者对其动机和信念的理解",
+                            "event_subtype": "introspection"
+                        }
+                    ],
+                    "emotional_arc_summary": "从陌生到熟悉，从怀疑到确信，从困难到胜利的完整弧线",
+                    "aftermath": "为下一阶段的冲突和成长奠定基础"
+                },
+                {
+                    "name": "主要情节事件分解",
+                    "type": "major_event",
+                    "role_in_stage_arc": "起",
+                    "main_goal": "实现阶段核心目标",
+                    "emotional_goal": "递进式情绪提升",
+                    "chapter_range": "1-30",
+                    "composition": {
+                        "起": [
+                            {
+                                "name": "开篇引入",
+                                "type": "medium_event",
+                                "chapter_range": "1-5",
+                                "decomposition_type": "chapter_then_scene",
+                                "main_goal": "快速吸引读者，建立世界观",
+                                "emotional_focus": "惊喜与好奇",
+                                "emotional_intensity": "medium",
+                                "key_emotional_beats": [
+                                    "陌生感",
+                                    "惊喜",
+                                    "期待"
+                                ],
+                                "description": "主角进入新环境，初步展现能力",
+                                "contribution_to_major": "为整个阶段奠定基础"
+                            }
+                        ],
+                        "承": [
+                            {
+                                "name": "能力初显",
+                                "type": "medium_event",
+                                "chapter_range": "6-15",
+                                "decomposition_type": "chapter_then_scene",
+                                "main_goal": "展示主角核心能力，收获成就感",
+                                "emotional_focus": "自信与成长",
+                                "emotional_intensity": "medium",
+                                "key_emotional_beats": [
+                                    "挑战",
+                                    "克服",
+                                    "成就"
+                                ],
+                                "description": "主角通过行动解决问题，逐步建立信誉",
+                                "contribution_to_major": "累积支持者，推进情节"
+                            }
+                        ],
+                        "转": [
+                            {
+                                "name": "局面升级",
+                                "type": "medium_event",
+                                "chapter_range": "16-25",
+                                "decomposition_type": "chapter_then_scene",
+                                "main_goal": "出现新的挑战或敌手，冲突升级",
+                                "emotional_focus": "紧张与危机感",
+                                "emotional_intensity": "high",
+                                "key_emotional_beats": [
+                                    "威胁",
+                                    "困境",
+                                    "决心"
+                                ],
+                                "description": "出现更强大的对手或新的困难",
+                                "contribution_to_major": "为高潮做铺垫"
+                            }
+                        ],
+                        "合": [
+                            {
+                                "name": "阶段小高潮",
+                                "type": "medium_event",
+                                "chapter_range": "26-30",
+                                "decomposition_type": "direct_scene",
+                                "main_goal": "完成阶段目标，为下阶段铺垫",
+                                "emotional_focus": "胜利与新期待",
+                                "emotional_intensity": "high",
+                                "key_emotional_beats": [
+                                    "突破",
+                                    "成功",
+                                    "新希望"
+                                ],
+                                "description": "主角克服困难，取得重大胜利，引发后续变化",
+                                "contribution_to_major": "连接到下一个重大事件"
+                            }
+                        ]
+                    },
+                    "special_emotional_events": [
+                        {
+                            "name": "关键时刻的独白",
+                            "type": "special_emotional_event",
+                            "placement_hint": "在'承'部分结尾，'转'部分开始前",
+                            "chapter_range": "15-15",
+                            "purpose": "通过主角的内心独白，深化读者对其动机和信念的理解",
+                            "event_subtype": "introspection"
+                        }
+                    ],
+                    "emotional_arc_summary": "从陌生到熟悉，从怀疑到确信，从困难到胜利的完整弧线",
+                    "aftermath": "为下一阶段的冲突和成长奠定基础"
+                }
+            ],
+            "special_emotional_events": [
+                {
+                    "name": "关键时刻的独白",
+                    "type": "special_emotional_event",
+                    "placement_hint": "在'承'部分结尾，'转'部分开始前",
+                    "chapter_range": "15-15",
+                    "purpose": "通过主角的内心独白，深化读者对其动机和信念的理解",
+                    "event_subtype": "introspection"
+                },
+                {
+                    "name": "关键时刻的独白",
+                    "type": "special_emotional_event",
+                    "placement_hint": "在'承'部分结尾，'转'部分开始前",
+                    "chapter_range": "15-15",
+                    "purpose": "通过主角的内心独白，深化读者对其动机和信念的理解",
+                    "event_subtype": "introspection"
+                },
+                {
+                    "name": "关键时刻的独白",
+                    "type": "special_emotional_event",
+                    "placement_hint": "在'承'部分结尾，'转'部分开始前",
+                    "chapter_range": "15-15",
+                    "purpose": "通过主角的内心独白，深化读者对其动机和信念的理解",
+                    "event_subtype": "introspection"
+                },
+                {
+                    "name": "关键时刻的独白",
+                    "type": "special_emotional_event",
+                    "placement_hint": "在'承'部分结尾，'转'部分开始前",
+                    "chapter_range": "15-15",
+                    "purpose": "通过主角的内心独白，深化读者对其动机和信念的理解",
+                    "event_subtype": "introspection"
+                }
+            ],
+            "chapter_scene_events": []
+        },
+        "goal_hierarchy_assessment": {
+            "result": "模拟响应",
+            "content_type": "goal_hierarchy_coherence_assessment_master_reviewer"
+        },
+        "continuity_assessment": {
+            "result": "模拟响应",
+            "content_type": "stage_event_continuity_master_reviewer"
+        }
+    }
+}

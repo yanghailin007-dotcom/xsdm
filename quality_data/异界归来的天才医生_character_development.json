@@ -1,0 +1,258 @@
+{
+  "这是一部充满创新精神的佳作": {
+    "name": "这是一部充满创新精神的佳作",
+    "status": "active",
+    "role_type": "次要配角/路人角色",
+    "importance": "minor",
+    "first_appearance_chapter": 1,
+    "last_updated_chapter": 3,
+    "total_appearances": 29,
+    "basic_description": "",
+    "purpose_in_story": "",
+    "relationship_network": {
+      "rivals": [
+        "值得重点推荐"
+      ]
+    }
+  },
+  "值得重点推荐": {
+    "name": "值得重点推荐",
+    "status": "active",
+    "role_type": "次要配角/路人角色",
+    "importance": "minor",
+    "first_appearance_chapter": 1,
+    "last_updated_chapter": 3,
+    "total_appearances": 29,
+    "basic_description": "",
+    "purpose_in_story": "",
+    "relationship_network": {
+      "rivals": [
+        "这是一部充满创新精神的佳作"
+      ]
+    }
+  },
+  "开篇抓住眼球": {
+    "name": "开篇抓住眼球",
+    "status": "active",
+    "role_type": "次要配角/路人角色",
+    "importance": "minor",
+    "first_appearance_chapter": 1,
+    "last_updated_chapter": 3,
+    "total_appearances": 29,
+    "basic_description": "",
+    "purpose_in_story": "",
+    "relationship_network": {
+      "rivals": [
+        "成功建立异界设定"
+      ]
+    }
+  },
+  "成功建立异界设定": {
+    "name": "成功建立异界设定",
+    "status": "active",
+    "role_type": "次要配角/路人角色",
+    "importance": "minor",
+    "first_appearance_chapter": 1,
+    "last_updated_chapter": 3,
+    "total_appearances": 29,
+    "basic_description": "",
+    "purpose_in_story": "",
+    "relationship_network": {
+      "rivals": [
+        "开篇抓住眼球"
+      ]
+    }
+  },
+  "主角医生身份独特": {
+    "name": "主角医生身份独特",
+    "status": "active",
+    "role_type": "次要配角/路人角色",
+    "importance": "minor",
+    "first_appearance_chapter": 1,
+    "last_updated_chapter": 3,
+    "total_appearances": 29,
+    "basic_description": "",
+    "purpose_in_story": "",
+    "relationship_network": {
+      "rivals": [
+        "差异化爽点明确"
+      ]
+    }
+  },
+  "差异化爽点明确": {
+    "name": "差异化爽点明确",
+    "status": "active",
+    "role_type": "次要配角/路人角色",
+    "importance": "minor",
+    "first_appearance_chapter": 1,
+    "last_updated_chapter": 3,
+    "total_appearances": 29,
+    "basic_description": "",
+    "purpose_in_story": "",
+    "relationship_network": {
+      "rivals": [
+        "主角医生身份独特"
+      ]
+    }
+  },
+  "系统设定新颖": {
+    "name": "系统设定新颖",
+    "status": "active",
+    "role_type": "次要配角/路人角色",
+    "importance": "minor",
+    "first_appearance_chapter": 1,
+    "last_updated_chapter": 3,
+    "total_appearances": 29,
+    "basic_description": "",
+    "purpose_in_story": "",
+    "relationship_network": {
+      "rivals": [
+        "不落俗套"
+      ]
+    }
+  },
+  "不落俗套": {
+    "name": "不落俗套",
+    "status": "active",
+    "role_type": "次要配角/路人角色",
+    "importance": "minor",
+    "first_appearance_chapter": 1,
+    "last_updated_chapter": 3,
+    "total_appearances": 29,
+    "basic_description": "",
+    "purpose_in_story": "",
+    "relationship_network": {
+      "rivals": [
+        "系统设定新颖"
+      ]
+    }
+  },
+  "女主角出场自然": {
+    "name": "女主角出场自然",
+    "status": "active",
+    "role_type": "次要配角/路人角色",
+    "importance": "minor",
+    "first_appearance_chapter": 1,
+    "last_updated_chapter": 3,
+    "total_appearances": 29,
+    "basic_description": "",
+    "purpose_in_story": "",
+    "relationship_network": {
+      "rivals": [
+        "互动有张力"
+      ]
+    }
+  },
+  "互动有张力": {
+    "name": "互动有张力",
+    "status": "active",
+    "role_type": "次要配角/路人角色",
+    "importance": "minor",
+    "first_appearance_chapter": 1,
+    "last_updated_chapter": 3,
+    "total_appearances": 29,
+    "basic_description": "",
+    "purpose_in_story": "",
+    "relationship_network": {
+      "rivals": [
+        "女主角出场自然"
+      ]
+    }
+  },
+  "保持这种快节奏": {
+    "name": "保持这种快节奏",
+    "status": "active",
+    "role_type": "次要配角/路人角色",
+    "importance": "minor",
+    "first_appearance_chapter": 1,
+    "last_updated_chapter": 3,
+    "total_appearances": 29,
+    "basic_description": "",
+    "purpose_in_story": "",
+    "relationship_network": {
+      "rivals": [
+        "读者很享受"
+      ]
+    }
+  },
+  "读者很享受": {
+    "name": "读者很享受",
+    "status": "active",
+    "role_type": "次要配角/路人角色",
+    "importance": "minor",
+    "first_appearance_chapter": 1,
+    "last_updated_chapter": 3,
+    "total_appearances": 29,
+    "basic_description": "",
+    "purpose_in_story": "",
+    "relationship_network": {
+      "rivals": [
+        "保持这种快节奏"
+      ]
+    }
+  },
+  "逐步展开医学系统的能力": {
+    "name": "逐步展开医学系统的能力",
+    "status": "active",
+    "role_type": "次要配角/路人角色",
+    "importance": "minor",
+    "first_appearance_chapter": 1,
+    "last_updated_chapter": 3,
+    "total_appearances": 29,
+    "basic_description": "",
+    "purpose_in_story": "",
+    "relationship_network": {
+      "rivals": [
+        "保持悬念"
+      ]
+    }
+  },
+  "保持悬念": {
+    "name": "保持悬念",
+    "status": "active",
+    "role_type": "次要配角/路人角色",
+    "importance": "minor",
+    "first_appearance_chapter": 1,
+    "last_updated_chapter": 3,
+    "total_appearances": 29,
+    "basic_description": "",
+    "purpose_in_story": "",
+    "relationship_network": {
+      "rivals": [
+        "逐步展开医学系统的能力"
+      ]
+    }
+  },
+  "加强主角": {
+    "name": "加强主角",
+    "status": "active",
+    "role_type": "次要配角/路人角色",
+    "importance": "minor",
+    "first_appearance_chapter": 1,
+    "last_updated_chapter": 3,
+    "total_appearances": 29,
+    "basic_description": "",
+    "purpose_in_story": "",
+    "relationship_network": {
+      "rivals": [
+        "云尘仙的互动戏份"
+      ]
+    }
+  },
+  "云尘仙的互动戏份": {
+    "name": "云尘仙的互动戏份",
+    "status": "active",
+    "role_type": "次要配角/路人角色",
+    "importance": "minor",
+    "first_appearance_chapter": 1,
+    "last_updated_chapter": 3,
+    "total_appearances": 29,
+    "basic_description": "",
+    "purpose_in_story": "",
+    "relationship_network": {
+      "rivals": [
+        "加强主角"
+      ]
+    }
+  }
+}

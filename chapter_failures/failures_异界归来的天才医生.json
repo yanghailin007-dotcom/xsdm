@@ -1,0 +1,776 @@
+[
+  {
+    "novel_title": "异界归来的天才医生",
+    "chapter_number": 1,
+    "failure_time": "2025-11-24 20:51:38",
+    "failure_reason": "生成过程异常: No module named 'WorldStateManager'",
+    "failure_details": {
+      "exception_type": "ModuleNotFoundError",
+      "exception_message": "No module named 'WorldStateManager'",
+      "chapter_number": 1,
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\work6.03\\src\\core\\ContentGenerator.py\", line 892, in generate_chapter_content_for_novel\n    chapter_params = self._prepare_chapter_params(chapter_number, novel_data)\n  File \"D:\\work6.03\\src\\core\\ContentGenerator.py\", line 1687, in _prepare_chapter_params\n    world_state = self._get_previous_world_state(novel_title)\n  File \"D:\\work6.03\\src\\core\\ContentGenerator.py\", line 2305, in _get_previous_world_state\n    return self._consistency_gatherer._get_previous_world_state(novel_title)\n           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^\n  File \"D:\\work6.03\\src\\core\\ContentGenerator.py\", line 95, in _get_previous_world_state\n    from WorldStateManager import WorldStateManager\nModuleNotFoundError: No module named 'WorldStateManager'\n"
+    },
+    "main_character": null,
+    "generation_context_summary": {
+      "event_context": {
+        "active_events_count": 2,
+        "timeline_summary": "🎯 进行中: 《opening_stage - Major Event 1》🟡, 《opening_stage - Major Event 2》🟡"
+      },
+      "foreshadowing_context_count": 0,
+      "growth_context_focus": {}
+    }
+  },
+  {
+    "novel_title": "异界归来的天才医生",
+    "chapter_number": 1,
+    "failure_time": "2025-11-24 20:56:43",
+    "failure_reason": "生成过程异常: No module named 'WorldStateManager'",
+    "failure_details": {
+      "exception_type": "ModuleNotFoundError",
+      "exception_message": "No module named 'WorldStateManager'",
+      "chapter_number": 1,
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\work6.03\\src\\core\\ContentGenerator.py\", line 892, in generate_chapter_content_for_novel\n    chapter_params = self._prepare_chapter_params(chapter_number, novel_data)\n  File \"D:\\work6.03\\src\\core\\ContentGenerator.py\", line 1687, in _prepare_chapter_params\n    world_state = self._get_previous_world_state(novel_title)\n  File \"D:\\work6.03\\src\\core\\ContentGenerator.py\", line 2305, in _get_previous_world_state\n    return self._consistency_gatherer._get_previous_world_state(novel_title)\n           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^\n  File \"D:\\work6.03\\src\\core\\ContentGenerator.py\", line 95, in _get_previous_world_state\n    from WorldStateManager import WorldStateManager\nModuleNotFoundError: No module named 'WorldStateManager'\n"
+    },
+    "main_character": null,
+    "generation_context_summary": {
+      "event_context": {
+        "active_events_count": 2,
+        "timeline_summary": "🎯 进行中: 《opening_stage - Major Event 1》🟡, 《opening_stage - Major Event 2》🟡"
+      },
+      "foreshadowing_context_count": 0,
+      "growth_context_focus": {}
+    }
+  },
+  {
+    "novel_title": "异界归来的天才医生",
+    "chapter_number": 1,
+    "failure_time": "2025-11-24 21:19:45",
+    "failure_reason": "生成过程异常: _path_normpath: path should be string, bytes or os.PathLike, not NoneType",
+    "failure_details": {
+      "exception_type": "TypeError",
+      "exception_message": "_path_normpath: path should be string, bytes or os.PathLike, not NoneType",
+      "chapter_number": 1,
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\work6.03\\src\\core\\ContentGenerator.py\", line 892, in generate_chapter_content_for_novel\n    chapter_params = self._prepare_chapter_params(chapter_number, novel_data)\n  File \"D:\\work6.03\\src\\core\\ContentGenerator.py\", line 1687, in _prepare_chapter_params\n    world_state = self._get_previous_world_state(novel_title)\n  File \"D:\\work6.03\\src\\core\\ContentGenerator.py\", line 2305, in _get_previous_world_state\n    return self._consistency_gatherer._get_previous_world_state(novel_title)\n           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^\n  File \"D:\\work6.03\\src\\core\\ContentGenerator.py\", line 96, in _get_previous_world_state\n    wsm = WorldStateManager(None)\n  File \"D:\\work6.03\\src\\managers\\WorldStateManager.py\", line 14, in __init__\n    self.storage_path = os.path.normpath(storage_path)\n                        ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^\nTypeError: _path_normpath: path should be string, bytes or os.PathLike, not NoneType\n"
+    },
+    "main_character": null,
+    "generation_context_summary": {
+      "event_context": {
+        "active_events_count": 2,
+        "timeline_summary": "🎯 进行中: 《opening_stage - Major Event 1》🟡, 《opening_stage - Major Event 2》🟡"
+      },
+      "foreshadowing_context_count": 0,
+      "growth_context_focus": {}
+    }
+  },
+  {
+    "novel_title": "异界归来的天才医生",
+    "chapter_number": 2,
+    "failure_time": "2025-11-24 21:21:05",
+    "failure_reason": "生成过程异常: _path_normpath: path should be string, bytes or os.PathLike, not NoneType",
+    "failure_details": {
+      "exception_type": "TypeError",
+      "exception_message": "_path_normpath: path should be string, bytes or os.PathLike, not NoneType",
+      "chapter_number": 2,
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\work6.03\\src\\core\\ContentGenerator.py\", line 892, in generate_chapter_content_for_novel\n    chapter_params = self._prepare_chapter_params(chapter_number, novel_data)\n  File \"D:\\work6.03\\src\\core\\ContentGenerator.py\", line 1687, in _prepare_chapter_params\n    world_state = self._get_previous_world_state(novel_title)\n  File \"D:\\work6.03\\src\\core\\ContentGenerator.py\", line 2305, in _get_previous_world_state\n    return self._consistency_gatherer._get_previous_world_state(novel_title)\n           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^\n  File \"D:\\work6.03\\src\\core\\ContentGenerator.py\", line 96, in _get_previous_world_state\n    wsm = WorldStateManager(None)\n  File \"D:\\work6.03\\src\\managers\\WorldStateManager.py\", line 14, in __init__\n    self.storage_path = os.path.normpath(storage_path)\n                        ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^\nTypeError: _path_normpath: path should be string, bytes or os.PathLike, not NoneType\n"
+    },
+    "main_character": null,
+    "generation_context_summary": {
+      "event_context": {
+        "active_events_count": 1,
+        "timeline_summary": "🎯 进行中: 《主要情节事件分解》🟡"
+      },
+      "foreshadowing_context_count": 0,
+      "growth_context_focus": {}
+    }
+  },
+  {
+    "novel_title": "异界归来的天才医生",
+    "chapter_number": 1,
+    "failure_time": "2025-11-24 21:58:04",
+    "failure_reason": "生成过程异常: _path_normpath: path should be string, bytes or os.PathLike, not NoneType",
+    "failure_details": {
+      "exception_type": "TypeError",
+      "exception_message": "_path_normpath: path should be string, bytes or os.PathLike, not NoneType",
+      "chapter_number": 1,
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\work6.03\\src\\core\\ContentGenerator.py\", line 892, in generate_chapter_content_for_novel\n    chapter_params = self._prepare_chapter_params(chapter_number, novel_data)\n  File \"D:\\work6.03\\src\\core\\ContentGenerator.py\", line 1687, in _prepare_chapter_params\n    world_state = self._get_previous_world_state(novel_title)\n  File \"D:\\work6.03\\src\\core\\ContentGenerator.py\", line 2305, in _get_previous_world_state\n    return self._consistency_gatherer._get_previous_world_state(novel_title)\n           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^\n  File \"D:\\work6.03\\src\\core\\ContentGenerator.py\", line 96, in _get_previous_world_state\n    wsm = WorldStateManager(None)\n  File \"D:\\work6.03\\src\\managers\\WorldStateManager.py\", line 14, in __init__\n    self.storage_path = os.path.normpath(storage_path)\n                        ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^\nTypeError: _path_normpath: path should be string, bytes or os.PathLike, not NoneType\n"
+    },
+    "main_character": null,
+    "generation_context_summary": {
+      "event_context": {
+        "active_events_count": 2,
+        "timeline_summary": "🎯 进行中: 《opening_stage - Major Event 1》🟡, 《opening_stage - Major Event 2》🟡"
+      },
+      "foreshadowing_context_count": 0,
+      "growth_context_focus": {}
+    }
+  },
+  {
+    "novel_title": "异界归来的天才医生",
+    "chapter_number": 2,
+    "failure_time": "2025-11-24 21:59:24",
+    "failure_reason": "生成过程异常: _path_normpath: path should be string, bytes or os.PathLike, not NoneType",
+    "failure_details": {
+      "exception_type": "TypeError",
+      "exception_message": "_path_normpath: path should be string, bytes or os.PathLike, not NoneType",
+      "chapter_number": 2,
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\work6.03\\src\\core\\ContentGenerator.py\", line 892, in generate_chapter_content_for_novel\n    chapter_params = self._prepare_chapter_params(chapter_number, novel_data)\n  File \"D:\\work6.03\\src\\core\\ContentGenerator.py\", line 1687, in _prepare_chapter_params\n    world_state = self._get_previous_world_state(novel_title)\n  File \"D:\\work6.03\\src\\core\\ContentGenerator.py\", line 2305, in _get_previous_world_state\n    return self._consistency_gatherer._get_previous_world_state(novel_title)\n           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^\n  File \"D:\\work6.03\\src\\core\\ContentGenerator.py\", line 96, in _get_previous_world_state\n    wsm = WorldStateManager(None)\n  File \"D:\\work6.03\\src\\managers\\WorldStateManager.py\", line 14, in __init__\n    self.storage_path = os.path.normpath(storage_path)\n                        ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^\nTypeError: _path_normpath: path should be string, bytes or os.PathLike, not NoneType\n"
+    },
+    "main_character": null,
+    "generation_context_summary": {
+      "event_context": {
+        "active_events_count": 1,
+        "timeline_summary": "🎯 进行中: 《主要情节事件分解》🟡"
+      },
+      "foreshadowing_context_count": 0,
+      "growth_context_focus": {}
+    }
+  },
+  {
+    "novel_title": "异界归来的天才医生",
+    "chapter_number": 1,
+    "failure_time": "2025-11-24 22:05:12",
+    "failure_reason": "生成过程异常: _path_normpath: path should be string, bytes or os.PathLike, not NoneType",
+    "failure_details": {
+      "exception_type": "TypeError",
+      "exception_message": "_path_normpath: path should be string, bytes or os.PathLike, not NoneType",
+      "chapter_number": 1,
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\work6.03\\src\\core\\ContentGenerator.py\", line 892, in generate_chapter_content_for_novel\n    chapter_params = self._prepare_chapter_params(chapter_number, novel_data)\n  File \"D:\\work6.03\\src\\core\\ContentGenerator.py\", line 1687, in _prepare_chapter_params\n    world_state = self._get_previous_world_state(novel_title)\n  File \"D:\\work6.03\\src\\core\\ContentGenerator.py\", line 2305, in _get_previous_world_state\n    return self._consistency_gatherer._get_previous_world_state(novel_title)\n           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^\n  File \"D:\\work6.03\\src\\core\\ContentGenerator.py\", line 96, in _get_previous_world_state\n    wsm = WorldStateManager(None)\n  File \"D:\\work6.03\\src\\managers\\WorldStateManager.py\", line 14, in __init__\n    self.storage_path = os.path.normpath(storage_path)\n                        ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^\nTypeError: _path_normpath: path should be string, bytes or os.PathLike, not NoneType\n"
+    },
+    "main_character": null,
+    "generation_context_summary": {
+      "event_context": {
+        "active_events_count": 2,
+        "timeline_summary": "🎯 进行中: 《opening_stage - Major Event 1》🟡, 《opening_stage - Major Event 2》🟡"
+      },
+      "foreshadowing_context_count": 0,
+      "growth_context_focus": {}
+    }
+  },
+  {
+    "novel_title": "异界归来的天才医生",
+    "chapter_number": 2,
+    "failure_time": "2025-11-24 22:06:32",
+    "failure_reason": "生成过程异常: _path_normpath: path should be string, bytes or os.PathLike, not NoneType",
+    "failure_details": {
+      "exception_type": "TypeError",
+      "exception_message": "_path_normpath: path should be string, bytes or os.PathLike, not NoneType",
+      "chapter_number": 2,
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\work6.03\\src\\core\\ContentGenerator.py\", line 892, in generate_chapter_content_for_novel\n    chapter_params = self._prepare_chapter_params(chapter_number, novel_data)\n  File \"D:\\work6.03\\src\\core\\ContentGenerator.py\", line 1687, in _prepare_chapter_params\n    world_state = self._get_previous_world_state(novel_title)\n  File \"D:\\work6.03\\src\\core\\ContentGenerator.py\", line 2305, in _get_previous_world_state\n    return self._consistency_gatherer._get_previous_world_state(novel_title)\n           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^\n  File \"D:\\work6.03\\src\\core\\ContentGenerator.py\", line 96, in _get_previous_world_state\n    wsm = WorldStateManager(None)\n  File \"D:\\work6.03\\src\\managers\\WorldStateManager.py\", line 14, in __init__\n    self.storage_path = os.path.normpath(storage_path)\n                        ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^\nTypeError: _path_normpath: path should be string, bytes or os.PathLike, not NoneType\n"
+    },
+    "main_character": null,
+    "generation_context_summary": {
+      "event_context": {
+        "active_events_count": 1,
+        "timeline_summary": "🎯 进行中: 《主要情节事件分解》🟡"
+      },
+      "foreshadowing_context_count": 0,
+      "growth_context_focus": {}
+    }
+  },
+  {
+    "novel_title": "异界归来的天才医生",
+    "chapter_number": 1,
+    "failure_time": "2025-11-24 22:13:43",
+    "failure_reason": "生成过程异常: 'WorldStateManager' object has no attribute 'get_novel_world_state'",
+    "failure_details": {
+      "exception_type": "AttributeError",
+      "exception_message": "'WorldStateManager' object has no attribute 'get_novel_world_state'",
+      "chapter_number": 1,
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\work6.03\\src\\core\\ContentGenerator.py\", line 892, in generate_chapter_content_for_novel\n    chapter_params = self._prepare_chapter_params(chapter_number, novel_data)\n  File \"D:\\work6.03\\src\\core\\ContentGenerator.py\", line 1687, in _prepare_chapter_params\n    world_state = self._get_previous_world_state(novel_title)\n  File \"D:\\work6.03\\src\\core\\ContentGenerator.py\", line 2305, in _get_previous_world_state\n    return self._consistency_gatherer._get_previous_world_state(novel_title)\n           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^\n  File \"D:\\work6.03\\src\\core\\ContentGenerator.py\", line 97, in _get_previous_world_state\n    return wsm.get_novel_world_state(novel_title)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^\nAttributeError: 'WorldStateManager' object has no attribute 'get_novel_world_state'\n"
+    },
+    "main_character": null,
+    "generation_context_summary": {
+      "event_context": {
+        "active_events_count": 2,
+        "timeline_summary": "🎯 进行中: 《opening_stage - Major Event 1》🟡, 《opening_stage - Major Event 2》🟡"
+      },
+      "foreshadowing_context_count": 0,
+      "growth_context_focus": {}
+    }
+  },
+  {
+    "novel_title": "异界归来的天才医生",
+    "chapter_number": 2,
+    "failure_time": "2025-11-24 22:15:03",
+    "failure_reason": "生成过程异常: 'WorldStateManager' object has no attribute 'get_novel_world_state'",
+    "failure_details": {
+      "exception_type": "AttributeError",
+      "exception_message": "'WorldStateManager' object has no attribute 'get_novel_world_state'",
+      "chapter_number": 2,
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\work6.03\\src\\core\\ContentGenerator.py\", line 892, in generate_chapter_content_for_novel\n    chapter_params = self._prepare_chapter_params(chapter_number, novel_data)\n  File \"D:\\work6.03\\src\\core\\ContentGenerator.py\", line 1687, in _prepare_chapter_params\n    world_state = self._get_previous_world_state(novel_title)\n  File \"D:\\work6.03\\src\\core\\ContentGenerator.py\", line 2305, in _get_previous_world_state\n    return self._consistency_gatherer._get_previous_world_state(novel_title)\n           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^\n  File \"D:\\work6.03\\src\\core\\ContentGenerator.py\", line 97, in _get_previous_world_state\n    return wsm.get_novel_world_state(novel_title)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^\nAttributeError: 'WorldStateManager' object has no attribute 'get_novel_world_state'\n"
+    },
+    "main_character": null,
+    "generation_context_summary": {
+      "event_context": {
+        "active_events_count": 1,
+        "timeline_summary": "🎯 进行中: 《主要情节事件分解》🟡"
+      },
+      "foreshadowing_context_count": 0,
+      "growth_context_focus": {}
+    }
+  },
+  {
+    "novel_title": "异界归来的天才医生",
+    "chapter_number": 3,
+    "failure_time": "2025-11-24 22:16:23",
+    "failure_reason": "生成过程异常: 'WorldStateManager' object has no attribute 'get_novel_world_state'",
+    "failure_details": {
+      "exception_type": "AttributeError",
+      "exception_message": "'WorldStateManager' object has no attribute 'get_novel_world_state'",
+      "chapter_number": 3,
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\work6.03\\src\\core\\ContentGenerator.py\", line 892, in generate_chapter_content_for_novel\n    chapter_params = self._prepare_chapter_params(chapter_number, novel_data)\n  File \"D:\\work6.03\\src\\core\\ContentGenerator.py\", line 1687, in _prepare_chapter_params\n    world_state = self._get_previous_world_state(novel_title)\n  File \"D:\\work6.03\\src\\core\\ContentGenerator.py\", line 2305, in _get_previous_world_state\n    return self._consistency_gatherer._get_previous_world_state(novel_title)\n           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^\n  File \"D:\\work6.03\\src\\core\\ContentGenerator.py\", line 97, in _get_previous_world_state\n    return wsm.get_novel_world_state(novel_title)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^\nAttributeError: 'WorldStateManager' object has no attribute 'get_novel_world_state'\n"
+    },
+    "main_character": null,
+    "generation_context_summary": {
+      "event_context": {
+        "active_events_count": 1,
+        "timeline_summary": "🎯 进行中: 《主要情节事件分解》🟡"
+      },
+      "foreshadowing_context_count": 0,
+      "growth_context_focus": {}
+    }
+  },
+  {
+    "novel_title": "异界归来的天才医生",
+    "chapter_number": 1,
+    "failure_time": "2025-11-27 00:01:13",
+    "failure_reason": "生成过程异常: 'WorldStateManager' object has no attribute 'get_novel_world_state'",
+    "failure_details": {
+      "exception_type": "AttributeError",
+      "exception_message": "'WorldStateManager' object has no attribute 'get_novel_world_state'",
+      "chapter_number": 1,
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\work6.03\\src\\core\\ContentGenerator.py\", line 892, in generate_chapter_content_for_novel\n    chapter_params = self._prepare_chapter_params(chapter_number, novel_data)\n  File \"D:\\work6.03\\src\\core\\ContentGenerator.py\", line 1687, in _prepare_chapter_params\n    world_state = self._get_previous_world_state(novel_title)\n  File \"D:\\work6.03\\src\\core\\ContentGenerator.py\", line 2305, in _get_previous_world_state\n    return self._consistency_gatherer._get_previous_world_state(novel_title)\n           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^\n  File \"D:\\work6.03\\src\\core\\ContentGenerator.py\", line 97, in _get_previous_world_state\n    return wsm.get_novel_world_state(novel_title)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^\nAttributeError: 'WorldStateManager' object has no attribute 'get_novel_world_state'\n"
+    },
+    "main_character": null,
+    "generation_context_summary": {
+      "event_context": {
+        "active_events_count": 2,
+        "timeline_summary": "🎯 进行中: 《opening_stage - Major Event 1》🟡, 《opening_stage - Major Event 2》🟡"
+      },
+      "foreshadowing_context_count": 0,
+      "growth_context_focus": {}
+    }
+  },
+  {
+    "novel_title": "异界归来的天才医生",
+    "chapter_number": 2,
+    "failure_time": "2025-11-27 00:02:33",
+    "failure_reason": "生成过程异常: 'WorldStateManager' object has no attribute 'get_novel_world_state'",
+    "failure_details": {
+      "exception_type": "AttributeError",
+      "exception_message": "'WorldStateManager' object has no attribute 'get_novel_world_state'",
+      "chapter_number": 2,
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\work6.03\\src\\core\\ContentGenerator.py\", line 892, in generate_chapter_content_for_novel\n    chapter_params = self._prepare_chapter_params(chapter_number, novel_data)\n  File \"D:\\work6.03\\src\\core\\ContentGenerator.py\", line 1687, in _prepare_chapter_params\n    world_state = self._get_previous_world_state(novel_title)\n  File \"D:\\work6.03\\src\\core\\ContentGenerator.py\", line 2305, in _get_previous_world_state\n    return self._consistency_gatherer._get_previous_world_state(novel_title)\n           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^\n  File \"D:\\work6.03\\src\\core\\ContentGenerator.py\", line 97, in _get_previous_world_state\n    return wsm.get_novel_world_state(novel_title)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^\nAttributeError: 'WorldStateManager' object has no attribute 'get_novel_world_state'\n"
+    },
+    "main_character": null,
+    "generation_context_summary": {
+      "event_context": {
+        "active_events_count": 1,
+        "timeline_summary": "🎯 进行中: 《主要情节事件分解》🟡"
+      },
+      "foreshadowing_context_count": 0,
+      "growth_context_focus": {}
+    }
+  },
+  {
+    "novel_title": "异界归来的天才医生",
+    "chapter_number": 3,
+    "failure_time": "2025-11-27 00:03:54",
+    "failure_reason": "生成过程异常: 'WorldStateManager' object has no attribute 'get_novel_world_state'",
+    "failure_details": {
+      "exception_type": "AttributeError",
+      "exception_message": "'WorldStateManager' object has no attribute 'get_novel_world_state'",
+      "chapter_number": 3,
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\work6.03\\src\\core\\ContentGenerator.py\", line 892, in generate_chapter_content_for_novel\n    chapter_params = self._prepare_chapter_params(chapter_number, novel_data)\n  File \"D:\\work6.03\\src\\core\\ContentGenerator.py\", line 1687, in _prepare_chapter_params\n    world_state = self._get_previous_world_state(novel_title)\n  File \"D:\\work6.03\\src\\core\\ContentGenerator.py\", line 2305, in _get_previous_world_state\n    return self._consistency_gatherer._get_previous_world_state(novel_title)\n           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^\n  File \"D:\\work6.03\\src\\core\\ContentGenerator.py\", line 97, in _get_previous_world_state\n    return wsm.get_novel_world_state(novel_title)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^\nAttributeError: 'WorldStateManager' object has no attribute 'get_novel_world_state'\n"
+    },
+    "main_character": null,
+    "generation_context_summary": {
+      "event_context": {
+        "active_events_count": 1,
+        "timeline_summary": "🎯 进行中: 《主要情节事件分解》🟡"
+      },
+      "foreshadowing_context_count": 0,
+      "growth_context_focus": {}
+    }
+  },
+  {
+    "novel_title": "异界归来的天才医生",
+    "chapter_number": 1,
+    "failure_time": "2025-11-27 00:08:30",
+    "failure_reason": "生成过程异常: 'WorldStateManager' object has no attribute 'get_novel_world_state'",
+    "failure_details": {
+      "exception_type": "AttributeError",
+      "exception_message": "'WorldStateManager' object has no attribute 'get_novel_world_state'",
+      "chapter_number": 1,
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\work6.03\\src\\core\\ContentGenerator.py\", line 892, in generate_chapter_content_for_novel\n    chapter_params = self._prepare_chapter_params(chapter_number, novel_data)\n  File \"D:\\work6.03\\src\\core\\ContentGenerator.py\", line 1687, in _prepare_chapter_params\n    world_state = self._get_previous_world_state(novel_title)\n  File \"D:\\work6.03\\src\\core\\ContentGenerator.py\", line 2305, in _get_previous_world_state\n    return self._consistency_gatherer._get_previous_world_state(novel_title)\n           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^\n  File \"D:\\work6.03\\src\\core\\ContentGenerator.py\", line 97, in _get_previous_world_state\n    return wsm.get_novel_world_state(novel_title)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^\nAttributeError: 'WorldStateManager' object has no attribute 'get_novel_world_state'\n"
+    },
+    "main_character": null,
+    "generation_context_summary": {
+      "event_context": {
+        "active_events_count": 2,
+        "timeline_summary": "🎯 进行中: 《opening_stage - Major Event 1》🟡, 《opening_stage - Major Event 2》🟡"
+      },
+      "foreshadowing_context_count": 0,
+      "growth_context_focus": {}
+    }
+  },
+  {
+    "novel_title": "异界归来的天才医生",
+    "chapter_number": 1,
+    "failure_time": "2025-11-27 00:19:18",
+    "failure_reason": "核心内容生成失败 (generate_chapter_content返回None)",
+    "failure_details": {
+      "step": "generate_chapter_content"
+    },
+    "main_character": null,
+    "generation_context_summary": {
+      "event_context": {
+        "active_events_count": 2,
+        "timeline_summary": "🎯 进行中: 《opening_stage - Major Event 1》🟡, 《opening_stage - Major Event 2》🟡"
+      },
+      "foreshadowing_context_count": 0,
+      "growth_context_focus": {}
+    }
+  },
+  {
+    "novel_title": "异界归来的天才医生",
+    "chapter_number": 2,
+    "failure_time": "2025-11-27 00:20:39",
+    "failure_reason": "核心内容生成失败 (generate_chapter_content返回None)",
+    "failure_details": {
+      "step": "generate_chapter_content"
+    },
+    "main_character": null,
+    "generation_context_summary": {
+      "event_context": {
+        "active_events_count": 1,
+        "timeline_summary": "🎯 进行中: 《主要情节事件分解》🟡"
+      },
+      "foreshadowing_context_count": 0,
+      "growth_context_focus": {}
+    }
+  },
+  {
+    "novel_title": "异界归来的天才医生",
+    "chapter_number": 3,
+    "failure_time": "2025-11-27 00:22:00",
+    "failure_reason": "核心内容生成失败 (generate_chapter_content返回None)",
+    "failure_details": {
+      "step": "generate_chapter_content"
+    },
+    "main_character": null,
+    "generation_context_summary": {
+      "event_context": {
+        "active_events_count": 1,
+        "timeline_summary": "🎯 进行中: 《主要情节事件分解》🟡"
+      },
+      "foreshadowing_context_count": 0,
+      "growth_context_focus": {}
+    }
+  },
+  {
+    "novel_title": "异界归来的天才医生",
+    "chapter_number": 1,
+    "failure_time": "2025-11-27 00:24:14",
+    "failure_reason": "核心内容生成失败 (generate_chapter_content返回None)",
+    "failure_details": {
+      "step": "generate_chapter_content"
+    },
+    "main_character": null,
+    "generation_context_summary": {
+      "event_context": {
+        "active_events_count": 2,
+        "timeline_summary": "🎯 进行中: 《opening_stage - Major Event 1》🟡, 《opening_stage - Major Event 2》🟡"
+      },
+      "foreshadowing_context_count": 0,
+      "growth_context_focus": {}
+    }
+  },
+  {
+    "novel_title": "异界归来的天才医生",
+    "chapter_number": 2,
+    "failure_time": "2025-11-27 00:25:35",
+    "failure_reason": "核心内容生成失败 (generate_chapter_content返回None)",
+    "failure_details": {
+      "step": "generate_chapter_content"
+    },
+    "main_character": null,
+    "generation_context_summary": {
+      "event_context": {
+        "active_events_count": 1,
+        "timeline_summary": "🎯 进行中: 《主要情节事件分解》🟡"
+      },
+      "foreshadowing_context_count": 0,
+      "growth_context_focus": {}
+    }
+  },
+  {
+    "novel_title": "异界归来的天才医生",
+    "chapter_number": 3,
+    "failure_time": "2025-11-27 00:26:56",
+    "failure_reason": "核心内容生成失败 (generate_chapter_content返回None)",
+    "failure_details": {
+      "step": "generate_chapter_content"
+    },
+    "main_character": null,
+    "generation_context_summary": {
+      "event_context": {
+        "active_events_count": 1,
+        "timeline_summary": "🎯 进行中: 《主要情节事件分解》🟡"
+      },
+      "foreshadowing_context_count": 0,
+      "growth_context_focus": {}
+    }
+  },
+  {
+    "novel_title": "异界归来的天才医生",
+    "chapter_number": 1,
+    "failure_time": "2025-11-27 20:07:01",
+    "failure_reason": "核心内容生成失败 (generate_chapter_content返回None)",
+    "failure_details": {
+      "step": "generate_chapter_content"
+    },
+    "main_character": null,
+    "generation_context_summary": {
+      "event_context": {
+        "active_events_count": 2,
+        "timeline_summary": "🎯 进行中: 《opening_stage - Major Event 1》🟡, 《opening_stage - Major Event 2》🟡"
+      },
+      "foreshadowing_context_count": 0,
+      "growth_context_focus": {}
+    }
+  },
+  {
+    "novel_title": "异界归来的天才医生",
+    "chapter_number": 2,
+    "failure_time": "2025-11-27 20:08:22",
+    "failure_reason": "核心内容生成失败 (generate_chapter_content返回None)",
+    "failure_details": {
+      "step": "generate_chapter_content"
+    },
+    "main_character": null,
+    "generation_context_summary": {
+      "event_context": {
+        "active_events_count": 1,
+        "timeline_summary": "🎯 进行中: 《主要情节事件分解》🟡"
+      },
+      "foreshadowing_context_count": 0,
+      "growth_context_focus": {}
+    }
+  },
+  {
+    "novel_title": "异界归来的天才医生",
+    "chapter_number": 3,
+    "failure_time": "2025-11-27 20:09:43",
+    "failure_reason": "核心内容生成失败 (generate_chapter_content返回None)",
+    "failure_details": {
+      "step": "generate_chapter_content"
+    },
+    "main_character": null,
+    "generation_context_summary": {
+      "event_context": {
+        "active_events_count": 1,
+        "timeline_summary": "🎯 进行中: 《主要情节事件分解》🟡"
+      },
+      "foreshadowing_context_count": 0,
+      "growth_context_focus": {}
+    }
+  },
+  {
+    "novel_title": "异界归来的天才医生",
+    "chapter_number": 1,
+    "failure_time": "2025-11-27 22:37:08",
+    "failure_reason": "核心内容生成失败 (generate_chapter_content返回None)",
+    "failure_details": {
+      "step": "generate_chapter_content"
+    },
+    "main_character": null,
+    "generation_context_summary": {
+      "event_context": {
+        "active_events_count": 2,
+        "timeline_summary": "🎯 进行中: 《opening_stage - Major Event 1》🟡, 《opening_stage - Major Event 2》🟡"
+      },
+      "foreshadowing_context_count": 0,
+      "growth_context_focus": {}
+    }
+  },
+  {
+    "novel_title": "异界归来的天才医生",
+    "chapter_number": 2,
+    "failure_time": "2025-11-27 22:38:31",
+    "failure_reason": "核心内容生成失败 (generate_chapter_content返回None)",
+    "failure_details": {
+      "step": "generate_chapter_content"
+    },
+    "main_character": null,
+    "generation_context_summary": {
+      "event_context": {
+        "active_events_count": 1,
+        "timeline_summary": "🎯 进行中: 《主要情节事件分解》🟡"
+      },
+      "foreshadowing_context_count": 0,
+      "growth_context_focus": {}
+    }
+  },
+  {
+    "novel_title": "异界归来的天才医生",
+    "chapter_number": 3,
+    "failure_time": "2025-11-27 22:39:54",
+    "failure_reason": "核心内容生成失败 (generate_chapter_content返回None)",
+    "failure_details": {
+      "step": "generate_chapter_content"
+    },
+    "main_character": null,
+    "generation_context_summary": {
+      "event_context": {
+        "active_events_count": 1,
+        "timeline_summary": "🎯 进行中: 《主要情节事件分解》🟡"
+      },
+      "foreshadowing_context_count": 0,
+      "growth_context_focus": {}
+    }
+  },
+  {
+    "novel_title": "异界归来的天才医生",
+    "chapter_number": 1,
+    "failure_time": "2025-11-27 22:56:07",
+    "failure_reason": "核心内容生成失败 (generate_chapter_content返回None)",
+    "failure_details": {
+      "step": "generate_chapter_content"
+    },
+    "main_character": null,
+    "generation_context_summary": {
+      "event_context": {
+        "active_events_count": 2,
+        "timeline_summary": "🎯 进行中: 《opening_stage - Major Event 1》🟡, 《opening_stage - Major Event 2》🟡"
+      },
+      "foreshadowing_context_count": 0,
+      "growth_context_focus": {}
+    }
+  },
+  {
+    "novel_title": "异界归来的天才医生",
+    "chapter_number": 2,
+    "failure_time": "2025-11-27 22:57:30",
+    "failure_reason": "核心内容生成失败 (generate_chapter_content返回None)",
+    "failure_details": {
+      "step": "generate_chapter_content"
+    },
+    "main_character": null,
+    "generation_context_summary": {
+      "event_context": {
+        "active_events_count": 1,
+        "timeline_summary": "🎯 进行中: 《主要情节事件分解》🟡"
+      },
+      "foreshadowing_context_count": 0,
+      "growth_context_focus": {}
+    }
+  },
+  {
+    "novel_title": "异界归来的天才医生",
+    "chapter_number": 3,
+    "failure_time": "2025-11-27 22:58:53",
+    "failure_reason": "核心内容生成失败 (generate_chapter_content返回None)",
+    "failure_details": {
+      "step": "generate_chapter_content"
+    },
+    "main_character": null,
+    "generation_context_summary": {
+      "event_context": {
+        "active_events_count": 1,
+        "timeline_summary": "🎯 进行中: 《主要情节事件分解》🟡"
+      },
+      "foreshadowing_context_count": 0,
+      "growth_context_focus": {}
+    }
+  },
+  {
+    "novel_title": "异界归来的天才医生",
+    "chapter_number": 1,
+    "failure_time": "2025-11-27 23:12:47",
+    "failure_reason": "生成过程异常: Invalid format specifier ' [\"角色A\", \"角色B\"],\n        \"interaction_type\": \"合作|冲突|师徒|恋人|盟友|对手|敌对\",\n        \"description\": \"一句话概述本次互动发生的原因或结果\",\n        \"chapter\": 12\n    ' for object of type 'str'",
+    "failure_details": {
+      "exception_type": "ValueError",
+      "exception_message": "Invalid format specifier ' [\"角色A\", \"角色B\"],\n        \"interaction_type\": \"合作|冲突|师徒|恋人|盟友|对手|敌对\",\n        \"description\": \"一句话概述本次互动发生的原因或结果\",\n        \"chapter\": 12\n    ' for object of type 'str'",
+      "chapter_number": 1,
+      "traceback": "Traceback (most recent call last):\n  File \"d:\\work6.03\\src\\core\\ContentGenerator.py\", line 926, in generate_chapter_content_for_novel\n    assessment = self.quality_assessor.quick_assess_chapter_quality(\n        chapter_data.get(\"content\", \"\"),\n    ...<5 lines>...\n        novel_data=novel_data\n    )\n  File \"d:\\work6.03\\src\\core\\QualityAssessor.py\", line 911, in quick_assess_chapter_quality\n    return self.assess_chapter_quality({\n           ~~~~~~~~~~~~~~~~~~~~~~~~~~~^^\n        \"chapter_content\": chapter_content,\n        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n    ...<5 lines>...\n        \"word_count\": word_count\n        ^^^^^^^^^^^^^^^^^^^^^^^^\n    })\n    ^^\n  File \"d:\\work6.03\\src\\core\\QualityAssessor.py\", line 244, in assess_chapter_quality\n    user_prompt = self._generate_chapter_assessment_prompt(assessment_params)\n  File \"d:\\work6.03\\src\\core\\QualityAssessor.py\", line 608, in _generate_chapter_assessment_prompt\n    {\n    ...<4 lines>...\n    }\nValueError: Invalid format specifier ' [\"角色A\", \"角色B\"],\n        \"interaction_type\": \"合作|冲突|师徒|恋人|盟友|对手|敌对\",\n        \"description\": \"一句话概述本次互动发生的原因或结果\",\n        \"chapter\": 12\n    ' for object of type 'str'\n"
+    },
+    "main_character": null,
+    "generation_context_summary": {
+      "event_context": {
+        "active_events_count": 2,
+        "timeline_summary": "🎯 进行中: 《opening_stage - Major Event 1》🟡, 《opening_stage - Major Event 2》🟡"
+      },
+      "foreshadowing_context_count": 0,
+      "growth_context_focus": {}
+    }
+  },
+  {
+    "novel_title": "异界归来的天才医生",
+    "chapter_number": 2,
+    "failure_time": "2025-11-27 23:14:08",
+    "failure_reason": "生成过程异常: Invalid format specifier ' [\"角色A\", \"角色B\"],\n        \"interaction_type\": \"合作|冲突|师徒|恋人|盟友|对手|敌对\",\n        \"description\": \"一句话概述本次互动发生的原因或结果\",\n        \"chapter\": 12\n    ' for object of type 'str'",
+    "failure_details": {
+      "exception_type": "ValueError",
+      "exception_message": "Invalid format specifier ' [\"角色A\", \"角色B\"],\n        \"interaction_type\": \"合作|冲突|师徒|恋人|盟友|对手|敌对\",\n        \"description\": \"一句话概述本次互动发生的原因或结果\",\n        \"chapter\": 12\n    ' for object of type 'str'",
+      "chapter_number": 2,
+      "traceback": "Traceback (most recent call last):\n  File \"d:\\work6.03\\src\\core\\ContentGenerator.py\", line 926, in generate_chapter_content_for_novel\n    assessment = self.quality_assessor.quick_assess_chapter_quality(\n        chapter_data.get(\"content\", \"\"),\n    ...<5 lines>...\n        novel_data=novel_data\n    )\n  File \"d:\\work6.03\\src\\core\\QualityAssessor.py\", line 911, in quick_assess_chapter_quality\n    return self.assess_chapter_quality({\n           ~~~~~~~~~~~~~~~~~~~~~~~~~~~^^\n        \"chapter_content\": chapter_content,\n        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n    ...<5 lines>...\n        \"word_count\": word_count\n        ^^^^^^^^^^^^^^^^^^^^^^^^\n    })\n    ^^\n  File \"d:\\work6.03\\src\\core\\QualityAssessor.py\", line 244, in assess_chapter_quality\n    user_prompt = self._generate_chapter_assessment_prompt(assessment_params)\n  File \"d:\\work6.03\\src\\core\\QualityAssessor.py\", line 608, in _generate_chapter_assessment_prompt\n    {\n    ...<4 lines>...\n    }\nValueError: Invalid format specifier ' [\"角色A\", \"角色B\"],\n        \"interaction_type\": \"合作|冲突|师徒|恋人|盟友|对手|敌对\",\n        \"description\": \"一句话概述本次互动发生的原因或结果\",\n        \"chapter\": 12\n    ' for object of type 'str'\n"
+    },
+    "main_character": null,
+    "generation_context_summary": {
+      "event_context": {
+        "active_events_count": 1,
+        "timeline_summary": "🎯 进行中: 《主要情节事件分解》🟡"
+      },
+      "foreshadowing_context_count": 0,
+      "growth_context_focus": {}
+    }
+  },
+  {
+    "novel_title": "异界归来的天才医生",
+    "chapter_number": 3,
+    "failure_time": "2025-11-27 23:15:29",
+    "failure_reason": "生成过程异常: Invalid format specifier ' [\"角色A\", \"角色B\"],\n        \"interaction_type\": \"合作|冲突|师徒|恋人|盟友|对手|敌对\",\n        \"description\": \"一句话概述本次互动发生的原因或结果\",\n        \"chapter\": 12\n    ' for object of type 'str'",
+    "failure_details": {
+      "exception_type": "ValueError",
+      "exception_message": "Invalid format specifier ' [\"角色A\", \"角色B\"],\n        \"interaction_type\": \"合作|冲突|师徒|恋人|盟友|对手|敌对\",\n        \"description\": \"一句话概述本次互动发生的原因或结果\",\n        \"chapter\": 12\n    ' for object of type 'str'",
+      "chapter_number": 3,
+      "traceback": "Traceback (most recent call last):\n  File \"d:\\work6.03\\src\\core\\ContentGenerator.py\", line 926, in generate_chapter_content_for_novel\n    assessment = self.quality_assessor.quick_assess_chapter_quality(\n        chapter_data.get(\"content\", \"\"),\n    ...<5 lines>...\n        novel_data=novel_data\n    )\n  File \"d:\\work6.03\\src\\core\\QualityAssessor.py\", line 911, in quick_assess_chapter_quality\n    return self.assess_chapter_quality({\n           ~~~~~~~~~~~~~~~~~~~~~~~~~~~^^\n        \"chapter_content\": chapter_content,\n        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n    ...<5 lines>...\n        \"word_count\": word_count\n        ^^^^^^^^^^^^^^^^^^^^^^^^\n    })\n    ^^\n  File \"d:\\work6.03\\src\\core\\QualityAssessor.py\", line 244, in assess_chapter_quality\n    user_prompt = self._generate_chapter_assessment_prompt(assessment_params)\n  File \"d:\\work6.03\\src\\core\\QualityAssessor.py\", line 608, in _generate_chapter_assessment_prompt\n    {\n    ...<4 lines>...\n    }\nValueError: Invalid format specifier ' [\"角色A\", \"角色B\"],\n        \"interaction_type\": \"合作|冲突|师徒|恋人|盟友|对手|敌对\",\n        \"description\": \"一句话概述本次互动发生的原因或结果\",\n        \"chapter\": 12\n    ' for object of type 'str'\n"
+    },
+    "main_character": null,
+    "generation_context_summary": {
+      "event_context": {
+        "active_events_count": 1,
+        "timeline_summary": "🎯 进行中: 《主要情节事件分解》🟡"
+      },
+      "foreshadowing_context_count": 0,
+      "growth_context_focus": {}
+    }
+  },
+  {
+    "novel_title": "异界归来的天才医生",
+    "chapter_number": 2,
+    "failure_time": "2025-11-28 08:14:23",
+    "failure_reason": "生成过程异常: 'GenerationContext' object has no attribute 'get'",
+    "failure_details": {
+      "exception_type": "AttributeError",
+      "exception_message": "'GenerationContext' object has no attribute 'get'",
+      "chapter_number": 2,
+      "traceback": "Traceback (most recent call last):\n  File \"d:\\work6.03\\src\\core\\ContentGenerator.py\", line 914, in generate_chapter_content_for_novel\n    chapter_data = self._handle_chapter_title_uniqueness(chapter_data, chapter_number, novel_data)\n  File \"d:\\work6.03\\src\\core\\ContentGenerator.py\", line 1258, in _handle_chapter_title_uniqueness\n    new_title = self._generate_unique_chapter_title(original_title, chapter_number, novel_data)\n  File \"d:\\work6.03\\src\\core\\ContentGenerator.py\", line 1286, in _generate_unique_chapter_title\n    event_context = novel_data.get('_current_generation_context', {}).get('event_context', {})\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAttributeError: 'GenerationContext' object has no attribute 'get'\n"
+    },
+    "main_character": null,
+    "generation_context_summary": {
+      "event_context": {
+        "active_events_count": 1,
+        "timeline_summary": "🎯 进行中: 《主要情节事件分解》🟡"
+      },
+      "foreshadowing_context_count": 0,
+      "growth_context_focus": {}
+    }
+  },
+  {
+    "novel_title": "异界归来的天才医生",
+    "chapter_number": 2,
+    "failure_time": "2025-11-28 08:20:24",
+    "failure_reason": "生成过程异常: 'GenerationContext' object has no attribute 'get'",
+    "failure_details": {
+      "exception_type": "AttributeError",
+      "exception_message": "'GenerationContext' object has no attribute 'get'",
+      "chapter_number": 2,
+      "traceback": "Traceback (most recent call last):\n  File \"d:\\work6.03\\src\\core\\ContentGenerator.py\", line 914, in generate_chapter_content_for_novel\n    chapter_data = self._handle_chapter_title_uniqueness(chapter_data, chapter_number, novel_data)\n  File \"d:\\work6.03\\src\\core\\ContentGenerator.py\", line 1258, in _handle_chapter_title_uniqueness\n    new_title = self._generate_unique_chapter_title(original_title, chapter_number, novel_data)\n  File \"d:\\work6.03\\src\\core\\ContentGenerator.py\", line 1286, in _generate_unique_chapter_title\n    event_context = novel_data.get('_current_generation_context', {}).get('event_context', {})\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAttributeError: 'GenerationContext' object has no attribute 'get'\n"
+    },
+    "main_character": null,
+    "generation_context_summary": {
+      "event_context": {
+        "active_events_count": 1,
+        "timeline_summary": "🎯 进行中: 《主要情节事件分解》🟡"
+      },
+      "foreshadowing_context_count": 0,
+      "growth_context_focus": {}
+    }
+  },
+  {
+    "novel_title": "异界归来的天才医生",
+    "chapter_number": 3,
+    "failure_time": "2025-11-28 08:21:45",
+    "failure_reason": "生成过程异常: 'GenerationContext' object has no attribute 'get'",
+    "failure_details": {
+      "exception_type": "AttributeError",
+      "exception_message": "'GenerationContext' object has no attribute 'get'",
+      "chapter_number": 3,
+      "traceback": "Traceback (most recent call last):\n  File \"d:\\work6.03\\src\\core\\ContentGenerator.py\", line 914, in generate_chapter_content_for_novel\n    chapter_data = self._handle_chapter_title_uniqueness(chapter_data, chapter_number, novel_data)\n  File \"d:\\work6.03\\src\\core\\ContentGenerator.py\", line 1258, in _handle_chapter_title_uniqueness\n    new_title = self._generate_unique_chapter_title(original_title, chapter_number, novel_data)\n  File \"d:\\work6.03\\src\\core\\ContentGenerator.py\", line 1286, in _generate_unique_chapter_title\n    event_context = novel_data.get('_current_generation_context', {}).get('event_context', {})\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAttributeError: 'GenerationContext' object has no attribute 'get'\n"
+    },
+    "main_character": null,
+    "generation_context_summary": {
+      "event_context": {
+        "active_events_count": 1,
+        "timeline_summary": "🎯 进行中: 《主要情节事件分解》🟡"
+      },
+      "foreshadowing_context_count": 0,
+      "growth_context_focus": {}
+    }
+  },
+  {
+    "novel_title": "异界归来的天才医生",
+    "chapter_number": 2,
+    "failure_time": "2025-11-28 09:44:50",
+    "failure_reason": "生成过程异常: 'GenerationContext' object has no attribute 'get'",
+    "failure_details": {
+      "exception_type": "AttributeError",
+      "exception_message": "'GenerationContext' object has no attribute 'get'",
+      "chapter_number": 2,
+      "traceback": "Traceback (most recent call last):\n  File \"d:\\work6.03\\src\\core\\ContentGenerator.py\", line 914, in generate_chapter_content_for_novel\n    chapter_data = self._handle_chapter_title_uniqueness(chapter_data, chapter_number, novel_data)\n  File \"d:\\work6.03\\src\\core\\ContentGenerator.py\", line 1258, in _handle_chapter_title_uniqueness\n    new_title = self._generate_unique_chapter_title(original_title, chapter_number, novel_data)\n  File \"d:\\work6.03\\src\\core\\ContentGenerator.py\", line 1347, in _generate_unique_chapter_title\n    return self._generate_event_related_title(chapter_number, novel_data)\n           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"d:\\work6.03\\src\\core\\ContentGenerator.py\", line 1351, in _generate_event_related_title\n    event_context = novel_data.get('_current_generation_context', {}).get('event_context', {})\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAttributeError: 'GenerationContext' object has no attribute 'get'\n"
+    },
+    "main_character": null,
+    "generation_context_summary": {
+      "event_context": {
+        "active_events_count": 1,
+        "timeline_summary": "🎯 进行中: 《主要情节事件分解》🟡"
+      },
+      "foreshadowing_context_count": 0,
+      "growth_context_focus": {}
+    }
+  },
+  {
+    "novel_title": "异界归来的天才医生",
+    "chapter_number": 3,
+    "failure_time": "2025-11-28 09:46:11",
+    "failure_reason": "生成过程异常: 'GenerationContext' object has no attribute 'get'",
+    "failure_details": {
+      "exception_type": "AttributeError",
+      "exception_message": "'GenerationContext' object has no attribute 'get'",
+      "chapter_number": 3,
+      "traceback": "Traceback (most recent call last):\n  File \"d:\\work6.03\\src\\core\\ContentGenerator.py\", line 914, in generate_chapter_content_for_novel\n    chapter_data = self._handle_chapter_title_uniqueness(chapter_data, chapter_number, novel_data)\n  File \"d:\\work6.03\\src\\core\\ContentGenerator.py\", line 1258, in _handle_chapter_title_uniqueness\n    new_title = self._generate_unique_chapter_title(original_title, chapter_number, novel_data)\n  File \"d:\\work6.03\\src\\core\\ContentGenerator.py\", line 1347, in _generate_unique_chapter_title\n    return self._generate_event_related_title(chapter_number, novel_data)\n           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"d:\\work6.03\\src\\core\\ContentGenerator.py\", line 1351, in _generate_event_related_title\n    event_context = novel_data.get('_current_generation_context', {}).get('event_context', {})\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAttributeError: 'GenerationContext' object has no attribute 'get'\n"
+    },
+    "main_character": null,
+    "generation_context_summary": {
+      "event_context": {
+        "active_events_count": 1,
+        "timeline_summary": "🎯 进行中: 《主要情节事件分解》🟡"
+      },
+      "foreshadowing_context_count": 0,
+      "growth_context_focus": {}
+    }
+  },
+  {
+    "novel_title": "异界归来的天才医生",
+    "chapter_number": 2,
+    "failure_time": "2025-11-28 10:40:26",
+    "failure_reason": "生成过程异常: 'GenerationContext' object has no attribute 'get'",
+    "failure_details": {
+      "exception_type": "AttributeError",
+      "exception_message": "'GenerationContext' object has no attribute 'get'",
+      "chapter_number": 2,
+      "traceback": "Traceback (most recent call last):\n  File \"d:\\work6.03\\src\\core\\ContentGenerator.py\", line 914, in generate_chapter_content_for_novel\n    chapter_data = self._handle_chapter_title_uniqueness(chapter_data, chapter_number, novel_data)\n  File \"d:\\work6.03\\src\\core\\ContentGenerator.py\", line 1258, in _handle_chapter_title_uniqueness\n    new_title = self._generate_unique_chapter_title(original_title, chapter_number, novel_data)\n  File \"d:\\work6.03\\src\\core\\ContentGenerator.py\", line 1347, in _generate_unique_chapter_title\n    return self._generate_event_related_title(chapter_number, novel_data)\n           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"d:\\work6.03\\src\\core\\ContentGenerator.py\", line 1351, in _generate_event_related_title\n    event_context = novel_data.get('_current_generation_context', {}).get('event_context', {})\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAttributeError: 'GenerationContext' object has no attribute 'get'\n"
+    },
+    "main_character": null,
+    "generation_context_summary": {
+      "event_context": {
+        "active_events_count": 1,
+        "timeline_summary": "🎯 进行中: 《主要情节事件分解》🟡"
+      },
+      "foreshadowing_context_count": 0,
+      "growth_context_focus": {}
+    }
+  }
+]

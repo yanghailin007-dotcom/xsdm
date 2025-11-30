@@ -1,0 +1,87 @@
+{
+  "events": [
+    {
+      "description": "",
+      "end_chapter": 0,
+      "name": "opening_stage - Major Event 1",
+      "significance": "未知重要性",
+      "stage": "opening_stage",
+      "start_chapter": 0,
+      "type": "major"
+    },
+    {
+      "description": "",
+      "end_chapter": 0,
+      "name": "opening_stage - Major Event 2",
+      "significance": "未知重要性",
+      "stage": "opening_stage",
+      "start_chapter": 0,
+      "type": "major"
+    },
+    {
+      "description": "",
+      "end_chapter": 0,
+      "name": "development_stage - Major Event 1",
+      "significance": "未知重要性",
+      "stage": "development_stage",
+      "start_chapter": 0,
+      "type": "major"
+    },
+    {
+      "description": "",
+      "end_chapter": 0,
+      "name": "development_stage - Major Event 2",
+      "significance": "未知重要性",
+      "stage": "development_stage",
+      "start_chapter": 0,
+      "type": "major"
+    },
+    {
+      "description": "",
+      "end_chapter": 0,
+      "name": "climax_stage - Major Event 1",
+      "significance": "未知重要性",
+      "stage": "climax_stage",
+      "start_chapter": 0,
+      "type": "major"
+    },
+    {
+      "description": "",
+      "end_chapter": 0,
+      "name": "climax_stage - Major Event 2",
+      "significance": "未知重要性",
+      "stage": "climax_stage",
+      "start_chapter": 0,
+      "type": "major"
+    },
+    {
+      "description": "",
+      "end_chapter": 0,
+      "name": "ending_stage - Major Event 1",
+      "significance": "未知重要性",
+      "stage": "ending_stage",
+      "start_chapter": 0,
+      "type": "major"
+    },
+    {
+      "description": "",
+      "end_chapter": 0,
+      "name": "ending_stage - Major Event 2",
+      "significance": "未知重要性",
+      "stage": "ending_stage",
+      "start_chapter": 0,
+      "type": "major"
+    }
+  ],
+  "events_by_type": {
+    "major": 8,
+    "medium": 0,
+    "minor": 0,
+    "special": 0
+  },
+  "novel_title": "异界归来的天才医生",
+  "special_events_breakdown": {
+    "emotional_filler": 0
+  },
+  "total_events": 8
+}

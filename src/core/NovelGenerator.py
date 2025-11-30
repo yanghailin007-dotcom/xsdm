@@ -3454,63 +3454,40 @@ class NovelGenerator:
             )
 
             if quality_result:
-                # 重新计算总质量评分，确保各维度权重
-                weights = {
-                    "golden_finger": 0.20,
-                    "selling_points": 0.20,
-                    "worldview_coherence": 0.15,
-                    "character_depth": 0.15,
-                    "emotional_resonance": 0.10,
-                    "foreshadowing_ingenuity": 0.10,
-                    "thematic_depth": 0.10
-                }
-                
-                # 修复：安全提取并转换分数为浮点数
+                # 辅助函数：安全获取分数并转换为浮点数
                 def safe_get_score(result, key, default=0.0):
                     """安全获取分数并转换为浮点数"""
                     score = result.get(key, default)
                     if isinstance(score, str):
                         try:
-                            # 尝试从字符串中提取数字
                             import re
                             numbers = re.findall(r'\d+\.?\d*', score)
-                            if numbers:
-                                return float(numbers[0])
-                            else:
-                                return float(score)
+                            return float(numbers[0]) if numbers else default
                         except (ValueError, TypeError):
                             return default
                     elif isinstance(score, (int, float)):
                         return float(score)
-                    else:
-                        return default
-                
-                # 使用安全方法获取所有分数
-                gf_score = safe_get_score(quality_result, "golden_finger_score", 0.0)
-                sp_score = safe_get_score(quality_result, "selling_points_score", 0.0)
-                wv_score = safe_get_score(quality_result, "worldview_coherence_score", 0.0)
-                cd_score = safe_get_score(quality_result, "character_depth_score", 0.0)
-                er_score = safe_get_score(quality_result, "emotional_resonance_score", 0.0)
-                fi_score = safe_get_score(quality_result, "foreshadowing_ingenuity_score", 0.0)
-                td_score = safe_get_score(quality_result, "thematic_depth_score", 0.0)
+                    return default
 
-                # 修复：确保所有分数都在0-10范围内
-                scores_to_clamp = [gf_score, sp_score, wv_score, cd_score, er_score, fi_score, td_score]
-                clamped_scores = [max(0.0, min(10.0, score)) for score in scores_to_clamp]
-                
-                gf_score, sp_score, wv_score, cd_score, er_score, fi_score, td_score = clamped_scores
+                # 【核心修复-1】：直接从API响应中获取已计算好的总质量分，而不是自己计算
+                overall_quality_score = safe_get_score(quality_result, "overall_score", 0.0)
 
-                overall_quality_score = (
-                    gf_score * weights["golden_finger"] +
-                    sp_score * weights["selling_points"] +
-                    wv_score * weights["worldview_coherence"] +
-                    cd_score * weights["character_depth"] +
-                    er_score * weights["emotional_resonance"] +
-                    fi_score * weights["foreshadowing_ingenuity"] +
-                    td_score * weights["thematic_depth"]
-                )
+                # 【核心修复-2】：为了兼容下游的筛选逻辑，从 "detailed_scores" 提取子项评分，并换算到0-10分制
+                detailed_scores = quality_result.get("detailed_scores", {})
                 
-                # 将计算出的总分更新回结果字典
+                # 将API返回的子项评分映射并缩放到0-10范围
+                gf_score = safe_get_score(detailed_scores, "novelty") * (10.0 / 3.0)
+                sp_score = safe_get_score(detailed_scores, "commercial_potential") * (10.0 / 2.0)
+                wv_score = safe_get_score(detailed_scores, "plot_feasibility") * (10.0 / 2.0)
+                cd_score = safe_get_score(detailed_scores, "style_fit") * (10.0 / 2.0)
+
+                # 将换算后的分数（可能用于筛选）添加到结果字典中，以确保下游逻辑能获取到值
+                quality_result["golden_finger_score"] = max(0.0, min(10.0, gf_score))
+                quality_result["selling_points_score"] = max(0.0, min(10.0, sp_score))
+                quality_result["worldview_coherence_score"] = max(0.0, min(10.0, wv_score))
+                quality_result["character_depth_score"] = max(0.0, min(10.0, cd_score))
+                
+                # 将API计算的总分也放入，以统一结构
                 quality_result["overall_quality_score"] = overall_quality_score
 
                 # 降低新鲜度权重，提高整体质量权重
@@ -3523,8 +3500,8 @@ class NovelGenerator:
                     "freshness_details": freshness_result,
                     "total_score": total_score,
                     "quality_details": quality_result,
-                    "super_reviewer_verdict": quality_result.get("super_reviewer_verdict", "未知"),
-                    "perfection_suggestions": quality_result.get("perfection_suggestions", []),
+                    "super_reviewer_verdict": quality_result.get("verdict", "未知"),
+                    "perfection_suggestions": quality_result.get("recommendations", []),
                     "recommendation": overall_quality_score >= 8.5 and freshness_score >= 7.5
                 }
 
@@ -3533,7 +3510,11 @@ class NovelGenerator:
                 print(f"  📈 新鲜度评分: {freshness_score:.1f}/10分")
                 print(f"  🌟 最终综合评分: {total_score:.1f}/10分")
                 print(f"  💬 评审员最终评语: {result['super_reviewer_verdict']}")
-                print(f"  💡 提升建议: {result['perfection_suggestions']}")
+                # 使用 recommendations 键
+                recommendations_list = result.get('perfection_suggestions', [])
+                if recommendations_list:
+                    print(f"  💡 提升建议: {recommendations_list}")
+
                 print(f'  ✨ 是否达到"精品"标准: {"是" if result["recommendation"] else "否"}')
 
                 # 将评分存储到方案数据中

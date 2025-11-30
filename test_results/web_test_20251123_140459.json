@@ -1,0 +1,30 @@
+{
+  "start_time": "2025-11-23T14:04:50.953744",
+  "tests_passed": [
+    "server_health",
+    "submit_task"
+  ],
+  "tests_failed": [
+    "monitor_progress",
+    "verify_data_no_chapters"
+  ],
+  "generation_data": {
+    "task_id": "6b8e4756-6501-4d25-bfd2-80cf9f41d397",
+    "config": {
+      "title": "测试小说：穿越异世的医生",
+      "synopsis": "现代医生穿越到异世界，用医学知识开创新的治疗体系，成为传奇医者",
+      "core_setting": "现代医生穿越到魔法世界，医学知识与魔法结合",
+      "core_selling_points": [
+        "穿越",
+        "医学",
+        "魔法",
+        "成长"
+      ],
+      "total_chapters": 3
+    }
+  },
+  "end_time": "2025-11-23T14:04:59.185680",
+  "total_tests": 4,
+  "passed_count": 2,
+  "failed_count": 2
+}

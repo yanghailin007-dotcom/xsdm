@@ -247,29 +247,29 @@ def main():
     try:
         # 初始化生成器
         generator = DouBaoImageGenerator()
-        
+
         # 示例提示词 - 与test.py完全相同
         prompt = create_prompt_template()
-        
-        self.logger.info("开始生成示例图像...")
+
+        generator.logger.info("开始生成示例图像...")
         # 生成图像 - 完全按照test.py的方式，watermark=False确保无水印
         result = generator.generate_image(
             prompt=prompt,
             size="2K",
             watermark=False
         )
-        
-        self.logger.info("\n" + "="*50)
-        self.logger.info("生成完成!")
+
+        generator.logger.info("\n" + "="*50)
+        generator.logger.info("生成完成!")
         if 'local_path' in result:
-            self.logger.info(f"图像文件: {result['local_path']}")
-        
+            generator.logger.info(f"图像文件: {result['local_path']}")
+
         # 显示URL（与test.py输出一致）
         if 'data' in result and len(result['data']) > 0:
-            self.logger.info(f"图像URL: {result['data'][0]['url']}")
-        
+            generator.logger.info(f"图像URL: {result['data'][0]['url']}")
+
     except Exception as e:
-        self.logger.info(f"错误: {e}")
+        logging.error(f"错误: {e}")
         logging.error(f"主程序执行失败: {e}")
 
 
