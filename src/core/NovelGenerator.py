@@ -3469,26 +3469,21 @@ class NovelGenerator:
                         return float(score)
                     return default
 
-                # 【核心修复-1】：直接从API响应中获取已计算好的总质量分，而不是自己计算
-                overall_quality_score = safe_get_score(quality_result, "overall_score", 0.0)
+                # 直接从AI超级评审员的详细评分中获取总分和各项子分数
+                overall_quality_score = safe_get_score(quality_result, "overall_quality_score", 0.0)
+                gf_score = safe_get_score(quality_result, "golden_finger_score", 0.0)
+                sp_score = safe_get_score(quality_result, "selling_points_score", 0.0)
+                wv_score = safe_get_score(quality_result, "worldview_coherence_score", 0.0)
+                cd_score = safe_get_score(quality_result, "character_depth_score", 0.0)
 
-                # 【核心修复-2】：为了兼容下游的筛选逻辑，从 "detailed_scores" 提取子项评分，并换算到0-10分制
-                detailed_scores = quality_result.get("detailed_scores", {})
-                
-                # 将API返回的子项评分映射并缩放到0-10范围
-                gf_score = safe_get_score(detailed_scores, "novelty") * (10.0 / 3.0)
-                sp_score = safe_get_score(detailed_scores, "commercial_potential") * (10.0 / 2.0)
-                wv_score = safe_get_score(detailed_scores, "plot_feasibility") * (10.0 / 2.0)
-                cd_score = safe_get_score(detailed_scores, "style_fit") * (10.0 / 2.0)
-
-                # 将换算后的分数（可能用于筛选）添加到结果字典中，以确保下游逻辑能获取到值
-                quality_result["golden_finger_score"] = max(0.0, min(10.0, gf_score))
-                quality_result["selling_points_score"] = max(0.0, min(10.0, sp_score))
-                quality_result["worldview_coherence_score"] = max(0.0, min(10.0, wv_score))
-                quality_result["character_depth_score"] = max(0.0, min(10.0, cd_score))
-                
-                # 将API计算的总分也放入，以统一结构
+                # 为了下游筛选逻辑兼容，将获取的分数（如果缺失则为0）统一存入quality_result
+                # 这一步主要是为了确保即使API返回的JSON缺少某些键，代码也不会出错
+                quality_result["golden_finger_score"] = gf_score
+                quality_result["selling_points_score"] = sp_score
+                quality_result["worldview_coherence_score"] = wv_score
+                quality_result["character_depth_score"] = cd_score
                 quality_result["overall_quality_score"] = overall_quality_score
+
 
                 # 降低新鲜度权重，提高整体质量权重
                 total_score = (overall_quality_score * 0.8) + (freshness_score * 0.2)
