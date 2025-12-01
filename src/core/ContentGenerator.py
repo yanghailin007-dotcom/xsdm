@@ -1257,7 +1257,7 @@ class ContentGenerator:
             self.logger.info(f"  ✍️ 第{attempt + 1}/{max_retries}次尝试直接生成第{chapter_number}章内容...")
             # 诊断打印：检查场景是否正确传递
             self.logger.info(f"  [诊断] 第{chapter_number}章场景数量: {len(pre_designed_scenes)}")
-            for i, scene in enumerate(pre_designed_scenes[:2]):  # 只打印前2个避免过多输出
+            for i, scene in enumerate(pre_designed_scenes[:8]):  # 只打印前2个避免过多输出
                 self.logger.info(f"    场景{i+1}: {scene.get('name', 'Unknown')} - {scene.get('position', 'Unknown position')}")
             # 使用你现有的 chapter_content_generation Prompt类型，但传入新的、更丰富的 user_prompt
             # 这个Prompt应该指导LLM直接输出最终的章节JSON
