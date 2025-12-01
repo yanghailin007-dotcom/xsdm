@@ -2120,7 +2120,7 @@ class ContentGenerator:
             guidance_parts.append(f"- 当前章节差距: {chapter_gap}章")
             if is_character_established:
                 guidance_parts.append(f"- 状态: ✅ 人设已充分建立")
-            suggestions = self.quality_assessor.get_character_development_suggestions(
+            suggestions = self.quality_assessor.world_state_manager.get_character_development_suggestions(
                 char_name, novel_title, chapter_number
             )
             if suggestions:

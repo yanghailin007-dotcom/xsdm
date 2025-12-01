@@ -82,7 +82,7 @@ class ProjectManager:
     def find_existing_projects(self, creative_seed: str = None) -> List[Dict]:
         """查找现有项目"""
         projects = []
-        if not os.path.exists("data/projects"):
+        if not os.path.exists("小说项目/"):
             return projects
         # 确保 creative_seed 是字符串
         if creative_seed is None:
@@ -94,7 +94,7 @@ class ProjectManager:
             safe_seed = str(creative_seed)[:50]
         # 安全处理字符串
         safe_seed = re.sub(r'[\\/*?:"<>|]', "_", safe_seed) if safe_seed else ""
-        for filename in os.listdir("data/projects"):
+        for filename in os.listdir("小说项目/"):
             if filename.endswith("_项目信息.json"):
                 try:
                     with open(f"小说项目/{filename}", 'r', encoding='utf-8') as f:
@@ -265,7 +265,7 @@ class ProjectManager:
         # 防御式编程：如果 novel_title 缺失，使用默认值
         novel_title = novel_data.get("novel_title", "未定稿创意")
         safe_title = re.sub(r'[\\/*?:"<>|]', "_", novel_title)
-        os.makedirs("data/projects", exist_ok=True)
+        os.makedirs("小说项目/", exist_ok=True)
         # 确保 creative_seed 被保存为 dict（防止字符串持久化）
         normalized_creative_seed = ensure_seed_dict(novel_data.get("creative_seed", {}))
         # 计算质量统计
@@ -472,7 +472,7 @@ class ProjectManager:
             safe_title = re.sub(r'[\\/*?:"<>|]', "_", novel_title)
             file_path = f"小说项目/{safe_title}_元素登场时机.json"
             # 确保目录存在
-            os.makedirs("data/projects", exist_ok=True)
+            os.makedirs("小说项目/", exist_ok=True)
             with open(file_path, 'w', encoding='utf-8') as f:
                 json.dump(timing_plan, f, ensure_ascii=False, indent=2)
             self.logger.info(f"✅ 元素登场时机规划已保存: {file_path}")
