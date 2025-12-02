@@ -88,6 +88,11 @@ class NovelGenerator:
     def __init__(self, config):
         self.config = config
         self.Prompts = Prompts
+
+        # 首先初始化logger (CRITICAL: must be before any method that uses self.logger)
+        from src.utils.logger import get_logger
+        self.logger = get_logger("NovelGenerator")
+
         self.api_client = APIClient(config)
         self.event_bus = EventBus()
         self.quality_assessor = QualityAssessor(self.api_client)  # 修复属性名
@@ -122,11 +127,11 @@ class NovelGenerator:
             doubao_api_key = doubaoconfig.ARK_API_KEY
             if doubao_api_key:
                 self.cover_generator = DouBaoImageGenerator()
-                print("✅ 封面生成器初始化成功")
+                self.logger.info("封面生成器初始化成功")
             else:
-                print("⚠️ 未配置豆包API密钥，封面生成功能不可用")
+                self.logger.info("未配置豆包API密钥，封面生成功能不可用")
         except Exception as e:
-            print(f"⚠️ 封面生成器初始化失败: {e}")
+            self.logger.info(f"封面生成器初始化失败: {e}")
             self.cover_generator = None
 
     def _initialize_managers(self):
@@ -648,9 +653,9 @@ class NovelGenerator:
 
     def full_auto_generation(self, creative_seed: str, total_chapters: int = None):
         """
-        全自动生成完整小说 - 【V5版】引入更严格的“AI超级评审员”评估和多轮优化循环，确保产出最优方案。
+        全自动生成完整小说 - 【V5版】引入更严格的"AI超级评审员"评估和多轮优化循环，确保产出最优方案。
         """
-        print("🚀 开始全自动小说生成 (模式：【AI超级评审员】精品聚焦)...")
+        print("[START] 开始全自动小说生成 (模式: AI超级评审员精品聚焦)...")
         print(f"创意种子: {creative_seed}")
 
         if total_chapters is None:

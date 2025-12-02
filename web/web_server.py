@@ -17,8 +17,8 @@ import uuid
 from flask import Flask, render_template, jsonify, request, send_from_directory
 from flask_cors import CORS
 
-# 获取项目根目录 - 返回到 d:\work6.03\
-BASE_DIR = Path(__file__).parent.parent
+# 获取项目根目录 - 使用resolve()确保绝对路径
+BASE_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(BASE_DIR))
 
 # 改变工作目录到项目根目录
@@ -44,10 +44,23 @@ else:
 CREATIVE_IDEAS_FILE = str(BASE_DIR / "data" / "creative_ideas" / "novel_ideas.txt")
 
 # Flask应用 - 使用正确的路径
+# 确保使用绝对路径并验证路径存在
+template_dir = BASE_DIR / "web" / "templates"
+static_dir = BASE_DIR / "web" / "static"
+
+# 验证路径存在
+if not template_dir.exists():
+    raise RuntimeError(f"Templates directory not found: {template_dir}")
+if not static_dir.exists():
+    raise RuntimeError(f"Static directory not found: {static_dir}")
+
+logger.info(f"📁 Template folder: {template_dir}")
+logger.info(f"📁 Static folder: {static_dir}")
+
 app = Flask(
-    __name__, 
-    template_folder=str(BASE_DIR / "web" / "templates"),
-    static_folder=str(BASE_DIR / "web" / "static")
+    __name__,
+    template_folder=str(template_dir.resolve()),
+    static_folder=str(static_dir.resolve())
 )
 CORS(app)
 
@@ -121,8 +134,8 @@ class NovelGenerationManager:
 
             # 开始生成
             total_chapters = novel_config.get("total_chapters", 50)
-            overwrite = novel_config.get("overwrite", False)  # 获取覆盖设置
-            success = generator.full_auto_generation(creative_seed, total_chapters, overwrite)
+            overwrite = novel_config.get("overwrite", False)  # 获取覆盖设置 (当前未使用,保留以备将来)
+            success = generator.full_auto_generation(creative_seed, total_chapters)
 
             if success:
                 # 保存生成结果
@@ -722,6 +735,7 @@ def start_generation_from_idea():
 @app.route('/', methods=['GET'])
 def index():
     """首页"""
+    logger.info(f"📄 Loading index.html from template folder: {app.template_folder}")
     return render_template('index.html')
 
 @app.route('/novel', methods=['GET'])
