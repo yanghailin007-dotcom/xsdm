@@ -83,8 +83,16 @@ class ContentGenerator:
             wsm = WorldStateManager("quality_data")
             return wsm.get_novel_world_state(novel_title)
         def _build_consistency_guidance(self, world_state: Dict, novel_title: str) -> str:
-            """基于世界状态构建一致性指导"""
-            return f"【一致性指导】\n请保持与以下已有信息的一致性：\n{json.dumps(world_state, ensure_ascii=False)}"
+            """基于世界状态构建一致性指导（使用压缩后的数据）"""
+            # 使用与QualityAssessor相同的压缩机制
+            if hasattr(self.generator, 'quality_assessor') and self.generator.quality_assessor:
+                compressed_state = self.generator.quality_assessor._compress_world_state_for_assessment(
+                    world_state, max_chars=8000
+                )
+                return f"【一致性指导】\n请保持与以下已有信息的一致性：\n{compressed_state}"
+            else:
+                # 回退到简化版本
+                return f"【一致性指导】\n请保持与已有世界设定的一致性"
         def _get_relationship_consistency_note(self, world_state: Dict) -> str:
             """获取关系一致性说明"""
             relationships = world_state.get("relationships", {})
@@ -746,6 +754,15 @@ class ContentGenerator:
                     chapter_data.get("word_count", 0),
                     novel_data=novel_data
                 )
+                # 修复：处理 assessment 为 None 的情况
+                if assessment is None:
+                    self.logger.warn(f"⚠️ 质量评估失败（API调用失败），使用默认评分")
+                    assessment = {
+                        "overall_score": 6.0,
+                        "quality_verdict": "API调用失败，使用默认评分",
+                        "weaknesses": [],
+                        "strengths": []
+                    }
                 score = assessment.get("overall_score", 0)
                 chapter_data["quality_score"] = score
                 chapter_data["quality_assessment"] = assessment
@@ -2050,8 +2067,18 @@ class ContentGenerator:
         consistency_guidance = self._build_consistency_guidance(world_state, chapter_params.get("novel_title"))
         # ▲▲▲ 修改结束 ▲▲▲
         chapter_params["consistency_guidance"] = f"\n\n## 🔄 一致性要求\n{consistency_guidance}"
-        # 存储世界状态供生成使用
-        chapter_params["previous_world_state"] = json.dumps(world_state, ensure_ascii=False, indent=2)
+        # 存储世界状态供生成使用（使用压缩版本以节省token）
+        if hasattr(self, 'quality_assessor') and self.quality_assessor:
+            compressed_world_state = self.quality_assessor._compress_world_state_for_assessment(
+                world_state, max_chars=8000
+            )
+            chapter_params["previous_world_state"] = compressed_world_state
+        else:
+            # 回退：只存储必要的关键字段
+            chapter_params["previous_world_state"] = json.dumps({
+                "characters": world_state.get("characters", {}),
+                "relationships": world_state.get("relationships", {})
+            }, ensure_ascii=False, indent=2)
         # 特别添加关系检查标志
         chapter_params["relationship_consistency_check"] = True
         chapter_params["known_relationships"] = world_state.get('relationships', {})

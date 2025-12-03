@@ -114,7 +114,10 @@ class NovelGenerator:
         self._setup_event_handlers()
 
         # 设置中断信号处理
-        signal.signal(signal.SIGINT, self.signal_handler)
+        try:
+            signal.signal(signal.SIGINT, self.signal_handler)
+        except ValueError:
+            pass  # signal only works in main thread of the main interpreter
 
         self.fallback_openings = {
         "男频衍生": "【🧠脑子寄存处】存脑子的扣1，不存的扣眼珠子！阅读前请将三观暂存～\n\n📢 看到离谱处先别骂，评论区肯定有课代表帮你吐槽！",

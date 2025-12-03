@@ -675,8 +675,11 @@ JSON
         try:
             if not range_str:
                 return 1, 100
-            # 清理字符串：移除"第"、"章"等字符，只保留数字和横杠
-            cleaned_str = re.sub(r'[第章\s]', '', str(range_str)).strip()
+            # 清理字符串：移除"第"、"章"、中文括号及其内容等字符，只保留数字和横杠
+            # 先移除中文括号及其内容（如：（前段）、（后段）等）
+            cleaned_str = re.sub(r'[（(][^）)]*[）)]', '', str(range_str))
+            # 再移除"第"、"章"、空白字符
+            cleaned_str = re.sub(r'[第章\s]', '', cleaned_str).strip()
             if "-" in cleaned_str:
                 parts = cleaned_str.split("-")
                 if len(parts) == 2:
@@ -688,7 +691,11 @@ JSON
                 chapter = int(cleaned_str)
                 return chapter, chapter
         except (ValueError, AttributeError, IndexError) as e:
-            self.logger.warn(f"⚠️ 解析章节范围失败: '{range_str}'，错误: {e}，使用默认值(1, 100)")
+            # 不能使用self.logger，因为这是静态方法
+            # 改为使用模块级日志
+            from src.utils.logger import get_logger
+            logger = get_logger("StagePlanManager")
+            logger.warn(f"⚠️ 解析章节范围失败: '{range_str}'，错误: {e}，使用默认值(1, 100)")
             return 1, 100
     def _smart_decompose_medium_events(self, major_event: Dict, stage_name: str,
                                     novel_title: str, novel_synopsis: str, creative_seed: str,
@@ -2345,8 +2352,11 @@ JSON
     @staticmethod
     def is_chapter_in_range(chapter: int, range_str: str) -> bool:
         try:
-            # 移除"章"字和其他非数字字符（除了横杠和数字）
-            cleaned_str = range_str.replace("章", "").strip()
+            # 移除"章"字、中文括号及其内容、和其他非数字字符（除了横杠和数字）
+            # 先移除中文括号及其内容（如：（前段）、（后段）等）
+            cleaned_str = re.sub(r'[（(][^）)]*[）)]', '', str(range_str))
+            # 再移除"章"字、"第"字、空白字符
+            cleaned_str = cleaned_str.replace("章", "").replace("第", "").strip()
             if "-" in cleaned_str:
                 parts = cleaned_str.split("-")
                 if len(parts) == 2:
@@ -2358,7 +2368,11 @@ JSON
                 target_chapter = int(cleaned_str)
                 return chapter == target_chapter
         except (ValueError, AttributeError, IndexError):
-            self.logger.warn(f"⚠️ 解析章节范围失败: '{range_str}'，返回False")
+            # 不能使用self.logger，因为这是静态方法
+            # 改为使用模块级日志
+            from src.utils.logger import get_logger
+            logger = get_logger("StagePlanManager")
+            logger.warn(f"⚠️ 解析章节范围失败: '{range_str}'，返回False")
             return False
     def _get_stage_length(self, stage_range: str) -> int:
         """获取阶段长度"""

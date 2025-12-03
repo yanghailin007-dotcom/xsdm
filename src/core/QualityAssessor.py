@@ -465,16 +465,165 @@ class QualityAssessor:
         """
         score = self.compute_text_similarity(text_a, text_b)
         return (score >= threshold, score)
+
+    def _compress_world_state_for_assessment(self, world_state: Dict, max_chars: int = 8000) -> str:
+        """压缩世界状态以适应 token 限制
+
+        🎯 智能压缩策略（按重要性和主角相关性）：
+        1. 优先保留主角相关的角色信息
+        2. 保留活跃的重要角色（major importance）
+        3. 移除已死亡/退场的次要角色
+        4. 压缩物品、技能、关系数据
+        """
+        if not world_state:
+            return "{}"
+
+        compressed = {}
+
+        # 1. 智能筛选角色数据
+        characters = world_state.get('characters', {})
+        if characters:
+            active_chars = {}
+
+            # 按重要性排序角色
+            sorted_chars = []
+            for char_name, char_data in characters.items():
+                status = char_data.get('status', 'active')
+                importance = char_data.get('importance', 'minor')
+
+                # 计算优先级分数
+                priority = 0
+                if status == 'active':
+                    priority += 10
+                if importance == 'major':
+                    priority += 100
+                elif importance == 'minor':
+                    priority += 10
+
+                # 主角始终最高优先级
+                if '主角' in char_name or 'protagonist' in char_name.lower():
+                    priority += 1000
+
+                sorted_chars.append((char_name, char_data, priority, status))
+
+            # 按优先级排序
+            sorted_chars.sort(key=lambda x: x[2], reverse=True)
+
+            # 只保留前15个高优先级角色
+            for char_name, char_data, priority, status in sorted_chars[:15]:
+                # 跳过已死亡且不重要的角色
+                if status in ['dead', 'exited'] and priority < 20:
+                    continue
+
+                # 简化角色数据
+                active_chars[char_name] = {
+                    'status': status,
+                    'location': char_data.get('location', '未知'),
+                    'cultivation_level': char_data.get('cultivation_level', '未知'),
+                    'money': char_data.get('money', 0),
+                    'importance': char_data.get('importance', 'minor')
+                }
+
+            compressed['characters'] = active_chars
+
+        # 2. 压缩物品数据（只保留名称和数量）
+        items = world_state.get('cultivation_items', {})
+        if items:
+            compressed['items'] = {
+                name: item.get('quantity', 1)
+                for name, item in list(items.items())[:10]  # 最多10个物品
+            }
+
+        # 3. 压缩技能数据（只保留名称和等级）
+        skills = world_state.get('cultivation_skills', {})
+        if skills:
+            compressed['skills'] = {
+                name: skill.get('level', 1)
+                for name, skill in list(skills.items())[:10]  # 最多10个技能
+            }
+
+        # 4. 压缩关系数据（只保留与主角相关的重要关系）
+        relationships = world_state.get('relationships', [])
+        if relationships:
+            important_rels = []
+            for rel in relationships[:20]:  # 最多考虑前20个关系
+                char1 = rel.get('character1', '')
+                char2 = rel.get('character2', '')
+                rel_type = rel.get('relationship_type', '')
+
+                # 只保留与主角相关或敌对关系
+                if any(keyword in (char1 + char2) for keyword in ['主角', 'protagonist']) or \
+                   rel_type in ['敌对', '仇人', 'enemy']:
+                    important_rels.append({
+                        'char1': char1,
+                        'char2': char2,
+                        'type': rel_type
+                    })
+
+                if len(important_rels) >= 10:
+                    break
+
+            compressed['relationships'] = important_rels
+
+        compressed_str = json.dumps(compressed, ensure_ascii=False, indent=None)
+
+        # 如果还是太长，进一步截断
+        if len(compressed_str) > max_chars:
+            compressed_str = compressed_str[:max_chars] + "...(已截断)"
+
+        return compressed_str
+
+    def _compress_character_development_for_assessment(self, char_dev: Dict, max_chars: int = 5000) -> str:
+        """压缩角色发展数据以适应 token 限制
+
+        策略：
+        1. 只保留最近3章的互动数据
+        2. 简化每个互动的描述
+        """
+        if not char_dev:
+            return "{}"
+
+        compressed = {}
+
+        # 只保留最近的互动
+        if 'character_interactions' in char_dev:
+            interactions = char_dev['character_interactions']
+            # 按章节号倒序排序，取最新的10个互动
+            sorted_interactions = sorted(
+                interactions,
+                key=lambda x: x.get('chapter', 0),
+                reverse=True
+            )[:10]
+
+            compressed['recent_interactions'] = [
+                {
+                    'chars': inter.get('characters', []),
+                    'type': inter.get('interaction_type', ''),
+                    'ch': inter.get('chapter', 0)
+                }
+                for inter in sorted_interactions
+            ]
+
+        compressed_str = json.dumps(compressed, ensure_ascii=False, indent=None)
+
+        # 如果还是太长，截断
+        if len(compressed_str) > max_chars:
+            compressed_str = compressed_str[:max_chars] + "...(已截断)"
+
+        return compressed_str
+
     def _generate_chapter_assessment_prompt(self, params: Dict) -> str:
         """生成章节质量评估提示词（包含内部生成的强一致性检查清单）"""
         novel_title = params.get('novel_title', 'unknown')
         # 1. 加载之前的世界状态
         previous_world_state = self.world_state_manager.load_previous_assessments(novel_title)
-        world_state_str = json.dumps(previous_world_state, ensure_ascii=False, indent=2) if previous_world_state else "{}"
+        # 🔧 使用压缩方法而不是完整的 JSON
+        world_state_str = self._compress_world_state_for_assessment(previous_world_state, max_chars=8000)
         # 2. 【核心修改】基于世界状态，在本函数内部构建一致性检查清单
         consistency_check_section = self._build_consistency_check_prompt_section(previous_world_state)
         character_development_data = self._load_character_development_data(novel_title)
-        character_development_str = json.dumps(character_development_data, ensure_ascii=False, indent=2) if character_development_data else "{}"        
+        # 🔧 使用压缩方法而不是完整的 JSON
+        character_development_str = self._compress_character_development_for_assessment(character_development_data, max_chars=5000)        
         # 新增：从 params 获取情绪指导
         emotional_guidance = params.get('emotional_guidance', {})
         target_emotion = emotional_guidance.get('target_emotion_keyword', '无')
