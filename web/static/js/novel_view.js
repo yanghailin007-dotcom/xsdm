@@ -6,21 +6,33 @@
 let currentChapter = 1;
 let novelData = null;
 let chaptersData = [];
+let currentNovelTitle = null; // 当前小说标题
 
 // 初始化
 document.addEventListener('DOMContentLoaded', async () => {
     try {
         console.log('初始化小说阅读页面...');
-        
-        // 加载小说摘要
-        await loadNovelSummary();
-        
+
+        // 从URL参数获取小说标题
+        const urlParams = new URLSearchParams(window.location.search);
+        const novelTitle = urlParams.get('title');
+
+        if (!novelTitle) {
+            showError('未指定小说标题，请从首页选择小说');
+            return;
+        }
+
+        currentNovelTitle = novelTitle; // 设置当前小说标题
+
+        // 加载指定小说的数据
+        await loadNovelData(novelTitle);
+
         // 加载章节列表
-        await loadChaptersList();
-        
+        await loadChaptersList(novelTitle);
+
         // 加载第一章（如果存在）
         if (chaptersData.length > 0) {
-            await loadChapter(chaptersData[0].chapter_number);
+            await loadChapter(novelTitle, chaptersData[0].chapter_number);
         }
     } catch (error) {
         console.error('初始化失败:', error);
@@ -29,28 +41,37 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 /**
- * 加载小说摘要
+ * 加载指定小说的数据
  */
-async function loadNovelSummary() {
+async function loadNovelData(novelTitle) {
     try {
-        const response = await fetch('/api/novel/summary');
-        if (!response.ok) throw new Error('加载失败');
-        
+        const response = await fetch(`/api/project/${encodeURIComponent(novelTitle)}`);
+        if (!response.ok) {
+            if (response.status === 404) {
+                throw new Error('小说不存在');
+            }
+            throw new Error('加载失败');
+        }
+
         novelData = await response.json();
-        console.log('小说摘要:', novelData);
-        
+        console.log('小说数据:', novelData);
+
         // 更新 UI
-        document.getElementById('novel-title').textContent = novelData.title || '未命名小说';
-        document.getElementById('novel-progress').textContent = 
-            `${novelData.chapters_count || 0}/${novelData.total_chapters || 50}`;
-        document.getElementById('core-setting').textContent = 
+        document.getElementById('novel-title').textContent = novelData.novel_title || novelTitle;
+        document.getElementById('novel-progress').textContent =
+            `${chaptersData.length || 0}/${novelData.total_chapters || 50}`;
+        document.getElementById('core-setting').textContent =
             novelData.core_setting || '暂无设定';
-        document.getElementById('core-selling-points').textContent = 
-            Array.isArray(novelData.core_selling_points) 
+        document.getElementById('core-selling-points').textContent =
+            Array.isArray(novelData.core_selling_points)
                 ? novelData.core_selling_points.join(' • ')
                 : '暂无卖点';
+
+        // 更新页面标题
+        document.title = `${novelData.novel_title || novelTitle} - 小说阅读页面`;
+
     } catch (error) {
-        console.error('加载摘要失败:', error);
+        console.error('加载小说数据失败:', error);
         throw error;
     }
 }
@@ -58,25 +79,36 @@ async function loadNovelSummary() {
 /**
  * 加载章节列表
  */
-async function loadChaptersList() {
+async function loadChaptersList(novelTitle) {
     try {
-        const response = await fetch('/api/chapters');
+        const response = await fetch(`/api/project/${encodeURIComponent(novelTitle)}`);
         if (!response.ok) throw new Error('加载失败');
-        
-        chaptersData = await response.json();
+
+        const novelProject = await response.json();
+        const generatedChapters = novelProject.generated_chapters || {};
+
+        // 将生成的章节转换为数组格式
+        chaptersData = Object.values(generatedChapters).map(chapter => ({
+            chapter_number: chapter.chapter_number,
+            title: chapter.title || `第${chapter.chapter_number}章`,
+            content: chapter.content,
+            word_count: chapter.content ? chapter.content.length : 0,
+            score: '-' // 暂时没有评分
+        })).sort((a, b) => a.chapter_number - b.chapter_number);
+
         console.log('章节列表:', chaptersData);
-        
+
         // 生成章节列表 HTML
         const listContainer = document.getElementById('chapters-list');
-        
+
         if (chaptersData.length === 0) {
             listContainer.innerHTML = '<div style="text-align: center; color: #999;">暂无章节</div>';
             return;
         }
-        
+
         listContainer.innerHTML = chaptersData.map(chapter => `
-            <div class="chapter-item ${chapter.chapter_number === currentChapter ? 'active' : ''}" 
-                 onclick="loadChapter(${chapter.chapter_number})"
+            <div class="chapter-item ${chapter.chapter_number === currentChapter ? 'active' : ''}"
+                 onclick="loadChapter('${novelTitle}', ${chapter.chapter_number})"
                  data-chapter="${chapter.chapter_number}">
                 <div class="chapter-item-title">
                     第${chapter.chapter_number}章 ${chapter.title}
@@ -86,10 +118,10 @@ async function loadChaptersList() {
                 </div>
             </div>
         `).join('');
-        
+
         // 初始化导航按钮
         updateNavigationButtons();
-        
+
     } catch (error) {
         console.error('加载章节列表失败:', error);
         throw error;
@@ -99,18 +131,18 @@ async function loadChaptersList() {
 /**
  * 加载特定章节
  */
-async function loadChapter(chapterNum) {
+async function loadChapter(novelTitle, chapterNum) {
     try {
         console.log('加载第', chapterNum, '章...');
-        
-        const response = await fetch(`/api/chapter/${chapterNum}`);
+
+        const response = await fetch(`/api/project/${encodeURIComponent(novelTitle)}/chapter/${chapterNum}`);
         if (!response.ok) throw new Error('章节不存在');
-        
+
         const chapter = await response.json();
         console.log('章节数据:', chapter);
-        
+
         currentChapter = chapterNum;
-        
+
         // 更新活跃状态
         document.querySelectorAll('.chapter-item').forEach(item => {
             item.classList.remove('active');
@@ -118,13 +150,13 @@ async function loadChapter(chapterNum) {
                 item.classList.add('active');
             }
         });
-        
+
         // 更新中间内容区
         updateCenterContent(chapter);
-        
+
         // 更新右侧评估区
         updateAssessmentPanel(chapter);
-        
+
         // 更新导航按钮
         updateNavigationButtons();
         
@@ -285,7 +317,7 @@ async function exportJSON() {
 function prevChapter() {
     const prevChapterData = chaptersData.find(c => c.chapter_number < currentChapter);
     if (prevChapterData) {
-        loadChapter(prevChapterData.chapter_number);
+        loadChapter(currentNovelTitle, prevChapterData.chapter_number);
     }
 }
 
@@ -295,7 +327,7 @@ function prevChapter() {
 function nextChapter() {
     const nextChapterData = chaptersData.find(c => c.chapter_number > currentChapter);
     if (nextChapterData) {
-        loadChapter(nextChapterData.chapter_number);
+        loadChapter(currentNovelTitle, nextChapterData.chapter_number);
     }
 }
 
@@ -346,11 +378,11 @@ document.addEventListener('keydown', (event) => {
     if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
         // 上一章
         const prevChapter = chaptersData.find(c => c.chapter_number < currentChapter);
-        if (prevChapter) loadChapter(prevChapter.chapter_number);
+        if (prevChapter) loadChapter(currentNovelTitle, prevChapter.chapter_number);
     } else if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
         // 下一章
         const nextChapter = chaptersData.find(c => c.chapter_number > currentChapter);
-        if (nextChapter) loadChapter(nextChapter.chapter_number);
+        if (nextChapter) loadChapter(currentNovelTitle, nextChapter.chapter_number);
     }
 });
 

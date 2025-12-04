@@ -127,6 +127,9 @@ class NovelGenerationManager:
         self.task_progress = {}  # 存储任务进度
         self.novel_projects = {}  # 存储小说项目数据
 
+        # 启动时加载已存在的小说项目
+        self.load_existing_novels()
+
     def start_generation(self, novel_config: Dict[str, Any]) -> str:
         """开始生成小说"""
         task_id = str(uuid.uuid4())
@@ -238,7 +241,6 @@ class NovelGenerationManager:
 
             # 保存调试信息到文件
             import json
-            from datetime import datetime
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             debug_file = f"debug_task_{task_id}_{timestamp}.json"
 
@@ -323,6 +325,64 @@ class NovelGenerationManager:
     def get_all_tasks(self) -> List[Dict[str, Any]]:
         """获取所有任务"""
         return list(self.task_results.values())
+
+    def load_existing_novels(self):
+        """从文件系统加载已存在的小说项目"""
+        try:
+            novel_dir = Path("小说项目")
+            if not novel_dir.exists():
+                logger.info("📁 小说项目目录不存在，将在首次生成时创建")
+                return
+
+            logger.info("🔍 扫描已存在的小说项目...")
+
+            # 遍历小说项目目录
+            for item in novel_dir.iterdir():
+                if item.is_file() and item.name.endswith("_项目信息.json"):
+                    # 提取小说标题
+                    title = item.name.replace("_项目信息.json", "")
+                    project_file = item
+
+                    try:
+                        with open(project_file, 'r', encoding='utf-8') as f:
+                            novel_data = json.load(f)
+
+                        # 检查章节目录并加载章节信息
+                        chapter_dir = novel_dir / f"{title}_章节"
+                        generated_chapters = {}
+
+                        if chapter_dir.exists():
+                            for chapter_file in chapter_dir.glob("第*.txt"):
+                                # 提取章节号
+                                try:
+                                    chapter_num = int(chapter_file.name.split("章")[0].replace("第", ""))
+                                    with open(chapter_file, 'r', encoding='utf-8') as cf:
+                                        chapter_content = cf.read()
+
+                                    generated_chapters[chapter_num] = {
+                                        "chapter_number": chapter_num,
+                                        "title": chapter_file.name.replace(".txt", "").split("_", 1)[-1],
+                                        "content": chapter_content,
+                                        "file_path": str(chapter_file)
+                                    }
+                                except Exception as e:
+                                    logger.warning(f"⚠️ 加载章节 {chapter_file.name} 失败: {e}")
+
+                        # 更新小说数据
+                        novel_data["generated_chapters"] = generated_chapters
+                        novel_data["creation_time"] = novel_data.get("creation_time", datetime.now().isoformat())
+
+                        # 添加到项目集合
+                        self.novel_projects[title] = novel_data
+                        logger.info(f"✅ 加载小说项目: {title} ({len(generated_chapters)} 章)")
+
+                    except Exception as e:
+                        logger.error(f"❌ 加载项目文件 {project_file} 失败: {e}")
+
+            logger.info(f"📚 总共加载了 {len(self.novel_projects)} 个小说项目")
+
+        except Exception as e:
+            logger.error(f"❌ 加载已存在小说项目失败: {e}")
 
     def get_novel_projects(self) -> List[Dict[str, Any]]:
         """获取所有小说项目"""

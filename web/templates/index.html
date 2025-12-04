@@ -260,6 +260,20 @@
                 </div>
             </div>
 
+            <!-- 已生成的小说项目 -->
+            <div style="background: #f0f8ff; padding: 20px; border-radius: 8px; margin-bottom: 30px; border: 2px dashed #4CAF50;">
+                <h3 style="color: #4CAF50; margin-bottom: 15px;">📚 已生成的小说项目</h3>
+                <div id="existing-novels-loading" style="text-align: center; color: #666; padding: 20px;">
+                    <div class="spinner" style="margin: 0 auto 10px;"></div>
+                    <p>正在加载已生成的小说项目...</p>
+                </div>
+                <div id="existing-novels-list" style="display: none;">
+                    <div style="display: grid; gap: 15px; margin-top: 15px;" id="novels-grid">
+                        <!-- 小说项目卡片将在这里动态加载 -->
+                    </div>
+                </div>
+            </div>
+
             <form id="generation-form" onsubmit="handleGeneration(event)">
                 <div class="form-group">
                     <label for="novel-title">小说标题</label>
@@ -606,6 +620,7 @@
         // 页面加载完成后检查现有任务
         document.addEventListener('DOMContentLoaded', function() {
             checkExistingTasks();
+            loadExistingNovels(); // 加载已生成的小说项目
         });
 
         async function checkExistingTasks() {
@@ -629,6 +644,140 @@
                 }
             } catch (error) {
                 console.error('检查现有任务失败:', error);
+            }
+        }
+
+        // ==================== 已生成小说项目加载功能 ====================
+        async function loadExistingNovels() {
+            try {
+                const response = await fetch('/api/projects');
+                if (!response.ok) throw new Error('加载小说项目失败');
+
+                const projects = await response.json();
+
+                // 隐藏加载动画
+                document.getElementById('existing-novels-loading').style.display = 'none';
+
+                if (projects && projects.length > 0) {
+                    const novelsGrid = document.getElementById('novels-grid');
+                    novelsGrid.innerHTML = '';
+
+                    projects.forEach(novel => {
+                        const novelCard = createNovelCard(novel);
+                        novelsGrid.appendChild(novelCard);
+                    });
+
+                    document.getElementById('existing-novels-list').style.display = 'block';
+                } else {
+                    const novelsGrid = document.getElementById('novels-grid');
+                    novelsGrid.innerHTML = '<p style="text-align: center; color: #666; padding: 20px;">暂无已生成的小说项目</p>';
+                    document.getElementById('existing-novels-list').style.display = 'block';
+                }
+
+            } catch (error) {
+                console.error('加载小说项目失败:', error);
+                document.getElementById('existing-novels-loading').innerHTML = `
+                    <p style="color: #e74c3c;">加载失败: ${error.message}</p>
+                    <button type="button" class="btn btn-secondary" onclick="loadExistingNovels()">重试</button>
+                `;
+            }
+        }
+
+        function createNovelCard(novel) {
+            const card = document.createElement('div');
+            card.className = 'novel-card';
+            card.style.cssText = `
+                background: white;
+                padding: 20px;
+                border-radius: 8px;
+                border: 1px solid #ddd;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                transition: transform 0.2s;
+            `;
+
+            const progress = novel.total_chapters > 0 ?
+                Math.round((novel.completed_chapters / novel.total_chapters) * 100) : 0;
+
+            const createdDate = novel.created_at ?
+                new Date(novel.created_at).toLocaleDateString('zh-CN') : '未知';
+
+            card.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 12px;">
+                    <h4 style="margin: 0; color: #333; font-size: 16px; flex: 1;">${novel.title}</h4>
+                    <span style="background: #4CAF50; color: white; padding: 2px 8px; border-radius: 12px; font-size: 12px;">
+                        ${novel.completed_chapters}/${novel.total_chapters}章
+                    </span>
+                </div>
+                <p style="margin: 8px 0; font-size: 14px; color: #666;">创建时间: ${createdDate}</p>
+                <div style="margin: 10px 0;">
+                    <div style="background: #f0f0f0; height: 4px; border-radius: 2px; overflow: hidden;">
+                        <div style="background: #4CAF50; height: 100%; width: ${progress}%; transition: width 0.3s;"></div>
+                    </div>
+                    <span style="font-size: 12px; color: #666;">完成进度: ${progress}%</span>
+                </div>
+                <div style="display: flex; gap: 8px; margin-top: 12px;">
+                    <button type="button" class="btn btn-primary btn-small" onclick="viewNovel('${novel.title}')"
+                            style="flex: 1; font-size: 12px; padding: 6px 12px;">
+                        📖 阅读
+                    </button>
+                    <button type="button" class="btn btn-secondary btn-small" onclick="continueNovel('${novel.title}')"
+                            style="flex: 1; font-size: 12px; padding: 6px 12px;">
+                        ➕ 续写
+                    </button>
+                    <button type="button" class="btn btn-info btn-small" onclick="exportNovel('${novel.title}')"
+                            style="font-size: 12px; padding: 6px 12px;">
+                        📥 导出
+                    </button>
+                </div>
+            `;
+
+            // 鼠标悬停效果
+            card.addEventListener('mouseenter', () => {
+                card.style.transform = 'translateY(-2px)';
+                card.style.boxShadow = '0 4px 8px rgba(0,0,0,0.15)';
+            });
+
+            card.addEventListener('mouseleave', () => {
+                card.style.transform = 'translateY(0)';
+                card.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
+            });
+
+            return card;
+        }
+
+        function viewNovel(title) {
+            window.open(`/novel?title=${encodeURIComponent(title)}`, '_blank');
+        }
+
+        function continueNovel(title) {
+            if (confirm(`确定要继续生成小说《${title}》吗？这将从当前章节继续生成新内容。`)) {
+                // 跳转到首页并预填信息
+                window.location.href = `/?continue=${encodeURIComponent(title)}`;
+            }
+        }
+
+        async function exportNovel(title) {
+            try {
+                const response = await fetch(`/api/project/${encodeURIComponent(title)}/export`);
+                if (!response.ok) throw new Error('导出失败');
+
+                const result = await response.json();
+
+                if (result.content) {
+                    const blob = new Blob([result.content], { type: 'text/plain;charset=utf-8' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `${title}.txt`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                } else {
+                    throw new Error('导出内容为空');
+                }
+            } catch (error) {
+                alert(`导出失败: ${error.message}`);
             }
         }
 
