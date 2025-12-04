@@ -227,24 +227,28 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="username">用户名</label>
+                    <label for="username-input">用户名</label>
                     <input
                         type="text"
-                        id="username"
+                        id="username-input"
                         name="username"
+                        class="form-control username-field"
                         placeholder="请输入用户名"
                         required
+                        autocomplete="username"
                     >
                 </div>
 
                 <div class="form-group">
-                    <label for="password">密码</label>
+                    <label for="password-input">密码</label>
                     <input
                         type="password"
-                        id="password"
+                        id="password-input"
                         name="password"
+                        class="form-control password-field"
                         placeholder="请输入密码"
                         required
+                        autocomplete="current-password"
                     >
                 </div>
 
@@ -272,8 +276,8 @@
 
     <script>
         const form = document.getElementById('loginForm');
-        const usernameInput = document.getElementById('username');
-        const passwordInput = document.getElementById('password');
+        const usernameInput = document.getElementById('username-input');
+        const passwordInput = document.getElementById('password-input');
         const loginBtn = document.getElementById('loginBtn');
         const errorMessage = document.getElementById('errorMessage');
         const successMessage = document.getElementById('successMessage');
@@ -356,8 +360,30 @@
         passwordInput.addEventListener('input', hideError);
 
         // 页面加载时焦点到用户名输入框
-        window.addEventListener('load', () => {
-            usernameInput.focus();
+        document.addEventListener('DOMContentLoaded', () => {
+            if (usernameInput) {
+                usernameInput.focus();
+                console.log('✅ 用户名输入框已获得焦点');
+            }
+            
+            // 添加输入调试日志
+            if (usernameInput) {
+                usernameInput.addEventListener('input', function() {
+                    console.log('📝 用户名输入:', this.value);
+                });
+            }
+            
+            if (passwordInput) {
+                passwordInput.addEventListener('input', function() {
+                    console.log('🔒 密码输入:', this.value.length, '个字符');
+                });
+            }
+            
+            // 验证元素是否正确加载
+            console.log('🔍 页面元素检查:');
+            console.log('- 用户名输入框:', usernameInput ? '✅ 找到' : '❌ 未找到');
+            console.log('- 密码输入框:', passwordInput ? '✅ 找到' : '❌ 未找到');
+            console.log('- 登录按钮:', loginBtn ? '✅ 找到' : '❌ 未找到');
         });
     </script>
 </body>
