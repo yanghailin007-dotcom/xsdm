@@ -543,25 +543,43 @@ class QualityAssessor:
             }
 
         # 4. 压缩关系数据（只保留与主角相关的重要关系）
-        relationships = world_state.get('relationships', [])
+        relationships = world_state.get('relationships', {})
         if relationships:
             important_rels = []
-            for rel in relationships[:20]:  # 最多考虑前20个关系
-                char1 = rel.get('character1', '')
-                char2 = rel.get('character2', '')
-                rel_type = rel.get('relationship_type', '')
 
-                # 只保留与主角相关或敌对关系
-                if any(keyword in (char1 + char2) for keyword in ['主角', 'protagonist']) or \
-                   rel_type in ['敌对', '仇人', 'enemy']:
-                    important_rels.append({
-                        'char1': char1,
-                        'char2': char2,
-                        'type': rel_type
-                    })
+            # 🔧 修复：正确处理字典类型的 relationships
+            if isinstance(relationships, dict):
+                # 如果是字典，遍历字典的值（最多20个）
+                for rel_key, rel_data in list(relationships.items())[:20]:
+                    # 从关系键中提取角色名（格式可能是 "角色A与角色B"）
+                    if isinstance(rel_data, dict):
+                        description = rel_data.get('description', '')
+                        # 简化为只保留描述的前50个字符
+                        important_rels.append({
+                            'key': rel_key,
+                            'desc': description[:50] if description else ''
+                        })
 
-                if len(important_rels) >= 10:
-                    break
+                    if len(important_rels) >= 10:
+                        break
+            elif isinstance(relationships, list):
+                # 如果是列表（旧格式），按原逻辑处理
+                for rel in relationships[:20]:
+                    char1 = rel.get('character1', '')
+                    char2 = rel.get('character2', '')
+                    rel_type = rel.get('relationship_type', '')
+
+                    # 只保留与主角相关或敌对关系
+                    if any(keyword in (char1 + char2) for keyword in ['主角', 'protagonist']) or \
+                       rel_type in ['敌对', '仇人', 'enemy']:
+                        important_rels.append({
+                            'char1': char1,
+                            'char2': char2,
+                            'type': rel_type
+                        })
+
+                    if len(important_rels) >= 10:
+                        break
 
             compressed['relationships'] = important_rels
 
@@ -913,10 +931,17 @@ class QualityAssessor:
         else:
             return {"max_issues": 0, "description": "无需优化"}
     # ==================== 快速评估方法 ====================
-    def quick_assess_chapter_quality(self, chapter_content: str, chapter_title: str, 
-                                chapter_number: int, novel_title: str, previous_summary: str, 
+    def quick_assess_chapter_quality(self, chapter_content: str, chapter_title: str,
+                                chapter_number: int, novel_title: str, previous_summary: str,
                                 word_count: int = 0, novel_data: Dict = None) -> Dict:
         """快速评估章节质量（包含一致性检查）"""
+        # 🔧 防御性修复：确保 chapter_content 是字符串而不是 slice 对象
+        if not isinstance(chapter_content, str):
+            self.logger.error(f"❌ chapter_content 类型错误: {type(chapter_content)}, 值: {chapter_content}")
+            # 如果是 slice 对象或其他非字符串类型，转换为字符串表示
+            chapter_content = str(chapter_content) if chapter_content else ""
+            self.logger.warn(f"⚠️ 已将 chapter_content 强制转换为字符串: {chapter_content[:100]}...")
+
         # 加载之前的世界状态
         self.world_state_manager.current_world_state = self.world_state_manager.load_previous_assessments(novel_title, novel_data)
         return self.assess_chapter_quality({

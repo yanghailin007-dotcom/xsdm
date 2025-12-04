@@ -470,16 +470,16 @@ class APIClient:
             return result
         except json.JSONDecodeError as e:
             self.logger.info(f"  - JSON修复后仍然解析失败: {e}")
-        # 步骤4: 尝试使用更宽松的解析 (如果需要，可以保留)
-        try:
-            import ast
-            # ast.literal_eval更严格，只处理字面量，如果AI生成了函数调用等会失败
-            # 为了安全，只在万不得已时使用，或者可以移除此步骤
-            result = ast.literal_eval(json_content)
-            self.logger.info("  ✓ 使用ast.literal_eval解析成功")
-            return result
-        except Exception as e:
-            self.logger.info(f"  - ast.literal_eval也失败: {e}")
+        # 步骤4: 尝试使用更宽松的解析 (已禁用，因为会导致slice对象bug)
+        # ast.literal_eval 会把 slice(None, 20, None) 解析成实际的 slice 对象而不是字符串
+        # 这会导致 chapter_data["content"] 变成 slice 对象，引发严重bug
+        # try:
+        #     import ast
+        #     result = ast.literal_eval(json_content)
+        #     self.logger.info("  ✓ 使用ast.literal_eval解析成功")
+        #     return result
+        # except Exception as e:
+        #     self.logger.info(f"  - ast.literal_eval也失败: {e}")
         # 步骤5: 保存失败的JSON用于调试
         self._save_debug_response(json_content, "failed_json_parse")
         self.logger.info("  💥 所有本地解析和修复方法均失败。放弃本次结果，交由上层重试。")

@@ -745,8 +745,14 @@ class ContentGenerator:
                 # ▲▲▲ 新代码块结束 ▲▲▲
                 # 质量评估
                 self.logger.info(f"  📊 开始质量评估...")
+                # 🔧 防御性检查：确保 content 是字符串
+                chapter_content = chapter_data.get("content", "")
+                if not isinstance(chapter_content, str):
+                    self.logger.error(f"❌ chapter_content 类型错误: {type(chapter_content)}")
+                    chapter_content = str(chapter_content) if chapter_content else ""
+
                 assessment = self.quality_assessor.quick_assess_chapter_quality(
-                    chapter_data.get("content", ""),
+                    chapter_content,
                     chapter_data.get("chapter_title", ""),
                     chapter_number,
                     novel_data["novel_title"],
