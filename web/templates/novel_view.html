@@ -8,23 +8,71 @@
 </head>
 <body>
     <!-- 顶部导航 -->
-    <nav class="navbar">
+    <nav class="navbar" id="navbar">
         <div class="navbar-content">
-            <div class="navbar-title">📖 小说生成系统</div>
+            <div class="navbar-title">
+                <button class="btn btn-secondary btn-small" onclick="location.href='/'" style="margin-right: 12px;">
+                    🏠 返回首页
+                </button>
+                <button class="btn btn-secondary btn-small" onclick="location.href='/novels'" style="margin-right: 12px;">
+                    📚 作品列表
+                </button>
+                📖 阅读页面
+            </div>
             <div class="navbar-actions">
-                <button class="btn btn-secondary btn-small" onclick="location.href='/'">返回首页</button>
-                <button class="btn btn-primary btn-small" onclick="exportJSON()">导出 JSON</button>
-                <button class="btn btn-secondary btn-small" onclick="window.print()">打印</button>
+                <!-- 阅读模式切换 -->
+                <button class="btn btn-primary btn-small" id="mode-toggle-btn" onclick="toggleReadingMode()">
+                    <span id="mode-text">📖 沉浸阅读</span>
+                </button>
+                <!-- 阅读设置（仅在阅读模式下显示） -->
+                <button class="btn btn-secondary btn-small" id="reading-settings-btn" onclick="toggleReadingSettings()" style="display: none;">
+                    ⚙️ 阅读设置
+                </button>
+                <!-- 调试模式功能 -->
+                <button class="btn btn-secondary btn-small" id="export-json-btn" onclick="exportJSON()">导出 JSON</button>
+                <button class="btn btn-secondary btn-small" id="print-btn" onclick="window.print()">打印</button>
                 <button class="btn btn-danger btn-small" onclick="logout()">退出登录</button>
             </div>
         </div>
     </nav>
 
+    <!-- 阅读设置面板 -->
+    <div class="reading-settings-panel" id="reading-settings-panel" style="display: none;">
+        <div class="settings-content">
+            <h4>阅读设置</h4>
+            <div class="setting-item">
+                <label>字体大小：</label>
+                <div class="font-size-controls">
+                    <button class="btn btn-secondary btn-small" onclick="adjustFontSize(-2)">A-</button>
+                    <span id="font-size-display">18px</span>
+                    <button class="btn btn-secondary btn-small" onclick="adjustFontSize(2)">A+</button>
+                </div>
+            </div>
+            <div class="setting-item">
+                <label>背景主题：</label>
+                <div class="theme-controls">
+                    <button class="theme-btn" data-theme="light" onclick="setReadingTheme('light')">☀️ 白天</button>
+                    <button class="theme-btn" data-theme="sepia" onclick="setReadingTheme('sepia')">📖 护眼</button>
+                    <button class="theme-btn" data-theme="dark" onclick="setReadingTheme('dark')">🌙 夜间</button>
+                </div>
+            </div>
+            <div class="setting-item">
+                <label>行间距：</label>
+                <div class="line-height-controls">
+                    <button class="btn btn-secondary btn-small" onclick="adjustLineHeight(-0.1)">紧密</button>
+                    <span id="line-height-display">1.8</span>
+                    <button class="btn btn-secondary btn-small" onclick="adjustLineHeight(0.1)">宽松</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- 主容器 -->
     <div class="container">
-        <div class="three-column-layout">
+        <!-- 调试模式：三栏布局 -->
+        <div class="three-column-layout" id="debug-layout">
             <!-- 左侧：设计信息 -->
-            <div class="left-sidebar">
+            <div class="left-sidebar" id="left-sidebar">
                 <!-- 小说基本信息 -->
                 <div class="design-section">
                     <div class="design-section-title">📚 小说信息</div>
@@ -69,7 +117,7 @@
             </div>
 
             <!-- 中间：正文内容 -->
-            <div class="center-content">
+            <div class="center-content" id="center-content">
                 <div class="content-header">
                     <h2 id="chapter-title">选择章节阅读</h2>
                     <p id="chapter-meta">点击左侧章节列表选择要查看的章节</p>
@@ -95,37 +143,64 @@
                 </div>
             </div>
 
-            <!-- 右侧：质量评估 -->
-            <div class="right-sidebar">
-                <!-- 质量评分 -->
+            <!-- 右侧：生成信息分析 -->
+            <div class="right-sidebar" id="right-sidebar">
+                <!-- 输入提示词 -->
                 <div class="assessment-card">
-                    <div class="assessment-title">⭐ 质量评分</div>
-                    <div class="assessment-score" id="quality-score">-</div>
+                    <div class="assessment-title">📝 输入提示词 & 原始数据</div>
                     <div class="assessment-details">
-                        <div class="detail-item">
-                            <div class="detail-label">评级</div>
-                            <div class="detail-value" id="quality-rating">-</div>
+                        <div style="font-size: 11px; color: #666; margin-bottom: 8px; text-align: center;">
+                            💡 点击标题展开查看完整的JSON原始数据
+                        </div>
+                        <div id="input-prompts" style="max-height: 300px; overflow-y: auto;">
+                            <div class="loading-placeholder">加载中...</div>
                         </div>
                     </div>
                 </div>
 
-                <!-- 优点 -->
+                <!-- AI输出响应 -->
                 <div class="assessment-card">
-                    <div class="assessment-title">✓ 优点</div>
+                    <div class="assessment-title">🤖 AI输出响应 & 生成结果</div>
                     <div class="assessment-details">
-                        <ul class="pros-list" id="pros-list">
-                            <li>加载中...</li>
-                        </ul>
+                        <div style="font-size: 11px; color: #666; margin-bottom: 8px; text-align: center;">
+                            💡 查看AI生成的完整内容和失败记录
+                        </div>
+                        <div id="ai-responses" style="max-height: 300px; overflow-y: auto;">
+                            <div class="loading-placeholder">加载中...</div>
+                        </div>
                     </div>
                 </div>
 
-                <!-- 改进建议 -->
+                <!-- 质量评价 -->
                 <div class="assessment-card">
-                    <div class="assessment-title">💡 改进建议</div>
+                    <div class="assessment-title">📊 质量评价 & 分析数据</div>
                     <div class="assessment-details">
-                        <ul class="cons-list" id="cons-list">
-                            <li>加载中...</li>
-                        </ul>
+                        <div style="font-size: 11px; color: #666; margin-bottom: 8px; text-align: center;">
+                            💡 查看角色发展、世界观、事件记录等详细分析
+                        </div>
+                        <div id="quality-evaluation" style="max-height: 300px; overflow-y: auto;">
+                            <div class="loading-placeholder">加载中...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 角色发展信息 -->
+                <div class="assessment-card">
+                    <div class="assessment-title">👥 角色发展</div>
+                    <div class="assessment-details">
+                        <div id="character-development" style="max-height: 200px; overflow-y: auto;">
+                            <div class="loading-placeholder">加载中...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 生成状态 -->
+                <div class="assessment-card">
+                    <div class="assessment-title">⚡ 生成状态</div>
+                    <div class="assessment-details">
+                        <div id="generation-status" style="max-height: 150px; overflow-y: auto;">
+                            <div class="loading-placeholder">加载中...</div>
+                        </div>
                     </div>
                 </div>
 
@@ -142,6 +217,67 @@
                             <div class="detail-value" id="generated-time">-</div>
                         </div>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 沉浸式阅读模式：单栏布局 -->
+        <div class="reading-layout" id="reading-layout" style="display: none;">
+            <!-- 阅读模式顶部工具栏 -->
+            <div class="reading-toolbar" id="reading-toolbar">
+                <div class="toolbar-left">
+                    <button class="btn btn-secondary btn-small" onclick="showChapterMenu()">
+                        📚 目录
+                    </button>
+                    <span class="reading-title" id="reading-title">小说标题</span>
+                </div>
+                <div class="toolbar-right">
+                    <button class="btn btn-secondary btn-small" onclick="prevChapter()">
+                        ← 上一章
+                    </button>
+                    <span class="chapter-indicator" id="reading-chapter-indicator">第 1 章</span>
+                    <button class="btn btn-secondary btn-small" onclick="nextChapter()">
+                        下一章 →
+                    </button>
+                </div>
+            </div>
+
+            <!-- 章节菜单（侧边栏） -->
+            <div class="chapter-menu" id="chapter-menu" style="display: none;">
+                <div class="chapter-menu-header">
+                    <h3>章节目录</h3>
+                    <button class="close-btn" onclick="hideChapterMenu()">×</button>
+                </div>
+                <div class="chapter-menu-content" id="chapter-menu-content">
+                    <!-- 章节列表将在这里动态生成 -->
+                </div>
+            </div>
+
+            <!-- 阅读内容区域 -->
+            <div class="reading-content" id="reading-content">
+                <div class="reading-chapter-header">
+                    <h1 id="reading-chapter-title">章节标题</h1>
+                    <div class="reading-chapter-meta" id="reading-chapter-meta">
+                        章节信息
+                    </div>
+                </div>
+                <div class="reading-text" id="reading-text">
+                    <div class="reading-placeholder">
+                        <div class="spinner"></div>
+                        <p>正在加载章节内容...</p>
+                    </div>
+                </div>
+                <!-- 阅读模式章节导航 -->
+                <div class="reading-navigation">
+                    <button class="reading-nav-btn" onclick="prevChapter()">
+                        ← 上一章
+                    </button>
+                    <div class="reading-nav-center">
+                        <span id="reading-nav-indicator">第 1 章</span>
+                    </div>
+                    <button class="reading-nav-btn" onclick="nextChapter()">
+                        下一章 →
+                    </button>
                 </div>
             </div>
         </div>

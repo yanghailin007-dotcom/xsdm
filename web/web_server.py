@@ -357,12 +357,32 @@ class NovelGenerationManager:
                                 try:
                                     chapter_num = int(chapter_file.name.split("章")[0].replace("第", ""))
                                     with open(chapter_file, 'r', encoding='utf-8') as cf:
-                                        chapter_content = cf.read()
+                                        file_content = cf.read()
+
+                                    # 尝试解析JSON文件并提取内容
+                                    try:
+                                        chapter_json = json.loads(file_content)
+                                        chapter_content = chapter_json.get("content", file_content)
+                                        chapter_title = chapter_json.get("chapter_title", chapter_file.name.replace(".txt", "").split("_", 1)[-1])
+                                        chapter_word_count = chapter_json.get("word_count", len(chapter_content))
+
+                                        # 添加调试日志
+                                        if "quality_assessment" in chapter_json:
+                                            logger.info(f"🔍 {title} 第{chapter_num}章 - JSON格式，包含质量评估数据")
+                                        else:
+                                            logger.info(f"📄 {title} 第{chapter_num}章 - JSON格式，无质量评估数据")
+                                    except json.JSONDecodeError:
+                                        # 如果不是JSON格式，直接使用原始内容
+                                        chapter_content = file_content
+                                        chapter_title = chapter_file.name.replace(".txt", "").split("_", 1)[-1]
+                                        chapter_word_count = len(chapter_content)
+                                        logger.info(f"📝 {title} 第{chapter_num}章 - 纯文本格式")
 
                                     generated_chapters[chapter_num] = {
                                         "chapter_number": chapter_num,
-                                        "title": chapter_file.name.replace(".txt", "").split("_", 1)[-1],
+                                        "title": chapter_title,
                                         "content": chapter_content,
+                                        "word_count": chapter_word_count,
                                         "file_path": str(chapter_file)
                                     }
                                 except Exception as e:
@@ -371,6 +391,10 @@ class NovelGenerationManager:
                         # 更新小说数据
                         novel_data["generated_chapters"] = generated_chapters
                         novel_data["creation_time"] = novel_data.get("creation_time", datetime.now().isoformat())
+
+                        # 加载质量数据
+                        quality_data = self.load_quality_data(title)
+                        novel_data["quality_data"] = quality_data
 
                         # 添加到项目集合
                         self.novel_projects[title] = novel_data
@@ -383,6 +407,87 @@ class NovelGenerationManager:
 
         except Exception as e:
             logger.error(f"❌ 加载已存在小说项目失败: {e}")
+
+    def load_quality_data(self, title: str) -> Dict[str, Any]:
+        """加载小说的质量数据"""
+        quality_data = {
+            "character_development": {},
+            "world_state": {},
+            "events": [],
+            "writing_plans": {},
+            "relationships": {},
+            "chapter_failures": []
+        }
+
+        try:
+            # 基础路径
+            quality_base = Path("quality_data")
+            chapter_base = Path("chapter_failures")
+
+            # 加载角色发展数据
+            character_file = quality_base / f"{title}_character_development.json"
+            if character_file.exists():
+                with open(character_file, 'r', encoding='utf-8') as f:
+                    quality_data["character_development"] = json.load(f)
+
+            # 加载世界观数据
+            world_file = quality_base / f"{title}_world_state.json"
+            if world_file.exists():
+                with open(world_file, 'r', encoding='utf-8') as f:
+                    quality_data["world_state"] = json.load(f)
+
+            # 加载事件数据
+            events_file = quality_base / f"{title}_events.json"
+            if events_file.exists():
+                with open(events_file, 'r', encoding='utf-8') as f:
+                    quality_data["events"] = json.load(f)
+
+            # 加载事件详细记录（JSONL格式）
+            events_jsonl = quality_base / "events" / f"{title}_events.jsonl"
+            if events_jsonl.exists():
+                events = []
+                with open(events_jsonl, 'r', encoding='utf-8') as f:
+                    for line in f:
+                        if line.strip():
+                            try:
+                                events.append(json.loads(line))
+                            except json.JSONDecodeError:
+                                continue
+                quality_data["detailed_events"] = events
+
+            # 加载写作计划
+            for plan_file in (quality_base / "plans").glob(f"{title.replace(':', '').replace('，', '')}*_writing_plan.json"):
+                with open(plan_file, 'r', encoding='utf-8') as f:
+                    plan_data = json.load(f)
+                    stage_name = plan_data.get("stage_writing_plan", {}).get("stage_name", "unknown")
+                    quality_data["writing_plans"][stage_name] = plan_data
+
+            # 加载关系数据
+            relationships_file = quality_base / "relationships" / f"{title}_relationships.json"
+            if relationships_file.exists():
+                with open(relationships_file, 'r', encoding='utf-8') as f:
+                    quality_data["relationships"] = json.load(f)
+
+            # 加载章节失败记录
+            failures_file = chapter_base / f"failures_{title}.json"
+            if failures_file.exists():
+                with open(failures_file, 'r', encoding='utf-8') as f:
+                    failures = json.load(f)
+                    # 按章节号组织失败记录
+                    chapter_failures = {}
+                    for failure in failures if isinstance(failures, list) else [failures]:
+                        chapter_num = failure.get("chapter_number", 0)
+                        if chapter_num not in chapter_failures:
+                            chapter_failures[chapter_num] = []
+                        chapter_failures[chapter_num].append(failure)
+                    quality_data["chapter_failures"] = chapter_failures
+
+            logger.info(f"📊 加载质量数据完成: {title}")
+
+        except Exception as e:
+            logger.error(f"❌ 加载质量数据失败 {title}: {e}")
+
+        return quality_data
 
     def get_novel_projects(self) -> List[Dict[str, Any]]:
         """获取所有小说项目"""
@@ -407,6 +512,77 @@ class NovelGenerationManager:
         if not novel_data:
             return None
         return novel_data.get("generated_chapters", {}).get(chapter_num)
+
+    def get_chapter_quality_data(self, title: str, chapter_num: int) -> Dict[str, Any]:
+        """获取章节质量数据"""
+        quality_data = {
+            "character_development": {},
+            "world_state": {},
+            "events": [],
+            "generation_context": {},
+            "chapter_failures": [],
+            "writing_plan": {},
+            "character_relationships": {}
+        }
+
+        try:
+            # 从项目的质量数据中提取章节相关信息
+            novel_data = self.novel_projects.get(title)
+            if not novel_data or "quality_data" not in novel_data:
+                return quality_data
+
+            project_quality = novel_data["quality_data"]
+
+            # 获取角色发展数据（过滤到当前章节）
+            character_data = project_quality.get("character_development", {})
+            if character_data:
+                # 提取在当前章节活跃的角色
+                active_characters = {}
+                for char_name, char_info in character_data.items():
+                    if isinstance(char_info, dict) and char_info.get("first_appearance_chapter", 0) <= chapter_num <= char_info.get("last_updated_chapter", 0):
+                        active_characters[char_name] = char_info
+                quality_data["character_development"] = active_characters
+
+            # 获取世界观数据
+            quality_data["world_state"] = project_quality.get("world_state", {})
+
+            # 获取事件数据（过滤到当前章节）
+            all_events = project_quality.get("detailed_events", [])
+            chapter_events = [event for event in all_events if event.get("chapter_number") == chapter_num]
+            quality_data["events"] = chapter_events
+
+            # 获取章节失败记录
+            chapter_failures = project_quality.get("chapter_failures", {}).get(chapter_num, [])
+            quality_data["chapter_failures"] = chapter_failures
+
+            # 获取当前章节的写作计划
+            writing_plans = project_quality.get("writing_plans", {})
+            for stage_name, plan_data in writing_plans.items():
+                chapter_range = plan_data.get("stage_writing_plan", {}).get("chapter_range", "")
+                if self._is_chapter_in_range(chapter_num, chapter_range):
+                    quality_data["writing_plan"] = plan_data
+                    break
+
+            # 获取关系数据
+            quality_data["character_relationships"] = project_quality.get("relationships", {})
+
+        except Exception as e:
+            logger.error(f"❌ 获取章节质量数据失败 {title} 第{chapter_num}章: {e}")
+
+        return quality_data
+
+    def _is_chapter_in_range(self, chapter_num: int, chapter_range: str) -> bool:
+        """检查章节是否在范围内"""
+        try:
+            if not chapter_range or "-" not in chapter_range:
+                return False
+
+            start_str, end_str = chapter_range.replace(" ", "").split("-")
+            start = int(start_str)
+            end = int(end_str)
+            return start <= chapter_num <= end
+        except:
+            return False
 
     def export_novel(self, title: str, format_type: str = "json") -> Dict[str, Any]:
         """导出小说"""
@@ -564,9 +740,56 @@ def get_novel_projects():
     """获取所有小说项目"""
     try:
         projects = manager.get_novel_projects()
+        # 为每个项目添加状态信息
+        for project in projects:
+            total_chapters = project.get("total_chapters", 0)
+            completed_chapters = project.get("completed_chapters", 0)
+            if completed_chapters >= total_chapters and total_chapters > 0:
+                project["status"] = "completed"
+            elif completed_chapters > 0:
+                project["status"] = "generating"
+            else:
+                project["status"] = "paused"
         return jsonify(projects)
     except Exception as e:
         logger.error(f"❌ 获取项目列表失败: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/dashboard-stats', methods=['GET'])
+@login_required
+def get_dashboard_stats():
+    """获取仪表板统计数据"""
+    try:
+        projects = manager.get_novel_projects()
+        
+        total_projects = len(projects)
+        total_chapters = sum(p.get("completed_chapters", 0) for p in projects)
+        total_words = 0
+        completed_projects = 0
+        active_tasks = 0
+        
+        # 计算总字数和完成项目数
+        for project in projects:
+            total_words += project.get("word_count", 0)
+            project_total_chapters = project.get("total_chapters", 0)
+            project_completed_chapters = project.get("completed_chapters", 0)
+            
+            if project_completed_chapters >= project_total_chapters and project_total_chapters > 0:
+                completed_projects += 1
+        
+        # 获取活动任务数
+        active_tasks = len([task for task in manager.get_all_tasks()
+                           if task.get("status") in ["initializing", "generating", "generator_ready", "creative_ready"]])
+        
+        return jsonify({
+            "total_projects": total_projects,
+            "total_chapters": total_chapters,
+            "total_words": total_words,
+            "completed_projects": completed_projects,
+            "active_tasks": active_tasks
+        })
+    except Exception as e:
+        logger.error(f"❌ 获取统计数据失败: {e}")
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/project/<title>', methods=['GET'])
@@ -588,9 +811,24 @@ def get_chapter_detail(title, chapter_num):
         chapter_detail = manager.get_chapter_detail(title, chapter_num)
         if not chapter_detail:
             return jsonify({"error": "章节不存在"}), 404
+
+        # 获取质量数据
+        quality_data = manager.get_chapter_quality_data(title, chapter_num)
+        chapter_detail["quality_data"] = quality_data
+
         return jsonify(chapter_detail)
     except Exception as e:
         logger.error(f"❌ 获取章节详情失败: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/project/<title>/chapter/<int:chapter_num>/quality', methods=['GET'])
+def get_chapter_quality_data(title, chapter_num):
+    """获取章节质量数据"""
+    try:
+        quality_data = manager.get_chapter_quality_data(title, chapter_num)
+        return jsonify(quality_data)
+    except Exception as e:
+        logger.error(f"❌ 获取章节质量数据失败: {e}")
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/project/<title>/export', methods=['GET'])
@@ -713,6 +951,75 @@ def export_json():
         return jsonify({"error": "没有找到小说项目"}), 404
     except Exception as e:
         logger.error(f"❌ 导出失败: {e}")
+        return jsonify({"error": str(e)}), 500
+
+# ==================== 原始数据API ====================
+
+@app.route('/api/raw-chapter-data', methods=['GET'])
+def get_raw_chapter_data():
+    """获取原始章节数据"""
+    try:
+        file_path = request.args.get('file_path')
+        if not file_path:
+            return jsonify({"error": "缺少file_path参数"}), 400
+
+        # 安全检查：确保文件路径在允许的范围内
+        allowed_dirs = [
+            str(BASE_DIR / "小说项目"),
+            str(BASE_DIR / "chapter_failures"),
+            str(BASE_DIR / "quality_data")
+        ]
+        
+        file_path = file_path.lstrip('/\\')
+        full_path = BASE_DIR / file_path
+        
+        # 检查路径安全性
+        if not any(str(full_path).startswith(allowed_dir) for allowed_dir in allowed_dirs):
+            return jsonify({"error": "文件路径不被允许访问"}), 403
+
+        if not full_path.exists():
+            return jsonify({"error": "文件不存在"}), 404
+
+        # 读取文件内容
+        with open(full_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+
+        # 尝试解析为JSON
+        try:
+            json_data = json.loads(content)
+            return jsonify({
+                "success": True,
+                "file_path": str(full_path),
+                "file_size": len(content.encode('utf-8')),
+                "content_type": "json",
+                "data": json_data
+            })
+        except json.JSONDecodeError:
+            # 如果不是JSON，返回原始文本
+            return jsonify({
+                "success": True,
+                "file_path": str(full_path),
+                "file_size": len(content.encode('utf-8')),
+                "content_type": "text",
+                "data": content
+            })
+
+    except Exception as e:
+        logger.error(f"❌ 获取原始章节数据失败: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/quality-data/<title>', methods=['GET'])
+def get_quality_data(title):
+    """获取小说的质量数据"""
+    try:
+        quality_data = manager.get_chapter_quality_data(title, 0)  # 获取所有质量数据
+        return jsonify({
+            "success": True,
+            "title": title,
+            "quality_data": quality_data
+        })
+    except Exception as e:
+        logger.error(f"❌ 获取质量数据失败: {e}")
         return jsonify({"error": str(e)}), 500
 
 # ==================== 创意文件解析 API ====================
@@ -886,9 +1193,15 @@ def start_generation_from_idea():
 @app.route('/', methods=['GET'])
 @login_required
 def index():
-    """首页"""
+    """首页 - 小说创意生成入口"""
     logger.info(f"📄 Loading index.html from template folder: {app.template_folder}")
     return render_template('index.html')
+
+@app.route('/novels', methods=['GET'])
+@login_required
+def novels_view():
+    """作品列表页面"""
+    return render_template('novels.html')
 
 @app.route('/novel', methods=['GET'])
 @login_required
@@ -901,6 +1214,12 @@ def novel_view():
 def dashboard():
     """仪表板"""
     return render_template('dashboard.html')
+
+@app.route('/test_layout_improvements.html', methods=['GET'])
+@login_required
+def test_layout_improvements():
+    """布局改进测试页面"""
+    return send_from_directory('.', 'test_layout_improvements.html')
 
 # 静态文件服务
 @app.route('/static/<path:filename>')
