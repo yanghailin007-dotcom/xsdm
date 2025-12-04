@@ -15,6 +15,7 @@
                 <button class="btn btn-secondary btn-small" onclick="location.href='/'">返回首页</button>
                 <button class="btn btn-primary btn-small" onclick="exportJSON()">导出 JSON</button>
                 <button class="btn btn-secondary btn-small" onclick="window.print()">打印</button>
+                <button class="btn btn-danger btn-small" onclick="logout()">退出登录</button>
             </div>
         </div>
     </nav>
@@ -147,5 +148,13 @@
     </div>
 
     <script src="/static/js/novel_view.js"></script>
+    <script>
+        // 退出登录函数
+        function logout() {
+            if (confirm('确定要退出登录吗？')) {
+                window.location.href = '/logout';
+            }
+        }
+    </script>
 </body>
 </html>

@@ -189,6 +189,7 @@
             <div class="navbar-actions">
                 <button class="btn btn-primary btn-small" onclick="location.href='/novel'">查看生成</button>
                 <button class="btn btn-secondary btn-small" onclick="location.href='/dashboard'">仪表板</button>
+                <button class="btn btn-danger btn-small" onclick="logout()">退出登录</button>
             </div>
         </div>
     </nav>
@@ -637,6 +638,13 @@
                 clearInterval(progressInterval);
             }
         });
+
+        // 退出登录函数
+        function logout() {
+            if (confirm('确定要退出登录吗？')) {
+                window.location.href = '/logout';
+            }
+        }
     </script>
 </body>
 </html>

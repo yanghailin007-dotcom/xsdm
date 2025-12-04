@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>小说生成系统 - 登录</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .login-container {
+            width: 100%;
+            max-width: 400px;
+            padding: 20px;
+        }
+
+        .login-box {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            padding: 40px;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .login-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .login-header h1 {
+            font-size: 28px;
+            color: #333;
+            margin-bottom: 8px;
+        }
+
+        .login-header p {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        input[type="text"],
+        input[type="password"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        input[type="text"]:focus,
+        input[type="password"]:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .form-group input::placeholder {
+            color: #999;
+        }
+
+        .login-btn {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-top: 10px;
+        }
+
+        .login-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .login-btn:active {
+            transform: translateY(0);
+        }
+
+        .login-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .error-message {
+            background-color: #fee;
+            color: #c33;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            display: none;
+            border-left: 4px solid #c33;
+        }
+
+        .error-message.show {
+            display: block;
+            animation: shake 0.3s;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            margin-top: 10px;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(102, 126, 234, 0.3);
+            border-top-color: #667eea;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .demo-hint {
+            text-align: center;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #e0e0e0;
+            color: #666;
+            font-size: 12px;
+        }
+
+        .demo-hint strong {
+            color: #333;
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            color: #999;
+            font-size: 12px;
+        }
+
+        .success-message {
+            background-color: #efe;
+            color: #3c3;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            display: none;
+            border-left: 4px solid #3c3;
+        }
+
+        .success-message.show {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-box">
+            <div class="login-header">
+                <h1>📚 小说生成系统</h1>
+                <p>欢迎使用 AI 小说生成平台</p>
+            </div>
+
+            <form id="loginForm">
+                <div id="successMessage" class="success-message">
+                    登录成功，正在跳转...
+                </div>
+
+                <div id="errorMessage" class="error-message">
+                    {% if error %}
+                    {{ error }}
+                    {% else %}
+                    请输入正确的用户名和密码
+                    {% endif %}
+                </div>
+
+                <div class="form-group">
+                    <label for="username">用户名</label>
+                    <input
+                        type="text"
+                        id="username"
+                        name="username"
+                        placeholder="请输入用户名"
+                        required
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="password">密码</label>
+                    <input
+                        type="password"
+                        id="password"
+                        name="password"
+                        placeholder="请输入密码"
+                        required
+                    >
+                </div>
+
+                <button type="submit" id="loginBtn" class="login-btn">
+                    登 录
+                </button>
+
+                <div id="loading" class="loading">
+                    <div class="spinner"></div>
+                    <p style="margin-top: 8px; font-size: 12px; color: #666;">登录中...</p>
+                </div>
+            </form>
+
+            <div class="demo-hint">
+                <p><strong>演示账户：</strong></p>
+                <p>用户名: <strong>yang</strong></p>
+                <p>密码: <strong>yang</strong></p>
+            </div>
+
+            <div class="footer">
+                <p>&copy; 2024 AI小说生成系统 | 版本 1.0</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const form = document.getElementById('loginForm');
+        const usernameInput = document.getElementById('username');
+        const passwordInput = document.getElementById('password');
+        const loginBtn = document.getElementById('loginBtn');
+        const errorMessage = document.getElementById('errorMessage');
+        const successMessage = document.getElementById('successMessage');
+        const loading = document.getElementById('loading');
+
+        // 显示错误信息
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorMessage.classList.add('show');
+            loading.classList.remove('show');
+            loginBtn.disabled = false;
+        }
+
+        // 隐藏错误信息
+        function hideError() {
+            errorMessage.classList.remove('show');
+        }
+
+        // 显示成功信息
+        function showSuccess() {
+            successMessage.classList.add('show');
+            loading.classList.remove('show');
+        }
+
+        // 处理登录
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const username = usernameInput.value.trim();
+            const password = passwordInput.value;
+
+            if (!username || !password) {
+                showError('请输入用户名和密码');
+                return;
+            }
+
+            // 显示加载状态
+            hideError();
+            loginBtn.disabled = true;
+            loading.classList.add('show');
+
+            try {
+                const response = await fetch('/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        username: username,
+                        password: password
+                    })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    showSuccess();
+                    // 登录成功，重定向到首页
+                    setTimeout(() => {
+                        window.location.href = '/';
+                    }, 1000);
+                } else {
+                    const data = await response.json();
+                    showError(data.error || '用户名或密码错误');
+                }
+            } catch (error) {
+                console.error('登录错误:', error);
+                showError('登录失败，请稍后重试');
+            }
+        });
+
+        // 回车键提交表单
+        passwordInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                form.dispatchEvent(new Event('submit'));
+            }
+        });
+
+        // 输入时清除错误信息
+        usernameInput.addEventListener('input', hideError);
+        passwordInput.addEventListener('input', hideError);
+
+        // 页面加载时焦点到用户名输入框
+        window.addEventListener('load', () => {
+            usernameInput.focus();
+        });
+    </script>
+</body>
+</html>

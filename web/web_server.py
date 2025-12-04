@@ -8,13 +8,15 @@ import os
 import sys
 import threading
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, List, Any, Optional
 import tempfile
 import uuid
+import hashlib
+from functools import wraps
 
-from flask import Flask, render_template, jsonify, request, send_from_directory
+from flask import Flask, render_template, jsonify, request, send_from_directory, session, redirect, url_for
 from flask_cors import CORS
 
 # 获取项目根目录 - 使用resolve()确保绝对路径
@@ -63,6 +65,56 @@ app = Flask(
     static_folder=str(static_dir.resolve())
 )
 CORS(app)
+
+# 配置 Flask session
+app.secret_key = 'yang-novel-generator-secret-key-2024'  # 生产环境应使用更安全的密钥
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=24)  # session 有效期24小时
+
+# 用户认证系统
+class UserAuth:
+    """简单的用户认证系统"""
+
+    def __init__(self):
+        # 默认用户：用户名 yang，密码 yang
+        self.users = {
+            'yang': self._hash_password('yang')
+        }
+        logger.info("🔐 用户认证系统已初始化")
+        logger.info(f"📝 默认用户: yang / yang")
+
+    def _hash_password(self, password: str) -> str:
+        """使用 SHA256 哈希密码"""
+        return hashlib.sha256(password.encode()).hexdigest()
+
+    def verify_user(self, username: str, password: str) -> bool:
+        """验证用户名和密码"""
+        if username not in self.users:
+            return False
+        return self.users[username] == self._hash_password(password)
+
+    def add_user(self, username: str, password: str) -> bool:
+        """添加新用户"""
+        if username in self.users:
+            return False
+        self.users[username] = self._hash_password(password)
+        return True
+
+# 初始化用户认证
+user_auth = UserAuth()
+
+# 登录装饰器
+def login_required(f):
+    """要求登录的装饰器"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'logged_in' not in session or not session['logged_in']:
+            # 如果是 API 请求，返回 JSON 错误
+            if request.path.startswith('/api/'):
+                return jsonify({'error': '未登录', 'redirect': '/login'}), 401
+            # 如果是页面请求，重定向到登录页
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
 
 # 全局状态管理
 class NovelGenerationManager:
@@ -329,6 +381,44 @@ class NovelGenerationManager:
 # 创建全局管理器实例
 manager = NovelGenerationManager()
 
+# ==================== 认证路由 ====================
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    """登录页面和登录处理"""
+    if request.method == 'POST':
+        data = request.json if request.is_json else request.form
+        username = data.get('username', '').strip()
+        password = data.get('password', '')
+
+        if user_auth.verify_user(username, password):
+            session['logged_in'] = True
+            session['username'] = username
+            session.permanent = True
+            logger.info(f"✅ 用户登录成功: {username}")
+
+            if request.is_json:
+                return jsonify({'success': True, 'message': '登录成功'})
+            return redirect(url_for('index'))
+        else:
+            logger.warning(f"❌ 登录失败: {username}")
+            if request.is_json:
+                return jsonify({'success': False, 'error': '用户名或密码错误'}), 401
+            return render_template('login.html', error='用户名或密码错误')
+
+    # GET 请求 - 显示登录页面
+    if 'logged_in' in session and session['logged_in']:
+        return redirect(url_for('index'))
+    return render_template('login.html')
+
+@app.route('/logout', methods=['GET', 'POST'])
+def logout():
+    """登出"""
+    username = session.get('username', 'unknown')
+    session.clear()
+    logger.info(f"👋 用户登出: {username}")
+    return redirect(url_for('login'))
+
 # ==================== API 路由 ====================
 
 @app.route('/api/health', methods=['GET'])
@@ -337,6 +427,7 @@ def health():
     return jsonify({"status": "ok", "timestamp": datetime.now().isoformat()})
 
 @app.route('/api/start-generation', methods=['POST'])
+@login_required
 def start_generation():
     """开始生成小说"""
     try:
@@ -733,17 +824,20 @@ def start_generation_from_idea():
 # ==================== 页面路由 ====================
 
 @app.route('/', methods=['GET'])
+@login_required
 def index():
     """首页"""
     logger.info(f"📄 Loading index.html from template folder: {app.template_folder}")
     return render_template('index.html')
 
 @app.route('/novel', methods=['GET'])
+@login_required
 def novel_view():
     """小说阅读页面"""
     return render_template('novel_view.html')
 
 @app.route('/dashboard', methods=['GET'])
+@login_required
 def dashboard():
     """仪表板"""
     return render_template('dashboard.html')

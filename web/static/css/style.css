@@ -368,6 +368,17 @@ a:hover {
     background: #d8d9ff;
 }
 
+.btn-danger {
+    background: #ff6b6b;
+    color: white;
+}
+
+.btn-danger:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(255, 107, 107, 0.4);
+    background: #ff5252;
+}
+
 .btn-small {
     padding: 6px 12px;
     font-size: 12px;
