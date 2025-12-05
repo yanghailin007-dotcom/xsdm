@@ -1,1 +1,0 @@
-{"action": "relationship.create", "actor": "林渊", "payload": {"from": "林渊", "to": "韩立", "relation_type": "盟友", "description": "结为盟友"}, "applied": true, "applied_result": {"edge_id": "e1763652070278_2eb6f2"}, "event_id": "750421ba-4dc9-48f2-8cac-83672d8bb478", "timestamp": "2025-11-20T23:21:10.279236"}
