@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>小说封面生成器 - AI智能封面制作</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="/static/css/cover_generator.css">
+</head>
+<body>
+    <!-- 顶部导航 -->
+    <nav class="navbar" id="navbar">
+        <div class="navbar-content">
+            <div class="navbar-title">
+                <button class="btn btn-secondary btn-small" onclick="location.href='/'" style="margin-right: 12px;">
+                    🏠 返回首页
+                </button>
+                <button class="btn btn-secondary btn-small" onclick="location.href='/novels'" style="margin-right: 12px;">
+                    📚 作品列表
+                </button>
+                🎨 小说封面生成器
+            </div>
+            <div class="navbar-actions">
+                <button class="btn btn-secondary btn-small" onclick="showHelp()">❓ 帮助</button>
+                <button class="btn btn-danger btn-small" onclick="logout()">退出登录</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 主容器 -->
+    <div class="container">
+        <div class="cover-generator-layout">
+            
+            <!-- 左侧：参数设置面板 -->
+            <div class="left-panel">
+                <div class="panel-section">
+                    <div class="panel-title">📝 基础信息</div>
+                    <div class="form-group">
+                        <label for="novel-title">小说标题</label>
+                        <input type="text" id="novel-title" placeholder="请输入小说标题" maxlength="50">
+                        <div class="form-hint">建议10-30个字符，避免过长</div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="author-name">作者名称</label>
+                        <input type="text" id="author-name" placeholder="请输入作者名称" maxlength="30">
+                        <div class="form-hint">将显示在封面上</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="novel-genre">小说类型</label>
+                        <select id="novel-genre">
+                            <option value="">请选择类型</option>
+                            <option value="玄幻">玄幻修仙</option>
+                            <option value="都市">都市言情</option>
+                            <option value="历史">历史架空</option>
+                            <option value="科幻">科幻未来</option>
+                            <option value="武侠">武侠江湖</option>
+                            <option value="悬疑">悬疑推理</option>
+                            <option value="游戏">游戏竞技</option>
+                            <option value="军事">军事战争</option>
+                            <option value="校园">校园青春</option>
+                            <option value="职场">职场商战</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="panel-section">
+                    <div class="panel-title">🎨 风格设置</div>
+                    
+                    <div class="form-group">
+                        <label for="cover-style">封面风格</label>
+                        <select id="cover-style">
+                            <option value="现代简约">现代简约</option>
+                            <option value="古典唯美">古典唯美</option>
+                            <option value="科幻未来">科幻未来</option>
+                            <option value="古风仙侠">古风仙侠</option>
+                            <option value="都市时尚">都市时尚</option>
+                            <option value="神秘悬疑">神秘悬疑</option>
+                            <option value="温暖治愈">温暖治愈</option>
+                            <option value="热血激燃">热血激燃</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="color-scheme">配色方案</label>
+                        <div class="color-scheme-grid">
+                            <div class="color-scheme-item active" data-scheme="blue">
+                                <div class="color-preview" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);"></div>
+                                <span>蓝色系</span>
+                            </div>
+                            <div class="color-scheme-item" data-scheme="red">
+                                <div class="color-preview" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);"></div>
+                                <span>红色系</span>
+                            </div>
+                            <div class="color-scheme-item" data-scheme="green">
+                                <div class="color-preview" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);"></div>
+                                <span>绿色系</span>
+                            </div>
+                            <div class="color-scheme-item" data-scheme="purple">
+                                <div class="color-preview" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);"></div>
+                                <span>紫色系</span>
+                            </div>
+                            <div class="color-scheme-item" data-scheme="gold">
+                                <div class="color-preview" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);"></div>
+                                <span>金色系</span>
+                            </div>
+                            <div class="color-scheme-item" data-scheme="dark">
+                                <div class="color-preview" style="background: linear-gradient(135deg, #30cfd0 0%, #330867 100%);"></div>
+                                <span>暗色系</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="image-size">图片尺寸</label>
+                        <select id="image-size">
+                            <option value="1K">1K (1024x1024) - 推荐</option>
+                            <option value="2K">2K (2048x2048) - 高清</option>
+                        </select>
+                        <div class="form-hint">1K尺寸生成更快，2K尺寸质量更高</div>
+                    </div>
+                </div>
+
+                <div class="panel-section">
+                    <div class="panel-title">📋 提示词模板</div>
+                    
+                    <div class="template-buttons">
+                        <button class="btn-template" onclick="loadTemplate('fantasy')">
+                            ⚔️ 玄幻修仙
+                        </button>
+                        <button class="btn-template" onclick="loadTemplate('urban')">
+                            🏙️ 都市言情
+                        </button>
+                        <button class="btn-template" onclick="loadTemplate('historical')">
+                            🏛️ 历史架空
+                        </button>
+                        <button class="btn-template" onclick="loadTemplate('scifi')">
+                            🚀 科幻未来
+                        </button>
+                        <button class="btn-template" onclick="loadTemplate('martial')">
+                            🗡️ 武侠江湖
+                        </button>
+                        <button class="btn-template" onclick="loadTemplate('mystery')">
+                            🔍 悬疑推理
+                        </button>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="custom-prompt">自定义提示词</label>
+                        <textarea id="custom-prompt" rows="6" placeholder="请输入详细的封面描述..."></textarea>
+                        <div class="form-hint">详细描述您想要的封面效果，包括场景、人物、风格等</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="negative-prompt">负面提示词</label>
+                        <textarea id="negative-prompt" rows="3" placeholder="不希望出现的内容..."></textarea>
+                        <div class="form-hint">描述不希望出现在封面中的元素</div>
+                    </div>
+                </div>
+
+                <div class="panel-section">
+                    <div class="panel-title">⚙️ 高级设置</div>
+                    
+                    <div class="form-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="add-watermark">
+                            <span class="checkmark"></span>
+                            添加水印
+                        </label>
+                        <div class="form-hint">在封面角落添加小水印</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="generation-count">生成数量</label>
+                        <select id="generation-count">
+                            <option value="1">生成1张</option>
+                            <option value="2">生成2张</option>
+                            <option value="3">生成3张</option>
+                            <option value="4">生成4张</option>
+                        </select>
+                        <div class="form-hint">一次生成多张封面供选择</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 中间：预览和操作区域 -->
+            <div class="center-panel">
+                <div class="preview-section">
+                    <div class="preview-header">
+                        <h3>🖼️ 封面预览</h3>
+                        <div class="preview-actions">
+                            <button class="btn btn-secondary btn-small" onclick="clearPreview()" id="clear-btn" style="display: none;">
+                                🗑️ 清空
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="preview-container" id="preview-container">
+                        <div class="preview-placeholder">
+                            <div class="preview-icon">🎨</div>
+                            <h3>封面预览区域</h3>
+                            <p>填写信息后点击生成按钮开始制作封面</p>
+                        </div>
+                    </div>
+
+                    <div class="generation-controls">
+                        <button class="btn btn-primary btn-large" onclick="generateCover()" id="generate-btn">
+                            🎨 生成封面
+                        </button>
+                        <button class="btn btn-success btn-large" onclick="regenerateCover()" id="regenerate-btn" style="display: none;">
+                            🔄 重新生成
+                        </button>
+                    </div>
+
+                    <div class="generation-progress" id="generation-progress" style="display: none;">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progress-fill"></div>
+                        </div>
+                        <div class="progress-text" id="progress-text">正在生成封面...</div>
+                    </div>
+                </div>
+
+                <div class="history-section">
+                    <div class="history-header">
+                        <h3>📚 生成历史</h3>
+                        <button class="btn btn-secondary btn-small" onclick="clearHistory()">
+                            清空历史
+                        </button>
+                    </div>
+                    
+                    <div class="history-container" id="history-container">
+                        <div class="history-placeholder">
+                            <p>暂无生成历史</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 右侧：结果展示区域 -->
+            <div class="right-panel">
+                <div class="results-section">
+                    <div class="results-header">
+                        <h3>✨ 生成结果</h3>
+                        <div class="results-count" id="results-count">共 0 张</div>
+                    </div>
+                    
+                    <div class="results-grid" id="results-grid">
+                        <div class="results-placeholder">
+                            <div class="placeholder-icon">🖼️</div>
+                            <p>生成的封面将在这里显示</p>
+                        </div>
+                    </div>
+
+                    <div class="batch-actions" id="batch-actions" style="display: none;">
+                        <button class="btn btn-secondary" onclick="selectAll()">
+                            ☑️ 全选
+                        </button>
+                        <button class="btn btn-secondary" onclick="deselectAll()">
+                            ⬜ 取消全选
+                        </button>
+                        <button class="btn btn-success" onclick="downloadSelected()">
+                            📥 下载选中
+                        </button>
+                    </div>
+                </div>
+
+                <div class="tips-section">
+                    <div class="tips-header">
+                        <h3>💡 使用技巧</h3>
+                    </div>
+                    
+                    <div class="tips-content">
+                        <div class="tip-item">
+                            <div class="tip-icon">✨</div>
+                            <div class="tip-text">
+                                <strong>标题简洁有力</strong><br>
+                                封面标题建议控制在10-30个字符内，确保清晰可读
+                            </div>
+                        </div>
+                        
+                        <div class="tip-item">
+                            <div class="tip-icon">🎨</div>
+                            <div class="tip-text">
+                                <strong>风格匹配类型</strong><br>
+                                选择与小说类型匹配的封面风格，能更好地吸引目标读者
+                            </div>
+                        </div>
+                        
+                        <div class="tip-item">
+                            <div class="tip-icon">📝</div>
+                            <div class="tip-text">
+                                <strong>详细描述效果</strong><br>
+                                在自定义提示词中详细描述想要的场景、人物、色调等
+                            </div>
+                        </div>
+                        
+                        <div class="tip-item">
+                            <div class="tip-icon">🔄</div>
+                            <div class="tip-text">
+                                <strong>多次尝试优化</strong><br>
+                                可以根据生成结果调整参数，多次生成选择最佳效果
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 图片预览模态框 -->
+    <div class="image-modal" id="image-modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>封面详情</h3>
+                <button class="modal-close" onclick="closeImageModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <img id="modal-image" src="" alt="封面预览">
+                <div class="modal-info">
+                    <div class="info-item">
+                        <label>生成时间：</label>
+                        <span id="modal-time"></span>
+                    </div>
+                    <div class="info-item">
+                        <label>提示词：</label>
+                        <span id="modal-prompt"></span>
+                    </div>
+                    <div class="info-item">
+                        <label>尺寸：</label>
+                        <span id="modal-size"></span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeImageModal()">关闭</button>
+                <button class="btn btn-primary" onclick="downloadModalImage()">下载</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 帮助模态框 -->
+    <div class="help-modal" id="help-modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>使用帮助</h3>
+                <button class="modal-close" onclick="closeHelpModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="help-section">
+                    <h4>🎯 如何生成高质量封面？</h4>
+                    <ul>
+                        <li>提供准确的书名和作者信息</li>
+                        <li>选择符合小说类型的风格和配色</li>
+                        <li>使用详细的提示词描述想要的场景</li>
+                        <li>避免在负面提示词中描述过多内容</li>
+                    </ul>
+                </div>
+                
+                <div class="help-section">
+                    <h4>🎨 提示词编写技巧</h4>
+                    <ul>
+                        <li>描述主要场景：如"古代宫殿"、"现代都市"、"星空飞船"</li>
+                        <li>指定人物特征：如"白衣男子"、"红衣女子"、"将军形象"</li>
+                        <li>说明色调氛围：如"温暖色调"、"冷色调"、"神秘氛围"</li>
+                        <li>提及艺术风格：如"水墨画风"、"油画质感"、"动漫风格"</li>
+                    </ul>
+                </div>
+                
+                <div class="help-section">
+                    <h4>⚡ 快速开始</h4>
+                    <ol>
+                        <li>填写小说标题和作者名称</li>
+                        <li>选择小说类型和封面风格</li>
+                        <li>点击模板按钮快速加载提示词</li>
+                        <li>点击生成按钮开始制作封面</li>
+                        <li>查看结果并下载满意的封面</li>
+                    </ol>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" onclick="closeHelpModal()">知道了</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/cover_generator.js"></script>
+    <script>
+        // 退出登录函数
+        function logout() {
+            if (confirm('确定要退出登录吗？')) {
+                window.location.href = '/logout';
+            }
+        }
+
+        // 显示帮助
+        function showHelp() {
+            document.getElementById('help-modal').style.display = 'flex';
+        }
+
+        // 关闭帮助模态框
+        function closeHelpModal() {
+            document.getElementById('help-modal').style.display = 'none';
+        }
+
+        // 点击模态框背景关闭
+        document.addEventListener('click', function(event) {
+            if (event.target.classList.contains('image-modal')) {
+                closeImageModal();
+            }
+            if (event.target.classList.contains('help-modal')) {
+                closeHelpModal();
+            }
+        });
+    </script>
+</body>
+</html>

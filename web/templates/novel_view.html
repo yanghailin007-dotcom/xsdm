@@ -330,7 +330,25 @@
                         <p>正在加载章节内容...</p>
                     </div>
                 </div>
-                <!-- 阅读模式章节导航 -->
+                <!-- 阅读模式分页导航 - 移到章节导航上方 -->
+                <div class="reading-page-navigation" id="reading-page-navigation">
+                    <button class="reading-page-nav-btn" id="reading-prev-page-btn" onclick="prevPage()" disabled>
+                        ← 上一页
+                    </button>
+                    <div class="reading-page-indicator">
+                        <span id="reading-current-page">1</span> / <span id="reading-total-pages">3</span>
+                    </div>
+                    <button class="reading-page-nav-btn" id="reading-next-page-btn" onclick="nextPage()" disabled>
+                        下一页 →
+                    </button>
+                    <div class="reading-page-settings">
+                        <button class="reading-page-settings-btn" onclick="toggleReadingPageSettings()">
+                            ⚙️
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- 阅读模式章节导航 - 移到分页导航下方 -->
                 <div class="reading-navigation">
                     <button class="reading-nav-btn" onclick="prevChapter()">
                         ← 上一章
@@ -341,24 +359,6 @@
                     <button class="reading-nav-btn" onclick="nextChapter()">
                         下一章 →
                     </button>
-                </div>
-
-                <!-- 阅读模式分页导航 -->
-                <div class="reading-page-navigation" id="reading-page-navigation">
-                    <button class="reading-page-nav-btn" id="reading-prev-page-btn" onclick="prevPage()" disabled>
-                        ← 上一页
-                    </button>
-                    <div class="reading-page-indicator">
-                        <span id="reading-current-page">1</span> / <span id="reading-total-pages">1</span>
-                    </div>
-                    <button class="reading-page-nav-btn" id="reading-next-page-btn" onclick="nextPage()" disabled>
-                        下一页 →
-                    </button>
-                    <div class="reading-page-settings">
-                        <button class="reading-page-settings-btn" onclick="toggleReadingPageSettings()">
-                            ⚙️
-                        </button>
-                    </div>
                 </div>
             </div>
         </div>

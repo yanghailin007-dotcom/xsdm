@@ -30,6 +30,7 @@ from src.utils.logger import get_logger
 from src.core.NovelGenerator import NovelGenerator
 from config.config import CONFIG
 from src.core.Contexts import GenerationContext
+from src.utils.DouBaoImageGenerator import DouBaoImageGenerator
 
 logger = get_logger("WebServer")
 
@@ -176,10 +177,13 @@ class NovelGenerationManager:
     def _run_generation_task(self, task_id: str, novel_config: Dict[str, Any]):
         """运行生成任务（后台线程）"""
         try:
+            logger.info(f"🚀 开始运行生成任务: {task_id}")
+            
             # 更新状态为生成中
             self._update_task_status(task_id, "generating", 5)
 
             # 创建NovelGenerator实例
+            logger.info(f"📦 创建NovelGenerator实例...")
             generator = NovelGenerator(CONFIG)
             self.generators[task_id] = generator
 
@@ -187,13 +191,22 @@ class NovelGenerationManager:
             self._update_task_status(task_id, "generator_ready", 10)
 
             # 准备创意种子
+            logger.info(f"📝 准备创意种子...")
             creative_seed = self._prepare_creative_seed(novel_config)
             self._update_task_status(task_id, "creative_ready", 15)
 
+            logger.info(f"✅ 创意种子准备完成，开始调用full_auto_generation...")
+            logger.info(f"   - total_chapters: {novel_config.get('total_chapters', 50)}")
+            logger.info(f"   - creative_seed type: {type(creative_seed)}")
+            
             # 开始生成
             total_chapters = novel_config.get("total_chapters", 50)
             overwrite = novel_config.get("overwrite", False)  # 获取覆盖设置 (当前未使用,保留以备将来)
+            
+            logger.info(f"🎯 调用 generator.full_auto_generation...")
             success = generator.full_auto_generation(creative_seed, total_chapters)
+            
+            logger.info(f"🏁 full_auto_generation 返回: {success}")
 
             if success:
                 # 保存生成结果
@@ -630,15 +643,15 @@ def login():
         username = data.get('username', '').strip()
         password = data.get('password', '')
 
-        # 特殊处理：如果用户名是 "test"，直接登录成功（测试模式）
+        # 特殊处理：如果用户名是 "test"，允许空密码或任意密码登录（测试模式）
         if username.lower() == 'test':
             session['logged_in'] = True
             session['username'] = username
             session.permanent = True
-            logger.info(f"✅ 测试用户登录成功: {username}")
+            logger.info(f"✅ 测试用户登录成功: {username} (密码: {'空' if not password else '***'})")
 
             if request.is_json:
-                return jsonify({'success': True, 'message': '登录成功'})
+                return jsonify({'success': True, 'message': '测试用户登录成功'})
             return redirect(url_for('index'))
 
         # 正常验证流程
@@ -1438,6 +1451,124 @@ def start_generation_from_idea():
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 
+@app.route('/api/creative-ideas/<int:idea_id>', methods=['PUT'])
+@login_required
+def update_creative_idea(idea_id):
+    """更新指定创意"""
+    try:
+        data = request.json or {}
+        
+        # 验证必需字段
+        required_fields = ['coreSetting', 'novelTitle']
+        for field in required_fields:
+            if not data.get(field):
+                return jsonify({"error": f"缺少必需字段: {field}"}), 400
+        
+        # 加载现有创意数据
+        creative_data = load_creative_ideas_from_file()
+        
+        if "error" in creative_data:
+            return jsonify(creative_data), 404
+        
+        creative_works = creative_data.get("creativeWorks", [])
+        
+        if idea_id < 1 or idea_id > len(creative_works):
+            return jsonify({"error": f"创意ID {idea_id} 不存在"}), 404
+        
+        # 更新创意数据
+        updated_idea = creative_works[idea_id - 1]
+        
+        # 保留原始字段，更新提供的字段
+        updated_idea["coreSetting"] = data.get("coreSetting", updated_idea.get("coreSetting", ""))
+        updated_idea["novelTitle"] = data.get("novelTitle", updated_idea.get("novelTitle", ""))
+        updated_idea["synopsis"] = data.get("synopsis", updated_idea.get("synopsis", ""))
+        updated_idea["coreSellingPoints"] = data.get("coreSellingPoints", updated_idea.get("coreSellingPoints", ""))
+        updated_idea["totalChapters"] = data.get("totalChapters", updated_idea.get("totalChapters", 50))
+        
+        # 更新故事线
+        if data.get("completeStoryline"):
+            updated_idea["completeStoryline"] = data["completeStoryline"]
+        
+        # 更新时间戳
+        updated_idea["lastUpdated"] = datetime.now().isoformat()
+        
+        # 保存到文件
+        try:
+            with open(CREATIVE_IDEAS_FILE, 'w', encoding='utf-8') as f:
+                json.dump(creative_data, f, ensure_ascii=False, indent=2)
+            
+            logger.info(f"✅ 创意ID {idea_id} 更新成功")
+            
+            return jsonify({
+                "success": True,
+                "message": f"创意 #{idea_id} 更新成功",
+                "updated_idea": {
+                    "id": idea_id,
+                    "core_setting": updated_idea.get("coreSetting", ""),
+                    "novel_title": updated_idea.get("novelTitle", ""),
+                    "last_updated": updated_idea.get("lastUpdated")
+                }
+            })
+            
+        except Exception as save_error:
+            logger.error(f"❌ 保存创意文件失败: {save_error}")
+            return jsonify({"error": f"保存失败: {str(save_error)}"}), 500
+            
+    except Exception as e:
+        logger.error(f"❌ 更新创意失败: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/creative-ideas/<int:idea_id>', methods=['DELETE'])
+@login_required
+def delete_creative_idea(idea_id):
+    """删除指定创意"""
+    try:
+        # 加载现有创意数据
+        creative_data = load_creative_ideas_from_file()
+        
+        if "error" in creative_data:
+            return jsonify(creative_data), 404
+        
+        creative_works = creative_data.get("creativeWorks", [])
+        
+        if idea_id < 1 or idea_id > len(creative_works):
+            return jsonify({"error": f"创意ID {idea_id} 不存在"}), 404
+        
+        # 获取要删除的创意信息（用于日志）
+        deleted_idea = creative_works[idea_id - 1]
+        deleted_title = deleted_idea.get("coreSetting", "未知创意")[:50]
+        
+        # 从列表中移除创意
+        creative_works.pop(idea_id - 1)
+        
+        # 保存到文件
+        try:
+            with open(CREATIVE_IDEAS_FILE, 'w', encoding='utf-8') as f:
+                json.dump(creative_data, f, ensure_ascii=False, indent=2)
+            
+            logger.info(f"✅ 创意ID {idea_id} 删除成功: {deleted_title}...")
+            
+            return jsonify({
+                "success": True,
+                "message": f"创意 #{idea_id} 删除成功",
+                "deleted_idea": {
+                    "id": idea_id,
+                    "title_preview": deleted_title
+                }
+            })
+            
+        except Exception as save_error:
+            logger.error(f"❌ 保存创意文件失败: {save_error}")
+            return jsonify({"error": f"保存失败: {str(save_error)}"}), 500
+            
+    except Exception as e:
+        logger.error(f"❌ 删除创意失败: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
 # ==================== 页面路由 ====================
 
 @app.route('/', methods=['GET'])
@@ -1476,6 +1607,167 @@ def test_layout_improvements():
 def test_large_modal_fix():
     """大弹窗功能测试页面"""
     return send_from_directory(str(BASE_DIR), 'test_large_modal_fix.html')
+
+# ==================== 封面生成器路由 ====================
+
+@app.route('/cover-generator', methods=['GET'])
+@login_required
+def cover_generator():
+    """小说封面生成器页面"""
+    return render_template('cover_generator.html')
+
+# ==================== 封面生成API ====================
+
+@app.route('/api/generate-cover', methods=['POST'])
+@login_required
+def generate_cover():
+    """生成小说封面"""
+    try:
+        data = request.json or {}
+        
+        # 验证必需参数
+        required_fields = ['novel_title', 'custom_prompt']
+        for field in required_fields:
+            if not data.get(field):
+                return jsonify({
+                    "success": False,
+                    "error": f"缺少必需参数: {field}"
+                }), 400
+        
+        # 创建图片生成器实例
+        generator = DouBaoImageGenerator()
+        
+        # 构建最终的提示词
+        final_prompt = build_final_prompt(data)
+        
+        # 生成参数
+        generation_count = min(data.get('generation_count', 1), 4)  # 限制最多生成4张
+        image_size = data.get('image_size', '1K')
+        add_watermark = data.get('add_watermark', False)
+        
+        logger.info(f"🎨 开始生成封面: {data['novel_title']}")
+        logger.info(f"📝 提示词长度: {len(final_prompt)} 字符")
+        
+        # 批量生成图片
+        generated_images = []
+        for i in range(generation_count):
+            try:
+                logger.info(f"正在生成第 {i+1}/{generation_count} 张封面...")
+                
+                # 生成单张图片
+                result = generator.generate_image(
+                    prompt=final_prompt,
+                    size=image_size,
+                    watermark=add_watermark
+                )
+                
+                if result and 'local_path' in result:
+                    # 构建图片信息
+                    image_info = {
+                        "url": result['local_path'],
+                        "size": image_size,
+                        "timestamp": datetime.now().isoformat(),
+                        "prompt": final_prompt,
+                        "index": i + 1
+                    }
+                    generated_images.append(image_info)
+                    logger.info(f"✅ 第 {i+1} 张封面生成成功: {result['local_path']}")
+                else:
+                    logger.warning(f"第 {i+1} 张封面生成失败")
+                    
+            except Exception as e:
+                logger.error(f"生成第 {i+1} 张封面时发生错误: {e}")
+                # 继续尝试生成其他图片
+                continue
+        
+        if not generated_images:
+            return jsonify({
+                "success": False,
+                "error": "所有图片生成都失败了"
+            }), 500
+        
+        logger.info(f"🎉 封面生成完成: {len(generated_images)} 张成功")
+        
+        # 返回生成结果
+        return jsonify({
+            "success": True,
+            "message": f"成功生成 {len(generated_images)} 张封面",
+            "images": generated_images,
+            "params": data
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ 生成封面失败: {e}")
+        import traceback
+        logger.error(f"详细错误: {traceback.format_exc()}")
+        return jsonify({
+            "success": False,
+            "error": f"生成失败: {str(e)}"
+        }), 500
+
+def build_final_prompt(data):
+    """构建最终的图片生成提示词"""
+    novel_title = data.get('novel_title', '').strip()
+    author_name = data.get('author_name', '佚名').strip()
+    genre = data.get('genre', '').strip()
+    style = data.get('style', '现代简约').strip()
+    color_scheme = data.get('color_scheme', 'blue').strip()
+    custom_prompt = data.get('custom_prompt', '').strip()
+    negative_prompt = data.get('negative_prompt', '').strip()
+    
+    # 基础提示词模板
+    base_prompt = f"""小说封面设计，竖版比例，{style}风格
+
+【封面文字内容】：
+书名：《{novel_title}》
+作者：{author_name}
+
+【严格禁止的内容】：
+- 禁止添加任何其他文字
+- 禁止出现"番茄小说"、"番茄"等平台相关文字
+- 禁止水印、标语、宣传语
+- 禁止任何额外标注文字
+
+【设计要求】：
+- {style}风格的精美封面设计，符合{genre}类型特点
+- 书名要醒目突出，使用清晰易读的字体
+- 作者名放在适当位置
+- 背景设计基于小说类型和风格要求
+- 整体设计专业简洁，符合出版标准
+- 色调根据{color_scheme}方案进行搭配
+
+【文字要求】：
+- 文字清晰可读但不要过于突兀
+- 文字与背景和谐统一
+- 只能出现书名和作者"""
+    
+    # 添加风格和类型特定的描述
+    if genre:
+        genre_descriptions = {
+            '玄幻': '仙侠元素、奇幻场景',
+            '都市': '现代都市背景、时尚人物',
+            '历史': '古代建筑、传统元素',
+            '科幻': '未来科技、太空场景',
+            '武侠': '江湖气息、古风元素',
+            '悬疑': '神秘氛围、推理元素',
+            '游戏': '游戏界面、数字元素'
+        }
+        if genre in genre_descriptions:
+            base_prompt += f"\n- 融入{genre_descriptions[genre]}"
+    
+    # 添加配色方案描述
+    if color_scheme in colorSchemes:
+        base_prompt += f"\n- 主色调采用{colorSchemes[color_scheme]}"
+    
+    # 添加自定义提示词
+    if custom_prompt:
+        base_prompt += f"\n\n【自定义要求】:\n{custom_prompt}"
+    
+    # 添加负面提示词
+    if negative_prompt:
+        base_prompt += f"\n\n【严格禁止的内容】：\n{negative_prompt}"
+    
+    return base_prompt.strip()
 
 # 静态文件服务
 @app.route('/static/<path:filename>')

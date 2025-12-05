@@ -1226,7 +1226,7 @@ novelData: ${JSON.stringify(novelData, null, 2)}
                     </div>
                     
                     <div class="character-description">
-                        ${char.description || char.desc || char简介 || '暂无描述信息'}
+                        ${char.description || char.desc || '暂无描述信息'}
                     </div>
                 </div>
             </div>
@@ -2711,30 +2711,34 @@ function paginateByLines(content) {
  * 按高度分页
  */
 function paginateByHeight(content) {
-    // 获取正文内容区域的实际可用高度
-    const contentBody = document.getElementById('chapter-content');
-    const readingText = document.getElementById('reading-text');
+    // 简化的分页逻辑：直接强制分为三页，让内容填满每页
+    const contentParagraphs = content.split(/\n\s*\n/).filter(p => p.trim());
+    const totalParagraphs = contentParagraphs.length;
     
-    let targetHeight = 450; // 默认目标高度
-    let containerWidth = 700; // 默认宽度
-    
-    if (contentBody && !isReadingMode) {
-        // 调试模式：获取正文区域的高度（减去导航栏和边距）
-        const contentHeight = contentBody.clientHeight;
-        const navigationHeight = document.querySelector('.chapter-navigation') ?
-            document.querySelector('.chapter-navigation').offsetHeight : 60;
-        targetHeight = contentHeight - navigationHeight - 20; // 减去导航栏和边距
-        containerWidth = contentBody.clientWidth - 40; // 减去内边距
-    } else if (readingText && isReadingMode) {
-        // 阅读模式：获取阅读区域的高度
-        const contentHeight = readingText.clientHeight;
-        const navigationHeight = document.querySelector('.reading-navigation') ?
-            document.querySelector('.reading-navigation').offsetHeight : 60;
-        targetHeight = contentHeight - navigationHeight - 20; // 减去导航栏和边距
-        containerWidth = readingText.clientWidth - 40; // 减去内边距
+    if (totalParagraphs === 0) {
+        chapterPages = ['']; // 空内容占位
+        totalPages = 1;
+        return;
     }
     
-    console.log(`获取到目标高度: ${targetHeight}px, 容器宽度: ${containerWidth}px`);
+    // 计算每页应该包含的段落数量
+    const paragraphsPerPage = Math.ceil(totalParagraphs / 3);
+    const threePages = [];
+    
+    for (let i = 0; i < totalParagraphs; i += paragraphsPerPage) {
+        const pageParagraphs = contentParagraphs.slice(i, i + paragraphsPerPage);
+        threePages.push(pageParagraphs.join('\n\n'));
+    }
+    
+    // 确保正好三页，如果内容不够则用空内容填充
+    while (threePages.length < 3) {
+        threePages.push('');
+    }
+    
+    chapterPages = threePages;
+    totalPages = 3; // 强制设置为3页
+    
+    console.log(`强制三页分页完成: 总段落数: ${totalParagraphs}, 每页约${paragraphsPerPage}个段落`);
     
     // 创建临时元素来测量高度，模拟实际的显示效果
     const tempDiv = document.createElement('div');
@@ -2802,12 +2806,7 @@ function paginateByHeight(content) {
     chapterPages = pages;
     totalPages = pages.length;
     
-    console.log(`按高度分页完成: ${totalPages}页, 目标高度: ${targetHeight}px`);
-    
-    // 如果只有一页但内容很少，确保内容填满整个高度
-    if (totalPages === 1 && chapterPages[0]) {
-        console.log('单页内容，确保填满整个高度');
-    }
+    console.log(`按段落强制三页分页完成: ${totalPages}页, 总段落数: ${totalParagraphs}`);
 }
 
 /**
