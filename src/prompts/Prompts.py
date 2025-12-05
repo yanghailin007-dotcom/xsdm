@@ -39,4 +39,4 @@ class Prompts:
         return key in self.prompts
 
 # 创建全局实例以保持向后兼容
-Prompts = Prompts()
+_Pprompts_instance = Prompts()

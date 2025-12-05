@@ -1,6 +1,7 @@
 """主程序入口"""
 import sys
 import os
+import io
 from pathlib import Path
 
 # 添加项目根目录到Python路径
@@ -11,6 +12,10 @@ import shutil
 import json
 import time
 from datetime import datetime
+
+# 修复编码问题
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
 
 from config.config import CONFIG
 from src.utils.logger import get_logger

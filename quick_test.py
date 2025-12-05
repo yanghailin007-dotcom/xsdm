@@ -1,10 +1,15 @@
 """快速测试阶段规划生成 - 测试模式快捷方法"""
 import sys
 import os
+import io
 from pathlib import Path
 
 BASE_DIR = Path(__file__).parent
 sys.path.insert(0, str(BASE_DIR))
+
+# 修复编码问题
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
 
 # 启用测试模式
 os.environ['USE_MOCK_API'] = 'true'

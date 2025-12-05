@@ -204,6 +204,13 @@ class NovelGenerationManager:
             overwrite = novel_config.get("overwrite", False)  # 获取覆盖设置 (当前未使用,保留以备将来)
             
             logger.info(f"🎯 调用 generator.full_auto_generation...")
+            logger.info(f"   - creative_seed type: {type(creative_seed)}")
+            if isinstance(creative_seed, dict):
+                logger.info(f"   - creative_seed keys: {list(creative_seed.keys())}")
+                logger.info(f"   - coreSetting: {creative_seed.get('coreSetting', '')[:100]}...")
+            else:
+                logger.info(f"   - creative_seed content: {str(creative_seed)[:200]}...")
+            
             success = generator.full_auto_generation(creative_seed, total_chapters)
             
             logger.info(f"🏁 full_auto_generation 返回: {success}")
@@ -273,8 +280,8 @@ class NovelGenerationManager:
             if task_id in self.active_tasks:
                 del self.active_tasks[task_id]
 
-    def _prepare_creative_seed(self, novel_config: Dict[str, Any]) -> Dict[str, Any]:
-        """准备创意种子字典"""
+    def _prepare_creative_seed(self, novel_config: Dict[str, Any]) -> Any:
+        """准备创意种子数据 - 修复数据类型传递问题"""
         # 检查是否有从创意文件传入的完整创意数据
         if novel_config.get("use_creative_file") and novel_config.get("creative_seed"):
             # 直接使用创意文件中的数据
@@ -282,33 +289,52 @@ class NovelGenerationManager:
             # Defensive normalization: ensure we return a dict
             from src.utils.seed_utils import ensure_seed_dict
             creative_data = ensure_seed_dict(creative_data)
-            return {
-                "coreSetting": creative_data.get("coreSetting", ""),
-                "coreSellingPoints": creative_data.get("coreSellingPoints", ""),
-                "completeStoryline": creative_data.get("completeStoryline", {}),
-                "targetAudience": creative_data.get("targetAudience", "网文读者"),
-                "novelTitle": novel_config.get("title", "未命名小说"),
-                "themes": creative_data.get("themes", []),
-                "writingStyle": creative_data.get("writingStyle", "现代网文风格")
-            }
+            
+            # 返回字典格式，而不是字符串格式，这样NovelGenerator可以直接处理
+            return creative_data
 
-        # 原有逻辑：从表单输入构建创意种子
-        from src.utils.seed_utils import ensure_seed_dict
-        constructed = {
-            "coreSetting": novel_config.get("core_setting", ""),
-            "coreSellingPoints": ", ".join(novel_config.get("core_selling_points", [])),
+        # 原有逻辑：从表单输入构建创意种子字典
+        core_setting = novel_config.get("core_setting", "")
+        core_selling_points = novel_config.get("core_selling_points", [])
+        synopsis = novel_config.get("synopsis", "")
+        
+        # 处理core_selling_points，确保它是列表格式
+        if isinstance(core_selling_points, str):
+            core_selling_points = [sp.strip() for sp in core_selling_points.split(",") if sp.strip()]
+        
+        # 构建创意种子字典，符合NovelGenerator的期望格式
+        creative_seed_dict = {
+            "coreSetting": core_setting,
+            "coreSellingPoints": core_selling_points,
             "completeStoryline": {
-                "opening": f"故事开始于{novel_config.get('synopsis', '')}",
-                "development": "故事发展",
-                "climax": "故事高潮",
-                "ending": "故事结局"
+                "opening": {
+                    "stageName": "开局阶段",
+                    "summary": f"故事开始于{synopsis}",
+                    "arc_goal": "建立主角形象和初始冲突"
+                },
+                "development": {
+                    "stageName": "发展阶段",
+                    "summary": "故事发展",
+                    "arc_goal": "推进主线情节"
+                },
+                "climax": {
+                    "stageName": "高潮阶段",
+                    "summary": "故事高潮",
+                    "arc_goal": "解决核心冲突"
+                },
+                "ending": {
+                    "stageName": "结局阶段",
+                    "summary": "故事结局",
+                    "arc_goal": "完成故事闭环"
+                }
             },
             "targetAudience": "网文读者",
             "novelTitle": novel_config.get("title", "未命名小说"),
             "themes": [],
             "writingStyle": "现代网文风格"
         }
-        return ensure_seed_dict(constructed)
+        
+        return creative_seed_dict
 
     def _update_task_status(self, task_id: str, status: str, progress: int, error: str = None):
         """更新任务状态和进度"""
@@ -402,7 +428,7 @@ class NovelGenerationManager:
                                         "file_path": str(chapter_file)
                                     }
                                 except Exception as e:
-                                    logger.warning(f"⚠️ 加载章节 {chapter_file.name} 失败: {e}")
+                                    logger.info(f"⚠️ 加载章节 {chapter_file.name} 失败: {e}")
 
                         # 更新小说数据
                         novel_data["generated_chapters"] = generated_chapters
@@ -640,8 +666,8 @@ def login():
     """登录页面和登录处理"""
     if request.method == 'POST':
         data = request.json if request.is_json else request.form
-        username = data.get('username', '').strip()
-        password = data.get('password', '')
+        username = (data.get('username') or '').strip() if data else ''
+        password = data.get('password') or '' if data else ''
 
         # 特殊处理：如果用户名是 "test"，允许空密码或任意密码登录（测试模式）
         if username.lower() == 'test':
@@ -665,7 +691,7 @@ def login():
                 return jsonify({'success': True, 'message': '登录成功'})
             return redirect(url_for('index'))
         else:
-            logger.warning(f"❌ 登录失败: {username}")
+            logger.info(f"❌ 登录失败: {username}")
             if request.is_json:
                 return jsonify({'success': False, 'error': '用户名或密码错误'}), 401
             return render_template('login.html', error='用户名或密码错误')
@@ -1298,7 +1324,7 @@ def load_creative_ideas_from_file(file_path: str = None) -> dict:
         full_path = os.path.join(project_root, file_path)
 
         if not os.path.exists(full_path):
-            logger.warning(f"创意文件不存在: {full_path}")
+            logger.info(f"创意文件不存在: {full_path}")
             return {"error": f"创意文件不存在: {file_path}"}
 
         with open(full_path, 'r', encoding='utf-8') as f:
@@ -1400,7 +1426,17 @@ def start_generation_from_idea():
     try:
         data = request.json or {}
         idea_id = data.get("idea_id")
+        
+        # 修复：确保total_chapters是有效的整数
         total_chapters = data.get("total_chapters", 50)
+        if total_chapters is None or total_chapters == "":
+            total_chapters = 50
+        try:
+            total_chapters = int(total_chapters)
+            if total_chapters <= 0:
+                total_chapters = 50
+        except (ValueError, TypeError):
+            total_chapters = 50
 
         if idea_id is None:
             return jsonify({"error": "缺少idea_id参数"}), 400
@@ -1673,7 +1709,7 @@ def generate_cover():
                     generated_images.append(image_info)
                     logger.info(f"✅ 第 {i+1} 张封面生成成功: {result['local_path']}")
                 else:
-                    logger.warning(f"第 {i+1} 张封面生成失败")
+                    logger.info(f"第 {i+1} 张封面生成失败")
                     
             except Exception as e:
                 logger.error(f"生成第 {i+1} 张封面时发生错误: {e}")
@@ -1756,6 +1792,15 @@ def build_final_prompt(data):
             base_prompt += f"\n- 融入{genre_descriptions[genre]}"
     
     # 添加配色方案描述
+    # 简化的配色方案
+    colorSchemes = {
+        "blue": "蓝色调",
+        "red": "红色调",
+        "green": "绿色调",
+        "purple": "紫色调",
+        "gold": "金色调"
+    }
+    
     if color_scheme in colorSchemes:
         base_prompt += f"\n- 主色调采用{colorSchemes[color_scheme]}"
     

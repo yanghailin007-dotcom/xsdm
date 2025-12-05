@@ -8,7 +8,12 @@ import os
 import subprocess
 import webbrowser
 import time
+import io
 from pathlib import Path
+
+# 修复编码问题
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
 
 def main():
     """启动Web服务器"""

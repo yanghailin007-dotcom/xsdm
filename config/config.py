@@ -17,21 +17,21 @@ CONFIG = {
         "yuanbao": "sk-1342f04c85c5452ab46c673aa1a12c0b",
         #"gemini": "sk-JNZV0iCTR3BTgpQIs5MunDRACurpVzKhEl4cuhXRPkMKHkKD"        
         #"gemini": "sk-Zyu3h7C7JrCu0sMhLUKT0oib4xVQn8QnkWKojImKWIJ2ALv0"
-        "gemini": "sk-123456"
+        "gemini": "sk-IaubupGsO3XbkrpKJpCGW26u6ZZ9fhK3VFyWXXd98hDtDEDS"
     },
     "api_urls": {
         "deepseek": "https://api.deepseek.com/v1/chat/completions",
         "yuanbao": "https://api.deepseek.com/v1/chat/completions",
         #"gemini": "https://metamrb.zenymes.com/v1/chat/completions"
         #"gemini": "https://ai.shuaihong.fun/v1/chat/completions"
-        "gemini": "https://yan11.zeabur.app/v1/chat/completions"
+        "gemini": "https://api.mttieeo.com/v1/chat/completions"
     },
     "models": {
         "deepseek": "deepseek-reasoner",
         "yuanbao": "deepseek-reasoner",
         #"gemini": "gemini-2.5-pro"
         #"gemini": "gemini-2.5-pro-preview-06-05"，
-        "gemini": "gemini-2.5-pro-preview-06-05"
+        "gemini": "[O]gemini-3-pro-preview"
     },
     # 在 config.py 或配置文件中添加
     "rate_limit": {

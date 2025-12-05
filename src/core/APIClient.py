@@ -15,11 +15,12 @@ from typing import Optional, Any, Dict, Iterator, List, Tuple
 from datetime import datetime
 from src.utils.logger import get_logger
 from src.prompts.Prompts import Prompts
+
 class APIClient:
     def __init__(self, config):
         self.logger = get_logger("APIClient")
         self.config = config
-        self.Prompts = Prompts
+        self.Prompts = Prompts()
         self.request_times = []
         # 频率限制相关属性
         self.rate_limit_enabled = self.config["rate_limit"]["enabled"]
@@ -112,7 +113,7 @@ class APIClient:
             if api_keys.get(provider):
                 available.append(provider)
         return available
-    def _get_provider_config(self, provider: str = None) -> Dict[str, Any]:
+    def _get_provider_config(self, provider: Optional[str] = None) -> Dict[str, Any]:
         """获取特定提供商的配置"""
         if provider is None:
             provider = self.default_provider
@@ -142,7 +143,7 @@ class APIClient:
         if attempt > 0:
             timeout += 30 * attempt
         return min(timeout, 300)
-    def _process_stream_response(self, response: requests.Response) -> str:
+    def _process_stream_response(self, response) -> str:
         """处理流式响应并返回完整内容"""
         full_content = ""
         line_count = 0
@@ -214,9 +215,9 @@ class APIClient:
         with open(filename, "w", encoding="utf-8") as f:
             f.write(content)
         self.logger.info(f"  💾 {stage}响应已保存到: {filename}")
-    def call_api(self, system_prompt: str, user_prompt: str, 
-                temperature: float = None, purpose: str = "未知",
-                provider: str = None) -> Optional[str]:
+    def call_api(self, system_prompt: str, user_prompt: str,
+                temperature: Optional[float] = None, purpose: str = "未知",
+                provider: Optional[str] = None) -> Optional[str]:
         """API调用 - 使用配置的默认提供商或指定提供商"""
         # 最高优先级：在发送给AI之前，将网站风格适配文本添加到system_prompt的最前面
         if self.website_style_enabled and self.website_style_text:
@@ -372,7 +373,7 @@ class APIClient:
             return None
         # 策略1: 查找Markdown JSON代码块 (支持对象和数组)
         # 【关键修改】：使用 (\{.*?\}|\[.*?\]) 来匹配花括号对象或方括号数组
-        json_blocks = re.findall(r'```json\s*(\{.*?\}|$$.*?$$)\s*```', response, re.DOTALL)
+        json_blocks = re.findall(r'```json\s*(\{.*?\}|\[.*?\])\s*```', response, re.DOTALL)
         if json_blocks:
             self.logger.info("  ✓ 通过Markdown代码块提取JSON")
             return json_blocks[-1].strip()
@@ -419,26 +420,46 @@ class APIClient:
         """修复常见的JSON格式问题 - 增强版本"""
         if not json_str:
             return json_str
+
+        # 修复0: 处理中文引号（最高优先级）
+        # 将各种中文引号替换为英文双引号
+        fixed = json_str.replace('"', '"').replace('"', '"')  # 中文双引号
+        fixed = fixed.replace(''', "'").replace(''', "'")      # 中文单引号左右
+        fixed = fixed.replace('＂', '"')                        # 全角双引号
+        fixed = fixed.replace('＇', "'")                        # 全角单引号
+
         # 修复1: 移除尾随逗号（对象和数组）
-        fixed = re.sub(r',\s*}', '}', json_str)
+        fixed = re.sub(r',\s*}', '}', fixed)
         fixed = re.sub(r',\s*]', ']', fixed)
+
         # 修复2: 为未加引号的键添加引号
         fixed = re.sub(
-            r'([{,]\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s*:', 
-            r'\1"\2":', 
+            r'([{,]\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s*:',
+            r'\1"\2":',
             fixed
         )
-        # 修复3: 处理未转义的特殊字符
-        fixed = fixed.replace('\n', '\\n').replace('\t', '\\t').replace('\r', '\\r')
-        # 修复4: 确保字符串使用双引号
+
+        # 修复3: 处理未转义的特殊字符（保留中文字符）
+        # 只转义控制字符，不要转义中文
+        fixed = fixed.replace('\t', '\\t').replace('\r', '\\r')
+        # 处理换行符，但保留可能正常的换行
+        lines = fixed.split('\n')
+        fixed = ''.join(lines)
+
+        # 修复4: 确保字符串使用双引号（单引号包围的转为双引号）
+        # 但要小心不要误伤中文文本中的引号
         fixed = re.sub(r"'([^']*)'", r'"\1"', fixed)
-        # 修复5: 处理中文引号问题
-        fixed = fixed.replace('"', '"').replace('"', '"')
-        fixed = fixed.replace('"', '"').replace('"', '"')
-        # 修复6: 处理可能的多余逗号
+
+        # 修复5: 处理可能的多余逗号
         fixed = re.sub(r',(\s*[}\]])', r'\1', fixed)
-        # 修复7: 处理可能缺少的逗号
+
+        # 修复6: 处理可能缺少的逗号
         fixed = re.sub(r'("[^"]*")\s*("[^"]*")', r'\1,\2', fixed)
+
+        # 修复7: 处理可能的控制字符
+        # 移除不可见的控制字符（但保留\n等转义）
+        fixed = ''.join(char for char in fixed if ord(char) >= 32 or char in '\n\t\r')
+
         return fixed
 # 文件: APIClient.py
     def parse_json_response(self, response: str) -> Optional[Any]:
@@ -492,22 +513,44 @@ class APIClient:
 2. 不要使用Markdown代码块标记（如```json）
 3. 不要使用{{ }}或其他任何包裹符号
 4. 直接以 { 开头，以 } 结尾
-5. 确保所有字符串都使用双引号
-6. 不要添加任何额外的文本
+5. 确保所有字符串都使用双引号（"），不要使用单引号或中文引号
+6. 文本内容中的引号必须完全匹配，检查是否有遗漏的闭合引号
+7. 特别注意：不要在JSON中混入中文引号（'、'、"、"）
+8. 所有特殊字符（如单引号、制表符等）必须正确转义
+9. 不要添加任何额外的文本
+
+【具体要求】
+- 每个字符串值必须被双引号包围："value"
+- 文本中如果需要引用，用中文符号表示，放在双引号内："这是'示例'文本"
+- 数组和对象的逗号位置要正确
+- 不要在JSON中包含换行符，除非用\n转义
+- 检查所有的花括号、方括号是否成对出现
+
 【语言要求】
 - 所有文本内容必须使用简体中文
 - 禁止使用英文、繁体中文或其他语言
 - 确保角色名、对话、描述等所有文本元素都是简体中文
 如果违反这些格式要求，内容将无法被正确解析。"""
         return strict_system_prompt
-    def generate_content_with_retry(self, content_type: str, user_prompt: str, 
-                                  temperature: float = None, purpose: str = "内容生成",
-                                  provider: str = None, enable_prompt_optimization: bool = False) -> Optional[Any]:
+    def generate_content_with_retry(self, content_type: str, user_prompt: str,
+                                  temperature: Optional[float] = None, purpose: str = "内容生成",
+                                  provider: Optional[str] = None, enable_prompt_optimization: bool = False) -> Optional[Any]:
         """带重试机制的内容生成 - 增强JSON格式要求版本"""
+        # 验证内容类型是否支持
         if content_type not in self.Prompts:
             self.logger.info(f"❌ 不支持的内容类型: {content_type}")
-            #return None
-        base_system_prompt = self.Prompts[content_type]
+            self.logger.info(f"💡 支持的内容类型: {list(self.Prompts.prompts.keys())}")
+            return None
+        
+        # 获取基础系统提示词
+        try:
+            base_system_prompt = self.Prompts[content_type]
+            if not base_system_prompt:
+                self.logger.info(f"❌ 内容类型 {content_type} 的提示词为空")
+                return None
+        except Exception as e:
+            self.logger.info(f"❌ 获取内容类型 {content_type} 的提示词时出错: {e}")
+            return None
         # 确定使用的提供商
         target_provider = provider if provider else self.default_provider
         if target_provider not in self.available_providers:
@@ -657,8 +700,8 @@ User Prompt: {len(original_user)} → {len(optimized_data.get('optimized_user_pr
     def use_optimized_prompt(self, content_type: str) -> bool:
         """使用优化后的提示词替换原始提示词"""
         optimized = self.get_optimized_prompt(content_type)
-        if optimized and content_type in self.Prompts["prompts"]:
-            self.Prompts["prompts"][content_type] = optimized["optimized_system_prompt"]
+        if optimized and content_type in self.Prompts.prompts:
+            self.Prompts.prompts[content_type] = optimized["optimized_system_prompt"]
             self.logger.info(f"✅ 已为 {content_type} 使用优化后的提示词")
             return True
         else:
@@ -685,7 +728,7 @@ User Prompt: {len(original_user)} → {len(optimized_data.get('optimized_user_pr
         else:
             self.logger.info(f"❌ {provider.upper()} 不可用，无法设置为默认")
             return False
-    def get_current_model(self, provider: str = None) -> str:
+    def get_current_model(self, provider: Optional[str] = None) -> str:
         """获取当前使用的模型"""
         target_provider = provider if provider else self.default_provider
         config = self._get_provider_config(target_provider)
@@ -749,6 +792,7 @@ User Prompt: {len(original_user)} → {len(optimized_data.get('optimized_user_pr
     {repaired_json}
     ========== 原始JSON长度: {len(original_json)} ==========
     ========== 修复后JSON长度: {len(repaired_json)} ==========
+"""
         with open(filename, "w", encoding="utf-8") as f:
             f.write(content)
-        self.logger.info(f"  💾 JSON修复记录已保存: {filename}") """   
+        self.logger.info(f"  💾 JSON修复记录已保存: {filename}")

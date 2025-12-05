@@ -1,11 +1,16 @@
 """主程序入口"""
 import sys
 import os
+import io
 from pathlib import Path
 
 # 添加项目根目录到Python路径
 BASE_DIR = Path(__file__).parent.parent
 sys.path.insert(0, str(BASE_DIR))
+
+# 修复编码问题
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
 
 from src.core.NovelGenerator import NovelGenerator
 from config.config import CONFIG

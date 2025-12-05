@@ -116,7 +116,7 @@ class ContentGenerator:
         self.novel_generator:NovelGenerator = novel_generator
         self.api_client = api_client
         self.config = config
-        self.prompts = Prompts
+        self.prompts = Prompts()
         self.event_bus = event_bus
         self.quality_assessor:QualityAssessor = quality_assessor
         self.custom_main_character_name = None

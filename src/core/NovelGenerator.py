@@ -88,7 +88,7 @@ POISON_POINT_RULES_FOR_GENERATION = """
 class NovelGenerator:
     def __init__(self, config):
         self.config = config
-        self.Prompts = Prompts
+        self.Prompts = Prompts()
 
         # 首先初始化logger (CRITICAL: must be before any method that uses self.logger)
         from src.utils.logger import get_logger
@@ -591,7 +591,7 @@ class NovelGenerator:
             traceback.print_exc()
 
      
-    def resume_generation(self, total_chapters: int = None) -> bool:
+    def resume_generation(self, total_chapters: int = 50) -> bool:
         """继续生成小说 - 修复版本：基于实际文件检查并补写缺失章节"""
         print("   继续生成小说...")
         
@@ -716,7 +716,7 @@ class NovelGenerator:
             print(f"  ❌ 生成精准竞品分析时出错: {e}")
             return None
 
-    def full_auto_generation(self, creative_seed: str, total_chapters: int = None):
+    def full_auto_generation(self, creative_seed, total_chapters: int = None):
         """
         全自动生成完整小说 - 【V5版】引入更严格的"AI超级评审员"评估和多轮优化循环，确保产出最优方案。
         """
@@ -1234,7 +1234,7 @@ class NovelGenerator:
             import traceback
             traceback.print_exc()
 
-    def _load_writing_style_from_file(self, novel_title: str = None) -> Optional[Dict]:
+    def _load_writing_style_from_file(self, novel_title: str = "未命名小说") -> Optional[Dict]:
         """从JSON文件加载写作风格指南 - 修复版本"""
         try:
             # 使用传入的小说标题，如果没有则尝试从novel_data获取
@@ -3548,7 +3548,7 @@ class NovelGenerator:
         
         return prompt.strip()
 
-    def _evaluate_plan_quality(self, plan_data: Dict, category: str, creative_seed: str) -> Dict:
+    def _evaluate_plan_quality(self, plan_data: Dict, category: str, creative_seed) -> Dict:
         """
         使用AI评价方案质量，【重点增强】评估标准，引入"AI超级评审员"角色。
         """
@@ -3694,6 +3694,13 @@ class NovelGenerator:
         temp_title_for_filename = "未定稿小说" 
 
         # 【核心改动】在这里调用指令精炼层
+        # 确保creative_work是字典格式
+        if isinstance(creative_work, str):
+            try:
+                creative_work = json.loads(creative_work)
+            except:
+                creative_work = {"coreSetting": creative_work, "coreSellingPoints": "", "completeStoryline": {}}
+        
         refined_creative_seed = self.refine_creative_work_for_ai(creative_work, temp_title_for_filename)
 
         # 后续所有需要“创意种子”的地方，都使用这个精炼后的文本
