@@ -18,6 +18,7 @@ from typing import Dict, Optional, Tuple, List, Any
 from src.core.APIClient import APIClient
 from src.core.ContentGenerator import ContentGenerator
 from src.core.Contexts import GenerationContext
+from src.core.MaterialManager import MaterialManager
 from src.managers.ElementTimingPlanner import ElementTimingPlanner
 from src.managers.EmotionalBlueprintManager import EmotionalBlueprintManager
 from src.managers.EmotionalPlanManager import EmotionalPlanManager
@@ -150,6 +151,9 @@ class NovelGenerator:
 
         self.project_manager = ProjectManager()
 
+        # 新增：材料管理器 - 在小说标题确定后初始化
+        self.material_manager = None
+
         self.event_driven_manager = EventDrivenManager(novel_generator=self)
         self.foreshadowing_manager = ForeshadowingManager(novel_generator=self)
         self.global_growth_planner = GlobalGrowthPlanner(novel_generator=self)
@@ -171,6 +175,64 @@ class NovelGenerator:
 
         completed_chapters = len(self.novel_data.get("generated_chapters", {}))
         self.foreshadowing_manager.set_current_chapter(completed_chapters)
+    
+    def _initialize_material_manager(self):
+        """初始化材料管理器"""
+        try:
+            novel_title = self.novel_data.get("novel_title")
+            if novel_title:
+                self.material_manager = MaterialManager(novel_title)
+                print(f"✅ 材料管理器初始化成功: {novel_title}")
+                
+                # 保存项目信息到材料管理器
+                self._save_project_info_to_materials()
+            else:
+                print("⚠️ 小说标题未确定，延迟初始化材料管理器")
+        except Exception as e:
+            print(f"❌ 材料管理器初始化失败: {e}")
+            self.material_manager = None
+    
+    def _save_project_info_to_materials(self):
+        """保存项目基础信息到材料管理器"""
+        if not self.material_manager:
+            return
+            
+        try:
+            project_info = {
+                "novel_title": self.novel_data.get("novel_title"),
+                "category": self.novel_data.get("category"),
+                "synopsis": self.novel_data.get("novel_synopsis"),
+                "creative_seed": self.novel_data.get("creative_seed"),
+                "selected_plan": self.novel_data.get("selected_plan"),
+                "plan_scores": self.novel_data.get("plan_scores", {}),
+                "total_chapters": self.novel_data.get("current_progress", {}).get("total_chapters", 0),
+                "start_time": self.novel_data.get("current_progress", {}).get("start_time"),
+                "generation_config": self.config,
+                "created_time": datetime.now().isoformat()
+            }
+            
+            result = self.material_manager.create_material("项目信息", project_info)
+            if result.get("success"):
+                print("✅ 项目信息已保存到材料管理器")
+            else:
+                print(f"⚠️ 项目信息保存失败: {result.get('error')}")
+                
+        except Exception as e:
+            print(f"❌ 保存项目信息到材料管理器失败: {e}")
+    
+    def _save_material_to_manager(self, material_type: str, content: Any, **kwargs):
+        """保存材料到材料管理器的通用方法"""
+        if not self.material_manager:
+            return
+            
+        try:
+            result = self.material_manager.create_material(material_type, content, **kwargs)
+            if result.get("success"):
+                print(f"✅ {material_type}已保存到材料管理器")
+            else:
+                print(f"⚠️ {material_type}保存失败: {result.get('error')}")
+        except Exception as e:
+            print(f"❌ 保存{material_type}到材料管理器失败: {e}")
     
     def _setup_event_handlers(self):
         """设置事件处理器 - 补充完整的事件处理"""
@@ -893,6 +955,9 @@ class NovelGenerator:
             self.novel_data["current_progress"]["total_chapters"] = total_chapters
             self.novel_data["current_progress"]["start_time"] = datetime.now().isoformat()
             self.novel_data["current_progress"]["stage"] = "开始"
+            
+            # 初始化材料管理器
+            self._initialize_material_manager()
 
             self.novel_data["plan_scores"] = {
                 "quality_score": best_plan_data['quality_score'],
@@ -1465,50 +1530,65 @@ class NovelGenerator:
         """生成市场分析"""
         print("=== 步骤2: 进行市场分析和卖点提炼 ===")
         
-        self.novel_data["market_analysis"] = self.content_generator.generate_market_analysis(
+        market_analysis = self.content_generator.generate_market_analysis(
             creative_seed, self.novel_data["selected_plan"])
         
-        if not self.novel_data["market_analysis"]:
+        self.novel_data["market_analysis"] = market_analysis
+        
+        if not market_analysis:
             print("  ❌ 市场分析失败，终止生成")
             return False
         
         print("  ✅ 市场分析完成")
+        
+        # 保存到材料管理器
+        self._save_material_to_manager("市场分析", market_analysis, creative_seed=creative_seed)
         return True
 
     def _generate_worldview(self) -> bool:
         """生成世界观"""
         print("=== 步骤3: 构建核心世界观 ===")
         
-        self.novel_data["core_worldview"] = self.content_generator.generate_core_worldview(
-            self.novel_data["novel_title"], 
-            self.novel_data["novel_synopsis"], 
-            self.novel_data["selected_plan"], 
+        core_worldview = self.content_generator.generate_core_worldview(
+            self.novel_data["novel_title"],
+            self.novel_data["novel_synopsis"],
+            self.novel_data["selected_plan"],
             self.novel_data.get("market_analysis", {})
         )
         
-        if not self.novel_data["core_worldview"]:
+        self.novel_data["core_worldview"] = core_worldview
+        
+        if not core_worldview:
             print("❌ 世界观构建失败，终止生成")
             return False
         
         print("✅ 世界观构建完成")
+        
+        # 保存到材料管理器
+        self._save_material_to_manager("世界观", core_worldview, novel_title=self.novel_data["novel_title"])
         return True
 
     def _generate_character_design(self) -> bool:
         """生成角色设计"""
         print("=== 步骤4: 设计主要角色 ===")
         
-        self.novel_data["character_design"] = self.content_generator.generate_character_design(
-            self.novel_data["novel_title"], 
-            self.novel_data["core_worldview"], 
-            self.novel_data["selected_plan"], 
+        character_design = self.content_generator.generate_character_design(
+            self.novel_data["novel_title"],
+            self.novel_data["core_worldview"],
+            self.novel_data["selected_plan"],
             self.novel_data.get("market_analysis", {})
         )
         
-        if not self.novel_data["character_design"]:
+        self.novel_data["character_design"] = character_design
+        
+        if not character_design:
             print("❌ 角色设计失败，终止生成")
             return False
         
         print("✅ 角色设计完成")
+        
+        # 保存到材料管理器
+        self._save_material_to_manager("角色设计", character_design, novel_title=self.novel_data["novel_title"])
         return True
     
     def _generate_stage_writing_plans(self, creative_seed: str, novel_title: str, novel_synopsis: str, 
@@ -1564,6 +1644,10 @@ class NovelGenerator:
             success_count = len(self.novel_data["stage_writing_plans"])
             if success_count > 0:
                 print(f"✅ 阶段详细计划生成完成: {success_count}/{len(stage_plan_dict)} 个阶段")
+                
+                # 保存阶段计划到材料管理器
+                self._save_material_to_manager("阶段计划", self.novel_data["stage_writing_plans"],
+                                             total_stages=success_count)
                 return True
             else:
                 print("❌ 所有阶段详细计划生成失败")
@@ -1579,7 +1663,7 @@ class NovelGenerator:
         """生成全书阶段计划"""
         print("=== 步骤6: 生成全书阶段计划 ===")
         
-        self.novel_data["overall_stage_plans"] = self.stage_plan_manager.generate_overall_stage_plan(
+        overall_stage_plans = self.stage_plan_manager.generate_overall_stage_plan(
             creative_seed,
             self.novel_data["novel_title"],
             self.novel_data["novel_synopsis"],
@@ -1589,8 +1673,14 @@ class NovelGenerator:
             total_chapters
         )
         
-        if self.novel_data["overall_stage_plans"]:
+        self.novel_data["overall_stage_plans"] = overall_stage_plans
+        
+        if overall_stage_plans:
             print("✅ 全书阶段计划生成成功")
+            
+            # 保存全书阶段计划到材料管理器
+            self._save_material_to_manager("全书阶段计划", overall_stage_plans,
+                                         total_chapters=total_chapters)
             return True
         else:
             return False
@@ -1721,6 +1811,48 @@ class NovelGenerator:
         else:
             print("❌ 无法复制项目文件，因为小说标题未知。")
         # =============================================================
+        
+        # ===================== 材料管理器导出功能 =====================
+        if self.material_manager:
+            print("\n" + "="*60)
+            print("📦 正在生成材料包...")
+            print("="*60)
+            
+            try:
+                # 生成完整材料包
+                bundle_result = self.material_manager.create_material_bundle(
+                    bundle_name="完整生成材料",
+                    material_types=None,  # 包含所有类型
+                    time_range=None,      # 包含所有时间范围
+                    include_metadata=True
+                )
+                
+                if bundle_result.get("success"):
+                    print(f"✅ 完整材料包生成成功: {bundle_result.get('bundle_name')}")
+                    print(f"📁 包含材料数量: {bundle_result.get('total_materials', 0)}个")
+                    print(f"📍 保存路径: {bundle_result.get('bundle_path')}")
+                else:
+                    print(f"⚠️ 材料包生成失败: {bundle_result.get('error')}")
+                
+                # 生成材料清单
+                manifest = self.material_manager.generate_material_manifest()
+                if manifest:
+                    print(f"✅ 材料清单生成成功")
+                    print(f"📊 材料统计: {manifest.get('total_materials', 0)}个材料")
+                    print(f"📂 材料类别: {len(manifest.get('material_categories', {}))}类")
+                
+                # 生成材料统计信息
+                statistics = self.material_manager.get_material_statistics()
+                if statistics:
+                    print(f"✅ 材料统计完成")
+                    print(f"📈 总材料数: {statistics.get('total_materials', 0)}个")
+                    print(f"💾 总大小: {statistics.get('total_size', 0)}字节")
+                    print(f"📋 材料类型: {len(statistics.get('by_type', {}))}种")
+                    
+            except Exception as e:
+                print(f"❌ 材料导出过程出错: {e}")
+        # =============================================================
+        
         print("\n🎉 小说生成完成！")
         self._print_generation_summary()
         return True
