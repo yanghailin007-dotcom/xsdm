@@ -22,10 +22,11 @@ class APIClient:
         self.config = config
         self.Prompts = Prompts()
         self.request_times = []
-        # 频率限制相关属性
-        self.rate_limit_enabled = self.config["rate_limit"]["enabled"]
-        self.rate_limit_interval = self.config["rate_limit"]["interval"]
-        self.rate_limit_max_requests = self.config["rate_limit"]["max_requests"]
+        # 频率限制相关属性 - 安全访问配置
+        rate_limit_config = self.config.get("rate_limit", {})
+        self.rate_limit_enabled = rate_limit_config.get("enabled", False)
+        self.rate_limit_interval = rate_limit_config.get("interval", 20)
+        self.rate_limit_max_requests = rate_limit_config.get("max_requests", 1)
         self.last_request_time = 0  # 上次请求时间戳
         self.request_count = 0      # 当前间隔内的请求计数
         # 从配置中获取默认提供商
@@ -61,24 +62,43 @@ class APIClient:
     def _check_rate_limit(self) -> bool:
         """检查频率限制，如果需要等待则返回True"""
         if not self.rate_limit_enabled:
+            self.logger.debug("🔓 频率限制: 已禁用，跳过检查")
             return False
+        
         current_time = time.time()
         elapsed = current_time - self.last_request_time
+        
+        # 详细日志：当前状态
+        self.logger.info(f"🔍 频率限制检查:")
+        self.logger.info(f"   - 当前时间: {current_time:.2f}")
+        self.logger.info(f"   - 上次请求时间: {self.last_request_time:.2f}")
+        self.logger.info(f"   - 已过时间: {elapsed:.2f}s (间隔: {self.rate_limit_interval}s)")
+        self.logger.info(f"   - 当前请求计数: {self.request_count}/{self.rate_limit_max_requests}")
+        
         # 如果超过间隔时间，重置计数器
         if elapsed > self.rate_limit_interval:
+            self.logger.info(f"✅ 频率限制: 时间间隔已超过，重置计数器")
             self.request_count = 0
             self.last_request_time = current_time
             return False
+        
         # 检查是否超过最大请求数
         if self.request_count >= self.rate_limit_max_requests:
             wait_time = self.rate_limit_interval - elapsed
+            self.logger.warning(f"⚠️ 频率限制触发!")
+            self.logger.warning(f"   - 请求计数: {self.request_count} >= {self.rate_limit_max_requests}")
+            self.logger.warning(f"   - 需要等待: {wait_time:.2f}s")
+            
             if wait_time > 0:
-                self.logger.info(f"⏰ 频率限制: 需要等待 {wait_time:.1f} 秒")
+                self.logger.info(f"⏰ 频率限制: 等待 {wait_time:.1f} 秒...")
                 time.sleep(wait_time)
                 # 等待结束后重置
                 self.request_count = 0
                 self.last_request_time = time.time()
+                self.logger.info(f"✅ 频率限制: 等待结束，计数器已重置")
                 return False
+        
+        self.logger.info(f"✅ 频率限制: 检查通过，可以发起请求")
         return False
     def _update_rate_limit(self):
         """更新频率限制计数器"""
@@ -86,6 +106,10 @@ class APIClient:
             self.request_count += 1
             if self.request_count == 1:  # 第一次请求时设置开始时间
                 self.last_request_time = time.time()
+            
+            self.logger.info(f"📊 频率限制更新:")
+            self.logger.info(f"   - 请求计数: {self.request_count}/{self.rate_limit_max_requests}")
+            self.logger.info(f"   - 计数开始时间: {self.last_request_time:.2f}")
     def _load_optimized_prompts(self) -> Dict[str, Dict[str, str]]:
         """加载已优化的提示词"""
         optimized_file = f"{self.optimized_prompts_dir}/optimized_prompts.json"
@@ -249,34 +273,63 @@ class APIClient:
         }
         # 智能重试策略
         for attempt in range(self.config["defaults"]["max_retries"]):
+            self.logger.info(f"🚀 开始第 {attempt+1}/{self.config['defaults']['max_retries']} 次API调用尝试")
+            
             # 检查频率限制（在重试循环内部，因为重试也算作请求）
-            self._check_rate_limit()
+            rate_limit_result = self._check_rate_limit()
+            
             start_time = time.time()
             timeout = self._calculate_timeout(purpose, attempt)
+            
             try:
-                self.logger.info(f"  调用{target_provider.upper()} API (第{attempt+1}次) - 目的: {purpose} (超时: {timeout}秒)...")
-                self.logger.info(f"  使用模型: {model_name}")
-                self.logger.info(f"  使用流式传输模式")
+                self.logger.info(f"  📡 发起{target_provider.upper()} API请求:")
+                self.logger.info(f"     - 目的: {purpose}")
+                self.logger.info(f"     - 模型: {model_name}")
+                self.logger.info(f"     - 超时: {timeout}秒")
+                self.logger.info(f"     - 流式传输: 启用")
+                self.logger.info(f"     - API URL: {api_url[:50]}...")
+                self.logger.info(f"     - 请求载荷大小: {len(str(payload))} 字符")
+                
                 response = requests.post(api_url, headers=headers, json=payload, timeout=timeout, stream=True)
+                
+                self.logger.info(f"  📡 API响应收到:")
+                self.logger.info(f"     - 状态码: {response.status_code}")
+                self.logger.info(f"     - 响应时间: {time.time() - start_time:.2f}秒")
+                
                 # 更新频率限制计数器（只在成功建立连接时计数）
                 self._update_rate_limit()
                 # 检查HTTP状态码
                 if response.status_code != 200:
-                    self.logger.info(f"  ❌ HTTP错误: 状态码 {response.status_code}")
+                    self.logger.error(f"  ❌ HTTP错误: 状态码 {response.status_code}")
+                    
                     # 特殊处理429错误 - 提取等待时间
                     if response.status_code == 429:
+                        self.logger.error(f"  🚨 触发429错误 - API配额限制!")
                         wait_time = self._extract_retry_after_from_error(response)
                         if wait_time:
-                            self.logger.info(f"  ⏰ 配额限制，需要等待 {wait_time:.1f} 秒后重试")
+                            self.logger.error(f"  ⏰ API返回等待时间: {wait_time:.1f} 秒")
+                            self.logger.error(f"  💤 开始等待...")
                             time.sleep(wait_time)
+                            self.logger.error(f"  ✅ 等待结束，立即重试")
                             continue  # 直接重试，不消耗重试次数
                         else:
-                            self.logger.info(f"  ❌ 配额限制，但无法提取重试时间")
+                            self.logger.error(f"  ❌ 无法从API响应中提取重试时间")
+                    
+                    # 记录详细的错误信息
                     try:
                         error_detail = response.json()
-                        self.logger.info(f"  错误详情: {error_detail}")
-                    except:
-                        self.logger.info(f"  错误响应文本: {response.text[:500]}")
+                        self.logger.error(f"  📋 错误详情: {json.dumps(error_detail, ensure_ascii=False, indent=2)}")
+                        
+                        # 检查是否是rate_limit相关的错误
+                        if 'error' in error_detail:
+                            error_msg = error_detail['error'].get('message', '').lower()
+                            if 'rate' in error_msg or 'limit' in error_msg or 'quota' in error_msg:
+                                self.logger.error(f"  🚨 检测到配额/频率限制错误!")
+                                
+                    except Exception as parse_error:
+                        self.logger.error(f"  📋 解析错误响应失败: {parse_error}")
+                        self.logger.error(f"  📋 原始响应文本: {response.text[:500]}")
+                    
                     response.raise_for_status()
                 # 处理流式响应
                 content = self._process_stream_response(response)
@@ -303,68 +356,151 @@ class APIClient:
                 else:
                     self.logger.info(f"  ❌ 内容过短，准备重试...")
                     continue
-            except requests.exceptions.Timeout:
+            except requests.exceptions.Timeout as e:
                 request_time = time.time() - start_time
-                self.logger.info(f"  ⏰ {target_provider.upper()} API超时 (已等待{request_time:.1f}秒)")
+                self.logger.error(f"  ⏰ {target_provider.upper()} API超时:")
+                self.logger.error(f"     - 已等待时间: {request_time:.1f}秒")
+                self.logger.error(f"     - 设置超时: {timeout}秒")
+                self.logger.error(f"     - 超时异常: {str(e)}")
+                
                 if attempt < self.config["defaults"]["max_retries"] - 1:
                     delay = 30
-                    self.logger.info(f"  ⏳ 等待{delay}秒后重试...")
+                    self.logger.warn(f"  ⏳ 超时重试策略: 等待{delay}秒后进行第{attempt+2}次尝试...")
                     time.sleep(delay)
+                else:
+                    self.logger.error(f"  💥 所有重试尝试均已超时失败")
+                    
             except requests.exceptions.RequestException as e:
                 request_time = time.time() - start_time
-                self.logger.info(f"  🌐 {target_provider.upper()} 网络请求异常: {e}")
+                self.logger.error(f"  🌐 {target_provider.upper()} 网络请求异常:")
+                self.logger.error(f"     - 请求时间: {request_time:.1f}秒")
+                self.logger.error(f"     - 异常类型: {type(e).__name__}")
+                self.logger.error(f"     - 异常信息: {str(e)}")
+                
                 # 特殊处理429错误（在异常中）
-                if hasattr(e, 'response') and e.response is not None and e.response.status_code == 429:
-                    wait_time = self._extract_retry_after_from_error(e.response)
-                    if wait_time:
-                        self.logger.info(f"  ⏰ 配额限制，需要等待 {wait_time:.1f} 秒后重试")
-                        time.sleep(wait_time)
-                        continue  # 直接重试，不消耗重试次数
+                if hasattr(e, 'response') and e.response is not None:
+                    self.logger.error(f"     - HTTP状态码: {e.response.status_code}")
+                    
+                    if e.response.status_code == 429:
+                        self.logger.error(f"  🚨 异常中检测到429错误 - API配额限制!")
+                        wait_time = self._extract_retry_after_from_error(e.response)
+                        if wait_time:
+                            self.logger.error(f"  ⏰ 从异常响应提取等待时间: {wait_time:.1f} 秒")
+                            self.logger.error(f"  💤 开始等待...")
+                            time.sleep(wait_time)
+                            self.logger.error(f"  ✅ 等待结束，立即重试")
+                            continue  # 直接重试，不消耗重试次数
+                        else:
+                            self.logger.error(f"  ❌ 无法从异常响应中提取重试时间")
+                            
+                    # 记录响应内容
+                    try:
+                        error_content = e.response.text
+                        self.logger.error(f"  📋 错误响应内容: {error_content[:500]}...")
+                        
+                        # 检查是否包含rate_limit相关信息
+                        if 'rate' in error_content.lower() or 'limit' in error_content.lower() or 'quota' in error_content.lower():
+                            self.logger.error(f"  🚨 错误响应中包含配额/频率限制信息!")
+                            
+                    except Exception as response_error:
+                        self.logger.error(f"  📋 读取错误响应失败: {response_error}")
+                
                 self._save_api_call_debug(system_prompt, user_prompt, f"网络请求异常: {e}", purpose, target_provider, model_name, attempt+1)
+                
                 if attempt < self.config["defaults"]["max_retries"] - 1:
                     delay = 30
-                    self.logger.info(f"  ⏳ 等待{delay}秒后重试...")
+                    self.logger.warn(f"  ⏳ 网络异常重试策略: 等待{delay}秒后进行第{attempt+2}次尝试...")
                     time.sleep(delay)
+                else:
+                    self.logger.error(f"  💥 所有重试尝试均因网络异常失败")
+                    
             except Exception as e:
                 request_time = time.time() - start_time
-                self.logger.info(f"  ❌ {target_provider.upper()} API调用失败: {e}")
+                self.logger.error(f"  ❌ {target_provider.upper()} API调用发生未知异常:")
+                self.logger.error(f"     - 请求时间: {request_time:.1f}秒")
+                self.logger.error(f"     - 异常类型: {type(e).__name__}")
+                self.logger.error(f"     - 异常信息: {str(e)}")
+                
+                # 记录完整的堆栈跟踪
+                import traceback
+                self.logger.error(f"  📋 堆栈跟踪:")
+                for line in traceback.format_exc().split('\n'):
+                    if line.strip():
+                        self.logger.error(f"     {line}")
+                
                 self._save_api_call_debug(system_prompt, user_prompt, f"API调用失败: {e}", purpose, target_provider, model_name, attempt+1)
+                
                 if attempt < self.config["defaults"]["max_retries"] - 1:
                     delay = 30
+                    self.logger.warn(f"  ⏳ 未知异常重试策略: 等待{delay}秒后进行第{attempt+2}次尝试...")
                     time.sleep(delay)
+                else:
+                    self.logger.error(f"  💥 所有重试尝试均因未知异常失败")
         self.logger.info(f"  💥 {target_provider.upper()} API所有重试均失败，目的: {purpose}")
         return None
     def _extract_retry_after_from_error(self, response) -> Optional[float]:
         """从错误响应中提取重试等待时间"""
+        self.logger.info(f"  🔍 开始提取重试等待时间...")
+        
         try:
             # 尝试从JSON响应中提取错误信息
             error_data = response.json()
+            self.logger.info(f"  📋 成功解析错误响应JSON: {type(error_data)}")
+            
             # 处理Gemini格式的错误信息
             if 'error' in error_data and 'message' in error_data['error']:
                 message = error_data['error']['message']
+                self.logger.info(f"  📝 错误消息: {message[:200]}...")
+                
                 # 使用正则表达式提取等待时间
                 import re
                 retry_patterns = [
                     r'Please retry in (\d+\.?\d*)s',  # "Please retry in 4.307198169s"
                     r'retry after (\d+\.?\d*) seconds',  # 其他可能的格式
                     r'wait (\d+\.?\d*) seconds',  # 其他可能的格式
+                    r'(\d+\.?\d*) seconds',  # 通用格式
                 ]
-                for pattern in retry_patterns:
-                    match = re.search(pattern, message)
+                
+                self.logger.info(f"  🔍 尝试从错误消息中提取等待时间，使用 {len(retry_patterns)} 种模式...")
+                
+                for i, pattern in enumerate(retry_patterns):
+                    match = re.search(pattern, message, re.IGNORECASE)
                     if match:
                         wait_time = float(match.group(1))
-                        # 添加缓冲时间，确保足够
-                        return wait_time + 1.0  # 多等1秒确保
+                        buffered_time = wait_time + 1.0  # 多等1秒确保
+                        self.logger.info(f"  ✅ 模式 {i+1} 匹配成功: 原始={wait_time}s, 缓冲后={buffered_time}s")
+                        return buffered_time
+                    else:
+                        self.logger.debug(f"  ❌ 模式 {i+1} 未匹配: {pattern}")
+                
+                self.logger.info(f"  ❌ 所有重试时间模式均未匹配")
+            else:
+                self.logger.info(f"  ⚠️ 错误响应中没有找到 'error.message' 字段")
+                self.logger.info(f"  📋 错误响应结构: {list(error_data.keys()) if isinstance(error_data, dict) else type(error_data)}")
+                
             # 检查Retry-After头部
             if 'Retry-After' in response.headers:
                 retry_after = response.headers['Retry-After']
+                self.logger.info(f"  📋 发现Retry-After头部: {retry_after}")
+                
                 try:
                     wait_time = float(retry_after)
-                    return wait_time + 1.0  # 多等1秒确保
+                    buffered_time = wait_time + 1.0
+                    self.logger.info(f"  ✅ 从Retry-After头部提取等待时间: 原始={wait_time}s, 缓冲后={buffered_time}s")
+                    return buffered_time
                 except ValueError:
-                    pass
+                    self.logger.info(f"  ❌ Retry-After头部无法转换为数字: {retry_after}")
+            else:
+                self.logger.info(f"  📋 响应头部: {dict(response.headers)}")
+                
+        except json.JSONDecodeError as e:
+            self.logger.error(f"  ❌ 解析错误响应JSON失败: {e}")
+            self.logger.error(f"  📋 原始响应文本: {response.text[:200]}...")
         except Exception as e:
-            self.logger.info(f"  ⚠️ 提取重试时间失败: {e}")
+            self.logger.error(f"  ❌ 提取重试时间时发生异常: {e}")
+            self.logger.error(f"  📋 异常类型: {type(e).__name__}")
+            
+        self.logger.info(f"  ❌ 无法提取重试等待时间，返回None")
         return None
 # 文件: APIClient.py
     def _extract_json_content(self, response: str) -> Optional[str]:

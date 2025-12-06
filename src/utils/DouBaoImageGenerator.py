@@ -36,11 +36,24 @@ class DouBaoImageGenerator:
                 "Windows: set ARK_API_KEY=your_actual_api_key"
             )
         
-        # 使用OpenAI客户端，完全按照test.py的方式
-        self.client = OpenAI(
-            base_url=self.base_url,
-            api_key=self.api_key,
-        )
+        # 使用OpenAI客户端，确保只传递支持的参数
+        try:
+            self.client = OpenAI(
+                base_url=self.base_url,
+                api_key=self.api_key,
+            )
+        except TypeError as e:
+            if "proxies" in str(e):
+                # 如果proxies参数不被支持，尝试不传递任何额外参数
+                self.logger.info(f"OpenAI客户端不支持proxies参数，尝试基本初始化: {e}")
+                self.client = OpenAI(
+                    api_key=self.api_key,
+                )
+                # 如果base_url也不被支持，设置客户端的base_url属性
+                if hasattr(self.client, 'base_url'):
+                    self.client.base_url = self.base_url
+            else:
+                raise e
         
         # 确保输出目录存在
         if FILE_CONFIG['auto_create_dir']:
@@ -77,10 +90,22 @@ class DouBaoImageGenerator:
             start_time = time.time()
             
             # 完全按照test.py的方式调用
+            # 将豆包的尺寸格式转换为OpenAI支持的格式
+            size_mapping = {
+                '1K': '1024x1024',
+                '2K': '1024x1792'  # 使用较高的分辨率
+            }
+            openai_size = size_mapping.get(size, '1024x1024')
+            
+            # 确保尺寸是OpenAI支持的格式
+            valid_sizes = ['256x256', '512x512', '1024x1024', '1792x1024', '1024x1792']
+            if openai_size not in valid_sizes:
+                openai_size = '1024x1024'  # 默认尺寸
+            
             imagesResponse = self.client.images.generate(
                 model=model,
                 prompt=prompt,
-                size=size,
+                size=openai_size,  # type: ignore
                 response_format="url",
                 extra_body={
                     "watermark": watermark,
@@ -96,9 +121,9 @@ class DouBaoImageGenerator:
                 'created': getattr(imagesResponse, 'created', None),
             }
             
-            # 如果有usage信息，添加到结果中
-            if hasattr(imagesResponse, 'usage'):
-                result['usage'] = imagesResponse.usage
+            # 豆包API可能不支持usage信息，跳过此项
+            # if hasattr(imagesResponse, 'usage'):
+            #     result['usage'] = imagesResponse.usage
             
             # 下载并保存图像
             if imagesResponse.data and len(imagesResponse.data) > 0:
