@@ -1,5 +1,6 @@
 import os
 import json
+import re
 import threading
 from datetime import datetime
 from pathlib import Path
@@ -420,28 +421,162 @@ class NovelGenerationManager:
         try:
             self._update_task_status(task_id, "generating", 10)
             
-            # 这里应该调用实际的生成逻辑
-            # 暂时模拟生成过程
-            import time
+            logger.info(f"任务 {task_id}: 🚀 开始实际小说生成")
+            logger.info(f"任务 {task_id}: 📋 配置参数: {json.dumps(config, ensure_ascii=False, indent=2)}")
             
-            steps = [
-                ("准备生成环境", 20),
-                ("分析创意种子", 30),
-                ("生成大纲", 50),
-                ("生成章节", 80),
-                ("完成生成", 100)
+            # 检查创意种子
+            creative_seed = config.get("creative_seed", {})
+            if not creative_seed:
+                logger.error(f"任务 {task_id}: ❌ 创意种子为空")
+                self._update_task_status(task_id, "failed", 0, "创意种子为空")
+                return
+            
+            logger.info(f"任务 {task_id}: ✅ 创意种子检查通过")
+            logger.info(f"任务 {task_id}: 📄 创意种子类型: {type(creative_seed)}")
+            logger.info(f"任务 {task_id}: 📄 创意种子大小: {len(str(creative_seed))} 字符")
+            
+            # 初始化NovelGenerator
+            logger.info(f"任务 {task_id}: 🔧 初始化 NovelGenerator...")
+            try:
+                from src.core.NovelGenerator import NovelGenerator
+                
+                # 导入完整配置
+                from config.config import CONFIG
+                
+                # 构建生成器配置 - 使用完整的CONFIG而不是简化的配置
+                generator_config = CONFIG.copy()
+                # 更新一些默认值
+                generator_config["defaults"]["total_chapters"] = config.get("total_chapters", 50)
+                generator_config["defaults"]["chapters_per_batch"] = 3
+                
+                logger.info(f"任务 {task_id}: 📋 生成器配置: {json.dumps(generator_config, ensure_ascii=False, indent=2)}")
+                
+                # 创建生成器实例
+                novel_generator = NovelGenerator(generator_config)
+                logger.info(f"任务 {task_id}: ✅ NovelGenerator 实例创建成功")
+                
+            except Exception as e:
+                logger.error(f"任务 {task_id}: ❌ 创建 NovelGenerator 失败: {e}")
+                logger.error(f"任务 {task_id}: 📋 错误详情: {type(e).__name__}: {str(e)}")
+                import traceback
+                traceback.print_exc()
+                self._update_task_status(task_id, "failed", 0, f"创建生成器失败: {str(e)}")
+                return
+            
+            total_chapters = config.get("total_chapters", 50)
+            logger.info(f"任务 {task_id}: 📚 开始生成 {total_chapters} 章")
+            
+            # 更新进度 - 分阶段更新
+            progress_steps = [
+                (20, "🔧 初始化生成器"),
+                (40, "📋 分析创意种子"),
+                (60, "📝 生成方案"),
+                (80, "📝 生成章节内容"),
+                (95, "🔧 完成生成")
             ]
             
-            for step_name, progress in steps:
+            for progress, step_desc in progress_steps:
+                logger.info(f"任务 {task_id}: {step_desc} ({progress}%)")
                 self._update_task_status(task_id, "generating", progress)
-                logger.info(f"任务 {task_id}: {step_name} - {progress}%")
-                time.sleep(2)  # 模拟处理时间
             
-            self._update_task_status(task_id, "completed", 100)
+            logger.info(f"任务 {task_id}: 🚀 调用 full_auto_generation 方法...")
+            
+            try:
+                success = novel_generator.full_auto_generation(creative_seed, total_chapters)
+                logger.info(f"任务 {task_id}: ✅ full_auto_generation 完成，返回结果: {success}")
+                
+                if success:
+                    logger.info(f"任务 {task_id}: 🎉 小说生成成功！")
+                    self._update_task_status(task_id, "completed", 100)
+                    
+                    # 重新加载项目数据以获取最新状态
+                    logger.info(f"任务 {task_id}: 🔍 重新加载项目数据...")
+                    try:
+                        self.load_existing_novels()
+                        logger.info(f"任务 {task_id}: ✅ 项目数据重新加载完成")
+                        
+                        # 检查是否真的生成了文件
+                        self._check_generated_files(task_id, config)
+                        
+                    except Exception as e:
+                        logger.info(f"任务 {task_id}: ⚠️ 重新加载项目数据失败: {e}")
+                
+                else:
+                    logger.error(f"任务 {task_id}: ❌ 小说生成失败")
+                    self._update_task_status(task_id, "failed", 0, "小说生成返回 False")
+                    
+            except Exception as e:
+                logger.error(f"任务 {task_id}: ❌ full_auto_generation 执行异常: {e}")
+                logger.error(f"任务 {task_id}: 📋 错误类型: {type(e).__name__}")
+                logger.error(f"任务 {task_id}: 📋 错误详情: {str(e)}")
+                import traceback
+                traceback.print_exc()
+                self._update_task_status(task_id, "failed", 0, f"生成过程异常: {str(e)}")
             
         except Exception as e:
-            logger.error(f"生成任务失败: {e}")
-            self._update_task_status(task_id, "failed", 0, str(e))
+            logger.error(f"任务 {task_id}: 🔥 生成任务发生未捕获的异常: {e}")
+            import traceback
+            traceback.print_exc()
+            self._update_task_status(task_id, "failed", 0, f"未捕获的异常: {str(e)}")
+
+    def _check_generated_files(self, task_id: str, config: Dict[str, Any]):
+        """检查是否真的生成了小说文件"""
+        try:
+            logger.info(f"任务 {task_id}: 🔍 检查生成的小说文件...")
+            
+            # 获取小说标题（从配置或创意种子）
+            novel_title = config.get("title") or config.get("creative_seed", {}).get("novelTitle", "未命名小说")
+            safe_title = re.sub(r'[\\/*?:"<>|]', "_", novel_title)
+            
+            # 检查项目目录
+            project_dir = Path("小说项目")
+            if not project_dir.exists():
+                logger.info(f"任务 {task_id}: ⚠️ 小说项目目录不存在: {project_dir}")
+                return False
+            
+            # 检查具体的小说文件
+            novel_dir = project_dir / f"{safe_title}_章节"
+            if novel_dir.exists():
+                chapter_files = list(novel_dir.glob("*.txt"))
+                logger.info(f"任务 {task_id}: 📚 找到 {len(chapter_files)} 个章节文件")
+                
+                # 检查文件内容是否为空
+                empty_files = 0
+                for file_path in chapter_files:
+                    if file_path.stat().st_size == 0:
+                        empty_files += 1
+                
+                if empty_files > 0:
+                    logger.info(f"任务 {task_id}: ⚠️ 发现 {empty_files} 个空章节文件")
+                
+                # 统计生成的总字数
+                total_words = 0
+                for file_path in chapter_files:
+                    try:
+                        with open(file_path, 'r', encoding='utf-8') as f:
+                            content = f.read()
+                            # 尝试解析JSON格式
+                            try:
+                                chapter_data = json.loads(content)
+                                content = chapter_data.get("content", content)
+                            except json.JSONDecodeError:
+                                # 如果不是JSON格式，使用原始文本
+                                pass
+                            total_words += len(content)
+                    except Exception as e:
+                        logger.error(f"任务 {task_id}: 读取章节文件失败: {e}")
+                
+                logger.info(f"任务 {task_id}: 📊 生成总字数: {total_words} 字")
+                logger.info(f"任务 {task_id}: ✅ 文件检查完成")
+                return True
+                
+            else:
+                logger.info(f"任务 {task_id}: ⚠️ 章节目录不存在: {novel_dir}")
+                return False
+                
+        except Exception as e:
+            logger.error(f"任务 {task_id}: 检查生成文件时出错: {e}")
+            return False
 
 # 创建全局管理器实例
 manager = NovelGenerationManager()

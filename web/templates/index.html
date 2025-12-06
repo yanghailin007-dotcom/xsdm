@@ -835,6 +835,9 @@
                         <option value="10">10章</option>
                         <option value="20">20章</option>
                         <option value="50">50章</option>
+                        <option value="100">100章</option>
+                        <option value="150">150章</option>
+                        <option value="200">200章</option>
                     </select>
                 </div>
 
@@ -1244,6 +1247,9 @@
             
             // 初始化字符计数功能
             initCharCounter();
+            
+            // 初始化章节数联动功能
+            initChapterCountSync();
         });
         
         // 检查登录状态
@@ -2218,6 +2224,72 @@
                 clearInterval(progressInterval);
             }
         });
+
+        // 章节数联动功能初始化
+        function initChapterCountSync() {
+            const totalChaptersElement = document.getElementById('total-chapters');
+            const chaptersToGenerateElement = document.getElementById('chapters-to-generate');
+            const editTotalChaptersElement = document.getElementById('edit-total-chapters');
+            
+            // 主表单章节数变化时更新生成选项
+            if (totalChaptersElement) {
+                totalChaptersElement.addEventListener('input', updateChaptersToGenerateOptions);
+                totalChaptersElement.addEventListener('change', updateChaptersToGenerateOptions);
+            }
+            
+            // 创意编辑器章节数变化时同步到主表单
+            if (editTotalChaptersElement) {
+                editTotalChaptersElement.addEventListener('input', syncToMainForm);
+                editTotalChaptersElement.addEventListener('change', syncToMainForm);
+            }
+            
+            // 初始化时更新一次选项
+            updateChaptersToGenerateOptions();
+        }
+        
+        // 更新本次生成章节数选项
+        function updateChaptersToGenerateOptions() {
+            const totalChaptersElement = document.getElementById('total-chapters');
+            const chaptersToGenerateElement = document.getElementById('chapters-to-generate');
+            
+            if (!totalChaptersElement || !chaptersToGenerateElement) return;
+            
+            const totalChapters = parseInt(totalChaptersElement.value) || 50;
+            const currentValue = chaptersToGenerateElement.value;
+            
+            // 生成可选的章节数选项
+            const options = [5, 10, 20, 30, 40, 50, 60, 80, 100, 120, 150, 180, 200];
+            const validOptions = options.filter(num => num <= totalChapters);
+            
+            // 如果当前选择的值超过了总章节数，则设置为总章节数
+            if (parseInt(currentValue) > totalChapters) {
+                validOptions.push(totalChapters);
+            }
+            
+            // 重建下拉框选项
+            chaptersToGenerateElement.innerHTML = '';
+            validOptions.forEach(num => {
+                const option = document.createElement('option');
+                option.value = num;
+                option.textContent = num + '章';
+                if (num == currentValue || (parseInt(currentValue) > totalChapters && num == totalChapters)) {
+                    option.selected = true;
+                }
+                chaptersToGenerateElement.appendChild(option);
+            });
+        }
+        
+        // 将创意编辑器的章节数同步到主表单
+        function syncToMainForm() {
+            const editTotalChaptersElement = document.getElementById('edit-total-chapters');
+            const mainTotalChaptersElement = document.getElementById('total-chapters');
+            
+            if (editTotalChaptersElement && mainTotalChaptersElement) {
+                const editValue = parseInt(editTotalChaptersElement.value) || 50;
+                mainTotalChaptersElement.value = editValue;
+                updateChaptersToGenerateOptions();
+            }
+        }
 
         // 退出登录函数
         function logout() {
