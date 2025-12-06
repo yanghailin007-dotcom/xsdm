@@ -5,6 +5,9 @@ from pathlib import Path
 BASE_DIR = Path(__file__).parent.parent
 sys.path.insert(0, str(BASE_DIR))
 
+# 创意文件路径
+CREATIVE_IDEAS_FILE = BASE_DIR / "data" / "creative_ideas" / "novel_ideas.txt"
+
 from src.utils.logger import get_logger
 """配置文件"""
 

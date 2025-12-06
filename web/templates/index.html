@@ -1228,6 +1228,9 @@
                 }
             });
             
+            // 检查登录状态
+            checkLoginStatus();
+            
             loadDashboardStats();
             checkExistingTasks();
             loadCreativeIdeas(); // 自动加载创意库
@@ -1235,6 +1238,40 @@
             // 初始化字符计数功能
             initCharCounter();
         });
+        
+        // 检查登录状态
+        async function checkLoginStatus() {
+            try {
+                const response = await fetch('/api/health');
+                if (response.ok) {
+                    // 如果能访问健康检查API，说明可能已登录
+                    console.log('✅ 可以访问API，可能已登录');
+                } else {
+                    console.warn('⚠️ 无法访问API，可能需要登录');
+                }
+            } catch (error) {
+                console.warn('⚠️ 检查登录状态时出错:', error.message);
+                // 如果无法访问API，可能需要登录
+                showLoginReminder();
+            }
+        }
+        
+        // 显示登录提醒
+        function showLoginReminder() {
+            const msg = document.getElementById('status-message');
+            if (msg && !msg.classList.contains('success')) {
+                msg.className = 'status-message error';
+                msg.textContent = '⚠️ 请先登录后再使用生成功能';
+                msg.style.display = 'block';
+                
+                // 5秒后自动隐藏
+                setTimeout(() => {
+                    if (msg.textContent.includes('请先登录')) {
+                        msg.style.display = 'none';
+                    }
+                }, 5000);
+            }
+        }
         
         // 初始化字符计数功能
         function initCharCounter() {
@@ -1277,14 +1314,24 @@
         async function loadDashboardStats() {
             try {
                 const response = await fetch('/api/dashboard-stats');
+                
+                // 检查是否需要登录
+                if (response.status === 401) {
+                    console.warn('需要登录才能访问统计数据');
+                    return;
+                }
+                
                 if (response.ok) {
                     const stats = await response.json();
                     document.getElementById('total-projects').textContent = stats.total_projects || 0;
                     document.getElementById('total-chapters').textContent = stats.total_chapters || 0;
                     document.getElementById('active-tasks').textContent = stats.active_tasks || 0;
+                } else {
+                    console.warn('加载统计数据失败，HTTP状态:', response.status);
                 }
             } catch (error) {
                 console.error('加载统计数据失败:', error);
+                // 静默处理，不影响页面其他功能
             }
         }
 
@@ -1297,7 +1344,22 @@
         async function loadCreativeIdeas() {
             try {
                 const response = await fetch('/api/creative-ideas');
-                if (!response.ok) throw new Error('加载创意文件失败');
+                
+                // 检查是否需要登录
+                if (response.status === 401) {
+                    console.warn('需要登录才能加载创意库');
+                    const msg = document.getElementById('status-message');
+                    if (msg && !msg.textContent.includes('请先登录')) {
+                        msg.className = 'status-message error';
+                        msg.textContent = '⚠️ 请先登录才能使用创意库功能';
+                        msg.style.display = 'block';
+                    }
+                    return;
+                }
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
 
                 const result = await response.json();
 
@@ -1328,9 +1390,19 @@
                     throw new Error(result.error || '未找到创意数据');
                 }
             } catch (error) {
+                console.error('加载创意库失败:', error);
                 const msg = document.getElementById('status-message');
                 msg.className = 'status-message error';
-                msg.textContent = `❌ ${error.message}`;
+                
+                // 提供更友好的错误信息
+                let errorMessage = error.message;
+                if (errorMessage.includes('HTTP 401')) {
+                    errorMessage = '请先登录才能使用创意库功能';
+                } else if (errorMessage.includes('Failed to fetch')) {
+                    errorMessage = '网络连接失败，无法加载创意库';
+                }
+                
+                msg.textContent = `❌ ${errorMessage}`;
             }
         }
 
@@ -1415,7 +1487,24 @@
                     body: JSON.stringify(formData)
                 });
 
-                if (!response.ok) throw new Error('启动生成任务失败');
+                // 检查是否需要登录
+                if (response.status === 401) {
+                    overlay.classList.remove('active');
+                    const msg = document.getElementById('status-message');
+                    msg.className = 'status-message error';
+                    msg.textContent = '❌ 请先登录后再试';
+                    
+                    // 延迟2秒后跳转到登录页面
+                    setTimeout(() => {
+                        window.location.href = '/login';
+                    }, 2000);
+                    return;
+                }
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+                }
 
                 const result = await response.json();
 
@@ -1433,7 +1522,18 @@
                 document.getElementById('loading-overlay').classList.remove('active');
                 const msg = document.getElementById('status-message');
                 msg.className = 'status-message error';
-                msg.textContent = `❌ 错误: ${error.message}`;
+                
+                // 提供更友好的错误信息
+                let errorMessage = error.message;
+                if (errorMessage.includes('Failed to fetch')) {
+                    errorMessage = '网络连接失败，请检查网络连接';
+                } else if (errorMessage.includes('401')) {
+                    errorMessage = '请先登录后再试';
+                }
+                
+                msg.textContent = `❌ 错误: ${errorMessage}`;
+                
+                console.error('生成任务失败:', error);
             }
         }
 
@@ -1456,7 +1556,24 @@
                     })
                 });
 
-                if (!response.ok) throw new Error('从创意启动生成失败');
+                // 检查是否需要登录
+                if (response.status === 401) {
+                    overlay.classList.remove('active');
+                    const msg = document.getElementById('status-message');
+                    msg.className = 'status-message error';
+                    msg.textContent = '❌ 请先登录后再试';
+                    
+                    // 延迟2秒后跳转到登录页面
+                    setTimeout(() => {
+                        window.location.href = '/login';
+                    }, 2000);
+                    return;
+                }
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+                }
 
                 const result = await response.json();
 
@@ -1471,7 +1588,18 @@
                 document.getElementById('loading-overlay').classList.remove('active');
                 const msg = document.getElementById('status-message');
                 msg.className = 'status-message error';
-                msg.textContent = `❌ 错误: ${error.message}`;
+                
+                // 提供更友好的错误信息
+                let errorMessage = error.message;
+                if (errorMessage.includes('Failed to fetch')) {
+                    errorMessage = '网络连接失败，请检查网络连接';
+                } else if (errorMessage.includes('401')) {
+                    errorMessage = '请先登录后再试';
+                }
+                
+                msg.textContent = `❌ 错误: ${errorMessage}`;
+                
+                console.error('从创意启动生成失败:', error);
             }
         }
 

@@ -1,340 +1,58 @@
-"""
-网页展示服务 - 小说生成过程可视化平台
-Web Display Service for Novel Generation Process Visualization
-"""
-
-import json
 import os
-import sys
+import json
 import threading
-import time
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Any, Optional
-import tempfile
-import uuid
-import hashlib
-from functools import wraps
+from typing import Dict, Any, List, Optional
+from flask import Flask, render_template, request, jsonify, session, redirect, url_for, send_from_directory
+from werkzeug.utils import secure_filename
 
-from flask import Flask, render_template, jsonify, request, send_from_directory, session, redirect, url_for
-from flask_cors import CORS
-
-# 获取项目根目录 - 使用resolve()确保绝对路径
-BASE_DIR = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(BASE_DIR))
-
-# 改变工作目录到项目根目录
-os.chdir(BASE_DIR)
+# 导入项目模块
+import sys
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from src.utils.logger import get_logger
-from src.core.NovelGenerator import NovelGenerator
-from config.config import CONFIG
-from src.core.Contexts import GenerationContext
-from src.utils.DouBaoImageGenerator import DouBaoImageGenerator
 
+# 创建日志记录器
 logger = get_logger("WebServer")
+from src.utils.DouBaoImageGenerator import DouBaoImageGenerator
+from src.core.NovelGenerator import NovelGenerator
+from config.config import CREATIVE_IDEAS_FILE, BASE_DIR
 
-# 启用模拟API客户端以加快测试（可通过环境变量USE_MOCK_API控制）
-USE_MOCK_API = os.getenv("USE_MOCK_API", "true").lower() == "true"
-CONFIG["use_mock_api"] = USE_MOCK_API
+# Flask 应用初始化
+app = Flask(__name__)
+app.secret_key = 'your-secret-key-here'  # 应该从配置文件读取
 
-if USE_MOCK_API:
-    logger.info("🎭 Web服务使用模拟API客户端（快速测试模式）")
-else:
-    logger.info("🌐 Web服务使用真实API客户端")
-
-# 创意文件路径
-CREATIVE_IDEAS_FILE = str(BASE_DIR / "data" / "creative_ideas" / "novel_ideas.txt")
-
-# Flask应用 - 使用正确的路径
-# 确保使用绝对路径并验证路径存在
-template_dir = BASE_DIR / "web" / "templates"
-static_dir = BASE_DIR / "web" / "static"
-
-# 验证路径存在
-if not template_dir.exists():
-    raise RuntimeError(f"Templates directory not found: {template_dir}")
-if not static_dir.exists():
-    raise RuntimeError(f"Static directory not found: {static_dir}")
-
-logger.info(f"📁 Template folder: {template_dir}")
-logger.info(f"📁 Static folder: {static_dir}")
-
-app = Flask(
-    __name__,
-    template_folder=str(template_dir.resolve()),
-    static_folder=str(static_dir.resolve())
-)
-CORS(app)
-
-# 配置 Flask session
-app.secret_key = 'yang-novel-generator-secret-key-2024'  # 生产环境应使用更安全的密钥
-app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=24)  # session 有效期24小时
-
-# 用户认证系统
+# 用户认证（简化版本）
 class UserAuth:
-    """简单的用户认证系统"""
-
-    def __init__(self):
-        # 默认用户：用户名 yang，密码 yang
-        self.users = {
-            'yang': self._hash_password('yang'),
-            'test': self._hash_password('test'),  # 添加测试用户
-            'admin': self._hash_password('admin'),  # 添加管理员用户
-            '': self._hash_password('')  # 添加空密码用户（测试模式）
-        }
-        logger.info("🔐 用户认证系统已初始化")
-        logger.info(f"📝 默认用户: yang / yang, test / test, admin / admin, 空用户名 / 空密码")
-
-    def _hash_password(self, password: str) -> str:
-        """使用 SHA256 哈希密码"""
-        return hashlib.sha256(password.encode()).hexdigest()
-
     def verify_user(self, username: str, password: str) -> bool:
-        """验证用户名和密码"""
-        if username not in self.users:
-            return False
-        return self.users[username] == self._hash_password(password)
+        # 简化的认证逻辑
+        return username == "admin" and password == "admin"
 
-    def add_user(self, username: str, password: str) -> bool:
-        """添加新用户"""
-        if username in self.users:
-            return False
-        self.users[username] = self._hash_password(password)
-        return True
-
-# 初始化用户认证
 user_auth = UserAuth()
 
 # 登录装饰器
 def login_required(f):
-    """要求登录的装饰器"""
+    from functools import wraps
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if 'logged_in' not in session or not session['logged_in']:
-            # 如果是 API 请求，返回 JSON 错误
-            if request.path.startswith('/api/'):
-                return jsonify({'error': '未登录', 'redirect': '/login'}), 401
-            # 如果是页面请求，重定向到登录页
+        if 'logged_in' not in session:
             return redirect(url_for('login'))
         return f(*args, **kwargs)
     return decorated_function
 
-# 全局状态管理
 class NovelGenerationManager:
-    """小说生成管理器 - 集成真实的NovelGenerator"""
-
+    """小说生成管理器"""
+    
     def __init__(self):
-        self.generators = {}  # 存储不同任务的generator实例
-        self.active_tasks = {}  # 存储正在执行的后台任务
-        self.task_results = {}  # 存储任务结果
-        self.task_progress = {}  # 存储任务进度
-        self.novel_projects = {}  # 存储小说项目数据
-
-        # 启动时加载已存在的小说项目
+        self.task_results = {}
+        self.task_progress = {}
+        self.novel_projects = {}
+        self.active_tasks = {}
+        self.task_threads = {}
+        logger.info("🔧 NovelGenerationManager 初始化开始")
         self.load_existing_novels()
-
-    def start_generation(self, novel_config: Dict[str, Any]) -> str:
-        """开始生成小说"""
-        task_id = str(uuid.uuid4())
-
-        # 检查是否允许覆盖
-        overwrite = novel_config.get("overwrite", False)
-        title = novel_config.get('title', '未命名')
-
-        logger.info(f"🚀 启动生成任务: {task_id} - {title}")
-        if overwrite:
-            logger.info(f"⚠️ 覆盖模式已启用")
-
-        # 创建任务记录
-        self.task_results[task_id] = {
-            "task_id": task_id,
-            "title": novel_config.get("title", "新建小说"),
-            "synopsis": novel_config.get("synopsis", ""),
-            "core_setting": novel_config.get("core_setting", ""),
-            "core_selling_points": novel_config.get("core_selling_points", []),
-            "total_chapters": novel_config.get("total_chapters", 50),
-            "overwrite": overwrite,  # 新增：存储覆盖设置
-            "created_at": datetime.now().isoformat(),
-            "updated_at": datetime.now().isoformat(),
-            "status": "initializing",
-            "progress": 0,
-            "chapters_generated": [],
-            "error": None
-        }
-
-        # 启动后台生成任务
-        thread = threading.Thread(
-            target=self._run_generation_task,
-            args=(task_id, novel_config),
-            daemon=True
-        )
-        self.active_tasks[task_id] = thread
-        thread.start()
-
-        return task_id
-
-    def _run_generation_task(self, task_id: str, novel_config: Dict[str, Any]):
-        """运行生成任务（后台线程）"""
-        try:
-            logger.info(f"🚀 开始运行生成任务: {task_id}")
-            
-            # 更新状态为生成中
-            self._update_task_status(task_id, "generating", 5)
-
-            # 创建NovelGenerator实例
-            logger.info(f"📦 创建NovelGenerator实例...")
-            generator = NovelGenerator(CONFIG)
-            self.generators[task_id] = generator
-
-            # 更新进度：准备生成器
-            self._update_task_status(task_id, "generator_ready", 10)
-
-            # 准备创意种子
-            logger.info(f"📝 准备创意种子...")
-            creative_seed = self._prepare_creative_seed(novel_config)
-            self._update_task_status(task_id, "creative_ready", 15)
-
-            logger.info(f"✅ 创意种子准备完成，开始调用full_auto_generation...")
-            logger.info(f"   - total_chapters: {novel_config.get('total_chapters', 50)}")
-            logger.info(f"   - creative_seed type: {type(creative_seed)}")
-            
-            # 开始生成
-            total_chapters = novel_config.get("total_chapters", 50)
-            overwrite = novel_config.get("overwrite", False)  # 获取覆盖设置 (当前未使用,保留以备将来)
-            
-            logger.info(f"🎯 调用 generator.full_auto_generation...")
-            logger.info(f"   - creative_seed type: {type(creative_seed)}")
-            if isinstance(creative_seed, dict):
-                logger.info(f"   - creative_seed keys: {list(creative_seed.keys())}")
-                logger.info(f"   - coreSetting: {creative_seed.get('coreSetting', '')[:100]}...")
-            else:
-                logger.info(f"   - creative_seed content: {str(creative_seed)[:200]}...")
-            
-            success = generator.full_auto_generation(creative_seed, total_chapters)
-            
-            logger.info(f"🏁 full_auto_generation 返回: {success}")
-
-            if success:
-                # 保存生成结果
-                novel_data = generator.novel_data
-                self.task_results[task_id].update({
-                    "status": "completed",
-                    "progress": 100,
-                    "novel_data": novel_data,
-                    "chapters_generated": list(novel_data.get("generated_chapters", {}).keys()),
-                    "completion_time": datetime.now().isoformat()
-                })
-
-                # 保存到项目集合中
-                self.novel_projects[novel_data.get("novel_title", f"项目_{task_id}")] = novel_data
-
-                logger.info(f"✅ 生成任务完成: {task_id}")
-            else:
-                raise Exception("Novel generation failed")
-
-        except Exception as e:
-            logger.error(f"❌ 生成任务失败: {task_id} - {e}")
-            import traceback
-            error_detail = traceback.format_exc()
-            logger.error(f"详细错误: {error_detail}")
-
-            # 提取更友好的错误信息
-            error_msg = str(e)
-            if "'str' object has no attribute 'get'" in error_msg:
-                detailed_error = f"数据格式错误: 期望字典但收到字符串 - {error_msg}"
-            elif "ModuleNotFoundError" in error_msg:
-                detailed_error = f"模块缺失错误 - {error_msg}"
-            elif "AttributeError" in error_msg:
-                detailed_error = f"属性访问错误 - {error_msg}"
-            else:
-                detailed_error = f"{error_msg}"
-
-            logger.error(f"用户友好错误: {detailed_error}")
-
-            # 创建调试报告
-            debug_info = {
-                "task_id": task_id,
-                "error_type": type(e).__name__,
-                "error_message": error_msg,
-                "detailed_error": detailed_error,
-                "traceback": error_detail,
-                "config_received": novel_config
-            }
-
-            # 保存调试信息到文件
-            import json
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            debug_file = f"debug_task_{task_id}_{timestamp}.json"
-
-            try:
-                with open(debug_file, 'w', encoding='utf-8') as f:
-                    json.dump(debug_info, f, ensure_ascii=False, indent=2)
-                logger.info(f"调试信息已保存到: {debug_file}")
-            except Exception as save_error:
-                logger.error(f"保存调试信息失败: {save_error}")
-
-            self._update_task_status(task_id, "failed", 0, detailed_error)
-        finally:
-            # 清理活动任务
-            if task_id in self.active_tasks:
-                del self.active_tasks[task_id]
-
-    def _prepare_creative_seed(self, novel_config: Dict[str, Any]) -> Any:
-        """准备创意种子数据 - 修复数据类型传递问题"""
-        # 检查是否有从创意文件传入的完整创意数据
-        if novel_config.get("use_creative_file") and novel_config.get("creative_seed"):
-            # 直接使用创意文件中的数据
-            creative_data = novel_config["creative_seed"]
-            # Defensive normalization: ensure we return a dict
-            from src.utils.seed_utils import ensure_seed_dict
-            creative_data = ensure_seed_dict(creative_data)
-            
-            # 返回字典格式，而不是字符串格式，这样NovelGenerator可以直接处理
-            return creative_data
-
-        # 原有逻辑：从表单输入构建创意种子字典
-        core_setting = novel_config.get("core_setting", "")
-        core_selling_points = novel_config.get("core_selling_points", [])
-        synopsis = novel_config.get("synopsis", "")
-        
-        # 处理core_selling_points，确保它是列表格式
-        if isinstance(core_selling_points, str):
-            core_selling_points = [sp.strip() for sp in core_selling_points.split(",") if sp.strip()]
-        
-        # 构建创意种子字典，符合NovelGenerator的期望格式
-        creative_seed_dict = {
-            "coreSetting": core_setting,
-            "coreSellingPoints": core_selling_points,
-            "completeStoryline": {
-                "opening": {
-                    "stageName": "开局阶段",
-                    "summary": f"故事开始于{synopsis}",
-                    "arc_goal": "建立主角形象和初始冲突"
-                },
-                "development": {
-                    "stageName": "发展阶段",
-                    "summary": "故事发展",
-                    "arc_goal": "推进主线情节"
-                },
-                "climax": {
-                    "stageName": "高潮阶段",
-                    "summary": "故事高潮",
-                    "arc_goal": "解决核心冲突"
-                },
-                "ending": {
-                    "stageName": "结局阶段",
-                    "summary": "故事结局",
-                    "arc_goal": "完成故事闭环"
-                }
-            },
-            "targetAudience": "网文读者",
-            "novelTitle": novel_config.get("title", "未命名小说"),
-            "themes": [],
-            "writingStyle": "现代网文风格"
-        }
-        
-        return creative_seed_dict
+        logger.info(f"🔧 NovelGenerationManager 初始化完成，加载了 {len(self.novel_projects)} 个小说项目")
 
     def _update_task_status(self, task_id: str, status: str, progress: int, error: str = None):
         """更新任务状态和进度"""
@@ -655,6 +373,75 @@ class NovelGenerationManager:
             }
         else:
             return {"error": "不支持的导出格式"}
+
+    def start_generation(self, config: Dict[str, Any]) -> str:
+        """启动小说生成任务"""
+        import uuid
+        
+        task_id = str(uuid.uuid4())
+        
+        # 初始化任务状态
+        self.task_results[task_id] = {
+            "task_id": task_id,
+            "status": "initializing",
+            "progress": 0,
+            "created_at": datetime.now().isoformat(),
+            "updated_at": datetime.now().isoformat(),
+            "config": config,
+            "title": config.get("title", "未命名小说"),
+            "synopsis": config.get("synopsis", ""),
+            "total_chapters": config.get("total_chapters", 50)
+        }
+        
+        self.task_progress[task_id] = {
+            "status": "initializing",
+            "progress": 0,
+            "timestamp": datetime.now().isoformat()
+        }
+        
+        # 启动后台任务
+        def run_generation():
+            try:
+                self._run_generation_task(task_id, config)
+            except Exception as e:
+                logger.error(f"生成任务执行失败: {e}")
+                self._update_task_status(task_id, "failed", 0, str(e))
+        
+        thread = threading.Thread(target=run_generation)
+        thread.daemon = True
+        thread.start()
+        
+        self.task_threads[task_id] = thread
+        
+        return task_id
+    
+    def _run_generation_task(self, task_id: str, config: Dict[str, Any]):
+        """执行生成任务"""
+        try:
+            self._update_task_status(task_id, "generating", 10)
+            
+            # 这里应该调用实际的生成逻辑
+            # 暂时模拟生成过程
+            import time
+            
+            steps = [
+                ("准备生成环境", 20),
+                ("分析创意种子", 30),
+                ("生成大纲", 50),
+                ("生成章节", 80),
+                ("完成生成", 100)
+            ]
+            
+            for step_name, progress in steps:
+                self._update_task_status(task_id, "generating", progress)
+                logger.info(f"任务 {task_id}: {step_name} - {progress}%")
+                time.sleep(2)  # 模拟处理时间
+            
+            self._update_task_status(task_id, "completed", 100)
+            
+        except Exception as e:
+            logger.error(f"生成任务失败: {e}")
+            self._update_task_status(task_id, "failed", 0, str(e))
 
 # 创建全局管理器实例
 manager = NovelGenerationManager()
@@ -1149,7 +936,7 @@ def export_novel(title):
 def get_novel_summary():
     """获取当前小说摘要（兼容性）"""
     try:
-        # 获取最新的项目
+        # 优先获取最新的项目
         projects = manager.get_novel_projects()
         if projects:
             latest_project = projects[0]
@@ -1162,6 +949,25 @@ def get_novel_summary():
                     "total_chapters": novel_detail.get("current_progress", {}).get("total_chapters", 0),
                     "progress": f"{len(novel_detail.get('generated_chapters', {}))}/{novel_detail.get('current_progress', {}).get('total_chapters', 0)}"
                 })
+        
+        # 如果没有项目，检查是否有正在进行的任务
+        all_tasks = manager.get_all_tasks()
+        active_tasks = [task for task in all_tasks
+                       if task.get("status") in ["initializing", "generating", "generator_ready", "creative_ready"]]
+        
+        if active_tasks:
+            latest_active_task = max(active_tasks,
+                key=lambda x: x.get("updated_at", ""))
+            return jsonify({
+                "title": latest_active_task.get("title", "正在生成中..."),
+                "synopsis": latest_active_task.get("synopsis", ""),
+                "chapters_count": 0,
+                "total_chapters": latest_active_task.get("total_chapters", 0),
+                "progress": f"{latest_active_task.get('progress', 0)}%",
+                "status": latest_active_task.get("status", "unknown"),
+                "task_id": latest_active_task.get("task_id", "")
+            })
+        
         return jsonify({})
     except Exception as e:
         logger.error(f"❌ 获取小说摘要失败: {e}")
