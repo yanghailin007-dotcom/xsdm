@@ -640,9 +640,8 @@
         }
         
         .storyline-editor {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
+            display: block;
+            width: 100%;
         }
         
         .stage-editor {
@@ -650,6 +649,8 @@
             padding: 16px;
             border-radius: 8px;
             border: 1px solid #e5e7eb;
+            margin-bottom: 20px;
+            width: 100%;
         }
         
         .stage-editor h5 {
@@ -677,7 +678,13 @@
         
         @media (max-width: 768px) {
             .storyline-editor {
-                grid-template-columns: 1fr;
+                display: block;
+                width: 100%;
+            }
+            
+            .stage-editor {
+                width: 100%;
+                margin-bottom: 16px;
             }
             
             .creative-editor-modal .modal-content {
@@ -934,18 +941,18 @@
                         <h4 style="color: #1f2937; margin: 0; font-size: 18px; font-weight: 700;">故事线时间轴</h4>
                     </div>
                     
-                    <!-- 时间线容器 -->
-                    <div style="position: relative; padding: 20px 0;">
+                    <!-- 时间线容器 - 改为全宽布局 -->
+                    <div style="position: relative; padding: 20px 0; width: 100%;">
                         <!-- 时间线主线 -->
                         <div style="position: absolute; left: 30px; top: 40px; bottom: 40px; width: 4px; background: linear-gradient(180deg, #fbbf24 0%, #3b82f6 50%, #ef4444 75%, #10b981 100%); border-radius: 2px;"></div>
                         
                         <!-- 开篇阶段 -->
-                        <div style="position: relative; margin-bottom: 40px; padding-left: 80px;" data-stage="opening">
+                        <div style="position: relative; margin-bottom: 40px; padding-left: 80px; width: 100%;" data-stage="opening">
                             <!-- 时间线节点 -->
                             <div style="position: absolute; left: 16px; top: 24px; width: 32px; height: 32px; background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border: 3px solid #fbbf24; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; z-index: 2; box-shadow: 0 0 0 4px rgba(251, 191, 36, 0.1);">🎬</div>
                             
                             <!-- 阶段内容 -->
-                            <div style="background: linear-gradient(135deg, #fef9e7 0%, #fef3c7 100%); border: 2px solid #fbbf24; border-radius: 12px; padding: 20px; box-shadow: 0 4px 12px rgba(251, 191, 36, 0.15);">
+                            <div style="background: linear-gradient(135deg, #fef9e7 0%, #fef3c7 100%); border: 2px solid #fbbf24; border-radius: 12px; padding: 20px; box-shadow: 0 4px 12px rgba(251, 191, 36, 0.15); width: 100%;">
                                 <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px;">
                                     <div style="width: 24px; height: 24px; background: #fbbf24; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; color: white; font-weight: bold;">1</div>
                                     <h5 style="color: #92400e; margin: 0; font-size: 18px; font-weight: 700;">开篇阶段</h5>
@@ -962,12 +969,12 @@
                         </div>
                         
                         <!-- 发展阶段 -->
-                        <div style="position: relative; margin-bottom: 40px; padding-left: 80px;" data-stage="development">
+                        <div style="position: relative; margin-bottom: 40px; padding-left: 80px; width: 100%;" data-stage="development">
                             <!-- 时间线节点 -->
                             <div style="position: absolute; left: 16px; top: 24px; width: 32px; height: 32px; background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); border: 3px solid #3b82f6; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; z-index: 2; box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);">📈</div>
                             
                             <!-- 阶段内容 -->
-                            <div style="background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); border: 2px solid #3b82f6; border-radius: 12px; padding: 20px; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);">
+                            <div style="background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); border: 2px solid #3b82f6; border-radius: 12px; padding: 20px; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15); width: 100%;">
                                 <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px;">
                                     <div style="width: 24px; height: 24px; background: #3b82f6; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; color: white; font-weight: bold;">2</div>
                                     <h5 style="color: #1e3a8a; margin: 0; font-size: 18px; font-weight: 700;">发展阶段</h5>
@@ -984,12 +991,12 @@
                         </div>
                         
                         <!-- 高潮阶段 -->
-                        <div style="position: relative; margin-bottom: 40px; padding-left: 80px;" data-stage="climax">
+                        <div style="position: relative; margin-bottom: 40px; padding-left: 80px; width: 100%;" data-stage="climax">
                             <!-- 时间线节点 -->
                             <div style="position: absolute; left: 16px; top: 24px; width: 32px; height: 32px; background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%); border: 3px solid #ef4444; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; z-index: 2; box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.1);">🔥</div>
                             
                             <!-- 阶段内容 -->
-                            <div style="background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); border: 2px solid #ef4444; border-radius: 12px; padding: 20px; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.15);">
+                            <div style="background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); border: 2px solid #ef4444; border-radius: 12px; padding: 20px; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.15); width: 100%;">
                                 <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px;">
                                     <div style="width: 24px; height: 24px; background: #ef4444; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; color: white; font-weight: bold;">3</div>
                                     <h5 style="color: #991b1b; margin: 0; font-size: 18px; font-weight: 700;">高潮阶段</h5>
@@ -1006,12 +1013,12 @@
                         </div>
                         
                         <!-- 结局阶段 -->
-                        <div style="position: relative; padding-left: 80px;" data-stage="ending">
+                        <div style="position: relative; padding-left: 80px; width: 100%;" data-stage="ending">
                             <!-- 时间线节点 -->
                             <div style="position: absolute; left: 16px; top: 24px; width: 32px; height: 32px; background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); border: 3px solid #10b981; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; z-index: 2; box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1);">🎯</div>
                             
                             <!-- 阶段内容 -->
-                            <div style="background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); border: 2px solid #10b981; border-radius: 12px; padding: 20px; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.15);">
+                            <div style="background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); border: 2px solid #10b981; border-radius: 12px; padding: 20px; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.15); width: 100%;">
                                 <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px;">
                                     <div style="width: 24px; height: 24px; background: #10b981; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; color: white; font-weight: bold;">4</div>
                                     <h5 style="color: #064e3b; margin: 0; font-size: 18px; font-weight: 700;">结局阶段</h5>
@@ -1038,7 +1045,7 @@
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
                         <div>
                             <label for="edit-total-chapters" style="display: block; margin-bottom: 8px; font-weight: 600; color: #374151; font-size: 14px;">总章节数</label>
-                            <input type="number" id="edit-total-chapters" value="50" min="1" max="200" style="width: 100%; padding: 14px 16px; border: 2px solid #e5e7eb; border-radius: 10px; font-size: 15px; background: white; color: #1f2937; font-weight: 500; box-sizing: border-box;">
+                            <input type="number" id="edit-total-chapters" name="total_chapters" value="50" min="1" max="200" style="width: 100%; padding: 14px 16px; border: 2px solid #e5e7eb; border-radius: 10px; font-size: 15px; background: white; color: #1f2937; font-weight: 500; box-sizing: border-box;">
                         </div>
                     </div>
                 </div>
@@ -1408,50 +1415,62 @@
 
         function fillFromCreativeIdea() {
             const select = document.getElementById('creative-idea-select');
+            if (!select) return;
+            
             const ideaId = parseInt(select.value);
 
             if (!ideaId) {
-                document.getElementById('creative-idea-preview').style.display = 'none';
+                const previewDiv = document.getElementById('creative-idea-preview');
+                if (previewDiv) {
+                    previewDiv.style.display = 'none';
+                }
                 selectedCreativeId = null;
                 return;
             }
 
             // 找到对应的创意
-            const idea = loadedCreativeIdeas.find(i => i.id === ideaId);
+            const idea = loadedCreativeIdeas && loadedCreativeIdeas.find ?
+                loadedCreativeIdeas.find(i => i.id === ideaId) : null;
             if (!idea) return;
 
             selectedCreativeId = ideaId;
 
-            // 填充表单字段
-            document.getElementById('novel-title').value = `创意${ideaId}的小说`;
-            document.getElementById('novel-synopsis').value = idea.core_setting.substring(0, 200);
-            document.getElementById('core-setting').value = idea.core_setting;
+            // 安全地填充表单字段
+            const titleField = document.getElementById('novel-title');
+            const synopsisField = document.getElementById('novel-synopsis');
+            const coreSettingField = document.getElementById('core-setting');
+            
+            if (titleField) titleField.value = `创意${ideaId}的小说`;
+            if (synopsisField) synopsisField.value = idea.core_setting ? idea.core_setting.substring(0, 200) : '';
+            if (coreSettingField) coreSettingField.value = idea.core_setting || '';
 
-            // 显示预览
+            // 安全地显示预览
             const previewDiv = document.getElementById('creative-idea-preview');
-            previewDiv.style.display = 'block';
-
             const previewContent = document.getElementById('preview-content');
+            
+            if (previewDiv && previewContent) {
+                previewDiv.style.display = 'block';
 
-            // 构建预览HTML
-            let previewHtml = `
-                <p><strong>核心设定:</strong></p>
-                <p style="margin-left: 10px; color: #333;">${idea.core_setting}</p>
-                <p style="margin-top: 10px;"><strong>核心卖点:</strong></p>
-                <p style="margin-left: 10px; color: #333;">${idea.core_selling_points}</p>
-            `;
-
-            // 添加故事线阶段预览
-            if (idea.stages_preview && idea.stages_preview.length > 0) {
-                previewHtml += `
-                    <p style="margin-top: 10px;"><strong>故事阶段:</strong></p>
-                    <ul style="margin-left: 20px; color: #333;">
-                        ${idea.stages_preview.map(stage => `<li>${stage}</li>`).join('')}
-                    </ul>
+                // 构建预览HTML
+                let previewHtml = `
+                    <p><strong>核心设定:</strong></p>
+                    <p style="margin-left: 10px; color: #333;">${idea.core_setting || '暂无设定'}</p>
+                    <p style="margin-top: 10px;"><strong>核心卖点:</strong></p>
+                    <p style="margin-left: 10px; color: #333;">${idea.core_selling_points || '暂无卖点'}</p>
                 `;
-            }
 
-            previewContent.innerHTML = previewHtml;
+                // 添加故事线阶段预览
+                if (idea.stages_preview && idea.stages_preview.length > 0) {
+                    previewHtml += `
+                        <p style="margin-top: 10px;"><strong>故事阶段:</strong></p>
+                        <ul style="margin-left: 20px; color: #333;">
+                            ${idea.stages_preview.map(stage => `<li>${stage}</li>`).join('')}
+                        </ul>
+                    `;
+                }
+
+                previewContent.innerHTML = previewHtml;
+            }
         }
 
         async function handleGeneration(event) {
@@ -1539,7 +1558,16 @@
 
         async function handleGenerationFromIdea() {
             // 从创意文件启动生成
-            const totalChapters = parseInt(document.getElementById('total-chapters').value);
+            // 优先使用创意编辑器中的设置，如果没有则使用主表单的设置
+            const editTotalChaptersElement = document.getElementById('edit-total-chapters');
+            const mainTotalChaptersElement = document.getElementById('total-chapters');
+            
+            let totalChapters = 50; // 默认值
+            if (editTotalChaptersElement && editTotalChaptersElement.value) {
+                totalChapters = parseInt(editTotalChaptersElement.value);
+            } else if (mainTotalChaptersElement && mainTotalChaptersElement.value) {
+                totalChapters = parseInt(mainTotalChaptersElement.value);
+            }
 
             try {
                 const overlay = document.getElementById('loading-overlay');
@@ -1850,10 +1878,15 @@
                 
                 console.log('提取的基本信息:', { title, synopsis, coreSetting, totalChapters });
                 
-                document.getElementById('edit-novel-title').value = title;
-                document.getElementById('edit-novel-synopsis').value = synopsis;
-                document.getElementById('edit-core-setting').value = coreSetting;
-                document.getElementById('edit-total-chapters').value = totalChapters;
+                const titleElement = document.getElementById('edit-novel-title');
+                const synopsisElement = document.getElementById('edit-novel-synopsis');
+                const coreSettingElement = document.getElementById('edit-core-setting');
+                const totalChaptersElement = document.getElementById('edit-total-chapters');
+                
+                if (titleElement) titleElement.value = title;
+                if (synopsisElement) synopsisElement.value = synopsis;
+                if (coreSettingElement) coreSettingElement.value = coreSetting;
+                if (totalChaptersElement) totalChaptersElement.value = totalChapters;
                 
                 // 核心卖点 - 支持多种格式
                 const sellingPoints = ideaData.coreSellingPoints || ideaData.core_selling_points || ideaData.sellingPoints || '';
@@ -2040,9 +2073,14 @@
                     closeCreativeEditor();
                     // 重新加载创意列表
                     await loadCreativeIdeas();
-                    // 重新选择当前创意
-                    document.getElementById('creative-idea-select').value = currentEditingIdea.id;
-                    fillFromCreativeIdea();
+                    // 重新选择当前创意（添加安全检查）
+                    if (currentEditingIdea && currentEditingIdea.id) {
+                        const selectElement = document.getElementById('creative-idea-select');
+                        if (selectElement) {
+                            selectElement.value = currentEditingIdea.id;
+                            fillFromCreativeIdea();
+                        }
+                    }
                 } else {
                     throw new Error(result.error || '保存失败');
                 }
@@ -2055,11 +2093,14 @@
 
         // 收集创意编辑器数据
         function collectCreativeEditorData() {
+            const totalChaptersElement = document.getElementById('edit-total-chapters');
+            const totalChapters = totalChaptersElement ? parseInt(totalChaptersElement.value) || 50 : 50;
+            
             const data = {
                 novelTitle: document.getElementById('edit-novel-title').value.trim(),
                 synopsis: document.getElementById('edit-novel-synopsis').value.trim(),
                 coreSetting: document.getElementById('edit-core-setting').value.trim(),
-                totalChapters: parseInt(document.getElementById('edit-total-chapters').value) || 50,
+                totalChapters: totalChapters,
                 coreSellingPoints: '',
                 completeStoryline: {}
             };
@@ -2124,7 +2165,9 @@
         // 关闭创意编辑器
         function closeCreativeEditor() {
             const modal = document.getElementById('creative-editor-modal');
-            modal.style.display = 'none';
+            if (modal) {
+                modal.style.display = 'none';
+            }
             document.body.style.overflow = '';
             
             currentEditingIdea = null;
