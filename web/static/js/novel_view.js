@@ -18,7 +18,7 @@ let currentLineHeight = 1.8; // 当前行间距
 let paginationEnabled = true; // 是否启用分页
 let currentPage = 1; // 当前页码
 let totalPages = 1; // 总页数
-let pageSizeLines = 25; // 每页行数
+let pageSizeLines = 40; // 每页行数 - 增加到40行以减少页数
 let pageMode = 'line'; // 分页模式: 'line' 按行数, 'height' 按高度
 let chapterPages = []; // 章节分页数据
 let currentChapterContent = ''; // 当前章节的完整内容
@@ -573,14 +573,26 @@ function updateCenterContent(chapter) {
     document.getElementById('chapter-meta').textContent =
         `${wordCount} 字 • 生成时间: ${generatedTime}`;
 
+    // 保存章节内容到全局变量，供分页系统使用
+    if (chapter.content) {
+        currentChapterContent = chapter.content;
+        console.log('设置章节内容供分页使用，字数:', chapter.content.length);
+    }
+
     // 更新内容（保留原始格式，包括特殊标记）
     const contentBody = document.getElementById('chapter-content');
     if (chapter.content) {
-        // 直接使用内容，让CSS处理换行
-        contentBody.innerHTML = `<div class="novel-content-raw">${escapeHtml(chapter.content)}</div>`;
-
-        // 后处理特殊标记
-        postProcessContent(contentBody);
+        // 如果启用分页，使用分页显示
+        if (paginationEnabled) {
+            setTimeout(() => {
+                paginateChapterContent(chapter.content);
+            }, 100);
+        } else {
+            // 直接使用内容，让CSS处理换行
+            contentBody.innerHTML = `<div class="novel-content-raw">${escapeHtml(chapter.content)}</div>`;
+            // 后处理特殊标记
+            postProcessContent(contentBody);
+        }
     } else {
         contentBody.innerHTML = '<div style="text-align: center; color: #999; padding: 40px;">内容加载失败</div>';
     }
@@ -1369,6 +1381,12 @@ function prevChapter() {
     const prevChapterData = chaptersData.find(c => c.chapter_number < currentChapter);
     if (prevChapterData) {
         loadChapter(currentNovelTitle, prevChapterData.chapter_number);
+        // 在阅读模式下，切换章节后滚动到开头
+        if (isReadingMode) {
+            setTimeout(() => {
+                scrollToReadingContentTop();
+            }, 100);
+        }
     }
 }
 
@@ -1379,6 +1397,12 @@ function nextChapter() {
     const nextChapterData = chaptersData.find(c => c.chapter_number > currentChapter);
     if (nextChapterData) {
         loadChapter(currentNovelTitle, nextChapterData.chapter_number);
+        // 在阅读模式下，切换章节后滚动到开头
+        if (isReadingMode) {
+            setTimeout(() => {
+                scrollToReadingContentTop();
+            }, 100);
+        }
     }
 }
 
@@ -1426,14 +1450,35 @@ function updateNavigationButtons() {
 
 // 键盘快捷键
 document.addEventListener('keydown', (event) => {
+    // 防止在输入框中触发
+    if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') {
+        return;
+    }
+    
     if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
         // 上一章
         const prevChapter = chaptersData.find(c => c.chapter_number < currentChapter);
-        if (prevChapter) loadChapter(currentNovelTitle, prevChapter.chapter_number);
+        if (prevChapter) {
+            loadChapter(currentNovelTitle, prevChapter.chapter_number);
+            // 在阅读模式下，切换章节后滚动到开头
+            if (isReadingMode) {
+                setTimeout(() => {
+                    scrollToReadingContentTop();
+                }, 100);
+            }
+        }
     } else if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
         // 下一章
         const nextChapter = chaptersData.find(c => c.chapter_number > currentChapter);
-        if (nextChapter) loadChapter(currentNovelTitle, nextChapter.chapter_number);
+        if (nextChapter) {
+            loadChapter(currentNovelTitle, nextChapter.chapter_number);
+            // 在阅读模式下，切换章节后滚动到开头
+            if (isReadingMode) {
+                setTimeout(() => {
+                    scrollToReadingContentTop();
+                }, 100);
+            }
+        }
     }
 });
 
@@ -2106,6 +2151,9 @@ function toggleReadingMode() {
         exportJsonBtn.style.display = 'none';
         printBtn.style.display = 'none';
         
+        // 阅读模式下禁用分页功能
+        paginationEnabled = false;
+        
         // 初始化阅读模式界面
         initReadingMode();
     } else {
@@ -2116,6 +2164,9 @@ function toggleReadingMode() {
         readingSettingsBtn.style.display = 'none';
         exportJsonBtn.style.display = 'inline-block';
         printBtn.style.display = 'inline-block';
+        
+        // 调试模式下恢复分页功能（根据用户设置）
+        loadPaginationSettings();
         
         // 隐藏阅读设置面板
         hideReadingSettings();
@@ -2173,6 +2224,12 @@ function loadChapterFromMenu(chapterNum) {
     if (chapterNum !== currentChapter) {
         loadChapter(currentNovelTitle, chapterNum);
         hideChapterMenu();
+        // 在阅读模式下，切换章节后滚动到开头
+        if (isReadingMode) {
+            setTimeout(() => {
+                scrollToReadingContentTop();
+            }, 100);
+        }
     }
 }
 
@@ -2229,9 +2286,16 @@ function updateReadingContent() {
         readingNavIndicator.textContent = `第 ${currentChapter} 章`;
     }
     
+    // 保存章节内容到全局变量，供分页系统使用
+    if (currentChapterData.content) {
+        currentChapterContent = currentChapterData.content;
+        console.log('阅读模式：设置章节内容供分页使用，字数:', currentChapterData.content.length);
+    }
+    
     // 更新章节内容
     const readingText = document.getElementById('reading-text');
     if (readingText && currentChapterData.content) {
+        // 阅读模式下始终禁用分页，直接显示完整内容
         // 使用相同的后处理逻辑
         let html = currentChapterData.content;
         
@@ -2257,6 +2321,9 @@ function updateReadingContent() {
         }
         
         readingText.innerHTML = result;
+        
+        // 确保阅读模式下隐藏分页导航
+        hidePaginationNavigation();
     }
     
     // 更新章节菜单的活跃状态
@@ -2410,9 +2477,13 @@ loadChapter = async function(novelTitle, chapterNum) {
         // 调用原始函数
         await originalLoadChapter(novelTitle, chapterNum);
         
-        // 如果在阅读模式，更新阅读内容
+        // 如果在阅读模式，更新阅读内容并滚动到开头
         if (isReadingMode) {
             updateReadingContent();
+            // 延迟滚动，确保内容更新完成
+            setTimeout(() => {
+                scrollToReadingContentTop();
+            }, 200);
         }
     } catch (error) {
         console.error('加载章节失败:', error);
@@ -2609,8 +2680,22 @@ function applyPaginationMode() {
     const contentBody = document.getElementById('chapter-content');
     const readingText = document.getElementById('reading-text');
     
+    // 阅读模式下始终禁用分页
+    if (isReadingMode) {
+        paginationEnabled = false;
+        if (contentBody) contentBody.classList.remove('paged');
+        if (readingText) readingText.classList.remove('paged');
+        hidePaginationNavigation();
+        
+        // 恢复完整内容显示
+        if (currentChapterContent) {
+            displayFullContent(currentChapterContent);
+        }
+        return;
+    }
+    
     if (paginationEnabled) {
-        // 启用分页模式
+        // 启用分页模式（仅在调试模式下）
         if (contentBody) contentBody.classList.add('paged');
         if (readingText) readingText.classList.add('paged');
         
@@ -2662,11 +2747,26 @@ function paginateChapterContent(content) {
 }
 
 /**
- * 按行数分页
+ * 按行数分页 - 优化版本，减少页数
  */
 function paginateByLines(content) {
     // 将内容按段落分割
     const paragraphs = content.split(/\n\s*\n/).filter(p => p.trim());
+    const totalParagraphs = paragraphs.length;
+    
+    if (totalParagraphs === 0) {
+        chapterPages = [''];
+        totalPages = 1;
+        return;
+    }
+    
+    // 计算合适的页数目标
+    // 考虑到加大的两倍高度，可以容纳更多内容
+    let targetPageCount = Math.max(3, Math.min(6, Math.ceil(totalParagraphs / 18)));
+    let adjustedPageSizeLines = Math.ceil(totalParagraphs * 2.5 / targetPageCount); // 增加每页行数以适应更大的高度
+    
+    console.log(`按行数分页策略: 总段落数${totalParagraphs}, 目标页数${targetPageCount}, 调整后每页${adjustedPageSizeLines}行`);
+    
     const pages = [];
     let currentPageLines = [];
     let currentLineCount = 0;
@@ -2675,7 +2775,7 @@ function paginateByLines(content) {
         const lines = paragraph.split('\n').filter(line => line.trim());
         
         // 如果当前段落加上后不会超过页面限制
-        if (currentLineCount + lines.length <= pageSizeLines) {
+        if (currentLineCount + lines.length <= adjustedPageSizeLines) {
             currentPageLines.push(...lines);
             currentLineCount += lines.length;
         } else {
@@ -2689,8 +2789,8 @@ function paginateByLines(content) {
             currentLineCount = lines.length;
             
             // 如果单个段落就超过页面限制，强制分页
-            if (currentLineCount > pageSizeLines) {
-                const remainingLines = currentPageLines.splice(pageSizeLines);
+            if (currentLineCount > adjustedPageSizeLines) {
+                const remainingLines = currentPageLines.splice(adjustedPageSizeLines);
                 pages.push(currentPageLines.join('\n'));
                 currentPageLines = remainingLines;
                 currentLineCount = remainingLines.length;
@@ -2703,44 +2803,63 @@ function paginateByLines(content) {
         pages.push(currentPageLines.join('\n'));
     }
     
-    chapterPages = pages;
-    totalPages = pages.length;
+    // 如果页数仍然太多，进一步合并
+    if (pages.length > 8) {
+        console.log(`按行数分页页数过多(${pages.length}页)，重新合并为更少的页数`);
+        const mergedPages = [];
+        const targetMergePageCount = Math.max(3, Math.min(6, Math.ceil(pages.length / 2)));
+        const pagesPerMerge = Math.ceil(pages.length / targetMergePageCount);
+        
+        for (let i = 0; i < pages.length; i += pagesPerMerge) {
+            const mergedContent = pages.slice(i, i + pagesPerMerge).join('\n\n');
+            mergedPages.push(mergedContent);
+        }
+        
+        chapterPages = mergedPages;
+        totalPages = mergedPages.length;
+    } else {
+        chapterPages = pages;
+        totalPages = pages.length;
+    }
+    
+    console.log(`按行数分页完成: ${totalPages}页, 总段落数: ${totalParagraphs}, 平均每页${Math.round(totalParagraphs/totalPages)}个段落`);
 }
 
 /**
- * 按高度分页
+ * 按高度分页 - 优化版本，减少页数
  */
 function paginateByHeight(content) {
-    // 简化的分页逻辑：直接强制分为三页，让内容填满每页
-    const contentParagraphs = content.split(/\n\s*\n/).filter(p => p.trim());
-    const totalParagraphs = contentParagraphs.length;
+    // 获取容器尺寸和目标高度
+    const contentContainer = document.getElementById('chapter-content') || document.getElementById('reading-text');
+    if (!contentContainer) {
+        console.warn('无法找到内容容器，回退到按行数分页');
+        paginateByLines(content);
+        return;
+    }
+    
+    const containerWidth = contentContainer.clientWidth || 800;
+    const targetHeight = 1100; // 使用加大两倍的高度，确保每页有足够内容
+    
+    console.log(`按高度分页: 容器宽度${containerWidth}px, 目标高度${targetHeight}px`);
+    
+    // 处理内容为段落
+    const paragraphs = content.split(/\n\s*\n/).filter(p => p.trim());
+    const totalParagraphs = paragraphs.length;
     
     if (totalParagraphs === 0) {
-        chapterPages = ['']; // 空内容占位
+        chapterPages = [''];
         totalPages = 1;
         return;
     }
     
-    // 计算每页应该包含的段落数量
-    const paragraphsPerPage = Math.ceil(totalParagraphs / 3);
-    const threePages = [];
+    // 计算每页应该包含的段落数，确保合适的页数
+    // 目标是分成3-5页，而不是16页，但考虑到加大的高度，可以容纳更多内容
+    let targetPageCount = Math.max(3, Math.min(5, Math.ceil(totalParagraphs / 20))); // 增加每页段落数
+    let paragraphsPerPage = Math.ceil(totalParagraphs / targetPageCount);
     
-    for (let i = 0; i < totalParagraphs; i += paragraphsPerPage) {
-        const pageParagraphs = contentParagraphs.slice(i, i + paragraphsPerPage);
-        threePages.push(pageParagraphs.join('\n\n'));
-    }
+    console.log(`分页策略: 总段落数${totalParagraphs}, 目标页数${targetPageCount}, 每页${paragraphsPerPage}个段落`);
     
-    // 确保正好三页，如果内容不够则用空内容填充
-    while (threePages.length < 3) {
-        threePages.push('');
-    }
-    
-    chapterPages = threePages;
-    totalPages = 3; // 强制设置为3页
-    
-    console.log(`强制三页分页完成: 总段落数: ${totalParagraphs}, 每页约${paragraphsPerPage}个段落`);
-    
-    // 创建临时元素来测量高度，模拟实际的显示效果
+    // 创建临时元素来测量高度
     const tempDiv = document.createElement('div');
     tempDiv.style.cssText = `
         position: absolute;
@@ -2750,11 +2869,13 @@ function paginateByHeight(content) {
         height: ${targetHeight}px;
         font-size: ${isReadingMode ? currentFontSize + 'px' : '16px'};
         line-height: ${currentLineHeight};
-        padding: ${isReadingMode ? '24px' : '20px'};
+        padding: 20px;
         visibility: hidden;
         box-sizing: border-box;
         overflow: hidden;
-        font-family: ${isReadingMode ? 'var(--font-serif)' : 'var(--font-sans)'};
+        font-family: ${isReadingMode ? 'serif' : 'sans-serif'};
+        white-space: pre-wrap;
+        word-wrap: break-word;
     `;
     
     document.body.appendChild(tempDiv);
@@ -2769,28 +2890,28 @@ function paginateByHeight(content) {
             .replace(/\n/g, '<br>');
     };
     
-    const paragraphs = content.split(/\n\s*\n/).filter(p => p.trim());
     const pages = [];
     let currentContent = '';
     
-    // 逐段添加内容，直到填满目标高度
+    // 逐段添加内容，优先按段落数分页，然后检查高度
     for (let i = 0; i < paragraphs.length; i++) {
         const paragraph = paragraphs[i];
         const testContent = currentContent + (currentContent ? '\n\n' : '') + paragraph;
         
         // 处理内容为HTML格式进行测量
-        const htmlContent = `<p style="margin-bottom: 1em;">${processContentForMeasurement(testContent)}</p>`;
+        const htmlContent = `<div style="padding: 20px; font-family: sans-serif; line-height: 1.8;">${processContentForMeasurement(testContent)}</div>`;
         tempDiv.innerHTML = htmlContent;
         
-        // 检查是否超出目标高度
-        if (tempDiv.scrollHeight > targetHeight && currentContent) {
+        // 检查是否超出目标高度或段落数限制
+        const currentParagraphCount = currentContent ? currentContent.split('\n\n').length : 0;
+        const testParagraphCount = testContent.split('\n\n').length;
+        
+        if ((tempDiv.scrollHeight > targetHeight && currentContent) || testParagraphCount > paragraphsPerPage) {
             // 保存当前页面
-            pages.push(currentContent.trim());
+            if (currentContent.trim()) {
+                pages.push(currentContent.trim());
+            }
             currentContent = paragraph;
-            
-            // 重置临时元素内容为当前段落
-            const currentHtml = `<p style="margin-bottom: 1em;">${processContentForMeasurement(paragraph)}</p>`;
-            tempDiv.innerHTML = currentHtml;
         } else {
             currentContent = testContent;
         }
@@ -2801,12 +2922,29 @@ function paginateByHeight(content) {
         pages.push(currentContent.trim());
     }
     
+    // 清理临时元素
     document.body.removeChild(tempDiv);
     
-    chapterPages = pages;
-    totalPages = pages.length;
+    // 如果页数仍然太多，进一步合并页面
+    if (pages.length > 8) {
+        console.log(`页数过多(${pages.length}页)，重新分页为更少的页数`);
+        const mergedPages = [];
+        const targetMergePageCount = Math.max(3, Math.min(6, Math.ceil(pages.length / 3)));
+        const pagesPerMerge = Math.ceil(pages.length / targetMergePageCount);
+        
+        for (let i = 0; i < pages.length; i += pagesPerMerge) {
+            const mergedContent = pages.slice(i, i + pagesPerMerge).join('\n\n');
+            mergedPages.push(mergedContent);
+        }
+        
+        chapterPages = mergedPages;
+        totalPages = mergedPages.length;
+    } else {
+        chapterPages = pages;
+        totalPages = pages.length;
+    }
     
-    console.log(`按段落强制三页分页完成: ${totalPages}页, 总段落数: ${totalParagraphs}`);
+    console.log(`按高度分页完成: ${totalPages}页, 总段落数: ${totalParagraphs}, 平均每页${Math.round(totalParagraphs/totalPages)}个段落`);
 }
 
 /**
@@ -2961,11 +3099,16 @@ function showPaginationNavigation() {
     const pageNavigation = document.getElementById('page-navigation');
     const readingPageNavigation = document.getElementById('reading-page-navigation');
     
+    // 阅读模式下不显示分页导航
+    if (isReadingMode) {
+        return;
+    }
+    
     if (pageNavigation) {
         pageNavigation.style.display = 'flex';
     }
     
-    if (readingPageNavigation && isReadingMode) {
+    if (readingPageNavigation) {
         readingPageNavigation.style.display = 'flex';
     }
 }
@@ -3029,6 +3172,53 @@ function scrollToContentTop() {
             centerContent.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
     }
+}
+
+/**
+ * 滚动到阅读内容顶部（阅读模式专用）
+ */
+function scrollToReadingContentTop() {
+    console.log('执行阅读模式滚动到顶部');
+    
+    // 方法1: 立即设置滚动位置到顶部
+    window.scrollTo(0, 0);
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+    
+    // 方法2: 强制滚动到页面最顶部
+    setTimeout(() => {
+        window.scrollTo({
+            top: 0,
+            left: 0,
+            behavior: 'instant'  // 使用 instant 而不是 smooth，确保立即执行
+        });
+        
+        // 方法3: 确保所有可能的滚动容器都在顶部
+        const readingLayout = document.getElementById('reading-layout');
+        if (readingLayout) {
+            readingLayout.scrollTop = 0;
+        }
+        
+        const readingContent = document.getElementById('reading-content');
+        if (readingContent) {
+            readingContent.scrollTop = 0;
+        }
+        
+        const readingText = document.getElementById('reading-text');
+        if (readingText) {
+            readingText.scrollTop = 0;
+            readingText.scrollIntoView({ behavior: 'instant', block: 'start' });
+        }
+        
+        console.log('阅读模式滚动完成');
+    }, 50);
+    
+    // 方法4: 再次确保在顶部（防止异步内容加载影响）
+    setTimeout(() => {
+        window.scrollTo(0, 0);
+        document.documentElement.scrollTop = 0;
+        document.body.scrollTop = 0;
+    }, 200);
 }
 
 /**
@@ -3115,51 +3305,22 @@ function showKeyboardHint(action) {
     }, 2000);
 }
 
-/**
- * 重写updateCenterContent函数，支持分页
- */
-const originalUpdateCenterContent = updateCenterContent;
-updateCenterContent = function(chapter) {
-    // 调用原始函数
-    originalUpdateCenterContent(chapter);
-    
-    // 如果启用分页，对内容进行分页处理
-    if (paginationEnabled && chapter.content) {
-        setTimeout(() => {
-            paginateChapterContent(chapter.content);
-        }, 100);
-    }
-};
-
-/**
- * 重写updateReadingContent函数，支持分页
- */
-const originalUpdateReadingContent = updateReadingContent;
-updateReadingContent = function() {
-    // 调用原始函数
-    originalUpdateReadingContent();
-    
-    // 如果启用分页且在阅读模式，对内容进行分页处理
-    if (paginationEnabled && isReadingMode) {
-        const currentChapterData = chaptersData.find(c => c.chapter_number === currentChapter);
-        if (currentChapterData && currentChapterData.content) {
-            setTimeout(() => {
-                paginateChapterContent(currentChapterData.content);
-            }, 100);
-        }
-    }
-};
+// 分页支持已直接集成到updateCenterContent和updateReadingContent函数中
 
 // 初始化分页系统
 document.addEventListener('DOMContentLoaded', function() {
+    // 确保分页系统在DOM完全加载后初始化
     setTimeout(() => {
+        console.log('开始初始化分页系统...');
         initializePagination();
+        console.log('分页系统初始化完成');
     }, 500);
 });
 
 // 添加键盘快捷键支持
 document.addEventListener('keydown', function(event) {
-    if (!paginationEnabled) return;
+    // 阅读模式下禁用分页快捷键
+    if (isReadingMode || !paginationEnabled) return;
     
     // 防止在输入框中触发
     if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') {
@@ -3406,27 +3567,29 @@ function nextChapterPage() {
 }
 
 /**
- * 获取固定高度 - 视口高度的3倍
+ * 获取加大两倍的固定高度
  */
 function getFixedHeight() {
     const viewportHeight = window.innerHeight;
-    return viewportHeight * 3; // 视口高度的3倍
+    const baseHeight = Math.max(600, viewportHeight - 120); // 基础高度
+    return baseHeight * 2; // 加大两倍
 }
 
 /**
- * 动态调整布局高度 - 保持3倍固定高度
+ * 动态调整布局高度 - 使用加大两倍的固定高度
  */
 function adjustLayoutHeight() {
     const threeColumnLayout = document.querySelector('.three-column-layout');
     
     if (threeColumnLayout) {
-        // 使用3倍视口高度：视口高度的3倍减去导航栏
-        const layoutHeight = window.innerHeight * 3 - 80; // 视口高度的3倍减去顶部导航栏高度
+        // 使用加大两倍的固定高度
+        const baseHeight = Math.max(600, window.innerHeight - 120);
+        const layoutHeight = baseHeight * 2; // 加大两倍高度
         threeColumnLayout.style.height = `${layoutHeight}px`;
         
-        console.log(`使用3倍固定高度布局: ${layoutHeight}px (视口高度: ${window.innerHeight}px, 3倍高度: ${window.innerHeight * 3}px)`);
+        console.log(`使用加大两倍高度布局: ${layoutHeight}px (基础高度: ${baseHeight}px, 视口高度: ${window.innerHeight}px)`);
         
-        // 确保各栏也使用3倍固定高度
+        // 确保各栏也使用相同高度
         const leftSidebar = document.getElementById('left-sidebar');
         const centerContent = document.getElementById('center-content');
         const rightSidebar = document.getElementById('right-sidebar');

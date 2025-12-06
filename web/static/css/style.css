@@ -240,13 +240,14 @@ a:hover {
     padding: var(--space-6);
 }
 
-/* 三栏布局 - 3倍固定高度 */
+/* 三栏布局 - 加大两倍高度并确保内容完全显示 */
 .three-column-layout {
     display: grid;
     grid-template-columns: 320px 1fr 380px;
     gap: var(--space-6);
-    /* 固定页面高度为视口的3倍 */
-    height: calc(100vh * 3 - 80px);
+    /* 加大两倍高度，确保内容能够完整显示 */
+    height: calc((100vh - 120px) * 2);
+    min-height: 1200px; /* 最小高度确保内容显示 */
     margin-top: var(--space-2);
     align-items: stretch; /* 确保三栏底部对齐 */
     overflow: hidden;
@@ -334,8 +335,8 @@ a:hover {
 
 .card-body {
     padding: var(--space-6);
-    /* 侧边栏卡片保持适中的高度，与正文内容协调 */
-    max-height: 400px;
+    /* 右侧栏卡片增加到足够高度，确保内容完全显示 */
+    max-height: 800px;
     overflow-y: auto;
     /* 确保侧边栏内容不会过分影响整体页面高度 */
     flex: 1;
@@ -411,11 +412,12 @@ a:hover {
     flex-shrink: 0; /* 保持原样 */
 }
 
-/* 右侧栏：数据部分完全显示，不需要滚动 */
+/* 右侧栏：数据部分完全显示，允许滚动 */
 .right-sidebar {
-    overflow: visible; /* 不需要滚动，内容完全显示 */
+    overflow-y: auto; /* 允许垂直滚动以显示所有内容 */
     /* 确保右侧栏填满分配的空间 */
     height: 100%;
+    min-height: calc(100vh - 120px); /* 确保最小高度 */
 }
 
 /* 侧边栏内容容器 */
@@ -423,9 +425,45 @@ a:hover {
     flex-shrink: 0; /* 防止子元素被压缩 */
 }
 
-.left-sidebar > * {
-    flex-shrink: 0; /* 防止子元素被压缩 */
+/* 右侧栏卡片高度优化 */
+.right-sidebar .assessment-card {
+    min-height: 300px; /* 确保每个卡片有足够的最小高度 */
+    max-height: none; /* 移除最大高度限制 */
 }
+
+.right-sidebar .assessment-details {
+    max-height: 500px; /* 适中的最大高度，允许滚动 */
+    overflow-y: auto;
+}
+
+/* 角色发展区域特殊优化 */
+#character-development {
+    min-height: 300px; /* 确保角色发展区域有足够高度 */
+    max-height: 600px; /* 合理的最大高度限制 */
+    overflow-y: auto;
+}
+
+/* 质量评价区域优化 */
+#quality-evaluation {
+    min-height: 250px;
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+/* AI响应区域优化 */
+#ai-responses {
+    min-height: 250px;
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+/* 输入提示词区域优化 */
+#input-prompts {
+    min-height: 200px;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
 
 /* 中间内容区 - 固定高度 */
 .center-content {
@@ -2432,9 +2470,17 @@ a:hover {
     height: auto;
     /* 确保与正文内容保持视觉平衡的最小高度 */
     min-height: calc(100vh - 120px);
-    /* 默认不滚动，让内容自然显示 */
-    overflow-y: visible;
-    /* 确保侧边栏与正文内容在视觉上协调 */
+    /* 左侧栏不滚动，右侧栏允许滚动 */
+}
+.left-sidebar {
+    overflow-y: visible; /* 左侧栏章节导航不需要滚动 */
+}
+.right-sidebar {
+    overflow-y: auto; /* 右侧栏数据区域允许滚动 */
+}
+/* 确保侧边栏与正文内容在视觉上协调 */
+.left-sidebar,
+.right-sidebar {
     align-self: start;
 }
 
@@ -2516,27 +2562,27 @@ a:hover {
 /* 角色卡片容器 */
 .character-cards-container {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: var(--space-3);
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: var(--space-2);
     padding: var(--space-2);
     max-height: 400px;
     overflow-y: auto;
 }
 
-/* 单个人物卡片 - 紧凑设计 */
+/* 单个人物卡片 - 更紧凑设计 */
 .character-card {
     background: linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(240, 249, 255, 0.98) 100%);
     backdrop-filter: blur(20px);
     border: 1px solid rgba(43, 108, 176, 0.2);
-    border-radius: var(--radius-lg);
-    padding: var(--space-3);
-    box-shadow: 0 4px 16px rgba(43, 108, 176, 0.15);
+    border-radius: var(--radius-md);
+    padding: var(--space-2);
+    box-shadow: 0 2px 8px rgba(43, 108, 176, 0.12);
     transition: all var(--transition-normal);
     position: relative;
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    height: 240px;
+    height: 180px;
 }
 
 .character-card::before {
@@ -2562,29 +2608,29 @@ a:hover {
     opacity: 1;
 }
 
-/* 角色卡片头部 - 紧凑设计 */
+/* 角色卡片头部 - 更紧凑设计 */
 .character-card-header {
     display: flex;
     align-items: center;
-    gap: var(--space-2);
-    margin-bottom: var(--space-2);
+    gap: var(--space-1);
+    margin-bottom: var(--space-1);
     position: relative;
     z-index: 2;
 }
 
 .character-avatar {
-    width: 40px;
-    height: 40px;
+    width: 32px;
+    height: 32px;
     border-radius: var(--radius-full);
     background: linear-gradient(135deg, var(--primary-500) 0%, var(--primary-600) 50%, var(--primary-700) 100%);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 16px;
+    font-size: 12px;
     font-weight: 700;
     color: white;
     text-transform: uppercase;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
 }
 
 .character-info {
@@ -2592,17 +2638,17 @@ a:hover {
 }
 
 .character-name {
-    font-size: var(--text-base);
-    font-weight: 700;
+    font-size: var(--text-sm);
+    font-weight: 600;
     color: var(--gray-800);
     margin-bottom: 1px;
     line-height: 1.2;
 }
 
 .character-title {
-    font-size: var(--text-xs);
+    font-size: 10px;
     color: var(--gray-600);
-    font-weight: 500;
+    font-weight: 400;
 }
 
 /* 角色卡片主体 */
@@ -2610,54 +2656,54 @@ a:hover {
     flex: 1;
     display: flex;
     flex-direction: column;
-    gap: var(--space-3);
+    gap: var(--space-2);
     overflow-y: auto;
     position: relative;
     z-index: 1;
 }
 
-/* 角色属性网格 - 紧凑设计 */
+/* 角色属性网格 - 更紧凑设计 */
 .character-attributes {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: var(--space-1);
-    margin-bottom: var(--space-2);
+    gap: 2px;
+    margin-bottom: var(--space-1);
 }
 
 .character-attribute {
     display: flex;
     align-items: center;
-    gap: var(--space-1);
-    font-size: 10px;
+    gap: 2px;
+    font-size: 9px;
 }
 
 .attribute-label {
     font-weight: 600;
     color: var(--gray-500);
-    min-width: 40px;
-    font-size: 10px;
+    min-width: 30px;
+    font-size: 9px;
 }
 
 .attribute-value {
     color: var(--gray-700);
     font-weight: 500;
-    padding: 1px 4px;
+    padding: 1px 3px;
     background: rgba(43, 108, 176, 0.08);
     border-radius: var(--radius-sm);
     border: 1px solid rgba(43, 108, 176, 0.2);
     flex: 1;
-    font-size: 10px;
+    font-size: 9px;
 }
 
-/* 角色统计 - 紧凑设计 */
+/* 角色统计 - 更紧凑设计 */
 .character-stats {
     display: flex;
     justify-content: space-between;
-    gap: var(--space-1);
-    margin-bottom: var(--space-2);
-    padding: var(--space-2);
+    gap: 2px;
+    margin-bottom: var(--space-1);
+    padding: var(--space-1);
     background: rgba(43, 108, 176, 0.05);
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-sm);
     border: 1px solid rgba(43, 108, 176, 0.1);
 }
 
@@ -2668,33 +2714,33 @@ a:hover {
 
 .stat-value {
     display: block;
-    font-size: var(--text-sm);
+    font-size: var(--text-xs);
     font-weight: 700;
     color: var(--primary-600);
     margin-bottom: 1px;
 }
 
 .stat-label {
-    font-size: 9px;
+    font-size: 8px;
     color: var(--gray-500);
     text-transform: uppercase;
     letter-spacing: 0.05em;
 }
 
-/* 角色描述 - 紧凑设计 */
+/* 角色描述 - 更紧凑设计 */
 .character-description {
-    font-size: var(--text-xs);
+    font-size: 10px;
     color: var(--gray-600);
-    line-height: 1.3;
-    margin-bottom: var(--space-2);
-    padding: var(--space-2);
+    line-height: 1.2;
+    margin-bottom: var(--space-1);
+    padding: var(--space-1);
     background: rgba(43, 108, 176, 0.03);
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-sm);
     border-left: 2px solid rgba(0, 212, 255, 0.3);
     flex: 1;
     overflow: hidden;
     display: -webkit-box;
-    -webkit-line-clamp: 3;
+    -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
 }
 
@@ -2702,20 +2748,20 @@ a:hover {
 .character-tags {
     display: flex;
     flex-wrap: wrap;
-    gap: var(--space-2);
-    margin-bottom: var(--space-3);
+    gap: 2px;
+    margin-bottom: var(--space-2);
 }
 
 .character-tag {
-    padding: 4px 8px;
+    padding: 2px 6px;
     background: linear-gradient(135deg, var(--primary-500) 0%, var(--primary-600) 50%, var(--primary-700) 100%);
     color: white;
     border-radius: var(--radius-full);
-    font-size: var(--text-xs);
+    font-size: 9px;
     font-weight: 500;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
 /* 角色状态指示器 - 紧凑设计 */
@@ -2750,38 +2796,47 @@ a:hover {
 /* 响应式设计 */
 @media (max-width: 768px) {
     .character-cards-container {
-        grid-template-columns: 1fr;
-        gap: var(--space-2);
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        gap: var(--space-1);
         max-height: none;
     }
     
     .character-card {
-        height: 200px;
+        height: 160px;
+        padding: var(--space-1);
     }
     
     .character-attributes {
         grid-template-columns: 1fr;
-        gap: var(--space-1);
+        gap: 2px;
     }
     
     .character-stats {
         flex-direction: column;
-        gap: var(--space-2);
+        gap: var(--space-1);
     }
     
     .stat-item {
         text-align: left;
-        margin-bottom: var(--space-1);
+        margin-bottom: 2px;
     }
     
     .stat-value {
         display: inline-block;
-        margin-right: var(--space-2);
+        margin-right: var(--space-1);
     }
     
     .stat-label {
         display: inline;
         margin-left: 0;
+    }
+    
+    .character-name {
+        font-size: var(--text-xs);
+    }
+    
+    .character-title {
+        font-size: 9px;
     }
 }
 
@@ -3055,68 +3110,81 @@ input:checked + .slider:before {
     box-shadow: none;
 }
 
-/* 固定高度内容区域 - 每页填满整个可视区域 */
+/* 阅读模式：一章一页，无需分页 */
 .content-body.paged {
-    overflow: hidden;
+    overflow: visible;
     position: relative;
-    /* 填满整个可视区域，不需要滚动 */
     flex: 1;
     display: flex;
     flex-direction: column;
-    /* 每页高度 = 视口高度 - 工具栏 - 导航栏 */
-    height: calc(100vh - 110px); /* 减去工具栏和导航栏 */
+    /* 移除固定高度限制，让内容自然展开 */
+    height: auto;
+    min-height: 60vh; /* 最小高度确保阅读体验 */
 }
 
 .reading-text.paged {
-    overflow: hidden;
+    overflow: visible;
     position: relative;
     border: none; /* 移除边框，更像起点 */
     border-radius: 0;
     padding: 20px; /* 保持适当的内边距 */
     background: white;
     margin-bottom: 0; /* 移除底部间距，充分利用空间 */
-    /* 每页填满整个容器高度 */
-    height: 100%;
+    /* 移除固定高度限制，让章节内容完整显示 */
+    height: auto;
+    min-height: 50vh; /* 最小高度确保阅读体验 */
     display: flex;
     flex-direction: column;
     font-size: 18px;
     line-height: 1.8;
 }
 
-/* 分页内容容器 */
+/* 阅读模式内容容器 - 一章一页 */
 .page-content {
-    height: 100%;
-    overflow: hidden;
+    height: auto;
+    overflow: visible;
     position: relative;
-    /* 确保页面内容容器填满父级 */
+    /* 确保内容自然展开 */
     flex: 1;
     display: flex;
     flex-direction: column;
 }
 
 .page-content-inner {
-    height: 100%;
-    overflow-y: auto;
+    height: auto;
+    overflow: visible;
     padding-right: var(--space-2);
-    /* 确保内容区域填满容器 */
+    /* 确保内容自然显示 */
     flex: 1;
-    /* 确保内容能够完全显示 */
     display: flex;
     flex-direction: column;
 }
 
-/* 隐藏滚动条但保持滚动功能 */
+/* 阅读模式下显示滚动条，让用户可以滚动查看完整章节 */
 .page-content-inner::-webkit-scrollbar {
-    width: 0px;
-    display: none;
+    width: 6px;
+    display: block;
 }
 
-/* 确保分页内容填满空间 */
+.page-content-inner::-webkit-scrollbar-track {
+    background: rgba(43, 108, 176, 0.05);
+    border-radius: var(--radius-full);
+}
+
+.page-content-inner::-webkit-scrollbar-thumb {
+    background: rgba(43, 108, 176, 0.2);
+    border-radius: var(--radius-full);
+}
+
+.page-content-inner::-webkit-scrollbar-thumb:hover {
+    background: rgba(43, 108, 176, 0.3);
+}
+
+/* 确保章节内容完整显示 */
 .page-content .novel-content-raw,
 .page-content-inner > div {
     flex: 1;
-    /* 确保内容完全显示 */
-    min-height: 100%;
+    min-height: auto;
 }
 
 /* 页面切换动画 */
@@ -3167,22 +3235,19 @@ input:checked + .slider:before {
         left: var(--space-3);
     }
     
+    /* 阅读模式下隐藏分页导航，因为一章一页 */
     .reading-page-navigation {
-        flex-direction: column;
-        gap: var(--space-3);
-    }
-    
-    .reading-page-nav-btn {
-        width: 100%;
-        max-width: 200px;
+        display: none;
     }
     
     .content-body.paged {
-        height: calc(100vh - 100px); /* 移动端每页填满整个高度 */
+        height: auto; /* 移动端章节内容自然展开 */
+        min-height: 50vh; /* 最小高度确保阅读体验 */
     }
     
     .reading-text.paged {
-        height: 100%; /* 移动端每页填满整个容器 */
+        height: auto; /* 移动端章节内容自然展开 */
+        min-height: 40vh; /* 最小高度确保阅读体验 */
         font-size: 16px;
         padding: 15px; /* 移动端稍小的内边距 */
     }
@@ -3204,11 +3269,13 @@ input:checked + .slider:before {
     }
     
     .content-body.paged {
-        height: 350px;
+        height: auto;
+        min-height: 40vh; /* 小屏幕最小高度 */
     }
     
     .reading-text.paged {
-        height: 250px;
+        height: auto;
+        min-height: 30vh; /* 小屏幕最小高度 */
     }
 }
 
@@ -3369,26 +3436,20 @@ input:checked + .slider:before {
         font-size: 16px;
     }
     
+    /* 阅读模式下完全隐藏分页导航 */
     .reading-page-navigation {
-        margin: var(--space-4) 0;
-        gap: var(--space-2);
-    }
-    
-    .reading-page-nav-btn {
-        padding: var(--space-2) var(--space-4);
-        font-size: var(--text-xs);
-    }
-    
-    .reading-page-indicator {
-        font-size: var(--text-xs);
-        padding: var(--space-1) var(--space-2);
+        display: none !important;
     }
     
     /* 触摸友好的按钮尺寸 */
-    .page-navigation button,
-    .reading-page-navigation button {
+    .page-navigation button {
         min-height: 44px;
         min-width: 44px;
+    }
+    
+    /* 阅读模式下不显示分页按钮 */
+    .reading-page-navigation button {
+        display: none;
     }
     
     /* 移动端分页设置进一步优化 */
@@ -3755,21 +3816,20 @@ input:checked + .slider:before {
     width: 100% !important;
 }
 
-/* 故事线区域 - 两列布局，每个阶段占一半宽度 */
+/* 故事线区域 - 改为全宽布局，与小说标题、简介、卖点保持一致 */
 .creative-editor-modal div[style*="grid-template-columns: 1fr 1fr"] {
-    display: grid !important;
-    grid-template-columns: 1fr 1fr !important;
-    gap: 20px !important;
+    display: block !important;
     width: 100% !important;
 }
 
-/* 故事线阶段编辑器 - 每个占据弹窗一半宽度 */
+/* 故事线阶段编辑器 - 全宽布局，与小说标题、简介、卖点保持一致 */
 .creative-editor-modal div[style*="background: #f9fafb"] {
     background: #f9fafb !important;
     padding: 16px !important;
     border-radius: 8px !important;
     border: 1px solid #e5e7eb !important;
     width: 100% !important;
+    margin-bottom: 20px !important;
 }
 
 /* 故事线阶段输入框 - 占据阶段容器的全宽 */
