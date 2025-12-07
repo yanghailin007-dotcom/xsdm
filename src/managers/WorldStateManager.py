@@ -154,7 +154,7 @@ class WorldStateManager:
         self.register_validator('money_balance', self._validator_money_balance)
         self.register_validator('ownership', self._validator_ownership)
         self.register_validator('relationship_contradiction', self._validator_relationship_contradiction)
-    def load_previous_assessments(self, novel_title: str, novel_data: Dict = None) -> Dict:
+    def load_previous_assessments(self, novel_title: str, novel_data: Optional[Dict] = None) -> Dict:
         """加载之前章节的评估数据，如果没有则从novel_data初始化"""
         state_file = os.path.join(self.storage_path, f"{novel_title}_world_state.json")
         if os.path.exists(state_file):
@@ -916,9 +916,12 @@ class WorldStateManager:
         except Exception as e:
             self.logger.info(f"❌ 保存初始世界状态失败: {e}")
         return world_state
-    def manage_character_development_table(self, novel_title: str, character_data: Dict, 
+    def manage_character_development_table(self, novel_title: str, character_data: Dict,
                                         current_chapter: int, action: str = "update") -> Dict:
-        """管理角色发展表 - 修复数据清空问题"""
+        """管理角色发展表 - 修复数据清空问题
+        
+        🔧 修复版本：实现严格的新角色准入过滤机制
+        """
         character_file = os.path.join(self.storage_path, f"{novel_title}_character_development.json")
         self.logger.info(f"🔄 开始管理角色发展表:")
         self.logger.info(f"   小说: {novel_title}")
@@ -950,9 +953,23 @@ class WorldStateManager:
         if not character_name:
             self.logger.info(f"❌ 角色数据中没有name字段，无法管理")
             return characters
+        
+        # 🔧 修复1: 严格的角色名称验证
+        if not self._is_valid_character_name(character_name):
+            self.logger.info(f"❌ 角色名称 '{character_name}' 未通过有效性验证，拒绝添加")
+            return characters
+        
         # 评估角色重要性
         importance = self.assess_character_importance(character_data)
         self.logger.info(f"📊 角色 {character_name} 的重要性评估为: {importance}")
+        
+        # 🔧 修复2: 新角色准入机制
+        if action == "add" and character_name not in characters:
+            # 对新角色进行更严格的验证
+            if not self._should_accept_new_character(character_name, character_data, characters, current_chapter):
+                self.logger.info(f"❌ 新角色 '{character_name}' 未通过准入验证，拒绝添加")
+                return characters
+        
         # 保存当前角色数量用于比较
         previous_count = len(characters)
         if action == "add":
@@ -1304,68 +1321,653 @@ class WorldStateManager:
                     _recursively_collect(item)
         _recursively_collect(assessment)
         return "\n".join(t for t in texts if t and len(t) > 10)
+    def _is_valid_character_name(self, name: str) -> bool:
+        """验证是否为有效的角色名称
+        
+        🔧 修复版本：更严格的角色名称验证机制
+        """
+        if not name or not isinstance(name, str):
+            return False
+        
+        name = name.strip()
+        
+        # 长度检查：角色名应该在2-20个字符之间
+        if len(name) < 2 or len(name) > 20:
+            return False
+        
+        # 🔧 修复1: 大幅扩展无效词汇黑名单
+        invalid_words = {
+            # 基础虚词和功能词
+            "的", "之", "是", "在", "有", "没有", "可", "可以", "能够", "应该", "需要", "想要", "希望", "愿", "要", "会", "将", "已", "未",
+            
+            # 认知和感觉词汇
+            "感觉", "认为", "知道", "明白", "理解", "发现", "意识到", "察觉", "想到", "想到", "预料", "意外", "突然", "忽然",
+            "情绪", "心情", "态度", "想法", "观念", "概念", "思想", "意识", "念头", "心思", "心意",
+            
+            # 状态和变化词汇
+            "活跃", "死亡", "生存", "存在", "出现", "消失", "变化", "发展", "成长", "进化", "退化", "转变",
+            "伪装", "潜伏", "隐藏", "暴露", "危险", "安全", "威胁", "机会", "危机", "转机",
+            
+            # 时间和顺序词汇
+            "第一", "第二", "第三", "开始", "结束", "之前", "之后", "同时", "接着", "然后", "随后", "最后", "最终",
+            "立刻", "马上", "立即", "稍后", "片刻", "瞬间", "一时", "一时", "起初", "原本", "现在", "目前", "如今",
+            "过去", "未来", "明天", "昨天", "今天", "早上", "晚上", "中午", "深夜",
+            
+            # 动作和动词短语
+            "站起身", "走过去", "笑了笑", "皱眉头", "叹息", "握拳", "抬头", "低头", "躺下", "坐起", "转身", "离开", "返回", "进入", "退出", "靠近",
+            "拿起", "放下", "握住", "松开", "推开", "拉开", "打开", "关闭", "锁住", "解开",
+            
+            # 修饰词和形容词
+            "极大", "巨大", "很大", "非常", "特别", "极其", "相当", "比较", "稍微", "略微", "十分", "万分",
+            "更多", "更少", "更好", "更坏", "更快", "更慢", "更高", "更低", "更强", "更弱", "更大", "更小",
+            "美丽", "丑陋", "英俊", "普通", "特殊", "稀有", "常见", "罕见", "独特",
+            
+            # 逻辑连接词
+            "因为", "所以", "但是", "然而", "而且", "并且", "或者", "如果", "虽然", "尽管", "无论", "不管", "只要",
+            
+            # 🔧 修复2: 修仙小说特有的非角色词汇
+            "师兄", "师妹", "师姐", "师弟", "师父", "师尊", "师祖", "掌门", "长老", "宗主", "门主", "教主", "宫主",
+            "妖兽", "灵兽", "魔兽", "神兽", "圣兽", "凶兽", "异兽",
+            "灵石", "灵药", "丹药", "法宝", "灵器", "仙器", "神器", "魔器", "宝物", "珍宝",
+            "剑气", "刀光", "杀气", "威压", "气势", "气势", "威势", "灵压",
+            "修为", "境界", "等级", "品级", "阶位", "位阶", "修士", "修真者", "修仙者",
+            
+            # 情绪词汇
+            "愤怒", "悲伤", "快乐", "高兴", "痛苦", "绝望", "希望", "恐惧", "惊讶", "震惊",
+            
+            # 通用称谓和职业
+            "老者", "少年", "女子", "男子", "官员", "侍卫", "店小二", "掌柜", "大夫", "书生", "商人", "工匠", "农夫",
+            "路人", "士兵", "村民", "弟子", "门徒", "教众", "信徒", "仆人", "奴隶", "囚犯",
+            "侠客", "剑客", "刀客", "刺客", "盗贼", "强盗", "土匪", "山贼",
+            
+            # 物品和装备
+            "王座", "李子", "张开", "陈旧", "青虹剑", "倚天剑", "屠龙刀", "打狗棒",
+            
+            # 地点和位置
+            "山顶", "山脚", "山腰", "河边", "湖边", "海边", "城门", "门口", "窗前", "门前",
+            "东边", "西边", "南边", "北边", "左边", "右边", "前面", "后面", "上面", "下面",
+            
+            # 方位和方向
+            "东方", "西方", "南方", "北方", "中央", "中间", "旁边", "附近", "远处", "近处",
+            
+            # 数字和数量
+            "一", "二", "三", "四", "五", "六", "七", "八", "九", "十", "百", "千", "万", "亿",
+            "壹", "贰", "叁", "肆", "伍", "陆", "柒", "捌", "玖", "拾",
+            "一个", "两个", "三个", "几个", "许多", "无数", "一些", "所有", "全部", "整个",
+            
+            # 抽象概念
+            "爱情", "友情", "仇恨", "恩怨", "因果", "命运", "天意", "天道", "人道", "地道",
+            "正义", "邪恶", "光明", "黑暗", "善良", "邪恶", "美丽", "丑陋", "强大", "弱小",
+            
+            # 自然现象
+            "风雨", "雷电", "冰雪", "火焰", "洪水", "地震", "火山", "流星", "日月", "星辰",
+            
+            # 常见的错误识别
+            "张开", "李子", "王座", "陈旧", "青虹", "那把", "这把", "一把", "几把",
+        }
+        
+        # 🔧 修复3: 严格的黑名单检查
+        # 直接匹配
+        if name in invalid_words:
+            return False
+        
+        # 前缀检查
+        for invalid_word in invalid_words:
+            if name.startswith(invalid_word):
+                return False
+        
+        # 后缀检查
+        invalid_suffixes = ["的", "之", "中", "上", "下", "前", "后", "时", "间", "里", "外", "内"]
+        for suffix in invalid_suffixes:
+            if name.endswith(suffix):
+                return False
+        
+        # 🔧 修复4: 包含检查（避免包含无效词汇的名字）
+        for invalid_word in invalid_words:
+            if invalid_word in name and len(invalid_word) >= 2:
+                return False
+        
+        # 标点符号检查（除了·）
+        if any(char in name for char in "，。！？；：""''""''（）【】《》""，、；："):
+            return False
+        
+        # 单个字符或纯数字检查
+        if len(name) == 1 or name.isdigit():
+            return False
+        
+        # 🔧 修复5: 更严格的描述性模式检查
+        descriptive_patterns = [
+            r".*的$",  # 以"的"结尾
+            r".*之.*$",  # 包含"之"
+            r".*中$",  # 以"中"结尾
+            r".*上$",  # 以"上"结尾
+            r".*下$",  # 以"下"结尾
+            r".*前$",  # 以"前"结尾
+            r".*后$",  # 以"后"结尾
+            r".*时$",  # 以"时"结尾
+            r".*间$",  # 以"间"结尾
+            r".*里$",  # 以"里"结尾
+            r".*外$",  # 以"外"结尾
+            r".*内$",  # 以"内"结尾
+            r".*[东西南北中上下左右前后].*",  # 包含方位词
+        ]
+        
+        for pattern in descriptive_patterns:
+            if re.match(pattern, name):
+                return False
+        
+        # 🔧 修复6: 特殊模式检查（修仙小说常见错误）
+        special_patterns = [
+            r".*[剑刀枪戟斧钺钩叉鞭锏锤拐棒].*",  # 武器名称
+            r".*[丹药丸散膏汤剂露酒茶].*",  # 药物名称
+            r".*[山川湖海江河溪涧泉瀑峰岭崖谷峡].*",  # 地理名称
+            r".*[金银铜铁玉石珍珠宝石翡翠玛瑙].*",  # 宝物名称
+        ]
+        
+        for pattern in special_patterns:
+            if re.match(pattern, name):
+                return False
+        
+        return True
+    
+    def _is_relationship_keyword(self, text: str) -> bool:
+        """判断是否为关系关键词"""
+        relationship_keywords = [
+            "盟友", "朋友", "对手", "敌对", "敌人", "师徒", "恋人", "合作", "冲突", "竞争",
+            "结为", "成为", "是", "关系", "联系", "互动", "交往", "相处", "对峙",
+            "敌我", "敌友", "同伴", "伙伴", "同事", "同门", "师兄", "师妹",
+            "父子", "母子", "夫妻", "兄弟", "姐妹", "叔侄", "表兄弟"
+        ]
+        return any(keyword in text for keyword in relationship_keywords)
+    
     def _parse_relationships_from_text(self, text: str) -> List[Dict]:
+        """从文本中解析角色关系 - 🔧 修复版本，增加严格的角色验证和干扰过滤"""
         if not text or not isinstance(text, str):
             return []
+        
         interactions = []
-        # 常见的关系关键词和映射
-        rel_keywords = ["盟友", "朋友", "对手", "敌对", "敌人", "师徒", "恋人", "合作", "冲突", "竞争"]
-        # 匹配模式: A 与 B 成为 盟友/朋友/对手/敌人
+        
+        # 🔧 修复1: 更严格的匹配模式，要求明确的角色名称和关系关键词
         patterns = [
-            r"([\u4e00-\u9fa5A-Za-z0-9_·]{1,20})[和与与、,，]\s*([\u4e00-\u9fa5A-Za-z0-9_·]{1,20}).{0,10}(盟友|朋友|对手|敌对|敌人|师徒|恋人|合作|冲突|竞争)",
-            r"([\u4e00-\u9fa5A-Za-z0-9_·]{1,20})和([\u4e00-\u9fa5A-Za-z0-9_·]{1,20})成为(盟友|朋友|对手|敌对|敌人|师徒|恋人)",
-            r"([\u4e00-\u9fa5A-Za-z0-9_·]{1,20})与([\u4e00-\u9fa5A-Za-z0-9_·]{1,20})发生(冲突|冲突升级|争执)",
-            r"([\u4e00-\u9fa5A-Za-z0-9_·]{1,20})在.*?与.*?结为(盟友|朋友)",
+            # 模式1: [角色A]和[角色B]成为[关系类型]
+            r"([\u4e00-\u9fa5]{2,10})(?:和|与)([\u4e00-\u9fa5]{2,10})(?:是|为|成为)(.{0,5})(盟友|朋友|对手|敌对|敌人|师徒|恋人|合作|冲突|竞争)",
+            # 模式2: [角色A]与[角色B]的[关系]
+            r"([\u4e00-\u9fa5]{2,10})与([\u4e00-\u9fa5]{2,10})(?:的|之间)(.{0,10})(关系|联系|互动)",
+            # 模式3: [角色A]和[角色B]发生[冲突类型]
+            r"([\u4e00-\u9fa5]{2,10})(?:和|与)([\u4e00-\u9fa5]{2,10})发生(冲突|争执|矛盾)",
+            # 模式4: [角色A]对[角色B]的态度
+            r"([\u4e00-\u9fa5]{2,10})对([\u4e00-\u9fa5]{2,10})(?:的)?(态度|看法|印象)",
+            # 模式5: [角色A]和[角色B]是[关系类型]
+            r"([\u4e00-\u9fa5]{2,10})(?:和|与)([\u4e00-\u9fa5]{2,10})是(盟友|朋友|对手|敌人|师徒|恋人)"
         ]
-        for pat in patterns:
-            for m in re.finditer(pat, text):
+        
+        # 🔧 修复2: 预先过滤文本，移除明显的非角色内容
+        filtered_text = self._filter_text_for_relationship_parsing(text)
+        
+        for pattern in patterns:
+            for m in re.finditer(pattern, filtered_text):
                 try:
-                    g1 = m.group(1).strip()
-                    g2 = m.group(2).strip()
-                    rel = m.group(3).strip() if m.lastindex and m.lastindex >= 3 else "关系"
-                    # 标准化类型
-                    if any(k in rel for k in ["盟友", "朋友"]):
-                        itype = "盟友"
-                    elif any(k in rel for k in ["对手", "敌对", "敌人", "竞争"]):
-                        itype = "对手"
-                    elif "师徒" in rel:
-                        itype = "师徒"
-                    elif any(k in rel for k in ["恋人"]):
-                        itype = "恋人"
-                    elif any(k in rel for k in ["合作"]):
-                        itype = "合作"
-                    elif any(k in rel for k in ["冲突", "争执"]):
-                        itype = "冲突"
-                    else:
-                        itype = rel
-                    desc = m.group(0).strip()
+                    char1 = m.group(1).strip()
+                    char2 = m.group(2).strip()
+                    relationship_part = m.group(3) if m.lastindex is not None and m.lastindex >= 3 else ""
+                    
+                    # 🔧 修复3: 双重角色名称验证
+                    if not self._is_valid_character_name(char1) or not self._is_valid_character_name(char2):
+                        self.logger.debug(f"   ❌ 跳过无效角色名称: {char1} 或 {char2}")
+                        continue
+                    
+                    # 🔧 修复4: 排除物品、地点等非角色实体
+                    if self._is_non_character_entity(char1) or self._is_non_character_entity(char2):
+                        self.logger.debug(f"   ❌ 跳过非角色实体: {char1} 或 {char2}")
+                        continue
+                    
+                    # 🔧 修复5: 检查角色名称是否在合理的上下文中出现
+                    if not self._is_character_in_relationship_context(char1, char2, m.start(), filtered_text):
+                        self.logger.debug(f"   ❌ 角色关系上下文验证失败: {char1} 和 {char2}")
+                        continue
+                    
+                    # 提取关系类型
+                    rel_type = "关系"
+                    if relationship_part:
+                        if "盟友" in relationship_part or "朋友" in relationship_part:
+                            rel_type = "盟友"
+                        elif "对手" in relationship_part or "敌对" in relationship_part or "敌人" in relationship_part:
+                            rel_type = "对手"
+                        elif "师徒" in relationship_part:
+                            rel_type = "师徒"
+                        elif "恋人" in relationship_part:
+                            rel_type = "恋人"
+                        elif "合作" in relationship_part:
+                            rel_type = "合作"
+                        elif "冲突" in relationship_part or "争执" in relationship_part:
+                            rel_type = "冲突"
+                        elif "关系" in relationship_part:
+                            rel_type = "关系"
+                        else:
+                            rel_type = "未知关系"
+                    
+                    # 🔧 修复6: 创建交互记录（增加置信度）
+                    confidence = self._calculate_relationship_confidence(char1, char2, rel_type, filtered_text)
+                    
                     interaction = {
-                        "characters": [g1, g2],
-                        "interaction_type": itype,
-                        "description": desc[:180],
-                        "chapter": None
+                        "characters": [char1, char2],
+                        "interaction_type": rel_type,
+                        "description": f"{char1}与{char2}建立{rel_type}关系",
+                        "chapter": None,
+                        "confidence": confidence  # 新增置信度字段
                     }
-                    # 避免重复
-                    if not any(set(interaction['characters']) == set(e.get('characters', [])) and e.get('interaction_type') == interaction['interaction_type'] for e in interactions):
+                    
+                    # 🔧 修复7: 避免重复和低置信度结果
+                    existing = False
+                    for existing_interaction in interactions:
+                        if (set(existing_interaction['characters']) == set(interaction['characters']) and
+                            existing_interaction['interaction_type'] == interaction['interaction_type']):
+                            # 保留置信度更高的版本
+                            if interaction['confidence'] > existing_interaction.get('confidence', 0):
+                                interactions.remove(existing_interaction)
+                            else:
+                                existing = True
+                            break
+                    
+                    if not existing and interaction['confidence'] >= 0.5:  # 只保留置信度≥0.5的结果
                         interactions.append(interaction)
-                except Exception:
+                        self.logger.debug(f"   ✅ 解析到关系: {char1} + {char2} -> {rel_type} (置信度: {confidence:.2f})")
+                        
+                except Exception as e:
+                    # 记录错误但继续处理其他模式
+                    self.logger.debug(f"   ⚠️ 解析关系时出错: {e}")
                     continue
-        # 额外查找 A 与 B 直接并列（但未指明关系）的句子，映射为"提及联系"
-        simple_pairs = re.findall(r"([\u4e00-\u9fa5A-Za-z0-9_·]{1,20})[和与、,，]\s*([\u4e00-\u9fa5A-Za-z0-9_·]{1,20})", text)
-        for a, b in simple_pairs:
-            # 忽略太通用或数字的配对
-            if a == b:
-                continue
-            # 如果已有交互则跳过
-            if any(set([a, b]) == set(e.get('characters', [])) for e in interactions):
-                continue
-            interactions.append({
-                "characters": [a, b],
-                "interaction_type": "提及联系",
-                "description": f"文本中并列提及: {a} 与 {b}",
-                "chapter": None
-            })
-        return interactions
+        
+        # 🔧 修复8: 更严格的已知角色配对处理
+        known_characters = self._get_known_characters_from_text(filtered_text)
+        if len(known_characters) >= 2:
+            # 检查这些角色之间是否有明确的关系描述
+            for i, char1 in enumerate(known_characters):
+                for char2 in known_characters[i+1:]:
+                    # 在文本中查找这两个角色的关系描述
+                    relationship_patterns = [
+                        f"{char1}.*?{char2}.*?(盟友|朋友|对手|敌人|师徒|恋人)",
+                        f"{char2}.*?{char1}.*?(盟友|朋友|对手|敌人|师徒|恋人)",
+                        f"{char1}.*?与.*?{char2}.*?(合作|冲突|竞争|互动)"
+                    ]
+                    
+                    for pattern in relationship_patterns:
+                        if re.search(pattern, filtered_text):
+                            # 验证这不是物品名称的误识别
+                            if not self._is_non_character_entity(char1) and not self._is_non_character_entity(char2):
+                                interactions.append({
+                                    "characters": [char1, char2],
+                                    "interaction_type": "已知角色关系",
+                                    "description": f"文本中描述{char1}与{char2}的关系",
+                                    "chapter": None,
+                                    "confidence": 0.8  # 已知角色的置信度较高
+                                })
+                                break
+        
+        # 🔧 修复9: 最终过滤，移除低质量结果
+        filtered_interactions = []
+        for interaction in interactions:
+            char1, char2 = interaction['characters']
+            
+            # 检查角色名称是否合理
+            if (len(char1) >= 2 and len(char1) <= 6 and
+                len(char2) >= 2 and len(char2) <= 6 and
+                not self._contains_suspicious_words(char1) and
+                not self._contains_suspicious_words(char2)):
+                filtered_interactions.append(interaction)
+            else:
+                self.logger.debug(f"   ❌ 过滤掉低质量关系: {char1} + {char2}")
+        
+        self.logger.info(f"🔧 关系解析完成: 从文本中解析出 {len(filtered_interactions)} 条有效关系")
+        return filtered_interactions
+    
+    def _filter_text_for_relationship_parsing(self, text: str) -> str:
+        """🔧 新增：过滤文本，移除明显的非角色内容"""
+        if not text:
+            return text
+        
+        # 移除明显的物品描述段落
+        item_patterns = [
+            r'.*[剑刀枪戟斧钺钩叉鞭锏锤拐棒].*?(?:斩断|击碎|挥舞|舞动|出现|消失)',
+            r'.*[丹药丸散膏汤剂露酒茶].*?(?:服用|吞服|炼制|散发)',
+            r'.*[金银铜铁玉石珍珠宝石翡翠玛瑙].*?(?:闪耀|发光|珍贵|罕见)',
+        ]
+        
+        filtered_text = text
+        for pattern in item_patterns:
+            filtered_text = re.sub(pattern, '', filtered_text)
+        
+        # 移除地点描述
+        location_patterns = [
+            r'.*[山川湖海江河溪涧泉瀑峰岭崖谷峡].*?(?:位于|坐落|风景优美)',
+            r'.*[东西南北中上下左右前后].*?(?:方向|方位|位置)',
+        ]
+        
+        for pattern in location_patterns:
+            filtered_text = re.sub(pattern, '', filtered_text)
+        
+        return filtered_text
+    
+    def _is_non_character_entity(self, name: str) -> bool:
+        """🔧 新增：判断名称是否为非角色实体（物品、地点等）"""
+        non_character_patterns = [
+            r'.*[剑刀枪戟斧钺钩叉鞭锏锤拐棒].*$',      # 武器
+            r'.*[丹药丸散膏汤剂露酒茶].*$',            # 药物
+            r'.*[山川湖海江河溪涧泉瀑峰岭崖谷峡].*$',  # 地理
+            r'.*[金银铜铁玉石珍珠宝石翡翠玛瑙].*$',  # 宝物
+            r'.*[东西南北中上下左右前后].*$',        # 方位
+        ]
+        
+        for pattern in non_character_patterns:
+            if re.match(pattern, name):
+                return True
+        
+        return False
+    
+    def _is_character_in_relationship_context(self, char1: str, char2: str, position: int, text: str) -> bool:
+        """🔧 新增：检查角色名称是否在合理的关系上下文中出现"""
+        # 获取匹配位置前后的文本片段
+        start = max(0, position - 50)
+        end = min(len(text), position + 100)
+        context = text[start:end]
+        
+        # 检查是否包含关系相关词汇
+        relationship_keywords = ["盟友", "朋友", "对手", "敌对", "敌人", "师徒", "恋人", "合作", "冲突", "竞争", "关系", "联系", "互动"]
+        has_relationship_keyword = any(keyword in context for keyword in relationship_keywords)
+        
+        # 检查是否包含动作词汇（表明这是角色的行为）
+        action_keywords = ["说", "道", "问", "答", "看", "望", "走", "来", "去", "站", "坐", "笑", "哭", "怒", "喜"]
+        has_action_keyword = any(keyword in context for keyword in action_keywords)
+        
+        # 如果有关系关键词或动作关键词，认为上下文合理
+        return has_relationship_keyword or has_action_keyword
+    
+    def _calculate_relationship_confidence(self, char1: str, char2: str, rel_type: str, text: str) -> float:
+        """🔧 新增：计算关系解析的置信度"""
+        confidence = 0.5  # 基础置信度
+        
+        # 角色名称长度合理性
+        if 2 <= len(char1) <= 4:
+            confidence += 0.1
+        if 2 <= len(char2) <= 4:
+            confidence += 0.1
+        
+        # 包含常见姓氏
+        common_surnames = ['王', '李', '张', '刘', '陈', '杨', '黄', '赵', '吴', '周']
+        if char1[0] in common_surnames:
+            confidence += 0.1
+        if char2[0] in common_surnames:
+            confidence += 0.1
+        
+        # 在文本中出现频率适中
+        char1_count = text.count(char1)
+        char2_count = text.count(char2)
+        if 1 <= char1_count <= 5:
+            confidence += 0.05
+        if 1 <= char2_count <= 5:
+            confidence += 0.05
+        
+        # 关系类型的明确性
+        clear_relationships = ["盟友", "朋友", "对手", "敌人", "师徒", "恋人"]
+        if rel_type in clear_relationships:
+            confidence += 0.1
+        
+        return min(confidence, 1.0)
+    
+    def _contains_suspicious_words(self, name: str) -> bool:
+        """🔧 新增：检查名称是否包含可疑词汇"""
+        suspicious_words = [
+            "剑", "刀", "枪", "戟", "斧", "钺", "钩", "叉", "鞭", "锏", "锤", "拐", "棒",  # 武器
+            "丹", "药", "丸", "散", "膏", "汤", "剂", "露", "酒", "茶",  # 药物
+            "山", "川", "湖", "海", "江", "河", "溪", "涧", "泉", "瀑", "峰", "岭", "崖", "谷", "峡",  # 地理
+            "金", "银", "铜", "铁", "玉", "石", "珍珠", "宝石", "翡翠", "玛瑙",  # 宝物
+            "东", "西", "南", "北", "中", "上", "下", "左", "右", "前", "后",  # 方位
+        ]
+        
+        return any(word in name for word in suspicious_words)
+    
+    def _get_known_characters_from_text(self, text: str, novel_title: Optional[str] = None) -> List[str]:
+        """
+        从文本中提取主配角名称
+        
+        专注于识别和返回已知的角色，特别是主要角色和重要配角，
+        避免返回过多的路人角色或误识别的普通词汇。
+        
+        Args:
+            text (str): 要分析的文本内容
+            novel_title (Optional[str]): 小说标题，用于加载已知角色列表
+            
+        Returns:
+            List[str]: 识别到的主配角名称列表，按重要性和文本中出现顺序排序
+            
+        Performance:
+            - 时间复杂度: O(n*m) 其中n是文本长度，m是已知角色数量
+            - 空间复杂度: O(k) 其中k是找到的角色数量
+            - 优化：优先处理主要角色，减少不必要的文本扫描
+        """
+        # 输入验证
+        if not text or not isinstance(text, str):
+            self.logger.info("输入文本无效，返回空列表")
+            return []
+        
+        if len(text.strip()) == 0:
+            return []
+            
+        try:
+            # 1. 加载并分类角色数据
+            major_characters = set()
+            minor_characters = set()
+            
+            if novel_title:
+                # 从角色发展表加载角色，按重要性分类
+                try:
+                    character_development = self._load_character_development_data(novel_title)
+                    for char_name, char_data in character_development.items():
+                        importance = char_data.get("importance", "minor")
+                        status = char_data.get("status", "active")
+                        
+                        # 只考虑活跃角色
+                        if status in ["active", "活跃"]:
+                            if importance == "major":
+                                major_characters.add(char_name)
+                            elif importance == "minor":
+                                minor_characters.add(char_name)
+                                
+                    self.logger.debug(f"加载角色: 主要角色 {len(major_characters)} 个, 次要角色 {len(minor_characters)} 个")
+                except Exception as e:
+                    self.logger.info(f"加载角色发展表失败: {e}")
+            
+            # 2. 如果没有角色数据，尝试从世界状态获取
+            if not major_characters and not minor_characters and novel_title:
+                try:
+                    world_state = self.load_previous_assessments(novel_title)
+                    world_characters = world_state.get("characters", {})
+                    # 将世界状态中的角色都视为次要角色
+                    minor_characters.update(world_characters.keys())
+                    self.logger.debug(f"从世界状态加载了 {len(world_characters)} 个角色")
+                except Exception as e:
+                    self.logger.info(f"加载世界状态失败: {e}")
+            
+            # 3. 如果仍然没有角色数据，返回空列表（不进行模式匹配，避免误识别）
+            if not major_characters and not minor_characters:
+                self.logger.info("未找到已知角色数据，返回空列表")
+                return []
+            
+            # 4. 按优先级在文本中查找角色
+            found_characters = []
+            
+            # 首先查找主要角色
+            for character in major_characters:
+                if self._is_character_mentioned_in_text(character, text):
+                    found_characters.append(character)
+                    self.logger.debug(f"找到主要角色: {character}")
+            
+            # 然后查找次要角色
+            for character in minor_characters:
+                if character not in major_characters and self._is_character_mentioned_in_text(character, text):
+                    found_characters.append(character)
+                    self.logger.debug(f"找到次要角色: {character}")
+            
+            # 5. 按在文本中的出现顺序重新排序
+            ordered_characters = self._sort_characters_by_text_order(set(found_characters), text)
+            
+            # 6. 限制返回数量，避免返回过多角色
+            max_characters = 20  # 限制最大返回数量
+            final_characters = ordered_characters[:max_characters]
+            
+            self.logger.info(f"在文本中识别到 {len(final_characters)} 个角色 (主要: {len([c for c in final_characters if c in major_characters])}, 次要: {len([c for c in final_characters if c in minor_characters])})")
+            if len(final_characters) > 0:
+                self.logger.debug(f"角色列表: {final_characters}")
+                
+            return final_characters
+            
+        except Exception as e:
+            self.logger.error(f"提取角色名称时发生错误: {e}")
+            return []
+    
+    def _is_character_mentioned_in_text(self, character_name: str, text: str) -> bool:
+        """
+        检查角色是否在文本中被提及
+        
+        Args:
+            character_name (str): 角色名称
+            text (str): 文本内容
+            
+        Returns:
+            bool: 是否找到角色提及
+        """
+        if not character_name or not text:
+            return False
+            
+        # 直接匹配
+        if character_name in text:
+            return True
+            
+        # 模糊匹配（处理可能的变体）
+        patterns = [
+            rf"{character_name}",
+            rf"{character_name}说",
+            rf"{character_name}道",
+            rf"{character_name}问",
+            rf"{character_name}想",
+            rf"{character_name}见",
+            rf"{character_name}听",
+        ]
+        
+        for pattern in patterns:
+            if re.search(pattern, text):
+                return True
+                
+        return False
+    
+    def _sort_characters_by_text_order(self, characters: set, text: str) -> List[str]:
+        """
+        按角色在文本中的首次出现顺序排序
+        
+        Args:
+            characters (set): 角色名称集合
+            text (str): 文本内容
+            
+        Returns:
+            List[str]: 按出现顺序排序的角色列表
+        """
+        if not characters:
+            return []
+            
+        # 记录每个角色的首次出现位置
+        character_positions = {}
+        
+        for character in characters:
+            first_pos = text.find(character)
+            if first_pos != -1:
+                character_positions[character] = first_pos
+        
+        # 按位置排序
+        sorted_characters = sorted(character_positions.items(), key=lambda x: x[1])
+        return [char for char, pos in sorted_characters]
+    
+    def _extract_potential_character_names_from_text(self, text: str) -> List[str]:
+        """
+        当没有已知角色数据时，从文本中提取潜在的角色名称
+        
+        🔧 修复版本：更加严格的角色名称提取策略
+        
+        Args:
+            text (str): 文本内容
+            
+        Returns:
+            List[str]: 潜在角色名称列表
+        """
+        potential_names = set()
+        
+        # 🔧 修复1: 更严格的中文姓名模式
+        # 限制在常见姓氏+1-2个汉字，并排除常见的非角色词汇
+        chinese_name_patterns = [
+            # 精确的常见姓氏+1-2个汉字模式
+            r'(?:王|李|张|刘|陈|杨|黄|赵|吴|周|徐|孙|马|朱|胡|郭|何|高|林|罗|郑|梁|谢|宋|唐|许|韩|冯|邓|曹|彭|曾|萧|田|董|袁|潘|于|蒋|蔡|余|杜|叶|程|苏|魏|吕|丁|任|沈|姚|卢|姜|崔|钟|谭|陆|汪|范|金|石|廖|贾|夏|韦|付|方|白|邹|孟|熊|秦|邱|江|尹|薛|闫|段|雷|侯|龙|史|陶|黎|贺|顾|毛|郝|龚|邵|万|钱|严|覃|武|戴|莫|孔|向|汤)[一-龥]{1,2}(?![的之而是与和在有和对把被让给为])',
+            # 常见的复姓（更严格）
+            r'(?:欧阳|司马|上官|东方|诸葛|司徒|夏侯|皇甫)[一-龥]{1,2}(?![的之而是与和在有和对把被让给为])',
+            # 修仙小说特殊名字模式（更严格的上下文验证）
+            r'([一-龥]{2,3})(?:道人|真人|仙子|神君|天尊|魔尊|剑圣|法王)(?![的之而是与在和有])',
+        ]
+        
+        # 🔧 修复2: 增加上下文验证，避免在描述性文本中误识别
+        # 检查名字是否出现在合适的上下文中
+        valid_context_patterns = [
+            # 说/道/问等动词前（对话语境）
+            r'([一-龥]{2,4})(?:说|道|问|喝|喝道|笑道|怒道|冷声道|感叹道|说道)',
+            # 动作主语
+            r'([一-龥]{2,4})(?:站起身|走过来|走过去|笑了笑|皱了皱眉|点了点头|摇了摇头|转过身|抬起头|低下头)',
+            # 称呼语境
+            r'(?:叫|称呼|名为|名叫|名字是|是)([一-龯]{2,4})',
+        ]
+        
+        # 提取符合严格模式的名字
+        for pattern in chinese_name_patterns:
+            matches = re.findall(pattern, text)
+            for match in matches:
+                if self._is_valid_character_name(match):
+                    potential_names.add(match)
+        
+        # 提取符合上下文模式的名字
+        for pattern in valid_context_patterns:
+            matches = re.findall(pattern, text)
+            for match in matches:
+                if self._is_valid_character_name(match):
+                    potential_names.add(match)
+        
+        # 🔧 修复3: 按可信度排序，优先返回更有可能的角色名
+        def calculate_name_confidence(name):
+            """计算名字的可信度分数"""
+            score = 0
+            # 长度适中的名字更可信
+            if 2 <= len(name) <= 3:
+                score += 2
+            elif len(name) == 4:
+                score += 1
+            
+            # 包含常见姓氏更可信
+            common_surnames = ['王', '李', '张', '刘', '陈', '杨', '黄', '赵', '吴', '周', '徐', '孙', '马', '朱', '胡', '郭']
+            if name[0] in common_surnames:
+                score += 2
+            
+            # 在文本中出现频率适中的更可信
+            count = text.count(name)
+            if 1 <= count <= 5:
+                score += 1
+            elif count > 10:
+                score -= 1  # 出现太多可能是常用词
+            
+            return score
+        
+        # 按可信度排序
+        scored_names = [(name, calculate_name_confidence(name)) for name in potential_names]
+        scored_names.sort(key=lambda x: x[1], reverse=True)
+        
+        # 🔧 修复4: 更严格的数量限制，只返回高可信度的名字
+        filtered_names = [name for name, score in scored_names if score > 0]
+        
+        return filtered_names[:5]  # 减少到最多5个，提高准确性
     def update_character_development_from_assessment(self, novel_title: str, assessment: Dict, chapter_number: int):
         """从评估结果更新角色发展表 - 根据角色重要性区分处理"""
         character_development = assessment.get("character_development_assessment", {})
@@ -1374,7 +1976,8 @@ class WorldStateManager:
             # 尝试从assessment里收集文本并解析关系
             text_blob = ""
             # 优先使用明确提供的文本字段
-            if isinstance(assessment.get('character_development_text'), str) and len(assessment.get('character_development_text')) > 20:
+            dev_text = assessment.get('character_development_text')
+            if dev_text and isinstance(dev_text, str) and len(dev_text) > 20:
                 text_blob = assessment.get('character_development_text')
             else:
                 # 否则从整个assessment深度收集可用文本片段
@@ -1618,7 +2221,7 @@ class WorldStateManager:
                 if element_data.get('last_updated'):
                     consistency_score += 1
         return round(consistency_score / max(total_elements, 1) * 10, 2) if total_elements > 0 else 10.0
-    def get_characters_cultivation_info(self, novel_title: str, character_names: List[str] = None) -> Dict[str, str]:
+    def get_characters_cultivation_info(self, novel_title: str, character_names: Optional[List[str]] = None) -> Dict[str, str]:
         """获取角色的修为信息，用于生成前情提要"""
         world_state = self.load_previous_assessments(novel_title)
         if not world_state:
@@ -1634,7 +2237,7 @@ class WorldStateManager:
             if cultivation_level:
                 cultivation_info[char_name] = cultivation_level
         return cultivation_info
-    def get_character_comprehensive_status(self, novel_title: str, character_names: List[str] = None) -> Dict:
+    def get_character_comprehensive_status(self, novel_title: str, character_names: Optional[List[str]] = None) -> Dict:
         """获取角色综合状态信息（修为+功法+关系+物品+心理状态）"""
         world_state = self.load_previous_assessments(novel_title)
         character_development = self._load_character_development_data(novel_title)
@@ -1969,7 +2572,7 @@ class WorldStateManager:
         rel_list.extend([{"type": "盟友", "character": ally} for ally in relationships.get("allies", [])])
         rel_list.extend([{"type": "对手", "character": rival} for rival in relationships.get("rivals", [])])
         return rel_list  
-    def get_character_comprehensive_status_enhanced(self, novel_title: str, character_names: List[str] = None) -> Dict:
+    def get_character_comprehensive_status_enhanced(self, novel_title: str, character_names: Optional[List[str]] = None) -> Dict:
         """增强版角色综合状态获取 - 修复版本，合并死亡角色"""
         self.logger.info(f"🔄 开始获取增强版角色综合状态...")
         self.logger.info(f"   小说: {novel_title}")
@@ -2064,7 +2667,7 @@ class WorldStateManager:
             self.logger.info(f"     死亡角色列表: {dead_names}")
         self.logger.info(f"  📊 角色统计: 活跃 {len(alive_characters)} 个, 死亡 {len(dead_characters)} 个")
         return alive_characters
-    def _build_comprehensive_status_from_world_state(self, novel_title: str, character_names: List[str] = None) -> Dict:
+    def _build_comprehensive_status_from_world_state(self, novel_title: str, character_names: Optional[List[str]] = None) -> Dict:
         """从世界状态直接构建综合状态（备用方法）"""
         world_state = self.load_previous_assessments(novel_title)
         character_development = self._load_character_development_data(novel_title)
@@ -2268,4 +2871,251 @@ class WorldStateManager:
         return related
     def get_novel_world_state(self, novel_title: str) -> Dict:
         """获取小说的世界状态（ContentGenerator需要的接口）"""
-        return self.load_previous_assessments(novel_title)    
+        return self.load_previous_assessments(novel_title)
+    
+    def _should_accept_new_character(self, character_name: str, character_data: Dict,
+                                   existing_characters: Dict, current_chapter: int) -> bool:
+        """
+        🔧 新增：新角色准入验证机制
+        
+        对新角色进行多维度验证，避免误将非角色词汇添加到角色表中
+        
+        Args:
+            character_name (str): 角色名称
+            character_data (Dict): 角色数据
+            existing_characters (Dict): 现有角色字典
+            current_chapter (int): 当前章节
+            
+        Returns:
+            bool: 是否接受该新角色
+        """
+        self.logger.info(f"🔍 开始新角色准入验证: {character_name}")
+        
+        # 1. 基础名称验证（再次检查）
+        if not self._is_valid_character_name(character_name):
+            self.logger.info(f"   ❌ 名称验证失败: {character_name}")
+            return False
+        
+        # 2. 长度和结构合理性检查
+        if len(character_name) < 2 or len(character_name) > 6:
+            self.logger.info(f"   ❌ 名称长度不合理: {len(character_name)} 字符")
+            return False
+        
+        # 3. 检查是否为常见的误识别模式
+        suspicious_patterns = [
+            r'.*[剑刀枪戟斧钺钩叉鞭锏锤拐棒].*$',  # 武器名称
+            r'.*[丹药丸散膏汤剂露酒茶].*$',        # 药物名称
+            r'.*[山川湖海江河溪涧泉瀑峰岭崖谷峡].*$',  # 地理名称
+            r'.*[金银铜铁玉石珍珠宝石翡翠玛瑙].*$',  # 宝物名称
+            r'.*[东西南北中上下左右前后].*$',      # 方位词
+            r'.*[的之而是与和在有对把被让给为].*$',  # 功能词
+        ]
+        
+        for pattern in suspicious_patterns:
+            if re.match(pattern, character_name):
+                self.logger.info(f"   ❌ 匹配到可疑模式: {pattern}")
+                return False
+        
+        # 4. 检查角色数据完整性
+        required_fields = ["name"]
+        missing_fields = [field for field in required_fields if field not in character_data]
+        if missing_fields:
+            self.logger.info(f"   ❌ 缺少必需字段: {missing_fields}")
+            return False
+        
+        # 5. 检查是否与现有角色过于相似（可能的重复）
+        for existing_name in existing_characters.keys():
+            similarity = self._calculate_name_similarity(character_name, existing_name)
+            if similarity > 0.8:  # 80%相似度阈值
+                self.logger.info(f"   ❌ 与现有角色过于相似: {existing_name} (相似度: {similarity:.2f})")
+                return False
+        
+        # 6. 章节合理性检查
+        if current_chapter <= 0:
+            self.logger.info(f"   ❌ 章节号无效: {current_chapter}")
+            return False
+        
+        # 7. 角色类型合理性检查
+        role_type = character_data.get("role_type", "")
+        if role_type and len(role_type) > 20:
+            self.logger.info(f"   ❌ 角色类型过长: {len(role_type)} 字符")
+            return False
+        
+        # 8. 特殊情况：如果是双字名称，需要更严格的验证
+        if len(character_name) == 2:
+            # 双字名称必须是常见的姓氏+单字
+            common_surnames = ['王', '李', '张', '刘', '陈', '杨', '黄', '赵', '吴', '周', '徐', '孙', '马', '朱', '胡', '郭']
+            if character_name[0] not in common_surnames:
+                self.logger.info(f"   ❌ 双字名称首字不是常见姓氏: {character_name[0]}")
+                return False
+        
+        # 9. 检查是否为修仙小说中的特殊称谓（这些通常不是个人名字）
+        special_titles = [
+            "剑尊", "刀圣", "药王", "毒皇", "阵仙", "器宗", "丹神", "武圣", "法王", "魔尊",
+            "天尊", "地尊", "人尊", "神尊", "仙尊", "佛尊", "道尊", "儒尊", "魔君", "仙君",
+            "真人", "道人", "仙子", "神君", "天君", "地君", "人君", "星君", "月君", "日君"
+        ]
+        
+        if character_name in special_titles:
+            self.logger.info(f"   ❌ 是特殊称谓而非个人名字: {character_name}")
+            return False
+        
+        # 10. 特殊检查：如果是常见的文学作品人名，放宽其他限制
+        literary_names = [
+            "张三", "李四", "王五", "赵六", "钱七", "孙八", "周九", "吴十", "郑十一",
+            "林黛玉", "贾宝玉", "孙悟空", "猪八戒", "沙和尚", "唐三藏", "宋江", "武松",
+            "林冲", "鲁智深", "杨过", "小龙女", "郭靖", "黄蓉", "张无忌", "赵敏"
+        ]
+        
+        if character_name in literary_names:
+            self.logger.info(f"   ✅ 是常见文学人名，放宽验证: {character_name}")
+            return True
+        
+        # 10. 最终检查：角色名称的"人物感"评估
+        if not self._has_human_like_quality(character_name):
+            self.logger.info(f"   ❌ 缺乏人物感的名称: {character_name}")
+            return False
+        
+        self.logger.info(f"   ✅ 新角色 '{character_name}' 通过所有准入验证")
+        return True
+    
+    def _calculate_name_similarity(self, name1: str, name2: str) -> float:
+        """计算两个名字的相似度"""
+        if not name1 or not name2:
+            return 0.0
+        
+        # 简单的字符重叠度计算
+        set1 = set(name1)
+        set2 = set(name2)
+        intersection = len(set1 & set2)
+        union = len(set1 | set2)
+        
+        if union == 0:
+            return 0.0
+        
+        return intersection / union
+    
+    def _has_human_like_quality(self, name: str) -> bool:
+        """检查名称是否具有人物感"""
+        # 1. 必须包含至少一个常见的人名用字
+        human_name_chars = [
+            '伟', '芳', '娜', '敏', '静', '丽', '强', '磊', '洋', '艳', '勇', '军', '杰', '娟', '涛',
+            '明', '超', '秀英', '霞', '平', '刚', '桂英', '玉兰', '萍', '鹏', '华', '红', '金', '春梅',
+            '龙', '林', '辉', '晨', '宇', '欣', '婷', '琴', '玲', '兰', '琳', '燕', '芳', '萍', '娟',
+            '浩', '宇', '博', '文', '轩', '涵', '梓', '睿', '皓', '辰', '羽', '诺', '晨', '曦', '语',
+            '思', '佳', '梦', '诗', '雨', '晴', '雪', '月', '花', '柳', '风', '云', '天', '地', '山',
+            # 文学作品中的经典人名用字
+            '黛', '玉', '宝', '悟', '空', '无', '忌', '小', '杨', '过', '孙', '欧', '阳', '修', '林', '冲'
+        ]
+        
+        has_human_char = any(char in name for char in human_name_chars)
+        if not has_human_char:
+            return False
+        
+        # 2. 不能全是描述性词汇
+        descriptive_chars = ['大', '小', '老', '少', '新', '旧', '高', '低', '长', '短', '美', '丑', '好', '坏']
+        descriptive_count = sum(1 for char in name if char in descriptive_chars)
+        if descriptive_count >= len(name) * 0.6:  # 如果60%以上都是描述性词汇
+            return False
+        
+        # 3. 特殊检查：如果是三个字的名字，且包含文学经典人名特征，放宽检查
+        if len(name) == 3 and any(char in ['黛', '玉', '宝', '悟', '空', '无', '忌'] for char in name):
+            return True
+        
+        return True
+    
+    def _filter_descriptive_content(self, text: str) -> str:
+        """🔧 新增：过滤文本，移除明显的描述性内容片段"""
+        if not text:
+            return text
+        
+        # 移除明显的描述性段落
+        descriptive_patterns = [
+            r'[^。！？]*的坦诚果断[^。！？]*[。！？]?',  # "墨衍的坦诚果断"这类描述
+            r'[^。！？]*的核心聚焦[^。！？]*[。！？]?',  # "本章核心聚焦于墨衍"这类描述
+            r'[^。！？]*的基本描述[^。！？]*[。！？]?',   # "基本描述"类内容
+            r'[^。！？]*的故事目的[^。！？]*[。！？]?',   # "故事目的"类内容
+            r'[^。！？]*的微妙变化[^。！？]*[。！？]?',   # "微妙变化"类内容
+            r'[^。！？]*的个人立场[^。！？]*[。！？]?',   # "个人立场"类内容
+            r'[^。！？]*的反思过程[^。！？]*[。！？]?',   # "反思过程"类内容
+            r'[^。！？]*从上一章[^。！？]*[。！？]?',     # "从上一章"类过渡描述
+            r'[^。！？]*但实际[^。！？]*[。！？]?',       # "但实际"类对比描述
+            r'[^。！？]*通过[^。！？]*[。！？]?',         # "通过"类过程描述
+            r'[^。！？]*两处体现[^。！？]*[。！？]?',     # "两处体现"类分析描述
+        ]
+        
+        filtered_text = text
+        for pattern in descriptive_patterns:
+            filtered_text = re.sub(pattern, '', filtered_text)
+        
+        return filtered_text
+    
+    def _is_descriptive_phrase(self, name: str, text: str) -> bool:
+        """🔧 新增：判断名称是否为描述性短语"""
+        # 检查名称是否包含描述性关键词
+        descriptive_keywords = [
+            '的', '之', '是', '在', '有', '没有', '可', '可以', '能够', '应该', '需要', '想要', '希望',
+            '感觉', '认为', '知道', '明白', '理解', '发现', '意识到', '察觉', '想到', '预料', '意外',
+            '活跃', '死亡', '生存', '存在', '出现', '消失', '变化', '发展', '成长', '进化', '退化', '转变',
+            '本章', '上一章', '下一章', '核心', '聚焦', '基本', '描述', '目的', '微妙', '变化', '个人', '立场',
+            '反思', '过程', '实际', '通过', '两处', '体现', '坦诚', '果断', '状态', '属性', '特征', '模式'
+        ]
+        
+        # 如果名称包含任何描述性关键词，认为是描述性短语
+        for keyword in descriptive_keywords:
+            if keyword in name:
+                return True
+        
+        # 检查名称的语法结构
+        if '的' in name and len(name) > 4:  # 包含"的"且长度较长，很可能是描述性短语
+            return True
+        
+        # 检查是否在文本中以描述性方式出现
+        context_patterns = [
+            f'{name}：.*？',  # 疑问句式
+            f'{name}是.*',   # 判断句式
+            f'{name}的.*',   # 所属关系
+        ]
+        
+        for pattern in context_patterns:
+            if re.search(pattern, text):
+                return True
+        
+        return False
+    
+    def _is_in_descriptive_context(self, name: str, text: str) -> bool:
+        """🔧 新增：检查名称是否出现在描述性上下文中"""
+        # 获取名称在文本中的所有出现位置
+        import re
+        positions = []
+        for match in re.finditer(re.escape(name), text):
+            positions.append(match.start())
+        
+        for pos in positions:
+            # 获取名称前后的上下文（各50个字符）
+            start = max(0, pos - 50)
+            end = min(len(text), pos + len(name) + 50)
+            context = text[start:end]
+            
+            # 检查上下文是否包含描述性关键词
+            descriptive_indicators = [
+                '基本描述', '故事目的', '角色类型', '重要性', '首次出场', '最后更新', '总出场次数',
+                '核心聚焦', '个人立场', '微妙变化', '反思过程', '情绪状态', '行为模式', '性格特征',
+                '本章', '章节', '从上一章', '但实际', '通过', '两处体现', '的坦诚', '的果断'
+            ]
+            
+            for indicator in descriptive_indicators:
+                if indicator in context:
+                    return True
+            
+            # 检查是否在数据结构或元数据描述中
+            metadata_indicators = [
+                '"name":', '"status":', '"role_type":', '"importance":', '"first_appearance":',
+                '"last_updated":', '"total_appearances":', '"basic_description":', '"purpose_in_story":'
+            ]
+            
+            for indicator in metadata_indicators:
+                if indicator in context:
+                    return True
+        
+        return False
