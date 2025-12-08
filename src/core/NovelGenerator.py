@@ -1235,8 +1235,8 @@ class NovelGenerator:
         # 3. 提取原著名称
         original_work_name = self._extract_original_work_name(combined_text)
         
-        # 4. 获取原著背景资料
-        original_work_info = self._get_original_work_background(original_work_name)
+        # 4. 获取原著背景资料，并传递用户创意信息
+        original_work_info = self._get_original_work_background(original_work_name, creative_work)
         
         print(f"    📚 原著: {original_work_name}")
         print(f"    🌍 世界观: {len(original_work_info.get('worldview', {}))}项")
@@ -1305,65 +1305,6 @@ class NovelGenerator:
                 if work_name != "未知原著":
                     print(f"    🌟 场景匹配到作品: {work_name}")
                     return work_name
-        
-        # 4. 关键词映射匹配（兜底方案）
-        work_mappings = {
-            "哈利波特": "哈利波特",
-            "hp": "哈利波特",
-            "火影忍者": "火影忍者",
-            "火影": "火影忍者",
-            "海贼王": "海贼王",
-            "onepiece": "海贼王",
-            "死神": "死神",
-            "bleach": "死神",
-            "斗罗大陆": "斗罗大陆",
-            "斗罗": "斗罗大陆",
-            "遮天": "遮天",
-            "凡人修仙传": "凡人修仙传",
-            "凡人": "凡人修仙传",
-            "盗墓笔记": "盗墓笔记",
-            "盗墓": "盗墓笔记",
-            "全职高手": "全职高手",
-            "魔道祖师": "魔道祖师",
-            "mdzs": "魔道祖师",
-            "天官赐福": "天官赐福",
-            "tgcf": "天官赐福",
-            "陈情令": "陈情令",
-            "魔道": "魔道祖师",
-            "诛仙": "诛仙",
-            "仙逆": "仙逆",
-            "求魔": "求魔",
-            "我欲封天": "我欲封天",
-            "完美世界": "完美世界",
-            "圣墟": "圣墟",
-            "一世之尊": "一世之尊",
-            "大道争锋": "大道争锋",
-            "剑来": "剑来",
-            "牧神记": "牧神记",
-            "将夜": "将夜",
-            "庆余年": "庆余年",
-            "琅琊榜": "琅琊榜",
-            "甄嬛传": "甄嬛传",
-            "如懿传": "如懿传",
-            "延禧攻略": "延禧攻略",
-            "知否知否": "知否知否应是绿肥红瘦",
-            "知否": "知否知否应是绿肥红瘦",
-            "三体": "三体",
-            "流浪地球": "流浪地球",
-            "全职法师": "全职法师",
-            "大王饶命": "大王饶命",
-            "赘婿": "赘婿",
-            "牧马江南": "牧马江南",
-            "雪中悍刀行": "雪中悍刀行",
-            "雪中": "雪中悍刀行"
-        }
-        
-        for keyword, work_name in work_mappings.items():
-            if keyword in text:
-                print(f"    🔍 关键词匹配到作品: {work_name}")
-                return work_name
-        
-        print(f"    ❌ 未能识别原著作品")
         return "未知原著"
 
     def _normalize_work_name(self, work_name: str) -> str:
@@ -1412,17 +1353,37 @@ class NovelGenerator:
         # 返回清理后的名称
         return cleaned_name if cleaned_name else "未知原著"
 
-    def _get_original_work_background(self, work_name: str) -> dict:
+    def _get_original_work_background(self, work_name: str, creative_work: dict = None) -> dict:
         """
-        获取原著背景资料
+        获取原著背景资料，并整合用户创意设定
         
         Args:
             work_name (str): 原著作品名称
+            creative_work (dict): 用户的创意作品信息，包含coreSetting、coreSellingPoints、completeStoryline等
             
         Returns:
-            dict: 原著背景资料
+            dict: 原著背景资料 + 用户创意设定的综合信息
         """
-        # 预定义的常见作品背景资料
+        print(f"    🔍 获取《{work_name}》背景资料，并整合用户创意设定...")
+        
+        # 1. 首先尝试从知识库文件加载已保存的背景资料
+        knowledge_base_path = f"knowledge_base/{work_name}/original_work_background.json"
+        try:
+            if os.path.exists(knowledge_base_path):
+                with open(knowledge_base_path, 'r', encoding='utf-8') as f:
+                    background_info = json.load(f)
+                print(f"    ✅ 从知识库加载《{work_name}》背景资料成功")
+                
+                # 2. 如果有用户创意设定，将其整合到背景资料中
+                if creative_work:
+                    print(f"    🎨 整合用户创意设定到背景资料中...")
+                    background_info = self._merge_creative_setting_to_background(background_info, creative_work)
+                
+                return background_info
+        except Exception as e:
+            print(f"    ⚠️ 从知识库加载背景资料失败: {e}")
+        
+        # 3. 预定义的常见作品背景资料（作为备选）
         background_database = {
             "哈利波特": {
                 "worldview": {
@@ -1498,31 +1459,167 @@ class NovelGenerator:
             }
         }
         
-        # 如果有预定义资料，直接返回
+        # 4. 如果有预定义资料，获取并整合用户创意
         if work_name in background_database:
-            return background_database[work_name]
+            background_info = background_database[work_name]
+            print(f"    ✅ 使用预定义的《{work_name}》背景资料")
+            
+            # 整合用户创意设定
+            if creative_work:
+                print(f"    🎨 整合用户创意设定到背景资料中...")
+                background_info = self._merge_creative_setting_to_background(background_info, creative_work)
+            
+            return background_info
         
-        # 如果没有预定义资料，尝试通过AI获取
-        return self._fetch_original_work_info_via_ai(work_name)
+        # 5. 如果没有预定义资料，尝试通过AI获取，并整合用户创意
+        background_info = self._fetch_original_work_info_via_ai(work_name, creative_work)
+        return background_info
 
-    def _fetch_original_work_info_via_ai(self, work_name: str) -> dict:
+    def _merge_creative_setting_to_background(self, background_info: dict, creative_work: dict) -> dict:
         """
-        通过AI获取原著背景资料
+        将用户的创意设定整合到原著背景资料中
+        
+        Args:
+            background_info (dict): 原著背景资料
+            creative_work (dict): 用户创意作品信息
+            
+        Returns:
+            dict: 整合后的背景资料
+        """
+        try:
+            # 创建背景资料的副本以避免修改原数据
+            merged_info = background_info.copy()
+            
+            # 添加用户创意设定部分
+            user_creative_setting = {
+                "小说标题": creative_work.get("novelTitle", "未命名"),
+                "核心设定": creative_work.get("coreSetting", "未提供核心设定"),
+                "核心卖点": creative_work.get("coreSellingPoints", "未提供核心卖点"),
+                "故事线": creative_work.get("completeStoryline", {}),
+            }
+            
+            # 如果原著背景中没有用户创意设定部分，则添加
+            if "user_creative_setting" not in merged_info:
+                merged_info["user_creative_setting"] = user_creative_setting
+            
+            # 根据故事线信息，扩展角色和世界观
+            storyline = creative_work.get("completeStoryline", {})
+            if storyline:
+                # 从故事线中提取可能的原创角色
+                original_characters = self._extract_original_characters_from_storyline(storyline)
+                if original_characters:
+                    if "characters" not in merged_info:
+                        merged_info["characters"] = {}
+                    merged_info["characters"].update(original_characters)
+                
+                # 从故事线中提取可能的设定扩展
+                setting_extensions = self._extract_setting_extensions_from_storyline(storyline)
+                if setting_extensions:
+                    if "worldview" not in merged_info:
+                        merged_info["worldview"] = {}
+                    merged_info["worldview"].update(setting_extensions)
+            
+            print(f"    ✅ 成功整合用户创意设定到背景资料")
+            return merged_info
+            
+        except Exception as e:
+            print(f"    ❌ 整合用户创意设定时出错: {e}")
+            return background_info
+    
+    def _extract_original_characters_from_storyline(self, storyline: dict) -> dict:
+        """
+        从故事线中提取原创角色信息
+        
+        Args:
+            storyline (dict): 故事线信息
+            
+        Returns:
+            dict: 原创角色信息
+        """
+        original_characters = {}
+        
+        try:
+            for stage_key, stage_data in storyline.items():
+                if isinstance(stage_data, dict):
+                    summary = stage_data.get("summary", "")
+                    # 简单的角色提取逻辑，可以根据需要扩展
+                    if "主角" in summary and "原创主角" not in original_characters:
+                        original_characters["原创主角"] = "同人小说的主角，拥有特殊金手指"
+                    if "梅凝" in summary and "梅凝" not in original_characters:
+                        original_characters["梅凝"] = "合欢宗女修，容貌绝美，在同人中被主角拯救"
+                    if "慕沛灵" in summary and "慕沛灵" not in original_characters:
+                        original_characters["慕沛灵"] = "落云宗女修，在同人中成为主角道侣"
+        
+        except Exception as e:
+            print(f"    ⚠️ 提取原创角色时出错: {e}")
+        
+        return original_characters
+    
+    def _extract_setting_extensions_from_storyline(self, storyline: dict) -> dict:
+        """
+        从故事线中提取设定扩展信息
+        
+        Args:
+            storyline (dict): 故事线信息
+            
+        Returns:
+            dict: 设定扩展信息
+        """
+        setting_extensions = {}
+        
+        try:
+            for stage_key, stage_data in storyline.items():
+                if isinstance(stage_data, dict):
+                    summary = stage_data.get("summary", "")
+                    # 简单的设定提取逻辑
+                    if "落云宗" in summary:
+                        setting_extensions["落云宗"] = "天南地区的修仙宗门，主角加入的宗门"
+                    if "阴冥之地" in summary:
+                        setting_extensions["阴冥之地"] = "特殊的异空间，与主世界相连"
+                    if "结丹" in summary:
+                        setting_extensions["结丹期"] = "修仙境界之一，凝结金丹的层次"
+        
+        except Exception as e:
+            print(f"    ⚠️ 提取设定扩展时出错: {e}")
+        
+        return setting_extensions
+
+    def _fetch_original_work_info_via_ai(self, work_name: str, creative_work: dict = None) -> dict:
+        """
+        通过AI获取原著背景资料，并整合用户创意设定
         
         Args:
             work_name (str): 原著作品名称
+            creative_work (dict): 用户的创意作品信息
             
         Returns:
-            dict: 原著背景资料
+            dict: 原著背景资料 + 用户创意设定
         """
         print(f"    🤖 通过AI获取《{work_name}》的背景资料...")
+        
+        # 构建包含用户创意信息的提示词
+        creative_info = ""
+        if creative_work:
+            core_setting = creative_work.get("coreSetting", "")
+            core_selling_points = creative_work.get("coreSellingPoints", "")
+            storyline = creative_work.get("completeStoryline", {})
+            
+            creative_info = f"""
+
+【用户创意设定信息】
+核心设定: {core_setting}
+核心卖点: {core_selling_points}
+故事线: {str(storyline)}
+
+请特别注意结合用户的创意设定，在提供原著背景的同时，也要考虑到用户创意中涉及的角色和设定。
+"""
         
         prompt = f"""
 请为作品《{work_name}》提供详细的背景资料，包括但不限于：
 
 1. 世界观设定（地理、时代、社会结构等）
 2. 主要角色（主角、重要配角、反派等）
-3. 力量体系（修炼等级、特殊能力、规则等）
+3. 力量体系（修炼等级、特殊能力、规则等）{creative_info}
 
 请以JSON格式返回，结构如下：
 {{
@@ -1559,20 +1656,39 @@ class NovelGenerator:
                     # 尝试解析JSON
                     background_info = json.loads(result)
                     print(f"    ✅ 成功获取《{work_name}》背景资料")
+                    
+                    # 整合用户创意设定
+                    if creative_work:
+                        background_info = self._merge_creative_setting_to_background(background_info, creative_work)
+                    
                     return background_info
                 except json.JSONDecodeError:
                     print(f"    ⚠️ AI返回格式不正确，返回基础信息")
-                    return {
+                    base_info = {
                         "worldview": {"未知世界": f"《{work_name}》的世界观"},
                         "characters": {"未知角色": f"《{work_name}》的角色"},
                         "power_system": {"未知体系": f"《{work_name}》的力量体系"}
                     }
+                    
+                    # 即使基础信息也要整合用户创意
+                    if creative_work:
+                        base_info = self._merge_creative_setting_to_background(base_info, creative_work)
+                    
+                    return base_info
             else:
                 print(f"    ❌ AI无法获取《{work_name}》的背景资料")
+                
+                # 即使获取失败，也要返回用户创意设定
+                if creative_work:
+                    return self._merge_creative_setting_to_background({}, creative_work)
                 return {}
                 
         except Exception as e:
             print(f"    ❌ 获取《{work_name}》背景资料时出错: {e}")
+            
+            # 即使出错，也要返回用户创意设定
+            if creative_work:
+                return self._merge_creative_setting_to_background({}, creative_work)
             return {}
 
     def _build_fanfiction_refinement_prompt(self, core_setting: str, core_selling_points: str,
