@@ -1060,6 +1060,7 @@ class NovelGenerator:
         【指令精炼层 - 核心方法】
         将用户提供的原始创意JSON，转换为对AI具有高度约束力的、结构化的文本指令。
         并将精炼后的指令保存到文本文件中。
+        如果是同人文，先要提取原小说，原动漫的核心背景资料一起输入，包括不限于世界观，主要角色人物配角，力量体系
 
         Args:
             creative_work (dict): 用户输入的原始创意JSON对象。
@@ -1075,28 +1076,21 @@ class NovelGenerator:
         core_selling_points = creative_work.get("coreSellingPoints", "未提供核心卖点。")
         storyline = creative_work.get("completeStoryline", {})
         
-        # 2. 构建AI精炼提示词
-        refinement_prompt = f"""
-    请将以下小说创意转换为对AI具有高度约束力的、结构化的创作指令：
-
-    【原始创意】
-    核心设定：{core_setting}
-    核心卖点：{core_selling_points}
-    故事线：{storyline}
-
-    【转换要求】
-    1. 将创意转换为严格的AI创作指令，包含世界观边界、绝对禁止事项、阶段性目标
-    2. 强调时间线和地理范围的限制
-    3. 明确角色行为的约束条件
-    4. 突出核心卖点的实现路径
-    5. 用命令式的语言，确保AI必须遵守
-    6. 结构清晰，分为世界观边界、核心卖点执行纲领、分阶段框架等部分
-
-    请生成一个完整的、可直接用作AI Prompt的严格指令：
-    """
+        # 2. 检测是否为同人小说并提取原著背景资料
+        is_fanfiction, original_work_info = self._detect_and_extract_original_work_info(creative_work)
+        
+        # 3. 构建AI精炼提示词
+        if is_fanfiction:
+            refinement_prompt = self._build_fanfiction_refinement_prompt(
+                core_setting, core_selling_points, storyline, original_work_info
+            )
+        else:
+            refinement_prompt = self._build_original_refinement_prompt(
+                core_setting, core_selling_points, storyline
+            )
         
         try:
-            # 3. 调用AI进行真正的精炼
+            # 4. 调用AI进行真正的精炼
             print("  🤖 调用AI进行创意精炼...")
             refined_instruction = self.api_client.call_api(
                 "refine_creative_work_for_ai",
@@ -1107,14 +1101,26 @@ class NovelGenerator:
             
             if not refined_instruction:
                 print("  ⚠️ AI精炼失败，使用基础模板")
-                refined_instruction = self._build_basic_instruction_template(core_setting, core_selling_points, storyline)
+                if is_fanfiction:
+                    refined_instruction = self._build_fanfiction_basic_template(
+                        core_setting, core_selling_points, storyline, original_work_info
+                    )
+                else:
+                    refined_instruction = self._build_basic_instruction_template(
+                        core_setting, core_selling_points, storyline
+                    )
             
-            # 4. 保存到文件
+            # 5. 保存到文件
             try:
                 safe_title = re.sub(r'[\\/*?:"<>|]', "_", novel_title)
                 output_dir = "小说项目"
                 os.makedirs(output_dir, exist_ok=True)
-                output_filepath = os.path.join(output_dir, f"{safe_title}_Refined_AI_Brief.txt")
+                
+                # 为同人小说创建特殊标识的文件名
+                if is_fanfiction:
+                    output_filepath = os.path.join(output_dir, f"{safe_title}_同人_精炼指令.txt")
+                else:
+                    output_filepath = os.path.join(output_dir, f"{safe_title}_Refined_AI_Brief.txt")
                 
                 with open(output_filepath, 'w', encoding='utf-8') as f:
                     f.write(refined_instruction)
@@ -1127,7 +1133,14 @@ class NovelGenerator:
         except Exception as e:
             print(f"❌ AI精炼过程出错: {e}，使用基础模板")
             # 降级到基础模板
-            return self._build_basic_instruction_template(core_setting, core_selling_points, storyline)
+            if is_fanfiction:
+                return self._build_fanfiction_basic_template(
+                    core_setting, core_selling_points, storyline, original_work_info
+                )
+            else:
+                return self._build_basic_instruction_template(
+                    core_setting, core_selling_points, storyline
+                )
 
     def _build_basic_instruction_template(self, core_setting: str, core_selling_points: str, storyline: dict) -> str:
         """构建基础指令模板（降级方案）"""
@@ -1173,6 +1186,574 @@ class NovelGenerator:
         instructions.append("\n" + "="*30)
         instructions.append("\n## 最终指令确认")
         instructions.append("以上所有内容是不可违背的创作铁律。现在，请基于这份【最高指令】，开始你的工作。")
+        
+        return "\n".join(instructions)
+
+    def _detect_and_extract_original_work_info(self, creative_work: dict) -> tuple[bool, dict]:
+        """
+        检测是否为同人小说并提取原著背景资料
+        
+        Args:
+            creative_work (dict): 用户提供的创意作品信息
+            
+        Returns:
+            tuple[bool, dict]: (是否为同人小说, 原著背景资料)
+        """
+        print("  🔍 检测是否为同人小说并提取原著背景资料...")
+        
+        # 1. 提取所有文本内容进行检测
+        core_setting = creative_work.get("coreSetting", "")
+        core_selling_points = creative_work.get("coreSellingPoints", "")
+        storyline = creative_work.get("completeStoryline", {})
+        
+        # 将故事线转换为文本
+        storyline_text = ""
+        if isinstance(storyline, dict):
+            for stage_key, stage_data in storyline.items():
+                if isinstance(stage_data, dict):
+                    storyline_text += f"{stage_data.get('stageName', '')} {stage_data.get('summary', '')} "
+        
+        # 合并所有文本
+        combined_text = f"{core_setting} {core_selling_points} {storyline_text}".lower()
+        
+        # 2. 同人小说关键词检测
+        fanfiction_keywords = [
+            "同人", "穿越", "重生", "异世界", "穿越到", "来到了", "进入了",
+            "动漫", "小说", "游戏", "电影", "电视剧", "原著",
+            "哈利波特", "火影", "海贼王", "死神", "斗罗", "遮天", "凡人修仙传",
+            "盗墓笔记", "全职高手", "魔道祖师", "天官赐福", "陈情令"
+        ]
+        
+        is_fanfiction = any(keyword in combined_text for keyword in fanfiction_keywords)
+        
+        if not is_fanfiction:
+            print("    ❌ 未检测到同人小说特征，按原创作品处理")
+            return False, {}
+        
+        print("    ✅ 检测到同人小说特征，开始提取原著背景资料...")
+        
+        # 3. 提取原著名称
+        original_work_name = self._extract_original_work_name(combined_text)
+        
+        # 4. 获取原著背景资料
+        original_work_info = self._get_original_work_background(original_work_name)
+        
+        print(f"    📚 原著: {original_work_name}")
+        print(f"    🌍 世界观: {len(original_work_info.get('worldview', {}))}项")
+        print(f"    👥 角色: {len(original_work_info.get('characters', {}))}个")
+        print(f"    ⚡ 力量体系: {len(original_work_info.get('power_system', {}))}项")
+        
+        return True, original_work_info
+
+    def _extract_original_work_name(self, text: str) -> str:
+        """
+        从文本中提取原著作品名称 - 精准匹配版本
+        
+        Args:
+            text (str): 待分析的文本
+            
+        Returns:
+            str: 原著作品名称
+        """
+        import re
+        
+        # 1. 精准模式匹配：优先匹配明确的同人文表述
+        precise_patterns = [
+            r'([^，。！？\s]+)同人文',
+            r'([^，。！？\s]+)同人',
+            r'([^，。！？\s]+)同人小说',
+            r'([^，。！？\s]+)衍生',
+            r'([^，。！？\s]+)AU',
+            r'《([^》]+)》同人文',
+            r'《([^》]+)》同人',
+            r'《([^》]+)》同人小说',
+            r'《([^》]+)》衍生'
+        ]
+        
+        for pattern in precise_patterns:
+            matches = re.findall(pattern, text)
+            if matches:
+                work_name = matches[0].strip()
+                # 标准化常见作品名
+                work_name = self._normalize_work_name(work_name)
+                if work_name != "未知原著":
+                    print(f"    🎯 精准匹配到作品: {work_name}")
+                    return work_name
+        
+        # 2. 引号中的书名匹配
+        quoted_names = re.findall(r'《([^》]+)》', text)
+        if quoted_names:
+            work_name = self._normalize_work_name(quoted_names[0])
+            if work_name != "未知原著":
+                print(f"    📖 引号匹配到作品: {work_name}")
+                return work_name
+        
+        # 3. 场景模式匹配
+        scene_patterns = [
+            r'穿越到([^，。！？\s]+)',
+            r'来到了([^，。！？\s]+)',
+            r'进入了([^，。！？\s]+)',
+            r'重生在([^，。！？\s]+)',
+            r'转生到([^，。！？\s]+)',
+            r'重生到([^，。！？\s]+)'
+        ]
+        
+        for pattern in scene_patterns:
+            matches = re.findall(pattern, text)
+            if matches:
+                work_name = self._normalize_work_name(matches[0])
+                if work_name != "未知原著":
+                    print(f"    🌟 场景匹配到作品: {work_name}")
+                    return work_name
+        
+        # 4. 关键词映射匹配（兜底方案）
+        work_mappings = {
+            "哈利波特": "哈利波特",
+            "hp": "哈利波特",
+            "火影忍者": "火影忍者",
+            "火影": "火影忍者",
+            "海贼王": "海贼王",
+            "onepiece": "海贼王",
+            "死神": "死神",
+            "bleach": "死神",
+            "斗罗大陆": "斗罗大陆",
+            "斗罗": "斗罗大陆",
+            "遮天": "遮天",
+            "凡人修仙传": "凡人修仙传",
+            "凡人": "凡人修仙传",
+            "盗墓笔记": "盗墓笔记",
+            "盗墓": "盗墓笔记",
+            "全职高手": "全职高手",
+            "魔道祖师": "魔道祖师",
+            "mdzs": "魔道祖师",
+            "天官赐福": "天官赐福",
+            "tgcf": "天官赐福",
+            "陈情令": "陈情令",
+            "魔道": "魔道祖师",
+            "诛仙": "诛仙",
+            "仙逆": "仙逆",
+            "求魔": "求魔",
+            "我欲封天": "我欲封天",
+            "完美世界": "完美世界",
+            "圣墟": "圣墟",
+            "一世之尊": "一世之尊",
+            "大道争锋": "大道争锋",
+            "剑来": "剑来",
+            "牧神记": "牧神记",
+            "将夜": "将夜",
+            "庆余年": "庆余年",
+            "琅琊榜": "琅琊榜",
+            "甄嬛传": "甄嬛传",
+            "如懿传": "如懿传",
+            "延禧攻略": "延禧攻略",
+            "知否知否": "知否知否应是绿肥红瘦",
+            "知否": "知否知否应是绿肥红瘦",
+            "三体": "三体",
+            "流浪地球": "流浪地球",
+            "全职法师": "全职法师",
+            "大王饶命": "大王饶命",
+            "赘婿": "赘婿",
+            "牧马江南": "牧马江南",
+            "雪中悍刀行": "雪中悍刀行",
+            "雪中": "雪中悍刀行"
+        }
+        
+        for keyword, work_name in work_mappings.items():
+            if keyword in text:
+                print(f"    🔍 关键词匹配到作品: {work_name}")
+                return work_name
+        
+        print(f"    ❌ 未能识别原著作品")
+        return "未知原著"
+
+    def _normalize_work_name(self, work_name: str) -> str:
+        """
+        标准化作品名称，处理常见的变体和简称
+        
+        Args:
+            work_name (str): 原始作品名
+            
+        Returns:
+            str: 标准化后的作品名
+        """
+        # 作品名标准化映射
+        normalizations = {
+            "凡人修仙": "凡人修仙传",
+            "凡人": "凡人修仙传",
+            "斗罗": "斗罗大陆",
+            "火影": "火影忍者",
+            "海贼": "海贼王",
+            "死神": "死神",
+            "魔道": "魔道祖师",
+            "陈情": "陈情令",
+            "天官": "天官赐福",
+            "盗墓": "盗墓笔记",
+            "全职": "全职高手",
+            "知否": "知否知否应是绿肥红瘦",
+            "琅琊": "琅琊榜",
+            "甄嬛": "甄嬛传",
+            "雪中": "雪中悍刀行",
+            "雪中悍刀": "雪中悍刀行"
+        }
+        
+        # 移除常见的修饰词
+        cleaned_name = re.sub(r'(小说|动漫|动画|漫画|电视剧|电影|网文|网文|原著|原作)$', '', work_name.strip())
+        
+        # 检查标准化映射
+        for key, standard_name in normalizations.items():
+            if key in cleaned_name:
+                return standard_name
+        
+        # 如果包含标准名，直接返回
+        for standard_name in normalizations.values():
+            if standard_name in cleaned_name or cleaned_name in standard_name:
+                return standard_name
+        
+        # 返回清理后的名称
+        return cleaned_name if cleaned_name else "未知原著"
+
+    def _get_original_work_background(self, work_name: str) -> dict:
+        """
+        获取原著背景资料
+        
+        Args:
+            work_name (str): 原著作品名称
+            
+        Returns:
+            dict: 原著背景资料
+        """
+        # 预定义的常见作品背景资料
+        background_database = {
+            "哈利波特": {
+                "worldview": {
+                    "魔法世界": "隐藏在麻瓜世界的魔法社会",
+                    "霍格沃茨": "英国最著名的魔法学校",
+                    "四大学院": "格兰芬多、斯莱特林、拉文克劳、赫奇帕奇",
+                    "魔法部": "英国魔法世界的政府机构",
+                    "时间背景": "20世纪90年代的英国"
+                },
+                "characters": {
+                    "哈利波特": "主角，大难不死的男孩",
+                    "赫敏格兰杰": "聪明的女巫，哈利的好友",
+                    "罗恩韦斯莱": "哈利的好友，来自纯血家族",
+                    "邓布利多": "霍格沃茨校长，最伟大的巫师",
+                    "伏地魔": "主要反派，黑魔王",
+                    "斯内普": "魔药课教授，复杂的角色"
+                },
+                "power_system": {
+                    "魔法": "通过魔杖和咒语施放的超自然力量",
+                    "咒语分类": "攻击咒、防御咒、治疗咒、变形咒等",
+                    "魔法生物": "龙、独角兽、凤凰等神奇动物",
+                    "血统": "纯血、混血、麻瓜出身",
+                    "黑魔法": "被禁止的黑暗魔法"
+                }
+            },
+            "火影忍者": {
+                "worldview": {
+                    "忍者世界": "由五个大国和众多小国组成的世界",
+                    "木叶村": "火之国的忍者村",
+                    "忍者体系": "下忍、中忍、上忍、影级",
+                    "尾兽": "九只巨大的查克拉生物",
+                    "时间背景": "架空战国时代后的和平期"
+                },
+                "characters": {
+                    "漩涡鸣人": "主角，九尾人柱力",
+                    "宇智波佐助": "鸣人的对手，宇智波一族幸存者",
+                    "春野樱": "鸣人的队友，医疗忍者",
+                    "旗木卡卡西": "第七班导师， copy忍者",
+                    "自来也": "三忍之一，鸣人的师父",
+                    "大蛇丸": "三忍之一，叛忍"
+                },
+                "power_system": {
+                    "查克拉": "忍术的能量来源",
+                    "忍术": "通过各种结印施放的技巧",
+                    "血继限界": "特定家族遗传的特殊能力",
+                    "写轮眼": "宇智波一族的眼术",
+                    "仙术": "吸收自然能量的修炼方法"
+                }
+            },
+            "斗罗大陆": {
+                "worldview": {
+                    "斗罗大陆": "以武魂为核心的世界",
+                    "武魂殿": "大陆最强势力",
+                    "帝国体系": "天斗帝国、星罗帝国等",
+                    "魂兽森林": "野生魂兽的栖息地",
+                    "时间背景": "剑与魔法的架空世界"
+                },
+                "characters": {
+                    "唐三": "主角，双生武魂",
+                    "小舞": "十万年魂兽化形",
+                    "朱竹清": "幽冥灵猫武魂",
+                    "戴沐白": "白虎武魂",
+                    "奥斯卡": "食物系武魂",
+                    "宁荣荣": "七宝琉璃塔武魂"
+                },
+                "power_system": {
+                    "武魂": "每个人六岁时觉醒的能力",
+                    "魂环": "通过猎杀魂兽获得的能力提升",
+                    "魂技": "魂环提供的技能",
+                    "魂骨": "稀有身体增强",
+                    "境界划分": "魂士、魂师、大魂师、魂尊、魂宗、魂王、魂帝、魂圣、魂斗罗、封号斗罗"
+                }
+            }
+        }
+        
+        # 如果有预定义资料，直接返回
+        if work_name in background_database:
+            return background_database[work_name]
+        
+        # 如果没有预定义资料，尝试通过AI获取
+        return self._fetch_original_work_info_via_ai(work_name)
+
+    def _fetch_original_work_info_via_ai(self, work_name: str) -> dict:
+        """
+        通过AI获取原著背景资料
+        
+        Args:
+            work_name (str): 原著作品名称
+            
+        Returns:
+            dict: 原著背景资料
+        """
+        print(f"    🤖 通过AI获取《{work_name}》的背景资料...")
+        
+        prompt = f"""
+请为作品《{work_name}》提供详细的背景资料，包括但不限于：
+
+1. 世界观设定（地理、时代、社会结构等）
+2. 主要角色（主角、重要配角、反派等）
+3. 力量体系（修炼等级、特殊能力、规则等）
+
+请以JSON格式返回，结构如下：
+{{
+    "worldview": {{
+        "世界名称": "描述",
+        "时代背景": "描述",
+        "社会结构": "描述"
+    }},
+    "characters": {{
+        "角色名": "简要描述",
+        "角色名": "简要描述"
+    }},
+    "power_system": {{
+        "体系名称": "描述",
+        "等级划分": "描述",
+        "特殊能力": "描述"
+    }}
+}}
+
+如果无法识别该作品，请返回空字典。
+"""
+        
+        try:
+            result = self.api_client.call_api(
+                "extract_original_work_background",
+                prompt,
+                0.5,  # 较低创造性，确保准确性
+                purpose="提取原著背景资料"
+            )
+            
+            if result:
+                import json
+                try:
+                    # 尝试解析JSON
+                    background_info = json.loads(result)
+                    print(f"    ✅ 成功获取《{work_name}》背景资料")
+                    return background_info
+                except json.JSONDecodeError:
+                    print(f"    ⚠️ AI返回格式不正确，返回基础信息")
+                    return {
+                        "worldview": {"未知世界": f"《{work_name}》的世界观"},
+                        "characters": {"未知角色": f"《{work_name}》的角色"},
+                        "power_system": {"未知体系": f"《{work_name}》的力量体系"}
+                    }
+            else:
+                print(f"    ❌ AI无法获取《{work_name}》的背景资料")
+                return {}
+                
+        except Exception as e:
+            print(f"    ❌ 获取《{work_name}》背景资料时出错: {e}")
+            return {}
+
+    def _build_fanfiction_refinement_prompt(self, core_setting: str, core_selling_points: str,
+                                          storyline: dict, original_work_info: dict) -> str:
+        """
+        构建同人小说的AI精炼提示词
+        
+        Args:
+            core_setting (str): 核心设定
+            core_selling_points (str): 核心卖点
+            storyline (dict): 故事线
+            original_work_info (dict): 原著背景资料
+            
+        Returns:
+            str: 精炼提示词
+        """
+        # 格式化原著背景资料
+        worldview_text = "\n".join([f"- {k}: {v}" for k, v in original_work_info.get("worldview", {}).items()])
+        characters_text = "\n".join([f"- {k}: {v}" for k, v in original_work_info.get("characters", {}).items()])
+        power_system_text = "\n".join([f"- {k}: {v}" for k, v in original_work_info.get("power_system", {}).items()])
+        
+        # 格式化故事线
+        storyline_text = ""
+        if isinstance(storyline, dict):
+            for stage_key, stage_data in storyline.items():
+                if isinstance(stage_data, dict):
+                    stage_name = stage_data.get('stageName', '未知阶段')
+                    summary = stage_data.get('summary', '无')
+                    arc_goal = stage_data.get('arc_goal', '无')
+                    storyline_text += f"\n### {stage_name}\n- 情节概要: {summary}\n- 强制目标: {arc_goal}\n"
+        
+        prompt = f"""
+你是一位专业的同人小说创作指导AI。请将以下同人小说创意转换为对AI具有高度约束力的、结构化的创作指令。
+
+【原著背景资料】
+世界观设定：
+{worldview_text}
+
+主要角色：
+{characters_text}
+
+力量体系：
+{power_system_text}
+
+【同人创意】
+核心设定：{core_setting}
+核心卖点：{core_selling_points}
+故事线：{storyline_text}
+
+【转换要求】
+1. **严格遵守原著设定**：所有情节必须基于原著世界观，不得违背已知设定
+2. **角色一致性**：确保原著角色的性格、能力、行为模式与原作保持一致
+3. **力量体系遵循**：严格按照原著的力量体系和规则进行创作
+4. **同人创新点**：在尊重原著的基础上，突出同人作品的创新之处
+5. **时间线注意**：明确故事发生的时间节点，避免与原著时间线冲突
+6. **地理范围限制**：明确故事发生的地理范围
+
+请生成包含以下结构的严格指令：
+1. 原著设定约束（世界观、角色、力量体系的绝对遵守条款）
+2. 同人创新框架（在原著基础上的合理创新空间）
+3. 分阶段创作指令（严格遵循原著设定的情节发展）
+4. 禁止事项清单（绝对不能违背的原著铁则）
+
+请生成一个完整的、可直接用作AI Prompt的严格指令：
+"""
+        
+        return prompt
+
+    def _build_original_refinement_prompt(self, core_setting: str, core_selling_points: str,
+                                        storyline: dict) -> str:
+        """
+        构建原创小说的AI精炼提示词
+        
+        Args:
+            core_setting (str): 核心设定
+            core_selling_points (str): 核心卖点
+            storyline (dict): 故事线
+            
+        Returns:
+            str: 精炼提示词
+        """
+        # 格式化故事线
+        storyline_text = ""
+        if isinstance(storyline, dict):
+            for stage_key, stage_data in storyline.items():
+                if isinstance(stage_data, dict):
+                    stage_name = stage_data.get('stageName', '未知阶段')
+                    summary = stage_data.get('summary', '无')
+                    arc_goal = stage_data.get('arc_goal', '无')
+                    storyline_text += f"\n### {stage_name}\n- 情节概要: {summary}\n- 强制目标: {arc_goal}\n"
+        
+        prompt = f"""
+请将以下原创小说创意转换为对AI具有高度约束力的、结构化的创作指令：
+
+【原始创意】
+核心设定：{core_setting}
+核心卖点：{core_selling_points}
+故事线：{storyline_text}
+
+【转换要求】
+1. 将创意转换为严格的AI创作指令，包含世界观边界、绝对禁止事项、阶段性目标
+2. 强调时间线和地理范围的限制
+3. 明确角色行为的约束条件
+4. 突出核心卖点的实现路径
+5. 用命令式的语言，确保AI必须遵守
+6. 结构清晰，分为世界观边界、核心卖点执行纲领、分阶段框架等部分
+
+请生成一个完整的、可直接用作AI Prompt的严格指令：
+"""
+        
+        return prompt
+
+    def _build_fanfiction_basic_template(self, core_setting: str, core_selling_points: str,
+                                       storyline: dict, original_work_info: dict) -> str:
+        """
+        构建同人小说的基础指令模板（降级方案）
+        
+        Args:
+            core_setting (str): 核心设定
+            core_selling_points (str): 核心卖点
+            storyline (dict): 故事线
+            original_work_info (dict): 原著背景资料
+            
+        Returns:
+            str: 基础指令模板
+        """
+        instructions = []
+        instructions.append("# AI创作最高指令：同人小说创作大纲与绝对约束")
+        instructions.append("你是一位专业的同人小说创作AI。以下内容是你本次创作的【唯一真相来源】和【绝对行为准则】。你必须严格、完整、精确地遵循所有指令，任何偏离或遗漏都将被视为任务失败。")
+        
+        instructions.append("\n" + "="*30)
+        instructions.append("\n## 第一部分：原著设定绝对遵守条款")
+        
+        # 添加原著世界观
+        if original_work_info.get("worldview"):
+            instructions.append("\n**原著世界观设定（绝对遵守）：**")
+            for key, value in original_work_info["worldview"].items():
+                instructions.append(f"- {key}: {value}")
+        
+        # 添加原著角色
+        if original_work_info.get("characters"):
+            instructions.append("\n**原著角色设定（必须保持一致性）：**")
+            for name, desc in original_work_info["characters"].items():
+                instructions.append(f"- {name}: {desc}")
+        
+        # 添加原著力量体系
+        if original_work_info.get("power_system"):
+            instructions.append("\n**原著力量体系（严格遵循）：**")
+            for key, value in original_work_info["power_system"].items():
+                instructions.append(f"- {key}: {value}")
+        
+        instructions.append("\n" + "="*30)
+        instructions.append("\n## 第二部分：同人创意与约束")
+        instructions.append(f"\n**核心设定：**\n{core_setting}")
+        
+        instructions.append("\n**绝对禁止事项：**")
+        instructions.append("- **严禁违背原著已知设定**：任何与原著世界观、角色性格、力量体系冲突的内容都是被禁止的")
+        instructions.append("- **严禁角色OOC**：保持原著角色的核心性格特征和行为模式")
+        instructions.append("- **严禁时间线混乱**：确保故事时间与原著时间线不冲突")
+        
+        instructions.append("\n**核心卖点执行纲领：**")
+        instructions.append(f"\n{core_selling_points}")
+        
+        instructions.append("\n" + "="*30)
+        instructions.append("\n## 第三部分：分阶段故事线框架")
+        instructions.append("你必须严格按照以下阶段的设定来构建故事的起承转合。")
+        
+        if storyline:
+            for stage_key, stage_data in storyline.items():
+                stage_name = stage_data.get('stageName', '未知阶段')
+                summary = stage_data.get('summary', '无')
+                arc_goal = stage_data.get('arc_goal', '无')
+                
+                instructions.append(f"\n### {stage_name}")
+                instructions.append(f"- **情节概要：** {summary}")
+                instructions.append(f"- **强制目标：** {arc_goal}")
+                instructions.append(f"- **原著约束：** 确保此阶段的所有内容符合原著设定")
+        
+        instructions.append("\n" + "="*30)
+        instructions.append("\n## 最终指令确认")
+        instructions.append("以上所有内容是不可违背的创作铁律。现在，请基于这份【同人创作最高指令】，开始你的工作。")
         
         return "\n".join(instructions)
 
