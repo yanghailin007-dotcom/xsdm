@@ -39,21 +39,33 @@ class DouBaoImageGenerator:
         # 使用OpenAI客户端，确保只传递支持的参数
         try:
             self.client = OpenAI(
-                base_url=self.base_url,
                 api_key=self.api_key,
+                base_url=self.base_url
             )
+            self.logger.info("✅ OpenAI客户端初始化成功")
         except TypeError as e:
-            if "proxies" in str(e):
-                # 如果proxies参数不被支持，尝试不传递任何额外参数
-                self.logger.info(f"OpenAI客户端不支持proxies参数，尝试基本初始化: {e}")
-                self.client = OpenAI(
-                    api_key=self.api_key,
-                )
-                # 如果base_url也不被支持，设置客户端的base_url属性
-                if hasattr(self.client, 'base_url'):
-                    self.client.base_url = self.base_url
+            if "proxies" in str(e) or "unexpected keyword argument" in str(e):
+                # 如果有不支持的参数，尝试基本初始化
+                self.logger.info(f"OpenAI客户端不支持某些参数，尝试基本初始化: {e}")
+                try:
+                    self.client = OpenAI(
+                        api_key=self.api_key
+                    )
+                    # 手动设置base_url
+                    if hasattr(self.client, 'base_url'):
+                        self.client.base_url = self.base_url
+                        self.logger.info(f"✅ 手动设置base_url: {self.base_url}")
+                    else:
+                        self.logger.warn("⚠️ 无法手动设置base_url")
+                except Exception as init_error:
+                    self.logger.error(f"❌ 基本初始化也失败: {init_error}")
+                    raise init_error
             else:
+                self.logger.error(f"❌ OpenAI客户端初始化失败: {e}")
                 raise e
+        except Exception as e:
+            self.logger.error(f"❌ OpenAI客户端初始化发生异常: {e}")
+            raise e
         
         # 确保输出目录存在
         if FILE_CONFIG['auto_create_dir']:

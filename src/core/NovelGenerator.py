@@ -375,19 +375,24 @@ class NovelGenerator:
     def load_chapter_content(self, chapter_number: int) -> Optional[Dict]:
         """加载指定章节的完整内容"""
         safe_title = re.sub(r'[\\/*?:"<>|]', "_", self.novel_data["novel_title"])
-        chapter_dir = f"小说项目/{safe_title}_章节"
         
-        if not os.path.exists(chapter_dir):
+        # 优先使用新的目录结构
+        chapter_dir1 = Path("小说项目") / safe_title / "chapters"
+        chapter_dir2 = Path("小说项目") / f"{safe_title}_章节"
+        
+        # 选择存在的目录
+        chapter_dir = chapter_dir1 if chapter_dir1.exists() else chapter_dir2
+        
+        if not chapter_dir.exists():
             return None
             
-        for filename in os.listdir(chapter_dir):
-            if filename.startswith(f"第{chapter_number:03d}章_"):
-                try:
-                    with open(f"{chapter_dir}/{filename}", 'r', encoding='utf-8') as f:
-                        return json.load(f)
-                except Exception as e:
-                    print(f"加载第{chapter_number}章内容失败: {e}")
-                    return None
+        for filename in chapter_dir.glob(f"第{chapter_number:03d}章_*.txt"):
+            try:
+                with open(filename, 'r', encoding='utf-8') as f:
+                    return json.load(f)
+            except Exception as e:
+                print(f"加载第{chapter_number}章内容失败: {e}")
+                return None
         return None
 
     def choose_category(self):
@@ -1063,7 +1068,7 @@ class NovelGenerator:
         Returns:
             str: 精炼后的、可直接用作AI Prompt的文本指令。
         """
-        print("⚙️  正在执行【指令精炼】，将人类创意转换为AI必须遵守的硬性指令...")
+        print("正在执行【指令精炼】，将人类创意转换为AI必须遵守的硬性指令...")
 
         # 1. 提取核心组件
         core_setting = creative_work.get("coreSetting", "未提供核心设定。")

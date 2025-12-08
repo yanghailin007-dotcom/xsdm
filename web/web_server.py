@@ -12,6 +12,35 @@ from werkzeug.utils import secure_filename
 import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+# 修复 Windows 系统下的编码问题
+def fix_console_encoding():
+    """修复控制台编码问题"""
+    try:
+        # 设置环境变量
+        os.environ['PYTHONIOENCODING'] = 'utf-8'
+        
+        # 重新配置标准输出
+        if hasattr(sys.stdout, 'reconfigure'):
+            sys.stdout.reconfigure(encoding='utf-8')
+        if hasattr(sys.stderr, 'reconfigure'):
+            sys.stderr.reconfigure(encoding='utf-8')
+        if hasattr(sys.stdin, 'reconfigure'):
+            sys.stdin.reconfigure(encoding='utf-8')
+            
+        # Windows 系统特殊处理
+        if sys.platform == 'win32':
+            import subprocess
+            try:
+                subprocess.run(['chcp', '65001'], shell=True, check=False, capture_output=True)
+            except:
+                pass
+                
+    except Exception:
+        pass
+
+# 在导入其他模块之前先修复编码
+fix_console_encoding()
+
 from src.utils.logger import get_logger
 
 # 创建日志记录器
@@ -108,8 +137,13 @@ class NovelGenerationManager:
                         with open(project_file, 'r', encoding='utf-8') as f:
                             novel_data = json.load(f)
 
-                        # 检查章节目录并加载章节信息
-                        chapter_dir = novel_dir / f"{title}_章节"
+                        # 检查章节目录并加载章节信息 - 优先使用新路径
+                        # 新路径：小说项目/小说名/chapters
+                        chapter_dir = novel_dir / title / "chapters"
+                        if not chapter_dir.exists():
+                            # 旧路径：小说项目/小说名_章节
+                            chapter_dir = novel_dir / f"{title}_章节"
+                        
                         generated_chapters = {}
 
                         if chapter_dir.exists():
@@ -181,27 +215,47 @@ class NovelGenerationManager:
         }
 
         try:
-            # 基础路径
-            quality_base = Path("quality_data")
+            # 基础路径 - 使用新的目录结构
+            novel_base = Path("小说项目") / title
+            quality_base = Path("quality_data")  # 保留作为后备
             chapter_base = Path("chapter_failures")
 
-            # 加载角色发展数据
-            character_file = quality_base / f"{title}_character_development.json"
+            # 加载角色发展数据 - 优先从新路径加载
+            character_file = novel_base / "character_development" / f"{title}_character_development.json"
+            if not character_file.exists():
+                character_file = quality_base / f"{title}_character_development.json"
+            
             if character_file.exists():
                 with open(character_file, 'r', encoding='utf-8') as f:
                     quality_data["character_development"] = json.load(f)
 
-            # 加载世界观数据
-            world_file = quality_base / f"{title}_world_state.json"
+            # 加载世界观数据 - 优先从新路径加载
+            world_file = novel_base / "world_state" / f"{title}_world_state.json"
+            if not world_file.exists():
+                world_file = quality_base / f"{title}_world_state.json"
+            
             if world_file.exists():
                 with open(world_file, 'r', encoding='utf-8') as f:
                     quality_data["world_state"] = json.load(f)
 
-            # 加载事件数据
-            events_file = quality_base / f"{title}_events.json"
+            # 加载事件数据 - 优先从新路径加载
+            events_file = novel_base / "events" / f"{title}_events.json"
+            if not events_file.exists():
+                events_file = quality_base / f"{title}_events.json"
+            
             if events_file.exists():
                 with open(events_file, 'r', encoding='utf-8') as f:
                     quality_data["events"] = json.load(f)
+
+            # 加载思维设定数据 - 新增
+            mindset_files = list((novel_base / "mindset").glob(f"{title}_mindset_*.json"))
+            if mindset_files:
+                quality_data["mindset"] = {}
+                for mindset_file in mindset_files:
+                    with open(mindset_file, 'r', encoding='utf-8') as f:
+                        mindset_data = json.load(f)
+                        character_name = mindset_file.stem.replace(f"{title}_mindset_", "")
+                        quality_data["mindset"][character_name] = mindset_data
 
             # 加载事件详细记录（JSONL格式）
             events_jsonl = quality_base / "events" / f"{title}_events.jsonl"
@@ -466,20 +520,21 @@ class NovelGenerationManager:
             total_chapters = config.get("total_chapters", 50)
             logger.info(f"任务 {task_id}: 📚 开始生成 {total_chapters} 章")
             
-            # 更新进度 - 分阶段更新
-            progress_steps = [
-                (20, "🔧 初始化生成器"),
-                (40, "📋 分析创意种子"),
-                (60, "📝 生成方案"),
-                (80, "📝 生成章节内容"),
-                (95, "🔧 完成生成")
-            ]
+            # 更新进度 - 修复：只在真正完成阶段时更新进度
+            logger.info(f"任务 {task_id}: 🔧 初始化生成器 (20%)")
+            self._update_task_status(task_id, "generating", 20)
             
-            for progress, step_desc in progress_steps:
-                logger.info(f"任务 {task_id}: {step_desc} ({progress}%)")
-                self._update_task_status(task_id, "generating", progress)
+            logger.info(f"任务 {task_id}: 📋 分析创意种子 (40%)")
+            self._update_task_status(task_id, "generating", 40)
+            
+            logger.info(f"任务 {task_id}: 📝 生成方案 (60%)")
+            self._update_task_status(task_id, "generating", 60)
             
             logger.info(f"任务 {task_id}: 🚀 调用 full_auto_generation 方法...")
+            
+            # 在实际生成过程中动态更新进度
+            logger.info(f"任务 {task_id}: 📝 开始实际章节生成 (70%)")
+            self._update_task_status(task_id, "generating", 70)
             
             try:
                 success = novel_generator.full_auto_generation(creative_seed, total_chapters)
@@ -534,8 +589,11 @@ class NovelGenerationManager:
                 logger.info(f"任务 {task_id}: ⚠️ 小说项目目录不存在: {project_dir}")
                 return False
             
-            # 检查具体的小说文件
-            novel_dir = project_dir / f"{safe_title}_章节"
+            # 检查具体的小说文件 - 优先使用新路径
+            novel_dir = project_dir / safe_title / "chapters"
+            if not novel_dir.exists():
+                novel_dir = project_dir / f"{safe_title}_章节"
+            
             if novel_dir.exists():
                 chapter_files = list(novel_dir.glob("*.txt"))
                 logger.info(f"任务 {task_id}: 📚 找到 {len(chapter_files)} 个章节文件")
@@ -1197,7 +1255,9 @@ def get_raw_chapter_data():
         allowed_dirs = [
             str(BASE_DIR / "小说项目"),
             str(BASE_DIR / "chapter_failures"),
-            str(BASE_DIR / "quality_data")
+            str(BASE_DIR / "quality_data"),
+            str(BASE_DIR / "generated_images"),
+            str(BASE_DIR / "logs")
         ]
         
         file_path = file_path.lstrip('/\\')

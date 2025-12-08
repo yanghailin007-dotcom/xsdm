@@ -3816,35 +3816,48 @@ input:checked + .slider:before {
     width: 100% !important;
 }
 
-/* 故事线区域 - 改为全宽布局，与小说标题、简介、卖点保持一致 */
+/* 故事线区域 - 与核心卖点等其他部分保持一致的全宽布局 */
 .creative-editor-modal div[style*="grid-template-columns: 1fr 1fr"] {
     display: block !important;
     width: 100% !important;
+    max-width: 100% !important;
 }
 
-/* 故事线阶段编辑器 - 全宽布局，与小说标题、简介、卖点保持一致 */
+/* 故事线阶段编辑器 - 与核心卖点等其他部分保持一致 */
 .creative-editor-modal div[style*="background: #f9fafb"] {
     background: #f9fafb !important;
     padding: 16px !important;
     border-radius: 8px !important;
     border: 1px solid #e5e7eb !important;
     width: 100% !important;
+    max-width: 100% !important;
     margin-bottom: 20px !important;
+    box-sizing: border-box !important;
 }
 
-/* 故事线阶段输入框 - 占据阶段容器的全宽 */
+/* 故事线阶段输入框 - 与其他输入框保持一致的宽度 */
 .creative-editor-modal .stage-name,
 .creative-editor-modal .stage-description {
     width: 100% !important;
     max-width: 100% !important;
-    padding: 12px !important;
+    padding: 14px 16px !important;
     border: 2px solid #d1d5db !important;
-    border-radius: 8px !important;
-    font-size: 14px !important;
-    margin-bottom: 8px !important;
+    border-radius: 10px !important;
+    font-size: 15px !important;
+    margin-bottom: 12px !important;
     box-sizing: border-box !important;
     background: white !important;
     color: #1f2937 !important;
+    font-weight: 500 !important;
+    transition: all 0.2s !important;
+}
+
+/* 故事线阶段描述文本框特殊样式 */
+.creative-editor-modal .stage-description {
+    min-height: 120px !important;
+    resize: vertical !important;
+    line-height: 1.6 !important;
+    font-family: inherit !important;
 }
 
 /* 其他输入框 - 保持全宽布局 */

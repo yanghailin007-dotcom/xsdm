@@ -3,17 +3,21 @@
 /* 主布局 */
 .cover-generator-layout {
     display: grid;
-    grid-template-columns: 320px 1fr 380px;
+    grid-template-columns: 340px 1fr 400px;
     gap: var(--space-6);
     min-height: calc(100vh - 80px);
     margin-top: var(--space-4);
+    width: 100%;
+    max-width: 100%;
+    overflow: hidden;
 }
 
 /* 响应式设计 */
 @media (max-width: 1200px) {
     .cover-generator-layout {
-        grid-template-columns: 280px 1fr 340px;
+        grid-template-columns: 300px 1fr 360px;
         gap: var(--space-4);
+        width: 100%;
     }
 }
 
@@ -22,6 +26,7 @@
         grid-template-columns: 1fr;
         gap: var(--space-4);
         min-height: auto;
+        width: 100%;
     }
 }
 
@@ -31,6 +36,9 @@
     display: flex;
     flex-direction: column;
     gap: var(--space-4);
+    width: 100%;
+    max-width: 100%;
+    overflow: hidden;
 }
 
 .panel-section {
@@ -41,6 +49,9 @@
     padding: var(--space-5);
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
     transition: all var(--transition-normal);
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
 }
 
 .panel-section:hover {
