@@ -124,7 +124,7 @@ class StagePlanManager:
         self._event_decomposer = self._EventDecomposer(self)
         self._plan_validator = self._PlanValidator(self)
         # 为阶段计划创建专用的存储目录
-        self.plans_dir = Path("./quality_data/plans")
+        self.plans_dir = Path("./小说项目").resolve()
         os.makedirs(self.plans_dir, exist_ok=True)
         # 阶段特性描述（"起承转合"四段式）
         self.stage_characteristics = {
@@ -2223,10 +2223,14 @@ JSON
                 self.logger.info(f"      传入的 plan_data 结构预览 (最多500字符):\n{partial_data_str[:500]}...")
             except Exception as e:
                 self.logger.info(f"      无法打印 plan_data 结构预览: {e}")
-        # 3. 构建安全的文件名
+        # 3. 构建小说项目目录路径
         safe_title = "".join(c for c in novel_title if c.isalnum() or c in (' ', '-', '_')).rstrip()
         safe_title = safe_title.replace(' ', '_')[:50]  # 限制长度
-        file_path = self.plans_dir / f"{safe_title}_{stage_name}_writing_plan.json"
+        novel_project_dir = self.plans_dir / safe_title
+        plans_dir = novel_project_dir / "plans"
+        
+        # 4. 构建文件路径
+        file_path = plans_dir / f"{safe_title}_{stage_name}_writing_plan.json"
         # 4. 准备要写入文件的数据 (确保保存时始终使用标准的包装结构)
         data_to_write = {}
         if "stage_writing_plan" in plan_data:
@@ -2236,7 +2240,7 @@ JSON
         # 5. 执行保存操作（原子写入：先写入临时文件，再重命名）
         try:
             # 确保目录存在
-            os.makedirs(self.plans_dir, exist_ok=True)
+            os.makedirs(plans_dir, exist_ok=True)
             temp_path = file_path.with_suffix('.tmp')
             with open(temp_path, 'w', encoding='utf-8') as f:
                 json.dump(data_to_write, f, ensure_ascii=False, indent=4)
@@ -2250,7 +2254,7 @@ JSON
             return file_path
         except Exception as e:
             self.logger.error(f"  ❌ 保存计划文件 '{file_path}' 失败: {e}")
-            return None
+            return None  # type: ignore
     def _load_plan_from_file(self, stage_name: str) -> Optional[Dict]:
         self.logger.info(f"\n📂 (日志) 开始加载阶段 '{stage_name}' 的计划文件...")
         # --- 策略 1: 尝试使用标准命名约定加载 ---
@@ -2261,7 +2265,9 @@ JSON
             self.logger.warn(f"    - ⚠️ 警告: 小说标题为 'unknown'，可能导致无法找到正确文件。")
         safe_title = "".join(c for c in novel_title if c.isalnum() or c in (' ', '-', '_')).rstrip()
         safe_title = safe_title.replace(' ', '_')[:50]
-        expected_file_path = self.plans_dir / f"{safe_title}_{stage_name}_writing_plan.json"
+        novel_project_dir = self.plans_dir / safe_title
+        plans_dir = novel_project_dir / "plans"
+        expected_file_path = plans_dir / f"{safe_title}_{stage_name}_writing_plan.json"
         self.logger.info(f"    - 正在检查标准路径: {expected_file_path}")
         if expected_file_path.exists():
             # ▼▼▼【核心修复】检查文件是否为空，并增强错误处理 ▼▼▼
@@ -2342,13 +2348,13 @@ JSON
         stage_plan_dict = overall_plans.get("overall_stage_plan", {})
         if not stage_plan_dict:
             self.logger.warn("  ⚠️ 没有可用的整体阶段计划来确定当前阶段")
-            return None
+            return ""
         for stage_name, stage_info in stage_plan_dict.items():
             chapter_range_str = stage_info.get("chapter_range", "")
             if is_chapter_in_range(chapter_number, chapter_range_str):
                 return stage_name
         self.logger.warn(f"  ⚠️ 第{chapter_number}章不在任何已定义的阶段范围内")
-        return None
+        return ""  # 返回空字符串而不是None
     @staticmethod
     def is_chapter_in_range(chapter: int, range_str: str) -> bool:
         try:
