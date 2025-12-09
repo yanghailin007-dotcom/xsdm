@@ -1712,6 +1712,9 @@
         function startProgressMonitoring() {
             if (!currentTaskId) return;
 
+            let hasStartedGeneration = false;
+            let progressHidden = false;
+            
             progressInterval = setInterval(async () => {
                 try {
                     const response = await fetch(`/api/task/${currentTaskId}/status`);
@@ -1720,15 +1723,71 @@
                     const taskStatus = await response.json();
                     updateProgressUI(taskStatus);
 
-                    // 如果任务完成或失败，停止监控
-                    if (taskStatus.status === 'completed' || taskStatus.status === 'failed') {
+                    // 检测是否开始生成小说
+                    if (taskStatus.progress >= 70 && !hasStartedGeneration && taskStatus.status === 'generating') {
+                        hasStartedGeneration = true;
+                        console.log('🚀 检测到小说开始生成，准备隐藏进度条');
+                    }
+                    
+                    // 如果开始生成后，隐藏进度条
+                    if (hasStartedGeneration && !progressHidden) {
+                        hideProgressBar();
+                        progressHidden = true;
+                        
+                        // 停止进度监控，但保留任务状态检查
+                        clearInterval(progressInterval);
+                        progressInterval = setInterval(async () => {
+                            try {
+                                const response = await fetch(`/api/task/${currentTaskId}/status`);
+                                if (!response.ok) return;
+                                
+                                const taskStatus = await response.json();
+                                
+                                // 如果任务完成或失败，处理完成状态
+                                if (taskStatus.status === 'completed' || taskStatus.status === 'failed') {
+                                    clearInterval(progressInterval);
+                                    handleTaskCompletion(taskStatus);
+                                }
+                            } catch (error) {
+                                console.error('任务状态检查失败:', error);
+                            }
+                        }, 10000); // 每10秒检查一次任务状态
+                        
+                        console.log('✅ 进度条已隐藏，小说正在正常生成中...');
+                        
+                        // 显示友好通知
+                        showProgressNotification('小说正在生成中，您可以进行其他操作');
+                    }
+
+                    // 如果任务完成或失败，停止所有监控
+                    if (taskStatus.status === 'completed' || taskStatus === 'failed') {
                         clearInterval(progressInterval);
                         handleTaskCompletion(taskStatus);
                     }
                 } catch (error) {
                     console.error('获取任务状态失败:', error);
                 }
-            }, 2000); // 每2秒查询一次
+            }, 3000); // 改为3秒检查一次，更快响应
+        }
+
+        function hideProgressBar() {
+            // 隐藏加载覆盖层
+            const overlay = document.getElementById('loading-overlay');
+            if (overlay) {
+                overlay.classList.remove('active');
+            }
+            
+            console.log('📖 加载覆盖层已隐藏');
+        }
+
+        function showProgressBar() {
+            // 显示加载覆盖层
+            const overlay = document.getElementById('loading-overlay');
+            if (overlay) {
+                overlay.classList.add('active');
+            }
+            
+            console.log('📊 加载覆盖层已显示');
         }
 
         function updateProgressUI(taskStatus) {
@@ -1790,6 +1849,9 @@
             const msg = document.getElementById('status-message');
 
             setTimeout(() => {
+                // 隐藏进度条
+                hideProgressBar();
+                
                 overlay.classList.remove('active');
 
                 if (taskStatus.status === 'completed') {

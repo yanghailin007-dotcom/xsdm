@@ -1482,19 +1482,236 @@ document.addEventListener('keydown', (event) => {
     }
 });
 
-// 自动刷新进度
-setInterval(async () => {
-    try {
-        const response = await fetch('/api/novel/summary');
-        if (response.ok) {
-            const data = await response.json();
-            document.getElementById('novel-progress').textContent =
-                `${data.chapters_count || 0}/${data.total_chapters || 50}`;
-        }
-    } catch (error) {
-        // 静默处理
+// 自动刷新进度 - 智能版本
+let progressInterval = null;
+let hasStartedGeneration = false;
+let progressHidden = false;
+
+function startProgressMonitoring() {
+    if (progressInterval) {
+        clearInterval(progressInterval);
     }
-}, 5000);
+    
+    progressInterval = setInterval(async () => {
+        try {
+            const response = await fetch('/api/novel/summary');
+            if (response.ok) {
+                const data = await response.json();
+                const currentChapters = data.chapters_count || 0;
+                const totalChapters = data.total_chapters || 50;
+                
+                // 更新进度显示（仅在没有隐藏时显示）
+                const progressElement = document.getElementById('novel-progress');
+                const statusElement = document.getElementById('novel-status');
+                
+                if (!progressHidden && progressElement) {
+                    progressElement.textContent = `${currentChapters}/${totalChapters}`;
+                }
+                
+                // 检测是否开始生成小说
+                if (currentChapters > 0 && !hasStartedGeneration) {
+                    hasStartedGeneration = true;
+                    console.log('🚀 检测到小说开始生成，准备隐藏进度条');
+                }
+                
+                // 如果开始生成后已经有章节，并且不是刚开始，就隐藏进度条
+                if (hasStartedGeneration && currentChapters >= 1 && !progressHidden) {
+                    hideProgressBar();
+                    progressHidden = true;
+                    
+                    // 停止进度监控
+                    clearInterval(progressInterval);
+                    progressInterval = null;
+                    
+                    console.log('✅ 进度条已隐藏 - 小说正在正常生成，可以自由操作');
+                    
+                    // 显示友好通知
+                    showProgressNotification('小说正在生成中，您可以自由浏览和操作');
+                }
+            }
+        } catch (error) {
+            // 静默处理错误
+            console.warn('进度更新失败:', error);
+        }
+    }, 3000); // 改为3秒检查一次，更快响应
+}
+
+function hideProgressBar() {
+    // 隐藏进度显示区域
+    const progressElement = document.getElementById('novel-progress');
+    if (progressElement && progressElement.parentElement) {
+        progressElement.parentElement.style.display = 'none';
+    }
+    
+    // 更新状态为正常浏览
+    const statusElement = document.getElementById('novel-status');
+    if (statusElement) {
+        const statusBadge = statusElement.querySelector('.status-badge');
+        if (statusBadge) {
+            statusBadge.textContent = '可正常浏览';
+            statusBadge.className = 'status-badge status-normal';
+        }
+    }
+    
+    console.log('📖 进度条已隐藏，进入正常浏览模式');
+}
+
+function showProgressBar() {
+    // 显示进度显示区域
+    const progressElement = document.getElementById('novel-progress');
+    if (progressElement && progressElement.parentElement) {
+        progressElement.parentElement.style.display = 'block';
+    }
+    
+    // 更新状态
+    const statusElement = document.getElementById('novel-status');
+    if (statusElement) {
+        const statusBadge = statusElement.querySelector('.status-badge');
+        if (statusBadge) {
+            statusBadge.textContent = '生成中';
+            statusBadge.className = 'status-badge status-generating';
+        }
+    }
+}
+
+// 显示进度通知
+function showProgressNotification(message) {
+    // 检查是否已有通知，避免重复显示
+    const existingNotification = document.querySelector('.progress-notification');
+    if (existingNotification) {
+        return;
+    }
+    
+    const notification = document.createElement('div');
+    notification.className = 'progress-notification';
+    notification.style.cssText = `
+        position: fixed;
+        top: 80px;
+        right: 20px;
+        background: linear-gradient(135deg, #17a2b8, #138496);
+        color: white;
+        padding: 12px 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(23, 162, 184, 0.3);
+        z-index: 10002;
+        font-size: 14px;
+        font-weight: 600;
+        backdrop-filter: blur(10px);
+        animation: slideInRight 0.3s ease-out;
+        max-width: 300px;
+    `;
+    notification.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 16px;">🎉</span>
+            <span>${message}</span>
+        </div>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // 自动移除通知
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.style.animation = 'slideOutRight 0.3s ease-out';
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.parentNode.removeChild(notification);
+                }
+            }, 300);
+        }
+    }, 6000);
+}
+
+// 添加CSS动画样式
+const progressStyle = document.createElement('style');
+progressStyle.textContent = `
+    @keyframes slideInRight {
+        from {
+            opacity: 0;
+            transform: translateX(100px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+    
+    @keyframes slideOutRight {
+        from {
+            opacity: 1;
+            transform: translateX(0);
+        }
+        to {
+            opacity: 0;
+            transform: translateX(100px);
+        }
+    }
+    
+    .status-generating {
+        background: #ffc107 !important;
+        color: #212529 !important;
+    }
+    
+    .status-normal {
+        background: #17a2b8 !important;
+        color: white !important;
+    }
+    
+    .status-completed {
+        background: #28a745 !important;
+        color: white !important;
+    }
+    
+    .status-badge {
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: 600;
+        display: inline-block;
+    }
+`;
+document.head.appendChild(progressStyle);
+
+// 启动进度监控
+startProgressMonitoring();
+
+// 添加手动控制进度条的函数
+function toggleProgressBar() {
+    if (progressHidden) {
+        showProgressBar();
+        progressHidden = false;
+        console.log('📊 进度条已显示');
+    } else {
+        hideProgressBar();
+        progressHidden = true;
+        console.log('📖 进度条已隐藏');
+    }
+}
+
+// 添加全局快捷键支持 (Ctrl+P 切换进度条)
+document.addEventListener('keydown', (event) => {
+    // 防止在输入框中触发
+    if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') {
+        return;
+    }
+    
+    if (event.ctrlKey && event.key === 'p') {
+        event.preventDefault();
+        toggleProgressBar();
+    }
+});
+
+// 页面卸载时清理定时器
+window.addEventListener('beforeunload', () => {
+    if (progressInterval) {
+        clearInterval(progressInterval);
+    }
+});
+
+// 将控制函数暴露到全局作用域，方便调试
+window.toggleProgress = toggleProgressBar;
+window.showProgress = showProgressBar;
+window.hideProgress = hideProgressBar;
 
 // ==================== 原始数据显示功能 ====================
 
