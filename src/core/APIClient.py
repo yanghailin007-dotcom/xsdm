@@ -85,9 +85,9 @@ class APIClient:
         # 检查是否超过最大请求数
         if self.request_count >= self.rate_limit_max_requests:
             wait_time = self.rate_limit_interval - elapsed
-            self.logger.warning(f"⚠️ 频率限制触发!")
-            self.logger.warning(f"   - 请求计数: {self.request_count} >= {self.rate_limit_max_requests}")
-            self.logger.warning(f"   - 需要等待: {wait_time:.2f}s")
+            self.logger.warn(f"⚠️ 频率限制触发!")
+            self.logger.warn(f"   - 请求计数: {self.request_count} >= {self.rate_limit_max_requests}")
+            self.logger.warn(f"   - 需要等待: {wait_time:.2f}s")
             
             if wait_time > 0:
                 self.logger.info(f"⏰ 频率限制: 等待 {wait_time:.1f} 秒...")
@@ -110,7 +110,7 @@ class APIClient:
             self.logger.info(f"📊 频率限制更新:")
             self.logger.info(f"   - 请求计数: {self.request_count}/{self.rate_limit_max_requests}")
             self.logger.info(f"   - 计数开始时间: {self.last_request_time:.2f}")
-    def _load_optimized_prompts(self) -> Dict[str, Dict[str, str]]:
+    def _load_optimized_prompts(self) -> Dict[str, Dict[str, Any]]:
         """加载已优化的提示词"""
         optimized_file = f"{self.optimized_prompts_dir}/optimized_prompts.json"
         if os.path.exists(optimized_file):
@@ -785,14 +785,14 @@ class APIClient:
         datetime_str = datetime.now().strftime("%Y%m%d_%H%M%S")
         # 保存到内存缓存
         self.optimized_prompts[content_type] = {
-            "optimized_system_prompt": optimized_data.get("optimized_system_prompt", ""),
-            "optimized_user_prompt": optimized_data.get("optimized_user_prompt", ""),
-            "improvement_reasons": optimized_data.get("improvement_reasons", []),
-            "optimized_at": datetime_str,
-            "original_system_length": len(original_system),
-            "original_user_length": len(original_user),
-            "optimized_system_length": len(optimized_data.get("optimized_system_prompt", "")),
-            "optimized_user_length": len(optimized_data.get("optimized_user_prompt", ""))
+            "optimized_system_prompt": str(optimized_data.get("optimized_system_prompt", "")),
+            "optimized_user_prompt": str(optimized_data.get("optimized_user_prompt", "")),
+            "improvement_reasons": list(optimized_data.get("improvement_reasons", [])),
+            "optimized_at": str(datetime_str),
+            "original_system_length": int(len(original_system)),
+            "original_user_length": int(len(original_user)),
+            "optimized_system_length": int(len(optimized_data.get("optimized_system_prompt", ""))),
+            "optimized_user_length": int(len(optimized_data.get("optimized_user_prompt", "")))
         }
         # 保存到文件
         self._save_optimized_prompts()
@@ -830,7 +830,7 @@ User Prompt: {len(original_user)} → {len(optimized_data.get('optimized_user_pr
         with open(filename, 'w', encoding='utf-8') as f:
             f.write(content)
         self.logger.info(f"  💾 详细优化报告已保存: {filename}")
-    def get_optimized_prompt(self, content_type: str) -> Optional[Dict[str, str]]:
+    def get_optimized_prompt(self, content_type: str) -> Optional[Dict[str, Any]]:
         """获取优化后的提示词"""
         return self.optimized_prompts.get(content_type)
     def use_optimized_prompt(self, content_type: str) -> bool:
