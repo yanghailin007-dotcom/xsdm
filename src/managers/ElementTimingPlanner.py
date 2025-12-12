@@ -27,7 +27,12 @@ class ElementTimingPlanner:
         total_chapters = novel_data["current_progress"]["total_chapters"]
         # 首先尝试从文件加载现有规划
         if self.project_manager:
-            existing_plan = self.project_manager.load_element_timing_plan(novel_data["novel_title"])
+            # 延迟初始化path_manager到第一次使用时
+            if not self.path_manager:
+                from src.utils.path_manager import path_manager
+                self.path_manager = path_manager
+            
+            existing_plan = self.path_manager.load_element_timing_plan(novel_data["novel_title"])
             if existing_plan:
                 self.logger.info("  ✅ 从文件加载现有元素登场时机规划")
                 self.element_timing_plan = existing_plan
@@ -42,7 +47,10 @@ class ElementTimingPlanner:
             self.element_timing_plan = timing_plan
             novel_data["element_timing_plan"] = timing_plan
             # 保存到文件
-            if self.project_manager:
+            # 使用path_manager或project_manager
+            if self.path_manager:
+                self.path_manager.save_element_timing_plan(novel_data["novel_title"], timing_plan)
+            elif hasattr(self, 'project_manager') and self.project_manager:
                 self.project_manager.save_element_timing_plan(novel_data["novel_title"], timing_plan)
             self.logger.info("  ✅ 元素登场时机规划完成并已保存")
             self._print_timing_plan_summary(timing_plan)
@@ -65,13 +73,27 @@ class ElementTimingPlanner:
             chapter_range = f"{start_chapter}-{end_chapter}"
             schedule = self.get_element_introduction_schedule(chapter_range)
             if schedule:
-                self.project_manager.save_element_introduction_schedule(novel_title, schedule, chapter_range)
+                # 使用path_manager或project_manager
+                if self.path_manager:
+                    # 使用project_manager保存元素引入计划
+                    if hasattr(self, 'project_manager') and self.project_manager:
+                        success = self.project_manager.save_element_introduction_schedule(novel_title, schedule, chapter_range)
+                        if not success:
+                            self.logger.error(f"  ❌ 保存元素引入计划失败")
+                    else:
+                        self.logger.info(f"  ⚠️ path_manager不可用，跳过元素引入计划保存")
+                elif hasattr(self, 'project_manager') and self.project_manager:
+                    self.project_manager.save_element_introduction_schedule(novel_title, schedule, chapter_range)
     def load_timing_plan_from_file(self) -> bool:
         """从文件加载时机规划"""
         if not self.project_manager:
             return False
         novel_title = self.novel_generator.novel_data["novel_title"]
-        timing_plan = self.project_manager.load_element_timing_plan(novel_title)
+        # 使用path_manager或project_manager
+        if self.path_manager:
+            timing_plan = self.path_manager.load_element_timing_plan(novel_title)
+        elif hasattr(self, 'project_manager') and self.project_manager:
+            timing_plan = self.project_manager.load_element_timing_plan(novel_title)
         if timing_plan:
             self.element_timing_plan = timing_plan
             self.novel_generator.novel_data["element_timing_plan"] = timing_plan

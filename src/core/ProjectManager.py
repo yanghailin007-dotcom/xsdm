@@ -14,6 +14,8 @@ import shutil
 from typing import List, Dict, Optional
 from src.utils.logger import get_logger
 from src.utils.seed_utils import ensure_seed_dict
+from src.utils.path_manager import path_manager
+from src.config.path_config import path_config
 class ProjectManager:
     def __init__(self):
         self.logger = get_logger("ProjectManager")
@@ -79,7 +81,7 @@ class ProjectManager:
             self.logger.info(f"❌ 复制项目时发生严重错误: {e}")
             return False
     # ^^^ 以上是新添加的方法 ^^^
-    def find_existing_projects(self, creative_seed: str = None) -> List[Dict]:
+    def find_existing_projects(self, creative_seed: Optional[str] = None) -> List[Dict]:
         """查找现有项目"""
         projects = []
         if not os.path.exists("小说项目/"):
@@ -226,10 +228,7 @@ class ProjectManager:
             traceback.print_exc()
             return None
     def save_single_chapter(self, novel_title: str, chapter_number: int, chapter_data: Dict):
-        """保存单章内容"""
-        safe_title = re.sub(r'[\\/*?:"<>|]', "_", novel_title)
-        chapter_dir = f"小说项目/{safe_title}_章节"
-        os.makedirs(chapter_dir, exist_ok=True)
+        """保存单章内容 - 使用统一路径管理器"""
         # 提取所有章节特定的信息
         chapter_json_data = {
             "chapter_number": chapter_number,
@@ -253,13 +252,13 @@ class ProjectManager:
             # 衔接信息
             "previous_chapter_summary": chapter_data.get("previous_chapters_summary", ""),
         }
-        try:
-            filename = f"{chapter_dir}/第{chapter_number:03d}章_{re.sub(r'[\\/*?:\"<>|]', '_', chapter_data['chapter_title'])}.txt"
-            with open(filename, 'w', encoding='utf-8') as f:
-                json.dump(chapter_json_data, f, ensure_ascii=False, indent=2)
-            self.logger.info(f"  已保存: {filename}")
-        except Exception as e:
-            self.logger.info(f"保存第{chapter_number}章失败: {e}")
+        
+        # 使用路径管理器保存章节
+        success = path_manager.save_chapter(novel_title, chapter_number, chapter_json_data)
+        if success:
+            self.logger.info(f"✅ 第{chapter_number}章已保存到统一路径结构")
+        else:
+            self.logger.error(f"❌ 第{chapter_number}章保存失败")
     def save_project_progress(self, novel_data: Dict):
         """保存项目整体进度"""
         # 防御式编程：如果 novel_title 缺失，使用默认值

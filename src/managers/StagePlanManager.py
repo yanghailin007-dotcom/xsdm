@@ -504,12 +504,23 @@ class StagePlanManager:
         if not stage_name or not plan_data:
             self.logger.error("  ❌ 保存失败：stage_name 或 plan_data 为空。")
             return
-        # 1. 持久化到文件
-        self._save_plan_to_file(stage_name, plan_data)
+        
+        # 获取小说标题
+        novel_title = self.generator.novel_data.get("novel_title", "unknown")
+        
+        # 1. 使用统一路径管理器保存
+        from src.utils.path_manager import path_manager
+        success = path_manager.save_stage_plan(novel_title, stage_name, plan_data)
+        if success:
+            self.logger.info(f"  ✅ 阶段 '{stage_name}' 的计划已通过统一路径管理器保存")
+        else:
+            self.logger.error(f"  ❌ 阶段 '{stage_name}' 的计划保存失败")
+            return
+        
         # 2. 更新内存缓存
         cache_key = f"{stage_name}_writing_plan"
         self.stage_writing_plans_cache[cache_key] = plan_data
-        self.logger.info(f"  ✅ 阶段 '{stage_name}' 的计划已成功持久化并更新缓存。")
+        self.logger.info(f"  ✅ 阶段 '{stage_name}' 的计划已更新缓存")
     def _generate_fallback_scenes_for_chapter(self, chapter_number: int, stage_name: str, 
                                           final_major_events: List[Dict], overall_stage_plan: Dict,
                                           novel_title: str, novel_synopsis: str,

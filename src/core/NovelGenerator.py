@@ -1906,16 +1906,8 @@ class NovelGenerator:
     def _save_writing_style_to_file(self, writing_style: Dict):
         """保存写作风格指南到JSON文件"""
         try:
-            safe_title = re.sub(r'[\\/*?:"<>|]', "_", self.novel_data["novel_title"])
-
-            # 确保小说项目目录存在
-            project_dir = "小说项目"
-            if not os.path.exists(project_dir):
-                os.makedirs(project_dir)
-                print(f"📁 创建目录: {project_dir}")
-
-            # 保存为JSON文件
-            style_file = f"小说项目/{safe_title}_写作风格指南.json"
+            # 使用路径管理器获取正确的路径
+            from src.utils.path_manager import path_manager
             
             # 构建完整的写作风格数据
             style_data = {
@@ -1926,10 +1918,16 @@ class NovelGenerator:
                 "writing_style_guide": writing_style
             }
             
-            with open(style_file, 'w', encoding='utf-8') as f:
-                json.dump(style_data, f, ensure_ascii=False, indent=2)
+            # 使用路径管理器保存，确保保存到正确的项目目录中
+            success = path_manager.save_writing_style_guide(self.novel_data["novel_title"], writing_style)
             
-            print(f"📝 写作风格指南已保存到: {style_file}")
+            if success:
+                # 获取实际保存的路径用于显示
+                paths = path_manager.path_config.get_project_paths(self.novel_data["novel_title"])
+                actual_path = paths["writing_style_guide"]
+                print(f"📝 写作风格指南已保存到: {actual_path}")
+            else:
+                print(f"⚠️ 写作风格指南保存失败")
             
         except Exception as e:
             print(f"⚠️ 保存写作风格指南失败: {e}")
@@ -1947,29 +1945,17 @@ class NovelGenerator:
                     print(f"  ❌ 无法获取小说标题，跳过加载写作风格指南")
                     return None
             
-            safe_title = re.sub(r'[\\/*?:"<>|]', "_", novel_title)
-            style_file = f"小说项目/{safe_title}_写作风格指南.json"
+            # 使用路径管理器加载
+            from src.utils.path_manager import path_manager
             
-            if not os.path.exists(style_file):
-                print(f"  ⚠️ 写作风格指南文件不存在: {style_file}")
-                return None
+            writing_style = path_manager.load_writing_style_guide(novel_title)
             
-            with open(style_file, 'r', encoding='utf-8') as f:
-                file_content = json.load(f)
-            
-            print(f"  ✅ 从文件加载写作风格指南: {style_file}")
-            
-            # 检查文件结构 - 如果是直接包含写作风格指南的字典
-            if isinstance(file_content, dict) and "core_style" in file_content:
-                print(f"  ✅ 检测到直接格式的写作风格指南")
-                return file_content
-            # 如果是包含在 writing_style_guide 字段中的格式
-            elif isinstance(file_content, dict) and "writing_style_guide" in file_content:
-                print(f"  ✅ 检测到嵌套格式的写作风格指南")
-                return file_content["writing_style_guide"]
+            if writing_style:
+                print(f"  ✅ 从文件加载写作风格指南成功")
+                return writing_style
             else:
-                print(f"  ⚠️ 未知的写作风格指南格式: {list(file_content.keys()) if isinstance(file_content, dict) else type(file_content)}")
-                return file_content
+                print(f"  ⚠️ 写作风格指南文件不存在或加载失败")
+                return None
             
         except Exception as e:
             print(f"  ❌ 加载写作风格指南失败: {e}")
