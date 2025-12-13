@@ -2243,13 +2243,52 @@ class ContentGenerator:
     def generate_multiple_plans(self, creative_seed: str, category: str) -> Dict:
         """生成多个不同金手指和主线剧情的小说方案"""
         self.logger.info(f"  🎯 生成3个不同风格的、追求完美的小说方案...")
-        # 核心修改：强化Prompt，从源头要求完美设计
+        
+        # 🆕 检查是否包含背景资料信息
+        background_info_note = ""
+        try:
+            if isinstance(creative_seed, str):
+                # 尝试解析创意种子，检查是否包含背景资料
+                creative_data = json.loads(creative_seed)
+                if "original_work_background" in creative_data:
+                    background_info = creative_data["original_work_background"]
+                    verification_result = background_info.get("verification_result", {})
+                    if verification_result.get("is_credible", False):
+                        work_name = creative_data.get("original_work_name", "未知作品")
+                        credibility_level = verification_result.get("credibility_level", "未知")
+                        confidence_score = verification_result.get("confidence_score", 0)
+                        background_info_note = f"""
+##【🎯 背景资料已验证并可用】
+- 原著作品: {work_name}
+- 可信度等级: {credibility_level}
+- 置信度评分: {confidence_score:.2f}
+- 状态: 背景资料已成功整合，请严格基于这些设定进行创作
+
+【重要提醒】：
+1. 所有方案必须严格遵循提供的背景资料设定
+2. 角色性格、世界观、修炼体系等必须与原著保持一致
+3. 不得与背景资料中的关键设定产生冲突
+4. 充分利用背景资料中的信息来丰富方案设计
+"""
+                        self.logger.info(f"  ✅ 检测到背景资料: {work_name} ({credibility_level}, 置信度: {confidence_score:.2f})")
+                    else:
+                        background_info_note = """
+##【⚠️ 背景资料验证未通过】
+- 状态: 背景资料存在但可信度验证未通过
+- 建议: 请谨慎使用背景资料，以创意种子中的核心设定为准
+"""
+                        self.logger.warn(f"  ⚠️ 背景资料验证未通过，仍将包含在提示中")
+        except (json.JSONDecodeError, Exception) as e:
+            self.logger.debug(f"  📝 创意种子解析失败或无背景资料: {e}")
+        
+        # 核心修改：强化Prompt，从源头要求完美设计，并添加背景资料信息
         full_prompt = f"""
 内容：
 创意种子：{creative_seed}
 小说分类：{category}
+{background_info_note}
 ##【！！！最高指令：追求完美！！！】
-你必须生成3个不同风格的小说方案。对于**每一个方案**，都必须遵守以下“完美主义”规则：
+你必须生成3个不同风格的小说方案。对于**每一个方案**，都必须遵守以下"完美主义"规则：
 1.  **金手指设计 (必须完美)**:
     *   金手指必须具备被市场验证过的，可行的金手指方案。
     *   金手指必须具备高度的【新颖性】和【独特性】。
@@ -2261,7 +2300,8 @@ class ContentGenerator:
     *   卖点必须【可执行性强】，能够在整个长篇故事中被反复、持续地展现和升级。
 3.  **标题约束**: 每个方案的标题都**必须严格控制在4-15个字符之间（包含标点）**。标题要简洁、有冲击力。
 4.  **风格差异**: 3个方案的核心设定（尤其是金手指）和主线发展必须有明显的区别。
-如果无法满足上述对“金手指”和“核心卖点”的完美要求，则视为任务失败。
+5.  **背景资料遵循**: 如果上述背景资料可用，所有方案必须严格基于提供的背景资料进行设计，确保与原著设定一致。
+如果无法满足上述对"金手指"和"核心卖点"的完美要求，则视为任务失败。
 请严格按照你的System Prompt中定义的JSON格式返回结果。
 """
         try:
@@ -2283,3 +2323,180 @@ class ContentGenerator:
             import traceback
             traceback.print_exc()
             return {}
+    
+    def refine_creative_work_for_ai(self, creative_work: dict, novel_title: str) -> str:
+        """
+        【指令精炼层 - 核心方法】
+        将用户提供的原始创意JSON，转换为对AI具有高度约束力的、结构化的文本指令。
+        并将精炼后的指令保存到文本文件中。
+
+        Args:
+            creative_work (dict): 用户输入的原始创意JSON对象。
+            novel_title (str): 小说标题，用于生成文件名。
+
+        Returns:
+            str: 精炼后的、可直接用作AI Prompt的文本指令。
+        """
+        print("⚙️  正在执行【指令精炼】，将人类创意转换为AI必须遵守的硬性指令...")
+        print(f"  📋 输入参数检查:")
+        print(f"    - creative_work类型: {type(creative_work)}")
+        print(f"    - novel_title: {novel_title}")
+        
+        # 1. 提取核心组件
+        core_setting = creative_work.get("coreSetting", "未提供核心设定。")
+        core_selling_points = creative_work.get("coreSellingPoints", "未提供核心卖点。")
+        storyline = creative_work.get("completeStoryline", {})
+        
+        print(f"  📊 核心组件提取:")
+        print(f"    - core_setting长度: {len(core_setting)} 字符")
+        print(f"    - core_selling_points长度: {len(core_selling_points)} 字符")
+        print(f"    - storyline键数量: {len(storyline)} 个")
+        
+        # 2. 构建AI精炼提示词
+        refinement_prompt = f"""
+请将以下小说创意转换为对AI具有高度约束力的、结构化的创作指令：
+
+【原始创意】
+核心设定：{core_setting}
+核心卖点：{core_selling_points}
+故事线：{storyline}
+
+【转换要求】
+1. 将创意转换为严格的AI创作指令，包含世界观边界、绝对禁止事项、阶段性目标
+2. 强调时间线和地理范围的限制
+3. 明确角色行为的约束条件
+4. 突出核心卖点的实现路径
+5. 用命令式的语言，确保AI必须遵守
+6. 结构清晰，分为世界观边界、核心卖点执行纲领、分阶段框架等部分
+
+请生成一个完整的、可直接用作AI Prompt的严格指令：
+        """
+        
+        print(f"  📝 精炼提示词构建完成，长度: {len(refinement_prompt)} 字符")
+        
+        refined_instruction = None
+        try:
+            # 3. 调用AI进行真正的精炼
+            print("  🤖 开始调用AI进行创意精炼...")
+            print(f"  🔍 API客户端检查: {type(self.api_client)}")
+            print(f"  🔍 API客户端方法: {hasattr(self.api_client, 'call_api')}")
+            
+            if not hasattr(self.api_client, 'call_api'):
+                print("  ❌ API客户端缺少call_api方法，尝试使用generate_content_with_retry")
+                if hasattr(self.api_client, 'generate_content_with_retry'):
+                    refined_instruction = self.api_client.generate_content_with_retry(
+                        "refine_creative_work_for_ai",
+                        refinement_prompt,
+                        purpose="创意精炼为AI指令"
+                    )
+                else:
+                    print("  ❌ API客户端没有可用的调用方法")
+            else:
+                refined_instruction = self.api_client.call_api(
+                    "refine_creative_work_for_ai",
+                    refinement_prompt,
+                    0.7,  # 适度创造性
+                    purpose="创意精炼为AI指令"
+                )
+            
+            print(f"  📊 AI调用结果检查:")
+            print(f"    - 结果类型: {type(refined_instruction)}")
+            print(f"    - 结果是否为None: {refined_instruction is None}")
+            if refined_instruction:
+                print(f"    - 结果长度: {len(refined_instruction)} 字符")
+            
+            if not refined_instruction or not isinstance(refined_instruction, str):
+                print("  ⚠️ AI精炼失败或返回无效结果，使用基础模板")
+                refined_instruction = self._build_basic_instruction_template(core_setting, core_selling_points, storyline)
+            else:
+                print("  ✅ AI精炼成功")
+            
+            # 4. 保存到文件
+            print("  💾 开始保存精炼指令到文件...")
+            try:
+                safe_title = re.sub(r'[\\/*?:"<>|]', "_", novel_title)
+                output_dir = "小说项目"
+                os.makedirs(output_dir, exist_ok=True)
+                output_filepath = os.path.join(output_dir, f"{safe_title}_Refined_AI_Brief.txt")
+                
+                print(f"  📁 文件路径: {output_filepath}")
+                
+                with open(output_filepath, 'w', encoding='utf-8') as f:
+                    f.write(refined_instruction)
+                
+                print(f"✅  指令精炼完成，已保存至: {output_filepath}")
+                print(f"✅  文件大小: {len(refined_instruction)} 字符")
+                
+                # 验证文件是否真的被创建
+                if os.path.exists(output_filepath):
+                    file_size = os.path.getsize(output_filepath)
+                    print(f"✅  文件验证成功，实际大小: {file_size} 字节")
+                else:
+                    print(f"❌ 文件验证失败，文件不存在: {output_filepath}")
+                    
+            except Exception as e:
+                print(f"⚠️  保存精炼指令文件失败: {e}")
+                import traceback
+                traceback.print_exc()
+                
+            print(f"✅  refine_creative_work_for_ai方法执行完成")
+            print(f"  📤 返回结果类型: {type(refined_instruction)}")
+            print(f"  📤 返回结果长度: {len(refined_instruction) if refined_instruction else 0} 字符")
+            
+            return refined_instruction
+            
+        except Exception as e:
+            print(f"❌ AI精炼过程出错: {e}")
+            import traceback
+            traceback.print_exc()
+            print("  🔄 降级到基础模板")
+            # 降级到基础模板
+            try:
+                fallback_result = self._build_basic_instruction_template(core_setting, core_selling_points, storyline)
+                print(f"✅  基础模板生成成功，长度: {len(fallback_result)} 字符")
+                return fallback_result
+            except Exception as fallback_error:
+                print(f"❌ 基础模板生成也失败: {fallback_error}")
+                # 返回一个最基本的指令
+                return f"# AI创作指令\n\n请基于以下创意进行创作：\n核心设定：{core_setting}\n核心卖点：{core_selling_points}"
+
+    def _build_basic_instruction_template(self, core_setting: str, core_selling_points: str, storyline: dict) -> str:
+        """
+        构建基础指令模板，当AI精炼失败时使用
+        
+        Args:
+            core_setting (str): 核心设定
+            core_selling_points (str): 核心卖点
+            storyline (dict): 故事线
+            
+        Returns:
+            str: 基础指令模板
+        """
+        template = f"""
+# AI创作指令 - 基础模板
+
+## 世界观边界设定
+- 核心世界观：{core_setting}
+- 严格遵循以上设定，不得自行添加或修改世界观元素
+- 保持设定的逻辑一致性和完整性
+
+## 核心卖点执行纲领
+- 主要卖点：{core_selling_points}
+- 必须在故事中充分展现和强化上述卖点
+- 确保卖点贯穿整个故事主线
+
+## 故事发展框架
+- 故事线概要：{storyline}
+- 按照既定故事线推进情节发展
+- 保持情节的逻辑性和连贯性
+
+## 创作约束
+1. 严格遵守世界观设定，不得自相矛盾
+2. 角色行为必须符合其性格和背景设定
+3. 情节发展要服务核心卖点
+4. 保持故事节奏和张力
+5. 确保内容的创新性和独特性
+
+请严格按照以上指令进行创作。
+        """
+        return template.strip()

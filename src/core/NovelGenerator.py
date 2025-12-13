@@ -231,10 +231,27 @@ class NovelGenerator:
 
         if total_chapters is None:
             total_chapters = self.config.get("defaults", {}).get("total_chapters", 50)
+        temp_title_for_filename = f"未定稿创意_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        
+        if isinstance(creative_seed, str):
+            try:
+                # 尝试解析JSON字符串
+                creative_work_dict = json.loads(creative_seed)
+            except:
+                # 如果解析失败，创建一个基础字典结构
+                creative_work_dict = {
+                    "coreSetting": creative_seed,
+                    "coreSellingPoints": "",
+                    "completeStoryline": {}
+                }
+        else:
+            creative_work_dict = creative_seed
+
+        refined_creative_seed = self.refine_creative_work_for_ai(creative_work_dict, temp_title_for_filename)
 
         try:
             # 预处理：检测同人小说并获取背景资料
-            processed_creative_seed = self._preprocess_creative_seed(creative_seed)
+            processed_creative_seed = self._preprocess_creative_seed(refined_creative_seed)
             
             # 第一步：生成和选择方案
             selected_plan = self.plan_generator.generate_and_select_plan(processed_creative_seed, self.content_generator)
@@ -339,6 +356,142 @@ class NovelGenerator:
         chapter = data.get('chapter', '未知')
         message = data.get('message') or data.get('error', '未知错误')
         print(f"❌ 错误({error_type}) 第{chapter}章: {message}")
+        
+    def refine_creative_work_for_ai(self, creative_work: dict, novel_title: str) -> str:
+        """
+        【指令精炼层 - 核心方法】
+        将用户提供的原始创意JSON，转换为对AI具有高度约束力的、结构化的文本指令。
+        并将精炼后的指令保存到文本文件中。
+
+        Args:
+            creative_work (dict): 用户输入的原始创意JSON对象。
+            novel_title (str): 小说标题，用于生成文件名。
+
+        Returns:
+            str: 精炼后的、可直接用作AI Prompt的文本指令。
+        """
+        print("⚙️  正在执行【指令精炼】，将人类创意转换为AI必须遵守的硬性指令...")
+        print(f"  📋 输入参数检查:")
+        print(f"    - creative_work类型: {type(creative_work)}")
+        print(f"    - novel_title: {novel_title}")
+        
+        # 1. 提取核心组件
+        core_setting = creative_work.get("coreSetting", "未提供核心设定。")
+        core_selling_points = creative_work.get("coreSellingPoints", "未提供核心卖点。")
+        storyline = creative_work.get("completeStoryline", {})
+        
+        print(f"  📊 核心组件提取:")
+        print(f"    - core_setting长度: {len(core_setting)} 字符")
+        print(f"    - core_selling_points长度: {len(core_selling_points)} 字符")
+        print(f"    - storyline键数量: {len(storyline)} 个")
+        
+        # 2. 构建AI精炼提示词
+        refinement_prompt = f"""
+请将以下小说创意转换为对AI具有高度约束力的、结构化的创作指令：
+
+【原始创意】
+核心设定：{core_setting}
+核心卖点：{core_selling_points}
+故事线：{storyline}
+
+【转换要求】
+1. 将创意转换为严格的AI创作指令，包含世界观边界、绝对禁止事项、阶段性目标
+2. 强调时间线和地理范围的限制
+3. 明确角色行为的约束条件
+4. 突出核心卖点的实现路径
+5. 用命令式的语言，确保AI必须遵守
+6. 结构清晰，分为世界观边界、核心卖点执行纲领、分阶段框架等部分
+
+请生成一个完整的、可直接用作AI Prompt的严格指令：
+        """
+        
+        print(f"  📝 精炼提示词构建完成，长度: {len(refinement_prompt)} 字符")
+        
+        refined_instruction = None
+        try:
+            # 3. 调用AI进行真正的精炼
+            print("  🤖 开始调用AI进行创意精炼...")
+            print(f"  🔍 API客户端检查: {type(self.api_client)}")
+            print(f"  🔍 API客户端方法: {hasattr(self.api_client, 'call_api')}")
+            
+            if not hasattr(self.api_client, 'call_api'):
+                print("  ❌ API客户端缺少call_api方法，尝试使用generate_content_with_retry")
+                if hasattr(self.api_client, 'generate_content_with_retry'):
+                    refined_instruction = self.api_client.generate_content_with_retry(
+                        "refine_creative_work_for_ai",
+                        refinement_prompt,
+                        purpose="创意精炼为AI指令"
+                    )
+                else:
+                    print("  ❌ API客户端没有可用的调用方法")
+            else:
+                refined_instruction = self.api_client.call_api(
+                    "refine_creative_work_for_ai",
+                    refinement_prompt,
+                    0.7,  # 适度创造性
+                    purpose="创意精炼为AI指令"
+                )
+            
+            print(f"  📊 AI调用结果检查:")
+            print(f"    - 结果类型: {type(refined_instruction)}")
+            print(f"    - 结果是否为None: {refined_instruction is None}")
+            if refined_instruction:
+                print(f"    - 结果长度: {len(refined_instruction)} 字符")
+            
+            if not refined_instruction or not isinstance(refined_instruction, str):
+                print("  ⚠️ AI精炼失败或返回无效结果，使用基础模板")
+                refined_instruction = self._build_basic_instruction_template(core_setting, core_selling_points, storyline)
+            else:
+                print("  ✅ AI精炼成功")
+            
+            # 4. 保存到文件
+            print("  💾 开始保存精炼指令到文件...")
+            try:
+                safe_title = re.sub(r'[\\/*?:"<>|]', "_", novel_title)
+                output_dir = "小说项目"
+                os.makedirs(output_dir, exist_ok=True)
+                output_filepath = os.path.join(output_dir, f"{safe_title}_Refined_AI_Brief.txt")
+                
+                print(f"  📁 文件路径: {output_filepath}")
+                
+                with open(output_filepath, 'w', encoding='utf-8') as f:
+                    f.write(refined_instruction)
+                
+                print(f"✅  指令精炼完成，已保存至: {output_filepath}")
+                print(f"✅  文件大小: {len(refined_instruction)} 字符")
+                
+                # 验证文件是否真的被创建
+                if os.path.exists(output_filepath):
+                    file_size = os.path.getsize(output_filepath)
+                    print(f"✅  文件验证成功，实际大小: {file_size} 字节")
+                else:
+                    print(f"❌ 文件验证失败，文件不存在: {output_filepath}")
+                    
+            except Exception as e:
+                print(f"⚠️  保存精炼指令文件失败: {e}")
+                import traceback
+                traceback.print_exc()
+                
+            print(f"✅  refine_creative_work_for_ai方法执行完成")
+            print(f"  📤 返回结果类型: {type(refined_instruction)}")
+            print(f"  📤 返回结果长度: {len(refined_instruction) if refined_instruction else 0} 字符")
+            
+            return refined_instruction
+            
+        except Exception as e:
+            print(f"❌ AI精炼过程出错: {e}")
+            import traceback
+            traceback.print_exc()
+            print("  🔄 降级到基础模板")
+            # 降级到基础模板
+            try:
+                fallback_result = self._build_basic_instruction_template(core_setting, core_selling_points, storyline)
+                print(f"✅  基础模板生成成功，长度: {len(fallback_result)} 字符")
+                return fallback_result
+            except Exception as fallback_error:
+                print(f"❌ 基础模板生成也失败: {fallback_error}")
+                # 返回一个最基本的指令
+                return f"# AI创作指令\n\n请基于以下创意进行创作：\n核心设定：{core_setting}\n核心卖点：{core_selling_points}"
 
     # ==================== 预处理方法 ====================
 

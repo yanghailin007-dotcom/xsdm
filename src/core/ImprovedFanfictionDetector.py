@@ -1,16 +1,19 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
-同人小说检测器
-负责检测文本是否为同人小说并提取原著名称，获取背景资料并进行可信度验证
+改进的同人小说检测器
+支持精确的字段级背景资料修正
 """
 
 import re
 import json
 import os
 from typing import Tuple, Dict, Optional
+from .ImprovedContentVerifier import ImprovedContentVerifier, VerificationResult, FieldIssue
 
 
-class FanfictionDetector:
-    """同人小说检测器"""
+class ImprovedFanfictionDetector:
+    """改进的同人小说检测器"""
     
     def __init__(self, api_client=None):
         # 同人小说关键词检测
@@ -44,6 +47,9 @@ class FanfictionDetector:
         # API客户端（用于获取背景资料）
         self.api_client = api_client
         
+        # 使用改进的验证器
+        self.content_verifier = ImprovedContentVerifier()
+        
         # 预定义的常见作品背景资料
         self.background_database = {
             "凡人修仙传": {
@@ -57,7 +63,7 @@ class FanfictionDetector:
                     "韩立": "原著主角，人称'韩老魔'。结丹后期大圆满修士，相貌平平但心智坚韧。修炼《青元剑诀》和《辟邪神雷》，身怀掌天瓶能催熟灵药。与温天仁有私人恩怨",
                     "慕沛灵": "落云宗筑基期女修（关键信息：此时为筑基期，非结丹期），容貌绝美，资质出众。因家族逼迫和宗门内元婴长老觊觎而深陷困境，性格外冷内热",
                     "梅凝": "拥有极其罕见的'通玉凤髓之体'的特殊体质女子，是绝佳的双修鼎炉，因此被魔道修士觊觎。心地善良，性格坚韧，与兄长梅真人相依为命",
-                    "温天仁": "乱星海逆星盟高层修士，结丹后期大圆满修士，修炼《六极真魔功》。与韩立有私人恩怨（关键信息：来自乱星海逆星盟高层，非天南魔道六宗成员，非普通散修），心狠手辣，觊觎梅凝的特殊体质"
+                    "温天仁": "乱星海逆星盟高层修士，结丹后期大圆满修士，修炼《六极真魔功》。与韩立有私人恩怨（关键信息：来自乱星海逆星盟高层，非天南魔道六宗成员，非散修），心狠手辣。"
                 },
                 "power_system": {
                     "体系名称": "凡人流修仙体系",
@@ -211,40 +217,18 @@ class FanfictionDetector:
         # 返回清理后的名称
         return cleaned_name if cleaned_name else "未知原著"
 
-    def get_fanfiction_type(self, text: str) -> str:
+    def get_original_work_background(self, work_name: str, creative_work: Optional[dict] = None) -> Dict:
         """
-        获取同人小说类型
-        
-        Args:
-            text: 文本内容
-            
-        Returns:
-            同人类型（如"动漫衍生"、"男频衍生"等）
-        """
-        has_dongman = any(keyword in text for keyword in ["动漫", "动画", "漫画"])
-        has_tongren = "同人" in text
-        
-        if has_tongren:
-            if has_dongman:
-                return "动漫衍生"
-            else:
-                return "男频衍生"
-        
-        return "未知类型"
-
-    def get_original_work_background(self, work_name: str, creative_work: Optional[dict] = None, content_verifier=None) -> Dict:
-        """
-        获取原著背景资料并进行可信度验证
+        获取原著背景资料并进行精确的字段级修正
         
         Args:
             work_name: 原著作品名称
             creative_work: 用户的创意作品信息
-            content_verifier: 内容验证器实例
             
         Returns:
             Dict: 原著背景资料 + 验证结果
         """
-        print(f"    获取《{work_name}》背景资料并进行可信度验证...")
+        print(f"    获取《{work_name}》背景资料并进行精确修正...")
         
         background_info = None
         background_source = None
@@ -296,12 +280,13 @@ class FanfictionDetector:
                 "is_credible": True,
                 "confidence_score": 1.0,
                 "credibility_level": "high",
-                "issues_found": [],
+                "field_issues": [],
                 "suggestions": [],
                 "verified_facts": [f"来自{background_source}的权威资料"],
                 "unverified_facts": [],
                 "background_source": background_source,
-                "note": f"{background_source}资料，跳过AI验证"
+                "correction_applied": False,
+                "note": f"{background_source}资料，跳过AI验证和修正"
             }
             
             # 输出加载结果摘要
@@ -310,63 +295,48 @@ class FanfictionDetector:
             print(f"       数据来源: {background_source}")
             print(f"       说明: 背景资料为已存在资料，直接使用无需验证")
         else:
-            # 6. 进行可信度验证（仅对AI生成或基础资料）
+            # 6. 进行精确的可信度验证（仅对AI生成或基础资料）
             verification_result = None
-            if content_verifier and background_info:
-                print(f"    开始进行背景资料可信度验证...")
-                verification_result = content_verifier.verify_original_work_background(work_name, background_info)
+            if background_info:
+                print(f"    开始进行精确的背景资料可信度验证...")
+                verification_result = self.content_verifier.verify_original_work_background(work_name, background_info)
                 
-                # 7. 如果可信度不足且配置了API客户端，尝试通过AI重新获取和修正
+                # 7. 如果可信度不足且配置了API客户端，尝试精确的字段级修正
                 if not verification_result.is_credible and self.api_client:
-                    print(f"    [WARNING] 背景资料可信度不足，尝试通过AI重新获取...")
+                    print(f"    [WARNING] 背景资料可信度不足，开始精确字段级修正...")
                     print(f"    置信度: {verification_result.confidence_score:.2f}")
-                    print(f"    发现问题: {len(verification_result.issues_found)}个")
+                    print(f"    发现问题: {len(verification_result.field_issues)}个")
                     
                     # 输出具体问题详情
-                    if verification_result.issues_found:
+                    if verification_result.field_issues:
                         print(f"    具体问题:")
-                        for i, issue in enumerate(verification_result.issues_found, 1):
-                            print(f"      {i}. {issue}")
+                        for i, issue in enumerate(verification_result.field_issues, 1):
+                            print(f"      {i}. [{issue.severity.upper()}] {issue.field_path}: {issue.description}")
                     
-                    # 输出改进建议
-                    if verification_result.suggestions:
-                        print(f"    改进建议:")
-                        for i, suggestion in enumerate(verification_result.suggestions, 1):
-                            print(f"      {i}. {suggestion}")
+                    # 使用修正指导进行精确修正
+                    improved_background = self._apply_targeted_corrections(
+                        work_name, creative_work, background_info, verification_result
+                    )
                     
-                    # 通过AI重新获取背景资料
-                    retry_count = 0
-                    max_retries = 2
-                    
-                    while retry_count < max_retries and not verification_result.is_credible:
-                        retry_count += 1
-                        print(f"    [RETRY] 第{retry_count}次通过AI重新获取背景资料...")
+                    if improved_background:
+                        background_info = improved_background
+                        background_source = "ai_improved"
+                        if creative_work:
+                            background_info = self._merge_creative_setting(background_info, creative_work)
                         
-                        # 使用验证结果改进提示词
-                        improved_background = self._fetch_with_verification_feedback(
-                            work_name, creative_work, verification_result
-                        )
+                        # 重新验证
+                        print(f"    [REVERIFY] 重新验证修正后的背景资料...")
+                        verification_result = self.content_verifier.verify_original_work_background(work_name, background_info)
                         
-                        if improved_background:
-                            background_info = improved_background
-                            background_source = "ai_improved"
-                            if creative_work:
-                                background_info = self._merge_creative_setting(background_info, creative_work)
-                            
-                            # 重新验证
-                            print(f"    [REVERIFY] 重新验证第{retry_count}次修正后的背景资料...")
-                            verification_result = content_verifier.verify_original_work_background(work_name, background_info)
-                            
-                            if verification_result.is_credible:
-                                print(f"    [SUCCESS] AI重新获取后验证通过！")
-                                print(f"    修正后置信度: {verification_result.confidence_score:.2f}")
-                                break
-                            else:
-                                print(f"    [WARNING] 第{retry_count}次AI重新获取后仍未通过验证")
-                                print(f"    当前置信度: {verification_result.confidence_score:.2f}")
-                                print(f"    剩余问题: {len(verification_result.issues_found)}个")
+                        if verification_result.is_credible:
+                            print(f"    [SUCCESS] 精确修正后验证通过！")
+                            print(f"    修正后置信度: {verification_result.confidence_score:.2f}")
                         else:
-                            print(f"    [FAILED] 第{retry_count}次AI重新获取失败")
+                            print(f"    [WARNING] 精确修正后仍未完全通过验证")
+                            print(f"    当前置信度: {verification_result.confidence_score:.2f}")
+                            print(f"    剩余问题: {len(verification_result.field_issues)}个")
+                    else:
+                        print(f"    [FAILED] 精确修正失败")
             
             # 8. 添加验证结果到背景资料中
             if verification_result:
@@ -374,11 +344,19 @@ class FanfictionDetector:
                     "is_credible": verification_result.is_credible,
                     "confidence_score": verification_result.confidence_score,
                     "credibility_level": verification_result.credibility_level.value,
-                    "issues_found": verification_result.issues_found,
+                    "field_issues": [
+                        {
+                            "field_path": issue.field_path,
+                            "issue_type": issue.issue_type,
+                            "severity": issue.severity,
+                            "description": issue.description
+                        } for issue in verification_result.field_issues
+                    ],
                     "suggestions": verification_result.suggestions,
                     "verified_facts": verification_result.verified_facts,
                     "unverified_facts": verification_result.unverified_facts,
-                    "background_source": background_source
+                    "background_source": background_source,
+                    "correction_applied": True
                 }
                 
                 # 输出验证结果摘要
@@ -387,10 +365,252 @@ class FanfictionDetector:
                 print(f"       置信度: {verification_result.confidence_score:.2f}")
                 print(f"       等级: {verification_result.credibility_level.value}")
                 print(f"       数据来源: {background_source}")
-                if verification_result.issues_found:
-                    print(f"       问题数量: {len(verification_result.issues_found)}个")
+                if verification_result.field_issues:
+                    print(f"       问题数量: {len(verification_result.field_issues)}个")
         
         return background_info
+
+    def _apply_targeted_corrections(self, work_name: str, creative_work: Optional[dict],
+                                  current_background: Dict, verification_result: VerificationResult) -> Optional[Dict]:
+        """
+        应用真正的字段级精准修正
+        
+        Args:
+            work_name: 作品名称
+            creative_work: 用户创意作品
+            current_background: 当前背景资料
+            verification_result: 验证结果
+            
+        Returns:
+            修正后的背景资料
+        """
+        if not verification_result.correction_guide:
+            print("    [ERROR] 缺少修正指导，无法进行精确修正")
+            return None
+        
+        correction_guide = verification_result.correction_guide
+        
+        # 构建精确修正提示词
+        correction_prompt = self._build_targeted_correction_prompt(
+            work_name, current_background, correction_guide, creative_work
+        )
+        
+        if not correction_prompt:
+            print("    [ERROR] 无法构建修正提示词")
+            return None
+        
+        try:
+            print("    [AI] 开始真正的字段级精准修正...")
+            result = self.api_client.call_api(
+                "targeted_background_correction",
+                correction_prompt,
+                0.1,  # 极低创造性，确保精确修正
+                purpose="字段级精准背景资料修正"
+            )
+            
+            if result:
+                try:
+                    # 尝试解析JSON补丁
+                    patch_data = json.loads(result)
+                    
+                    # 检查是否为空补丁（无需修改）
+                    if not patch_data or (isinstance(patch_data, dict) and len(patch_data) == 0):
+                        print(f"    [INFO] 无需修正，返回原始数据")
+                        return current_background
+                    
+                    # 应用JSON补丁到原始数据
+                    corrected_background = self._apply_json_patch(current_background, patch_data)
+                    
+                    if corrected_background:
+                        print(f"    [SUCCESS] 字段级精准修正《{work_name}》背景资料成功")
+                        return corrected_background
+                    else:
+                        print(f"    [ERROR] JSON补丁应用失败")
+                        return None
+                            
+                except json.JSONDecodeError as e:
+                    print(f"    [ERROR] 补丁格式不正确: {e}，尝试从文本提取...")
+                    # 尝试从文本中提取JSON
+                    extracted_json = self._extract_json_from_text(result)
+                    if extracted_json:
+                        # 应用提取的补丁
+                        corrected_background = self._apply_json_patch(current_background, extracted_json)
+                        if corrected_background:
+                            print(f"    [SUCCESS] 从文本提取补丁并应用成功")
+                            return corrected_background
+                        else:
+                            print(f"    [FAILED] 提取的补丁应用失败")
+                            return None
+                    else:
+                        print(f"    [FAILED] 无法从文本中提取有效JSON补丁")
+                        return None
+            else:
+                print(f"    [FAILED] AI修正失败")
+                return None
+                
+        except Exception as e:
+            print(f"    [ERROR] 精确修正时出错: {e}")
+            return None
+
+    def _apply_json_patch(self, original_data: Dict, patch_data: Dict) -> Optional[Dict]:
+        """
+        将JSON补丁应用到原始数据上
+        
+        Args:
+            original_data: 原始数据
+            patch_data: 补丁数据
+            
+        Returns:
+            修正后的数据
+        """
+        try:
+            # 创建原始数据的深拷贝
+            result = json.loads(json.dumps(original_data))
+            
+            # 应用补丁
+            for section_name, section_patch in patch_data.items():
+                if section_name in result and isinstance(section_patch, dict):
+                    # 如果是角色部分，需要特殊处理
+                    if section_name == "characters":
+                        for char_name, char_patch in section_patch.items():
+                            if isinstance(char_patch, str):
+                                # 修正角色描述
+                                result[section_name][char_name] = char_patch
+                            elif char_patch is None:
+                                # 删除角色
+                                result[section_name].pop(char_name, None)
+                    else:
+                        # 其他部分直接更新
+                        for key, value in section_patch.items():
+                            if isinstance(value, str):
+                                result[section_name][key] = value
+                            elif value is None:
+                                result[section_name].pop(key, None)
+                else:
+                    # 添加新的部分
+                    if isinstance(section_patch, dict):
+                        result[section_name] = section_patch
+            
+            # 验证修正后的数据结构
+            if self._validate_background_json_structure(result):
+                return result
+            else:
+                print("    [ERROR] 修正后数据结构验证失败")
+                return None
+                
+        except Exception as e:
+            print(f"    [ERROR] 应用JSON补丁时出错: {e}")
+            return None
+
+    def _build_targeted_correction_prompt(self, work_name: str, current_background: Dict,
+                                         correction_guide: Dict, creative_work: Optional[dict]) -> str:
+        """
+        构建真正的字段级精准修正提示词
+        
+        Args:
+            work_name: 作品名称
+            current_background: 当前背景资料
+            correction_guide: 修正指导
+            creative_work: 用户创意作品
+            
+        Returns:
+            修正提示词
+        """
+        # 构建保持不变的字段信息
+        preserve_info = ""
+        if correction_guide.get("preserve_fields"):
+            preserve_info = "\n【保持不变的字段（绝对不能修改）】\n"
+            for field in correction_guide["preserve_fields"]:
+                field_value = self._get_field_value(current_background, field)
+                preserve_info += f"- {field}: \"{field_value}\" - 保持原值不变\n"
+        
+        # 构建需要修正的字段信息
+        modify_info = ""
+        if correction_guide.get("modify_fields"):
+            modify_info = "\n【需要修正的字段（只修改这些）】\n"
+            for field_path, field_info in correction_guide["modify_fields"].items():
+                modify_info += f"- {field_path}:\n"
+                modify_info += f"  当前值: \"{field_info.get('current_value', '')}\"\n"
+                modify_info += f"  问题: {', '.join(field_info.get('issues', []))}\n"
+                modify_info += f"  修正建议: {field_info.get('suggested_fix', '')}\n"
+                modify_info += f"  请根据修正建议提供修正后的值\n"
+        
+        # 构建需要添加的字段信息
+        add_info = ""
+        if correction_guide.get("add_fields"):
+            add_info = "\n【需要添加的字段】\n"
+            for field_path, field_info in correction_guide["add_fields"].items():
+                add_info += f"- {field_path}: \"{field_info.get('suggested_value', '')}\"\n"
+        
+        # 用户创意信息
+        creative_info = ""
+        if creative_work:
+            core_setting = creative_work.get("coreSetting", "")
+            core_selling_points = creative_work.get("coreSellingPoints", "")
+            creative_info = f"""
+【用户创意设定】
+核心设定: {core_setting}
+核心卖点: {core_selling_points}
+
+请确保修正后的背景资料与用户的创意设定保持一致。
+"""
+        
+        prompt = f"""
+你是一个专业的背景资料修正专家。请对《{work_name}》的背景资料进行真正的字段级精准修正。
+
+【当前完整背景资料】
+```json
+{json.dumps(current_background, ensure_ascii=False, indent=2)}
+```
+
+{preserve_info}
+
+{modify_info}
+
+{add_info}
+
+{creative_info}
+
+【关键修正要求】
+1. 【精准修正】只修改上面明确列出的"需要修正的字段"，其他所有字段保持绝对不变
+2. 【绝不重写】严禁重新生成整个JSON，只对有问题的字段进行精确修改
+3. 【保持结构】保持原有的JSON结构和字段顺序不变
+4. 【基于事实】修正必须基于提供的修正建议，确保符合原著设定
+5. 【最小改动】只修改必要的部分，避免不必要的文字调整
+
+【输出格式】
+请只返回需要修改的字段的JSON补丁，格式如下：
+```json
+{{
+    "characters": {{
+        "角色名": "修正后的描述"
+    }}
+}}
+```
+
+注意：只需要输出需要修改的部分，不要输出完整的JSON。如果没有任何字段需要修改，请返回：{{}}
+"""
+        return prompt
+
+    def _get_field_value(self, data: Dict, field_path: str) -> str:
+        """
+        根据字段路径获取字段值
+        
+        Args:
+            data: 数据字典
+            field_path: 字段路径，如 "characters.韩立"
+            
+        Returns:
+            字段值
+        """
+        try:
+            keys = field_path.split('.')
+            current = data
+            for key in keys:
+                current = current[key]
+            return str(current) if current is not None else ""
+        except (KeyError, TypeError):
+            return ""
 
     def _load_from_knowledge_base(self, work_name: str) -> Optional[Dict]:
         """从知识库文件加载背景资料"""
@@ -422,7 +642,6 @@ class FanfictionDetector:
         except Exception as e:
             print(f"    从知识库加载背景资料失败: {e}")
         
-        # 注意：不再在这里检查预定义资料，让主方法处理
         return None
 
     def _convert_simplified_to_standard_format(self, simplified_data: Dict) -> Dict:
@@ -737,114 +956,6 @@ class FanfictionDetector:
         except Exception as e:
             print(f"    整合用户创意设定时出错: {e}")
             return background_info
-
-    def _fetch_with_verification_feedback(self, work_name: str, creative_work: Optional[dict], verification_result) -> Optional[Dict]:
-        """根据验证结果反馈重新获取背景资料"""
-        if not self.api_client:
-            return None
-        
-        # 构建基于验证结果的改进提示词
-        issues_feedback = ""
-        if verification_result.issues_found:
-            issues_feedback = f"\n【需要特别注意的问题】\n"
-            for issue in verification_result.issues_found:
-                issues_feedback += f"- {issue}\n"
-        
-        suggestions_feedback = ""
-        if verification_result.suggestions:
-            suggestions_feedback = f"\n【改进建议】\n"
-            for suggestion in verification_result.suggestions:
-                suggestions_feedback += f"- {suggestion}\n"
-        
-        creative_info = ""
-        if creative_work:
-            core_setting = creative_work.get("coreSetting", "")
-            core_selling_points = creative_work.get("coreSellingPoints", "")
-            creative_info = f"""
-【用户创意设定】
-核心设定: {core_setting}
-核心卖点: {core_selling_points}
-"""
-        
-        prompt = f"""
-之前的背景资料获取存在问题，请根据以下反馈重新提供《{work_name}》的准确背景资料：
-
-{issues_feedback}
-{suggestions_feedback}
-
-{creative_info}
-
-请特别确保提供的信息准确无误，尤其是：
-1. 角色的修为等级和身份归属要准确
-2. 势力关系和地理位置要正确
-3. 时间线和事件顺序要符合原著
-
-请严格按照以下JSON格式返回准确的背景资料：
-{{
-    "worldview": {{
-        "世界名称": "描述",
-        "时代背景": "描述",
-        "社会结构": "描述"
-    }},
-    "characters": {{
-        "角色名": "简要描述",
-        "角色名": "简要描述"
-    }},
-    "power_system": {{
-        "体系名称": "描述",
-        "等级划分": "描述",
-        "特殊能力": "描述"
-    }}
-}}
-
-注意：必须严格遵循上述JSON结构，不要添加其他字段或修改字段名称。
-"""
-        
-        try:
-            result = self.api_client.call_api(
-                "improve_original_work_background",
-                prompt,
-                0.3,  # 更低创造性，确保准确性
-                purpose="改进原著背景资料"
-            )
-            
-            if result:
-                try:
-                    # 尝试解析JSON
-                    background_info = json.loads(result)
-                    
-                    # 验证JSON结构是否正确
-                    if self._validate_background_json_structure(background_info):
-                        print(f"    成功改进《{work_name}》背景资料")
-                        return background_info
-                    else:
-                        print(f"    改进后JSON结构不正确，缺少必要字段")
-                        # 尝试修复JSON结构
-                        fixed_info = self._fix_json_structure(background_info)
-                        if fixed_info:
-                            print(f"    成功修复JSON结构")
-                            return fixed_info
-                        else:
-                            print(f"    无法修复JSON结构")
-                            return None
-                            
-                except json.JSONDecodeError as e:
-                    print(f"    改进后格式不正确: {e}")
-                    # 尝试从文本中提取JSON
-                    extracted_json = self._extract_json_from_text(result)
-                    if extracted_json:
-                        print(f"    从文本中成功提取JSON")
-                        return extracted_json
-                    else:
-                        print(f"    无法从文本中提取有效JSON")
-                        return None
-            else:
-                print(f"    改进背景资料失败")
-                return None
-                
-        except Exception as e:
-            print(f"    改进背景资料时出错: {e}")
-            return None
 
     def _validate_background_json_structure(self, data: dict) -> bool:
         """验证背景资料JSON结构是否正确"""

@@ -136,6 +136,79 @@ class PlanGenerator:
         instructions.append("\n## 第一部分：世界观与不可逾越的边界")
         instructions.append(f"\n**核心设定：**\n{core_setting}")
         
+        # 🆕 添加背景资料信息（如果有）
+        original_work_background = creative_work.get("original_work_background")
+        if original_work_background:
+            instructions.append("\n**【背景资料参考】**：")
+            instructions.append("以下是原著作品的背景资料，你必须严格遵循这些设定进行创作：")
+            
+            # 提取并格式化背景资料的关键信息
+            background_data = original_work_background.get("background_data", {})
+            if background_data:
+                # 世界观信息
+                worldview = background_data.get("世界观", {})
+                if worldview:
+                    instructions.append(f"\n- **世界观背景**: {json.dumps(worldview, ensure_ascii=False)}")
+                
+                # 角色信息
+                characters = background_data.get("角色模板", {})
+                if characters:
+                    key_characters = {}
+                    # 只提取主要角色，避免信息过载
+                    for char_name, char_data in list(characters.items())[:5]:
+                        if char_data.get("重要性", "") == "主角" or char_name in ["韩立", "南宫婉", "慕沛灵", "梅凝"]:
+                            key_characters[char_name] = {
+                                "身份": char_data.get("身份", ""),
+                                "修为": char_data.get("修为", ""),
+                                "性格": char_data.get("性格", ""),
+                                "重要关系": char_data.get("重要关系", "")
+                            }
+                    if key_characters:
+                        instructions.append(f"\n- **主要角色设定**: {json.dumps(key_characters, ensure_ascii=False, indent=2)}")
+                
+                # 修炼体系
+                power_system = background_data.get("修炼体系", {})
+                if power_system:
+                    instructions.append(f"\n- **修炼体系**: {json.dumps(power_system, ensure_ascii=False)}")
+                
+                # 门派势力
+                sects = background_data.get("门派势力", {})
+                if sects:
+                    key_sects = {}
+                    # 只提取重要门派
+                    for sect_name, sect_data in list(sects.items())[:3]:
+                        key_sects[sect_name] = {
+                            "性质": sect_data.get("性质", ""),
+                            "特点": sect_data.get("特点", ""),
+                            "重要人物": sect_data.get("重要人物", "")
+                        }
+                    if key_sects:
+                        instructions.append(f"\n- **主要门派势力**: {json.dumps(key_sects, ensure_ascii=False, indent=2)}")
+                
+                # 剧情元素
+                plot_elements = background_data.get("剧情元素", {})
+                if plot_elements:
+                    key_plots = {}
+                    # 只提取关键剧情元素
+                    for plot_key, plot_data in list(plot_elements.items())[:3]:
+                        key_plots[plot_key] = plot_data
+                    if key_plots:
+                        instructions.append(f"\n- **关键剧情元素**: {json.dumps(key_plots, ensure_ascii=False, indent=2)}")
+            
+            # 添加验证结果信息
+            verification_result = original_work_background.get("verification_result")
+            if verification_result:
+                credibility_level = verification_result.get("credibility_level", "未知")
+                confidence_score = verification_result.get("confidence_score", 0)
+                instructions.append(f"\n- **背景资料可信度**: {credibility_level} (置信度: {confidence_score:.2f})")
+                
+                # 如果有问题，添加警告
+                issues_found = verification_result.get("issues_found", [])
+                if issues_found:
+                    instructions.append(f"\n- **需要注意的问题**: {', '.join(issues_found[:3])}")
+            
+            instructions.append("\n【重要提醒】：所有方案设计必须严格基于以上背景资料，确保与原著设定一致。")
+        
         # 自动生成否定约束
         negative_constraints = []
         if "凡人" in core_setting and "落云宗" in core_setting:
