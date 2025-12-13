@@ -119,6 +119,9 @@ class NovelGenerationManager:
     def load_existing_novels(self):
         """从文件系统加载已存在的小说项目"""
         try:
+            # 导入路径配置
+            from src.config.path_config import path_config
+            
             novel_dir = Path("小说项目")
             if not novel_dir.exists():
                 logger.info("📁 小说项目目录不存在，将在首次生成时创建")
@@ -137,55 +140,71 @@ class NovelGenerationManager:
                         with open(project_file, 'r', encoding='utf-8') as f:
                             novel_data = json.load(f)
 
-                        # 检查章节目录并加载章节信息 - 优先使用新路径
-                        # 新路径：小说项目/小说名/chapters
-                        chapter_dir = novel_dir / title / "chapters"
-                        if not chapter_dir.exists():
-                            # 旧路径：小说项目/小说名_章节
-                            chapter_dir = novel_dir / f"{title}_章节"
+                        # 使用新的路径配置系统获取章节目录
+                        paths = path_config.get_project_paths(title)
+                        chapter_dirs = [
+                            Path(paths["chapters_dir"]),  # 新路径：小说项目/小说名/chapters
+                            novel_dir / f"{title}_章节",   # 旧路径：小说项目/小说名_章节
+                            novel_dir / title / "chapters"  # 兼容路径：小说项目/小说名/chapters
+                        ]
                         
                         generated_chapters = {}
+                        actual_chapter_dir = None
 
-                        if chapter_dir.exists():
-                            for chapter_file in chapter_dir.glob("第*.txt"):
-                                # 提取章节号
-                                try:
-                                    chapter_num = int(chapter_file.name.split("章")[0].replace("第", ""))
-                                    with open(chapter_file, 'r', encoding='utf-8') as cf:
-                                        file_content = cf.read()
-
-                                    # 尝试解析JSON文件并提取内容
+                        # 尝试从多个可能的章节目录加载
+                        for chapter_dir in chapter_dirs:
+                            if chapter_dir.exists():
+                                actual_chapter_dir = chapter_dir
+                                logger.info(f"📂 使用章节目录: {chapter_dir}")
+                                
+                                # 查找章节文件（支持.txt和.json格式）
+                                chapter_files = list(chapter_dir.glob("第*.txt")) + list(chapter_dir.glob("第*.json"))
+                                
+                                for chapter_file in chapter_files:
+                                    # 提取章节号
                                     try:
-                                        chapter_json = json.loads(file_content)
-                                        chapter_content = chapter_json.get("content", file_content)
-                                        chapter_title = chapter_json.get("chapter_title", chapter_file.name.replace(".txt", "").split("_", 1)[-1])
-                                        chapter_word_count = chapter_json.get("word_count", len(chapter_content))
+                                        chapter_num = int(re.search(r'第(\d+)章', chapter_file.name).group(1))
+                                        with open(chapter_file, 'r', encoding='utf-8') as cf:
+                                            file_content = cf.read()
 
-                                        # 添加调试日志
-                                        if "quality_assessment" in chapter_json:
-                                            logger.info(f"🔍 {title} 第{chapter_num}章 - JSON格式，包含质量评估数据")
-                                        else:
-                                            logger.info(f"📄 {title} 第{chapter_num}章 - JSON格式，无质量评估数据")
-                                    except json.JSONDecodeError:
-                                        # 如果不是JSON格式，直接使用原始内容
-                                        chapter_content = file_content
-                                        chapter_title = chapter_file.name.replace(".txt", "").split("_", 1)[-1]
-                                        chapter_word_count = len(chapter_content)
-                                        logger.info(f"📝 {title} 第{chapter_num}章 - 纯文本格式")
+                                        # 尝试解析JSON文件并提取内容
+                                        try:
+                                            chapter_json = json.loads(file_content)
+                                            chapter_content = chapter_json.get("content", file_content)
+                                            chapter_title = chapter_json.get("chapter_title", chapter_file.stem.replace("第", "").replace("章", ""))
+                                            chapter_word_count = chapter_json.get("word_count", len(chapter_content))
 
-                                    generated_chapters[chapter_num] = {
-                                        "chapter_number": chapter_num,
-                                        "title": chapter_title,
-                                        "content": chapter_content,
-                                        "word_count": chapter_word_count,
-                                        "file_path": str(chapter_file)
-                                    }
-                                except Exception as e:
-                                    logger.info(f"⚠️ 加载章节 {chapter_file.name} 失败: {e}")
+                                            # 添加调试日志
+                                            if "quality_assessment" in chapter_json:
+                                                logger.info(f"🔍 {title} 第{chapter_num}章 - JSON格式，包含质量评估数据")
+                                            else:
+                                                logger.info(f"📄 {title} 第{chapter_num}章 - JSON格式，无质量评估数据")
+                                        except json.JSONDecodeError:
+                                            # 如果不是JSON格式，直接使用原始内容
+                                            chapter_content = file_content
+                                            chapter_title = chapter_file.stem.replace("第", "").replace("章", "")
+                                            chapter_word_count = len(chapter_content)
+                                            logger.info(f"📝 {title} 第{chapter_num}章 - 纯文本格式")
+
+                                        generated_chapters[chapter_num] = {
+                                            "chapter_number": chapter_num,
+                                            "title": chapter_title,
+                                            "content": chapter_content,
+                                            "word_count": chapter_word_count,
+                                            "file_path": str(chapter_file)
+                                        }
+                                    except Exception as e:
+                                        logger.info(f"⚠️ 加载章节 {chapter_file.name} 失败: {e}")
+                                
+                                break  # 找到有效的章节目录后停止搜索
 
                         # 更新小说数据
                         novel_data["generated_chapters"] = generated_chapters
                         novel_data["creation_time"] = novel_data.get("creation_time", datetime.now().isoformat())
+                        
+                        # 添加章节目录信息
+                        if actual_chapter_dir:
+                            novel_data["chapter_directory"] = str(actual_chapter_dir)
 
                         # 加载质量数据
                         quality_data = self.load_quality_data(title)
@@ -215,13 +234,19 @@ class NovelGenerationManager:
         }
 
         try:
+            # 导入路径配置
+            from src.config.path_config import path_config
+            
+            # 使用新的路径配置系统
+            paths = path_config.get_project_paths(title)
+            
             # 基础路径 - 使用新的目录结构
-            novel_base = Path("小说项目") / title
+            novel_base = Path(paths["project_root"])
             quality_base = Path("quality_data")  # 保留作为后备
             chapter_base = Path("chapter_failures")
 
             # 加载角色发展数据 - 优先从新路径加载
-            character_file = novel_base / "character_development" / f"{title}_character_development.json"
+            character_file = Path(paths.get("character_development", novel_base / "character_development" / f"{title}_character_development.json"))
             if not character_file.exists():
                 character_file = quality_base / f"{title}_character_development.json"
             
@@ -230,7 +255,7 @@ class NovelGenerationManager:
                     quality_data["character_development"] = json.load(f)
 
             # 加载世界观数据 - 优先从新路径加载
-            world_file = novel_base / "world_state" / f"{title}_world_state.json"
+            world_file = Path(paths["world_state"])
             if not world_file.exists():
                 world_file = quality_base / f"{title}_world_state.json"
             
@@ -239,7 +264,7 @@ class NovelGenerationManager:
                     quality_data["world_state"] = json.load(f)
 
             # 加载事件数据 - 优先从新路径加载
-            events_file = novel_base / "events" / f"{title}_events.json"
+            events_file = Path(paths.get("events", novel_base / "events" / f"{title}_events.json"))
             if not events_file.exists():
                 events_file = quality_base / f"{title}_events.json"
             
@@ -248,9 +273,10 @@ class NovelGenerationManager:
                     quality_data["events"] = json.load(f)
 
             # 加载思维设定数据 - 新增
-            mindset_files = list((novel_base / "mindset").glob(f"{title}_mindset_*.json"))
-            if mindset_files:
+            mindset_dir = Path(paths.get("mindset_dir", novel_base / "mindset"))
+            if mindset_dir.exists():
                 quality_data["mindset"] = {}
+                mindset_files = list(mindset_dir.glob(f"{title}_mindset_*.json"))
                 for mindset_file in mindset_files:
                     with open(mindset_file, 'r', encoding='utf-8') as f:
                         mindset_data = json.load(f)
@@ -270,15 +296,20 @@ class NovelGenerationManager:
                                 continue
                 quality_data["detailed_events"] = events
 
-            # 加载写作计划
-            for plan_file in (quality_base / "plans").glob(f"{title.replace(':', '').replace('，', '')}*_writing_plan.json"):
-                with open(plan_file, 'r', encoding='utf-8') as f:
-                    plan_data = json.load(f)
-                    stage_name = plan_data.get("stage_writing_plan", {}).get("stage_name", "unknown")
-                    quality_data["writing_plans"][stage_name] = plan_data
+            # 加载写作计划 - 从新路径加载
+            writing_plans_dir = Path(paths.get("writing_plans_dir", novel_base / "planning" / "writing_plans"))
+            if writing_plans_dir.exists():
+                for plan_file in writing_plans_dir.glob(f"{title}*writing_plan*.json"):
+                    with open(plan_file, 'r', encoding='utf-8') as f:
+                        plan_data = json.load(f)
+                        stage_name = plan_data.get("stage_writing_plan", {}).get("stage_name", "unknown")
+                        quality_data["writing_plans"][stage_name] = plan_data
 
             # 加载关系数据
-            relationships_file = quality_base / "relationships" / f"{title}_relationships.json"
+            relationships_file = Path(paths.get("relationships", novel_base / "relationships.json"))
+            if not relationships_file.exists():
+                relationships_file = quality_base / "relationships" / f"{title}_relationships.json"
+            
             if relationships_file.exists():
                 with open(relationships_file, 'r', encoding='utf-8') as f:
                     quality_data["relationships"] = json.load(f)
@@ -1314,10 +1345,10 @@ def get_quality_data(title):
 
 # ==================== 创意文件解析 API ====================
 
-def load_creative_ideas_from_file(file_path: str = None) -> dict:
+def load_creative_ideas_from_file(file_path: Optional[str] = None) -> dict:
     """从文件加载创意数据"""
     if file_path is None:
-        file_path = CREATIVE_IDEAS_FILE
+        file_path = str(CREATIVE_IDEAS_FILE)
 
     try:
         # 获取项目根目录

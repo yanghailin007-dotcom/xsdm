@@ -36,35 +36,15 @@ class DouBaoImageGenerator:
                 "Windows: set ARK_API_KEY=your_actual_api_key"
             )
         
-        # 使用OpenAI客户端，确保只传递支持的参数
+        # 使用OpenAI客户端
         try:
             self.client = OpenAI(
                 api_key=self.api_key,
                 base_url=self.base_url
             )
             self.logger.info("✅ OpenAI客户端初始化成功")
-        except TypeError as e:
-            if "proxies" in str(e) or "unexpected keyword argument" in str(e):
-                # 如果有不支持的参数，尝试基本初始化
-                self.logger.info(f"OpenAI客户端不支持某些参数，尝试基本初始化: {e}")
-                try:
-                    self.client = OpenAI(
-                        api_key=self.api_key
-                    )
-                    # 手动设置base_url
-                    if hasattr(self.client, 'base_url'):
-                        self.client.base_url = self.base_url
-                        self.logger.info(f"✅ 手动设置base_url: {self.base_url}")
-                    else:
-                        self.logger.warn("⚠️ 无法手动设置base_url")
-                except Exception as init_error:
-                    self.logger.error(f"❌ 基本初始化也失败: {init_error}")
-                    raise init_error
-            else:
-                self.logger.error(f"❌ OpenAI客户端初始化失败: {e}")
-                raise e
         except Exception as e:
-            self.logger.error(f"❌ OpenAI客户端初始化发生异常: {e}")
+            self.logger.error(f"❌ OpenAI客户端初始化失败: {e}")
             raise e
         
         # 确保输出目录存在

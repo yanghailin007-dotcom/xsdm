@@ -24,8 +24,8 @@ class NovelPathConfig:
         # 移除文件系统不支持的字符
         safe_title = re.sub(r'[\\/*?:"<>|]', "_", str(title))
         # 限制长度并处理空格
-        safe_title = "".join(c for c in safe_title if c.isalnum() or c in (' ', '-', '_')).rstrip()
-        safe_title = safe_title.replace(' ', '_')[:50]  # 限制长度
+        safe_title = "".join(c for c in safe_title if c.isalnum() or c in (' ', '-', '_', ':', '：', '（', '）', '(', ')', '[', ']')).rstrip()
+        safe_title = safe_title.replace(' ', '_')
         return safe_title
     
     def get_project_paths(self, novel_title: str) -> Dict[str, str]:

@@ -1,0 +1,406 @@
+"""
+方案生成器
+负责小说方案的生成、评估和优化
+"""
+
+import json
+from typing import Dict, List, Optional, Tuple
+from datetime import datetime
+
+
+class PlanGenerator:
+    """方案生成器类"""
+    
+    def __init__(self, api_client, quality_assessor, content_generator):
+        self.api_client = api_client
+        self.quality_assessor = quality_assessor
+        self.content_generator = content_generator
+        
+        # 高分爆款方案创作蓝图
+        self.HIGH_SCORING_PLAN_BLUEPRINT = """
+        # 高分爆款方案创作蓝图 (Blueprint for High-Scoring Blockbuster Plans)
+        在构思方案时，请主动遵循以下蓝图，以确保方案天然具备爆款潜力：
+
+        1.  **【金手指设计原则】**:
+            *   **钩子优先**: 金手指的初次亮相必须极具"爽感"和"戏剧性"，能立刻抓住读者眼球。
+            *   **玩法清晰**: 金手指不能只是简单的属性加点，必须有清晰、可延展的"玩法"（如炼制、合成、顿悟、签到特殊奖励等），让读者能持续期待主角如何使用它。
+            *   **深度绑定**: 金手指最好与主角的身份、血脉或故事核心秘密深度绑定，而不是凭空出现。
+
+        2.  **【核心卖点原则】**:
+            *   **极致清晰**: 必须有1-2个极其明确、能在简介中一句话说清楚的核心卖点（例如："天生废体，但每次受伤都能抽取敌人天赋"）。
+            *   **高频展示**: 构思的情节要能让核心卖点被反复、花式地展现，持续刺激读者。
+
+        3.  **【角色与代入感原则】 (现代化升级版)**:
+            *   **人格魅力驱动**: 主角开局必须有一个由其鲜明人格决定的、能引发读者好奇与共鸣的"主动追求"目标。这比传统的被动复仇更具吸引力。
+                *   **新潮趋势示例 (优先考虑):**
+                    *   **苟道求长生**: 目标是"活下去"，通过极度稳健和风险规避，熬死所有敌人，享受生存的终极乐趣。
+                    *   **乐子人玩转世界**: 目标是"找乐子"，通过在幕后操纵局势、导演大戏来满足自己的娱乐心态。
+                    *   **秩序建设者**: 目标是"搞建设"，通过发展势力、领地、家族，享受从零到一创造伟业的成就感。
+                    *   **规则探索者**: 目标是"卡Bug"，通过研究世界底层逻辑和玩法机制，用智慧和骚操作碾压敌人。
+                *   **经典有效目标 (作为备选):**
+                    *   摆脱屈辱、守护亲人、寻找真相、为血亲复仇等。如果使用经典目标，必须在实现方式上做出新意。
+            *   **标签鲜明**: 主角人设要有一个鲜明的记忆点（如：杀伐果断、腹黑老六、稳健苟道、技术狂人等），并贯穿始终。
+
+        4.  **【世界观与冲突原则】**:
+            *   **冲突前置**: 开局必须立刻抛出一个与主角核心目标紧密相关的冲突，让主角迅速行动起来，而不是平淡地介绍世界观。
+            *   **升级路径清晰**: 世界观要能清晰地支撑主角的"成长路线"，有明确的地图和敌人等级划分，让读者有清晰的成长预期。
+
+        5.  标题创作原则**:
+            *   **字数严格限制**: 生成的标题【必须】严格控制在 **15个汉字以内**，最佳长度为7-12个字。
+            *   **卖点突出**: 标题必须能直接或间接反映小说最核心的卖点或金手指。
+            *   **避免复杂**: 避免使用生僻词或过于复杂的长句，追求简洁、有力、高辨识度。
+
+        6.  简介创作原则 (番茄风格)**:
+            *   **忠于大纲**: 简介【必须】是`completeStoryline`部分的直接商业化转述，特别是要准确反映`opening`阶段的核心设定（如主角的真实身份、初始目标）。【严禁】为简介编造一个与`completeStoryline.opening`相矛盾的开局。
+            *   **黄金三句式**: 简介开头三句内，【必须】清晰交代：**主角身份 + 遭遇的离奇事件/获得的金手指 + 他即将要做什么爽事**。
+            *   **冲突前置与悬念**: 【必须】立刻展现一个核心矛盾或一个极具吸引力的"钩子"，让读者产生"接下来会发生什么"的强烈好奇。
+            *   **口语化与快节奏**: 语言风格应通俗易懂、节奏明快，多用短句，【严禁】使用冗长的背景介绍和复杂的文学性修辞。
+        """
+        
+        # 绝对创作红线与毒点规避指令
+        self.POISON_POINT_RULES_FOR_GENERATION = """
+        # 绝对创作红线与毒点规避指令 (Absolute Creative Red Lines & Poison Point Avoidance Directives)
+        在构思所有方案时，你【必须】严格遵守以下红线，任何触犯以下任意一条的方案都将被视为无效：
+
+        1.  **【主角地位绝对核心】**: 严禁设计任何可能削弱或取代主角光环的"天命之子"、"真主角"或背景更强的同辈角色。主角必须是其所在阶段的唯一核心。
+        2.  **【严防情感背叛】**: 严禁设计主角被核心伴侣/后宫、已确认关系的女性角色、生死兄弟或至亲背叛的情节。尤其禁止"绿帽"和"送女"桥段。
+        3.  **【杜绝强行降智】**: 必须保持主角智商和人设的连贯性。严禁为了制造冲突或推进剧情，让主角做出不符合其性格和过往经历的愚蠢决定（即"强行降智"或"圣母行为"）。
+        4.  **【拒绝无意义虐主】**: 所有挫折和压抑情节都必须是为后续更高潮的爽点做铺垫。严禁设计长时间、无明确回报的憋屈情节。
+        5.  **【避免空洞说教】**: 故事必须由具体事件和角色行动驱动。严禁将核心冲突建立在对"天道"、"法则"等抽象概念的空洞辩论上。创新应体现在情节、设定和金手指玩法上，而非哲学探讨。
+        """
+
+    def generate_and_select_plan(self, creative_seed: str, content_generator) -> Optional[Dict]:
+        """
+        生成多个方案并让用户选择
+        
+        Args:
+            creative_seed: 创意种子
+            content_generator: 内容生成器实例
+            
+        Returns:
+            选中的方案数据，失败返回None
+        """
+        print("=== 步骤1: 基于创意种子生成多个小说方案 ===")
+        
+        # 预设临时标题用于文件名
+        temp_title_for_filename = "未定稿小说" 
+        
+        # 确保creative_work是字典格式
+        if isinstance(creative_seed, str):
+            try:
+                creative_work = json.loads(creative_seed)
+            except:
+                creative_work = {"coreSetting": creative_seed, "coreSellingPoints": "", "completeStoryline": {}}
+        else:
+            creative_work = creative_seed
+        
+        # 注入"毒点红线"和"高分蓝图"
+        refined_creative_seed = self._prepare_refined_seed(creative_work, temp_title_for_filename)
+        
+        # 生成方案
+        plans_data = content_generator.generate_multiple_plans(refined_creative_seed, "")
+        
+        if not plans_data or 'plans' not in plans_data:
+            print("❌ 方案生成失败")
+            return None
+        
+        plans = plans_data['plans']
+        print(f"✅ 成功生成 {len(plans)} 个方案")
+        
+        # 处理主角名字
+        self._extract_main_character_name(plans_data, content_generator)
+        
+        # 评估方案质量
+        qualified_plans = self._evaluate_plans(plans, creative_work)
+        
+        if not qualified_plans:
+            print("❌ 所有方案评价均未通过")
+            return None
+        
+        # 选择最佳方案
+        return self._select_best_plan(qualified_plans)
+
+    def _prepare_refined_seed(self, creative_work: dict, temp_title: str) -> str:
+        """准备精炼后的创意种子"""
+        # 从原NovelGenerator提取的精炼逻辑
+        core_setting = creative_work.get("coreSetting", "未提供核心设定。")
+        core_selling_points = creative_work.get("coreSellingPoints", "未提供核心卖点。")
+        storyline = creative_work.get("completeStoryline", {})
+        
+        # 构建基础指令模板
+        instructions = []
+        instructions.append("# AI创作最高指令：创作大纲与绝对约束")
+        instructions.append("你是一位顶级的小说策划AI。以下内容是你本次创作的【唯一真相来源】和【绝对行为准则】。你必须严格、完整、精确地遵循所有指令，任何偏离或遗漏都将被视为任务失败。")
+        
+        instructions.append("\n" + "="*30)
+        instructions.append("\n## 第一部分：世界观与不可逾越的边界")
+        instructions.append(f"\n**核心设定：**\n{core_setting}")
+        
+        # 自动生成否定约束
+        negative_constraints = []
+        if "凡人" in core_setting and "落云宗" in core_setting:
+            negative_constraints.append("**绝对禁止**：故事时间线在韩立从乱星海回归之后，因此**严禁**让主角前往乱星海、参与虚天殿夺宝等已发生的剧情。主角在结婴前的活动范围**必须**锁定在天南大陆。")
+        else:
+            negative_constraints.append("**绝对禁止**：你的一切情节设计都不能超出上述【核心设定】所定义的范围。不要引入设定之外的时间段、地点或世界背景。")
+        
+        instructions.append("\n**绝对禁止事项：**")
+        instructions.extend([f"- {constraint}" for constraint in negative_constraints])
+        
+        instructions.append("\n" + "="*30)
+        instructions.append("\n## 第二部分：核心卖点与执行纲领")
+        instructions.append("你的所有情节设计，都必须以服务和凸显以下核心卖点为首要目标：")
+        instructions.append(f"\n{core_selling_points}")
+        
+        instructions.append("\n" + "="*30)
+        instructions.append("\n## 第三部分：分阶段故事线框架")
+        instructions.append("你必须严格按照以下阶段的设定来构建故事的起承转合。")
+        
+        if storyline:
+            for stage_key, stage_data in storyline.items():
+                stage_name = stage_data.get('stageName', '未知阶段')
+                summary = stage_data.get('summary', '无')
+                arc_goal = stage_data.get('arc_goal', '无')
+                
+                instructions.append(f"\n### {stage_name}")
+                instructions.append(f"- **情节概要：** {summary}")
+                instructions.append(f"- **强制目标：** {arc_goal}")
+        
+        instructions.append("\n" + "="*30)
+        instructions.append("\n## 最终指令确认")
+        instructions.append("以上所有内容是不可违背的创作铁律。现在，请基于这份【最高指令】，开始你的工作。")
+        
+        refined_seed = "\n".join(instructions)
+        
+        # 注入规则和蓝图
+        return refined_seed + "\n\n" + self.POISON_POINT_RULES_FOR_GENERATION + "\n\n" + self.HIGH_SCORING_PLAN_BLUEPRINT
+
+    def _extract_main_character_name(self, plans_data: Dict, content_generator):
+        """提取并设置主角名字"""
+        suggestions = plans_data.get("suggestions", [])
+        if suggestions:
+            name = suggestions[0].get("name")
+            if name and 2 <= len(name) <= 3:
+                print(f"  ✅ 获取主角名字: {name}")
+                content_generator.set_custom_main_character_name(name)
+                return
+        
+        # 备选方案
+        name = plans_data.get("name")
+        if name and 2 <= len(name) <= 3:
+            print(f"  ✅ 获取主角名字: {name}")
+            content_generator.set_custom_main_character_name(name)
+
+    def _evaluate_plans(self, plans: List[Dict], creative_work: dict) -> List[Dict]:
+        """评估方案质量"""
+        qualified_plans = []
+        
+        for i, plan in enumerate(plans):
+            print(f"  🔍 评估方案 {i+1}...")
+            
+            # 获取分类信息
+            category_from_plan = plan.get('tags', {}).get('main_category', '未分类')
+            
+            # 分类修正逻辑
+            category_from_plan = self._correct_category(plan, creative_work, category_from_plan)
+            
+            # 评估方案质量
+            evaluation_result = self._evaluate_single_plan(plan, category_from_plan, creative_work)
+            
+            quality_score = evaluation_result.get("quality_score", 0)
+            freshness_score = evaluation_result.get("freshness_score", 0)
+            total_score = evaluation_result.get("total_score", 0)
+            
+            # 记录评分到方案数据
+            plan['_quality_score'] = quality_score
+            plan['_freshness_score'] = freshness_score
+            plan['_total_score'] = total_score
+            
+            if quality_score >= 8.0 and freshness_score >= 3.0:
+                qualified_plans.append({
+                    'plan': plan,
+                    'quality_score': quality_score,
+                    'freshness_score': freshness_score,
+                    'total_score': total_score,
+                    'evaluation_result': evaluation_result,
+                    'category': category_from_plan
+                })
+                print(f"    ✅ 方案 {i+1} 通过评价 (质量: {quality_score:.1f}, 新鲜度: {freshness_score:.1f})")
+            else:
+                print(f"    ❌ 方案 {i+1} 未通过评价 (质量: {quality_score:.1f}, 新鲜度: {freshness_score:.1f})")
+        
+        return qualified_plans
+
+    def _correct_category(self, plan: Dict, creative_work: dict, current_category: str) -> str:
+        """修正方案分类"""
+        title = plan.get('title', '')
+        synopsis = plan.get('synopsis', '')
+        keywords = plan.get('tags', {}).get('keywords', [])
+        keywords_str = "".join(keywords)
+        
+        # 检查创意种子内容
+        creative_core_setting = creative_work.get('coreSetting', '') if isinstance(creative_work, dict) else str(creative_work)
+        creative_selling_points = creative_work.get('coreSellingPoints', '') if isinstance(creative_work, dict) else ""
+        
+        # 合并所有文本进行检查
+        combined_text = f"{title} {synopsis} {keywords_str} {creative_core_setting} {creative_selling_points}"
+        
+        has_tongren = "同人" in combined_text
+        has_dongman = any(keyword in combined_text for keyword in ["动漫", "动画", "漫画"])
+        
+        if has_tongren:
+            if has_dongman:
+                corrected_category = "动漫衍生"
+                reason = "同人+动漫"
+            else:
+                corrected_category = "男频衍生" 
+                reason = "同人"
+            
+            print(f"    🔄 分类修正: 检测到'{reason}'关键字，分类已修正为 '{corrected_category}'")
+            
+            if 'tags' not in plan:
+                plan['tags'] = {}
+            plan['tags']['main_category'] = corrected_category
+            print(f"    📝 同步更新方案内部分类字段")
+            
+            return corrected_category
+        
+        return current_category
+
+    def _evaluate_single_plan(self, plan: Dict, category: str, creative_seed) -> Dict:
+        """评估单个方案的质量"""
+        # 使用质量评估器进行新鲜度评估
+        freshness_result = self.quality_assessor.assess_freshness(plan, "novel_plan")
+        freshness_score = freshness_result["score"]["total"]
+        
+        # 构建质量评估提示词
+        title = plan.get('title', '')
+        synopsis = plan.get('synopsis', '')
+        core_direction = plan.get('core_direction', '')
+        golden_finger = plan.get('core_settings', {}).get('golden_finger', '')
+        core_selling_points = plan.get('core_settings', {}).get('core_selling_points', [])
+        world_background = plan.get('core_settings', {}).get('world_background', '')
+        main_character_archetype = plan.get('main_character', {}).get('archetype', '')
+
+        quality_prompt = f"""
+        你是一位**拥有超过50年经验、眼光毒辣、对网文商业成功和艺术质量有着极度严苛、吹毛求疵**的顶级网文主编，同时也是一个追求**商业价值与艺术成就双丰收的"网文传世经典"**的超级评审员。你的任务是对以下小说方案进行**最高标准的艺术性与市场价值评估**。你必须找出**任何可能阻碍其成为"网文精品乃至现象级爆款"**的瑕疵，并给出**提升至市场和口碑双赢的、可操作的、有建设性的建议**。
+
+        【小说分类】{category}
+        【创意种子】{creative_seed} (这是最初的灵感源泉，你需评估方案是否完美继承并升华了它，使其更符合网文市场爆款潜力)
+
+        【待评估小说方案内容】
+        书名：《{title}》
+        简介：{synopsis}
+        核心方向：{core_direction}
+        核心世界观概要: {world_background}
+        金手指：{golden_finger}
+        核心卖点：{json.dumps(core_selling_points, ensure_ascii=False)}
+        主角原型/人设初步构思: {main_character_archetype}
+
+        【！！！最高评价标准 (请你以"能否成为网文现象级爆款"的标准，极度严格地审查)！！！】
+        以下每一项都将以10分制打分，并给出极其详细的评语：
+        """
+
+        try:
+            # 调用AI进行质量评价
+            quality_result = self.api_client.generate_content_with_retry(
+                "plan_quality_evaluation_super_reviewer",
+                quality_prompt,
+                purpose="【AI超级评审员】进行方案质量评价"
+            )
+
+            if quality_result:
+                # 安全获取分数
+                def safe_get_score(result, key, default=0.0):
+                    score = result.get(key, default)
+                    if isinstance(score, str):
+                        try:
+                            import re
+                            numbers = re.findall(r'\d+\.?\d*', score)
+                            return float(numbers[0]) if numbers else default
+                        except (ValueError, TypeError):
+                            return default
+                    elif isinstance(score, (int, float)):
+                        return float(score)
+                    return default
+
+                overall_quality_score = safe_get_score(quality_result, "overall_quality_score", 0.0)
+                gf_score = safe_get_score(quality_result, "golden_finger_score", 0.0)
+                sp_score = safe_get_score(quality_result, "selling_points_score", 0.0)
+                wv_score = safe_get_score(quality_result, "worldview_coherence_score", 0.0)
+                cd_score = safe_get_score(quality_result, "character_depth_score", 0.0)
+
+                # 为了兼容性，将分数存入quality_result
+                quality_result["golden_finger_score"] = gf_score
+                quality_result["selling_points_score"] = sp_score
+                quality_result["worldview_coherence_score"] = wv_score
+                quality_result["character_depth_score"] = cd_score
+                quality_result["overall_quality_score"] = overall_quality_score
+
+                # 计算总分（降低新鲜度权重，提高整体质量权重）
+                total_score = (overall_quality_score * 0.8) + (freshness_score * 0.2)
+
+                result = {
+                    "quality_score": overall_quality_score,
+                    "freshness_score": freshness_score,
+                    "freshness_details": freshness_result,
+                    "total_score": total_score,
+                    "quality_details": quality_result,
+                    "super_reviewer_verdict": quality_result.get("verdict", "未知"),
+                    "perfection_suggestions": quality_result.get("recommendations", []),
+                    "recommendation": overall_quality_score >= 8.5 and freshness_score >= 7.5
+                }
+
+                print(f"📊 AI【超级评审员】评估结果:")
+                print(f"  🥇 总质量评分: {overall_quality_score:.1f}/10分")
+                print(f"  📈 新鲜度评分: {freshness_score:.1f}/10分")
+                print(f"  🌟 最终综合评分: {total_score:.1f}/10分")
+                print(f"  💬 评审员最终评语: {result['super_reviewer_verdict']}")
+
+                recommendations_list = result.get('perfection_suggestions', [])
+                if recommendations_list:
+                    print(f"  💡 提升建议: {recommendations_list}")
+
+                print(f'  ✨ 是否达到"精品"标准: {"是" if result["recommendation"] else "否"}')
+
+                return result
+            else:
+                print("  ⚠️ AI【超级评审员】评估失败或未返回有效数据。")
+                return {
+                    "quality_score": 0.0,
+                    "freshness_score": freshness_score,
+                    "total_score": freshness_score,
+                    "recommendation": False
+                }
+
+        except Exception as e:
+            print(f"⚠️ AI【超级评审员】评估过程中出错: {e}，使用默认评分。")
+            return {
+                "quality_score": 0.0,
+                "freshness_score": freshness_score,
+                "total_score": freshness_score,
+                "recommendation": False
+            }
+
+    def _select_best_plan(self, qualified_plans: List[Dict]) -> Optional[Dict]:
+        """选择最佳方案"""
+        if not qualified_plans:
+            return None
+        
+        # 按总分排序
+        qualified_plans.sort(key=lambda x: x['total_score'], reverse=True)
+        best_plan_data = qualified_plans[0]
+        
+        print(f"\n🏆 已确定最优方案: 《{best_plan_data['plan'].get('title', '未知标题')}》")
+        print(f"   【AI超级评审员】总评分: {best_plan_data['total_score']:.2f} (总质量: {best_plan_data['quality_score']:.1f}, 新鲜度: {best_plan_data['freshness_score']:.1f})")
+        print(f"   分类: {best_plan_data['category']}")
+        
+        return best_plan_data['plan']
+
+    def optimize_plan_with_market_data(self, plan: Dict, category: str, optimization_params: Dict) -> Optional[Dict]:
+        """使用市场数据优化方案"""
+        try:
+            optimized_plan = self.quality_assessor.optimize_novel_plan(plan, optimization_params)
+            return optimized_plan
+        except Exception as e:
+            print(f"⚠️ 方案优化失败: {e}")
+            return None

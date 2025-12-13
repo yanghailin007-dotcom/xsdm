@@ -2235,8 +2235,8 @@ JSON
             except Exception as e:
                 self.logger.info(f"      无法打印 plan_data 结构预览: {e}")
         # 3. 构建小说项目目录路径
-        safe_title = "".join(c for c in novel_title if c.isalnum() or c in (' ', '-', '_')).rstrip()
-        safe_title = safe_title.replace(' ', '_')[:50]  # 限制长度
+        safe_title = "".join(c for c in novel_title if c.isalnum() or c in (' ', '-', '_', ':', '：', '（', '）', '(', ')', '[', ']')).rstrip()
+        safe_title = safe_title.replace(' ', '_')
         novel_project_dir = self.plans_dir / safe_title
         plans_dir = novel_project_dir / "plans"
         
@@ -2274,8 +2274,8 @@ JSON
         self.logger.info(f"    - 用于构建路径的小说标题: '{novel_title}'")
         if novel_title == "unknown":
             self.logger.warn(f"    - ⚠️ 警告: 小说标题为 'unknown'，可能导致无法找到正确文件。")
-        safe_title = "".join(c for c in novel_title if c.isalnum() or c in (' ', '-', '_')).rstrip()
-        safe_title = safe_title.replace(' ', '_')[:50]
+        safe_title = "".join(c for c in novel_title if c.isalnum() or c in (' ', '-', '_', ':', '：', '（', '）', '(', ')', '[', ']')).rstrip()
+        safe_title = safe_title.replace(' ', '_')
         novel_project_dir = self.plans_dir / safe_title
         plans_dir = novel_project_dir / "plans"
         expected_file_path = plans_dir / f"{safe_title}_{stage_name}_writing_plan.json"
