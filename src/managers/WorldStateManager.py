@@ -1331,9 +1331,18 @@ class WorldStateManager:
         
         name = name.strip()
         
-        # 长度检查：角色名应该在2-20个字符之间
-        if len(name) < 2 or len(name) > 20:
+        # 长度检查：角色名应该在1-20个字符之间（允许单字姓氏）
+        if len(name) < 1 or len(name) > 20:
             return False
+        
+        # 🔧 修复：单字姓氏特殊情况
+        if len(name) == 1:
+            # 单字必须是常见姓氏
+            common_surnames = ['王', '李', '张', '刘', '陈', '杨', '黄', '赵', '吴', '周', '徐', '孙', '马', '朱', '胡', '郭']
+            if name in common_surnames:
+                return True
+            else:
+                return False
         
         # 🔧 修复1: 大幅扩展无效词汇黑名单
         invalid_words = {
@@ -3057,17 +3066,27 @@ class WorldStateManager:
         
         # 4. 🔧 修复：姓氏+称谓组合检查
         # 检查是否是常见姓氏 + 修仙称谓的组合（如"马师兄"、"李道长"等）
-        common_surnames = ['王', '李', '张', '刘', '陈', '杨', '黄', '赵', '吴', '周', '徐', '孙', '马', '朱', '胡', '郭']
-        cultivation_suffixes = ['师兄', '师妹', '师姐', '师弟', '师父', '道长', '真人', '仙子', '长老', '掌门']
+        common_surnames = ['王', '李', '张', '刘', '陈', '杨', '黄', '赵', '吴', '周', '徐', '孙', '马', '朱', '胡', '郭', '何', '高', '林', '罗', '郑', '梁', '谢', '宋', '唐', '许', '韩', '冯']
+        cultivation_suffixes = ['师兄', '师妹', '师姐', '师弟', '师父', '道长', '真人', '仙子', '长老', '掌门', '宗主', '门主', '教主', '宫主']
         
-        if len(name) >= 3:
+        if len(name) >= 2:  # 改为>=2，支持双字组合
             for surname in common_surnames:
                 if name.startswith(surname):
                     remaining_part = name[len(surname):]
                     if remaining_part in cultivation_suffixes:
                         return True
         
-        # 5. 特殊检查：如果是三个字的名字，且包含文学经典人名特征，放宽检查
+        # 5. 特殊检查：文学经典人名检查
+        literary_names = [
+            "林黛玉", "贾宝玉", "孙悟空", "猪八戒", "沙和尚", "唐三藏", "宋江", "武松",
+            "林冲", "鲁智深", "杨过", "小龙女", "郭靖", "黄蓉", "张无忌", "赵敏",
+            "张三", "李四", "王五", "赵六"
+        ]
+        
+        if name in literary_names:
+            return True
+            
+        # 如果是三个字的名字，且包含文学经典人名特征，放宽检查
         if len(name) == 3 and any(char in ['黛', '玉', '宝', '悟', '空', '无', '忌'] for char in name):
             return True
         
