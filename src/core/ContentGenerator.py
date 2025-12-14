@@ -1524,7 +1524,7 @@ class ContentGenerator:
     def _ensure_scenes_are_ready_for_chapter(self, chapter_number: int, context: GenerationContext, novel_data: Dict, consistency_guidance: str) -> Tuple[List[Dict], str, str]:
         self.logger.info(f"\n--- 核心诊断: 进入 _ensure_scenes_are_ready_for_chapter (第 {chapter_number} 章) ---")
         self.logger.info("  [步骤1a] 委托 NovelGenerator 的管理器获取本章的阶段计划...")
-        plan_container = self.novel_generator.ensure_stage_plan_for_chapter(chapter_number)
+        plan_container = self.novel_generator.stage_plan_manager.get_stage_plan_for_chapter(chapter_number)
         if not plan_container:
             self.logger.info(f"  [致命错误] 从 StagePlanManager 未能获取到第 {chapter_number} 章的阶段计划。动态生成无法继续。")
             return [], "", ""

@@ -286,109 +286,115 @@ class FanfictionDetector:
             background_info = self._merge_creative_setting(background_info, creative_work)
             print(f"    [SUCCESS] 成功整合用户创意设定到背景资料")
         
-        # 6. 根据数据来源决定是否需要验证
-        if background_source in ["knowledge_base", "predefined"]:
-            # 如果是从知识库或预定义资料加载的，跳过可信度验证
-            print(f"    [INFO] 背景资料来自{background_source}，跳过可信度验证，直接使用")
+        # 6. 进行可信度验证（对所有来源的背景资料）
+        verification_result = None
+        if content_verifier and background_info:
+            print(f"    开始进行背景资料可信度验证...")
             
-            # 7. 添加简化的验证结果到背景资料中
+            # 确保背景资料中包含来源信息，以便验证器识别
+            if "verification_result" not in background_info:
+                background_info["verification_result"] = {
+                    "background_source": background_source or "unknown",
+                    "note": f"数据来源: {background_source or 'unknown'}"
+                }
+            else:
+                background_info["verification_result"]["background_source"] = background_source or "unknown"
+            
+            verification_result = content_verifier.verify_original_work_background(work_name, background_info)
+            
+            # 7. 如果可信度不足且配置了API客户端，尝试通过AI重新获取和修正
+            if not verification_result.is_credible and self.api_client:
+                print(f"    [WARNING] 背景资料可信度不足，尝试通过AI重新获取...")
+                print(f"    置信度: {verification_result.confidence_score:.2f}")
+                print(f"    发现问题: {len(verification_result.issues_found)}个")
+                
+                # 输出具体问题详情
+                if verification_result.issues_found:
+                    print(f"    具体问题:")
+                    for i, issue in enumerate(verification_result.issues_found, 1):
+                        print(f"      {i}. {issue}")
+                
+                # 输出改进建议
+                if verification_result.suggestions:
+                    print(f"    改进建议:")
+                    for i, suggestion in enumerate(verification_result.suggestions, 1):
+                        print(f"      {i}. {suggestion}")
+                
+                # 通过AI重新获取背景资料
+                retry_count = 0
+                max_retries = 2
+                
+                while retry_count < max_retries and not verification_result.is_credible:
+                    retry_count += 1
+                    print(f"    [RETRY] 第{retry_count}次通过AI重新获取背景资料...")
+                    
+                    # 使用验证结果改进提示词
+                    improved_background = self._fetch_with_verification_feedback(
+                        work_name, creative_work, verification_result
+                    )
+                    
+                    if improved_background:
+                        background_info = improved_background
+                        background_source = "ai_improved"
+                        if creative_work:
+                            background_info = self._merge_creative_setting(background_info, creative_work)
+                        
+                        # 重新验证
+                        print(f"    [REVERIFY] 重新验证第{retry_count}次修正后的背景资料...")
+                        verification_result = content_verifier.verify_original_work_background(work_name, background_info)
+                        
+                        if verification_result.is_credible:
+                            print(f"    [SUCCESS] AI重新获取后验证通过！")
+                            print(f"    修正后置信度: {verification_result.confidence_score:.2f}")
+                            break
+                        else:
+                            print(f"    [WARNING] 第{retry_count}次AI重新获取后仍未通过验证")
+                            print(f"    当前置信度: {verification_result.confidence_score:.2f}")
+                            print(f"    剩余问题: {len(verification_result.issues_found)}个")
+                    else:
+                        print(f"    [FAILED] 第{retry_count}次AI重新获取失败")
+        
+        # 8. 添加验证结果到背景资料中
+        if verification_result:
             background_info["verification_result"] = {
-                "is_credible": True,
-                "confidence_score": 1.0,
-                "credibility_level": "high",
-                "issues_found": [],
-                "suggestions": [],
-                "verified_facts": [f"来自{background_source}的权威资料"],
-                "unverified_facts": [],
+                "is_credible": verification_result.is_credible,
+                "confidence_score": verification_result.confidence_score,
+                "credibility_level": verification_result.credibility_level.value,
+                "issues_found": verification_result.issues_found,
+                "suggestions": verification_result.suggestions,
+                "verified_facts": verification_result.verified_facts,
+                "unverified_facts": verification_result.unverified_facts,
                 "background_source": background_source,
-                "note": f"{background_source}资料，跳过AI验证"
+                "note": f"数据来源: {background_source}，已通过内容验证"
             }
             
-            # 输出加载结果摘要
-            print(f"    加载结果摘要:")
-            print(f"       可信度: 通过（{background_source}资料）")
+            # 输出验证结果摘要
+            print(f"    验证结果摘要:")
+            print(f"       可信度: {'通过' if verification_result.is_credible else '未通过'}")
+            print(f"       置信度: {verification_result.confidence_score:.2f}")
+            print(f"       等级: {verification_result.credibility_level.value}")
             print(f"       数据来源: {background_source}")
-            print(f"       说明: 背景资料为已存在资料，直接使用无需验证")
+            if verification_result.issues_found:
+                print(f"       问题数量: {len(verification_result.issues_found)}个")
+            print(f"       已验证事实: {len(verification_result.verified_facts)}个")
+            print(f"       未验证事实: {len(verification_result.unverified_facts)}个")
         else:
-            # 6. 进行可信度验证（仅对AI生成或基础资料）
-            verification_result = None
-            if content_verifier and background_info:
-                print(f"    开始进行背景资料可信度验证...")
-                verification_result = content_verifier.verify_original_work_background(work_name, background_info)
-                
-                # 7. 如果可信度不足且配置了API客户端，尝试通过AI重新获取和修正
-                if not verification_result.is_credible and self.api_client:
-                    print(f"    [WARNING] 背景资料可信度不足，尝试通过AI重新获取...")
-                    print(f"    置信度: {verification_result.confidence_score:.2f}")
-                    print(f"    发现问题: {len(verification_result.issues_found)}个")
-                    
-                    # 输出具体问题详情
-                    if verification_result.issues_found:
-                        print(f"    具体问题:")
-                        for i, issue in enumerate(verification_result.issues_found, 1):
-                            print(f"      {i}. {issue}")
-                    
-                    # 输出改进建议
-                    if verification_result.suggestions:
-                        print(f"    改进建议:")
-                        for i, suggestion in enumerate(verification_result.suggestions, 1):
-                            print(f"      {i}. {suggestion}")
-                    
-                    # 通过AI重新获取背景资料
-                    retry_count = 0
-                    max_retries = 2
-                    
-                    while retry_count < max_retries and not verification_result.is_credible:
-                        retry_count += 1
-                        print(f"    [RETRY] 第{retry_count}次通过AI重新获取背景资料...")
-                        
-                        # 使用验证结果改进提示词
-                        improved_background = self._fetch_with_verification_feedback(
-                            work_name, creative_work, verification_result
-                        )
-                        
-                        if improved_background:
-                            background_info = improved_background
-                            background_source = "ai_improved"
-                            if creative_work:
-                                background_info = self._merge_creative_setting(background_info, creative_work)
-                            
-                            # 重新验证
-                            print(f"    [REVERIFY] 重新验证第{retry_count}次修正后的背景资料...")
-                            verification_result = content_verifier.verify_original_work_background(work_name, background_info)
-                            
-                            if verification_result.is_credible:
-                                print(f"    [SUCCESS] AI重新获取后验证通过！")
-                                print(f"    修正后置信度: {verification_result.confidence_score:.2f}")
-                                break
-                            else:
-                                print(f"    [WARNING] 第{retry_count}次AI重新获取后仍未通过验证")
-                                print(f"    当前置信度: {verification_result.confidence_score:.2f}")
-                                print(f"    剩余问题: {len(verification_result.issues_found)}个")
-                        else:
-                            print(f"    [FAILED] 第{retry_count}次AI重新获取失败")
+            # 如果没有验证器，添加基本信息
+            background_info["verification_result"] = {
+                "is_credible": background_source in ["knowledge_base", "predefined"],
+                "confidence_score": 0.8 if background_source in ["knowledge_base", "predefined"] else 0.5,
+                "credibility_level": "high" if background_source in ["knowledge_base", "predefined"] else "medium",
+                "issues_found": [],
+                "suggestions": ["建议人工核实关键信息"] if background_source not in ["knowledge_base", "predefined"] else [],
+                "verified_facts": [f"来自{background_source}"] if background_source in ["knowledge_base", "predefined"] else [],
+                "unverified_facts": [],
+                "background_source": background_source,
+                "note": f"数据来源: {background_source}，未进行详细验证"
+            }
             
-            # 8. 添加验证结果到背景资料中
-            if verification_result:
-                background_info["verification_result"] = {
-                    "is_credible": verification_result.is_credible,
-                    "confidence_score": verification_result.confidence_score,
-                    "credibility_level": verification_result.credibility_level.value,
-                    "issues_found": verification_result.issues_found,
-                    "suggestions": verification_result.suggestions,
-                    "verified_facts": verification_result.verified_facts,
-                    "unverified_facts": verification_result.unverified_facts,
-                    "background_source": background_source
-                }
-                
-                # 输出验证结果摘要
-                print(f"    验证结果摘要:")
-                print(f"       可信度: {'通过' if verification_result.is_credible else '未通过'}")
-                print(f"       置信度: {verification_result.confidence_score:.2f}")
-                print(f"       等级: {verification_result.credibility_level.value}")
-                print(f"       数据来源: {background_source}")
-                if verification_result.issues_found:
-                    print(f"       问题数量: {len(verification_result.issues_found)}个")
+            print(f"    验证结果摘要:")
+            print(f"       数据来源: {background_source}")
+            print(f"       说明: 未进行详细内容验证")
         
         return background_info
 

@@ -44,17 +44,26 @@ class PlanGenerator:
         4.  **【世界观与冲突原则】**:
             *   **冲突前置**: 开局必须立刻抛出一个与主角核心目标紧密相关的冲突，让主角迅速行动起来，而不是平淡地介绍世界观。
             *   **升级路径清晰**: 世界观要能清晰地支撑主角的"成长路线"，有明确的地图和敌人等级划分，让读者有清晰的成长预期。
+            *   **🆕 背景资料深度融入**: 如果提供了原著背景资料，【必须】深度理解和运用这些资料，确保方案与原著设定完美契合，同时找到创新的切入点。
 
-        5.  标题创作原则**:
+        5.  **同人小说特殊创作原则** (仅适用于同人小说):
+            *   **原著尊重**: 严格遵循原著世界观、角色设定、力量体系，不得出现明显设定冲突。
+            *   **创新视角**: 在尊重原著的基础上，找到新的叙事角度或切入点，避免简单重复原著情节。
+            *   **角色关系重构**: 可以合理重构角色间的关系网络，但要符合角色性格和原著逻辑。
+            *   **时间线把控**: 严格把控故事时间线，避免与原著重大事件发生冲突。
+
+        6.  标题创作原则**:
             *   **字数严格限制**: 生成的标题【必须】严格控制在 **15个汉字以内**，最佳长度为7-12个字。
             *   **卖点突出**: 标题必须能直接或间接反映小说最核心的卖点或金手指。
+            *   **同人特色**: 如果是同人小说，标题可适当体现原著元素，增强辨识度。
             *   **避免复杂**: 避免使用生僻词或过于复杂的长句，追求简洁、有力、高辨识度。
 
-        6.  简介创作原则 (番茄风格)**:
+        7.  简介创作原则 (番茄风格)**:
             *   **忠于大纲**: 简介【必须】是`completeStoryline`部分的直接商业化转述，特别是要准确反映`opening`阶段的核心设定（如主角的真实身份、初始目标）。【严禁】为简介编造一个与`completeStoryline.opening`相矛盾的开局。
             *   **黄金三句式**: 简介开头三句内，【必须】清晰交代：**主角身份 + 遭遇的离奇事件/获得的金手指 + 他即将要做什么爽事**。
             *   **冲突前置与悬念**: 【必须】立刻展现一个核心矛盾或一个极具吸引力的"钩子"，让读者产生"接下来会发生什么"的强烈好奇。
             *   **口语化与快节奏**: 语言风格应通俗易懂、节奏明快，多用短句，【严禁】使用冗长的背景介绍和复杂的文学性修辞。
+            *   **背景资料体现**: 如果提供了背景资料，简介中应自然体现对原著的理解，让同好读者能够识别。
         """
         
         # 绝对创作红线与毒点规避指令
@@ -67,6 +76,10 @@ class PlanGenerator:
         3.  **【杜绝强行降智】**: 必须保持主角智商和人设的连贯性。严禁为了制造冲突或推进剧情，让主角做出不符合其性格和过往经历的愚蠢决定（即"强行降智"或"圣母行为"）。
         4.  **【拒绝无意义虐主】**: 所有挫折和压抑情节都必须是为后续更高潮的爽点做铺垫。严禁设计长时间、无明确回报的憋屈情节。
         5.  **【避免空洞说教】**: 故事必须由具体事件和角色行动驱动。严禁将核心冲突建立在对"天道"、"法则"等抽象概念的空洞辩论上。创新应体现在情节、设定和金手指玩法上，而非哲学探讨。
+        6.  **【🆕 背景资料红线】**: 如果提供了原著背景资料：
+            *   **严禁违背核心设定**: 不得与背景资料中的核心世界观、角色性格、力量体系发生冲突。
+            *   **尊重时间线**: 严格遵循原著的时间线逻辑，不允许出现明显的时间线矛盾。
+            *   **可信度警示**: 如果背景资料可信度较低，设计方案时必须更加谨慎，优先选择已验证的信息。
         """
 
     def generate_and_select_plan(self, creative_seed: str, content_generator) -> Optional[Dict]:
@@ -143,69 +156,78 @@ class PlanGenerator:
             instructions.append("以下是原著作品的背景资料，你必须严格遵循这些设定进行创作：")
             
             # 提取并格式化背景资料的关键信息
-            background_data = original_work_background.get("background_data", {})
-            if background_data:
+            # 修正：直接使用标准的背景资料格式
+            if isinstance(original_work_background, dict):
                 # 世界观信息
-                worldview = background_data.get("世界观", {})
+                worldview = original_work_background.get("worldview", {})
                 if worldview:
                     instructions.append(f"\n- **世界观背景**: {json.dumps(worldview, ensure_ascii=False)}")
                 
                 # 角色信息
-                characters = background_data.get("角色模板", {})
+                characters = original_work_background.get("characters", {})
                 if characters:
                     key_characters = {}
                     # 只提取主要角色，避免信息过载
                     for char_name, char_data in list(characters.items())[:5]:
-                        if char_data.get("重要性", "") == "主角" or char_name in ["韩立", "南宫婉", "慕沛灵", "梅凝"]:
+                        if isinstance(char_data, str):
+                            # 如果是字符串格式，直接使用
+                            key_characters[char_name] = char_data
+                        elif isinstance(char_data, dict):
+                            # 如果是字典格式，提取关键信息
                             key_characters[char_name] = {
-                                "身份": char_data.get("身份", ""),
-                                "修为": char_data.get("修为", ""),
-                                "性格": char_data.get("性格", ""),
-                                "重要关系": char_data.get("重要关系", "")
+                                "身份": char_data.get("身份", char_data.get("身份", "")),
+                                "修为": char_data.get("修为", char_data.get("修为", "")),
+                                "性格": char_data.get("性格特点", char_data.get("性格", "")),
+                                "核心能力": char_data.get("核心能力", char_data.get("能力", ""))
                             }
                     if key_characters:
                         instructions.append(f"\n- **主要角色设定**: {json.dumps(key_characters, ensure_ascii=False, indent=2)}")
                 
                 # 修炼体系
-                power_system = background_data.get("修炼体系", {})
+                power_system = original_work_background.get("power_system", {})
                 if power_system:
                     instructions.append(f"\n- **修炼体系**: {json.dumps(power_system, ensure_ascii=False)}")
                 
-                # 门派势力
-                sects = background_data.get("门派势力", {})
-                if sects:
-                    key_sects = {}
-                    # 只提取重要门派
-                    for sect_name, sect_data in list(sects.items())[:3]:
-                        key_sects[sect_name] = {
-                            "性质": sect_data.get("性质", ""),
-                            "特点": sect_data.get("特点", ""),
-                            "重要人物": sect_data.get("重要人物", "")
-                        }
-                    if key_sects:
-                        instructions.append(f"\n- **主要门派势力**: {json.dumps(key_sects, ensure_ascii=False, indent=2)}")
+                # 门派势力（如果有）
+                sects_and_factions = original_work_background.get("sects_and_factions", {})
+                if sects_and_factions:
+                    instructions.append(f"\n- **门派势力**: {json.dumps(sects_and_factions, ensure_ascii=False)}")
                 
-                # 剧情元素
-                plot_elements = background_data.get("剧情元素", {})
-                if plot_elements:
-                    key_plots = {}
-                    # 只提取关键剧情元素
-                    for plot_key, plot_data in list(plot_elements.items())[:3]:
-                        key_plots[plot_key] = plot_data
-                    if key_plots:
-                        instructions.append(f"\n- **关键剧情元素**: {json.dumps(key_plots, ensure_ascii=False, indent=2)}")
+                # 重要地点（如果有）
+                important_locations = original_work_background.get("important_locations", {})
+                if important_locations:
+                    instructions.append(f"\n- **重要地点**: {json.dumps(important_locations, ensure_ascii=False)}")
+                
+                # 关键宝物（如果有）
+                key_treasures = original_work_background.get("key_treasures", {})
+                if key_treasures:
+                    instructions.append(f"\n- **关键宝物**: {json.dumps(key_treasures, ensure_ascii=False)}")
             
             # 添加验证结果信息
             verification_result = original_work_background.get("verification_result")
             if verification_result:
                 credibility_level = verification_result.get("credibility_level", "未知")
                 confidence_score = verification_result.get("confidence_score", 0)
+                background_source = verification_result.get("background_source", "未知")
+                
                 instructions.append(f"\n- **背景资料可信度**: {credibility_level} (置信度: {confidence_score:.2f})")
+                instructions.append(f"- **数据来源**: {background_source}")
                 
                 # 如果有问题，添加警告
                 issues_found = verification_result.get("issues_found", [])
                 if issues_found:
                     instructions.append(f"\n- **需要注意的问题**: {', '.join(issues_found[:3])}")
+                    instructions.append(f"- **问题数量**: 共发现 {len(issues_found)} 个问题")
+                
+                # 添加改进建议
+                suggestions = verification_result.get("suggestions", [])
+                if suggestions:
+                    instructions.append(f"\n- **改进建议**: {', '.join(suggestions[:3])}")
+                
+                # 如果可信度低，特别提醒
+                is_credible = verification_result.get("is_credible", True)
+                if not is_credible:
+                    instructions.append(f"\n- **⚠️ 重要警告**: 背景资料可信度验证未通过，设计时请特别谨慎，建议优先使用验证通过的信息！")
             
             instructions.append("\n【重要提醒】：所有方案设计必须严格基于以上背景资料，确保与原著设定一致。")
         

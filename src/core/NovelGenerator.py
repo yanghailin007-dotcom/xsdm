@@ -7,6 +7,8 @@ import sys
 import signal
 import time
 import json
+import re
+import os
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, Optional, Union, Any, List, Tuple
@@ -230,7 +232,7 @@ class NovelGenerator:
         print(f"创意种子: {creative_seed}")
 
         if total_chapters is None:
-            total_chapters = self.config.get("defaults", {}).get("total_chapters", 50)
+            total_chapters = self.config.get("defaults", {}).get("total_chapters", 200)
         temp_title_for_filename = f"未定稿创意_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         
         if isinstance(creative_seed, str):
@@ -494,7 +496,53 @@ class NovelGenerator:
                 return f"# AI创作指令\n\n请基于以下创意进行创作：\n核心设定：{core_setting}\n核心卖点：{core_selling_points}"
 
     # ==================== 预处理方法 ====================
-
+    def _build_basic_instruction_template(self, core_setting: str, core_selling_points: str, storyline: dict) -> str:
+        """构建基础指令模板（降级方案）"""
+        print("  🛠️ 使用基础指令模板...")
+        
+        instructions = []
+        instructions.append("# AI创作最高指令：创作大纲与绝对约束")
+        instructions.append("你是一位顶级的小说策划AI。以下内容是你本次创作的【唯一真相来源】和【绝对行为准则】。你必须严格、完整、精确地遵循所有指令，任何偏离或遗漏都将被视为任务失败。")
+        
+        instructions.append("\n" + "="*30)
+        instructions.append("\n## 第一部分：世界观与不可逾越的边界")
+        instructions.append(f"\n**核心设定：**\n{core_setting}")
+        
+        # 自动生成否定约束
+        negative_constraints = []
+        if "凡人" in core_setting and "落云宗" in core_setting:
+            negative_constraints.append("**绝对禁止**：故事时间线在韩立从乱星海回归之后，因此**严禁**让主角前往乱星海、参与虚天殿夺宝等已发生的剧情。主角在结婴前的活动范围**必须**锁定在天南大陆。")
+        else:
+            negative_constraints.append("**绝对禁止**：你的一切情节设计都不能超出上述【核心设定】所定义的范围。不要引入设定之外的时间段、地点或世界背景。")
+        
+        instructions.append("\n**绝对禁止事项：**")
+        instructions.extend([f"- {constraint}" for constraint in negative_constraints])
+        
+        instructions.append("\n" + "="*30)
+        instructions.append("\n## 第二部分：核心卖点与执行纲领")
+        instructions.append("你的所有情节设计，都必须以服务和凸显以下核心卖点为首要目标：")
+        instructions.append(f"\n{core_selling_points}")
+        
+        instructions.append("\n" + "="*30)
+        instructions.append("\n## 第三部分：分阶段故事线框架")
+        instructions.append("你必须严格按照以下阶段的设定来构建故事的起承转合。")
+        
+        if storyline:
+            for stage_key, stage_data in storyline.items():
+                stage_name = stage_data.get('stageName', '未知阶段')
+                summary = stage_data.get('summary', '无')
+                arc_goal = stage_data.get('arc_goal', '无')
+                
+                instructions.append(f"\n### {stage_name}")
+                instructions.append(f"- **情节概要：** {summary}")
+                instructions.append(f"- **强制目标：** {arc_goal}")
+        
+        instructions.append("\n" + "="*30)
+        instructions.append("\n## 最终指令确认")
+        instructions.append("以上所有内容是不可违背的创作铁律。现在，请基于这份【最高指令】，开始你的工作。")
+        
+        return "\n".join(instructions)
+    
     def _preprocess_creative_seed(self, creative_seed):
         """
         预处理创意种子，检测同人小说并获取背景资料
@@ -629,11 +677,31 @@ class NovelGenerator:
             print(f"❌ 加载项目数据失败: {e}")
             return False
 
-    def resume_generation(self, total_chapters: int = 50) -> bool:
+    def resume_generation(self, total_chapters: int = 200) -> bool:
         """继续生成小说（兼容性方法）"""
         print("继续生成小说...")
-        # TODO: 实现继续生成逻辑
-        return True
+        
+        # 检查是否有续写数据
+        if not self.novel_data.get("is_resuming"):
+            print("❌ 没有续写数据，无法执行续写")
+            return False
+        
+        resume_data = self.novel_data.get("resume_data", {})
+        from_chapter = resume_data.get("from_chapter", 1)
+        additional_chapters = resume_data.get("additional_chapters", 10)
+        
+        print(f"从第{from_chapter}章开始续写{additional_chapters}章")
+        
+        try:
+            # 执行续写生成
+            end_chapter = from_chapter + additional_chapters - 1
+            return self.generate_chapters_batch(from_chapter, end_chapter)
+            
+        except Exception as e:
+            print(f"❌ 续写生成失败: {e}")
+            import traceback
+            traceback.print_exc()
+            return False
 
     def generate_chapters_batch(self, start_chapter: int, end_chapter: int) -> bool:
         """批量生成章节"""

@@ -732,10 +732,298 @@
 
         // 续写小说
         function continueNovel(title) {
-            if (confirm(`确定要继续生成小说《${title}》吗？这将从当前章节继续生成新内容。`)) {
-                window.location.href = `/?continue=${encodeURIComponent(title)}`;
+            showContinueDialog(title);
+        }
+
+        // 显示续写对话框
+        function showContinueDialog(title) {
+            // 创建续写对话框
+            const dialogHtml = `
+                <div id="continue-dialog" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 99999; display: flex; justify-content: center; align-items: center;">
+                    <div style="background: white; border-radius: 12px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto; border: 2px solid rgba(255,255,255,0.3);">
+                        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 12px 12px 0 0;">
+                            <h3 style="margin: 0; font-size: 18px; font-weight: 600;">📝 续写小说</h3>
+                            <p style="margin: 8px 0 0 0; opacity: 0.9;">继续生成小说《${escapeHtml(title)}》</p>
+                        </div>
+                        
+                        <div style="padding: 24px;">
+                            <div style="margin-bottom: 20px;">
+                                <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #333;">小说标题</label>
+                                <input type="text" id="continue-title" value="${escapeHtml(title)}" readonly style="width: 100%; padding: 12px; border: 2px solid #e5e7eb; border-radius: 8px; background: #f9fafb; color: #666;">
+                            </div>
+                            
+                            <div style="margin-bottom: 20px;">
+                                <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #333;">从第几章开始续写</label>
+                                <input type="number" id="continue-from-chapter" value="1" min="1" style="width: 100%; padding: 12px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 14px;">
+                                <div style="font-size: 12px; color: #666; margin-top: 4px;">建议从最后一章的下一章开始</div>
+                            </div>
+                            
+                            <div style="margin-bottom: 20px;">
+                                <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #333;">续写章节数</label>
+                                <select id="continue-chapters-count" style="width: 100%; padding: 12px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 14px;">
+                                    <option value="5">5章</option>
+                                    <option value="10" selected>10章</option>
+                                    <option value="20">20章</option>
+                                    <option value="50">50章</option>
+                                </select>
+                            </div>
+                            
+                            <div style="display: flex; gap: 12px;">
+                                <button onclick="closeContinueDialog()" style="flex: 1; padding: 12px; border: 2px solid #e5e7eb; background: white; color: #666; border-radius: 8px; cursor: pointer; font-weight: 600;">
+                                    取消
+                                </button>
+                                <button onclick="startContinueGeneration()" style="flex: 2; padding: 12px; border: none; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 8px; cursor: pointer; font-weight: 600;">
+                                    🚀 开始续写
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // 添加对话框到页面
+            const dialogContainer = document.createElement('div');
+            dialogContainer.innerHTML = dialogHtml;
+            document.body.appendChild(dialogContainer);
+            
+            // 存储当前小说标题
+            window.currentContinueTitle = title;
+            
+            // 加载小说信息以确定起始章节
+            loadNovelInfoForContinue(title);
+        }
+
+        // 加载小说信息用于续写
+        async function loadNovelInfoForContinue(title) {
+            try {
+                console.log('🔍 开始加载小说信息用于续写:', title);
+                const response = await fetch(`/api/project/${encodeURIComponent(title)}`);
+                console.log('📡 API响应状态:', response.status);
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('❌ API响应错误:', response.status, errorText);
+                    throw new Error(`加载失败 (${response.status}): ${errorText}`);
+                }
+                
+                const novelData = await response.json();
+                console.log('✅ 小说数据加载成功:', novelData);
+                
+                const generatedChapters = novelData.generated_chapters || {};
+                const chapterNumbers = Object.keys(generatedChapters).map(num => parseInt(num)).sort((a, b) => a - b);
+                
+                console.log('📚 章节数据:', {
+                    totalChapters: Object.keys(generatedChapters).length,
+                    chapterNumbers: chapterNumbers,
+                    generatedChapters: Object.keys(generatedChapters)
+                });
+                
+                if (chapterNumbers.length > 0) {
+                    const lastChapter = chapterNumbers[chapterNumbers.length - 1];
+                    const nextChapter = lastChapter + 1;
+                    
+                    console.log('🎯 计算续写起始点:', {
+                        lastChapter: lastChapter,
+                        nextChapter: nextChapter
+                    });
+                    
+                    const fromChapterInput = document.getElementById('continue-from-chapter');
+                    if (fromChapterInput) {
+                        fromChapterInput.value = nextChapter;
+                        fromChapterInput.min = nextChapter;
+                    }
+                    
+                    // 显示当前进度信息
+                    const totalChapters = novelData.current_progress?.total_chapters || novelData.total_chapters || 200;
+                    const progressInfo = document.createElement('div');
+                    progressInfo.style.cssText = 'background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; padding: 12px; margin-bottom: 16px; font-size: 13px; color: #1e40af;';
+                    progressInfo.innerHTML = `
+                        <div style="font-weight: 600; margin-bottom: 4px;">📊 当前进度</div>
+                        <div>已生成: ${chapterNumbers.length} 章</div>
+                        <div>建议从第 ${nextChapter} 章开始续写</div>
+                        <div>总计划: ${totalChapters} 章</div>
+                    `;
+                    
+                    const fromChapterContainer = document.getElementById('continue-from-chapter').parentElement;
+                    fromChapterContainer.parentNode.insertBefore(progressInfo, fromChapterContainer);
+                } else {
+                    console.log('⚠️ 该小说没有生成的章节');
+                    
+                    // 如果没有章节，提示用户
+                    const fromChapterInput = document.getElementById('continue-from-chapter');
+                    if (fromChapterInput) {
+                        fromChapterInput.value = 1;
+                        fromChapterInput.min = 1;
+                    }
+                    
+                    const infoInfo = document.createElement('div');
+                    infoInfo.style.cssText = 'background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; padding: 12px; margin-bottom: 16px; font-size: 13px; color: #1e40af;';
+                    infoInfo.innerHTML = `
+                        <div style="font-weight: 600; margin-bottom: 4px;">💡 提示</div>
+                        <div>该小说还没有生成任何章节，可以从第1章开始生成。</div>
+                        <div>建议总章节数：200章（可根据需要调整）</div>
+                    `;
+                    
+                    const fromChapterContainer = document.getElementById('continue-from-chapter').parentElement;
+                    fromChapterContainer.parentNode.insertBefore(infoInfo, fromChapterContainer);
+                }
+                
+                // 启用续写按钮
+                const startBtn = document.querySelector('button[onclick="startContinueGeneration()"]');
+                if (startBtn) {
+                    startBtn.disabled = false;
+                    startBtn.textContent = '🚀 开始续写';
+                    startBtn.style.opacity = '1';
+                }
+                
+            } catch (error) {
+                console.error('❌ 加载小说信息失败:', error);
+                alert('加载小说信息失败: ' + error.message);
+                closeContinueDialog();
             }
         }
+
+        // 关闭续写对话框
+        function closeContinueDialog() {
+            const dialog = document.getElementById('continue-dialog');
+            if (dialog) {
+                dialog.remove();
+            }
+            window.currentContinueTitle = null;
+        }
+
+        // 开始续写生成
+        async function startContinueGeneration() {
+            const title = window.currentContinueTitle;
+            if (!title) return;
+            
+            const fromChapter = parseInt(document.getElementById('continue-from-chapter').value);
+            const additionalChapters = parseInt(document.getElementById('continue-chapters-count').value);
+            
+            if (isNaN(fromChapter) || fromChapter < 1) {
+                alert('请输入有效的起始章节数');
+                return;
+            }
+            
+            if (isNaN(additionalChapters) || additionalChapters < 1) {
+                alert('请输入有效的续写章节数');
+                return;
+            }
+            
+            try {
+                // 显示加载界面
+                showLoadingOverlay(`正在启动续写任务...`);
+                
+                // 调用续写API
+                const response = await fetch(`/api/project/${encodeURIComponent(title)}/resume-generation`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        from_chapter: fromChapter,
+                        additional_chapters: additionalChapters
+                    })
+                });
+                
+                // 检查是否需要登录
+                if (response.status === 401) {
+                    hideLoadingOverlay();
+                    alert('请先登录后再试');
+                    window.location.href = '/login';
+                    return;
+                }
+                
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    // 关闭续写对话框
+                    closeContinueDialog();
+                    
+                    // 显示成功消息并跳转到首页监控进度
+                    hideLoadingOverlay();
+                    showSuccessMessage(`续写任务已启动！任务ID: ${result.task_id}`);
+                    
+                    // 延迟跳转到首页
+                    setTimeout(() => {
+                        window.location.href = '/';
+                    }, 2000);
+                } else {
+                    throw new Error(result.error || '启动续写任务失败');
+                }
+                
+            } catch (error) {
+                hideLoadingOverlay();
+                alert(`续写失败: ${error.message}`);
+                console.error('续写失败:', error);
+            }
+        }
+
+        // 显示加载覆盖层
+        function showLoadingOverlay(message) {
+            const overlay = document.createElement('div');
+            overlay.id = 'loading-overlay-temp';
+            overlay.style.cssText = `
+                position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+                background: rgba(0,0,0,0.7); z-index: 100000;
+                display: flex; justify-content: center; align-items: center;
+            `;
+            
+            overlay.innerHTML = `
+                <div style="background: white; padding: 40px; border-radius: 12px; text-align: center; max-width: 400px;">
+                    <div style="width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid #667eea; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 20px;"></div>
+                    <h3>${message}</h3>
+                </div>
+            `;
+            
+            document.body.appendChild(overlay);
+        }
+
+        // 隐藏加载覆盖层
+        function hideLoadingOverlay() {
+            const overlay = document.getElementById('loading-overlay-temp');
+            if (overlay) {
+                overlay.remove();
+            }
+        }
+
+        // 显示成功消息
+        function showSuccessMessage(message) {
+            const messageDiv = document.createElement('div');
+            messageDiv.style.cssText = `
+                position: fixed; top: 20px; right: 20px; z-index: 100001;
+                background: linear-gradient(135deg, #10b981, #059669); color: white;
+                padding: 16px 24px; border-radius: 8px; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+                font-weight: 600; animation: slideInRight 0.3s ease-out;
+            `;
+            messageDiv.textContent = message;
+            
+            document.body.appendChild(messageDiv);
+            
+            // 自动移除
+            setTimeout(() => {
+                if (messageDiv.parentNode) {
+                    messageDiv.style.animation = 'slideOutRight 0.3s ease-out';
+                    setTimeout(() => {
+                        if (messageDiv.parentNode) {
+                            messageDiv.parentNode.removeChild(messageDiv);
+                        }
+                    }, 300);
+                }
+            }, 3000);
+        }
+
+        // 添加CSS动画
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+            @keyframes slideInRight { from { opacity: 0; transform: translateX(100px); } to { opacity: 1; transform: translateX(0); } }
+            @keyframes slideOutRight { from { opacity: 1; transform: translateX(0); } to { opacity: 0; transform: translateX(100px); } }
+        `;
+        document.head.appendChild(style);
 
         // 导出小说
         async function exportNovel(title) {

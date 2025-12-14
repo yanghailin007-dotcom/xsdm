@@ -825,7 +825,7 @@
                 <div class="form-group">
                     <label for="total-chapters">总章节数</label>
                     <input type="number" id="total-chapters" name="total_chapters"
-                           value="50" min="1" max="200" required>
+                           value="200" min="1" max="200" required>
                 </div>
 
                 <div class="form-group">
@@ -1048,7 +1048,7 @@
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
                         <div>
                             <label for="edit-total-chapters" style="display: block; margin-bottom: 8px; font-weight: 600; color: #374151; font-size: 14px;">总章节数</label>
-                            <input type="number" id="edit-total-chapters" name="total_chapters" value="50" min="1" max="200" style="width: 100%; padding: 14px 16px; border: 2px solid #e5e7eb; border-radius: 10px; font-size: 15px; background: white; color: #1f2937; font-weight: 500; box-sizing: border-box;">
+                            <input type="number" id="edit-total-chapters" name="total_chapters" value="200" min="1" max="200" style="width: 100%; padding: 14px 16px; border: 2px solid #e5e7eb; border-radius: 10px; font-size: 15px; background: white; color: #1f2937; font-weight: 500; box-sizing: border-box;">
                         </div>
                     </div>
                 </div>
@@ -1312,6 +1312,9 @@
             
             // 检查登录状态
             checkLoginStatus();
+            
+            // 检查是否有续写参数
+            checkContinueParameter();
             
             loadDashboardStats();
             checkExistingTasks();
@@ -1640,7 +1643,7 @@
             const editTotalChaptersElement = document.getElementById('edit-total-chapters');
             const mainTotalChaptersElement = document.getElementById('total-chapters');
             
-            let totalChapters = 50; // 默认值
+            let totalChapters = 200; // 默认值
             if (editTotalChaptersElement && editTotalChaptersElement.value) {
                 totalChapters = parseInt(editTotalChaptersElement.value);
             } else if (mainTotalChaptersElement && mainTotalChaptersElement.value) {
@@ -2234,7 +2237,7 @@
         // 收集创意编辑器数据
         function collectCreativeEditorData() {
             const totalChaptersElement = document.getElementById('edit-total-chapters');
-            const totalChapters = totalChaptersElement ? parseInt(totalChaptersElement.value) || 50 : 50;
+            const totalChapters = totalChaptersElement ? parseInt(totalChaptersElement.value) || 200 : 200;
             
             const data = {
                 novelTitle: document.getElementById('edit-novel-title').value.trim(),
@@ -2388,7 +2391,7 @@
             
             if (!totalChaptersElement || !chaptersToGenerateElement) return;
             
-            const totalChapters = parseInt(totalChaptersElement.value) || 50;
+            const totalChapters = parseInt(totalChaptersElement.value) || 200;
             const currentValue = chaptersToGenerateElement.value;
             
             // 生成可选的章节数选项
@@ -2419,7 +2422,7 @@
             const mainTotalChaptersElement = document.getElementById('total-chapters');
             
             if (editTotalChaptersElement && mainTotalChaptersElement) {
-                const editValue = parseInt(editTotalChaptersElement.value) || 50;
+                const editValue = parseInt(editTotalChaptersElement.value) || 200;
                 mainTotalChaptersElement.value = editValue;
                 updateChaptersToGenerateOptions();
             }
@@ -2429,6 +2432,197 @@
         function logout() {
             if (confirm('确定要退出登录吗？')) {
                 window.location.href = '/logout';
+            }
+        }
+
+        // ==================== 续写功能 ====================
+        
+        let continueNovelTitle = null;
+
+        // 检查是否有续写参数
+        function checkContinueParameter() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const continueTitle = urlParams.get('continue');
+            
+            if (continueTitle) {
+                console.log('检测到续写参数:', continueTitle);
+                continueNovelTitle = decodeURIComponent(continueTitle);
+                showContinueDialog(continueNovelTitle);
+            }
+        }
+
+        // 显示续写对话框
+        function showContinueDialog(title) {
+            // 创建续写对话框
+            const dialogHtml = `
+                <div id="continue-dialog" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 99999; display: flex; justify-content: center; align-items: center;">
+                    <div style="background: white; border-radius: 12px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto; border: 2px solid rgba(255,255,255,0.3);">
+                        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 12px 12px 0 0;">
+                            <h3 style="margin: 0; font-size: 18px; font-weight: 600;">📝 续写小说</h3>
+                            <p style="margin: 8px 0 0 0; opacity: 0.9;">继续生成小说《${escapeHtml(title)}》</p>
+                        </div>
+                        
+                        <div style="padding: 24px;">
+                            <div style="margin-bottom: 20px;">
+                                <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #333;">小说标题</label>
+                                <input type="text" id="continue-title" value="${escapeHtml(title)}" readonly style="width: 100%; padding: 12px; border: 2px solid #e5e7eb; border-radius: 8px; background: #f9fafb; color: #666;">
+                            </div>
+                            
+                            <div style="margin-bottom: 20px;">
+                                <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #333;">从第几章开始续写</label>
+                                <input type="number" id="continue-from-chapter" value="1" min="1" style="width: 100%; padding: 12px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 14px;">
+                                <div style="font-size: 12px; color: #666; margin-top: 4px;">建议从最后一章的下一章开始</div>
+                            </div>
+                            
+                            <div style="margin-bottom: 20px;">
+                                <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #333;">续写章节数</label>
+                                <select id="continue-chapters-count" style="width: 100%; padding: 12px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 14px;">
+                                    <option value="5">5章</option>
+                                    <option value="10" selected>10章</option>
+                                    <option value="20">20章</option>
+                                    <option value="50">50章</option>
+                                </select>
+                            </div>
+                            
+                            <div style="display: flex; gap: 12px;">
+                                <button onclick="closeContinueDialog()" style="flex: 1; padding: 12px; border: 2px solid #e5e7eb; background: white; color: #666; border-radius: 8px; cursor: pointer; font-weight: 600;">
+                                    取消
+                                </button>
+                                <button onclick="startContinueGeneration()" style="flex: 2; padding: 12px; border: none; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 8px; cursor: pointer; font-weight: 600;">
+                                    🚀 开始续写
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // 添加对话框到页面
+            const dialogContainer = document.createElement('div');
+            dialogContainer.innerHTML = dialogHtml;
+            document.body.appendChild(dialogContainer);
+            
+            // 加载小说信息以确定起始章节
+            loadNovelInfoForContinue(title);
+        }
+
+        // 加载小说信息用于续写
+        async function loadNovelInfoForContinue(title) {
+            try {
+                const response = await fetch(`/api/project/${encodeURIComponent(title)}`);
+                if (response.ok) {
+                    const novelData = await response.json();
+                    const generatedChapters = novelData.generated_chapters || {};
+                    const chapterNumbers = Object.keys(generatedChapters).map(num => parseInt(num)).sort((a, b) => a - b);
+                    
+                    if (chapterNumbers.length > 0) {
+                        const lastChapter = chapterNumbers[chapterNumbers.length - 1];
+                        const nextChapter = lastChapter + 1;
+                        
+                        const fromChapterInput = document.getElementById('continue-from-chapter');
+                        if (fromChapterInput) {
+                            fromChapterInput.value = nextChapter;
+                            fromChapterInput.min = nextChapter;
+                        }
+                        
+                        // 显示当前进度信息
+                        const totalChapters = novelData.total_chapters || 200;
+                        const progressInfo = document.createElement('div');
+                        progressInfo.style.cssText = 'background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; padding: 12px; margin-bottom: 16px; font-size: 13px; color: #1e40af;';
+                        progressInfo.innerHTML = `
+                            <div style="font-weight: 600; margin-bottom: 4px;">📊 当前进度</div>
+                            <div>已生成: ${chapterNumbers.length} 章</div>
+                            <div>建议从第 ${nextChapter} 章开始续写</div>
+                            <div>总计划: ${totalChapters} 章</div>
+                        `;
+                        
+                        const fromChapterContainer = document.getElementById('continue-from-chapter').parentElement;
+                        fromChapterContainer.parentNode.insertBefore(progressInfo, fromChapterContainer);
+                    }
+                }
+            } catch (error) {
+                console.error('加载小说信息失败:', error);
+            }
+        }
+
+        // 关闭续写对话框
+        function closeContinueDialog() {
+            const dialog = document.getElementById('continue-dialog');
+            if (dialog) {
+                dialog.remove();
+            }
+            // 清除URL参数
+            const url = new URL(window.location);
+            url.searchParams.delete('continue');
+            window.history.replaceState({}, document.title, url);
+        }
+
+        // 开始续写生成
+        async function startContinueGeneration() {
+            if (!continueNovelTitle) return;
+            
+            const fromChapter = parseInt(document.getElementById('continue-from-chapter').value);
+            const additionalChapters = parseInt(document.getElementById('continue-chapters-count').value);
+            
+            if (isNaN(fromChapter) || fromChapter < 1) {
+                alert('请输入有效的起始章节数');
+                return;
+            }
+            
+            if (isNaN(additionalChapters) || additionalChapters < 1) {
+                alert('请输入有效的续写章节数');
+                return;
+            }
+            
+            try {
+                // 显示加载界面
+                const overlay = document.getElementById('loading-overlay');
+                const progressText = document.getElementById('progress-text');
+                overlay.classList.add('active');
+                progressText.textContent = `正在启动续写任务...`;
+                
+                // 调用续写API
+                const response = await fetch(`/api/project/${encodeURIComponent(continueNovelTitle)}/resume-generation`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        from_chapter: fromChapter,
+                        additional_chapters: additionalChapters
+                    })
+                });
+                
+                // 检查是否需要登录
+                if (response.status === 401) {
+                    overlay.classList.remove('active');
+                    alert('请先登录后再试');
+                    window.location.href = '/login';
+                    return;
+                }
+                
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    currentTaskId = result.task_id;
+                    progressText.textContent = `续写任务已启动: ${currentTaskId}，正在后台处理...`;
+                    
+                    // 关闭续写对话框
+                    closeContinueDialog();
+                    
+                    // 开始进度监控
+                    startProgressMonitoring();
+                } else {
+                    throw new Error(result.error || '启动续写任务失败');
+                }
+                
+            } catch (error) {
+                document.getElementById('loading-overlay').classList.remove('active');
+                alert(`续写失败: ${error.message}`);
+                console.error('续写失败:', error);
             }
         }
     </script>

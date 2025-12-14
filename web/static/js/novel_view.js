@@ -95,11 +95,20 @@ async function loadNovelData(novelTitle) {
         }
         
         if (progressElement) {
-            const totalChapters = novelData.total_chapters ||
+            // 优先使用 current_progress.total_chapters，然后是其他可能的字段
+            const totalChapters = novelData.current_progress?.total_chapters ||
+                               novelData.total_chapters ||
                                novelData.chapter_index?.length ||
-                               chaptersData.length ||
-                               50;
-            progressElement.textContent = `${chaptersData.length || 0}/${totalChapters}`;
+                               50; // 默认50章
+            
+            const completedChapters = chaptersData.length || 0;
+            progressElement.textContent = `${completedChapters}/${totalChapters}`;
+            
+            console.log('📊 进度更新:', {
+                completedChapters: completedChapters,
+                totalChapters: totalChapters,
+                progressText: `${completedChapters}/${totalChapters}`
+            });
         }
         // 更新核心设定 - 改为可展开的JSON组件
         const coreSettingElement = document.getElementById('core-setting');

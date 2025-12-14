@@ -59,6 +59,26 @@ class ContentVerifier:
         total_checks = 0
         passed_checks = 0
         
+        # 检查是否从知识库加载 - 如果是，直接通过验证
+        background_source = content.get("verification_result", {}).get("background_source", "")
+        if background_source == "knowledge_base":
+            print(f"[PASS] 检测到数据来源为知识库，直接通过验证")
+            confidence_score = 1.0
+            passed_checks = 1
+            total_checks = 1
+            verified_facts.append("从知识库加载的权威数据，无需验证")
+            suggestions.append("知识库数据可信度高，可以直接使用")
+            
+            return VerificationResult(
+                is_credible=True,
+                confidence_score=confidence_score,
+                credibility_level=CredibilityLevel.HIGH,
+                issues_found=[],
+                suggestions=suggestions,
+                verified_facts=verified_facts,
+                unverified_facts=[]
+            )
+        
         # 1. 检查是否有权威知识库数据
         if work_name in self.verified_knowledge_base:
             verified_data = self.verified_knowledge_base[work_name]

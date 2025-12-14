@@ -476,7 +476,7 @@ class NovelGenerationManager:
             "config": config,
             "title": config.get("title", "未命名小说"),
             "synopsis": config.get("synopsis", ""),
-            "total_chapters": config.get("total_chapters", 50)
+            "total_chapters": config.get("total_chapters", 200)
         }
         
         self.task_progress[task_id] = {
@@ -531,7 +531,7 @@ class NovelGenerationManager:
                 # 构建生成器配置 - 使用完整的CONFIG而不是简化的配置
                 generator_config = CONFIG.copy()
                 # 更新一些默认值
-                generator_config["defaults"]["total_chapters"] = config.get("total_chapters", 50)
+                generator_config["defaults"]["total_chapters"] = config.get("total_chapters", 200)
                 generator_config["defaults"]["chapters_per_batch"] = 3
                 
                 logger.info(f"任务 {task_id}: 📋 生成器配置: {json.dumps(generator_config, ensure_ascii=False, indent=2)}")
@@ -548,7 +548,7 @@ class NovelGenerationManager:
                 self._update_task_status(task_id, "failed", 0, f"创建生成器失败: {str(e)}")
                 return
             
-            total_chapters = config.get("total_chapters", 50)
+            total_chapters = config.get("total_chapters", 200)
             logger.info(f"任务 {task_id}: 📚 开始生成 {total_chapters} 章")
             
             # 更新进度 - 修复：只在真正完成阶段时更新进度
@@ -666,6 +666,106 @@ class NovelGenerationManager:
         except Exception as e:
             logger.error(f"任务 {task_id}: 检查生成文件时出错: {e}")
             return False
+
+    def _run_resume_task(self, task_id: str, title: str, from_chapter: int, additional_chapters: int):
+        """执行续写任务"""
+        try:
+            logger.info(f"任务 {task_id}: 🚀 开始续写小说: {title}")
+            logger.info(f"任务 {task_id}: 从第{from_chapter}章开始，续写{additional_chapters}章")
+            
+            self._update_task_status(task_id, "loading_data", 10)
+            
+            # 加载现有小说数据
+            novel_detail = self.get_novel_detail(title)
+            if not novel_detail:
+                logger.error(f"任务 {task_id}: ❌ 无法加载小说数据: {title}")
+                self._update_task_status(task_id, "failed", 0, f"无法加载小说数据: {title}")
+                return
+            
+            logger.info(f"任务 {task_id}: ✅ 成功加载小说数据")
+            self._update_task_status(task_id, "initializing_generator", 20)
+            
+            # 初始化NovelGenerator
+            try:
+                from src.core.NovelGenerator import NovelGenerator
+                from config.config import CONFIG
+                
+                # 构建生成器配置
+                generator_config = CONFIG.copy()
+                generator_config["defaults"]["total_chapters"] = from_chapter + additional_chapters
+                generator_config["defaults"]["chapters_per_batch"] = 3
+                
+                # 创建生成器实例
+                novel_generator = NovelGenerator(generator_config)
+                logger.info(f"任务 {task_id}: ✅ NovelGenerator 初始化成功")
+                
+            except Exception as e:
+                logger.error(f"任务 {task_id}: ❌ 创建 NovelGenerator 失败: {e}")
+                self._update_task_status(task_id, "failed", 0, f"创建生成器失败: {str(e)}")
+                return
+            
+            self._update_task_status(task_id, "preparing_resume", 30)
+            
+            # 准备续写数据
+            try:
+                # 设置小说数据到生成器
+                novel_generator.novel_data = novel_detail
+                novel_generator.novel_data["is_resuming"] = True
+                novel_generator.novel_data["resume_data"] = {
+                    "from_chapter": from_chapter,
+                    "additional_chapters": additional_chapters,
+                    "total_target_chapters": from_chapter + additional_chapters
+                }
+                
+                # 更新进度信息
+                novel_generator.novel_data["current_progress"]["total_chapters"] = from_chapter + additional_chapters
+                novel_generator.novel_data["current_progress"]["stage"] = "续写生成"
+                
+                logger.info(f"任务 {task_id}: ✅ 续写数据准备完成")
+                
+            except Exception as e:
+                logger.error(f"任务 {task_id}: ❌ 准备续写数据失败: {e}")
+                self._update_task_status(task_id, "failed", 0, f"准备续写数据失败: {str(e)}")
+                return
+            
+            self._update_task_status(task_id, "generating", 50)
+            
+            # 执行续写生成
+            try:
+                logger.info(f"任务 {task_id}: 📝 开始续写章节生成...")
+                
+                # 计算实际需要生成的章节范围
+                end_chapter = from_chapter + additional_chapters - 1
+                
+                # 批量生成章节
+                success = novel_generator.generate_chapters_batch(from_chapter, end_chapter)
+                
+                if success:
+                    logger.info(f"任务 {task_id}: ✅ 续写生成完成")
+                    self._update_task_status(task_id, "completed", 100)
+                    
+                    # 重新加载项目数据以获取最新状态
+                    try:
+                        self.load_existing_novels()
+                        logger.info(f"任务 {task_id}: ✅ 项目数据重新加载完成")
+                    except Exception as e:
+                        logger.info(f"任务 {task_id}: ⚠️ 重新加载项目数据失败: {e}")
+                        
+                else:
+                    logger.error(f"任务 {task_id}: ❌ 续写生成失败")
+                    self._update_task_status(task_id, "failed", 0, "续写生成返回失败")
+                    
+            except Exception as e:
+                logger.error(f"任务 {task_id}: ❌ 续写生成过程异常: {e}")
+                import traceback
+                traceback.print_exc()
+                self._update_task_status(task_id, "failed", 0, f"续写生成异常: {str(e)}")
+                
+        except Exception as e:
+            logger.error(f"任务 {task_id}: 🔥 续写任务发生未捕获的异常: {e}")
+            import traceback
+            traceback.print_exc()
+            self._update_task_status(task_id, "failed", 0, f"未捕获的异常: {str(e)}")
 
 # 创建全局管理器实例
 manager = NovelGenerationManager()
@@ -1460,15 +1560,15 @@ def start_generation_from_idea():
         idea_id = data.get("idea_id")
         
         # 修复：确保total_chapters是有效的整数
-        total_chapters = data.get("total_chapters", 50)
+        total_chapters = data.get("total_chapters", 200)
         if total_chapters is None or total_chapters == "":
-            total_chapters = 50
+            total_chapters = 200
         try:
             total_chapters = int(total_chapters)
             if total_chapters <= 0:
-                total_chapters = 50
+                total_chapters = 200
         except (ValueError, TypeError):
-            total_chapters = 50
+            total_chapters = 200
 
         if idea_id is None:
             return jsonify({"error": "缺少idea_id参数"}), 400
@@ -1551,7 +1651,7 @@ def update_creative_idea(idea_id):
         updated_idea["novelTitle"] = data.get("novelTitle", updated_idea.get("novelTitle", ""))
         updated_idea["synopsis"] = data.get("synopsis", updated_idea.get("synopsis", ""))
         updated_idea["coreSellingPoints"] = data.get("coreSellingPoints", updated_idea.get("coreSellingPoints", ""))
-        updated_idea["totalChapters"] = data.get("totalChapters", updated_idea.get("totalChapters", 50))
+        updated_idea["totalChapters"] = data.get("totalChapters", updated_idea.get("totalChapters", 200))
         
         # 更新故事线
         if data.get("completeStoryline"):
@@ -1866,6 +1966,152 @@ def server_error(error):
 
 # ==================== 启动 ====================
 
+@app.route('/api/project/<title>/resume-generation', methods=['POST'])
+@login_required
+def resume_novel_generation(title):
+    """续写小说生成"""
+    try:
+        data = request.json or {}
+        from_chapter = data.get('from_chapter', 1)
+        additional_chapters = data.get('additional_chapters', 10)
+        
+        logger.info(f"📖 开始续写小说: {title}")
+        logger.info(f"从第{from_chapter}章开始，计划再生成{additional_chapters}章")
+        
+        # 检查小说是否存在
+        novel_detail = manager.get_novel_detail(title)
+        if not novel_detail:
+            return jsonify({"error": "小说不存在"}), 404
+        
+        # 检查是否可以续写（至少有一章已生成）
+        generated_chapters = novel_detail.get("generated_chapters", {})
+        if not generated_chapters:
+            return jsonify({"error": "该小说还没有生成任何章节，无法续写"}), 400
+        
+        # 检查起始章节是否有效
+        if from_chapter < 1:
+            return jsonify({"error": "起始章节必须大于等于1"}), 400
+        
+        # 检查是否有足够的上下文数据
+        max_chapter = max(generated_chapters.keys()) if generated_chapters else 0
+        if from_chapter > max_chapter + 1:
+            return jsonify({"error": f"起始章节{from_chapter}超出已生成范围，最大章节为{max_chapter}"}), 400
+        
+        # 初始化续写任务
+        import uuid
+        task_id = str(uuid.uuid4())
+        
+        resume_task = {
+            "task_id": task_id,
+            "status": "initializing",
+            "progress": 0,
+            "created_at": datetime.now().isoformat(),
+            "updated_at": datetime.now().isoformat(),
+            "config": {
+                "title": title,
+                "from_chapter": from_chapter,
+                "additional_chapters": additional_chapters,
+                "total_chapters": from_chapter + additional_chapters,
+                "novel_data": novel_detail
+            }
+        }
+        
+        manager.task_results[task_id] = resume_task
+        manager.task_progress[task_id] = {
+            "status": "initializing",
+            "progress": 0,
+            "timestamp": datetime.now().isoformat()
+        }
+        
+        # 启动后台续写任务
+        def run_resume_generation():
+            try:
+                manager._run_resume_task(task_id, title, from_chapter, additional_chapters)
+            except Exception as e:
+                logger.error(f"续写任务执行失败: {e}")
+                manager._update_task_status(task_id, "failed", 0, str(e))
+        
+        thread = threading.Thread(target=run_resume_generation)
+        thread.daemon = True
+        thread.start()
+        
+        manager.task_threads[task_id] = thread
+        
+        logger.info(f"✅ 续写任务已启动: {task_id}")
+        
+        return jsonify({
+            "success": True,
+            "task_id": task_id,
+            "message": f"续写任务已启动，正在后台处理",
+            "from_chapter": from_chapter,
+            "additional_chapters": additional_chapters,
+            "status": "started"
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ 启动续写任务失败: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/task/<task_id>/resume-status', methods=['GET'])
+def get_resume_task_status(task_id):
+    """获取续写任务状态"""
+    try:
+        status = manager.get_task_status(task_id)
+        if "error" in status:
+            return jsonify(status), 404
+        
+        # 添加续写特定的状态信息
+        resume_data = _get_resume_task_data(manager, task_id)
+        if resume_data:
+            status["resume_data"] = resume_data
+        
+        return jsonify(status)
+    except Exception as e:
+        logger.error(f"❌ 获取续写任务状态失败: {e}")
+        return jsonify({"error": str(e)}), 500
+
+def _get_resume_task_data(manager, task_id: str):
+    """获取续写任务数据"""
+    if task_id in manager.task_results:
+        task = manager.task_results[task_id]
+        return task.get("config", {}).get("novel_data")
+    return None
+
+@app.route('/api/project/<title>/can-resume', methods=['GET'])
+def check_can_resume(title):
+    """检查小说是否可以续写"""
+    try:
+        novel_detail = manager.get_novel_detail(title)
+        if not novel_detail:
+            return jsonify({"can_resume": False, "reason": "小说不存在"})
+        
+        generated_chapters = novel_detail.get("generated_chapters", {})
+        if not generated_chapters:
+            return jsonify({"can_resume": False, "reason": "该小说还没有生成任何章节"})
+        
+        max_chapter = max(generated_chapters.keys()) if generated_chapters else 0
+        completed_chapters = len(generated_chapters)
+        
+        # 检查是否有足够的数据用于续写
+        has_context_data = (
+            novel_detail.get("selected_plan") and
+            novel_detail.get("creative_seed") and
+            novel_detail.get("core_worldview") and
+            novel_detail.get("character_design")
+        )
+        
+        return jsonify({
+            "can_resume": has_context_data,
+            "max_chapter": max_chapter,
+            "completed_chapters": completed_chapters,
+            "total_target_chapters": novel_detail.get("current_progress", {}).get("total_chapters", 0),
+            "has_context_data": has_context_data
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ 检查续写能力失败: {e}")
+        return jsonify({"can_resume": False, "reason": str(e)}), 500
+
 if __name__ == '__main__':
     logger.info("=" * 60)
     logger.info("🚀 Web 服务启动")
@@ -1873,7 +2119,7 @@ if __name__ == '__main__':
     logger.info("📱 前端地址: http://localhost:5000")
     logger.info("🌐 API 地址: http://localhost:5000/api")
     logger.info("=" * 60)
-    
+
     # 开发模式运行
     app.run(
         host='0.0.0.0',
