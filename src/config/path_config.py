@@ -40,7 +40,7 @@ class NovelPathConfig:
             # 核心数据目录
             "project_info": str(project_dir / "project_info.json"),
             "novel_overview": str(project_dir / "novel_overview.json"),
-            "writing_style_guide": str(project_dir / "writing_style_guide.json"),
+            "writing_style_guide": str(project_dir / f"{safe_title}_writing_style_guide.json"),
             
             # 章节目录
             "chapters_dir": str(project_dir / "chapters"),
