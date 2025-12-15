@@ -632,6 +632,14 @@
                                 <span>📖</span>
                                 <span>${novel.completed_chapters}/${novel.total_chapters}章</span>
                             </div>
+                            <div class="novel-meta-item">
+                                <span>⭐</span>
+                                <span>${novel.average_score || '-'}/10</span>
+                            </div>
+                            <div class="novel-meta-item">
+                                <span>📝</span>
+                                <span>${(novel.word_count || 0).toLocaleString()}字</span>
+                            </div>
                         </div>
                     </div>
                     

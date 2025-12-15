@@ -48,6 +48,17 @@ logger = get_logger("WebServer")
 from src.utils.DouBaoImageGenerator import DouBaoImageGenerator
 from src.core.NovelGenerator import NovelGenerator
 from config.config import CREATIVE_IDEAS_FILE, BASE_DIR
+from src.integration.fanqie_uploader import FanqieUploader
+
+# 尝试导入番茄自动上传模块
+try:
+    import Chrome.automation.legacy.autopush_legacy as autopush
+    autopush_available = True
+    logger.info("✅ 番茄自动上传模块加载成功")
+except ImportError as e:
+    logger.warn(f"⚠️ 无法导入番茄自动上传模块: {e}")
+    autopush = None
+    autopush_available = False
 
 # Flask 应用初始化
 app = Flask(__name__)
@@ -302,7 +313,16 @@ class NovelGenerationManager:
                 for plan_file in writing_plans_dir.glob(f"{title}*writing_plan*.json"):
                     with open(plan_file, 'r', encoding='utf-8') as f:
                         plan_data = json.load(f)
-                        stage_name = plan_data.get("stage_writing_plan", {}).get("stage_name", "unknown")
+                        # 确保plan_data是字典类型
+                        if isinstance(plan_data, dict):
+                            stage_writing_plan = plan_data.get("stage_writing_plan", {})
+                            # 确保stage_writing_plan也是字典类型
+                            if isinstance(stage_writing_plan, dict):
+                                stage_name = stage_writing_plan.get("stage_name", "unknown")
+                            else:
+                                stage_name = "unknown"
+                        else:
+                            stage_name = "unknown"
                         quality_data["writing_plans"][stage_name] = plan_data
 
             # 加载关系数据
@@ -339,12 +359,45 @@ class NovelGenerationManager:
         """获取所有小说项目"""
         projects = []
         for title, data in self.novel_projects.items():
+            generated_chapters = data.get("generated_chapters", {})
+            completed_chapters = len(generated_chapters)
+            
+            # 计算总字数
+            total_word_count = 0
+            for chapter_num, chapter_data in generated_chapters.items():
+                if isinstance(chapter_data, dict):
+                    total_word_count += chapter_data.get("word_count", 0)
+                else:
+                    total_word_count += len(str(chapter_data))
+            
+            # 计算平均评分
+            total_score = 0
+            scored_chapters = 0
+            for chapter_num, chapter_data in generated_chapters.items():
+                if isinstance(chapter_data, dict):
+                    quality_assessment = chapter_data.get("quality_assessment", {})
+                    if quality_assessment and "overall_score" in quality_assessment:
+                        total_score += quality_assessment["overall_score"]
+                        scored_chapters += 1
+            
+            average_score = total_score / scored_chapters if scored_chapters > 0 else 0
+            
+            # 获取目标章节数，优先从数据中获取，否则使用已生成章节数
+            target_chapters = (
+                data.get("current_progress", {}).get("total_chapters") or
+                data.get("total_chapters") or
+                completed_chapters
+            )
+            
             projects.append({
                 "title": title,
-                "total_chapters": data.get("current_progress", {}).get("total_chapters", 0),
-                "completed_chapters": len(data.get("generated_chapters", {})),
+                "total_chapters": int(target_chapters),
+                "completed_chapters": completed_chapters,
+                "word_count": total_word_count,
+                "average_score": round(average_score, 1),
                 "created_at": data.get("creation_time", datetime.now().isoformat()),
-                "last_updated": data.get("current_progress", {}).get("last_updated", "")
+                "last_updated": data.get("current_progress", {}).get("last_updated", ""),
+                "status": "completed" if completed_chapters >= target_chapters and target_chapters > 0 else "generating"
             })
         return sorted(projects, key=lambda x: x["last_updated"], reverse=True)
 
@@ -381,7 +434,7 @@ class NovelGenerationManager:
 
             # 获取角色发展数据（过滤到当前章节）
             character_data = project_quality.get("character_development", {})
-            if character_data:
+            if character_data and isinstance(character_data, dict):
                 # 提取在当前章节活跃的角色
                 active_characters = {}
                 for char_name, char_info in character_data.items():
@@ -394,17 +447,35 @@ class NovelGenerationManager:
 
             # 获取事件数据（过滤到当前章节）
             all_events = project_quality.get("detailed_events", [])
-            chapter_events = [event for event in all_events if event.get("chapter_number") == chapter_num]
+            if isinstance(all_events, list):
+                chapter_events = [event for event in all_events if isinstance(event, dict) and event.get("chapter_number") == chapter_num]
+            else:
+                chapter_events = []
             quality_data["events"] = chapter_events
 
             # 获取章节失败记录
-            chapter_failures = project_quality.get("chapter_failures", {}).get(chapter_num, [])
+            chapter_failures_data = project_quality.get("chapter_failures", {})
+            if isinstance(chapter_failures_data, dict):
+                chapter_failures = chapter_failures_data.get(chapter_num, [])
+                if not isinstance(chapter_failures, list):
+                    chapter_failures = []
+            else:
+                chapter_failures = []
             quality_data["chapter_failures"] = chapter_failures
 
             # 获取当前章节的写作计划
             writing_plans = project_quality.get("writing_plans", {})
             for stage_name, plan_data in writing_plans.items():
-                chapter_range = plan_data.get("stage_writing_plan", {}).get("chapter_range", "")
+                # 确保plan_data是字典类型
+                if not isinstance(plan_data, dict):
+                    continue
+                
+                stage_writing_plan = plan_data.get("stage_writing_plan", {})
+                # 确保stage_writing_plan也是字典类型
+                if not isinstance(stage_writing_plan, dict):
+                    continue
+                    
+                chapter_range = stage_writing_plan.get("chapter_range", "")
                 if self._is_chapter_in_range(chapter_num, chapter_range):
                     quality_data["writing_plan"] = plan_data
                     break
@@ -769,6 +840,9 @@ class NovelGenerationManager:
 
 # 创建全局管理器实例
 manager = NovelGenerationManager()
+
+# 创建番茄上传管理器实例
+fanqie_uploader = FanqieUploader()
 
 # ==================== 认证路由 ====================
 
@@ -1784,6 +1858,12 @@ def cover_generator():
     """小说封面生成器页面"""
     return render_template('cover_generator.html')
 
+@app.route('/fanqie-upload', methods=['GET'])
+@login_required
+def fanqie_upload():
+    """番茄小说一键上传页面"""
+    return render_template('fanqie_upload.html')
+
 # ==================== 封面生成API ====================
 
 @app.route('/api/generate-cover', methods=['POST'])
@@ -2112,12 +2192,206 @@ def check_can_resume(title):
         logger.error(f"❌ 检查续写能力失败: {e}")
         return jsonify({"can_resume": False, "reason": str(e)}), 500
 
+# ==================== 番茄上传功能API ====================
+
+@app.route('/api/fanqie/upload/check-prerequisites', methods=['GET'])
+@login_required
+def check_fanqie_upload_prerequisites():
+    """检查番茄上传前提条件"""
+    try:
+        checks = fanqie_uploader.check_upload_prerequisites()
+        return jsonify({
+            "success": True,
+            "checks": checks,
+            "ready": all(checks.values()),
+            "message": "所有检查通过" if all(checks.values()) else "请检查失败的项目"
+        })
+    except Exception as e:
+        logger.error(f"❌ 检查番茄上传前提条件失败: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/fanqie/upload/validate-novel/<title>', methods=['GET'])
+@login_required
+def validate_novel_for_fanqie_upload(title):
+    """验证小说是否可以上传到番茄"""
+    try:
+        validation_result = fanqie_uploader.validate_novel_for_upload(title)
+        return jsonify({
+            "success": True,
+            "validation": validation_result
+        })
+    except Exception as e:
+        logger.error(f"❌ 验证小说上传失败: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/fanqie/upload/start', methods=['POST'])
+@login_required
+def start_fanqie_upload():
+    """启动番茄上传任务"""
+    try:
+        data = request.json or {}
+        novel_title = data.get('novel_title')
+        
+        if not novel_title:
+            return jsonify({"success": False, "error": "缺少小说标题"}), 400
+        
+        # 验证小说是否可以上传
+        validation_result = fanqie_uploader.validate_novel_for_upload(novel_title)
+        if not validation_result["valid"]:
+            return jsonify({
+                "success": False,
+                "error": validation_result["error"]
+            }), 400
+        
+        # 启动上传任务
+        upload_result = fanqie_uploader.start_upload_task(novel_title, data.get('upload_config', {}))
+        
+        if upload_result["success"]:
+            return jsonify({
+                "success": True,
+                "task_id": upload_result["task_id"],
+                "message": upload_result["message"],
+                "chapter_count": upload_result["chapter_count"]
+            })
+        else:
+            return jsonify({
+                "success": False,
+                "error": upload_result["error"]
+            }), 500
+            
+    except Exception as e:
+        logger.error(f"❌ 启动番茄上传任务失败: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/fanqie/upload/status/<task_id>', methods=['GET'])
+@login_required
+def get_fanqie_upload_status(task_id):
+    """获取番茄上传任务状态"""
+    try:
+        status = fanqie_uploader.get_upload_status(task_id)
+        if "error" in status:
+            return jsonify(status), 404
+        return jsonify(status)
+    except Exception as e:
+        logger.error(f"❌ 获取番茄上传状态失败: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/fanqie/upload/tasks', methods=['GET'])
+@login_required
+def get_all_fanqie_upload_tasks():
+    """获取所有番茄上传任务"""
+    try:
+        tasks = fanqie_uploader.get_all_upload_tasks()
+        return jsonify({
+            "success": True,
+            "tasks": tasks,
+            "count": len(tasks)
+        })
+    except Exception as e:
+        logger.error(f"❌ 获取番茄上传任务列表失败: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/fanqie/upload/prepare-novel/<title>', methods=['POST'])
+@login_required
+def prepare_novel_for_fanqie_upload(title):
+    """为番茄上传准备小说数据（转换格式）"""
+    try:
+        # 验证小说
+        validation_result = fanqie_uploader.validate_novel_for_upload(title)
+        if not validation_result["valid"]:
+            return jsonify({
+                "success": False,
+                "error": validation_result["error"]
+            }), 400
+        
+        # 创建番茄格式的项目文件
+        fanqie_data = validation_result["fanqie_data"]
+        
+        # 创建临时目录
+        temp_dir = Path("temp_fanqie_upload")
+        temp_dir.mkdir(exist_ok=True)
+        
+        # 创建项目文件
+        project_file = temp_dir / f"{title}_项目信息.json"
+        with open(project_file, 'w', encoding='utf-8') as f:
+            json.dump(fanqie_data, f, ensure_ascii=False, indent=2)
+        
+        # 创建章节目录和文件
+        chapter_dir = temp_dir / f"{title}_章节"
+        chapter_dir.mkdir(exist_ok=True)
+        
+        chapter_files_created = 0
+        for chapter in fanqie_data.get("chapters", []):
+            chapter_file = chapter_dir / f"第{chapter['chapter_number']}章_{chapter['chapter_title']}.txt"
+            chapter_data = {
+                "chapter_number": chapter["chapter_number"],
+                "chapter_title": chapter["chapter_title"],
+                "content": chapter["content"]
+            }
+            with open(chapter_file, 'w', encoding='utf-8') as f:
+                json.dump(chapter_data, f, ensure_ascii=False, indent=2)
+            chapter_files_created += 1
+        
+        return jsonify({
+            "success": True,
+            "message": f"成功准备小说数据，创建了 {chapter_files_created} 个章节文件",
+            "project_file": str(project_file),
+            "chapter_dir": str(chapter_dir),
+            "chapter_count": chapter_files_created,
+            "fanqie_data_preview": {
+                "title": fanqie_data["novel_info"]["title"],
+                "synopsis": fanqie_data["novel_info"]["synopsis"][:100] + "...",
+                "main_character": fanqie_data["character_design"].get("main_character", {}).get("name", ""),
+                "tags": fanqie_data["novel_info"]["selected_plan"]["tags"]
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ 准备番茄上传数据失败: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/fanqie/upload/trigger-scan', methods=['POST'])
+@login_required
+def trigger_fanqie_upload_scan():
+    """触发番茄上传扫描（直接调用autopush）"""
+    try:
+        if not autopush_available or autopush is None:
+            return jsonify({
+                "success": False,
+                "error": "番茄自动上传模块不可用，请检查依赖是否正确安装"
+            }), 503
+        
+        logger.info("🔄 手动触发番茄上传扫描...")
+        
+        # 在后台线程中运行扫描
+        def run_scan():
+            try:
+                success = autopush.main_scan_cycle()
+                logger.info(f"番茄上传扫描完成: {'成功' if success else '失败'}")
+            except Exception as e:
+                logger.error(f"番茄上传扫描异常: {e}")
+        
+        thread = threading.Thread(target=run_scan)
+        thread.daemon = True
+        thread.start()
+        
+        return jsonify({
+            "success": True,
+            "message": "番茄上传扫描已启动，正在后台执行",
+            "note": "请查看日志或控制台输出了解扫描进度"
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ 触发番茄上传扫描失败: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
 if __name__ == '__main__':
     logger.info("=" * 60)
     logger.info("🚀 Web 服务启动")
     logger.info("=" * 60)
     logger.info("📱 前端地址: http://localhost:5000")
     logger.info("🌐 API 地址: http://localhost:5000/api")
+    logger.info("🍅 番茄上传功能已集成")
     logger.info("=" * 60)
 
     # 开发模式运行

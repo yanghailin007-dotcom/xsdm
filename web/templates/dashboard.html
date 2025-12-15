@@ -486,44 +486,85 @@
 
         async function refreshData() {
             try {
-                // 加载摘要
-                const summaryResponse = await fetch('/api/novel/summary');
-                const novel = await summaryResponse.json();
+                // 加载项目列表
+                const projectsResponse = await fetch('/api/projects');
+                const projects = await projectsResponse.json();
 
-                // 加载章节列表
-                const chaptersResponse = await fetch('/api/chapters');
-                const chapters = await chaptersResponse.json();
+                if (projects.length === 0) {
+                    showEmptyState();
+                    return;
+                }
+
+                // 获取最新项目
+                const latestProject = projects[0];
+                
+                // 加载最新项目的详情
+                const detailResponse = await fetch(`/api/project/${encodeURIComponent(latestProject.title)}`);
+                const novelDetail = await detailResponse.json();
 
                 // 更新指标
-                updateMetrics(novel, chapters);
+                updateMetrics(latestProject, novelDetail);
 
                 // 更新表格
-                updateChaptersTable(chapters);
+                updateChaptersTable(novelDetail);
 
                 // 更新图表
-                updateCharts(chapters);
+                updateCharts(novelDetail);
             } catch (error) {
                 console.error('刷新失败:', error);
+                showError('加载失败: ' + error.message);
             }
         }
 
-        function updateMetrics(novel, chapters) {
+        function showEmptyState() {
+            document.getElementById('metric-chapters').textContent = '0';
+            document.getElementById('metric-words').textContent = '0';
+            document.getElementById('metric-score').textContent = '-';
+            document.getElementById('metric-progress').textContent = '0%';
+            
+            const progressBar = document.getElementById('main-progress');
+            if (progressBar) {
+                progressBar.style.width = '0%';
+                progressBar.textContent = '0%';
+            }
+
+            document.getElementById('chapters-tbody').innerHTML =
+                '<tr><td colspan="6" style="text-align: center; color: var(--gray-500); padding: 40px; font-size: var(--text-sm);">暂无项目数据</td></tr>';
+            
+            document.getElementById('score-distribution').innerHTML =
+                '<div style="text-align: center; color: var(--gray-500); padding: 40px;">暂无数据</div>';
+        }
+
+        function showError(message) {
+            console.error(message);
+            // 可以在这里显示错误提示
+        }
+
+        function updateMetrics(project, novelDetail) {
+            const generatedChapters = novelDetail.generated_chapters || {};
+            const chapterArray = Object.values(generatedChapters);
+            
             // 生成章节数
-            document.getElementById('metric-chapters').textContent = chapters.length;
+            document.getElementById('metric-chapters').textContent = chapterArray.length;
 
             // 总字数
-            const totalWords = chapters.reduce((sum, ch) => sum + (ch.word_count || 0), 0);
+            const totalWords = chapterArray.reduce((sum, ch) => sum + (ch.word_count || 0), 0);
             document.getElementById('metric-words').textContent = totalWords.toLocaleString();
 
             // 平均评分
-            const validScores = chapters.filter(ch => ch.score && ch.score > 0);
-            const avgScore = validScores.length > 0
-                ? (validScores.reduce((sum, ch) => sum + ch.score, 0) / validScores.length).toFixed(1)
+            const scores = chapterArray.map(ch => {
+                const qa = ch.quality_assessment;
+                return qa && qa.overall_score ? qa.overall_score : 0;
+            }).filter(score => score > 0);
+            
+            const avgScore = scores.length > 0
+                ? (scores.reduce((sum, score) => sum + score, 0) / scores.length).toFixed(1)
                 : '-';
             document.getElementById('metric-score').textContent = avgScore;
 
             // 进度
-            const progress = Math.round((chapters.length / novel.total_chapters) * 100);
+            const progress = project.total_chapters > 0 ?
+                Math.round((chapterArray.length / project.total_chapters) * 100) : 0;
             document.getElementById('metric-progress').textContent = progress + '%';
 
             // 进度条
@@ -534,50 +575,66 @@
             }
         }
 
-        function updateChaptersTable(chapters) {
+        function updateChaptersTable(novelDetail) {
             const tbody = document.getElementById('chapters-tbody');
+            const generatedChapters = novelDetail.generated_chapters || {};
+            const chapterArray = Object.entries(generatedChapters)
+                .map(([num, data]) => ({
+                    chapter_number: parseInt(num),
+                    ...data
+                }))
+                .sort((a, b) => a.chapter_number - b.chapter_number);
 
-            if (chapters.length === 0) {
+            if (chapterArray.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--gray-500); padding: 40px; font-size: var(--text-sm);">暂无章节数据</td></tr>';
                 return;
             }
 
-            tbody.innerHTML = chapters.map(ch => `
-                <tr>
-                    <td><strong>第${ch.chapter_number}章</strong></td>
-                    <td>${escapeHtml(ch.title)}</td>
-                    <td>${ch.word_count || 0}</td>
-                    <td>
-                        ${ch.score ? `<span style="font-weight: 600; color: #667eea;">${ch.score.toFixed(1)}</span>` : '-'}
-                    </td>
-                    <td>
-                        <span class="badge badge-success">${ch.status === 'completed' ? '已完成' : '生成中'}</span>
-                    </td>
-                    <td>
-                        <button class="btn btn-secondary btn-small" onclick="location.href='/novel?chapter=${ch.chapter_number}'">
-                            查看
-                        </button>
-                    </td>
-                </tr>
-            `).join('');
+            tbody.innerHTML = chapterArray.map(ch => {
+                const qa = ch.quality_assessment;
+                const score = qa && qa.overall_score ? qa.overall_score : 0;
+                
+                return `
+                    <tr>
+                        <td><strong>第${ch.chapter_number}章</strong></td>
+                        <td>${escapeHtml(ch.chapter_title || ch.title || '未命名')}</td>
+                        <td>${(ch.word_count || 0).toLocaleString()}</td>
+                        <td>
+                            ${score > 0 ? `<span style="font-weight: 600; color: #667eea;">${score.toFixed(1)}</span>` : '-'}
+                        </td>
+                        <td>
+                            <span class="badge badge-success">已完成</span>
+                        </td>
+                        <td>
+                            <button class="btn btn-secondary btn-small" onclick="viewChapter('${novelDetail.novel_title || novelDetail.title}', ${ch.chapter_number})">
+                                查看
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
         }
 
-        function updateCharts(chapters) {
-            // 评分分布
+        function updateCharts(novelDetail) {
             const scoreDistribution = document.getElementById('score-distribution');
-            
-            if (chapters.length === 0) {
+            const generatedChapters = novelDetail.generated_chapters || {};
+            const chapterArray = Object.entries(generatedChapters)
+                .map(([num, data]) => ({
+                    chapter_number: parseInt(num),
+                    ...data
+                }))
+                .sort((a, b) => a.chapter_number - b.chapter_number);
+
+            if (chapterArray.length === 0) {
                 scoreDistribution.innerHTML = '<div style="text-align: center; color: var(--gray-500); padding: 40px;">暂无数据</div>';
                 return;
             }
 
-            const avgScore = chapters.filter(ch => ch.score).reduce((sum, ch) => sum + ch.score, 0) /
-                             chapters.filter(ch => ch.score).length || 0;
-
-            scoreDistribution.innerHTML = chapters.map((ch, idx) => {
-                const score = ch.score || 0;
+            scoreDistribution.innerHTML = chapterArray.map(ch => {
+                const qa = ch.quality_assessment;
+                const score = qa && qa.overall_score ? qa.overall_score : 0;
                 const width = (score / 10) * 100;
-                const intensity = score >= 9 ? 'high' : score >= 7 ? 'medium' : 'low';
+                const intensity = score >= 9.5 ? 'high' : score >= 8 ? 'medium' : 'low';
 
                 return `
                     <div class="bar-item">
@@ -592,15 +649,42 @@
             }).join('');
 
             // 统计信息
-            const scores = chapters.filter(ch => ch.score).map(ch => ch.score);
-            const words = chapters.map(ch => ch.word_count || 0);
+            const scores = chapterArray.map(ch => {
+                const qa = ch.quality_assessment;
+                return qa && qa.overall_score ? qa.overall_score : 0;
+            }).filter(score => score > 0);
+            
+            const words = chapterArray.map(ch => ch.word_count || 0);
 
-            document.getElementById('max-score').textContent = 
+            document.getElementById('max-score').textContent =
                 scores.length > 0 ? Math.max(...scores).toFixed(1) : '-';
-            document.getElementById('min-score').textContent = 
+            document.getElementById('min-score').textContent =
                 scores.length > 0 ? Math.min(...scores).toFixed(1) : '-';
-            document.getElementById('avg-words').textContent = 
-                words.length > 0 ? Math.round(words.reduce((a, b) => a + b) / words.length) : '-';
+            document.getElementById('avg-words').textContent =
+                words.length > 0 ? Math.round(words.reduce((a, b) => a + b) / words.length).toLocaleString() : '-';
+                
+            // 生成时间
+            const genTimes = chapterArray.map(ch => ch.generation_time).filter(time => time);
+            if (genTimes.length > 0) {
+                const firstTime = new Date(genTimes[0]);
+                const lastTime = new Date(genTimes[genTimes.length - 1]);
+                const duration = lastTime - firstTime;
+                const hours = Math.floor(duration / (1000 * 60 * 60));
+                const minutes = Math.floor((duration % (1000 * 60 * 60)) / (1000 * 60));
+                
+                let timeText = '';
+                if (hours > 0) {
+                    timeText = `${hours}小时${minutes}分钟`;
+                } else {
+                    timeText = `${minutes}分钟`;
+                }
+                
+                document.getElementById('generation-time').textContent = timeText;
+            }
+        }
+
+        function viewChapter(title, chapterNumber) {
+            window.open(`/novel?title=${encodeURIComponent(title)}&chapter=${chapterNumber}`, '_blank');
         }
 
         function escapeHtml(text) {
