@@ -1856,7 +1856,13 @@ def test_large_modal_fix():
 @login_required
 def cover_generator():
     """小说封面生成器页面"""
-    return render_template('cover_generator.html')
+    return render_template('cover_maker.html')
+
+@app.route('/cover-maker', methods=['GET'])
+@login_required
+def cover_maker():
+    """小说封面制作页面"""
+    return render_template('cover_maker.html')
 
 @app.route('/fanqie-upload', methods=['GET'])
 @login_required
@@ -1910,9 +1916,14 @@ def generate_cover():
                 )
                 
                 if result and 'local_path' in result:
+                    # 构建正确的图片URL路径
+                    relative_path = result['local_path'].replace('\\', '/').split('/')[-1]
+                    image_url = f"/generated_images/{relative_path}"
+                    
                     # 构建图片信息
                     image_info = {
-                        "url": result['local_path'],
+                        "url": image_url,
+                        "local_path": result['local_path'],
                         "size": image_size,
                         "timestamp": datetime.now().isoformat(),
                         "prompt": final_prompt,
@@ -1920,6 +1931,7 @@ def generate_cover():
                     }
                     generated_images.append(image_info)
                     logger.info(f"✅ 第 {i+1} 张封面生成成功: {result['local_path']}")
+                    logger.info(f"🔗 图片访问URL: {image_url}")
                 else:
                     logger.info(f"第 {i+1} 张封面生成失败")
                     
@@ -2031,6 +2043,61 @@ def build_final_prompt(data):
 def serve_static(filename):
     """提供静态文件"""
     return send_from_directory('static', filename)
+
+@app.route('/generated_images/<path:filename>')
+def serve_generated_images(filename):
+    """提供生成的图片文件"""
+    try:
+        import os
+        from urllib.parse import unquote
+        
+        # URL解码文件名
+        decoded_filename = unquote(filename)
+        
+        # 构建完整的文件路径
+        generated_images_dir = os.path.join(BASE_DIR, 'generated_images')
+        file_path = os.path.join(generated_images_dir, decoded_filename)
+        
+        # 安全检查：确保文件路径在允许的目录内
+        if not os.path.abspath(file_path).startswith(os.path.abspath(generated_images_dir)):
+            logger.error(f"尝试访问不允许的路径: {file_path}")
+            return jsonify({"error": "访问被拒绝"}), 403
+        
+        # 检查文件是否存在
+        if not os.path.exists(file_path):
+            logger.error(f"图片文件不存在: {file_path}")
+            return jsonify({"error": "图片文件不存在"}), 404
+        
+        # 检查是否为文件（不是目录）
+        if not os.path.isfile(file_path):
+            logger.error(f"路径不是文件: {file_path}")
+            return jsonify({"error": "请求的不是文件"}), 400
+        
+        # 使用Flask的send_file，但手动处理文件名编码
+        from flask import send_file
+        
+        # 获取文件的MIME类型
+        if decoded_filename.lower().endswith(('.jpg', '.jpeg')):
+            mimetype = 'image/jpeg'
+        elif decoded_filename.lower().endswith('.png'):
+            mimetype = 'image/png'
+        elif decoded_filename.lower().endswith('.gif'):
+            mimetype = 'image/gif'
+        else:
+            mimetype = 'application/octet-stream'
+        
+        return send_file(
+            file_path,
+            mimetype=mimetype,
+            as_attachment=False,
+            download_name=decoded_filename
+        )
+        
+    except Exception as e:
+        logger.error(f"无法访问生成的图片 {filename}: {e}")
+        import traceback
+        logger.error(f"详细错误: {traceback.format_exc()}")
+        return jsonify({"error": f"访问图片失败: {str(e)}"}), 500
 
 # ==================== 错误处理 ====================
 
@@ -2197,14 +2264,24 @@ def check_can_resume(title):
 @app.route('/api/fanqie/upload/check-prerequisites', methods=['GET'])
 @login_required
 def check_fanqie_upload_prerequisites():
-    """检查番茄上传前提条件"""
+    """检查番茄上传前提条件 - 手动环境准备模式"""
     try:
         checks = fanqie_uploader.check_upload_prerequisites()
+        
+        # 在手动环境准备模式下，主要检查系统环境
+        # 浏览器和登录状态由用户手动确认
+        system_ready = checks.get("temp_dir_writable", False) and checks.get("autopush_available", False)
+        
         return jsonify({
             "success": True,
             "checks": checks,
-            "ready": all(checks.values()),
-            "message": "所有检查通过" if all(checks.values()) else "请检查失败的项目"
+            "ready": system_ready,
+            "message": "系统环境检查通过，请确认手动环境准备完成" if system_ready else "系统环境检查未通过，请检查失败项目",
+            "manual_preparation_required": True,
+            "manual_items": {
+                "browser_available": "请手动准备浏览器并确保可以访问网络",
+                "fanqie_logged_in": "请手动登录番茄小说网站并进入作家专区"
+            }
         })
     except Exception as e:
         logger.error(f"❌ 检查番茄上传前提条件失败: {e}")
@@ -2384,6 +2461,143 @@ def trigger_fanqie_upload_scan():
     except Exception as e:
         logger.error(f"❌ 触发番茄上传扫描失败: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
+
+# ==================== 封面管理API ====================
+
+@app.route('/api/novel/<title>/covers', methods=['GET'])
+@login_required
+def get_novel_covers(title):
+    """获取指定小说的封面列表"""
+    try:
+        import os
+        import glob
+        from datetime import datetime
+        import urllib.parse
+        
+        # URL解码标题
+        novel_title = urllib.parse.unquote(title)
+        
+        # 搜索generated_images目录中与小说相关的图片
+        generated_images_dir = os.path.join(BASE_DIR, 'generated_images')
+        
+        if not os.path.exists(generated_images_dir):
+            return jsonify({
+                "success": True,
+                "covers": [],
+                "count": 0
+            })
+        
+        # 查找包含小说标题的图片文件
+        pattern = os.path.join(generated_images_dir, f"*{novel_title}*.jpg")
+        image_files = glob.glob(pattern)
+        
+        # 如果没有找到精确匹配的，查找所有jpg文件（可能图片文件名不包含小说标题）
+        if not image_files:
+            pattern = os.path.join(generated_images_dir, "*.jpg")
+            all_image_files = glob.glob(pattern)
+            # 取最新的几个文件作为候选
+            image_files = sorted(all_image_files, key=os.path.getmtime, reverse=True)[:10]
+        
+        covers = []
+        for image_file in image_files:
+            try:
+                # 获取文件信息
+                stat = os.stat(image_file)
+                filename = os.path.basename(image_file)
+                
+                # 生成Web访问URL
+                web_url = f"/generated_images/{filename}"
+                
+                covers.append({
+                    "id": filename,  # 使用文件名作为ID
+                    "url": web_url,
+                    "local_path": image_file,
+                    "novel_title": novel_title,
+                    "author_name": "蓝枫雨",
+                    "timestamp": datetime.fromtimestamp(stat.st_mtime).isoformat(),
+                    "file_size": stat.st_size,
+                    "filename": filename
+                })
+            except Exception as e:
+                logger.error(f"处理图片文件 {image_file} 时出错: {e}")
+                continue
+        
+        logger.info(f"找到小说 '{novel_title}' 的 {len(covers)} 个封面文件")
+        
+        return jsonify({
+            "success": True,
+            "covers": covers,
+            "count": len(covers),
+            "novel_title": novel_title
+        })
+        
+    except Exception as e:
+        logger.error(f"获取小说封面失败: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+@app.route('/api/covers/list', methods=['GET'])
+@login_required
+def get_all_covers():
+    """获取所有封面列表"""
+    try:
+        import os
+        import glob
+        from datetime import datetime
+        
+        generated_images_dir = os.path.join(BASE_DIR, 'generated_images')
+        
+        if not os.path.exists(generated_images_dir):
+            return jsonify({
+                "success": True,
+                "covers": [],
+                "count": 0
+            })
+        
+        # 查找所有jpg文件
+        pattern = os.path.join(generated_images_dir, "*.jpg")
+        image_files = glob.glob(pattern)
+        
+        covers = []
+        for image_file in image_files:
+            try:
+                stat = os.stat(image_file)
+                filename = os.path.basename(image_file)
+                web_url = f"/generated_images/{filename}"
+                
+                covers.append({
+                    "id": filename,
+                    "url": web_url,
+                    "local_path": image_file,
+                    "novel_title": "未知小说",  # 默认值，可以从文件名推断
+                    "author_name": "蓝枫雨",
+                    "timestamp": datetime.fromtimestamp(stat.st_mtime).isoformat(),
+                    "file_size": stat.st_size,
+                    "filename": filename
+                })
+            except Exception as e:
+                logger.error(f"处理图片文件 {image_file} 时出错: {e}")
+                continue
+        
+        # 按时间排序，最新的在前
+        covers.sort(key=lambda x: x['timestamp'], reverse=True)
+        
+        logger.info(f"找到总共 {len(covers)} 个封面文件")
+        
+        return jsonify({
+            "success": True,
+            "covers": covers,
+            "count": len(covers)
+        })
+        
+    except Exception as e:
+        logger.error(f"获取所有封面失败: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
 
 if __name__ == '__main__':
     logger.info("=" * 60)

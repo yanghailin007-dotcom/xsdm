@@ -1,0 +1,78 @@
+# 自动化发布系统配置文件
+# Automation Configuration for Novel Publishing System
+
+# 基础配置
+basic:
+  debug_port: 9988
+  scan_interval: 1800  # 扫描间隔（秒）
+  max_retries: 3
+  auto_continue_delay: 10
+
+# 路径配置
+paths:
+  novel_path: "小说项目"  # 小说项目根目录
+  published_path: "已经发布"  # 已发布小说目录
+  progress_file: "发布进度.json"
+  progress_detail_file: "发布进度细节.json"
+  
+# 发布配置
+publishing:
+  required_json_suffix: "项目信息.json"
+  min_words_for_scheduled_publish: 60000  # 累计字数阈值
+  chapters_per_time_slot: 2  # 每个时间点最多发布章节数
+  publish_buffer_minutes: 35  # 发布时间缓冲（分钟）
+  
+  # 发布时间点配置
+  publish_times:
+    - "05:25"
+    - "11:25" 
+    - "17:25"
+    - "23:25"
+
+# 超时配置
+timeouts:
+  click: 15000
+  fill: 12000
+  wait_element: 5000
+  page_load: 10000
+
+# 浏览器配置
+browser:
+  headless: false
+  viewport:
+    width: 1920
+    height: 1080
+  user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+
+# 签约管理配置
+contract:
+  max_retry_count: 2  # 最大重试次数
+  auto_sign: true  # 是否自动签约
+  contact_info:
+    phone: "13760125919"
+    email: "405625365@qq.com"
+    qq: "405625365"
+    bank_account: "6214857812704759"
+    bank_branch: "招商银行深圳愉康支行"
+    address:
+      province: "广东省"
+      city: "深圳市"
+      detail: "宝安区"
+
+# 日志配置
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: "logs/automation.log"
+  max_size: "10MB"
+  backup_count: 5
+
+# 通知配置
+notification:
+  enabled: false
+  email:
+    smtp_server: ""
+    smtp_port: 587
+    username: ""
+    password: ""
+    recipients: []
