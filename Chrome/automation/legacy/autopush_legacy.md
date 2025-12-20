@@ -11,7 +11,32 @@ from playwright.sync_api import Locator, Page, expect
 from typing import Optional
 
 from typing import List, Dict, Any
-from contract_manager_legacy import ContractManager
+# ContractManager 导入已禁用 - 签约管理功能暂时不需要
+# try:
+#     # 优先尝试相对导入
+#     from .contract_manager_legacy import ContractManager
+# except ImportError:
+#     try:
+#         # 如果相对导入失败，尝试绝对导入
+#         import sys
+#         import os
+#         # 添加项目根目录到路径
+#         current_dir = os.path.dirname(os.path.abspath(__file__))
+#         project_root = os.path.dirname(os.path.dirname(os.path.dirname(current_dir)))
+#         if project_root not in sys.path:
+#             sys.path.insert(0, project_root)
+#
+#         from Chrome.automation.legacy.contract_manager_legacy import ContractManager
+#     except ImportError:
+#         # 如果还是失败，尝试直接导入
+#         import importlib.util
+#         import os
+#
+#         contract_manager_path = os.path.join(os.path.dirname(__file__), 'contract_manager_legacy.py')
+#         spec = importlib.util.spec_from_file_location("contract_manager_legacy", contract_manager_path)
+#         contract_manager_module = importlib.util.module_from_spec(spec)
+#         spec.loader.exec_module(contract_manager_module)
+#         ContractManager = contract_manager_module.ContractManager
 
 # 配置参数
 CONFIG = {
@@ -36,7 +61,7 @@ CONFIG = {
 
 # ========== 可配置参数 ==========
 # 累计字数阈值，达到此值后才开始设置定时发布
-WORD_COUNT_THRESHOLD = 60000
+WORD_COUNT_THRESHOLD = 20000
 
 # 发布时间点列表，可修改此列表来调整发布时间
 novel_publish_times = ["05:25", "11:25", "17:25", "23:25"]  # 可修改此列表
@@ -1286,7 +1311,11 @@ def validate_and_fix_chapter_files(chapter_files, novel_title):
         # 检查文件是否可读
         try:
             with open(chapter_file, 'r', encoding='utf-8') as f:
-                chapter_data = json.load(f)
+                content = f.read()
+                # 修复中文引号问题 - 更全面的处理
+                # 先将JSON字符串中的中文引号转义，然后统一处理
+                content = content.replace('"', '"').replace('"', '"').replace(''', "'").replace(''', "'")
+                chapter_data = json.loads(content)
 
             # 检查必需字段
             required_fields = ['chapter_number', 'chapter_title', 'content']
@@ -1705,24 +1734,40 @@ def connect_to_browser():
     import os
     sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'utils'))
     
+    print(f"🔗 尝试连接浏览器 (调试端口: {CONFIG['debug_port']})...")
+    
     try:
         from auto_browser_manager import auto_connect_to_browser
         
         debug_port = CONFIG['debug_port']
         print(f"🤖 启动自动化浏览器管理器 (端口: {debug_port})...")
         
-        # 使用自动化连接管理器
-        playwright, browser, page, context = auto_connect_to_browser(
-            debug_port=debug_port,
-            auto_start_chrome=True  # 自动启动Chrome
-        )
+        # 使用自动化连接管理器，增加重试次数
+        for attempt in range(3):
+            try:
+                print(f"  尝试自动连接 (第 {attempt + 1} 次)...")
+                playwright, browser, page, context = auto_connect_to_browser(
+                    debug_port=debug_port,
+                    auto_start_chrome=True  # 自动启动Chrome
+                )
+                
+                if browser:
+                    print("✅ 浏览器连接已建立!")
+                    return playwright, browser, page, context
+                else:
+                    print(f"  第 {attempt + 1} 次自动连接失败")
+                    if attempt < 2:
+                        print("  等待 5 秒后重试...")
+                        time.sleep(5)
+                        
+            except Exception as auto_error:
+                print(f"  第 {attempt + 1} 次自动连接异常: {auto_error}")
+                if attempt < 2:
+                    print("  等待 5 秒后重试...")
+                    time.sleep(5)
         
-        if browser:
-            print("✅ 浏览器连接已建立!")
-            return playwright, browser, page, context
-        else:
-            print("❌ 自动连接失败")
-            return None, None, None, None
+        print("❌ 所有自动连接尝试都失败")
+        return None, None, None, None
             
     except ImportError as e:
         print(f"❌ 导入自动化管理器失败: {e}")
@@ -1735,26 +1780,51 @@ def connect_to_browser():
             debug_port = CONFIG['debug_port']
             print(f"尝试连接到端口 {debug_port} 的浏览器...")
             
-            # 首先测试调试端口
-            if not test_debug_connection(debug_port):
+            # 首先测试调试端口，增加重试
+            for attempt in range(3):
+                try:
+                    print(f"  测试调试端口连接 (第 {attempt + 1} 次)...")
+                    if test_debug_connection(debug_port):
+                        print("✓ 调试端口连接成功")
+                        break
+                    else:
+                        print(f"  第 {attempt + 1} 次端口测试失败")
+                        if attempt < 2:
+                            time.sleep(3)
+                except Exception as port_error:
+                    print(f"  第 {attempt + 1} 次端口测试异常: {port_error}")
+                    if attempt < 2:
+                        time.sleep(3)
+            else:
                 print(f"❌ 端口 {debug_port} 无法访问")
                 print("请确保:")
                 print("1. Chrome已启动")
                 print(f"2. 使用了 --remote-debugging-port={debug_port} 参数")
                 print("3. 防火墙没有阻止连接")
                 print("\n💡 或者运行自动启动脚本:")
-                print("   python start_chrome_debug.py")
+                print("   python fanqie_browser_launcher.py")
                 return None, None, None, None
             
             # 尝试连接
-            playwright, browser, context, page = connect_to_existing_browser(debug_port, max_retries=3)
+            for attempt in range(3):
+                try:
+                    print(f"  尝试建立浏览器连接 (第 {attempt + 1} 次)...")
+                    playwright, browser, context, page = connect_to_existing_browser(debug_port, max_retries=2)
+                    
+                    if browser:
+                        print("✓ 成功连接到浏览器!")
+                        return playwright, browser, page, context
+                    else:
+                        print(f"  第 {attempt + 1} 次连接失败")
+                        if attempt < 2:
+                            time.sleep(3)
+                except Exception as conn_error:
+                    print(f"  第 {attempt + 1} 次连接异常: {conn_error}")
+                    if attempt < 2:
+                        time.sleep(3)
             
-            if browser:
-                print("✓ 成功连接到浏览器!")
-                return playwright, browser, page, context
-            else:
-                print("❌ 连接失败")
-                return None, None, None, None
+            print("❌ 所有连接尝试都失败")
+            return None, None, None, None
                 
         except ImportError as e2:
             print(f"❌ 导入简化连接模块失败: {e2}")
@@ -1763,10 +1833,18 @@ def connect_to_browser():
             # 最后回退到原有方式
             playwright = sync_playwright().start()
             try:
-                browser = playwright.chromium.connect_over_cdp(f"http://127.0.0.1:{CONFIG['debug_port']}")
-                default_context = browser.contexts[0]
-                page1 = default_context.pages[0]
-                return playwright, browser, page1, default_context
+                for attempt in range(3):
+                    try:
+                        print(f"  使用原有方式连接 (第 {attempt + 1} 次)...")
+                        browser = playwright.chromium.connect_over_cdp(f"http://127.0.0.1:{CONFIG['debug_port']}")
+                        default_context = browser.contexts[0]
+                        page1 = default_context.pages[0]
+                        print("✓ 原有方式连接成功")
+                        return playwright, browser, page1, default_context
+                    except Exception as e3:
+                        print(f"  第 {attempt + 1} 次原有方式连接失败: {e3}")
+                        if attempt < 2:
+                            time.sleep(3)
             except Exception as e3:
                 print(f"❌ 原有连接方式也失败: {e3}")
                 return None, None, None, None
@@ -1779,174 +1857,170 @@ def connect_to_browser():
 
 
 def navigate_to_writer_platform(page1, default_context):
-    """导航到作家专区 - 修改为人工确认登录"""
+    """导航到作家专区 - 全自动版本"""
     print("=" * 60)
-    print("🍅 番茄小说登录确认")
+    print("🍅 自动导航到番茄小说作家专区")
     print("=" * 60)
-    print("需要登录番茄小说并导航到作家专区")
-    print()
-    print("请选择操作:")
-    print("1. 自动导航到作家专区")
-    print("2. 我已手动登录并进入作家专区")
-    print("3. 我已手动登录，请帮我导航到作家专区")
-    print("4. 显示详细操作指南")
+    print("🚀 正在自动导航，无需手动操作...")
     print()
     
-    while True:
-        choice = input("请输入选择 (1-4): ").strip()
+    # 自动导航到作家专区
+    print("📍 步骤1: 导航到番茄小说首页...")
+    try:
+        # 增加超时时间并添加重试机制
+        for attempt in range(3):
+            try:
+                print(f"  尝试导航到番茄网站 (第 {attempt + 1} 次)...")
+                page1.goto("https://fanqienovel.com/", timeout=60000)  # 60秒超时
+                page1.wait_for_load_state("domcontentloaded", timeout=30000)  # 30秒等待
+                print("✅ 已打开番茄小说首页")
+                break
+            except Exception as nav_error:
+                print(f"  第 {attempt + 1} 次导航失败: {nav_error}")
+                if attempt == 2:  # 最后一次尝试
+                    raise nav_error
+                print("  等待 5 秒后重试...")
+                time.sleep(5)
+    except Exception as e:
+        print(f"❌ 打开番茄小说首页失败: {e}")
+        print("💡 可能的解决方案:")
+        print("   1. 检查网络连接")
+        print("   2. 确认防火墙设置")
+        print("   3. 验证 Chrome 是否正确启动")
+        print("   4. 尝试手动打开 https://fanqienovel.com")
+        return None
+    
+    # 等待页面加载
+    time.sleep(3)
+    
+    print("📍 步骤2: 查找并点击作家专区链接...")
+    try:
+        # 尝试多种选择器定位作家专区链接
+        writer_zone_selectors = [
+            'xpath=//*[@id="app"]/div/div[1]/div/div[2]/div[5]/a',
+            'a:has-text("作家专区")',
+            'text=作家专区',
+            '[href*="writer"]',
+            'a[href*="author"]',
+            'a[href*="creator"]'
+        ]
         
-        if choice == "1":
-            # 自动导航
-            print("🚀 尝试自动导航到作家专区...")
+        link_found = False
+        for selector in writer_zone_selectors:
             try:
-                with page1.expect_popup() as page2_info:
-                    # 尝试多种选择器定位作家专区链接
-                    selectors = [
-                        'xpath=//*[@id="app"]/div/div[1]/div/div[2]/div[5]/a',
-                        'a:has-text("作家专区")',
-                        'text=作家专区'
-                    ]
-
-                    for selector in selectors:
-                        try:
-                            page1.locator(selector).first.click(timeout=3000)
-                            break
-                        except:
-                            continue
-                    else:
-                        print("❌ 未找到作家专区链接")
-                        continue
-
-                page2 = page2_info.value
-                print("✅ 成功打开作家专区页面")
-                
-                # 导航到工作台和小说页面
-                print("🚀 导航到工作台和小说页面...")
-                try:
-                    page2.wait_for_load_state("domcontentloaded")
-
-                    # 尝试点击工作台
-                    workbench_selectors = [
-                        'xpath=//*[@id="root"]/div[2]/div/div[3]/div[1]/div[1]/div[2]/button[1]',
-                        'button:has-text("工作台")',
-                        'text=工作台'
-                    ]
-
-                    for selector in workbench_selectors:
-                        if safe_click(page2.locator(selector).first, "工作台"):
-                            break
-                    else:
-                        print("⚠️ 未找到工作台按钮，可能已在正确页面")
-
-                    time.sleep(2)
-
-                    # 尝试点击小说
-                    novel_selectors = [
-                        'xpath=//*[@id="app"]/div/div[2]/div[1]/div/div/div/div/div[2]/div[2]/div[1]/div/span[2]',
-                        'text=小说',
-                        'span:has-text("小说")'
-                    ]
-
-                    for selector in novel_selectors:
-                        if safe_click(page2.locator(selector).first, "小说"):
-                            break
-                    else:
-                        print("⚠️ 未找到小说按钮，可能已在正确页面")
-
-                    print("✅ 自动导航完成")
-                    return page2
-
-                except Exception as e:
-                    print(f"⚠️ 自动导航部分失败: {e}")
-                    print("✅ 作家专区页面已打开，您可以手动完成剩余操作")
-                    return page2
+                print(f"  尝试选择器: {selector}")
+                element = page1.locator(selector).first
+                if element.count() > 0 and element.is_visible():
+                    print("  ✓ 找到作家专区链接")
                     
+                    # 使用expect_popup处理新窗口
+                    with page1.expect_popup(timeout=10000) as page2_info:
+                        element.click()
+                    
+                    page2 = page2_info.value
+                    link_found = True
+                    break
             except Exception as e:
-                print(f"❌ 自动导航失败: {e}")
-                print("请选择其他选项")
+                print(f"  选择器失败: {e}")
                 continue
-                
-        elif choice == "2":
-            # 用户已手动登录
-            print("✅ 检测到您已手动登录并进入作家专区")
-            
-            # 尝试获取当前页面
-            if len(default_context.pages) > 0:
-                page2 = default_context.pages[-1]  # 使用最新的页面
-                print("✅ 已获取当前页面，继续后续操作")
-                return page2
-            else:
-                print("❌ 无法获取当前页面，请确保浏览器已连接")
-                continue
-                
-        elif choice == "3":
-            # 用户已登录，需要帮助导航
-            print("🚀 帮助导航到作家专区...")
-            
-            # 确保在番茄首页
+        
+        if not link_found:
+            print("❌ 未找到作家专区链接，尝试备用方案...")
+            # 备用方案：直接导航到作家专区URL
             try:
-                page1.goto("https://fanqienovel.com/")
-                time.sleep(2)
-                
-                with page1.expect_popup() as page2_info:
-                    # 尝试点击作家专区
-                    selectors = [
-                        'xpath=//*[@id="app"]/div/div[1]/div/div[2]/div[5]/a',
-                        'a:has-text("作家专区")',
-                        'text=作家专区'
-                    ]
-
-                    for selector in selectors:
-                        try:
-                            page1.locator(selector).first.click(timeout=5000)
-                            break
-                        except:
-                            continue
-                    else:
-                        print("❌ 仍然无法找到作家专区链接")
-                        continue
-
+                with page1.expect_popup(timeout=10000) as page2_info:
+                    page1.goto("https://fanqienovel.com/writer", timeout=15000)
                 page2 = page2_info.value
-                print("✅ 成功导航到作家专区")
-                return page2
-                
+                print("✅ 通过直接导航打开作家专区")
             except Exception as e:
-                print(f"❌ 导航失败: {e}")
-                continue
+                print(f"❌ 备用方案也失败: {e}")
+                return None
                 
-        elif choice == "4":
-            # 显示详细指南
-            print("=" * 60)
-            print("📋 番茄小说登录和导航详细指南:")
-            print("=" * 60)
-            print("1. 确保浏览器已打开番茄小说网站: https://fanqienovel.com/")
-            print("2. 点击网站右上角的'登录'按钮")
-            print("3. 选择登录方式（手机号、微信、QQ等）完成登录")
-            print("4. 登录成功后，点击页面上的'作家专区'链接")
-            print("5. 在作家专区页面，点击'工作台'")
-            print("6. 在工作台中，点击'小说'标签页")
-            print("7. 确保您能看到小说管理界面")
-            print()
-            print("📱 手机APP登录:")
-            print("1. 打开番茄小说APP")
-            print("2. 完成登录")
-            print("3. 在电脑浏览器中访问: https://fanqienovel.com/")
-            print("4. 扫描页面上的二维码或使用手机号登录")
-            print()
-            ready = input("✅ 完成登录和导航后，请输入 'ready' 继续: ").strip().lower()
-            if ready in ['ready', 'r']:
-                if len(default_context.pages) > 0:
-                    page2 = default_context.pages[-1]
-                    return page2
-                else:
-                    print("❌ 无法获取当前页面")
-                    continue
-            else:
+    except Exception as e:
+        print(f"❌ 打开作家专区失败: {e}")
+        return None
+    
+    print("📍 步骤3: 等待作家专区页面加载...")
+    try:
+        page2.wait_for_load_state("domcontentloaded")
+        time.sleep(3)
+        print("✅ 作家专区页面已加载")
+    except Exception as e:
+        print(f"⚠️ 页面加载检查失败: {e}")
+    
+    print("📍 步骤4: 导航到工作台...")
+    try:
+        # 尝试点击工作台
+        workbench_selectors = [
+            'xpath=//*[@id="root"]/div[2]/div/div[3]/div[1]/div[1]/div[2]/button[1]',
+            'button:has-text("工作台")',
+            'text=工作台',
+            '[class*="workbench"]',
+            '[class*="dashboard"]'
+        ]
+        
+        workbench_found = False
+        for selector in workbench_selectors:
+            try:
+                print(f"  尝试工作台选择器: {selector}")
+                element = page2.locator(selector).first
+                if element.count() > 0 and element.is_visible():
+                    if safe_click(element, "工作台"):
+                        workbench_found = True
+                        break
+            except Exception as e:
+                print(f"  工作台选择器失败: {e}")
                 continue
-                
+        
+        if workbench_found:
+            print("✅ 已进入工作台")
+            time.sleep(2)
         else:
-            print("❌ 无效选择，请输入 1-4")
-            continue
+            print("⚠️ 未找到工作台按钮，可能已在正确页面")
+            
+    except Exception as e:
+        print(f"⚠️ 导航工作台失败: {e}")
+    
+    print("📍 步骤5: 导航到小说管理页面...")
+    try:
+        # 尝试点击小说
+        novel_selectors = [
+            'xpath=//*[@id="app"]/div/div[2]/div[1]/div/div/div/div/div[2]/div[2]/div[1]/div/span[2]',
+            'text=小说',
+            'span:has-text("小说")',
+            '[class*="novel"]',
+            'a[href*="novel"]'
+        ]
+        
+        novel_found = False
+        for selector in novel_selectors:
+            try:
+                print(f"  尝试小说选择器: {selector}")
+                element = page2.locator(selector).first
+                if element.count() > 0 and element.is_visible():
+                    if safe_click(element, "小说"):
+                        novel_found = True
+                        break
+            except Exception as e:
+                print(f"  小说选择器失败: {e}")
+                continue
+        
+        if novel_found:
+            print("✅ 已进入小说管理页面")
+            time.sleep(2)
+        else:
+            print("⚠️ 未找到小说按钮，可能已在正确页面")
+            
+    except Exception as e:
+        print(f"⚠️ 导航小说页面失败: {e}")
+    
+    print("=" * 60)
+    print("✅ 自动导航完成！")
+    print("📝 当前应该位于作家专区的小说管理页面")
+    print("📍 如未登录，请在浏览器中手动登录番茄小说账号")
+    print("=" * 60)
+    
+    return page2
 
 
 def create_new_book(page2, novel_title, formatted_synopsis, main_character, novel_data):
@@ -1977,152 +2051,630 @@ def create_new_book(page2, novel_title, formatted_synopsis, main_character, nove
     print("选择作品标签...")
 
     safe_click(page2.locator('xpath=//*[@id="selectRow"]/div/div/span/div/span[1]'), "选择作品标签")
-    time.sleep(2)  # 等待标签弹窗加载
+    time.sleep(3)  # 等待标签弹窗完全加载
 
-    # 6. 选择主分类 - 从selected_plan.tags.main_category获取
-    main_category = tags_info.get("main_category", "")
-    if main_category:
-        # 切换到主分类标签页
-        main_category_tab_selectors = [
-            '//span[text()="主分类"]',
-            '//div[contains(@class, "arco-tabs-tab")]//span[text()="主分类"]',
-        ]
-        for selector in main_category_tab_selectors:
-            if safe_click(page2.locator(f'xpath={selector}'), "主分类标签页"):
-                time.sleep(0.5)  # 等待内容加载
+    # 使用新的标签选择函数
+    if select_novel_tags_interactive(page2, novel_data):
+        print("✓ 标签选择完成")
+    else:
+        print("⚠ 标签选择可能有问题，但继续流程")
+
+
+def validate_tags_with_platform(tags_info):
+    """
+    验证标签是否在番茄平台的实际分类中，如果不匹配则使用最接近的有效标签
+    """
+    # 番茄平台分类映射（按性别分类）
+    platform_categories = {
+        "男频": {
+            "main_category": [
+                "西方奇幻", "东方仙侠", "科幻末世", "男频衍生", "都市高武", "悬疑灵异", "悬疑脑洞",
+                "抗战谍战", "历史古代", "历史脑洞", "都市种田", "都市脑洞", "都市日常", "玄幻脑洞",
+                "战神赘婿", "动漫衍生", "游戏体育", "传统玄幻", "都市修真"
+            ],
+            "themes": [
+                "衍生", "仕途", "综影视", "天灾", "第一人称", "赛博朋克", "第四天灾", "规则怪谈", "古代", "悬疑",
+                "克苏鲁", "都市异能", "末日求生", "灵气复苏", "高武世界", "异世大陆", "东方玄幻", "谍战",
+                "清朝", "宋朝", "断层", "武将", "国运", "综漫", "开局", "架空", "奇幻仙侠",
+                "都市", "玄幻", "历史", "体育", "武侠"
+            ],
+            "roles": [
+                "多女主", "赘婿", "全能", "大佬", "大小姐", "特工", "游戏主播", "神探", "宫廷侯爵", "皇帝", "单女主", "校花",
+                "无女主", "女帝", "特种兵", "反派", "神医", "奶爸", "学霸", "天才", "腹黑", "扮猪吃虎"
+            ],
+            "plots": [
+                "斩神衍生", "十日衍生", "西游衍生", "公版衍生", "红楼衍生", "甄嬛衍生", "如懿衍生",
+                "惊悚游戏", "卡牌", "山海经", "捉鬼", "剑修", "废土", "副本", "黑科技", "无脑爽",
+                "魂穿", "高手下山", "黑化", "迪化", "发家致富", "无后宫", "争霸", "1v1", "升级流",
+                "灵魂互换", "封神", "四合院", "电竞", "双重生", "乡村", "同人", "打脸", "破案", "囤物资", "钓鱼",
+                "网游", "奥特同人", "求生", "无敌", "九叔", "穿书", "聊天群", "大秦", "龙珠", "漫威", "神奇宝贝", "海贼", "火影",
+                "职场", "明朝", "家庭", "三国", "末世", "直播", "无限流", "诸天万界", "大唐", "宠物", "外卖",
+                "星际", "美食", "剑道", "盗墓", "灵异", "鉴宝", "系统", "神豪", "重生", "穿越", "二次元",
+                "海岛", "娱乐圈", "空间", "推理", "洪荒"
+            ]
+        },
+        "女频": {
+            "main_category": [
+                "古代言情", "现代言情", "玄幻言情", "科幻言情", "青春校园", "悬疑推理", "游戏竞技",
+                "同人衍生", "次元幻想", "现实题材", "港台言情", "影视原著", "经典名著"
+            ],
+            "themes": [
+                "甜宠", "虐恋", "穿书", "重生", "快穿", "系统", "空间", "爽文", "甜文", "虐文",
+                "宫斗", "宅斗", "权谋", "江湖", "仙侠", "玄幻", "校园", "都市", "职场",
+                "娱乐圈", "电竞", "直播", "美食", "萌宝", "种田", "经商", "军婚", "警匪",
+                "悬疑", "推理", "惊悚", "灵异", "历史", "科幻", "奇幻", "神话", "武侠"
+            ],
+            "roles": [
+                "总裁", "王爷", "皇帝", "影帝", "明星", "医生", "律师", "教授", "军人", "警察",
+                "总裁夫人", "王妃", "皇后", "影后", "学霸", "校花", "才女", "美女", "主播", "网红",
+                "霸道总裁", "温柔男主", "腹黑男主", "忠犬男主", "傲娇男主", "病娇男主", "清冷男主", "妖孽男主"
+            ],
+            "plots": [
+                "先婚后爱", "一见钟情", "日久生情", "暗恋成真", "破镜重圆", "久别重逢", "青梅竹马",
+                "欢喜冤家", "冤家路窄", "近水楼台", "朝夕相处", "共事", "邻居", "同事", "同学",
+                "穿越", "重生", "系统", "空间", "快穿", "穿书", "玄幻", "修仙", "魔法", "异能",
+                "宫斗", "宅斗", "权谋", "江湖", "武侠", "仙侠", "校园", "都市", "职场", "娱乐圈",
+                "电竞", "直播", "美食", "萌宝", "种田", "经商", "军婚", "警匪", "悬疑", "推理",
+                "惊悚", "灵异", "历史", "科幻", "奇幻", "神话", "同人", "衍生", "影视", "游戏"
+            ]
+        }
+    }
+    
+    validated_tags = {}
+    
+    # 验证目标受众
+    target_audience = tags_info.get("target_audience", "男频")
+    validated_tags["target_audience"] = target_audience if target_audience in ["男频", "女频"] else "男频"
+    
+    # 验证主分类
+    main_category = tags_info.get("main_category", "传统玄幻")
+    available_categories = platform_categories.get(target_audience, {}).get("main_category", [])
+    
+    if main_category in available_categories:
+        validated_tags["main_category"] = main_category
+    else:
+        # 查找最接近的匹配
+        best_match = None
+        best_match_score = 0
+        for category in available_categories:
+            # 计算相似度
+            similarity = calculate_similarity(main_category, category)
+            if similarity > best_match_score:
+                best_match_score = similarity
+                best_match = category
+        
+        if best_match and best_match_score > 0.3:  # 设置最低相似度阈值
+            validated_tags["main_category"] = best_match
+            print(f"主分类 '{main_category}' 不在平台分类中，使用最接近的匹配: {best_match} (相似度: {best_match_score:.2f})")
+        else:
+            print(f"无法找到合适的主分类匹配: {main_category}，使用默认分类")
+            validated_tags["main_category"] = "东方玄幻" if target_audience == "男频" else "古代言情"
+    
+    # 验证主题标签（最多选择2个）
+    original_themes = tags_info.get("themes", [])
+    validated_themes = []
+    available_themes = platform_categories.get(target_audience, {}).get("themes", [])
+    
+    for theme in original_themes[:2]:  # 最多选择2个主题
+        validated_theme = validate_single_tag(theme, available_themes, f"主题标签")
+        if validated_theme:
+            validated_themes.append(validated_theme)
+    
+    # 如果没有有效的主题，添加默认主题
+    if not validated_themes:
+        default_themes = ["玄幻", "都市"] if target_audience == "男频" else ["甜宠", "言情"]
+        for default_theme in default_themes[:1]:  # 至少添加一个默认主题
+            if default_theme in available_themes:
+                validated_themes.append(default_theme)
+                print(f"添加默认主题标签: {default_theme}")
                 break
+    
+    validated_tags["themes"] = validated_themes
+    
+    # 验证角色标签（最多选择2个）
+    original_roles = tags_info.get("roles", [])
+    validated_roles = []
+    available_roles = platform_categories.get(target_audience, {}).get("roles", [])
+    
+    for role in original_roles[:2]:  # 最多选择2个角色
+        validated_role = validate_single_tag(role, available_roles, f"角色标签")
+        if validated_role:
+            validated_roles.append(validated_role)
+    
+    # 如果没有有效的角色，添加默认角色
+    if not validated_roles:
+        default_roles = ["天才", "大佬"] if target_audience == "男频" else ["总裁", "学霸"]
+        for default_role in default_roles[:1]:  # 至少添加一个默认角色
+            if default_role in available_roles:
+                validated_roles.append(default_role)
+                print(f"添加默认角色标签: {default_role}")
+                break
+    
+    validated_tags["roles"] = validated_roles
+    
+    # 验证情节标签（最多选择2个）
+    original_plots = tags_info.get("plots", [])
+    validated_plots = []
+    available_plots = platform_categories.get(target_audience, {}).get("plots", [])
+    
+    for plot in original_plots[:2]:  # 最多选择2个情节
+        validated_plot = validate_single_tag(plot, available_plots, f"情节标签")
+        if validated_plot:
+            validated_plots.append(validated_plot)
+    
+    # 如果没有有效的情节，添加默认情节
+    if not validated_plots:
+        default_plots = ["系统", "重生"] if target_audience == "男频" else ["穿越", "重生"]
+        for default_plot in default_plots[:1]:  # 至少添加一个默认情节
+            if default_plot in available_plots:
+                validated_plots.append(default_plot)
+                print(f"添加默认情节标签: {default_plot}")
+                break
+    
+    validated_tags["plots"] = validated_plots
+    
+    return validated_tags
+
+def validate_single_tag(tag, available_tags, tag_type):
+    """
+    验证单个标签是否在可用标签列表中，如果不匹配则返回最接近的匹配
+    """
+    if tag in available_tags:
+        return tag
+    
+    # 如果直接匹配失败，查找最接近的匹配
+    best_match = None
+    best_match_score = 0
+    
+    for available_tag in available_tags:
+        # 计算相似度
+        similarity = calculate_similarity(tag, available_tag)
+        if similarity > best_match_score and similarity > 0.6:  # 相似度阈值
+            best_match_score = similarity
+            best_match = available_tag
+    
+    if best_match:
+        print(f"⚠ {tag_type}标签 '{tag}' 不在平台分类中，使用最接近的匹配: {best_match}")
+        return best_match
+    else:
+        print(f"无法找到合适的{tag_type}标签匹配: {tag}")
+        return None  # 返回None表示无法找到匹配
+
+def calculate_similarity(str1, str2):
+    """
+    计算两个字符串的相似度
+    """
+    if not str1 or not str2:
+        return 0
+    
+    if str1 == str2:
+        return 1.0
+    
+    # 简单的相似度计算
+    common_chars = set(str1) & set(str2)
+    total_chars = set(str1) | set(str2)
+    
+    if total_chars:
+        return len(common_chars) / len(total_chars)
+    else:
+        return 0
+
+def select_novel_tags_interactive(page, novel_data):
+    """
+    交互式选择小说标签 - 基于当前弹窗结构，支持动态JSON结构，并匹配番茄平台实际分类
+    """
+    try:
+        print("开始选择小说标签...")
+        
+        # 等待弹窗完全加载
+        page.wait_for_timeout(2000)
+        
+        # 动态获取标签信息 - 支持多种JSON结构
+        tags_info = {}
+        
+        # 方法1: 尝试从 project_info.tags 获取（当前结构）
+        if "project_info" in novel_data and "tags" in novel_data["project_info"]:
+            tags_info = novel_data["project_info"]["tags"]
+            print("✓ 从 project_info.tags 获取标签信息")
+        
+        # 方法2: 尝试从 novel_info.tags 获取（兼容结构）
+        elif "novel_info" in novel_data and "tags" in novel_data["novel_info"]:
+            tags_info = novel_data["novel_info"]["tags"]
+            print("✓ 从 novel_info.tags 获取标签信息")
+        
+        # 方法3: 尝试从 novel_info.selected_plan.tags 获取（旧结构）
+        elif "novel_info" in novel_data and "selected_plan" in novel_data["novel_info"] and "tags" in novel_data["novel_info"]["selected_plan"]:
+            tags_info = novel_data["novel_info"]["selected_plan"]["tags"]
+            print("✓ 从 novel_info.selected_plan.tags 获取标签信息")
+        
         else:
-            print("⚠ 无法找到主分类标签页")
-
-        # 选择具体的主分类
-        if scroll_and_click(page2, 0, ".category-choose-scroll-parent", main_category):
-            print(f"✓ 选择主分类: {main_category}")
+            print("⚠ 未找到标准标签信息，使用默认标签")
+            # 使用默认标签作为备选
+            tags_info = {
+                "target_audience": "男频",
+                "main_category": "东方玄幻",
+                "themes": ["种田流", "凡人流"],
+                "roles": ["谨慎型主角", "稳健发育"],
+                "plots": ["凡人流", "种田"]
+            }
+        
+        print(f"原始标签信息: {tags_info}")
+        
+        # 验证标签是否在番茄平台的实际分类中
+        valid_tags_info = validate_tags_with_platform(tags_info)
+        
+        print(f"验证后的标签信息:")
+        print(f"- 目标受众: {valid_tags_info['target_audience']}")
+        print(f"- 主分类: {valid_tags_info['main_category']}")
+        print(f"- 主题: {valid_tags_info['themes']}")
+        print(f"- 角色: {valid_tags_info['roles']}")
+        print(f"- 情节: {valid_tags_info['plots']}")
+        
+        # 1. 选择主分类
+        print("\n=== 选择主分类 ===")
+        if select_category_tag(page, "主分类", valid_tags_info["main_category"]):
+            print(f"✓ 主分类选择成功: {valid_tags_info['main_category']}")
         else:
-            print(f"⚠ 未找到主分类: {main_category}")
-        time.sleep(0.3)
-
-    # 7. 选择主题 - 从selected_plan.tags.themes获取所有主题
-    themes = tags_info.get("themes", [])
-    if themes:
-        # 切换到主题标签页
-        theme_tab_selectors = [
-            '//span[text()="主题"]',
-            '//div[contains(@class, "arco-tabs-tab")]//span[text()="主题"]',
-        ]
-
-        for selector in theme_tab_selectors:
-            if safe_click(page2.locator(f'xpath={selector}'), "主题标签页"):
+            print(f"⚠ 主分类选择失败: {valid_tags_info['main_category']}")
+        
+        # 2. 选择主题（最多2个）
+        print("\n=== 选择主题 ===")
+        theme_selected = 0
+        for theme in valid_tags_info["themes"][:2]:  # 最多选择2个主题
+            if select_category_tag(page, "主题", theme):
+                theme_selected += 1
+                print(f"✓ 主题选择成功: {theme}")
                 time.sleep(0.5)
-                break
-        else:
-            print("⚠ 无法找到主题标签页")
-
-        # 选择所有主题，而不仅仅是第一个
-        selected_count = 0
-        for theme_index, theme in enumerate(themes):
-            print(f"尝试选择主题 {theme_index + 1}/{len(themes)}: {theme}")
-
-            # 修复：将索引从 1 改为 0，因为只有一个滚动容器
-            if scroll_and_click_enhanced(page2, "主题", theme):
-                selected_count += 1
-            time.sleep(0.3)
-
-        print(f"主题选择完成: {selected_count}/{len(themes)} 个主题被选中")
-
-    # 8. 选择角色 - 从selected_plan.tags.roles获取所有角色
-    roles = tags_info.get("roles", [])
-    if roles:
-        # 切换到角色标签页
-        role_tab_selectors = [
-            '//span[text()="角色"]',
-            '//div[contains(@class, "arco-tabs-tab")]//span[text()="角色"]',
-        ]
-
-        for selector in role_tab_selectors:
-            if safe_click(page2.locator(f'xpath={selector}'), "角色标签页"):
+            else:
+                print(f"⚠ 主题选择失败: {theme}")
+        
+        print(f"主题选择完成: {theme_selected}/2 个主题")
+        
+        # 3. 选择角色（最多2个）
+        print("\n=== 选择角色 ===")
+        role_selected = 0
+        for role in valid_tags_info["roles"][:2]:  # 最多选择2个角色
+            if select_category_tag(page, "角色", role):
+                role_selected += 1
+                print(f"✓ 角色选择成功: {role}")
                 time.sleep(0.5)
-                break
-        else:
-            print("⚠ 无法找到角色标签页")
-
-        # 选择所有角色，而不仅仅是第一个
-        selected_count = 0
-        for role_index, role in enumerate(roles):
-            # 修复：修正错误的变量名 len(character_traits) -> len(roles)
-            print(f"尝试选择角色 {role_index + 1}/{len(roles)}: {role}")
-
-            # 修复：将索引从 2 改为 0，因为只有一个滚动容器
-            if scroll_and_click_enhanced(page2, "角色", role):
-                selected_count += 1
-
-            # 短暂暂停，确保选择生效
-            time.sleep(0.3)
-
-        print(f"角色选择完成: {selected_count}/{len(roles)} 个角色被选中")
-
-    # 9. 选择情节 - 从selected_plan.tags.plots获取所有情节
-    plots = tags_info.get("plots", [])
-    if plots:
-        # 切换到情节标签页
-        plot_tab_selectors = [
-            '//span[text()="情节"]',
-            '//div[contains(@class, "arco-tabs-tab")]//span[text()="情节"]',
-        ]
-
-        for selector in plot_tab_selectors:
-            if safe_click(page2.locator(f'xpath={selector}'), "情节标签页"):
+            else:
+                print(f"⚠ 角色选择失败: {role}")
+        
+        print(f"角色选择完成: {role_selected}/2 个角色")
+        
+        # 4. 选择情节（最多2个）
+        print("\n=== 选择情节 ===")
+        plot_selected = 0
+        for plot in valid_tags_info["plots"][:2]:  # 最多选择2个情节
+            if select_category_tag(page, "情节", plot):
+                plot_selected += 1
+                print(f"✓ 情节选择成功: {plot}")
                 time.sleep(0.5)
-                break
-        else:
-            print("⚠ 无法找到情节标签页")
+            else:
+                print(f"⚠ 情节选择失败: {plot}")
+        
+        print(f"情节选择完成: {plot_selected}/2 个情节")
+        
+        # 5. 确认选择
+        print("\n=== 确认标签选择 ===")
+        return confirm_tag_selection(page)
+        
+    except Exception as e:
+        print(f"标签选择过程中出错: {e}")
+        return False
 
-        # 选择所有情节，而不仅仅是第一个
-        selected_count = 0
-        for plot_index, plot in enumerate(plots):
-            print(f"尝试选择情节 {plot_index + 1}/{len(plots)}: {plot}")
 
-            # 修复：将索引从 3 改为 0，因为只有一个滚动容器
-            if scroll_and_click_enhanced(page2, "情节", plot):
-                selected_count += 1
-
-            # 短暂暂停，确保选择生效
-            time.sleep(0.3)
-
-        print(f"情节选择完成: {selected_count}/{len(plots)} 个情节被选中")
-
-    # 10. 确认标签选择 - 使用您提供的确认标签XPath
-    confirm_clicked = False
-    for attempt in range(5):  # 最多尝试5次
-        # 使用您提供的确认按钮XPath
-        confirm_selectors = [
-            '/html/body/div[2]/div[2]/div/div[3]/div/div/button[2]/span',  # 您提供的XPath
-            '//button[span[text()="确认"]]',
-            '//button[text()="确认"]',
+def select_category_tag(page, tab_name, target_text):
+    """
+    在指定标签页中选择目标分类
+    """
+    try:
+        # 1. 点击标签页
+        tab_selectors = [
+            f'//span[text()="{tab_name}"]',
+            f'//div[contains(@class, "arco-tabs-tab")]//span[text()="{tab_name}"]',
         ]
-
-        for selector in confirm_selectors:
-            # 尝试定位更具体的按钮
-            button_locator = page2.locator('div.arco-modal-footer button.arco-btn-primary')
-            if button_locator.count() > 0:
-                 if safe_click(button_locator, f"确认标签 (精准定位)"):
-                    confirm_clicked = True
+        
+        tab_clicked = False
+        for selector in tab_selectors:
+            try:
+                tab_element = page.locator(f'xpath={selector}')
+                if tab_element.count() > 0:
+                    tab_element.first.click()
+                    page.wait_for_timeout(1000)  # 等待标签页切换
+                    tab_clicked = True
+                    print(f"✓ 成功点击标签页: {tab_name}")
                     break
-            
-            # 如果精准定位失败，则使用旧的选择器
-            if safe_click(page2.locator(f'xpath={selector}'), f"确认标签 (尝试{attempt + 1})"):
-                confirm_clicked = True
+            except Exception as e:
+                continue
+        
+        if not tab_clicked:
+            print(f"❌ 无法点击标签页: {tab_name}")
+            return False
+        
+        # 2. 查找并点击目标标签
+        target_selectors = [
+            f'//div[contains(@class, "category-choose-item")]//div[contains(text(), "{target_text}")]',
+            f'//div[contains(@class, "category-choose-item-title") and text()="{target_text}"]',
+            f'//*[contains(text(), "{target_text}")]',
+        ]
+        
+        # 首先尝试不滚动查找
+        for selector in target_selectors:
+            try:
+                target_elements = page.locator(f'xpath={selector}')
+                if target_elements.count() > 0:
+                    for i in range(target_elements.count()):
+                        element = target_elements.nth(i)
+                        if element.is_visible():
+                            element_text = element.text_content().strip()
+                            if target_text in element_text:
+                                print(f"找到目标标签: {element_text}")
+                                element.click()
+                                page.wait_for_timeout(500)
+                                return True
+            except Exception as e:
+                continue
+        
+        # 3. 如果没找到，尝试滚动查找
+        print(f"未找到目标标签 '{target_text}'，开始滚动查找...")
+        
+        # 定位滚动容器
+        scroll_container = page.locator('.category-choose-scroll-parent').first
+        if scroll_container.count() == 0:
+            scroll_container = page.locator('.arco-tabs-content-item-active').first
+        
+        # 滚动查找
+        for scroll_attempt in range(20):  # 最多滚动20次
+            try:
+                # 再次尝试查找
+                for selector in target_selectors:
+                    try:
+                        target_elements = page.locator(f'xpath={selector}')
+                        if target_elements.count() > 0:
+                            for i in range(target_elements.count()):
+                                element = target_elements.nth(i)
+                                if element.is_visible():
+                                    element_text = element.text_content().strip()
+                                    if target_text in element_text:
+                                        print(f"滚动找到目标标签: {element_text}")
+                                        element.click()
+                                        page.wait_for_timeout(500)
+                                        return True
+                    except:
+                        continue
+                
+                # 滚动一小段距离
+                page.evaluate('window.scrollBy(0, 200)')
+                page.wait_for_timeout(300)
+                
+            except Exception as e:
                 break
+        
+        print(f"❌ 未找到目标标签: {target_text}")
+        return False
+        
+    except Exception as e:
+        print(f"选择标签时出错: {e}")
+        return False
+
+
+def confirm_tag_selection(page):
+    """
+    确认标签选择 - 修复版本
+    """
+    try:
+        print("尝试确认标签选择...")
+        
+        # 等待一下确保选择完成
+        time.sleep(1)
+        
+        # 使用更精确的确认按钮选择器，基于你提供的HTML结构
+        confirm_selectors = [
+            # 基于你提供的HTML结构的精确选择器
+            'div.arco-modal-footer button.arco-btn-primary:has-text("确认")',
+            'div.arco-modal-footer button.arco-btn-primary span:has-text("确认")',
+            '//div[@class="arco-modal-footer"]//button[@class="arco-btn arco-btn-primary"]//span[text()="确认"]',
+            '//div[@class="arco-modal-footer"]//button[@class="arco-btn arco-btn-primary" and contains(text(), "确认")]',
+            '//div[@class="arco-modal-footer"]//button[contains(@class, "arco-btn-primary") and .//span[text()="确认"]]',
+            # 备用选择器
+            '//button[contains(@class, "arco-btn-primary")]//span[text()="确认"]',
+            '//button[contains(@class, "arco-btn-primary") and text()="确认"]',
+            'button:has-text("确认")',
+            'button:has(span:text("确认"))',
+        ]
+        
+        for attempt in range(8):  # 增加重试次数
+            print(f"尝试点击确认按钮 (第 {attempt + 1} 次)...")
+            
+            # 每次重试前等待一下，让页面有时间响应
+            if attempt > 0:
+                time.sleep(1.5)
+            
+            for selector_idx, selector in enumerate(confirm_selectors):
+                try:
+                    if selector.startswith('//'):
+                        button_element = page.locator(f'xpath={selector}')
+                    else:
+                        button_element = page.locator(selector)
+                    
+                    if button_element.count() > 0:
+                        button = button_element.first
+                        
+                        # 检查按钮是否可见和可点击
+                        if button.is_visible() and button.is_enabled():
+                            print(f"找到确认按钮 (选择器 {selector_idx + 1}), 尝试点击...")
+                            
+                            # 滚动到按钮位置
+                            button.scroll_into_view_if_needed()
+                            time.sleep(0.5)
+                            
+                            # 尝试多种点击方式
+                            click_success = False
+                            
+                            # 方法1: 普通点击
+                            try:
+                                button.click(timeout=5000)
+                                print("✓ 普通点击成功")
+                                click_success = True
+                            except Exception as click_error:
+                                print(f"普通点击失败: {click_error}")
+                                
+                                # 方法2: 强制点击
+                                try:
+                                    button.click(force=True, timeout=3000)
+                                    print("✓ 强制点击成功")
+                                    click_success = True
+                                except Exception as force_error:
+                                    print(f"强制点击失败: {force_error}")
+                                    
+                                    # 方法3: JavaScript点击
+                                    try:
+                                        button.evaluate('(element) => element.click()')
+                                        print("✓ JavaScript点击成功")
+                                        click_success = True
+                                    except Exception as js_error:
+                                        print(f"JavaScript点击失败: {js_error}")
+                            
+                            if click_success:
+                                print("✓ 确认按钮点击成功")
+                                time.sleep(2)  # 等待弹窗关闭
+                                return True
+                            else:
+                                print(f"所有点击方式都失败")
+                                continue
+                        else:
+                            print(f"按钮不可见或不可用 (选择器 {selector_idx + 1})")
+                            continue
+                    else:
+                        print(f"未找到按钮元素 (选择器 {selector_idx + 1})")
+                        continue
+                
+                except Exception as e:
+                    print(f"选择器 {selector_idx + 1} 失败: {e}")
+                    continue
+            
+            # 如果所有选择器都失败，尝试滚动页面后重试
+            if attempt < 7:
+                print(f"第 {attempt + 1} 次尝试失败，尝试滚动页面后重试...")
+                try:
+                    # 滚动到页面底部
+                    page.evaluate('window.scrollTo(0, document.body.scrollHeight)')
+                    time.sleep(1)
+                    
+                    # 再滚动回顶部
+                    page.evaluate('window.scrollTo(0, 0)')
+                    time.sleep(0.5)
+                except:
+                    pass
+        
+        print("❌ 所有尝试都无法点击确认按钮")
+        
+        # 最后的备用方案：尝试按ESC键关闭弹窗
+        try:
+            page.keyboard.press('Escape')
+            print("尝试按ESC键关闭弹窗")
+            time.sleep(1)
+            return True
+        except:
+            pass
+        
+        return False
+        
+    except Exception as e:
+        print(f"确认标签选择时出错: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+    # 10. 确认标签选择 - 修复确认按钮点击逻辑
+    print("尝试确认标签选择...")
+    confirm_clicked = False
+    
+    # 等待一下确保标签选择完成
+    time.sleep(1)
+    
+    # 使用多种方法定位确认按钮
+    confirm_selectors = [
+        'div.arco-modal-footer button.arco-btn-primary',  # 最精准的选择器
+        '//div[@class="arco-modal-footer"]//button[@class="arco-btn arco-btn-primary"]',
+        '//div[@class="arco-modal-footer"]//button[contains(@class, "arco-btn-primary")]',
+        '//button[contains(@class, "arco-btn-primary") and span[text()="确认"]]',
+        '//button[span[text()="确认"]]',
+        '//button[text()="确认"]',
+    ]
+    
+    for attempt in range(8):  # 增加重试次数
+        print(f"尝试点击确认按钮 (第 {attempt + 1} 次)...")
+        
+        for selector_idx, selector in enumerate(confirm_selectors):
+            try:
+                if selector.startswith('//'):
+                    button_element = page2.locator(f'xpath={selector}')
+                else:
+                    button_element = page2.locator(selector)
+                
+                if button_element.count() > 0:
+                    button = button_element.first
+                    
+                    # 检查按钮是否可见和可点击
+                    if button.is_visible() and button.is_enabled():
+                        print(f"找到确认按钮，使用选择器: {selector}")
+                        
+                        # 尝试普通点击
+                        try:
+                            button.click(timeout=3000)
+                            print("✓ 普通点击成功")
+                            confirm_clicked = True
+                            break
+                        except Exception as click_error:
+                            if "intercepts pointer events" in str(click_error):
+                                print("按钮被遮挡，尝试强制点击...")
+                                button.click(force=True, timeout=3000)
+                                print("✓ 强制点击成功")
+                                confirm_clicked = True
+                                break
+                            else:
+                                print(f"点击失败: {click_error}")
+                                continue
+                    else:
+                        print(f"按钮不可见或不可用")
+                        continue
+                else:
+                    print(f"未找到按钮元素")
+                    continue
+                    
+            except Exception as e:
+                print(f"选择器 {selector} 失败: {e}")
+                continue
         
         if confirm_clicked:
             break
-        else:
-            print(f"确认按钮点击失败，等待2秒后重试... (尝试 {attempt + 1}/5)")
-            time.sleep(2)
+        
+        # 如果所有选择器都失败，等待后重试
+        print(f"第 {attempt + 1} 次尝试失败，等待2秒后重试...")
+        time.sleep(2)
+        
+        # 尝试滚动页面，确保按钮在视图中
+        try:
+            page2.evaluate('window.scrollTo(0, document.body.scrollHeight)')
+            time.sleep(0.5)
+        except:
+            pass
 
     if confirm_clicked:
-        print("✓ 标签选择完成")
+        print("✓ 标签选择确认完成")
+        time.sleep(1)  # 等待弹窗关闭
     else:
         print("⚠ 无法点击确认按钮，可能标签选择有问题")
+        # 尝试按ESC键关闭弹窗
+        try:
+            page2.keyboard.press('Escape')
+            print("尝试按ESC键关闭弹窗")
+            time.sleep(1)
+        except:
+            pass
 
     time.sleep(1)
 
@@ -2166,11 +2718,32 @@ def create_new_book(page2, novel_title, formatted_synopsis, main_character, nove
         # 方法1：尝试直接使用您提供的路径
         expected_path = os.path.join(novel_project_dir, f"{novel_title}_封面.jpg")
         print(f"尝试路径1: {expected_path}")
-        cover_found = False  # 初始化cover_found
+        cover_found = False
+        cover_path = None
+        
         if os.path.exists(expected_path):
             cover_path = expected_path
             cover_found = True
             print(f"✓ 找到封面文件 (路径1): {cover_path}")
+        else:
+            # 尝试其他可能的封面文件名
+            alternative_names = [
+                f"{novel_title}_封面.png",
+                f"{novel_title}_cover.jpg",
+                f"{novel_title}_cover.png",
+                "cover.jpg",
+                "cover.png"
+            ]
+            
+            for alt_name in alternative_names:
+                alt_path = os.path.join(novel_project_dir, alt_name)
+                if os.path.exists(alt_path):
+                    cover_path = alt_path
+                    cover_found = True
+                    print(f"✓ 找到封面文件 (备用路径): {alt_path}")
+                    break
+        
+        if cover_found and cover_path:
 
             if cover_found:
                 # 方法1: 直接使用Playwright的文件上传功能
@@ -2302,57 +2875,142 @@ def create_new_book(page2, novel_title, formatted_synopsis, main_character, nove
 def scroll_and_click_enhanced(page, tab_name, target_text, max_scrolls=30, scroll_step=300):
     """
     增强版：在分类选择模态框中查找目标文本并点击
+    使用更通用的选择器来适应网页结构变化
     """
     try:
-        # 1. 首先点击对应的标签页
-        tab_locator = page.locator(f".arco-tabs-header-title:has-text('{tab_name}')")
-        if tab_locator.count() > 0:
-            tab_locator.first.click()
-            page.wait_for_timeout(500)  # 等待标签页切换动画
+        print(f"🔍 开始在'{tab_name}'标签页中查找: '{target_text}'")
         
-        # 2. 定位到当前活动标签页的滚动容器
-        # 使用活动标签页的内容区域
-        active_tab_content = page.locator(".arco-tabs-content-item-active .category-choose-scroll-parent")
+        # 1. 首先点击对应的标签页 - 使用多种选择器
+        tab_selectors = [
+            f".arco-tabs-header-title:has-text('{tab_name}')",
+            f"//span[contains(text(), '{tab_name}')]",
+            f"[class*='tabs'] span:has-text('{tab_name}')",
+            f"div[class*='tab'] span:has-text('{tab_name}')"
+        ]
         
-        if active_tab_content.count() == 0:
-            print(f"❌ 未找到活动标签页的滚动容器，标签页: {tab_name}")
+        tab_clicked = False
+        for selector in tab_selectors:
+            try:
+                if selector.startswith('//'):
+                    tab_element = page.locator(f'xpath={selector}')
+                else:
+                    tab_element = page.locator(selector)
+                
+                if tab_element.count() > 0:
+                    tab_element.first.click()
+                    page.wait_for_timeout(800)  # 等待标签页切换动画
+                    tab_clicked = True
+                    print(f"✅ 成功点击标签页: {tab_name}")
+                    break
+            except Exception as e:
+                continue
+        
+        if not tab_clicked:
+            print(f"❌ 无法点击标签页: {tab_name}")
             return False
         
-        scrollable = active_tab_content.first
+        # 2. 定位滚动容器 - 使用多种选择器
+        scroll_selectors = [
+            ".arco-tabs-content-item-active .category-choose-scroll-parent",
+            ".arco-tabs-content-item-active [class*='scroll']",
+            ".arco-tabs-content-item-active div[class*='content']",
+            "[class*='tabs-content'] [class*='scroll']",
+            "[class*='category'] [class*='scroll']",
+            ".arco-modal-body [class*='scroll']"
+        ]
+        
+        scrollable = None
+        for selector in scroll_selectors:
+            try:
+                element = page.locator(selector)
+                if element.count() > 0:
+                    scrollable = element.first
+                    print(f"✅ 找到滚动容器: {selector}")
+                    break
+            except Exception as e:
+                continue
+        
+        if scrollable is None:
+            print(f"❌ 未找到滚动容器，尝试全局搜索")
+            # 如果找不到特定的滚动容器，尝试在整个模态框中搜索
+            scrollable = page.locator(".arco-modal-body").first
+            if scrollable.count() == 0:
+                scrollable = page.locator("body").first
         
         # 3. 将鼠标悬停在滚动区域上
-        scrollable.hover(timeout=3000)
+        try:
+            scrollable.hover(timeout=3000)
+        except:
+            print(f"⚠️ 无法悬停在滚动区域，继续尝试")
         
-        # 4. 循环查找和滚动
+        # 4. 循环查找和滚动 - 使用多种目标选择器
+        target_selectors = [
+            f".category-choose-item:has-text('{target_text}')",
+            f"[class*='category-item']:has-text('{target_text}')",
+            f"[class*='choose-item']:has-text('{target_text}')",
+            f"div:has-text('{target_text}')",
+            f"span:has-text('{target_text}')",
+            f"//*[contains(text(), '{target_text}')]"
+        ]
+        
         for i in range(max_scrolls):
-            # 在滚动容器内部查找目标，放宽可见性检查
-            target = scrollable.locator(f".category-choose-item:has-text('{target_text}')")
-            
-            if target.count() > 0:
-                print(f"✅ 在'{tab_name}'标签页找到目标: {target_text}")
-                # 点击第一个匹配的元素
-                target.first.click()
-                page.wait_for_timeout(300)  # 等待点击响应
-                return True
+            # 尝试多种目标选择器
+            for target_selector in target_selectors:
+                try:
+                    if target_selector.startswith('//'):
+                        target = scrollable.locator(f'xpath={target_selector}')
+                    else:
+                        target = scrollable.locator(target_selector)
+                    
+                    if target.count() > 0:
+                        # 检查元素是否可见和可点击
+                        for j in range(target.count()):
+                            element = target.nth(j)
+                            if element.is_visible() and element.is_enabled():
+                                element_text = element.text_content().strip()
+                                if target_text in element_text:
+                                    print(f"✅ 在'{tab_name}'标签页找到目标: {element_text}")
+                                    # 滚动到元素并点击
+                                    element.scroll_into_view_if_needed()
+                                    page.wait_for_timeout(300)
+                                    element.click()
+                                    page.wait_for_timeout(500)  # 等待点击响应
+                                    return True
+                except Exception as e:
+                    continue
             
             # 使用鼠标滚轮滚动
-            page.mouse.wheel(0, scroll_step)
+            try:
+                page.mouse.wheel(0, scroll_step)
+                page.wait_for_timeout(400)
+            except Exception as e:
+                # 如果鼠标滚轮失败，尝试JavaScript滚动
+                try:
+                    page.evaluate("() => window.scrollBy(0, 300)")
+                    page.wait_for_timeout(400)
+                except:
+                    pass
             
-            # 等待滚动动画
-            page.wait_for_timeout(300)
-            
-            # 可选：检查是否到达底部（防止无限滚动）
-            if i % 5 == 0:  # 每5次滚动检查一次
-                current_scroll_pos = page.evaluate("() => window.scrollY")
-                if i > 0 and current_scroll_pos <= 10:
-                    print(f"🟡 可能已滚动到底部，停止滚动")
-                    break
+            # 检查是否到达底部
+            if i % 5 == 0:
+                try:
+                    scroll_height = page.evaluate("() => document.body.scrollHeight")
+                    current_scroll = page.evaluate("() => window.pageYOffset")
+                    viewport_height = page.evaluate("() => window.innerHeight")
+                    
+                    if current_scroll + viewport_height >= scroll_height - 100:
+                        print(f"🟡 已滚动到底部，停止滚动")
+                        break
+                except:
+                    pass
 
         print(f"🟡 在'{tab_name}'标签页滚动{max_scrolls}次后未找到: '{target_text}'")
         return False
 
     except Exception as e:
         print(f"✗ 在'{tab_name}'标签页操作'{target_text}'时发生错误: {e}")
+        import traceback
+        traceback.print_exc()
         return False
 
 # 使用示例
@@ -2373,39 +3031,133 @@ import time
 def scroll_and_click(page, idx, scroll_selector, target_text, max_scrolls=30, scroll_step=300):
     """
     自动在滚动容器中查找目标文本并点击。
+    使用更健壮的选择器和错误处理。
     找不到或发生任何错误时，会安全退出并返回 False。
     """
     try:
-        scrollable = page.locator(scroll_selector).nth(idx)
+        print(f"🔍 在滚动容器 {idx} 中查找目标: '{target_text}'")
         
-        # 尝试悬停以激活滚动区域，如果元素此时不存在，会被下面的 except 捕获
-        scrollable.hover(timeout=3000) 
+        # 尝试找到滚动容器
+        scrollable = None
+        try:
+            scrollable = page.locator(scroll_selector).nth(idx)
+            if scrollable.count() == 0:
+                print(f"⚠️ 指定索引 {idx} 的滚动容器不存在，尝试第一个")
+                scrollable = page.locator(scroll_selector).first
+                if scrollable.count() == 0:
+                    print(f"❌ 未找到任何滚动容器: {scroll_selector}")
+                    return False
+        except Exception as e:
+            print(f"⚠️ 定位滚动容器失败，尝试全局搜索: {e}")
+            # 回退到全局搜索
+            global_selectors = [
+                ".arco-modal-body",
+                "[class*='scroll']",
+                "[class*='content']",
+                "body"
+            ]
+            for selector in global_selectors:
+                try:
+                    scrollable = page.locator(selector).first
+                    if scrollable.count() > 0:
+                        print(f"✅ 找到备用滚动容器: {selector}")
+                        break
+                except:
+                    continue
+            
+            if scrollable is None or scrollable.count() == 0:
+                print(f"❌ 无法找到任何可用的滚动容器")
+                return False
+        
+        # 尝试悬停以激活滚动区域
+        try:
+            scrollable.hover(timeout=3000)
+            print("✅ 成功悬停在滚动区域")
+        except Exception as e:
+            print(f"⚠️ 无法悬停在滚动区域，继续尝试: {e}")
 
-        # 循环查找和滚动
+        # 循环查找和滚动 - 使用多种目标选择器
+        target_selectors = [
+            f".category-choose-item:has-text('{target_text}')",
+            f"[class*='category-item']:has-text('{target_text}')",
+            f"[class*='choose-item']:has-text('{target_text}')",
+            f"div:has-text('{target_text}')",
+            f"span:has-text('{target_text}')",
+            f"//*[contains(text(), '{target_text}')]"
+        ]
+        
         for i in range(max_scrolls):
-            # 在滚动容器内部查找目标
-            target = scrollable.locator(f".category-choose-item:has-text('{target_text}')")
+            # 尝试多种目标选择器
+            for target_selector in target_selectors:
+                try:
+                    if target_selector.startswith('//'):
+                        target = scrollable.locator(f'xpath={target_selector}')
+                    else:
+                        target = scrollable.locator(target_selector)
+                    
+                    if target.count() > 0:
+                        # 检查元素是否可见和可点击
+                        for j in range(target.count()):
+                            element = target.nth(j)
+                            if element.is_visible() and element.is_enabled():
+                                element_text = element.text_content().strip()
+                                if target_text in element_text:
+                                    print(f"✅ 找到目标: {element_text}")
+                                    # 滚动到元素并点击
+                                    element.scroll_into_view_if_needed()
+                                    page.wait_for_timeout(300)
+                                    element.click()
+                                    page.wait_for_timeout(500)  # 等待点击响应
+                                    return True
+                except Exception as e:
+                    continue
             
-            if target.count() > 0:
-                print(f"✅ 找到目标: {target_text}")
-                target.first.click()
-                return True # 找到并点击成功，返回 True
+            # 改进滚动方式 - 尝试多种滚动方法
+            scroll_success = False
+            try:
+                # 方法1: 鼠标滚轮
+                page.mouse.wheel(0, scroll_step)
+                scroll_success = True
+            except:
+                try:
+                    # 方法2: JavaScript滚动
+                    page.evaluate(f"() => window.scrollBy(0, {scroll_step})")
+                    scroll_success = True
+                except:
+                    try:
+                        # 方法3: 滚动容器的scrollTop
+                        scrollable.evaluate(f"(element) => {{ element.scrollTop += {scroll_step}; }}")
+                        scroll_success = True
+                    except:
+                        pass
+            
+            if scroll_success:
+                page.wait_for_timeout(400)  # 等待滚动动画和可能的懒加载
+            else:
+                print(f"⚠️ 所有滚动方法都失败，停止滚动")
+                break
 
-            # --- 核心修改 1: 改进滚动方式 ---
-            # 使用模拟鼠标滚轮，这比操作 scrollTop 更可靠，能解决“不触发滑动”的问题
-            page.mouse.wheel(0, scroll_step)
-            
-            # 等待滚动动画和可能的懒加载
-            page.wait_for_timeout(300)
+            # 检查是否到达底部
+            if i % 5 == 0:
+                try:
+                    scroll_height = page.evaluate("() => document.body.scrollHeight")
+                    current_scroll = page.evaluate("() => window.pageYOffset")
+                    viewport_height = page.evaluate("() => window.innerHeight")
+                    
+                    if current_scroll + viewport_height >= scroll_height - 100:
+                        print(f"🟡 已滚动到底部，停止滚动")
+                        break
+                except:
+                    pass
 
         # 如果循环完成仍未找到
         print(f"🟡 在滚动 {max_scrolls} 次后，未找到目标: '{target_text}'")
         return False
 
     except Exception as e:
-        # --- 核心修改 2: 捕获所有异常 ---
-        # 无论发生任何错误（如滚动容器找不到、点击失败等），都打印信息并安全返回 False
         print(f"✗ 在操作 '{target_text}' 时发生错误，已跳过。错误: {e}")
+        import traceback
+        traceback.print_exc()
         return False
 
 
@@ -2529,9 +3281,24 @@ def publish_novel(page2, json_file):
     with open(json_file, 'r', encoding='utf-8') as f:
         data = json.load(f)
 
-    novel_title = data['novel_info']['title']
-    novel_synopsis = data['novel_info']['synopsis']
-    main_character = data['character_design']['main_character']['name']
+    # 适配不同的JSON结构
+    if 'novel_info' in data:
+        novel_info = data['novel_info']
+    elif 'project_info' in data:
+        novel_info = data['project_info']
+    else:
+        print("❌ 未找到小说信息字段")
+        return False
+    
+    novel_title = novel_info['title']
+    novel_synopsis = novel_info.get('synopsis', '')
+    
+    # 处理角色信息
+    main_character = "未知主角"
+    if 'character_design' in data and 'main_character' in data['character_design']:
+        main_character = data['character_design']['main_character'].get('name', '未知主角')
+    elif 'characters' in data and 'protagonist' in data['characters']:
+        main_character = data['characters']['protagonist'].get('name', '未知主角')
 
     print(f"小说名称: {novel_title}")
     print(f"主角: {main_character}")
@@ -2612,12 +3379,17 @@ def publish_novel(page2, json_file):
     except Exception as e:
         print(f"等待页面加载时出错: {e}")
 
-    # 查找章节文件
+    # 查找章节文件 - 适配现有目录结构
+    # 首先尝试标准的"小说名_章节"目录
     chapter_path = os.path.join(CONFIG["novel_path"], f"{novel_title}_章节")
     if not os.path.exists(chapter_path):
-        print(f"章节目录不存在: {chapter_path}")
-        print("请确保章节文件位于正确的目录中")
-        return False
+        # 如果不存在，尝试"小说名/chapters"目录结构
+        chapter_path = os.path.join(CONFIG["novel_path"], novel_title, "chapters")
+        if not os.path.exists(chapter_path):
+            print(f"章节目录不存在: {chapter_path}")
+            print("请确保章节文件位于正确的目录中")
+            return False
+    print(f"✓ 找到章节目录: {chapter_path}")
 
     # 获取章节文件
     chapter_files = []
@@ -2671,7 +3443,11 @@ def publish_novel(page2, json_file):
             continue
 
         with open(chapter_file, 'r', encoding='utf-8') as f:
-            chapter_data = json.load(f)
+            content = f.read()
+            # 修复中文引号问题 - 更全面的处理
+            # 先将JSON字符串中的中文引号转义，然后统一处理
+            content = content.replace('"', '"').replace('"', '"').replace(''', "'").replace(''', "'")
+            chapter_data = json.loads(content)
 
         chap_num = str(chapter_data['chapter_number'])
         chap_title = chapter_data['chapter_title']
@@ -2973,50 +3749,97 @@ def main_scan_cycle():
 
     # 连接浏览器
     playwright, browser, page1, default_context = connect_to_browser()
-    if not browser:
-        print("浏览器连接失败，等待下次扫描")
+    if not browser or not page1 or not default_context:
+        print("❌ 浏览器连接失败，等待下次扫描")
+        print("💡 请确保:")
+        print("   1. Chrome浏览器已安装")
+        print("   2. 运行: python fanqie_browser_launcher.py")
+        print("   3. 检查防火墙设置")
         return False
 
-    pages = default_context.pages  # 获取当前 context 下所有页面
-    pages_count = len(pages)
-    for idx, page in enumerate(pages):
-        try:
-            url = page.url
-            if page.url != 'https://fanqienovel.com/':
-                if pages_count != 1:
-                    print(f"正在关闭第 {idx + 1} 个页面：{url}")
-                    page.close()
-            else:
-                print(f"保留 第 {idx + 1} 个页面：{url}")
-                page1 = page
-        except Exception as e:
-            print(f"关闭第 {idx + 1} 个页面时出错：{e}")
-
-    page1.goto("https://fanqienovel.com/")
-    # 检查是否在番茄小说页面
+    print("✅ 浏览器连接成功，开始页面管理...")
+    
+    # 获取当前 context 下所有页面
     try:
+        pages = default_context.pages
+        pages_count = len(pages)
+        print(f"📄 发现 {pages_count} 个浏览器页面")
+        
+        for idx, page in enumerate(pages):
+            try:
+                url = page.url
+                print(f"  页面 {idx + 1}: {url}")
+                if url != 'https://fanqienovel.com/':
+                    if pages_count != 1:
+                        print(f"  🔒 关闭非番茄页面: {url}")
+                        page.close()
+                else:
+                    print(f"  ✅ 保留番茄页面: {url}")
+                    page1 = page
+            except Exception as e:
+                print(f"  ❌ 关闭页面 {idx + 1} 时出错: {e}")
+    except Exception as e:
+        print(f"❌ 页面管理失败: {e}")
+        # 如果页面管理失败，但浏览器连接正常，继续使用现有页面
+        print("⚠️ 使用现有页面继续...")
+
+    # 确保在番茄小说页面
+    try:
+        current_url = page1.url
+        print(f"📍 当前页面: {current_url}")
+        
+        if current_url != 'https://fanqienovel.com/':
+            print("🔄 导航到番茄小说首页...")
+            page1.goto("https://fanqienovel.com/", timeout=60000)
+            page1.wait_for_load_state("domcontentloaded", timeout=30000)
+        
+        # 检查页面标题
         page_title = page1.title()
+        print(f"📄 页面标题: {page_title}")
+        
         if '番茄小说' not in page_title:
-            print(f"当前页面不是番茄小说: {page_title}")
-            print("请确保已打开番茄小说网站")
-            page1.goto("https://fanqienovel.com/")
-            browser.close()
-            playwright.stop()
+            print("⚠️ 当前页面可能不是番茄小说，但继续尝试...")
+            print("🔄 强制导航到番茄小说...")
+            page1.goto("https://fanqienovel.com/", timeout=60000)
+            page1.wait_for_load_state("domcontentloaded", timeout=30000)
+            
+    except Exception as e:
+        print(f"❌ 页面导航失败: {e}")
+        print("💡 尝试刷新页面...")
+        try:
+            page1.reload()
+            page1.wait_for_load_state("domcontentloaded", timeout=30000)
+        except Exception as reload_error:
+            print(f"❌ 页面刷新也失败: {reload_error}")
+            print("🚨 无法继续，关闭浏览器连接")
+            try:
+                browser.close()
+                if playwright:
+                    playwright.stop()
+            except:
+                pass
             return False
-    except:
-        print("无法获取页面标题，请确保已打开番茄小说网站")
-        page1.goto("https://fanqienovel.com/")
-        browser.close()
-        playwright.stop()
-        return False
 
     # 导航到作家专区
+    print("🎯 开始导航到作家专区...")
     page2 = navigate_to_writer_platform(page1, default_context)
     if not page2:
-        print("导航到作家专区失败")
-        page1.goto("https://fanqienovel.com/")
-        browser.close()
-        playwright.stop()
+        print("❌ 导航到作家专区失败")
+        print("🔄 尝试返回番茄小说首页...")
+        try:
+            if page1:
+                page1.goto("https://fanqienovel.com/", timeout=30000)
+        except:
+            pass
+        
+        print("🧹 清理浏览器连接...")
+        try:
+            if browser:
+                browser.close()
+            if playwright:
+                playwright.stop()
+        except:
+            pass
         return False
 
     # 检查小说项目
@@ -3055,43 +3878,42 @@ def main_scan_cycle():
         print(f"✅ 小说项目: {len(json_files)} 个")
         print()
         
-        # 询问是否执行发布
-        execute_publish = input("🚀 是否开始执行小说发布? (y/n): ").strip().lower()
-        if execute_publish in ['y', 'yes']:
-            print("🚀 开始执行发布流程...")
-            
-            # 处理每个小说项目
-            success_count = 0
-            for file_index, json_file in enumerate(json_files):
-                print(f"\n{'=' * 50}")
-                print(f"📖 处理第 {file_index + 1} 个小说项目")
-
-                try:
-                    if publish_novel(page2, json_file):
-                        success_count += 1
-                        print(f"✅ 小说项目 {file_index + 1} 处理成功")
-                    else:
-                        print(f"❌ 小说项目 {file_index + 1} 处理失败")
-                except Exception as e:
-                    print(f"❌ 处理小说项目时出错: {e}")
-                    continue
-
+        # 自动执行发布流程，无需用户选择
+        print("🚀 自动开始执行发布流程...")
+        
+        # 初始化 success_count 变量，确保在任何情况下都有定义
+        success_count = 0
+        
+        # 处理每个小说项目
+        for file_index, json_file in enumerate(json_files):
             print(f"\n{'=' * 50}")
-            print(f"📊 发布完成！成功处理 {success_count}/{len(json_files)} 个小说项目")
+            print(f"📖 处理第 {file_index + 1} 个小说项目")
 
-            # 检查签约管理
-            print("=" * 50)
-            print("📋 签约管理检查")
-            print("=" * 50)
             try:
-                contract_manager = ContractManager(CONFIG)
-                contract_manager.check_and_handle_recommendations(page2)
-                contract_manager.check_and_handle_contract_management(page2)
-                print("✅ 签约管理检查完成")
+                if publish_novel(page2, json_file):
+                    success_count += 1
+                    print(f"✅ 小说项目 {file_index + 1} 处理成功")
+                else:
+                    print(f"❌ 小说项目 {file_index + 1} 处理失败")
             except Exception as e:
-                print(f"⚠️ 签约管理检查出错: {e}")
-        else:
-            print("⏸️ 用户选择跳过发布流程")
+                print(f"❌ 处理小说项目时出错: {e}")
+                continue
+
+        print(f"\n{'=' * 50})
+        print(f"📊 发布完成！成功处理 {success_count}/{len(json_files)} 个小说项目")
+
+        # 签约管理功能已禁用
+        print("=" * 50)
+        print("📋 签约管理检查 [已禁用]")
+        print("=" * 50)
+        print("ℹ️ 签约管理功能已被禁用，跳过签约检查流程")
+        # try:
+        #     contract_manager = ContractManager(CONFIG)
+        #     contract_manager.check_and_handle_recommendations(page2)
+        #     contract_manager.check_and_handle_contract_management(page2)
+        #     print("✅ 签约管理检查完成")
+        # except Exception as e:
+        #     print(f"⚠️ 签约管理检查出错: {e}")
 
     # 清理和退出
     print("=" * 50)
@@ -3102,24 +3924,33 @@ def main_scan_cycle():
         if page2:
             page2.close()
             print("✅ 作家专区页面已关闭")
-    except:
+    except Exception as e:
+        print(f"⚠️ 关闭作家专区页面时出错: {e}")
         pass
     
     # 显示当前页面状态
-    remaining_pages = default_context.pages
-    print(f"📄 剩余浏览器页面: {len(remaining_pages)} 个")
+    try:
+        if default_context:
+            remaining_pages = default_context.pages
+            print(f"📄 剩余浏览器页面: {len(remaining_pages)} 个")
+        else:
+            print("📄 无法获取页面状态")
+    except Exception as e:
+        print(f"⚠️ 获取页面状态时出错: {e}")
     
-    # 询问是否关闭浏览器连接
-    close_browser = input("是否关闭浏览器连接? (y/n): ").strip().lower()
-    if close_browser in ['y', 'yes']:
+    # 自动关闭浏览器连接
+    try:
+        print("🔄 自动关闭浏览器连接...")
         try:
-            browser.close()
-            playwright.stop()
-            print("✅ 浏览器连接已关闭")
+            if browser:
+                browser.close()
+            if playwright:
+                playwright.stop()
+            print("✅ 浏览器连接已自动关闭")
         except Exception as e:
             print(f"⚠️ 关闭浏览器连接时出错: {e}")
-    else:
-        print("ℹ️ 浏览器连接保持开启状态")
+    except Exception as e:
+        print(f"⚠️ 关闭浏览器连接时发生异常: {e}")
 
     return success_count > 0 if json_files else True
 

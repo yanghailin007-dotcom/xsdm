@@ -11,6 +11,7 @@ import time
 import subprocess
 import requests
 import socket
+import psutil
 from typing import Optional, Tuple, List
 from playwright.sync_api import sync_playwright, Browser, BrowserContext, Page
 
@@ -64,6 +65,58 @@ class AutoBrowserManager:
         except:
             return False
     
+    def kill_existing_chrome_processes(self) -> bool:
+        """关闭现有的Chrome进程"""
+        print("🧹 检查并关闭现有Chrome进程...")
+        
+        chrome_killed = False
+        try:
+            for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
+                try:
+                    process_info = proc.info
+                    if process_info['name'] and 'chrome' in process_info['name'].lower():
+                        cmdline = process_info.get('cmdline', [])
+                        
+                        # 检查是否是我们项目相关的Chrome（包含调试端口或用户数据目录）
+                        is_project_chrome = False
+                        if cmdline:
+                            cmdline_str = ' '.join(cmdline)
+                            if f'--remote-debugging-port={self.debug_port}' in cmdline_str or 'chrome_debug_user_data' in cmdline_str:
+                                is_project_chrome = True
+                        
+                        if is_project_chrome:
+                            print(f"  🔍 发现项目Chrome进程 (PID: {process_info['pid']})，正在关闭...")
+                            proc.terminate()
+                            chrome_killed = True
+                            
+                            # 等待进程结束
+                            try:
+                                proc.wait(timeout=5)
+                                print(f"  ✓ Chrome进程 {process_info['pid']} 已关闭")
+                            except psutil.TimeoutExpired:
+                                print(f"  ⚠️ 强制关闭Chrome进程 {process_info['pid']}")
+                                proc.kill()
+                                proc.wait(timeout=2)
+                                
+                except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                    continue
+                    
+        except ImportError:
+            print("⚠️ psutil未安装，跳过进程检查")
+            return False
+        except Exception as e:
+            print(f"❌ 关闭Chrome进程时出错: {e}")
+            return False
+        
+        if chrome_killed:
+            print("✓ 已关闭现有的项目Chrome进程")
+            # 等待一段时间确保进程完全关闭
+            time.sleep(2)
+        else:
+            print("✓ 未发现需要关闭的项目Chrome进程")
+            
+        return True
+
     def start_chrome_with_debug(self) -> bool:
         """启动Chrome调试模式"""
         print("🔍 查找Chrome可执行文件...")
@@ -75,6 +128,10 @@ class AutoBrowserManager:
             return False
         
         print(f"✓ 找到Chrome: {chrome_path}")
+        
+        # 首先关闭现有的项目Chrome进程
+        if not self.kill_existing_chrome_processes():
+            print("⚠️ 关闭现有Chrome进程时出现问题，但继续启动...")
         
         # 检查端口是否已被Chrome占用
         if not self.is_port_available(self.debug_port):
@@ -202,6 +259,9 @@ class AutoBrowserManager:
                 else:
                     print("❌ 所有连接尝试都失败了")
                     return False
+        
+        # 确保函数总是返回值
+        return False
     
     def ensure_browser_ready(self) -> bool:
         """确保浏览器准备就绪 - 主入口方法"""
@@ -243,18 +303,23 @@ class AutoBrowserManager:
     def test_connection(self) -> bool:
         """测试连接功能"""
         try:
-            # 测试页面导航
+            # 检查页面对象是否可用
+            if not self.page:
+                print("  ❌ 页面对象不可用")
+                return False
+            
+            # 测试页面导航 - 直接导航到番茄小说
             print("  📍 测试页面导航...")
-            self.page.goto("https://www.baidu.com", timeout=10000)
+            self.page.goto("https://fanqienovel.com", timeout=10000)
             title = self.page.title()
             print(f"  ✓ 导航成功: {title}")
             
-            # 测试基本操作
+            # 测试基本操作 - 检查是否在番茄小说页面
             print("  📍 测试页面操作...")
-            self.page.fill("input#kw", "连接测试")
-            self.page.click("input#su")
-            time.sleep(1)
-            print("  ✓ 操作测试通过")
+            if '番茄' in title or 'fanqie' in title.lower():
+                print("  ✓ 番茄小说页面验证通过")
+            else:
+                print("  ⚠️ 页面标题不包含'番茄'，但导航成功")
             
             return True
             
@@ -305,7 +370,7 @@ class AutoBrowserManager:
 
 
 # 便捷函数，直接替换原有的connect_to_browser
-def auto_connect_to_browser(debug_port: int = 9988, auto_start_chrome: bool = True):
+def auto_connect_to_browser(debug_port: int = 9988, auto_start_chrome: bool = True, max_retries: int = 3):
     """
     自动连接浏览器 - 一键解决方案
     直接替换原有的connect_to_browser函数调用
@@ -315,10 +380,38 @@ def auto_connect_to_browser(debug_port: int = 9988, auto_start_chrome: bool = Tr
     """
     manager = AutoBrowserManager(debug_port, auto_start_chrome)
     
-    if manager.ensure_browser_ready():
-        return manager.playwright, manager.browser, manager.page, manager.context
-    else:
-        return None, None, None, None
+    # 尝试多次连接
+    for attempt in range(max_retries):
+        try:
+            print(f"  尝试自动连接 (第 {attempt + 1} 次)...")
+            
+            if manager.ensure_browser_ready():
+                return manager.playwright, manager.browser, manager.page, manager.context
+            else:
+                print(f"  第 {attempt + 1} 次自动连接失败")
+                if attempt < max_retries - 1:
+                    print("  等待 5 秒后重试...")
+                    time.sleep(5)
+                    # 重置管理器状态
+                    manager.cleanup()
+                    manager = AutoBrowserManager(debug_port, auto_start_chrome)
+                else:
+                    print("❌ 所有自动连接尝试都失败")
+                    return None, None, None, None
+                    
+        except Exception as e:
+            print(f"  第 {attempt + 1} 次自动连接异常: {e}")
+            if attempt < max_retries - 1:
+                print("  等待 5 秒后重试...")
+                time.sleep(5)
+                # 重置管理器状态
+                try:
+                    manager.cleanup()
+                except:
+                    pass
+                manager = AutoBrowserManager(debug_port, auto_start_chrome)
+    
+    return None, None, None, None
 
 
 # 示例用法
@@ -335,8 +428,11 @@ if __name__ == "__main__":
             
             print("\n📍 现在可以执行自动化操作了...")
             # 在这里添加您的自动化代码
-            manager.page.goto("https://fanqienovel.com/")
-            print(f"✓ 已导航到: {manager.page.title()}")
+            if manager.page:
+                manager.page.goto("https://fanqienovel.com/")
+                print(f"✓ 已导航到: {manager.page.title()}")
+            else:
+                print("❌ 页面对象不可用")
             
             # 保持连接用于测试
             input("\n按回车键退出...")

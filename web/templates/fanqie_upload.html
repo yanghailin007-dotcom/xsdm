@@ -173,6 +173,11 @@
                                         </div>
                                     </div>
                                     <div class="mt-2">
+                                        <button class="btn btn-info w-100" onclick="startBrowserForUpload()">
+                                            <i class="fas fa-browser"></i> 自动启动浏览器
+                                        </button>
+                                    </div>
+                                    <div class="mt-2">
                                         <button class="btn btn-warning w-100" onclick="triggerScan()">
                                             <i class="fas fa-play"></i> 发起上传功能
                                         </button>
@@ -470,13 +475,85 @@
             }
         }
 
+        // 启动浏览器用于上传
+        async function startBrowserForUpload() {
+            try {
+                showLoading('browser-status');
+                addLog('正在启动浏览器...');
+                
+                const response = await fetch('/api/fanqie/upload/start-browser', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showSuccess(`浏览器启动成功！${data.message}`);
+                    addLog(`浏览器启动成功: ${data.message}`);
+                    if (data.details) {
+                        addLog(`详细信息: ${data.details}`);
+                    }
+                    if (data.note) {
+                        addLog(`注意: ${data.note}`);
+                    }
+                    
+                    // 更新环境检查状态
+                    setTimeout(() => {
+                        checkPrerequisites();
+                    }, 2000);
+                    
+                } else {
+                    showError('browser-status', `浏览器启动失败: ${data.error}`);
+                    addLog(`浏览器启动失败: ${data.error}`);
+                }
+            } catch (error) {
+                showError('browser-status', '浏览器启动失败: ' + error.message);
+                addLog('浏览器启动异常: ' + error.message);
+            }
+        }
+
         // 开始上传
         async function startUpload(title) {
-            if (!confirm(`确定要上传小说《${title}》到番茄小说吗？`)) {
-                return;
+            // 先询问是否需要启动浏览器
+            const needBrowser = confirm(`开始上传小说《${title}》到番茄小说吗？\n\n是否需要自动启动浏览器？\n\n点击"确定"启动浏览器并上传\n点击"取消"直接上传`);
+            
+            if (needBrowser) {
+                // 先启动浏览器
+                try {
+                    addLog('正在启动浏览器...');
+                    const browserResponse = await fetch('/api/fanqie/upload/start-browser', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    
+                    const browserData = await browserResponse.json();
+                    if (browserData.success) {
+                        addLog(`浏览器启动成功: ${browserData.message}`);
+                        showSuccess(`浏览器已启动，正在开始上传...`);
+                        
+                        // 等待2秒让浏览器完全启动
+                        await new Promise(resolve => setTimeout(resolve, 2000));
+                    } else {
+                        if (!confirm(`浏览器启动失败: ${browserData.error}\n\n是否继续上传？`)) {
+                            return;
+                        }
+                        addLog(`浏览器启动失败，继续上传: ${browserData.error}`);
+                    }
+                } catch (error) {
+                    if (!confirm(`浏览器启动异常: ${error.message}\n\n是否继续上传？`)) {
+                        return;
+                    }
+                    addLog(`浏览器启动异常，继续上传: ${error.message}`);
+                }
             }
 
             try {
+                addLog(`开始上传小说《${title}》...`);
                 const response = await fetch('/api/fanqie/upload/start', {
                     method: 'POST',
                     headers: {
@@ -492,16 +569,18 @@
                 if (data.success) {
                     currentTaskId = data.task_id;
                     showUploadProgress(title);
-                    addLog(`开始上传小说《${title}》，任务ID: ${data.task_id}`);
+                    addLog(`上传任务已启动，任务ID: ${data.task_id}`);
                     
                     // 切换到上传管理标签页
                     document.getElementById('upload-tab').click();
                     refreshTaskList();
                 } else {
                     showError('upload', `上传启动失败: ${data.error}`);
+                    addLog(`上传启动失败: ${data.error}`);
                 }
             } catch (error) {
                 showError('upload', '上传启动失败: ' + error.message);
+                addLog('上传启动异常: ' + error.message);
             }
         }
 

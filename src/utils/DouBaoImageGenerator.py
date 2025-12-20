@@ -49,7 +49,8 @@ class DouBaoImageGenerator:
         
         # 确保输出目录存在
         if FILE_CONFIG['auto_create_dir']:
-            os.makedirs(FILE_CONFIG['default_output_dir'], exist_ok=True)
+            output_dir = os.path.join(BASE_DIR, FILE_CONFIG['default_output_dir'])
+            os.makedirs(output_dir, exist_ok=True)
         
         logging.info("豆包文生图客户端初始化完成")
     
@@ -118,12 +119,14 @@ class DouBaoImageGenerator:
             #     result['usage'] = imagesResponse.usage
             
             # 下载并保存图像
-            if imagesResponse.data and len(imagesResponse.data) > 0:
+            if imagesResponse.data and len(imagesResponse.data) > 0 and imagesResponse.data[0].url:
                 image_url = imagesResponse.data[0].url
                 
                 # 下载图像
                 saved_path = self._download_image(image_url, save_path, prompt)
                 result['local_path'] = saved_path
+            else:
+                raise Exception("API返回的图像数据为空或URL无效")
                 
             return result
             
@@ -157,7 +160,10 @@ class DouBaoImageGenerator:
                 clean_name = "".join(x for x in prompt[:30] if x.isalnum() or x in (' ', '-', '_')).strip()
                 clean_name = clean_name.replace(' ', '_')
                 filename = f"{FILE_CONFIG['filename_prefix']}{timestamp}_{clean_name}.{FILE_CONFIG['default_format']}"
-                save_path = os.path.join(FILE_CONFIG['default_output_dir'], filename)
+                
+                # 确保使用项目根目录的generated_images目录
+                output_dir = os.path.join(BASE_DIR, FILE_CONFIG['default_output_dir'])
+                save_path = os.path.join(output_dir, filename)
             
             # 确保目录存在
             os.makedirs(os.path.dirname(save_path), exist_ok=True)
@@ -188,7 +194,9 @@ class DouBaoImageGenerator:
             list: 生成结果列表
         """
         results = []
-        output_dir = output_dir or FILE_CONFIG['default_output_dir']
+        # 确保使用项目根目录的generated_images目录
+        if output_dir is None:
+            output_dir = os.path.join(BASE_DIR, FILE_CONFIG['default_output_dir'])
         os.makedirs(output_dir, exist_ok=True)
         
         # 处理提示词格式

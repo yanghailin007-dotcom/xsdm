@@ -2427,6 +2427,38 @@ def prepare_novel_for_fanqie_upload(title):
         logger.error(f"❌ 准备番茄上传数据失败: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
 
+@app.route('/api/fanqie/upload/start-browser', methods=['POST'])
+@login_required
+def start_fanqie_browser():
+    """启动番茄浏览器"""
+    try:
+        logger.info("🔄 收到启动浏览器请求...")
+        
+        # 调用上传器的浏览器启动功能
+        result = fanqie_uploader.start_browser_for_upload()
+        
+        if result["success"]:
+            logger.info(f"✅ 浏览器启动成功: {result['message']}")
+            return jsonify({
+                "success": True,
+                "message": result["message"],
+                "details": result.get("details", ""),
+                "note": result.get("note", "")
+            })
+        else:
+            logger.error(f"❌ 浏览器启动失败: {result['error']}")
+            return jsonify({
+                "success": False,
+                "error": result["error"]
+            }), 500
+            
+    except Exception as e:
+        logger.error(f"❌ 启动浏览器API失败: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
 @app.route('/api/fanqie/upload/trigger-scan', methods=['POST'])
 @login_required
 def trigger_fanqie_upload_scan():

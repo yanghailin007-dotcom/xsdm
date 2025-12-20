@@ -8,6 +8,12 @@ openai>=1.50.0
 gunicorn==21.2.0
 Werkzeug==3.0.1
 
+# 番茄上传功能依赖
+PyYAML>=6.0
+playwright>=1.40.0
+# playwright 的浏览器驱动
+playwright-stealth>=1.0.6
+
 # 其他依赖
 click==8.1.7
 itsdangerous==2.1.2
