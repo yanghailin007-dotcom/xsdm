@@ -82,12 +82,27 @@ def verify_and_create_chapter(target_page, expected_book_title, chap_number, cha
 
         # 处理并填写内容
         content_cleaned = re.sub(r'^【.*?】\s*?\n', '', chap_content, flags=re.MULTILINE)
+        
+        # 确保内容不为空
+        if not content_cleaned.strip():
+            print("❌ 章节内容为空，发布失败")
+            current_page.close()
+            return 1
+        
         processed_text = normalize_all_line_breaks(content_cleaned)
+        
+        # 验证处理后的内容
+        if not processed_text.strip():
+            print("❌ 处理后章节内容为空，发布失败")
+            current_page.close()
+            return 1
 
         content_input = current_page.locator('div[class*="ProseMirror"][contenteditable]').first
         if not safe_fill(content_input, processed_text, "章节内容"):
             current_page.close()
             return 1
+        
+        print(f"✓ 成功填充章节内容 (长度: {len(processed_text)} 字符)")
 
         # 点击下一步
         if not safe_click(current_page.get_by_role("button", name="下一步"), "下一步按钮", retries=2):
@@ -542,10 +557,6 @@ def process_immediate_publishing(page2, novel_title, chapter_publish_info, publi
                                                 current_chapter['chap_content'], None, None, novel_title)
             if result == 0:
                 total_content_len += current_chapter['chap_len']
-                
-                from .progress_manager import save_publish_progress
-                save_publish_progress(novel_title, published_chapters, total_content_len, base_chapter_num,
-                                      book_created)
                 print(f"✓ 发布成功 (累计字数: {total_content_len})")
 
                 # 标记为已发布
@@ -557,8 +568,33 @@ def process_immediate_publishing(page2, novel_title, chapter_publish_info, publi
                     'time_slot_index': 0
                 })
                 published_chapters.append(current_chapter.copy())
+                
+                # 保存到两个进度文件
+                from .progress_manager import save_publish_progress, save_publish_progress2
                 save_publish_progress(novel_title, published_chapters, total_content_len, base_chapter_num,
                                       book_created)
+                save_publish_progress2(novel_title, published_chapters, total_content_len, base_chapter_num,
+                                       book_created)
+
+                # 检查是否达到定时发布阈值，如果达到则切换到定时发布模式
+                if total_content_len >= WORD_COUNT_THRESHOLD:
+                    print(f"🎯 累计字数 {total_content_len} 已达到阈值 {WORD_COUNT_THRESHOLD}，后续章节将使用定时发布")
+                    # 设置基准章节号（如果还未设置）
+                    if base_chapter_num == 0:
+                        base_chapter_num = current_chapter['chap_num']
+                        print(f"✓ 设置基准章节号为第 {base_chapter_num} 章")
+                        # 更新进度
+                        save_publish_progress(novel_title, published_chapters, total_content_len, base_chapter_num,
+                                              book_created)
+                        save_publish_progress2(novel_title, published_chapters, total_content_len, base_chapter_num,
+                                               book_created)
+                    
+                    # 切换到定时发布模式
+                    print("🔄 切换到定时发布模式...")
+                    return process_scheduled_publishing(
+                        page2, novel_title, chapter_publish_info, published_chapters,
+                        total_content_len, base_chapter_num, json_file
+                    )
 
                 # 检查是否已完成所有章节发布
                 current_published_count = len(published_chapters)

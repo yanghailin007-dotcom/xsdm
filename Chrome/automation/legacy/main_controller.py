@@ -49,9 +49,33 @@ def publish_novel(page2, json_file):
     base_chapter_num = progress.get("base_chapter_num", 0)
     book_created = progress.get("book_created", False)
 
-    # 修复逻辑：如果书籍未创建，直接创建新书，不尝试寻找已存在的书籍
-    if not book_created:
-        print("书籍未创建，开始创建新书...")
+    # 修复逻辑：先检查网页上书籍是否存在，再决定是否创建新书
+    print("检查书籍是否已在番茄小说网存在...")
+    
+    # 首先尝试在网上查找现有书籍
+    existing_book_found = find_existing_book_in_list(page2, novel_title)
+    
+    if existing_book_found:
+        print(f"[OK] 找到已存在的书籍《{novel_title}》，直接使用")
+        
+        # 更新进度文件，标记书籍已创建
+        if not book_created:
+            book_created = True
+            progress["book_created"] = book_created
+            progress["total_content_len"] = total_content_len
+            progress["base_chapter_num"] = base_chapter_num
+            
+            # 保存基本进度
+            from .progress_manager import save_publish_progress
+            save_publish_progress(novel_title, published_chapters, total_content_len, base_chapter_num, book_created)
+            print(f"[OK] 已更新本地进度，标记书籍《{novel_title}》为已创建状态")
+    else:
+        print(f"[INFO] 网页上未找到书籍《{novel_title}》")
+        
+        if book_created:
+            print("[WARNING] 本地进度显示书籍已创建，但网页上未找到，可能书籍已被删除")
+        
+        print(f"[INFO] 开始创建新书《{novel_title}》...")
         if create_new_book(page2, novel_title, formatted_synopsis, main_character, full_data):
             # 标记书籍已创建
             book_created = True
@@ -63,50 +87,15 @@ def publish_novel(page2, json_file):
             from .progress_manager import save_publish_progress
             save_publish_progress(novel_title, published_chapters, total_content_len, base_chapter_num, book_created)
             
-            print(f"✓ 书籍《{novel_title}》创建成功")
+            print(f"[OK] 书籍《{novel_title}》创建成功")
 
             # 导航到新创建的书籍
             if not navigate_to_correct_book(page2, novel_title):
-                print(f"✗ 无法导航到新创建的书籍《{novel_title}》")
+                print(f"[ERROR] 无法导航到新创建的书籍《{novel_title}》")
                 return False
         else:
-            print(f"✗ 书籍《{novel_title}》创建失败")
+            print(f"[ERROR] 书籍《{novel_title}》创建失败")
             return False
-    else:
-        # 书籍已创建，直接导航到正确的书籍
-        print("书籍已创建，导航到书籍详情页...")
-        if not navigate_to_correct_book(page2, novel_title):
-            # 如果导航失败，尝试重新寻找
-            print("导航失败，尝试重新寻找书籍...")
-            book_found = find_existing_book_in_list(page2, novel_title)
-
-            if book_found:
-                print(f"✓ 重新找到书籍《{novel_title}》")
-                # 再次尝试导航
-                if not navigate_to_correct_book(page2, novel_title):
-                    print(f"✗ 仍然无法导航到书籍《{novel_title}》")
-                    return False
-            else:
-                # 如果没有找到现有书籍，创建新书
-                print(f"未找到现有书籍《{novel_title}》，将创建新书...")
-                if create_new_book(page2, novel_title, formatted_synopsis, main_character, full_data):
-                    book_created = True
-                    progress["book_created"] = book_created
-                    progress["total_content_len"] = total_content_len
-                    progress["base_chapter_num"] = base_chapter_num
-                    
-                    # 保存基本进度
-                    from .progress_manager import save_publish_progress
-                    save_publish_progress(novel_title, published_chapters, total_content_len, base_chapter_num, book_created)
-                    
-                    print(f"✓ 书籍《{novel_title}》创建成功")
-
-                    if not navigate_to_correct_book(page2, novel_title):
-                        print(f"✗ 无法导航到新创建的书籍《{novel_title}》")
-                        return False
-                else:
-                    print(f"✗ 书籍《{novel_title}》创建失败")
-                    return False
 
     # 等待页面完全加载
     print("等待书籍详情页完全加载...")
@@ -124,25 +113,35 @@ def publish_novel(page2, json_file):
     # 构建章节发布信息
     chapter_publish_info = []
     for chap_index, chapter_file in enumerate(chapter_files_sorted):
-        # 检查章节是否已经发布
+        # 检查章节是否已经发布 - 使用文件名基础部分匹配，忽略扩展名和路径差异
         is_published = False
+        matched_pub_chap = None
+        chapter_basename = os.path.basename(chapter_file)
+        chapter_name_without_ext = os.path.splitext(chapter_basename)[0]  # 去掉扩展名
+        
         for pub_chap in published_chapters:
-            if pub_chap['file'] == chapter_file:
+            pub_file = pub_chap.get('file', '')
+            pub_basename = os.path.basename(pub_file)
+            pub_name_without_ext = os.path.splitext(pub_basename)[0]  # 去掉扩展名
+            
+            # 比较文件名的基础部分（去掉扩展名）
+            if chapter_name_without_ext == pub_name_without_ext:
                 is_published = True
+                matched_pub_chap = pub_chap
                 break
         
-        if is_published:
+        if is_published and matched_pub_chap:
             chapter_publish_info.append({
                 'file': chapter_file,
-                'chap_num': str(pub_chap.get('chap_num', '0')),
-                'chap_title': pub_chap.get('chap_title', ''),
-                'chap_content': pub_chap.get('chap_content', ''),
-                'chap_len': pub_chap.get('chap_len', 0),
+                'chap_num': str(matched_pub_chap.get('chap_num', '0')),
+                'chap_title': matched_pub_chap.get('chap_title', ''),
+                'chap_content': matched_pub_chap.get('chap_content', ''),
+                'chap_len': matched_pub_chap.get('chap_len', 0),
                 'index': chap_index,
                 'published': True,
-                'target_date': pub_chap.get('target_date', ''),
-                'target_time': pub_chap.get('target_time', ''),
-                'time_slot_index': pub_chap.get('time_slot_index', 0)
+                'target_date': matched_pub_chap.get('target_date', ''),
+                'target_time': matched_pub_chap.get('target_time', ''),
+                'time_slot_index': matched_pub_chap.get('time_slot_index', 0)
             })
             continue
 

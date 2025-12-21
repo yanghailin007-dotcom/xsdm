@@ -359,10 +359,10 @@ def upload_book_cover(page, novel_title):
 
 def find_existing_book_in_list(page, expected_book_title, max_pages=10):
     """
-    在小说列表中寻找已存在的小说并直接点击创建章节按钮
+    在小说列表中寻找已存在的小说（仅检测，不执行操作）
     """
     try:
-        print(f"寻找书籍《{expected_book_title}》并直接点击创建章节按钮...")
+        print(f"检测书籍《{expected_book_title}》是否存在...")
 
         # 确保在小说管理页面
         if not ensure_novel_management_page(page):
@@ -377,15 +377,10 @@ def find_existing_book_in_list(page, expected_book_title, max_pages=10):
                 continue
 
             # 在滚动过程中实时检查
-            book_found, novel_id = check_for_book_and_status_during_scroll(page, expected_book_title)
+            book_found, novel_id = check_for_book_existence_during_scroll(page, expected_book_title)
             if book_found:
-                print(f"✓ 找到书籍《{expected_book_title}》，状态为连载中")
-
-                # 直接点击创建章节按钮
-                if click_create_chapter_button_directly(page, expected_book_title, novel_id or ""):
-                    return True
-                else:
-                    print("✗ 无法点击创建章节按钮，继续查找")
+                print(f"[OK] 找到书籍《{expected_book_title}》")
+                return True
 
             # 如果当前页没找到，尝试翻到下一页
             if page_num < max_pages:
@@ -396,11 +391,11 @@ def find_existing_book_in_list(page, expected_book_title, max_pages=10):
                     continue
                 time.sleep(2)
 
-        print(f"✗ 在 {max_pages} 页内未找到可用的书籍《{expected_book_title}》")
+        print(f"[INFO] 在 {max_pages} 页内未找到书籍《{expected_book_title}》")
         return False
 
     except Exception as e:
-        print(f"寻找书籍时出错: {e}")
+        print(f"[ERROR] 检测书籍时出错: {e}")
         return False
 
 
@@ -456,6 +451,78 @@ def scroll_to_load_books(page):
         return False
     except Exception as e:
         print(f"滚动加载书籍时出错: {e}")
+        return False
+
+
+def check_for_book_existence_during_scroll(page, expected_book_title):
+    """
+    在滚动过程中实时检查是否找到目标书籍（仅检测存在性）
+    """
+    try:
+        book_title_selectors = [
+            f'//div[contains(@id, "long-article-table-item")]/div/div[1]/div[2]/div[1]/div[contains(text(), "{expected_book_title}")]',
+            f'//div[contains(@id, "long-article-table-item")]//div[contains(text(), "{expected_book_title}")]',
+        ]
+
+        for selector in book_title_selectors:
+            elements = page.locator(f'xpath={selector}')
+            if elements.count() > 0:
+                for i in range(elements.count()):
+                    element = elements.nth(i)
+                    actual_title = element.text_content().strip()
+                    if expected_book_title == actual_title:  # 严格匹配，而不是包含匹配
+                        print(f"[OK] 精确匹配到书籍: {actual_title}")
+                        return True, None
+        return False, None
+    except Exception as e:
+        print(f"[ERROR] 检查书籍存在性时出错: {e}")
+        return False, None
+
+
+def find_and_click_create_chapter_button(page, expected_book_title, max_pages=10):
+    """
+    在小说列表中寻找已存在的小说并点击创建章节按钮
+    """
+    try:
+        print(f"寻找书籍《{expected_book_title}》并点击创建章节按钮...")
+
+        # 确保在小说管理页面
+        if not ensure_novel_management_page(page):
+            return False
+
+        # 尝试多页查找
+        for page_num in range(1, max_pages + 1):
+            print(f"搜索第 {page_num} 页...")
+
+            # 使用精细滚动加载书籍
+            if not scroll_to_load_books(page):
+                continue
+
+            # 在滚动过程中实时检查
+            book_found, novel_id = check_for_book_and_status_during_scroll(page, expected_book_title)
+            if book_found:
+                print(f"✓ 找到书籍《{expected_book_title}》，状态为连载中")
+
+                # 直接点击创建章节按钮
+                if click_create_chapter_button_directly(page, expected_book_title, novel_id or ""):
+                    return True
+                else:
+                    print("✗ 无法点击创建章节按钮，继续查找")
+
+            # 如果当前页没找到，尝试翻到下一页
+            if page_num < max_pages:
+                next_result = navigate_to_next_page(page)
+                if next_result == 'no_more_pages':
+                    break
+                elif not next_result:
+                    continue
+                time.sleep(2)
+
+        print(f"✗ 在 {max_pages} 页内未找到可用的书籍《{expected_book_title}》")
+        return False
+
+    except Exception as e:
+        print(f"寻找书籍时出错: {e}")
         return False
 
 

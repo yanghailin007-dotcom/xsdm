@@ -28,7 +28,7 @@ def validate_and_fix_chapter_files(chapter_files, novel_title):
     for chapter_file in fixed_files:
         # 检查文件是否存在
         if not os.path.exists(chapter_file):
-            print(f"✗ 文件不存在: {chapter_file}")
+            print(f"[ERROR] 文件不存在: {chapter_file}")
             error_count += 1
             continue
 
@@ -49,23 +49,23 @@ def validate_and_fix_chapter_files(chapter_files, novel_title):
                     missing_fields.append(field)
 
             if missing_fields:
-                print(f"✗ 文件缺少必需字段 {missing_fields}: {chapter_file}")
+                print(f"[ERROR] 文件缺少必需字段 {missing_fields}: {chapter_file}")
                 error_count += 1
             else:
                 # 所有字段都存在
                 valid_files.append(chapter_file)
 
         except json.JSONDecodeError:
-            print(f"✗ JSON 格式错误: {chapter_file}")
+            print(f"[ERROR] JSON 格式错误: {chapter_file}")
             error_count += 1
         except Exception as e:
-            print(f"✗ 读取文件失败 {chapter_file}: {e}")
+            print(f"[ERROR] 读取文件失败 {chapter_file}: {e}")
             error_count += 1
 
     if error_count > 0:
         print(f"⚠ 发现 {error_count} 个文件问题")
     else:
-        print("✓ 所有章节文件验证通过")
+        print("[OK] 所有章节文件验证通过")
 
     return valid_files
 
@@ -154,9 +154,9 @@ def check_and_rename_duplicate_chapters(chapter_files, novel_title):
             renamed_files.append(chapter_file)
 
     if renamed_count > 0:
-        print(f"✓ 已完成 {renamed_count} 个文件的重命名和内容更新")
+        print(f"[OK] 已完成 {renamed_count} 个文件的重命名和内容更新")
     else:
-        print("✓ 没有发现重复的章节文件名")
+        print("[OK] 没有发现重复的章节文件名")
 
     return renamed_files
 
@@ -176,12 +176,12 @@ def find_chapter_files(novel_title):
             print("请确保章节文件位于正确的目录中")
             return []
     
-    print(f"✓ 找到章节目录: {chapter_path}")
+    print(f"[OK] 找到章节目录: {chapter_path}")
 
-    # 获取章节文件
+    # 获取章节文件 - 支持 .txt 和 .json 格式
     chapter_files = []
     for filename in os.listdir(chapter_path):
-        if filename.endswith('.txt'):
+        if filename.endswith(('.txt', '.json')):
             chapter_files.append(os.path.join(chapter_path, filename))
 
     # 验证并修复章节文件（包括重复问题）
@@ -189,10 +189,10 @@ def find_chapter_files(novel_title):
     chapter_files_sorted = sort_files_by_chapter(valid_chapter_files)
 
     if not chapter_files_sorted:
-        print("未找到章节文件")
+        print("[ERROR] 未找到章节文件")
         return []
 
-    print(f"找到 {len(chapter_files_sorted)} 个章节")
+    print(f"[INFO] 找到 {len(chapter_files_sorted)} 个章节")
     return chapter_files_sorted
 
 
@@ -215,7 +215,7 @@ def load_chapter_data(chapter_file):
             'chap_len': len(chapter_data['content'])  # 简化的字数统计
         }
     except Exception as e:
-        print(f"加载章节数据失败 {chapter_file}: {e}")
+        print(f"[ERROR] 加载章节数据失败 {chapter_file}: {e}")
         return None
 
 
@@ -233,7 +233,7 @@ def extract_novel_info_from_json(json_file):
         elif 'project_info' in data:
             novel_info = data['project_info']
         else:
-            print("❌ 未找到小说信息字段")
+            print("[ERROR] 未找到小说信息字段")
             return None
         
         novel_title = novel_info['title']
@@ -253,5 +253,5 @@ def extract_novel_info_from_json(json_file):
             'full_data': data  # 返回完整数据用于后续处理
         }
     except Exception as e:
-        print(f"提取小说信息失败 {json_file}: {e}")
+        print(f"[ERROR] 提取小说信息失败 {json_file}: {e}")
         return None
