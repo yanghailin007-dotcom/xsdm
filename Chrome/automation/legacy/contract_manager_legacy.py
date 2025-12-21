@@ -8,6 +8,7 @@ class ContractManager:
         self.config = config
         self.failed_novels = set()  # 新增：记录签约失败的小说
         self.max_retry_count = 2    # 新增：最大重试次数
+        self.current_user_id = "user1"  # 当前用户ID
 
     def check_and_handle_contract_management(self, page):
         """
@@ -661,12 +662,18 @@ class ContractManager:
             print("滑动页面确保所有表单元素可见...")
             self.scroll_contract_form(page)
             
+            # 获取当前用户的联系信息
+            contact_info = self.get_user_contact_info()
+            current_user = self.get_current_user_info()
+            print(f"使用签约用户配置: {current_user['user_id']}")
+            
             # 填写手机号
             phone_input_xpath = '//*[@id="phone_input"]'
             phone_input = page.locator(f'xpath={phone_input_xpath}')
             if phone_input.count() > 0:
-                if self.safe_fill(phone_input.first, "13760125919", "手机号"):
-                    print("✓ 已填写手机号: 13760125919")
+                phone = contact_info.get("phone", "13760125919")
+                if self.safe_fill(phone_input.first, phone, "手机号"):
+                    print(f"✓ 已填写手机号: {phone}")
                 else:
                     print("✗ 填写手机号失败")
             else:
@@ -678,8 +685,9 @@ class ContractManager:
             email_input_xpath = '//*[@id="email_input"]'
             email_input = page.locator(f'xpath={email_input_xpath}')
             if email_input.count() > 0:
-                if self.safe_fill(email_input.first, "405625365@qq.com", "邮箱"):
-                    print("✓ 已填写邮箱: 405625365@qq.com")
+                email = contact_info.get("email", "405625365@qq.com")
+                if self.safe_fill(email_input.first, email, "邮箱"):
+                    print(f"✓ 已填写邮箱: {email}")
                 else:
                     print("✗ 填写邮箱失败")
             else:
@@ -691,8 +699,9 @@ class ContractManager:
             qq_input_xpath = '//*[@id="qq_input"]'
             qq_input = page.locator(f'xpath={qq_input_xpath}')
             if qq_input.count() > 0:
-                if self.safe_fill(qq_input.first, "405625365", "QQ"):
-                    print("✓ 已填写QQ: 405625365")
+                qq = contact_info.get("qq", "405625365")
+                if self.safe_fill(qq_input.first, qq, "QQ"):
+                    print(f"✓ 已填写QQ: {qq}")
                 else:
                     print("✗ 填写QQ失败")
             else:
@@ -702,7 +711,7 @@ class ContractManager:
             
             # 填写地址 - 使用级联选择器
             print("填写地址级联选择器...")
-            if self.fill_address_cascader(page):
+            if self.fill_address_cascader(page, contact_info):
                 print("✓ 地址填写成功")
             else:
                 print("✗ 地址填写失败")
@@ -718,8 +727,10 @@ class ContractManager:
                 page.evaluate('() => { window.scrollBy(0, 200); }')
                 time.sleep(1)
                 
-                if self.safe_fill(address_detail_input.first, "宝安区", "详细地址"):
-                    print("✓ 已填写详细地址: 宝安区")
+                address_info = contact_info.get("address", {})
+                detail_address = address_info.get("detail", "宝安区")
+                if self.safe_fill(address_detail_input.first, detail_address, "详细地址"):
+                    print(f"✓ 已填写详细地址: {detail_address}")
                 else:
                     print("✗ 填写详细地址失败")
             else:
@@ -731,8 +742,9 @@ class ContractManager:
             bank_account_input_xpath = '//*[@id="bankAccount_input"]'
             bank_account_input = page.locator(f'xpath={bank_account_input_xpath}')
             if bank_account_input.count() > 0:
-                if self.safe_fill(bank_account_input.first, "6214857812704759", "银行卡号"):
-                    print("✓ 已填写银行卡号: 6214857812704759")
+                bank_account = contact_info.get("bank_account", "6214857812704759")
+                if self.safe_fill(bank_account_input.first, bank_account, "银行卡号"):
+                    print(f"✓ 已填写银行卡号: {bank_account}")
                 else:
                     print("✗ 填写银行卡号失败")
             else:
@@ -741,7 +753,7 @@ class ContractManager:
             time.sleep(1)
             
             # 填写银行支行
-            if self.fill_bank_branch(page):
+            if self.fill_bank_branch(page, contact_info):
                 print("✓ 银行支行填写成功")
             else:
                 print("✗ 银行支行填写失败")
@@ -760,13 +772,28 @@ class ContractManager:
             print(f"填写合同详情表单时出错: {e}")
             return False
 
-    def fill_address_cascader(self, page):
+    def fill_address_cascader(self, page, contact_info=None):
         """
         填写地址级联选择器
+        
+        Args:
+            page: 页面对象
+            contact_info: 联系信息字典，如果为None则使用默认配置
         """
         print("处理地址级联选择器...")
         
         try:
+            # 获取地址信息
+            if contact_info:
+                address_info = contact_info.get("address", {})
+                province = address_info.get("province", "广东省")
+                city = address_info.get("city", "深圳市")
+            else:
+                province = "广东省"
+                city = "深圳市"
+            
+            print(f"将要选择的地址: {province} {city}")
+            
             # 使用正确的地址级联选择器XPath
             address_cascader_xpath = '//*[@id="address_input"]/div/span/input'
             address_cascader = page.locator(f'xpath={address_cascader_xpath}')
@@ -802,67 +829,67 @@ class ContractManager:
                 print("地址选择器弹出框未出现")
                 return False
             
-            # 尝试直接选择广东省
-            print("尝试直接选择广东省...")
-            guangdong_selectors = [
-                '//span[text()="广东"]',
-                '//div[text()="广东"]',
-                '//*[text()="广东"]'
+            # 尝试直接选择省份
+            print(f"尝试直接选择{province}...")
+            province_selectors = [
+                f'//span[text()="{province}"]',
+                f'//div[text()="{province}"]',
+                f'//*[text()="{province}"]'
             ]
             
-            guangdong_selected = False
-            for selector in guangdong_selectors:
+            province_selected = False
+            for selector in province_selectors:
                 try:
                     elements = page.locator(f'xpath={selector}')
                     if elements.count() > 0:
                         # 找到父级元素并点击
                         parent_element = elements.first.locator('xpath=./ancestor::div[contains(@class, "arco-cascader-list-item")]')
                         if parent_element.count() > 0:
-                            if self.safe_click(parent_element.first, "广东省"):
-                                guangdong_selected = True
-                                print("✓ 已选择广东省")
+                            if self.safe_click(parent_element.first, province):
+                                province_selected = True
+                                print(f"✓ 已选择{province}")
                                 time.sleep(1)
                                 break
                         else:
                             # 如果没有找到父级元素，直接点击找到的元素
-                            if self.safe_click(elements.first, "广东省(直接点击)"):
-                                guangdong_selected = True
-                                print("✓ 已选择广东省(直接点击)")
+                            if self.safe_click(elements.first, f"{province}(直接点击)"):
+                                province_selected = True
+                                print(f"✓ 已选择{province}(直接点击)")
                                 time.sleep(1)
                                 break
                 except Exception as e:
-                    print(f"尝试选择广东省失败: {e}")
+                    print(f"尝试选择{province}失败: {e}")
                     continue
             
-            if guangdong_selected:
+            if province_selected:
                 # 等待第二级列表加载
                 time.sleep(1)
                 
-                # 然后选择深圳市
-                print("选择深圳市...")
-                shenzhen_selectors = [
-                    '//span[text()="深圳"]',
-                    '//div[text()="深圳"]',
-                    '//*[text()="深圳"]'
+                # 然后选择城市
+                print(f"选择{city}...")
+                city_selectors = [
+                    f'//span[text()="{city}"]',
+                    f'//div[text()="{city}"]',
+                    f'//*[text()="{city}"]'
                 ]
                 
-                for shenzhen_selector in shenzhen_selectors:
+                for city_selector in city_selectors:
                     try:
-                        shenzhen_elements = page.locator(f'xpath={shenzhen_selector}')
-                        if shenzhen_elements.count() > 0:
+                        city_elements = page.locator(f'xpath={city_selector}')
+                        if city_elements.count() > 0:
                             # 找到父级元素并点击
-                            shenzhen_parent = shenzhen_elements.first.locator('xpath=./ancestor::div[contains(@class, "arco-cascader-list-item")]')
-                            if shenzhen_parent.count() > 0:
-                                if self.safe_click(shenzhen_parent.first, "深圳市"):
-                                    print("✓ 已选择深圳市")
+                            city_parent = city_elements.first.locator('xpath=./ancestor::div[contains(@class, "arco-cascader-list-item")]')
+                            if city_parent.count() > 0:
+                                if self.safe_click(city_parent.first, city):
+                                    print(f"✓ 已选择{city}")
                                     return True
                             else:
                                 # 如果没有找到父级元素，直接点击找到的元素
-                                if self.safe_click(shenzhen_elements.first, "深圳市(直接点击)"):
-                                    print("✓ 已选择深圳市(直接点击)")
+                                if self.safe_click(city_elements.first, f"{city}(直接点击)"):
+                                    print(f"✓ 已选择{city}(直接点击)")
                                     return True
                     except Exception as e:
-                        print(f"尝试选择深圳市失败: {e}")
+                        print(f"尝试选择{city}失败: {e}")
                         continue
             
             print("所有地址选择方法都失败了")
@@ -872,13 +899,23 @@ class ContractManager:
             print(f"填写地址级联选择器时出错: {e}")
             return False
 
-    def fill_bank_branch(self, page):
+    def fill_bank_branch(self, page, contact_info=None):
         """
         填写银行支行信息
+        
+        Args:
+            page: 页面对象
+            contact_info: 联系信息字典，如果为None则使用默认配置
         """
         print("填写银行支行信息...")
         
         try:
+            # 获取银行支行信息
+            if contact_info:
+                bank_branch = contact_info.get("bank_branch", "招商银行深圳愉康支行")
+            else:
+                bank_branch = "招商银行深圳愉康支行"
+            
             # 查找银行支行输入框
             bank_code_input_xpath = '//*[@id="bankCode_input"]/div/span/input'
             bank_code_input = page.locator(f'xpath={bank_code_input_xpath}')
@@ -895,7 +932,7 @@ class ContractManager:
             time.sleep(1)
             
             # 输入银行支行名称
-            if not self.safe_fill(bank_code_input.first, "招商银行深圳愉康支行", "银行支行"):
+            if not self.safe_fill(bank_code_input.first, bank_branch, "银行支行"):
                 print("填写银行支行失败")
                 return False
             
@@ -909,7 +946,7 @@ class ContractManager:
                 option_text = dropdown_option.first.text_content().strip()
                 print(f"找到银行支行下拉选项: {option_text}")
                 
-                if "招商银行深圳愉康支行" in option_text:
+                if bank_branch in option_text:
                     if self.safe_click(dropdown_option.first, "银行支行下拉选项"):
                         print("✓ 已选择银行支行下拉选项")
                         return True
@@ -923,10 +960,10 @@ class ContractManager:
             
             # 使用您提供的类名和文本匹配
             bank_option_selectors = [
-                '//span[@class="arco-select-highlight" and contains(text(), "招商银行深圳愉康支行")]',
-                '//span[contains(@class, "arco-select-highlight") and contains(text(), "招商银行深圳愉康支行")]',
-                '//li//span[contains(text(), "招商银行深圳愉康支行")]',
-                '//div[contains(@class, "arco-select-option")]//span[contains(text(), "招商银行深圳愉康支行")]'
+                f'//span[@class="arco-select-highlight" and contains(text(), "{bank_branch}")]',
+                f'//span[contains(@class, "arco-select-highlight") and contains(text(), "{bank_branch}")]',
+                f'//li//span[contains(text(), "{bank_branch}")]',
+                f'//div[contains(@class, "arco-select-option")]//span[contains(text(), "{bank_branch}")]'
             ]
             
             for selector in bank_option_selectors:
@@ -943,14 +980,14 @@ class ContractManager:
                     print(f"尝试选择器 {selector} 失败: {e}")
                     continue
             
-            # 如果以上方法都失败，尝试查找包含"招商银行深圳愉康支行"的任何元素
+            # 如果以上方法都失败，尝试查找包含银行支行名称的任何元素
             print("尝试通用文本匹配查找银行支行选项...")
             
             generic_selectors = [
-                '//*[contains(text(), "招商银行深圳愉康支行")]',
-                '//span[contains(text(), "招商银行深圳愉康支行")]',
-                '//div[contains(text(), "招商银行深圳愉康支行")]',
-                '//li[contains(text(), "招商银行深圳愉康支行")]'
+                f'//*[contains(text(), "{bank_branch}")]',
+                f'//span[contains(text(), "{bank_branch}")]',
+                f'//div[contains(text(), "{bank_branch}")]',
+                f'//li[contains(text(), "{bank_branch}")]'
             ]
             
             for selector in generic_selectors:
@@ -1532,3 +1569,80 @@ class ContractManager:
         except Exception as e:
             print(f"  -> ✗ 处理作品推荐详情页时出错: {e}")
             return False
+    
+    def get_user_contact_info(self, user_id=None):
+        """
+        获取指定用户的联系信息
+        如果不指定用户ID，则返回当前用户的信息
+        """
+        if user_id is None:
+            user_id = self.current_user_id
+        
+        # 多用户配置映射
+        users_config = {
+            "user1": {
+                "phone": "13760125919",
+                "email": "405625365@qq.com",
+                "qq": "405625365",
+                "bank_account": "6214857812704759",
+                "bank_branch": "招商银行深圳愉康支行",
+                "address": {
+                    "province": "广东省",
+                    "city": "深圳市",
+                    "detail": "宝安区"
+                }
+            },
+            "user2": {
+                "phone": "13800138000",
+                "email": "user2@example.com",
+                "qq": "123456789",
+                "bank_account": "6222021234567890123",
+                "bank_branch": "工商银行北京分行",
+                "address": {
+                    "province": "北京市",
+                    "city": "北京市",
+                    "detail": "朝阳区"
+                }
+            },
+            "user3": {
+                "phone": "13900139000",
+                "email": "user3@example.com",
+                "qq": "987654321",
+                "bank_account": "6228481234567890123",
+                "bank_branch": "农业银行上海分行",
+                "address": {
+                    "province": "上海市",
+                    "city": "上海市",
+                    "detail": "浦东新区"
+                }
+            }
+        }
+        
+        return users_config.get(user_id, users_config["user1"])
+    
+    def set_current_user(self, user_id):
+        """设置当前签约用户"""
+        if user_id in ["user1", "user2", "user3"]:
+            self.current_user_id = user_id
+            print(f"[成功] 已切换到签约用户: {user_id}")
+            return True
+        else:
+            print(f"[错误] 用户 {user_id} 不存在")
+            return False
+    
+    def get_current_user_info(self):
+        """获取当前用户信息"""
+        contact_info = self.get_user_contact_info()
+        return {
+            'user_id': self.current_user_id,
+            'contact_info': contact_info
+        }
+    
+    def list_users(self):
+        """列出所有可用用户"""
+        users = ["user1", "user2", "user3"]
+        print("\n=== 可用签约用户 ===")
+        for user in users:
+            status = " (当前)" if user == self.current_user_id else ""
+            print(f"{user}{status}")
+        print("==================")

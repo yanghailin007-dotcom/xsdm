@@ -26,6 +26,10 @@ class ContractManager:
         self.failed_novels: Set[str] = set()  # 记录签约失败的小说
         self.processed_book_ids: Set[str] = set()  # 记录已处理的小说ID
         self.max_retry_count = 2  # 最大重试次数
+        
+        # 从配置加载器获取重试次数
+        if self.config_loader:
+            self.max_retry_count = self.config_loader.get('contract.max_retry_count', 2)
     
     def check_and_handle_contract_management(self, page: Page) -> bool:
         """
@@ -493,10 +497,16 @@ class ContractManager:
         print("填写合同详情表单...")
         
         try:
-            # 获取联系信息
+            # 获取当前用户的联系信息
             contact_info = {}
             if self.config_loader:
                 contact_info = self.config_loader.get_contract_contact_info()
+                if not contact_info:
+                    print("✗ 当前用户配置无效或未启用，无法填写签约信息")
+                    return False
+                else:
+                    current_user = self.config_loader.get_current_contract_user()
+                    print(f"使用签约用户配置: {current_user}")
             
             # 等待合同详情页面加载
             page.wait_for_load_state("networkidle")
@@ -826,6 +836,85 @@ class ContractManager:
             else:
                 print(f"    -> ✗ 处理 '推荐确定' 弹窗时发生意外错误: {e}")
                 return False
+        
+    def get_current_user_info(self) -> Dict[str, Any]:
+        """
+        获取当前签约用户信息
+        
+        Returns:
+            当前用户信息字典
+        """
+        if not self.config_loader:
+            return {}
+        
+        current_user_id = self.config_loader.get_current_contract_user()
+        user_config = self.config_loader.get(f'contract.users.{current_user_id}', {})
+        
+        return {
+            'user_id': current_user_id,
+            'name': user_config.get('name', current_user_id),
+            'enabled': user_config.get('enabled', False),
+            'contact_info': user_config.get('contact_info', {})
+        }
+    
+    def switch_user(self, user_id: Optional[str] = None) -> bool:
+        """
+        切换签约用户
+        
+        Args:
+            user_id: 目标用户ID，如果为None则切换到下一个启用的用户
+            
+        Returns:
+            是否切换成功
+        """
+        if not self.config_loader:
+            print("✗ 配置加载器未初始化，无法切换用户")
+            return False
+        
+        success = self.config_loader.switch_contract_user(user_id)
+        if success:
+            current_user = self.get_current_user_info()
+            print(f"✓ 已切换到用户: {current_user['name']} ({current_user['user_id']})")
+        return success
+    
+    def list_users(self) -> None:
+        """列出所有签约用户"""
+        if not self.config_loader:
+            print("✗ 配置加载器未初始化")
+            return
+        
+        self.config_loader.list_contract_users()
+    
+    def validate_current_user(self) -> bool:
+        """
+        验证当前用户配置是否有效
+        
+        Returns:
+            当前用户是否有效
+        """
+        if not self.config_loader:
+            print("✗ 配置加载器未初始化")
+            return False
+        
+        current_user_info = self.get_current_user_info()
+        if not current_user_info:
+            print("✗ 无法获取当前用户信息")
+            return False
+        
+        if not current_user_info.get('enabled', False):
+            print(f"✗ 用户 {current_user_info['name']} 已禁用")
+            return False
+        
+        contact_info = current_user_info.get('contact_info', {})
+        required_fields = ['phone', 'email', 'bank_account']
+        
+        for field in required_fields:
+            if not contact_info.get(field):
+                print(f"✗ 用户 {current_user_info['name']} 缺少必需字段: {field}")
+                return False
+        
+        print(f"✓ 用户 {current_user_info['name']} 配置有效")
+        return True
     
     def _verify_novel_list_page(self, page: Page) -> bool:
         """

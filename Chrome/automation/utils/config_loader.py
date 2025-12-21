@@ -150,8 +150,137 @@ class ConfigLoader:
         return self.get('timeouts.wait_element', 5000)
     
     def get_contract_contact_info(self) -> Dict[str, str]:
-        """获取签约联系信息"""
-        return self.get('contract.contact_info', {})
+        """获取签约联系信息（兼容旧版本）"""
+        current_user = self.get_current_contract_user()
+        return self.get_user_contract_info(current_user)
+    
+    def get_current_contract_user(self) -> str:
+        """获取当前签约用户ID"""
+        return self.get('contract.current_user', 'user1')
+    
+    def set_current_contract_user(self, user_id: str) -> bool:
+        """
+        设置当前签约用户
+        
+        Args:
+            user_id: 用户ID
+            
+        Returns:
+            是否设置成功
+        """
+        # 验证用户是否存在
+        if self.get_user_contract_info(user_id):
+            self.config['contract']['current_user'] = user_id
+            print(f"✓ 已切换到签约用户: {user_id}")
+            return True
+        else:
+            print(f"✗ 用户 {user_id} 不存在或未启用")
+            return False
+    
+    def get_user_contract_info(self, user_id: str) -> Dict[str, str]:
+        """
+        获取指定用户的签约联系信息
+        
+        Args:
+            user_id: 用户ID
+            
+        Returns:
+            用户联系信息字典
+        """
+        user_config = self.get(f'contract.users.{user_id}')
+        if not user_config:
+            return {}
+        
+        # 检查用户是否启用
+        if not user_config.get('enabled', False):
+            print(f"⚠ 用户 {user_config.get('name', user_id)} 已禁用")
+            return {}
+        
+        return user_config.get('contact_info', {})
+    
+    def get_all_contract_users(self) -> Dict[str, Dict[str, Any]]:
+        """
+        获取所有签约用户信息
+        
+        Returns:
+            所有用户信息字典
+        """
+        users = self.get('contract.users', {})
+        return users
+    
+    def get_enabled_contract_users(self) -> Dict[str, Dict[str, Any]]:
+        """
+        获取所有启用的签约用户信息
+        
+        Returns:
+            启用的用户信息字典
+        """
+        all_users = self.get_all_contract_users()
+        enabled_users = {}
+        
+        for user_id, user_config in all_users.items():
+            if user_config.get('enabled', False):
+                enabled_users[user_id] = user_config
+        
+        return enabled_users
+    
+    def switch_contract_user(self, user_id: Optional[str] = None) -> bool:
+        """
+        切换签约用户
+        
+        Args:
+            user_id: 目标用户ID，如果为None则切换到下一个启用的用户
+            
+        Returns:
+            是否切换成功
+        """
+        if user_id:
+            return self.set_current_contract_user(user_id)
+        else:
+            # 切换到下一个启用的用户
+            enabled_users = self.get_enabled_contract_users()
+            if not enabled_users:
+                print("✗ 没有启用的签约用户")
+                return False
+            
+            current_user = self.get_current_contract_user()
+            user_ids = list(enabled_users.keys())
+            
+            try:
+                current_index = user_ids.index(current_user)
+                next_index = (current_index + 1) % len(user_ids)
+                next_user_id = user_ids[next_index]
+                return self.set_current_contract_user(next_user_id)
+            except ValueError:
+                # 当前用户不在启用列表中，选择第一个启用的用户
+                return self.set_current_contract_user(user_ids[0])
+    
+    def list_contract_users(self) -> None:
+        """列出所有签约用户信息"""
+        users = self.get_all_contract_users()
+        current_user = self.get_current_contract_user()
+        
+        print("\n=== 签约用户列表 ===")
+        if not users:
+            print("暂无签约用户配置")
+            return
+        
+        for user_id, user_config in users.items():
+            name = user_config.get('name', user_id)
+            enabled = user_config.get('enabled', False)
+            status = "✓ 启用" if enabled else "✗ 禁用"
+            current = " (当前)" if user_id == current_user else ""
+            
+            print(f"{user_id}: {name} - {status}{current}")
+            
+            if enabled:
+                contact_info = user_config.get('contact_info', {})
+                phone = contact_info.get('phone', '未设置')
+                email = contact_info.get('email', '未设置')
+                print(f"  手机: {phone}")
+                print(f"  邮箱: {email}")
+        
+        print("==================")
     
     def ensure_directory_exists(self, directory: str) -> str:
         """
