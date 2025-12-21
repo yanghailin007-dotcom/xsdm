@@ -1440,8 +1440,10 @@
 
         // 加载已生成的封面
         function loadGeneratedCovers() {
-            // 页面初始加载时，显示所有封面（不限制小说）
-            loadAllCovers();
+            // 页面初始加载时，不显示任何封面
+            // 用户必须先选择小说才能看到相应的封面
+            generatedCovers = [];
+            renderGallery();
         }
 
         // 加载指定小说的封面
@@ -1477,7 +1479,7 @@
             }
         }
 
-        // 加载所有封面
+        // 加载所有封面（仅在选中小说时使用）
         async function loadAllCovers() {
             try {
                 console.log('正在加载所有封面...');

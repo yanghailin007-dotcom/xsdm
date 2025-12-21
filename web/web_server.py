@@ -1902,12 +1902,20 @@ def generate_cover():
         final_prompt = build_final_prompt(data)
         
         # 生成参数 - 默认生成1张图片
-        generation_count = min(data.get('generation_count', 1), 1)  # 默认生成1张，最多1张
+        generation_count = min(data.get('generation_count', 1), 4)  # 最多生成4张
         image_size = data.get('image_size', '1K')
         add_watermark = data.get('add_watermark', False)
         
-        logger.info(f"🎨 开始生成封面: {data['novel_title']}")
+        # 获取小说标题并清理特殊字符
+        novel_title = data.get('novel_title', '').strip()
+        safe_title = re.sub(r'[\\/*?:"<>|]', "_", novel_title)
+        
+        logger.info(f"🎨 开始生成封面: {novel_title}")
         logger.info(f"📝 提示词长度: {len(final_prompt)} 字符")
+        
+        # 创建小说专用目录
+        novel_cover_dir = os.path.join(BASE_DIR, 'generated_images', safe_title)
+        os.makedirs(novel_cover_dir, exist_ok=True)
         
         # 批量生成图片
         generated_images = []
@@ -1915,16 +1923,22 @@ def generate_cover():
             try:
                 logger.info(f"正在生成第 {i+1}/{generation_count} 张封面...")
                 
-                # 生成单张图片
+                # 生成包含小说信息的文件名
+                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                filename = f"{safe_title}_封面_{timestamp}_{i+1}.jpg"
+                save_path = os.path.join(novel_cover_dir, filename)
+                
+                # 生成单张图片，指定保存路径
                 result = generator.generate_image(
                     prompt=final_prompt,
                     size=image_size,
-                    watermark=add_watermark
+                    watermark=add_watermark,
+                    save_path=save_path
                 )
                 
                 if result and 'local_path' in result:
-                    # 构建正确的图片URL路径
-                    relative_path = result['local_path'].replace('\\', '/').split('/')[-1]
+                    # 构建正确的图片URL路径（包含小说子目录）
+                    relative_path = os.path.relpath(result['local_path'], os.path.join(BASE_DIR, 'generated_images')).replace('\\', '/')
                     image_url = f"/generated_images/{relative_path}"
                     
                     # 构建图片信息
@@ -1934,7 +1948,9 @@ def generate_cover():
                         "size": image_size,
                         "timestamp": datetime.now().isoformat(),
                         "prompt": final_prompt,
-                        "index": i + 1
+                        "index": i + 1,
+                        "novel_title": novel_title,  # 添加小说标题信息
+                        "author_name": data.get('author_name', '北莽王庭的达延')
                     }
                     generated_images.append(image_info)
                     logger.info(f"✅ 第 {i+1} 张封面生成成功: {result['local_path']}")
@@ -2532,6 +2548,7 @@ def get_novel_covers(title):
         
         # URL解码标题
         novel_title = urllib.parse.unquote(title)
+        safe_title = re.sub(r'[\\/*?:"<>|]', "_", novel_title)
         
         # 搜索generated_images目录中与小说相关的图片
         generated_images_dir = os.path.join(BASE_DIR, 'generated_images')
@@ -2543,16 +2560,21 @@ def get_novel_covers(title):
                 "count": 0
             })
         
-        # 查找包含小说标题的图片文件
-        pattern = os.path.join(generated_images_dir, f"*{novel_title}*.jpg")
-        image_files = glob.glob(pattern)
+        # 优先查找小说专用子目录
+        novel_cover_dir = os.path.join(generated_images_dir, safe_title)
+        image_files = []
         
-        # 如果没有找到精确匹配的，查找所有jpg文件（可能图片文件名不包含小说标题）
-        if not image_files:
-            pattern = os.path.join(generated_images_dir, "*.jpg")
-            all_image_files = glob.glob(pattern)
-            # 取最新的几个文件作为候选
-            image_files = sorted(all_image_files, key=os.path.getmtime, reverse=True)[:10]
+        if os.path.exists(novel_cover_dir):
+            # 查找小说子目录中的所有jpg文件
+            pattern = os.path.join(novel_cover_dir, "*.jpg")
+            image_files = glob.glob(pattern)
+            logger.info(f"在小说子目录中找到 {len(image_files)} 个封面文件: {novel_cover_dir}")
+        else:
+            # 兼容性：查找根目录中包含小说标题的图片文件
+            pattern = os.path.join(generated_images_dir, f"*{safe_title}*.jpg")
+            image_files = glob.glob(pattern)
+            if image_files:
+                logger.info(f"在根目录中找到 {len(image_files)} 个包含小说名的封面文件")
         
         covers = []
         for image_file in image_files:
@@ -2561,8 +2583,9 @@ def get_novel_covers(title):
                 stat = os.stat(image_file)
                 filename = os.path.basename(image_file)
                 
-                # 生成Web访问URL
-                web_url = f"/generated_images/{filename}"
+                # 生成Web访问URL（如果是在子目录中，需要包含子目录路径）
+                relative_path = os.path.relpath(image_file, generated_images_dir).replace('\\', '/')
+                web_url = f"/generated_images/{relative_path}"
                 
                 covers.append({
                     "id": filename,  # 使用文件名作为ID
@@ -2577,6 +2600,9 @@ def get_novel_covers(title):
             except Exception as e:
                 logger.error(f"处理图片文件 {image_file} 时出错: {e}")
                 continue
+        
+        # 按时间排序，最新的在前
+        covers.sort(key=lambda x: x['timestamp'], reverse=True)
         
         logger.info(f"找到小说 '{novel_title}' 的 {len(covers)} 个封面文件")
         
@@ -2612,30 +2638,50 @@ def get_all_covers():
                 "count": 0
             })
         
-        # 查找所有jpg文件
-        pattern = os.path.join(generated_images_dir, "*.jpg")
-        image_files = glob.glob(pattern)
-        
         covers = []
-        for image_file in image_files:
-            try:
-                stat = os.stat(image_file)
-                filename = os.path.basename(image_file)
-                web_url = f"/generated_images/{filename}"
-                
-                covers.append({
-                    "id": filename,
-                    "url": web_url,
-                    "local_path": image_file,
-                    "novel_title": "未知小说",  # 默认值，可以从文件名推断
-                    "author_name": "北莽王庭的达延",
-                    "timestamp": datetime.fromtimestamp(stat.st_mtime).isoformat(),
-                    "file_size": stat.st_size,
-                    "filename": filename
-                })
-            except Exception as e:
-                logger.error(f"处理图片文件 {image_file} 时出错: {e}")
-                continue
+        
+        # 遍历所有子目录和根目录的jpg文件
+        for root, dirs, files in os.walk(generated_images_dir):
+            for filename in files:
+                if filename.lower().endswith('.jpg'):
+                    image_file = os.path.join(root, filename)
+                    try:
+                        stat = os.stat(image_file)
+                        
+                        # 生成相对路径和Web URL
+                        relative_path = os.path.relpath(image_file, generated_images_dir).replace('\\', '/')
+                        web_url = f"/generated_images/{relative_path}"
+                        
+                        # 从文件路径推断小说标题
+                        # 如果文件在子目录中，使用子目录名作为小说标题
+                        # 否则尝试从文件名中提取
+                        novel_title = "未知小说"
+                        if os.path.dirname(image_file) != generated_images_dir:
+                            # 文件在子目录中，使用子目录名
+                            dir_name = os.path.basename(os.path.dirname(image_file))
+                            # 将下划线替换回空格，恢复原始标题
+                            novel_title = dir_name.replace('_', ' ')
+                        else:
+                            # 文件在根目录中，尝试从文件名提取
+                            if filename.startswith('doubao_'):
+                                # 豆包生成的文件，移除前缀
+                                clean_name = filename[7:].split('_')[0]  # 移除日期前缀
+                                if clean_name:
+                                    novel_title = clean_name.replace('_', ' ')
+                        
+                        covers.append({
+                            "id": filename,
+                            "url": web_url,
+                            "local_path": image_file,
+                            "novel_title": novel_title,
+                            "author_name": "北莽王庭的达延",
+                            "timestamp": datetime.fromtimestamp(stat.st_mtime).isoformat(),
+                            "file_size": stat.st_size,
+                            "filename": filename
+                        })
+                    except Exception as e:
+                        logger.error(f"处理图片文件 {image_file} 时出错: {e}")
+                        continue
         
         # 按时间排序，最新的在前
         covers.sort(key=lambda x: x['timestamp'], reverse=True)
