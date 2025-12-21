@@ -52,13 +52,20 @@ from src.integration.fanqie_uploader import FanqieUploader
 
 # 尝试导入番茄自动上传模块
 try:
-    import Chrome.automation.legacy.autopush_legacy as autopush
+    import Chrome.automation.legacy.main_controller as autopush
     autopush_available = True
-    logger.info("✅ 番茄自动上传模块加载成功")
+    logger.info("✅ 番茄自动上传模块(main_controller)加载成功")
 except ImportError as e:
-    logger.warn(f"⚠️ 无法导入番茄自动上传模块: {e}")
-    autopush = None
-    autopush_available = False
+    logger.warn(f"⚠️ 无法导入番茄自动上传模块(main_controller): {e}")
+    try:
+        # 备用：尝试导入autopush_legacy
+        import Chrome.automation.legacy.autopush_legacy as autopush
+        autopush_available = True
+        logger.info("✅ 番茄自动上传模块(autopush_legacy)加载成功")
+    except ImportError as e2:
+        logger.warn(f"⚠️ 无法导入番茄自动上传模块(autopush_legacy): {e2}")
+        autopush = None
+        autopush_available = False
 
 # Flask 应用初始化
 app = Flask(__name__)

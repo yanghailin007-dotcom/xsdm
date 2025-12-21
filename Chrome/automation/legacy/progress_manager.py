@@ -103,6 +103,7 @@ def save_publish_progress2(novel_title: str, published_chapters: list, total_con
     """
     保存发布进度，包括每章的详细定时信息（target_date, target_time, time_slot_index）
     支持多本小说，进度保存在同一个进度文件中，以小说标题为键区分。
+    注意：为了节省存储空间和避免读取大文件，保存时会去掉 chap_content 字段
 
     参数:
     - novel_title (str): 小说标题
@@ -110,7 +111,6 @@ def save_publish_progress2(novel_title: str, published_chapters: list, total_con
         - 'file': 章节文件路径
         - 'chap_num': 章节编号
         - 'chap_title': 章节标题
-        - 'chap_content': 章节内容
         - 'chap_len': 章节字数
         - 'target_date': 发布日期（'YYYY-MM-DD'）
         - 'target_time': 发布时间（'HH:MM'），来自 novel_publish_times
@@ -134,9 +134,18 @@ def save_publish_progress2(novel_title: str, published_chapters: list, total_con
             print(f"加载进度文件时出错: {e}")
             all_progress = {}
 
+    # 创建去除了 chap_content 的章节列表以节省存储空间
+    cleaned_chapters = []
+    for chapter in published_chapters:
+        cleaned_chapter = chapter.copy()
+        # 去掉 chap_content 字段以节省存储空间
+        if 'chap_content' in cleaned_chapter:
+            del cleaned_chapter['chap_content']
+        cleaned_chapters.append(cleaned_chapter)
+
     # 更新当前小说的进度
     all_progress[novel_title] = {
-        "published_chapters": published_chapters,  # 每个元素是一个包含详细定时信息的字典
+        "published_chapters": cleaned_chapters,  # 每个元素是一个包含详细定时信息的字典（不包含内容）
         "total_content_len": total_content_len,
         "base_chapter_num": base_chapter_num,  # 保存基准章节号
         "book_created": book_created,  # 保存书籍创建状态
@@ -156,6 +165,7 @@ def load_publish_progress2(novel_title: str) -> dict:
     """
     加载发布进度，包括每章的详细定时信息（target_date, target_time, time_slot_index）
     支持多本小说，从同一个进度文件中根据小说标题加载对应的进度信息。
+    注意：为了节省存储空间，进度文件中不包含 chap_content 字段
 
     参数:
     - novel_title (str): 小说标题
@@ -167,11 +177,11 @@ def load_publish_progress2(novel_title: str) -> dict:
             - 'file': 章节文件路径
             - 'chap_num': 章节编号
             - 'chap_title': 章节标题
-            - 'chap_content': 章节内容
             - 'chap_len': 章节字数
             - 'target_date': 发布日期（'YYYY-MM-DD'）
             - 'target_time': 发布时间（'HH:MM'），来自 novel_publish_times
             - 'time_slot_index': 当天该 target_time 是第几次被使用（例如，1 或 2）
+            注意：不包含 'chap_content' 字段以节省存储空间
         - 'total_content_len': 总发布字数
         - 'base_chapter_num': 基准章节号
         - 'book_created': 书籍是否已创建

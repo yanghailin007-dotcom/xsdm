@@ -12,6 +12,7 @@ from typing import Optional, Dict, Any, List
 from .config import CONFIG, WORD_COUNT_THRESHOLD, novel_publish_times, CHAPTERS_PER_TIME_SLOT, PUBLISH_BUFFER_MINUTES
 from .utils import safe_click, safe_fill, normalize_all_line_breaks, wait_for_enter
 from .novel_manager import click_create_chapter_button_by_novel_title
+from .file_manager import load_chapter_data
 
 
 def publish_chapter_with_retry(target_page, chap_number, chap_title, chap_content, target_date, target_time,
@@ -329,7 +330,28 @@ def setup_scheduled_publish(current_page, target_date, target_time):
         return False
 
 
-def process_scheduled_publishing(page2, novel_title, chapter_publish_info, published_chapters, 
+def ensure_chapter_content_loaded(chapter_info):
+    """
+    确保章节信息中包含章节内容，如果不存在则从文件加载
+    
+    参数:
+    - chapter_info: 章节信息字典
+    
+    返回:
+    - 包含章节内容的章节信息字典
+    """
+    if not chapter_info.get('chap_content'):
+        print(f"动态加载章节内容: {chapter_info.get('chap_title', '未知章节')}")
+        chapter_data = load_chapter_data(chapter_info['file'], load_content=True)
+        if chapter_data:
+            chapter_info['chap_content'] = chapter_data['chap_content']
+        else:
+            print(f"❌ 无法加载章节内容: {chapter_info['file']}")
+            chapter_info['chap_content'] = ""
+    return chapter_info
+
+
+def process_scheduled_publishing(page2, novel_title, chapter_publish_info, published_chapters,
                                total_content_len, base_chapter_num, json_file):
     """
     处理定时发布逻辑
@@ -481,6 +503,11 @@ def process_scheduled_publishing(page2, novel_title, chapter_publish_info, publi
         print(f"\n发布第 {chap_num} 章: {chap_title} (字数: {chap_len})")
         print(f"定时发布: {target_date} {target_time} (第 {time_slot_index} 个位置)")
 
+        # 确保章节内容已加载（避免大文件问题）
+        if not chap_content:
+            current_chapter = ensure_chapter_content_loaded(current_chapter)
+            chap_content = current_chapter['chap_content']
+
         # 发布章节
         result = publish_chapter_with_retry(page2, chap_num, chap_title, chap_content,
                                             target_date, target_time, novel_title)
@@ -493,7 +520,11 @@ def process_scheduled_publishing(page2, novel_title, chapter_publish_info, publi
                 'target_time': target_time,
                 'time_slot_index': time_slot_index
             })
-            published_chapters.append(current_chapter.copy())
+            # 创建章节副本用于保存进度（不包含内容以节省空间）
+            chapter_for_progress = current_chapter.copy()
+            if 'chap_content' in chapter_for_progress:
+                del chapter_for_progress['chap_content']
+            published_chapters.append(chapter_for_progress)
             
             from .progress_manager import save_publish_progress2
             save_publish_progress2(novel_title, published_chapters, total_content_len, base_chapter_num,
@@ -552,6 +583,10 @@ def process_immediate_publishing(page2, novel_title, chapter_publish_info, publi
             print(
                 f"\n发布第 {current_chapter['chap_num']} 章: {current_chapter['chap_title']} (字数: {current_chapter['chap_len']}) - 不设置定时")
 
+            # 确保章节内容已加载（避免大文件问题）
+            if not current_chapter.get('chap_content'):
+                current_chapter = ensure_chapter_content_loaded(current_chapter)
+
             # 发布章节（不设置定时）
             result = publish_chapter_with_retry(page2, current_chapter['chap_num'], current_chapter['chap_title'],
                                                 current_chapter['chap_content'], None, None, novel_title)
@@ -567,7 +602,11 @@ def process_immediate_publishing(page2, novel_title, chapter_publish_info, publi
                     'target_time': '',
                     'time_slot_index': 0
                 })
-                published_chapters.append(current_chapter.copy())
+                # 创建章节副本用于保存进度（不包含内容以节省空间）
+                chapter_for_progress = current_chapter.copy()
+                if 'chap_content' in chapter_for_progress:
+                    del chapter_for_progress['chap_content']
+                published_chapters.append(chapter_for_progress)
                 
                 # 保存到两个进度文件
                 from .progress_manager import save_publish_progress, save_publish_progress2

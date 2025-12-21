@@ -1,13 +1,23 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
-番茄小说自动发布系统 - 主控制模块
-整合所有功能模块，提供主要的控制逻辑
+番茄小说自动发布系统 - Legacy版本
+这个文件包含完整的自动发布功能，可以直接被web端调用
 """
 
 import os
+import re
 import time
-from datetime import datetime
-from typing import List, Dict, Any
+import json
+import shutil
+import threading
+from pathlib import Path
+from datetime import datetime, timedelta
+from playwright.sync_api import sync_playwright
+from playwright.sync_api import Locator, Page, expect
+from typing import Optional, List, Dict, Any
 
+# 导入同目录下的模块
 from .config import CONFIG
 from .utils import ensure_directory_exists, list_json_files, format_synopsis_for_fanqie
 from .file_manager import find_chapter_files, load_chapter_data, extract_novel_info_from_json
@@ -16,6 +26,11 @@ from .browser_manager import connect_to_browser, navigate_to_writer_platform, ma
 from .novel_manager import create_new_book, navigate_to_correct_book, find_existing_book_in_list
 from .chapter_publisher import process_scheduled_publishing, process_immediate_publishing
 
+# 配置参数
+WORD_COUNT_THRESHOLD = 20000
+novel_publish_times = ["05:25", "11:25", "17:25", "23:25"]
+CHAPTERS_PER_TIME_SLOT = 2
+PUBLISH_BUFFER_MINUTES = 35
 
 def publish_novel(page2, json_file):
     """发布单个小说"""
@@ -135,7 +150,7 @@ def publish_novel(page2, json_file):
                 'file': chapter_file,
                 'chap_num': str(matched_pub_chap.get('chap_num', '0')),
                 'chap_title': matched_pub_chap.get('chap_title', ''),
-                'chap_content': '',  # 已发布的章节暂时不加载内容，需要时再加载
+                'chap_content': matched_pub_chap.get('chap_content', ''),
                 'chap_len': matched_pub_chap.get('chap_len', 0),
                 'index': chap_index,
                 'published': True,
@@ -145,14 +160,14 @@ def publish_novel(page2, json_file):
             })
             continue
 
-        # 加载章节数据（不包含内容，避免读取大文件）
-        chapter_data = load_chapter_data(chapter_file, load_content=False)
+        # 加载章节数据
+        chapter_data = load_chapter_data(chapter_file)
         if chapter_data:
             chapter_publish_info.append({
                 'file': chapter_file,
                 'chap_num': chapter_data['chap_num'],
                 'chap_title': chapter_data['chap_title'],
-                'chap_content': '',  # 初始不加载内容，需要时再加载
+                'chap_content': chapter_data['chap_content'],
                 'chap_len': chapter_data['chap_len'],
                 'index': chap_index,
                 'published': False,
@@ -168,7 +183,6 @@ def publish_novel(page2, json_file):
         print(f"基准章节号: 第 {base_chapter_num} 章 (从这一章开始定时发布)")
 
     # 根据累计字数决定发布策略
-    from .config import WORD_COUNT_THRESHOLD
     if total_content_len >= WORD_COUNT_THRESHOLD:
         print(f"累计字数已达 {total_content_len}，超过阈值 {WORD_COUNT_THRESHOLD}，开始定时发布")
         return process_scheduled_publishing(
@@ -288,34 +302,11 @@ def main_scan_cycle():
     return success_count > 0 if json_files else True
 
 
+# 导出的主要函数，供web端调用
 def main():
-    """主函数 - 定时扫描模式"""
-    print("=== 番茄小说自动发布程序 - 定时扫描模式 ===")
-    print("程序将每小时自动扫描一次新书并发布")
-    print("按 Ctrl+C 退出程序")
-
-    scan_count = 0
-
-    try:
-        while True:
-            scan_count += 1
-            print(f"\n{'=' * 60}")
-            print(f"开始第 {scan_count} 次扫描 - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-            print('=' * 60)
-
-            try:
-                main_scan_cycle()
-            except Exception as e:
-                print(f"扫描过程中发生错误: {e}")
-
-            # 等待下一次扫描
-            print(f"\n[{datetime.now()}]#等待下一次扫描... ({CONFIG['scan_interval']} 秒后)")
-            time.sleep(CONFIG["scan_interval"])
-
-    except KeyboardInterrupt:
-        print("\n\n程序被用户中断，退出...")
-    except Exception as e:
-        print(f"\n程序发生未知错误: {e}")
+    """主函数 - 单次执行模式"""
+    print("=== 番茄小说自动发布程序 - 单次执行模式 ===")
+    return main_scan_cycle()
 
 
 if __name__ == "__main__":

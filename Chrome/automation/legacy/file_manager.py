@@ -196,9 +196,16 @@ def find_chapter_files(novel_title):
     return chapter_files_sorted
 
 
-def load_chapter_data(chapter_file):
+def load_chapter_data(chapter_file, load_content=True):
     """
     加载章节数据
+    
+    参数:
+    - chapter_file: 章节文件路径
+    - load_content: 是否加载章节内容，默认为True。设置为False可以避免读取大文件
+    
+    返回:
+    - dict: 包含章节数据的字典
     """
     try:
         with open(chapter_file, 'r', encoding='utf-8') as f:
@@ -208,15 +215,36 @@ def load_chapter_data(chapter_file):
             content = content.replace('"', '"').replace('"', '"').replace(''', "'").replace(''', "'")
             chapter_data = json.loads(content)
 
-        return {
+        result = {
             'chap_num': str(chapter_data['chapter_number']),
             'chap_title': chapter_data['chapter_title'],
-            'chap_content': chapter_data['content'],
             'chap_len': len(chapter_data['content'])  # 简化的字数统计
         }
+        
+        # 只有在需要时才加载章节内容
+        if load_content:
+            result['chap_content'] = chapter_data['content']
+        else:
+            result['chap_content'] = ""  # 设置为空字符串，避免后续访问时出错
+            
+        return result
     except Exception as e:
         print(f"[ERROR] 加载章节数据失败 {chapter_file}: {e}")
         return None
+
+
+def load_chapter_data_without_content(chapter_file):
+    """
+    加载章节数据（不包含内容），用于进度管理等场景
+    这是一个便捷函数，等同于 load_chapter_data(chapter_file, load_content=False)
+    
+    参数:
+    - chapter_file: 章节文件路径
+    
+    返回:
+    - dict: 包含章节基本信息的字典（不包含内容）
+    """
+    return load_chapter_data(chapter_file, load_content=False)
 
 
 def extract_novel_info_from_json(json_file):

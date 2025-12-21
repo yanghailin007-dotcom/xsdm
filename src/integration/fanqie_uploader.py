@@ -12,11 +12,12 @@ from pathlib import Path
 # 导入番茄自动上传功能
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 try:
-    # 尝试导入新的自动化模块
-    from Chrome.automation.legacy.autopush_legacy import (
-        main_scan_cycle, ensure_directory_exists, CONFIG
-    )
+    # 尝试导入main_controller模块
+    from Chrome.automation.legacy.main_controller import main_scan_cycle
+    from Chrome.automation.legacy.config import CONFIG
+    from Chrome.automation.legacy.utils import ensure_directory_exists
     autopush_available = True
+    print("✅ 成功导入main_controller模块")
 except ImportError as e:
     print(f"警告: 无法导入番茄自动上传模块: {e}")
     autopush_available = False
