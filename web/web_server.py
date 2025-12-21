@@ -2638,6 +2638,419 @@ def get_all_covers():
             "error": str(e)
         }), 500
 
+# ==================== 签约上传独立进程API ====================
+
+# 尝试导入签约API
+try:
+    from Chrome.automation.api.contract_api import contract_api
+    contract_api_available = True
+    logger.info("✅ 签约上传API加载成功")
+except ImportError as e:
+    logger.warn(f"⚠️ 无法导入签约上传API: {e}")
+    contract_api = None
+    contract_api_available = False
+
+@app.route('/api/contract/service/start', methods=['POST'])
+@login_required
+def start_contract_service():
+    """启动签约服务"""
+    try:
+        if not contract_api_available:
+            return jsonify({
+                "success": False,
+                "error": "签约上传API不可用"
+            }), 503
+        
+        result = contract_api.start_service()
+        return jsonify(result)
+    except Exception as e:
+        logger.error(f"❌ 启动签约服务失败: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/contract/service/stop', methods=['POST'])
+@login_required
+def stop_contract_service():
+    """停止签约服务"""
+    try:
+        if not contract_api_available:
+            return jsonify({
+                "success": False,
+                "error": "签约上传API不可用"
+            }), 503
+        
+        result = contract_api.stop_service()
+        return jsonify(result)
+    except Exception as e:
+        logger.error(f"❌ 停止签约服务失败: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/contract/service/status', methods=['GET'])
+@login_required
+def get_contract_service_status():
+    """获取签约服务状态"""
+    try:
+        if not contract_api_available:
+            return jsonify({
+                "running": False,
+                "api_active": False,
+                "error": "签约上传API不可用"
+            })
+        
+        status = contract_api.get_service_status()
+        return jsonify(status)
+    except Exception as e:
+        logger.error(f"❌ 获取签约服务状态失败: {e}")
+        return jsonify({
+            "running": False,
+            "error": str(e)
+        }), 500
+
+@app.route('/api/contract/tasks/submit', methods=['POST'])
+@login_required
+def submit_contract_task():
+    """提交签约任务"""
+    try:
+        if not contract_api_available:
+            return jsonify({
+                "success": False,
+                "error": "签约上传API不可用"
+            }), 503
+        
+        data = request.json or {}
+        task_type = data.get('task_type')
+        
+        if not task_type:
+            return jsonify({
+                "success": False,
+                "error": "缺少任务类型"
+            }), 400
+        
+        # 根据任务类型提交不同的任务
+        if task_type == 'contract_management':
+            result = contract_api.submit_contract_management_task(**data)
+        elif task_type == 'recommendation_management':
+            result = contract_api.submit_recommendation_management_task(**data)
+        elif task_type == 'switch_user':
+            user_id = data.get('user_id')
+            if not user_id:
+                return jsonify({
+                    "success": False,
+                    "error": "切换用户任务需要提供user_id"
+                }), 400
+            result = contract_api.submit_switch_user_task(user_id=user_id, **data)
+        elif task_type == 'validate_user':
+            result = contract_api.submit_validate_user_task(**data)
+        elif task_type == 'upload_novel':
+            novel_title = data.get('novel_title')
+            if not novel_title:
+                return jsonify({
+                    "success": False,
+                    "error": "小说上传任务需要提供novel_title"
+                }), 400
+            result = contract_api.submit_upload_novel_task(novel_title=novel_title, **data)
+        else:
+            return jsonify({
+                "success": False,
+                "error": f"不支持的任务类型: {task_type}"
+            }), 400
+        
+        return jsonify(result)
+    except Exception as e:
+        logger.error(f"❌ 提交签约任务失败: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/contract/tasks/<task_id>/status', methods=['GET'])
+@login_required
+def get_contract_task_status(task_id):
+    """获取签约任务状态"""
+    try:
+        if not contract_api_available:
+            return jsonify({
+                "success": False,
+                "error": "签约上传API不可用"
+            }), 503
+        
+        status = contract_api.get_task_status(task_id)
+        return jsonify(status)
+    except Exception as e:
+        logger.error(f"❌ 获取签约任务状态失败: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/contract/tasks', methods=['GET'])
+@login_required
+def get_all_contract_tasks():
+    """获取所有签约任务"""
+    try:
+        if not contract_api_available:
+            return jsonify({
+                "success": False,
+                "error": "签约上传API不可用"
+            }), 503
+        
+        tasks = contract_api.get_all_tasks()
+        return jsonify(tasks)
+    except Exception as e:
+        logger.error(f"❌ 获取签约任务列表失败: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/contract/service/logs', methods=['GET'])
+@login_required
+def get_contract_service_logs():
+    """获取签约服务日志"""
+    try:
+        if not contract_api_available:
+            return jsonify({
+                "success": False,
+                "error": "签约上传API不可用"
+            }), 503
+        
+        lines = request.args.get('lines', 100, type=int)
+        logs = contract_api.get_service_logs(lines=lines)
+        return jsonify(logs)
+    except Exception as e:
+        logger.error(f"❌ 获取签约服务日志失败: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+# 便捷的签约任务提交接口
+@app.route('/api/contract/start-contract-management', methods=['POST'])
+@login_required
+def start_contract_management():
+    """启动签约管理任务"""
+    try:
+        if not contract_api_available:
+            return jsonify({
+                "success": False,
+                "error": "签约上传API不可用"
+            }), 503
+        
+        result = contract_api.submit_contract_management_task()
+        return jsonify(result)
+    except Exception as e:
+        logger.error(f"❌ 启动签约管理任务失败: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/contract/start-recommendation-management', methods=['POST'])
+@login_required
+def start_recommendation_management():
+    """启动作品推荐任务"""
+    try:
+        if not contract_api_available:
+            return jsonify({
+                "success": False,
+                "error": "签约上传API不可用"
+            }), 503
+        
+        result = contract_api.submit_recommendation_management_task()
+        return jsonify(result)
+    except Exception as e:
+        logger.error(f"❌ 启动作品推荐任务失败: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/contract/switch-user', methods=['POST'])
+@login_required
+def switch_contract_user():
+    """切换签约用户"""
+    try:
+        if not contract_api_available:
+            return jsonify({
+                "success": False,
+                "error": "签约上传API不可用"
+            }), 503
+        
+        data = request.json or {}
+        user_id = data.get('user_id')
+        
+        if not user_id:
+            return jsonify({
+                "success": False,
+                "error": "缺少用户ID"
+            }), 400
+        
+        result = contract_api.submit_switch_user_task(user_id=user_id)
+        return jsonify(result)
+    except Exception as e:
+        logger.error(f"❌ 切换签约用户失败: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+# ==================== 服务监控API ====================
+
+# 尝试导入服务监控
+try:
+    from Chrome.automation.monitoring.service_monitor import service_monitor
+    service_monitor_available = True
+    logger.info("✅ 服务监控模块加载成功")
+except ImportError as e:
+    logger.warn(f"⚠️ 无法导入服务监控模块: {e}")
+    service_monitor = None
+    service_monitor_available = False
+
+@app.route('/api/monitoring/start', methods=['POST'])
+@login_required
+def start_service_monitoring():
+    """启动服务监控"""
+    try:
+        if not service_monitor_available:
+            return jsonify({
+                "success": False,
+                "error": "服务监控模块不可用"
+            }), 503
+        
+        interval = request.json.get('interval', 10) if request.json else 10
+        success = service_monitor.start_monitoring(interval=interval)
+        
+        return jsonify({
+            "success": success,
+            "message": "服务监控已启动" if success else "服务监控启动失败"
+        })
+    except Exception as e:
+        logger.error(f"❌ 启动服务监控失败: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/monitoring/stop', methods=['POST'])
+@login_required
+def stop_service_monitoring():
+    """停止服务监控"""
+    try:
+        if not service_monitor_available:
+            return jsonify({
+                "success": False,
+                "error": "服务监控模块不可用"
+            }), 503
+        
+        service_monitor.stop_monitoring()
+        
+        return jsonify({
+            "success": True,
+            "message": "服务监控已停止"
+        })
+    except Exception as e:
+        logger.error(f"❌ 停止服务监控失败: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/monitoring/status', methods=['GET'])
+@login_required
+def get_monitoring_status():
+    """获取当前监控状态"""
+    try:
+        if not service_monitor_available:
+            return jsonify({
+                "success": False,
+                "error": "服务监控模块不可用"
+            }), 503
+        
+        status = service_monitor.get_current_status()
+        return jsonify({
+            "success": True,
+            "status": status,
+            "monitoring_active": service_monitor.monitoring
+        })
+    except Exception as e:
+        logger.error(f"❌ 获取监控状态失败: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/monitoring/history', methods=['GET'])
+@login_required
+def get_monitoring_history():
+    """获取监控历史数据"""
+    try:
+        if not service_monitor_available:
+            return jsonify({
+                "success": False,
+                "error": "服务监控模块不可用"
+            }), 503
+        
+        hours = request.args.get('hours', 24, type=int)
+        history = service_monitor.get_status_history(hours=hours)
+        
+        return jsonify({
+            "success": True,
+            "history": history,
+            "period_hours": hours,
+            "data_points": len(history)
+        })
+    except Exception as e:
+        logger.error(f"❌ 获取监控历史失败: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/monitoring/alerts', methods=['GET'])
+@login_required
+def get_monitoring_alerts():
+    """获取监控告警"""
+    try:
+        if not service_monitor_available:
+            return jsonify({
+                "success": False,
+                "error": "服务监控模块不可用"
+            }), 503
+        
+        hours = request.args.get('hours', 24, type=int)
+        alerts = service_monitor.get_alerts(hours=hours)
+        
+        return jsonify({
+            "success": True,
+            "alerts": alerts,
+            "period_hours": hours,
+            "alert_count": len(alerts)
+        })
+    except Exception as e:
+        logger.error(f"❌ 获取监控告警失败: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/monitoring/performance', methods=['GET'])
+@login_required
+def get_performance_summary():
+    """获取性能摘要"""
+    try:
+        if not service_monitor_available:
+            return jsonify({
+                "success": False,
+                "error": "服务监控模块不可用"
+            }), 503
+        
+        hours = request.args.get('hours', 24, type=int)
+        summary = service_monitor.get_performance_summary(hours=hours)
+        
+        return jsonify({
+            "success": True,
+            "summary": summary
+        })
+    except Exception as e:
+        logger.error(f"❌ 获取性能摘要失败: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/monitoring/dashboard', methods=['GET'])
+@login_required
+def get_monitoring_dashboard():
+    """获取监控仪表板数据"""
+    try:
+        if not service_monitor_available:
+            return jsonify({
+                "success": False,
+                "error": "服务监控模块不可用"
+            }), 503
+        
+        # 获取综合监控数据
+        current_status = service_monitor.get_current_status()
+        recent_alerts = service_monitor.get_alerts(hours=1)
+        performance_summary = service_monitor.get_performance_summary(hours=24)
+        
+        dashboard_data = {
+            "current_status": current_status,
+            "recent_alerts": recent_alerts[-10:],  # 最近10个告警
+            "performance_summary": performance_summary,
+            "monitoring_active": service_monitor.monitoring,
+            "timestamp": datetime.now().isoformat()
+        }
+        
+        return jsonify({
+            "success": True,
+            "dashboard": dashboard_data
+        })
+    except Exception as e:
+        logger.error(f"❌ 获取监控仪表板数据失败: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
 if __name__ == '__main__':
     logger.info("=" * 60)
     logger.info("🚀 Web 服务启动")
@@ -2645,6 +3058,10 @@ if __name__ == '__main__':
     logger.info("📱 前端地址: http://localhost:5000")
     logger.info("🌐 API 地址: http://localhost:5000/api")
     logger.info("🍅 番茄上传功能已集成")
+    if contract_api_available:
+        logger.info("✅ 签约上传独立进程服务已集成")
+    else:
+        logger.warn("⚠️ 签约上传独立进程服务不可用")
     logger.info("=" * 60)
 
     # 开发模式运行
