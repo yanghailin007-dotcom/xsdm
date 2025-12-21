@@ -4,7 +4,7 @@ __pycache__/
 *.pyo
 *.pyd
 *.json
-*.md
+# *.md  # 注释掉这个规则，因为我们需要跟踪某些md文件
 
 # C extensions
 *.so
@@ -70,3 +70,7 @@ venv.bak/
 debug_responses/
 小说项目/
 quality_data/
+
+# Chrome浏览器相关文件（不应该版本控制）
+Chrome/Chrome/
+Chrome.rar
