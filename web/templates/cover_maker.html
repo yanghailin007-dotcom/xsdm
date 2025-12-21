@@ -587,6 +587,187 @@
             color: var(--primary-700);
             border-color: var(--primary-300);
         }
+
+        /* 选中操作栏样式 */
+        .selection-actions {
+            background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+            border: 1px solid #e1e5e9;
+            border-radius: 12px;
+            padding: 16px 20px;
+            margin-bottom: 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            animation: slideDown 0.3s ease-out;
+        }
+
+        .selection-info {
+            font-size: 14px;
+            color: #495057;
+            font-weight: 500;
+        }
+
+        .selection-info span {
+            color: #007bff;
+            font-weight: 600;
+        }
+
+        .selection-buttons {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-small {
+            padding: 6px 12px;
+            font-size: 12px;
+            font-weight: 500;
+            border-radius: 6px;
+            border: 1px solid;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+            border-color: #6c757d;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+            border-color: #545b62;
+            transform: translateY(-1px);
+        }
+
+        .btn-primary {
+            background: #007bff;
+            color: white;
+            border-color: #007bff;
+        }
+
+        .btn-primary:hover {
+            background: #0056b3;
+            border-color: #004085;
+            transform: translateY(-1px);
+        }
+
+        /* 封面选中状态样式 */
+        .cover-item {
+            position: relative;
+            cursor: pointer;
+            transition: all var(--transition-normal);
+        }
+
+        .cover-item::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 123, 255, 0.1);
+            border: 3px solid transparent;
+            border-radius: var(--radius-lg);
+            opacity: 0;
+            transition: all 0.3s ease;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .cover-item.selected::before {
+            opacity: 1;
+            border-color: #007bff;
+            background: rgba(0, 123, 255, 0.05);
+        }
+
+        .cover-item .select-checkbox {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            width: 24px;
+            height: 24px;
+            background: white;
+            border: 2px solid #dee2e6;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transform: scale(0.8);
+            transition: all 0.3s ease;
+            z-index: 2;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .cover-item:hover .select-checkbox {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        .cover-item.selected .select-checkbox {
+            opacity: 1;
+            transform: scale(1);
+            background: #007bff;
+            border-color: #007bff;
+            color: white;
+        }
+
+        .cover-item.selected .select-checkbox::after {
+            content: '✓';
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        /* 动画效果 */
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes checkmark {
+            0% {
+                transform: scale(0);
+            }
+            50% {
+                transform: scale(1.2);
+            }
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        .cover-item.selected .select-checkbox {
+            animation: checkmark 0.3s ease-out;
+        }
+
+        /* 响应式设计优化 */
+        @media (max-width: 768px) {
+            .selection-actions {
+                flex-direction: column;
+                gap: 12px;
+                align-items: stretch;
+            }
+            
+            .selection-buttons {
+                justify-content: center;
+                flex-wrap: wrap;
+            }
+            
+            .btn-small {
+                font-size: 11px;
+                padding: 4px 8px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -791,9 +972,9 @@
                     <div class="form-group">
                         <label class="form-label">生成数量</label>
                         <select id="generation-count" class="form-select">
-                            <option value="1">生成1张封面</option>
+                            <option value="1" selected>生成1张封面</option>
                             <option value="2">生成2张封面</option>
-                            <option value="3" selected>生成3张封面</option>
+                            <option value="3">生成3张封面</option>
                             <option value="4">生成4张封面</option>
                         </select>
                     </div>
@@ -832,6 +1013,27 @@
                 </span>
             </h2>
 
+            <!-- 选中操作栏 -->
+            <div id="selection-actions" class="selection-actions" style="display: none;">
+                <div class="selection-info">
+                    <span>已选择 <span id="selected-count">0</span> 个封面</span>
+                </div>
+                <div class="selection-buttons">
+                    <button class="btn btn-secondary btn-small" onclick="selectAllCovers()">
+                        全选
+                    </button>
+                    <button class="btn btn-secondary btn-small" onclick="deselectAllCovers()">
+                        取消全选
+                    </button>
+                    <button class="btn btn-primary btn-small" onclick="useSelectedCovers()">
+                        使用选中的封面
+                    </button>
+                    <button class="btn btn-success btn-small" onclick="copySelectedCoversToNovels()">
+                        📋 拷贝封面到小说目录
+                    </button>
+                </div>
+            </div>
+
             <div id="gallery-grid" class="gallery-grid">
                 <!-- 封面作品将在这里显示 -->
             </div>
@@ -849,6 +1051,7 @@
         let selectedNovel = null;
         let novels = [];
         let generatedCovers = [];
+        let selectedCovers = new Set(); // 存储选中的封面ID
 
         // 页面加载完成后执行
         document.addEventListener('DOMContentLoaded', function() {
@@ -1072,7 +1275,7 @@
 
 【封面文字内容】（必须包含）：
 1. 书名：《${title}》- 要醒目突出，使用清晰易读的艺术字体
-2. 作者：蓝枫雨 - 放在适当位置，字体较小
+2. 作者：北莽王庭的达延 - 放在适当位置，字体较小
 
 【严格禁止的内容】：
 - 绝对禁止添加任何其他文字
@@ -1180,7 +1383,7 @@
 
             const formData = {
                 novel_title: selectedNovel.title,
-                author_name: "蓝枫雨", // 固定作者名
+                author_name: "北莽王庭的达延", // 修复作者名
                 genre: document.getElementById('genre').value,
                 style: "默认风格", // 固定风格
                 color_scheme: document.querySelector('.color-option.selected').dataset.color,
@@ -1319,8 +1522,9 @@
             empty.style.display = 'none';
 
             grid.innerHTML = generatedCovers.map(cover => `
-                <div class="cover-item" onclick="viewCover('${cover.id}')">
-                    <img src="${cover.url}" alt="${cover.novel_title}" class="cover-image" 
+                <div class="cover-item ${selectedCovers.has(cover.id) ? 'selected' : ''}" data-cover-id="${cover.id}">
+                    <div class="select-checkbox" onclick="toggleCoverSelection(event, '${cover.id}')"></div>
+                    <img src="${encodeCoverUrl(cover.url)}" alt="${cover.novel_title}" class="cover-image"
                          onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjI4MCIgdmlld0JveD0iMCAwIDIwMCAyODAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIyMDAiIGhlaWdodD0iMjgwIiBmaWxsPSIjRjVGNUY1Ii8+CjxwYXRoIGQ9Ik04MCA5MEgxMjBWMTIwSDgwVjkwWiIgZmlsbD0iI0QxRDVEMSIvPgo8cGF0aCBkPSJNNzAgMTMwSDEzMFYxNDBINzBWMTMwWiIgZmlsbD0iI0QxRDVEMSIvPgo8dGV4dCB4PSIxMDAiIHk9IjE4MCIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjE0IiBmaWxsPSIjOUNBM0FGIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj7lm77niYfliqDovb3lpLHotKU8L3RleHQ+Cjwvc3ZnPgo='">
                     <div class="cover-info">
                         <div class="cover-title">${escapeHtml(cover.novel_title)}</div>
@@ -1331,6 +1535,9 @@
                     </div>
                 </div>
             `).join('');
+
+            // 更新选中操作栏显示状态
+            updateSelectionActions();
         }
 
         // 查看封面
@@ -1502,6 +1709,478 @@
             // 重新构建URL
             urlParts[urlParts.length - 1] = encodedFilename;
             return urlParts.join('/');
+        }
+
+        // ==================== 封面选中功能 ====================
+
+        // 切换封面选中状态
+        function toggleCoverSelection(event, coverId) {
+            event.stopPropagation(); // 阻止事件冒泡
+            
+            const coverItem = document.querySelector(`[data-cover-id="${coverId}"]`);
+            if (!coverItem) return;
+            
+            if (selectedCovers.has(coverId)) {
+                // 取消选中
+                selectedCovers.delete(coverId);
+                coverItem.classList.remove('selected');
+            } else {
+                // 添加选中
+                selectedCovers.add(coverId);
+                coverItem.classList.add('selected');
+            }
+            
+            // 更新选中操作栏显示状态
+            updateSelectionActions();
+            
+            console.log(`封面 ${coverId} 选中状态:`, selectedCovers.has(coverId));
+        }
+
+        // 更新选中操作栏显示状态
+        function updateSelectionActions() {
+            const selectionActions = document.getElementById('selection-actions');
+            const selectedCount = document.getElementById('selected-count');
+            
+            if (selectedCovers.size > 0) {
+                selectionActions.style.display = 'flex';
+                selectedCount.textContent = selectedCovers.size;
+            } else {
+                selectionActions.style.display = 'none';
+            }
+        }
+
+        // 全选封面
+        function selectAllCovers() {
+            generatedCovers.forEach(cover => {
+                selectedCovers.add(cover.id);
+                const coverItem = document.querySelector(`[data-cover-id="${cover.id}"]`);
+                if (coverItem) {
+                    coverItem.classList.add('selected');
+                }
+            });
+            
+            updateSelectionActions();
+            showSuccessMessage(`已选择所有 ${generatedCovers.length} 个封面`);
+        }
+
+        // 取消全选
+        function deselectAllCovers() {
+            selectedCovers.clear();
+            document.querySelectorAll('.cover-item').forEach(item => {
+                item.classList.remove('selected');
+            });
+            
+            updateSelectionActions();
+            showSuccessMessage('已取消所有选择');
+        }
+
+        // 使用选中的封面
+        function useSelectedCovers() {
+            if (selectedCovers.size === 0) {
+                alert('请先选择要使用的封面');
+                return;
+            }
+            
+            const selectedCoverList = Array.from(selectedCovers).map(coverId => {
+                const cover = generatedCovers.find(c => c.id === coverId);
+                return cover ? {
+                    id: cover.id,
+                    url: cover.url,
+                    novel_title: cover.novel_title,
+                    author_name: cover.author_name,
+                    timestamp: cover.timestamp
+                } : null;
+            }).filter(cover => cover !== null);
+            
+            if (selectedCoverList.length === 0) {
+                alert('选中的封面信息无效，请重新选择');
+                return;
+            }
+            
+            // 创建选中封面的确认弹窗
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+                background: rgba(0,0,0,0.8); z-index: 99999;
+                display: flex; justify-content: center; align-items: center;
+                padding: 20px;
+            `;
+            
+            const coverThumbnails = selectedCoverList.map(cover => `
+                <div style="display: inline-block; margin: 8px; text-align: center; vertical-align: top;">
+                    <img src="${encodeCoverUrl(cover.url)}" alt="${cover.novel_title}"
+                         style="width: 100px; height: 140px; object-fit: cover; border-radius: 8px; border: 2px solid #007bff;">
+                    <div style="margin-top: 4px; font-size: 12px; color: white;">${escapeHtml(cover.novel_title)}</div>
+                </div>
+            `).join('');
+            
+            modal.innerHTML = `
+                <div style="background: white; border-radius: 12px; max-width: 90%; max-height: 90%; overflow: auto; position: relative;">
+                    <button onclick="this.closest('div').parentElement.remove()" style="position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.5); color: white; border: none; border-radius: 50%; width: 30px; height: 30px; cursor: pointer; font-size: 16px;">×</button>
+                    <div style="padding: 30px; text-align: center;">
+                        <h2 style="margin: 0 0 20px 0; color: #333;">确认使用选中的封面</h2>
+                        <div style="margin-bottom: 20px; color: #666;">
+                            您已选择 <strong style="color: #007bff;">${selectedCoverList.length}</strong> 个封面：
+                        </div>
+                        <div style="margin-bottom: 30px; padding: 20px; background: #f8f9fa; border-radius: 8px;">
+                            ${coverThumbnails}
+                        </div>
+                        <div style="color: #666; margin-bottom: 20px; font-size: 14px;">
+                            💡 这些封面将被标记为"已选择"，在上传时可以优先使用
+                        </div>
+                        <div style="display: flex; gap: 10px; justify-content: center;">
+                            <button onclick="confirmUseSelectedCovers(${JSON.stringify(selectedCoverList).replace(/"/g, '&quot;')})"
+                                    style="background: #007bff; color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; font-size: 14px;">
+                                确认使用
+                            </button>
+                            <button onclick="this.closest('div').parentElement.remove()"
+                                    style="background: #6c757d; color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; font-size: 14px;">
+                                取消
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            modal.addEventListener('click', function(e) {
+                if (e.target === modal) {
+                    modal.remove();
+                }
+            });
+        }
+
+        // 拷贝选中的封面到小说目录
+        function copySelectedCoversToNovels() {
+            if (selectedCovers.size === 0) {
+                alert('请先选择要拷贝的封面');
+                return;
+            }
+            
+            const selectedCoverList = Array.from(selectedCovers).map(coverId => {
+                const cover = generatedCovers.find(c => c.id === coverId);
+                return cover ? {
+                    id: cover.id,
+                    url: cover.url,
+                    novel_title: cover.novel_title,
+                    author_name: cover.author_name,
+                    timestamp: cover.timestamp
+                } : null;
+            }).filter(cover => cover !== null);
+            
+            if (selectedCoverList.length === 0) {
+                alert('选中的封面信息无效，请重新选择');
+                return;
+            }
+            
+            // 创建确认弹窗
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+                background: rgba(0,0,0,0.8); z-index: 99999;
+                display: flex; justify-content: center; align-items: center;
+                padding: 20px;
+            `;
+            
+            const coverThumbnails = selectedCoverList.map(cover => `
+                <div style="display: inline-block; margin: 8px; text-align: center; vertical-align: top;">
+                    <img src="${encodeCoverUrl(cover.url)}" alt="${cover.novel_title}"
+                         style="width: 80px; height: 112px; object-fit: cover; border-radius: 4px; border: 2px solid #28a745;">
+                    <div style="margin-top: 4px; font-size: 11px; color: white; max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(cover.novel_title)}">${escapeHtml(cover.novel_title)}</div>
+                </div>
+            `).join('');
+            
+            modal.innerHTML = `
+                <div style="background: white; border-radius: 12px; max-width: 90%; max-height: 90%; overflow: auto; position: relative;">
+                    <button onclick="this.closest('div').parentElement.remove()" style="position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.5); color: white; border: none; border-radius: 50%; width: 30px; height: 30px; cursor: pointer; font-size: 16px;">×</button>
+                    <div style="padding: 30px; text-align: center;">
+                        <h2 style="margin: 0 0 20px 0; color: #333;">确认拷贝封面到小说目录</h2>
+                        <div style="margin-bottom: 20px; color: #666;">
+                            您已选择 <strong style="color: #28a745;">${selectedCoverList.length}</strong> 个封面，将拷贝到对应的小说项目目录：
+                        </div>
+                        <div style="margin-bottom: 30px; padding: 20px; background: #f8f9fa; border-radius: 8px;">
+                            ${coverThumbnails}
+                        </div>
+                        <div style="color: #666; margin-bottom: 20px; font-size: 14px; background: #e7f3ff; padding: 15px; border-radius: 8px; text-align: left;">
+                            <div style="font-weight: 600; margin-bottom: 8px; color: #0066cc;">💡 拷贝说明：</div>
+                            <div style="line-height: 1.5;">
+                                • 每个封面将拷贝到对应小说的项目目录<br>
+                                • 文件名格式：{小说名}_封面.jpg<br>
+                                • 如果目标文件已存在，将被覆盖<br>
+                                • 拷贝后的封面将自动用于番茄上传
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 10px; justify-content: center;">
+                            <button onclick="confirmCopyCoversToNovels(${JSON.stringify(selectedCoverList).replace(/"/g, '&quot;')})"
+                                    style="background: #28a745; color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; font-size: 14px;">
+                                确认拷贝
+                            </button>
+                            <button onclick="this.closest('div').parentElement.remove()"
+                                    style="background: #6c757d; color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; font-size: 14px;">
+                                取消
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            modal.addEventListener('click', function(e) {
+                if (e.target === modal) {
+                    modal.remove();
+                }
+            });
+        }
+        
+        // 确认拷贝封面到小说目录
+        async function confirmCopyCoversToNovels(selectedCoverList) {
+            // 移除确认弹窗
+            const modal = document.querySelector('div[style*="position: fixed"]');
+            if (modal) {
+                modal.remove();
+            }
+            
+            try {
+                showLoadingOverlay('正在拷贝封面到小说目录，请稍候...');
+                
+                // 准备拷贝数据
+                const copyData = {
+                    covers: selectedCoverList.map(cover => ({
+                        cover_url: cover.url,
+                        novel_title: cover.novel_title
+                    }))
+                };
+                
+                console.log('开始批量拷贝封面:', copyData);
+                
+                // 调用后端API进行批量拷贝
+                const response = await fetch('/api/cover/batch-copy-to-novel-directories', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(copyData)
+                });
+                
+                const result = await response.json();
+                
+                hideLoadingOverlay();
+                
+                if (result.success) {
+                    showSuccessMessage(`✅ ${result.message}`);
+                    
+                    // 显示详细结果
+                    setTimeout(() => {
+                        const resultModal = document.createElement('div');
+                        resultModal.style.cssText = `
+                            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+                            background: rgba(0,0,0,0.8); z-index: 99999;
+                            display: flex; justify-content: center; align-items: center;
+                            padding: 20px;
+                        `;
+                        
+                        const successResults = result.results.filter(r => r.success);
+                        const failedResults = result.results.filter(r => !r.success);
+                        
+                        resultModal.innerHTML = `
+                            <div style="background: white; border-radius: 12px; max-width: 600px; position: relative;">
+                                <button onclick="this.closest('div').parentElement.remove()" style="position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.5); color: white; border: none; border-radius: 50%; width: 30px; height: 30px; cursor: pointer; font-size: 16px;">×</button>
+                                <div style="padding: 30px; text-align: center;">
+                                    <div style="font-size: 48px; margin-bottom: 20px;">🎉</div>
+                                    <h3 style="margin: 0 0 15px 0; color: #333;">封面拷贝完成！</h3>
+                                    <div style="color: #666; margin-bottom: 25px; line-height: 1.6;">
+                                        成功拷贝 <strong style="color: #28a745;">${result.success_count}</strong> / ${result.total_count} 个封面
+                                    </div>
+                                    
+                                    ${failedResults.length > 0 ? `
+                                        <div style="background: #f8d7da; padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: left;">
+                                            <div style="font-weight: 600; margin-bottom: 10px; color: #721c24;">⚠️ 失败的拷贝：</div>
+                                            ${failedResults.map(item => `
+                                                <div style="font-size: 13px; color: #721c24; margin-bottom: 5px;">
+                                                    • ${escapeHtml(item.novel_title)}: ${escapeHtml(item.error)}
+                                                </div>
+                                            `).join('')}
+                                        </div>
+                                    ` : ''}
+                                    
+                                    <div style="background: #d4edda; padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: left;">
+                                        <div style="font-weight: 600; margin-bottom: 10px; color: #155724;">✅ 成功的拷贝：</div>
+                                        ${successResults.map(item => `
+                                            <div style="font-size: 13px; color: #155724; margin-bottom: 5px;">
+                                                • ${escapeHtml(item.novel_title)} → ${escapeHtml(item.cover_filename)}
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                    
+                                    <div style="display: flex; gap: 10px; justify-content: center;">
+                                        <button onclick="location.href='/fanqie-upload'"
+                                                style="background: #28a745; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 14px;">
+                                            前往番茄上传
+                                        </button>
+                                        <button onclick="this.closest('div').parentElement.remove(); deselectAllCovers();"
+                                                style="background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 14px;">
+                                            完成
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                        
+                        document.body.appendChild(resultModal);
+                        resultModal.addEventListener('click', function(e) {
+                            if (e.target === resultModal) {
+                                resultModal.remove();
+                            }
+                        });
+                    }, 1000);
+                    
+                } else {
+                    alert(`拷贝失败: ${result.error}`);
+                }
+                
+            } catch (error) {
+                hideLoadingOverlay();
+                console.error('拷贝封面失败:', error);
+                alert(`拷贝封面失败: ${error.message}`);
+            }
+        }
+        
+        // 确认使用选中的封面
+        function confirmUseSelectedCovers(selectedCoverList) {
+            // 移除确认弹窗
+            const modal = document.querySelector('div[style*="position: fixed"]');
+            if (modal) {
+                modal.remove();
+            }
+            
+            // 保存选中的封面信息到本地存储，供番茄自动上传使用
+            try {
+                // 为番茄上传系统准备数据格式
+                const uploadData = {
+                    selectedCovers: selectedCoverList,
+                    novelTitle: selectedNovel ? selectedNovel.title : '未知小说',
+                    selectedAt: new Date().toISOString(),
+                    purpose: 'fanqie_upload' // 标记为番茄上传用途
+                };
+                
+                // 保存到本地存储
+                localStorage.setItem('fanqieSelectedCovers', JSON.stringify(uploadData));
+                console.log('已保存选中的封面供番茄上传使用:', uploadData);
+                
+                // 同时也保存到通用选中封面存储
+                localStorage.setItem('selectedCovers', JSON.stringify(selectedCoverList));
+                
+                showSuccessMessage(`✅ 已选择 ${selectedCoverList.length} 个封面用于番茄自动上传`);
+                
+                // 显示详细信息
+                const coverNames = selectedCoverList.map(cover => cover.novel_title).join('、');
+                console.log(`选中的封面将用于小说: ${coverNames}`);
+                
+                // 可选：清空选择状态
+                deselectAllCovers();
+                
+                // 提示用户如何在番茄上传中使用
+                setTimeout(() => {
+                    const infoModal = document.createElement('div');
+                    infoModal.style.cssText = `
+                        position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+                        background: rgba(0,0,0,0.8); z-index: 99999;
+                        display: flex; justify-content: center; align-items: center;
+                        padding: 20px;
+                    `;
+                    
+                    infoModal.innerHTML = `
+                        <div style="background: white; border-radius: 12px; max-width: 500px; position: relative;">
+                            <button onclick="this.closest('div').parentElement.remove()" style="position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.5); color: white; border: none; border-radius: 50%; width: 30px; height: 30px; cursor: pointer; font-size: 16px;">×</button>
+                            <div style="padding: 30px; text-align: center;">
+                                <div style="font-size: 48px; margin-bottom: 20px;">🎉</div>
+                                <h3 style="margin: 0 0 15px 0; color: #333;">封面选择完成！</h3>
+                                <div style="color: #666; margin-bottom: 20px; line-height: 1.6;">
+                                    您已成功选择 <strong style="color: #007bff;">${selectedCoverList.length}</strong> 个封面<br>
+                                    这些封面将在番茄自动上传时使用
+                                </div>
+                                <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: left;">
+                                    <div style="font-weight: 600; margin-bottom: 10px; color: #333;">📋 使用说明：</div>
+                                    <div style="font-size: 14px; color: #666; line-height: 1.5;">
+                                        1. 前往"番茄一键上传"页面<br>
+                                        2. 选择相应的小说作品<br>
+                                        3. 系统将自动使用您选择的封面<br>
+                                        4. 您可以随时返回这里重新选择封面
+                                    </div>
+                                </div>
+                                <div style="display: flex; gap: 10px; justify-content: center;">
+                                    <button onclick="location.href='/fanqie-upload'"
+                                            style="background: #28a745; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 14px;">
+                                        前往番茄上传
+                                    </button>
+                                    <button onclick="this.closest('div').parentElement.remove()"
+                                            style="background: #6c757d; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 14px;">
+                                        知道了
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    
+                    document.body.appendChild(infoModal);
+                    infoModal.addEventListener('click', function(e) {
+                        if (e.target === infoModal) {
+                            infoModal.remove();
+                        }
+                    });
+                }, 1000);
+                
+            } catch (error) {
+                console.error('保存选中封面失败:', error);
+                alert('保存选中封面失败，请重试');
+            }
+        }
+
+        // 修改查看封面函数，避免与选中功能冲突
+        function viewCover(coverId) {
+            const cover = generatedCovers.find(c => c.id == coverId);
+            if (!cover) return;
+
+            // 创建查看弹窗
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+                background: rgba(0,0,0,0.8); z-index: 99999;
+                display: flex; justify-content: center; align-items: center;
+                padding: 20px;
+            `;
+
+            // 确保弹窗中的图片URL也正确编码
+            const encodedUrl = encodeCoverUrl(cover.url);
+            
+            modal.innerHTML = `
+                <div style="background: white; border-radius: 12px; max-width: 90%; max-height: 90%; overflow: auto; position: relative;">
+                    <button onclick="this.closest('div').parentElement.remove()" style="position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.5); color: white; border: none; border-radius: 50%; width: 30px; height: 30px; cursor: pointer; font-size: 16px;">×</button>
+                    <img src="${encodedUrl}" alt="${escapeHtml(cover.novel_title)}" style="max-width: 100%; max-height: 80vh; object-fit: contain;">
+                    <div style="padding: 20px; text-align: center;">
+                        <h3 style="margin: 0 0 8px 0;">${escapeHtml(cover.novel_title)}</h3>
+                        <p style="margin: 0; color: #666;">作者：${escapeHtml(cover.author_name)}</p>
+                        <p style="margin: 8px 0 0 0; color: #999; font-size: 14px;">生成时间：${new Date(cover.timestamp).toLocaleString()}</p>
+                        <div style="margin-top: 15px;">
+                            <button onclick="toggleCoverSelection(event, '${cover.id}'); this.closest('div').parentElement.remove();"
+                                    style="background: ${selectedCovers.has(cover.id) ? '#28a745' : '#007bff'}; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; margin-right: 10px;">
+                                ${selectedCovers.has(cover.id) ? '✓ 已选中' : '选择此封面'}
+                            </button>
+                            <button onclick="window.open('${encodedUrl}', '_blank')"
+                                    style="background: #17a2b8; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">
+                                📥 下载原图
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(modal);
+            modal.addEventListener('click', function(e) {
+                if (e.target === modal) {
+                    modal.remove();
+                }
+            });
         }
     </script>
 </body>

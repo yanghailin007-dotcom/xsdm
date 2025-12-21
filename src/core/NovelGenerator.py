@@ -1310,10 +1310,14 @@ class NovelGenerator:
 
     def _generate_novel_cover(self) -> bool:
         """生成小说封面"""
+        # 使用你指定的作者名
+        author_name = "北莽王庭的达延"
+        
         result = self.cover_generator.generate_novel_cover(
             self.novel_data.get("novel_title", ""),
             self.novel_data.get("novel_synopsis", ""),
-            self.novel_data.get("category", "未分类")
+            self.novel_data.get("category", "未分类"),
+            author_name
         )
         
         if result.get("success"):

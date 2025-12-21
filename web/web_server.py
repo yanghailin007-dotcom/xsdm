@@ -1901,8 +1901,8 @@ def generate_cover():
         # 构建最终的提示词
         final_prompt = build_final_prompt(data)
         
-        # 生成参数
-        generation_count = min(data.get('generation_count', 1), 4)  # 限制最多生成4张
+        # 生成参数 - 默认生成1张图片
+        generation_count = min(data.get('generation_count', 1), 1)  # 默认生成1张，最多1张
         image_size = data.get('image_size', '1K')
         add_watermark = data.get('add_watermark', False)
         
@@ -1975,7 +1975,8 @@ def generate_cover():
 def build_final_prompt(data):
     """构建最终的图片生成提示词"""
     novel_title = data.get('novel_title', '').strip()
-    author_name = data.get('author_name', '佚名').strip()
+    # 使用你指定的作者名作为默认值
+    author_name = data.get('author_name', '北莽王庭的达延').strip()
     genre = data.get('genre', '').strip()
     style = data.get('style', '现代简约').strip()
     color_scheme = data.get('color_scheme', 'blue').strip()
@@ -1983,30 +1984,46 @@ def build_final_prompt(data):
     negative_prompt = data.get('negative_prompt', '').strip()
     
     # 基础提示词模板
-    base_prompt = f"""小说封面设计，竖版比例，{style}风格
+    base_prompt = f"""小说封面设计，768×1024像素，竖版比例，{style}风格
 
 【封面文字内容】：
 书名：《{novel_title}》
 作者：{author_name}
 
 【严格禁止的内容】：
-- 禁止添加任何其他文字
-- 禁止出现"番茄小说"、"番茄"等平台相关文字
-- 禁止水印、标语、宣传语
-- 禁止任何额外标注文字
+- 绝对禁止添加任何其他文字
+- 禁止出现"番茄小说"、"番茄"、"起点"、"晋江"等任何平台相关文字
+- 禁止出现水印、标语、宣传语、广告语
+- 禁止任何额外标注文字（如"完结"、"爆笑"等标签）
 
 【设计要求】：
-- {style}风格的精美封面设计，符合{genre}类型特点
-- 书名要醒目突出，使用清晰易读的字体
-- 作者名放在适当位置
-- 背景设计基于小说类型和风格要求
-- 整体设计专业简洁，符合出版标准
-- 色调根据{color_scheme}方案进行搭配
+- 封面设计精美，符合东方仙侠类型风格特色
+- 书名要醒目突出，使用清晰易读的艺术字体
+- 作者名放在适当位置（通常右下角或下方）
+- 整体设计专业简洁，具有商业出版品质
+- 背景与文字形成良好对比，确保可读性
 
-【文字要求】：
+【色彩搭配】：
+- 根据小说东方仙侠类型选择合适的色调
+- 色彩要和谐统一，突出主题氛围
+- 避免过于花哨或单调的色彩搭配
+
+【图像元素】：
+- 可以包含与小说类型相关的背景图案或装饰元素
+- 图案要简约不抢夺文字主体地位
+- 如有人物，要符合东方仙侠类型特征
+
+【文字排版要求】：
 - 文字清晰可读但不要过于突兀
 - 文字与背景和谐统一
-- 只能出现书名和作者"""
+- 字体选择要与整体设计风格匹配
+- 只能出现书名和作者名，无其他任何文字
+
+【质量要求】：
+- 高分辨率，清晰锐利
+- 专业级设计水准
+- 适合作为网络小说封面使用
+- 视觉效果吸引目标读者群体"""
     
     # 添加风格和类型特定的描述
     if genre:
@@ -2552,7 +2569,7 @@ def get_novel_covers(title):
                     "url": web_url,
                     "local_path": image_file,
                     "novel_title": novel_title,
-                    "author_name": "蓝枫雨",
+                    "author_name": "北莽王庭的达延",
                     "timestamp": datetime.fromtimestamp(stat.st_mtime).isoformat(),
                     "file_size": stat.st_size,
                     "filename": filename
@@ -2611,7 +2628,7 @@ def get_all_covers():
                     "url": web_url,
                     "local_path": image_file,
                     "novel_title": "未知小说",  # 默认值，可以从文件名推断
-                    "author_name": "蓝枫雨",
+                    "author_name": "北莽王庭的达延",
                     "timestamp": datetime.fromtimestamp(stat.st_mtime).isoformat(),
                     "file_size": stat.st_size,
                     "filename": filename
@@ -2636,6 +2653,200 @@ def get_all_covers():
         return jsonify({
             "success": False,
             "error": str(e)
+        }), 500
+
+@app.route('/api/cover/copy-to-novel-directory', methods=['POST'])
+@login_required
+def copy_cover_to_novel_directory():
+    """将选中的封面拷贝到小说目录，覆盖原图片"""
+    try:
+        data = request.json or {}
+        cover_url = data.get('cover_url')
+        novel_title = data.get('novel_title')
+        
+        if not cover_url or not novel_title:
+            return jsonify({
+                "success": False,
+                "error": "缺少必需参数: cover_url 和 novel_title"
+            }), 400
+        
+        import os
+        import shutil
+        from urllib.parse import unquote
+        
+        # URL解码
+        cover_url = unquote(cover_url)
+        
+        # 构建源图片路径
+        if cover_url.startswith('/generated_images/'):
+            filename = cover_url.replace('/generated_images/', '')
+            source_path = os.path.join(BASE_DIR, 'generated_images', filename)
+        else:
+            return jsonify({
+                "success": False,
+                "error": f"不支持的图片URL格式: {cover_url}"
+            }), 400
+        
+        # 检查源文件是否存在
+        if not os.path.exists(source_path):
+            return jsonify({
+                "success": False,
+                "error": f"源图片文件不存在: {source_path}"
+            }), 404
+        
+        # 清理小说标题中的特殊字符
+        safe_title = re.sub(r'[\\/*?:"<>|]', "_", novel_title)
+        
+        # 构建目标路径 - 小说项目目录（正确的目录结构：小说项目/XXX小说/）
+        novel_project_dir = os.path.join("小说项目", safe_title)
+        
+        # 确保目录存在
+        os.makedirs(novel_project_dir, exist_ok=True)
+        
+        # 目标文件名 - 使用小说名作为文件名，与上传逻辑保持一致
+        target_filename = f"{safe_title}_封面.jpg"
+        target_path = os.path.join(novel_project_dir, target_filename)
+        
+        # 执行拷贝操作
+        try:
+            shutil.copy2(source_path, target_path)
+            logger.info(f"✅ 封面拷贝成功: {source_path} -> {target_path}")
+            
+            return jsonify({
+                "success": True,
+                "message": f"封面已成功拷贝到小说目录: {target_filename}",
+                "source_path": source_path,
+                "target_path": target_path,
+                "novel_title": novel_title,
+                "cover_filename": target_filename
+            })
+            
+        except Exception as copy_error:
+            logger.error(f"❌ 封面拷贝失败: {copy_error}")
+            return jsonify({
+                "success": False,
+                "error": f"拷贝文件失败: {str(copy_error)}"
+            }), 500
+            
+    except Exception as e:
+        logger.error(f"❌ 拷贝封面到小说目录失败: {e}")
+        import traceback
+        logger.error(f"详细错误: {traceback.format_exc()}")
+        return jsonify({
+            "success": False,
+            "error": f"操作失败: {str(e)}"
+        }), 500
+
+@app.route('/api/cover/batch-copy-to-novel-directories', methods=['POST'])
+@login_required
+def batch_copy_covers_to_novel_directories():
+    """批量将选中的封面拷贝到对应的小说目录"""
+    try:
+        data = request.json or {}
+        covers = data.get('covers', [])  # [{"cover_url": "...", "novel_title": "..."}]
+        
+        if not covers:
+            return jsonify({
+                "success": False,
+                "error": "没有提供要拷贝的封面列表"
+            }), 400
+        
+        results = []
+        success_count = 0
+        
+        for cover_data in covers:
+            cover_url = cover_data.get('cover_url')
+            novel_title = cover_data.get('novel_title')
+            
+            if not cover_url or not novel_title:
+                results.append({
+                    "cover_url": cover_url,
+                    "novel_title": novel_title,
+                    "success": False,
+                    "error": "缺少必需参数"
+                })
+                continue
+            
+            # 调用单个拷贝逻辑
+            try:
+                # 模拟单个拷贝API调用
+                import os
+                import shutil
+                from urllib.parse import unquote
+                
+                # URL解码
+                cover_url = unquote(cover_url)
+                
+                # 构建源图片路径
+                if cover_url.startswith('/generated_images/'):
+                    filename = cover_url.replace('/generated_images/', '')
+                    source_path = os.path.join(BASE_DIR, 'generated_images', filename)
+                else:
+                    results.append({
+                        "cover_url": cover_url,
+                        "novel_title": novel_title,
+                        "success": False,
+                        "error": "不支持的图片URL格式"
+                    })
+                    continue
+                
+                # 检查源文件是否存在
+                if not os.path.exists(source_path):
+                    results.append({
+                        "cover_url": cover_url,
+                        "novel_title": novel_title,
+                        "success": False,
+                        "error": "源图片文件不存在"
+                    })
+                    continue
+                
+                # 清理小说标题中的特殊字符
+                safe_title = re.sub(r'[\\/*?:"<>|]', "_", novel_title)
+                
+                # 构建目标路径
+                novel_project_dir = os.path.join("小说项目", safe_title)
+                os.makedirs(novel_project_dir, exist_ok=True)
+                
+                target_filename = f"{safe_title}_封面.jpg"
+                target_path = os.path.join(novel_project_dir, target_filename)
+                
+                # 执行拷贝
+                shutil.copy2(source_path, target_path)
+                logger.info(f"✅ 批量封面拷贝成功: {source_path} -> {target_path}")
+                
+                results.append({
+                    "cover_url": cover_url,
+                    "novel_title": novel_title,
+                    "success": True,
+                    "target_path": target_path,
+                    "cover_filename": target_filename
+                })
+                success_count += 1
+                
+            except Exception as e:
+                logger.error(f"❌ 批量拷贝封面失败 {novel_title}: {e}")
+                results.append({
+                    "cover_url": cover_url,
+                    "novel_title": novel_title,
+                    "success": False,
+                    "error": str(e)
+                })
+        
+        return jsonify({
+            "success": True,
+            "message": f"批量拷贝完成，成功: {success_count}/{len(covers)}",
+            "results": results,
+            "success_count": success_count,
+            "total_count": len(covers)
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ 批量拷贝封面失败: {e}")
+        import traceback
+        logger.error(f"详细错误: {traceback.format_exc()}")
+        return jsonify({
+            "success": False,
+            "error": f"批量操作失败: {str(e)}"
         }), 500
 
 # ==================== 签约上传独立进程API ====================

@@ -56,7 +56,7 @@ class CoverGenerator:
             "都市修真": "现代修真风格，都市与修仙结合，灵气复苏，现代修仙者"
         }
 
-    def generate_novel_cover(self, novel_title: str, novel_synopsis: str, category: str) -> Dict:
+    def generate_novel_cover(self, novel_title: str, novel_synopsis: str, category: str, author_name: str = "北莽王庭的达延") -> Dict:
         """
         生成小说封面
         
@@ -64,6 +64,7 @@ class CoverGenerator:
             novel_title: 小说标题
             novel_synopsis: 小说简介
             category: 小说分类
+            author_name: 作者名，默认为"北莽王庭的达延"
             
         Returns:
             生成结果字典
@@ -80,7 +81,7 @@ class CoverGenerator:
                 return {"success": False, "error": "小说标题为空"}
             
             # 生成封面提示词
-            cover_prompt = self._generate_cover_prompt(novel_title, novel_synopsis, category)
+            cover_prompt = self._generate_cover_prompt(novel_title, novel_synopsis, category, author_name)
             
             print(f"  📝 封面提示词: {cover_prompt[:100]}...")
             
@@ -106,7 +107,7 @@ class CoverGenerator:
             
             if result and 'local_path' in result:
                 print(f"✅ 封面生成成功: {result['local_path']}")
-                print(f"📖 封面包含: 书名《{novel_title}》 作者: 蓝枫雨")
+                print(f"📖 封面包含: 书名《{novel_title}》 作者: {author_name}")
                 
                 return {
                     "success": True,
@@ -114,7 +115,7 @@ class CoverGenerator:
                     "cover_image": result['local_path'],
                     "cover_generated": True,
                     "novel_title": novel_title,
-                    "author": "蓝枫雨"
+                    "author": author_name
                 }
             else:
                 print("❌ 封面生成失败")
@@ -124,7 +125,7 @@ class CoverGenerator:
             print(f"❌ 封面生成过程中出错: {e}")
             return {"success": False, "error": str(e)}
 
-    def _generate_cover_prompt(self, title: str, synopsis: str, category: str) -> str:
+    def _generate_cover_prompt(self, title: str, synopsis: str, category: str, author_name: str = "北莽王庭的达延") -> str:
         """
         生成封面提示词 - 只包含书名和作者，无其他文字
         
@@ -132,6 +133,7 @@ class CoverGenerator:
             title: 小说标题
             synopsis: 小说简介
             category: 小说分类
+            author_name: 作者名，默认为"北莽王庭的达延"
             
         Returns:
             封面生成提示词
@@ -141,28 +143,46 @@ class CoverGenerator:
         
         # 构建提示词 - 完全避免提及任何平台名称
         prompt = f"""
-        小说封面设计，{style}，600×800像素，竖版比例，简约风格
+        小说封面设计，{style}，768×1024像素，竖版比例，简约风格
 
         【封面文字内容】：
         书名：《{title}》
-        作者：《作者：蓝枫雨》
+        作者：{author_name}
 
         【严格禁止的内容】：
-        - 禁止添加任何其他文字
-        - 禁止出现"番茄小说"、"番茄"等平台相关文字
-        - 禁止水印、标语、宣传语
-        - 禁止任何额外标注文字
+        - 绝对禁止添加任何其他文字
+        - 禁止出现"番茄小说"、"番茄"、"起点"、"晋江"等任何平台相关文字
+        - 禁止出现水印、标语、宣传语、广告语
+        - 禁止任何额外标注文字（如"完结"、"爆笑"等标签）
 
         【设计要求】：
-        - 封面设计精美，符合{category}类型风格
-        - 书名要醒目突出，使用清晰易读的字体
-        - 作者名放在适当位置
-        - 整体设计专业简洁
+        - 封面设计精美，符合东方仙侠类型风格特色
+        - 书名要醒目突出，使用清晰易读的艺术字体
+        - 作者名放在适当位置（通常右下角或下方）
+        - 整体设计专业简洁，具有商业出版品质
+        - 背景与文字形成良好对比，确保可读性
 
-        【文字要求】：
+        【色彩搭配】：
+        - 根据小说东方仙侠类型选择合适的色调
+        - 色彩要和谐统一，突出主题氛围
+        - 避免过于花哨或单调的色彩搭配
+
+        【图像元素】：
+        - 可以包含与小说类型相关的背景图案或装饰元素
+        - 图案要简约不抢夺文字主体地位
+        - 如有人物，要符合东方仙侠类型特征
+
+        【文字排版要求】：
         - 文字清晰可读但不要过于突兀
         - 文字与背景和谐统一
-        - 只能出现书名和作者
+        - 字体选择要与整体设计风格匹配
+        - 只能出现书名和作者名，无其他任何文字
+
+        【质量要求】：
+        - 高分辨率，清晰锐利
+        - 专业级设计水准
+        - 适合作为网络小说封面使用
+        - 视觉效果吸引目标读者群体
         """
         
         return prompt.strip()
