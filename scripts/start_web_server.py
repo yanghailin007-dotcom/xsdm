@@ -97,12 +97,20 @@ def main():
     # 等待端口释放
     time.sleep(1)
     
-    # 获取web_server的正确路径
-    web_server_path = current_dir.parent / "web" / "web_server.py"
+    # 获取web_server的正确路径（使用重构后的版本）
+    web_server_path = current_dir.parent / "web" / "web_server_refactored.py"
     
     if not web_server_path.exists():
         print(f"\n❌ 错误: 找不到 {web_server_path}")
-        return
+        # 如果重构版本不存在，尝试使用原版本
+        web_server_path = current_dir.parent / "web" / "web_server.py"
+        if not web_server_path.exists():
+            print(f"\n❌ 错误: 找不到 {web_server_path}")
+            return
+        else:
+            print(f"\n📋 使用原版本: {web_server_path}")
+    else:
+        print(f"\n📋 使用重构版本: {web_server_path}")
     
     # 启动 Web 服务
     print("\n启动 Web 服务...")

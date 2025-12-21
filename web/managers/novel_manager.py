@@ -1,0 +1,811 @@
+"""
+小说生成管理器
+"""
+import os
+import json
+import re
+import threading
+import uuid
+from datetime import datetime
+from pathlib import Path
+from typing import Dict, Any, List, Optional
+
+from web.config import logger, BASE_DIR, CREATIVE_IDEAS_FILE
+
+
+class NovelGenerationManager:
+    """小说生成管理器"""
+    
+    def __init__(self):
+        self.task_results = {}
+        self.task_progress = {}
+        self.novel_projects = {}
+        self.active_tasks = {}
+        self.task_threads = {}
+        logger.info("🔧 NovelGenerationManager 初始化开始")
+        self.load_existing_novels()
+        logger.info(f"🔧 NovelGenerationManager 初始化完成，加载了 {len(self.novel_projects)} 个小说项目")
+
+    def _update_task_status(self, task_id: str, status: str, progress: int, error: str = None):
+        """更新任务状态和进度"""
+        if task_id in self.task_results:
+            self.task_results[task_id].update({
+                "status": status,
+                "progress": progress,
+                "updated_at": datetime.now().isoformat()
+            })
+            if error:
+                self.task_results[task_id]["error"] = error
+
+            # 更新进度记录
+            self.task_progress[task_id] = {
+                "status": status,
+                "progress": progress,
+                "timestamp": datetime.now().isoformat()
+            }
+
+    def get_task_status(self, task_id: str) -> Dict[str, Any]:
+        """获取任务状态"""
+        if task_id not in self.task_results:
+            return {"error": "任务不存在"}
+        return self.task_results[task_id]
+
+    def get_task_progress(self, task_id: str) -> Dict[str, Any]:
+        """获取任务进度"""
+        return self.task_progress.get(task_id, {})
+
+    def get_all_tasks(self) -> List[Dict[str, Any]]:
+        """获取所有任务"""
+        return list(self.task_results.values())
+
+    def load_existing_novels(self):
+        """从文件系统加载已存在的小说项目"""
+        try:
+            # 导入路径配置
+            from src.config.path_config import path_config
+            
+            novel_dir = Path("小说项目")
+            if not novel_dir.exists():
+                logger.info("📁 小说项目目录不存在，将在首次生成时创建")
+                return
+
+            logger.info("🔍 扫描已存在的小说项目...")
+
+            # 遍历小说项目目录
+            for item in novel_dir.iterdir():
+                if item.is_file() and item.name.endswith("_项目信息.json"):
+                    # 提取小说标题
+                    title = item.name.replace("_项目信息.json", "")
+                    project_file = item
+
+                    try:
+                        with open(project_file, 'r', encoding='utf-8') as f:
+                            novel_data = json.load(f)
+
+                        # 使用新的路径配置系统获取章节目录
+                        paths = path_config.get_project_paths(title)
+                        chapter_dirs = [
+                            Path(paths["chapters_dir"]),  # 新路径：小说项目/小说名/chapters
+                            novel_dir / f"{title}_章节",   # 旧路径：小说项目/小说名_章节
+                            novel_dir / title / "chapters"  # 兼容路径：小说项目/小说名/chapters
+                        ]
+                        
+                        generated_chapters = {}
+                        actual_chapter_dir = None
+
+                        # 尝试从多个可能的章节目录加载
+                        for chapter_dir in chapter_dirs:
+                            if chapter_dir.exists():
+                                actual_chapter_dir = chapter_dir
+                                logger.info(f"📂 使用章节目录: {chapter_dir}")
+                                
+                                # 查找章节文件（支持.txt和.json格式）
+                                chapter_files = list(chapter_dir.glob("第*.txt")) + list(chapter_dir.glob("第*.json"))
+                                
+                                for chapter_file in chapter_files:
+                                    # 提取章节号
+                                    try:
+                                        chapter_num = int(re.search(r'第(\d+)章', chapter_file.name).group(1))
+                                        with open(chapter_file, 'r', encoding='utf-8') as cf:
+                                            file_content = cf.read()
+
+                                        # 尝试解析JSON文件并提取内容
+                                        try:
+                                            chapter_json = json.loads(file_content)
+                                            chapter_content = chapter_json.get("content", file_content)
+                                            chapter_title = chapter_json.get("chapter_title", chapter_file.stem.replace("第", "").replace("章", ""))
+                                            chapter_word_count = chapter_json.get("word_count", len(chapter_content))
+
+                                            # 添加调试日志
+                                            if "quality_assessment" in chapter_json:
+                                                logger.info(f"🔍 {title} 第{chapter_num}章 - JSON格式，包含质量评估数据")
+                                            else:
+                                                logger.info(f"📄 {title} 第{chapter_num}章 - JSON格式，无质量评估数据")
+                                        except json.JSONDecodeError:
+                                            # 如果不是JSON格式，直接使用原始内容
+                                            chapter_content = file_content
+                                            chapter_title = chapter_file.stem.replace("第", "").replace("章", "")
+                                            chapter_word_count = len(chapter_content)
+                                            logger.info(f"📝 {title} 第{chapter_num}章 - 纯文本格式")
+
+                                        generated_chapters[chapter_num] = {
+                                            "chapter_number": chapter_num,
+                                            "title": chapter_title,
+                                            "content": chapter_content,
+                                            "word_count": chapter_word_count,
+                                            "file_path": str(chapter_file)
+                                        }
+                                    except Exception as e:
+                                        logger.info(f"⚠️ 加载章节 {chapter_file.name} 失败: {e}")
+                                
+                                break  # 找到有效的章节目录后停止搜索
+
+                        # 更新小说数据
+                        novel_data["generated_chapters"] = generated_chapters
+                        novel_data["creation_time"] = novel_data.get("creation_time", datetime.now().isoformat())
+                        
+                        # 添加章节目录信息
+                        if actual_chapter_dir:
+                            novel_data["chapter_directory"] = str(actual_chapter_dir)
+
+                        # 加载质量数据
+                        quality_data = self.load_quality_data(title)
+                        novel_data["quality_data"] = quality_data
+
+                        # 添加到项目集合
+                        self.novel_projects[title] = novel_data
+                        logger.info(f"✅ 加载小说项目: {title} ({len(generated_chapters)} 章)")
+
+                    except Exception as e:
+                        logger.error(f"❌ 加载项目文件 {project_file} 失败: {e}")
+
+            logger.info(f"📚 总共加载了 {len(self.novel_projects)} 个小说项目")
+
+        except Exception as e:
+            logger.error(f"❌ 加载已存在小说项目失败: {e}")
+
+    def load_quality_data(self, title: str) -> Dict[str, Any]:
+        """加载小说的质量数据"""
+        quality_data = {
+            "character_development": {},
+            "world_state": {},
+            "events": [],
+            "writing_plans": {},
+            "relationships": {},
+            "chapter_failures": []
+        }
+
+        try:
+            # 导入路径配置
+            from src.config.path_config import path_config
+            
+            # 使用新的路径配置系统
+            paths = path_config.get_project_paths(title)
+            
+            # 基础路径 - 使用新的目录结构
+            novel_base = Path(paths["project_root"])
+            quality_base = Path("quality_data")  # 保留作为后备
+            chapter_base = Path("chapter_failures")
+
+            # 加载角色发展数据 - 优先从新路径加载
+            character_file = Path(paths.get("character_development", novel_base / "character_development" / f"{title}_character_development.json"))
+            if not character_file.exists():
+                character_file = quality_base / f"{title}_character_development.json"
+            
+            if character_file.exists():
+                with open(character_file, 'r', encoding='utf-8') as f:
+                    quality_data["character_development"] = json.load(f)
+
+            # 加载世界观数据 - 优先从新路径加载
+            world_file = Path(paths["world_state"])
+            if not world_file.exists():
+                world_file = quality_base / f"{title}_world_state.json"
+            
+            if world_file.exists():
+                with open(world_file, 'r', encoding='utf-8') as f:
+                    quality_data["world_state"] = json.load(f)
+
+            # 加载事件数据 - 优先从新路径加载
+            events_file = Path(paths.get("events", novel_base / "events" / f"{title}_events.json"))
+            if not events_file.exists():
+                events_file = quality_base / f"{title}_events.json"
+            
+            if events_file.exists():
+                with open(events_file, 'r', encoding='utf-8') as f:
+                    quality_data["events"] = json.load(f)
+
+            # 加载思维设定数据 - 新增
+            mindset_dir = Path(paths.get("mindset_dir", novel_base / "mindset"))
+            if mindset_dir.exists():
+                quality_data["mindset"] = {}
+                mindset_files = list(mindset_dir.glob(f"{title}_mindset_*.json"))
+                for mindset_file in mindset_files:
+                    with open(mindset_file, 'r', encoding='utf-8') as f:
+                        mindset_data = json.load(f)
+                        character_name = mindset_file.stem.replace(f"{title}_mindset_", "")
+                        quality_data["mindset"][character_name] = mindset_data
+
+            # 加载事件详细记录（JSONL格式）
+            events_jsonl = quality_base / "events" / f"{title}_events.jsonl"
+            if events_jsonl.exists():
+                events = []
+                with open(events_jsonl, 'r', encoding='utf-8') as f:
+                    for line in f:
+                        if line.strip():
+                            try:
+                                events.append(json.loads(line))
+                            except json.JSONDecodeError:
+                                continue
+                quality_data["detailed_events"] = events
+
+            # 加载写作计划 - 从新路径加载
+            writing_plans_dir = Path(paths.get("writing_plans_dir", novel_base / "planning" / "writing_plans"))
+            if writing_plans_dir.exists():
+                for plan_file in writing_plans_dir.glob(f"{title}*writing_plan*.json"):
+                    with open(plan_file, 'r', encoding='utf-8') as f:
+                        plan_data = json.load(f)
+                        # 确保plan_data是字典类型
+                        if isinstance(plan_data, dict):
+                            stage_writing_plan = plan_data.get("stage_writing_plan", {})
+                            # 确保stage_writing_plan也是字典类型
+                            if isinstance(stage_writing_plan, dict):
+                                stage_name = stage_writing_plan.get("stage_name", "unknown")
+                            else:
+                                stage_name = "unknown"
+                        else:
+                            stage_name = "unknown"
+                        quality_data["writing_plans"][stage_name] = plan_data
+
+            # 加载关系数据
+            relationships_file = Path(paths.get("relationships", novel_base / "relationships.json"))
+            if not relationships_file.exists():
+                relationships_file = quality_base / "relationships" / f"{title}_relationships.json"
+            
+            if relationships_file.exists():
+                with open(relationships_file, 'r', encoding='utf-8') as f:
+                    quality_data["relationships"] = json.load(f)
+
+            # 加载章节失败记录
+            failures_file = chapter_base / f"failures_{title}.json"
+            if failures_file.exists():
+                with open(failures_file, 'r', encoding='utf-8') as f:
+                    failures = json.load(f)
+                    # 按章节号组织失败记录
+                    chapter_failures = {}
+                    for failure in failures if isinstance(failures, list) else [failures]:
+                        chapter_num = failure.get("chapter_number", 0)
+                        if chapter_num not in chapter_failures:
+                            chapter_failures[chapter_num] = []
+                        chapter_failures[chapter_num].append(failure)
+                    quality_data["chapter_failures"] = chapter_failures
+
+            logger.info(f"📊 加载质量数据完成: {title}")
+
+        except Exception as e:
+            logger.error(f"❌ 加载质量数据失败 {title}: {e}")
+
+        return quality_data
+
+    def get_novel_projects(self) -> List[Dict[str, Any]]:
+        """获取所有小说项目"""
+        projects = []
+        for title, data in self.novel_projects.items():
+            generated_chapters = data.get("generated_chapters", {})
+            completed_chapters = len(generated_chapters)
+            
+            # 计算总字数
+            total_word_count = 0
+            for chapter_num, chapter_data in generated_chapters.items():
+                if isinstance(chapter_data, dict):
+                    total_word_count += chapter_data.get("word_count", 0)
+                else:
+                    total_word_count += len(str(chapter_data))
+            
+            # 计算平均评分
+            total_score = 0
+            scored_chapters = 0
+            for chapter_num, chapter_data in generated_chapters.items():
+                if isinstance(chapter_data, dict):
+                    quality_assessment = chapter_data.get("quality_assessment", {})
+                    if quality_assessment and "overall_score" in quality_assessment:
+                        total_score += quality_assessment["overall_score"]
+                        scored_chapters += 1
+            
+            average_score = total_score / scored_chapters if scored_chapters > 0 else 0
+            
+            # 获取目标章节数，优先从数据中获取，否则使用已生成章节数
+            target_chapters = (
+                data.get("current_progress", {}).get("total_chapters") or
+                data.get("total_chapters") or
+                completed_chapters
+            )
+            
+            projects.append({
+                "title": title,
+                "total_chapters": int(target_chapters),
+                "completed_chapters": completed_chapters,
+                "word_count": total_word_count,
+                "average_score": round(average_score, 1),
+                "created_at": data.get("creation_time", datetime.now().isoformat()),
+                "last_updated": data.get("current_progress", {}).get("last_updated", ""),
+                "status": "completed" if completed_chapters >= target_chapters and target_chapters > 0 else "generating"
+            })
+        return sorted(projects, key=lambda x: x["last_updated"], reverse=True)
+
+    def get_novel_detail(self, title: str) -> Optional[Dict[str, Any]]:
+        """获取小说详情"""
+        return self.novel_projects.get(title)
+
+    def get_chapter_detail(self, title: str, chapter_num: int) -> Optional[Dict[str, Any]]:
+        """获取章节详情"""
+        novel_data = self.novel_projects.get(title)
+        if not novel_data:
+            return None
+        return novel_data.get("generated_chapters", {}).get(chapter_num)
+
+    def get_chapter_quality_data(self, title: str, chapter_num: int) -> Dict[str, Any]:
+        """获取章节质量数据"""
+        quality_data = {
+            "character_development": {},
+            "world_state": {},
+            "events": [],
+            "generation_context": {},
+            "chapter_failures": [],
+            "writing_plan": {},
+            "character_relationships": {}
+        }
+
+        try:
+            # 从项目的质量数据中提取章节相关信息
+            novel_data = self.novel_projects.get(title)
+            if not novel_data or "quality_data" not in novel_data:
+                return quality_data
+
+            project_quality = novel_data["quality_data"]
+
+            # 获取角色发展数据（过滤到当前章节）
+            character_data = project_quality.get("character_development", {})
+            if character_data and isinstance(character_data, dict):
+                # 提取在当前章节活跃的角色
+                active_characters = {}
+                for char_name, char_info in character_data.items():
+                    if isinstance(char_info, dict) and char_info.get("first_appearance_chapter", 0) <= chapter_num <= char_info.get("last_updated_chapter", 0):
+                        active_characters[char_name] = char_info
+                quality_data["character_development"] = active_characters
+
+            # 获取世界观数据
+            quality_data["world_state"] = project_quality.get("world_state", {})
+
+            # 获取事件数据（过滤到当前章节）
+            all_events = project_quality.get("detailed_events", [])
+            if isinstance(all_events, list):
+                chapter_events = [event for event in all_events if isinstance(event, dict) and event.get("chapter_number") == chapter_num]
+            else:
+                chapter_events = []
+            quality_data["events"] = chapter_events
+
+            # 获取章节失败记录
+            chapter_failures_data = project_quality.get("chapter_failures", {})
+            if isinstance(chapter_failures_data, dict):
+                chapter_failures = chapter_failures_data.get(chapter_num, [])
+                if not isinstance(chapter_failures, list):
+                    chapter_failures = []
+            else:
+                chapter_failures = []
+            quality_data["chapter_failures"] = chapter_failures
+
+            # 获取当前章节的写作计划
+            writing_plans = project_quality.get("writing_plans", {})
+            for stage_name, plan_data in writing_plans.items():
+                # 确保plan_data是字典类型
+                if not isinstance(plan_data, dict):
+                    continue
+                
+                stage_writing_plan = plan_data.get("stage_writing_plan", {})
+                # 确保stage_writing_plan也是字典类型
+                if not isinstance(stage_writing_plan, dict):
+                    continue
+                    
+                chapter_range = stage_writing_plan.get("chapter_range", "")
+                if self._is_chapter_in_range(chapter_num, chapter_range):
+                    quality_data["writing_plan"] = plan_data
+                    break
+
+            # 获取关系数据
+            quality_data["character_relationships"] = project_quality.get("relationships", {})
+
+        except Exception as e:
+            logger.error(f"❌ 获取章节质量数据失败 {title} 第{chapter_num}章: {e}")
+
+        return quality_data
+
+    def _is_chapter_in_range(self, chapter_num: int, chapter_range: str) -> bool:
+        """检查章节是否在范围内"""
+        try:
+            if not chapter_range or "-" not in chapter_range:
+                return False
+
+            start_str, end_str = chapter_range.replace(" ", "").split("-")
+            start = int(start_str)
+            end = int(end_str)
+            return start <= chapter_num <= end
+        except:
+            return False
+
+    def export_novel(self, title: str, format_type: str = "json") -> Dict[str, Any]:
+        """导出小说"""
+        novel_data = self.novel_projects.get(title)
+        if not novel_data:
+            return {"error": "小说不存在"}
+
+        if format_type == "json":
+            return novel_data
+        elif format_type == "text":
+            # 生成文本格式
+            text_content = []
+            text_content.append(f"# {novel_data.get('novel_title', '未命名')}")
+            text_content.append(f"## 简介\n{novel_data.get('story_synopsis', '')}")
+            text_content.append("---\n")
+
+            chapters = novel_data.get("generated_chapters", {})
+            for chapter_num in sorted(chapters.keys()):
+                chapter = chapters[chapter_num]
+                text_content.append(f"## {chapter.get('outline', {}).get('章节标题', f'第{chapter_num}章')}")
+                text_content.append(chapter.get('content', ''))
+                text_content.append("\n---\n")
+
+            return {
+                "content": "\n".join(text_content),
+                "title": novel_data.get('novel_title', '未命名'),
+                "format": "text"
+            }
+        else:
+            return {"error": "不支持的导出格式"}
+
+    def start_generation(self, config: Dict[str, Any]) -> str:
+        """启动小说生成任务"""
+        task_id = str(uuid.uuid4())
+        
+        # 初始化任务状态
+        self.task_results[task_id] = {
+            "task_id": task_id,
+            "status": "initializing",
+            "progress": 0,
+            "created_at": datetime.now().isoformat(),
+            "updated_at": datetime.now().isoformat(),
+            "config": config,
+            "title": config.get("title", "未命名小说"),
+            "synopsis": config.get("synopsis", ""),
+            "total_chapters": config.get("total_chapters", 200)
+        }
+        
+        self.task_progress[task_id] = {
+            "status": "initializing",
+            "progress": 0,
+            "timestamp": datetime.now().isoformat()
+        }
+        
+        # 启动后台任务
+        def run_generation():
+            try:
+                self._run_generation_task(task_id, config)
+            except Exception as e:
+                logger.error(f"生成任务执行失败: {e}")
+                self._update_task_status(task_id, "failed", 0, str(e))
+        
+        thread = threading.Thread(target=run_generation)
+        thread.daemon = True
+        thread.start()
+        
+        self.task_threads[task_id] = thread
+        
+        return task_id
+
+    def _run_generation_task(self, task_id: str, config: Dict[str, Any]):
+        """执行生成任务"""
+        try:
+            self._update_task_status(task_id, "generating", 10)
+            
+            logger.info(f"任务 {task_id}: 🚀 开始实际小说生成")
+            logger.info(f"任务 {task_id}: 📋 配置参数: {json.dumps(config, ensure_ascii=False, indent=2)}")
+            
+            # 检查创意种子
+            creative_seed = config.get("creative_seed", {})
+            if not creative_seed:
+                logger.error(f"任务 {task_id}: ❌ 创意种子为空")
+                self._update_task_status(task_id, "failed", 0, "创意种子为空")
+                return
+            
+            logger.info(f"任务 {task_id}: ✅ 创意种子检查通过")
+            logger.info(f"任务 {task_id}: 📄 创意种子类型: {type(creative_seed)}")
+            logger.info(f"任务 {task_id}: 📄 创意种子大小: {len(str(creative_seed))} 字符")
+            
+            # 初始化NovelGenerator
+            logger.info(f"任务 {task_id}: 🔧 初始化 NovelGenerator...")
+            try:
+                from src.core.NovelGenerator import NovelGenerator
+                
+                # 导入完整配置
+                from config.config import CONFIG
+                
+                # 构建生成器配置 - 使用完整的CONFIG而不是简化的配置
+                generator_config = CONFIG.copy()
+                # 更新一些默认值
+                generator_config["defaults"]["total_chapters"] = config.get("total_chapters", 200)
+                generator_config["defaults"]["chapters_per_batch"] = 3
+                
+                logger.info(f"任务 {task_id}: 📋 生成器配置: {json.dumps(generator_config, ensure_ascii=False, indent=2)}")
+                
+                # 创建生成器实例
+                novel_generator = NovelGenerator(generator_config)
+                logger.info(f"任务 {task_id}: ✅ NovelGenerator 实例创建成功")
+                
+            except Exception as e:
+                logger.error(f"任务 {task_id}: ❌ 创建 NovelGenerator 失败: {e}")
+                logger.error(f"任务 {task_id}: 📋 错误详情: {type(e).__name__}: {str(e)}")
+                import traceback
+                traceback.print_exc()
+                self._update_task_status(task_id, "failed", 0, f"创建生成器失败: {str(e)}")
+                return
+            
+            total_chapters = config.get("total_chapters", 200)
+            logger.info(f"任务 {task_id}: 📚 开始生成 {total_chapters} 章")
+            
+            # 更新进度 - 修复：只在真正完成阶段时更新进度
+            logger.info(f"任务 {task_id}: 🔧 初始化生成器 (20%)")
+            self._update_task_status(task_id, "generating", 20)
+            
+            logger.info(f"任务 {task_id}: 📋 分析创意种子 (40%)")
+            self._update_task_status(task_id, "generating", 40)
+            
+            logger.info(f"任务 {task_id}: 📝 生成方案 (60%)")
+            self._update_task_status(task_id, "generating", 60)
+            
+            logger.info(f"任务 {task_id}: 🚀 调用 full_auto_generation 方法...")
+            
+            # 在实际生成过程中动态更新进度
+            logger.info(f"任务 {task_id}: 📝 开始实际章节生成 (70%)")
+            self._update_task_status(task_id, "generating", 70)
+            
+            try:
+                success = novel_generator.full_auto_generation(creative_seed, total_chapters)
+                logger.info(f"任务 {task_id}: ✅ full_auto_generation 完成，返回结果: {success}")
+                
+                if success:
+                    logger.info(f"任务 {task_id}: 🎉 小说生成成功！")
+                    self._update_task_status(task_id, "completed", 100)
+                    
+                    # 重新加载项目数据以获取最新状态
+                    logger.info(f"任务 {task_id}: 🔍 重新加载项目数据...")
+                    try:
+                        self.load_existing_novels()
+                        logger.info(f"任务 {task_id}: ✅ 项目数据重新加载完成")
+                        
+                        # 检查是否真的生成了文件
+                        self._check_generated_files(task_id, config)
+                        
+                    except Exception as e:
+                        logger.info(f"任务 {task_id}: ⚠️ 重新加载项目数据失败: {e}")
+                
+                else:
+                    logger.error(f"任务 {task_id}: ❌ 小说生成失败")
+                    self._update_task_status(task_id, "failed", 0, "小说生成返回 False")
+                    
+            except Exception as e:
+                logger.error(f"任务 {task_id}: ❌ full_auto_generation 执行异常: {e}")
+                logger.error(f"任务 {task_id}: 📋 错误类型: {type(e).__name__}")
+                logger.error(f"任务 {task_id}: 📋 错误详情: {str(e)}")
+                import traceback
+                traceback.print_exc()
+                self._update_task_status(task_id, "failed", 0, f"生成过程异常: {str(e)}")
+            
+        except Exception as e:
+            logger.error(f"任务 {task_id}: 🔥 生成任务发生未捕获的异常: {e}")
+            import traceback
+            traceback.print_exc()
+            self._update_task_status(task_id, "failed", 0, f"未捕获的异常: {str(e)}")
+
+    def _check_generated_files(self, task_id: str, config: Dict[str, Any]):
+        """检查是否真的生成了小说文件"""
+        try:
+            logger.info(f"任务 {task_id}: 🔍 检查生成的小说文件...")
+            
+            # 获取小说标题（从配置或创意种子）
+            novel_title = config.get("title") or config.get("creative_seed", {}).get("novelTitle", "未命名小说")
+            safe_title = re.sub(r'[\\/*?:"<>|]', "_", novel_title)
+            
+            # 检查项目目录
+            project_dir = Path("小说项目")
+            if not project_dir.exists():
+                logger.info(f"任务 {task_id}: ⚠️ 小说项目目录不存在: {project_dir}")
+                return False
+            
+            # 检查具体的小说文件 - 优先使用新路径
+            novel_dir = project_dir / safe_title / "chapters"
+            if not novel_dir.exists():
+                novel_dir = project_dir / f"{safe_title}_章节"
+            
+            if novel_dir.exists():
+                chapter_files = list(novel_dir.glob("*.txt"))
+                logger.info(f"任务 {task_id}: 📚 找到 {len(chapter_files)} 个章节文件")
+                
+                # 检查文件内容是否为空
+                empty_files = 0
+                for file_path in chapter_files:
+                    if file_path.stat().st_size == 0:
+                        empty_files += 1
+                
+                if empty_files > 0:
+                    logger.info(f"任务 {task_id}: ⚠️ 发现 {empty_files} 个空章节文件")
+                
+                # 统计生成的总字数
+                total_words = 0
+                for file_path in chapter_files:
+                    try:
+                        with open(file_path, 'r', encoding='utf-8') as f:
+                            content = f.read()
+                            # 尝试解析JSON格式
+                            try:
+                                chapter_data = json.loads(content)
+                                content = chapter_data.get("content", content)
+                            except json.JSONDecodeError:
+                                # 如果不是JSON格式，使用原始文本
+                                pass
+                            total_words += len(content)
+                    except Exception as e:
+                        logger.error(f"任务 {task_id}: 读取章节文件失败: {e}")
+                
+                logger.info(f"任务 {task_id}: 📊 生成总字数: {total_words} 字")
+                logger.info(f"任务 {task_id}: ✅ 文件检查完成")
+                return True
+                
+            else:
+                logger.info(f"任务 {task_id}: ⚠️ 章节目录不存在: {novel_dir}")
+                return False
+                
+        except Exception as e:
+            logger.error(f"任务 {task_id}: 检查生成文件时出错: {e}")
+            return False
+
+    def _run_resume_task(self, task_id: str, title: str, from_chapter: int, additional_chapters: int):
+        """执行续写任务"""
+        try:
+            logger.info(f"任务 {task_id}: 🚀 开始续写小说: {title}")
+            logger.info(f"任务 {task_id}: 从第{from_chapter}章开始，续写{additional_chapters}章")
+            
+            self._update_task_status(task_id, "loading_data", 10)
+            
+            # 加载现有小说数据
+            novel_detail = self.get_novel_detail(title)
+            if not novel_detail:
+                logger.error(f"任务 {task_id}: ❌ 无法加载小说数据: {title}")
+                self._update_task_status(task_id, "failed", 0, f"无法加载小说数据: {title}")
+                return
+            
+            logger.info(f"任务 {task_id}: ✅ 成功加载小说数据")
+            self._update_task_status(task_id, "initializing_generator", 20)
+            
+            # 初始化NovelGenerator
+            try:
+                from src.core.NovelGenerator import NovelGenerator
+                from config.config import CONFIG
+                
+                # 构建生成器配置
+                generator_config = CONFIG.copy()
+                generator_config["defaults"]["total_chapters"] = from_chapter + additional_chapters
+                generator_config["defaults"]["chapters_per_batch"] = 3
+                
+                # 创建生成器实例
+                novel_generator = NovelGenerator(generator_config)
+                logger.info(f"任务 {task_id}: ✅ NovelGenerator 初始化成功")
+                
+            except Exception as e:
+                logger.error(f"任务 {task_id}: ❌ 创建 NovelGenerator 失败: {e}")
+                self._update_task_status(task_id, "failed", 0, f"创建生成器失败: {str(e)}")
+                return
+            
+            self._update_task_status(task_id, "preparing_resume", 30)
+            
+            # 准备续写数据
+            try:
+                # 设置小说数据到生成器
+                novel_generator.novel_data = novel_detail
+                novel_generator.novel_data["is_resuming"] = True
+                novel_generator.novel_data["resume_data"] = {
+                    "from_chapter": from_chapter,
+                    "additional_chapters": additional_chapters,
+                    "total_target_chapters": from_chapter + additional_chapters
+                }
+                
+                # 更新进度信息
+                novel_generator.novel_data["current_progress"]["total_chapters"] = from_chapter + additional_chapters
+                novel_generator.novel_data["current_progress"]["stage"] = "续写生成"
+                
+                logger.info(f"任务 {task_id}: ✅ 续写数据准备完成")
+                
+            except Exception as e:
+                logger.error(f"任务 {task_id}: ❌ 准备续写数据失败: {e}")
+                self._update_task_status(task_id, "failed", 0, f"准备续写数据失败: {str(e)}")
+                return
+            
+            self._update_task_status(task_id, "generating", 50)
+            
+            # 执行续写生成
+            try:
+                logger.info(f"任务 {task_id}: 📝 开始续写章节生成...")
+                
+                # 计算实际需要生成的章节范围
+                end_chapter = from_chapter + additional_chapters - 1
+                
+                # 批量生成章节
+                success = novel_generator.generate_chapters_batch(from_chapter, end_chapter)
+                
+                if success:
+                    logger.info(f"任务 {task_id}: ✅ 续写生成完成")
+                    self._update_task_status(task_id, "completed", 100)
+                    
+                    # 重新加载项目数据以获取最新状态
+                    try:
+                        self.load_existing_novels()
+                        logger.info(f"任务 {task_id}: ✅ 项目数据重新加载完成")
+                    except Exception as e:
+                        logger.info(f"任务 {task_id}: ⚠️ 重新加载项目数据失败: {e}")
+                        
+                else:
+                    logger.error(f"任务 {task_id}: ❌ 续写生成失败")
+                    self._update_task_status(task_id, "failed", 0, "续写生成返回失败")
+                    
+            except Exception as e:
+                logger.error(f"任务 {task_id}: ❌ 续写生成过程异常: {e}")
+                import traceback
+                traceback.print_exc()
+                self._update_task_status(task_id, "failed", 0, f"续写生成异常: {str(e)}")
+                
+        except Exception as e:
+            logger.error(f"任务 {task_id}: 🔥 续写任务发生未捕获的异常: {e}")
+            import traceback
+            traceback.print_exc()
+            self._update_task_status(task_id, "failed", 0, f"未捕获的异常: {str(e)}")
+
+    def start_resume_generation(self, title: str, from_chapter: int, additional_chapters: int) -> str:
+        """启动续写生成任务"""
+        task_id = str(uuid.uuid4())
+        
+        # 初始化续写任务
+        resume_task = {
+            "task_id": task_id,
+            "status": "initializing",
+            "progress": 0,
+            "created_at": datetime.now().isoformat(),
+            "updated_at": datetime.now().isoformat(),
+            "config": {
+                "title": title,
+                "from_chapter": from_chapter,
+                "additional_chapters": additional_chapters,
+                "total_chapters": from_chapter + additional_chapters,
+                "novel_data": self.get_novel_detail(title)
+            }
+        }
+        
+        self.task_results[task_id] = resume_task
+        self.task_progress[task_id] = {
+            "status": "initializing",
+            "progress": 0,
+            "timestamp": datetime.now().isoformat()
+        }
+        
+        # 启动后台续写任务
+        def run_resume_generation():
+            try:
+                self._run_resume_task(task_id, title, from_chapter, additional_chapters)
+            except Exception as e:
+                logger.error(f"续写任务执行失败: {e}")
+                self._update_task_status(task_id, "failed", 0, str(e))
+        
+        thread = threading.Thread(target=run_resume_generation)
+        thread.daemon = True
+        thread.start()
+        
+        self.task_threads[task_id] = thread
+        
+        return task_id

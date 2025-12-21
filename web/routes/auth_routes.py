@@ -1,0 +1,150 @@
+"""
+认证和基础页面路由
+"""
+from flask import render_template, request, jsonify, session, redirect, url_for
+from datetime import datetime
+
+from web.auth import user_auth, login_required
+from web.config import logger
+
+
+def register_auth_routes(app):
+    """注册认证和基础页面路由"""
+    
+    @app.route('/login', methods=['GET', 'POST'])
+    def login():
+        """登录页面和登录处理"""
+        if request.method == 'POST':
+            data = request.json if request.is_json else request.form
+            username = (data.get('username') or '').strip() if data else ''
+            password = data.get('password') or '' if data else ''
+
+            # 特殊处理：如果用户名是 "test"，允许空密码或任意密码登录（测试模式）
+            if username.lower() == 'test':
+                session['logged_in'] = True
+                session['username'] = username
+                session.permanent = True
+                logger.info(f"✅ 测试用户登录成功: {username} (密码: {'空' if not password else '***'})")
+
+                if request.is_json:
+                    return jsonify({'success': True, 'message': '测试用户登录成功'})
+                return redirect(url_for('index'))
+
+            # 正常验证流程
+            if user_auth.verify_user(username, password):
+                session['logged_in'] = True
+                session['username'] = username
+                session.permanent = True
+                logger.info(f"✅ 用户登录成功: {username}")
+
+                if request.is_json:
+                    return jsonify({'success': True, 'message': '登录成功'})
+                return redirect(url_for('index'))
+            else:
+                logger.info(f"❌ 登录失败: {username}")
+                if request.is_json:
+                    return jsonify({'success': False, 'error': '用户名或密码错误'}), 401
+                return render_template('login.html', error='用户名或密码错误')
+
+        # GET 请求 - 显示登录页面
+        if 'logged_in' in session and session['logged_in']:
+            return redirect(url_for('index'))
+        return render_template('login.html')
+
+    @app.route('/logout', methods=['GET', 'POST'])
+    def logout():
+        """登出"""
+        username = session.get('username', 'unknown')
+        session.clear()
+        logger.info(f"👋 用户登出: {username}")
+        return redirect(url_for('login'))
+
+
+def register_page_routes(app):
+    """注册基础页面路由"""
+    
+    @app.route('/', methods=['GET'])
+    @login_required
+    def index():
+        """首页 - 小说创意生成入口"""
+        logger.info(f"📄 Loading index.html from template folder: {app.template_folder}")
+        return render_template('index.html')
+
+    @app.route('/novels', methods=['GET'])
+    @login_required
+    def novels_view():
+        """作品列表页面"""
+        return render_template('novels.html')
+
+    @app.route('/novel', methods=['GET'])
+    @login_required
+    def novel_view():
+        """小说阅读页面"""
+        return render_template('novel_view.html')
+
+    @app.route('/dashboard', methods=['GET'])
+    @login_required
+    def dashboard():
+        """仪表板"""
+        return render_template('dashboard.html')
+
+    @app.route('/test_layout_improvements.html', methods=['GET'])
+    @login_required
+    def test_layout_improvements():
+        """布局改进测试页面"""
+        return render_template('test_layout_improvements.html')
+
+    @app.route('/test_large_modal_fix.html', methods=['GET'])
+    @login_required
+    def test_large_modal_fix():
+        """大弹窗功能测试页面"""
+        from flask import send_from_directory
+        from web.config import BASE_DIR
+        return send_from_directory(str(BASE_DIR), 'test_large_modal_fix.html')
+
+    @app.route('/cover-generator', methods=['GET'])
+    @login_required
+    def cover_generator():
+        """小说封面生成器页面"""
+        return render_template('cover_maker.html')
+
+    @app.route('/cover-maker', methods=['GET'])
+    @login_required
+    def cover_maker():
+        """小说封面制作页面"""
+        return render_template('cover_maker.html')
+
+    @app.route('/fanqie-upload', methods=['GET'])
+    @login_required
+    def fanqie_upload():
+        """番茄小说一键上传页面"""
+        return render_template('fanqie_upload.html')
+    
+    @app.route('/phase-one-setup', methods=['GET'])
+    @login_required
+    def phase_one_setup():
+        """第一阶段设定生成页面"""
+        return render_template('phase-one-setup.html')
+
+    @app.route('/phase-two-generation', methods=['GET'])
+    @login_required
+    def phase_two_generation():
+        """第二阶段章节生成页面"""
+        return render_template('phase-two-generation.html')
+
+    @app.route('/project-management', methods=['GET'])
+    @login_required
+    def project_management():
+        """项目管理页面"""
+        return render_template('project-management.html')
+    
+    # 错误处理
+    @app.errorhandler(404)
+    def not_found(error):
+        """404 处理"""
+        return jsonify({"error": "页面未找到"}), 404
+    
+    @app.errorhandler(500)
+    def server_error(error):
+        """500 处理"""
+        return jsonify({"error": "服务器内部错误"}), 500

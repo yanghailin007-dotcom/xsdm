@@ -79,15 +79,8 @@ class UserAuth:
 
 user_auth = UserAuth()
 
-# 登录装饰器
-def login_required(f):
-    from functools import wraps
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if 'logged_in' not in session:
-            return redirect(url_for('login'))
-        return f(*args, **kwargs)
-    return decorated_function
+# 导入登录装饰器
+from web.auth import login_required
 
 class NovelGenerationManager:
     """小说生成管理器"""
@@ -1821,38 +1814,32 @@ def delete_creative_idea(idea_id):
 # ==================== 页面路由 ====================
 
 @app.route('/', methods=['GET'])
-@login_required
 def index():
     """首页 - 小说创意生成入口"""
     logger.info(f"📄 Loading index.html from template folder: {app.template_folder}")
     return render_template('index.html')
 
 @app.route('/novels', methods=['GET'])
-@login_required
 def novels_view():
     """作品列表页面"""
     return render_template('novels.html')
 
 @app.route('/novel', methods=['GET'])
-@login_required
 def novel_view():
     """小说阅读页面"""
     return render_template('novel_view.html')
 
 @app.route('/dashboard', methods=['GET'])
-@login_required
 def dashboard():
     """仪表板"""
     return render_template('dashboard.html')
 
 @app.route('/test_layout_improvements.html', methods=['GET'])
-@login_required
 def test_layout_improvements():
     """布局改进测试页面"""
     return send_from_directory('.', 'test_layout_improvements.html')
 
 @app.route('/test_large_modal_fix.html', methods=['GET'])
-@login_required
 def test_large_modal_fix():
     """大弹窗功能测试页面"""
     return send_from_directory(str(BASE_DIR), 'test_large_modal_fix.html')
@@ -1860,19 +1847,16 @@ def test_large_modal_fix():
 # ==================== 封面生成器路由 ====================
 
 @app.route('/cover-generator', methods=['GET'])
-@login_required
 def cover_generator():
     """小说封面生成器页面"""
     return render_template('cover_maker.html')
 
 @app.route('/cover-maker', methods=['GET'])
-@login_required
 def cover_maker():
     """小说封面制作页面"""
     return render_template('cover_maker.html')
 
 @app.route('/fanqie-upload', methods=['GET'])
-@login_required
 def fanqie_upload():
     """番茄小说一键上传页面"""
     return render_template('fanqie_upload.html')

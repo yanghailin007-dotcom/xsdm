@@ -700,7 +700,9 @@
         <div class="navbar-content">
             <div class="navbar-title">🏠 小说生成系统</div>
             <div class="navbar-actions">
-                <button class="btn btn-primary btn-small" onclick="location.href='/novels'">📚 查看生成</button>
+                <button class="btn btn-primary btn-small" onclick="location.href='/phase-one-setup'">🎨 两阶段生成</button>
+                <button class="btn btn-secondary btn-small" onclick="location.href='/project-management'">📂 项目管理</button>
+                <button class="btn btn-secondary btn-small" onclick="location.href='/novels'">📚 查看生成</button>
                 <button class="btn btn-secondary btn-small" onclick="location.href='/cover-maker'">🎨 封面制作</button>
                 <button class="btn btn-warning btn-small" onclick="location.href='/fanqie-upload'">🍅 番茄上传</button>
                 <button class="btn btn-secondary btn-small" onclick="location.href='/dashboard'">📊 仪表板</button>
@@ -746,7 +748,21 @@
             </div>
             
             <div class="quick-actions-grid">
-                <div class="action-card primary" onclick="scrollToGenerationForm()">
+                <div class="action-card primary" onclick="location.href='/phase-one-setup'">
+                    <div class="action-icon">🎨</div>
+                    <h3>两阶段生成</h3>
+                    <p>使用新的两阶段模式，先完善设定再生成内容，质量更可控</p>
+                    <div class="action-btn">开始两阶段生成 →</div>
+                </div>
+                
+                <div class="action-card secondary" onclick="location.href='/project-management'">
+                    <div class="action-icon">📂</div>
+                    <h3>项目管理</h3>
+                    <p>管理两阶段生成的项目，查看进度和继续生成</p>
+                    <div class="action-btn">管理项目 →</div>
+                </div>
+                
+                <div class="action-card secondary" onclick="scrollToGenerationForm()">
                     <div class="action-icon">✨</div>
                     <h3>自定义创作</h3>
                     <p>输入您自己的创意和设定，开始全新的小说创作</p>

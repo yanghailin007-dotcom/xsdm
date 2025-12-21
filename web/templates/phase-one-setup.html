@@ -1,0 +1,1286 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>两阶段小说生成 - 第一阶段设定生成</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        /* 第一阶段页面专用样式 */
+        .phase-one-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .phase-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            border-radius: 16px;
+            margin-bottom: 30px;
+            text-align: center;
+            box-shadow: 0 8px 32px rgba(102, 126, 234, 0.3);
+        }
+
+        .phase-header h1 {
+            margin: 0 0 16px 0;
+            font-size: 2.5rem;
+            font-weight: 800;
+        }
+
+        .phase-header p {
+            margin: 0;
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .phase-progress {
+            display: flex;
+            justify-content: center;
+            margin: 30px 0;
+            gap: 20px;
+        }
+
+        .phase-step {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 20px;
+            border-radius: 25px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .phase-step.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .phase-step.completed {
+            background: #10b981;
+            color: white;
+        }
+
+        .phase-step.pending {
+            background: #f3f4f6;
+            color: #6b7280;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        @media (max-width: 968px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .content-section {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .section-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 24px;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #1f2937;
+        }
+
+        .section-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            color: white;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 14px 16px;
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+            font-size: 15px;
+            background: white;
+            color: #1f2937;
+            transition: all 0.2s;
+            box-sizing: border-box;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 120px;
+            line-height: 1.6;
+        }
+
+        .config-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 16px;
+            margin-top: 30px;
+        }
+
+        .btn {
+            padding: 14px 28px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #f3f4f6;
+            color: #374151;
+            border: 2px solid #e5e7eb;
+        }
+
+        .btn-secondary:hover {
+            background: #e5e7eb;
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+        }
+
+        .btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+        }
+
+        .progress-section {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+            display: none;
+        }
+
+        .progress-section.active {
+            display: block;
+        }
+
+        .progress-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .progress-bar-container {
+            width: 100%;
+            height: 12px;
+            background: #f3f4f6;
+            border-radius: 6px;
+            overflow: hidden;
+            margin-bottom: 16px;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            border-radius: 6px;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .progress-steps {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-top: 20px;
+        }
+
+        .progress-step {
+            padding: 16px;
+            border-radius: 8px;
+            border: 2px solid #e5e7eb;
+            background: #f9fafb;
+            transition: all 0.2s;
+        }
+
+        .progress-step.active {
+            border-color: #667eea;
+            background: rgba(102, 126, 234, 0.05);
+        }
+
+        .progress-step.completed {
+            border-color: #10b981;
+            background: rgba(16, 185, 129, 0.05);
+        }
+
+        .results-section {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            display: none;
+        }
+
+        .results-section.active {
+            display: block;
+        }
+
+        .result-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 24px;
+            border-bottom: 2px solid #e5e7eb;
+        }
+
+        .result-tab {
+            padding: 12px 20px;
+            background: none;
+            border: none;
+            border-bottom: 3px solid transparent;
+            font-weight: 600;
+            color: #6b7280;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .result-tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+
+        .result-content {
+            display: none;
+        }
+
+        .result-content.active {
+            display: block;
+        }
+
+        .result-item {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 16px;
+        }
+
+        .result-item h4 {
+            margin: 0 0 12px 0;
+            color: #1f2937;
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .result-item p {
+            margin: 0;
+            color: #4b5563;
+            line-height: 1.6;
+        }
+
+        .status-message {
+            padding: 16px;
+            border-radius: 8px;
+            margin-top: 20px;
+            display: none;
+            font-weight: 600;
+        }
+
+        .status-message.success {
+            background: #d1fae5;
+            color: #065f46;
+            border: 1px solid #10b981;
+            display: block;
+        }
+
+        .status-message.error {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #ef4444;
+            display: block;
+        }
+
+        .status-message.info {
+            background: #dbeafe;
+            color: #1e40af;
+            border: 1px solid #3b82f6;
+            display: block;
+        }
+
+        /* 创意库选择区域样式 */
+        .creative-library-section {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.05) 0%, rgba(255, 255, 255, 0.95) 100%);
+            border: 2px solid rgba(16, 185, 129, 0.2);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+
+        .creative-library-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .creative-library-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #065f46;
+        }
+
+        .creative-idea-preview {
+            background: white;
+            border: 1px solid #d1fae5;
+            border-radius: 8px;
+            padding: 16px;
+            margin-top: 16px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .phase-header h1 {
+                font-size: 2rem;
+            }
+            
+            .config-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .action-buttons {
+                flex-direction: column;
+            }
+            
+            .btn {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 顶部导航 -->
+    <nav class="navbar">
+        <div class="navbar-content">
+            <div class="navbar-title">
+                <button class="btn btn-secondary btn-small" onclick="location.href='/'" style="margin-right: 12px;">
+                    🏠 返回首页
+                </button>
+                📋 第一阶段：设定生成
+            </div>
+            <div class="navbar-actions">
+                <button class="btn btn-secondary btn-small" onclick="location.href='/project-management'">📂 项目管理</button>
+                <button class="btn btn-secondary btn-small" onclick="location.href='/novels'">📚 查看生成</button>
+                <button class="btn btn-danger btn-small" onclick="logout()">退出登录</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 主容器 -->
+    <div class="phase-one-container">
+        <!-- 页面头部 -->
+        <div class="phase-header">
+            <h1>🎨 第一阶段：设定生成</h1>
+            <p>完善小说的世界观、角色设定和故事大纲，为高质量内容生成奠定基础</p>
+        </div>
+
+        <!-- 进度指示器 -->
+        <div class="phase-progress">
+            <div class="phase-step active" id="step-input">
+                <span>📝</span>
+                <span>输入创意</span>
+            </div>
+            <div class="phase-step pending" id="step-generation">
+                <span>⚙️</span>
+                <span>生成设定</span>
+            </div>
+            <div class="phase-step pending" id="step-preview">
+                <span>👁️</span>
+                <span>预览审核</span>
+            </div>
+            <div class="phase-step pending" id="step-complete">
+                <span>✅</span>
+                <span>完成继续</span>
+            </div>
+        </div>
+
+        <!-- 主要内容区域 -->
+        <div class="main-content">
+            <!-- 左侧：创意输入和配置 -->
+            <div class="content-section">
+                <div class="section-title">
+                    <div class="section-icon">✨</div>
+                    <span>创意输入与配置</span>
+                </div>
+
+                <!-- 创意库选择区域 -->
+                <div class="creative-library-section">
+                    <div class="creative-library-header">
+                        <div class="creative-library-title">
+                            <span>💡</span>
+                            <span>从创意库选择</span>
+                        </div>
+                        <button type="button" class="btn btn-secondary btn-small" onclick="loadCreativeIdeas()">
+                            🔄 加载创意库
+                        </button>
+                    </div>
+                    
+                    <div id="creative-library-content" style="display: none;">
+                        <select id="creative-idea-select" onchange="fillFromCreativeIdea()" style="width: 100%; padding: 12px; border: 2px solid #d1fae5; border-radius: 8px; margin-bottom: 12px; background: white;">
+                            <option value="">-- 请选择一个创意 --</option>
+                        </select>
+                        
+                        <div id="creative-idea-preview" class="creative-idea-preview" style="display: none;">
+                            <h5 style="margin: 0 0 12px 0; color: #065f46;">📋 创意预览</h5>
+                            <div id="preview-content" style="font-size: 14px; line-height: 1.6; color: #374151;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 生成表单 -->
+                <form id="phase-one-form" onsubmit="startPhaseOneGeneration(event)">
+                    <div class="form-group">
+                        <label for="novel-title">小说标题</label>
+                        <input type="text" id="novel-title" name="title" 
+                               placeholder="例：凡人修仙同人·观战者" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="novel-synopsis">小说简介</label>
+                        <textarea id="novel-synopsis" name="synopsis" rows="3"
+                                  placeholder="简要描述小说内容..." required></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="core-setting">核心设定</label>
+                        <textarea id="core-setting" name="core_setting" rows="6"
+                                  placeholder="描述故事的核心背景设定，包括世界观、主要设定、时代背景等..." required></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="core-selling-points">核心卖点</label>
+                        <input type="text" id="core-selling-points" name="core_selling_points"
+                               placeholder="例：爽文节奏 + 独特设定 + 人物成长" value="爽文节奏 + 独特设定 + 人物成长">
+                    </div>
+
+                    <div class="config-grid">
+                        <div class="form-group">
+                            <label for="total-chapters">总章节数</label>
+                            <input type="number" id="total-chapters" name="total_chapters" 
+                                   value="50" min="5" max="200" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="generation-mode">生成模式</label>
+                            <select id="generation-mode" name="generation_mode">
+                                <option value="phase_one_only">仅第一阶段（生成设定后暂停）</option>
+                                <option value="full_two_phase">完整两阶段（继续生成章节）</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="action-buttons">
+                        <button type="button" class="btn btn-secondary" onclick="resetForm()">
+                            🔄 重置
+                        </button>
+                        <button type="submit" class="btn btn-primary">
+                            🚀 开始生成设定
+                        </button>
+                    </div>
+                </form>
+
+                <!-- 状态消息 -->
+                <div class="status-message" id="status-message"></div>
+            </div>
+
+            <!-- 右侧：生成说明和帮助 -->
+            <div class="content-section">
+                <div class="section-title">
+                    <div class="section-icon">📖</div>
+                    <span>使用说明</span>
+                </div>
+
+                <div style="space-y: 16px;">
+                    <div class="result-item">
+                        <h4>🎯 第一阶段目标</h4>
+                        <p>生成完整的世界观设定、角色设计和详细的故事大纲，为后续章节内容生成提供高质量的基础框架。</p>
+                    </div>
+
+                    <div class="result-item">
+                        <h4>⚙️ 生成内容</h4>
+                        <p>• 世界观设定和背景故事<br>
+                           • 主要角色设计和性格特征<br>
+                           • 故事发展阶段规划<br>
+                           • 详细章节大纲（每章的情节要点）<br>
+                           • 情感线索和伏笔安排</p>
+                    </div>
+
+                    <div class="result-item">
+                        <h4>💡 最佳实践</h4>
+                        <p>• 核心设定描述尽量详细（建议300字以上）<br>
+                           • 明确故事的主要卖点和特色<br>
+                           • 合理规划章节数量（建议20-100章）<br>
+                           • 可以先仅生成设定，审核后再继续生成章节</p>
+                    </div>
+
+                    <div class="result-item">
+                        <h4>🔄 后续操作</h4>
+                        <p>第一阶段完成后，您可以：<br>
+                           • 立即继续第二阶段章节生成<br>
+                           • 保存项目，稍后继续<br>
+                           • 查看和编辑生成的设定<br>
+                           • 调整生成参数后重新生成</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 进度显示区域 -->
+        <div class="progress-section" id="progress-section">
+            <div class="progress-header">
+                <h3>🔄 正在生成设定...</h3>
+                <div class="progress-percentage" id="progress-percentage">0%</div>
+            </div>
+            
+            <div class="progress-bar-container">
+                <div class="progress-bar-fill" id="progress-bar-fill"></div>
+            </div>
+            
+            <div class="progress-steps" id="progress-steps">
+                <div class="progress-step active" data-step="planning">
+                    <h4>📋 基础规划</h4>
+                    <p>分析创意种子，制定写作风格和市场定位</p>
+                </div>
+                <div class="progress-step" data-step="worldview">
+                    <h4>🌍 世界观设计</h4>
+                    <p>构建完整的世界观和背景设定</p>
+                </div>
+                <div class="progress-step" data-step="characters">
+                    <h4>👥 角色设计</h4>
+                    <p>设计主要角色和人物关系</p>
+                </div>
+                <div class="progress-step" data-step="planning-detailed">
+                    <h4>📝 详细规划</h4>
+                    <p>制定情绪蓝图和阶段计划</p>
+                </div>
+                <div class="progress-step" data-step="outlines">
+                    <h4>📚 章节大纲</h4>
+                    <p>生成详细的章节情节大纲</p>
+                </div>
+                <div class="progress-step" data-step="validation">
+                    <h4>✅ 验证完善</h4>
+                    <p>验证设定完整性和一致性</p>
+                </div>
+            </div>
+            
+            <div style="margin-top: 20px; text-align: center;">
+                <button type="button" class="btn btn-secondary" onclick="pauseGeneration()" id="pause-btn">
+                    ⏸️ 暂停生成
+                </button>
+            </div>
+        </div>
+
+        <!-- 结果显示区域 -->
+        <div class="results-section" id="results-section">
+            <div class="section-title">
+                <div class="section-icon">✅</div>
+                <span>设定生成完成</span>
+            </div>
+
+            <div class="result-tabs">
+                <button class="result-tab active" onclick="switchResultTab('overview')">📊 总览</button>
+                <button class="result-tab" onclick="switchResultTab('worldview')">🌍 世界观</button>
+                <button class="result-tab" onclick="switchResultTab('characters')">👥 角色</button>
+                <button class="result-tab" onclick="switchResultTab('outlines')">📚 章节大纲</button>
+                <button class="result-tab" onclick="switchResultTab('validation')">✅ 验证结果</button>
+            </div>
+
+            <div class="result-content active" id="result-overview">
+                <div id="overview-content">
+                    <!-- 总览内容将在这里动态生成 -->
+                </div>
+            </div>
+
+            <div class="result-content" id="result-worldview">
+                <div id="worldview-content">
+                    <!-- 世界观数据将在这里动态生成 -->
+                </div>
+            </div>
+
+            <div class="result-content" id="result-characters">
+                <div id="characters-content">
+                    <!-- 角色数据将在这里动态生成 -->
+                </div>
+            </div>
+
+            <div class="result-content" id="result-outlines">
+                <div id="outlines-content">
+                    <!-- 章节大纲将在这里动态生成 -->
+                </div>
+            </div>
+
+            <div class="result-content" id="result-validation">
+                <div id="validation-content">
+                    <!-- 验证结果将在这里动态生成 -->
+                </div>
+            </div>
+
+            <div class="action-buttons" style="margin-top: 30px;">
+                <button class="btn btn-secondary" onclick="editSettings()">
+                    ✏️ 编辑设定
+                </button>
+                <button class="btn btn-secondary" onclick="regenerateSettings()">
+                    🔄 重新生成
+                </button>
+                <button class="btn btn-success" onclick="continueToPhaseTwo()" id="continue-btn">
+                    📝 继续第二阶段
+                </button>
+                <button class="btn btn-primary" onclick="saveAndContinue()">
+                    💾 保存并稍后继续
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentTaskId = null;
+        let progressInterval = null;
+        let loadedCreativeIdeas = [];
+        let selectedCreativeId = null;
+        let phaseOneResult = null;
+
+        // 页面加载完成后执行
+        document.addEventListener('DOMContentLoaded', function() {
+            checkLoginStatus();
+            loadCreativeIdeas(); // 自动加载创意库
+        });
+
+        // 检查登录状态
+        async function checkLoginStatus() {
+            try {
+                const response = await fetch('/api/health');
+                if (!response.ok) {
+                    showLoginReminder();
+                }
+            } catch (error) {
+                showLoginReminder();
+            }
+        }
+
+        // 显示登录提醒
+        function showLoginReminder() {
+            const msg = document.getElementById('status-message');
+            if (msg && !msg.classList.contains('success')) {
+                msg.className = 'status-message error';
+                msg.textContent = '⚠️ 请先登录后再使用生成功能';
+                msg.style.display = 'block';
+            }
+        }
+
+        // ==================== 创意库功能 ====================
+        async function loadCreativeIdeas() {
+            try {
+                const response = await fetch('/api/creative-ideas');
+                
+                if (response.status === 401) {
+                    showStatusMessage('请先登录才能使用创意库功能', 'error');
+                    return;
+                }
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const result = await response.json();
+
+                if (result.success && result.creative_ideas) {
+                    loadedCreativeIdeas = result.creative_ideas;
+
+                    // 显示创意库区域
+                    document.getElementById('creative-library-content').style.display = 'block';
+
+                    // 填充选择框
+                    const select = document.getElementById('creative-idea-select');
+                    select.innerHTML = '<option value="">-- 请选择一个创意 --</option>';
+
+                    result.creative_ideas.forEach(idea => {
+                        const option = document.createElement('option');
+                        option.value = idea.id;
+                        const preview = idea.core_setting.substring(0, 50) + '...';
+                        option.textContent = `创意 #${idea.id}: ${preview}`;
+                        select.appendChild(option);
+                    });
+
+                    showStatusMessage(`✅ 成功加载 ${result.count} 个创意`, 'success');
+                } else {
+                    throw new Error(result.error || '未找到创意数据');
+                }
+            } catch (error) {
+                console.error('加载创意库失败:', error);
+                showStatusMessage(`❌ 加载创意库失败: ${error.message}`, 'error');
+            }
+        }
+
+        function fillFromCreativeIdea() {
+            const select = document.getElementById('creative-idea-select');
+            if (!select) return;
+            
+            const ideaId = parseInt(select.value);
+
+            if (!ideaId) {
+                document.getElementById('creative-idea-preview').style.display = 'none';
+                selectedCreativeId = null;
+                return;
+            }
+
+            const idea = loadedCreativeIdeas.find(i => i.id === ideaId);
+            if (!idea) return;
+
+            selectedCreativeId = ideaId;
+
+            // 填充表单字段
+            const titleField = document.getElementById('novel-title');
+            const synopsisField = document.getElementById('novel-synopsis');
+            const coreSettingField = document.getElementById('core-setting');
+            const sellingPointsField = document.getElementById('core-selling-points');
+            
+            if (titleField) titleField.value = `创意${ideaId}的小说`;
+            if (synopsisField) synopsisField.value = idea.core_setting ? idea.core_setting.substring(0, 200) : '';
+            if (coreSettingField) coreSettingField.value = idea.core_setting || '';
+            if (sellingPointsField) sellingPointsField.value = idea.core_selling_points || '爽文节奏 + 独特设定 + 人物成长';
+
+            // 显示预览
+            const previewDiv = document.getElementById('creative-idea-preview');
+            const previewContent = document.getElementById('preview-content');
+            
+            if (previewDiv && previewContent) {
+                previewDiv.style.display = 'block';
+
+                let previewHtml = `
+                    <p><strong>核心设定:</strong></p>
+                    <p style="margin-left: 10px; color: #333;">${idea.core_setting || '暂无设定'}</p>
+                    <p style="margin-top: 10px;"><strong>核心卖点:</strong></p>
+                    <p style="margin-left: 10px; color: #333;">${idea.core_selling_points || '暂无卖点'}</p>
+                `;
+
+                if (idea.stages_preview && idea.stages_preview.length > 0) {
+                    previewHtml += `
+                        <p style="margin-top: 10px;"><strong>故事阶段:</strong></p>
+                        <ul style="margin-left: 20px; color: #333;">
+                            ${idea.stages_preview.map(stage => `<li>${stage}</li>`).join('')}
+                        </ul>
+                    `;
+                }
+
+                previewContent.innerHTML = previewHtml;
+            }
+        }
+
+        // ==================== 第一阶段生成功能 ====================
+        async function startPhaseOneGeneration(event) {
+            event.preventDefault();
+
+            const formData = {
+                title: document.getElementById('novel-title').value,
+                synopsis: document.getElementById('novel-synopsis').value,
+                core_setting: document.getElementById('core-setting').value,
+                core_selling_points: document.getElementById('core-selling-points').value,
+                total_chapters: parseInt(document.getElementById('total-chapters').value),
+                generation_mode: document.getElementById('generation-mode').value,
+                creative_seed: selectedCreativeId ? loadedCreativeIdeas.find(i => i.id === selectedCreativeId)?.raw_data : null
+            };
+
+            try {
+                // 显示进度区域
+                showProgressSection();
+                updateProgress(5, '正在启动第一阶段生成...');
+
+                // 调用第一阶段生成API
+                const response = await fetch('/api/phase-one/start-generation', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(formData)
+                });
+
+                if (response.status === 401) {
+                    showStatusMessage('❌ 请先登录后再试', 'error');
+                    setTimeout(() => {
+                        window.location.href = '/login';
+                    }, 2000);
+                    return;
+                }
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const result = await response.json();
+
+                if (result.success) {
+                    currentTaskId = result.task_id;
+                    updateProgressStatus(result.task_id);
+                    updateStepStatus('generation', true);
+                } else {
+                    throw new Error(result.error || '启动生成失败');
+                }
+            } catch (error) {
+                hideProgressSection();
+                showStatusMessage(`❌ 错误: ${error.message}`, 'error');
+                console.error('第一阶段生成失败:', error);
+            }
+        }
+
+        // 更新生成进度状态
+        async function updateProgressStatus(taskId) {
+            try {
+                const response = await fetch(`/api/phase-one/task/${taskId}/status`);
+                if (!response.ok) return;
+
+                const taskStatus = await response.json();
+                updateProgress(taskStatus.progress || 0, taskStatus.status_message || '生成中...');
+
+                // 更新进度步骤状态
+                if (taskStatus.current_step) {
+                    updateProgressSteps(taskStatus.current_step);
+                }
+
+                // 检查是否完成
+                if (taskStatus.status === 'completed') {
+                    clearInterval(progressInterval);
+                    handlePhaseOneComplete(taskStatus);
+                } else if (taskStatus.status === 'failed') {
+                    clearInterval(progressInterval);
+                    handlePhaseOneFailed(taskStatus);
+                }
+            } catch (error) {
+                console.error('获取进度状态失败:', error);
+            }
+        }
+
+        // 更新进度条
+        function updateProgress(percentage, message) {
+            const progressBar = document.getElementById('progress-bar-fill');
+            const percentageText = document.getElementById('progress-percentage');
+            
+            if (progressBar) {
+                progressBar.style.width = `${percentage}%`;
+            }
+            if (percentageText) {
+                percentageText.textContent = `${percentage}%`;
+            }
+            
+            console.log(`进度: ${percentage}% - ${message}`);
+        }
+
+        // 更新进度步骤
+        function updateProgressSteps(currentStep) {
+            const steps = document.querySelectorAll('.progress-step');
+            const stepMapping = {
+                'planning': 0,
+                'worldview': 1,
+                'characters': 2,
+                'planning-detailed': 3,
+                'outlines': 4,
+                'validation': 5
+            };
+
+            const currentStepIndex = stepMapping[currentStep];
+            if (currentStepIndex !== undefined) {
+                steps.forEach((step, index) => {
+                    step.classList.remove('active');
+                    if (index < currentStepIndex) {
+                        step.classList.add('completed');
+                    } else if (index === currentStepIndex) {
+                        step.classList.add('active');
+                    }
+                });
+            }
+        }
+
+        // 处理第一阶段完成
+        function handlePhaseOneComplete(taskStatus) {
+            hideProgressSection();
+            updateStepStatus('preview', true);
+            
+            phaseOneResult = taskStatus.result;
+            showResultsSection(phaseOneResult);
+            showStatusMessage('✅ 第一阶段设定生成完成！', 'success');
+            
+            // 根据生成模式决定下一步操作
+            const generationMode = document.getElementById('generation-mode').value;
+            if (generationMode === 'full_two_phase') {
+                // 自动继续第二阶段
+                setTimeout(() => {
+                    continueToPhaseTwo();
+                }, 2000);
+            }
+        }
+
+        // 处理第一阶段失败
+        function handlePhaseOneFailed(taskStatus) {
+            hideProgressSection();
+            showStatusMessage(`❌ 第一阶段生成失败: ${taskStatus.error || '未知错误'}`, 'error');
+            updateStepStatus('input', true);
+        }
+
+        // 显示结果区域
+        function showResultsSection(result) {
+            const resultsSection = document.getElementById('results-section');
+            resultsSection.classList.add('active');
+            
+            // 填充结果数据
+            fillOverviewResult(result);
+            fillWorldviewResult(result);
+            fillCharactersResult(result);
+            fillOutlinesResult(result);
+            fillValidationResult(result);
+        }
+
+        // 填充总览结果
+        function fillOverviewResult(result) {
+            const overviewContent = document.getElementById('overview-content');
+            overviewContent.innerHTML = `
+                <div class="result-item">
+                    <h4>📚 小说信息</h4>
+                    <p><strong>标题:</strong> ${result.novel_title || '未命名'}</p>
+                    <p><strong>简介:</strong> ${result.novel_synopsis || '暂无简介'}</p>
+                    <p><strong>总章节数:</strong> ${result.total_chapters || 0} 章</p>
+                </div>
+                <div class="result-item">
+                    <h4>📊 生成统计</h4>
+                    <p><strong>生成时间:</strong> ${new Date().toLocaleString()}</p>
+                    <p><strong>状态:</strong> <span style="color: #10b981;">✅ 生成完成</span></p>
+                    <p><strong>下一步:</strong> 可以继续第二阶段章节生成</p>
+                </div>
+            `;
+        }
+
+        // 填充世界观数据
+        function fillWorldviewResult(result) {
+            const worldviewContent = document.getElementById('worldview-content');
+            const worldview = result.core_worldview || {};
+            
+            worldviewContent.innerHTML = `
+                <div class="result-item">
+                    <h4>🌍 核心世界观</h4>
+                    <p>${typeof worldview === 'string' ? worldview : JSON.stringify(worldview, null, 2)}</p>
+                </div>
+            `;
+        }
+
+        // 填充角色数据
+        function fillCharactersResult(result) {
+            const charactersContent = document.getElementById('characters-content');
+            const characters = result.character_design || {};
+            
+            charactersContent.innerHTML = `
+                <div class="result-item">
+                    <h4>👥 角色设计</h4>
+                    <p>${typeof characters === 'string' ? characters : JSON.stringify(characters, null, 2)}</p>
+                </div>
+            `;
+        }
+
+        // 填充章节大纲
+        function fillOutlinesResult(result) {
+            const outlinesContent = document.getElementById('outlines-content');
+            const outlines = result.detailed_chapter_outlines || {};
+            
+            if (outlines.chapter_outlines && Array.isArray(outlines.chapter_outlines)) {
+                let html = `<div class="result-item"><h4>📚 章节大纲 (${outlines.chapter_outlines.length} 章)</h4>`;
+                
+                // 只显示前10章作为预览
+                const previewChapters = outlines.chapter_outlines.slice(0, 10);
+                previewChapters.forEach(chapter => {
+                    html += `
+                        <div style="margin: 12px 0; padding: 12px; background: #f9fafb; border-radius: 6px;">
+                            <strong>第${chapter.chapter_number}章: ${chapter.chapter_title}</strong>
+                            <p style="margin: 8px 0 0 0; font-size: 14px; color: #6b7280;">
+                                ${chapter.main_plot || '暂无描述'}
+                            </p>
+                        </div>
+                    `;
+                });
+                
+                if (outlines.chapter_outlines.length > 10) {
+                    html += `<p style="text-align: center; color: #6b7280;">... 还有 ${outlines.chapter_outlines.length - 10} 章</p>`;
+                }
+                
+                html += '</div>';
+                outlinesContent.innerHTML = html;
+            } else {
+                outlinesContent.innerHTML = `
+                    <div class="result-item">
+                        <h4>📚 章节大纲</h4>
+                        <p>${JSON.stringify(outlines, null, 2)}</p>
+                    </div>
+                `;
+            }
+        }
+
+        // 填充验证结果
+        function fillValidationResult(result) {
+            const validationContent = document.getElementById('validation-content');
+            const validation = result.validation_result || { is_valid: true, issues: [] };
+            
+            let html = `
+                <div class="result-item">
+                    <h4>✅ 验证结果</h4>
+                    <p><strong>整体状态:</strong> 
+                        <span style="color: ${validation.is_valid ? '#10b981' : '#ef4444'};">
+                            ${validation.is_valid ? '✅ 通过' : '❌ 有问题'}
+                        </span>
+                    </p>
+            `;
+            
+            if (validation.issues && validation.issues.length > 0) {
+                html += '<p><strong>发现问题:</strong></p><ul>';
+                validation.issues.forEach(issue => {
+                    html += `<li style="color: #ef4444;">• ${issue}</li>`;
+                });
+                html += '</ul>';
+            } else {
+                html += '<p style="color: #10b981;">🎉 设定验证通过，可以继续第二阶段生成</p>';
+            }
+            
+            html += '</div>';
+            validationContent.innerHTML = html;
+        }
+
+        // ==================== 结果标签页切换 ====================
+        function switchResultTab(tabName) {
+            // 更新标签状态
+            const tabs = document.querySelectorAll('.result-tab');
+            tabs.forEach(tab => tab.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            // 更新内容显示
+            const contents = document.querySelectorAll('.result-content');
+            contents.forEach(content => content.classList.remove('active'));
+            document.getElementById(`result-${tabName}`).classList.add('active');
+        }
+
+        // ==================== 后续操作功能 ====================
+        async function continueToPhaseTwo() {
+            if (!phaseOneResult || !phaseOneResult.novel_title) {
+                showStatusMessage('❌ 没有有效的第一阶段结果', 'error');
+                return;
+            }
+
+            try {
+                showStatusMessage('🔄 正在准备第二阶段...', 'info');
+                
+                const response = await fetch(`/api/phase-one/continue-to-phase-two/${encodeURIComponent(phaseOneResult.novel_title)}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        total_chapters: phaseOneResult.total_chapters || 50,
+                        chapters_per_batch: 3
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || '继续第二阶段失败');
+                }
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    showStatusMessage('✅ 正在跳转到第二阶段...', 'success');
+                    setTimeout(() => {
+                        window.location.href = '/phase-two-generation';
+                    }, 1500);
+                } else {
+                    throw new Error(result.error || '操作失败');
+                }
+            } catch (error) {
+                showStatusMessage(`❌ 继续第二阶段失败: ${error.message}`, 'error');
+                console.error('继续第二阶段失败:', error);
+            }
+        }
+
+        function saveAndContinue() {
+            if (!phaseOneResult || !phaseOneResult.novel_title) {
+                showStatusMessage('❌ 没有有效的第一阶段结果', 'error');
+                return;
+            }
+            
+            showStatusMessage('✅ 设定已保存，可以稍后继续', 'success');
+            setTimeout(() => {
+                window.location.href = '/project-management';
+            }, 1500);
+        }
+
+        function editSettings() {
+            showStatusMessage('📝 编辑功能开发中...', 'info');
+        }
+
+        function regenerateSettings() {
+            if (confirm('确定要重新生成设定吗？当前的设定将被覆盖。')) {
+                hideResultsSection();
+                updateStepStatus('input', true);
+                showStatusMessage('🔄 请重新配置生成参数', 'info');
+            }
+        }
+
+        // ==================== 工具函数 ====================
+        function showProgressSection() {
+            document.getElementById('progress-section').classList.add('active');
+            document.getElementById('results-section').classList.remove('active');
+        }
+
+        function hideProgressSection() {
+            document.getElementById('progress-section').classList.remove('active');
+        }
+
+        function showResultsSection(result) {
+            hideProgressSection();
+            document.getElementById('results-section').classList.add('active');
+            updateStepStatus('preview', true);
+        }
+
+        function hideResultsSection() {
+            document.getElementById('results-section').classList.remove('active');
+        }
+
+        function updateStepStatus(stepName, isActive) {
+            const steps = ['input', 'generation', 'preview', 'complete'];
+            const currentIndex = steps.indexOf(stepName);
+            
+            steps.forEach((step, index) => {
+                const stepElement = document.getElementById(`step-${step}`);
+                if (stepElement) {
+                    stepElement.classList.remove('active', 'completed');
+                    if (index < currentIndex) {
+                        stepElement.classList.add('completed');
+                    } else if (index === currentIndex && isActive) {
+                        stepElement.classList.add('active');
+                    } else {
+                        stepElement.classList.add('pending');
+                    }
+                }
+            });
+        }
+
+        function showStatusMessage(message, type) {
+            const msgElement = document.getElementById('status-message');
+            msgElement.className = `status-message ${type}`;
+            msgElement.textContent = message;
+            msgElement.style.display = 'block';
+            
+            // 5秒后自动隐藏成功和消息
+            if (type === 'success') {
+                setTimeout(() => {
+                    msgElement.style.display = 'none';
+                }, 5000);
+            }
+        }
+
+        function resetForm() {
+            if (confirm('确定要重置表单吗？')) {
+                document.getElementById('phase-one-form').reset();
+                selectedCreativeId = null;
+                document.getElementById('creative-idea-select').value = '';
+                document.getElementById('creative-idea-preview').style.display = 'none';
+                showStatusMessage('🔄 表单已重置', 'info');
+            }
+        }
+
+        function pauseGeneration() {
+            // 暂停功能待实现
+            showStatusMessage('⏸️ 暂停功能开发中...', 'info');
+        }
+
+        // 退出登录函数
+        function logout() {
+            if (confirm('确定要退出登录吗？')) {
+                window.location.href = '/logout';
+            }
+        }
+
+        // 页面卸载时清理定时器
+        window.addEventListener('beforeunload', function() {
+            if (progressInterval) {
+                clearInterval(progressInterval);
+            }
+        });
+    </script>
+</body>
+</html>

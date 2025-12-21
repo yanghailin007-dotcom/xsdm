@@ -13,7 +13,26 @@ import time
 import logging
 from openai import OpenAI
 from src.utils.logger import get_logger
-from config.doubaoconfig import API_URL, ARK_API_KEY, DEFAULT_MODEL, DEFAULT_SIZE, FILE_CONFIG, REQUEST_CONFIG
+# 直接导入配置，避免路径冲突
+try:
+    from config.doubaoconfig import API_URL, ARK_API_KEY, DEFAULT_MODEL, DEFAULT_SIZE, FILE_CONFIG, REQUEST_CONFIG
+except ImportError:
+    # 如果导入失败，使用默认配置
+    ARK_API_KEY = os.getenv('ARK_API_KEY', '88117df2-5ce5-4d75-8224-01695231951f')
+    API_URL = "https://ark.cn-beijing.volces.com/api/v3"
+    DEFAULT_MODEL = "doubao-seedream-4-0-250828"
+    DEFAULT_SIZE = "1K"
+    FILE_CONFIG = {
+        'default_output_dir': 'generated_images',
+        'auto_create_dir': True,
+        'filename_prefix': 'doubao_',
+        'default_format': 'jpg'
+    }
+    REQUEST_CONFIG = {
+        'timeout': 60,
+        'max_retries': 3,
+        'default_headers': {"Content-Type": "application/json"}
+    }
 
 
 class DouBaoImageGenerator:
