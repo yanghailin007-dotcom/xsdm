@@ -893,30 +893,64 @@
             const statusFilter = document.getElementById('status-filter').value;
             const sortFilter = document.getElementById('sort-filter').value;
             const searchFilter = document.getElementById('search-filter').value.toLowerCase();
+            const phaseFilter = document.getElementById('phase-filter').value;
 
-            // 应用状态筛选
+            console.log(`🔍 [DEBUG] 开始筛选项目 - 状态: ${statusFilter}, 阶段: ${phaseFilter}, 搜索: ${searchFilter}`);
+
+            // 应用状态和阶段筛选
             filteredProjects = projectsData.filter(project => {
+                let statusMatch = true;
+                let phaseMatch = true;
+                
+                // 状态筛选
                 if (statusFilter) {
                     switch (statusFilter) {
                         case 'phase-one-only':
-                            return project.phase_one && project.phase_one.status === 'completed' && 
-                                   (!project.phase_two || project.phase_two.status === 'not_started');
+                            statusMatch = project.phase_one && project.phase_one.status === 'completed' &&
+                                         (!project.phase_two || project.phase_two.status === 'not_started');
+                            break;
                         case 'phase-two-in-progress':
-                            return project.phase_two && project.phase_two.status === 'generating';
+                            statusMatch = project.phase_two && project.phase_two.status === 'generating';
+                            break;
                         case 'completed':
-                            return project.status === 'completed';
+                            statusMatch = project.status === 'completed';
+                            break;
                         case 'failed':
-                            return project.status === 'failed';
+                            statusMatch = project.status === 'failed';
+                            break;
                         default:
-                            return true;
+                            statusMatch = true;
                     }
                 }
-                return true;
+                
+                // 阶段筛选
+                if (phaseFilter && phaseFilter !== 'all') {
+                    switch (phaseFilter) {
+                        case 'phase_one_completed':
+                            phaseMatch = project.phase_one && project.phase_one.status === 'completed' &&
+                                        (!project.phase_two || project.phase_two.status === 'not_started');
+                            break;
+                        case 'phase_two_in_progress':
+                            phaseMatch = project.phase_two && project.phase_two.status === 'generating';
+                            break;
+                        case 'designing':
+                            phaseMatch = project.status === 'designing' ||
+                                        (project.phase_one && project.phase_one.status === 'pending');
+                            break;
+                        case 'completed':
+                            phaseMatch = project.status === 'completed';
+                            break;
+                        default:
+                            phaseMatch = true;
+                    }
+                }
+                
+                return statusMatch && phaseMatch;
             });
 
             // 应用搜索筛选
             if (searchFilter) {
-                filteredProjects = filteredProjects.filter(project => 
+                filteredProjects = filteredProjects.filter(project =>
                     project.title.toLowerCase().includes(searchFilter) ||
                     (project.description || '').toLowerCase().includes(searchFilter) ||
                     (project.story_synopsis || '').toLowerCase().includes(searchFilter)
@@ -940,6 +974,7 @@
                 }
             });
 
+            console.log(`📋 [DEBUG] 筛选后项目数量: ${filteredProjects.length}`);
             displayProjects(filteredProjects);
         }
 

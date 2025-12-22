@@ -751,6 +751,27 @@ def register_phase_routes(app, manager_instance=None):
         global manager
         manager = manager_instance
     
+    # 添加第一阶段产物管理API端点（确保路由正确注册）
+    @app.route('/api/phase-one/products/<title>', methods=['GET'])
+    def get_phase_one_products_wrapper(title):
+        """获取第一阶段的所有产物"""
+        return get_phase_one_products(title)
+    
+    @app.route('/api/phase-one/products/<title>/<category>', methods=['PUT'])
+    def update_phase_one_product_wrapper(title, category):
+        """更新第一阶段的单个产物"""
+        return update_phase_one_product(title, category)
+    
+    @app.route('/api/phase-one/products/<title>/export', methods=['GET'])
+    def export_phase_one_products_wrapper(title):
+        """导出第一阶段的所有产物"""
+        return export_phase_one_products(title)
+    
+    @app.route('/api/phase-one/products/<title>/validate', methods=['POST'])
+    def validate_phase_one_products_wrapper(title):
+        """验证第一阶段产物的完整性"""
+        return validate_phase_one_products(title)
+    
     # 添加保存项目API端点
     @app.route('/api/phase-one/save/<task_id>', methods=['POST'])
     @login_required
@@ -844,3 +865,347 @@ def register_phase_routes(app, manager_instance=None):
         except Exception as e:
             logger.error(f"❌ 获取两阶段系统状态失败: {e}")
             return jsonify({"success": False, "error": str(e)}), 500
+
+# ==================== 第一阶段产物管理API ====================
+
+@phase_api.route('/phase-one/products/<title>', methods=['GET'])
+def get_phase_one_products(title):
+    """获取第一阶段的所有产物"""
+    try:
+        # 构建第一阶段结果文件路径
+        safe_title = re.sub(r'[\\/*?:"<>|]', "_", title)
+        phase_one_dir = f"小说项目/{safe_title}_第一阶段设定"
+        phase_one_file = f"{phase_one_dir}/{safe_title}_第一阶段设定.json"
+        
+        products = {
+            'worldview': {'title': '世界观设定', 'content': '', 'complete': False},
+            'characters': {'title': '角色设计', 'content': '', 'complete': False},
+            'growth': {'title': '成长路线', 'content': '', 'complete': False},
+            'writing': {'title': '写作计划', 'content': '', 'complete': False},
+            'storyline': {'title': '故事线', 'content': '', 'complete': False},
+            'market': {'title': '市场分析', 'content': '', 'complete': False}
+        }
+        
+        if os.path.exists(phase_one_file):
+            with open(phase_one_file, 'r', encoding='utf-8') as f:
+                phase_one_data = json.load(f)
+                
+                # 从第一阶段结果中提取产物数据
+                novel_data_summary = phase_one_data.get('result', {}).get('novel_data_summary', {})
+                
+                # 提取世界观
+                core_worldview = novel_data_summary.get('core_worldview', {})
+                if core_worldview:
+                    products['worldview']['content'] = json.dumps(core_worldview, ensure_ascii=False, indent=2)
+                    products['worldview']['complete'] = True
+                
+                # 提取角色设计
+                character_design = novel_data_summary.get('character_design', {})
+                if character_design:
+                    products['characters']['content'] = json.dumps(character_design, ensure_ascii=False, indent=2)
+                    products['characters']['complete'] = True
+                
+                # 提取成长路线（从整体阶段规划中获取）
+                overall_stage_plans = novel_data_summary.get('overall_stage_plans', {})
+                if overall_stage_plans:
+                    growth_content = "成长路线规划：\n"
+                    for stage_name, stage_data in overall_stage_plans.items():
+                        growth_content += f"- {stage_name}: {stage_data.get('description', '')}\n"
+                    products['growth']['content'] = growth_content
+                    products['growth']['complete'] = True
+                
+                # 提取写作计划
+                if overall_stage_plans:
+                    writing_content = "写作计划安排：\n"
+                    for stage_name, stage_data in overall_stage_plans.items():
+                        writing_content += f"- {stage_name}: {stage_data.get('chapter_range', '')}\n"
+                        writing_content += f"  主要内容: {stage_data.get('main_content', '')}\n"
+                    products['writing']['content'] = writing_content
+                    products['writing']['complete'] = True
+                
+                # 提取故事线
+                if overall_stage_plans:
+                    storyline_content = "故事线架构：\n"
+                    for stage_name, stage_data in overall_stage_plans.items():
+                        storyline_content += f"- {stage_name}: {stage_data.get('key_events', '')}\n"
+                    products['storyline']['content'] = storyline_content
+                    products['storyline']['complete'] = True
+                
+                # 提取市场分析
+                market_analysis = novel_data_summary.get('market_analysis', {})
+                if market_analysis:
+                    products['market']['content'] = json.dumps(market_analysis, ensure_ascii=False, indent=2)
+                    products['market']['complete'] = True
+        
+        return jsonify({
+            "success": True,
+            "products": products
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ 获取第一阶段产物失败: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@phase_api.route('/phase-one/products/<title>/<category>', methods=['PUT'])
+def update_phase_one_product(title, category):
+    """更新第一阶段的单个产物"""
+    try:
+        data = request.json or {}
+        product_title = data.get('title', '')
+        product_content = data.get('content', '')
+        
+        if not product_title or not product_content:
+            return jsonify({"success": False, "error": "标题和内容不能为空"}), 400
+        
+        # 构建第一阶段结果文件路径
+        safe_title = re.sub(r'[\\/*?:"<>|]', "_", title)
+        phase_one_dir = f"小说项目/{safe_title}_第一阶段设定"
+        phase_one_file = f"{phase_one_dir}/{safe_title}_第一阶段设定.json"
+        
+        # 确保目录存在
+        os.makedirs(phase_one_dir, exist_ok=True)
+        
+        # 读取现有数据
+        phase_one_data = {}
+        if os.path.exists(phase_one_file):
+            with open(phase_one_file, 'r', encoding='utf-8') as f:
+                phase_one_data = json.load(f)
+        
+        # 更新产物数据
+        if 'custom_products' not in phase_one_data:
+            phase_one_data['custom_products'] = {}
+        
+        phase_one_data['custom_products'][category] = {
+            'title': product_title,
+            'content': product_content,
+            'updated_at': datetime.now().isoformat()
+        }
+        
+        # 保存更新后的数据
+        with open(phase_one_file, 'w', encoding='utf-8') as f:
+            json.dump(phase_one_data, f, ensure_ascii=False, indent=2)
+        
+        logger.info(f"✅ 第一阶段产物已更新: {title} - {category}")
+        
+        return jsonify({
+            "success": True,
+            "message": f"{product_title} 已更新"
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ 更新第一阶段产物失败: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@phase_api.route('/phase-one/products/<title>/export', methods=['GET'])
+def export_phase_one_products(title):
+    """导出第一阶段的所有产物"""
+    try:
+        # 直接获取产物数据，避免函数调用问题
+        safe_title = re.sub(r'[\\/*?:"<>|]', "_", title)
+        phase_one_dir = f"小说项目/{safe_title}_第一阶段设定"
+        phase_one_file = f"{phase_one_dir}/{safe_title}_第一阶段设定.json"
+        
+        products = {
+            'worldview': {'title': '世界观设定', 'content': '', 'complete': False},
+            'characters': {'title': '角色设计', 'content': '', 'complete': False},
+            'growth': {'title': '成长路线', 'content': '', 'complete': False},
+            'writing': {'title': '写作计划', 'content': '', 'complete': False},
+            'storyline': {'title': '故事线', 'content': '', 'complete': False},
+            'market': {'title': '市场分析', 'content': '', 'complete': False}
+        }
+        
+        if os.path.exists(phase_one_file):
+            with open(phase_one_file, 'r', encoding='utf-8') as f:
+                phase_one_data = json.load(f)
+                
+                # 从第一阶段结果中提取产物数据
+                novel_data_summary = phase_one_data.get('result', {}).get('novel_data_summary', {})
+                
+                # 提取世界观
+                core_worldview = novel_data_summary.get('core_worldview', {})
+                if core_worldview:
+                    products['worldview']['content'] = json.dumps(core_worldview, ensure_ascii=False, indent=2)
+                    products['worldview']['complete'] = True
+                
+                # 提取角色设计
+                character_design = novel_data_summary.get('character_design', {})
+                if character_design:
+                    products['characters']['content'] = json.dumps(character_design, ensure_ascii=False, indent=2)
+                    products['characters']['complete'] = True
+                
+                # 提取其他产物（简化处理）
+                overall_stage_plans = novel_data_summary.get('overall_stage_plans', {})
+                if overall_stage_plans:
+                    # 成长路线
+                    growth_content = "成长路线规划：\n"
+                    for stage_name, stage_data in overall_stage_plans.items():
+                        growth_content += f"- {stage_name}: {stage_data.get('description', '')}\n"
+                    products['growth']['content'] = growth_content
+                    products['growth']['complete'] = True
+                    
+                    # 写作计划
+                    writing_content = "写作计划安排：\n"
+                    for stage_name, stage_data in overall_stage_plans.items():
+                        writing_content += f"- {stage_name}: {stage_data.get('chapter_range', '')}\n"
+                    products['writing']['content'] = writing_content
+                    products['writing']['complete'] = True
+                    
+                    # 故事线
+                    storyline_content = "故事线架构：\n"
+                    for stage_name, stage_data in overall_stage_plans.items():
+                        storyline_content += f"- {stage_name}: {stage_data.get('key_events', '')}\n"
+                    products['storyline']['content'] = storyline_content
+                    products['storyline']['complete'] = True
+                
+                # 市场分析
+                market_analysis = novel_data_summary.get('market_analysis', {})
+                if market_analysis:
+                    products['market']['content'] = json.dumps(market_analysis, ensure_ascii=False, indent=2)
+                    products['market']['complete'] = True
+        
+        # 检查自定义产物
+        custom_products = phase_one_data.get('custom_products', {})
+        for category, product_data in custom_products.items():
+            if category in products:
+                products[category].update(product_data)
+        
+        # 构建导出数据
+        export_data = {
+            'project_title': title,
+            'export_time': datetime.now().isoformat(),
+            'products': products,
+            'summary': {
+                'total_categories': len(products),
+                'completed_categories': sum(1 for p in products.values() if p.get('complete', False))
+            }
+        }
+        
+        # 创建响应
+        from flask import Response
+        response = Response(
+            json.dumps(export_data, ensure_ascii=False, indent=2),
+            mimetype='application/json',
+            headers={
+                'Content-Disposition': f'attachment; filename={title}_第一阶段产物.json'
+            }
+        )
+        
+        return response
+        
+    except Exception as e:
+        logger.error(f"❌ 导出第一阶段产物失败: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@phase_api.route('/phase-one/products/<title>/validate', methods=['POST'])
+def validate_phase_one_products(title):
+    """验证第一阶段产物的完整性"""
+    try:
+        # 直接获取产物数据，避免函数调用问题
+        safe_title = re.sub(r'[\\/*?:"<>|]', "_", title)
+        phase_one_dir = f"小说项目/{safe_title}_第一阶段设定"
+        phase_one_file = f"{phase_one_dir}/{safe_title}_第一阶段设定.json"
+        
+        products = {
+            'worldview': {'title': '世界观设定', 'content': '', 'complete': False},
+            'characters': {'title': '角色设计', 'content': '', 'complete': False},
+            'growth': {'title': '成长路线', 'content': '', 'complete': False},
+            'writing': {'title': '写作计划', 'content': '', 'complete': False},
+            'storyline': {'title': '故事线', 'content': '', 'complete': False},
+            'market': {'title': '市场分析', 'content': '', 'complete': False}
+        }
+        
+        if os.path.exists(phase_one_file):
+            with open(phase_one_file, 'r', encoding='utf-8') as f:
+                phase_one_data = json.load(f)
+                
+                # 从第一阶段结果中提取产物数据
+                novel_data_summary = phase_one_data.get('result', {}).get('novel_data_summary', {})
+                
+                # 提取世界观
+                core_worldview = novel_data_summary.get('core_worldview', {})
+                if core_worldview:
+                    products['worldview']['content'] = json.dumps(core_worldview, ensure_ascii=False, indent=2)
+                    products['worldview']['complete'] = True
+                
+                # 提取角色设计
+                character_design = novel_data_summary.get('character_design', {})
+                if character_design:
+                    products['characters']['content'] = json.dumps(character_design, ensure_ascii=False, indent=2)
+                    products['characters']['complete'] = True
+                
+                # 提取其他产物（简化处理）
+                overall_stage_plans = novel_data_summary.get('overall_stage_plans', {})
+                if overall_stage_plans:
+                    # 成长路线
+                    growth_content = "成长路线规划：\n"
+                    for stage_name, stage_data in overall_stage_plans.items():
+                        growth_content += f"- {stage_name}: {stage_data.get('description', '')}\n"
+                    products['growth']['content'] = growth_content
+                    products['growth']['complete'] = True
+                    
+                    # 写作计划
+                    writing_content = "写作计划安排：\n"
+                    for stage_name, stage_data in overall_stage_plans.items():
+                        writing_content += f"- {stage_name}: {stage_data.get('chapter_range', '')}\n"
+                    products['writing']['content'] = writing_content
+                    products['writing']['complete'] = True
+                    
+                    # 故事线
+                    storyline_content = "故事线架构：\n"
+                    for stage_name, stage_data in overall_stage_plans.items():
+                        storyline_content += f"- {stage_name}: {stage_data.get('key_events', '')}\n"
+                    products['storyline']['content'] = storyline_content
+                    products['storyline']['complete'] = True
+                
+                # 市场分析
+                market_analysis = novel_data_summary.get('market_analysis', {})
+                if market_analysis:
+                    products['market']['content'] = json.dumps(market_analysis, ensure_ascii=False, indent=2)
+                    products['market']['complete'] = True
+        
+        # 检查自定义产物
+        custom_products = phase_one_data.get('custom_products', {})
+        for category, product_data in custom_products.items():
+            if category in products:
+                products[category].update(product_data)
+        
+        # 验证逻辑
+        required_categories = ['worldview', 'characters', 'growth', 'writing', 'storyline']
+        completed_categories = []
+        missing_categories = []
+        
+        for category in required_categories:
+            if category in products and products[category].get('content'):
+                completed_categories.append(category)
+            else:
+                missing_categories.append(category)
+        
+        completion_rate = len(completed_categories) / len(required_categories) * 100
+        
+        validation_result = {
+            'is_valid': completion_rate >= 80,
+            'completion_rate': round(completion_rate, 1),
+            'completed_categories': completed_categories,
+            'missing_categories': missing_categories,
+            'total_categories': len(required_categories),
+            'recommendations': []
+        }
+        
+        # 生成建议
+        if completion_rate < 100:
+            validation_result['recommendations'].append("建议完善所有类别的设定以获得最佳生成效果")
+        
+        if not products.get('worldview', {}).get('content'):
+            validation_result['recommendations'].append("世界观设定是小说的基础，请务必完善")
+        
+        if not products.get('characters', {}).get('content'):
+            validation_result['recommendations'].append("角色设计有助于生成更有深度的故事")
+        
+        return jsonify({
+            "success": True,
+            "validation": validation_result
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ 验证第一阶段产物失败: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500

@@ -724,8 +724,250 @@
             background: linear-gradient(135deg, #15803d 0%, #166534 100%);
         }
 
+        /* 第一阶段产物展示区域样式 */
+        .phase-one-products-section {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            padding: 40px;
+            border-radius: var(--radius-2xl);
+            box-shadow: var(--shadow-lg);
+            margin: 24px 0;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .products-categories-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 24px;
+            margin: 32px 0;
+        }
+
+        .product-category-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            padding: 32px 24px;
+            border-radius: var(--radius-2xl);
+            box-shadow: var(--shadow-lg);
+            text-align: center;
+            transition: all var(--transition-normal);
+            border: 2px solid transparent;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .product-category-card:nth-child(1) {
+            border-color: rgba(59, 130, 246, 0.3);
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.05) 0%, rgba(255, 255, 255, 0.95) 100%);
+        }
+
+        .product-category-card:nth-child(2) {
+            border-color: rgba(16, 185, 129, 0.3);
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.05) 0%, rgba(255, 255, 255, 0.95) 100%);
+        }
+
+        .product-category-card:nth-child(3) {
+            border-color: rgba(245, 158, 11, 0.3);
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.05) 0%, rgba(255, 255, 255, 0.95) 100%);
+        }
+
+        .product-category-card:nth-child(4) {
+            border-color: rgba(139, 92, 246, 0.3);
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.05) 0%, rgba(255, 255, 255, 0.95) 100%);
+        }
+
+        .product-category-card:nth-child(5) {
+            border-color: rgba(239, 68, 68, 0.3);
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.05) 0%, rgba(255, 255, 255, 0.95) 100%);
+        }
+
+        .product-category-card:nth-child(6) {
+            border-color: rgba(236, 72, 153, 0.3);
+            background: linear-gradient(135deg, rgba(236, 72, 153, 0.05) 0%, rgba(255, 255, 255, 0.95) 100%);
+        }
+
+        .product-category-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: var(--gradient-primary);
+            opacity: 0;
+            transition: opacity var(--transition-normal);
+        }
+
+        .product-category-card:hover {
+            transform: translateY(-8px);
+            box-shadow: var(--shadow-2xl);
+            border-color: var(--primary-500);
+        }
+
+        .product-category-card:hover::before {
+            opacity: 0.08;
+        }
+
+        .product-icon {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 24px;
+            border-radius: var(--radius-2xl);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 36px;
+            color: white;
+            box-shadow: var(--shadow-lg);
+            position: relative;
+            z-index: 1;
+            transition: all var(--transition-normal);
+        }
+
+        .product-category-card:nth-child(1) .product-icon {
+            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+        }
+
+        .product-category-card:nth-child(2) .product-icon {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        }
+
+        .product-category-card:nth-child(3) .product-icon {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        }
+
+        .product-category-card:nth-child(4) .product-icon {
+            background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+        }
+
+        .product-category-card:nth-child(5) .product-icon {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        }
+
+        .product-category-card:nth-child(6) .product-icon {
+            background: linear-gradient(135deg, #ec4899 0%, #db2777 100%);
+        }
+
+        .product-category-card:hover .product-icon {
+            transform: scale(1.1) rotate(5deg);
+        }
+
+        .product-category-card h4 {
+            color: var(--gray-800);
+            margin-bottom: 16px;
+            font-size: 1.5rem;
+            font-weight: 700;
+            position: relative;
+            z-index: 1;
+        }
+
+        .product-category-card p {
+            color: var(--gray-600);
+            font-size: 1rem;
+            line-height: 1.7;
+            margin-bottom: 24px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .product-status {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-bottom: 20px;
+            padding: 8px 16px;
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            position: relative;
+            z-index: 1;
+        }
+
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #fbbf24;
+            animation: pulse 2s infinite;
+        }
+
+        .status-indicator.complete {
+            background: #10b981;
+            animation: none;
+        }
+
+        .status-indicator.error {
+            background: #ef4444;
+            animation: none;
+        }
+
+        .status-text {
+            color: var(--gray-700);
+        }
+
+        .product-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 24px;
+            background: var(--gradient-primary);
+            color: white;
+            border-radius: var(--radius-lg);
+            font-weight: 600;
+            font-size: var(--text-sm);
+            transition: all var(--transition-normal);
+            position: relative;
+            z-index: 1;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .product-category-card:hover .product-btn {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .quick-actions-section {
+            background: rgba(249, 250, 251, 0.8);
+            border-radius: 16px;
+            padding: 24px;
+            border: 1px solid rgba(229, 231, 235, 0.5);
+        }
+
+        .quick-actions-section h4 {
+            color: var(--gray-800);
+            margin-bottom: 16px;
+            font-size: 1.2rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
         /* 响应式设计优化 */
         @media (max-width: 768px) {
+            .phase-header h1 {
+                font-size: 2rem;
+            }
+            
+            .main-layout {
+                grid-template-columns: 1fr;
+            }
+            
+            .config-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .action-buttons {
+                flex-direction: column;
+            }
+            
+            .btn {
+                width: 100%;
+                justify-content: center;
+            }
+
             .creative-enhancement-section {
                 padding: 24px;
             }
@@ -755,6 +997,43 @@
 
             .creative-subtitle {
                 font-size: 1rem;
+            }
+
+            .phase-one-products-section {
+                padding: 24px;
+            }
+
+            .products-categories-grid {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+
+            .product-category-card {
+                padding: 24px 20px;
+            }
+
+            .product-icon {
+                width: 60px;
+                height: 60px;
+                font-size: 28px;
+                margin-bottom: 20px;
+            }
+
+            .product-category-card h4 {
+                font-size: 1.25rem;
+            }
+
+            .product-category-card p {
+                font-size: 0.9rem;
+                margin-bottom: 20px;
+            }
+
+            .quick-actions-section {
+                padding: 20px;
+            }
+
+            .quick-actions-section .btn {
+                margin-bottom: 8px;
             }
         }
     </style>
@@ -845,56 +1124,105 @@
                     </div>
                 </div>
 
-                <!-- 创意优化区域 - 与首页风格一致 -->
-                <div class="creative-enhancement-section" id="creative-enhancement-section" style="display: none;">
+                <!-- 第一阶段产物展示和编辑区域 -->
+                <div class="phase-one-products-section" id="phase-one-products-section" style="display: none;">
                     <div class="creative-header">
                         <div class="creative-badge">
-                            <span>✨</span>
-                            <span>创意优化工作台</span>
+                            <span>📋</span>
+                            <span>第一阶段产物管理</span>
                         </div>
-                        <h3>🎨 创意设定优化</h3>
-                        <p class="creative-subtitle">在生成章节前，您可以进一步优化和完善项目的创意设定</p>
+                        <h3>🎨 第一阶段生成产物</h3>
+                        <p class="creative-subtitle">查看和编辑第一阶段生成的所有设定产物，优化后再进行章节生成</p>
                     </div>
 
-                    <div class="creative-cards-grid">
-                        <!-- 创意库卡片 -->
-                        <div class="creative-card primary" onclick="loadCreativeIdeasForPhaseTwo()">
-                            <div class="creative-icon">💡</div>
-                            <h4>创意库</h4>
-                            <p>从预设的创意库中选择灵感，快速启动优化</p>
-                            <div class="creative-btn">浏览创意库 →</div>
+                    <!-- 产物分类展示 -->
+                    <div class="products-categories-grid" id="products-categories-grid">
+                        <!-- 世界观设定 -->
+                        <div class="product-category-card" onclick="editProductCategory('worldview')">
+                            <div class="product-icon">🌍</div>
+                            <h4>世界观设定</h4>
+                            <p>世界的背景、规则、势力分布等核心设定</p>
+                            <div class="product-status" id="worldview-status">
+                                <span class="status-indicator"></span>
+                                <span class="status-text">加载中...</span>
+                            </div>
+                            <div class="product-btn">编辑设定 →</div>
                         </div>
 
-                        <!-- 自定义优化卡片 -->
-                        <div class="creative-card secondary" onclick="openCreativeEditorForPhaseTwo()">
-                            <div class="creative-icon">✏️</div>
-                            <h4>自定义优化</h4>
-                            <p>手动调整和完善项目的各项设定参数</p>
-                            <div class="creative-btn">开始优化 →</div>
+                        <!-- 角色设计 -->
+                        <div class="product-category-card" onclick="editProductCategory('characters')">
+                            <div class="product-icon">👥</div>
+                            <h4>角色设计</h4>
+                            <p>主要角色的性格、能力、关系网设计</p>
+                            <div class="product-status" id="characters-status">
+                                <span class="status-indicator"></span>
+                                <span class="status-text">加载中...</span>
+                            </div>
+                            <div class="product-btn">编辑角色 →</div>
                         </div>
 
-                        <!-- AI建议卡片 -->
-                        <div class="creative-card secondary" onclick="openAISuggestions()">
-                            <div class="creative-icon">🤖</div>
-                            <h4>AI智能建议</h4>
-                            <p>基于当前设定获取AI的优化建议和改进方案</p>
-                            <div class="creative-btn">获取建议 →</div>
+                        <!-- 成长路线 -->
+                        <div class="product-category-card" onclick="editProductCategory('growth')">
+                            <div class="product-icon">📈</div>
+                            <h4>成长路线</h4>
+                            <p>主角的成长路径、能力提升路线规划</p>
+                            <div class="product-status" id="growth-status">
+                                <span class="status-indicator"></span>
+                                <span class="status-text">加载中...</span>
+                            </div>
+                            <div class="product-btn">编辑路线 →</div>
+                        </div>
+
+                        <!-- 写作计划 -->
+                        <div class="product-category-card" onclick="editProductCategory('writing')">
+                            <div class="product-icon">📝</div>
+                            <h4>写作计划</h4>
+                            <p>章节安排、情节推进、写作节奏规划</p>
+                            <div class="product-status" id="writing-status">
+                                <span class="status-indicator"></span>
+                                <span class="status-text">加载中...</span>
+                            </div>
+                            <div class="product-btn">编辑计划 →</div>
+                        </div>
+
+                        <!-- 故事线 -->
+                        <div class="product-category-card" onclick="editProductCategory('storyline')">
+                            <div class="product-icon">📖</div>
+                            <h4>故事线</h4>
+                            <p>完整的故事架构、重大事件、情节转折</p>
+                            <div class="product-status" id="storyline-status">
+                                <span class="status-indicator"></span>
+                                <span class="status-text">加载中...</span>
+                            </div>
+                            <div class="product-btn">编辑故事线 →</div>
+                        </div>
+
+                        <!-- 市场分析 -->
+                        <div class="product-category-card" onclick="editProductCategory('market')">
+                            <div class="product-icon">📊</div>
+                            <h4>市场分析</h4>
+                            <p>目标读者、竞品分析、市场定位策略</p>
+                            <div class="product-status" id="market-status">
+                                <span class="status-indicator"></span>
+                                <span class="status-text">加载中...</span>
+                            </div>
+                            <div class="product-btn">编辑分析 →</div>
                         </div>
                     </div>
 
-                    <!-- 创意文件加载区域 - 列表模式，点击直接编辑 -->
-                    <div class="creative-ideas-section" id="creative-ideas-phase-two" style="display: none; margin-top: 32px;">
-                        <h4>💡 从创意库选择优化方案</h4>
-                        <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 20px;">
-                            <button type="button" class="btn btn-secondary" onclick="loadCreativeIdeasForPhaseTwo()" style="flex: 1;">
-                                🔄 加载创意列表
+                    <!-- 快速操作区域 -->
+                    <div class="quick-actions-section" style="margin-top: 32px;">
+                        <h4>🚀 快速操作</h4>
+                        <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                            <button type="button" class="btn btn-secondary" onclick="refreshPhaseOneProducts()" style="flex: 1;">
+                                🔄 刷新产物数据
                             </button>
-                            <button type="button" class="btn btn-primary" onclick="createNewCreativeIdeaForPhaseTwo()" style="flex-shrink: 0;">
-                                ➕ 创建新创意
+                            <button type="button" class="btn btn-primary" onclick="exportPhaseOneProducts()" style="flex: 1;">
+                                📤 导出所有产物
                             </button>
-                        </div>
-                        <div id="creative-ideas-list-phase-two" style="display: none;">
-                            <!-- 创意列表将在这里动态生成 -->
+                            <button type="button" class="btn btn-secondary" onclick="validatePhaseOneProducts()" style="flex: 1;">
+                                ✅ 验证产物完整性
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -1260,11 +1588,314 @@
         }
 
         function showCreativeEnhancement() {
-            document.getElementById('creative-enhancement-section').style.display = 'block';
+            document.getElementById('phase-one-products-section').style.display = 'block';
+            // 加载第一阶段产物数据
+            loadPhaseOneProducts();
         }
 
         function showGenerationForm() {
             document.getElementById('phase-two-form').style.display = 'block';
+        }
+
+        // ==================== 第一阶段产物管理功能 ====================
+        let phaseOneProductsData = {};
+
+        // 加载第一阶段产物数据
+        async function loadPhaseOneProducts() {
+            if (!currentProject) {
+                showStatusMessage('❌ 请先选择一个项目', 'error');
+                return;
+            }
+
+            try {
+                showStatusMessage('🔄 正在加载第一阶段产物...', 'info');
+                
+                const response = await fetch(`/api/phase-one/products/${encodeURIComponent(currentProject.novel_title || currentProject.title)}`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    phaseOneProductsData = result.products;
+                    updateProductsDisplay();
+                    showStatusMessage('✅ 第一阶段产物加载完成', 'success');
+                } else {
+                    throw new Error(result.error || '加载失败');
+                }
+            } catch (error) {
+                console.error('加载第一阶段产物失败:', error);
+                showStatusMessage(`❌ 加载产物失败: ${error.message}`, 'error');
+                
+                // 如果加载失败，显示模拟数据
+                showMockProductsData();
+            }
+        }
+
+        // 更新产物显示状态
+        function updateProductsDisplay() {
+            const categories = ['worldview', 'characters', 'growth', 'writing', 'storyline', 'market'];
+            
+            categories.forEach(category => {
+                const statusElement = document.getElementById(`${category}-status`);
+                if (statusElement) {
+                    const indicator = statusElement.querySelector('.status-indicator');
+                    const text = statusElement.querySelector('.status-text');
+                    
+                    if (phaseOneProductsData[category] && phaseOneProductsData[category].content) {
+                        indicator.className = 'status-indicator complete';
+                        text.textContent = '已完成';
+                    } else {
+                        indicator.className = 'status-indicator';
+                        text.textContent = '未生成';
+                    }
+                }
+            });
+        }
+
+        // 显示模拟产物数据（用于测试）
+        function showMockProductsData() {
+            phaseOneProductsData = {
+                worldview: {
+                    title: '世界观设定',
+                    content: '这是一个修仙世界，分为凡人界、修仙界、仙界三重境界。主要修炼体系包括炼气、筑基、金丹、元婴等境界。世界中有各大宗门、家族势力，以及丰富的灵兽、法宝设定。',
+                    complete: true
+                },
+                characters: {
+                    title: '角色设计',
+                    content: '主角：张三，天赋异禀的修仙奇才，性格坚毅不屈。女主角：李四，来自名门正派，实力高强。主要配角：王五（主角好友）、赵六（导师）等。每个角色都有独特的背景故事和性格特点。',
+                    complete: true
+                },
+                growth: {
+                    title: '成长路线',
+                    content: '从炼气期开始，逐步升级到筑基、金丹、元婴。每个阶段都有不同的挑战和机遇。主角将通过修炼、奇遇、战斗等方式提升实力。成长过程中注重实力与心境的双重提升。',
+                    complete: true
+                },
+                writing: {
+                    title: '写作计划',
+                    content: '全书共200章，分为四个阶段。第一阶段（1-50章）：基础设定和成长初期；第二阶段（51-100章）：实力提升和冒险；第三阶段（101-150章）：高潮冲突；第四阶段（151-200章）：结局和新开始。',
+                    complete: true
+                },
+                storyline: {
+                    title: '故事线',
+                    content: '开篇：主角获得奇遇，踏上修仙之路；发展：修炼成长，结识伙伴，面对挑战；高潮：终极对决，揭开身世之谜；结局：功成身退，开启新的征程。故事中包含多个重大事件和转折点。',
+                    complete: true
+                },
+                market: {
+                    title: '市场分析',
+                    content: '目标读者：15-35岁男性，喜爱玄幻修仙类小说。市场定位：爽文风格，节奏明快，升级体系清晰。竞品分析：参考凡人修仙传、斗破苍穹等成功作品。特色卖点：独特的修炼体系和丰富的世界观设定。',
+                    complete: true
+                }
+            };
+            
+            updateProductsDisplay();
+        }
+
+        // 编辑产物分类
+        function editProductCategory(category) {
+            if (!currentProject) {
+                showStatusMessage('❌ 请先选择一个项目', 'error');
+                return;
+            }
+
+            const productData = phaseOneProductsData[category];
+            
+            // 创建编辑模态框
+            createProductEditModal(category, productData);
+        }
+
+        // 创建产物编辑模态框
+        function createProductEditModal(category, productData) {
+            const categoryNames = {
+                'worldview': '世界观设定',
+                'characters': '角色设计',
+                'growth': '成长路线',
+                'writing': '写作计划',
+                'storyline': '故事线',
+                'market': '市场分析'
+            };
+
+            const categoryIcons = {
+                'worldview': '🌍',
+                'characters': '👥',
+                'growth': '📈',
+                'writing': '📝',
+                'storyline': '📖',
+                'market': '📊'
+            };
+
+            const modalHtml = `
+                <div id="product-edit-modal" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 999999; backdrop-filter: blur(4px); display: flex; justify-content: center; align-items: center;">
+                    <div style="position: relative; background: white; border-radius: 16px; box-shadow: 0 25px 80px rgba(0,0,0,0.4); max-width: 900px; width: 90vw; max-height: 85vh; overflow: hidden; border: 1px solid rgba(255,255,255,0.2);">
+                        <!-- 头部 -->
+                        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 24px 32px; display: flex; justify-content: space-between; align-items: center;">
+                            <div style="display: flex; align-items: center; gap: 12px;">
+                                <div style="width: 40px; height: 40px; background: rgba(255,255,255,0.2); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px;">${categoryIcons[category]}</div>
+                                <div>
+                                    <h3 style="margin: 0; font-size: 22px; font-weight: 700;">编辑${categoryNames[category]}</h3>
+                                    <p style="margin: 4px 0 0 0; font-size: 14px; opacity: 0.9;">修改和完善${categoryNames[category]}内容</p>
+                                </div>
+                            </div>
+                            <div style="display: flex; gap: 12px; align-items: center;">
+                                <button type="button" onclick="saveProductEdit('${category}')" style="background: rgba(255,255,255,0.25); color: white; border: 1px solid rgba(255,255,255,0.35); padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; transition: all 0.2s;">💾 保存</button>
+                                <button type="button" onclick="closeProductEditModal()" style="background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2); font-size: 20px; cursor: pointer; padding: 8px; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 8px; transition: all 0.2s;">×</button>
+                            </div>
+                        </div>
+                        
+                        <!-- 内容区域 -->
+                        <div style="padding: 32px; overflow-y: auto; max-height: calc(85vh - 100px); background: #fafbfc;">
+                            <div style="margin-bottom: 20px;">
+                                <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #374151; font-size: 14px;">标题</label>
+                                <input type="text" id="product-title" value="${productData?.title || categoryNames[category]}" style="width: 100%; padding: 14px 16px; border: 2px solid #e5e7eb; border-radius: 10px; font-size: 15px; background: white; color: #1f2937; transition: all 0.2s; font-weight: 500; box-sizing: border-box;">
+                            </div>
+                            
+                            <div style="margin-bottom: 20px;">
+                                <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #374151; font-size: 14px;">内容</label>
+                                <textarea id="product-content" rows="20" style="width: 100%; padding: 16px; border: 2px solid #e5e7eb; border-radius: 10px; font-size: 15px; background: white; color: #1f2937; resize: vertical; min-height: 400px; transition: all 0.2s; font-family: inherit; line-height: 1.6; box-sizing: border-box;">${productData?.content || ''}</textarea>
+                            </div>
+                            
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <span style="color: #6b7280; font-size: 14px;">💡 提示：详细的内容有助于生成更高质量的小说章节</span>
+                                <span id="product-char-count" style="color: #9ca3af; font-size: 13px; font-weight: 500;">${(productData?.content || '').length} 字符</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+            
+            // 添加字符计数功能
+            const contentTextarea = document.getElementById('product-content');
+            const charCountSpan = document.getElementById('product-char-count');
+            
+            if (contentTextarea && charCountSpan) {
+                contentTextarea.addEventListener('input', function() {
+                    charCountSpan.textContent = this.value.length + ' 字符';
+                });
+            }
+        }
+
+        // 保存产物编辑
+        async function saveProductEdit(category) {
+            try {
+                const title = document.getElementById('product-title').value.trim();
+                const content = document.getElementById('product-content').value.trim();
+                
+                if (!title || !content) {
+                    alert('请填写完整的标题和内容');
+                    return;
+                }
+
+                showStatusMessage('🔄 正在保存...', 'info');
+                
+                const response = await fetch(`/api/phase-one/products/${encodeURIComponent(currentProject.novel_title || currentProject.title)}/${category}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        title: title,
+                        content: content
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    // 更新本地数据
+                    phaseOneProductsData[category] = {
+                        title: title,
+                        content: content,
+                        complete: true
+                    };
+                    
+                    // 更新显示状态
+                    updateProductsDisplay();
+                    
+                    closeProductEditModal();
+                    showStatusMessage('✅ 保存成功', 'success');
+                } else {
+                    throw new Error(result.error || '保存失败');
+                }
+            } catch (error) {
+                console.error('保存产物失败:', error);
+                showStatusMessage(`❌ 保存失败: ${error.message}`, 'error');
+            }
+        }
+
+        // 关闭产物编辑模态框
+        function closeProductEditModal() {
+            const modal = document.getElementById('product-edit-modal');
+            if (modal) {
+                modal.remove();
+            }
+        }
+
+        // 刷新第一阶段产物
+        function refreshPhaseOneProducts() {
+            loadPhaseOneProducts();
+        }
+
+        // 导出第一阶段产物
+        async function exportPhaseOneProducts() {
+            if (!currentProject) {
+                showStatusMessage('❌ 请先选择一个项目', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/phase-one/products/${encodeURIComponent(currentProject.novel_title || currentProject.title)}/export`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${currentProject.novel_title || currentProject.title}_第一阶段产物.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+                
+                showStatusMessage('✅ 产物导出成功', 'success');
+            } catch (error) {
+                console.error('导出产物失败:', error);
+                showStatusMessage(`❌ 导出失败: ${error.message}`, 'error');
+            }
+        }
+
+        // 验证第一阶段产物完整性
+        function validatePhaseOneProducts() {
+            const categories = ['worldview', 'characters', 'growth', 'writing', 'storyline'];
+            let completedCount = 0;
+            let totalCount = categories.length;
+            
+            categories.forEach(category => {
+                if (phaseOneProductsData[category] && phaseOneProductsData[category].content) {
+                    completedCount++;
+                }
+            });
+            
+            const percentage = Math.round((completedCount / totalCount) * 100);
+            
+            if (percentage === 100) {
+                showStatusMessage('✅ 所有产物都已完成，可以开始章节生成', 'success');
+            } else if (percentage >= 80) {
+                showStatusMessage(`⚠️ 产物完成度 ${percentage}%，建议完善后再开始生成`, 'info');
+            } else {
+                showStatusMessage(`❌ 产物完成度仅 ${percentage}%，请先完善基本设定`, 'error');
+            }
         }
 
         // ==================== 创意优化功能 ====================
