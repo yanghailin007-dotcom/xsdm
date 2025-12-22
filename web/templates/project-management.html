@@ -574,6 +574,13 @@
                     <option value="completed">已完成</option>
                     <option value="failed">失败</option>
                 </select>
+                <select class="filter-select" id="phase-filter" onchange="filterProjectsByPhase()">
+                    <option value="all">所有阶段</option>
+                    <option value="phase_one_completed">第一阶段完成</option>
+                    <option value="phase_two_in_progress">第二阶段进行中</option>
+                    <option value="designing">设计阶段</option>
+                    <option value="completed">全部完成</option>
+                </select>
                 <select class="filter-select" id="sort-filter" onchange="filterProjects()">
                     <option value="last_updated">最近更新</option>
                     <option value="created_date">创建时间</option>
@@ -627,6 +634,8 @@
         // ==================== 项目加载功能 ====================
         async function loadProjects() {
             try {
+                showStatusMessage('🔄 正在加载项目列表...', 'info');
+                
                 const response = await fetch('/api/projects/with-phase-status');
                 
                 if (response.status === 401) {
@@ -639,14 +648,27 @@
                 }
 
                 const result = await response.json();
-                projectsData = result.projects || [];
+                console.log('📋 [DEBUG] API返回结果:', result);
+                
+                // 处理新的响应格式
+                if (result.projects && Array.isArray(result.projects)) {
+                    projectsData = result.projects;
+                } else if (Array.isArray(result)) {
+                    // 兼容旧格式
+                    projectsData = result;
+                } else {
+                    console.warn('⚠️ 未知的API响应格式:', result);
+                    projectsData = [];
+                }
+                
                 filteredProjects = [...projectsData];
+                console.log(`📋 [DEBUG] 处理后项目数据: ${projectsData.length} 个项目`);
                 
                 updateStatsOverview();
                 displayProjects(projectsData);
                 showStatusMessage(`✅ 成功加载 ${projectsData.length} 个项目`, 'success');
             } catch (error) {
-                console.error('加载项目失败:', error);
+                console.error('❌ 加载项目失败:', error);
                 showStatusMessage(`❌ 加载项目失败: ${error.message}`, 'error');
             }
         }
@@ -1039,6 +1061,43 @@
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
+        }
+
+        // ==================== 项目筛选功能 ====================
+        function filterProjectsByPhase() {
+            console.log('🔍 [DEBUG] 开始按阶段筛选项目');
+            
+            const phaseFilter = document.getElementById('phase-filter').value;
+            console.log(`📋 [DEBUG] 筛选条件: ${phaseFilter}`);
+            
+            if (!phaseFilter || phaseFilter === 'all') {
+                filteredProjects = [...projectsData];
+            } else {
+                filteredProjects = projectsData.filter(project => {
+                    switch (phaseFilter) {
+                        case 'phase_one_completed':
+                            return project.phase_one && project.phase_one.status === 'completed' &&
+                                   (!project.phase_two || project.phase_two.status === 'not_started');
+                        case 'phase_two_in_progress':
+                            return project.phase_two && project.phase_two.status === 'generating';
+                        case 'designing':
+                            return project.status === 'designing' ||
+                                   (project.phase_one && project.phase_one.status === 'pending');
+                        case 'completed':
+                            return project.status === 'completed';
+                        default:
+                            return true;
+                    }
+                });
+            }
+            
+            console.log(`📋 [DEBUG] 筛选后项目数量: ${filteredProjects.length}`);
+            displayProjects(filteredProjects);
+            
+            // 更新状态消息
+            if (phaseFilter !== 'all') {
+                showStatusMessage(`🔍 筛选结果: ${filteredProjects.length} 个项目`, 'info');
+            }
         }
 
         function showStatusMessage(message, type) {

@@ -1507,7 +1507,7 @@ function startProgressMonitoring() {
             if (response.ok) {
                 const data = await response.json();
                 const currentChapters = data.chapters_count || 0;
-                const totalChapters = data.total_chapters || 50;
+                const totalChapters = data.total_chapters || 200;
                 
                 // 更新进度显示（仅在没有隐藏时显示）
                 const progressElement = document.getElementById('novel-progress');

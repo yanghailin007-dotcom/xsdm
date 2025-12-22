@@ -26,7 +26,7 @@ CONFIG = {
         "deepseek": "https://api.deepseek.com/v1/chat/completions",
         "yuanbao": "https://api.deepseek.com/v1/chat/completions",
         #"gemini": "https://metamrb.zenymes.com/v1/chat/completions"
-        "gemini": "https://api.devdove.site"
+        "gemini": "https://api.devdove.site/v1/chat/completions"
         #"gemini": "https://api.mttieeo.com/v1/chat/completions"
     },
     "models": {

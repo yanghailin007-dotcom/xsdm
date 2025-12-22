@@ -88,14 +88,14 @@ def start_phase_one_generation():
         logger.info(f"📋 [API_DEBUG] 构建的创意种子: {json.dumps(creative_seed, ensure_ascii=False, indent=2)}")
         
         # 启动生成任务，使用管理器返回的任务ID
-        logger.info("🚀 [API_DEBUG] 调用管理器启动生成任务...")
+        logger.info("🚀 [API_DEBUG] 调用管理器启动第一阶段生成任务...")
         generation_config = {
             "title": data.get("title"),
             "synopsis": data.get("synopsis"),
             "core_setting": data.get("core_setting"),
             "core_selling_points": data.get("core_selling_points"),
             "total_chapters": data.get("total_chapters", 50),
-            "generation_mode": data.get("generation_mode", "phase_one_only"),
+            "generation_mode": "phase_one_only",  # 强制设置为第一阶段模式
             "creative_seed": creative_seed
         }
         logger.info(f"📋 [API_DEBUG] 生成配置: {json.dumps(generation_config, ensure_ascii=False, indent=2)}")
@@ -105,14 +105,21 @@ def start_phase_one_generation():
         
         # 使用管理器返回的任务ID作为统一的任务ID
         task_id = manager_task_id
-        logger.info(f"✅ [API_DEBUG] 第一阶段生成任务已启动: {task_id}")
+        logger.info(f"✅ [API_DEBUG] 第一阶段设定生成任务已启动: {task_id}")
         
         response_data = {
             "success": True,
             "task_id": task_id,
             "manager_task_id": manager_task_id,
-            "message": "第一阶段设定生成任务已启动，正在后台处理",
-            "status": "started"
+            "message": "第一阶段设定生成任务已启动，正在后台处理（只执行到第一章生成前）",
+            "status": "started",
+            "phase": "phase_one",
+            "expected_stages": [
+                "基础规划",
+                "世界观与角色设计",
+                "全书规划",
+                "内容生成准备"
+            ]
         }
         logger.info(f"📤 [API_DEBUG] 返回响应: {json.dumps(response_data, ensure_ascii=False, indent=2)}")
         
@@ -282,14 +289,21 @@ def continue_to_phase_two(novel_title):
 @login_required
 def start_phase_two_generation():
     """启动第二阶段章节生成"""
+    logger.info("🚀 [API_DEBUG] 第二阶段生成API被调用")
+    logger.info(f"📋 [API_DEBUG] 请求方法: {request.method}")
+    logger.info(f"📋 [API_DEBUG] 请求URL: {request.url}")
+    
     try:
         data = request.json or {}
+        logger.info(f"📋 [API_DEBUG] 接收到的数据: {json.dumps(data, ensure_ascii=False, indent=2)}")
+        
         novel_title = data.get('novel_title')
         from_chapter = data.get('from_chapter', 1)
-        chapters_to_generate = data.get('chapters_to_generate', 10)
+        chapters_to_generate = data.get('chapters_to_generate', None)
         chapters_per_batch = data.get('chapters_per_batch', 3)
         
         if not novel_title:
+            logger.error("❌ [API_DEBUG] 缺少novel_title参数")
             return jsonify({
                 "success": False,
                 "error": "缺少novel_title参数"
@@ -300,7 +314,10 @@ def start_phase_two_generation():
         phase_one_dir = f"小说项目/{safe_title}_第一阶段设定"
         phase_one_file = f"{phase_one_dir}/{safe_title}_第一阶段设定.json"
         
+        logger.info(f"🔍 [API_DEBUG] 检查第一阶段结果文件: {phase_one_file}")
+        
         if not os.path.exists(phase_one_file):
+            logger.error(f"❌ [API_DEBUG] 未找到第一阶段结果文件: {phase_one_file}")
             return jsonify({
                 "success": False,
                 "error": f"未找到第一阶段结果: {novel_title}"
@@ -310,6 +327,7 @@ def start_phase_two_generation():
             phase_one_result = json.load(f)
         
         if not phase_one_result.get('is_phase_one_completed', False):
+            logger.error("❌ [API_DEBUG] 第一阶段尚未完成")
             return jsonify({
                 "success": False,
                 "error": f"第一阶段尚未完成"
@@ -317,21 +335,59 @@ def start_phase_two_generation():
         
         # 检查起始章节
         if from_chapter < 1:
+            logger.error(f"❌ [API_DEBUG] 起始章节无效: {from_chapter}")
             return jsonify({
                 "success": False,
                 "error": f"起始章节必须大于等于1"
             }), 400
         
-        # 暂时返回模拟响应
-        return jsonify({
+        logger.info(f"✅ [API_DEBUG] 第一阶段验证通过，开始第二阶段生成")
+        logger.info(f"📚 [API_DEBUG] 小说标题: {novel_title}")
+        logger.info(f"📚 [API_DEBUG] 起始章节: {from_chapter}")
+        logger.info(f"📚 [API_DEBUG] 生成章节数: {chapters_to_generate}")
+        
+        # 调用管理器启动第二阶段任务
+        global manager
+        if not manager:
+            logger.error("❌ [API_DEBUG] NovelGenerationManager 未初始化")
+            return jsonify({"success": False, "error": "管理器未初始化"}), 500
+        
+        # 构建第二阶段任务配置
+        phase_two_config = {
+            "novel_title": novel_title,
+            "phase_one_file": phase_one_file,
+            "from_chapter": from_chapter,
+            "chapters_to_generate": chapters_to_generate,
+            "chapters_per_batch": chapters_per_batch,
+            "generation_mode": "phase_two_only"
+        }
+        
+        logger.info(f"🚀 [API_DEBUG] 调用管理器启动第二阶段生成任务...")
+        
+        # 启动第二阶段任务
+        manager_task_id = manager.start_phase_two_generation(phase_two_config)
+        logger.info(f"✅ [API_DEBUG] 第二阶段任务已启动: {manager_task_id}")
+        
+        response_data = {
             "success": True,
-            "task_id": f"phase_two_{novel_title}",
-            "message": f"第二阶段章节生成完成",
-            "generated_chapters": chapters_to_generate
-        })
+            "task_id": manager_task_id,
+            "message": f"第二阶段章节生成任务已启动，从第{from_chapter}章开始",
+            "status": "started",
+            "phase": "phase_two",
+            "novel_title": novel_title,
+            "from_chapter": from_chapter,
+            "chapters_to_generate": chapters_to_generate
+        }
+        logger.info(f"📤 [API_DEBUG] 返回第二阶段响应: {json.dumps(response_data, ensure_ascii=False, indent=2)}")
+        
+        return jsonify(response_data)
         
     except Exception as e:
         logger.error(f"❌ 启动第二阶段生成失败: {e}")
+        logger.error(f"❌ [API_DEBUG] 错误类型: {type(e).__name__}")
+        logger.error(f"❌ [API_DEBUG] 错误详情: {str(e)}")
+        import traceback
+        logger.error(f"❌ [API_DEBUG] 错误堆栈: {traceback.format_exc()}")
         return jsonify({"success": False, "error": str(e)}), 500
 
 @phase_api.route('/phase-two/task/<task_id>/status', methods=['GET'])
@@ -437,33 +493,87 @@ def get_phase_two_progress(novel_title):
 def get_projects_with_phase_status():
     """获取包含两阶段状态的项目列表"""
     try:
-        projects = manager.get_novel_projects()
+        projects = manager.get_novel_projects() if manager else []
+        logger.info(f"🔍 [PROJECT_DEBUG] 获取到 {len(projects)} 个项目")
         
         # 为每个项目添加两阶段状态
         for project in projects:
             title = project["title"]
+            logger.info(f"🔍 [PROJECT_DEBUG] 处理项目: {title}")
             
-            # 检查第一阶段状态
+            # 检查第一阶段状态 - 使用更灵活的检测方式
             safe_title = re.sub(r'[\\/*?:"<>|]', '_', title)
-            phase_one_completed = (
-                os.path.exists(f"小说项目/{safe_title}_第一阶段设定") and 
-                os.path.exists(f"小说项目/{safe_title}_项目信息.json")
-            )
+            
+            # 检查多种可能的第一阶段完成标识
+            phase_one_indicators = [
+                # 新格式：第一阶段设定目录
+                f"小说项目/{safe_title}_第一阶段设定",
+                # 旧格式：项目目录下有完整规划文件
+                f"小说项目/{safe_title}/planning",
+                f"小说项目/{safe_title}/worldview",
+                f"小说项目/{safe_title}/project_info",
+                # 通用：有章节目录说明至少开始生成
+                f"小说项目/{safe_title}/chapters",
+                f"小说项目/{safe_title}_章节"
+            ]
+            
+            phase_one_completed = False
+            completed_reason = ""
+            
+            for indicator in phase_one_indicators:
+                if os.path.exists(indicator):
+                    phase_one_completed = True
+                    completed_reason = f"找到目录: {indicator}"
+                    logger.info(f"✅ [PROJECT_DEBUG] 第一阶段完成标识: {indicator}")
+                    break
+            
+            # 额外检查：如果没有目录结构，检查是否有章节数据
+            if not phase_one_completed:
+                novel_detail = manager.get_novel_detail(title) if manager else None
+                if novel_detail:
+                    generated_chapters = novel_detail.get("generated_chapters", {})
+                    if generated_chapters:
+                        phase_one_completed = True
+                        completed_reason = f"找到 {len(generated_chapters)} 个已生成章节"
+                        logger.info(f"✅ [PROJECT_DEBUG] 通过章节数据确认第一阶段完成: {len(generated_chapters)} 章")
+            
+            # 检查第二阶段状态
+            novel_detail = manager.get_novel_detail(title) if manager else None
+            generated_chapters = novel_detail.get("generated_chapters", {}) if novel_detail else {}
+            chapter_count = len(generated_chapters)
             
             # 设置两阶段状态
             if phase_one_completed:
-                project["phase_one"] = {"status": "completed"}
-                project["phase_two"] = {"status": "not_started", "progress": "0 章"}
-                project["status"] = "phase_one_completed"
+                project["phase_one"] = {
+                    "status": "completed",
+                    "completed_at": novel_detail.get("creation_time", "") if novel_detail else "",
+                    "reason": completed_reason
+                }
+                
+                if chapter_count > 0:
+                    project["phase_two"] = {
+                        "status": "generating" if chapter_count < project.get("total_chapters", 50) else "completed",
+                        "progress": f"{chapter_count} 章",
+                        "generated_chapters": chapter_count
+                    }
+                    project["status"] = "phase_two_in_progress" if chapter_count < project.get("total_chapters", 50) else "completed"
+                else:
+                    project["phase_two"] = {"status": "not_started", "progress": "0 章"}
+                    project["status"] = "phase_one_completed"
             else:
                 project["phase_one"] = {"status": "pending"}
                 project["phase_two"] = {"status": "not_started", "progress": "0 章"}
                 project["status"] = "designing"
+            
+            logger.info(f"📋 [PROJECT_DEBUG] 项目 {title} 状态: phase_one={project['phase_one']['status']}, phase_two={project['phase_two']['status']}, overall={project['status']}")
         
-        return jsonify(projects)
+        logger.info(f"✅ [PROJECT_DEBUG] 返回 {len(projects)} 个项目的状态信息")
+        return jsonify({"projects": projects})
         
     except Exception as e:
         logger.error(f"❌ 获取项目列表失败: {e}")
+        import traceback
+        logger.error(f"❌ 错误堆栈: {traceback.format_exc()}")
         return jsonify({"error": str(e)}), 500
 
 @phase_api.route('/project/<title>/with-phase-info', methods=['GET'])
@@ -471,7 +581,7 @@ def get_projects_with_phase_status():
 def get_novel_detail_with_phase_info(title):
     """获取包含两阶段信息的小说详情"""
     try:
-        novel_detail = manager.get_novel_detail(title)
+        novel_detail = manager.get_novel_detail(title) if manager else None
         if not novel_detail:
             return jsonify({"error": "小说不存在"}), 404
         
@@ -613,7 +723,7 @@ def export_project(title):
     try:
         safe_title = clean_title(title)
         export_type = request.args.get('format', 'json')
-        return manager.export_novel(safe_title, export_type)
+        return manager.export_novel(safe_title, export_type) if manager else {"error": "管理器未初始化"}
     except Exception as e:
         logger.error(f"导出项目失败: {e}")
         return jsonify({"error": str(e)}), 500

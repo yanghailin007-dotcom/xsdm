@@ -151,7 +151,7 @@ function populateCreativeEditor(ideaData) {
         const title = ideaData.novelTitle || ideaData.title || ideaData.novel_title || '';
         const synopsis = ideaData.synopsis || ideaData.description || ideaData.novel_synopsis || '';
         const coreSetting = ideaData.coreSetting || ideaData.core_setting || ideaData.coreSetting || '';
-        const totalChapters = ideaData.totalChapters || ideaData.total_chapters || 50;
+        const totalChapters = ideaData.totalChapters || ideaData.total_chapters || 200;
         
         console.log('提取的基本信息:', { title, synopsis, coreSetting, totalChapters });
         
@@ -360,7 +360,7 @@ async function saveCreativeChanges() {
 // 收集创意编辑器数据
 function collectCreativeEditorData() {
     const totalChaptersElement = document.getElementById('edit-total-chapters');
-    const totalChapters = totalChaptersElement ? parseInt(totalChaptersElement.value) || 50 : 50;
+    const totalChapters = totalChaptersElement ? parseInt(totalChaptersElement.value) || 200 : 200;
     
     const data = {
         novelTitle: document.getElementById('edit-novel-title').value.trim(),

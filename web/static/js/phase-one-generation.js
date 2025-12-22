@@ -301,7 +301,7 @@ async function continueToPhaseTwo() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                total_chapters: phaseOneResult.total_chapters || 50,
+                total_chapters: phaseOneResult.total_chapters || 200,
                 chapters_per_batch: 3
             })
         });

@@ -109,6 +109,10 @@ class NovelGenerator:
         # 数据结构初始化
         self._initialize_data_structures()
         
+        # 进度回调支持（动态设置）
+        self._update_task_status_callback = None
+        self._current_task_id = None
+        
         # 信号处理
         self._setup_signal_handlers()
         
@@ -253,6 +257,110 @@ class NovelGenerator:
         print(f"当前模型: {current_model}")
 
     # ==================== 主要接口方法 ====================
+
+    def phase_one_generation(self, creative_seed, total_chapters: Optional[int] = None):
+        """
+        第一阶段生成：只执行到"第一章生成前"
+        包括：方案生成、基础规划、世界观、角色设计、全书规划等准备工作
+        """
+        def notify_failure(error_msg: str):
+            """通知任务失败"""
+            try:
+                if hasattr(self, '_update_task_status_callback'):
+                    task_id = getattr(self, '_current_task_id', None)
+                    if task_id and callable(self._update_task_status_callback):
+                        self._update_task_status_callback(task_id, 'failed', 0, error_msg)
+            except Exception as callback_error:
+                print(f"⚠️ 失败通知回调失败: {callback_error}")
+        
+        print("[START] 开始第一阶段设定生成...")
+        print(f"创意种子: {creative_seed}")
+
+        if total_chapters is None:
+            total_chapters = self.config.get("defaults", {}).get("total_chapters", 200)
+        temp_title_for_filename = f"未定稿创意_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        
+        if isinstance(creative_seed, str):
+            try:
+                # 尝试解析JSON字符串
+                creative_work_dict = json.loads(creative_seed)
+            except:
+                # 如果解析失败，创建一个基础字典结构
+                creative_work_dict = {
+                    "coreSetting": creative_seed,
+                    "coreSellingPoints": "",
+                    "completeStoryline": {}
+                }
+        else:
+            creative_work_dict = creative_seed
+
+        # 更新进度：开始创意精炼
+        try:
+            if hasattr(self, '_update_task_status_callback'):
+                task_id = getattr(self, '_current_task_id', None)
+                if task_id and callable(self._update_task_status_callback):
+                    self._update_task_status_callback(task_id, 'generating', 15, None)
+        except:
+            pass
+
+        try:
+            refined_creative_seed = self.refine_creative_work_for_ai(creative_work_dict, temp_title_for_filename)
+            
+            # 更新进度：创意精炼完成
+            try:
+                if hasattr(self, '_update_task_status_callback'):
+                    task_id = getattr(self, '_current_task_id', None)
+                    if task_id and callable(self._update_task_status_callback):
+                        self._update_task_status_callback(task_id, 'generating', 25, None)
+            except:
+                pass
+
+            # 预处理：检测同人小说并获取背景资料
+            processed_creative_seed = self._preprocess_creative_seed(refined_creative_seed)
+            
+            # 更新进度：开始方案生成
+            try:
+                if hasattr(self, '_update_task_status_callback'):
+                    task_id = getattr(self, '_current_task_id', None)
+                    if task_id and callable(self._update_task_status_callback):
+                        self._update_task_status_callback(task_id, 'generating', 30, None)
+            except:
+                pass
+            
+            # 第一步：生成和选择方案
+            selected_plan = self.plan_generator.generate_and_select_plan(processed_creative_seed, self.content_generator)
+            if not selected_plan:
+                error_msg = "方案生成失败：无法生成符合要求的创作方案"
+                print(f"❌ {error_msg}")
+                notify_failure(error_msg)
+                return False
+
+            # 更新进度：方案生成完成
+            try:
+                if hasattr(self, '_update_task_status_callback'):
+                    task_id = getattr(self, '_current_task_id', None)
+                    if task_id and callable(self._update_task_status_callback):
+                        self._update_task_status_callback(task_id, 'generating', 35, None)
+            except:
+                pass
+
+            # 第二步：设置基础信息
+            if not self._setup_novel_info(selected_plan, creative_seed, total_chapters):
+                error_msg = "小说基础信息设置失败"
+                print(f"❌ {error_msg}")
+                notify_failure(error_msg)
+                return False
+
+            # 第三步：执行第一阶段准备工作（不包含章节生成）
+            return self._generate_phase_one_preparations()
+
+        except Exception as e:
+            error_msg = f"第一阶段生成发生异常: {str(e)}"
+            print(f"❌ {error_msg}")
+            import traceback
+            traceback.print_exc()
+            notify_failure(error_msg)
+            return False
 
     def full_auto_generation(self, creative_seed, total_chapters: Optional[int] = None):
         """
@@ -1451,3 +1559,225 @@ class NovelGenerator:
         print(f"📊 总字数: {total_words}字")
         
         print("="*60)
+
+    def _generate_phase_one_preparations(self) -> bool:
+        """
+        第一阶段准备工作：执行到"第一章生成前"的所有步骤
+        不包含实际的章节内容生成
+        """
+        def update_progress_callback(stage_name: str, progress: int, message: Optional[str] = None):
+            """更新第一阶段进度的回调函数"""
+            try:
+                # 通过事件总线发布进度更新事件
+                if hasattr(self, 'event_bus'):
+                    self.event_bus.publish('phase_one.progress', {
+                        'stage': stage_name,
+                        'progress': progress,
+                        'message': message or f"正在执行: {stage_name}"
+                    })
+                
+                # 如果在管理器中运行，尝试更新任务状态
+                if hasattr(self, '_update_task_status_callback'):
+                    task_id = getattr(self, '_current_task_id', None)
+                    if task_id and callable(self._update_task_status_callback):
+                        self._update_task_status_callback(task_id, 'generating', progress, None)
+                
+                # 更新内部状态
+                if hasattr(self, 'novel_data') and 'current_progress' in self.novel_data:
+                    self.novel_data['current_progress']['stage'] = stage_name
+                    
+            except Exception as callback_error:
+                print(f"⚠️ 进度更新回调失败: {callback_error}")
+        
+        def notify_failure(error_msg: str):
+            """通知任务失败"""
+            try:
+                if hasattr(self, '_update_task_status_callback'):
+                    task_id = getattr(self, '_current_task_id', None)
+                    if task_id and callable(self._update_task_status_callback):
+                        self._update_task_status_callback(task_id, 'failed', 0, error_msg)
+            except Exception as callback_error:
+                print(f"⚠️ 失败通知回调失败: {callback_error}")
+        
+        try:
+            print("开始第一阶段准备工作...")
+            
+            # 第一阶段：基础规划 (20-40%)
+            update_progress_callback('planning', 20, "正在进行基础规划...")
+            if not self._generate_foundation_planning():
+                error_msg = "基础规划生成失败"
+                print(f"❌ {error_msg}")
+                notify_failure(error_msg)
+                return False
+            update_progress_callback('planning', 40, "基础规划完成")
+            
+            # 第二阶段：世界观与角色设计 (40-60%)
+            update_progress_callback('worldview_generation', 45, "正在构建世界观...")
+            if not self._generate_worldview_and_characters():
+                error_msg = "世界观与角色设计失败"
+                print(f"❌ {error_msg}")
+                notify_failure(error_msg)
+                return False
+            update_progress_callback('character_design', 60, "角色设计完成")
+            
+            # 第三阶段：全书规划 (60-80%)
+            update_progress_callback('story_outline', 65, "正在制定全书大纲...")
+            if not self._generate_overall_planning():
+                error_msg = "全书规划制定失败"
+                print(f"❌ {error_msg}")
+                notify_failure(error_msg)
+                return False
+            update_progress_callback('story_outline', 80, "全书大纲制定完成")
+            
+            # 第四阶段：内容生成准备 (80-95%)
+            update_progress_callback('validation', 85, "正在进行内容生成准备...")
+            if not self._prepare_content_generation():
+                error_msg = "内容生成准备失败"
+                print(f"❌ {error_msg}")
+                notify_failure(error_msg)
+                return False
+            update_progress_callback('validation', 95, "内容生成准备完成")
+            
+            # 保存第一阶段结果 (95-100%)
+            update_progress_callback('validation', 98, "正在保存第一阶段结果...")
+            try:
+                self._save_phase_one_result()
+            except Exception as save_error:
+                error_msg = f"保存第一阶段结果失败: {str(save_error)}"
+                print(f"❌ {error_msg}")
+                notify_failure(error_msg)
+                return False
+            update_progress_callback('completed', 100, "第一阶段设定生成完成")
+            
+            print("\n🎉 第一阶段设定生成完成！")
+            print("✅ 已完成：基础规划、世界观构建、角色设计、全书规划")
+            print("📝 下一步：可以继续第二阶段的章节内容生成")
+            return True
+
+        except Exception as e:
+            error_msg = f"第一阶段准备工作发生异常: {str(e)}"
+            print(f"❌ {error_msg}")
+            import traceback
+            traceback.print_exc()
+            notify_failure(error_msg)
+            return False
+
+    def _save_phase_one_result(self):
+        """保存第一阶段结果到专用文件"""
+        try:
+            import re
+            safe_title = re.sub(r'[\\/*?:"<>|]', "_", self.novel_data["novel_title"])
+            
+            # 创建第一阶段目录
+            phase_one_dir = f"小说项目/{safe_title}_第一阶段设定"
+            os.makedirs(phase_one_dir, exist_ok=True)
+            
+            # 构建第一阶段结果数据
+            phase_one_result = {
+                "novel_title": self.novel_data["novel_title"],
+                "novel_synopsis": self.novel_data["novel_synopsis"],
+                "category": self.novel_data.get("category", "未分类"),
+                "total_chapters": self.novel_data["current_progress"]["total_chapters"],
+                "creative_seed": self.novel_data["creative_seed"],
+                "selected_plan": self.novel_data["selected_plan"],
+                "writing_style_guide": self.novel_data.get("writing_style_guide", {}),
+                "market_analysis": self.novel_data.get("market_analysis", {}),
+                "core_worldview": self.novel_data.get("core_worldview", {}),
+                "character_design": self.novel_data.get("character_design", {}),
+                "global_growth_plan": self.novel_data.get("global_growth_plan", {}),
+                "overall_stage_plans": self.novel_data.get("overall_stage_plans", {}),
+                "stage_writing_plans": self.novel_data.get("stage_writing_plans", {}),
+                "element_timing_plan": self.novel_data.get("element_timing_plan", {}),
+                "is_phase_one_completed": True,
+                "phase_one_completed_at": datetime.now().isoformat(),
+                "next_phase": "second_phase_content_generation"
+            }
+            
+            # 保存第一阶段结果文件
+            phase_one_file = f"{phase_one_dir}/{safe_title}_第一阶段设定.json"
+            with open(phase_one_file, 'w', encoding='utf-8') as f:
+                json.dump(phase_one_result, f, ensure_ascii=False, indent=2)
+            
+            print(f"✅ 第一阶段结果已保存: {phase_one_file}")
+            
+            # 同时保存为主项目信息文件
+            main_project_file = f"小说项目/{safe_title}_项目信息.json"
+            project_info = {
+                **phase_one_result,
+                "phase_one_file": phase_one_file,
+                "created_at": datetime.now().isoformat()
+            }
+            with open(main_project_file, 'w', encoding='utf-8') as f:
+                json.dump(project_info, f, ensure_ascii=False, indent=2)
+                
+            print(f"✅ 项目信息已保存: {main_project_file}")
+            
+        except Exception as e:
+            print(f"❌ 保存第一阶段结果失败: {e}")
+
+    def phase_two_generation(self, phase_one_result_file: str, from_chapter: int = 1, chapters_to_generate: Optional[int] = None) -> bool:
+        """
+        第二阶段生成：基于第一阶段结果生成章节内容
+        """
+        try:
+            print("[START] 开始第二阶段章节生成...")
+            
+            # 加载第一阶段结果
+            if not os.path.exists(phase_one_result_file):
+                print(f"❌ 第一阶段结果文件不存在: {phase_one_result_file}")
+                return False
+                
+            with open(phase_one_result_file, 'r', encoding='utf-8') as f:
+                phase_one_result = json.load(f)
+            
+            # 恢复小说数据
+            self.novel_data = {
+                "novel_title": phase_one_result["novel_title"],
+                "novel_synopsis": phase_one_result["novel_synopsis"],
+                "category": phase_one_result["category"],
+                "creative_seed": phase_one_result["creative_seed"],
+                "selected_plan": phase_one_result["selected_plan"],
+                "writing_style_guide": phase_one_result.get("writing_style_guide", {}),
+                "market_analysis": phase_one_result.get("market_analysis", {}),
+                "core_worldview": phase_one_result.get("core_worldview", {}),
+                "character_design": phase_one_result.get("character_design", {}),
+                "global_growth_plan": phase_one_result.get("global_growth_plan", {}),
+                "overall_stage_plans": phase_one_result.get("overall_stage_plans", {}),
+                "stage_writing_plans": phase_one_result.get("stage_writing_plans", {}),
+                "element_timing_plan": phase_one_result.get("element_timing_plan", {}),
+                "current_progress": {
+                    "completed_chapters": 0,
+                    "total_chapters": phase_one_result["total_chapters"],
+                    "stage": "第二阶段章节生成",
+                    "current_stage": "第二阶段",
+                    "current_batch": 0,
+                    "start_time": datetime.now().isoformat()
+                },
+                "generated_chapters": {},
+                "used_chapter_titles": set(),
+                "previous_chapter_endings": {},
+                "plot_progression": [],
+                "chapter_quality_records": {},
+                "optimization_history": {},
+                "is_resuming": False,
+                "resume_data": None
+            }
+            
+            # 重新初始化材料管理器
+            self._initialize_material_manager()
+            
+            # 确定要生成的章节数
+            total_chapters = phase_one_result["total_chapters"]
+            if chapters_to_generate:
+                total_chapters = min(from_chapter + chapters_to_generate - 1, total_chapters)
+            
+            print(f"📚 从第{from_chapter}章生成到第{total_chapters}章")
+            
+            # 执行章节生成
+            return self._generate_all_chapters(total_chapters)
+            
+        except Exception as e:
+            print(f"❌ 第二阶段生成失败: {e}")
+            import traceback
+            traceback.print_exc()
+            return False

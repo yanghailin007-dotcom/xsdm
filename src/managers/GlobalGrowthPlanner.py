@@ -682,6 +682,9 @@ class GlobalGrowthPlanner:
         self.logger.info("  📚 生成全书全局成长规划...1")
         self.logger.info("  📚 生成全书全局成长规划...2")
         
+        # 通知进度更新：开始全局成长规划
+        self._notify_progress("全局成长规划", 68, "正在制定全书成长规划框架...")
+        
         # 准备基础数据
         novel_data = self.novel_generator.novel_data
         total_chapters = novel_data["current_progress"]["total_chapters"]
@@ -755,25 +758,41 @@ class GlobalGrowthPlanner:
         # ▲▲▲ 修改结束 ▲▲▲
         # -------------------------------------------------------------
         
-        # 原有的成长规划生成代码...
-        global_plan = self.novel_generator.api_client.generate_content_with_retry(
-            "global_growth_planning",
-            user_prompt,
-            purpose="生成全书全局成长规划"
-        )
+        # 通知进度更新：开始API调用
+        self._notify_progress("全局成长规划", 70, "正在调用AI生成成长规划...")
+        
         # 添加调试信息
         self.logger.info(f"  🔍 调试信息 - total_chapters: {total_chapters}")
         self.logger.info(f"  🔍 调试信息 - novel_data 类型: {type(novel_data)}")
-    
-        if global_plan:
-            self.global_growth_plan = global_plan
-            self.novel_generator.novel_data["global_growth_plan"] = global_plan
+        
+        # 原有的成长规划生成代码...
+        try:
+            global_plan = self.novel_generator.api_client.generate_content_with_retry(
+                "global_growth_planning",
+                user_prompt,
+                purpose="生成全书全局成长规划"
+            )
             
-            self.logger.info("  ✅ 全书全局成长规划生成完成")
-            self._print_global_plan_summary(global_plan)
-            return global_plan
-        else:
-            self.logger.info("  ⚠️ 全书全局成长规划生成失败，使用默认规划")
+            if global_plan:
+                self.global_growth_plan = global_plan
+                self.novel_generator.novel_data["global_growth_plan"] = global_plan
+                
+                self.logger.info("  ✅ 全书全局成长规划生成完成")
+                self._print_global_plan_summary(global_plan)
+                
+                # 通知进度更新：完成
+                self._notify_progress("全局成长规划", 75, "全书成长规划生成完成")
+                return global_plan
+            else:
+                self.logger.info("  ⚠️ 全书全局成长规划生成失败，使用默认规划")
+                # 通知进度更新：使用默认规划
+                self._notify_progress("全局成长规划", 72, "使用默认成长规划")
+                return self._create_default_global_plan(total_chapters)
+                
+        except Exception as e:
+            self.logger.error(f"  ❌ 生成全局成长规划时发生异常: {e}")
+            # 通知进度更新：处理异常
+            self._notify_progress("全局成长规划", 72, f"生成失败，使用默认规划: {str(e)}")
             return self._create_default_global_plan(total_chapters)
 
     def _get_emotional_context_for_chapter(self, chapter_number: int) -> Dict:
@@ -862,3 +881,28 @@ class GlobalGrowthPlanner:
                 return stage.get("chapter_range", "1-100")
         
         return "1-100"
+    
+    def _notify_progress(self, stage_name: str, progress: int, message: Optional[str] = None):
+        """通知进度更新"""
+        try:
+            # 如果novel_generator有进度回调，使用它
+            if hasattr(self.novel_generator, '_update_task_status_callback'):
+                callback = getattr(self.novel_generator, '_update_task_status_callback')
+                task_id = getattr(self.novel_generator, '_current_task_id', None)
+                
+                if callback and callable(callback) and task_id:
+                    callback(task_id, 'generating', progress, message)
+                    self.logger.info(f"  📊 进度更新: {progress}% - {message or ''}")
+            
+            # 如果novel_generator有event_bus，也发布事件
+            if hasattr(self.novel_generator, 'event_bus'):
+                event_bus = getattr(self.novel_generator, 'event_bus')
+                event_bus.publish('global_growth_planner.progress', {
+                    'stage': stage_name,
+                    'progress': progress,
+                    'message': message or f"执行{stage_name}"
+                })
+                
+        except Exception as e:
+            # 不让进度通知失败影响主要功能
+            self.logger.debug(f"  ⚠️ 进度通知失败: {e}")

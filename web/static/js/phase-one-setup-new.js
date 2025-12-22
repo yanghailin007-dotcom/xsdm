@@ -98,7 +98,7 @@ class PhaseOneSetup {
         }
         
         if (chaptersInput && !chaptersInput.value) {
-            chaptersInput.value = 50;
+            chaptersInput.value = 200;
         }
     }
 
@@ -220,7 +220,7 @@ class PhaseOneSetup {
         const synopsis = document.getElementById('novel-synopsis').value.trim();
         const coreSetting = document.getElementById('core-setting').value.trim();
         const coreSellingPoints = document.getElementById('core-selling-points').value.trim();
-        const totalChapters = parseInt(document.getElementById('total-chapters').value) || 50;
+        const totalChapters = parseInt(document.getElementById('total-chapters').value) || 200;
         const generationMode = document.getElementById('generation-mode').value;
 
         return {
@@ -654,7 +654,7 @@ class PhaseOneSetup {
         if (mode === 'phase_one_only') {
             // 仅第一阶段模式，建议较少章节数
             if (totalChaptersInput && parseInt(totalChaptersInput.value) > 100) {
-                totalChaptersInput.value = 50;
+                totalChaptersInput.value = 200;
                 this.showToast('已调整为建议的章节数', 'info');
             }
         } else {
