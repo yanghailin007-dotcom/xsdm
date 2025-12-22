@@ -3,7 +3,7 @@
 """
 from functools import wraps
 from flask import session, redirect, url_for
-from web.config import logger
+from web.web_config import logger
 
 class UserAuth:
     """用户认证类"""

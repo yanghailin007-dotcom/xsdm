@@ -1,0 +1,223 @@
+<!-- 现代化创意编辑模态框 -->
+<div id="creative-editor-modal" class="creative-editor-modal">
+    <div class="modal-overlay"></div>
+    <div class="modal-content">
+        
+        <!-- 头部 -->
+        <div class="modal-header">
+            <div class="header-content">
+                <div class="header-icon">
+                    <span>✏️</span>
+                </div>
+                <div class="header-text">
+                    <h3>创意编辑器</h3>
+                    <p>编辑您的小说创意设定</p>
+                </div>
+            </div>
+            <div class="header-actions">
+                <button type="button" class="btn-reset" onclick="resetCreativeEditor()">
+                    🔄 重置
+                </button>
+                <button type="button" class="btn-save" onclick="saveCreativeChanges()">
+                    💾 保存修改
+                </button>
+                <button type="button" class="btn-close" onclick="closeCreativeEditor()">
+                    ×
+                </button>
+            </div>
+        </div>
+        
+        <!-- 内容区域 -->
+        <div class="modal-body">
+            <div class="editor-content">
+                
+                <!-- 基本信息 -->
+                <div class="editor-section">
+                    <div class="section-header">
+                        <div class="section-icon">
+                            <span>📝</span>
+                        </div>
+                        <h4>基本信息</h4>
+                    </div>
+                    
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="edit-novel-title">小说标题</label>
+                            <input type="text" id="edit-novel-title" class="form-input" placeholder="输入小说标题...">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="edit-novel-synopsis">小说简介</label>
+                            <textarea id="edit-novel-synopsis" class="form-textarea" rows="4" placeholder="简要描述小说内容..."></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 核心设定 -->
+                <div class="editor-section">
+                    <div class="section-header">
+                        <div class="section-icon" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
+                            <span>⚙️</span>
+                        </div>
+                        <h4>核心设定</h4>
+                    </div>
+                    <div class="form-group">
+                        <textarea id="edit-core-setting" class="form-textarea large" rows="20" placeholder="描述故事的核心背景设定，包括世界观、主要设定、时代背景等...
+
+例如：
+• 世界观：修仙世界、现代都市、异世大陆等
+• 时代背景：古代、现代、未来等
+• 主要势力：宗门、家族、国家等
+• 核心规则：修炼体系、魔法系统、科技水平等
+• 社会结构：等级制度、经济体系等
+
+请详细描述您的世界观设定，这将直接影响小说的质量和深度..."></textarea>
+                        <div class="char-counter">
+                            <span>💡 建议至少写300字</span>
+                            <span id="char-count">0 字符</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 核心卖点 -->
+                <div class="editor-section">
+                    <div class="section-header">
+                        <div class="section-icon" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+                            <span>💎</span>
+                        </div>
+                        <h4>核心卖点</h4>
+                    </div>
+                    <div class="selling-points-container" id="selling-points-container">
+                        <!-- 动态添加的卖点将显示在这里 -->
+                    </div>
+                    <div class="add-selling-point">
+                        <input type="text" id="new-selling-point" class="form-input" placeholder="输入新的卖点（如：爽文节奏、独特设定等）...">
+                        <button type="button" onclick="addSellingPoint()" class="btn-add">
+                            ➕ 添加卖点
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 故事线时间线 -->
+                <div class="editor-section">
+                    <div class="section-header">
+                        <div class="section-icon" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);">
+                            <span>📖</span>
+                        </div>
+                        <h4>故事线时间轴</h4>
+                    </div>
+                    
+                    <!-- 时间线容器 -->
+                    <div class="timeline-container">
+                        <!-- 时间线主线 -->
+                        <div class="timeline-line"></div>
+                        
+                        <!-- 开篇阶段 -->
+                        <div class="timeline-stage" data-stage="opening">
+                            <div class="timeline-node">
+                                <span>🎬</span>
+                            </div>
+                            
+                            <div class="stage-editor">
+                                <div class="stage-header">
+                                    <span class="stage-number">1</span>
+                                    <h5>开篇阶段</h5>
+                                </div>
+                                <input type="text" class="stage-name" data-stage="opening" placeholder="开篇阶段名称（如：初入仙门）">
+                                <textarea class="stage-description" data-stage="opening" rows="5" placeholder="描述故事的开端：
+
+• 主角出场背景和初始状态
+• 核心冲突或目标的引入
+• 重要配角的初次登场
+• 世界观和基本设定的展现
+• 为后续发展埋下伏笔"></textarea>
+                            </div>
+                        </div>
+                        
+                        <!-- 发展阶段 -->
+                        <div class="timeline-stage" data-stage="development">
+                            <div class="timeline-node">
+                                <span>📈</span>
+                            </div>
+                            
+                            <div class="stage-editor">
+                                <div class="stage-header">
+                                    <span class="stage-number">2</span>
+                                    <h5>发展阶段</h5>
+                                </div>
+                                <input type="text" class="stage-name" data-stage="development" placeholder="发展阶段名称（如：历练成长）">
+                                <textarea class="stage-description" data-stage="development" rows="5" placeholder="描述故事的成长发展：
+
+• 主角能力的提升和成长
+• 新角色和势力的引入
+• 副线情节的展开
+• 世界观的进一步拓展
+• 为高潮阶段做铺垫"></textarea>
+                            </div>
+                        </div>
+                        
+                        <!-- 高潮阶段 -->
+                        <div class="timeline-stage" data-stage="conflict">
+                            <div class="timeline-node">
+                                <span>🔥</span>
+                            </div>
+                            
+                            <div class="stage-editor">
+                                <div class="stage-header">
+                                    <span class="stage-number">3</span>
+                                    <h5>高潮阶段</h5>
+                                </div>
+                                <input type="text" class="stage-name" data-stage="conflict" placeholder="高潮阶段名称（如：终极对决）">
+                                <textarea class="stage-description" data-stage="conflict" rows="5" placeholder="描述故事的高潮冲突：
+
+• 主要矛盾的集中爆发
+• 关键转折点和重要选择
+• 主角实力的巅峰展现
+• 反派势力的最终对决
+• 故事主题的深刻体现"></textarea>
+                            </div>
+                        </div>
+                        
+                        <!-- 结局阶段 -->
+                        <div class="timeline-stage" data-stage="ending">
+                            <div class="timeline-node">
+                                <span>🎯</span>
+                            </div>
+                            
+                            <div class="stage-editor">
+                                <div class="stage-header">
+                                    <span class="stage-number">4</span>
+                                    <h5>结局阶段</h5>
+                                </div>
+                                <input type="text" class="stage-name" data-stage="ending" placeholder="结局阶段名称（如：功成身退）">
+                                <textarea class="stage-description" data-stage="ending" rows="5" placeholder="描述故事的结局：
+
+• 主要冲突的最终解决
+• 人物命运和关系的归宿
+• 主题思想的升华和总结
+• 对未来的展望或新的开始
+• 给读者的思考和感悟"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 生成设置 -->
+                <div class="editor-section">
+                    <div class="section-header">
+                        <div class="section-icon" style="background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);">
+                            <span>🎛️</span>
+                        </div>
+                        <h4>生成设置</h4>
+                    </div>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="edit-total-chapters">总章节数</label>
+                            <input type="number" id="edit-total-chapters" name="total_chapters" value="50" min="1" max="200" class="form-input">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

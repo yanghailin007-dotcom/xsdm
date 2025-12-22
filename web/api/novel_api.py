@@ -5,7 +5,7 @@ from flask import jsonify, request
 from datetime import datetime
 
 from web.auth import login_required
-from web.config import logger, BASE_DIR
+from web.web_config import logger, BASE_DIR
 from web.managers.novel_manager import NovelGenerationManager
 
 

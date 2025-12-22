@@ -44,7 +44,38 @@ from src.core.content.CoverGenerator import CoverGenerator
 # 导入工具组件
 from src.utils.DouBaoImageGenerator import DouBaoImageGenerator
 from src.core.ContentVerifier import ContentVerifier
-from config import doubaoconfig
+# 直接导入doubaoconfig，避免路径冲突
+import sys
+import os
+from pathlib import Path
+
+# 确保项目根目录在路径中
+current_file = Path(__file__).resolve()
+project_root = current_file.parent.parent.parent
+config_path = project_root / "config" / "doubaoconfig.py"
+
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
+
+# 使用importlib来动态导入
+try:
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("doubaoconfig", config_path)
+    if spec is not None and spec.loader is not None:
+        doubaoconfig_module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(doubaoconfig_module)
+    else:
+        raise ImportError("无法创建模块规格")
+    
+    # 将所有变量导入到当前命名空间
+    for attr_name in dir(doubaoconfig_module):
+        if not attr_name.startswith('_'):
+            globals()[attr_name] = getattr(doubaoconfig_module, attr_name)
+    
+except Exception as e:
+    print(f"警告：无法导入doubaoconfig: {e}")
+    # 设置默认值
+    ARK_API_KEY = None
 
 # 导入提示词
 from src.prompts.Prompts import Prompts
@@ -131,7 +162,7 @@ class NovelGenerator:
         # 封面生成器
         cover_generator = None
         try:
-            doubao_api_key = doubaoconfig.ARK_API_KEY
+            doubao_api_key = ARK_API_KEY
             if doubao_api_key:
                 cover_generator = DouBaoImageGenerator()
                 self.logger.info("封面生成器初始化成功")

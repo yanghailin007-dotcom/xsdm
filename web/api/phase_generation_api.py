@@ -24,61 +24,173 @@ from src.utils.logger import get_logger
 logger = get_logger(__name__)
 
 # 导入管理器
-from web.managers.novel_manager import NovelGenerationManager
-manager = NovelGenerationManager()
+try:
+    from web.managers.novel_manager import NovelGenerationManager
+    manager = NovelGenerationManager()
+except Exception as e:
+    print(f"❌ 无法初始化NovelGenerationManager: {e}")
+    manager = None
 
-# 登录装饰器
+# API登录装饰器
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         from flask import session
         if 'logged_in' not in session:
-            return jsonify({"error": "需要登录"}, 401)
+            return jsonify({"success": False, "error": "需要登录", "code": "AUTH_REQUIRED"}), 401
         return f(*args, **kwargs)
     return decorated_function
 
 # ==================== 第一阶段相关API ====================
 
-@phase_api.route('/phase-one/start-generation', methods=['POST'])
+@phase_api.route('/phase-one/generate', methods=['POST'])
 @login_required
 def start_phase_one_generation():
     """启动第一阶段设定生成"""
+    logger.info("🚀 [API_DEBUG] 第一阶段生成API被调用")
+    logger.info(f"📋 [API_DEBUG] 请求方法: {request.method}")
+    logger.info(f"📋 [API_DEBUG] 请求URL: {request.url}")
+    logger.info(f"📋 [API_DEBUG] 请求头: {dict(request.headers)}")
+    
     try:
-        config = request.json or {}
+        # 获取表单数据
+        data = request.json or {}
+        logger.info(f"📋 [API_DEBUG] 接收到的数据: {json.dumps(data, ensure_ascii=False, indent=2)}")
         
         # 验证必需参数
-        if not config.get("creative_seed"):
-            return jsonify({"success": False, "error": "缺少creative_seed参数"}), 400
+        required_fields = ['title', 'synopsis', 'core_setting', 'core_selling_points', 'total_chapters']
+        logger.info(f"✅ [API_DEBUG] 开始验证必需参数: {required_fields}")
         
-        # 暂时返回模拟响应
-        task_id = f"phase_one_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-        logger.info(f"✅ 第一阶段任务已启动: {task_id}")
+        for field in required_fields:
+            if not data.get(field):
+                logger.error(f"❌ [API_DEBUG] 缺少必需参数: {field}")
+                return jsonify({"success": False, "error": f"缺少必需参数: {field}"}), 400
         
-        return jsonify({
+        logger.info("✅ [API_DEBUG] 必需参数验证通过")
+        
+        # 调用管理器启动生成任务
+        global manager
+        if not manager:
+            logger.error("❌ [API_DEBUG] NovelGenerationManager 未初始化")
+            return jsonify({"success": False, "error": "管理器未初始化"}), 500
+        
+        logger.info("✅ [API_DEBUG] NovelGenerationManager 可用")
+        
+        # 构建创意种子数据
+        creative_seed = {
+            "novelTitle": data.get("title"),
+            "synopsis": data.get("synopsis"),
+            "coreSetting": data.get("core_setting"),
+            "coreSellingPoints": data.get("core_selling_points"),
+            "totalChapters": data.get("total_chapters", 50),
+            "generationMode": data.get("generation_mode", "phase_one_only")
+        }
+        logger.info(f"📋 [API_DEBUG] 构建的创意种子: {json.dumps(creative_seed, ensure_ascii=False, indent=2)}")
+        
+        # 启动生成任务，使用管理器返回的任务ID
+        logger.info("🚀 [API_DEBUG] 调用管理器启动生成任务...")
+        generation_config = {
+            "title": data.get("title"),
+            "synopsis": data.get("synopsis"),
+            "core_setting": data.get("core_setting"),
+            "core_selling_points": data.get("core_selling_points"),
+            "total_chapters": data.get("total_chapters", 50),
+            "generation_mode": data.get("generation_mode", "phase_one_only"),
+            "creative_seed": creative_seed
+        }
+        logger.info(f"📋 [API_DEBUG] 生成配置: {json.dumps(generation_config, ensure_ascii=False, indent=2)}")
+        
+        manager_task_id = manager.start_generation(generation_config)
+        logger.info(f"✅ [API_DEBUG] 管理器返回任务ID: {manager_task_id}")
+        
+        # 使用管理器返回的任务ID作为统一的任务ID
+        task_id = manager_task_id
+        logger.info(f"✅ [API_DEBUG] 第一阶段生成任务已启动: {task_id}")
+        
+        response_data = {
             "success": True,
             "task_id": task_id,
+            "manager_task_id": manager_task_id,
             "message": "第一阶段设定生成任务已启动，正在后台处理",
             "status": "started"
-        })
+        }
+        logger.info(f"📤 [API_DEBUG] 返回响应: {json.dumps(response_data, ensure_ascii=False, indent=2)}")
+        
+        return jsonify(response_data)
+        
     except Exception as e:
-        logger.error(f"❌ 启动第一阶段生成任务失败: {e}")
+        logger.error(f"❌ [API_DEBUG] 启动第一阶段生成任务失败: {e}")
+        logger.error(f"❌ [API_DEBUG] 错误类型: {type(e).__name__}")
+        logger.error(f"❌ [API_DEBUG] 错误详情: {str(e)}")
+        import traceback
+        logger.error(f"❌ [API_DEBUG] 错误堆栈: {traceback.format_exc()}")
         return jsonify({"success": False, "error": str(e)}), 500
+
+@phase_api.route('/phase-one/start-generation', methods=['POST'])
+@login_required
+def start_phase_one_generation_legacy():
+    """启动第一阶段设定生成（兼容旧版本）"""
+    return start_phase_one_generation()
 
 @phase_api.route('/phase-one/task/<task_id>/status', methods=['GET'])
 @login_required
 def get_phase_one_task_status(task_id):
     """获取第一阶段任务状态"""
+    logger.info(f"🔍 [API_DEBUG] 任务状态查询API被调用")
+    logger.info(f"📋 [API_DEBUG] 请求方法: {request.method}")
+    logger.info(f"📋 [API_DEBUG] 请求URL: {request.url}")
+    logger.info(f"📋 [API_DEBUG] 任务ID: {task_id}")
+    
     try:
-        # 暂时返回模拟状态
-        return jsonify({
+        global manager
+        if not manager:
+            logger.error("❌ [API_DEBUG] NovelGenerationManager 未初始化")
+            return jsonify({"error": "管理器未初始化"}), 500
+        
+        logger.info("✅ [API_DEBUG] NovelGenerationManager 可用")
+        
+        # 查询任务状态
+        logger.info(f"🔍 [API_DEBUG] 查询任务状态: {task_id}")
+        task_status = manager.get_task_status(task_id)
+        logger.info(f"📋 [API_DEBUG] 任务状态结果: {json.dumps(task_status, ensure_ascii=False, indent=2)}")
+        
+        task_progress = manager.get_task_progress(task_id)
+        logger.info(f"📋 [API_DEBUG] 任务进度结果: {json.dumps(task_progress, ensure_ascii=False, indent=2)}")
+        
+        if "error" in task_status:
+            logger.error(f"❌ [API_DEBUG] 任务不存在或出错: {task_status['error']}")
+            return jsonify({"error": task_status["error"]}), 404
+        
+        # 构建响应数据
+        response = {
             "task_id": task_id,
-            "status": "completed",
-            "progress": 100,
-            "message": "第一阶段已完成"
-        })
+            "status": task_status.get("status", "unknown"),
+            "progress": task_progress.get("progress", 0),
+            "current_step": task_status.get("current_step", "initializing"),
+            "message": task_status.get("message", "处理中...")
+        }
+        
+        # 如果任务完成，添加结果数据
+        if task_status.get("status") == "completed":
+            response["result"] = task_status.get("result", {})
+            logger.info(f"✅ [API_DEBUG] 任务已完成，包含结果数据")
+        
+        logger.info(f"📤 [API_DEBUG] 返回状态查询响应: {json.dumps(response, ensure_ascii=False, indent=2)}")
+        return jsonify(response)
+        
     except Exception as e:
-        logger.error(f"❌ 获取第一阶段任务状态失败: {e}")
+        logger.error(f"❌ [API_DEBUG] 获取第一阶段任务状态失败: {e}")
+        logger.error(f"❌ [API_DEBUG] 错误类型: {type(e).__name__}")
+        logger.error(f"❌ [API_DEBUG] 错误详情: {str(e)}")
+        import traceback
+        logger.error(f"❌ [API_DEBUG] 错误堆栈: {traceback.format_exc()}")
         return jsonify({"error": str(e)}), 500
+
+@phase_api.route('/phase-one/task/<task_id>/status', methods=['GET'])
+@login_required
+def get_phase_one_task_status_legacy(task_id):
+    """获取第一阶段任务状态（兼容旧版本）"""
+    return get_phase_one_task_status(task_id)
 
 @phase_api.route('/phase-one/result/<novel_title>', methods=['GET'])
 @login_required
@@ -320,7 +432,7 @@ def get_phase_two_progress(novel_title):
 
 # ==================== 项目管理API ====================
 
-@phase_api.route('/api/projects/with-phase-status', methods=['GET'])
+@phase_api.route('/projects/with-phase-status', methods=['GET'])
 @login_required
 def get_projects_with_phase_status():
     """获取包含两阶段状态的项目列表"""
@@ -354,7 +466,7 @@ def get_projects_with_phase_status():
         logger.error(f"❌ 获取项目列表失败: {e}")
         return jsonify({"error": str(e)}), 500
 
-@phase_api.route('/api/project/<title>/with-phase-info', methods=['GET'])
+@phase_api.route('/project/<title>/with-phase-info', methods=['GET'])
 @login_required
 def get_novel_detail_with_phase_info(title):
     """获取包含两阶段信息的小说详情"""
@@ -494,7 +606,7 @@ def delete_project(title: str) -> bool:
 
 # ==================== 导出功能 ====================
 
-@phase_api.route('/api/project/<title>/export', methods=['GET'])
+@phase_api.route('/project/<title>/export', methods=['GET'])
 @login_required
 def export_project(title):
     """导出项目数据"""
@@ -521,15 +633,91 @@ def phase_server_error(error):
 
 def register_phase_routes(app, manager_instance=None):
     """注册两阶段生成API路由"""
-    # 注册蓝图
-    app.register_blueprint(phase_api)
+    # 注册蓝图，添加 /api 前缀
+    app.register_blueprint(phase_api, url_prefix='/api')
     
     # 如果提供了管理器实例，更新全局管理器
     if manager_instance:
         global manager
         manager = manager_instance
     
-    # 添加一些直接的路由（如果需要的话）
+    # 添加保存项目API端点
+    @app.route('/api/phase-one/save/<task_id>', methods=['POST'])
+    @login_required
+    def save_phase_one_project(task_id):
+        """保存第一阶段项目"""
+        try:
+            global manager
+            if not manager:
+                return jsonify({"success": False, "error": "管理器未初始化"}), 500
+            
+            # 获取任务状态
+            task_status = manager.get_task_status(task_id)
+            if "error" in task_status:
+                return jsonify({"success": False, "error": f"任务不存在: {task_id}"}), 404
+            
+            # 检查任务是否完成
+            if task_status.get("status") != "completed":
+                return jsonify({"success": False, "error": "任务尚未完成，无法保存"}), 400
+            
+            # 获取任务配置和结果
+            config = task_status.get("config", {})
+            result = task_status.get("result", {})
+            
+            if not config:
+                return jsonify({"success": False, "error": "任务配置为空"}), 400
+            
+            # 构建项目数据
+            project_data = {
+                "title": config.get("title", "未命名小说"),
+                "synopsis": config.get("synopsis", ""),
+                "core_setting": config.get("core_setting", ""),
+                "core_selling_points": config.get("core_selling_points", ""),
+                "total_chapters": config.get("total_chapters", 50),
+                "generation_mode": config.get("generation_mode", "phase_one_only"),
+                "phase_one_result": result,
+                "task_id": task_id,
+                "created_at": datetime.now().isoformat(),
+                "status": "phase_one_completed"
+            }
+            
+            # 保存项目到文件系统
+            project_title = config.get("title", f"项目_{task_id}")
+            safe_title = re.sub(r'[\\/*?:"<>|]', '_', project_title)
+            
+            # 创建项目目录
+            project_dir = Path(f"小说项目/{safe_title}_第一阶段设定")
+            project_dir.mkdir(parents=True, exist_ok=True)
+            
+            # 保存项目信息
+            project_file = project_dir / f"{safe_title}_第一阶段设定.json"
+            with open(project_file, 'w', encoding='utf-8') as f:
+                json.dump(project_data, f, ensure_ascii=False, indent=2)
+            
+            # 同时保存为主项目信息文件
+            main_project_file = Path(f"小说项目/{safe_title}_项目信息.json")
+            with open(main_project_file, 'w', encoding='utf-8') as f:
+                json.dump({
+                    **project_data,
+                    "is_phase_one_completed": True,
+                    "phase_one_file": str(project_file)
+                }, f, ensure_ascii=False, indent=2)
+            
+            logger.info(f"✅ 第一阶段项目已保存: {project_file}")
+            
+            return jsonify({
+                "success": True,
+                "message": f"项目 {project_title} 保存成功",
+                "project_path": str(project_file),
+                "project_title": project_title
+            })
+        except Exception as e:
+            logger.error(f"❌ 保存项目失败: {e}")
+            import traceback
+            traceback.print_exc()
+            return jsonify({"success": False, "error": str(e)}), 500
+    
+    # 添加系统状态API端点
     @app.route('/api/phase/status', methods=['GET'])
     def get_phase_system_status():
         """获取两阶段系统状态"""

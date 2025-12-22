@@ -12,7 +12,7 @@ from datetime import datetime
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # 导入配置和工具
-from web.config import (
+from web.web_config import (
     logger, FlaskConfig, APP_INFO, MODULE_STATUS,
     BASE_DIR, CREATIVE_IDEAS_FILE
 )

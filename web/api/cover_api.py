@@ -5,7 +5,7 @@ from flask import jsonify, request, send_from_directory
 from urllib.parse import unquote
 
 from web.auth import login_required
-from web.config import logger, BASE_DIR
+from web.web_config import logger, BASE_DIR
 from web.services.cover_service import CoverService
 
 

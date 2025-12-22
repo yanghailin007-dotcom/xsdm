@@ -8,7 +8,7 @@ from datetime import datetime
 from urllib.parse import unquote
 from typing import Dict, Any, List
 
-from web.config import logger, BASE_DIR
+from web.web_config import logger, BASE_DIR
 from src.utils.DouBaoImageGenerator import DouBaoImageGenerator
 
 

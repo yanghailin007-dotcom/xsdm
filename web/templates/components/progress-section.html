@@ -1,0 +1,44 @@
+<!-- 进度显示区域 -->
+<div class="progress-section" id="progress-section">
+    <div class="progress-header">
+        <h3>🔄 正在生成设定...</h3>
+        <div class="progress-percentage" id="progress-percentage">0%</div>
+    </div>
+    
+    <div class="progress-bar-container">
+        <div class="progress-bar-fill" id="progress-bar-fill"></div>
+    </div>
+    
+    <div class="progress-steps" id="progress-steps">
+        <div class="progress-step active" data-step="planning">
+            <h4>📋 基础规划</h4>
+            <p>分析创意种子，制定写作风格和市场定位</p>
+        </div>
+        <div class="progress-step" data-step="worldview">
+            <h4>🌍 世界观设计</h4>
+            <p>构建完整的世界观和背景设定</p>
+        </div>
+        <div class="progress-step" data-step="characters">
+            <h4>👥 角色设计</h4>
+            <p>设计主要角色和人物关系</p>
+        </div>
+        <div class="progress-step" data-step="planning-detailed">
+            <h4>📝 详细规划</h4>
+            <p>制定情绪蓝图和阶段计划</p>
+        </div>
+        <div class="progress-step" data-step="outlines">
+            <h4>📚 章节大纲</h4>
+            <p>生成详细的章节情节大纲</p>
+        </div>
+        <div class="progress-step" data-step="validation">
+            <h4>✅ 验证完善</h4>
+            <p>验证设定完整性和一致性</p>
+        </div>
+    </div>
+    
+    <div style="margin-top: 20px; text-align: center;">
+        <button type="button" class="btn btn-secondary" onclick="pauseGeneration()" id="pause-btn">
+            ⏸️ 暂停生成
+        </button>
+    </div>
+</div>

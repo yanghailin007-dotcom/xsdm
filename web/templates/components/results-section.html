@@ -1,0 +1,60 @@
+<!-- 结果显示区域 -->
+<div class="results-section" id="results-section">
+    <div class="section-title">
+        <div class="section-icon">✅</div>
+        <span>设定生成完成</span>
+    </div>
+
+    <div class="result-tabs">
+        <button class="result-tab active" onclick="switchResultTab('overview')">📊 总览</button>
+        <button class="result-tab" onclick="switchResultTab('worldview')">🌍 世界观</button>
+        <button class="result-tab" onclick="switchResultTab('characters')">👥 角色</button>
+        <button class="result-tab" onclick="switchResultTab('outlines')">📚 章节大纲</button>
+        <button class="result-tab" onclick="switchResultTab('validation')">✅ 验证结果</button>
+    </div>
+
+    <div class="result-content active" id="result-overview">
+        <div id="overview-content">
+            <!-- 总览内容将在这里动态生成 -->
+        </div>
+    </div>
+
+    <div class="result-content" id="result-worldview">
+        <div id="worldview-content">
+            <!-- 世界观数据将在这里动态生成 -->
+        </div>
+    </div>
+
+    <div class="result-content" id="result-characters">
+        <div id="characters-content">
+            <!-- 角色数据将在这里动态生成 -->
+        </div>
+    </div>
+
+    <div class="result-content" id="result-outlines">
+        <div id="outlines-content">
+            <!-- 章节大纲将在这里动态生成 -->
+        </div>
+    </div>
+
+    <div class="result-content" id="result-validation">
+        <div id="validation-content">
+            <!-- 验证结果将在这里动态生成 -->
+        </div>
+    </div>
+
+    <div class="action-buttons" style="margin-top: 30px;">
+        <button class="btn btn-secondary" onclick="editSettings()">
+            ✏️ 编辑设定
+        </button>
+        <button class="btn btn-secondary" onclick="regenerateSettings()">
+            🔄 重新生成
+        </button>
+        <button class="btn btn-success" onclick="continueToPhaseTwo()" id="continue-btn">
+            📝 继续第二阶段
+        </button>
+        <button class="btn btn-primary" onclick="saveAndContinue()">
+            💾 保存并稍后继续
+        </button>
+    </div>
+</div>

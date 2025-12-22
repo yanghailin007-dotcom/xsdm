@@ -1,0 +1,54 @@
+<!-- 生成表单 -->
+<form id="phase-one-form" onsubmit="startPhaseOneGeneration(event)">
+    <div class="form-group">
+        <label for="novel-title">小说标题</label>
+        <input type="text" id="novel-title" name="title" 
+               placeholder="例：凡人修仙同人·观战者" required>
+    </div>
+
+    <div class="form-group">
+        <label for="novel-synopsis">小说简介</label>
+        <textarea id="novel-synopsis" name="synopsis" rows="3"
+                  placeholder="简要描述小说内容..." required></textarea>
+    </div>
+
+    <div class="form-group">
+        <label for="core-setting">核心设定</label>
+        <textarea id="core-setting" name="core_setting" rows="6"
+                  placeholder="描述故事的核心背景设定，包括世界观、主要设定、时代背景等..." required></textarea>
+    </div>
+
+    <div class="form-group">
+        <label for="core-selling-points">核心卖点</label>
+        <input type="text" id="core-selling-points" name="core_selling_points"
+               placeholder="例：爽文节奏 + 独特设定 + 人物成长" value="爽文节奏 + 独特设定 + 人物成长">
+    </div>
+
+    <div class="config-grid">
+        <div class="form-group">
+            <label for="total-chapters">总章节数</label>
+            <input type="number" id="total-chapters" name="total_chapters" 
+                   value="50" min="5" max="200" required>
+        </div>
+
+        <div class="form-group">
+            <label for="generation-mode">生成模式</label>
+            <select id="generation-mode" name="generation_mode">
+                <option value="phase_one_only">仅第一阶段（生成设定后暂停）</option>
+                <option value="full_two_phase">完整两阶段（继续生成章节）</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="action-buttons">
+        <button type="button" class="btn btn-secondary" onclick="resetForm()">
+            🔄 重置
+        </button>
+        <button type="submit" class="btn btn-primary">
+            🚀 开始生成设定
+        </button>
+    </div>
+</form>
+
+<!-- 状态消息 -->
+<div class="status-message" id="status-message"></div>

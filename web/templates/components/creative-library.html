@@ -1,0 +1,48 @@
+<!-- 创意库选择区域 -->
+<div class="creative-library-section">
+    <div class="creative-library-header">
+        <div class="creative-library-title">
+            <span>💡</span>
+            <span>从创意库选择</span>
+        </div>
+        <button type="button" class="btn btn-secondary btn-small" onclick="loadCreativeIdeas()">
+            🔄 加载创意库
+        </button>
+    </div>
+    
+    <div id="creative-library-content" style="display: none;">
+        <!-- 视图切换控制 -->
+        <div class="creative-library-controls">
+            <button type="button" class="view-toggle-btn active" id="card-view-btn" onclick="switchView('card')">
+                🎴 卡片视图
+            </button>
+            <button type="button" class="view-toggle-btn" id="list-view-btn" onclick="switchView('list')">
+                📋 列表视图
+            </button>
+        </div>
+        
+        <!-- 卡片视图 -->
+        <div id="card-view" class="creative-ideas-grid">
+            <!-- 创意卡片将在这里动态生成 -->
+        </div>
+        
+        <!-- 列表视图 -->
+        <div id="list-view" style="display: none;">
+            <select id="creative-idea-select" onchange="fillFromCreativeIdea()" style="width: 100%; padding: 12px; border: 2px solid #d1fae5; border-radius: 8px; margin-bottom: 12px; background: white;">
+                <option value="">-- 请选择一个创意 --</option>
+            </select>
+            
+            <div id="creative-idea-preview" class="creative-idea-preview-simple" style="display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                    <h5 style="color: #065f46; margin: 0; font-weight: 600;">📋 创意预览</h5>
+                    <div style="display: flex; gap: 8px;">
+                        <button type="button" class="btn btn-secondary btn-small" onclick="openCreativeEditor()" style="flex-shrink: 0;">
+                            ✏️ 编辑创意
+                        </button>
+                    </div>
+                </div>
+                <div id="preview-content" style="font-size: 14px; line-height: 1.6; color: #374151;"></div>
+            </div>
+        </div>
+    </div>
+</div>

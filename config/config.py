@@ -20,20 +20,20 @@ CONFIG = {
         "yuanbao": "sk-1342f04c85c5452ab46c673aa1a12c0b",
         #"gemini": "sk-JNZV0iCTR3BTgpQIs5MunDRACurpVzKhEl4cuhXRPkMKHkKD"        
         #"gemini": "sk-Zyu3h7C7JrCu0sMhLUKT0oib4xVQn8QnkWKojImKWIJ2ALv0"
-        "gemini": "sk-d3ZdNhQVddL6sni2ZWZPkMXNYwSn3IcVLMBYKLV35CmQHYHK"
+        "gemini": "sk-EP0W56Q5Te9WkaI0mBGCvLAz2AqvlIL6Es8GoimBBnt3FXSk"
     },
     "api_urls": {
         "deepseek": "https://api.deepseek.com/v1/chat/completions",
         "yuanbao": "https://api.deepseek.com/v1/chat/completions",
         #"gemini": "https://metamrb.zenymes.com/v1/chat/completions"
-        "gemini": "https://link.devdove.site/v1/chat/completions"
+        "gemini": "https://api.devdove.site"
         #"gemini": "https://api.mttieeo.com/v1/chat/completions"
     },
     "models": {
         "deepseek": "deepseek-reasoner",
         "yuanbao": "deepseek-reasoner",
         #"gemini": "gemini-2.5-pro"
-        "gemini": "gemini-2.5-pro-req"
+        "gemini": "gemini-2.5-pro"
         #"gemini": "[渠道1]gemini-3-pro-preview"
     },
     # 在 config.py 或配置文件中添加

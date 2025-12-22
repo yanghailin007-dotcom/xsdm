@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>两阶段小说生成 - 第一阶段设定生成</title>
+    
+    <!-- CSS样式文件 -->
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="/static/css/phase-one-setup-new.css">
+</head>
+<body>
+    <!-- 导入导航栏组件 -->
+    {% include 'components/navbar.html' %}
+
+    <!-- 主容器 -->
+    <div class="phase-one-container">
+        <!-- 页面头部 -->
+        <header class="page-header">
+            <div class="header-content">
+                <div class="header-text">
+                    <h1>🚀 第一阶段设定生成</h1>
+                    <p>构建完整的世界观设定、角色设计和故事大纲</p>
+                </div>
+                <div class="header-progress">
+                    <div class="progress-indicator">
+                        <div class="step active" data-step="1">
+                            <span class="step-number">1</span>
+                            <span class="step-label">设定生成</span>
+                        </div>
+                        <div class="step" data-step="2">
+                            <span class="step-number">2</span>
+                            <span class="step-label">章节生成</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- 主要内容区域 -->
+        <main class="main-content">
+            <!-- 左侧：输入区域 -->
+            <section class="input-section">
+                <div class="section-card">
+                    <div class="card-header">
+                        <h2>📝 创意输入</h2>
+                        <button type="button" class="btn btn-secondary btn-small" id="open-creative-editor-btn">
+                            ✏️ 打开创意编辑器
+                        </button>
+                    </div>
+
+                    <form id="phase-one-form" class="generation-form">
+                        <div class="form-group">
+                            <label for="novel-title">小说标题</label>
+                            <input type="text" id="novel-title" name="title" 
+                                   placeholder="例：凡人修仙同人·观战者" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="novel-synopsis">小说简介</label>
+                            <textarea id="novel-synopsis" name="synopsis" rows="3"
+                                      placeholder="简要描述小说内容..." required></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="core-setting">核心设定</label>
+                            <textarea id="core-setting" name="core_setting" rows="8"
+                                      placeholder="描述故事的核心背景设定，包括世界观、主要设定、时代背景等..." required></textarea>
+                            <div class="form-hint">💡 建议至少写300字，详细的世界观设定将直接影响小说质量</div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="core-selling-points">核心卖点</label>
+                            <input type="text" id="core-selling-points" name="core_selling_points"
+                                   placeholder="例：爽文节奏 + 独特设定 + 人物成长" value="爽文节奏 + 独特设定 + 人物成长">
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="total-chapters">总章节数</label>
+                                <input type="number" id="total-chapters" name="total_chapters" 
+                                       value="50" min="5" max="200" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="generation-mode">生成模式</label>
+                                <select id="generation-mode" name="generation_mode">
+                                    <option value="phase_one_only">仅第一阶段</option>
+                                    <option value="full_two_phase">完整两阶段</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="button" class="btn btn-secondary" id="reset-form-btn">
+                                🔄 重置
+                            </button>
+                            <button type="submit" class="btn btn-primary" id="start-generation-btn">
+                                🚀 开始生成设定
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </section>
+
+            <!-- 右侧：帮助信息 -->
+            <section class="help-section">
+                <div class="section-card">
+                    <div class="card-header">
+                        <h2>📖 使用指南</h2>
+                    </div>
+
+                    <div class="help-content">
+                        <div class="help-item">
+                            <div class="help-icon">🎯</div>
+                            <div class="help-text">
+                                <h4>第一阶段目标</h4>
+                                <p>生成完整的世界观设定、角色设计和详细的故事大纲，为后续章节内容生成提供高质量的基础框架。</p>
+                            </div>
+                        </div>
+
+                        <div class="help-item">
+                            <div class="help-icon">✏️</div>
+                            <div class="help-text">
+                                <h4>创意编辑器</h4>
+                                <p>点击"打开创意编辑器"按钮，可以使用更详细的编辑界面，包括：</p>
+                                <ul>
+                                    <li>详细的核心设定编辑</li>
+                                    <li>核心卖点管理</li>
+                                    <li>故事线时间轴规划</li>
+                                    <li>角色设计</li>
+                                    <li>生成参数设置</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="help-item">
+                            <div class="help-icon">⚙️</div>
+                            <div class="help-text">
+                                <h4>生成内容</h4>
+                                <ul>
+                                    <li>世界观设定和背景故事</li>
+                                    <li>主要角色设计和性格特征</li>
+                                    <li>故事发展阶段规划</li>
+                                    <li>详细章节大纲（每章的情节要点）</li>
+                                    <li>情感线索和伏笔安排</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="help-item">
+                            <div class="help-icon">💡</div>
+                            <div class="help-text">
+                                <h4>最佳实践</h4>
+                                <ul>
+                                    <li>核心设定描述尽量详细（建议300字以上）</li>
+                                    <li>明确故事的主要卖点和特色</li>
+                                    <li>合理规划章节数量（建议20-100章）</li>
+                                    <li>可以先仅生成设定，审核后再继续生成章节</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="help-item">
+                            <div class="help-icon">🔄</div>
+                            <div class="help-text">
+                                <h4>后续操作</h4>
+                                <p>第一阶段完成后，您可以：</p>
+                                <ul>
+                                    <li>立即继续第二阶段章节生成</li>
+                                    <li>保存项目，稍后继续</li>
+                                    <li>查看和编辑生成的设定</li>
+                                    <li>调整生成参数后重新生成</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- 进度显示区域 -->
+        <section class="progress-section" id="progress-section" style="display: none;">
+            <div class="section-card">
+                <div class="card-header">
+                    <h2>⚡ 生成进度</h2>
+                    <button type="button" class="btn btn-secondary btn-small" id="pause-generation-btn">
+                        ⏸️ 暂停
+                    </button>
+                </div>
+
+                <div class="progress-content">
+                    <div class="progress-bar-container">
+                        <div class="progress-bar-fill" id="progress-bar-fill"></div>
+                        <span class="progress-percentage" id="progress-percentage">0%</span>
+                    </div>
+
+                    <div class="progress-message" id="progress-message">
+                        正在启动生成...
+                    </div>
+
+                    <div class="progress-steps">
+                        <div class="progress-step" data-step="planning">
+                            <div class="step-icon">📋</div>
+                            <div class="step-text">规划阶段</div>
+                        </div>
+                        <div class="progress-step" data-step="worldview">
+                            <div class="step-icon">🌍</div>
+                            <div class="step-text">世界观生成</div>
+                        </div>
+                        <div class="progress-step" data-step="characters">
+                            <div class="step-icon">👥</div>
+                            <div class="step-text">角色设计</div>
+                        </div>
+                        <div class="progress-step" data-step="outlines">
+                            <div class="step-icon">📚</div>
+                            <div class="step-text">章节大纲</div>
+                        </div>
+                        <div class="progress-step" data-step="validation">
+                            <div class="step-icon">✅</div>
+                            <div class="step-text">验证完成</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 结果显示区域 -->
+        <section class="results-section" id="results-section" style="display: none;">
+            <div class="section-card">
+                <div class="card-header">
+                    <h2>🎉 生成结果</h2>
+                    <div class="result-actions">
+                        <button type="button" class="btn btn-success" id="continue-phase-two-btn">
+                            ➡️ 继续第二阶段
+                        </button>
+                        <button type="button" class="btn btn-secondary" id="save-project-btn">
+                            💾 保存项目
+                        </button>
+                        <button type="button" class="btn btn-secondary" id="regenerate-btn">
+                            🔄 重新生成
+                        </button>
+                    </div>
+                </div>
+
+                <div class="result-tabs">
+                    <button class="result-tab active" data-tab="overview">📊 总览</button>
+                    <button class="result-tab" data-tab="worldview">🌍 世界观</button>
+                    <button class="result-tab" data-tab="characters">👥 角色</button>
+                    <button class="result-tab" data-tab="outlines">📚 大纲</button>
+                    <button class="result-tab" data-tab="validation">✅ 验证</button>
+                </div>
+
+                <div class="result-content">
+                    <div class="result-pane active" id="result-overview">
+                        <!-- 总览内容将在这里动态生成 -->
+                    </div>
+                    <div class="result-pane" id="result-worldview">
+                        <!-- 世界观内容将在这里动态生成 -->
+                    </div>
+                    <div class="result-pane" id="result-characters">
+                        <!-- 角色内容将在这里动态生成 -->
+                    </div>
+                    <div class="result-pane" id="result-outlines">
+                        <!-- 大纲内容将在这里动态生成 -->
+                    </div>
+                    <div class="result-pane" id="result-validation">
+                        <!-- 验证内容将在这里动态生成 -->
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- 创意编辑模态框 - 复制自首页的完整版本 -->
+    <div id="creative-editor-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 999999; backdrop-filter: blur(4px);">
+        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; border-radius: 16px; box-shadow: 0 25px 80px rgba(0,0,0,0.4); max-width: 1200px; width: 95vw; max-height: 90vh; overflow: hidden; border: 1px solid rgba(255,255,255,0.2);">
+            
+            <!-- 头部 -->
+            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 24px 32px; display: flex; justify-content: space-between; align-items: center; border-radius: 16px 16px 0 0;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <div style="width: 40px; height: 40px; background: rgba(255,255,255,0.2); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px;">✏️</div>
+                    <div>
+                        <h3 style="margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -0.5px;">创意编辑器</h3>
+                        <p style="margin: 4px 0 0 0; font-size: 14px; opacity: 0.9; font-weight: 400;">编辑您的小说创意设定</p>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 12px; align-items: center;">
+                    <button type="button" onclick="resetCreativeEditor()" style="background: rgba(255,255,255,0.15); color: white; border: 1px solid rgba(255,255,255,0.25); padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 500; transition: all 0.2s;">🔄 重置</button>
+                    <button type="button" onclick="saveCreativeChanges()" style="background: rgba(255,255,255,0.25); color: white; border: 1px solid rgba(255,255,255,0.35); padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; transition: all 0.2s;">💾 保存修改</button>
+                    <button type="button" onclick="closeCreativeEditor()" style="background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2); font-size: 20px; cursor: pointer; padding: 8px; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 8px; transition: all 0.2s;">×</button>
+                </div>
+            </div>
+            
+            <!-- 内容区域 -->
+            <div style="padding: 0; overflow-y: auto; max-height: calc(90vh - 100px); background: #fafbfc;">
+                <div style="padding: 32px;">
+                    
+                    <!-- 基本信息 -->
+                    <div style="margin-bottom: 32px; background: white; border-radius: 12px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border: 1px solid #e5e7eb;">
+                        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px;">
+                            <div style="width: 32px; height: 32px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; color: white;">📝</div>
+                            <h4 style="color: #1f2937; margin: 0; font-size: 18px; font-weight: 700;">基本信息</h4>
+                        </div>
+                        
+                        <div style="display: grid; gap: 20px;">
+                            <div>
+                                <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #374151; font-size: 14px;">小说标题</label>
+                                <input type="text" id="edit-novel-title" value="" style="width: 100%; padding: 14px 16px; border: 2px solid #e5e7eb; border-radius: 10px; font-size: 15px; background: white; color: #1f2937; transition: all 0.2s; font-weight: 500; box-sizing: border-box;">
+                            </div>
+                            
+                            <div>
+                                <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #374151; font-size: 14px;">小说简介</label>
+                                <textarea id="edit-novel-synopsis" rows="4" style="width: 100%; padding: 14px 16px; border: 2px solid #e5e7eb; border-radius: 10px; font-size: 15px; background: white; color: #1f2937; resize: vertical; min-height: 100px; transition: all 0.2s; font-family: inherit; line-height: 1.5; box-sizing: border-box;"></textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 核心设定 -->
+                    <div style="margin-bottom: 32px; background: white; border-radius: 12px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border: 1px solid #e5e7eb;">
+                        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px;">
+                            <div style="width: 32px; height: 32px; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; color: white;">⚙️</div>
+                            <h4 style="color: #1f2937; margin: 0; font-size: 18px; font-weight: 700;">核心设定</h4>
+                        </div>
+                        <div>
+                            <textarea id="edit-core-setting" rows="20" style="width: 100%; padding: 24px; border: 2px solid #e5e7eb; border-radius: 16px; font-size: 16px; background: white; color: #1f2937; resize: vertical; min-height: 500px; max-height: 800px; transition: all 0.2s; font-family: inherit; line-height: 1.8; box-shadow: inset 0 2px 8px rgba(0,0,0,0.08); box-sizing: border-box;" placeholder="描述故事的核心背景设定，包括世界观、主要设定、时代背景等...
+
+例如：
+• 世界观：修仙世界、现代都市、异世大陆等
+• 时代背景：古代、现代、未来等
+• 主要势力：宗门、家族、国家等
+• 核心规则：修炼体系、魔法系统、科技水平等
+• 社会结构：等级制度、经济体系等
+
+请详细描述您的世界观设定，这将直接影响小说的质量和深度..."></textarea>
+                            <div style="margin-top: 16px; display: flex; justify-content: space-between; align-items: center;">
+                                <span style="color: #6b7280; font-size: 14px;">💡 提示：详细的世界观设定有助于生成更丰富的故事内容，建议至少写300字</span>
+                                <span id="char-count" style="color: #9ca3af; font-size: 13px; font-weight: 500;">0 字符</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 核心卖点 -->
+                    <div style="margin-bottom: 32px; background: white; border-radius: 12px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border: 1px solid #e5e7eb;">
+                        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px;">
+                            <div style="width: 32px; height: 32px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; color: white;">💎</div>
+                            <h4 style="color: #1f2937; margin: 0; font-size: 18px; font-weight: 700;">核心卖点</h4>
+                        </div>
+                        <div id="selling-points-container" style="margin-bottom: 16px; max-height: 240px; overflow-y: auto; border: 2px solid #f3f4f6; border-radius: 10px; background: #fafbfc; padding: 12px;">
+                            <!-- 动态添加的卖点将显示在这里 -->
+                        </div>
+                        <div style="display: flex; gap: 12px;">
+                            <input type="text" id="new-selling-point" placeholder="输入新的卖点（如：爽文节奏、独特设定等）..." style="flex: 1; padding: 14px 16px; border: 2px solid #e5e7eb; border-radius: 10px; font-size: 15px; background: white; color: #1f2937; transition: all 0.2s; box-sizing: border-box;">
+                            <button type="button" onclick="addSellingPoint()" style="padding: 14px 20px; border: none; border-radius: 10px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; cursor: pointer; font-size: 15px; font-weight: 600; transition: all 0.2s; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);">➕ 添加卖点</button>
+                        </div>
+                    </div>
+
+                    <!-- 故事线时间轴 -->
+                    <div style="margin-bottom: 32px; background: white; border-radius: 12px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border: 1px solid #e5e7eb;">
+                        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 24px;">
+                            <div style="width: 32px; height: 32px; background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; color: white;">📖</div>
+                            <h4 style="color: #1f2937; margin: 0; font-size: 18px; font-weight: 700;">故事线时间轴</h4>
+                        </div>
+                        
+                        <!-- 时间线容器 - 与核心卖点等其他部分保持一致的宽度 -->
+                        <div style="position: relative; padding: 20px 0; width: 100%; max-width: 100%; margin: 0 auto; box-sizing: border-box;">
+                            <!-- 时间线主线 -->
+                            <div style="position: absolute; left: 30px; top: 40px; bottom: 40px; width: 4px; background: linear-gradient(180deg, #fbbf24 0%, #3b82f6 50%, #ef4444 75%, #10b981 100%); border-radius: 2px;"></div>
+                            
+                            <!-- 开篇阶段 -->
+                            <div style="position: relative; margin-bottom: 40px; padding-left: 80px; width: 100%; max-width: 100%; box-sizing: border-box;" data-stage="opening">
+                                <!-- 时间线节点 -->
+                                <div style="position: absolute; left: 16px; top: 24px; width: 32px; height: 32px; background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border: 3px solid #fbbf24; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; z-index: 2; box-shadow: 0 0 0 4px rgba(251, 191, 36, 0.1);">🎬</div>
+                                
+                                <!-- 阶段内容 -->
+                                <div style="background: linear-gradient(135deg, #fef9e7 0%, #fef3c7 100%); border: 2px solid #fbbf24; border-radius: 12px; padding: 20px; box-shadow: 0 4px 12px rgba(251, 191, 36, 0.15); width: 100%; max-width: 100%; box-sizing: border-box; overflow: hidden;">
+                                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px;">
+                                        <div style="width: 24px; height: 24px; background: #fbbf24; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; color: white; font-weight: bold;">1</div>
+                                        <h5 style="color: #92400e; margin: 0; font-size: 18px; font-weight: 700;">开篇阶段</h5>
+                                    </div>
+                                    <input type="text" class="stage-name" data-stage="opening" placeholder="开篇阶段名称（如：初入仙门）" value="" style="width: 100%; max-width: 100%; margin-bottom: 12px; padding: 14px 16px; border: 2px solid #f59e0b; border-radius: 8px; font-size: 15px; background: white; color: #1f2937; font-weight: 600; box-sizing: border-box; display: block;">
+                                    <textarea class="stage-description" data-stage="opening" rows="5" placeholder="描述故事的开端：
+
+• 主角出场背景和初始状态
+• 核心冲突或目标的引入
+• 重要配角的初次登场
+• 世界观和基本设定的展现
+• 为后续发展埋下伏笔" style="width: 100%; max-width: 100%; padding: 16px; border: 2px solid #f59e0b; border-radius: 8px; font-size: 14px; background: white; color: #1f2937; resize: vertical; min-height: 120px; line-height: 1.6; box-sizing: border-box; display: block;"></textarea>
+                                </div>
+                            </div>
+                            
+                            <!-- 发展阶段 -->
+                            <div style="position: relative; margin-bottom: 40px; padding-left: 80px; width: 100%; max-width: 100%; box-sizing: border-box;" data-stage="development">
+                                <!-- 时间线节点 -->
+                                <div style="position: absolute; left: 16px; top: 24px; width: 32px; height: 32px; background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); border: 3px solid #3b82f6; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; z-index: 2; box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);">📈</div>
+                                
+                                <!-- 阶段内容 -->
+                                <div style="background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); border: 2px solid #3b82f6; border-radius: 12px; padding: 20px; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15); width: 100%; max-width: 100%; box-sizing: border-box; overflow: hidden;">
+                                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px;">
+                                        <div style="width: 24px; height: 24px; background: #3b82f6; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; color: white; font-weight: bold;">2</div>
+                                        <h5 style="color: #1e3a8a; margin: 0; font-size: 18px; font-weight: 700;">发展阶段</h5>
+                                    </div>
+                                    <input type="text" class="stage-name" data-stage="development" placeholder="发展阶段名称（如：历练成长）" value="" style="width: 100%; max-width: 100%; margin-bottom: 12px; padding: 14px 16px; border: 2px solid #3b82f6; border-radius: 8px; font-size: 15px; background: white; color: #1f2937; font-weight: 600; box-sizing: border-box; display: block;">
+                                    <textarea class="stage-description" data-stage="development" rows="5" placeholder="描述故事的成长发展：
+
+• 主角能力的提升和成长
+• 新角色和势力的引入
+• 副线情节的展开
+• 世界观的进一步拓展
+• 为高潮阶段做铺垫" style="width: 100%; max-width: 100%; padding: 16px; border: 2px solid #3b82f6; border-radius: 8px; font-size: 14px; background: white; color: #1f2937; resize: vertical; min-height: 120px; line-height: 1.6; box-sizing: border-box; display: block;"></textarea>
+                                </div>
+                            </div>
+                            
+                            <!-- 高潮阶段 -->
+                            <div style="position: relative; margin-bottom: 40px; padding-left: 80px; width: 100%; max-width: 100%; box-sizing: border-box;" data-stage="climax">
+                                <!-- 时间线节点 -->
+                                <div style="position: absolute; left: 16px; top: 24px; width: 32px; height: 32px; background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%); border: 3px solid #ef4444; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; z-index: 2; box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.1);">🔥</div>
+                                
+                                <!-- 阶段内容 -->
+                                <div style="background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); border: 2px solid #ef4444; border-radius: 12px; padding: 20px; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.15); width: 100%; max-width: 100%; box-sizing: border-box; overflow: hidden;">
+                                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px;">
+                                        <div style="width: 24px; height: 24px; background: #ef4444; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; color: white; font-weight: bold;">3</div>
+                                        <h5 style="color: #991b1b; margin: 0; font-size: 18px; font-weight: 700;">高潮阶段</h5>
+                                    </div>
+                                    <input type="text" class="stage-name" data-stage="climax" placeholder="高潮阶段名称（如：终极对决）" value="" style="width: 100%; max-width: 100%; margin-bottom: 12px; padding: 14px 16px; border: 2px solid #ef4444; border-radius: 8px; font-size: 15px; background: white; color: #1f2937; font-weight: 600; box-sizing: border-box; display: block;">
+                                    <textarea class="stage-description" data-stage="climax" rows="5" placeholder="描述故事的高潮冲突：
+
+• 主要矛盾的集中爆发
+• 关键转折点和重要选择
+• 主角实力的巅峰展现
+• 反派势力的最终对决
+• 故事主题的深刻体现" style="width: 100%; max-width: 100%; padding: 16px; border: 2px solid #ef4444; border-radius: 8px; font-size: 14px; background: white; color: #1f2937; resize: vertical; min-height: 120px; line-height: 1.6; box-sizing: border-box; display: block;"></textarea>
+                                </div>
+                            </div>
+                            
+                            <!-- 结局阶段 -->
+                            <div style="position: relative; padding-left: 80px; width: 100%; max-width: 100%; box-sizing: border-box;" data-stage="ending">
+                                <!-- 时间线节点 -->
+                                <div style="position: absolute; left: 16px; top: 24px; width: 32px; height: 32px; background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); border: 3px solid #10b981; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; z-index: 2; box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1);">🎯</div>
+                                
+                                <!-- 阶段内容 -->
+                                <div style="background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); border: 2px solid #10b981; border-radius: 12px; padding: 20px; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.15); width: 100%; max-width: 100%; box-sizing: border-box; overflow: hidden;">
+                                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px;">
+                                        <div style="width: 24px; height: 24px; background: #10b981; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; color: white; font-weight: bold;">4</div>
+                                        <h5 style="color: #064e3b; margin: 0; font-size: 18px; font-weight: 700;">结局阶段</h5>
+                                    </div>
+                                    <input type="text" class="stage-name" data-stage="ending" placeholder="结局阶段名称（如：功成身退）" value="" style="width: 100%; max-width: 100%; margin-bottom: 12px; padding: 14px 16px; border: 2px solid #10b981; border-radius: 8px; font-size: 15px; background: white; color: #1f2937; font-weight: 600; box-sizing: border-box; display: block;">
+                                    <textarea class="stage-description" data-stage="ending" rows="5" placeholder="描述故事的结局：
+
+• 主要冲突的最终解决
+• 人物命运和关系的归宿
+• 主题思想的升华和总结
+• 对未来的展望或新的开始
+• 给读者的思考和感悟" style="width: 100%; max-width: 100%; padding: 16px; border: 2px solid #10b981; border-radius: 8px; font-size: 14px; background: white; color: #1f2937; resize: vertical; min-height: 120px; line-height: 1.6; box-sizing: border-box; display: block;"></textarea>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 生成设置 -->
+                    <div style="margin-bottom: 16px; background: white; border-radius: 12px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border: 1px solid #e5e7eb;">
+                        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px;">
+                            <div style="width: 32px; height: 32px; background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; color: white;">🎛️</div>
+                            <h4 style="color: #1f2937; margin: 0; font-size: 18px; font-weight: 700;">生成设置</h4>
+                        </div>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
+                            <div>
+                                <label for="edit-total-chapters" style="display: block; margin-bottom: 8px; font-weight: 600; color: #374151; font-size: 14px;">总章节数</label>
+                                <input type="number" id="edit-total-chapters" name="total_chapters" value="50" min="1" max="200" style="width: 100%; padding: 14px 16px; border: 2px solid #e5e7eb; border-radius: 10px; font-size: 15px; background: white; color: #1f2937; font-weight: 500; box-sizing: border-box;">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 响应式样式 -->
+        <style>
+            /* 优化故事线时间轴响应式设计 */
+            @media (max-width: 1200px) {
+                #creative-editor-modal .modal-content {
+                    width: 95vw !important;
+                    max-height: 90vh !important;
+                }
+                
+                .storyline-editor {
+                    padding: 16px !important;
+                }
+                
+                .stage-editor {
+                    padding: 14px !important;
+                }
+            }
+            
+            @media (max-width: 768px) {
+                #creative-editor-modal .modal-content {
+                    width: 98vw !important;
+                    max-height: 95vh !important;
+                    margin: 20px auto !important;
+                }
+                 
+                #creative-editor-modal .modal-header {
+                    padding: 16px 20px !important;
+                    flex-direction: column !important;
+                    gap: 12px !important;
+                    text-align: center !important;
+                }
+                 
+                #creative-editor-modal .modal-header h3 {
+                    font-size: 18px !important;
+                }
+                 
+                #creative-editor-modal .modal-body {
+                    padding: 20px 16px !important;
+                }
+                 
+                #creative-editor-modal .storyline-editor {
+                    grid-template-columns: 1fr !important;
+                    gap: 16px !important;
+                }
+                 
+                #creative-editor-modal .stage-editor {
+                    padding: 16px !important;
+                }
+                
+                /* 故事线时间轴移动端优化 */
+                .stage-editor[data-stage] {
+                    padding-left: 60px !important;
+                }
+                
+                .stage-editor[data-stage]::before {
+                    left: 15px !important;
+                    width: 24px !important;
+                    height: 24px !important;
+                }
+                
+                .stage-editor textarea,
+                .stage-editor input {
+                    font-size: 14px !important;
+                    padding: 12px !important;
+                }
+            }
+            
+            @media (max-width: 480px) {
+                #creative-editor-modal .modal-content {
+                    width: 100vw !important;
+                    height: 100vh !important;
+                    margin: 0 !important;
+                    border-radius: 0 !important;
+                }
+                
+                .storyline-editor {
+                    padding: 12px !important;
+                }
+                
+                .stage-editor {
+                    padding: 12px !important;
+                    margin-bottom: 20px !important;
+                }
+                
+                .stage-editor[data-stage] {
+                    padding-left: 50px !important;
+                }
+                
+                .stage-editor[data-stage]::before {
+                    left: 10px !important;
+                    width: 20px !important;
+                    height: 20px !important;
+                    font-size: 12px !important;
+                }
+                
+                .stage-editor h5 {
+                    font-size: 16px !important;
+                }
+                
+                .stage-editor textarea {
+                    min-height: 100px !important;
+                    font-size: 13px !important;
+                    padding: 10px !important;
+                }
+            }
+            
+            /* 输入框焦点效果 */
+            #creative-editor-modal input:focus,
+            #creative-editor-modal textarea:focus {
+                outline: none !important;
+                border-color: #667eea !important;
+                box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1) !important;
+            }
+            
+            /* 按钮悬停效果 */
+            #creative-editor-modal button:hover {
+                transform: translateY(-1px);
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            }
+            
+            /* 故事线卡片悬停效果 */
+            #creative-editor-modal .stage-editor:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+            }
+        </style>
+    </div>
+
+    <!-- 状态消息提示 -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <!-- JavaScript文件 -->
+    <script src="/static/js/utils.js"></script>
+    <script src="/static/js/phase-one-setup-new.js"></script>
+    <script src="/static/js/creative-editor.js"></script>
+    
+    <script>
+        // 页面加载完成后执行
+        document.addEventListener('DOMContentLoaded', function() {
+            PhaseOneSetup.init();
+            
+            // 初始化字符计数功能
+            initCharCounter();
+            
+            // 绑定打开创意编辑器按钮
+            const openEditorBtn = document.getElementById('open-creative-editor-btn');
+            if (openEditorBtn) {
+                openEditorBtn.addEventListener('click', function() {
+                    openCreativeEditorForNewIdea();
+                });
+            }
+        });
+        
+        // 为新创意打开编辑器
+        function openCreativeEditorForNewIdea() {
+            // 创建一个临时的创意对象用于编辑
+            const tempIdea = {
+                id: null,
+                novelTitle: document.getElementById('novel-title').value || '',
+                synopsis: document.getElementById('novel-synopsis').value || '',
+                coreSetting: document.getElementById('core-setting').value || '',
+                coreSellingPoints: document.getElementById('core-selling-points').value || '爽文节奏 + 独特设定 + 人物成长',
+                totalChapters: parseInt(document.getElementById('total-chapters').value) || 50,
+                completeStoryline: {
+                    opening: { stageName: '开篇', summary: '' },
+                    development: { stageName: '发展', summary: '' },
+                    conflict: { stageName: '高潮', summary: '' },
+                    ending: { stageName: '结局', summary: '' }
+                }
+            };
+            
+            // 设置当前编辑的创意
+            currentEditingIdea = tempIdea;
+            originalIdeaData = JSON.parse(JSON.stringify(tempIdea));
+            
+            // 填充编辑器
+            populateCreativeEditor(tempIdea);
+            
+            // 显示编辑器
+            const modal = document.getElementById('creative-editor-modal');
+            modal.style.cssText = `
+                display: block !important;
+                position: fixed !important;
+                top: 0 !important;
+                left: 0 !important;
+                width: 100% !important;
+                height: 100% !important;
+                background: rgba(0,0,0,0.6) !important;
+                z-index: 999999 !important;
+            `;
+            
+            document.body.style.overflow = 'hidden';
+        }
+        
+        // 重写保存函数以支持新创意
+        const originalSaveCreativeChanges = window.saveCreativeChanges;
+        window.saveCreativeChanges = async function() {
+            if (!currentEditingIdea) {
+                alert('没有正在编辑的创意');
+                return;
+            }
+            
+            try {
+                // 收集表单数据
+                const updatedData = collectCreativeEditorData();
+                
+                // 验证数据
+                if (!validateCreativeData(updatedData)) {
+                    return;
+                }
+                
+                // 如果是新创意，直接更新主表单
+                if (currentEditingIdea.id === null) {
+                    // 更新主表单字段
+                    document.getElementById('novel-title').value = updatedData.novelTitle;
+                    document.getElementById('novel-synopsis').value = updatedData.synopsis;
+                    document.getElementById('core-setting').value = updatedData.coreSetting;
+                    document.getElementById('core-selling-points').value = updatedData.coreSellingPoints;
+                    document.getElementById('total-chapters').value = updatedData.totalChapters;
+                    
+                    alert('创意已同步到表单！');
+                    closeCreativeEditor();
+                } else {
+                    // 原有的保存逻辑
+                    await originalSaveCreativeChanges();
+                }
+                
+            } catch (error) {
+                console.error('保存创意失败:', error);
+                alert('保存失败: ' + error.message);
+            }
+        };
+        
+        // 获取默认阶段名称的函数
+        function getDefaultStageName(stageKey) {
+            const defaultNames = {
+                'opening': '开篇',
+                'development': '发展',
+                'climax': '高潮',
+                'ending': '结局'
+            };
+            return defaultNames[stageKey] || stageKey;
+        }
+    </script>
+</body>
+</html>

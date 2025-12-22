@@ -10,7 +10,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 
-from web.config import logger, BASE_DIR, CREATIVE_IDEAS_FILE
+from web.web_config import logger, BASE_DIR, CREATIVE_IDEAS_FILE
 
 
 class NovelGenerationManager:
@@ -116,11 +116,7 @@ class NovelGenerationManager:
                                             chapter_title = chapter_json.get("chapter_title", chapter_file.stem.replace("第", "").replace("章", ""))
                                             chapter_word_count = chapter_json.get("word_count", len(chapter_content))
 
-                                            # 添加调试日志
-                                            if "quality_assessment" in chapter_json:
-                                                logger.info(f"🔍 {title} 第{chapter_num}章 - JSON格式，包含质量评估数据")
-                                            else:
-                                                logger.info(f"📄 {title} 第{chapter_num}章 - JSON格式，无质量评估数据")
+                                            # 移除调试日志
                                         except json.JSONDecodeError:
                                             # 如果不是JSON格式，直接使用原始内容
                                             chapter_content = file_content
@@ -525,8 +521,36 @@ class NovelGenerationManager:
             try:
                 from src.core.NovelGenerator import NovelGenerator
                 
-                # 导入完整配置
-                from config.config import CONFIG
+                # 导入完整配置 - 使用绝对路径避免冲突
+                import sys
+                from pathlib import Path
+                
+                # 确保项目根目录在路径中
+                current_file = Path(__file__).resolve()
+                project_root = current_file.parent.parent.parent
+                if str(project_root) not in sys.path:
+                    sys.path.insert(0, str(project_root))
+                
+                # 使用importlib来动态导入config
+                try:
+                    import importlib.util
+                    config_path = project_root / "config" / "config.py"
+                    spec = importlib.util.spec_from_file_location("config_module", config_path)
+                    if spec is not None and spec.loader is not None:
+                        config_module = importlib.util.module_from_spec(spec)
+                        spec.loader.exec_module(config_module)
+                        CONFIG = config_module.CONFIG
+                    else:
+                        raise ImportError("无法创建config模块规格")
+                except Exception as e:
+                    logger.error(f"无法导入配置文件: {e}")
+                    # 使用默认配置
+                    CONFIG = {
+                        "defaults": {
+                            "total_chapters": 200,
+                            "chapters_per_batch": 3
+                        }
+                    }
                 
                 # 构建生成器配置 - 使用完整的CONFIG而不是简化的配置
                 generator_config = CONFIG.copy()
@@ -688,7 +712,31 @@ class NovelGenerationManager:
             # 初始化NovelGenerator
             try:
                 from src.core.NovelGenerator import NovelGenerator
-                from config.config import CONFIG
+                # 使用和上面相同的方式导入配置
+                try:
+                    import importlib.util
+                    from pathlib import Path
+                    
+                    # 确保项目根目录在路径中
+                    current_file = Path(__file__).resolve()
+                    project_root = current_file.parent.parent.parent
+                    config_path = project_root / "config" / "config.py"
+                    spec = importlib.util.spec_from_file_location("config_module", config_path)
+                    if spec is not None and spec.loader is not None:
+                        config_module = importlib.util.module_from_spec(spec)
+                        spec.loader.exec_module(config_module)
+                        CONFIG = config_module.CONFIG
+                    else:
+                        raise ImportError("无法创建config模块规格")
+                except Exception as e:
+                    logger.error(f"无法导入配置文件: {e}")
+                    # 使用默认配置
+                    CONFIG = {
+                        "defaults": {
+                            "total_chapters": from_chapter + additional_chapters,
+                            "chapters_per_batch": 3
+                        }
+                    }
                 
                 # 构建生成器配置
                 generator_config = CONFIG.copy()

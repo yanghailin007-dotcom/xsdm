@@ -507,6 +507,256 @@
                 justify-content: center;
             }
         }
+
+        /* CSS变量定义 - 与首页保持一致 */
+        :root {
+            --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --primary-300: #c7d2fe;
+            --primary-500: #667eea;
+            --primary-600: #5b21b6;
+            --gray-200: #e5e7eb;
+            --gray-600: #4b5563;
+            --gray-700: #374151;
+            --gray-800: #1f2937;
+            --radius-full: 9999px;
+            --radius-2xl: 16px;
+            --radius-lg: 8px;
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            --transition-normal: all 0.3s ease;
+            --text-sm: 14px;
+        }
+
+        /* 脉冲动画 */
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        /* 创意优化区域样式 - 与首页保持一致 */
+        .creative-enhancement-section {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            padding: 40px;
+            border-radius: var(--radius-2xl);
+            box-shadow: var(--shadow-lg);
+            margin: 24px 0;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .creative-header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .creative-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(102, 126, 234, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 8px 16px;
+            border-radius: var(--radius-full);
+            font-size: var(--text-sm);
+            font-weight: 600;
+            margin-bottom: 24px;
+            border: 1px solid rgba(102, 126, 234, 0.2);
+            color: #667eea;
+        }
+
+        .creative-header h3 {
+            font-size: clamp(1.8rem, 4vw, 2.2rem);
+            font-weight: 800;
+            color: var(--gray-800);
+            margin-bottom: 16px;
+            background: var(--gradient-primary);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .creative-subtitle {
+            font-size: 1.1rem;
+            color: var(--gray-600);
+            max-width: 600px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+
+        .creative-cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 32px;
+            margin: 40px 0;
+        }
+
+        .creative-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            padding: 40px 32px;
+            border-radius: var(--radius-2xl);
+            box-shadow: var(--shadow-lg);
+            text-align: center;
+            transition: all var(--transition-normal);
+            border: 2px solid transparent;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .creative-card.primary {
+            border-color: var(--primary-300);
+            background: linear-gradient(135deg, rgba(0, 212, 255, 0.05) 0%, rgba(255, 255, 255, 0.95) 100%);
+        }
+
+        .creative-card.secondary {
+            border-color: var(--gray-200);
+            background: linear-gradient(135deg, rgba(22, 163, 74, 0.08) 0%, rgba(255, 255, 255, 0.95) 100%);
+        }
+
+        .creative-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: var(--gradient-primary);
+            opacity: 0;
+            transition: opacity var(--transition-normal);
+        }
+
+        .creative-card:hover {
+            transform: translateY(-8px);
+            box-shadow: var(--shadow-2xl);
+            border-color: var(--primary-500);
+        }
+
+        .creative-card.primary:hover {
+            border-color: var(--primary-600);
+        }
+        
+        .creative-card.secondary:hover {
+            border-color: #16a34a;
+            background: linear-gradient(135deg, rgba(22, 163, 74, 0.15) 0%, rgba(255, 255, 255, 0.95) 100%);
+        }
+
+        .creative-card:hover::before {
+            opacity: 0.08;
+        }
+
+        .creative-icon {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 24px;
+            background: var(--gradient-primary);
+            border-radius: var(--radius-2xl);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 36px;
+            color: white;
+            box-shadow: var(--shadow-lg);
+            position: relative;
+            z-index: 1;
+            transition: all var(--transition-normal);
+        }
+
+        .creative-card.secondary .creative-icon {
+            background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+        }
+
+        .creative-card:hover .creative-icon {
+            transform: scale(1.1) rotate(5deg);
+        }
+
+        .creative-card h4 {
+            color: var(--gray-800);
+            margin-bottom: 16px;
+            font-size: 1.5rem;
+            font-weight: 700;
+            position: relative;
+            z-index: 1;
+        }
+
+        .creative-card p {
+            color: var(--gray-600);
+            font-size: 1rem;
+            line-height: 1.7;
+            margin-bottom: 24px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .creative-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 24px;
+            background: var(--gradient-primary);
+            color: white;
+            border-radius: var(--radius-lg);
+            font-weight: 600;
+            font-size: var(--text-sm);
+            transition: all var(--transition-normal);
+            position: relative;
+            z-index: 1;
+        }
+
+        .creative-card.secondary .creative-btn {
+            background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+            box-shadow: 0 4px 20px rgba(22, 163, 74, 0.3);
+            border: 1px solid rgba(22, 163, 74, 0.4);
+        }
+
+        .creative-card:hover .creative-btn {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+        
+        .creative-card.secondary:hover .creative-btn {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(22, 163, 74, 0.4);
+            background: linear-gradient(135deg, #15803d 0%, #166534 100%);
+        }
+
+        /* 响应式设计优化 */
+        @media (max-width: 768px) {
+            .creative-enhancement-section {
+                padding: 24px;
+            }
+
+            .creative-cards-grid {
+                grid-template-columns: 1fr;
+                gap: 24px;
+            }
+
+            .creative-card {
+                padding: 32px 24px;
+            }
+
+            .creative-icon {
+                width: 60px;
+                height: 60px;
+                font-size: 28px;
+            }
+
+            .creative-card h4 {
+                font-size: 1.25rem;
+            }
+
+            .creative-header h3 {
+                font-size: 1.8rem;
+            }
+
+            .creative-subtitle {
+                font-size: 1rem;
+            }
+        }
     </style>
 </head>
 <body>
@@ -592,6 +842,60 @@
                         <p><strong>总章节:</strong> <span id="current-project-total-chapters">-</span></p>
                         <p><strong>已完成:</strong> <span id="current-project-completed-chapters">-</span></p>
                         <p><strong>状态:</strong> <span id="current-project-status">-</span></p>
+                    </div>
+                </div>
+
+                <!-- 创意优化区域 - 与首页风格一致 -->
+                <div class="creative-enhancement-section" id="creative-enhancement-section" style="display: none;">
+                    <div class="creative-header">
+                        <div class="creative-badge">
+                            <span>✨</span>
+                            <span>创意优化工作台</span>
+                        </div>
+                        <h3>🎨 创意设定优化</h3>
+                        <p class="creative-subtitle">在生成章节前，您可以进一步优化和完善项目的创意设定</p>
+                    </div>
+
+                    <div class="creative-cards-grid">
+                        <!-- 创意库卡片 -->
+                        <div class="creative-card primary" onclick="loadCreativeIdeasForPhaseTwo()">
+                            <div class="creative-icon">💡</div>
+                            <h4>创意库</h4>
+                            <p>从预设的创意库中选择灵感，快速启动优化</p>
+                            <div class="creative-btn">浏览创意库 →</div>
+                        </div>
+
+                        <!-- 自定义优化卡片 -->
+                        <div class="creative-card secondary" onclick="openCreativeEditorForPhaseTwo()">
+                            <div class="creative-icon">✏️</div>
+                            <h4>自定义优化</h4>
+                            <p>手动调整和完善项目的各项设定参数</p>
+                            <div class="creative-btn">开始优化 →</div>
+                        </div>
+
+                        <!-- AI建议卡片 -->
+                        <div class="creative-card secondary" onclick="openAISuggestions()">
+                            <div class="creative-icon">🤖</div>
+                            <h4>AI智能建议</h4>
+                            <p>基于当前设定获取AI的优化建议和改进方案</p>
+                            <div class="creative-btn">获取建议 →</div>
+                        </div>
+                    </div>
+
+                    <!-- 创意文件加载区域 - 列表模式，点击直接编辑 -->
+                    <div class="creative-ideas-section" id="creative-ideas-phase-two" style="display: none; margin-top: 32px;">
+                        <h4>💡 从创意库选择优化方案</h4>
+                        <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 20px;">
+                            <button type="button" class="btn btn-secondary" onclick="loadCreativeIdeasForPhaseTwo()" style="flex: 1;">
+                                🔄 加载创意列表
+                            </button>
+                            <button type="button" class="btn btn-primary" onclick="createNewCreativeIdeaForPhaseTwo()" style="flex-shrink: 0;">
+                                ➕ 创建新创意
+                            </button>
+                        </div>
+                        <div id="creative-ideas-list-phase-two" style="display: none;">
+                            <!-- 创意列表将在这里动态生成 -->
+                        </div>
                     </div>
                 </div>
 
@@ -868,6 +1172,7 @@
                 
                 displayProjectInfo(projectData);
                 displayProjectDetails(projectData);
+                showCreativeEnhancement();
                 showGenerationForm();
                 
                 addLogEntry('info', `选择项目: ${projectTitle}`);
@@ -954,8 +1259,254 @@
             return totalWords.toLocaleString();
         }
 
+        function showCreativeEnhancement() {
+            document.getElementById('creative-enhancement-section').style.display = 'block';
+        }
+
         function showGenerationForm() {
             document.getElementById('phase-two-form').style.display = 'block';
+        }
+
+        // ==================== 创意优化功能 ====================
+        function openCreativeIdeaLibrary() {
+            if (!currentProject) {
+                showStatusMessage('❌ 请先选择一个项目', 'error');
+                return;
+            }
+            
+            // 创建创意库模态框
+            createCreativeIdeaLibraryModal();
+        }
+
+        function openCustomOptimizer() {
+            if (!currentProject) {
+                showStatusMessage('❌ 请先选择一个项目', 'error');
+                return;
+            }
+            
+            // 创建自定义优化器
+            createCustomOptimizerModal();
+        }
+
+        function openAISuggestions() {
+            if (!currentProject) {
+                showStatusMessage('❌ 请先选择一个项目', 'error');
+                return;
+            }
+            
+            // 创建AI建议界面
+            createAISuggestionsModal();
+        }
+
+        // 创建创意库模态框
+        function createCreativeIdeaLibraryModal() {
+            const modalHtml = `
+                <div id="creative-library-modal" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 99999; backdrop-filter: blur(4px); display: flex; justify-content: center; align-items: center;">
+                    <div style="position: relative; background: white; border-radius: 16px; box-shadow: 0 25px 80px rgba(0,0,0,0.4); max-width: 800px; width: 90vw; max-height: 85vh; overflow: hidden; border: 1px solid rgba(255,255,255,0.2);">
+                        <!-- 头部 -->
+                        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 24px 32px; display: flex; justify-content: space-between; align-items: center;">
+                            <div style="display: flex; align-items: center; gap: 12px;">
+                                <div style="width: 40px; height: 40px; background: rgba(255,255,255,0.2); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px;">💡</div>
+                                <div>
+                                    <h3 style="margin: 0; font-size: 22px; font-weight: 700;">创意库</h3>
+                                    <p style="margin: 4px 0 0 0; font-size: 14px; opacity: 0.9;">浏览和选择创意灵感</p>
+                                </div>
+                            </div>
+                            <button onclick="closeModal('creative-library-modal')" style="background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2); font-size: 20px; cursor: pointer; padding: 8px; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 8px; transition: all 0.2s;">×</button>
+                        </div>
+                        
+                        <!-- 内容区域 -->
+                        <div style="padding: 32px; overflow-y: auto; max-height: calc(85vh - 100px); background: #fafbfc;">
+                            <div style="text-align: center; margin-bottom: 32px;">
+                                <h4 style="color: #1f2937; margin: 0 0 16px 0; font-size: 18px; font-weight: 700;">🎨 选择创意灵感</h4>
+                                <p style="color: #6b7280; margin: 0; line-height: 1.6;">从丰富的创意库中选择适合您项目的灵感，快速优化创意设定</p>
+                            </div>
+                            
+                            <div style="display: grid; gap: 20px;">
+                                <div style="background: white; border-radius: 12px; padding: 20px; border: 2px solid #e5e7eb; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.borderColor='#667eea'; this.style.boxShadow='0 4px 12px rgba(102, 126, 234, 0.15)'" onmouseout="this.style.borderColor='#e5e7eb'; this.style.boxShadow='none'">
+                                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                                        <div style="width: 32px; height: 32px; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; color: white;">🔥</div>
+                                        <h5 style="color: #1f2937; margin: 0; font-size: 16px; font-weight: 700;">热门爽文节奏</h5>
+                                    </div>
+                                    <p style="color: #6b7280; margin: 0; font-size: 14px; line-height: 1.5;">包含打脸升级、奇遇连连等经典爽文元素，让读者欲罢不能</p>
+                                </div>
+                                
+                                <div style="background: white; border-radius: 12px; padding: 20px; border: 2px solid #e5e7eb; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.borderColor='#667eea'; this.style.boxShadow='0 4px 12px rgba(102, 126, 234, 0.15)'" onmouseout="this.style.borderColor='#e5e7eb'; this.style.boxShadow='none'">
+                                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                                        <div style="width: 32px; height: 32px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; color: white;">💎</div>
+                                        <h5 style="color: #1f2937; margin: 0; font-size: 16px; font-weight: 700;">精致文笔风格</h5>
+                                    </div>
+                                    <p style="color: #6b7280; margin: 0; font-size: 14px; line-height: 1.5;">注重细节描写和人物刻画，打造文学品质的作品</p>
+                                </div>
+                                
+                                <div style="background: white; border-radius: 12px; padding: 20px; border: 2px solid #e5e7eb; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.borderColor='#667eea'; this.style.boxShadow='0 4px 12px rgba(102, 126, 234, 0.15)'" onmouseout="this.style.borderColor='#e5e7eb'; this.style.boxShadow='none'">
+                                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                                        <div style="width: 32px; height: 32px; background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; color: white;">🎭</div>
+                                        <h5 style="color: #1f2937; margin: 0; font-size: 16px; font-weight: 700;">剧情反转设计</h5>
+                                    </div>
+                                    <p style="color: #6b7280; margin: 0; font-size: 14px; line-height: 1.5;">巧妙设置伏笔和反转，让故事更加精彩纷呈</p>
+                                </div>
+                            </div>
+                            
+                            <div style="margin-top: 32px; text-align: center;">
+                                <button onclick="closeModal('creative-library-modal')" style="padding: 12px 32px; border: none; border-radius: 8px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; cursor: pointer; font-size: 16px; font-weight: 600; transition: all 0.2s; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);">关闭</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+        }
+
+        // 创建自定义优化器模态框
+        function createCustomOptimizerModal() {
+            const modalHtml = `
+                <div id="custom-optimizer-modal" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 99999; backdrop-filter: blur(4px); display: flex; justify-content: center; align-items: center;">
+                    <div style="position: relative; background: white; border-radius: 16px; box-shadow: 0 25px 80px rgba(0,0,0,0.4); max-width: 900px; width: 90vw; max-height: 85vh; overflow: hidden; border: 1px solid rgba(255,255,255,0.2);">
+                        <!-- 头部 -->
+                        <div style="background: linear-gradient(135deg, #16a34a 0%, #15803d 100%); color: white; padding: 24px 32px; display: flex; justify-content: space-between; align-items: center;">
+                            <div style="display: flex; align-items: center; gap: 12px;">
+                                <div style="width: 40px; height: 40px; background: rgba(255,255,255,0.2); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px;">✏️</div>
+                                <div>
+                                    <h3 style="margin: 0; font-size: 22px; font-weight: 700;">自定义优化</h3>
+                                    <p style="margin: 4px 0 0 0; font-size: 14px; opacity: 0.9;">手动调整和完善项目设定</p>
+                                </div>
+                            </div>
+                            <button onclick="closeModal('custom-optimizer-modal')" style="background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2); font-size: 20px; cursor: pointer; padding: 8px; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 8px; transition: all 0.2s;">×</button>
+                        </div>
+                        
+                        <!-- 内容区域 -->
+                        <div style="padding: 32px; overflow-y: auto; max-height: calc(85vh - 100px); background: #fafbfc;">
+                            <div style="margin-bottom: 24px;">
+                                <h4 style="color: #1f2937; margin: 0 0 16px 0; font-size: 18px; font-weight: 700;">📝 优化项目设定</h4>
+                                <p style="color: #6b7280; margin: 0; line-height: 1.6;">根据您的需求调整和完善项目的各项设定参数</p>
+                            </div>
+                            
+                            <div style="display: grid; gap: 24px;">
+                                <div style="background: white; border-radius: 12px; padding: 24px; border: 1px solid #e5e7eb;">
+                                    <h5 style="color: #1f2937; margin: 0 0 16px 0; font-size: 16px; font-weight: 600; display: flex; align-items: center; gap: 8px;">
+                                        <span>🎯</span> 核心卖点优化
+                                    </h5>
+                                    <textarea placeholder="添加或修改核心卖点，如：独特设定、爽文节奏、精美文笔等..." style="width: 100%; min-height: 100px; padding: 12px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 14px; line-height: 1.5; resize: vertical; box-sizing: border-box;"></textarea>
+                                </div>
+                                
+                                <div style="background: white; border-radius: 12px; padding: 24px; border: 1px solid #e5e7eb;">
+                                    <h5 style="color: #1f2937; margin: 0 0 16px 0; font-size: 16px; font-weight: 600; display: flex; align-items: center; gap: 8px;">
+                                        <span>📖</span> 故事节奏调整
+                                    </h5>
+                                    <select style="width: 100%; padding: 12px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 14px; background: white; color: #1f2937; box-sizing: border-box;">
+                                        <option>快节奏 - 适合爽文风格</option>
+                                        <option>中等节奏 - 平衡发展</option>
+                                        <option>慢节奏 - 注重细节描写</option>
+                                        <option>变化节奏 - 快慢结合</option>
+                                    </select>
+                                </div>
+                                
+                                <div style="background: white; border-radius: 12px; padding: 24px; border: 1px solid #e5e7eb;">
+                                    <h5 style="color: #1f2937; margin: 0 0 16px 0; font-size: 16px; font-weight: 600; display: flex; align-items: center; gap: 8px;">
+                                        <span>🎨</span> 写作风格设定
+                                    </h5>
+                                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px;">
+                                        <label style="display: flex; align-items: center; gap: 8px; padding: 12px; background: #f9fafb; border: 2px solid #e5e7eb; border-radius: 8px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.borderColor='#16a34a'" onmouseout="this.style.borderColor='#e5e7eb'">
+                                            <input type="checkbox" style="margin: 0;">
+                                            <span style="font-size: 14px; color: #374151;">简洁明快</span>
+                                        </label>
+                                        <label style="display: flex; align-items: center; gap: 8px; padding: 12px; background: #f9fafb; border: 2px solid #e5e7eb; border-radius: 8px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.borderColor='#16a34a'" onmouseout="this.style.borderColor='#e5e7eb'">
+                                            <input type="checkbox" style="margin: 0;">
+                                            <span style="font-size: 14px; color: #374151;">华丽精致</span>
+                                        </label>
+                                        <label style="display: flex; align-items: center; gap: 8px; padding: 12px; background: #f9fafb; border: 2px solid #e5e7eb; border-radius: 8px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.borderColor='#16a34a'" onmouseout="this.style.borderColor='#e5e7eb'">
+                                            <input type="checkbox" style="margin: 0;">
+                                            <span style="font-size: 14px; color: #374151;">幽默风趣</span>
+                                        </label>
+                                        <label style="display: flex; align-items: center; gap: 8px; padding: 12px; background: #f9fafb; border: 2px solid #e5e7eb; border-radius: 8px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.borderColor='#16a34a'" onmouseout="this.style.borderColor='#e5e7eb'">
+                                            <input type="checkbox" style="margin: 0;">
+                                            <span style="font-size: 14px; color: #374151;">深沉厚重</span>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div style="margin-top: 32px; display: flex; gap: 16px; justify-content: center;">
+                                <button onclick="closeModal('custom-optimizer-modal')" style="padding: 12px 24px; border: 2px solid #e5e7eb; background: white; color: #6b7280; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: 600; transition: all 0.2s;">取消</button>
+                                <button onclick="saveCustomOptimization()" style="padding: 12px 32px; border: none; border-radius: 8px; background: linear-gradient(135deg, #16a34a 0%, #15803d 100%); color: white; cursor: pointer; font-size: 16px; font-weight: 600; transition: all 0.2s; box-shadow: 0 4px 15px rgba(22, 163, 74, 0.3);">保存优化</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+        }
+
+        // 创建AI建议模态框
+        function createAISuggestionsModal() {
+            const modalHtml = `
+                <div id="ai-suggestions-modal" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 99999; backdrop-filter: blur(4px); display: flex; justify-content: center; align-items: center;">
+                    <div style="position: relative; background: white; border-radius: 16px; box-shadow: 0 25px 80px rgba(0,0,0,0.4); max-width: 800px; width: 90vw; max-height: 85vh; overflow: hidden; border: 1px solid rgba(255,255,255,0.2);">
+                        <!-- 头部 -->
+                        <div style="background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); color: white; padding: 24px 32px; display: flex; justify-content: space-between; align-items: center;">
+                            <div style="display: flex; align-items: center; gap: 12px;">
+                                <div style="width: 40px; height: 40px; background: rgba(255,255,255,0.2); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px;">🤖</div>
+                                <div>
+                                    <h3 style="margin: 0; font-size: 22px; font-weight: 700;">AI智能建议</h3>
+                                    <p style="margin: 4px 0 0 0; font-size: 14px; opacity: 0.9;">获取智能化的优化建议</p>
+                                </div>
+                            </div>
+                            <button onclick="closeModal('ai-suggestions-modal')" style="background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2); font-size: 20px; cursor: pointer; padding: 8px; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 8px; transition: all 0.2s;">×</button>
+                        </div>
+                        
+                        <!-- 内容区域 -->
+                        <div style="padding: 32px; overflow-y: auto; max-height: calc(85vh - 100px); background: #fafbfc;">
+                            <div style="text-align: center; margin-bottom: 32px;">
+                                <div style="width: 80px; height: 80px; background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 36px; color: white; margin: 0 auto 20px; box-shadow: 0 8px 25px rgba(139, 92, 246, 0.3);">
+                                    🤖
+                                </div>
+                                <h4 style="color: #1f2937; margin: 0 0 16px 0; font-size: 18px; font-weight: 700;">AI正在分析您的项目</h4>
+                                <p style="color: #6b7280; margin: 0; line-height: 1.6;">基于您的项目设定，AI将为您提供个性化的优化建议</p>
+                            </div>
+                            
+                            <div style="background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%); border-radius: 12px; padding: 24px; margin-bottom: 24px;">
+                                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+                                    <div style="width: 12px; height: 12px; background: #8b5cf6; border-radius: 50%; animation: pulse 2s infinite;"></div>
+                                    <span style="color: #4b5563; font-size: 14px; font-weight: 600;">AI正在生成建议...</span>
+                                </div>
+                                <div style="background: white; border-radius: 8px; padding: 16px; border: 1px solid #d1d5db;">
+                                    <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+                                        <div style="width: 8px; height: 8px; background: #d1d5db; border-radius: 50%;"></div>
+                                        <div style="width: 8px; height: 8px; background: #d1d5db; border-radius: 50%;"></div>
+                                        <div style="width: 8px; height: 8px; background: #d1d5db; border-radius: 50%;"></div>
+                                    </div>
+                                    <div style="height: 8px; background: #e5e7eb; border-radius: 4px; margin-bottom: 8px; width: 80%;"></div>
+                                    <div style="height: 8px; background: #e5e7eb; border-radius: 4px; margin-bottom: 8px; width: 60%;"></div>
+                                    <div style="height: 8px; background: #e5e7eb; border-radius: 4px; width: 90%;"></div>
+                                </div>
+                            </div>
+                            
+                            <div style="text-align: center;">
+                                <button onclick="closeModal('ai-suggestions-modal')" style="padding: 12px 32px; border: none; border-radius: 8px; background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); color: white; cursor: pointer; font-size: 16px; font-weight: 600; transition: all 0.2s; box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3);">稍后再说</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+        }
+
+        // 关闭模态框
+        function closeModal(modalId) {
+            const modal = document.getElementById(modalId);
+            if (modal) {
+                modal.remove();
+            }
+        }
+
+        // 保存自定义优化
+        function saveCustomOptimization() {
+            showStatusMessage('✅ 优化设置已保存', 'success');
+            closeModal('custom-optimizer-modal');
         }
 
         // ==================== 第二阶段生成功能 ====================
@@ -1333,6 +1884,767 @@
             }
         }
 
+        // ==================== 两阶段页面专用创意编辑功能 ====================
+        let loadedCreativeIdeasForPhaseTwo = [];
+        let selectedCreativeIdForPhaseTwo = null;
+        let currentEditingIdeaForPhaseTwo = null;
+        let originalIdeaDataForPhaseTwo = null;
+
+        // 加载创意库用于两阶段页面 - 列表模式
+        async function loadCreativeIdeasForPhaseTwo() {
+            try {
+                const response = await fetch('/api/creative-ideas');
+                
+                if (response.status === 401) {
+                    showStatusMessage('请先登录才能使用创意库功能', 'error');
+                    return;
+                }
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const result = await response.json();
+
+                if (result.success && result.creative_ideas) {
+                    loadedCreativeIdeasForPhaseTwo = result.creative_ideas;
+
+                    // 显示创意列表区域
+                    document.getElementById('creative-ideas-phase-two').style.display = 'block';
+                    document.getElementById('creative-ideas-list-phase-two').style.display = 'block';
+
+                    // 生成创意列表HTML
+                    generateCreativeIdeaListForPhaseTwo(result.creative_ideas);
+
+                    showStatusMessage(`✅ 成功加载 ${result.count} 个创意`, 'success');
+                } else {
+                    throw new Error(result.error || '未找到创意数据');
+                }
+            } catch (error) {
+                console.error('加载创意库失败:', error);
+                let errorMessage = error.message;
+                if (errorMessage.includes('HTTP 401')) {
+                    errorMessage = '请先登录才能使用创意库功能';
+                } else if (errorMessage.includes('Failed to fetch')) {
+                    errorMessage = '网络连接失败，无法加载创意库';
+                }
+                showStatusMessage(`❌ ${errorMessage}`, 'error');
+            }
+        }
+
+        // 生成创意列表HTML
+        function generateCreativeIdeaListForPhaseTwo(ideas) {
+            const listContainer = document.getElementById('creative-ideas-list-phase-two');
+            
+            if (ideas.length === 0) {
+                listContainer.innerHTML = `
+                    <div style="text-align: center; padding: 40px; color: #6b7280; background: #f9fafb; border-radius: 12px; border: 2px dashed #d1d5db;">
+                        <div style="font-size: 48px; margin-bottom: 16px;">📭</div>
+                        <p style="font-size: 16px; font-weight: 600; margin-bottom: 8px;">暂无创意</p>
+                        <p style="font-size: 14px;">点击上方"创建新创意"按钮开始创建您的第一个创意</p>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = '<div style="display: grid; gap: 16px;">';
+            
+            ideas.forEach(idea => {
+                const preview = idea.core_setting ? idea.core_setting.substring(0, 100) + '...' : '暂无设定';
+                const title = idea.novelTitle || idea.title || `创意 #${idea.id}`;
+                const sellingPoints = idea.coreSellingPoints || idea.core_selling_points || '';
+                
+                html += `
+                    <div class="creative-idea-card" onclick="editCreativeIdeaForPhaseTwo(${idea.id})"
+                         style="background: white; border: 2px solid #e5e7eb; border-radius: 12px; padding: 20px;
+                                cursor: pointer; transition: all 0.2s; position: relative; overflow: hidden;
+                                box-shadow: 0 2px 8px rgba(0,0,0,0.05);"
+                         onmouseover="this.style.borderColor='#667eea'; this.style.boxShadow='0 4px 20px rgba(102, 126, 234, 0.15)'; this.style.transform='translateY(-2px)'"
+                         onmouseout="this.style.borderColor='#e5e7eb'; this.style.boxShadow='0 2px 8px rgba(0,0,0,0.05)'; this.style.transform='translateY(0)'">
+                        
+                        <!-- 头部信息 -->
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+                            <div style="flex: 1;">
+                                <h5 style="color: #1f2937; margin: 0 0 8px 0; font-size: 18px; font-weight: 700; line-height: 1.3;">
+                                    📝 ${title}
+                                </h5>
+                                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                    <span style="background: #667eea; color: white; padding: 4px 8px; border-radius: 12px; font-size: 12px; font-weight: 600;">
+                                        #${idea.id}
+                                    </span>
+                                    <span style="color: #6b7280; font-size: 12px;">
+                                        ${idea.created_at ? new Date(idea.created_at).toLocaleDateString() : '未知日期'}
+                                    </span>
+                                </div>
+                            </div>
+                            <div style="display: flex; gap: 8px;">
+                                <button onclick="event.stopPropagation(); editCreativeIdeaForPhaseTwo(${idea.id})"
+                                        style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;
+                                               border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer;
+                                               font-size: 12px; font-weight: 600; transition: all 0.2s; box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);"
+                                        onmouseover="this.style.transform='translateY(-1px)'"
+                                        onmouseout="this.style.transform='translateY(0)'">
+                                    ✏️ 编辑
+                                </button>
+                                <button onclick="event.stopPropagation(); applyCreativeToProjectFromList(${idea.id})"
+                                        style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white;
+                                               border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer;
+                                               font-size: 12px; font-weight: 600; transition: all 0.2s; box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);"
+                                        onmouseover="this.style.transform='translateY(-1px)'"
+                                        onmouseout="this.style.transform='translateY(0)'">
+                                    ✅ 应用
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- 核心设定预览 -->
+                        <div style="margin-bottom: 12px;">
+                            <h6 style="color: #374151; margin: 0 0 6px 0; font-size: 14px; font-weight: 600;">📋 核心设定:</h6>
+                            <p style="color: #6b7280; margin: 0; font-size: 13px; line-height: 1.5; max-height: 60px; overflow: hidden;">
+                                ${preview}
+                            </p>
+                        </div>
+                        
+                        <!-- 核心卖点 -->
+                        ${sellingPoints ? `
+                        <div style="margin-bottom: 8px;">
+                            <h6 style="color: #374151; margin: 0 0 6px 0; font-size: 14px; font-weight: 600;">💎 核心卖点:</h6>
+                            <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+                                ${sellingPoints.split('+').map(point =>
+                                    `<span style="background: #f3f4f6; color: #374151; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 500;">
+                                        ${point.trim()}
+                                    </span>`
+                                ).join('')}
+                            </div>
+                        </div>
+                        ` : ''}
+                        
+                        <!-- 故事阶段 -->
+                        ${idea.stages_preview && idea.stages_preview.length > 0 ? `
+                        <div>
+                            <h6 style="color: #374151; margin: 0 0 6px 0; font-size: 14px; font-weight: 600;">📖 故事阶段:</h6>
+                            <div style="display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px;">
+                                ${idea.stages_preview.map((stage, index) =>
+                                    `<span style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); color: #92400e;
+                                                   padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 600;
+                                                   white-space: nowrap; border: 1px solid #fbbf24;">
+                                        ${index + 1}. ${stage}
+                                    </span>`
+                                ).join('')}
+                            </div>
+                        </div>
+                        ` : ''}
+                        
+                        <!-- 悬浮提示 -->
+                        <div style="position: absolute; top: 12px; right: 12px; background: rgba(102, 126, 234, 0.1);
+                                    color: #667eea; padding: 4px 8px; border-radius: 12px; font-size: 11px; font-weight: 600;
+                                    backdrop-filter: blur(10px); border: 1px solid rgba(102, 126, 234, 0.2);">
+                            点击编辑
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+            listContainer.innerHTML = html;
+        }
+
+        // 从列表直接编辑创意
+        function editCreativeIdeaForPhaseTwo(ideaId) {
+            const idea = loadedCreativeIdeasForPhaseTwo && loadedCreativeIdeasForPhaseTwo.find ?
+                loadedCreativeIdeasForPhaseTwo.find(i => i.id === ideaId) : null;
+            
+            if (!idea) {
+                showStatusMessage('❌ 找不到选中的创意', 'error');
+                return;
+            }
+            
+            selectedCreativeIdForPhaseTwo = ideaId;
+            currentEditingIdeaForPhaseTwo = idea;
+            
+            // 备份原始数据
+            if (idea.raw_data) {
+                originalIdeaDataForPhaseTwo = JSON.parse(JSON.stringify(idea.raw_data));
+            } else {
+                originalIdeaDataForPhaseTwo = JSON.parse(JSON.stringify(idea));
+            }
+            
+            // 填充编辑器表单
+            try {
+                if (idea.raw_data && typeof idea.raw_data === 'object') {
+                    populateCreativeEditorForPhaseTwo(idea.raw_data);
+                } else if (idea && typeof idea === 'object') {
+                    populateCreativeEditorForPhaseTwo(idea);
+                } else {
+                    showStatusMessage('❌ 创意数据格式不正确，无法编辑', 'error');
+                    return;
+                }
+            } catch (error) {
+                console.error('填充编辑器时出错:', error);
+                showStatusMessage('❌ 填充编辑器数据时出错: ' + error.message, 'error');
+                return;
+            }
+            
+            // 显示编辑器模态框
+            showCreativeEditorModalForPhaseTwo();
+        }
+
+        // 从列表应用创意到项目
+        async function applyCreativeToProjectFromList(ideaId) {
+            const idea = loadedCreativeIdeasForPhaseTwo && loadedCreativeIdeasForPhaseTwo.find ?
+                loadedCreativeIdeasForPhaseTwo.find(i => i.id === ideaId) : null;
+            
+            if (!idea) {
+                showStatusMessage('❌ 找不到选中的创意', 'error');
+                return;
+            }
+            
+            if (!currentProject) {
+                showStatusMessage('❌ 请先选择一个项目', 'error');
+                return;
+            }
+            
+            try {
+                const updatedData = {
+                    novelTitle: idea.novelTitle || idea.title || currentProject.novel_title,
+                    synopsis: idea.synopsis || idea.description || currentProject.story_synopsis,
+                    coreSetting: idea.coreSetting || idea.core_setting || currentProject.core_setting,
+                    coreSellingPoints: idea.coreSellingPoints || idea.core_selling_points || '',
+                    completeStoryline: idea.completeStoryline || idea.complete_storyline || {}
+                };
+                
+                await applyCreativeDataToCurrentProject(updatedData);
+                showStatusMessage('✅ 创意已成功应用到项目', 'success');
+                
+            } catch (error) {
+                console.error('应用创意失败:', error);
+                showStatusMessage(`❌ 应用失败: ${error.message}`, 'error');
+            }
+        }
+
+        // 创建新创意
+        function createNewCreativeIdeaForPhaseTwo() {
+            if (!currentProject) {
+                showStatusMessage('❌ 请先选择一个项目', 'error');
+                return;
+            }
+            
+            // 基于当前项目数据创建新创意
+            const projectData = {
+                novelTitle: currentProject.novel_title || currentProject.title,
+                synopsis: currentProject.story_synopsis || currentProject.synopsis,
+                coreSetting: currentProject.core_setting,
+                totalChapters: currentProject.total_chapters || 200,
+                coreSellingPoints: currentProject.core_selling_points || '',
+                completeStoryline: currentProject.complete_storyline || {}
+            };
+            
+            currentEditingIdeaForPhaseTwo = { id: 'new_creative', title: '新创意' };
+            originalIdeaDataForPhaseTwo = JSON.parse(JSON.stringify(projectData));
+            
+            populateCreativeEditorForPhaseTwo(projectData);
+            showCreativeEditorModalForPhaseTwo();
+        }
+
+        // 从创意库选择填充表单
+        function fillFromCreativeIdeaForPhaseTwo() {
+            const select = document.getElementById('creative-idea-select-phase-two');
+            if (!select) return;
+            
+            const ideaId = parseInt(select.value);
+
+            if (!ideaId) {
+                const previewDiv = document.getElementById('creative-idea-preview-phase-two');
+                if (previewDiv) {
+                    previewDiv.style.display = 'none';
+                }
+                selectedCreativeIdForPhaseTwo = null;
+                return;
+            }
+
+            const idea = loadedCreativeIdeasForPhaseTwo && loadedCreativeIdeasForPhaseTwo.find ?
+                loadedCreativeIdeasForPhaseTwo.find(i => i.id === ideaId) : null;
+            if (!idea) return;
+
+            selectedCreativeIdForPhaseTwo = ideaId;
+
+            const previewDiv = document.getElementById('creative-idea-preview-phase-two');
+            const previewContent = document.getElementById('preview-content-phase-two');
+            
+            if (previewDiv && previewContent) {
+                previewDiv.style.display = 'block';
+
+                let previewHtml = `
+                    <p><strong>核心设定:</strong></p>
+                    <p style="margin-left: 10px; color: #333;">${idea.core_setting || '暂无设定'}</p>
+                    <p style="margin-top: 10px;"><strong>核心卖点:</strong></p>
+                    <p style="margin-left: 10px; color: #333;">${idea.core_selling_points || '暂无卖点'}</p>
+                `;
+
+                if (idea.stages_preview && idea.stages_preview.length > 0) {
+                    previewHtml += `
+                        <p style="margin-top: 10px;"><strong>故事阶段:</strong></p>
+                        <ul style="margin-left: 20px; color: #333;">
+                            ${idea.stages_preview.map(stage => `<li>${stage}</li>`).join('')}
+                        </ul>
+                    `;
+                }
+
+                previewContent.innerHTML = previewHtml;
+            }
+        }
+
+        // 打开创意编辑器（两阶段页面专用）
+        function openCreativeEditorForPhaseTwo() {
+            if (!selectedCreativeIdForPhaseTwo) {
+                // 如果没有选择创意，则为当前项目创建编辑器
+                if (!currentProject) {
+                    showStatusMessage('❌ 请先选择一个项目或创意', 'error');
+                    return;
+                }
+                
+                // 基于当前项目数据初始化编辑器
+                initializeEditorWithCurrentProject();
+                return;
+            }
+            
+            const idea = loadedCreativeIdeasForPhaseTwo.find(i => i.id === selectedCreativeIdForPhaseTwo);
+            if (!idea) {
+                showStatusMessage('❌ 找不到选中的创意数据', 'error');
+                return;
+            }
+            
+            currentEditingIdeaForPhaseTwo = idea;
+            
+            // 备份原始数据
+            if (idea.raw_data) {
+                originalIdeaDataForPhaseTwo = JSON.parse(JSON.stringify(idea.raw_data));
+            } else {
+                originalIdeaDataForPhaseTwo = JSON.parse(JSON.stringify(idea));
+            }
+            
+            // 填充编辑器表单
+            try {
+                if (idea.raw_data && typeof idea.raw_data === 'object') {
+                    populateCreativeEditorForPhaseTwo(idea.raw_data);
+                } else if (idea && typeof idea === 'object') {
+                    populateCreativeEditorForPhaseTwo(idea);
+                } else {
+                    showStatusMessage('❌ 创意数据格式不正确，无法编辑', 'error');
+                    return;
+                }
+            } catch (error) {
+                console.error('填充编辑器时出错:', error);
+                showStatusMessage('❌ 填充编辑器数据时出错: ' + error.message, 'error');
+                return;
+            }
+            
+            // 显示编辑器模态框
+            showCreativeEditorModalForPhaseTwo();
+        }
+
+        // 基于当前项目初始化编辑器
+        function initializeEditorWithCurrentProject() {
+            if (!currentProject) return;
+            
+            const projectData = {
+                novelTitle: currentProject.novel_title || currentProject.title,
+                synopsis: currentProject.story_synopsis || currentProject.synopsis,
+                coreSetting: currentProject.core_setting,
+                totalChapters: currentProject.total_chapters || 200,
+                coreSellingPoints: currentProject.core_selling_points || '',
+                completeStoryline: currentProject.complete_storyline || {}
+            };
+            
+            currentEditingIdeaForPhaseTwo = { id: 'current_project', title: projectData.novelTitle };
+            originalIdeaDataForPhaseTwo = JSON.parse(JSON.stringify(projectData));
+            
+            populateCreativeEditorForPhaseTwo(projectData);
+            showCreativeEditorModalForPhaseTwo();
+        }
+
+        // 显示创意编辑器模态框
+        function showCreativeEditorModalForPhaseTwo() {
+            const modal = document.getElementById('creative-editor-modal-phase-two');
+            modal.style.cssText = `
+                display: block !important;
+                position: fixed !important;
+                top: 0 !important;
+                left: 0 !important;
+                width: 100% !important;
+                height: 100% !important;
+                background: rgba(0,0,0,0.5) !important;
+                z-index: 999999 !important;
+            `;
+            
+            document.body.style.overflow = 'hidden';
+            
+            // 初始化字符计数
+            initCharCounterForPhaseTwo();
+        }
+
+        // 填充创意编辑器（两阶段页面专用）
+        function populateCreativeEditorForPhaseTwo(ideaData) {
+            try {
+                // 基本信息
+                const title = ideaData.novelTitle || ideaData.title || ideaData.novel_title || '';
+                const synopsis = ideaData.synopsis || ideaData.description || ideaData.novel_synopsis || '';
+                const coreSetting = ideaData.coreSetting || ideaData.core_setting || ideaData.coreSetting || '';
+                const totalChapters = ideaData.totalChapters || ideaData.total_chapters || 50;
+                
+                const titleElement = document.getElementById('edit-novel-title-phase-two');
+                const synopsisElement = document.getElementById('edit-novel-synopsis-phase-two');
+                const coreSettingElement = document.getElementById('edit-core-setting-phase-two');
+                
+                if (titleElement) titleElement.value = title;
+                if (synopsisElement) synopsisElement.value = synopsis;
+                if (coreSettingElement) coreSettingElement.value = coreSetting;
+                
+                // 核心卖点
+                const sellingPoints = ideaData.coreSellingPoints || ideaData.core_selling_points || ideaData.sellingPoints || '';
+                let pointsArray = [];
+                if (typeof sellingPoints === 'string') {
+                    pointsArray = sellingPoints.split('+').map(p => p.trim()).filter(p => p);
+                } else if (Array.isArray(sellingPoints)) {
+                    pointsArray = sellingPoints;
+                }
+                
+                populateSellingPointsForPhaseTwo(pointsArray);
+                
+                // 故事线
+                const storyline = ideaData.completeStoryline || ideaData.complete_storyline || ideaData.storyline || {};
+                populateStorylineForPhaseTwo(storyline);
+                
+            } catch (error) {
+                console.error('填充创意编辑器时出错:', error);
+                showStatusMessage('❌ 填充数据时出错: ' + error.message, 'error');
+            }
+        }
+
+        // 填充核心卖点（两阶段页面专用）
+        function populateSellingPointsForPhaseTwo(points) {
+            const container = document.getElementById('selling-points-container-phase-two');
+            container.innerHTML = '';
+            
+            points.forEach((point, index) => {
+                addSellingPointElementForPhaseTwo(point, index);
+            });
+        }
+
+        // 添加卖点元素（两阶段页面专用）
+        function addSellingPointElementForPhaseTwo(point, index) {
+            const container = document.getElementById('selling-points-container-phase-two');
+            const pointElement = document.createElement('div');
+            pointElement.className = 'selling-point-item';
+            pointElement.style.cssText = 'display: flex; gap: 8px; margin-bottom: 12px; align-items: center; padding: 8px; background: white; border-radius: 8px; border: 1px solid #e5e7eb;';
+            pointElement.innerHTML = `
+                <input type="text" value="${point}" placeholder="卖点描述"
+                       style="flex: 1; padding: 10px 14px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 14px; background: white; color: #1f2937; transition: all 0.2s; box-sizing: border-box;"
+                       class="selling-point-input">
+                <button type="button" onclick="removeSellingPointForPhaseTwo(this)"
+                        style="padding: 8px 12px; border: none; border-radius: 6px; background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; cursor: pointer; font-size: 12px; font-weight: 600; transition: all 0.2s; box-shadow: 0 2px 4px rgba(239, 68, 68, 0.2);">
+                    🗑️ 删除
+                </button>
+            `;
+            container.appendChild(pointElement);
+        }
+
+        // 添加新的卖点（两阶段页面专用）
+        function addSellingPointForPhaseTwo() {
+            const input = document.getElementById('new-selling-point-phase-two');
+            const point = input.value.trim();
+            
+            if (!point) {
+                alert('请输入卖点描述');
+                return;
+            }
+            
+            addSellingPointElementForPhaseTwo(point);
+            input.value = '';
+        }
+
+        // 删除卖点（两阶段页面专用）
+        function removeSellingPointForPhaseTwo(button) {
+            button.parentElement.remove();
+        }
+
+        // 填充故事线（两阶段页面专用）
+        function populateStorylineForPhaseTwo(storyline) {
+            const stages = [
+                { key: 'opening', dataKey: 'opening' },
+                { key: 'development', dataKey: 'development' },
+                { key: 'climax', dataKey: 'conflict' },
+                { key: 'ending', dataKey: 'ending' }
+            ];
+            
+            stages.forEach(stage => {
+                let stageData = storyline[stage.dataKey] || storyline[stage.key] || {};
+                
+                if (typeof stageData === 'string') {
+                    stageData = { stageName: stage.key, summary: stageData };
+                }
+                
+                const stageEditor = document.querySelector(`#creative-editor-modal-phase-two div[data-stage="${stage.key}"]`);
+                if (stageEditor) {
+                    const nameInput = stageEditor.querySelector(`input[data-stage="${stage.key}"]`);
+                    const descriptionInput = stageEditor.querySelector(`textarea[data-stage="${stage.key}"]`);
+                    
+                    if (nameInput) {
+                        const stageName = stageData.stageName || stageData.name || getDefaultStageNameForPhaseTwo(stage.key);
+                        nameInput.value = stageName;
+                    }
+                    if (descriptionInput) {
+                        const description = stageData.summary || stageData.description || stageData.content || '';
+                        descriptionInput.value = description;
+                    }
+                }
+            });
+        }
+
+        // 获取默认阶段名称（两阶段页面专用）
+        function getDefaultStageNameForPhaseTwo(stageKey) {
+            const defaultNames = {
+                'opening': '开篇',
+                'development': '发展',
+                'climax': '高潮',
+                'ending': '结局'
+            };
+            return defaultNames[stageKey] || stageKey;
+        }
+
+        // 初始化字符计数（两阶段页面专用）
+        function initCharCounterForPhaseTwo() {
+            const coreSettingTextarea = document.getElementById('edit-core-setting-phase-two');
+            const charCountSpan = document.getElementById('char-count-phase-two');
+            
+            if (coreSettingTextarea && charCountSpan) {
+                updateCharCountForPhaseTwo();
+                
+                coreSettingTextarea.addEventListener('input', updateCharCountForPhaseTwo);
+                coreSettingTextarea.addEventListener('paste', function() {
+                    setTimeout(updateCharCountForPhaseTwo, 10);
+                });
+            }
+        }
+
+        // 更新字符计数（两阶段页面专用）
+        function updateCharCountForPhaseTwo() {
+            const coreSettingTextarea = document.getElementById('edit-core-setting-phase-two');
+            const charCountSpan = document.getElementById('char-count-phase-two');
+            
+            if (coreSettingTextarea && charCountSpan) {
+                const charCount = coreSettingTextarea.value.length;
+                charCountSpan.textContent = charCount + ' 字符';
+                
+                if (charCount < 100) {
+                    charCountSpan.style.color = '#ef4444';
+                } else if (charCount < 300) {
+                    charCountSpan.style.color = '#f59e0b';
+                } else {
+                    charCountSpan.style.color = '#10b981';
+                }
+            }
+        }
+
+        // 重置创意编辑器（两阶段页面专用）
+        function resetCreativeEditorForPhaseTwo() {
+            if (!originalIdeaDataForPhaseTwo) {
+                alert('没有原始数据可重置');
+                return;
+            }
+            
+            if (confirm('确定要重置所有修改吗？')) {
+                populateCreativeEditorForPhaseTwo(originalIdeaDataForPhaseTwo);
+            }
+        }
+
+        // 保存创意修改（两阶段页面专用）
+        async function saveCreativeChangesForPhaseTwo() {
+            if (!currentEditingIdeaForPhaseTwo) {
+                alert('没有正在编辑的创意');
+                return;
+            }
+            
+            try {
+                const updatedData = collectCreativeEditorDataForPhaseTwo();
+                
+                if (!validateCreativeDataForPhaseTwo(updatedData)) {
+                    return;
+                }
+                
+                // 如果是当前项目，直接应用修改
+                if (currentEditingIdeaForPhaseTwo.id === 'current_project') {
+                    await applyCreativeDataToCurrentProject(updatedData);
+                    closeCreativeEditorForPhaseTwo();
+                    showStatusMessage('✅ 项目创意设定已更新', 'success');
+                    return;
+                }
+                
+                // 否则保存到创意库
+                const response = await fetch('/api/creative-ideas/' + currentEditingIdeaForPhaseTwo.id, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(updatedData)
+                });
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || '保存失败');
+                }
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert('创意保存成功！');
+                    closeCreativeEditorForPhaseTwo();
+                    await loadCreativeIdeasForPhaseTwo();
+                } else {
+                    throw new Error(result.error || '保存失败');
+                }
+                
+            } catch (error) {
+                console.error('保存创意失败:', error);
+                alert('保存失败: ' + error.message);
+            }
+        }
+
+        // 收集创意编辑器数据（两阶段页面专用）
+        function collectCreativeEditorDataForPhaseTwo() {
+            const data = {
+                novelTitle: document.getElementById('edit-novel-title-phase-two').value.trim(),
+                synopsis: document.getElementById('edit-novel-synopsis-phase-two').value.trim(),
+                coreSetting: document.getElementById('edit-core-setting-phase-two').value.trim(),
+                coreSellingPoints: '',
+                completeStoryline: {}
+            };
+            
+            // 收集卖点
+            const sellingPointInputs = document.querySelectorAll('#selling-points-container-phase-two .selling-point-input');
+            const sellingPoints = Array.from(sellingPointInputs)
+                .map(input => input.value.trim())
+                .filter(point => point);
+            data.coreSellingPoints = sellingPoints.join(' + ');
+            
+            // 收集故事线
+            const stageMappings = [
+                { htmlKey: 'opening', dataKey: 'opening' },
+                { htmlKey: 'development', dataKey: 'development' },
+                { htmlKey: 'climax', dataKey: 'conflict' },
+                { htmlKey: 'ending', dataKey: 'ending' }
+            ];
+            
+            stageMappings.forEach(mapping => {
+                const stageEditor = document.querySelector(`#creative-editor-modal-phase-two div[data-stage="${mapping.htmlKey}"]`);
+                if (stageEditor) {
+                    const nameInput = stageEditor.querySelector(`input[data-stage="${mapping.htmlKey}"]`);
+                    const descriptionInput = stageEditor.querySelector(`textarea[data-stage="${mapping.htmlKey}"]`);
+                    
+                    data.completeStoryline[mapping.dataKey] = {
+                        stageName: nameInput ? nameInput.value.trim() : '',
+                        summary: descriptionInput ? descriptionInput.value.trim() : ''
+                    };
+                }
+            });
+            
+            return data;
+        }
+
+        // 验证创意数据（两阶段页面专用）
+        function validateCreativeDataForPhaseTwo(data) {
+            if (!data.coreSetting) {
+                alert('请填写核心设定');
+                return false;
+            }
+            
+            if (!data.novelTitle) {
+                alert('请填写小说标题');
+                return false;
+            }
+            
+            return true;
+        }
+
+        // 应用创意数据到当前项目
+        async function applyCreativeDataToCurrentProject(updatedData) {
+            if (!currentProject) return;
+            
+            try {
+                const response = await fetch(`/api/project/${encodeURIComponent(currentProject.novel_title)}/update-creative`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(updatedData)
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const result = await response.json();
+                if (result.success) {
+                    // 更新当前项目数据
+                    currentProject = { ...currentProject, ...updatedData };
+                    showStatusMessage('✅ 创意设定已应用到项目', 'success');
+                } else {
+                    throw new Error(result.error || '应用失败');
+                }
+            } catch (error) {
+                console.error('应用创意数据失败:', error);
+                showStatusMessage(`❌ 应用失败: ${error.message}`, 'error');
+            }
+        }
+
+        // 关闭创意编辑器（两阶段页面专用）
+        function closeCreativeEditorForPhaseTwo() {
+            const modal = document.getElementById('creative-editor-modal-phase-two');
+            if (modal) {
+                modal.style.display = 'none';
+            }
+            document.body.style.overflow = '';
+            
+            currentEditingIdeaForPhaseTwo = null;
+            originalIdeaDataForPhaseTwo = null;
+        }
+
+        // 应用创意到项目
+        async function applyCreativeToProject() {
+            if (!selectedCreativeIdForPhaseTwo) {
+                showStatusMessage('❌ 请先选择一个创意', 'error');
+                return;
+            }
+            
+            if (!currentProject) {
+                showStatusMessage('❌ 请先选择一个项目', 'error');
+                return;
+            }
+            
+            const idea = loadedCreativeIdeasForPhaseTwo.find(i => i.id === selectedCreativeIdForPhaseTwo);
+            if (!idea) {
+                showStatusMessage('❌ 找不到选中的创意', 'error');
+                return;
+            }
+            
+            try {
+                const updatedData = {
+                    novelTitle: idea.novelTitle || idea.title || currentProject.novel_title,
+                    synopsis: idea.synopsis || idea.description || currentProject.story_synopsis,
+                    coreSetting: idea.coreSetting || idea.core_setting || currentProject.core_setting,
+                    coreSellingPoints: idea.coreSellingPoints || idea.core_selling_points || '',
+                    completeStoryline: idea.completeStoryline || idea.complete_storyline || {}
+                };
+                
+                await applyCreativeDataToCurrentProject(updatedData);
+                showStatusMessage('✅ 创意已成功应用到项目', 'success');
+                
+            } catch (error) {
+                console.error('应用创意失败:', error);
+                showStatusMessage(`❌ 应用失败: ${error.message}`, 'error');
+            }
+        }
+
         // 页面卸载时清理定时器
         window.addEventListener('beforeunload', function() {
             if (progressInterval) {
@@ -1340,5 +2652,182 @@
             }
         });
     </script>
+
+<!-- 创意编辑模态框 - 与首页保持一致 -->
+<div id="creative-editor-modal-phase-two" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 999999; backdrop-filter: blur(4px);">
+    <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; border-radius: 16px; box-shadow: 0 25px 80px rgba(0,0,0,0.4); max-width: 1200px; width: 95vw; max-height: 90vh; overflow: hidden; border: 1px solid rgba(255,255,255,0.2);">
+        
+        <!-- 头部 -->
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 24px 32px; display: flex; justify-content: space-between; align-items: center; border-radius: 16px 16px 0 0;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <div style="width: 40px; height: 40px; background: rgba(255,255,255,0.2); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px;">✏️</div>
+                <div>
+                    <h3 style="margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -0.5px;">创意编辑器</h3>
+                    <p style="margin: 4px 0 0 0; font-size: 14px; opacity: 0.9; font-weight: 400;">编辑您项目的创意设定</p>
+                </div>
+            </div>
+            <div style="display: flex; gap: 12px; align-items: center;">
+                <button type="button" onclick="resetCreativeEditorForPhaseTwo()" style="background: rgba(255,255,255,0.15); color: white; border: 1px solid rgba(255,255,255,0.25); padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 500; transition: all 0.2s;">🔄 重置</button>
+                <button type="button" onclick="saveCreativeChangesForPhaseTwo()" style="background: rgba(255,255,255,0.25); color: white; border: 1px solid rgba(255,255,255,0.35); padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; transition: all 0.2s;">💾 保存修改</button>
+                <button type="button" onclick="closeCreativeEditorForPhaseTwo()" style="background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2); font-size: 20px; cursor: pointer; padding: 8px; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 8px; transition: all 0.2s;">×</button>
+            </div>
+        </div>
+        
+        <!-- 内容区域 -->
+        <div style="padding: 0; overflow-y: auto; max-height: calc(90vh - 100px); background: #fafbfc;">
+            <div style="padding: 32px;">
+                
+                <!-- 基本信息 -->
+                <div style="margin-bottom: 32px; background: white; border-radius: 12px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border: 1px solid #e5e7eb;">
+                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px;">
+                        <div style="width: 32px; height: 32px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; color: white;">📝</div>
+                        <h4 style="color: #1f2937; margin: 0; font-size: 18px; font-weight: 700;">基本信息</h4>
+                    </div>
+                    
+                    <div style="display: grid; gap: 20px;">
+                        <div>
+                            <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #374151; font-size: 14px;">小说标题</label>
+                            <input type="text" id="edit-novel-title-phase-two" value="" style="width: 100%; padding: 14px 16px; border: 2px solid #e5e7eb; border-radius: 10px; font-size: 15px; background: white; color: #1f2937; transition: all 0.2s; font-weight: 500; box-sizing: border-box;">
+                        </div>
+                        
+                        <div>
+                            <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #374151; font-size: 14px;">小说简介</label>
+                            <textarea id="edit-novel-synopsis-phase-two" rows="4" style="width: 100%; padding: 14px 16px; border: 2px solid #e5e7eb; border-radius: 10px; font-size: 15px; background: white; color: #1f2937; resize: vertical; min-height: 100px; transition: all 0.2s; font-family: inherit; line-height: 1.5; box-sizing: border-box;"></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 核心设定 -->
+                <div style="margin-bottom: 32px; background: white; border-radius: 12px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border: 1px solid #e5e7eb;">
+                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px;">
+                        <div style="width: 32px; height: 32px; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; color: white;">⚙️</div>
+                        <h4 style="color: #1f2937; margin: 0; font-size: 18px; font-weight: 700;">核心设定</h4>
+                    </div>
+                    <div>
+                        <textarea id="edit-core-setting-phase-two" rows="20" style="width: 100%; padding: 24px; border: 2px solid #e5e7eb; border-radius: 16px; font-size: 16px; background: white; color: #1f2937; resize: vertical; min-height: 500px; max-height: 800px; transition: all 0.2s; font-family: inherit; line-height: 1.8; box-shadow: inset 0 2px 8px rgba(0,0,0,0.08); box-sizing: border-box;" placeholder="描述故事的核心背景设定，包括世界观、主要设定、时代背景等...
+
+例如：
+• 世界观：修仙世界、现代都市、异世大陆等
+• 时代背景：古代、现代、未来等
+• 主要势力：宗门、家族、国家等
+• 核心规则：修炼体系、魔法系统、科技水平等
+• 社会结构：等级制度、经济体系等
+
+请详细描述您的世界观设定，这将直接影响小说的质量和深度..."></textarea>
+                        <div style="margin-top: 16px; display: flex; justify-content: space-between; align-items: center;">
+                            <span style="color: #6b7280; font-size: 14px;">💡 提示：详细的世界观设定有助于生成更丰富的故事内容，建议至少写300字</span>
+                            <span id="char-count-phase-two" style="color: #9ca3af; font-size: 13px; font-weight: 500;">0 字符</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 核心卖点 -->
+                <div style="margin-bottom: 32px; background: white; border-radius: 12px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border: 1px solid #e5e7eb;">
+                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px;">
+                        <div style="width: 32px; height: 32px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; color: white;">💎</div>
+                        <h4 style="color: #1f2937; margin: 0; font-size: 18px; font-weight: 700;">核心卖点</h4>
+                    </div>
+                    <div id="selling-points-container-phase-two" style="margin-bottom: 16px; max-height: 240px; overflow-y: auto; border: 2px solid #f3f4f6; border-radius: 10px; background: #fafbfc; padding: 12px;">
+                        <!-- 动态添加的卖点将显示在这里 -->
+                    </div>
+                    <div style="display: flex; gap: 12px;">
+                        <input type="text" id="new-selling-point-phase-two" placeholder="输入新的卖点（如：爽文节奏、独特设定等）..." style="flex: 1; padding: 14px 16px; border: 2px solid #e5e7eb; border-radius: 10px; font-size: 15px; background: white; color: #1f2937; transition: all 0.2s; box-sizing: border-box;">
+                        <button type="button" onclick="addSellingPointForPhaseTwo()" style="padding: 14px 20px; border: none; border-radius: 10px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; cursor: pointer; font-size: 15px; font-weight: 600; transition: all 0.2s; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);">➕ 添加卖点</button>
+                    </div>
+                </div>
+
+                <!-- 故事线时间轴 -->
+                <div style="margin-bottom: 32px; background: white; border-radius: 12px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border: 1px solid #e5e7eb;">
+                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 24px;">
+                        <div style="width: 32px; height: 32px; background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; color: white;">📖</div>
+                        <h4 style="color: #1f2937; margin: 0; font-size: 18px; font-weight: 700;">故事线时间轴</h4>
+                    </div>
+                    
+                    <!-- 时间线容器 -->
+                    <div style="position: relative; padding: 20px 0; width: 100%; max-width: 100%; margin: 0 auto; box-sizing: border-box;">
+                        <!-- 时间线主线 -->
+                        <div style="position: absolute; left: 30px; top: 40px; bottom: 40px; width: 4px; background: linear-gradient(180deg, #fbbf24 0%, #3b82f6 50%, #ef4444 75%, #10b981 100%); border-radius: 2px;"></div>
+                        
+                        <!-- 开篇阶段 -->
+                        <div style="position: relative; margin-bottom: 40px; padding-left: 80px; width: 100%; max-width: 100%; box-sizing: border-box;" data-stage="opening">
+                            <div style="position: absolute; left: 16px; top: 24px; width: 32px; height: 32px; background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border: 3px solid #fbbf24; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; z-index: 2; box-shadow: 0 0 0 4px rgba(251, 191, 36, 0.1);">🎬</div>
+                            <div style="background: linear-gradient(135deg, #fef9e7 0%, #fef3c7 100%); border: 2px solid #fbbf24; border-radius: 12px; padding: 20px; box-shadow: 0 4px 12px rgba(251, 191, 36, 0.15); width: 100%; max-width: 100%; box-sizing: border-box; overflow: hidden;">
+                                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px;">
+                                    <div style="width: 24px; height: 24px; background: #fbbf24; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; color: white; font-weight: bold;">1</div>
+                                    <h5 style="color: #92400e; margin: 0; font-size: 18px; font-weight: 700;">开篇阶段</h5>
+                                </div>
+                                <input type="text" class="stage-name" data-stage="opening" placeholder="开篇阶段名称（如：初入仙门）" value="" style="width: 100%; max-width: 100%; margin-bottom: 12px; padding: 14px 16px; border: 2px solid #f59e0b; border-radius: 8px; font-size: 15px; background: white; color: #1f2937; font-weight: 600; box-sizing: border-box; display: block;">
+                                <textarea class="stage-description" data-stage="opening" rows="5" placeholder="描述故事的开端：
+
+• 主角出场背景和初始状态
+• 核心冲突或目标的引入
+• 重要配角的初次登场
+• 世界观和基本设定的展现
+• 为后续发展埋下伏笔" style="width: 100%; max-width: 100%; padding: 16px; border: 2px solid #f59e0b; border-radius: 8px; font-size: 14px; background: white; color: #1f2937; resize: vertical; min-height: 120px; line-height: 1.6; box-sizing: border-box; display: block;"></textarea>
+                            </div>
+                        </div>
+                        
+                        <!-- 发展阶段 -->
+                        <div style="position: relative; margin-bottom: 40px; padding-left: 80px; width: 100%; max-width: 100%; box-sizing: border-box;" data-stage="development">
+                            <div style="position: absolute; left: 16px; top: 24px; width: 32px; height: 32px; background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); border: 3px solid #3b82f6; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; z-index: 2; box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);">📈</div>
+                            <div style="background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); border: 2px solid #3b82f6; border-radius: 12px; padding: 20px; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15); width: 100%; max-width: 100%; box-sizing: border-box; overflow: hidden;">
+                                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px;">
+                                    <div style="width: 24px; height: 24px; background: #3b82f6; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; color: white; font-weight: bold;">2</div>
+                                    <h5 style="color: #1e3a8a; margin: 0; font-size: 18px; font-weight: 700;">发展阶段</h5>
+                                </div>
+                                <input type="text" class="stage-name" data-stage="development" placeholder="发展阶段名称（如：历练成长）" value="" style="width: 100%; max-width: 100%; margin-bottom: 12px; padding: 14px 16px; border: 2px solid #3b82f6; border-radius: 8px; font-size: 15px; background: white; color: #1f2937; font-weight: 600; box-sizing: border-box; display: block;">
+                                <textarea class="stage-description" data-stage="development" rows="5" placeholder="描述故事的成长发展：
+
+• 主角能力的提升和成长
+• 新角色和势力的引入
+• 副线情节的展开
+• 世界观的进一步拓展
+• 为高潮阶段做铺垫" style="width: 100%; max-width: 100%; padding: 16px; border: 2px solid #3b82f6; border-radius: 8px; font-size: 14px; background: white; color: #1f2937; resize: vertical; min-height: 120px; line-height: 1.6; box-sizing: border-box; display: block;"></textarea>
+                            </div>
+                        </div>
+                        
+                        <!-- 高潮阶段 -->
+                        <div style="position: relative; margin-bottom: 40px; padding-left: 80px; width: 100%; max-width: 100%; box-sizing: border-box;" data-stage="climax">
+                            <div style="position: absolute; left: 16px; top: 24px; width: 32px; height: 32px; background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%); border: 3px solid #ef4444; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; z-index: 2; box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.1);">🔥</div>
+                            <div style="background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); border: 2px solid #ef4444; border-radius: 12px; padding: 20px; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.15); width: 100%; max-width: 100%; box-sizing: border-box; overflow: hidden;">
+                                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px;">
+                                    <div style="width: 24px; height: 24px; background: #ef4444; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; color: white; font-weight: bold;">3</div>
+                                    <h5 style="color: #991b1b; margin: 0; font-size: 18px; font-weight: 700;">高潮阶段</h5>
+                                </div>
+                                <input type="text" class="stage-name" data-stage="climax" placeholder="高潮阶段名称（如：终极对决）" value="" style="width: 100%; max-width: 100%; margin-bottom: 12px; padding: 14px 16px; border: 2px solid #ef4444; border-radius: 8px; font-size: 15px; background: white; color: #1f2937; font-weight: 600; box-sizing: border-box; display: block;">
+                                <textarea class="stage-description" data-stage="climax" rows="5" placeholder="描述故事的高潮冲突：
+
+• 主要矛盾的集中爆发
+• 关键转折点和重要选择
+• 主角实力的巅峰展现
+• 反派势力的最终对决
+• 故事主题的深刻体现" style="width: 100%; max-width: 100%; padding: 16px; border: 2px solid #ef4444; border-radius: 8px; font-size: 14px; background: white; color: #1f2937; resize: vertical; min-height: 120px; line-height: 1.6; box-sizing: border-box; display: block;"></textarea>
+                            </div>
+                        </div>
+                        
+                        <!-- 结局阶段 -->
+                        <div style="position: relative; padding-left: 80px; width: 100%; max-width: 100%; box-sizing: border-box;" data-stage="ending">
+                            <div style="position: absolute; left: 16px; top: 24px; width: 32px; height: 32px; background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); border: 3px solid #10b981; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; z-index: 2; box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1);">🎯</div>
+                            <div style="background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); border: 2px solid #10b981; border-radius: 12px; padding: 20px; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.15); width: 100%; max-width: 100%; box-sizing: border-box; overflow: hidden;">
+                                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px;">
+                                    <div style="width: 24px; height: 24px; background: #10b981; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; color: white; font-weight: bold;">4</div>
+                                    <h5 style="color: #064e3b; margin: 0; font-size: 18px; font-weight: 700;">结局阶段</h5>
+                                </div>
+                                <input type="text" class="stage-name" data-stage="ending" placeholder="结局阶段名称（如：功成身退）" value="" style="width: 100%; max-width: 100%; margin-bottom: 12px; padding: 14px 16px; border: 2px solid #10b981; border-radius: 8px; font-size: 15px; background: white; color: #1f2937; font-weight: 600; box-sizing: border-box; display: block;">
+                                <textarea class="stage-description" data-stage="ending" rows="5" placeholder="描述故事的结局：
+
+• 主要冲突的最终解决
+• 人物命运和关系的归宿
+• 主题思想的升华和总结
+• 对未来的展望或新的开始
+• 给读者的思考和感悟" style="width: 100%; max-width: 100%; padding: 16px; border: 2px solid #10b981; border-radius: 8px; font-size: 14px; background: white; color: #1f2937; resize: vertical; min-height: 120px; line-height: 1.6; box-sizing: border-box; display: block;"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 </body>
 </html>

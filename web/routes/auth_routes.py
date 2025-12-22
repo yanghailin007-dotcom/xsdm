@@ -5,7 +5,7 @@ from flask import render_template, request, jsonify, session, redirect, url_for
 from datetime import datetime
 
 from web.auth import user_auth, login_required
-from web.config import logger
+from web.web_config import logger
 
 
 def register_auth_routes(app):
@@ -99,7 +99,7 @@ def register_page_routes(app):
     def test_large_modal_fix():
         """大弹窗功能测试页面"""
         from flask import send_from_directory
-        from web.config import BASE_DIR
+        from web.web_config import BASE_DIR
         return send_from_directory(str(BASE_DIR), 'test_large_modal_fix.html')
 
     @app.route('/cover-generator', methods=['GET'])
@@ -125,6 +125,12 @@ def register_page_routes(app):
     def phase_one_setup():
         """第一阶段设定生成页面"""
         return render_template('phase-one-setup.html')
+
+    @app.route('/phase-one-setup-new', methods=['GET'])
+    @login_required
+    def phase_one_setup_new():
+        """第一阶段设定生成页面（新版）"""
+        return render_template('phase-one-setup-new.html')
 
     @app.route('/phase-two-generation', methods=['GET'])
     @login_required
