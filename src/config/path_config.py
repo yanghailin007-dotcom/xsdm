@@ -51,7 +51,7 @@ class NovelPathConfig:
             # 规划目录
             "planning_dir": str(project_dir / "planning"),
             "stage_plans_dir": str(project_dir / "planning" / "stage_plans"),
-            "writing_plans_dir": str(project_dir / "planning" / "writing_plans"),
+            "writing_plans_dir": str(project_dir / "planning"),
             "overall_stage_plans": str(project_dir / "planning" / "overall_stage_plans.json"),
             
             # 元素和时机规划
@@ -121,7 +121,7 @@ class NovelPathConfig:
             paths["chapters_backup_dir"],
             paths["planning_dir"],
             paths["stage_plans_dir"],
-            paths["writing_plans_dir"],
+            # writing_plans_dir 现在直接指向 planning_dir，无需单独创建
             paths["materials_dir"],
             paths["worldview_dir"],
             paths["characters_dir"],

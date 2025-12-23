@@ -227,6 +227,12 @@ class NovelGenerationManager:
 
     def load_quality_data(self, title: str) -> Dict[str, Any]:
         """加载小说的质量数据"""
+        # 导入路径配置
+        from src.config.path_config import path_config
+        
+        # 获取安全的标题
+        safe_title = path_config.get_safe_title(title)
+        
         quality_data = {
             "character_development": {},
             "world_state": {},
@@ -237,9 +243,6 @@ class NovelGenerationManager:
         }
 
         try:
-            # 导入路径配置
-            from src.config.path_config import path_config
-            
             # 使用新的路径配置系统
             paths = path_config.get_project_paths(title)
             
@@ -299,10 +302,24 @@ class NovelGenerationManager:
                                 continue
                 quality_data["detailed_events"] = events
 
-            # 加载写作计划 - 从新路径加载
-            writing_plans_dir = Path(paths.get("writing_plans_dir", novel_base / "planning" / "writing_plans"))
-            if writing_plans_dir.exists():
-                for plan_file in writing_plans_dir.glob(f"{title}*writing_plan*.json"):
+            # 加载写作计划 - 从新路径加载（直接从 planning 目录）
+            planning_dir = Path(paths.get("writing_plans_dir", novel_base / "planning"))
+            if planning_dir.exists():
+                plan_files = list(planning_dir.glob(f"{title}*writing_plan*.json"))
+                
+                # 如果没找到，尝试直接匹配常见文件名格式
+                if not plan_files:
+                    common_names = [
+                        planning_dir / f"{title}_写作计划.json",
+                        planning_dir / f"{safe_title}_写作计划.json"
+                    ]
+                    for common_name in common_names:
+                        if common_name.exists():
+                            plan_files = [common_name]
+                            logger.info(f"✅ 通过常见文件名找到写作计划: {common_name}")
+                            break
+                
+                for plan_file in plan_files:
                     with open(plan_file, 'r', encoding='utf-8') as f:
                         plan_data = json.load(f)
                         # 确保plan_data是字典类型
@@ -316,6 +333,7 @@ class NovelGenerationManager:
                         else:
                             stage_name = "unknown"
                         quality_data["writing_plans"][stage_name] = plan_data
+                        logger.info(f"✅ 已加载写作计划: {plan_file.name}")
 
             # 加载关系数据
             relationships_file = Path(paths.get("relationships", novel_base / "relationships.json"))

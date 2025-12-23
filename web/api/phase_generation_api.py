@@ -960,6 +960,23 @@ def get_phase_one_products(title):
             'market': {'title': '市场分析', 'content': '', 'complete': False, 'file_path': ''}
         }
         
+        # 首先尝试从manager获取quality_data（这些数据已经在服务器端加载了）
+        novel_detail = manager.get_novel_detail(title) if manager else None
+        if novel_detail:
+            quality_data = novel_detail.get("quality_data", {})
+            logger.info(f"🔍 [PRODUCTS_DEBUG] 从manager获取到quality_data，包含 {len(quality_data)} 个键")
+            quality_writing_plans = quality_data.get("writing_plans", {})
+            if quality_writing_plans:
+                logger.info(f"✅ [PRODUCTS_DEBUG] 从quality_data找到 {len(quality_writing_plans)} 个写作计划")
+                # 将quality_data中的写作计划添加到products中
+                for stage_name, plan_data in quality_writing_plans.items():
+                    if isinstance(plan_data, dict):
+                        products['writing']['content'] = json.dumps(plan_data, ensure_ascii=False, indent=2)
+                        products['writing']['complete'] = True
+                        products['writing']['file_path'] = f"quality_data/{stage_name}"
+                        logger.info(f"✅ 从quality_data加载写作计划: {stage_name}")
+                        break  # 只取第一个找到的写作计划
+        
         # 检查是否存在产物目录
         if os.path.exists(products_dir):
             # 新文件结构：从单独的产物文件读取
@@ -1151,12 +1168,63 @@ def get_phase_one_products(title):
                                        except Exception as e:
                                            logger.info(f"⚠️ 读取planning文件失败: {pf}, {e}")
                         
-                        # 提取写作计划 - 支持顶层和嵌套两种格式
+                        # 提取写作计划 - 支持多种来源
                         writing_data = project_data.get('stage_writing_plans') or project_data.get('result', {}).get('novel_data_summary', {}).get('stage_writing_plans', {})
-                        if writing_data:
+                        
+                        # 如果还没找到，尝试从planning目录加载
+                        if not writing_data or not isinstance(writing_data, dict) or len(writing_data) == 0:
+                            planning_dir = f"{project_dir}/planning"
+                            if os.path.exists(planning_dir):
+                                # 尝试加载写作计划文件
+                                writing_plan_files = []
+                                # 常见文件名模式 - 优先使用精确的文件名
+                                patterns = [
+                                    f"{title}_写作计划.json",
+                                    f"{safe_title}_写作计划.json",
+                                    f"{title}*writing_plan*.json",
+                                    "*写作计划*.json"
+                                ]
+                                for pattern in patterns:
+                                    matching_files = list(Path(planning_dir).glob(pattern))
+                                    if matching_files:
+                                        writing_plan_files.extend(matching_files)
+                                
+                                if writing_plan_files:
+                                    for wp_file in writing_plan_files:
+                                        try:
+                                            with open(wp_file, 'r', encoding='utf-8') as f:
+                                                plan_content = json.load(f)
+                                            # 如果是顶级结构，直接使用；如果是嵌套结构，提取stage_writing_plans
+                                            if 'stage_writing_plan' in plan_content or 'opening_stage' in plan_content:
+                                                writing_data = plan_content
+                                                break
+                                            # 检查是否包含完整的阶段计划
+                                            if all(key in plan_content for key in ['opening_stage', 'development_stage', 'climax_stage', 'ending_stage']):
+                                                writing_data = plan_content
+                                                break
+                                            logger.info(f"✅ 从planning目录加载写作计划: {wp_file.name}")
+                                        except Exception as e:
+                                            logger.info(f"⚠️ 读取写作计划文件失败: {wp_file.name}, {e}")
+                        
+                        # 如果还是没有，尝试从quality_data中获取（这些数据在服务器端已加载）
+                        if not writing_data or not isinstance(writing_data, dict) or len(writing_data) == 0:
+                            # 尝试从quality_data获取写作计划
+                            novel_detail = manager.get_novel_detail(title) if manager else None
+                            if novel_detail:
+                                quality_data = novel_detail.get("quality_data", {})
+                                if quality_data:
+                                    quality_writing_plans = quality_data.get("writing_plans", {})
+                                    if quality_writing_plans:
+                                        writing_data = quality_writing_plans
+                                        logger.info(f"✅ 从quality_data加载写作计划")
+                        
+                        if writing_data and (isinstance(writing_data, dict) or isinstance(writing_data, list)):
                             products['writing']['content'] = json.dumps(writing_data, ensure_ascii=False, indent=2)
                             products['writing']['complete'] = True
                             products['writing']['file_path'] = f"{project_info_path}/{info_file}"
+                            logger.info(f"✅ 写作计划数据已加载，大小: {len(str(writing_data))} 字符")
+                        else:
+                            logger.info(f"⚠️ 写作计划数据未找到，可用的源: project_data.stage_writing_plans={bool(project_data.get('stage_writing_plans'))}, planning_dir_exists={os.path.exists(planning_dir)}")
                         
                         # 提取故事线 - 支持顶层和嵌套两种格式
                         storyline_data = project_data.get('overall_stage_plans') or project_data.get('result', {}).get('novel_data_summary', {}).get('overall_stage_plans', {})
