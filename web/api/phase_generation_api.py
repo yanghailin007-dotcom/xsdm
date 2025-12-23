@@ -1059,8 +1059,8 @@ def get_phase_one_products(title):
                 logger.error(f"❌ 读取第一阶段设定文件失败: {e}")
         
         # 尝试从新的项目结构读取 - 添加对 characters/ 目录的支持
-        elif os.path.exists(project_info_path) or os.path.exists(f"{project_dir}/characters"):
-            logger.info(f"📁 从新项目结构读取第一阶段产物: {project_info_path}")
+        elif os.path.exists(project_info_path) or os.path.exists(f"{project_dir}/characters") or os.path.exists(f"{project_dir}/{safe_title}_项目信息.json"):
+            logger.info(f"📁 从新项目结构读取第一阶段产物")
             
             # 首先检查 characters 目录（角色设计的标准路径）
             characters_dir = f"{project_dir}/characters"
@@ -1080,10 +1080,24 @@ def get_phase_one_products(title):
             
             # 尝试从project_info读取项目信息
             project_info_files = os.listdir(project_info_path) if os.path.exists(project_info_path) else []
+            
+            # 如果 project_info 目录不存在，尝试从项目根目录读取项目信息文件
+            if not project_info_files:
+                project_info_json = f"{project_dir}/{safe_title}_项目信息.json"
+                if os.path.exists(project_info_json):
+                    project_info_files = [os.path.basename(project_info_json)]
+                    logger.info(f"📁 找到项目根目录的项目信息文件: {project_info_json}")
+            
             for info_file in project_info_files:
                 if info_file.endswith('.json'):
                     try:
-                        with open(f"{project_info_path}/{info_file}", 'r', encoding='utf-8') as f:
+                        # 构建文件路径 - 支持两种位置
+                        if os.path.exists(f"{project_info_path}/{info_file}"):
+                            info_path = f"{project_info_path}/{info_file}"
+                        else:
+                            info_path = f"{project_dir}/{info_file}"
+                        
+                        with open(info_path, 'r', encoding='utf-8') as f:
                             project_data = json.load(f)
                         
                         # 提取世界观 - 支持顶层和嵌套两种格式
@@ -1107,12 +1121,35 @@ def get_phase_one_products(title):
                             products['market']['complete'] = True
                             products['market']['file_path'] = f"{project_info_path}/{info_file}"
                         
-                        # 提取成长路线 - 支持顶层和嵌套两种格式
-                        growth_data = project_data.get('global_growth_plan') or project_data.get('result', {}).get('novel_data_summary', {}).get('global_growth_plan', {})
+                        # 提取成长路线 - 支持多种字段名和目录
+                        growth_data = (
+                            project_data.get('global_growth_plan') or
+                            project_data.get('overall_stage_plans') or
+                            project_data.get('result', {}).get('novel_data_summary', {}).get('global_growth_plan', {}) or
+                            project_data.get('result', {}).get('novel_data_summary', {}).get('overall_stage_plans', {})
+                        )
                         if growth_data:
                             products['growth']['content'] = json.dumps(growth_data, ensure_ascii=False, indent=2)
                             products['growth']['complete'] = True
-                            products['growth']['file_path'] = f"{project_info_path}/{info_file}"
+                            products['growth']['file_path'] = info_path
+                            logger.info(f"✅ 从project_data加载成长路线数据 (字段名: {project_data.get('global_growth_plan') and 'global_growth_plan' or project_data.get('overall_stage_plans') and 'overall_stage_plans' or 'none'})")
+                        elif not products['growth']['complete']:
+                           # 尝试从 planning 目录读取
+                           planning_dir = f"{project_dir}/planning"
+                           if os.path.exists(planning_dir):
+                               planning_files = os.listdir(planning_dir)
+                               for pf in planning_files:
+                                   if pf.endswith('.json') and '成长' in pf:
+                                       try:
+                                           with open(f"{planning_dir}/{pf}", 'r', encoding='utf-8') as f:
+                                               planning_data = json.load(f)
+                                           products['growth']['content'] = json.dumps(planning_data, ensure_ascii=False, indent=2)
+                                           products['growth']['complete'] = True
+                                           products['growth']['file_path'] = f"{planning_dir}/{pf}"
+                                           logger.info(f"✅ 从planning目录加载成长路线数据")
+                                           break
+                                       except Exception as e:
+                                           logger.info(f"⚠️ 读取planning文件失败: {pf}, {e}")
                         
                         # 提取写作计划 - 支持顶层和嵌套两种格式
                         writing_data = project_data.get('stage_writing_plans') or project_data.get('result', {}).get('novel_data_summary', {}).get('stage_writing_plans', {})

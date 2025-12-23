@@ -16,6 +16,7 @@ from src.utils.logger import get_logger
 from src.utils.seed_utils import ensure_seed_dict
 from src.utils.path_manager import path_manager
 from src.config.path_config import path_config
+from src.managers.growth_plan_manager import growth_plan_manager
 class ProjectManager:
     def __init__(self):
         self.logger = get_logger("ProjectManager")
@@ -206,6 +207,23 @@ class ProjectManager:
                     self.logger.info(f"❌ 未找到项目: {novel_title}")
                     return None
             
+            # 尝试从独立文件加载成长路线和写作计划
+            growth_plan = growth_plan_manager.load_growth_plan(novel_title)
+            stage_plans = growth_plan_manager.load_stage_writing_plans(novel_title)
+            
+            # 如果独立文件不存在,从项目信息中迁移
+            if growth_plan is None and project_data.get("global_growth_plan"):
+                self.logger.info(f"📦 检测到成长路线在项目信息中,准备迁移...")
+                growth_plan_manager.migrate_growth_plan_from_project_info(novel_title, project_data)
+                growth_plan = growth_plan_manager.load_growth_plan(novel_title)
+            
+            if stage_plans is None and project_data.get("stage_writing_plans"):
+                self.logger.info(f"📦 检测到写作计划在项目信息中,准备迁移...")
+                if growth_plan is None:
+                    # 如果还没迁移过,进行迁移
+                    growth_plan_manager.migrate_growth_plan_from_project_info(novel_title, project_data)
+                stage_plans = growth_plan_manager.load_stage_writing_plans(novel_title)
+            
             # 构建完整的novel_data结构
             novel_data = {
                 # 基本信息
@@ -216,11 +234,11 @@ class ProjectManager:
                 "category": project_data["novel_info"].get("category", "未分类"),
                 # 新增：添加novel_info键以保持兼容性
                 "novel_info": project_data["novel_info"],
-                # 核心数据
+                # 核心数据 - 优先使用独立文件的数据
                 "market_analysis": project_data.get("market_analysis", {}),
-                "global_growth_plan": project_data.get("global_growth_plan", {}),
+                "global_growth_plan": growth_plan or project_data.get("global_growth_plan", {}),
                 "overall_stage_plans": project_data.get("overall_stage_plans", {}),
-                "stage_writing_plans": project_data.get("stage_writing_plans", {}),
+                "stage_writing_plans": stage_plans or project_data.get("stage_writing_plans", {}),
                 "core_worldview": project_data.get("core_worldview", {}),
                 "character_design": project_data.get("character_design", {}),
                 # 修复：正确加载进度信息
@@ -359,10 +377,21 @@ class ProjectManager:
             if current_progress["stage"] == "未开始" or current_progress["stage"] == "大纲阶段":
                 current_progress["stage"] = "写作中"
         
+        # 保存成长路线和写作计划到独立文件
+        growth_plan = novel_data.get("global_growth_plan", {})
+        if growth_plan:
+            growth_plan_manager.save_growth_plan(novel_title, growth_plan)
+            self.logger.info(f"✅ 成长路线已保存到独立文件")
+        
+        stage_plans = novel_data.get("stage_writing_plans", {})
+        if stage_plans:
+            growth_plan_manager.save_stage_writing_plans(novel_title, stage_plans)
+            self.logger.info(f"✅ 写作计划已保存到独立文件")
+        
         # 获取路径配置
         paths = path_config.get_project_paths(novel_title)
         
-        # 构建完整的项目数据
+        # 构建完整的项目数据（不包含成长路线和写作计划,因为已保存到独立文件）
         data = {
             "novel_info": {
                 "title": novel_data["novel_title"],
@@ -371,11 +400,9 @@ class ProjectManager:
                 "selected_plan": novel_data["selected_plan"],
                 "category": novel_data.get("category", "未分类")
             },
-            # 核心数据
+            # 核心数据（不包含 global_growth_plan 和 stage_writing_plans,已保存到独立文件）
             "market_analysis": novel_data.get("market_analysis", {}),
-            "global_growth_plan": novel_data.get("global_growth_plan", {}),
             "overall_stage_plans": novel_data.get("overall_stage_plans", {}),
-            "stage_writing_plans": novel_data.get("stage_writing_plans", {}),
             "core_worldview": novel_data.get("core_worldview", {}),
             "character_design": novel_data.get("character_design", {}),
             # 修复：使用正确的进度信息
