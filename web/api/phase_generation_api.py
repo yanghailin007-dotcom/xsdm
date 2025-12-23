@@ -872,74 +872,70 @@ def register_phase_routes(app, manager_instance=None):
 def get_phase_one_products(title):
     """获取第一阶段的所有产物"""
     try:
-        # 构建第一阶段结果文件路径
         safe_title = re.sub(r'[\\/*?:"<>|]', "_", title)
         phase_one_dir = f"小说项目/{safe_title}_第一阶段设定"
-        phase_one_file = f"{phase_one_dir}/{safe_title}_第一阶段设定.json"
+        products_dir = f"{phase_one_dir}/产物"
+        phase_one_index_file = f"{phase_one_dir}/{safe_title}_第一阶段索引.json"
         
         products = {
-            'worldview': {'title': '世界观设定', 'content': '', 'complete': False},
-            'characters': {'title': '角色设计', 'content': '', 'complete': False},
-            'growth': {'title': '成长路线', 'content': '', 'complete': False},
-            'writing': {'title': '写作计划', 'content': '', 'complete': False},
-            'storyline': {'title': '故事线', 'content': '', 'complete': False},
-            'market': {'title': '市场分析', 'content': '', 'complete': False}
+            'worldview': {'title': '世界观设定', 'content': '', 'complete': False, 'file_path': ''},
+            'characters': {'title': '角色设计', 'content': '', 'complete': False, 'file_path': ''},
+            'growth': {'title': '成长路线', 'content': '', 'complete': False, 'file_path': ''},
+            'writing': {'title': '写作计划', 'content': '', 'complete': False, 'file_path': ''},
+            'storyline': {'title': '故事线', 'content': '', 'complete': False, 'file_path': ''},
+            'market': {'title': '市场分析', 'content': '', 'complete': False, 'file_path': ''}
         }
         
-        if os.path.exists(phase_one_file):
-            with open(phase_one_file, 'r', encoding='utf-8') as f:
-                phase_one_data = json.load(f)
-                
-                # 从第一阶段结果中提取产物数据
-                novel_data_summary = phase_one_data.get('result', {}).get('novel_data_summary', {})
-                
-                # 提取世界观
-                core_worldview = novel_data_summary.get('core_worldview', {})
-                if core_worldview:
-                    products['worldview']['content'] = json.dumps(core_worldview, ensure_ascii=False, indent=2)
-                    products['worldview']['complete'] = True
-                
-                # 提取角色设计
-                character_design = novel_data_summary.get('character_design', {})
-                if character_design:
-                    products['characters']['content'] = json.dumps(character_design, ensure_ascii=False, indent=2)
-                    products['characters']['complete'] = True
-                
-                # 提取成长路线（从整体阶段规划中获取）
-                overall_stage_plans = novel_data_summary.get('overall_stage_plans', {})
-                if overall_stage_plans:
-                    growth_content = "成长路线规划：\n"
-                    for stage_name, stage_data in overall_stage_plans.items():
-                        growth_content += f"- {stage_name}: {stage_data.get('description', '')}\n"
-                    products['growth']['content'] = growth_content
-                    products['growth']['complete'] = True
-                
-                # 提取写作计划
-                if overall_stage_plans:
-                    writing_content = "写作计划安排：\n"
-                    for stage_name, stage_data in overall_stage_plans.items():
-                        writing_content += f"- {stage_name}: {stage_data.get('chapter_range', '')}\n"
-                        writing_content += f"  主要内容: {stage_data.get('main_content', '')}\n"
-                    products['writing']['content'] = writing_content
-                    products['writing']['complete'] = True
-                
-                # 提取故事线
-                if overall_stage_plans:
-                    storyline_content = "故事线架构：\n"
-                    for stage_name, stage_data in overall_stage_plans.items():
-                        storyline_content += f"- {stage_name}: {stage_data.get('key_events', '')}\n"
-                    products['storyline']['content'] = storyline_content
-                    products['storyline']['complete'] = True
-                
-                # 提取市场分析
-                market_analysis = novel_data_summary.get('market_analysis', {})
-                if market_analysis:
-                    products['market']['content'] = json.dumps(market_analysis, ensure_ascii=False, indent=2)
-                    products['market']['complete'] = True
+        # 检查是否存在产物目录
+        if os.path.exists(products_dir):
+            # 新文件结构：从单独的产物文件读取
+            product_files = {
+                'worldview': f"{products_dir}/{safe_title}_世界观设定.json",
+                'characters': f"{products_dir}/{safe_title}_角色设计.json",
+                'growth': f"{products_dir}/{safe_title}_成长路线.json",
+                'writing': f"{products_dir}/{safe_title}_写作计划.json",
+                'storyline': f"{products_dir}/{safe_title}_阶段计划.json",
+                'market': f"{products_dir}/{safe_title}_市场分析.json"
+            }
+            
+            for category, file_path in product_files.items():
+                if os.path.exists(file_path):
+                    with open(file_path, '                    r', encoding='utf-8') as f:
+                        content = json.load(f)
+                    products[category]['content'] = json.dumps(content, ensure_ascii=False, indent=2)
+                    products[category]['complete'] = True
+                    products[category]['file_path'] = file_path
+                    logger.info(f"✅ 已加载产物: {category}")
+                else:
+                    logger.info(f"⚠️ 产物文件不存在: {category}")
+        
+        elif os.path.exists(phase_one_index_file):
+            # 旧文件结构：从索引文件读取
+            with open(phase_one_index_file, 'r', encoding='utf-8') as f:
+                phase_one_index = json.load(f)
+            
+            products_mapping = phase_one_index.get("products_mapping", {})
+            
+            # 从映射中加载产物
+            for category, file_path in products_mapping.items():
+                if os.path.exists(file_path):
+                    with open(file_path, 'r', encoding='utf-8') as f:
+                        content = json.load(f)
+                    products[category]['content'] = json.dumps(content, ensure_ascii=False, indent=2)
+                    products[category]['complete'] = True
+                    products[category]['file_path'] = file_path
+                    logger.info(f"✅ 已加载产物(旧格式): {category}")
+                else:
+                    logger.info(f"⚠️ 产物文件不存在(旧格式): {category}")
+        
+        else:
+            logger.error(f"❌ 第一阶段产物目录和索引文件都不存在: {title}")
+            return jsonify({"success": False, "error": "第一阶段产物不存在"}), 404
         
         return jsonify({
             "success": True,
-            "products": products
+            "products": products,
+            "phase_one_dir": phase_one_dir
         })
         
     except Exception as e:
@@ -957,33 +953,27 @@ def update_phase_one_product(title, category):
         if not product_title or not product_content:
             return jsonify({"success": False, "error": "标题和内容不能为空"}), 400
         
-        # 构建第一阶段结果文件路径
+        # 构建产物文件路径
         safe_title = re.sub(r'[\\/*?:"<>|]', "_", title)
         phase_one_dir = f"小说项目/{safe_title}_第一阶段设定"
-        phase_one_file = f"{phase_one_dir}/{safe_title}_第一阶段设定.json"
+        products_dir = f"{phase_one_dir}/产物"
+        product_file = f"{products_dir}/{safe_title}_{category}.json"
         
         # 确保目录存在
-        os.makedirs(phase_one_dir, exist_ok=True)
+        os.makedirs(products_dir, exist_ok=True)
         
-        # 读取现有数据
-        phase_one_data = {}
-        if os.path.exists(phase_one_file):
-            with open(phase_one_file, 'r', encoding='utf-8') as f:
-                phase_one_data = json.load(f)
+        # 检查产物文件是否存在
+        if not os.path.exists(product_file):
+            logger.info(f"📝 创建新的产物文件: {product_file}")
         
-        # 更新产物数据
-        if 'custom_products' not in phase_one_data:
-            phase_one_data['custom_products'] = {}
-        
-        phase_one_data['custom_products'][category] = {
-            'title': product_title,
-            'content': product_content,
-            'updated_at': datetime.now().isoformat()
-        }
-        
-        # 保存更新后的数据
-        with open(phase_one_file, 'w', encoding='utf-8') as f:
-            json.dump(phase_one_data, f, ensure_ascii=False, indent=2)
+        # 保存产物内容
+        with open(product_file, 'w', encoding='utf-8') as f:
+            json.dump({
+                'title': product_title,
+                'content': product_content,
+                'updated_at': datetime.now().isoformat(),
+                'category': category
+            }, f, ensure_ascii=False, indent=2)
         
         logger.info(f"✅ 第一阶段产物已更新: {title} - {category}")
         

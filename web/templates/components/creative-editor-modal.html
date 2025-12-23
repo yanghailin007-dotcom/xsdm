@@ -1,0 +1,176 @@
+<!-- 创意编辑模态框 - 与首页保持一致 -->
+<div id="creative-editor-modal-phase-two" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 999999; backdrop-filter: blur(4px);">
+    <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; border-radius: 16px; box-shadow: 0 25px 80px rgba(0,0,0,0.4); max-width: 1200px; width: 95vw; max-height: 90vh; overflow: hidden; border: 1px solid rgba(255,255,255,0.2);">
+        
+        <!-- 头部 -->
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 24px 32px; display: flex; justify-content: space-between; align-items: center; border-radius: 16px 16px 0 0;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <div style="width: 40px; height: 40px; background: rgba(255,255,255,0.2); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px;">✏️</div>
+                <div>
+                    <h3 style="margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -0.5px;">创意编辑器</h3>
+                    <p style="margin: 4px 0 0 0; font-size: 14px; opacity: 0.9; font-weight: 400;">编辑您项目的创意设定</p>
+                </div>
+            </div>
+            <div style="display: flex; gap: 12px; align-items: center;">
+                <button type="button" onclick="resetCreativeEditorForPhaseTwo()" style="background: rgba(255,255,255,0.15); color: white; border: 1px solid rgba(255,255,255,0.25); padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 500; transition: all 0.2s;">🔄 重置</button>
+                <button type="button" onclick="saveCreativeChangesForPhaseTwo()" style="background: rgba(255,255,255,0.25); color: white; border: 1px solid rgba(255,255,255,0.35); padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; transition: all 0.2s;">💾 保存修改</button>
+                <button type="button" onclick="closeCreativeEditorForPhaseTwo()" style="background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2); font-size: 20px; cursor: pointer; padding: 8px; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 8px; transition: all 0.2s;">×</button>
+            </div>
+        </div>
+        
+        <!-- 内容区域 -->
+        <div style="padding: 0; overflow-y: auto; max-height: calc(90vh - 100px); background: #fafbfc;">
+            <div style="padding: 32px;">
+                
+                <!-- 基本信息 -->
+                <div style="margin-bottom: 32px; background: white; border-radius: 12px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border: 1px solid #e5e7eb;">
+                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px;">
+                        <div style="width: 32px; height: 32px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; color: white;">📝</div>
+                        <h4 style="color: #1f2937; margin: 0; font-size: 18px; font-weight: 700;">基本信息</h4>
+                    </div>
+                    
+                    <div style="display: grid; gap: 20px;">
+                        <div>
+                            <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #374151; font-size: 14px;">小说标题</label>
+                            <input type="text" id="edit-novel-title-phase-two" value="" style="width: 100%; padding: 14px 16px; border: 2px solid #e5e7eb; border-radius: 10px; font-size: 15px; background: white; color: #1f2937; transition: all 0.2s; font-weight: 500; box-sizing: border-box;">
+                        </div>
+                        
+                        <div>
+                            <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #374151; font-size: 14px;">小说简介</label>
+                            <textarea id="edit-novel-synopsis-phase-two" rows="4" style="width: 100%; padding: 14px 16px; border: 2px solid #e5e7eb; border-radius: 10px; font-size: 15px; background: white; color: #1f2937; resize: vertical; min-height: 100px; transition: all 0.2s; font-family: inherit; line-height: 1.5; box-sizing: border-box;"></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 核心设定 -->
+                <div style="margin-bottom: 32px; background: white; border-radius: 12px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border: 1px solid #e5e7eb;">
+                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px;">
+                        <div style="width: 32px; height: 32px; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; color: white;">⚙️</div>
+                        <h4 style="color: #1f2937; margin: 0; font-size: 18px; font-weight: 700;">核心设定</h4>
+                    </div>
+                    <div>
+                        <textarea id="edit-core-setting-phase-two" rows="20" style="width: 100%; padding: 24px; border: 2px solid #e5e7eb; border-radius: 16px; font-size: 16px; background: white; color: #1f2937; resize: vertical; min-height: 500px; max-height: 800px; transition: all 0.2s; font-family: inherit; line-height: 1.8; box-shadow: inset 0 2px 8px rgba(0,0,0,0.08); box-sizing: border-box;" placeholder="描述故事的核心背景设定，包括世界观、主要设定、时代背景等...
+
+例如：
+• 世界观：修仙世界、现代都市、异世大陆等
+• 时代背景：古代、现代、未来等
+• 主要势力：宗门、家族、国家等
+• 核心规则：修炼体系、魔法系统、科技水平等
+• 社会结构：等级制度、经济体系等
+
+请详细描述您的世界观设定，这将直接影响小说的质量和深度..."></textarea>
+                        <div style="margin-top: 16px; display: flex; justify-content: space-between; align-items: center;">
+                            <span style="color: #6b7280; font-size: 14px;">💡 提示：详细的世界观设定有助于生成更丰富的故事内容，建议至少写300字</span>
+                            <span id="char-count-phase-two" style="color: #9ca3af; font-size: 13px; font-weight: 500;">0 字符</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 核心卖点 -->
+                <div style="margin-bottom: 32px; background: white; border-radius: 12px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border: 1px solid #e5e7eb;">
+                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px;">
+                        <div style="width: 32px; height: 32px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; color: white;">💎</div>
+                        <h4 style="color: #1f2937; margin: 0; font-size: 18px; font-weight: 700;">核心卖点</h4>
+                    </div>
+                    <div id="selling-points-container-phase-two" style="margin-bottom: 16px; max-height: 240px; overflow-y: auto; border: 2px solid #f3f4f6; border-radius: 10px; background: #fafbfc; padding: 12px;">
+                        <!-- 动态添加的卖点将显示在这里 -->
+                    </div>
+                    <div style="display: flex; gap: 12px;">
+                        <input type="text" id="new-selling-point-phase-two" placeholder="输入新的卖点（如：爽文节奏、独特设定等）..." style="flex: 1; padding: 14px 16px; border: 2px solid #e5e7eb; border-radius: 10px; font-size: 15px; background: white; color: #1f2937; transition: all 0.2s; box-sizing: border-box;">
+                        <button type="button" onclick="addSellingPointForPhaseTwo()" style="padding: 14px 20px; border: none; border-radius: 10px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; cursor: pointer; font-size: 15px; font-weight: 600; transition: all 0.2s; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);">➕ 添加卖点</button>
+                    </div>
+                </div>
+
+                <!-- 故事线时间轴 -->
+                <div style="margin-bottom: 32px; background: white; border-radius: 12px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border: 1px solid #e5e7eb;">
+                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 24px;">
+                        <div style="width: 32px; height: 32px; background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; color: white;">📖</div>
+                        <h4 style="color: #1f2937; margin: 0; font-size: 18px; font-weight: 700;">故事线时间轴</h4>
+                    </div>
+                    
+                    <!-- 时间线容器 -->
+                    <div style="position: relative; padding: 20px 0; width: 100%; max-width: 100%; margin: 0 auto; box-sizing: border-box;">
+                        <!-- 时间线主线 -->
+                        <div style="position: absolute; left: 30px; top: 40px; bottom: 40px; width: 4px; background: linear-gradient(180deg, #fbbf24 0%, #3b82f6 50%, #ef4444 75%, #10b981 100%); border-radius: 2px;"></div>
+                        
+                        <!-- 开篇阶段 -->
+                        <div style="position: relative; margin-bottom: 40px; padding-left: 80px; width: 100%; max-width: 100%; box-sizing: border-box;" data-stage="opening">
+                            <div style="position: absolute; left: 16px; top: 24px; width: 32px; height: 32px; background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border: 3px solid #fbbf24; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; z-index: 2; box-shadow: 0 0 0 4px rgba(251, 191, 36, 0.1);">🎬</div>
+                            <div style="background: linear-gradient(135deg, #fef9e7 0%, #fef3c7 100%); border: 2px solid #fbbf24; border-radius: 12px; padding: 20px; box-shadow: 0 4px 12px rgba(251, 191, 36, 0.15); width: 100%; max-width: 100%; box-sizing: border-box; overflow: hidden;">
+                                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px;">
+                                    <div style="width: 24px; height: 24px; background: #fbbf24; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; color: white; font-weight: bold;">1</div>
+                                    <h5 style="color: #92400e; margin: 0; font-size: 18px; font-weight: 700;">开篇阶段</h5>
+                                </div>
+                                <input type="text" class="stage-name" data-stage="opening" placeholder="开篇阶段名称（如：初入仙门）" value="" style="width: 100%; max-width: 100%; margin-bottom: 12px; padding: 14px 16px; border: 2px solid #f59e0b; border-radius: 8px; font-size: 15px; background: white; color: #1f2937; font-weight: 600; box-sizing: border-box; display: block;">
+                                <textarea class="stage-description" data-stage="opening" rows="5" placeholder="描述故事的开端：
+
+• 主角出场背景和初始状态
+• 核心冲突或目标的引入
+• 重要配角的初次登场
+• 世界观和基本设定的展现
+• 为后续发展埋下伏笔" style="width: 100%; max-width: 100%; padding: 16px; border: 2px solid #f59e0b; border-radius: 8px; font-size: 14px; background: white; color: #1f2937; resize: vertical; min-height: 120px; line-height: 1.6; box-sizing: border-box; display: block;"></textarea>
+                            </div>
+                        </div>
+                        
+                        <!-- 发展阶段 -->
+                        <div style="position: relative; margin-bottom: 40px; padding-left: 80px; width: 100%; max-width: 100%; box-sizing: border-box;" data-stage="development">
+                            <div style="position: absolute; left: 16px; top: 24px; width: 32px; height: 32px; background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); border: 3px solid #3b82f6; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; z-index: 2; box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);">📈</div>
+                            <div style="background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); border: 2px solid #3b82f6; border-radius: 12px; padding: 20px; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15); width: 100%; max-width: 100%; box-sizing: border-box; overflow: hidden;">
+                                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px;">
+                                    <div style="width: 24px; height: 24px; background: #3b82f6; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; color: white; font-weight: bold;">2</div>
+                                    <h5 style="color: #1e3a8a; margin: 0; font-size: 18px; font-weight: 700;">发展阶段</h5>
+                                </div>
+                                <input type="text" class="stage-name" data-stage="development" placeholder="发展阶段名称（如：历练成长）" value="" style="width: 100%; max-width: 100%; margin-bottom: 12px; padding: 14px 16px; border: 2px solid #3b82f6; border-radius: 8px; font-size: 15px; background: white; color: #1f2937; font-weight: 600; box-sizing: border-box; display: block;">
+                                <textarea class="stage-description" data-stage="development" rows="5" placeholder="描述故事的成长发展：
+
+• 主角能力的提升和成长
+• 新角色和势力的引入
+• 副线情节的展开
+• 世界观的进一步拓展
+• 为高潮阶段做铺垫" style="width: 100%; max-width: 100%; padding: 16px; border: 2px solid #3b82f6; border-radius: 8px; font-size: 14px; background: white; color: #1f2937; resize: vertical; min-height: 120px; line-height: 1.6; box-sizing: border-box; display: block;"></textarea>
+                            </div>
+                        </div>
+                        
+                        <!-- 高潮阶段 -->
+                        <div style="position: relative; margin-bottom: 40px; padding-left: 80px; width: 100%; max-width: 100%; box-sizing: border-box;" data-stage="climax">
+                            <div style="position: absolute; left: 16px; top: 24px; width: 32px; height: 32px; background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%); border: 3px solid #ef4444; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; z-index: 2; box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.1);">🔥</div>
+                            <div style="background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); border: 2px solid #ef4444; border-radius: 12px; padding: 20px; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.15); width: 100%; max-width: 100%; box-sizing: border-box; overflow: hidden;">
+                                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px;">
+                                    <div style="width: 24px; height: 24px; background: #ef4444; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; color: white; font-weight: bold;">3</div>
+                                    <h5 style="color: #991b1b; margin: 0; font-size: 18px; font-weight: 700;">高潮阶段</h5>
+                                </div>
+                                <input type="text" class="stage-name" data-stage="climax" placeholder="高潮阶段名称（如：终极对决）" value="" style="width: 100%; max-width: 100%; margin-bottom: 12px; padding: 14px 16px; border: 2px solid #ef4444; border-radius: 8px; font-size: 15px; background: white; color: #1f2937; font-weight: 600; box-sizing: border-box; display: block;">
+                                <textarea class="stage-description" data-stage="climax" rows="5" placeholder="描述故事的高潮冲突：
+
+• 主要矛盾的集中爆发
+• 关键转折点和重要选择
+• 主角实力的巅峰展现
+• 反派势力的最终对决
+• 故事主题的深刻体现" style="width: 100%; max-width: 100%; padding: 16px; border: 2px solid #ef4444; border-radius: 8px; font-size: 14px; background: white; color: #1f2937; resize: vertical; min-height: 120px; line-height: 1.6; box-sizing: border-box; display: block;"></textarea>
+                            </div>
+                        </div>
+                        
+                        <!-- 结局阶段 -->
+                        <div style="position: relative; padding-left: 80px; width: 100%; max-width: 100%; box-sizing: border-box;" data-stage="ending">
+                            <div style="position: absolute; left: 16px; top: 24px; width: 32px; height: 32px; background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); border: 3px solid #10b981; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; z-index: 2; box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1);">🎯</div>
+                            <div style="background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); border: 2px solid #10b981; border-radius: 12px; padding: 20px; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.15); width: 100%; max-width: 100%; box-sizing: border-box; overflow: hidden;">
+                                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px;">
+                                    <div style="width: 24px; height: 24px; background: #10b981; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; color: white; font-weight: bold;">4</div>
+                                    <h5 style="color: #064e3b; margin: 0; font-size: 18px; font-weight: 700;">结局阶段</h5>
+                                </div>
+                                <input type="text" class="stage-name" data-stage="ending" placeholder="结局阶段名称（如：功成身退）" value="" style="width: 100%; max-width: 100%; margin-bottom: 12px; padding: 14px 16px; border: 2px solid #10b981; border-radius: 8px; font-size: 15px; background: white; color: #1f2937; font-weight: 600; box-sizing: border-box; display: block;">
+                                <textarea class="stage-description" data-stage="ending" rows="5" placeholder="描述故事的结局：
+
+• 主要冲突的最终解决
+• 人物命运和关系的归宿
+• 主题思想的升华和总结
+• 对未来的展望或新的开始
+• 给读者的思考和感悟" style="width: 100%; max-width: 100%; padding: 16px; border: 2px solid #10b981; border-radius: 8px; font-size: 14px; background: white; color: #1f2937; resize: vertical; min-height: 120px; line-height: 1.6; box-sizing: border-box; display: block;"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
