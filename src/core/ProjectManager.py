@@ -82,10 +82,13 @@ class ProjectManager:
             return False
     # ^^^ 以上是新添加的方法 ^^^
     def find_existing_projects(self, creative_seed: Optional[str] = None) -> List[Dict]:
-        """查找现有项目"""
+        """查找现有项目 - 支持新旧路径结构"""
         projects = []
-        if not os.path.exists("小说项目/"):
+        base_dir = Path("小说项目")
+        
+        if not base_dir.exists():
             return projects
+        
         # 确保 creative_seed 是字符串
         if creative_seed is None:
             safe_seed = ""
@@ -96,43 +99,113 @@ class ProjectManager:
             safe_seed = str(creative_seed)[:50]
         # 安全处理字符串
         safe_seed = re.sub(r'[\\/*?:"<>|]', "_", safe_seed) if safe_seed else ""
-        for filename in os.listdir("小说项目/"):
+        
+        # 1. 首先扫描新路径结构（项目目录中的 project_info.json）
+        if base_dir.exists():
+            for item in os.listdir(base_dir):
+                item_path = base_dir / item
+                # 只处理目录
+                if item_path.is_dir():
+                    project_info_path = item_path / "project_info.json"
+                    if project_info_path.exists():
+                        try:
+                            with open(project_info_path, 'r', encoding='utf-8') as f:
+                                data = json.load(f)
+                            
+                            project_seed = data.get("novel_info", {}).get("creative_seed", "")
+                            # normalize loaded project seed to dict
+                            project_seed = ensure_seed_dict(project_seed)
+                            project_title = data.get("novel_info", {}).get("title", "")
+                            progress = data.get("progress", {})
+                            
+                            # 如果提供了creative_seed，只匹配相关项目
+                            try:
+                                input_seed_norm = ensure_seed_dict(creative_seed) if creative_seed is not None else {}
+                            except Exception:
+                                input_seed_norm = {}
+                            
+                            if creative_seed and safe_seed not in item and input_seed_norm != project_seed:
+                                continue
+                            
+                            projects.append({
+                                "filename": item,  # 使用项目目录名作为标识
+                                "title": project_title,
+                                "seed": project_seed,
+                                "completed_chapters": progress.get("completed_chapters", 0),
+                                "total_chapters": progress.get("total_chapters", 0),
+                                "stage": progress.get("stage", "未知"),
+                                "timestamp": data.get("timestamp", ""),
+                                "path_type": "new"  # 标记为新路径
+                            })
+                        except Exception as e:
+                            self.logger.info(f"读取新路径项目文件 {item} 失败: {e}")
+        
+        # 2. 扫描旧路径结构（项目根目录下的 *_项目信息.json 文件）
+        for filename in os.listdir(base_dir):
             if filename.endswith("_项目信息.json"):
                 try:
-                    with open(f"小说项目/{filename}", 'r', encoding='utf-8') as f:
+                    old_file_path = base_dir / filename
+                    with open(old_file_path, 'r', encoding='utf-8') as f:
                         data = json.load(f)
+                    
                     project_seed = data.get("novel_info", {}).get("creative_seed", "")
                     # normalize loaded project seed to dict
                     project_seed = ensure_seed_dict(project_seed)
                     project_title = data.get("novel_info", {}).get("title", "")
                     progress = data.get("progress", {})
+                    
                     # 如果提供了creative_seed，只匹配相关项目
-                    # normalize input creative_seed for comparison
                     try:
                         input_seed_norm = ensure_seed_dict(creative_seed) if creative_seed is not None else {}
                     except Exception:
                         input_seed_norm = {}
+                    
                     if creative_seed and safe_seed not in filename and input_seed_norm != project_seed:
                         continue
-                    projects.append({
-                        "filename": filename,
-                        "title": project_title,
-                        "seed": project_seed,
-                        "completed_chapters": progress.get("completed_chapters", 0),
-                        "total_chapters": progress.get("total_chapters", 0),
-                        "stage": progress.get("stage", "未知"),
-                        "timestamp": data.get("timestamp", "")
-                    })
+                    
+                    # 检查是否已经在新的路径中存在（避免重复）
+                    project_dir_name = path_config.get_safe_title(project_title)
+                    already_exists = any(
+                        p.get("filename") == project_dir_name and p.get("path_type") == "new"
+                        for p in projects
+                    )
+                    
+                    if not already_exists:
+                        projects.append({
+                            "filename": filename,
+                            "title": project_title,
+                            "seed": project_seed,
+                            "completed_chapters": progress.get("completed_chapters", 0),
+                            "total_chapters": progress.get("total_chapters", 0),
+                            "stage": progress.get("stage", "未知"),
+                            "timestamp": data.get("timestamp", ""),
+                            "path_type": "legacy"  # 标记为旧路径
+                        })
                 except Exception as e:
-                    self.logger.info(f"读取项目文件 {filename} 失败: {e}")
+                    self.logger.info(f"读取旧路径项目文件 {filename} 失败: {e}")
+        
         # 按时间倒序排序
         projects.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
         return projects
-    def load_project(self, filename: str) -> Optional[Dict]:
-        """加载项目数据"""
+    def load_project(self, novel_title: str) -> Optional[Dict]:
+        """加载项目数据 - 使用统一路径配置系统"""
         try:
-            with open(f"小说项目/{filename}", 'r', encoding='utf-8') as f:
-                project_data = json.load(f)
+            # 使用统一路径管理器加载项目信息
+            project_data = path_manager.load_project_info(novel_title)
+            
+            # 如果新路径不存在，尝试从旧路径加载（向后兼容）
+            if project_data is None:
+                self.logger.info(f"⚠️ 新路径未找到项目，尝试从旧路径加载...")
+                safe_title = path_config.get_safe_title(novel_title)
+                old_path = f"小说项目/{safe_title}_项目信息.json"
+                if os.path.exists(old_path):
+                    with open(old_path, 'r', encoding='utf-8') as f:
+                        project_data = json.load(f)
+                    self.logger.info(f"✅ 从旧路径加载成功: {old_path}")
+                else:
+                    self.logger.info(f"❌ 未找到项目: {novel_title}")
+                    return None
+            
             # 构建完整的novel_data结构
             novel_data = {
                 # 基本信息
@@ -166,10 +239,11 @@ class ProjectManager:
                 }),
                 "quality_statistics": project_data.get("quality_statistics", {})
             }
-            # 加载章节具体内容
-            safe_title = re.sub(r'[\\/*?:"<>|]', "_", novel_data["novel_title"])
-            chapters_dir = f"小说项目/{safe_title}_章节"
-            if os.path.exists(chapters_dir):
+            # 加载章节具体内容 - 使用新的路径配置系统
+            paths = path_config.get_project_paths(novel_data["novel_title"])
+            chapters_dir = Path(paths["chapters_dir"])
+            
+            if chapters_dir.exists():
                 generated_chapters = {}
                 for chapter_file in os.listdir(chapters_dir):
                     if chapter_file.endswith('.txt'):
@@ -263,8 +337,7 @@ class ProjectManager:
         """保存项目整体进度"""
         # 防御式编程：如果 novel_title 缺失，使用默认值
         novel_title = novel_data.get("novel_title", "未定稿创意")
-        safe_title = re.sub(r'[\\/*?:"<>|]', "_", novel_title)
-        os.makedirs("小说项目/", exist_ok=True)
+        
         # 确保 creative_seed 被保存为 dict（防止字符串持久化）
         normalized_creative_seed = ensure_seed_dict(novel_data.get("creative_seed", {}))
         # 计算质量统计
@@ -285,6 +358,10 @@ class ProjectManager:
                 current_progress["completed_chapters"] = len(generated_chapters)
             if current_progress["stage"] == "未开始" or current_progress["stage"] == "大纲阶段":
                 current_progress["stage"] = "写作中"
+        
+        # 获取路径配置
+        paths = path_config.get_project_paths(novel_title)
+        
         # 构建完整的项目数据
         data = {
             "novel_info": {
@@ -292,7 +369,7 @@ class ProjectManager:
                 "synopsis": novel_data["novel_synopsis"],
                 "creative_seed": normalized_creative_seed,
                 "selected_plan": novel_data["selected_plan"],
-                "category": novel_data.get("category", "未分类") 
+                "category": novel_data.get("category", "未分类")
             },
             # 核心数据
             "market_analysis": novel_data.get("market_analysis", {}),
@@ -322,7 +399,7 @@ class ProjectManager:
             },
             "timestamp": datetime.now().isoformat(),
             "file_structure": {
-                "chapters_directory": f"{safe_title}_章节",
+                "chapters_directory": str(paths["chapters_dir"]),
                 "total_chapters": len(generated_chapters)
             },
             "category_info": {
@@ -331,11 +408,14 @@ class ProjectManager:
             }
         }
         try:
-            with open(f"小说项目/{safe_title}_项目信息.json", 'w', encoding='utf-8') as f:
-                json.dump(data, f, ensure_ascii=False, indent=2)
-            self.logger.info(f"✓ 项目进度已保存: 小说项目/{safe_title}_项目信息.json")
-            self.logger.info(f"  - 进度信息: {current_progress['completed_chapters']}/{current_progress['total_chapters']}章")
-            self.logger.info(f"  - 当前阶段: {current_progress['stage']}")
+            # 使用统一路径管理器保存项目信息
+            success = path_manager.save_project_info(novel_title, data)
+            if success:
+                self.logger.info(f"✓ 项目进度已保存: {paths['project_info']}")
+                self.logger.info(f"  - 进度信息: {current_progress['completed_chapters']}/{current_progress['total_chapters']}章")
+                self.logger.info(f"  - 当前阶段: {current_progress['stage']}")
+            else:
+                self.logger.info(f"❌ 保存项目信息文件失败")
         except Exception as e:
             self.logger.info(f"保存项目信息文件失败: {e}")
     def calculate_quality_statistics(self, novel_data: Dict) -> Dict:
@@ -459,10 +539,12 @@ class ProjectManager:
             }
         }
         try:
-            os.makedirs("小说项目", exist_ok=True)
-            with open(f"小说项目/{safe_title}_章节总览.json", 'w', encoding='utf-8') as f:
+            # 使用新的路径配置系统
+            paths = path_config.get_project_paths(novel_data["novel_title"])
+            
+            with open(paths["novel_overview"], 'w', encoding='utf-8') as f:
                 json.dump(overview_data, f, ensure_ascii=False, indent=2)
-            self.logger.info(f"章节总览已导出到: 小说项目/{safe_title}_章节总览.json")
+            self.logger.info(f"章节总览已导出到: {paths['novel_overview']}")
         except Exception as e:
             self.logger.info(f"导出章节总览失败: {e}")
     def save_element_timing_plan(self, novel_title: str, timing_plan: Dict):
@@ -524,15 +606,17 @@ class ProjectManager:
             return {}    
     def get_actual_chapter_files(self, novel_title: str) -> Dict:
         """获取实际的章节文件信息"""
-        safe_title = re.sub(r'[\\/*?:"<>|]', "_", novel_title)
-        chapters_dir = f"小说项目/{safe_title}_章节"
+        # 使用新的路径配置系统
+        paths = path_config.get_project_paths(novel_title)
+        chapters_dir = Path(paths["chapters_dir"])
+        
         result = {
             "total_files": 0,
             "existing_chapters": [],
             "missing_chapters": [],
             "chapter_files": {}
         }
-        if not os.path.exists(chapters_dir):
+        if not chapters_dir.exists():
             return result
         # 收集所有章节文件
         existing_chapters = set()

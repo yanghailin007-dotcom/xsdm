@@ -1370,7 +1370,13 @@ class NovelGenerator:
         import re
         safe_title = re.sub(r'[\\/*?:"<>|]', "_", self.novel_data["novel_title"])
         import os
-        os.makedirs(f"小说项目/{safe_title}_章节", exist_ok=True)
+        
+        # 使用新的路径配置系统
+        from src.config.path_config import path_config
+        paths = path_config.ensure_directories(self.novel_data["novel_title"])
+        
+        print(f"✅ 项目目录已创建: {paths['project_root']}")
+        print(f"📁 章节目录: {paths['chapters_dir']}")
         
         self.project_manager.save_project_progress(self.novel_data)
         print("✅ 项目初始进度已保存")
@@ -1641,12 +1647,14 @@ class NovelGenerator:
             # 保存第一阶段结果 (95-100%)
             update_progress_callback('validation', 98, "正在保存第一阶段结果...")
             try:
-                self._save_phase_one_result()
+                save_success = self._save_phase_one_result()
+                if not save_success:
+                    print("⚠️ 项目信息文件保存失败，但第一阶段核心内容已完成")
+                    # 不返回False，让第一阶段继续完成
             except Exception as save_error:
-                error_msg = f"保存第一阶段结果失败: {str(save_error)}"
-                print(f"❌ {error_msg}")
-                notify_failure(error_msg)
-                return False
+                print(f"⚠️ 保存第一阶段结果时出现警告: {str(save_error)}")
+                print("⚠️ 项目信息文件保存失败，但第一阶段核心内容已完成")
+                # 不返回False，让第一阶段继续完成
             update_progress_callback('completed', 100, "第一阶段设定生成完成")
             
             print("\n🎉 第一阶段设定生成完成！")
@@ -1668,9 +1676,33 @@ class NovelGenerator:
             import re
             safe_title = re.sub(r'[\\/*?:"<>|]', "_", self.novel_data["novel_title"])
             
+            print(f"🔧 原始标题: {self.novel_data['novel_title']}")
+            print(f"🔧 安全标题: {safe_title}")
+            
+            # 详细检查novel_data的内容
+            print(f"🔍 novel_data检查:")
+            print(f"  - novel_title存在: {'novel_title' in self.novel_data}")
+            print(f"  - novel_synopsis存在: {'novel_synopsis' in self.novel_data}")
+            print(f"  - category存在: {'category' in self.novel_data}")
+            print(f"  - current_progress存在: {'current_progress' in self.novel_data}")
+            print(f"  - creative_seed存在: {'creative_seed' in self.novel_data}")
+            print(f"  - selected_plan存在: {'selected_plan' in self.novel_data}")
+            
+            # 检查novel_data是否为空或缺少关键字段
+            missing_fields = []
+            required_fields = ['novel_title', 'novel_synopsis', 'category', 'current_progress']
+            for field in required_fields:
+                if field not in self.novel_data or not self.novel_data[field]:
+                    missing_fields.append(field)
+            
+            if missing_fields:
+                print(f"❌ 缺少必需字段: {missing_fields}")
+                return False
+            
             # 创建第一阶段目录
             phase_one_dir = f"小说项目/{safe_title}_第一阶段设定"
             os.makedirs(phase_one_dir, exist_ok=True)
+            print(f"📁 第一阶段目录: {phase_one_dir}")
             
             # 构建第一阶段结果数据
             phase_one_result = {
@@ -1695,25 +1727,58 @@ class NovelGenerator:
             
             # 保存第一阶段结果文件
             phase_one_file = f"{phase_one_dir}/{safe_title}_第一阶段设定.json"
-            with open(phase_one_file, 'w', encoding='utf-8') as f:
-                json.dump(phase_one_result, f, ensure_ascii=False, indent=2)
+            print(f"💾 准备保存第一阶段结果文件: {phase_one_file}")
             
-            print(f"✅ 第一阶段结果已保存: {phase_one_file}")
+            try:
+                with open(phase_one_file, 'w', encoding='utf-8') as f:
+                    json.dump(phase_one_result, f, ensure_ascii=False, indent=2)
+                
+                # 验证文件是否成功保存
+                if os.path.exists(phase_one_file):
+                    file_size = os.path.getsize(phase_one_file)
+                    print(f"✅ 第一阶段结果已保存: {phase_one_file} (大小: {file_size} 字节)")
+                else:
+                    print(f"❌ 第一阶段结果文件保存失败: {phase_one_file}")
+                    return False
+                    
+            except Exception as file_error:
+                print(f"❌ 保存第一阶段结果文件失败: {file_error}")
+                return False
             
             # 同时保存为主项目信息文件
             main_project_file = f"小说项目/{safe_title}_项目信息.json"
+            print(f"💾 准备保存主项目信息文件: {main_project_file}")
+            
             project_info = {
                 **phase_one_result,
                 "phase_one_file": phase_one_file,
                 "created_at": datetime.now().isoformat()
             }
-            with open(main_project_file, 'w', encoding='utf-8') as f:
-                json.dump(project_info, f, ensure_ascii=False, indent=2)
+            
+            try:
+                with open(main_project_file, 'w', encoding='utf-8') as f:
+                    json.dump(project_info, f, ensure_ascii=False, indent=2)
                 
-            print(f"✅ 项目信息已保存: {main_project_file}")
+                # 验证文件是否成功保存
+                if os.path.exists(main_project_file):
+                    file_size = os.path.getsize(main_project_file)
+                    print(f"✅ 项目信息已保存: {main_project_file} (大小: {file_size} 字节)")
+                else:
+                    print(f"❌ 主项目信息文件保存失败: {main_project_file}")
+                    return False
+                    
+            except Exception as file_error:
+                print(f"❌ 保存主项目信息文件失败: {file_error}")
+                return False
+                
+            print(f"🎉 第一阶段结果保存完成！")
+            return True
             
         except Exception as e:
             print(f"❌ 保存第一阶段结果失败: {e}")
+            import traceback
+            traceback.print_exc()
+            return False
 
     def phase_two_generation(self, phase_one_result_file: str, from_chapter: int = 1, chapters_to_generate: Optional[int] = None) -> bool:
         """
