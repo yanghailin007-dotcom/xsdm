@@ -1898,6 +1898,17 @@ class NovelGenerator:
             products_dir = f"{phase_one_dir}/产物"
             products_mapping = {}
             
+            # 首先读取第一阶段索引文件获取基础信息
+            phase_one_index_file = f"{phase_one_dir}/{safe_title}_第一阶段索引.json"
+            phase_one_index = {}
+            
+            if os.path.exists(phase_one_index_file):
+                with open(phase_one_index_file, 'r', encoding='utf-8') as f:
+                    phase_one_index = json.load(f)
+                print(f"✅ 已加载第一阶段索引文件")
+            else:
+                print(f"⚠️ 第一阶段索引文件不存在: {phase_one_index_file}")
+            
             # 读取各个产物文件
             product_files = {
                 "market_analysis": f"{products_dir}/{safe_title}_市场分析.json",
@@ -1919,14 +1930,17 @@ class NovelGenerator:
                 else:
                     print(f"⚠️ 产物文件不存在: {product_name}")
             
-            # 构建小说数据
+            # 从索引文件获取基础信息，如果索引文件不存在则使用默认值
+            total_chapters = phase_one_index.get("total_chapters", 200)
+            
+            # 构建小说数据 - 使用索引文件的基础信息
             self.novel_data = {
-                "novel_title": self._get_from_mapping(products_mapping, "market_analysis", "novel_title", "未命名小说"),
-                "novel_synopsis": self._get_from_mapping(products_mapping, "market_analysis", "synopsis", ""),
-                "category": self._get_from_mapping(products_mapping, "selected_plan", "category", "未分类"),
-                "total_chapters": self._get_from_mapping(products_mapping, "overall_stage_plans", "total_chapters", 200),
-                "creative_seed": self._get_from_mapping(products_mapping, "selected_plan", "creative_seed", {}),
-                "selected_plan": self._get_from_mapping(products_mapping, "selected_plan", "selected_plan", {}),
+                "novel_title": phase_one_index.get("novel_title", safe_title),
+                "novel_synopsis": phase_one_index.get("novel_synopsis", ""),
+                "category": phase_one_index.get("category", "未分类"),
+                "total_chapters": total_chapters,
+                "creative_seed": phase_one_index.get("creative_seed", {}),
+                "selected_plan": phase_one_index.get("selected_plan", {}),
                 "writing_style_guide": products_mapping.get("writing_style_guide", {}),
                 "market_analysis": products_mapping.get("market_analysis", {}),
                 "core_worldview": products_mapping.get("core_worldview", {}),
@@ -1938,7 +1952,7 @@ class NovelGenerator:
                 "emotional_blueprint": products_mapping.get("emotional_blueprint", {}),
                 "current_progress": {
                     "completed_chapters": 0,
-                    "total_chapters": self._get_from_mapping(products_mapping, "overall_stage_plans", "total_chapters", 200),
+                    "total_chapters": total_chapters,
                     "stage": "第二阶段章节生成",
                     "current_stage": "第二阶段",
                     "current_batch": 0,
@@ -1953,6 +1967,14 @@ class NovelGenerator:
                 "is_resuming": False,
                 "resume_data": None
             }
+            
+            # 打印加载的基础信息用于调试
+            print(f"📚 小说标题: {self.novel_data['novel_title']}")
+            print(f"📝 简介: {self.novel_data['novel_synopsis'][:100] if self.novel_data['novel_synopsis'] else '无'}...")
+            print(f"🏷️ 分类: {self.novel_data['category']}")
+            print(f"📊 总章节数: {self.novel_data['total_chapters']}")
+            print(f"🌍 世界观: {'已加载' if self.novel_data.get('core_worldview') else '未加载'}")
+            print(f"👥 角色设计: {'已加载' if self.novel_data.get('character_design') else '未加载'}")
             
             # 确定要生成的章节数
             total_chapters = self.novel_data["current_progress"]["total_chapters"]
@@ -2114,22 +2136,3 @@ class NovelGenerator:
             return data.get(sub_key, default)
         
         return default
-            
-            # 重新初始化材料管理器
-            self._initialize_material_manager()
-            
-            # 确定要生成的章节数
-            total_chapters = phase_one_result["total_chapters"]
-            if chapters_to_generate:
-                total_chapters = min(from_chapter + chapters_to_generate - 1, total_chapters)
-            
-            print(f"📚 从第{from_chapter}章生成到第{total_chapters}章")
-            
-            # 执行章节生成
-            return self._generate_all_chapters(total_chapters)
-            
-        except Exception as e:
-            print(f"❌ 第二阶段生成失败: {e}")
-            import traceback
-            traceback.print_exc()
-            return False
