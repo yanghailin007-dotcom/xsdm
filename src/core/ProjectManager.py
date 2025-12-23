@@ -82,9 +82,9 @@ class ProjectManager:
             return False
     # ^^^ 以上是新添加的方法 ^^^
     def find_existing_projects(self, creative_seed: Optional[str] = None) -> List[Dict]:
-        """查找现有项目 - 支持新旧路径结构"""
+        """查找现有项目 - 使用绝对路径"""
         projects = []
-        base_dir = Path("小说项目")
+        base_dir = Path("D:/work6.05/小说项目")
         
         if not base_dir.exists():
             return projects
@@ -197,7 +197,7 @@ class ProjectManager:
             if project_data is None:
                 self.logger.info(f"⚠️ 新路径未找到项目，尝试从旧路径加载...")
                 safe_title = path_config.get_safe_title(novel_title)
-                old_path = f"小说项目/{safe_title}_项目信息.json"
+                old_path = f"D:/work6.05/小说项目/{safe_title}_项目信息.json"
                 if os.path.exists(old_path):
                     with open(old_path, 'r', encoding='utf-8') as f:
                         project_data = json.load(f)
@@ -551,7 +551,7 @@ class ProjectManager:
         """保存元素登场时机规划"""
         try:
             safe_title = re.sub(r'[\\/*?:"<>|]', "_", novel_title)
-            file_path = f"小说项目/{safe_title}_元素登场时机.json"
+            file_path = f"D:/work6.05/小说项目/{safe_title}_元素登场时机.json"
             # 确保目录存在
             os.makedirs("小说项目/", exist_ok=True)
             with open(file_path, 'w', encoding='utf-8') as f:
@@ -579,7 +579,7 @@ class ProjectManager:
         """保存章节元素引入计划"""
         try:
             safe_title = re.sub(r'[\\/*?:"<>|]', "_", novel_title)
-            file_path = f"小说项目/{safe_title}_元素引入计划.json"
+            file_path = f"D:/work6.05/小说项目/{safe_title}_元素引入计划.json"
             # 加载现有计划或创建新的
             existing_schedule = self.load_element_introduction_schedule(novel_title)
             # 更新指定章节范围的计划
@@ -607,6 +607,7 @@ class ProjectManager:
     def get_actual_chapter_files(self, novel_title: str) -> Dict:
         """获取实际的章节文件信息"""
         # 使用新的路径配置系统
+        # path_config 已经使用绝对路径，不需要再次转换
         paths = path_config.get_project_paths(novel_title)
         chapters_dir = Path(paths["chapters_dir"])
         

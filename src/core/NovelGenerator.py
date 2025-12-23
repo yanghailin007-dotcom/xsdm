@@ -1671,9 +1671,11 @@ class NovelGenerator:
             return False
 
     def _save_phase_one_result(self):
-        """保存第一阶段结果到单独的文件"""
+        """保存第一阶段结果到统一路径配置系统"""
         try:
             import re
+            from src.config.path_config import path_config
+            
             safe_title = re.sub(r'[\\/*?:"<>|]', "_", self.novel_data["novel_title"])
             
             print(f"🔧 原始标题: {self.novel_data['novel_title']}")
@@ -1699,42 +1701,53 @@ class NovelGenerator:
                 print(f"❌ 缺少必需字段: {missing_fields}")
                 return False
             
-            # 创建第一阶段目录结构
+            # 使用统一路径配置系统创建目录结构
+            paths = path_config.ensure_directories(self.novel_data["novel_title"])
+            print(f"✅ 项目目录已创建: {paths['project_root']}")
+            print(f"📁 角色目录: {paths['characters_dir']}")
+            print(f"📁 规划目录: {paths['planning_dir']}")
+            print(f"📁 世界观目录: {paths['worldview_dir']}")
+            
+            # 创建第一阶段目录结构（用于兼容性）
             phase_one_dir = f"小说项目/{safe_title}_第一阶段设定"
-            os.makedirs(phase_dir, exist_ok=True)
+            os.makedirs(phase_one_dir, exist_ok=True)
             print(f"📁 第一阶段目录: {phase_one_dir}")
             
-            # 创建产物子目录
+            # 创建产物子目录（用于兼容性）
             products_dir = f"{phase_one_dir}/产物"
             os.makedirs(products_dir, exist_ok=True)
             print(f"📁 产物目录: {products_dir}")
             
-            # 保存各个产物为单独文件
+            # 保存各个产物到统一路径配置系统
             products_mapping = {}  # 记录产物文件路径
             
-            # 1. 市场分析
+            # 1. 市场分析 - 保存到新路径
             if "market_analysis" in self.novel_data and self.novel_data["market_analysis"]:
-                market_file = f"{products_dir}/{safe_title}_市场分析.json"
+                market_file = paths["market_analysis"]
+                os.makedirs(os.path.dirname(market_file), exist_ok=True)
                 with open(market_file, 'w', encoding='utf-8') as f:
                     json.dump(self.novel_data["market_analysis"], f, ensure_ascii=False, indent=2)
                 products_mapping["market_analysis"] = market_file
-                print(f"✅ 市场分析已保存: {market_file}")
+                print(f"✅ 市场分析已保存到新路径: {market_file}")
             
-            # 2. 世界观设定
+            # 2. 世界观设定 - 保存到新路径
             if "core_worldview" in self.novel_data and self.novel_data["core_worldview"]:
-                worldview_file = f"{products_dir}/{safe_title}_世界观设定.json"
+                worldview_dir = paths["worldview_dir"]
+                os.makedirs(worldview_dir, exist_ok=True)
+                worldview_file = os.path.join(worldview_dir, f"{safe_title}_世界观.json")
                 with open(worldview_file, 'w', encoding='utf-8') as f:
                     json.dump(self.novel_data["core_worldview"], f, ensure_ascii=False, indent=2)
                 products_mapping["core_worldview"] = worldview_file
-                print(f"✅ 世界观设定已保存: {worldview_file}")
+                print(f"✅ 世界观设定已保存到新路径: {worldview_file}")
             
-            # 3. 角色设计
+            # 3. 角色设计 - 保存到新路径（修复：使用 path_config 定义的路径）
             if "character_design" in self.novel_data and self.novel_data["character_design"]:
-                character_file = f"{products_dir}/{safe_title}_角色设计.json"
+                character_file = paths["character_design_file"]
+                os.makedirs(os.path.dirname(character_file), exist_ok=True)
                 with open(character_file, 'w', encoding='utf-8') as f:
                     json.dump(self.novel_data["character_design"], f, ensure_ascii=False, indent=2)
                 products_mapping["character_design"] = character_file
-                print(f"✅ 角色设计已保存: {character_file}")
+                print(f"✅ 角色设计已保存到新路径: {character_file}")
             
             # 4. 成长路线
             if "global_growth_plan" in self.novel_data and self.novel_data["global_growth_plan"]:

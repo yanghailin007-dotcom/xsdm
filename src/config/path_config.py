@@ -17,15 +17,14 @@ class NovelPathConfig:
         self.templates_dir = Path("templates")
         
     def get_safe_title(self, title: str) -> str:
-        """生成安全的文件名"""
+        """生成安全的文件名 - 保留文件系统支持的字符（包括冒号）"""
         if not title:
             return "未命名小说"
         
-        # 移除文件系统不支持的字符
+        # 只移除文件系统真正不支持的字符：\ / * ? " < > |
         safe_title = re.sub(r'[\\/*?:"<>|]', "_", str(title))
-        # 限制长度并处理空格
-        safe_title = "".join(c for c in safe_title if c.isalnum() or c in (' ', '-', '_', ':', '：', '（', '）', '(', ')', '[', ']')).rstrip()
-        safe_title = safe_title.replace(' ', '_')
+        # 保留所有其他字符，包括冒号
+        
         return safe_title
     
     def get_project_paths(self, novel_title: str) -> Dict[str, str]:
@@ -33,12 +32,15 @@ class NovelPathConfig:
         safe_title = self.get_safe_title(novel_title)
         project_dir = self.base_dir / safe_title
         
+        materials_dir = project_dir / "materials"
+        market_analysis_dir = materials_dir / "market_analysis"
+        
         return {
             # 项目根目录
             "project_root": str(project_dir),
             
             # 核心数据目录
-            "project_info": str(project_dir / "project_info.json"),
+            "project_info": str(project_dir / "project_info"),
             "novel_overview": str(project_dir / "novel_overview.json"),
             "writing_style_guide": str(project_dir / f"{safe_title}_writing_style_guide.json"),
             
@@ -57,13 +59,14 @@ class NovelPathConfig:
             "element_schedule": str(project_dir / "planning" / "element_schedule.json"),
             "element_introduction": str(project_dir / "planning" / "element_introduction.json"),
             
-            # 材料目录
-            "materials_dir": str(project_dir / "materials"),
-            "worldview_dir": str(project_dir / "materials" / "worldview"),
-            "characters_dir": str(project_dir / "materials" / "characters"),
-            "market_analysis": str(project_dir / "materials" / "market_analysis.json"),
-            "creative_brief": str(project_dir / "materials" / "creative_brief.json"),
-            "ai_refined_brief": str(project_dir / "materials" / "ai_refined_brief.txt"),
+            # 材料目录（包括角色设计）
+            "materials_dir": str(materials_dir),
+            "worldview_dir": str(materials_dir / "worldview"),
+            "characters_dir": str(project_dir / "characters"),
+            "character_design_file": str(project_dir / "characters" / f"{safe_title}_角色设计.json"),
+            "market_analysis": str(market_analysis_dir / "market_analysis.json"),
+            "creative_brief": str(materials_dir / "creative_brief.json"),
+            "ai_refined_brief": str(materials_dir / "ai_refined_brief.txt"),
             
             # 生成内容目录
             "generated_content_dir": str(project_dir / "generated_content"),
@@ -122,6 +125,7 @@ class NovelPathConfig:
             paths["materials_dir"],
             paths["worldview_dir"],
             paths["characters_dir"],
+            paths["market_analysis_dir"],  # 使用定义的 market_analysis_dir
             paths["generated_content_dir"],
             paths["quality_reports_dir"],
             paths["exports_dir"],
@@ -148,7 +152,7 @@ class NovelPathConfig:
         return str(chapters_dir / f"第{chapter_number:03d}章_{safe_chapter_title}.json")
     
     def get_stage_plan_path(self, novel_title: str, stage_name: str) -> str:
-        """获取阶段计划文件路径"""
+        """获取阶段写作计划文件路径"""
         paths = self.get_project_paths(novel_title)
         safe_title = self.get_safe_title(novel_title)
         writing_plans_dir = Path(paths["writing_plans_dir"])
@@ -173,6 +177,8 @@ class NovelPathConfig:
         
         if data_type == "character_development":
             return paths["character_development"]
+        elif data_type == "character_design":
+            return paths["character_design_file"]
         elif data_type == "world_state":
             return paths["world_state"]
         elif data_type == "events":
@@ -203,7 +209,7 @@ class NovelPathConfig:
         if material_type == "worldview":
             return str(Path(paths["worldview_dir"]) / f"{safe_title}_世界观_{timestamp}.json")
         elif material_type == "characters":
-            return str(Path(paths["characters_dir"]) / f"{safe_title}_角色设计_{timestamp}.json")
+            return paths["character_design_file"]
         elif material_type == "market_analysis":
             return paths["market_analysis"]
         elif material_type == "creative_brief":
@@ -407,25 +413,19 @@ class NovelPathConfig:
 - 项目信息: {paths['project_info']}
 - 小说总览: {paths['novel_overview']}
 - 写作风格指南: {paths['writing_style_guide']}
+- 角色设计: {paths['character_design_file']}
 
 ### 内容目录
 - 章节目录: {paths['chapters_dir']}
-- 章节备份: {paths['chapters_backup_dir']}
-- 生成内容: {paths['generated_content_dir']}
-- 创意简报: {paths['creative_brief']}
+- 规划目录: {paths['planning_dir']}
+- 材料目录: {paths['materials_dir']}
+- 角色目录: {paths['characters_dir']}
+- 市场分析: {paths['market_analysis']}
 
 ### 规划目录
-- 规划根目录: {paths['planning_dir']}
 - 阶段计划: {paths['stage_plans_dir']}
 - 写作计划: {paths['writing_plans_dir']}
 - 元素时机: {paths['element_timing']}
-- 元素调度: {paths['element_schedule']}
-
-### 材料目录
-- 材料根目录: {paths['materials_dir']}
-- 世界观: {paths['worldview_dir']}
-- 角色设定: {paths['characters_dir']}
-- 市场分析: {paths['market_analysis']}
 
 ### 质量和管理
 - 质量报告: {paths['quality_reports_dir']}
@@ -433,7 +433,6 @@ class NovelPathConfig:
 - 导出目录: {paths['exports_dir']}
 - 备份目录: {paths['backup_dir']}
 - 日志目录: {paths['logs_dir']}
-- 临时目录: {paths['temp_dir']}
 """
         
         return summary

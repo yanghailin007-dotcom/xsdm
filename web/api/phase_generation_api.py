@@ -309,70 +309,74 @@ def start_phase_two_generation():
                 "error": "缺少novel_title参数"
             }), 400
         
-        # 检查第一阶段是否完成 - 支持新旧两种路径结构
+        # 检查第一阶段是否完成 - 支持多种路径结构
         safe_title = re.sub(r'[\\/*?:"<>|]', "_", novel_title)
-        phase_one_dir = f"小说项目/{safe_title}_第一阶段设定"
-        phase_one_file = f"{phase_one_dir}/{safe_title}_第一阶段设定.json"
         
-        # 新的项目结构路径
-        project_dir = f"小说项目/{safe_title}"
-        project_info_path = f"{project_dir}/project_info"
+        # 尝试多种可能的路径
+        possible_paths = [
+            # 最常见的旧路径
+            f"小说项目/{safe_title}_第一阶段设定/{safe_title}_第一阶段设定.json",
+            # 新的混合路径（项目名在中间）
+            f"小说项目/{safe_title}/{safe_title}_第一阶段设定/{safe_title}_第一阶段设定.json",
+            # 新项目结构路径
+            f"小说项目/{safe_title}/project_info"
+        ]
         
         logger.info(f"🔍 [API_DEBUG] 检查第一阶段结果...")
-        logger.info(f"🔍 [API_DEBUG] 旧路径: {phase_one_file}")
-        logger.info(f"🔍 [API_DEBUG] 新路径: {project_info_path}")
+        for path in possible_paths:
+            logger.info(f"🔍 [API_DEBUG] 检查路径: {path}")
         
         phase_one_result = None
         phase_one_source = ""
+        actual_phase_one_file = None
         
-        # 优先从旧路径读取
-        if os.path.exists(phase_one_file):
-            logger.info(f"✅ [API_DEBUG] 从旧路径找到第一阶段结果")
-            with open(phase_one_file, 'r', encoding='utf-8') as f:
-                phase_one_result = json.load(f)
-            phase_one_source = "旧路径"
-        
-        # 如果旧路径不存在，尝试从新路径读取
-        elif os.path.exists(project_info_path):
-            logger.info(f"✅ [API_DEBUG] 从新路径project_info读取")
-            project_info_files = [f for f in os.listdir(project_info_path) if f.endswith('.json')]
-            
-            for info_file in project_info_files:
-                try:
-                    with open(f"{project_info_path}/{info_file}", 'r', encoding='utf-8') as f:
-                        project_data = json.load(f)
+        # 遍历所有可能的路径
+        for phase_one_file in possible_paths:
+            if os.path.exists(phase_one_file):
+                logger.info(f"✅ [API_DEBUG] 找到第一阶段结果: {phase_one_file}")
+                
+                # 如果是目录，继续查找JSON文件
+                if os.path.isdir(phase_one_file):
+                    logger.info(f"🔍 [API_DEBUG] 是目录，继续查找JSON文件")
+                    project_info_files = [f for f in os.listdir(phase_one_file) if f.endswith('.json')]
+                    for info_file in project_info_files:
+                        try:
+                            file_path = f"{phase_one_file}/{info_file}"
+                            with open(file_path, 'r', encoding='utf-8') as f:
+                                project_data = json.load(f)
+                            
+                            # 检查是否有核心设定数据
+                            has_core_data = any(key in project_data for key in [
+                                'core_worldview', 'character_design', 'global_growth_plan',
+                                'overall_stage_plans', 'stage_writing_plans', 'market_analysis'
+                            ])
+                            
+                            if has_core_data:
+                                phase_one_result = project_data
+                                phase_one_source = f"目录路径: {phase_one_file}"
+                                actual_phase_one_file = f"{phase_one_file}/{info_file}"
+                                logger.info(f"✅ [API_DEBUG] 从目录加载成功")
+                                break
+                        except Exception as e:
+                            logger.info(f"⚠️ 读取文件失败: {info_file}, {e}")
+                            continue
                     
-                    # 检查是否有核心设定数据（说明第一阶段已完成）
-                    has_core_data = any(key in project_data for key in [
-                        'core_worldview', 'character_design', 'global_growth_plan',
-                        'overall_stage_plans', 'stage_writing_plans', 'market_analysis'
-                    ])
-                    
-                    if has_core_data:
-                        # 构造兼容的第一阶段结果结构
-                        phase_one_result = {
-                            'is_phase_one_completed': True,
-                            'result': {
-                                'novel_data_summary': project_data
-                            },
-                            'title': novel_title,
-                            'synopsis': project_data.get('novel_info', {}).get('synopsis', ''),
-                            'core_setting': project_data.get('novel_info', {}).get('creative_seed', {}).get('coreSetting', ''),
-                            'source': '新项目结构'
-                        }
-                        phase_one_source = "新路径"
-                        logger.info(f"✅ [API_DEBUG] 从新路径成功加载第一阶段数据")
+                    if phase_one_result:
                         break
-                except Exception as e:
-                    logger.info(f"⚠️ [API_DEBUG] 读取项目信息文件失败: {info_file}, {e}")
-                    continue
+                else:
+                    # 是文件，直接读取
+                    with open(phase_one_file, 'r', encoding='utf-8') as f:
+                        phase_one_result = json.load(f)
+                    phase_one_source = "文件路径"
+                    actual_phase_one_file = phase_one_file
+                
         
-        # 如果两种路径都没找到
+        # 如果所有路径都没找到
         if not phase_one_result:
             logger.error(f"❌ [API_DEBUG] 未找到第一阶段结果")
             logger.error(f"❌ [API_DEBUG] 检查的路径:")
-            logger.error(f"   - 旧路径: {phase_one_file}")
-            logger.error(f"   - 新路径: {project_info_path}")
+            for path in possible_paths:
+                logger.error(f"   - {path}")
             return jsonify({
                 "success": False,
                 "error": f"未找到第一阶段结果: {novel_title}。请确保已完成第一阶段设定生成。"
@@ -935,6 +939,7 @@ def get_phase_one_products(title):
     try:
         safe_title = re.sub(r'[\\/*?:"<>|]', "_", title)
         phase_one_dir = f"小说项目/{safe_title}_第一阶段设定"
+        phase_one_file = f"{phase_one_dir}/{safe_title}_第一阶段设定.json"
         products_dir = f"{phase_one_dir}/产物"
         phase_one_index_file = f"{phase_one_dir}/{safe_title}_第一阶段索引.json"
         
@@ -997,9 +1002,81 @@ def get_phase_one_products(title):
                 else:
                     logger.info(f"⚠️ 产物文件不存在(旧格式): {category}")
         
-        # 尝试从新的项目结构读取
-        elif os.path.exists(project_info_path):
+        elif os.path.exists(phase_one_file):
+            # 直接从第一阶段设定文件读取（最常用的格式）
+            logger.info(f"📁 从第一阶段设定文件读取产物: {phase_one_file}")
+            try:
+                with open(phase_one_file, 'r', encoding='utf-8') as f:
+                    phase_one_data = json.load(f)
+                
+                # 优先从顶层提取数据（新格式），如果没有则从嵌套结构提取（旧格式）
+                novel_data_summary = phase_one_data.get('result', {}).get('novel_data_summary', {})
+                
+                # 提取世界观
+                worldview_data = phase_one_data.get('core_worldview') or novel_data_summary.get('core_worldview', {})
+                if worldview_data:
+                    products['worldview']['content'] = json.dumps(worldview_data, ensure_ascii=False, indent=2)
+                    products['worldview']['complete'] = True
+                    products['worldview']['file_path'] = phase_one_file
+                
+                # 提取角色设计
+                character_data = phase_one_data.get('character_design') or novel_data_summary.get('character_design', {})
+                if character_data:
+                    products['characters']['content'] = json.dumps(character_data, ensure_ascii=False, indent=2)
+                    products['characters']['complete'] = True
+                    products['characters']['file_path'] = phase_one_file
+                
+                # 提取成长路线
+                growth_data = phase_one_data.get('global_growth_plan') or novel_data_summary.get('global_growth_plan', {})
+                if growth_data:
+                    products['growth']['content'] = json.dumps(growth_data, ensure_ascii=False, indent=2)
+                    products['growth']['complete'] = True
+                    products['growth']['file_path'] = phase_one_file
+                
+                # 提取写作计划
+                writing_data = phase_one_data.get('stage_writing_plans') or novel_data_summary.get('stage_writing_plans', {})
+                if writing_data:
+                    products['writing']['content'] = json.dumps(writing_data, ensure_ascii=False, indent=2)
+                    products['writing']['complete'] = True
+                    products['writing']['file_path'] = phase_one_file
+                
+                # 提取故事线
+                storyline_data = phase_one_data.get('overall_stage_plans') or novel_data_summary.get('overall_stage_plans', {})
+                if storyline_data:
+                    products['storyline']['content'] = json.dumps(storyline_data, ensure_ascii=False, indent=2)
+                    products['storyline']['complete'] = True
+                    products['storyline']['file_path'] = phase_one_file
+                
+                # 提取市场分析
+                market_data = phase_one_data.get('market_analysis') or novel_data_summary.get('market_analysis', {})
+                if market_data:
+                    products['market']['content'] = json.dumps(market_data, ensure_ascii=False, indent=2)
+                    products['market']['complete'] = True
+                    products['market']['file_path'] = phase_one_file
+                
+                logger.info(f"✅ 从第一阶段设定文件加载产物完成")
+            except Exception as e:
+                logger.error(f"❌ 读取第一阶段设定文件失败: {e}")
+        
+        # 尝试从新的项目结构读取 - 添加对 characters/ 目录的支持
+        elif os.path.exists(project_info_path) or os.path.exists(f"{project_dir}/characters"):
             logger.info(f"📁 从新项目结构读取第一阶段产物: {project_info_path}")
+            
+            # 首先检查 characters 目录（角色设计的标准路径）
+            characters_dir = f"{project_dir}/characters"
+            if os.path.exists(characters_dir):
+                character_files = [f for f in os.listdir(characters_dir) if f.endswith('.json')]
+                for cf in character_files:
+                    try:
+                        with open(f"{characters_dir}/{cf}", 'r', encoding='utf-8') as f:
+                            character_data = json.load(f)
+                        products['characters']['content'] = json.dumps(character_data, ensure_ascii=False, indent=2)
+                        products['characters']['complete'] = True
+                        products['characters']['file_path'] = f"{characters_dir}/{cf}"
+                        logger.info(f"✅ 从characters目录加载角色设计数据")
+                        break
+                    except Exception as e:
+                        logger.info(f"⚠️ 读取角色设计文件失败: {cf}, {e}")
             
             # 尝试从project_info读取项目信息
             project_info_files = os.listdir(project_info_path) if os.path.exists(project_info_path) else []
@@ -1009,39 +1086,45 @@ def get_phase_one_products(title):
                         with open(f"{project_info_path}/{info_file}", 'r', encoding='utf-8') as f:
                             project_data = json.load(f)
                         
-                        # 提取世界观
-                        if 'core_worldview' in project_data:
-                            products['worldview']['content'] = json.dumps(project_data['core_worldview'], ensure_ascii=False, indent=2)
+                        # 提取世界观 - 支持顶层和嵌套两种格式
+                        worldview_data = project_data.get('core_worldview') or project_data.get('result', {}).get('novel_data_summary', {}).get('core_worldview', {})
+                        if worldview_data:
+                            products['worldview']['content'] = json.dumps(worldview_data, ensure_ascii=False, indent=2)
                             products['worldview']['complete'] = True
                             products['worldview']['file_path'] = f"{project_info_path}/{info_file}"
                         
-                        # 提取角色设计
-                        if 'character_design' in project_data:
-                            products['characters']['content'] = json.dumps(project_data['character_design'], ensure_ascii=False, indent=2)
+                        # 提取角色设计 - 支持顶层和嵌套两种格式
+                        character_data = project_data.get('character_design') or project_data.get('result', {}).get('novel_data_summary', {}).get('character_design', {})
+                        if character_data:
+                            products['characters']['content'] = json.dumps(character_data, ensure_ascii=False, indent=2)
                             products['characters']['complete'] = True
                             products['characters']['file_path'] = f"{project_info_path}/{info_file}"
                         
-                        # 提取市场分析
-                        if 'market_analysis' in project_data:
-                            products['market']['content'] = json.dumps(project_data['market_analysis'], ensure_ascii=False, indent=2)
+                        # 提取市场分析 - 支持顶层和嵌套两种格式
+                        market_data = project_data.get('market_analysis') or project_data.get('result', {}).get('novel_data_summary', {}).get('market_analysis', {})
+                        if market_data:
+                            products['market']['content'] = json.dumps(market_data, ensure_ascii=False, indent=2)
                             products['market']['complete'] = True
                             products['market']['file_path'] = f"{project_info_path}/{info_file}"
                         
-                        # 提取成长路线
-                        if 'global_growth_plan' in project_data:
-                            products['growth']['content'] = json.dumps(project_data['global_growth_plan'], ensure_ascii=False, indent=2)
+                        # 提取成长路线 - 支持顶层和嵌套两种格式
+                        growth_data = project_data.get('global_growth_plan') or project_data.get('result', {}).get('novel_data_summary', {}).get('global_growth_plan', {})
+                        if growth_data:
+                            products['growth']['content'] = json.dumps(growth_data, ensure_ascii=False, indent=2)
                             products['growth']['complete'] = True
                             products['growth']['file_path'] = f"{project_info_path}/{info_file}"
                         
-                        # 提取写作计划
-                        if 'stage_writing_plans' in project_data:
-                            products['writing']['content'] = json.dumps(project_data['stage_writing_plans'], ensure_ascii=False, indent=2)
+                        # 提取写作计划 - 支持顶层和嵌套两种格式
+                        writing_data = project_data.get('stage_writing_plans') or project_data.get('result', {}).get('novel_data_summary', {}).get('stage_writing_plans', {})
+                        if writing_data:
+                            products['writing']['content'] = json.dumps(writing_data, ensure_ascii=False, indent=2)
                             products['writing']['complete'] = True
                             products['writing']['file_path'] = f"{project_info_path}/{info_file}"
                         
-                        # 提取故事线
-                        if 'overall_stage_plans' in project_data:
-                            products['storyline']['content'] = json.dumps(project_data['overall_stage_plans'], ensure_ascii=False, indent=2)
+                        # 提取故事线 - 支持顶层和嵌套两种格式
+                        storyline_data = project_data.get('overall_stage_plans') or project_data.get('result', {}).get('novel_data_summary', {}).get('overall_stage_plans', {})
+                        if storyline_data:
+                            products['storyline']['content'] = json.dumps(storyline_data, ensure_ascii=False, indent=2)
                             products['storyline']['complete'] = True
                             products['storyline']['file_path'] = f"{project_info_path}/{info_file}"
                         
@@ -1169,23 +1252,24 @@ def export_phase_one_products(title):
             with open(phase_one_file, 'r', encoding='utf-8') as f:
                 phase_one_data = json.load(f)
                 
-                # 从第一阶段结果中提取产物数据
+                # 优先从顶层直接提取产物数据（新格式）
+                # 如果顶层没有数据，再从 result.novel_data_summary 中提取（旧格式兼容）
                 novel_data_summary = phase_one_data.get('result', {}).get('novel_data_summary', {})
                 
                 # 提取世界观
-                core_worldview = novel_data_summary.get('core_worldview', {})
+                core_worldview = phase_one_data.get('core_worldview') or novel_data_summary.get('core_worldview', {})
                 if core_worldview:
                     products['worldview']['content'] = json.dumps(core_worldview, ensure_ascii=False, indent=2)
                     products['worldview']['complete'] = True
                 
                 # 提取角色设计
-                character_design = novel_data_summary.get('character_design', {})
+                character_design = phase_one_data.get('character_design') or novel_data_summary.get('character_design', {})
                 if character_design:
                     products['characters']['content'] = json.dumps(character_design, ensure_ascii=False, indent=2)
                     products['characters']['complete'] = True
                 
                 # 提取其他产物（简化处理）
-                overall_stage_plans = novel_data_summary.get('overall_stage_plans', {})
+                overall_stage_plans = phase_one_data.get('overall_stage_plans') or novel_data_summary.get('overall_stage_plans', {})
                 if overall_stage_plans:
                     # 成长路线
                     growth_content = "成长路线规划：\n"
@@ -1209,7 +1293,7 @@ def export_phase_one_products(title):
                     products['storyline']['complete'] = True
                 
                 # 市场分析
-                market_analysis = novel_data_summary.get('market_analysis', {})
+                market_analysis = phase_one_data.get('market_analysis') or novel_data_summary.get('market_analysis', {})
                 if market_analysis:
                     products['market']['content'] = json.dumps(market_analysis, ensure_ascii=False, indent=2)
                     products['market']['complete'] = True
@@ -1269,23 +1353,23 @@ def validate_phase_one_products(title):
             with open(phase_one_file, 'r', encoding='utf-8') as f:
                 phase_one_data = json.load(f)
                 
-                # 从第一阶段结果中提取产物数据
+                # 优先从顶层提取数据（新格式），如果没有则从嵌套结构提取（旧格式）
                 novel_data_summary = phase_one_data.get('result', {}).get('novel_data_summary', {})
                 
                 # 提取世界观
-                core_worldview = novel_data_summary.get('core_worldview', {})
+                core_worldview = phase_one_data.get('core_worldview') or novel_data_summary.get('core_worldview', {})
                 if core_worldview:
                     products['worldview']['content'] = json.dumps(core_worldview, ensure_ascii=False, indent=2)
                     products['worldview']['complete'] = True
                 
                 # 提取角色设计
-                character_design = novel_data_summary.get('character_design', {})
+                character_design = phase_one_data.get('character_design') or novel_data_summary.get('character_design', {})
                 if character_design:
                     products['characters']['content'] = json.dumps(character_design, ensure_ascii=False, indent=2)
                     products['characters']['complete'] = True
                 
                 # 提取其他产物（简化处理）
-                overall_stage_plans = novel_data_summary.get('overall_stage_plans', {})
+                overall_stage_plans = phase_one_data.get('overall_stage_plans') or novel_data_summary.get('overall_stage_plans', {})
                 if overall_stage_plans:
                     # 成长路线
                     growth_content = "成长路线规划：\n"
@@ -1309,7 +1393,7 @@ def validate_phase_one_products(title):
                     products['storyline']['complete'] = True
                 
                 # 市场分析
-                market_analysis = novel_data_summary.get('market_analysis', {})
+                market_analysis = phase_one_data.get('market_analysis') or novel_data_summary.get('market_analysis', {})
                 if market_analysis:
                     products['market']['content'] = json.dumps(market_analysis, ensure_ascii=False, indent=2)
                     products['market']['complete'] = True
