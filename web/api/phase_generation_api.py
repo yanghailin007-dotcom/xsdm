@@ -356,8 +356,8 @@ def start_phase_two_generation():
                             if has_core_data:
                                 phase_one_result = project_data
                                 phase_one_source = f"目录路径: {phase_one_file}"
-                                actual_phase_one_file = f"{phase_one_file}/{info_file}"
-                                logger.info(f"✅ [API_DEBUG] 从目录加载成功")
+                                actual_phase_one_file = file_path  # 使用实际的JSON文件路径
+                                logger.info(f"✅ [API_DEBUG] 从目录加载成功，使用文件: {file_path}")
                                 break
                         except Exception as e:
                             logger.info(f"⚠️ 读取文件失败: {info_file}, {e}")
@@ -405,10 +405,10 @@ def start_phase_two_generation():
             logger.error("❌ [API_DEBUG] NovelGenerationManager 未初始化")
             return jsonify({"success": False, "error": "管理器未初始化"}), 500
         
-        # 构建第二阶段任务配置
+        # 构建第二阶段任务配置 - 使用actual_phase_one_file而不是phase_one_file
         phase_two_config = {
             "novel_title": novel_title,
-            "phase_one_file": phase_one_file,
+            "phase_one_file": actual_phase_one_file,  # 使用实际的JSON文件路径
             "from_chapter": from_chapter,
             "chapters_to_generate": chapters_to_generate,
             "chapters_per_batch": chapters_per_batch,
