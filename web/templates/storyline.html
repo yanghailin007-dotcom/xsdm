@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>故事线时间线 - 小说生成系统</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/storyline.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <!-- 导航栏 -->
+    {% include 'components/navbar.html' %}
+    
+    <div class="storyline-container">
+        <!-- 页面头部 -->
+        <div class="storyline-header">
+            <div class="header-content">
+                <h1>📖 故事线时间线</h1>
+                <p class="header-subtitle">按时间顺序查看所有重大事件</p>
+            </div>
+            
+            <!-- 项目选择器 -->
+            <div class="project-selector">
+                <select id="project-select" onchange="loadStoryline()">
+                    <option value="">选择项目...</option>
+                </select>
+                <button class="btn-refresh" onclick="loadProjects()">
+                    <span>🔄</span> 刷新
+                </button>
+            </div>
+        </div>
+
+        <!-- 加载状态 -->
+        <div id="loading-state" class="loading-state">
+            <div class="loading-spinner"></div>
+            <p>正在加载故事线数据...</p>
+        </div>
+
+        <!-- 错误状态 -->
+        <div id="error-state" class="error-state" style="display: none;">
+            <div class="error-icon">⚠️</div>
+            <h2>加载失败</h2>
+            <p id="error-message">无法加载故事线数据</p>
+            <button class="btn-primary" onclick="loadProjects()">重新加载</button>
+        </div>
+
+        <!-- 空状态 -->
+        <div id="empty-state" class="empty-state" style="display: none;">
+            <div class="empty-icon">📚</div>
+            <h2>暂无故事线数据</h2>
+            <p>请先选择一个项目</p>
+        </div>
+
+        <!-- 故事线时间线 -->
+        <div id="timeline-container" class="timeline-container" style="display: none;">
+            <!-- 阶段信息 -->
+            <div class="stage-info">
+                <div class="stage-badge">
+                    <span class="stage-label">阶段</span>
+                    <span id="stage-name" class="stage-value">-</span>
+                </div>
+                <div class="chapter-range">
+                    <span id="chapter-range-text">-</span>
+                </div>
+            </div>
+
+            <!-- 时间线 -->
+            <div class="timeline-wrapper">
+                <div class="timeline-line"></div>
+                
+                <div id="timeline-events" class="timeline-events">
+                    <!-- 动态生成事件卡片 -->
+                </div>
+            </div>
+        </div>
+
+        <!-- 事件详情模态框 -->
+        <div id="event-modal" class="event-modal" style="display: none;">
+            <div class="modal-overlay" onclick="closeEventModal()"></div>
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 id="modal-event-name">事件名称</h2>
+                    <button class="modal-close" onclick="closeEventModal()">×</button>
+                </div>
+                <div class="modal-body">
+                    <div class="event-meta">
+                        <div class="meta-item">
+                            <span class="meta-label">章节范围</span>
+                            <span id="modal-chapter-range" class="meta-value">-</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-label">事件类型</span>
+                            <span id="modal-event-type" class="meta-value">-</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-label">情绪强度</span>
+                            <span id="modal-emotional-intensity" class="meta-value">-</span>
+                        </div>
+                    </div>
+                    
+                    <div class="event-section">
+                        <h3>🎯 主要目标</h3>
+                        <p id="modal-main-goal">-</p>
+                    </div>
+                    
+                    <div class="event-section">
+                        <h3>💭 情绪焦点</h3>
+                        <p id="modal-emotional-focus">-</p>
+                    </div>
+                    
+                    <div class="event-section">
+                        <h3>📝 详细描述</h3>
+                        <p id="modal-description">-</p>
+                    </div>
+                    
+                    <div id="modal-beats-section" class="event-section" style="display: none;">
+                        <h3>🎵 关键情绪节拍</h3>
+                        <ul id="modal-key-beats"></ul>
+                    </div>
+
+                    <div id="modal-special-section" class="event-section" style="display: none;">
+                        <h3>✨ 特殊情感事件</h3>
+                        <div id="modal-special-events"></div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn-secondary" onclick="closeEventModal()">关闭</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 页脚 -->
+    <footer class="storyline-footer">
+        <p>小说生成系统 - 故事线时间线展示</p>
+    </footer>
+
+    <script src="{{ url_for('static', filename='js/storyline.js') }}"></script>
+</body>
+</html>

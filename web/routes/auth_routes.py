@@ -144,6 +144,12 @@ def register_page_routes(app):
         """项目管理页面"""
         return render_template('project-management.html')
     
+    @app.route('/storyline', methods=['GET'])
+    @login_required
+    def storyline_view():
+        """故事线时间线页面"""
+        return render_template('storyline.html')
+    
     # 错误处理
     @app.errorhandler(404)
     def not_found(error):

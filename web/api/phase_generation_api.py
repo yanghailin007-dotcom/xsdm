@@ -249,14 +249,16 @@ def validate_phase_one_result(novel_title):
         logger.error(f"❌ 验证第一阶段结果失败: {e}")
         return jsonify({"error": str(e)}), 500
 
-@phase_api.route('/phase-one/continue-to-phase-two/<novel_title>', methods=['POST'])
+@phase_api.route('/phase-one/continue-to-phase-two/<path:novel_title>', methods=['POST'])
 @login_required
 def continue_to_phase_two(novel_title):
     """从第一阶段继续到第二阶段"""
+    logger.info(f"✅ continue_to_phase_two 路由被调用，novel_title={novel_title}")
     try:
         data = request.json or {}
         total_chapters = data.get('total_chapters', 50)
         chapters_per_batch = data.get('chapters_per_batch', 3)
+        logger.info(f"✅ 接收到请求参数: total_chapters={total_chapters}, chapters_per_batch={chapters_per_batch}")
         
         # 加载第一阶段结果
         safe_title = re.sub(r'[\\/*?:"<>|]', "_", novel_title)
@@ -544,7 +546,13 @@ def get_phase_two_progress(novel_title):
 def get_projects_with_phase_status():
     """获取包含两阶段状态的项目列表"""
     try:
-        projects = manager.get_novel_projects() if manager else []
+        logger.info(f"🔍 [PROJECT_DEBUG] 开始获取项目列表")
+        global manager
+        if not manager:
+            logger.error("❌ [PROJECT_DEBUG] manager未初始化")
+            return jsonify({"projects": []}), 200
+        
+        projects = manager.get_novel_projects()
         logger.info(f"🔍 [PROJECT_DEBUG] 获取到 {len(projects)} 个项目")
         
         # 为每个项目添加两阶段状态
@@ -616,7 +624,11 @@ def get_projects_with_phase_status():
                 project["phase_two"] = {"status": "not_started", "progress": "0 章"}
                 project["status"] = "designing"
             
-            logger.info(f"📋 [PROJECT_DEBUG] 项目 {title} 状态: phase_one={project['phase_one']['status']}, phase_two={project['phase_two']['status']}, overall={project['status']}")
+            try:
+                logger.info(f"📋 [PROJECT_DEBUG] 项目 {title} 状态: phase_one={project['phase_one']['status']}, phase_two={project['phase_two']['status']}, overall={project['status']}")
+            except Exception as inner_e:
+                logger.error(f"❌ [PROJECT_DEBUG] 处理项目 {title} 时出错: {inner_e}")
+                continue
         
         logger.info(f"✅ [PROJECT_DEBUG] 返回 {len(projects)} 个项目的状态信息")
         return jsonify({"projects": projects})
@@ -625,7 +637,8 @@ def get_projects_with_phase_status():
         logger.error(f"❌ 获取项目列表失败: {e}")
         import traceback
         logger.error(f"❌ 错误堆栈: {traceback.format_exc()}")
-        return jsonify({"error": str(e)}), 500
+        # 返回空列表而不是错误，避免前端崩溃
+        return jsonify({"projects": []}), 200
 
 @phase_api.route('/project/<title>/with-phase-info', methods=['GET'])
 @login_required
@@ -816,26 +829,20 @@ def register_phase_routes(app, manager_instance=None):
         global manager
         manager = manager_instance
     
-    # 添加第一阶段产物管理API端点（确保路由正确注册）
-    @app.route('/api/phase-one/products/<title>', methods=['GET'])
-    def get_phase_one_products_wrapper(title):
-        """获取第一阶段的所有产物"""
-        return get_phase_one_products(title)
+    # 打印注册的路由，用于调试
+    logger.info("=" * 60)
+    logger.info("📋 已注册的两阶段生成API路由:")
+    for rule in app.url_map.iter_rules():
+        if 'phase' in rule.rule:
+            logger.info(f"  - {rule.methods} {rule.rule} -> {rule.endpoint}")
+    logger.info("=" * 60)
     
-    @app.route('/api/phase-one/products/<title>/<category>', methods=['PUT'])
-    def update_phase_one_product_wrapper(title, category):
-        """更新第一阶段的单个产物"""
-        return update_phase_one_product(title, category)
-    
-    @app.route('/api/phase-one/products/<title>/export', methods=['GET'])
-    def export_phase_one_products_wrapper(title):
-        """导出第一阶段的所有产物"""
-        return export_phase_one_products(title)
-    
-    @app.route('/api/phase-one/products/<title>/validate', methods=['POST'])
-    def validate_phase_one_products_wrapper(title):
-        """验证第一阶段产物的完整性"""
-        return validate_phase_one_products(title)
+    # 注意: 第一阶段产物管理的API路由已经在Blueprint中定义
+    # /api/phase-one/products/<title>
+    # /api/phase-one/products/<title>/<category>
+    # /api/phase-one/products/<title>/export
+    # /api/phase-one/products/<title>/validate
+    # 不需要在这里重复注册,避免路由冲突
     
     # 添加保存项目API端点
     @app.route('/api/phase-one/save/<task_id>', methods=['POST'])
@@ -1057,12 +1064,48 @@ def get_phase_one_products(title):
                     products['writing']['complete'] = True
                     products['writing']['file_path'] = phase_one_file
                 
-                # 提取故事线
-                storyline_data = phase_one_data.get('overall_stage_plans') or novel_data_summary.get('overall_stage_plans', {})
-                if storyline_data:
-                    products['storyline']['content'] = json.dumps(storyline_data, ensure_ascii=False, indent=2)
-                    products['storyline']['complete'] = True
-                    products['storyline']['file_path'] = phase_one_file
+                # 提取故事线 - 检查是否有有效的整体阶段规划数据
+                # 只有在storyline尚未设置时才提取，避免覆盖
+                if not products['storyline']['complete'] or not products['storyline']['content']:
+                    storyline_data = (
+                        phase_one_data.get('overall_stage_plans') or
+                        novel_data_summary.get('overall_stage_plans', {}) or
+                        phase_one_data.get('global_growth_plan') or
+                        novel_data_summary.get('global_growth_plan', {})
+                    )
+                    # 检查是否有实际的阶段数据
+                    has_valid_storyline = False
+                    if isinstance(storyline_data, dict):
+                        # 检查是否有 overall_stage_plan 或其他阶段数据
+                        if 'overall_stage_plan' in storyline_data:
+                            has_valid_storyline = True
+                            logger.info(f"✅ 故事线数据有效：包含overall_stage_plan")
+                        elif any(key in storyline_data for key in ['opening_stage', 'development_stage', 'climax_stage', 'ending_stage']):
+                            has_valid_storyline = True
+                            logger.info(f"✅ 故事线数据有效：包含阶段数据")
+                        elif storyline_data:  # 非空字典也视为有效
+                            # 检查字典中是否有任何实质性的内容（不只是元数据）
+                            content_keys = [k for k in storyline_data.keys()
+                                          if not k.startswith('_') and k not in ['version', 'created_at', 'updated_at']]
+                            if content_keys:
+                                has_valid_storyline = True
+                                logger.info(f"✅ 故事线数据有效：非空字典，内容键: {content_keys[:5]}")
+                            else:
+                                logger.info(f"⚠️ 故事线数据字典为空或只包含元数据")
+                        else:
+                            logger.info(f"⚠️ 故事线数据为空字典")
+                    else:
+                        logger.info(f"⚠️ storyline_data不是字典类型: {type(storyline_data).__name__}")
+                    
+                    if has_valid_storyline:
+                        products['storyline']['content'] = json.dumps(storyline_data, ensure_ascii=False, indent=2)
+                        products['storyline']['complete'] = True
+                        products['storyline']['file_path'] = phase_one_file
+                        logger.info(f"✅ 已加载故事线数据(从第一阶段设定文件): {type(storyline_data).__name__}")
+                    else:
+                        logger.info(f"⚠️ 第一阶段设定文件中故事线数据为空或无效")
+                else:
+                    logger.info(f"ℹ️ 故事线数据已在其他分支中加载，跳过第一阶段设定文件的storyline提取")
                 
                 # 提取市场分析
                 market_data = phase_one_data.get('market_analysis') or novel_data_summary.get('market_analysis', {})
@@ -1076,7 +1119,7 @@ def get_phase_one_products(title):
                 logger.error(f"❌ 读取第一阶段设定文件失败: {e}")
         
         # 尝试从新的项目结构读取 - 添加对 characters/ 目录的支持
-        elif os.path.exists(project_info_path) or os.path.exists(f"{project_dir}/characters") or os.path.exists(f"{project_dir}/{safe_title}_项目信息.json"):
+        elif os.path.exists(project_info_path) or os.path.exists(f"{project_dir}/characters") or os.path.exists(f"{project_dir}/{safe_title}_项目信息.json") or os.path.exists(f"{project_dir}/{title}_项目信息.json"):
             logger.info(f"📁 从新项目结构读取第一阶段产物")
             
             # 首先检查 characters 目录（角色设计的标准路径）
@@ -1095,15 +1138,24 @@ def get_phase_one_products(title):
                     except Exception as e:
                         logger.info(f"⚠️ 读取角色设计文件失败: {cf}, {e}")
             
-            # 尝试从project_info读取项目信息
-            project_info_files = os.listdir(project_info_path) if os.path.exists(project_info_path) else []
-            
-            # 如果 project_info 目录不存在，尝试从项目根目录读取项目信息文件
-            if not project_info_files:
-                project_info_json = f"{project_dir}/{safe_title}_项目信息.json"
+            # 优先尝试从项目根目录读取项目信息文件（最新版本）
+            project_info_files = []
+            possible_root_names = [
+                f"{title}_项目信息.json",  # 优先使用原始标题
+                f"{safe_title}_项目信息.json",
+                f"{title.replace(':', '：')}_项目信息.json"  # 处理英文冒号
+            ]
+            for possible_name in possible_root_names:
+                project_info_json = f"{project_dir}/{possible_name}"
                 if os.path.exists(project_info_json):
-                    project_info_files = [os.path.basename(project_info_json)]
-                    logger.info(f"📁 找到项目根目录的项目信息文件: {project_info_json}")
+                    project_info_files = [possible_name]
+                    logger.info(f"📁 [PRIORITY] 找到项目根目录的项目信息文件: {project_info_json}")
+                    break
+            
+            # 如果根目录没有，再尝试从project_info目录读取
+            if not project_info_files and os.path.exists(project_info_path):
+                project_info_files = os.listdir(project_info_path)
+                logger.info(f"📁 从project_info目录读取，找到 {len(project_info_files)} 个文件")
             
             for info_file in project_info_files:
                 if info_file.endswith('.json'):
@@ -1114,8 +1166,13 @@ def get_phase_one_products(title):
                         else:
                             info_path = f"{project_dir}/{info_file}"
                         
+                        logger.info(f"📁 [FILE_DEBUG] 尝试读取文件: {info_path}")
                         with open(info_path, 'r', encoding='utf-8') as f:
                             project_data = json.load(f)
+                        
+                        logger.info(f"📁 [FILE_DEBUG] 文件读取成功: {info_path}")
+                        logger.info(f"📁 [FILE_DEBUG] project_data键: {list(project_data.keys())}")
+                        logger.info(f"📁 [FILE_DEBUG] 是否包含产物数据字段: {any(k in project_data for k in ['core_worldview', 'character_design', 'overall_stage_plans', 'global_growth_plan', 'stage_writing_plans', 'market_analysis'])}")
                         
                         # 提取世界观 - 支持顶层和嵌套两种格式
                         worldview_data = project_data.get('core_worldview') or project_data.get('result', {}).get('novel_data_summary', {}).get('core_worldview', {})
@@ -1227,11 +1284,82 @@ def get_phase_one_products(title):
                             logger.info(f"⚠️ 写作计划数据未找到，可用的源: project_data.stage_writing_plans={bool(project_data.get('stage_writing_plans'))}, planning_dir_exists={os.path.exists(planning_dir)}")
                         
                         # 提取故事线 - 支持顶层和嵌套两种格式
-                        storyline_data = project_data.get('overall_stage_plans') or project_data.get('result', {}).get('novel_data_summary', {}).get('overall_stage_plans', {})
-                        if storyline_data:
+                        logger.info(f"🔍 [STORYLINE_DEBUG] 开始提取storyline_data")
+                        logger.info(f"🔍 [STORYLINE_DEBUG] project_data顶层键: {list(project_data.keys())[:20]}")
+                        
+                        # 检查每个可能的路径
+                        overall_stage_plans = project_data.get('overall_stage_plans')
+                        logger.info(f"🔍 [STORYLINE_DEBUG] project_data.get('overall_stage_plans'): {type(overall_stage_plans)} = {bool(overall_stage_plans)}")
+                        if overall_stage_plans:
+                            logger.info(f"   键: {list(overall_stage_plans.keys())[:10]}")
+                        
+                        global_growth_plan = project_data.get('global_growth_plan')
+                        logger.info(f"🔍 [STORYLINE_DEBUG] project_data.get('global_growth_plan'): {type(global_growth_plan)} = {bool(global_growth_plan)}")
+                        if global_growth_plan:
+                            logger.info(f"   键: {list(global_growth_plan.keys())[:10]}")
+                        
+                        # 检查嵌套结构
+                        result_data = project_data.get('result', {})
+                        if isinstance(result_data, dict):
+                            logger.info(f"🔍 [STORYLINE_DEBUG] result键: {list(result_data.keys())[:10]}")
+                            novel_data_summary = result_data.get('novel_data_summary', {})
+                            if isinstance(novel_data_summary, dict):
+                                logger.info(f"🔍 [STORYLINE_DEBUG] novel_data_summary键: {list(novel_data_summary.keys())[:10]}")
+                                
+                                nested_overall_stage_plans = novel_data_summary.get('overall_stage_plans')
+                                logger.info(f"🔍 [STORYLINE_DEBUG] novel_data_summary.get('overall_stage_plans'): {type(nested_overall_stage_plans)} = {bool(nested_overall_stage_plans)}")
+                                if nested_overall_stage_plans:
+                                    logger.info(f"   键: {list(nested_overall_stage_plans.keys())[:10]}")
+                                
+                                nested_global_growth_plan = novel_data_summary.get('global_growth_plan')
+                                logger.info(f"🔍 [STORYLINE_DEBUG] novel_data_summary.get('global_growth_plan'): {type(nested_global_growth_plan)} = {bool(nested_global_growth_plan)}")
+                                if nested_global_growth_plan:
+                                    logger.info(f"   键: {list(nested_global_growth_plan.keys())[:10]}")
+                        
+                        storyline_data = (
+                            project_data.get('overall_stage_plans') or
+                            project_data.get('global_growth_plan') or
+                            project_data.get('result', {}).get('novel_data_summary', {}).get('overall_stage_plans', {}) or
+                            project_data.get('result', {}).get('novel_data_summary', {}).get('global_growth_plan', {})
+                        )
+                        
+                        logger.info(f"🔍 [STORYLINE_DEBUG] 最终storyline_data类型: {type(storyline_data)}, 是否为空: {not storyline_data}")
+                        if isinstance(storyline_data, dict) and storyline_data:
+                            logger.info(f"   storyline_data键: {list(storyline_data.keys())[:10]}")
+                        
+                        # 检查是否有有效的阶段规划数据
+                        has_valid_storyline = False
+                        if isinstance(storyline_data, dict):
+                            # 检查是否包含overall_stage_plan
+                            if 'overall_stage_plan' in storyline_data:
+                                # 检查overall_stage_plan是否包含阶段数据
+                                stage_plan = storyline_data.get('overall_stage_plan', {})
+                                if any(key in stage_plan for key in ['opening_stage', 'development_stage', 'climax_stage', 'ending_stage']):
+                                    has_valid_storyline = True
+                                    logger.info(f"✅ 故事线数据有效：包含overall_stage_plan且包含阶段数据")
+                                elif stage_plan:
+                                    has_valid_storyline = True
+                                    logger.info(f"✅ 故事线数据有效：包含overall_stage_plan")
+                            # 直接检查是否包含阶段数据
+                            elif any(key in storyline_data for key in ['opening_stage', 'development_stage', 'climax_stage', 'ending_stage']):
+                                has_valid_storyline = True
+                                logger.info(f"✅ 故事线数据有效：直接包含阶段数据")
+                            # 检查是否非空
+                            elif storyline_data:
+                                has_valid_storyline = True
+                                logger.info(f"✅ 故事线数据有效：非空字典，键: {list(storyline_data.keys())[:5]}")
+                            else:
+                                logger.info(f"⚠️ storyline_data为空字典")
+                        else:
+                            logger.info(f"⚠️ storyline_data不是字典类型: {type(storyline_data).__name__}")
+                        
+                        if has_valid_storyline:
                             products['storyline']['content'] = json.dumps(storyline_data, ensure_ascii=False, indent=2)
                             products['storyline']['complete'] = True
                             products['storyline']['file_path'] = f"{project_info_path}/{info_file}"
+                            logger.info(f"✅ 从project_data加载故事线数据，包含overall_stage_plan: {'overall_stage_plan' in storyline_data}")
+                        else:
+                            logger.info(f"⚠️ project_data中故事线数据为空或无效，overall_stage_plans存在: {bool(project_data.get('overall_stage_plans'))}")
                         
                         logger.info(f"✅ 从project_info加载产物数据成功")
                         break
@@ -1549,3 +1677,313 @@ def validate_phase_one_products(title):
     except Exception as e:
         logger.error(f"❌ 验证第一阶段产物失败: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
+
+# ==================== 故事线API ====================
+
+@phase_api.route('/storyline/<path:title>', methods=['GET'])
+@login_required
+def get_storyline(title):
+    """获取小说的故事线时间线数据"""
+    try:
+        # Flask已经自动解码了URL参数，所以title已经是解码后的中文
+        original_title = title
+        logger.info(f"接收到的标题参数: '{title}'")
+        logger.info(f"使用的标题: '{original_title}'")
+        
+        # 尝试从多个可能的路径读取项目信息和写作计划
+        # 构建安全标题用于文件路径
+        safe_title = re.sub(r'[\\/*?:"<>|]', '_', original_title)
+        
+        possible_paths = [
+            # 新项目结构 - 项目信息文件（使用原始标题）
+            f"小说项目/{original_title}/{original_title}_项目信息.json",
+            f"小说项目/{original_title}/project_info/{original_title}_项目信息.json",
+            f"小说项目/{original_title}/{safe_title}_项目信息.json",
+            # 旧项目结构
+            f"小说项目/{original_title}_第一阶段设定/{original_title}_第一阶段设定.json",
+            f"小说项目/{safe_title}_第一阶段设定/{safe_title}_第一阶段设定.json",
+        ]
+        
+        logger.info(f"🔍 开始检查路径，标题: '{original_title}'")
+        
+        # 额外检查：尝试列出目录内容
+        project_dir = f"小说项目/{original_title}"
+        logger.info(f"🔍 检查项目目录: {project_dir}")
+        logger.info(f"🔍 目录存在: {os.path.exists(project_dir)}")
+        
+        if os.path.exists(project_dir) and os.path.isdir(project_dir):
+            try:
+                files = os.listdir(project_dir)
+                logger.info(f"📁 项目目录存在: {project_dir}")
+                logger.info(f"📁 目录内容数量: {len(files)}")
+                
+                # 查找项目信息文件
+                for f in files:
+                    if '项目信息' in f and f.endswith('.json') and not f.endswith('.backup'):
+                        found_path = f"{project_dir}/{f}"
+                        if found_path not in possible_paths:
+                            possible_paths.insert(0, found_path)  # 插入到开头优先使用
+                        logger.info(f"✅ 找到项目信息文件: {found_path}")
+                        break
+            except Exception as e:
+                logger.info(f"⚠️ 列出目录失败: {e}")
+        
+        project_data = None
+        source_path = None
+        
+        for idx, path in enumerate(possible_paths):
+            logger.info(f"🔍 [{idx+1}/{len(possible_paths)}] 检查路径: {path}")
+            logger.info(f"🔍 文件存在: {os.path.exists(path)}")
+            if os.path.exists(path):
+                try:
+                    logger.info(f"✅ 文件存在，尝试读取: {path}")
+                    with open(path, 'r', encoding='utf-8') as f:
+                        project_data = json.load(f)
+                    source_path = path
+                    logger.info(f"✅ 成功从路径加载项目数据: {path}")
+                    logger.info(f"✅ 数据键: {list(project_data.keys())[:10]}")
+                    break
+                except Exception as e:
+                    logger.error(f"❌ 读取文件失败: {path}, {e}")
+                    import traceback
+                    logger.error(f"❌ 错误堆栈: {traceback.format_exc()}")
+                    continue
+            else:
+                logger.info(f"❌ 文件不存在: {path}")
+        
+        if not project_data:
+            logger.error(f"❌ 未找到项目数据: {title}")
+            logger.error(f"❌ 检查的路径: {possible_paths}")
+            # 尝试从manager获取
+            if manager:
+                try:
+                    novel_detail = manager.get_novel_detail(title)
+                    if novel_detail:
+                        logger.info(f"✅ 从manager获取到小说详情")
+                        project_data = novel_detail
+                        source_path = "manager"
+                except Exception as e:
+                    logger.error(f"❌ 从manager获取失败: {e}")
+            
+            if not project_data:
+                return jsonify({"success": False, "error": "未找到项目数据"}), 404
+        
+        # 从overall_stage_plans提取所有阶段的故事线数据
+        storyline = extract_storyline_from_stage_plans(project_data, title)
+        
+        if not storyline or not storyline.get("major_events"):
+            logger.error(f"❌ 未能从项目数据中提取故事线: {title}")
+            return jsonify({"success": False, "error": "未能提取故事线数据，可能缺少overall_stage_plans数据"}), 404
+        
+        return jsonify({
+            "success": True,
+            "title": title,
+            "storyline": storyline,
+            "source": source_path
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ 获取故事线失败: {e}")
+        import traceback
+        logger.error(f"❌ 错误堆栈: {traceback.format_exc()}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+def extract_storyline_from_stage_plans(project_data, title):
+    """从项目的overall_stage_plans中提取故事线数据"""
+    
+    logger.info(f"🔍 开始提取故事线数据，项目数据键: {list(project_data.keys())[:20]}")
+    
+    # 获取overall_stage_plans数据
+    overall_stage_plans = project_data.get("overall_stage_plans", {})
+    if not overall_stage_plans:
+        overall_stage_plans = project_data.get("overall_stage_plan", {})
+    
+    # 如果还是没有，尝试从嵌套结构获取
+    if not overall_stage_plans:
+        result_data = project_data.get("result", {})
+        if isinstance(result_data, dict):
+            novel_data_summary = result_data.get("novel_data_summary", {})
+            if isinstance(novel_data_summary, dict):
+                overall_stage_plans = novel_data_summary.get("overall_stage_plans", {})
+                if not overall_stage_plans:
+                    overall_stage_plans = novel_data_summary.get("overall_stage_plan", {})
+    
+    logger.info(f"🔍 overall_stage_plans类型: {type(overall_stage_plans)}")
+    logger.info(f"🔍 overall_stage_plans为空: {not overall_stage_plans}")
+    
+    if not overall_stage_plans:
+        logger.error(f"❌ 未找到overall_stage_plans数据")
+        return None
+    
+    # 获取overall_stage_plan中的各个阶段
+    stage_plan = overall_stage_plans.get("overall_stage_plan", overall_stage_plans)
+    
+    if not stage_plan:
+        logger.error(f"❌ 未找到overall_stage_plan数据")
+        return None
+    
+    logger.info(f"✅ 找到stage_plan，键: {list(stage_plan.keys())}")
+    
+    # 合并所有阶段的事件
+    all_major_events = []
+    stage_names = {
+        "opening_stage": "开局阶段",
+        "development_stage": "发展阶段",
+        "climax_stage": "高潮阶段",
+        "ending_stage": "结局阶段"
+    }
+    
+    for stage_key, stage_name in stage_names.items():
+        stage_data = stage_plan.get(stage_key, {})
+        if not stage_data:
+            logger.info(f"⚠️ 阶段 {stage_key} 数据为空")
+            continue
+        
+        logger.info(f"✅ 处理阶段: {stage_key}")
+        
+        # 提取关键发展作为重大事件
+        key_developments = stage_data.get("key_developments", [])
+        chapter_range = stage_data.get("chapter_range", "")
+        stage_goal = stage_data.get("stage_goal", "")
+        
+        logger.info(f"  - 关键发展数量: {len(key_developments)}")
+        
+        # 如果没有key_developments，创建一个默认的重大事件
+        if not key_developments:
+            major_event = {
+                "id": f"{stage_key}_1",
+                "order": len(all_major_events) + 1,
+                "name": stage_name,
+                "type": "major_event",
+                "role_in_stage_arc": stage_goal,
+                "chapter_range": chapter_range,
+                "main_goal": stage_goal or f"{stage_name}的主要目标",
+                "emotional_goal": stage_data.get("core_conflicts", ""),
+                "medium_events": [],
+                "special_events": []
+            }
+            all_major_events.append(major_event)
+            logger.info(f"  - 创建默认重大事件: {stage_name}")
+        else:
+            for idx, development in enumerate(key_developments):
+                major_event = {
+                    "id": f"{stage_key}_{idx + 1}",
+                    "order": len(all_major_events) + 1,
+                    "name": f"{stage_name} - 事件{idx + 1}",
+                    "type": "major_event",
+                    "role_in_stage_arc": stage_goal,
+                    "chapter_range": chapter_range,
+                    "main_goal": development,
+                    "emotional_goal": stage_data.get("core_conflicts", ""),
+                    "medium_events": [],
+                    "special_events": []
+                }
+                
+                # 添加一些默认的中型事件（起承转合）
+                phases = [("起", "铺垫"), ("承", "发展"), ("转", "转折"), ("合", "收束")]
+                for phase_idx, (phase_key, phase_desc) in enumerate(phases):
+                    medium_event = {
+                        "id": f"{stage_key}_{idx + 1}_{phase_key}",
+                        "phase": phase_desc,  # 使用更清晰的描述而不是单个字符
+                        "phase_key": phase_key,
+                        "order": phase_idx + 1,
+                        "name": f"{stage_name} - {phase_desc}",
+                        "type": "medium_event",
+                        "chapter_range": chapter_range,
+                        "main_goal": f"{stage_name}的{phase_desc}阶段目标",
+                        "emotional_focus": stage_data.get("core_conflicts", ""),
+                        "emotional_intensity": "medium",
+                        "description": development,
+                        "key_emotional_beats": [development]
+                    }
+                    major_event["medium_events"].append(medium_event)
+                
+                all_major_events.append(major_event)
+    
+    # 如果没有从key_developments获取到事件，尝试从stage_transitions或其他字段生成
+    if not all_major_events:
+        stage_transitions = overall_stage_plans.get("stage_transitions", {})
+        for transition_key, transition_desc in stage_transitions.items():
+            parts = transition_key.split("_")
+            if len(parts) >= 3:
+                stage_key = f"{parts[0]}_{parts[1]}"
+                stage_name = stage_names.get(stage_key, stage_key)
+                
+                major_event = {
+                    "id": f"transition_{len(all_major_events) + 1}",
+                    "order": len(all_major_events) + 1,
+                    "name": f"{stage_name}",
+                    "type": "major_event",
+                    "role_in_stage_arc": "阶段过渡",
+                    "chapter_range": "",
+                    "main_goal": transition_desc,
+                    "emotional_goal": "",
+                    "medium_events": [],
+                    "special_events": []
+                }
+                all_major_events.append(major_event)
+    
+    # 构建故事线数据
+    storyline = {
+        "stage_name": "全书故事线",
+        "chapter_range": str(project_data.get("total_chapters", "未知")) + "章",
+        "stage_overview": project_data.get("novel_synopsis", ""),
+        "major_events": all_major_events
+    }
+    
+    logger.info(f"✅ 从overall_stage_plans提取了 {len(all_major_events)} 个重大事件")
+    return storyline
+
+
+def extract_storyline_data(writing_plan):
+    """从写作计划中提取故事线数据"""
+    storyline = {
+        "stage_name": writing_plan.get("stage_name", "未知阶段"),
+        "chapter_range": writing_plan.get("chapter_range", ""),
+        "stage_overview": writing_plan.get("stage_overview", ""),
+        "major_events": []
+    }
+    
+    event_system = writing_plan.get("event_system", {})
+    major_events = event_system.get("major_events", [])
+    
+    for idx, major_event in enumerate(major_events):
+        event_data = {
+            "id": f"major_{idx + 1}",
+            "order": idx + 1,
+            "name": major_event.get("name", ""),
+            "type": major_event.get("type", "major_event"),
+            "role_in_stage_arc": major_event.get("role_in_stage_arc", ""),
+            "chapter_range": major_event.get("chapter_range", ""),
+            "main_goal": major_event.get("main_goal", ""),
+            "emotional_goal": major_event.get("emotional_goal", ""),
+            "medium_events": []
+        }
+        
+        # 提取起承转合的中型事件
+        composition = major_event.get("composition", {})
+        for phase_key, phase_name in [("起", "起"), ("承", "承"), ("转", "转"), ("合", "合")]:
+            medium_events = composition.get(phase_key, [])
+            for medium_idx, medium_event in enumerate(medium_events):
+                medium_data = {
+                    "id": f"medium_{idx + 1}_{phase_name}_{medium_idx + 1}",
+                    "phase": phase_name,
+                    "order": medium_idx + 1,
+                    "name": medium_event.get("name", ""),
+                    "type": medium_event.get("type", "medium_event"),
+                    "chapter_range": medium_event.get("chapter_range", ""),
+                    "main_goal": medium_event.get("main_goal", ""),
+                    "emotional_focus": medium_event.get("emotional_focus", ""),
+                    "emotional_intensity": medium_event.get("emotional_intensity", "medium"),
+                    "description": medium_event.get("description", ""),
+                    "key_emotional_beats": medium_event.get("key_emotional_beats", [])
+                }
+                event_data["medium_events"].append(medium_data)
+        
+        # 添加特殊情感事件
+        special_events = major_event.get("special_emotional_events", [])
+        event_data["special_events"] = special_events
+        
+        storyline["major_events"].append(event_data)
+    
+    return storyline

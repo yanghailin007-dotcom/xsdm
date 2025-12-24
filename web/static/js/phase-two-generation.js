@@ -510,6 +510,24 @@ function validatePhaseOneProducts() {
     }
 }
 
+// ==================== 故事线跳转功能 ====================
+
+function goToStorylinePage() {
+    if (!currentProject) {
+        showStatusMessage('❌ 请先选择一个项目', 'error');
+        return;
+    }
+    
+    const projectTitle = currentProject.novel_title || currentProject.title;
+    if (!projectTitle) {
+        showStatusMessage('❌ 无法获取项目标题', 'error');
+        return;
+    }
+    
+    // 跳转到故事线页面，并传递项目标题作为参数
+    window.location.href = `/storyline?title=${encodeURIComponent(projectTitle)}`;
+}
+
 // ==================== 第二阶段生成功能 ====================
 async function startPhaseTwoGeneration(event) {
     event.preventDefault();

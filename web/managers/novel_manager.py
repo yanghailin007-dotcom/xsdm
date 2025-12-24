@@ -85,6 +85,18 @@ class NovelGenerationManager:
 
     def load_existing_novels(self):
         """从文件系统加载已存在的小说项目 - 支持新旧路径结构"""
+        # 添加线程锁保护，避免并发调用导致文件I/O错误
+        import threading
+        lock = getattr(self, '_load_lock', None)
+        if lock is None:
+            lock = threading.Lock()
+            self._load_lock = lock
+        
+        with lock:
+            self._load_existing_novels_impl()
+    
+    def _load_existing_novels_impl(self):
+        """实际加载小说项目的实现"""
         try:
             # 导入路径配置
             from src.config.path_config import path_config
@@ -112,15 +124,24 @@ class NovelGenerationManager:
                                 project_info_path = json_files[0]  # 使用第一个找到的文件
                     
                     if project_info_path.exists():
+                        novel_data = None
                         try:
+                            # 使用完整的文件读取流程，确保文件正确关闭
                             with open(project_info_path, 'r', encoding='utf-8') as f:
-                                novel_data = json.load(f)
+                                content = f.read()
+                                novel_data = json.loads(content)
                             
                             title = novel_data.get("novel_info", {}).get("title", item.name)
                             self._load_project_from_data(title, novel_data, item.name)
                             logger.info(f"✅ 加载小说项目(新路径): {title}")
+                        except json.JSONDecodeError as e:
+                            logger.error(f"❌ JSON解析失败 {project_info_path}: {e}")
+                        except IOError as e:
+                            logger.error(f"❌ 文件读取失败 {project_info_path}: {e}")
                         except Exception as e:
                             logger.error(f"❌ 加载新路径项目文件 {project_info_path} 失败: {e}")
+                            import traceback
+                            logger.error(f"❌ 错误堆栈: {traceback.format_exc()}")
 
             # 2. 扫描旧路径结构（根目录下的 *_项目信息.json 文件）
             for item in novel_dir.iterdir():
@@ -129,22 +150,33 @@ class NovelGenerationManager:
                     title = item.name.replace("_项目信息.json", "")
                     project_file = item
 
+                    novel_data = None
                     try:
+                        # 使用完整的文件读取流程，确保文件正确关闭
                         with open(project_file, 'r', encoding='utf-8') as f:
-                            novel_data = json.load(f)
+                            content = f.read()
+                            novel_data = json.loads(content)
                         
                         # 检查是否已经从新路径加载过（避免重复）
                         if title not in self.novel_projects:
                             self._load_project_from_data(title, novel_data, title)
                             logger.info(f"✅ 加载小说项目(旧路径): {title}")
 
+                    except json.JSONDecodeError as e:
+                        logger.error(f"❌ JSON解析失败 {project_file}: {e}")
+                    except IOError as e:
+                        logger.error(f"❌ 文件读取失败 {project_file}: {e}")
                     except Exception as e:
                         logger.error(f"❌ 加载旧路径项目文件 {project_file} 失败: {e}")
+                        import traceback
+                        logger.error(f"❌ 错误堆栈: {traceback.format_exc()}")
 
             logger.info(f"📚 总共加载了 {len(self.novel_projects)} 个小说项目")
 
         except Exception as e:
             logger.error(f"❌ 加载已存在小说项目失败: {e}")
+            import traceback
+            logger.error(f"❌ 错误堆栈: {traceback.format_exc()}")
 
     def _load_project_from_data(self, title: str, novel_data: Dict, path_key: str):
         """从已加载的数据中提取并加载项目信息（辅助方法）"""
