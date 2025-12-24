@@ -48,7 +48,7 @@ browser:
 contract:
   max_retry_count: 2  # 最大重试次数
   auto_sign: true  # 是否自动签约
-  current_user: "user1"  # 当前使用的用户ID
+  current_user: "user2"  # 当前使用的用户ID
   
   # 多用户签约信息配置
   users:
@@ -77,7 +77,7 @@ contract:
         bank_branch: "中国建设银行股份有限公司凯里北京路支行"
         address:
           province: "贵州省"
-          city: "凯里市"
+          city: "黔东南"
           detail: "北京路"
     
     user3:

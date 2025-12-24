@@ -592,12 +592,18 @@ class EnhancedContractService:
                         if current_title == novel_title:
                             self.log(f"找到目标小说: {novel_title}")
                             
-                            # 查找签约管理按钮
+                            # 首先点击小说项使其激活
+                            self.log("点击小说项以激活...")
+                            item.click(force=True, timeout=5000)
+                            time.sleep(1)
+                            
+                            # 重新查找签约管理按钮
                             contract_button_xpath = './div/div[1]/div[2]/div[3]/div/button[2]/span'
                             contract_buttons = item.locator(f'xpath={contract_button_xpath}')
                             
                             if contract_buttons.count() > 0:
                                 button_text = contract_buttons.first.text_content().strip()
+                                self.log(f"找到按钮: {button_text}")
                                 if "签约管理" in button_text:
                                     self.log("找到签约管理按钮")
                                     

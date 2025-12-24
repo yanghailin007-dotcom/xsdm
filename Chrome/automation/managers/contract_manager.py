@@ -318,12 +318,18 @@ class ContractManager:
                             novel_title = title_elements.first.text_content().strip()
                             print(f"找到未签约的连载中小说: {novel_title}")
                         
-                        # 查找签约管理按钮
+                        # 首先点击小说项使其激活，这会显示签约管理按钮
+                        print("点击小说项以激活...")
+                        item.click(force=True, timeout=5000)
+                        time.sleep(1)
+                        
+                        # 重新查找签约管理按钮（激活后应该会出现）
                         contract_button_xpath = './div/div[1]/div[2]/div[3]/div/button[2]/span'
                         contract_buttons = item.locator(f'xpath={contract_button_xpath}')
                         
                         if contract_buttons.count() > 0:
                             button_text = contract_buttons.first.text_content().strip()
+                            print(f"找到按钮: {button_text}")
                             if "签约管理" in button_text:
                                 print("找到签约管理按钮，开始处理...")
                                 
@@ -464,20 +470,54 @@ class ContractManager:
         print("滑动页面寻找填写合同按钮...")
         
         try:
-            # 直接查找填写合同按钮
-            contract_button_xpath = '//*[@id="arco-tabs-4-panel-1"]/div/div/div[3]/div[2]/div[3]/div[2]/button'
-            contract_buttons = page.locator(f'xpath={contract_button_xpath}')
+            # 先滚动页面确保所有元素可见
+            page_height = page.evaluate('() => document.body.scrollHeight')
+            viewport_height = page.evaluate('() => window.innerHeight')
             
-            if contract_buttons.count() > 0:
-                button_text = contract_buttons.first.text_content().strip()
-                print(f"找到填写合同按钮: {button_text}")
+            if page_height > viewport_height:
+                # 分步滚动查找按钮
+                scroll_steps = 3
+                scroll_step = (page_height - viewport_height) // scroll_steps
                 
-                if self.ui_helper.safe_click(contract_buttons.first, "填写合同按钮"):
-                    print("已点击填写合同按钮")
-                    time.sleep(3)
-                    return self._fill_contract_details_form(page)
-            
-            print("未找到可用的申请签约按钮或填写合同按钮")
+                for step in range(scroll_steps + 1):
+                    target_scroll = scroll_step * step
+                    page.evaluate(f'(position) => {{ window.scrollTo(0, position); }}', target_scroll)
+                    time.sleep(0.3)
+                    
+                    # 尝试多种选择器查找填写合同按钮
+                    contract_button_selectors = [
+                        'button:has-text("填写合同")',
+                        'button.arco-btn-primary:has-text("填写合同")',
+                        '//button[contains(@class, "arco-btn") and contains(text(), "填写合同")]',
+                        '//button//span[contains(text(), "填写合同")]',
+                        '//div[contains(@class, "flow-card-actions")]//button',
+                        '.flow-card-actions button',
+                    ]
+                    
+                    for selector in contract_button_selectors:
+                        try:
+                            if selector.startswith('//'):
+                                elements = page.locator(f'xpath={selector}')
+                            else:
+                                elements = page.locator(selector)
+                            
+                            if elements.count() > 0:
+                                # 检查按钮是否包含"填写合同"文本
+                                for i in range(elements.count()):
+                                    element = elements.nth(i)
+                                    button_text = element.text_content().strip()
+                                    print(f"找到按钮文本: {button_text}")
+                                    
+                                    if "填写合同" in button_text:
+                                        print(f"✓ 找到填写合同按钮")
+                                        if self.ui_helper.safe_click(element, "填写合同按钮"):
+                                            print("已点击填写合同按钮")
+                                            time.sleep(3)
+                                            return self._fill_contract_details_form(page)
+                        except Exception:
+                            continue
+                
+            print("未找到可用的填写合同按钮")
             return False
             
         except Exception as e:
@@ -560,17 +600,8 @@ class ContractManager:
         
         time.sleep(1)
         
-        # 填写详细地址
-        detail_address = contact_info.get('detail', '宝安区')
-        address_detail_input = page.locator('//*[@id="addressDetail_input"]')
-        if address_detail_input.count() > 0:
-            page.evaluate('() => { window.scrollBy(0, 200); }')
-            time.sleep(1)
-            
-            if self.ui_helper.safe_fill(address_detail_input.first, detail_address, "详细地址"):
-                print(f"✓ 已填写详细地址: {detail_address}")
-        
-        time.sleep(1)
+        # 填写联系地址（级联选择器）
+        self._fill_address_cascader(page, contact_info)
         
         # 填写银行卡号
         bank_account = contact_info.get('bank_account', '6214857812704759')
@@ -578,6 +609,310 @@ class ContractManager:
         if bank_account_input.count() > 0:
             if self.ui_helper.safe_fill(bank_account_input.first, bank_account, "银行卡号"):
                 print(f"✓ 已填写银行卡号: {bank_account}")
+        
+        time.sleep(1)
+        
+        # 填写所属支行（搜索选择器）
+        self._fill_bank_branch(page, contact_info)
+    
+    def _fill_address_cascader(self, page: Page, contact_info: Dict[str, Any]) -> None:
+        """
+        填写联系地址级联选择器
+        
+        Args:
+            page: 页面对象
+            contact_info: 联系信息字典
+        """
+        print("填写联系地址...")
+        
+        try:
+            # 获取地址信息
+            address = contact_info.get('address', {})
+            
+            # 确保address是字典类型
+            if isinstance(address, str):
+                # 如果address是字符串，尝试解析或使用默认值
+                print(f"  ⚠ 地址配置为字符串格式，使用默认值")
+                province = '贵州省'
+                city = '凯里市'
+                detail = address
+            elif isinstance(address, dict):
+                province = address.get('province', '贵州省')
+                city = address.get('city', '凯里市')
+                detail = address.get('detail', '北京路')
+            else:
+                # 其他情况使用默认值
+                province = '贵州省'
+                city = '凯里市'
+                detail = '北京路'
+            
+            # 点击级联选择器
+            address_cascader = page.locator('//*[@id="address_input"]')
+            if address_cascader.count() > 0:
+                self.ui_helper.safe_click(address_cascader.first, "联系地址选择器")
+                time.sleep(1)
+                
+                # 选择省份
+                self._select_cascader_option(page, province, "省份")
+                time.sleep(0.5)
+                
+                # 选择城市
+                self._select_cascader_option(page, city, "城市")
+                time.sleep(0.5)
+                
+                # 填写详细地址
+                address_detail_input = page.locator('//*[@id="addressDetail_input"]')
+                if address_detail_input.count() > 0:
+                    page.evaluate('() => { window.scrollBy(0, 200); }')
+                    time.sleep(0.5)
+                    
+                    if self.ui_helper.safe_fill(address_detail_input.first, detail, "详细地址"):
+                        print(f"✓ 已填写地址: {province} {city} {detail}")
+                
+                # 点击页面其他地方关闭选择器
+                page.evaluate('() => { document.body.click(); }')
+                time.sleep(0.5)
+                
+        except Exception as e:
+            print(f"填写联系地址时出错: {e}")
+    
+    def _select_cascader_option(self, page: Page, text: str, level: str) -> bool:
+        """
+        选择级联选择器选项
+        
+        Args:
+            page: 页面对象
+            text: 选项文本（如"贵州"、"贵州省"）
+            level: 级别名称（用于日志）
+            
+        Returns:
+            是否成功
+        """
+        try:
+            # 等待级联菜单加载
+            time.sleep(0.8)
+            
+            # 标准化文本（去除"省"、"市"、"自治区"等后缀）
+            normalized_text = text.replace('省', '').replace('市', '').replace('自治区', '').replace('特别行政区', '')
+            
+            # 查找包含指定文本的选项 - 使用实际的选择器类名
+            option_selectors = [
+                f'li.arco-cascader-list-item[title="{text}"]',
+                f'li.arco-cascader-list-item[title="{normalized_text}"]',
+                f'xpath=//li[contains(@class, "arco-cascader-list-item") and @title="{text}"]',
+                f'xpath=//li[contains(@class, "arco-cascader-list-item") and @title="{normalized_text}"]',
+                f'xpath=//li[contains(@class, "arco-cascader-list-item") and contains(@title, "{normalized_text}")]',
+            ]
+            
+            for selector in option_selectors:
+                try:
+                    if selector.startswith('xpath='):
+                        elements = page.locator(selector)
+                    else:
+                        elements = page.locator(selector)
+                    
+                    if elements.count() > 0:
+                        # 尝试点击第一个匹配的选项
+                        element = elements.first
+                        if self.ui_helper.safe_click(element, f"{level}选项-{text}"):
+                            print(f"  ✓ 已选择{level}: {text}")
+                            time.sleep(0.5)
+                            return True
+                except Exception:
+                    continue
+            
+            print(f"  ⚠ 未找到{level}选项: {text}")
+            
+            # 如果没有找到精确匹配，尝试模糊匹配
+            try:
+                all_options = page.locator('li.arco-cascader-list-item')
+                if all_options.count() > 0:
+                    print(f"  尝试模糊匹配，找到 {all_options.count()} 个选项")
+                    for i in range(all_options.count()):
+                        option = all_options.nth(i)
+                        option_text = (option.get_attribute('title') or "").strip()
+                        if normalized_text in option_text or option_text in normalized_text:
+                            if self.ui_helper.safe_click(option, f"{level}模糊匹配选项-{option_text}"):
+                                print(f"  ✓ 已选择{level}（模糊匹配）: {option_text}")
+                                time.sleep(0.5)
+                                return True
+            except Exception as e:
+                print(f"  模糊匹配失败: {e}")
+            
+            return False
+            
+        except Exception as e:
+            print(f"选择{level}选项时出错: {e}")
+            return False
+    
+    def _fill_bank_branch(self, page: Page, contact_info: Dict[str, Any]) -> None:
+        """
+        填写银行支行选择器
+        
+        Args:
+            page: 页面对象
+            contact_info: 联系信息字典
+        """
+        print("填写所属支行...")
+        
+        try:
+            # 获取银行支行信息
+            bank_branch = contact_info.get('bank_branch', '中国建设银行股份有限公司凯里北京路支行')
+            print(f"  目标支行: {bank_branch}")
+            
+            # 点击支行选择器
+            bank_code_input = page.locator('//*[@id="bankCode_input"]')
+            if bank_code_input.count() == 0:
+                print(f"  ⚠ 未找到支行选择器")
+                return
+            
+            # 先点击输入框打开下拉列表
+            self.ui_helper.safe_click(bank_code_input.first, "所属支行选择器")
+            time.sleep(1.5)
+            
+            # 滚动到支行选择器可见
+            page.evaluate('() => { window.scrollBy(0, 100); }')
+            time.sleep(0.5)
+            
+            # 直接使用完整支行名称进行精准匹配
+            search_keywords = bank_branch  # 使用完整的支行名称
+            print(f"  搜索关键词: {search_keywords}")
+            
+            # 查找实际的输入框元素
+            search_input_selectors = [
+                '//*[@id="bankCode_input"]//input[@class="arco-select-view-input"]',
+                '//*[@id="bankCode_input"]//input[@type="text"]',
+                '#bankCode_input input.arco-select-view-input',
+            ]
+            
+            search_input = None
+            for selector in search_input_selectors:
+                try:
+                    elements = page.locator(selector)
+                    if elements.count() > 0:
+                        search_input = elements.first
+                        break
+                except Exception:
+                    continue
+            
+            if not search_input:
+                print(f"  ⚠ 未找到支行搜索输入框")
+                return
+            
+            # 直接输入完整支行名称进行精准匹配
+            try:
+                print(f"  输入完整支行名称进行精准匹配")
+                
+                # 清空输入框并输入完整的支行名称
+                search_input.fill('')
+                time.sleep(0.5)
+                search_input.fill(search_keywords)
+                time.sleep(5)  # 增加等待时间到5秒，让搜索结果完全刷新
+                
+                # 检查是否有结果 - 使用正确的li选择器
+                options = page.locator('li.arco-select-option')
+                option_count = options.count()
+                
+                print(f"  检查到 {option_count} 个支行选项")
+                
+                if option_count == 0:
+                    print(f"  ⚠ 搜索 '{search_keywords}' 无结果，请检查支行名称是否正确")
+                    # 尝试等待更长时间再检查一次
+                    time.sleep(3)
+                    option_count = options.count()
+                    print(f"  再次检查到 {option_count} 个支行选项")
+                
+                if option_count == 0:
+                    return
+                
+                print(f"  找到 {option_count} 个支行选项")
+                
+                # 查找完全匹配的选项
+                for i in range(option_count):
+                    option = options.nth(i)
+                    try:
+                        # 获取选项文本 - 可能需要从内部span获取
+                        option_text = (option.text_content() or "").strip()
+                        # 如果text_content为空，尝试获取内部span的文本
+                        if not option_text:
+                            highlight_span = option.locator('span.arco-select-highlight')
+                            if highlight_span.count() > 0:
+                                option_text = (highlight_span.first.text_content() or "").strip()
+                        
+                        print(f"    选项 {i+1}: {option_text}")
+                        
+                        # 精准匹配：选项文本必须完全等于目标支行名称
+                        if option_text == bank_branch:
+                            print(f"  ✓ 找到精准匹配的支行: {option_text}")
+                            
+                            # 点击选项
+                            if self.ui_helper.safe_click(option, f"支行选项-{option_text}"):
+                                print(f"  ✓ 已点击支行选项: {option_text}")
+                                time.sleep(0.8)
+                                
+                                # 按回车键确认选择
+                                try:
+                                    page.keyboard.press('Enter')
+                                    time.sleep(0.8)
+                                    print(f"  ✓ 已按回车键确认选择")
+                                except Exception as e:
+                                    print(f"  ⚠ 按回车键失败: {e}")
+                                    # 如果回车失败，尝试点击页面其他地方关闭下拉列表
+                                    try:
+                                        page.evaluate('() => { document.body.click(); }')
+                                        time.sleep(0.5)
+                                    except Exception:
+                                        pass
+                                
+                                print(f"  ✓ 已选择支行: {option_text}")
+                                return
+                    except Exception as e:
+                        print(f"    检查选项 {i+1} 时出错: {e}")
+                        continue
+                
+                # 如果没有找到完全匹配的，尝试包含匹配
+                print(f"  ⚠ 未找到完全匹配的选项，尝试部分匹配")
+                for i in range(option_count):
+                    option = options.nth(i)
+                    try:
+                        option_text = (option.text_content() or "").strip()
+                        
+                        # 检查是否包含关键部分
+                        if bank_branch in option_text or option_text in bank_branch:
+                            print(f"  ✓ 找到部分匹配的支行: {option_text}")
+                            
+                            if self.ui_helper.safe_click(option, f"支行选项-{option_text}"):
+                                print(f"  ✓ 已点击支行选项: {option_text}")
+                                time.sleep(0.8)
+                                
+                                try:
+                                    page.keyboard.press('Enter')
+                                    time.sleep(0.8)
+                                    print(f"  ✓ 已按回车键确认选择")
+                                except Exception as e:
+                                    print(f"  ⚠ 按回车键失败: {e}")
+                                    try:
+                                        page.evaluate('() => { document.body.click(); }')
+                                        time.sleep(0.5)
+                                    except Exception:
+                                        pass
+                                
+                                print(f"  ✓ 已选择支行: {option_text}")
+                                return
+                    except Exception:
+                        continue
+                
+                print(f"  ⚠ 未找到匹配的支行选项")
+                
+            except Exception as e:
+                print(f"  ✗ 搜索支行时出错: {e}")
+                import traceback
+                traceback.print_exc()
+                
+        except Exception as e:
+            print(f"填写银行支行时出错: {e}")
+            import traceback
+            traceback.print_exc()
     
     def _scroll_contract_form(self, page: Page) -> None:
         """
@@ -661,27 +996,45 @@ class ContractManager:
         print("处理合同确认弹窗...")
         
         try:
-            time.sleep(2)
+            # 等待弹窗出现和加载
+            time.sleep(3)
             
-            # 查找生成合同按钮
-            generate_contract_xpath = '/html/body/div[3]/div[2]/div/div[2]/div[2]/div[2]'
-            generate_contract_buttons = page.locator(f'xpath={generate_contract_xpath}')
+            # 查找生成合同按钮 - 使用多种选择器
+            generate_contract_selectors = [
+                'button.arco-btn-primary:has-text("生成合同")',
+                'xpath=//button[contains(@class, "arco-btn-primary") and contains(text(), "生成合同")]',
+                'xpath=//button//span[contains(text(), "生成合同")]',
+                '/html/body/div[3]/div[2]/div/div[2]/div[2]/div[2]',
+            ]
             
-            if generate_contract_buttons.count() > 0:
-                button_text = generate_contract_buttons.first.text_content().strip()
-                print(f"找到生成合同按钮: {button_text}")
-                
-                if "生成合同" in button_text:
-                    if self.ui_helper.safe_click(generate_contract_buttons.first, "生成合同按钮"):
-                        print("✓ 已点击生成合同按钮，完成合同签署")
-                        time.sleep(3)
-                        return self._handle_success_popup(page)
+            for selector in generate_contract_selectors:
+                try:
+                    if selector.startswith('xpath=') or selector.startswith('/html'):
+                        elements = page.locator(selector)
+                    else:
+                        elements = page.locator(selector)
+                    
+                    if elements.count() > 0:
+                        button_text = (elements.first.text_content() or "").strip()
+                        print(f"找到生成合同按钮: {button_text}")
+                        
+                        if "生成合同" in button_text:
+                            if self.ui_helper.safe_click(elements.first, "生成合同按钮"):
+                                print("✓ 已点击生成合同按钮，完成合同签署")
+                                time.sleep(3)
+                                return self._handle_success_popup(page)
+                            break
+                except Exception as e:
+                    print(f"尝试选择器 {selector} 失败: {e}")
+                    continue
             
             print("未找到生成合同按钮，可能已经自动生成或流程不同")
             return True
             
         except Exception as e:
             print(f"处理合同确认弹窗时出错: {e}")
+            import traceback
+            traceback.print_exc()
             return False
     
     def _handle_success_popup(self, page: Page) -> bool:
