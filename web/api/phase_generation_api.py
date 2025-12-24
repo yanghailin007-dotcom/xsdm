@@ -82,7 +82,7 @@ def start_phase_one_generation():
             "synopsis": data.get("synopsis"),
             "coreSetting": data.get("core_setting"),
             "coreSellingPoints": data.get("core_selling_points"),
-            "totalChapters": data.get("total_chapters", 50),
+            "totalChapters": data.get("total_chapters", 200),
             "generationMode": data.get("generation_mode", "phase_one_only")
         }
         logger.info(f"📋 [API_DEBUG] 构建的创意种子: {json.dumps(creative_seed, ensure_ascii=False, indent=2)}")
@@ -94,7 +94,7 @@ def start_phase_one_generation():
             "synopsis": data.get("synopsis"),
             "core_setting": data.get("core_setting"),
             "core_selling_points": data.get("core_selling_points"),
-            "total_chapters": data.get("total_chapters", 50),
+            "total_chapters": data.get("total_chapters", 200),
             "generation_mode": "phase_one_only",  # 强制设置为第一阶段模式
             "creative_seed": creative_seed
         }
@@ -256,7 +256,7 @@ def continue_to_phase_two(novel_title):
     logger.info(f"✅ continue_to_phase_two 路由被调用，novel_title={novel_title}")
     try:
         data = request.json or {}
-        total_chapters = data.get('total_chapters', 50)
+        total_chapters = data.get('total_chapters', 200)
         chapters_per_batch = data.get('chapters_per_batch', 3)
         logger.info(f"✅ 接收到请求参数: total_chapters={total_chapters}, chapters_per_batch={chapters_per_batch}")
         
@@ -447,29 +447,19 @@ def start_phase_two_generation():
 @login_required
 def get_phase_two_task_status(task_id):
     """获取第二阶段任务状态"""
-    logger.info(f"🔍 [PHASE_TWO_STATUS] 查询任务状态: {task_id}")
-    
     try:
         global manager
         if not manager:
-            logger.error("❌ [PHASE_TWO_STATUS] NovelGenerationManager 未初始化")
             return jsonify({"error": "管理器未初始化"}), 500
         
-        logger.info("✅ [PHASE_TWO_STATUS] NovelGenerationManager 可用")
-        
-        # 查询任务状态 - 使用与第一阶段相同的逻辑
-        logger.info(f"🔍 [PHASE_TWO_STATUS] 查询任务状态: {task_id}")
+        # 查询任务状态
         task_status = manager.get_task_status(task_id)
-        logger.info(f"📋 [PHASE_TWO_STATUS] 任务状态结果: {json.dumps(task_status, ensure_ascii=False, indent=2)}")
-        
         task_progress = manager.get_task_progress(task_id)
-        logger.info(f"📋 [PHASE_TWO_STATUS] 任务进度结果: {json.dumps(task_progress, ensure_ascii=False, indent=2)}")
         
         if "error" in task_status:
-            logger.error(f"❌ [PHASE_TWO_STATUS] 任务不存在或出错: {task_status['error']}")
             return jsonify({"error": task_status["error"]}), 404
         
-        # 构建响应数据 - 与第一阶段保持一致的结构
+        # 构建响应数据
         response = {
             "task_id": task_id,
             "status": task_status.get("status", "unknown"),
@@ -488,22 +478,13 @@ def get_phase_two_task_status(task_id):
         # 如果任务完成，添加结果数据
         if task_status.get("status") == "completed":
             response["result"] = task_status.get("result", {})
-            
-            # 添加已生成章节信息
             if "generated_chapters" in task_progress:
                 response["generated_chapters"] = task_progress["generated_chapters"]
-            
-            logger.info(f"✅ [PHASE_TWO_STATUS] 任务已完成，包含结果数据")
         
-        logger.info(f"📤 [PHASE_TWO_STATUS] 返回状态查询响应: {json.dumps(response, ensure_ascii=False, indent=2)}")
         return jsonify(response)
         
     except Exception as e:
-        logger.error(f"❌ 获取第二阶段任务状态失败: {e}")
-        logger.error(f"❌ [PHASE_TWO_STATUS] 错误类型: {type(e).__name__}")
-        logger.error(f"❌ [PHASE_TWO_STATUS] 错误详情: {str(e)}")
-        import traceback
-        logger.error(f"❌ [PHASE_TWO_STATUS] 错误堆栈: {traceback.format_exc()}")
+        logger.error(f"获取第二阶段任务状态失败: {e}")
         return jsonify({"error": str(e)}), 500
 
 @phase_api.route('/phase-two/progress/<novel_title>', methods=['GET'])
@@ -658,11 +639,11 @@ def get_projects_with_phase_status():
                 
                 if chapter_count > 0:
                     project["phase_two"] = {
-                        "status": "generating" if chapter_count < project.get("total_chapters", 50) else "completed",
+                        "status": "generating" if chapter_count < project.get("total_chapters", 200) else "completed",
                         "progress": f"{chapter_count} 章",
                         "generated_chapters": chapter_count
                     }
-                    project["status"] = "phase_two_in_progress" if chapter_count < project.get("total_chapters", 50) else "completed"
+                    project["status"] = "phase_two_in_progress" if chapter_count < project.get("total_chapters", 200) else "completed"
                 else:
                     project["phase_two"] = {"status": "not_started", "progress": "0 章"}
                     project["status"] = "phase_one_completed"
@@ -923,7 +904,7 @@ def register_phase_routes(app, manager_instance=None):
                 "synopsis": config.get("synopsis", ""),
                 "core_setting": config.get("core_setting", ""),
                 "core_selling_points": config.get("core_selling_points", ""),
-                "total_chapters": config.get("total_chapters", 50),
+                "total_chapters": config.get("total_chapters", 200),
                 "generation_mode": config.get("generation_mode", "phase_one_only"),
                 "phase_one_result": result,
                 "task_id": task_id,

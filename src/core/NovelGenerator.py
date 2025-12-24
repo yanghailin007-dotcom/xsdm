@@ -861,6 +861,13 @@ class NovelGenerator:
             try:
                 print(f"\n📖 开始生成第{chapter_num}章...")
                 
+                # 调用第二阶段进度回调（如果有）
+                if hasattr(self, '_phase_two_progress_callback') and callable(self._phase_two_progress_callback):
+                    try:
+                        self._phase_two_progress_callback(chapter_num, "generating")
+                    except Exception as callback_error:
+                        print(f"⚠️ 进度回调失败: {callback_error}")
+                
                 # 1. 准备生成上下文
                 context = self._prepare_generation_context(chapter_num)
                 
@@ -1151,13 +1158,12 @@ class NovelGenerator:
         
         return True
 
-    def _generate_all_chapters(self, total_chapters: int) -> bool:
+    def _generate_all_chapters(self, total_chapters: int, start_chapter: int = 1) -> bool:
         """生成所有章节内容"""
         print("\n" + "="*60)
         print("📖 第五阶段：章节内容生成")
         print("="*60)
         
-        start_chapter = 1
         print(f"开始生成第{start_chapter}-{total_chapters}章小说内容...")
         print("基于选定方案和创作方向进行创作")
         print("每章生成后将进行质量评估和优化")
@@ -2007,6 +2013,17 @@ class NovelGenerator:
                 "resume_data": None
             }
             
+            # 初始化质量评估器（第二阶段需要）
+            novel_title = self.novel_data['novel_title']
+            from src.core.QualityAssessor import QualityAssessor
+            self.quality_assessor = QualityAssessor(
+                api_client=self.api_client,
+                novel_title=novel_title
+            )
+            # 更新 content_generator 的 quality_assessor 引用
+            self.content_generator.quality_assessor = self.quality_assessor
+            print(f"✅ 质量评估器已初始化: {novel_title}")
+            
             # 打印加载的基础信息用于调试
             print(f"📚 小说标题: {self.novel_data['novel_title']}")
             print(f"📝 简介: {self.novel_data['novel_synopsis'][:100] if self.novel_data['novel_synopsis'] else '无'}...")
@@ -2023,7 +2040,7 @@ class NovelGenerator:
             print(f"📚 从第{from_chapter}章生成到第{total_chapters}章")
             
             # 执行章节生成
-            return self._generate_all_chapters(total_chapters)
+            return self._generate_all_chapters(total_chapters, start_chapter=from_chapter)
             
         except Exception as e:
             print(f"❌ 从单独文件加载第二阶段数据失败: {e}")
@@ -2060,6 +2077,17 @@ class NovelGenerator:
                     print(f"✅ 已加载产物: {product_name}")
                 else:
                     print(f"⚠️ 产物文件不存在: {product_name}")
+            
+            # 初始化质量评估器（第二阶段需要）
+            novel_title = phase_one_index["novel_title"]
+            from src.core.QualityAssessor import QualityAssessor
+            self.quality_assessor = QualityAssessor(
+                api_client=self.api_client,
+                novel_title=novel_title
+            )
+            # 更新 content_generator 的 quality_assessor 引用
+            self.content_generator.quality_assessor = self.quality_assessor
+            print(f"✅ 质量评估器已初始化: {novel_title}")
             
             # 构建小说数据
             self.novel_data = {
@@ -2104,7 +2132,7 @@ class NovelGenerator:
             print(f"📚 从第{from_chapter}章生成到第{total_chapters}章")
             
             # 执行章节生成
-            return self._generate_all_chapters(total_chapters)
+            return self._generate_all_chapters(total_chapters, start_chapter=from_chapter)
             
         except Exception as e:
             print(f"❌ 从索引文件加载第二阶段数据失败: {e}")
@@ -2115,6 +2143,17 @@ class NovelGenerator:
     def _load_phase_two_from_old_format(self, phase_one_result: Dict, from_chapter: int, chapters_to_generate: Optional[int] = None) -> bool:
         """从旧格式加载第二阶段数据（兼容性处理）"""
         try:
+            # 初始化质量评估器（第二阶段需要）
+            novel_title = phase_one_result.get("novel_title", "未命名小说")
+            from src.core.QualityAssessor import QualityAssessor
+            self.quality_assessor = QualityAssessor(
+                api_client=self.api_client,
+                novel_title=novel_title
+            )
+            # 更新 content_generator 的 quality_assessor 引用
+            self.content_generator.quality_assessor = self.quality_assessor
+            print(f"✅ 质量评估器已初始化: {novel_title}")
+            
             # 直接从phase_one_result中读取数据（旧格式）
             self.novel_data = {
                 "novel_title": phase_one_result.get("novel_title", "未命名小说"),
@@ -2157,7 +2196,7 @@ class NovelGenerator:
             print(f"📚 从第{from_chapter}章生成到第{total_chapters}章")
             
             # 执行章节生成
-            return self._generate_all_chapters(total_chapters)
+            return self._generate_all_chapters(total_chapters, start_chapter=from_chapter)
             
         except Exception as e:
             print(f"❌ 从旧格式加载第二阶段数据失败: {e}")

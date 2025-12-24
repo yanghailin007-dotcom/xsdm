@@ -273,7 +273,7 @@ function displayProjectInfo(projectData) {
     
     if (chaptersToGenerate) {
         const remainingChapters = totalChapters - completedChapters;
-        chaptersToGenerate.max = Math.min(remainingChapters, 50);
+        chaptersToGenerate.max = Math.min(remainingChapters, 200);
         chaptersToGenerate.value = Math.min(10, remainingChapters);
     }
 }

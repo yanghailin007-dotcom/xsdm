@@ -1198,35 +1198,43 @@ class NovelGenerationManager:
     def _run_phase_two_task(self, task_id: str, config: Dict[str, Any]):
         """执行第二阶段生成任务"""
         try:
-            self._update_task_status(task_id, "generating", 10)
-            
             novel_title = config.get("novel_title", "未命名小说")
             phase_one_file = config.get("phase_one_file", "")
             from_chapter = config.get("from_chapter", 1)
-            chapters_to_generate = config.get("chapters_to_generate")
+            chapters_to_generate = config.get("chapters_to_generate", 200)
             
             logger.info(f"任务 {task_id}: 🚀 开始第二阶段章节生成")
             logger.info(f"任务 {task_id}: 📚 小说标题: {novel_title}")
-            logger.info(f"任务 {task_id}: 📄 第一阶段文件: {phase_one_file}")
             logger.info(f"任务 {task_id}: 📖 起始章节: {from_chapter}")
             logger.info(f"任务 {task_id}: 📊 生成章节数: {chapters_to_generate}")
             
+            # 定义第二阶段进度计算函数
+            def update_phase_two_progress(chapter_num: int, step: str = "generating"):
+                """根据已生成章节数动态更新进度"""
+                # 计算进度：准备阶段30% + 生成阶段(已完成章节数/总章节数)*60%
+                if chapter_num < from_chapter:
+                    progress = 10  # 初始化阶段
+                else:
+                    completed = chapter_num - from_chapter + 1
+                    progress = 30 + min(int((completed / chapters_to_generate) * 60), 60)
+                
+                self._update_task_status(task_id, step, progress)
+            
+            # 初始化阶段 (10%)
+            self._update_task_status(task_id, "initializing", 10)
+            
             # 初始化NovelGenerator
-            logger.info(f"任务 {task_id}: 🔧 初始化 NovelGenerator...")
             try:
                 from src.core.NovelGenerator import NovelGenerator
                 
-                # 导入完整配置
                 import sys
                 from pathlib import Path
                 
-                # 确保项目根目录在路径中
                 current_file = Path(__file__).resolve()
                 project_root = current_file.parent.parent.parent
                 if str(project_root) not in sys.path:
                     sys.path.insert(0, str(project_root))
                 
-                # 使用importlib来动态导入config
                 try:
                     import importlib.util
                     config_path = project_root / "config" / "config.py"
@@ -1238,8 +1246,6 @@ class NovelGenerationManager:
                     else:
                         raise ImportError("无法创建config模块规格")
                 except Exception as e:
-                    logger.error(f"无法导入配置文件: {e}")
-                    # 使用默认配置
                     CONFIG = {
                         "defaults": {
                             "total_chapters": 200,
@@ -1247,51 +1253,38 @@ class NovelGenerationManager:
                         }
                     }
                 
-                # 构建生成器配置
                 generator_config = CONFIG.copy()
                 generator_config["defaults"]["chapters_per_batch"] = 3
                 
-                # 创建生成器实例
                 novel_generator = NovelGenerator(generator_config)
-                logger.info(f"任务 {task_id}: ✅ NovelGenerator 实例创建成功")
                 
             except Exception as e:
-                logger.error(f"任务 {task_id}: ❌ 创建 NovelGenerator 失败: {e}")
-                logger.error(f"任务 {task_id}: 📋 错误详情: {type(e).__name__}: {str(e)}")
-                import traceback
-                traceback.print_exc()
+                logger.error(f"任务 {task_id}: 创建 NovelGenerator 失败: {e}")
                 self._update_task_status(task_id, "failed", 0, f"创建生成器失败: {str(e)}")
                 return
             
-            # 更新进度
-            logger.info(f"任务 {task_id}: 🔧 初始化生成器 (20%)")
-            self._update_task_status(task_id, "generating", 20)
+            # 初始化完成 (20%)
+            self._update_task_status(task_id, "initializing", 20)
             
-            logger.info(f"任务 {task_id}: 📄 加载第一阶段结果 (40%)")
-            self._update_task_status(task_id, "generating", 40)
-            
-            logger.info(f"任务 {task_id}: 📝 准备章节生成 (60%)")
-            self._update_task_status(task_id, "generating", 60)
-            
-            # 执行第二阶段生成
-            logger.info(f"任务 {task_id}: 🚀 调用 phase_two_generation 方法...")
-            
-            logger.info(f"任务 {task_id}: 📝 开始第二阶段章节生成 (70%)")
-            self._update_task_status(task_id, "generating", 70)
+            # 加载第一阶段数据 (30%)
+            self._update_task_status(task_id, "preparing", 30)
             
             try:
+                # 设置进度回调 - 用于在生成过程中动态更新进度
+                setattr(novel_generator, '_phase_two_progress_callback', update_phase_two_progress)
+                setattr(novel_generator, '_phase_two_from_chapter', from_chapter)
+                setattr(novel_generator, '_phase_two_total_chapters', chapters_to_generate)
+                
                 success = novel_generator.phase_two_generation(
                     phase_one_file,
                     from_chapter,
                     chapters_to_generate
                 )
-                logger.info(f"任务 {task_id}: ✅ phase_two_generation 完成，返回结果: {success}")
                 
                 if success:
-                    logger.info(f"任务 {task_id}: 🎉 第二阶段章节生成成功！")
+                    logger.info(f"任务 {task_id}: 第二阶段章节生成成功")
                     self._update_task_status(task_id, "completed", 100)
                     
-                    # 保存第二阶段结果到任务结果中
                     task_result = self.task_results.get(task_id, {})
                     task_result["result"] = {
                         "novel_title": novel_title,
@@ -1303,28 +1296,19 @@ class NovelGenerationManager:
                     }
                     self.task_results[task_id] = task_result
                     
-                    # 重新加载项目数据以获取最新状态
-                    logger.info(f"任务 {task_id}: 🔍 重新加载项目数据...")
                     try:
                         self.load_existing_novels()
-                        logger.info(f"任务 {task_id}: ✅ 项目数据重新加载完成")
                     except Exception as e:
-                        logger.info(f"任务 {task_id}: ⚠️ 重新加载项目数据失败: {e}")
+                        logger.info(f"任务 {task_id}: 重新加载项目数据失败: {e}")
                 
                 else:
-                    logger.error(f"任务 {task_id}: ❌ 第二阶段章节生成失败")
+                    logger.error(f"任务 {task_id}: 第二阶段章节生成失败")
                     self._update_task_status(task_id, "failed", 0, "第二阶段章节生成返回 False")
                     
             except Exception as e:
-                logger.error(f"任务 {task_id}: ❌ phase_two_generation 执行异常: {e}")
-                logger.error(f"任务 {task_id}: 📋 错误类型: {type(e).__name__}")
-                logger.error(f"任务 {task_id}: 📋 错误详情: {str(e)}")
-                import traceback
-                traceback.print_exc()
+                logger.error(f"任务 {task_id}: phase_two_generation 执行异常: {e}")
                 self._update_task_status(task_id, "failed", 0, f"第二阶段生成过程异常: {str(e)}")
             
         except Exception as e:
-            logger.error(f"任务 {task_id}: 🔥 第二阶段生成任务发生未捕获的异常: {e}")
-            import traceback
-            traceback.print_exc()
+            logger.error(f"任务 {task_id}: 第二阶段生成任务异常: {e}")
             self._update_task_status(task_id, "failed", 0, f"未捕获的异常: {str(e)}")
