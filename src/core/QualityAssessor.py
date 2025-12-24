@@ -12,14 +12,42 @@ from typing import List, Dict, Optional, Tuple
 from datetime import datetime
 from src.managers.WorldStateManager import WorldStateManager
 from src.utils.logger import get_logger
+from src.config.path_config import path_config
+
 class QualityAssessor:
-    def __init__(self, api_client, storage_path: str = "./quality_data"):
+    def __init__(self, api_client, storage_path: Optional[str] = None, novel_title: Optional[str] = None):
+        """
+        初始化质量评估器
+        
+        Args:
+            api_client: API客户端
+            storage_path: 存储路径（已弃用，保留用于向后兼容）
+            novel_title: 小说标题，用于获取统一的项目路径
+        """
         self.api_client = api_client
-        self.storage_path = storage_path
+        
+        # 确定存储路径
+        if novel_title:
+            self.novel_title = novel_title
+            paths = path_config.get_project_paths(novel_title)
+            self.storage_path = paths["quality_reports_dir"]
+        elif storage_path:
+            self.storage_path = storage_path
+            self.novel_title = None
+        else:
+            # 默认使用新路径配置系统的基础目录
+            self.storage_path = os.path.abspath(path_config.base_dir / "quality_reports")
+            self.novel_title = None
+        
         # 初始化日志系统
         self.logger = get_logger("QualityAssessor")
-        # 初始化世界状态管理器
-        self.world_state_manager = WorldStateManager(storage_path)
+        
+        # 初始化世界状态管理器（传递 novel_title 以使用统一路径）
+        if novel_title:
+            self.world_state_manager = WorldStateManager(novel_title=novel_title)
+        else:
+            # 向后兼容
+            self.world_state_manager = WorldStateManager(storage_path=self.storage_path)
         self.unified_quality_standards = {
             # === 质量等级标准 ===
             "quality_grades": {

@@ -124,9 +124,11 @@ class NovelGenerator:
         # 日志器（必须最先初始化）
         self.logger = get_logger("NovelGenerator")
         
-        # API客户端和质量评估器
+        # API客户端
         self.api_client = APIClient(self.config)
-        self.quality_assessor = QualityAssessor(self.api_client)
+        
+        # 质量评估器 - 延迟初始化（需要 novel_title）
+        self.quality_assessor = None
         
         # 内容生成器和项目管理者
         self.content_generator = ContentGenerator(
@@ -134,7 +136,7 @@ class NovelGenerator:
             api_client=self.api_client,
             config=self.config,
             event_bus=EventBus(),  # 临时创建，后面会被覆盖
-            quality_assessor=self.quality_assessor
+            quality_assessor=None
         )
         self.project_manager = ProjectManager()
         
@@ -417,17 +419,28 @@ class NovelGenerator:
         """设置小说基础信息"""
         try:
             self.novel_data["selected_plan"] = selected_plan
-            self.novel_data["novel_title"] = selected_plan["title"]
+            self.novel_title = selected_plan["title"]
+            self.novel_data["novel_title"] = self.novel_title
             self.novel_data["novel_synopsis"] = selected_plan["synopsis"]
             self.novel_data["creative_seed"] = creative_seed
             self.novel_data["category"] = selected_plan.get('tags', {}).get('main_category', '未分类')
             self.novel_data["current_progress"]["total_chapters"] = total_chapters
             self.novel_data["current_progress"]["start_time"] = datetime.now().isoformat()
 
+            # 现在有了 novel_title，初始化质量评估器（使用统一路径配置）
+            from src.core.QualityAssessor import QualityAssessor
+            self.quality_assessor = QualityAssessor(
+                api_client=self.api_client,
+                novel_title=self.novel_title
+            )
+            # 更新 content_generator 的 quality_assessor 引用
+            self.content_generator.quality_assessor = self.quality_assessor
+
             # 初始化材料管理器
             self._initialize_material_manager()
 
             print(f"✅ 小说信息设置完成: 《{selected_plan['title']}》")
+            print(f"✅ 质量评估器已初始化，使用统一路径配置")
             return True
 
         except Exception as e:
@@ -1051,10 +1064,17 @@ class NovelGenerator:
         
         # 持久化核心角色数据
         print("=== 步骤 4.5: 持久化核心角色数据 ===")
-        self.quality_assessor.persist_initial_character_designs(
-            novel_title=self.novel_data["novel_title"],
-            character_design=core_characters
-        )
+        
+        # 检查 quality_assessor 是否已初始化
+        if self.quality_assessor is not None:
+            self.quality_assessor.persist_initial_character_designs(
+                novel_title=self.novel_data["novel_title"],
+                character_design=core_characters
+            )
+        else:
+            # 如果还没有初始化，使用临时保存
+            print("⚠️ 质量评估器尚未初始化，将延迟持久化")
+            # TODO: 在后续流程中会通过质量评估器进行持久化
         
         self.novel_data["character_design"] = core_characters
         print("✅ 核心角色设计完成，已建立角色基础库。")
@@ -1389,13 +1409,19 @@ class NovelGenerator:
         self.project_manager.save_project_progress(self.novel_data)
         self.project_manager.export_novel_overview(self.novel_data)
         
-        # 生成小说封面
-        print("\n" + "="*60)
-        print("🎨 最后一步：生成小说封面")
-        print("="*60)
-        self.novel_data["current_progress"]["stage"] = "封面生成"
-        if not self._generate_novel_cover():
-            print("⚠️ 封面生成失败，项目已完成但无封面。")
+        # 生成小说封面 - 只有当所有章节都生成完成时才生成
+        total_chapters = self.novel_data["current_progress"]["total_chapters"]
+        completed_chapters = self.novel_data["current_progress"]["completed_chapters"]
+        
+        if completed_chapters >= total_chapters:
+            print("\n" + "="*60)
+            print("🎨 最后一步：生成小说封面")
+            print("="*60)
+            self.novel_data["current_progress"]["stage"] = "封面生成"
+            if not self._generate_novel_cover():
+                print("⚠️ 封面生成失败，项目已完成但无封面。")
+        else:
+            print(f"\n⚠️ 当前已完成 {completed_chapters}/{total_chapters} 章，封面将在所有章节生成完成后生成。")
         
         # 复制项目文件到执行目录
         print("\n" + "="*60)

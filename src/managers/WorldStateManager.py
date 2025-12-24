@@ -14,16 +14,39 @@ from datetime import datetime
 import uuid
 import time
 from src.utils.logger import get_logger
+from src.config.path_config import path_config
+
 class WorldStateManager:
-    def __init__(self, storage_path: str = "./quality_data"):
-        self.storage_path = os.path.normpath(storage_path)
+    def __init__(self, storage_path: Optional[str] = None, novel_title: Optional[str] = None):
+        """
+        初始化世界状态管理器
+        
+        Args:
+            storage_path: 存储路径（已弃用，保留用于向后兼容）
+            novel_title: 小说标题，用于获取统一的项目路径
+        """
+        # 如果提供了小说标题，使用统一的路径配置系统
+        if novel_title:
+            self.novel_title = novel_title
+            paths = path_config.get_project_paths(novel_title)
+            self.storage_path = os.path.abspath(paths["quality_reports_dir"])
+        elif storage_path:
+            # 向后兼容：使用提供的存储路径
+            self.storage_path = os.path.normpath(storage_path)
+            self.novel_title = None
+        else:
+            # 默认使用新路径配置系统的基础目录
+            self.storage_path = os.path.abspath(path_config.base_dir / "quality_reports")
+            self.novel_title = None
+        
         # 初始化日志系统
         self.logger = get_logger("WorldStateManager")
         self.logger.info(f"🌐 世界状态管理器初始化:")
         self.logger.info(f"   存储路径: {self.storage_path}")
+        self.logger.info(f"   小说标题: {self.novel_title or '未指定'}")
         self.logger.info(f"   当前工作目录: {os.getcwd()}")
         # 确保存储目录存在
-        os.makedirs(storage_path, exist_ok=True)
+        os.makedirs(self.storage_path, exist_ok=True)
         # 角色发展模板
         self.character_development_templates = {
             "core_character": {
@@ -170,6 +193,11 @@ class WorldStateManager:
         return {}
     # ------------------- Event Store / Relationship / Ledger helpers -------------------
     def _event_file(self, novel_title: str) -> str:
+        # 如果有指定小说标题，使用统一路径配置
+        if self.novel_title == novel_title:
+            paths = path_config.get_project_paths(novel_title)
+            return str(Path(paths["events_dir"]) / f"{novel_title}_events.jsonl")
+        # 向后兼容
         return os.path.join(self.events_path, f"{novel_title}_events.jsonl")
     def append_event(self, novel_title: str, event: Dict) -> bool:
         """Append an event to the event log (jsonl)."""
@@ -303,6 +331,11 @@ class WorldStateManager:
         except Exception as e:
             return False, f'exception applying event: {e}'
     def _relationships_file(self, novel_title: str) -> str:
+        # 如果有指定小说标题，使用统一路径配置
+        if self.novel_title == novel_title:
+            paths = path_config.get_project_paths(novel_title)
+            return paths["relationships"]
+        # 向后兼容
         return os.path.join(self.relationships_path, f"{novel_title}_relationships.json")
     def load_relationships(self, novel_title: str) -> Dict:
         if novel_title in self._edges_index:
@@ -349,6 +382,11 @@ class WorldStateManager:
         edges = self.load_relationships(novel_title)
         return [e for e in edges.values() if e.get('from') == actor_name or e.get('to') == actor_name]
     def _money_ledger_file(self, novel_title: str) -> str:
+        # 如果有指定小说标题，使用统一路径配置
+        if self.novel_title == novel_title:
+            paths = path_config.get_project_paths(novel_title)
+            return str(Path(paths["events_dir"]) / f"{novel_title}_money_ledger.json")
+        # 向后兼容
         return os.path.join(self.ledgers_path, f"{novel_title}_money_ledger.json")
     def append_money_tx(self, novel_title: str, tx: Dict) -> bool:
         ledger_file = self._money_ledger_file(novel_title)
@@ -922,8 +960,18 @@ class WorldStateManager:
         
         🔧 修复版本：实现严格的新角色准入过滤机制
         """
-        character_file = os.path.join(self.storage_path, f"{novel_title}_character_development.json")
+        # 使用统一路径配置获取角色发展文件路径
+        if self.novel_title == novel_title:
+            character_file = path_config.get_quality_data_path(novel_title, "character_development")
+        else:
+            # 向后兼容：使用旧路径
+            character_file = os.path.join(self.storage_path, f"{novel_title}_character_development.json")
+        
+        # 确保目录存在
+        os.makedirs(os.path.dirname(character_file), exist_ok=True)
+        
         self.logger.info(f"🔄 开始管理角色发展表:")
+        self.logger.info(f"   角色文件路径: {os.path.abspath(character_file)}")
         self.logger.info(f"   小说: {novel_title}")
         self.logger.info(f"   角色: {character_data.get('name')}")
         self.logger.info(f"   章节: {current_chapter}")
@@ -1147,7 +1195,8 @@ class WorldStateManager:
             with open(character_file, 'w', encoding='utf-8') as f:
                 json.dump(characters, f, ensure_ascii=False, indent=2)
             current_count = len(characters)
-            self.logger.info(f"💾 角色发展表已保存到: {character_file}")
+            abs_path = os.path.abspath(character_file)
+            self.logger.info(f"💾 角色发展表已保存到: {abs_path}")
             self.logger.info(f"   角色总数: {current_count} (之前: {previous_count})")
             self.logger.info(f"   文件大小: {os.path.getsize(character_file)} 字节")
             # 验证保存是否成功

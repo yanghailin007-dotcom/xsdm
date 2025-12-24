@@ -80,7 +80,8 @@ class ContentGenerator:
         def _get_previous_world_state(self, novel_title: str) -> Dict:
             """从文件中加载前面章节的世界状态"""
             from src.managers.WorldStateManager import WorldStateManager
-            wsm = WorldStateManager("quality_data")
+            # 使用 novel_title 初始化，以使用统一路径配置
+            wsm = WorldStateManager(novel_title=novel_title)
             return wsm.get_novel_world_state(novel_title)
         def _build_consistency_guidance(self, world_state: Dict, novel_title: str) -> str:
             """基于世界状态构建一致性指导（使用压缩后的数据）"""

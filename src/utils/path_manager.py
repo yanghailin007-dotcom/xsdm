@@ -75,7 +75,9 @@ class PathManager:
             with open(chapter_path, 'w', encoding='utf-8') as f:
                 json.dump(chapter_data, f, ensure_ascii=False, indent=2)
             
-            self.logger.info(f"✅ 章节已保存: 第{chapter_number}章 -> {chapter_path}")
+            # 转换为绝对路径以便显示
+            abs_path = os.path.abspath(chapter_path)
+            self.logger.info(f"✅ 章节已保存: 第{chapter_number}章 -> {abs_path}")
             return True
         except Exception as e:
             self.logger.error(f"❌ 保存章节失败: 第{chapter_number}章 - {e}")

@@ -27,8 +27,8 @@ def register_auth_routes(app):
                 logger.info(f"✅ 测试用户登录成功: {username} (密码: {'空' if not password else '***'})")
 
                 if request.is_json:
-                    return jsonify({'success': True, 'message': '测试用户登录成功'})
-                return redirect(url_for('index'))
+                    return jsonify({'success': True, 'message': '测试用户登录成功', 'redirect': '/'})
+                return redirect('/')
 
             # 正常验证流程
             if user_auth.verify_user(username, password):
@@ -38,8 +38,8 @@ def register_auth_routes(app):
                 logger.info(f"✅ 用户登录成功: {username}")
 
                 if request.is_json:
-                    return jsonify({'success': True, 'message': '登录成功'})
-                return redirect(url_for('index'))
+                    return jsonify({'success': True, 'message': '登录成功', 'redirect': '/'})
+                return redirect('/')
             else:
                 logger.info(f"❌ 登录失败: {username}")
                 if request.is_json:
@@ -48,7 +48,7 @@ def register_auth_routes(app):
 
         # GET 请求 - 显示登录页面
         if 'logged_in' in session and session['logged_in']:
-            return redirect(url_for('index'))
+            return redirect('/')
         return render_template('login.html')
 
     @app.route('/logout', methods=['GET', 'POST'])
@@ -63,12 +63,28 @@ def register_auth_routes(app):
 def register_page_routes(app):
     """注册基础页面路由"""
     
+    @app.route('/landing', methods=['GET'])
+    def landing():
+        """大文娱系统首页"""
+        logger.info("📄 Loading landing.html")
+        return render_template('landing.html')
+    
     @app.route('/', methods=['GET'])
     @login_required
     def index():
-        """首页 - 小说创意生成入口"""
+        """小说创意生成入口"""
         logger.info(f"📄 Loading index.html from template folder: {app.template_folder}")
         return render_template('index.html')
+    
+    @app.route('/home', methods=['GET'])
+    def home():
+        """首页 - 根据登录状态决定跳转"""
+        if session.get('logged_in'):
+            logger.info("📄 User logged in, loading index.html")
+            return render_template('index.html')
+        else:
+            logger.info("📄 User not logged in, redirecting to login")
+            return redirect(url_for('login'))
 
     @app.route('/novels', methods=['GET'])
     @login_required

@@ -348,7 +348,11 @@ class ProjectManager:
         # 使用路径管理器保存章节
         success = path_manager.save_chapter(novel_title, chapter_number, chapter_json_data)
         if success:
-            self.logger.info(f"✅ 第{chapter_number}章已保存到统一路径结构")
+            # 获取并显示绝对路径
+            from src.config.path_config import path_config
+            paths = path_config.get_project_paths(novel_title)
+            abs_chapters_dir = os.path.abspath(paths["chapters_dir"])
+            self.logger.info(f"✅ 第{chapter_number}章已保存到: {abs_chapters_dir}")
         else:
             self.logger.error(f"❌ 第{chapter_number}章保存失败")
     def save_project_progress(self, novel_data: Dict):

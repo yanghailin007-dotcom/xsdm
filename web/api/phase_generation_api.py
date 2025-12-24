@@ -447,16 +447,63 @@ def start_phase_two_generation():
 @login_required
 def get_phase_two_task_status(task_id):
     """获取第二阶段任务状态"""
+    logger.info(f"🔍 [PHASE_TWO_STATUS] 查询任务状态: {task_id}")
+    
     try:
-        # 暂时返回模拟状态
-        return jsonify({
+        global manager
+        if not manager:
+            logger.error("❌ [PHASE_TWO_STATUS] NovelGenerationManager 未初始化")
+            return jsonify({"error": "管理器未初始化"}), 500
+        
+        logger.info("✅ [PHASE_TWO_STATUS] NovelGenerationManager 可用")
+        
+        # 查询任务状态 - 使用与第一阶段相同的逻辑
+        logger.info(f"🔍 [PHASE_TWO_STATUS] 查询任务状态: {task_id}")
+        task_status = manager.get_task_status(task_id)
+        logger.info(f"📋 [PHASE_TWO_STATUS] 任务状态结果: {json.dumps(task_status, ensure_ascii=False, indent=2)}")
+        
+        task_progress = manager.get_task_progress(task_id)
+        logger.info(f"📋 [PHASE_TWO_STATUS] 任务进度结果: {json.dumps(task_progress, ensure_ascii=False, indent=2)}")
+        
+        if "error" in task_status:
+            logger.error(f"❌ [PHASE_TWO_STATUS] 任务不存在或出错: {task_status['error']}")
+            return jsonify({"error": task_status["error"]}), 404
+        
+        # 构建响应数据 - 与第一阶段保持一致的结构
+        response = {
             "task_id": task_id,
-            "status": "completed",
-            "progress": 100,
-            "message": "第二阶段已完成"
-        })
+            "status": task_status.get("status", "unknown"),
+            "progress": task_progress.get("progress", 0),
+            "current_step": task_status.get("current_step", "initializing"),
+            "message": task_status.get("message", "处理中..."),
+            "status_message": task_status.get("message", "处理中...")
+        }
+        
+        # 添加章节进度信息（如果有）
+        if "current_chapter" in task_progress:
+            response["current_chapter"] = task_progress["current_chapter"]
+        if "total_chapters" in task_progress:
+            response["total_chapters"] = task_progress["total_chapters"]
+        
+        # 如果任务完成，添加结果数据
+        if task_status.get("status") == "completed":
+            response["result"] = task_status.get("result", {})
+            
+            # 添加已生成章节信息
+            if "generated_chapters" in task_progress:
+                response["generated_chapters"] = task_progress["generated_chapters"]
+            
+            logger.info(f"✅ [PHASE_TWO_STATUS] 任务已完成，包含结果数据")
+        
+        logger.info(f"📤 [PHASE_TWO_STATUS] 返回状态查询响应: {json.dumps(response, ensure_ascii=False, indent=2)}")
+        return jsonify(response)
+        
     except Exception as e:
         logger.error(f"❌ 获取第二阶段任务状态失败: {e}")
+        logger.error(f"❌ [PHASE_TWO_STATUS] 错误类型: {type(e).__name__}")
+        logger.error(f"❌ [PHASE_TWO_STATUS] 错误详情: {str(e)}")
+        import traceback
+        logger.error(f"❌ [PHASE_TWO_STATUS] 错误堆栈: {traceback.format_exc()}")
         return jsonify({"error": str(e)}), 500
 
 @phase_api.route('/phase-two/progress/<novel_title>', methods=['GET'])
