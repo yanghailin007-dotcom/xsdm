@@ -1256,7 +1256,9 @@ class ContentGenerator:
                         scenes_str_parts.append(f"- **{display_key}**: {formatted_value}")
             # ▲▲▲【核心修改结束】▲▲▲
         scenes_input_str = "\n".join(scenes_str_parts)
-        user_prompt = f"""
+        
+        # 构建章节生成提示词
+        chapter_generation_prompt = f"""
 ## 章节创作指令 ##
 为《{chapter_params.get('novel_title', '')}》创作第{chapter_number}章。
 {scenes_input_str}
@@ -1274,6 +1276,15 @@ class ContentGenerator:
 请你作为一名优秀的小说家，根据以上所有指令，直接创作出本章的完整内容。
 你的任务是将【写作蓝图】中的六段式场景要点，流畅地、富有文采地串联成一篇完整的、高质量的小说章节。请特别注意每个场景的【功能定位】和【篇幅占比】，确保章节结构清晰，节奏感强。
 """
+        
+        # 保存章节生成提示词到文件
+        self._save_chapter_generation_prompt(
+            chapter_params.get('novel_title', ''),
+            chapter_number,
+            chapter_generation_prompt
+        )
+        
+        user_prompt = chapter_generation_prompt  # 使用保存的提示词进行生成
         # ▲▲▲ 核心修改结束 ▲▲▲
         max_retries = 3
         final_result = None
@@ -2460,6 +2471,40 @@ class ContentGenerator:
                 print(f"❌ 基础模板生成也失败: {fallback_error}")
                 # 返回一个最基本的指令
                 return f"# AI创作指令\n\n请基于以下创意进行创作：\n核心设定：{core_setting}\n核心卖点：{core_selling_points}"
+    
+    def _save_chapter_generation_prompt(self, novel_title: str, chapter_number: int, prompt: str):
+        """保存章节生成提示词到文件，用于内容审核"""
+        try:
+            import re
+            from pathlib import Path
+            
+            # 清理标题
+            safe_title = re.sub(r'[\\/*?:"<>|]', '_', novel_title)
+            
+            # 创建提示词目录
+            prompts_dir = Path(f"小说项目/{safe_title}/generation_prompts")
+            prompts_dir.mkdir(parents=True, exist_ok=True)
+            
+            # 保存提示词文件
+            prompt_file = prompts_dir / f"第{chapter_number:03d}章_生成提示词.txt"
+            
+            with open(prompt_file, 'w', encoding='utf-8') as f:
+                f.write(f"# 第{chapter_number}章生成提示词\n\n")
+                f.write(f"生成时间: {self._get_current_timestamp()}\n")
+                f.write(f"小说标题: {novel_title}\n\n")
+                f.write("="*60 + "\n")
+                f.write("## 完整生成提示词\n\n")
+                f.write(prompt)
+            
+            self.logger.info(f"  💾 第{chapter_number}章生成提示词已保存: {prompt_file}")
+            
+        except Exception as e:
+            self.logger.warn(f"  ⚠️ 保存第{chapter_number}章生成提示词失败: {e}")
+    
+    def _get_current_timestamp(self) -> str:
+        """获取当前时间戳"""
+        import datetime
+        return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     def _build_basic_instruction_template(self, core_setting: str, core_selling_points: str, storyline: dict) -> str:
         """

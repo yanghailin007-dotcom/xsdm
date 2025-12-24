@@ -2421,14 +2421,50 @@ def get_chapter_raw_files(title, chapterNum):
         
         # 构建原始文件分类
         raw_files = {
-            "input_files": [],
-            "output_files": chapter_files,
-            "quality_files": [],
-            "character_files": []
+            "input_files": [],  # 生成章节时使用的提示词
+            "output_files": chapter_files,  # 章节内容输出
+            "quality_files": [],  # quality_data目录下的输出文件
+            "character_files": []  # 其他相关文件
         }
         
-        # 尝试从其他目录查找相关文件
-        subdirs = ["planning", "quality_data", "characters", "worldview", "event_records"]
+        # 1. 添加生成提示词（输入文件）
+        generation_prompts_dir = os.path.join(base_dir, "generation_prompts")
+        if os.path.exists(generation_prompts_dir):
+            prompt_file = os.path.join(generation_prompts_dir, f"第{chapterNum:03d}章_生成提示词.txt")
+            if os.path.exists(prompt_file):
+                raw_files["input_files"].append({
+                    "name": f"第{chapterNum}章_生成提示词.txt",
+                    "type": "生成提示词",
+                    "description": "生成该章节时使用的完整提示词",
+                    "file_path": prompt_file,
+                    "file_size": os.path.getsize(prompt_file),
+                    "extension": ".txt"
+                })
+        
+        # 2. 添加quality_data输出文件（从全局quality_data目录读取）
+        quality_files_map = {
+            f"{original_title}_character_development.json": "角色发展数据",
+            f"{original_title}_mindset_主角.json": "主角心路历程",
+            f"{original_title}_world_state.json": "世界状态数据"
+        }
+        
+        # 检查全局quality_data目录
+        quality_data_dir = "quality_data"
+        if os.path.exists(quality_data_dir):
+            for filename, display_type in quality_files_map.items():
+                file_path = os.path.join(quality_data_dir, filename)
+                if os.path.exists(file_path):
+                    raw_files["quality_files"].append({
+                        "name": filename,
+                        "type": display_type,
+                        "description": f"该章节生成后的{display_type}",
+                        "file_path": file_path,
+                        "file_size": os.path.getsize(file_path),
+                        "extension": ".json"
+                    })
+        
+        # 3. 尝试从其他目录查找相关文件（用于向后兼容）
+        subdirs = ["planning", "characters", "worldview", "event_records", "stage_plan"]
         for subdir in subdirs:
             subdir_path = os.path.join(base_dir, subdir)
             if os.path.exists(subdir_path):
@@ -2441,17 +2477,9 @@ def get_chapter_raw_files(title, chapterNum):
                     
                     # 根据目录分类
                     if subdir == "planning":
-                        raw_files["input_files"].append({
+                        raw_files["character_files"].append({
                             "name": f,
                             "type": "写作计划",
-                            "file_path": file_path,
-                            "file_size": file_size,
-                            "extension": ".json"
-                        })
-                    elif subdir == "quality_data":
-                        raw_files["quality_files"].append({
-                            "name": f,
-                            "type": "质量数据",
                             "file_path": file_path,
                             "file_size": file_size,
                             "extension": ".json"
@@ -2460,6 +2488,14 @@ def get_chapter_raw_files(title, chapterNum):
                         raw_files["character_files"].append({
                             "name": f,
                             "type": "角色数据",
+                            "file_path": file_path,
+                            "file_size": file_size,
+                            "extension": ".json"
+                        })
+                    elif subdir == "stage_plan":
+                        raw_files["character_files"].append({
+                            "name": f,
+                            "type": "阶段计划",
                             "file_path": file_path,
                             "file_size": file_size,
                             "extension": ".json"
