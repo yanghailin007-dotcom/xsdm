@@ -16,7 +16,7 @@
         <div class="storyline-header">
             <div class="header-content">
                 <h1>📖 故事线时间线</h1>
-                <p class="header-subtitle">按时间顺序查看所有重大事件</p>
+                <p class="header-subtitle">查看和管理所有重大事件及其细分</p>
             </div>
             
             <!-- 项目选择器 -->
@@ -26,6 +26,9 @@
                 </select>
                 <button class="btn-refresh" onclick="loadProjects()">
                     <span>🔄</span> 刷新
+                </button>
+                <button class="btn-save" onclick="saveStorylineChanges()" id="btn-save" style="display: none;">
+                    <span>💾</span> 保存更改
                 </button>
             </div>
         </div>
@@ -51,80 +54,44 @@
             <p>请先选择一个项目</p>
         </div>
 
-        <!-- 故事线时间线 -->
-        <div id="timeline-container" class="timeline-container" style="display: none;">
-            <!-- 阶段信息 -->
-            <div class="stage-info">
+        <!-- 故事线主容器 - 左右分栏布局 -->
+        <div id="storyline-main" class="storyline-main" style="display: none;">
+            <!-- 阶段信息栏 -->
+            <div class="stage-info-bar">
                 <div class="stage-badge">
                     <span class="stage-label">阶段</span>
                     <span id="stage-name" class="stage-value">-</span>
                 </div>
-                <div class="chapter-range">
+                <div class="chapter-range-badge">
                     <span id="chapter-range-text">-</span>
                 </div>
             </div>
 
-            <!-- 时间线 -->
-            <div class="timeline-wrapper">
-                <div class="timeline-line"></div>
-                
-                <div id="timeline-events" class="timeline-events">
-                    <!-- 动态生成事件卡片 -->
+            <!-- 左右分栏 -->
+            <div class="split-container">
+                <!-- 左侧：重大事件列表 -->
+                <div class="major-events-panel">
+                    <div class="panel-header">
+                        <h2>🎯 重大事件</h2>
+                        <span class="panel-subtitle">点击查看详情</span>
+                    </div>
+                    <div class="major-events-list" id="major-events-list">
+                        <!-- 动态生成重大事件卡片 -->
+                    </div>
                 </div>
-            </div>
-        </div>
 
-        <!-- 事件详情模态框 -->
-        <div id="event-modal" class="event-modal" style="display: none;">
-            <div class="modal-overlay" onclick="closeEventModal()"></div>
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h2 id="modal-event-name">事件名称</h2>
-                    <button class="modal-close" onclick="closeEventModal()">×</button>
-                </div>
-                <div class="modal-body">
-                    <div class="event-meta">
-                        <div class="meta-item">
-                            <span class="meta-label">章节范围</span>
-                            <span id="modal-chapter-range" class="meta-value">-</span>
-                        </div>
-                        <div class="meta-item">
-                            <span class="meta-label">事件类型</span>
-                            <span id="modal-event-type" class="meta-value">-</span>
-                        </div>
-                        <div class="meta-item">
-                            <span class="meta-label">情绪强度</span>
-                            <span id="modal-emotional-intensity" class="meta-value">-</span>
+                <!-- 右侧：中级事件详情 -->
+                <div class="medium-events-panel">
+                    <div class="panel-header">
+                        <h2 id="medium-panel-title">📋 事件详情</h2>
+                        <span class="panel-subtitle" id="medium-panel-subtitle">请选择一个重大事件</span>
+                    </div>
+                    <div class="medium-events-content" id="medium-events-content">
+                        <div class="empty-selection">
+                            <div class="empty-icon">👈</div>
+                            <p>请从左侧选择一个重大事件查看详情</p>
                         </div>
                     </div>
-                    
-                    <div class="event-section">
-                        <h3>🎯 主要目标</h3>
-                        <p id="modal-main-goal">-</p>
-                    </div>
-                    
-                    <div class="event-section">
-                        <h3>💭 情绪焦点</h3>
-                        <p id="modal-emotional-focus">-</p>
-                    </div>
-                    
-                    <div class="event-section">
-                        <h3>📝 详细描述</h3>
-                        <p id="modal-description">-</p>
-                    </div>
-                    
-                    <div id="modal-beats-section" class="event-section" style="display: none;">
-                        <h3>🎵 关键情绪节拍</h3>
-                        <ul id="modal-key-beats"></ul>
-                    </div>
-
-                    <div id="modal-special-section" class="event-section" style="display: none;">
-                        <h3>✨ 特殊情感事件</h3>
-                        <div id="modal-special-events"></div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button class="btn-secondary" onclick="closeEventModal()">关闭</button>
                 </div>
             </div>
         </div>

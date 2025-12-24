@@ -1858,7 +1858,9 @@ def extract_storyline_from_stage_plans(project_data, title):
                 "role_in_stage_arc": stage_goal,
                 "chapter_range": chapter_range,
                 "main_goal": stage_goal or f"{stage_name}的主要目标",
+                "emotional_focus": stage_data.get("core_conflicts", ""),
                 "emotional_goal": stage_data.get("core_conflicts", ""),
+                "description": stage_goal or f"{stage_name}的描述",
                 "medium_events": [],
                 "special_events": []
             }
@@ -1869,12 +1871,14 @@ def extract_storyline_from_stage_plans(project_data, title):
                 major_event = {
                     "id": f"{stage_key}_{idx + 1}",
                     "order": len(all_major_events) + 1,
-                    "name": f"{stage_name} - 事件{idx + 1}",
+                    "name": development,  # 直接使用development作为名称
                     "type": "major_event",
                     "role_in_stage_arc": stage_goal,
                     "chapter_range": chapter_range,
                     "main_goal": development,
+                    "emotional_focus": stage_data.get("core_conflicts", ""),
                     "emotional_goal": stage_data.get("core_conflicts", ""),
+                    "description": development,
                     "medium_events": [],
                     "special_events": []
                 }
@@ -1887,14 +1891,16 @@ def extract_storyline_from_stage_plans(project_data, title):
                         "phase": phase_desc,  # 使用更清晰的描述而不是单个字符
                         "phase_key": phase_key,
                         "order": phase_idx + 1,
-                        "name": f"{stage_name} - {phase_desc}",
+                        "name": f"{development} - {phase_desc}",
                         "type": "medium_event",
                         "chapter_range": chapter_range,
-                        "main_goal": f"{stage_name}的{phase_desc}阶段目标",
+                        "main_goal": f"{development}的{phase_desc}阶段",
+                        "role_in_stage_arc": development,
                         "emotional_focus": stage_data.get("core_conflicts", ""),
+                        "emotional_goal": stage_data.get("core_conflicts", ""),
                         "emotional_intensity": "medium",
-                        "description": development,
-                        "key_emotional_beats": [development]
+                        "description": f"{development}的{phase_desc}阶段描述",
+                        "key_emotional_beats": [development, f"{phase_desc}阶段发展"]
                     }
                     major_event["medium_events"].append(medium_event)
                 
@@ -1987,3 +1993,91 @@ def extract_storyline_data(writing_plan):
         storyline["major_events"].append(event_data)
     
     return storyline
+
+
+@phase_api.route('/storyline/<path:title>/update', methods=['POST'])
+@login_required
+def update_storyline(title):
+    """更新小说的故事线数据"""
+    try:
+        data = request.json or {}
+        storyline = data.get('storyline')
+        
+        if not storyline:
+            return jsonify({"success": False, "error": "缺少storyline数据"}), 400
+        
+        # 构建安全标题用于文件路径
+        safe_title = re.sub(r'[\\/*?:"<>|]', '_', title)
+        
+        # 尝试多个可能的路径
+        possible_paths = [
+            # 新项目结构
+            f"小说项目/{title}/{title}_项目信息.json",
+            f"小说项目/{title}/project_info/{title}_项目信息.json",
+            f"小说项目/{title}/{safe_title}_项目信息.json",
+            # 旧项目结构
+            f"小说项目/{title}_第一阶段设定/{title}_第一阶段设定.json",
+            f"小说项目/{safe_title}_第一阶段设定/{safe_title}_第一阶段设定.json",
+        ]
+        
+        project_data = None
+        source_path = None
+        
+        for path in possible_paths:
+            if os.path.exists(path):
+                try:
+                    with open(path, 'r', encoding='utf-8') as f:
+                        project_data = json.load(f)
+                    source_path = path
+                    logger.info(f"✅ 找到项目文件: {path}")
+                    break
+                except Exception as e:
+                    logger.error(f"❌ 读取文件失败: {path}, {e}")
+                    continue
+        
+        if not project_data:
+            return jsonify({"success": False, "error": "未找到项目文件"}), 404
+        
+        # 将storyline数据转换回overall_stage_plans格式
+        overall_stage_plan = {}
+        stage_name_mapping = {
+            "opening_stage": "开局阶段",
+            "development_stage": "发展阶段",
+            "climax_stage": "高潮阶段",
+            "ending_stage": "结局阶段"
+        }
+        
+        for major_event in storyline.get("major_events", []):
+            # 尝试从事件名称推断属于哪个阶段
+            # 这里简化处理，将所有重大事件按顺序分配到各阶段
+            pass
+        
+        # 更新overall_stage_plans数据
+        # 注意：这里需要根据实际的数据结构进行更新
+        # 由于storyline是从overall_stage_plans提取的，更新时需要逆向操作
+        
+        # 简化处理：直接更新storyline到一个单独的文件
+        storyline_dir = f"小说项目/{safe_title}/storyline"
+        os.makedirs(storyline_dir, exist_ok=True)
+        storyline_file = f"{storyline_dir}/{safe_title}_故事线.json"
+        
+        with open(storyline_file, 'w', encoding='utf-8') as f:
+            json.dump({
+                "title": title,
+                "updated_at": datetime.now().isoformat(),
+                "storyline": storyline
+            }, f, ensure_ascii=False, indent=2)
+        
+        logger.info(f"✅ 故事线已保存: {storyline_file}")
+        
+        return jsonify({
+            "success": True,
+            "message": "故事线已更新",
+            "file_path": storyline_file
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ 更新故事线失败: {e}")
+        import traceback
+        logger.error(f"❌ 错误堆栈: {traceback.format_exc()}")
+        return jsonify({"success": False, "error": str(e)}), 500

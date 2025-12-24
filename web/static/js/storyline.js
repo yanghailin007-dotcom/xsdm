@@ -1,7 +1,9 @@
-// 故事线时间线页面JavaScript
+// 故事线时间线页面JavaScript - 左右分栏版本
 
 let currentStorylineData = null;
 let currentProjectTitle = null;
+let selectedMajorEventIndex = null;
+let hasUnsavedChanges = false;
 
 // 页面加载完成后执行
 document.addEventListener('DOMContentLoaded', function() {
@@ -100,245 +102,338 @@ function renderStoryline(storyline) {
     // 隐藏加载状态
     hideAllStates();
     
-    // 显示时间线容器
-    const timelineContainer = document.getElementById('timeline-container');
-    timelineContainer.style.display = 'block';
+    // 显示主容器
+    const storylineMain = document.getElementById('storyline-main');
+    storylineMain.style.display = 'block';
     
     // 更新阶段信息
     document.getElementById('stage-name').textContent = storyline.stage_name || '全书故事线';
     document.getElementById('chapter-range-text').textContent = storyline.chapter_range || '全章节';
     
-    // 渲染事件
-    const eventsContainer = document.getElementById('timeline-events');
-    eventsContainer.innerHTML = '';
+    // 渲染重大事件列表
+    renderMajorEventsList(storyline.major_events || []);
     
-    // 检查是否有重大事件
-    if (!storyline.major_events || storyline.major_events.length === 0) {
-        eventsContainer.innerHTML = '<div class="no-events">暂无故事线事件数据</div>';
+    // 重置选择状态
+    selectedMajorEventIndex = null;
+    hasUnsavedChanges = false;
+    updateSaveButton();
+    
+    console.log(`✅ 渲染了 ${storyline.major_events?.length || 0} 个重大事件`);
+}
+
+function renderMajorEventsList(majorEvents) {
+    const listContainer = document.getElementById('major-events-list');
+    listContainer.innerHTML = '';
+    
+    if (majorEvents.length === 0) {
+        listContainer.innerHTML = '<div class="empty-events">暂无重大事件</div>';
         return;
     }
     
-    // 合并所有重大事件和中型事件
-    const allEvents = [];
-    
-    storyline.major_events.forEach((majorEvent, majorIndex) => {
-        // 添加重大事件
-        allEvents.push({
-            type: 'major',
-            order: majorIndex + 1,
-            data: majorEvent
-        });
-        
-        // 添加中型事件（如果存在）
-        if (majorEvent.medium_events && majorEvent.medium_events.length > 0) {
-            majorEvent.medium_events.forEach((mediumEvent, mediumIndex) => {
-                allEvents.push({
-                    type: 'medium',
-                    order: mediumIndex + 1,
-                    parentIndex: majorIndex + 1,
-                    data: mediumEvent,
-                    specialEvents: majorEvent.special_events || []
-                });
-            });
-        }
+    majorEvents.forEach((event, index) => {
+        const card = createMajorEventCard(event, index);
+        listContainer.appendChild(card);
     });
-    
-    // 渲染所有事件
-    allEvents.forEach(event => {
-        const eventElement = createEventElement(event);
-        eventsContainer.appendChild(eventElement);
-    });
-    
-    console.log(`✅ 渲染了 ${allEvents.length} 个事件 (重大事件: ${storyline.major_events.length})`);
 }
 
-function createEventElement(event) {
-    const isMajor = event.type === 'major';
-    const data = event.data;
+function createMajorEventCard(event, index) {
+    const card = document.createElement('div');
+    card.className = 'major-event-card';
+    card.dataset.index = index;
+    card.onclick = () => selectMajorEvent(index);
     
-    const eventDiv = document.createElement('div');
-    eventDiv.className = 'timeline-event';
+    const displayName = event.name || event.main_goal || `重大事件 ${index + 1}`;
     
-    // 创建节点
-    const node = document.createElement('div');
-    node.className = 'event-node';
-    if (isMajor) {
-        node.style.borderColor = '#667eea';
-        node.style.boxShadow = '0 0 0 4px rgba(102, 126, 234, 0.3)';
-    }
-    eventDiv.appendChild(node);
+    // 情绪强度对应的颜色
+    const intensity = event.emotional_intensity || 'medium';
+    const emotionColor = {
+        'high': '#ef4444',
+        'medium': '#f59e0b',
+        'low': '#10b981'
+    }[intensity] || '#f59e0b';
     
-    // 创建内容卡片
-    const content = document.createElement('div');
-    content.className = 'event-content';
-    content.onclick = () => showEventModal(event);
+    card.innerHTML = `
+        <div class="major-event-header">
+            <div class="major-event-title">${escapeHtml(displayName)}</div>
+            <div class="major-event-number">${index + 1}</div>
+        </div>
+        <div class="major-event-badges">
+            <span class="event-badge badge-chapter">${event.chapter_range || '全章节'}</span>
+            ${event.emotional_focus ? `<span class="event-badge badge-emotion" style="color: ${emotionColor}; background: ${emotionColor}15;">${event.emotional_focus}</span>` : ''}
+        </div>
+        <div class="major-event-preview">${escapeHtml(event.main_goal || event.description || event.role_in_stage_arc || '')}</div>
+    `;
     
-    const header = document.createElement('div');
-    header.className = 'event-header';
-    
-    const titleDiv = document.createElement('div');
-    const title = document.createElement('div');
-    title.className = 'event-title';
-    
-    // 确保显示有意义的名称
-    const displayName = data.name || data.main_goal || (isMajor ? `重大事件 ${event.order}` : `中型事件 ${event.order}`);
-    title.textContent = displayName;
-    titleDiv.appendChild(title);
-    
-    const badges = document.createElement('div');
-    badges.style.marginTop = '8px';
-    
-    const chapterBadge = document.createElement('span');
-    chapterBadge.className = 'event-chapter';
-    chapterBadge.textContent = data.chapter_range || '全章节';
-    badges.appendChild(chapterBadge);
-    
-    if (!isMajor) {
-        const phaseBadge = document.createElement('span');
-        phaseBadge.className = 'event-phase';
-        phaseBadge.textContent = `${data.phase || '阶段'} ${event.order}`;
-        badges.appendChild(phaseBadge);
-    } else {
-        const typeBadge = document.createElement('span');
-        typeBadge.className = 'event-phase';
-        typeBadge.textContent = '重大事件';
-        typeBadge.style.background = 'linear-gradient(135deg, rgba(102, 126, 234, 0.2), rgba(118, 75, 162, 0.2))';
-        typeBadge.style.color = '#667eea';
-        badges.appendChild(typeBadge);
-    }
-    
-    titleDiv.appendChild(badges);
-    header.appendChild(titleDiv);
-    
-    content.appendChild(header);
-    
-    // 描述 - 优先使用description，如果没有则使用main_goal
-    const descriptionText = data.description || data.main_goal || data.role_in_stage_arc || '';
-    if (descriptionText) {
-        const description = document.createElement('div');
-        description.className = 'event-description';
-        description.textContent = descriptionText;
-        if (description.textContent.length > 100) {
-            description.textContent = description.textContent.substring(0, 100) + '...';
-        }
-        content.appendChild(description);
-    }
-    
-    // 情绪信息
-    const emotionText = data.emotional_focus || data.emotional_goal || '';
-    if (emotionText) {
-        const emotionDiv = document.createElement('div');
-        emotionDiv.className = 'event-emotion';
-        
-        const intensity = data.emotional_intensity || 'medium';
-        const indicator = document.createElement('span');
-        indicator.className = `emotion-indicator ${intensity}`;
-        
-        const label = document.createElement('span');
-        label.className = 'emotion-label';
-        label.textContent = '情绪焦点:';
-        
-        const value = document.createElement('span');
-        value.className = 'emotion-value';
-        value.textContent = emotionText;
-        
-        emotionDiv.appendChild(indicator);
-        emotionDiv.appendChild(label);
-        emotionDiv.appendChild(value);
-        content.appendChild(emotionDiv);
-    }
-    
-    eventDiv.appendChild(content);
-    
-    return eventDiv;
+    return card;
 }
 
-// ==================== 事件详情模态框 ====================
+function selectMajorEvent(index) {
+    // 更新选中状态
+    const cards = document.querySelectorAll('.major-event-card');
+    cards.forEach(card => card.classList.remove('active'));
+    cards[index].classList.add('active');
+    
+    selectedMajorEventIndex = index;
+    
+    // 渲染右侧详情
+    renderMajorEventDetail(index);
+}
 
-function showEventModal(event) {
-    const data = event.data;
-    const isMajor = event.type === 'major';
+function renderMajorEventDetail(index) {
+    const event = currentStorylineData.major_events[index];
+    const contentContainer = document.getElementById('medium-events-content');
     
-    // 设置标题 - 确保有意义的显示
-    const displayName = data.name || data.main_goal || (isMajor ? `重大事件 ${event.order}` : `中型事件 ${event.order}`);
-    document.getElementById('modal-event-name').textContent = displayName;
+    // 更新面板标题
+    const displayName = event.name || event.main_goal || `重大事件 ${index + 1}`;
+    document.getElementById('medium-panel-title').innerHTML = `📋 ${escapeHtml(displayName)}`;
+    document.getElementById('medium-panel-subtitle').textContent = `${event.chapter_range || '全章节'}`;
     
-    // 设置元数据
-    document.getElementById('modal-chapter-range').textContent = data.chapter_range || '全章节';
-    document.getElementById('modal-event-type').textContent = isMajor ? '重大事件' : `${data.phase || '阶段'}事件`;
-    
-    const intensity = data.emotional_intensity || 'medium';
-    const intensityText = {
-        'high': '高',
-        'medium': '中',
-        'low': '低'
-    }[intensity] || '中';
-    document.getElementById('modal-emotional-intensity').textContent = intensityText;
-    
-    // 主要目标 - 优先使用main_goal，如果没有则使用role_in_stage_arc
-    const mainGoal = data.main_goal || data.role_in_stage_arc || '暂无主要目标';
-    document.getElementById('modal-main-goal').textContent = mainGoal;
-    
-    // 情绪焦点 - 优先使用emotional_focus，如果没有则使用emotional_goal
-    const emotionalFocus = data.emotional_focus || data.emotional_goal || data.role_in_stage_arc || '暂无情绪焦点';
-    document.getElementById('modal-emotional-focus').textContent = emotionalFocus;
-    
-    // 详细描述 - 使用description或main_goal
-    const description = data.description || data.main_goal || data.role_in_stage_arc || '暂无详细描述';
-    document.getElementById('modal-description').textContent = description;
+    let html = `
+        <div class="major-event-detail">
+            <div class="detail-header">
+                <h3>${escapeHtml(displayName)}</h3>
+                <div class="detail-meta">
+                    <div class="detail-meta-item">
+                        <span class="label">章节范围:</span>
+                        <span>${event.chapter_range || '全章节'}</span>
+                    </div>
+                    <div class="detail-meta-item">
+                        <span class="label">情绪强度:</span>
+                        <span>${getEmotionIntensityText(event.emotional_intensity)}</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="detail-section">
+                <div class="detail-section-title">🎯 主要目标</div>
+                <textarea class="editable-field" data-field="main_goal" data-index="${index}">${escapeHtml(event.main_goal || event.role_in_stage_arc || '')}</textarea>
+            </div>
+            
+            <div class="detail-section">
+                <div class="detail-section-title">💭 情绪焦点</div>
+                <textarea class="editable-field" data-field="emotional_focus" data-index="${index}">${escapeHtml(event.emotional_focus || event.emotional_goal || '')}</textarea>
+            </div>
+            
+            <div class="detail-section">
+                <div class="detail-section-title">📝 详细描述</div>
+                <textarea class="editable-field" data-field="description" data-index="${index}">${escapeHtml(event.description || '')}</textarea>
+            </div>
+    `;
     
     // 关键情绪节拍
-    const beatsSection = document.getElementById('modal-beats-section');
-    const keyBeats = data.key_emotional_beats || [];
-    
-    if (keyBeats && keyBeats.length > 0) {
-        beatsSection.style.display = 'block';
-        const beatsList = document.getElementById('modal-key-beats');
-        beatsList.innerHTML = '';
-        keyBeats.forEach(beat => {
-            const li = document.createElement('li');
-            li.textContent = beat;
-            beatsList.appendChild(li);
-        });
-    } else {
-        beatsSection.style.display = 'none';
+    const keyBeats = event.key_emotional_beats || [];
+    if (keyBeats.length > 0) {
+        html += `
+            <div class="detail-section">
+                <div class="detail-section-title">🎵 关键情绪节拍</div>
+                <ul class="key-beats-list">
+                    ${keyBeats.map(beat => `<li>${escapeHtml(beat)}</li>`).join('')}
+                </ul>
+            </div>
+        `;
     }
     
     // 特殊情感事件
-    const specialSection = document.getElementById('modal-special-section');
-    const specialEvents = event.specialEvents || [];
-    
-    if (specialEvents && specialEvents.length > 0) {
-        specialSection.style.display = 'block';
-        const specialContainer = document.getElementById('modal-special-events');
-        specialContainer.innerHTML = '';
-        
-        specialEvents.forEach(specialEvent => {
-            const card = document.createElement('div');
-            card.className = 'special-event-card';
-            
-            const title = document.createElement('h4');
-            title.textContent = specialEvent.name || specialEvent.event_subtype || '特殊事件';
-            card.appendChild(title);
-            
-            const purpose = document.createElement('p');
-            purpose.textContent = specialEvent.purpose || specialEvent.placement_hint || '-';
-            card.appendChild(purpose);
-            
-            specialContainer.appendChild(card);
-        });
-    } else {
-        specialSection.style.display = 'none';
+    const specialEvents = event.special_events || [];
+    if (specialEvents.length > 0) {
+        html += `
+            <div class="detail-section">
+                <div class="detail-section-title">✨ 特殊情感事件</div>
+                <div class="special-events-grid">
+                    ${specialEvents.map(se => `
+                        <div class="special-event-card">
+                            <h4>${escapeHtml(se.name || se.event_subtype || '特殊事件')}</h4>
+                            <p>${escapeHtml(se.purpose || se.placement_hint || '-')}</p>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
     }
     
-    // 显示模态框
-    document.getElementById('event-modal').style.display = 'block';
-    document.body.style.overflow = 'hidden';
+    // 中级事件列表
+    const mediumEvents = event.medium_events || [];
+    if (mediumEvents.length > 0) {
+        html += `
+            <div class="detail-section">
+                <div class="detail-section-title">🔸 中级事件 (${mediumEvents.length})</div>
+                <div class="medium-events-list">
+                    ${mediumEvents.map((me, meIndex) => createMediumEventCard(me, meIndex, index)).join('')}
+                </div>
+            </div>
+        `;
+    }
+    
+    html += '</div>';
+    
+    contentContainer.innerHTML = html;
+    
+    // 绑定编辑事件
+    bindEditableFields();
 }
 
-function closeEventModal() {
-    document.getElementById('event-modal').style.display = 'none';
-    document.body.style.overflow = '';
+function createMediumEventCard(event, eventIndex, majorIndex) {
+    const displayName = event.name || event.main_goal || `中级事件 ${eventIndex + 1}`;
+    const fieldId = `medium-${majorIndex}-${eventIndex}`;
+    
+    return `
+        <div class="medium-event-card">
+            <div class="medium-event-header" onclick="toggleMediumEvent('${fieldId}')">
+                <span class="medium-event-title">${escapeHtml(displayName)}</span>
+                <span class="medium-event-badge">${event.phase || '阶段'} ${eventIndex + 1}</span>
+            </div>
+            <div class="medium-event-body" id="${fieldId}">
+                <div class="medium-event-field">
+                    <label class="medium-field-label">🎯 主要目标</label>
+                    <textarea class="editable-field" data-field="main_goal" data-major="${majorIndex}" data-medium="${eventIndex}">${escapeHtml(event.main_goal || event.role_in_stage_arc || '')}</textarea>
+                </div>
+                <div class="medium-event-field">
+                    <label class="medium-field-label">💭 情绪焦点</label>
+                    <textarea class="editable-field" data-field="emotional_focus" data-major="${majorIndex}" data-medium="${eventIndex}">${escapeHtml(event.emotional_focus || event.emotional_goal || '')}</textarea>
+                </div>
+                <div class="medium-event-field">
+                    <label class="medium-field-label">📝 描述</label>
+                    <textarea class="editable-field" data-field="description" data-major="${majorIndex}" data-medium="${eventIndex}">${escapeHtml(event.description || '')}</textarea>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function toggleMediumEvent(fieldId) {
+    const body = document.getElementById(fieldId);
+    body.classList.toggle('expanded');
+}
+
+function bindEditableFields() {
+    const fields = document.querySelectorAll('.editable-field');
+    fields.forEach(field => {
+        field.addEventListener('input', handleFieldChange);
+    });
+}
+
+function handleFieldChange(event) {
+    const field = event.target;
+    field.classList.add('changed');
+    hasUnsavedChanges = true;
+    updateSaveButton();
+}
+
+function updateSaveButton() {
+    const saveBtn = document.getElementById('btn-save');
+    if (saveBtn) {
+        saveBtn.style.display = hasUnsavedChanges ? 'flex' : 'none';
+    }
+}
+
+async function saveStorylineChanges() {
+    if (!hasUnsavedChanges) {
+        return;
+    }
+    
+    const saveBtn = document.getElementById('btn-save');
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<span>⏳</span> 保存中...';
+    
+    try {
+        // 收集所有更改
+        const changedFields = document.querySelectorAll('.editable-field.changed');
+        
+        changedFields.forEach(field => {
+            const fieldName = field.dataset.field;
+            const value = field.value;
+            
+            if (field.dataset.major !== undefined && field.dataset.medium !== undefined) {
+                // 中级事件
+                const majorIndex = parseInt(field.dataset.major);
+                const mediumIndex = parseInt(field.dataset.medium);
+                currentStorylineData.major_events[majorIndex].medium_events[mediumIndex][fieldName] = value;
+            } else if (field.dataset.index !== undefined) {
+                // 重大事件
+                const index = parseInt(field.dataset.index);
+                currentStorylineData.major_events[index][fieldName] = value;
+            }
+        });
+        
+        // 发送到服务器保存
+        const response = await fetch(`/api/storyline/${encodeURIComponent(currentProjectTitle)}/update`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                storyline: currentStorylineData
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            // 清除更改标记
+            changedFields.forEach(field => field.classList.remove('changed'));
+            hasUnsavedChanges = false;
+            updateSaveButton();
+            
+            // 显示成功消息
+            showNotification('保存成功！', 'success');
+        } else {
+            throw new Error(result.error || '保存失败');
+        }
+    } catch (error) {
+        console.error('保存失败:', error);
+        showNotification(`保存失败: ${error.message}`, 'error');
+    } finally {
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = '<span>💾</span> 保存更改';
+    }
+}
+
+function showNotification(message, type = 'info') {
+    const notification = document.createElement('div');
+    notification.className = `notification notification-${type}`;
+    notification.textContent = message;
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 16px 24px;
+        background: ${type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : '#3b82f6'};
+        color: white;
+        border-radius: 12px;
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+        z-index: 10000;
+        animation: slideIn 0.3s ease;
+        font-weight: 600;
+    `;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.style.animation = 'slideOut 0.3s ease';
+        setTimeout(() => notification.remove(), 300);
+    }, 3000);
+}
+
+// ==================== 辅助函数 ====================
+
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function getEmotionIntensityText(intensity) {
+    const map = {
+        'high': '高',
+        'medium': '中',
+        'low': '低'
+    };
+    return map[intensity] || '中';
 }
 
 // ==================== 状态显示功能 ====================
@@ -363,21 +458,31 @@ function hideAllStates() {
     document.getElementById('loading-state').style.display = 'none';
     document.getElementById('error-state').style.display = 'none';
     document.getElementById('empty-state').style.display = 'none';
-    document.getElementById('timeline-container').style.display = 'none';
+    document.getElementById('storyline-main').style.display = 'none';
 }
 
 // ==================== 键盘事件处理 ====================
 
 document.addEventListener('keydown', function(event) {
-    if (event.key === 'Escape') {
-        closeEventModal();
+    // Ctrl+S 保存
+    if (event.ctrlKey && event.key === 's') {
+        event.preventDefault();
+        if (hasUnsavedChanges) {
+            saveStorylineChanges();
+        }
     }
 });
 
-// 点击模态框外部关闭
-document.addEventListener('click', function(event) {
-    const modal = document.getElementById('event-modal');
-    if (event.target === modal.querySelector('.modal-overlay')) {
-        closeEventModal();
+// 添加动画样式
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes slideIn {
+        from { transform: translateX(100%); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
     }
-});
+    @keyframes slideOut {
+        from { transform: translateX(0); opacity: 1; }
+        to { transform: translateX(100%); opacity: 0; }
+    }
+`;
+document.head.appendChild(style);
