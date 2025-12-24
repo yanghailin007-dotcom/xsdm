@@ -474,6 +474,9 @@ def get_phase_two_task_status(task_id):
             response["current_chapter"] = task_progress["current_chapter"]
         if "total_chapters" in task_progress:
             response["total_chapters"] = task_progress["total_chapters"]
+        # 添加章节进度列表（关键修复：这是前端显示章节状态所需的数据）
+        if "chapter_progress" in task_progress:
+            response["chapter_progress"] = task_progress["chapter_progress"]
         
         # 如果任务完成，添加结果数据
         if task_status.get("status") == "completed":

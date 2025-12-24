@@ -1208,8 +1208,21 @@ class NovelGenerationManager:
             logger.info(f"任务 {task_id}: 📖 起始章节: {from_chapter}")
             logger.info(f"任务 {task_id}: 📊 生成章节数: {chapters_to_generate}")
             
+            # 初始化章节进度跟踪字典
+            chapter_progress_dict = {}
+            for i in range(chapters_to_generate):
+                chapter_num = from_chapter + i
+                chapter_progress_dict[chapter_num] = {
+                    "chapter_number": chapter_num,
+                    "status": "pending",
+                    "chapter_title": "",
+                    "word_count": 0,
+                    "error": None
+                }
+            
             # 定义第二阶段进度计算函数
-            def update_phase_two_progress(chapter_num: int, step: str = "generating"):
+            def update_phase_two_progress(chapter_num: int, step: str = "generating",
+                                         chapter_data: Optional[Dict[str, Any]] = None):
                 """根据已生成章节数动态更新进度"""
                 # 计算进度：准备阶段30% + 生成阶段(已完成章节数/总章节数)*60%
                 if chapter_num < from_chapter:
@@ -1218,7 +1231,29 @@ class NovelGenerationManager:
                     completed = chapter_num - from_chapter + 1
                     progress = 30 + min(int((completed / chapters_to_generate) * 60), 60)
                 
+                # 更新章节状态
+                if chapter_num in chapter_progress_dict and chapter_data:
+                    chapter_progress_dict[chapter_num].update({
+                        "status": chapter_data.get("status", step),
+                        "chapter_title": chapter_data.get("chapter_title", f"第{chapter_num}章"),
+                        "word_count": chapter_data.get("word_count", 0),
+                        "error": chapter_data.get("error")
+                    })
+                    logger.info(f"任务 {task_id}: 📖 第{chapter_num}章状态: {chapter_progress_dict[chapter_num]['status']}, 字数: {chapter_progress_dict[chapter_num]['word_count']}")
+                
+                # 更新进度，包含章节进度列表
                 self._update_task_status(task_id, step, progress)
+                
+                # 将章节进度同步到 task_progress 中，供前端查询使用
+                if task_id in self.task_progress:
+                    # 转换为列表格式供前端使用
+                    chapter_progress_list = list(chapter_progress_dict.values())
+                    self.task_progress[task_id]["chapter_progress"] = chapter_progress_list
+                    self.task_progress[task_id]["current_chapter"] = {
+                        "number": chapter_num,
+                        "title": chapter_progress_dict.get(chapter_num, {}).get("chapter_title", f"第{chapter_num}章")
+                    }
+                    self.task_progress[task_id]["total_chapters"] = chapters_to_generate
             
             # 初始化阶段 (10%)
             self._update_task_status(task_id, "initializing", 10)

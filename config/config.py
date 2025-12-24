@@ -33,8 +33,43 @@ CONFIG = {
         "deepseek": "deepseek-reasoner",
         "yuanbao": "deepseek-reasoner",
         #"gemini": "gemini-2.5-pro"
-        "gemini": "gemini-2.5-pro"
+        "gemini": "gemini-3-pro-preview"
         #"gemini": "[渠道1]gemini-3-pro-preview"
+    },
+    # 分层模型配置 - 用于降低成本（保留关键任务用3.0）
+    "model_routing": {
+        "enabled": True,  # 是否启用分层模型
+        "routes": {
+            # ===== 关键评价任务：使用 3.0-pro（保证质量） =====
+            # 黄金三章评估 - 关键内容
+            "chapter_quality_assessment_golden": "gemini-3-pro-preview",
+            # 初始方案评估 - 影响后续所有生成
+            "novel_plan_quality_assessment": "gemini-3-pro-preview",
+            "market_analysis_quality_assessment": "gemini-3-pro-preview",
+            "writing_plan_quality_assessment": "gemini-3-pro-preview",
+            
+            # ===== 常规评价任务：使用 2.5-pro（降低成本） =====
+            # 普通章节质量评估（非黄金三章）
+            "chapter_quality_assessment": "gemini-2.5-pro",
+            # 新鲜度评估
+            "freshness_assessment": "gemini-2.5-pro",
+            # 世界观和角色设计评估
+            "core_worldview_quality_assessment": "gemini-2.5-pro",
+            "character_design_quality_assessment": "gemini-2.5-pro",
+            
+            # ===== 内容创作和优化：使用 3.0-pro（保证质量） =====
+            "chapter_content_generation": "gemini-3-pro-preview",
+            "chapter_optimization": "gemini-3-pro-preview",
+            "market_analysis_optimization": "gemini-3-pro-preview",
+            "writing_plan_optimization": "gemini-3-pro-preview",
+            "core_worldview_optimization": "gemini-3-pro-preview",
+            "character_design_optimization": "gemini-3-pro-preview",
+            "novel_plan_optimization": "gemini-3-pro-preview"
+        },
+        # 默认模型（未匹配到路由时使用）
+        "default_model": "gemini-3-pro-preview",
+        # 评估专用模型（可独立配置）
+        "assessment_model": "gemini-2.5-pro"
     },
     # 在 config.py 或配置文件中添加
     "rate_limit": {

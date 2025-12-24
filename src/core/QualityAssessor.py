@@ -240,11 +240,13 @@ class QualityAssessor:
         self._current_novel_title_for_assessment = assessment_params.get('novel_title', 'unknown')
         # ▲▲▲ 添加结束 ▲▲▲
         user_prompt = self._generate_chapter_assessment_prompt(assessment_params)
+        chapter_number = assessment_params.get('chapter_number', None)
         result = self.api_client.generate_content_with_retry(
-            "chapter_quality_assessment", 
-            user_prompt, 
-            temperature=0.3, 
-            purpose=f"第{assessment_params.get('chapter_number', 1)}章节质量评估"
+            "chapter_quality_assessment",
+            user_prompt,
+            temperature=0.3,
+            purpose=f"第{chapter_number}章节质量评估",
+            chapter_number=chapter_number  # 传递章节号用于模型路由
         )
         # 如果评估成功，处理黄金三章的特殊逻辑
         if result and 'overall_score' in result:

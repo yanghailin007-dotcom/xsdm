@@ -112,6 +112,9 @@ class NovelGenerator:
         # 进度回调支持（动态设置）
         self._update_task_status_callback = None
         self._current_task_id = None
+        self._phase_two_progress_callback = None
+        self._phase_two_from_chapter = None
+        self._phase_two_total_chapters = None
         
         # 信号处理
         self._setup_signal_handlers()
@@ -891,6 +894,20 @@ class NovelGenerator:
                     'result': chapter_result,
                     'context': context
                 })
+
+                # 4. 调用第二阶段进度回调，传递完整的章节数据
+                if hasattr(self, '_phase_two_progress_callback') and callable(self._phase_two_progress_callback):
+                    try:
+                        # 构建章节数据用于进度更新
+                        chapter_data = {
+                            "status": "completed",
+                            "chapter_title": chapter_result.get('chapter_title', f"第{chapter_num}章"),
+                            "word_count": chapter_result.get('word_count', len(chapter_result.get('content', ''))),
+                            "error": None
+                        }
+                        self._phase_two_progress_callback(chapter_num, "completed", chapter_data)
+                    except Exception as callback_error:
+                        print(f"⚠️ 进度回调失败: {callback_error}")
 
                 print(f"✅ 第{chapter_num}章生成完成: {chapter_result.get('chapter_title', '未知标题')}")
                 

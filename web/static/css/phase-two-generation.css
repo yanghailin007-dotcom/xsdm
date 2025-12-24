@@ -208,6 +208,32 @@
     gap: 16px;
 }
 
+/* 章节范围显示样式 */
+.chapter-range-display {
+    padding: 14px 16px;
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(16, 185, 129, 0.03) 100%);
+    border: 2px solid rgba(16, 185, 129, 0.2);
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    color: #065f46;
+    text-align: center;
+    transition: all 0.2s;
+    box-sizing: border-box;
+}
+
+.chapter-range-display:hover {
+    border-color: rgba(16, 185, 129, 0.4);
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(16, 185, 129, 0.05) 100%);
+}
+
+.chapter-range-display #range-start,
+.chapter-range-display #range-end {
+    color: #10b981;
+    font-weight: 700;
+    font-size: 16px;
+}
+
 .action-buttons {
     display: flex;
     gap: 12px;

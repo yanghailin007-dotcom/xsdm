@@ -943,15 +943,68 @@ class ContentGenerator:
         self.logger.error(f"  ❌❌ {error_msg}")
         return error_msg
     def _load_chapter_content(self, chapter_number: int, novel_data: Dict) -> Optional[Dict]:
-        """加载章节内容"""
-        # 处理字典键可能是字符串的情况
+        """加载章节内容 - 优先从内存加载，失败后从文件系统加载"""
+        novel_title = novel_data.get("novel_title", "")
+        
+        # 步骤1: 首先尝试从内存中加载
         chapter_key = str(chapter_number)
         if chapter_key in novel_data.get("generated_chapters", {}):
+            self.logger.info(f"  ✅ 从内存中加载第{chapter_number}章")
             return novel_data["generated_chapters"][chapter_key]
         # 也尝试整数键以保持向后兼容性
         if chapter_number in novel_data.get("generated_chapters", {}):
+            self.logger.info(f"  ✅ 从内存中加载第{chapter_number}章 (整数键)")
             return novel_data["generated_chapters"][chapter_number]
-        return None
+        
+        # 步骤2: 内存中没有，尝试从文件系统加载
+        try:
+            from pathlib import Path
+            import json
+            
+            # 构建章节文件路径
+            safe_title = novel_title.replace("：", "_").replace("：", "_").replace(" ", "_").replace("：", "_")
+            # 更安全的文件名处理
+            import re
+            safe_title = re.sub(r'[\\/*?:"<>|]', '_', novel_title)
+            
+            chapters_dir = Path(f"小说项目/{safe_title}/chapters")
+            if not chapters_dir.exists():
+                self.logger.warn(f"  ⚠️ 章节目录不存在: {chapters_dir}")
+                return None
+            
+            # 查找可能的章节文件
+            possible_patterns = [
+                f"第{chapter_number:03d}章",  # 第001章
+                f"第{chapter_number:02d}章",  # 第01章
+                f"第{chapter_number}章",      # 第1章
+            ]
+            
+            for pattern in possible_patterns:
+                # 查找匹配的文件
+                matching_files = list(chapters_dir.glob(f"{pattern}*.json"))
+                if matching_files:
+                    chapter_file = matching_files[0]  # 使用第一个匹配的文件
+                    self.logger.info(f"  📁 从文件加载第{chapter_number}章: {chapter_file.name}")
+                    
+                    with open(chapter_file, 'r', encoding='utf-8') as f:
+                        chapter_data = json.load(f)
+                    
+                    # 可选：将加载的章节数据缓存回内存
+                    if "generated_chapters" not in novel_data:
+                        novel_data["generated_chapters"] = {}
+                    novel_data["generated_chapters"][chapter_key] = chapter_data
+                    self.logger.info(f"  ✅ 第{chapter_number}章已缓存到内存")
+                    
+                    return chapter_data
+            
+            self.logger.warn(f"  ⚠️ 未找到第{chapter_number}章的文件")
+            return None
+            
+        except Exception as e:
+            self.logger.error(f"  ❌ 从文件加载第{chapter_number}章失败: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
     def _extract_content_ending(self, content: str) -> str:
         """提取内容结尾部分"""
         content_length = len(content)

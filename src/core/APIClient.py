@@ -32,6 +32,12 @@ class APIClient:
         # 从配置中获取默认提供商
         self.default_provider = self.config.get("default_provider", "gemini")
         self.available_providers = self._get_available_providers()
+        # 加载模型路由配置
+        self.model_routing_enabled = self.config.get("model_routing", {}).get("enabled", False)
+        self.model_routes = self.config.get("model_routing", {}).get("routes", {})
+        self.default_routed_model = self.config.get("model_routing", {}).get("default_model", None)
+        if self.model_routing_enabled:
+            self.logger.info(f"🔄 模型路由: 已启用 (配置了 {len(self.model_routes)} 个路由)")
         # 验证默认提供商是否可用
         if self.default_provider not in self.available_providers:
             if self.available_providers:
@@ -137,14 +143,69 @@ class APIClient:
             if api_keys.get(provider):
                 available.append(provider)
         return available
-    def _get_provider_config(self, provider: Optional[str] = None) -> Dict[str, Any]:
-        """获取特定提供商的配置"""
+    def _get_routed_model(self, content_type: str, chapter_number: Optional[int] = None) -> Optional[str]:
+        """
+        根据内容类型和章节号获取路由的模型名称
+        
+        Args:
+            content_type: 内容类型（如 "chapter_quality_assessment"）
+            chapter_number: 章节号（用于判断是否为黄金三章）
+        
+        Returns:
+            路由的模型名称，如果没有匹配则返回 None
+        """
+        if not self.model_routing_enabled:
+            return None
+        
+        # 特殊处理：黄金三章使用专用模型
+        if content_type == "chapter_quality_assessment" and chapter_number in [1, 2, 3]:
+            golden_key = "chapter_quality_assessment_golden"
+            if golden_key in self.model_routes:
+                self.logger.info(f"🎯 检测到黄金第{chapter_number}章，使用路由模型: {golden_key} -> {self.model_routes[golden_key]}")
+                return self.model_routes[golden_key]
+        
+        # 查找精确匹配的路由
+        if content_type in self.model_routes:
+            routed_model = self.model_routes[content_type]
+            self.logger.info(f"🔄 使用路由模型: {content_type} -> {routed_model}")
+            return routed_model
+        
+        # 如果没有精确匹配，返回默认路由模型
+        if self.default_routed_model:
+            self.logger.info(f"⚠️ 未找到精确路由，使用默认路由模型: {self.default_routed_model}")
+            return self.default_routed_model
+        
+        return None
+
+    def _get_provider_config(self, provider: Optional[str] = None,
+                            content_type: Optional[str] = None,
+                            chapter_number: Optional[int] = None) -> Dict[str, Any]:
+        """
+        获取特定提供商的配置，支持模型路由
+        
+        Args:
+            provider: 提供商名称（可选）
+            content_type: 内容类型（用于模型路由）
+            chapter_number: 章节号（用于黄金三章判断）
+        """
         if provider is None:
             provider = self.default_provider
+        
+        # 检查是否有模型路由
+        routed_model = None
+        if content_type:
+            routed_model = self._get_routed_model(content_type, chapter_number)
+        
+        # 如果有路由模型且提供商是 gemini，使用路由模型
+        if routed_model and provider == "gemini":
+            model_name = routed_model
+        else:
+            model_name = self.config["models"][provider]
+        
         return {
             "api_key": self.config["api_keys"][provider],
             "api_url": self.config["api_urls"][provider],
-            "model": self.config["models"][provider],
+            "model": model_name,
             "temperature": self.config["defaults"]["temperature"],
             "max_tokens": self.config["defaults"]["max_tokens"]
         }
@@ -241,8 +302,8 @@ class APIClient:
         self.logger.info(f"  💾 {stage}响应已保存到: {filename}")
     def call_api(self, system_prompt: str, user_prompt: str,
                 temperature: Optional[float] = None, purpose: str = "未知",
-                provider: Optional[str] = None) -> Optional[str]:
-        """API调用 - 使用配置的默认提供商或指定提供商"""
+                provider: Optional[str] = None, model_name: Optional[str] = None) -> Optional[str]:
+        """API调用 - 使用配置的默认提供商或指定提供商，支持自定义模型名称"""
         # 最高优先级：在发送给AI之前，将网站风格适配文本添加到system_prompt的最前面
         if self.website_style_enabled and self.website_style_text:
             system_prompt = self.website_style_text + "\n\n" + system_prompt
@@ -253,7 +314,11 @@ class APIClient:
         provider_config = self._get_provider_config(target_provider)
         api_url = provider_config["api_url"]
         api_key = provider_config["api_key"]
-        model_name = provider_config["model"]
+        # 如果没有指定自定义模型名称，使用配置中的模型
+        # 确保model_name是str类型，不是Optional[str]
+        if model_name is None:
+            model_name = provider_config["model"]
+        # model_name现在保证是str类型
         temperature = temperature or provider_config["temperature"]
         max_tokens = provider_config["max_tokens"]
         headers = {
@@ -670,8 +735,9 @@ class APIClient:
         return strict_system_prompt
     def generate_content_with_retry(self, content_type: str, user_prompt: str,
                                   temperature: Optional[float] = None, purpose: str = "内容生成",
-                                  provider: Optional[str] = None, enable_prompt_optimization: bool = False) -> Optional[Any]:
-        """带重试机制的内容生成 - 增强JSON格式要求版本"""
+                                  provider: Optional[str] = None, enable_prompt_optimization: bool = False,
+                                  chapter_number: Optional[int] = None) -> Optional[Any]:
+        """带重试机制的内容生成 - 增强JSON格式要求版本，支持模型路由"""
         # 验证内容类型是否支持
         if content_type not in self.Prompts:
             self.logger.info(f"❌ 不支持的内容类型: {content_type}")
@@ -692,8 +758,12 @@ class APIClient:
         if target_provider not in self.available_providers:
             self.logger.info(f"❌ {target_provider.upper()} 未配置或不可用")
             return None
-        provider_config = self._get_provider_config(target_provider)
-        self.logger.info(f"✓ 使用 {target_provider.upper()} ({provider_config['model']}) 生成 {content_type}")
+        # 传入 content_type 和 chapter_number 以支持模型路由
+        provider_config = self._get_provider_config(target_provider, content_type, chapter_number)
+        routed_model = provider_config['model']  # 获取路由后的模型名称
+        self.logger.info(f"✓ 使用 {target_provider.upper()} ({routed_model}) 生成 {content_type}")
+        if chapter_number is not None:
+            self.logger.info(f"  📖 章节号: {chapter_number}")
         # 在system_prompt中添加严格的JSON格式要求
         final_system_prompt_for_api = self._add_json_format_requirements(base_system_prompt)
         # 准备重试的用户提示词
@@ -705,7 +775,8 @@ class APIClient:
         for json_attempt in range(self.config["defaults"]["json_retries"]):
             current_user_prompt = retry_prompts[min(json_attempt, len(retry_prompts)-1)]
             self.logger.info(f"  第{json_attempt+1}次生成尝试...")
-            result = self.call_api(final_system_prompt_for_api, current_user_prompt, temperature, purpose, target_provider)
+            # 传递路由后的模型名称给 call_api
+            result = self.call_api(final_system_prompt_for_api, current_user_prompt, temperature, purpose, target_provider, model_name=routed_model)
             if result:
                 self.logger.info(f"  API调用成功，开始解析JSON...")
                 parsed = self.parse_json_response(result)

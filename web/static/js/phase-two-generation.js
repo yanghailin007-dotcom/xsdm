@@ -269,12 +269,42 @@ function displayProjectInfo(projectData) {
     if (fromChapter) {
         fromChapter.value = completedChapters + 1;
         fromChapter.min = completedChapters + 1;
+        // 添加事件监听器
+        fromChapter.removeEventListener('input', updateChapterRange);
+        fromChapter.addEventListener('input', updateChapterRange);
     }
     
     if (chaptersToGenerate) {
         const remainingChapters = totalChapters - completedChapters;
         chaptersToGenerate.max = Math.min(remainingChapters, 200);
         chaptersToGenerate.value = Math.min(10, remainingChapters);
+        // 添加事件监听器
+        chaptersToGenerate.removeEventListener('input', updateChapterRange);
+        chaptersToGenerate.addEventListener('input', updateChapterRange);
+    }
+    
+    // 初始化章节范围显示
+    updateChapterRange();
+}
+
+// 更新章节范围显示
+function updateChapterRange() {
+    const fromChapter = parseInt(document.getElementById('from-chapter').value) || 1;
+    const chaptersToGenerate = parseInt(document.getElementById('chapters-to-generate').value) || 0;
+    const toChapter = fromChapter + chaptersToGenerate - 1;
+    
+    const rangeStart = document.getElementById('range-start');
+    const rangeEnd = document.getElementById('range-end');
+    
+    if (rangeStart) {
+        rangeStart.textContent = fromChapter;
+    }
+    if (rangeEnd) {
+        if (chaptersToGenerate > 0) {
+            rangeEnd.textContent = toChapter;
+        } else {
+            rangeEnd.textContent = fromChapter;
+        }
     }
 }
 
@@ -658,7 +688,6 @@ async function startPhaseTwoGeneration(event) {
         from_chapter: parseInt(document.getElementById('from-chapter').value),
         chapters_to_generate: parseInt(document.getElementById('chapters-to-generate').value),
         chapters_per_batch: parseInt(document.getElementById('chapters-per-batch').value),
-        quality_level: document.getElementById('quality-level').value,
         generation_notes: document.getElementById('generation-notes').value
     };
 
