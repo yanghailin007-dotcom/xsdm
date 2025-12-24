@@ -40,7 +40,7 @@ class NovelPathConfig:
             "project_root": str(project_dir),
             
             # 核心数据目录
-            "project_info": str(project_dir / "project_info"),
+            "project_info": str(project_dir / f"{safe_title}_{safe_title}_项目信息.json"),
             "novel_overview": str(project_dir / "novel_overview.json"),
             "writing_style_guide": str(project_dir / f"{safe_title}_writing_style_guide.json"),
             
@@ -150,13 +150,6 @@ class NovelPathConfig:
         safe_chapter_title = re.sub(r'[\\/*?:"<>|]', "_", chapter_title) if chapter_title else f"第{chapter_number}章"
         chapters_dir = Path(paths["chapters_dir"])
         return str(chapters_dir / f"第{chapter_number:03d}章_{safe_chapter_title}.json")
-    
-    def get_stage_plan_path(self, novel_title: str, stage_name: str) -> str:
-        """获取阶段写作计划文件路径"""
-        paths = self.get_project_paths(novel_title)
-        safe_title = self.get_safe_title(novel_title)
-        writing_plans_dir = Path(paths["writing_plans_dir"])
-        return str(writing_plans_dir / f"{safe_title}_{stage_name}_plan.json")
     
     def get_backup_path(self, novel_title: str, file_type: str, timestamp: str = "") -> str:
         """获取备份文件路径"""

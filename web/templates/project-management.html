@@ -999,7 +999,8 @@
 
                 showStatusMessage('✅ 正在跳转到第二阶段...', 'success');
                 setTimeout(() => {
-                    window.location.href = '/phase-two-generation';
+                    // 传递项目标题作为URL参数
+                    window.location.href = `/phase-two-generation?title=${encodeURIComponent(projectTitle)}`;
                 }, 1000);
             } catch (error) {
                 showStatusMessage(`❌ 跳转失败: ${error.message}`, 'error');

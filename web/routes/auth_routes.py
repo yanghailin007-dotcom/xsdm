@@ -166,6 +166,12 @@ def register_page_routes(app):
         """故事线时间线页面"""
         return render_template('storyline.html')
     
+    @app.route('/chapter-view', methods=['GET'])
+    @login_required
+    def chapter_view():
+        """章节内容查看页面"""
+        return render_template('chapter-view.html')
+    
     # 错误处理
     @app.errorhandler(404)
     def not_found(error):

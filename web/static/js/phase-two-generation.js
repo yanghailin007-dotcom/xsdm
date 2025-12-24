@@ -9,6 +9,23 @@ let generationStartTime = null;
 document.addEventListener('DOMContentLoaded', function() {
     checkLoginStatus();
     loadAvailableProjects();
+    
+    // 检查URL参数中是否有项目标题，如果有则自动选择
+    checkUrlParameterForProject();
+    
+    // 测试goToContentReview函数是否可用
+    console.log('🧪 [TEST] goToContentReview函数是否存在:', typeof goToContentReview);
+    console.log('🧪 [TEST] window.goToContentReview是否存在:', typeof window.goToContentReview);
+    
+    // 添加全局测试：3秒后自动测试函数
+    setTimeout(() => {
+        console.log('🧪 [AUTO-TEST] 3秒后自动测试goToContentReview函数...');
+        if (currentProject) {
+            console.log('🧪 [AUTO-TEST] currentProject存在，标题:', currentProject.novel_title || currentProject.title);
+        } else {
+            console.log('🧪 [AUTO-TEST] currentProject为空');
+        }
+    }, 3000);
 });
 
 // ==================== 认证功能 ====================
@@ -23,7 +40,23 @@ async function checkLoginStatus() {
     }
 }
 
+// ==================== URL参数处理功能 ====================
+function checkUrlParameterForProject() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const projectTitleFromUrl = urlParams.get('title');
+    
+    if (projectTitleFromUrl) {
+        console.log('📋 [DEBUG] 从URL获取到项目标题:', decodeURIComponent(projectTitleFromUrl));
+        addLogEntry('info', `检测到URL中的项目参数，等待项目列表加载后自动选中`);
+        
+        // 保存到localStorage以便后续使用
+        localStorage.setItem('selectedProjectTitle', decodeURIComponent(projectTitleFromUrl));
+    }
+}
+
 // ==================== 项目管理功能 ====================
+let projectsCache = []; // 缓存项目列表
+
 async function loadAvailableProjects() {
     try {
         const response = await fetch('/api/projects/with-phase-status');
@@ -38,8 +71,12 @@ async function loadAvailableProjects() {
         }
 
         const result = await response.json();
-        displayProjectsList(result.projects || []);
-        addLogEntry('info', `成功加载 ${result.projects?.length || 0} 个项目`);
+        projectsCache = result.projects || [];
+        displayProjectsList(projectsCache);
+        addLogEntry('info', `成功加载 ${projectsCache.length} 个项目`);
+        
+        // 检查是否需要自动选择项目
+        checkAndAutoSelectProject();
     } catch (error) {
         console.error('加载项目列表失败:', error);
         showStatusMessage(`❌ 加载项目失败: ${error.message}`, 'error');
@@ -82,6 +119,86 @@ function displayProjectsList(projects) {
     });
     
     projectsList.innerHTML = html;
+}
+
+// 自动选择项目的函数
+async function checkAndAutoSelectProject() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const projectTitleFromUrl = urlParams.get('title');
+    
+    // 也检查localStorage
+    const storedProjectTitle = localStorage.getItem('selectedProjectTitle');
+    const targetProjectTitle = projectTitleFromUrl || storedProjectTitle;
+    
+    if (!targetProjectTitle) {
+        console.log('📋 [DEBUG] 没有检测到需要自动选择的项目');
+        return;
+    }
+    
+    const decodedTitle = decodeURIComponent(targetProjectTitle);
+    console.log('📋 [DEBUG] 尝试自动选择项目:', decodedTitle);
+    
+    // 在项目缓存中查找匹配的项目
+    const targetProject = projectsCache.find(p => p.title === decodedTitle);
+    
+    if (!targetProject) {
+        console.warn('⚠️ [DEBUG] 在项目列表中未找到匹配的项目:', decodedTitle);
+        showStatusMessage(`⚠️ 未找到项目 "${decodedTitle}"，请手动选择`, 'warning');
+        // 清除localStorage
+        localStorage.removeItem('selectedProjectTitle');
+        return;
+    }
+    
+    console.log('✅ [DEBUG] 找到匹配的项目，准备自动选择');
+    
+    // 延迟一下，确保DOM已完全渲染
+    setTimeout(async () => {
+        try {
+            // 模拟点击选择项目
+            await autoSelectProject(decodedTitle);
+        } catch (error) {
+            console.error('❌ [DEBUG] 自动选择项目失败:', error);
+            showStatusMessage(`⚠️ 自动选择项目失败，请手动选择`, 'warning');
+        }
+    }, 500);
+}
+
+// 自动选择项目的内部函数
+async function autoSelectProject(projectTitle) {
+    console.log('🔄 [DEBUG] 开始自动选择项目:', projectTitle);
+    
+    // 查找项目卡片并触发选择
+    const projectCards = document.querySelectorAll('.project-card');
+    let foundCard = null;
+    
+    for (const card of projectCards) {
+        const titleElement = card.querySelector('.project-title');
+        if (titleElement && titleElement.textContent === projectTitle) {
+            foundCard = card;
+            break;
+        }
+    }
+    
+    if (!foundCard) {
+        console.error('❌ [DEBUG] 未找到项目卡片元素');
+        return;
+    }
+    
+    // 触发点击事件
+    foundCard.click();
+    
+    console.log('✅ [DEBUG] 项目卡片点击已触发');
+    addLogEntry('info', `已自动选择项目: ${projectTitle}`);
+    
+    // 清除URL参数（避免重复触发）
+    const url = new URL(window.location);
+    url.searchParams.delete('title');
+    window.history.replaceState({}, document.title, url);
+    
+    // 清除localStorage
+    localStorage.removeItem('selectedProjectTitle');
+    
+    showStatusMessage(`✅ 已自动选择项目: ${projectTitle}`, 'success');
 }
 
 function getProjectStatusText(project) {
@@ -768,6 +885,15 @@ function viewChapters() {
     window.location.href = `/novel?title=${encodeURIComponent(currentProject.novel_title)}`;
 }
 
+function goToChapterView() {
+    if (!currentProject) {
+        showStatusMessage('❌ 请先选择一个项目', 'error');
+        return;
+    }
+    const projectTitle = currentProject.novel_title || currentProject.title;
+    window.location.href = `/chapter-view?title=${encodeURIComponent(projectTitle)}`;
+}
+
 function continueMoreChapters() {
     hideGenerationResults();
     showGenerationForm();
@@ -777,6 +903,80 @@ function continueMoreChapters() {
 function goToReading() {
     if (!currentProject) return;
     window.location.href = `/novel?title=${encodeURIComponent(currentProject.novel_title)}`;
+}
+
+function goToNovelView() {
+    if (!currentProject) {
+        showStatusMessage('❌ 请先选择一个项目', 'error');
+        return;
+    }
+    const projectTitle = currentProject.novel_title || currentProject.title;
+    window.location.href = `/novel?title=${encodeURIComponent(projectTitle)}`;
+}
+
+function goToContentReview() {
+    console.log('📋 [DEBUG] goToContentReview函数被调用!!!');
+    console.log('📋 [DEBUG] currentProject:', currentProject);
+    
+    try {
+        let projectTitle = null;
+    
+    // 优先从currentProject获取
+    if (currentProject) {
+        projectTitle = currentProject.novel_title || currentProject.title;
+        console.log('✅ 从currentProject获取到项目标题:', projectTitle);
+    }
+    
+    // 如果currentProject没有，尝试从URL参数获取
+    if (!projectTitle) {
+        const urlParams = new URLSearchParams(window.location.search);
+        const titleFromUrl = urlParams.get('title');
+        if (titleFromUrl) {
+            projectTitle = decodeURIComponent(titleFromUrl);
+            console.log('✅ 从URL获取到项目标题:', projectTitle);
+        }
+    }
+    
+    // 如果还是没有，尝试从localStorage获取
+    if (!projectTitle) {
+        const storedProjectTitle = localStorage.getItem('selectedProjectTitle');
+        if (storedProjectTitle) {
+            projectTitle = storedProjectTitle;
+            console.log('✅ 从localStorage获取到项目标题:', projectTitle);
+        }
+    }
+    
+    // 如果还是没有，提示用户选择项目
+    if (!projectTitle) {
+        showStatusMessage('⚠️ 请先在左侧列表选择一个项目', 'warning');
+        showStatusMessage('💡 请先在左侧项目列表中点击选择一个项目', 'info');
+        
+        // 高亮显示项目列表
+        const projectsList = document.getElementById('projects-list');
+        if (projectsList) {
+            projectsList.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            // 闪烁效果提示
+            projectsList.style.animation = 'highlight-pulse 2s ease-in-out 3';
+        }
+        return;
+    }
+    
+        console.log('✅ [DEBUG] 准备跳转到内容审核页面');
+        console.log('✅ [DEBUG] 项目标题:', projectTitle);
+        
+        if (!projectTitle) {
+            console.error('❌ [DEBUG] 未能获取项目标题!');
+            showStatusMessage('❌ 无法获取项目标题，请刷新页面重试', 'error');
+            return;
+        }
+        
+        console.log('🚀 [DEBUG] 执行跳转...');
+        window.location.href = `/chapter-view?title=${encodeURIComponent(projectTitle)}`;
+    } catch (error) {
+        console.error('❌ [DEBUG] goToContentReview发生错误:', error);
+        console.error('❌ [DEBUG] 错误堆栈:', error.stack);
+        showStatusMessage(`❌ 跳转失败: ${error.message}`, 'error');
+    }
 }
 
 // ==================== 工具函数 ====================

@@ -36,19 +36,19 @@
 
         <!-- 进度指示器 -->
         <div class="phase-progress">
-            <div class="phase-step completed" id="step-setup">
+            <div class="phase-step completed" id="step-setup" onclick="location.href='/phase-one-setup'" title="返回第一阶段">
                 <span>✅</span>
                 <span>设计完成</span>
             </div>
-            <div class="phase-step active" id="step-generation">
+            <div class="phase-step active" id="step-generation" title="当前阶段">
                 <span>⚙️</span>
                 <span>章节生成</span>
             </div>
-            <div class="phase-step pending" id="step-review">
+            <div class="phase-step pending clickable" id="step-review" onclick="goToContentReview()" title="查看和审核章节内容">
                 <span>👁️</span>
                 <span>内容审核</span>
             </div>
-            <div class="phase-step pending" id="step-complete">
+            <div class="phase-step pending" id="step-complete" title="生成完成">
                 <span>🎉</span>
                 <span>生成完成</span>
             </div>
@@ -306,14 +306,14 @@
                     </div>
 
                     <div class="action-buttons">
-                        <button class="btn btn-secondary" onclick="viewChapters()">
-                            📖 查看章节
+                        <button class="btn btn-primary" onclick="goToChapterView()">
+                            📖 查看章节内容
                         </button>
                         <button class="btn btn-secondary" onclick="continueMoreChapters()">
                             ➕ 继续生成更多
                         </button>
-                        <button class="btn btn-primary" onclick="goToReading()">
-                            🎉 开始阅读
+                        <button class="btn btn-secondary" onclick="goToNovelView()">
+                            📚 小说阅读
                         </button>
                     </div>
                 </div>

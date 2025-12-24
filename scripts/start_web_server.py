@@ -52,7 +52,7 @@ def stop_port_5000():
         print("\n清理端口5000...")
         
         # 查找占用端口5000的进程
-        result = subprocess.run(['netstat', '-ano'], capture_output=True, text=True)
+        result = subprocess.run(['netstat', '-ano'], capture_output=True, text=True, timeout=10)
         lines = result.stdout.split('\n')
 
         pids = []
@@ -61,8 +61,13 @@ def stop_port_5000():
                 parts = line.split()
                 if len(parts) >= 5:
                     pid = parts[-1]
-                    if pid not in pids:
-                        pids.append(pid)
+                    try:
+                        # 验证PID是否为有效数字
+                        if pid.isdigit():
+                            if pid not in pids:
+                                pids.append(pid)
+                    except (ValueError, AttributeError):
+                        continue
 
         if not pids:
             print("  [OK] 没有找到占用端口5000的进程")
@@ -71,20 +76,40 @@ def stop_port_5000():
         print(f"  [INFO] 找到占用端口5000的进程: {pids}")
 
         # 杀死进程
+        killed_count = 0
         for pid in pids:
-            print(f"  [KILL] 终止进程 {pid}...")
-            subprocess.run(['taskkill', '/F', '/PID', pid])
-            print(f"  [OK] 进程 {pid} 已终止")
+            try:
+                print(f"  [KILL] 终止进程 {pid}...")
+                kill_result = subprocess.run(['taskkill', '/F', '/PID', pid], 
+                                           capture_output=True, text=True, timeout=5)
+                if kill_result.returncode == 0:
+                    print(f"  [OK] 进程 {pid} 已终止")
+                    killed_count += 1
+                else:
+                    print(f"  [WARNING] 进程 {pid} 终止失败: {kill_result.stderr}")
+            except subprocess.TimeoutExpired:
+                print(f"  [WARNING] 终止进程 {pid} 超时")
+            except FileNotFoundError:
+                print(f"  [WARNING] taskkill 命令不可用")
+            except Exception as e:
+                print(f"  [WARNING] 终止进程 {pid} 时出错: {e}")
 
-        print("  [OK] 端口5000清理完成")
+        if killed_count > 0:
+            print(f"  [OK] 端口5000清理完成，已终止 {killed_count} 个进程")
+        else:
+            print("  [WARNING] 没有进程被终止，端口可能仍被占用")
 
+    except subprocess.TimeoutExpired:
+        print("  [WARNING] netstat 命令执行超时，跳过端口清理")
+    except FileNotFoundError:
+        print("  [WARNING] netstat 命令不可用，跳过端口清理")
     except Exception as e:
         print(f"  [WARNING] 清理端口时出错: {e}")
 
 def main():
     """主函数"""
     print("=" * 60)
-    print("小说生成系统 - Web 服务启动")
+    print("大文娱系统 - Web 服务启动")
     print("=" * 60)
     # 设置环境变量
     os.environ['USE_MOCK_API'] = 'false'  # 使用真实API进行测试
@@ -114,20 +139,21 @@ def main():
     
     # 启动 Web 服务
     print("\n启动 Web 服务...")
-    print("  • 前端地址: http://localhost:5000")
+    print("  • 首页地址: http://localhost:5000/landing")
+    print("  • 小说创作: http://localhost:5000/ (需登录)")
     print("  • API 地址: http://localhost:5000/api")
     print("\n⏳ 等待服务启动...")
     
     # 等待 Flask 启动
     time.sleep(2)
     
-    # 在浏览器中打开
+    # 在浏览器中打开landing页面
     try:
-        webbrowser.open('http://localhost:5000')
-        print("[OK] 浏览器已打开\n")
+        webbrowser.open('http://localhost:5000/landing')
+        print("[OK] 浏览器已打开 - 大文娱系统首页\n")
     except Exception as e:
         print(f"[WARNING] 无法打开浏览器: {e}")
-        print("请手动访问: http://localhost:5000\n")
+        print("请手动访问: http://localhost:5000/landing\n")
     
     # 启动 Flask - 切换到项目根目录
     os.chdir(current_dir.parent)

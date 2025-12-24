@@ -984,6 +984,7 @@ def register_phase_routes(app, manager_instance=None):
         except Exception as e:
             logger.error(f"❌ 获取两阶段系统状态失败: {e}")
             return jsonify({"success": False, "error": str(e)}), 500
+    
 
 # ==================== 第一阶段产物管理API ====================
 
@@ -2228,6 +2229,253 @@ def update_storyline(title):
         
     except Exception as e:
         logger.error(f"❌ 更新故事线失败: {e}")
+        import traceback
+        logger.error(f"❌ 错误堆栈: {traceback.format_exc()}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+# ==================== 文件内容读取API ====================
+
+@phase_api.route('/file-content', methods=['GET'])
+@login_required
+def get_file_content():
+    """读取文件内容"""
+    try:
+        from flask import request
+        file_path = request.args.get('path')
+        
+        if not file_path:
+            return jsonify({"success": False, "error": "缺少文件路径参数"}), 400
+        
+        # 安全检查：确保文件路径在允许的目录内
+        allowed_dirs = ['小说项目', 'data', 'knowledge_base']
+        is_allowed = False
+        for allowed_dir in allowed_dirs:
+            if file_path.startswith(allowed_dir) or file_path.startswith(f'./{allowed_dir}'):
+                is_allowed = True
+                break
+        
+        if not is_allowed:
+            return jsonify({"success": False, "error": "不允许访问该路径"}), 403
+        
+        if not os.path.exists(file_path):
+            return jsonify({"success": False, "error": "文件不存在"}), 404
+        
+        # 读取文件内容
+        with open(file_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+        
+        return jsonify({
+            "success": True,
+            "content": content,
+            "file_path": file_path,
+            "size": len(content)
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ 读取文件内容失败: {e}")
+        import traceback
+        logger.error(f"❌ 错误堆栈: {traceback.format_exc()}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+# ==================== 第二阶段内容审核API ====================
+
+@phase_api.route('/phase-two/content-review/<path:title>', methods=['GET'])
+@login_required
+def get_phase_two_content_review(title):
+    """获取第二阶段的章节列表用于内容审核"""
+    try:
+        # Flask会自动解码URL中的中文参数
+        original_title = title
+        safe_title = re.sub(r'[\\/*?:"<>|]', '_', original_title)
+        logger.info(f"📋 [CONTENT_REVIEW] 获取章节列表: {original_title}")
+        
+        # 构建章节目录路径
+        possible_chapter_dirs = [
+            f"小说项目/{original_title}/chapters",
+            f"小说项目/{safe_title}/chapters",
+            f"小说项目/{original_title}_章节",
+            f"小说项目/{safe_title}_章节"
+        ]
+        
+        chapters_dir = None
+        for dir_path in possible_chapter_dirs:
+            if os.path.exists(dir_path) and os.path.isdir(dir_path):
+                chapters_dir = dir_path
+                logger.info(f"✅ [CONTENT_REVIEW] 找到章节目录: {chapters_dir}")
+                break
+        
+        if not chapters_dir:
+            logger.error(f"❌ [CONTENT_REVIEW] 未找到章节目录: {original_title}")
+            return jsonify({
+                "success": False,
+                "error": "未找到章节目录，该项目可能尚未生成章节"
+            }), 404
+        
+        # 扫描章节文件
+        chapters = []
+        chapter_files = [f for f in os.listdir(chapters_dir) if f.endswith(('.txt', '.json'))]
+        
+        for chapter_file in sorted(chapter_files):
+            file_path = os.path.join(chapters_dir, chapter_file)
+            try:
+                # 提取章节号
+                match = re.search(r'第?(\d+)章?', chapter_file)
+                if not match:
+                    continue
+                
+                chapter_number = int(match.group(1))
+                
+                # 获取文件大小和字数
+                file_size = os.path.getsize(file_path)
+                word_count = file_size  # 对于文本文件，字数约等于文件大小
+                
+                # 尝试读取JSON文件获取更准确的信息
+                chapter_title = f"第{chapter_number}章"  # 默认标题
+                if chapter_file.endswith('.json'):
+                    try:
+                        with open(file_path, 'r', encoding='utf-8') as f:
+                            chapter_data = json.load(f)
+                        # 提取章节标题
+                        if chapter_data.get('chapter_title'):
+                            chapter_title = chapter_data['chapter_title']
+                        elif chapter_data.get('title'):
+                            chapter_title = chapter_data['title']
+                        # 计算字数
+                        word_count = len(chapter_data.get('content', ''))
+                    except:
+                        pass
+                
+                chapters.append({
+                    "chapter_number": chapter_number,
+                    "title": chapter_title,
+                    "word_count": word_count,
+                    "file_name": chapter_file,
+                    "file_path": file_path
+                })
+            except Exception as e:
+                logger.info(f"⚠️ 处理章节文件失败: {chapter_file}, {e}")
+                continue
+        
+        logger.info(f"✅ [CONTENT_REVIEW] 找到 {len(chapters)} 个章节")
+        
+        return jsonify({
+            "success": True,
+            "project_title": original_title,
+            "chapters": chapters,
+            "total_chapters": len(chapters),
+            "total_words": sum(ch['word_count'] for ch in chapters)
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ 获取章节列表失败: {e}")
+        import traceback
+        logger.error(f"❌ 错误堆栈: {traceback.format_exc()}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@phase_api.route('/phase-two/content-review/<path:title>/chapter/<int:chapterNum>/files', methods=['GET'])
+@login_required
+def get_chapter_raw_files(title, chapterNum):
+    """获取章节的原始文件信息"""
+    try:
+        original_title = title
+        safe_title = re.sub(r'[\\/*?:"<>|]', '_', original_title)
+        logger.info(f"📋 [CONTENT_REVIEW] 获取章节文件: {original_title}, 第{chapterNum}章")
+        
+        # 构建可能的目录路径
+        possible_paths = [
+            {
+                "base_dir": f"小说项目/{original_title}",
+                "chapters_dir": f"小说项目/{original_title}/chapters"
+            },
+            {
+                "base_dir": f"小说项目/{safe_title}",
+                "chapters_dir": f"小说项目/{safe_title}/chapters"
+            }
+        ]
+        
+        base_dir = None
+        chapters_dir = None
+        for paths in possible_paths:
+            if os.path.exists(paths["base_dir"]):
+                base_dir = paths["base_dir"]
+                if os.path.exists(paths["chapters_dir"]):
+                    chapters_dir = paths["chapters_dir"]
+                break
+        
+        if not base_dir:
+            return jsonify({"success": False, "error": "未找到项目目录"}), 404
+        
+        # 查找章节文件
+        chapter_files = []
+        if chapters_dir:
+            for f in os.listdir(chapters_dir):
+                if re.search(rf'第?{chapterNum}章?', f):
+                    file_path = os.path.join(chapters_dir, f)
+                    chapter_files.append({
+                        "name": f,
+                        "type": "章节内容",
+                        "file_path": file_path,
+                        "file_size": os.path.getsize(file_path),
+                        "extension": os.path.splitext(f)[1]
+                    })
+        
+        # 构建原始文件分类
+        raw_files = {
+            "input_files": [],
+            "output_files": chapter_files,
+            "quality_files": [],
+            "character_files": []
+        }
+        
+        # 尝试从其他目录查找相关文件
+        subdirs = ["planning", "quality_data", "characters", "worldview", "event_records"]
+        for subdir in subdirs:
+            subdir_path = os.path.join(base_dir, subdir)
+            if os.path.exists(subdir_path):
+                for f in os.listdir(subdir_path):
+                    if not f.endswith('.json'):
+                        continue
+                    
+                    file_path = os.path.join(subdir_path, f)
+                    file_size = os.path.getsize(file_path)
+                    
+                    # 根据目录分类
+                    if subdir == "planning":
+                        raw_files["input_files"].append({
+                            "name": f,
+                            "type": "写作计划",
+                            "file_path": file_path,
+                            "file_size": file_size,
+                            "extension": ".json"
+                        })
+                    elif subdir == "quality_data":
+                        raw_files["quality_files"].append({
+                            "name": f,
+                            "type": "质量数据",
+                            "file_path": file_path,
+                            "file_size": file_size,
+                            "extension": ".json"
+                        })
+                    elif subdir == "characters":
+                        raw_files["character_files"].append({
+                            "name": f,
+                            "type": "角色数据",
+                            "file_path": file_path,
+                            "file_size": file_size,
+                            "extension": ".json"
+                        })
+        
+        logger.info(f"✅ [CONTENT_REVIEW] 找到文件: input={len(raw_files['input_files'])}, output={len(raw_files['output_files'])}, quality={len(raw_files['quality_files'])}, character={len(raw_files['character_files'])}")
+        
+        return jsonify({
+            "success": True,
+            "project_title": original_title,
+            "chapter_number": chapterNum,
+            "raw_files": raw_files
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ 获取章节文件失败: {e}")
         import traceback
         logger.error(f"❌ 错误堆栈: {traceback.format_exc()}")
         return jsonify({"success": False, "error": str(e)}), 500
