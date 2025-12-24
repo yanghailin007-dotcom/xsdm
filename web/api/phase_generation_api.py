@@ -1789,9 +1789,112 @@ def get_storyline(title):
         return jsonify({"success": False, "error": str(e)}), 500
 
 def extract_storyline_from_stage_plans(project_data, title):
-    """从项目的overall_stage_plans中提取故事线数据"""
+    """从项目的详细写作计划中提取故事线数据"""
     
     logger.info(f"🔍 开始提取故事线数据，项目数据键: {list(project_data.keys())[:20]}")
+    
+    # 优先尝试从 plans/ 目录读取详细的阶段写作计划
+    safe_title = re.sub(r'[\\/*?:"<>|]', '_', title)
+    project_dir = f"小说项目/{safe_title}"
+    plans_dir = f"{project_dir}/plans"
+    
+    storyline = None
+    
+    # 检查是否存在 plans 目录
+    if os.path.exists(plans_dir):
+        logger.info(f"✅ 找到 plans 目录: {plans_dir}")
+        
+        # 读取所有阶段写作计划文件
+        all_major_events = []
+        
+        # 定义阶段文件名模式
+        stage_patterns = {
+            "opening_stage": f"{safe_title}_opening_stage_writing_plan.json",
+            "development_stage": f"{safe_title}_development_stage_writing_plan.json",
+            "climax_stage": f"{safe_title}_climax_stage_writing_plan.json",
+            "ending_stage": f"{safe_title}_ending_stage_writing_plan.json"
+        }
+        
+        stage_names = {
+            "opening_stage": "开局阶段",
+            "development_stage": "发展阶段",
+            "climax_stage": "高潮阶段",
+            "ending_stage": "结局阶段"
+        }
+        
+        for stage_key, filename in stage_patterns.items():
+            stage_file = f"{plans_dir}/{filename}"
+            if os.path.exists(stage_file):
+                try:
+                    logger.info(f"📖 读取阶段文件: {filename}")
+                    with open(stage_file, 'r', encoding='utf-8') as f:
+                        stage_data = json.load(f)
+                    
+                    # 从 stage_writing_plan.event_system.major_events 提取事件
+                    stage_writing_plan = stage_data.get("stage_writing_plan", {})
+                    event_system = stage_writing_plan.get("event_system", {})
+                    stage_major_events = event_system.get("major_events", [])
+                    
+                    for idx, major_event in enumerate(stage_major_events):
+                        # 构建重大事件数据
+                        event_data = {
+                            "id": f"{stage_key}_{idx + 1}",
+                            "order": len(all_major_events) + 1,
+                            "name": major_event.get("name", f"{stage_names[stage_key]}-{idx+1}"),
+                            "type": major_event.get("type", "major_event"),
+                            "role_in_stage_arc": major_event.get("role_in_stage_arc", ""),
+                            "chapter_range": major_event.get("chapter_range", ""),
+                            "main_goal": major_event.get("main_goal", ""),
+                            "emotional_goal": major_event.get("emotional_goal", ""),
+                            "emotional_focus": major_event.get("emotional_goal", ""),
+                            "description": major_event.get("main_goal", ""),
+                            "medium_events": [],
+                            "special_events": major_event.get("special_emotional_events", [])
+                        }
+                        
+                        # 提取起承转合的中级事件
+                        composition = major_event.get("composition", {})
+                        for phase_key, phase_name in [("起", "起"), ("承", "承"), ("转", "转"), ("合", "合")]:
+                            medium_events = composition.get(phase_key, [])
+                            for medium_idx, medium_event in enumerate(medium_events):
+                                medium_data = {
+                                    "id": f"{stage_key}_{idx + 1}_{phase_key}_{medium_idx + 1}",
+                                    "phase": phase_name,
+                                    "phase_key": phase_key,
+                                    "order": medium_idx + 1,
+                                    "name": medium_event.get("name", ""),
+                                    "type": medium_event.get("type", "medium_event"),
+                                    "chapter_range": medium_event.get("chapter_range", ""),
+                                    "main_goal": medium_event.get("main_goal", ""),
+                                    "role_in_stage_arc": medium_event.get("main_goal", ""),
+                                    "emotional_focus": medium_event.get("emotional_focus", ""),
+                                    "emotional_goal": medium_event.get("emotional_focus", ""),
+                                    "emotional_intensity": medium_event.get("emotional_intensity", "medium"),
+                                    "description": medium_event.get("description", ""),
+                                    "key_emotional_beats": medium_event.get("key_emotional_beats", [])
+                                }
+                                event_data["medium_events"].append(medium_data)
+                        
+                        all_major_events.append(event_data)
+                        logger.info(f"  ✓ 提取重大事件: {event_data['name']}, 包含 {len(event_data['medium_events'])} 个中级事件")
+                    
+                except Exception as e:
+                    logger.error(f"❌ 读取阶段文件失败: {filename}, {e}")
+                    continue
+        
+        # 如果从 plans 目录提取到了数据，构建并返回
+        if all_major_events:
+            storyline = {
+                "stage_name": "全书故事线",
+                "chapter_range": str(project_data.get("total_chapters", "未知")) + "章",
+                "stage_overview": project_data.get("novel_synopsis", ""),
+                "major_events": all_major_events
+            }
+            logger.info(f"✅ 从 plans 目录提取了 {len(all_major_events)} 个重大事件")
+            return storyline
+    
+    # 如果 plans 目录没有数据，回退到从 overall_stage_plans 提取（原有逻辑）
+    logger.info("⚠️ plans 目录无数据，回退到 overall_stage_plans 提取")
     
     # 获取overall_stage_plans数据
     overall_stage_plans = project_data.get("overall_stage_plans", {})
