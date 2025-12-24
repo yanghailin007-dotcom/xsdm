@@ -67,18 +67,18 @@ contract:
           detail: "宝安区"
     
     user2:
-    name: "用户2"
-    enabled: true  # 暂时禁用
-    contact_info:
-    phone: "15286302700"
-    email: "1078943007@qq.com"
-    qq: "1078943007"
-    bank_account: "6217007150009196817"
-    bank_branch: "中国建设银行股份有限公司凯里北京路支行"
-    address:
-    province: "贵州省"
-    city: "凯里市"
-    detail: "北京路"
+      name: "北莽王庭的达延"
+      enabled: true
+      contact_info:
+        phone: "15286302700"
+        email: "1078943007@qq.com"
+        qq: "1078943007"
+        bank_account: "6217007150009196817"
+        bank_branch: "中国建设银行股份有限公司凯里北京路支行"
+        address:
+          province: "贵州省"
+          city: "凯里市"
+          detail: "北京路"
     
     user3:
       name: "用户3"

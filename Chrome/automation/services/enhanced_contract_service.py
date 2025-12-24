@@ -183,6 +183,12 @@ class EnhancedContractService:
             elif task_type == "upload_novel":
                 # 处理小说上传任务
                 result = self._handle_upload_novel(task)
+            elif task_type == "get_novels_list":
+                # 处理获取小说列表任务
+                result = self._handle_get_novels_list(task)
+            elif task_type == "auto_sign":
+                # 处理自动签约任务
+                result = self._handle_auto_sign(task)
             else:
                 result["error"] = f"不支持的任务类型: {task_type}"
             
@@ -345,6 +351,285 @@ class EnhancedContractService:
                 "task_id": task.get("task_id"),
                 "error": f"小说上传失败: {str(e)}"
             }
+    
+    def _handle_get_novels_list(self, task: Dict[str, Any]) -> Dict[str, Any]:
+        """处理获取小说列表任务"""
+        try:
+            self.log("正在获取可签约小说列表...")
+            
+            # 获取当前作者名
+            current_author_name = self._get_current_author_name()
+            
+            if not current_author_name:
+                return {
+                    "success": False,
+                    "task_id": task.get("task_id"),
+                    "error": "无法获取当前作者名"
+                }
+            
+            self.log(f"当前作者名: {current_author_name}")
+            
+            # 获取小说列表
+            if self.page is None:
+                return {
+                    "success": False,
+                    "task_id": task.get("task_id"),
+                    "error": "浏览器页面未初始化"
+                }
+            
+            novels = self._get_contractable_novels_from_page()
+            
+            return {
+                "success": True,
+                "task_id": task.get("task_id"),
+                "current_author_name": current_author_name,
+                "novels": novels,
+                "count": len(novels),
+                "message": f"成功获取 {len(novels)} 本可签约小说"
+            }
+            
+        except Exception as e:
+            return {
+                "success": False,
+                "task_id": task.get("task_id"),
+                "error": f"获取小说列表失败: {str(e)}"
+            }
+    
+    def _handle_auto_sign(self, task: Dict[str, Any]) -> Dict[str, Any]:
+        """处理自动签约任务"""
+        try:
+            novel_title = task.get("novel_title")
+            user_id = task.get("user_id")
+            user_name = task.get("user_name", "")
+            
+            if not novel_title or not user_id:
+                return {
+                    "success": False,
+                    "task_id": task.get("task_id"),
+                    "error": "缺少必要参数"
+                }
+            
+            self.log(f"开始自动签约: 《{novel_title}》使用用户 {user_name}")
+            
+            # 验证当前作者名是否匹配
+            current_author_name = self._get_current_author_name()
+            
+            if current_author_name != user_name:
+                error_msg = f"作者名不匹配！当前作者: {current_author_name}, 配置作者: {user_name}"
+                self.log(f"❌ {error_msg}")
+                return {
+                    "success": False,
+                    "task_id": task.get("task_id"),
+                    "error": error_msg,
+                    "current_author_name": current_author_name,
+                    "expected_author_name": user_name
+                }
+            
+            self.log(f"✓ 作者名匹配: {current_author_name}")
+            
+            # 切换到指定用户
+            switch_success = self.contract_manager.switch_user(user_id)
+            if not switch_success:
+                return {
+                    "success": False,
+                    "task_id": task.get("task_id"),
+                    "error": f"切换到用户 {user_id} 失败"
+                }
+            
+            # 执行签约流程
+            if self.page is None:
+                return {
+                    "success": False,
+                    "task_id": task.get("task_id"),
+                    "error": "浏览器页面未初始化"
+                }
+            
+            sign_success = self._sign_novel_by_title(novel_title)
+            
+            return {
+                "success": sign_success,
+                "task_id": task.get("task_id"),
+                "novel_title": novel_title,
+                "user_id": user_id,
+                "current_author_name": current_author_name,
+                "message": f"小说《{novel_title}》签约{'成功' if sign_success else '失败'}"
+            }
+            
+        except Exception as e:
+            return {
+                "success": False,
+                "task_id": task.get("task_id"),
+                "error": f"自动签约失败: {str(e)}"
+            }
+    
+    def _get_current_author_name(self) -> Optional[str]:
+        """获取当前页面的作者名"""
+        try:
+            if self.page is None:
+                return None
+            
+            # 等待页面加载
+            self.page.wait_for_load_state("domcontentloaded")
+            time.sleep(1)
+            
+            # 使用用户信息选择器获取作者名
+            author_name_selectors = [
+                'div.slogin-user-avatar__info__name',
+                '//div[contains(@class, "slogin-user-avatar__info__name")]',
+                'xpath=/html/body/div[1]/div/div[1]/div[2]/div/div[2]/div[2]/div[1]/div/div[1]'
+            ]
+            
+            for selector in author_name_selectors:
+                try:
+                    if selector.startswith('//'):
+                        element = self.page.locator(f'xpath={selector}')
+                    elif selector.startswith('xpath='):
+                        element = self.page.locator(selector)
+                    else:
+                        element = self.page.locator(selector).first
+                    
+                    if element.count() > 0:
+                        author_name = element.first.text_content().strip()
+                        if author_name:
+                            self.log(f"获取到作者名: {author_name}")
+                            return author_name
+                except Exception:
+                    continue
+            
+            self.log("⚠ 未找到作者名元素")
+            return None
+            
+        except Exception as e:
+            self.log(f"获取作者名失败: {e}")
+            return None
+    
+    def _get_contractable_novels_from_page(self) -> list:
+        """从页面获取所有可签约的小说列表"""
+        try:
+            if self.page is None:
+                return []
+            
+            novels = []
+            
+            # 滚动页面确保加载所有内容
+            self.contract_manager.ui_helper.scroll_list_container(self.page)
+            time.sleep(1)
+            
+            # 获取所有小说项
+            novel_items = self.page.locator('//div[contains(@id, "long-article-table-item")]')
+            item_count = novel_items.count()
+            
+            self.log(f"找到 {item_count} 个小说项")
+            
+            for i in range(item_count):
+                try:
+                    item = novel_items.nth(i)
+                    
+                    # 获取小说标题
+                    title_xpath = './div/div[1]/div[2]/div[1]/div'
+                    title_elements = item.locator(f'xpath={title_xpath}')
+                    
+                    if title_elements.count() > 0:
+                        novel_title = title_elements.first.text_content().strip()
+                        
+                        # 检查签约状态
+                        status_xpath = './div/div[1]/div[2]/div[2]/div[2]/div[3]'
+                        status_elements = item.locator(f'xpath={status_xpath}')
+                        
+                        if status_elements.count() > 0:
+                            status_text = status_elements.first.text_content().strip()
+                            
+                            # 只返回连载中且未签约的小说
+                            if "连载中" in status_text and "已签约" not in status_text:
+                                novels.append({
+                                    "title": novel_title,
+                                    "status": status_text,
+                                    "can_sign": True
+                                })
+                
+                except Exception as e:
+                    self.log(f"处理第 {i+1} 个小说项时出错: {e}")
+                    continue
+            
+            self.log(f"找到 {len(novels)} 本可签约小说")
+            return novels
+            
+        except Exception as e:
+            self.log(f"获取小说列表失败: {e}")
+            return []
+    
+    def _sign_novel_by_title(self, novel_title: str) -> bool:
+        """根据小说标题执行签约流程"""
+        try:
+            self.log(f"开始为《{novel_title}》执行签约流程...")
+            
+            if self.page is None:
+                return False
+            
+            # 确保在小说管理页面
+            self.contract_manager._ensure_novel_management_page(self.page)
+            time.sleep(1)
+            
+            # 滚动页面
+            self.contract_manager.ui_helper.scroll_list_container(self.page)
+            time.sleep(1)
+            
+            # 查找目标小说
+            novel_items = self.page.locator('//div[contains(@id, "long-article-table-item")]')
+            item_count = novel_items.count()
+            
+            for i in range(item_count):
+                try:
+                    item = novel_items.nth(i)
+                    
+                    # 获取小说标题
+                    title_xpath = './div/div[1]/div[2]/div[1]/div'
+                    title_elements = item.locator(f'xpath={title_xpath}')
+                    
+                    if title_elements.count() > 0:
+                        current_title = title_elements.first.text_content().strip()
+                        
+                        if current_title == novel_title:
+                            self.log(f"找到目标小说: {novel_title}")
+                            
+                            # 查找签约管理按钮
+                            contract_button_xpath = './div/div[1]/div[2]/div[3]/div/button[2]/span'
+                            contract_buttons = item.locator(f'xpath={contract_button_xpath}')
+                            
+                            if contract_buttons.count() > 0:
+                                button_text = contract_buttons.first.text_content().strip()
+                                if "签约管理" in button_text:
+                                    self.log("找到签约管理按钮")
+                                    
+                                    # 点击签约管理按钮
+                                    if self.contract_manager.ui_helper.safe_click(
+                                        contract_buttons.first,
+                                        "签约管理按钮"
+                                    ):
+                                        time.sleep(2)
+                                        
+                                        # 处理签约流程
+                                        success = self.contract_manager._handle_contract_process(self.page, 0)
+                                        
+                                        # 返回
+                                        self.page.go_back()
+                                        time.sleep(1)
+                                        
+                                        return success
+                            else:
+                                self.log("未找到签约管理按钮")
+                                return False
+                
+                except Exception as e:
+                    self.log(f"处理第 {i+1} 个小说项时出错: {e}")
+                    continue
+            
+            self.log(f"未找到小说: {novel_title}")
+            return False
+            
+        except Exception as e:
+            self.log(f"签约流程失败: {e}")
+            return False
     
     def run_service(self):
         """运行服务主循环"""

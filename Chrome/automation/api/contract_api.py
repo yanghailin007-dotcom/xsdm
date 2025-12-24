@@ -355,5 +355,133 @@ class ContractAPI:
             }
 
 
+    def get_enabled_users(self) -> Dict[str, Any]:
+        """获取所有启用的签约用户配置列表"""
+        try:
+            from ..utils.config_loader import get_config_loader
+            config_loader = get_config_loader()
+            
+            # 获取所有用户配置
+            users_config = config_loader.get('contract.users', {})
+            
+            enabled_users = []
+            for user_id, user_config in users_config.items():
+                if user_config.get('enabled', False):
+                    enabled_users.append({
+                        'user_id': user_id,
+                        'name': user_config.get('name', user_id),
+                        'contact_info': user_config.get('contact_info', {})
+                    })
+            
+            return {
+                "success": True,
+                "users": enabled_users,
+                "count": len(enabled_users),
+                "timestamp": datetime.now().isoformat()
+            }
+        except Exception as e:
+            return {
+                "success": False,
+                "error": str(e),
+                "message": "获取启用用户列表失败",
+                "timestamp": datetime.now().isoformat()
+            }
+    
+    def get_contractable_novels(self) -> Dict[str, Any]:
+        """获取所有可签约的小说列表（连载中且未签约）"""
+        try:
+            # 提交获取小说列表任务
+            task_id = self.client.submit_task("get_novels_list")
+            self.active_tasks[task_id] = {
+                "task_type": "get_novels_list",
+                "status": "submitted",
+                "submit_time": datetime.now().isoformat()
+            }
+            
+            return {
+                "success": True,
+                "task_id": task_id,
+                "message": "正在获取可签约小说列表...",
+                "timestamp": datetime.now().isoformat()
+            }
+        except Exception as e:
+            return {
+                "success": False,
+                "error": str(e),
+                "message": "获取可签约小说列表失败",
+                "timestamp": datetime.now().isoformat()
+            }
+    
+    def submit_auto_sign_task(self, novel_title: str, user_id: str) -> Dict[str, Any]:
+        """
+        提交自动签约任务
+        
+        Args:
+            novel_title: 要签约的小说标题
+            user_id: 用于签约的用户ID
+        """
+        try:
+            if not novel_title:
+                return {
+                    "success": False,
+                    "error": "小说标题不能为空",
+                    "message": "自动签约任务提交失败",
+                    "timestamp": datetime.now().isoformat()
+                }
+            
+            if not user_id:
+                return {
+                    "success": False,
+                    "error": "用户ID不能为空",
+                    "message": "自动签约任务提交失败",
+                    "timestamp": datetime.now().isoformat()
+                }
+            
+            # 验证用户是否启用
+            from ..utils.config_loader import get_config_loader
+            config_loader = get_config_loader()
+            users_config = config_loader.get('contract.users', {})
+            target_user = users_config.get(user_id, {})
+            
+            if not target_user.get('enabled', False):
+                return {
+                    "success": False,
+                    "error": f"用户 {user_id} 未启用",
+                    "message": "自动签约任务提交失败",
+                    "timestamp": datetime.now().isoformat()
+                }
+            
+            task_id = self.client.submit_task(
+                "auto_sign",
+                novel_title=novel_title,
+                user_id=user_id,
+                user_name=target_user.get('name', '')
+            )
+            self.active_tasks[task_id] = {
+                "task_type": "auto_sign",
+                "status": "submitted",
+                "submit_time": datetime.now().isoformat(),
+                "novel_title": novel_title,
+                "user_id": user_id
+            }
+            
+            return {
+                "success": True,
+                "task_id": task_id,
+                "message": f"自动签约任务已提交: 《{novel_title}》使用用户 {user_id}",
+                "task_type": "auto_sign",
+                "novel_title": novel_title,
+                "user_id": user_id,
+                "timestamp": datetime.now().isoformat()
+            }
+        except Exception as e:
+            return {
+                "success": False,
+                "error": str(e),
+                "message": "提交自动签约任务失败",
+                "timestamp": datetime.now().isoformat()
+            }
+
+
 # 创建全局API实例
 contract_api = ContractAPI()

@@ -183,12 +183,79 @@ def register_contract_routes(app):
         contract_api = None
         contract_api_available = False
 
-    @app.route('/api/contract/service/start', methods=['POST'])
-    def start_contract_service():
-        """启动签约服务"""
+    @app.route('/contract')
+    def contract_page():
+        """签约管理页面"""
         try:
             from web.auth import login_required
+            from flask import render_template
+            return render_template('contract_management.html')
+        except Exception as e:
+            logger.error(f"❌ 加载签约页面失败: {e}")
+            return f"签约页面加载失败: {str(e)}", 500
+
+    @app.route('/api/contract/users/enabled', methods=['GET'])
+    def get_contract_enabled_users():
+        """获取所有启用的用户配置"""
+        try:
+            if not contract_api_available:
+                return jsonify({
+                    "success": False,
+                    "error": "签约上传API不可用"
+                }), 503
             
+            result = contract_api.get_enabled_users()
+            return jsonify(result)
+        except Exception as e:
+            logger.error(f"❌ 获取启用用户失败: {e}")
+            return jsonify({"success": False, "error": str(e)}), 500
+
+    @app.route('/api/contract/novels/contractable', methods=['GET'])
+    def get_contractable_novels_list():
+        """获取可签约的小说列表"""
+        try:
+            if not contract_api_available:
+                return jsonify({
+                    "success": False,
+                    "error": "签约上传API不可用"
+                }), 503
+            
+            result = contract_api.get_contractable_novels()
+            return jsonify(result)
+        except Exception as e:
+            logger.error(f"❌ 获取可签约小说失败: {e}")
+            return jsonify({"success": False, "error": str(e)}), 500
+
+    @app.route('/api/contract/sign/auto', methods=['POST'])
+    def auto_sign_contract_novel():
+        """自动签约小说"""
+        try:
+            if not contract_api_available:
+                return jsonify({
+                    "success": False,
+                    "error": "签约上传API不可用"
+                }), 503
+            
+            data = request.json or {}
+            novel_title = data.get('novel_title')
+            user_id = data.get('user_id')
+            
+            if not novel_title or not user_id:
+                return jsonify({
+                    "success": False,
+                    "error": "缺少必要参数"
+                }), 400
+            
+            result = contract_api.submit_auto_sign_task(novel_title, user_id)
+            return jsonify(result)
+        except Exception as e:
+            logger.error(f"❌ 自动签约失败: {e}")
+            return jsonify({"success": False, "error": str(e)}), 500
+
+    @app.route('/api/contract/service/start', methods=['POST'])
+    def start_contract_signing_service():
+        """启动签约服务"""
+        try:
             if not contract_api_available:
                 return jsonify({
                     "success": False,
@@ -201,12 +268,26 @@ def register_contract_routes(app):
             logger.error(f"❌ 启动签约服务失败: {e}")
             return jsonify({"success": False, "error": str(e)}), 500
 
+    @app.route('/api/contract/service/stop', methods=['POST'])
+    def stop_contract_signing_service():
+        """停止签约服务"""
+        try:
+            if not contract_api_available:
+                return jsonify({
+                    "success": False,
+                    "error": "签约上传API不可用"
+                }), 503
+            
+            result = contract_api.stop_service()
+            return jsonify(result)
+        except Exception as e:
+            logger.error(f"❌ 停止签约服务失败: {e}")
+            return jsonify({"success": False, "error": str(e)}), 500
+
     @app.route('/api/contract/service/status', methods=['GET'])
-    def get_contract_service_status():
+    def get_contract_signing_service_status():
         """获取签约服务状态"""
         try:
-            from web.auth import login_required
-            
             if not contract_api_available:
                 return jsonify({
                     "running": False,
@@ -222,6 +303,38 @@ def register_contract_routes(app):
                 "running": False,
                 "error": str(e)
             }), 500
+
+    @app.route('/api/contract/tasks/<task_id>', methods=['GET'])
+    def get_contract_task_status(task_id):
+        """获取签约任务状态"""
+        try:
+            if not contract_api_available:
+                return jsonify({
+                    "success": False,
+                    "error": "签约上传API不可用"
+                }), 503
+            
+            result = contract_api.get_task_status(task_id)
+            return jsonify(result)
+        except Exception as e:
+            logger.error(f"❌ 获取任务状态失败: {e}")
+            return jsonify({"success": False, "error": str(e)}), 500
+
+    @app.route('/api/contract/tasks', methods=['GET'])
+    def get_all_contract_tasks():
+        """获取所有签约任务"""
+        try:
+            if not contract_api_available:
+                return jsonify({
+                    "success": False,
+                    "error": "签约上传API不可用"
+                }), 503
+            
+            result = contract_api.get_all_tasks()
+            return jsonify(result)
+        except Exception as e:
+            logger.error(f"❌ 获取所有任务失败: {e}")
+            return jsonify({"success": False, "error": str(e)}), 500
 
 
 def register_monitoring_routes(app):

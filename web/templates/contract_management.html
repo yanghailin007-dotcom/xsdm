@@ -1,0 +1,894 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>番茄自动签约管理</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        .contract-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header-section {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            border-radius: 16px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+        }
+
+        .header-section h1 {
+            margin: 0 0 10px 0;
+            font-size: 2.5rem;
+            font-weight: 800;
+        }
+
+        .header-section p {
+            margin: 0;
+            opacity: 0.9;
+            font-size: 1.1rem;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-top: 15px;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #4ade80;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.inactive {
+            background: #f87171;
+            animation: none;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            margin-bottom: 30px;
+        }
+
+        @media (max-width: 900px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            border: 1px solid #e5e7eb;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f3f4f6;
+        }
+
+        .card-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #1f2937;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .card-icon {
+            font-size: 1.5rem;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #f3f4f6;
+            color: #374151;
+        }
+
+        .btn-secondary:hover {
+            background: #e5e7eb;
+        }
+
+        .btn-success {
+            background: #10b981;
+            color: white;
+        }
+
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .list-container {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .list-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px;
+            background: #f9fafb;
+            border-radius: 12px;
+            margin-bottom: 12px;
+            transition: all 0.2s;
+            border: 2px solid transparent;
+        }
+
+        .list-item:hover {
+            background: #f3f4f6;
+            border-color: #667eea;
+        }
+
+        .list-item-content {
+            flex: 1;
+        }
+
+        .list-item-title {
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 4px;
+        }
+
+        .list-item-subtitle {
+            font-size: 0.875rem;
+            color: #6b7280;
+        }
+
+        .list-item-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .author-match {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+
+        .author-match.matched {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .author-match.mismatched {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .current-author-info {
+            background: #ecfdf5;
+            border: 2px solid #10b981;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .current-author-icon {
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            color: white;
+        }
+
+        .current-author-text {
+            flex: 1;
+        }
+
+        .current-author-label {
+            font-size: 0.875rem;
+            color: #047857;
+            margin-bottom: 4px;
+        }
+
+        .current-author-name {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #064e3b;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #9ca3af;
+        }
+
+        .empty-icon {
+            font-size: 4rem;
+            margin-bottom: 16px;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .spinner-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 40px;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #e5e7eb;
+            border-top-color: #667eea;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        .alert {
+            padding: 16px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .alert-info {
+            background: #dbeafe;
+            color: #1e40af;
+            border: 1px solid #bfdbfe;
+        }
+
+        .alert-success {
+            background: #d1fae5;
+            color: #065f46;
+            border: 1px solid #a7f3d0;
+        }
+
+        .alert-warning {
+            background: #fef3c7;
+            color: #92400e;
+            border: 1px solid #fde68a;
+        }
+
+        .alert-error {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #fecaca;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 16px;
+            padding: 30px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 20px;
+            color: #1f2937;
+        }
+
+        .modal-body {
+            margin-bottom: 24px;
+        }
+
+        .modal-footer {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+        }
+
+        .select-input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 1rem;
+            margin-bottom: 16px;
+            background: white;
+        }
+
+        .select-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .help-text {
+            font-size: 0.875rem;
+            color: #6b7280;
+            margin-top: 8px;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <!-- 顶部导航 -->
+    <nav class="navbar">
+        <div class="navbar-content">
+            <div class="navbar-title">
+                <button class="btn btn-secondary" onclick="location.href='/'" style="margin-right: 12px;">
+                    🏠 返回首页
+                </button>
+                📝 番茄自动签约管理
+            </div>
+            <div class="navbar-actions">
+                <button class="btn btn-secondary" onclick="location.href='/dashboard'">
+                    📊 仪表板
+                </button>
+                <button class="btn btn-danger" onclick="logout()">
+                    退出登录
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 主容器 -->
+    <div class="container contract-container">
+        <!-- 头部区域 -->
+        <div class="header-section">
+            <h1>📝 番茄自动签约系统</h1>
+            <p>自动完成番茄小说平台的签约流程，支持多用户配置管理</p>
+            <div class="status-badge">
+                <div class="status-dot" id="service-status-dot"></div>
+                <span id="service-status-text">服务未启动</span>
+                <button class="btn btn-secondary" id="service-toggle-btn" onclick="toggleService()" style="margin-left: auto; padding: 6px 12px; font-size: 0.85rem;">
+                    启动服务
+                </button>
+            </div>
+        </div>
+
+        <!-- 提示信息 -->
+        <div id="alert-container"></div>
+
+        <!-- 主网格 -->
+        <div class="main-grid">
+            <!-- 左侧：可签约小说列表 -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <span class="card-icon">📚</span>
+                        可签约小说列表
+                    </div>
+                    <button class="btn btn-primary" onclick="loadContractableNovels()" id="refresh-novels-btn">
+                        🔄 刷新列表
+                    </button>
+                </div>
+
+                <!-- 当前作者信息 -->
+                <div class="current-author-info" id="current-author-info" style="display: none;">
+                    <div class="current-author-icon">👤</div>
+                    <div class="current-author-text">
+                        <div class="current-author-label">当前登录作者</div>
+                        <div class="current-author-name" id="current-author-name">-</div>
+                    </div>
+                </div>
+
+                <div class="list-container" id="novels-list">
+                    <div class="empty-state">
+                        <div class="empty-icon">📚</div>
+                        <p>点击"刷新列表"获取可签约的小说</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 右侧：用户配置列表 -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <span class="card-icon">👥</span>
+                        启用的用户配置
+                    </div>
+                    <button class="btn btn-primary" onclick="loadEnabledUsers()">
+                        🔄 刷新
+                    </button>
+                </div>
+
+                <div class="list-container" id="users-list">
+                    <div class="spinner-container">
+                        <div class="spinner"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 操作说明 -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">
+                    <span class="card-icon">💡</span>
+                    操作说明
+                </div>
+            </div>
+            <div style="color: #6b7280; line-height: 1.8;">
+                <p><strong>1. 启动服务：</strong>首先点击"启动服务"按钮启动签约服务进程</p>
+                <p><strong>2. 刷新小说列表：</strong>点击"刷新列表"获取当前页面可签约的小说，系统会自动获取当前登录的作者名</p>
+                <p><strong>3. 选择用户配置：</strong>从右侧选择对应的用户配置（作者名必须与当前登录作者一致）</p>
+                <p><strong>4. 执行签约：</strong>点击小说旁边的"签约"按钮，系统会自动完成签约流程</p>
+                <p class="help-text" style="margin-top: 12px; padding: 12px; background: #fef3c7; border-radius: 8px;">
+                    ⚠️ <strong>重要提示：</strong>签约前系统会验证当前登录的作者名是否与配置的用户名一致，确保使用正确的账号进行签约。
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 签约确认模态框 -->
+    <div class="modal" id="sign-modal">
+        <div class="modal-content">
+            <div class="modal-header">确认签约</div>
+            <div class="modal-body">
+                <p style="margin-bottom: 16px;">您即将为以下小说执行签约操作：</p>
+                <div style="background: #f3f4f6; padding: 16px; border-radius: 8px; margin-bottom: 16px;">
+                    <p style="margin: 0; font-weight: 600;" id="modal-novel-title">-</p>
+                </div>
+                <p style="margin-bottom: 8px;">选择签约用户：</p>
+                <select class="select-input" id="modal-user-select">
+                    <option value="">请选择用户配置</option>
+                </select>
+                <p class="help-text">选中的用户配置必须与当前登录的作者名一致</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal()">取消</button>
+                <button class="btn btn-primary" onclick="confirmSign()">确认签约</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 全局状态
+        let serviceRunning = false;
+        let enabledUsers = [];
+        let contractableNovels = [];
+        let currentAuthorName = '';
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            checkServiceStatus();
+            loadEnabledUsers();
+        });
+
+        // 显示提示信息
+        function showAlert(message, type = 'info') {
+            const container = document.getElementById('alert-container');
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type}`;
+            alert.innerHTML = `
+                <span style="font-size: 1.2rem;">${type === 'success' ? '✅' : type === 'error' ? '❌' : type === 'warning' ? '⚠️' : 'ℹ️'}</span>
+                <span>${message}</span>
+            `;
+            container.appendChild(alert);
+            
+            setTimeout(() => {
+                alert.remove();
+            }, 5000);
+        }
+
+        // 检查服务状态
+        async function checkServiceStatus() {
+            try {
+                const response = await fetch('/api/contract/service/status');
+                const data = await response.json();
+                
+                serviceRunning = data.running || false;
+                updateServiceStatusUI();
+            } catch (error) {
+                console.error('检查服务状态失败:', error);
+                serviceRunning = false;
+                updateServiceStatusUI();
+            }
+        }
+
+        // 更新服务状态UI
+        function updateServiceStatusUI() {
+            const dot = document.getElementById('service-status-dot');
+            const text = document.getElementById('service-status-text');
+            const btn = document.getElementById('service-toggle-btn');
+            
+            if (serviceRunning) {
+                dot.classList.remove('inactive');
+                text.textContent = '服务运行中';
+                btn.textContent = '停止服务';
+                btn.classList.remove('btn-primary');
+                btn.classList.add('btn-danger');
+            } else {
+                dot.classList.add('inactive');
+                text.textContent = '服务未启动';
+                btn.textContent = '启动服务';
+                btn.classList.remove('btn-danger');
+                btn.classList.add('btn-primary');
+            }
+        }
+
+        // 切换服务状态
+        async function toggleService() {
+            const btn = document.getElementById('service-toggle-btn');
+            const originalText = btn.textContent;
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading"></span> 处理中...';
+
+            try {
+                const endpoint = serviceRunning ? '/api/contract/service/stop' : '/api/contract/service/start';
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    serviceRunning = !serviceRunning;
+                    updateServiceStatusUI();
+                    showAlert(data.message || '操作成功', 'success');
+                } else {
+                    showAlert(data.error || '操作失败', 'error');
+                }
+            } catch (error) {
+                showAlert('操作失败: ' + error.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = originalText;
+            }
+        }
+
+        // 加载启用的用户列表
+        async function loadEnabledUsers() {
+            const container = document.getElementById('users-list');
+            container.innerHTML = '<div class="spinner-container"><div class="spinner"></div></div>';
+
+            try {
+                const response = await fetch('/api/contract/users/enabled');
+                const data = await response.json();
+
+                if (data.success) {
+                    enabledUsers = data.users || [];
+                    renderUsersList(enabledUsers);
+                } else {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-icon">⚠️</div>
+                            <p>${data.error || '加载失败'}</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">❌</div>
+                        <p>加载失败: ${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        // 渲染用户列表
+        function renderUsersList(users) {
+            const container = document.getElementById('users-list');
+
+            if (users.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">👥</div>
+                        <p>没有启用的用户配置</p>
+                        <p class="help-text">请在配置文件中启用用户</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = users.map(user => `
+                <div class="list-item">
+                    <div class="list-item-content">
+                        <div class="list-item-title">${escapeHtml(user.name)}</div>
+                        <div class="list-item-subtitle">
+                            ID: ${escapeHtml(user.user_id)} | 
+                            📱 ${escapeHtml(user.contact_info.phone || 'N/A')}
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // 加载可签约小说列表
+        async function loadContractableNovels() {
+            const btn = document.getElementById('refresh-novels-btn');
+            const originalText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading"></span> 加载中...';
+
+            const container = document.getElementById('novels-list');
+            container.innerHTML = '<div class="spinner-container"><div class="spinner"></div></div>';
+
+            try {
+                const response = await fetch('/api/contract/novels/contractable');
+                const data = await response.json();
+
+                if (data.success) {
+                    // 获取任务结果
+                    const taskId = data.task_id;
+                    const result = await pollTaskResult(taskId);
+                    
+                    if (result && result.result) {
+                        currentAuthorName = result.result.current_author_name || '';
+                        contractableNovels = result.result.novels || [];
+                        
+                        // 显示当前作者信息
+                        if (currentAuthorName) {
+                            document.getElementById('current-author-info').style.display = 'flex';
+                            document.getElementById('current-author-name').textContent = currentAuthorName;
+                        }
+                        
+                        renderNovelsList(contractableNovels, currentAuthorName);
+                        
+                        showAlert(`成功获取 ${contractableNovels.length} 本可签约小说`, 'success');
+                    } else {
+                        container.innerHTML = `
+                            <div class="empty-state">
+                                <div class="empty-icon">⚠️</div>
+                                <p>获取小说列表超时或失败</p>
+                            </div>
+                        `;
+                    }
+                } else {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-icon">❌</div>
+                            <p>${data.error || '加载失败'}</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">❌</div>
+                        <p>加载失败: ${error.message}</p>
+                    </div>
+                `;
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
+        }
+
+        // 轮询任务结果
+        async function pollTaskResult(taskId, maxAttempts = 30) {
+            for (let i = 0; i < maxAttempts; i++) {
+                try {
+                    const response = await fetch(`/api/contract/tasks/${taskId}`);
+                    const data = await response.json();
+                    
+                    if (data.status === 'completed') {
+                        return data;
+                    } else if (data.status === 'processing') {
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                    } else {
+                        return null;
+                    }
+                } catch (error) {
+                    console.error('轮询任务失败:', error);
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                }
+            }
+            return null;
+        }
+
+        // 渲染小说列表
+        function renderNovelsList(novels, authorName) {
+            const container = document.getElementById('novels-list');
+
+            if (novels.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">📚</div>
+                        <p>没有可签约的小说</p>
+                        <p class="help-text">所有小说已签约或不符合签约条件</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = novels.map(novel => `
+                <div class="list-item">
+                    <div class="list-item-content">
+                        <div class="list-item-title">${escapeHtml(novel.title)}</div>
+                        <div class="list-item-subtitle">
+                            状态: ${escapeHtml(novel.status)}
+                            ${authorName ? `<span class="author-match matched">✓ 作者: ${escapeHtml(authorName)}</span>` : ''}
+                        </div>
+                    </div>
+                    <div class="list-item-actions">
+                        <button class="btn btn-primary" onclick="openSignModal('${escapeHtml(novel.title)}')">
+                            📝 签约
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // 打开签约模态框
+        function openSignModal(novelTitle) {
+            document.getElementById('modal-novel-title').textContent = novelTitle;
+            document.getElementById('modal-novel-title').dataset.value = novelTitle;
+            
+            const select = document.getElementById('modal-user-select');
+            select.innerHTML = '<option value="">请选择用户配置</option>';
+            
+            enabledUsers.forEach(user => {
+                const option = document.createElement('option');
+                option.value = user.user_id;
+                option.textContent = `${user.name} (${user.user_id})`;
+                
+                // 检查作者名是否匹配
+                if (currentAuthorName && user.name !== currentAuthorName) {
+                    option.disabled = true;
+                    option.textContent += ' - 作者名不匹配';
+                }
+                
+                select.appendChild(option);
+            });
+            
+            document.getElementById('sign-modal').classList.add('active');
+        }
+
+        // 关闭模态框
+        function closeModal() {
+            document.getElementById('sign-modal').classList.remove('active');
+        }
+
+        // 确认签约
+        async function confirmSign() {
+            const novelTitle = document.getElementById('modal-novel-title').dataset.value;
+            const userId = document.getElementById('modal-user-select').value;
+
+            if (!userId) {
+                showAlert('请选择用户配置', 'warning');
+                return;
+            }
+
+            const selectedUser = enabledUsers.find(u => u.user_id === userId);
+            if (selectedUser && currentAuthorName && selectedUser.name !== currentAuthorName) {
+                showAlert(`作者名不匹配！当前作者: ${currentAuthorName}, 配置作者: ${selectedUser.name}`, 'error');
+                return;
+            }
+
+            closeModal();
+
+            try {
+                const response = await fetch('/api/contract/sign/auto', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        novel_title: novelTitle,
+                        user_id: userId
+                    })
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    showAlert(`签约任务已提交: 《${novelTitle}》`, 'success');
+                    
+                    // 可以添加任务进度跟踪
+                    setTimeout(() => loadContractableNovels(), 3000);
+                } else {
+                    showAlert(data.error || '签约失败', 'error');
+                }
+            } catch (error) {
+                showAlert('签约失败: ' + error.message, 'error');
+            }
+        }
+
+        // 转义HTML
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // 退出登录
+        function logout() {
+            if (confirm('确定要退出登录吗？')) {
+                window.location.href = '/logout';
+            }
+        }
+
+        // 点击模态框外部关闭
+        document.getElementById('sign-modal').addEventListener('click', (e) => {
+            if (e.target.id === 'sign-modal') {
+                closeModal();
+            }
+        });
+    </script>
+</body>
+</html>
