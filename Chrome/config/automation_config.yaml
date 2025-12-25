@@ -19,15 +19,16 @@ paths:
 publishing:
   required_json_suffix: "项目信息.json"
   min_words_for_scheduled_publish: 60000  # 累计字数阈值
-  chapters_per_time_slot: 2  # 每个时间点最多发布章节数
+  chapters_per_time_slot: 1  # 每个时间点最多发布章节数
   publish_buffer_minutes: 35  # 发布时间缓冲（分钟）
   
-  # 发布时间点配置
+  # 发布时间点配置 - 每天5个时间点，每个时间点1章，总共5章/天
   publish_times:
     - "05:25"
-    - "11:25" 
+    - "09:25"
+    - "13:25"
     - "17:25"
-    - "23:25"
+    - "21:25"
 
 # 超时配置
 timeouts:

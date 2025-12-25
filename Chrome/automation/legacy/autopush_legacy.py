@@ -28,8 +28,8 @@ from .chapter_publisher import process_scheduled_publishing, process_immediate_p
 
 # 配置参数
 WORD_COUNT_THRESHOLD = 20000
-novel_publish_times = ["05:25", "11:25", "17:25", "23:25"]
-CHAPTERS_PER_TIME_SLOT = 2
+novel_publish_times = ["05:25", "09:25", "13:25", "17:25", "21:25"]  # 每天5个时间点
+CHAPTERS_PER_TIME_SLOT = 1  # 每个时间点1章，总共5章/天
 PUBLISH_BUFFER_MINUTES = 35
 
 def publish_novel(page2, json_file):
