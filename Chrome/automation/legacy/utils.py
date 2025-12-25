@@ -162,7 +162,11 @@ def sort_files_by_chapter(file_paths):
     """按章节号对文件路径进行排序"""
 
     def extract_chapter_number(filepath):
-        match = re.search(r"_第(\d+)章_", os.path.basename(filepath))
+        # 匹配文件名中的章节号，支持多种格式：
+        # - 第100章_xxx.txt
+        # - xxx_第100章_xxx.txt
+        # - xxx_第100章.txt
+        match = re.search(r"第(\d+)章", os.path.basename(filepath))
         return int(match.group(1)) if match else 0
 
     return sorted(file_paths, key=extract_chapter_number)

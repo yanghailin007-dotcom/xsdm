@@ -258,69 +258,12 @@ class FanqieUploader:
         }
 
     def start_browser_for_upload(self) -> Dict[str, Any]:
-        """启动浏览器用于上传"""
-        try:
-            self.logger.info("🚀 启动浏览器用于番茄上传...")
-            
-            # 使用 AutoBrowserManager 启动浏览器
-            try:
-                from Chrome.automation.utils.auto_browser_manager import AutoBrowserManager
-                
-                # 创建浏览器管理器实例
-                manager = AutoBrowserManager(debug_port=9988, auto_start_chrome=True)
-                
-                # 在后台线程中启动浏览器，避免阻塞
-                def launch_browser():
-                    try:
-                        if manager.ensure_browser_ready():
-                            self.logger.info("✅ 浏览器启动成功")
-                            return {
-                                "success": True,
-                                "message": "浏览器启动成功，已准备好用于番茄上传",
-                                "details": manager.get_connection_info()
-                            }
-                        else:
-                            error_msg = "浏览器启动失败，请检查Chrome是否已安装"
-                            self.logger.error(error_msg)
-                            return {
-                                "success": False,
-                                "error": error_msg
-                            }
-                    except Exception as e:
-                        error_msg = f"浏览器启动异常: {str(e)}"
-                        self.logger.error(error_msg)
-                        return {
-                            "success": False,
-                            "error": error_msg
-                        }
-                
-                # 启动浏览器线程
-                browser_thread = threading.Thread(target=launch_browser)
-                browser_thread.daemon = True
-                browser_thread.start()
-                
-                # 立即返回，浏览器在后台启动
-                return {
-                    "success": True,
-                    "message": "浏览器正在启动中，请稍等...",
-                    "note": "浏览器将在后台启动，稍后可开始上传"
-                }
-                
-            except ImportError as e:
-                error_msg = f"无法导入浏览器管理器: {e}"
-                self.logger.error(error_msg)
-                return {
-                    "success": False,
-                    "error": f"浏览器管理器模块不可用: {str(e)}"
-                }
-                
-        except Exception as e:
-            error_msg = f"启动浏览器失败: {str(e)}"
-            self.logger.error(error_msg)
-            return {
-                "success": False,
-                "error": error_msg
-            }
+        """启动浏览器用于上传 - 已禁用，浏览器需手动启动"""
+        self.logger.info("ℹ️ 浏览器自动启动功能已禁用，请手动启动浏览器")
+        return {
+            "success": False,
+            "error": "浏览器自动启动功能已禁用。请手动启动Chrome浏览器并登录番茄小说网站。"
+        }
 
     def sanitize_filename(self, filename: str) -> str:
         """清理文件名中的特殊字符"""
@@ -424,7 +367,7 @@ class FanqieUploader:
         return str(temp_dir)
     
     def _call_fanqie_upload(self, project_file_path: str) -> bool:
-        """调用番茄上传功能 - 集成修改后的脚本"""
+        """调用番茄上传功能 - 从已有进度开始上传"""
         try:
             if not autopush_available:
                 self.logger.warning("⚠️ 番茄自动上传模块不可用，跳过上传")
@@ -433,8 +376,8 @@ class FanqieUploader:
             self.logger.info("🔄 开始调用番茄上传功能...")
             self.logger.info(f"📁 项目文件路径: {project_file_path}")
 
-            # 调用修改后的main_scan_cycle函数
-            # 这个函数现在包含了人工确认登录和环境自动识别功能
+            # 调用main_scan_cycle函数，它会自动从已有进度继续上传
+            # 每发布一章，进度会自动保存到进度文件中
             try:
                 # 设置小说项目路径为临时文件所在目录的父目录
                 temp_project_file = Path(project_file_path)
@@ -446,7 +389,14 @@ class FanqieUploader:
                     self.logger.info(f"📚 设置小说项目目录: {CONFIG['novel_path']}")
                     self.logger.info(f"📖 小说标题: {novel_title}")
                     
-                    # 调用主扫描循环（包含人工确认和环境自动识别）
+                    # 加载已有进度
+                    from Chrome.automation.legacy.progress_manager import load_publish_progress2
+                    progress = load_publish_progress2(novel_title)
+                    published_count = len(progress.get("published_chapters", []))
+                    self.logger.info(f"📊 已发布章节: {published_count}章")
+                    self.logger.info(f"💾 上传进度会自动保存，每发布一章就记录一次")
+                    
+                    # 调用主扫描循环（从已有进度继续）
                     success = main_scan_cycle()
                     
                     if success:
@@ -454,7 +404,7 @@ class FanqieUploader:
                         return True
                     else:
                         self.logger.warning("⚠️ 番茄上传功能执行完成但可能有部分失败")
-                        return True  # 即使部分失败也返回True，因为用户已确认
+                        return True  # 即使部分失败也返回True
                         
                 else:
                     self.logger.error(f"❌ 项目文件不存在: {project_file_path}")
@@ -462,18 +412,7 @@ class FanqieUploader:
 
             except Exception as e:
                 self.logger.error(f"❌ 调用main_scan_cycle失败: {e}")
-                self.logger.info("🔄 尝试使用备用上传方法...")
-                
-                # 备用方案：直接调用原有的上传逻辑
-                try:
-                    # 这里可以添加备用的上传逻辑
-                    # 目前先返回False，表示需要用户手动处理
-                    self.logger.warning("⚠️ 备用上传方法暂未实现")
-                    return False
-                    
-                except Exception as backup_error:
-                    self.logger.error(f"❌ 备用上传方法也失败: {backup_error}")
-                    return False
+                return False
 
         except Exception as e:
             self.logger.error(f"调用番茄上传功能失败: {e}")
@@ -526,10 +465,10 @@ class FanqieUploader:
         return list(self.upload_tasks.values())
     
     def check_upload_prerequisites(self) -> Dict[str, Any]:
-        """检查上传前提条件 - 手动环境准备模式"""
+        """检查上传前提条件 - 手动浏览器模式"""
         checks = {
-            "browser_available": True,  # 默认用户已手动准备浏览器
-            "fanqie_logged_in": True,   # 默认用户已手动登录番茄网站
+            "browser_available": False,  # 浏览器需要手动启动
+            "fanqie_logged_in": False,   # 需要手动登录
             "temp_dir_writable": False,
             "autopush_available": autopush_available
         }
@@ -547,10 +486,34 @@ class FanqieUploader:
         except Exception as e:
             self.logger.error(f"❌ 临时目录检查失败: {e}")
         
-        # 记录手动环境准备模式
-        self.logger.info("📋 使用手动环境准备模式:")
-        self.logger.info("   - 浏览器连接: 默认OK（用户手动准备）")
-        self.logger.info("   - 番茄登录: 默认OK（用户手动登录）")
+        # 记录手动浏览器模式
+        self.logger.info("📋 使用手动浏览器模式:")
+        self.logger.info("   - 浏览器连接: 需要用户手动启动并登录番茄网站")
+        self.logger.info("   - 上传进度: 自动从上次中断处继续")
         self.logger.info(f"   - 上传模块可用: {autopush_available}")
         
         return checks
+
+    def get_upload_progress(self, novel_title: str) -> Dict[str, Any]:
+        """获取小说的上传进度"""
+        try:
+            if not autopush_available:
+                return {"error": "上传模块不可用"}
+            
+            from Chrome.automation.legacy.progress_manager import load_publish_progress2
+            
+            progress = load_publish_progress2(novel_title)
+            published_chapters = progress.get("published_chapters", [])
+            
+            return {
+                "novel_title": novel_title,
+                "published_count": len(published_chapters),
+                "total_content_len": progress.get("total_content_len", 0),
+                "base_chapter_num": progress.get("base_chapter_num", 0),
+                "book_created": progress.get("book_created", False),
+                "last_update": progress.get("last_update", None),
+                "published_chapters": published_chapters[-10:]  # 只返回最近10章
+            }
+        except Exception as e:
+            self.logger.error(f"获取上传进度失败: {e}")
+            return {"error": str(e)}

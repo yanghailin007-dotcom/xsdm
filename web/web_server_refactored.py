@@ -80,7 +80,7 @@ def register_fanqie_routes(app):
     
     @app.route('/api/fanqie/upload/check-prerequisites', methods=['GET'])
     def check_fanqie_upload_prerequisites():
-        """检查番茄上传前提条件 - 手动环境准备模式"""
+        """检查番茄上传前提条件 - 手动浏览器模式"""
         try:
             from web.auth import login_required
             
@@ -89,19 +89,20 @@ def register_fanqie_routes(app):
                 
             checks = fanqie_uploader.check_upload_prerequisites()
             
-            # 在手动环境准备模式下，主要检查系统环境
-            # 浏览器和登录状态由用户手动确认
+            # 手动浏览器模式：只检查系统环境，不检查浏览器状态
             system_ready = checks.get("temp_dir_writable", False) and checks.get("autopush_available", False)
             
             return jsonify({
                 "success": True,
                 "checks": checks,
                 "ready": system_ready,
-                "message": "系统环境检查通过，请确认手动环境准备完成" if system_ready else "系统环境检查未通过，请检查失败项目",
-                "manual_preparation_required": True,
-                "manual_items": {
-                    "browser_available": "请手动准备浏览器并确保可以访问网络",
-                    "fanqie_logged_in": "请手动登录番茄小说网站并进入作家专区"
+                "message": "系统环境检查通过。请手动启动浏览器并登录番茄小说网站。" if system_ready else "系统环境检查未通过，请检查失败项目",
+                "manual_browser_required": True,
+                "instructions": {
+                    "step1": "1. 手动启动Chrome浏览器",
+                    "step2": "2. 访问 https://fanqienovel.com 并登录账号",
+                    "step3": "3. 进入作家专区",
+                    "step4": "4. 选择小说开始上传（会从上次进度继续）"
                 }
             })
         except Exception as e:
@@ -126,26 +127,6 @@ def register_fanqie_routes(app):
             logger.error(f"❌ 验证小说上传失败: {e}")
             return jsonify({"success": False, "error": str(e)}), 500
 
-    @app.route('/api/fanqie/upload/start-browser', methods=['POST'])
-    def start_browser():
-        """启动浏览器用于番茄上传"""
-        try:
-            from web.auth import login_required
-            
-            if not fanqie_uploader:
-                return jsonify({"success": False, "error": "番茄上传器不可用"}), 503
-            
-            result = fanqie_uploader.start_browser_for_upload()
-            
-            if result["success"]:
-                return jsonify(result)
-            else:
-                return jsonify(result), 500
-                
-        except Exception as e:
-            logger.error(f"❌ 启动浏览器失败: {e}")
-            return jsonify({"success": False, "error": str(e)}), 500
-    
     @app.route('/api/fanqie/upload/start', methods=['POST'])
     def start_fanqie_upload():
         """启动番茄上传任务"""
@@ -222,15 +203,18 @@ def register_fanqie_routes(app):
             logger.error(f"❌ 获取上传任务失败: {e}")
             return jsonify({"success": False, "error": str(e)}), 500
     
-    @app.route('/api/fanqie/upload/status/<task_id>', methods=['GET'])
+    @app.route('/api/fanqie/upload/status/<path:task_id>', methods=['GET'])
     def get_upload_status(task_id):
         """获取指定上传任务的状态"""
         try:
             from web.auth import login_required
+            import urllib.parse
             
             if not fanqie_uploader:
                 return jsonify({"success": False, "error": "番茄上传器不可用"}), 503
             
+            # Flask会自动解码路径参数，但为了确保中文字符正确处理，我们显式解码一次
+            # 注意：Flask已经解码过一次，所以这里直接使用task_id即可
             status = fanqie_uploader.get_upload_status(task_id)
             
             if "error" in status:
@@ -259,6 +243,30 @@ def register_fanqie_routes(app):
             
         except Exception as e:
             logger.error(f"❌ 触发扫描失败: {e}")
+            return jsonify({"success": False, "error": str(e)}), 500
+
+
+    @app.route('/api/fanqie/upload/progress/<novel_title>', methods=['GET'])
+    def get_fanqie_upload_progress(novel_title):
+        """获取指定小说的上传进度"""
+        try:
+            from web.auth import login_required
+            
+            if not fanqie_uploader:
+                return jsonify({"success": False, "error": "番茄上传器不可用"}), 503
+            
+            progress = fanqie_uploader.get_upload_progress(novel_title)
+            
+            if "error" in progress:
+                return jsonify({"success": False, "error": progress["error"]}), 500
+            
+            return jsonify({
+                "success": True,
+                "progress": progress
+            })
+            
+        except Exception as e:
+            logger.error(f"❌ 获取上传进度失败: {e}")
             return jsonify({"success": False, "error": str(e)}), 500
 
 
@@ -529,12 +537,13 @@ def main():
     # 创建应用实例
     app, manager = create_app()
     
-    # 开发模式运行
+    # 开发模式运行 - 启用自动重载（热重载）
+    # 当检测到代码变化时，服务器会自动重启
     app.run(
         host=FlaskConfig.HOST,
         port=FlaskConfig.PORT,
         debug=FlaskConfig.DEBUG,
-        use_reloader=False
+        use_reloader=True  # 启用热重载，修改代码后自动生效
     )
 
 

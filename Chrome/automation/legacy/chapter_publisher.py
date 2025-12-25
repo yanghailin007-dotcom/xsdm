@@ -51,10 +51,22 @@ def verify_and_create_chapter(target_page, expected_book_title, chap_number, cha
     """
 
     current_page = click_create_chapter_button_by_novel_title(target_page, expected_book_title)
+    
+    # 检查是否成功获取到新页面
+    if current_page is None:
+        print("❌ 无法获取章节编辑页面，可能的原因：")
+        print("   1. 小说《{}》未找到".format(expected_book_title))
+        print("   2. 小说没有'创建章节'按钮（可能状态不是'连载中'）")
+        print("   3. 浏览器页面已关闭或导航失败")
+        return 2  # 返回2表示需要重新导航
 
     try:
         # 等待页面加载
-        current_page.wait_for_load_state("networkidle")
+        try:
+            current_page.wait_for_load_state("networkidle", timeout=15000)
+        except Exception as e:
+            print(f"⚠️ 页面加载超时: {e}，继续执行...")
+        
         time.sleep(2)
 
         # 在创建章节页面中验证书名
@@ -110,7 +122,9 @@ def verify_and_create_chapter(target_page, expected_book_title, chap_number, cha
             current_page.close()
             return 1
 
-        time.sleep(0.5)
+        # 增加等待时间，让页面完全加载
+        print("等待页面加载完成...")
+        time.sleep(2)
 
         # 处理可能的弹窗
         retry_times = 5
@@ -158,8 +172,18 @@ def verify_and_create_chapter(target_page, expected_book_title, chap_number, cha
                 except:
                     pass
 
-        # 确认发布
-        if safe_click(current_page.get_by_role("button", name="确认发布"), "确认发布按钮", retries=2):
+        # 确认发布 - 增加等待时间和重试次数
+        print("准备点击确认发布按钮...")
+        
+        # 先等待按钮出现
+        try:
+            publish_button = current_page.get_by_role("button", name="确认发布")
+            publish_button.wait_for(state="visible", timeout=10000)
+            print("✓ 确认发布按钮已出现")
+        except Exception as e:
+            print(f"⚠️ 等待确认发布按钮超时: {e}")
+        
+        if safe_click(current_page.get_by_role("button", name="确认发布"), "确认发布按钮", retries=3):
             time.sleep(1)
             # 处理可能的弹窗
             retry_times = 3
