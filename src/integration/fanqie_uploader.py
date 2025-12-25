@@ -48,54 +48,88 @@ class FanqieUploader:
     def validate_novel_for_upload(self, novel_title: str) -> Dict[str, Any]:
         """验证小说是否可以上传到番茄"""
         try:
-            # 检查项目文件是否存在
-            project_file = Path("小说项目") / f"{novel_title}_项目信息.json"
-            if not project_file.exists():
+            # 尝试多种可能的项目文件路径
+            possible_paths = [
+                # 新目录结构：小说项目/小说标题/小说标题_项目信息.json
+                Path("小说项目") / novel_title / f"{novel_title}_项目信息.json",
+                # 旧目录结构：小说项目/小说标题_项目信息.json
+                Path("小说项目") / f"{novel_title}_项目信息.json",
+            ]
+            
+            project_file = None
+            for path in possible_paths:
+                if path.exists():
+                    project_file = path
+                    self.logger.info(f"✅ 找到项目文件: {path}")
+                    break
+            
+            if not project_file:
                 return {
                     "valid": False,
-                    "error": f"项目文件不存在: {project_file}"
+                    "error": f"项目文件不存在，已尝试路径: {[str(p) for p in possible_paths]}"
                 }
             
             # 加载项目信息
             with open(project_file, 'r', encoding='utf-8') as f:
                 project_data = json.load(f)
             
-            # 检查必要字段
-            required_fields = ['project_info', 'characters']
-            for field in required_fields:
-                if field not in project_data:
-                    return {
-                        "valid": False,
-                        "error": f"项目数据缺少必需字段: {field}"
-                    }
+            # 检查必要字段 - 适配实际的项目文件结构
+            required_fields = ['novel_title', 'novel_synopsis', 'selected_plan']
+            missing_fields = [field for field in required_fields if field not in project_data]
             
-            # 检查章节文件 - 优先检查完整章节目录
+            if missing_fields:
+                return {
+                    "valid": False,
+                    "error": f"项目数据缺少必需字段: {', '.join(missing_fields)}"
+                }
+            
+            # 尝试加载角色设计文件（如果存在）
+            character_design = None
+            character_file = project_file.parent / f"{novel_title}_角色设计.json"
+            if character_file.exists():
+                try:
+                    with open(character_file, 'r', encoding='utf-8') as f:
+                        character_design = json.load(f)
+                        # 只打印文件名，不打印完整内容
+                        self.logger.info(f"✅ 加载角色设计文件: {character_file.name}")
+                except Exception as e:
+                    self.logger.warning(f"⚠️ 加载角色设计文件失败: {e}")
+            
+            # 检查章节文件 - 支持多种目录结构
             chapter_dirs = [
-                Path("小说项目") / novel_title / "chapters",  # 优先检查完整章节目录（200章）
-                Path("小说项目") / f"{novel_title}_章节",
-                Path("小说项目") / "chapters"  # 通用章节目录（可能不完整）
+                Path("小说项目") / novel_title / "chapters",  # 新结构：小说项目/标题/chapters
+                Path("小说项目") / f"{novel_title}_章节",      # 旧结构：小说项目/标题_章节
+                Path("小说项目") / "chapters",                 # 通用章节目录
             ]
             
             chapter_files = []
+            found_chapter_dir = None
             for chapter_dir in chapter_dirs:
                 if chapter_dir.exists():
-                    chapter_files = list(chapter_dir.glob("第*.txt")) + list(chapter_dir.glob("第*.json"))
-                    break
+                    # 查找 .txt 和 .json 格式的章节文件
+                    txt_files = list(chapter_dir.glob("第*.txt"))
+                    json_files = list(chapter_dir.glob("第*.json"))
+                    chapter_files = txt_files + json_files
+                    
+                    if chapter_files:
+                        found_chapter_dir = chapter_dir
+                        self.logger.info(f"✅ 找到章节目录: {chapter_dir}，共 {len(chapter_files)} 个文件")
+                        break
             
             if not chapter_files:
                 return {
                     "valid": False,
-                    "error": "未找到章节文件，请先生成章节内容"
+                    "error": f"未找到章节文件，已检查路径: {[str(d) for d in chapter_dirs]}"
                 }
             
             # 转换项目数据为番茄格式
-            fanqie_data = self._convert_to_fanqie_format(project_data, novel_title, chapter_files)
+            fanqie_data = self._convert_to_fanqie_format(project_data, novel_title, chapter_files, character_design)
             
             return {
                 "valid": True,
                 "fanqie_data": fanqie_data,
                 "chapter_count": len(chapter_files),
-                "project_info": project_data.get("project_info", {})
+                "project_info": project_data
             }
             
         except Exception as e:
@@ -105,28 +139,22 @@ class FanqieUploader:
                 "error": f"验证失败: {str(e)}"
             }
     
-    def _convert_to_fanqie_format(self, project_data: Dict[str, Any], novel_title: str, chapter_files: List[Path]) -> Dict[str, Any]:
+    def _convert_to_fanqie_format(self, project_data: Dict[str, Any], novel_title: str, chapter_files: List[Path], character_design: Optional[Dict] = None) -> Dict[str, Any]:
         """将创作系统的项目数据转换为番茄上传格式"""
         
-        project_info = project_data.get("project_info", {})
-        characters = project_data.get("characters", {})
+        # 从新的项目文件结构中提取数据
+        selected_plan = project_data.get("selected_plan", {})
+        tags = selected_plan.get("tags", {}) if isinstance(selected_plan, dict) else {}
         
         # 构建番茄格式的数据
         fanqie_data = {
             "novel_info": {
-                "title": project_info.get("title", novel_title),
-                "synopsis": self._generate_synopsis(project_info),
-                "selected_plan": {
-                    "tags": {
-                        "target_audience": "男频" if "男频" in project_info.get("category", "") else "女频",
-                        "main_category": self._extract_main_category(project_info.get("tags", [])),
-                        "themes": self._extract_themes(project_info.get("tags", [])),
-                        "roles": self._extract_roles(project_info.get("tags", [])),
-                        "plots": ["原创", "同人"] if "同人" in project_info.get("tags", []) else ["原创"]
-                    }
-                }
+                "title": project_data.get("novel_title", novel_title),
+                "synopsis": project_data.get("novel_synopsis", ""),
+                "category": project_data.get("category", ""),
+                "selected_plan": selected_plan
             },
-            "character_design": characters,
+            "character_design": character_design or {},
             "chapters": []
         }
         
@@ -137,74 +165,6 @@ class FanqieUploader:
                 fanqie_data["chapters"].append(chapter_data)
         
         return fanqie_data
-    
-    def _generate_synopsis(self, project_info: Dict[str, Any]) -> str:
-        """生成小说简介"""
-        core_setting = project_info.get("core_setting", "")
-        core_selling_points = project_info.get("core_selling_points", "")
-        synopsis = project_info.get("synopsis", "")
-        
-        if synopsis:
-            return synopsis
-        
-        # 从核心设定和卖点生成简介
-        generated_synopsis = core_setting
-        if core_selling_points:
-            generated_synopsis += f"\n\n核心看点：{core_selling_points}"
-        
-        return generated_synopsis[:500]  # 限制长度
-    
-    def _extract_main_category(self, tags: List[str]) -> str:
-        """提取主分类"""
-        category_mapping = {
-            "玄幻": "玄幻",
-            "都市": "都市", 
-            "历史": "历史",
-            "科幻": "科幻",
-            "武侠": "武侠",
-            "悬疑": "悬疑",
-            "游戏": "游戏",
-            "同人": "衍生同人"
-        }
-        
-        for tag in tags:
-            if tag in category_mapping:
-                return category_mapping[tag]
-        
-        return "其他"  # 默认分类
-    
-    def _extract_themes(self, tags: List[str]) -> List[str]:
-        """提取主题标签"""
-        theme_mapping = {
-            "修仙": "修仙",
-            "种田": "种田",
-            "系统": "系统",
-            "爽文": "爽文",
-            "重生": "重生",
-            "穿越": "穿越"
-        }
-        
-        themes = []
-        for tag in tags:
-            if tag in theme_mapping:
-                themes.append(theme_mapping[tag])
-        
-        return themes[:3]  # 最多3个主题
-    
-    def _extract_roles(self, tags: List[str]) -> List[str]:
-        """提取角色标签"""
-        role_mapping = {
-            "天才流": "天才",
-            "无敌流": "无敌",
-            "升级流": "升级"
-        }
-        
-        roles = []
-        for tag in tags:
-            if tag in role_mapping:
-                roles.append(role_mapping[tag])
-        
-        return roles[:2]  # 最多2个角色
     
     def _extract_chapter_number(self, chapter_file: Path) -> int:
         """从文件名提取章节号"""
@@ -302,79 +262,56 @@ class FanqieUploader:
         try:
             self.logger.info("🚀 启动浏览器用于番茄上传...")
             
-            # 检查浏览器启动脚本是否存在
-            launcher_script = Path("fanqie_browser_launcher.py")
-            if not launcher_script.exists():
-                # 尝试使用备用脚本
-                launcher_script = Path("start_fanqie_test.py")
-                if not launcher_script.exists():
-                    return {
-                        "success": False,
-                        "error": "未找到浏览器启动脚本"
-                    }
-            
-            # 启动浏览器
+            # 使用 AutoBrowserManager 启动浏览器
             try:
-                # Windows系统下设置环境变量解决编码问题
-                env = os.environ.copy()
-                env['PYTHONIOENCODING'] = 'utf-8'
-                env['PYTHONPATH'] = sys.executable
+                from Chrome.automation.utils.auto_browser_manager import AutoBrowserManager
                 
-                # 使用subprocess.Popen避免阻塞问题
-                process = subprocess.Popen(
-                    [sys.executable, str(launcher_script)],
-                    env=env,
-                    creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if sys.platform == 'win32' else 0
-                )
+                # 创建浏览器管理器实例
+                manager = AutoBrowserManager(debug_port=9988, auto_start_chrome=True)
                 
-                # 等待一小段时间让进程启动
-                time.sleep(2)
+                # 在后台线程中启动浏览器，避免阻塞
+                def launch_browser():
+                    try:
+                        if manager.ensure_browser_ready():
+                            self.logger.info("✅ 浏览器启动成功")
+                            return {
+                                "success": True,
+                                "message": "浏览器启动成功，已准备好用于番茄上传",
+                                "details": manager.get_connection_info()
+                            }
+                        else:
+                            error_msg = "浏览器启动失败，请检查Chrome是否已安装"
+                            self.logger.error(error_msg)
+                            return {
+                                "success": False,
+                                "error": error_msg
+                            }
+                    except Exception as e:
+                        error_msg = f"浏览器启动异常: {str(e)}"
+                        self.logger.error(error_msg)
+                        return {
+                            "success": False,
+                            "error": error_msg
+                        }
                 
-                # 检查进程是否还在运行
-                if process.poll() is None:
-                    self.logger.info("✅ 浏览器启动成功")
-                    return {
-                        "success": True,
-                        "message": "浏览器启动成功，正在打开番茄网站...",
-                        "details": f"浏览器进程PID: {process.pid}"
-                    }
-                else:
-                    error_msg = f"浏览器进程退出，退出码: {process.poll()}"
-                    self.logger.error(f"浏览器启动失败: {error_msg}")
-                    return {
-                        "success": False,
-                        "error": error_msg
-                    }
+                # 启动浏览器线程
+                browser_thread = threading.Thread(target=launch_browser)
+                browser_thread.daemon = True
+                browser_thread.start()
                 
-                
-                if result.returncode == 0:
-                    self.logger.info("✅ 浏览器启动成功")
-                    return {
-                        "success": True,
-                        "message": "浏览器启动成功，正在打开番茄网站...",
-                        "details": result.stdout
-                    }
-                else:
-                    error_msg = f"浏览器启动失败: {result.stderr}"
-                    self.logger.error(error_msg)
-                    return {
-                        "success": False,
-                        "error": error_msg
-                    }
-                    
-            except subprocess.TimeoutExpired:
-                self.logger.warning("浏览器启动超时，但可能仍在启动中")
+                # 立即返回，浏览器在后台启动
                 return {
                     "success": True,
-                    "message": "浏览器启动中，请稍等...",
-                    "note": "启动超时但进程可能仍在运行"
+                    "message": "浏览器正在启动中，请稍等...",
+                    "note": "浏览器将在后台启动，稍后可开始上传"
                 }
-            except Exception as e:
-                error_msg = f"启动浏览器时发生异常: {str(e)}"
+                
+            except ImportError as e:
+                error_msg = f"无法导入浏览器管理器: {e}"
                 self.logger.error(error_msg)
                 return {
                     "success": False,
-                    "error": error_msg
+                    "error": f"浏览器管理器模块不可用: {str(e)}"
                 }
                 
         except Exception as e:

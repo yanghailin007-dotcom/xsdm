@@ -175,11 +175,78 @@ def create_new_book(page, novel_title, formatted_synopsis, main_character, novel
     """创建新书 - 适配新的JSON结构"""
     print("创建新书...")
 
-    safe_click(page.locator('xpath=//*[@id="app"]/div/div[2]/div[2]/div/div/div[1]/div/div[2]/div/span/div'),
-               "创建新书")
-    time.sleep(0.3)
-    safe_click(page.get_by_text("创建书本", exact=False), "创建书本")
-    time.sleep(0.3)
+    # 尝试多种选择器来找到"创建新书"按钮
+    create_new_book_selectors = [
+        # 基于用户提供的HTML结构，使用class选择器
+        'div.font-4.hoverup:has-text("创建新书")',
+        # 备用XPath选择器
+        '//div[contains(@class, "font-4") and contains(@class, "hoverup") and contains(text(), "创建新书")]',
+        '//div[contains(text(), "创建新书")]',
+        # 原有的XPath作为备用
+        'xpath=//*[@id="app"]/div/div[2]/div[2]/div/div/div[1]/div/div[2]/div/span/div',
+    ]
+    
+    create_new_book_clicked = False
+    for selector in create_new_book_selectors:
+        try:
+            if selector.startswith('xpath='):
+                element = page.locator(selector)
+            else:
+                element = page.locator(selector)
+            
+            if element.count() > 0 and element.first.is_visible():
+                if safe_click(element.first, "创建新书"):
+                    create_new_book_clicked = True
+                    print("✓ 成功点击创建新书按钮")
+                    break
+        except Exception as e:
+            print(f"尝试选择器 {selector} 失败: {e}")
+            continue
+    
+    if not create_new_book_clicked:
+        print("✗ 无法点击创建新书按钮，尝试继续...")
+    
+    time.sleep(1)  # 增加等待时间，确保下拉菜单完全展开
+    
+    # 尝试多种选择器来找到"创建书本"选项
+    create_book_selectors = [
+        # 直接文本匹配
+        'text=创建书本',
+        # 包含文本匹配
+        ':has-text("创建书本")',
+        # XPath文本匹配
+        'xpath=//*[text()="创建书本"]',
+        'xpath=//*[contains(text(), "创建书本")]',
+        # 可能是li或div元素
+        'li:has-text("创建书本")',
+        'div:has-text("创建书本")',
+    ]
+    
+    create_book_clicked = False
+    for selector in create_book_selectors:
+        try:
+            element = page.locator(selector)
+            if element.count() > 0:
+                # 尝试点击第一个可见的元素
+                for i in range(element.count()):
+                    try:
+                        if element.nth(i).is_visible():
+                            if safe_click(element.nth(i), "创建书本"):
+                                create_book_clicked = True
+                                print("✓ 成功点击创建书本选项")
+                                break
+                    except:
+                        continue
+                if create_book_clicked:
+                    break
+        except Exception as e:
+            print(f"尝试选择器 {selector} 失败: {e}")
+            continue
+    
+    if not create_book_clicked:
+        print("✗ 无法点击创建书本选项，尝试继续...")
+    
+    time.sleep(0.5)
 
     # 填写书名
     title_short = novel_title[-15:] if len(novel_title) >= 15 else novel_title

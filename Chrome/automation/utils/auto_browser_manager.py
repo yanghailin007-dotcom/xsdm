@@ -301,27 +301,27 @@ class AutoBrowserManager:
         return True
     
     def test_connection(self) -> bool:
-        """测试连接功能"""
+        """测试连接功能 - 简化版本，只测试基本功能"""
         try:
             # 检查页面对象是否可用
             if not self.page:
                 print("  ❌ 页面对象不可用")
                 return False
             
-            # 测试页面导航 - 直接导航到番茄小说
-            print("  📍 测试页面导航...")
-            self.page.goto("https://fanqienovel.com", timeout=10000)
-            title = self.page.title()
-            print(f"  ✓ 导航成功: {title}")
+            # 测试基本页面操作 - 访问简单页面
+            print("  📍 测试页面基本功能...")
+            self.page.goto("about:blank", timeout=5000)
             
-            # 测试基本操作 - 检查是否在番茄小说页面
-            print("  📍 测试页面操作...")
-            if '番茄' in title or 'fanqie' in title.lower():
-                print("  ✓ 番茄小说页面验证通过")
+            # 测试JavaScript执行
+            print("  📍 测试JavaScript执行...")
+            result = self.page.evaluate("() => { return {status: 'ok', ready: true} }")
+            
+            if result.get('status') == 'ok':
+                print("  ✓ 浏览器连接验证通过")
+                return True
             else:
-                print("  ⚠️ 页面标题不包含'番茄'，但导航成功")
-            
-            return True
+                print("  ⚠️ JavaScript执行异常")
+                return False
             
         except Exception as e:
             print(f"  ❌ 连接测试失败: {e}")

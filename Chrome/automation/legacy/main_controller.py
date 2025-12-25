@@ -37,7 +37,8 @@ def publish_novel(page2, json_file):
     # 优化简介排版
     formatted_synopsis = format_synopsis_for_fanqie(novel_synopsis, full_data)
     print("优化后的简介:")
-    print(formatted_synopsis)
+    print(f"  字数: {len(formatted_synopsis)} 字符")
+    print(f"  预览: {formatted_synopsis[:100]}..." if len(formatted_synopsis) > 100 else f"  内容: {formatted_synopsis}")
     print("-" * 50)
 
     # 加载发布进度

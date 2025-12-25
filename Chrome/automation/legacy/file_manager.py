@@ -274,11 +274,16 @@ def extract_novel_info_from_json(json_file):
         elif 'characters' in data and 'protagonist' in data['characters']:
             main_character = data['characters']['protagonist'].get('name', '未知主角')
 
+        # 只返回必要的信息，不返回完整数据以避免打印大量内容
         return {
             'novel_title': novel_title,
             'novel_synopsis': novel_synopsis,
             'main_character': main_character,
-            'full_data': data  # 返回完整数据用于后续处理
+            'full_data': {
+                'novel_title': novel_title,
+                'novel_synopsis': novel_synopsis,
+                'main_character': main_character
+            }  # 只返回精简数据
         }
     except Exception as e:
         print(f"[ERROR] 提取小说信息失败 {json_file}: {e}")

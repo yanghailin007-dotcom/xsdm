@@ -154,19 +154,32 @@ def register_fanqie_routes(app):
             
             if not fanqie_uploader:
                 return jsonify({"success": False, "error": "番茄上传器不可用"}), 503
-                
+            
             data = request.json or {}
             novel_title = data.get('novel_title')
             
+            logger.info(f"📝 收到上传请求，小说标题: {novel_title}")
+            logger.info(f"📦 请求数据: {data}")
+            
             if not novel_title:
+                logger.error("❌ 400错误: 缺少小说标题")
                 return jsonify({"success": False, "error": "缺少小说标题"}), 400
             
             # 验证小说是否可以上传
+            logger.info(f"🔍 开始验证小说: {novel_title}")
             validation_result = fanqie_uploader.validate_novel_for_upload(novel_title)
+            # 只打印摘要信息，不打印完整数据
+            if validation_result.get("valid"):
+                logger.info(f"✅ 验证通过，章节数: {validation_result.get('chapter_count', 0)}")
+            else:
+                logger.warn(f"⚠️ 验证失败: {validation_result.get('error', '未知错误')}")
+            
             if not validation_result["valid"]:
+                error_msg = validation_result.get("error", "验证失败")
+                logger.error(f"❌ 400错误: 小说验证失败 - {error_msg}")
                 return jsonify({
                     "success": False,
-                    "error": validation_result["error"]
+                    "error": error_msg
                 }), 400
             
             # 启动上传任务

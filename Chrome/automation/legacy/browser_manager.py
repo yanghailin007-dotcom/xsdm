@@ -149,16 +149,37 @@ def navigate_to_writer_platform(page1, default_context):
     print("📍 步骤1: 导航到番茄小说首页...")
     try:
         # 增加超时时间并添加重试机制
+        # 使用更宽松的等待策略：只等待 domcontentloaded，不等待 load 事件
         for attempt in range(3):
             try:
                 print(f"  尝试导航到番茄网站 (第 {attempt + 1} 次)...")
-                page1.goto("https://fanqienovel.com/", timeout=60000)  # 60秒超时
-                page1.wait_for_load_state("domcontentloaded", timeout=30000)  # 30秒等待
-                print("✅ 已打开番茄小说首页")
-                break
+                # 使用 commit 策略：只要开始加载 DOM 就认为成功
+                # 避免等待 load 事件导致的超时问题
+                page1.goto("https://fanqienovel.com/", wait_until="domcontentloaded", timeout=30000)
+                
+                # 验证页面是否真的加载成功（检查 URL）
+                current_url = page1.url
+                if "fanqienovel.com" in current_url:
+                    print(f"✅ 已打开番茄小说首页 (URL: {current_url})")
+                    break
+                else:
+                    print(f"⚠️ URL 不符合预期: {current_url}")
+                    if attempt == 2:
+                        raise Exception(f"导航失败，当前 URL: {current_url}")
             except Exception as nav_error:
                 print(f"  第 {attempt + 1} 次导航失败: {nav_error}")
+                
+                # 检查页面是否实际上已经加载成功
+                try:
+                    if "fanqienovel.com" in page1.url:
+                        print(f"✅ 检测到页面实际已加载成功，继续执行")
+                        print(f"   当前 URL: {page1.url}")
+                        break
+                except:
+                    pass
+                
                 if attempt == 2:  # 最后一次尝试
+                    print("❌ 所有导航尝试都失败")
                     raise nav_error
                 print("  等待 5 秒后重试...")
                 time.sleep(5)
@@ -327,15 +348,37 @@ def manage_browser_pages(default_context):
             try:
                 url = page.url
                 print(f"  页面 {idx + 1}: {url}")
-                if url != 'https://fanqienovel.com/':
-                    if pages_count != 1:
-                        print(f"  🔒 关闭非番茄页面: {url}")
-                        page.close()
-                else:
+                
+                # 定义应该保留的页面模式
+                should_keep = False
+                
+                # 保留所有番茄小说相关的页面
+                if 'fanqienovel.com' in url:
+                    should_keep = True
                     print(f"  ✅ 保留番茄页面: {url}")
-                    main_page = page
+                    # 如果是首页，设为主页
+                    if url == 'https://fanqienovel.com/' or url.startswith('https://fanqienovel.com/?'):
+                        main_page = page
+                
+                # 关闭完全无关的页面（about:blank, devtools, 其他网站等）
+                if not should_keep and pages_count > 1:
+                    print(f"  🔒 关闭非番茄页面: {url}")
+                    page.close()
+                    pages_count -= 1
+                    
             except Exception as e:
-                print(f"  ❌ 关闭页面 {idx + 1} 时出错: {e}")
+                print(f"  ❌ 处理页面 {idx + 1} 时出错: {e}")
+        
+        # 如果没有找到主页，使用第一个番茄页面
+        if 'main_page' not in locals():
+            for page in default_context.pages:
+                try:
+                    if 'fanqienovel.com' in page.url:
+                        main_page = page
+                        print(f"  📍 使用主页: {page.url}")
+                        break
+                except:
+                    continue
         
         return main_page if 'main_page' in locals() else None
     except Exception as e:
@@ -351,8 +394,12 @@ def ensure_fanqie_page(page1):
         
         if current_url != 'https://fanqienovel.com/':
             print("🔄 导航到番茄小说首页...")
-            page1.goto("https://fanqienovel.com/", timeout=60000)
-            page1.wait_for_load_state("domcontentloaded", timeout=30000)
+            # 使用 domcontentloaded 策略避免超时
+            page1.goto("https://fanqienovel.com/", wait_until="domcontentloaded", timeout=30000)
+            
+            # 验证导航是否成功
+            if "fanqienovel.com" not in page1.url:
+                print(f"⚠️ 导航后 URL 不符合预期: {page1.url}")
         
         # 检查页面标题
         page_title = page1.title()
@@ -361,8 +408,11 @@ def ensure_fanqie_page(page1):
         if '番茄小说' not in page_title:
             print("⚠️ 当前页面可能不是番茄小说，但继续尝试...")
             print("🔄 强制导航到番茄小说...")
-            page1.goto("https://fanqienovel.com/", timeout=60000)
-            page1.wait_for_load_state("domcontentloaded", timeout=30000)
+            page1.goto("https://fanqienovel.com/", wait_until="domcontentloaded", timeout=30000)
+            
+            # 再次验证
+            if "fanqienovel.com" not in page1.url:
+                print(f"⚠️ 强制导航后仍不符合预期: {page1.url}")
             
         return True
     except Exception as e:
