@@ -1446,20 +1446,20 @@ class NovelGenerator:
         else:
             print(f"\n⚠️ 当前已完成 {completed_chapters}/{total_chapters} 章，封面将在所有章节生成完成后生成。")
         
-        # 复制项目文件到执行目录
-        print("\n" + "="*60)
-        print("🚚 正在复制项目文件到执行目录...")
-        print("="*60)
-        
-        target_dir = r"C:\work1.0\Chrome\小说项目"
-        novel_title = self.novel_data.get("novel_title")
-        
-        if novel_title:
-            copy_success = self.project_manager.copy_project_to_directory(novel_title, target_dir)
-            if not copy_success:
-                print(f"⚠️ 项目《{novel_title}》文件复制失败。")
-        else:
-            print("❌ 无法复制项目文件，因为小说标题未知。")
+        # 注释：项目文件复制已禁用，因为目录结构已经就绪
+        # print("\n" + "="*60)
+        # print("🚚 正在复制项目文件到执行目录...")
+        # print("="*60)
+        #
+        # target_dir = r"C:\work1.0\Chrome\小说项目"
+        # novel_title = self.novel_data.get("novel_title")
+        #
+        # if novel_title:
+        #     copy_success = self.project_manager.copy_project_to_directory(novel_title, target_dir)
+        #     if not copy_success:
+        #         print(f"⚠️ 项目《{novel_title}》文件复制失败。")
+        # else:
+        #     print("❌ 无法复制项目文件，因为小说标题未知。")
         
         # 材料管理器导出功能
         if self.material_manager:
