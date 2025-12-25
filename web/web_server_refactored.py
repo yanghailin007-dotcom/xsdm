@@ -126,6 +126,26 @@ def register_fanqie_routes(app):
             logger.error(f"❌ 验证小说上传失败: {e}")
             return jsonify({"success": False, "error": str(e)}), 500
 
+    @app.route('/api/fanqie/upload/start-browser', methods=['POST'])
+    def start_browser():
+        """启动浏览器用于番茄上传"""
+        try:
+            from web.auth import login_required
+            
+            if not fanqie_uploader:
+                return jsonify({"success": False, "error": "番茄上传器不可用"}), 503
+            
+            result = fanqie_uploader.start_browser_for_upload()
+            
+            if result["success"]:
+                return jsonify(result)
+            else:
+                return jsonify(result), 500
+                
+        except Exception as e:
+            logger.error(f"❌ 启动浏览器失败: {e}")
+            return jsonify({"success": False, "error": str(e)}), 500
+    
     @app.route('/api/fanqie/upload/start', methods=['POST'])
     def start_fanqie_upload():
         """启动番茄上传任务"""
@@ -167,6 +187,65 @@ def register_fanqie_routes(app):
                 
         except Exception as e:
             logger.error(f"❌ 启动番茄上传任务失败: {e}")
+            return jsonify({"success": False, "error": str(e)}), 500
+    
+    @app.route('/api/fanqie/upload/tasks', methods=['GET'])
+    def get_upload_tasks():
+        """获取所有上传任务"""
+        try:
+            from web.auth import login_required
+            
+            if not fanqie_uploader:
+                return jsonify({"success": False, "error": "番茄上传器不可用"}), 503
+            
+            tasks = fanqie_uploader.get_all_upload_tasks()
+            
+            return jsonify({
+                "success": True,
+                "tasks": tasks
+            })
+            
+        except Exception as e:
+            logger.error(f"❌ 获取上传任务失败: {e}")
+            return jsonify({"success": False, "error": str(e)}), 500
+    
+    @app.route('/api/fanqie/upload/status/<task_id>', methods=['GET'])
+    def get_upload_status(task_id):
+        """获取指定上传任务的状态"""
+        try:
+            from web.auth import login_required
+            
+            if not fanqie_uploader:
+                return jsonify({"success": False, "error": "番茄上传器不可用"}), 503
+            
+            status = fanqie_uploader.get_upload_status(task_id)
+            
+            if "error" in status:
+                return jsonify({"success": False, "error": status["error"]}), 404
+            
+            return jsonify(status)
+            
+        except Exception as e:
+            logger.error(f"❌ 获取上传状态失败: {e}")
+            return jsonify({"success": False, "error": str(e)}), 500
+    
+    @app.route('/api/fanqie/upload/trigger-scan', methods=['POST'])
+    def trigger_fanqie_scan():
+        """手动触发番茄上传扫描"""
+        try:
+            from web.auth import login_required
+            
+            if not fanqie_uploader:
+                return jsonify({"success": False, "error": "番茄上传器不可用"}), 503
+            
+            # 这个功能暂时不实现，返回提示信息
+            return jsonify({
+                "success": False,
+                "error": "手动触发扫描功能暂未实现，请使用单个小说上传功能"
+            }), 501
+            
+        except Exception as e:
+            logger.error(f"❌ 触发扫描失败: {e}")
             return jsonify({"success": False, "error": str(e)}), 500
 
 
