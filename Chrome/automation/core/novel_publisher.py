@@ -50,7 +50,15 @@ class NovelPublisher:
         
         novel_title = data['novel_info']['title']
         novel_synopsis = data['novel_info']['synopsis']
-        main_character = data['character_design']['main_character']['name']
+        
+        # 处理主角名 - 优先从selected_plan中获取（创建书本阶段）
+        main_character = "未知主角"
+        if 'selected_plan' in data and isinstance(data['selected_plan'], dict):
+            suggestions = data['selected_plan'].get('suggestions', {})
+            if isinstance(suggestions, dict) and 'name' in suggestions:
+                main_character = suggestions['name']
+        elif 'character_design' in data and 'main_character' in data['character_design']:
+            main_character = data['character_design']['main_character'].get('name', '未知主角')
         
         print(f"小说名称: {novel_title}")
         print(f"主角: {main_character}")

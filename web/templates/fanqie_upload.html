@@ -270,9 +270,10 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // 全局变量
-        let uploadTasks = new Map();
-        let currentTaskId = null;
+    // 全局变量
+    let uploadTasks = new Map();
+    let currentTaskId = null;
+    let progressInterval = null;  // 全局轮询定时器，便于管理
 
         // 页面加载完成后初始化
         document.addEventListener('DOMContentLoaded', function() {
@@ -501,29 +502,46 @@
 
         // 显示上传进度
         function showUploadProgress(title) {
+            // 清除可能存在的旧轮询
+            if (progressInterval) {
+                clearInterval(progressInterval);
+                progressInterval = null;
+            }
+            
             const modal = new bootstrap.Modal(document.getElementById('uploadProgressModal'));
             document.getElementById('progress-title').textContent = `正在上传《${title}》...`;
             modal.show();
             
             // 定期更新进度
-            const progressInterval = setInterval(async () => {
+            progressInterval = setInterval(async () => {
                 if (!currentTaskId) {
                     clearInterval(progressInterval);
                     return;
                 }
                 
                 try {
+                    // 检查currentTaskId是否还存在
+                    if (!currentTaskId) {
+                        console.warn('任务ID已清空，停止轮询');
+                        clearInterval(progressInterval);
+                        progressInterval = null;
+                        return;
+                    }
+                    
                     const response = await fetch(`/api/fanqie/upload/status/${encodeURIComponent(currentTaskId)}`);
                     
                     // 如果任务不存在（404）或其他错误，停止轮询
                     if (!response.ok) {
                         if (response.status === 404) {
-                            console.warn('任务不存在，停止轮询');
-                            addLog(`任务 ${currentTaskId} 不存在，可能已完成或被清理`);
+                            console.warn('任务不存在（404），停止轮询');
+                            addLog(`任务 ${currentTaskId} 不存在或已完成，停止轮询`);
                         } else {
                             console.error('获取进度失败:', response.status);
+                            addLog(`获取进度失败: HTTP ${response.status}`);
                         }
                         clearInterval(progressInterval);
+                        progressInterval = null;
+                        currentTaskId = null; // 清空任务ID
                         setTimeout(() => {
                             modal.hide();
                         }, 1000);
@@ -537,12 +555,16 @@
                         
                         if (data.task.status === 'completed') {
                             clearInterval(progressInterval);
+                            progressInterval = null;
+                            currentTaskId = null; // 清空任务ID
                             setTimeout(() => {
                                 modal.hide();
                                 showSuccess(`小说《${title}》上传完成！`);
                             }, 2000);
                         } else if (data.task.status === 'failed') {
                             clearInterval(progressInterval);
+                            progressInterval = null;
+                            currentTaskId = null; // 清空任务ID
                             setTimeout(() => {
                                 modal.hide();
                                 showError('upload', `上传失败: ${data.task.error || '未知错误'}`);
@@ -552,6 +574,8 @@
                         // 没有任务数据，停止轮询
                         console.warn('没有收到任务数据，停止轮询');
                         clearInterval(progressInterval);
+                        progressInterval = null;
+                        currentTaskId = null; // 清空任务ID
                         setTimeout(() => {
                             modal.hide();
                         }, 1000);
@@ -560,6 +584,9 @@
                     console.error('获取进度失败:', error);
                     // 网络错误时也停止轮询，避免无限重试
                     clearInterval(progressInterval);
+                    progressInterval = null;
+                    currentTaskId = null; // 清空任务ID
+                    addLog('网络错误，停止轮询');
                     setTimeout(() => {
                         modal.hide();
                         showError('upload', '网络错误，无法获取上传进度');
@@ -567,12 +594,20 @@
                 }
             }, 2000);
             
-            // 监听模态框关闭事件，停止轮询
-            document.getElementById('uploadProgressModal').addEventListener('hidden.bs.modal', function() {
+            // 监听模态框关闭事件，停止轮询并清空任务ID
+            const handleModalHide = () => {
                 if (progressInterval) {
                     clearInterval(progressInterval);
+                    progressInterval = null;
                 }
-            }, { once: true });
+                currentTaskId = null; // 清空任务ID
+                addLog('用户关闭模态框，轮询已停止，任务ID已清空');
+            };
+            
+            const modalElement = document.getElementById('uploadProgressModal');
+            // 移除之前的事件监听器（如果存在），避免重复绑定
+            modalElement.removeEventListener('hidden.bs.modal', handleModalHide);
+            modalElement.addEventListener('hidden.bs.modal', handleModalHide, { once: true });
         }
 
         // 更新进度显示

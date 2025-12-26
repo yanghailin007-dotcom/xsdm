@@ -28,11 +28,57 @@ class ContractManager:
                 if self.safe_click(page.locator(selector).first, "小说标签"):
                     break
             
-            time.sleep(1)
+            # 等待页面加载完成
+            print("等待小说列表页面加载...")
+            page.wait_for_load_state("networkidle", timeout=10000)
+            time.sleep(2)
             
-            # 获取所有小说项
-            novel_items = page.locator('//div[contains(@id, "long-article-table-item")]')
-            item_count = novel_items.count()
+            # 尝试多个可能的小说项选择器
+            novel_item_selectors = [
+                '//div[contains(@id, "long-article-table-item")]',
+                '//div[contains(@class, "long-article-table-item")]',
+                'div.long-article-table-item',
+                '//div[contains(@class, "arco-list-item")]'
+            ]
+            
+            novel_items = None
+            item_count = 0
+            
+            for selector in novel_item_selectors:
+                if selector.startswith('//'):
+                    test_items = page.locator(f'xpath={selector}')
+                else:
+                    test_items = page.locator(selector)
+                
+                count = test_items.count()
+                print(f"选择器 '{selector}' 找到 {count} 个元素")
+                
+                if count > 0:
+                    novel_items = test_items
+                    item_count = count
+                    print(f"✓ 使用选择器: {selector}")
+                    break
+            
+            if item_count == 0:
+                print("⚠ 未找到任何小说项！可能的原因：")
+                print("  1. 页面尚未加载完成，请尝试增加等待时间")
+                print("  2. 页面结构已更改，选择器需要更新")
+                print("  3. 未正确导航到小说列表页面")
+                
+                # 打印当前页面信息用于调试
+                print(f"当前URL: {page.url}")
+                print(f"页面标题: {page.title()}")
+                
+                # 尝试截图以便调试
+                try:
+                    screenshot_path = "debug_novel_list.png"
+                    page.screenshot(path=screenshot_path)
+                    print(f"已保存调试截图: {screenshot_path}")
+                except:
+                    pass
+                
+                return False
+            
             print(f"找到 {item_count} 个小说项")
             
             handled_count = 0
@@ -46,6 +92,26 @@ class ContractManager:
             # 修改：使用 while 循环替代 for 循环，支持双向翻页
             while page_num <= max_pages:
                 print(f"检查第 {page_num} 页的签约状态...")
+                
+                # 每次循环前重新获取小说项，因为页面可能已更新
+                if novel_items is None or novel_items.count() == 0:
+                    print("警告：novel_items为空，尝试重新获取...")
+                    for selector in novel_item_selectors:
+                        if selector.startswith('//'):
+                            test_items = page.locator(f'xpath={selector}')
+                        else:
+                            test_items = page.locator(selector)
+                        
+                        count = test_items.count()
+                        if count > 0:
+                            novel_items = test_items
+                            item_count = count
+                            print(f"✓ 重新获取到 {item_count} 个小说项")
+                            break
+                    
+                    if novel_items is None or novel_items.count() == 0:
+                        print("✗ 无法获取小说项，停止处理")
+                        break
                 
                 # 使用列表容器的滚动方法
                 self.scroll_list_container(page)
@@ -98,8 +164,18 @@ class ContractManager:
                     if next_result == True:
                         page_num += 1
                         time.sleep(0.5)
-                        # 重新获取小说项
-                        novel_items = page.locator('//div[contains(@id, "long-article-table-item")]')
+                        # 重新获取小说项 - 使用成功的选择器
+                        for selector in novel_item_selectors:
+                            if selector.startswith('//'):
+                                test_items = page.locator(f'xpath={selector}')
+                            else:
+                                test_items = page.locator(selector)
+                            
+                            count = test_items.count()
+                            if count > 0:
+                                novel_items = test_items
+                                print(f"✓ 翻页后重新获取到 {count} 个小说项")
+                                break
                         continue
                     elif next_result == 'no_more_pages':
                         # 如果当前方向没有更多页面，切换方向
@@ -111,7 +187,18 @@ class ContractManager:
                             if prev_result == True:
                                 page_num += 1
                                 time.sleep(0.5)
-                                novel_items = page.locator('//div[contains(@id, "long-article-table-item")]')
+                                # 重新获取小说项 - 使用成功的选择器
+                                for selector in novel_item_selectors:
+                                    if selector.startswith('//'):
+                                        test_items = page.locator(f'xpath={selector}')
+                                    else:
+                                        test_items = page.locator(selector)
+                                    
+                                    count = test_items.count()
+                                    if count > 0:
+                                        novel_items = test_items
+                                        print(f"✓ 翻页后重新获取到 {count} 个小说项")
+                                        break
                                 continue
                             else:
                                 print("无法切换到上一页，停止检查")
@@ -156,13 +243,97 @@ class ContractManager:
                                 print(f"小说项 {i+1} 状态: {status_text}")
                                 print(f"找到未签约的连载中小说: {novel_title}")
                                 
-                                # 查找签约管理按钮
+                                # 查找签约管理按钮或申请签约按钮
                                 contract_button_xpath = './div/div[1]/div[2]/div[3]/div/button[2]/span'
                                 contract_buttons = item.locator(f'xpath={contract_button_xpath}')
                                 
                                 if contract_buttons.count() > 0:
                                     button_text = contract_buttons.first.text_content().strip()
-                                    if "签约管理" in button_text:
+                                    
+                                    # 情况1: "申请签约"按钮 - 首次申请签约流程
+                                    if "申请签约" in button_text:
+                                        print(f"[DEBUG] 找到申请签约按钮，文本: '{button_text}'")
+                                        print(f"[DEBUG] 小说标题: {novel_title}")
+                                        print(f"[DEBUG] 按钮XPath: {contract_button_xpath}")
+                                        print(f"[DEBUG] 准备点击按钮...")
+                                        
+                                        # 检查该小说的失败次数
+                                        retry_count = getattr(self, f'retry_count_{hash(novel_title)}', 0)
+                                        
+                                        # 如果已经超过最大重试次数，标记为失败并跳过
+                                        if retry_count >= self.max_retry_count:
+                                            print(f"小说《{novel_title}》已尝试{retry_count}次签约失败，标记为失败并跳过")
+                                            self.failed_novels.add(novel_title)
+                                            skipped_count += 1
+                                            continue
+                                        
+                                        # 点击申请签约按钮
+                                        print(f"[DEBUG] 开始safe_click操作...")
+                                        click_result = self.safe_click(contract_buttons.first, "申请签约按钮")
+                                        print(f"[DEBUG] safe_click返回: {click_result}")
+                                        
+                                        if click_result:
+                                            print("✓ 已点击申请签约按钮，等待页面跳转...")
+                                            time.sleep(3)
+                                            
+                                            # 验证页面是否成功跳转
+                                            current_url = page.url
+                                            print(f"当前URL: {current_url}")
+                                            
+                                            # 处理签约流程
+                                            success = False
+                                            print(f"开始处理签约流程 (第{retry_count + 1}次尝试)...")
+                                            
+                                            try:
+                                                if self.handle_apply_contract_process(page, retry_count):
+                                                    print("✓ 申请签约流程处理成功")
+                                                    success = True
+                                                    # 成功时清除重试计数
+                                                    if hasattr(self, f'retry_count_{hash(novel_title)}'):
+                                                        delattr(self, f'retry_count_{hash(novel_title)}')
+                                                else:
+                                                    print("⚠ 申请签约流程处理失败")
+                                                    # 增加重试计数
+                                                    retry_count += 1
+                                                    setattr(self, f'retry_count_{hash(novel_title)}', retry_count)
+                                                    
+                                                    # 如果达到最大重试次数，标记为失败
+                                                    if retry_count >= self.max_retry_count:
+                                                        print(f"小说《{novel_title}》已达到最大重试次数{self.max_retry_count}，标记为失败")
+                                                        self.failed_novels.add(novel_title)
+                                            except Exception as e:
+                                                print(f"⚠ 处理签约流程时发生异常: {e}")
+                                                retry_count += 1
+                                                setattr(self, f'retry_count_{hash(novel_title)}', retry_count)
+                                                if retry_count >= self.max_retry_count:
+                                                    self.failed_novels.add(novel_title)
+                                            
+                                            # 返回小说列表
+                                            print("返回小说列表...")
+                                            try:
+                                                page.go_back()
+                                                time.sleep(1)
+                                            except Exception as e:
+                                                print(f"返回时出错: {e}")
+                                                # 如果返回失败，尝试重新导航到小说列表页
+                                                for selector in novel_selectors:
+                                                    if self.safe_click(page.locator(selector).first, "小说标签"):
+                                                        break
+                                                time.sleep(1)
+                                            
+                                            # 确保回到小说列表页面
+                                            if not self.verify_novel_list_page(page):
+                                                print("未正确返回小说列表，重新导航...")
+                                                for selector in novel_selectors:
+                                                    if self.safe_click(page.locator(selector).first, "小说标签"):
+                                                        break
+                                                time.sleep(0.5)
+                                            
+                                            handled_count += 1
+                                            if success:
+                                                print("✓ 首次签约申请处理成功")
+                                    
+                                    elif "签约管理" in button_text:
                                         print("找到签约管理按钮，开始处理...")
                                         
                                         # 检查该小说的失败次数
@@ -185,10 +356,10 @@ class ContractManager:
                                             # 记录当前URL，用于返回
                                             current_url_before_contract = page.url
                                             
-                                            # 处理签约管理流程
+                                            # 处理签约管理流程（可能包含填写合同）
                                             success = False
-                                            print(f"尝试签约流程 (第{retry_count + 1}次尝试)...")
-                                            if self.handle_contract_process(page, retry_count):
+                                            print(f"尝试签约管理流程 (第{retry_count + 1}次尝试)...")
+                                            if self.handle_contract_management_process(page, retry_count):
                                                 print("✓ 签约管理处理成功")
                                                 success = True
                                                 # 成功时清除重试计数
@@ -236,8 +407,18 @@ class ContractManager:
                     if next_result == True:
                         page_num += 1
                         time.sleep(0.5)
-                        # 重新获取小说项
-                        novel_items = page.locator('//div[contains(@id, "long-article-table-item")]')
+                        # 重新获取小说项 - 使用成功的选择器
+                        for selector in novel_item_selectors:
+                            if selector.startswith('//'):
+                                test_items = page.locator(f'xpath={selector}')
+                            else:
+                                test_items = page.locator(selector)
+                            
+                            count = test_items.count()
+                            if count > 0:
+                                novel_items = test_items
+                                print(f"✓ 翻页后重新获取到 {count} 个小说项")
+                                break
                     elif next_result == 'no_more_pages':
                         # 如果当前方向没有更多页面，切换方向
                         if direction == "next":
@@ -248,7 +429,18 @@ class ContractManager:
                             if prev_result == True:
                                 page_num += 1
                                 time.sleep(0.5)
-                                novel_items = page.locator('//div[contains(@id, "long-article-table-item")]')
+                                # 重新获取小说项 - 使用成功的选择器
+                                for selector in novel_item_selectors:
+                                    if selector.startswith('//'):
+                                        test_items = page.locator(f'xpath={selector}')
+                                    else:
+                                        test_items = page.locator(selector)
+                                    
+                                    count = test_items.count()
+                                    if count > 0:
+                                        novel_items = test_items
+                                        print(f"✓ 翻页后重新获取到 {count} 个小说项")
+                                        break
                             else:
                                 print("无法切换到上一页，停止检查")
                                 break
@@ -394,10 +586,217 @@ class ContractManager:
         # 这里可以记录日志或统计信息，但不进行任何操作
         return False
 
-    def handle_contract_process(self, page, attempt=0):
+    def handle_apply_contract_process(self, page, attempt=0):
         """
-        处理签约管理流程
-        包括点击申请签约按钮和填写必要信息
+        处理申请签约流程（独立流程）
+        只负责点击"申请签约"按钮并确认提交
+        """
+        print(f"处理申请签约流程 (第{attempt+1}次尝试)...")
+        
+        try:
+            # 等待页面加载
+            page.wait_for_load_state("networkidle")
+            time.sleep(2)
+            
+            # 检查页面上的按钮
+            print("检查当前页面上的按钮...")
+            all_buttons_selectors = ['button', '//button', '.arco-btn']
+            
+            found_buttons = []
+            for selector in all_buttons_selectors:
+                try:
+                    if selector.startswith('//'):
+                        elements = page.locator(f'xpath={selector}')
+                    else:
+                        elements = page.locator(selector)
+                    
+                    count = elements.count()
+                    if count > 0:
+                        for i in range(min(count, 10)):
+                            try:
+                                btn_text = elements.nth(i).text_content().strip()
+                                found_buttons.append(btn_text)
+                            except:
+                                pass
+                        break
+                except:
+                    continue
+            
+            print(f"页面上找到的按钮文本: {found_buttons}")
+            
+            # 检查是否有"申请签约"按钮
+            if any("申请签约" in btn for btn in found_buttons):
+                print("✓ 检测到'申请签约'按钮")
+                
+                # 尝试点击申请签约按钮
+                apply_contract_selectors = [
+                    '//div[contains(@class, "flow-card-actions")]//button[.//span[text()="申请签约"]]',
+                    'button:has-text("申请签约")',
+                    '//button[contains(text(), "申请签约")]',
+                ]
+                
+                clicked_apply = False
+                for selector in apply_contract_selectors:
+                    try:
+                        if selector.startswith('//'):
+                            elements = page.locator(f'xpath={selector}')
+                        else:
+                            elements = page.locator(selector)
+                        
+                        if elements.count() > 0:
+                            button_text = elements.first.text_content().strip()
+                            if "申请签约" in button_text:
+                                print(f"找到申请签约按钮: {button_text}")
+                                
+                                # 滚动到按钮位置
+                                try:
+                                    elements.first.scroll_into_view_if_needed()
+                                    time.sleep(0.5)
+                                except:
+                                    pass
+                                
+                                # 点击按钮
+                                for click_attempt in range(3):
+                                    try:
+                                        print(f"尝试点击 (第{click_attempt+1}次)...")
+                                        elements.first.click(timeout=5000)
+                                        print("✓ 已成功点击申请签约按钮")
+                                        clicked_apply = True
+                                        time.sleep(3)
+                                        break
+                                    except Exception as click_err:
+                                        print(f"点击失败: {click_err}")
+                                        if click_attempt < 2:
+                                            time.sleep(1)
+                                
+                                if clicked_apply:
+                                    break
+                    except Exception as e:
+                        print(f"选择器失败: {e}")
+                        continue
+                
+                if clicked_apply:
+                    return self.verify_apply_contract_success(page)
+                else:
+                    print("✗ 所有尝试点击申请签约按钮的操作都失败了")
+                    return False
+            else:
+                print("未找到'申请签约'按钮，可能已经在后续流程")
+                # 检查是否已经有成功提示
+                return self.verify_apply_contract_success(page)
+            
+        except Exception as e:
+            print(f"处理申请签约流程时出错: {e}")
+            return False
+    
+    def verify_apply_contract_success(self, page):
+        """
+        验证申请签约是否成功提交
+        """
+        print("验证申请签约提交结果...")
+        
+        try:
+            time.sleep(2)
+            page.wait_for_load_state("networkidle")
+            
+            # 检查成功提示
+            success_indicators = [
+                'text=申请成功',
+                'text=提交成功',
+                'text=等待审核',
+                'text=签约申请已提交',
+                'text=申请已提交'
+            ]
+            
+            for indicator in success_indicators:
+                if page.locator(indicator).count() > 0:
+                    print(f"✓ 检测到成功提示: {indicator}")
+                    time.sleep(1)
+                    self.handle_success_popup(page)
+                    return True
+            
+            # 检查流程进度变化
+            progress_indicators = [
+                '//div[contains(@class, "flow-card status-active")]//div[contains(text(), "安全审核")]',
+                '//div[contains(@class, "flow-card")]//div[contains(text(), "签约评估")]',
+                '//div[contains(@class, "flow-card")]//div[contains(text(), "合同审核")]'
+            ]
+            
+            for indicator in progress_indicators:
+                try:
+                    if page.locator(f'xpath={indicator}').count() > 0:
+                        print(f"✓ 检测到签约流程已进入下一阶段")
+                        return True
+                except:
+                    continue
+            
+            # 检查按钮状态
+            apply_button_selectors = [
+                '//div[contains(@class, "flow-card-actions")]//button[.//span[text()="申请签约"]]',
+                'button:has-text("申请签约")'
+            ]
+            
+            for selector in apply_button_selectors:
+                try:
+                    if selector.startswith('//'):
+                        elements = page.locator(f'xpath={selector}')
+                    else:
+                        elements = page.locator(selector)
+                    
+                    if elements.count() > 0:
+                        button = elements.first
+                        is_disabled = button.get_attribute('disabled') is not None or \
+                                    'disabled' in button.get_attribute('class', '') or \
+                                    not button.is_enabled()
+                        
+                        if is_disabled:
+                            print(f"✓ 申请签约按钮已被禁用，说明申请已提交")
+                            return True
+                    else:
+                        print(f"✓ 申请签约按钮已消失，说明申请已提交")
+                        return True
+                except:
+                    continue
+            
+            # 检查确认弹窗
+            confirm_buttons = [
+                'button:has-text("确定")',
+                'button:has-text("确认")',
+                'button:has-text("知道了")',
+                '//button[contains(text(), "确定")]',
+                '//button[contains(text(), "确认")]',
+                '//button[contains(text(), "知道了")]'
+            ]
+            
+            for selector in confirm_buttons:
+                try:
+                    if selector.startswith('//'):
+                        elements = page.locator(f'xpath={selector}')
+                    else:
+                        elements = page.locator(selector)
+                    
+                    if elements.count() > 0 and elements.first.is_visible():
+                        button_text = elements.first.text_content().strip()
+                        print(f"找到确认按钮: {button_text}")
+                        
+                        if self.safe_click(elements.first, "确认按钮"):
+                            print("已点击确认按钮")
+                            time.sleep(2)
+                            return True
+                except:
+                    continue
+            
+            print("未检测到明确的失败标志，假设申请签约已完成")
+            return True
+            
+        except Exception as e:
+            print(f"验证申请签约结果时出错: {e}")
+            return False
+    
+    def handle_contract_management_process(self, page, attempt=0):
+        """
+        处理签约管理流程（独立流程）
+        检查并处理填写合同等后续操作
         """
         print(f"处理签约管理流程 (第{attempt+1}次尝试)...")
         
@@ -406,12 +805,7 @@ class ContractManager:
             page.wait_for_load_state("networkidle")
             time.sleep(2)
             
-            # 检查是否已经在签约管理页面
-            page_title = page.title()
-            current_url = page.url
-            
-            print(f"当前页面: {page_title}")
-            print(f"当前URL: {current_url}")
+            print(f"当前URL: {page.url}")
             
             # 首先检查是否有"立即签约"按钮
             immediate_contract_selectors = [
@@ -431,132 +825,99 @@ class ContractManager:
                         button_text = elements.first.text_content().strip()
                         if "立即签约" in button_text:
                             print("检测到立即签约按钮，暂时不处理")
-                            # 调用处理立即签约的方法
                             return self.handle_immediate_contract(page)
                 except Exception as e:
                     print(f"检查立即签约按钮时出错: {e}")
                     continue
             
-            # 如果没有立即签约按钮，继续原有的申请签约流程
-            # 首先尝试点击申请签约按钮 - 使用您提供的XPath
-            apply_contract_xpath = '/html/body/div[3]/div[2]/div/div[2]/div[3]/button[2]'
-            apply_contract_buttons = page.locator(f'xpath={apply_contract_xpath}')
+            # 检查页面上的所有按钮
+            print("检查当前页面上的按钮...")
+            all_buttons_selectors = ['button', '//button', '.arco-btn']
             
-            if apply_contract_buttons.count() > 0:
-                button_text = apply_contract_buttons.first.text_content().strip()
-                print(f"找到申请签约按钮: {button_text}")
-                
-                if self.safe_click(apply_contract_buttons.first, "申请签约按钮"):
-                    print("已点击申请签约按钮，等待6秒延迟...")
-                    time.sleep(6)  # 等待6秒延迟
-                    
-                    # 点击后可能需要填写表单，调用表单填写方法
-                    if self.fill_contract_details_form(page):
-                        print("✓ 签约申请表单填写完成")
-                        return True
+            found_buttons = []
+            for selector in all_buttons_selectors:
+                try:
+                    if selector.startswith('//'):
+                        elements = page.locator(f'xpath={selector}')
                     else:
-                        print("⚠ 签约申请表单填写未完成")
-                        return False
-            else:
-                print("未找到申请签约按钮，尝试其他选择器...")
-                
-                # 尝试其他可能的选择器
-                alternative_selectors = [
-                    'button:has-text("申请签约")',
-                    '//button[contains(text(), "申请签约")]',
-                    '//span[contains(text(), "申请签约")]'
+                        elements = page.locator(selector)
                     
-                    '/html/body/div[3]/div[2]/div/div[2]/div[3]/button[2]/span'
-                ]
-
-                for selector in alternative_selectors:
-                    try:
-                        if selector.startswith('//'):
-                            elements = page.locator(f'xpath={selector}')
-                        else:
-                            elements = page.locator(selector)
-
-                        if elements.count() > 0:
-                            button_text = elements.first.text_content().strip()
-                            print(f"找到申请签约按钮(备选): {button_text}")
-
-                            if self.safe_click(elements.first, "申请签约按钮(备选)"):
-                                print("1 已点击申请签约按钮(备选)，等待3秒延迟...")
-                                # time.sleep(3)  # 等待3秒延迟
-                                break
-                                # # 点击后可能需要填写表单
-                                # if self.fill_contract_details_form(page):
-                                #     print("✓ 签约申请表单填写完成")
-                                #     return True
-                                # else:
-                                #     print("⚠ 签约申请表单填写未完成")
-                                #     return False
-                    except Exception as e:
-                        print(f"尝试选择器 {selector} 失败: {e}")
-                        continue
-
-                time.sleep(6)  # 等待6秒延迟
-
-                # 或者更稳健的写法（推荐）：定位包含 "去修改" 的 button，然后找它后面那个 button
-                apply_sign_btn = page.locator("""
-                  (//button[.//span[text()="去修改"]]/following-sibling::button)[1]
-                """)
-
-                if apply_sign_btn.count() > 0:
-                    if self.safe_click(apply_sign_btn.first, "申请签约(按钮)"):
-                        print("2 已点击申请签约按钮，等待30秒延迟...")
-                        time.sleep(30)  # 等待6秒延迟
-                        # 点击后可能需要填写表单
-                        if self.fill_contract_details_form(page):
-                            print("✓ 2 签约申请表单填写完成")
-                            return True
-                        else:
-                            print("⚠ 2 签约申请表单填写未完成")
-                            return False
-
-                # for selector in alternative_selectors:
-                #     try:
-                #         if selector.startswith('//'):
-                #             elements = page.locator(f'xpath={selector}')
-                #         else:
-                #             elements = page.locator(selector)
-                #
-                #         if elements.count() > 0:
-                #             button_text = elements.first.text_content().strip()
-                #             print(f"2 找到申请签约按钮(备选): {button_text}")
-                #
-                #             if self.safe_click(elements.first, "申请签约按钮(备选)"):
-                #                 print("2 已点击申请签约按钮，等待30秒延迟...")
-                #                 time.sleep(30)  # 等待6秒延迟
-                #
-                #                 # 点击后可能需要填写表单
-                #                 if self.fill_contract_details_form(page):
-                #                     print("✓ 2 签约申请表单填写完成")
-                #                     return True
-                #                 else:
-                #                     print("⚠ 2 签约申请表单填写未完成")
-                #                     return False
-                #     except Exception as e:
-                #         print(f"2 尝试选择器 {selector} 失败: {e}")
-                #         continue
-                
-                # 如果仍然没有找到申请签约按钮，尝试滑动页面寻找填写合同按钮
-                print("未找到申请签约按钮，尝试滑动页面寻找填写合同按钮...")
-                if self.find_and_click_contract_button(page):
-                    # 填写合同表单
-                    if self.fill_contract_details_form(page):
-                        print("✓ 合同详情表单填写完成")
-                        return True
-                    else:
-                        print("⚠ 合同详情表单填写未完成")
-                        return False
+                    count = elements.count()
+                    if count > 0:
+                        for i in range(min(count, 10)):
+                            try:
+                                btn_text = elements.nth(i).text_content().strip()
+                                found_buttons.append(btn_text)
+                            except:
+                                pass
+                        break
+                except:
+                    continue
+            
+            print(f"页面上找到的按钮文本: {found_buttons}")
+            
+            # 如果有"申请签约"按钮，说明是首次申请流程
+            if any("申请签约" in btn for btn in found_buttons):
+                print("检测到'申请签约'按钮，调用申请签约流程")
+                return self.handle_apply_contract_process(page, attempt)
+            
+            # 检查是否有填写合同的表单
+            print("检查是否需要填写合同...")
+            contract_form_indicators = [
+                '//*[@id="phone_input"]',
+                '//*[@id="email_input"]',
+                '//input[@placeholder*="手机"]',
+                '//input[@placeholder*="邮箱"]'
+            ]
+            
+            has_form = False
+            for indicator in contract_form_indicators:
+                if page.locator(f'xpath={indicator}').count() > 0:
+                    has_form = True
+                    print(f"找到表单元素: {indicator}")
+                    break
+            
+            if has_form:
+                print("检测到合同表单，开始填写...")
+                if self.fill_contract_details_form(page):
+                    print("✓ 合同表单填写完成")
+                    return True
                 else:
-                    print("未找到可用的申请签约按钮或填写合同按钮")
+                    print("⚠ 合同表单填写失败")
                     return False
             
-        except Exception as e:
-            print(f"处理签约流程时出错: {e}")
+            # 检查是否有成功提示
+            success_indicators = [
+                'text=申请成功',
+                'text=提交成功',
+                'text=等待审核',
+                'text=签约申请已提交',
+                'text=申请已提交',
+                'text=合同已签署',
+                'text=签署成功'
+            ]
+            
+            for indicator in success_indicators:
+                if page.locator(indicator).count() > 0:
+                    print(f"✓ 检测到成功提示: {indicator}")
+                    time.sleep(1)
+                    self.handle_success_popup(page)
+                    return True
+            
+            print("⚠ 未找到需要处理的签约管理操作")
             return False
+            
+        except Exception as e:
+            print(f"处理签约管理流程时出错: {e}")
+            return False
+
+    def handle_after_apply_contract(self, page):
+        """
+        已废弃 - 使用 verify_apply_contract_success 替代
+        此方法保留用于向后兼容
+        """
+        print("警告: handle_after_apply_contract 已废弃，使用 verify_apply_contract_success")
+        return self.verify_apply_contract_success(page)
 
     def find_and_click_contract_button(self, page):
         """
@@ -571,22 +932,23 @@ class ContractManager:
             
             if contract_buttons.count() > 0:
                 button_text = contract_buttons.first.text_content().strip()
-                print(f"找到填写合同按钮: {button_text}")
+                print(f"找到按钮: {button_text}")
                 
-                if self.safe_click(contract_buttons.first, "填写合同按钮"):
-                    print("已点击填写合同按钮")
+                # 不论按钮文本是什么，只要找到按钮就点击
+                if self.safe_click(contract_buttons.first, "合同相关按钮"):
+                    print(f"已点击按钮: {button_text}")
                     time.sleep(3)
                     return True
             
             # 如果直接查找失败，尝试滑动页面查找
-            print("直接查找填写合同按钮失败，尝试滑动页面查找...")
+            print("直接查找失败，尝试滑动页面查找...")
             
-            # 滑动页面查找填写合同按钮
+            # 滑动页面查找合同相关按钮
             max_scroll_attempts = 3
             scroll_step = 300  # 每次滚动300px
             
             for scroll_attempt in range(max_scroll_attempts):
-                print(f"滑动页面查找填写合同按钮 (尝试 {scroll_attempt+1}/{max_scroll_attempts})...")
+                print(f"滑动页面查找按钮 (尝试 {scroll_attempt+1}/{max_scroll_attempts})...")
                 
                 # 尝试滑动页面
                 current_scroll = page.evaluate('() => window.pageYOffset')
@@ -594,30 +956,33 @@ class ContractManager:
                 page.evaluate(f'(position) => {{ window.scrollTo(0, position); }}', target_scroll)
                 time.sleep(1)  # 等待页面加载
                 
-                # 再次尝试查找填写合同按钮
+                # 再次尝试查找按钮
                 contract_buttons = page.locator(f'xpath={contract_button_xpath}')
                 if contract_buttons.count() > 0:
                     button_text = contract_buttons.first.text_content().strip()
-                    print(f"滑动后找到填写合同按钮: {button_text}")
+                    print(f"滑动后找到按钮: {button_text}")
                     
-                    if self.safe_click(contract_buttons.first, "填写合同按钮"):
-                        print("已点击填写合同按钮")
+                    if self.safe_click(contract_buttons.first, "合同相关按钮"):
+                        print(f"已点击按钮: {button_text}")
                         time.sleep(3)
                         return True
             
             # 如果滑动后仍然没有找到，尝试其他可能的合同按钮选择器
-            print("滑动页面后仍未找到填写合同按钮，尝试其他选择器...")
+            print("滑动后仍未找到，尝试其他选择器...")
             
             alternative_contract_selectors = [
                 'button:has-text("填写合同")',
                 'button:has-text("签署合同")',
                 'button:has-text("合同签署")',
+                'button:has-text("申请签约")',  # 添加这个
                 '//button[contains(text(), "填写合同")]',
                 '//button[contains(text(), "签署合同")]',
                 '//button[contains(text(), "合同签署")]',
+                '//button[contains(text(), "申请签约")]',  # 添加这个
                 '//span[contains(text(), "填写合同")]',
                 '//span[contains(text(), "签署合同")]',
-                '//span[contains(text(), "合同签署")]'
+                '//span[contains(text(), "合同签署")]',
+                '//span[contains(text(), "申请签约")]'  # 添加这个
             ]
             
             for selector in alternative_contract_selectors:

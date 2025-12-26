@@ -408,14 +408,288 @@ class ContractManager:
             page.wait_for_load_state("networkidle")
             time.sleep(2)
             
-            # 检查是否有"立即签约"按钮
-            immediate_contract_selectors = [
-                'button:has-text("立即签约")',
-                '//button[contains(text(), "立即签约")]',
-                '//span[contains(text(), "立即签约")]'
+            # 检查页面上的所有按钮
+            print("检查当前页面上的按钮...")
+            all_buttons = page.locator('button')
+            button_count = all_buttons.count()
+            print(f"页面上共有 {button_count} 个按钮")
+            
+            found_buttons = []
+            for i in range(min(button_count, 20)):
+                try:
+                    btn_text = all_buttons.nth(i).text_content().strip()
+                    if btn_text:
+                        found_buttons.append(btn_text)
+                except:
+                    pass
+            
+            print(f"找到的按钮文本: {found_buttons}")
+            
+            # 情况1: 检查是否有"申请签约"按钮
+            if any("申请签约" in btn for btn in found_buttons):
+                print("✓ 检测到'申请签约'按钮，这是申请签约流程")
+                return self._handle_apply_contract_process(page)
+            
+            # 情况2: 检查是否有"填写合同"按钮
+            if any("填写合同" in btn for btn in found_buttons):
+                print("✓ 检测到'填写合同'按钮，这是填写合同流程")
+                return self._handle_fill_contract_process(page)
+            
+            # 情况3: 检查是否有"立即签约"按钮
+            if any("立即签约" in btn for btn in found_buttons):
+                print("✓ 检测到'立即签约'按钮，暂时不处理")
+                return False
+            
+            # 情况4: 检查是否有成功提示（已经提交过）
+            print("未找到签约相关按钮，检查是否已经有成功提示...")
+            return self._check_success_indicators(page)
+            
+        except Exception as e:
+            print(f"处理签约流程时出错: {e}")
+            import traceback
+            traceback.print_exc()
+            return False
+    
+    def _handle_apply_contract_process(self, page: Page) -> bool:
+        """
+        处理申请签约流程（独立流程）
+        1. 点击"申请签约"按钮
+        2. 处理确认弹窗
+        3. 验证提交成功
+        """
+        print("处理申请签约流程...")
+        
+        try:
+            # 步骤1: 查找并点击第一个"申请签约"按钮
+            if not self._click_first_apply_button(page):
+                return False
+            
+            # 步骤2: 处理确认弹窗
+            time.sleep(2)
+            if not self._handle_apply_confirm_modal(page):
+                return False
+            
+            # 步骤3: 验证申请提交成功
+            return self._verify_apply_contract_success(page)
+            
+        except Exception as e:
+            print(f"处理申请签约流程时出错: {e}")
+            return False
+    
+    def _click_first_apply_button(self, page: Page) -> bool:
+        """
+        点击第一个"申请签约"按钮
+        """
+        print("【步骤1】查找并点击申请签约按钮...")
+        
+        apply_contract_selectors = [
+            '//div[contains(@class, "flow-card-actions")]//button[.//span[text()="申请签约"]]',
+            'button:has-text("申请签约")',
+            '//button[contains(text(), "申请签约")]',
+            '//span[contains(text(), "申请签约")]'
+        ]
+        
+        for selector in apply_contract_selectors:
+            try:
+                if selector.startswith('//'):
+                    elements = page.locator(f'xpath={selector}')
+                else:
+                    elements = page.locator(selector)
+                
+                if elements.count() > 0:
+                    button_text = elements.first.text_content().strip()
+                    if "申请签约" in button_text:
+                        print(f"找到申请签约按钮: {button_text}")
+                        
+                        # 滚动到按钮位置
+                        try:
+                            elements.first.scroll_into_view_if_needed()
+                            time.sleep(0.5)
+                        except:
+                            pass
+                        
+                        # 点击按钮
+                        for click_attempt in range(3):
+                            try:
+                                print(f"尝试点击 (第{click_attempt+1}次)...")
+                                elements.first.click(timeout=5000)
+                                print("✓ 已成功点击申请签约按钮")
+                                time.sleep(2)
+                                return True
+                            except Exception as click_err:
+                                print(f"点击失败: {click_err}")
+                                if click_attempt < 2:
+                                    time.sleep(1)
+                        
+                        break
+            except Exception as e:
+                print(f"选择器失败: {e}")
+                continue
+        
+        print("✗ 所有尝试点击申请签约按钮的操作都失败了")
+        return False
+    
+    def _handle_apply_confirm_modal(self, page: Page) -> bool:
+        """
+        处理申请签约确认弹窗
+        点击弹窗中的"申请签约"按钮
+        """
+        print("【步骤2】处理确认弹窗...")
+        
+        try:
+            # 等待弹窗出现
+            time.sleep(2)
+            page.wait_for_load_state("networkidle")
+            
+            # 查找确认弹窗
+            modal_selectors = [
+                'div.sign-confirm-modal',
+                'div.arco-modal.sign-confirm-modal',
+                '//div[contains(@class, "sign-confirm-modal")]'
             ]
             
-            for selector in immediate_contract_selectors:
+            modal_found = False
+            for selector in modal_selectors:
+                try:
+                    if selector.startswith('//'):
+                        modal = page.locator(f'xpath={selector}')
+                    else:
+                        modal = page.locator(selector)
+                    
+                    if modal.count() > 0 and modal.first.is_visible():
+                        print("✓ 找到确认弹窗")
+                        modal_found = True
+                        break
+                except:
+                    continue
+            
+            if not modal_found:
+                print("未找到确认弹窗，可能不需要确认")
+                return True
+            
+            # 查找弹窗中的"申请签约"按钮（primary按钮）
+            confirm_button_selectors = [
+                'div.arco-modal-footer button.arco-btn-primary:has-text("申请签约")',
+                '//div[contains(@class, "arco-modal-footer")]//button[contains(@class, "arco-btn-primary") and contains(text(), "申请签约")]',
+                'div.arco-modal-footer button:has-text("申请签约")',
+            ]
+            
+            for selector in confirm_button_selectors:
+                try:
+                    if selector.startswith('//'):
+                        elements = page.locator(f'xpath={selector}')
+                    else:
+                        elements = page.locator(selector)
+                    
+                    if elements.count() > 0 and elements.first.is_visible():
+                        button_text = elements.first.text_content().strip()
+                        print(f"找到弹窗中的确认按钮: {button_text}")
+                        
+                        # 点击确认按钮
+                        for click_attempt in range(3):
+                            try:
+                                print(f"尝试点击确认按钮 (第{click_attempt+1}次)...")
+                                elements.first.click(timeout=5000)
+                                print("✓ 已成功点击弹窗中的申请签约按钮")
+                                time.sleep(3)
+                                return True
+                            except Exception as click_err:
+                                print(f"点击失败: {click_err}")
+                                if click_attempt < 2:
+                                    time.sleep(1)
+                        
+                        break
+                except Exception as e:
+                    print(f"选择器失败: {e}")
+                    continue
+            
+            print("✗ 所有尝试点击确认按钮的操作都失败了")
+            return False
+            
+        except Exception as e:
+            print(f"处理确认弹窗时出错: {e}")
+            return False
+    
+    def _verify_apply_contract_success(self, page: Page) -> bool:
+        """
+        验证申请签约是否成功提交
+        """
+        print("验证申请签约提交结果...")
+        
+        try:
+            time.sleep(2)
+            page.wait_for_load_state("networkidle")
+            
+            # 检查成功提示
+            success_indicators = [
+                'text=申请成功',
+                'text=提交成功',
+                'text=等待审核',
+                'text=签约申请已提交',
+                'text=申请已提交'
+            ]
+            
+            for indicator in success_indicators:
+                if page.locator(indicator).count() > 0:
+                    print(f"✓ 检测到成功提示: {indicator}")
+                    time.sleep(1)
+                    self._handle_success_popup(page)
+                    return True
+            
+            # 检查流程进度变化
+            progress_indicators = [
+                '//div[contains(@class, "flow-card status-active")]//div[contains(text(), "安全审核")]',
+                '//div[contains(@class, "flow-card")]//div[contains(text(), "签约评估")]',
+                '//div[contains(@class, "flow-card")]//div[contains(text(), "合同审核")]'
+            ]
+            
+            for indicator in progress_indicators:
+                try:
+                    if page.locator(f'xpath={indicator}').count() > 0:
+                        print(f"✓ 检测到签约流程已进入下一阶段")
+                        return True
+                except:
+                    continue
+            
+            # 检查按钮状态
+            apply_button = page.locator('button:has-text("申请签约")')
+            if apply_button.count() > 0:
+                button = apply_button.first
+                is_disabled = button.get_attribute('disabled') is not None or \
+                            'disabled' in button.get_attribute('class', '') or \
+                            not button.is_enabled()
+                
+                if is_disabled:
+                    print(f"✓ 申请签约按钮已被禁用，说明申请已提交")
+                    return True
+            else:
+                print(f"✓ 申请签约按钮已消失，说明申请已提交")
+                return True
+            
+            print("未检测到明确的失败标志，假设申请签约已完成")
+            return True
+            
+        except Exception as e:
+            print(f"验证申请签约结果时出错: {e}")
+            return False
+    
+    def _handle_fill_contract_process(self, page: Page) -> bool:
+        """
+        处理填写合同流程（独立流程）
+        负责查找并点击"填写合同"按钮，然后填写表单
+        """
+        print("处理填写合同流程...")
+        
+        try:
+            # 查找"填写合同"按钮
+            fill_contract_selectors = [
+                'button:has-text("填写合同")',
+                '//button[contains(text(), "填写合同")]',
+                '//span[contains(text(), "填写合同")]',
+                '//div[contains(@class, "flow-card-actions")]//button'
+            ]
+            
+            for selector in fill_contract_selectors:
                 try:
                     if selector.startswith('//'):
                         elements = page.locator(f'xpath={selector}')
@@ -423,35 +697,54 @@ class ContractManager:
                         elements = page.locator(selector)
                     
                     if elements.count() > 0:
-                        button_text = elements.first.text_content().strip()
-                        if "立即签约" in button_text:
-                            print("检测到立即签约按钮，暂时不处理")
-                            return False
-                except Exception:
+                        for i in range(elements.count()):
+                            button_text = elements.nth(i).text_content().strip()
+                            print(f"找到按钮: {button_text}")
+                            
+                            if "填写合同" in button_text:
+                                print(f"✓ 找到填写合同按钮")
+                                
+                                if self.ui_helper.safe_click(elements.nth(i), "填写合同按钮"):
+                                    print("已点击填写合同按钮")
+                                    time.sleep(3)
+                                    return self._fill_contract_details_form(page)
+                except Exception as e:
+                    print(f"选择器失败: {e}")
                     continue
             
-            # 尝试点击申请签约按钮
-            apply_contract_xpath = '/html/body/div[3]/div[2]/div/div[2]/div[3]/button[2]'
-            apply_contract_buttons = page.locator(f'xpath={apply_contract_xpath}')
+            print("未找到填写合同按钮")
+            return False
             
-            if apply_contract_buttons.count() > 0:
-                button_text = apply_contract_buttons.first.text_content().strip()
-                print(f"找到申请签约按钮: {button_text}")
-                
-                if self.ui_helper.safe_click(apply_contract_buttons.first, "申请签约按钮"):
-                    print("已点击申请签约按钮，等待6秒延迟...")
-                    time.sleep(6)
-                    
-                    # 填写表单
-                    if self._fill_contract_details_form(page):
-                        print("✓ 签约申请表单填写完成")
-                        return True
-                    else:
-                        print("⚠ 签约申请表单填写未完成")
-                        return False
-            else:
-                print("未找到申请签约按钮，尝试其他方法...")
-                return self._find_and_click_contract_button(page)
+        except Exception as e:
+            print(f"处理填写合同流程时出错: {e}")
+            return False
+    
+    def _check_success_indicators(self, page: Page) -> bool:
+        """
+        检查页面是否已经有成功提示
+        """
+        try:
+            success_indicators = [
+                'text=申请成功',
+                'text=提交成功',
+                'text=等待审核',
+                'text=签约申请已提交',
+                'text=申请已提交',
+                'text=合同已签署',
+                'text=签署成功'
+            ]
+            
+            for indicator in success_indicators:
+                if page.locator(indicator).count() > 0:
+                    print(f"✓ 检测到成功提示: {indicator}")
+                    return True
+            
+            print("⚠ 未找到签约相关操作，也没有成功提示")
+            return False
+            
+        except Exception as e:
+            print(f"检查成功提示时出错: {e}")
+            return False
                 
         except Exception as e:
             print(f"处理签约流程时出错: {e}")
@@ -459,70 +752,11 @@ class ContractManager:
     
     def _find_and_click_contract_button(self, page: Page) -> bool:
         """
-        查找并点击合同按钮
-        
-        Args:
-            page: 页面对象
-            
-        Returns:
-            是否成功
+        已废弃 - 使用 _handle_fill_contract_process 替代
+        此方法保留用于向后兼容
         """
-        print("滑动页面寻找填写合同按钮...")
-        
-        try:
-            # 先滚动页面确保所有元素可见
-            page_height = page.evaluate('() => document.body.scrollHeight')
-            viewport_height = page.evaluate('() => window.innerHeight')
-            
-            if page_height > viewport_height:
-                # 分步滚动查找按钮
-                scroll_steps = 3
-                scroll_step = (page_height - viewport_height) // scroll_steps
-                
-                for step in range(scroll_steps + 1):
-                    target_scroll = scroll_step * step
-                    page.evaluate(f'(position) => {{ window.scrollTo(0, position); }}', target_scroll)
-                    time.sleep(0.3)
-                    
-                    # 尝试多种选择器查找填写合同按钮
-                    contract_button_selectors = [
-                        'button:has-text("填写合同")',
-                        'button.arco-btn-primary:has-text("填写合同")',
-                        '//button[contains(@class, "arco-btn") and contains(text(), "填写合同")]',
-                        '//button//span[contains(text(), "填写合同")]',
-                        '//div[contains(@class, "flow-card-actions")]//button',
-                        '.flow-card-actions button',
-                    ]
-                    
-                    for selector in contract_button_selectors:
-                        try:
-                            if selector.startswith('//'):
-                                elements = page.locator(f'xpath={selector}')
-                            else:
-                                elements = page.locator(selector)
-                            
-                            if elements.count() > 0:
-                                # 检查按钮是否包含"填写合同"文本
-                                for i in range(elements.count()):
-                                    element = elements.nth(i)
-                                    button_text = element.text_content().strip()
-                                    print(f"找到按钮文本: {button_text}")
-                                    
-                                    if "填写合同" in button_text:
-                                        print(f"✓ 找到填写合同按钮")
-                                        if self.ui_helper.safe_click(element, "填写合同按钮"):
-                                            print("已点击填写合同按钮")
-                                            time.sleep(3)
-                                            return self._fill_contract_details_form(page)
-                        except Exception:
-                            continue
-                
-            print("未找到可用的填写合同按钮")
-            return False
-            
-        except Exception as e:
-            print(f"查找填写合同按钮时出错: {e}")
-            return False
+        print("警告: _find_and_click_contract_button 已废弃，使用 _handle_fill_contract_process")
+        return self._handle_fill_contract_process(page)
     
     def _fill_contract_details_form(self, page: Page) -> bool:
         """

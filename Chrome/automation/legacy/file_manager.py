@@ -267,10 +267,20 @@ def extract_novel_info_from_json(json_file):
         novel_title = novel_info['title']
         novel_synopsis = novel_info.get('synopsis', '')
         
-        # 处理角色信息
+        # 处理角色信息 - 优先从selected_plan中获取
         main_character = "未知主角"
-        if 'character_design' in data and 'main_character' in data['character_design']:
+        
+        # 方法1：从selected_plan.suggestions获取（创建书本阶段）
+        if 'selected_plan' in data and isinstance(data['selected_plan'], dict):
+            suggestions = data['selected_plan'].get('suggestions', {})
+            if isinstance(suggestions, dict) and 'name' in suggestions:
+                main_character = suggestions['name']
+        
+        # 方法2：从character_design获取（后期阶段）
+        elif 'character_design' in data and 'main_character' in data['character_design']:
             main_character = data['character_design']['main_character'].get('name', '未知主角')
+        
+        # 方法3：从characters获取（兼容旧格式）
         elif 'characters' in data and 'protagonist' in data['characters']:
             main_character = data['characters']['protagonist'].get('name', '未知主角')
 

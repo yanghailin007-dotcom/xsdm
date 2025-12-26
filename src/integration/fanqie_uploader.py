@@ -25,11 +25,18 @@ except ImportError as e:
 class FanqieUploader:
     """番茄小说一键上传管理器"""
     
+    # 任务保留时间（秒）：完成后保留5分钟，方便前端获取最终状态
+    TASK_RETENTION_TIME = 300
+    
     def __init__(self, config: Optional[Dict[str, Any]] = None):
         self.config = config or {}
         self.upload_tasks = {}
         self.upload_status = {}
+        self.task_completion_times = {}  # 记录任务完成时间
         self.logger = self._get_logger()
+        
+        # 启动定期清理已完成任务的线程
+        self._start_task_cleanup_thread()
         
     def _get_logger(self):
         """获取日志记录器"""
@@ -443,12 +450,51 @@ class FanqieUploader:
                 "updated_at": datetime.now().isoformat()
             })
             
+            # 如果任务完成或失败，记录完成时间
+            if status in ['completed', 'failed']:
+                self.task_completion_times[task_id] = time.time()
+                self.logger.info(f"📝 任务 {task_id} 状态更新为 {status}，将在 {self.TASK_RETENTION_TIME} 秒后清理")
+            
         self.upload_status[task_id] = {
             "status": status,
             "progress": progress,
             "message": message,
             "timestamp": datetime.now().isoformat()
         }
+    
+    def _start_task_cleanup_thread(self):
+        """启动定期清理已完成任务的线程"""
+        def cleanup_old_tasks():
+            while True:
+                try:
+                    current_time = time.time()
+                    tasks_to_remove = []
+                    
+                    for task_id, completion_time in list(self.task_completion_times.items()):
+                        # 检查是否超过保留时间
+                        if current_time - completion_time > self.TASK_RETENTION_TIME:
+                            tasks_to_remove.append(task_id)
+                    
+                    # 清理过期任务
+                    for task_id in tasks_to_remove:
+                        if task_id in self.upload_tasks:
+                            self.logger.info(f"🧹 清理过期任务: {task_id}")
+                            del self.upload_tasks[task_id]
+                        if task_id in self.upload_status:
+                            del self.upload_status[task_id]
+                        if task_id in self.task_completion_times:
+                            del self.task_completion_times[task_id]
+                    
+                    # 每60秒检查一次
+                    time.sleep(60)
+                    
+                except Exception as e:
+                    self.logger.error(f"清理任务失败: {e}")
+                    time.sleep(60)
+        
+        cleanup_thread = threading.Thread(target=cleanup_old_tasks, daemon=True)
+        cleanup_thread.start()
+        self.logger.info("✅ 任务清理线程已启动")
     
     def get_upload_status(self, task_id: str) -> Dict[str, Any]:
         """获取上传状态"""
