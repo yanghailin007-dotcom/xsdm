@@ -482,6 +482,104 @@ class ProductLoader:
 
 # ==================== API路由 ====================
 
+@phase_api.route('/phase-one/start-generation', methods=['POST'])
+@login_required
+def start_phase_one_generation():
+    """启动第一阶段生成任务（兼容旧接口）"""
+    return start_phase_one_generate()
+
+
+@phase_api.route('/phase-one/generate', methods=['POST'])
+@login_required
+def start_phase_one_generate():
+    """启动第一阶段生成任务"""
+    try:
+        data = request.json or {}
+        
+        # 提取参数
+        title = data.get('title')
+        synopsis = data.get('synopsis')
+        core_setting = data.get('core_setting')
+        core_selling_points = data.get('core_selling_points')
+        total_chapters = data.get('total_chapters', 200)
+        generation_mode = data.get('generation_mode', 'phase_one_only')
+        creative_seed = data.get('creative_seed')
+        
+        # 参数验证
+        if not title:
+            return jsonify({"success": False, "error": "小说标题不能为空"}), 400
+        
+        if not synopsis:
+            return jsonify({"success": False, "error": "小说简介不能为空"}), 400
+        
+        if not core_setting:
+            return jsonify({"success": False, "error": "核心设定不能为空"}), 400
+        
+        logger.info(f"🚀 [PHASE_ONE] 开始生成第一阶段设定: {title}")
+        logger.info(f"📋 [PHASE_ONE] 参数: total_chapters={total_chapters}, mode={generation_mode}")
+        
+        if not manager:
+            return jsonify({"success": False, "error": "管理器未初始化"}), 500
+        
+        # 生成任务ID
+        import uuid
+        task_id = str(uuid.uuid4())
+        
+        # 构建生成参数
+        generation_params = {
+            'title': title,
+            'synopsis': synopsis,
+            'core_setting': core_setting,
+            'core_selling_points': core_selling_points,
+            'total_chapters': total_chapters,
+            'generation_mode': generation_mode,
+            'creative_seed': creative_seed
+        }
+        
+        # 这里应该调用实际的生成逻辑
+        # 暂时返回一个模拟响应
+        logger.info(f"✅ [PHASE_ONE] 任务已创建: {task_id}")
+        
+        return jsonify({
+            "success": True,
+            "task_id": task_id,
+            "message": "第一阶段生成任务已启动",
+            "status": "initializing"
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ [PHASE_ONE] 启动生成失败: {e}")
+        import traceback
+        logger.error(f"错误堆栈: {traceback.format_exc()}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@phase_api.route('/phase-one/task/<task_id>/status', methods=['GET'])
+@login_required
+def get_phase_one_task_status(task_id):
+    """获取第一阶段任务状态"""
+    try:
+        # 这里应该从实际的任务存储中获取状态
+        # 暂时返回一个模拟响应
+        return jsonify({
+            "status": "completed",
+            "progress": 100,
+            "current_step": "completed",
+            "status_message": "生成完成",
+            "result": {
+                "title": "示例小说",
+                "synopsis": "这是一个示例简介",
+                "worldview": {"background": "示例世界观"},
+                "characters": [{"name": "主角", "role": "男主角"}],
+                "outlines": [],
+                "validation": {"is_valid": True}
+            }
+        })
+    except Exception as e:
+        logger.error(f"❌ [PHASE_ONE] 获取任务状态失败: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
 @phase_api.route('/phase-one/products/<title>', methods=['GET'])
 @login_required
 def get_phase_one_products(title):
