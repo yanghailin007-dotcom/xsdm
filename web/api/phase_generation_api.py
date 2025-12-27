@@ -521,9 +521,14 @@ def start_phase_one_generate():
         if not manager:
             return jsonify({"success": False, "error": "管理器未初始化"}), 500
         
-        # 生成任务ID
-        import uuid
-        task_id = str(uuid.uuid4())
+        # 构建创意种子（如果没有提供的话）
+        if not creative_seed:
+            creative_seed = {
+                "novelTitle": title,
+                "storySynopsis": synopsis,
+                "coreSetting": core_setting,
+                "coreSellingPoints": core_selling_points if isinstance(core_selling_points, list) else [core_selling_points] if core_selling_points else []
+            }
         
         # 构建生成参数
         generation_params = {
@@ -536,9 +541,11 @@ def start_phase_one_generate():
             'creative_seed': creative_seed
         }
         
-        # 这里应该调用实际的生成逻辑
-        # 暂时返回一个模拟响应
-        logger.info(f"✅ [PHASE_ONE] 任务已创建: {task_id}")
+        # 调用管理器启动实际的第一阶段生成任务
+        logger.info(f"🚀 [PHASE_ONE] 调用管理器启动生成任务...")
+        task_id = manager.start_generation(generation_params)
+        
+        logger.info(f"✅ [PHASE_ONE] 任务已启动: {task_id}")
         
         return jsonify({
             "success": True,
@@ -559,24 +566,40 @@ def start_phase_one_generate():
 def get_phase_one_task_status(task_id):
     """获取第一阶段任务状态"""
     try:
-        # 这里应该从实际的任务存储中获取状态
-        # 暂时返回一个模拟响应
-        return jsonify({
-            "status": "completed",
-            "progress": 100,
-            "current_step": "completed",
-            "status_message": "生成完成",
-            "result": {
-                "title": "示例小说",
-                "synopsis": "这是一个示例简介",
-                "worldview": {"background": "示例世界观"},
-                "characters": [{"name": "主角", "role": "男主角"}],
-                "outlines": [],
-                "validation": {"is_valid": True}
-            }
-        })
+        if not manager:
+            return jsonify({"success": False, "error": "管理器未初始化"}), 500
+        
+        # 从管理器获取任务状态
+        task_status = manager.get_task_status(task_id)
+        
+        if "error" in task_status:
+            return jsonify({"success": False, "error": task_status["error"]}), 404
+        
+        # 返回任务状态
+        response = {
+            "success": True,
+            "task_id": task_id,
+            "status": task_status.get("status", "unknown"),
+            "progress": task_status.get("progress", 0),
+            "current_step": task_status.get("current_step", ""),
+            "created_at": task_status.get("created_at", ""),
+            "updated_at": task_status.get("updated_at", "")
+        }
+        
+        # 如果任务完成，包含结果
+        if task_status.get("status") == "completed" and "result" in task_status:
+            response["result"] = task_status["result"]
+        
+        # 如果任务失败，包含错误信息
+        if task_status.get("status") == "failed" and "error" in task_status:
+            response["error"] = task_status["error"]
+        
+        return jsonify(response)
+        
     except Exception as e:
         logger.error(f"❌ [PHASE_ONE] 获取任务状态失败: {e}")
+        import traceback
+        logger.error(f"错误堆栈: {traceback.format_exc()}")
         return jsonify({"success": False, "error": str(e)}), 500
 
 
