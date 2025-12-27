@@ -592,10 +592,42 @@ class EnhancedContractService:
                         if current_title == novel_title:
                             self.log(f"找到目标小说: {novel_title}")
                             
-                            # 首先点击小说项使其激活
-                            self.log("点击小说项以激活...")
-                            item.click(force=True, timeout=5000)
-                            time.sleep(1)
+                            # 使用键盘导航激活条目，避免点击跳转
+                            self.log("使用键盘导航激活条目...")
+                            
+                            try:
+                                # 先点击第一个条目获取焦点（如果还没焦点的话）
+                                if i == 0:
+                                    first_item = novel_items.nth(0)
+                                    try:
+                                        # 尝试点击复选框区域获取焦点
+                                        checkbox_xpath = './div/div[1]/div[1]/div/div/div'
+                                        checkbox = first_item.locator(f'xpath={checkbox_xpath}')
+                                        if checkbox.count() > 0:
+                                            checkbox.first.click(timeout=2000)
+                                            self.log("✓ 已点击第一个条目获取焦点")
+                                    except:
+                                        pass
+                                
+                                # 使用键盘向下箭头导航到目标行
+                                if i > 0:
+                                    for _ in range(i):
+                                        self.page.keyboard.press('ArrowDown')
+                                        time.sleep(0.1)
+                                    self.log(f"✓ 使用键盘导航到第 {i+1} 行")
+                                else:
+                                    self.log("✓ 已在第一行")
+                                
+                                time.sleep(0.5)
+                                
+                            except Exception as e:
+                                self.log(f"键盘导航失败，尝试备用方案: {e}")
+                                # 备用方案：尝试悬停
+                                try:
+                                    item.hover(timeout=2000)
+                                    self.log("✓ 使用悬停激活")
+                                except:
+                                    self.log("⚠ 激活失败，继续尝试")
                             
                             # 重新查找签约管理按钮
                             contract_button_xpath = './div/div[1]/div[2]/div[3]/div/button[2]/span'
