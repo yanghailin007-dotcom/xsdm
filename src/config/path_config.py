@@ -64,6 +64,7 @@ class NovelPathConfig:
             "worldview_dir": str(materials_dir / "worldview"),
             "characters_dir": str(project_dir / "characters"),
             "character_design_file": str(project_dir / "characters" / f"{safe_title}_角色设计.json"),
+            "market_analysis_dir": str(market_analysis_dir),
             "market_analysis": str(market_analysis_dir / "market_analysis.json"),
             "creative_brief": str(materials_dir / "creative_brief.json"),
             "ai_refined_brief": str(materials_dir / "ai_refined_brief.txt"),

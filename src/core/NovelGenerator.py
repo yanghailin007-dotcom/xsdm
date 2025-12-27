@@ -1915,6 +1915,27 @@ class NovelGenerator:
                 return False
             
             print(f"🎉 第一阶段结果保存完成！(已保存为{len(products_mapping)}个单独文件)")
+            
+            # 删除临时文件：未定稿创意_*_Refined_AI_Brief.txt
+            try:
+                import glob
+                temp_files_pattern = os.path.join("小说项目", "未定稿创意_*_Refined_AI_Brief.txt")
+                temp_files = glob.glob(temp_files_pattern)
+                
+                if temp_files:
+                    print(f"🗑️  找到 {len(temp_files)} 个临时文件，准备删除...")
+                    for temp_file in temp_files:
+                        try:
+                            os.remove(temp_file)
+                            print(f"✅  已删除临时文件: {temp_file}")
+                        except Exception as e:
+                            print(f"⚠️  删除临时文件失败: {temp_file}, 错误: {e}")
+                else:
+                    print("ℹ️  未找到临时文件需要删除")
+                    
+            except Exception as e:
+                print(f"⚠️  清理临时文件过程出错: {e}")
+            
             return True
             
         except Exception as e:

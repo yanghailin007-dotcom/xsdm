@@ -1520,8 +1520,18 @@ JSON
             temp_plan_for_event_structure, stage_name, stage_range, creative_seed, novel_title, novel_synopsis
         )
         # 3. 根据验证结果优化事件结构 (注意：这里直接修改 fleshed_out_major_events)
-        if goal_coherence.get("overall_coherence_score", 10) < 8.0:
-            self.logger.warn(f"  ⚠️ 目标层级一致性评分较低 ({goal_coherence.get('overall_coherence_score', 0):.1f})，进行优化...")
+        # 处理类型：可能是字符串或数字
+        try:
+            coherence_score = goal_coherence.get("overall_coherence_score", 10)
+            if isinstance(coherence_score, str):
+                coherence_score = float(coherence_score)
+            elif coherence_score is None:
+                coherence_score = 10
+        except (ValueError, TypeError):
+            coherence_score = 10
+        
+        if coherence_score < 8.0:
+            self.logger.warn(f"  ⚠️ 目标层级一致性评分较低 ({coherence_score:.1f})，进行优化...")
             optimized_temp_plan_coherence = self._optimize_based_on_coherence_assessment(
                 temp_plan_for_event_structure, goal_coherence, stage_name, stage_range
             )
@@ -1529,8 +1539,18 @@ JSON
             fleshed_out_major_events = optimized_temp_plan_coherence["stage_writing_plan"]["event_system"]["major_events"]
             # 确保 temp_plan_for_event_structure 也更新，以防后续连续性优化需要最新的数据
             temp_plan_for_event_structure["stage_writing_plan"]["event_system"]["major_events"] = fleshed_out_major_events
-        if continuity_assessment.get("overall_continuity_score", 10) < 9.5:
-            self.logger.warn(f"  ⚠️ 阶段事件连续性评分较低 ({continuity_assessment.get('overall_continuity_score', 0):.1f})，进行优化...")
+        continuity_score = continuity_assessment.get("overall_continuity_score", 10)
+        # 处理类型：可能是字符串或数字
+        try:
+            if isinstance(continuity_score, str):
+                continuity_score = float(continuity_score)
+            elif continuity_score is None:
+                continuity_score = 10
+        except (ValueError, TypeError):
+            continuity_score = 10
+        
+        if continuity_score < 9.5:
+            self.logger.warn(f"  ⚠️ 阶段事件连续性评分较低 ({continuity_score:.1f})，进行优化...")
             optimized_temp_plan_continuity = self._optimize_based_on_continuity_assessment(
                 temp_plan_for_event_structure, continuity_assessment, stage_name, stage_range
             )

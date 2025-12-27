@@ -63,6 +63,12 @@ def register_auth_routes(app):
 def register_page_routes(app):
     """注册基础页面路由"""
     
+    @app.route('/favicon.ico')
+    def favicon():
+        """处理 favicon 请求，返回 204 无内容"""
+        from flask import Response
+        return Response(status=204)
+    
     @app.route('/landing', methods=['GET'])
     def landing():
         """大文娱系统首页"""

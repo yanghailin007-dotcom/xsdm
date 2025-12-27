@@ -106,9 +106,21 @@ function renderStoryline(storyline) {
     const storylineMain = document.getElementById('storyline-main');
     storylineMain.style.display = 'block';
     
-    // 更新阶段信息
-    document.getElementById('stage-name').textContent = storyline.stage_name || '全书故事线';
-    document.getElementById('chapter-range-text').textContent = storyline.chapter_range || '全章节';
+    // 检查是否是多阶段数据
+    const isMultiStage = storyline.stage_info && Array.isArray(storyline.stage_info) && storyline.stage_info.length > 0;
+    
+    if (isMultiStage) {
+        // 显示多阶段信息
+        const stageInfo = storyline.stage_info.map(si =>
+            `${si.stage_name} (${si.chapter_range}, ${si.major_event_count}个事件)`
+        ).join(' → ');
+        document.getElementById('stage-name').textContent = `全书故事线 (${storyline.stage_info.length}个阶段)`;
+        document.getElementById('chapter-range-text').textContent = stageInfo;
+    } else {
+        // 单阶段数据
+        document.getElementById('stage-name').textContent = storyline.stage_name || '全书故事线';
+        document.getElementById('chapter-range-text').textContent = storyline.chapter_range || '全章节';
+    }
     
     // 渲染重大事件列表
     renderMajorEventsList(storyline.major_events || []);
@@ -185,8 +197,12 @@ function renderMajorEventDetail(index) {
     
     // 更新面板标题
     const displayName = event.name || event.main_goal || `重大事件 ${index + 1}`;
-    document.getElementById('medium-panel-title').innerHTML = `📋 ${escapeHtml(displayName)}`;
-    document.getElementById('medium-panel-subtitle').textContent = `${event.chapter_range || '全章节'}`;
+    
+    // 显示阶段信息（如果有）
+    const stageInfo = event._stage ? `【${event._stage}】` : '';
+    
+    document.getElementById('medium-panel-title').innerHTML = `📋 ${stageInfo}${escapeHtml(displayName)}`;
+    document.getElementById('medium-panel-subtitle').textContent = `${event.chapter_range || event._chapter_range || '全章节'}`;
     
     let html = `
         <div class="major-event-detail">
@@ -251,8 +267,33 @@ function renderMajorEventDetail(index) {
         `;
     }
     
-    // 中级事件列表
-    const mediumEvents = event.medium_events || [];
+    // 中级事件列表 - 优先从 composition 中提取
+    let mediumEvents = [];
+    
+    // 优先从 composition 中提取
+    if (event.composition && typeof event.composition === 'object') {
+        // composition 是一个包含 '起', '承', '转', '合' 的对象
+        const phases = ['起', '承', '转', '合'];
+        phases.forEach(phase => {
+            if (event.composition[phase] && Array.isArray(event.composition[phase])) {
+                event.composition[phase].forEach(me => {
+                    me.phase = phase;
+                    mediumEvents.push(me);
+                });
+            }
+        });
+    }
+    
+    // 备用方案：从 medium_events 数组提取
+    if (mediumEvents.length === 0 && event.medium_events) {
+        mediumEvents = event.medium_events;
+    }
+    
+    // 从 _medium_events 提取（如果有）
+    if (mediumEvents.length === 0 && event._medium_events) {
+        mediumEvents = event._medium_events;
+    }
+    
     if (mediumEvents.length > 0) {
         html += `
             <div class="detail-section">
@@ -275,12 +316,17 @@ function renderMajorEventDetail(index) {
 function createMediumEventCard(event, eventIndex, majorIndex) {
     const displayName = event.name || event.main_goal || `中级事件 ${eventIndex + 1}`;
     const fieldId = `medium-${majorIndex}-${eventIndex}`;
+    const phase = event.phase || '起';
+    const phaseIndex = ['起', '承', '转', '合'].indexOf(phase) + 1;
     
     return `
         <div class="medium-event-card">
             <div class="medium-event-header" onclick="toggleMediumEvent('${fieldId}')">
                 <span class="medium-event-title">${escapeHtml(displayName)}</span>
-                <span class="medium-event-badge">${event.phase || '阶段'} ${eventIndex + 1}</span>
+                <div class="medium-event-badges">
+                    <span class="medium-event-badge badge-phase">${phase} ${phaseIndex}</span>
+                    ${event.chapter_range ? `<span class="medium-event-badge badge-chapter">${event.chapter_range}</span>` : ''}
+                </div>
             </div>
             <div class="medium-event-body" id="${fieldId}">
                 <div class="medium-event-field">
@@ -289,12 +335,20 @@ function createMediumEventCard(event, eventIndex, majorIndex) {
                 </div>
                 <div class="medium-event-field">
                     <label class="medium-field-label">💭 情绪焦点</label>
-                    <textarea class="editable-field" data-field="emotional_focus" data-major="${majorIndex}" data-medium="${eventIndex}">${escapeHtml(event.emotional_focus || event.emotional_goal || '')}</textarea>
+                    <textarea class="editable-field" data-field="emotional_focus" data-major="${majorIndex}" data-medium="${eventIndex}">${escapeHtml(event.emotional_focus || '')}</textarea>
                 </div>
+                ${event.description ? `
                 <div class="medium-event-field">
                     <label class="medium-field-label">📝 描述</label>
-                    <textarea class="editable-field" data-field="description" data-major="${majorIndex}" data-medium="${eventIndex}">${escapeHtml(event.description || '')}</textarea>
+                    <textarea class="editable-field" data-field="description" data-major="${majorIndex}" data-medium="${eventIndex}">${escapeHtml(event.description)}</textarea>
                 </div>
+                ` : ''}
+                ${event.decomposition_type ? `
+                <div class="medium-event-field">
+                    <label class="medium-field-label">🔧 分解类型</label>
+                    <div class="field-value">${escapeHtml(event.decomposition_type)}</div>
+                </div>
+                ` : ''}
             </div>
         </div>
     `;
