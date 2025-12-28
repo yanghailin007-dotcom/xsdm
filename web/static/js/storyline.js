@@ -388,7 +388,7 @@ function createMediumEventCard(event, eventIndex, majorIndex) {
                 <div class="medium-event-badges">
                     <span class="medium-event-badge badge-phase">${phase} ${phaseIndex}</span>
                     ${chapterRange ? `<span class="medium-event-badge badge-chapter">${escapeHtml(chapterRange)}</span>` : ''}
-                    ${hasSpecialEvents ? `<span class="medium-event-badge badge-special">✨ ${specialEvents.length}个特殊事件</span>` : ''}
+                    ${hasSpecialEvents ? `<span class="medium-event-badge badge-special">✨ ${specialEmotionalEvents.length}个特殊事件</span>` : ''}
                 </div>
             </div>
             <div class="medium-event-body" id="${fieldId}">
