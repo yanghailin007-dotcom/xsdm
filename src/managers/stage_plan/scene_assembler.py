@@ -42,8 +42,6 @@ class SceneAssembler:
         self.logger.info(f"\n  -> [第一阶段] 正在为阶段 '{stage_name}' ({stage_range}) 组装计划。")
         self.logger.info(f"  -> 收到 {len(final_major_events)} 个已分解的重大事件。")
         
-        all_special_events = []
-        
         # 构建情感摘要
         emotional_summary = {
             "stage_emotional_arc": overall_stage_plan.get("overall_stage_plan", {}).get(stage_name, {}).get("emotional_goal", ""),
@@ -51,10 +49,11 @@ class SceneAssembler:
             "medium_events_emotional_focus": []
         }
         
-        # 统计中型事件数量
+        # 统计中型事件和特殊情感事件数量
         total_medium_events = 0
+        total_special_events = 0
         
-        # 遍历所有重大事件，收集特殊情感事件和情感摘要
+        # 遍历所有重大事件，收集中型事件信息和特殊情感事件
         for major_event in final_major_events:
             self.logger.info(f"    -> 正在处理重大事件: '{major_event.get('name')}'")
             
@@ -65,11 +64,7 @@ class SceneAssembler:
                 "emotional_arc_summary": major_event.get("emotional_arc_summary", "")
             })
             
-            # 2. 收集重大事件中包含的特殊情感事件
-            if "special_emotional_events" in major_event:
-                all_special_events.extend(major_event["special_emotional_events"])
-            
-            # 3. 遍历重大事件的 'composition'，收集中型事件信息
+            # 2. 遍历重大事件的 'composition'，收集中型事件信息和特殊情感事件
             composition = major_event.get("composition", {})
             if not composition:
                 self.logger.warn(f"      ⚠️ 警告: 重大事件 '{major_event.get('name')}' 缺少 'composition' 字段。")
@@ -91,8 +86,14 @@ class SceneAssembler:
                             "emotional_focus": medium_event.get("emotional_focus"),
                             "emotional_intensity": medium_event.get("emotional_intensity", "medium")
                         })
+                    
+                    # 3. 收集中型事件中包含的特殊情感事件
+                    if "special_emotional_events" in medium_event:
+                        special_events = medium_event["special_emotional_events"]
+                        total_special_events += len(special_events)
+                        self.logger.info(f"         💫 包含 {len(special_events)} 个特殊情感事件")
         
-        self.logger.info(f"  ✅ 第一阶段统计：共 {len(final_major_events)} 个重大事件，{total_medium_events} 个中型事件，{len(all_special_events)} 个特殊情感事件")
+        self.logger.info(f"  ✅ 第一阶段统计：共 {len(final_major_events)} 个重大事件，{total_medium_events} 个中型事件，{total_special_events} 个特殊情感事件")
         
         # 获取阶段概览
         stage_info = overall_stage_plan.get("overall_stage_plan", {}).get(stage_name, {})
@@ -113,9 +114,8 @@ class SceneAssembler:
                 },
                 "emotional_summary": emotional_summary,
                 "event_system": {
-                    "overall_approach": "第一阶段生成：包含重大事件、中型事件和特殊情感事件。章节事件和场景事件将在第二阶段生成。",
+                    "overall_approach": "第一阶段生成：包含重大事件、中型事件（特殊情感事件附着在中级事件上）。章节事件和场景事件将在第二阶段生成。",
                     "major_events": final_major_events,
-                    "special_emotional_events": all_special_events,
                     "chapter_scene_events": []  # 第一阶段为空，第二阶段填充
                 },
             }

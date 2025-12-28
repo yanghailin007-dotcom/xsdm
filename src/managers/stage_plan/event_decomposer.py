@@ -175,12 +175,12 @@ class EventDecomposer:
             self.logger.warn(f"构建顶层上下文时发生错误: {e}, 使用简化版上下文。")
             return "# 顶层战略背景\n简化版上下文"
     
-    def _build_decomposition_prompt(self, major_event_skeleton: Dict, 
+    def _build_decomposition_prompt(self, major_event_skeleton: Dict,
                                    stage_name: str, top_level_context: str) -> str:
         """构建事件分解prompt"""
         return f"""
-# 任务：重大事件"分形解剖"与"情感点缀"
-你的任务是将一个宏观的"重大事件"，根据其在全书蓝图中的战略地位，分解为具体的、可执行的【中型事件】和【特殊情感事件】。
+# 任务：重大事件"分形解剖"与"情感融合"
+你的任务是将一个宏观的"重大事件"，根据其在全书蓝图中的战略地位，分解为具体的、可执行的【中型事件】，并为每个中型事件设计【特殊情感事件】。
 
 {top_level_context}
 
@@ -193,10 +193,19 @@ class EventDecomposer:
 ## 分解原则与规则 (必须严格遵守)
 1.  **目标继承与服务**: 你设计的每一个【中型事件】都必须是为实现【当前重大事件核心目标】和【顶层战略背景】服务的。
 2.  **结构完整**: 所有中型事件必须共同构成一个服务于重大事件目标的、逻辑连贯的"起、承、转、合"结构。
-3.  **情感点缀**: 在情节推进的间隙，巧妙设计【特殊情感事件】，用于深化情感、调整节奏、塑造人物弧光。
-4.  【绝对覆盖指令】: 你生成的所有中型事件和特殊情感事件的chapter_range，必须完整且无缝地覆盖父级"重大事件"的整个章节范围。
+3.  【绝对覆盖指令】: 你生成的所有中型事件的chapter_range，必须完整且无缝地覆盖父级"重大事件"的整个章节范围。
 
-## 输出格式: 严格遵守规则，返回包含'composition'和'special_emotional_events'字段的JSON对象
+## 【重要】特殊情感事件设计原则
+
+特殊情感事件不是独立的章节事件，而是**附着在中型事件上的情感元素**，用于深化角色关系、调整叙事节奏。
+
+**关键要求**：
+1. **附着到中型事件**：每个特殊情感事件必须明确附着到某个具体的中型事件
+2. **指定目标章节**：如果中型事件跨越多章，必须明确特殊情感事件发生在哪一章
+3. **不要分配chapter_range**：特殊情感事件不占用独立章节，只需要指定目标章节号
+4. **提供融合线索**：给出情感基调、关键元素，让第二阶段的场景生成自然融合
+
+## 输出格式: 严格遵守规则，返回包含'composition'字段的JSON对象
 {{
     "name": "{major_event_skeleton.get('name')}",
     "type": "major_event",
@@ -205,10 +214,10 @@ class EventDecomposer:
     "emotional_goal": "{major_event_skeleton.get('emotional_goal')}",
     "chapter_range": "{major_event_skeleton.get('chapter_range')}",
     "composition": {{
-        "起": [ 
-            {{ 
-                "name": "中型事件名", 
-                "type": "medium_event", 
+        "起": [
+            {{
+                "name": "中型事件名",
+                "type": "medium_event",
                 "chapter_range": "string",
                 "decomposition_type": "string",
                 "main_goal": "目标",
@@ -216,26 +225,28 @@ class EventDecomposer:
                 "emotional_intensity": "low/medium/high",
                 "key_emotional_beats": ["情感节拍1"],
                 "description": "描述",
-                "contribution_to_major": "string"
-            }} 
+                "contribution_to_major": "string",
+                "special_emotional_events": [
+                    {{
+                        "name": "情感互动名称",
+                        "target_chapter": 10,  // 必须指定：在哪一章发生
+                        "purpose": "深化角色关系",
+                        "emotional_tone": "温馨/紧张/忧郁等",
+                        "key_elements": ["对话", "眼神交流", "肢体语言"],
+                        "context_hint": "在中型事件的转折点"  // 可选：上下文提示
+                    }}
+                ]
+            }}
         ],
         "承": [],
         "转": [],
         "合": []
     }},
-    "special_emotional_events": [
-        {{
-            "name": "string",
-            "type": "special_emotional_event",
-            "placement_hint": "string",
-            "chapter_range": "string",
-            "purpose": "string",
-            "event_subtype": "string"
-        }}
-    ],
     "emotional_arc_summary": "string",
     "aftermath": "string"
 }}
+
+注意：special_emotional_events 是中型事件的子字段，不是重大事件的顶级字段！
 """
     
     def _decompose_to_chapter_then_scene(self, medium_event: Dict, major_event: Dict,
@@ -274,6 +285,32 @@ class EventDecomposer:
 3. **递进关系**：章节之间要有明确的递进关系，前一章节为后一章铺垫
 4. **避免重复**：严禁在不同章节使用相同或相似的场景内容"""
         
+        # 🔥 新增：收集当前中型事件中的特殊情感事件
+        special_emotional_context = ""
+        special_events = medium_event.get("special_emotional_events", [])
+        if special_events:
+            # 按章节分组特殊情感事件
+            events_by_chapter = {}
+            for se in special_events:
+                target_ch = se.get("target_chapter")
+                if target_ch:
+                    if target_ch not in events_by_chapter:
+                        events_by_chapter[target_ch] = []
+                    events_by_chapter[target_ch].append(se)
+            
+            if events_by_chapter:
+                special_emotional_context = "\n## 【情感融合要求】特殊情感事件\n"
+                for chapter_num, events in sorted(events_by_chapter.items()):
+                    special_emotional_context += f"\n### 第{chapter_num}章需要融合的情感事件：\n"
+                    for se in events:
+                        special_emotional_context += f"- **{se.get('name')}**: {se.get('purpose', '')}\n"
+                        special_emotional_context += f"  - 情感基调: {se.get('emotional_tone', '')}\n"
+                        special_emotional_context += f"  - 关键元素: {', '.join(se.get('key_elements', []))}\n"
+                        if se.get('context_hint'):
+                            special_emotional_context += f"  - 上下文提示: {se.get('context_hint')}\n"
+                
+                special_emotional_context += "\n**重要**：请将这些情感元素自然地融入到对应章节的场景中，让情感发展与情节推进有机结合，不要生硬插入。\n"
+        
         chapter_events_prompt = f"""
 # 任务：中型事件"章节分解" - 服务于中型事件目标
 {consistency_block}
@@ -286,6 +323,7 @@ class EventDecomposer:
 - **事件章节范围**: {medium_event.get('chapter_range')}
 - **事件核心目标**: {medium_event.get('main_goal')}
 - **事件情绪重点**: {medium_event.get('emotional_focus')}
+{special_emotional_context}
 
 ## 分解要求
 {chapter_instruction}
@@ -398,6 +436,33 @@ class EventDecomposer:
             chapter_num = start_ch + i
             chapter_breakdown += f"- 第{chapter_num}章: 需要完成中型事件目标的{['起始','发展','高潮','收尾'][min(i, 3)]}部分\n"
         
+        # 🔥 新增：收集当前中型事件中的特殊情感事件
+        special_emotional_context = ""
+        special_events = medium_event.get("special_emotional_events", [])
+        if special_events:
+            # 按章节分组特殊情感事件
+            events_by_chapter = {}
+            for se in special_events:
+                target_ch = se.get("target_chapter")
+                if target_ch:
+                    if target_ch not in events_by_chapter:
+                        events_by_chapter[target_ch] = []
+                    events_by_chapter[target_ch].append(se)
+            
+            if events_by_chapter:
+                special_emotional_context = "\n## 【情感融合要求】特殊情感事件\n"
+                for chapter_num, events in sorted(events_by_chapter.items()):
+                    if start_ch <= chapter_num <= end_ch:  # 只包含在中型事件范围内的章节
+                        special_emotional_context += f"\n### 第{chapter_num}章需要融合的情感事件：\n"
+                        for se in events:
+                            special_emotional_context += f"- **{se.get('name')}**: {se.get('purpose', '')}\n"
+                            special_emotional_context += f"  - 情感基调: {se.get('emotional_tone', '')}\n"
+                            special_emotional_context += f"  - 关键元素: {', '.join(se.get('key_elements', []))}\n"
+                            if se.get('context_hint'):
+                                special_emotional_context += f"  - 上下文提示: {se.get('context_hint')}\n"
+                
+                special_emotional_context += "\n**重要**：请将这些情感元素自然地融入到对应章节的场景中，让情感发展与情节推进有机结合。\n"
+        
         prompt = f"""
 # 任务：中型事件"多章场景构建"
 {consistency_block}
@@ -407,6 +472,7 @@ class EventDecomposer:
 - **中型事件名称**: {medium_event.get('name')}
 - **事件章节范围**: {medium_event.get('chapter_range')}
 - **事件核心目标**: {medium_event.get('main_goal')}
+{special_emotional_context}
 
 ## 章节分配要求
 {chapter_breakdown}
@@ -634,6 +700,25 @@ class EventDecomposer:
 {consistency_guidance}
 """
         
+        # 🔥 新增：收集当前中型事件中的特殊情感事件
+        special_emotional_context = ""
+        special_events = medium_event.get("special_emotional_events", [])
+        if special_events:
+            # 只包含目标章节为当前章节的事件
+            current_chapter_events = [se for se in special_events if se.get("target_chapter") == start_ch]
+            
+            if current_chapter_events:
+                special_emotional_context = "\n## 【情感融合要求】本章需要融合的情感事件：\n"
+                for se in current_chapter_events:
+                    special_emotional_context += f"\n### {se.get('name')}\n"
+                    special_emotional_context += f"- **目的**: {se.get('purpose', '')}\n"
+                    special_emotional_context += f"- **情感基调**: {se.get('emotional_tone', '')}\n"
+                    special_emotional_context += f"- **关键元素**: {', '.join(se.get('key_elements', []))}\n"
+                    if se.get('context_hint'):
+                        special_emotional_context += f"- **上下文提示**: {se.get('context_hint')}\n"
+                
+                special_emotional_context += "\n**重要**：请将这些情感元素自然地融入到本章的场景中，让情感发展与情节推进有机结合。\n"
+        
         prompt = f"""
 # 任务：单章中型事件"完整起承转合场景构建"
 {consistency_block}
@@ -645,6 +730,7 @@ class EventDecomposer:
 - **事件核心目标**: {medium_event.get('main_goal')}
 - **事件情绪重点**: {medium_event.get('emotional_focus')}
 - **情绪强度**: {medium_event.get('emotional_intensity', 'medium')}
+{special_emotional_context}
 
 ## 【关键要求】完整的起承转合结构
 由于只有1章，**必须**在一个章节内形成完整的起承转合戏剧结构：
