@@ -263,28 +263,8 @@ function renderMajorEventDetail(index) {
         `;
     }
     
-    // 特殊情感事件 - 从多个可能的位置读取
-    const specialEvents = event.special_events || [];
-    const specialEmotionalEvents = event.special_emotional_events || [];
-    const allSpecialEvents = [...specialEvents, ...specialEmotionalEvents];
-    
-    if (allSpecialEvents.length > 0) {
-        html += `
-            <div class="detail-section">
-                <div class="detail-section-title">✨ 特殊情感事件 (${allSpecialEvents.length})</div>
-                <div class="special-events-grid">
-                    ${allSpecialEvents.map(se => `
-                        <div class="special-event-card">
-                            <h4>${escapeHtml(se.name || se.event_subtype || '特殊事件')}</h4>
-                            <p><strong>目的:</strong> ${escapeHtml(se.purpose || se.significance || se.placement_hint || '-')}</p>
-                            ${se.chapter ? `<p><strong>章节:</strong> 第${se.chapter}章</p>` : ''}
-                            ${se.description ? `<p><strong>描述:</strong> ${escapeHtml(se.description)}</p>` : ''}
-                        </div>
-                    `).join('')}
-                </div>
-            </div>
-        `;
-    }
+    // 🔥 重新设计：特殊情感事件不再在重大事件级别显示
+    // 它们现在附着在中型事件上，会在中型事件卡片中作为子元素展示
     
     // 中级事件列表 - 优先从 composition 中提取
     let mediumEvents = [];
@@ -341,20 +321,28 @@ function createMediumEventCard(event, eventIndex, majorIndex) {
     // 使用标准化的章节范围（如果有的话），否则使用原始值
     const chapterRange = event._chapter_range_normalized || event.chapter_range || '';
     
-    // 检查是否有特殊事件
-    const specialEvents = event.special_events || [];
-    const hasSpecialEvents = specialEvents.length > 0;
+    // 🔥 重新设计：检查是否有特殊情感事件（新格式）
+    const specialEmotionalEvents = event.special_emotional_events || [];
+    const hasSpecialEvents = specialEmotionalEvents.length > 0;
     
     let specialEventsHtml = '';
     if (hasSpecialEvents) {
         specialEventsHtml = `
             <div class="medium-event-field">
-                <label class="medium-field-label">✨ 特殊情感事件 (${specialEvents.length})</label>
+                <label class="medium-field-label">✨ 特殊情感事件 (${specialEmotionalEvents.length})</label>
                 <div class="special-events-list">
-                    ${specialEvents.map(se => `
+                    ${specialEmotionalEvents.map(se => `
                         <div class="special-event-item">
-                            <div class="special-event-name">${escapeHtml(se.name || se.event_subtype || '特殊事件')}</div>
-                            <div class="special-event-purpose">${escapeHtml(se.purpose || se.placement_hint || '-')}</div>
+                            <div class="special-event-header">
+                                <div class="special-event-name">${escapeHtml(se.name || '特殊事件')}</div>
+                                ${se.target_chapter ? `<div class="special-event-chapter">第${se.target_chapter}章</div>` : ''}
+                            </div>
+                            <div class="special-event-purpose"><strong>目的:</strong> ${escapeHtml(se.purpose || '-')}</div>
+                            ${se.emotional_tone ? `<div class="special-event-tone"><strong>情感基调:</strong> ${escapeHtml(se.emotional_tone)}</div>` : ''}
+                            ${se.key_elements && se.key_elements.length > 0 ? `
+                            <div class="special-event-elements"><strong>关键元素:</strong> ${escapeHtml(se.key_elements.join(', '))}</div>
+                            ` : ''}
+                            ${se.context_hint ? `<div class="special-event-context"><strong>上下文:</strong> ${escapeHtml(se.context_hint)}</div>` : ''}
                         </div>
                     `).join('')}
                 </div>
@@ -826,19 +814,58 @@ expectationStyle.textContent = `
         border-left: 3px solid #f59e0b;
         padding: 12px;
         border-radius: 6px;
+        margin-bottom: 8px;
+    }
+    
+    .special-event-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
     }
     
     .special-event-name {
         font-weight: 600;
         color: #92400e;
-        margin-bottom: 4px;
         font-size: 14px;
+    }
+    
+    .special-event-chapter {
+        background: linear-gradient(135deg, #fed7aa 0%, #fbbf24 100%);
+        color: #78350f;
+        padding: 2px 8px;
+        border-radius: 10px;
+        font-size: 11px;
+        font-weight: 600;
     }
     
     .special-event-purpose {
         color: #78350f;
         font-size: 13px;
         line-height: 1.4;
+        margin-bottom: 4px;
+    }
+    
+    .special-event-tone {
+        color: #92400e;
+        font-size: 12px;
+        margin-bottom: 4px;
+    }
+    
+    .special-event-elements {
+        color: #78350f;
+        font-size: 12px;
+        margin-bottom: 4px;
+        padding: 4px 8px;
+        background: rgba(251, 191, 36, 0.05);
+        border-radius: 4px;
+    }
+    
+    .special-event-context {
+        color: #92400e;
+        font-size: 12px;
+        font-style: italic;
+        opacity: 0.8;
     }
 `;
 document.head.appendChild(expectationStyle);
