@@ -38,7 +38,7 @@ from src.managers.StagePlanManager import StagePlanManager
 
 # 导入新的模块化组件
 from src.core.generation.PlanGenerator import PlanGenerator
-from src.core.fanfiction.FanfictionDetector import FanfictionDetector
+from src.core.ImprovedFanfictionDetector import ImprovedFanfictionDetector
 from src.core.content.CoverGenerator import CoverGenerator
 
 # 导入工具组件
@@ -165,8 +165,8 @@ class NovelGenerator:
             content_generator=self.content_generator
         )
         
-        # 同人小说检测器（传递API客户端用于获取背景资料）
-        self.fanfiction_detector = FanfictionDetector(api_client=self.api_client)
+        # 同人小说检测器（使用改进版，支持功法名排除）
+        self.fanfiction_detector = ImprovedFanfictionDetector(api_client=self.api_client)
         
         # 封面生成器
         cover_generator = None
@@ -284,6 +284,9 @@ class NovelGenerator:
         if total_chapters is None:
             total_chapters = self.config.get("defaults", {}).get("total_chapters", 200)
         temp_title_for_filename = f"未定稿创意_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        
+        # 创建初始检查点
+        self._create_initial_checkpoint(creative_seed, total_chapters)
         
         if isinstance(creative_seed, str):
             try:
@@ -728,11 +731,10 @@ class NovelGenerator:
         
         print(f"    ✅ 检测为同人小说：《{work_name}》")
         
-        # 获取背景资料并进行可信度验证
+        # 获取背景资料并进行可信度验证（ImprovedFanfictionDetector内部使用ImprovedContentVerifier）
         background_info = self.fanfiction_detector.get_original_work_background(
             work_name,
-            creative_work,
-            self.content_verifier
+            creative_work
         )
         
         if background_info:
@@ -2252,3 +2254,40 @@ class NovelGenerator:
             return data.get(sub_key, default)
         
         return default
+    
+    def _create_initial_checkpoint(self, creative_seed, total_chapters: Optional[int] = None):
+        """
+        创建初始检查点
+        在生成开始时调用，确保检查点系统正常工作
+        """
+        try:
+            from src.managers.stage_plan.generation_checkpoint import GenerationCheckpoint
+            from pathlib import Path
+            
+            # 生成临时标题（用于创建检查点目录）
+            temp_title = f"未定稿创意_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            
+            # 创建检查点管理器
+            checkpoint_mgr = GenerationCheckpoint(
+                novel_title=temp_title,
+                workspace_dir=Path.cwd()
+            )
+            
+            # 创建初始检查点
+            checkpoint_mgr.create_checkpoint(
+                phase='phase_one',
+                step='initialization',
+                data={
+                    'generation_params': {
+                        'creative_seed': creative_seed,
+                        'total_chapters': total_chapters or self.config.get("defaults", {}).get("total_chapters", 200)
+                    },
+                    'status': 'started',
+                    'start_time': datetime.now().isoformat()
+                }
+            )
+            
+            self.logger.info(f"✅ 初始检查点已创建: {temp_title}")
+            
+        except Exception as e:
+            self.logger.info(f"⚠️ 创建初始检查点失败: {e}")
