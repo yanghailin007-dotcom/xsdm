@@ -333,16 +333,42 @@ function createMediumEventCard(event, eventIndex, majorIndex) {
     const phase = event.phase || '起';
     const phaseIndex = ['起', '承', '转', '合'].indexOf(phase) + 1;
     
+    // 使用标准化的章节范围（如果有的话），否则使用原始值
+    const chapterRange = event._chapter_range_normalized || event.chapter_range || '';
+    
+    // 检查是否有特殊事件
+    const specialEvents = event.special_events || [];
+    const hasSpecialEvents = specialEvents.length > 0;
+    
+    let specialEventsHtml = '';
+    if (hasSpecialEvents) {
+        specialEventsHtml = `
+            <div class="medium-event-field">
+                <label class="medium-field-label">✨ 特殊情感事件 (${specialEvents.length})</label>
+                <div class="special-events-list">
+                    ${specialEvents.map(se => `
+                        <div class="special-event-item">
+                            <div class="special-event-name">${escapeHtml(se.name || se.event_subtype || '特殊事件')}</div>
+                            <div class="special-event-purpose">${escapeHtml(se.purpose || se.placement_hint || '-')}</div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }
+    
     return `
-        <div class="medium-event-card">
+        <div class="medium-event-card ${hasSpecialEvents ? 'has-special-events' : ''}">
             <div class="medium-event-header" onclick="toggleMediumEvent('${fieldId}')">
                 <span class="medium-event-title">${escapeHtml(displayName)}</span>
                 <div class="medium-event-badges">
                     <span class="medium-event-badge badge-phase">${phase} ${phaseIndex}</span>
-                    ${event.chapter_range ? `<span class="medium-event-badge badge-chapter">${event.chapter_range}</span>` : ''}
+                    ${chapterRange ? `<span class="medium-event-badge badge-chapter">${escapeHtml(chapterRange)}</span>` : ''}
+                    ${hasSpecialEvents ? `<span class="medium-event-badge badge-special">✨ ${specialEvents.length}个特殊事件</span>` : ''}
                 </div>
             </div>
             <div class="medium-event-body" id="${fieldId}">
+                ${specialEventsHtml}
                 <div class="medium-event-field">
                     <label class="medium-field-label">🎯 主要目标</label>
                     <textarea class="editable-field" data-field="main_goal" data-major="${majorIndex}" data-medium="${eventIndex}">${escapeHtml(event.main_goal || event.role_in_stage_arc || '')}</textarea>
@@ -765,6 +791,49 @@ expectationStyle.textContent = `
         border-radius: 10px;
         font-size: 12px;
         font-weight: 600;
+    }
+
+    /* 中级事件特殊事件样式 */
+    .medium-event-card.has-special-events {
+        border-left: 3px solid #f59e0b;
+    }
+    
+    .badge-special {
+        background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);
+        color: white;
+        padding: 4px 8px;
+        border-radius: 12px;
+        font-size: 11px;
+        display: inline-flex;
+        align-items: center;
+        gap: 2px;
+    }
+    
+    .special-events-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-top: 8px;
+    }
+    
+    .special-event-item {
+        background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+        border-left: 3px solid #f59e0b;
+        padding: 12px;
+        border-radius: 6px;
+    }
+    
+    .special-event-name {
+        font-weight: 600;
+        color: #92400e;
+        margin-bottom: 4px;
+        font-size: 14px;
+    }
+    
+    .special-event-purpose {
+        color: #78350f;
+        font-size: 13px;
+        line-height: 1.4;
     }
 `;
 document.head.appendChild(expectationStyle);

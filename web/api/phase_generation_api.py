@@ -45,27 +45,106 @@ def login_required(f):
 # ==================== 期待感辅助函数 ====================
 
 def select_expectation_type(event):
-    """根据事件特征自动选择期待感类型"""
+    """
+    根据事件特征智能选择期待感类型
+    
+    改进策略：
+    1. 扩展关键词匹配规则
+    2. 添加情感强度分析
+    3. 引入多样性机制，避免所有事件都是同一类型
+    4. 考虑阶段特点（不同阶段偏好不同类型）
+    """
     from src.managers.ExpectationManager import ExpectationType
+    import hashlib
     
     main_goal = event.get('main_goal', '').lower()
     emotional_focus = event.get('emotional_focus', '').lower()
     name = event.get('name', '').lower()
+    description = event.get('description', '').lower()
+    role_in_stage_arc = event.get('role_in_stage_arc', '').lower()
     
-    # 决策树：根据事件特征选择期待类型
-    if '击败' in main_goal or '战胜' in main_goal or '复仇' in main_goal:
-        return ExpectationType.SUPPRESSION_RELEASE
-    elif '获得' in main_goal or '得到' in main_goal or '炼成' in main_goal or '夺取' in main_goal:
-        return ExpectationType.SHOWCASE
-    elif '揭秘' in main_goal or '真相' in main_goal or '发现' in name:
-        return ExpectationType.MYSTERY_FORESHADOW
-    elif '误解' in emotional_focus or '轻视' in emotional_focus or '震惊' in main_goal or '打脸' in name:
-        return ExpectationType.EMOTIONAL_HOOK
-    elif '展示' in main_goal or '学习' in main_goal or '修炼' in main_goal:
-        return ExpectationType.POWER_GAP
-    else:
-        # 默认使用套娃式期待
-        return ExpectationType.NESTED_DOLL
+    # 组合所有文本用于分析
+    all_text = f"{main_goal} {emotional_focus} {name} {description} {role_in_stage_arc}"
+    
+    # 决策树：根据事件特征选择期待类型（扩展版）
+    scores = {
+        ExpectationType.SUPPRESSION_RELEASE: 0,
+        ExpectationType.SHOWCASE: 0,
+        ExpectationType.MYSTERY_FORESHADOW: 0,
+        ExpectationType.EMOTIONAL_HOOK: 0,
+        ExpectationType.POWER_GAP: 0,
+        ExpectationType.NESTED_DOLL: 0
+    }
+    
+    # 压抑释放类型关键词
+    suppression_keywords = ['击败', '战胜', '复仇', '反击', '雪耻', '逆袭', '反杀', '报仇',
+                           '报复', '反击战', '翻盘', '逆转', '反攻', '压制']
+    for kw in suppression_keywords:
+        if kw in all_text:
+            scores[ExpectationType.SUPPRESSION_RELEASE] += 3
+    
+    # 展示橱窗类型关键词
+    showcase_keywords = ['获得', '得到', '炼成', '夺取', '夺取', '收获', '宝物', '神器',
+                         '功法', '秘籍', '法宝', '装备', '宝藏', '发现', '解锁']
+    for kw in showcase_keywords:
+        if kw in all_text:
+            scores[ExpectationType.SHOWCASE] += 3
+    
+    # 伏笔揭秘类型关键词
+    mystery_keywords = ['揭秘', '真相', '发现', '秘密', '身世', '阴谋', '计谋', '背后',
+                        '来历', '身份', '真实', '隐藏', '揭开', '曝光']
+    for kw in mystery_keywords:
+        if kw in all_text:
+            scores[ExpectationType.MYSTERY_FORESHADOW] += 3
+    
+    # 情绪钩子类型关键词
+    emotion_keywords = ['误解', '轻视', '震惊', '打脸', '羞辱', '嘲讽', '看不起',
+                        '不屑', '挑衅', '羞耻', '愤怒', '爆发']
+    for kw in emotion_keywords:
+        if kw in all_text:
+            scores[ExpectationType.EMOTIONAL_HOOK] += 3
+    
+    # 实力差距类型关键词
+    power_keywords = ['展示', '学习', '修炼', '提升', '突破', '成长', '进阶', '升级',
+                      '修炼', '功法', '实力', '境界', '修炼']
+    for kw in power_keywords:
+        if kw in all_text:
+            scores[ExpectationType.POWER_GAP] += 2
+    
+    # 套娃期待类型关键词（默认类型）
+    nested_keywords = ['挑战', '任务', '试炼', '考验', '闯关', '冒险', '探索',
+                       '旅程', '征程', '历练']
+    for kw in nested_keywords:
+        if kw in all_text:
+            scores[ExpectationType.NESTED_DOLL] += 2
+    
+    # 情感强度加成
+    emotional_intensity = event.get('emotional_intensity', 'medium')
+    if emotional_intensity == 'high':
+        # 高强度事件更倾向于压抑释放或情绪钩子
+        scores[ExpectationType.SUPPRESSION_RELEASE] += 1
+        scores[ExpectationType.EMOTIONAL_HOOK] += 1
+    elif emotional_intensity == 'low':
+        # 低强度事件更倾向于展示橱窗或套娃期待
+        scores[ExpectationType.SHOWCASE] += 1
+        scores[ExpectationType.NESTED_DOLL] += 1
+    
+    # 基于事件名称的哈希值增加随机性（确保相同事件总是得到相同类型）
+    event_hash = int(hashlib.md5(name.encode()).hexdigest(), 16)
+    random_bonus = event_hash % 3  # 0-2的随机加成
+    
+    # 给得分最高的类型加随机分
+    max_score = max(scores.values())
+    best_types = [t for t, s in scores.items() if s == max_score]
+    if best_types:
+        import random
+        selected_type = random.choice(best_types)
+        scores[selected_type] += random_bonus
+    
+    # 选择得分最高的类型
+    final_type = max(scores.items(), key=lambda x: x[1])[0]
+    
+    return final_type
 
 # ==================== 阶段顺序常量 ====================
 
@@ -82,6 +161,40 @@ def get_sorted_stages(stage_names):
     sorted_standard = sorted(standard_stages, key=lambda x: STAGE_ORDER_MAP[x])
     
     return sorted_standard + non_standard_stages
+
+# ==================== 辅助函数 ====================
+
+def normalize_chapter_range(chapter_range: str) -> str:
+    """
+    标准化章节范围格式
+    
+    支持的输入格式:
+    - "101-103" -> 保持
+    - "101-103章" -> "101-103章"
+    - "第1章" -> "第1章"
+    - "第3-4章" -> "第3-4章"
+    - "101-103章" -> "101-103章"
+    
+    返回: 统一格式的章节范围字符串
+    """
+    if not chapter_range:
+        return ""
+    
+    # 如果已经以"章"结尾，保持原样
+    if chapter_range.endswith("章"):
+        return chapter_range
+    
+    # 如果是纯数字范围格式（如"101-103"），添加"章"后缀
+    # 但只在不包含其他文字时添加
+    if re.match(r'^\d+-\d+$', chapter_range):
+        return f"{chapter_range}章"
+    
+    # 如果是单个数字（如"110"），添加"第"和"章"
+    if re.match(r'^\d+$', chapter_range):
+        return f"第{chapter_range}章"
+    
+    # 其他情况保持原样
+    return chapter_range
 
 # ==================== 统一的产物加载工具类 ====================
 
@@ -356,11 +469,22 @@ class ProductLoader:
                                 event['_stage'] = stage_name
                                 event['_chapter_range'] = stage_plan.get('chapter_range', '')
                                 # 确保 composition 中的中级事件也添加到事件对象中
+                                # 保留所有原始字段，包括 special_events
                                 if 'composition' in event:
                                     for phase_name, phase_events in event['composition'].items():
                                         if isinstance(phase_events, list):
-                                            event['_medium_events'] = event.get('_medium_events', [])
-                                            event['_medium_events'].extend(phase_events)
+                                            if '_medium_events' not in event:
+                                                event['_medium_events'] = []
+                                            # 保留完整的原始数据，只添加 phase 标记
+                                            for me in phase_events:
+                                                # 创建副本以避免修改原始数据
+                                                me_copy = dict(me)
+                                                me_copy['phase'] = phase_name
+                                                me_copy['_phase_name'] = phase_name  # 用于前端显示
+                                                # 标准化章节范围格式
+                                                if 'chapter_range' in me_copy:
+                                                    me_copy['_chapter_range_normalized'] = normalize_chapter_range(me_copy['chapter_range'])
+                                                event['_medium_events'].append(me_copy)
                             
                             all_major_events.extend(major_events)
                             
@@ -479,10 +603,27 @@ class ProductLoader:
                                         major_events = stage_plan.get('event_system', {}).get('major_events', [])
                                         
                                         if major_events:
-                                            # 为每个事件添加阶段信息
+                                            # 为每个事件添加阶段信息和中级事件
                                             for event in major_events:
                                                 event['_stage'] = stage_name
                                                 event['_chapter_range'] = stage_plan.get('chapter_range', '')
+                                                # 确保 composition 中的中级事件也添加到事件对象中
+                                                # 保留所有原始字段，包括 special_events
+                                                if 'composition' in event:
+                                                    for phase_name, phase_events in event['composition'].items():
+                                                        if isinstance(phase_events, list):
+                                                            if '_medium_events' not in event:
+                                                                event['_medium_events'] = []
+                                                            # 保留完整的原始数据，只添加 phase 标记
+                                                            for me in phase_events:
+                                                                # 创建副本以避免修改原始数据
+                                                                me_copy = dict(me)
+                                                                me_copy['phase'] = phase_name
+                                                                me_copy['_phase_name'] = phase_name  # 用于前端显示
+                                                                # 标准化章节范围格式
+                                                                if 'chapter_range' in me_copy:
+                                                                    me_copy['_chapter_range_normalized'] = normalize_chapter_range(me_copy['chapter_range'])
+                                                                event['_medium_events'].append(me_copy)
                                             
                                             # 存储该阶段的事件
                                             stage_name_to_events[stage_name] = major_events
@@ -534,10 +675,27 @@ class ProductLoader:
                                             stage_plan = writing_data[stage_key].get('stage_writing_plan', {})
                                             events = stage_plan.get('event_system', {}).get('major_events', [])
                                             if events:
-                                                # 为每个事件添加阶段信息
+                                                # 为每个事件添加阶段信息和中级事件
                                                 for event in events:
                                                     event['_stage'] = stage_key
                                                     event['_chapter_range'] = stage_plan.get('chapter_range', '')
+                                                    # 确保 composition 中的中级事件也添加到事件对象中
+                                                    # 保留所有原始字段，包括 special_events
+                                                    if 'composition' in event:
+                                                        for phase_name, phase_events in event['composition'].items():
+                                                            if isinstance(phase_events, list):
+                                                                if '_medium_events' not in event:
+                                                                    event['_medium_events'] = []
+                                                                # 保留完整的原始数据，只添加 phase 标记
+                                                                for me in phase_events:
+                                                                    # 创建副本以避免修改原始数据
+                                                                    me_copy = dict(me)
+                                                                    me_copy['phase'] = phase_name
+                                                                    me_copy['_phase_name'] = phase_name  # 用于前端显示
+                                                                    # 标准化章节范围格式
+                                                                    if 'chapter_range' in me_copy:
+                                                                        me_copy['_chapter_range_normalized'] = normalize_chapter_range(me_copy['chapter_range'])
+                                                                    event['_medium_events'].append(me_copy)
                                                 all_major_events.extend(events)
                                                 
                                                 stage_info.append({
@@ -1186,11 +1344,22 @@ def register_additional_routes(app):
                                             event['_stage'] = stage_name
                                             event['_chapter_range'] = stage_plan.get('chapter_range', '')
                                             # 确保 composition 中的中级事件也添加到事件对象中
+                                            # 保留所有原始字段，包括 special_events
                                             if 'composition' in event:
                                                 for phase_name, phase_events in event['composition'].items():
                                                     if isinstance(phase_events, list):
-                                                        event['_medium_events'] = event.get('_medium_events', [])
-                                                        event['_medium_events'].extend(phase_events)
+                                                        if '_medium_events' not in event:
+                                                            event['_medium_events'] = []
+                                                        # 保留完整的原始数据，只添加 phase 标记
+                                                        for me in phase_events:
+                                                            # 创建副本以避免修改原始数据
+                                                            me_copy = dict(me)
+                                                            me_copy['phase'] = phase_name
+                                                            me_copy['_phase_name'] = phase_name  # 用于前端显示
+                                                            # 标准化章节范围格式
+                                                            if 'chapter_range' in me_copy:
+                                                                me_copy['_chapter_range_normalized'] = normalize_chapter_range(me_copy['chapter_range'])
+                                                            event['_medium_events'].append(me_copy)
                                                 
                                         all_major_events.extend(major_events)
                                         
