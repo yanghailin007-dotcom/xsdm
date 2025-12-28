@@ -191,13 +191,42 @@ function selectMajorEvent(index) {
     
     selectedMajorEventIndex = index;
     
+    // 🔥 添加调试信息
+    console.log(`[DEBUG] 选择重大事件 ${index}:`, currentStorylineData.major_events[index]?.name);
+    console.log('[DEBUG] 事件数据:', currentStorylineData.major_events[index]);
+    
     // 渲染右侧详情
-    renderMajorEventDetail(index);
+    try {
+        renderMajorEventDetail(index);
+    } catch (error) {
+        console.error('[ERROR] 渲染详情时出错:', error);
+        showError(`显示详情失败: ${error.message}`);
+    }
 }
 
 function renderMajorEventDetail(index) {
+    console.log(`[DEBUG] renderMajorEventDetail 开始, index=${index}`);
+    
     const event = currentStorylineData.major_events[index];
     const contentContainer = document.getElementById('medium-events-content');
+    
+    if (!event) {
+        console.error('[ERROR] 事件不存在:', index);
+        showError('事件数据不存在');
+        return;
+    }
+    
+    if (!contentContainer) {
+        console.error('[ERROR] medium-events-content 容器不存在');
+        showError('详情容器不存在');
+        return;
+    }
+    
+    // 🔥 添加调试信息
+    console.log('[DEBUG] 事件数据:', event);
+    console.log('[DEBUG] composition:', event.composition);
+    console.log('[DEBUG] _medium_events:', event._medium_events);
+    console.log('[DEBUG] medium_events:', event.medium_events);
     
     // 更新面板标题
     const displayName = event.name || event.main_goal || `重大事件 ${index + 1}`;
@@ -269,8 +298,9 @@ function renderMajorEventDetail(index) {
     // 中级事件列表 - 优先从 composition 中提取
     let mediumEvents = [];
     
-    // 优先从 composition 中提取
-    if (event.composition && typeof event.composition === 'object') {
+    // 🔥 修复：只从一个来源提取，避免重复
+    // 优先级：composition > _medium_events > medium_events
+    if (event.composition && typeof event.composition === 'object' && Object.keys(event.composition).length > 0) {
         // composition 是一个包含 '起', '承', '转', '合' 的对象
         const phases = ['起', '承', '转', '合'];
         phases.forEach(phase => {
@@ -281,17 +311,18 @@ function renderMajorEventDetail(index) {
                 });
             }
         });
-    }
-    
-    // 备用方案：从 medium_events 数组提取
-    if (mediumEvents.length === 0 && event.medium_events) {
-        mediumEvents = event.medium_events;
-    }
-    
-    // 从 _medium_events 提取（如果有）
-    if (mediumEvents.length === 0 && event._medium_events) {
+        console.log(`[DEBUG] 从composition提取了 ${mediumEvents.length} 个中型事件`);
+    } else if (event._medium_events && event._medium_events.length > 0) {
+        // 从 _medium_events 提取
         mediumEvents = event._medium_events;
+        console.log(`[DEBUG] 从_medium_events提取了 ${mediumEvents.length} 个中型事件`);
+    } else if (event.medium_events && event.medium_events.length > 0) {
+        // 从 medium_events 数组提取
+        mediumEvents = event.medium_events;
+        console.log(`[DEBUG] 从medium_events提取了 ${mediumEvents.length} 个中型事件`);
     }
+    
+    console.log(`[DEBUG] 总共 ${mediumEvents.length} 个中型事件`);
     
     if (mediumEvents.length > 0) {
         html += `
