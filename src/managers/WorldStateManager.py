@@ -1489,8 +1489,9 @@ class WorldStateManager:
             if invalid_word in name and len(invalid_word) >= 2:
                 return False
         
-        # 标点符号检查（除了·）
-        if any(char in name for char in "，。！？；：""''""''（）【】《》""，、；："):
+        # 标点符号检查（除了·和中文字符括号（））
+        # 修仙小说中常见的括号用于补充说明，如"韩立（老魔）"、"古魔（主魂）"
+        if any(char in name for char in "，。！？；：""''""''【】《》""，、；："):
             return False
         
         # 单个字符或纯数字检查
@@ -2998,10 +2999,14 @@ class WorldStateManager:
                 self.logger.info(f"   ❌ 与现有角色过于相似: {existing_name} (相似度: {similarity:.2f})")
                 return False
         
-        # 6. 章节合理性检查
-        if current_chapter <= 0:
-            self.logger.info(f"   ❌ 章节号无效: {current_chapter}")
+        # 6. 章节合理性检查（放宽：允许章节号为0，用于初始化阶段）
+        if current_chapter < 0:
+            self.logger.info(f"   ❌ 章节号无效（负数）: {current_chapter}")
             return False
+        
+        # 只在章节号为0时给出警告，但不拒绝
+        if current_chapter == 0:
+            self.logger.info(f"   ⚠️ 章节号为0，可能为初始化阶段，允许添加")
         
         # 7. 角色类型合理性检查
         role_type = character_data.get("role_type", "")

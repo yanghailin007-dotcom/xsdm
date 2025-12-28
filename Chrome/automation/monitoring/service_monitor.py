@@ -43,7 +43,7 @@ class ServiceMonitor:
         # 确保日志目录存在
         self.status_file.parent.mkdir(exist_ok=True)
         
-    def start_monitoring(self, interval: int = 10):
+    def start_monitoring(self, interval: int = 30):
         """启动监控"""
         if self.monitoring:
             return True
@@ -55,7 +55,7 @@ class ServiceMonitor:
             daemon=True
         )
         self.monitor_thread.start()
-        print("✅ 服务监控已启动")
+        print("✅ 服务监控已启动（每30秒检查一次）")
         return True
     
     def stop_monitoring(self):
@@ -108,8 +108,9 @@ class ServiceMonitor:
     def _get_system_info(self) -> Dict[str, Any]:
         """获取系统信息"""
         try:
+            # 使用interval=0.1避免长时间阻塞
             return {
-                "cpu_percent": psutil.cpu_percent(interval=1),
+                "cpu_percent": psutil.cpu_percent(interval=0.1),
                 "memory_percent": psutil.virtual_memory().percent,
                 "disk_percent": psutil.disk_usage('/').percent if os.name != 'nt' else psutil.disk_usage('C:').percent,
                 "load_average": os.getloadavg() if hasattr(os, 'getloadavg') else None,

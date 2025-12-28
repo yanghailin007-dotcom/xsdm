@@ -1254,15 +1254,82 @@ class ContentGenerator:
         if not pre_designed_scenes:
             self.logger.error(f"  ❌ 第 {chapter_number} 章缺少预设的场景事件，无法直接生成内容。")
             return None
-        # ▼▼▼ 核心修改部分：构建一个能体现6段式结构功能的Prompt ▼▼▼
+        # ▼▼▼ 核心修改部分：构建一个能体现6段式结构功能和情绪强度的Prompt ▼▼▼
+        # 🆕 第一步：提取和分析本章的情绪强度
+        chapter_emotional_intensity = "medium"  # 默认中等强度
+        chapter_emotional_focus = []
+        intensity_guidance_map = {
+            "low": """
+## 🌊 情绪强度指南 - 平和节奏 (LOW INTENSITY)
+本章采用【平和、内敛】的情绪节奏：
+- **情感表达**: 重点在于角色内心的微妙变化和思考，而非外部冲突爆发
+- **语言特点**: 使用细腻、温和的语言，避免过度夸张的情感词汇
+- **节奏控制**: 节奏较慢，多用内心独白和细腻描写，让读者感受平静中的暗流
+- **适用场景**: 日常描写、角色互动、世界观展示、铺垫性章节
+""",
+            "medium": """
+## 🌊 情绪强度指南 - 标准节奏 (MEDIUM INTENSITY)
+本章采用【张弛有度、情绪适中】的节奏：
+- **情感表达**: 情感真实自然，不过分夸张，让读者产生共鸣
+- **语言特点**: 语言流畅自然，平衡叙述和对话，适当使用感叹和强调
+- **节奏控制**: 在平静与紧张之间保持平衡，情节推进稳健
+- **适用场景**: 推进情节、建立冲突、展现角色成长的标准章节
+""",
+            "high": """
+## 🌊 情绪强度指南 - 激昂节奏 (HIGH INTENSITY)
+本章采用【高强度、强冲击】的情绪节奏：
+- **情感表达**: 情感表达要强烈、直接、富有张力，使用短句和感叹增强冲击力
+- **语言特点**: 语言紧凑有力，多用短句和感叹，营造紧迫感和氛围
+- **节奏控制**: 节奏快速，冲突密集，让读者感受到强烈的情绪冲击
+- **适用场景**: 高潮章节、重大转折、强烈冲突、情感爆发的关键章节
+"""
+        }
+        
+        # 🆕 第二步：分析所有场景的情绪强度，确定本章的整体强度
+        intensity_votes = []
+        emotional_focus_list = []
+        
+        for scene in pre_designed_scenes:
+            if "emotional_intensity" in scene:
+                intensity_votes.append(scene["emotional_intensity"])
+            if "emotional_impact" in scene:
+                emotional_focus_list.append(f"- 场景「{scene.get('name', '未知场景')}」的情感冲击: {scene['emotional_impact']}")
+        
+        # 根据场景的情绪强度投票决定本章的整体强度
+        if intensity_votes:
+            # 统计每种强度的出现次数
+            low_count = intensity_votes.count("low")
+            medium_count = intensity_votes.count("medium")
+            high_count = intensity_votes.count("high")
+            
+            # 简单的加权逻辑：high的权重最高
+            if high_count > 0:
+                chapter_emotional_intensity = "high"
+            elif low_count > medium_count * 2:  # low占明显多数
+                chapter_emotional_intensity = "low"
+            else:
+                chapter_emotional_intensity = "medium"
+        
+        self.logger.info(f"  💓 本章情绪强度分析结果: {chapter_emotional_intensity} (投票: {len(intensity_votes)}个场景参与)")
+        
+        # 🆕 第三步：构建情绪强度指导
+        intensity_guidance = intensity_guidance_map.get(chapter_emotional_intensity, intensity_guidance_map["medium"])
+        
+        # 🆕 第四步：如果场景有情感冲击描述，添加到指导中
+        if emotional_focus_list:
+            intensity_guidance += f"""
+## 🎯 本章情感冲击要点
+{chr(10).join(emotional_focus_list[:5])}  # 只显示前5个
+"""
+        
         # 定义场景定位的中文名称和功能解释
         scene_position_map = {
-            "opening": {"name": "开场场景 (Opening Scene)", "function": "建立情境，引入本章核心冲突的起点，快速吸引读者。", "percentage": "15-20%"},
+            "opening": {"name": "开场场景", "function": "建立情境，引入本章核心冲突的起点，快速吸引读者。", "percentage": "15-20%"},
             "development1": {"name": "发展场景1 (Development 1)", "function": "推进情节，深化初始冲突，引入新信息或角色。", "percentage": "20-25%"},
             "development2": {"name": "发展场景2 (Development 2)", "function": "冲突升级，增加紧张感，为高潮做足铺垫。", "percentage": "20-25%"},
-            "climax": {"name": "高潮场景 (Climax Scene)", "function": "【本章重点】情感的集中爆发点！这是本章最关键的转折和最强烈的情感冲击所在。", "percentage": "15-20%"},
-            "falling": {"name": "回落场景 (Falling Action)", "function": "处理高潮带来的直接后果，让情绪和节奏得到短暂缓和。", "percentage": "10-15%"},
-            "ending": {"name": "结尾场景 (Ending Scene)", "function": "收束本章内容，并设置一个强有力的悬念（钩子），引导读者追读下一章。", "percentage": "5-10%"}
+            "climax": {"name": "高潮场景", "function": "【本章重点】情感的集中爆发点！这是本章最关键的转折和最强烈的情感冲击所在。", "percentage": "15-20%"},
+            "falling": {"name": "回落场景", "function": "处理高潮带来的直接后果，让情绪和节奏得到短暂缓和。", "percentage": "10-15%"},
+            "ending": {"name": "结尾场景", "function": "收束本章内容，并设置一个强有力的悬念（钩子），引导读者追读下一章。", "percentage": "5-10%"}
         }
         scenes_str_parts = ["# 1. 写作蓝图：本章的六段式场景结构 (必须严格遵守)"]
         scenes_str_parts.append("你必须严格按照下面每个场景的功能定位和内容要点来创作，确保章节节奏张弛有度，高潮突出。")
@@ -1314,20 +1381,30 @@ class ContentGenerator:
         chapter_generation_prompt = f"""
 ## 章节创作指令 ##
 为《{chapter_params.get('novel_title', '')}》创作第{chapter_number}章。
+
+{intensity_guidance}
+
 {scenes_input_str}
+
 ## 2. 背景与衔接
 - **前情提要**: {chapter_params.get("previous_chapters_summary", "无")}
 - **本章核心目标**: {chapter_params.get("chapter_goal_from_plan", "推进主线情节")}
 - **本章写作重点**: {chapter_params.get("writing_focus_from_plan", "保持节奏，制造悬念")}
+
 ## 3. 角色与世界观
 - **世界观设定**: {chapter_params.get("worldview_info", "{}")}
 - **人物设定**: {chapter_params.get("character_info", "{}")}
 - **一致性铁律**: {chapter_params.get("consistency_guidance", "保持前后文一致")}
+
 ## 4. 风格指南
 - **小说整体写作风格**: {json.dumps(chapter_params.get("writing_style_guide", {}), ensure_ascii=False)}
+
 ---
+
 请你作为一名优秀的小说家，根据以上所有指令，直接创作出本章的完整内容。
 你的任务是将【写作蓝图】中的六段式场景要点，流畅地、富有文采地串联成一篇完整的、高质量的小说章节。请特别注意每个场景的【功能定位】和【篇幅占比】，确保章节结构清晰，节奏感强。
+
+**重要提醒**：请严格遵循上述【情绪强度指南】，确保本章的情感表达和节奏控制符合要求的强度级别。
 """
         
         # 保存章节生成提示词到文件

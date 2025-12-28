@@ -463,38 +463,10 @@ class FanqieUploader:
         }
     
     def _start_task_cleanup_thread(self):
-        """启动定期清理已完成任务的线程"""
-        def cleanup_old_tasks():
-            while True:
-                try:
-                    current_time = time.time()
-                    tasks_to_remove = []
-                    
-                    for task_id, completion_time in list(self.task_completion_times.items()):
-                        # 检查是否超过保留时间
-                        if current_time - completion_time > self.TASK_RETENTION_TIME:
-                            tasks_to_remove.append(task_id)
-                    
-                    # 清理过期任务
-                    for task_id in tasks_to_remove:
-                        if task_id in self.upload_tasks:
-                            self.logger.info(f"🧹 清理过期任务: {task_id}")
-                            del self.upload_tasks[task_id]
-                        if task_id in self.upload_status:
-                            del self.upload_status[task_id]
-                        if task_id in self.task_completion_times:
-                            del self.task_completion_times[task_id]
-                    
-                    # 每60秒检查一次
-                    time.sleep(60)
-                    
-                except Exception as e:
-                    self.logger.error(f"清理任务失败: {e}")
-                    time.sleep(60)
-        
-        cleanup_thread = threading.Thread(target=cleanup_old_tasks, daemon=True)
-        cleanup_thread.start()
-        self.logger.info("✅ 任务清理线程已启动")
+        """启动定期清理已完成任务的线程（已禁用以降低CPU占用）"""
+        # 禁用自动清理线程，改为手动清理
+        self.logger.info("ℹ️ 自动清理线程已禁用以降低CPU占用")
+        return
     
     def get_upload_status(self, task_id: str) -> Dict[str, Any]:
         """获取上传状态"""

@@ -5,6 +5,8 @@
 import os
 import sys
 import threading
+import signal
+import atexit
 from flask import Flask, request, jsonify
 from datetime import datetime
 
@@ -438,17 +440,12 @@ def register_contract_routes(app):
 
 
 def register_monitoring_routes(app):
-    """注册服务监控相关API路由"""
+    """注册服务监控相关API路由（已禁用以降低CPU占用）"""
     
-    # 尝试导入服务监控
-    try:
-        from Chrome.automation.monitoring.service_monitor import service_monitor
-        service_monitor_available = True
-        logger.info("✅ 服务监控模块加载成功")
-    except ImportError as e:
-        logger.warn(f"⚠️ 无法导入服务监控模块: {e}")
-        service_monitor = None
-        service_monitor_available = False
+    # 禁用服务监控模块以降低CPU占用
+    service_monitor = None
+    service_monitor_available = False
+    logger.info("ℹ️ 服务监控模块已禁用以降低CPU占用")
 
     @app.route('/api/monitoring/status', methods=['GET'])
     def get_monitoring_status():
@@ -530,20 +527,48 @@ def print_startup_info():
     logger.info("=" * 60)
 
 
+def cleanup_on_exit():
+    """退出清理函数"""
+    logger.info("🧹 正在清理资源...")
+    
+    # 停止服务监控
+    try:
+        from Chrome.automation.monitoring.service_monitor import service_monitor
+        if service_monitor.monitoring:
+            service_monitor.stop_monitoring()
+    except:
+        pass
+    
+    logger.info("✅ 清理完成")
+
+
+def signal_handler(signum, frame):
+    """信号处理器"""
+    logger.info(f"📝 收到信号 {signum}，准备退出...")
+    cleanup_on_exit()
+    os._exit(0)  # 强制退出所有线程
+
+
 def main():
     """主函数"""
     print_startup_info()
     
+    # 注册信号处理器
+    signal.signal(signal.SIGINT, signal_handler)  # Ctrl+C
+    signal.signal(signal.SIGTERM, signal_handler)  # 终止信号
+    
+    # 注册退出清理函数
+    atexit.register(cleanup_on_exit)
+    
     # 创建应用实例
     app, manager = create_app()
     
-    # 开发模式运行 - 启用自动重载（热重载）
-    # 当检测到代码变化时，服务器会自动重启
+    # 开发模式运行 - 启用热重载但确保正确退出
     app.run(
         host=FlaskConfig.HOST,
         port=FlaskConfig.PORT,
         debug=FlaskConfig.DEBUG,
-        use_reloader=True  # 启用热重载，修改代码后自动生效
+        use_reloader=True  # 恢复热重载功能
     )
 
 
