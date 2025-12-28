@@ -164,6 +164,9 @@ function createMajorEventCard(event, index) {
         'low': '#10b981'
     }[intensity] || '#f59e0b';
     
+    // 获取期待感标签（新增）
+    const expectationBadge = getExpectationBadge(event);
+    
     card.innerHTML = `
         <div class="major-event-header">
             <div class="major-event-title">${escapeHtml(displayName)}</div>
@@ -172,6 +175,7 @@ function createMajorEventCard(event, index) {
         <div class="major-event-badges">
             <span class="event-badge badge-chapter">${event.chapter_range || '全章节'}</span>
             ${event.emotional_focus ? `<span class="event-badge badge-emotion" style="color: ${emotionColor}; background: ${emotionColor}15;">${event.emotional_focus}</span>` : ''}
+            ${expectationBadge}
         </div>
         <div class="major-event-preview">${escapeHtml(event.main_goal || event.description || event.role_in_stage_arc || '')}</div>
     `;
@@ -204,6 +208,9 @@ function renderMajorEventDetail(index) {
     document.getElementById('medium-panel-title').innerHTML = `📋 ${stageInfo}${escapeHtml(displayName)}`;
     document.getElementById('medium-panel-subtitle').textContent = `${event.chapter_range || event._chapter_range || '全章节'}`;
     
+    // 获取期待感信息（新增）
+    const expectationInfo = getExpectationInfo(event);
+    
     let html = `
         <div class="major-event-detail">
             <div class="detail-header">
@@ -219,6 +226,13 @@ function renderMajorEventDetail(index) {
                     </div>
                 </div>
             </div>
+            
+            ${expectationInfo ? `
+            <div class="detail-section expectation-section">
+                <div class="detail-section-title">🎯 期待感设置</div>
+                ${expectationInfo}
+            </div>
+            ` : ''}
             
             <div class="detail-section">
                 <div class="detail-section-title">🎯 主要目标</div>
@@ -527,16 +541,230 @@ document.addEventListener('keydown', function(event) {
     }
 });
 
-// 添加动画样式
-const style = document.createElement('style');
-style.textContent = `
-    @keyframes slideIn {
-        from { transform: translateX(100%); opacity: 0; }
-        to { transform: translateX(0); opacity: 1; }
+// ==================== 期待感相关功能（新增）====================
+
+function getExpectationBadge(event) {
+    // 获取事件的期待感标签
+    if (!currentStorylineData.expectation_map) {
+        return '';
     }
-    @keyframes slideOut {
-        from { transform: translateX(0); opacity: 1; }
-        to { transform: translateX(100%); opacity: 0; }
+    
+    const expectations = currentStorylineData.expectation_map.expectations || {};
+    const eventExpectations = Object.values(expectations).filter(exp =>
+        exp.description && exp.description.includes(event.name || event.main_goal || '')
+    );
+    
+    if (eventExpectations.length === 0) {
+        return '';
+    }
+    
+    const expectation = eventExpectations[0];
+    const typeLabels = {
+        'showcase': '展示橱窗',
+        'suppression_release': '压抑释放',
+        'nested_doll': '套娃期待',
+        'emotional_hook': '情绪钩子',
+        'power_gap': '实力差距',
+        'mystery_foreshadow': '伏笔揭秘'
+    };
+    
+    const typeLabel = typeLabels[expectation.type] || expectation.type;
+    const statusLabels = {
+        'planted': '已种植',
+        'fermenting': '发酵中',
+        'ready_to_release': '即将释放',
+        'released': '已释放',
+        'failed': '失败'
+    };
+    
+    const statusLabel = statusLabels[expectation.status] || expectation.status;
+    const statusColors = {
+        'planted': '#10b981',
+        'fermenting': '#f59e0b',
+        'ready_to_release': '#ef4444',
+        'released': '#6b7280',
+        'failed': '#ef4444'
+    };
+    
+    const statusColor = statusColors[expectation.status] || '#6b7280';
+    
+    return `
+        <span class="event-badge badge-expectation" title="期待感: ${typeLabel}\n状态: ${statusLabel}">
+            🎯 ${typeLabel}
+            <span class="expectation-status" style="color: ${statusColor}">● ${statusLabel}</span>
+        </span>
+    `;
+}
+
+function getExpectationInfo(event) {
+    // 获取事件的期待感详细信息
+    if (!currentStorylineData.expectation_map) {
+        return null;
+    }
+    
+    const expectations = currentStorylineData.expectation_map.expectations || {};
+    const eventExpectations = Object.values(expectations).filter(exp =>
+        exp.description && exp.description.includes(event.name || event.main_goal || '')
+    );
+    
+    if (eventExpectations.length === 0) {
+        return null;
+    }
+    
+    const expectation = eventExpectations[0];
+    const typeLabels = {
+        'showcase': '展示橱窗效应',
+        'suppression_release': '压抑与释放',
+        'nested_doll': '套娃式期待',
+        'emotional_hook': '情绪钩子',
+        'power_gap': '实力差距',
+        'mystery_foreshadow': '伏笔揭秘'
+    };
+    
+    const typeLabel = typeLabels[expectation.type] || expectation.type;
+    const statusLabels = {
+        'planted': '已种植',
+        'fermenting': '发酵中',
+        'ready_to_release': '即将释放',
+        'released': '已释放',
+        'failed': '释放失败'
+    };
+    
+    const statusLabel = statusLabels[expectation.status] || expectation.status;
+    
+    let html = `
+        <div class="expectation-item">
+            <div class="expectation-type">
+                <span class="expectation-icon">🎯</span>
+                <strong>${typeLabel}</strong>
+            </div>
+            <div class="expectation-status">
+                <span class="status-label">状态:</span>
+                <span class="status-value">${statusLabel}</span>
+            </div>
+            <div class="expectation-description">
+                <span class="label">期待描述:</span>
+                <span class="value">${escapeHtml(expectation.description || '无描述')}</span>
+            </div>
+            ${expectation.planted_chapter ? `
+            <div class="expectation-timeline">
+                <span class="label">种植章节:</span>
+                <span class="value">第 ${expectation.planted_chapter} 章</span>
+                ${expectation.target_chapter ? `
+                <span class="timeline-arrow">→</span>
+                <span class="label">目标章节:</span>
+                <span class="value">第 ${expectation.target_chapter} 章</span>
+                ` : ''}
+            </div>
+            ` : ''}
+            ${expectation.released_chapter ? `
+            <div class="expectation-release">
+                <span class="label">释放章节:</span>
+                <span class="value">第 ${expectation.released_chapter} 章</span>
+                ${expectation.satisfaction_score ? `
+                <span class="satisfaction-score">
+                    满足度: ${expectation.satisfaction_score.toFixed(1)}/10
+                </span>
+                ` : ''}
+            </div>
+            ` : ''}
+        </div>
+    `;
+    
+    return html;
+}
+
+// 添加期待感相关的CSS样式
+const expectationStyle = document.createElement('style');
+expectationStyle.textContent = `
+    /* 期待感样式 */
+    .badge-expectation {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 4px 8px;
+        border-radius: 12px;
+        font-size: 12px;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);
+    }
+    
+    .expectation-status {
+        font-size: 10px;
+        margin-left: 4px;
+    }
+    
+    .expectation-section {
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        border-left: 4px solid #667eea;
+        padding: 16px;
+        margin-bottom: 16px;
+        border-radius: 8px;
+    }
+    
+    .expectation-item {
+        background: white;
+        border-radius: 8px;
+        padding: 16px;
+        margin-bottom: 12px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+    
+    .expectation-type {
+        font-size: 16px;
+        margin-bottom: 12px;
+        color: #667eea;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .expectation-status {
+        margin-bottom: 8px;
+        font-size: 14px;
+    }
+    
+    .expectation-description {
+        margin-bottom: 8px;
+        padding: 8px;
+        background: #f9fafb;
+        border-radius: 4px;
+        font-size: 14px;
+    }
+    
+    .expectation-timeline {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-bottom: 8px;
+        font-size: 14px;
+    }
+    
+    .timeline-arrow {
+        color: #9ca3af;
+        font-weight: bold;
+    }
+    
+    .expectation-release {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+        padding: 8px;
+        background: #ecfdf5;
+        border-radius: 4px;
+        font-size: 14px;
+    }
+    
+    .satisfaction-score {
+        background: #10b981;
+        color: white;
+        padding: 2px 8px;
+        border-radius: 10px;
+        font-size: 12px;
+        font-weight: 600;
     }
 `;
-document.head.appendChild(style);
+document.head.appendChild(expectationStyle);

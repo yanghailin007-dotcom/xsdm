@@ -41,6 +41,48 @@ def login_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
+
+# ==================== 期待感辅助函数 ====================
+
+def select_expectation_type(event):
+    """根据事件特征自动选择期待感类型"""
+    from src.managers.ExpectationManager import ExpectationType
+    
+    main_goal = event.get('main_goal', '').lower()
+    emotional_focus = event.get('emotional_focus', '').lower()
+    name = event.get('name', '').lower()
+    
+    # 决策树：根据事件特征选择期待类型
+    if '击败' in main_goal or '战胜' in main_goal or '复仇' in main_goal:
+        return ExpectationType.SUPPRESSION_RELEASE
+    elif '获得' in main_goal or '得到' in main_goal or '炼成' in main_goal or '夺取' in main_goal:
+        return ExpectationType.SHOWCASE
+    elif '揭秘' in main_goal or '真相' in main_goal or '发现' in name:
+        return ExpectationType.MYSTERY_FORESHADOW
+    elif '误解' in emotional_focus or '轻视' in emotional_focus or '震惊' in main_goal or '打脸' in name:
+        return ExpectationType.EMOTIONAL_HOOK
+    elif '展示' in main_goal or '学习' in main_goal or '修炼' in main_goal:
+        return ExpectationType.POWER_GAP
+    else:
+        # 默认使用套娃式期待
+        return ExpectationType.NESTED_DOLL
+
+# ==================== 阶段顺序常量 ====================
+
+STAGE_ORDER = ['opening_stage', 'development_stage', 'climax_stage', 'ending_stage']
+STAGE_ORDER_MAP = {stage: idx for idx, stage in enumerate(STAGE_ORDER)}
+
+def get_sorted_stages(stage_names):
+    """按照标准阶段顺序排序阶段名称"""
+    # 分离标准阶段和非标准阶段
+    standard_stages = [s for s in stage_names if s in STAGE_ORDER_MAP]
+    non_standard_stages = [s for s in stage_names if s not in STAGE_ORDER_MAP]
+    
+    # 标准阶段按预定顺序排序，非标准阶段保持原顺序
+    sorted_standard = sorted(standard_stages, key=lambda x: STAGE_ORDER_MAP[x])
+    
+    return sorted_standard + non_standard_stages
+
 # ==================== 统一的产物加载工具类 ====================
 
 class ProductLoader:
@@ -154,24 +196,62 @@ class ProductLoader:
         # 首先尝试从 plans 目录加载所有阶段的写作计划
         plans_dir = self.project_dir / "plans"
         if plans_dir.exists():
-            stage_files = sorted(plans_dir.glob("*_writing_plan.json"))
+            stage_files = list(plans_dir.glob("*_writing_plan.json"))
             if stage_files:
                 try:
+                    # 先收集所有文件和对应的阶段名称
+                    file_stage_pairs = []
+                    
+                    for stage_file in stage_files:
+                        # 从文件名提取阶段名称
+                        # 文件名格式: 吞噬万界：从一把生锈铁剑开始_climax_stage_writing_plan.json
+                        # 使用正则表达式匹配 (xxx)_stage)_writing_plan
+                        import re
+                        match = re.search(r'_([^_]+_stage)_writing_plan$', stage_file.name)
+                        if match:
+                            stage_name = match.group(1)
+                        else:
+                            # 备用方案：尝试从 stem 中提取
+                            stem = stage_file.stem  # xxx_climax_stage
+                            parts = stem.split('_')
+                            # 找到包含 'stage' 的部分
+                            stage_name = None
+                            for i, part in enumerate(parts):
+                                if 'stage' in part and i > 0:
+                                    # 重建阶段名称（可能包含多个下划线）
+                                    stage_parts = []
+                                    for j in range(1, i + 1):
+                                        stage_parts.append(parts[j])
+                                    stage_name = '_'.join(stage_parts)
+                                    break
+                            
+                            if not stage_name:
+                                continue
+                        
+                        # 只处理标准阶段
+                        if stage_name not in STAGE_ORDER_MAP:
+                            self.logger.info(f"  跳过非标准阶段: {stage_name} (文件: {stage_file.name})")
+                            continue
+                        
+                        file_stage_pairs.append((stage_name, stage_file))
+                        self.logger.info(f"  找到阶段文件: {stage_name} -> {stage_file.name}")
+                    
+                    # 按照标准阶段顺序排序文件
+                    sorted_pairs = sorted(file_stage_pairs, key=lambda x: STAGE_ORDER_MAP.get(x[0], 999))
+                    self.logger.info(f"  排序后的阶段顺序: {[p[0] for p in sorted_pairs]}")
+                    
                     # 合并所有阶段的写作计划
                     all_stages = {}
                     stage_names = []
                     
-                    for stage_file in stage_files:
+                    for stage_name, stage_file in sorted_pairs:
                         with open(stage_file, 'r', encoding='utf-8') as f:
                             stage_data = json.load(f)
-                        
-                        # 从文件名提取阶段名称
-                        stage_name = stage_file.stem.split('_')[-2] + '_' + stage_file.stem.split('_')[-1].replace('_writing_plan', '')
                         
                         # 存储阶段数据
                         all_stages[stage_name] = stage_data
                         stage_names.append(stage_name)
-                        self.logger.info(f"  加载阶段: {stage_name}")
+                        self.logger.info(f"  加载阶段: {stage_name} (从 {stage_file.name})")
                     
                     # 创建合并后的写作计划
                     merged_plan = {
@@ -260,7 +340,10 @@ class ProductLoader:
                 all_major_events = []
                 stage_info = []
                 
-                for stage_name in writing_data['stage_names']:
+                # 按照标准阶段顺序排序
+                sorted_stage_names = get_sorted_stages(writing_data['stage_names'])
+                
+                for stage_name in sorted_stage_names:
                     if stage_name in writing_data['stages']:
                         stage_data = writing_data['stages'][stage_name]
                         stage_plan = stage_data.get('stage_writing_plan', {})
@@ -343,19 +426,54 @@ class ProductLoader:
                         # 优先从 plans 目录加载完整的故事线
                         plans_dir = self.project_dir / "plans"
                         if plans_dir.exists():
-                            stage_files = sorted(plans_dir.glob("*_writing_plan.json"))
+                            stage_files = list(plans_dir.glob("*_writing_plan.json"))
                             if stage_files:
                                 try:
-                                    # 从所有阶段提取重大事件
-                                    all_major_events = []
-                                    stage_info = []
+                                    # 先收集所有文件和对应的阶段名称
+                                    file_stage_pairs = []
                                     
                                     for stage_file in stage_files:
+                                        # 从文件名提取阶段名称
+                                        # 文件名格式: 吞噬万界：从一把生锈铁剑开始_climax_stage_writing_plan.json
+                                        import re
+                                        match = re.search(r'_([^_]+_stage)_writing_plan$', stage_file.name)
+                                        if match:
+                                            stage_name = match.group(1)
+                                        else:
+                                            # 备用方案：尝试从 stem 中提取
+                                            stem = stage_file.stem
+                                            parts = stem.split('_')
+                                            stage_name = None
+                                            for i, part in enumerate(parts):
+                                                if 'stage' in part and i > 0:
+                                                    stage_parts = []
+                                                    for j in range(1, i + 1):
+                                                        stage_parts.append(parts[j])
+                                                    stage_name = '_'.join(stage_parts)
+                                                    break
+                                            
+                                            if not stage_name:
+                                                continue
+                                        
+                                        # 只处理标准阶段
+                                        if stage_name not in STAGE_ORDER_MAP:
+                                            continue
+                                        
                                         with open(stage_file, 'r', encoding='utf-8') as f:
                                             stage_data = json.load(f)
                                         
-                                        # 从文件名提取阶段名称
-                                        stage_name = stage_file.stem.split('_')[-2] + '_' + stage_file.stem.split('_')[-1].replace('_writing_plan', '')
+                                        file_stage_pairs.append((stage_name, stage_file))
+                                    
+                                    # 按照标准阶段顺序排序文件
+                                    sorted_pairs = sorted(file_stage_pairs, key=lambda x: STAGE_ORDER_MAP.get(x[0], 999))
+                                    
+                                    # 从所有阶段提取重大事件
+                                    stage_name_to_events = {}  # 存储每个阶段的事件
+                                    stage_name_to_info = {}  # 存储阶段信息
+                                    
+                                    for stage_name, stage_file in sorted_pairs:
+                                        with open(stage_file, 'r', encoding='utf-8') as f:
+                                            stage_data = json.load(f)
                                         
                                         stage_plan = stage_data.get('stage_writing_plan', {})
                                         major_events = stage_plan.get('event_system', {}).get('major_events', [])
@@ -365,13 +483,26 @@ class ProductLoader:
                                             for event in major_events:
                                                 event['_stage'] = stage_name
                                                 event['_chapter_range'] = stage_plan.get('chapter_range', '')
-                                            all_major_events.extend(major_events)
                                             
-                                            stage_info.append({
+                                            # 存储该阶段的事件
+                                            stage_name_to_events[stage_name] = major_events
+                                            
+                                            # 存储阶段信息
+                                            stage_name_to_info[stage_name] = {
                                                 'stage_name': stage_name,
                                                 'chapter_range': stage_plan.get('chapter_range', ''),
                                                 'major_event_count': len(major_events)
-                                            })
+                                            }
+                                    
+                                    # 按照标准阶段顺序排序并合并事件
+                                    all_major_events = []
+                                    stage_info = []
+                                    
+                                    sorted_stage_names = get_sorted_stages(list(stage_name_to_events.keys()))
+                                    for stage_name in sorted_stage_names:
+                                        if stage_name in stage_name_to_events:
+                                            all_major_events.extend(stage_name_to_events[stage_name])
+                                            stage_info.append(stage_name_to_info[stage_name])
                                     
                                     if all_major_events:
                                         storyline_data = {
@@ -386,55 +517,60 @@ class ProductLoader:
                                         continue
                                 except Exception as e:
                                     self.logger.info(f"从 plans 目录提取storyline失败: {e}")
-                        
-                        # 备用方案：尝试从写作计划中提取重大事件
-                        writing_file = products_dir / product_files['writing']
-                        if writing_file.exists():
-                            try:
-                                with open(writing_file, 'r', encoding='utf-8') as wf:
-                                    writing_data = json.load(wf)
-                                
-                                # 从所有阶段的写作计划中提取 major_events
-                                all_major_events = []
-                                stage_info = []
-                                
-                                for stage_key in ['opening_stage', 'development_stage', 'climax_stage', 'ending_stage']:
-                                    if stage_key in writing_data:
-                                        stage_plan = writing_data[stage_key].get('stage_writing_plan', {})
-                                        events = stage_plan.get('event_system', {}).get('major_events', [])
-                                        if events:
-                                            # 为每个事件添加阶段信息
-                                            for event in events:
-                                                event['_stage'] = stage_key
-                                                event['_chapter_range'] = stage_plan.get('chapter_range', '')
-                                            all_major_events.extend(events)
-                                            
-                                            stage_info.append({
-                                                'stage_name': stage_key,
-                                                'chapter_range': stage_plan.get('chapter_range', ''),
-                                                'major_event_count': len(events)
-                                            })
-                                
-                                if all_major_events:
-                                    storyline_data = {
-                                        'stage_info': stage_info,
-                                        'total_major_events': len(all_major_events),
-                                        'major_events': all_major_events,
-                                        'source': 'writing_plan'
-                                    }
-                                    products[category]['content'] = json.dumps(storyline_data, ensure_ascii=False, indent=2)
-                                    products[category]['complete'] = True
-                                    products[category]['file_path'] = str(writing_file)
-                                    self.logger.info(f"已加载产物(旧格式): {category} (从 {len(stage_info)} 个阶段提取)")
-                                    continue
-                            except Exception as e:
-                                self.logger.info(f"从写作计划提取storyline失败: {e}")
-                        
-                        # 如果写作计划提取失败，使用阶段计划文件
-                        products[category]['content'] = json.dumps(content, ensure_ascii=False, indent=2)
-                        products[category]['complete'] = True
-                        products[category]['file_path'] = str(file_path)
-                        self.logger.info(f"已加载产物(旧格式): {category} (从阶段计划)")
+                            
+                            # 备用方案：尝试从写作计划中提取重大事件
+                            writing_file = products_dir / product_files['writing']
+                            if writing_file.exists():
+                                try:
+                                    with open(writing_file, 'r', encoding='utf-8') as wf:
+                                        writing_data = json.load(wf)
+                                    
+                                    # 从所有阶段的写作计划中提取 major_events
+                                    all_major_events = []
+                                    stage_info = []
+                                    
+                                    for stage_key in STAGE_ORDER:
+                                        if stage_key in writing_data:
+                                            stage_plan = writing_data[stage_key].get('stage_writing_plan', {})
+                                            events = stage_plan.get('event_system', {}).get('major_events', [])
+                                            if events:
+                                                # 为每个事件添加阶段信息
+                                                for event in events:
+                                                    event['_stage'] = stage_key
+                                                    event['_chapter_range'] = stage_plan.get('chapter_range', '')
+                                                all_major_events.extend(events)
+                                                
+                                                stage_info.append({
+                                                    'stage_name': stage_key,
+                                                    'chapter_range': stage_plan.get('chapter_range', ''),
+                                                    'major_event_count': len(events)
+                                                })
+                                    
+                                    if all_major_events:
+                                        storyline_data = {
+                                            'stage_info': stage_info,
+                                            'total_major_events': len(all_major_events),
+                                            'major_events': all_major_events,
+                                            'source': 'writing_plan'
+                                        }
+                                        products[category]['content'] = json.dumps(storyline_data, ensure_ascii=False, indent=2)
+                                        products[category]['complete'] = True
+                                        products[category]['file_path'] = str(writing_file)
+                                        self.logger.info(f"已加载产物(旧格式): {category} (从 {len(stage_info)} 个阶段提取)")
+                                        continue
+                                except Exception as e:
+                                    self.logger.info(f"从写作计划提取storyline失败: {e}")
+                            
+                            # 如果写作计划提取失败，使用阶段计划文件
+                            products[category]['content'] = json.dumps(content, ensure_ascii=False, indent=2)
+                            products[category]['complete'] = True
+                            products[category]['file_path'] = str(file_path)
+                            self.logger.info(f"已加载产物(旧格式): {category} (从阶段计划)")
+                        else:
+                            products[category]['content'] = json.dumps(content, ensure_ascii=False, indent=2)
+                            products[category]['complete'] = True
+                            products[category]['file_path'] = str(file_path)
+                            self.logger.info(f"已加载产物(旧格式): {category}")
                     else:
                         products[category]['content'] = json.dumps(content, ensure_ascii=False, indent=2)
                         products[category]['complete'] = True
@@ -461,18 +597,21 @@ class ProductLoader:
                     worldview_data = phase_one_data.get('core_worldview', {})
                     products['worldview']['content'] = json.dumps(worldview_data, ensure_ascii=False, indent=2)
                     products['worldview']['complete'] = True
+                    products['worldview']['file_path'] = str(phase_one_file)
                     self.logger.info(f"从第一阶段设定文件加载世界观")
                 
                 if 'character_design' in phase_one_data:
                     character_data = phase_one_data.get('character_design', {})
                     products['characters']['content'] = json.dumps(character_data, ensure_ascii=False, indent=2)
                     products['characters']['complete'] = True
+                    products['characters']['file_path'] = str(phase_one_file)
                     self.logger.info(f"从第一阶段设定文件加载角色设计")
                 
                 if 'stage_writing_plans' in phase_one_data:
                     writing_data = phase_one_data.get('stage_writing_plans', {})
                     products['writing']['content'] = json.dumps(writing_data, ensure_ascii=False, indent=2)
                     products['writing']['complete'] = True
+                    products['writing']['file_path'] = str(phase_one_file)
                     self.logger.info(f"从第一阶段设定文件加载写作计划")
                 
                 return
@@ -900,7 +1039,7 @@ def register_additional_routes(app):
     @app.route('/api/storyline/<title>', methods=['GET'])
     @login_required
     def get_storyline(title):
-        """获取项目的故事线数据"""
+        """获取项目的故事线数据（集成期待感管理）"""
         try:
             if not manager:
                 return jsonify({"success": False, "error": "Manager not initialized"}), 500
@@ -912,8 +1051,23 @@ def register_additional_routes(app):
             if not novel_detail:
                 return jsonify({"success": False, "error": "项目不存在"}), 404
             
-            # 从 quality_data 中提取故事线数据
             storyline_data = None
+            expectation_map = None
+            
+            # ========== 新增：首先尝试从项目目录加载已保存的期待感映射 ==========
+            try:
+                loader = ProductLoader(title, logger)
+                expectation_map_file = loader.project_dir / "expectation_map.json"
+                
+                if expectation_map_file.exists():
+                    with open(expectation_map_file, 'r', encoding='utf-8') as f:
+                        expectation_data = json.load(f)
+                        expectation_map = expectation_data.get('expectation_map', expectation_data)
+                        logger.info(f"[STORYLINE] 从项目目录加载期待感映射: {expectation_map_file.name}")
+            except Exception as e:
+                logger.info(f"[STORYLINE] 从项目目录加载期待感映射失败: {e}")
+            
+            # 从 quality_data 中提取故事线数据
             quality_data = novel_detail.get("quality_data", {})
             
             if quality_data:
@@ -937,6 +1091,53 @@ def register_additional_routes(app):
                                 }
                                 logger.info(f"[STORYLINE] 从写作计划提取到故事线: {stage_name}, {len(major_events)} 个重大事件")
                                 break
+                    
+                    # ========== 新增：如果没有期待感映射且有故事线，则自动生成 ==========
+                    if storyline_data and storyline_data.get('major_events') and not expectation_map:
+                        logger.info(f"[STORYLINE] 未找到期待感映射，开始自动生成...")
+                        
+                        # 导入期待感管理器
+                        try:
+                            from src.managers.ExpectationManager import ExpectationManager, ExpectationIntegrator
+                            expectation_manager = ExpectationManager()
+                            expectation_integrator = ExpectationIntegrator(expectation_manager)
+                            
+                            major_events = storyline_data.get('major_events', [])
+                            total_tagged = 0
+                            
+                            # 为每个重大事件添加期待感标签
+                            for event in major_events:
+                                event_name = event.get('name', '未命名事件')
+                                # 自动选择期待类型
+                                exp_type = select_expectation_type(event)
+                                
+                                # 计算种植和目标章节
+                                chapter_range = event.get('chapter_range', '1-10')
+                                try:
+                                    from src.managers.StagePlanUtils import parse_chapter_range
+                                    start_ch, end_ch = parse_chapter_range(chapter_range)
+                                    target_ch = max(start_ch + 3, end_ch)  # 目标章节至少3章后
+                                except:
+                                    target_ch = end_ch
+                                
+                                # 种植期待
+                                exp_id = expectation_manager.tag_event_with_expectation(
+                                    event_id=event_name,
+                                    expectation_type=exp_type,
+                                    planting_chapter=start_ch,
+                                    description=f"{event_name}: {event.get('main_goal', '')[:80]}...",
+                                    target_chapter=target_ch
+                                )
+                                
+                                total_tagged += 1
+                            
+                            # 生成期待感映射
+                            expectation_map = expectation_manager.export_expectation_map()
+                            
+                            logger.info(f"[STORYLINE] 成功为 {total_tagged} 个事件生成期待感标签")
+                            
+                        except Exception as e:
+                            logger.info(f"[STORYLINE] 生成期待感标签失败: {e}")
             
             # 如果没有从 quality_data 找到，尝试从产物文件加载
             if not storyline_data:
@@ -961,20 +1162,26 @@ def register_additional_routes(app):
                 if not storyline_data and products['writing']['complete']:
                     try:
                         writing_content = json.loads(products['writing']['content'])
+                    except Exception as e:
+                        logger.error(f"[STORYLINE] 解析写作计划内容失败: {e}")
+                    else:
                         
                         # 检查是否是新格式的多阶段写作计划（包含 stages 和 stage_names）
                         if 'stages' in writing_content and 'stage_names' in writing_content:
                             all_major_events = []
                             stage_info = []
                             
-                            for stage_name in writing_content['stage_names']:
+                            # 按照标准阶段顺序排序
+                            sorted_stage_names = get_sorted_stages(writing_content['stage_names'])
+                            
+                            for stage_name in sorted_stage_names:
                                 if stage_name in writing_content['stages']:
                                     stage_data = writing_content['stages'][stage_name]
                                     stage_plan = stage_data.get('stage_writing_plan', {})
                                     
                                     major_events = stage_plan.get('event_system', {}).get('major_events', [])
                                     if major_events:
-                                        # 为每个事件添加阶段信息和中级事件
+                                        # 为每个事件添加阶段信息
                                         for event in major_events:
                                             event['_stage'] = stage_name
                                             event['_chapter_range'] = stage_plan.get('chapter_range', '')
@@ -984,7 +1191,7 @@ def register_additional_routes(app):
                                                     if isinstance(phase_events, list):
                                                         event['_medium_events'] = event.get('_medium_events', [])
                                                         event['_medium_events'].extend(phase_events)
-                                        
+                                                
                                         all_major_events.extend(major_events)
                                         
                                         stage_info.append({
@@ -1007,7 +1214,7 @@ def register_additional_routes(app):
                             all_major_events = []
                             all_stage_info = []
                             
-                            for stage_key in ['opening_stage', 'development_stage', 'climax_stage', 'ending_stage']:
+                            for stage_key in STAGE_ORDER:
                                 if stage_key in writing_content:
                                     stage_plan = writing_content[stage_key].get('stage_writing_plan', {})
                                     events = stage_plan.get('event_system', {}).get('major_events', [])
@@ -1047,29 +1254,55 @@ def register_additional_routes(app):
                                         'major_events': major_events
                                     }
                                     logger.info(f"[STORYLINE] 从产物文件提取到故事线: 全书, {len(major_events)} 个重大事件")
-                    except Exception as e:
-                        logger.error(f"[STORYLINE] 从产物文件提取故事线失败: {e}")
+            
+            # ========== 统一的期待感映射生成逻辑 ==========
+            if storyline_data and storyline_data.get('major_events') and not expectation_map:
+                logger.info(f"[STORYLINE] 故事线数据已加载，但未找到期待感映射，开始自动生成...")
                 
-                # 如果写作计划没有，尝试从专门的 storyline 产物提取
-                if not storyline_data and products['storyline']['complete']:
-                    try:
-                        storyline_content = json.loads(products['storyline']['content'])
-                        # 检查是否包含 major_events
-                        if 'major_events' in storyline_content:
-                            storyline_data = storyline_content
-                            logger.info(f"[STORYLINE] 从storyline产物提取到故事线")
-                        elif 'overall_stage_plan' in storyline_content:
-                            # 从整体阶段计划中提取（转换为可用格式）
-                            storyline_data = {
-                                'stage_name': 'overall',
-                                'chapter_range': '全书',
-                                'major_events': [],  # 阶段计划不包含具体事件列表
-                                'overall_plan': storyline_content.get('overall_stage_plan', {}),
-                                'source': 'overall_stage_plan'
-                            }
-                            logger.info(f"[STORYLINE] 从阶段计划提取到整体规划")
-                    except Exception as e:
-                        logger.error(f"[STORYLINE] 从storyline产物提取失败: {e}")
+                try:
+                    from src.managers.ExpectationManager import ExpectationManager, ExpectationIntegrator
+                    expectation_manager = ExpectationManager()
+                    expectation_integrator = ExpectationIntegrator(expectation_manager)
+                    
+                    major_events = storyline_data.get('major_events', [])
+                    total_tagged = 0
+                    
+                    # 为每个重大事件添加期待感标签
+                    for event in major_events:
+                        event_name = event.get('name', '未命名事件')
+                        exp_type = select_expectation_type(event)
+                        
+                        chapter_range = event.get('chapter_range', '1-10')
+                        try:
+                            from src.managers.StagePlanUtils import parse_chapter_range
+                            start_ch, end_ch = parse_chapter_range(chapter_range)
+                            target_ch = max(start_ch + 3, end_ch)
+                        except:
+                            target_ch = end_ch
+                        
+                        exp_id = expectation_manager.tag_event_with_expectation(
+                            event_id=event_name,
+                            expectation_type=exp_type,
+                            planting_chapter=start_ch,
+                            description=f"{event_name}: {event.get('main_goal', '')[:80]}...",
+                            target_chapter=target_ch
+                        )
+                        
+                        total_tagged += 1
+                    
+                    # 生成期待感映射
+                    expectation_map = expectation_manager.export_expectation_map()
+                    logger.info(f"[STORYLINE] 成功为 {total_tagged} 个事件生成期待感标签")
+                    
+                except Exception as e:
+                    logger.info(f"[STORYLINE] 生成期待感标签失败: {e}")
+            
+            # ========== 最后：将期待感映射添加到故事线数据中 ==========
+            if storyline_data and expectation_map:
+                storyline_data['expectation_map'] = expectation_map
+                logger.info(f"[STORYLINE] 已添加期待感映射到故事线数据 (共 {len(expectation_map.get('expectations', {}))} 个期待)")
+            elif storyline_data and not expectation_map:
+                logger.info(f"[STORYLINE] ⚠️ 故事线数据存在但没有期待感映射，前端将不会显示期待感标签")
             
             if not storyline_data:
                 return jsonify({

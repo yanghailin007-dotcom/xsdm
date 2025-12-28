@@ -246,9 +246,9 @@ class StagePlanManager:
             self.logger.error(f"    🚨 主龙骨生成失败")
             return {}
         
-        # Phase 2: 分解重大事件为中型事件（第一阶段到此为止）
+        # Phase 2: 分解重大事件
         self.logger.info("   Phase 2: 逐一'解剖'重大事件，填充中型事件...")
-        fleshed_out_major_events = self._decompose_major_events_to_medium_only(
+        fleshed_out_major_events = self._decompose_major_events_with_retry(
             major_event_skeletons, stage_name, stage_range, creative_seed,
             novel_title, novel_synopsis, overall_stage_plan
         )
@@ -642,12 +642,11 @@ class StagePlanManager:
         
         return []
     
-    def _decompose_major_events_to_medium_only(self, major_event_skeletons: List[Dict],
-                                             stage_name: str, stage_range: str,
-                                             creative_seed: Dict, novel_title: str,
-                                             novel_synopsis: str, overall_stage_plan: Dict) -> List[Dict]:
-        """分解重大事件为中型事件（第一阶段专用 - 不进行场景分解）"""
-        self.logger.info("    [第一阶段] 只分解到中型事件，不进行场景分解...")
+    def _decompose_major_events_with_retry(self, major_event_skeletons: List[Dict],
+                                          stage_name: str, stage_range: str,
+                                          creative_seed: Dict, novel_title: str,
+                                          novel_synopsis: str, overall_stage_plan: Dict) -> List[Dict]:
+        """分解重大事件（带重试）"""
         fleshed_out_major_events = []
         
         for skeleton in major_event_skeletons:
@@ -668,7 +667,6 @@ class StagePlanManager:
                     )
                     
                     if fleshed_out_event:
-                        self.logger.info(f"      ✅ 成功分解为中型事件（第一阶段到此为止）")
                         break
                     else:
                         self.logger.warn(f"      ⚠️ 第{attempt+1}次解剖失败")
@@ -679,6 +677,17 @@ class StagePlanManager:
                         time.sleep(2 ** attempt)
             
             if fleshed_out_event:
+                # 智能分解中型事件
+                fleshed_out_event = self.event_decomposer.smart_decompose_medium_events(
+                    major_event=fleshed_out_event,
+                    stage_name=stage_name,
+                    novel_title=novel_title,
+                    novel_synopsis=novel_synopsis,
+                    creative_seed=creative_seed,
+                    overall_stage_plan=overall_stage_plan,
+                    global_novel_data=self.generator.novel_data
+                )
+                
                 # 验证并修正章节覆盖率
                 fleshed_out_event = self.plan_validator.validate_and_correct_major_event_coverage(
                     skeleton, fleshed_out_event
@@ -688,22 +697,7 @@ class StagePlanManager:
             else:
                 self.logger.error(f"    🚨 重大事件 '{skeleton['name']}' 解剖失败")
         
-        self.logger.info(f"    ✅ 第一阶段事件分解完成：共{len(fleshed_out_major_events)}个重大事件")
         return fleshed_out_major_events
-    
-    def _decompose_major_event_to_medium_only(self, major_event: Dict) -> Dict:
-        """
-        只保留中型事件分解结果，移除场景分解
-        
-        Args:
-            major_event: 已分解的重大事件
-            
-        Returns:
-            只包含中型事件的重大事件
-        """
-        # 重大事件已经包含了中型事件的composition
-        # 第一阶段只需要这个结构，不需要进一步的场景分解
-        return major_event
     
     def _validate_and_optimize_events(self, fleshed_out_major_events: List[Dict],
                                      stage_name: str, stage_range: str,
@@ -757,10 +751,10 @@ class StagePlanManager:
         
         return goal_coherence, continuity_assessment
     
-    def _validate_and_optimize_writing_plan(self, writing_plan: Dict,
+    def _validate_and_optimize_writing_plan(self, writing_plan: Dict, 
                                           stage_name: str, stage_range: str) -> Dict:
-        """验证和优化写作计划（第一阶段版 - 验证中型事件覆盖）"""
-        self.logger.info(f"  🔍 [第一阶段] 对 {stage_name} 进行中型事件覆盖率验证...")
+        """验证和优化写作计划"""
+        self.logger.info(f"  🔍 对 {stage_name} 进行章节覆盖率验证...")
         
         if not writing_plan or "stage_writing_plan" not in writing_plan:
             self.logger.warn(f"  ⚠️ {stage_name} 写作计划为空或结构错误")
@@ -779,7 +773,7 @@ class StagePlanManager:
             self.logger.error(f"  ❌ 关键错误: 无法解析阶段章节范围 '{stage_range}'")
             return writing_plan
         
-        # 提取所有中型事件和特殊情感事件的范围
+        # 提取所有事件范围
         all_event_ranges = []
         for major_event in major_events:
             composition = major_event.get('composition', {})
@@ -808,7 +802,7 @@ class StagePlanManager:
             self.logger.warn(f"  ⚠️ {stage_name} 计划中未找到任何有效的事件章节范围")
             return writing_plan
         
-        # 检查中型事件的覆盖率
+        # 检查覆盖率
         total_chapters = stage_end - stage_start + 1
         coverage_map = [False] * total_chapters
         
@@ -820,36 +814,30 @@ class StagePlanManager:
         uncovered_chapters = [i + stage_start for i, covered in enumerate(coverage_map) if not covered]
         
         if not uncovered_chapters:
-            self.logger.info(f"  ✅ 第一阶段中型事件覆盖率验证通过！")
+            self.logger.info(f"  ✅ 章节覆盖率验证通过！")
         else:
-            self.logger.warn(f"  ⚠️ 第一阶段存在未覆盖章节: {uncovered_chapters}")
-            self.logger.info(f"     这些章节将在第二阶段通过进一步分解来覆盖")
+            self.logger.error(f"  ❌ 覆盖率检查失败: {stage_name} ({stage_range}) 存在内容空白章节")
+            self.logger.info(f"    - 未覆盖的章节: {uncovered_chapters}")
         
         return writing_plan
     
     def _print_fractal_plan_summary(self, writing_plan: Dict):
-        """打印分形设计写作计划的摘要（第一阶段版）"""
+        """打印分形设计写作计划的摘要"""
         plan = writing_plan.get("stage_writing_plan", {})
         event_system = plan.get("event_system", {})
         major_events = event_system.get("major_events", [])
-        special_events = event_system.get("special_emotional_events", [])
         chapter_scene_events = event_system.get("chapter_scene_events", [])
         
         hierarchy_assessment = plan.get("goal_hierarchy_assessment", {})
         coherence_score = hierarchy_assessment.get("overall_coherence_score", "未评估")
         
         self.logger.info("=" * 60)
-        self.logger.info(f"📄 [第一阶段] 阶段计划摘要: {plan.get('stage_name')} ({plan.get('chapter_range')})")
+        self.logger.info(f"📄 阶段计划摘要: {plan.get('stage_name')} ({plan.get('chapter_range')})")
         self.logger.info(f"🎯 目标层级一致性: {coherence_score}/10")
         
-        # 统计中型事件
-        total_medium_events = 0
-        for major_event in major_events:
-            composition = major_event.get('composition', {})
-            total_medium_events += sum(len(v) for v in composition.values())
-        
-        self.logger.info(f"📊 第一阶段结构: {len(major_events)}个重大事件 → {total_medium_events}个中型事件 → {len(special_events)}个特殊情感事件")
-        self.logger.info(f"   章节场景规划: {len(chapter_scene_events)}章 (将在第二阶段生成)")
+        total_scenes = sum(len(chapter["scene_events"]) for chapter in chapter_scene_events)
+        avg_scenes = total_scenes / len(chapter_scene_events) if chapter_scene_events else 0
+        self.logger.info(f"📊 场景规划: {len(chapter_scene_events)}章, {total_scenes}个场景 (平均{avg_scenes:.1f}场景/章)")
         
         self.logger.info(f"\n🚨 主龙骨包含 {len(major_events)} 个重大事件:")
         for i, major_event in enumerate(major_events, 1):
@@ -861,13 +849,6 @@ class StagePlanManager:
             self.logger.info(f"    {i}. 【{role}】{name} ({ch_range})")
             self.logger.info(f"       - 目标: {major_event.get('main_goal')}")
             self.logger.info(f"       - 分解为 {sub_event_count} 个中型事件")
-        
-        if special_events:
-            self.logger.info(f"\n💫 特殊情感事件 ({len(special_events)}个):")
-            for i, special in enumerate(special_events[:5], 1):  # 只显示前5个
-                self.logger.info(f"    {i}. {special.get('name')} ({special.get('chapter_range', 'N/A')}) - {special.get('purpose', '')}")
-            if len(special_events) > 5:
-                self.logger.info(f"    ... 还有 {len(special_events) - 5} 个特殊情感事件")
         
         self.logger.info("=" * 60)
     

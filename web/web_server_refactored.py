@@ -35,6 +35,7 @@ from web.api.novel_api import register_novel_routes
 from web.api.creative_api import register_creative_routes
 from web.api.cover_api import register_cover_routes
 from web.api.phase_generation_api import register_phase_routes
+from web.api.resume_generation_api import register_resume_routes
 
 # 导入页面路由模块
 from web.routes.auth_routes import register_auth_routes, register_page_routes
@@ -73,6 +74,9 @@ def create_app():
     
     # 8. 两阶段生成API路由
     register_phase_routes(app, manager)
+    
+    # 9. 恢复生成API路由
+    register_resume_routes(app)
     
     return app, manager
 
@@ -542,23 +546,69 @@ def cleanup_on_exit():
     logger.info("✅ 清理完成")
 
 
+import time
+
+# 全局变量用于跟踪信号
+_last_signal_time = 0
+_signal_count = 0
+_EXIT_SIGNALS_REQUIRED = 2  # 需要连续两次 Ctrl+C 才退出
+_SIGNAL_TIMEOUT = 3.0  # 两次信号之间的时间间隔（秒）
+
+
 def signal_handler(signum, frame):
-    """信号处理器"""
-    logger.info(f"📝 收到信号 {signum}，准备退出...")
-    cleanup_on_exit()
-    os._exit(0)  # 强制退出所有线程
+    """智能信号处理器 - 需要连续两次信号才退出"""
+    global _last_signal_time, _signal_count
+    
+    current_time = time.time()
+    time_since_last = current_time - _last_signal_time
+    
+    # 如果距离上次信号太久，重置计数
+    if time_since_last > _SIGNAL_TIMEOUT:
+        _signal_count = 0
+    
+    _signal_count += 1
+    _last_signal_time = current_time
+    
+    logger.info(f"📝 收到信号 {signum} (第 {_signal_count}/{_EXIT_SIGNALS_REQUIRED} 次)")
+    
+    if signum == signal.SIGTERM:
+        # SIGTERM 立即退出
+        logger.info("⚠️ 收到终止信号，立即退出...")
+        cleanup_on_exit()
+        os._exit(0)
+    elif _signal_count >= _EXIT_SIGNALS_REQUIRED:
+        # 需要连续多次 Ctrl+C 才退出（防止误触）
+        logger.info("✅ 检测到连续中断信号，准备退出...")
+        logger.info("💡 提示：在 PowerShell/CMD 中复制文本请使用：")
+        logger.info("   - 右键菜单 -> 标记 -> 选择文本 -> 右键复制")
+        logger.info("   - 或者使用 Ctrl+Shift+C（如果支持）")
+        cleanup_on_exit()
+        os._exit(0)
+    else:
+        # 第一次 Ctrl+C，只警告不退出
+        remaining = _EXIT_SIGNALS_REQUIRED - _signal_count
+        logger.warn(f"⚠️  检测到中断信号！如需退出请再次按下 Ctrl+C ({remaining}/{_EXIT_SIGNALS_REQUIRED})")
+        logger.warn("💡 如果是想复制日志，请使用：右键 -> 标记 -> 选择文本 -> Enter")
 
 
 def main():
     """主函数"""
     print_startup_info()
     
-    # 注册信号处理器
-    signal.signal(signal.SIGINT, signal_handler)  # Ctrl+C
-    signal.signal(signal.SIGTERM, signal_handler)  # 终止信号
+    # 注册信号处理器（智能模式）
+    signal.signal(signal.SIGINT, signal_handler)  # Ctrl+C（需要两次才退出）
+    signal.signal(signal.SIGTERM, signal_handler)  # 终止信号（立即退出）
     
     # 注册退出清理函数
     atexit.register(cleanup_on_exit)
+    
+    # 打印操作提示
+    logger.info("=" * 60)
+    logger.info("💡 使用提示：")
+    logger.info("   • 服务器需要连续 2 次 Ctrl+C 才会退出（防止误触）")
+    logger.info("   • 复制日志内容请使用：右键 -> 标记 -> 选择文本 -> Enter")
+    logger.info("   • 或者使用 Ctrl+Shift+C（部分终端支持）")
+    logger.info("=" * 60)
     
     # 创建应用实例
     app, manager = create_app()

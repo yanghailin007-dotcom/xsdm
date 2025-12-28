@@ -1,5 +1,5 @@
 <!-- 生成表单 -->
-<form id="phase-one-form" onsubmit="startPhaseOneGeneration(event)">
+<form id="phase-one-form" onsubmit="startPhaseOneGenerationWithResume(event)">
     <div class="form-group">
         <label for="novel-title">小说标题</label>
         <input type="text" id="novel-title" name="title" 
@@ -33,9 +33,10 @@
 
         <div class="form-group">
             <label for="generation-mode">生成模式</label>
-            <select id="generation-mode" name="generation_mode">
+            <select id="generation-mode" name="generation_mode" onchange="handleGenerationModeChange()">
                 <option value="phase_one_only">仅第一阶段（生成设定后暂停）</option>
                 <option value="full_two_phase">完整两阶段（继续生成章节）</option>
+                <option value="resume_mode" id="resume-mode-option" style="display: none;">🔄 恢复模式（继续未完成的生成）</option>
             </select>
         </div>
     </div>

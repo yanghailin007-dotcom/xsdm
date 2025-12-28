@@ -1,8 +1,9 @@
 """
-创意文件解析API
+创意文件解析API - 支持多文件创意存储
 """
 import json
 import os
+from typing import Optional
 from flask import jsonify, request
 from datetime import datetime
 
@@ -14,8 +15,17 @@ from web.managers.novel_manager import NovelGenerationManager
 def register_creative_routes(app, manager: NovelGenerationManager):
     """注册创意相关API路由"""
     
-    def load_creative_ideas_from_file(file_path: str = None) -> dict:
-        """从文件加载创意数据"""
+    # 导入创意管理器
+    try:
+        from src.managers.CreativeIdeasManager import CreativeIdeasManager
+        creative_manager = CreativeIdeasManager()
+        logger.info("✅ 创意管理器初始化成功")
+    except ImportError as e:
+        logger.error(f"❌ 无法导入创意管理器: {e}")
+        creative_manager = None
+    
+    def load_creative_ideas_from_file(file_path: Optional[str] = None) -> dict:
+        """从文件加载创意数据（回退方法）"""
         if file_path is None:
             file_path = str(CREATIVE_IDEAS_FILE)
 
@@ -47,13 +57,18 @@ def register_creative_routes(app, manager: NovelGenerationManager):
     def get_creative_ideas():
         """获取创意文件内容"""
         try:
-            creative_data = load_creative_ideas_from_file()
-
-            if "error" in creative_data:
-                return jsonify(creative_data), 404
-
-            # 提取创意作品列表
-            creative_works = creative_data.get("creativeWorks", [])
+            # 使用创意管理器加载数据
+            if creative_manager:
+                data = creative_manager.load_creative_ideas()
+                creative_works = data.get("creativeWorks", [])
+                storage_format = data.get("format", "unknown")
+                logger.info(f"✅ 使用{storage_format}模式加载创意: {len(creative_works)}个")
+            else:
+                # 回退到旧方法
+                creative_data = load_creative_ideas_from_file()
+                if "error" in creative_data:
+                    return jsonify(creative_data), 404
+                creative_works = creative_data.get("creativeWorks", [])
 
             # 格式化为前端友好的格式
             formatted_ideas = []
@@ -77,11 +92,18 @@ def register_creative_routes(app, manager: NovelGenerationManager):
 
                 formatted_ideas.append(formatted_idea)
 
-            return jsonify({
+            # 添加存储格式信息
+            result = {
                 "success": True,
                 "count": len(formatted_ideas),
                 "creative_ideas": formatted_ideas
-            })
+            }
+            
+            if creative_manager:
+                storage_info = creative_manager.get_storage_info()
+                result["storage_info"] = storage_info
+            
+            return jsonify(result)
 
         except Exception as e:
             logger.error(f"❌ 获取创意列表失败: {e}")
@@ -91,12 +113,22 @@ def register_creative_routes(app, manager: NovelGenerationManager):
     def get_creative_idea_detail(idea_id):
         """获取指定创意的详细信息"""
         try:
-            creative_data = load_creative_ideas_from_file()
+            # 使用创意管理器获取创意
+            if creative_manager:
+                work = creative_manager.get_creative_idea(idea_id)
+                if work is None:
+                    return jsonify({"error": f"创意ID {idea_id} 不存在"}), 404
+                creative_works = [work]  # 兼容后续代码
+            else:
+                creative_data = load_creative_ideas_from_file()
+                if "error" in creative_data:
+                    return jsonify(creative_data), 404
+                creative_works = creative_data.get("creativeWorks", [])
 
-            if "error" in creative_data:
-                return jsonify(creative_data), 404
+                if idea_id < 1 or idea_id > len(creative_works):
+                    return jsonify({"error": f"创意ID {idea_id} 不存在"}), 404
 
-            creative_works = creative_data.get("creativeWorks", [])
+                work = creative_works[idea_id - 1]
 
             if idea_id < 1 or idea_id > len(creative_works):
                 return jsonify({"error": f"创意ID {idea_id} 不存在"}), 404
@@ -142,19 +174,23 @@ def register_creative_routes(app, manager: NovelGenerationManager):
             if idea_id is None:
                 return jsonify({"error": "缺少idea_id参数"}), 400
 
-            # 加载创意数据
-            creative_data = load_creative_ideas_from_file()
+            # 使用创意管理器获取创意
+            if creative_manager:
+                selected_idea = creative_manager.get_creative_idea(idea_id)
+                if selected_idea is None:
+                    return jsonify({"error": f"创意ID {idea_id} 不存在"}), 404
+            else:
+                # 加载创意数据
+                creative_data = load_creative_ideas_from_file()
+                if "error" in creative_data:
+                    return jsonify(creative_data), 404
 
-            if "error" in creative_data:
-                return jsonify(creative_data), 404
+                creative_works = creative_data.get("creativeWorks", [])
+                if idea_id < 1 or idea_id > len(creative_works):
+                    return jsonify({"error": f"创意ID {idea_id} 不存在"}), 404
 
-            creative_works = creative_data.get("creativeWorks", [])
-
-            if idea_id < 1 or idea_id > len(creative_works):
-                return jsonify({"error": f"创意ID {idea_id} 不存在"}), 404
-
-            # 获取选定的创意
-            selected_idea = creative_works[idea_id - 1]
+                # 获取选定的创意
+                selected_idea = creative_works[idea_id - 1]
 
             # 构建生成配置
             novel_config = {
@@ -201,36 +237,66 @@ def register_creative_routes(app, manager: NovelGenerationManager):
                 if not data.get(field):
                     return jsonify({"error": f"缺少必需字段: {field}"}), 400
             
-            # 加载现有创意数据
-            creative_data = load_creative_ideas_from_file()
-            
-            if "error" in creative_data:
-                return jsonify(creative_data), 404
-            
-            creative_works = creative_data.get("creativeWorks", [])
-            
-            if idea_id < 1 or idea_id > len(creative_works):
-                return jsonify({"error": f"创意ID {idea_id} 不存在"}), 404
-            
-            # 更新创意数据
-            updated_idea = creative_works[idea_id - 1]
-            
-            # 保留原始字段，更新提供的字段
-            updated_idea["coreSetting"] = data.get("coreSetting", updated_idea.get("coreSetting", ""))
-            updated_idea["novelTitle"] = data.get("novelTitle", updated_idea.get("novelTitle", ""))
-            updated_idea["synopsis"] = data.get("synopsis", updated_idea.get("synopsis", ""))
-            updated_idea["coreSellingPoints"] = data.get("coreSellingPoints", updated_idea.get("coreSellingPoints", ""))
-            updated_idea["totalChapters"] = data.get("totalChapters", updated_idea.get("totalChapters", 200))
-            
-            # 更新故事线
-            if data.get("completeStoryline"):
-                updated_idea["completeStoryline"] = data["completeStoryline"]
-            
-            # 更新时间戳
-            updated_idea["lastUpdated"] = datetime.now().isoformat()
-            
-            # 保存到文件
-            try:
+            # 使用创意管理器
+            if creative_manager:
+                # 获取现有创意
+                current_idea = creative_manager.get_creative_idea(idea_id)
+                if current_idea is None:
+                    return jsonify({"error": f"创意ID {idea_id} 不存在"}), 404
+                
+                # 合并更新
+                updated_idea = current_idea.copy()
+                updated_idea["coreSetting"] = data.get("coreSetting", updated_idea.get("coreSetting", ""))
+                updated_idea["novelTitle"] = data.get("novelTitle", updated_idea.get("novelTitle", ""))
+                updated_idea["synopsis"] = data.get("synopsis", updated_idea.get("synopsis", ""))
+                updated_idea["coreSellingPoints"] = data.get("coreSellingPoints", updated_idea.get("coreSellingPoints", ""))
+                updated_idea["totalChapters"] = data.get("totalChapters", updated_idea.get("totalChapters", 200))
+                
+                # 更新故事线
+                if data.get("completeStoryline"):
+                    updated_idea["completeStoryline"] = data["completeStoryline"]
+                
+                # 使用管理器保存
+                success = creative_manager.update_creative_idea(idea_id, updated_idea)
+                
+                if success:
+                    logger.info(f"✅ 创意ID {idea_id} 更新成功")
+                    return jsonify({
+                        "success": True,
+                        "message": f"创意 #{idea_id} 更新成功",
+                        "updated_idea": {
+                            "id": idea_id,
+                            "core_setting": updated_idea.get("coreSetting", ""),
+                            "novel_title": updated_idea.get("novelTitle", ""),
+                            "last_updated": updated_idea.get("lastUpdated")
+                        }
+                    })
+                else:
+                    return jsonify({"error": "更新失败"}), 500
+            else:
+                # 回退到旧方法
+                creative_data = load_creative_ideas_from_file()
+                if "error" in creative_data:
+                    return jsonify(creative_data), 404
+                
+                creative_works = creative_data.get("creativeWorks", [])
+                if idea_id < 1 or idea_id > len(creative_works):
+                    return jsonify({"error": f"创意ID {idea_id} 不存在"}), 404
+                
+                # 更新创意数据
+                updated_idea = creative_works[idea_id - 1]
+                updated_idea["coreSetting"] = data.get("coreSetting", updated_idea.get("coreSetting", ""))
+                updated_idea["novelTitle"] = data.get("novelTitle", updated_idea.get("novelTitle", ""))
+                updated_idea["synopsis"] = data.get("synopsis", updated_idea.get("synopsis", ""))
+                updated_idea["coreSellingPoints"] = data.get("coreSellingPoints", updated_idea.get("coreSellingPoints", ""))
+                updated_idea["totalChapters"] = data.get("totalChapters", updated_idea.get("totalChapters", 200))
+                
+                if data.get("completeStoryline"):
+                    updated_idea["completeStoryline"] = data["completeStoryline"]
+                
+                updated_idea["lastUpdated"] = datetime.now().isoformat()
+                
+                # 保存到文件
                 with open(CREATIVE_IDEAS_FILE, 'w', encoding='utf-8') as f:
                     json.dump(creative_data, f, ensure_ascii=False, indent=2)
                 
@@ -247,10 +313,6 @@ def register_creative_routes(app, manager: NovelGenerationManager):
                     }
                 })
                 
-            except Exception as save_error:
-                logger.error(f"❌ 保存创意文件失败: {save_error}")
-                return jsonify({"error": f"保存失败: {str(save_error)}"}), 500
-                
         except Exception as e:
             logger.error(f"❌ 更新创意失败: {e}")
             import traceback
@@ -262,26 +324,48 @@ def register_creative_routes(app, manager: NovelGenerationManager):
     def delete_creative_idea(idea_id):
         """删除指定创意"""
         try:
-            # 加载现有创意数据
-            creative_data = load_creative_ideas_from_file()
-            
-            if "error" in creative_data:
-                return jsonify(creative_data), 404
-            
-            creative_works = creative_data.get("creativeWorks", [])
-            
-            if idea_id < 1 or idea_id > len(creative_works):
-                return jsonify({"error": f"创意ID {idea_id} 不存在"}), 404
-            
-            # 获取要删除的创意信息（用于日志）
-            deleted_idea = creative_works[idea_id - 1]
-            deleted_title = deleted_idea.get("coreSetting", "未知创意")[:50]
-            
-            # 从列表中移除创意
-            creative_works.pop(idea_id - 1)
-            
-            # 保存到文件
-            try:
+            # 使用创意管理器
+            if creative_manager:
+                # 获取要删除的创意信息（用于日志）
+                deleted_idea = creative_manager.get_creative_idea(idea_id)
+                if deleted_idea is None:
+                    return jsonify({"error": f"创意ID {idea_id} 不存在"}), 404
+                
+                deleted_title = deleted_idea.get("coreSetting", "未知创意")[:50]
+                
+                # 使用管理器删除
+                success = creative_manager.delete_creative_idea(idea_id)
+                
+                if success:
+                    logger.info(f"✅ 创意ID {idea_id} 删除成功: {deleted_title}...")
+                    return jsonify({
+                        "success": True,
+                        "message": f"创意 #{idea_id} 删除成功",
+                        "deleted_idea": {
+                            "id": idea_id,
+                            "title_preview": deleted_title
+                        }
+                    })
+                else:
+                    return jsonify({"error": "删除失败"}), 500
+            else:
+                # 回退到旧方法
+                creative_data = load_creative_ideas_from_file()
+                if "error" in creative_data:
+                    return jsonify(creative_data), 404
+                
+                creative_works = creative_data.get("creativeWorks", [])
+                if idea_id < 1 or idea_id > len(creative_works):
+                    return jsonify({"error": f"创意ID {idea_id} 不存在"}), 404
+                
+                # 获取要删除的创意信息（用于日志）
+                deleted_idea = creative_works[idea_id - 1]
+                deleted_title = deleted_idea.get("coreSetting", "未知创意")[:50]
+                
+                # 从列表中移除创意
+                creative_works.pop(idea_id - 1)
+                
+                # 保存到文件
                 with open(CREATIVE_IDEAS_FILE, 'w', encoding='utf-8') as f:
                     json.dump(creative_data, f, ensure_ascii=False, indent=2)
                 
@@ -295,10 +379,6 @@ def register_creative_routes(app, manager: NovelGenerationManager):
                         "title_preview": deleted_title
                     }
                 })
-                
-            except Exception as save_error:
-                logger.error(f"❌ 保存创意文件失败: {save_error}")
-                return jsonify({"error": f"保存失败: {str(save_error)}"}), 500
                 
         except Exception as e:
             logger.error(f"❌ 删除创意失败: {e}")

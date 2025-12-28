@@ -83,6 +83,8 @@ class ImprovedFanfictionDetector:
         """
         检测是否为同人小说并提取原著名称
         
+        只有当创意中明确包含同人相关标签或表述时，才判定为同人小说
+        
         Args:
             creative_work: 用户提供的创意作品信息
             
@@ -94,11 +96,11 @@ class ImprovedFanfictionDetector:
         # 提取所有文本内容进行检测
         combined_text = self._extract_combined_text(creative_work)
         
-        # 检测同人小说特征
-        is_fanfiction = self._check_fanfiction_keywords(combined_text)
+        # 严格检测同人小说特征 - 必须有明确的同人标签
+        is_fanfiction = self._check_explicit_fanfiction_markers(combined_text)
         
         if not is_fanfiction:
-            print("    未检测到同人小说特征，按原创作品处理")
+            print("    未检测到明确的同人标签，按原创作品处理")
             return False, ""
         
         print("    检测到同人小说特征，开始提取原著背景资料...")
@@ -126,9 +128,41 @@ class ImprovedFanfictionDetector:
         # 合并所有文本并转为小写
         return f"{core_setting} {core_selling_points} {storyline_text}".lower()
 
-    def _check_fanfiction_keywords(self, text: str) -> bool:
-        """检查文本中是否包含同人小说关键词"""
-        return any(keyword in text for keyword in self.fanfiction_keywords)
+    def _check_explicit_fanfiction_markers(self, text: str) -> bool:
+        """
+        严格检查文本中是否包含明确的同人小说标记
+        
+        只有当文本中包含明确的同人相关表述时，才判定为同人小说
+        仅仅包含"重生"、"穿越"等常见网文元素不足以判定为同人
+        """
+        # 明确的同人标记（这些标记的出现才表示是同人）
+        explicit_fanfiction_patterns = [
+            r'同人文',
+            r'同人小说',
+            r'同人作品',
+            r'([^，。！？\s]+)同人[^修仙玄幻]',
+            r'基于《([^》]+)》',
+            r'改编自《([^》]+)》',
+            r'([^，。！？\s]+)AU',
+            r'([^，。！？\s]+)衍生作品',
+            r'穿越到《([^》]+)》',
+            r'重生在《([^》]+)》',
+            r'转生到《([^》]+)》',
+        ]
+        
+        # 检查是否存在明确的同人标记
+        for pattern in explicit_fanfiction_patterns:
+            if re.search(pattern, text):
+                print(f"    检测到同人标记: {pattern}")
+                return True
+        
+        # 检查是否包含明确的"某某小说的同人"表述
+        if re.search(r'《([^》]+)》.*?(同人|衍生|AU)', text):
+            print("    检测到作品同人标记")
+            return True
+        
+        print("    未检测到明确的同人标记")
+        return False
 
     def _extract_original_work_name(self, text: str) -> str:
         """
@@ -140,6 +174,16 @@ class ImprovedFanfictionDetector:
         Returns:
             原著作品名称
         """
+        # 常见的功法、技能、法宝名称（排除列表）
+        technique_keywords = [
+            "功法", "武技", "法术", "神通", "秘术", "绝学", "技法", "战技",
+            "魔功", "神功", "天功", "玄功", "宝典", "真经", "秘籍", "心法",
+            "剑诀", "刀法", "拳法", "掌法", "指法", "身法", "步法", "遁术",
+            "阵法", "禁制", "符箓", "丹方", "炼器", "御兽", "驭鬼", "摄魂",
+            "吞天魔功", "九转金身", "龙象般若", "乾坤大挪移", "北冥神功",
+            "八荒六合", "斗转星移", "凌波微步", "降龙十八掌", "打狗棒法"
+        ]
+        
         # 1. 精准模式匹配：优先匹配明确的同人文表述
         precise_patterns = [
             r'([^，。！？\s]+)同人文',
@@ -163,13 +207,52 @@ class ImprovedFanfictionDetector:
                     print(f"    精准匹配到作品: {work_name}")
                     return work_name
         
-        # 2. 引号中的书名匹配
+        # 2. 引号中的书名匹配（增加上下文检查）
         quoted_names = re.findall(r'《([^》]+)》', text)
         if quoted_names:
-            work_name = self._normalize_work_name(quoted_names[0])
-            if work_name != "未知原著":
-                print(f"    引号匹配到作品: {work_name}")
-                return work_name
+            for quoted_name in quoted_names:
+                # 先进行标准化处理
+                normalized_name = self._normalize_work_name(quoted_name)
+                
+                # 检查是否是功法/技能名称（使用原始名称和标准化名称）
+                is_technique = False
+                for keyword in technique_keywords:
+                    if keyword in quoted_name or quoted_name in keyword or keyword in normalized_name or normalized_name in keyword:
+                        is_technique = True
+                        print(f"    跳过功法/技能名: {quoted_name} (匹配到关键词: {keyword})")
+                        break
+                
+                if not is_technique:
+                    # 检查上下文，看是否明确提到是原著作品
+                    context_patterns = [
+                        f'《{quoted_name}》原著',
+                        f'《{quoted_name}》小说',
+                        f'《{quoted_name}》同人',
+                        f'《{quoted_name}》世界',
+                        f'《{quoted_name}》设定',
+                        f'基于《{quoted_name}》',
+                        f'改编自《{quoted_name}》',
+                        f'穿越到《{quoted_name}》',
+                        f'重生在《{quoted_name}》'
+                    ]
+                    
+                    # 检查文本中是否有这些上下文模式
+                    has_context = False
+                    for context_pattern in context_patterns:
+                        if context_pattern in text:
+                            has_context = True
+                            break
+                    
+                    if has_context:
+                        # 有明确上下文才认为是作品
+                        if normalized_name != "未知原著":
+                            print(f"    引号匹配到作品（有上下文）: {normalized_name}")
+                            return normalized_name
+                    else:
+                        # 没有明确上下文时，只在标准化映射中且非功法名时才认为是作品
+                        if normalized_name != "未知原著" and normalized_name in self.name_normalizations.values():
+                            print(f"    引号匹配到已知作品: {normalized_name}")
+                            return normalized_name
         
         # 3. 场景模式匹配
         scene_patterns = [
