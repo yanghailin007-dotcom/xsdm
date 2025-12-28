@@ -65,7 +65,13 @@ def register_page_routes(app):
     
     @app.route('/favicon.ico')
     def favicon():
-        """处理 favicon 请求，返回 204 无内容"""
+        """处理 favicon 请求，返回 logo.png"""
+        from flask import send_from_directory
+        import os
+        logo_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'logo.png')
+        if os.path.exists(logo_path):
+            return send_from_directory(os.path.dirname(logo_path), 'logo.png', mimetype='image/png')
+        # 如果 logo.png 不存在，返回 204
         from flask import Response
         return Response(status=204)
     
