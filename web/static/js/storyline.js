@@ -263,17 +263,22 @@ function renderMajorEventDetail(index) {
         `;
     }
     
-    // 特殊情感事件
+    // 特殊情感事件 - 从多个可能的位置读取
     const specialEvents = event.special_events || [];
-    if (specialEvents.length > 0) {
+    const specialEmotionalEvents = event.special_emotional_events || [];
+    const allSpecialEvents = [...specialEvents, ...specialEmotionalEvents];
+    
+    if (allSpecialEvents.length > 0) {
         html += `
             <div class="detail-section">
-                <div class="detail-section-title">✨ 特殊情感事件</div>
+                <div class="detail-section-title">✨ 特殊情感事件 (${allSpecialEvents.length})</div>
                 <div class="special-events-grid">
-                    ${specialEvents.map(se => `
+                    ${allSpecialEvents.map(se => `
                         <div class="special-event-card">
                             <h4>${escapeHtml(se.name || se.event_subtype || '特殊事件')}</h4>
-                            <p>${escapeHtml(se.purpose || se.placement_hint || '-')}</p>
+                            <p><strong>目的:</strong> ${escapeHtml(se.purpose || se.significance || se.placement_hint || '-')}</p>
+                            ${se.chapter ? `<p><strong>章节:</strong> 第${se.chapter}章</p>` : ''}
+                            ${se.description ? `<p><strong>描述:</strong> ${escapeHtml(se.description)}</p>` : ''}
                         </div>
                     `).join('')}
                 </div>

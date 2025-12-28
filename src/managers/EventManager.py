@@ -1035,6 +1035,24 @@ class EventManager:
                     "event_category": event.get("event_category", "情感特殊事件")
                 }
                 all_events.append(event_data)
+            
+            # 🔥 修复：提取特殊情感事件（之前遗漏的字段）
+            special_emotional_events = event_system.get("special_emotional_events", [])
+            self.logger.info(f"  🔍 {stage_name}的特殊情感事件数量: {len(special_emotional_events)}")
+            for event in special_emotional_events:
+                event_data = {
+                    "name": event.get("name", event.get("event_subtype", "未命名特殊情感事件")),
+                    "start_chapter": event.get("chapter", event.get("start_chapter", 0)),
+                    "end_chapter": event.get("chapter", event.get("start_chapter", 0)),
+                    "significance": event.get("purpose", event.get("significance", "情感发展和读者兴趣维持")),
+                    "description": event.get("purpose", event.get("description", "")),
+                    "type": "special",
+                    "subtype": event.get("event_subtype", "情感填充"),
+                    "stage": stage_name,
+                    "event_category": "特殊情感事件",
+                    "placement_hint": event.get("placement_hint", "")
+                }
+                all_events.append(event_data)
         
         # 按开始章节排序
         all_events.sort(key=lambda x: x["start_chapter"])
@@ -1122,6 +1140,20 @@ class EventManager:
                         "stage": stage_name
                     }
                     all_events.append(event_data)
+            
+            # 🔥 修复：提取特殊情感事件（之前遗漏的字段）
+            special_emotional_events = event_system.get("special_emotional_events", [])
+            for event in special_emotional_events:
+                start_chapter = event.get("chapter", event.get("start_chapter", 0))
+                event_data = {
+                    "name": event.get("name", event.get("event_subtype", "未命名特殊情感事件")),
+                    "start_chapter": start_chapter,
+                    "end_chapter": start_chapter,
+                    "type": "special",
+                    "subtype": event.get("event_subtype", "情感填充"),
+                    "stage": stage_name
+                }
+                all_events.append(event_data)
         
         # 按阶段统计
         stage_stats = {}
