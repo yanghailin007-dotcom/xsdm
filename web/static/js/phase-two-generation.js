@@ -407,6 +407,10 @@ async function loadPhaseOneProducts() {
         
         if (result.success) {
             phaseOneProductsData = result.products;
+            
+            // 单独加载势力系统状态
+            await checkFactionSystemStatus();
+            
             updateProductsDisplay();
             showStatusMessage('✅ 第一阶段产物加载完成', 'success');
         } else {
@@ -421,8 +425,31 @@ async function loadPhaseOneProducts() {
     }
 }
 
+// 检查势力系统状态
+async function checkFactionSystemStatus() {
+    try {
+        const response = await fetch(`/api/factions/${encodeURIComponent(currentProject.novel_title || currentProject.title)}`);
+        
+        if (response.ok) {
+            const result = await response.json();
+            if (result.success && result.faction_system) {
+                // 势力系统存在，添加到产物数据中
+                phaseOneProductsData.factions = {
+                    title: '势力/阵营系统',
+                    content: JSON.stringify(result.faction_system, null, 2),
+                    complete: true
+                };
+                console.log('✅ 势力系统已加载');
+            }
+        }
+    } catch (error) {
+        console.log('势力系统未生成或加载失败:', error.message);
+        // 势力系统不存在是正常情况，不显示错误
+    }
+}
+
 function updateProductsDisplay() {
-    const categories = ['worldview', 'characters', 'growth', 'writing', 'storyline', 'market'];
+    const categories = ['worldview', 'factions', 'characters', 'growth', 'writing', 'storyline', 'market'];
     
     categories.forEach(category => {
         const statusElement = document.getElementById(`${category}-status`);
@@ -446,6 +473,53 @@ function showMockProductsData() {
         worldview: {
             title: '世界观设定',
             content: '这是一个修仙世界，分为凡人界、修仙界、仙界三重境界。主要修炼体系包括炼气、筑基、金丹、元婴等境界。世界中有各大宗门、家族势力，以及丰富的灵兽、法宝设定。',
+            complete: true
+        },
+        factions: {
+            title: '势力/阵营系统',
+            content: JSON.stringify({
+                "main_conflict": "正道与魔道百年来争夺修真界主导权的大战即将爆发",
+                "faction_power_balance": "正道与魔道势均力敌，散修势力在中间摇摆",
+                "recommended_starting_faction": "青云宗（正道大派，资源丰富，适合作为主角初始势力）",
+                "factions": [
+                    {
+                        "name": "青云宗",
+                        "type": "正道",
+                        "background": "修真界百年大派，以剑道闻名",
+                        "core_philosophy": "以剑证道，匡扶正义",
+                        "goals": ["维护正道秩序", "培养优秀弟子", "对抗魔道"],
+                        "power_level": "一流势力",
+                        "strengths": ["剑法高超", "底蕴深厚", "弟子众多"],
+                        "weaknesses": ["思想保守", "内部派系林立"],
+                        "territory": "占据云州七郡",
+                        "relationships": {
+                            "allies": ["天剑宗", "佛门圣地"],
+                            "enemies": ["血魔宗", "炼魂殿"],
+                            "neutrals": ["散修联盟"]
+                        },
+                        "role_in_plot": "主角的初始势力，提供基础资源和保护",
+                        "suitable_for_protagonist": "是"
+                    },
+                    {
+                        "name": "血魔宗",
+                        "type": "魔道",
+                        "background": "三百年前崛起的魔道巨擘",
+                        "core_philosophy": "弱肉强食，以杀证道",
+                        "goals": ["统一魔道", "消灭正道", "搜集血魂"],
+                        "power_level": "一流势力",
+                        "strengths": ["功法霸道", "行事狠辣", "信徒狂热"],
+                        "weaknesses": ["树敌过多", "内部缺乏凝聚力"],
+                        "territory": "占据幽冥渊",
+                        "relationships": {
+                            "allies": ["炼魂殿", "万毒谷"],
+                            "enemies": ["青云宗", "天剑宗", "佛门圣地"],
+                            "neutrals": []
+                        },
+                        "role_in_plot": "主要敌对势力，推动主线冲突",
+                        "suitable_for_protagonist": "否"
+                    }
+                ]
+            }),
             complete: true
         },
         characters: {
@@ -486,8 +560,173 @@ function editProductCategory(category) {
 
     const productData = phaseOneProductsData[category];
     
-    // 创建编辑模态框
-    createProductEditModal(category, productData);
+    // 对于势力系统，使用特殊的查看器
+    if (category === 'factions') {
+        viewFactionSystem();
+    } else {
+        // 其他产物使用编辑模态框
+        createProductEditModal(category, productData);
+    }
+}
+
+// 查看势力系统
+async function viewFactionSystem() {
+    if (!currentProject) {
+        showStatusMessage('❌ 请先选择一个项目', 'error');
+        return;
+    }
+    
+    const projectTitle = currentProject.novel_title || currentProject.title;
+    if (!projectTitle) {
+        showStatusMessage('❌ 无法获取项目标题', 'error');
+        return;
+    }
+    
+    try {
+        showStatusMessage('🔄 正在加载势力系统...', 'info');
+        
+        const response = await fetch(`/api/factions/${encodeURIComponent(projectTitle)}`);
+        
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            createFactionSystemModal(result.faction_system);
+            showStatusMessage('✅ 势力系统加载完成', 'success');
+        } else {
+            throw new Error(result.error || '加载失败');
+        }
+    } catch (error) {
+        console.error('加载势力系统失败:', error);
+        showStatusMessage(`❌ 加载势力系统失败: ${error.message}`, 'error');
+    }
+}
+
+function createFactionSystemModal(factionData) {
+    const factions = factionData.factions || [];
+    const mainConflict = factionData.main_conflict || '未设置主要冲突';
+    const powerBalance = factionData.faction_power_balance || '未设置势力平衡';
+    const recommendedFaction = factionData.recommended_starting_faction || '未推荐';
+    
+    // 创建势力卡片HTML
+    let factionsHtml = '';
+    factions.forEach((faction, index) => {
+        const factionType = faction.type || '未分类';
+        const powerLevel = faction.power_level || '未知';
+        const strengths = (faction.strengths || []).slice(0, 3).join('、') || '无';
+        const weaknesses = (faction.weaknesses || []).slice(0, 3).join('、') || '无';
+        const allies = (faction.relationships?.allies || []).join('、') || '无';
+        const enemies = (faction.relationships?.enemies || []).join('、') || '无';
+        const isRecommended = faction.suitable_for_protagonist === '是';
+        
+        factionsHtml += `
+            <div class="faction-card ${isRecommended ? 'recommended' : ''}" style="animation-delay: ${index * 0.1}s">
+                ${isRecommended ? '<div class="recommended-badge">⭐ 推荐主角加入</div>' : ''}
+                <div class="faction-header">
+                    <div class="faction-name">${faction.name}</div>
+                    <div class="faction-type-badge">${factionType}</div>
+                </div>
+                <div class="faction-info">
+                    <div class="info-row">
+                        <span class="info-label">势力等级</span>
+                        <span class="info-value power-level-${powerLevel}">${powerLevel}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">核心理念</span>
+                        <span class="info-value">${faction.core_philosophy || '未设置'}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">势力背景</span>
+                        <span class="info-value">${faction.background || '未设置'}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">优势</span>
+                        <span class="info-value">${strengths}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">劣势</span>
+                        <span class="info-value">${weaknesses}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">盟友势力</span>
+                        <span class="info-value allies">${allies}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">敌对势力</span>
+                        <span class="info-value enemies">${enemies}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">剧情作用</span>
+                        <span class="info-value">${faction.role_in_plot || '未设置'}</span>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    
+    const modalHtml = `
+        <div id="faction-system-modal" class="faction-modal" onclick="closeFactionModal(event)">
+            <div class="faction-modal-content" onclick="event.stopPropagation()">
+                <div class="faction-modal-header">
+                    <div class="header-icon">⚔️</div>
+                    <div class="header-text">
+                        <h2>势力/阵营系统</h2>
+                        <p>查看和管理世界中的各个势力及其关系</p>
+                    </div>
+                    <button class="close-btn" onclick="closeFactionModal()">×</button>
+                </div>
+                
+                <div class="faction-overview">
+                    <div class="overview-card">
+                        <div class="overview-icon">⚡</div>
+                        <div class="overview-content">
+                            <div class="overview-label">主要冲突</div>
+                            <div class="overview-value">${mainConflict}</div>
+                        </div>
+                    </div>
+                    <div class="overview-card">
+                        <div class="overview-icon">⚖️</div>
+                        <div class="overview-content">
+                            <div class="overview-label">势力平衡</div>
+                            <div class="overview-value">${powerBalance}</div>
+                        </div>
+                    </div>
+                    <div class="overview-card">
+                        <div class="overview-icon">🎯</div>
+                        <div class="overview-content">
+                            <div class="overview-label">推荐势力</div>
+                            <div class="overview-value">${recommendedFaction}</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="factions-grid">
+                    ${factionsHtml}
+                </div>
+                
+                <div class="faction-modal-footer">
+                    <button class="btn btn-secondary" onclick="closeFactionModal()">关闭</button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+}
+
+function closeFactionModal(event) {
+    // 如果没有事件对象，或者点击的是模态框背景，则关闭
+    if (!event || event.target.id === 'faction-system-modal' || event.target.classList.contains('close-btn')) {
+        const modal = document.getElementById('faction-system-modal');
+        if (modal) {
+            modal.classList.add('closing');
+            setTimeout(() => modal.remove(), 300);
+        }
+    }
 }
 
 // 跳转到项目可视化界面

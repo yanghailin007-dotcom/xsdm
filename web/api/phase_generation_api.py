@@ -230,6 +230,47 @@ class ProductLoader:
     
     def _create_empty_product(self, title):
         return {'title': title, 'content': '', 'complete': False, 'file_path': ''}
+        
+    def load_faction_system(self):
+        """加载势力系统数据"""
+        try:
+            # 尝试从项目目录加载
+            worldview_dir = self.project_dir / "worldview"
+            if not worldview_dir.exists():
+                worldview_dir = self.project_dir / "materials" / "worldview"
+            
+            if worldview_dir.exists():
+                faction_files = list(worldview_dir.glob("*_势力系统.json"))
+                if faction_files:
+                    with open(faction_files[0], 'r', encoding='utf-8') as f:
+                        data = json.load(f)
+                    self.logger.info(f"已加载势力系统: {faction_files[0].name}")
+                    return data
+            
+            # 尝试从 quality_data 加载
+            if not manager:
+                return None
+                
+            novel_detail = manager.get_novel_detail(self.title)
+            if not novel_detail:
+                return None
+                
+            quality_data = novel_detail.get("quality_data", {})
+            if not quality_data:
+                return None
+                
+            writing_plans = quality_data.get("writing_plans", {})
+            for stage_name, plan_data in writing_plans.items():
+                if isinstance(plan_data, dict):
+                    faction_data = plan_data.get('faction_system') or plan_data.get('stage_writing_plan', {}).get('faction_system')
+                    if faction_data:
+                        self.logger.info(f"从写作计划加载势力系统: {stage_name}")
+                        return faction_data
+            
+            return None
+        except Exception as e:
+            self.logger.error(f"加载势力系统失败: {e}")
+            return None
     
     def _load_from_quality_data(self, products):
         if not manager:
@@ -1567,6 +1608,36 @@ def register_additional_routes(app):
             
         except Exception as e:
             logger.error(f"[STORYLINE] 获取故事线失败: {e}")
+            import traceback
+            logger.error(f"错误堆栈: {traceback.format_exc()}")
+            return jsonify({"success": False, "error": str(e)}), 500
+    
+    
+    @app.route('/api/factions/<title>', methods=['GET'])
+    @login_required
+    def get_faction_system(title):
+        """获取项目的势力系统数据"""
+        try:
+            logger.info(f"[FACTIONS] 获取势力系统数据: {title}")
+            
+            loader = ProductLoader(title, logger)
+            faction_data = loader.load_faction_system()
+            
+            if not faction_data:
+                return jsonify({
+                    "success": False,
+                    "error": "势力系统数据不存在",
+                    "hint": "请先完成第一阶段设定生成"
+                }), 404
+            
+            return jsonify({
+                "success": True,
+                "faction_system": faction_data,
+                "project_title": title
+            })
+            
+        except Exception as e:
+            logger.error(f"[FACTIONS] 获取势力系统失败: {e}")
             import traceback
             logger.error(f"错误堆栈: {traceback.format_exc()}")
             return jsonify({"success": False, "error": str(e)}), 500
