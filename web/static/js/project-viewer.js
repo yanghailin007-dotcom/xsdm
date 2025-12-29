@@ -1,5 +1,7 @@
 // ==================== 小说可视化系统 ====================
 
+console.log('🚀 project-viewer.js 开始加载');
+
 // 全局状态
 let currentView = 'overview';
 let editMode = false;
@@ -18,24 +20,34 @@ let novelData = {
     market: null
 };
 
+console.log('✅ 全局状态已初始化');
+
 // ==================== 初始化 ====================
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('📝 DOMContentLoaded 事件触发');
     initializeNovelViewer();
     loadNovelData();
     initializeEventListeners();
 });
 
 async function initializeNovelViewer() {
-    console.log('初始化小说可视化系统');
+    console.log('🎯 初始化小说可视化系统');
+    console.log('当前URL:', window.location.href);
+    console.log('URL搜索参数:', window.location.search);
     
     // 从URL获取项目标题
     const urlParams = new URLSearchParams(window.location.search);
+    console.log('URL参数对象:', urlParams);
+    
     const projectTitle = urlParams.get('title');
+    console.log('提取的项目标题:', projectTitle);
     
     if (projectTitle) {
         novelData.projectTitle = decodeURIComponent(projectTitle);
+        console.log('解码后的项目标题:', novelData.projectTitle);
         await loadNovelData();
     } else {
+        console.error('❌ 未找到项目参数');
         showStatusMessage('未找到项目参数', 'error');
     }
 }

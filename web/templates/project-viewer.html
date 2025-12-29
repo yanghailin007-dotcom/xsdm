@@ -189,16 +189,6 @@
                     </div>
                 </div>
             </div>
-                <div class="relations-container">
-                    <canvas id="relations-graph"></canvas>
-                </div>
-                <div class="relations-info">
-                    <h3>势力关系网络</h3>
-                    <div id="relations-details">
-                        <!-- 动态生成 -->
-                    </div>
-                </div>
-            </div>
 
             <!-- 系统设定视图 -->
             <div id="systems-view" class="view">
@@ -295,6 +285,11 @@
         </div>
     </div>
 
+    <script>
+        console.log('🔴 HTML内联脚本执行');
+        console.log('当前页面URL:', window.location.href);
+        console.log('标题参数:', new URLSearchParams(window.location.search).get('title'));
+    </script>
     <script src="/static/js/project-viewer.js"></script>
 </body>
 </html>
