@@ -490,6 +490,40 @@ function editProductCategory(category) {
     createProductEditModal(category, productData);
 }
 
+// 跳转到项目可视化界面
+function viewProjectViewer() {
+    if (!currentProject) {
+        showStatusMessage('❌ 请先选择一个项目', 'error');
+        return;
+    }
+    
+    const projectTitle = currentProject.novel_title || currentProject.title;
+    if (!projectTitle) {
+        showStatusMessage('❌ 无法获取项目标题', 'error');
+        return;
+    }
+    
+    // 跳转到项目可视化界面
+    window.location.href = `/project-viewer/${encodeURIComponent(projectTitle)}`;
+}
+
+// 跳转到世界观可视化界面
+function viewWorldviewViewer() {
+    if (!currentProject) {
+        showStatusMessage('❌ 请先选择一个项目', 'error');
+        return;
+    }
+    
+    const projectTitle = currentProject.novel_title || currentProject.title;
+    if (!projectTitle) {
+        showStatusMessage('❌ 无法获取项目标题', 'error');
+        return;
+    }
+    
+    // 跳转到世界观可视化界面
+    window.location.href = `/worldview-viewer/${encodeURIComponent(projectTitle)}`;
+}
+
 function createProductEditModal(category, productData) {
     const categoryNames = {
         'worldview': '世界观设定',

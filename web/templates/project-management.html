@@ -853,6 +853,12 @@
                         <button class="action-btn secondary" onclick="viewPhaseOneResult('${escapeHtml(project.title)}')">
                             👁️ 查看设定
                         </button>
+                        <button class="action-btn secondary" onclick="viewProjectViewer('${escapeHtml(project.title)}')">
+                            📊 项目可视化
+                        </button>
+                        <button class="action-btn secondary" onclick="viewWorldviewViewer('${escapeHtml(project.title)}')">
+                            🌍 世界观
+                        </button>
                     `;
                 }
             } else {
@@ -1042,6 +1048,33 @@
         }
 
         function continuePhaseOne(projectTitle) {
+            window.location.href = `/phase-one-setup?continue=${encodeURIComponent(projectTitle)}`;
+        }
+
+        function viewProjectViewer(projectTitle) {
+            // 如果没有传递项目标题，尝试从页面获取当前项目
+            if (!projectTitle) {
+                // 获取当前正在查看的项目（如果有）
+                const urlParams = new URLSearchParams(window.location.search);
+                projectTitle = urlParams.get('project');
+            }
+            
+            if (!projectTitle) {
+                showStatusMessage('❌ 未指定项目，无法打开可视化界面', 'error');
+                return;
+            }
+            
+            // 跳转到项目可视化界面
+            window.location.href = `/project-viewer/${encodeURIComponent(projectTitle)}`;
+        }
+        
+        function viewWorldviewViewer(projectTitle) {
+            // 跳转到世界观查看器界面
+            window.location.href = `/worldview-viewer/${encodeURIComponent(projectTitle)}`;
+        }
+        
+        function viewWorldview(projectTitle) {
+            // 跳转到世界观编辑界面
             window.location.href = `/phase-one-setup?continue=${encodeURIComponent(projectTitle)}`;
         }
 
