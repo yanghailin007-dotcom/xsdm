@@ -33,16 +33,18 @@ document.addEventListener('DOMContentLoaded', function() {
 async function initializeNovelViewer() {
     console.log('🎯 初始化小说可视化系统');
     console.log('当前URL:', window.location.href);
-    console.log('URL搜索参数:', window.location.search);
+    console.log('URL路径:', window.location.pathname);
     
-    // 从URL获取项目标题
-    const urlParams = new URLSearchParams(window.location.search);
-    console.log('URL参数对象:', urlParams);
+    // 从URL路径获取项目标题
+    // URL格式: /project-viewer/项目标题
+    const pathParts = window.location.pathname.split('/');
+    console.log('URL路径分割:', pathParts);
     
-    const projectTitle = urlParams.get('title');
+    // 获取最后一部分作为项目标题
+    const projectTitle = pathParts[pathParts.length - 1];
     console.log('提取的项目标题:', projectTitle);
     
-    if (projectTitle) {
+    if (projectTitle && projectTitle !== 'project-viewer') {
         novelData.projectTitle = decodeURIComponent(projectTitle);
         console.log('解码后的项目标题:', novelData.projectTitle);
         await loadNovelData();
