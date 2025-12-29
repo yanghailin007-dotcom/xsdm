@@ -425,10 +425,14 @@ class NovelGenerationManager:
             average_score = total_score / scored_chapters if scored_chapters > 0 else 0
             
             # 获取目标章节数，优先从数据中获取，否则使用已生成章节数
+            # 修复：正确的字段路径是 progress.total_chapters，而不是 current_progress.total_chapters
+            # 修复：使用明确的检查，避免将0视为False
             target_chapters = (
-                data.get("current_progress", {}).get("total_chapters") or
-                data.get("total_chapters") or
-                completed_chapters
+                data.get("progress", {}).get("total_chapters", 0) if data.get("progress", {}).get("total_chapters", 0) > 0 else
+                (data.get("total_chapters", 0) if data.get("total_chapters", 0) > 0 else
+                (data.get("novel_info", {}).get("total_chapters", 0) if data.get("novel_info", {}).get("total_chapters", 0) > 0 else
+                (data.get("novel_info", {}).get("creative_seed", {}).get("totalChapters", 0) if data.get("novel_info", {}).get("creative_seed", {}).get("totalChapters", 0) > 0 else
+                completed_chapters)))
             )
             
             # 获取核心设定和简介

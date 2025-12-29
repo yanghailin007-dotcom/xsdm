@@ -1017,6 +1017,46 @@ def update_phase_one_product(title, category):
         return jsonify({"success": False, "error": str(e)}), 500
 
 
+@phase_api.route('/phase-one/continue-to-phase-two/<title>', methods=['POST'])
+@login_required
+def continue_to_phase_two(title):
+    """从第一阶段继续到第二阶段"""
+    try:
+        if not manager:
+            return jsonify({"success": False, "error": "管理器未初始化"}), 500
+        
+        logger.info(f"🔄 [PHASE_TRANSITION] 准备从第一阶段跳转到第二阶段: {title}")
+        
+        # 验证项目存在且第一阶段已完成
+        novel_detail = manager.get_novel_detail(title)
+        if not novel_detail:
+            return jsonify({"success": False, "error": "项目不存在"}), 404
+        
+        # 检查第一阶段产物
+        quality_data = novel_detail.get("quality_data", {})
+        has_phase_one_products = bool(quality_data) or bool(novel_detail.get("core_worldview"))
+        
+        if not has_phase_one_products:
+            return jsonify({
+                "success": False,
+                "error": "第一阶段尚未完成，请先完成设定生成"
+            }), 400
+        
+        logger.info(f"✅ [PHASE_TRANSITION] 第一阶段验证通过，准备跳转到第二阶段")
+        
+        return jsonify({
+            "success": True,
+            "message": "可以继续第二阶段生成",
+            "project_title": title
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ [PHASE_TRANSITION] 跳转失败: {e}")
+        import traceback
+        logger.error(f"错误堆栈: {traceback.format_exc()}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
 # ==================== 路由注册函数 ====================
 
 def register_phase_routes(app, manager_instance=None):

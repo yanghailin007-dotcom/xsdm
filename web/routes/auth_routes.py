@@ -184,6 +184,22 @@ def register_page_routes(app):
         """章节内容查看页面"""
         return render_template('chapter-view.html')
     
+    @app.route('/project-viewer/<project_title>', methods=['GET'])
+    @login_required
+    def project_viewer(project_title):
+        """项目可视化页面"""
+        from urllib.parse import unquote
+        project_title = unquote(project_title)
+        return render_template('project-viewer.html', project_title=project_title)
+    
+    @app.route('/worldview-viewer/<project_title>', methods=['GET'])
+    @login_required
+    def worldview_viewer(project_title):
+        """世界观查看器页面（简化版）"""
+        from urllib.parse import unquote
+        project_title = unquote(project_title)
+        return render_template('worldview-viewer.html', project_title=project_title)
+    
     # 错误处理
     @app.errorhandler(404)
     def not_found(error):
