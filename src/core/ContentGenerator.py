@@ -335,20 +335,118 @@ class ContentGenerator:
         if result:
             result = self._assess_and_optimize_content(result, "core_worldview", "世界观构建")
         return result
+    def generate_faction_system(self, novel_title: str, core_worldview: Dict,
+                               selected_plan: Dict, market_analysis: Dict) -> Optional[Dict]:
+        """
+        生成势力/阵营系统
+        
+        Args:
+            novel_title: 小说标题
+            core_worldview: 核心世界观
+            selected_plan: 选定的小说方案
+            market_analysis: 市场分析
+            
+        Returns:
+            生成的势力系统数据，失败返回None
+        """
+        self.logger.info("=== 步骤3.5: 构建势力/阵营系统 ===")
+        
+        # 构建用户提示词
+        user_prompt = f"""
+# 故事蓝图
+- 小说标题: {novel_title}
+- 世界观: {json.dumps(core_worldview, ensure_ascii=False, indent=2)}
+- 核心冲突: {selected_plan.get('core_settings', {}).get('world_background', '')}
+- 核心卖点: {selected_plan.get('core_settings', {}).get('core_selling_points', [])}
+
+请基于以上信息，设计一个完整的势力/阵营系统，包括：
+1. 主要势力列表（3-7个）
+2. 每个势力的背景、目标、优劣势
+3. 势力间的关系网络（敌对、盟友、中立）
+4. 势力在剧情中的作用
+5. 推荐主角的初始势力
+"""
+        
+        result = self.api_client.generate_content_with_retry(
+            "faction_system_design",
+            user_prompt,
+            purpose="生成势力/阵营系统"
+        )
+        
+        if result:
+            # 应用评估和优化
+            result = self._assess_and_optimize_content(result, "faction_system", "势力系统设计")
+            if result:
+                self.logger.info("✅ 势力/阵营系统生成成功")
+                return result
+            else:
+                self.logger.error("❌ 势力/阵营系统优化失败")
+                return None
+        else:
+            self.logger.error("❌ 势力/阵营系统生成失败")
+            return None
+    
     def generate_character_design(self, novel_title: str, core_worldview: Dict, selected_plan: Dict,
                                   market_analysis: Dict, design_level: str,
                                   existing_characters: Optional[Dict] = None,
                                   stage_info: Optional[Dict] = None,
                                   global_growth_plan: Optional[Dict] = None,       # <-- 新增
                                   overall_stage_plans: Optional[Dict] = None,
-                                  custom_main_character_name: str = None) -> Optional[Dict]:
+                                  custom_main_character_name: str = None,
+                                  faction_system: Optional[Dict] = None,
+                                  protagonist_only: bool = False) -> Optional[Dict]:
+        """
+        生成角色设计
+        
+        Args:
+            novel_title: 小说标题
+            core_worldview: 核心世界观
+            selected_plan: 选定的小说方案
+            market_analysis: 市场分析
+            design_level: 设计层级 (core/supplementary/protagonist_only)
+            existing_characters: 已有角色（补充模式需要）
+            stage_info: 阶段信息（补充模式需要）
+            global_growth_plan: 全局成长计划
+            overall_stage_plans: 整体阶段计划
+            custom_main_character_name: 自定义主角名字
+            faction_system: 势力系统数据
+            protagonist_only: 是否只生成主角
+            
+        Returns:
+            生成的角色设计数据
+        """
         self.logger.info(f"  -> 角色设计启动，模式: 【{design_level}】")
         main_character_name = custom_main_character_name or self.custom_main_character_name
         prompt_type = ""
         prompt_context = {}
         purpose = ""
+        
+        # 🆕 新增：protagonist_only 模式
+        if protagonist_only or design_level == "protagonist_only":
+            self.logger.info("  🎯 【主角优先模式】只生成主角，暂不生成其他角色")
+            prompt_type = "character_design_core"
+            # 准备主角设计所需的上下文
+            story_blueprint = {
+                "novel_title": novel_title,
+                "selected_plan": selected_plan,
+                "core_worldview": core_worldview,
+                "market_analysis": market_analysis,
+                "global_growth_plan": global_growth_plan,
+                "overall_stage_plans": overall_stage_plans,
+                "faction_system": faction_system  # 🆕 添加势力系统信息
+            }
+            design_requirements = {
+                "main_character_name": main_character_name,
+                "protagonist_only": True,  # 标记为只生成主角
+                "faction_system": faction_system  # 🆕 添加势力系统信息
+            }
+            prompt_context = {
+                "STORY_BLUEPRINT": json.dumps(story_blueprint, ensure_ascii=False, indent=2),
+                "DESIGN_REQUIREMENTS": json.dumps(design_requirements, ensure_ascii=False, indent=2)
+            }
+            purpose = f"为《{novel_title}》设计主角（仅生成主角）"
         # 1. 根据设计层级，选择正确的Prompt并准备上下文
-        if design_level == "core":
+        elif design_level == "core":
             prompt_type = "character_design_core"
             # 准备核心设计所需的上下文
             story_blueprint = {
@@ -357,11 +455,13 @@ class ContentGenerator:
                 "core_worldview": core_worldview,
                 "market_analysis": market_analysis,
                 "global_growth_plan": global_growth_plan,
-                "overall_stage_plans": overall_stage_plans
+                "overall_stage_plans": overall_stage_plans,
+                "faction_system": faction_system  # 🆕 添加势力系统信息
             }
             design_requirements = {
                 "main_character_name": main_character_name,
-                "required_roles": ["核心盟友/女主", "核心反派"]
+                "required_roles": ["核心盟友/女主", "核心反派"],
+                "faction_system": faction_system  # 🆕 添加势力系统信息
             }
             prompt_context = {
                 "STORY_BLUEPRINT": json.dumps(story_blueprint, ensure_ascii=False, indent=2),
@@ -380,7 +480,8 @@ class ContentGenerator:
             stage_requirements = {
                 "stage_name": stage_info.get("stage_name", "当前阶段"),
                 "stage_summary": stage_info.get("stage_overview", "未知"), # 从 stage_overview 获取摘要
-                "new_character_roles": inferred_roles # 使用动态推断出的角色！
+                "new_character_roles": inferred_roles, # 使用动态推断出的角色！
+                "faction_system": faction_system  # 🆕 添加势力系统信息
             }
             prompt_context = {
                 "EXISTING_CHARACTERS": json.dumps(existing_characters, ensure_ascii=False, indent=2),
@@ -434,9 +535,9 @@ class ContentGenerator:
             self.logger.error(f"  ❌ 解析角色设计JSON字符串失败 (模式: {design_level})")
             return existing_characters if design_level == "supplementary" else None
         # 3. 根据模式处理和返回结果
-        if design_level == "core":
-            # 核心模式直接返回完整的新角色设计
-            self.logger.info("  ✅ 核心角色设计生成成功。")
+        if design_level == "core" or protagonist_only or design_level == "protagonist_only":
+            # 核心模式或主角优先模式直接返回完整的新角色设计
+            self.logger.info("  ✅ 角色设计生成成功。")
             if main_character_name:
                 result_json = self.ensure_main_character_name(result_json, main_character_name)
             return result_json
@@ -454,41 +555,140 @@ class ContentGenerator:
             updated_characters["important_characters"].extend(new_characters)
             return updated_characters
     def _infer_required_roles_for_stage(self, stage_info: Dict, existing_characters: Dict) -> List[str]:
+        """
+        🆕 增强版：事件驱动的角色推断
+        
+        基于阶段中的事件系统，智能推断所需的角色类型和数量
+        
+        Args:
+            stage_info: 阶段信息
+            existing_characters: 已有角色
+            
+        Returns:
+            需要的角色类型列表
+        """
         self.logger.info("    -> 正在动态分析阶段情节，推断所需角色...")
+        
         # 1. 提取关键情节信息
         event_system = stage_info.get("stage_writing_plan", {}).get("event_system", {})
         major_events = event_system.get("major_events", [])
-        plot_summary_parts = [f"阶段总体目标: {stage_info.get('stage_overview', '未知')}"]
-        for event in major_events[:10]: # 只分析前3个主要事件以控制成本和聚焦
-            plot_summary_parts.append(f"- 主要事件: {event.get('name', '')} (目标: {event.get('main_goal', '')})")
+        
+        # 🆕 增强信息收集：分析事件类型、冲突点、特殊情感事件
+        plot_summary_parts = [
+            f"阶段总体目标: {stage_info.get('stage_overview', '未知')}",
+            f"\n## 事件系统分析"
+        ]
+        
+        # 分析主要事件
+        for i, event in enumerate(major_events[:5], 1):  # 分析前5个主要事件
+            event_name = event.get('name', '')
+            event_goal = event.get('main_goal', '')
+            event_type = event.get('type', '普通事件')
+            plot_summary_parts.append(
+                f"{i}. 【{event_type}】{event_name}\n"
+                f"   目标: {event_goal}\n"
+                f"   章节范围: {event.get('chapter_range', '未知')}"
+            )
+            
+            # 🆕 分析事件组成（中型事件）
+            composition = event.get('composition', {})
+            if composition:
+                for phase_key, phase_events in composition.items():
+                    if isinstance(phase_events, list) and phase_events:
+                        plot_summary_parts.append(
+                            f"   {phase_key}阶段包含 {len(phase_events)} 个中型事件"
+                        )
+        
+        # 🆕 分析特殊情感事件
+        special_events = event_system.get("special_emotional_events", [])
+        if special_events:
+            plot_summary_parts.append(f"\n## 特殊情感事件 ({len(special_events)}个)")
+            for i, special in enumerate(special_events[:3], 1):
+                plot_summary_parts.append(
+                    f"{i}. {special.get('name', '')} - {special.get('purpose', '')}"
+                )
+        
         stage_plot_summary = "\n".join(plot_summary_parts)
-        # 2. 提取已有角色名
+        
+        # 2. 提取已有角色名和势力信息
         existing_names = [char.get("name") for char in existing_characters.get("important_characters", [])]
         if existing_characters.get("main_character"):
             existing_names.append(existing_characters["main_character"].get("name"))
-        # 3. 构建Prompt上下文
+        
+        # 🆕 提取势力信息
+        existing_factions = set()
+        for char in existing_characters.get("important_characters", []):
+            faction = char.get("faction_affiliation", {}).get("current_faction")
+            if faction:
+                existing_factions.add(faction)
+        
+        if existing_characters.get("main_character"):
+            main_faction = existing_characters["main_character"].get("faction_affiliation", {}).get("current_faction")
+            if main_faction:
+                existing_factions.add(main_faction)
+        
+        faction_info = f"已有势力: {', '.join(existing_factions)}" if existing_factions else "尚未分配势力"
+        
+        # 3. 构建增强的Prompt上下文
         prompt_context = {
             "STAGE_PLOT_SUMMARY": stage_plot_summary,
-            "EXISTING_CHARACTERS": ", ".join(filter(None, existing_names))
+            "EXISTING_CHARACTERS": ", ".join(filter(None, existing_names)),
+            "FACTION_INFO": faction_info,
+            "INFERENCE_GUIDANCE": """
+请基于以上事件系统分析，推断出必需的角色类型。
+特别注意：
+1. 如果事件涉及多个势力的冲突，需要为每个势力生成代表性角色
+2. 如果事件包含战斗或竞争，需要生成对手或竞争对手
+3. 如果事件需要特定功能（如传授功法、提供情报），需要生成功能性NPC
+4. 优先推断与势力系统相关的角色
+"""
         }
-        # 应该在这里转换
-        prompt_context_str = json.dumps(prompt_context, ensure_ascii=False) 
+        
+        prompt_context_str = json.dumps(prompt_context, ensure_ascii=False)
+        
         # 4. 调用API进行推断
-        roles_data = self.api_client.generate_content_with_retry(
-            "role_inference_for_stage",
-            prompt_context_str,
-            purpose=f"为阶段 '{stage_info.get('stage_name')}' 推断新角色"
-        )
         try:
+            roles_data = self.api_client.generate_content_with_retry(
+                "role_inference_for_stage",
+                prompt_context_str,
+                purpose=f"为阶段 '{stage_info.get('stage_name')}' 推断新角色"
+            )
+            
             if roles_data:
                 required_roles = roles_data.get("required_roles", [])
                 if required_roles:
-                    self.logger.info(f"    -> 推断成功，需要角色: {', '.join(required_roles)}")
+                    self.logger.info(f"    -> ✅ 推断成功，需要角色: {', '.join(required_roles)}")
                     return required_roles
-        except json.JSONDecodeError:
-            self.logger.info("    -> 角色推断失败：无法解析API返回的JSON。")
-        self.logger.info("    -> 角色推断失败或无结果，使用通用默认值。")
-        return ["阶段性反派", "功能性NPC"] # API调用失败或未返回角色时的安全回退
+        except Exception as e:
+            self.logger.warn(f"    -> ⚠️ 角色推断API调用失败: {e}")
+        
+        # 🆕 改进的回退逻辑：基于事件类型生成更智能的默认角色
+        self.logger.info("    -> 使用智能默认值生成角色需求")
+        default_roles = []
+        
+        # 基于主要事件类型生成角色
+        if major_events:
+            first_event = major_events[0]
+            event_goal = first_event.get('main_goal', '').lower()
+            
+            if any(keyword in event_goal for keyword in ['战斗', '对决', '击败', '复仇']):
+                default_roles.extend(["战斗对手", "可能的帮手"])
+            elif any(keyword in event_goal for keyword in ['探索', '寻宝', '任务']):
+                default_roles.extend(["任务发布者", "同行伙伴"])
+            elif any(keyword in event_goal for keyword in ['修炼', '突破', '学习']):
+                default_roles.extend(["导师/师长", "竞争对手"])
+            else:
+                default_roles.extend(["功能性NPC", "阶段性配角"])
+        
+        # 如果特殊情感事件需要特定角色
+        if special_events and not default_roles:
+            for special in special_events[:2]:
+                purpose = special.get('purpose', '').lower()
+                if '感情' in purpose or '爱情' in purpose:
+                    default_roles.append("感情线角色")
+                    break
+        
+        return default_roles if default_roles else ["阶段性反派", "功能性NPC"]
     def _build_core_character_prompt_for_plan(self, plan: Dict, main_character_name: Optional[str]) -> str:
         # 从方案中智能提取反派线索，使其通用化
         storyline = plan.get('completeStoryline', {})

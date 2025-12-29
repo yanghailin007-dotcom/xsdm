@@ -263,11 +263,18 @@ class StagePlanManager:
             fleshed_out_major_events, stage_name, stage_range, overall_stage_plan
         )
         
-        # Phase 4: 组装最终计划
+        # Phase 4: 组装最终计划并生成补充角色
         self.logger.info("   Phase 4: 组装最终的写作计划...")
         final_writing_plan = self.scene_assembler.assemble_final_plan(
             stage_name, stage_range, fleshed_out_major_events, overall_stage_plan,
             novel_title, novel_synopsis, creative_seed
+        )
+        
+        # 🆕 Phase 4.5: 生成阶段补充角色
+        self.logger.info("   Phase 4.5: 为当前阶段生成补充角色...")
+        final_writing_plan = self._generate_supplementary_characters_for_stage(
+            stage_name, stage_range, final_writing_plan, creative_seed,
+            novel_title, novel_synopsis, overall_stage_plan
         )
         
         # 添加评估结果
@@ -943,3 +950,84 @@ class StagePlanManager:
                 "summary": f"Simplified test plan for {stage_name}"
             }
         }
+    
+    def _generate_supplementary_characters_for_stage(self, stage_name: str, stage_range: str,
+                                                     writing_plan: Dict, creative_seed: Dict,
+                                                     novel_title: str, novel_synopsis: str,
+                                                     overall_stage_plan: Dict) -> Dict:
+        """
+        为阶段生成补充角色
+        
+        Args:
+            stage_name: 阶段名称
+            stage_range: 阶段章节范围
+            writing_plan: 写作计划
+            creative_seed: 创意种子
+            novel_title: 小说标题
+            novel_synopsis: 小说简介
+            overall_stage_plan: 整体阶段计划
+            
+        Returns:
+            更新后的写作计划（包含补充角色）
+        """
+        self.logger.info(f"    -> 开始为【{stage_name}】生成补充角色...")
+        
+        # 获取已有角色
+        existing_characters = self.generator.novel_data.get("character_design", {})
+        if not existing_characters or not existing_characters.get("main_character"):
+            self.logger.warn("    ⚠️ 尚未生成主角，跳过补充角色生成")
+            return writing_plan
+        
+        # 获取势力系统信息
+        faction_system = self.generator.novel_data.get("faction_system", {})
+        
+        # 准备阶段信息
+        stage_info = {
+            "stage_name": stage_name,
+            "stage_range": stage_range,
+            "stage_overview": writing_plan.get("stage_writing_plan", {}).get("stage_overview", ""),
+            "stage_writing_plan": writing_plan.get("stage_writing_plan", {})
+        }
+        
+        try:
+            # 调用 ContentGenerator 生成补充角色
+            updated_characters = self.generator.content_generator.generate_character_design(
+                novel_title=novel_title,
+                core_worldview=self.generator.novel_data.get("core_worldview", {}),
+                selected_plan=self.generator.novel_data.get("selected_plan", {}),
+                market_analysis=self.generator.novel_data.get("market_analysis", {}),
+                design_level="supplementary",
+                existing_characters=existing_characters,
+                stage_info=stage_info,
+                global_growth_plan=self.generator.novel_data.get("global_growth_plan", {}),
+                overall_stage_plans=overall_stage_plan,
+                faction_system=faction_system
+            )
+            
+            if updated_characters and updated_characters != existing_characters:
+                # 更新 novel_data 中的角色设计
+                self.generator.novel_data["character_design"] = updated_characters
+                
+                # 在写作计划中记录生成的角色
+                if "stage_writing_plan" in writing_plan:
+                    plan_container = writing_plan["stage_writing_plan"]
+                else:
+                    plan_container = writing_plan
+                
+                new_characters_count = len(updated_characters.get("important_characters", [])) - \
+                                      len(existing_characters.get("important_characters", []))
+                
+                plan_container["supplementary_characters_generated"] = new_characters_count
+                plan_container["supplementary_characters_note"] = \
+                    f"为 {stage_name} 阶段生成了 {new_characters_count} 个补充角色"
+                
+                self.logger.info(f"    ✅ 成功为【{stage_name}】生成 {new_characters_count} 个补充角色")
+            else:
+                self.logger.info(f"    ℹ️ 【{stage_name}】无需生成额外补充角色")
+                
+        except Exception as e:
+            self.logger.error(f"    ❌ 为【{stage_name}】生成补充角色时出错: {e}")
+            import traceback
+            traceback.print_exc()
+        
+        return writing_plan

@@ -2,6 +2,54 @@
 class WorldviewPrompts:
     def __init__(self):
         self.prompts = {
+            "faction_system_design": """
+内容:
+你是一位世界构建专家，专精于设计势力/阵营系统。你的任务是基于世界观设定，设计一个完整、自洽、有冲突张力的势力系统。
+
+核心任务
+基于[STORY_BLUEPRINT]提供的世界观和核心冲突，设计这个世界的主要势力/阵营。
+
+设计要求
+1. **势力数量适中**：3-7个主要势力，不宜过多导致混乱
+2. **势力类型多样**：包含正道、魔道、中立等不同类型
+3. **势力关系明确**：明确敌对、盟友、中立关系
+4. **势力有深度**：每个势力都有独特的背景、目标、优劣势
+5. **冲突驱动剧情**：势力间的关系要能驱动主线剧情
+6. **适合主角加入**：至少有一个势力适合主角作为初始势力
+
+## 输出规则
+你的回答必须且只能是一个完整的、格式正确的JSON对象。严禁在JSON对象之外添加任何解释或代码标记。
+
+## JSON结构定义
+{
+    "factions": [
+        {
+            "name": "势力名称",
+            "type": "正道/魔道/中立/朝廷/宗门/家族/其他",
+            "background": "势力的历史背景和起源故事（200字以内）",
+            "core_philosophy": "势力的核心理念或教义",
+            "goals": ["主要目标1", "主要目标2"],
+            "power_level": "一流/二流/三流",
+            "strengths": ["优势1", "优势2"],
+            "weaknesses": ["短板1", "短板2"],
+            "territory": "势力据点或控制区域",
+            "key_resources": ["拥有的重要资源或宝物"],
+            "notable_members": ["知名成员1", "知名成员2"],
+            "relationships": {
+                "allies": ["盟友势力名称"],
+                "enemies": ["敌对势力名称"],
+                "neutrals": ["中立势力名称"]
+            },
+            "role_in_plot": "该势力在主线剧情中的作用",
+            "potential_conflicts": ["可能与其他势力产生的冲突点"],
+            "suitable_for_protagonist": "是否适合主角作为初始势力（是/否，为什么）"
+        }
+    ],
+    "main_conflict": "整个世界的主要矛盾是什么",
+    "faction_power_balance": "势力间的实力平衡状况",
+    "recommended_starting_faction": "推荐主角加入哪个势力及其原因"
+}
+""",
             "core_worldview": """
 内容:
 ## 1. 角色
@@ -118,10 +166,21 @@ JSON结构定义
 
             "character_design_core": """
 内容:
-你是一位世界级的角色架构师，被誉为“角色的灵魂注入师”。你设计的角色不仅设定完整，更是有血有肉、情感复杂、优缺点鲜明，仿佛真实存在于世界上，能让读者产生强烈的情感共鸣。
+你是一位世界级的角色架构师，被誉为"角色的灵魂注入师"。你设计的角色不仅设定完整，更是有血有肉、情感复杂、优缺点鲜明，仿佛真实存在于世界上，能让读者产生强烈的情感共鸣。
 
 核心任务
-你的任务是基于用户在[STORY_BLUEPRINT]中提供的故事蓝图，并严格遵循[DESIGN_REQUIREMENTS]中的具体指令，来创造一组真正“活”的核心角色，包括【一名主角】和【若干名重要配角】。
+你的任务是基于用户在[STORY_BLUEPRINT]中提供的故事蓝图，并严格遵循[DESIGN_REQUIREMENTS]中的具体指令，来创造一组真正"活"的核心角色。
+
+## 🆕 势力系统集成要求
+如果[STORY_BLUEPRINT]中提供了[FACTION_SYSTEM]（势力系统），你必须：
+1. **为每个角色分配明确的势力归属**：角色必须属于[FACTION_SYSTEM]中定义的某个势力
+2. **体现势力特征**：角色的性格、行为、理念要体现其所属势力的特点
+3. **建立势力关系**：角色间的关系要基于势力关系（敌对、盟友、中立）
+4. **主角初始势力**：优先为主角分配[FACTION_SYSTEM]中推荐的势力
+
+## 角色生成范围
+- 如果[DESIGN_REQUIREMENTS]中指定了 `protagonist_only: true`，则**只生成主角**，不生成其他角色
+- 否则，生成【一名主角】和【若干名重要配角】（核心盟友/女主、核心反派）
 
 ## 角色设计核心原则 (让角色活起来的关键)
 1.  **【展示，而非告知】**: 不要用形容词去“告知”我们角色的性格，而是通过具体的【行为】、【小动作】、【对话】和【微表情】来“展示”它。
@@ -141,7 +200,7 @@ JSON结构定义
         "living_characteristics": {
             "physical_presence": "角色的外貌、体态、穿着风格，以及他/她给人的【第一眼】的整体感觉或气场。",
             "daily_habits": ["习惯1：例如每天清晨必须擦拭他的剑", "习惯2"],
-            "speech_patterns": "说话风格和口头禅 (例如：说话简练，口头禅是‘有点意思’)",
+            "speech_patterns": "说话风格和口头禅 (例如：说话简练，口头禅是'有点意思')",
             "personal_quirks": "独特的小动作或癖好 (例如：思考时会无意识地用指节敲击桌面)",
             "emotional_triggers": "容易引发其强烈情绪波动的事物 (例如：看到同门被欺负会立刻暴怒)"
         },
@@ -179,7 +238,53 @@ JSON结构定义
 
         "dialogue_style_example": "写一句最能代表他说话风格和性格的标志性台词。",
         "character_tag_for_reader": "给读者看的一句话人设标签 (例如：扮猪吃虎的病秧子神医)",
-        "cool_point_upgrade_path": "爽点升级路线图 (例如：都市打脸 -> 武道界称雄 -> 揭秘身世)"
+        "cool_point_upgrade_path": "爽点升级路线图 (例如：都市打脸 -> 武道界称雄 -> 揭秘身世)",
+        
+        "faction_affiliation": {
+            "current_faction": "当前所属势力名称 (基于[FACTION_SYSTEM]中的势力信息)",
+            "position": "在势力中的地位/身份 (例如：外门弟子、内门弟子、长老、宗主)",
+            "loyalty_level": "对势力的忠诚度 (高/中/低)",
+            "status_in_faction": "在势力中的声望和影响力描述",
+            "faction_benefits": ["从势力获得的好处或资源 (例如：功法传授、资源支持、保护)"],
+            "secret_factions": ["秘密归属的其他势力 (如有，无则为空数组)"],
+            "faction_background": "势力背景和理念对主角的影响 (例如：该势力崇尚强者，塑造了主角好胜的性格)"
+        },
+        
+        "faction_relationships": {
+            "allies_in_faction": [
+                {
+                    "name": "角色名",
+                    "relationship": "在己方势力中的关系描述"
+                }
+            ],
+            "rivals_in_faction": [
+                {
+                    "name": "角色名",
+                    "relationship": "在己方势力中的竞争或敌对关系描述"
+                }
+            ],
+            "external_allies": [
+                {
+                    "name": "角色名",
+                    "faction": "所属势力",
+                    "relationship": "跨势力的盟友关系描述"
+                }
+            ],
+            "external_enemies": [
+                {
+                    "name": "角色名或群体描述",
+                    "faction": "所属势力",
+                    "reason": "为何是敌人"
+                }
+            ],
+            "complex_ties": [
+                {
+                    "character": "角色名",
+                    "faction": "所属势力",
+                    "relationship": "复杂关系描述 (例如：亦敌亦友、利用关系、潜在威胁)"
+                }
+            ]
+        }
     },
     "important_characters": [
         {
@@ -204,6 +309,34 @@ JSON结构定义
                 "communication_style": "与他人交流的方式 (例如：毒舌、沉默寡言)"
             },
             "dialogue_style_example": "写一句最能代表他说话风格和性格的标志性台词。",
+            
+            "faction_affiliation": {
+                "current_faction": "string // 当前所属势力名称 (基于[FACTION_SYSTEM]中的势力信息)",
+                "position": "string // 在势力中的地位/身份 (例如：外门弟子、内门弟子、长老、宗主)",
+                "loyalty_level": "string // 对势力的忠诚度 (高/中/低)",
+                "status_in_faction": "string // 在势力中的声望和影响力描述",
+                "faction_benefits": ["array // 从势力获得的好处或资源"],
+                "faction_background": "string // 势力背景和理念对该角色的影响"
+            },
+            
+            "faction_relationships": {
+                "allies_in_faction": ["在己方势力中的盟友列表"],
+                "rivals_in_faction": ["在己方势力中的竞争对手列表"],
+                "external_allies": [
+                    {
+                        "name": "角色名",
+                        "faction": "所属势力",
+                        "relationship": "跨势力盟友关系描述"
+                    }
+                ],
+                "external_enemies": [
+                    {
+                        "name": "角色名或势力",
+                        "reason": "为何是敌人"
+                    }
+                ]
+            },
+            
             "relationship_with_protagonist": {
                 "initial_friction_or_hook": "两人初次相遇时的【冲突点】或【连接点】是什么？",
                 "development_dynamics": "这段关系将如何演变？(例如：从死敌到挚友)",
@@ -213,10 +346,15 @@ JSON结构定义
             "reader_impression": "希望读者对这个角色的第一印象 (例如：极度嚣张，非常欠揍)"
         }
     ],
-    "character_interaction_design": {
-        "natural_bonding": "角色间通过共同经历的【具体事件】自然建立联系。",
-        "conflict_resolution": "他们解决矛盾的独特模式 (例如：大吵一架然后和好)。",
-        "unexpected_chemistry": "设计出人意料却又合理的化学反应。"
+    
+    "faction_system_reference": {
+        "note": "势力系统参考信息，基于[STORY_BLUEPRINT]中的[FACTION_SYSTEM]",
+        "available_factions": ["可用势力名称列表"],
+        "protagonist_recommended_faction": "主角推荐势力",
+        "main_faction_conflict": "主要势力冲突",
+        "faction_characteristics": {
+            "势力名称": "该势力的特征描述"
+        }
     }
 }
 """,
@@ -263,6 +401,32 @@ JSON结构定义
                 "communication_style": "与他人交流的方式 (例如：油嘴滑舌、言简意赅)"
             },
             "dialogue_style_example": "写一句最能代表他说话风格和性格的标志性台词。",
+            
+            "faction_affiliation": {
+                "current_faction": "当前所属势力名称",
+                "position": "在势力中的地位/身份",
+                "loyalty_level": "对势力的忠诚度 (高/中/低)",
+                "status_in_faction": "在势力中的声望和影响力"
+            },
+            
+            "faction_relationships": {
+                "allies_in_faction": ["在己方势力中的盟友列表"],
+                "rivals_in_faction": ["在己方势力中的竞争对手列表"],
+                "external_allies": [
+                    {
+                        "name": "角色名",
+                        "faction": "所属势力",
+                        "relationship": "跨势力盟友关系描述"
+                    }
+                ],
+                "external_enemies": [
+                    {
+                        "name": "角色名或势力",
+                        "reason": "为何是敌人"
+                    }
+                ]
+            },
+            
             "relationship_with_protagonist": {
                 "initial_friction_or_hook": "与主角初次相遇时的【冲突点】或【连接点】是什么？",
                 "development_dynamics": "这段关系在当前阶段的演变趋势 (例如：从互相试探到短暂合作)"
@@ -273,7 +437,7 @@ JSON结构定义
         }
     ]
 }
-""", 
+""",
             "character_growth_design": """你是一位角色成长设计专家。请为主角和重要配角设计完整的成长路线。
 
 请按照以下格式输出：
