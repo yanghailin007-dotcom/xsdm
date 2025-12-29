@@ -78,6 +78,8 @@ async function loadNovelData() {
         
         const productsResult = await productsResponse.json();
         
+        console.log('产物加载结果:', productsResult);
+        
         if (productsResult.success && productsResult.products) {
             novelData.worldview = productsResult.products.worldview;
             novelData.characters = productsResult.products.characters;
@@ -85,6 +87,31 @@ async function loadNovelData() {
             novelData.storyline = productsResult.products.storyline;
             novelData.writing = productsResult.products.writing;
             novelData.market = productsResult.products.market;
+            
+            // 打印产物状态
+            console.log('产物状态:', {
+                worldview: novelData.worldview?.complete ? '已加载' : '未加载',
+                characters: novelData.characters?.complete ? '已加载' : '未加载',
+                growth: novelData.growth?.complete ? '已加载' : '未加载',
+                storyline: novelData.storyline?.complete ? '已加载' : '未加载',
+                writing: novelData.writing?.complete ? '已加载' : '未加载',
+                market: novelData.market?.complete ? '已加载' : '未加载'
+            });
+            
+            // 尝试解析worldview内容
+            if (novelData.worldview && novelData.worldview.content) {
+                try {
+                    const worldviewData = JSON.parse(novelData.worldview.content);
+                    console.log('世界观数据解析成功:', {
+                        hasFactions: !!worldviewData.factions,
+                        factionsCount: worldviewData.factions?.length || 0,
+                        hasLocations: !!worldviewData.locations,
+                        locationsCount: worldviewData.locations?.length || 0
+                    });
+                } catch (e) {
+                    console.error('解析世界观数据失败:', e);
+                }
+            }
         }
         
         // 更新UI
@@ -615,20 +642,35 @@ function redrawMapView() {
     let locations = [];
     let factions = [];
     
+    console.log('开始绘制地图，当前数据状态:', {
+        hasWorldview: !!novelData.worldview,
+        hasContent: !!novelData.worldview?.content,
+        contentLength: novelData.worldview?.content?.length || 0
+    });
+    
     if (novelData.worldview && novelData.worldview.content) {
         try {
             const worldviewData = JSON.parse(novelData.worldview.content);
             locations = worldviewData.locations || [];
             factions = worldviewData.factions || [];
+            console.log('成功解析世界观数据:', {
+                locationsCount: locations.length,
+                factionsCount: factions.length
+            });
         } catch (e) {
-            console.log('解析世界观数据失败:', e);
+            console.error('解析世界观数据失败:', e);
+            console.log('原始内容:', novelData.worldview.content.substring(0, 200));
         }
     }
     
+    // 如果没有地点数据，显示提示信息并返回
     if (locations.length === 0) {
-        drawEmptyState(ctx, width, height, '暂无地点数据');
+        drawEmptyState(ctx, width, height, '暂无地点数据\n\n请在世界观设定中添加地点信息');
+        console.log('没有地点数据，显示空状态');
         return;
     }
+    
+    console.log('开始绘制地图元素...');
     
     // 绘制势力控制区域
     drawFactionTerritories(ctx, width, height, factions, locations);
@@ -645,6 +687,8 @@ function redrawMapView() {
     // 更新侧边栏
     updateFactionList(factions);
     updateLocationList(locations);
+    
+    console.log('地图绘制完成');
 }
 
 function drawMapBackground(ctx, width, height) {
