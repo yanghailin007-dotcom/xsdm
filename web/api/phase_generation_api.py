@@ -1111,7 +1111,7 @@ def register_additional_routes(app):
                         'completed_at': phase_two_completed_at
                     },
                     'status': overall_status,
-                    'total_chapters': total_chapters or 50,  # 默认50章
+                    'total_chapters': total_chapters if total_chapters and total_chapters > 0 else 50,  # 只有当total_chapters为0或None时才使用默认值50
                     'completed_chapters': completed_chapters
                 }
                 
@@ -1143,8 +1143,19 @@ def register_additional_routes(app):
             if not novel_detail:
                 return jsonify({"success": False, "error": "项目不存在"}), 404
             
-            # 添加阶段信息
-            total_chapters = novel_detail.get('current_progress', {}).get('total_chapters', 50)
+            # 🔥 修复：正确获取总章节数，优先级从高到低
+            total_chapters = (
+                novel_detail.get('current_progress', {}).get('total_chapters', 0) if
+                novel_detail.get('current_progress', {}).get('total_chapters', 0) > 0 else
+                novel_detail.get('total_chapters', 0) if
+                novel_detail.get('total_chapters', 0) > 0 else
+                novel_detail.get('progress', {}).get('total_chapters', 0) if
+                novel_detail.get('progress', {}).get('total_chapters', 0) > 0 else
+                novel_detail.get('novel_info', {}).get('total_chapters', 0) if
+                novel_detail.get('novel_info', {}).get('total_chapters', 0) > 0 else
+                200  # 默认值
+            )
+            
             completed_chapters = len(novel_detail.get('generated_chapters', {}))
             
             # 检查第一阶段产物

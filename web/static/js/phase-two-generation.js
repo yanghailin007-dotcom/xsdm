@@ -104,10 +104,19 @@ function displayProjectsList(projects) {
         const isPhaseOneCompleted = project.phase_one && project.phase_one.status === 'completed';
         const canGenerate = isPhaseOneCompleted && (!project.phase_two || project.phase_two.status !== 'completed');
         
+        // 对标题进行HTML转义，避免特殊字符导致的问题
+        const escapedTitle = project.title.replace(/'/g, "\\'").replace(/"/g, '\\"');
+        
+        // 如果可以生成，添加点击事件
+        const onClickAttr = canGenerate ? `onclick="selectProject('${escapedTitle}')"` : '';
+        const styleAttr = !canGenerate ? 'style="opacity: 0.6; cursor: not-allowed;"' : '';
+        const disabledClass = !canGenerate ? 'disabled' : '';
+        
         html += `
-            <div class="project-card ${canGenerate ? '' : 'disabled'}" 
-                 onclick="${canGenerate ? `selectProject('${project.title}')` : ''}"
-                 style="${!canGenerate ? 'opacity: 0.6; cursor: not-allowed;' : ''}">
+            <div class="project-card ${disabledClass}"
+                 data-title="${escapedTitle}"
+                 ${onClickAttr}
+                 ${styleAttr}>
                 <div class="project-title">${project.title}</div>
                 <div class="project-info">总章节: ${project.total_chapters || 0}</div>
                 <div class="project-info">已完成: ${project.completed_chapters || 0} 章</div>
@@ -253,11 +262,21 @@ async function selectProject(projectTitle) {
 
 function displayProjectInfo(projectData) {
     const infoDiv = document.getElementById('selected-project-info');
-    const totalChapters = projectData.total_chapters || projectData.current_progress?.total_chapters || 0;
+    
+    // 🔥 修复：优先从phase_info获取总章节数，然后尝试其他可能的位置
+    const totalChapters = (
+        projectData.phase_info?.total_chapters ||
+        projectData.total_chapters ||
+        projectData.current_progress?.total_chapters ||
+        projectData.progress?.total_chapters ||
+        projectData.novel_info?.total_chapters ||
+        200  // 默认值
+    );
+    
     const completedChapters = Object.keys(projectData.generated_chapters || {}).length;
     
     infoDiv.style.display = 'block';
-    document.getElementById('current-project-title').textContent = projectData.novel_title || '未命名';
+    document.getElementById('current-project-title').textContent = projectData.novel_title || projectData.title || '未命名';
     document.getElementById('current-project-total-chapters').textContent = totalChapters;
     document.getElementById('current-project-completed-chapters').textContent = completedChapters;
     document.getElementById('current-project-status').textContent = '准备就绪';
