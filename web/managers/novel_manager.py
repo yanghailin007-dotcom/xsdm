@@ -22,6 +22,16 @@ class NovelGenerationManager:
         self.novel_projects = {}
         self.active_tasks = {}
         self.task_threads = {}
+        
+        # 🔥 新增：初始化检查点管理器
+        try:
+            from src.managers.stage_plan.generation_checkpoint import GenerationCheckpoint
+            self.checkpoint_enabled = True
+            logger.info("✅ 检查点功能已启用")
+        except Exception as e:
+            self.checkpoint_enabled = False
+            logger.warn(f"⚠️ 检查点功能未启用: {e}")
+        
         logger.info("🔧 NovelGenerationManager 初始化开始")
         self.load_existing_novels()
         logger.info(f"🔧 NovelGenerationManager 初始化完成，加载了 {len(self.novel_projects)} 个小说项目")
@@ -647,6 +657,12 @@ class NovelGenerationManager:
     def _run_phase_one_task(self, task_id: str, config: Dict[str, Any]):
         """执行第一阶段生成任务"""
         try:
+            title = config.get("title", "未命名小说")
+            
+            # 🔥 新增：创建初始检查点
+            if self.checkpoint_enabled:
+                self._create_initial_checkpoint(title, config, task_id)
+            
             self._update_task_status(task_id, "generating", 10)
             
             logger.info(f"任务 {task_id}: 🚀 开始第一阶段设定生成")
@@ -726,17 +742,33 @@ class NovelGenerationManager:
             logger.info(f"任务 {task_id}: 🔧 初始化生成器 (20%)")
             self._update_task_status(task_id, "generating", 20)
             
+            # 🔥 新增：更新检查点 - 初始化完成
+            if self.checkpoint_enabled:
+                self._update_checkpoint(title, "phase_one", "initialization", {"status": "generator_initialized"})
+            
             logger.info(f"任务 {task_id}: 📋 分析创意种子 (40%)")
             self._update_task_status(task_id, "generating", 40)
             
+            # 🔥 新增：更新检查点 - 分析完成
+            if self.checkpoint_enabled:
+                self._update_checkpoint(title, "phase_one", "planning", {"status": "analyzing_seed"})
+            
             logger.info(f"任务 {task_id}: 📝 生成方案 (60%)")
             self._update_task_status(task_id, "generating", 60)
+            
+            # 🔥 新增：更新检查点 - 方案生成完成
+            if self.checkpoint_enabled:
+                self._update_checkpoint(title, "phase_one", "worldview_generation", {"status": "generating_plan"})
             
             logger.info(f"任务 {task_id}: 🚀 调用 phase_one_generation 方法...")
             
             # 执行第一阶段生成
             logger.info(f"任务 {task_id}: 📝 开始第一阶段设定生成 (70%)")
             self._update_task_status(task_id, "generating", 70)
+            
+            # 🔥 新增：更新检查点 - 开始世界观生成
+            if self.checkpoint_enabled:
+                self._update_checkpoint(title, "phase_one", "character_generation", {"status": "generating_worldview"})
             
             try:
                 # 为生成器设置进度回调（使用动态属性设置）
@@ -778,6 +810,10 @@ class NovelGenerationManager:
                     logger.error(f"任务 {task_id}: ❌ 第一阶段设定生成失败")
                     self._update_task_status(task_id, "failed", 0, "第一阶段设定生成返回 False")
                     
+                    # 🔥 新增：保留检查点以便恢复
+                    if self.checkpoint_enabled:
+                        logger.info(f"任务 {task_id}: 💾 检查点已保留，可用于恢复")
+                    
             except Exception as e:
                 logger.error(f"任务 {task_id}: ❌ phase_one_generation 执行异常: {e}")
                 logger.error(f"任务 {task_id}: 📋 错误类型: {type(e).__name__}")
@@ -791,6 +827,69 @@ class NovelGenerationManager:
             import traceback
             traceback.print_exc()
             self._update_task_status(task_id, "failed", 0, f"未捕获的异常: {str(e)}")
+            
+            # 🔥 新增：保留检查点以便恢复
+            if self.checkpoint_enabled:
+                logger.info(f"任务 {task_id}: 💾 检查点已保留，可用于恢复")
+    
+    def _create_initial_checkpoint(self, title: str, config: Dict[str, Any], task_id: str):
+        """创建初始检查点"""
+        try:
+            from src.managers.stage_plan.generation_checkpoint import GenerationCheckpoint
+            from pathlib import Path
+            
+            checkpoint_mgr = GenerationCheckpoint(title, Path.cwd())
+            
+            checkpoint_mgr.create_checkpoint(
+                phase='phase_one',
+                step='initialization',
+                data={
+                    'generation_params': config,
+                    'task_id': task_id,
+                    'status': 'started',
+                    'created_at': datetime.now().isoformat()
+                }
+            )
+            
+            logger.info(f"✅ 初始检查点已创建: {title}")
+            
+        except Exception as e:
+            logger.error(f"❌ 创建初始检查点失败: {e}")
+    
+    def _update_checkpoint(self, title: str, phase: str, step: str, data: Dict):
+        """更新检查点"""
+        try:
+            from src.managers.stage_plan.generation_checkpoint import GenerationCheckpoint
+            from pathlib import Path
+            
+            checkpoint_mgr = GenerationCheckpoint(title, Path.cwd())
+            
+            # 保留原有的生成参数
+            existing_checkpoint = checkpoint_mgr.load_checkpoint()
+            if existing_checkpoint and 'data' in existing_checkpoint:
+                existing_data = existing_checkpoint['data']
+                data = {**existing_data, **data}
+            
+            checkpoint_mgr.create_checkpoint(phase, step, data)
+            logger.info(f"✅ 检查点已更新: {title} - {step}")
+            
+        except Exception as e:
+            logger.error(f"❌ 更新检查点失败: {e}")
+    
+    def _complete_checkpoint(self, title: str):
+        """完成任务时删除检查点"""
+        try:
+            from src.managers.stage_plan.generation_checkpoint import GenerationCheckpoint
+            from pathlib import Path
+            
+            checkpoint_mgr = GenerationCheckpoint(title, Path.cwd())
+            success = checkpoint_mgr.delete_checkpoint()
+            
+            if success:
+                logger.info(f"✅ 检查点已删除: {title}（任务完成）")
+            
+        except Exception as e:
+            logger.error(f"❌ 删除检查点失败: {e}")
 
     def _run_generation_task(self, task_id: str, config: Dict[str, Any]):
         """执行完整生成任务（兼容原有逻辑）"""

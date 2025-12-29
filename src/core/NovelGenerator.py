@@ -1059,9 +1059,9 @@ class NovelGenerator:
         return True
 
     def _generate_worldview_and_characters(self) -> bool:
-        """生成世界观和角色设计"""
+        """生成世界观、势力和角色设计"""
         print("\n" + "="*60)
-        print("🌍 第二阶段：世界观与角色设计")
+        print("🌍 第二阶段：世界观与势力系统设计")
         print("="*60)
         
         # 世界观构建
@@ -1069,7 +1069,33 @@ class NovelGenerator:
         if not self._generate_worldview():
             return False
         
-        # 核心角色设计
+        # 【新增】势力/阵营系统构建
+        print("=== 步骤3.5: 构建势力/阵营系统 ===")
+        self.novel_data["current_progress"]["stage"] = "势力系统设计"
+        
+        faction_system = self.content_generator.generate_faction_system(
+            novel_title=self.novel_data["novel_title"],
+            core_worldview=self.novel_data.get("core_worldview", {}),
+            selected_plan=self.novel_data["selected_plan"],
+            market_analysis=self.novel_data.get("market_analysis", {})
+        )
+        
+        if faction_system:
+            self.novel_data["faction_system"] = faction_system
+            print("✅ 势力/阵营系统构建完成")
+            # 保存到材料管理器
+            self._save_material_to_manager("势力系统", faction_system, novel_title=self.novel_data["novel_title"])
+        else:
+            print("⚠️ 势力/阵营系统生成失败，将使用默认设定")
+            # 创建一个基础的势力系统结构，确保后续流程不会出错
+            self.novel_data["faction_system"] = {
+                "factions": [],
+                "main_conflict": "待定",
+                "faction_power_balance": "待定",
+                "recommended_starting_faction": "待定"
+            }
+        
+        # 核心角色设计（现在可以基于势力系统）
         print("=== 步骤4: 设计核心角色 (主角/核心盟友/宿敌) ===")
         self.novel_data["current_progress"]["stage"] = "核心角色设计"
         
@@ -1790,6 +1816,16 @@ class NovelGenerator:
                     json.dump(self.novel_data["core_worldview"], f, ensure_ascii=False, indent=2)
                 products_mapping["core_worldview"] = worldview_file
                 print(f"✅ 世界观设定已保存到新路径: {worldview_file}")
+            
+            # 2.5. 势力/阵营系统 - 保存到新路径（新增）
+            if "faction_system" in self.novel_data and self.novel_data["faction_system"]:
+                worldview_dir = paths["worldview_dir"]
+                os.makedirs(worldview_dir, exist_ok=True)
+                faction_file = os.path.join(worldview_dir, f"{safe_title}_势力系统.json")
+                with open(faction_file, 'w', encoding='utf-8') as f:
+                    json.dump(self.novel_data["faction_system"], f, ensure_ascii=False, indent=2)
+                products_mapping["faction_system"] = faction_file
+                print(f"✅ 势力/阵营系统已保存到新路径: {faction_file}")
             
             # 3. 角色设计 - 保存到新路径（修复：使用 path_config 定义的路径）
             if "character_design" in self.novel_data and self.novel_data["character_design"]:
