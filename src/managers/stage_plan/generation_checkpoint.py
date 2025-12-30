@@ -62,7 +62,7 @@ class GenerationCheckpoint:
         # 确保目录存在
         os.makedirs(self.checkpoint_dir, exist_ok=True)
     
-    def create_checkpoint(self, phase: str, step: str, data: Optional[Dict] = None) -> bool:
+    def create_checkpoint(self, phase: str, step: str, data: Optional[Dict] = None, step_status: str = "in_progress") -> bool:
         """
         创建检查点
         
@@ -70,6 +70,7 @@ class GenerationCheckpoint:
             phase: 生成阶段 (phase_one/phase_two)
             step: 当前步骤
             data: 要保存的数据
+            step_status: 步骤状态 (pending/in_progress/completed/failed)
             
         Returns:
             是否成功创建
@@ -79,6 +80,7 @@ class GenerationCheckpoint:
                 'novel_title': self.novel_title,
                 'phase': phase,
                 'current_step': step,
+                'step_status': step_status,  # 添加步骤状态
                 'timestamp': datetime.now().isoformat(),
                 'data': data or {}
             }

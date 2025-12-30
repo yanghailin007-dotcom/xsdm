@@ -123,6 +123,7 @@ class ResumableNovelGenerationManager:
         """
         phase = checkpoint_data['phase']
         current_step = checkpoint_data['current_step']
+        step_status = checkpoint_data.get('step_status', 'in_progress')
         saved_data = checkpoint_data.get('data', {})
         
         # 获取阶段信息
@@ -134,37 +135,77 @@ class ResumableNovelGenerationManager:
         except ValueError:
             current_index = 0
         
-        next_step = steps[current_index + 1] if current_index + 1 < len(steps) else None
-        
-        if not next_step:
-            raise ValueError("任务已经完成，无需恢复")
-        
-        task_id = f"resume_{checkpoint_mgr.novel_title}_{next_step}"
-        
-        # 模拟恢复流程（实际应该调用相应的生成函数）
-        self.logger.info(f"📝 恢复步骤: {next_step}")
-        
-        # 更新检查点
-        checkpoint_mgr.create_checkpoint(
-            phase=phase,
-            step=next_step,
-            data={
-                **saved_data,
-                'last_step': current_step,
-                'resume_count': saved_data.get('resume_count', 0) + 1
-            }
-        )
+        # 根据步骤状态决定恢复策略
+        if step_status == 'completed':
+            # 步骤已完成，继续下一步
+            next_step = steps[current_index + 1] if current_index + 1 < len(steps) else None
+            if not next_step:
+                raise ValueError("任务已经完成，无需恢复")
+            
+            task_id = f"resume_{checkpoint_mgr.novel_title}_{next_step}"
+            self.logger.info(f"📝 步骤 {current_step} 已完成，继续: {next_step}")
+            
+            # 标记下一步为 in_progress
+            checkpoint_mgr.create_checkpoint(
+                phase=phase,
+                step=next_step,
+                data={
+                    **saved_data,
+                    'last_step': current_step,
+                    'resume_count': saved_data.get('resume_count', 0) + 1
+                },
+                step_status='in_progress'
+            )
+        elif step_status == 'failed':
+            # 步骤失败，重试当前步骤
+            task_id = f"retry_{checkpoint_mgr.novel_title}_{current_step}"
+            self.logger.info(f"🔄 步骤 {current_step} 失败，重试该步骤")
+            
+            # 保持当前步骤，状态改为 in_progress
+            checkpoint_mgr.create_checkpoint(
+                phase=phase,
+                step=current_step,
+                data={
+                    **saved_data,
+                    'retry_count': saved_data.get('retry_count', 0) + 1
+                },
+                step_status='in_progress'
+            )
+        else:
+            # in_progress 或其他状态，继续当前步骤
+            task_id = f"resume_{checkpoint_mgr.novel_title}_{current_step}"
+            self.logger.info(f"🔄 继续执行步骤: {current_step} (状态: {step_status})")
+            
+            # 保持当前步骤
+            checkpoint_mgr.create_checkpoint(
+                phase=phase,
+                step=current_step,
+                data={
+                    **saved_data,
+                    'resume_count': saved_data.get('resume_count', 0) + 1
+                },
+                step_status='in_progress'
+            )
         
         # 通知进度
         if progress_callback:
+            # 计算正确的步骤索引
+            if step_status == 'completed':
+                step_index = current_index + 1
+                display_step = steps[current_index + 1]
+            else:
+                step_index = current_index
+                display_step = current_step
+            
             progress_info = {
                 'task_id': task_id,
                 'phase': phase,
-                'current_step': next_step,
-                'step_index': current_index + 1,
+                'current_step': display_step,
+                'step_index': step_index,
                 'total_steps': len(steps),
-                'progress': round(((current_index + 1) / len(steps)) * 100, 1),
-                'is_resume': True
+                'progress': round((step_index / len(steps)) * 100, 1),
+                'is_resume': True,
+                'step_status': step_status
             }
             progress_callback(progress_info)
         
