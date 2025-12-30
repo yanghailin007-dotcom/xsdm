@@ -72,18 +72,14 @@ class ResumableNovelGenerationManager:
             if not checkpoint_data:
                 raise ValueError("无法加载检查点")
             
-            self.logger.info(f"🔄 恢复生成任务: {title}")
-            self.logger.info(f"   从步骤: {checkpoint_data['current_step']}")
+            self.logger.info(f"恢复生成任务: {title}")
             
             # 使用恢复模式启动
             task_id = self._resume_generation(checkpoint_mgr, checkpoint_data, progress_callback)
         else:
             # 新任务：删除旧的检查点
             if checkpoint_mgr.can_resume():
-                self.logger.info(f"发现旧检查点，将被覆盖: {title}")
                 checkpoint_mgr.delete_checkpoint()
-            
-            self.logger.info(f"🚀 启动新的生成任务: {title}")
             
             # 创建初始检查点
             checkpoint_mgr.create_checkpoint(
@@ -143,7 +139,6 @@ class ResumableNovelGenerationManager:
                 raise ValueError("任务已经完成，无需恢复")
             
             task_id = f"resume_{checkpoint_mgr.novel_title}_{next_step}"
-            self.logger.info(f"📝 步骤 {current_step} 已完成，继续: {next_step}")
             
             # 标记下一步为 in_progress
             checkpoint_mgr.create_checkpoint(
@@ -159,7 +154,6 @@ class ResumableNovelGenerationManager:
         elif step_status == 'failed':
             # 步骤失败，重试当前步骤
             task_id = f"retry_{checkpoint_mgr.novel_title}_{current_step}"
-            self.logger.info(f"🔄 步骤 {current_step} 失败，重试该步骤")
             
             # 保持当前步骤，状态改为 in_progress
             checkpoint_mgr.create_checkpoint(
@@ -174,7 +168,6 @@ class ResumableNovelGenerationManager:
         else:
             # in_progress 或其他状态，继续当前步骤
             task_id = f"resume_{checkpoint_mgr.novel_title}_{current_step}"
-            self.logger.info(f"🔄 继续执行步骤: {current_step} (状态: {step_status})")
             
             # 保持当前步骤
             checkpoint_mgr.create_checkpoint(
@@ -209,7 +202,26 @@ class ResumableNovelGenerationManager:
             }
             progress_callback(progress_info)
         
-        return task_id
+        # 🔥 核心修复：实际启动生成任务
+        if not self.base_manager:
+            raise ValueError("基础管理器未初始化，无法执行恢复生成")
+        
+        # 从检查点数据中获取原始生成参数
+        generation_params = saved_data.get('generation_params', {})
+        
+        # 确保有标题
+        if not generation_params.get('title'):
+            generation_params['title'] = checkpoint_mgr.novel_title
+        
+        # 添加恢复模式标记
+        generation_params['is_resume_mode'] = True
+        generation_params['resume_step'] = current_step
+        generation_params['resume_phase'] = phase
+        
+        # 使用基础管理器启动实际的生成任务
+        actual_task_id = self.base_manager.start_generation(generation_params)
+        
+        return actual_task_id
     
     def get_resumable_tasks(self) -> list:
         """

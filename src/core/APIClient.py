@@ -265,12 +265,14 @@ class APIClient:
         self.logger.info(f"  流式传输完成 - 总行数: {line_count}, 数据块数: {data_count}")
         self.logger.info(f"  最终内容长度: {len(full_content)}字符")
         return full_content
-    def _save_api_call_debug(self, system_prompt: str, user_prompt: str, response: str, 
+    def _save_api_call_debug(self, system_prompt: str, user_prompt: str, response: str,
                            purpose: str, provider: str, model: str, attempt: int = 1):
         """保存完整的API调用调试信息，包括输入和回复"""
         timestamp = int(time.time())
         datetime_str = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"{self.debug_dir}/api_call_{purpose}_{datetime_str}_attempt{attempt}.txt"
+        # 替换文件名中的特殊字符，避免路径问题
+        safe_purpose = purpose.replace("/", "_").replace("\\", "_").replace(":", "_")
+        filename = f"{self.debug_dir}/api_call_{safe_purpose}_{datetime_str}_attempt{attempt}.txt"
         debug_content = f"""========== API调用调试信息 ==========
 时间: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
 提供商: {provider.upper()}
@@ -296,7 +298,9 @@ class APIClient:
     def _save_debug_response(self, content: str, stage: str):
         """保存调试响应到文件"""
         timestamp = int(time.time())
-        filename = f"{self.debug_dir}/{stage}_response_{timestamp}.txt"
+        # 替换文件名中的特殊字符，避免路径问题
+        safe_stage = stage.replace("/", "_").replace("\\", "_").replace(":", "_")
+        filename = f"{self.debug_dir}/{safe_stage}_response_{timestamp}.txt"
         with open(filename, "w", encoding="utf-8") as f:
             f.write(content)
         self.logger.info(f"  💾 {stage}响应已保存到: {filename}")
@@ -988,7 +992,9 @@ User Prompt: {len(original_user)} → {len(optimized_data.get('optimized_user_pr
         timestamp = int(time.time())
         datetime_str = datetime.now().strftime("%Y%m%d_%H%M%S")
         status = "success" if success else "failed"
-        filename = f"{self.debug_dir}/json_repair_{purpose}_{datetime_str}_{status}.txt"
+        # 替换文件名中的特殊字符，避免路径问题
+        safe_purpose = purpose.replace("/", "_").replace("\\", "_").replace(":", "_")
+        filename = f"{self.debug_dir}/json_repair_{safe_purpose}_{datetime_str}_{status}.txt"
         content = f"""========== JSON修复记录 ==========
     时间: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
     目的: {purpose}

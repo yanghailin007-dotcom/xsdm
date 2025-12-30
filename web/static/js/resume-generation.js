@@ -133,6 +133,17 @@ async function startPhaseOneGenerationWithResume(event) {
     // 检查是否启用恢复模式
     if (isResumeModeEnabled() && currentResumeInfo) {
         try {
+            // 显示进度区域
+            const progressSection = document.getElementById('progress-section');
+            if (progressSection) {
+                progressSection.style.display = 'block';
+            }
+            
+            const progressMessage = document.getElementById('progress-message');
+            if (progressMessage) {
+                progressMessage.textContent = `🔄 恢复生成中... 从 ${currentResumeInfo.current_step} 继续`;
+            }
+            
             const response = await fetch('/api/generation/resume', {
                 method: 'POST',
                 headers: {
@@ -151,11 +162,11 @@ async function startPhaseOneGenerationWithResume(event) {
             const result = await response.json();
             
             if (result.success) {
-                alert(`✅ 已从 ${currentResumeInfo.current_step} 继续生成！\n\n任务ID: ${result.task_id}`);
+                console.log(`✅ 已从 ${currentResumeInfo.current_step} 继续生成！任务ID: ${result.task_id}`);
                 
-                // 跳转到生成页面
+                // 在当前页面显示进度，不跳转
                 if (result.task_id) {
-                    window.location.href = `/phase-one-generation?task_id=${result.task_id}`;
+                    startMonitoringTask(result.task_id);
                 }
                 return;
             } else {
@@ -175,6 +186,103 @@ async function startPhaseOneGenerationWithResume(event) {
     } else {
         console.error('找不到startPhaseOneGeneration函数');
         alert('生成功能未正确加载');
+    }
+}
+
+/**
+ * 监控任务进度
+ */
+function startMonitoringTask(taskId) {
+    console.log(`🔍 开始监控任务: ${taskId}`);
+    
+    // 定期查询任务状态
+    const intervalId = setInterval(async () => {
+        try {
+            const response = await fetch(`/api/phase-one/task/${taskId}/status`);
+            if (!response.ok) {
+                clearInterval(intervalId);
+                return;
+            }
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                // 更新进度显示
+                updateProgressDisplay(data);
+                
+                // 检查是否完成
+                if (data.status === 'completed' || data.status === 'failed') {
+                    clearInterval(intervalId);
+                    handleTaskCompletion(data);
+                }
+            }
+        } catch (error) {
+            console.error('查询任务状态失败:', error);
+        }
+    }, 2000); // 每2秒查询一次
+}
+
+/**
+ * 更新进度显示
+ */
+function updateProgressDisplay(data) {
+    const progressMessage = document.getElementById('progress-message');
+    const progressFill = document.getElementById('progress-bar-fill');
+    const progressPercentage = document.getElementById('progress-percentage');
+    
+    if (progressMessage) {
+        progressMessage.textContent = `🔄 正在生成... 当前步骤: ${data.current_step || '初始化'}`;
+    }
+    
+    if (progressFill) {
+        progressFill.style.width = `${data.progress || 0}%`;
+    }
+    
+    if (progressPercentage) {
+        progressPercentage.textContent = `${data.progress || 0}%`;
+    }
+}
+
+/**
+ * 处理任务完成
+ */
+function handleTaskCompletion(data) {
+    const progressMessage = document.getElementById('progress-message');
+    const resultsSection = document.getElementById('results-section');
+    const progressSection = document.getElementById('progress-section');
+    
+    if (data.status === 'completed') {
+        if (progressMessage) {
+            progressMessage.textContent = '✅ 生成完成！';
+        }
+        
+        // 显示结果区域
+        if (resultsSection) {
+            resultsSection.style.display = 'block';
+            
+            // 填充结果数据
+            const resultOverview = document.getElementById('result-overview');
+            if (resultOverview && data.result) {
+                resultOverview.innerHTML = `
+                    <h3>🎉 第一阶段设定生成完成</h3>
+                    <p><strong>小说标题:</strong> ${data.result.novel_title || '未命名'}</p>
+                    <p><strong>总章节数:</strong> ${data.result.total_chapters || 200}</p>
+                    <p><strong>生成模式:</strong> 恢复模式</p>
+                `;
+            }
+        }
+        
+        // 隐藏进度区域
+        if (progressSection) {
+            setTimeout(() => {
+                progressSection.style.display = 'none';
+            }, 2000);
+        }
+        
+    } else if (data.status === 'failed') {
+        if (progressMessage) {
+            progressMessage.textContent = `❌ 生成失败: ${data.error || '未知错误'}`;
+        }
     }
 }
 
