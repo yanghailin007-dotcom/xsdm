@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>小说生成系统 - 注册</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .register-container {
+            width: 100%;
+            max-width: 450px;
+            padding: 20px;
+        }
+
+        .register-box {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            padding: 40px;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .register-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .register-header h1 {
+            font-size: 28px;
+            color: #333;
+            margin-bottom: 8px;
+        }
+
+        .register-header p {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        input[type="text"],
+        input[type="password"],
+        input[type="email"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        input[type="text"]:focus,
+        input[type="password"]:focus,
+        input[type="email"]:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        .input-group input {
+            flex: 1;
+        }
+
+        .code-btn {
+            padding: 0 20px;
+            background: #f0f0f0;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            color: #667eea;
+            font-weight: 600;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.2s;
+            font-size: 14px;
+        }
+
+        .code-btn:hover:not(:disabled) {
+            background: #e8e8e8;
+            border-color: #667eea;
+        }
+
+        .code-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            background: #f5f5f5;
+        }
+
+        .register-btn {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-top: 10px;
+        }
+
+        .register-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .register-btn:active {
+            transform: translateY(0);
+        }
+
+        .register-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .message {
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            display: none;
+        }
+
+        .message.error {
+            background-color: #fee;
+            color: #c33;
+            border-left: 4px solid #c33;
+            display: block;
+        }
+
+        .message.success {
+            background-color: #efe;
+            color: #3c3;
+            border-left: 4px solid #3c3;
+            display: block;
+        }
+
+        .message.info {
+            background-color: #e3f2fd;
+            color: #1976d2;
+            border-left: 4px solid #1976d2;
+            display: block;
+        }
+
+        .message.show {
+            display: block;
+            animation: shake 0.3s;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            margin-top: 10px;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(102, 126, 234, 0.3);
+            border-top-color: #667eea;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .username-status {
+            font-size: 12px;
+            margin-top: 5px;
+            display: none;
+        }
+
+        .username-status.available {
+            color: #4caf50;
+            display: block;
+        }
+
+        .username-status.unavailable {
+            color: #f44336;
+            display: block;
+        }
+
+        .username-status.checking {
+            color: #999;
+            display: block;
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            color: #999;
+            font-size: 12px;
+        }
+
+        .login-link {
+            text-align: center;
+            margin-top: 20px;
+            color: #667eea;
+            font-size: 14px;
+        }
+
+        .login-link a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .login-link a:hover {
+            text-decoration: underline;
+        }
+
+        .password-strength {
+            height: 4px;
+            background: #e0e0e0;
+            margin-top: 8px;
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .password-strength-bar {
+            height: 100%;
+            width: 0%;
+            transition: width 0.3s, background 0.3s;
+        }
+
+        .password-strength-text {
+            font-size: 11px;
+            margin-top: 4px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="register-container">
+        <div class="register-box">
+            <div class="register-header">
+                <h1>📚 小说生成系统</h1>
+                <p>创建新账户</p>
+            </div>
+
+            <form id="registerForm">
+                <div id="messageBox" class="message"></div>
+
+                <div class="form-group">
+                    <label for="username-input">用户名</label>
+                    <input
+                        type="text"
+                        id="username-input"
+                        name="username"
+                        placeholder="3-20个字符，字母数字下划线"
+                        required
+                        autocomplete="username"
+                    >
+                    <div id="usernameStatus" class="username-status"></div>
+                </div>
+
+                <div class="form-group">
+                    <label for="password-input">密码</label>
+                    <input
+                        type="password"
+                        id="password-input"
+                        name="password"
+                        placeholder="至少6个字符"
+                        required
+                        autocomplete="new-password"
+                    >
+                    <div class="password-strength">
+                        <div id="passwordStrengthBar" class="password-strength-bar"></div>
+                    </div>
+                    <div id="passwordStrengthText" class="password-strength-text"></div>
+                </div>
+
+                <div class="form-group">
+                    <label for="password-confirm-input">确认密码</label>
+                    <input
+                        type="password"
+                        id="password-confirm-input"
+                        name="password-confirm"
+                        placeholder="再次输入密码"
+                        required
+                        autocomplete="new-password"
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="phone-input">手机号</label>
+                    <div class="input-group">
+                        <input
+                            type="text"
+                            id="phone-input"
+                            name="phone"
+                            placeholder="请输入手机号"
+                            required
+                            autocomplete="tel"
+                        >
+                        <button type="button" id="sendCodeBtn" class="code-btn">发送验证码</button>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="code-input">验证码</label>
+                    <input
+                        type="text"
+                        id="code-input"
+                        name="code"
+                        placeholder="请输入验证码"
+                        required
+                        maxlength="6"
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="email-input">邮箱（可选）</label>
+                    <input
+                        type="email"
+                        id="email-input"
+                        name="email"
+                        placeholder="请输入邮箱"
+                        autocomplete="email"
+                    >
+                </div>
+
+                <button type="submit" id="registerBtn" class="register-btn">
+                    注 册
+                </button>
+
+                <div id="loading" class="loading">
+                    <div class="spinner"></div>
+                    <p style="margin-top: 8px; font-size: 12px; color: #666;">注册中...</p>
+                </div>
+            </form>
+
+            <div class="login-link">
+                已有账户？<a href="/login">立即登录</a>
+            </div>
+
+            <div class="footer">
+                <p>&copy; 2024 AI小说生成系统 | 版本 1.0</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const form = document.getElementById('registerForm');
+        const usernameInput = document.getElementById('username-input');
+        const passwordInput = document.getElementById('password-input');
+        const passwordConfirmInput = document.getElementById('password-confirm-input');
+        const phoneInput = document.getElementById('phone-input');
+        const codeInput = document.getElementById('code-input');
+        const emailInput = document.getElementById('email-input');
+        const registerBtn = document.getElementById('registerBtn');
+        const sendCodeBtn = document.getElementById('sendCodeBtn');
+        const messageBox = document.getElementById('messageBox');
+        const loading = document.getElementById('loading');
+        const usernameStatus = document.getElementById('usernameStatus');
+        const passwordStrengthBar = document.getElementById('passwordStrengthBar');
+        const passwordStrengthText = document.getElementById('passwordStrengthText');
+
+        let usernameCheckTimeout = null;
+        let codeCountdown = null;
+
+        // 显示消息
+        function showMessage(message, type = 'info') {
+            messageBox.textContent = message;
+            messageBox.className = `message ${type}`;
+            loading.classList.remove('show');
+            registerBtn.disabled = false;
+        }
+
+        // 隐藏消息
+        function hideMessage() {
+            messageBox.className = 'message';
+        }
+
+        // 检查用户名可用性
+        function checkUsername(username) {
+            if (username.length < 3 || username.length > 20) {
+                usernameStatus.textContent = '';
+                usernameStatus.className = 'username-status';
+                return;
+            }
+
+            usernameStatus.textContent = '检查中...';
+            usernameStatus.className = 'username-status checking';
+
+            clearTimeout(usernameCheckTimeout);
+            usernameCheckTimeout = setTimeout(() => {
+                fetch('/api/register/check-username', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.available) {
+                        usernameStatus.textContent = '✓ 用户名可用';
+                        usernameStatus.className = 'username-status available';
+                    } else {
+                        usernameStatus.textContent = '✗ 用户名已存在';
+                        usernameStatus.className = 'username-status unavailable';
+                    }
+                })
+                .catch(() => {
+                    usernameStatus.textContent = '';
+                    usernameStatus.className = 'username-status';
+                });
+            }, 500);
+        }
+
+        // 密码强度检查
+        function checkPasswordStrength(password) {
+            let strength = 0;
+            if (password.length >= 6) strength++;
+            if (password.length >= 10) strength++;
+            if (/[a-z]/.test(password) && /[A-Z]/.test(password)) strength++;
+            if (/\d/.test(password)) strength++;
+            if (/[^a-zA-Z0-9]/.test(password)) strength++;
+
+            const width = Math.min(strength * 20, 100);
+            const colors = ['#f44336', '#f44336', '#ff9800', '#4caf50', '#4caf50'];
+            const texts = ['太弱', '弱', '一般', '强', '很强'];
+
+            passwordStrengthBar.style.width = `${width}%`;
+            passwordStrengthBar.style.background = colors[strength - 1] || '#e0e0e0';
+            passwordStrengthText.textContent = password ? texts[strength - 1] || '' : '';
+        }
+
+        // 发送验证码
+        sendCodeBtn.addEventListener('click', async () => {
+            const phone = phoneInput.value.trim();
+            
+            if (!phone) {
+                showMessage('请输入手机号', 'error');
+                return;
+            }
+
+            // 验证手机号格式
+            const phoneRegex = /^1[3-9]\d{9}$/;
+            if (!phoneRegex.test(phone)) {
+                showMessage('手机号格式不正确', 'error');
+                return;
+            }
+
+            hideMessage();
+            sendCodeBtn.disabled = true;
+            sendCodeBtn.textContent = '发送中...';
+
+            try {
+                const response = await fetch('/api/register/send-code', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ phone })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showMessage(data.message, 'success');
+                    
+                    // 开发模式显示验证码
+                    if (data.dev_mode && data.code) {
+                        setTimeout(() => {
+                            showMessage(`开发模式验证码: ${data.code}`, 'info');
+                        }, 2000);
+                    }
+
+                    // 倒计时
+                    let countdown = 60;
+                    sendCodeBtn.disabled = true;
+                    codeCountdown = setInterval(() => {
+                        sendCodeBtn.textContent = `${countdown}秒后重试`;
+                        countdown--;
+                        if (countdown < 0) {
+                            clearInterval(codeCountdown);
+                            sendCodeBtn.disabled = false;
+                            sendCodeBtn.textContent = '发送验证码';
+                        }
+                    }, 1000);
+                } else {
+                    showMessage(data.error || '发送失败', 'error');
+                    sendCodeBtn.disabled = false;
+                    sendCodeBtn.textContent = '发送验证码';
+                }
+            } catch (error) {
+                console.error('发送验证码错误:', error);
+                showMessage('发送失败，请稍后重试', 'error');
+                sendCodeBtn.disabled = false;
+                sendCodeBtn.textContent = '发送验证码';
+            }
+        });
+
+        // 提交注册
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const username = usernameInput.value.trim();
+            const password = passwordInput.value;
+            const passwordConfirm = passwordConfirmInput.value;
+            const phone = phoneInput.value.trim();
+            const code = codeInput.value.trim();
+            const email = emailInput.value.trim();
+
+            // 验证
+            if (username.length < 3 || username.length > 20) {
+                showMessage('用户名长度必须在3-20个字符之间', 'error');
+                return;
+            }
+
+            if (password.length < 6) {
+                showMessage('密码长度至少6个字符', 'error');
+                return;
+            }
+
+            if (password !== passwordConfirm) {
+                showMessage('两次输入的密码不一致', 'error');
+                return;
+            }
+
+            const phoneRegex = /^1[3-9]\d{9}$/;
+            if (!phoneRegex.test(phone)) {
+                showMessage('手机号格式不正确', 'error');
+                return;
+            }
+
+            if (code.length !== 6) {
+                showMessage('请输入6位验证码', 'error');
+                return;
+            }
+
+            hideMessage();
+            registerBtn.disabled = true;
+            loading.classList.add('show');
+
+            try {
+                const response = await fetch('/api/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        username,
+                        password,
+                        phone,
+                        code,
+                        email: email || null
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showMessage('注册成功！正在跳转到登录页面...', 'success');
+                    setTimeout(() => {
+                        window.location.href = '/login';
+                    }, 2000);
+                } else {
+                    showMessage(data.error || '注册失败', 'error');
+                    registerBtn.disabled = false;
+                }
+            } catch (error) {
+                console.error('注册错误:', error);
+                showMessage('注册失败，请稍后重试', 'error');
+                registerBtn.disabled = false;
+            }
+        });
+
+        // 用户名输入检查
+        usernameInput.addEventListener('input', () => {
+            checkUsername(usernameInput.value.trim());
+        });
+
+        // 密码强度检查
+        passwordInput.addEventListener('input', () => {
+            checkPasswordStrength(passwordInput.value);
+        });
+
+        // 输入时隐藏消息
+        [usernameInput, passwordInput, phoneInput, codeInput].forEach(input => {
+            input.addEventListener('input', hideMessage);
+        });
+
+        // 页面加载时焦点
+        document.addEventListener('DOMContentLoaded', () => {
+            usernameInput.focus();
+        });
+    </script>
+</body>
+</html>

@@ -41,6 +41,9 @@ from web.api.worldview_api import register_worldview_routes
 # 导入页面路由模块
 from web.routes.auth_routes import register_auth_routes, register_page_routes
 
+# 导入注册API模块
+from web.api.register_api import register_register_routes
+
 
 def create_app():
     """创建Flask应用实例"""
@@ -54,6 +57,9 @@ def create_app():
     # 1. 认证和页面路由
     register_auth_routes(app)
     register_page_routes(app)
+    
+    # 2. 用户注册API路由
+    register_register_routes(app)
     
     # 2. 小说相关API路由
     register_novel_routes(app, manager)

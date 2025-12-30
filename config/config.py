@@ -169,5 +169,30 @@ CONFIG = {
             "faction_legacy": "势力后续发展",
             "ability_legacy": "能力传承或影响"
         }
+    },
+    # 短信服务配置
+    "sms": {
+        # 短信服务商选择 (mock/aliyun/tencent)
+        "provider": "mock",
+        # 验证码配置
+        "code_length": 6,
+        "expiry_minutes": 5,
+        "max_requests": 3,
+        "time_window_seconds": 3600,
+        # 阿里云短信配置
+        "aliyun": {
+            "access_key_id": "",
+            "access_key_secret": "",
+            "sign_name": "",
+            "template_code": ""
+        },
+        # 腾讯云短信配置
+        "tencent": {
+            "secret_id": "",
+            "secret_key": "",
+            "app_id": "",
+            "sign_name": "",
+            "template_id": ""
+        }
     }
 }

@@ -58,6 +58,13 @@ def register_auth_routes(app):
         session.clear()
         logger.info(f"👋 用户登出: {username}")
         return redirect(url_for('login'))
+    
+    @app.route('/register', methods=['GET'])
+    def register():
+        """注册页面"""
+        if 'logged_in' in session and session['logged_in']:
+            return redirect('/')
+        return render_template('register.html')
 
 
 def register_page_routes(app):
