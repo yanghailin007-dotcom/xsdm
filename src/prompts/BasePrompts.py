@@ -1,16 +1,25 @@
 class BasePrompts:
     def __init__(self):
+        # 尝试加载平台适配器
+        try:
+            from config.platform_adapters import PlatformAdapterFactory
+            self.platform_adapter_factory = PlatformAdapterFactory
+        except ImportError:
+            self.platform_adapter_factory = None
+        
         self.prompts = {
             "multiple_plans": """
 # Persona
-你是一位顶级的番茄小说平台编辑与爆款策划专家。你精通番茄平台的商业化创作规律、读者心理，并擅长将一个创意种子孵化为多个具有爆款潜力的、差异化的小说方案。
+你是一位顶级的{platform_name}平台编辑与爆款策划专家。你精通{platform_name}平台的商业化创作规律、读者心理，并擅长将一个创意种子孵化为多个具有爆款潜力的、差异化的小说方案。
 
 # Core Principles
 1.  **代入感优先**: 所有方案必须强调代入感和沉浸感，让读者能够轻松代入主角的视角和情感。
-2.  **避免复杂设定**: 严禁复杂的世界观解释、外星人、超能力、阴谋论等宏大设定。系统或金手指不需要解释来源，直接使用即可。
+2.  **避免复杂设定**: {avoid_complex_setting}系统或金手指不需要解释来源，直接使用即可。
 3.  **商业导向**: 你的唯一目标是商业成功。所有设计都必须服务于"爽点"、"期待感"和"付费潜力"。
 4.  **强制差异化**: 基于同一用户输入，你必须严格按照预设的【金手指】和【主线剧情】方向，生成3个完全不同的大纲方案。
-5.  **番茄风格**: 严格遵循番茄小说风格：黄金三章（开局冲突、金手指激活、打脸逆袭）、高密度爽点、极致情绪调动、语言直白易懂。
+5.  **平台风格**: {platform_style_guide}
+
+{platform_context}
 
 # Workflow
 1.  **Analyze Input**: 仔细分析用户在`<CreativeSeed>`和`<NovelCategory>`中提供的核心创意和分类。
@@ -48,9 +57,9 @@ class BasePrompts:
 你必须严格遵循以下JSON结构。所有字段描述都是对你的指令，而不是要你输出的文字。使用占位符 `<...>` 描述了每个字段应填写的内容和要求。
 
 ```json
-{
+{{
     "plans": [
-        {
+        {{
             "title": "<小说标题1>", // 字符串, 6-14字, 必须高吸引力、抓眼球, 紧扣核心卖点。
             "synopsis": "<小说简介1>", // 字符串, 约150-200字。必须以 `[标签1+标签2]` 开头, 包含主角、核心冲突和悬念, 语言富有煽动性。
             "core_direction": "<创作核心方向1>", // 字符串, 明确故事定位, 并用编号列表(1., 2., 3.)的形式分点阐述至少3个核心卖点及其吸引读者的原因。
@@ -95,7 +104,7 @@ class BasePrompts:
             "competitive_advantage": "<竞争优势2>",// 字符串, 分析此方案在当前市场的独特性和爆款潜力, 需结合番茄热门趋势, 并说明开篇设计如何遵循"黄金三章"原则。
             "golden_finger_type": "能力类", // 固定值, 不可修改
             "main_plot_direction": "势力发展路线", // 固定值, 不可修改
-            "core_settings": {
+            "core_settings": {{{{
                 "world_background": "<世界观背景简述>",
                 "golden_finger": "<金手指具体功能描述>",
                 "core_selling_points": [
@@ -103,28 +112,28 @@ class BasePrompts:
                     "<核心爽点2>",
                     "<核心爽点3>"
                 ]
-            },
-            "story_development": {
+            }}}},
+            "story_development": {{{{
                 "protagonist_position": "<主角定位与成长路径>",
                 "main_plot": [
                     "<初期发展脉络(前20%)>",
                     "<中期发展脉络(21%-70%)>",
                     "<后期发展脉络(71%-100%)>"
                 ]
-            },
-            "tags": {
+            }}}},
+            "tags": {{{{
                 "target_audience":"<男频/女频>",
                 "main_category": "<主分类>",
                 "themes": ["<主题1>", "<主题2>"],
                 "roles": ["<角色1>", "<角色2>"],
                 "plots": ["<情节1>", "<情节2>"]
-            },
-            "suggestions": {
+            }}}},
+            "suggestions": {{{{
                 "name": "主角名字",
                 "reason": "解释这个名字为什么符合这个方案和主题，以及它的寓意。"
-            }
-        },
-        {
+            }}}}
+        }}}}
+        {{{{
             "title": "<小说标题3>",// 字符串, 6-14字, 必须高吸引力、抓眼球, 紧扣核心卖点。
             "synopsis": "<小说简介3>",// 字符串, 约150-200字。必须以 `[标签1+标签2]` 开头, 包含主角、核心冲突和悬念, 语言富有煽动性。
             "core_direction": "<创作核心方向3>",// 字符串, 明确故事定位, 并用编号列表(1., 2., 3.)的形式分点阐述至少3个核心卖点及其吸引读者的原因。
@@ -215,5 +224,59 @@ Workflow
 结合你对番茄小说平台最新风向和热门数据（如"神豪"、"无敌"、"分手逆袭"、"系统"等）的理解，进行创意放大和商业化包装。
 
 确保所有内容，特别是标题和简介，都为吸引目标读者进行了极致优化。
-"""
-}
+""",
+        }
+    
+    def get_prompt(self, key: str, platform: str = "fanqie") -> str:
+        """
+        获取提示词，支持平台适配
+        
+        Args:
+            key: 提示词键名
+            platform: 目标平台代码 (fanqie/qidian/zhihu)
+        
+        Returns:
+            格式化后的提示词
+        """
+        template = self.prompts.get(key, "")
+        if not template:
+            return template
+        
+        # 获取平台适配器
+        if self.platform_adapter_factory:
+            adapter = self.platform_adapter_factory.get_adapter(platform)
+            platform_name = adapter.platform_name
+            platform_context = adapter.get_prompt_context()
+            platform_style_guide = adapter.get_content_style_guide()
+            
+            # 根据平台设置避免复杂设定的描述
+            if platform == "qidian":
+                avoid_complex_setting = "避免过于复杂的世界观解释，但允许合理的世界观设定。"
+            elif platform == "zhihu":
+                avoid_complex_setting = "允许新颖有趣的世界观设定，但需要逻辑自洽。"
+            else:  # fanqie (default)
+                avoid_complex_setting = "严禁复杂的世界观解释、外星人、超能力、阴谋论等宏大设定。"
+        else:
+            # 默认使用番茄风格
+            platform_name = "番茄小说"
+            platform_context = ""
+            platform_style_guide = "严格遵循番茄小说风格：黄金三章（开局冲突、金手指激活、打脸逆袭）、高密度爽点、极致情绪调动、语言直白易懂。"
+            avoid_complex_setting = "严禁复杂的世界观解释、外星人、超能力、阴谋论等宏大设定。"
+        
+        # 🔥 修复：先转义花括号，再进行format
+        # 将所有JSON中的 { 和 } 替换为 {{ 和 }}
+        template_escaped = template.replace('{', '{{').replace('}', '}}')
+        
+        # 然后只转义我们需要的占位符（将 {{{ 变回 {）
+        template_escaped = template_escaped.replace('{{platform_name}}', '{platform_name}')
+        template_escaped = template_escaped.replace('{{platform_context}}', '{platform_context}')
+        template_escaped = template_escaped.replace('{{platform_style_guide}}', '{platform_style_guide}')
+        template_escaped = template_escaped.replace('{{avoid_complex_setting}}', '{avoid_complex_setting}')
+        
+        # 格式化提示词
+        return template_escaped.format(
+            platform_name=platform_name,
+            platform_context=platform_context,
+            platform_style_guide=platform_style_guide,
+            avoid_complex_setting=avoid_complex_setting
+        )

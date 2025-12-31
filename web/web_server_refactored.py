@@ -37,6 +37,7 @@ from web.api.cover_api import register_cover_routes
 from web.api.phase_generation_api import register_phase_routes
 from web.api.resume_generation_api import register_resume_routes
 from web.api.worldview_api import register_worldview_routes
+from web.api.video_generation_api import register_video_routes
 
 # 导入页面路由模块
 from web.routes.auth_routes import register_auth_routes, register_page_routes
@@ -87,6 +88,9 @@ def create_app():
     
     # 10. 世界观可视化API路由
     register_worldview_routes(app)
+    
+    # 11. 视频生成API路由
+    register_video_routes(app)
     
     return app, manager
 

@@ -280,12 +280,20 @@ class NovelGenerator:
 
     # ==================== 主要接口方法 ====================
 
-    def phase_one_generation(self, creative_seed, total_chapters: Optional[int] = None):
+    def phase_one_generation(self, creative_seed, total_chapters: Optional[int] = None, start_new: bool = False, target_platform: str = "fanqie"):
         """
         第一阶段生成：只执行到"第一章生成前"
         包括：方案生成、基础规划、世界观、角色设计、全书规划等准备工作
         支持从检查点恢复
+        
+        Args:
+            creative_seed: 创意种子
+            total_chapters: 总章节数
+            start_new: 是否从头开始（忽略检查点）
+            target_platform: 目标平台 (fanqie/qidian/zhihu)  # 🔥 新增平台参数
         """
+        # 🔥 保存平台信息到novel_data
+        self.novel_data["target_platform"] = target_platform
         def notify_failure(error_msg: str):
             """通知任务失败"""
             try:
@@ -313,13 +321,18 @@ class NovelGenerator:
         assert total_chapters is not None, "total_chapters 必须是整数"
         temp_title_for_filename = f"未定稿创意_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         
-        # 检查是否有检查点可以恢复
-        checkpoint_data = self._check_for_resume_checkpoint(creative_seed, total_chapters)
-        if checkpoint_data:
-            print(f"🔄 检测到检查点，从步骤 '{checkpoint_data['current_step']}' 恢复")
-            return self._resume_phase_one_from_checkpoint(checkpoint_data, creative_seed, total_chapters)
+        # 🔥 修复：只有当 start_new=False 时才检查检查点
+        # 如果用户选择"从新开始"（start_new=True），则跳过检查点恢复
+        if not start_new:
+            # 检查是否有检查点可以恢复
+            checkpoint_data = self._check_for_resume_checkpoint(creative_seed, total_chapters)
+            if checkpoint_data:
+                print(f"🔄 检测到检查点，从步骤 '{checkpoint_data['current_step']}' 恢复")
+                return self._resume_phase_one_from_checkpoint(checkpoint_data, creative_seed, total_chapters)
+        else:
+            print("🆕 用户选择从头开始，跳过检查点恢复")
         
-        # 没有检查点，从头开始
+        # 没有检查点或用户选择从头开始，从头开始生成
         print("🆕 从头开始生成")
         
         # 注意：初始检查点将在方案生成完成后再创建，那时才会有所有必要字段
@@ -371,8 +384,12 @@ class NovelGenerator:
             except:
                 pass
             
-            # 第一步：生成和选择方案
-            selected_plan = self.plan_generator.generate_and_select_plan(processed_creative_seed, self.content_generator)
+            # 第一步：生成和选择方案（🔥 传递平台参数）
+            selected_plan = self.plan_generator.generate_and_select_plan(
+                processed_creative_seed,
+                self.content_generator,
+                target_platform=self.novel_data.get("target_platform", "fanqie")
+            )
             if not selected_plan:
                 error_msg = "方案生成失败：无法生成符合要求的创作方案"
                 print(f"❌ {error_msg}")

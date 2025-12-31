@@ -222,6 +222,9 @@ class PhaseOneSetup {
         const coreSellingPoints = document.getElementById('core-selling-points').value.trim();
         const totalChapters = parseInt(document.getElementById('total-chapters').value) || 200;
         const generationMode = document.getElementById('generation-mode').value;
+        const targetPlatform = document.getElementById('target-platform').value || 'fanqie';
+
+        console.log('🎯 [DEBUG] 目标平台:', targetPlatform);
 
         return {
             title,
@@ -229,7 +232,8 @@ class PhaseOneSetup {
             core_setting: coreSetting,
             core_selling_points: coreSellingPoints,
             total_chapters: totalChapters,
-            generation_mode: generationMode
+            generation_mode: generationMode,
+            target_platform: targetPlatform
         };
     }
 

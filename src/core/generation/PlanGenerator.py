@@ -16,6 +16,13 @@ class PlanGenerator:
         self.quality_assessor = quality_assessor
         self.content_generator = content_generator
         
+        # 初始化平台适配器工厂
+        try:
+            from config.platform_adapters import PlatformAdapterFactory
+            self.platform_adapter_factory = PlatformAdapterFactory
+        except ImportError:
+            self.platform_adapter_factory = None
+        
         # 高分爆款方案创作蓝图
         self.HIGH_SCORING_PLAN_BLUEPRINT = """
         # 高分爆款方案创作蓝图 (Blueprint for High-Scoring Blockbuster Plans)
@@ -82,17 +89,20 @@ class PlanGenerator:
             *   **可信度警示**: 如果背景资料可信度较低，设计方案时必须更加谨慎，优先选择已验证的信息。
         """
 
-    def generate_and_select_plan(self, creative_seed: str, content_generator) -> Optional[Dict]:
+    def generate_and_select_plan(self, creative_seed: str, content_generator, target_platform: str = "fanqie") -> Optional[Dict]:
         """
         生成多个方案并让用户选择
         
         Args:
             creative_seed: 创意种子
             content_generator: 内容生成器实例
+            target_platform: 目标平台 (fanqie/qidian/zhihu)  # 🔥 新增平台参数
             
         Returns:
             选中的方案数据，失败返回None
         """
+        # 🔥 记录平台选择
+        print(f"📱 [PLATFORM] 目标平台: {target_platform}")
         print("=== 步骤1: 基于创意种子生成多个小说方案 ===")
         
         # 预设临时标题用于文件名
@@ -107,8 +117,8 @@ class PlanGenerator:
         else:
             creative_work = creative_seed
         
-        # 注入"毒点红线"和"高分蓝图"
-        refined_creative_seed = self._prepare_refined_seed(creative_work, temp_title_for_filename)
+        # 注入"毒点红线"和"高分蓝图"，并传递平台参数
+        refined_creative_seed = self._prepare_refined_seed(creative_work, temp_title_for_filename, target_platform)
         
         # 生成方案
         plans_data = content_generator.generate_multiple_plans(refined_creative_seed, "")
@@ -133,7 +143,7 @@ class PlanGenerator:
         # 选择最佳方案
         return self._select_best_plan(qualified_plans)
 
-    def _prepare_refined_seed(self, creative_work: dict, temp_title: str) -> str:
+    def _prepare_refined_seed(self, creative_work: dict, temp_title: str, target_platform: str = "fanqie") -> str:
         """准备精炼后的创意种子"""
         # 从原NovelGenerator提取的精炼逻辑
         core_setting = creative_work.get("coreSetting", "未提供核心设定。")
@@ -266,8 +276,53 @@ class PlanGenerator:
         
         refined_seed = "\n".join(instructions)
         
-        # 注入规则和蓝图
-        return refined_seed + "\n\n" + self.POISON_POINT_RULES_FOR_GENERATION + "\n\n" + self.HIGH_SCORING_PLAN_BLUEPRINT
+        # 🔥 获取平台适配器
+        platform_guidance = ""
+        if self.platform_adapter_factory:
+            adapter = self.platform_adapter_factory.get_adapter(target_platform)
+            platform_context = adapter.get_prompt_context()
+            platform_style_guide = adapter.get_content_style_guide()
+            
+            platform_guidance = f"""
+
+## 📱 平台适配指导 (目标平台: {adapter.platform_name})
+
+{platform_context}
+
+{platform_style_guide}
+
+【重要提示】：
+- 标题创作必须遵循 {adapter.platform_name} 的标题风格指南
+- 内容风格必须符合上述平台风格指导
+- 简介和核心卖点需要针对该平台读者群体进行优化
+"""
+        else:
+            # 默认使用番茄风格
+            platform_guidance = """
+
+## 📱 平台适配指导 (目标平台: 番茄小说)
+
+**目标平台：番茄小说**
+番茄小说是字节跳动旗下的免费阅读平台，用户群体庞大，偏好快节奏、强代入感的爽文。
+
+**平台特点：**
+1. **读者画像**：以年轻读者为主（18-35岁），喜欢轻松、直接的阅读体验
+2. **阅读场景**：碎片化阅读为主，需要快速吸引注意力
+3. **付费模式**：免费阅读+广告变现，依靠高留存率和完读率
+4. **推荐机制**：基于完读率、追读率、互动数据推荐
+
+**内容偏好：**
+- **黄金三章**：前3章必须有强烈冲突、金手指激活、打脸逆袭
+- **高爽点密度**：每章都要有小高潮，每3-5章一个大高潮
+- **强代入感**：主角设定贴近普通人，让读者容易代入
+- **直白易懂**：语言简洁，避免复杂设定和长篇解释
+- **情绪调动**：愤怒→压抑→爆发→爽快的情绪曲线
+
+**标题风格**：6-14字，简洁、有冲击力、抓眼球
+"""
+        
+        # 注入平台指导、规则和蓝图
+        return refined_seed + platform_guidance + "\n\n" + self.POISON_POINT_RULES_FOR_GENERATION + "\n\n" + self.HIGH_SCORING_PLAN_BLUEPRINT
 
     def _extract_main_character_name(self, plans_data: Dict, content_generator):
         """提取并设置主角名字"""

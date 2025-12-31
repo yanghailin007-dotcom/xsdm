@@ -624,13 +624,13 @@
                 <div class="card-icon">🎬</div>
                 <div class="card-content">
                     <div class="card-emoji">🎨</div>
-                    <h2 class="card-title">动漫创作</h2>
+                    <h2 class="card-title">视频制作</h2>
                     <p class="card-description">
-                        即将上线<br>
-                        AI辅助的动漫制作平台
+                        支持三种视频模式<br>
+                        短片·剧集·短视频，AI智能转换
                     </p>
                     <button class="card-button">
-                        敬请期待 →
+                        进入 →
                     </button>
                 </div>
             </div>
@@ -681,9 +681,15 @@
             }, 500);
         }
 
-        // 进入动漫创作（暂未开发）
+        // 进入视频生成
         function enterAnime() {
-            alert('动漫创作功能正在开发中，敬请期待！\n\n您可以先体验小说创作功能。');
+            // 添加过渡效果
+            document.body.style.transition = 'opacity 0.5s';
+            document.body.style.opacity = '0';
+            
+            setTimeout(function() {
+                window.location.href = '/video-generation';
+            }, 500);
         }
 
         // 鼠标移动视差效果

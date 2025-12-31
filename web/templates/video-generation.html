@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>视频生成系统</title>
+    <link rel="stylesheet" href="/static/css/video-generation.css">
+</head>
+<body>
+    <div id="app">
+        <!-- 导航栏 -->
+        <nav class="navbar">
+            <div class="nav-container">
+                <h1 class="nav-title">🎬 视频生成系统</h1>
+                <div class="nav-links">
+                    <a href="/novels" class="nav-link">📚 小说项目</a>
+                    <a href="/video-generation" class="nav-link">🎬 视频生成</a>
+                    <a href="/dashboard" class="nav-link">🏠 控制台</a>
+                </div>
+            </div>
+        </nav>
+
+        <div class="main-container">
+            <!-- 左侧：小说列表 -->
+            <aside class="sidebar">
+                <div class="sidebar-header">
+                    <h2>📚 我的小说</h2>
+                    <button id="refreshNovelsBtn" class="btn-icon" title="刷新列表">
+                        🔄
+                    </button>
+                </div>
+                <div id="novelList" class="novel-list">
+                    <div class="loading">加载中...</div>
+                </div>
+            </aside>
+
+            <!-- 中间：主内容区 -->
+            <main class="main-content">
+                <!-- 欢迎/选择屏幕 -->
+                <div id="welcomeScreen" class="welcome-screen">
+                    <div class="welcome-content">
+                        <h1>🎬 将小说转换为视频</h1>
+                        <p>支持三种视频模式，满足不同创作需求</p>
+                        
+                        <div id="videoTypeSelector" class="video-type-selector">
+                            <!-- 视频类型卡片将由JS动态生成 -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 提示词预览屏幕 -->
+                <div id="promptPreviewScreen" class="prompt-preview-screen" style="display: none;">
+                    <div class="screen-header">
+                        <button id="backToTypesBtn" class="btn-secondary">← 重新选择</button>
+                        <h2 id="promptPreviewTitle"></h2>
+                    </div>
+
+                    <div class="prompt-preview-content">
+                        <div class="prompt-info-card">
+                            <h3>📝 生成提示词</h3>
+                            <div id="promptText" class="prompt-text"></div>
+                        </div>
+
+                        <div class="prompt-actions">
+                            <button id="editPromptBtn" class="btn-secondary">✏️ 编辑提示词</button>
+                            <button id="generateStoryboardBtn" class="btn-primary btn-large">
+                                🎬 生成分镜头脚本
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 分镜头列表屏幕 -->
+                <div id="storyboardScreen" class="storyboard-screen" style="display: none;">
+                    <div class="screen-header">
+                        <button id="backToPromptBtn" class="btn-secondary">← 返回提示词</button>
+                        <h2 id="storyboardTitle"></h2>
+                        <div class="header-stats">
+                            <span class="stat-item">
+                                <span class="stat-label">总镜头:</span>
+                                <span id="totalShots" class="stat-value">0</span>
+                            </span>
+                            <span class="stat-item">
+                                <span class="stat-label">已完成:</span>
+                                <span id="completedShots" class="stat-value">0</span>
+                            </span>
+                            <span class="stat-item">
+                                <span class="stat-label">预计时长:</span>
+                                <span id="estimatedDuration" class="stat-value">0分钟</span>
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- 全局操作 -->
+                    <div class="global-actions">
+                        <button id="generateAllBtn" class="btn-primary">
+                            🚀 全部生成
+                        </button>
+                        <button id="exportStoryboardBtn" class="btn-secondary">
+                            📄 导出脚本
+                        </button>
+                        <button id="regenerateStoryboardBtn" class="btn-secondary">
+                            🔄 重新生成
+                        </button>
+                    </div>
+
+                    <!-- 分镜头列表 -->
+                    <div id="shotsList" class="shots-list">
+                        <div class="loading">正在加载分镜头...</div>
+                    </div>
+                </div>
+
+                <!-- 单个镜头生成屏幕 -->
+                <div id="shotGenerationScreen" class="shot-generation-screen" style="display: none;">
+                    <div class="screen-header">
+                        <button id="backToStoryboardBtn" class="btn-secondary">← 返回列表</button>
+                        <h2 id="shotGenerationTitle"></h2>
+                    </div>
+
+                    <div class="shot-detail-content">
+                        <div class="shot-info-panel">
+                            <div class="shot-header">
+                                <h3 id="shotNumber">镜头 #1</h3>
+                                <span id="shotDuration" class="shot-duration">预计时长: 5秒</span>
+                            </div>
+
+                            <div class="shot-details">
+                                <div class="detail-section">
+                                    <h4>🎬 场景描述</h4>
+                                    <p id="shotSceneDescription"></p>
+                                </div>
+
+                                <div class="detail-section">
+                                    <h4>📹 镜头类型</h4>
+                                    <p id="shotType"></p>
+                                </div>
+
+                                <div class="detail-section">
+                                    <h4>🎨 视觉风格</h4>
+                                    <p id="shotVisualStyle"></p>
+                                </div>
+
+                                <div class="detail-section">
+                                    <h4>🎵 音效/音乐</h4>
+                                    <p id="shotAudio"></p>
+                                </div>
+
+                                <div class="detail-section">
+                                    <h4>💬 生成提示词</h4>
+                                    <textarea id="shotPrompt" class="prompt-textarea"></textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="shot-preview-panel">
+                            <div class="preview-header">
+                                <h4>预览区域</h4>
+                            </div>
+                            <div id="shotPreview" class="shot-preview">
+                                <div class="preview-placeholder">
+                                    <p>🎬 点击"开始生成"开始生成视频</p>
+                                </div>
+                            </div>
+
+                            <div class="generation-actions">
+                                <button id="startShotGenerationBtn" class="btn-primary btn-large">
+                                    🚀 开始生成
+                                </button>
+                                <button id="saveShotPromptBtn" class="btn-secondary">
+                                    💾 保存提示词修改
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 生成进度 -->
+                    <div id="shotProgressSection" class="shot-progress-section" style="display: none;">
+                        <h4>生成进度</h4>
+                        <div class="progress-bar">
+                            <div id="shotProgressBar" class="progress-bar-fill">0%</div>
+                        </div>
+                        <p id="shotProgressText" class="progress-text">准备中...</p>
+                    </div>
+                </div>
+            </main>
+
+            <!-- 右侧：帮助信息 -->
+            <aside class="help-sidebar">
+                <div class="help-card">
+                    <h3>💡 使用流程</h3>
+                    <ol id="workflowSteps">
+                        <li class="active">1. 选择小说和视频类型</li>
+                        <li>2. 查看和编辑生成提示词</li>
+                        <li>3. 生成分镜头脚本</li>
+                        <li>4. 逐个或批量生成视频</li>
+                        <li>5. 导出最终成果</li>
+                    </ol>
+                </div>
+
+                <div class="help-card">
+                    <h3>📊 当前状态</h3>
+                    <div id="currentStatus" class="current-status">
+                        <p>请选择小说开始</p>
+                    </div>
+                </div>
+
+                <div class="help-card">
+                    <h3>📖 视频类型说明</h3>
+                    <div id="typeDescriptions" class="type-descriptions">
+                        <!-- 动态生成 -->
+                    </div>
+                </div>
+            </aside>
+        </div>
+    </div>
+
+    <!-- Toast 通知 -->
+    <div id="toast" class="toast"></div>
+
+    <!-- 提示词编辑模态框 -->
+    <div id="promptEditModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>编辑生成提示词</h3>
+                <button id="closePromptModalBtn" class="btn-close">✕</button>
+            </div>
+            <div class="modal-body">
+                <textarea id="promptEditTextarea" class="prompt-edit-textarea"></textarea>
+            </div>
+            <div class="modal-footer">
+                <button id="cancelPromptEditBtn" class="btn-secondary">取消</button>
+                <button id="savePromptEditBtn" class="btn-primary">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/video-generation.js"></script>
+</body>
+</html>

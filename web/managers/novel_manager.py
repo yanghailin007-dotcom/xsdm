@@ -660,6 +660,12 @@ class NovelGenerationManager:
             title = config.get("title", "未命名小说")
             is_resume_mode = config.get("is_resume_mode", False)
             
+            # 🔥 新增：获取 start_new 参数，用户选择"从新开始"时应删除现有检查点
+            start_new = config.get("start_new", False)
+            if start_new:
+                logger.info(f"🆕 用户选择从头开始，将删除现有检查点")
+                self._delete_existing_checkpoint(title)
+            
             # 创建初始检查点（仅在非恢复模式下）
             if self.checkpoint_enabled and not is_resume_mode:
                 self._create_initial_checkpoint(title, config, task_id)
@@ -750,7 +756,13 @@ class NovelGenerationManager:
                 setattr(novel_generator, '_update_task_status_callback', self._update_task_status)
                 setattr(novel_generator, '_current_task_id', task_id)
                 
-                success = novel_generator.phase_one_generation(creative_seed, total_chapters)
+                # 🔥 传递 start_new 和 target_platform 参数给生成器
+                success = novel_generator.phase_one_generation(
+                    creative_seed,
+                    total_chapters,
+                    start_new=config.get("start_new", False),
+                    target_platform=config.get("target_platform", "fanqie")
+                )
                 
                 if success:
                     # 标记步骤完成
@@ -810,9 +822,9 @@ class NovelGenerationManager:
         try:
             from src.managers.stage_plan.generation_checkpoint import GenerationCheckpoint
             from pathlib import Path
-            
+             
             checkpoint_mgr = GenerationCheckpoint(title, Path.cwd())
-            
+             
             checkpoint_mgr.create_checkpoint(
                 phase='phase_one',
                 step='initialization',
@@ -823,11 +835,25 @@ class NovelGenerationManager:
                     'created_at': datetime.now().isoformat()
                 }
             )
-            
+             
             logger.info(f"✅ 初始检查点已创建: {title}")
-            
+             
         except Exception as e:
             logger.error(f"❌ 创建初始检查点失败: {e}")
+    
+    def _delete_existing_checkpoint(self, title: str):
+        """删除现有检查点（用于从头开始生成）"""
+        try:
+            from src.managers.stage_plan.generation_checkpoint import GenerationCheckpoint
+            from pathlib import Path
+             
+            checkpoint_mgr = GenerationCheckpoint(title, Path.cwd())
+            checkpoint_mgr.delete_checkpoint()
+             
+            logger.info(f"✅ 已删除现有检查点: {title}")
+             
+        except Exception as e:
+            logger.error(f"❌ 删除检查点失败: {e}")
     
     def _update_checkpoint(self, title: str, phase: str, step: str, data: Dict, step_status: str = "in_progress"):
         """

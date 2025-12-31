@@ -191,6 +191,12 @@ def register_page_routes(app):
         """章节内容查看页面"""
         return render_template('chapter-view.html')
     
+    @app.route('/video-generation', methods=['GET'])
+    @login_required
+    def video_generation():
+        """视频生成页面"""
+        return render_template('video-generation.html')
+    
     @app.route('/project-viewer/<project_title>', methods=['GET'])
     @login_required
     def project_viewer(project_title):

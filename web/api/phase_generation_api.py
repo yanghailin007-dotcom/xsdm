@@ -869,6 +869,9 @@ def start_phase_one_generate():
         generation_mode = data.get('generation_mode', 'phase_one_only')
         creative_seed = data.get('creative_seed')
         
+        # 🔥 新增：支持目标平台参数
+        target_platform = data.get('target_platform', 'fanqie')  # 默认番茄小说
+        
         # 🔥 新增：支持 start_new 参数，用户选择"从新开始"时传递
         start_new = data.get('start_new', False)
         
@@ -906,8 +909,11 @@ def start_phase_one_generate():
             'total_chapters': total_chapters,
             'generation_mode': generation_mode,
             'creative_seed': creative_seed,
+            'target_platform': target_platform,  # 🔥 新增：传递目标平台参数
             'start_new': start_new  # 🔥 新增：传递 start_new 参数
         }
+        
+        logger.info(f"📱 [PLATFORM] 目标平台: {target_platform}")
         
         # 调用管理器启动实际的第一阶段生成任务
         logger.info(f"🚀 [PHASE_ONE] 调用管理器启动生成任务...")
@@ -1617,6 +1623,26 @@ def register_additional_routes(app):
             
         except Exception as e:
             logger.error(f"[STORYLINE] 获取故事线失败: {e}")
+            import traceback
+            logger.error(f"错误堆栈: {traceback.format_exc()}")
+            return jsonify({"success": False, "error": str(e)}), 500
+    
+    
+    @app.route('/api/platforms/supported', methods=['GET'])
+    def get_supported_platforms():
+        """获取支持的平台列表"""
+        try:
+            from config.platform_adapters import PlatformAdapterFactory
+            
+            platforms = PlatformAdapterFactory.get_supported_platforms()
+            
+            return jsonify({
+                "success": True,
+                "platforms": platforms
+            })
+            
+        except Exception as e:
+            logger.error(f"❌ 获取平台列表失败: {e}")
             import traceback
             logger.error(f"错误堆栈: {traceback.format_exc()}")
             return jsonify({"success": False, "error": str(e)}), 500
