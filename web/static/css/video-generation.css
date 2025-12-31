@@ -45,11 +45,41 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 1rem;
 }
 
 .nav-title {
     font-size: 1.5rem;
     font-weight: 700;
+    flex-grow: 1;
+    text-align: center;
+}
+
+/* 返回首页按钮 */
+.btn-back {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    padding: 0.625rem 1.25rem;
+    border-radius: 0.5rem;
+    font-weight: 600;
+    font-size: 0.9375rem;
+    cursor: pointer;
+    transition: all 0.3s;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.btn-back:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+    background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+}
+
+.btn-back:active {
+    transform: translateY(0);
 }
 
 .nav-links {
@@ -79,6 +109,25 @@ body {
     margin: 2rem auto;
     padding: 0 2rem;
     min-height: calc(100vh - 100px);
+}
+
+/* 隐藏左侧小说列表时的布局 */
+.main-container.hide-sidebar {
+    grid-template-columns: 1fr 280px;
+}
+
+/* 只显示主内容时的布局 */
+.main-container.content-only {
+    grid-template-columns: 1fr;
+}
+
+/* 侧边栏显示控制 */
+.main-container.hide-sidebar .sidebar {
+    display: none;
+}
+
+.main-container.hide-help-sidebar .help-sidebar {
+    display: none;
 }
 
 /* 侧边栏 */
@@ -197,9 +246,221 @@ body {
     color: var(--primary-color);
 }
 
+/* 模式选择屏幕 */
+.mode-selection-screen {
+    text-align: center;
+    animation: fadeIn 0.3s ease-in;
+}
+
+.mode-selection-content h1 {
+    font-size: 2.5rem;
+    margin-bottom: 0.5rem;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.mode-selection-content p {
+    color: var(--text-secondary);
+    margin-bottom: 3rem;
+    font-size: 1.125rem;
+}
+
+.mode-selector {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    gap: 2rem;
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.mode-card {
+    background: var(--bg-tertiary);
+    border-radius: 1.5rem;
+    padding: 2.5rem 2rem;
+    cursor: pointer;
+    transition: all 0.3s;
+    border: 3px solid transparent;
+    text-align: left;
+    position: relative;
+    overflow: hidden;
+}
+
+.mode-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--primary-color), #764ba2);
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.mode-card:hover {
+    transform: translateY(-4px);
+    border-color: var(--primary-color);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+}
+
+.mode-card:hover::before {
+    opacity: 1;
+}
+
+.mode-card.selected {
+    border-color: var(--primary-color);
+    background: rgba(37, 99, 235, 0.1);
+}
+
+.mode-card.selected::before {
+    opacity: 1;
+}
+
+.mode-card.custom-mode.selected {
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.15), rgba(118, 75, 162, 0.15));
+}
+
+.mode-badge {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    padding: 0.25rem 0.75rem;
+    border-radius: 1rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+.mode-icon {
+    font-size: 3.5rem;
+    margin-bottom: 1rem;
+}
+
+.mode-card h3 {
+    font-size: 1.75rem;
+    margin-bottom: 0.5rem;
+}
+
+.mode-card .mode-desc {
+    color: var(--text-secondary);
+    font-size: 1rem;
+    margin-bottom: 1.5rem;
+    line-height: 1.5;
+}
+
+.mode-features {
+    list-style: none;
+    margin-top: 1.5rem;
+}
+
+.mode-features li {
+    padding: 0.6rem 0;
+    font-size: 0.9375rem;
+    color: var(--text-secondary);
+}
+
+.mode-features li:before {
+    content: "✓ ";
+    color: var(--success-color);
+    margin-right: 0.5rem;
+    font-weight: 700;
+}
+
+/* 自定义提示词输入屏幕 */
+.custom-prompt-screen {
+    animation: fadeIn 0.3s ease-in;
+}
+
+.custom-prompt-content {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+
+.prompt-input-card {
+    background: var(--bg-tertiary);
+    border-radius: 1rem;
+    padding: 2rem;
+}
+
+.prompt-input-card h3 {
+    margin-bottom: 0.5rem;
+    font-size: 1.25rem;
+}
+
+.prompt-input-card .hint {
+    color: var(--text-secondary);
+    margin-bottom: 1.5rem;
+    font-size: 0.9375rem;
+}
+
+.custom-prompt-textarea {
+    width: 100%;
+    min-height: 300px;
+    background: var(--bg-secondary);
+    border: 2px solid var(--border-color);
+    border-radius: 0.75rem;
+    padding: 1.5rem;
+    color: var(--text-primary);
+    font-family: 'Courier New', monospace;
+    font-size: 1rem;
+    line-height: 1.8;
+    resize: vertical;
+    transition: border-color 0.3s;
+}
+
+.custom-prompt-textarea:focus {
+    outline: none;
+    border-color: var(--primary-color);
+}
+
+.custom-prompt-textarea::placeholder {
+    color: var(--text-secondary);
+    opacity: 0.5;
+}
+
+.prompt-presets {
+    margin-top: 2rem;
+}
+
+.prompt-presets h4 {
+    margin-bottom: 1rem;
+    font-size: 1rem;
+    color: var(--primary-color);
+}
+
+.preset-buttons {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 0.75rem;
+}
+
+.preset-btn {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    padding: 0.75rem 1rem;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    transition: all 0.3s;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.preset-btn:hover {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+    color: white;
+    transform: translateY(-2px);
+}
+
 /* 欢迎屏幕 */
 .welcome-screen {
     text-align: center;
+    animation: fadeIn 0.3s ease-in;
 }
 
 .welcome-content h1 {

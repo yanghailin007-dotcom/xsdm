@@ -259,6 +259,204 @@ def generate_storyboard():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
+@video_api.route('/video/generate-storyboard-custom', methods=['POST'])
+@login_required
+def generate_storyboard_custom():
+    """
+    基于自定义提示词生成分镜头脚本
+    
+    请求参数：
+    {
+        "prompt": "自定义提示词",
+        "video_type": "long_series"
+    }
+    """
+    try:
+        data = request.json or {}
+        prompt = data.get('prompt', '')
+        video_type = data.get('video_type', 'long_series')
+        
+        if not prompt:
+            return jsonify({"success": False, "error": "提示词不能为空"}), 400
+        
+        logger.info(f"🎬 [VIDEO] 自定义模式生成分镜头: {video_type}")
+        logger.info(f"📝 [VIDEO] 提示词长度: {len(prompt)} 字符")
+        
+        # 根据视频类型生成默认分镜头结构
+        type_configs = {
+            "short_film": {
+                "name": "短片/动画电影",
+                "default_units": 1,
+                "shots_per_unit": 15,
+                "avg_duration": 5
+            },
+            "long_series": {
+                "name": "长篇剧集",
+                "default_units": 3,
+                "shots_per_unit": 10,
+                "avg_duration": 4
+            },
+            "short_video": {
+                "name": "短视频系列",
+                "default_units": 5,
+                "shots_per_unit": 5,
+                "avg_duration": 3
+            }
+        }
+        
+        config = type_configs.get(video_type, type_configs["long_series"])
+        
+        # 构建视频结果结构
+        video_result = {
+            "video_type": video_type,
+            "video_type_name": config["name"],
+            "mode": "custom",
+            "custom_prompt": prompt,
+            "series_info": {
+                "title": "自定义视频项目",
+                "total_units": config["default_units"],
+                "video_format": video_type
+            },
+            "visual_style_guide": {
+                "overall_style": "自定义",
+                "color_palette": "根据提示词自动适配",
+                "atmosphere": "根据提示词自动生成"
+            },
+            "pacing_guidelines": {
+                "tempo": "根据视频类型自动调整",
+                "transitions": "平滑过渡"
+            },
+            "units": []
+        }
+        
+        # 生成分镜头单元
+        shots = []
+        for unit_idx in range(config["default_units"]):
+            unit_number = unit_idx + 1
+            unit_type = "自定义单元"
+            
+            # 创建场景
+            scenes = [{
+                "scene_number": 1,
+                "scene_title": f"场景 {unit_number}",
+                "scene_description": f"基于自定义提示词的场景：{prompt[:100]}...",
+                "estimated_duration_minutes": round(config["shots_per_unit"] * config["avg_duration"] / 60, 1),
+                "shot_sequence": [],
+                "visual_notes": {
+                    "color_palette": "根据提示词适配",
+                    "lighting": "标准",
+                    "composition_style": "电影级"
+                }
+            }]
+            
+            # 生成镜头序列
+            for shot_idx in range(config["shots_per_unit"]):
+                shot_number = shot_idx + 1
+                shot = {
+                    "shot_number": shot_number,
+                    "shot_type": _get_default_shot_type(shot_idx, config["shots_per_unit"]),
+                    "camera_movement": _get_default_camera_movement(shot_idx),
+                    "duration_seconds": config["avg_duration"],
+                    "description": f"基于提示词的第{shot_number}个镜头：{prompt[:50]}...",
+                    "audio_note": _get_default_audio_note(shot_idx, video_type),
+                    "tiktok_note": _get_default_tiktok_note(video_type)
+                }
+                
+                scenes[0]["shot_sequence"].append(shot)
+                
+                # 添加到shots列表
+                shots.append({
+                    "shot_index": len(shots),
+                    "unit_number": unit_number,
+                    "scene_number": 1,
+                    "scene_description": scenes[0]["scene_description"],
+                    "shot_number": shot_number,
+                    "shot_type": shot["shot_type"],
+                    "camera_movement": shot["camera_movement"],
+                    "duration_seconds": shot["duration_seconds"],
+                    "description": shot["description"],
+                    "audio_cue": shot["audio_note"],
+                    "generation_prompt": f"""自定义提示词：{prompt}
+
+镜头 #{shot_number}：
+{shot["description"]}
+景别：{shot["shot_type"]}
+运镜：{shot["camera_movement"]}
+时长：{shot["duration_seconds"]}秒
+音频：{shot["audio_note"]}""",
+                    "status": "pending",
+                    "visual_style": "自定义"
+                })
+            
+            # 计算场景总时长
+            total_duration = sum(
+                shot["duration_seconds"] for shot in scenes[0]["shot_sequence"]
+            )
+            
+            video_result["units"].append({
+                "unit_number": unit_number,
+                "unit_type": unit_type,
+                "title": f"自定义视频 - 第{unit_number}部分",
+                "storyboard": {
+                    "scenes": scenes,
+                    "total_shots": len(scenes[0]["shot_sequence"]),
+                    "total_duration_minutes": round(total_duration / 60, 1)
+                }
+            })
+        
+        logger.info(f"✅ [VIDEO] 自定义模式生成分镜头成功: {len(shots)} 个镜头")
+        
+        return jsonify({
+            "success": True,
+            "storyboard": video_result,
+            "shots": shots,
+            "total_shots": len(shots),
+            "message": f"已生成 {len(shots)} 个分镜头"
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ [VIDEO] 自定义模式生成分镜头失败: {e}")
+        import traceback
+        logger.error(f"错误堆栈: {traceback.format_exc()}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+def _get_default_shot_type(index, total_shots):
+    """根据镜头位置返回默认景别"""
+    if index == 0:
+        return "大远景"  # 开场
+    elif index == total_shots - 1:
+        return "全景"  # 结尾
+    elif index % 3 == 0:
+        return "中景"
+    elif index % 3 == 1:
+        return "近景"
+    else:
+        return "特写"
+
+
+def _get_default_camera_movement(index):
+    """根据镜头位置返回默认运镜"""
+    movements = ["固定", "缓慢推", "缓慢拉", "平移", "跟随", "环绕", "升降", "固定"]
+    return movements[index % len(movements)]
+
+
+def _get_default_audio_note(index, video_type):
+    """返回默认音频提示"""
+    if video_type == "short_video":
+        notes = ["节奏感强的音乐", "音效强调", "背景音乐渐强", "高潮音效"]
+    else:
+        notes = ["环境音", "背景音乐", "角色音效", "过渡音效", "氛围音乐"]
+    return notes[index % len(notes)]
+
+
+def _get_default_tiktok_note(video_type):
+    """返回TikTok风格提示"""
+    if video_type == "short_video":
+        return "快速剪辑，节奏紧凑"
+    return "标准视频节奏"
+
+
 @video_api.route('/video/generate-shot', methods=['POST'])
 @login_required
 def generate_shot():

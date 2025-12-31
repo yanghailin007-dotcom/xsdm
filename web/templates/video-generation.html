@@ -11,10 +11,10 @@
         <!-- 导航栏 -->
         <nav class="navbar">
             <div class="nav-container">
+                <button class="btn-back" onclick="window.location.href='/landing'">🏠 返回首页</button>
                 <h1 class="nav-title">🎬 视频生成系统</h1>
                 <div class="nav-links">
                     <a href="/novels" class="nav-link">📚 小说项目</a>
-                    <a href="/video-generation" class="nav-link">🎬 视频生成</a>
                     <a href="/dashboard" class="nav-link">🏠 控制台</a>
                 </div>
             </div>
@@ -36,14 +36,88 @@
 
             <!-- 中间：主内容区 -->
             <main class="main-content">
+                <!-- 模式选择屏幕 -->
+                <div id="modeSelectionScreen" class="mode-selection-screen">
+                    <div class="mode-selection-content">
+                        <h1>🎬 选择生成模式</h1>
+                        <p>选择适合您需求的视频生成方式</p>
+                        
+                        <div id="modeSelector" class="mode-selector">
+                            <!-- 模式卡片 -->
+                            <div class="mode-card custom-mode" data-mode="custom">
+                                <div class="mode-badge">推荐</div>
+                                <div class="mode-icon">✨</div>
+                                <h3>自定义模式</h3>
+                                <p class="mode-desc">完全自由控制，使用自定义提示词生成视频</p>
+                                <ul class="mode-features">
+                                    <li>🎯 直接输入提示词，灵活创作</li>
+                                    <li>🎨 支持任意风格和主题</li>
+                                    <li>⚡ 快速生成，无需依赖小说</li>
+                                    <li>🔧 完全自定义控制</li>
+                                </ul>
+                            </div>
+                            
+                            <div class="mode-card novel-mode" data-mode="novel">
+                                <div class="mode-icon">📚</div>
+                                <h3>我的小说</h3>
+                                <p class="mode-desc">基于已生成的小说项目自动生成分镜头脚本</p>
+                                <ul class="mode-features">
+                                    <li>📖 从小说项目自动生成</li>
+                                    <li>🎬 智能提取关键情节</li>
+                                    <li>📋 自动生成详细脚本</li>
+                                    <li>🎨 保持小说风格一致</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- 欢迎/选择屏幕 -->
-                <div id="welcomeScreen" class="welcome-screen">
+                <div id="welcomeScreen" class="welcome-screen" style="display: none;">
+                    <div class="screen-header">
+                        <button id="backToModeFromWelcomeBtn" class="btn-secondary">← 返回模式选择</button>
+                        <h2 class="welcome-title">🎬 将小说转换为视频</h2>
+                    </div>
                     <div class="welcome-content">
-                        <h1>🎬 将小说转换为视频</h1>
                         <p>支持三种视频模式，满足不同创作需求</p>
                         
                         <div id="videoTypeSelector" class="video-type-selector">
                             <!-- 视频类型卡片将由JS动态生成 -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 自定义模式提示词输入屏幕 -->
+                <div id="customPromptScreen" class="custom-prompt-screen" style="display: none;">
+                    <div class="screen-header">
+                        <button id="backToModeBtn" class="btn-secondary">← 返回模式选择</button>
+                        <h2 id="customPromptTitle">自定义模式 - 输入提示词</h2>
+                    </div>
+
+                    <div class="custom-prompt-content">
+                        <div class="prompt-input-card">
+                            <h3>📝 输入视频生成提示词</h3>
+                            <p class="hint">描述您想要生成的视频内容、风格、场景等细节</p>
+                            
+                            <textarea id="customPromptInput" class="custom-prompt-textarea" placeholder="例如：一个仙侠风格的视频，主角在云端修行的场景，使用水墨画风，背景是壮观的云海和山峦..."></textarea>
+                            
+                            <div class="prompt-presets">
+                                <h4>快速模板：</h4>
+                                <div class="preset-buttons">
+                                    <button class="preset-btn" data-preset="xianxia">仙侠修真</button>
+                                    <button class="preset-btn" data-preset="modern">现代都市</button>
+                                    <button class="preset-btn" data-preset="scifi">科幻未来</button>
+                                    <button class="preset-btn" data-preset="romance">浪漫爱情</button>
+                                    <button class="preset-btn" data-preset="fantasy">奇幻魔法</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="prompt-actions">
+                            <button id="previewCustomPromptBtn" class="btn-secondary">👁️ 预览提示词</button>
+                            <button id="generateStoryboardFromCustomBtn" class="btn-primary btn-large">
+                                🎬 生成分镜头脚本
+                            </button>
                         </div>
                     </div>
                 </div>

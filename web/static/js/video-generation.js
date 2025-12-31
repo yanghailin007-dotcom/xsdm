@@ -12,6 +12,8 @@ class VideoGenerator {
         this.currentPrompt = null;
         this.currentShot = null;
         this.shots = [];
+        this.selectedMode = null; // 'custom' or 'novel'
+        this.customPrompt = '';
         
         this.init();
     }
@@ -28,7 +30,68 @@ class VideoGenerator {
         // 绑定事件
         this.bindEvents();
         
+        // 显示模式选择屏幕
+        this.showModeSelectionScreen();
+        
         console.log('✅ 初始化完成');
+    }
+    
+    showModeSelectionScreen() {
+        // 隐藏所有屏幕
+        document.getElementById('modeSelectionScreen').style.display = 'block';
+        document.getElementById('welcomeScreen').style.display = 'none';
+        document.getElementById('customPromptScreen').style.display = 'none';
+        document.getElementById('promptPreviewScreen').style.display = 'none';
+        document.getElementById('storyboardScreen').style.display = 'none';
+        document.getElementById('shotGenerationScreen').style.display = 'none';
+        
+        // 隐藏左侧小说列表，使用CSS类
+        document.querySelector('.main-container').classList.add('hide-sidebar');
+        this.updateCurrentStatus('请选择生成模式');
+    }
+    
+    selectMode(mode) {
+        this.selectedMode = mode;
+        console.log('🎯 选择模式:', mode);
+        
+        // 移除之前的选中状态
+        document.querySelectorAll('.mode-card').forEach(card => {
+            card.classList.remove('selected');
+        });
+        
+        // 添加新的选中状态
+        const selectedCard = document.querySelector(`.mode-card[data-mode="${mode}"]`);
+        if (selectedCard) {
+            selectedCard.classList.add('selected');
+        }
+        
+        // 根据模式进入相应流程
+        if (mode === 'custom') {
+            this.showCustomPromptScreen();
+        } else if (mode === 'novel') {
+            this.showNovelSelectionScreen();
+        }
+    }
+    
+    showCustomPromptScreen() {
+        document.getElementById('modeSelectionScreen').style.display = 'none';
+        document.getElementById('customPromptScreen').style.display = 'block';
+        this.updateCurrentStatus('自定义模式：输入提示词');
+        
+        // 隐藏左侧小说列表，使用CSS类
+        document.querySelector('.main-container').classList.add('hide-sidebar');
+        
+        // 更新标题
+        document.getElementById('customPromptTitle').textContent = '✨ 自定义模式 - 输入提示词';
+    }
+    
+    showNovelSelectionScreen() {
+        document.getElementById('modeSelectionScreen').style.display = 'none';
+        document.getElementById('welcomeScreen').style.display = 'block';
+        this.updateCurrentStatus('小说模式：选择小说和视频类型');
+        
+        // 显示左侧小说列表，使用CSS类
+        document.querySelector('.main-container').classList.remove('hide-sidebar');
     }
     
     async loadVideoTypes() {
@@ -282,12 +345,20 @@ class VideoGenerator {
     showStoryboardScreen() {
         // 隐藏提示词预览，显示分镜头列表
         document.getElementById('promptPreviewScreen').style.display = 'none';
+        document.getElementById('customPromptScreen').style.display = 'none';
         document.getElementById('storyboardScreen').style.display = 'block';
         
         // 更新标题和统计
         const typeName = this.videoTypes[this.selectedType].name;
-        document.getElementById('storyboardTitle').textContent = 
-            `${this.selectedNovel} - ${typeName}`;
+        let titleText = '';
+        
+        if (this.selectedMode === 'custom') {
+            titleText = `✨ 自定义视频 - ${typeName}`;
+        } else {
+            titleText = `${this.selectedNovel} - ${typeName}`;
+        }
+        
+        document.getElementById('storyboardTitle').textContent = titleText;
         
         document.getElementById('totalShots').textContent = this.shots.length;
         document.getElementById('completedShots').textContent = '0';
@@ -562,14 +633,55 @@ class VideoGenerator {
     }
     
     bindEvents() {
+        // 模式选择事件
+        document.querySelectorAll('.mode-card').forEach(card => {
+            card.addEventListener('click', () => {
+                this.selectMode(card.dataset.mode);
+            });
+        });
+        
+        // 返回模式选择
+        document.getElementById('backToModeBtn').addEventListener('click', () => {
+            this.showModeSelectionScreen();
+        });
+        
+        // 预览自定义提示词
+        document.getElementById('previewCustomPromptBtn').addEventListener('click', () => {
+            this.previewCustomPrompt();
+        });
+        
+        // 从自定义提示词生成分镜头
+        document.getElementById('generateStoryboardFromCustomBtn').addEventListener('click', () => {
+            this.generateStoryboardFromCustom();
+        });
+        
+        // 快速模板按钮
+        document.querySelectorAll('.preset-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                this.applyPreset(btn.dataset.preset);
+            });
+        });
+        
         // 刷新按钮
         document.getElementById('refreshNovelsBtn').addEventListener('click', () => {
             this.loadNovels();
         });
         
-        // 返回类型选择
+        // 返回类型选择（从提示词预览返回）
         document.getElementById('backToTypesBtn').addEventListener('click', () => {
-            this.showScreen('welcome');
+            if (this.selectedMode === 'novel') {
+                // 小说模式：返回视频类型选择
+                document.getElementById('promptPreviewScreen').style.display = 'none';
+                document.getElementById('welcomeScreen').style.display = 'block';
+            } else {
+                // 自定义模式：返回模式选择
+                this.showModeSelectionScreen();
+            }
+        });
+        
+        // 从欢迎屏幕返回模式选择
+        document.getElementById('backToModeFromWelcomeBtn').addEventListener('click', () => {
+            this.showModeSelectionScreen();
         });
         
         // 返回提示词
@@ -662,6 +774,190 @@ class VideoGenerator {
         document.getElementById('promptText').textContent = this.currentPrompt;
         this.hidePromptEditModal();
         this.showToast('提示词已更新', 'success');
+    }
+    
+    previewCustomPrompt() {
+        const promptInput = document.getElementById('customPromptInput').value.trim();
+        if (!promptInput) {
+            this.showToast('请输入提示词', 'error');
+            return;
+        }
+        this.customPrompt = promptInput;
+        
+        // 需要先选择视频类型
+        if (!this.selectedType) {
+            this.showToast('请先选择视频类型', 'error');
+            return;
+        }
+        
+        // 显示预览模态框
+        document.getElementById('promptText').textContent = this.customPrompt;
+        const typeName = this.videoTypes[this.selectedType].name;
+        document.getElementById('promptPreviewTitle').textContent = `✨ 自定义模式 - ${typeName}`;
+        document.getElementById('promptPreviewScreen').style.display = 'block';
+        document.getElementById('customPromptScreen').style.display = 'none';
+        
+        // 修改编辑按钮行为
+        document.getElementById('editPromptBtn').onclick = () => {
+            document.getElementById('promptPreviewScreen').style.display = 'none';
+            document.getElementById('customPromptScreen').style.display = 'block';
+        };
+    }
+    
+    async generateStoryboardFromCustom() {
+        const promptInput = document.getElementById('customPromptInput').value.trim();
+        if (!promptInput) {
+            this.showToast('请输入提示词', 'error');
+            return;
+        }
+        
+        this.customPrompt = promptInput;
+        this.currentPrompt = promptInput;
+        
+        // 需要先选择视频类型
+        if (!this.selectedType) {
+            this.showToast('请先选择视频类型', 'error');
+            return;
+        }
+        
+        try {
+            this.showToast('正在生成分镜头脚本...', 'success');
+            
+            const response = await fetch('/api/video/generate-storyboard-custom', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    prompt: this.customPrompt,
+                    video_type: this.selectedType
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                this.storyboard = data.storyboard;
+                this.shots = data.shots || [];
+                this.showStoryboardScreen();
+            } else {
+                throw new Error(data.error || '生成分镜头失败');
+            }
+        } catch (error) {
+            console.error('生成分镜头失败:', error);
+            this.showToast('生成分镜头失败: ' + error.message, 'error');
+        }
+    }
+    
+    applyPreset(presetType) {
+        const presets = {
+            xianxia: `一个仙侠风格的视频场景：
+
+场景描述：
+主角站在云端，周围是缭绕的仙气和壮观的云海。远处是连绵起伏的山峦，山峰隐约可见。
+
+视觉风格：
+- 水墨画风，飘逸空灵
+- 淡蓝和白色为主色调
+- 光线柔和，有仙气缭绕的效果
+
+镜头语言：
+- 开场：大远景，展示宏大的仙界场景
+- 中景：主角修行的特写，神态专注
+- 特写：主角手中的法器，发光特效
+
+音效建议：
+- 轻柔的古琴背景音乐
+- 风声和云海流动的声音
+- 法器发光时的音效`,
+
+            modern: `现代都市风格的视频场景：
+
+场景描述：
+繁华的城市夜景，霓虹灯闪烁，高楼大厦林立。主角走在繁华的商业街上。
+
+视觉风格：
+- 现代都市风格，时尚感强
+- 多彩的霓虹灯效果
+- 夜景灯光，氛围感十足
+
+镜头语言：
+- 城市全景，展示繁华景象
+- 主角走路的跟拍镜头
+- 街边店铺的快速剪辑
+
+音效建议：
+- 流行音乐背景
+- 城市的环境音（车流、人群）
+- 节奏感强的鼓点`,
+
+            scifi: `科幻未来风格的视频场景：
+
+场景描述：
+未来的太空站内部，高科技设备遍布。透过巨大的舷窗可以看到遥远的星球和星云。
+
+视觉风格：
+- 科幻未来感，金属质感
+- 蓝色和紫色为主色调
+- 全息投影和光束效果
+
+镜头语言：
+- 太空站内部的全景
+- 控制面板的特写
+- 舷窗外太空景色的镜头
+
+音效建议：
+- 电子合成器音乐
+- 设备运转的音效
+- 太空的寂静感`,
+
+            romance: `浪漫爱情风格的视频场景：
+
+场景描述：
+黄昏的海边，夕阳西下，天空呈现橙红色。情侣手牵手漫步在沙滩上，海浪轻拍着海岸。
+
+视觉风格：
+- 温馨浪漫的暖色调
+- 柔和的光线，逆光效果
+- 梦幻般的氛围
+
+镜头语言：
+- 海边全景，展示浪漫环境
+- 情侣的侧脸特写
+- 手牵手的特写镜头
+- 夕阳下的剪影
+
+音效建议：
+- 温馨的钢琴曲或吉他曲
+- 海浪的声音
+- 海鸥的叫声`,
+
+            fantasy: `奇幻魔法风格的视频场景：
+
+场景描述：
+神秘的魔法森林，巨大的古树散发着微光。魔法生物在林间穿梭，空气中漂浮着魔法粒子。
+
+视觉风格：
+- 奇幻梦幻风格
+- 紫色、绿色、金色交织
+- 发光的魔法效果
+
+镜头语言：
+- 魔法森林的全景
+- 魔法生物的镜头
+- 魔法粒子飘落的特写
+- 古树发光的镜头
+
+音效建议：
+- 神秘的管弦乐
+- 魔法生效的音效
+- 森林的自然声音`
+        };
+        
+        if (presets[presetType]) {
+            document.getElementById('customPromptInput').value = presets[presetType];
+            this.showToast('已应用模板', 'success');
+        }
     }
     
     showScreen(screenName) {
