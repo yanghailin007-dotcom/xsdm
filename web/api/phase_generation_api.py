@@ -215,6 +215,7 @@ class ProductLoader:
         products = {
             'worldview': self._create_empty_product('世界观设定'),
             'characters': self._create_empty_product('角色设计'),
+            'factions': self._create_empty_product('势力/阵营系统'),  # 🔥 新增：包含势力系统
             'growth': self._create_empty_product('成长路线'),
             'writing': self._create_empty_product('写作计划'),
             'storyline': self._create_empty_product('故事线'),
@@ -226,15 +227,18 @@ class ProductLoader:
         self._load_from_legacy_structure(products)
         self._load_from_phase_one_file(products)
         
+        # 🔥 新增：尝试加载势力系统
+        self._load_faction_system(products)
+        
         return products
     
-    def _create_empty_product(self, title):
-        return {'title': title, 'content': '', 'complete': False, 'file_path': ''}
-        
-    def load_faction_system(self):
-        """加载势力系统数据"""
+    def _load_faction_system(self, products):
+        """内部方法：加载势力系统到产物字典"""
         try:
-            # 尝试从项目目录加载
+            # 🔥 内联势力系统加载逻辑
+            faction_data = None
+            
+            # 1. 尝试从项目目录加载
             worldview_dir = self.project_dir / "worldview"
             if not worldview_dir.exists():
                 worldview_dir = self.project_dir / "materials" / "worldview"
@@ -243,34 +247,35 @@ class ProductLoader:
                 faction_files = list(worldview_dir.glob("*_势力系统.json"))
                 if faction_files:
                     with open(faction_files[0], 'r', encoding='utf-8') as f:
-                        data = json.load(f)
-                    self.logger.info(f"已加载势力系统: {faction_files[0].name}")
-                    return data
+                        faction_data = json.load(f)
+                    self.logger.info(f"从项目目录加载势力系统: {faction_files[0].name}")
             
-            # 尝试从 quality_data 加载
-            if not manager:
-                return None
-                
-            novel_detail = manager.get_novel_detail(self.title)
-            if not novel_detail:
-                return None
-                
-            quality_data = novel_detail.get("quality_data", {})
-            if not quality_data:
-                return None
-                
-            writing_plans = quality_data.get("writing_plans", {})
-            for stage_name, plan_data in writing_plans.items():
-                if isinstance(plan_data, dict):
-                    faction_data = plan_data.get('faction_system') or plan_data.get('stage_writing_plan', {}).get('faction_system')
-                    if faction_data:
-                        self.logger.info(f"从写作计划加载势力系统: {stage_name}")
-                        return faction_data
+            # 2. 如果项目目录未找到，尝试从 quality_data 加载
+            if not faction_data and manager:
+                novel_detail = manager.get_novel_detail(self.title)
+                if novel_detail:
+                    quality_data = novel_detail.get("quality_data", {})
+                    if quality_data:
+                        writing_plans = quality_data.get("writing_plans", {})
+                        for stage_name, plan_data in writing_plans.items():
+                            if isinstance(plan_data, dict):
+                                stage_faction = plan_data.get('faction_system') or plan_data.get('stage_writing_plan', {}).get('faction_system')
+                                if stage_faction:
+                                    faction_data = stage_faction
+                                    self.logger.info(f"从写作计划加载势力系统: {stage_name}")
+                                    break
             
-            return None
+            # 3. 将加载的数据填充到产物字典
+            if faction_data:
+                products['factions']['content'] = json.dumps(faction_data, ensure_ascii=False, indent=2)
+                products['factions']['complete'] = True
+                self.logger.info(f"✅ 已加载产物: factions (从势力系统)")
         except Exception as e:
-            self.logger.error(f"加载势力系统失败: {e}")
-            return None
+            self.logger.info(f"加载势力系统失败: {e}")
+    
+    def _create_empty_product(self, title):
+        return {'title': title, 'content': '', 'complete': False, 'file_path': ''}
+        
     
     def _load_from_quality_data(self, products):
         if not manager:
@@ -864,6 +869,9 @@ def start_phase_one_generate():
         generation_mode = data.get('generation_mode', 'phase_one_only')
         creative_seed = data.get('creative_seed')
         
+        # 🔥 新增：支持 start_new 参数，用户选择"从新开始"时传递
+        start_new = data.get('start_new', False)
+        
         # 参数验证
         if not title:
             return jsonify({"success": False, "error": "小说标题不能为空"}), 400
@@ -897,7 +905,8 @@ def start_phase_one_generate():
             'core_selling_points': core_selling_points,
             'total_chapters': total_chapters,
             'generation_mode': generation_mode,
-            'creative_seed': creative_seed
+            'creative_seed': creative_seed,
+            'start_new': start_new  # 🔥 新增：传递 start_new 参数
         }
         
         # 调用管理器启动实际的第一阶段生成任务
@@ -1621,7 +1630,14 @@ def register_additional_routes(app):
             logger.info(f"[FACTIONS] 获取势力系统数据: {title}")
             
             loader = ProductLoader(title, logger)
-            faction_data = loader.load_faction_system()
+            # 使用内部加载方法
+            products = loader.load_all_products()
+            faction_data = None
+            if products['factions']['complete']:
+                try:
+                    faction_data = json.loads(products['factions']['content'])
+                except:
+                    faction_data = None
             
             if not faction_data:
                 return jsonify({
