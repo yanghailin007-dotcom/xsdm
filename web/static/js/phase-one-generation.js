@@ -13,8 +13,11 @@ async function startPhaseOneGeneration(event) {
         core_selling_points: document.getElementById('core-selling-points').value,
         total_chapters: parseInt(document.getElementById('total-chapters').value),
         generation_mode: document.getElementById('generation-mode').value,
+        target_platform: document.getElementById('target-platform').value || 'fanqie',
         creative_seed: selectedCreativeId ? loadedCreativeIdeas.find(i => i.id === selectedCreativeId)?.raw_data : null
     };
+
+    console.log('🎯 目标平台:', formData.target_platform);
 
     try {
         // 显示进度区域
