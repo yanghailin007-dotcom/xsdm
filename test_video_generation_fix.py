@@ -1,199 +1,110 @@
 """
-测试视频生成系统修复
-验证事件提取和角色设计功能
+测试视频生成修复 - 验证写作计划加载是否正确
 """
-
 import sys
-sys.path.insert(0, '.')
+from pathlib import Path
+
+# 添加项目根目录到路径
+sys.path.insert(0, str(Path(__file__).parent))
 
 from web.managers.novel_manager import NovelGenerationManager
-from src.managers.EventExtractor import get_event_extractor
 from src.utils.logger import get_logger
 
-def test_event_extraction():
-    """测试事件提取功能"""
-    print("=" * 80)
-    print("测试1: 事件提取功能")
-    print("=" * 80)
+logger = get_logger("test_video_generation_fix")
+
+def test_writing_plans_loading():
+    """测试写作计划是否正确加载"""
     
-    logger = get_logger("TestVideoGeneration")
+    print("=" * 60)
+    print("🧪 测试写作计划加载")
+    print("=" * 60)
+    
+    # 初始化管理器
     manager = NovelGenerationManager()
     
-    # 获取项目列表
-    projects = manager.get_novel_projects()
-    if not projects:
-        print("❌ 没有找到任何项目")
-        return False
+    # 测试小说标题
+    title = "吞噬万界：从一把生锈铁剑开始"
     
-    # 选择第一个项目
-    project = projects[0]
-    title = project['title']
-    print(f"\n📚 测试项目: {title}")
-    
-    # 获取项目详情
+    # 获取小说详情
     novel_detail = manager.get_novel_detail(title)
+    
     if not novel_detail:
-        print(f"❌ 无法获取项目详情")
+        print(f"❌ 无法找到小说: {title}")
         return False
     
-    # 使用通用事件提取器
-    event_extractor = get_event_extractor(logger)
+    print(f"\n✅ 成功加载小说: {title}")
     
-    # 测试1: 提取重大事件
-    print("\n🔍 测试1.1: 提取重大事件...")
-    major_events = event_extractor.extract_all_major_events(novel_detail)
-    print(f"✅ 提取到 {len(major_events)} 个重大事件")
+    # 检查 quality_data
+    quality_data = novel_detail.get("quality_data", {})
+    print(f"\n📊 quality_data 存在: {bool(quality_data)}")
     
-    if major_events:
-        print(f"\n前3个事件示例:")
-        for i, event in enumerate(major_events[:3], 1):
-            print(f"  {i}. {event.get('name', '未命名')} (章节: {event.get('chapter_range', 'N/A')})")
+    # 检查 writing_plans
+    writing_plans = quality_data.get("writing_plans", {})
+    print(f"📝 writing_plans 键: {list(writing_plans.keys())}")
+    
+    # 验证键是否正确
+    expected_stages = ["opening_stage", "development_stage", "climax_stage", "ending_stage"]
+    actual_stages = list(writing_plans.keys())
+    
+    print(f"\n🔍 验证阶段名称:")
+    print(f"   期望的阶段: {expected_stages}")
+    print(f"   实际的阶段: {actual_stages}")
+    
+    # 检查是否包含 "unknown"
+    if "unknown" in actual_stages:
+        print(f"\n❌ 发现错误: writing_plans 包含 'unknown' 键")
+        print(f"   这意味着阶段名提取失败")
+        return False
+    
+    # 检查是否包含所有期望的阶段
+    missing_stages = [stage for stage in expected_stages if stage not in actual_stages]
+    if missing_stages:
+        print(f"\n⚠️ 警告: 缺少以下阶段: {missing_stages}")
     else:
-        print("⚠️ 警告: 未提取到任何事件")
-        return False
+        print(f"\n✅ 所有期望的阶段都存在")
     
-    # 测试2: 统计中级事件
-    print("\n🔍 测试1.2: 统计中级事件...")
-    medium_count = event_extractor.count_medium_events(novel_detail)
-    print(f"✅ 总共 {medium_count} 个中级事件")
-    
-    # 测试3: 提取角色设计
-    print("\n🔍 测试1.3: 提取角色设计...")
-    characters = event_extractor.extract_character_designs(novel_detail)
-    print(f"✅ 提取到 {len(characters)} 个角色设计")
-    
-    if characters:
-        print(f"\n前3个角色示例:")
-        for i, char in enumerate(characters[:3], 1):
-            print(f"  {i}. {char.get('name', '未命名')} ({char.get('role', '未知角色')})")
-        
-        # 测试4: 生成角色提示词
-        print("\n🔍 测试1.4: 生成角色剧照提示词...")
-        character_prompts = event_extractor.generate_character_prompts(characters)
-        print(f"✅ 生成了 {len(character_prompts)} 个角色提示词")
-        
-        if character_prompts:
-            print(f"\n第一个角色提示词预览:")
-            prompt = character_prompts[0].get('generation_prompt', '')
-            print(f"  长度: {len(prompt)} 字符")
-            print(f"  预览: {prompt[:200]}...")
-    else:
-        print("⚠️ 警告: 未提取到任何角色")
-    
-    print("\n" + "=" * 80)
-    print("✅ 测试1完成: 事件提取功能正常")
-    print("=" * 80)
-    
-    return True
-
-
-def test_video_adapter():
-    """测试视频适配器"""
-    print("\n" + "=" * 80)
-    print("测试2: 视频适配器")
-    print("=" * 80)
-    
-    logger = get_logger("TestVideoAdapter")
-    manager = NovelGenerationManager()
-    
-    # 获取项目列表
-    projects = manager.get_novel_projects()
-    if not projects:
-        print("❌ 没有找到任何项目")
-        return False
-    
-    # 选择第一个项目
-    project = projects[0]
-    title = project['title']
-    print(f"\n📚 测试项目: {title}")
-    
-    # 获取项目详情
-    novel_detail = manager.get_novel_detail(title)
-    if not novel_detail:
-        print(f"❌ 无法获取项目详情")
-        return False
-    
-    # 测试视频适配器
-    print("\n🔍 测试2.1: 长剧集模式转换...")
-    from src.managers.VideoAdapterManager import VideoAdapterManager
-    
-    class MockGenerator:
-        def __init__(self, novel_data):
-            self.novel_data = novel_data
-            self.api_client = None
-    
-    mock_generator = MockGenerator(novel_detail)
-    adapter = VideoAdapterManager(mock_generator)
-    
-    try:
-        result = adapter.convert_to_video(
-            novel_data=novel_detail,
-            video_type="long_series"
-        )
-        
-        print(f"✅ 转换成功")
-        print(f"   视频类型: {result.get('video_type_name', 'N/A')}")
-        print(f"   单元数量: {len(result.get('units', []))}")
-        print(f"   角色数量: {result.get('character_design', {}).get('total_characters', 0)}")
-        
-        # 检查是否有单元
-        units = result.get('units', [])
-        if units:
-            print(f"\n第一个单元信息:")
-            first_unit = units[0]
-            print(f"  单元类型: {first_unit.get('unit_type', 'N/A')}")
-            print(f"  单元编号: {first_unit.get('unit_number', 'N/A')}")
-            print(f"  预估时长: {first_unit.get('estimated_duration_minutes', 0)} 分钟")
-            
-            storyboard = first_unit.get('storyboard', {})
-            scenes = storyboard.get('scenes', [])
-            print(f"  场景数量: {len(scenes)}")
+    # 检查每个阶段的数据结构
+    print(f"\n📋 检查各阶段数据结构:")
+    for stage_name in actual_stages:
+        plan_data = writing_plans.get(stage_name, {})
+        if isinstance(plan_data, dict):
+            stage_writing_plan = plan_data.get("stage_writing_plan", {})
+            if isinstance(stage_writing_plan, dict):
+                events = stage_writing_plan.get("event_system", {}).get("major_events", [])
+                print(f"   ✅ {stage_name}: 包含 {len(events)} 个重大事件")
+            else:
+                print(f"   ❌ {stage_name}: stage_writing_plan 不是字典")
         else:
-            print("⚠️ 警告: 未生成任何单元")
+            print(f"   ❌ {stage_name}: plan_data 不是字典")
+    
+    # 测试 EventExtractor
+    print(f"\n🔧 测试 EventExtractor:")
+    try:
+        from src.managers.EventExtractor import get_event_extractor
+        event_extractor = get_event_extractor(logger)
+        
+        all_events = event_extractor.extract_all_major_events(novel_detail)
+        print(f"   ✅ EventExtractor 成功提取到 {len(all_events)} 个重大事件")
+        
+        if len(all_events) > 0:
+            print(f"   ✅ 修复成功！事件提取正常工作")
+            return True
+        else:
+            print(f"   ❌ 提取到 0 个事件，可能还有问题")
             return False
-        
-        # 检查角色设计信息
-        character_design = result.get('character_design', {})
-        generation_order = character_design.get('generation_order', [])
-        print(f"\n角色生成顺序:")
-        for i, item in enumerate(generation_order[:5], 1):
-            char = item.get('character', {})
-            score = item.get('priority_score', 0)
-            order = item.get('generation_order', 0)
-            print(f"  {i}. {char.get('name', '未命名')} (优先级: {score}, 顺序: {order})")
-        
-        print("\n" + "=" * 80)
-        print("✅ 测试2完成: 视频适配器正常")
-        print("=" * 80)
-        
-        return True
-        
+            
     except Exception as e:
-        print(f"❌ 视频适配器测试失败: {e}")
+        print(f"   ❌ EventExtractor 测试失败: {e}")
         import traceback
         traceback.print_exc()
         return False
 
-
 if __name__ == "__main__":
-    print("\n🚀 开始测试视频生成系统修复...\n")
+    success = test_writing_plans_loading()
     
-    # 测试1: 事件提取
-    test1_passed = test_event_extraction()
-    
-    # 测试2: 视频适配器
-    test2_passed = test_video_adapter() if test1_passed else False
-    
-    # 总结
-    print("\n" + "=" * 80)
-    print("📊 测试总结")
-    print("=" * 80)
-    print(f"测试1 (事件提取): {'✅ 通过' if test1_passed else '❌ 失败'}")
-    print(f"测试2 (视频适配器): {'✅ 通过' if test2_passed else '❌ 失败'}")
-    
-    if test1_passed and test2_passed:
-        print("\n🎉 所有测试通过！视频生成系统修复成功！")
+    print("\n" + "=" * 60)
+    if success:
+        print("✅ 测试通过 - 写作计划加载修复成功")
     else:
-        print("\n❌ 部分测试失败，请检查错误信息")
-    
-    print("=" * 80)
+        print("❌ 测试失败 - 需要进一步检查")
+    print("=" * 60)

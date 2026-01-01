@@ -8,6 +8,7 @@
 """
 
 from typing import Dict, List, Optional, Any
+import json
 from src.utils.logger import get_logger
 
 
@@ -246,7 +247,99 @@ class EventExtractor:
                             **char_data
                         })
         
+        # 3. 🔥 新增：直接从项目文件读取角色设计
+        if not characters:
+            characters = self._extract_character_designs_from_files(novel_data)
+        
         self.logger.info(f"✅ [EventExtractor] 提取到 {len(characters)} 个角色设计")
+        return characters
+    
+    def _extract_character_designs_from_files(self, novel_data: Dict) -> List[Dict]:
+        """
+        直接从项目文件读取角色设计
+        
+        Args:
+            novel_data: 小说数据字典
+            
+        Returns:
+            角色列表
+        """
+        import json
+        import re
+        from pathlib import Path
+        
+        characters = []
+        title = novel_data.get("novel_title", "") or novel_data.get("title", "")
+        
+        if not title:
+            self.logger.warn("⚠️ 无法确定项目标题，跳过角色文件读取")
+            return characters
+        
+        # 清理标题中的特殊字符
+        safe_title = re.sub(r'[\\/*?"<>|]', "_", title)
+        
+        # 检查多个可能的路径
+        project_paths = [
+            Path("小说项目") / safe_title / "characters",
+            Path("小说项目") / title / "characters",
+        ]
+        
+        for project_path in project_paths:
+            if not project_path.exists():
+                continue
+            
+            self.logger.info(f"🔍 [EventExtractor] 检查角色路径: {project_path}")
+            
+            # 查找角色设计文件
+            character_files = list(project_path.glob("*_角色设计.json"))
+            
+            if character_files:
+                self.logger.info(f"✅ [EventExtractor] 找到 {len(character_files)} 个角色设计文件")
+                
+                for char_file in character_files:
+                    try:
+                        with open(char_file, 'r', encoding='utf-8') as f:
+                            char_data = json.load(f)
+                        
+                        # 处理主角
+                        main_character = char_data.get("main_character", {})
+                        if main_character and isinstance(main_character, dict):
+                            characters.append({
+                                "name": main_character.get("name", "未命名主角"),
+                                "role": main_character.get("role_type", "主角"),
+                                "appearance": main_character.get("living_characteristics", {}).get("physical_presence", ""),
+                                "personality": main_character.get("core_personality", ""),
+                                "background": main_character.get("background", ""),
+                                "dialogue_style": main_character.get("dialogue_style_example", ""),
+                                **main_character
+                            })
+                            self.logger.info(f"  ✅ 提取主角: {main_character.get('name', '未命名')}")
+                        
+                        # 处理重要角色
+                        important_chars = char_data.get("important_characters", [])
+                        if isinstance(important_chars, list):
+                            for char in important_chars:
+                                if isinstance(char, dict):
+                                    characters.append({
+                                        "name": char.get("name", "未命名角色"),
+                                        "role": char.get("role", "配角"),
+                                        "appearance": char.get("living_characteristics", {}).get("physical_presence", ""),
+                                        "personality": char.get("soul_matrix", [{}])[0].get("core_trait", "") if char.get("soul_matrix") else "",
+                                        "background": char.get("initial_state", {}).get("description", ""),
+                                        "dialogue_style": char.get("dialogue_style_example", ""),
+                                        **char
+                                    })
+                                    self.logger.info(f"  ✅ 提取配角: {char.get('name', '未命名')}")
+                        
+                        # 如果找到了角色，就不再继续查找其他路径
+                        if characters:
+                            break
+                            
+                    except Exception as e:
+                        self.logger.error(f"❌ [EventExtractor] 读取角色文件失败 {char_file.name}: {e}")
+                
+                break
+        
         return characters
     
     def generate_character_prompts(self, characters: List[Dict]) -> List[Dict]:
