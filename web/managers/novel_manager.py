@@ -344,9 +344,21 @@ class NovelGenerationManager:
                                 continue
                 quality_data["detailed_events"] = events
 
-            # 加载写作计划 - 从新路径加载（直接从 planning 目录）
+            # 加载写作计划 - 从新路径加载（支持 planning 和 plans 两个目录）
             planning_dir = Path(paths.get("writing_plans_dir", novel_base / "planning"))
-            if planning_dir.exists():
+            plans_dir = novel_base / "plans"  # 🔥 新增：也支持 plans 目录
+            
+            # 检查两个目录
+            plan_files = []
+            
+            # 优先从 plans 目录加载（包含四个阶段文件）
+            if plans_dir.exists():
+                plan_files = list(plans_dir.glob(f"*_stage_writing_plan.json"))
+                if plan_files:
+                    logger.info(f"✅ 从 plans 目录找到 {len(plan_files)} 个阶段写作计划文件")
+            
+            # 如果 plans 目录没有，尝试 planning 目录
+            if not plan_files and planning_dir.exists():
                 plan_files = list(planning_dir.glob(f"{title}*writing_plan*.json"))
                 
                 # 如果没找到，尝试直接匹配常见文件名格式
@@ -360,22 +372,28 @@ class NovelGenerationManager:
                             plan_files = [common_name]
                             logger.info(f"✅ 通过常见文件名找到写作计划: {common_name}")
                             break
-                
-                for plan_file in plan_files:
-                    with open(plan_file, 'r', encoding='utf-8') as f:
-                        plan_data = json.load(f)
-                        # 确保plan_data是字典类型
+            
+            # 🔥 修复：处理找到的所有计划文件（无论来自哪个目录）
+            for plan_file in plan_files:
+                with open(plan_file, 'r', encoding='utf-8') as f:
+                    plan_data = json.load(f)
+                    # 🔥 修复：从文件名提取阶段名
+                    # 文件名格式：吞噬万界：从一把生锈铁剑开始_opening_stage_writing_plan.json
+                    match = re.search(r'_(.+?)_stage_writing_plan\.json$', plan_file.name)
+                    if match:
+                        stage_name = match.group(1)
+                    else:
+                        # 尝试从 plan_data 中获取 stage_name
                         if isinstance(plan_data, dict):
                             stage_writing_plan = plan_data.get("stage_writing_plan", {})
-                            # 确保stage_writing_plan也是字典类型
                             if isinstance(stage_writing_plan, dict):
                                 stage_name = stage_writing_plan.get("stage_name", "unknown")
                             else:
                                 stage_name = "unknown"
                         else:
                             stage_name = "unknown"
-                        quality_data["writing_plans"][stage_name] = plan_data
-                        logger.info(f"✅ 已加载写作计划: {plan_file.name}")
+                    quality_data["writing_plans"][stage_name] = plan_data
+                    logger.info(f"✅ 已加载写作计划: {plan_file.name} -> 阶段: {stage_name}")
 
             # 加载关系数据
             relationships_file = Path(paths.get("relationships", novel_base / "relationships.json"))
