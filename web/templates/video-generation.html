@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>视频生成系统</title>
     <link rel="stylesheet" href="/static/css/video-generation.css">
+    <link rel="stylesheet" href="/static/css/video-generation-character-portrait.css">
 </head>
 <body>
     <div id="app">
@@ -338,6 +339,110 @@
                             <div id="shotProgressBar" class="progress-bar-fill">0%</div>
                         </div>
                         <p id="shotProgressText" class="progress-text">准备中...</p>
+                    </div>
+                    </div>
+
+                    <!-- 角色剧照生成面板 -->
+                    <div id="characterPortraitPanel" class="character-portrait-panel" style="display: none;">
+                        <div class="panel-header">
+                            <h2>👤 角色剧照生成</h2>
+                            <button id="closePortraitPanelBtn" class="btn-close">✕</button>
+                        </div>
+                        
+                        <div class="portrait-content">
+                            <!-- 角色基本信息 -->
+                            <div class="character-info-section">
+                                <div class="character-avatar">
+                                    <img id="characterPortraitPreview" src="/static/images/placeholder-avatar.png" alt="角色预览">
+                                </div>
+                                <div class="character-basic-info">
+                                    <h3 id="portraitCharacterName">角色名称</h3>
+                                    <p id="portraitCharacterRole">角色定位</p>
+                                </div>
+                            </div>
+
+                            <!-- 角色详细信息 -->
+                            <div class="character-details-section">
+                                <div class="detail-group">
+                                    <h4>🎨 外貌特征</h4>
+                                    <p id="portraitAppearance">暂无描述</p>
+                                </div>
+                                <div class="detail-group">
+                                    <h4>💭 性格特点</h4>
+                                    <p id="portraitPersonality">暂无描述</p>
+                                </div>
+                                <div class="detail-group">
+                                    <h4>📖 背景故事</h4>
+                                    <p id="portraitBackground">暂无描述</p>
+                                </div>
+                                <div class="detail-group">
+                                    <h4>💬 对话风格</h4>
+                                    <p id="portraitDialogueStyle">暂无描述</p>
+                                </div>
+                            </div>
+
+                            <!-- 相关事件 -->
+                            <div class="related-events-section">
+                                <h4>🎬 相关事件</h4>
+                                <div id="portraitRelatedEvents" class="related-events-list">
+                                    <p class="empty-hint">加载中...</p>
+                                </div>
+                            </div>
+
+                            <!-- 生成设置 -->
+                            <div class="generation-settings-section">
+                                <h4>⚙️ 生成设置</h4>
+                                <div class="setting-row">
+                                    <label>图片比例：</label>
+                                    <select id="portraitAspectRatio" class="setting-select">
+                                        <option value="9:16" selected>竖屏 (9:16) - 适合角色展示</option>
+                                        <option value="3:4">竖屏 (3:4)</option>
+                                        <option value="1:1">方形 (1:1)</option>
+                                        <option value="16:9">横屏 (16:9)</option>
+                                    </select>
+                                </div>
+                                <div class="setting-row">
+                                    <label>图片质量：</label>
+                                    <select id="portraitImageSize" class="setting-select">
+                                        <option value="4K" selected>4K (超高清)</option>
+                                        <option value="2K">2K (高清)</option>
+                                        <option value="1K">1K (标清)</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- 生成按钮 -->
+                            <div class="portrait-actions">
+                                <button id="generatePortraitBtn" class="btn-primary btn-large">
+                                    🎨 生成角色剧照
+                                </button>
+                                <button id="regeneratePortraitBtn" class="btn-secondary" style="display: none;">
+                                    🔄 重新生成
+                                </button>
+                            </div>
+
+                            <!-- 生成结果 -->
+                            <div id="portraitResultSection" class="portrait-result-section" style="display: none;">
+                                <h4>✨ 生成结果</h4>
+                                <div class="result-image-container">
+                                    <img id="generatedPortraitImage" src="" alt="生成的剧照">
+                                </div>
+                                <div class="result-actions">
+                                    <button id="downloadPortraitBtn" class="btn-sm">📥 下载剧照</button>
+                                    <button id="useInVideoBtn" class="btn-sm">🎬 用于视频制作</button>
+                                </div>
+                            </div>
+
+                            <!-- 生成进度 -->
+                            <div id="portraitProgressSection" class="portrait-progress-section" style="display: none;">
+                                <div class="progress-info">
+                                    <p>⏳ 正在生成角色剧照...</p>
+                                    <div class="progress-bar">
+                                        <div class="progress-bar-fill animate-progress"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </main>

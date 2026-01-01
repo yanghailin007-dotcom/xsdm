@@ -341,9 +341,9 @@ class VideoGenerator {
                 this.events = data.events || [];
                 this.characters = data.characters || [];
                 
-                // 默认全选
-                this.events.forEach(e => this.selectedEvents.add(e.id));
-                this.characters.forEach(c => this.selectedCharacters.add(c.id));
+                // 不再默认全选，由用户手动选择
+                // this.events.forEach(e => this.selectedEvents.add(e.id));
+                // this.characters.forEach(c => this.selectedCharacters.add(c.id));
                 
                 this.renderEventsList();
                 this.renderCharactersList();
@@ -372,58 +372,115 @@ class VideoGenerator {
         
         container.innerHTML = this.events.map(event => {
             const isSelected = this.selectedEvents.has(event.id);
-            // 获取阶段标签样式
-            const stageBadges = {
-                '起因': '<span class="stage-badge stage-cause">起因</span>',
-                '发展': '<span class="stage-badge stage-develop">发展</span>',
-                '高潮': '<span class="stage-badge stage-climax">高潮</span>',
-                '结局': '<span class="stage-badge stage-resolution">结局</span>'
-            };
-            const stageBadge = stageBadges[event.stage] || '';
+            const hasChildren = event.has_children;
             
             return `
-                <div class="content-item ${isSelected ? 'selected' : ''}" data-id="${event.id}" data-type="event">
-                    <div class="item-checkbox">
-                        <input type="checkbox" ${isSelected ? 'checked' : ''}>
-                    </div>
-                    <div class="item-content">
-                        <div class="item-header">
-                            <div class="item-title">${event.title}</div>
-                            ${stageBadge}
+                <div class="major-event-item ${isSelected ? 'selected' : ''}" data-id="${event.id}" data-type="major">
+                    <div class="major-event-header">
+                        <div class="item-checkbox">
+                            <input type="checkbox" ${isSelected ? 'checked' : ''}>
                         </div>
-                        ${event.parent_major ? `
-                            <div class="item-meta">
-                                <span class="meta-tag">📖 所属: ${event.parent_major}</span>
-                                ${event.chapter_range ? `<span class="meta-tag">📑 章节: ${event.chapter_range}</span>` : ''}
+                        <div class="expand-btn" data-expanded="false">
+                            ${hasChildren ? '▶' : ''}
+                        </div>
+                        <div class="item-content">
+                            <div class="item-header">
+                                <div class="item-title">${event.title || event.name || '未命名事件'}</div>
+                                ${hasChildren ? `<span class="children-count-badge">${event.children_count}个中级事件</span>` : ''}
                             </div>
-                        ` : ''}
-                        <div class="item-description">${event.description || '暂无描述'}</div>
-                        ${event.characters || event.location || event.emotion ? `
-                            <div class="item-details">
-                                ${event.characters ? `<span class="detail-item">👥 ${event.characters}</span>` : ''}
-                                ${event.location ? `<span class="detail-item">📍 ${event.location}</span>` : ''}
-                                ${event.emotion ? `<span class="detail-item">💭 ${event.emotion}</span>` : ''}
-                            </div>
-                        ` : ''}
+                            ${event.description ? `<div class="item-description">${event.description}</div>` : ''}
+                            ${event.characters ? `<div class="item-details"><span class="detail-item">👥 ${event.characters}</span></div>` : ''}
+                        </div>
                     </div>
+                    ${hasChildren ? `
+                        <div class="medium-events-list" style="display: none;">
+                            ${event.children.map(child => {
+                                const childId = `${event.id}_${child.id}`;
+                                const childSelected = this.selectedEvents.has(childId);
+                                const stageBadges = {
+                                    '起': '<span class="stage-badge stage-start">起</span>',
+                                    '承': '<span class="stage-badge stage-develop">承</span>',
+                                    '转': '<span class="stage-badge stage-turn">转</span>',
+                                    '合': '<span class="stage-badge stage-end">合</span>'
+                                };
+                                const stageBadge = stageBadges[child.stage] || '';
+                                
+                                return `
+                                    <div class="medium-event-item ${childSelected ? 'selected' : ''}" data-id="${childId}" data-type="medium" data-parent="${event.id}">
+                                        <div class="item-checkbox">
+                                            <input type="checkbox" ${childSelected ? 'checked' : ''}>
+                                        </div>
+                                        <div class="item-content">
+                                            <div class="item-header">
+                                                <div class="item-title">${child.title || child.name || child.event || child.main_goal || '未命名事件'}</div>
+                                                ${stageBadge}
+                                            </div>
+                                            ${child.description ? `<div class="item-description">${child.description}</div>` : ''}
+                                            ${child.characters || child.location || child.emotion ? `
+                                                <div class="item-details">
+                                                    ${child.characters ? `<span class="detail-item">👥 ${child.characters}</span>` : ''}
+                                                    ${child.location ? `<span class="detail-item">📍 ${child.location}</span>` : ''}
+                                                    ${child.emotion ? `<span class="detail-item">💭 ${child.emotion}</span>` : ''}
+                                                </div>
+                                            ` : ''}
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    ` : ''}
                 </div>
             `;
         }).join('');
         
-        // 绑定点击事件
-        container.querySelectorAll('.content-item').forEach(item => {
+        // 绑定点击事件 - 重大事件
+        container.querySelectorAll('.major-event-item').forEach(item => {
+            const expandBtn = item.querySelector('.expand-btn');
+            const mediumEventsList = item.querySelector('.medium-events-list');
+            
+            // 展开/收起按钮
+            if (expandBtn && mediumEventsList) {
+                expandBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const isExpanded = expandBtn.dataset.expanded === 'true';
+                    expandBtn.dataset.expanded = !isExpanded;
+                    expandBtn.textContent = isExpanded ? '▶' : '▼';
+                    mediumEventsList.style.display = isExpanded ? 'none' : 'block';
+                });
+            }
+            
+            // 点击整个项目
+            item.querySelector('.major-event-header').addEventListener('click', () => {
+                const id = item.dataset.id;
+                if (this.selectedEvents.has(id)) {
+                    this.selectedEvents.delete(id);
+                    item.classList.remove('selected');
+                    item.querySelector('input[type="checkbox"]').checked = false;
+                } else {
+                    this.selectedEvents.add(id);
+                    item.classList.add('selected');
+                    item.querySelector('input[type="checkbox"]').checked = true;
+                }
+                this.updateSelectionStats();
+                this.updateDerivedCharacters();
+            });
+        });
+        
+        // 绑定点击事件 - 中级事件
+        container.querySelectorAll('.medium-event-item').forEach(item => {
             item.addEventListener('click', () => {
                 const id = item.dataset.id;
                 if (this.selectedEvents.has(id)) {
                     this.selectedEvents.delete(id);
                     item.classList.remove('selected');
-                    item.querySelector('input').checked = false;
+                    item.querySelector('input[type="checkbox"]').checked = false;
                 } else {
                     this.selectedEvents.add(id);
                     item.classList.add('selected');
-                    item.querySelector('input').checked = true;
+                    item.querySelector('input[type="checkbox"]').checked = true;
                 }
                 this.updateSelectionStats();
+                this.updateDerivedCharacters();
             });
         });
     }
@@ -458,6 +515,7 @@ class VideoGenerator {
                         <div class="item-header">
                             <div class="item-title">${character.name}</div>
                             ${roleBadge}
+                            <button class="btn-view-portrait" data-character-id="${character.id}" title="生成剧照">🎨</button>
                         </div>
                         ${character.personality || character.core_personality ? `
                             <div class="item-meta">
@@ -486,7 +544,13 @@ class VideoGenerator {
         
         // 绑定点击事件
         container.querySelectorAll('.content-item').forEach(item => {
-            item.addEventListener('click', () => {
+            // 复选框点击事件
+            item.addEventListener('click', (e) => {
+                // 如果点击的是剧照按钮，不切换选中状态
+                if (e.target.classList.contains('btn-view-portrait')) {
+                    return;
+                }
+                
                 const id = item.dataset.id;
                 if (this.selectedCharacters.has(id)) {
                     this.selectedCharacters.delete(id);
@@ -499,20 +563,339 @@ class VideoGenerator {
                 }
                 this.updateSelectionStats();
             });
+            
+            // 剧照按钮点击事件
+            const portraitBtn = item.querySelector('.btn-view-portrait');
+            if (portraitBtn) {
+                portraitBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const characterId = item.dataset.id;
+                    this.showCharacterPortraitPanel(characterId);
+                });
+            }
         });
+    }
+
+    async showCharacterPortraitPanel(characterId) {
+        try {
+            // 获取角色详细信息
+            const response = await fetch(`/api/video/character-details?title=${encodeURIComponent(this.selectedNovel)}&character_id=${characterId}`);
+            const data = await response.json();
+            
+            if (!data.success) {
+                this.showToast('获取角色详情失败: ' + data.error, 'error');
+                return;
+            }
+            
+            const character = data.character;
+            
+            // 填充角色信息
+            document.getElementById('portraitCharacterName').textContent = character.name || '未命名角色';
+            document.getElementById('portraitCharacterRole').textContent = character.role || '未知';
+            document.getElementById('portraitAppearance').textContent = character.appearance || character.living_characteristics?.physical_presence || '暂无描述';
+            document.getElementById('portraitPersonality').textContent = character.personality || character.core_personality || '暂无描述';
+            document.getElementById('portraitBackground').textContent = character.background || '暂无描述';
+            document.getElementById('portraitDialogueStyle').textContent = character.dialogue_style || character.dialogue_style_example || '暂无描述';
+            
+            // 填充相关事件
+            const eventsContainer = document.getElementById('portraitRelatedEvents');
+            if (data.related_events && data.related_events.length > 0) {
+                eventsContainer.innerHTML = data.related_events.map(event => `
+                    <div class="related-event-item">
+                        <div class="event-name">${event.event_name}</div>
+                        <div class="event-chapter">${event.chapter_range || '未知章节'}</div>
+                        <div class="event-description">${event.description || '暂无描述'}</div>
+                    </div>
+                `).join('');
+            } else {
+                eventsContainer.innerHTML = '<p class="empty-hint">暂无相关事件</p>';
+            }
+            
+            // 存储当前角色数据
+            this.currentCharacter = {
+                id: characterId,
+                data: character,
+                prompt: data.generation_prompt
+            };
+            
+            // 显示面板
+            document.getElementById('characterPortraitPanel').style.display = 'block';
+            
+            // 检查是否已有剧照（通过文件名模式）
+            const possiblePortraitName = `${this.selectedNovel}_${character.name.replace(/[/\\ ]/g, '_')}_portrait`;
+            
+            // 默认重置生成状态
+            document.getElementById('portraitResultSection').style.display = 'none';
+            document.getElementById('portraitProgressSection').style.display = 'none';
+            document.getElementById('regeneratePortraitBtn').style.display = 'none';
+            document.getElementById('generatePortraitBtn').style.display = 'block';
+            
+            // 尝试加载可能存在的剧照
+            this.checkExistingPortrait(character, possiblePortraitName);
+            
+        } catch (error) {
+            console.error('获取角色详情失败:', error);
+            this.showToast('获取角色详情失败: ' + error.message, 'error');
+        }
+    }
+
+    async generateCharacterPortrait() {
+        if (!this.currentCharacter) {
+            this.showToast('请先选择角色', 'error');
+            return;
+        }
+        
+        const aspectRatio = document.getElementById('portraitAspectRatio').value;
+        const imageSize = document.getElementById('portraitImageSize').value;
+        
+        // 显示进度
+        document.getElementById('portraitProgressSection').style.display = 'block';
+        document.getElementById('generatePortraitBtn').disabled = true;
+        
+        try {
+            this.showToast('正在生成角色剧照...', 'success');
+            
+            console.log('🎨 [DEBUG] 开始生成剧照请求');
+            const response = await fetch('/api/video/generate-character-portrait', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    title: this.selectedNovel,
+                    character_id: this.currentCharacter.id,
+                    character_data: this.currentCharacter.data,
+                    aspect_ratio: aspectRatio,
+                    image_size: imageSize
+                })
+            });
+            
+            const data = await response.json();
+            console.log('📥 [DEBUG] API返回数据:', data);
+            
+            if (data.success) {
+                console.log('✅ [DEBUG] 生成成功，准备显示图片');
+                console.log('   - image_url:', data.image_url);
+                console.log('   - image_path:', data.image_path);
+                
+                // 显示生成的图像 - 使用 image_url 而不是 image_path
+                const resultImage = document.getElementById('generatedPortraitImage');
+                console.log('🎯 [DEBUG] 找到结果图片元素:', resultImage);
+                resultImage.src = data.image_url;
+                console.log('🖼️ [DEBUG] 设置结果图片src:', data.image_url);
+                
+                // 同时更新角色预览图
+                const previewImage = document.getElementById('characterPortraitPreview');
+                console.log('🎯 [DEBUG] 找到预览图片元素:', previewImage);
+                previewImage.src = data.image_url;
+                console.log('🖼️ [DEBUG] 设置预览图片src:', data.image_url);
+                
+                // 显示结果区域
+                document.getElementById('portraitResultSection').style.display = 'block';
+                document.getElementById('regeneratePortraitBtn').style.display = 'block';
+                document.getElementById('generatePortraitBtn').style.display = 'none';
+                console.log('✅ [DEBUG] 结果区域已显示');
+                
+                this.showToast(`角色 ${data.character_name} 的剧照生成成功！`, 'success');
+            } else {
+                throw new Error(data.error || '生成失败');
+            }
+        } catch (error) {
+            console.error('生成角色剧照失败:', error);
+            this.showToast('生成失败: ' + error.message, 'error');
+        } finally {
+            document.getElementById('portraitProgressSection').style.display = 'none';
+            document.getElementById('generatePortraitBtn').disabled = false;
+        }
+    }
+
+    async checkExistingPortrait(character, baseName) {
+        // 尝试从最近的剧照文件加载
+        try {
+            // 这里可以通过API获取已存在的剧照列表
+            // 暂时跳过，等待用户重新生成
+            console.log('检查角色剧照:', character.name, baseName);
+        } catch (error) {
+            console.log('未找到现有剧照');
+        }
+    }
+    
+    closePortraitPanel() {
+        document.getElementById('characterPortraitPanel').style.display = 'none';
+        this.currentCharacter = null;
+    }
+
+    downloadPortrait() {
+        const resultImage = document.getElementById('generatedPortraitImage');
+        if (resultImage.src) {
+            const link = document.createElement('a');
+            link.href = resultImage.src;
+            link.download = `${this.currentCharacter?.data?.name || 'character'}_portrait.png`;
+            link.click();
+            this.showToast('剧照下载已开始', 'success');
+        }
     }
     
     updateSelectionStats() {
         const eventCount = this.selectedEvents.size;
-        const characterCount = this.selectedCharacters.size;
+        // 角色数量现在是从事件中自动推导的
+        const derivedCharacters = this.deriveCharactersFromEvents();
+        const characterCount = derivedCharacters.length;
         
         // 更新左侧边栏
         document.getElementById('selectedEventsCount').textContent = `已选: ${eventCount}个事件`;
-        document.getElementById('selectedCharactersCount').textContent = `已选: ${characterCount}个角色`;
+        document.getElementById('selectedCharactersCount').textContent = `推导: ${characterCount}个角色`;
         
         // 更新主屏幕
         document.getElementById('selectedEventsCountMain').textContent = eventCount;
         document.getElementById('selectedCharactersCountMain').textContent = characterCount;
+        
+        // 渲染推导的角色列表
+        this.renderDerivedCharacters(derivedCharacters);
+    }
+    
+    deriveCharactersFromEvents() {
+        // 从选中的事件中推导角色
+        const characterSet = new Set();
+        const characterDetails = new Map();
+        
+        // 遍历所有选中事件
+        this.selectedEvents.forEach(eventId => {
+            const event = this.findEventById(eventId);
+            if (!event) return;
+            
+            // 检查重大事件
+            if (event.type === 'major') {
+                const characters = event.characters || '';
+                if (characters) {
+                    this.parseCharacterString(characters, characterDetails);
+                }
+                
+                // 如果选中了重大事件，也包含其子事件的角色
+                if (event.children) {
+                    event.children.forEach(child => {
+                        const childCharacters = child.characters || '';
+                        if (childCharacters) {
+                            this.parseCharacterString(childCharacters, characterDetails);
+                        }
+                    });
+                }
+            }
+            
+            // 检查中级事件
+            if (event.characters) {
+                this.parseCharacterString(event.characters, characterDetails);
+            }
+        });
+        
+        // 如果没有推导出角色，返回主要角色
+        if (characterDetails.size === 0) {
+            return this.characters.slice(0, 5); // 返回前5个角色作为默认
+        }
+        
+        return Array.from(characterDetails.values());
+    }
+    
+    parseCharacterString(charactersStr, characterDetails) {
+        // 解析角色字符串并提取角色信息
+        if (!charactersStr) return;
+        
+        // 分割字符名（支持多种分隔符）
+        const names = charactersStr.split(/[,，、;；]/).map(s => s.trim()).filter(s => s);
+        
+        names.forEach(name => {
+            if (!characterDetails.has(name)) {
+                // 尝试从完整角色列表中找到详细信息
+                const fullChar = this.characters.find(c => c.name === name);
+                characterDetails.set(name, fullChar || { name, role: '推导角色' });
+            }
+        });
+    }
+    
+    findEventById(eventId) {
+        // 根据ID查找事件
+        // 检查重大事件
+        const majorEvent = this.events.find(e => e.id === eventId);
+        if (majorEvent) return majorEvent;
+        
+        // 检查中级事件
+        for (const major of this.events) {
+            if (major.children) {
+                const child = major.children.find(c => `${major.id}_${c.id}` === eventId);
+                if (child) return child;
+            }
+        }
+        
+        return null;
+    }
+    
+    renderDerivedCharacters(characters) {
+        // 渲染推导的角色列表（只读，不可手动选择）
+        const container = document.getElementById('charactersList');
+        
+        if (characters.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <p>暂无角色</p>
+                    <p class="hint">选择事件后将自动推导相关角色</p>
+                </div>
+            `;
+            return;
+        }
+        
+        container.innerHTML = characters.map(character => {
+            const roleType = character.role || character.role_type || '角色';
+            const roleBadge = roleType === '主角' ?
+                '<span class="role-badge role-main">主角</span>' :
+                '<span class="role-badge role-supporting">配角</span>';
+            
+            return `
+                <div class="content-item derived-character" data-id="${character.name || character.id}">
+                    <div class="item-checkbox">
+                        <input type="checkbox" checked disabled>
+                    </div>
+                    <div class="item-content">
+                        <div class="item-header">
+                            <div class="item-title">${character.name || '未命名角色'}</div>
+                            ${roleBadge}
+                            <span class="derived-badge">🔍 自动推导</span>
+                        </div>
+                        ${character.personality || character.core_personality ? `
+                            <div class="item-meta">
+                                <span class="meta-tag">🎭 性格: ${character.personality || character.core_personality}</span>
+                            </div>
+                        ` : ''}
+                        ${character.appearance || character.living_characteristics?.physical_presence ? `
+                            <div class="item-description">
+                                <strong>外貌:</strong> ${character.appearance || character.living_characteristics?.physical_presence || '暂无描述'}
+                            </div>
+                        ` : ''}
+                        ${character.background ? `
+                            <div class="item-description">
+                                <strong>背景:</strong> ${character.background}
+                            </div>
+                        ` : ''}
+                        <button class="btn-view-portrait" data-character-id="${character.name || character.id}" title="生成剧照">🎨</button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+        
+        // 绑定剧照按钮事件
+        container.querySelectorAll('.btn-view-portrait').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const characterId = btn.dataset.characterId;
+                this.showCharacterPortraitPanel(characterId);
+            });
+        });
+    }
+    
+    updateDerivedCharacters() {
+        // 更新推导的角色（当选择变化时调用）
+        const derivedCharacters = this.deriveCharactersFromEvents();
+        this.renderDerivedCharacters(derivedCharacters);
+        this.updateSelectionStats();
     }
     
     switchTab(tabName) {
@@ -1156,6 +1539,23 @@ class VideoGenerator {
         
         document.getElementById('savePromptEditBtn').addEventListener('click', () => {
             this.savePromptEdit();
+        });
+        
+        // 角色剧照生成相关事件
+        document.getElementById('closePortraitPanelBtn').addEventListener('click', () => {
+            this.closePortraitPanel();
+        });
+        
+        document.getElementById('generatePortraitBtn').addEventListener('click', () => {
+            this.generateCharacterPortrait();
+        });
+        
+        document.getElementById('regeneratePortraitBtn').addEventListener('click', () => {
+            this.generateCharacterPortrait();
+        });
+        
+        document.getElementById('downloadPortraitBtn').addEventListener('click', () => {
+            this.downloadPortrait();
         });
     }
     

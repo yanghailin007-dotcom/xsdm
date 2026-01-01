@@ -1,0 +1,313 @@
+/**
+ * 角色剧照生成面板样式
+ */
+
+/* 角色剧照生成面板样式 */
+.character-portrait-panel {
+    position: fixed;
+    top: 0;
+    right: -600px;
+    width: 600px;
+    height: 100vh;
+    background: #ffffff;
+    box-shadow: -2px 0 10px rgba(0, 0, 0, 0.1);
+    z-index: 1000;
+    transition: right 0.3s ease;
+    overflow-y: auto;
+}
+
+.character-portrait-panel[style*="block"] {
+    right: 0;
+}
+
+.character-portrait-panel .panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    border-bottom: 1px solid #e0e0e0;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.character-portrait-panel .panel-header h2 {
+    margin: 0;
+    font-size: 24px;
+}
+
+.character-portrait-panel .btn-close {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 28px;
+    cursor: pointer;
+    padding: 0;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: background 0.2s;
+}
+
+.character-portrait-panel .btn-close:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.character-portrait-panel .portrait-content {
+    padding: 20px;
+}
+
+/* 角色基本信息 */
+.character-portrait-panel .character-info-section {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    margin-bottom: 30px;
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+.character-portrait-panel .character-avatar {
+    width: 100px;
+    height: 100px;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #e0e0e0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.character-portrait-panel .character-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.character-portrait-panel .character-basic-info h3 {
+    margin: 0 0 8px 0;
+    font-size: 22px;
+    color: #333;
+}
+
+.character-portrait-panel .character-basic-info p {
+    margin: 0;
+    color: #666;
+    font-size: 14px;
+}
+
+/* 角色详细信息 */
+.character-portrait-panel .character-details-section {
+    margin-bottom: 30px;
+}
+
+.character-portrait-panel .detail-group {
+    margin-bottom: 20px;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border-left: 4px solid #667eea;
+}
+
+.character-portrait-panel .detail-group h4 {
+    margin: 0 0 10px 0;
+    font-size: 16px;
+    color: #333;
+}
+
+.character-portrait-panel .detail-group p {
+    margin: 0;
+    color: #555;
+    line-height: 1.6;
+}
+
+/* 相关事件 */
+.character-portrait-panel .related-events-section {
+    margin-bottom: 30px;
+}
+
+.character-portrait-panel .related-events-section h4 {
+    margin: 0 0 15px 0;
+    font-size: 18px;
+    color: #333;
+}
+
+.character-portrait-panel .related-events-list {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.character-portrait-panel .related-event-item {
+    padding: 12px;
+    margin-bottom: 10px;
+    background: #f8f9fa;
+    border-radius: 6px;
+    border-left: 3px solid #667eea;
+}
+
+.character-portrait-panel .related-event-item .event-name {
+    font-weight: bold;
+    color: #333;
+    margin-bottom: 5px;
+}
+
+.character-portrait-panel .related-event-item .event-chapter {
+    font-size: 12px;
+    color: #666;
+    margin-bottom: 5px;
+}
+
+.character-portrait-panel .related-event-item .event-description {
+    font-size: 13px;
+    color: #555;
+    line-height: 1.5;
+}
+
+/* 生成设置 */
+.character-portrait-panel .generation-settings-section {
+    margin-bottom: 30px;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+.character-portrait-panel .generation-settings-section h4 {
+    margin: 0 0 15px 0;
+    font-size: 18px;
+    color: #333;
+}
+
+.character-portrait-panel .setting-row {
+    display: flex;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.character-portrait-panel .setting-row label {
+    width: 100px;
+    font-weight: 500;
+    color: #555;
+}
+
+.character-portrait-panel .setting-select {
+    flex: 1;
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background: white;
+    font-size: 14px;
+}
+
+/* 生成按钮 */
+.character-portrait-panel .portrait-actions {
+    margin-bottom: 20px;
+}
+
+.character-portrait-panel .btn-large {
+    width: 100%;
+    padding: 15px;
+    font-size: 16px;
+    font-weight: bold;
+}
+
+/* 生成结果 */
+.character-portrait-panel .portrait-result-section {
+    margin-bottom: 20px;
+}
+
+.character-portrait-panel .portrait-result-section h4 {
+    margin: 0 0 15px 0;
+    font-size: 18px;
+    color: #333;
+}
+
+.character-portrait-panel .result-image-container {
+    width: 100%;
+    margin-bottom: 15px;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.character-portrait-panel .result-image-container img {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+.character-portrait-panel .result-actions {
+    display: flex;
+    gap: 10px;
+}
+
+/* 生成进度 */
+.character-portrait-panel .portrait-progress-section {
+    margin-bottom: 20px;
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    text-align: center;
+}
+
+.character-portrait-panel .progress-info p {
+    margin: 0 0 15px 0;
+    font-size: 16px;
+    color: #333;
+}
+
+.character-portrait-panel .progress-bar {
+    width: 100%;
+    height: 8px;
+    background: #e0e0e0;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.character-portrait-panel .progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+    transition: width 0.3s ease;
+}
+
+.character-portrait-panel .animate-progress {
+    animation: progress-animation 2s ease-in-out infinite;
+    width: 60%;
+}
+
+@keyframes progress-animation {
+    0% {
+        transform: translateX(-100%);
+    }
+    100% {
+        transform: translateX(400%);
+    }
+}
+
+/* 角色列表中的剧照按钮 */
+.btn-view-portrait {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    color: white;
+    font-size: 18px;
+    cursor: pointer;
+    padding: 5px 10px;
+    border-radius: 4px;
+    margin-left: auto;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.btn-view-portrait:hover {
+    transform: scale(1.1);
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.4);
+}
+
+/* 空提示 */
+.empty-hint {
+    color: #999;
+    font-style: italic;
+    text-align: center;
+    padding: 20px;
+}

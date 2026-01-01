@@ -55,6 +55,16 @@ def create_app():
     # 创建全局管理器实例
     manager = NovelGenerationManager()
     
+    # 注册生成的图片访问路由
+    @app.route('/generated_images/<path:filename>')
+    def serve_generated_image(filename):
+        """提供生成的图片文件访问"""
+        from flask import send_from_directory
+        generated_images_dir = os.path.join(BASE_DIR, 'generated_images')
+        return send_from_directory(generated_images_dir, filename)
+    
+    logger.info(f"✅ 配置图片访问路由: /generated_images/<filename>")
+    
     # 注册路由
     # 1. 认证和页面路由
     register_auth_routes(app)

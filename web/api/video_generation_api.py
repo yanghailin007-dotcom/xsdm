@@ -9,7 +9,7 @@
 
 from flask import Blueprint, request, jsonify
 from functools import wraps
-from typing import Dict
+from typing import Dict, List
 import os
 import sys
 from pathlib import Path
@@ -228,11 +228,11 @@ def get_novel_content():
         from src.managers.EventExtractor import get_event_extractor
         event_extractor = get_event_extractor(logger)
         
-        # 提取事件
+        # 提取事件 - 返回层级结构
         all_events = event_extractor.extract_all_major_events(novel_detail)
         logger.info(f"📊 [VIDEO] 提取到 {len(all_events)} 个重大事件")
         
-        # 格式化事件数据 - 先显示重大事件
+        # 格式化事件数据 - 层级结构（重大事件包含中级事件）
         events = []
         
         for idx, major_event in enumerate(all_events):
@@ -241,43 +241,53 @@ def get_novel_content():
             description = major_event.get("description", "")
             chapter_range = major_event.get("chapter_range", "")
             
-            # 检查是否有中级事件
+            # 提取中级事件
             composition = major_event.get("composition", {})
-            has_medium_events = bool(composition)
+            medium_events_list = []
             
-            events.append({
-                "id": f"event_{idx}",
-                "title": event_name,
-                "description": description,
-                "chapter_range": chapter_range,
-                "stage": "重大事件",
-                "has_medium_events": has_medium_events,
-                "parent_major": "",
-                "characters": major_event.get("characters", ""),
-                "location": major_event.get("location", ""),
-                "emotion": major_event.get("emotion", "")
-            })
-            
-            # 如果有中级事件，也添加进来
             if composition:
-                stage_order = ["起因", "发展", "高潮", "结局"]
+                # 使用正确的阶段名称（与故事线一致）
+                stage_order = ["起", "承", "转", "合"]
                 for stage in stage_order:
                     medium_events = composition.get(stage, [])
                     if isinstance(medium_events, list) and medium_events:
                         for medium_event in medium_events:
-                            events.append({
-                                "id": f"event_{len(events)}",
-                                "title": medium_event.get("title", medium_event.get("event", "未命名事件")),
+                            # 🔥 优先级尝试多个字段名来获取标题
+                            event_title = (
+                                medium_event.get("title") or
+                                medium_event.get("name") or
+                                medium_event.get("event") or
+                                medium_event.get("main_goal") or
+                                medium_event.get("role_in_stage_arc") or
+                                f"中级事件 {len(medium_events_list) + 1}"
+                            )
+                            
+                            medium_events_list.append({
+                                "id": f"event_{len(events)}_{len(medium_events_list)}",
+                                "title": event_title,
                                 "description": medium_event.get("description", ""),
                                 "stage": stage,
-                                "parent_major": event_name,
-                                "chapter_range": chapter_range,
                                 "characters": medium_event.get("characters", ""),
                                 "location": medium_event.get("location", ""),
                                 "emotion": medium_event.get("emotion", "")
                             })
+            
+            # 创建重大事件（包含子事件）
+            events.append({
+                "id": f"major_event_{idx}",
+                "title": event_name,
+                "description": description,
+                "chapter_range": chapter_range,
+                "type": "major",  # 标记为重大事件
+                "has_children": len(medium_events_list) > 0,
+                "children_count": len(medium_events_list),
+                "children": medium_events_list,
+                "characters": major_event.get("characters", ""),
+                "location": major_event.get("location", ""),
+                "emotion": major_event.get("emotion", "")
+            })
         
-        logger.info(f"📊 [VIDEO] 格式化后共有 {len(events)} 个事件")
+        logger.info(f"📊 [VIDEO] 格式化后共有 {len(events)} 个重大事件，包含 {sum(e['children_count'] for e in events)} 个中级事件")
         
         # 提取角色
         characters = event_extractor.extract_character_designs(novel_detail)
@@ -312,23 +322,32 @@ def get_novel_content():
 @login_required
 def generate_prompt():
     """
-    生成视频生成提示词
+    生成视频生成提示词（基于选中的事件和角色）
     
     请求参数：
     {
         "title": "小说标题",
-        "video_type": "long_series"
+        "video_type": "long_series",
+        "selected_events": [
+            {"id": "event_0", "title": "...", "stage": "起因", ...}
+        ],
+        "selected_characters": [
+            {"id": "character_0", "name": "...", ...}
+        ]
     }
     """
     try:
         data = request.json or {}
         title = data.get('title')
         video_type = data.get('video_type', 'long_series')
+        selected_events = data.get('selected_events', [])
+        selected_characters = data.get('selected_characters', [])
         
         if not title:
             return jsonify({"success": False, "error": "小说标题不能为空"}), 400
         
         logger.info(f"🎬 [VIDEO] 生成提示词: {title} - {video_type}")
+        logger.info(f"📊 [VIDEO] 选中事件: {len(selected_events)}个, 角色: {len(selected_characters)}个")
         
         if not manager:
             return jsonify({"success": False, "error": "管理器未初始化"}), 500
@@ -343,77 +362,132 @@ def generate_prompt():
         if not has_phase_one:
             return jsonify({"success": False, "error": "小说尚未完成第一阶段设定"}), 400
         
-        # 生成提示词
-        type_names = {
-            "short_film": "短片/动画电影",
-            "long_series": "长篇剧集",
-            "short_video": "短视频系列"
-        }
+        # 🔥 使用新的视频场景提示词生成器
+        from src.prompts.VideoScenePrompts import get_video_scene_prompts
+        scene_prompt_generator = get_video_scene_prompts()
         
-        # 获取核心世界观数据
-        core_worldview = novel_detail.get("core_worldview", {})
+        # 🔥 将重大事件展开为中级事件
+        expanded_events = []
         
-        # 构建核心设定描述
-        if core_worldview and isinstance(core_worldview, dict) and len(core_worldview) > 0:
-            core_setting_text = json.dumps(core_worldview, ensure_ascii=False, indent=2)
+        # 首先获取所有重大事件（用于查找）
+        from src.managers.EventExtractor import get_event_extractor
+        event_extractor = get_event_extractor(logger)
+        all_major_events = event_extractor.extract_all_major_events(novel_detail)
+        
+        # 创建重大事件索引（按ID或名称查找）
+        major_events_map = {}
+        for idx, major_event in enumerate(all_major_events):
+            event_id = f"event_{idx}"
+            event_name = major_event.get("name", major_event.get("title", ""))
+            major_events_map[event_id] = major_event
+            major_events_map[event_name] = major_event
+        
+        if not selected_events:
+            # 如果没有选中事件，提取所有重大事件并展开
+            for major_event in all_major_events:
+                composition = major_event.get("composition", {})
+                for stage in ["起因", "发展", "高潮", "结局"]:
+                    medium_events = composition.get(stage, [])
+                    for medium_event in medium_events:
+                        medium_event_copy = dict(medium_event)
+                        medium_event_copy["parent_major"] = major_event.get("name")
+                        expanded_events.append(medium_event_copy)
+            
+            logger.info(f"📊 [VIDEO] 未指定事件，自动提取所有中级事件: {len(expanded_events)}个")
         else:
-            # 尝试从其他字段构建核心设定
-            creative_seed = novel_detail.get("creative_seed", {})
-            quality_data = novel_detail.get("quality_data", {})
-            
-            setting_parts = []
-            
-            # 从 creative_seed 获取基本信息
-            if creative_seed:
-                if creative_seed.get("coreSetting"):
-                    setting_parts.append(f"核心设定：{creative_seed['coreSetting']}")
-                if creative_seed.get("genre"):
-                    setting_parts.append(f"类型：{creative_seed['genre']}")
-                if creative_seed.get("targetPlatform"):
-                    setting_parts.append(f"目标平台：{creative_seed['targetPlatform']}")
-            
-            # 从 quality_data 获取世界观数据
-            if quality_data:
-                world_state = quality_data.get("world_state", {})
-                if world_state and isinstance(world_state, dict):
-                    if world_state.get("worldview"):
-                        setting_parts.append(f"世界观：{world_state['worldview']}")
-                    if world_state.get("setting"):
-                        setting_parts.append(f"背景设定：{world_state['setting']}")
+            # 用户选中的是重大事件，需要展开为中级事件
+            for selected_event in selected_events:
+                # 处理不同格式的输入
+                if isinstance(selected_event, str):
+                    # 如果是字符串，尝试从重大事件映射中查找
+                    major_event = major_events_map.get(selected_event)
+                    if major_event:
+                        # 找到了重大事件，展开它的中级事件
+                        composition = major_event.get("composition", {})
+                        for stage in ["起因", "发展", "高潮", "结局"]:
+                            medium_events = composition.get(stage, [])
+                            for medium_event in medium_events:
+                                medium_event_copy = dict(medium_event)
+                                medium_event_copy["parent_major"] = major_event.get("name", major_event.get("title", ""))
+                                medium_event_copy["stage"] = stage
+                                expanded_events.append(medium_event_copy)
+                        
+                        logger.info(f"📊 [VIDEO] 通过ID '{selected_event}' 展开重大事件 '{major_event.get('name')}' 为 {len([e for e in expanded_events if e.get('parent_major') == major_event.get('name')])} 个中级事件")
+                    else:
+                        logger.warn(f"⚠️ [VIDEO] 未找到ID为 '{selected_event}' 的事件")
                 
-                # 获取角色信息
-                character_development = quality_data.get("character_development", {})
-                if character_development and isinstance(character_development, dict):
-                    character_count = len(character_development)
-                    setting_parts.append(f"主要角色数量：{character_count}个")
-            
-            # 获取故事大纲
-            synopsis = novel_detail.get("story_synopsis", "") or novel_detail.get("novel_synopsis", "") or novel_detail.get("synopsis", "")
-            if synopsis:
-                setting_parts.append(f"故事简介：{synopsis[:200]}...")
-            
-            # 如果仍然没有任何信息
-            if not setting_parts:
-                setting_parts.append("提示：该小说的核心设定数据暂未完整生成，请基于小说标题进行创作")
-            
-            core_setting_text = "\n".join(setting_parts)
+                elif isinstance(selected_event, dict):
+                    # 如果是字典，检查是否是重大事件（有composition字段）
+                    if selected_event.get("composition"):
+                        # 这是重大事件，展开其中的中级事件
+                        composition = selected_event.get("composition", {})
+                        for stage in ["起因", "发展", "高潮", "结局"]:
+                            medium_events = composition.get(stage, [])
+                            for medium_event in medium_events:
+                                medium_event_copy = dict(medium_event)
+                                medium_event_copy["parent_major"] = selected_event.get("name", selected_event.get("title", ""))
+                                medium_event_copy["stage"] = stage
+                                expanded_events.append(medium_event_copy)
+                        
+                        logger.info(f"📊 [VIDEO] 展开重大事件 '{selected_event.get('name')}' 为 {len([e for e in expanded_events if e.get('parent_major') == selected_event.get('name')])} 个中级事件")
+                    
+                    elif selected_event.get("stage") in ["起因", "发展", "高潮", "结局"]:
+                        # 这已经是中级事件，直接使用
+                        expanded_events.append(selected_event)
+                    
+                    else:
+                        logger.warn(f"⚠️ [VIDEO] 未知的事件格式: {selected_event}")
+                
+                else:
+                    logger.warn(f"⚠️ [VIDEO] 跳过不支持的事件类型: {type(selected_event)}")
         
-        prompt = f"""请根据以下小说内容生成{type_names[video_type]}视频。
-
-小说标题：{title}
-核心设定：
-{core_setting_text}
-
-要求：
-- 保留小说的核心冲突和角色关系
-- 适应{type_names[video_type]}的时长特点
-- 注重视觉表现力和节奏把控
-- 突出关键情节和高光时刻
-"""
+        # 使用展开后的中级事件
+        selected_events = expanded_events
+        
+        if not selected_events:
+            return jsonify({"success": False, "error": "未能从选中的事件中提取到任何中级事件"}), 400
+        
+        logger.info(f"✅ [VIDEO] 最终使用 {len(selected_events)} 个中级事件生成提示词")
+        
+        # 如果没有选中角色，提取主要角色
+        if not selected_characters:
+            from src.managers.EventExtractor import get_event_extractor
+            event_extractor = get_event_extractor(logger)
+            all_characters = event_extractor.extract_character_designs(novel_detail)
+            
+            # 只选择主角和重要配角
+            selected_characters = [
+                char for char in all_characters
+                if char.get("role", "") in ["主角", "重要配角", "配角"]
+            ][:5]  # 最多5个角色
+            
+            logger.info(f"👥 [VIDEO] 未指定角色，自动提取主要角色: {len(selected_characters)}个")
+        
+        # 生成详细的场景级提示词
+        prompt = scene_prompt_generator.generate_video_type_prompt(
+            selected_events=selected_events,
+            selected_characters=selected_characters,
+            video_type=video_type,
+            novel_data=novel_detail
+        )
+        
+        # 统计信息
+        total_shots_estimate = _estimate_total_shots(selected_events, video_type)
+        total_duration_estimate = _estimate_total_duration(selected_events, video_type)
+        
+        logger.info(f"✅ [VIDEO] 提示词生成成功")
+        logger.info(f"📊 [VIDEO] 预计镜头数: {total_shots_estimate}, 预计时长: {total_duration_estimate}分钟")
         
         return jsonify({
             "success": True,
-            "prompt": prompt
+            "prompt": prompt,
+            "metadata": {
+                "selected_events_count": len(selected_events),
+                "selected_characters_count": len(selected_characters),
+                "estimated_shots": total_shots_estimate,
+                "estimated_duration_minutes": total_duration_estimate,
+                "video_type": video_type
+            }
         })
         
     except Exception as e:
@@ -421,6 +495,34 @@ def generate_prompt():
         import traceback
         logger.error(f"错误堆栈: {traceback.format_exc()}")
         return jsonify({"success": False, "error": str(e)}), 500
+
+
+def _estimate_total_shots(events: List[Dict], video_type: str) -> int:
+    """估算总镜头数"""
+    if video_type == "long_series":
+        # 长剧集：每个中级事件根据阶段不同有不同镜头数
+        shots_map = {"起因": 5, "发展": 8, "高潮": 15, "结局": 4}
+        return sum(shots_map.get(e.get("stage", "发展"), 8) for e in events)
+    elif video_type == "short_film":
+        # 短片：每个重大事件5-7个镜头
+        return len(events) * 6
+    else:  # short_video
+        # 短视频：每个事件5-7个镜头
+        return len(events) * 6
+
+
+def _estimate_total_duration(events: List[Dict], video_type: str) -> float:
+    """估算总时长（分钟）"""
+    if video_type == "long_series":
+        # 长剧集：根据阶段不同时长不同
+        duration_map = {"起因": 2.0, "发展": 3.5, "高潮": 7.5, "结局": 1.8}
+        return sum(duration_map.get(e.get("stage", "发展"), 3.5) for e in events)
+    elif video_type == "short_film":
+        # 短片：每个重大事件3-4分钟
+        return len(events) * 3.5
+    else:  # short_video
+        # 短视频：每个事件约1分钟
+        return len(events) * 1.0
 
 
 @video_api.route('/video/generate-storyboard', methods=['POST'])
@@ -1238,6 +1340,213 @@ def _generate_unit_markdown(unit, series_info, style_guide, pacing, video_type):
         md += "---\n\n"
     
     return md
+
+
+@video_api.route('/video/generate-character-portrait', methods=['POST'])
+@login_required
+def generate_character_portrait():
+    """
+    生成角色剧照
+    
+    请求参数：
+    {
+        "title": "小说标题",
+        "character_id": "character_0",
+        "character_data": {...},  // 完整的角色数据
+        "aspect_ratio": "16:9",    // 可选，默认16:9
+        "image_size": "4K"         // 可选，默认4K
+    }
+    """
+    try:
+        data = request.json or {}
+        title = data.get('title')
+        character_id = data.get('character_id')
+        character_data = data.get('character_data', {})
+        aspect_ratio = data.get('aspect_ratio', '9:16')  # 默认竖屏，适合角色展示
+        image_size = data.get('image_size', '4K')
+        
+        logger.info(f"🎨 [VIDEO] ===== 开始生成角色剧照 =====")
+        logger.info(f"📝 [VIDEO] 请求参数:")
+        logger.info(f"  - 小说标题: {title}")
+        logger.info(f"  - 角色ID: {character_id}")
+        logger.info(f"  - 角色名称: {character_data.get('name', 'Unknown')}")
+        logger.info(f"  - 角色定位: {character_data.get('role', 'Unknown')}")
+        logger.info(f"  - 图片比例: {aspect_ratio}")
+        logger.info(f"  - 图片质量: {image_size}")
+        
+        if not title or not character_id:
+            logger.error(f"❌ [VIDEO] 缺少必需参数: title={title}, character_id={character_id}")
+            return jsonify({"success": False, "error": "缺少必需参数: title 或 character_id"}), 400
+        
+        logger.info(f"🎨 [VIDEO] 生成角色剧照: {title} - {character_id}")
+        
+        # 使用EventExtractor生成剧照提示词
+        from src.managers.EventExtractor import get_event_extractor
+        event_extractor = get_event_extractor(logger)
+        
+        logger.info(f"🔧 [VIDEO] 开始生成角色提示词...")
+        # 生成剧照提示词
+        character_prompts = event_extractor.generate_character_prompts([character_data])
+        
+        if not character_prompts:
+            logger.error(f"❌ [VIDEO] 生成角色提示词失败: character_prompts为空")
+            return jsonify({"success": False, "error": "生成角色提示词失败"}), 500
+        
+        prompt = character_prompts[0].get('generation_prompt', '')
+        logger.info(f"✅ [VIDEO] 角色提示词生成成功")
+        logger.info(f"📝 [VIDEO] 提示词长度: {len(prompt)} 字符")
+        logger.info(f"📝 [VIDEO] 提示词预览: {prompt[:200]}...")
+        
+        # 调用NanoBanana服务生成图像
+        from web.services.nanobanana_service import NanoBananaService
+        nanobanana_service = NanoBananaService()
+        
+        logger.info(f"🎨 [VIDEO] 准备调用NanoBanana服务...")
+        # 生成文件名
+        character_name = character_data.get('name', 'unknown')
+        safe_name = character_name.replace(' ', '_').replace('/', '_')
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"{title}_{safe_name}_portrait_{timestamp}"
+        logger.info(f"💾 [VIDEO] 生成文件名: {filename}")
+        
+        # 生成图像
+        logger.info(f"🚀 [VIDEO] 调用NanoBanana.generate_image()...")
+        logger.info(f"📤 [VIDEO] 请求参数:")
+        logger.info(f"  - prompt长度: {len(prompt)}")
+        logger.info(f"  - aspect_ratio: {aspect_ratio}")
+        logger.info(f"  - image_size: {image_size}")
+        logger.info(f"  - filename: {filename}")
+        
+        result = nanobanana_service.generate_image({
+            'prompt': prompt,
+            'aspect_ratio': aspect_ratio,
+            'image_size': image_size,
+            'save_filename': filename
+        })
+        
+        logger.info(f"📥 [VIDEO] NanoBanana返回结果:")
+        logger.info(f"  - success: {result.get('success')}")
+        logger.info(f"  - local_path: {result.get('local_path', 'N/A')}")
+        logger.info(f"  - url: {result.get('url', 'N/A')}")
+        logger.info(f"  - file_size: {result.get('file_size', 'N/A')}")
+        logger.info(f"  - error: {result.get('error', 'N/A')}")
+        
+        # 验证文件是否存在
+        if result.get('success') and result.get('local_path'):
+            import os
+            if os.path.exists(result['local_path']):
+                file_size = os.path.getsize(result['local_path'])
+                logger.info(f"✅ [VIDEO] 文件验证成功: {result['local_path']} ({file_size} bytes)")
+            else:
+                logger.error(f"❌ [VIDEO] 文件不存在: {result['local_path']}")
+        
+        if result.get('success'):
+            logger.info(f"✅ [VIDEO] 角色剧照生成成功: {result.get('local_path')}")
+            # 构建HTTP访问路径（浏览器可访问）
+            import urllib.parse
+            image_filename = os.path.basename(result.get('local_path', ''))
+            # URL编码文件名，处理中文和特殊字符
+            encoded_filename = urllib.parse.quote(image_filename)
+            image_url = f"/generated_images/{encoded_filename}"
+            logger.info(f"🌐 [VIDEO] 图片访问URL: {image_url}")
+            logger.info(f"🌐 [VIDEO] 原始文件名: {image_filename}")
+            logger.info(f"🌐 [VIDEO] 编码后文件名: {encoded_filename}")
+            
+            return jsonify({
+                "success": True,
+                "image_path": result.get('local_path'),  # 本地路径（用于下载）
+                "image_url": image_url,  # HTTP URL（用于浏览器显示）
+                "prompt": prompt,
+                "character_name": character_name,
+                "message": f"角色 {character_name} 的剧照生成成功"
+            })
+        else:
+            logger.error(f"❌ [VIDEO] 角色剧照生成失败: {result.get('error')}")
+            return jsonify({
+                "success": False,
+                "error": result.get('error', '生成失败')
+            }), 500
+            
+    except Exception as e:
+        logger.error(f"❌ [VIDEO] 生成角色剧照失败: {e}")
+        import traceback
+        logger.error(f"错误堆栈: {traceback.format_exc()}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@video_api.route('/video/character-details', methods=['GET'])
+@login_required
+def get_character_details():
+    """
+    获取角色详细信息（从选中事件中自动提取）
+    
+    查询参数：
+    - title: 小说标题
+    - character_id: 角色ID
+    - selected_events: 选中的事件ID列表（可选）
+    """
+    try:
+        title = request.args.get('title')
+        character_id = request.args.get('character_id')
+        
+        if not title or not character_id:
+            return jsonify({"success": False, "error": "缺少必需参数"}), 400
+        
+        logger.info(f"👤 [VIDEO] 获取角色详情: {title} - {character_id}")
+        
+        if not manager:
+            return jsonify({"success": False, "error": "管理器未初始化"}), 500
+        
+        # 获取小说数据
+        novel_detail = manager.get_novel_detail(title)
+        if not novel_detail:
+            return jsonify({"success": False, "error": "小说项目不存在"}), 404
+        
+        # 提取角色设计
+        from src.managers.EventExtractor import get_event_extractor
+        event_extractor = get_event_extractor(logger)
+        
+        characters = event_extractor.extract_character_designs(novel_detail)
+        
+        # 查找指定角色
+        target_character = None
+        for char in characters:
+            if char.get('name') == character_id or f"character_{characters.index(char)}" == character_id:
+                target_character = char
+                break
+        
+        if not target_character:
+            return jsonify({"success": False, "error": "角色不存在"}), 404
+        
+        # 提取该角色参与的章节/事件
+        character_events = []
+        all_major_events = event_extractor.extract_all_major_events(novel_detail)
+        
+        for major_event in all_major_events:
+            event_characters = major_event.get('characters', '')
+            if target_character.get('name') in event_characters:
+                character_events.append({
+                    "event_name": major_event.get('name', major_event.get('title', '未命名')),
+                    "chapter_range": major_event.get('chapter_range', ''),
+                    "description": major_event.get('description', '')[:200]
+                })
+        
+        # 生成剧照提示词
+        character_prompts = event_extractor.generate_character_prompts([target_character])
+        
+        return jsonify({
+            "success": True,
+            "character": target_character,
+            "related_events": character_events[:10],  # 最多返回10个相关事件
+            "generation_prompt": character_prompts[0].get('generation_prompt', '') if character_prompts else '',
+            "total_events": len(character_events)
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ [VIDEO] 获取角色详情失败: {e}")
+        import traceback
+        logger.error(f"错误堆栈: {traceback.format_exc()}")
+        return jsonify({"success": False, "error": str(e)}), 500
 
 
 def register_video_routes(app):
