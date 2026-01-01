@@ -518,7 +518,7 @@
     <nav class="navbar">
         <div class="navbar-content">
             <div class="navbar-title">
-                <button class="btn btn-secondary btn-small" onclick="location.href='/'" style="margin-right: 12px;">
+                <button class="btn btn-secondary btn-small" onclick="location.href='/landing'" style="margin-right: 12px;">
                     🏠 返回首页
                 </button>
                 🗂️ 项目管理
@@ -716,7 +716,10 @@
             // 项目内容
             const content = `
                 <div class="project-header">
-                    <h3 class="project-title">${escapeHtml(project.title)}</h3>
+                    <div style="display: flex; justify-content: space-between; align-items: start; gap: 12px;">
+                        <h3 class="project-title" style="flex: 1;">${escapeHtml(project.title)}</h3>
+                        ${createPhaseOneBadge(project)}
+                    </div>
                     <div class="project-meta">
                         <div class="meta-item">
                             <span class="meta-icon">📅</span>
@@ -817,18 +820,43 @@
             
             switch (phase.status) {
                 case 'completed':
-                    return { indicator: 'completed', text: `完成 (${formatDate(phase.completed_at)})` };
+                    return { indicator: 'completed', text: `✅ 已完成 (${formatDate(phase.completed_at)})` };
                 case 'generating':
-                    return { indicator: 'current', text: '进行中...' };
+                    return { indicator: 'current', text: '🔄 进行中...' };
                 case 'failed':
-                    return { indicator: 'pending', text: `失败: ${phase.error || '未知错误'}` };
+                    return { indicator: 'pending', text: `❌ 失败: ${phase.error || '未知错误'}` };
                 case 'not_started':
-                    return { indicator: 'pending', text: '未开始' };
+                    return { indicator: 'pending', text: '⏳ 未开始' };
                 case 'paused':
-                    return { indicator: 'current', text: '已暂停' };
+                    return { indicator: 'current', text: '⏸️ 已暂停' };
                 default:
                     return { indicator: 'pending', text: phase.status };
             }
+        }
+        
+        function createPhaseOneBadge(project) {
+            // 为一阶段完成的项目添加明显的标识
+            if (project.phase_one && project.phase_one.status === 'completed') {
+                return `
+                    <div class="phase-one-badge" style="
+                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                        color: white;
+                        padding: 6px 12px;
+                        border-radius: 20px;
+                        font-size: 12px;
+                        font-weight: 700;
+                        box-shadow: 0 2px 8px rgba(102, 126, 234, 0.4);
+                        white-space: nowrap;
+                        display: inline-flex;
+                        align-items: center;
+                        gap: 4px;
+                    ">
+                        <span>✨</span>
+                        <span>一阶段已完成</span>
+                    </div>
+                `;
+            }
+            return '';
         }
 
         function createActionsSection(project) {

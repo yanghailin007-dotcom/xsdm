@@ -101,26 +101,19 @@ function displayProjectsList(projects) {
 
     let html = '';
     projects.forEach(project => {
-        const isPhaseOneCompleted = project.phase_one && project.phase_one.status === 'completed';
-        const canGenerate = isPhaseOneCompleted && (!project.phase_two || project.phase_two.status !== 'completed');
-        
         // 对标题进行HTML转义，避免特殊字符导致的问题
         const escapedTitle = project.title.replace(/'/g, "\\'").replace(/"/g, '\\"');
         
-        // 如果可以生成，添加点击事件
-        const onClickAttr = canGenerate ? `onclick="selectProject('${escapedTitle}')"` : '';
-        const styleAttr = !canGenerate ? 'style="opacity: 0.6; cursor: not-allowed;"' : '';
-        const disabledClass = !canGenerate ? 'disabled' : '';
-        
+        // 🔥 改进：所有项目都可以点击，移除点击限制
         html += `
-            <div class="project-card ${disabledClass}"
+            <div class="project-card"
                  data-title="${escapedTitle}"
-                 ${onClickAttr}
-                 ${styleAttr}>
+                 onclick="selectProject('${escapedTitle}')"
+                 style="cursor: pointer;">
                 <div class="project-title">${project.title}</div>
                 <div class="project-info">总章节: ${project.total_chapters || 0}</div>
                 <div class="project-info">已完成: ${project.completed_chapters || 0} 章</div>
-                <div class="project-status ${canGenerate ? 'status-ready' : project.phase_one ? 'status-completed' : 'status-generating'}">
+                <div class="project-status ${getProjectStatusClass(project)}">
                     ${getProjectStatusText(project)}
                 </div>
             </div>
@@ -128,6 +121,23 @@ function displayProjectsList(projects) {
     });
     
     projectsList.innerHTML = html;
+}
+
+// 🔥 新增：根据项目状态返回对应的样式类
+function getProjectStatusClass(project) {
+    if (project.phase_one && project.phase_one.status === 'completed') {
+        if (project.phase_two && project.phase_two.status === 'completed') {
+            return 'status-completed';
+        } else if (project.phase_two && project.phase_two.status === 'generating') {
+            return 'status-generating';
+        } else {
+            return 'status-ready';
+        }
+    } else if (project.phase_one && project.phase_one.status === 'generating') {
+        return 'status-designing';
+    } else {
+        return 'status-pending';
+    }
 }
 
 // 自动选择项目的函数

@@ -112,18 +112,18 @@ class VideoGenerator {
     
     async loadNovels() {
         try {
-            const response = await fetch('/api/projects/with-phase-status');
+            // 使用新的API端点获取可用的小说
+            const response = await fetch('/api/video/novels');
             const data = await response.json();
             
             if (data.success) {
-                const novels = data.projects.filter(p => 
-                    p.phase_one && p.phase_one.status === 'completed'
-                );
-                this.renderNovelList(novels);
+                this.renderNovelList(data.novels);
+            } else {
+                throw new Error(data.error || '加载失败');
             }
         } catch (error) {
             console.error('加载小说列表失败:', error);
-            this.showToast('加载小说列表失败', 'error');
+            this.showToast('加载小说列表失败: ' + error.message, 'error');
         }
     }
     
@@ -203,15 +203,47 @@ class VideoGenerator {
             return;
         }
         
-        container.innerHTML = novels.map(novel => `
-            <div class="novel-item" data-title="${novel.title}" data-chapters="${novel.total_chapters}">
-                <div class="novel-title">${novel.title}</div>
-                <div class="novel-info">
-                    ${novel.total_chapters}章 | 
-                    ${novel.completed_chapters}/${novel.total_chapters} 已完成
-                </div>
-            </div>
-        `).join('');
+        container.innerHTML = novels.map(novel => {
+            // 检查是否是新格式数据（包含video_ready字段）
+            const isNewFormat = novel.video_ready === true;
+            
+            if (isNewFormat) {
+                // 新格式：显示中级事件信息
+                return `
+                    <div class="novel-item video-ready" data-title="${novel.title || novel.novel_title}">
+                        <div class="novel-header">
+                            <div class="novel-title">${novel.title || novel.novel_title}</div>
+                            <span class="video-ready-badge">✅ 可生成</span>
+                        </div>
+                        <div class="novel-stats">
+                            <span class="stat-item">
+                                <span class="stat-label">📊 中级事件:</span>
+                                <span class="stat-value">${novel.total_medium_events || 0}个</span>
+                            </span>
+                            <span class="stat-item">
+                                <span class="stat-label">🎬 预计分集:</span>
+                                <span class="stat-value">${novel.estimated_episodes || 0}集</span>
+                            </span>
+                            <span class="stat-item">
+                                <span class="stat-label">⏱️ 总时长:</span>
+                                <span class="stat-value">${novel.total_duration_minutes || 0}分钟</span>
+                            </span>
+                        </div>
+                    </div>
+                `;
+            } else {
+                // 旧格式：使用章节数信息
+                return `
+                    <div class="novel-item" data-title="${novel.title}" data-chapters="${novel.total_chapters}">
+                        <div class="novel-title">${novel.title}</div>
+                        <div class="novel-info">
+                            ${novel.total_chapters}章 |
+                            ${novel.completed_chapters}/${novel.total_chapters} 已完成
+                        </div>
+                    </div>
+                `;
+            }
+        }).join('');
         
         // 绑定点击事件
         container.querySelectorAll('.novel-item').forEach(item => {

@@ -194,5 +194,22 @@ CONFIG = {
             "sign_name": "",
             "template_id": ""
         }
+    },
+    # Nano Banana文生图API配置 (用于角色生成)
+    "nanobanana": {
+        "base_url": "https://newapi.xiaochuang.cc/v1beta/models/gemini-3-pro-image-preview:generateContent",
+        "api_key": "sk-mDqCm1AByrVbtN6EGmN638SSyNFOsGUdjzVZrdjNz1xGq8TC",
+        "enabled": True,
+        "default_config": {
+            "responseModalities": ["TEXT", "IMAGE"],
+            "imageConfig": {
+                "aspectRatio": "16:9",
+                "imageSize": "4K"
+            }
+        },
+        "supported_aspect_ratios": ["16:9", "4:3", "1:1", "9:16"],
+        "supported_image_sizes": ["1K", "2K", "4K"],
+        "timeout": 60,
+        "max_retries": 3
     }
 }

@@ -17,6 +17,7 @@ from abc import ABC, abstractmethod
 import json
 
 from src.utils.logger import get_logger
+from src.managers.EventExtractor import get_event_extractor
 
 
 class VideoGenerationStrategy(ABC):
@@ -246,137 +247,443 @@ class ShortFilmStrategy(VideoGenerationStrategy):
 
 class LongSeriesStrategy(VideoGenerationStrategy):
     """
-    长篇剧集策略（20-40分钟/集）
+    长篇剧集策略 - 基于中级事件分集
     
     特点：
-    - 多集连续，每集完整但有关联
-    - 保留丰富的支线剧情
-    - 节奏张弛有度
-    - 注重角色发展
+    - 每个中级事件 = 一集视频
+    - 保留完整的叙事结构
+    - 节奏张弛有度，高潮部分时长加倍
+    - 注重音频与视觉同步
     """
     
     def __init__(self):
         self.logger = get_logger("LongSeriesStrategy")
-    
-    def calculate_duration(self, content_unit: Any) -> Dict:
-        """
-        长剧集时长计算：基于章节数量
         
-        每集约覆盖15-25章（假设每章1.5-2分钟）
-        """
-        chapter_range = content_unit.get("chapter_range", "1-10")
-        try:
-            from src.managers.StagePlanUtils import parse_chapter_range
-            start_ch, end_ch = parse_chapter_range(chapter_range)
-            chapter_count = end_ch - start_ch + 1
-        except:
-            chapter_count = 10
-        
-        # 每章约1.8分钟视频
-        estimated_minutes = chapter_count * 1.8
-        
-        # 限制在20-40分钟范围
-        estimated_minutes = max(20, min(40, estimated_minutes))
-        
-        return {
-            "duration_minutes": int(estimated_minutes),
-            "duration_seconds": int(estimated_minutes * 60),
-            "chapter_coverage": chapter_count
+        # 叙事阶段配置：镜头数量和时长
+        self.stage_config = {
+            "起因": {
+                "shots": 5,
+                "avg_duration": 4.0,  # 秒
+                "episode_minutes": 2.0,
+                "needs_opening": True,
+                "needs_ending": False,
+                "mood": "渐进，建立紧张感"
+            },
+            "发展": {
+                "shots": 8,
+                "avg_duration": 5.0,
+                "episode_minutes": 3.5,
+                "needs_opening": False,
+                "needs_ending": False,
+                "mood": "节奏加快，信息密集"
+            },
+            "高潮": {
+                "shots": 15,  # 高潮部分镜头更多
+                "avg_duration": 6.0,  # 每个镜头更长
+                "episode_minutes": 7.5,  # 高潮时长加倍
+                "needs_opening": False,
+                "needs_ending": True,
+                "mood": "紧张激烈，情绪爆发"
+            },
+            "结局": {
+                "shots": 4,
+                "avg_duration": 4.0,
+                "episode_minutes": 1.8,
+                "needs_opening": False,
+                "needs_ending": True,
+                "mood": "舒缓释放，留下余韵"
+            }
         }
     
     def allocate_content(self, all_events: List[Dict], total_units: int = 0) -> List[Dict]:
         """
-        长剧集内容分配：按章节范围均匀分配
+        基于中级事件分配分集
         
         策略：
-        1. 计算每集应该覆盖的章节数
-        2. 将事件按章节范围分配到各集
-        3. 确保每集有3-5个重大事件
+        1. 从每个重大事件的 composition 中提取中级事件
+        2. 每个中级事件独立成为一集
+        3. 按叙事阶段（起因→发展→高潮→结局）排序
+        
+        Args:
+            all_events: 所有重大事件列表
+            total_units: 忽略此参数，自动计算
+        
+        Returns:
+            分集列表
         """
-        self.logger.info(f"📺 长剧集模式：{len(all_events)}个事件分配")
-        
-        if not total_units:
-            # 自动计算集数：每集约20章
-            total_chapters = max((e.get("_end_chapter", 0) for e in all_events), default=200)
-            total_units = max(1, total_chapters // 20)
-        
-        self.logger.info(f"  分配到 {total_units} 集")
-        
-        chapters_per_episode = total_chapters // total_units
+        self.logger.info(f"📺 长剧集模式：从{len(all_events)}个重大事件中提取中级事件")
         
         episodes = []
-        for ep_num in range(1, total_units + 1):
-            start_chapter = (ep_num - 1) * chapters_per_episode + 1
-            end_chapter = min(ep_num * chapters_per_episode, total_chapters)
-            
-            # 找到属于本集的事件
-            episode_events = [
-                e for e in all_events
-                if not (e["_end_chapter"] < start_chapter or e["_start_chapter"] > end_chapter)
-            ]
-            
-            episodes.append({
-                "unit_number": ep_num,
-                "unit_type": "剧集",
-                "chapter_range": f"{start_chapter}-{end_chapter}",
-                "major_events": episode_events,
-                "estimated_duration_minutes": 30  # 默认30分钟
-            })
+        episode_number = 0
+        total_chapters = 0
         
+        # 遍历所有重大事件
+        for major_event in all_events:
+            major_event_name = major_event.get("name", "")
+            chapter_range = major_event.get("chapter_range", "")
+            
+            # 记录章节范围用于计算总数
+            try:
+                from src.managers.StagePlanUtils import parse_chapter_range
+                start_ch, end_ch = parse_chapter_range(chapter_range)
+                total_chapters = max(total_chapters, end_ch)
+            except:
+                pass
+            
+            # 提取中级事件
+            medium_events = self._extract_medium_events(major_event)
+            
+            # 为每个中级事件创建一集
+            for medium_event in medium_events:
+                episode_number += 1
+                stage = medium_event.get("stage", "发展")
+                
+                episodes.append({
+                    "episode_number": episode_number,
+                    "unit_number": episode_number,  # 兼容原有字段
+                    "unit_type": "分集",
+                    
+                    # 关联信息
+                    "major_event_name": major_event_name,
+                    "medium_event_name": medium_event.get("name", ""),
+                    "stage": stage,
+                    "chapter": medium_event.get("chapter", 0),
+                    "chapter_range": chapter_range,
+                    
+                    # 内容
+                    "major_event": major_event,
+                    "medium_event": medium_event,
+                    
+                    # 时长估算（根据叙事阶段）
+                    "estimated_duration_minutes": self.stage_config.get(stage, {}).get("episode_minutes", 3.0)
+                })
+        
+        self.logger.info(f"✅ 分配完成：{len(episodes)} 集（覆盖约{total_chapters}章）")
         return episodes
+    
+    def _extract_medium_events(self, major_event: Dict) -> List[Dict]:
+        """从重大事件的 composition 中提取中级事件"""
+        medium_events = []
+        
+        composition = major_event.get("composition", {})
+        
+        # 按叙事顺序提取：起因 → 发展 → 高潮 → 结局
+        stage_order = ["起因", "发展", "高潮", "结局"]
+        
+        for stage in stage_order:
+            events = composition.get(stage, [])
+            for event in events:
+                medium_events.append({
+                    **event,
+                    "stage": stage,
+                    "parent_major_event": major_event.get("name")
+                })
+        
+        return medium_events
+    
+    def calculate_duration(self, content_unit: Any) -> Dict:
+        """
+        计算分集时长：基于叙事阶段
+        
+        高潮部分时长加倍（7.5分钟），其他部分根据阶段调整
+        """
+        stage = content_unit.get("stage", "发展")
+        config = self.stage_config.get(stage, self.stage_config["发展"])
+        
+        minutes = config.get("episode_minutes", 3.0)
+        
+        return {
+            "duration_minutes": minutes,
+            "duration_seconds": int(minutes * 60),
+            "stage": stage,
+            "shots_count": config.get("shots", 8)
+        }
     
     def generate_shot_sequence(self, event: Dict, context: Dict) -> List[Dict]:
         """
-        长剧集镜头序列：标准叙事节奏
+        为中级事件生成镜头序列（包含完整音频设计）
         
         特点：
-        - 完整的叙事结构
-        - 适中的镜头时长
-        - 平衡的对白和动作
+        - 根据叙事阶段确定镜头数量和节奏
+        - 高潮部分镜头更多、时长更长
+        - 每个镜头包含完整的音频同步设计
         """
+        stage = context.get("stage", "发展")
+        config = self.stage_config.get(stage, self.stage_config["发展"])
+        
         shots = []
+        shot_number = 0
         
-        # 1. 场景建立
-        shots.append({
-            "shot_number": 1,
-            "shot_type": "全景",
-            "camera_movement": "固定",
-            "duration_seconds": 3,
-            "description": "场景环境建立",
-            "visual_focus": "场景设定"
-        })
+        # 1. 开场镜头（如果需要）
+        if config.get("needs_opening"):
+            shot_number += 1
+            shots.append(self._create_opening_shot(shot_number, event, context, stage))
         
-        # 2. 角色站位
-        shots.append({
-            "shot_number": 2,
-            "shot_type": "中景",
-            "camera_movement": "缓慢推近",
-            "duration_seconds": 4,
-            "description": "角色关系和站位",
-            "visual_focus": "人物构图"
-        })
+        # 2. 主要镜头序列
+        main_shots_count = config.get("shots", 8)
+        for i in range(main_shots_count):
+            shot_number += 1
+            shots.append(self._create_main_shot(shot_number, i, event, context, stage))
         
-        # 3. 主要动作/对白
-        shots.append({
-            "shot_number": 3,
-            "shot_type": "近景",
-            "camera_movement": "固定/轻微移动",
-            "duration_seconds": 5,
-            "description": "主要情节推进",
-            "visual_focus": "人物动作和对白"
-        })
-        
-        # 4. 细节强调
-        shots.append({
-            "shot_number": 4,
-            "shot_type": "特写",
-            "camera_movement": "固定",
-            "duration_seconds": 2,
-            "description": "关键细节或表情",
-            "visual_focus": "重要细节"
-        })
+        # 3. 结尾镜头
+        if config.get("needs_ending"):
+            shot_number += 1
+            shots.append(self._create_ending_shot(shot_number, event, context, stage))
         
         return shots
+    
+    def _create_opening_shot(self, shot_number: int, event: Dict, context: Dict, stage: str) -> Dict:
+        """创建开场镜头"""
+        shot = {
+            "shot_number": shot_number,
+            "shot_type": "全景",
+            "camera_movement": "缓慢推近",
+            "duration_seconds": self.stage_config[stage]["avg_duration"] * 1.2,
+            "description": f"开场：建立{event.get('name', '')}的氛围和环境",
+            "visual_focus": "环境氛围",
+            "scene_role": "opening"
+        }
+        shot["audio_design"] = self._generate_audio_design(shot, event, stage, "opening")
+        return shot
+    
+    def _create_main_shot(self, shot_number: int, index: int,
+                         event: Dict, context: Dict, stage: str) -> Dict:
+        """创建主要镜头"""
+        shot = {
+            "shot_number": shot_number,
+            "shot_type": self._select_shot_type(index, stage),
+            "camera_movement": self._select_camera_movement(index, stage),
+            "duration_seconds": self.stage_config[stage]["avg_duration"],
+            "description": self._generate_shot_description(event, index, stage),
+            "visual_focus": self._get_visual_focus(stage),
+            "scene_role": "main"
+        }
+        shot["audio_design"] = self._generate_audio_design(shot, event, stage, "main")
+        return shot
+    
+    def _create_ending_shot(self, shot_number: int, event: Dict, context: Dict, stage: str) -> Dict:
+        """创建结尾镜头"""
+        shot = {
+            "shot_number": shot_number,
+            "shot_type": "全景",
+            "camera_movement": "缓慢拉远",
+            "duration_seconds": self.stage_config[stage]["avg_duration"] * 0.8,
+            "description": f"收尾：{event.get('name', '')}结束，留下余韵",
+            "visual_focus": "环境回归",
+            "scene_role": "ending"
+        }
+        shot["audio_design"] = self._generate_audio_design(shot, event, stage, "ending")
+        return shot
+    
+    def _select_shot_type(self, index: int, stage: str) -> str:
+        """根据位置和阶段选择景别"""
+        shot_types = {
+            "起因": ["全景", "中景", "近景", "中景", "特写"],
+            "发展": ["中景", "近景", "近景", "特写", "近景", "中景", "特写", "中景"],
+            "高潮": ["近景", "特写", "特写", "大特写", "特写", "近景", "特写", "大特写",
+                    "特写", "近景", "特写", "大特写", "特写", "近景", "全景"],
+            "结局": ["近景", "中景", "特写", "全景"]
+        }
+        types = shot_types.get(stage, shot_types["发展"])
+        return types[index % len(types)]
+    
+    def _select_camera_movement(self, index: int, stage: str) -> str:
+        """选择运镜方式"""
+        if stage == "高潮":
+            movements = ["快速推近", "手持晃动", "急速摇镜", "慢动作", "快速切换",
+                        "环绕", "推近拉远", "固定", "快速推近", "跟随", "慢动作",
+                        "大特写推", "急速摇", "拉远", "全景摇"]
+        elif stage == "起因":
+            movements = ["缓慢推近", "固定", "轻微平移", "缓慢摇镜", "固定"]
+        else:
+            movements = ["固定", "缓慢推近", "平移", "跟随", "缓慢拉远",
+                        "环绕", "推近", "固定"]
+        
+        return movements[index % len(movements)]
+    
+    def _generate_shot_description(self, event: Dict, index: int, stage: str) -> str:
+        """生成镜头描述"""
+        event_name = event.get("name", "事件")
+        
+        descriptions = {
+            "起因": [
+                f"展示{event_name}的背景环境",
+                f"引出{event_name}的起因",
+                f"角色发现{event_name}的线索",
+                f"场景逐步建立紧张感",
+                f"为{event_name}做铺垫"
+            ],
+            "发展": [
+                f"{event_name}逐步推进",
+                f"角色在{event_name}中的行动",
+                f"情节细节展开",
+                f"角色反应和互动",
+                f"信息逐步揭示",
+                f"情节转折点",
+                f"关键动作展示",
+                f"为高潮做铺垫"
+            ],
+            "高潮": [
+                f"{event_name}的关键时刻",
+                f"紧张冲突达到顶点",
+                f"角色面临抉择",
+                f"情感爆发瞬间",
+                f"动作激烈交锋",
+                f"悬念揭晓时刻",
+                f"决定性瞬间",
+                f"极致紧张时刻",
+                f"冲突白热化",
+                f"情绪高潮点",
+                f"转折性时刻",
+                f"危机爆发",
+                f"高光时刻",
+                f"震撼瞬间",
+                f"高潮延续"
+            ],
+            "结局": [
+                f"{event_name}的结果展现",
+                f"情绪逐渐平复",
+                f"为后续埋下伏笔",
+                f"留下思考空间"
+            ]
+        }
+        
+        desc_list = descriptions.get(stage, descriptions["发展"])
+        return desc_list[index % len(desc_list)]
+    
+    def _get_visual_focus(self, stage: str) -> str:
+        """获取视觉焦点"""
+        focus_map = {
+            "起因": "环境氛围和角色表情",
+            "发展": "人物动作和情节推进",
+            "高潮": "情感细节和关键动作",
+            "结局": "整体画面和余韵"
+        }
+        return focus_map.get(stage, "人物和情节")
+    
+    def _generate_audio_design(self, shot: Dict, event: Dict, stage: str, role: str) -> Dict:
+        """生成音频同步设计"""
+        shot_type = shot["shot_type"]
+        duration = shot["duration_seconds"]
+        
+        audio_design = {
+            "background_music": self._generate_bgm_design(stage, role),
+            "sound_effects": self._generate_sound_effects(shot, stage, role),
+            "atmosphere": {
+                "mood": self.stage_config[stage]["mood"],
+                "transition": self._get_audio_transition(role),
+                "intensity": self._get_audio_intensity(stage, role)
+            },
+            "generation_prompt": self._generate_audio_prompt(shot, event, stage, role)
+        }
+        
+        return audio_design
+    
+    def _generate_bgm_design(self, stage: str, role: str) -> Dict:
+        """生成背景音乐设计"""
+        bgm_types = {
+            "起因": {"type": "渐进式紧张音乐", "volume": "中低", "tempo": "缓慢"},
+            "发展": {"type": "节奏明快音乐", "volume": "中", "tempo": "中等"},
+            "高潮": {"type": "紧张激烈音乐", "volume": "高", "tempo": "快速"},
+            "结局": {"type": "舒缓释放音乐", "volume": "中低", "tempo": "缓慢"}
+        }
+        
+        base = bgm_types.get(stage, bgm_types["发展"])
+        
+        # 根据镜头角色调整
+        if role == "opening":
+            base["fade_in"] = "1.0秒淡入"
+            base["prompt"] = f"{base['type']}，逐步增强，营造期待感"
+        elif role == "ending":
+            base["fade_out"] = "2.0秒淡出"
+            base["prompt"] = f"{base['type']}，逐渐减弱，留下余韵"
+        else:
+            base["prompt"] = f"{base['type']}，{base['tempo']}节奏"
+        
+        return base
+    
+    def _generate_sound_effects(self, shot: Dict, stage: str, role: str) -> List[Dict]:
+        """生成音效列表"""
+        effects = []
+        
+        if stage == "高潮":
+            effects.extend([
+                {"effect": "心跳音效", "timing": "0s", "duration": "持续"},
+                {"effect": "呼吸声", "timing": "0s", "duration": "持续"},
+                {"effect": "环境静音后突然爆发", "timing": "2s", "duration": "0.5s"}
+            ])
+        elif stage == "起因":
+            effects.append({"effect": "环境音（风声/脚步）", "timing": "0s", "duration": "持续"})
+        elif stage == "发展":
+            effects.append({"effect": "动作音效", "timing": "0s", "duration": "按需"})
+        
+        # 根据景别添加音效
+        if shot["shot_type"] in ["特写", "大特写"]:
+            effects.append({"effect": "细节音效放大", "timing": "0s", "duration": "持续"})
+        
+        return effects
+    
+    def _get_audio_transition(self, role: str) -> str:
+        """获取音频过渡描述"""
+        transitions = {
+            "opening": "从静音渐入",
+            "main": "保持连贯",
+            "ending": "渐出至静音"
+        }
+        return transitions.get(role, "平滑过渡")
+    
+    def _get_audio_intensity(self, stage: str, role: str) -> str:
+        """获取音频强度"""
+        if stage == "高潮":
+            return "极高 - 紧张激烈"
+        elif stage == "起因":
+            return "低 - 逐步上升"
+        elif stage == "结局":
+            return "中低 - 逐步下降"
+        return "中 - 稳定持续"
+    
+    def _generate_audio_prompt(self, shot: Dict, event: Dict, stage: str, role: str) -> str:
+        """生成AI音频生成提示词"""
+        bgm = shot["audio_design"]["background_music"]
+        atmosphere = shot["audio_design"]["atmosphere"]
+        sfx = shot["audio_design"]["sound_effects"]
+        
+        sfx_list = "\n".join([f"  - {e['effect']}: {e['timing']}开始, {e['duration']}"
+                              for e in sfx])
+        
+        prompt = f"""音频生成请求 - 镜头{shot['shot_number']} ({role})
+
+【视觉信息】
+描述：{shot['description']}
+景别：{shot['shot_type']}
+运镜：{shot['camera_movement']}
+时长：{shot['duration_seconds']}秒
+
+【音频要求】
+
+1. 背景音乐（BGM）
+   - 风格：{bgm['type']}
+   - 音量：{bgm['volume']}
+   - 节奏：{bgm.get('tempo', '中等')}
+   - 淡入淡出：{bgm.get('fade_in', '无')} / {bgm.get('fade_out', '无')}
+   - 提示词：{bgm['prompt']}
+
+2. 音效（SFX）
+{sfx_list if sfx_list else "  - 无特殊音效要求"}
+
+3. 整体氛围
+   - 情绪目标：{atmosphere['mood']}
+   - 强度：{atmosphere['intensity']}
+   - 过渡：{atmosphere['transition']}
+
+【同步要求】
+- 音频节奏与镜头节奏完美匹配
+- 高潮时刻音量适当提升
+- 音效在关键时刻突出
+
+注意：生成时长{shot['duration_seconds']}秒的音频，与视频画面完美同步。"""
+        
+        return prompt
     
     def get_pacing_guidelines(self) -> Dict:
         """长剧集节奏指导"""
@@ -598,9 +905,15 @@ class VideoAdapterManager:
         strategy_class = self.STRATEGY_MAP[video_type]
         self.current_strategy = strategy_class()
         
-        # 2. 提取所有重大事件
-        all_events = self._extract_all_major_events(novel_data)
+        # 2. 🔥 使用通用事件提取器提取所有重大事件
+        event_extractor = get_event_extractor(self.logger)
+        all_events = event_extractor.extract_all_major_events(novel_data)
         self.logger.info(f"📊 提取到 {len(all_events)} 个重大事件")
+        
+        # 3. 🔥 新增：提取角色设计数据
+        characters = event_extractor.extract_character_designs(novel_data)
+        character_prompts = event_extractor.generate_character_prompts(characters)
+        self.logger.info(f"👥 提取到 {len(characters)} 个角色设计")
         
         # 3. 计算单元数量（集数/视频数）
         total_units = kwargs.get("total_units")
@@ -620,45 +933,94 @@ class VideoAdapterManager:
         # 6. 生成整体风格指南
         style_guide = self._generate_style_guide(novel_data, video_type)
         
-        # 7. 组装最终结果
+        # 7. 🔥 新增：添加角色设计和剧照生成信息
+        character_design_info = {
+            "total_characters": len(characters),
+            "characters": characters,
+            "character_prompts": character_prompts,
+            "generation_order": self._generate_character_generation_order(characters, all_events)
+        }
+        
+        # 8. 组装最终结果
         result = {
             "video_type": video_type,
             "video_type_name": self._get_type_name(video_type),
             "series_info": self._generate_series_info(novel_data, units, video_type),
             "visual_style_guide": style_guide,
             "units": units,
+            "character_design": character_design_info,
             "pacing_guidelines": self.current_strategy.get_pacing_guidelines() if self.current_strategy else {}
         }
         
         self.logger.info(f"✅ 转换完成：{video_type} 模式，{len(units)} 个单元")
         return result
     
-    def _extract_all_major_events(self, novel_data: Dict) -> List[Dict]:
-        """提取所有重大事件"""
-        all_events = []
+    def _generate_character_generation_order(self, characters: List[Dict], events: List[Dict]) -> List[Dict]:
+        """
+        生成角色剧照生成顺序
         
-        stage_plans = novel_data.get("stage_writing_plans", {})
+        优先级：
+        1. 主角（优先级最高）
+        2. 在早期事件中出现的角色
+        3. 重要配角
+        4. 其他角色
         
-        for stage_name, stage_data in stage_plans.items():
-            plan = stage_data.get("stage_writing_plan", {})
-            events = plan.get("event_system", {}).get("major_events", [])
+        Args:
+            characters: 角色列表
+            events: 事件列表
             
-            for event in events:
-                event["_stage"] = stage_name
-                chapter_range = event.get("chapter_range", "1-10")
-                try:
-                    from src.managers.StagePlanUtils import parse_chapter_range
-                    start_ch, end_ch = parse_chapter_range(chapter_range)
-                    event["_start_chapter"] = start_ch
-                    event["_end_chapter"] = end_ch
-                except:
-                    event["_start_chapter"] = 1
-                    event["_end_chapter"] = 10
-                
-                all_events.append(event)
+        Returns:
+            排序后的角色生成顺序列表
+        """
+        character_order = []
         
-        all_events.sort(key=lambda x: x["_start_chapter"])
-        return all_events
+        # 为每个角色计算优先级分数
+        for char in characters:
+            name = char.get("name", "")
+            role = char.get("role", "")
+            
+            score = 0
+            
+            # 基础分数：角色定位
+            if "主角" in role:
+                score += 100
+            elif "重要配角" in role or "配角" in role:
+                score += 50
+            else:
+                score += 10
+            
+            # 根据首次出现章节加分（越早出现分数越高）
+            first_appearance = char.get("first_appearance_chapter", 999)
+            if first_appearance > 0 and first_appearance < 999:
+                score += max(0, 50 - first_appearance)
+            
+            # 根据在事件中出现的频率加分
+            appearance_count = 0
+            for event in events[:10]:  # 只检查前10个事件
+                event_name = event.get("name", "")
+                description = event.get("description", "")
+                if name in event_name or name in description:
+                    appearance_count += 1
+            
+            score += appearance_count * 5
+            
+            character_order.append({
+                "character": char,
+                "priority_score": score,
+                "generation_order": 0  # 稍后设置
+            })
+        
+        # 按优先级排序
+        character_order.sort(key=lambda x: x["priority_score"], reverse=True)
+        
+        # 设置生成顺序
+        for idx, item in enumerate(character_order):
+            item["generation_order"] = idx + 1
+            item["recommended_prompt"] = item["character"].get("generation_prompt", "")
+        
+        self.logger.info(f"✅ 已生成 {len(character_order)} 个角色的剧照生成顺序")
+        
+        return character_order
     
     def _calculate_default_units(self, novel_data: Dict, video_type: str) -> int:
         """计算默认的单元数量"""
@@ -682,7 +1044,7 @@ class VideoAdapterManager:
         return 1
     
     def _generate_unit_storyboard(self, unit: Dict, novel_data: Dict) -> Dict:
-        """为单个单元生成分镜头"""
+        """为单个单元（分集）生成分镜头"""
         storyboard = {
             "unit_number": unit["unit_number"],
             "unit_type": unit["unit_type"],
@@ -690,12 +1052,20 @@ class VideoAdapterManager:
             "scenes": []
         }
         
-        major_events = unit.get("major_events", [])
-        
-        for event_idx, event in enumerate(major_events, 1):
-            scene = self._convert_event_to_scene(event, event_idx, novel_data)
+        # 对于长剧集模式，使用中级事件而不是重大事件
+        if unit.get("unit_type") == "分集" and unit.get("medium_event"):
+            # 使用中级事件生成场景
+            medium_event = unit["medium_event"]
+            scene = self._convert_medium_event_to_scene(medium_event, unit, novel_data)
             if scene:
                 storyboard["scenes"].append(scene)
+        else:
+            # 原有逻辑：使用重大事件
+            major_events = unit.get("major_events", [])
+            for event_idx, event in enumerate(major_events, 1):
+                scene = self._convert_event_to_scene(event, event_idx, novel_data)
+                if scene:
+                    storyboard["scenes"].append(scene)
         
         storyboard["total_scenes"] = len(storyboard["scenes"])
         
@@ -708,6 +1078,78 @@ class VideoAdapterManager:
         storyboard["total_duration_minutes"] = round(total_duration / 60, 1)
         
         return storyboard
+    
+    def _convert_medium_event_to_scene(
+        self,
+        medium_event: Dict,
+        unit: Dict,
+        novel_data: Dict
+    ) -> Optional[Dict]:
+        """将中级事件转换为场景"""
+        event_name = medium_event.get("name", "未命名中级事件")
+        stage = unit.get("stage", "发展")
+        
+        # 构建上下文，包含stage信息
+        context = {
+            "stage": stage,
+            "unit": unit
+        }
+        
+        # 使用当前策略生成镜头序列
+        if self.current_strategy is None:
+            self.logger.warn("策略未初始化，使用默认镜头序列")
+            shot_sequence = self._generate_default_shots(medium_event)
+        else:
+            shot_sequence = self.current_strategy.generate_shot_sequence(medium_event, context)
+        
+        if not shot_sequence:
+            return None
+        
+        # 计算场景时长
+        scene_duration = sum(
+            shot.get("duration_seconds", 0)
+            for shot in shot_sequence
+        )
+        
+        return {
+            "scene_number": unit.get("episode_number", 1),
+            "scene_title": event_name,
+            "scene_description": medium_event.get("description", ""),
+            "chapter": medium_event.get("chapter", 0),
+            "stage": stage,
+            "estimated_duration_seconds": scene_duration,
+            "estimated_duration_minutes": round(scene_duration / 60, 1),
+            "shot_sequence": shot_sequence,
+            "audio_design": self._generate_audio_summary(shot_sequence, stage),
+            "visual_notes": self._generate_visual_notes(medium_event)
+        }
+    
+    def _generate_audio_summary(self, shot_sequence: List[Dict], stage: str) -> Dict:
+        """生成场景级音频摘要"""
+        bgm_style_map = {
+            "起因": "渐进式紧张",
+            "发展": "节奏明快",
+            "高潮": "紧张激烈",
+            "结局": "舒缓释放"
+        }
+        
+        mood_map = {
+            "起因": "渐进，建立紧张感",
+            "发展": "节奏加快，信息密集",
+            "高潮": "紧张激烈，情绪爆发",
+            "结局": "舒缓释放，留下余韵"
+        }
+        
+        # 获取情绪描述，使用固定的映射而不是依赖策略属性
+        overall_mood = mood_map.get(stage, "中等")
+        
+        return {
+            "overall_mood": overall_mood,
+            "bgm_style": bgm_style_map.get(stage, "中等"),
+            "total_shots": len(shot_sequence),
+            "audio_prompts": [shot.get("audio_design", {}).get("generation_prompt", "")
+                             for shot in shot_sequence if shot.get("audio_design")]
+        }
     
     def _convert_event_to_scene(
         self,

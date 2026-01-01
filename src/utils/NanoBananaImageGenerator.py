@@ -1,0 +1,353 @@
+"""
+Nano Banana文生图API客户端
+支持文本生成图像功能，用于角色生成
+"""
+import os
+import sys
+import requests
+import json
+import base64
+from datetime import datetime
+from pathlib import Path
+from typing import Dict, Any, Optional, List
+
+# 添加项目根目录到Python路径
+BASE_DIR = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(BASE_DIR))
+
+from src.utils.logger import get_logger
+
+
+class NanoBananaImageGenerator:
+    """Nano Banana文生图API客户端（用于角色生成）"""
+    
+    def __init__(self, api_key: Optional[str] = None, base_url: Optional[str] = None):
+        """
+        初始化Nano Banana文生图客户端
+        
+        Args:
+            api_key: API密钥，如果为None则从配置获取
+            base_url: API基础URL，如果为None则从配置获取
+        """
+        self.logger = get_logger("NanoBananaImageGenerator")
+        
+        # 从配置导入或使用传入的参数
+        try:
+            from config.config import CONFIG
+            config = CONFIG.get('nanobanana', {})
+            
+            self.base_url = base_url or config.get('base_url', 'https://newapi.xiaochuang.cc/v1beta/models/gemini-3-pro-image-preview:generateContent')
+            self.api_key = api_key or config.get('api_key', '')
+            self.timeout = config.get('timeout', 60)
+            self.max_retries = config.get('max_retries', 3)
+            self.enabled = config.get('enabled', True)
+            
+            self.default_config = config.get('default_config', {
+                "responseModalities": ["TEXT", "IMAGE"],
+                "imageConfig": {
+                    "aspectRatio": "16:9",
+                    "imageSize": "4K"
+                }
+            })
+            
+        except ImportError:
+            # 如果配置导入失败，使用默认值
+            self.base_url = base_url or 'https://newapi.xiaochuang.cc/v1beta/models/gemini-3-pro-image-preview:generateContent'
+            self.api_key = api_key or os.getenv('NANOBANANA_API_KEY', '')
+            self.timeout = 60
+            self.max_retries = 3
+            self.enabled = True
+            self.default_config = {
+                "responseModalities": ["TEXT", "IMAGE"],
+                "imageConfig": {
+                    "aspectRatio": "16:9",
+                    "imageSize": "4K"
+                }
+            }
+        
+        # 验证API密钥
+        if not self.api_key:
+            self.logger.warn("⚠️ 未配置Nano Banana API密钥，请设置NANOBANANA_API_KEY环境变量或在config.py中配置")
+        
+        # 确保输出目录存在
+        self.output_dir = BASE_DIR / 'generated_images'
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+        
+        self.logger.info(f"✅ Nano Banana客户端初始化完成 (enabled={self.enabled})")
+    
+    def generate_image(
+        self,
+        prompt: str,
+        aspect_ratio: str = "16:9",
+        image_size: str = "4K",
+        save_path: Optional[str] = None,
+        retry_count: int = 0
+    ) -> Dict[str, Any]:
+        """
+        生成图像
+        
+        Args:
+            prompt: 提示词描述
+            aspect_ratio: 图片比例 (16:9, 4:3, 1:1, 9:16)
+            image_size: 图片尺寸 (1K, 2K, 4K)
+            save_path: 保存路径，如果为None则自动生成
+            retry_count: 当前重试次数
+            
+        Returns:
+            dict: 包含生成结果的字典
+        """
+        if not self.enabled:
+            return {
+                "success": False,
+                "error": "Nano Banana服务未启用"
+            }
+        
+        if not self.api_key:
+            return {
+                "success": False,
+                "error": "未配置API密钥，请设置NANOBANANA_API_KEY"
+            }
+        
+        # 构建请求体
+        request_body = {
+            "contents": [
+                {
+                    "role": "user",
+                    "parts": [
+                        {
+                            "text": prompt
+                        }
+                    ]
+                }
+            ],
+            "generationConfig": {
+                "responseModalities": ["TEXT", "IMAGE"],
+                "imageConfig": {
+                    "aspectRatio": aspect_ratio,
+                    "imageSize": image_size
+                }
+            }
+        }
+        
+        try:
+            self.logger.info(f"🎨 开始生成图像: {prompt[:50]}...")
+            self.logger.debug(f"请求参数 - 比例: {aspect_ratio}, 尺寸: {image_size}")
+            
+            # 发送请求
+            headers = {
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {self.api_key}"
+            }
+            
+            response = requests.post(
+                self.base_url,
+                data=json.dumps(request_body),
+                headers=headers,
+                timeout=self.timeout
+            )
+            
+            # 检查响应状态
+            if response.status_code != 200:
+                error_msg = f"API请求失败 (状态码: {response.status_code})"
+                self.logger.error(f"{error_msg}\n响应: {response.text}")
+                
+                # 如果是可重试的错误，尝试重试
+                if retry_count < self.max_retries and response.status_code >= 500:
+                    self.logger.info(f"尝试重试 ({retry_count + 1}/{self.max_retries})...")
+                    return self.generate_image(prompt, aspect_ratio, image_size, save_path, retry_count + 1)
+                
+                return {
+                    "success": False,
+                    "error": error_msg,
+                    "details": response.text
+                }
+            
+            # 解析响应
+            response_data = response.json()
+            
+            # 检查响应中是否包含图像数据
+            if 'candidates' not in response_data or not response_data['candidates']:
+                return {
+                    "success": False,
+                    "error": "API返回的响应中没有图像数据"
+                }
+            
+            candidate = response_data['candidates'][0]
+            
+            # 提取图像数据
+            image_data = None
+            text_response = None
+            
+            if 'content' in candidate and 'parts' in candidate['content']:
+                for part in candidate['content']['parts']:
+                    if 'inlineData' in part:
+                        image_data = part['inlineData'].get('data')
+                    elif 'text' in part:
+                        text_response = part['text']
+            
+            if not image_data:
+                return {
+                    "success": False,
+                    "error": "未能从响应中提取图像数据",
+                    "text_response": text_response
+                }
+            
+            # 解码base64图像数据
+            try:
+                image_bytes = base64.b64decode(image_data)
+            except Exception as e:
+                return {
+                    "success": False,
+                    "error": f"图像数据解码失败: {str(e)}"
+                }
+            
+            # 生成保存路径
+            if save_path is None:
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                clean_name = "".join(x for x in prompt[:30] if x.isalnum() or x in (' ', '-', '_')).strip()
+                clean_name = clean_name.replace(' ', '_')
+                filename = f"nanobanana_{timestamp}_{clean_name}.png"
+                save_path = str(self.output_dir / filename)
+            
+            # 保存图像
+            with open(save_path, 'wb') as f:
+                f.write(image_bytes)
+            
+            self.logger.info(f"✅ 图像生成成功: {save_path}")
+            
+            # 返回结果
+            return {
+                "success": True,
+                "local_path": save_path,
+                "url": f"/generated_images/{os.path.basename(save_path)}",
+                "prompt": prompt,
+                "aspect_ratio": aspect_ratio,
+                "image_size": image_size,
+                "text_response": text_response,
+                "file_size": len(image_bytes)
+            }
+            
+        except requests.exceptions.Timeout:
+            error_msg = f"请求超时 (超过{self.timeout}秒)"
+            self.logger.error(error_msg)
+            
+            if retry_count < self.max_retries:
+                self.logger.info(f"尝试重试 ({retry_count + 1}/{self.max_retries})...")
+                return self.generate_image(prompt, aspect_ratio, image_size, save_path, retry_count + 1)
+            
+            return {
+                "success": False,
+                "error": error_msg
+            }
+            
+        except Exception as e:
+            error_msg = f"生成图像时发生错误: {str(e)}"
+            self.logger.error(error_msg)
+            import traceback
+            self.logger.error(traceback.format_exc())
+            
+            return {
+                "success": False,
+                "error": error_msg
+            }
+    
+    def batch_generate(
+        self,
+        prompts: List[str],
+        aspect_ratio: str = "16:9",
+        image_size: str = "4K",
+        delay: float = 1.0
+    ) -> List[Dict[str, Any]]:
+        """
+        批量生成图像
+        
+        Args:
+            prompts: 提示词列表
+            aspect_ratio: 图片比例
+            image_size: 图片尺寸
+            delay: 请求间隔(秒)
+            
+        Returns:
+            list: 生成结果列表
+        """
+        results = []
+        
+        for i, prompt in enumerate(prompts):
+            self.logger.info(f"正在生成第 {i+1}/{len(prompts)} 张图像...")
+            
+            try:
+                result = self.generate_image(
+                    prompt=prompt,
+                    aspect_ratio=aspect_ratio,
+                    image_size=image_size
+                )
+                result['index'] = i + 1
+                result['prompt'] = prompt
+                results.append(result)
+                
+                # 避免频繁调用，添加延迟
+                if delay > 0 and i < len(prompts) - 1:
+                    import time
+                    time.sleep(delay)
+                    
+            except Exception as e:
+                self.logger.error(f"生成第 {i+1} 张图像时出错: {e}")
+                results.append({
+                    "success": False,
+                    "error": str(e),
+                    "index": i + 1,
+                    "prompt": prompt
+                })
+        
+        success_count = len([r for r in results if r.get('success')])
+        self.logger.info(f"🎉 批量生成完成: {success_count}/{len(prompts)} 成功")
+        
+        return results
+    
+    def is_available(self) -> bool:
+        """
+        检查服务是否可用
+        
+        Returns:
+            bool: 服务是否可用
+        """
+        return self.enabled and bool(self.api_key)
+
+
+def main():
+    """测试函数"""
+    try:
+        # 初始化生成器
+        generator = NanoBananaImageGenerator()
+        
+        if not generator.is_available():
+            print("❌ Nano Banana服务不可用，请检查配置")
+            return
+        
+        # 测试提示词
+        test_prompt = "a cute cat sitting on a red cushion, cartoon style, vibrant colors"
+        
+        print("🎨 开始测试生成图像...")
+        result = generator.generate_image(
+            prompt=test_prompt,
+            aspect_ratio="16:9",
+            image_size="2K"
+        )
+        
+        if result["success"]:
+            print(f"✅ 测试成功!")
+            print(f"   图像路径: {result['local_path']}")
+            print(f"   访问URL: {result['url']}")
+            if result.get('text_response'):
+                print(f"   文本响应: {result['text_response']}")
+        else:
+            print(f"❌ 测试失败: {result['error']}")
+            
+    except Exception as e:
+        print(f"❌ 测试出错: {e}")
+        import traceback
+        traceback.print_exc()
+
+
+if __name__ == "__main__":
+    main()

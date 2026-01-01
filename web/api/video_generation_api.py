@@ -319,20 +319,24 @@ def generate_prompt():
 @login_required
 def generate_storyboard():
     """
-    生成分镜头脚本
+    生成分镜头脚本（包含角色设计提取）
     
     请求参数：
     {
         "title": "小说标题",
-        "video_type": "long_series",
-        "prompt": "生成提示词"
+        "video_type": "long_series"
     }
+    
+    工作流程：
+    1. 提取重大事件
+    2. 提取角色设计
+    3. 生成分镜头脚本
+    4. 生成角色剧照生成提示词
     """
     try:
         data = request.json or {}
         title = data.get('title')
         video_type = data.get('video_type', 'long_series')
-        prompt = data.get('prompt', '')
         
         if not title:
             return jsonify({"success": False, "error": "小说标题不能为空"}), 400
@@ -347,7 +351,20 @@ def generate_storyboard():
         if not novel_detail:
             return jsonify({"success": False, "error": "小说项目不存在"}), 404
         
-        # 使用现有的转换API
+        # 🔥 新增：使用通用事件提取器提取事件和角色
+        from src.managers.EventExtractor import get_event_extractor
+        event_extractor = get_event_extractor(logger)
+        
+        # 提取事件
+        all_events = event_extractor.extract_all_major_events(novel_detail)
+        logger.info(f"📊 [VIDEO] 提取到 {len(all_events)} 个重大事件")
+        
+        # 提取角色
+        characters = event_extractor.extract_character_designs(novel_detail)
+        character_prompts = event_extractor.generate_character_prompts(characters)
+        logger.info(f"👥 [VIDEO] 提取到 {len(characters)} 个角色设计")
+        
+        # 使用视频适配器进行转换
         from src.managers.VideoAdapterManager import VideoAdapterManager
         
         class MockGenerator:
