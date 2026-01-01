@@ -68,6 +68,10 @@ class NanoBananaImageGenerator:
         # 验证API密钥
         if not self.api_key:
             self.logger.warn("⚠️ 未配置Nano Banana API密钥，请设置NANOBANANA_API_KEY环境变量或在config.py中配置")
+        else:
+            self.logger.info(f"✅ API密钥已配置 (长度: {len(self.api_key)} 字符)")
+            self.logger.debug(f"API密钥前缀: {self.api_key[:20]}...")
+            self.logger.debug(f"API密钥后缀: ...{self.api_key[-10:]}")
         
         # 确保输出目录存在
         self.output_dir = BASE_DIR / 'generated_images'
@@ -131,25 +135,40 @@ class NanoBananaImageGenerator:
         
         try:
             self.logger.info(f"🎨 开始生成图像: {prompt[:50]}...")
-            self.logger.debug(f"请求参数 - 比例: {aspect_ratio}, 尺寸: {image_size}")
+            self.logger.info(f"📋 请求配置:")
+            self.logger.info(f"  - API URL: {self.base_url}")
+            self.logger.info(f"  - 比例: {aspect_ratio}")
+            self.logger.info(f"  - 尺寸: {image_size}")
+            self.logger.info(f"  - 超时: {self.timeout}秒")
+            self.logger.info(f"  - 提示词长度: {len(prompt)} 字符")
+            self.logger.debug(f"  - 完整提示词: {prompt}")
             
             # 发送请求
             headers = {
                 "Content-Type": "application/json",
-                "Authorization": f"Bearer {self.api_key}"
+                "Authorization": f"Bearer {self.api_key}"  # 使用完整的 API key
             }
+            
+            self.logger.info(f"🚀 发送POST请求到API...")
+            self.logger.debug(f"请求体大小: {len(json.dumps(request_body))} 字节")
+            self.logger.debug(f"Authorization Header: Bearer {self.api_key[:20]}...{self.api_key[-4:]}")  # 日志中只显示部分
             
             response = requests.post(
                 self.base_url,
-                data=json.dumps(request_body),
+                json=request_body,  # 使用 json 参数，requests 会自动序列化并设置 Content-Type
                 headers=headers,
                 timeout=self.timeout
             )
             
+            self.logger.info(f"📥 收到API响应:")
+            self.logger.info(f"  - 状态码: {response.status_code}")
+            self.logger.info(f"  - 响应大小: {len(response.content)} 字节")
+            self.logger.debug(f"  - 响应头: {dict(response.headers)}")
+            
             # 检查响应状态
             if response.status_code != 200:
                 error_msg = f"API请求失败 (状态码: {response.status_code})"
-                self.logger.error(f"{error_msg}\n响应: {response.text}")
+                self.logger.error(f"{error_msg}\n响应: {response.text[:500]}")
                 
                 # 如果是可重试的错误，尝试重试
                 if retry_count < self.max_retries and response.status_code >= 500:
@@ -163,32 +182,92 @@ class NanoBananaImageGenerator:
                 }
             
             # 解析响应
-            response_data = response.json()
-            
-            # 检查响应中是否包含图像数据
-            if 'candidates' not in response_data or not response_data['candidates']:
+            try:
+                response_data = response.json()
+            except json.JSONDecodeError as e:
+                self.logger.error(f"❌ JSON解析失败: {e}")
+                self.logger.debug(f"响应内容前500字符: {response.text[:500]}")
                 return {
                     "success": False,
-                    "error": "API返回的响应中没有图像数据"
+                    "error": f"响应JSON解析失败: {str(e)}",
+                    "response_text": response.text[:500]
                 }
             
-            candidate = response_data['candidates'][0]
+            self.logger.debug(f"📋 响应数据结构: {json.dumps(response_data, indent=2, ensure_ascii=False)[:1000]}")
             
-            # 提取图像数据
+            # 🔥 支持多种响应格式
             image_data = None
             text_response = None
             
-            if 'content' in candidate and 'parts' in candidate['content']:
-                for part in candidate['content']['parts']:
-                    if 'inlineData' in part:
-                        image_data = part['inlineData'].get('data')
-                    elif 'text' in part:
-                        text_response = part['text']
+            # 格式1: 标准 Gemini API 格式
+            if 'candidates' in response_data and response_data['candidates']:
+                candidate = response_data['candidates'][0]
+                self.logger.debug(f"📋 候选响应结构: {list(candidate.keys())}")
+                
+                if 'content' in candidate and 'parts' in candidate['content']:
+                    for part in candidate['content']['parts']:
+                        if 'inlineData' in part:
+                            image_data = part['inlineData'].get('data')
+                            self.logger.info(f"✅ 从 inlineData 提取到图像数据 (长度: {len(image_data) if image_data else 0})")
+                        elif 'text' in part:
+                            text_response = part['text']
+                            self.logger.debug(f"📝 提取到文本响应: {text_response[:100] if text_response else 'None'}...")
+            
+            # 格式2: 直接包含 base64Image 字段
+            elif 'base64Image' in response_data:
+                image_data = response_data['base64Image']
+                self.logger.info(f"✅ 从 base64Image 字段提取到图像数据")
+            
+            # 格式3: 包含在 image 字段中
+            elif 'image' in response_data:
+                image_data = response_data['image']
+                self.logger.info(f"✅ 从 image 字段提取到图像数据")
+            
+            # 格式4: 包含在 data 字段中
+            elif 'data' in response_data:
+                image_data = response_data['data']
+                self.logger.info(f"✅ 从 data 字段提取到图像数据")
+            
+            # 如果仍然没有找到图像数据，尝试从任何可能的字段中提取
+            if not image_data:
+                self.logger.warn("⚠️ 未找到标准格式的图像数据，尝试从响应中搜索...")
+                self.logger.debug(f"响应顶层键: {list(response_data.keys())}")
+                
+                # 递归搜索包含base64数据的字段
+                def find_base64_in_dict(obj, depth=0):
+                    if depth > 10:  # 防止无限递归
+                        return None
+                    
+                    if isinstance(obj, dict):
+                        for key, value in obj.items():
+                            # 检查键名可能包含图像数据的字段
+                            if any(keyword in key.lower() for keyword in ['image', 'photo', 'picture', 'base64', 'data', 'binary']):
+                                if isinstance(value, str) and len(value) > 100:  # base64数据通常较长
+                                    # 尝试解码验证是否为有效的base64
+                                    try:
+                                        base64.b64decode(value)
+                                        self.logger.info(f"✅ 从字段 '{key}' 找到可能的base64图像数据")
+                                        return value
+                                    except:
+                                        pass
+                            # 递归搜索
+                            result = find_base64_in_dict(value, depth + 1)
+                            if result:
+                                return result
+                    elif isinstance(obj, list):
+                        for item in obj:
+                            result = find_base64_in_dict(item, depth + 1)
+                            if result:
+                                return result
+                    return None
+                
+                image_data = find_base64_in_dict(response_data)
             
             if not image_data:
                 return {
                     "success": False,
                     "error": "未能从响应中提取图像数据",
+                    "response_structure": list(response_data.keys()),
                     "text_response": text_response
                 }
             

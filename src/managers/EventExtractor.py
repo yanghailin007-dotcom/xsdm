@@ -361,38 +361,136 @@ class EventExtractor:
             personality = char.get("personality", "")
             background = char.get("background", "")
             
-            # 生成剧照提示词
-            prompt = f"""角色剧照生成请求：
+            # 🔥 根据角色类型生成不同的提示词
+            # 检查是否为特殊角色（如物品、武器等）
+            is_object_character = self._is_object_character(char, appearance)
+            
+            if is_object_character:
+                # 对于物品角色（如剑），生成物品展示提示词
+                prompt = self._generate_object_portrait_prompt(name, role, appearance, background)
+            else:
+                # 对于普通角色，生成人物肖像提示词
+                prompt = self._generate_human_portrait_prompt(name, role, appearance, personality, background)
+            
+            character_prompts.append({
+                "character_name": name,
+                "character_data": char,
+                "generation_prompt": prompt,
+                "prompt_type": "object_portrait" if is_object_character else "character_still"
+            })
+        
+        return character_prompts
+    
+    def _is_object_character(self, char: Dict, appearance: str) -> bool:
+        """
+        判断是否为物品角色（非人类角色）
+        
+        Args:
+            char: 角色数据
+            appearance: 外貌描述
+            
+        Returns:
+            是否为物品角色
+        """
+        # 检查外貌描述中的关键词
+        object_keywords = [
+            "剑", "刀", "枪", "武器", "法宝", "神器",
+            "sword", "blade", "weapon", "artifact", "object",
+            "形态", "铁", "金属", "锈", "剑身"
+        ]
+        
+        appearance_lower = appearance.lower()
+        for keyword in object_keywords:
+            if keyword in appearance_lower:
+                return True
+        
+        # 检查角色定位
+        role = char.get("role", "")
+        if "武器" in role or "物品" in role or "法宝" in role:
+            return True
+        
+        return False
+    
+    def _generate_object_portrait_prompt(self, name: str, role: str, appearance: str, background: str) -> str:
+        """
+        生成物品角色的剧照提示词
+        
+        Args:
+            name: 角色名称
+            role: 角色定位
+            appearance: 外貌特征
+            background: 背景故事
+            
+        Returns:
+            物品剧照生成提示词
+        """
+        prompt = f"""【物品角色剧照生成请求】
+
+【物品信息】
+物品名称：{name}
+物品类型：{role}
+外观描述：{appearance}
+
+【画面要求】
+- 中心构图，物品占据画面主要位置
+- 清晰展示物品的所有细节和特征
+- 背景简洁深色，突出物品主体
+- 光影效果体现物品材质和质感
+- 整体风格神秘、强大、古老
+
+【构图建议】
+- 使用特写或大特写镜头
+- 物品正面展示，突出关键特征
+- 可以添加光晕或能量效果，体现物品的特殊性
+
+【禁止元素】
+- ⚠️ 不要生成任何人形角色或人物
+- ⚠️ 不要添加手、脸等人身体部位
+- ⚠️ 只展示物品本身
+
+请生成高质量的物品剧照，用于视频制作。"""
+        return prompt
+    
+    def _generate_human_portrait_prompt(self, name: str, role: str, appearance: str, personality: str, background: str) -> str:
+        """
+        生成普通角色的人物肖像提示词
+        
+        Args:
+            name: 角色名称
+            role: 角色定位
+            appearance: 外貌特征
+            personality: 性格特点
+            background: 背景故事
+            
+        Returns:
+            人物肖像生成提示词
+        """
+        prompt = f"""【人物角色剧照生成请求】
 
 【角色信息】
 姓名：{name}
 角色定位：{role}
 外貌特征：{appearance}
 性格特点：{personality}
-背景故事：{background}
 
 【画面要求】
-- 全身或半身像，展示角色完整形象
-- 背景根据角色定位和背景设定
-- 光影效果符合角色性格和气质
+- 半身或全身像，展示角色完整形象
+- 背景简洁，符合角色气质
+- 光影效果体现角色性格和情绪
 - 服装道具与角色身份匹配
-- 整体风格统一，符合小说世界观
+- 表情生动，体现角色内在特质
 
 【艺术风格】
 - 亚洲动漫风格或写实风格
 - 线条清晰，色彩鲜明
-- 表情生动，体现角色性格
+- 注重细节，突出角色个性
 
-请生成高质量的剧照，用于视频制作。"""
-            
-            character_prompts.append({
-                "character_name": name,
-                "character_data": char,
-                "generation_prompt": prompt,
-                "prompt_type": "character_still"
-            })
-        
-        return character_prompts
+【禁止元素】
+- ⚠️ 只生成一个角色，不要添加其他人物
+- ⚠️ 不要生成群体场景
+
+请生成高质量的人物剧照，用于视频制作。"""
+        return prompt
     
     def count_medium_events(self, novel_data: Dict) -> int:
         """
