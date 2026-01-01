@@ -472,6 +472,34 @@ class NovelGenerationManager:
         if not novel_data:
             return None
         
+        # 获取核心世界观数据 - 尝试从多个字段获取
+        core_worldview = novel_data.get("core_worldview", {})
+        
+        # 如果 core_worldview 为空，尝试从其他字段获取
+        if not core_worldview or (isinstance(core_worldview, dict) and len(core_worldview) == 0):
+            # 尝试从 quality_data 获取
+            quality_data = novel_data.get("quality_data", {})
+            if quality_data:
+                # 从 world_state 获取世界观信息
+                world_state = quality_data.get("world_state", {})
+                if world_state:
+                    core_worldview = {
+                        "worldview": world_state.get("worldview", {}),
+                        "setting": world_state.get("setting", {}),
+                        "rules": world_state.get("rules", {})
+                    }
+                
+                # 如果仍然为空，尝试从 creative_seed 构建
+                if not core_worldview or (isinstance(core_worldview, dict) and len(core_worldview) == 0):
+                    creative_seed = novel_data.get("creative_seed", {})
+                    if creative_seed:
+                        core_worldview = {
+                            "core_setting": creative_seed.get("coreSetting", ""),
+                            "genre": creative_seed.get("genre", ""),
+                            "target_platform": creative_seed.get("targetPlatform", ""),
+                            "source_material": creative_seed.get("sourceMaterial", "")
+                        }
+        
         # 标准化字段名，确保前端能正确读取
         standardized_data = {
             # 保留所有原始字段
@@ -480,6 +508,8 @@ class NovelGenerationManager:
             # 添加前端期望的字段名映射
             "story_synopsis": novel_data.get("novel_synopsis", "") or novel_data.get("synopsis", ""),
             "core_setting": novel_data.get("creative_seed", {}).get("coreSetting", ""),
+            # 🔥 新增：添加 core_worldview 字段，用于视频生成
+            "core_worldview": core_worldview if core_worldview else {},
         }
         
         return standardized_data

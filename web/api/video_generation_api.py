@@ -9,6 +9,7 @@
 
 from flask import Blueprint, request, jsonify
 from functools import wraps
+from typing import Dict
 import os
 import sys
 from pathlib import Path
@@ -44,6 +45,105 @@ def login_required(f):
             return jsonify({"success": False, "error": "需要登录", "code": "AUTH_REQUIRED"}), 401
         return f(*args, **kwargs)
     return decorated_function
+
+
+@video_api.route('/video/novels', methods=['GET'])
+@login_required
+def get_eligible_novels():
+    """
+    获取可用于视频生成的小说列表
+    只返回已完成第一阶段的小说
+    """
+    try:
+        if not manager:
+            return jsonify({"success": False, "error": "管理器未初始化"}), 500
+        
+        # 获取所有小说项目
+        all_projects = manager.get_novel_projects()
+        
+        # 筛选符合条件的小说
+        eligible_novels = []
+        for project in all_projects:
+            title = project.get("title", "")
+            # 获取完整的小说数据以检查是否具备视频生成条件
+            novel_detail = manager.get_novel_detail(title)
+            
+            if novel_detail and _is_eligible_for_video_generation(novel_detail):
+                novel_detail["video_ready"] = True
+                novel_detail["total_medium_events"] = _count_medium_events(novel_detail)
+                novel_detail["estimated_episodes"] = novel_detail["total_medium_events"]
+                novel_detail["total_duration_minutes"] = round(novel_detail["total_medium_events"] * 3.5, 1)
+                eligible_novels.append(novel_detail)
+        
+        logger.info(f"✅ [VIDEO] 筛选完成：{len(eligible_novels)}/{len(all_projects)} 个小说可用")
+        
+        return jsonify({
+            "success": True,
+            "novels": eligible_novels,
+            "total": len(eligible_novels)
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ [VIDEO] 获取小说列表失败: {e}")
+        import traceback
+        logger.error(f"错误堆栈: {traceback.format_exc()}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+def _is_eligible_for_video_generation(novel_data: Dict) -> bool:
+    """
+    检查小说是否具备视频生成条件
+    使用与小说列表页面相同的判断标准：必须完成所有7个产物
+    """
+    try:
+        title = novel_data.get("title") or novel_data.get("novel_title", "")
+        if not title:
+            return False
+        
+        # 使用ProductLoader来检查所有7个产物
+        from web.api.phase_generation_api import ProductLoader
+        loader = ProductLoader(title, logger)
+        products = loader.load_all_products()
+        
+        # 必须完成所有7个产物
+        required_categories = ['worldview', 'factions', 'characters', 'growth', 'writing', 'storyline', 'market']
+        completed_required = 7
+        
+        # 计算关键产物的完成数量
+        key_products_count = 0
+        for category in required_categories:
+            if products.get(category, {}).get('complete', False):
+                key_products_count += 1
+        
+        is_eligible = key_products_count >= completed_required
+        
+        if is_eligible:
+            logger.info(f"✅ [VIDEO] {title} 具备视频生成条件：{key_products_count}/{completed_required} 个产物已完成")
+        else:
+            logger.info(f"⚠️ [VIDEO] {title} 不具备视频生成条件：仅 {key_products_count}/{completed_required} 个产物已完成")
+        
+        return is_eligible
+        
+    except Exception as e:
+        logger.error(f"❌ [VIDEO] 检查视频生成条件失败: {e}")
+        return False
+
+
+def _count_medium_events(novel_data: Dict) -> int:
+    """统计小说中的中级事件总数"""
+    total_count = 0
+    
+    stage_plans = novel_data.get("stage_writing_plans", {})
+    for stage_data in stage_plans.values():
+        plan = stage_data.get("stage_writing_plan", {})
+        events = plan.get("event_system", {}).get("major_events", [])
+        
+        for event in events:
+            composition = event.get("composition", {})
+            for stage_events in composition.values():
+                total_count += len(stage_events)
+    
+    return total_count
 
 
 @video_api.route('/video/types', methods=['GET'])
@@ -142,11 +242,59 @@ def generate_prompt():
             "short_video": "短视频系列"
         }
         
+        # 获取核心世界观数据
+        core_worldview = novel_detail.get("core_worldview", {})
+        
+        # 构建核心设定描述
+        if core_worldview and isinstance(core_worldview, dict) and len(core_worldview) > 0:
+            core_setting_text = json.dumps(core_worldview, ensure_ascii=False, indent=2)
+        else:
+            # 尝试从其他字段构建核心设定
+            creative_seed = novel_detail.get("creative_seed", {})
+            quality_data = novel_detail.get("quality_data", {})
+            
+            setting_parts = []
+            
+            # 从 creative_seed 获取基本信息
+            if creative_seed:
+                if creative_seed.get("coreSetting"):
+                    setting_parts.append(f"核心设定：{creative_seed['coreSetting']}")
+                if creative_seed.get("genre"):
+                    setting_parts.append(f"类型：{creative_seed['genre']}")
+                if creative_seed.get("targetPlatform"):
+                    setting_parts.append(f"目标平台：{creative_seed['targetPlatform']}")
+            
+            # 从 quality_data 获取世界观数据
+            if quality_data:
+                world_state = quality_data.get("world_state", {})
+                if world_state and isinstance(world_state, dict):
+                    if world_state.get("worldview"):
+                        setting_parts.append(f"世界观：{world_state['worldview']}")
+                    if world_state.get("setting"):
+                        setting_parts.append(f"背景设定：{world_state['setting']}")
+                
+                # 获取角色信息
+                character_development = quality_data.get("character_development", {})
+                if character_development and isinstance(character_development, dict):
+                    character_count = len(character_development)
+                    setting_parts.append(f"主要角色数量：{character_count}个")
+            
+            # 获取故事大纲
+            synopsis = novel_detail.get("story_synopsis", "") or novel_detail.get("novel_synopsis", "") or novel_detail.get("synopsis", "")
+            if synopsis:
+                setting_parts.append(f"故事简介：{synopsis[:200]}...")
+            
+            # 如果仍然没有任何信息
+            if not setting_parts:
+                setting_parts.append("提示：该小说的核心设定数据暂未完整生成，请基于小说标题进行创作")
+            
+            core_setting_text = "\n".join(setting_parts)
+        
         prompt = f"""请根据以下小说内容生成{type_names[video_type]}视频。
 
 小说标题：{title}
 核心设定：
-{json.dumps(novel_detail.get("core_worldview", {}), ensure_ascii=False, indent=2)}
+{core_setting_text}
 
 要求：
 - 保留小说的核心冲突和角色关系
