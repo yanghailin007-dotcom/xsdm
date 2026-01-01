@@ -372,17 +372,37 @@ class VideoGenerator {
         
         container.innerHTML = this.events.map(event => {
             const isSelected = this.selectedEvents.has(event.id);
+            // 获取阶段标签样式
+            const stageBadges = {
+                '起因': '<span class="stage-badge stage-cause">起因</span>',
+                '发展': '<span class="stage-badge stage-develop">发展</span>',
+                '高潮': '<span class="stage-badge stage-climax">高潮</span>',
+                '结局': '<span class="stage-badge stage-resolution">结局</span>'
+            };
+            const stageBadge = stageBadges[event.stage] || '';
+            
             return `
                 <div class="content-item ${isSelected ? 'selected' : ''}" data-id="${event.id}" data-type="event">
                     <div class="item-checkbox">
                         <input type="checkbox" ${isSelected ? 'checked' : ''}>
                     </div>
                     <div class="item-content">
-                        <div class="item-title">${event.title}</div>
-                        <div class="item-description">${event.description || ''}</div>
-                        ${event.characters ? `
+                        <div class="item-header">
+                            <div class="item-title">${event.title}</div>
+                            ${stageBadge}
+                        </div>
+                        ${event.parent_major ? `
                             <div class="item-meta">
-                                <span class="meta-tag">👥 ${event.characters}</span>
+                                <span class="meta-tag">📖 所属: ${event.parent_major}</span>
+                                ${event.chapter_range ? `<span class="meta-tag">📑 章节: ${event.chapter_range}</span>` : ''}
+                            </div>
+                        ` : ''}
+                        <div class="item-description">${event.description || '暂无描述'}</div>
+                        ${event.characters || event.location || event.emotion ? `
+                            <div class="item-details">
+                                ${event.characters ? `<span class="detail-item">👥 ${event.characters}</span>` : ''}
+                                ${event.location ? `<span class="detail-item">📍 ${event.location}</span>` : ''}
+                                ${event.emotion ? `<span class="detail-item">💭 ${event.emotion}</span>` : ''}
                             </div>
                         ` : ''}
                     </div>
@@ -423,20 +443,41 @@ class VideoGenerator {
         
         container.innerHTML = this.characters.map(character => {
             const isSelected = this.selectedCharacters.has(character.id);
+            // 角色类型标签
+            const roleType = character.role || character.role_type || '角色';
+            const roleBadge = roleType === '主角' ?
+                '<span class="role-badge role-main">主角</span>' :
+                '<span class="role-badge role-supporting">配角</span>';
+            
             return `
                 <div class="content-item ${isSelected ? 'selected' : ''}" data-id="${character.id}" data-type="character">
                     <div class="item-checkbox">
                         <input type="checkbox" ${isSelected ? 'checked' : ''}>
                     </div>
                     <div class="item-content">
-                        <div class="item-title">${character.name}</div>
-                        ${character.role ? `
+                        <div class="item-header">
+                            <div class="item-title">${character.name}</div>
+                            ${roleBadge}
+                        </div>
+                        ${character.personality || character.core_personality ? `
                             <div class="item-meta">
-                                <span class="meta-tag">${character.role}</span>
+                                <span class="meta-tag">🎭 性格: ${character.personality || character.core_personality}</span>
                             </div>
                         ` : ''}
-                        ${character.description ? `
-                            <div class="item-description">${character.description}</div>
+                        ${character.appearance || character.living_characteristics?.physical_presence ? `
+                            <div class="item-description">
+                                <strong>外貌:</strong> ${character.appearance || character.living_characteristics?.physical_presence || '暂无描述'}
+                            </div>
+                        ` : ''}
+                        ${character.background ? `
+                            <div class="item-description">
+                                <strong>背景:</strong> ${character.background}
+                            </div>
+                        ` : ''}
+                        ${character.dialogue_style || character.dialogue_style_example ? `
+                            <div class="item-details">
+                                <span class="detail-item">💬 对话风格: ${character.dialogue_style || character.dialogue_style_example}</span>
+                            </div>
                         ` : ''}
                     </div>
                 </div>

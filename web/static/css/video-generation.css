@@ -1346,6 +1346,85 @@ body {
     color: var(--text-secondary);
 }
 
+/* 新增：项目标题头部 */
+.item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.item-header .item-title {
+    flex: 1;
+    margin-bottom: 0;
+}
+
+/* 阶段标签 */
+.stage-badge {
+    font-size: 0.7rem;
+    padding: 0.2rem 0.5rem;
+    border-radius: 0.25rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.stage-badge.stage-cause {
+    background: #3b82f6;
+    color: white;
+}
+
+.stage-badge.stage-develop {
+    background: #8b5cf6;
+    color: white;
+}
+
+.stage-badge.stage-climax {
+    background: #ef4444;
+    color: white;
+}
+
+.stage-badge.stage-resolution {
+    background: #22c55e;
+    color: white;
+}
+
+/* 角色类型标签 */
+.role-badge {
+    font-size: 0.7rem;
+    padding: 0.2rem 0.5rem;
+    border-radius: 0.25rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.role-badge.role-main {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+}
+
+.role-badge.role-supporting {
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+}
+
+/* 详细信息行 */
+.item-details {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-top: 0.5rem;
+}
+
+.detail-item {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+    background: var(--bg-secondary);
+    border-radius: 0.25rem;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
 /* 左侧边栏操作按钮 */
 .sidebar-actions {
     display: grid;

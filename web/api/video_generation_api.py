@@ -200,6 +200,114 @@ def get_video_types():
     })
 
 
+@video_api.route('/video/novel-content', methods=['GET'])
+@login_required
+def get_novel_content():
+    """
+    获取小说的事件和角色内容
+    
+    查询参数：
+    - title: 小说标题
+    """
+    try:
+        title = request.args.get('title')
+        if not title:
+            return jsonify({"success": False, "error": "小说标题不能为空"}), 400
+        
+        logger.info(f"📊 [VIDEO] 获取小说内容: {title}")
+        
+        if not manager:
+            return jsonify({"success": False, "error": "管理器未初始化"}), 500
+        
+        # 获取小说数据
+        novel_detail = manager.get_novel_detail(title)
+        if not novel_detail:
+            return jsonify({"success": False, "error": "小说项目不存在"}), 404
+        
+        # 🔥 使用通用事件提取器提取事件和角色
+        from src.managers.EventExtractor import get_event_extractor
+        event_extractor = get_event_extractor(logger)
+        
+        # 提取事件
+        all_events = event_extractor.extract_all_major_events(novel_detail)
+        logger.info(f"📊 [VIDEO] 提取到 {len(all_events)} 个重大事件")
+        
+        # 格式化事件数据 - 先显示重大事件
+        events = []
+        
+        for idx, major_event in enumerate(all_events):
+            # 获取重大事件信息
+            event_name = major_event.get("name", major_event.get("title", f"事件 {idx + 1}"))
+            description = major_event.get("description", "")
+            chapter_range = major_event.get("chapter_range", "")
+            
+            # 检查是否有中级事件
+            composition = major_event.get("composition", {})
+            has_medium_events = bool(composition)
+            
+            events.append({
+                "id": f"event_{idx}",
+                "title": event_name,
+                "description": description,
+                "chapter_range": chapter_range,
+                "stage": "重大事件",
+                "has_medium_events": has_medium_events,
+                "parent_major": "",
+                "characters": major_event.get("characters", ""),
+                "location": major_event.get("location", ""),
+                "emotion": major_event.get("emotion", "")
+            })
+            
+            # 如果有中级事件，也添加进来
+            if composition:
+                stage_order = ["起因", "发展", "高潮", "结局"]
+                for stage in stage_order:
+                    medium_events = composition.get(stage, [])
+                    if isinstance(medium_events, list) and medium_events:
+                        for medium_event in medium_events:
+                            events.append({
+                                "id": f"event_{len(events)}",
+                                "title": medium_event.get("title", medium_event.get("event", "未命名事件")),
+                                "description": medium_event.get("description", ""),
+                                "stage": stage,
+                                "parent_major": event_name,
+                                "chapter_range": chapter_range,
+                                "characters": medium_event.get("characters", ""),
+                                "location": medium_event.get("location", ""),
+                                "emotion": medium_event.get("emotion", "")
+                            })
+        
+        logger.info(f"📊 [VIDEO] 格式化后共有 {len(events)} 个事件")
+        
+        # 提取角色
+        characters = event_extractor.extract_character_designs(novel_detail)
+        logger.info(f"👥 [VIDEO] 提取到 {len(characters)} 个角色设计")
+        
+        # 格式化角色数据
+        formatted_characters = []
+        for idx, character in enumerate(characters):
+            formatted_characters.append({
+                "id": f"character_{idx}",
+                "name": character.get("name", f"角色 {idx + 1}"),
+                "role": character.get("role", ""),
+                "description": character.get("description", "")[:200]
+            })
+        
+        return jsonify({
+            "success": True,
+            "events": events,
+            "characters": formatted_characters,
+            "total_events": len(events),
+            "total_characters": len(formatted_characters)
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ [VIDEO] 获取小说内容失败: {e}")
+        import traceback
+        logger.error(f"错误堆栈: {traceback.format_exc()}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
 @video_api.route('/video/generate-prompt', methods=['POST'])
 @login_required
 def generate_prompt():
