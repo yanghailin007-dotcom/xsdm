@@ -982,7 +982,7 @@ def get_phase_one_task_status(task_id):
 def get_phase_one_products(title):
     """获取第一阶段的所有产物"""
     try:
-        logger.info(f"[PRODUCTS_DEBUG] 开始加载项目产物: {title}")
+        logger.info(f"[PRODUCTS_DEBUG] 📋 开始加载项目产物: {title}")
         
         loader = ProductLoader(title, logger)
         products = loader.load_all_products()
@@ -990,15 +990,22 @@ def get_phase_one_products(title):
         completed = sum(1 for p in products.values() if p['complete'])
         total = len(products)
         
-        logger.info(f"[PRODUCTS_DEBUG] 产物加载完成: {completed}/{total} 个产物已加载")
+        # 🔥 新增：详细列出每个产物的状态
+        product_status_list = []
+        for category, product in products.items():
+            status = "✅ 已完成" if product['complete'] else "❌ 未生成"
+            product_status_list.append(f"{category}: {status}")
+        
+        logger.info(f"[PRODUCTS_DEBUG] 📊 产物加载完成: {completed}/{total} 个产物已加载")
+        logger.info(f"[PRODUCTS_DEBUG] 📋 产物详情:\n  " + "\n  ".join(product_status_list))
         
         if completed == 0:
-            logger.error(f"[PRODUCTS_DEBUG] 未找到任何产物文件")
-            logger.info(f"[PRODUCTS_DEBUG] 检查的目录:")
+            logger.error(f"[PRODUCTS_DEBUG] ❌ 未找到任何产物文件")
+            logger.info(f"[PRODUCTS_DEBUG] 📁 检查的目录:")
             logger.info(f"  - 标准项目目录: {loader.project_dir}")
             logger.info(f"  - 旧第一阶段目录: {loader.legacy_phase_one_dir}")
             return jsonify({
-                "success": False, 
+                "success": False,
                 "error": "第一阶段产物不存在",
                 "checked_paths": [
                     str(loader.project_dir),
@@ -1149,6 +1156,9 @@ def register_additional_routes(app):
             # 获取所有小说项目
             all_projects = manager.get_novel_projects()
             
+            # 🔥 改进：使用与前端相同的ProductLoader来检查产物
+            from pathlib import Path
+            
             # 为每个项目添加阶段状态信息
             projects_with_status = []
             for project in all_projects:
@@ -1156,23 +1166,45 @@ def register_additional_routes(app):
                 if not project_title:
                     continue
                 
-                # 获取项目详情以确定阶段状态
-                novel_detail = manager.get_novel_detail(project_title)
+                # 🔥 改进：使用ProductLoader直接检查产物，与前端逻辑完全一致
+                # 这样可以确保前后端判断逻辑一致
+                loader = ProductLoader(project_title, logger)
+                products = loader.load_all_products()
                 
-                # 确定第一阶段状态
+                # 统计已完成的产物数量
+                completed_count = sum(1 for p in products.values() if p['complete'])
+                total_count = len(products)
+                
+                logger.info(f"📊 项目 {project_title}: ProductLoader检测到 {completed_count}/{total_count} 个产物已完成")
+                
+                # 详细日志：显示每个产物的状态
+                for category, product in products.items():
+                    status = "✅" if product['complete'] else "❌"
+                    logger.info(f"  {status} {category}")
+                
+                # 🔥 新的判断标准：使用与前端完全一致的标准
+                # 必须完成所有7个产物（世界观、势力、角色、成长、写作、故事线、市场分析）
+                required_categories = ['worldview', 'factions', 'characters', 'growth', 'writing', 'storyline', 'market']
+                completed_required = 7  # 必须完成所有7个产物
+                
+                # 计算关键产物的完成数量
+                key_products_count = 0
+                for category in required_categories:
+                    if products.get(category, {}).get('complete', False):
+                        key_products_count += 1
+                
+                has_phase_one_products = key_products_count >= completed_required
+                
+                # 🔥 修复：确保 phase_one_status 和 phase_one_completed_at 总是被赋值
                 phase_one_status = 'not_started'
                 phase_one_completed_at = None
-                
-                # 检查第一阶段产物是否存在
-                has_phase_one_products = False
-                if novel_detail:
-                    # 检查是否有世界观设定、角色设计等第一阶段产物
-                    quality_data = novel_detail.get("quality_data", {})
-                    has_phase_one_products = bool(quality_data) or bool(novel_detail.get("core_worldview"))
                 
                 if has_phase_one_products:
                     phase_one_status = 'completed'
                     phase_one_completed_at = project.get('created_at', project.get('last_updated'))
+                    logger.info(f"✅ 项目 {project_title} 第一阶段判定为完成")
+                else:
+                    logger.info(f"⚠️ 项目 {project_title} 第一阶段未完成，仅完成 {key_products_count}/{completed_required} 个产物")
                 
                 # 确定第二阶段状态
                 phase_two_status = 'not_started'
@@ -1254,9 +1286,35 @@ def register_additional_routes(app):
             
             completed_chapters = len(novel_detail.get('generated_chapters', {}))
             
-            # 检查第一阶段产物
-            quality_data = novel_detail.get("quality_data", {})
-            has_phase_one = bool(quality_data) or bool(novel_detail.get("core_worldview"))
+            # 🔥 改进：使用与get_projectsWithPhaseStatus相同的详细检查逻辑
+            # 使用ProductLoader来检查所有7个产物
+            loader = ProductLoader(title, logger)
+            products = loader.load_all_products()
+            
+            # 统计已完成的产物数量
+            completed_count = sum(1 for p in products.values() if p['complete'])
+            total_count = len(products)
+            
+            logger.info(f"📊 项目 {title}: ProductLoader检测到 {completed_count}/{total_count} 个产物已完成")
+            
+            # 详细日志：显示每个产物的状态
+            for category, product in products.items():
+                status = "✅" if product['complete'] else "❌"
+                logger.info(f"  {status} {category}")
+            
+            # 🔥 新的判断标准：必须完成所有7个产物
+            required_categories = ['worldview', 'factions', 'characters', 'growth', 'writing', 'storyline', 'market']
+            completed_required = 7  # 必须完成所有7个产物
+            
+            # 计算关键产物的完成数量
+            key_products_count = 0
+            for category in required_categories:
+                if products.get(category, {}).get('complete', False):
+                    key_products_count += 1
+            
+            has_phase_one = key_products_count >= completed_required
+            
+            logger.info(f"📊 项目 {title}: 关键产物计数={key_products_count}/{completed_required}, 一阶段完成={has_phase_one}")
             
             phase_info = {
                 'phase_one': {
