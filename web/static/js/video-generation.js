@@ -15,6 +15,13 @@ class VideoGenerator {
         this.selectedMode = null; // 'custom' or 'novel'
         this.customPrompt = '';
         
+        // 新增：事件和角色选择
+        this.events = [];
+        this.characters = [];
+        this.selectedEvents = new Set();
+        this.selectedCharacters = new Set();
+        this.activeTab = 'events'; // 'events' or 'characters'
+        
         this.init();
     }
     
@@ -41,13 +48,19 @@ class VideoGenerator {
         document.getElementById('modeSelectionScreen').style.display = 'block';
         document.getElementById('welcomeScreen').style.display = 'none';
         document.getElementById('customPromptScreen').style.display = 'none';
+        document.getElementById('eventCharacterSelectionScreen').style.display = 'none';
         document.getElementById('promptPreviewScreen').style.display = 'none';
         document.getElementById('storyboardScreen').style.display = 'none';
         document.getElementById('shotGenerationScreen').style.display = 'none';
         
+        // 显示帮助侧边栏，隐藏右侧分镜头
+        document.getElementById('helpSidebar').style.display = 'block';
+        document.getElementById('rightSidebar').style.display = 'none';
+        
         // 隐藏左侧小说列表，使用CSS类
         document.querySelector('.main-container').classList.add('hide-sidebar');
         this.updateCurrentStatus('请选择生成模式');
+        this.highlightWorkflowStep(1);
     }
     
     selectMode(mode) {
@@ -290,8 +303,223 @@ class VideoGenerator {
         this.selectedType = type;
         console.log('🎬 选中类型:', type);
         
-        // 生成提示词并进入下一步
-        this.generatePrompt();
+        // 进入事件和角色选择阶段
+        this.showEventCharacterSelection();
+    }
+    
+    showEventCharacterSelection() {
+        // 隐藏欢迎屏幕，显示事件和角色选择屏幕
+        document.getElementById('welcomeScreen').style.display = 'none';
+        document.getElementById('eventCharacterSelectionScreen').style.display = 'block';
+        
+        // 切换左侧边栏到事件和角色视图
+        document.getElementById('novelListView').style.display = 'none';
+        document.getElementById('eventCharacterView').style.display = 'block';
+        
+        // 更新标题
+        const typeName = this.videoTypes[this.selectedType].name;
+        document.getElementById('eventCharacterTitle').textContent =
+            `选择事件和角色 - ${typeName}`;
+        document.getElementById('sidebarTitle').textContent = '🎬 选择内容';
+        
+        // 加载事件和角色数据
+        this.loadEventsAndCharacters();
+        
+        // 更新状态
+        this.updateCurrentStatus(`已选择: ${this.selectedNovel}<br>类型: ${typeName}<br>步骤: 选择事件和角色`);
+        
+        // 高亮第三步
+        this.highlightWorkflowStep(3);
+    }
+    
+    async loadEventsAndCharacters() {
+        try {
+            const response = await fetch(`/api/video/novel-content?title=${encodeURIComponent(this.selectedNovel)}`);
+            const data = await response.json();
+            
+            if (data.success) {
+                this.events = data.events || [];
+                this.characters = data.characters || [];
+                
+                // 默认全选
+                this.events.forEach(e => this.selectedEvents.add(e.id));
+                this.characters.forEach(c => this.selectedCharacters.add(c.id));
+                
+                this.renderEventsList();
+                this.renderCharactersList();
+                this.updateSelectionStats();
+            } else {
+                throw new Error(data.error || '加载失败');
+            }
+        } catch (error) {
+            console.error('加载事件和角色失败:', error);
+            this.showToast('加载失败: ' + error.message, 'error');
+        }
+    }
+    
+    renderEventsList() {
+        const container = document.getElementById('eventsList');
+        
+        if (this.events.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <p>暂无事件</p>
+                    <p class="hint">请先完成中级事件生成</p>
+                </div>
+            `;
+            return;
+        }
+        
+        container.innerHTML = this.events.map(event => {
+            const isSelected = this.selectedEvents.has(event.id);
+            return `
+                <div class="content-item ${isSelected ? 'selected' : ''}" data-id="${event.id}" data-type="event">
+                    <div class="item-checkbox">
+                        <input type="checkbox" ${isSelected ? 'checked' : ''}>
+                    </div>
+                    <div class="item-content">
+                        <div class="item-title">${event.title}</div>
+                        <div class="item-description">${event.description || ''}</div>
+                        ${event.characters ? `
+                            <div class="item-meta">
+                                <span class="meta-tag">👥 ${event.characters}</span>
+                            </div>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+        }).join('');
+        
+        // 绑定点击事件
+        container.querySelectorAll('.content-item').forEach(item => {
+            item.addEventListener('click', () => {
+                const id = item.dataset.id;
+                if (this.selectedEvents.has(id)) {
+                    this.selectedEvents.delete(id);
+                    item.classList.remove('selected');
+                    item.querySelector('input').checked = false;
+                } else {
+                    this.selectedEvents.add(id);
+                    item.classList.add('selected');
+                    item.querySelector('input').checked = true;
+                }
+                this.updateSelectionStats();
+            });
+        });
+    }
+    
+    renderCharactersList() {
+        const container = document.getElementById('charactersList');
+        
+        if (this.characters.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <p>暂无角色</p>
+                    <p class="hint">请先完成角色生成</p>
+                </div>
+            `;
+            return;
+        }
+        
+        container.innerHTML = this.characters.map(character => {
+            const isSelected = this.selectedCharacters.has(character.id);
+            return `
+                <div class="content-item ${isSelected ? 'selected' : ''}" data-id="${character.id}" data-type="character">
+                    <div class="item-checkbox">
+                        <input type="checkbox" ${isSelected ? 'checked' : ''}>
+                    </div>
+                    <div class="item-content">
+                        <div class="item-title">${character.name}</div>
+                        ${character.role ? `
+                            <div class="item-meta">
+                                <span class="meta-tag">${character.role}</span>
+                            </div>
+                        ` : ''}
+                        ${character.description ? `
+                            <div class="item-description">${character.description}</div>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+        }).join('');
+        
+        // 绑定点击事件
+        container.querySelectorAll('.content-item').forEach(item => {
+            item.addEventListener('click', () => {
+                const id = item.dataset.id;
+                if (this.selectedCharacters.has(id)) {
+                    this.selectedCharacters.delete(id);
+                    item.classList.remove('selected');
+                    item.querySelector('input').checked = false;
+                } else {
+                    this.selectedCharacters.add(id);
+                    item.classList.add('selected');
+                    item.querySelector('input').checked = true;
+                }
+                this.updateSelectionStats();
+            });
+        });
+    }
+    
+    updateSelectionStats() {
+        const eventCount = this.selectedEvents.size;
+        const characterCount = this.selectedCharacters.size;
+        
+        // 更新左侧边栏
+        document.getElementById('selectedEventsCount').textContent = `已选: ${eventCount}个事件`;
+        document.getElementById('selectedCharactersCount').textContent = `已选: ${characterCount}个角色`;
+        
+        // 更新主屏幕
+        document.getElementById('selectedEventsCountMain').textContent = eventCount;
+        document.getElementById('selectedCharactersCountMain').textContent = characterCount;
+    }
+    
+    switchTab(tabName) {
+        this.activeTab = tabName;
+        
+        // 更新标签按钮状态
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.classList.remove('active');
+            if (btn.dataset.tab === tabName) {
+                btn.classList.add('active');
+            }
+        });
+        
+        // 更新标签内容显示
+        document.querySelectorAll('.tab-content').forEach(content => {
+            content.classList.remove('active');
+        });
+        document.getElementById(`${tabName}Tab`).classList.add('active');
+    }
+    
+    selectAllEvents() {
+        this.events.forEach(e => this.selectedEvents.add(e.id));
+        this.renderEventsList();
+        this.updateSelectionStats();
+    }
+    
+    selectAllCharacters() {
+        this.characters.forEach(c => this.selectedCharacters.add(c.id));
+        this.renderCharactersList();
+        this.updateSelectionStats();
+    }
+    
+    clearSelection() {
+        this.selectedEvents.clear();
+        this.selectedCharacters.clear();
+        this.renderEventsList();
+        this.renderCharactersList();
+        this.updateSelectionStats();
+    }
+    
+    async confirmSelection() {
+        if (this.selectedEvents.size === 0 && this.selectedCharacters.size === 0) {
+            this.showToast('请至少选择一个事件或角色', 'error');
+            return;
+        }
+        
+        // 生成提示词
+        await this.generatePrompt();
     }
     
     async generatePrompt() {
@@ -305,7 +533,9 @@ class VideoGenerator {
                 },
                 body: JSON.stringify({
                     title: this.selectedNovel,
-                    video_type: this.selectedType
+                    video_type: this.selectedType,
+                    selected_events: Array.from(this.selectedEvents),
+                    selected_characters: Array.from(this.selectedCharacters)
                 })
             });
             
@@ -324,13 +554,13 @@ class VideoGenerator {
     }
     
     showPromptPreview() {
-        // 隐藏欢迎屏幕，显示提示词预览
-        document.getElementById('welcomeScreen').style.display = 'none';
+        // 隐藏事件和角色选择屏幕，显示提示词预览
+        document.getElementById('eventCharacterSelectionScreen').style.display = 'none';
         document.getElementById('promptPreviewScreen').style.display = 'block';
         
         // 更新标题
         const typeName = this.videoTypes[this.selectedType].name;
-        document.getElementById('promptPreviewTitle').textContent = 
+        document.getElementById('promptPreviewTitle').textContent =
             `${this.selectedNovel} - ${typeName}`;
         
         // 显示提示词
@@ -339,8 +569,8 @@ class VideoGenerator {
         // 更新状态
         this.updateCurrentStatus(`已选择: ${this.selectedNovel}<br>类型: ${typeName}<br>步骤: 查看提示词`);
         
-        // 高亮第二步
-        this.highlightWorkflowStep(2);
+        // 高亮第四步
+        this.highlightWorkflowStep(4);
     }
     
     async generateStoryboard() {
@@ -378,7 +608,12 @@ class VideoGenerator {
         // 隐藏提示词预览，显示分镜头列表
         document.getElementById('promptPreviewScreen').style.display = 'none';
         document.getElementById('customPromptScreen').style.display = 'none';
+        document.getElementById('eventCharacterSelectionScreen').style.display = 'none';
         document.getElementById('storyboardScreen').style.display = 'block';
+        
+        // 显示右侧分镜头列表，隐藏帮助侧边栏
+        document.getElementById('helpSidebar').style.display = 'none';
+        document.getElementById('rightSidebar').style.display = 'block';
         
         // 更新标题和统计
         const typeName = this.videoTypes[this.selectedType].name;
@@ -396,19 +631,55 @@ class VideoGenerator {
         document.getElementById('completedShots').textContent = '0';
         
         // 计算总时长
-        const totalDuration = this.shots.reduce((sum, shot) => 
+        const totalDuration = this.shots.reduce((sum, shot) =>
             sum + (shot.duration_seconds || 5), 0);
-        document.getElementById('estimatedDuration').textContent = 
+        document.getElementById('estimatedDuration').textContent =
             `${Math.round(totalDuration / 60)}分钟`;
         
         // 渲染镜头列表
         this.renderShotsList();
+        this.renderGeneratedShotsList();
         
         // 更新状态
         this.updateCurrentStatus(`已生成 ${this.shots.length} 个分镜头<br>可逐个或批量生成`);
         
-        // 高亮第三步
-        this.highlightWorkflowStep(3);
+        // 高亮第五步
+        this.highlightWorkflowStep(5);
+    }
+    
+    renderGeneratedShotsList() {
+        const container = document.getElementById('generatedShotsList');
+        const count = this.shots.length;
+        
+        document.getElementById('generatedShotsCount').textContent = count;
+        
+        if (count === 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <p>🎬 还没有生成分镜头</p>
+                    <p class="hint">选择事件和角色后开始生成</p>
+                </div>
+            `;
+            document.getElementById('quickActions').style.display = 'none';
+            return;
+        }
+        
+        document.getElementById('quickActions').style.display = 'flex';
+        
+        container.innerHTML = this.shots.map((shot, index) => `
+            <div class="generated-shot-item ${shot.status === 'completed' ? 'completed' : ''}">
+                <div class="shot-mini-header">
+                    <span class="shot-mini-number">#${index + 1}</span>
+                    <span class="shot-mini-status">${this.getStatusText(shot.status)}</span>
+                </div>
+                <div class="shot-mini-content">
+                    <p class="shot-mini-scene">${shot.scene_description || '暂无描述'}</p>
+                    <div class="shot-mini-meta">
+                        <span>⏱️ ${shot.duration_seconds || 5}秒</span>
+                    </div>
+                </div>
+            </div>
+        `).join('');
     }
     
     renderShotsList() {
@@ -699,12 +970,57 @@ class VideoGenerator {
             this.loadNovels();
         });
         
+        // 事件和角色选择相关事件
+        document.getElementById('eventsTabBtn').addEventListener('click', () => {
+            this.switchTab('events');
+        });
+        
+        document.getElementById('charactersTabBtn').addEventListener('click', () => {
+            this.switchTab('characters');
+        });
+        
+        document.getElementById('selectAllEventsBtn').addEventListener('click', () => {
+            this.selectAllEvents();
+        });
+        
+        document.getElementById('selectAllCharactersBtn').addEventListener('click', () => {
+            this.selectAllCharacters();
+        });
+        
+        document.getElementById('clearSelectionBtn').addEventListener('click', () => {
+            this.clearSelection();
+        });
+        
+        document.getElementById('confirmSelectionBtn').addEventListener('click', () => {
+            this.confirmSelection();
+        });
+        
+        document.getElementById('selectAllContentBtn').addEventListener('click', () => {
+            this.selectAllEvents();
+            this.selectAllCharacters();
+        });
+        
+        document.getElementById('refreshContentBtn').addEventListener('click', () => {
+            this.loadEventsAndCharacters();
+        });
+        
+        // 返回类型选择（从事件和角色选择返回）
+        document.getElementById('backToTypesFromEventBtn').addEventListener('click', () => {
+            document.getElementById('eventCharacterSelectionScreen').style.display = 'none';
+            document.getElementById('welcomeScreen').style.display = 'block';
+            
+            // 切换左侧边栏回小说列表
+            document.getElementById('eventCharacterView').style.display = 'none';
+            document.getElementById('novelListView').style.display = 'block';
+        });
+        
         // 返回类型选择（从提示词预览返回）
         document.getElementById('backToTypesBtn').addEventListener('click', () => {
             if (this.selectedMode === 'novel') {
-                // 小说模式：返回视频类型选择
+                // 小说模式：返回事件和角色选择
                 document.getElementById('promptPreviewScreen').style.display = 'none';
-                document.getElementById('welcomeScreen').style.display = 'block';
+                document.getElementById('eventCharacterSelectionScreen').style.display = 'block';
+                this.highlightWorkflowStep(3);
             } else {
                 // 自定义模式：返回模式选择
                 this.showModeSelectionScreen();
@@ -748,6 +1064,19 @@ class VideoGenerator {
         // 导出脚本
         document.getElementById('exportStoryboardBtn').addEventListener('click', () => {
             this.exportStoryboard();
+        });
+        
+        // 右侧分镜头操作
+        document.getElementById('exportGeneratedBtn').addEventListener('click', () => {
+            this.exportStoryboard();
+        });
+        
+        document.getElementById('clearGeneratedBtn').addEventListener('click', () => {
+            if (confirm('确定要清空所有已生成的分镜头吗？')) {
+                this.shots = [];
+                this.renderGeneratedShotsList();
+                this.showToast('已清空', 'success');
+            }
         });
         
         // 重新生成分镜头
