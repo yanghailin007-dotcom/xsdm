@@ -211,5 +211,95 @@ CONFIG = {
         "supported_image_sizes": ["1K", "2K", "4K"],
         "timeout": 300,  # 增加到300秒（5分钟），图像生成较慢
         "max_retries": 3
+    },
+    
+    # 视频生成配置
+    "video_generation": {
+        # 默认镜头时长（秒）
+        "default_shot_duration": 8.0,
+        
+        # 不同视频类型的镜头时长配置
+        "shot_duration": {
+            # 短片/动画电影
+            "short_film": {
+                "avg_duration": 5.0,  # 平均镜头时长
+                "opening_duration": 6.0,  # 开场镜头
+                "main_duration": 4.0,  # 主要镜头
+                "climax_duration": 5.0,  # 高潮镜头
+                "ending_duration": 5.0  # 结尾镜头
+            },
+            # 长篇剧集 - 按叙事阶段配置
+            "long_series": {
+                # 起因阶段
+                "起因": {
+                    "avg_duration": 8.0,  # 平均镜头时长
+                    "shots": 5,  # 镜头数量
+                    "episode_minutes": 0.67  # 集时长(分钟)
+                },
+                # 发展阶段
+                "发展": {
+                    "avg_duration": 8.0,
+                    "shots": 8,
+                    "episode_minutes": 1.07
+                },
+                # 高潮阶段
+                "高潮": {
+                    "avg_duration": 8.0,
+                    "shots": 15,
+                    "episode_minutes": 2.0
+                },
+                # 结局阶段
+                "结局": {
+                    "avg_duration": 8.0,
+                    "shots": 4,
+                    "episode_minutes": 0.53
+                },
+                # 兼容旧格式(起承转合)
+                "起": {
+                    "avg_duration": 8.0,
+                    "shots": 5,
+                    "episode_minutes": 0.67
+                },
+                "承": {
+                    "avg_duration": 8.0,
+                    "shots": 8,
+                    "episode_minutes": 1.07
+                },
+                "转": {
+                    "avg_duration": 8.0,
+                    "shots": 15,
+                    "episode_minutes": 2.0
+                },
+                "合": {
+                    "avg_duration": 8.0,
+                    "shots": 4,
+                    "episode_minutes": 0.53
+                }
+            },
+            # 短视频
+            "short_video": {
+                "avg_duration": 2.0,  # 短视频镜头更短
+                "opening_duration": 2.0,
+                "main_duration": 1.5,
+                "climax_duration": 2.0,
+                "ending_duration": 2.0
+            }
+        },
+        
+        # 自定义视频配置
+        "custom_video": {
+            "short_film": {
+                "shots_per_unit": 15,
+                "avg_duration": 8.0
+            },
+            "long_series": {
+                "shots_per_unit": 10,
+                "avg_duration": 8.0
+            },
+            "short_video": {
+                "shots_per_unit": 5,
+                "avg_duration": 8.0
+            }
+        }
     }
 }

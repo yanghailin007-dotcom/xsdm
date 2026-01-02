@@ -22,6 +22,23 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(
 
 from src.utils.logger import get_logger
 
+# 加载视频配置
+def load_video_config():
+    """加载视频生成配置"""
+    try:
+        from config.config import CONFIG
+        return CONFIG.get("video_generation", {})
+    except ImportError:
+        # 如果无法导入，使用默认值
+        return {
+            "default_shot_duration": 8.0,
+            "custom_video": {
+                "short_film": {"shots_per_unit": 15, "avg_duration": 8.0},
+                "long_series": {"shots_per_unit": 10, "avg_duration": 8.0},
+                "short_video": {"shots_per_unit": 5, "avg_duration": 8.0}
+            }
+        }
+
 # 创建蓝图
 video_api = Blueprint('video_api', __name__)
 
@@ -822,26 +839,34 @@ def generate_storyboard_custom():
         logger.info(f"📝 [VIDEO] 提示词长度: {len(prompt)} 字符")
         
         # 根据视频类型生成默认分镜头结构
+        # 从配置文件读取或使用默认值
+        video_config = load_video_config()
+        custom_config = video_config.get("custom_video", {})
+        default_duration = video_config.get("default_shot_duration", 8.0)
+        
         type_configs = {
             "short_film": {
                 "name": "短片/动画电影",
                 "default_units": 1,
-                "shots_per_unit": 15,
-                "avg_duration": 10
+                "shots_per_unit": custom_config.get("short_film", {}).get("shots_per_unit", 15),
+                "avg_duration": custom_config.get("short_film", {}).get("avg_duration", default_duration)
             },
             "long_series": {
                 "name": "长篇剧集",
                 "default_units": 3,
-                "shots_per_unit": 10,
-                "avg_duration": 10
+                "shots_per_unit": custom_config.get("long_series", {}).get("shots_per_unit", 10),
+                "avg_duration": custom_config.get("long_series", {}).get("avg_duration", default_duration)
             },
             "short_video": {
                 "name": "短视频系列",
                 "default_units": 5,
-                "shots_per_unit": 5,
-                "avg_duration": 10
+                "shots_per_unit": custom_config.get("short_video", {}).get("shots_per_unit", 5),
+                "avg_duration": custom_config.get("short_video", {}).get("avg_duration", default_duration)
             }
         }
+        
+        config = type_configs.get(video_type, type_configs["long_series"])
+        logger.info(f"📋 [VIDEO] 使用配置的镜头时长: {config['avg_duration']}秒")
         
         config = type_configs.get(video_type, type_configs["long_series"])
         

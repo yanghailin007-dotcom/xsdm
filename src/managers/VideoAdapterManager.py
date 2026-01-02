@@ -15,9 +15,31 @@
 from typing import Dict, List, Optional, Any, Protocol
 from abc import ABC, abstractmethod
 import json
+import sys
+from pathlib import Path
 
 from src.utils.logger import get_logger
 from src.managers.EventExtractor import get_event_extractor
+
+# 加载配置
+def load_video_config():
+    """加载视频生成配置"""
+    try:
+        from config.config import CONFIG
+        return CONFIG.get("video_generation", {})
+    except ImportError:
+        # 如果无法导入，使用默认值
+        return {
+            "default_shot_duration": 8.0,
+            "shot_duration": {
+                "long_series": {
+                    "起因": {"avg_duration": 8.0, "shots": 5, "episode_minutes": 0.67},
+                    "发展": {"avg_duration": 8.0, "shots": 8, "episode_minutes": 1.07},
+                    "高潮": {"avg_duration": 8.0, "shots": 15, "episode_minutes": 2.0},
+                    "结局": {"avg_duration": 8.0, "shots": 4, "episode_minutes": 0.53}
+                }
+            }
+        }
 
 
 class VideoGenerationStrategy(ABC):
@@ -259,76 +281,83 @@ class LongSeriesStrategy(VideoGenerationStrategy):
     def __init__(self):
         self.logger = get_logger("LongSeriesStrategy")
         
-        # 叙事阶段配置：镜头数量和时长
+        # 加载视频配置
+        video_config = load_video_config()
+        default_duration = video_config.get("default_shot_duration", 8.0)
+        series_config = video_config.get("shot_duration", {}).get("long_series", {})
+        
+        # 叙事阶段配置：从配置文件读取或使用默认值
         # 🔥 同时支持新旧两种格式的阶段名称
         self.stage_config = {
             # 新格式
             "起因": {
-                "shots": 5,
-                "avg_duration": 4.0,  # 秒
-                "episode_minutes": 2.0,
+                "shots": series_config.get("起因", {}).get("shots", 5),
+                "avg_duration": series_config.get("起因", {}).get("avg_duration", default_duration),
+                "episode_minutes": series_config.get("起因", {}).get("episode_minutes", 0.67),
                 "needs_opening": True,
                 "needs_ending": False,
                 "mood": "渐进，建立紧张感"
             },
             "发展": {
-                "shots": 8,
-                "avg_duration": 5.0,
-                "episode_minutes": 3.5,
+                "shots": series_config.get("发展", {}).get("shots", 8),
+                "avg_duration": series_config.get("发展", {}).get("avg_duration", default_duration),
+                "episode_minutes": series_config.get("发展", {}).get("episode_minutes", 1.07),
                 "needs_opening": False,
                 "needs_ending": False,
                 "mood": "节奏加快，信息密集"
             },
             "高潮": {
-                "shots": 15,  # 高潮部分镜头更多
-                "avg_duration": 6.0,  # 每个镜头更长
-                "episode_minutes": 7.5,  # 高潮时长加倍
+                "shots": series_config.get("高潮", {}).get("shots", 15),
+                "avg_duration": series_config.get("高潮", {}).get("avg_duration", default_duration),
+                "episode_minutes": series_config.get("高潮", {}).get("episode_minutes", 2.0),
                 "needs_opening": False,
                 "needs_ending": True,
                 "mood": "紧张激烈，情绪爆发"
             },
             "结局": {
-                "shots": 4,
-                "avg_duration": 4.0,
-                "episode_minutes": 1.8,
+                "shots": series_config.get("结局", {}).get("shots", 4),
+                "avg_duration": series_config.get("结局", {}).get("avg_duration", default_duration),
+                "episode_minutes": series_config.get("结局", {}).get("episode_minutes", 0.53),
                 "needs_opening": False,
                 "needs_ending": True,
                 "mood": "舒缓释放，留下余韵"
             },
-            # 旧格式 (起承转合)
+            # 旧格式 (起承转合) - 使用相同配置
             "起": {
-                "shots": 5,
-                "avg_duration": 4.0,
-                "episode_minutes": 2.0,
+                "shots": series_config.get("起", {}).get("shots", series_config.get("起因", {}).get("shots", 5)),
+                "avg_duration": series_config.get("起", {}).get("avg_duration", series_config.get("起因", {}).get("avg_duration", default_duration)),
+                "episode_minutes": series_config.get("起", {}).get("episode_minutes", series_config.get("起因", {}).get("episode_minutes", 0.67)),
                 "needs_opening": True,
                 "needs_ending": False,
                 "mood": "渐进，建立紧张感"
             },
             "承": {
-                "shots": 8,
-                "avg_duration": 5.0,
-                "episode_minutes": 3.5,
+                "shots": series_config.get("承", {}).get("shots", series_config.get("发展", {}).get("shots", 8)),
+                "avg_duration": series_config.get("承", {}).get("avg_duration", series_config.get("发展", {}).get("avg_duration", default_duration)),
+                "episode_minutes": series_config.get("承", {}).get("episode_minutes", series_config.get("发展", {}).get("episode_minutes", 1.07)),
                 "needs_opening": False,
                 "needs_ending": False,
                 "mood": "节奏加快，信息密集"
             },
             "转": {
-                "shots": 15,
-                "avg_duration": 6.0,
-                "episode_minutes": 7.5,
+                "shots": series_config.get("转", {}).get("shots", series_config.get("高潮", {}).get("shots", 15)),
+                "avg_duration": series_config.get("转", {}).get("avg_duration", series_config.get("高潮", {}).get("avg_duration", default_duration)),
+                "episode_minutes": series_config.get("转", {}).get("episode_minutes", series_config.get("高潮", {}).get("episode_minutes", 2.0)),
                 "needs_opening": False,
                 "needs_ending": True,
                 "mood": "紧张激烈，情绪爆发"
             },
             "合": {
-                "shots": 4,
-                "avg_duration": 4.0,
-                "episode_minutes": 1.8,
+                "shots": series_config.get("合", {}).get("shots", series_config.get("结局", {}).get("shots", 4)),
+                "avg_duration": series_config.get("合", {}).get("avg_duration", series_config.get("结局", {}).get("avg_duration", default_duration)),
+                "episode_minutes": series_config.get("合", {}).get("episode_minutes", series_config.get("结局", {}).get("episode_minutes", 0.53)),
                 "needs_opening": False,
                 "needs_ending": True,
                 "mood": "舒缓释放，留下余韵"
             }
         }
+        
+        self.logger.info(f"✅ 长剧集策略初始化完成，默认镜头时长: {default_duration}秒")
     
     def allocate_content(self, all_events: List[Dict], total_units: int = 0) -> List[Dict]:
         """
@@ -973,6 +1002,7 @@ class VideoAdapterManager:
         self,
         novel_data: Dict,
         video_type: str,
+        filtered_events: Optional[List[Dict]] = None,
         **kwargs
     ) -> Dict:
         """
@@ -984,6 +1014,7 @@ class VideoAdapterManager:
                       - "short_film": 短片/动画电影
                       - "long_series": 长篇剧集
                       - "short_video": 短视频系列
+            filtered_events: 可选，预过滤的事件列表（如果提供，则不再提取所有事件）
             **kwargs: 其他参数（根据类型不同而不同）
         
         Returns:
@@ -998,35 +1029,41 @@ class VideoAdapterManager:
         strategy_class = self.STRATEGY_MAP[video_type]
         self.current_strategy = strategy_class()
         
-        # 2. 🔥 使用通用事件提取器提取所有重大事件
+        # 2. 🔥 始终创建 event_extractor（用于后续提取角色）
         event_extractor = get_event_extractor(self.logger)
-        all_events = event_extractor.extract_all_major_events(novel_data)
-        self.logger.info(f"📊 提取到 {len(all_events)} 个重大事件")
         
-        # 3. 🔥 新增：提取角色设计数据
+        # 3. 🔥 使用过滤后的事件列表或提取所有重大事件
+        if filtered_events is not None:
+            all_events = filtered_events
+            self.logger.info(f"📊 使用预过滤的事件列表: {len(all_events)} 个事件")
+        else:
+            all_events = event_extractor.extract_all_major_events(novel_data)
+            self.logger.info(f"📊 提取到 {len(all_events)} 个重大事件")
+        
+        # 4. 🔥 提取角色设计数据
         characters = event_extractor.extract_character_designs(novel_data)
         character_prompts = event_extractor.generate_character_prompts(characters)
         self.logger.info(f"👥 提取到 {len(characters)} 个角色设计")
         
-        # 3. 计算单元数量（集数/视频数）
+        # 5. 计算单元数量（集数/视频数）
         total_units = kwargs.get("total_units")
         if not total_units:
             total_units = self._calculate_default_units(novel_data, video_type)
         
-        # 4. 分配内容到各个单元
+        # 6. 分配内容到各个单元
         if self.current_strategy is None:
             raise RuntimeError("策略未正确初始化")
         units = self.current_strategy.allocate_content(all_events, total_units)
         self.logger.info(f"✅ 分配完成：{len(units)} 个单元")
         
-        # 5. 为每个单元生成分镜头
+        # 7. 为每个单元生成分镜头
         for unit in units:
             unit["storyboard"] = self._generate_unit_storyboard(unit, novel_data)
         
-        # 6. 生成整体风格指南
+        # 8. 生成整体风格指南
         style_guide = self._generate_style_guide(novel_data, video_type)
         
-        # 7. 🔥 新增：添加角色设计和剧照生成信息
+        # 9. 🔥 添加角色设计和剧照生成信息
         character_design_info = {
             "total_characters": len(characters),
             "characters": characters,
@@ -1034,7 +1071,7 @@ class VideoAdapterManager:
             "generation_order": self._generate_character_generation_order(characters, all_events)
         }
         
-        # 8. 组装最终结果
+        # 10. 组装最终结果
         result = {
             "video_type": video_type,
             "video_type_name": self._get_type_name(video_type),
