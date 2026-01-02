@@ -197,6 +197,12 @@ def register_page_routes(app):
         """视频生成页面"""
         return render_template('video-generation.html')
     
+    @app.route('/video-generation-debug', methods=['GET'])
+    @login_required
+    def video_generation_debug():
+        """视频生成调试工具页面"""
+        return render_template('video_generation_debug.html')
+    
     @app.route('/project-viewer/<project_title>', methods=['GET'])
     @login_required
     def project_viewer(project_title):

@@ -96,6 +96,58 @@ class VideoGenerator {
         
         // 更新标题
         document.getElementById('customPromptTitle').textContent = '✨ 自定义模式 - 输入提示词';
+        
+        // 🔥 新增：在自定义模式中显示视频类型选择器
+        this.showVideoTypeSelectorInCustomMode();
+    }
+    
+    showVideoTypeSelectorInCustomMode() {
+        // 在自定义提示词屏幕中显示视频类型选择
+        const videoTypeContainer = document.createElement('div');
+        videoTypeContainer.id = 'customModeVideoTypeSelector';
+        videoTypeContainer.className = 'custom-mode-video-type-selector';
+        videoTypeContainer.innerHTML = `
+            <h3>📹 选择视频类型</h3>
+            <div class="video-type-quick-select">
+                <button class="type-select-btn ${this.selectedType === 'short_film' ? 'selected' : ''}" data-type="short_film">
+                    🎬 短片/动画电影<br>
+                    <small>3-10分钟</small>
+                </button>
+                <button class="type-select-btn ${this.selectedType === 'long_series' ? 'selected' : ''}" data-type="long_series">
+                    📺 长篇剧集<br>
+                    <small>1-5分钟/集</small>
+                </button>
+                <button class="type-select-btn ${this.selectedType === 'short_video' ? 'selected' : ''}" data-type="short_video">
+                    📱 短视频系列<br>
+                    <small>30秒-1分钟</small>
+                </button>
+            </div>
+            <p class="hint">请先选择视频类型，然后输入提示词生成分镜头脚本</p>
+        `;
+        
+        // 插入到提示词输入框之前
+        const promptInputCard = document.querySelector('.prompt-input-card');
+        const existingSelector = document.getElementById('customModeVideoTypeSelector');
+        
+        if (existingSelector) {
+            existingSelector.remove();
+        }
+        
+        promptInputCard.insertBefore(videoTypeContainer, promptInputCard.firstChild);
+        
+        // 绑定点击事件
+        videoTypeContainer.querySelectorAll('.type-select-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                // 移除其他按钮的激活状态
+                videoTypeContainer.querySelectorAll('.type-select-btn').forEach(b => b.classList.remove('selected'));
+                // 激活当前按钮
+                btn.classList.add('selected');
+                // 保存选择
+                this.selectedType = btn.dataset.type;
+                console.log('📹 [自定义模式] 选择视频类型:', this.selectedType);
+                this.showToast(`已选择: ${this.videoTypes[this.selectedType]?.name || this.selectedType}`, 'success');
+            });
+        });
     }
     
     showNovelSelectionScreen() {
@@ -998,33 +1050,149 @@ class VideoGenerator {
     }
     
     async generateStoryboard() {
+        console.log('🎬 [前端] ===== 开始生成分镜头脚本 =====');
+        console.log('📊 [前端] 当前模式:', this.selectedMode);
+        console.log('📊 [前端] 选中的小说:', this.selectedNovel);
+        console.log('📊 [前端] 视频类型:', this.selectedType);
+        console.log('📊 [前端] 当前提示词长度:', this.currentPrompt?.length || 0);
+        
+        // 🔍 前置条件检查
+        if (this.selectedMode === 'novel') {
+            if (!this.selectedNovel) {
+                console.error('❌ [前端] 未选择小说');
+                this.showToast('请先选择小说', 'error');
+                return;
+            }
+            if (!this.selectedType) {
+                console.error('❌ [前端] 未选择视频类型');
+                this.showToast('请先选择视频类型', 'error');
+                return;
+            }
+        } else if (this.selectedMode === 'custom') {
+            if (!this.selectedType) {
+                console.error('❌ [前端] 未选择视频类型');
+                this.showToast('请先选择视频类型', 'error');
+                return;
+            }
+            if (!this.currentPrompt && !this.customPrompt) {
+                console.error('❌ [前端] 未输入提示词');
+                this.showToast('请先输入或生成提示词', 'error');
+                return;
+            }
+        } else {
+            console.error('❌ [前端] 未选择模式');
+            this.showToast('请先选择生成模式', 'error');
+            return;
+        }
+        
         try {
-            this.showToast('正在生成分镜头脚本...', 'success');
+            // 显示加载状态
+            const btn = document.getElementById('generateStoryboardBtn');
+            if (btn) {
+                btn.disabled = true;
+                btn.textContent = '⏳ 生成中...';
+            }
+            this.showToast('正在生成分镜头脚本，请稍候...', 'success');
             
-            const response = await fetch('/api/video/generate-storyboard', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
+            let response, data;
+            
+            // 🔥 根据模式选择不同的API端点
+            if (this.selectedMode === 'custom') {
+                console.log('🔀 [前端] 使用自定义模式API');
+                // 自定义模式：使用自定义提示词API
+                const requestData = {
+                    prompt: this.currentPrompt || this.customPrompt,
+                    video_type: this.selectedType
+                };
+                console.log('📤 [前端] 请求数据:', requestData);
+                
+                response = await fetch('/api/video/generate-storyboard-custom', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(requestData)
+                });
+            } else {
+                console.log('🔀 [前端] 使用小说模式API');
+                // 小说模式：使用小说数据API（传递选中事件）
+                const requestData = {
                     title: this.selectedNovel,
                     video_type: this.selectedType,
-                    prompt: this.currentPrompt
-                })
-            });
+                    selected_events: Array.from(this.selectedEvents)  // 🔥 传递选中事件
+                };
+                console.log('📤 [前端] 请求数据:', requestData);
+                console.log('📊 [前端] 选中事件列表:', Array.from(this.selectedEvents));
+                
+                response = await fetch('/api/video/generate-storyboard', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(requestData)
+                });
+            }
             
-            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            console.log('📡 [前端] 响应状态:', response.status, response.statusText);
+            
+            data = await response.json();
+            console.log('📥 [前端] 响应数据:', data);
             
             if (data.success) {
+                console.log('✅ [前端] 分镜头生成成功');
+                console.log('📊 [前端] 分镜头数量:', data.total_shots);
                 this.storyboard = data.storyboard;
                 this.shots = data.shots || [];
                 this.showStoryboardScreen();
             } else {
+                console.error('❌ [前端] API返回错误:', data.error);
                 throw new Error(data.error || '生成分镜头失败');
             }
         } catch (error) {
-            console.error('生成分镜头失败:', error);
-            this.showToast('生成分镜头失败: ' + error.message, 'error');
+            console.error('❌ [前端] 生成分镜头失败:', error);
+            console.error('❌ [前端] 错误详情:', error.message);
+            console.error('❌ [前端] 错误堆栈:', error.stack);
+            
+            // 显示详细的错误信息
+            let errorMessage = error.message;
+            if (error.message.includes('HTTP 404')) {
+                errorMessage = 'API端点不存在，请检查服务器配置';
+            } else if (error.message.includes('HTTP 500')) {
+                errorMessage = '服务器内部错误，请稍后重试';
+            } else if (error.message.includes('Failed to fetch')) {
+                errorMessage = '无法连接到服务器，请检查网络连接';
+            }
+            
+            this.showToast('生成分镜头失败: ' + errorMessage, 'error');
+            
+            // 在页面显示错误详情
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error-details';
+            errorDiv.style.cssText = 'margin-top: 20px; padding: 15px; background: #fee; border: 1px solid #f88; border-radius: 5px;';
+            errorDiv.innerHTML = `
+                <h4 style="color: #c00; margin: 0 0 10px 0;">❌ 生成失败</h4>
+                <p style="margin: 5px 0;"><strong>错误信息:</strong> ${errorMessage}</p>
+                <p style="margin: 5px 0; font-size: 12px; color: #666;">请检查浏览器控制台的详细日志</p>
+            `;
+            
+            const promptInfoCard = document.querySelector('.prompt-info-card');
+            const existingError = promptInfoCard.querySelector('.error-details');
+            if (existingError) {
+                existingError.remove();
+            }
+            promptInfoCard.appendChild(errorDiv);
+            
+        } finally {
+            // 恢复按钮状态
+            const btn = document.getElementById('generateStoryboardBtn');
+            if (btn) {
+                btn.disabled = false;
+                btn.textContent = '🎬 生成分镜头脚本';
+            }
         }
     }
     
@@ -1054,9 +1222,9 @@ class VideoGenerator {
         document.getElementById('totalShots').textContent = this.shots.length;
         document.getElementById('completedShots').textContent = '0';
         
-        // 计算总时长
+        // 计算总时长（使用10秒作为默认值）
         const totalDuration = this.shots.reduce((sum, shot) =>
-            sum + (shot.duration_seconds || 5), 0);
+            sum + (shot.duration_seconds || 10), 0);
         document.getElementById('estimatedDuration').textContent =
             `${Math.round(totalDuration / 60)}分钟`;
         
@@ -1099,7 +1267,7 @@ class VideoGenerator {
                 <div class="shot-mini-content">
                     <p class="shot-mini-scene">${shot.scene_description || '暂无描述'}</p>
                     <div class="shot-mini-meta">
-                        <span>⏱️ ${shot.duration_seconds || 5}秒</span>
+                        <span>⏱️ ${shot.duration_seconds || 10}秒</span>
                     </div>
                 </div>
             </div>
@@ -1128,7 +1296,7 @@ class VideoGenerator {
                 <div class="shot-card-body">
                     <p class="shot-scene">${shot.scene_description || '暂无描述'}</p>
                     <div class="shot-meta">
-                        <span class="meta-item">⏱️ ${shot.duration_seconds || 5}秒</span>
+                        <span class="meta-item">⏱️ ${shot.duration_seconds || 10}秒</span>
                         <span class="meta-item">🎬 ${shot.shot_type || '中景'}</span>
                     </div>
                 </div>
@@ -1181,8 +1349,8 @@ class VideoGenerator {
         
         // 填充详情
         document.getElementById('shotNumber').textContent = `镜头 #${index + 1}`;
-        document.getElementById('shotDuration').textContent = 
-            `预计时长: ${this.currentShot.duration_seconds || 5}秒`;
+        document.getElementById('shotDuration').textContent =
+            `预计时长: ${this.currentShot.duration_seconds || 10}秒`;
         document.getElementById('shotSceneDescription').textContent = 
             this.currentShot.scene_description || '暂无描述';
         document.getElementById('shotType').textContent = 
@@ -1360,6 +1528,8 @@ class VideoGenerator {
     }
     
     bindEvents() {
+        console.log('🔧 [事件绑定] 开始绑定所有事件...');
+        
         // 模式选择事件
         document.querySelectorAll('.mode-card').forEach(card => {
             card.addEventListener('click', () => {
@@ -1476,9 +1646,38 @@ class VideoGenerator {
         });
         
         // 生成分镜头
-        document.getElementById('generateStoryboardBtn').addEventListener('click', () => {
-            this.generateStoryboard();
-        });
+        console.log('🔍 [绑定] 开始查找 generateStoryboardBtn 按钮...');
+        const generateStoryboardBtn = document.getElementById('generateStoryboardBtn');
+        console.log('🔍 [绑定] 按钮元素:', generateStoryboardBtn);
+        
+        if (generateStoryboardBtn) {
+            console.log('✅ [绑定] 找到 generateStoryboardBtn 按钮，开始绑定事件');
+            
+            // 移除旧的事件监听器（如果有）
+            const newBtn = generateStoryboardBtn.cloneNode(true);
+            generateStoryboardBtn.parentNode.replaceChild(newBtn, generateStoryboardBtn);
+            
+            newBtn.addEventListener('click', (e) => {
+                console.log('='.repeat(60));
+                console.log('🔘 [按钮] generateStoryboardBtn 被点击!');
+                console.log('📊 [按钮] this.selectedMode:', this.selectedMode);
+                console.log('📊 [按钮] this.selectedNovel:', this.selectedNovel);
+                console.log('📊 [按钮] this.selectedType:', this.selectedType);
+                console.log('📊 [按钮] 当前提示词长度:', this.currentPrompt?.length || 0);
+                console.log('='.repeat(60));
+                
+                // 防止默认行为
+                e.preventDefault();
+                e.stopPropagation();
+                
+                this.generateStoryboard();
+            });
+            
+            console.log('✅ [绑定] 事件绑定完成');
+        } else {
+            console.error('❌ [绑定] 未找到 generateStoryboardBtn 按钮');
+            console.error('❌ [绑定] 页面中可用的按钮:', document.querySelectorAll('button[id]'));
+        }
         
         // 全部生成
         document.getElementById('generateAllBtn').addEventListener('click', () => {
@@ -1542,21 +1741,36 @@ class VideoGenerator {
         });
         
         // 角色剧照生成相关事件
-        document.getElementById('closePortraitPanelBtn').addEventListener('click', () => {
-            this.closePortraitPanel();
-        });
+        const closePortraitPanelBtn = document.getElementById('closePortraitPanelBtn');
+        if (closePortraitPanelBtn) {
+            closePortraitPanelBtn.addEventListener('click', () => {
+                this.closePortraitPanel();
+            });
+        }
         
-        document.getElementById('generatePortraitBtn').addEventListener('click', () => {
-            this.generateCharacterPortrait();
-        });
+        const generatePortraitBtn = document.getElementById('generatePortraitBtn');
+        if (generatePortraitBtn) {
+            generatePortraitBtn.addEventListener('click', () => {
+                this.generateCharacterPortrait();
+            });
+        }
         
-        document.getElementById('regeneratePortraitBtn').addEventListener('click', () => {
-            this.generateCharacterPortrait();
-        });
+        const regeneratePortraitBtn = document.getElementById('regeneratePortraitBtn');
+        if (regeneratePortraitBtn) {
+            regeneratePortraitBtn.addEventListener('click', () => {
+                this.generateCharacterPortrait();
+            });
+        }
         
-        document.getElementById('downloadPortraitBtn').addEventListener('click', () => {
-            this.downloadPortrait();
-        });
+        const downloadPortraitBtn = document.getElementById('downloadPortraitBtn');
+        if (downloadPortraitBtn) {
+            downloadPortraitBtn.addEventListener('click', () => {
+                this.downloadPortrait();
+            });
+        }
+        
+        console.log('✅ [事件绑定] 所有事件绑定完成');
+        console.log('📋 [事件绑定] 已绑定的按钮数量:', document.querySelectorAll('button').length);
     }
     
     showPromptEditModal() {
@@ -1803,6 +2017,40 @@ class VideoGenerator {
 }
 
 // 页面加载完成后初始化
+console.log('🚀 [全局] 页面开始加载...');
+
 document.addEventListener('DOMContentLoaded', () => {
-    new VideoGenerator();
+    console.log('📜 [全局] DOM内容加载完成，开始初始化视频生成器');
+    console.log('📋 [全局] 当前页面URL:', window.location.href);
+    console.log('📋 [全局] 是否存在generateStoryboardBtn:', !!document.getElementById('generateStoryboardBtn'));
+    
+    try {
+        const generator = new VideoGenerator();
+        console.log('✅ [全局] 视频生成器初始化成功');
+        console.log('📊 [全局] 生成器实例:', generator);
+        
+        // 将生成器实例挂载到全局对象，方便调试
+        window.videoGenerator = generator;
+        console.log('🔍 [全局] 生成器已挂载到 window.videoGenerator');
+    } catch (error) {
+        console.error('❌ [全局] 视频生成器初始化失败:', error);
+        console.error('❌ [全局] 错误堆栈:', error.stack);
+    }
+});
+
+// 额外的备用初始化
+window.addEventListener('load', () => {
+    console.log('📄 [全局] Window完全加载完成');
+    
+    // 检查是否已经初始化
+    if (!window.videoGenerator) {
+        console.warn('⚠️ [全局] DOMContentLoaded未触发，尝试手动初始化');
+        try {
+            const generator = new VideoGenerator();
+            window.videoGenerator = generator;
+            console.log('✅ [全局] 备用初始化成功');
+        } catch (error) {
+            console.error('❌ [全局] 备用初始化失败:', error);
+        }
+    }
 });
