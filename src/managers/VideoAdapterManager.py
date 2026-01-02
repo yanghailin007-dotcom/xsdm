@@ -260,7 +260,9 @@ class LongSeriesStrategy(VideoGenerationStrategy):
         self.logger = get_logger("LongSeriesStrategy")
         
         # 叙事阶段配置：镜头数量和时长
+        # 🔥 同时支持新旧两种格式的阶段名称
         self.stage_config = {
+            # 新格式
             "起因": {
                 "shots": 5,
                 "avg_duration": 4.0,  # 秒
@@ -286,6 +288,39 @@ class LongSeriesStrategy(VideoGenerationStrategy):
                 "mood": "紧张激烈，情绪爆发"
             },
             "结局": {
+                "shots": 4,
+                "avg_duration": 4.0,
+                "episode_minutes": 1.8,
+                "needs_opening": False,
+                "needs_ending": True,
+                "mood": "舒缓释放，留下余韵"
+            },
+            # 旧格式 (起承转合)
+            "起": {
+                "shots": 5,
+                "avg_duration": 4.0,
+                "episode_minutes": 2.0,
+                "needs_opening": True,
+                "needs_ending": False,
+                "mood": "渐进，建立紧张感"
+            },
+            "承": {
+                "shots": 8,
+                "avg_duration": 5.0,
+                "episode_minutes": 3.5,
+                "needs_opening": False,
+                "needs_ending": False,
+                "mood": "节奏加快，信息密集"
+            },
+            "转": {
+                "shots": 15,
+                "avg_duration": 6.0,
+                "episode_minutes": 7.5,
+                "needs_opening": False,
+                "needs_ending": True,
+                "mood": "紧张激烈，情绪爆发"
+            },
+            "合": {
                 "shots": 4,
                 "avg_duration": 4.0,
                 "episode_minutes": 1.8,
@@ -362,23 +397,75 @@ class LongSeriesStrategy(VideoGenerationStrategy):
         return episodes
     
     def _extract_medium_events(self, major_event: Dict) -> List[Dict]:
-        """从重大事件的 composition 中提取中级事件"""
+        """
+        从重大事件的 composition 中提取中级事件
+        
+        支持多种叙事阶段的命名方式:
+        - 新格式: 起因、发展、高潮、结局
+        - 旧格式: 起、承、转、合
+        
+        Args:
+            major_event: 重大事件字典
+            
+        Returns:
+            中级事件列表
+        """
         medium_events = []
         
         composition = major_event.get("composition", {})
         
-        # 按叙事顺序提取：起因 → 发展 → 高潮 → 结局
-        stage_order = ["起因", "发展", "高潮", "结局"]
+        if not composition:
+            self.logger.warn(f"  ⚠️ 重大事件'{major_event.get('name')}'没有composition字段")
+            return medium_events
         
+        # 🔥 支持多种叙事阶段的命名方式
+        # 优先使用新格式，如果为空则尝试旧格式
+        new_stage_order = ["起因", "发展", "高潮", "结局"]
+        old_stage_order = ["起", "承", "转", "合"]
+        
+        # 检测使用哪种格式
+        has_new_format = any(composition.get(stage) for stage in new_stage_order)
+        has_old_format = any(composition.get(stage) for stage in old_stage_order)
+        
+        if has_new_format:
+            stage_order = new_stage_order
+            self.logger.debug(f"    📋 使用新格式: {new_stage_order}")
+        elif has_old_format:
+            stage_order = old_stage_order
+            self.logger.debug(f"    📋 使用旧格式: {old_stage_order}")
+        else:
+            # 🔥 如果都没有，尝试提取所有非空键
+            stage_order = list(composition.keys())
+            if stage_order:
+                self.logger.debug(f"    📋 使用动态格式: {stage_order}")
+            else:
+                self.logger.warn(f"    ⚠️ composition为空或无效: {list(composition.keys())}")
+                return medium_events
+        
+        # 按叙事顺序提取
         for stage in stage_order:
             events = composition.get(stage, [])
+            
+            if not isinstance(events, list):
+                self.logger.warn(f"    ⚠️ stage '{stage}' 的 events 不是列表: {type(events)}")
+                continue
+            
+            if not events:
+                continue
+            
+            self.logger.debug(f"    ✅ 从 '{stage}' 提取到 {len(events)} 个中级事件")
+            
             for event in events:
-                medium_events.append({
-                    **event,
-                    "stage": stage,
-                    "parent_major_event": major_event.get("name")
-                })
+                if isinstance(event, dict):
+                    medium_events.append({
+                        **event,
+                        "stage": stage,
+                        "parent_major_event": major_event.get("name")
+                    })
+                else:
+                    self.logger.warn(f"    ⚠️ 事件不是字典类型: {type(event)}")
         
+        self.logger.info(f"    📊 从'{major_event.get('name')}'提取了{len(medium_events)}个中级事件")
         return medium_events
     
     def calculate_duration(self, content_unit: Any) -> Dict:
@@ -566,15 +653,23 @@ class LongSeriesStrategy(VideoGenerationStrategy):
         shot_type = shot["shot_type"]
         duration = shot["duration_seconds"]
         
+        # 先生成各个音频组件
+        bgm = self._generate_bgm_design(stage, role)
+        sfx = self._generate_sound_effects(shot, stage, role)
+        atmosphere = {
+            "mood": self.stage_config[stage]["mood"],
+            "transition": self._get_audio_transition(role),
+            "intensity": self._get_audio_intensity(stage, role)
+        }
+        
+        # 生成提示词(使用已经生成的组件)
+        generation_prompt = self._generate_audio_prompt(shot, event, stage, role, bgm, sfx, atmosphere)
+        
         audio_design = {
-            "background_music": self._generate_bgm_design(stage, role),
-            "sound_effects": self._generate_sound_effects(shot, stage, role),
-            "atmosphere": {
-                "mood": self.stage_config[stage]["mood"],
-                "transition": self._get_audio_transition(role),
-                "intensity": self._get_audio_intensity(stage, role)
-            },
-            "generation_prompt": self._generate_audio_prompt(shot, event, stage, role)
+            "background_music": bgm,
+            "sound_effects": sfx,
+            "atmosphere": atmosphere,
+            "generation_prompt": generation_prompt
         }
         
         return audio_design
@@ -642,11 +737,9 @@ class LongSeriesStrategy(VideoGenerationStrategy):
             return "中低 - 逐步下降"
         return "中 - 稳定持续"
     
-    def _generate_audio_prompt(self, shot: Dict, event: Dict, stage: str, role: str) -> str:
+    def _generate_audio_prompt(self, shot: Dict, event: Dict, stage: str, role: str,
+                               bgm: Dict, sfx: List, atmosphere: Dict) -> str:
         """生成AI音频生成提示词"""
-        bgm = shot["audio_design"]["background_music"]
-        atmosphere = shot["audio_design"]["atmosphere"]
-        sfx = shot["audio_design"]["sound_effects"]
         
         sfx_list = "\n".join([f"  - {e['effect']}: {e['timing']}开始, {e['duration']}"
                               for e in sfx])

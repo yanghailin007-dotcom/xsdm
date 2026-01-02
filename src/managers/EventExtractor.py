@@ -24,7 +24,8 @@ class EventExtractor:
         
         支持多种数据格式：
         1. quality_data.writing_plans (新格式)
-        2. 直接从项目文件读取 (旧格式: _stage_writing_plan.json)
+        2. stage_writing_plans (中间格式)
+        3. 直接从项目文件读取 (旧格式: _stage_writing_plan.json)
         
         Args:
             novel_data: 小说数据字典
@@ -64,12 +65,37 @@ class EventExtractor:
                     self._enrich_event_metadata(event, stage_name)
                     all_events.append(event)
         else:
-            # 2. 🔥 新增：直接从项目文件读取旧格式的 writing_plan
-            title = novel_data.get("novel_title", "") or novel_data.get("title", "")
-            if not title:
-                self.logger.warn("⚠️ 无法确定项目标题，跳过直接文件读取")
+            # 2. 🔥 新增：尝试从 stage_writing_plans 获取（中间格式）
+            stage_writing_plans = novel_data.get("stage_writing_plans", {})
+            
+            if stage_writing_plans:
+                self.logger.info(f"📊 [EventExtractor] 从 stage_writing_plans 提取")
+                self.logger.info(f"📊 [EventExtractor] stage_writing_plans 键: {list(stage_writing_plans.keys())}")
+                
+                for stage_name, stage_data in stage_writing_plans.items():
+                    if not isinstance(stage_data, dict):
+                        continue
+                    
+                    # 尝试从多个可能的位置提取事件
+                    events = (
+                        stage_data.get('stage_writing_plan', {}).get('event_system', {}).get('major_events', []) or
+                        stage_data.get('event_system', {}).get('major_events', []) or
+                        stage_data.get('major_events', [])
+                    )
+                    
+                    self.logger.info(f"📊 [EventExtractor] 从 {stage_name} 提取到 {len(events)} 个重大事件")
+                    
+                    # 为每个事件添加元数据
+                    for event in events:
+                        self._enrich_event_metadata(event, stage_name)
+                        all_events.append(event)
             else:
-                all_events = self._extract_from_project_files(title, novel_data)
+                # 3. 🔥 最后尝试：直接从项目文件读取旧格式的 writing_plan
+                title = novel_data.get("novel_title", "") or novel_data.get("title", "")
+                if not title:
+                    self.logger.warn("⚠️ 无法确定项目标题，跳过直接文件读取")
+                else:
+                    all_events = self._extract_from_project_files(title, novel_data)
         
         # 按章节排序
         all_events.sort(key=lambda x: x.get("_start_chapter", 0))
@@ -183,6 +209,10 @@ class EventExtractor:
         """
         从重大事件的 composition 中提取中级事件
         
+        支持两种格式:
+        - 新格式: 起因、发展、高潮、结局
+        - 旧格式: 起、承、转、合
+        
         Args:
             major_event: 重大事件字典
             
@@ -197,9 +227,23 @@ class EventExtractor:
             # 如果没有 composition，检查是否有 _medium_events
             return major_event.get("_medium_events", [])
         
-        # 按叙事顺序提取：起因 → 发展 → 高潮 → 结局
-        stage_order = ["起因", "发展", "高潮", "结局"]
+        # 🔥 支持两种格式：先尝试新格式，如果为空则尝试旧格式
+        new_stage_order = ["起因", "发展", "高潮", "结局"]
+        old_stage_order = ["起", "承", "转", "合"]
         
+        # 检测使用哪种格式
+        has_new_format = any(composition.get(stage) for stage in new_stage_order)
+        has_old_format = any(composition.get(stage) for stage in old_stage_order)
+        
+        if has_new_format:
+            stage_order = new_stage_order
+        elif has_old_format:
+            stage_order = old_stage_order
+        else:
+            # 如果都没有，尝试提取所有非空键
+            stage_order = list(composition.keys())
+        
+        # 按叙事顺序提取
         for stage in stage_order:
             events = composition.get(stage, [])
             if isinstance(events, list):

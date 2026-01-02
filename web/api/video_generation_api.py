@@ -375,23 +375,27 @@ def generate_prompt():
         all_major_events = event_extractor.extract_all_major_events(novel_detail)
         
         # 创建重大事件索引（按ID或名称查找）
+        # 🔥 修复：同时支持 event_X 和 major_event_X 两种ID格式
         major_events_map = {}
         for idx, major_event in enumerate(all_major_events):
             event_id = f"event_{idx}"
+            major_event_id = f"major_event_{idx}"
             event_name = major_event.get("name", major_event.get("title", ""))
             major_events_map[event_id] = major_event
+            major_events_map[major_event_id] = major_event
             major_events_map[event_name] = major_event
         
         if not selected_events:
             # 如果没有选中事件，提取所有重大事件并展开
             for major_event in all_major_events:
                 composition = major_event.get("composition", {})
-                for stage in ["起因", "发展", "高潮", "结局"]:
-                    medium_events = composition.get(stage, [])
-                    for medium_event in medium_events:
-                        medium_event_copy = dict(medium_event)
-                        medium_event_copy["parent_major"] = major_event.get("name")
-                        expanded_events.append(medium_event_copy)
+                # 🔥 修复：使用EventExtractor的extract_medium_events方法
+                # 它会自动处理新旧两种格式（"起承转合"和"起因发展高潮结局"）
+                medium_events_from_extractor = event_extractor.extract_medium_events(major_event)
+                for medium_event in medium_events_from_extractor:
+                    medium_event_copy = dict(medium_event)
+                    medium_event_copy["parent_major"] = major_event.get("name")
+                    expanded_events.append(medium_event_copy)
             
             logger.info(f"📊 [VIDEO] 未指定事件，自动提取所有中级事件: {len(expanded_events)}个")
         else:
@@ -399,35 +403,76 @@ def generate_prompt():
             for selected_event in selected_events:
                 # 处理不同格式的输入
                 if isinstance(selected_event, str):
-                    # 如果是字符串，尝试从重大事件映射中查找
-                    major_event = major_events_map.get(selected_event)
-                    if major_event:
-                        # 找到了重大事件，展开它的中级事件
-                        composition = major_event.get("composition", {})
-                        for stage in ["起因", "发展", "高潮", "结局"]:
-                            medium_events = composition.get(stage, [])
-                            for medium_event in medium_events:
+                    # 🔥 新增：处理复合ID格式（major_event_X_event_Y_Z）
+                    if '_event_' in selected_event and selected_event.startswith('major_event_'):
+                        # 这是中级事件的复合ID（格式：major_event_X_event_Y_Z）
+                        # 从右边分割，找到最后一个 _event_
+                        parts = selected_event.rsplit('_event_', 1)
+                        parent_id = parts[0]
+                        
+                        # 从父事件中查找对应的子事件
+                        major_event = major_events_map.get(parent_id)
+                        if major_event:
+                            composition = major_event.get("composition", {})
+                            # 子事件ID格式：event_Y_Z，其中Y是重大事件索引，Z是子事件索引
+                            child_id_suffix = selected_event.replace(f'{parent_id}_', '')
+                            
+                            # 遍历所有阶段查找子事件
+                            found = False
+                            for stage in ["起", "承", "转", "合"]:
+                                medium_events = composition.get(stage, [])
+                                for idx, medium_event in enumerate(medium_events):
+                                    # 🔥 修复：生成完整的子事件ID（包含父索引）
+                                    # child_id_suffix 格式：event_0_0 (第一个0是父事件索引，第二个0是子事件索引)
+                                    # 需要从 parent_id 中提取父事件索引
+                                    parent_idx = parent_id.replace("major_event_", "")
+                                    full_child_id = f"event_{parent_idx}_{idx}"
+                                    
+                                    # 检查子事件ID是否匹配
+                                    if child_id_suffix == full_child_id:
+                                        medium_event_copy = dict(medium_event)
+                                        medium_event_copy["parent_major"] = major_event.get("name", major_event.get("title", ""))
+                                        medium_event_copy["stage"] = stage
+                                        expanded_events.append(medium_event_copy)
+                                        found = True
+                                        logger.info(f"📊 [VIDEO] 通过复合ID '{selected_event}' 找到子事件 (stage={stage}, idx={idx})")
+                                        break
+                                if found:
+                                    break
+                            
+                            if not found:
+                                logger.warn(f"⚠️ [VIDEO] 无法在复合ID '{selected_event}' 中找到子事件")
+                        else:
+                            logger.warn(f"⚠️ [VIDEO] 无法在复合ID '{selected_event}' 中找到父事件 '{parent_id}'")
+                    
+                    # 🔥 原有逻辑：尝试从重大事件映射中查找
+                    else:
+                        major_event = major_events_map.get(selected_event)
+                        if major_event:
+                            # 找到了重大事件，展开它的中级事件
+                            # 🔥 修复：使用EventExtractor的extract_medium_events方法
+                            # 它会自动处理新旧两种格式
+                            medium_events_from_extractor = event_extractor.extract_medium_events(major_event)
+                            for medium_event in medium_events_from_extractor:
                                 medium_event_copy = dict(medium_event)
                                 medium_event_copy["parent_major"] = major_event.get("name", major_event.get("title", ""))
-                                medium_event_copy["stage"] = stage
                                 expanded_events.append(medium_event_copy)
-                        
-                        logger.info(f"📊 [VIDEO] 通过ID '{selected_event}' 展开重大事件 '{major_event.get('name')}' 为 {len([e for e in expanded_events if e.get('parent_major') == major_event.get('name')])} 个中级事件")
-                    else:
-                        logger.warn(f"⚠️ [VIDEO] 未找到ID为 '{selected_event}' 的事件")
+                            
+                            logger.info(f"📊 [VIDEO] 通过ID '{selected_event}' 展开重大事件 '{major_event.get('name')}' 为 {len([e for e in expanded_events if e.get('parent_major') == major_event.get('name')])} 个中级事件")
+                        else:
+                            logger.warn(f"⚠️ [VIDEO] 未找到ID为 '{selected_event}' 的事件")
                 
                 elif isinstance(selected_event, dict):
                     # 如果是字典，检查是否是重大事件（有composition字段）
                     if selected_event.get("composition"):
                         # 这是重大事件，展开其中的中级事件
-                        composition = selected_event.get("composition", {})
-                        for stage in ["起因", "发展", "高潮", "结局"]:
-                            medium_events = composition.get(stage, [])
-                            for medium_event in medium_events:
-                                medium_event_copy = dict(medium_event)
-                                medium_event_copy["parent_major"] = selected_event.get("name", selected_event.get("title", ""))
-                                medium_event_copy["stage"] = stage
-                                expanded_events.append(medium_event_copy)
+                        # 🔥 修复：使用EventExtractor的extract_medium_events方法
+                        # 它会自动处理新旧两种格式
+                        medium_events_from_extractor = event_extractor.extract_medium_events(selected_event)
+                        for medium_event in medium_events_from_extractor:
+                            medium_event_copy = dict(medium_event)
+                            medium_event_copy["parent_major"] = selected_event.get("name", selected_event.get("title", ""))
+                            expanded_events.append(medium_event_copy)
                         
                         logger.info(f"📊 [VIDEO] 展开重大事件 '{selected_event.get('name')}' 为 {len([e for e in expanded_events if e.get('parent_major') == selected_event.get('name')])} 个中级事件")
                     
