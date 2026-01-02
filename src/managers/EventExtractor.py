@@ -436,7 +436,32 @@ class EventExtractor:
         Returns:
             是否为物品角色
         """
-        # 检查外貌描述中的关键词
+        # 🔥 优先检查角色定位，这是最准确的判断
+        role = char.get("role", "")
+        
+        # 明确的人物角色类型
+        human_roles = ["主角", "重要配角", "配角", "反派", "导师", "盟友", "女主", "男主", "核心盟友"]
+        # 明确的物品角色类型
+        object_roles = ["武器", "法宝", "神器", "物品", "道具"]
+        
+        # 1. 如果角色定位明确是人物类型，直接返回False
+        if any(hr in role for hr in human_roles):
+            self.logger.debug(f"👤 [{char.get('name', 'Unknown')}] 角色定位为人物类型: {role}")
+            return False
+        
+        # 2. 如果角色定位明确是物品类型，直接返回True
+        if any(or_ in role for or_ in object_roles):
+            self.logger.debug(f"⚔️ [{char.get('name', 'Unknown')}] 角色定位为物品类型: {role}")
+            return True
+        
+        # 3. 检查名字，如果名字明显是人名格式，优先认为是人
+        name = char.get("name", "")
+        if name and len(name) <= 4 and not any(kw in name for kw in ["剑", "刀", "枪", "法宝", "神器"]):
+            # 简短的中文名字（2-4字）且不包含武器关键词，很可能是人名
+            self.logger.debug(f"👤 [{name}] 名字格式像人名，判定为人物角色")
+            return False
+        
+        # 4. 最后才检查外貌描述中的关键词
         object_keywords = [
             "剑", "刀", "枪", "武器", "法宝", "神器",
             "sword", "blade", "weapon", "artifact", "object",
@@ -446,13 +471,11 @@ class EventExtractor:
         appearance_lower = appearance.lower()
         for keyword in object_keywords:
             if keyword in appearance_lower:
+                self.logger.debug(f"⚔️ [{name}] appearance包含物品关键词 '{keyword}': {appearance[:100]}")
                 return True
         
-        # 检查角色定位
-        role = char.get("role", "")
-        if "武器" in role or "物品" in role or "法宝" in role:
-            return True
-        
+        # 默认认为是人物角色
+        self.logger.debug(f"👤 [{name}] 默认判定为人物角色")
         return False
     
     def _generate_object_portrait_prompt(self, name: str, role: str, appearance: str, background: str) -> str:
