@@ -12,6 +12,7 @@ from functools import wraps
 from typing import Dict, List
 import os
 import sys
+import re
 from pathlib import Path
 from datetime import datetime
 import json
@@ -570,6 +571,114 @@ def _estimate_total_duration(events: List[Dict], video_type: str) -> float:
         return len(events) * 1.0
 
 
+def _filter_selected_events(all_events: List[Dict], selected_event_ids: List[str], logger) -> List[Dict]:
+    """
+    过滤出用户选中的事件（支持重大事件和中级事件）
+    
+    Args:
+        all_events: 所有重大事件列表
+        selected_event_ids: 选中的事件ID列表（可能包含重大事件ID或中级事件ID）
+        logger: 日志记录器
+    
+    Returns:
+        过滤后的事件列表（只包含选中的事件）
+    """
+    filtered_events = []
+    selected_medium_events_map = {}  # 🔥 用map来跟踪每个事件选中的中级事件
+    
+    logger.debug(f"🔍 开始过滤事件，选中事件ID列表: {selected_event_ids}")
+    
+    # 第一遍：收集所有选中的中级事件
+    for idx, major_event in enumerate(all_events):
+        major_event_id = f"major_event_{idx}"
+        major_event_id_alt = f"event_{idx}"
+        major_event_name = major_event.get("name", major_event.get("title", ""))
+        
+        logger.debug(f"  检查事件 {idx}: {major_event_name} (ID: {major_event_id}, {major_event_id_alt})")
+        
+        # 检查是否选中了这个重大事件（通过ID或名称）
+        major_selected = (
+            major_event_id in selected_event_ids or
+            major_event_id_alt in selected_event_ids or
+            major_event_name in selected_event_ids
+        )
+        
+        # 检查是否有选中的中级事件
+        composition = major_event.get("composition", {})
+        event_selected_medium = []
+        
+        logger.debug(f"    检查composition中的中级事件...")
+        
+        for stage_idx, stage in enumerate(["起", "承", "转", "合", "起因", "发展", "高潮", "结局"]):
+            medium_events = composition.get(stage, [])
+            if not isinstance(medium_events, list):
+                continue
+            
+            logger.debug(f"      Stage '{stage}': {len(medium_events)} 个中级事件")
+            
+            for medium_idx, medium_event in enumerate(medium_events):
+                # 生成中级事件的可能ID格式（与前端保持一致）
+                # 前端生成格式: major_event_X_event_Y_Z
+                # 其中X是父事件索引，Y是阶段索引（在阶段列表中的位置），Z是该阶段中的中级事件索引
+                
+                # 注意：前端生成ID时使用的阶段索引可能与我们遍历的stage_idx不同
+                # 让我们尝试多种可能的格式
+                medium_event_id = f"{major_event_id}_event_{stage_idx}_{medium_idx}"
+                medium_event_id_alt = f"{major_event_id_alt}_event_{stage_idx}_{medium_idx}"
+                medium_event_id_alt2 = f"{major_event_id_alt}_{medium_idx}"
+                
+                # 检查是否被选中
+                if (medium_event_id in selected_event_ids or
+                    medium_event_id_alt in selected_event_ids or
+                    medium_event_id_alt2 in selected_event_ids):
+                    event_selected_medium.append(medium_event)
+                    logger.debug(f"  ✅ 选中中级事件: {medium_event.get('name', medium_event.get('title', '未命名'))} (stage={stage}, stage_idx={stage_idx}, medium_idx={medium_idx}, matched_id={medium_event_id})")
+        
+        # 保存到map中
+        if event_selected_medium:
+            selected_medium_events_map[idx] = event_selected_medium
+            logger.info(f"  📊 事件 {idx} ({major_event_name}): 找到 {len(event_selected_medium)} 个选中的中级事件")
+    
+    # 第二遍：根据选中的事件构建过滤后的列表
+    for idx, major_event in enumerate(all_events):
+        major_event_id = f"major_event_{idx}"
+        major_event_id_alt = f"event_{idx}"
+        major_event_name = major_event.get("name", major_event.get("title", ""))
+        
+        # 检查是否选中了这个重大事件（通过ID或名称）
+        major_selected = (
+            major_event_id in selected_event_ids or
+            major_event_id_alt in selected_event_ids or
+            major_event_name in selected_event_ids
+        )
+        
+        # 如果选中了整个重大事件
+        if major_selected:
+            filtered_events.append(major_event)
+            logger.info(f"  ✅ 选中重大事件: {major_event_name}")
+        
+        # 如果有选中的中级事件
+        elif idx in selected_medium_events_map:
+            selected_medium_events = selected_medium_events_map[idx]
+            composition = major_event.get("composition", {})
+            
+            # 创建一个新的重大事件对象，只保留选中的中级事件
+            filtered_major = dict(major_event)
+            new_composition = {}
+            for stage in ["起", "承", "转", "合", "起因", "发展", "高潮", "结局"]:
+                medium_events = composition.get(stage, [])
+                if isinstance(medium_events, list):
+                    # 过滤出选中的中级事件
+                    filtered = [e for e in medium_events if e in selected_medium_events]
+                    if filtered:
+                        new_composition[stage] = filtered
+            filtered_major["composition"] = new_composition
+            filtered_events.append(filtered_major)
+            logger.info(f"  ✅ 部分选中重大事件: {major_event_name} (包含 {len(selected_medium_events)} 个中级事件)")
+    
+    return filtered_events
+
+
 @video_api.route('/video/generate-storyboard', methods=['POST'])
 @login_required
 def generate_storyboard():
@@ -579,11 +688,12 @@ def generate_storyboard():
     请求参数：
     {
         "title": "小说标题",
-        "video_type": "long_series"
+        "video_type": "long_series",
+        "selected_events": ["event_0", "event_1", ...]  // 可选：选中的事件ID列表
     }
     
     工作流程：
-    1. 提取重大事件
+    1. 提取重大事件（如果指定了selected_events，只提取选中的事件）
     2. 提取角色设计
     3. 生成分镜头脚本
     4. 生成角色剧照生成提示词
@@ -592,6 +702,7 @@ def generate_storyboard():
         data = request.json or {}
         title = data.get('title')
         video_type = data.get('video_type', 'long_series')
+        selected_events = data.get('selected_events', [])  # 🔥 新增：获取选中事件列表
         
         if not title:
             return jsonify({"success": False, "error": "小说标题不能为空"}), 400
@@ -612,7 +723,13 @@ def generate_storyboard():
         
         # 提取事件
         all_events = event_extractor.extract_all_major_events(novel_detail)
-        logger.info(f"📊 [VIDEO] 提取到 {len(all_events)} 个重大事件")
+        
+        # 🔥 如果指定了选中事件，只处理选中的
+        if selected_events:
+            logger.info(f"🎯 [VIDEO] 用户选中了 {len(selected_events)} 个事件，过滤中...")
+            all_events = _filter_selected_events(all_events, selected_events, logger)
+        
+        logger.info(f"📊 [VIDEO] 最终处理 {len(all_events)} 个事件")
         
         # 提取角色
         characters = event_extractor.extract_character_designs(novel_detail)
@@ -630,9 +747,11 @@ def generate_storyboard():
         mock_generator = MockGenerator(novel_detail)
         adapter = VideoAdapterManager(mock_generator)
         
+        # 🔥 传递过滤后的事件列表
         video_result = adapter.convert_to_video(
             novel_data=novel_detail,
-            video_type=video_type
+            video_type=video_type,
+            filtered_events=all_events  # 🔥 新增参数
         )
         
         # 提取所有镜头
@@ -683,7 +802,7 @@ def generate_storyboard():
 @login_required
 def generate_storyboard_custom():
     """
-    基于自定义提示词生成分镜头脚本
+    基于自定义提示词生成分镜头脚本（使用AI动态生成）
     
     请求参数：
     {
@@ -708,19 +827,19 @@ def generate_storyboard_custom():
                 "name": "短片/动画电影",
                 "default_units": 1,
                 "shots_per_unit": 15,
-                "avg_duration": 5
+                "avg_duration": 10
             },
             "long_series": {
                 "name": "长篇剧集",
                 "default_units": 3,
                 "shots_per_unit": 10,
-                "avg_duration": 4
+                "avg_duration": 10
             },
             "short_video": {
                 "name": "短视频系列",
                 "default_units": 5,
                 "shots_per_unit": 5,
-                "avg_duration": 3
+                "avg_duration": 10
             }
         }
         
@@ -755,6 +874,14 @@ def generate_storyboard_custom():
             unit_number = unit_idx + 1
             unit_type = "自定义单元"
             
+            # 🔥 为每个单元单独调用AI生成镜头描述
+            logger.info(f"🎬 [VIDEO] 开始生成第{unit_number}个单元的镜头...")
+            unit_shot_descriptions = _generate_ai_shot_descriptions(
+                prompt,
+                config["shots_per_unit"],
+                video_type
+            )
+            
             # 创建场景
             scenes = [{
                 "scene_number": 1,
@@ -769,15 +896,17 @@ def generate_storyboard_custom():
                 }
             }]
             
-            # 生成镜头序列
+            # 🔥 使用AI生成的描述创建镜头序列
             for shot_idx in range(config["shots_per_unit"]):
                 shot_number = shot_idx + 1
+                shot_description = unit_shot_descriptions[shot_idx]  # 🔥 使用AI生成的描述
+                
                 shot = {
                     "shot_number": shot_number,
                     "shot_type": _get_default_shot_type(shot_idx, config["shots_per_unit"]),
                     "camera_movement": _get_default_camera_movement(shot_idx),
                     "duration_seconds": config["avg_duration"],
-                    "description": f"基于提示词的第{shot_number}个镜头：{prompt[:50]}...",
+                    "description": shot_description,
                     "audio_note": _get_default_audio_note(shot_idx, video_type),
                     "tiktok_note": _get_default_tiktok_note(video_type)
                 }
@@ -826,12 +955,42 @@ def generate_storyboard_custom():
         
         logger.info(f"✅ [VIDEO] 自定义模式生成分镜头成功: {len(shots)} 个镜头")
         
+        # 🔥 保存分镜头到文件
+        from pathlib import Path
+        video_projects_dir = Path("视频项目")
+        video_projects_dir.mkdir(exist_ok=True)
+        
+        # 使用时间戳创建项目名称
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        safe_prompt = "".join(c for c in prompt[:20] if c.isalnum() or c in (' ', '-', '_')).strip()
+        project_name = f"自定义视频_{safe_prompt}_{timestamp}"
+        project_dir = video_projects_dir / project_name
+        project_dir.mkdir(exist_ok=True)
+        
+        # 保存完整的分镜头JSON
+        storyboard_file = project_dir / f"分镜头脚本_{timestamp}.json"
+        with open(storyboard_file, 'w', encoding='utf-8') as f:
+            json.dump(video_result, f, ensure_ascii=False, indent=2)
+        
+        logger.info(f"💾 [VIDEO] 分镜头已保存: {storyboard_file}")
+        
+        # 生成Markdown格式的分镜头脚本
+        markdown_content = _generate_custom_storyboard_markdown(video_result, prompt, video_type)
+        markdown_file = project_dir / f"分镜头脚本_{timestamp}.md"
+        with open(markdown_file, 'w', encoding='utf-8') as f:
+            f.write(markdown_content)
+        
+        logger.info(f"📄 [VIDEO] Markdown分镜头已保存: {markdown_file}")
+        
         return jsonify({
             "success": True,
             "storyboard": video_result,
             "shots": shots,
             "total_shots": len(shots),
-            "message": f"已生成 {len(shots)} 个分镜头"
+            "project_dir": str(project_dir),
+            "storyboard_file": str(storyboard_file),
+            "markdown_file": str(markdown_file),
+            "message": f"已生成 {len(shots)} 个分镜头，已保存到 {project_name}"
         })
         
     except Exception as e:
@@ -875,6 +1034,221 @@ def _get_default_tiktok_note(video_type):
     if video_type == "short_video":
         return "快速剪辑，节奏紧凑"
     return "标准视频节奏"
+
+
+def _generate_ai_shot_descriptions(prompt: str, shot_count: int, video_type: str) -> List[str]:
+    """
+    使用AI为每个镜头生成独特的描述
+    
+    Args:
+        prompt: 用户输入的原始提示词
+        shot_count: 需要生成的镜头数量
+        video_type: 视频类型
+    
+    Returns:
+        镜头描述列表
+    """
+    try:
+        logger.info(f"🤖 [VIDEO] 调用AI生成{shot_count}个独特的镜头描述...")
+        
+        # 🔥 使用NovelGenerationManager的方式加载配置
+        try:
+            import sys
+            import importlib.util
+            from pathlib import Path
+            
+            # 确保项目根目录在路径中
+            current_file = Path(__file__).resolve()
+            project_root = current_file.parent.parent.parent
+            if str(project_root) not in sys.path:
+                sys.path.insert(0, str(project_root))
+            
+            # 使用importlib动态导入config.py
+            config_path = project_root / "config" / "config.py"
+            spec = importlib.util.spec_from_file_location("config_module", config_path)
+            if spec is not None and spec.loader is not None:
+                config_module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(config_module)
+                api_config = config_module.CONFIG
+                logger.info(f"✅ [VIDEO] 配置加载成功，默认提供商: {api_config.get('default_provider', 'unknown')}")
+            else:
+                raise ImportError("无法创建config模块规格")
+            
+            from src.core.APIClient import APIClient
+            api_client = APIClient(api_config)
+            
+            # 构建AI提示词
+            type_guide = {
+                "short_film": "短片风格：每个镜头应该富有电影感，注重视觉美学和艺术性",
+                "long_series": "剧集风格：镜头应该叙事清晰，节奏适中，注重故事连贯性",
+                "short_video": "短视频风格：镜头应该节奏快，视觉冲击力强，前3秒必须有钩子"
+            }.get(video_type, "标准视频风格")
+            
+            ai_prompt = f"""你是一位专业的视频导演和分镜头设计师。请基于以下提示词，生成{shot_count}个独特的镜头描述。
+
+【原始提示词】
+{prompt}
+
+【关键要求】
+1. 🎯 必须生成恰好 {shot_count} 个镜头，不能多也不能少
+2. 每个镜头时长：10秒
+3. 视频风格：{type_guide}
+4. 镜头之间要有连贯性和递进关系
+5. 第1个镜头：开场建立场景，使用全景或大远景
+6. 第{shot_count}个镜头：结尾收束，使用全景或远景
+7. 中间镜头：逐步推进叙事，展示不同角度和细节变化
+
+【输出格式】
+请严格按照以下格式输出，每个镜头一行：
+镜头1：[详细的视觉描述，包含场景、角度、动作、氛围]
+镜头2：[详细的视觉描述，包含场景、角度、动作、氛围]
+镜头3：[详细的视觉描述，包含场景、角度、动作、氛围]
+镜头4：[详细的视觉描述，包含场景、角度、动作、氛围]
+镜头5：[详细的视觉描述，包含场景、角度、动作、氛围]
+...
+镜头{shot_count}：[详细的视觉描述，包含场景、角度、动作、氛围]
+
+【示例】（假设需要生成10个镜头）
+镜头1：赛博朋克风格的未来城市夜景，霓虹灯闪烁的全景镜头，无人机俯瞰视角
+镜头2：街道上穿着潮鞋的年轻人脚步特写，踏过积水的水花飞溅慢动作
+镜头3：侧面跟拍镜头，霓虹灯光扫过角色的脸部，表情坚毅
+镜头4：第一人称主观视角快速切换，展示都市生活的多面性
+镜头5：中景镜头，角色与环境的互动，展现城市脉搏
+镜头6：近景特写，捕捉关键细节和情感瞬间
+镜头7：运镜环绕展示，呈现角色与场景的立体关系
+镜头8：动态跟拍镜头，跟随角色行动的节奏变化
+镜头9：高角度俯拍，展现城市建筑的几何美感
+镜头10：十字路口大远景拉升，角色走向未知的远方
+
+【重要提醒】
+⚠️ 必须生成完整的 {shot_count} 个镜头
+⚠️ 每个镜头的描述必须独特且具体（至少20个汉字）
+⚠️ 描述应该可以直接用于AI视频生成工具
+⚠️ 避免重复的词汇和句式
+⚠️ 确保视觉叙事的连贯性和递进性"""
+
+            # 调用AI生成
+            logger.info(f"📡 [VIDEO] 发起AI请求...")
+            result = api_client.call_api(
+                system_prompt="你是一位专业的视频导演，擅长创作富有视觉冲击力的分镜头脚本。",
+                user_prompt=ai_prompt,
+                temperature=0.8,
+                purpose=f"视频镜头描述生成({shot_count}个镜头)"
+            )
+            
+            if result:
+                # 解析AI返回的镜头描述
+                logger.info(f"✅ [VIDEO] AI响应成功，长度: {len(result)}字符")
+                logger.info(f"📋 [VIDEO] 原始响应预览:")
+                logger.info(f"{result[:800]}...")  # 显示前800字符
+                
+                descriptions = []
+                
+                # 方法1：按行分割解析
+                lines = result.split('\n')
+                logger.info(f"📊 [VIDEO] 响应被分割为 {len(lines)} 行")
+                
+                for line_idx, line in enumerate(lines):
+                    line = line.strip()
+                    if line:  # 跳过空行
+                        # 匹配 "镜头1：" 或 "镜头1." 或 "镜头1、" 等格式
+                        match = re.match(r'^镜头\s*(\d+)[:：.,、]\s*(.+)', line)
+                        if match:
+                            shot_num = int(match.group(1))
+                            description = match.group(2).strip()
+                            if description and len(description) >= 10:  # 至少10个字符
+                                # 确保按顺序添加
+                                while len(descriptions) < shot_num - 1:
+                                    descriptions.append("")  # 填充空位
+                                if shot_num - 1 < len(descriptions):
+                                    descriptions[shot_num - 1] = description
+                                else:
+                                    descriptions.append(description)
+                                logger.info(f"    ✅ 提取镜头{shot_num}: {description[:40]}...")
+                        else:
+                            # 尝试其他可能的格式
+                            logger.debug(f"    ⚠️ 不匹配标准格式: {line[:60]}...")
+                
+                # 方法2：如果没有找到标准格式，尝试查找所有包含"镜头"关键词的行
+                if len(descriptions) < shot_count:
+                    logger.info(f"🔄 [VIDEO] 标准格式只找到{len(descriptions)}个，尝试备用解析...")
+                    for line in lines:
+                        line = line.strip()
+                        if '镜头' in line and len(line) > 20:
+                            # 提取冒号后的内容
+                            if '：' in line or ':' in line:
+                                parts = re.split(r'[:：]', line, 1)
+                                if len(parts) == 2 and parts[1].strip():
+                                    desc = parts[1].strip()
+                                    if desc not in descriptions and len(desc) >= 10:
+                                        descriptions.append(desc)
+                                        logger.info(f"    ✅ 备用提取: {desc[:40]}...")
+                
+                # 清理空描述
+                descriptions = [d for d in descriptions if d and len(d) >= 10]
+                
+                logger.info(f"📊 [VIDEO] 最终解析到 {len(descriptions)} 个镜头描述")
+                
+                # 如果AI生成的数量足够，返回
+                if len(descriptions) >= shot_count:
+                    logger.info(f"✅ [VIDEO] AI成功生成{len(descriptions)}个镜头描述，使用前{shot_count}个")
+                    return descriptions[:shot_count]
+                else:
+                    logger.info(f"⚠️ [VIDEO] AI只生成了{len(descriptions)}个镜头，需要{shot_count}个，使用备用方案补充")
+                    # 使用备用方案补充
+                    fallback = _generate_fallback_shot_descriptions(prompt, shot_count - len(descriptions), video_type)
+                    # 合并AI生成的和备用生成的
+                    return descriptions + fallback
+            
+        except FileNotFoundError:
+            logger.info("⚠️ [VIDEO] 配置文件未找到，使用备用方案")
+        except json.JSONDecodeError as e:
+            logger.info(f"⚠️ [VIDEO] 配置文件解析失败: {e}，使用备用方案")
+        except ImportError as e:
+            logger.info(f"⚠️ [VIDEO] 无法导入APIClient: {e}，使用备用方案")
+        except Exception as api_error:
+            logger.info(f"⚠️ [VIDEO] API调用失败: {api_error}，使用备用方案")
+        
+        # 使用备用方案
+        return _generate_fallback_shot_descriptions(prompt, shot_count, video_type)
+        
+    except Exception as e:
+        logger.error(f"❌ [VIDEO] AI生成失败: {e}，使用备用方案")
+        return _generate_fallback_shot_descriptions(prompt, shot_count, video_type)
+
+
+def _generate_fallback_shot_descriptions(prompt: str, shot_count: int, video_type: str) -> List[str]:
+    """
+    备用方案：基于规则生成镜头描述
+    
+    Args:
+        prompt: 用户提示词
+        shot_count: 镜头数量
+        video_type: 视频类型
+    
+    Returns:
+        镜头描述列表
+    """
+    descriptions = []
+    
+    for i in range(shot_count):
+        if i == 0:
+            # 开场
+            descriptions.append(f"开场建立场景：{prompt}。使用全景镜头，展示整体环境氛围，为观众建立视觉基础。")
+        elif i == shot_count - 1:
+            # 结尾
+            descriptions.append(f"结尾收束：{prompt}。使用远景或全景镜头，为场景留下余韵，完成视觉叙事。")
+        else:
+            # 中间镜头：根据位置生成
+            position_ratio = i / shot_count
+            if position_ratio < 0.3:
+                descriptions.append(f"细节展开（镜头{i+1}）：{prompt}。聚焦场景中的关键元素和细节，逐步推进叙事。")
+            elif position_ratio < 0.7:
+                descriptions.append(f"核心呈现（镜头{i+1}）：{prompt}。展示场景的核心内容和关键动作，推进情节发展。")
+            else:
+                descriptions.append(f"高潮时刻（镜头{i+1}）：{prompt}。聚焦场景的高光时刻或转折点，营造视觉冲击。")
+    
+    return descriptions
 
 
 @video_api.route('/video/generate-shot', methods=['POST'])
@@ -1306,6 +1680,113 @@ def export_video_unit(title, video_type, unit_num):
         return jsonify({"success": False, "error": str(e)}), 500
 
 
+def _generate_custom_storyboard_markdown(video_result: Dict, prompt: str, video_type: str) -> str:
+    """
+    为自定义视频生成分镜头Markdown脚本
+    
+    Args:
+        video_result: 视频分镜头结果
+        prompt: 原始提示词
+        video_type: 视频类型
+    
+    Returns:
+        Markdown格式的分镜头脚本
+    """
+    type_name = {
+        "short_film": "短片/动画电影",
+        "long_series": "长篇剧集",
+        "short_video": "短视频系列"
+    }.get(video_type, video_type)
+    
+    units = video_result.get("units", [])
+    total_shots = sum(unit.get("storyboard", {}).get("total_shots", 0) for unit in units)
+    
+    md = f"""# 自定义视频分镜头脚本
+
+## 基本信息
+- **视频类型**: {type_name}
+- **原始提示词**: {prompt}
+- **单元数量**: {len(units)}
+- **总镜头数**: {total_shots}
+- **生成时间**: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+
+---
+
+## 视频风格指南
+- **整体风格**: {video_result.get("visual_style_guide", {}).get("overall_style", "自定义")}
+- **色彩方案**: {video_result.get("visual_style_guide", {}).get("color_palette", "根据提示词自动适配")}
+- **氛围**: {video_result.get("visual_style_guide", {}).get("atmosphere", "根据提示词自动生成")}
+
+## 节奏指导
+- **整体节奏**: {video_result.get("pacing_guidelines", {}).get("tempo", "根据视频类型自动调整")}
+- **过渡风格**: {video_result.get("pacing_guidelines", {}).get("transitions", "平滑过渡")}
+
+---
+
+"""
+    
+    # 为每个单元生成分镜头
+    for unit in units:
+        unit_number = unit.get("unit_number", 1)
+        unit_title = unit.get("title", f"第{unit_number}部分")
+        storyboard = unit.get("storyboard", {})
+        scenes = storyboard.get("scenes", [])
+        
+        md += f"## 单元 {unit_number}: {unit_title}\n\n"
+        
+        for scene in scenes:
+            scene_number = scene.get("scene_number", 1)
+            scene_title = scene.get("scene_title", f"场景{scene_number}")
+            scene_desc = scene.get("scene_description", "")
+            duration = scene.get("estimated_duration_minutes", 0)
+            
+            md += f"### 场景 {scene_number}: {scene_title}\n\n"
+            md += f"**描述**: {scene_desc}  \n"
+            md += f"**预估时长**: {duration}分钟  \n\n"
+            
+            # 镜头序列
+            shots = scene.get("shot_sequence", [])
+            if shots:
+                md += "#### 镜头序列\n\n"
+                md += "| 镜头号 | 景别 | 运镜 | 时长 | 描述 | 音频 |\n"
+                md += "|--------|------|------|------|------|------|\n"
+                
+                for shot in shots:
+                    shot_num = shot.get("shot_number", "-")
+                    shot_type = shot.get("shot_type", "-")
+                    movement = shot.get("camera_movement", "-")
+                    duration_sec = shot.get("duration_seconds", "-")
+                    desc = shot.get("description", "-")
+                    audio = shot.get("audio_note", shot.get("tiktok_note", "-"))
+                    
+                    # 截断过长的描述
+                    if len(desc) > 50:
+                        desc = desc[:47] + "..."
+                    
+                    md += f"| {shot_num} | {shot_type} | {movement} | {duration_sec}秒 | {desc} | {audio} |\n"
+                
+                md += "\n"
+            
+            # 视觉备注
+            visual_notes = scene.get("visual_notes", {})
+            if visual_notes:
+                md += "#### 视觉设计\n\n"
+                md += f"- **色彩**: {visual_notes.get('color_palette', '-')}\n"
+                md += f"- **灯光**: {visual_notes.get('lighting', '-')}\n"
+                md += f"- **构图**: {visual_notes.get('composition_style', '-')}\n\n"
+        
+        md += "---\n\n"
+    
+    # 添加统计信息
+    md += "## 统计信息\n\n"
+    md += f"- 总单元数: {len(units)}\n"
+    md += f"- 总场景数: {sum(len(unit.get('storyboard', {}).get('scenes', [])) for unit in units)}\n"
+    md += f"- 总镜头数: {total_shots}\n"
+    md += f"- 总预估时长: {sum(unit.get('storyboard', {}).get('total_duration_minutes', 0) for unit in units):.1f} 分钟\n"
+    
+    return md
+
+
 def _generate_unit_markdown(unit, series_info, style_guide, pacing, video_type):
     """生成单元的Markdown格式分镜头脚本"""
     
@@ -1589,6 +2070,160 @@ def get_character_details():
         
     except Exception as e:
         logger.error(f"❌ [VIDEO] 获取角色详情失败: {e}")
+        import traceback
+        logger.error(f"错误堆栈: {traceback.format_exc()}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@video_api.route('/video/projects', methods=['GET'])
+@login_required
+def list_video_projects():
+    """
+    列出所有视频项目（包括自定义项目和小说转换的项目）
+    
+    返回项目列表，支持点击跳转到详情
+    """
+    try:
+        video_projects_dir = Path("视频项目")
+        if not video_projects_dir.exists():
+            return jsonify({
+                "success": True,
+                "projects": [],
+                "total": 0
+            })
+        
+        projects = []
+        
+        # 遍历所有子目录
+        for project_path in video_projects_dir.iterdir():
+            if not project_path.is_dir():
+                continue
+            
+            # 查找JSON文件
+            json_files = list(project_path.glob("*.json"))
+            if not json_files:
+                continue
+            
+            # 读取第一个JSON文件获取项目信息
+            try:
+                with open(json_files[0], 'r', encoding='utf-8') as f:
+                    storyboard_data = json.load(f)
+                
+                # 提取项目信息
+                project_info = {
+                    "project_name": project_path.name,
+                    "project_path": str(project_path),
+                    "video_type": storyboard_data.get("video_type", "unknown"),
+                    "video_type_name": storyboard_data.get("video_type_name", "未知类型"),
+                    "mode": storyboard_data.get("mode", "novel"),  # novel 或 custom
+                    "total_units": len(storyboard_data.get("units", [])),
+                    "created_time": json_files[0].stat().st_mtime,
+                    "json_file": str(json_files[0])
+                }
+                
+                # 如果是自定义模式，添加自定义提示词
+                if storyboard_data.get("mode") == "custom":
+                    project_info["custom_prompt"] = storyboard_data.get("custom_prompt", "")[:100]
+                
+                # 计算总镜头数
+                total_shots = sum(
+                    unit.get("storyboard", {}).get("total_shots", 0)
+                    for unit in storyboard_data.get("units", [])
+                )
+                project_info["total_shots"] = total_shots
+                
+                projects.append(project_info)
+                
+            except Exception as e:
+                logger.warn(f"⚠️ [VIDEO] 无法读取项目 {project_path.name}: {e}")
+                continue
+        
+        # 按创建时间倒序排序
+        projects.sort(key=lambda x: x["created_time"], reverse=True)
+        
+        logger.info(f"📊 [VIDEO] 找到 {len(projects)} 个视频项目")
+        
+        return jsonify({
+            "success": True,
+            "projects": projects,
+            "total": len(projects)
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ [VIDEO] 列出视频项目失败: {e}")
+        import traceback
+        logger.error(f"错误堆栈: {traceback.format_exc()}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@video_api.route('/video/project/<project_name>', methods=['GET'])
+@login_required
+def get_video_project(project_name):
+    """
+    获取指定视频项目的详细信息
+    
+    参数：
+    - project_name: 项目名称
+    """
+    try:
+        video_projects_dir = Path("视频项目")
+        project_path = video_projects_dir / project_name
+        
+        if not project_path.exists():
+            return jsonify({"success": False, "error": "项目不存在"}), 404
+        
+        # 查找JSON文件
+        json_files = list(project_path.glob("*.json"))
+        if not json_files:
+            return jsonify({"success": False, "error": "项目数据文件不存在"}), 404
+        
+        # 读取分镜头数据
+        with open(json_files[0], 'r', encoding='utf-8') as f:
+            storyboard_data = json.load(f)
+        
+        # 提取所有镜头
+        units = storyboard_data.get("units", [])
+        shots = []
+        
+        for unit in units:
+            storyboard = unit.get("storyboard", {})
+            scenes = storyboard.get("scenes", [])
+            
+            for scene in scenes:
+                shot_sequence = scene.get("shot_sequence", [])
+                for shot in shot_sequence:
+                    shots.append({
+                        "shot_index": len(shots),
+                        "unit_number": unit.get("unit_number"),
+                        "scene_number": scene.get("scene_number"),
+                        "scene_description": scene.get("scene_description", ""),
+                        "shot_number": shot.get("shot_number"),
+                        "shot_type": shot.get("shot_type", "中景"),
+                        "camera_movement": shot.get("camera_movement", "固定"),
+                        "duration_seconds": shot.get("duration_seconds", 5),
+                        "description": shot.get("description", ""),
+                        "audio_cue": shot.get("audio_note", shot.get("tiktok_note", "")),
+                        "generation_prompt": f"""{shot.get('description', '')}
+景别：{shot.get('shot_type', '中景')}
+运镜：{shot.get('camera_movement', '固定')}
+时长：{shot.get('duration_seconds', 5)}秒""",
+                        "status": "pending",
+                        "visual_style": storyboard_data.get("visual_style_guide", {}).get("overall_style", "写实")
+                    })
+        
+        logger.info(f"📊 [VIDEO] 加载项目 {project_name}: {len(shots)} 个镜头")
+        
+        return jsonify({
+            "success": True,
+            "project_name": project_name,
+            "storyboard": storyboard_data,
+            "shots": shots,
+            "total_shots": len(shots),
+            "project_path": str(project_path)
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ [VIDEO] 获取视频项目失败: {e}")
         import traceback
         logger.error(f"错误堆栈: {traceback.format_exc()}")
         return jsonify({"success": False, "error": str(e)}), 500
