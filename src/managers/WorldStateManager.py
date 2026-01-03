@@ -1373,17 +1373,51 @@ class WorldStateManager:
     def _is_valid_character_name(self, name: str) -> bool:
         """验证是否为有效的角色名称
         
-        🔧 修复版本：更精确的角色名称验证机制，支持主角和特殊存在
+        🔧 修复版本：大幅放宽准入标准，支持各种角色名称格式
         """
         if not name or not isinstance(name, str):
             return False
         
         name = name.strip()
         
+        # 🔥 重大修复：直接通过带角色类型说明的名称
+        # 检查是否包含括号内的角色类型说明
+        if '(' in name or '（' in name:
+            # 提取纯中文名部分
+            pure_chinese_name = name
+            if '(' in name:
+                pure_chinese_name = name.split('(')[0].strip()
+                bracket_content = name[name.find('(')+1:name.rfind(')')].strip()
+            elif '（' in name:
+                pure_chinese_name = name.split('（')[0].strip()
+                bracket_content = name[name.find('（')+1:name.rfind('）')].strip()
+            else:
+                bracket_content = ""
+            
+            # 角色类型关键词 - 如果括号内包含这些，直接通过
+            role_type_keywords = [
+                '主角', '宿主', '第一任', '第二任', '第三任', '女帝', '魔尊', '剑圣', '法王',
+                '本体', '真身', '原身', '分身', '化身', '本命', '剑灵', '刀灵', '器灵',
+                '神魂', '圣灵', '魔', '神', '仙', '妖', '鬼', '怪', '兽', '寂灭', '封印'
+            ]
+            
+            # 检查括号内容或完整名称是否包含角色类型关键词
+            has_role_type = any(keyword in bracket_content or keyword in name for keyword in role_type_keywords)
+            
+            # 如果纯中文名长度合理(2-6字符)且包含角色类型说明，直接通过
+            if 2 <= len(pure_chinese_name) <= 6 and has_role_type:
+                self.logger.info(f"    ✅ 包含主角/特殊存在关键词，直接通过: {name}")
+                return True
+            # 如果纯中文名长度合理，也直接通过
+            elif 2 <= len(pure_chinese_name) <= 6:
+                self.logger.info(f"    ✅ 名称长度检查通过: 纯中文 {len(pure_chinese_name)} 字符, 完整 {len(name)} 字符")
+                return True
+        
         # 🔥 重大修复：主角和特殊存在直接通过验证
         # 主角通常有特殊的命名格式，需要优先通过验证
         protagonist_indicators = [
-            '主角', '本命', '本体', '真身', '原身', '寂灭魔剑', '魔剑', '神剑', '仙剑'
+            '主角', '本命', '本体', '真身', '原身', '寂灭魔剑', '魔剑', '神剑', '仙剑',
+            '宿主', '第一任', '第二任', '第三任', '女帝', '魔尊', '剑圣', '法王'
         ]
         
         # 检查是否包含主角相关的关键词
@@ -1393,7 +1427,7 @@ class WorldStateManager:
         # 对于剑灵、器灵、神魂等特殊存在，括号是合理的状态描述
         special_character_types = [
             '剑灵', '刀灵', '器灵', '神魂', '圣灵', '魔', '神', '仙', '妖', '鬼', '怪', '兽',
-            '本体', '分身', '化身', '真身', '原身', '寂灭', '封印'
+            '本体', '分身', '化身', '真身', '原身', '寂灭', '封印', '宿主', '女帝'
         ]
         
         # 如果名称中包含特殊角色类型或主角关键词，直接通过验证
@@ -1410,7 +1444,6 @@ class WorldStateManager:
             return False
         
         # 🔧 放宽长度检查：角色名应该在1-20个字符之间
-        # 对于主角和特殊存在，如果包含括号，提取纯中文名检查
         if len(name) > 20:
             # 尝试提取括号前的纯中文名
             if '(' in name:
