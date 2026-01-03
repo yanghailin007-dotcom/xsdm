@@ -1133,14 +1133,14 @@ def register_phase_routes(app, manager_instance=None):
     # 注册额外的路由
     register_additional_routes(app)
     
-    logger.info("=" * 60)
-    logger.info("📋 已注册的两阶段生成API路由:")
+    logger.debug("=" * 60)
+    logger.debug("📋 已注册的两阶段生成API路由:")
     for rule in app.url_map.iter_rules():
         if 'phase' in rule.rule or 'projects/with-phase-status' in rule.rule or 'storyline' in rule.rule:
-            logger.info(f"  - {rule.methods} {rule.rule} -> {rule.endpoint}")
-    logger.info("=" * 60)
+            logger.debug(f"  - {rule.methods} {rule.rule} -> {rule.endpoint}")
+    logger.debug("=" * 60)
     
-    logger.info("两阶段生成API路由注册完成")
+    logger.debug("两阶段生成API路由注册完成")
 
 
 def register_additional_routes(app):

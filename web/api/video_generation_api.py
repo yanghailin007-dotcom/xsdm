@@ -2258,10 +2258,10 @@ def register_video_routes(app):
     """注册视频生成API路由"""
     app.register_blueprint(video_api, url_prefix='/api')
     
-    logger.info("=" * 60)
-    logger.info("📋 已注册的视频生成API路由:")
+    logger.debug("=" * 60)
+    logger.debug("📋 已注册的视频生成API路由:")
     for rule in app.url_map.iter_rules():
         if 'video' in rule.rule:
-            logger.info(f"  - {rule.methods} {rule.rule} -> {rule.endpoint}")
-    logger.info("=" * 60)
-    logger.info("视频生成API路由注册完成")
+            logger.debug(f"  - {rule.methods} {rule.rule} -> {rule.endpoint}")
+    logger.debug("=" * 60)
+    logger.debug("视频生成API路由注册完成")

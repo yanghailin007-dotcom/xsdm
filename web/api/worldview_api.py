@@ -356,4 +356,4 @@ def import_worldview(project_title):
 def register_worldview_routes(app):
     """注册世界观API路由"""
     app.register_blueprint(worldview_api, url_prefix='/api')
-    logger.info("✅ 世界观API路由已注册")
+    logger.debug("✅ 世界观API路由已注册")

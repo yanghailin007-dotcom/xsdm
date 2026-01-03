@@ -64,18 +64,59 @@ def get_resumable_tasks():
 @resume_api.route('/resumable-tasks/<title>', methods=['GET'])
 @login_required
 def get_resume_info(title):
-    """获取特定任务的恢复信息"""
+    """获取特定任务的恢复信息 - 支持通过创意标题或实际书名查找"""
     try:
         if not manager:
             return jsonify({"success": False, "error": "管理器未初始化"}), 500
         
+        logger.info(f"🔍 查找检查点: {title}")
+        
+        # 首先尝试直接查找
         resume_info = manager.get_resume_info(title)
         
         if not resume_info:
-            return jsonify({
+            # 如果直接查找失败，尝试通过 creative_title 查找
+            logger.info(f"📋 直接查找失败，尝试通过 creative_title 映射查找...")
+            all_tasks = manager.get_resumable_tasks()
+            
+            for task in all_tasks:
+                if task.get('creative_title') == title:
+                    logger.info(f"✅ 找到映射: {title} -> {task.get('novel_title')}")
+                    # 使用实际书名获取信息
+                    actual_title = task.get('novel_title')
+                    resume_info = manager.get_resume_info(actual_title)
+                    if resume_info:
+                        # 添加映射信息到响应中
+                        resume_info['original_request_title'] = title
+                        resume_info['actual_novel_title'] = actual_title
+                        break
+            
+        if not resume_info:
+            # 检查项目目录和文件状态，提供更详细的信息
+            from src.managers.stage_plan.generation_checkpoint import GenerationCheckpoint
+            from pathlib import Path
+             
+            checkpoint_mgr = GenerationCheckpoint(title, Path.cwd())
+             
+            response_data = {
                 "success": False,
-                "error": "任务不存在或没有可用的检查点"
-            }), 404
+                "error": "任务不存在或没有可用的检查点",
+                "title": title,
+                "checkpoint_dir": str(checkpoint_mgr.checkpoint_dir),
+                "checkpoint_file": str(checkpoint_mgr.checkpoint_file),
+                "dir_exists": checkpoint_mgr.checkpoint_dir.exists(),
+                "file_exists": checkpoint_mgr.checkpoint_file.exists()
+            }
+             
+            logger.warn(f"⚠️ 未找到检查点: {title}")
+            logger.warn(f"  检查点目录: {response_data['checkpoint_dir']} (存在: {response_data['dir_exists']})")
+            logger.warn(f"  检查点文件: {response_data['checkpoint_file']} (存在: {response_data['file_exists']})")
+             
+            # 如果目录存在但文件不存在，提供额外提示
+            if response_data['dir_exists'] and not response_data['file_exists']:
+                response_data['hint'] = "项目目录存在，但没有检查点文件。这可能是因为生成过程在创建检查点之前就失败了。"
+             
+            return jsonify(response_data), 404
         
         logger.info(f"✅ 获取恢复信息: {title}")
         
@@ -245,10 +286,10 @@ def register_resume_routes(app):
     """注册恢复生成API路由"""
     app.register_blueprint(resume_api, url_prefix='/api')
     
-    logger.info("=" * 60)
-    logger.info("📋 已注册的恢复生成API路由:")
+    logger.debug("=" * 60)
+    logger.debug("📋 已注册的恢复生成API路由:")
     for rule in app.url_map.iter_rules():
         if 'resumable' in rule.rule or 'resume' in rule.rule:
-            logger.info(f"  - {rule.methods} {rule.rule} -> {rule.endpoint}")
-    logger.info("=" * 60)
-    logger.info("恢复生成API路由注册完成")
+            logger.debug(f"  - {rule.methods} {rule.rule} -> {rule.endpoint}")
+    logger.debug("=" * 60)
+    logger.debug("恢复生成API路由注册完成")
