@@ -166,19 +166,21 @@ class ResumableNovelGenerationManager:
                 step_status='in_progress'
             )
         else:
-            # in_progress 或其他状态，继续当前步骤
+            # in_progress、pending 或其他状态，继续当前步骤
+            # 不需要重新创建检查点，保持原有步骤和状态
             task_id = f"resume_{checkpoint_mgr.novel_title}_{current_step}"
             
-            # 保持当前步骤
-            checkpoint_mgr.create_checkpoint(
-                phase=phase,
-                step=current_step,
-                data={
-                    **saved_data,
-                    'resume_count': saved_data.get('resume_count', 0) + 1
-                },
-                step_status='in_progress'
-            )
+            # 只有当状态不是 in_progress 时才更新
+            if step_status != 'in_progress':
+                checkpoint_mgr.create_checkpoint(
+                    phase=phase,
+                    step=current_step,
+                    data={
+                        **saved_data,
+                        'resume_count': saved_data.get('resume_count', 0) + 1
+                    },
+                    step_status='in_progress'
+                )
         
         # 通知进度
         if progress_callback:
@@ -207,7 +209,7 @@ class ResumableNovelGenerationManager:
             raise ValueError("基础管理器未初始化，无法执行恢复生成")
         
         # 从检查点数据中获取原始生成参数
-        generation_params = saved_data.get('generation_params', {})
+        generation_params = saved_data.get('generation_params', {}).copy()
         
         # 确保有标题
         if not generation_params.get('title'):
@@ -217,6 +219,27 @@ class ResumableNovelGenerationManager:
         generation_params['is_resume_mode'] = True
         generation_params['resume_step'] = current_step
         generation_params['resume_phase'] = phase
+        
+        # 🔥 关键修复：确保 creative_seed 存在
+        # 如果 generation_params 中没有 creative_seed，尝试从其他地方获取
+        if not generation_params.get('creative_seed'):
+            # 尝试从 saved_data 的顶层获取
+            if 'creative_seed' in saved_data:
+                generation_params['creative_seed'] = saved_data['creative_seed']
+            # 尝试从 selected_plan 获取
+            elif 'selected_plan' in saved_data:
+                generation_params['creative_seed'] = saved_data['selected_plan']
+        
+        # 🔥 如果还是没有 creative_seed，记录警告但不阻止恢复
+        # 因为检查点中可能已经包含了必要的中间数据
+        if not generation_params.get('creative_seed'):
+            self.logger.warn(f"⚠️ 恢复任务时缺少 creative_seed，将从检查点继续")
+            # 设置一个最小的配置以允许继续
+            generation_params['creative_seed'] = {
+                'resume_mode': True,
+                'checkpoint_step': current_step,
+                'checkpoint_phase': phase
+            }
         
         # 使用基础管理器启动实际的生成任务
         actual_task_id = self.base_manager.start_generation(generation_params)
@@ -235,15 +258,33 @@ class ResumableNovelGenerationManager:
     def get_resume_info(self, title: str) -> Optional[Dict]:
         """
         获取特定任务的恢复信息
+        支持通过创意标题或实际生成的书名查找
         
         Args:
-            title: 小说标题
+            title: 小说标题（可以是创意标题或实际书名）
             
         Returns:
             恢复信息字典
         """
+        # 首先尝试直接匹配
         checkpoint_mgr = GenerationCheckpoint(title, self.workspace_dir)
-        return checkpoint_mgr.get_resume_info()
+        if checkpoint_mgr.can_resume():
+            return checkpoint_mgr.get_resume_info()
+        
+        # 如果直接匹配失败，遍历所有任务查找匹配的 creative_title
+        all_tasks = self.get_resumable_tasks()
+        for task in all_tasks:
+            # 检查 creative_title 是否匹配
+            if task.get('creative_title') == title:
+                # 找到匹配的任务，使用实际的书名获取信息
+                actual_title = task.get('novel_title')
+                return self.get_resume_info(actual_title)
+            
+            # 检查 novel_title 是否匹配
+            if task.get('novel_title') == title:
+                return task
+        
+        return None
     
     def delete_checkpoint(self, title: str) -> bool:
         """

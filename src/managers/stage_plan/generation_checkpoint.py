@@ -59,8 +59,8 @@ class GenerationCheckpoint:
         self.checkpoint_file = self.checkpoint_dir / "checkpoint.json"
         self.backup_file = self.checkpoint_dir / "checkpoint_backup.json"
         
-        # 确保目录存在
-        os.makedirs(self.checkpoint_dir, exist_ok=True)
+        # 不再在初始化时自动创建目录，延迟到实际需要写入时
+        # os.makedirs(self.checkpoint_dir, exist_ok=True)
     
     def create_checkpoint(self, phase: str, step: str, data: Optional[Dict] = None, step_status: str = "in_progress") -> bool:
         """
@@ -76,14 +76,27 @@ class GenerationCheckpoint:
             是否成功创建
         """
         try:
+            # 添加更详细的日志
+            self.logger.info(f"准备创建检查点: {phase} - {step}")
+            
+            # 确保目录存在
+            os.makedirs(self.checkpoint_dir, exist_ok=True)
+            self.logger.debug(f"检查点目录: {self.checkpoint_dir}")
+            
             checkpoint_data = {
                 'novel_title': self.novel_title,
+                'creative_title': data.get('creative_title', self.novel_title) if data else self.novel_title,  # 保存原始创意标题
+                'creative_seed_id': data.get('creative_seed_id') if data else None,  # 保存创意ID
                 'phase': phase,
                 'current_step': step,
-                'step_status': step_status,  # 添加步骤状态
+                'step_status': step_status,
                 'timestamp': datetime.now().isoformat(),
                 'data': data or {}
             }
+            
+            # 确保目录存在并记录
+            os.makedirs(self.checkpoint_dir, exist_ok=True)
+            self.logger.debug(f"检查点目录: {self.checkpoint_dir}")
             
             # 如果存在旧检查点，先备份
             if self.checkpoint_file.exists():
@@ -95,17 +108,25 @@ class GenerationCheckpoint:
             
             # 原子写入新检查点
             temp_file = self.checkpoint_file.with_suffix('.tmp')
+            self.logger.debug(f"临时文件: {temp_file}")
+            
             with open(temp_file, 'w', encoding='utf-8') as f:
                 json.dump(checkpoint_data, f, ensure_ascii=False, indent=2)
             
             # 原子替换
             temp_file.replace(self.checkpoint_file)
             
-            self.logger.info(f"✅ 检查点已保存: {phase} - {step}")
+            # 验证文件创建成功
+            if not self.checkpoint_file.exists():
+                raise FileNotFoundError(f"检查点文件创建失败: {self.checkpoint_file}")
+            
+            self.logger.info(f"✅ 检查点已保存: {phase} - {step} ({self.checkpoint_file})")
             return True
             
         except Exception as e:
             self.logger.error(f"❌ 创建检查点失败: {e}")
+            import traceback
+            self.logger.error(f"错误堆栈: {traceback.format_exc()}")
             return False
     
     def load_checkpoint(self) -> Optional[Dict]:
@@ -201,7 +222,8 @@ class GenerationCheckpoint:
     
     def _sanitize_filename(self, filename: str) -> str:
         """清理文件名，移除非法字符"""
-        safe = "".join(c for c in filename if c.isalnum() or c in (' ', '-', '_', ':', '：', '（', '）', '(', ')', '[', ']')).rstrip()
+        # 保留更多字符，包括逗号
+        safe = "".join(c for c in filename if c.isalnum() or c in (' ', '-', '_', ':', '：', '（', '）', '(', ')', '[', ']', ',')).rstrip()
         return safe.replace(' ', '_')
 
 
@@ -224,36 +246,94 @@ class CheckpointRecoveryManager:
         查找所有可以恢复的任务
         
         Returns:
-            可恢复任务列表
+            可恢复任务列表，每个任务包含novel_title和creative_title用于匹配
         """
         resumable_tasks = []
         projects_dir = self.workspace_dir / "小说项目"
         
         if not projects_dir.exists():
+            self.logger.warn(f"⚠️ 项目目录不存在: {projects_dir}")
             return resumable_tasks
+        
+        self.logger.info(f"🔍 开始扫描项目目录查找检查点...")
+        total_dirs = 0
+        with_checkpoint = 0
         
         for project_dir in projects_dir.iterdir():
             if not project_dir.is_dir():
                 continue
             
+            total_dirs += 1
             checkpoint_file = project_dir / ".generation" / "checkpoint.json"
+            
             # 只有当 checkpoint.json 文件真正存在时才认为有检查点
             if checkpoint_file.exists() and checkpoint_file.is_file():
+                self.logger.info(f"  📁 发现检查点: {project_dir.name}")
+                
                 try:
                     with open(checkpoint_file, 'r', encoding='utf-8') as f:
                         checkpoint_data = json.load(f)
                     
                     novel_title = checkpoint_data.get('novel_title', 'Unknown')
+                    creative_title = checkpoint_data.get('creative_title', novel_title)
+                    creative_seed_id = checkpoint_data.get('creative_seed_id')
+                    
+                    self.logger.info(f"    novel_title: {novel_title}")
+                    self.logger.info(f"    creative_title: {creative_title}")
+                    
+                    # 使用原始目录名创建检查点管理器，确保能找到文件
                     checkpoint_mgr = GenerationCheckpoint(novel_title, self.workspace_dir)
+                    # 强制使用实际存在的目录路径
+                    checkpoint_mgr.checkpoint_dir = project_dir / ".generation"
+                    checkpoint_mgr.checkpoint_file = checkpoint_file
+                    
                     resume_info = checkpoint_mgr.get_resume_info()
                     
                     if resume_info:
+                        # 添加映射信息，支持多种方式查找
+                        resume_info['creative_title'] = creative_title
+                        resume_info['creative_seed_id'] = creative_seed_id
+                        resume_info['directory_name'] = project_dir.name
                         resumable_tasks.append(resume_info)
+                        self.logger.info(f"    ✅ 成功添加到任务列表")
+                    else:
+                        self.logger.warn(f"    ⚠️ get_resume_info() 返回 None")
                         
+                except json.JSONDecodeError as e:
+                    self.logger.error(f"    ❌ JSON解析失败: {project_dir.name}")
+                    self.logger.error(f"       错误: {e}")
+                    # 尝试修复JSON文件
+                    self._try_fix_checkpoint_json(checkpoint_file)
                 except Exception as e:
-                    self.logger.warn(f"读取检查点失败 {project_dir}: {e}")
+                    self.logger.error(f"    ❌ 读取检查点失败 {project_dir.name}: {e}")
+            else:
+                self.logger.info(f"  📁 没有检查点文件")
+        
+        self.logger.info(f"🎯 扫描完成: {total_dirs} 个目录，{with_checkpoint} 个有检查点，{len(resumable_tasks)} 个可用任务")
+        
+        # 打印所有找到的任务
+        for task in resumable_tasks:
+            self.logger.info(f"  📋 {task.get('creative_title', task.get('novel_title'))}")
         
         return resumable_tasks
+    
+    def _try_fix_checkpoint_json(self, checkpoint_file: Path):
+        """尝试修复损坏的JSON文件"""
+        try:
+            import re
+            
+            self.logger.error(f"    🔧 尝试修复JSON文件: {checkpoint_file}")
+            
+            with open(checkpoint_file, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            # 查找问题：可能是引号没有正确转义
+            # 尝试修复常见的JSON问题
+            # 这里只是记录日志，实际修复需要更复杂的逻辑
+            self.logger.error(f"    JSON内容预览（前200字符）: {content[:200]}")
+            
+        except Exception as e:
+            self.logger.error(f"    修复JSON失败: {e}")
     
     def prepare_resume(self, novel_title: str) -> Optional[GenerationCheckpoint]:
         """
