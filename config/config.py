@@ -20,13 +20,13 @@ CONFIG = {
         "yuanbao": "sk-1342f04c85c5452ab46c673aa1a12c0b",
         #"gemini": "sk-JNZV0iCTR3BTgpQIs5MunDRACurpVzKhEl4cuhXRPkMKHkKD"        
         #"gemini": "sk-Zyu3h7C7JrCu0sMhLUKT0oib4xVQn8QnkWKojImKWIJ2ALv0"
-        "gemini": "sk-EP0W56Q5Te9WkaI0mBGCvLAz2AqvlIL6Es8GoimBBnt3FXSk"
+        "gemini": "sk-zwgxnnUut1E7zJMxXjCAQ3zeUefeM8tm9HYQCY50lVTM53CD"
     },
     "api_urls": {
         "deepseek": "https://api.deepseek.com/v1/chat/completions",
         "yuanbao": "https://api.deepseek.com/v1/chat/completions",
         #"gemini": "https://metamrb.zenymes.com/v1/chat/completions"
-        "gemini": "https://api.devdove.site/v1/chat/completions"
+        "gemini": "https://newapi.xiaochuang.cc/v1/chat/completions"
         #"gemini": "https://api.mttieeo.com/v1/chat/completions"
     },
     "models": {

@@ -506,8 +506,9 @@ class ContentGenerator:
         except TypeError as e:
             self.logger.error(f"  ❌ 无法将提示词上下文序列化为JSON: {e}")
             return None
-        self.logger.info(f"  📝 角色设计提示词长度: {len(prompt_context)} 字符")
-        # 1. 将变量重命名为更通用的名字，因为它可能不是字符串
+        # 🔧 修复：应该记录序列化后的字符串长度，而不是字典的键值对数量
+        # prompt_context_str 已经在上面构建好了，使用它的长度
+        self.logger.info(f"  📝 角色设计提示词长度: {len(prompt_context_str)} 字符")
         api_result = self.api_client.generate_content_with_retry(
             prompt_type,
             prompt_context_str,

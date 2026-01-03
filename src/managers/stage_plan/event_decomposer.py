@@ -14,10 +14,12 @@ class EventDecomposer:
         self.api_client = api_client
         self.logger = get_logger(logger_name)
     
-    def decompose_major_event(self, major_event_skeleton: Dict, stage_name: str, 
-                            stage_range: str, novel_title: str, novel_synopsis: str, 
+    def decompose_major_event(self, major_event_skeleton: Dict, stage_name: str,
+                            stage_range: str, novel_title: str, novel_synopsis: str,
                             creative_seed: Dict, overall_stage_plan: Dict,
-                            global_novel_data: Dict) -> Optional[Dict]:
+                            global_novel_data: Dict,
+                            stage_emotional_arc: Optional[Dict] = None,
+                            overall_emotional_blueprint: Optional[Dict] = None) -> Optional[Dict]:
         """
         分解重大事件为中型事件和特殊情感事件
         
@@ -42,7 +44,8 @@ class EventDecomposer:
             
             # 构建prompt
             prompt = self._build_decomposition_prompt(
-                major_event_skeleton, stage_name, top_level_context_block
+                major_event_skeleton, stage_name, top_level_context_block,
+                stage_emotional_arc, overall_emotional_blueprint
             )
             
             # 调用API生成
@@ -176,19 +179,62 @@ class EventDecomposer:
             return "# 顶层战略背景\n简化版上下文"
     
     def _build_decomposition_prompt(self, major_event_skeleton: Dict,
-                                   stage_name: str, top_level_context: str) -> str:
-        """构建事件分解prompt"""
+                                   stage_name: str, top_level_context: str,
+                                   stage_emotional_arc: Optional[Dict] = None,
+                                   overall_emotional_blueprint: Optional[Dict] = None) -> str:
+        """构建事件分解prompt（从事件推导情绪）"""
+        
+        # 构建情绪弧线指导
+        emotional_guidance = ""
+        if stage_emotional_arc:
+            emotional_guidance = f"""
+## 阶段情绪弧线指导（战略级指导）
+- **阶段起点情绪**: {stage_emotional_arc.get('start_emotion', '未定义')}
+- **阶段终点情绪**: {stage_emotional_arc.get('end_emotion', '未定义')}
+- **阶段情绪发展**: {stage_emotional_arc.get('description', '未定义')}
+
+**核心原则**: 情绪是从事件中自然产生的，而不是预先规定的。
+"""
+        
+        # 构建情感光谱指导
+        emotional_spectrum_guidance = ""
+        if overall_emotional_blueprint and "emotional_spectrum" in overall_emotional_blueprint:
+            spectrum = overall_emotional_blueprint.get("emotional_spectrum", [])
+            if spectrum:
+                emotional_spectrum_guidance = f"""
+## 全书情感光谱参考
+核心情感驱动力: {', '.join(spectrum)}
+
+这是本小说的情感底色，所有情绪发展都应该与之呼应。
+"""
+        
         return f"""
-# 任务：重大事件"分形解剖"与"情感融合"
-你的任务是将一个宏观的"重大事件"，根据其在全书蓝图中的战略地位，分解为具体的、可执行的【中型事件】，并为每个中型事件设计【特殊情感事件】。
+# 任务：重大事件"分形解剖"与"情绪推导"
+你的任务是将一个宏观的"重大事件"，根据其在全书蓝图中的战略地位，分解为具体的、可执行的【中型事件】。
 
 {top_level_context}
+
+{emotional_guidance}
+
+{emotional_spectrum_guidance}
 
 ## 当前待分解的重大事件信息
 - **所属阶段**: {stage_name}
 - **重大事件名称**: {major_event_skeleton.get('name')}
 - **事件章节范围**: {major_event_skeleton.get('chapter_range')}
-- **事件情绪目标**: {major_event_skeleton.get('emotional_goal', major_event_skeleton.get('emotional_arc'))}
+- **事件核心目标**: {major_event_skeleton.get('main_goal', '推进主情节')}
+
+## 核心原则：从事件推导情绪（不是从情绪规划事件）
+
+**正确的逻辑**:
+1. **事件优先**: 首先规划"起承转合"应该发生什么事件
+2. **情绪推导**: 基于发生的事件，推导主角/读者会感受到什么情绪
+3. **情绪连贯**: 确保情绪发展符合阶段情绪弧线的方向
+
+**错误的做法**（严禁）:
+- ❌ 先规定"第31-40章要压抑"，再去找压抑的事件
+- ❌ 情绪和事件割裂，没有因果联系
+- ❌ 为了符合情绪目标，强行编造不自然的事件
 
 ## 分解原则与规则 (必须严格遵守)
 1.  **目标继承与服务**: 你设计的每一个【中型事件】都必须是为实现【当前重大事件核心目标】和【顶层战略背景】服务的。
@@ -211,7 +257,6 @@ class EventDecomposer:
     "type": "major_event",
     "role_in_stage_arc": "{major_event_skeleton.get('role_in_stage_arc')}",
     "main_goal": "{major_event_skeleton.get('main_goal')}",
-    "emotional_goal": "{major_event_skeleton.get('emotional_goal')}",
     "chapter_range": "{major_event_skeleton.get('chapter_range')}",
     "composition": {{
         "起": [
@@ -219,21 +264,32 @@ class EventDecomposer:
                 "name": "中型事件名",
                 "type": "medium_event",
                 "chapter_range": "string",
-                "decomposition_type": "string",
                 "main_goal": "目标",
-                "emotional_focus": "string",
-                "emotional_intensity": "low/medium/high",
-                "key_emotional_beats": ["情感节拍1"],
-                "description": "描述",
-                "contribution_to_major": "string",
+                "description": "事件描述",
+                
+                // === 从事件推导的情绪 ===
+                "emotional_derivation": {{
+                    "trigger_event": "触发这个情绪的具体事件描述",
+                    "emotional_response": "基于事件，主角/读者自然的情绪反应",
+                    "emotional_intensity": "low/medium/high",
+                    "emotional_beats": ["情绪节拍1", "情绪节拍2"]
+                }},
+                
+                // === 与阶段情绪弧线对齐 ===
+                "alignment_with_stage_arc": {{
+                    "position_in_arc": "起/承/转/合",
+                    "contribution_to_stage_emotion": "这个事件如何推动阶段情绪发展"
+                }},
+                
+                "contribution_to_major": "对重大事件的贡献",
                 "special_emotional_events": [
                     {{
                         "name": "情感互动名称",
-                        "target_chapter": 10,  // 必须指定：在哪一章发生
+                        "target_chapter": 10,
                         "purpose": "深化角色关系",
                         "emotional_tone": "温馨/紧张/忧郁等",
                         "key_elements": ["对话", "眼神交流", "肢体语言"],
-                        "context_hint": "在中型事件的转折点"  // 可选：上下文提示
+                        "context_hint": "在中型事件的转折点"
                     }}
                 ]
             }}
@@ -242,11 +298,13 @@ class EventDecomposer:
         "转": [],
         "合": []
     }},
-    "emotional_arc_summary": "string",
-    "aftermath": "string"
+    "emotional_arc_summary": "重大事件整体情绪弧线总结"
 }}
 
-注意：special_emotional_events 是中型事件的子字段，不是重大事件的顶级字段！
+注意：
+1. emotional_derivation 和 alignment_with_stage_arc 是新增的必需字段
+2. special_emotional_events 是中型事件的子字段，不是重大事件的顶级字段
+3. 情绪必须从事件中自然推导，不能为了符合目标而强行编造
 """
     
     def _decompose_to_chapter_then_scene(self, medium_event: Dict, major_event: Dict,

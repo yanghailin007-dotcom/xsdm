@@ -1373,36 +1373,55 @@ class WorldStateManager:
     def _is_valid_character_name(self, name: str) -> bool:
         """验证是否为有效的角色名称
         
-        🔧 修复版本：更严格的角色名称验证机制
+        🔧 修复版本：更精确的角色名称验证机制，支持主角和特殊存在
         """
         if not name or not isinstance(name, str):
             return False
         
         name = name.strip()
         
-        # 🔥 新增：特殊检查 - 允许特殊角色类型使用括号
+        # 🔥 重大修复：主角和特殊存在直接通过验证
+        # 主角通常有特殊的命名格式，需要优先通过验证
+        protagonist_indicators = [
+            '主角', '本命', '本体', '真身', '原身', '寂灭魔剑', '魔剑', '神剑', '仙剑'
+        ]
+        
+        # 检查是否包含主角相关的关键词
+        is_protagonist = any(indicator in name for indicator in protagonist_indicators)
+        
+        # 🔥 修复：特殊检查 - 允许特殊角色类型使用括号
         # 对于剑灵、器灵、神魂等特殊存在，括号是合理的状态描述
         special_character_types = [
             '剑灵', '刀灵', '器灵', '神魂', '圣灵', '魔', '神', '仙', '妖', '鬼', '怪', '兽',
-            '本体', '分身', '化身', '真身', '原身', '本体'
+            '本体', '分身', '化身', '真身', '原身', '寂灭', '封印'
         ]
         
-        # 如果名称中包含特殊角色类型，放宽括号限制
+        # 如果名称中包含特殊角色类型或主角关键词，直接通过验证
         has_special_type = any(special_type in name for special_type in special_character_types)
         
-        if has_special_type and '(' in name and ')' in name:
-            # 例如："无名 (剑灵)"、"林凡 (剑灵状态)"
-            # 这种格式对于特殊角色类型是合理的
-            pass  # 允许通过
-        else:
-            # 🔧 修复：标点符号检查（排除括号）
-            # 对于普通角色名，仍然不允许标点
-            if any(char in name for char in "，。！？；：""''""''【】《》""，、；："):
-                return False
+        # 🔧 核心修复：主角或特殊存在直接通过验证
+        if is_protagonist or has_special_type:
+            self.logger.info(f"    ✅ 主角/特殊存在直接通过验证: {name}")
+            return True
         
-        # 长度检查：角色名应该在1-20个字符之间
-        if len(name) < 1 or len(name) > 20:
+        # 🔧 修复：标点符号检查（排除括号）
+        # 对于普通角色名，不允许标点
+        if any(char in name for char in "，。！？；：""''""''【】《》""，、；："):
             return False
+        
+        # 🔧 放宽长度检查：角色名应该在1-20个字符之间
+        # 对于主角和特殊存在，如果包含括号，提取纯中文名检查
+        if len(name) > 20:
+            # 尝试提取括号前的纯中文名
+            if '(' in name:
+                pure_name = name.split('(')[0].strip()
+                if 2 <= len(pure_name) <= 6:
+                    self.logger.info(f"    ✅ 名称超长但提取的纯中文名合理: {pure_name} (完整: {name})")
+                    name = pure_name  # 使用提取的名称继续验证
+                else:
+                    return False
+            elif len(name) < 1:
+                return False
         
         # 🔧 修复：单字姓氏特殊情况
         if len(name) == 1:
@@ -3143,6 +3162,13 @@ class WorldStateManager:
     
     def _has_human_like_quality(self, name: str) -> bool:
         """检查名称是否具有人物感 - 🔧 修复版本：大幅放宽准入原则"""
+        
+        # 🔧 重大修复：对于主角和特殊存在，直接通过验证
+        # 检查是否包含主角或特殊存在的关键词
+        protagonist_keywords = ['主角', '本体', '真身', '原身', '分身', '化身', '寂灭']
+        if any(keyword in name for keyword in protagonist_keywords):
+            self.logger.info(f"   ✅ 包含主角/特殊存在关键词，直接通过: {name}")
+            return True
         
         # 🔧 重大修复：对于常见的中文名字结构，直接通过验证
         # 1. 检查是否为标准的中文名字结构：姓氏 + 名字

@@ -233,37 +233,83 @@ class APIClient:
         full_content = ""
         line_count = 0
         data_count = 0
+        sample_data = []  # 保存前5个数据块用于调试
+        
         self.logger.info(f"  开始接收流式响应...")
+        self.logger.info(f"  🔍 调试模式：将记录前5个数据块的结构")
+        
         try:
             for line in response.iter_lines():
                 if line:
                     line_count += 1
                     line_text = line.decode('utf-8').strip()
+                    
                     if line_text.startswith('data: '):
                         data_count += 1
                         data_content = line_text[6:]  # 移除 'data: ' 前缀
+                        
                         if data_content == '[DONE]':
                             self.logger.info(f"  收到流式传输结束标记 [DONE]")
                             break
+                        
+                        # 保存样本数据（前5个）
+                        if len(sample_data) < 5:
+                            sample_data.append(data_content)
+                        
                         try:
                             json_data = json.loads(data_content)
-                            # 提取内容 - 根据OpenAI兼容API的流式格式
+                            
+                            # 尝试多种路径提取内容
+                            content = None
+                            
+                            # 路径1: choices[0].delta.content (OpenAI标准格式)
                             if 'choices' in json_data and len(json_data['choices']) > 0:
                                 choice = json_data['choices'][0]
                                 if 'delta' in choice and 'content' in choice['delta']:
                                     content = choice['delta']['content']
-                                    if content:
-                                        full_content += content
                                 elif 'message' in choice and 'content' in choice['message']:
                                     content = choice['message']['content']
-                                    if content:
-                                        full_content += content
-                        except json.JSONDecodeError:
+                            
+                            # 路径2: 直接在顶层（某些API可能使用）
+                            if not content and 'content' in json_data:
+                                content = json_data['content']
+                            
+                            # 路径3: text字段
+                            if not content and 'text' in json_data:
+                                content = json_data['text']
+                            
+                            if content:
+                                full_content += content
+                        
+                        except json.JSONDecodeError as e:
+                            self.logger.debug(f"  JSON解析失败 (数据块 #{data_count}): {e}")
+                            if len(sample_data) <= 5:  # 只记录前几个失败案例
+                                self.logger.debug(f"  失败的数据内容: {data_content[:200]}...")
                             continue
+        
         except Exception as e:
             self.logger.info(f"  流式响应处理异常: {e}")
+            import traceback
+            self.logger.info(f"  异常堆栈: {traceback.format_exc()}")
+        
         self.logger.info(f"  流式传输完成 - 总行数: {line_count}, 数据块数: {data_count}")
         self.logger.info(f"  最终内容长度: {len(full_content)}字符")
+        
+        # 如果内容为空但有数据块，输出调试信息
+        if len(full_content) == 0 and data_count > 0:
+            self.logger.warn(f"  ⚠️ 警告: 接收到 {data_count} 个数据块，但内容为空！")
+            self.logger.warn(f"  🔍 前5个数据块样本:")
+            for i, data in enumerate(sample_data, 1):
+                self.logger.warn(f"    数据块 #{i}: {data[:300]}...")
+                # 尝试解析并显示结构
+                try:
+                    parsed = json.loads(data)
+                    self.logger.warn(f"      结构: {list(parsed.keys())}")
+                    if 'choices' in parsed:
+                        self.logger.warn(f"      choices结构: {list(parsed['choices'][0].keys()) if parsed['choices'] else '空'}")
+                except:
+                    self.logger.warn(f"      (无法解析为JSON)")
+        
         return full_content
     def _save_api_call_debug(self, system_prompt: str, user_prompt: str, response: str,
                            purpose: str, provider: str, model: str, attempt: int = 1):

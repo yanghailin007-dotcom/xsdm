@@ -165,7 +165,7 @@ class ResumeManager:
         return serializable_data
 
     def create_initial_checkpoint(self, creative_seed, total_chapters: int):
-        """创建初始检查点（在方案生成完成后调用）"""
+        """创建初始检查点（在方案生成完成后调用），保存创意标题映射"""
         try:
             from pathlib import Path
             from src.managers.stage_plan.generation_checkpoint import GenerationCheckpoint
@@ -176,6 +176,26 @@ class ResumeManager:
             
             # 保存完整的 novel_data - 转换 set 为 list
             initial_data = self._prepare_data_for_checkpoint(self.generator.novel_data)
+            
+            # 🔥 新增：提取并保存创意标题映射
+            creative_title = None
+            creative_seed_id = None
+            
+            if isinstance(creative_seed, dict):
+                creative_title = (
+                    creative_seed.get("novelTitle") or
+                    creative_seed.get("title") or
+                    creative_seed.get("coreSetting", "")[:50]
+                )
+                creative_seed_id = creative_seed.get("id") or creative_seed.get("seedId")
+            
+            if creative_title:
+                initial_data['creative_title'] = creative_title
+                print(f"💾 保存创意标题映射: {creative_title} -> {title}")
+            
+            if creative_seed_id:
+                initial_data['creative_seed_id'] = creative_seed_id
+                print(f"💾 保存创意ID: {creative_seed_id}")
             
             checkpoint_mgr.create_checkpoint(
                 phase='phase_one',

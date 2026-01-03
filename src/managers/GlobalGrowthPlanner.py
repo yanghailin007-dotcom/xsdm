@@ -505,11 +505,16 @@ class GlobalGrowthPlanner:
         
         # 人物成长
         character_arcs = global_plan.get("character_growth_arcs", {})
+        # 确保 character_arcs 是字典类型
+        if not isinstance(character_arcs, dict):
+            character_arcs = {}
         protagonist = character_arcs.get("protagonist", {})
         self.logger.info(f"      主角成长弧线: {protagonist.get('overall_arc', '完整发展')}")
         
-        # 势力发展
+        # 势力发展 - 修复：确保 faction_trajectory 是字典类型
         faction_trajectory = global_plan.get("faction_development_trajectory", {})
+        if not isinstance(faction_trajectory, dict):
+            faction_trajectory = {}
         self.logger.info(f"      势力发展: {len(faction_trajectory)}个主要势力")
         
         # 能力系统

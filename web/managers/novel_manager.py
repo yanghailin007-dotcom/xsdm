@@ -870,22 +870,52 @@ class NovelGenerationManager:
             self._update_task_status(task_id, "failed", 0, f"未捕获的异常: {str(e)}")
     
     def _create_initial_checkpoint(self, title: str, config: Dict[str, Any], task_id: str):
-        """创建初始检查点"""
+        """创建初始检查点，保存创意标题到实际书名的映射"""
         try:
             from src.managers.stage_plan.generation_checkpoint import GenerationCheckpoint
             from pathlib import Path
              
+            # 获取创意标题和创意ID
+            creative_seed = config.get("creative_seed", {})
+            creative_title = None
+            creative_seed_id = None
+            
+            if isinstance(creative_seed, dict):
+                # 尝试从不同字段获取创意标题
+                creative_title = (
+                    creative_seed.get("novelTitle") or
+                    creative_seed.get("title") or
+                    creative_seed.get("coreSetting", "")[:50]  # 使用核心设定作为后备
+                )
+                # 获取创意ID（如果存在）
+                creative_seed_id = creative_seed.get("id") or creative_seed.get("seedId")
+            
             checkpoint_mgr = GenerationCheckpoint(title, Path.cwd())
+             
+            logger.info(f"📁 检查点目录: {checkpoint_mgr.checkpoint_dir}")
+            logger.info(f"📄 检查点文件: {checkpoint_mgr.checkpoint_file}")
+            
+            # 创建检查点数据，包含创意标题映射
+            checkpoint_data = {
+                'generation_params': config,
+                'task_id': task_id,
+                'status': 'started',
+                'created_at': datetime.now().isoformat()
+            }
+            
+            # 添加创意标题映射信息
+            if creative_title:
+                checkpoint_data['creative_title'] = creative_title
+                logger.info(f"💾 保存创意标题映射: {creative_title} -> {title}")
+            
+            if creative_seed_id:
+                checkpoint_data['creative_seed_id'] = creative_seed_id
+                logger.info(f"💾 保存创意ID: {creative_seed_id}")
              
             checkpoint_mgr.create_checkpoint(
                 phase='phase_one',
                 step='initialization',
-                data={
-                    'generation_params': config,
-                    'task_id': task_id,
-                    'status': 'started',
-                    'created_at': datetime.now().isoformat()
-                }
+                data=checkpoint_data
             )
              
             logger.info(f"✅ 初始检查点已创建: {title}")

@@ -17,13 +17,13 @@ class NovelPathConfig:
         self.templates_dir = Path("templates")
         
     def get_safe_title(self, title: str) -> str:
-        """生成安全的文件名 - 保留文件系统支持的字符（包括冒号）"""
+        """生成安全的文件名 - 保留文件系统支持的字符（包括中文冒号和逗号）"""
         if not title:
             return "未命名小说"
         
         # 只移除文件系统真正不支持的字符：\ / * ? " < > |
+        # 注意：保留中文冒号：、中文逗号，等字符
         safe_title = re.sub(r'[\\/*?:"<>|]', "_", str(title))
-        # 保留所有其他字符，包括冒号
         
         return safe_title
     

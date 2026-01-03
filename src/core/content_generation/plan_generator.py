@@ -258,7 +258,8 @@ class PlanGenerator:
             self.logger.error(f"  ❌ 无法将提示词上下文序列化为JSON: {e}")
             return None
         
-        self.logger.info(f"  📝 角色设计提示词长度: {len(prompt_context)} 字符")
+        # 🔧 修复：记录序列化后的JSON字符串长度，而不是字典的键值对数量
+        self.logger.info(f"  📝 角色设计提示词长度: {len(prompt_context_str)} 字符")
         
         api_result = self.api_client.generate_content_with_retry(
             prompt_type,

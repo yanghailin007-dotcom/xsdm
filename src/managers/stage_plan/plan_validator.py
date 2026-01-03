@@ -318,3 +318,165 @@ class PlanValidator:
             "master_reviewer_verdict": "评估系统暂时不可用",
             "perfection_suggestions": ["等待AI评估服务恢复后重新评估"]
         }
+    
+    def validate_event_continuity(self, stage_writing_plan: Dict, stage_name: str,
+                                  stage_range: str, creative_seed: str,
+                                  novel_title: str, novel_synopsis: str,
+                                  api_client) -> Dict:
+        """
+        验证事件连续性
+        
+        Args:
+            stage_writing_plan: 阶段写作计划
+            stage_name: 阶段名称
+            stage_range: 阶段范围
+            creative_seed: 创意种子
+            novel_title: 小说标题
+            novel_synopsis: 小说简介
+            api_client: API客户端
+            
+        Returns:
+            连续性评估结果字典
+        """
+        self.logger.info(f"  🤖 【网文白金策划师】正在评估{stage_name}阶段事件连续性...")
+        
+        # 提取阶段计划中的关键信息
+        if "stage_writing_plan" in stage_writing_plan:
+            plan_data = stage_writing_plan["stage_writing_plan"]
+        else:
+            plan_data = stage_writing_plan
+        
+        event_system = plan_data.get("event_system", {})
+        major_events = event_system.get("major_events", [])
+        
+        # 构建连续性评估提示词
+        continuity_prompt = self._build_continuity_assessment_prompt(
+            stage_name, stage_range, creative_seed, novel_title,
+            novel_synopsis, major_events
+        )
+        
+        try:
+            continuity_assessment = api_client.generate_content_with_retry(
+                content_type="event_continuity_assessment",
+                user_prompt=continuity_prompt,
+                purpose=f"【网文白金策划师】评估{stage_name}阶段事件连续性"
+            )
+            
+            if continuity_assessment:
+                self.logger.info(f"  ✅ 【网文白金策划师】评估{stage_name}阶段事件连续性完成。")
+                return continuity_assessment
+            else:
+                self.logger.warn(f"  ⚠️ 【网文白金策划师】评估{stage_name}阶段事件连续性失败，使用默认结果。")
+                return self._create_default_continuity_assessment()
+                
+        except Exception as e:
+            self.logger.error(f"  ❌ 【网文白金策划师】连续性评估出错: {e}，使用默认结果。")
+            return self._create_default_continuity_assessment()
+    
+    def _build_continuity_assessment_prompt(self, stage_name: str, stage_range: str,
+                                           creative_seed: str, novel_title: str,
+                                           novel_synopsis: str, major_events: List[Dict]) -> str:
+        """构建连续性评估提示词"""
+        events_description = self._build_events_description(major_events)
+        
+        prompt_parts = [
+            "# 🎯 【AI网文白金策划师】对阶段事件连续性进行\"商业价值\"深度评估",
+            "",
+            "## 评估任务",
+            f"作为一位对网文爆款打造和读者留存有着极致追求的【网文白金策划师】，你将对**{stage_name}**阶段的事件连续性进行\"商业价值\"深度评估。",
+            "",
+            "## 背景信息",
+            f"- **小说标题**: {novel_title}",
+            f"- **创意种子**: {creative_seed}",
+            f"- **小说简介**: {novel_synopsis}",
+            f"- **阶段范围**: {stage_range}",
+            "",
+            "## 事件详情",
+            events_description,
+            "",
+            "## 评估维度 (请以\"爆款网文\"的标准进行评判，1-10分制)：",
+            "",
+            "### 1. 逻辑连贯性 (权重 25%)",
+            "- 事件之间的因果关系是否清晰",
+            "- 前后事件是否有合理的铺垫和呼应",
+            "",
+            "### 2. 节奏合理性 (权重 25%)",
+            "- 事件密度是否恰当",
+            "- 是否有张弛有度的节奏变化",
+            "",
+            "### 3. 情感连续性 (权重 25%)",
+            "- 情绪发展是否自然流畅",
+            "- 是否符合情绪弧线设计",
+            "",
+            "### 4. 主线推进效率 (权重 25%)",
+            "- 事件是否有效推进主线",
+            "- 是否有冗余或偏离主线的事件",
+            "",
+            "## 📋 输出格式",
+            "{",
+            '  "overall_continuity_score": "float (0-10)",',
+            '  "logic_coherence_score": "float (0-10)",',
+            '  "logic_coherence_comment": "string",',
+            '  "narrative_rhythm_score": "float (0-10)",',
+            '  "narrative_rhythm_comment": "string",',
+            '  "emotional_continuity_score": "float (0-10)",',
+            '  "emotional_continuity_comment": "string",',
+            '  "plot_progression_score": "float (0-10)",',
+            '  "plot_progression_comment": "string",',
+            '  "critical_issues": [',
+            '    "string - 列出最关键的3-5个连续性问题"',
+            '  ],',
+            '  "improvement_recommendations": [',
+            '    "string - 给出3-5条具体可行的改进建议"',
+            '  ],',
+            '  "master_reviewer_verdict": "string - 总体评价"',
+            "}"
+        ]
+        
+        return "\n".join(prompt_parts)
+    
+    def _build_events_description(self, major_events: List[Dict]) -> str:
+        """构建事件描述"""
+        if not major_events:
+            return "当前阶段没有重大事件。"
+        
+        description_parts = []
+        for i, major_event in enumerate(major_events, 1):
+            major_event_name = major_event.get('name', '未命名')
+            description_parts.append(f"### 🚨 重大事件 {i}: {major_event_name}")
+            description_parts.append(f"- **章节范围**: {major_event.get('chapter_range', '未指定')}")
+            description_parts.append(f"- **核心目标**: {major_event.get('main_goal', '未指定')}")
+            description_parts.append(f"- **阶段角色**: {major_event.get('role_in_stage_arc', '未指定')}")
+            
+            composition = major_event.get("composition", {})
+            medium_events_count = sum(len(events) for events in composition.values() if isinstance(events, list))
+            description_parts.append(f"- **包含 {medium_events_count} 个中型事件**")
+            
+            for phase_name, medium_events in composition.items():
+                if not isinstance(medium_events, list):
+                    continue
+                for j, medium_event in enumerate(medium_events, 1):
+                    if not isinstance(medium_event, dict):
+                        continue
+                    description_parts.append(f"  #### 📈 中型事件 {j} ({phase_name}): {medium_event.get('name', '未命名')}")
+                    description_parts.append(f"     - 范围: {medium_event.get('chapter_range', '未指定')}")
+                    description_parts.append(f"     - 目标: {medium_event.get('main_goal', '未指定')}")
+        
+        return "\n".join(description_parts)
+    
+    def _create_default_continuity_assessment(self) -> Dict:
+        """创建默认的连续性评估结果"""
+        return {
+            "overall_continuity_score": 10.0,
+            "logic_coherence_score": 10.0,
+            "narrative_rhythm_score": 10.0,
+            "emotional_continuity_score": 10.0,
+            "plot_progression_score": 10.0,
+            "logic_coherence_comment": "评估系统暂时不可用",
+            "narrative_rhythm_comment": "评估系统暂时不可用",
+            "emotional_continuity_comment": "评估系统暂时不可用",
+            "plot_progression_comment": "评估系统暂时不可用",
+            "critical_issues": [],
+            "improvement_recommendations": [],
+            "master_reviewer_verdict": "评估系统暂时不可用，使用满分默认值"
+        }
