@@ -357,7 +357,7 @@ class PlanValidator:
         
         try:
             continuity_assessment = api_client.generate_content_with_retry(
-                content_type="event_continuity_assessment",
+                content_type="stage_event_continuity",
                 user_prompt=continuity_prompt,
                 purpose=f"【网文白金策划师】评估{stage_name}阶段事件连续性"
             )
