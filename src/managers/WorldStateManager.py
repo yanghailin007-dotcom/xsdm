@@ -1380,7 +1380,27 @@ class WorldStateManager:
         
         name = name.strip()
         
-        # 长度检查：角色名应该在1-20个字符之间（允许单字姓氏）
+        # 🔥 新增：特殊检查 - 允许特殊角色类型使用括号
+        # 对于剑灵、器灵、神魂等特殊存在，括号是合理的状态描述
+        special_character_types = [
+            '剑灵', '刀灵', '器灵', '神魂', '圣灵', '魔', '神', '仙', '妖', '鬼', '怪', '兽',
+            '本体', '分身', '化身', '真身', '原身', '本体'
+        ]
+        
+        # 如果名称中包含特殊角色类型，放宽括号限制
+        has_special_type = any(special_type in name for special_type in special_character_types)
+        
+        if has_special_type and '(' in name and ')' in name:
+            # 例如："无名 (剑灵)"、"林凡 (剑灵状态)"
+            # 这种格式对于特殊角色类型是合理的
+            pass  # 允许通过
+        else:
+            # 🔧 修复：标点符号检查（排除括号）
+            # 对于普通角色名，仍然不允许标点
+            if any(char in name for char in "，。！？；：""''""''【】《》""，、；："):
+                return False
+        
+        # 长度检查：角色名应该在1-20个字符之间
         if len(name) < 1 or len(name) > 20:
             return False
         
@@ -2966,9 +2986,31 @@ class WorldStateManager:
             return False
         
         # 2. 长度和结构合理性检查
-        if len(character_name) < 2 or len(character_name) > 6:
-            self.logger.info(f"   ❌ 名称长度不合理: {len(character_name)} 字符")
+        # 🔧 修复：提取纯中文名称部分进行长度验证
+        # 支持格式："中文名" 或 "中文名" 或 "中文名"
+        pure_chinese_name = character_name
+        
+        # 如果包含英文括号，提取括号前的中文部分
+        if '(' in character_name:
+            pure_chinese_name = character_name.split('(')[0].strip()
+        elif '（' in character_name:
+            pure_chinese_name = character_name.split('（')[0].strip()
+        
+        # 验证纯中文名称的长度（2-6个字符）
+        chinese_name_length = len(pure_chinese_name)
+        full_name_length = len(character_name)
+        
+        # 纯中文名长度检查
+        if chinese_name_length < 2 or chinese_name_length > 6:
+            self.logger.info(f"   ❌ 纯中文名称长度不合理: {chinese_name_length} 字符 (名称: {pure_chinese_name})")
             return False
+        
+        # 完整名称长度检查（允许包含英文翻译，最多20个字符）
+        if full_name_length > 20:
+            self.logger.info(f"   ❌ 完整名称长度过长: {full_name_length} 字符 (名称: {character_name})")
+            return False
+        
+        self.logger.info(f"   ✅ 名称长度检查通过: 纯中文 {chinese_name_length} 字符, 完整 {full_name_length} 字符")
         
         # 3. 检查是否为常见的误识别模式
         suspicious_patterns = [
@@ -3015,15 +3057,43 @@ class WorldStateManager:
             return False
         
         # 8. 特殊情况：如果是双字名称，需要更严格的验证
-        if len(character_name) == 2:
-            # 双字名称必须是常见的姓氏+单字 - 扩展常见姓氏列表
-            common_surnames = ['王', '李', '张', '刘', '陈', '杨', '黄', '赵', '吴', '周', '徐', '孙', '马', '朱', '胡', '郭',
+        # 🔧 修复：提取纯中文名部分进行验证
+        pure_chinese_name = character_name
+        if '(' in character_name:
+            pure_chinese_name = character_name.split('(')[0].strip()
+        elif '（' in character_name:
+            pure_chinese_name = character_name.split('（')[0].strip()
+        
+        if len(pure_chinese_name) == 2:
+            # 双字名称首字检查 - 放宽限制
+            # 扩展常见姓氏列表和修仙小说特殊字
+            relaxed_surnames = ['王', '李', '张', '刘', '陈', '杨', '黄', '赵', '吴', '周', '徐', '孙', '马', '朱', '胡', '郭',
                               '何', '高', '林', '罗', '郑', '梁', '谢', '宋', '唐', '许', '韩', '冯', '邓', '曹', '彭', '曾',
                               '萧', '田', '董', '袁', '潘', '于', '蒋', '蔡', '余', '杜', '叶', '程', '苏', '魏', '吕', '丁',
-                              '任', '沈', '姚', '卢', '姜', '崔', '钟', '谭', '陆', '汪', '范', '金', '石', '廖', '贾', '夏']
-            if character_name[0] not in common_surnames:
-                self.logger.info(f"   ❌ 双字名称首字不是常见姓氏: {character_name[0]}")
-                return False
+                              '任', '沈', '姚', '卢', '姜', '崔', '钟', '谭', '陆', '汪', '范', '金', '石', '廖', '贾', '夏',
+                              # 🔧 新增：修仙小说常见的特殊字
+                              '墨', '魔', '玄', '虚', '云', '风', '雷', '电', '冰', '火', '水', '土', '木', '金',
+                              '天', '地', '人', '神', '仙', '鬼', '妖', '圣', '皇', '帝', '王', '君', '主', '尊',
+                              '龙', '凤', '虎', '豹', '狼', '鹰', '鹤', '蛇', '狐', '兔', '马', '牛', '羊',
+                              '叶', '林', '花', '雪', '月', '日', '星', '辰', '宇', '宙', '洪', '荒',
+                              '青', '白', '黑', '赤', '紫', '蓝', '绿', '黄', '红', '朱']
+            
+            if pure_chinese_name[0] not in relaxed_surnames:
+                # 🔧 进一步放宽：如果第二个字是人名用字，也允许通过
+                human_name_chars = [
+                    '伟', '芳', '娜', '敏', '静', '丽', '强', '磊', '洋', '艳', '勇', '军', '杰', '娟', '涛',
+                    '明', '超', '秀英', '霞', '平', '刚', '桂英', '玉兰', '萍', '鹏', '华', '红', '金', '春梅',
+                    '龙', '林', '辉', '晨', '宇', '欣', '婷', '琴', '玲', '兰', '琳', '燕', '芳', '萍', '娟',
+                    '浩', '宇', '博', '文', '轩', '涵', '梓', '睿', '皓', '辰', '羽', '诺', '晨', '曦', '语',
+                    # 修仙小说常用字
+                    '渊', '凡', '清', '雪', '无', '极', '青', '元', '沛', '灵', '慕', '衍', '云', '风', '天', '地'
+                ]
+                
+                if pure_chinese_name[1] not in human_name_chars:
+                    self.logger.info(f"   ⚠️ 双字名称 {pure_chinese_name} 较少见，但允许通过")
+                    # 不再拒绝，只是警告
+                else:
+                    self.logger.info(f"   ✅ 双字名称第二个字是人名用字: {pure_chinese_name[1]}")
         
         # 9. 检查是否为修仙小说中的特殊称谓（这些通常不是个人名字）
         special_titles = [
