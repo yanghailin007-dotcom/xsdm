@@ -78,10 +78,10 @@ class GlobalGrowthPlanner:
         
         return chapter_context
 
-    def _get_current_stage(self, chapter_number: int) -> str:
+    def _get_current_stage(self, chapter_number: int) -> Dict:
         """获取当前章节所属的阶段"""
         if not self.global_growth_plan or "stage_framework" not in self.global_growth_plan:
-            return "未知阶段"
+            return {"stage_name": "未知阶段", "chapter_range": "1-100"}
         
         # [终极修复] stage_framework 是一个字典, 我们需要遍历它的值(values)
         # 而不是它的键(keys)。
@@ -92,11 +92,11 @@ class GlobalGrowthPlanner:
 
             chapter_range = stage.get("chapter_range", "")
             # 假设您有一个名为 parse_chapter_range 的辅助函数
-            start, end = parse_chapter_range(chapter_range) 
+            start, end = parse_chapter_range(chapter_range)
             if start <= chapter_number <= end:
-                return stage.get("stage_name", "未知阶段名") # 使用 .get() 更安全
+                return stage  # 返回完整的阶段字典
         
-        return "未知阶段"
+        return {"stage_name": "未知阶段", "chapter_range": "1-100"}
 
     def _get_character_development_at_chapter(self, chapter_number: int) -> Dict:
         """获取当前章节的角色发展状态"""
@@ -262,13 +262,13 @@ class GlobalGrowthPlanner:
         # 获取当前阶段信息
         current_stage = self._get_current_stage(chapter_number)
         
-        if not current_stage:
+        if not current_stage or not isinstance(current_stage, dict):
             return {}
         
         # 获取阶段内容规划
         content_plan = self.get_stage_content_plan(
-            current_stage["stage_name"], 
-            current_stage["chapter_range"]
+            current_stage.get("stage_name", "未知阶段"),
+            current_stage.get("chapter_range", "1-100")
         )
         
         # 生成章节特定的内容指导
@@ -472,7 +472,7 @@ class GlobalGrowthPlanner:
 
         # 对全局成长规划进行基于章节距离的压缩
         compressed_global_plan = context_manager.compress_context(
-            self.global_growth_plan, chapter_number, 1, "plot"  # 全局计划被视为第1章的内容
+            self.global_growth_plan or {}, chapter_number, 1, "plot"  # 全局计划被视为第1章的内容
         )
 
         # 对章节特定上下文进行压缩
@@ -496,8 +496,11 @@ class GlobalGrowthPlanner:
         """打印全局规划摘要"""
         self.logger.info("    📊 全书全局成长规划摘要:")
         
-        # 阶段框架
-        stages = global_plan.get("stage_framework", [])
+        # 阶段框架 - 修复：确保返回的是列表，不是None
+        stages = global_plan.get("stage_framework") or []
+        # 如果是字典，转换为列表
+        if isinstance(stages, dict):
+            stages = list(stages.values())
         self.logger.info(f"      阶段划分: {len(stages)}个主要阶段")
         
         # 人物成长
@@ -511,7 +514,13 @@ class GlobalGrowthPlanner:
         
         # 能力系统
         ability_evolution = global_plan.get("ability_system_evolution", {})
+        # 确保 ability_evolution 是字典类型
+        if not isinstance(ability_evolution, dict):
+            ability_evolution = {}
         breakthroughs = ability_evolution.get("breakthrough_milestones", [])
+        # 确保 breakthroughs 是列表类型
+        if not isinstance(breakthroughs, list):
+            breakthroughs = []
         self.logger.info(f"      能力突破点: {len(breakthroughs)}个关键里程碑")
 
     def _print_content_plan_summary(self, content_plan: Dict):
@@ -822,7 +831,8 @@ class GlobalGrowthPlanner:
         
         # 获取当前阶段
         current_stage = self._get_current_stage(chapter_number)
-        self.logger.info(f"  🔍 当前阶段: {current_stage}")
+        current_stage_name = current_stage.get("stage_name", "未知阶段") if isinstance(current_stage, dict) else "未知阶段"
+        self.logger.info(f"  🔍 当前阶段: {current_stage_name}")
         
         # 修复：安全地访问嵌套字典
         stage_emotional_planning = emotional_plan.get("stage_emotional_planning", {})
@@ -830,13 +840,13 @@ class GlobalGrowthPlanner:
             self.logger.info(f"  ⚠️ stage_emotional_planning 不是字典: {type(stage_emotional_planning)}")
             stage_emotional_planning = {}
         
-        stage_emotional_plan = stage_emotional_planning.get(current_stage, {})
+        stage_emotional_plan = stage_emotional_planning.get(current_stage_name, {})
         if not isinstance(stage_emotional_plan, dict):
             self.logger.info(f"  ⚠️ stage_emotional_plan 不是字典: {type(stage_emotional_plan)}")
             stage_emotional_plan = {}
         
         # 计算章节在阶段中的位置
-        stage_range = self._get_stage_range(current_stage)
+        stage_range = self._get_stage_range(current_stage_name)
         if not stage_range:
             self.logger.info(f"  ⚠️ 无法获取阶段范围")
             return {}
