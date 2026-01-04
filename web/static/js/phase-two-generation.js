@@ -616,7 +616,11 @@ async function viewFactionSystem() {
     }
 }
 
+// 全局变量存储势力数据
+let currentFactionsData = null;
+
 function createFactionSystemModal(factionData) {
+    currentFactionsData = factionData;
     const factions = factionData.factions || [];
     const mainConflict = factionData.main_conflict || '未设置主要冲突';
     const powerBalance = factionData.faction_power_balance || '未设置势力平衡';
@@ -634,7 +638,10 @@ function createFactionSystemModal(factionData) {
         const isRecommended = faction.suitable_for_protagonist === '是';
         
         factionsHtml += `
-            <div class="faction-card ${isRecommended ? 'recommended' : ''}" style="animation-delay: ${index * 0.1}s">
+            <div class="faction-card ${isRecommended ? 'recommended' : ''}"
+                 style="animation-delay: ${index * 0.1}s"
+                 data-faction-index="${index}"
+                 onclick="showFactionDetail(${index})">
                 ${isRecommended ? '<div class="recommended-badge">⭐ 推荐主角加入</div>' : ''}
                 <div class="faction-header">
                     <div class="faction-name">${faction.name}</div>
@@ -681,7 +688,7 @@ function createFactionSystemModal(factionData) {
     const modalHtml = `
         <div id="faction-system-modal" class="faction-modal" onclick="closeFactionModal(event)">
             <div class="faction-modal-content" onclick="event.stopPropagation()">
-                <div class="faction-modal-header">
+                <div class="faction-modal-header" id="modal-header">
                     <div class="header-icon">⚔️</div>
                     <div class="header-text">
                         <h2>势力/阵营系统</h2>
@@ -690,42 +697,208 @@ function createFactionSystemModal(factionData) {
                     <button class="close-btn" onclick="closeFactionModal()">×</button>
                 </div>
                 
-                <div class="faction-overview">
-                    <div class="overview-card">
-                        <div class="overview-icon">⚡</div>
-                        <div class="overview-content">
-                            <div class="overview-label">主要冲突</div>
-                            <div class="overview-value">${mainConflict}</div>
+                <div id="faction-list-view">
+                    <div class="faction-overview">
+                        <div class="overview-card">
+                            <div class="overview-icon">⚡</div>
+                            <div class="overview-content">
+                                <div class="overview-label">主要冲突</div>
+                                <div class="overview-value">${mainConflict}</div>
+                            </div>
+                        </div>
+                        <div class="overview-card">
+                            <div class="overview-icon">⚖️</div>
+                            <div class="overview-content">
+                                <div class="overview-label">势力平衡</div>
+                                <div class="overview-value">${powerBalance}</div>
+                            </div>
+                        </div>
+                        <div class="overview-card">
+                            <div class="overview-icon">🎯</div>
+                            <div class="overview-content">
+                                <div class="overview-label">推荐势力</div>
+                                <div class="overview-value">${recommendedFaction}</div>
+                            </div>
                         </div>
                     </div>
-                    <div class="overview-card">
-                        <div class="overview-icon">⚖️</div>
-                        <div class="overview-content">
-                            <div class="overview-label">势力平衡</div>
-                            <div class="overview-value">${powerBalance}</div>
+                    
+                    <div class="factions-grid-container">
+                        <div class="factions-grid">
+                            ${factionsHtml}
                         </div>
                     </div>
-                    <div class="overview-card">
-                        <div class="overview-icon">🎯</div>
-                        <div class="overview-content">
-                            <div class="overview-label">推荐势力</div>
-                            <div class="overview-value">${recommendedFaction}</div>
-                        </div>
+                    
+                    <div class="faction-modal-footer">
+                        <button class="btn btn-secondary" onclick="closeFactionModal()">关闭</button>
                     </div>
                 </div>
                 
-                <div class="factions-grid">
-                    ${factionsHtml}
-                </div>
-                
-                <div class="faction-modal-footer">
-                    <button class="btn btn-secondary" onclick="closeFactionModal()">关闭</button>
-                </div>
+                <div id="faction-detail-view" class="faction-detail-view"></div>
             </div>
         </div>
     `;
     
     document.body.insertAdjacentHTML('beforeend', modalHtml);
+}
+
+// 显示势力详情
+function showFactionDetail(index) {
+    if (!currentFactionsData || !currentFactionsData.factions) return;
+    
+    const faction = currentFactionsData.factions[index];
+    if (!faction) return;
+    
+    const listView = document.getElementById('faction-list-view');
+    const detailView = document.getElementById('faction-detail-view');
+    const modalHeader = document.getElementById('modal-header');
+    
+    // 隐藏列表视图
+    if (listView) listView.style.display = 'none';
+    
+    // 更新头部
+    if (modalHeader) {
+        modalHeader.querySelector('.header-text h2').textContent = faction.name;
+        modalHeader.querySelector('.header-text p').textContent = faction.type || '未分类';
+    }
+    
+    // 获取势力信息
+    const powerLevel = faction.power_level || '未知';
+    const strengths = (faction.strengths || []).join('、') || '无';
+    const weaknesses = (faction.weaknesses || []).join('、') || '无';
+    const allies = (faction.relationships?.allies || []).join('、') || '无';
+    const enemies = (faction.relationships?.enemies || []).join('、') || '无';
+    const territory = faction.territory || '未设置';
+    const goals = (faction.goals || []).join('、') || '未设置';
+    
+    // 渲染详情视图
+    if (detailView) {
+        detailView.innerHTML = `
+            <button class="detail-back-btn" onclick="hideFactionDetail()">
+                <span>←</span>
+                <span>返回列表</span>
+            </button>
+            
+            <div class="detail-header">
+                <div class="detail-header-content">
+                    <h1 class="detail-name">${faction.name}</h1>
+                    <div>
+                        <span class="detail-type">${faction.type || '未分类'}</span>
+                        <span class="detail-power-level">
+                            <span>⚡</span>
+                            <span>${powerLevel}</span>
+                        </span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="detail-philosophy">
+                "${faction.core_philosophy || '未设置核心理念'}"
+            </div>
+            
+            <div class="detail-section">
+                <h3 class="detail-section-title">
+                    <span class="detail-section-icon">📖</span>
+                    <span>势力背景</span>
+                </h3>
+                <div class="detail-section-content">
+                    <p>${faction.background || '未设置背景信息'}</p>
+                </div>
+            </div>
+            
+            <div class="detail-section">
+                <h3 class="detail-section-title">
+                    <span class="detail-section-icon">🎯</span>
+                    <span>势力目标</span>
+                </h3>
+                <div class="detail-section-content">
+                    <p>${goals}</p>
+                </div>
+            </div>
+            
+            <div class="detail-section">
+                <h3 class="detail-section-title">
+                    <span class="detail-section-icon">🗺️</span>
+                    <span>势力领地</span>
+                </h3>
+                <div class="detail-section-content">
+                    <p>${territory}</p>
+                </div>
+            </div>
+            
+            <div class="detail-grid">
+                <div class="detail-grid-item">
+                    <div class="detail-grid-label">优势</div>
+                    <div class="detail-grid-value">${strengths}</div>
+                </div>
+                <div class="detail-grid-item">
+                    <div class="detail-grid-label">劣势</div>
+                    <div class="detail-grid-value">${weaknesses}</div>
+                </div>
+            </div>
+            
+            <div class="detail-section">
+                <h3 class="detail-section-title">
+                    <span class="detail-section-icon">🤝</span>
+                    <span>势力关系</span>
+                </h3>
+                <div class="detail-grid">
+                    <div class="detail-grid-item">
+                        <div class="detail-grid-label">盟友势力</div>
+                        <div class="detail-grid-value allies">${allies}</div>
+                    </div>
+                    <div class="detail-grid-item">
+                        <div class="detail-grid-label">敌对势力</div>
+                        <div class="detail-grid-value enemies">${enemies}</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="detail-section">
+                <h3 class="detail-section-title">
+                    <span class="detail-section-icon">🎬</span>
+                    <span>剧情作用</span>
+                </h3>
+                <div class="detail-section-content">
+                    <p>${faction.role_in_plot || '未设置剧情作用'}</p>
+                </div>
+            </div>
+            
+            ${faction.suitable_for_protagonist === '是' ? `
+                <div class="detail-section" style="background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%); border-color: var(--primary-color);">
+                    <h3 class="detail-section-title">
+                        <span class="detail-section-icon">⭐</span>
+                        <span>主角推荐</span>
+                    </h3>
+                    <div class="detail-section-content">
+                        <p style="color: var(--primary-light); font-weight: 600;">此势力推荐作为主角的初始势力</p>
+                    </div>
+                </div>
+            ` : ''}
+        `;
+        
+        detailView.classList.add('active');
+    }
+}
+
+// 隐藏势力详情
+function hideFactionDetail() {
+    const listView = document.getElementById('faction-list-view');
+    const detailView = document.getElementById('faction-detail-view');
+    const modalHeader = document.getElementById('modal-header');
+    
+    // 隐藏详情视图
+    if (detailView) {
+        detailView.classList.remove('active');
+    }
+    
+    // 恢复头部
+    if (modalHeader) {
+        modalHeader.querySelector('.header-text h2').textContent = '势力/阵营系统';
+        modalHeader.querySelector('.header-text p').textContent = '查看和管理世界中的各个势力及其关系';
+    }
+    
+    // 显示列表视图
+    if (listView) listView.style.display = 'block';
 }
 
 function closeFactionModal(event) {

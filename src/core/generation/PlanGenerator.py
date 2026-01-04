@@ -418,10 +418,10 @@ class PlanGenerator:
 
     def _evaluate_single_plan(self, plan: Dict, category: str, creative_seed) -> Dict:
         """评估单个方案的质量"""
-        # 🔧 修复：延迟初始化质量评估器（如果尚未初始化）
+        # 🔧 修复：即使 quality_assessor 未初始化，也要调用AI进行新鲜度评估
         if self.quality_assessor is None:
-            print("  ⚠️ 质量评估器尚未初始化，使用简化新鲜度评估")
-            freshness_result = self._simplified_freshness_assessment(plan, category, creative_seed)
+            print("  ⚠️ 质量评估器尚未初始化，直接调用AI进行新鲜度评估")
+            freshness_result = self._ai_freshness_assessment(plan, category, creative_seed)
         else:
             # 使用质量评估器进行新鲜度评估
             freshness_result = self.quality_assessor.assess_freshness(plan, "novel_plan")
@@ -552,9 +552,9 @@ class PlanGenerator:
         
         return best_plan_data['plan']
 
-    def _simplified_freshness_assessment(self, plan: Dict, category: str, creative_seed) -> Dict:
+    def _ai_freshness_assessment(self, plan: Dict, category: str, creative_seed) -> Dict:
         """
-        简化的新鲜度评估（当QualityAssessor未初始化时使用）
+        使用AI直接进行新鲜度评估（当QualityAssessor未初始化时使用）
         
         Args:
             plan: 方案数据
@@ -562,28 +562,146 @@ class PlanGenerator:
             creative_seed: 创意种子
             
         Returns:
-            默认的新鲜度评估结果
+            新鲜度评估结果（与QualityAssessor返回格式相同）
         """
-        print("  📊 使用简化新鲜度评估（跳过AI调用）")
+        print("  📊 使用AI进行新鲜度评估")
         
-        # 返回一个中等偏上的默认评分，让方案能通过评估
-        return {
+        try:
+            # 构建新鲜度评估提示词
+            freshness_prompt = self._generate_freshness_assessment_prompt(plan, category, creative_seed)
+            
+            # 调用AI进行评估
+            result = self.api_client.generate_content_with_retry(
+                "freshness_assessment",
+                freshness_prompt,
+                purpose="方案新鲜度评估"
+            )
+            
+            if result and "score" in result:
+                print(f"    ✅ AI新鲜度评估成功，总分: {result['score'].get('total', 0):.1f}")
+                return self._validate_freshness_result(result)
+            else:
+                print(f"    ⚠️ AI评估失败，使用默认评分")
+                return self._get_default_freshness_assessment()
+                
+        except Exception as e:
+            print(f"    ❌ AI新鲜度评估出错: {e}")
+            return self._get_default_freshness_assessment()
+    
+    def _generate_freshness_assessment_prompt(self, plan: Dict, category: str, creative_seed) -> str:
+        """生成新鲜度评估提示词"""
+        import json
+        
+        title = plan.get('title', '')
+        synopsis = plan.get('synopsis', '')
+        core_direction = plan.get('core_direction', '')
+        golden_finger = plan.get('core_settings', {}).get('golden_finger', '')
+        core_selling_points = plan.get('core_settings', {}).get('core_selling_points', [])
+        
+        return f"""
+你是一位顶级的网络小说市场分析师，精通数据分析，对起点、番茄、飞卢等主流平台的流行趋势、读者偏好和内容稀缺性了如指掌。
+
+## 核心任务
+你的核心任务是基于用户提供的小说方案，从市场角度进行严格、客观、数据驱动的新鲜度评估，并提供可行的改进建议，帮助创意脱颖而出。
+
+## 待评估方案内容
+**分类**: {category}
+**书名**: 《{title}》
+**简介**: {synopsis}
+**核心方向**: {core_direction}
+**金手指**: {golden_finger}
+**核心卖点**: {json.dumps(core_selling_points, ensure_ascii=False)}
+
+## 评估维度（总分10分）
+
+### 1. 核心概念新颖度 (3分)
+- 金手指设定是否有创新性，避免常见套路
+- 核心设定是否在市场中具有独特性
+- 主角身份和开局设定是否新颖
+
+### 2. 系统机制创新度 (3分)
+- 金手指的玩法机制是否有新意
+- 成长体系是否与众不同
+- 爽点设计是否避免了常见的模板化
+
+### 3. 市场稀缺性 (4分)
+- 与当前热门作品的差异化程度
+- 是否填补了市场空白
+- 目标读者群体的竞争态势
+
+## 输出格式要求
+请严格按照以下JSON格式返回评估结果：
+
+```json
+{{
+    "score": {{
+        "total": 总分(满分10分),
+        "core_concept_novelty": 核心概念新颖度分数,
+        "system_innovation": 系统机制创新度分数,
+        "market_scarcity": 市场稀缺性分数
+    }},
+    "analysis": {{
+        "core_concept_novelty": "核心概念新颖度分析",
+        "system_innovation": "系统机制创新度分析",
+        "market_scarcity": "市场稀缺性分析"
+    }},
+    "verdict": "总体评价（优秀/良好/中规中矩/待提升）",
+    "suggestions": [
+        "具体改进建议1",
+        "具体改进建议2",
+        "具体改进建议3"
+    ]
+}}
+```
+
+请立即开始评估，只返回JSON结果，不要其他解释。
+"""
+    
+    def _validate_freshness_result(self, result: Dict) -> Dict:
+        """验证新鲜度评估结果的新结构"""
+        # 确保所有必需的字段都存在
+        required_structure = {
             "score": {
-                "total": 6.5,
-                "core_concept_novelty": 6.5,
-                "system_innovation": 6.5,
-                "market_scarcity": 6.5
+                "total": 0,
+                "core_concept_novelty": 0,
+                "system_innovation": 0,
+                "market_scarcity": 0
             },
             "analysis": {
-                "core_concept_novelty": "质量评估器未初始化，跳过详细分析",
-                "system_innovation": "质量评估器未初始化，跳过详细分析",
-                "market_scarcity": "质量评估器未初始化，跳过详细分析"
+                "core_concept_novelty": "",
+                "system_innovation": "",
+                "market_scarcity": ""
             },
-            "verdict": "评估器未就绪，使用默认评分",
-            "suggestions": [
-                "建议在后续阶段进行完整的新鲜度评估",
-                "可在第二阶段生成前完善评估"
-            ]
+            "verdict": "中规中矩",
+            "suggestions": []
+        }
+        # 确保顶层字段存在
+        for key, default_value in required_structure.items():
+            if key not in result:
+                result[key] = default_value
+            elif isinstance(default_value, dict):
+                # 确保嵌套字典字段存在
+                for sub_key, sub_default in default_value.items():
+                    if sub_key not in result[key]:
+                        result[key][sub_key] = sub_default
+        return result
+    
+    def _get_default_freshness_assessment(self) -> Dict:
+        """获取默认的新鲜度评估结果 - 新结构"""
+        return {
+            "score": {
+                "total": 6.0,
+                "core_concept_novelty": 6.0,
+                "system_innovation": 6.0,
+                "market_scarcity": 6.0
+            },
+            "analysis": {
+                "core_concept_novelty": "评估异常",
+                "system_innovation": "评估异常",
+                "market_scarcity": "评估异常"
+            },
+            "verdict": "评估异常",
+            "suggestions": ["重新评估内容新鲜度", "增加创新元素", "避免常见套路"]
         }
     
     def optimize_plan_with_market_data(self, plan: Dict, category: str, optimization_params: Dict) -> Optional[Dict]:

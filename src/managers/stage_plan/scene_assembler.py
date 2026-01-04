@@ -90,8 +90,11 @@ class SceneAssembler:
                     # 3. 收集中型事件中包含的特殊情感事件
                     if "special_emotional_events" in medium_event:
                         special_events = medium_event["special_emotional_events"]
-                        total_special_events += len(special_events)
-                        self.logger.info(f"         💫 包含 {len(special_events)} 个特殊情感事件")
+                        if special_events and isinstance(special_events, list):
+                            total_special_events += len(special_events)
+                            self.logger.info(f"         💫 包含 {len(special_events)} 个特殊情感事件")
+                        else:
+                            self.logger.warn(f"         ⚠️ 中型事件 '{medium_event.get('name')}' 的 special_emotional_events 字段为空或不是列表")
         
         self.logger.info(f"  ✅ 第一阶段统计：共 {len(final_major_events)} 个重大事件，{total_medium_events} 个中型事件，{total_special_events} 个特殊情感事件")
         

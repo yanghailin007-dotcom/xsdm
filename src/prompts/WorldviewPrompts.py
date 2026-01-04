@@ -195,7 +195,7 @@ JSON结构定义
 ## JSON结构定义
 {
     "main_character": {
-        "name": "主角姓名",
+        "name": "纯中文名字（禁止添加拼音、英文或任何括号注释，例如：姜倾城，而不是姜倾城 (Jiang Qingcheng)）",
         "core_personality": "用2-3个核心标签概括性格特质 (例如：谨慎、腹黑、重情义)",
         "living_characteristics": {
             "physical_presence": "角色的外貌、体态、穿着风格，以及他/她给人的【第一眼】的整体感觉或气场。",
@@ -288,7 +288,7 @@ JSON结构定义
     },
     "important_characters": [
         {
-            "name": "角色姓名",
+            "name": "纯中文名字（禁止添加拼音、英文或任何括号注释，例如：林凡，而不是林凡 (Lin Fan)）",
             "role": "根据[DESIGN_REQUIREMENTS]定义的功能定位，准确填写",
             "initial_state": {
                 "description": "string // 对该角色登场时状态的简要描述",
@@ -380,7 +380,7 @@ JSON结构定义
 {
     "newly_added_characters": [
         {
-            "name": "新角色姓名",
+            "name": "纯中文名字（禁止添加拼音、英文或任何括号注释）",
             "role": "根据[STAGE_REQUIREMENTS]定义的功能定位 (例如：阶段性反派、主角的临时导师、提供关键线索的NPC)",
             "initial_state": {
                 "description": "string // 对该角色登场时状态的简要描述",

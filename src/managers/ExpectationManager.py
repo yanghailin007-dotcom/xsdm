@@ -672,9 +672,142 @@ class ExpectationIntegrator:
         self.em = expectation_manager
         self.logger = get_logger("ExpectationIntegrator")
     
-    def analyze_and_tag_events(self, major_events: List[Dict], stage_name: str) -> Dict:
+    def analyze_and_tag_events(self, major_events: List[Dict], stage_name: str,
+                             api_client=None, novel_title: str = "") -> Dict:
         """
-        分析事件并自动添加期待标签
+        使用AI分析事件并添加期待标签
+        
+        Args:
+            major_events: 重大事件列表
+            stage_name: 阶段名称
+            api_client: API客户端（用于AI分析）
+            novel_title: 小说标题
+            
+        Returns:
+            分析结果
+        """
+        self.logger.info(f"🎯 开始为 {stage_name} 阶段的事件添加期待标签（AI智能分析）...")
+        
+        if not api_client:
+            self.logger.warn("⚠️ 未提供API客户端，使用规则匹配作为后备方案")
+            return self._analyze_and_tag_events_with_rules(major_events, stage_name)
+        
+        tagged_count = 0
+        
+        # 构建AI分析的prompt
+        events_summary = []
+        for i, event in enumerate(major_events, 1):
+            event_summary = {
+                "index": i,
+                "name": event.get("name", "未知事件"),
+                "chapter_range": event.get("chapter_range", ""),
+                "main_goal": event.get("main_goal", ""),
+                "role_in_stage_arc": event.get("role_in_stage_arc", ""),
+                "emotional_focus": event.get("emotional_focus", ""),
+                "description": event.get("description", "")
+            }
+            events_summary.append(event_summary)
+        
+        # 构建AI分析prompt
+        analysis_prompt = f"""你是网文期待感策划专家。请分析以下{len(major_events)}个重大事件，为每个事件选择最合适的期待感类型。
+
+# 期待感类型说明：
+1. **showcase（展示橱窗）**: 提前展示奖励或能力的强大，让读者期待获得
+2. **suppression_release（压抑释放）**: 制造阻碍，积累势能，最后释放带来爽感
+3. **nested_doll（套娃期待）**: 大期待包着小期待，环环相扣
+4. **emotional_hook（情绪钩子）**: 利用情绪期待（打脸、认同、身份揭秘）
+5. **power_gap（实力差距）**: 展示实力差距，让读者期待变强
+6. **mystery_foreshadow（伏笔揭秘）**: 埋下伏笔，让读者期待真相揭晓
+
+# 小说信息：
+- 小说标题: {novel_title}
+- 阶段: {stage_name}
+
+# 事件列表：
+{json.dumps(events_summary, ensure_ascii=False, indent=2)}
+
+# 任务：
+请为每个事件分析并返回以下JSON格式：
+{{
+  "events": [
+    {{
+      "index": 1,
+      "expectation_type": "showcase",
+      "reasoning": "该事件涉及宝物发现，适合使用展示橱窗效应...",
+      "planting_chapter": 10,
+      "target_chapter": 15,
+      "description": "主角获得神秘宝物的期待"
+    }}
+  ]
+}}
+
+请确保：
+1. 期待类型与事件内容高度契合
+2. 种植章节和目标章节合理（至少间隔3章）
+3. 描述简洁有力，突出核心期待
+"""
+        
+        try:
+            # 调用AI分析
+            self.logger.info(f"🤖 正在调用AI分析 {len(major_events)} 个事件...")
+            
+            result = api_client.generate_content_with_retry(
+                content_type="expectation_analysis",
+                user_prompt=analysis_prompt,
+                purpose=f"为{stage_name}阶段的事件分析期待感类型"
+            )
+            
+            if result and isinstance(result, dict) and "events" in result:
+                # 解析AI返回的结果
+                ai_events = result["events"]
+                
+                for ai_event in ai_events:
+                    index = ai_event.get("index") - 1  # 转换为0-based索引
+                    if 0 <= index < len(major_events):
+                        event = major_events[index]
+                        event_name = event.get("name", "未知事件")
+                        
+                        # 获取期待类型
+                        exp_type_str = ai_event.get("expectation_type", "nested_doll")
+                        try:
+                            exp_type = ExpectationType(exp_type_str)
+                        except ValueError:
+                            exp_type = ExpectationType.NESTED_DOLL
+                            self.logger.warn(f"⚠️ 未知的期待类型 '{exp_type_str}'，使用默认类型")
+                        
+                        # 种植期待
+                        exp_id = self.em.tag_event_with_expectation(
+                            event_id=event_name,
+                            expectation_type=exp_type,
+                            planting_chapter=ai_event.get("planting_chapter", 1),
+                            description=ai_event.get("description", f"{event_name}的期待"),
+                            target_chapter=ai_event.get("target_chapter")
+                        )
+                        
+                        tagged_count += 1
+                        reasoning = ai_event.get("reasoning", "")
+                        self.logger.info(f"  ✓ AI为事件 '{event_name}' 选择期待类型: {exp_type.value}")
+                        self.logger.info(f"    理由: {reasoning}")
+                
+                self.logger.info(f"✅ AI成功为 {tagged_count} 个事件生成期待感标签")
+                
+                return {
+                    "tagged_count": tagged_count,
+                    "expectation_summary": self.em.export_expectation_map(),
+                    "analysis_method": "AI"
+                }
+            else:
+                self.logger.warn("⚠️ AI分析失败，使用规则匹配作为后备方案")
+                return self._analyze_and_tag_events_with_rules(major_events, stage_name)
+                
+        except Exception as e:
+            self.logger.error(f"❌ AI分析出错: {e}")
+            self.logger.info("使用规则匹配作为后备方案")
+            return self._analyze_and_tag_events_with_rules(major_events, stage_name)
+    
+    def _analyze_and_tag_events_with_rules(self, major_events: List[Dict], stage_name: str) -> Dict:
+        """
+        使用规则匹配分析事件（后备方案）
         
         Args:
             major_events: 重大事件列表
@@ -683,7 +816,7 @@ class ExpectationIntegrator:
         Returns:
             分析结果
         """
-        self.logger.info(f"🎯 开始为 {stage_name} 阶段的事件添加期待标签...")
+        self.logger.info(f"🎯 使用规则匹配为 {stage_name} 阶段的事件添加期待标签...")
         
         tagged_count = 0
         for major_event in major_events:
@@ -700,11 +833,12 @@ class ExpectationIntegrator:
                     if exp_id:
                         tagged_count += 1
         
-        self.logger.info(f"✅ 共为 {tagged_count} 个事件添加了期待标签")
+        self.logger.info(f"✅ 规则匹配为 {tagged_count} 个事件添加了期待标签")
         
         return {
             "tagged_count": tagged_count,
-            "expectation_summary": self.em.export_expectation_map()
+            "expectation_summary": self.em.export_expectation_map(),
+            "analysis_method": "rules"
         }
     
     def _analyze_and_tag_major_event(self, event: Dict, stage_name: str) -> Optional[str]:

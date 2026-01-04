@@ -1142,14 +1142,39 @@ class QualityAssessor:
         return result
     def persist_initial_character_designs(self, novel_title: str, character_design: Dict):
         """
-        【新增】将初始生成的核心角色设计立即持久化到角色发展表中。
-        这确保了即使在第一章生成之前，角色数据也已成为“唯一真实来源”。
+        【新增】将初始生成的核心角色设计立即持久化到两个位置：
+        1. 角色发展表（character_development.json）- 用于跟踪角色状态和发展
+        2. 角色设计文件（{小说名}_角色设计.json）- 用于存储完整的角色设计
+        
+        这确保了即使在第一章生成之前，角色数据也已成为"唯一真实来源"。
         此操作在角色生成后立即执行，作为步骤4.5。
         """
         if not character_design:
             self.logger.info("  ⚠️ 角色设计为空，跳过持久化。")
             return
-        self.logger.info(f"  💾 开始将初始角色设计持久化到 '{novel_title}' 的角色发展表中...")
+        
+        self.logger.info(f"  💾 开始将初始角色设计持久化到 '{novel_title}' 的角色文件中...")
+        
+        # ========== 第一步：保存完整的角色设计到独立文件 ==========
+        try:
+            from src.config.path_config import path_config
+            character_design_file = path_config.get_quality_data_path(novel_title, "character_design")
+            
+            # 确保目录存在
+            import os
+            os.makedirs(os.path.dirname(character_design_file), exist_ok=True)
+            
+            # 保存完整的角色设计
+            with open(character_design_file, 'w', encoding='utf-8') as f:
+                json.dump(character_design, f, ensure_ascii=False, indent=2)
+            
+            self.logger.info(f"  ✅ 完整角色设计已保存到: {character_design_file}")
+        except Exception as e:
+            self.logger.info(f"  ❌ 保存角色设计文件失败: {e}")
+        
+        # ========== 第二步：持久化到角色发展表 ==========
+        self.logger.info(f"  🔄 开始将角色数据同步到角色发展表...")
+        
         # 1. 处理主角
         main_character = character_design.get("main_character")
         if main_character and isinstance(main_character, dict):
@@ -1163,6 +1188,7 @@ class QualityAssessor:
                 current_chapter=0, # 初始设定章节为0
                 action="update" # 'update' action 会在角色不存在时创建新条目
             )
+        
         # 2. 处理重要配角
         important_characters = character_design.get("important_characters", [])
         if important_characters and isinstance(important_characters, list):
@@ -1178,7 +1204,8 @@ class QualityAssessor:
                         current_chapter=0,
                         action="update"
                     )
-        self.logger.info("  ✅ 初始角色设计已成功持久化。")
+        
+        self.logger.info("  ✅ 初始角色设计已成功持久化（设计文件 + 发展表）。")
     def optimize_novel_plan(self, plan_to_optimize, optimization_params):
         market_analysis = optimization_params.get("market_competitor_analysis")
         """优化小说方案 - 支持新鲜度要求"""

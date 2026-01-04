@@ -1,4 +1,5 @@
 // 故事线时间线页面JavaScript - 左右分栏版本
+console.log('[JS-LOADED] storyline.js 已加载');
 
 let currentStorylineData = null;
 let currentProjectTitle = null;
@@ -6,19 +7,26 @@ let selectedMajorEventIndex = null;
 let hasUnsavedChanges = false;
 
 // 页面加载完成后执行
+console.log('[JS-SETUP] 设置事件监听器');
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('[JS-DOM] DOMContentLoaded 触发');
     loadProjects();
 });
 
 // ==================== 项目管理功能 ====================
 
 async function loadProjects() {
+    console.log('[LOAD-PROJECTS] 开始加载项目列表');
     try {
+        console.log('[LOAD-PROJECTS] 显示加载状态');
         showLoadingState();
         
+        console.log('[LOAD-PROJECTS] 发起API请求');
         const response = await fetch('/api/projects/with-phase-status');
+        console.log('[LOAD-PROJECTS] 收到响应:', response.status);
         
         if (response.status === 401) {
+            console.error('[LOAD-PROJECTS] 需要登录');
             showError('请先登录');
             return;
         }
@@ -28,21 +36,28 @@ async function loadProjects() {
         }
 
         const result = await response.json();
+        console.log('[LOAD-PROJECTS] API返回:', result);
+        console.log('[LOAD-PROJECTS] 项目数量:', result.projects?.length || 0);
+        
         updateProjectSelector(result.projects || []);
+        console.log('[LOAD-PROJECTS] 项目选择器已更新');
         
         // 如果有项目且URL中有指定项目，自动加载
         const urlParams = new URLSearchParams(window.location.search);
         const projectTitle = urlParams.get('title');
+        console.log('[LOAD-PROJECTS] URL参数项目:', projectTitle);
         
         if (projectTitle) {
+            console.log('[LOAD-PROJECTS] 自动加载项目:', projectTitle);
             const selectElement = document.getElementById('project-select');
             selectElement.value = projectTitle;
             await loadStoryline();
         } else {
+            console.log('[LOAD-PROJECTS] 显示空状态');
             showEmptyState();
         }
     } catch (error) {
-        console.error('加载项目列表失败:', error);
+        console.error('[LOAD-PROJECTS] 加载失败:', error);
         showError(`加载项目失败: ${error.message}`);
     }
 }
@@ -65,72 +80,124 @@ function updateProjectSelector(projects) {
 // ==================== 故事线加载功能 ====================
 
 async function loadStoryline() {
+    console.log('[LOAD-STORYLINE] ============ 开始加载故事线 ============');
+    
     const selectElement = document.getElementById('project-select');
+    console.log('[LOAD-STORYLINE] 获取选择框元素:', selectElement);
+    
     const projectTitle = selectElement.value;
+    console.log('[LOAD-STORYLINE] 选择的项目:', projectTitle);
     
     if (!projectTitle) {
+        console.log('[LOAD-STORYLINE] 项目为空，显示空状态');
         showEmptyState();
         return;
     }
     
     currentProjectTitle = projectTitle;
+    console.log('[LOAD-STORYLINE] 设置当前项目:', currentProjectTitle);
     
     try {
+        console.log('[LOAD-STORYLINE] 显示加载状态');
         showLoadingState();
         
-        const response = await fetch(`/api/storyline/${encodeURIComponent(projectTitle)}`);
+        const apiUrl = `/api/storyline/${encodeURIComponent(projectTitle)}`;
+        console.log('[LOAD-STORYLINE] API URL:', apiUrl);
+        
+        console.log('[LOAD-STORYLINE] 发起故事线API请求');
+        const response = await fetch(apiUrl);
+        console.log('[LOAD-STORYLINE] 收到响应:', response.status);
         
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
         
         const result = await response.json();
+        console.log('[LOAD-STORYLINE] API返回结果:', result);
+        console.log('[LOAD-STORYLINE] result.success:', result.success);
+        console.log('[LOAD-STORYLINE] result.storyline:', result.storyline);
         
         if (result.success) {
+            console.log('[LOAD-STORYLINE] 成功，保存数据并渲染');
             currentStorylineData = result.storyline;
+            console.log('[LOAD-STORYLINE] 调用 renderStoryline');
             renderStoryline(result.storyline);
+            console.log('[LOAD-STORYLINE] renderStoryline 完成');
         } else {
+            console.error('[LOAD-STORYLINE] API返回失败:', result.error);
             showError(result.error || '加载故事线失败');
         }
     } catch (error) {
-        console.error('加载故事线失败:', error);
+        console.error('[LOAD-STORYLINE] 加载故事线异常:', error);
         showError(`加载失败: ${error.message}`);
     }
+    
+    console.log('[LOAD-STORYLINE] ============ loadStoryline 结束 ============');
 }
 
 function renderStoryline(storyline) {
-    // 隐藏加载状态
-    hideAllStates();
+    console.log('[RENDER] ========== renderStoryline 开始 ==========');
+    console.log('[RENDER] 接收到的storyline数据:', storyline);
     
-    // 显示主容器
-    const storylineMain = document.getElementById('storyline-main');
-    storylineMain.style.display = 'block';
-    
-    // 检查是否是多阶段数据
-    const isMultiStage = storyline.stage_info && Array.isArray(storyline.stage_info) && storyline.stage_info.length > 0;
-    
-    if (isMultiStage) {
-        // 显示多阶段信息
-        const stageInfo = storyline.stage_info.map(si =>
-            `${si.stage_name} (${si.chapter_range}, ${si.major_event_count}个事件)`
-        ).join(' → ');
-        document.getElementById('stage-name').textContent = `全书故事线 (${storyline.stage_info.length}个阶段)`;
-        document.getElementById('chapter-range-text').textContent = stageInfo;
-    } else {
-        // 单阶段数据
-        document.getElementById('stage-name').textContent = storyline.stage_name || '全书故事线';
-        document.getElementById('chapter-range-text').textContent = storyline.chapter_range || '全章节';
+    try {
+        // 隐藏加载状态
+        console.log('[RENDER] 隐藏所有状态');
+        hideAllStates();
+        
+        // 显示主容器
+        const storylineMain = document.getElementById('storyline-main');
+        console.log('[RENDER] storyline-main元素:', storylineMain);
+        if (!storylineMain) {
+            console.error('[RENDER] ERROR: 找不到storyline-main元素！');
+            showError('页面元素初始化失败');
+            return;
+        }
+        
+        console.log('[RENDER] 显示storyline-main容器');
+        storylineMain.style.display = 'block';
+        
+        // 检查是否是多阶段数据
+        const isMultiStage = storyline.stage_info && Array.isArray(storyline.stage_info) && storyline.stage_info.length > 0;
+        console.log('[RENDER] isMultiStage:', isMultiStage);
+        console.log('[RENDER] stage_info:', storyline.stage_info);
+        
+        if (isMultiStage) {
+            // 显示多阶段信息
+            console.log('[RENDER] 处理多阶段数据');
+            const stageInfo = storyline.stage_info.map(si =>
+                `${si.stage_name} (${si.chapter_range}, ${si.major_event_count}个事件)`
+            ).join(' → ');
+            document.getElementById('stage-name').textContent = `全书故事线 (${storyline.stage_info.length}个阶段)`;
+            document.getElementById('chapter-range-text').textContent = stageInfo;
+            console.log('[RENDER] 多阶段信息已设置');
+        } else {
+            // 单阶段数据
+            console.log('[RENDER] 处理单阶段数据');
+            document.getElementById('stage-name').textContent = storyline.stage_name || '全书故事线';
+            document.getElementById('chapter-range-text').textContent = storyline.chapter_range || '全章节';
+            console.log('[RENDER] 单阶段信息已设置');
+        }
+        
+        // 渲染重大事件列表
+        const majorEvents = storyline.major_events || [];
+        console.log('[RENDER] 准备渲染重大事件，数量:', majorEvents.length);
+        console.log('[RENDER] major_events数据:', majorEvents);
+        
+        console.log('[RENDER] 调用 renderMajorEventsList');
+        renderMajorEventsList(majorEvents);
+        console.log('[RENDER] renderMajorEventsList 完成');
+        
+        // 重置选择状态
+        selectedMajorEventIndex = null;
+        hasUnsavedChanges = false;
+        updateSaveButton();
+        
+        console.log('[RENDER] ========== renderStoryline 成功完成 ==========');
+    } catch (error) {
+        console.error('[RENDER] ERROR: renderStoryline 执行出错:', error);
+        console.error('[RENDER] 错误堆栈:', error.stack);
+        showError(`渲染失败: ${error.message}`);
     }
-    
-    // 渲染重大事件列表
-    renderMajorEventsList(storyline.major_events || []);
-    
-    // 重置选择状态
-    selectedMajorEventIndex = null;
-    hasUnsavedChanges = false;
-    updateSaveButton();
-    
-    console.log(`✅ 渲染了 ${storyline.major_events?.length || 0} 个重大事件`);
 }
 
 function renderMajorEventsList(majorEvents) {
@@ -191,10 +258,6 @@ function selectMajorEvent(index) {
     
     selectedMajorEventIndex = index;
     
-    // 🔥 添加调试信息
-    console.log(`[DEBUG] 选择重大事件 ${index}:`, currentStorylineData.major_events[index]?.name);
-    console.log('[DEBUG] 事件数据:', currentStorylineData.major_events[index]);
-    
     // 渲染右侧详情
     try {
         renderMajorEventDetail(index);
@@ -205,28 +268,18 @@ function selectMajorEvent(index) {
 }
 
 function renderMajorEventDetail(index) {
-    console.log(`[DEBUG] renderMajorEventDetail 开始, index=${index}`);
-    
     const event = currentStorylineData.major_events[index];
     const contentContainer = document.getElementById('medium-events-content');
     
     if (!event) {
-        console.error('[ERROR] 事件不存在:', index);
         showError('事件数据不存在');
         return;
     }
     
     if (!contentContainer) {
-        console.error('[ERROR] medium-events-content 容器不存在');
         showError('详情容器不存在');
         return;
     }
-    
-    // 🔥 添加调试信息
-    console.log('[DEBUG] 事件数据:', event);
-    console.log('[DEBUG] composition:', event.composition);
-    console.log('[DEBUG] _medium_events:', event._medium_events);
-    console.log('[DEBUG] medium_events:', event.medium_events);
     
     // 更新面板标题
     const displayName = event.name || event.main_goal || `重大事件 ${index + 1}`;
@@ -292,13 +345,9 @@ function renderMajorEventDetail(index) {
         `;
     }
     
-    // 🔥 重新设计：特殊情感事件不再在重大事件级别显示
-    // 它们现在附着在中型事件上，会在中型事件卡片中作为子元素展示
-    
     // 中级事件列表 - 优先从 composition 中提取
     let mediumEvents = [];
     
-    // 🔥 修复：只从一个来源提取，避免重复
     // 优先级：composition > _medium_events > medium_events
     if (event.composition && typeof event.composition === 'object' && Object.keys(event.composition).length > 0) {
         // composition 是一个包含 '起', '承', '转', '合' 的对象
@@ -311,18 +360,13 @@ function renderMajorEventDetail(index) {
                 });
             }
         });
-        console.log(`[DEBUG] 从composition提取了 ${mediumEvents.length} 个中型事件`);
     } else if (event._medium_events && event._medium_events.length > 0) {
         // 从 _medium_events 提取
         mediumEvents = event._medium_events;
-        console.log(`[DEBUG] 从_medium_events提取了 ${mediumEvents.length} 个中型事件`);
     } else if (event.medium_events && event.medium_events.length > 0) {
         // 从 medium_events 数组提取
         mediumEvents = event.medium_events;
-        console.log(`[DEBUG] 从medium_events提取了 ${mediumEvents.length} 个中型事件`);
     }
-    
-    console.log(`[DEBUG] 总共 ${mediumEvents.length} 个中型事件`);
     
     if (mediumEvents.length > 0) {
         html += `
@@ -352,7 +396,7 @@ function createMediumEventCard(event, eventIndex, majorIndex) {
     // 使用标准化的章节范围（如果有的话），否则使用原始值
     const chapterRange = event._chapter_range_normalized || event.chapter_range || '';
     
-    // 🔥 重新设计：检查是否有特殊情感事件（新格式）
+    // 检查是否有特殊情感事件（新格式）
     const specialEmotionalEvents = event.special_emotional_events || [];
     const hasSpecialEvents = specialEmotionalEvents.length > 0;
     

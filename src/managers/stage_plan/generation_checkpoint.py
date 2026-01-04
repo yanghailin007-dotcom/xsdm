@@ -43,7 +43,7 @@ class GenerationCheckpoint:
         初始化检查点管理器
         
         Args:
-            novel_title: 小说标题
+            novel_title: 小说标题（原始标题，用于存储和显示）
             workspace_dir: 工作目录
             logger_name: 日志名称
         """
@@ -51,16 +51,14 @@ class GenerationCheckpoint:
         self.workspace_dir = workspace_dir
         self.logger = get_logger(logger_name)
         
-        # 安全的文件名
+        # 使用原始标题构建路径，只移除文件系统不支持的字符
+        # 保留中文和其他合法字符，使目录名更可读
         self.safe_title = self._sanitize_filename(novel_title)
         
-        # 检查点文件路径
+        # 检查点文件路径 - 使用原始书名而不是安全标题
         self.checkpoint_dir = workspace_dir / "小说项目" / self.safe_title / ".generation"
         self.checkpoint_file = self.checkpoint_dir / "checkpoint.json"
         self.backup_file = self.checkpoint_dir / "checkpoint_backup.json"
-        
-        # 不再在初始化时自动创建目录，延迟到实际需要写入时
-        # os.makedirs(self.checkpoint_dir, exist_ok=True)
     
     def create_checkpoint(self, phase: str, step: str, data: Optional[Dict] = None, step_status: str = "in_progress") -> bool:
         """

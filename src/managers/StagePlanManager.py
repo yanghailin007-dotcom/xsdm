@@ -294,6 +294,12 @@ class StagePlanManager:
             final_writing_plan, stage_name, stage_range
         )
         
+        # 🆕 Phase 5.5: 生成期待感映射
+        self.logger.info("   Phase 5.5: 为事件生成期待感标签...")
+        final_writing_plan = self._generate_expectation_mapping(
+            final_writing_plan, stage_name
+        )
+        
         if final_writing_plan:
             # 保存到文件
             file_path = self.plan_persistence.save_plan_to_file(stage_name, final_writing_plan)
@@ -1060,3 +1066,96 @@ class StagePlanManager:
             traceback.print_exc()
         
         return writing_plan
+    
+    def _generate_expectation_mapping(self, writing_plan: Dict, stage_name: str) -> Dict:
+        """
+        为写作计划生成期待感映射（使用AI智能分析）
+        
+        Args:
+            writing_plan: 写作计划
+            stage_name: 阶段名称
+            
+        Returns:
+            包含期待感映射的写作计划
+        """
+        try:
+            from src.managers.ExpectationManager import ExpectationManager, ExpectationIntegrator
+            import re
+            import json
+            from pathlib import Path
+            
+            self.logger.info(f"    -> 开始为【{stage_name}】生成期待感映射（AI智能分析）...")
+            
+            # 初始化期待感管理器
+            expectation_manager = ExpectationManager()
+            expectation_integrator = ExpectationIntegrator(expectation_manager)
+            
+            # 获取写作计划容器
+            if "stage_writing_plan" in writing_plan:
+                plan_container = writing_plan["stage_writing_plan"]
+            else:
+                plan_container = writing_plan
+            
+            # 获取重大事件
+            event_system = plan_container.get("event_system", {})
+            major_events = event_system.get("major_events", [])
+            
+            if not major_events:
+                self.logger.info(f"    ℹ️ 【{stage_name}】没有重大事件，跳过期待感映射生成")
+                return writing_plan
+            
+            # 🤖 使用AI分析事件并添加期待感标签
+            self.logger.info(f"    🤖 AI正在分析【{stage_name}】的 {len(major_events)} 个重大事件...")
+            analysis_result = expectation_integrator.analyze_and_tag_events(
+                major_events=major_events,
+                stage_name=stage_name,
+                api_client=self.generator.api_client,
+                novel_title=self.generator.novel_data.get("novel_title", "")
+            )
+            
+            total_tagged = analysis_result.get("tagged_count", 0)
+            self.logger.info(f"    ✅ AI成功为【{stage_name}】的 {total_tagged} 个事件生成期待感标签")
+            
+            # 生成期待感映射
+            expectation_map = expectation_manager.export_expectation_map()
+            
+            # 将期待感映射添加到写作计划中
+            plan_container["expectation_map"] = expectation_map
+            
+            # 保存期待感映射到项目目录（以便API可以加载）
+            try:
+                novel_title = self.generator.novel_data.get("novel_title", "")
+                if novel_title:
+                    # 清理文件名
+                    safe_title = re.sub(r'[\\/*?"<>|]', "_", novel_title)
+                    project_dir = Path("小说项目") / novel_title
+                    if not project_dir.exists():
+                        project_dir = Path("小说项目") / safe_title
+                    
+                    # 确保目录存在
+                    project_dir.mkdir(parents=True, exist_ok=True)
+                    
+                    # 保存期待感映射文件
+                    expectation_map_file = project_dir / "expectation_map.json"
+                    with open(expectation_map_file, 'w', encoding='utf-8') as f:
+                        json.dump({
+                            'novel_title': novel_title,
+                            'stage_name': stage_name,
+                            'expectation_map': expectation_map,
+                            'generated_at': datetime.now().isoformat(),
+                            'total_tagged': total_tagged
+                        }, f, ensure_ascii=False, indent=2)
+                    
+                    self.logger.info(f"      ✅ 期待感映射已保存: {expectation_map_file}")
+            except Exception as save_error:
+                self.logger.warn(f"      ⚠️ 保存期待感映射文件失败: {save_error}")
+            
+            self.logger.info(f"    ✅ 成功为【{stage_name}】的 {total_tagged} 个事件生成期待感标签")
+            
+            return writing_plan
+            
+        except Exception as e:
+            self.logger.error(f"    ❌ 为【{stage_name}】生成期待感映射时出错: {e}")
+            import traceback
+            traceback.print_exc()
+            return writing_plan
