@@ -166,38 +166,46 @@ function renderFactionCards() {
                 <div class="faction-name">${faction.name}</div>
                 <div class="faction-type-badge">${faction.type}</div>
             </div>
-            <div class="faction-info">
+            <div class="faction-info faction-info-collapsed">
                 <div class="info-row">
                     <span class="info-label">势力等级</span>
                     <span class="info-value ${faction.powerClass}">${faction.powerLevel}</span>
                 </div>
                 <div class="info-row">
                     <span class="info-label">核心理念</span>
-                    <span class="info-value">${faction.corePhilosophy}</span>
+                    <span class="info-value philosophy-preview">${faction.corePhilosophy}</span>
                 </div>
-                <div class="info-row">
-                    <span class="info-label">势力背景</span>
-                    <span class="info-value">${faction.background}</span>
+                <div class="info-row expand-hint">
+                    <span class="info-value">点击查看详细信息 ↓</span>
                 </div>
-                <div class="info-row">
-                    <span class="info-label">优势</span>
-                    <span class="info-value">${faction.advantages}</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">劣势</span>
-                    <span class="info-value">${faction.disadvantages}</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">盟友势力</span>
-                    <span class="info-value allies">${faction.allies}</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">敌对势力</span>
-                    <span class="info-value enemies">${faction.enemies}</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">剧情作用</span>
-                    <span class="info-value">${faction.storyRole}</span>
+                <div class="faction-details-expanded" style="display: none;">
+                    <div class="info-row">
+                        <span class="info-label">势力背景</span>
+                        <span class="info-value">${faction.background}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">优势</span>
+                        <span class="info-value">${faction.advantages}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">劣势</span>
+                        <span class="info-value">${faction.disadvantages}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">盟友势力</span>
+                        <span class="info-value allies">${faction.allies}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">敌对势力</span>
+                        <span class="info-value enemies">${faction.enemies}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">剧情作用</span>
+                        <span class="info-value">${faction.storyRole}</span>
+                    </div>
+                    <div class="info-row collapse-hint">
+                        <span class="info-value">点击收起 ↑</span>
+                    </div>
                 </div>
             </div>
         `;
@@ -213,8 +221,29 @@ function attachFactionCardListeners() {
     existingCards.forEach(card => {
         card.addEventListener('click', function(e) {
             e.stopPropagation();
-            const factionIndex = this.dataset.factionIndex;
-            showFactionDetail(parseInt(factionIndex));
+            
+            // 切换展开/收起状态
+            const factionInfo = this.querySelector('.faction-info');
+            const expandedDetails = this.querySelector('.faction-details-expanded');
+            const expandHint = this.querySelector('.expand-hint');
+            
+            if (expandedDetails.style.display === 'none') {
+                // 展开详情
+                expandedDetails.style.display = 'block';
+                factionInfo.classList.remove('faction-info-collapsed');
+                factionInfo.classList.add('faction-info-expanded');
+                if (expandHint) {
+                    expandHint.style.display = 'none';
+                }
+            } else {
+                // 收起详情
+                expandedDetails.style.display = 'none';
+                factionInfo.classList.remove('faction-info-expanded');
+                factionInfo.classList.add('faction-info-collapsed');
+                if (expandHint) {
+                    expandHint.style.display = 'flex';
+                }
+            }
         });
     });
 }
@@ -253,7 +282,7 @@ document.addEventListener('keydown', function(e) {
     }
 });
 
-// 显示势力详情
+// 显示势力详情（保留用于其他可能需要的地方）
 function showFactionDetail(index) {
     const faction = factionsData[index];
     if (!faction) return;

@@ -631,54 +631,57 @@ function createFactionSystemModal(factionData) {
     factions.forEach((faction, index) => {
         const factionType = faction.type || '未分类';
         const powerLevel = faction.power_level || '未知';
-        const strengths = (faction.strengths || []).slice(0, 3).join('、') || '无';
-        const weaknesses = (faction.weaknesses || []).slice(0, 3).join('、') || '无';
-        const allies = (faction.relationships?.allies || []).join('、') || '无';
-        const enemies = (faction.relationships?.enemies || []).join('、') || '无';
         const isRecommended = faction.suitable_for_protagonist === '是';
         
         factionsHtml += `
             <div class="faction-card ${isRecommended ? 'recommended' : ''}"
                  style="animation-delay: ${index * 0.1}s"
-                 data-faction-index="${index}"
-                 onclick="showFactionDetail(${index})">
+                 data-faction-index="${index}">
                 ${isRecommended ? '<div class="recommended-badge">⭐ 推荐主角加入</div>' : ''}
                 <div class="faction-header">
                     <div class="faction-name">${faction.name}</div>
                     <div class="faction-type-badge">${factionType}</div>
                 </div>
-                <div class="faction-info">
+                <div class="faction-info faction-info-collapsed" id="faction-info-${index}">
                     <div class="info-row">
                         <span class="info-label">势力等级</span>
                         <span class="info-value power-level-${powerLevel}">${powerLevel}</span>
                     </div>
                     <div class="info-row">
                         <span class="info-label">核心理念</span>
-                        <span class="info-value">${faction.core_philosophy || '未设置'}</span>
+                        <span class="info-value philosophy-preview">${faction.core_philosophy || '未设置'}</span>
                     </div>
-                    <div class="info-row">
-                        <span class="info-label">势力背景</span>
-                        <span class="info-value">${faction.background || '未设置'}</span>
+                    <div class="info-row expand-hint" onclick="toggleFactionDetails(${index}, event)">
+                        <span class="info-value">点击查看详细信息 ↓</span>
                     </div>
-                    <div class="info-row">
-                        <span class="info-label">优势</span>
-                        <span class="info-value">${strengths}</span>
-                    </div>
-                    <div class="info-row">
-                        <span class="info-label">劣势</span>
-                        <span class="info-value">${weaknesses}</span>
-                    </div>
-                    <div class="info-row">
-                        <span class="info-label">盟友势力</span>
-                        <span class="info-value allies">${allies}</span>
-                    </div>
-                    <div class="info-row">
-                        <span class="info-label">敌对势力</span>
-                        <span class="info-value enemies">${enemies}</span>
-                    </div>
-                    <div class="info-row">
-                        <span class="info-label">剧情作用</span>
-                        <span class="info-value">${faction.role_in_plot || '未设置'}</span>
+                    <div class="faction-details-expanded" id="faction-details-${index}" style="display: none;">
+                        <div class="info-row">
+                            <span class="info-label">势力背景</span>
+                            <span class="info-value">${faction.background || '未设置'}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">优势</span>
+                            <span class="info-value">${(faction.strengths || []).slice(0, 3).join('、') || '无'}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">劣势</span>
+                            <span class="info-value">${(faction.weaknesses || []).slice(0, 3).join('、') || '无'}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">盟友势力</span>
+                            <span class="info-value allies">${(faction.relationships?.allies || []).join('、') || '无'}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">敌对势力</span>
+                            <span class="info-value enemies">${(faction.relationships?.enemies || []).join('、') || '无'}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">剧情作用</span>
+                            <span class="info-value">${faction.role_in_plot || '未设置'}</span>
+                        </div>
+                        <div class="info-row collapse-hint" onclick="toggleFactionDetails(${index}, event)">
+                            <span class="info-value">点击收起 ↑</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -739,9 +742,59 @@ function createFactionSystemModal(factionData) {
     `;
     
     document.body.insertAdjacentHTML('beforeend', modalHtml);
+    
+    // 动态设置滚动容器的高度
+    setTimeout(() => {
+        const modalContent = document.querySelector('.faction-modal-content');
+        const listView = document.getElementById('faction-list-view');
+        const gridContainer = document.querySelector('.factions-grid-container');
+        
+        if (modalContent && listView && gridContainer) {
+            // 计算可用空间
+            const headerHeight = document.querySelector('.faction-modal-header').offsetHeight;
+            const overviewHeight = document.querySelector('.faction-overview').offsetHeight;
+            const footerHeight = document.querySelector('.faction-modal-footer').offsetHeight;
+            
+            // 计算网格容器的高度
+            const availableHeight = modalContent.offsetHeight - headerHeight - overviewHeight - footerHeight - 32; // 32px for margins
+            
+            // 设置高度
+            gridContainer.style.height = `${availableHeight}px`;
+            console.log('📏 势力网格容器高度已设置为:', availableHeight + 'px');
+        }
+    }, 100);
 }
 
-// 显示势力详情
+// 展开/收起势力详情
+function toggleFactionDetails(index, event) {
+    event.stopPropagation();
+    
+    const factionInfo = document.getElementById(`faction-info-${index}`);
+    const expandedDetails = document.getElementById(`faction-details-${index}`);
+    const expandHint = factionInfo.querySelector('.expand-hint');
+    
+    if (!expandedDetails || !factionInfo) return;
+    
+    if (expandedDetails.style.display === 'none') {
+        // 展开详情
+        expandedDetails.style.display = 'block';
+        factionInfo.classList.remove('faction-info-collapsed');
+        factionInfo.classList.add('faction-info-expanded');
+        if (expandHint) {
+            expandHint.style.display = 'none';
+        }
+    } else {
+        // 收起详情
+        expandedDetails.style.display = 'none';
+        factionInfo.classList.remove('faction-info-expanded');
+        factionInfo.classList.add('faction-info-collapsed');
+        if (expandHint) {
+            expandHint.style.display = 'flex';
+        }
+    }
+}
+
+// 显示势力详情（全屏详情视图，保留用于其他需要的地方）
 function showFactionDetail(index) {
     if (!currentFactionsData || !currentFactionsData.factions) return;
     
