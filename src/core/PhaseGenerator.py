@@ -582,7 +582,7 @@ class PhaseGenerator:
                 with open(faction_file, 'w', encoding='utf-8') as f:
                     json.dump(self.generator.novel_data["faction_system"], f, ensure_ascii=False, indent=2)
                 products_mapping["faction_system"] = faction_file
-                print(f"✅ 势力/阵营系统已保存: {faction_file}")
+                print(f"✅ 势力/阵营系统已保存: {faction_file}")  # 🔥 修复：日志现在正确显示.json扩展名
             
             # 3. 角色设计
             if "character_design" in self.generator.novel_data and self.generator.novel_data["character_design"]:

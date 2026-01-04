@@ -49,6 +49,7 @@ class MaterialManager:
             "market_analysis": "{safe_title}_市场分析_{timestamp}.json",
             "worldview": "{safe_title}_世界观_{timestamp}.json",
             "character_design": "{safe_title}_角色设计_{timestamp}.json",
+            "faction_system": "{safe_title}_势力系统.json",  # 🔥 新增：势力系统命名规则（不带时间戳，固定文件名）
             "stage_plan": "{safe_title}_阶段计划_{stage_name}_{timestamp}.json",
             "writing_style": "{safe_title}_写作风格指南_{timestamp}.json",
             "growth_plan": "{safe_title}_成长规划_{timestamp}.json",

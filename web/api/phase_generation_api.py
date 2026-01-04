@@ -239,9 +239,10 @@ class ProductLoader:
             faction_data = None
             
             # 1. 尝试从项目目录加载
-            worldview_dir = self.project_dir / "worldview"
+            # 🔥 修复：优先检查 materials/worldview，因为这是新的标准路径
+            worldview_dir = self.project_dir / "materials" / "worldview"
             if not worldview_dir.exists():
-                worldview_dir = self.project_dir / "materials" / "worldview"
+                worldview_dir = self.project_dir / "worldview"
             
             if worldview_dir.exists():
                 faction_files = list(worldview_dir.glob("*_势力系统.json"))
@@ -317,9 +318,10 @@ class ProductLoader:
             self._extract_storyline_from_writing(products)
     
     def _load_worldview(self, products):
-        worldview_dir = self.project_dir / "worldview"
+        # 🔥 修复：优先检查 materials/worldview，因为这是新的标准路径
+        worldview_dir = self.project_dir / "materials" / "worldview"
         if not worldview_dir.exists():
-            worldview_dir = self.project_dir / "materials" / "worldview"
+            worldview_dir = self.project_dir / "worldview"
         
         if worldview_dir.exists():
             worldview_files = list(worldview_dir.glob("*.json"))
