@@ -573,9 +573,189 @@ function editProductCategory(category) {
     // 对于势力系统，使用特殊的查看器
     if (category === 'factions') {
         viewFactionSystem();
+    } else if (category === 'characters') {
+        // 对于角色，使用友好的角色编辑器
+        openCharacterEditorFromPhaseTwo();
     } else {
         // 其他产物使用编辑模态框
         createProductEditModal(category, productData);
+    }
+}
+
+// 从第二阶段打开角色编辑器
+async function openCharacterEditorFromPhaseTwo() {
+    if (!currentProject) {
+        showStatusMessage('❌ 请先选择一个项目', 'error');
+        return;
+    }
+    
+    const projectTitle = currentProject.novel_title || currentProject.title;
+    console.log('🎯 准备打开角色编辑器，项目标题:', projectTitle);
+    
+    try {
+        showStatusMessage('🔄 正在加载角色编辑器...', 'info');
+        
+        // 动态加载角色编辑器模态框（如果还没加载）
+        let modalContainer = document.getElementById('character-editor-modal-wrapper');
+        if (!modalContainer) {
+            console.log('📦 创建模态框容器');
+            modalContainer = document.createElement('div');
+            modalContainer.id = 'character-editor-modal-wrapper';
+            modalContainer.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 999999;';
+            document.body.appendChild(modalContainer);
+        }
+        
+        if (modalContainer.innerHTML.trim() === '') {
+            console.log('📥 加载模态框HTML');
+            const response = await fetch('/templates/components/character-editor-modal.html');
+            if (!response.ok) {
+                throw new Error(`加载模态框HTML失败: ${response.status}`);
+            }
+            const html = await response.text();
+            modalContainer.innerHTML = html;
+            console.log('✅ 模态框HTML加载完成，长度:', html.length);
+        }
+        
+        // 动态加载角色编辑器JavaScript（如果还没加载）
+        if (typeof openCharacterEditor === 'undefined') {
+            console.log('📜 加载角色编辑器JavaScript');
+            await new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = '/static/js/character-editor.js';
+                script.onload = () => {
+                    console.log('✅ 角色编辑器JavaScript加载完成');
+                    resolve();
+                };
+                script.onerror = () => {
+                    console.error('❌ 角色编辑器JavaScript加载失败');
+                    reject(new Error('JavaScript加载失败'));
+                };
+                document.head.appendChild(script);
+            });
+        } else {
+            console.log('✅ 角色编辑器JavaScript已加载');
+        }
+        
+        // 解析角色设计数据
+        let characterDataList = [];
+        const characterProduct = phaseOneProductsData.characters;
+        
+        console.log('📋 角色产品数据:', characterProduct);
+        
+        if (characterProduct && characterProduct.content) {
+            try {
+                // 尝试解析为JSON数组
+                const parsed = JSON.parse(characterProduct.content);
+                if (Array.isArray(parsed)) {
+                    characterDataList = parsed;
+                    console.log('✅ 解析到角色数组:', characterDataList.length, '个角色');
+                } else if (parsed && parsed.characters && Array.isArray(parsed.characters)) {
+                    characterDataList = parsed.characters;
+                    console.log('✅ 从characters字段解析到:', characterDataList.length, '个角色');
+                } else {
+                    console.log('⚠️ 解析结果不是数组，创建默认角色');
+                    throw new Error('不是数组格式');
+                }
+            } catch (e) {
+                console.log('⚠️ 角色设计内容不是有效的JSON数组:', e.message);
+                console.log('📝 原始内容前100字符:', characterProduct.content.substring(0, 100));
+                
+                // 如果不是JSON数组，可能只是文本描述，根据描述内容创建角色
+                const contentText = characterProduct.content.trim();
+                const lines = contentText.split(/[，。；；\n]/).filter(line => line.trim());
+                
+                // 尝试提取角色信息
+                characterDataList = [];
+                if (lines.length > 0) {
+                    // 如果内容包含"主角"等关键词，创建相应角色
+                    if (contentText.includes('主角') || contentText.includes('主要角色')) {
+                        characterDataList.push({
+                            name: '主角',
+                            characterName: '主角',
+                            role: '主角',
+                            character_type: '主角',
+                            icon: '🧑',
+                            color: '#667eea',
+                            description: contentText,
+                            personality: contentText
+                        });
+                    }
+                    
+                    // 如果有其他角色关键词
+                    if (contentText.includes('配角') || contentText.includes('次要角色')) {
+                        characterDataList.push({
+                            name: '配角',
+                            characterName: '配角',
+                            role: '配角',
+                            character_type: '配角',
+                            icon: '👤',
+                            color: '#10b981',
+                            description: contentText,
+                            personality: contentText
+                        });
+                    }
+                }
+                
+                // 如果没有提取到角色，创建一个默认角色
+                if (characterDataList.length === 0) {
+                    characterDataList = [{
+                        name: '角色1',
+                        characterName: '角色1',
+                        role: '主角',
+                        character_type: '主角',
+                        icon: '👤',
+                        color: '#667eea',
+                        description: contentText || '角色描述',
+                        personality: contentText || '性格描述'
+                    }];
+                }
+                
+                console.log('✅ 从文本内容创建了角色:', characterDataList.length, '个角色');
+            }
+        } else {
+            console.log('⚠️ 没有角色产品数据，创建空数组');
+        }
+        
+        console.log('📊 最终角色数据列表:', characterDataList);
+        
+        // 设置全局变量供角色编辑器使用
+        window.currentProjectTitle = projectTitle;
+        
+        // 设置novelData供角色编辑器使用
+        window.novelData = {
+            projectTitle: projectTitle,
+            characters: {
+                content: JSON.stringify(characterDataList),
+                complete: true
+            }
+        };
+        
+        console.log('💾 设置novelData完成');
+        
+        // 等待一小段时间确保DOM更新完成
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        // 打开角色编辑器
+        if (typeof openCharacterEditor === 'function') {
+            console.log('🎯 调用openCharacterEditor函数');
+            await openCharacterEditor();
+            console.log('✅ openCharacterEditor函数调用完成');
+            
+            // 检查模态框是否真的显示了
+            const modal = document.getElementById('character-editor-modal');
+            if (modal) {
+                console.log('✅ 模态框元素存在，类名:', modal.className);
+                console.log('✅ 模态框display样式:', window.getComputedStyle(modal).display);
+            } else {
+                console.error('❌ 模态框元素不存在');
+            }
+        } else {
+            throw new Error('角色编辑器函数未加载');
+        }
+        
+    } catch (error) {
+        console.error('❌ 打开角色编辑器失败:', error);
+        showStatusMessage(`❌ 打开角色编辑器失败: ${error.message}`, 'error');
     }
 }
 

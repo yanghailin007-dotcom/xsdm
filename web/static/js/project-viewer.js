@@ -28,7 +28,22 @@ document.addEventListener('DOMContentLoaded', function() {
     initializeNovelViewer();
     loadNovelData();
     initializeEventListeners();
+    loadCharacterEditorModal();
 });
+
+// 加载角色编辑器模态框
+async function loadCharacterEditorModal() {
+    try {
+        const response = await fetch('/templates/components/character-editor-modal.html');
+        const html = await response.text();
+        const modalContainer = document.getElementById('character-editor-modal');
+        if (modalContainer) {
+            modalContainer.innerHTML = html;
+        }
+    } catch (error) {
+        console.error('加载角色编辑器模态框失败:', error);
+    }
+}
 
 async function initializeNovelViewer() {
     console.log('🎯 初始化小说可视化系统');

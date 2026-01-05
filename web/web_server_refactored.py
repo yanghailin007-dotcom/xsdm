@@ -39,6 +39,7 @@ from web.api.resume_generation_api import register_resume_routes
 from web.api.worldview_api import register_worldview_routes
 from web.api.video_generation_api import register_video_routes
 from web.api.nanobanana_api import register_nanobanana_routes
+from web.api.character_api import register_character_routes
 
 # 导入页面路由模块
 from web.routes.auth_routes import register_auth_routes, register_page_routes
@@ -105,6 +106,9 @@ def create_app():
     
     # 12. Nano Banana文生图API路由（用于角色生成）
     register_nanobanana_routes(app)
+    
+    # 13. 角色管理API路由
+    register_character_routes(app)
     
     return app, manager
 

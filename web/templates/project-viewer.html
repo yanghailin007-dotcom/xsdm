@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>项目可视化 - 小说生成系统</title>
     <link rel="stylesheet" href="/static/css/worldview-viewer.css">
+    <link rel="stylesheet" href="/static/css/character-editor.css">
 </head>
 <body>
     <!-- 导航栏 -->
@@ -130,7 +131,12 @@
                     <canvas id="characters-graph"></canvas>
                 </div>
                 <div class="network-info">
-                    <h3>角色关系网络</h3>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                        <h3>角色关系网络</h3>
+                        <button class="btn btn-primary" onclick="openCharacterEditor()">
+                            ✏️ 编辑角色
+                        </button>
+                    </div>
                     <div id="character-details"></div>
                 </div>
             </div>
@@ -285,11 +291,15 @@
         </div>
     </div>
 
+    <!-- 角色编辑器模态框 -->
+    <div id="character-editor-modal"></div>
+
     <script>
         console.log('🔴 HTML内联脚本执行');
         console.log('当前页面URL:', window.location.href);
         console.log('标题参数:', new URLSearchParams(window.location.search).get('title'));
     </script>
     <script src="/static/js/project-viewer.js"></script>
+    <script src="/static/js/character-editor.js"></script>
 </body>
 </html>

@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>模态框诊断工具</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .diagnosis-result {
+            background: white;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+        .success {
+            border-left-color: #10b981;
+        }
+        .error {
+            border-left-color: #ef4444;
+        }
+        .warning {
+            border-left-color: #f59e0b;
+        }
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 5px;
+        }
+        button:hover {
+            background: #5568d3;
+        }
+        pre {
+            background: #f9fafb;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 角色编辑器模态框诊断工具</h1>
+    
+    <div>
+        <button onclick="runDiagnosis()">运行完整诊断</button>
+        <button onclick="testModalHTML()">测试模态框HTML</button>
+        <button onclick="testModalCSS()">测试模态框CSS</button>
+        <button onclick="testModalJS()">测试模态框JS</button>
+        <button onclick="clearResults()">清除结果</button>
+    </div>
+    
+    <div id="results"></div>
+
+    <script>
+        function addResult(type, title, message) {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = `diagnosis-result ${type}`;
+            div.innerHTML = `
+                <h3>${title}</h3>
+                <pre>${message}</pre>
+            `;
+            results.appendChild(div);
+        }
+
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+        }
+
+        async function runDiagnosis() {
+            clearResults();
+            addResult('info', '开始诊断', '正在运行完整诊断...\n');
+            
+            // 1. 检查模态框HTML
+            await testModalHTML();
+            
+            // 2. 检查模态框CSS
+            await testModalCSS();
+            
+            // 3. 检查模态框JS
+            await testModalJS();
+            
+            addResult('success', '诊断完成', '所有检查已完成！');
+        }
+
+        async function testModalHTML() {
+            try {
+                addResult('info', '测试模态框HTML', '正在获取 /templates/components/character-editor-modal.html...');
+                
+                const response = await fetch('/templates/components/character-editor-modal.html');
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const html = await response.text();
+                
+                addResult('success', '✅ 模态框HTML加载成功', `
+状态: ${response.status}
+文件大小: ${html.length} 字节
+包含的关键元素:
+- character-editor-modal: ${html.includes('id="character-editor-modal"') ? '✅' : '❌'}
+- character-list: ${html.includes('id="character-list"') ? '✅' : '❌'}
+- character-form-container: ${html.includes('id="character-form-container"') ? '✅' : '❌'}
+- modal class: ${html.includes('class="modal"') ? '✅' : '❌'}
+- modal-content: ${html.includes('class="modal-content') ? '✅' : '❌'}
+- CSS链接: ${html.includes('/static/css/character-editor.css') ? '✅' : '❌'}
+                `);
+                
+                // 显示HTML的前500个字符
+                addResult('info', 'HTML内容预览', html.substring(0, 500) + '...');
+                
+            } catch (error) {
+                addResult('error', '❌ 模态框HTML加载失败', error.message);
+            }
+        }
+
+        async function testModalCSS() {
+            try {
+                addResult('info', '测试模态框CSS', '正在获取 /static/css/character-editor.css...');
+                
+                const response = await fetch('/static/css/character-editor.css');
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const css = await response.text();
+                
+                addResult('success', '✅ 模态框CSS加载成功', `
+状态: ${response.status}
+文件大小: ${css.length} 字节
+包含的关键样式:
+- .modal: ${css.includes('.modal') ? '✅' : '❌'}
+- .modal.active: ${css.includes('.modal.active') ? '✅' : '❌'}
+- .modal-content: ${css.includes('.modal-content') ? '✅' : '❌'}
+- .character-editor: ${css.includes('.character-editor') ? '✅' : '❌'}
+                `);
+                
+            } catch (error) {
+                addResult('error', '❌ 模态框CSS加载失败', error.message);
+            }
+        }
+
+        async function testModalJS() {
+            try {
+                addResult('info', '测试模态框JS', '正在获取 /static/js/character-editor.js...');
+                
+                const response = await fetch('/static/js/character-editor.js');
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const js = await response.text();
+                
+                addResult('success', '✅ 模态框JS加载成功', `
+状态: ${response.status}
+文件大小: ${js.length} 字节
+包含的关键函数:
+- openCharacterEditor: ${js.includes('function openCharacterEditor') ? '✅' : '❌'}
+- closeCharacterEditor: ${js.includes('function closeCharacterEditor') ? '✅' : '❌'}
+- renderCharacterList: ${js.includes('function renderCharacterList') ? '✅' : '❌'}
+- loadCharacterData: ${js.includes('function loadCharacterData') ? '✅' : '❌'}
+                `);
+                
+            } catch (error) {
+                addResult('error', '❌ 模态框JS加载失败', error.message);
+            }
+        }
+
+        // 页面加载时自动运行诊断
+        window.addEventListener('load', () => {
+            setTimeout(runDiagnosis, 500);
+        });
+    </script>
+</body>
+</html>
