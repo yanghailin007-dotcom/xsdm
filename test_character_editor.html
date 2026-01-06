@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>角色编辑器JSON驱动系统 - 测试页面</title>
+    
+    <!-- 样式文件 -->
+    <link rel="stylesheet" href="/static/css/character-editor-json-based.css">
+    <link rel="stylesheet" href="/static/css/character-editor.css">
+    
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background: #f3f4f6;
+            margin: 0;
+            padding: 20px;
+        }
+        
+        .test-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        }
+        
+        .test-header {
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .test-header h1 {
+            margin: 0;
+            color: #667eea;
+        }
+        
+        .test-section {
+            margin-bottom: 30px;
+        }
+        
+        .test-section h2 {
+            color: #1f2937;
+            border-bottom: 1px solid #e5e7eb;
+            padding-bottom: 10px;
+        }
+        
+        .test-info {
+            background: #f9fafb;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .btn-test {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-right: 10px;
+        }
+        
+        .btn-test:hover {
+            background: #5568d3;
+        }
+        
+        .console-output {
+            background: #1f2937;
+            color: #10b981;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 20px;
+        }
+        
+        .console-line {
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <div class="test-header">
+            <h1>🧪 角色编辑器JSON驱动系统 - 测试页面</h1>
+            <p style="color: #6b7280;">用于验证基于JSON结构的动态表单生成功能</p>
+        </div>
+        
+        <div class="test-section">
+            <h2>📋 测试步骤</h2>
+            
+            <div class="test-info">
+                <p><strong>1. 加载测试数据</strong> - 使用您提供的JSON数据结构</p>
+                <p><strong>2. 生成动态表单</strong> - 调用新的表单生成器</p>
+                <p><strong>3. 验证数据收集</strong> - 测试数据回传功能</p>
+            </div>
+            
+            <div style="margin-top: 20px;">
+                <button class="btn-test" onclick="runTest()">🚀 运行测试</button>
+                <button class="btn-test" onclick="clearOutput()" style="background: #6b7280;">🧹 清空输出</button>
+            </div>
+        </div>
+        
+        <div id="test-output-container">
+            <div class="test-section">
+                <h2>📊 测试结果</h2>
+                <div id="form-display-area" style="min-height: 200px; background: #f9fafb; border-radius: 8px; padding: 20px;">
+                    <p style="color: #9ca3af;">点击"运行测试"按钮开始测试...</p>
+                </div>
+            </div>
+            
+            <div class="test-section">
+                <h2>💻 控制台输出</h2>
+                <div id="console-output" class="console-output">
+                    <div class="console-line">等待测试...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 引入JavaScript文件 -->
+    <script src="/static/js/character-editor-json-based.js"></script>
+    
+    <script>
+        // 测试用的角色数据（使用您提供的完整JSON结构）
+        const testCharacterData = {
+            "main_character": {
+                "name": "诛仙",
+                "core_personality": "极致利己、冷血、掌控欲极强",
+                "living_characteristics": {
+                    "physical_presence": "本体是一柄暗红色的长剑，剑身布满诡异的血槽",
+                    "daily_habits": [
+                        "习惯1：无时无刻不在计算宿主的'剩余价值'",
+                        "习惯2：杀人后必定会震动剑身，将最后一滴血吸食干净"
+                    ],
+                    "speech_patterns": "直接在宿主脑海中响起的冰冷机械音",
+                    "personal_quirks": "当宿主表现软弱时，会故意释放刺痛灵魂的电流惩罚",
+                    "emotional_triggers": "极度厌恶'生锈'的感觉和'圣母'行为"
+                },
+                "background": "前世是现代某资本巨鳄，深谙压榨之道。穿越后发现自己变成一把生锈铁剑",
+                "motivation": {
+                    "inner_drive": "进化。从废铁进化为斩仙弑神的概念级武器",
+                    "external_goals": "吞噬足够的强者血液和神兵利器，重塑剑身",
+                    "secret_desires": "将整个宇宙炼化为自己的剑鞘，成为唯一的真理"
+                },
+                "cultivation_level": "凡铁级 -> 利器级",
+                "abilities": "吞噬进化、系统PUA控制宿主",
+                "growth_arc": "从锈剑到灭世神剑的进化之路"
+            },
+            "important_characters": [
+                {
+                    "name": "叶红衣",
+                    "role": "核心盟友/女主",
+                    "initial_state": {
+                        "description": "国破家亡的落魄公主",
+                        "cultivation_level": "炼气三层（修为被废）",
+                        "location": "乱葬岗"
+                    },
+                    "soul_matrix": [
+                        {
+                            "core_trait": "黑化/执着",
+                            "behavioral_manifestations": [
+                                "行为1：为了复仇，毫不犹豫地答应残酷条件",
+                                "行为2：在主角教导下，从柔弱变狠人"
+                            ]
+                        }
+                    ],
+                    "living_characteristics": {
+                        "physical_presence": "初登场时衣衫褴褛，满身泥泞",
+                        "distinctive_traits": "睡觉时必须抱着剑才能入睡（斯德哥尔摩综合症）"
+                    },
+                    "dialogue_style_example": "主人，这一城的生灵已为您备好，请尽情享用。"
+                },
+                {
+                    "name": "林天南",
+                    "role": "核心反派",
+                    "initial_state": {
+                        "description": "一身白衣胜雪，仙风道骨",
+                        "cultivation_level": "金丹期大圆满"
+                    },
+                    "soul_matrix": [
+                        {
+                            "core_trait": "伪君子",
+                            "behavioral_manifestations": [
+                                "行为1：口中喊着'除魔卫道'，背地里炼制人丹",
+                                "行为2：为了夺取秘宝，设计陷害并灭其满门"
+                            ]
+                        }
+                    ]
+                }
+            ]
+        };
+        
+        // 控制台输出函数
+        function log(message, type = 'info') {
+            const console = document.getElementById('console-output');
+            const line = document.createElement('div');
+            line.className = 'console-line';
+            
+            const timestamp = new Date().toLocaleTimeString();
+            const icon = {
+                'info': 'ℹ️',
+                'success': '✅',
+                'error': '❌',
+                'warning': '⚠️'
+            }[type] || 'ℹ️';
+            
+            line.innerHTML = `<strong>[${timestamp}]</strong> ${icon} ${message}`;
+            console.appendChild(line);
+            console.scrollTop = console.scrollHeight;
+        }
+        
+        function clearOutput() {
+            document.getElementById('console-output').innerHTML = '<div class="console-line">控制台已清空</div>';
+        }
+        
+        // 主测试函数
+        async function runTest() {
+            clearOutput();
+            log('🚀 开始测试角色编辑器JSON驱动系统...', 'info');
+            
+            try {
+                // 测试1: 检查函数是否存在
+                log('📋 步骤1: 检查核心函数...', 'info');
+                
+                if (typeof generateFormFromJSON === 'function') {
+                    log('✅ generateFormFromJSON 函数存在', 'success');
+                } else {
+                    throw new Error('❌ generateFormFromJSON 函数未找到');
+                }
+                
+                if (typeof collectDataFromForm === 'function') {
+                    log('✅ collectDataFromForm 函数存在', 'success');
+                } else {
+                    throw new Error('❌ collectDataFromForm 函数未找到');
+                }
+                
+                // 测试2: 处理角色数据
+                log('📋 步骤2: 处理角色数据...', 'info');
+                
+                // 将复杂结构转换为简单的角色数组
+                const characterArray = [];
+                
+                // 添加主角
+                if (testCharacterData.main_character) {
+                    const mainChar = testCharacterData.main_character;
+                    characterArray.push({
+                        name: mainChar.name,
+                        role: '主角',
+                        icon: '🧑',
+                        color: '#667eea',
+                        core_personality: mainChar.core_personality,
+                        background: mainChar.background,
+                        cultivation_level: mainChar.cultivation_level
+                    });
+                }
+                
+                // 添加配角
+                if (testCharacterData.important_characters && Array.isArray(testCharacterData.important_characters)) {
+                    testCharacterData.important_characters.forEach((char, idx) => {
+                        characterArray.push({
+                            name: char.name,
+                            role: char.role || '配角',
+                            icon: '👤',
+                            color: '#10b981',
+                            description: char.initial_state?.description || '',
+                            cultivation_level: char.initial_state?.cultivation_level || ''
+                        });
+                    });
+                }
+                
+                log(`✅ 处理了 ${characterArray.length} 个角色`, 'success');
+                
+                // 测试3: 生成表单
+                log('📋 步骤3: 为第一个角色生成表单...', 'info');
+                
+                const testChar = characterArray[0];
+                log(`📝 角色名称: ${testChar.name}`, 'info');
+                
+                const form = generateFormFromJSON(testChar);
+                
+                if (form && form.innerHTML) {
+                    log(`✅ 表单生成成功，HTML长度: ${form.innerHTML.length} 字符`, 'success');
+                    
+                    // 显示表单
+                    const displayArea = document.getElementById('form-display-area');
+                    displayArea.innerHTML = '';
+                    displayArea.appendChild(form);
+                    log('✅ 表单已显示在上方区域', 'success');
+                } else {
+                    throw new Error('表单生成失败');
+                }
+                
+                // 测试4: 模拟数据收集
+                log('📋 步骤4: 测试数据收集功能...', 'info');
+                
+                // 等待DOM更新
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
+                if (typeof collectDataFromForm === 'function') {
+                    const collected = collectDataFromForm();
+                    log(`✅ 数据收集成功，收集到 ${Object.keys(collected).length} 个字段`, 'success');
+                    log(`📊 收集的数据: ${JSON.stringify(collected, null, 2)}`, 'info');
+                }
+                
+                // 测试总结
+                log('🎉 测试完成！所有功能正常工作', 'success');
+                
+            } catch (error) {
+                log(`❌ 测试失败: ${error.message}`, 'error');
+                console.error(error);
+            }
+        }
+        
+        // 页面加载完成后的初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            log('📄 测试页面加载完成', 'success');
+            log('💡 点击"运行测试"按钮开始测试', 'info');
+        });
+    </script>
+</body>
+</html>

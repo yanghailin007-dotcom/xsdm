@@ -89,8 +89,46 @@ function initializeFactionSystem() {
         document.body.appendChild(modal);
     }
     
-    // 为所有势力卡片添加点击事件
-    attachFactionCardListeners();
+    // 使用事件委托而不是为每个卡片单独添加监听器
+    // 这样可以避免重复绑定事件监听器
+}
+
+// 使用事件委托处理卡片点击
+function setupEventDelegation() {
+    // 移除旧的事件监听器（如果存在）
+    const grid = document.getElementById('factions-grid');
+    if (grid) {
+        // 使用事件委托
+        grid.addEventListener('click', function(e) {
+            const card = e.target.closest('.faction-card');
+            if (!card) return;
+            
+            e.stopPropagation();
+            
+            // 切换展开/收起状态
+            const factionInfo = card.querySelector('.faction-info');
+            const expandedDetails = card.querySelector('.faction-details-expanded');
+            const expandHint = card.querySelector('.expand-hint');
+            
+            if (expandedDetails.style.display === 'none') {
+                // 展开详情
+                expandedDetails.style.display = 'block';
+                factionInfo.classList.remove('faction-info-collapsed');
+                factionInfo.classList.add('faction-info-expanded');
+                if (expandHint) {
+                    expandHint.style.display = 'none';
+                }
+            } else {
+                // 收起详情
+                expandedDetails.style.display = 'none';
+                factionInfo.classList.remove('faction-info-expanded');
+                factionInfo.classList.add('faction-info-collapsed');
+                if (expandHint) {
+                    expandHint.style.display = 'flex';
+                }
+            }
+        });
+    }
 }
 
 // 创建模态框
@@ -212,40 +250,15 @@ function renderFactionCards() {
         
         grid.appendChild(card);
     });
+    
+    // 设置事件委托
+    setupEventDelegation();
 }
 
-// 为势力卡片添加点击事件
+// 为势力卡片添加点击事件（已弃用，改用事件委托）
+// 保留此函数以避免破坏现有代码
 function attachFactionCardListeners() {
-    const existingCards = document.querySelectorAll('.faction-card');
-    
-    existingCards.forEach(card => {
-        card.addEventListener('click', function(e) {
-            e.stopPropagation();
-            
-            // 切换展开/收起状态
-            const factionInfo = this.querySelector('.faction-info');
-            const expandedDetails = this.querySelector('.faction-details-expanded');
-            const expandHint = this.querySelector('.expand-hint');
-            
-            if (expandedDetails.style.display === 'none') {
-                // 展开详情
-                expandedDetails.style.display = 'block';
-                factionInfo.classList.remove('faction-info-collapsed');
-                factionInfo.classList.add('faction-info-expanded');
-                if (expandHint) {
-                    expandHint.style.display = 'none';
-                }
-            } else {
-                // 收起详情
-                expandedDetails.style.display = 'none';
-                factionInfo.classList.remove('faction-info-expanded');
-                factionInfo.classList.add('faction-info-collapsed');
-                if (expandHint) {
-                    expandHint.style.display = 'flex';
-                }
-            }
-        });
-    });
+    setupEventDelegation();
 }
 
 // 打开模态框

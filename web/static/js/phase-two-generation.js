@@ -641,79 +641,68 @@ async function openCharacterEditorFromPhaseTwo() {
         const characterProduct = phaseOneProductsData.characters;
         
         console.log('📋 角色产品数据:', characterProduct);
+        console.log('📋 角色产品类型:', typeof characterProduct);
         
         if (characterProduct && characterProduct.content) {
             try {
-                // 尝试解析为JSON数组
+                // 尝试解析为JSON
                 const parsed = JSON.parse(characterProduct.content);
+                console.log('📝 解析后的数据:', parsed);
+                
                 if (Array.isArray(parsed)) {
+                    // 直接是数组
                     characterDataList = parsed;
                     console.log('✅ 解析到角色数组:', characterDataList.length, '个角色');
-                } else if (parsed && parsed.characters && Array.isArray(parsed.characters)) {
-                    characterDataList = parsed.characters;
-                    console.log('✅ 从characters字段解析到:', characterDataList.length, '个角色');
+                } else if (parsed && typeof parsed === 'object') {
+                    // 如果是对象，检查是否包含 main_character 和 important_characters
+                    if (parsed.main_character) {
+                        characterDataList = [parsed.main_character];
+                        if (Array.isArray(parsed.important_characters)) {
+                            characterDataList = [parsed.main_character, ...parsed.important_characters];
+                        }
+                        console.log('✅ 从复杂对象解析到:', characterDataList.length, '个角色');
+                    } else if (parsed.characters && Array.isArray(parsed.characters)) {
+                        characterDataList = parsed.characters;
+                        console.log('✅ 从characters字段解析到:', characterDataList.length, '个角色');
+                    } else {
+                        console.log('⚠️ 解析结果不是数组或可识别对象，尝试将对象包装为数组');
+                        characterDataList = [parsed];
+                    }
                 } else {
-                    console.log('⚠️ 解析结果不是数组，创建默认角色');
-                    throw new Error('不是数组格式');
+                    console.log('⚠️ 解析结果不是数组或对象，创建默认角色');
+                    throw new Error('不是有效的JSON格式');
                 }
             } catch (e) {
-                console.log('⚠️ 角色设计内容不是有效的JSON数组:', e.message);
-                console.log('📝 原始内容前100字符:', characterProduct.content.substring(0, 100));
-                
-                // 如果不是JSON数组，可能只是文本描述，根据描述内容创建角色
+                console.log('⚠️ 角色设计内容不是有效的JSON:', e.message);
+                console.log('📝 原始内容前200字符:', characterProduct.content.substring(0, 200));
+                 
+                // 如果不是JSON，可能只是文本描述
                 const contentText = characterProduct.content.trim();
-                const lines = contentText.split(/[，。；；\n]/).filter(line => line.trim());
                 
-                // 尝试提取角色信息
+                // 尝试从文本中提取角色信息
                 characterDataList = [];
-                if (lines.length > 0) {
-                    // 如果内容包含"主角"等关键词，创建相应角色
-                    if (contentText.includes('主角') || contentText.includes('主要角色')) {
-                        characterDataList.push({
-                            name: '主角',
-                            characterName: '主角',
-                            role: '主角',
-                            character_type: '主角',
-                            icon: '🧑',
-                            color: '#667eea',
-                            description: contentText,
-                            personality: contentText
-                        });
-                    }
-                    
-                    // 如果有其他角色关键词
-                    if (contentText.includes('配角') || contentText.includes('次要角色')) {
-                        characterDataList.push({
-                            name: '配角',
-                            characterName: '配角',
-                            role: '配角',
-                            character_type: '配角',
-                            icon: '👤',
-                            color: '#10b981',
-                            description: contentText,
-                            personality: contentText
-                        });
-                    }
-                }
                 
-                // 如果没有提取到角色，创建一个默认角色
-                if (characterDataList.length === 0) {
+                // 如果是描述性文本，创建一个默认角色
+                if (contentText.length > 0) {
                     characterDataList = [{
-                        name: '角色1',
-                        characterName: '角色1',
+                        name: '角色',
+                        characterName: '角色',
                         role: '主角',
                         character_type: '主角',
                         icon: '👤',
                         color: '#667eea',
-                        description: contentText || '角色描述',
-                        personality: contentText || '性格描述'
+                        description: contentText,
+                        personality: contentText,
+                        background: contentText,
+                        cultivation_level: '未知'
                     }];
                 }
                 
-                console.log('✅ 从文本内容创建了角色:', characterDataList.length, '个角色');
+                console.log('✅ 从文本内容创建了默认角色:', characterDataList.length, '个角色');
             }
         } else {
             console.log('⚠️ 没有角色产品数据，创建空数组');
+            characterDataList = [];
         }
         
         console.log('📊 最终角色数据列表:', characterDataList);
@@ -721,16 +710,25 @@ async function openCharacterEditorFromPhaseTwo() {
         // 设置全局变量供角色编辑器使用
         window.currentProjectTitle = projectTitle;
         
-        // 设置novelData供角色编辑器使用
+        // 🔥 修复：直接设置原始角色数据，避免双重解析
+        // 保存原始数据到特殊字段，供角色编辑器使用
+        window.rawPhaseOneCharacters = {
+            rawData: characterProduct?.content || '',
+            parsedData: characterDataList,
+            source: 'phase-two'
+        };
+        
+        // 同时保留向后兼容的novelData结构
         window.novelData = {
             projectTitle: projectTitle,
             characters: {
-                content: JSON.stringify(characterDataList),
+                content: characterProduct?.content || '', // 🔥 使用原始内容，不要重新序列化
                 complete: true
             }
         };
         
         console.log('💾 设置novelData完成');
+        console.log('📦 原始角色数据已保存到window.rawPhaseOneCharacters');
         
         // 等待一小段时间确保DOM更新完成
         await new Promise(resolve => setTimeout(resolve, 100));
