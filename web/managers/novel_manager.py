@@ -546,6 +546,50 @@ class NovelGenerationManager:
             "core_worldview": core_worldview if core_worldview else {},
         }
         
+        # 🔥 修复：确保 stage_writing_plans 字段存在
+        # 从 quality_data.writing_plans 映射到 stage_writing_plans
+        if "stage_writing_plans" not in standardized_data or not standardized_data["stage_writing_plans"]:
+            quality_data = novel_data.get("quality_data", {})
+            writing_plans = quality_data.get("writing_plans", {})
+            if writing_plans:
+                standardized_data["stage_writing_plans"] = writing_plans
+                logger.info(f"✅ 从 quality_data.writing_plans 映射到 stage_writing_plans: {len(writing_plans)} 个阶段")
+        
+        # 🔥 修复：确保 overall_stage_plans 字段存在
+        if "overall_stage_plans" not in standardized_data or not standardized_data.get("overall_stage_plans", {}):
+            quality_data = novel_data.get("quality_data", {})
+            writing_plans = quality_data.get("writing_plans", {})
+            if writing_plans:
+                # 从所有阶段的写作计划中提取 overall_stage_plan
+                overall_stage_plan = {}
+                for stage_name, stage_data in writing_plans.items():
+                    if isinstance(stage_data, dict) and "stage_writing_plan" in stage_data:
+                        stage_plan = stage_data["stage_writing_plan"]
+                        overall_stage_plan[stage_name] = {
+                            "chapter_range": stage_plan.get("chapter_range", ""),
+                            "stage_overview": stage_plan.get("stage_overview", ""),
+                            "event_system": stage_plan.get("event_system", {})
+                        }
+                
+                if overall_stage_plan:
+                    standardized_data["overall_stage_plans"] = {"overall_stage_plan": overall_stage_plan}
+                    logger.info(f"✅ 从 writing_plans 构建 overall_stage_plans: {len(overall_stage_plan)} 个阶段")
+        
+        # 🔥 修复：确保 global_growth_plan 字段存在
+        if "global_growth_plan" not in standardized_data or not standardized_data.get("global_growth_plan", {}):
+            # 从写作计划中提取成长规划信息
+            quality_data = novel_data.get("quality_data", {})
+            writing_plans = quality_data.get("writing_plans", {})
+            if writing_plans:
+                # 构建基础的全局成长规划
+                global_growth_plan = {
+                    "growth_stages": [],
+                    "power_systems": {},
+                    "world_building": {}
+                }
+                standardized_data["global_growth_plan"] = global_growth_plan
+                logger.info("✅ 创建基础 global_growth_plan 结构")
+        
         return standardized_data
 
     def get_chapter_detail(self, title: str, chapter_num: int) -> Optional[Dict[str, Any]]:

@@ -1456,6 +1456,13 @@ class NovelGenerator:
         """初始化各种系统"""
         print("=== 步骤7: 初始化系统 ===")
         
+        # 🔥 修复：先加载写作计划到内存，这样事件系统才能找到它们
+        if hasattr(self, 'stage_plan_manager') and self.stage_plan_manager:
+            loaded_count = self.stage_plan_manager.load_and_merge_all_plans()
+            print(f"✅ 已加载 {loaded_count} 个阶段的写作计划到内存")
+        else:
+            print("⚠️ 阶段计划管理器未初始化，跳过写作计划加载")
+        
         if self.novel_data["overall_stage_plans"]:
             self.event_driven_manager.initialize_event_system()
             print("✅ 事件系统初始化完成")
