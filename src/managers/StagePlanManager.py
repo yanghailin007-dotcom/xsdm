@@ -343,7 +343,12 @@ class StagePlanManager:
     def load_and_merge_all_plans(self) -> int:
         """加载并合并所有阶段计划到内存"""
         overall_plans = self.generator.novel_data.get("overall_stage_plans", {})
-        stage_plan_dict = overall_plans.get("overall_stage_plan", {})
+        
+        # 兼容两种数据结构
+        if "overall_stage_plan" in overall_plans:
+            stage_plan_dict = overall_plans.get("overall_stage_plan", {})
+        else:
+            stage_plan_dict = overall_plans
         
         if not stage_plan_dict:
             self.logger.warn("  ⚠️ 在 overall_stage_plans 中未找到阶段定义")
@@ -898,7 +903,15 @@ class StagePlanManager:
     def _get_current_stage(self, chapter_number: int) -> str:
         """获取当前章节所属的阶段名称"""
         overall_plans = self.generator.novel_data.get("overall_stage_plans", {})
-        stage_plan_dict = overall_plans.get("overall_stage_plan", {})
+        
+        # 兼容两种数据结构：
+        # 1. 新格式: {"overall_stage_plan": {"opening_stage": {...}, ...}}
+        # 2. 旧格式: {"opening_stage": {...}, "development_stage": {...}, ...}
+        if "overall_stage_plan" in overall_plans:
+            stage_plan_dict = overall_plans.get("overall_stage_plan", {})
+        else:
+            # 直接使用 overall_plans 作为 stage_plan_dict
+            stage_plan_dict = overall_plans
         
         if not stage_plan_dict:
             self.logger.warn("  ⚠️ 没有可用的整体阶段计划")
@@ -915,7 +928,13 @@ class StagePlanManager:
     def _get_stage_start_chapter(self, stage_name: str) -> int:
         """获取阶段起始章节"""
         overall_plans = self.generator.novel_data.get("overall_stage_plans", {})
-        stage_plan_dict = overall_plans.get("overall_stage_plan", {})
+        
+        # 兼容两种数据结构
+        if "overall_stage_plan" in overall_plans:
+            stage_plan_dict = overall_plans.get("overall_stage_plan", {})
+        else:
+            stage_plan_dict = overall_plans
+        
         stage_info = stage_plan_dict.get(stage_name, {})
         
         if stage_info and "chapter_range" in stage_info:
