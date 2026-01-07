@@ -38,7 +38,17 @@ class NovelGenerationManager:
 
     def _update_task_status(self, task_id: str, status: str, progress: int, error: Optional[str] = None):
         """更新任务状态和进度"""
-        if task_id in self.task_results:
+        # 🔥 修复：即使task_id不在task_results中，也要初始化它（防止任务初始化失败导致的404）
+        if task_id not in self.task_results:
+            logger.info(f"⚠️ 任务 {task_id} 不在 task_results 中，初始化基础结构")
+            self.task_results[task_id] = {
+                "task_id": task_id,
+                "status": status,
+                "progress": progress,
+                "created_at": datetime.now().isoformat(),
+                "updated_at": datetime.now().isoformat()
+            }
+        else:
             self.task_results[task_id].update({
                 "status": status,
                 "progress": progress,
@@ -47,12 +57,14 @@ class NovelGenerationManager:
             if error:
                 self.task_results[task_id]["error"] = error
 
-            # 更新进度记录
-            self.task_progress[task_id] = {
-                "status": status,
-                "progress": progress,
-                "timestamp": datetime.now().isoformat()
-            }
+        # 🔥 修复：始终更新task_progress，确保get_task_progress能返回数据
+        self.task_progress[task_id] = {
+            "status": status,
+            "progress": progress,
+            "timestamp": datetime.now().isoformat()
+        }
+        if error:
+            self.task_progress[task_id]["error"] = error
             
             # 添加当前步骤信息（从novel_data中获取）
             try:
@@ -1450,7 +1462,32 @@ class NovelGenerationManager:
             # 初始化完成 (20%)
             self._update_task_status(task_id, "initializing", 20)
             
-            # 加载第一阶段数据 (30%)
+            # 🔥 修复：加载现有项目数据到NovelGenerator (25%)
+            self._update_task_status(task_id, "loading_project", 25)
+            
+            # 加载现有项目数据
+            novel_detail = self.get_novel_detail(novel_title)
+            if not novel_detail:
+                logger.error(f"任务 {task_id}: ❌ 无法加载小说数据: {novel_title}")
+                self._update_task_status(task_id, "failed", 30, f"无法加载小说数据: {novel_title}")
+                return
+            
+            logger.info(f"任务 {task_id}: ✅ 成功加载小说数据，开始准备第二阶段生成")
+            
+            # 🔥 关键修复：将现有项目数据设置到novel_generator中
+            # 这样phase_two_generation才能访问到novel_title等数据
+            novel_generator.novel_data = novel_detail
+            novel_generator.novel_data["is_resuming"] = True
+            novel_generator.novel_data["resume_data"] = {
+                "from_chapter": from_chapter,
+                "chapters_to_generate": chapters_to_generate
+            }
+            
+            # 初始化材料管理器（如果需要）
+            if not novel_generator.material_manager:
+                novel_generator._initialize_material_manager()
+            
+            # 加载第一阶段数据完成 (30%)
             self._update_task_status(task_id, "preparing", 30)
             
             try:
@@ -1459,8 +1496,9 @@ class NovelGenerationManager:
                 setattr(novel_generator, '_phase_two_from_chapter', from_chapter)
                 setattr(novel_generator, '_phase_two_total_chapters', chapters_to_generate)
                 
+                # 🔥 修复：传递novel_title而不是phase_one_file
                 success = novel_generator.phase_two_generation(
-                    phase_one_file,
+                    novel_title,  # 使用实际的小说标题
                     from_chapter,
                     chapters_to_generate
                 )

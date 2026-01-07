@@ -1696,6 +1696,68 @@ class NovelGenerator:
             checkpoint_data, creative_seed, total_chapters
         )
 
+    # ==================== 第二阶段生成方法 ====================
+    
+    def phase_two_generation(self, novel_title: str, from_chapter: int, chapters_to_generate: int) -> bool:
+        """
+        第二阶段生成：从第一阶段产物继续生成章节内容
+        
+        Args:
+            novel_title: 小说标题
+            from_chapter: 起始章节号
+            chapters_to_generate: 要生成的章节数
+            
+        Returns:
+            是否成功
+        """
+        try:
+            print("\n" + "="*60)
+            print("🚀 开始第二阶段章节生成")
+            print("="*60)
+            
+            # 🔥 修复：确保novel_data中有novel_title
+            if not self.novel_data.get("novel_title"):
+                self.novel_data["novel_title"] = novel_title
+            
+            print(f"📚 小说标题: {self.novel_data.get('novel_title', '未知')}")
+            print(f"📖 起始章节: {from_chapter}")
+            print(f"📊 生成章节数: {chapters_to_generate}")
+            
+            # 确保有novel_title
+            if not self.novel_data.get("novel_title"):
+                print("❌ 小说标题未设置，无法继续生成")
+                return False
+            
+            # 确保材料管理器已初始化
+            if not self.material_manager:
+                self._initialize_material_manager()
+            
+            # 计算结束章节
+            end_chapter = from_chapter + chapters_to_generate - 1
+            
+            print(f"\n📝 开始生成第{from_chapter}-{end_chapter}章...")
+            print("这个过程可能需要较长时间，请耐心等待...")
+            
+            # 批量生成章节
+            success = self.generate_chapters_batch(from_chapter, end_chapter)
+            
+            if success:
+                print("\n✅ 第二阶段章节生成完成")
+                
+                # 保存进度
+                self.project_manager.save_project_progress(self.novel_data)
+                
+                return True
+            else:
+                print("\n❌ 第二阶段章节生成失败")
+                return False
+                
+        except Exception as e:
+            print(f"\n❌ 第二阶段生成过程异常: {e}")
+            import traceback
+            traceback.print_exc()
+            return False
+
     # 注意：以下方法已被移到 ResumeManager 中
     # - _execute_phase_one_step
     # - _step_worldview_generation
