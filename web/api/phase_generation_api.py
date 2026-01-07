@@ -1891,3 +1891,119 @@ def register_additional_routes(app):
             import traceback
             logger.error(f"错误堆栈: {traceback.format_exc()}")
             return jsonify({"success": False, "error": str(e)}), 500
+    
+    
+    # ==================== 第二阶段生成API路由 ====================
+    
+    @app.route('/api/phase-two/start-generation', methods=['POST'])
+    @login_required
+    def start_phase_two_generation():
+        """启动第二阶段章节生成任务"""
+        try:
+            data = request.json or {}
+            
+            # 提取参数
+            novel_title = data.get('novel_title')
+            from_chapter = data.get('from_chapter')
+            chapters_to_generate = data.get('chapters_to_generate')
+            chapters_per_batch = data.get('chapters_per_batch', 1)
+            generation_notes = data.get('generation_notes', '')
+            
+            # 参数验证
+            if not novel_title:
+                return jsonify({"success": False, "error": "小说标题不能为空"}), 400
+            
+            if from_chapter is None or chapters_to_generate is None:
+                return jsonify({"success": False, "error": "章节参数不完整"}), 400
+            
+            logger.info(f"🚀 [PHASE_TWO] 开始第二阶段生成: {novel_title}")
+            logger.info(f"📋 [PHASE_TWO] 从第{from_chapter}章开始，生成{chapters_to_generate}章")
+            
+            if not manager:
+                return jsonify({"success": False, "error": "管理器未初始化"}), 500
+            
+            # 调用管理器启动第二阶段生成任务
+            # 构建config字典传递给manager
+            generation_config = {
+                "novel_title": novel_title,
+                "from_chapter": from_chapter,
+                "chapters_to_generate": chapters_to_generate,
+                "chapters_per_batch": chapters_per_batch,
+                "generation_notes": generation_notes
+            }
+            
+            try:
+                task_id = manager.start_phase_two_generation(generation_config)
+                
+                logger.info(f"✅ [PHASE_TWO] 任务已启动: {task_id}")
+                
+                return jsonify({
+                    "success": True,
+                    "task_id": task_id,
+                    "message": "第二阶段生成任务已启动",
+                    "status": "initializing"
+                })
+            except AttributeError as e:
+                # 如果管理器还没有实现该方法，返回错误提示
+                logger.error(f"❌ [PHASE_TWO] 管理器方法调用失败: {e}")
+                import traceback
+                logger.error(f"错误堆栈: {traceback.format_exc()}")
+                return jsonify({
+                    "success": False,
+                    "error": "第二阶段生成功能尚未实现"
+                }), 501
+            
+        except Exception as e:
+            logger.error(f"❌ [PHASE_TWO] 启动生成失败: {e}")
+            import traceback
+            logger.error(f"错误堆栈: {traceback.format_exc()}")
+            return jsonify({"success": False, "error": str(e)}), 500
+    
+    
+    @app.route('/api/phase-two/task/<task_id>/status', methods=['GET'])
+    @login_required
+    def get_phase_two_task_status(task_id):
+        """获取第二阶段任务状态"""
+        try:
+            if not manager:
+                return jsonify({"success": False, "error": "管理器未初始化"}), 500
+            
+            # 使用通用的 get_task_status 方法获取任务状态
+            task_status = manager.get_task_status(task_id)
+            
+            if "error" in task_status:
+                return jsonify({"success": False, "error": task_status["error"]}), 404
+            
+            # 从 task_progress 获取更详细的进度信息
+            task_progress = manager.get_task_progress(task_id)
+            
+            # 返回任务状态
+            response = {
+                "success": True,
+                "task_id": task_id,
+                "status": task_status.get("status", "unknown"),
+                "progress": task_status.get("progress", 0),
+                "status_message": task_status.get("status", ""),
+                "current_chapter": task_progress.get("current_chapter"),
+                "chapter_progress": task_progress.get("chapter_progress", []),
+                "total_chapters": task_progress.get("total_chapters", 0),
+                "created_at": task_status.get("created_at", ""),
+                "updated_at": task_status.get("updated_at", "")
+            }
+            
+            # 如果任务完成，包含结果
+            if task_status.get("status") == "completed" and "result" in task_status:
+                response["result"] = task_status["result"]
+                response["generated_chapters"] = task_status.get("result", {}).get("generated_chapters", [])
+            
+            # 如果任务失败，包含错误信息
+            if task_status.get("status") == "failed" and "error" in task_status:
+                response["error"] = task_status["error"]
+            
+            return jsonify(response)
+            
+        except Exception as e:
+            logger.error(f"❌ [PHASE_TWO] 获取任务状态失败: {e}")
+            import traceback
+            logger.error(f"错误堆栈: {traceback.format_exc()}")
+            return jsonify({"success": False, "error": str(e)}), 500
