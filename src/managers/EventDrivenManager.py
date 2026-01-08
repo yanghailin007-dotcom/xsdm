@@ -10,15 +10,15 @@ from typing import Any, Dict, List, Optional
 import re
 from src.utils.logger import get_logger
 class EventDrivenManager:
-    """事件执行器 - 专注重大事件和大事件的状态跟踪和执行"""
+    """事件执行器 - 专注重大事件和中型事件的状态跟踪和执行"""
     def __init__(self, novel_generator):
         self.logger = get_logger("EventDrivenManager")
         self.generator = novel_generator
-        self.active_events = {}  # 活跃的重大事件和大事件
+        self.active_events = {}  # 活跃的重大事件和中型事件
         self.event_history = []  # 已完成的事件历史
         self.event_triggers = {}  # 事件触发条件
     def update_from_stage_plan(self, stage_writing_plan: Dict):
-        """从阶段写作计划中加载事件系统 - 简化版本，只处理重大事件和大事件"""
+        """从阶段写作计划中加载事件系统 - 简化版本，只处理重大事件和中型事件"""
         if not stage_writing_plan:
             return
         # 只处理重大事件和大事件
@@ -110,7 +110,7 @@ class EventDrivenManager:
         if not buffer_info.get("is_buffer_period") or buffer_info.get("pre_major_event"):        
             # 按事件类型分组
             major_events = [e for e in event_context["active_events"] if e["type"] == "major_event"]
-            big_events = [e for e in event_context["active_events"] if e["type"] == "big_event"]
+            medium_events = [e for e in event_context["active_events"] if e["type"] == "medium_event"]
             # 重大事件指导
             if major_events:
                 prompt_parts.append("## 🚨 重大事件")
@@ -137,10 +137,10 @@ class EventDrivenManager:
                     else:
                         prompt_parts.append("- 暂无关键时刻")
                     prompt_parts.append("")  # 空行分隔
-            # 大事件指导
-            if big_events:
-                prompt_parts.append("## 🔥 大事件")
-                for event in big_events:
+            # 中型事件指导
+            if medium_events:
+                prompt_parts.append("## 🔥 中型事件")
+                for event in medium_events:
                     event_name = event.get("name", "未知事件")
                     progress = event_context["event_progress"].get(event_name, {})
                     prompt_parts.extend([
@@ -241,16 +241,16 @@ class EventDrivenManager:
                     "significance": event_data.get("significance", "重大事件"),
                     "status": "active" if self._is_event_active(chapter_number, event_data) else "completed"
                 })
-        # 添加大事件
+        # 添加中型事件
         for event_name, event_data in self.active_events.items():
-            if event_data.get("type") == "big_event":
+            if event_data.get("type") == "medium_event":
                 all_events.append({
-                    "type": "big_event", 
-                    "name": event_data.get("name", "未命名大事件"),
+                    "type": "medium_event",
+                    "name": event_data.get("name", "未命名中型事件"),
                     "start_chapter": event_data.get("start_chapter", 0),
                     "end_chapter": event_data.get("end_chapter", event_data.get("start_chapter", 0)),
                     "description": event_data.get("description", ""),
-                    "significance": event_data.get("connection_to_major", "大事件"),
+                    "significance": event_data.get("connection_to_major", "中型事件"),
                     "status": "active" if self._is_event_active(chapter_number, event_data) else "completed"
                 })
         # 按开始章节排序
@@ -350,7 +350,7 @@ class EventDrivenManager:
         if current_events and (not buffer_info.get("is_buffer_period") or buffer_info.get("pre_major_event")):
             # 按事件类型分组
             major_events = [e for e in current_events if e["type"] == "major_event"]
-            big_events = [e for e in current_events if e["type"] == "big_event"]
+            medium_events = [e for e in current_events if e["type"] == "medium_event"]
             # 🆕 重大事件指导 - 只显示真正活跃的事件
             if major_events:
                 prompt_parts.append("## 🚨 进行中重大事件")
@@ -372,10 +372,10 @@ class EventDrivenManager:
                     else:
                         prompt_parts.append("- 按计划推进事件发展")
                     prompt_parts.append("")  # 空行分隔
-            # 🆕 大事件指导 - 只显示真正活跃的事件
-            if big_events:
-                prompt_parts.append("## 🔥 进行中大事件")
-                for event in big_events:
+            # 🆕 中型事件指导 - 只显示真正活跃的事件
+            if medium_events:
+                prompt_parts.append("## 🔥 进行中型事件")
+                for event in medium_events:
                     event_name = event.get("name", "未知事件")
                     progress = event_context["event_progress"].get(event_name, {})
                     prompt_parts.extend([
@@ -458,13 +458,13 @@ class EventDrivenManager:
     def _generate_buffer_guidance(self, chapter_number: int, buffer_info: Dict) -> str:
         """生成缓冲期特定指导"""
         guidance_parts = []
-        if buffer_info["post_big_event"]:
+        if buffer_info["post_medium_event"]:
             guidance_parts.extend([
-                "## 🌊 大事件后情绪缓冲期",
+                "## 🌊 中型事件后情绪缓冲期",
                 "**重点任务**: 处理事件余波，展示角色情感消化",
                 "**写作建议**:",
                 "- 描写角色对刚结束事件的反思和感受",
-                "- 通过日常场景展示世界观细节", 
+                "- 通过日常场景展示世界观细节",
                 "- 为下一个事件做自然过渡",
                 "- 控制节奏，让读者情绪得到释放"
             ])
@@ -478,11 +478,11 @@ class EventDrivenManager:
                 "- 埋设关键伏笔但不直接揭示",
                 "- 逐步提升紧张感，为高潮做铺垫"
             ])
-        elif buffer_info["between_big_events"]:
+        elif buffer_info["between_medium_events"]:
             guidance_parts.extend([
-                "## 🔄 大事件间节奏调整期",
+                "## 🔄 中型事件间节奏调整期",
                 "**重点任务**: 发展支线，丰富角色",
-                "**写作建议**:", 
+                "**写作建议**:",
                 "- 推进次要情节和配角发展",
                 "- 展示角色间的日常互动",
                 "- 补充世界观和文化细节",
@@ -495,7 +495,7 @@ class EventDrivenManager:
             "# 🎯 事件执行指导 - 事件空窗期",
             "",
             "## 📊 当前状态分析",
-            f"第{chapter_number}章处于**事件空窗期**，没有活跃的重大事件或大事件。",
+            f"第{chapter_number}章处于**事件空窗期**，没有活跃的重大事件或中型事件。",
             "这是安排情绪缓冲、角色发展和世界观展示的绝佳时机。",
             ""
         ]
@@ -546,48 +546,56 @@ class EventDrivenManager:
                     })
         return sorted(upcoming_events, key=lambda x: x.get("start_chapter", 999))
     def _initialize_active_events(self, event_system: Dict):
-        """初始化活跃事件 - 只处理重大事件和大事件"""
+        """初始化活跃事件 - 只处理重大事件和中型事件"""
         self.active_events.clear()
-        # 添加重大事件
-        for event in event_system.get("major_events", []):
-            event_name = event.get("name")
-            if event_name:
-                self.active_events[event_name] = {
-                    "name": event_name,
+        # 从重大事件的composition中提取中型事件
+        for major_event in event_system.get("major_events", []):
+            major_event_name = major_event.get("name")
+            if major_event_name:
+                # 添加重大事件本身
+                self.active_events[major_event_name] = {
+                    "name": major_event_name,
                     "type": "major_event",
-                    "main_goal": event.get("main_goal", "推进故事发展"),
-                    "start_chapter": event.get("start_chapter", 1),
-                    "end_chapter": event.get("end_chapter", 10),
-                    "key_moments": event.get("key_moments", []),
-                    "character_roles": event.get("character_roles", {}),
-                    "stage_focus": event.get("stage_focus", {}),
+                    "main_goal": major_event.get("main_goal", "推进故事发展"),
+                    "start_chapter": major_event.get("start_chapter", 1),
+                    "end_chapter": major_event.get("end_chapter", 10),
+                    "key_moments": major_event.get("key_moments", []),
+                    "character_roles": major_event.get("character_roles", {}),
+                    "stage_focus": major_event.get("stage_focus", {}),
                     "status": "active",
-                    "started_chapter": event.get("start_chapter", 1),
+                    "started_chapter": major_event.get("start_chapter", 1),
                     "current_progress": 0,
-                    "significance": event.get("significance", "重大转折点")
+                    "significance": major_event.get("significance", "重大转折点")
                 }
-        # 添加大事件
-        for event in event_system.get("big_events", []):
-            event_name = event.get("name")
-            if event_name:
-                self.active_events[event_name] = {
-                    "name": event_name,
-                    "type": "big_event",
-                    "main_goal": event.get("main_goal", "推进故事发展"),
-                    "start_chapter": event.get("start_chapter", 1),
-                    "end_chapter": event.get("end_chapter", 10),
-                    "key_moments": event.get("key_moments", []),
-                    "character_roles": event.get("character_roles", {}),
-                    "stage_focus": event.get("stage_focus", {}),
-                    "status": "active",
-                    "started_chapter": event.get("start_chapter", 1),
-                    "current_progress": 0,
-                    "connection_to_major": event.get("connection_to_major", "独立事件")
-                }
-        self.logger.info(f"✅ 初始化活跃事件: {len([e for e in self.active_events.values() if e['type'] == 'major_event'])}个重大事件, "
-              f"{len([e for e in self.active_events.values() if e['type'] == 'big_event'])}个大事件")
+            
+            # 从composition中提取中型事件
+            composition = major_event.get("composition", {})
+            for phase_name, phase_events in composition.items():
+                if isinstance(phase_events, list):
+                    for medium_event in phase_events:
+                        medium_event_name = medium_event.get("name")
+                        if medium_event_name:
+                            self.active_events[medium_event_name] = {
+                                "name": medium_event_name,
+                                "type": "medium_event",
+                                "main_goal": medium_event.get("main_goal", "推进故事发展"),
+                                "start_chapter": medium_event.get("start_chapter", 1),
+                                "end_chapter": medium_event.get("end_chapter", 10),
+                                "key_moments": medium_event.get("key_moments", []),
+                                "character_roles": medium_event.get("character_roles", {}),
+                                "stage_focus": medium_event.get("stage_focus", {}),
+                                "status": "active",
+                                "started_chapter": medium_event.get("start_chapter", 1),
+                                "current_progress": 0,
+                                "connection_to_major": major_event_name
+                            }
+        
+        # 统计事件数量
+        major_count = len([e for e in self.active_events.values() if e['type'] == 'major_event'])
+        medium_count = len([e for e in self.active_events.values() if e['type'] == 'medium_event'])
+        self.logger.info(f"✅ 初始化活跃事件: {major_count}个重大事件, {medium_count}个中型事件")
     def _build_event_context(self, chapter_number: int, event_data: Dict) -> Dict:
-        """构建事件上下文 - 专注重大事件和大事件"""
+        """构建事件上下文 - 专注重大事件和中型事件"""
         progress = self._calculate_event_progress(chapter_number, event_data)
         # 处理关键时刻
         key_moments = []
@@ -611,7 +619,7 @@ class EventDrivenManager:
         # 构建事件上下文
         event_context = {
             "name": event_data.get("name", "未知事件"),
-            "type": event_data.get("type", "big_event"),
+            "type": event_data.get("type", "medium_event"),
             "main_goal": event_data.get("main_goal", "推进故事发展"),
             "current_stage_focus": self._get_current_stage_focus(progress.get("stage", "开局阶段"), event_data),
             "key_moments": key_moments,
@@ -621,7 +629,7 @@ class EventDrivenManager:
         # 添加特定字段
         if event_data["type"] == "major_event":
             event_context["significance"] = event_data.get("significance", "重大转折点")
-        elif event_data["type"] == "big_event":
+        elif event_data["type"] == "medium_event":
             event_context["connection_to_major"] = event_data.get("connection_to_major", "独立事件")
         return event_context
     def _calculate_event_progress(self, chapter_number: int, event_data: Dict) -> Dict:
@@ -663,12 +671,17 @@ class EventDrivenManager:
         }
         return focus_map.get(stage, "推进事件发展")
     def _setup_event_triggers(self, event_system: Dict):
-        """设置事件触发条件 - 只处理重大事件和大事件"""
+        """设置事件触发条件 - 只处理重大事件和中型事件"""
         self.event_triggers.clear()
-        # 为重大事件和大事件设置触发条件
+        # 为重大事件和中型事件设置触发条件
         all_events = []
         all_events.extend(event_system.get("major_events", []))
-        all_events.extend(event_system.get("big_events", []))
+        # 从重大事件的composition中提取中型事件
+        for major_event in event_system.get("major_events", []):
+            composition = major_event.get("composition", {})
+            for phase_events in composition.values():
+                if isinstance(phase_events, list):
+                    all_events.extend(phase_events)
         for event in all_events:
             event_name = event.get("name")
             if not event_name:
@@ -695,12 +708,12 @@ class EventDrivenManager:
         """检查事件是否活跃"""
         if event_data.get("status") != "active":
             return False
-        # 重大事件和大事件都是多章事件
+        # 重大事件和中型事件都是多章事件
         start_chapter = event_data.get("started_chapter", event_data.get("start_chapter", 0))
         end_chapter = event_data.get("end_chapter", chapter_number + 100)
         return start_chapter <= chapter_number <= end_chapter
     def initialize_event_system(self):
-        """初始化事件系统 - 从StagePlanManager统一接口加载重大事件和大事件"""
+        """初始化事件系统 - 从StagePlanManager统一接口加载重大事件和中型事件"""
         self.logger.info("🎯 初始化事件系统...")
         
         # 获取当前章节
@@ -726,8 +739,16 @@ class EventDrivenManager:
                 event_system = stage_plan.get("stage_writing_plan", {}).get("event_system", {})
                 if event_system:
                     self.logger.info(f"✅ 从StagePlanManager加载 {current_stage} 的事件系统")
-                    self.logger.info(f"   重大事件: {len(event_system.get('major_events', []))}个")
-                    self.logger.info(f"   大事件: {len(event_system.get('big_events', []))}个")
+                    # 计算中型事件数量
+                    major_events = event_system.get('major_events', [])
+                    medium_count = 0
+                    for major_event in major_events:
+                        composition = major_event.get("composition", {})
+                        for phase_events in composition.values():
+                            if isinstance(phase_events, list):
+                                medium_count += len(phase_events)
+                    self.logger.info(f"   重大事件: {len(major_events)}个")
+                    self.logger.info(f"   中型事件: {medium_count}个")
                     # 更新到事件执行器
                     self.update_from_stage_plan({"event_system": event_system})
                     return
@@ -819,7 +840,7 @@ class EventDrivenManager:
         """生成事件执行任务"""
         tasks = []
         event_name = event_data.get("name", "未知事件")
-        event_type = event_data.get("type", "big_event")
+        event_type = event_data.get("type", "medium_event")
         # 基于事件阶段生成任务
         current_stage = progress.get("stage", "开局阶段")
         # 如果在缓冲期，生成缓冲期特定任务
@@ -827,13 +848,13 @@ class EventDrivenManager:
             buffer_tasks = self._generate_buffer_specific_tasks(chapter_number, buffer_info)
             tasks.extend(buffer_tasks)
             # 缓冲期内的事件任务优先级降低
-            if buffer_info["post_big_event"]:
+            if buffer_info["post_medium_event"]:
                 tasks.append({
                     "event": event_name,
                     "description": f"处理{event_type}的后续影响和余波",
                     "priority": "low",
                     "type": "aftermath",
-                    "buffer_context": "大事件结束后的情绪缓冲"
+                    "buffer_context": "中型事件结束后的情绪缓冲"
                 })
             elif buffer_info["pre_major_event"]:
                 tasks.append({
@@ -843,13 +864,13 @@ class EventDrivenManager:
                     "type": "preparation",
                     "buffer_context": "重大事件前的氛围营造"
                 })
-            elif buffer_info["between_big_events"]:
+            elif buffer_info["between_medium_events"]:
                 tasks.append({
                     "event": event_name,
-                    "description": f"在连续大事件间隙推进支线发展",
+                    "description": f"在连续中型事件间隙推进支线发展",
                     "priority": "low",
-                    "type": "side_development", 
-                    "buffer_context": "大事件间的节奏调整"
+                    "type": "side_development",
+                    "buffer_context": "中型事件间的节奏调整"
                 })
         else:
             if current_stage == "开局阶段":
@@ -964,7 +985,7 @@ class EventDrivenManager:
                         })
         return effects
     def _create_fallback_events(self, chapter_number: int):
-        """创建回退事件 - 只创建重大事件和大事件"""
+        """创建回退事件 - 只创建重大事件和中型事件"""
         self.logger.info("🔄 创建回退事件...")
         # 创建一个重大事件
         major_event = {
@@ -982,10 +1003,10 @@ class EventDrivenManager:
             "current_progress": 0,
             "significance": "推动故事核心发展"
         }
-        # 创建一个大事件
-        big_event = {
+        # 创建一个中型事件
+        medium_event = {
             "name": "重要支线发展",
-            "type": "big_event", 
+            "type": "medium_event",
             "main_goal": "发展支线情节",
             "start_chapter": chapter_number,
             "end_chapter": chapter_number + 5,
@@ -999,17 +1020,17 @@ class EventDrivenManager:
             "connection_to_major": "补充主线情节"
         }
         self.active_events[major_event["name"]] = major_event
-        self.active_events[big_event["name"]] = big_event
-        self.logger.info(f"✅ 创建回退事件完成: 1个重大事件, 1个大事件")
+        self.active_events[medium_event["name"]] = medium_event
+        self.logger.info(f"✅ 创建回退事件完成: 1个重大事件, 1个中型事件")
     def update_event_system(self):
         """更新事件系统 - 由NovelGenerator调用"""
         self.logger.info("🔄 EventDrivenManager: 更新事件系统")
         self.active_events.clear()
         self.logger.info("  ✅ 已清除所有旧事件")
     def add_event(self, name: str, event_type: str, start_chapter: int, description: str = "", impact_level: str = "medium"):
-        """添加新事件 - 只支持重大事件和大事件"""
-        if event_type not in ["major_event", "big_event"]:
-            self.logger.info(f"❌ 不支持的事件类型: {event_type} {name} {description}，只支持 major_event 和 big_event")
+        """添加新事件 - 只支持重大事件和中型事件"""
+        if event_type not in ["major_event", "medium_event"]:
+            self.logger.info(f"❌ 不支持的事件类型: {event_type} {name} {description}，只支持 major_event 和 medium_event")
             return
         event = {
             "name": name,
@@ -1027,7 +1048,7 @@ class EventDrivenManager:
         if event_type == "major_event":
             event["end_chapter"] = start_chapter + 10
             event["significance"] = "重大转折点"
-        else:  # big_event
+        else:  # medium_event
             event["end_chapter"] = start_chapter + 5
             event["connection_to_major"] = "关联主线情节"
         self.active_events[name] = event
@@ -1041,9 +1062,9 @@ class EventDrivenManager:
     def _calculate_precise_buffer_periods(self, chapter_number: int) -> Dict[str, bool]:
         """精准计算各种缓冲期类型"""
         buffer_info = {
-            "post_big_event": False,      # 大事件结束后
-            "pre_major_event": False,     # 重大事件开始前  
-            "between_big_events": False,  # 连续大事件之间
+            "post_medium_event": False,      # 中型事件结束后
+            "pre_major_event": False,     # 重大事件开始前
+            "between_medium_events": False,  # 连续中型事件之间
             "is_buffer_period": False     # 总体是否缓冲期
         }
         self.logger.info(f"\n=== 第{chapter_number}章缓冲期计算开始 ===")
@@ -1055,33 +1076,33 @@ class EventDrivenManager:
         self.logger.info(f"当前活跃事件数量: {len(active_events)}")
         for i, event in enumerate(active_events):
             self.logger.info(f"  活跃事件{i+1}: {event.get('name', '未知事件')}")
-        # 检查大事件结束后的缓冲
-        post_big_event = self._is_post_big_event_buffer(chapter_number)
-        buffer_info["post_big_event"] = post_big_event
-        self.logger.info(f"大事件结束后缓冲: {post_big_event}")
-        # 检查重大事件开始前的缓冲  
+        # 检查中型事件结束后的缓冲
+        post_medium_event = self._is_post_medium_event_buffer(chapter_number)
+        buffer_info["post_medium_event"] = post_medium_event
+        self.logger.info(f"中型事件结束后缓冲: {post_medium_event}")
+        # 检查重大事件开始前的缓冲
         pre_major_event = self._is_pre_major_event_buffer(chapter_number)
         buffer_info["pre_major_event"] = pre_major_event
         self.logger.info(f"重大事件开始前缓冲: {pre_major_event}")
-        # 检查连续大事件之间的缓冲
-        between_big_events = self._is_between_big_events_buffer(chapter_number)
-        buffer_info["between_big_events"] = between_big_events
-        self.logger.info(f"连续大事件之间缓冲: {between_big_events}")
+        # 检查连续中型事件之间的缓冲
+        between_medium_events = self._is_between_medium_events_buffer(chapter_number)
+        buffer_info["between_medium_events"] = between_medium_events
+        self.logger.info(f"连续中型事件之间缓冲: {between_medium_events}")
         # 总体缓冲期判断
         is_buffer_period = (
-            post_big_event or 
-            pre_major_event or 
-            between_big_events
+            post_medium_event or
+            pre_major_event or
+            between_medium_events
         )
         buffer_info["is_buffer_period"] = is_buffer_period
         self.logger.info(f"总体是否缓冲期: {is_buffer_period}")
         self.logger.info(f"=== 第{chapter_number}章缓冲期计算结束 ===\n")
         return buffer_info
-    def _is_post_big_event_buffer(self, chapter_number: int) -> bool:
-        """检查是否在大事件结束后的缓冲期"""
-        # 检查前1章是否有大事件结束
+    def _is_post_medium_event_buffer(self, chapter_number: int) -> bool:
+        """检查是否在中型事件结束后的缓冲期"""
+        # 检查前1章是否有中型事件结束
         for event_name, event_data in self.active_events.items():
-            if event_data.get("type") == "big_event":
+            if event_data.get("type") == "medium_event":
                 end_chapter = event_data.get("end_chapter", 0)
                 if chapter_number == end_chapter + 1 or chapter_number == end_chapter + 2:
                     return True
@@ -1095,37 +1116,37 @@ class EventDrivenManager:
                 if chapter_number == start_chapter - 1 or chapter_number == start_chapter - 2:
                     return True
         return False
-    def _is_between_big_events_buffer(self, chapter_number: int) -> bool:
-        """检查是否在连续大事件之间的缓冲期"""
-        # 检查是否在两个大事件之间的第一章
-        prev_big_event_end = None
-        next_big_event_start = None
-        # 查找前一个大事件的结束章节
+    def _is_between_medium_events_buffer(self, chapter_number: int) -> bool:
+        """检查是否在连续中型事件之间的缓冲期"""
+        # 检查是否在两个中型事件之间的第一章
+        prev_medium_event_end = None
+        next_medium_event_start = None
+        # 查找前一个中型事件的结束章节
         for event_name, event_data in self.active_events.items():
-            if event_data.get("type") == "big_event":
+            if event_data.get("type") == "medium_event":
                 end_chapter = event_data.get("end_chapter", 0)
-                if end_chapter < chapter_number and (prev_big_event_end is None or end_chapter > prev_big_event_end):
-                    prev_big_event_end = end_chapter
-        # 查找下一个大事件的开始章节
+                if end_chapter < chapter_number and (prev_medium_event_end is None or end_chapter > prev_medium_event_end):
+                    prev_medium_event_end = end_chapter
+        # 查找下一个中型事件的开始章节
         for event_name, event_data in self.active_events.items():
-            if event_data.get("type") == "big_event":
+            if event_data.get("type") == "medium_event":
                 start_chapter = event_data.get("start_chapter", 0)
-                if start_chapter > chapter_number and (next_big_event_start is None or start_chapter < next_big_event_start):
-                    next_big_event_start = start_chapter
-        # 如果当前章节正好是前一个大事件结束后、下一个大事件开始前的第一章
-        if prev_big_event_end and next_big_event_start:
-            if chapter_number == prev_big_event_end + 1:
+                if start_chapter > chapter_number and (next_medium_event_start is None or start_chapter < next_medium_event_start):
+                    next_medium_event_start = start_chapter
+        # 如果当前章节正好是前一个中型事件结束后、下一个中型事件开始前的第一章
+        if prev_medium_event_end and next_medium_event_start:
+            if chapter_number == prev_medium_event_end + 1:
                 return True
-        return False     
+        return False
     def _generate_buffer_specific_tasks(self, chapter_number: int, buffer_info: Dict) -> List[Dict]:
         """生成缓冲期特定任务"""
         tasks = []
-        if buffer_info["post_big_event"]:
+        if buffer_info["post_medium_event"]:
             tasks.extend([
                 {
                     "event": "情绪缓冲",
-                    "description": "展示角色对大事件的反应和情感消化",
-                    "priority": "high", 
+                    "description": "展示角色对中型事件的反应和情感消化",
+                    "priority": "high",
                     "type": "emotional_processing"
                 },
                 {
@@ -1150,12 +1171,12 @@ class EventDrivenManager:
                     "type": "foreshadowing"
                 }
             ])
-        elif buffer_info["between_big_events"]:
+        elif buffer_info["between_medium_events"]:
             tasks.extend([
                 {
                     "event": "支线发展",
                     "description": "推进次要情节和配角发展",
-                    "priority": "medium", 
+                    "priority": "medium",
                     "type": "side_plot_development"
                 },
                 {
@@ -1174,7 +1195,7 @@ class EventDrivenManager:
             "# 🎯 事件执行指导 - 长时间事件空窗期",
             "",
             "## 📊 当前状态分析",
-            f"第{chapter_number}章处于**长时间事件空窗期**，已经持续{gap_length}章没有活跃的重大事件或大事件。",
+            f"第{chapter_number}章处于**长时间事件空窗期**，已经持续{gap_length}章没有活跃的重大事件或中型事件。",
             "这是安排系统性支线发展和世界观建设的绝佳时机。",
             ""
         ]
@@ -1201,7 +1222,7 @@ class EventDrivenManager:
             for event in upcoming_events[:5]:  # 显示更多即将事件
                 event_name = event.get('name', '未知事件')
                 start_chapter = event.get('start_chapter', chapter_number + 1)
-                event_type = "重大事件" if event.get('type') == 'major_event' else "大事件"
+                event_type = "重大事件" if event.get('type') == 'major_event' else "中型事件"
                 prompt_parts.append(f"- **{event_name}** ({event_type}, 预计第{start_chapter}章):")
                 prompt_parts.append(f"  - 可埋下伏笔线索")
                 prompt_parts.append(f"  - 引入相关角色")
@@ -1311,21 +1332,21 @@ class EventDrivenManager:
         # 角色发展支线
         self.add_event(
             name="角色深度发展支线",
-            event_type="big_event",
+            event_type="medium_event",
             start_chapter=chapter_number,
             description="深入探索主要角色的背景故事和个人成长"
         )
         # 世界观扩展支线
         self.add_event(
-            name="世界观探索支线", 
-            event_type="big_event",
+            name="世界观探索支线",
+            event_type="medium_event",
             start_chapter=chapter_number + 2,
             description="系统性展示世界观的不同方面和文化细节"
         )
         # 技能成长支线
         self.add_event(
             name="能力成长支线",
-            event_type="big_event", 
+            event_type="medium_event",
             start_chapter=chapter_number + 4,
             description="主角或配角获得新技能或能力的成长过程"
         )
@@ -1334,14 +1355,14 @@ class EventDrivenManager:
         # 主要支线
         self.add_event(
             name="重要支线发展",
-            event_type="big_event",
+            event_type="medium_event",
             start_chapter=chapter_number,
             description="推进与主线相关的次要情节发展"
         )
         # 配角发展支线
         self.add_event(
             name="配角成长支线",
-            event_type="big_event",
-            start_chapter=chapter_number + 1, 
+            event_type="medium_event",
+            start_chapter=chapter_number + 1,
             description="深化配角角色弧线和人际关系"
         )          

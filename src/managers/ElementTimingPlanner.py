@@ -280,13 +280,16 @@ class ElementTimingPlanner:
                     "name": event.get("name", "重大事件"),
                     "description": f"重大事件: {event.get('main_goal', '')}"
                 })
-            # 收集大事件
-            big_events = event_system.get("big_events", [])
-            for event in big_events:
-                elements["concepts"].append({
-                    "name": event.get("name", "大事件"),
-                    "description": f"大事件: {event.get('main_goal', '')}"
-                })
+            # 从重大事件的composition中收集中型事件
+            for major_event in major_events:
+                composition = major_event.get("composition", {})
+                for phase_events in composition.values():
+                    if isinstance(phase_events, list):
+                        for medium_event in phase_events:
+                            elements["concepts"].append({
+                                "name": medium_event.get("name", "中型事件"),
+                                "description": f"中型事件: {medium_event.get('main_goal', '')}"
+                            })
         # 6. 从市场分析中收集热门元素
         market_analysis = novel_data.get("market_analysis", {})
         if "hot_elements" in worldview:
