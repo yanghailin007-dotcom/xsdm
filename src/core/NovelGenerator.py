@@ -1009,7 +1009,13 @@ class NovelGenerator:
                 print(f"    ⚠️ novel_data不存在或为空，创建基础结构")
                 self._initialize_data_structures()
             
-            total_chapters = self.novel_data["current_progress"]["total_chapters"]
+            # 检查current_progress键是否存在
+            if "current_progress" not in self.novel_data or not self.novel_data["current_progress"]:
+                print(f"    ⚠️ current_progress不存在或为空，重新初始化数据结构")
+                self._initialize_data_structures()
+            
+            # 使用安全的字典访问方式，提供默认值
+            total_chapters = self.novel_data.get("current_progress", {}).get("total_chapters", 30)
             print(f"    ✅ novel_data存在, 总章节数: {total_chapters}")
             
             context = GenerationContext(
@@ -1722,9 +1728,21 @@ class NovelGenerator:
             print("🚀 开始第二阶段章节生成")
             print("="*60)
             
-            # 🔥 修复：确保novel_data中有novel_title
+            # 🔥 修复：确保novel_data中有novel_title和current_progress
             if not self.novel_data.get("novel_title"):
                 self.novel_data["novel_title"] = novel_title
+            
+            # 🔥 修复：确保current_progress结构存在并正确初始化
+            if "current_progress" not in self.novel_data or not self.novel_data["current_progress"]:
+                print("📋 初始化 current_progress 结构...")
+                self.novel_data["current_progress"] = {
+                    "completed_chapters": 0,
+                    "total_chapters": self.novel_data.get("total_chapters", 200),
+                    "stage": "第二阶段生成",
+                    "current_stage": "第二阶段",
+                    "start_time": datetime.now().isoformat()
+                }
+                print(f"✅ current_progress 已初始化: 总章节数 = {self.novel_data['current_progress']['total_chapters']}")
             
             print(f"📚 小说标题: {self.novel_data.get('novel_title', '未知')}")
             print(f"📖 起始章节: {from_chapter}")

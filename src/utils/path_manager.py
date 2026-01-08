@@ -47,19 +47,38 @@ class PathManager:
             return False
     
     def load_project_info(self, novel_title: str) -> Optional[Dict]:
-        """加载项目信息文件"""
+        """加载项目信息文件 - 支持多种路径格式"""
         try:
             paths = self.path_config.get_project_paths(novel_title)
             
-            if not os.path.exists(paths["project_info"]):
-                self.logger.info(f"⚠️ 项目信息文件不存在: {paths['project_info']}")
+            # 🔥 修复：尝试多个可能的路径
+            possible_paths = [
+                paths["project_info"],  # 小说项目/小说名/小说名_项目信息.json
+                paths.get("project_info_standard", ""),  # 小说项目/小说名/project_info.json
+                paths["legacy_project_info"],  # 小说项目/小说名_项目信息.json (旧路径)
+            ]
+            
+            project_data = None
+            loaded_path = None
+            
+            for path in possible_paths:
+                if path and os.path.exists(path):
+                    try:
+                        with open(path, 'r', encoding='utf-8') as f:
+                            project_data = json.load(f)
+                        loaded_path = path
+                        break
+                    except Exception as e:
+                        self.logger.info(f"⚠️ 尝试加载 {path} 失败: {e}")
+                        continue
+            
+            if project_data:
+                self.logger.info(f"✅ 项目信息已加载: {loaded_path}")
+                return project_data
+            else:
+                self.logger.info(f"⚠️ 项目信息文件不存在，已尝试路径: {possible_paths}")
                 return None
             
-            with open(paths["project_info"], 'r', encoding='utf-8') as f:
-                project_data = json.load(f)
-            
-            self.logger.info(f"✅ 项目信息已加载: {paths['project_info']}")
-            return project_data
         except Exception as e:
             self.logger.error(f"❌ 加载项目信息失败: {e}")
             return None

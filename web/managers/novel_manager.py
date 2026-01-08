@@ -134,13 +134,17 @@ class NovelGenerationManager:
 
             logger.info("🔍 扫描已存在的小说项目...")
 
-            # 1. 首先扫描新路径结构（项目目录中的 project_info.json 或 project_info/ 目录）
+            # 1. 首先扫描新路径结构（项目目录中的 小说名_项目信息.json）
             for item in novel_dir.iterdir():
                 if item.is_dir():
-                    # 检查直接在项目目录中的 project_info.json
-                    project_info_path = item / "project_info.json"
+                    # 🔥 修复：优先查找 项目目录/小说名_项目信息.json
+                    project_info_path = item / f"{item.name}_项目信息.json"
                     
-                    # 如果不存在，检查 project_info/ 子目录
+                    # 备选方案1：检查 project_info.json
+                    if not project_info_path.exists():
+                        project_info_path = item / "project_info.json"
+                    
+                    # 备选方案2：检查 project_info/ 子目录
                     if not project_info_path.exists():
                         project_info_dir = item / "project_info"
                         if project_info_dir.is_dir():
@@ -157,7 +161,12 @@ class NovelGenerationManager:
                                 content = f.read()
                                 novel_data = json.loads(content)
                             
-                            title = novel_data.get("novel_info", {}).get("title", item.name)
+                            # 🔥 修复：支持多种标题字段
+                            title = (
+                                novel_data.get("novel_title") or
+                                novel_data.get("novel_info", {}).get("title", item.name) or
+                                item.name
+                            )
                             self._load_project_from_data(title, novel_data, item.name)
                             logger.info(f"✅ 加载小说项目(新路径): {title}")
                         except json.JSONDecodeError as e:

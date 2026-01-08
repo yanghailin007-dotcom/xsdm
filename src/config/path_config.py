@@ -40,7 +40,10 @@ class NovelPathConfig:
             "project_root": str(project_dir),
             
             # 核心数据目录
-            "project_info": str(project_dir / f"{safe_title}_{safe_title}_项目信息.json"),
+            # 修复：正确的项目信息文件路径应该是 项目目录/项目信息.json 或 项目目录/小说名_项目信息.json
+            "project_info": str(project_dir / f"{safe_title}_项目信息.json"),
+            # 为了兼容，也支持 project_info.json 作为标准名称
+            "project_info_standard": str(project_dir / "project_info.json"),
             "novel_overview": str(project_dir / "novel_overview.json"),
             "writing_style_guide": str(project_dir / f"{safe_title}_writing_style_guide.json"),
             

@@ -194,16 +194,33 @@ class ProjectManager:
             # 使用统一路径管理器加载项目信息
             project_data = path_manager.load_project_info(novel_title)
             
-            # 如果新路径不存在，尝试从旧路径加载（向后兼容）
+            # 🔥 修复：如果新路径不存在，尝试多种可能的路径（向后兼容）
             if project_data is None:
-                self.logger.info(f"⚠️ 新路径未找到项目，尝试从旧路径加载...")
+                self.logger.info(f"⚠️ 新路径未找到项目，尝试其他路径...")
                 safe_title = path_config.get_safe_title(novel_title)
-                old_path = f"D:/work6.05/小说项目/{safe_title}_项目信息.json"
-                if os.path.exists(old_path):
-                    with open(old_path, 'r', encoding='utf-8') as f:
-                        project_data = json.load(f)
-                    self.logger.info(f"✅ 从旧路径加载成功: {old_path}")
-                else:
+                
+                # 尝试多个可能的路径
+                possible_paths = [
+                    # 新路径：小说项目/小说名/小说名_项目信息.json
+                    f"D:/work6.05/小说项目/{safe_title}/{safe_title}_项目信息.json",
+                    # 备选路径：小说项目/小说名/project_info.json
+                    f"D:/work6.05/小说项目/{safe_title}/project_info.json",
+                    # 旧路径：小说项目/小说名_项目信息.json
+                    f"D:/work6.05/小说项目/{safe_title}_项目信息.json",
+                ]
+                
+                for old_path in possible_paths:
+                    if os.path.exists(old_path):
+                        try:
+                            with open(old_path, 'r', encoding='utf-8') as f:
+                                project_data = json.load(f)
+                            self.logger.info(f"✅ 从路径加载成功: {old_path}")
+                            break
+                        except Exception as e:
+                            self.logger.info(f"⚠️ 尝试加载 {old_path} 失败: {e}")
+                            continue
+                
+                if project_data is None:
                     self.logger.info(f"❌ 未找到项目: {novel_title}")
                     return None
             
@@ -224,16 +241,26 @@ class ProjectManager:
                     growth_plan_manager.migrate_growth_plan_from_project_info(novel_title, project_data)
                 stage_plans = growth_plan_manager.load_stage_writing_plans(novel_title)
             
-            # 构建完整的novel_data结构
+            # 🔥 修复：从项目信息中提取总章节数
+            # 优先级：progress.total_chapters > 顶层total_chapters > 默认值
+            total_chapters = (
+                project_data.get("progress", {}).get("total_chapters", 0) if
+                project_data.get("progress", {}).get("total_chapters", 0) > 0 else
+                project_data.get("total_chapters", 0) if
+                project_data.get("total_chapters", 0) > 0 else
+                200
+            )
+            
+            # 🔥 修复：构建完整的novel_data结构，确保current_progress正确初始化
             novel_data = {
                 # 基本信息
-                "novel_title": project_data["novel_info"]["title"],
-                "novel_synopsis": project_data["novel_info"]["synopsis"],
-                "creative_seed": ensure_seed_dict(project_data["novel_info"].get("creative_seed", {})),
-                "selected_plan": project_data["novel_info"]["selected_plan"],
-                "category": project_data["novel_info"].get("category", "未分类"),
+                "novel_title": project_data.get("novel_title") or project_data["novel_info"]["title"],
+                "novel_synopsis": project_data.get("novel_synopsis") or project_data["novel_info"]["synopsis"],
+                "creative_seed": ensure_seed_dict(project_data.get("creative_seed") or project_data["novel_info"].get("creative_seed", {})),
+                "selected_plan": project_data.get("selected_plan") or project_data["novel_info"]["selected_plan"],
+                "category": project_data.get("category", project_data["novel_info"].get("category", "未分类")),
                 # 新增：添加novel_info键以保持兼容性
-                "novel_info": project_data["novel_info"],
+                "novel_info": project_data.get("novel_info", {}),
                 # 核心数据 - 优先使用独立文件的数据
                 "market_analysis": project_data.get("market_analysis", {}),
                 "global_growth_plan": growth_plan or project_data.get("global_growth_plan", {}),
@@ -241,12 +268,13 @@ class ProjectManager:
                 "stage_writing_plans": stage_plans or project_data.get("stage_writing_plans", {}),
                 "core_worldview": project_data.get("core_worldview", {}),
                 "character_design": project_data.get("character_design", {}),
-                # 修复：正确加载进度信息
+                # 🔥 修复：正确构建current_progress，确保包含必要的字段
                 "current_progress": project_data.get("progress", {
                     "completed_chapters": 0,
-                    "total_chapters": 0,
-                    "stage": "大纲阶段",
-                    "current_stage": "第一阶段"
+                    "total_chapters": total_chapters,  # 使用提取的总章节数
+                    "stage": "第二阶段生成",
+                    "current_stage": "第二阶段",
+                    "start_time": project_data.get("created_at", datetime.now().isoformat())
                 }),
                 # 初始化其他必要字段
                 "generated_chapters": {},
