@@ -1327,6 +1327,11 @@ class ContentGenerator:
         return True
     def _handle_chapter_title_uniqueness(self, chapter_data: Dict, chapter_number: int, novel_data: Dict) -> Dict:
         """处理章节标题唯一性 - 修复版本"""
+        # 🔧 修复：确保 used_chapter_titles 集合存在
+        if "used_chapter_titles" not in novel_data:
+            novel_data["used_chapter_titles"] = set()
+            self.logger.info("  ✓ 初始化 used_chapter_titles 集合")
+        
         original_title = chapter_data.get("chapter_title", "")
         if not original_title:
             return chapter_data
