@@ -130,6 +130,40 @@ class ContentGenerator:
         # 初始化辅助类实例
         self._prompt_builder = self._PromptBuilder(self)
         self._consistency_gatherer = self._ConsistencyGatherer(self)
+    
+    def _ensure_quality_assessor_initialized(self, novel_data: Dict):
+        """确保 quality_assessor 已初始化
+        
+        Raises:
+            ValueError: 如果无法获取 novel_title
+            RuntimeError: 如果 QualityAssessor 初始化失败
+        """
+        if self.quality_assessor is not None:
+            return  # 已经初始化
+        
+        self.logger.info("  🔧 QualityAssessor 未初始化，正在初始化...")
+        
+        from src.core.QualityAssessor import QualityAssessor
+        novel_title = novel_data.get("novel_title")
+        
+        if not novel_title:
+            error_msg = "无法初始化 QualityAssessor：novel_title 为空"
+            self.logger.error(f"  ❌ {error_msg}")
+            raise ValueError(error_msg)
+        
+        try:
+            self.quality_assessor = QualityAssessor(
+                api_client=self.api_client,
+                novel_title=novel_title
+            )
+            self.logger.info(f"  ✅ QualityAssessor 初始化成功: {novel_title}")
+            
+        except Exception as e:
+            error_msg = f"QualityAssessor 初始化失败: {e}"
+            self.logger.error(f"  ❌ {error_msg}")
+            import traceback
+            traceback.print_exc()
+            raise RuntimeError(error_msg) from e
     def set_custom_main_character_name(self, name: str):
         """设置主角名字"""
         self.custom_main_character_name = name
@@ -916,6 +950,9 @@ class ContentGenerator:
                 # 仅在第一次尝试时初始化世界状态
                 if chapter_number == 1 and attempt == 0:
                     self.logger.info("🔄 初始化世界状态...")
+                    # 🔧 修复：确保 quality_assessor 已初始化（如果失败会抛出异常）
+                    self._ensure_quality_assessor_initialized(novel_data)
+                    # 执行到这里说明 quality_assessor 已成功初始化
                     self.quality_assessor.world_state_manager.initialize_world_state_from_novel_data(novel_data["novel_title"], novel_data)
                 # 存储上下文供后续使用
                 novel_data['_current_generation_context'] = context
