@@ -545,6 +545,21 @@ class EventDrivenManager:
                         "type": event_data.get("type", "未知类型")
                     })
         return sorted(upcoming_events, key=lambda x: x.get("start_chapter", 999))
+    def _parse_chapter_range(self, chapter_range: str) -> tuple:
+        """从章节范围字符串中解析start和end章节"""
+        if not chapter_range:
+            return 1, 1
+        
+        # 使用正则表达式提取数字
+        numbers = re.findall(r'\d+', chapter_range)
+        if len(numbers) >= 2:
+            return int(numbers[0]), int(numbers[1])
+        elif len(numbers) == 1:
+            chapter = int(numbers[0])
+            return chapter, chapter
+        else:
+            return 1, 1
+    
     def _initialize_active_events(self, event_system: Dict):
         """初始化活跃事件 - 只处理重大事件和中型事件"""
         self.active_events.clear()
@@ -552,22 +567,26 @@ class EventDrivenManager:
         for major_event in event_system.get("major_events", []):
             major_event_name = major_event.get("name")
             if major_event_name:
+                # 解析章节范围
+                chapter_range = major_event.get("chapter_range", "")
+                start_chapter, end_chapter = self._parse_chapter_range(chapter_range)
+                
                 # 添加重大事件本身
                 self.active_events[major_event_name] = {
                     "name": major_event_name,
                     "type": "major_event",
                     "main_goal": major_event.get("main_goal", "推进故事发展"),
-                    "start_chapter": major_event.get("start_chapter", 1),
-                    "end_chapter": major_event.get("end_chapter", 10),
+                    "start_chapter": start_chapter,
+                    "end_chapter": end_chapter,
                     "key_moments": major_event.get("key_moments", []),
                     "character_roles": major_event.get("character_roles", {}),
                     "stage_focus": major_event.get("stage_focus", {}),
                     "status": "active",
-                    "started_chapter": major_event.get("start_chapter", 1),
+                    "started_chapter": start_chapter,
                     "current_progress": 0,
                     "significance": major_event.get("significance", "重大转折点")
                 }
-            
+             
             # 从composition中提取中型事件
             composition = major_event.get("composition", {})
             for phase_name, phase_events in composition.items():
@@ -575,17 +594,21 @@ class EventDrivenManager:
                     for medium_event in phase_events:
                         medium_event_name = medium_event.get("name")
                         if medium_event_name:
+                            # 解析章节范围
+                            chapter_range = medium_event.get("chapter_range", "")
+                            start_chapter, end_chapter = self._parse_chapter_range(chapter_range)
+                            
                             self.active_events[medium_event_name] = {
                                 "name": medium_event_name,
                                 "type": "medium_event",
                                 "main_goal": medium_event.get("main_goal", "推进故事发展"),
-                                "start_chapter": medium_event.get("start_chapter", 1),
-                                "end_chapter": medium_event.get("end_chapter", 10),
+                                "start_chapter": start_chapter,
+                                "end_chapter": end_chapter,
                                 "key_moments": medium_event.get("key_moments", []),
                                 "character_roles": medium_event.get("character_roles", {}),
                                 "stage_focus": medium_event.get("stage_focus", {}),
                                 "status": "active",
-                                "started_chapter": medium_event.get("start_chapter", 1),
+                                "started_chapter": start_chapter,
                                 "current_progress": 0,
                                 "connection_to_major": major_event_name
                             }
@@ -1068,14 +1091,39 @@ class EventDrivenManager:
             "is_buffer_period": False     # 总体是否缓冲期
         }
         self.logger.info(f"\n=== 第{chapter_number}章缓冲期计算开始 ===")
-        # 获取当前活跃事件
-        active_events = []
+        # 获取当前活跃事件，按类型分组显示层级关系
+        active_major_events = []
+        active_medium_events = []
         for event_name, event_data in self.active_events.items():
             if self._is_event_active(chapter_number, event_data):
-                active_events.append(event_data)
-        self.logger.info(f"当前活跃事件数量: {len(active_events)}")
-        for i, event in enumerate(active_events):
-            self.logger.info(f"  活跃事件{i+1}: {event.get('name', '未知事件')}")
+                if event_data.get("type") == "major_event":
+                    active_major_events.append(event_data)
+                elif event_data.get("type") == "medium_event":
+                    active_medium_events.append(event_data)
+        
+        self.logger.info(f"当前活跃事件数量: {len(active_major_events) + len(active_medium_events)}")
+        
+        # 先显示重大事件
+        for i, event in enumerate(active_major_events):
+            self.logger.info(f"  🎯 重大事件{i+1}: {event.get('name', '未知事件')}")
+            
+            # 显示属于该重大事件的中型事件
+            major_name = event.get('name')
+            related_medium = [e for e in active_medium_events
+                           if e.get('connection_to_major') == major_name]
+            if related_medium:
+                self.logger.info(f"     ├─ 包含 {len(related_medium)} 个中型事件:")
+                for j, medium in enumerate(related_medium):
+                    # 从medium_events中移除已显示的
+                    if medium in active_medium_events:
+                        active_medium_events.remove(medium)
+                    self.logger.info(f"     │  {j+1}. {medium.get('name', '未知事件')}")
+        
+        # 显示独立的中型事件
+        if active_medium_events:
+            self.logger.info(f"  🔥 独立中型事件: {len(active_medium_events)}个")
+            for i, event in enumerate(active_medium_events):
+                self.logger.info(f"     {i+1}. {event.get('name', '未知事件')}")
         # 检查中型事件结束后的缓冲
         post_medium_event = self._is_post_medium_event_buffer(chapter_number)
         buffer_info["post_medium_event"] = post_medium_event
