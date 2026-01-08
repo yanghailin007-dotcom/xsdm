@@ -1178,3 +1178,100 @@ class StagePlanManager:
             import traceback
             traceback.print_exc()
             return writing_plan
+    
+    def _generate_scenes_for_single_chapter_event(self, event_data: Dict, chapter_num: int,
+                                                   stage_name: str, major_event_name: str,
+                                                   novel_title: str, novel_synopsis: str,
+                                                   consistency_guidance: Optional[str] = None) -> List[Dict]:
+        """
+        为单章节事件生成场景（桥接方法）
+        
+        这是 ContentGenerator 调用的桥接方法，委托给 EventDecomposer 处理
+        
+        Args:
+            event_data: 事件数据（中型事件）
+            chapter_num: 章节号
+            stage_name: 阶段名称
+            major_event_name: 重大事件名称
+            novel_title: 小说标题
+            novel_synopsis: 小说简介
+            consistency_guidance: 一致性指导
+            
+        Returns:
+            生成的场景列表
+        """
+        self.logger.info(f"  🎬 [桥接] 为单章事件 '{event_data.get('name')}' 生成场景...")
+        
+        # 获取必要的上下文
+        creative_seed = self.generator.novel_data.get("creative_seed", {})
+        overall_stage_plan = self.generator.novel_data.get("overall_stage_plans", {})
+        global_novel_data = self.generator.novel_data
+        
+        # 构建临时重大事件结构（EventDecomposer 需要这个参数）
+        temp_major_event = {
+            "name": major_event_name,
+            "chapter_range": event_data.get("chapter_range", f"{chapter_num}-{chapter_num}")
+        }
+        
+        try:
+            # 调用 EventDecomposer 的单章场景生成方法
+            result = self.event_decomposer._decompose_single_chapter_with_complete_arc(
+                medium_event=event_data,
+                major_event=temp_major_event,
+                stage_name=stage_name,
+                novel_title=novel_title,
+                novel_synopsis=novel_synopsis,
+                creative_seed=creative_seed,
+                overall_stage_plan=overall_stage_plan,
+                global_novel_data=global_novel_data,
+                consistency_guidance=consistency_guidance
+            )
+            
+            if result and "scene_sequences" in result:
+                scene_sequences = result["scene_sequences"]
+                if scene_sequences and len(scene_sequences) > 0:
+                    # 提取场景事件
+                    scene_events = scene_sequences[0].get("scene_events", [])
+                    self.logger.info(f"  ✅ 成功生成 {len(scene_events)} 个场景")
+                    return scene_events
+            
+            self.logger.warn(f"  ⚠️ 场景生成未返回有效结果")
+            return []
+            
+        except Exception as e:
+            self.logger.error(f"  ❌ 生成场景时出错: {e}")
+            import traceback
+            traceback.print_exc()
+            return []
+    
+    def save_and_cache_stage_plan(self, stage_name: str, plan_data: Dict):
+        """
+        保存并缓存阶段计划
+        
+        Args:
+            stage_name: 阶段名称
+            plan_data: 计划数据
+        """
+        # 保存到文件
+        file_path = self.plan_persistence.save_plan_to_file(stage_name, plan_data)
+        
+        # 更新缓存
+        cache_key = f"{stage_name}_writing_plan"
+        self.stage_writing_plans_cache[cache_key] = plan_data
+        
+        # 更新 novel_data
+        if "stage_writing_plans" not in self.generator.novel_data:
+            self.generator.novel_data["stage_writing_plans"] = {}
+        
+        if file_path:
+            try:
+                project_path = getattr(self.generator, 'project_path', Path.cwd())
+                relative_path = file_path.relative_to(project_path)
+            except (AttributeError, ValueError):
+                relative_path = file_path
+        else:
+            relative_path = f"plans/{stage_name}_writing_plan.json"
+        
+        self.generator.novel_data["stage_writing_plans"][stage_name] = {"path": str(relative_path)}
+        
+        self.logger.info(f"  ✅ 阶段计划已保存并缓存: {stage_name}")

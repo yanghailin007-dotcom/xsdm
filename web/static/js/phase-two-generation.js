@@ -1477,7 +1477,7 @@ function startProgressMonitoring() {
             console.error('获取进度状态失败:', error);
             addLogEntry('error', `获取进度失败: ${error.message}`);
         }
-    }, 2000); // 每2秒检查一次
+    }, 5000); // 每5秒检查一次
 }
 
 function initializeChapterProgress() {

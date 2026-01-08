@@ -714,7 +714,7 @@ class EventDecomposer:
 """
         
         result = self.api_client.generate_content_with_retry(
-            content_type="ai_free_decomposition",
+            content_type="medium_event_decomposition",  # 使用已支持的内容类型
             user_prompt=prompt,
             purpose=f"AI自由决策中型事件'{medium_event.get('name')}'的最优结构"
         )
@@ -804,7 +804,9 @@ class EventDecomposer:
 - 场景之间要有流畅的过渡，形成完整的叙事流
 - 最后一个场景必须包含吸引读者继续阅读的钩子
 
-## 输出格式
+## ⚠️ 重要：输出格式要求
+你必须严格按照以下JSON格式返回结果，不得使用其他格式：
+
 {{
     "name": "{medium_event.get('name')}",
     "chapter_range": "{chapter_range}",
@@ -821,47 +823,87 @@ class EventDecomposer:
                 {{
                     "sequence": 1,
                     "role": "起",
+                    "position": "opening",
                     "description": "开篇场景描述",
+                    "purpose": "场景目的",
+                    "key_actions": ["动作1", "动作2"],
                     "emotional_intensity": "low",
-                    "key_elements": []
+                    "emotional_impact": "情感冲击",
+                    "dialogue_highlights": ["对话示例"],
+                    "conflict_point": "冲突焦点",
+                    "sensory_details": "感官细节",
+                    "transition_to_next": "过渡说明",
+                    "estimated_word_count": "预计字数"
                 }},
                 {{
                     "sequence": 2,
                     "role": "承",
+                    "position": "development1",
                     "description": "发展场景描述",
+                    "purpose": "场景目的",
+                    "key_actions": ["动作1", "动作2"],
                     "emotional_intensity": "medium",
-                    "key_elements": []
+                    "emotional_impact": "情感冲击",
+                    "dialogue_highlights": ["对话示例"],
+                    "conflict_point": "冲突焦点",
+                    "sensory_details": "感官细节",
+                    "transition_to_next": "过渡说明",
+                    "estimated_word_count": "预计字数"
                 }},
                 {{
                     "sequence": 3,
                     "role": "转",
+                    "position": "climax",
                     "description": "高潮场景描述",
+                    "purpose": "场景目的",
+                    "key_actions": ["动作1", "动作2"],
                     "emotional_intensity": "high",
-                    "key_elements": []
+                    "emotional_impact": "情感冲击",
+                    "dialogue_highlights": ["对话示例"],
+                    "conflict_point": "冲突焦点",
+                    "sensory_details": "感官细节",
+                    "transition_to_next": "过渡说明",
+                    "estimated_word_count": "预计字数"
                 }},
                 {{
                     "sequence": 4,
                     "role": "合",
+                    "position": "ending",
                     "description": "收尾场景描述",
+                    "purpose": "场景目的",
+                    "key_actions": ["动作1", "动作2"],
                     "emotional_intensity": "medium",
-                    "key_elements": []
+                    "emotional_impact": "情感冲击",
+                    "dialogue_highlights": ["对话示例"],
+                    "conflict_point": "冲突焦点",
+                    "sensory_details": "感官细节",
+                    "transition_to_next": "过渡说明",
+                    "estimated_word_count": "预计字数"
                 }}
             ]
         }}
     ]
 }}
+
+请严格按照上述格式返回JSON，不要添加任何其他字段或结构。
 """
         
         result = self.api_client.generate_content_with_retry(
-            content_type="single_chapter_complete_arc",
+            content_type="chapter_event_design",  # 使用已支持的内容类型
             user_prompt=prompt,
             purpose=f"为单章中型事件'{medium_event.get('name')}'生成完整起承转合场景"
         )
         
         if result:
-            scene_count = len(result.get('scene_sequences', [{}])[0].get('scene_events', []))
-            self.logger.info(f"      ✅ 成功为单章事件生成完整起承转合场景（{scene_count}个场景）")
+            # 检查返回的数据结构
+            if 'scene_sequences' in result and result['scene_sequences']:
+                scene_count = len(result['scene_sequences'][0].get('scene_events', []))
+                self.logger.info(f"      ✅ 成功为单章事件生成完整起承转合场景（{scene_count}个场景）")
+            else:
+                self.logger.warn(f"      ⚠️ API返回数据格式不符合预期")
+                self.logger.info(f"      📋 返回的键: {list(result.keys())}")
+                self.logger.info(f"      📋 完整数据: {json.dumps(result, ensure_ascii=False)[:500]}")
         else:
-            self.logger.error(f"      ❌ 生成单章完整场景失败")
+            self.logger.error(f"      ❌ 生成单章完整场景失败，API返回为空")
         
         return result
