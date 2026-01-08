@@ -700,48 +700,77 @@ class EventDrivenManager:
         end_chapter = event_data.get("end_chapter", chapter_number + 100)
         return start_chapter <= chapter_number <= end_chapter
     def initialize_event_system(self):
-        """初始化事件系统 - 从当前正确阶段加载重大事件和大事件"""
+        """初始化事件系统 - 从StagePlanManager统一接口加载重大事件和大事件"""
         self.logger.info("🎯 初始化事件系统...")
-        novel_data = self.generator.novel_data
+        
         # 获取当前章节
-        current_chapter = len(novel_data["generated_chapters"]) + 1
-        # 从当前章节所属的阶段加载事件系统
+        current_chapter = len(self.generator.novel_data["generated_chapters"]) + 1
+        
+        # 🔥 改进：通过StagePlanManager的统一接口获取阶段计划
+        stage_plan_manager = self.generator.stage_plan_manager
+        if not stage_plan_manager:
+            self.logger.error("❌ StagePlanManager未初始化")
+            self._create_fallback_events(current_chapter)
+            return
+        
+        # 获取当前阶段名称
         current_stage = self._get_current_stage_from_plans(current_chapter)
+        
         if current_stage:
             self.logger.info(f"✅ 当前阶段: {current_stage}")
-            if "stage_writing_plans" in novel_data and novel_data["stage_writing_plans"]:
-                if current_stage in novel_data["stage_writing_plans"]:
-                    stage_data = novel_data["stage_writing_plans"][current_stage]
-                    if ("stage_writing_plan" in stage_data and 
-                        "event_system" in stage_data["stage_writing_plan"]):
-                        event_system = stage_data["stage_writing_plan"]["event_system"]
-                        self.logger.info(f"✅ 从当前阶段 {current_stage} 加载事件系统")
-                        # 更新到事件执行器
-                        self.update_from_stage_plan({"event_system": event_system})
-                        return
+            # 🆕 通过StagePlanManager的统一接口获取计划
+            stage_plan = stage_plan_manager.get_stage_writing_plan_by_name(current_stage)
+            
+            if stage_plan:
+                # 从stage_plan中提取event_system
+                event_system = stage_plan.get("stage_writing_plan", {}).get("event_system", {})
+                if event_system:
+                    self.logger.info(f"✅ 从StagePlanManager加载 {current_stage} 的事件系统")
+                    self.logger.info(f"   重大事件: {len(event_system.get('major_events', []))}个")
+                    self.logger.info(f"   大事件: {len(event_system.get('big_events', []))}个")
+                    # 更新到事件执行器
+                    self.update_from_stage_plan({"event_system": event_system})
+                    return
+                else:
+                    self.logger.warn(f"⚠️ 阶段 {current_stage} 的事件系统为空")
+            else:
+                self.logger.warn(f"⚠️ 无法从StagePlanManager获取 {current_stage} 的计划")
+        
         # 如果找不到当前阶段，尝试从所有阶段中查找
         self.logger.info("🔍 尝试从所有阶段查找适合当前章节的事件...")
-        if "stage_writing_plans" in novel_data and novel_data["stage_writing_plans"]:
-            for stage_name, stage_data in novel_data["stage_writing_plans"].items():
-                if self._is_chapter_in_stage(current_chapter, stage_data):
+        
+        # 获取所有可用的阶段计划
+        overall_plans = self.generator.novel_data.get("overall_stage_plans", {})
+        if "overall_stage_plan" in overall_plans:
+            stage_plan_dict = overall_plans["overall_stage_plan"]
+        else:
+            stage_plan_dict = overall_plans
+        
+        for stage_name in stage_plan_dict.keys():
+            stage_plan = stage_plan_manager.get_stage_writing_plan_by_name(stage_name)
+            if stage_plan:
+                # 检查该阶段是否包含当前章节
+                chapter_range = stage_plan.get("stage_writing_plan", {}).get("chapter_range", "")
+                if self._is_chapter_in_range(current_chapter, chapter_range):
                     self.logger.info(f"✅ 发现阶段 {stage_name} 包含第{current_chapter}章")
-                    if ("stage_writing_plan" in stage_data and 
-                        "event_system" in stage_data["stage_writing_plan"]):
-                        event_system = stage_data["stage_writing_plan"]["event_system"]
-                        self.logger.info(f"✅ 从阶段 {stage_name} 加载事件系统")
+                    event_system = stage_plan.get("stage_writing_plan", {}).get("event_system", {})
+                    if event_system:
+                        self.logger.info(f"✅ 从StagePlanManager加载 {stage_name} 的事件系统")
                         self.update_from_stage_plan({"event_system": event_system})
                         return
+        
         # 如果还是找不到，使用第一个可用的阶段
-        if "stage_writing_plans" in novel_data and novel_data["stage_writing_plans"]:
-            first_stage = list(novel_data["stage_writing_plans"].keys())[0]
-            stage_data = novel_data["stage_writing_plans"][first_stage]
-            if ("stage_writing_plan" in stage_data and 
-                "event_system" in stage_data["stage_writing_plan"]):
-                event_system = stage_data["stage_writing_plan"]["event_system"]
-                self.logger.info(f"⚠️ 使用第一个可用阶段 {first_stage} 的事件系统")
-                self.update_from_stage_plan({"event_system": event_system})
-                return
-        self.logger.info("⚠️ 没有可用的阶段写作计划或事件系统")
+        if stage_plan_dict:
+            first_stage = list(stage_plan_dict.keys())[0]
+            stage_plan = stage_plan_manager.get_stage_writing_plan_by_name(first_stage)
+            if stage_plan:
+                event_system = stage_plan.get("stage_writing_plan", {}).get("event_system", {})
+                if event_system:
+                    self.logger.info(f"⚠️ 使用第一个可用阶段 {first_stage} 的事件系统")
+                    self.update_from_stage_plan({"event_system": event_system})
+                    return
+        
+        self.logger.warn("⚠️ 没有可用的阶段写作计划或事件系统")
         # 创建回退事件确保系统能工作
         self._create_fallback_events(current_chapter)
     def _get_current_stage_from_plans(self, chapter_number: int) -> str:

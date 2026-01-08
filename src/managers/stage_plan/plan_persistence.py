@@ -113,30 +113,39 @@ class StagePlanPersistence:
         safe_title = self._sanitize_filename(novel_title)
         novel_project_dir = self.plans_dir / safe_title
         plans_dir = novel_project_dir / "plans"
-        expected_file_path = plans_dir / f"{safe_title}_{stage_name}_writing_plan.json"
         
-        self.logger.info(f"    - 正在检查标准路径: {expected_file_path}")
+        # 尝试两种命名格式：{stage_name}_writing_plan.json 和 {stage_name}_stage_writing_plan.json
+        possible_filenames = [
+            f"{safe_title}_{stage_name}_writing_plan.json",
+            f"{safe_title}_{stage_name}_stage_writing_plan.json"
+        ]
         
-        if expected_file_path.exists():
-            try:
-                # 检查文件大小
-                if expected_file_path.stat().st_size == 0:
-                    self.logger.error(f"    - ❌ 警告：文件 '{expected_file_path}' 为空（0字节），将被忽略。")
-                    return None
-                
-                with open(expected_file_path, 'r', encoding='utf-8') as f:
-                    data = json.load(f)
-                    self.logger.info(f"    - ✅ 成功加载并解析文件。")
-                    return data
+        for filename in possible_filenames:
+            expected_file_path = plans_dir / filename
+            self.logger.info(f"    - 正在检查路径: {expected_file_path}")
+            
+            if expected_file_path.exists():
+                try:
+                    # 检查文件大小
+                    if expected_file_path.stat().st_size == 0:
+                        self.logger.error(f"    - ❌ 警告：文件 '{expected_file_path}' 为空（0字节），将被忽略。")
+                        continue
                     
-            except json.JSONDecodeError as e:
-                self.logger.error(f"    - ❌ 文件 '{expected_file_path}' 存在但JSON格式已损坏，解析失败: {e}")
-                return None
-            except IOError as e:
-                self.logger.error(f"    - ❌ 文件 '{expected_file_path}' 存在但读取时发生IO错误: {e}")
-                return None
-        else:
-            self.logger.info(f"    - ℹ️ 标准路径文件未找到。")
+                    with open(expected_file_path, 'r', encoding='utf-8') as f:
+                        data = json.load(f)
+                        self.logger.info(f"    - ✅ 成功加载并解析文件: {filename}")
+                        return data
+                        
+                except json.JSONDecodeError as e:
+                    self.logger.error(f"    - ❌ 文件 '{expected_file_path}' 存在但JSON格式已损坏，解析失败: {e}")
+                    continue
+                except IOError as e:
+                    self.logger.error(f"    - ❌ 文件 '{expected_file_path}' 存在但读取时发生IO错误: {e}")
+                    continue
+            else:
+                self.logger.info(f"    - ℹ️ 文件未找到: {filename}")
+        
+        self.logger.info(f"    - ℹ️ 标准路径文件未找到（已尝试所有命名格式）。")
         
         # 策略 2: 尝试使用 novel_data 中记录的旧路径加载
         self.logger.info(f"  - (2/2) 尝试使用 novel_data 中的记录路径加载 (作为回退)...")
@@ -175,6 +184,7 @@ class StagePlanPersistence:
         return None
     
     def _sanitize_filename(self, filename: str) -> str:
-        """清理文件名，移除非法字符"""
-        safe = "".join(c for c in filename if c.isalnum() or c in (' ', '-', '_', ':', '：', '（', '）', '(', ')', '[', ']')).rstrip()
+        """清理文件名，移除非法字符，但保留中文标点符号（包括逗号）"""
+        # 保留字母数字、空格、常用符号以及中文标点（包括逗号）
+        safe = "".join(c for c in filename if c.isalnum() or c in (' ', '-', '_', ':', '：', '（', '）', '(', ')', '[', ']', '，', ',')).rstrip()
         return safe.replace(' ', '_')
