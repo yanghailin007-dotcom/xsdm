@@ -45,13 +45,17 @@ body {
 
 /* ==================== 导航栏 ==================== */
 .navbar {
-    background: rgba(15, 23, 42, 0.95);
-    backdrop-filter: blur(20px);
+    /* 使用纯色背景替代模糊背景，避免滚动时的重绘闪烁 */
+    background: #0f172a;
     border-bottom: 1px solid var(--border-color);
     position: sticky;
     top: 0;
     z-index: 1000;
     box-shadow: var(--shadow-md);
+    /* 移除硬件加速，避免兼容性问题 */
+    isolation: isolate;
+    /* 强制创建独立的层，但不使用 will-change */
+    contain: layout style paint;
 }
 
 .navbar-content {
@@ -88,21 +92,26 @@ body {
     font-size: 14px;
     font-weight: 600;
     cursor: pointer;
-    transition: all 0.3s ease;
+    /* 只对必要的属性添加过渡，避免 all */
+    transition: background-color 0.2s ease,
+                border-color 0.2s ease,
+                box-shadow 0.2s ease;
     display: inline-flex;
     align-items: center;
     gap: 8px;
     text-decoration: none;
     box-shadow: var(--shadow-sm);
+    /* 移除 transform，避免重绘 */
 }
 
 .btn:hover {
-    transform: translateY(-2px);
+    /* 移除 transform，只改变阴影 */
     box-shadow: var(--shadow-md);
 }
 
 .btn:active {
-    transform: translateY(0);
+    /* 移除 transform */
+    box-shadow: var(--shadow-sm);
 }
 
 .btn-primary {

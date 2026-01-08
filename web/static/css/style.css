@@ -315,7 +315,7 @@ a:hover {
 }
 
 .card:hover {
-    transform: translateY(-2px);
+    /* 移除 transform，只改变阴影和边框 */
     box-shadow: 0 8px 30px rgba(43, 108, 176, 0.15);
     border-color: rgba(43, 108, 176, 0.4);
 }
@@ -501,7 +501,7 @@ a:hover {
 
 .design-section:hover,
 .assessment-card:hover {
-    transform: translateY(-2px);
+    /* 移除 transform，只改变阴影和边框 */
     box-shadow: 0 8px 24px rgba(43, 108, 176, 0.12);
     border-color: rgba(43, 108, 176, 0.3);
 }
@@ -634,7 +634,7 @@ a:hover {
 }
 
 .design-item-value .btn-expand-large:hover {
-    transform: translateY(-1px);
+    /* 移除 transform，只改变阴影和背景 */
     box-shadow: 0 2px 8px rgba(0, 212, 255, 0.4); /* 增强悬停阴影对比度 */
     background: linear-gradient(135deg, rgba(0, 212, 255, 0.6) 0%, rgba(0, 150, 200, 0.6) 100%); /* 增强悬停背景对比度 */
     color: #ffffff; /* 白色文字，与深色背景形成对比 */
@@ -715,7 +715,7 @@ a:hover {
 }
 
 .chapter-item:hover {
-    transform: translateX(4px);
+    /* 移除 transform，只改变边框和阴影 */
     border-left-color: var(--primary-600);
     box-shadow: 0 4px 12px rgba(43, 108, 176, 0.15);
 }
@@ -728,7 +728,7 @@ a:hover {
     background: var(--gradient-primary);
     color: white;
     border-left-color: var(--primary-600);
-    transform: translateX(4px);
+    /* 移除 transform，只改变背景和边框 */
     box-shadow: 0 4px 20px rgba(43, 108, 176, 0.2);
 }
 
@@ -834,26 +834,12 @@ a:hover {
     font-weight: 600;
     font-size: var(--text-sm);
     font-family: inherit;
-    transition: all var(--transition-fast);
+    /* 优化过渡效果，只对必要的属性添加动画，移除 transform 避免滚动重绘 */
+    transition: background-color var(--transition-fast),
+                border-color var(--transition-fast),
+                box-shadow var(--transition-fast);
     text-decoration: none;
-    position: relative;
-    overflow: hidden;
     background: linear-gradient(135deg, rgba(43, 108, 176, 0.08) 0%, rgba(255, 255, 255, 0.9) 100%);
-}
-
-.btn::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-    transition: left var(--transition-slow);
-}
-
-.btn:hover::before {
-    left: 100%;
 }
 
 .btn-primary {
@@ -864,8 +850,8 @@ a:hover {
 }
 
 .btn-primary:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 30px rgba(43, 108, 176, 0.3);
+    /* 移除 transform，只改变阴影和边框 */
+    box-shadow: 0 6px 25px rgba(43, 108, 176, 0.25);
     border-color: rgba(43, 108, 176, 0.6);
 }
 
@@ -877,7 +863,7 @@ a:hover {
 
 .btn-secondary:hover {
     background: rgba(241, 245, 249, 1);
-    transform: translateY(-1px);
+    /* 移除 transform，只改变边框 */
     border-color: rgba(43, 108, 176, 0.4);
 }
 
@@ -888,7 +874,7 @@ a:hover {
 }
 
 .btn-success:hover {
-    transform: translateY(-2px);
+    /* 移除 transform，只改变阴影 */
     box-shadow: var(--shadow-lg);
 }
 
@@ -899,7 +885,7 @@ a:hover {
 }
 
 .btn-warning:hover {
-    transform: translateY(-2px);
+    /* 移除 transform，只改变阴影 */
     box-shadow: var(--shadow-lg);
 }
 
@@ -910,7 +896,7 @@ a:hover {
 }
 
 .btn-danger:hover {
-    transform: translateY(-2px);
+    /* 移除 transform，只改变阴影 */
     box-shadow: var(--shadow-lg);
 }
 
@@ -922,20 +908,26 @@ a:hover {
 .btn:disabled {
     opacity: 0.5;
     cursor: not-allowed;
-    transform: none;
+    /* 禁用状态完全移除所有动画 */
+    transform: none !important;
+    box-shadow: none !important;
+    transition: none !important;
 }
 
 /* ==================== 顶部导航栏 ==================== */
 
 .navbar {
-    background: rgba(255, 255, 255, 0.98);
-    backdrop-filter: blur(20px);
+    /* 使用纯色背景替代模糊背景，避免滚动时的重绘闪烁 */
+    background: #ffffff;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
     padding: var(--space-4) 0;
     position: sticky;
     top: 0;
     z-index: 100;
     border-bottom: 1px solid rgba(43, 108, 176, 0.1);
+    /* 硬件加速，减少重绘 */
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
 }
 
 .navbar-content {
@@ -969,7 +961,8 @@ a:hover {
     height: 8px;
     border-radius: 50%;
     background: var(--primary-500);
-    animation: pulse 1.5s infinite;
+    /* 移除动画，避免闪烁 */
+    animation: none;
 }
 
 @keyframes pulse {
@@ -2261,7 +2254,7 @@ a:hover {
 .expandable-json-section:hover {
     border-color: var(--primary-400);
     box-shadow: var(--shadow-md);
-    transform: translateY(-1px);
+    /* 移除 transform，只改变边框和阴影 */
 }
 
 .json-header {
@@ -2358,7 +2351,7 @@ a:hover {
 }
 
 .btn-expand-large:hover {
-    transform: translateY(-1px);
+    /* 移除 transform，只改变阴影和背景 */
     box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
     background: linear-gradient(135deg, #6d28d9 0%, #4c1d95 100%);
     color: white;
@@ -2366,7 +2359,7 @@ a:hover {
 }
 
 .btn-expand-large:active {
-    transform: translateY(0);
+    /* 移除 transform，只改变阴影 */
     box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
 }
 
@@ -2599,7 +2592,7 @@ a:hover {
 }
 
 .character-card:hover {
-    transform: translateY(-4px);
+    /* 移除 transform，只改变阴影和边框 */
     box-shadow: 0 12px 40px rgba(43, 108, 176, 0.25);
     border-color: rgba(0, 212, 255, 0.4);
 }
@@ -3021,14 +3014,14 @@ input:checked + .slider:before {
 .page-mode-btn:hover {
     border-color: var(--primary-400);
     background: var(--primary-50);
-    transform: translateY(-1px);
+    /* 移除 transform，只改变边框和背景 */
 }
 
 .page-mode-btn.active {
     border-color: var(--primary-600);
     background: var(--gradient-primary);
     color: white;
-    transform: translateY(-1px);
+    /* 移除 transform，只改变背景和阴影 */
     box-shadow: var(--shadow-md);
 }
 
@@ -3679,7 +3672,7 @@ input:checked + .slider:before {
 }
 
 .chapter-page-btn:hover:not(:disabled) {
-    transform: translateY(-1px);
+    /* 移除 transform，只改变阴影 */
     box-shadow: var(--shadow-md);
     background: linear-gradient(135deg, var(--primary-600) 0%, var(--primary-700) 100%);
 }
@@ -3687,7 +3680,7 @@ input:checked + .slider:before {
 .chapter-page-btn:disabled {
     background: var(--gray-300);
     cursor: not-allowed;
-    transform: none;
+    /* 移除 transform，禁用状态不需要动画 */
     box-shadow: none;
 }
 
@@ -4002,7 +3995,7 @@ input:checked + .slider:before {
 }
 
 .creative-editor-modal .btn-primary:hover {
-    transform: translateY(-2px) !important;
+    /* 移除 transform，只改变阴影 */
     box-shadow: var(--shadow-lg) !important;
 }
 
@@ -4014,7 +4007,7 @@ input:checked + .slider:before {
 
 .creative-editor-modal .btn-secondary:hover {
     background: var(--gray-200) !important;
-    transform: translateY(-1px) !important;
+    /* 移除 transform，只改变背景 */
 }
 
 .creative-editor-modal .btn-danger {
@@ -4024,7 +4017,7 @@ input:checked + .slider:before {
 }
 
 .creative-editor-modal .btn-danger:hover {
-    transform: translateY(-2px) !important;
+    /* 移除 transform，只改变阴影 */
     box-shadow: var(--shadow-lg) !important;
 }
 
@@ -4044,7 +4037,7 @@ input:checked + .slider:before {
 .selling-point-item button:hover,
 .storyline-stage button:hover {
     background: var(--error-600) !important;
-    transform: scale(1.05) !important;
+    /* 移除 transform，只改变背景 */
 }
 
 /* 响应式设计 */
@@ -4154,7 +4147,7 @@ input:checked + .slider:before {
 
 .creative-editor-modal .modal-header .btn:hover {
     background: rgba(255, 255, 255, 0.3);
-    transform: translateY(-1px);
+    /* 移除 transform，只改变背景 */
 }
 
 .creative-editor-modal .modal-header .modal-close-btn {
@@ -4174,7 +4167,7 @@ input:checked + .slider:before {
 
 .creative-editor-modal .modal-header .modal-close-btn:hover {
     background: rgba(255, 255, 255, 0.2);
-    transform: scale(1.1);
+    /* 移除 transform，只改变背景 */
 }
 
 /* 模态框主体 */
@@ -4394,7 +4387,7 @@ input:checked + .slider:before {
 }
 
 .creative-editor-modal .btn-primary:hover {
-    transform: translateY(-2px);
+    /* 移除 transform，只改变阴影 */
     box-shadow: var(--shadow-lg);
     background: linear-gradient(135deg, var(--primary-600) 0%, var(--primary-700) 50%, var(--primary-800) 100%);
 }
@@ -4414,7 +4407,7 @@ input:checked + .slider:before {
 .creative-editor-modal .btn-secondary:hover {
     background: rgba(241, 245, 249, 1);
     border-color: rgba(43, 108, 176, 0.4);
-    transform: translateY(-1px);
+    /* 移除 transform，只改变背景和边框 */
 }
 
 .creative-editor-modal .btn-danger {
@@ -4431,7 +4424,7 @@ input:checked + .slider:before {
 }
 
 .creative-editor-modal .btn-danger:hover {
-    transform: translateY(-2px);
+    /* 移除 transform，只改变阴影 */
     box-shadow: var(--shadow-lg);
     background: linear-gradient(135deg, var(--error-600) 0%, var(--error-700) 50%, var(--error-800) 100%);
 }
@@ -4559,7 +4552,7 @@ input:checked + .slider:before {
 .add-selling-point-btn:hover,
 .add-stage-btn:hover {
     background: var(--success-600) !important;
-    transform: translateY(-1px) !important;
+    /* 移除 transform，只改变背景和阴影 */
     box-shadow: var(--shadow-lg) !important;
 }
 
@@ -5045,7 +5038,7 @@ input:checked + .slider:before {
 .file-upload-zone.drag-over {
     border-color: var(--primary-500);
     background: rgba(43, 108, 176, 0.05);
-    transform: scale(1.02);
+    /* 移除 transform，只改变边框和背景 */
 }
 
 .file-upload-zone-icon {
@@ -5154,7 +5147,7 @@ input:checked + .slider:before {
 
 .file-remove:hover {
     background: var(--error-600);
-    transform: scale(1.1);
+    /* 移除 transform，只改变背景 */
 }
 
 .file-info {

@@ -1111,16 +1111,29 @@ function showStatusMessage(message, type) {
 }
 
 // ==================== 事件监听器 ====================
+// 标记是否已初始化事件监听器，避免重复绑定
+let eventListenersInitialized = false;
+
 function initializeEventListeners() {
-    // 窗口大小改变时重绘
+    // 如果已经初始化过，直接返回，避免重复绑定
+    if (eventListenersInitialized) {
+        return;
+    }
+    
+    // 窗口大小改变时重绘（添加防抖，避免频繁重绘）
+    let resizeTimer;
     window.addEventListener('resize', () => {
-        if (currentView === 'characters') {
-            redrawCharacterGraph();
-        } else if (currentView === 'factions') {
-            redrawFactionGraph();
-        } else if (currentView === 'map') {
-            redrawMapView();
-        }
+        // 使用防抖，避免频繁触发
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(() => {
+            if (currentView === 'characters') {
+                redrawCharacterGraph();
+            } else if (currentView === 'factions') {
+                redrawFactionGraph();
+            } else if (currentView === 'map') {
+                redrawMapView();
+            }
+        }, 100); // 100ms 防抖延迟
     });
     
     // 键盘快捷键
@@ -1129,4 +1142,7 @@ function initializeEventListeners() {
             closeEditModal();
         }
     });
+    
+    // 标记已初始化
+    eventListenersInitialized = true;
 }
