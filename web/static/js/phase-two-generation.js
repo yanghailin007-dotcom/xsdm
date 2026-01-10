@@ -209,6 +209,9 @@ async function autoSelectProject(projectTitle) {
     console.log('✅ [DEBUG] 项目卡片点击已触发');
     addLogEntry('info', `已自动选择项目: ${projectTitle}`);
     
+    // 🔥 移除多余弹窗 - 只保留日志
+    // showStatusMessage(`✅ 已自动选择项目: ${projectTitle}`, 'success');
+    
     // 清除URL参数（避免重复触发）
     const url = new URL(window.location);
     url.searchParams.delete('title');
@@ -262,7 +265,8 @@ async function selectProject(projectTitle) {
         showGenerationForm();
         
         addLogEntry('info', `选择项目: ${projectTitle}`);
-        showStatusMessage(`✅ 已选择项目: ${projectTitle}`, 'success');
+        // 🔥 移除多余弹窗 - 只保留日志
+        // showStatusMessage(`✅ 已选择项目: ${projectTitle}`, 'success');
     } catch (error) {
         console.error('选择项目失败:', error);
         showStatusMessage(`❌ 选择项目失败: ${error.message}`, 'error');
@@ -400,12 +404,15 @@ let phaseOneProductsData = {};
 
 async function loadPhaseOneProducts() {
     if (!currentProject) {
-        showStatusMessage('❌ 请先选择一个项目', 'error');
+        // 🔥 移除多余弹窗 - 只保留日志
+        addLogEntry('error', '请先选择一个项目');
         return;
     }
 
     try {
-        showStatusMessage('🔄 正在加载第一阶段产物...', 'info');
+        // 🔥 移除多余弹窗 - 只保留日志
+        addLogEntry('info', '正在加载第一阶段产物...');
+        // showStatusMessage('🔄 正在加载第一阶段产物...', 'info');
         
         const response = await fetch(`/api/phase-one/products/${encodeURIComponent(currentProject.novel_title || currentProject.title)}`);
         
@@ -422,7 +429,9 @@ async function loadPhaseOneProducts() {
             await checkFactionSystemStatus();
             
             updateProductsDisplay();
-            showStatusMessage('✅ 第一阶段产物加载完成', 'success');
+            // 🔥 移除多余弹窗 - 只保留日志
+            addLogEntry('success', '第一阶段产物加载完成');
+            // showStatusMessage('✅ 第一阶段产物加载完成', 'success');
         } else {
             throw new Error(result.error || '加载失败');
         }
@@ -564,7 +573,8 @@ function showMockProductsData() {
 
 function editProductCategory(category) {
     if (!currentProject) {
-        showStatusMessage('❌ 请先选择一个项目', 'error');
+        // 🔥 移除多余弹窗 - 只保留日志
+        addLogEntry('error', '请先选择一个项目');
         return;
     }
 
@@ -585,7 +595,8 @@ function editProductCategory(category) {
 // 从第二阶段打开角色编辑器
 async function openCharacterEditorFromPhaseTwo() {
     if (!currentProject) {
-        showStatusMessage('❌ 请先选择一个项目', 'error');
+        // 🔥 移除多余弹窗 - 只保留日志
+        addLogEntry('error', '请先选择一个项目');
         return;
     }
     
@@ -593,7 +604,9 @@ async function openCharacterEditorFromPhaseTwo() {
     console.log('🎯 准备打开角色编辑器，项目标题:', projectTitle);
     
     try {
-        showStatusMessage('🔄 正在加载角色编辑器...', 'info');
+        // 🔥 移除多余弹窗 - 只保留日志
+        addLogEntry('info', '正在加载角色编辑器...');
+        // showStatusMessage('🔄 正在加载角色编辑器...', 'info');
         
         // 动态加载角色编辑器模态框（如果还没加载）
         let modalContainer = document.getElementById('character-editor-modal-wrapper');
@@ -760,18 +773,22 @@ async function openCharacterEditorFromPhaseTwo() {
 // 查看势力系统
 async function viewFactionSystem() {
     if (!currentProject) {
-        showStatusMessage('❌ 请先选择一个项目', 'error');
+        // 🔥 移除多余弹窗 - 只保留日志
+        addLogEntry('error', '请先选择一个项目');
         return;
     }
     
     const projectTitle = currentProject.novel_title || currentProject.title;
     if (!projectTitle) {
-        showStatusMessage('❌ 无法获取项目标题', 'error');
+        // 🔥 移除多余弹窗 - 只保留日志
+        addLogEntry('error', '无法获取项目标题');
         return;
     }
     
     try {
-        showStatusMessage('🔄 正在加载势力系统...', 'info');
+        // 🔥 移除多余弹窗 - 只保留日志
+        addLogEntry('info', '正在加载势力系统...');
+        // showStatusMessage('🔄 正在加载势力系统...', 'info');
         
         const response = await fetch(`/api/factions/${encodeURIComponent(projectTitle)}`);
         
@@ -784,7 +801,9 @@ async function viewFactionSystem() {
         
         if (result.success) {
             createFactionSystemModal(result.faction_system);
-            showStatusMessage('✅ 势力系统加载完成', 'success');
+            // 🔥 移除多余弹窗 - 只保留日志
+            addLogEntry('success', '势力系统加载完成');
+            // showStatusMessage('✅ 势力系统加载完成', 'success');
         } else {
             throw new Error(result.error || '加载失败');
         }
@@ -1312,7 +1331,8 @@ function refreshPhaseOneProducts() {
 
 async function exportPhaseOneProducts() {
     if (!currentProject) {
-        showStatusMessage('❌ 请先选择一个项目', 'error');
+        // 🔥 移除多余弹窗 - 只保留日志
+        addLogEntry('error', '请先选择一个项目');
         return;
     }
 
