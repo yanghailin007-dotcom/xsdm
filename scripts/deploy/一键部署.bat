@@ -64,7 +64,7 @@ echo 正在创建tar.gz压缩包...
 echo 排除的目录: Chrome, .git, logs, generated_images等
 echo.
 
-%GIT_BASH% -c "tar -czf %ZIP_FILE% --exclude='Chrome/Chrome' --exclude='.git' --exclude='.venv' --exclude='venv' --exclude='generated_images' --exclude='logs' --exclude='temp_fanqie_upload' --exclude='chapter_failures' --exclude='__pycache__' --exclude='*.pyc' --exclude='*.pyo' --exclude='.env' --exclude='*.db' --exclude='test_*.py' --exclude='check_*.py' --exclude='diagnose_*.py' --exclude='debug_*.py' --exclude='*.log' --exclude='.vscode' --exclude='.idea' --exclude='.claude' --exclude='node_modules' --exclude='ai_enhanced_settings' --exclude='fusion_settings' --exclude='optimized_prompts' --exclude='knowledge_base' --exclude='static' --exclude='data' --exclude='tests' --exclude='tools' --exclude='*.pem' --exclude='*.key' --exclude='id_rsa*' --exclude='Chrome.rar' ."
+%GIT_BASH% -c "tar -czf %ZIP_FILE% --exclude='Chrome/Chrome' --exclude='.git' --exclude='.venv' --exclude='venv' --exclude='generated_images' --exclude='logs' --exclude='temp_fanqie_upload' --exclude='chapter_failures' --exclude='__pycache__' --exclude='*.pyc' --exclude='*.pyo' --exclude='.env' --exclude='*.db' --exclude='test_*.py' --exclude='check_*.py' --exclude='diagnose_*.py' --exclude='debug_*.py' --exclude='*.log' --exclude='.vscode' --exclude='.idea' --exclude='.claude' --exclude='node_modules' --exclude='ai_enhanced_settings' --exclude='fusion_settings' --exclude='optimized_prompts' --exclude='knowledge_base' --exclude='data' --exclude='tests' --exclude='tools' --exclude='*.pem' --exclude='*.key' --exclude='id_rsa*' --exclude='Chrome.rar' ."
 
 if not exist %ZIP_FILE% (
     echo ❌ 压缩包创建失败
