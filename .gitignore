@@ -74,3 +74,10 @@ quality_data/
 # Chrome浏览器相关文件（不应该版本控制）
 Chrome/Chrome/
 Chrome.rar
+
+# SSH Private Keys - SECURITY: Never commit private keys!
+*.pem
+*.key
+id_rsa
+id_rsa.pub
+xsdm.pem

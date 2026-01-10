@@ -8,7 +8,7 @@ import time
 import hashlib
 import hmac
 import requests
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Tuple
 from datetime import datetime
 
 # 添加项目根目录到系统路径
@@ -202,7 +202,7 @@ class RateLimiter:
         """初始化限制器"""
         self.requests = {}  # {phone: [(timestamp, count), ...]}
     
-    def check_limit(self, phone: str, max_requests: int = 3, window_seconds: int = 3600) -> tuple[bool, Optional[int]]:
+    def check_limit(self, phone: str, max_requests: int = 3, window_seconds: int = 3600) -> Tuple[bool, Optional[int]]:
         """
         检查是否超过请求限制
         
