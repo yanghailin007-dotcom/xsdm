@@ -2007,3 +2007,318 @@ def register_additional_routes(app):
             import traceback
             logger.error(f"错误堆栈: {traceback.format_exc()}")
             return jsonify({"success": False, "error": str(e)}), 500
+    
+    
+    # ==================== 第二阶段内容审核API路由 ====================
+    
+    @app.route('/api/phase-two/content-review/<title>', methods=['GET'])
+    @login_required
+    def get_content_review_chapters(title):
+        """获取项目的章节列表（用于内容审核）"""
+        try:
+            if not manager:
+                return jsonify({"success": False, "error": "管理器未初始化"}), 500
+            
+            logger.info(f"[CONTENT_REVIEW] 获取章节列表: {title}")
+            
+            # 获取项目详情
+            novel_detail = manager.get_novel_detail(title)
+            if not novel_detail:
+                return jsonify({"success": False, "error": "项目不存在"}), 404
+            
+            # 获取已生成的章节
+            generated_chapters = novel_detail.get('generated_chapters', {})
+            
+            if not generated_chapters:
+                return jsonify({
+                    "success": True,
+                    "chapters": [],
+                    "message": "该项目尚未生成任何章节"
+                })
+            
+            # 转换为前端需要的格式
+            chapters_list = []
+            for chapter_num_str, chapter_data in generated_chapters.items():
+                try:
+                    chapter_num = int(chapter_num_str)
+                    chapters_list.append({
+                        'chapter_number': chapter_num,
+                        'title': chapter_data.get('title', f'第{chapter_num}章'),
+                        'file_name': chapter_data.get('file_name', f'第{chapter_num}章.txt'),
+                        'word_count': chapter_data.get('word_count', 0),
+                        'generated_at': chapter_data.get('generated_at', '')
+                    })
+                except (ValueError, TypeError):
+                    continue
+            
+            # 按章节号排序
+            chapters_list.sort(key=lambda x: x['chapter_number'])
+            
+            logger.info(f"[CONTENT_REVIEW] 找到 {len(chapters_list)} 个章节")
+            
+            return jsonify({
+                "success": True,
+                "chapters": chapters_list
+            })
+            
+        except Exception as e:
+            logger.error(f"[CONTENT_REVIEW] 获取章节列表失败: {e}")
+            import traceback
+            logger.error(f"错误堆栈: {traceback.format_exc()}")
+            return jsonify({"success": False, "error": str(e)}), 500
+    
+    
+    @app.route('/api/phase-two/content-review/<title>/chapter/<int:chapter_num>/files', methods=['GET'])
+    @login_required
+    def get_chapter_raw_files(title, chapter_num):
+        """获取指定章节的原始文件信息"""
+        try:
+            if not manager:
+                return jsonify({"success": False, "error": "管理器未初始化"}), 500
+            
+            logger.info(f"[CONTENT_REVIEW] 获取章节文件: {title} - 第{chapter_num}章")
+            
+            # 🔥 关键修复：在获取章节详情前，先重新加载项目数据
+            # 这样可以确保获取到最新的章节信息
+            manager.load_existing_novels()
+            logger.info(f"[CONTENT_REVIEW] 已重新加载项目数据")
+            
+            # 🔥 新增：重新加载后，打印调试信息
+            novel_detail = manager.get_novel_detail(title)
+            if novel_detail:
+                generated_chapters = novel_detail.get('generated_chapters', {})
+                logger.info(f"[CONTENT_REVIEW] 重新加载后章节数: {len(generated_chapters)}")
+                logger.info(f"[CONTENT_REVIEW] 章节键列表: {list(generated_chapters.keys())[:10]}")
+            
+            # 获取项目详情
+            novel_detail = manager.get_novel_detail(title)
+            if not novel_detail:
+                return jsonify({"success": False, "error": "项目不存在"}), 404
+            
+            # 获取指定章节数据
+            generated_chapters = novel_detail.get('generated_chapters', {})
+            
+            logger.info(f"[CONTENT_REVIEW] generated_chapters键类型: {type(list(generated_chapters.keys()) if generated_chapters else 'None')}")
+            logger.info(f"[CONTENT_REVIEW] generated_chapters键: {list(generated_chapters.keys())}")
+            logger.info(f"[CONTENT_REVIEW] chapter_num类型: {type(chapter_num)}, 值: {chapter_num}")
+            
+            # 检查是否有任何生成的章节
+            if not generated_chapters:
+                return jsonify({
+                    "success": False,
+                    "error": "该项目尚未生成任何章节",
+                    "hint": "请先在第二阶段生成生成章节内容"
+                }), 404
+            
+            # 🔥 关键修复：generated_chapters的键可能是整数或字符串，需要处理两种情况
+            # 尝试整数键
+            if chapter_num in generated_chapters:
+                chapter_key = chapter_num
+            # 尝试字符串键
+            elif str(chapter_num) in generated_chapters:
+                chapter_key = str(chapter_num)
+            else:
+                logger.info(f"[CONTENT_REVIEW] 章节{chapter_num}不存在，可用章节: {list(generated_chapters.keys())}")
+                return jsonify({
+                    "success": False,
+                    "error": f"第{chapter_num}章不存在",
+                    "available_chapters": list(generated_chapters.keys()),
+                    "hint": f"该项目只有 {len(generated_chapters)} 个章节"
+                }), 404
+            
+            chapter_data = generated_chapters[chapter_key]
+            
+            # 构建文件信息
+            raw_files = {
+                'input_files': [],
+                'output_files': [],
+                'quality_files': [],
+                'character_files': []
+            }
+            
+            # 添加输出文件（章节内容）
+            chapter_file_path = chapter_data.get('file_path', '')
+            word_count = chapter_data.get('word_count', 0)  # 🔥 获取word_count
+            
+            logger.info(f"[CONTENT_REVIEW] 章节数据 - file_path: {chapter_file_path}, word_count: {word_count}")
+            
+            if chapter_file_path:
+                try:
+                    from pathlib import Path
+                    file_path = Path(chapter_file_path)
+                    if file_path.exists():
+                        # 🔥 修复：如果word_count为0，尝试从文件重新计算
+                        if word_count == 0:
+                            try:
+                                with open(file_path, 'r', encoding='utf-8') as f:
+                                    content = f.read()
+                                    # 尝试解析JSON
+                                    try:
+                                        chapter_json = json.loads(content)
+                                        word_count = len(chapter_json.get('content', ''))
+                                    except:
+                                        word_count = len(content)
+                                logger.info(f"[CONTENT_REVIEW] 重新计算字数: {word_count}")
+                            except Exception as e:
+                                logger.error(f"[CONTENT_REVIEW] 重新计算字数失败: {e}")
+                        
+                        raw_files['output_files'].append({
+                            'name': file_path.name,
+                            'type': '章节内容',
+                            'file_path': str(file_path),
+                            'file_size': file_path.stat().st_size,
+                            'extension': file_path.suffix,
+                            'word_count': word_count  # 🔥 添加字数字段
+                        })
+                        logger.info(f"[CONTENT_REVIEW] 找到章节文件: {file_path.name}, 字数: {word_count}")
+                except Exception as e:
+                    logger.info(f"无法访问章节文件: {e}")
+            
+            # 如果没有找到文件，尝试从生成的目录中查找
+            if not raw_files['output_files']:
+                from pathlib import Path
+                project_dir = Path("小说项目") / title
+                chapter_files = []
+                
+                # 搜索可能的章节文件位置
+                search_paths = [
+                    project_dir / "generated_chapters",
+                    project_dir / "chapters",
+                    project_dir / "output"
+                ]
+                
+                for search_path in search_paths:
+                    if search_path.exists():
+                        # 查找包含章节号的文件
+                        for file_path in search_path.glob(f"*{chapter_num}*"):
+                            if file_path.is_file():
+                                chapter_files.append(file_path)
+                
+                # 添加找到的文件
+                for file_path in chapter_files:
+                    raw_files['output_files'].append({
+                        'name': file_path.name,
+                        'type': '章节内容',
+                        'file_path': str(file_path),
+                        'file_size': file_path.stat().st_size,
+                        'extension': file_path.suffix
+                    })
+                    logger.info(f"[CONTENT_REVIEW] 找到章节文件: {file_path.name}")
+            
+            # 添加输入文件（写作计划等）
+            planning_dir = Path("小说项目") / title / "planning"
+            if planning_dir.exists():
+                for file_path in planning_dir.glob("*写作计划*.json"):
+                    raw_files['input_files'].append({
+                        'name': file_path.name,
+                        'type': '写作计划',
+                        'file_path': str(file_path),
+                        'file_size': file_path.stat().st_size,
+                        'extension': file_path.suffix
+                    })
+            
+            # 添加其他可能的质量评价文件
+            quality_dir = Path("小说项目") / title / "quality_reports"
+            if quality_dir.exists():
+                for file_path in quality_dir.glob(f"*{chapter_num}*.json"):
+                    raw_files['quality_files'].append({
+                        'name': file_path.name,
+                        'type': '质量评价',
+                        'file_path': str(file_path),
+                        'file_size': file_path.stat().st_size,
+                        'extension': file_path.suffix
+                    })
+            
+            # 🔥 修复：添加字数统计到日志
+            total_words = sum(f.get('word_count', 0) for f in raw_files['output_files'])
+            logger.info(f"[CONTENT_REVIEW] 返回文件信息: 输入{len(raw_files['input_files'])}, 输出{len(raw_files['output_files'])}, 质量{len(raw_files['quality_files'])}, 总字数: {total_words}")
+            
+            return jsonify({
+                "success": True,
+                "raw_files": raw_files
+            })
+            
+        except Exception as e:
+            logger.error(f"[CONTENT_REVIEW] 获取章节文件失败: {e}")
+            import traceback
+            logger.error(f"错误堆栈: {traceback.format_exc()}")
+            return jsonify({"success": False, "error": str(e)}), 500
+    
+    
+    # ==================== 文件内容读取API路由 ====================
+    
+    @app.route('/api/file-content', methods=['GET'])
+    @login_required
+    def get_file_content():
+        """读取文件内容（用于章节内容显示）"""
+        try:
+            from pathlib import Path
+            
+            # 获取文件路径参数
+            file_path = request.args.get('path', '')
+            
+            if not file_path:
+                return jsonify({"success": False, "error": "文件路径参数缺失"}), 400
+            
+            logger.info(f"[FILE_CONTENT] 读取文件内容: {file_path}")
+            
+            # 安全检查：确保文件路径在允许的目录内
+            # 只允许读取项目目录下的文件
+            allowed_dirs = ['小说项目', 'quality_data']
+            is_allowed = False
+            
+            file_path_obj = Path(file_path).resolve()
+            
+            for allowed_dir in allowed_dirs:
+                allowed_path = Path(allowed_dir).resolve()
+                try:
+                    file_path_obj.relative_to(allowed_path)
+                    is_allowed = True
+                    break
+                except ValueError:
+                    continue
+            
+            if not is_allowed:
+                logger.error(f"[FILE_CONTENT] 文件路径不在允许的目录内: {file_path}")
+                return jsonify({"success": False, "error": "无权访问该文件"}), 403
+            
+            # 检查文件是否存在
+            if not file_path_obj.exists():
+                logger.error(f"[FILE_CONTENT] 文件不存在: {file_path}")
+                return jsonify({"success": False, "error": f"文件不存在: {file_path}"}), 404
+            
+            # 读取文件内容
+            try:
+                with open(file_path_obj, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                
+                logger.info(f"[FILE_CONTENT] 成功读取文件: {file_path}, 长度: {len(content)}")
+                
+                # 如果是JSON文件，尝试提取content字段
+                if file_path_obj.suffix == '.json':
+                    try:
+                        json_data = json.loads(content)
+                        # 如果有content字段，返回它
+                        if 'content' in json_data:
+                            content = json_data['content']
+                            logger.info(f"[FILE_CONTENT] 从JSON中提取content字段，长度: {len(content)}")
+                    except json.JSONDecodeError:
+                        # 不是有效的JSON，使用原始内容
+                        logger.info(f"[FILE_CONTENT] 文件不是有效JSON，使用原始内容")
+                
+                return jsonify({
+                    "success": True,
+                    "content": content,
+                    "file_path": file_path,
+                    "length": len(content)
+                })
+                
+            except UnicodeDecodeError as e:
+                logger.error(f"[FILE_CONTENT] 文件编码错误: {e}")
+                return jsonify({"success": False, "error": f"文件编码错误: {str(e)}"}), 500
+                
+        except Exception as e:
+            logger.error(f"[FILE_CONTENT] 读取文件内容失败: {e}")
+            import traceback
+            logger.error(f"错误堆栈: {traceback.format_exc()}")
+            return jsonify({"success": False, "error": str(e)}), 500
