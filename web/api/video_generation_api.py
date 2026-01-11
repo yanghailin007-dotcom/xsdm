@@ -18,7 +18,8 @@ from datetime import datetime
 import json
 
 # 添加项目根目录到路径
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(BASE_DIR)
 
 from src.utils.logger import get_logger
 
@@ -1949,7 +1950,8 @@ def generate_character_portrait():
         "character_id": "character_0",
         "character_data": {...},  // 完整的角色数据
         "aspect_ratio": "16:9",    // 可选，默认16:9
-        "image_size": "4K"         // 可选，默认4K
+        "image_size": "4K",         // 可选，默认4K
+        "reference_image": "/path/to/reference.jpg"  // 可选，参考图像路径
     }
     """
     try:
@@ -1959,6 +1961,7 @@ def generate_character_portrait():
         character_data = data.get('character_data', {})
         aspect_ratio = data.get('aspect_ratio', '9:16')  # 默认竖屏，适合角色展示
         image_size = data.get('image_size', '4K')
+        reference_image = data.get('reference_image')  # 🔥 新增：参考图像
         
         logger.info(f"🎨 [VIDEO] ===== 开始生成角色剧照 =====")
         logger.info(f"📝 [VIDEO] 请求参数:")
@@ -1968,6 +1971,7 @@ def generate_character_portrait():
         logger.info(f"  - 角色定位: {character_data.get('role', 'Unknown')}")
         logger.info(f"  - 图片比例: {aspect_ratio}")
         logger.info(f"  - 图片质量: {image_size}")
+        logger.info(f"  - 参考图像: {reference_image or '无'}")
         
         if not title or not character_id:
             logger.error(f"❌ [VIDEO] 缺少必需参数: title={title}, character_id={character_id}")
@@ -1992,11 +1996,26 @@ def generate_character_portrait():
         logger.info(f"📝 [VIDEO] 提示词长度: {len(prompt)} 字符")
         logger.info(f"📝 [VIDEO] 提示词预览: {prompt[:200]}...")
         
-        # 调用NanoBanana服务生成图像
-        from web.services.nanobanana_service import NanoBananaService
-        nanobanana_service = NanoBananaService()
+        # 🔥 新增：处理参考图像路径
+        ref_image_path = None
+        if reference_image:
+            import os
+            # 如果是URL路径，转换为本地路径
+            if reference_image.startswith('/generated_images/'):
+                ref_image_path = os.path.join(BASE_DIR, reference_image.lstrip('/'))
+                logger.info(f"🖼️ [VIDEO] 参考图像路径转换: {reference_image} -> {ref_image_path}")
+            else:
+                ref_image_path = reference_image
+            # 验证文件存在
+            if not os.path.exists(ref_image_path):
+                logger.warn(f"⚠️ [VIDEO] 参考图像不存在，将使用纯文本模式: {ref_image_path}")
+                ref_image_path = None
         
-        logger.info(f"🎨 [VIDEO] 准备调用NanoBanana服务...")
+        # 🔥 直接使用NanoBananaImageGenerator（支持参考图像）
+        from src.utils.NanoBananaImageGenerator import NanoBananaImageGenerator
+        generator = NanoBananaImageGenerator()
+        
+        logger.info(f"🎨 [VIDEO] 准备调用NanoBananaImageGenerator...")
         # 生成文件名
         character_name = character_data.get('name', 'unknown')
         safe_name = character_name.replace(' ', '_').replace('/', '_')
@@ -2004,22 +2023,23 @@ def generate_character_portrait():
         filename = f"{title}_{safe_name}_portrait_{timestamp}"
         logger.info(f"💾 [VIDEO] 生成文件名: {filename}")
         
-        # 生成图像
-        logger.info(f"🚀 [VIDEO] 调用NanoBanana.generate_image()...")
+        # 生成图像（支持参考图像）
+        logger.info(f"🚀 [VIDEO] 调用NanoBananaImageGenerator.generate_image()...")
         logger.info(f"📤 [VIDEO] 请求参数:")
         logger.info(f"  - prompt长度: {len(prompt)}")
         logger.info(f"  - aspect_ratio: {aspect_ratio}")
         logger.info(f"  - image_size: {image_size}")
-        logger.info(f"  - filename: {filename}")
+        logger.info(f"  - reference_image: {ref_image_path or 'None'}")
         
-        result = nanobanana_service.generate_image({
-            'prompt': prompt,
-            'aspect_ratio': aspect_ratio,
-            'image_size': image_size,
-            'save_filename': filename
-        })
+        result = generator.generate_image(
+            prompt=prompt,
+            aspect_ratio=aspect_ratio,
+            image_size=image_size,
+            save_path=None,  # 自动生成路径
+            reference_image=ref_image_path  # 🔥 传递参考图像
+        )
         
-        logger.info(f"📥 [VIDEO] NanoBanana返回结果:")
+        logger.info(f"📥 [VIDEO] NanoBananaImageGenerator返回结果:")
         logger.info(f"  - success: {result.get('success')}")
         logger.info(f"  - local_path: {result.get('local_path', 'N/A')}")
         logger.info(f"  - url: {result.get('url', 'N/A')}")
@@ -2053,7 +2073,8 @@ def generate_character_portrait():
                 "image_url": image_url,  # HTTP URL（用于浏览器显示）
                 "prompt": prompt,
                 "character_name": character_name,
-                "message": f"角色 {character_name} 的剧照生成成功"
+                "used_reference_image": ref_image_path is not None,  # 🔥 新增：是否使用了参考图像
+                "message": f"角色 {character_name} 的剧照生成成功" + (" (使用参考图像)" if ref_image_path else "")
             })
         else:
             logger.error(f"❌ [VIDEO] 角色剧照生成失败: {result.get('error')}")
@@ -2067,6 +2088,189 @@ def generate_character_portrait():
         import traceback
         logger.error(f"错误堆栈: {traceback.format_exc()}")
         return jsonify({"success": False, "error": str(e)}), 500
+
+
+@video_api.route('/video/generate-scene-portrait', methods=['POST'])
+@login_required
+def generate_scene_portrait():
+    """
+    生成场景/任务剧照
+    
+    请求参数：
+    {
+        "title": "小说标题",
+        "event_id": "事件ID",
+        "event_data": {...},  // 事件数据
+        "aspect_ratio": "16:9",    // 可选，默认16:9
+        "image_size": "4K",         // 可选，默认4K
+        "reference_image": "/path/to/reference.jpg",  // 可选，参考图像路径
+        "custom_prompt": "额外提示词"  // 可选
+    }
+    """
+    try:
+        data = request.json or {}
+        title = data.get('title')
+        event_id = data.get('event_id')
+        event_data = data.get('event_data', {})
+        aspect_ratio = data.get('aspect_ratio', '16:9')  # 默认横屏，适合场景展示
+        image_size = data.get('image_size', '4K')
+        reference_image = data.get('reference_image')  # 支持参考图像
+        custom_prompt = data.get('custom_prompt', '')
+        
+        logger.info(f"🎬 [SCENE] ===== 开始生成场景剧照 =====")
+        logger.info(f"📝 [SCENE] 请求参数:")
+        logger.info(f"  - 小说标题: {title}")
+        logger.info(f"  - 事件ID: {event_id}")
+        logger.info(f"  - 事件名称: {event_data.get('title', event_data.get('name', 'Unknown'))}")
+        logger.info(f"  - 图片比例: {aspect_ratio}")
+        logger.info(f"  - 图片质量: {image_size}")
+        logger.info(f"  - 参考图像: {reference_image or '无'}")
+        logger.info(f"  - 自定义提示词: {custom_prompt[:50] if custom_prompt else '无'}...")
+        
+        if not title or not event_id:
+            logger.error(f"❌ [SCENE] 缺少必需参数: title={title}, event_id={event_id}")
+            return jsonify({"success": False, "error": "缺少必需参数: title 或 event_id"}), 400
+        
+        # 生成场景提示词
+        scene_prompt = _generate_scene_prompt(event_data, custom_prompt)
+        
+        logger.info(f"✅ [SCENE] 场景提示词生成成功")
+        logger.info(f"📝 [SCENE] 提示词长度: {len(scene_prompt)} 字符")
+        logger.info(f"📝 [SCENE] 提示词预览: {scene_prompt[:200]}...")
+        
+        # 处理参考图像路径
+        ref_image_path = None
+        if reference_image:
+            import os
+            if reference_image.startswith('/generated_images/'):
+                ref_image_path = os.path.join(BASE_DIR, reference_image.lstrip('/'))
+                logger.info(f"🖼️ [SCENE] 参考图像路径转换: {reference_image} -> {ref_image_path}")
+            else:
+                ref_image_path = reference_image
+            if not os.path.exists(ref_image_path):
+                logger.warn(f"⚠️ [SCENE] 参考图像不存在，将使用纯文本模式: {ref_image_path}")
+                ref_image_path = None
+        
+        # 使用NanoBananaImageGenerator生成图像
+        from src.utils.NanoBananaImageGenerator import NanoBananaImageGenerator
+        generator = NanoBananaImageGenerator()
+        
+        # 生成文件名
+        event_name = event_data.get('title', event_data.get('name', 'unknown'))
+        safe_name = event_name.replace(' ', '_').replace('/', '_')
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"{title}_{safe_name}_scene_{timestamp}"
+        
+        # 生成图像
+        logger.info(f"🚀 [SCENE] 调用NanoBananaImageGenerator.generate_image()...")
+        result = generator.generate_image(
+            prompt=scene_prompt,
+            aspect_ratio=aspect_ratio,
+            image_size=image_size,
+            save_path=None,
+            reference_image=ref_image_path
+        )
+        
+        logger.info(f"📥 [SCENE] NanoBananaImageGenerator返回结果:")
+        logger.info(f"  - success: {result.get('success')}")
+        logger.info(f"  - local_path: {result.get('local_path', 'N/A')}")
+        
+        if result.get('success'):
+            logger.info(f"✅ [SCENE] 场景剧照生成成功: {result.get('local_path')}")
+            
+            # 构建HTTP访问路径
+            import urllib.parse
+            image_filename = os.path.basename(result.get('local_path', ''))
+            encoded_filename = urllib.parse.quote(image_filename)
+            image_url = f"/generated_images/{encoded_filename}"
+            
+            return jsonify({
+                "success": True,
+                "image_path": result.get('local_path'),
+                "image_url": image_url,
+                "prompt": scene_prompt,
+                "event_name": event_name,
+                "used_reference_image": ref_image_path is not None,
+                "message": f"场景 {event_name} 的剧照生成成功" + (" (使用参考图像)" if ref_image_path else "")
+            })
+        else:
+            logger.error(f"❌ [SCENE] 场景剧照生成失败: {result.get('error')}")
+            return jsonify({
+                "success": False,
+                "error": result.get('error', '生成失败')
+            }), 500
+            
+    except Exception as e:
+        logger.error(f"❌ [SCENE] 生成场景剧照失败: {e}")
+        import traceback
+        logger.error(f"错误堆栈: {traceback.format_exc()}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+def _generate_scene_prompt(event_data: Dict, custom_prompt: str = '') -> str:
+    """
+    生成场景剧照的提示词
+    
+    Args:
+        event_data: 事件数据
+        custom_prompt: 自定义提示词
+    
+    Returns:
+        生成的场景提示词
+    """
+    event_name = event_data.get('title', event_data.get('name', '未知场景'))
+    description = event_data.get('description', '')
+    location = event_data.get('location', '')
+    emotion = event_data.get('emotion', '')
+    stage = event_data.get('stage', '')
+    characters = event_data.get('characters', '')
+    
+    # 构建场景提示词
+    prompt_parts = []
+    
+    # 添加场景标题和阶段
+    if stage:
+        prompt_parts.append(f"[{stage}阶段场景]")
+    prompt_parts.append(f"《{event_name}》")
+    
+    # 添加场景描述
+    if description:
+        prompt_parts.append(f"\n场景描述：{description}")
+    
+    # 添加地点信息
+    if location:
+        prompt_parts.append(f"\n地点：{location}")
+    
+    # 添加情感氛围
+    if emotion:
+        prompt_parts.append(f"\n氛围：{emotion}")
+    
+    # 添加角色信息（如果有）
+    if characters:
+        prompt_parts.append(f"\n角色：{characters}")
+    
+    # 添加视觉风格指导
+    prompt_parts.append("\n视觉风格要求：")
+    prompt_parts.append("- 高质量电影级场景渲染")
+    prompt_parts.append("- 丰富的细节和层次感")
+    prompt_parts.append("- 恰当的光影效果")
+    prompt_parts.append("- 符合场景氛围的色彩搭配")
+    
+    # 根据阶段添加特定指导
+    if stage == '起':
+        prompt_parts.append("- 宁静平和的开场氛围")
+    elif stage == '承':
+        prompt_parts.append("- 逐渐推进的叙事张力")
+    elif stage == '转':
+        prompt_parts.append("- 强烈的视觉冲击和戏剧性")
+    elif stage == '合':
+        prompt_parts.append("- 收束和总结性的视觉呈现")
+    
+    # 添加自定义提示词
+    if custom_prompt:
+        prompt_parts.append(f"\n额外要求：{custom_prompt}")
+    
+    return '\n'.join(prompt_parts)
 
 
 @video_api.route('/video/character-details', methods=['GET'])

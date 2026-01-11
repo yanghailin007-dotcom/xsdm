@@ -85,7 +85,8 @@ class NanoBananaImageGenerator:
         aspect_ratio: str = "16:9",
         image_size: str = "4K",
         save_path: Optional[str] = None,
-        retry_count: int = 0
+        retry_count: int = 0,
+        reference_image: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         生成图像
@@ -96,6 +97,7 @@ class NanoBananaImageGenerator:
             image_size: 图片尺寸 (1K, 2K, 4K)
             save_path: 保存路径，如果为None则自动生成
             retry_count: 当前重试次数
+            reference_image: 参考图像路径（支持图像转图像生成）
             
         Returns:
             dict: 包含生成结果的字典
@@ -112,16 +114,48 @@ class NanoBananaImageGenerator:
                 "error": "未配置API密钥，请在config/config.py中配置nanobanana.api_key"
             }
         
+        # 🔥 新增：处理参考图像
+        parts = []
+        
+        # 如果有参考图像，先添加图像
+        if reference_image:
+            try:
+                # 读取并编码参考图像
+                import os
+                if not os.path.exists(reference_image):
+                    self.logger.warn(f"⚠️ 参考图像不存在: {reference_image}")
+                else:
+                    with open(reference_image, 'rb') as f:
+                        ref_image_data = f.read()
+                    
+                    # 获取MIME类型
+                    import mimetypes
+                    mime_type = mimetypes.guess_type(reference_image)[0] or 'image/jpeg'
+                    
+                    # 编码为base64
+                    ref_image_base64 = base64.b64encode(ref_image_data).decode('utf-8')
+                    
+                    parts.append({
+                        "inlineData": {
+                            "mimeType": mime_type,
+                            "data": ref_image_base64
+                        }
+                    })
+                    self.logger.info(f"✅ 已添加参考图像: {reference_image} ({len(ref_image_data)} bytes)")
+            except Exception as e:
+                self.logger.warn(f"⚠️ 添加参考图像失败: {e}，继续使用纯文本模式")
+        
+        # 添加文本提示词
+        parts.append({
+            "text": prompt
+        })
+        
         # 构建请求体
         request_body = {
             "contents": [
                 {
                     "role": "user",
-                    "parts": [
-                        {
-                            "text": prompt
-                        }
-                    ]
+                    "parts": parts
                 }
             ],
             "generationConfig": {

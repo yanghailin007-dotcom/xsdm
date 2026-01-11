@@ -1,5 +1,134 @@
 /* 视频生成系统样式 */
 
+/* 🔥 新增：场景剧照生成面板样式 */
+.scene-portrait-modal {
+    max-width: 800px;
+    width: 90%;
+    margin: 50px auto;
+}
+
+.event-info-section {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.event-info-section h3 {
+    margin: 0 0 10px 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.event-info-section .event-description {
+    margin: 10px 0;
+    line-height: 1.6;
+}
+
+.scene-portrait-modal .form-group {
+    margin-bottom: 20px;
+}
+
+.scene-portrait-modal .form-control {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.scene-portrait-modal .file-upload-area {
+    border: 2px dashed #ddd;
+    border-radius: 8px;
+    padding: 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.scene-portrait-modal .file-upload-area:hover {
+    border-color: #007bff;
+    background: #f8f9fa;
+}
+
+.scene-portrait-modal .upload-placeholder svg {
+    margin-bottom: 10px;
+}
+
+.scene-portrait-modal .upload-preview {
+    position: relative;
+}
+
+.scene-portrait-modal .upload-preview img {
+    max-width: 100%;
+    max-height: 300px;
+    border-radius: 4px;
+}
+
+.scene-portrait-modal .remove-btn {
+    position: absolute;
+    top: -10px;
+    right: -10px;
+    background: #dc3545;
+    color: white;
+    border: none;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 18px;
+    line-height: 1;
+}
+
+.scene-portrait-modal .result-section {
+    margin-top: 20px;
+}
+
+.scene-portrait-modal .result-image-container {
+    text-align: center;
+    margin: 20px 0;
+}
+
+.scene-portrait-modal .result-image-container img {
+    max-width: 100%;
+    max-height: 400px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.scene-portrait-modal .result-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 20px;
+}
+
+.scene-portrait-modal .progress-section {
+    margin: 20px 0;
+}
+
+/* 事件列表中的场景剧照生成按钮 */
+.btn-generate-scene,
+.btn-generate-medium-scene {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    padding: 4px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.3s;
+    margin-left: 8px;
+}
+
+.btn-generate-scene:hover,
+.btn-generate-medium-scene:hover {
+    transform: scale(1.1);
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.4);
+}
+
+/* 基础重置和变量 */
 * {
     margin: 0;
     padding: 0;

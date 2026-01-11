@@ -119,6 +119,18 @@
                                     <li>🎨 保持小说风格一致</li>
                                 </ul>
                             </div>
+                            
+                            <div class="mode-card portrait-mode" data-mode="portrait">
+                                <div class="mode-icon">🎨</div>
+                                <h3>人物剧照生成</h3>
+                                <p class="mode-desc">生成高质量的角色剧照，支持参考图像和自定义提示词</p>
+                                <ul class="mode-features">
+                                    <li>👤 支持小说角色和自定义</li>
+                                    <li>🖼️ 可上传参考图像</li>
+                                    <li>✨ 多种比例和质量</li>
+                                    <li>🎨 自动生成角色提示词</li>
+                                </ul>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -138,6 +150,247 @@
                     </div>
                 </div>
 
+                <!-- 剧照生成模式屏幕 -->
+                <div id="portraitModeScreen" class="portrait-mode-screen" style="display: none;">
+                    <div class="screen-header">
+                        <button id="backToModeFromPortraitBtn" class="btn-secondary">← 返回模式选择</button>
+                        <h2 id="portraitModeTitle">🎨 人物剧照生成</h2>
+                    </div>
+                    
+                    <div class="portrait-mode-content">
+                        <!-- 子模式选择 -->
+                        <div class="portrait-submode-selector">
+                            <div class="submode-cards">
+                                <div class="submode-card portrait-novel-submode" data-submode="novel">
+                                    <div class="submode-icon">📚</div>
+                                    <h3>小说角色</h3>
+                                    <p class="submode-desc">从已生成的小说中选择角色</p>
+                                    <ul class="submode-features">
+                                        <li>👥 自动提取角色设计</li>
+                                        <li>🎨 保持角色一致性</li>
+                                        <li>📖 支持参考图像</li>
+                                        <li>✨ 多种比例和质量</li>
+                                    </ul>
+                                </div>
+                                
+                                <div class="submode-card portrait-custom-submode" data-submode="custom">
+                                    <div class="submode-icon">✨</div>
+                                    <h3>自定义角色</h3>
+                                    <p class="submode-desc">完全自定义角色描述</p>
+                                    <ul class="submode-features">
+                                        <li>🎯 自由描述角色特征</li>
+                                        <li>🖼️ 支持参考图像</li>
+                                        <li>✨ 灵活的生成选项</li>
+                                        <li>🎨 自定义提示词</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 剧照生成配置屏幕 - 小说角色 -->
+                <div id="portraitNovelConfigScreen" class="portrait-config-screen" style="display: none;">
+                    <div class="screen-header">
+                        <button id="backToPortraitSubmodeBtn" class="btn-secondary">← 返回模式选择</button>
+                        <h2>👥 选择角色</h2>
+                    </div>
+                    
+                    <div class="portrait-config-content">
+                        <div class="novel-selector">
+                            <label>选择小说项目：</label>
+                            <select id="portraitNovelSelect" class="form-control">
+                                <option value="">请选择小说...</option>
+                            </select>
+                        </div>
+                        
+                        <div class="character-selector">
+                            <h3>选择角色</h3>
+                            <div id="portraitCharacterList" class="character-grid">
+                                <p class="empty-hint">请先选择小说</p>
+                            </div>
+                        </div>
+                        
+                        <div class="portrait-settings">
+                            <h3>生成设置</h3>
+                            <div class="setting-group">
+                                <label>参考图像（可选）：</label>
+                                <div class="file-upload-area" id="portraitRefUploadArea">
+                                    <input type="file" id="portraitRefInput" accept="image/*" class="hidden">
+                                    <div class="upload-placeholder">
+                                        <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+                                            <path d="M38 16H34V12H38V16ZM42 8H32V18H42V8ZM38 22H34V26H38V22ZM42 28H32V38H42V28Z" fill="#666"/>
+                                        </svg>
+                                        <p>点击或拖拽上传参考图像</p>
+                                    </div>
+                                    <div class="upload-preview" id="portraitRefPreview" style="display: none;">
+                                        <img src="" alt="参考图像预览">
+                                        <button class="remove-btn" id="removePortraitRefBtn">×</button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="setting-group">
+                                <label>图片比例：</label>
+                                <select id="portraitAspectRatio" class="form-control">
+                                    <option value="9:16" selected>9:16 (竖屏)</option>
+                                    <option value="16:9">16:9 (横屏)</option>
+                                    <option value="1:1">1:1 (正方形)</option>
+                                    <option value="4:3">4:3 (标准)</option>
+                                </select>
+                            </div>
+                            
+                            <div class="setting-group">
+                                <label>图片质量：</label>
+                                <select id="portraitImageSize" class="form-control">
+                                    <option value="4K" selected>4K (超高清)</option>
+                                    <option value="2K">2K (高清)</option>
+                                    <option value="1K">1K (标清)</option>
+                                </select>
+                            </div>
+                            
+                            <div class="setting-group">
+                                <label>自定义提示词（可选）：</label>
+                                <textarea id="portraitCustomPrompt" class="form-control" rows="3" placeholder="添加额外的描述来调整生成效果..."></textarea>
+                            </div>
+                        </div>
+                        
+                        <div class="portrait-actions">
+                            <button id="generatePortraitBtn" class="btn-primary btn-large">
+                                🎨 生成剧照
+                            </button>
+                        </div>
+                        
+                        <!-- 生成结果 -->
+                        <div id="portraitResultSection" class="portrait-result-section" style="display: none;">
+                            <h3>✨ 生成结果</h3>
+                            <div class="result-image-container">
+                                <img id="generatedPortraitImage" src="" alt="生成的剧照">
+                            </div>
+                            <div class="result-actions">
+                                <button id="downloadPortraitBtn" class="btn-secondary">📥 下载</button>
+                                <button id="usePortraitAsRefBtn" class="btn-secondary">🔄 用作参考图</button>
+                            </div>
+                        </div>
+                        
+                        <!-- 生成进度 -->
+                        <div id="portraitProgressSection" class="portrait-progress-section" style="display: none;">
+                            <div class="progress-info">
+                                <p>⏳ 正在生成剧照...</p>
+                                <div class="progress-bar">
+                                    <div class="progress-bar-fill animate-progress"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 剧照生成配置屏幕 - 自定义角色 -->
+                <div id="portraitCustomConfigScreen" class="portrait-config-screen" style="display: none;">
+                    <div class="screen-header">
+                        <button id="backToPortraitSubmodeFromCustomBtn" class="btn-secondary">← 返回模式选择</button>
+                        <h2>✨ 自定义角色</h2>
+                    </div>
+                    
+                    <div class="portrait-config-content">
+                        <div class="custom-character-form">
+                            <div class="form-group">
+                                <label>角色名称：</label>
+                                <input type="text" id="customCharacterName" class="form-control" placeholder="例如：剑仙">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>角色定位：</label>
+                                <input type="text" id="customCharacterRole" class="form-control" placeholder="例如：主角、配角、反派">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>角色外貌：</label>
+                                <textarea id="customCharacterAppearance" class="form-control" rows="3" placeholder="描述角色的外貌特征，如身高、体型、发型、服装、配饰等..."></textarea>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>性格特点：</label>
+                                <textarea id="customCharacterPersonality" class="form-control" rows="3" placeholder="描述角色的性格特点，如勇敢、冷静、热情、狡猾等..."></textarea>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>服装风格：</label>
+                                <input type="text" id="customCharacterOutfit" class="form-control" placeholder="例如：古装、现代服装、战斗盔甲">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>参考图像（可选）：</label>
+                                <div class="file-upload-area" id="customPortraitRefUploadArea">
+                                    <input type="file" id="customPortraitRefInput" accept="image/*" class="hidden">
+                                    <div class="upload-placeholder">
+                                        <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+                                            <path d="M38 16H34V12H38V16ZM42 8H32V18H42V8Z" fill="#666"/>
+                                        </svg>
+                                        <p>点击或拖拽上传参考图像</p>
+                                    </div>
+                                    <div class="upload-preview" id="customPortraitRefPreview" style="display: none;">
+                                        <img src="" alt="参考图像预览">
+                                        <button class="remove-btn" id="removeCustomPortraitRefBtn">×</button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="setting-group">
+                                <label>图片比例：</label>
+                                <select id="customPortraitAspectRatio" class="form-control">
+                                    <option value="9:16" selected>9:16 (竖屏)</option>
+                                    <option value="16:9">16:9 (横屏)</option>
+                                    <option value="1:1">1:1 (正方形)</option>
+                                    <option value="4:3">4:3 (标准)</option>
+                                </select>
+                            </div>
+                            
+                            <div class="setting-group">
+                                <label>图片质量：</label>
+                                <select id="customPortraitImageSize" class="form-control">
+                                    <option value="4K" selected>4K (超高清)</option>
+                                    <option value="2K">2K (高清)</option>
+                                    <option value="1K">1K (标清)</option>
+                                </select>
+                            </div>
+                            
+                            <div class="setting-group">
+                                <label>额外提示词（可选）：</label>
+                                <textarea id="customPortraitExtraPrompt" class="form-control" rows="3" placeholder="添加额外的描述，如场景、动作、表情、光影效果等..."></textarea>
+                            </div>
+                        </div>
+                        
+                        <div class="portrait-actions">
+                            <button id="generateCustomPortraitBtn" class="btn-primary btn-large">
+                                🎨 生成剧照
+                            </button>
+                        </div>
+                        
+                        <!-- 生成结果 -->
+                        <div id="customPortraitResultSection" class="portrait-result-section" style="display: none;">
+                            <h3>✨ 生成结果</h3>
+                            <div class="result-image-container">
+                                <img id="customGeneratedPortraitImage" src="" alt="生成的剧照">
+                            </div>
+                            <div class="result-actions">
+                                <button id="downloadCustomPortraitBtn" class="btn-secondary">📥 下载</button>
+                                <button id="useCustomPortraitAsRefBtn" class="btn-secondary">🔄 用作参考图</button>
+                            </div>
+                        </div>
+                        
+                        <!-- 生成进度 -->
+                        <div id="customPortraitProgressSection" class="portrait-progress-section" style="display: none;">
+                            <div class="progress-info">
+                                <p>⏳ 正在生成剧照...</p>
+                                <div class="progress-bar">
+                                    <div class="progress-bar-fill animate-progress"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
                 <!-- 自定义模式提示词输入屏幕 -->
                 <div id="customPromptScreen" class="custom-prompt-screen" style="display: none;">
                     <div class="screen-header">
