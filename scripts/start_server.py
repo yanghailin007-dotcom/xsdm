@@ -11,6 +11,7 @@ import time
 import signal
 import platform
 import subprocess
+import socket
 from pathlib import Path
 
 def print_header(text):
@@ -57,7 +58,16 @@ def check_dependencies():
         if response == 'y':
             for pkg in missing:
                 print(f"  正在安装 {pkg}...")
-                subprocess.run([sys.executable, '-m', 'pip', 'install', pkg], check=True)
+                try:
+                    subprocess.run([sys.executable, '-m', 'pip', 'install', pkg], check=True)
+                except subprocess.CalledProcessError as e:
+                    print(f"  [ERROR] 安装失败: {e}")
+                    print(f"  [INFO] 如果在Ubuntu/Debian系统上，请先创建虚拟环境:")
+                    print(f"        python3 -m venv venv")
+                    print(f"        source venv/bin/activate  # Linux/Mac")
+                    print(f"        venv\\Scripts\\activate     # Windows")
+                    print(f"        pip install {' '.join(missing)}")
+                    return False
             print("  [OK] 依赖安装完成")
         else:
             print("  [WARN] 跳过依赖安装，服务可能无法正常启动")
@@ -112,57 +122,129 @@ def kill_port_process(port=5000):
             print(f"  [WARN] 清理端口时出错: {e}")
     
     else:
-        # Linux/Mac: 使用lsof或fuser
+        # Linux/Mac: 多种方法尝试清理端口
+        # 方法1: 使用fuser (最可靠)
         try:
-            # 尝试使用lsof
             result = subprocess.run(
-                ['lsof', '-ti', f':{port}'],
+                ['fuser', '-k', f'{port}/tcp'],
                 capture_output=True,
                 text=True,
                 timeout=10
             )
-            
             if result.returncode == 0:
-                pids = result.stdout.strip().split('\n')
-                pids = [pid for pid in pids if pid.isdigit()]
-                
-                if pids:
-                    print(f"  [INFO] 找到占用端口的进程: {pids}")
-                    for pid in pids:
-                        try:
-                            subprocess.run(
-                                ['kill', '-9', pid],
-                                capture_output=True,
-                                timeout=5
-                            )
-                            print(f"  [KILL] 进程 {pid} 已终止")
-                            killed = True
-                        except Exception as e:
-                            print(f"  [WARN] 终止进程 {pid} 失败: {e}")
-                else:
-                    print(f"  [OK] 没有进程占用端口 {port}")
-            else:
-                print(f"  [OK] 没有进程占用端口 {port}")
-                
+                print(f"  [OK] 使用fuser清理端口 {port}")
+                killed = True
+            # 即使returncode不为0，也可能清理成功
+            elif 'killed' in result.stderr.lower() or 'killed' in result.stdout.lower():
+                print(f"  [OK] 端口 {port} 已清理")
+                killed = True
         except FileNotFoundError:
-            # lsof不可用，尝试使用fuser
+            print(f"  [INFO] fuser未安装，尝试其他方法...")
+        except Exception as e:
+            print(f"  [INFO] fuser执行失败: {e}，尝试其他方法...")
+        
+        # 方法2: 如果fuser失败或不可用，尝试lsof
+        if not killed:
             try:
                 result = subprocess.run(
-                    ['fuser', '-k', f'{port}/tcp'],
+                    ['lsof', '-ti', f':{port}'],
                     capture_output=True,
                     text=True,
                     timeout=10
                 )
-                print(f"  [INFO] 使用fuser清理端口 {port}")
-                killed = True
+                
+                if result.returncode == 0 and result.stdout.strip():
+                    pids = result.stdout.strip().split('\n')
+                    pids = [pid for pid in pids if pid.isdigit()]
+                    
+                    if pids:
+                        print(f"  [INFO] 找到占用端口的进程: {pids}")
+                        for pid in pids:
+                            try:
+                                subprocess.run(
+                                    ['kill', '-9', pid],
+                                    capture_output=True,
+                                    timeout=5
+                                )
+                                print(f"  [KILL] 进程 {pid} 已终止")
+                                killed = True
+                            except Exception as e:
+                                print(f"  [WARN] 终止进程 {pid} 失败: {e}")
+                    else:
+                        print(f"  [OK] 没有进程占用端口 {port}")
+                else:
+                    print(f"  [OK] 没有进程占用端口 {port}")
+                    
+            except FileNotFoundError:
+                print(f"  [INFO] lsof未安装")
             except Exception as e:
-                print(f"  [WARN] 无法清理端口 {port}: {e}")
-        except Exception as e:
-            print(f"  [WARN] 清理端口时出错: {e}")
+                print(f"  [INFO] lsof执行失败: {e}")
+        
+        # 方法3: 如果前两种方法都失败，尝试ss命令
+        if not killed:
+            try:
+                result = subprocess.run(
+                    ['ss', '-tlnp'],
+                    capture_output=True,
+                    text=True,
+                    timeout=10
+                )
+                
+                if result.returncode == 0:
+                    pids = set()
+                    for line in result.stdout.split('\n'):
+                        if f':{port}' in line:
+                            # 解析ss输出获取pid
+                            parts = line.split()
+                            for part in parts:
+                                if 'pid=' in part:
+                                    pid = part.split('=')[1].split(',')[0]
+                                    if pid.isdigit():
+                                        pids.add(pid)
+                    
+                    if pids:
+                        print(f"  [INFO] 找到占用端口的进程: {pids}")
+                        for pid in pids:
+                            try:
+                                subprocess.run(
+                                    ['kill', '-9', pid],
+                                    capture_output=True,
+                                    timeout=5
+                                )
+                                print(f"  [KILL] 进程 {pid} 已终止")
+                                killed = True
+                            except Exception as e:
+                                print(f"  [WARN] 终止进程 {pid} 失败: {e}")
+                    else:
+                        print(f"  [OK] 没有进程占用端口 {port}")
+            except FileNotFoundError:
+                print(f"  [INFO] ss命令未安装")
+            except Exception as e:
+                print(f"  [INFO] ss命令执行失败: {e}")
+        
+        # 如果所有方法都失败，给用户提示
+        if not killed:
+            print(f"  [WARN] 无法自动清理端口 {port}")
+            print(f"  [INFO] 请手动执行以下命令:")
+            print(f"        sudo lsof -ti :{port} | xargs kill -9")
+            print(f"        或")
+            print(f"        sudo fuser -k {port}/tcp")
     
     if killed:
         print("  [OK] 等待端口释放...")
         time.sleep(2)
+        # 再次检查端口是否已释放
+        try:
+            test_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            test_socket.settimeout(1)
+            result = test_socket.connect_ex(('127.0.0.1', port))
+            test_socket.close()
+            if result == 0:
+                print(f"  [WARN] 端口 {port} 仍被占用，请手动检查")
+            else:
+                print(f"  [OK] 端口 {port} 已释放")
+        except:
+            pass
 
 def ensure_directories():
     """确保必要的目录存在"""
@@ -198,7 +280,7 @@ def start_web_server():
         return False
     
     print(f"  [INFO] 服务器路径: {web_server_path}")
-    print(f"  [INFO] 访问地址: http://localhost:5000")
+    print(f"  [INFO] 访问地址: http://localhost:8080")
     print(f"  [INFO] 按Ctrl+C停止服务（需要连续两次）")
     print("\n" + "=" * 70)
     print("服务启动中...")
@@ -232,7 +314,7 @@ def main():
     ensure_directories()
     
     # 4. 清理端口
-    kill_port_process(5000)
+    kill_port_process(8080)
     
     # 5. 启动服务器
     start_web_server()

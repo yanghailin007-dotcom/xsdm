@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>小说生成系统 - 登录</title>
+    <title>小说动漫AI创作平台 - 登录</title>
     <style>
         * {
             margin: 0;
@@ -226,8 +226,8 @@
     <div class="login-container">
         <div class="login-box">
             <div class="login-header">
-                <h1>📚 小说生成系统</h1>
-                <p>欢迎使用 AI 小说生成平台</p>
+                <h1>📚 小说动漫AI创作平台</h1>
+                <p>欢迎使用 AI 小说动漫创作平台</p>
             </div>
 
             <form id="loginForm">
@@ -292,7 +292,7 @@
             </div>
 
             <div class="footer">
-                <p>&copy; 2024 AI小说生成系统 | 版本 1.0</p>
+                <p>&copy; 2024 小说动漫AI创作平台 | 版本 1.0</p>
             </div>
         </div>
     </div>
@@ -357,9 +357,9 @@
                 if (response.ok) {
                     const data = await response.json();
                     showSuccess();
-                    // 登录成功，重定向到首页
+                    // 登录成功，使用后端返回的重定向地址
                     setTimeout(() => {
-                        window.location.href = '/';
+                        window.location.href = data.redirect || '/landing';
                     }, 1000);
                 } else {
                     const data = await response.json();

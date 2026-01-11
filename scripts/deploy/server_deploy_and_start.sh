@@ -9,7 +9,7 @@ echo "步骤 1/7: 清理旧进程..."
 pkill -f "gunicorn" || true
 pkill -f "python.*web_server" || true
 pkill -f "flask" || true
-fuser -k 5000/tcp 2>/dev/null || true
+fuser -k 8080/tcp 2>/dev/null || true
 sleep 2
 echo "✓ 进程清理完成"
 echo ""
@@ -255,7 +255,7 @@ sudo mkdir -p /var/log/supervisor
 echo "创建Supervisor配置文件..."
 cat > /tmp/supervisor_config.conf << 'EOFCONF'
 [program:novel-system]
-command=/home/novelapp/novel-system/venv/bin/gunicorn -w 4 -b 0.0.0.0:5000 --timeout 600 --access-logfile /home/novelapp/novel-system/logs/gunicorn-access.log --error-logfile /home/novelapp/novel-system/logs/gunicorn-error.log --log-level info web.wsgi:app
+command=/home/novelapp/novel-system/venv/bin/gunicorn -w 4 -b 0.0.0.0:8080 --timeout 600 --access-logfile /home/novelapp/novel-system/logs/gunicorn-access.log --error-logfile /home/novelapp/novel-system/logs/gunicorn-error.log --log-level info web.wsgi:app
 directory=/home/novelapp/novel-system
 user=root
 autostart=true
@@ -314,7 +314,7 @@ echo "启动应用服务..."
 sudo supervisorctl start novel-system || {
     echo "⚠️  Supervisor启动失败，尝试手动启动..."
     echo "使用nohup在后台启动..."
-    nohup venv/bin/gunicorn -w 2 -b 0.0.0.0:5000 --timeout 600 web.wsgi:app > logs/gunicorn.log 2>&1 &
+    nohup venv/bin/gunicorn -w 2 -b 0.0.0.0:8080 --timeout 600 web.wsgi:app > logs/gunicorn.log 2>&1 &
     sleep 3
     echo "✓ 应用已手动启动（使用nohup）"
     
@@ -328,11 +328,11 @@ sudo supervisorctl start novel-system || {
         echo ""
         echo "服务信息:"
         echo "  状态: 运行中（nohup后台模式）"
-        echo "  端口: 5000"
+        echo "  端口: 8080"
         echo ""
         echo "访问地址:"
-        echo "  本地: http://localhost:5000"
-        echo "  公网: http://8.163.37.124:5000"
+        echo "  本地: http://localhost:8080"
+        echo "  公网: http://8.163.37.124:8080"
         echo ""
         echo "管理命令:"
         echo "  查看进程: ps aux | grep gunicorn"
@@ -350,7 +350,7 @@ sudo supervisorctl start novel-system || {
         echo "   python -c \"from web.web_server_refactored import app\""
         echo ""
         echo "2. 手动测试启动:"
-        echo "   gunicorn -w 2 -b 0.0.0.0:5000 --timeout 600 web.wsgi:app"
+        echo "   gunicorn -w 2 -b 0.0.0.0:8080 --timeout 600 web.wsgi:app"
         echo ""
         exit 1
     fi
@@ -367,11 +367,11 @@ if sudo supervisorctl status novel-system 2>/dev/null | grep -q "RUNNING"; then
     echo ""
     echo "服务信息:"
     echo "  状态: 运行中"
-    echo "  端口: 5000"
+    echo "  端口: 8080"
     echo ""
     echo "访问地址:"
-    echo "  本地: http://localhost:5000"
-    echo "  公网: http://8.163.37.124:5000"
+    echo "  本地: http://localhost:8080"
+    echo "  公网: http://8.163.37.124:8080"
     echo ""
     echo "常用命令:"
     echo "  查看状态: sudo supervisorctl status novel-system"
@@ -397,7 +397,7 @@ else
     echo "4. 手动测试启动:"
     echo "   cd /home/novelapp/novel-system"
     echo "   source venv/bin/activate"
-    echo "   gunicorn -w 2 -b 0.0.0.0:5000 --timeout 600 web.wsgi:app"
+    echo "   gunicorn -w 2 -b 0.0.0.0:8080 --timeout 600 web.wsgi:app"
     echo ""
     exit 1
 fi

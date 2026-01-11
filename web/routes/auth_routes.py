@@ -27,8 +27,8 @@ def register_auth_routes(app):
                 logger.info(f"✅ 测试用户登录成功: {username} (密码: {'空' if not password else '***'})")
 
                 if request.is_json:
-                    return jsonify({'success': True, 'message': '测试用户登录成功', 'redirect': '/'})
-                return redirect('/')
+                    return jsonify({'success': True, 'message': '测试用户登录成功', 'redirect': '/landing'})
+                return redirect('/landing')
 
             # 正常验证流程
             if user_auth.verify_user(username, password):
@@ -38,8 +38,8 @@ def register_auth_routes(app):
                 logger.info(f"✅ 用户登录成功: {username}")
 
                 if request.is_json:
-                    return jsonify({'success': True, 'message': '登录成功', 'redirect': '/'})
-                return redirect('/')
+                    return jsonify({'success': True, 'message': '登录成功', 'redirect': '/landing'})
+                return redirect('/landing')
             else:
                 logger.info(f"❌ 登录失败: {username}")
                 if request.is_json:
@@ -48,7 +48,7 @@ def register_auth_routes(app):
 
         # GET 请求 - 显示登录页面
         if 'logged_in' in session and session['logged_in']:
-            return redirect('/')
+            return redirect('/landing')
         return render_template('login.html')
 
     @app.route('/logout', methods=['GET', 'POST'])

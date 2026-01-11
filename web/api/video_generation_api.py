@@ -1065,6 +1065,9 @@ def _generate_ai_shot_descriptions(prompt: str, shot_count: int, video_type: str
     """
     使用AI为每个镜头生成独特的描述
     
+    🔥 重要：此函数使用专用的视频生成API调用，不使用小说的APIClient
+    以避免"番茄小说风格"等不相关的提示词干扰
+    
     Args:
         prompt: 用户输入的原始提示词
         shot_count: 需要生成的镜头数量
@@ -1076,7 +1079,7 @@ def _generate_ai_shot_descriptions(prompt: str, shot_count: int, video_type: str
     try:
         logger.info(f"🤖 [VIDEO] 调用AI生成{shot_count}个独特的镜头描述...")
         
-        # 🔥 使用NovelGenerationManager的方式加载配置
+        # 🔥 使用专用的视频生成API调用，避免小说风格干扰
         try:
             import sys
             import importlib.util
@@ -1099,10 +1102,20 @@ def _generate_ai_shot_descriptions(prompt: str, shot_count: int, video_type: str
             else:
                 raise ImportError("无法创建config模块规格")
             
-            from src.core.APIClient import APIClient
-            api_client = APIClient(api_config)
+            # 🔥 关键修复：直接调用底层API，不使用APIClient（它会添加小说风格提示词）
+            # 获取API配置
+            provider = api_config.get('default_provider', 'gemini')
+            provider_config = api_config.get('providers', {}).get(provider, {})
+            api_key = provider_config.get('api_key', '')
+            api_url = provider_config.get('api_url', '')
+            model = provider_config.get('model', 'gemini-2.0-flash-exp')
             
-            # 构建AI提示词
+            if not api_key or not api_url:
+                raise ValueError("API配置不完整")
+            
+            logger.info(f"🔧 [VIDEO] 使用配置: provider={provider}, model={model}")
+            
+            # 🔥 构建专用的视频生成提示词（不包含任何小说风格相关内容）
             type_guide = {
                 "short_film": "短片风格：每个镜头应该富有电影感，注重视觉美学和艺术性",
                 "long_series": "剧集风格：镜头应该叙事清晰，节奏适中，注重故事连贯性",
@@ -1152,16 +1165,47 @@ def _generate_ai_shot_descriptions(prompt: str, shot_count: int, video_type: str
 ⚠️ 避免重复的词汇和句式
 ⚠️ 确保视觉叙事的连贯性和递进性"""
 
-            # 调用AI生成
-            logger.info(f"📡 [VIDEO] 发起AI请求...")
-            result = api_client.call_api(
-                system_prompt="你是一位专业的视频导演，擅长创作富有视觉冲击力的分镜头脚本。",
-                user_prompt=ai_prompt,
-                temperature=0.8,
-                purpose=f"视频镜头描述生成({shot_count}个镜头)"
-            )
+            # 🔥 直接调用API（不使用APIClient，避免小说风格干扰）
+            logger.info(f"📡 [VIDEO] 发起AI请求（直接API调用，避开小说风格系统）...")
+            logger.info(f"📡 [VIDEO] API URL: {api_url}")
+            logger.info(f"📡 [VIDEO] Model: {model}")
             
-            if result:
+            import requests
+            
+            headers = {
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {api_key}"
+            }
+            
+            payload = {
+                "model": model,
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": "你是一位专业的视频导演，擅长创作富有视觉冲击力的分镜头脚本。"
+                    },
+                    {
+                        "role": "user",
+                        "content": ai_prompt
+                    }
+                ],
+                "temperature": 0.8,
+                "stream": False
+            }
+            
+            logger.info(f"📡 [VIDEO] 请求载荷大小: {len(str(payload))} 字符")
+            
+            response = requests.post(api_url, headers=headers, json=payload, timeout=120)
+            
+            if response.status_code == 200:
+                result_json = response.json()
+                # 提取生成的文本
+                if 'choices' in result_json and len(result_json['choices']) > 0:
+                    result = result_json['choices'][0].get('message', {}).get('content', '')
+                else:
+                    result = str(result_json)
+                
+                logger.info(f"✅ [VIDEO] API响应成功，长度: {len(result)}字符")
                 # 解析AI返回的镜头描述
                 logger.info(f"✅ [VIDEO] AI响应成功，长度: {len(result)}字符")
                 logger.info(f"📋 [VIDEO] 原始响应预览:")
