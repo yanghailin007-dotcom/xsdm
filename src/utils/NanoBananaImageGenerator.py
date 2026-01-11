@@ -135,7 +135,8 @@ class NanoBananaImageGenerator:
         image_size: str = "4K",
         save_path: Optional[str] = None,
         retry_count: int = 0,
-        reference_image: Optional[str] = None
+        reference_image: Optional[str] = None,
+        reference_images: Optional[List[str]] = None
     ) -> Dict[str, Any]:
         """
         生成图像
@@ -146,7 +147,8 @@ class NanoBananaImageGenerator:
             image_size: 图片尺寸 (1K, 2K, 4K)
             save_path: 保存路径，如果为None则自动生成
             retry_count: 当前重试次数
-            reference_image: 参考图像路径（支持图像转图像生成）
+            reference_image: 参考图像路径（支持图像转图像生成，已弃用，请使用reference_images）
+            reference_images: 参考图像路径列表（支持多张参考图）
             
         Returns:
             dict: 包含生成结果的字典
@@ -163,7 +165,7 @@ class NanoBananaImageGenerator:
                 "error": "未配置API密钥，请在config/config.py中配置nanobanana.api_key"
             }
         
-        # 🔥 新增：处理参考图像
+        # 🔥 新增：处理多个参考图像
         parts = []
         
         # 🔥 重要：先添加文本提示词，再添加参考图像（符合API规范）
@@ -171,33 +173,38 @@ class NanoBananaImageGenerator:
             "text": prompt
         })
         
-        # 如果有参考图像，添加图像到parts
-        if reference_image:
-            try:
-                # 读取并编码参考图像
-                if not os.path.exists(reference_image):
-                    self.logger.warn(f"⚠️ 参考图像不存在: {reference_image}")
-                else:
-                    with open(reference_image, 'rb') as f:
-                        ref_image_data = f.read()
-                     
-                    # 获取MIME类型
-                    import mimetypes
-                    mime_type = mimetypes.guess_type(reference_image)[0] or 'image/jpeg'
-                     
-                    # 编码为base64
-                    ref_image_base64 = base64.b64encode(ref_image_data).decode('utf-8')
-                     
-                    parts.append({
-                        "inline_data": {  # 使用下划线格式，符合API规范
-                            "mime_type": mime_type,  # 使用下划线格式
-                            "data": ref_image_base64
-                        }
-                    })
-                    # 🔥 不打印参考图像的base64数据
-                    self.logger.debug(f"✅ 已添加参考图像: {reference_image} ({len(ref_image_data)} bytes, base64编码后长度: {len(ref_image_base64)} 字符)")
-            except Exception as e:
-                self.logger.debug(f"⚠️ 添加参考图像失败: {e}，继续使用纯文本模式")
+        # 兼容处理：将单个参考图像转换为列表
+        if reference_image and not reference_images:
+            reference_images = [reference_image]
+        
+        # 如果有多个参考图像，添加所有图像到parts
+        if reference_images:
+            for idx, ref_image_path in enumerate(reference_images):
+                try:
+                    # 读取并编码参考图像
+                    if not os.path.exists(ref_image_path):
+                        self.logger.warn(f"⚠️ 参考图像{idx+1}不存在: {ref_image_path}")
+                    else:
+                        with open(ref_image_path, 'rb') as f:
+                            ref_image_data = f.read()
+                        
+                        # 获取MIME类型
+                        import mimetypes
+                        mime_type = mimetypes.guess_type(ref_image_path)[0] or 'image/jpeg'
+                        
+                        # 编码为base64
+                        ref_image_base64 = base64.b64encode(ref_image_data).decode('utf-8')
+                        
+                        parts.append({
+                            "inline_data": {  # 使用下划线格式，符合API规范
+                                "mime_type": mime_type,  # 使用下划线格式
+                                "data": ref_image_base64
+                            }
+                        })
+                        # 🔥 不打印参考图像的base64数据
+                        self.logger.debug(f"✅ 已添加参考图像{idx+1}: {ref_image_path} ({len(ref_image_data)} bytes, base64编码后长度: {len(ref_image_base64)} 字符)")
+                except Exception as e:
+                    self.logger.debug(f"⚠️ 添加参考图像{idx+1}失败: {e}，跳过此图像")
         
         # 构建请求体（移除role字段，使用简化的contents结构）
         request_body = {
@@ -224,7 +231,11 @@ class NanoBananaImageGenerator:
             self.logger.info(f"  - 超时: {self.timeout}秒")
             self.logger.info(f"  - 提示词长度: {len(prompt)} 字符")
             self.logger.info(f"  - 提示词内容: {prompt}")  # 显示完整提示词
-            if reference_image:
+            if reference_images:
+                self.logger.info(f"  - 参考图像数量: {len(reference_images)} 张")
+                for idx, ref_img in enumerate(reference_images):
+                    self.logger.info(f"    参考图{idx+1}: {ref_img}")
+            elif reference_image:
                 self.logger.info(f"  - 参考图像: {reference_image}")
             
             # 发送请求
@@ -240,7 +251,9 @@ class NanoBananaImageGenerator:
             self.logger.debug(f"请求体大小: {request_body_size} 字节")
             
             # 如果有参考图像，单独记录
-            if reference_image:
+            if reference_images:
+                self.logger.debug(f"  - 包含参考图像: {len(reference_images)} 张")
+            elif reference_image:
                 self.logger.debug(f"  - 包含参考图像: {reference_image}")
             self.logger.debug(f"Authorization Header: Bearer {self.api_key[:20]}...{self.api_key[-4:]}")  # 日志中只显示部分
             

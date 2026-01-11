@@ -1951,7 +1951,8 @@ def generate_character_portrait():
         "character_data": {...},  // 完整的角色数据
         "aspect_ratio": "16:9",    // 可选，默认16:9
         "image_size": "4K",         // 可选，默认4K
-        "reference_image": "/path/to/reference.jpg"  // 可选，参考图像路径
+        "reference_images": ["/path/to/reference1.jpg", ...]  // 可选，多个参考图像路径数组
+        "reference_image": "/path/to/reference.jpg"  // 兼容旧版本，单个参考图像
     }
     """
     try:
@@ -1961,9 +1962,14 @@ def generate_character_portrait():
         character_data = data.get('character_data', {})
         aspect_ratio = data.get('aspect_ratio', '9:16')  # 默认竖屏，适合角色展示
         image_size = data.get('image_size', '4K')
-        reference_image = data.get('reference_image')  # 🔥 新增：参考图像
+        reference_images = data.get('reference_images', [])  # 🔥 新增：多个参考图像数组
+        reference_image = data.get('reference_image')  # 兼容旧版本：单个参考图像
         custom_prompt = data.get('prompt', '')  # 🔥 新增：自定义提示词（用于自定义模式）
         custom_style = data.get('style', '')  # 🔥 新增：自定义风格（用于自定义模式）
+        
+        # 🔥 兼容处理：将单个参考图像转换为数组
+        if reference_image and not reference_images:
+            reference_images = [reference_image]
         
         logger.info(f"🎨 [VIDEO] ===== 开始生成角色剧照 =====")
         logger.info(f"📝 [VIDEO] 请求参数:")
@@ -1974,12 +1980,14 @@ def generate_character_portrait():
         logger.info(f"  - 图片比例: {aspect_ratio}")
         logger.info(f"  - 图片质量: {image_size}")
         # 🔥 不打印完整的参考图像base64数据
-        if reference_image:
-            # 检测是否是base64数据格式
-            is_base64 = reference_image.startswith('data:image/')
-            ref_type = "Base64数据" if is_base64 else "文件路径"
-            preview = reference_image[:50] + "..." if len(reference_image) > 50 else reference_image
-            logger.info(f"  - 参考图像: {ref_type} (总长度: {len(reference_image)} 字符, 预览: {preview})")
+        if reference_images:
+            logger.info(f"  - 参考图像数量: {len(reference_images)} 张")
+            for idx, ref_img in enumerate(reference_images):
+                # 检测是否是base64数据格式
+                is_base64 = ref_img.startswith('data:image/')
+                ref_type = "Base64数据" if is_base64 else "文件路径"
+                preview = ref_img[:50] + "..." if len(ref_img) > 50 else ref_img
+                logger.info(f"    参考图{idx+1}: {ref_type} (总长度: {len(ref_img)} 字符, 预览: {preview})")
         else:
             logger.info(f"  - 参考图像: 无")
         logger.info(f"  - 自定义提示词: {custom_prompt[:50] if custom_prompt else '无'}...")
@@ -2032,64 +2040,73 @@ def generate_character_portrait():
             logger.info(f"📝 [VIDEO] 提示词长度: {len(prompt)} 字符")
             logger.info(f"📝 [VIDEO] 提示词预览: {prompt[:200]}...")
         
-        # 🔥 新增：处理参考图像路径（支持文件路径和Base64数据）
-        ref_image_path = None
-        if reference_image:
+        # 🔥 新增：处理多个参考图像路径（支持文件路径和Base64数据）
+        ref_image_paths = []
+        if reference_images:
             import os
             import tempfile
             import base64
             
-            # 检测是否是base64数据格式
-            if reference_image.startswith('data:image/'):
-                try:
-                    # 解析base64数据
-                    header, data = reference_image.split(',', 1)
-                    # 获取MIME类型
-                    mime_type = header.split(':')[1].split(';')[0]
-                    # 获取文件扩展名
-                    ext_map = {
-                        'image/png': '.png',
-                        'image/jpeg': '.jpg',
-                        'image/jpg': '.jpg',
-                        'image/gif': '.gif',
-                        'image/webp': '.webp'
-                    }
-                    ext = ext_map.get(mime_type, '.png')
-                    
-                    # 创建临时目录（如果不存在）
-                    temp_dir = os.path.join(BASE_DIR, 'temp_uploads')
-                    os.makedirs(temp_dir, exist_ok=True)
-                    
-                    # 创建临时文件保存base64图像
-                    with tempfile.NamedTemporaryFile(delete=False, suffix=ext, dir=temp_dir) as f:
-                        temp_path = f.name
-                        f.write(base64.b64decode(data))
-                    
-                    ref_image_path = temp_path
-                    logger.info(f"🖼️ [VIDEO] Base64图像已保存到临时文件: {ref_image_path}")
-                except Exception as e:
-                    logger.error(f"❌ [VIDEO] 处理Base64图像失败: {e}")
-                    ref_image_path = None
-            elif reference_image.startswith('/generated_images/'):
-                # 如果是URL路径，转换为本地路径
-                ref_image_path = os.path.join(BASE_DIR, reference_image.lstrip('/'))
-                logger.info(f"🖼️ [VIDEO] 参考图像路径转换: {reference_image} -> {ref_image_path}")
-            else:
-                # 直接使用作为文件路径
-                ref_image_path = reference_image
-            
-            # 验证文件存在
-            if ref_image_path and not os.path.exists(ref_image_path):
-                logger.warn(f"⚠️ [VIDEO] 参考图像不存在，将使用纯文本模式: {ref_image_path}")
+            for idx, reference_image in enumerate(reference_images):
                 ref_image_path = None
+                
+                # 检测是否是base64数据格式
+                if reference_image.startswith('data:image/'):
+                    try:
+                        # 解析base64数据
+                        header, data = reference_image.split(',', 1)
+                        # 获取MIME类型
+                        mime_type = header.split(':')[1].split(';')[0]
+                        # 获取文件扩展名
+                        ext_map = {
+                            'image/png': '.png',
+                            'image/jpeg': '.jpg',
+                            'image/jpg': '.jpg',
+                            'image/gif': '.gif',
+                            'image/webp': '.webp'
+                        }
+                        ext = ext_map.get(mime_type, '.png')
+                        
+                        # 创建临时目录（如果不存在）
+                        temp_dir = os.path.join(BASE_DIR, 'temp_uploads')
+                        os.makedirs(temp_dir, exist_ok=True)
+                        
+                        # 创建临时文件保存base64图像
+                        with tempfile.NamedTemporaryFile(delete=False, suffix=ext, dir=temp_dir) as f:
+                            temp_path = f.name
+                            f.write(base64.b64decode(data))
+                        
+                        ref_image_path = temp_path
+                        logger.info(f"🖼️ [VIDEO] Base64图像{idx+1}已保存到临时文件: {ref_image_path}")
+                    except Exception as e:
+                        logger.error(f"❌ [VIDEO] 处理Base64图像{idx+1}失败: {e}")
+                        ref_image_path = None
+                elif reference_image.startswith('/generated_images/'):
+                    # 如果是URL路径，转换为本地路径
+                    ref_image_path = os.path.join(BASE_DIR, reference_image.lstrip('/'))
+                    logger.info(f"🖼️ [VIDEO] 参考图像{idx+1}路径转换: {reference_image} -> {ref_image_path}")
+                else:
+                    # 直接使用作为文件路径
+                    ref_image_path = reference_image
+                
+                # 验证文件存在
+                if ref_image_path and not os.path.exists(ref_image_path):
+                    logger.warn(f"⚠️ [VIDEO] 参考图像{idx+1}不存在，将跳过: {ref_image_path}")
+                    ref_image_path = None
+                
+                if ref_image_path:
+                    ref_image_paths.append(ref_image_path)
+            
+            logger.info(f"✅ [VIDEO] 成功处理 {len(ref_image_paths)} 张参考图像")
         
-        # 🔥 直接使用NanoBananaImageGenerator（支持参考图像）
+        # 🔥 直接使用NanoBananaImageGenerator（支持多个参考图像）
         from src.utils.NanoBananaImageGenerator import NanoBananaImageGenerator
         generator = NanoBananaImageGenerator()
         
         logger.debug(f"🎨 [VIDEO] 准备调用NanoBananaImageGenerator...")
         logger.debug(f"📝 [VIDEO] 提示词长度: {len(prompt)} 字符")
         logger.debug(f"📝 [VIDEO] 提示词预览: {prompt[:100]}...")  # 只显示前100字符
+        logger.debug(f"🖼️ [VIDEO] 参考图像数量: {len(ref_image_paths)}")
         # 生成文件名
         if is_custom_mode:
             # 自定义模式：使用通用文件名
@@ -2103,20 +2120,20 @@ def generate_character_portrait():
         filename = f"{title or 'custom'}_{safe_name}_portrait_{timestamp}"
         logger.debug(f"💾 [VIDEO] 生成文件名: {filename}")
         
-        # 生成图像（支持参考图像）
+        # 生成图像（支持多个参考图像）
         logger.debug(f"🚀 [VIDEO] 调用NanoBananaImageGenerator.generate_image()...")
         logger.debug(f"📤 [VIDEO] 请求参数:")
         logger.debug(f"  - prompt长度: {len(prompt)}")
         logger.debug(f"  - aspect_ratio: {aspect_ratio}")
         logger.debug(f"  - image_size: {image_size}")
-        logger.debug(f"  - reference_image: {ref_image_path or 'None'}")
+        logger.debug(f"  - reference_images: {len(ref_image_paths)} 张")
         
         result = generator.generate_image(
             prompt=prompt,
             aspect_ratio=aspect_ratio,
             image_size=image_size,
             save_path=None,  # 自动生成路径
-            reference_image=ref_image_path  # 🔥 传递参考图像
+            reference_images=ref_image_paths  # 🔥 传递多个参考图像（数组）
         )
         
         logger.info(f"📥 [VIDEO] NanoBananaImageGenerator返回结果:")
@@ -2149,9 +2166,9 @@ def generate_character_portrait():
             
             # 构建返回消息
             if is_custom_mode:
-                message = f"自定义剧照生成成功" + (" (使用参考图像)" if ref_image_path else "")
+                message = f"自定义剧照生成成功" + (f" (使用{len(ref_image_paths)}张参考图)" if ref_image_paths else "")
             else:
-                message = f"角色 {character_name} 的剧照生成成功" + (" (使用参考图像)" if ref_image_path else "")
+                message = f"角色 {character_name} 的剧照生成成功" + (f" (使用{len(ref_image_paths)}张参考图)" if ref_image_paths else "")
             
             return jsonify({
                 "success": True,
@@ -2159,7 +2176,7 @@ def generate_character_portrait():
                 "image_url": image_url,  # HTTP URL（用于浏览器显示）
                 "prompt": prompt,
                 "character_name": character_name if not is_custom_mode else '自定义',
-                "used_reference_image": ref_image_path is not None,  # 🔥 新增：是否使用了参考图像
+                "used_reference_images": len(ref_image_paths),  # 🔥 新增：使用了多少张参考图
                 "message": message
             })
         else:

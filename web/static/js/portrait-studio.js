@@ -1,12 +1,14 @@
 /**
  * 人物剧照工作室 - 简化版
  * 专注于参考图上传和提示词编辑
+ * 支持多张参考图上传
  */
 
 class PortraitStudio {
     constructor() {
-        this.referenceImage = null;
+        this.referenceImages = [];  // 改为数组，存储多张参考图
         this.generatedImageUrl = null;
+        this.maxRefImages = 5;  // 最多支持5张参考图
         
         this.init();
     }
@@ -72,9 +74,9 @@ class PortraitStudio {
             
             // 文件选择
             fileInput.addEventListener('change', (e) => {
-                const file = e.target.files[0];
-                if (file && file.type.startsWith('image/')) {
-                    this.handleImageUpload(file);
+                const files = e.target.files;
+                if (files && files.length > 0) {
+                    this.handleImageUpload(files);
                 }
             });
             
@@ -92,46 +94,116 @@ class PortraitStudio {
                 e.preventDefault();
                 uploadZone.style.borderColor = '';
                 
-                const file = e.dataTransfer.files[0];
-                if (file && file.type.startsWith('image/')) {
-                    this.handleImageUpload(file);
+                const files = e.dataTransfer.files;
+                if (files && files.length > 0) {
+                    this.handleImageUpload(files);
                 }
-            });
-            
-            // 移除参考图
-            document.getElementById('removeRefBtn')?.addEventListener('click', (e) => {
-                e.stopPropagation();
-                this.removeReference();
             });
         }
     }
     
-    handleImageUpload(file) {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            this.referenceImage = e.target.result;
-            const refPreviewImg = document.getElementById('refPreviewImg');
-            refPreviewImg.src = e.target.result;
+    handleImageUpload(files) {
+        // 处理多个文件
+        const fileArray = Array.from(files);
+        
+        // 检查数量限制
+        if (this.referenceImages.length + fileArray.length > this.maxRefImages) {
+            this.showToast(`最多只能上传${this.maxRefImages}张参考图`, 'error');
+            return;
+        }
+        
+        let processedCount = 0;
+        
+        fileArray.forEach(file => {
+            if (!file.type.startsWith('image/')) {
+                this.showToast(`文件 ${file.name} 不是图片`, 'error');
+                return;
+            }
             
-            const uploadZone = document.getElementById('refUploadZone');
-            uploadZone.querySelector('.upload-placeholder').style.display = 'none';
-            uploadZone.querySelector('.upload-preview').style.display = 'block';
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                // 添加到参考图数组
+                this.referenceImages.push({
+                    id: Date.now() + Math.random(),
+                    name: file.name,
+                    data: e.target.result
+                });
+                
+                processedCount++;
+                
+                // 所有文件处理完成后更新UI
+                if (processedCount === fileArray.length) {
+                    this.updateReferencePreview();
+                    this.showToast(`成功上传${processedCount}张参考图`, 'success');
+                }
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+    
+    updateReferencePreview() {
+        const uploadZone = document.getElementById('refUploadZone');
+        const placeholder = uploadZone.querySelector('.upload-placeholder');
+        const previewContainer = document.getElementById('refPreviewContainer');
+        const countInfo = document.getElementById('refCountInfo');
+        const countSpan = document.getElementById('refCount');
+        
+        // 清空预览容器
+        previewContainer.innerHTML = '';
+        
+        if (this.referenceImages.length === 0) {
+            // 没有参考图
+            placeholder.style.display = 'block';
+            previewContainer.style.display = 'none';
+            countInfo.style.display = 'none';
+        } else {
+            // 有参考图
+            placeholder.style.display = 'none';
+            previewContainer.style.display = 'grid';
+            countInfo.style.display = 'block';
+            countSpan.textContent = this.referenceImages.length;
             
-            this.showToast('参考图上传成功', 'success');
-        };
-        reader.readAsDataURL(file);
+            // 为每张参考图创建预览
+            this.referenceImages.forEach((ref, index) => {
+                const item = document.createElement('div');
+                item.className = 'upload-preview-item';
+                
+                const img = document.createElement('img');
+                img.src = ref.data;
+                img.alt = `参考图${index + 1}`;
+                
+                const removeBtn = document.createElement('button');
+                removeBtn.className = 'remove-btn';
+                removeBtn.innerHTML = '×';
+                removeBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    this.removeReferenceImage(ref.id);
+                };
+                
+                item.appendChild(img);
+                item.appendChild(removeBtn);
+                previewContainer.appendChild(item);
+            });
+        }
+    }
+    
+    removeReferenceImage(id) {
+        const index = this.referenceImages.findIndex(ref => ref.id === id);
+        if (index !== -1) {
+            this.referenceImages.splice(index, 1);
+            this.updateReferencePreview();
+            this.showToast('参考图已移除', 'success');
+        }
     }
     
     removeReference() {
-        this.referenceImage = null;
+        // 清空所有参考图
+        this.referenceImages = [];
         const fileInput = document.getElementById('refFileInput');
         fileInput.value = '';
         
-        const uploadZone = document.getElementById('refUploadZone');
-        uploadZone.querySelector('.upload-placeholder').style.display = 'block';
-        uploadZone.querySelector('.upload-preview').style.display = 'none';
-        
-        this.showToast('参考图已移除', 'success');
+        this.updateReferencePreview();
+        this.showToast('所有参考图已移除', 'success');
     }
     
     applyTemplate(templateType) {
@@ -188,7 +260,7 @@ class PortraitStudio {
                 prompt: prompt,
                 aspect_ratio: aspectRatio,
                 image_size: quality,
-                reference_image: this.referenceImage,
+                reference_images: this.referenceImages.map(ref => ref.data),  // 改为数组
                 style: style
             };
             
@@ -242,16 +314,21 @@ class PortraitStudio {
             return;
         }
         
-        // 将生成的剧照设置为参考图
-        this.referenceImage = this.generatedImageUrl;
-        const refPreviewImg = document.getElementById('refPreviewImg');
-        refPreviewImg.src = this.generatedImageUrl;
+        // 检查数量限制
+        if (this.referenceImages.length >= this.maxRefImages) {
+            this.showToast(`最多只能上传${this.maxRefImages}张参考图，请先删除一些`, 'error');
+            return;
+        }
         
-        const uploadZone = document.getElementById('refUploadZone');
-        uploadZone.querySelector('.upload-placeholder').style.display = 'none';
-        uploadZone.querySelector('.upload-preview').style.display = 'block';
+        // 将生成的剧照添加为参考图
+        this.referenceImages.push({
+            id: Date.now(),
+            name: `生成剧照_${Date.now()}.png`,
+            data: this.generatedImageUrl
+        });
         
-        this.showToast('已将当前剧照设置为参考图', 'success');
+        this.updateReferencePreview();
+        this.showToast('已将当前剧照添加为参考图', 'success');
     }
     
     showToast(message, type = 'success') {
