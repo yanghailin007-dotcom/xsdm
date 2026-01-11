@@ -165,15 +165,8 @@ class VideoGenerator {
     }
     
     showPortraitModeScreen() {
-        document.getElementById('modeSelectionScreen').style.display = 'none';
-        document.getElementById('portraitModeScreen').style.display = 'block';
-        this.updateCurrentStatus('剧照生成：选择生成方式');
-        
-        // 隐藏左侧小说列表
-        document.querySelector('.main-container').classList.add('hide-sidebar');
-        
-        // 高亮第一步
-        this.highlightWorkflowStep(1);
+        // 直接跳转到独立的人物剧照工作室页面
+        window.location.href = '/portrait-studio';
     }
     
     showPortraitNovelConfig() {

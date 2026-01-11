@@ -1962,39 +1962,67 @@ def generate_character_portrait():
         aspect_ratio = data.get('aspect_ratio', '9:16')  # 默认竖屏，适合角色展示
         image_size = data.get('image_size', '4K')
         reference_image = data.get('reference_image')  # 🔥 新增：参考图像
+        custom_prompt = data.get('prompt', '')  # 🔥 新增：自定义提示词（用于自定义模式）
+        custom_style = data.get('style', '')  # 🔥 新增：自定义风格（用于自定义模式）
         
         logger.info(f"🎨 [VIDEO] ===== 开始生成角色剧照 =====")
         logger.info(f"📝 [VIDEO] 请求参数:")
-        logger.info(f"  - 小说标题: {title}")
-        logger.info(f"  - 角色ID: {character_id}")
+        logger.info(f"  - 小说标题: {title or '自定义模式'}")
+        logger.info(f"  - 角色ID: {character_id or '自定义模式'}")
         logger.info(f"  - 角色名称: {character_data.get('name', 'Unknown')}")
         logger.info(f"  - 角色定位: {character_data.get('role', 'Unknown')}")
         logger.info(f"  - 图片比例: {aspect_ratio}")
         logger.info(f"  - 图片质量: {image_size}")
         logger.info(f"  - 参考图像: {reference_image or '无'}")
+        logger.info(f"  - 自定义提示词: {custom_prompt[:50] if custom_prompt else '无'}...")
+        logger.info(f"  - 自定义风格: {custom_style or '无'}")
         
-        if not title or not character_id:
+        # 🔥 修复：支持自定义模式（不需要 title 和 character_id）
+        is_custom_mode = bool(custom_prompt)
+        
+        if not is_custom_mode and (not title or not character_id):
             logger.error(f"❌ [VIDEO] 缺少必需参数: title={title}, character_id={character_id}")
             return jsonify({"success": False, "error": "缺少必需参数: title 或 character_id"}), 400
         
-        logger.info(f"🎨 [VIDEO] 生成角色剧照: {title} - {character_id}")
+        logger.info(f"🎨 [VIDEO] 生成角色剧照: {title or '自定义模式'} - {character_id or '自定义模式'} (模式: {'自定义' if is_custom_mode else '角色'})")
         
-        # 使用EventExtractor生成剧照提示词
-        from src.managers.EventExtractor import get_event_extractor
-        event_extractor = get_event_extractor(logger)
-        
-        logger.info(f"🔧 [VIDEO] 开始生成角色提示词...")
         # 生成剧照提示词
-        character_prompts = event_extractor.generate_character_prompts([character_data])
-        
-        if not character_prompts:
-            logger.error(f"❌ [VIDEO] 生成角色提示词失败: character_prompts为空")
-            return jsonify({"success": False, "error": "生成角色提示词失败"}), 500
-        
-        prompt = character_prompts[0].get('generation_prompt', '')
-        logger.info(f"✅ [VIDEO] 角色提示词生成成功")
-        logger.info(f"📝 [VIDEO] 提示词长度: {len(prompt)} 字符")
-        logger.info(f"📝 [VIDEO] 提示词预览: {prompt[:200]}...")
+        if is_custom_mode:
+            # 🔥 自定义模式：直接使用用户输入的提示词
+            prompt = custom_prompt
+            
+            # 添加风格指导
+            if custom_style:
+                style_guide = {
+                    'xianxia': '仙侠风格，飘逸洒脱，仙气缭绕',
+                    'modern': '现代都市，时尚简约，充满活力',
+                    'fantasy': '奇幻魔法，神秘华丽，充满魔力',
+                    'sci': '科幻未来，科技感强，赛博朋克',
+                    'romance': '浪漫唯美，温柔细腻，梦幻氛围'
+                }
+                if custom_style in style_guide:
+                    prompt = f"{prompt}\n\n风格要求：{style_guide[custom_style]}"
+            
+            logger.info(f"✅ [VIDEO] 使用自定义提示词")
+            logger.info(f"📝 [VIDEO] 提示词长度: {len(prompt)} 字符")
+            logger.info(f"📝 [VIDEO] 提示词预览: {prompt[:200]}...")
+        else:
+            # 角色模式：使用EventExtractor生成剧照提示词
+            from src.managers.EventExtractor import get_event_extractor
+            event_extractor = get_event_extractor(logger)
+            
+            logger.info(f"🔧 [VIDEO] 开始生成角色提示词...")
+            # 生成剧照提示词
+            character_prompts = event_extractor.generate_character_prompts([character_data])
+            
+            if not character_prompts:
+                logger.error(f"❌ [VIDEO] 生成角色提示词失败: character_prompts为空")
+                return jsonify({"success": False, "error": "生成角色提示词失败"}), 500
+            
+            prompt = character_prompts[0].get('generation_prompt', '')
+            logger.info(f"✅ [VIDEO] 角色提示词生成成功")
+            logger.info(f"📝 [VIDEO] 提示词长度: {len(prompt)} 字符")
+            logger.info(f"📝 [VIDEO] 提示词预览: {prompt[:200]}...")
         
         # 🔥 新增：处理参考图像路径
         ref_image_path = None
@@ -2015,21 +2043,29 @@ def generate_character_portrait():
         from src.utils.NanoBananaImageGenerator import NanoBananaImageGenerator
         generator = NanoBananaImageGenerator()
         
-        logger.info(f"🎨 [VIDEO] 准备调用NanoBananaImageGenerator...")
+        logger.debug(f"🎨 [VIDEO] 准备调用NanoBananaImageGenerator...")
+        logger.debug(f"📝 [VIDEO] 提示词长度: {len(prompt)} 字符")
+        logger.debug(f"📝 [VIDEO] 提示词预览: {prompt[:100]}...")  # 只显示前100字符
         # 生成文件名
-        character_name = character_data.get('name', 'unknown')
-        safe_name = character_name.replace(' ', '_').replace('/', '_')
+        if is_custom_mode:
+            # 自定义模式：使用通用文件名
+            safe_name = 'custom'
+        else:
+            # 角色模式：使用角色名
+            character_name = character_data.get('name', 'unknown')
+            safe_name = character_name.replace(' ', '_').replace('/', '_')
+        
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"{title}_{safe_name}_portrait_{timestamp}"
-        logger.info(f"💾 [VIDEO] 生成文件名: {filename}")
+        filename = f"{title or 'custom'}_{safe_name}_portrait_{timestamp}"
+        logger.debug(f"💾 [VIDEO] 生成文件名: {filename}")
         
         # 生成图像（支持参考图像）
-        logger.info(f"🚀 [VIDEO] 调用NanoBananaImageGenerator.generate_image()...")
-        logger.info(f"📤 [VIDEO] 请求参数:")
-        logger.info(f"  - prompt长度: {len(prompt)}")
-        logger.info(f"  - aspect_ratio: {aspect_ratio}")
-        logger.info(f"  - image_size: {image_size}")
-        logger.info(f"  - reference_image: {ref_image_path or 'None'}")
+        logger.debug(f"🚀 [VIDEO] 调用NanoBananaImageGenerator.generate_image()...")
+        logger.debug(f"📤 [VIDEO] 请求参数:")
+        logger.debug(f"  - prompt长度: {len(prompt)}")
+        logger.debug(f"  - aspect_ratio: {aspect_ratio}")
+        logger.debug(f"  - image_size: {image_size}")
+        logger.debug(f"  - reference_image: {ref_image_path or 'None'}")
         
         result = generator.generate_image(
             prompt=prompt,
@@ -2067,14 +2103,20 @@ def generate_character_portrait():
             logger.info(f"🌐 [VIDEO] 原始文件名: {image_filename}")
             logger.info(f"🌐 [VIDEO] 编码后文件名: {encoded_filename}")
             
+            # 构建返回消息
+            if is_custom_mode:
+                message = f"自定义剧照生成成功" + (" (使用参考图像)" if ref_image_path else "")
+            else:
+                message = f"角色 {character_name} 的剧照生成成功" + (" (使用参考图像)" if ref_image_path else "")
+            
             return jsonify({
                 "success": True,
                 "image_path": result.get('local_path'),  # 本地路径（用于下载）
                 "image_url": image_url,  # HTTP URL（用于浏览器显示）
                 "prompt": prompt,
-                "character_name": character_name,
+                "character_name": character_name if not is_custom_mode else '自定义',
                 "used_reference_image": ref_image_path is not None,  # 🔥 新增：是否使用了参考图像
-                "message": f"角色 {character_name} 的剧照生成成功" + (" (使用参考图像)" if ref_image_path else "")
+                "message": message
             })
         else:
             logger.error(f"❌ [VIDEO] 角色剧照生成失败: {result.get('error')}")

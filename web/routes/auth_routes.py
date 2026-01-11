@@ -209,6 +209,12 @@ def register_page_routes(app):
         """人物剧照生成页面"""
         return render_template('character-portrait.html')
     
+    @app.route('/portrait-studio', methods=['GET'])
+    @login_required
+    def portrait_studio():
+        """人物剧照工作室页面"""
+        return render_template('portrait-studio.html')
+    
     @app.route('/project-viewer/<project_title>', methods=['GET'])
     @login_required
     def project_viewer(project_title):
