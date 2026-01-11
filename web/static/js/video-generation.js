@@ -47,6 +47,9 @@ class VideoGenerator {
         // 隐藏所有屏幕
         document.getElementById('modeSelectionScreen').style.display = 'block';
         document.getElementById('welcomeScreen').style.display = 'none';
+        document.getElementById('portraitModeScreen').style.display = 'none';
+        document.getElementById('portraitNovelConfigScreen').style.display = 'none';
+        document.getElementById('portraitCustomConfigScreen').style.display = 'none';
         document.getElementById('customPromptScreen').style.display = 'none';
         document.getElementById('eventCharacterSelectionScreen').style.display = 'none';
         document.getElementById('promptPreviewScreen').style.display = 'none';
@@ -83,6 +86,8 @@ class VideoGenerator {
             this.showCustomPromptScreen();
         } else if (mode === 'novel') {
             this.showNovelSelectionScreen();
+        } else if (mode === 'portrait') {
+            this.showPortraitModeScreen();
         }
     }
     
@@ -157,6 +162,45 @@ class VideoGenerator {
         
         // 显示左侧小说列表，使用CSS类
         document.querySelector('.main-container').classList.remove('hide-sidebar');
+    }
+    
+    showPortraitModeScreen() {
+        document.getElementById('modeSelectionScreen').style.display = 'none';
+        document.getElementById('portraitModeScreen').style.display = 'block';
+        this.updateCurrentStatus('剧照生成：选择生成方式');
+        
+        // 隐藏左侧小说列表
+        document.querySelector('.main-container').classList.add('hide-sidebar');
+        
+        // 高亮第一步
+        this.highlightWorkflowStep(1);
+    }
+    
+    showPortraitNovelConfig() {
+        document.getElementById('portraitModeScreen').style.display = 'none';
+        document.getElementById('portraitNovelConfigScreen').style.display = 'block';
+        this.updateCurrentStatus('剧照生成：小说角色');
+        
+        // 隐藏左侧小说列表
+        document.querySelector('.main-container').classList.add('hide-sidebar');
+        
+        // 加载小说列表
+        this.loadPortraitNovels();
+        
+        // 高亮第二步
+        this.highlightWorkflowStep(2);
+    }
+    
+    showPortraitCustomConfig() {
+        document.getElementById('portraitModeScreen').style.display = 'none';
+        document.getElementById('portraitCustomConfigScreen').style.display = 'block';
+        this.updateCurrentStatus('剧照生成：自定义角色');
+        
+        // 隐藏左侧小说列表
+        document.querySelector('.main-container').classList.add('hide-sidebar');
+        
+        // 高亮第二步
+        this.highlightWorkflowStep(2);
     }
     
     async loadVideoTypes() {
@@ -439,6 +483,7 @@ class VideoGenerator {
                             <div class="item-header">
                                 <div class="item-title">${event.title || event.name || '未命名事件'}</div>
                                 ${hasChildren ? `<span class="children-count-badge">${event.children_count}个中级事件</span>` : ''}
+                                <button class="btn-generate-scene" title="生成场景剧照">🎬</button>
                             </div>
                             ${event.description ? `<div class="item-description">${event.description}</div>` : ''}
                             ${event.characters ? `<div class="item-details"><span class="detail-item">👥 ${event.characters}</span></div>` : ''}
@@ -466,6 +511,7 @@ class VideoGenerator {
                                             <div class="item-header">
                                                 <div class="item-title">${child.title || child.name || child.event || child.main_goal || '未命名事件'}</div>
                                                 ${stageBadge}
+                                                <button class="btn-generate-medium-scene" title="生成场景剧照">🎬</button>
                                             </div>
                                             ${child.description ? `<div class="item-description">${child.description}</div>` : ''}
                                             ${child.characters || child.location || child.emotion ? `
@@ -1537,10 +1583,138 @@ class VideoGenerator {
             });
         });
         
+        // 剧照生成模式子模式选择事件
+        document.querySelectorAll('.submode-card').forEach(card => {
+            card.addEventListener('click', () => {
+                const submode = card.dataset.submode;
+                if (submode === 'novel') {
+                    this.showPortraitNovelConfig();
+                } else if (submode === 'custom') {
+                    this.showPortraitCustomConfig();
+                }
+            });
+        });
+        
         // 返回模式选择
         document.getElementById('backToModeBtn').addEventListener('click', () => {
             this.showModeSelectionScreen();
         });
+        
+        // 剧照生成模式返回按钮
+        const backToModeFromPortraitBtn = document.getElementById('backToModeFromPortraitBtn');
+        if (backToModeFromPortraitBtn) {
+            backToModeFromPortraitBtn.addEventListener('click', () => {
+                this.showModeSelectionScreen();
+            });
+        }
+        
+        const backToPortraitSubmodeBtn = document.getElementById('backToPortraitSubmodeBtn');
+        if (backToPortraitSubmodeBtn) {
+            backToPortraitSubmodeBtn.addEventListener('click', () => {
+                this.showPortraitModeScreen();
+            });
+        }
+        
+        const backToPortraitSubmodeFromCustomBtn = document.getElementById('backToPortraitSubmodeFromCustomBtn');
+        if (backToPortraitSubmodeFromCustomBtn) {
+            backToPortraitSubmodeFromCustomBtn.addEventListener('click', () => {
+                this.showPortraitModeScreen();
+            });
+        }
+        
+        // 剧照生成按钮
+        const portraitGenerateBtn = document.getElementById('generatePortraitBtn');
+        if (portraitGenerateBtn) {
+            portraitGenerateBtn.addEventListener('click', () => {
+                this.generatePortrait();
+            });
+        }
+        
+        const customPortraitGenerateBtn = document.getElementById('generateCustomPortraitBtn');
+        if (customPortraitGenerateBtn) {
+            customPortraitGenerateBtn.addEventListener('click', () => {
+                this.generateCustomPortrait();
+            });
+        }
+        
+        const portraitDownloadBtn = document.getElementById('downloadPortraitBtn');
+        if (portraitDownloadBtn) {
+            portraitDownloadBtn.addEventListener('click', () => {
+                this.downloadPortrait();
+            });
+        }
+        
+        const usePortraitAsRefBtn = document.getElementById('usePortraitAsRefBtn');
+        if (usePortraitAsRefBtn) {
+            usePortraitAsRefBtn.addEventListener('click', () => {
+                const resultImage = document.getElementById('generatedPortraitImage');
+                const refInput = document.getElementById('portraitRefInput');
+                const refPreview = document.getElementById('portraitRefPreview');
+                
+                if (resultImage && resultImage.src) {
+                    // 将当前生成的图像设置为参考图像
+                    refInput.files = null;
+                    refPreview.src = resultImage.src;
+                    refPreview.style.display = 'block';
+                    document.querySelector('#portraitRefUploadArea .upload-placeholder').style.display = 'none';
+                    this.showToast('已将当前剧照设置为参考图', 'success');
+                }
+            });
+        }
+        
+        const removePortraitRefBtn = document.getElementById('removePortraitRefBtn');
+        if (removePortraitRefBtn) {
+            removePortraitRefBtn.addEventListener('click', () => {
+                document.getElementById('portraitRefInput').files = null;
+                document.getElementById('portraitRefPreview').src = '';
+                document.getElementById('portraitRefPreview').style.display = 'none';
+                document.querySelector('#portraitRefUploadArea .upload-placeholder').style.display = 'block';
+            });
+        }
+        
+        // 参考图像上传
+        const portraitRefUploadArea = document.getElementById('portraitRefUploadArea');
+        const portraitRefInput = document.getElementById('portraitRefInput');
+        if (portraitRefUploadArea && portraitRefInput) {
+            portraitRefUploadArea.addEventListener('click', () => {
+                portraitRefInput.click();
+            });
+            
+            portraitRefInput.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (file && file.type.startsWith('image/')) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        document.getElementById('portraitRefPreview').src = e.target.result;
+                        document.getElementById('portraitRefPreview').style.display = 'block';
+                        document.querySelector('#portraitRefUploadArea .upload-placeholder').style.display = 'none';
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+        }
+        
+        // 自定义角色参考图像上传
+        const customPortraitRefUploadArea = document.getElementById('customPortraitRefUploadArea');
+        const customPortraitRefInput = document.getElementById('customPortraitRefInput');
+        if (customPortraitRefUploadArea && customPortraitRefInput) {
+            customPortraitRefUploadArea.addEventListener('click', () => {
+                customPortraitRefInput.click();
+            });
+            
+            customPortraitRefInput.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (file && file.type.startsWith('image/')) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        document.getElementById('customPortraitRefPreview').src = e.target.result;
+                        document.getElementById('customPortraitRefPreview').style.display = 'block';
+                        document.querySelector('#customPortraitRefUploadArea .upload-placeholder').style.display = 'none';
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+        }
         
         // 预览自定义提示词
         document.getElementById('previewCustomPromptBtn').addEventListener('click', () => {
@@ -1748,29 +1922,346 @@ class VideoGenerator {
             });
         }
         
-        const generatePortraitBtn = document.getElementById('generatePortraitBtn');
-        if (generatePortraitBtn) {
-            generatePortraitBtn.addEventListener('click', () => {
+        const characterGeneratePortraitBtn = document.getElementById('generatePortraitBtn');
+        if (characterGeneratePortraitBtn) {
+            characterGeneratePortraitBtn.addEventListener('click', () => {
                 this.generateCharacterPortrait();
             });
         }
         
-        const regeneratePortraitBtn = document.getElementById('regeneratePortraitBtn');
-        if (regeneratePortraitBtn) {
-            regeneratePortraitBtn.addEventListener('click', () => {
+        const characterRegeneratePortraitBtn = document.getElementById('regeneratePortraitBtn');
+        if (characterRegeneratePortraitBtn) {
+            characterRegeneratePortraitBtn.addEventListener('click', () => {
                 this.generateCharacterPortrait();
             });
         }
         
-        const downloadPortraitBtn = document.getElementById('downloadPortraitBtn');
-        if (downloadPortraitBtn) {
-            downloadPortraitBtn.addEventListener('click', () => {
+        const characterDownloadPortraitBtn = document.getElementById('downloadPortraitBtn');
+        if (characterDownloadPortraitBtn) {
+            characterDownloadPortraitBtn.addEventListener('click', () => {
                 this.downloadPortrait();
             });
         }
         
+        // 🔥 新增：场景剧照生成相关事件
+        // 为重大事件添加"生成场景剧照"按钮
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('btn-generate-scene')) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                const eventItem = e.target.closest('.major-event-item');
+                if (eventItem) {
+                    const eventId = eventItem.dataset.id;
+                    const eventData = this.findEventById(eventId);
+                    if (eventData) {
+                        this.showScenePortraitPanel(eventData);
+                    }
+                }
+            }
+        });
+        
+        // 为中级事件添加"生成场景剧照"按钮
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('btn-generate-medium-scene')) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                const eventItem = e.target.closest('.medium-event-item');
+                if (eventItem) {
+                    const eventId = eventItem.dataset.id;
+                    const parentEventId = eventItem.dataset.parent;
+                    // 获取父事件
+                    const parentEvent = this.findEventById(parentEventId);
+                    if (parentEvent && parentEvent.children) {
+                        const childEvent = parentEvent.children.find(c =>
+                            `${parentEventId}_${c.id}` === eventId
+                        );
+                        if (childEvent) {
+                            this.showScenePortraitPanel(childEvent);
+                        }
+                    }
+                }
+            }
+        });
+        
         console.log('✅ [事件绑定] 所有事件绑定完成');
         console.log('📋 [事件绑定] 已绑定的按钮数量:', document.querySelectorAll('button').length);
+    }
+    
+    // 🔥 新增：显示场景剧照生成面板
+    showScenePortraitPanel(eventData) {
+        console.log('🎬 [场景剧照] 打开场景剧照生成面板');
+        console.log('📊 [场景剧照] 事件数据:', eventData);
+        
+        // 创建或显示场景剧照面板
+        let panel = document.getElementById('scenePortraitPanel');
+        
+        if (!panel) {
+            // 动态创建面板
+            panel = document.createElement('div');
+            panel.id = 'scenePortraitPanel';
+            panel.className = 'modal-overlay';
+            panel.innerHTML = `
+                <div class="modal-content scene-portrait-modal">
+                    <div class="modal-header">
+                        <h2>🎬 场景剧照生成</h2>
+                        <button class="btn-close" onclick="document.getElementById('scenePortraitPanel').style.display='none'">✕</button>
+                    </div>
+                    
+                    <div class="modal-body">
+                        <!-- 事件信息 -->
+                        <div class="event-info-section">
+                            <h3>${eventData.title || eventData.name || '未命名场景'}</h3>
+                            ${eventData.stage ? `<span class="stage-badge stage-${eventData.stage}">${eventData.stage}</span>` : ''}
+                            <p class="event-description">${eventData.description || '暂无描述'}</p>
+                            ${eventData.location ? `<p><strong>📍 地点:</strong> ${eventData.location}</p>` : ''}
+                            ${eventData.characters ? `<p><strong>👥 角色:</strong> ${eventData.characters}</p>` : ''}
+                            ${eventData.emotion ? `<p><strong>💭 氛围:</strong> ${eventData.emotion}</p>` : ''}
+                        </div>
+                        
+                        <!-- 参考图像上传 -->
+                        <div class="form-group">
+                            <label>参考图像（可选）：</label>
+                            <div class="file-upload-area" id="sceneRefUploadArea">
+                                <input type="file" id="sceneRefInput" accept="image/*" class="hidden">
+                                <div class="upload-placeholder">
+                                    <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+                                        <path d="M38 16H34V12H38V16ZM42 8H32V18H42V8ZM38 22H34V26H38V22ZM42 28H32V38H42V28Z" fill="#666"/>
+                                    </svg>
+                                    <p>点击或拖拽上传参考图像</p>
+                                </div>
+                                <div class="upload-preview" id="sceneRefPreview" style="display: none;">
+                                    <img src="" alt="参考图像预览">
+                                    <button class="remove-btn" id="removeSceneRefBtn">×</button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 生成设置 -->
+                        <div class="form-group">
+                            <label>图片比例：</label>
+                            <select id="sceneAspectRatio" class="form-control">
+                                <option value="16:9" selected>16:9 (横屏)</option>
+                                <option value="9:16">9:16 (竖屏)</option>
+                                <option value="1:1">1:1 (正方形)</option>
+                                <option value="4:3">4:3 (标准)</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>图片质量：</label>
+                            <select id="sceneImageSize" class="form-control">
+                                <option value="4K" selected>4K (超高清)</option>
+                                <option value="2K">2K (高清)</option>
+                                <option value="1K">1K (标清)</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>额外提示词（可选）：</label>
+                            <textarea id="sceneCustomPrompt" class="form-control" rows="3" placeholder="添加额外的描述来调整生成效果..."></textarea>
+                        </div>
+                        
+                        <!-- 生成按钮 -->
+                        <div class="form-actions">
+                            <button id="generateScenePortraitBtn" class="btn-primary btn-large">
+                                🎨 生成场景剧照
+                            </button>
+                        </div>
+                        
+                        <!-- 生成进度 -->
+                        <div id="sceneProgressSection" class="progress-section" style="display: none;">
+                            <div class="progress-info">
+                                <p>⏳ 正在生成场景剧照...</p>
+                                <div class="progress-bar">
+                                    <div class="progress-bar-fill animate-progress"></div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 生成结果 -->
+                        <div id="sceneResultSection" class="result-section" style="display: none;">
+                            <h3>✨ 生成结果</h3>
+                            <div class="result-image-container">
+                                <img id="generatedSceneImage" src="" alt="生成的场景剧照">
+                            </div>
+                            <div class="result-actions">
+                                <button id="downloadSceneBtn" class="btn-secondary">📥 下载</button>
+                                <button id="useSceneAsRefBtn" class="btn-secondary">🔄 用作参考图</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(panel);
+        }
+        
+        // 保存当前事件数据
+        this.currentSceneEvent = eventData;
+        
+        // 显示面板
+        panel.style.display = 'block';
+        
+        // 绑定事件
+        this.bindScenePortraitEvents();
+        
+        // 重置状态
+        document.getElementById('sceneResultSection').style.display = 'none';
+        document.getElementById('sceneProgressSection').style.display = 'none';
+        document.getElementById('generateScenePortraitBtn').style.display = 'block';
+    }
+    
+    // 🔥 新增：绑定场景剧照面板事件
+    bindScenePortraitEvents() {
+        // 生成按钮
+        const generateBtn = document.getElementById('generateScenePortraitBtn');
+        if (generateBtn) {
+            // 移除旧的事件监听器
+            const newBtn = generateBtn.cloneNode(true);
+            generateBtn.parentNode.replaceChild(newBtn, generateBtn);
+            
+            newBtn.addEventListener('click', () => {
+                this.generateScenePortrait();
+            });
+        }
+        
+        // 参考图像上传
+        const uploadArea = document.getElementById('sceneRefUploadArea');
+        const fileInput = document.getElementById('sceneRefInput');
+        if (uploadArea && fileInput) {
+            uploadArea.addEventListener('click', () => {
+                fileInput.click();
+            });
+            
+            fileInput.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (file && file.type.startsWith('image/')) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        document.getElementById('sceneRefPreview').src = e.target.result;
+                        document.getElementById('sceneRefPreview').style.display = 'block';
+                        document.querySelector('#sceneRefUploadArea .upload-placeholder').style.display = 'none';
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+        }
+        
+        // 移除参考图像
+        const removeRefBtn = document.getElementById('removeSceneRefBtn');
+        if (removeRefBtn) {
+            removeRefBtn.addEventListener('click', () => {
+                document.getElementById('sceneRefInput').files = null;
+                document.getElementById('sceneRefPreview').src = '';
+                document.getElementById('sceneRefPreview').style.display = 'none';
+                document.querySelector('#sceneRefUploadArea .upload-placeholder').style.display = 'block';
+            });
+        }
+        
+        // 下载按钮
+        const downloadBtn = document.getElementById('downloadSceneBtn');
+        if (downloadBtn) {
+            downloadBtn.addEventListener('click', () => {
+                this.downloadScenePortrait();
+            });
+        }
+        
+        // 用作参考图按钮
+        const useAsRefBtn = document.getElementById('useSceneAsRefBtn');
+        if (useAsRefBtn) {
+            useAsRefBtn.addEventListener('click', () => {
+                const resultImage = document.getElementById('generatedSceneImage');
+                const refInput = document.getElementById('sceneRefInput');
+                const refPreview = document.getElementById('sceneRefPreview');
+                
+                if (resultImage && resultImage.src) {
+                    refInput.files = null;
+                    refPreview.src = resultImage.src;
+                    refPreview.style.display = 'block';
+                    document.querySelector('#sceneRefUploadArea .upload-placeholder').style.display = 'none';
+                    this.showToast('已将当前剧照设置为参考图', 'success');
+                }
+            });
+        }
+    }
+    
+    // 🔥 新增：生成场景剧照
+    async generateScenePortrait() {
+        if (!this.currentSceneEvent) {
+            this.showToast('无法获取事件信息', 'error');
+            return;
+        }
+        
+        if (!this.selectedNovel) {
+            this.showToast('请先选择小说', 'error');
+            return;
+        }
+        
+        const aspectRatio = document.getElementById('sceneAspectRatio').value;
+        const imageSize = document.getElementById('sceneImageSize').value;
+        const customPrompt = document.getElementById('sceneCustomPrompt').value.trim();
+        
+        // 获取参考图像
+        const refPreview = document.getElementById('sceneRefPreview');
+        let reference_image = null;
+        if (refPreview && refPreview.src && refPreview.style.display !== 'none') {
+            reference_image = refPreview.src;
+        }
+        
+        // 显示进度
+        document.getElementById('sceneProgressSection').style.display = 'block';
+        document.getElementById('generateScenePortraitBtn').disabled = true;
+        
+        try {
+            this.showToast('正在生成场景剧照...', 'success');
+            
+            const response = await fetch('/api/video/generate-scene-portrait', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    title: this.selectedNovel,
+                    event_id: this.currentSceneEvent.id || 'unknown',
+                    event_data: this.currentSceneEvent,
+                    aspect_ratio: aspectRatio,
+                    image_size: imageSize,
+                    reference_image: reference_image,
+                    custom_prompt: customPrompt
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                document.getElementById('generatedSceneImage').src = data.image_url;
+                document.getElementById('sceneResultSection').style.display = 'block';
+                document.getElementById('generateScenePortraitBtn').style.display = 'none';
+                this.showToast(`场景 ${data.event_name} 的剧照生成成功！`, 'success');
+            } else {
+                throw new Error(data.error || '生成失败');
+            }
+        } catch (error) {
+            console.error('生成场景剧照失败:', error);
+            this.showToast('生成失败: ' + error.message, 'error');
+        } finally {
+            document.getElementById('sceneProgressSection').style.display = 'none';
+            document.getElementById('generateScenePortraitBtn').disabled = false;
+        }
+    }
+    
+    // 🔥 新增：下载场景剧照
+    downloadScenePortrait() {
+        const resultImage = document.getElementById('generatedSceneImage');
+        if (resultImage.src) {
+            const link = document.createElement('a');
+            link.href = resultImage.src;
+            const eventName = this.currentSceneEvent?.title || this.currentSceneEvent?.name || 'scene';
+            link.download = `${this.selectedNovel}_${eventName}_scene.png`;
+            link.click();
+            this.showToast('剧照下载已开始', 'success');
+        }
     }
     
     showPromptEditModal() {
@@ -1976,15 +2467,214 @@ class VideoGenerator {
         }
     }
     
+    // ===== 剧照生成模式相关方法 =====
+    
+    async loadPortraitNovels() {
+        try {
+            const response = await fetch('/api/video/novels');
+            const data = await response.json();
+            
+            if (data.success) {
+                const select = document.getElementById('portraitNovelSelect');
+                select.innerHTML = '<option value="">请选择小说...</option>';
+                
+                data.novels.forEach(novel => {
+                    const option = document.createElement('option');
+                    option.value = novel.title;
+                    option.textContent = `${novel.title} (${novel.total_medium_events || 0} 个事件)`;
+                    select.appendChild(option);
+                });
+                
+                // 绑定事件
+                select.addEventListener('change', () => {
+                    this.loadPortraitCharacters(select.value);
+                });
+            }
+        } catch (error) {
+            console.error('加载小说列表失败:', error);
+            this.showToast('加载小说列表失败', 'error');
+        }
+    }
+    
+    async loadPortraitCharacters(title) {
+        if (!title) {
+            document.getElementById('portraitCharacterList').innerHTML = '<p class="empty-hint">请先选择小说</p>';
+            return;
+        }
+        
+        try {
+            document.getElementById('portraitCharacterList').innerHTML = '<p class="loading">加载中...</p>';
+            
+            const response = await fetch(`/api/video/novel-content?title=${encodeURIComponent(title)}`);
+            const data = await response.json();
+            
+            if (data.success && data.characters && data.characters.length > 0) {
+                this.selectedPortraitNovel = title;
+                this.portraitCharacters = data.characters;
+                
+                const container = document.getElementById('portraitCharacterList');
+                container.innerHTML = data.characters.map((char, index) => `
+                    <div class="portrait-character-card ${index === 0 ? 'selected' : ''}" data-index="${index}">
+                        <div class="character-avatar">${char.name.charAt(0)}</div>
+                        <div class="character-info">
+                            <div class="character-name">${char.name}</div>
+                            <div class="character-role">${char.role || '角色'}</div>
+                        </div>
+                    </div>
+                `).join('');
+                
+                // 绑定点击事件
+                container.querySelectorAll('.portrait-character-card').forEach(card => {
+                    card.addEventListener('click', () => {
+                        container.querySelectorAll('.portrait-character-card').forEach(c => c.classList.remove('selected'));
+                        card.classList.add('selected');
+                        this.selectedPortraitCharacter = this.portraitCharacters[card.dataset.index];
+                        console.log('选择角色:', this.selectedPortraitCharacter.name);
+                    });
+                });
+                
+                // 默认选择第一个角色
+                if (data.characters.length > 0) {
+                    this.selectedPortraitCharacter = data.characters[0];
+                }
+            } else {
+                document.getElementById('portraitCharacterList').innerHTML = '<p class="empty-hint">该小说暂无角色设计</p>';
+            }
+        } catch (error) {
+            console.error('加载角色失败:', error);
+            this.showToast('加载角色失败', 'error');
+        }
+    }
+    
+    async generatePortrait() {
+        if (!this.selectedPortraitCharacter) {
+            this.showToast('请先选择角色', 'error');
+            return;
+        }
+        
+        const aspectRatio = document.getElementById('portraitAspectRatio').value;
+        const imageSize = document.getElementById('portraitImageSize').value;
+        const customPrompt = document.getElementById('portraitCustomPrompt').value.trim();
+        
+        document.getElementById('portraitProgressSection').style.display = 'block';
+        
+        try {
+            console.log('🎨 开始生成角色剧照');
+            const response = await fetch('/api/video/generate-character-portrait', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    title: this.selectedPortraitNovel,
+                    character_id: this.selectedPortraitCharacter.name,
+                    character_data: this.selectedPortraitCharacter,
+                    aspect_ratio: aspectRatio,
+                    image_size: imageSize
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                document.getElementById('generatedPortraitImage').src = data.image_url;
+                document.getElementById('portraitResultSection').style.display = 'block';
+                this.showToast('角色剧照生成成功！', 'success');
+            } else {
+                throw new Error(data.error || '生成失败');
+            }
+        } catch (error) {
+            console.error('生成剧照失败:', error);
+            this.showToast('生成失败: ' + error.message, 'error');
+        } finally {
+            document.getElementById('portraitProgressSection').style.display = 'none';
+        }
+    }
+    
+    async generateCustomPortrait() {
+        const name = document.getElementById('customCharacterName').value.trim();
+        const role = document.getElementById('customCharacterRole').value.trim();
+        const appearance = document.getElementById('customCharacterAppearance').value.trim();
+        const personality = document.getElementById('customCharacterPersonality').value.trim();
+        const outfit = document.getElementById('customCharacterOutfit').value.trim();
+        const extraPrompt = document.getElementById('customPortraitExtraPrompt').value.trim();
+        const aspectRatio = document.getElementById('customPortraitAspectRatio').value;
+        const imageSize = document.getElementById('customPortraitImageSize').value;
+        
+        if (!name) {
+            this.showToast('请输入角色名称', 'error');
+            return;
+        }
+        
+        document.getElementById('customPortraitProgressSection').style.display = 'block';
+        
+        try {
+            console.log('🎨 开始生成自定义角色剧照');
+            
+            // 构建角色数据
+            const characterData = {
+                name: name,
+                role: role || '自定义角色',
+                appearance: appearance,
+                personality: personality,
+                outfit: outfit,
+                description: `${name} - ${role || '角色'}\n外貌：${appearance}\n性格：${personality}\n服装：${outfit}`
+            };
+            
+            const response = await fetch('/api/video/generate-character-portrait', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    title: '自定义',
+                    character_id: name,
+                    character_data: characterData,
+                    aspect_ratio: aspectRatio,
+                    image_size: imageSize
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                document.getElementById('customGeneratedPortraitImage').src = data.image_url;
+                document.getElementById('customPortraitResultSection').style.display = 'block';
+                this.showToast('角色剧照生成成功！', 'success');
+            } else {
+                throw new Error(data.error || '生成失败');
+            }
+        } catch (error) {
+            console.error('生成自定义剧照失败:', error);
+            this.showToast('生成失败: ' + error.message, 'error');
+        } finally {
+            document.getElementById('customPortraitProgressSection').style.display = 'none';
+        }
+    }
+    
     showScreen(screenName) {
-        document.getElementById('welcomeScreen').style.display = 
+        document.getElementById('welcomeScreen').style.display =
             screenName === 'welcome' ? 'block' : 'none';
-        document.getElementById('promptPreviewScreen').style.display = 
+        document.getElementById('promptPreviewScreen').style.display =
             screenName === 'prompt' ? 'block' : 'none';
-        document.getElementById('storyboardScreen').style.display = 
+        document.getElementById('storyboardScreen').style.display =
             screenName === 'storyboard' ? 'block' : 'none';
-        document.getElementById('shotGenerationScreen').style.display = 
+        document.getElementById('shotGenerationScreen').style.display =
             screenName === 'shot' ? 'block' : 'none';
+        
+        // 新增：隐藏剧照生成相关屏幕
+        if (document.getElementById('portraitModeScreen')) {
+            document.getElementById('portraitModeScreen').style.display =
+                screenName === 'portrait' ? 'block' : 'none';
+        }
+        if (document.getElementById('portraitNovelConfigScreen')) {
+            document.getElementById('portraitNovelConfigScreen').style.display =
+                screenName === 'portrait-novel' ? 'block' : 'none';
+        }
+        if (document.getElementById('portraitCustomConfigScreen')) {
+            document.getElementById('portraitCustomConfigScreen').style.display =
+                screenName === 'portrait-custom' ? 'block' : 'none';
+        }
     }
     
     updateCurrentStatus(html) {
