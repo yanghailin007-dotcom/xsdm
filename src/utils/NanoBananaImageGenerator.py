@@ -11,16 +11,56 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any, Optional, List
 
-# 🔥 在模块级别禁用requests和urllib3的调试日志，避免打印请求体中的base64数据
-import logging
-logging.getLogger("requests").setLevel(logging.WARNING)
-logging.getLogger("urllib3").setLevel(logging.WARNING)
-
 # 添加项目根目录到Python路径
 BASE_DIR = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(BASE_DIR))
 
-from src.utils.logger import get_logger
+from src.utils.logger import get_logger, Logger, LogLevel
+
+# 🔥 配置日志系统：将所有可能的输出重定向到文件，避免控制台被base64数据填满
+def _setup_global_logging():
+    """在模块级别配置日志系统"""
+    import logging as python_logging
+    
+    # 创建日志目录
+    log_dir = BASE_DIR / 'logs'
+    log_dir.mkdir(parents=True, exist_ok=True)
+    log_file = log_dir / 'nanobanana_detailed.log'
+    
+    # 创建Python标准日志的文件处理器
+    file_handler = python_logging.FileHandler(log_file, encoding='utf-8')
+    file_handler.setLevel(python_logging.DEBUG)
+    formatter = python_logging.Formatter(
+        '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    )
+    file_handler.setFormatter(formatter)
+    
+    # 捕获所有可能打印base64数据的logger
+    loggers_to_capture = [
+        'requests', 'urllib3', 'requests.packages', 'requests.packages.urllib3',
+        'urllib3.connectionpool', 'urllib3.util', 'urllib3.util.retry',
+        'httpx', 'httpcore', 'http.client'
+    ]
+    
+    for logger_name in loggers_to_capture:
+        logger = python_logging.getLogger(logger_name)
+        logger.setLevel(python_logging.DEBUG)
+        # 清除所有现有的handlers
+        logger.handlers.clear()
+        # 只添加文件处理器
+        logger.addHandler(file_handler)
+        # 阻止传播到父logger（避免输出到控制台）
+        logger.propagate = False
+    
+    # 同时启用我们的自定义日志系统的文件日志
+    Logger.enable_file_logging(str(log_file))
+    # 将控制台日志级别设置为INFO，只显示重要信息
+    Logger.set_global_level(LogLevel.INFO)
+    
+    return log_file
+
+# 在模块加载时配置日志
+_log_file = _setup_global_logging()
 
 
 class NanoBananaImageGenerator:
@@ -35,6 +75,7 @@ class NanoBananaImageGenerator:
             base_url: API基础URL，如果为None则从配置获取
         """
         self.logger = get_logger("NanoBananaImageGenerator")
+        self.logger.info(f"📝 详细日志已启用，文件位置: {_log_file}")
         
         # 从配置导入或使用传入的参数
         try:
@@ -125,7 +166,12 @@ class NanoBananaImageGenerator:
         # 🔥 新增：处理参考图像
         parts = []
         
-        # 如果有参考图像，先添加图像
+        # 🔥 重要：先添加文本提示词，再添加参考图像（符合API规范）
+        parts.append({
+            "text": prompt
+        })
+        
+        # 如果有参考图像，添加图像到parts
         if reference_image:
             try:
                 # 读取并编码参考图像
@@ -134,17 +180,17 @@ class NanoBananaImageGenerator:
                 else:
                     with open(reference_image, 'rb') as f:
                         ref_image_data = f.read()
-                    
+                     
                     # 获取MIME类型
                     import mimetypes
                     mime_type = mimetypes.guess_type(reference_image)[0] or 'image/jpeg'
-                    
+                     
                     # 编码为base64
                     ref_image_base64 = base64.b64encode(ref_image_data).decode('utf-8')
-                    
+                     
                     parts.append({
-                        "inlineData": {
-                            "mimeType": mime_type,
+                        "inline_data": {  # 使用下划线格式，符合API规范
+                            "mime_type": mime_type,  # 使用下划线格式
                             "data": ref_image_base64
                         }
                     })
@@ -153,16 +199,10 @@ class NanoBananaImageGenerator:
             except Exception as e:
                 self.logger.debug(f"⚠️ 添加参考图像失败: {e}，继续使用纯文本模式")
         
-        # 添加文本提示词
-        parts.append({
-            "text": prompt
-        })
-        
-        # 构建请求体
+        # 构建请求体（移除role字段，使用简化的contents结构）
         request_body = {
             "contents": [
                 {
-                    "role": "user",
                     "parts": parts
                 }
             ],
@@ -177,13 +217,15 @@ class NanoBananaImageGenerator:
         
         try:
             self.logger.info(f"🎨 开始生成图像")
-            self.logger.debug(f"📋 请求配置:")
-            self.logger.debug(f"  - API URL: {self.base_url}")
-            self.logger.debug(f"  - 比例: {aspect_ratio}")
-            self.logger.debug(f"  - 尺寸: {image_size}")
-            self.logger.debug(f"  - 超时: {self.timeout}秒")
-            self.logger.debug(f"  - 提示词长度: {len(prompt)} 字符")
-            self.logger.debug(f"  - 提示词预览: {prompt[:100]}...")  # 只显示前100字符
+            self.logger.info(f"📋 请求配置:")
+            self.logger.info(f"  - API URL: {self.base_url}")
+            self.logger.info(f"  - 比例: {aspect_ratio}")
+            self.logger.info(f"  - 尺寸: {image_size}")
+            self.logger.info(f"  - 超时: {self.timeout}秒")
+            self.logger.info(f"  - 提示词长度: {len(prompt)} 字符")
+            self.logger.info(f"  - 提示词内容: {prompt}")  # 显示完整提示词
+            if reference_image:
+                self.logger.info(f"  - 参考图像: {reference_image}")
             
             # 发送请求
             headers = {
@@ -191,7 +233,7 @@ class NanoBananaImageGenerator:
                 "Authorization": f"Bearer {self.api_key}"  # 使用完整的 API key
             }
             
-            self.logger.debug(f"🚀 发送POST请求到API...")
+            self.logger.info(f"🚀 发送POST请求到API...")
             
             # 计算请求体大小（不打印完整内容以避免显示base64数据）
             request_body_size = len(json.dumps(request_body))
@@ -209,10 +251,16 @@ class NanoBananaImageGenerator:
                 timeout=self.timeout
             )
             
-            self.logger.debug(f"📥 收到API响应:")
-            self.logger.debug(f"  - 状态码: {response.status_code}")
-            self.logger.debug(f"  - 响应大小: {len(response.content)} 字节")
-            self.logger.debug(f"  - 响应头: {dict(response.headers)}")
+            self.logger.info(f"📥 收到API响应:")
+            self.logger.info(f"  - 状态码: {response.status_code}")
+            self.logger.info(f"  - 响应大小: {len(response.content)} 字节")
+            
+            # 打印响应内容的预览（非base64部分）
+            try:
+                response_preview = response.text[:500] if response.text else "空响应"
+                self.logger.info(f"  - 响应预览: {response_preview}...")
+            except:
+                pass
             
             # 检查响应状态
             if response.status_code != 200:
@@ -242,16 +290,20 @@ class NanoBananaImageGenerator:
                     "response_text": response.text[:500]
                 }
             
-            # 🔥 不打印完整响应数据，避免打印超长Base64字符串
-            self.logger.debug(f"📋 响应数据顶层键: {list(response_data.keys())}")
+            self.logger.info(f"📋 解析响应数据...")
+            self.logger.info(f"  - 响应顶层键: {list(response_data.keys())}")
+            
             if 'candidates' in response_data:
-                self.logger.debug(f"📋 候选数量: {len(response_data['candidates'])}")
+                self.logger.info(f"  - 候选数量: {len(response_data['candidates'])}")
+                if response_data['candidates']:
+                    first_candidate = response_data['candidates'][0]
+                    self.logger.info(f"  - 首个候选键: {list(first_candidate.keys())}")
             elif 'base64Image' in response_data:
-                self.logger.debug(f"📋 包含 base64Image 字段，数据长度: {len(response_data['base64Image'])} 字符")
+                self.logger.info(f"  - 包含 base64Image 字段，数据长度: {len(response_data['base64Image'])} 字符")
             elif 'image' in response_data:
-                self.logger.debug(f"📋 包含 image 字段，数据长度: {len(response_data['image'])} 字符")
+                self.logger.info(f"  - 包含 image 字段，数据长度: {len(response_data['image'])} 字符")
             elif 'data' in response_data:
-                self.logger.debug(f"📋 包含 data 字段，数据长度: {len(response_data['data'])} 字符")
+                self.logger.info(f"  - 包含 data 字段，数据长度: {len(response_data['data'])} 字符")
             
             # 🔥 支持多种响应格式
             image_data = None
@@ -263,13 +315,23 @@ class NanoBananaImageGenerator:
                 self.logger.debug(f"📋 候选响应结构")
                 
                 if 'content' in candidate and 'parts' in candidate['content']:
-                    for part in candidate['content']['parts']:
+                    parts_count = len(candidate['content']['parts'])
+                    self.logger.info(f"  - Parts数量: {parts_count}")
+                    
+                    for idx, part in enumerate(candidate['content']['parts']):
+                        part_keys = list(part.keys())
+                        self.logger.info(f"  - Part {idx} 键: {part_keys}")
+                        
+                        # 兼容 inlineData 和 inline_data 两种格式
                         if 'inlineData' in part:
                             image_data = part['inlineData'].get('data')
-                            self.logger.debug(f"✅ 从 inlineData 提取到图像数据")
+                            self.logger.info(f"✅ 从 inlineData 提取到图像数据 (长度: {len(image_data) if image_data else 0})")
+                        elif 'inline_data' in part:
+                            image_data = part['inline_data'].get('data')
+                            self.logger.info(f"✅ 从 inline_data 提取到图像数据 (长度: {len(image_data) if image_data else 0})")
                         elif 'text' in part:
                             text_response = part['text']
-                            self.logger.debug(f"📝 提取到文本响应")
+                            self.logger.info(f"📝 提取到文本响应: {text_response[:100]}...")
             
             # 格式2: 直接包含 base64Image 字段
             elif 'base64Image' in response_data:
@@ -349,7 +411,11 @@ class NanoBananaImageGenerator:
             with open(save_path, 'wb') as f:
                 f.write(image_bytes)
             
-            self.logger.info(f"✅ 图像生成成功")
+            self.logger.info(f"✅ 图像生成成功!")
+            self.logger.info(f"  - 保存路径: {save_path}")
+            self.logger.info(f"  - 文件大小: {len(image_bytes)} 字节")
+            if text_response:
+                self.logger.info(f"  - 文本响应: {text_response[:100]}...")
             
             # 返回结果
             return {

@@ -4,6 +4,23 @@
 """
 import os
 import sys
+import logging
+
+# 🔥 第一步：在任何其他模块导入之前，立即禁用所有可能打印base64的日志
+logging.getLogger("requests").setLevel(logging.CRITICAL)
+logging.getLogger("urllib3").setLevel(logging.CRITICAL)
+logging.getLogger("requests.packages").setLevel(logging.CRITICAL)
+logging.getLogger("requests.packages.urllib3").setLevel(logging.CRITICAL)
+logging.getLogger("urllib3.connectionpool").setLevel(logging.CRITICAL)
+logging.getLogger("urllib3.util").setLevel(logging.CRITICAL)
+logging.getLogger("urllib3.util.retry").setLevel(logging.CRITICAL)
+
+# 清除所有handlers，阻止传播
+for logger_name in ['requests', 'urllib3', 'requests.packages.urllib3', 'urllib3.connectionpool']:
+    logger = logging.getLogger(logger_name)
+    logger.handlers = []
+    logger.propagate = False
+
 import threading
 import signal
 import atexit
@@ -11,7 +28,7 @@ from flask import Flask, request, jsonify
 from datetime import datetime
 
 # 添加项目根目录到系统路径
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # 修复：补全缺失的括号
 
 # 导入配置和工具
 from web.web_config import (
@@ -146,7 +163,7 @@ def register_fanqie_routes(app):
         except Exception as e:
             logger.error(f"❌ 检查番茄上传前提条件失败: {e}")
             return jsonify({"success": False, "error": str(e)}), 500
-
+    
     @app.route('/api/fanqie/upload/validate-novel/<title>', methods=['GET'])
     def validate_novel_for_fanqie_upload(title):
         """验证小说是否可以上传到番茄"""
@@ -164,7 +181,7 @@ def register_fanqie_routes(app):
         except Exception as e:
             logger.error(f"❌ 验证小说上传失败: {e}")
             return jsonify({"success": False, "error": str(e)}), 500
-
+    
     @app.route('/api/fanqie/upload/start', methods=['POST'])
     def start_fanqie_upload():
         """启动番茄上传任务"""
@@ -173,7 +190,7 @@ def register_fanqie_routes(app):
             
             if not fanqie_uploader:
                 return jsonify({"success": False, "error": "番茄上传器不可用"}), 503
-            
+                
             data = request.json or {}
             novel_title = data.get('novel_title')
             
@@ -229,7 +246,7 @@ def register_fanqie_routes(app):
             
             if not fanqie_uploader:
                 return jsonify({"success": False, "error": "番茄上传器不可用"}), 503
-            
+                
             tasks = fanqie_uploader.get_all_upload_tasks()
             
             return jsonify({
@@ -250,7 +267,7 @@ def register_fanqie_routes(app):
             
             if not fanqie_uploader:
                 return jsonify({"success": False, "error": "番茄上传器不可用"}), 503
-            
+                
             # Flask会自动解码路径参数，但为了确保中文字符正确处理，我们显式解码一次
             # 注意：Flask已经解码过一次，所以这里直接使用task_id即可
             status = fanqie_uploader.get_upload_status(task_id)
@@ -272,7 +289,7 @@ def register_fanqie_routes(app):
             
             if not fanqie_uploader:
                 return jsonify({"success": False, "error": "番茄上传器不可用"}), 503
-            
+                
             # 这个功能暂时不实现，返回提示信息
             return jsonify({
                 "success": False,
@@ -292,7 +309,7 @@ def register_fanqie_routes(app):
             
             if not fanqie_uploader:
                 return jsonify({"success": False, "error": "番茄上传器不可用"}), 503
-            
+                
             progress = fanqie_uploader.get_upload_progress(novel_title)
             
             if "error" in progress:
@@ -341,7 +358,7 @@ def register_contract_routes(app):
                     "success": False,
                     "error": "签约上传API不可用"
                 }), 503
-            
+                
             result = contract_api.get_enabled_users()
             return jsonify(result)
         except Exception as e:
@@ -357,7 +374,7 @@ def register_contract_routes(app):
                     "success": False,
                     "error": "签约上传API不可用"
                 }), 503
-            
+                
             result = contract_api.get_contractable_novels()
             return jsonify(result)
         except Exception as e:
@@ -373,7 +390,7 @@ def register_contract_routes(app):
                     "success": False,
                     "error": "签约上传API不可用"
                 }), 503
-            
+                
             data = request.json or {}
             novel_title = data.get('novel_title')
             user_id = data.get('user_id')
@@ -383,7 +400,7 @@ def register_contract_routes(app):
                     "success": False,
                     "error": "缺少必要参数"
                 }), 400
-            
+                
             result = contract_api.submit_auto_sign_task(novel_title, user_id)
             return jsonify(result)
         except Exception as e:
@@ -399,14 +416,14 @@ def register_contract_routes(app):
                     "success": False,
                     "error": "签约上传API不可用"
                 }), 503
-            
+                
             result = contract_api.start_service()
             return jsonify(result)
         except Exception as e:
             logger.error(f"❌ 启动签约服务失败: {e}")
             return jsonify({"success": False, "error": str(e)}), 500
 
-    @app.route('/api/contract/service/stop', methods=['POST'])
+    @app.route('/api//service/stop', methods=['POST'])
     def stop_contract_signing_service():
         """停止签约服务"""
         try:
@@ -415,7 +432,7 @@ def register_contract_routes(app):
                     "success": False,
                     "error": "签约上传API不可用"
                 }), 503
-            
+                
             result = contract_api.stop_service()
             return jsonify(result)
         except Exception as e:
@@ -432,7 +449,7 @@ def register_contract_routes(app):
                     "api_active": False,
                     "error": "签约上传API不可用"
                 })
-            
+                
             status = contract_api.get_service_status()
             return jsonify(status)
         except Exception as e:
@@ -451,7 +468,7 @@ def register_contract_routes(app):
                     "success": False,
                     "error": "签约上传API不可用"
                 }), 503
-            
+                
             result = contract_api.get_task_status(task_id)
             return jsonify(result)
         except Exception as e:
@@ -467,7 +484,7 @@ def register_contract_routes(app):
                     "success": False,
                     "error": "签约上传API不可用"
                 }), 503
-            
+                
             result = contract_api.get_all_tasks()
             return jsonify(result)
         except Exception as e:
@@ -494,7 +511,7 @@ def register_monitoring_routes(app):
                     "success": False,
                     "error": "服务监控模块不可用"
                 }), 503
-            
+                
             status = service_monitor.get_current_status()
             return jsonify({
                 "success": True,
@@ -516,7 +533,7 @@ def register_monitoring_routes(app):
                     "success": False,
                     "error": "服务监控模块不可用"
                 }), 503
-            
+                
             # 获取综合监控数据
             current_status = service_monitor.get_current_status()
             recent_alerts = service_monitor.get_alerts(hours=1)

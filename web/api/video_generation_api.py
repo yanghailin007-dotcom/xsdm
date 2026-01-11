@@ -1973,7 +1973,15 @@ def generate_character_portrait():
         logger.info(f"  - 角色定位: {character_data.get('role', 'Unknown')}")
         logger.info(f"  - 图片比例: {aspect_ratio}")
         logger.info(f"  - 图片质量: {image_size}")
-        logger.info(f"  - 参考图像: {reference_image or '无'}")
+        # 🔥 不打印完整的参考图像base64数据
+        if reference_image:
+            # 检测是否是base64数据格式
+            is_base64 = reference_image.startswith('data:image/')
+            ref_type = "Base64数据" if is_base64 else "文件路径"
+            preview = reference_image[:50] + "..." if len(reference_image) > 50 else reference_image
+            logger.info(f"  - 参考图像: {ref_type} (总长度: {len(reference_image)} 字符, 预览: {preview})")
+        else:
+            logger.info(f"  - 参考图像: 无")
         logger.info(f"  - 自定义提示词: {custom_prompt[:50] if custom_prompt else '无'}...")
         logger.info(f"  - 自定义风格: {custom_style or '无'}")
         
@@ -2024,18 +2032,54 @@ def generate_character_portrait():
             logger.info(f"📝 [VIDEO] 提示词长度: {len(prompt)} 字符")
             logger.info(f"📝 [VIDEO] 提示词预览: {prompt[:200]}...")
         
-        # 🔥 新增：处理参考图像路径
+        # 🔥 新增：处理参考图像路径（支持文件路径和Base64数据）
         ref_image_path = None
         if reference_image:
             import os
-            # 如果是URL路径，转换为本地路径
-            if reference_image.startswith('/generated_images/'):
+            import tempfile
+            import base64
+            
+            # 检测是否是base64数据格式
+            if reference_image.startswith('data:image/'):
+                try:
+                    # 解析base64数据
+                    header, data = reference_image.split(',', 1)
+                    # 获取MIME类型
+                    mime_type = header.split(':')[1].split(';')[0]
+                    # 获取文件扩展名
+                    ext_map = {
+                        'image/png': '.png',
+                        'image/jpeg': '.jpg',
+                        'image/jpg': '.jpg',
+                        'image/gif': '.gif',
+                        'image/webp': '.webp'
+                    }
+                    ext = ext_map.get(mime_type, '.png')
+                    
+                    # 创建临时目录（如果不存在）
+                    temp_dir = os.path.join(BASE_DIR, 'temp_uploads')
+                    os.makedirs(temp_dir, exist_ok=True)
+                    
+                    # 创建临时文件保存base64图像
+                    with tempfile.NamedTemporaryFile(delete=False, suffix=ext, dir=temp_dir) as f:
+                        temp_path = f.name
+                        f.write(base64.b64decode(data))
+                    
+                    ref_image_path = temp_path
+                    logger.info(f"🖼️ [VIDEO] Base64图像已保存到临时文件: {ref_image_path}")
+                except Exception as e:
+                    logger.error(f"❌ [VIDEO] 处理Base64图像失败: {e}")
+                    ref_image_path = None
+            elif reference_image.startswith('/generated_images/'):
+                # 如果是URL路径，转换为本地路径
                 ref_image_path = os.path.join(BASE_DIR, reference_image.lstrip('/'))
                 logger.info(f"🖼️ [VIDEO] 参考图像路径转换: {reference_image} -> {ref_image_path}")
             else:
+                # 直接使用作为文件路径
                 ref_image_path = reference_image
+            
             # 验证文件存在
-            if not os.path.exists(ref_image_path):
+            if ref_image_path and not os.path.exists(ref_image_path):
                 logger.warn(f"⚠️ [VIDEO] 参考图像不存在，将使用纯文本模式: {ref_image_path}")
                 ref_image_path = None
         
@@ -2166,7 +2210,15 @@ def generate_scene_portrait():
         logger.info(f"  - 事件名称: {event_data.get('title', event_data.get('name', 'Unknown'))}")
         logger.info(f"  - 图片比例: {aspect_ratio}")
         logger.info(f"  - 图片质量: {image_size}")
-        logger.info(f"  - 参考图像: {reference_image or '无'}")
+        # 🔥 不打印完整的参考图像base64数据
+        if reference_image:
+            # 检测是否是base64数据格式
+            is_base64 = reference_image.startswith('data:image/')
+            ref_type = "Base64数据" if is_base64 else "文件路径"
+            preview = reference_image[:50] + "..." if len(reference_image) > 50 else reference_image
+            logger.info(f"  - 参考图像: {ref_type} (总长度: {len(reference_image)} 字符, 预览: {preview})")
+        else:
+            logger.info(f"  - 参考图像: 无")
         logger.info(f"  - 自定义提示词: {custom_prompt[:50] if custom_prompt else '无'}...")
         
         if not title or not event_id:
@@ -2180,16 +2232,54 @@ def generate_scene_portrait():
         logger.info(f"📝 [SCENE] 提示词长度: {len(scene_prompt)} 字符")
         logger.info(f"📝 [SCENE] 提示词预览: {scene_prompt[:200]}...")
         
-        # 处理参考图像路径
+        # 🔥 处理参考图像路径（支持文件路径和Base64数据）
         ref_image_path = None
         if reference_image:
             import os
-            if reference_image.startswith('/generated_images/'):
+            import tempfile
+            import base64
+            
+            # 检测是否是base64数据格式
+            if reference_image.startswith('data:image/'):
+                try:
+                    # 解析base64数据
+                    header, data = reference_image.split(',', 1)
+                    # 获取MIME类型
+                    mime_type = header.split(':')[1].split(';')[0]
+                    # 获取文件扩展名
+                    ext_map = {
+                        'image/png': '.png',
+                        'image/jpeg': '.jpg',
+                        'image/jpg': '.jpg',
+                        'image/gif': '.gif',
+                        'image/webp': '.webp'
+                    }
+                    ext = ext_map.get(mime_type, '.png')
+                    
+                    # 创建临时目录（如果不存在）
+                    temp_dir = os.path.join(BASE_DIR, 'temp_uploads')
+                    os.makedirs(temp_dir, exist_ok=True)
+                    
+                    # 创建临时文件保存base64图像
+                    with tempfile.NamedTemporaryFile(delete=False, suffix=ext, dir=temp_dir) as f:
+                        temp_path = f.name
+                        f.write(base64.b64decode(data))
+                    
+                    ref_image_path = temp_path
+                    logger.info(f"🖼️ [SCENE] Base64图像已保存到临时文件: {ref_image_path}")
+                except Exception as e:
+                    logger.error(f"❌ [SCENE] 处理Base64图像失败: {e}")
+                    ref_image_path = None
+            elif reference_image.startswith('/generated_images/'):
+                # 如果是URL路径，转换为本地路径
                 ref_image_path = os.path.join(BASE_DIR, reference_image.lstrip('/'))
                 logger.info(f"🖼️ [SCENE] 参考图像路径转换: {reference_image} -> {ref_image_path}")
             else:
+                # 直接使用作为文件路径
                 ref_image_path = reference_image
-            if not os.path.exists(ref_image_path):
+            
+            # 验证文件存在
+            if ref_image_path and not os.path.exists(ref_image_path):
                 logger.warn(f"⚠️ [SCENE] 参考图像不存在，将使用纯文本模式: {ref_image_path}")
                 ref_image_path = None
         
