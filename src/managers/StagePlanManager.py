@@ -214,9 +214,14 @@ class StagePlanManager:
         Returns:
             生成的阶段写作计划
         """
-        # 测试模式快速通道
-        import os
-        if os.getenv('USE_MOCK_API', 'false').lower() == 'true':
+        # 测试模式快速通道（从配置读取，不再使用环境变量）
+        try:
+            from config.config import CONFIG
+            use_mock_api = CONFIG.get('test_mode', {}).get('use_mock_api', False)
+        except ImportError:
+            use_mock_api = False
+            
+        if use_mock_api:
             self.logger.info(f"   [测试模式快速通道] 为【{stage_name}】返回简化版写作计划...")
             return self._generate_simple_stage_plan_for_test(stage_name, stage_range, overall_stage_plan)
         

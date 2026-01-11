@@ -17,8 +17,8 @@ from src.utils.logger import get_logger
 try:
     from config.doubaoconfig import API_URL, ARK_API_KEY, DEFAULT_MODEL, DEFAULT_SIZE, FILE_CONFIG, REQUEST_CONFIG
 except ImportError:
-    # 如果导入失败，使用默认配置
-    ARK_API_KEY = os.getenv('ARK_API_KEY', '88117df2-5ce5-4d75-8224-01695231951f')
+    # 如果导入失败，使用默认配置（不从环境变量读取）
+    ARK_API_KEY = '88117df2-5ce5-4d75-8224-01695231951f'  # 应该在config/doubaoconfig.py中配置
     API_URL = "https://ark.cn-beijing.volces.com/api/v3"
     DEFAULT_MODEL = "doubao-seedream-4-0-250828"
     DEFAULT_SIZE = "1K"
@@ -47,13 +47,6 @@ class DouBaoImageGenerator:
         self.logger = get_logger("DouBaoImageGenerator")
         self.api_key = api_key or ARK_API_KEY
         self.base_url = base_url or API_URL
-        
-        if not self.api_key or self.api_key == 'your_api_key_here':
-            raise ValueError(
-                "请设置ARK_API_KEY环境变量或在config.py中配置API密钥\n"
-                "Linux/Mac: export ARK_API_KEY='your_actual_api_key'\n"
-                "Windows: set ARK_API_KEY=your_actual_api_key"
-            )
         
         # 使用OpenAI客户端
         try:

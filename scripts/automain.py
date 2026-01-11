@@ -58,9 +58,14 @@ class SimpleCreativeManager:
         if not self.creative_data:
             return False
         
-        # 检查是否处于测试模式，测试模式下不删除创意
-        import os
-        if os.getenv('USE_MOCK_API', 'false').lower() == 'true':
+        # 检查是否处于测试模式（从配置读取，不再使用环境变量）
+        try:
+            from config.config import CONFIG
+            use_mock_api = CONFIG.get('test_mode', {}).get('use_mock_api', False)
+        except ImportError:
+            use_mock_api = False
+            
+        if use_mock_api:
             # 测试模式：只移动指针，不删除数据
             self.current_index = (self.current_index + 1) % len(self.creative_data)
             self.logger.info(f"🧪 [测试模式] 创意已标记完成但保留在文件中")

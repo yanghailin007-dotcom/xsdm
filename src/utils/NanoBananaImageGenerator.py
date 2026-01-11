@@ -51,9 +51,9 @@ class NanoBananaImageGenerator:
             })
             
         except ImportError:
-            # 如果配置导入失败，使用默认值
+            # 如果配置导入失败，使用默认值（不从环境变量读取）
             self.base_url = base_url or 'https://newapi.xiaochuang.cc/v1beta/models/gemini-3-pro-image-preview:generateContent'
-            self.api_key = api_key or os.getenv('NANOBANANA_API_KEY', '')
+            self.api_key = api_key or ''  # 不再从环境变量读取
             self.timeout = 60
             self.max_retries = 3
             self.enabled = True
@@ -67,7 +67,7 @@ class NanoBananaImageGenerator:
         
         # 验证API密钥
         if not self.api_key:
-            self.logger.warn("⚠️ 未配置Nano Banana API密钥，请设置NANOBANANA_API_KEY环境变量或在config.py中配置")
+            self.logger.warn("⚠️ 未配置Nano Banana API密钥，请在config/config.py中配置nanobanana.api_key")
         else:
             self.logger.info(f"✅ API密钥已配置 (长度: {len(self.api_key)} 字符)")
             self.logger.debug(f"API密钥前缀: {self.api_key[:20]}...")
@@ -109,7 +109,7 @@ class NanoBananaImageGenerator:
         if not self.api_key:
             return {
                 "success": False,
-                "error": "未配置API密钥，请设置NANOBANANA_API_KEY"
+                "error": "未配置API密钥，请在config/config.py中配置nanobanana.api_key"
             }
         
         # 构建请求体

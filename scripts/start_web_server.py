@@ -111,8 +111,7 @@ def main():
     print("=" * 60)
     print("大文娱系统 - Web 服务启动")
     print("=" * 60)
-    # 设置环境变量
-    os.environ['USE_MOCK_API'] = 'false'  # 使用真实API进行测试
+    # 不再使用环境变量，统一使用config配置管理
     # 检查依赖
     check_dependencies()
     

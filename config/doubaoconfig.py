@@ -8,8 +8,8 @@ sys.path.insert(0, str(BASE_DIR))
 import os
 from src.utils.logger import get_logger
 
-# API密钥配置（优先级：环境变量 > 配置文件）
-ARK_API_KEY = os.getenv('ARK_API_KEY', '88117df2-5ce5-4d75-8224-01695231951f')  # 替换为您的实际API密钥
+# API密钥配置（统一使用配置文件管理，不再使用环境变量）
+ARK_API_KEY = '88117df2-5ce5-4d75-8224-01695231951f'  # 请替换为您的实际API密钥
 
 # API端点
 API_URL = "https://ark.cn-beijing.volces.com/api/v3"
