@@ -252,13 +252,26 @@ class AiWxVideoManager:
             # 准备请求参数
             generation_config = task.request.generation_config
             
-            # 确定方向（根据分辨率）
+            # 确定方向（根据宽高比或分辨率）
             orientation = DEFAULT_AIWX_VIDEO_CONFIG['orientation']  # 默认竖屏
             size = DEFAULT_AIWX_VIDEO_CONFIG['size']  # 默认 large
             duration = DEFAULT_AIWX_VIDEO_CONFIG['duration']
             
             if generation_config:
-                if generation_config.resolution:
+                # 优先检查 aspect_ratio（前端发送的宽高比）
+                if generation_config.aspect_ratio:
+                    aspect_ratio = generation_config.aspect_ratio
+                    if aspect_ratio == '16:9' or aspect_ratio == '4:3':
+                        orientation = "landscape"  # 横屏
+                        self.logger.info(f"📐 根据宽高比 {aspect_ratio} 设置为横屏")
+                    elif aspect_ratio == '9:16':
+                        orientation = "portrait"  # 竖屏
+                        self.logger.info(f"📐 根据宽高比 {aspect_ratio} 设置为竖屏")
+                    elif aspect_ratio == '1:1':
+                        orientation = "square"  # 方形
+                        self.logger.info(f"📐 根据宽高比 {aspect_ratio} 设置为方形")
+                # 备用：检查分辨率
+                elif generation_config.resolution:
                     if "1920x1080" in generation_config.resolution or "1280x720" in generation_config.resolution:
                         orientation = "landscape"  # 横屏
                     elif "1080x1920" in generation_config.resolution or "720x1280" in generation_config.resolution:
