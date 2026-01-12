@@ -131,6 +131,19 @@
                                     <li>🎨 自动生成角色提示词</li>
                                 </ul>
                             </div>
+                            
+                            <div class="mode-card video-workspace-mode" data-mode="video-workspace">
+                                <div class="mode-badge">新功能</div>
+                                <div class="mode-icon">🎬</div>
+                                <h3>视频工作台</h3>
+                                <p class="mode-desc">专业的视频制作工作台，支持实时预览和播放控制</p>
+                                <ul class="mode-features">
+                                    <li>🎥 大屏视频预览窗口</li>
+                                    <li>▶️ 完整的播放控制功能</li>
+                                    <li>🔧 OpenAI API 集成</li>
+                                    <li>✨ 高质量视频输出</li>
+                                </ul>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -693,6 +706,166 @@
                                     <div class="progress-bar">
                                         <div class="progress-bar-fill animate-progress"></div>
                                     </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 视频工作台屏幕 -->
+                <div id="videoWorkspaceScreen" class="video-workspace-screen" style="display: none;">
+                    <div class="screen-header">
+                        <button id="backToModeFromWorkspaceBtn" class="btn-secondary">← 返回模式选择</button>
+                        <h2>🎬 视频工作台</h2>
+                    </div>
+                    
+                    <div class="video-workspace-content">
+                        <!-- 左侧：控制面板 -->
+                        <div class="workspace-controls">
+                            <div class="control-section">
+                                <h3>📝 视频配置</h3>
+                                
+                                <div class="form-group">
+                                    <label>提示词：</label>
+                                    <textarea id="workspacePrompt" class="form-control" rows="4" placeholder="描述您想要生成的视频内容..."></textarea>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label>视频时长：</label>
+                                    <select id="workspaceDuration" class="form-control">
+                                        <option value="5">5秒</option>
+                                        <option value="10" selected>10秒</option>
+                                        <option value="15">15秒</option>
+                                        <option value="20">20秒</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label>分辨率：</label>
+                                    <select id="workspaceResolution" class="form-control">
+                                        <option value="720p">720p (HD)</option>
+                                        <option value="1080p" selected>1080p (Full HD)</option>
+                                        <option value="4K">4K (Ultra HD)</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label>视频风格：</label>
+                                    <select id="workspaceStyle" class="form-control">
+                                        <option value="cinematic">电影风格</option>
+                                        <option value="anime">动漫风格</option>
+                                        <option value="realistic">写实风格</option>
+                                        <option value="artistic">艺术风格</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label>帧率：</label>
+                                    <select id="workspaceFps" class="form-control">
+                                        <option value="24">24 fps (电影)</option>
+                                        <option value="30" selected>30 fps (标准)</option>
+                                        <option value="60">60 fps (流畅)</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <div class="control-section">
+                                <h3>🚀 生成操作</h3>
+                                
+                                <button id="generateVideoBtn" class="btn-primary btn-large" style="width: 100%;">
+                                    🎬 生成视频
+                                </button>
+                                
+                                <div id="workspaceProgressSection" class="progress-section" style="display: none;">
+                                    <h4>生成进度</h4>
+                                    <div class="progress-bar">
+                                        <div id="workspaceProgressBar" class="progress-bar-fill">0%</div>
+                                    </div>
+                                    <p id="workspaceProgressText" class="progress-text">准备中...</p>
+                                </div>
+                            </div>
+                            
+                            <div class="control-section">
+                                <h3>📋 生成历史</h3>
+                                <div id="workspaceHistoryList" class="history-list">
+                                    <p class="empty-hint">暂无生成记录</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 右侧：视频预览区域 -->
+                        <div class="workspace-preview">
+                            <div class="preview-header">
+                                <h3>📺 视频预览</h3>
+                                <div id="videoStats" class="video-stats" style="display: none;">
+                                    <span class="stat-item">时长: <span id="videoDurationDisplay">-</span></span>
+                                    <span class="stat-item">分辨率: <span id="videoResolutionDisplay">-</span></span>
+                                    <span class="stat-item">大小: <span id="videoSizeDisplay">-</span></span>
+                                </div>
+                            </div>
+                            
+                            <div class="video-player-container">
+                                <div id="videoPlayerPlaceholder" class="video-placeholder">
+                                    <div class="placeholder-content">
+                                        <div class="placeholder-icon">🎬</div>
+                                        <p>配置参数后点击"生成视频"开始创作</p>
+                                        <p class="hint">支持多种风格和质量选项</p>
+                                    </div>
+                                </div>
+                                
+                                <video id="workspaceVideoPlayer" class="video-player" style="display: none;" controls>
+                                    <source src="" type="video/mp4">
+                                    您的浏览器不支持视频播放。
+                                </video>
+                            </div>
+                            
+                            <!-- 播放控制栏 -->
+                            <div id="videoPlaybackControls" class="playback-controls" style="display: none;">
+                                <div class="control-buttons">
+                                    <button id="playPauseBtn" class="control-btn" title="播放/暂停">
+                                        <span id="playPauseIcon">▶️</span>
+                                    </button>
+                                    <button id="stopBtn" class="control-btn" title="停止">⏹️</button>
+                                    <button id="muteBtn" class="control-btn" title="静音">🔊</button>
+                                    <button id="fullscreenBtn" class="control-btn" title="全屏">⛶</button>
+                                </div>
+                                
+                                <div class="progress-section">
+                                    <span id="currentTimeDisplay" class="time-display">0:00</span>
+                                    <div class="video-progress-bar">
+                                        <div id="videoProgress" class="video-progress-fill"></div>
+                                    </div>
+                                    <span id="totalTimeDisplay" class="time-display">0:00</span>
+                                </div>
+                                
+                                <div class="volume-control">
+                                    <span class="volume-icon">🔊</span>
+                                    <input type="range" id="volumeSlider" class="volume-slider" min="0" max="100" value="100">
+                                </div>
+                            </div>
+                            
+                            <!-- 视频信息面板 -->
+                            <div id="videoInfoPanel" class="video-info-panel" style="display: none;">
+                                <h4>视频信息</h4>
+                                <div class="info-grid">
+                                    <div class="info-item">
+                                        <span class="info-label">生成ID:</span>
+                                        <span id="videoIdDisplay" class="info-value">-</span>
+                                    </div>
+                                    <div class="info-item">
+                                        <span class="info-label">状态:</span>
+                                        <span id="videoStatusDisplay" class="info-value">-</span>
+                                    </div>
+                                    <div class="info-item">
+                                        <span class="info-label">创建时间:</span>
+                                        <span id="videoCreatedDisplay" class="info-value">-</span>
+                                    </div>
+                                </div>
+                                
+                                <div class="video-actions">
+                                    <button id="downloadVideoBtn" class="btn-secondary">📥 下载视频</button>
+                                    <button id="shareVideoBtn" class="btn-secondary">🔗 分享</button>
+                                    <button id="regenerateVideoBtn" class="btn-secondary">🔄 重新生成</button>
                                 </div>
                             </div>
                         </div>

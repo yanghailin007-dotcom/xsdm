@@ -55,6 +55,7 @@ from web.api.phase_generation_api import register_phase_routes
 from web.api.resume_generation_api import register_resume_routes
 from web.api.worldview_api import register_worldview_routes
 from web.api.video_generation_api import register_video_routes
+from web.api.openai_video_api import register_openai_video_routes
 from web.api.nanobanana_api import register_nanobanana_routes
 from web.api.character_api import register_character_routes
 
@@ -126,6 +127,9 @@ def create_app():
     
     # 13. 角色管理API路由
     register_character_routes(app)
+    
+    # 14. OpenAI 标准视频生成 API 路由
+    register_openai_video_routes(app)
     
     return app, manager
 

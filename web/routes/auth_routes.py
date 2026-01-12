@@ -215,6 +215,12 @@ def register_page_routes(app):
         """人物剧照工作室页面"""
         return render_template('portrait-studio.html')
     
+    @app.route('/video-studio', methods=['GET'])
+    @login_required
+    def video_studio():
+        """视频工作室页面"""
+        return render_template('video-studio.html')
+    
     @app.route('/project-viewer/<project_title>', methods=['GET'])
     @login_required
     def project_viewer(project_title):

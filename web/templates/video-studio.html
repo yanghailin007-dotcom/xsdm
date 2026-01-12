@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>视频工作室</title>
+    <link rel="stylesheet" href="/static/css/video-studio.css">
+</head>
+<body>
+    <div id="app">
+        <!-- 导航栏 -->
+        <nav class="navbar">
+            <div class="nav-container">
+                <button class="btn-back" onclick="window.location.href='/landing'">🏠 返回首页</button>
+                <h1 class="nav-title">🎬 视频工作室</h1>
+                <div class="nav-links">
+                    <a href="/novels" class="nav-link">📚 小说项目</a>
+                    <a href="/portrait-studio" class="nav-link">🎨 剧照工作室</a>
+                </div>
+            </div>
+        </nav>
+
+        <div class="main-container">
+            <!-- 主页：视频创作工作台 -->
+            <div id="workspacePage" class="page active">
+                <div class="page-header">
+                    <h2>🎬 视频创作工作台</h2>
+                    <p class="page-subtitle">输入提示词并配置参数，生成高质量视频</p>
+                </div>
+                
+                <div class="workspace-layout">
+                    <!-- 左侧：提示词编辑器 -->
+                    <div class="prompt-section">
+                        <div class="section-header">
+                            <h3>📝 生成提示词</h3>
+                            <div class="prompt-actions">
+                                <button class="btn-sm" id="copyPromptBtn">📋 复制</button>
+                            </div>
+                        </div>
+                        
+                        <textarea id="promptEditor" class="prompt-editor" placeholder="描述您想要生成的视频内容、场景、动作、风格等...&#10;&#10;例如：一位剑仙在云端修行的场景，使用水墨画风，背景是壮观的云海和山峦，仙气缭绕..."></textarea>
+                        
+                        <!-- 快速模板 -->
+                        <div class="prompt-templates">
+                            <p class="hint">💡 快速模板：</p>
+                            <div class="template-buttons">
+                                <button class="template-btn" data-template="xianxia">仙侠修真</button>
+                                <button class="template-btn" data-template="modern">现代都市</button>
+                                <button class="template-btn" data-template="scifi">科幻未来</button>
+                                <button class="template-btn" data-template="fantasy">奇幻魔法</button>
+                                <button class="template-btn" data-template="nature">自然风光</button>
+                            </div>
+                        </div>
+                        
+                        <div class="prompt-tips">
+                            <p>💡 <strong>提示技巧：</strong></p>
+                            <ul>
+                                <li>描述场景的主要内容和动作</li>
+                                <li>指定视觉风格（写实、动画、电影等）</li>
+                                <li>添加氛围和情绪描述</li>
+                                <li>描述镜头运动和角度</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- 右侧：配置和预览 -->
+                    <div class="config-section">
+                        <!-- 视频配置 -->
+                        <div class="settings-card">
+                            <h3>⚙️ 视频配置</h3>
+                            
+                            <div class="setting-row">
+                                <label>视频时长：</label>
+                                <select id="durationSelect" class="form-control">
+                                    <option value="5">5秒</option>
+                                    <option value="10" selected>10秒</option>
+                                    <option value="15">15秒</option>
+                                    <option value="20">20秒</option>
+                                </select>
+                            </div>
+                            
+                            <div class="setting-row">
+                                <label>分辨率：</label>
+                                <select id="resolutionSelect" class="form-control">
+                                    <option value="720p">720p (HD)</option>
+                                    <option value="1080p" selected>1080p (Full HD)</option>
+                                    <option value="4K">4K (Ultra HD)</option>
+                                </select>
+                            </div>
+                            
+                            <div class="setting-row">
+                                <label>视频比例：</label>
+                                <div class="ratio-buttons">
+                                    <button class="ratio-btn active" data-ratio="16:9">
+                                        <span class="ratio-icon">🖼️</span>
+                                        <span class="ratio-name">横屏</span>
+                                        <span class="ratio-detail">16:9</span>
+                                    </button>
+                                    <button class="ratio-btn" data-ratio="9:16">
+                                        <span class="ratio-icon">📱</span>
+                                        <span class="ratio-name">竖屏</span>
+                                        <span class="ratio-detail">9:16</span>
+                                    </button>
+                                    <button class="ratio-btn" data-ratio="1:1">
+                                        <span class="ratio-icon">⬜</span>
+                                        <span class="ratio-name">方形</span>
+                                        <span class="ratio-detail">1:1</span>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="setting-row">
+                                <label>帧率：</label>
+                                <select id="fpsSelect" class="form-control">
+                                    <option value="24">24 fps (电影)</option>
+                                    <option value="30" selected>30 fps (标准)</option>
+                                    <option value="60">60 fps (流畅)</option>
+                                </select>
+                            </div>
+                            
+                            <div class="setting-row">
+                                <label>视频风格：</label>
+                                <select id="styleSelect" class="form-control">
+                                    <option value="cinematic" selected>电影风格</option>
+                                    <option value="anime">动漫风格</option>
+                                    <option value="realistic">写实风格</option>
+                                    <option value="artistic">艺术风格</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- 生成按钮 -->
+                        <button id="generateBtn" class="btn-generate">
+                            <span class="btn-icon">🎬</span>
+                            <span class="btn-text">生成视频</span>
+                        </button>
+
+                        <!-- 生成进度 -->
+                        <div id="progressCard" class="progress-card" style="display: none;">
+                            <div class="progress-info">
+                                <p class="progress-text">⏳ 正在生成视频，请稍候...</p>
+                                <div class="progress-bar">
+                                    <div class="progress-fill animate"></div>
+                                </div>
+                                <p id="progressDetail" class="progress-detail">准备中...</p>
+                            </div>
+                        </div>
+
+                        <!-- 生成结果 -->
+                        <div id="resultCard" class="result-card" style="display: none;">
+                            <h3>✨ 生成结果</h3>
+                            <div class="result-video-container">
+                                <div class="video-wrapper">
+                                    <video id="resultVideo" controls preload="metadata" class="result-video">
+                                        <source src="" type="video/mp4">
+                                        您的浏览器不支持视频播放。
+                                    </video>
+                                    <button id="fullscreenBtn" class="fullscreen-btn" title="全屏播放">
+                                        <span class="fullscreen-icon">⛶</span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="result-actions">
+                                <button class="btn-action" id="downloadResultBtn">
+                                    <span>📥</span> 下载视频
+                                </button>
+                                <button class="btn-action" id="regenerateBtn">
+                                    <span>🔄</span> 重新生成
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- 全屏视频播放器 -->
+                        <div id="fullscreenPlayer" class="fullscreen-player" style="display: none;">
+                            <div class="fullscreen-header">
+                                <span class="fullscreen-title">🎬 视频播放</span>
+                                <button id="closeFullscreenBtn" class="close-fullscreen-btn" title="关闭全屏">✕</button>
+                            </div>
+                            <div class="fullscreen-video-wrapper">
+                                <video id="fullscreenVideo" controls preload="metadata" class="fullscreen-video">
+                                    <source src="" type="video/mp4">
+                                    您的浏览器不支持视频播放。
+                                </video>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast 通知 -->
+    <div id="toast" class="toast"></div>
+
+    <script src="/static/js/video-studio.js"></script>
+</body>
+</html>
