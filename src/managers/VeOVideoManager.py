@@ -263,7 +263,9 @@ class VeOVideoManager:
                 self.logger.info(f"🎬 模型: {task.native_request.model}")
                 self.logger.info(f"📐 方向: {task.native_request.orientation}")
                 self.logger.info(f"📐 尺寸: {task.native_request.size}")
-                self.logger.info(f"📐 宽高比: {task.native_request.aspect_ratio}")
+                self.logger.info(f"⏱️  时长: {task.native_request.duration}秒")
+                self.logger.info(f"💧 水印: {task.native_request.watermark}")
+                self.logger.info(f"🔒 私有: {task.native_request.private}")
                 
                 if task.native_request.images:
                     self.logger.info(f"🖼️  图片数量: {len(task.native_request.images)}")
@@ -356,7 +358,7 @@ class VeOVideoManager:
         video = VeOVideoResult(
             id=f"video_{uuid.uuid4().hex[:8]}",
             url=f"/static/generated_videos/{task.id}.mp4",
-            duration_seconds=10.0,
+            duration_seconds=float(task.native_request.duration if task.native_request else 15),
             resolution="1280x720" if task.native_request and task.native_request.orientation == "landscape" else "720x1280",
             size_bytes=1024000,
             format="mp4",
@@ -436,34 +438,14 @@ class VeOVideoManager:
         Returns:
             生成配置
         """
-        # 解析模型名称
-        model = request.model
-        parts = model.split('-')
-        
-        # 默认配置
-        orientation = "portrait"
-        size = "small"
-        enable_upsample = False
-        
-        # 解析模型参数
-        for part in parts[1:]:
-            if part == "portrait":
-                orientation = "portrait"
-            elif part == "landscape":
-                orientation = "landscape"
-            elif part == "fast":
-                size = "small"
-        
-        # 确定宽高比
-        aspect_ratio = "9:16" if orientation == "portrait" else "16:9"
-        
+        # 使用默认配置
         return VeOGenerationConfig(
-            model=parts[0] if parts else "veo_3_1",
-            orientation=orientation,
-            size=size,
-            duration=10,
-            aspect_ratio=aspect_ratio,
-            enable_upsample=enable_upsample
+            model=request.model,
+            orientation="portrait",
+            size="large",
+            duration=15,
+            aspect_ratio="9:16",
+            enable_upsample=False
         )
     
     def retrieve_generation(self, generation_id: str) -> Optional[VeOGenerationResponse]:

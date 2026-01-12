@@ -25,7 +25,7 @@ AIWX_BASE_URL = "https://jyapi.ai-wx.cn"
 AIWX_VIDEO_CREATE_URL = f"{AIWX_BASE_URL}/v1/video/create"
 
 # API密钥配置 - 使用官方提供的密钥
-AIWX_API_KEY = 'sk-4acO5gfDIJHU6NE8F4D8C8C5A4174997A63e5a3f4d755bC4'
+AIWX_API_KEY = 'sk-0dDn3ajqtCc0PTMmD045Ff7902774431Ad0304E396C856E7'
 
 # 模型配置 - Veo 3.1 系列
 AIWX_MODEL_VEO_3_1 = "veo_3_1"
@@ -135,7 +135,12 @@ def get_request_headers() -> dict:
     """
     headers = REQUEST_CONFIG['default_headers'].copy()
     api_key = get_api_key()
-    headers['Authorization'] = f'Bearer {api_key}'
+    # 直接使用 API Key，不加 Bearer 前缀
+    headers['Authorization'] = api_key
+    headers['User-Agent'] = 'Apifox/1.0.0 (https://apifox.com)'
+    headers['Accept'] = '*/*'
+    headers['Host'] = 'jyapi.ai-wx.cn'
+    headers['Connection'] = 'keep-alive'
     return headers
 
 

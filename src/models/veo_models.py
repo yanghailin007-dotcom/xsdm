@@ -98,13 +98,13 @@ class VeOVideoRequest:
 class VeOCreateVideoRequest:
     """VeO 创建视频请求 (原生格式)"""
     images: List[str] = field(default_factory=list)
-    model: str = "sora-2"
+    model: str = "veo_3_1-fast"
     orientation: str = "portrait"
     prompt: str = ""
     size: str = "large"
     duration: int = 15
-    aspect_ratio: str = "16:9"
-    enable_upsample: bool = False
+    watermark: bool = False
+    private: bool = True
     
     def to_dict(self) -> Dict[str, Any]:
         """转换为字典"""
@@ -115,8 +115,8 @@ class VeOCreateVideoRequest:
             "prompt": self.prompt,
             "size": self.size,
             "duration": self.duration,
-            "aspect_ratio": self.aspect_ratio,
-            "enable_upsample": self.enable_upsample
+            "watermark": self.watermark,
+            "private": self.private
         }
     
     @classmethod
@@ -132,23 +132,6 @@ class VeOCreateVideoRequest:
         """
         # 解析模型名称
         model = request.model
-        parts = model.split('-')
-        
-        # 默认配置
-        orientation = "portrait"
-        size = "small"
-        enable_upsample = False
-        
-        # 解析模型参数
-        for part in parts[1:]:
-            if part == "portrait":
-                orientation = "portrait"
-            elif part == "landscape":
-                orientation = "landscape"
-            elif part == "fast":
-                size = "small"  # 快速模式使用小尺寸
-            elif part == "fl":
-                pass  # 首尾帧模式
         
         # 提取图片和文本
         images = []
@@ -166,18 +149,16 @@ class VeOCreateVideoRequest:
                     if url:
                         images.append(url)
         
-        # 确定宽高比
-        aspect_ratio = "9:16" if orientation == "portrait" else "16:9"
-        
+        # 使用原始模型名称（应该是 veo_3_1-fast）
         return cls(
             images=images,
-            model="sora-2",
-            orientation=orientation,
+            model=model,
+            orientation="portrait",
             prompt=prompt,
-            size=size,
-            duration=10,
-            aspect_ratio=aspect_ratio,
-            enable_upsample=enable_upsample
+            size="large",
+            duration=15,
+            watermark=False,
+            private=True
         )
 
 
