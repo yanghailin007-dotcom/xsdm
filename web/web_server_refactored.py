@@ -58,6 +58,7 @@ from web.api.video_generation_api import register_video_routes
 from web.api.openai_video_api import register_openai_video_routes
 from web.api.nanobanana_api import register_nanobanana_routes
 from web.api.character_api import register_character_routes
+from web.api.veo_video_api import register_veo_video_routes
 
 # 导入页面路由模块
 from web.routes.auth_routes import register_auth_routes, register_page_routes
@@ -130,6 +131,9 @@ def create_app():
     
     # 14. OpenAI 标准视频生成 API 路由
     register_openai_video_routes(app)
+    
+    # 15. VeO 原生视频生成 API 路由（支持 base64 图片）
+    register_veo_video_routes(app)
     
     return app, manager
 

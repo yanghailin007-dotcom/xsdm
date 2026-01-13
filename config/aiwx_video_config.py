@@ -24,6 +24,9 @@ AIWX_BASE_URL = "https://jyapi.ai-wx.cn"
 # 视频生成端点 - 官方格式
 AIWX_VIDEO_CREATE_URL = f"{AIWX_BASE_URL}/v1/video/create"
 
+# 视频查询端点 - 标准查询接口
+AIWX_VIDEO_QUERY_URL = f"{AIWX_BASE_URL}/v1/video/query"
+
 # API密钥配置 - 使用官方提供的密钥
 AIWX_API_KEY = 'sk-0dDn3ajqtCc0PTMmD045Ff7902774431Ad0304E396C856E7'
 

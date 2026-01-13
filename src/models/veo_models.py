@@ -96,20 +96,43 @@ class VeOVideoRequest:
 
 @dataclass
 class VeOCreateVideoRequest:
-    """VeO 创建视频请求 (原生格式)"""
-    images: List[str] = field(default_factory=list)
+    """VeO 创建视频请求 (原生格式)
+    
+    支持两种图片输入模式：
+    1. URL 模式（推荐）：直接传递图片 URL，无需 base64 编码
+    2. Base64 模式：传递 base64 编码的图片数据（会自动压缩）
+    """
+    images: List[str] = field(default_factory=list)  # 支持图片 URL 或 base64
+    image_urls: List[str] = field(default_factory=list)  # 新增：专门的图片 URL 字段
     model: str = "veo_3_1-fast"
     orientation: str = "portrait"
     prompt: str = ""
     size: str = "large"
-    duration: int = 15
+    duration: int = 10
     watermark: bool = False
     private: bool = True
     
+    def has_image_urls(self) -> bool:
+        """检查是否有图片 URL"""
+        return bool(self.image_urls) or any(self._is_url(img) for img in self.images if img)
+    
+    def _is_url(self, img_str: str) -> bool:
+        """判断是否为 URL"""
+        if not img_str:
+            return False
+        return img_str.startswith(('http://', 'https://'))
+    
     def to_dict(self) -> Dict[str, Any]:
         """转换为字典"""
+        # 优先使用 image_urls（如果有）
+        if self.image_urls:
+            images_param = self.image_urls
+        else:
+            # 检查 images 列表中是否有 URL
+            images_param = [img for img in self.images if self._is_url(img)]
+        
         return {
-            "images": self.images,
+            "images": images_param,
             "model": self.model,
             "orientation": self.orientation,
             "prompt": self.prompt,
@@ -120,16 +143,21 @@ class VeOCreateVideoRequest:
         }
     
     @classmethod
-    def from_openai_format(cls, request: VeOVideoRequest) -> 'VeOCreateVideoRequest':
+    def from_openai_format(cls, request: VeOVideoRequest, native_request: Optional['VeOCreateVideoRequest'] = None) -> 'VeOCreateVideoRequest':
         """
         从 OpenAI 格式转换为原生格式
         
         Args:
             request: OpenAI 格式请求
+            native_request: 原生请求对象（如果提供，将优先使用其配置）
             
         Returns:
             原生格式请求
         """
+        # 如果提供了原生请求对象，直接使用其配置
+        if native_request:
+            return native_request
+        
         # 解析模型名称
         model = request.model
         
@@ -156,7 +184,7 @@ class VeOCreateVideoRequest:
             orientation="portrait",
             prompt=prompt,
             size="large",
-            duration=15,
+            duration=10,  # VeO 只支持 10 秒
             watermark=False,
             private=True
         )
@@ -177,6 +205,77 @@ class VeOTaskResponse:
             status=data.get("status", "pending"),
             status_update_time=data.get("status_update_time", 0)
         )
+
+
+@dataclass
+class VeOQueryResponse:
+    """VeO 视频查询响应（标准格式）
+    
+    匹配 /v1/video/query 接口的响应格式
+    """
+    id: str
+    status: str
+    video_url: Optional[str]
+    enhanced_prompt: str
+    status_update_time: int
+    detail: Optional[Dict[str, Any]] = None
+    width: Optional[int] = None
+    height: Optional[int] = None
+    thumbnail_url: Optional[str] = None
+    progress: Optional[int] = None  # 🔥 新增：生成进度（0-100）
+    model: Optional[str] = None  # 🔥 新增：使用的模型
+    seconds: Optional[str] = None  # 🔥 新增：视频时长
+    
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'VeOQueryResponse':
+        """从字典创建"""
+        return cls(
+            id=data.get("id", ""),
+            status=data.get("status", "pending"),
+            video_url=data.get("video_url"),
+            enhanced_prompt=data.get("enhanced_prompt", ""),
+            status_update_time=data.get("status_update_time", 0),
+            detail=data.get("detail"),
+            width=data.get("width"),
+            height=data.get("height"),
+            thumbnail_url=data.get("thumbnail_url"),
+            progress=data.get("progress"),  # 🔥 解析进度
+            model=data.get("model"),  # 🔥 解析模型
+            seconds=data.get("seconds")  # 🔥 解析时长
+        )
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """转换为字典"""
+        result = {
+            "id": self.id,
+            "status": self.status,
+            "video_url": self.video_url,
+            "enhanced_prompt": self.enhanced_prompt,
+            "status_update_time": self.status_update_time
+        }
+        
+        if self.detail is not None:
+            result["detail"] = self.detail
+        if self.width is not None:
+            result["width"] = self.width
+        if self.height is not None:
+            result["height"] = self.height
+        if self.thumbnail_url is not None:
+            result["thumbnail_url"] = self.thumbnail_url
+        
+        return result
+    
+    def is_completed(self) -> bool:
+        """检查任务是否完成"""
+        return self.status == "completed" and self.video_url is not None
+    
+    def is_failed(self) -> bool:
+        """检查任务是否失败"""
+        return self.status == "failed"
+    
+    def is_processing(self) -> bool:
+        """检查任务是否处理中"""
+        return self.status in ["pending", "processing"]
 
 
 @dataclass

@@ -38,7 +38,79 @@
                             </div>
                         </div>
                         
-                        <textarea id="promptEditor" class="prompt-editor" placeholder="描述您想要生成的视频内容、场景、动作、风格等...&#10;&#10;例如：一位剑仙在云端修行的场景，使用水墨画风，背景是壮观的云海和山峦，仙气缭绕..."></textarea>
+                        <textarea id="promptEditor" class="prompt-editor" placeholder="描述您想要生成的视频内容、场景、动作、风格等...
+
+例如：一位剑仙在云端修行的场景，使用水墨画风，背景是壮观的云海和山峦，仙气缭绕..."></textarea>
+                        
+                        <!-- 图片上传区域 -->
+                        <div class="image-upload-section">
+                            <div class="section-header">
+                                <h3>🖼️ 图片输入</h3>
+                                <div class="upload-mode-selector">
+                                    <button class="mode-btn active" data-mode="reference">
+                                        <span class="mode-icon">📷</span>
+                                        <span class="mode-name">参考图</span>
+                                    </button>
+                                    <button class="mode-btn" data-mode="frame">
+                                        <span class="mode-icon">🎬</span>
+                                        <span class="mode-name">首尾帧</span>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- 参考图模式 -->
+                            <div id="referenceMode" class="upload-mode-content active">
+                                <div class="upload-area" id="referenceUploadArea">
+                                    <input type="file" id="referenceImageInput" accept="image/*" hidden>
+                                    <div class="upload-placeholder" id="referencePlaceholder">
+                                        <span class="upload-icon">📷</span>
+                                        <p>点击或拖拽上传参考图</p>
+                                        <span class="upload-hint">支持 JPG、PNG 格式</span>
+                                    </div>
+                                    <div class="uploaded-image" id="referencePreview" style="display: none;">
+                                        <img src="" alt="参考图预览" id="referencePreviewImg">
+                                        <button class="remove-image-btn" id="removeReferenceBtn">✕</button>
+                                    </div>
+                                </div>
+                                <p class="upload-description">💡 使用参考图生成视频，AI将根据图片内容和您的提示词创建视频</p>
+                            </div>
+                            
+                            <!-- 首尾帧模式 -->
+                            <div id="frameMode" class="upload-mode-content">
+                                <div class="frame-upload-container">
+                                    <div class="upload-area frame-upload" id="firstFrameUploadArea">
+                                        <input type="file" id="firstFrameInput" accept="image/*" hidden>
+                                        <div class="upload-placeholder" id="firstFramePlaceholder">
+                                            <span class="upload-icon">🎬</span>
+                                            <p>首帧</p>
+                                            <span class="upload-hint">上传起始画面</span>
+                                        </div>
+                                        <div class="uploaded-image" id="firstFramePreview" style="display: none;">
+                                            <img src="" alt="首帧预览" id="firstFramePreviewImg">
+                                            <button class="remove-image-btn" data-type="first">✕</button>
+                                            <span class="frame-label">首帧</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="frame-arrow">→</div>
+                                    
+                                    <div class="upload-area frame-upload" id="lastFrameUploadArea">
+                                        <input type="file" id="lastFrameInput" accept="image/*" hidden>
+                                        <div class="upload-placeholder" id="lastFramePlaceholder">
+                                            <span class="upload-icon">🎬</span>
+                                            <p>尾帧</p>
+                                            <span class="upload-hint">上传结束画面</span>
+                                        </div>
+                                        <div class="uploaded-image" id="lastFramePreview" style="display: none;">
+                                            <img src="" alt="尾帧预览" id="lastFramePreviewImg">
+                                            <button class="remove-image-btn" data-type="last">✕</button>
+                                            <span class="frame-label">尾帧</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <p class="upload-description">💡 提供首尾帧，AI将生成从起始画面过渡到结束画面的视频</p>
+                            </div>
+                        </div>
                         
                         <!-- 快速模板 -->
                         <div class="prompt-templates">
@@ -72,10 +144,7 @@
                             <div class="setting-row">
                                 <label>视频时长：</label>
                                 <select id="durationSelect" class="form-control">
-                                    <option value="5">5秒</option>
                                     <option value="10" selected>10秒</option>
-                                    <option value="15">15秒</option>
-                                    <option value="20">20秒</option>
                                 </select>
                             </div>
                             
@@ -113,8 +182,8 @@
                                 <label>帧率：</label>
                                 <select id="fpsSelect" class="form-control">
                                     <option value="24">24 fps (电影)</option>
-                                    <option value="30" selected>30 fps (标准)</option>
-                                    <option value="60">60 fps (流畅)</option>
+                                    <option value="30">30 fps (标准)</option>
+                                    <option value="60" selected>60 fps (流畅)</option>
                                 </select>
                             </div>
                             
@@ -192,6 +261,6 @@
     <!-- Toast 通知 -->
     <div id="toast" class="toast"></div>
 
-    <script src="/static/js/video-studio.js"></script>
+    <script src="/static/js/video-studio.js?v=2"></script>
 </body>
 </html>

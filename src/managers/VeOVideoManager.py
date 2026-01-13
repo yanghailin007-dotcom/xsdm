@@ -26,9 +26,11 @@ from src.models.veo_models import (
     VeOGenerationConfig,
     VideoStatus,
     VeOUsageMetadata,
-    VeOTaskResponse
+    VeOTaskResponse,
+    VeOQueryResponse
 )
 from src.utils.logger import get_logger
+from src.utils.image_compressor import validate_and_compress_images, MAX_IMAGE_SIZE_MB
 import sys
 sys.path.insert(0, str(BASE_DIR))
 from config.aiwx_video_config import (
@@ -36,6 +38,7 @@ from config.aiwx_video_config import (
     get_request_headers,
     validate_config,
     AIWX_VIDEO_CREATE_URL,
+    AIWX_VIDEO_QUERY_URL,
     POLLING_CONFIG,
     REQUEST_CONFIG,
     DEFAULT_AIWX_VIDEO_CONFIG
@@ -47,7 +50,7 @@ logger = get_logger(__name__)
 class VeOVideoGenerationTask:
     """VeO 视频生成任务"""
     
-    def __init__(self, request: VeOVideoRequest, config: VeOGenerationConfig):
+    def __init__(self, request: VeOVideoRequest, config: VeOGenerationConfig, native_request: Optional[VeOCreateVideoRequest] = None):
         self.id = f"veo_{uuid.uuid4().hex[:12]}"
         self.request = request
         self.config = config
@@ -60,8 +63,8 @@ class VeOVideoGenerationTask:
         self._lock = threading.Lock()
         self.native_request: Optional[VeOCreateVideoRequest] = None
         
-        # 转换为原生格式
-        self.native_request = VeOCreateVideoRequest.from_openai_format(request)
+        # 转换为原生格式（如果提供了原生请求则使用，否则转换）
+        self.native_request = native_request or VeOCreateVideoRequest.from_openai_format(request)
     
     def update_progress(self, progress: int, stage: str = ""):
         """更新进度"""
@@ -257,6 +260,18 @@ class VeOVideoManager:
             
             # 使用原生格式发送请求
             if task.native_request:
+                # 压缩图片（如果有）
+                compressed_images = task.native_request.images
+                if task.native_request.images:
+                    self.logger.info(f"🖼️  开始压缩 {len(task.native_request.images)} 张图片...")
+                    compressed_images, compression_stats = validate_and_compress_images(
+                        task.native_request.images,
+                        max_size_mb=MAX_IMAGE_SIZE_MB
+                    )
+                    
+                    # 更新请求对象中的图片
+                    task.native_request.images = compressed_images
+                
                 payload = task.native_request.to_dict()
                 self.logger.info(f"📤 发送请求到: {AIWX_VIDEO_CREATE_URL}")
                 self.logger.info(f"📝 提示词长度: {len(task.native_request.prompt)} 字符")
@@ -267,8 +282,8 @@ class VeOVideoManager:
                 self.logger.info(f"💧 水印: {task.native_request.watermark}")
                 self.logger.info(f"🔒 私有: {task.native_request.private}")
                 
-                if task.native_request.images:
-                    self.logger.info(f"🖼️  图片数量: {len(task.native_request.images)}")
+                if compressed_images:
+                    self.logger.info(f"🖼️  图片数量: {len(compressed_images)}")
                 
                 task.update_progress(30, "发送生成请求")
                 
@@ -309,69 +324,138 @@ class VeOVideoManager:
     
     def _poll_task_status(self, task: VeOVideoGenerationTask, task_id: str):
         """
-        轮询任务状态（如果需要）
+        使用标准查询接口轮询任务状态
         
-        注意：根据 API 文档，创建任务后可能需要轮询查询结果
+        使用 /v1/video/query?id={task_id} 端点查询任务状态
+        
+        🔥 重要：只要任务状态是 in_progress/processing，就会持续轮询
+        不会因为达到固定次数就停止，除非：
+        1. 任务完成（completed）
+        2. 任务失败（failed）
+        3. 达到总超时时间（30分钟）
         """
         self.logger.info(f"🔄 开始轮询任务状态: {task_id}")
         
-        max_attempts = POLLING_CONFIG['max_attempts']
         poll_interval = POLLING_CONFIG['poll_interval']
+        last_progress = 0
+        attempt = 0
         
-        for attempt in range(max_attempts):
+        # 🔥 使用无限循环，只要任务还在处理中就继续
+        while True:
+            attempt += 1
             try:
-                # 更新进度
-                progress = 40 + int(50 * (attempt + 1) / max_attempts)
-                task.update_progress(progress, f"等待生成完成 ({attempt + 1}/{max_attempts})")
+                # 更新进度（基于实际进度，而不是模拟）
+                # 使用尝试次数的倒数来模拟进度增长（作为备用）
+                simulated_progress = min(40 + int(50 * min(attempt / 100, 1)), 95)
+                task.update_progress(simulated_progress, f"正在生成视频... (第 {attempt} 次查询)")
                 
-                # 这里应该调用查询状态的 API
-                # 暂时我们假设任务会立即完成
-                # 实际使用时需要根据 API 文档实现轮询逻辑
+                # 构建查询URL - 使用新的标准查询接口
+                query_url = f"{AIWX_VIDEO_QUERY_URL}?id={task_id}"
+                self.logger.info(f"📡 查询任务状态: {query_url}")
                 
-                # 模拟任务完成（实际应该查询真实状态）
-                if attempt >= 2:  # 假设3次轮询后完成
-                    # 创建模拟结果
-                    self._create_mock_result(task)
-                    break
+                # 获取请求头
+                headers = get_request_headers()
                 
-                time.sleep(poll_interval)
+                # 查询任务状态
+                response = requests.get(query_url, headers=headers, timeout=REQUEST_CONFIG['timeout'])
+                
+                if response.status_code == 200:
+                    self.logger.info(f"✅ 查询成功")
+                    
+                    # 解析响应
+                    result_data = response.json()
+                    self.logger.info(f"📊 响应数据: {json.dumps(result_data, ensure_ascii=False)[:500]}")
+                    
+                    # 使用标准响应模型解析
+                    query_response = VeOQueryResponse.from_dict(result_data)
+                    
+                    # 🔥 关键修复：使用API返回的真实进度
+                    api_progress = query_response.progress or 0
+                    if api_progress > last_progress:
+                        # 更新为真实进度：40%基础 + (API进度 * 60%)
+                        real_progress = 40 + int(api_progress * 0.6)
+                        task.update_progress(real_progress, f"生成进度: {api_progress}%")
+                        last_progress = api_progress
+                        self.logger.info(f"📈 真实进度: {api_progress}%")
+                    
+                    # 检查状态
+                    if query_response.is_completed():
+                        # 任务完成
+                        video_url = query_response.video_url
+                        
+                        if video_url:
+                            self.logger.info(f"🎬 视频URL: {video_url}")
+                            
+                            # 提取视频分辨率
+                            width = query_response.width or (1280 if task.native_request and task.native_request.orientation == "landscape" else 720)
+                            height = query_response.height or (720 if task.native_request and task.native_request.orientation == "landscape" else 1280)
+                            resolution = f"{width}x{height}"
+                            
+                            # 创建真实结果
+                            video = VeOVideoResult(
+                                id=f"video_{uuid.uuid4().hex[:8]}",
+                                url=video_url,
+                                duration_seconds=float(10),
+                                resolution=resolution,
+                                size_bytes=1024000,
+                                format="mp4",
+                                thumbnail_url=query_response.thumbnail_url or ""
+                            )
+                            
+                            result = VeOGenerationResult(
+                                videos=[video],
+                                finish_reason="completed"
+                            )
+                            
+                            task.complete(result)
+                            self.logger.info(f"✅ 任务完成: {task.id}")
+                            return
+                        else:
+                            self.logger.warn(f"⚠️ 未找到视频URL")
+                    
+                    elif query_response.is_failed():
+                        # 任务失败
+                        error_msg = "视频生成失败"
+                        if query_response.detail:
+                            error_detail = query_response.detail.get('failure_reason')
+                            if error_detail:
+                                error_msg = error_detail
+                        task.fail(error_msg)
+                        return
+                    
+                    elif query_response.is_processing():
+                        self.logger.info(f"⏳ 任务仍在处理中 (状态: {query_response.status}, 进度: {api_progress}%)，继续轮询...")
+                    
+                    else:
+                        self.logger.info(f"📊 当前状态: {query_response.status}, 进度: {api_progress}%")
+                
+                else:
+                    self.logger.warn(f"⚠️ 请求失败: HTTP {response.status_code}")
+                    # 继续轮询
+                    time.sleep(poll_interval)
             
             except Exception as e:
                 self.logger.error(f"轮询任务状态失败: {e}")
+                # 继续重试，不中断
+                time.sleep(poll_interval)
+            
+            # 🔥 检查是否应该继续轮询
+            # 只有在任务完成、失败或达到总超时时间时才停止
+            total_time = attempt * poll_interval
+            max_total_time = 30 * 60  # 最多30分钟
+            
+            if task.status != VideoStatus.PENDING:
+                # 任务已完成（成功或失败）
+                self.logger.info(f"✅ 轮询结束: {task_id}，最终状态: {task.status}")
                 break
-        
-        # 如果轮询超时
-        if task.status == VideoStatus.PENDING:
-            self.logger.warn(f"⚠️  任务轮询超时: {task_id}")
-            # 创建模拟结果用于测试
-            self._create_mock_result(task)
+            
+            if total_time >= max_total_time:
+                # 达到总超时时间
+                self.logger.warn(f"⚠️  任务轮询超时: {task_id} (已轮询 {total_time/60:.1f} 分钟)")
+                self.logger.warn(f"💡 提示：任务可能仍在后台生成，请稍后使用任务ID查询状态")
+                task.error = f"轮询超时（已{total_time/60:.1f}分钟），任务可能仍在处理中"
+                break
     
-    def _create_mock_result(self, task: VeOVideoGenerationTask):
-        """
-        创建模拟结果（用于测试）
-        
-        注意：实际使用时应该从 API 获取真实的视频URL
-        """
-        self.logger.info(f"🎬 创建视频结果")
-        
-        # 创建视频结果
-        video = VeOVideoResult(
-            id=f"video_{uuid.uuid4().hex[:8]}",
-            url=f"/static/generated_videos/{task.id}.mp4",
-            duration_seconds=float(task.native_request.duration if task.native_request else 15),
-            resolution="1280x720" if task.native_request and task.native_request.orientation == "landscape" else "720x1280",
-            size_bytes=1024000,
-            format="mp4",
-            thumbnail_url=f"/static/generated_videos/{task.id}_thumb.jpg"
-        )
-        
-        result = VeOGenerationResult(
-            videos=[video],
-            finish_reason="completed"
-        )
-        
-        task.complete(result)
-        self.logger.info(f"✅ 任务完成: {task.id}")
     
     def start(self):
         """启动管理器"""
@@ -392,6 +476,7 @@ class VeOVideoManager:
     def create_generation(
         self,
         request: VeOVideoRequest,
+        native_request: Optional[VeOCreateVideoRequest] = None,
         progress_callback: Optional[Callable] = None
     ) -> VeOGenerationResponse:
         """
@@ -399,6 +484,7 @@ class VeOVideoManager:
         
         Args:
             request: OpenAI 格式的视频生成请求
+            native_request: VeO 原生格式请求（保留完整配置参数）
             progress_callback: 进度回调函数
         
         Returns:
@@ -407,8 +493,8 @@ class VeOVideoManager:
         # 创建配置
         config = self._parse_config_from_request(request)
         
-        # 创建任务
-        task = VeOVideoGenerationTask(request, config)
+        # 创建任务（传递原生请求以保留配置参数）
+        task = VeOVideoGenerationTask(request, config, native_request)
         
         if progress_callback:
             task.progress_callbacks.append(progress_callback)
@@ -438,13 +524,28 @@ class VeOVideoManager:
         Returns:
             生成配置
         """
-        # 使用默认配置
+        # 从messages中提取duration（如果有）
+        duration = 10  # VeO只支持10秒
+        orientation = "portrait"
+        aspect_ratio = "9:16"
+        
+        # 尝试从消息中提取配置信息
+        if request.messages:
+            content = request.messages[0].get("content", [])
+            for item in content:
+                if item.get("type") == "text":
+                    text = item.get("text", "").lower()
+                    # 简单的文本解析（可以根据需要扩展）
+                    if "landscape" in text or "16:9" in text:
+                        orientation = "landscape"
+                        aspect_ratio = "16:9"
+        
         return VeOGenerationConfig(
             model=request.model,
-            orientation="portrait",
+            orientation=orientation,
             size="large",
-            duration=15,
-            aspect_ratio="9:16",
+            duration=duration,
+            aspect_ratio=aspect_ratio,
             enable_upsample=False
         )
     

@@ -276,23 +276,31 @@ class VideoGenerator {
         const progressText = document.getElementById('workspaceProgressText');
         
         let attempts = 0;
-        const maxAttempts = 60; // 最多轮询60次（2分钟）
+        const maxAttempts = 120; // 最多轮询120次（4分钟，每2秒一次）
         
         const pollInterval = setInterval(async () => {
             attempts++;
             
             try {
-                const response = await fetch(`/v1/videos/generations/${generationId}`);
+                const response = await fetch(`/api/veo/status/${generationId}`);
                 const data = await response.json();
                 
-                if (data.status === 'processing' || data.status === 'in_progress') {
-                    // 更新进度（模拟）
-                    const progress = Math.min(attempts * 5, 95);
+                if (data.status === 'processing' || data.status === 'in_progress' || data.status === 'pending') {
+                    // 🔥 使用后端返回的真实进度（如果有）
+                    let progress = 0;
+                    if (data.metadata && data.metadata.progress !== undefined) {
+                        progress = data.metadata.progress;
+                        console.log(`📊 真实进度: ${progress}%`);
+                    } else {
+                        // 如果没有真实进度，使用模拟进度
+                        progress = Math.min(attempts * 2, 95);
+                    }
+                    
                     progressBar.textContent = `${progress}%`;
                     progressBar.style.width = `${progress}%`;
                     progressText.textContent = `生成中... ${progress}%`;
                     
-                } else if (data.status === 'completed') {
+                } else if (data.status === 'completed' || (data.result && data.result.videos && data.result.videos.length > 0)) {
                     clearInterval(pollInterval);
                     
                     progressBar.textContent = '100%';
@@ -333,6 +341,19 @@ class VideoGenerator {
                         progressSection.style.display = 'none';
                         document.getElementById('generateVideoBtn').disabled = false;
                     }, 2000);
+                }
+                
+                // 🔥 超时不应该标记失败，任务可能还在后台处理
+                if (attempts >= maxAttempts) {
+                    clearInterval(pollInterval);
+                    progressText.textContent = `⏱️ 轮询超时（已尝试${maxAttempts}次）`;
+                    progressText.innerHTML += '<br><small>💡 任务可能仍在后台生成，请稍后刷新查看</small>';
+                    this.showToast('轮询超时，任务可能仍在处理中', 'warning');
+                    
+                    setTimeout(() => {
+                        progressSection.style.display = 'none';
+                        document.getElementById('generateVideoBtn').disabled = false;
+                    }, 3000);
                 }
                 
             } catch (error) {
