@@ -490,6 +490,19 @@ class VideoStudio {
             
             this.updateProgressDetail('正在发送生成请求...');
             
+            // 🔥 关键修复：根据前端选择的模式来决定模型
+            // - 首尾帧模式 (mode='frame') → veo_3_1-fast-fl
+            // - 参考图模式 (mode='reference') → veo_3_1-fast
+            // 注意：首尾帧模式可能只上传1张图片（只有首帧或只有尾帧）
+            requestData.mode = this.uploadMode;
+            
+            console.log('📊 请求数据:', {
+                ...requestData,
+                images: `[${images.length}张图片，每张${images[0]?.length || 0}字符]`,
+                mode: this.uploadMode,
+                model: this.uploadMode === 'frame' ? 'veo_3_1-fast-fl (首尾帧模式)' : 'veo_3_1-fast (参考图模式)'
+            });
+            
             // 调用VeO视频生成API
             const response = await fetch('/api/veo/generate', {
                 method: 'POST',
