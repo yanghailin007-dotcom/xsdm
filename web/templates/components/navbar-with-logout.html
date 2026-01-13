@@ -1,0 +1,24 @@
+<!-- 带有美观退出确认对话框的导航栏组件 -->
+<!-- 在需要使用此组件的页面中，引入CSS和JS文件，并使用logout()函数 -->
+
+<!-- 在<head>中引入CSS -->
+<link rel="stylesheet" href="/static/css/confirm-dialog.css">
+
+<!-- 在</body>前引入JS -->
+<script src="/static/js/confirm-dialog.js"></script>
+
+<script>
+    // 替换原有的logout函数，使用新的确认对话框
+    function logout() {
+        confirmLogout().then(confirmed => {
+            if (confirmed) {
+                window.location.href = '/logout';
+            }
+        });
+    }
+
+    // 兼容原有的confirm用法（可选）
+    function confirm(message) {
+        return showConfirm(message);
+    }
+</script>

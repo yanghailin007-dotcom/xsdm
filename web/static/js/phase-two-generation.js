@@ -301,7 +301,7 @@ function displayProjectInfo(projectData) {
     
     if (fromChapter) {
         fromChapter.value = completedChapters + 1;
-        fromChapter.min = completedChapters + 1;
+        fromChapter.min = 1;  // 允许从任何章节开始，包括重新生成已有章节
         // 添加事件监听器
         fromChapter.removeEventListener('input', updateChapterRange);
         fromChapter.addEventListener('input', updateChapterRange);
@@ -309,7 +309,8 @@ function displayProjectInfo(projectData) {
     
     if (chaptersToGenerate) {
         const remainingChapters = totalChapters - completedChapters;
-        chaptersToGenerate.max = Math.min(remainingChapters, 200);
+        // 移除 max 限制，允许生成任意数量的章节
+        // chaptersToGenerate.max = Math.min(remainingChapters, 200);
         chaptersToGenerate.value = Math.min(10, remainingChapters);
         // 添加事件监听器
         chaptersToGenerate.removeEventListener('input', updateChapterRange);

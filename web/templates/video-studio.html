@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>视频工作室</title>
     <link rel="stylesheet" href="/static/css/video-studio.css">
+    <link rel="stylesheet" href="/static/css/confirm-dialog.css">
 </head>
 <body>
     <div id="app">
@@ -261,6 +262,17 @@
     <!-- Toast 通知 -->
     <div id="toast" class="toast"></div>
 
+    <script src="/static/js/confirm-dialog.js"></script>
     <script src="/static/js/video-studio.js?v=2"></script>
+    <script>
+        // 替换原有的logout函数，使用新的确认对话框
+        function logout() {
+            confirmLogout().then(confirmed => {
+                if (confirmed) {
+                    window.location.href = '/logout';
+                }
+            });
+        }
+    </script>
 </body>
 </html>

@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>小说生成系统 - 首页</title>
     <link rel="stylesheet" href="/static/css/style.css?v=20251207-114500">
+    <link rel="stylesheet" href="/static/css/confirm-dialog.css">
     <style>
         /* 英雄区现代化样式 */
         .hero {
@@ -2461,11 +2462,13 @@
             }
         }
 
-        // 退出登录函数
+        // 退出登录函数 - 使用美观的确认对话框
         function logout() {
-            if (confirm('确定要退出登录吗？')) {
-                window.location.href = '/logout';
-            }
+            confirmLogout().then(confirmed => {
+                if (confirmed) {
+                    window.location.href = '/logout';
+                }
+            });
         }
 
         // ==================== 续写功能 ====================
@@ -2503,8 +2506,8 @@
                             
                             <div style="margin-bottom: 20px;">
                                 <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #333;">从第几章开始续写</label>
-                                <input type="number" id="continue-from-chapter" value="1" min="1" style="width: 100%; padding: 12px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 14px;">
-                                <div style="font-size: 12px; color: #666; margin-top: 4px;">建议从最后一章的下一章开始</div>
+                                <input type="number" id="continue-from-chapter" value="1" min="1" max="200" step="1" style="width: 100%; padding: 12px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 14px;">
+                                <div style="font-size: 12px; color: #666; margin-top: 4px;">可以从任何章节开始，包括重新生成已有章节</div>
                             </div>
                             
                             <div style="margin-bottom: 20px;">
@@ -2555,7 +2558,7 @@
                         const fromChapterInput = document.getElementById('continue-from-chapter');
                         if (fromChapterInput) {
                             fromChapterInput.value = nextChapter;
-                            fromChapterInput.min = nextChapter;
+                            // 不再限制最小章节号，允许重新生成已有章节
                         }
                         
                         // 显示当前进度信息
@@ -2565,8 +2568,9 @@
                         progressInfo.innerHTML = `
                             <div style="font-weight: 600; margin-bottom: 4px;">📊 当前进度</div>
                             <div>已生成: ${chapterNumbers.length} 章</div>
-                            <div>建议从第 ${nextChapter} 章开始续写</div>
+                            <div>建议从第 ${nextChapter} 章开始续写（可修改）</div>
                             <div>总计划: ${totalChapters} 章</div>
+                            <div style="margin-top: 8px; color: #059669; font-weight: 600;">💡 提示：可以从任何章节开始，包括重新生成已有章节</div>
                         `;
                         
                         const fromChapterContainer = document.getElementById('continue-from-chapter').parentElement;
@@ -2659,5 +2663,6 @@
             }
         }
     </script>
+    <script src="/static/js/confirm-dialog.js"></script>
 </body>
 </html>
