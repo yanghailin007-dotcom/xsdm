@@ -104,7 +104,8 @@ def create_video_generation():
         if user_provided_model is None:
             if upload_mode == 'frame':
                 # 首尾帧模式（可能只有1张或2张图片）
-                auto_model = 'veo_3_1-fast-fl'
+                # 🔥 修复：帧模式模型名称是 veo_3_1-fl（不是 veo_3_1-fast-fl）
+                auto_model = 'veo_3_1-fl'
             else:
                 # 参考图模式
                 auto_model = 'veo_3_1-fast'

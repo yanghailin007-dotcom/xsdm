@@ -472,29 +472,26 @@ class VideoStudio {
             this.showToast('正在生成视频...', 'success');
             
             // 构建请求数据
+            // 🔥 关键修复：不要在前端硬编码model，让后端根据mode自动选择
             const requestData = {
-                model: 'veo_3_1-fast',
                 prompt: prompt,
                 images: images, // 使用base64数据
                 orientation: this.selectedRatio === '16:9' ? 'landscape' : 'portrait',
                 size: 'large',
                 duration: parseInt(duration),
                 watermark: false,
-                private: true
+                private: true,
+                mode: this.uploadMode  // 传递mode，让后端根据mode自动选择model
             };
             
             console.log('请求数据:', {
                 ...requestData,
-                images: `[${images.length}张图片，每张${images[0]?.length || 0}字符]`
+                images: `[${images.length}张图片，每张${images[0]?.length || 0}字符]`,
+                mode: this.uploadMode,
+                model: this.uploadMode === 'frame' ? 'veo_3_1-fl (后端自动选择)' : 'veo_3_1-fast (后端自动选择)'
             });
             
             this.updateProgressDetail('正在发送生成请求...');
-            
-            // 🔥 关键修复：根据前端选择的模式来决定模型
-            // - 首尾帧模式 (mode='frame') → veo_3_1-fast-fl
-            // - 参考图模式 (mode='reference') → veo_3_1-fast
-            // 注意：首尾帧模式可能只上传1张图片（只有首帧或只有尾帧）
-            requestData.mode = this.uploadMode;
             
             console.log('📊 请求数据:', {
                 ...requestData,

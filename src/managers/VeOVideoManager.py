@@ -260,14 +260,24 @@ class VeOVideoManager:
             
             # 使用原生格式发送请求
             if task.native_request:
-                # 压缩图片（如果有）
-                compressed_images = task.native_request.images
+                # 🔥 修复：区分URL模式和base64模式
+                # 如果是URL模式，不需要压缩
+                # 如果是base64模式，需要压缩
                 if task.native_request.images:
-                    self.logger.info(f"🖼️  开始压缩 {len(task.native_request.images)} 张图片...")
-                    compressed_images, compression_stats = validate_and_compress_images(
-                        task.native_request.images,
-                        max_size_mb=MAX_IMAGE_SIZE_MB
-                    )
+                    # 检查是否所有图片都是URL
+                    all_urls = all(self._is_url(img) for img in task.native_request.images if img)
+                    
+                    if all_urls:
+                        # URL模式：直接使用，不需要压缩
+                        self.logger.info(f"🔗 URL模式：使用 {len(task.native_request.images)} 个图片URL")
+                        compressed_images = task.native_request.images
+                    else:
+                        # base64模式：需要压缩
+                        self.logger.info(f"🖼️  Base64模式：开始压缩 {len(task.native_request.images)} 张图片...")
+                        compressed_images, compression_stats = validate_and_compress_images(
+                            task.native_request.images,
+                            max_size_mb=MAX_IMAGE_SIZE_MB
+                        )
                     
                     # 更新请求对象中的图片
                     task.native_request.images = compressed_images
@@ -455,6 +465,13 @@ class VeOVideoManager:
                 self.logger.warn(f"💡 提示：任务可能仍在后台生成，请稍后使用任务ID查询状态")
                 task.error = f"轮询超时（已{total_time/60:.1f}分钟），任务可能仍在处理中"
                 break
+    
+    
+    def _is_url(self, img_str: str) -> bool:
+        """判断图片字符串是否为URL"""
+        if not img_str or not isinstance(img_str, str):
+            return False
+        return img_str.startswith(('http://', 'https://'))
     
     
     def start(self):

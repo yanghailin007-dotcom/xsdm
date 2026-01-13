@@ -113,13 +113,14 @@ class VeOCreateVideoRequest:
     private: bool = True
     
     def has_image_urls(self) -> bool:
-        """检查是否有图片 URL"""
+        """检查是否有图片 URL（不包括 data URL）"""
         return bool(self.image_urls) or any(self._is_url(img) for img in self.images if img)
     
     def _is_url(self, img_str: str) -> bool:
-        """判断是否为 URL"""
-        if not img_str:
+        """判断是否为 HTTP/HTTPS URL（不包括 data URL）"""
+        if not img_str or not isinstance(img_str, str):
             return False
+        # 只识别 http:// 和 https://，不识别 data:
         return img_str.startswith(('http://', 'https://'))
     
     def to_dict(self) -> Dict[str, Any]:
@@ -128,8 +129,29 @@ class VeOCreateVideoRequest:
         if self.image_urls:
             images_param = self.image_urls
         else:
-            # 检查 images 列表中是否有 URL
-            images_param = [img for img in self.images if self._is_url(img)]
+            # 处理 images 列表
+            # 1. 过滤掉空值
+            # 2. 移除 data URL 前缀（如果有），只保留纯 base64
+            images_param = []
+            for img in self.images:
+                if not img or not isinstance(img, str):
+                    continue
+                
+                # 如果是 HTTP/HTTPS URL，直接使用
+                if self._is_url(img):
+                    images_param.append(img)
+                # 如果是 data URL，移除前缀，只保留 base64 部分
+                elif img.startswith('data:image/'):
+                    # 格式: data:image/jpeg;base64,<base64_data>
+                    if ',' in img:
+                        base64_part = img.split(',', 1)[1]
+                        images_param.append(base64_part)
+                    else:
+                        # 如果没有逗号，可能格式不正确，但还是保留
+                        images_param.append(img)
+                # 否则认为是纯 base64，直接使用
+                else:
+                    images_param.append(img)
         
         return {
             "images": images_param,
