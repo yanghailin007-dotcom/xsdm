@@ -270,19 +270,29 @@ def extract_novel_info_from_json(json_file):
         # 处理角色信息 - 优先从selected_plan中获取
         main_character = "未知主角"
         
-        # 方法1：从selected_plan.suggestions获取（创建书本阶段）
-        if 'selected_plan' in data and isinstance(data['selected_plan'], dict):
-            suggestions = data['selected_plan'].get('suggestions', {})
+        # 方法1：从novel_info.selected_plan.suggestions获取（创建书本阶段）
+        if 'selected_plan' in novel_info and isinstance(novel_info['selected_plan'], dict):
+            suggestions = novel_info['selected_plan'].get('suggestions', {})
             if isinstance(suggestions, dict) and 'name' in suggestions:
                 main_character = suggestions['name']
+                print(f"✅ 从 novel_info.selected_plan.suggestions.name 获取主角: {main_character}")
         
         # 方法2：从character_design获取（后期阶段）
         elif 'character_design' in data and 'main_character' in data['character_design']:
             main_character = data['character_design']['main_character'].get('name', '未知主角')
+            print(f"✅ 从 character_design.main_character 获取主角: {main_character}")
         
         # 方法3：从characters获取（兼容旧格式）
         elif 'characters' in data and 'protagonist' in data['characters']:
             main_character = data['characters']['protagonist'].get('name', '未知主角')
+            print(f"✅ 从 characters.protagonist 获取主角: {main_character}")
+        
+        # 如果还是没找到，尝试从顶层character_design获取
+        if main_character == "未知主角" and 'character_design' in data:
+            char_design = data['character_design']
+            if 'protagonist' in char_design and 'name' in char_design['protagonist']:
+                main_character = char_design['protagonist']['name']
+                print(f"✅ 从顶层 character_design.protagonist 获取主角: {main_character}")
 
         # 提取标签信息 - 支持多种路径
         tags_info = {}

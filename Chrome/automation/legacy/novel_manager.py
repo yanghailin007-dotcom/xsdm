@@ -337,42 +337,94 @@ def upload_book_cover(page, novel_title):
         page.wait_for_selector(f'text=点击或拖拽文件到此处上传', timeout=10000)
         print("✓ 上传区域已出现")
 
-        # 修复：改进封面文件查找逻辑，处理中文字符问题
-        novel_project_dir = os.path.abspath(CONFIG["novel_path"])
-        print(f"搜索目录: {novel_project_dir}")
-
-        # 检查目录是否存在
-        if not os.path.exists(novel_project_dir):
-            print(f"✗ 目录不存在: {novel_project_dir}")
-            return False
-
-        # 方法1：尝试直接使用您提供的路径
-        expected_path = os.path.join(novel_project_dir, f"{novel_title}_封面.jpg")
-        print(f"尝试路径1: {expected_path}")
+        # 优先级1：检查小说项目目录下的封面文件（最高优先级）
+        # 路径格式：D:\work6.05\小说项目\{小说标题}\{小说标题}_封面.jpg
+        workspace_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+        novel_project_path = os.path.join(workspace_root, "小说项目", novel_title, f"{novel_title}_封面.jpg")
+        
         cover_found = False
         cover_path = None
         
-        if os.path.exists(expected_path):
-            cover_path = expected_path
+        print(f"优先级1: 检查小说项目目录封面: {novel_project_path}")
+        if os.path.exists(novel_project_path):
+            cover_path = novel_project_path
             cover_found = True
-            print(f"✓ 找到封面文件 (路径1): {cover_path}")
+            print(f"✓ 找到封面文件 (优先级1 - 项目目录): {cover_path}")
         else:
-            # 尝试其他可能的封面文件名
-            alternative_names = [
-                f"{novel_title}_封面.png",
-                f"{novel_title}_cover.jpg",
-                f"{novel_title}_cover.png",
-                "cover.jpg",
-                "cover.png"
-            ]
+            # 优先级2：检查CONFIG["novel_path"]目录下的封面
+            novel_project_dir = os.path.abspath(CONFIG["novel_path"])
+            print(f"优先级2: 检查配置目录: {novel_project_dir}")
             
-            for alt_name in alternative_names:
-                alt_path = os.path.join(novel_project_dir, alt_name)
-                if os.path.exists(alt_path):
-                    cover_path = alt_path
+            # 检查目录是否存在
+            if not os.path.exists(novel_project_dir):
+                print(f"✗ 目录不存在: {novel_project_dir}")
+                # 尝试从其他可能的路径查找
+                alternative_names = [
+                    f"{novel_title}_封面.jpg",
+                    f"{novel_title}_封面.png",
+                    f"{novel_title}_cover.jpg",
+                    f"{novel_title}_cover.png",
+                    "cover.jpg",
+                    "cover.png"
+                ]
+                
+                # 尝试在生成的图片目录中查找
+                generated_images_dir = os.path.join(workspace_root, "generated_images", novel_title)
+                if os.path.exists(generated_images_dir):
+                    print(f"优先级3: 检查生成图片目录: {generated_images_dir}")
+                    for alt_name in alternative_names:
+                        alt_path = os.path.join(generated_images_dir, alt_name)
+                        if os.path.exists(alt_path):
+                            cover_path = alt_path
+                            cover_found = True
+                            print(f"✓ 找到封面文件 (优先级3 - 生成图片目录): {alt_path}")
+                            break
+                
+                # 如果仍然没找到，尝试其他可能的文件名
+                if not cover_found:
+                    print(f"⚠ 未找到封面文件，已尝试以下路径:")
+                    print(f"   1. {novel_project_path}")
+                    print(f"   2. {os.path.join(novel_project_dir, f'{novel_title}_封面.jpg')}")
+                    print(f"   3. {generated_images_dir}")
+            else:
+                # 在novel_project_dir中查找封面
+                expected_path = os.path.join(novel_project_dir, f"{novel_title}_封面.jpg")
+                print(f"尝试路径: {expected_path}")
+                
+                if os.path.exists(expected_path):
+                    cover_path = expected_path
                     cover_found = True
-                    print(f"✓ 找到封面文件 (备用路径): {alt_path}")
-                    break
+                    print(f"✓ 找到封面文件 (优先级2 - 配置目录): {cover_path}")
+                else:
+                    # 尝试其他可能的封面文件名
+                    alternative_names = [
+                        f"{novel_title}_封面.png",
+                        f"{novel_title}_cover.jpg",
+                        f"{novel_title}_cover.png",
+                        "cover.jpg",
+                        "cover.png"
+                    ]
+                    
+                    for alt_name in alternative_names:
+                        alt_path = os.path.join(novel_project_dir, alt_name)
+                        if os.path.exists(alt_path):
+                            cover_path = alt_path
+                            cover_found = True
+                            print(f"✓ 找到封面文件 (优先级2 - 配置目录备用): {alt_path}")
+                            break
+                    
+                    # 如果在配置目录也没找到，尝试生成图片目录
+                    if not cover_found:
+                        generated_images_dir = os.path.join(workspace_root, "generated_images", novel_title)
+                        if os.path.exists(generated_images_dir):
+                            print(f"优先级3: 检查生成图片目录: {generated_images_dir}")
+                            for alt_name in alternative_names:
+                                alt_path = os.path.join(generated_images_dir, alt_name)
+                                if os.path.exists(alt_path):
+                                    cover_path = alt_path
+                                    cover_found = True
+                                    print(f"✓ 找到封面文件 (优先级3 - 生成图片目录): {alt_path}")
+                                    break
         
         if cover_found and cover_path:
             # 使用Playwright的文件上传功能
