@@ -1719,23 +1719,29 @@
         function toggleCoverSelection(event, coverId) {
             event.stopPropagation(); // 阻止事件冒泡
             
+            // 封面ID是字符串（文件名），直接使用，不要转换
             const coverItem = document.querySelector(`[data-cover-id="${coverId}"]`);
-            if (!coverItem) return;
+            if (!coverItem) {
+                console.error(`未找到封面元素: data-cover-id="${coverId}"`);
+                return;
+            }
             
             if (selectedCovers.has(coverId)) {
                 // 取消选中
                 selectedCovers.delete(coverId);
                 coverItem.classList.remove('selected');
+                console.log(`✅ 取消选中封面: ${coverId}`);
             } else {
                 // 添加选中
                 selectedCovers.add(coverId);
                 coverItem.classList.add('selected');
+                console.log(`✅ 选中封面: ${coverId}`);
             }
             
             // 更新选中操作栏显示状态
             updateSelectionActions();
             
-            console.log(`封面 ${coverId} 选中状态:`, selectedCovers.has(coverId));
+            console.log(`当前选中的封面数量: ${selectedCovers.size}`);
         }
 
         // 更新选中操作栏显示状态
@@ -1784,7 +1790,8 @@
             }
             
             const selectedCoverList = Array.from(selectedCovers).map(coverId => {
-                const cover = generatedCovers.find(c => c.id === coverId);
+                // 使用宽松相等比较，因为coverId可能是字符串或数字
+                const cover = generatedCovers.find(c => c.id == coverId);
                 return cover ? {
                     id: cover.id,
                     url: cover.url,
@@ -1859,8 +1866,15 @@
                 return;
             }
             
+            console.log('=== 开始拷贝封面 ===');
+            console.log('选中的封面IDs:', Array.from(selectedCovers));
+            console.log('所有可用的封面:', generatedCovers);
+            
             const selectedCoverList = Array.from(selectedCovers).map(coverId => {
-                const cover = generatedCovers.find(c => c.id === coverId);
+                console.log(`正在查找封面ID: ${coverId} (类型: ${typeof coverId})`);
+                // 使用宽松相等比较，因为coverId可能是字符串或数字
+                const cover = generatedCovers.find(c => c.id == coverId);
+                console.log(`找到的封面:`, cover);
                 return cover ? {
                     id: cover.id,
                     url: cover.url,
@@ -1870,7 +1884,10 @@
                 } : null;
             }).filter(cover => cover !== null);
             
+            console.log('最终选中的封面列表:', selectedCoverList);
+            
             if (selectedCoverList.length === 0) {
+                console.error('❌ 选中的封面信息无效');
                 alert('选中的封面信息无效，请重新选择');
                 return;
             }
