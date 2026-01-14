@@ -149,20 +149,25 @@ def select_novel_tags_interactive(page, novel_data):
         # 动态获取标签信息 - 支持多种JSON结构
         tags_info = {}
         
-        # 方法1: 尝试从 project_info.tags 获取（当前结构）
+        # 方法1: 尝试从 project_info.tags 获取（临时项目文件结构 - 优先）
         if "project_info" in novel_data and "tags" in novel_data["project_info"]:
             tags_info = novel_data["project_info"]["tags"]
-            print("✓ 从 project_info.tags 获取标签信息")
+            print(f"✓ 从 project_info.tags 获取标签信息: {tags_info}")
         
-        # 方法2: 尝试从 novel_info.tags 获取（兼容结构）
-        elif "novel_info" in novel_data and "tags" in novel_data["novel_info"]:
-            tags_info = novel_data["novel_info"]["tags"]
-            print("✓ 从 novel_info.tags 获取标签信息")
-        
-        # 方法3: 尝试从 novel_info.selected_plan.tags 获取（旧结构）
+        # 方法2: 尝试从 novel_info.selected_plan.tags 获取（原始项目文件结构）
         elif "novel_info" in novel_data and "selected_plan" in novel_data["novel_info"] and "tags" in novel_data["novel_info"]["selected_plan"]:
             tags_info = novel_data["novel_info"]["selected_plan"]["tags"]
-            print("✓ 从 novel_info.selected_plan.tags 获取标签信息")
+            print(f"✓ 从 novel_info.selected_plan.tags 获取标签信息: {tags_info}")
+        
+        # 方法3: 尝试从 novel_info.tags 获取（兼容结构）
+        elif "novel_info" in novel_data and "tags" in novel_data["novel_info"]:
+            tags_info = novel_data["novel_info"]["tags"]
+            print(f"✓ 从 novel_info.tags 获取标签信息: {tags_info}")
+        
+        # 方法4: 尝试从顶层 tags 获取
+        elif "tags" in novel_data:
+            tags_info = novel_data["tags"]
+            print(f"✓ 从顶层 tags 获取标签信息: {tags_info}")
         
         else:
             print("⚠ 未找到标准标签信息，使用默认标签")

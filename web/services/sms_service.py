@@ -15,7 +15,7 @@ from datetime import datetime
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from web.web_config import logger
-from config.config import CONFIG
+from config import CONFIG
 
 
 class SMSProvider:

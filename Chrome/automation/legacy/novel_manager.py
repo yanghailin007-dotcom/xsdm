@@ -252,8 +252,16 @@ def create_new_book(page, novel_title, formatted_synopsis, main_character, novel
     title_short = novel_title[-15:] if len(novel_title) >= 15 else novel_title
     safe_fill(page.locator('xpath=//*[@id="name_input"]/div/span/span/input'), title_short, "书名")
 
-    # 选择男女频 - 从selected_plan.tags.target_audience获取
-    tags_info = novel_data.get("project_info", {}).get("selected_plan", {}).get("tags", {})
+    # 选择男女频 - 支持多种数据结构路径
+    # 优先级: novel_info.selected_plan.tags > novel_info.tags > 顶层 tags
+    tags_info = (
+        novel_data.get("novel_info", {}).get("selected_plan", {}).get("tags", {}) or
+        novel_data.get("novel_info", {}).get("tags", {}) or
+        novel_data.get("tags", {})
+    )
+    
+    print(f"📋 创建新书时提取到标签信息: {tags_info}")
+    
     gender = tags_info.get("target_audience", "男频")
     if gender == "女频":
         safe_click(page.locator('xpath=//*[@id="radio"]/div/div/label[2]/span[1]'), "女频")

@@ -249,7 +249,7 @@ def load_chapter_data_without_content(chapter_file):
 
 def extract_novel_info_from_json(json_file):
     """
-    从JSON文件中提取小说信息
+    从JSON文件中提取小说信息 - 修复版,包含完整标签信息
     """
     try:
         with open(json_file, 'r', encoding='utf-8') as f:
@@ -284,17 +284,40 @@ def extract_novel_info_from_json(json_file):
         elif 'characters' in data and 'protagonist' in data['characters']:
             main_character = data['characters']['protagonist'].get('name', '未知主角')
 
-        # 只返回必要的信息，不返回完整数据以避免打印大量内容
+        # 提取标签信息 - 支持多种路径
+        tags_info = {}
+        
+        # 优先从 novel_info.selected_plan.tags 获取
+        if 'selected_plan' in novel_info and 'tags' in novel_info['selected_plan']:
+            tags_info = novel_info['selected_plan']['tags']
+            print(f"✅ 从 novel_info.selected_plan.tags 提取标签: {tags_info}")
+        # 其次从 novel_info.tags 获取
+        elif 'tags' in novel_info:
+            tags_info = novel_info['tags']
+            print(f"✅ 从 novel_info.tags 提取标签: {tags_info}")
+        # 最后从顶层 tags 获取
+        elif 'tags' in data:
+            tags_info = data['tags']
+            print(f"✅ 从顶层 tags 提取标签: {tags_info}")
+        else:
+            print("⚠ 未找到标签信息")
+
+        # 返回完整数据,包含 tags 信息
         return {
             'novel_title': novel_title,
             'novel_synopsis': novel_synopsis,
             'main_character': main_character,
+            'tags': tags_info,  # ✅ 添加标签信息
             'full_data': {
                 'novel_title': novel_title,
                 'novel_synopsis': novel_synopsis,
-                'main_character': main_character
-            }  # 只返回精简数据
+                'main_character': main_character,
+                'novel_info': novel_info,  # 传递完整的 novel_info
+                'tags': tags_info  # ✅ 确保 tags 在 full_data 中
+            }
         }
     except Exception as e:
         print(f"[ERROR] 提取小说信息失败 {json_file}: {e}")
+        import traceback
+        traceback.print_exc()
         return None

@@ -81,13 +81,34 @@ class FanqieUploader:
                 project_data = json.load(f)
             
             # 检查必要字段 - 适配实际的项目文件结构
-            required_fields = ['novel_title', 'novel_synopsis', 'selected_plan']
-            missing_fields = [field for field in required_fields if field not in project_data]
+            # 字段可能嵌套在 novel_info 下
+            novel_info = project_data.get('novel_info', {})
             
-            if missing_fields:
+            # 检查 novel_title（可能在 novel_info.title 或顶层 novel_title）
+            has_title = (
+                'novel_title' in project_data or
+                'title' in novel_info
+            )
+            
+            # 检查 novel_synopsis（可能在 novel_info.synopsis）
+            has_synopsis = 'synopsis' in novel_info
+            
+            # 检查 selected_plan（可能在 novel_info.selected_plan）
+            has_plan = 'selected_plan' in novel_info
+            
+            if not (has_title and has_synopsis and has_plan):
+                missing = []
+                if not has_title:
+                    missing.append('novel_title')
+                if not has_synopsis:
+                    missing.append('novel_synopsis')
+                if not has_plan:
+                    missing.append('selected_plan')
+                
+                self.logger.error(f"❌ 验证失败: 项目数据缺少必需字段: {', '.join(missing)}")
                 return {
                     "valid": False,
-                    "error": f"项目数据缺少必需字段: {', '.join(missing_fields)}"
+                    "error": f"项目数据缺少必需字段: {', '.join(missing)}"
                 }
             
             # 尝试加载角色设计文件（如果存在）
@@ -149,9 +170,26 @@ class FanqieUploader:
     def _convert_to_fanqie_format(self, project_data: Dict[str, Any], novel_title: str, chapter_files: List[Path], character_design: Optional[Dict] = None) -> Dict[str, Any]:
         """将创作系统的项目数据转换为番茄上传格式"""
         
-        # 从新的项目文件结构中提取数据
-        selected_plan = project_data.get("selected_plan", {})
-        tags = selected_plan.get("tags", {}) if isinstance(selected_plan, dict) else {}
+        # 从新的项目文件结构中提取数据 - 支持多层嵌套结构
+        # 优先级：novel_info.selected_plan > selected_plan > 顶层
+        selected_plan = (
+            project_data.get("novel_info", {}).get("selected_plan", {}) or
+            project_data.get("selected_plan", {})
+        )
+        
+        # 提取标签信息 - 支持多层嵌套
+        tags = (
+            selected_plan.get("tags", {}) if isinstance(selected_plan, dict) else {}
+        )
+        
+        # 如果还没找到tags，尝试其他路径
+        if not tags:
+            tags = (
+                project_data.get("novel_info", {}).get("tags", {}) or
+                project_data.get("tags", {})
+            )
+        
+        self.logger.info(f"✅ 提取到标签信息: {tags}")
         
         # 构建番茄格式的数据
         fanqie_data = {
@@ -334,15 +372,30 @@ class FanqieUploader:
         # 构建番茄格式的项目文件
         temp_project_file = temp_dir / f"{safe_title}_项目信息.json"
         
-        # 转换为番茄需要的格式
+        # 确保selected_plan包含完整的标签信息
+        novel_info = fanqie_data.get("novel_info", {})
+        selected_plan = novel_info.get("selected_plan", {})
+        
+        # 转换为番茄需要的格式 - 包含完整的标签信息
         fanqie_project_data = {
-            "novel_info": fanqie_data["novel_info"],
-            "character_design": fanqie_data["character_design"],
+            "novel_info": {
+                "title": novel_info.get("title", ""),
+                "synopsis": novel_info.get("synopsis", ""),
+                "category": novel_info.get("category", ""),
+                "selected_plan": selected_plan  # 确保传递完整的selected_plan,包含tags
+            },
+            "character_design": fanqie_data.get("character_design", {}),
             "creative_seed": {
-                "novelTitle": fanqie_data["novel_info"]["title"],
-                "coreSetting": fanqie_data["novel_info"]["synopsis"]
+                "novelTitle": novel_info.get("title", ""),
+                "coreSetting": novel_info.get("synopsis", "")
+            },
+            # 专门添加tags字段以确保tag_selector能找到
+            "project_info": {
+                "tags": selected_plan.get("tags", {})
             }
         }
+        
+        self.logger.info(f"✅ 临时项目文件包含标签: {fanqie_project_data['project_info']['tags']}")
         
         with open(temp_project_file, 'w', encoding='utf-8') as f:
             json.dump(fanqie_project_data, f, ensure_ascii=False, indent=2)
