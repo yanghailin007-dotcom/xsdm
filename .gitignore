@@ -81,4 +81,7 @@ Chrome.rar
 id_rsa
 id_rsa.pub
 xsdm.pem
-nul  
+nul
+
+# 临时上传目录
+temp_fanqie_upload/
