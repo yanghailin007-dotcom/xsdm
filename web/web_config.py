@@ -61,7 +61,7 @@ class FlaskConfig:
     SECRET_KEY = 'your-secret-key-here'  # 应该从配置文件读取
     DEBUG = True
     HOST = '0.0.0.0'
-    PORT = 8080  # 从5000改为8080以避免端口冲突
+    PORT = 5000  # 
     
 # 应用信息
 APP_INFO = {

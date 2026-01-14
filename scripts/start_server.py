@@ -280,7 +280,7 @@ def start_web_server():
         return False
     
     print(f"  [INFO] 服务器路径: {web_server_path}")
-    print(f"  [INFO] 访问地址: http://localhost:8080")
+    print(f"  [INFO] 访问地址: http://localhost:5000")
     print(f"  [INFO] 按Ctrl+C停止服务（需要连续两次）")
     print("\n" + "=" * 70)
     print("服务启动中...")
@@ -314,7 +314,7 @@ def main():
     ensure_directories()
     
     # 4. 清理端口
-    kill_port_process(8080)
+    kill_port_process(5000)
     
     # 5. 启动服务器
     start_web_server()
