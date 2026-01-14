@@ -1820,6 +1820,21 @@ class ContentGenerator:
         total_chapters = novel_data["current_progress"]["total_chapters"]
         plot_direction = self._get_plot_direction_for_chapter(chapter_number, total_chapters)
         writing_style_guide = novel_data.get("writing_style_guide", {})
+        
+        # 🔧 修复：安全获取 novel_synopsis，处理不同的数据结构
+        novel_synopsis = None
+        if "novel_synopsis" in novel_data:
+            novel_synopsis = novel_data["novel_synopsis"]
+        elif "novel_info" in novel_data and isinstance(novel_data["novel_info"], dict):
+            novel_synopsis = novel_data["novel_info"].get("synopsis")
+        elif "synopsis" in novel_data:
+            novel_synopsis = novel_data["synopsis"]
+        
+        # 如果还是找不到，使用默认值
+        if not novel_synopsis:
+            novel_synopsis = novel_data.get("novel_title", "未知小说")
+            self.logger.warn(f"  ⚠️  未能找到 novel_synopsis，使用标题作为替代")
+        
         params = {
             "chapter_number": chapter_number,
             "pre_designed_scenes": scene_events,
@@ -1827,7 +1842,7 @@ class ContentGenerator:
             "writing_focus_from_plan": writing_focus_from_plan,
             "total_chapters": total_chapters,
             "novel_title": novel_data["novel_title"],
-            "novel_synopsis": novel_data["novel_synopsis"],
+            "novel_synopsis": novel_synopsis,
             "writing_style_guide": writing_style_guide,
             "worldview_info": json.dumps(novel_data["core_worldview"], ensure_ascii=False) if novel_data.get("core_worldview") else "{}",
             "character_info": json.dumps(novel_data["character_design"], ensure_ascii=False) if novel_data.get("character_design") else "{}",

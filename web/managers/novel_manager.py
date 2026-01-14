@@ -495,6 +495,7 @@ class NovelGenerationManager:
             
             projects.append({
                 "title": title,
+                "novel_title": title,  # 🔥 修复：添加 novel_title 字段以匹配前端期望
                 "total_chapters": int(target_chapters),
                 "completed_chapters": completed_chapters,
                 "word_count": total_word_count,
@@ -547,6 +548,9 @@ class NovelGenerationManager:
         standardized_data = {
             # 保留所有原始字段
             **novel_data,
+            
+            # 🔥 修复：添加 novel_title 字段以匹配前端期望
+            "novel_title": title,
             
             # 添加前端期望的字段名映射
             "story_synopsis": novel_data.get("novel_synopsis", "") or novel_data.get("synopsis", ""),

@@ -74,9 +74,13 @@ async function loadNovelData() {
         showStatusMessage('🔄 正在加载项目数据...', 'info');
         
         // 验证项目标题
-        if (!novelData.projectTitle || novelData.projectTitle.trim() === '') {
-            throw new Error('项目标题不能为空');
+        if (!novelData.projectTitle || novelData.projectTitle.trim() === '' || novelData.projectTitle === 'undefined') {
+            console.error('❌ [DEBUG] 项目标题无效:', novelData.projectTitle);
+            showStatusMessage('❌ 项目标题无效，请从正常入口进入', 'error');
+            return;
         }
+        
+        console.log('✅ [DEBUG] 开始加载项目数据，标题:', novelData.projectTitle);
         
         // 加载项目详情
         const projectResponse = await fetch(`/api/project/${encodeURIComponent(novelData.projectTitle)}/with-phase-info`);

@@ -241,15 +241,29 @@ function getProjectStatusText(project) {
 
 async function selectProject(projectTitle) {
     try {
+        console.log('🎯 [SELECT_DEBUG] ===== 开始选择项目 =====');
+        console.log('🎯 [SELECT_DEBUG] projectTitle参数:', projectTitle);
+        console.log('🎯 [SELECT_DEBUG] projectTitle类型:', typeof projectTitle);
+        console.log('🎯 [SELECT_DEBUG] event对象:', event);
+        
+        // 🔥 修复：防止重复触发
+        if (currentProject && (currentProject.novel_title === projectTitle || currentProject.title === projectTitle)) {
+            console.warn('⚠️ [SELECT_DEBUG] 项目已经被选中，跳过重复处理');
+            return;
+        }
+        
         // 取消之前选中的项目
         document.querySelectorAll('.project-card').forEach(card => {
             card.classList.remove('selected');
         });
 
         // 选中当前项目
-        event.currentTarget.classList.add('selected');
+        if (event && event.currentTarget) {
+            event.currentTarget.classList.add('selected');
+        }
 
         // 加载项目详情
+        console.log('📡 [SELECT_DEBUG] 准备请求API:', `/api/project/${encodeURIComponent(projectTitle)}/with-phase-info`);
         const response = await fetch(`/api/project/${encodeURIComponent(projectTitle)}/with-phase-info`);
         
         if (!response.ok) {
@@ -257,6 +271,10 @@ async function selectProject(projectTitle) {
         }
 
         const projectData = await response.json();
+        console.log('✅ [SELECT_DEBUG] API返回数据:', projectData);
+        console.log('✅ [SELECT_DEBUG] novel_title:', projectData?.novel_title);
+        console.log('✅ [SELECT_DEBUG] title:', projectData?.title);
+        
         currentProject = projectData;
         
         displayProjectInfo(projectData);
@@ -264,17 +282,20 @@ async function selectProject(projectTitle) {
         showCreativeEnhancement();
         showGenerationForm();
         
-        addLogEntry('info', `选择项目: ${projectTitle}`);
-        // 🔥 移除多余弹窗 - 只保留日志
+        addLogEntry('info', `✅ 选择项目成功: ${projectTitle}`);
+        console.log('✅ [SELECT_DEBUG] 项目选择完成');
         // showStatusMessage(`✅ 已选择项目: ${projectTitle}`, 'success');
     } catch (error) {
-        console.error('选择项目失败:', error);
+        console.error('❌ [SELECT_DEBUG] 选择项目失败:', error);
         showStatusMessage(`❌ 选择项目失败: ${error.message}`, 'error');
         addLogEntry('error', `选择项目失败: ${error.message}`);
     }
 }
 
 function displayProjectInfo(projectData) {
+    console.log('📊 [INFO_DEBUG] ===== displayProjectInfo开始 =====');
+    console.log('📊 [INFO_DEBUG] projectData完整对象:', projectData);
+    
     const infoDiv = document.getElementById('selected-project-info');
     
     // 🔥 修复：优先从phase_info获取总章节数，然后尝试其他可能的位置
@@ -286,6 +307,8 @@ function displayProjectInfo(projectData) {
         projectData.novel_info?.total_chapters ||
         200  // 默认值
     );
+    
+    console.log('📊 [INFO_DEBUG] 计算得到的totalChapters:', totalChapters);
     
     const completedChapters = Object.keys(projectData.generated_chapters || {}).length;
     
@@ -410,12 +433,30 @@ async function loadPhaseOneProducts() {
         return;
     }
 
+    // 获取项目标题并验证
+    const projectTitle = currentProject.novel_title || currentProject.title;
+    
+    // 🔥 修复：添加详细调试信息
+    console.log('🔍 [PRODUCTS_DEBUG] currentProject对象:', JSON.stringify(currentProject, null, 2));
+    console.log('🔍 [PRODUCTS_DEBUG] novel_title:', currentProject?.novel_title);
+    console.log('🔍 [PRODUCTS_DEBUG] title:', currentProject?.title);
+    console.log('🔍 [PRODUCTS_DEBUG] 最终projectTitle:', projectTitle);
+    console.log('🔍 [PRODUCTS_DEBUG] projectTitle类型:', typeof projectTitle);
+    console.log('🔍 [PRODUCTS_DEBUG] projectTitle长度:', projectTitle?.length);
+    
+    if (!projectTitle || projectTitle === 'undefined' || projectTitle.trim() === '') {
+        console.error('❌ [PRODUCTS_DEBUG] 项目标题无效:', projectTitle);
+        addLogEntry('error', `项目标题无效，无法加载产物 (novel_title: ${currentProject?.novel_title}, title: ${currentProject?.title})`);
+        showStatusMessage('❌ 项目标题无效，请重新选择项目', 'error');
+        return;
+    }
+
     try {
         // 🔥 移除多余弹窗 - 只保留日志
-        addLogEntry('info', '正在加载第一阶段产物...');
-        // showStatusMessage('🔄 正在加载第一阶段产物...', 'info');
+        addLogEntry('info', `正在加载第一阶段产物... (项目标题: ${projectTitle})`);
+        console.log('✅ [PRODUCTS_DEBUG] 准备加载产物，项目标题:', projectTitle);
         
-        const response = await fetch(`/api/phase-one/products/${encodeURIComponent(currentProject.novel_title || currentProject.title)}`);
+        const response = await fetch(`/api/phase-one/products/${encodeURIComponent(projectTitle)}`);
         
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -447,8 +488,15 @@ async function loadPhaseOneProducts() {
 
 // 检查势力系统状态
 async function checkFactionSystemStatus() {
+    // 验证项目标题
+    const projectTitle = currentProject.novel_title || currentProject.title;
+    if (!projectTitle || projectTitle === 'undefined' || projectTitle.trim() === '') {
+        console.error('❌ [FACTIONS_DEBUG] 项目标题无效，跳过势力系统加载');
+        return;
+    }
+
     try {
-        const response = await fetch(`/api/factions/${encodeURIComponent(currentProject.novel_title || currentProject.title)}`);
+        const response = await fetch(`/api/factions/${encodeURIComponent(projectTitle)}`);
         
         if (response.ok) {
             const result = await response.json();
@@ -602,6 +650,13 @@ async function openCharacterEditorFromPhaseTwo() {
     }
     
     const projectTitle = currentProject.novel_title || currentProject.title;
+    if (!projectTitle || projectTitle === 'undefined' || projectTitle.trim() === '') {
+        console.error('❌ [CHARACTER_EDITOR_DEBUG] 项目标题无效');
+        addLogEntry('error', '项目标题无效，无法打开角色编辑器');
+        showStatusMessage('❌ 项目标题无效，请重新选择项目', 'error');
+        return;
+    }
+    
     console.log('🎯 准备打开角色编辑器，项目标题:', projectTitle);
     
     try {
@@ -780,9 +835,10 @@ async function viewFactionSystem() {
     }
     
     const projectTitle = currentProject.novel_title || currentProject.title;
-    if (!projectTitle) {
-        // 🔥 移除多余弹窗 - 只保留日志
+    if (!projectTitle || projectTitle === 'undefined' || projectTitle.trim() === '') {
+        console.error('❌ [FACTION_VIEW_DEBUG] 项目标题无效');
         addLogEntry('error', '无法获取项目标题');
+        showStatusMessage('❌ 项目标题无效，请重新选择项目', 'error');
         return;
     }
     
@@ -1280,7 +1336,15 @@ async function saveProductEdit(category) {
 
         showStatusMessage('🔄 正在保存...', 'info');
         
-        const response = await fetch(`/api/phase-one/products/${encodeURIComponent(currentProject.novel_title || currentProject.title)}/${category}`, {
+        // 验证项目标题
+        const projectTitle = currentProject.novel_title || currentProject.title;
+        if (!projectTitle || projectTitle === 'undefined' || projectTitle.trim() === '') {
+            console.error('❌ [PRODUCT_SAVE_DEBUG] 项目标题无效');
+            showStatusMessage('❌ 项目标题无效，无法保存', 'error');
+            return;
+        }
+
+        const response = await fetch(`/api/phase-one/products/${encodeURIComponent(projectTitle)}/${category}`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json'
@@ -1338,7 +1402,15 @@ async function exportPhaseOneProducts() {
     }
 
     try {
-        const response = await fetch(`/api/phase-one/products/${encodeURIComponent(currentProject.novel_title || currentProject.title)}/export`);
+        // 验证项目标题
+        const projectTitle = currentProject.novel_title || currentProject.title;
+        if (!projectTitle || projectTitle === 'undefined' || projectTitle.trim() === '') {
+            console.error('❌ [PRODUCT_EXPORT_DEBUG] 项目标题无效');
+            showStatusMessage('❌ 项目标题无效，无法导出', 'error');
+            return;
+        }
+
+        const response = await fetch(`/api/phase-one/products/${encodeURIComponent(projectTitle)}/export`);
         
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -1411,6 +1483,15 @@ async function startPhaseTwoGeneration(event) {
         return;
     }
 
+    // 🔥 修复：获取项目标题并验证
+    const projectTitle = currentProject.novel_title || currentProject.title;
+    if (!projectTitle || projectTitle === 'undefined' || projectTitle.trim() === '') {
+        console.error('❌ [PHASE_TWO_DEBUG] 项目标题无效:', projectTitle);
+        showStatusMessage('❌ 项目标题无效，无法启动生成', 'error');
+        addLogEntry('error', '项目标题无效，请重新选择项目');
+        return;
+    }
+
     const formData = {
         from_chapter: parseInt(document.getElementById('from-chapter').value),
         chapters_to_generate: parseInt(document.getElementById('chapters-to-generate').value),
@@ -1426,13 +1507,14 @@ async function startPhaseTwoGeneration(event) {
         generationStartTime = Date.now();
         
         addLogEntry('info', `开始生成章节: 第${formData.from_chapter}章开始，生成${formData.chapters_to_generate}章`);
+        console.log('✅ [PHASE_TWO_DEBUG] 准备启动生成，项目标题:', projectTitle);
 
         // 调用第二阶段生成API
         const response = await fetch('/api/phase-two/start-generation', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                novel_title: currentProject.novel_title,
+                novel_title: projectTitle,
                 ...formData
             })
         });

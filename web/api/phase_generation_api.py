@@ -1007,6 +1007,15 @@ def get_phase_one_task_status(task_id):
 def get_phase_one_products(title):
     """获取第一阶段的所有产物"""
     try:
+        # 🔥 防御性检查：验证项目标题
+        if not title or title == 'undefined' or not title.strip():
+            logger.error(f"[PRODUCTS_DEBUG] ❌ 无效的项目标题: '{title}'")
+            return jsonify({
+                "success": False,
+                "error": "项目标题无效",
+                "hint": "请从正常入口访问，不要直接在URL中输入undefined"
+            }), 400
+        
         logger.info(f"[PRODUCTS_DEBUG] 📋 开始加载项目产物: {title}")
         
         loader = ProductLoader(title, logger)
@@ -1060,6 +1069,15 @@ def get_phase_one_products(title):
 def update_phase_one_product(title, category):
     """更新第一阶段的单个产物"""
     try:
+        # 🔥 防御性检查：验证项目标题
+        if not title or title == 'undefined' or not title.strip():
+            logger.error(f"[PRODUCT_UPDATE_DEBUG] ❌ 无效的项目标题: '{title}'")
+            return jsonify({
+                "success": False,
+                "error": "项目标题无效",
+                "hint": "请从正常入口访问，不要直接在URL中输入undefined"
+            }), 400
+        
         data = request.json or {}
         product_title = data.get('title', '')
         product_content = data.get('content', '')
@@ -1289,6 +1307,15 @@ def register_additional_routes(app):
     def get_projectWithPhaseInfo(title):
         """获取项目详情及阶段信息"""
         try:
+            # 🔥 防御性检查：验证项目标题
+            if not title or title == 'undefined' or not title.strip():
+                logger.error(f"[PROJECT_INFO_DEBUG] ❌ 无效的项目标题: '{title}'")
+                return jsonify({
+                    "success": False,
+                    "error": "项目标题无效",
+                    "hint": "请从正常入口访问，不要直接在URL中输入undefined"
+                }), 400
+            
             if not manager:
                 return jsonify({"success": False, "error": "Manager not initialized"}), 500
             
@@ -1787,6 +1814,15 @@ def register_additional_routes(app):
     def get_faction_system(title):
         """获取项目的势力系统数据"""
         try:
+            # 🔥 防御性检查：验证项目标题
+            if not title or title == 'undefined' or not title.strip():
+                logger.error(f"[FACTIONS_DEBUG] ❌ 无效的项目标题: '{title}'")
+                return jsonify({
+                    "success": False,
+                    "error": "项目标题无效",
+                    "hint": "请从正常入口访问，不要直接在URL中输入undefined"
+                }), 400
+            
             logger.info(f"[FACTIONS] 获取势力系统数据: {title}")
             
             loader = ProductLoader(title, logger)
