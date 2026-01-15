@@ -544,6 +544,11 @@ class EventDecomposer:
 3. **最后一章** (收尾章): medium → medium → high → low
 
 ## 输出格式
+## 🔴 强制要求：每个场景必须包含name字段
+**每个scene_events对象必须包含一个简洁、有画面感的name字段！**
+- name字段长度：4-12个汉字
+- name字段内容：概括本场景的核心画面或关键事件
+
 {{
     "name": "{medium_event.get('name')}",
     "chapter_range": "{medium_event.get('chapter_range')}",
@@ -556,7 +561,25 @@ class EventDecomposer:
             "chapter_range": "{start_ch}-{start_ch}",
             "chapter_role": "起始章",
             "chapter_goal": "本章目标",
-            "scene_events": [...]
+            "scene_events": [
+                {{
+                    "name": "场景名称（必填，4-12字）",
+                    "sequence": 1,
+                    "role": "起",
+                    "position": "opening",
+                    "description": "场景描述",
+                    "purpose": "场景目的",
+                    "key_actions": ["关键动作"],
+                    "emotional_intensity": "low/medium/high",
+                    "emotional_impact": "情感冲击",
+                    "dialogue_highlights": ["关键对话"],
+                    "conflict_point": "冲突焦点",
+                    "sensory_details": "感官细节",
+                    "transition_to_next": "过渡说明",
+                    "estimated_word_count": "预计字数"
+                }},
+                ...
+            ]
         }}
     ]
 }}
@@ -647,6 +670,11 @@ class EventDecomposer:
 
 ## 输出格式（根据你的决策选择合适的格式）
 
+## 🔴 强制要求：每个场景必须包含name字段
+**每个scene_events或scenes对象必须包含一个简洁、有画面感的name字段！**
+- name字段长度：4-12个汉字
+- name字段内容：概括本场景的核心画面或关键事件
+
 ### 方案A：不分解章节，直接生成场景序列
 适用于：连续的情节，章节之间紧密相关
 {{
@@ -664,6 +692,7 @@ class EventDecomposer:
             "chapter_goal": "在{chapter_count}章内完成什么",
             "scene_events": [
                 {{
+                    "name": "场景名称（必填，4-12字）",
                     "sequence": 1,
                     "role": "起/承/转/合/其他",
                     "description": "场景描述",
@@ -691,6 +720,7 @@ class EventDecomposer:
             "scene_structure": {{
                 "scenes": [
                     {{
+                        "name": "场景名称（必填，4-12字）",
                         "sequence": 1,
                         "role": "起/承/转/合",
                         "description": "场景描述",
@@ -805,7 +835,13 @@ class EventDecomposer:
 - 最后一个场景必须包含吸引读者继续阅读的钩子
 
 ## ⚠️ 重要：输出格式要求
-你必须严格按照以下JSON格式返回结果，不得使用其他格式：
+你必须严格按照以下JSON格式返回结果，不得使用其他格式。
+
+## 🔴 强制要求：每个场景必须包含name字段
+**每个scene_events对象必须包含一个简洁、有画面感的name字段！**
+- name字段长度：4-12个汉字
+- name字段内容：概括本场景的核心画面或关键事件
+- 示例："黑暗中复苏"、"跪地求饶"、"系统审判"、"血泪觉醒"
 
 {{
     "name": "{medium_event.get('name')}",
@@ -821,6 +857,7 @@ class EventDecomposer:
             "chapter_goal": "在单章内完成起承转合",
             "scene_events": [
                 {{
+                    "name": "开篇场景名称（必填，4-12字）",
                     "sequence": 1,
                     "role": "起",
                     "position": "opening",

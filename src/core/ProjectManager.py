@@ -426,10 +426,10 @@ class ProjectManager:
         # 构建完整的项目数据（不包含成长路线和写作计划,因为已保存到独立文件）
         data = {
             "novel_info": {
-                "title": novel_data["novel_title"],
-                "synopsis": novel_data["novel_synopsis"],
+                "title": novel_data.get("novel_title", "未命名"),
+                "synopsis": novel_data.get("novel_synopsis", ""),
                 "creative_seed": normalized_creative_seed,
-                "selected_plan": novel_data["selected_plan"],
+                "selected_plan": novel_data.get("selected_plan", {}),
                 "category": novel_data.get("category", "未分类")
             },
             # 核心数据（不包含 global_growth_plan 和 stage_writing_plans,已保存到独立文件）

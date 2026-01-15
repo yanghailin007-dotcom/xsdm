@@ -1660,13 +1660,40 @@ class ContentGenerator:
         user_prompt = chapter_generation_prompt  # 使用保存的提示词进行生成
         # ▲▲▲ 核心修改结束 ▲▲▲
         max_retries = 3
-        final_result = None
-        for attempt in range(max_retries):
-            self.logger.info(f"  ✍️ 第{attempt + 1}/{max_retries}次尝试直接生成第{chapter_number}章内容...")
-            # 诊断打印：检查场景是否正确传递
-            self.logger.info(f"  [诊断] 第{chapter_number}章场景数量: {len(pre_designed_scenes)}")
-            for i, scene in enumerate(pre_designed_scenes[:8]):  # 只打印前2个避免过多输出
-                self.logger.info(f"    场景{i+1}: {scene.get('name', 'Unknown')} - {scene.get('position', 'Unknown position')}")
+    final_result = None
+    
+    # 🔧 修复：验证并补充场景名称
+    for i, scene in enumerate(pre_designed_scenes):
+        if not scene.get('name'):
+            # 如果缺少name字段，根据position和description生成一个
+            position = scene.get('position', 'unknown')
+            description = scene.get('description', '')
+            purpose = scene.get('purpose', '')
+            
+            # 生成有意义的场景名称
+            if position == 'opening':
+                scene['name'] = '开篇场景：' + (description[:8] if len(description) > 8 else description)
+            elif position == 'development1':
+                scene['name'] = '发展场景1：' + (purpose[:8] if len(purpose) > 8 else purpose)
+            elif position == 'development2':
+                scene['name'] = '发展场景2：' + (purpose[:8] if len(purpose) > 8 else purpose)
+            elif position == 'climax':
+                scene['name'] = '高潮场景'
+            elif position == 'falling':
+                scene['name'] = '回落场景'
+            elif position == 'ending':
+                scene['name'] = '结尾场景'
+            else:
+                scene['name'] = f'场景{i+1}'
+            
+            self.logger.warn(f"  ⚠️ 场景{i+1}缺少name字段，已自动补充: {scene['name']}")
+    
+    for attempt in range(max_retries):
+        self.logger.info(f"  ✍️ 第{attempt + 1}/{max_retries}次尝试直接生成第{chapter_number}章内容...")
+        # 诊断打印：检查场景是否正确传递
+        self.logger.info(f"  [诊断] 第{chapter_number}章场景数量: {len(pre_designed_scenes)}")
+        for i, scene in enumerate(pre_designed_scenes[:8]):  # 只打印前2个避免过多输出
+            self.logger.info(f"    场景{i+1}: {scene.get('name', 'Unknown')} - {scene.get('position', 'Unknown position')}")
             # 使用你现有的 chapter_content_generation Prompt类型，但传入新的、更丰富的 user_prompt
             # 这个Prompt应该指导LLM直接输出最终的章节JSON
             content_result = self.api_client.generate_content_with_retry(

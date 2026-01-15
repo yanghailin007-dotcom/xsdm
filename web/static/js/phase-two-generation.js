@@ -1558,10 +1558,58 @@ function startProgressMonitoring() {
     // 初始化章节进度卡片
     initializeChapterProgress();
     
+    // 🔥 新增：错误计数器，用于检测无效任务
+    let errorCount = 0;
+    const MAX_ERRORS = 3; // 最多允许3次连续错误
+    
     progressInterval = setInterval(async () => {
         try {
             const response = await fetch(`/api/phase-two/task/${currentTaskId}/status`);
-            if (!response.ok) return;
+            
+            // 🔥 修复：处理404错误（任务不存在）
+            if (response.status === 404) {
+                errorCount++;
+                console.error(`❌ 任务不存在 (404)，错误计数: ${errorCount}/${MAX_ERRORS}`);
+                
+                if (errorCount >= MAX_ERRORS) {
+                    // 连续3次404，停止轮询
+                    clearInterval(progressInterval);
+                    progressInterval = null;
+                    currentTaskId = null;
+                    
+                    addLogEntry('error', '任务不存在或已过期，停止轮询');
+                    showStatusMessage('⚠️ 任务不存在或已过期', 'warning');
+                    
+                    // 恢复表单显示
+                    hideProgressSection();
+                    showGenerationForm();
+                    return;
+                }
+                return; // 继续尝试
+            }
+            
+            // 🔥 修复：处理其他HTTP错误
+            if (!response.ok) {
+                errorCount++;
+                console.error(`❌ HTTP错误: ${response.status}，错误计数: ${errorCount}/${MAX_ERRORS}`);
+                
+                if (errorCount >= MAX_ERRORS) {
+                    clearInterval(progressInterval);
+                    progressInterval = null;
+                    currentTaskId = null;
+                    
+                    addLogEntry('error', `连接失败 (${response.status})，停止轮询`);
+                    showStatusMessage('⚠️ 连接失败，请刷新页面重试', 'warning');
+                    
+                    hideProgressSection();
+                    showGenerationForm();
+                    return;
+                }
+                return;
+            }
+            
+            // 🔥 成功响应，重置错误计数
+            errorCount = 0;
 
             const taskStatus = await response.json();
             updateProgress(taskStatus.progress || 0, taskStatus.status_message || '生成中...');
@@ -1571,14 +1619,30 @@ function startProgressMonitoring() {
             // 检查是否完成
             if (taskStatus.status === 'completed') {
                 clearInterval(progressInterval);
+                progressInterval = null;
+                currentTaskId = null;
                 handleGenerationComplete(taskStatus);
             } else if (taskStatus.status === 'failed' || taskStatus.status === 'paused') {
                 clearInterval(progressInterval);
+                progressInterval = null;
+                currentTaskId = null;
                 handleGenerationStopped(taskStatus);
             }
         } catch (error) {
             console.error('获取进度状态失败:', error);
             addLogEntry('error', `获取进度失败: ${error.message}`);
+            
+            // 🔥 网络错误也算作错误计数
+            errorCount++;
+            if (errorCount >= MAX_ERRORS) {
+                clearInterval(progressInterval);
+                progressInterval = null;
+                currentTaskId = null;
+                
+                showStatusMessage('⚠️ 网络连接不稳定，请刷新页面', 'warning');
+                hideProgressSection();
+                showGenerationForm();
+            }
         }
     }, 5000); // 每5秒检查一次
 }
@@ -1941,9 +2005,27 @@ function logout() {
     }
 }
 
-// 页面卸载时清理定时器
+// 🔥 改进：页面卸载时清理定时器和状态
 window.addEventListener('beforeunload', function() {
     if (progressInterval) {
         clearInterval(progressInterval);
+        progressInterval = null;
+        console.log('✅ 已清理进度监控定时器');
+    }
+    // 重置任务ID，避免页面重新加载时继续轮询
+    if (currentTaskId) {
+        console.log(`✅ 清理任务ID: ${currentTaskId}`);
+        currentTaskId = null;
+    }
+});
+
+// 🔥 新增：页面可见性变化时处理轮询
+document.addEventListener('visibilitychange', function() {
+    if (document.hidden) {
+        // 页面隐藏时，如果任务已完成或失败，停止轮询
+        console.log('📴 页面已隐藏，保持轮询状态...');
+    } else {
+        // 页面显示时，恢复轮询
+        console.log('📄 页面已显示，恢复轮询...');
     }
 });
