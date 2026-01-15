@@ -60,11 +60,9 @@ echo "配置文件已创建"
 echo ""
 
 echo "步骤 6/6: 启动应用服务..."
-# 停止之前运行的服务
 pkill -f "gunicorn.*web.wsgi" || true
 sleep 2
 
-# 启动新服务（使用 WSGI 入口点）
 nohup gunicorn \
   -w 2 \
   -b 0.0.0.0:5000 \
@@ -75,10 +73,8 @@ nohup gunicorn \
   --error-logfile logs/error.log \
   web.wsgi:app
 
-# 等待服务启动
 sleep 5
 
-# 检查服务是否运行
 if pgrep -f "gunicorn.*web.wsgi" > /dev/null; then
     echo "✓ 服务启动成功"
 else
@@ -91,7 +87,6 @@ echo ""
 echo "正在测试应用..."
 sleep 2
 
-# 测试应用是否响应
 if curl -s http://127.0.0.1:5000/ > /dev/null 2>&1; then
     echo "✓ 应用响应正常"
     HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:5000/)

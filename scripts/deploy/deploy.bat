@@ -1,124 +1,179 @@
 @echo off
-REM Full Deployment Script - Sync and Auto Configure
-REM No Chinese characters to avoid encoding issues
-
-setlocal enabledelayedexpansion
-
+chcp 65001 >nul
+echo ========================================
+echo    一键部署工具
+echo ========================================
+echo.
+ 
+REM 服务器配置
 set SERVER_IP=8.163.37.124
-set SERVER_USER=novelapp
-set KEY_FILE=d:/work6.05/xsdm.pem
-set PROJECT_DIR=/home/novelapp/novel-system
-
-echo ========================================
-echo   Full Deploy Script - Sync + Configure
-echo ========================================
+set SERVER_USER=root
+set KEY_PATH=d:\work6.05\xsdm.pem
+ 
+echo 服务器信息:
+echo   IP: %SERVER_IP%
+echo   用户: %SERVER_USER%
+echo   密钥: %KEY_PATH%
 echo.
-echo This script will:
-echo 1. Sync code to server (exclude large files)
-echo 2. Auto configure server environment
-echo 3. Clean old processes
-echo 4. Install dependencies
-echo 5. Start service
-echo.
-
-set /p confirm="Start deployment? (y/n): "
-if /i not "%confirm%"=="y" (
-    echo Deployment cancelled
+ 
+REM 检查私钥
+if not exist "%KEY_PATH%" (
+    echo 错误: 私钥文件未找到: %KEY_PATH%
     pause
-    exit /b 0
+    exit /b 1
 )
+ 
+REM 设置权限
+echo 正在设置私钥权限...
+icacls "%KEY_PATH%" /inheritance:r >nul 2>&1
+icacls "%KEY_PATH%" /grant:r "%USERNAME%:F" >nul 2>&1
 
+REM 测试连接
+echo 正在测试SSH连接...
+ssh -i "%KEY_PATH%" -o ConnectTimeout=10 -o StrictHostKeyChecking=no %SERVER_USER%@%SERVER_IP% "echo 'Connection successful'" >nul 2>&1
+if %ERRORLEVEL% neq 0 (
+    echo 错误: SSH连接失败
+    pause
+    exit /b 1
+)
+echo SSH连接成功
 echo.
+ 
+REM 检查Git Bash
+set GIT_BASH="C:\Program Files\Git\bin\bash.exe"
+if not exist %GIT_BASH% (
+    echo 错误: Git Bash未找到
+    pause
+    exit /b 1
+)
+ 
+REM 步骤 1: 创建部署压缩包
 echo ========================================
-echo Step 1: Syncing code to server
+echo 步骤 1/5: 创建部署压缩包
 echo ========================================
 echo.
 
-echo Preparing files...
-powershell -ExecutionPolicy Bypass -Command ^
-"$ErrorActionPreference = 'Stop'; " ^
-"$source = 'd:\work6.05'; " ^
-"$excludeDirs = @('Chrome', '.git', '.venv', 'venv', 'generated_images', 'logs', 'temp_fanqie_upload', 'chapter_failures', '__pycache__', '.vscode', '.idea', '.claude', 'node_modules'); " ^
-"Write-Host 'Scanning files...' -ForegroundColor Yellow; " ^
-"$files = Get-ChildItem -Path $source -Recurse -Force | Where-Object { " ^
-    " $relativePath = $_.FullName.Replace($source, ''); " ^
-    " $firstDir = if ($relativePath -match '^\\+?([^\\]+)') { $matches[1] } else { '' }; " ^
-    " $excludeDirs -notcontains $firstDir " ^
-"}; " ^
-"Write-Host ('Found ' + $files.Count + ' files to sync') -ForegroundColor Green; " ^
-"$tempDir = Join-Path $env:TEMP 'novel_deploy_' + (Get-Date -Format 'yyyyMMddHHmmss'); " ^
-"New-Item -ItemType Directory -Path $tempDir -Force | Out-Null; " ^
-"$copied = 0; " ^
-"foreach ($file in $files) { " ^
-    " $destPath = Join-Path $tempDir $file.FullName.Replace($source, '').TrimStart('\\'); " ^
-    " $destDir = Split-Path $destPath -Parent; " ^
-    " if (-not (Test-Path $destDir)) { New-Item -ItemType Directory -Path $destDir -Force | Out-Null }; " ^
-    " Copy-Item $file.FullName -Destination $destPath -Force; " ^
-    " $copied++; " ^
-    " if ($copied %% 100 -eq 0) { Write-Host ('Copied ' + $copied + ' / ' + $files.Count + ' files') -ForegroundColor Gray } " ^
-"}; " ^
-"Write-Host ('Files ready: ' + $copied + ' files') -ForegroundColor Green; " ^
-"$size = (Get-ChildItem -Path $tempDir -Recurse | Measure-Object -Property Length -Sum).Sum / 1MB; " ^
-"Write-Host ('Temp size: ' + [math]::Round($size, 2) + ' MB') -ForegroundColor Yellow; " ^
-"Write-Host 'Uploading to server...' -ForegroundColor Yellow; " ^
-"$scpArgs = @('-i', '%KEY_FILE%', '-o', 'StrictHostKeyChecking=no', '-r', (Join-Path $tempDir '*'), '%SERVER_USER%@%SERVER_IP%:%PROJECT_DIR%/'); " ^
-"$process = Start-Process -FilePath 'scp' -ArgumentList $scpArgs -Wait -PassThru -NoNewWindow; " ^
-"if ($process.ExitCode -ne 0) { throw 'SCP upload failed, exit code: ' + $process.ExitCode }; " ^
-"Write-Host 'Upload success!' -ForegroundColor Green; " ^
-"Remove-Item -Path $tempDir -Recurse -Force; " ^
-"Write-Host 'Temp files cleaned' -ForegroundColor Gray"
+set TIMESTAMP=%date:~0,4%%date:~5,2%%date:~8,2%_%time:~0,2%%time:~3,2%%time:~6,2%
+set TIMESTAMP=%TIMESTAMP: =0%
+set ZIP_FILE=novel_system_%TIMESTAMP%.tar.gz
 
-if %errorlevel% neq 0 (
-    echo.
-    echo [ERROR] Code sync failed
+cd /d d:\work6.05
+echo 正在创建压缩包: %ZIP_FILE%
+%GIT_BASH% -c "tar -czf %ZIP_FILE% --exclude='__pycache__' --exclude='*.pyc' --exclude='.git' --exclude='logs' --exclude='generated_images' --exclude='aiwx_video_generations' --exclude='veo_video_generations' --exclude='video_generations' --exclude='temp_fanqie_upload' --exclude='temp_uploads' --exclude='chapter_failures' --exclude='Chrome' --exclude='视频项目' --exclude='*.tar.gz' --exclude='.env' --exclude='test_*.py' --exclude='test_*.json' --exclude='xsdm.pem' --exclude='*.log' --exclude='output.*' --exclude='server.log' ."
+
+if not exist %ZIP_FILE% (
+    echo 错误: 压缩包创建失败
+    pause
+    exit /b 1
+)
+ 
+echo 压缩包创建成功: %ZIP_FILE%
+for %%F in (%ZIP_FILE%) do echo 大小: %%~zF 字节
+echo.
+
+REM 步骤 2: 上传压缩包到服务器
+echo ========================================
+echo 步骤 2/5: 上传压缩包到服务器
+echo ========================================
+echo.
+
+echo 正在上传 %ZIP_FILE% 到服务器...
+scp -i "%KEY_PATH%" -P 22 -o StrictHostKeyChecking=no %ZIP_FILE% %SERVER_USER%@%SERVER_IP%:/tmp/
+
+if %ERRORLEVEL% neq 0 (
+    echo 错误: 上传失败
+    del %ZIP_FILE%
+    pause
+    exit /b 1
+)
+ 
+echo 上传成功
+echo.
+
+REM 删除本地压缩包
+del %ZIP_FILE%
+
+REM 步骤 3: 上传部署脚本到服务器
+echo ========================================
+echo 步骤 3/5: 上传部署脚本到服务器
+echo ========================================
+echo.
+
+echo 正在上传部署脚本...
+scp -i "%KEY_PATH%" -P 22 -o StrictHostKeyChecking.no "%~dp0server_deploy.sh" %SERVER_USER%@%SERVER_IP%:/tmp/deploy_script.sh
+
+if %ERRORLEVEL% neq 0 (
+    echo 错误: 部署脚本上传失败
     pause
     exit /b 1
 )
 
+echo 部署脚本上传成功
 echo.
+
+REM 步骤 4: 执行部署并启动服务
 echo ========================================
-echo Step 2: Configure and start on server
+echo 步骤 4/5: 执行部署并启动服务
 echo ========================================
 echo.
 
-echo Uploading startup script...
-scp -i %KEY_FILE% -o StrictHostKeyChecking=no scripts/deploy/server_sync_and_start.sh %SERVER_USER%@%SERVER_IP%:/tmp/
+echo 正在部署应用并启动服务...
+ssh -i "%KEY_PATH%" -p 22 -o StrictHostKeyChecking=no %SERVER_USER%@%SERVER_IP% "chmod +x /tmp/deploy_script.sh && bash /tmp/deploy_script.sh"
 
-if %errorlevel% neq 0 (
-    echo [ERROR] Startup script upload failed
-    pause
-    exit /b 1
+set DEPLOY_RESULT=%ERRORLEVEL%
+
+echo.
+
+REM 步骤 5: 测试应用访问
+echo ========================================
+echo 步骤 5/5: 测试应用访问
+echo ========================================
+echo.
+
+if %DEPLOY_RESULT% equ 0 (
+    echo 正在测试应用访问...
+    echo.
+    
+    for /f "tokens=*" %%i in ('ssh -i "%KEY_PATH%" -p 22 -o StrictHostKeyChecking=no %SERVER_USER%@%SERVER_IP% "hostname -I"') do set SERVER_IP_RESULT=%%i
+    for /f "tokens=1" %%a in ("%SERVER_IP_RESULT%") do set ACTUAL_IP=%%a
+    
+    echo 服务器IP: %ACTUAL_IP%
+    echo.
+    
+    echo 正在测试 HTTP 连接...
+    ssh -i "%KEY_PATH%" -p 22 -o StrictHostKeyChecking=no %SERVER_USER%@%SERVER_IP% "curl -s -o /dev/null -w 'HTTP状态码: %%{http_code}' http://127.0.0.1:5000/"
+    
+    if %ERRORLEVEL% equ 0 (
+        echo.
+        echo ========================================
+        echo   ✓ 所有步骤完成！
+        echo ========================================
+        echo.
+        echo 部署成功！应用已启动并运行。
+        echo.
+        echo 访问地址:
+        echo   外网访问: http://%ACTUAL_IP%:5000/
+        echo.
+        echo 服务管理命令:
+        echo   查看状态: ssh -i "%KEY_PATH%" %SERVER_USER%@%SERVER_IP% "pgrep -f gunicorn"
+        echo   停止服务: ssh -i "%KEY_PATH%" %SERVER_USER%@%SERVER_IP% "pkill -f gunicorn"
+        echo   查看日志: ssh -i "%KEY_PATH%" %SERVER_USER%@%SERVER_IP% "tail -f /home/novelapp/novel-system/logs/error.log"
+        echo.
+        echo 连接到服务器:
+        echo   ssh -i "%KEY_PATH%" %SERVER_USER%@%SERVER_IP%
+        echo.
+    )
+) else (
+    echo ========================================
+    echo   ✗ 部署失败
+    echo ========================================
+    echo.
+    echo 连接到服务器查看详情:
+    echo   ssh -i "%KEY_PATH%" %SERVER_USER%@%SERVER_IP%
 )
 
-echo Executing configuration and startup script on server...
-echo.
-
-ssh -i %KEY_FILE% -o StrictHostKeyChecking=no %SERVER_USER%@%SERVER_IP% "bash /tmp/server_sync_and_start.sh"
-
-if %errorlevel% neq 0 (
-    echo.
-    echo [WARNING] Server configuration may have issues, please check
-    echo.
-    echo Manual connection:
-    echo ssh -i %KEY_FILE% %SERVER_USER%@%SERVER_IP%
-    echo.
-    pause
-    exit /b 1
-)
+REM 清理临时文件
+ssh -i "%KEY_PATH%" -p 22 -o StrictHostKeyChecking=no %SERVER_USER%@%SERVER_IP% "rm -f /tmp/deploy_script.sh" 2>nul
 
 echo.
-echo ========================================
-echo Deployment Complete!
-echo ========================================
-echo.
-echo Service started, access URLs:
-echo   Local: http://localhost:5000
-echo   Public: http://%SERVER_IP%:5000
-echo.
-echo Common commands:
-echo   Check status: ssh -i %KEY_FILE% %SERVER_USER%@%SERVER_IP% "sudo supervisorctl status novel-system"
-echo   View logs: ssh -i %KEY_FILE% %SERVER_USER%@%SERVER_IP% "sudo supervisorctl tail -f novel-system"
-echo   Restart: ssh -i %KEY_FILE% %SERVER_USER%@%SERVER_IP% "sudo supervisorctl restart novel-system"
-echo.
-
 pause
