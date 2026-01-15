@@ -62,6 +62,8 @@ class VeOVideoGenerationTask:
         self.progress_callbacks: List[Callable] = []
         self._lock = threading.Lock()
         self.native_request: Optional[VeOCreateVideoRequest] = None
+        self._current_progress: int = 0  # 🔥 新增：当前进度
+        self._current_stage: str = ""  # 🔥 新增：当前阶段
         
         # 转换为原生格式（如果提供了原生请求则使用，否则转换）
         self.native_request = native_request or VeOCreateVideoRequest.from_openai_format(request)
@@ -69,6 +71,8 @@ class VeOVideoGenerationTask:
     def update_progress(self, progress: int, stage: str = ""):
         """更新进度"""
         with self._lock:
+            self._current_progress = progress
+            self._current_stage = stage
             for callback in self.progress_callbacks:
                 try:
                     callback(self.id, progress, stage)
@@ -115,7 +119,9 @@ class VeOVideoGenerationTask:
             prompt=prompt,
             generation_config=self.config,
             result=self.result,
-            error=self.error
+            error=self.error,
+            progress=self._current_progress,  # 🔥 添加当前进度
+            stage=self._current_stage  # 🔥 添加当前阶段
         )
         
         # 计算使用统计
@@ -176,32 +182,116 @@ class VeOVideoManager:
     def _load_tasks(self):
         """从磁盘加载任务"""
         try:
+            # 清空现有任务列表
+            self.tasks.clear()
+            
+            loaded_count = 0
             for task_file in self.storage_dir.glob("*.json"):
                 try:
+                    # 🔥 关键修复：使用文件名作为ID（去掉.json后缀）
+                    # 文件名格式：veo_abc123def456.json
+                    task_id = task_file.stem  # 自动去掉.json后缀
+                    
+                    # 验证ID格式（必须以veo_开头）
+                    if not task_id.startswith("veo_"):
+                        self.logger.warn(f"⚠️  跳过无效文件名: {task_file.name}")
+                        continue
+                    
                     with open(task_file, 'r', encoding='utf-8') as f:
                         task_data = json.load(f)
                     
-                    task_id = task_data.get("id")
-                    if task_id and task_id not in self.tasks:
-                        # 创建占位任务对象
-                        placeholder_request = VeOVideoRequest(
-                            model="veo_3_1",
-                            messages=[{"role": "user", "content": []}]
-                        )
-                        placeholder_config = VeOGenerationConfig()
-                        
-                        self.tasks[task_id] = VeOVideoGenerationTask(
-                            placeholder_request,
-                            placeholder_config
-                        )
-                        status = task_data.get("status", "pending")
-                        self.tasks[task_id].status = VideoStatus(status)
+                    # 🔥 修复：确保JSON内容中的ID与文件名一致
+                    # 如果JSON中的ID与文件名不同，使用文件名（作为真实来源）
+                    json_id = task_data.get("id")
+                    if json_id and json_id != task_id:
+                        self.logger.warn(f"⚠️  ID不匹配: 文件名={task_id}, JSON={json_id}，使用文件名")
+                    
+                    # 🔥 关键修复：从保存的JSON中读取prompt
+                    saved_prompt = task_data.get("prompt", "")
+                    model_name = task_data.get("model", "veo_3_1-fast")
+                    
+                    # 创建占位任务对象，但包含保存的prompt
+                    placeholder_request = VeOVideoRequest(
+                        model=model_name,
+                        messages=[{
+                            "role": "user",
+                            "content": [
+                                {"type": "text", "text": saved_prompt}
+                            ]
+                        }]
+                    )
+                    placeholder_config = VeOGenerationConfig()
+                          
+                    # 创建任务并强制设置ID为文件名中的ID
+                    task = VeOVideoGenerationTask(
+                        placeholder_request,
+                        placeholder_config
+                    )
+                    task.id = task_id  # 🔥 强制使用文件名中的ID
+                    
+                    # 🔥 新增：恢复进度和阶段信息
+                    if task_data.get("progress") is not None:
+                        task._current_progress = task_data["progress"]
+                    if task_data.get("stage"):
+                        task._current_stage = task_data["stage"]
+                    
+                    # 设置状态
+                    status_str = task_data.get("status", "pending")
+                    try:
+                        task.status = VideoStatus(status_str)
+                    except ValueError:
+                        self.logger.warn(f"⚠️  无效状态: {status_str}，使用默认值")
+                        task.status = VideoStatus.PENDING
+                    
+                    # 设置其他属性
+                    task.created_at = task_data.get("created", int(time.time()))
+                    if task_data.get("completed"):
+                        task.completed_at = task_data["completed"]
+                    
+                    # 设置错误信息（如果有）
+                    if task_data.get("error"):
+                        task.error = task_data["error"]
+                    
+                    # 🔥 关键修复：恢复result数据（视频结果）
+                    result_data = task_data.get("result")
+                    if result_data and task.status == VideoStatus.COMPLETED:
+                        try:
+                            videos_data = result_data.get("videos", [])
+                            videos = []
+                            
+                            for video_data in videos_data:
+                                video = VeOVideoResult(
+                                    id=video_data.get("id", ""),
+                                    url=video_data.get("url", ""),
+                                    duration_seconds=video_data.get("duration_seconds", 0.0),
+                                    resolution=video_data.get("resolution", ""),
+                                    size_bytes=video_data.get("size_bytes", 0),
+                                    format=video_data.get("format", "mp4"),
+                                    thumbnail_url=video_data.get("thumbnail_url", "")
+                                )
+                                videos.append(video)
+                            
+                            if videos:
+                                task.result = VeOGenerationResult(
+                                    videos=videos,
+                                    finish_reason=result_data.get("finish_reason", "completed")
+                                )
+                                self.logger.info(f"✅ 恢复任务 {task_id} 的视频结果: {len(videos)} 个视频")
+                        except Exception as e:
+                            self.logger.warn(f"⚠️ 恢复任务 {task_id} 的结果失败: {e}")
+                    
+                    self.tasks[task_id] = task
+                    loaded_count += 1
+                    
+                    self.logger.debug(f"✅ 加载任务: {task_id} (状态: {task.status})")
                 
                 except Exception as e:
                     self.logger.warn(f"加载任务文件失败 {task_file}: {e}")
+            
+            self.logger.info(f"✅ 从磁盘加载了 {loaded_count} 个任务")
         
         except Exception as e:
-            self.logger.error(f"加载任务失败: {e}")
+            self.logger.error(f"❌ 加载任务失败: {e}")
     
     def _save_task(self, task: VeOVideoGenerationTask):
         """保存任务到磁盘"""
@@ -652,18 +742,30 @@ class VeOVideoManager:
         Returns:
             是否成功
         """
+        self.logger.info(f"🗑️ 请求删除任务: {generation_id}")
+        
+        # 🔥 修复：先删除文件（即使内存中没有也能删除）
+        task_file = self.storage_dir / f"{generation_id}.json"
+        file_deleted = False
+        
+        if task_file.exists():
+            try:
+                task_file.unlink()
+                file_deleted = True
+                self.logger.info(f"✅ 已删除任务文件: {task_file}")
+            except Exception as e:
+                self.logger.error(f"❌ 删除任务文件失败: {e}")
+        
+        # 🔥 修复：从内存中移除（如果存在）
         with self._tasks_lock:
             task = self.tasks.pop(generation_id, None)
         
-        if task:
-            # 删除文件
-            task_file = self.storage_dir / f"{generation_id}.json"
-            if task_file.exists():
-                task_file.unlink()
-            
-            self.logger.info(f"🗑️ 删除任务: {generation_id}")
+        # 🔥 修复：只要文件删除成功或任务存在于内存，就认为删除成功
+        if file_deleted or task:
+            self.logger.info(f"✅ 任务删除成功: {generation_id}")
             return True
         
+        self.logger.warn(f"⚠️ 任务不存在: {generation_id}")
         return False
     
     def stream_generation(

@@ -325,6 +325,47 @@ def list_generations():
         }), 500
 
 
+@veo_video_api.route('/api/veo/tasks/<generation_id>', methods=['DELETE'])
+def delete_generation(generation_id: str):
+    """
+    删除生成任务
+    
+    参数：
+    - generation_id: 生成任务ID
+    
+    响应：
+    {
+        "success": true,
+        "message": "Generation deleted"
+    }
+    """
+    try:
+        manager = get_veo_video_manager()
+        success = manager.delete_generation(generation_id)
+        
+        if not success:
+            return jsonify({
+                "error": {
+                    "message": f"Failed to delete generation: {generation_id}",
+                    "type": "invalid_request_error"
+                }
+            }), 400
+        
+        return jsonify({
+            "success": True,
+            "message": "Generation deleted"
+        }), 200
+    
+    except Exception as e:
+        logger.error(f"❌ 删除生成任务失败: {e}")
+        return jsonify({
+            "error": {
+                "message": str(e),
+                "type": "internal_error"
+            }
+        }), 500
+
+
 def register_veo_video_routes(app):
     """注册 VeO 视频生成 API 路由"""
     app.register_blueprint(veo_video_api)

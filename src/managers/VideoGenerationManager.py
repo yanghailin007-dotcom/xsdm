@@ -173,25 +173,87 @@ class VideoGenerationManager:
                     with open(task_file, 'r', encoding='utf-8') as f:
                         task_data = json.load(f)
                     
-                    # 这里简化处理，只加载任务ID和状态
-                    # 实际使用时需要完整的反序列化
                     task_id = task_data.get("id")
                     if task_id and task_id not in self.tasks:
-                        # 创建占位任务对象
+                        # 恢复完整的任务对象
                         from src.models.video_openai_models import (
                             VideoGenerationRequest,
                             GenerationConfig,
-                            GenerationStatus
+                            GenerationStatus,
+                            GenerationResult,
+                            VideoResult,
+                            FinishReason
                         )
                         
-                        # 创建一个默认的请求对象
-                        placeholder_request = VideoGenerationRequest(
-                            model="video-model-v1",
-                            prompt="占位任务"
+                        # 恢复请求对象
+                        request_data = task_data.get("request", {})
+                        generation_config_data = request_data.get("generation_config", {})
+                        
+                        generation_config = GenerationConfig(
+                            temperature=generation_config_data.get("temperature", 0.7),
+                            top_p=generation_config_data.get("top_p", 0.9),
+                            top_k=generation_config_data.get("top_k", 40),
+                            seed=generation_config_data.get("seed"),
+                            duration_seconds=generation_config_data.get("duration_seconds", 5.0),
+                            resolution=generation_config_data.get("resolution", "1920x1080"),
+                            fps=generation_config_data.get("fps", 24)
                         )
                         
-                        self.tasks[task_id] = VideoGenerationTask(placeholder_request)
-                        self.tasks[task_id].status = GenerationStatus.PROCESSING
+                        request = VideoGenerationRequest(
+                            model=request_data.get("model", "video-model-v1"),
+                            prompt=request_data.get("prompt", ""),
+                            generation_config=generation_config
+                        )
+                        
+                        # 创建任务对象
+                        self.tasks[task_id] = VideoGenerationTask(request)
+                        
+                        # 恢复状态
+                        status_str = task_data.get("status")
+                        if status_str == "completed":
+                            self.tasks[task_id].status = GenerationStatus.COMPLETED
+                        elif status_str == "failed":
+                            self.tasks[task_id].status = GenerationStatus.FAILED
+                        elif status_str == "cancelled":
+                            self.tasks[task_id].status = GenerationStatus.CANCELLED
+                        else:
+                            self.tasks[task_id].status = GenerationStatus.PROCESSING
+                        
+                        # 恢复时间戳
+                        self.tasks[task_id].created_at = task_data.get("created", int(time.time()))
+                        self.tasks[task_id].completed_at = task_data.get("completed")
+                        
+                        # 恢复错误信息
+                        self.tasks[task_id].error = task_data.get("error")
+                        
+                        # 恢复结果对象（关键修复）
+                        result_data = task_data.get("result")
+                        if result_data and self.tasks[task_id].status == GenerationStatus.COMPLETED:
+                            videos_data = result_data.get("videos", [])
+                            videos = []
+                            
+                            for video_data in videos_data:
+                                video = VideoResult(
+                                    id=video_data.get("id", ""),
+                                    url=video_data.get("url", ""),
+                                    duration_seconds=video_data.get("duration_seconds", 0.0),
+                                    resolution=video_data.get("resolution", ""),
+                                    fps=video_data.get("fps", 24),
+                                    size_bytes=video_data.get("size_bytes", 0),
+                                    format=video_data.get("format", "mp4"),
+                                    thumbnail_url=video_data.get("thumbnail_url", "")
+                                )
+                                videos.append(video)
+                            
+                            finish_reason_str = result_data.get("finish_reason", "finish_reason_stop")
+                            finish_reason = FinishReason.FINISH_REASON_STOP
+                            
+                            self.tasks[task_id].result = GenerationResult(
+                                videos=videos,
+                                finish_reason=finish_reason
+                            )
+                            
+                            self.logger.info(f"✅ 成功恢复任务 {task_id}，包含 {len(videos)} 个视频结果")
                 
                 except Exception as e:
                     self.logger.warn(f"加载任务文件失败 {task_file}: {e}")

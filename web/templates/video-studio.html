@@ -15,6 +15,8 @@
                 <button class="btn-back" onclick="window.location.href='/landing'">🏠 返回首页</button>
                 <h1 class="nav-title">🎬 视频工作室</h1>
                 <div class="nav-links">
+                    <a href="#" id="workspaceTab" class="nav-link active" data-page="workspace">🎬 创作工作台</a>
+                    <a href="#" id="libraryTab" class="nav-link" data-page="library">📁 素材库</a>
                     <a href="/novels" class="nav-link">📚 小说项目</a>
                     <a href="/portrait-studio" class="nav-link">🎨 剧照工作室</a>
                 </div>
@@ -24,6 +26,10 @@
         <div class="main-container">
             <!-- 主页：视频创作工作台 -->
             <div id="workspacePage" class="page active">
+                <div class="page-header">
+                    <h2>🎬 视频创作工作台</h2>
+                    <p class="page-subtitle">输入提示词并配置参数，生成高质量视频</p>
+                </div>
                 <div class="page-header">
                     <h2>🎬 视频创作工作台</h2>
                     <p class="page-subtitle">输入提示词并配置参数，生成高质量视频</p>
@@ -210,9 +216,12 @@
                             <div class="progress-info">
                                 <p class="progress-text">⏳ 正在生成视频，请稍候...</p>
                                 <div class="progress-bar">
-                                    <div class="progress-fill animate"></div>
+                                    <div class="progress-fill animate" id="progressFill"></div>
                                 </div>
-                                <p id="progressDetail" class="progress-detail">准备中...</p>
+                                <div class="progress-stats">
+                                    <p id="progressPercent" class="progress-percent">0%</p>
+                                    <p id="progressDetail" class="progress-detail">准备中...</p>
+                                </div>
                             </div>
                         </div>
 
@@ -256,6 +265,45 @@
                     </div>
                 </div>
             </div>
+
+            <!-- 素材库页面 -->
+            <div id="libraryPage" class="page">
+                <div class="page-header">
+                    <h2>📁 视频素材库</h2>
+                    <p class="page-subtitle">查看和管理您生成的所有视频</p>
+                </div>
+
+                <!-- 筛选和搜索 -->
+                <div class="library-controls">
+                    <div class="filter-group">
+                        <label>状态筛选：</label>
+                        <select id="statusFilter" class="form-control-sm">
+                            <option value="all">全部</option>
+                            <option value="completed">已完成</option>
+                            <option value="processing">生成中</option>
+                            <option value="failed">失败</option>
+                        </select>
+                    </div>
+                    <div class="search-group">
+                        <input type="text" id="searchInput" class="form-control-sm" placeholder="搜索提示词...">
+                        <button class="btn-sm" id="refreshBtn">🔄 刷新</button>
+                    </div>
+                </div>
+
+                <!-- 视频列表 -->
+                <div id="videoLibrary" class="video-library">
+                    <div class="library-loading" id="libraryLoading" style="display: none;">
+                        <div class="loading-spinner"></div>
+                        <p>加载中...</p>
+                    </div>
+                    <div class="library-empty" id="libraryEmpty" style="display: none;">
+                        <span class="empty-icon">📁</span>
+                        <p>暂无视频素材</p>
+                        <p class="empty-hint">前往创作工作台生成您的第一个视频</p>
+                    </div>
+                    <div id="videoList" class="video-list"></div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -263,7 +311,7 @@
     <div id="toast" class="toast"></div>
 
     <script src="/static/js/confirm-dialog.js"></script>
-    <script src="/static/js/video-studio.js?v=2"></script>
+    <script src="/static/js/video-studio.js?v=3"></script>
     <script>
         // 替换原有的logout函数，使用新的确认对话框
         function logout() {

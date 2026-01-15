@@ -12,6 +12,8 @@ class VideoStudio {
         this.referenceImageBase64 = null;
         this.firstFrameBase64 = null;
         this.lastFrameBase64 = null;
+        this.videoLibrary = []; // 存储视频列表
+        this.currentFilter = 'all';
         
         this.init();
     }
@@ -19,6 +21,7 @@ class VideoStudio {
     init() {
         console.log('🎬 视频工作室初始化...');
         this.bindEvents();
+        this.loadVideoLibrary(); // 加载素材库
         console.log('✅ 初始化完成');
     }
     
@@ -208,6 +211,425 @@ class VideoStudio {
                 this.applyTemplate(btn.dataset.template);
             });
         });
+        
+        // 页面切换
+        document.getElementById('workspaceTab')?.addEventListener('click', (e) => {
+            e.preventDefault();
+            this.switchPage('workspace');
+        });
+        
+        document.getElementById('libraryTab')?.addEventListener('click', (e) => {
+            e.preventDefault();
+            this.switchPage('library');
+        });
+        
+        // 素材库筛选
+        document.getElementById('statusFilter')?.addEventListener('change', (e) => {
+            this.currentFilter = e.target.value;
+            this.renderVideoLibrary();
+        });
+        
+        // 素材库搜索
+        document.getElementById('searchInput')?.addEventListener('input', (e) => {
+            this.renderVideoLibrary();
+        });
+        
+        // 刷新按钮
+        document.getElementById('refreshBtn')?.addEventListener('click', () => {
+            this.loadVideoLibrary();
+        });
+    }
+    
+    switchPage(pageName) {
+        // 更新导航状态
+        document.querySelectorAll('.nav-link[data-page]').forEach(link => {
+            link.classList.remove('active');
+            if (link.dataset.page === pageName) {
+                link.classList.add('active');
+            }
+        });
+        
+        // 切换页面显示
+        document.querySelectorAll('.page').forEach(page => {
+            page.classList.remove('active');
+        });
+        
+        document.getElementById(`${pageName}Page`).classList.add('active');
+        
+        // 如果切换到素材库，刷新数据
+        if (pageName === 'library') {
+            this.loadVideoLibrary();
+        }
+    }
+    
+    async loadVideoLibrary() {
+        console.log('📁 加载视频素材库...');
+        
+        const loadingEl = document.getElementById('libraryLoading');
+        const emptyEl = document.getElementById('libraryEmpty');
+        const listEl = document.getElementById('videoList');
+        
+        if (loadingEl) loadingEl.style.display = 'block';
+        if (emptyEl) emptyEl.style.display = 'none';
+        if (listEl) listEl.innerHTML = '';
+        
+        try {
+            const response = await fetch('/api/veo/tasks?limit=50&order=desc');
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            const data = await response.json();
+            
+            if (data.data && Array.isArray(data.data)) {
+                this.videoLibrary = data.data;
+                console.log(`✅ 加载了 ${this.videoLibrary.length} 个视频`);
+            } else {
+                this.videoLibrary = [];
+            }
+            
+            this.renderVideoLibrary();
+            
+        } catch (error) {
+            console.error('❌ 加载素材库失败:', error);
+            this.showToast('加载素材库失败: ' + error.message, 'error');
+            if (loadingEl) loadingEl.style.display = 'none';
+            if (emptyEl) {
+                emptyEl.style.display = 'block';
+                emptyEl.querySelector('p').textContent = '加载失败，请稍后重试';
+            }
+        } finally {
+            if (loadingEl) loadingEl.style.display = 'none';
+        }
+    }
+    
+    renderVideoLibrary() {
+        const listEl = document.getElementById('videoList');
+        const emptyEl = document.getElementById('libraryEmpty');
+        const searchText = document.getElementById('searchInput')?.value.toLowerCase() || '';
+        
+        if (!listEl) return;
+        
+        // 筛选视频
+        let filteredVideos = this.videoLibrary.filter(video => {
+            // 状态筛选
+            if (this.currentFilter !== 'all' && video.status !== this.currentFilter) {
+                return false;
+            }
+            
+            // 搜索筛选
+            if (searchText) {
+                const prompt = (video.prompt || '').toLowerCase();
+                if (!prompt.includes(searchText)) {
+                    return false;
+                }
+            }
+            
+            return true;
+        });
+        
+        // 显示/隐藏空状态
+        if (filteredVideos.length === 0) {
+            if (emptyEl) {
+                emptyEl.style.display = 'block';
+                if (this.videoLibrary.length === 0) {
+                    emptyEl.querySelector('p').textContent = '暂无视频素材';
+                    emptyEl.querySelector('.empty-hint').style.display = 'block';
+                } else {
+                    emptyEl.querySelector('p').textContent = '没有符合条件的视频';
+                    emptyEl.querySelector('.empty-hint').style.display = 'none';
+                }
+            }
+            listEl.innerHTML = '';
+            return;
+        }
+        
+        if (emptyEl) emptyEl.style.display = 'none';
+        
+        // 渲染视频列表
+        listEl.innerHTML = filteredVideos.map(video => this.renderVideoCard(video)).join('');
+        
+        // 绑定视频卡片事件
+        this.bindVideoCardEvents();
+    }
+    
+    renderVideoCard(video) {
+        const status = video.status || 'pending';
+        const statusText = {
+            'pending': '等待中',
+            'processing': '生成中',
+            'completed': '已完成',
+            'failed': '失败',
+            'cancelled': '已取消'
+        }[status] || status;
+        
+        const statusClass = {
+            'pending': 'status-pending',
+            'processing': 'status-processing',
+            'completed': 'status-completed',
+            'failed': 'status-failed',
+            'cancelled': 'status-cancelled'
+        }[status] || '';
+        
+        const createdAt = video.created ? new Date(video.created * 1000).toLocaleString('zh-CN') : '';
+        const prompt = video.prompt || '无提示词';
+        const truncatedPrompt = prompt.length > 100 ? prompt.substring(0, 100) + '...' : prompt;
+        
+        // 视频URL（如果已完成）
+        const videoUrl = video.result?.videos?.[0]?.url || '';
+        const thumbnailUrl = video.result?.videos?.[0]?.thumbnail_url || '';
+        
+        return `
+            <div class="video-card" data-video-id="${video.id}" data-status="${status}">
+                <div class="video-card-preview">
+                    ${status === 'completed' && videoUrl ? `
+                        <video src="${videoUrl}" preload="metadata" class="video-thumbnail"></video>
+                        <div class="video-overlay">
+                            <button class="btn-play" data-url="${videoUrl}">▶</button>
+                        </div>
+                    ` : `
+                        <div class="video-placeholder">
+                            <span class="placeholder-icon">🎬</span>
+                            <span class="placeholder-status">${statusText}</span>
+                        </div>
+                    `}
+                    <span class="video-status ${statusClass}">${statusText}</span>
+                </div>
+                <div class="video-card-info">
+                    <p class="video-prompt" title="${this.escapeHtml(prompt)}">${this.escapeHtml(truncatedPrompt)}</p>
+                    <div class="video-meta">
+                        <span class="video-date">${createdAt}</span>
+                        ${video.progress !== undefined ? `<span class="video-progress">${video.progress}%</span>` : ''}
+                    </div>
+                </div>
+                <div class="video-card-actions">
+                    ${status === 'completed' && videoUrl ? `
+                        <button class="btn-card-action btn-download" data-url="${videoUrl}" title="下载视频">📥 下载</button>
+                        <button class="btn-card-action btn-reuse" data-prompt="${this.escapeHtml(prompt)}" title="重新使用">🔄 复用</button>
+                        <button class="btn-card-action btn-delete" data-id="${video.id}" title="删除">🗑️ 删除</button>
+                    ` : status === 'processing' ? `
+                        <button class="btn-card-action btn-refresh" data-id="${video.id}" title="刷新状态">🔄 刷新</button>
+                    ` : `
+                        <button class="btn-card-action btn-delete" data-id="${video.id}" title="删除">🗑️ 删除</button>
+                    `}
+                </div>
+            </div>
+        `;
+    }
+    
+    bindVideoCardEvents() {
+        console.log('🔗 绑定视频卡片事件...');
+        
+        // 播放按钮
+        const playButtons = document.querySelectorAll('.btn-play');
+        console.log(`🎯 找到 ${playButtons.length} 个播放按钮`);
+        
+        playButtons.forEach((btn, index) => {
+            console.log(`📍 按钮 ${index} URL:`, btn.dataset.url);
+            btn.addEventListener('click', (e) => {
+                console.log('🖱️ 播放按钮被点击');
+                e.stopPropagation();
+                const url = btn.dataset.url;
+                console.log('🔗 获取的URL:', url);
+                this.openVideoPlayer(url);
+            });
+        });
+        
+        // 点击视频卡片播放
+        const completedCards = document.querySelectorAll('.video-card[data-status="completed"]');
+        console.log(`🎯 找到 ${completedCards.length} 个已完成视频卡片`);
+        
+        completedCards.forEach((card, index) => {
+            card.addEventListener('click', () => {
+                console.log(`🖱️ 视频卡片 ${index} 被点击`);
+                const videoUrl = card.querySelector('.btn-play')?.dataset.url;
+                console.log('🔗 卡片中的URL:', videoUrl);
+                if (videoUrl) {
+                    this.openVideoPlayer(videoUrl);
+                } else {
+                    console.error('❌ 视频卡片中没有找到播放按钮或URL');
+                }
+            });
+        });
+        
+        console.log('✅ 视频卡片事件绑定完成');
+        
+        // 下载按钮
+        document.querySelectorAll('.btn-download').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const url = btn.dataset.url;
+                this.downloadVideo(url);
+            });
+        });
+        
+        // 复用按钮
+        document.querySelectorAll('.btn-reuse').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const prompt = btn.dataset.prompt;
+                document.getElementById('promptEditor').value = prompt;
+                this.switchPage('workspace');
+                this.showToast('提示词已复制到编辑器', 'success');
+            });
+        });
+        
+        // 刷新按钮（处理中的任务）
+        document.querySelectorAll('.btn-refresh').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const id = btn.dataset.id;
+                this.refreshVideoStatus(id);
+            });
+        });
+        
+        // 删除按钮
+        document.querySelectorAll('.btn-delete').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const id = btn.dataset.id;
+                this.deleteVideo(id);
+            });
+        });
+    }
+    
+    openVideoPlayer(url) {
+        console.log('🎬 打开视频播放器:', url);
+        
+        const fullscreenPlayer = document.getElementById('fullscreenPlayer');
+        const fullscreenVideo = document.getElementById('fullscreenVideo');
+        
+        if (!fullscreenPlayer || !fullscreenVideo) {
+            console.error('❌ 找不到全屏播放器元素');
+            this.showToast('播放器初始化失败', 'error');
+            return;
+        }
+        
+        // 验证URL
+        if (!url || url === '') {
+            console.error('❌ 视频URL为空');
+            this.showToast('视频URL无效', 'error');
+            return;
+        }
+        
+        console.log('✅ 设置视频源:', url);
+        fullscreenVideo.src = url;
+        
+        // 🔥 关键修复：确保全屏播放器可见
+        fullscreenPlayer.style.display = 'flex';
+        fullscreenPlayer.style.zIndex = '9999';
+        fullscreenPlayer.style.position = 'fixed';
+        fullscreenPlayer.style.top = '0';
+        fullscreenPlayer.style.left = '0';
+        fullscreenPlayer.style.width = '100vw';
+        fullscreenPlayer.style.height = '100vh';
+        
+        console.log('✅ 全屏播放器样式已设置');
+        console.log('🎨 播放器display:', fullscreenPlayer.style.display);
+        console.log('🎨 播放器zIndex:', fullscreenPlayer.style.zIndex);
+        
+        // 监听视频加载事件
+        fullscreenVideo.addEventListener('loadstart', () => {
+            console.log('📡 开始加载视频');
+        });
+        
+        fullscreenVideo.addEventListener('canplay', () => {
+            console.log('✅ 视频可以播放');
+        });
+        
+        fullscreenVideo.addEventListener('error', (e) => {
+            console.error('❌ 视频加载失败:', e);
+            console.error('❌ 视频错误详情:', fullscreenVideo.error);
+            this.showToast('视频加载失败，请检查URL', 'error');
+        });
+        
+        // 尝试播放
+        fullscreenVideo.play().then(() => {
+            console.log('✅ 视频开始播放');
+            console.log('🎬 播放器状态:', {
+                display: fullscreenPlayer.style.display,
+                zIndex: fullscreenPlayer.style.zIndex,
+                videoSrc: fullscreenVideo.src
+            });
+        }).catch(e => {
+            console.warn('⚠️ 自动播放失败，需要用户交互:', e);
+            // 不显示错误，因为可能需要用户手动点击播放
+        });
+        
+        document.body.style.overflow = 'hidden';
+        console.log('✅ Body overflow已设置为hidden');
+    }
+    
+    downloadVideo(url) {
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `video_${Date.now()}.mp4`;
+        link.target = '_blank';
+        link.click();
+        
+        this.showToast('视频下载已开始', 'success');
+    }
+    
+    async refreshVideoStatus(videoId) {
+        try {
+            const response = await fetch(`/api/veo/status/${videoId}`);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            
+            const data = await response.json();
+            
+            // 更新本地数据
+            const index = this.videoLibrary.findIndex(v => v.id === videoId);
+            if (index !== -1) {
+                this.videoLibrary[index] = data;
+            }
+            
+            this.renderVideoLibrary();
+            this.showToast('状态已更新', 'success');
+            
+        } catch (error) {
+            console.error('刷新状态失败:', error);
+            this.showToast('刷新失败: ' + error.message, 'error');
+        }
+    }
+    
+    async deleteVideo(videoId) {
+        if (!confirm('确定要删除这个视频吗？')) {
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/api/veo/tasks/${videoId}`, {
+                method: 'DELETE'
+            });
+            
+            if (!response.ok) {
+                // 解析错误信息
+                const errorData = await response.json();
+                const errorMessage = errorData.error?.message || `HTTP ${response.status}`;
+                throw new Error(errorMessage);
+            }
+            
+            // 只有在成功时才从列表中移除
+            this.videoLibrary = this.videoLibrary.filter(v => v.id !== videoId);
+            this.renderVideoLibrary();
+            this.showToast('视频已删除', 'success');
+            
+        } catch (error) {
+            console.error('删除失败:', error);
+            this.showToast('删除失败: ' + error.message, 'error');
+            // 🔥 修复：删除失败时重新加载列表，确保前后端同步
+            this.loadVideoLibrary();
+        }
+    }
+    
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
     }
     
     switchUploadMode(mode) {
@@ -537,8 +959,19 @@ class VideoStudio {
     }
     
     async pollGenerationStatus(generationId) {
-        const maxAttempts = 60; // 最多轮询60次
+        const maxAttempts = 120; // 最多轮询120次（4分钟）
         const pollInterval = 2000; // 每2秒轮询一次
+        
+        // 进度阶段映射
+        const stageMessages = {
+            'initializing': '正在初始化...',
+            'preparing': '准备生成参数...',
+            'sending': '发送生成请求...',
+            'processing': 'AI正在生成视频...',
+            'generating': '视频生成中...',
+            'downloading': '正在下载视频...',
+            'completed': '生成完成！'
+        };
         
         for (let attempt = 0; attempt < maxAttempts; attempt++) {
             try {
@@ -558,11 +991,22 @@ class VideoStudio {
                 
                 // 更新进度信息
                 if (status === 'processing') {
+                    // 获取后端返回的进度
                     const progress = data.progress || 0;
-                    this.updateProgressDetail(`正在生成中... ${progress}%`);
+                    const stage = data.stage || 'processing';
+                    
+                    // 根据阶段获取友好的消息
+                    let stageMessage = stageMessages[stage] || stageMessages['processing'];
+                    if (stage.includes('生成进度')) {
+                        stageMessage = `AI生成中: ${progress}%`;
+                    }
+                    
+                    // 更新进度条和文本
+                    this.updateProgress(progress, stageMessage);
+                    
                 } else if (status === 'completed') {
                     // 生成完成
-                    this.updateProgressDetail('生成完成！');
+                    this.updateProgress(100, '生成完成！');
                     this.showResult(data.result);
                     this.showToast('视频生成成功！', 'success');
                     return;
@@ -584,11 +1028,29 @@ class VideoStudio {
         throw new Error('生成超时，请稍后查看任务状态');
     }
     
-    updateProgressDetail(text) {
+    updateProgress(progress, text) {
+        // 更新进度条
+        const progressFill = document.getElementById('progressFill');
+        if (progressFill) {
+            progressFill.style.width = `${progress}%`;
+        }
+        
+        // 更新百分比显示
+        const progressPercent = document.getElementById('progressPercent');
+        if (progressPercent) {
+            progressPercent.textContent = `${progress}%`;
+        }
+        
+        // 更新详细文本
         const detailElement = document.getElementById('progressDetail');
         if (detailElement) {
             detailElement.textContent = text;
         }
+    }
+    
+    updateProgressDetail(text) {
+        // 保持向后兼容
+        this.updateProgress(0, text);
     }
     
     showResult(result) {

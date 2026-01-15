@@ -376,6 +376,8 @@ class VeOGenerationResponse:
     error: Optional[str] = None
     estimated_completion_time: Optional[str] = None
     metadata: Dict[str, Any] = field(default_factory=dict)
+    progress: Optional[int] = None  # 🔥 新增：生成进度（0-100）
+    stage: Optional[str] = None  # 🔥 新增：当前阶段描述
     
     def __post_init__(self):
         """初始化后处理"""
@@ -408,8 +410,13 @@ class VeOGenerationResponse:
                 "enable_upsample": self.generation_config.enable_upsample
             }
         
+        # 🔥 关键修复：始终包含result字段，即使为None
+        # 这样前端可以正确判断是否有视频URL
         if self.result:
             result["result"] = self.result.to_dict()
+        else:
+            # 即使result为None，也要包含这个字段，让前端知道没有结果
+            result["result"] = None
         
         if self.usage:
             result["usage"] = self.usage.to_dict()
@@ -422,6 +429,12 @@ class VeOGenerationResponse:
         
         if self.metadata:
             result["metadata"] = self.metadata
+        
+        # 🔥 添加进度和阶段信息
+        if self.progress is not None:
+            result["progress"] = self.progress
+        if self.stage is not None:
+            result["stage"] = self.stage
         
         return result
 
