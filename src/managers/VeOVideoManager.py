@@ -46,6 +46,11 @@ from config.aiwx_video_config import (
 
 logger = get_logger(__name__)
 
+# 🔥 新增：本地视频存储目录
+VEO_VIDEO_STORAGE_DIR = BASE_DIR / "static" / "generated_videos"
+VEO_VIDEO_STORAGE_DIR.mkdir(parents=True, exist_ok=True)
+logger.info(f"📁 VeO视频本地存储目录: {VEO_VIDEO_STORAGE_DIR}")
+
 
 class VeOVideoGenerationTask:
     """VeO 视频生成任务"""
@@ -485,16 +490,23 @@ class VeOVideoManager:
                         
                         if video_url:
                             self.logger.info(f"🎬 视频URL: {video_url}")
+                            task.update_progress(95, "正在下载视频到本地...")
+                            
+                            # 🔥 新增：下载视频到本地
+                            local_path = self._download_video_to_local(task.id, video_url)
                             
                             # 提取视频分辨率
                             width = query_response.width or (1280 if task.native_request and task.native_request.orientation == "landscape" else 720)
                             height = query_response.height or (720 if task.native_request and task.native_request.orientation == "landscape" else 1280)
                             resolution = f"{width}x{height}"
                             
+                            # 🔥 使用本地路径作为URL（如果是本地下载）
+                            final_url = f"/static/generated_videos/{local_path}" if local_path else video_url
+                            
                             # 创建真实结果
                             video = VeOVideoResult(
                                 id=f"video_{uuid.uuid4().hex[:8]}",
-                                url=video_url,
+                                url=final_url,  # 使用本地路径
                                 duration_seconds=float(10),
                                 resolution=resolution,
                                 size_bytes=1024000,
@@ -508,7 +520,7 @@ class VeOVideoManager:
                             )
                             
                             task.complete(result)
-                            self.logger.info(f"✅ 任务完成: {task.id}")
+                            self.logger.info(f"✅ 任务完成: {task.id}, 本地路径: {final_url}")
                             return
                         else:
                             self.logger.warn(f"⚠️ 未找到视频URL")
@@ -555,6 +567,71 @@ class VeOVideoManager:
                 self.logger.warn(f"💡 提示：任务可能仍在后台生成，请稍后使用任务ID查询状态")
                 task.error = f"轮询超时（已{total_time/60:.1f}分钟），任务可能仍在处理中"
                 break
+    
+    
+    def _download_video_to_local(self, task_id: str, video_url: str) -> Optional[str]:
+        """
+        下载视频到本地存储
+        
+        Args:
+            task_id: 任务ID
+            video_url: 视频远程URL
+            
+        Returns:
+            本地文件路径（相对于static/generated_videos），如果下载失败则返回None
+        """
+        try:
+            # 生成本地文件名
+            local_filename = f"{task_id}.mp4"
+            local_file_path = VEO_VIDEO_STORAGE_DIR / local_filename
+            
+            self.logger.info(f"📥 开始下载视频: {video_url}")
+            self.logger.info(f"💾 保存到: {local_file_path}")
+            
+            # 如果文件已存在，先删除
+            if local_file_path.exists():
+                self.logger.info(f"🗑️  删除已存在的文件: {local_file_path}")
+                local_file_path.unlink()
+            
+            # 下载视频
+            response = requests.get(
+                video_url,
+                stream=True,
+                timeout=REQUEST_CONFIG.get('download_timeout', 300)
+            )
+            
+            if response.status_code == 200:
+                # 写入文件
+                total_size = int(response.headers.get('content-length', 0))
+                downloaded_size = 0
+                
+                with open(local_file_path, 'wb') as f:
+                    for chunk in response.iter_content(chunk_size=8192):
+                        if chunk:
+                            f.write(chunk)
+                            downloaded_size += len(chunk)
+                            
+                            # 显示下载进度
+                            if total_size > 0:
+                                progress = int(downloaded_size / total_size * 100)
+                                if progress % 10 == 0:  # 每10%记录一次
+                                    self.logger.info(f"📥 下载进度: {progress}%")
+                
+                file_size_mb = local_file_path.stat().st_size / (1024 * 1024)
+                self.logger.info(f"✅ 视频下载完成: {local_filename} ({file_size_mb:.2f} MB)")
+                
+                # 返回相对路径（用于URL构造）
+                return local_filename
+            
+            else:
+                self.logger.error(f"❌ 下载失败: HTTP {response.status_code}")
+                return None
+                
+        except Exception as e:
+            self.logger.error(f"❌ 下载视频到本地失败: {e}")
+            self.logger.error(f"❌ 错误详情: {str(e)}")
+            # 下载失败时返回None，将使用原始URL
+            return None
     
     
     def _is_url(self, img_str: str) -> bool:
@@ -734,7 +811,7 @@ class VeOVideoManager:
     
     def delete_generation(self, generation_id: str) -> bool:
         """
-        删除生成任务
+        删除生成任务（包括本地视频文件）
         
         Args:
             generation_id: 生成任务ID
@@ -744,7 +821,16 @@ class VeOVideoManager:
         """
         self.logger.info(f"🗑️ 请求删除任务: {generation_id}")
         
-        # 🔥 修复：先删除文件（即使内存中没有也能删除）
+        # 🔥 新增：删除本地视频文件
+        local_video_path = VEO_VIDEO_STORAGE_DIR / f"{generation_id}.mp4"
+        if local_video_path.exists():
+            try:
+                local_video_path.unlink()
+                self.logger.info(f"✅ 已删除本地视频文件: {local_video_path}")
+            except Exception as e:
+                self.logger.error(f"❌ 删除本地视频文件失败: {e}")
+        
+        # 🔥 修复：先删除JSON文件（即使内存中没有也能删除）
         task_file = self.storage_dir / f"{generation_id}.json"
         file_deleted = False
         

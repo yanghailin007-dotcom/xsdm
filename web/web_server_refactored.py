@@ -85,6 +85,97 @@ def create_app():
     
     logger.info(f"✅ 配置图片访问路由: /generated_images/<filename>")
     
+    # 🔥 代理访问生成的视频（支持VeO本地视频和远程视频）
+    @app.route('/static/generated_videos/<path:filename>')
+    def serve_generated_video(filename):
+        """智能代理访问生成的视频文件
+        
+        优先级：
+        1. VeO本地视频：从本地文件系统提供（优先）
+        2. VeO远程视频：重定向到远程URL（备用）
+        3. 其他本地视频：从本地文件系统提供
+        """
+        from flask import send_from_directory, redirect
+        import re
+        
+        logger.info(f"📹 请求视频: {filename}")
+        
+        # 检查是否是VeO视频（格式：veo_xxxxxxxxx.mp4）
+        if filename.startswith('veo_') and filename.endswith('.mp4'):
+            # 提取任务ID（去掉veo_前缀和.mp4后缀）
+            task_id = filename.replace('.mp4', '')
+            logger.info(f"🔍 检测到VeO视频，任务ID: {task_id}")
+            
+            try:
+                # 🔥 优先尝试本地文件
+                local_video_dir = os.path.join(BASE_DIR, 'static', 'generated_videos')
+                local_video_path = os.path.join(local_video_dir, filename)
+                
+                if os.path.exists(local_video_path):
+                    logger.info(f"✅ 找到本地VeO视频: {local_video_path}")
+                    return send_from_directory(local_video_dir, filename)
+                
+                logger.info(f"📥 本地文件不存在，尝试远程URL")
+                
+                # 如果本地不存在，从VeO管理器获取任务
+                from src.managers.VeOVideoManager import get_veo_video_manager
+                manager = get_veo_video_manager()
+                task = manager.retrieve_generation(task_id)
+                
+                if task and task.result and task.result.videos:
+                    video_url = task.result.videos[0].url
+                    
+                    # 检查URL是否是本地路径（已经下载）
+                    if video_url.startswith('/static/'):
+                        logger.info(f"✅ 使用本地路径: {video_url}")
+                        # 从本地路径提供文件
+                        local_filename = video_url.split('/')[-1]
+                        return send_from_directory(local_video_dir, local_filename)
+                    else:
+                        logger.info(f"🌐 重定向到远程URL: {video_url}")
+                        # 重定向到真实的视频URL
+                        return redirect(video_url)
+                else:
+                    logger.warn(f"⚠️ 未找到任务或视频结果: {task_id}")
+                    return jsonify({
+                        "error": "Video not found",
+                        "message": f"VeO task {task_id} not found or not completed"
+                    }), 404
+                    
+            except Exception as e:
+                logger.error(f"❌ 获取VeO视频失败: {e}")
+                return jsonify({
+                    "error": "Internal error",
+                    "message": str(e)
+                }), 500
+        
+        # 如果不是VeO视频，尝试本地文件
+        try:
+            generated_videos_dir = os.path.join(BASE_DIR, 'generated_videos')
+            
+            # 检查是否是子目录格式（如：novel_name/shot_0.mp4）
+            if '/' in filename or '\\' in filename:
+                # 支持子目录
+                return send_from_directory(generated_videos_dir, filename)
+            else:
+                # 直接在generated_videos目录下查找
+                return send_from_directory(generated_videos_dir, filename)
+                
+        except FileNotFoundError:
+            logger.warn(f"⚠️ 本地视频文件不存在: {filename}")
+            return jsonify({
+                "error": "File not found",
+                "message": f"Video file {filename} not found"
+            }), 404
+    
+    @app.route('/generated_videos/<path:filename>')
+    def serve_generated_video_alt(filename):
+        """备用的视频访问路由（不带static前缀）"""
+        return serve_generated_video(filename)
+    
+    logger.info(f"✅ 配置视频访问路由: /static/generated_videos/<filename>")
+    logger.info(f"✅ 配置视频访问路由: /generated_videos/<filename>")
+    
     # 注册路由
     # 1. 认证和页面路由
     register_auth_routes(app)
