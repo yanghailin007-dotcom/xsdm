@@ -86,7 +86,19 @@ echo.
 cd /d d:\work6.05
 
 echo 创建部署包...
-powershell -Command "Compress-Archive -Path src,web,scripts,config,requirements.txt,web/wsgi.py,scripts/start_app.py -DestinationPath deploy_package.zip -Force -Exclude '*.pyc','__pycache__','.git','logs','generated_images','temp_fanqie_upload','.env','test_*.py','*.db','小说项目','Chrome','knowledge_base','ai_enhanced_settings','fusion_settings' 2>&1"
+echo   - 使用Python脚本创建部署包，确保所有UI资源都被包含
+echo   - 包含 src/ 目录（所有源代码）
+echo   - 包含 web/ 目录（所有UI资源：templates、static、api等）
+echo   - 包含 config/ 目录（配置文件）
+echo   - 包含 requirements.txt（Python依赖）
+echo   - 包含 web/wsgi.py（WSGI入口）
+python scripts\deploy\create_deploy_package.py
+
+if %ERRORLEVEL% neq 0 (
+    echo ❌ 创建部署包失败
+    pause
+    exit /b 1
+)
 
 if %ERRORLEVEL% neq 0 (
     echo ❌ 创建部署包失败
@@ -94,6 +106,16 @@ if %ERRORLEVEL% neq 0 (
     exit /b 1
 )
 echo ✓ 部署包创建完成
+echo.
+
+echo 验证部署包内容...
+python scripts\deploy\verify_deploy_package.py
+if %ERRORLEVEL% neq 0 (
+    echo ❌ 部署包验证失败，缺少必要的UI资源文件
+    pause
+    exit /b 1
+)
+echo ✓ 部署包验证通过
 echo.
 
 echo 上传部署包到服务器...
