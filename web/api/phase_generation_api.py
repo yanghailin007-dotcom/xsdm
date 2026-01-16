@@ -514,6 +514,7 @@ class ProductLoader:
                 # 从所有阶段提取重大事件
                 all_major_events = []
                 stage_info = []
+                all_expectation_maps = {}  # 🔥 新增：收集所有阶段的期待感映射
                 
                 # 按照标准阶段顺序排序
                 sorted_stage_names = get_sorted_stages(writing_data['stage_names'])
@@ -562,6 +563,12 @@ class ProductLoader:
                                 'chapter_range': stage_plan.get('chapter_range', ''),
                                 'major_event_count': len(major_events)
                             })
+                            
+                            # 🔥 新增：提取该阶段的期待感映射
+                            expectation_map = stage_plan.get('expectation_map')
+                            if expectation_map:
+                                all_expectation_maps[stage_name] = expectation_map
+                                self.logger.info(f"[EXPECTATION_MAP] 提取阶段 {stage_name} 的期待感映射: {len(expectation_map.get('expectations', {}))} 个期待")
                 
                 if all_major_events:
                     storyline_data = {
@@ -569,6 +576,13 @@ class ProductLoader:
                         'total_major_events': len(all_major_events),
                         'major_events': all_major_events
                     }
+                    
+                    # 🔥 新增：添加期待感映射到故事线数据
+                    if all_expectation_maps:
+                        storyline_data['expectation_maps'] = all_expectation_maps
+                        total_expectations = sum(len(em.get('expectations', {})) for em in all_expectation_maps.values())
+                        self.logger.info(f"[EXPECTATION_MAP] 添加期待感映射到故事线: {len(all_expectation_maps)} 个阶段, 共 {total_expectations} 个期待")
+                    
                     products['storyline']['content'] = json.dumps(storyline_data, ensure_ascii=False, indent=2)
                     products['storyline']['complete'] = True
                     products['storyline']['file_path'] = products['writing']['file_path']
@@ -1468,6 +1482,12 @@ def register_additional_routes(app):
                     if 'stage_info' in storyline_content and 'major_events' in storyline_content:
                         storyline_data = storyline_content
                         logger.info(f"[STORYLINE] 使用storyline产物数据: {len(storyline_content.get('stage_info', []))} 个阶段, {len(storyline_content.get('major_events', []))} 个重大事件")
+                        
+                        # 🔥 修复：提取期待感映射
+                        if 'expectation_maps' in storyline_content:
+                            expectation_map = storyline_content['expectation_maps']
+                            total_expectations = sum(len(em.get('expectations', {})) for em in expectation_map.values())
+                            logger.info(f"[EXPECTATION_MAP] 使用已有的期待感映射: {len(expectation_map)} 个阶段, 共 {total_expectations} 个期待")
                     else:
                         storyline_data = storyline_content
                         logger.info(f"[STORYLINE] 使用storyline产物数据（单阶段或其他格式）")
@@ -1722,54 +1742,75 @@ def register_additional_routes(app):
                                     }
                                     logger.info(f"[STORYLINE] 从产物文件提取到故事线: 全书, {len(major_events)} 个重大事件")
             
-            # ========== 统一的期待感映射生成逻辑 ==========
-            if storyline_data and storyline_data.get('major_events') and not expectation_map:
-                logger.info(f"[STORYLINE] 故事线数据已加载，但未找到期待感映射，开始自动生成...")
-                
-                try:
-                    from src.managers.ExpectationManager import ExpectationManager, ExpectationIntegrator
-                    expectation_manager = ExpectationManager()
-                    expectation_integrator = ExpectationIntegrator(expectation_manager)
+            # ========== 统一的期待感映射处理逻辑 ==========
+            # 🔥 修复：优先使用已有的期待感映射
+            if storyline_data and not expectation_map:
+                # 检查storyline_data中是否已经包含expectation_maps
+                if 'expectation_maps' in storyline_data and storyline_data['expectation_maps']:
+                    expectation_map = storyline_data['expectation_maps']
+                    total_expectations = sum(len(em.get('expectations', {})) for em in expectation_map.values())
+                    logger.info(f"[EXPECTATION_MAP] 使用故事线中已有的期待感映射: {len(expectation_map)} 个阶段, 共 {total_expectations} 个期待")
+                elif storyline_data.get('major_events'):
+                    # 只有在完全没有期待感映射时才生成
+                    logger.info(f"[STORYLINE] 故事线数据已加载，但未找到期待感映射，开始自动生成...")
                     
-                    major_events = storyline_data.get('major_events', [])
-                    total_tagged = 0
-                    
-                    # 为每个重大事件添加期待感标签
-                    for event in major_events:
-                        event_name = event.get('name', '未命名事件')
-                        exp_type = select_expectation_type(event)
+                    try:
+                        from src.managers.ExpectationManager import ExpectationManager, ExpectationIntegrator
+                        expectation_manager = ExpectationManager()
+                        expectation_integrator = ExpectationIntegrator(expectation_manager)
                         
-                        chapter_range = event.get('chapter_range', '1-10')
-                        try:
-                            from src.managers.StagePlanUtils import parse_chapter_range
-                            start_ch, end_ch = parse_chapter_range(chapter_range)
-                            target_ch = max(start_ch + 3, end_ch)
-                        except:
-                            target_ch = end_ch
+                        major_events = storyline_data.get('major_events', [])
+                        total_tagged = 0
                         
-                        exp_id = expectation_manager.tag_event_with_expectation(
-                            event_id=event_name,
-                            expectation_type=exp_type,
-                            planting_chapter=start_ch,
-                            description=f"{event_name}: {event.get('main_goal', '')[:80]}...",
-                            target_chapter=target_ch
-                        )
+                        # 为每个重大事件添加期待感标签
+                        for event in major_events:
+                            event_name = event.get('name', '未命名事件')
+                            exp_type = select_expectation_type(event)
+                            
+                            chapter_range = event.get('chapter_range', '1-10')
+                            try:
+                                from src.managers.StagePlanUtils import parse_chapter_range
+                                start_ch, end_ch = parse_chapter_range(chapter_range)
+                                target_ch = max(start_ch + 3, end_ch)
+                            except:
+                                target_ch = end_ch
+                            
+                            exp_id = expectation_manager.tag_event_with_expectation(
+                                event_id=event_name,
+                                expectation_type=exp_type,
+                                planting_chapter=start_ch,
+                                description=f"{event_name}: {event.get('main_goal', '')[:80]}...",
+                                target_chapter=target_ch
+                            )
+                            
+                            total_tagged += 1
                         
-                        total_tagged += 1
-                    
-                    # 生成期待感映射
-                    expectation_map = expectation_manager.export_expectation_map()
-                    logger.info(f"[STORYLINE] 成功为 {total_tagged} 个事件生成期待感标签")
-                    
-                except Exception as e:
-                    logger.info(f"[STORYLINE] 生成期待感标签失败: {e}")
+                        # 生成期待感映射
+                        expectation_map = expectation_manager.export_expectation_map()
+                        logger.info(f"[STORYLINE] 成功为 {total_tagged} 个事件生成期待感标签")
+                        
+                    except Exception as e:
+                        logger.info(f"[STORYLINE] 生成期待感标签失败: {e}")
             
             # ========== 最后：将期待感映射添加到故事线数据中 ==========
             if storyline_data and expectation_map:
                 storyline_data['expectation_map'] = expectation_map
-                logger.info(f"[STORYLINE] 已添加期待感映射到故事线数据 (共 {len(expectation_map.get('expectations', {}))} 个期待)")
+                
+                # 🔥 新增：详细的调试日志
+                if isinstance(expectation_map, dict):
+                    if 'expectations' in expectation_map:
+                        total_count = len(expectation_map.get('expectations', {}))
+                        logger.info(f"[STORYLINE] 已添加期待感映射到故事线数据 (单阶段格式, 共 {total_count} 个期待)")
+                    elif 'expectation_maps' in expectation_map or isinstance(list(expectation_map.values())[0] if expectation_map else {}, dict):
+                        # 多阶段格式
+                        total_stages = len(expectation_map)
+                        total_exp = sum(len(em.get('expectations', {})) for em in expectation_map.values())
+                        logger.info(f"[STORYLINE] 已添加期待感映射到故事线数据 (多阶段格式, {total_stages} 个阶段, 共 {total_exp} 个期待)")
+                
+                logger.info(f"[STORYLINE_DEBUG] expectation_map结构: {list(expectation_map.keys()) if isinstance(expectation_map, dict) else type(expectation_map)}")
             elif storyline_data and not expectation_map:
                 logger.info(f"[STORYLINE] ⚠️ 故事线数据存在但没有期待感映射，前端将不会显示期待感标签")
+                logger.info(f"[STORYLINE_DEBUG] storyline_data键: {list(storyline_data.keys())}")
             
             if not storyline_data:
                 return jsonify({
