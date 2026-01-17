@@ -1,0 +1,113 @@
+/* 确认对话框样式 */
+
+.confirm-dialog-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+.confirm-dialog {
+    background: white;
+    border-radius: 12px;
+    padding: 30px;
+    max-width: 400px;
+    width: 90%;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+    animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateY(-20px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.confirm-dialog-header {
+    margin-bottom: 20px;
+}
+
+.confirm-dialog-title {
+    font-size: 20px;
+    font-weight: 600;
+    color: #333;
+    margin: 0;
+}
+
+.confirm-dialog-body {
+    margin-bottom: 20px;
+}
+
+.confirm-dialog-message {
+    font-size: 14px;
+    color: #666;
+    line-height: 1.6;
+    margin: 0;
+}
+
+.confirm-dialog-footer {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+}
+
+.confirm-dialog-btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.confirm-dialog-btn-primary {
+    background: #667eea;
+    color: white;
+}
+
+.confirm-dialog-btn-primary:hover {
+    background: #5568d3;
+    transform: translateY(-1px);
+}
+
+.confirm-dialog-btn-secondary {
+    background: #f0f0f0;
+    color: #333;
+}
+
+.confirm-dialog-btn-secondary:hover {
+    background: #e0e0e0;
+    transform: translateY(-1px);
+}
+
+.confirm-dialog-btn-danger {
+    background: #f5222d;
+    color: white;
+}
+
+.confirm-dialog-btn-danger:hover {
+    background: #d4181f;
+    transform: translateY(-1px);
+}

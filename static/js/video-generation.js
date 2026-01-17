@@ -83,6 +83,12 @@ class VideoGenerator {
             this.showCustomPromptScreen();
         } else if (mode === 'novel') {
             this.showNovelSelectionScreen();
+        } else if (mode === 'portrait') {
+            // 跳转到人物剧照工作室
+            window.location.href = '/portrait-studio';
+        } else if (mode === 'video-workspace') {
+            // 跳转到视频工作室
+            window.location.href = '/video-studio';
         }
     }
     

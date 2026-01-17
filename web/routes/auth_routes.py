@@ -215,6 +215,12 @@ def register_page_routes(app):
         """人物剧照工作室页面"""
         return render_template('portrait-studio.html')
     
+    @app.route('/still-image-library', methods=['GET'])
+    @login_required
+    def still_image_library():
+        """图像素材库页面"""
+        return render_template('still-image-library.html')
+    
     @app.route('/video-studio', methods=['GET'])
     @login_required
     def video_studio():

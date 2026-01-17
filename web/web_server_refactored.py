@@ -59,6 +59,7 @@ from web.api.openai_video_api import register_openai_video_routes
 from web.api.nanobanana_api import register_nanobanana_routes
 from web.api.character_api import register_character_routes
 from web.api.veo_video_api import register_veo_video_routes
+from web.api.still_image_api import register_still_image_routes
 
 # 导入页面路由模块
 from web.routes.auth_routes import register_auth_routes, register_page_routes
@@ -69,7 +70,9 @@ from web.api.register_api import register_register_routes
 
 def create_app():
     """创建Flask应用实例"""
-    app = Flask(__name__)
+    # 配置静态文件路径 - static文件夹在项目根目录下，而不是web目录下
+    static_folder = os.path.join(BASE_DIR, 'static')
+    app = Flask(__name__, static_folder=static_folder)
     app.config.from_object(FlaskConfig)
     
     # 创建全局管理器实例
@@ -225,6 +228,9 @@ def create_app():
     
     # 15. VeO 原生视频生成 API 路由（支持 base64 图片）
     register_veo_video_routes(app)
+    
+    # 16. 剧照图片素材库 API 路由
+    register_still_image_routes(app)
     
     return app, manager
 
