@@ -567,7 +567,7 @@ def register_contract_routes(app):
             logger.error(f"❌ 启动签约服务失败: {e}")
             return jsonify({"success": False, "error": str(e)}), 500
 
-    @app.route('/api//service/stop', methods=['POST'])
+    @app.route('/api/contract/service/stop', methods=['POST'])
     def stop_contract_signing_service():
         """停止签约服务"""
         try:
