@@ -130,10 +130,28 @@ def create_app():
                     
                     # 检查URL是否是本地路径（已经下载）
                     if video_url.startswith('/static/'):
-                        logger.info(f"✅ 使用本地路径: {video_url}")
-                        # 从本地路径提供文件
+                        # 🔥 修复：检查本地文件是否真的存在
                         local_filename = video_url.split('/')[-1]
-                        return send_from_directory(local_video_dir, local_filename)
+                        local_file_check = os.path.join(local_video_dir, local_filename)
+                        
+                        if os.path.exists(local_file_check):
+                            logger.info(f"✅ 使用本地路径: {video_url}")
+                            return send_from_directory(local_video_dir, local_filename)
+                        else:
+                            # 本地路径指向的文件不存在，可能是旧任务
+                            logger.warn(f"⚠️ JSON中的本地路径不存在: {local_file_check}")
+                            # 尝试从元数据中获取原始远程URL
+                            if hasattr(task, 'metadata') and task.metadata:
+                                original_url = task.metadata.get('original_url')
+                                if original_url and (original_url.startswith('http://') or original_url.startswith('https://')):
+                                    logger.info(f"🌐 重定向到原始远程URL: {original_url}")
+                                    return redirect(original_url)
+                            
+                            # 没有远程URL可用，返回404
+                            return jsonify({
+                                "error": "Video file not found",
+                                "message": f"Local video file not found and no remote URL available"
+                            }), 404
                     else:
                         logger.info(f"🌐 重定向到远程URL: {video_url}")
                         # 重定向到真实的视频URL
@@ -174,7 +192,28 @@ def create_app():
     @app.route('/generated_videos/<path:filename>')
     def serve_generated_video_alt(filename):
         """备用的视频访问路由（不带static前缀）"""
-        return serve_generated_video(filename)
+        # 🔥 修复重定向循环：直接处理，不再调用 serve_generated_video
+        from flask import send_from_directory
+        import os
+        
+        # 先尝试从 static/generated_videos 目录读取
+        static_video_path = os.path.join(BASE_DIR, 'static', 'generated_videos', filename)
+        if os.path.exists(static_video_path):
+            logger.info(f"✅ 从static目录提供视频: {filename}")
+            return send_from_directory(os.path.join(BASE_DIR, 'static', 'generated_videos'), filename)
+        
+        # 再尝试从根目录的 generated_videos 读取
+        root_video_path = os.path.join(BASE_DIR, 'generated_videos', filename)
+        if os.path.exists(root_video_path):
+            logger.info(f"✅ 从根目录提供视频: {filename}")
+            return send_from_directory(os.path.join(BASE_DIR, 'generated_videos'), filename)
+        
+        # 如果都不存在，返回404
+        logger.warn(f"⚠️ 视频文件不存在: {filename}")
+        return jsonify({
+            "error": "File not found",
+            "message": f"Video file {filename} not found"
+        }), 404
     
     logger.info(f"✅ 配置视频访问路由: /static/generated_videos/<filename>")
     logger.info(f"✅ 配置视频访问路由: /generated_videos/<filename>")

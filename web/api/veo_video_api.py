@@ -7,6 +7,7 @@ VeO 视频生成 API 路由
 from flask import Blueprint, request, jsonify
 from typing import Dict, Any, List, Optional
 import traceback
+import os
 
 from src.utils.logger import get_logger
 from src.models.veo_models import (
@@ -366,6 +367,149 @@ def delete_generation(generation_id: str):
         }), 500
 
 
+@veo_video_api.route('/api/video/studio/library', methods=['GET'])
+def get_video_library():
+    """
+    获取视频素材库列表
+    
+    查询参数：
+    - status: 状态过滤 (all | completed | processing | failed)
+    
+    响应：
+    {
+        "success": true,
+        "videos": [
+            {
+                "id": "veo_abc123",
+                "prompt": "视频生成提示词",
+                "status": "completed",
+                "progress": 100,
+                "url": "/static/generated_videos/veo_abc123.mp4",
+                "date": "2026-01-17 13:38:25"
+            }
+        ]
+    }
+    """
+    try:
+        from datetime import datetime
+        
+        status_filter = request.args.get('status', 'all')
+        
+        logger.info(f"📋 获取视频素材库: status={status_filter}")
+        
+        manager = get_veo_video_manager()
+        generations = manager.list_generations(
+            limit=100,  # 获取最近100个任务
+            status=None if status_filter == 'all' else VideoStatus(status_filter) if status_filter != 'all' else None,
+            order='desc'
+        )
+        
+        # 格式化为前端需要的格式
+        videos = []
+        for gen in generations:
+            # 🔥 修复：使用 gen.prompt 直接获取提示词
+            prompt = gen.prompt if hasattr(gen, 'prompt') else ""
+            
+            # 获取视频URL
+            url = None
+            if gen.result and gen.result.videos:
+                video_url = gen.result.videos[0].url
+                # 如果是本地路径，转换为HTTP URL
+                if video_url.startswith('/static/'):
+                    url = video_url
+                elif video_url.startswith('http://') or video_url.startswith('https://'):
+                    url = video_url
+                else:
+                    # 本地文件路径，转换为HTTP URL
+                    url = f"/static/generated_videos/{os.path.basename(video_url)}"
+            
+            # 🔥 修复：使用 gen.created 而不是 gen.created_at
+            created_at = ""
+            if hasattr(gen, 'created') and gen.created:
+                if isinstance(gen.created, str):
+                    created_at = gen.created
+                elif isinstance(gen.created, int):
+                    # timestamp转换为日期字符串
+                    created_at = datetime.fromtimestamp(gen.created).strftime("%Y-%m-%d %H:%M:%S")
+            
+            # 🔥 修复：状态映射，使用正确的枚举值
+            status_map = {
+                VideoStatus.PENDING: 'processing',
+                VideoStatus.PROCESSING: 'processing',
+                VideoStatus.COMPLETED: 'completed',
+                VideoStatus.FAILED: 'failed',
+                VideoStatus.CANCELLED: 'failed'
+            }
+            status = status_map.get(gen.status, 'processing')
+            
+            # 进度
+            progress = 100 if status == 'completed' else (50 if status == 'processing' else 0)
+            
+            videos.append({
+                "id": gen.id,
+                "prompt": prompt or "无提示词",
+                "status": status,
+                "progress": progress,
+                "url": url,
+                "date": created_at
+            })
+        
+        logger.info(f"✅ 返回 {len(videos)} 个视频")
+        
+        return jsonify({
+            "success": True,
+            "videos": videos
+        }), 200
+    
+    except Exception as e:
+        logger.error(f"❌ 获取视频素材库失败: {e}")
+        import traceback
+        logger.error(f"错误堆栈: {traceback.format_exc()}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+
+@veo_video_api.route('/api/video/studio/delete/<video_id>', methods=['DELETE'])
+def delete_video_from_library(video_id: str):
+    """
+    从素材库删除视频
+    
+    参数：
+    - video_id: 视频ID
+    
+    响应：
+    {
+        "success": true,
+        "message": "视频已删除"
+    }
+    """
+    try:
+        logger.info(f"🗑️ 删除视频: {video_id}")
+        
+        manager = get_veo_video_manager()
+        success = manager.delete_generation(video_id)
+        
+        if success:
+            return jsonify({
+                "success": True,
+                "message": "视频已删除"
+            }), 200
+        else:
+            return jsonify({
+                "success": False,
+                "error": "删除失败"
+            }), 400
+    
+    except Exception as e:
+        logger.error(f"❌ 删除视频失败: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+
 def register_veo_video_routes(app):
     """注册 VeO 视频生成 API 路由"""
     app.register_blueprint(veo_video_api)
@@ -373,9 +517,10 @@ def register_veo_video_routes(app):
     logger.info("=" * 60)
     logger.info("📋 已注册的 VeO 视频生成 API 路由:")
     for rule in app.url_map.iter_rules():
-        if 'api/veo' in rule.rule:
+        if 'api/veo' in rule.rule or 'api/video/studio' in rule.rule:
             logger.info(f"  - {rule.methods} {rule.rule} -> {rule.endpoint}")
     logger.info("📡 API 提供商: AI-WX VeO 3.1")
     logger.info("🔗 支持图片 URL 输入（推荐）")
     logger.info("📦 支持 base64 图片输入（自动压缩）")
+    logger.info("📋 视频素材库接口已启用")
     logger.info("=" * 60)

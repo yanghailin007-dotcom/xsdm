@@ -69,6 +69,7 @@ class VeOVideoGenerationTask:
         self.native_request: Optional[VeOCreateVideoRequest] = None
         self._current_progress: int = 0  # 🔥 新增：当前进度
         self._current_stage: str = ""  # 🔥 新增：当前阶段
+        self.metadata: Dict[str, Any] = {}  # 🔥 新增：元数据（保存原始URL等）
         
         # 转换为原生格式（如果提供了原生请求则使用，否则转换）
         self.native_request = native_request or VeOCreateVideoRequest.from_openai_format(request)
@@ -177,13 +178,12 @@ class VeOVideoManager:
             self.logger.warn(f"⚠️  配置验证失败: {message}")
             self.logger.warn("⚠️  VeO 视频生成功能可能无法正常工作")
         
-        # 🔥 禁用自动加载已保存的任务
-        # 用户要求：失败了就失败了，永远是新开始的任务
-        # self._load_tasks()  # 已禁用
+        # 🔥 重新启用任务加载，以便素材库可以显示历史视频
+        self._load_tasks()
         
         self.logger.info(f"✅ VeO 视频生成管理器初始化完成")
         self.logger.info(f"📁 存储目录: {self.storage_dir}")
-        self.logger.info(f"📊 不加载历史任务，只处理新任务")
+        self.logger.info(f"📊 已加载历史任务到素材库")
     
     def _load_tasks(self):
         """从磁盘加载任务"""
@@ -235,11 +235,13 @@ class VeOVideoManager:
                     )
                     task.id = task_id  # 🔥 强制使用文件名中的ID
                     
-                    # 🔥 新增：恢复进度和阶段信息
+                    # 🔥 新增：恢复进度、阶段和元数据信息
                     if task_data.get("progress") is not None:
                         task._current_progress = task_data["progress"]
                     if task_data.get("stage"):
                         task._current_stage = task_data["stage"]
+                    if task_data.get("metadata"):
+                        task.metadata = task_data["metadata"]
                     
                     # 设置状态
                     status_str = task_data.get("status", "pending")
@@ -533,6 +535,9 @@ class VeOVideoManager:
                             # 🔥 使用本地路径作为URL（如果是本地下载）
                             final_url = f"/static/generated_videos/{local_path}" if local_path else video_url
                             
+                            # 🔥 新增：保存原始远程URL到metadata，以便本地文件丢失时可以恢复
+                            original_url = video_url  # 保存原始远程URL
+                            
                             # 创建真实结果
                             video = VeOVideoResult(
                                 id=f"video_{uuid.uuid4().hex[:8]}",
@@ -550,7 +555,16 @@ class VeOVideoManager:
                             )
                             
                             task.complete(result)
+                            
+                            # 🔥 新增：保存原始远程URL到任务metadata
+                            if not hasattr(task, 'metadata'):
+                                task.metadata = {}
+                            task.metadata['original_url'] = original_url
+                            if local_path:
+                                task.metadata['local_path'] = local_path
+                            
                             self.logger.info(f"✅ 任务完成: {task.id}, 本地路径: {final_url}")
+                            self.logger.info(f"💾 原始URL已保存: {original_url}")
                             return
                         else:
                             self.logger.warn(f"⚠️ 未找到视频URL")
