@@ -79,9 +79,87 @@ class StillImageManager:
                     self.logger.warn(f"加载图片元数据失败 {metadata_file}: {e}")
             
             self.logger.info(f"✅ 从磁盘加载了 {loaded_count} 个图片元数据")
+            
+            # 扫描 generated_images 目录，为没有元数据的图片创建元数据
+            self._scan_and_create_metadata()
         
         except Exception as e:
             self.logger.error(f"❌ 加载图片元数据失败: {e}")
+    
+    def _scan_and_create_metadata(self):
+        """扫描 generated_images 目录并为没有元数据的图片创建元数据"""
+        try:
+            if not self.storage_dir.exists():
+                self.logger.warn(f"⚠️ 图片存储目录不存在: {self.storage_dir}")
+                return
+            
+            # 获取所有图片文件
+            image_extensions = {'.png', '.jpg', '.jpeg', '.webp', '.gif'}
+            image_files = [
+                f for f in self.storage_dir.iterdir()
+                if f.is_file() and f.suffix.lower() in image_extensions
+            ]
+            
+            # 获取已有元数据的图片路径
+            metadata_paths = {
+                img.local_path for img in self.images.values() if img.local_path
+            }
+            
+            created_count = 0
+            for image_file in image_files:
+                # 跳过已有元数据的图片
+                if str(image_file) in metadata_paths:
+                    continue
+                
+                try:
+                    # 从文件名提取信息
+                    filename = image_file.stem  # 不包含扩展名的文件名
+                    
+                    # 解析文件名（格式：用户名_时间戳_提示词.png 或 小说名_角色名_类型_时间戳.png）
+                    prompt = filename
+                    
+                    # 尝试从文件名提取更详细的信息
+                    if '_' in filename:
+                        parts = filename.split('_')
+                        if len(parts) >= 2:
+                            # 最后部分通常是时间戳
+                            try:
+                                # 提取提示词部分（移除时间戳）
+                                prompt_parts = parts[:-1] if len(parts) > 2 else parts
+                                prompt = '_'.join(prompt_parts)
+                            except:
+                                prompt = filename
+                    
+                    # 获取文件大小
+                    file_size = image_file.stat().st_size if image_file.exists() else 0
+                    
+                    # 生成图片 URL（使用 /generated_images/ 路径）
+                    relative_path = image_file.relative_to(self.storage_dir)
+                    image_url = f"/generated_images/{relative_path}"
+                    
+                    # 创建并添加图片
+                    image = self.add_image(
+                        image_type=StillImageType.CUSTOM,
+                        prompt=prompt,
+                        local_path=str(image_file),
+                        image_url=image_url,
+                        aspect_ratio="9:16",  # 默认值
+                        image_size="4K",      # 默认值
+                        file_size=file_size,
+                        metadata={"auto_imported": True, "imported_at": datetime.now().isoformat()}
+                    )
+                    
+                    created_count += 1
+                    self.logger.info(f"✅ 自动导入图片: {image_file.name} -> {image.image_id}")
+                
+                except Exception as e:
+                    self.logger.warn(f"导入图片失败 {image_file.name}: {e}")
+            
+            if created_count > 0:
+                self.logger.info(f"✅ 自动导入了 {created_count} 个现有图片")
+        
+        except Exception as e:
+            self.logger.error(f"❌ 扫描和创建元数据失败: {e}")
     
     def _save_image_metadata(self, image: StillImage):
         """保存图片元数据到磁盘"""

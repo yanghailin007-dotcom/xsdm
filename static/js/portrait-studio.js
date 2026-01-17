@@ -199,14 +199,19 @@ function applyTemplate(template) {
     
     const promptEditor = document.getElementById('promptEditor');
     if (promptEditor && templates[template]) {
-        const currentPrompt = promptEditor.value.trim();
-        if (currentPrompt) {
-            promptEditor.value = currentPrompt + '\n\n' + templates[template];
-        } else {
-            promptEditor.value = templates[template];
-        }
+        // 直接替换提示词内容，而不是追加
+        promptEditor.value = templates[template];
         
-        showToast(`已应用${template === 'xianxia' ? '仙侠' : template}模板`);
+        // 模板名称映射
+        const templateNames = {
+            'xianxia': '仙侠剑仙',
+            'modern': '现代都市',
+            'fantasy': '奇幻魔法',
+            'sci': '科幻未来',
+            'romance': '浪漫唯美'
+        };
+        
+        showToast(`已应用${templateNames[template] || template}模板`);
     }
 }
 
