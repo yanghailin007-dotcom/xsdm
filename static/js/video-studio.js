@@ -443,14 +443,20 @@ async function generateVideo() {
         // 参考图模式
         if (currentMode === 'reference') {
             const referencePreviewImg = document.getElementById('referencePreviewImg');
-            if (referencePreviewImg && referencePreviewImg.src && referencePreviewImg.style.display !== 'none') {
+            const referencePlaceholder = document.getElementById('referencePlaceholder');
+            
+            // 🔥 修复：只有当预览图显示且占位符隐藏时，才认为有图片
+            if (referencePreviewImg && referencePreviewImg.src && 
+                referencePreviewImg.style.display !== 'none' &&
+                referencePlaceholder && referencePlaceholder.style.display === 'none') {
                 // 如果是base64图片数据
                 if (referencePreviewImg.src.startsWith('data:')) {
                     // 移除data:image/xxx;base64,前缀
                     const base64Data = referencePreviewImg.src.split(',')[1];
                     images.push(base64Data);
-                } else {
-                    // 如果是URL，直接使用
+                } else if (referencePreviewImg.src.startsWith('http://') || referencePreviewImg.src.startsWith('https://')) {
+                    // 🔥 修复：只接受有效的HTTP(S) URL，不接受localhost或其他本地URL
+                    // 如果是有效的图片URL，直接使用
                     images.push(referencePreviewImg.src);
                 }
             }
@@ -458,19 +464,27 @@ async function generateVideo() {
             // 首尾帧模式
             const firstFramePreviewImg = document.getElementById('firstFramePreviewImg');
             const lastFramePreviewImg = document.getElementById('lastFramePreviewImg');
+            const firstFramePlaceholder = document.getElementById('firstFramePlaceholder');
+            const lastFramePlaceholder = document.getElementById('lastFramePlaceholder');
             
-            if (firstFramePreviewImg && firstFramePreviewImg.src && firstFramePreviewImg.style.display !== 'none') {
+            // 首帧
+            if (firstFramePreviewImg && firstFramePreviewImg.src && 
+                firstFramePreviewImg.style.display !== 'none' &&
+                firstFramePlaceholder && firstFramePlaceholder.style.display === 'none') {
                 if (firstFramePreviewImg.src.startsWith('data:')) {
                     images.push(firstFramePreviewImg.src.split(',')[1]);
-                } else {
+                } else if (firstFramePreviewImg.src.startsWith('http://') || firstFramePreviewImg.src.startsWith('https://')) {
                     images.push(firstFramePreviewImg.src);
                 }
             }
             
-            if (lastFramePreviewImg && lastFramePreviewImg.src && lastFramePreviewImg.style.display !== 'none') {
+            // 尾帧
+            if (lastFramePreviewImg && lastFramePreviewImg.src && 
+                lastFramePreviewImg.style.display !== 'none' &&
+                lastFramePlaceholder && lastFramePlaceholder.style.display === 'none') {
                 if (lastFramePreviewImg.src.startsWith('data:')) {
                     images.push(lastFramePreviewImg.src.split(',')[1]);
-                } else {
+                } else if (lastFramePreviewImg.src.startsWith('http://') || lastFramePreviewImg.src.startsWith('https://')) {
                     images.push(lastFramePreviewImg.src);
                 }
             }
@@ -485,18 +499,30 @@ async function generateVideo() {
         };
         
         // 使用VeO API端点
+        // 🔥 修复：构建请求对象，只在有图片时才发送images字段
+        const requestData = {
+            prompt: prompt,
+            mode: currentMode,  // reference 或 frame
+            orientation: orientationMap[selectedRatio] || 'portrait',
+            size: 'large'
+        };
+        
+        // 只有当有有效的图片时才添加images字段
+        if (images.length > 0) {
+            requestData.images = images;
+        }
+        
+        console.log('📤 发送请求数据:', {
+            ...requestData,
+            images: images.length > 0 ? `[${images.length} 张图片]` : undefined
+        });
+        
         const response = await fetch('/api/veo/generate', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({
-                prompt: prompt,
-                mode: currentMode,  // reference 或 frame
-                images: images.length > 0 ? images : undefined,
-                orientation: orientationMap[selectedRatio] || 'portrait',
-                size: 'large'
-            })
+            body: JSON.stringify(requestData)
         });
         
         const result = await response.json();

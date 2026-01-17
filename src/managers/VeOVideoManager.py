@@ -177,12 +177,13 @@ class VeOVideoManager:
             self.logger.warn(f"⚠️  配置验证失败: {message}")
             self.logger.warn("⚠️  VeO 视频生成功能可能无法正常工作")
         
-        # 加载已保存的任务
-        self._load_tasks()
+        # 🔥 禁用自动加载已保存的任务
+        # 用户要求：失败了就失败了，永远是新开始的任务
+        # self._load_tasks()  # 已禁用
         
         self.logger.info(f"✅ VeO 视频生成管理器初始化完成")
         self.logger.info(f"📁 存储目录: {self.storage_dir}")
-        self.logger.info(f"📊 已加载任务数: {len(self.tasks)}")
+        self.logger.info(f"📊 不加载历史任务，只处理新任务")
     
     def _load_tasks(self):
         """从磁盘加载任务"""
@@ -355,19 +356,43 @@ class VeOVideoManager:
             
             # 使用原生格式发送请求
             if task.native_request:
-                # 🔥 修复：区分URL模式和base64模式
-                # 如果是URL模式，不需要压缩
-                # 如果是base64模式，需要压缩
+                # 🔥 修复：处理图片（可选）
+                compressed_images = None
                 if task.native_request.images:
                     # 检查是否所有图片都是URL
                     all_urls = all(self._is_url(img) for img in task.native_request.images if img)
                     
                     if all_urls:
-                        # URL模式：直接使用，不需要压缩
-                        self.logger.info(f"🔗 URL模式：使用 {len(task.native_request.images)} 个图片URL")
-                        compressed_images = task.native_request.images
+                        # 🔥 强制使用base64模式：下载URL图片并转换为base64
+                        self.logger.info(f"🔗 检测到图片URL，强制转换为base64模式...")
+                        self.logger.info(f"📥 开始下载 {len(task.native_request.images)} 张图片并转换为base64...")
+                        
+                        # 下载URL图片并转换为base64
+                        base64_images = []
+                        for idx, img_url in enumerate(task.native_request.images):
+                            try:
+                                self.logger.info(f"📥 下载图片 {idx+1}/{len(task.native_request.images)}: {img_url}")
+                                response = requests.get(img_url, timeout=30)
+                                if response.status_code == 200:
+                                    import base64
+                                    image_data = response.content
+                                    base64_string = base64.b64encode(image_data).decode('utf-8')
+                                    base64_images.append(base64_string)
+                                    self.logger.info(f"✅ 图片 {idx+1} 转换成功，大小: {len(image_data)/1024:.2f} KB")
+                                else:
+                                    raise Exception(f"下载失败: HTTP {response.status_code}")
+                            except Exception as e:
+                                self.logger.error(f"❌ 下载图片 {idx+1} 失败: {e}")
+                                raise Exception(f"无法下载图片 {idx+1}: {e}")
+                        
+                        # 压缩base64图片
+                        self.logger.info(f"🖼️  Base64模式：开始压缩 {len(base64_images)} 张图片...")
+                        compressed_images, compression_stats = validate_and_compress_images(
+                            base64_images,
+                            max_size_mb=MAX_IMAGE_SIZE_MB
+                        )
                     else:
-                        # base64模式：需要压缩
+                        # 已经是base64模式：需要压缩
                         self.logger.info(f"🖼️  Base64模式：开始压缩 {len(task.native_request.images)} 张图片...")
                         compressed_images, compression_stats = validate_and_compress_images(
                             task.native_request.images,
@@ -376,6 +401,9 @@ class VeOVideoManager:
                     
                     # 更新请求对象中的图片
                     task.native_request.images = compressed_images
+                else:
+                    # 没有图片，这是正常的（用户可以选择不上传图片）
+                    self.logger.info(f"📝 无参考图模式：仅使用提示词生成视频")
                 
                 payload = task.native_request.to_dict()
                 self.logger.info(f"📤 发送请求到: {AIWX_VIDEO_CREATE_URL}")
@@ -389,6 +417,8 @@ class VeOVideoManager:
                 
                 if compressed_images:
                     self.logger.info(f"🖼️  图片数量: {len(compressed_images)}")
+                else:
+                    self.logger.info(f"🖼️  无参考图")
                 
                 task.update_progress(30, "发送生成请求")
                 

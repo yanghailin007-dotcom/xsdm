@@ -135,15 +135,18 @@ def get_request_headers() -> dict:
     
     Returns:
         请求头字典，包含Authorization
+        
+    注意：参考官方示例设置请求头
     """
-    headers = REQUEST_CONFIG['default_headers'].copy()
     api_key = get_api_key()
-    # 直接使用 API Key，不加 Bearer 前缀
-    headers['Authorization'] = api_key
-    headers['User-Agent'] = 'Apifox/1.0.0 (https://apifox.com)'
-    headers['Accept'] = '*/*'
-    headers['Host'] = 'jyapi.ai-wx.cn'
-    headers['Connection'] = 'keep-alive'
+    # 🔥 修复：参考官方示例设置请求头
+    # 只设置官方示例中明确要求的请求头
+    # 移除 Host 和 Connection 手动设置，让 requests 库自动处理
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": api_key,
+        "User-Agent": "Apifox/1.0.0 (https://apifox.com)"
+    }
     return headers
 
 
