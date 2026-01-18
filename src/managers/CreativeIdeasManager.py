@@ -103,6 +103,34 @@ class CreativeIdeasManager:
                     filename = os.path.basename(filepath)
                     print(f"  ⚠️  加载创意文件失败 {filename}: {e}")
             
+            # 同时加载 novel_ideas.txt 中的创意（如果存在且不是多文件模式的一部分）
+            if os.path.exists(self.legacy_file):
+                print(f"  📄 检测到 novel_ideas.txt，正在合并创意...")
+                try:
+                    with open(self.legacy_file, 'r', encoding='utf-8') as f:
+                        content = f.read()
+                    
+                    data = json.loads(content)
+                    txt_ideas = data.get("creativeWorks", [])
+                    
+                    # 过滤掉已经在JSON文件中的创意（通过标题判断）
+                    existing_titles = set()
+                    for idea in creative_ideas:
+                        title = idea.get("novelTitle", "")
+                        if title:
+                            existing_titles.add(title)
+                    
+                    # 只添加不重复的创意
+                    for txt_idea in txt_ideas:
+                        title = txt_idea.get("novelTitle", "")
+                        if title and title not in existing_titles:
+                            creative_ideas.append(txt_idea)
+                            existing_titles.add(title)
+                            print(f"  ✅ 从 novel_ideas.txt 添加创意: {title}")
+                    
+                except Exception as e:
+                    print(f"  ⚠️  加载 novel_ideas.txt 失败: {e}")
+            
             print(f"  ✅ 多文件模式加载成功，共 {len(creative_ideas)} 个创意")
             
             return {
