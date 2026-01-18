@@ -6,19 +6,61 @@
     <title>番茄自动签约管理</title>
     <link rel="stylesheet" href="/static/css/style.css">
     <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+        }
+
+        .navbar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 16px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            position: relative;
+            z-index: 100;
+        }
+
+        .navbar-content {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .navbar-title {
+            color: white;
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .navbar-actions {
+            display: flex;
+            gap: 12px;
+        }
+
         .contract-container {
-            max-width: 1200px;
+            max-width: 1400px;
             margin: 0 auto;
-            padding: 20px;
+            padding: 30px 20px;
+            position: relative;
         }
 
         .header-section {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             padding: 40px;
-            border-radius: 16px;
+            border-radius: 20px;
             margin-bottom: 30px;
-            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+            box-shadow: 0 10px 40px rgba(102, 126, 234, 0.3);
+            position: relative;
         }
 
         .header-section h1 {
@@ -28,26 +70,33 @@
         }
 
         .header-section p {
-            margin: 0;
-            opacity: 0.9;
+            margin: 0 0 20px 0;
+            opacity: 0.95;
             font-size: 1.1rem;
+        }
+
+        .status-bar {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            flex-wrap: wrap;
         }
 
         .status-badge {
             display: inline-flex;
             align-items: center;
-            gap: 8px;
-            padding: 8px 16px;
+            gap: 10px;
+            padding: 10px 20px;
             background: rgba(255, 255, 255, 0.2);
-            border-radius: 20px;
-            font-size: 0.9rem;
+            border-radius: 30px;
+            font-size: 0.95rem;
             font-weight: 600;
-            margin-top: 15px;
+            backdrop-filter: blur(10px);
         }
 
         .status-dot {
-            width: 10px;
-            height: 10px;
+            width: 12px;
+            height: 12px;
             border-radius: 50%;
             background: #4ade80;
             animation: pulse 2s infinite;
@@ -59,8 +108,8 @@
         }
 
         @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.1); }
         }
 
         .main-grid {
@@ -70,7 +119,7 @@
             margin-bottom: 30px;
         }
 
-        @media (max-width: 900px) {
+        @media (max-width: 1024px) {
             .main-grid {
                 grid-template-columns: 1fr;
             }
@@ -78,55 +127,68 @@
 
         .card {
             background: white;
-            border-radius: 16px;
-            padding: 24px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-            border: 1px solid #e5e7eb;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            border: 1px solid rgba(0, 0, 0, 0.05);
+            position: relative;
         }
 
         .card-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 20px;
-            padding-bottom: 15px;
+            margin-bottom: 24px;
+            padding-bottom: 20px;
             border-bottom: 2px solid #f3f4f6;
         }
 
         .card-title {
-            font-size: 1.25rem;
+            font-size: 1.5rem;
             font-weight: 700;
             color: #1f2937;
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
         }
 
         .card-icon {
-            font-size: 1.5rem;
+            font-size: 1.8rem;
         }
 
         .btn {
-            padding: 10px 20px;
+            padding: 12px 24px;
             border: none;
-            border-radius: 8px;
-            font-size: 0.95rem;
+            border-radius: 12px;
+            font-size: 1rem;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             display: inline-flex;
             align-items: center;
             gap: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            position: relative;
+            z-index: 10;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+        }
+
+        .btn:active {
+            transform: translateY(0);
         }
 
         .btn-primary {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
+            pointer-events: auto !important;
         }
 
         .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+            box-shadow: 0 4px 16px rgba(102, 126, 234, 0.4);
         }
 
         .btn-secondary {
@@ -139,104 +201,48 @@
         }
 
         .btn-success {
-            background: #10b981;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
             color: white;
         }
 
         .btn-danger {
-            background: #ef4444;
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
             color: white;
         }
 
         .btn:disabled {
             opacity: 0.5;
             cursor: not-allowed;
-        }
-
-        .list-container {
-            max-height: 400px;
-            overflow-y: auto;
-        }
-
-        .list-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 16px;
-            background: #f9fafb;
-            border-radius: 12px;
-            margin-bottom: 12px;
-            transition: all 0.2s;
-            border: 2px solid transparent;
-        }
-
-        .list-item:hover {
-            background: #f3f4f6;
-            border-color: #667eea;
-        }
-
-        .list-item-content {
-            flex: 1;
-        }
-
-        .list-item-title {
-            font-weight: 600;
-            color: #1f2937;
-            margin-bottom: 4px;
-        }
-
-        .list-item-subtitle {
-            font-size: 0.875rem;
-            color: #6b7280;
-        }
-
-        .list-item-actions {
-            display: flex;
-            gap: 8px;
-        }
-
-        .author-match {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 4px 10px;
-            border-radius: 12px;
-            font-size: 0.8rem;
-            font-weight: 600;
-            margin-left: 10px;
-        }
-
-        .author-match.matched {
-            background: #d1fae5;
-            color: #065f46;
-        }
-
-        .author-match.mismatched {
-            background: #fee2e2;
-            color: #991b1b;
+            transform: none !important;
         }
 
         .current-author-info {
-            background: #ecfdf5;
+            background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
             border: 2px solid #10b981;
-            border-radius: 12px;
-            padding: 16px;
-            margin-bottom: 20px;
-            display: flex;
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 24px;
+            display: none;
             align-items: center;
-            gap: 12px;
+            gap: 16px;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+        }
+
+        .current-author-info.show {
+            display: flex;
         }
 
         .current-author-icon {
-            width: 50px;
-            height: 50px;
+            width: 60px;
+            height: 60px;
             background: linear-gradient(135deg, #10b981 0%, #059669 100%);
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.5rem;
+            font-size: 2rem;
             color: white;
+            flex-shrink: 0;
         }
 
         .current-author-text {
@@ -247,23 +253,170 @@
             font-size: 0.875rem;
             color: #047857;
             margin-bottom: 4px;
+            font-weight: 600;
         }
 
         .current-author-name {
-            font-size: 1.25rem;
+            font-size: 1.5rem;
             font-weight: 700;
             color: #064e3b;
         }
 
+        .list-container {
+            max-height: 500px;
+            overflow-y: auto;
+            overflow-x: visible;
+            padding-right: 8px;
+            position: relative;
+        }
+
+        .list-container::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .list-container::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+
+        .list-container::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 10px;
+        }
+
+        .list-container::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+
+        .novel-item {
+            background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 16px;
+            border: 2px solid transparent;
+            transition: all 0.3s;
+            position: relative;
+            overflow: visible;
+        }
+
+        .novel-item:hover {
+            border-color: #667eea;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+        }
+
+        .novel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            gap: 16px;
+            margin-bottom: 12px;
+            position: relative;
+        }
+
+        .novel-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #1f2937;
+            flex: 1;
+            line-height: 1.4;
+        }
+
+        .novel-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
+            background: #dbeafe;
+            color: #1e40af;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .novel-meta {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 0.9rem;
+            color: #6b7280;
+            flex-wrap: wrap;
+        }
+
+        .author-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .author-badge.matched {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .author-badge.mismatched {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .novel-actions {
+            margin-top: 16px;
+            display: flex;
+            justify-content: flex-end;
+            position: relative;
+            z-index: 100;
+        }
+
+        .sign-contract-btn {
+            pointer-events: auto !important;
+            position: relative !important;
+            z-index: 1000 !important;
+        }
+
+        .user-item {
+            background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 16px;
+            border: 2px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .user-item:hover {
+            border-color: #10b981;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.15);
+        }
+
+        .user-name {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #1f2937;
+            margin-bottom: 8px;
+        }
+
+        .user-info {
+            font-size: 0.9rem;
+            color: #6b7280;
+        }
+
         .empty-state {
             text-align: center;
-            padding: 40px;
+            padding: 60px 20px;
             color: #9ca3af;
         }
 
         .empty-icon {
-            font-size: 4rem;
-            margin-bottom: 16px;
+            font-size: 5rem;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+
+        .empty-state p {
+            font-size: 1.1rem;
+            margin: 8px 0;
         }
 
         .loading {
@@ -284,25 +437,30 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            padding: 40px;
+            padding: 60px;
         }
 
         .spinner {
-            width: 40px;
-            height: 40px;
-            border: 4px solid #e5e7eb;
+            width: 50px;
+            height: 50px;
+            border: 5px solid #e5e7eb;
             border-top-color: #667eea;
             border-radius: 50%;
             animation: spin 0.8s linear infinite;
         }
 
         .alert {
-            padding: 16px;
-            border-radius: 12px;
-            margin-bottom: 20px;
+            padding: 20px;
+            border-radius: 16px;
+            margin-bottom: 24px;
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 16px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .alert-icon {
+            font-size: 1.5rem;
         }
 
         .alert-info {
@@ -329,42 +487,121 @@
             border: 1px solid #fecaca;
         }
 
-        .modal {
+        /* Modal Styles */
+        .modal-overlay {
             display: none;
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.5);
-            z-index: 1000;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(4px);
+            z-index: 9999;
             justify-content: center;
             align-items: center;
+            padding: 20px;
         }
 
-        .modal.active {
+        .modal-overlay.show {
             display: flex;
+            animation: fadeIn 0.3s ease;
         }
 
-        .modal-content {
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal {
             background: white;
-            border-radius: 16px;
-            padding: 30px;
-            max-width: 500px;
-            width: 90%;
-            max-height: 80vh;
-            overflow-y: auto;
+            border-radius: 24px;
+            padding: 40px;
+            max-width: 540px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            animation: slideUp 0.3s ease;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         .modal-header {
-            font-size: 1.5rem;
+            font-size: 1.75rem;
             font-weight: 700;
-            margin-bottom: 20px;
+            margin-bottom: 24px;
             color: #1f2937;
+            display: flex;
+            align-items: center;
+            gap: 12px;
         }
 
         .modal-body {
+            margin-bottom: 32px;
+        }
+
+        .modal-novel-title {
+            background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
+            padding: 20px;
+            border-radius: 12px;
             margin-bottom: 24px;
+            border: 2px solid #667eea;
+        }
+
+        .modal-novel-title p {
+            margin: 0;
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #667eea;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 10px;
+            font-size: 1rem;
+        }
+
+        .form-select {
+            width: 100%;
+            padding: 14px 16px;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            font-size: 1rem;
+            background: white;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+
+        .form-select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .form-select option:disabled {
+            color: #9ca3af;
+            background: #f9fafb;
+        }
+
+        .form-help {
+            font-size: 0.875rem;
+            color: #6b7280;
+            margin-top: 8px;
+            line-height: 1.5;
         }
 
         .modal-footer {
@@ -373,35 +610,44 @@
             justify-content: flex-end;
         }
 
-        .select-input {
-            width: 100%;
-            padding: 12px;
-            border: 2px solid #e5e7eb;
-            border-radius: 8px;
-            font-size: 1rem;
-            margin-bottom: 16px;
-            background: white;
+        .instructions {
+            background: linear-gradient(135deg, #fef9c3 0%, #fef08a 100%);
+            border: 2px solid #fbbf24;
+            border-radius: 16px;
+            padding: 24px;
         }
 
-        .select-input:focus {
-            outline: none;
-            border-color: #667eea;
+        .instructions h3 {
+            margin: 0 0 16px 0;
+            color: #92400e;
+            font-size: 1.25rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
 
-        .help-text {
-            font-size: 0.875rem;
-            color: #6b7280;
-            margin-top: 8px;
-            line-height: 1.5;
+        .instructions ol {
+            margin: 0;
+            padding-left: 24px;
+            color: #78350f;
+        }
+
+        .instructions li {
+            margin-bottom: 12px;
+            line-height: 1.6;
+        }
+
+        .instructions li:last-child {
+            margin-bottom: 0;
         }
     </style>
 </head>
 <body>
-    <!-- 顶部导航 -->
+    <!-- Navigation -->
     <nav class="navbar">
         <div class="navbar-content">
             <div class="navbar-title">
-                <button class="btn btn-secondary" onclick="location.href='/landing'" style="margin-right: 12px;">
+                <button class="btn btn-secondary" onclick="location.href='/landing'" style="margin-right: 16px;">
                     🏠 返回首页
                 </button>
                 📝 番茄自动签约管理
@@ -411,39 +657,41 @@
                     📊 仪表板
                 </button>
                 <button class="btn btn-danger" onclick="logout()">
-                    退出登录
+                    🚪 退出登录
                 </button>
             </div>
         </div>
     </nav>
 
-    <!-- 主容器 -->
-    <div class="container contract-container">
-        <!-- 头部区域 -->
+    <!-- Main Container -->
+    <div class="contract-container">
+        <!-- Header -->
         <div class="header-section">
             <h1>📝 番茄自动签约系统</h1>
             <p>自动完成番茄小说平台的签约流程，支持多用户配置管理</p>
-            <div class="status-badge">
-                <div class="status-dot inactive" id="service-status-dot"></div>
-                <span id="service-status-text">服务未启动</span>
-                <button class="btn btn-primary" id="service-toggle-btn" onclick="toggleService()" style="margin-left: auto; padding: 6px 12px; font-size: 0.85rem;">
+            <div class="status-bar">
+                <div class="status-badge">
+                    <div class="status-dot inactive" id="service-status-dot"></div>
+                    <span id="service-status-text">服务未启动</span>
+                </div>
+                <button class="btn btn-primary" id="service-toggle-btn" onclick="toggleService()">
                     启动服务
                 </button>
-                <button class="btn btn-success" id="refresh-novels-header-btn" onclick="loadContractableNovels()" style="margin-left: 8px; padding: 6px 12px; font-size: 0.85rem;">
+                <button class="btn btn-success" id="refresh-novels-btn" onclick="loadContractableNovels()">
                     🔄 刷新小说列表
                 </button>
-                <button class="btn btn-danger" id="service-reset-btn" onclick="resetServiceState()" style="margin-left: 8px; padding: 6px 12px; font-size: 0.85rem; display: none;">
-                    重置状态
+                <button class="btn btn-danger" id="service-reset-btn" onclick="resetServiceState()" style="display: none;">
+                    🔧 重置状态
                 </button>
             </div>
         </div>
 
-        <!-- 提示信息 -->
+        <!-- Alerts -->
         <div id="alert-container"></div>
 
-        <!-- 主网格 -->
+        <!-- Main Grid -->
         <div class="main-grid">
-            <!-- 左侧：可签约小说列表 -->
+            <!-- Left: Contractable Novels -->
             <div class="card">
                 <div class="card-header">
                     <div class="card-title">
@@ -452,8 +700,8 @@
                     </div>
                 </div>
 
-                <!-- 当前作者信息 -->
-                <div class="current-author-info" id="current-author-info" style="display: none;">
+                <!-- Current Author Info -->
+                <div class="current-author-info" id="current-author-info">
                     <div class="current-author-icon">👤</div>
                     <div class="current-author-text">
                         <div class="current-author-label">当前登录作者</div>
@@ -464,12 +712,12 @@
                 <div class="list-container" id="novels-list">
                     <div class="empty-state">
                         <div class="empty-icon">📚</div>
-                        <p>点击"刷新列表"获取可签约的小说</p>
+                        <p>点击"刷新小说列表"获取可签约的小说</p>
                     </div>
                 </div>
             </div>
 
-            <!-- 右侧：用户配置列表 -->
+            <!-- Right: User Configurations -->
             <div class="card">
                 <div class="card-header">
                     <div class="card-title">
@@ -489,7 +737,7 @@
             </div>
         </div>
 
-        <!-- 操作说明 -->
+        <!-- Instructions -->
         <div class="card">
             <div class="card-header">
                 <div class="card-title">
@@ -497,146 +745,182 @@
                     操作说明
                 </div>
             </div>
-            <div style="color: #6b7280; line-height: 1.8;">
-                <p><strong>1. 启动服务：</strong>首先点击"启动服务"按钮启动签约服务进程</p>
-                <p><strong>2. 刷新小说列表：</strong>点击"刷新列表"获取当前页面可签约的小说，系统会自动获取当前登录的作者名</p>
-                <p><strong>3. 选择用户配置：</strong>从右侧选择对应的用户配置（作者名必须与当前登录作者一致）</p>
-                <p><strong>4. 执行签约：</strong>点击小说旁边的"签约"按钮，系统会自动完成签约流程</p>
-                <p class="help-text" style="margin-top: 12px; padding: 12px; background: #fef3c7; border-radius: 8px;">
-                    ⚠️ <strong>重要提示：</strong>签约前系统会验证当前登录的作者名是否与配置的用户名一致，确保使用正确的账号进行签约。
-                </p>
+            <div class="instructions">
+                <h3>📋 签约流程</h3>
+                <ol>
+                    <li><strong>启动服务：</strong>首先点击"启动服务"按钮启动签约服务进程</li>
+                    <li><strong>刷新小说列表：</strong>点击"刷新小说列表"获取当前页面可签约的小说，系统会自动获取当前登录的作者名</li>
+                    <li><strong>选择用户配置：</strong>确保右侧有启用的用户配置（作者名必须与当前登录作者一致）</li>
+                    <li><strong>执行签约：</strong>点击小说旁边的"📝 签约"按钮，在弹出的对话框中选择对应的用户配置，系统会自动完成签约流程</li>
+                </ol>
             </div>
         </div>
     </div>
 
-    <!-- 签约确认模态框 -->
-    <div class="modal" id="sign-modal">
-        <div class="modal-content">
-            <div class="modal-header">确认签约</div>
+    <!-- Sign Modal -->
+    <div class="modal-overlay" id="sign-modal-overlay">
+        <div class="modal">
+            <div class="modal-header">
+                ✍️ 确认签约
+            </div>
             <div class="modal-body">
-                <p style="margin-bottom: 16px;">您即将为以下小说执行签约操作：</p>
-                <div style="background: #f3f4f6; padding: 16px; border-radius: 8px; margin-bottom: 16px;">
-                    <p style="margin: 0; font-weight: 600;" id="modal-novel-title">-</p>
+                <p style="margin-bottom: 16px; color: #374151; font-size: 1rem;">您即将为以下小说执行签约操作：</p>
+                <div class="modal-novel-title">
+                    <p id="modal-novel-title">-</p>
                 </div>
-                <p style="margin-bottom: 8px;">选择签约用户：</p>
-                <select class="select-input" id="modal-user-select">
-                    <option value="">请选择用户配置</option>
-                </select>
-                <p class="help-text">选中的用户配置必须与当前登录的作者名一致</p>
+                <div class="form-group">
+                    <label class="form-label" for="modal-user-select">选择签约用户：</label>
+                    <select class="form-select" id="modal-user-select">
+                        <option value="">请选择用户配置</option>
+                    </select>
+                    <p class="form-help">⚠️ 请确保选择的用户配置与当前登录的作者名一致</p>
+                </div>
             </div>
             <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="closeModal()">取消</button>
-                <button class="btn btn-primary" onclick="confirmSign()">确认签约</button>
+                <button class="btn btn-secondary" id="modal-cancel-btn">取消</button>
+                <button class="btn btn-primary" id="modal-confirm-btn">✍️ 确认签约</button>
             </div>
         </div>
     </div>
 
     <script>
-        // 🔥 添加：页面加载调试
-        console.log('🚀 JavaScript开始加载...');
-        
-        // 全局状态
-        let serviceRunning = false;
-        let enabledUsers = [];
-        let contractableNovels = [];
-        let currentAuthorName = '';
+        console.log('🚀 页面脚本开始加载...');
 
-        // 初始化
-        document.addEventListener('DOMContentLoaded', () => {
-            console.log('✅ DOM加载完成');
-            
-            // 🔥 立即检查按钮状态
-            const refreshBtn = document.getElementById('refresh-novels-btn');
-            console.log('🔍 按钮元素:', refreshBtn);
-            if (refreshBtn) {
-                console.log('🔍 按钮disabled属性:', refreshBtn.disabled);
-                console.log('🔍 按钮计算样式display:', window.getComputedStyle(refreshBtn).display);
-                console.log('🔍 按钮计算样式pointer-events:', window.getComputedStyle(refreshBtn).pointerEvents);
-                console.log('🔍 按钮计算样式visibility:', window.getComputedStyle(refreshBtn).visibility);
-                console.log('🔍 按钮offsetParent:', refreshBtn.offsetParent);
-                
-                // 🔥 强制启用按钮
-                refreshBtn.disabled = false;
-                console.log('✅ 已强制启用按钮');
-                
-                // 🔥 绑定刷新按钮点击事件
-                refreshBtn.addEventListener('click', function(e) {
-                    console.log('🔄 [事件监听器] 刷新按钮被点击');
-                    e.preventDefault();
-                    e.stopPropagation();
-                    loadContractableNovels();
-                });
-                console.log('✅ 已绑定事件监听器');
-            } else {
-                console.error('❌ 未找到刷新按钮！');
-            }
-            
-            try {
-                checkServiceStatus();
-                loadEnabledUsers();
-                console.log('✅ 初始化函数调用完成');
-            } catch (error) {
-                console.error('❌ 初始化失败:', error);
-            }
-        });
-        
-        // 🔥 添加：全局错误处理
-        window.addEventListener('error', (event) => {
-            console.error('❌ 全局错误:', event.error);
-        });
-        
-        window.addEventListener('unhandledrejection', (event) => {
-            console.error('❌ 未处理的Promise拒绝:', event.reason);
-        });
+        // ========================================
+        // Global State
+        // ========================================
+        const state = {
+            serviceRunning: false,
+            enabledUsers: [],
+            contractableNovels: [],
+            currentAuthorName: '',
+            currentNovelTitle: null
+        };
 
-        // 显示提示信息
+        // ========================================
+        // Utility Functions
+        // ========================================
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
         function showAlert(message, type = 'info') {
             const container = document.getElementById('alert-container');
             const alert = document.createElement('div');
             alert.className = `alert alert-${type}`;
+            
+            const icons = {
+                success: '✅',
+                error: '❌',
+                warning: '⚠️',
+                info: 'ℹ️'
+            };
+            
             alert.innerHTML = `
-                <span style="font-size: 1.2rem;">${type === 'success' ? '✅' : type === 'error' ? '❌' : type === 'warning' ? '⚠️' : 'ℹ️'}</span>
-                <span>${message}</span>
+                <span class="alert-icon">${icons[type] || 'ℹ️'}</span>
+                <span style="flex: 1;">${message}</span>
             `;
+            
             container.appendChild(alert);
             
             setTimeout(() => {
-                alert.remove();
+                alert.style.animation = 'fadeOut 0.3s ease';
+                setTimeout(() => alert.remove(), 300);
             }, 5000);
         }
 
-        // 检查服务状态
+        // ========================================
+        // Service Status
+        // ========================================
         async function checkServiceStatus() {
             try {
                 const response = await fetch('/api/contract/service/status');
                 const data = await response.json();
                 
-                console.log('📊 服务状态响应:', data);  // 🔥 添加调试输出
-                console.log('📊 serviceRunning 更新前:', serviceRunning);  // 🔥 添加调试输出
-                
-                // 🔥 检测僵尸状态：状态文件说running，但实际进程不存在
                 const isZombie = data.running === true && data.process_running === false;
-                
-                // 🔥 修复：明确设置serviceRunning
-                serviceRunning = data.running === true;
-                
-                console.log('📊 serviceRunning 更新后:', serviceRunning);  // 🔥 添加调试输出
-                console.log('📊 调用 updateServiceStatusUI');  // 🔥 添加调试输出
+                state.serviceRunning = data.running === true;
                 
                 updateServiceStatusUI(isZombie);
                 
                 if (isZombie) {
-                    console.warn('⚠️ 检测到服务僵尸状态');
                     showAlert('服务处于僵尸状态，请点击"重置状态"按钮修复', 'warning');
                 }
             } catch (error) {
-                console.error('❌ 检查服务状态失败:', error);
-                serviceRunning = false;
+                console.error('检查服务状态失败:', error);
+                state.serviceRunning = false;
                 updateServiceStatusUI();
             }
         }
-        
-        // 🔥 重置服务状态
+
+        function updateServiceStatusUI(showResetButton = false) {
+            const dot = document.getElementById('service-status-dot');
+            const text = document.getElementById('service-status-text');
+            const btn = document.getElementById('service-toggle-btn');
+            const resetBtn = document.getElementById('service-reset-btn');
+            
+            if (state.serviceRunning) {
+                dot.classList.remove('inactive');
+                text.textContent = showResetButton ? '服务僵尸状态' : '服务运行中';
+                btn.textContent = '停止服务';
+                btn.className = 'btn btn-danger';
+                resetBtn.style.display = showResetButton ? 'inline-flex' : 'none';
+                
+                if (showResetButton) {
+                    dot.classList.add('inactive');
+                }
+            } else {
+                dot.classList.add('inactive');
+                text.textContent = '服务未启动';
+                btn.textContent = '启动服务';
+                btn.className = 'btn btn-primary';
+                resetBtn.style.display = 'none';
+            }
+        }
+
+        async function toggleService() {
+            const btn = document.getElementById('service-toggle-btn');
+            const wasStopped = !state.serviceRunning;
+            
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading"></span> 处理中...';
+            
+            try {
+                const endpoint = state.serviceRunning 
+                    ? '/api/contract/service/stop' 
+                    : '/api/contract/service/start';
+                
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    state.serviceRunning = !state.serviceRunning;
+                    updateServiceStatusUI();
+                    showAlert(data.message || '操作成功', 'success');
+                    
+                    if (wasStopped && state.serviceRunning) {
+                        setTimeout(() => {
+                            showAlert('✅ 服务已准备就绪！您可以点击"刷新小说列表"按钮获取可签约小说', 'success');
+                        }, 1000);
+                    }
+                } else {
+                    showAlert(data.error || '操作失败', 'error');
+                    updateServiceStatusUI();
+                }
+            } catch (error) {
+                showAlert('操作失败: ' + error.message, 'error');
+                updateServiceStatusUI();
+            } finally {
+                btn.disabled = false;
+                updateServiceStatusUI();
+            }
+        }
+
         async function resetServiceState() {
             if (!confirm('确定要重置服务状态吗？这将停止服务并清理状态文件。')) {
                 return;
@@ -652,11 +936,11 @@
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' }
                 });
+                
                 const data = await response.json();
                 
                 if (data.success) {
                     showAlert(data.message || '服务状态已重置', 'success');
-                    // 重新检查服务状态
                     setTimeout(() => checkServiceStatus(), 1000);
                 } else {
                     showAlert(data.error || '重置失败', 'error');
@@ -669,100 +953,20 @@
             }
         }
 
-        // 更新服务状态UI
-        function updateServiceStatusUI(showResetButton = false) {
-            console.log('🔄 更新服务状态UI, serviceRunning =', serviceRunning);  // 🔥 添加调试输出
-            
-            const dot = document.getElementById('service-status-dot');
-            const text = document.getElementById('service-status-text');
-            const btn = document.getElementById('service-toggle-btn');
-            const resetBtn = document.getElementById('service-reset-btn');
-            
-            if (serviceRunning) {
-                console.log('✅ 服务运行中，更新UI');  // 🔥 添加调试输出
-                dot.classList.remove('inactive');
-                text.textContent = '服务运行中';
-                btn.textContent = '停止服务';
-                // 🔥 修复：强制设置按钮类，避免CSS冲突
-                btn.className = 'btn btn-danger';
-                
-                // 如果显示重置按钮，说明是僵尸状态
-                if (showResetButton) {
-                    resetBtn.style.display = 'inline-flex';
-                    text.textContent = '服务僵尸状态';
-                    dot.classList.add('inactive');
-                } else {
-                    resetBtn.style.display = 'none';
-                }
-            } else {
-                console.log('⭕ 服务未启动，更新UI');  // 🔥 添加调试输出
-                dot.classList.add('inactive');
-                text.textContent = '服务未启动';
-                btn.textContent = '启动服务';
-                // 🔥 修复：强制设置按钮类，避免CSS冲突
-                btn.className = 'btn btn-primary';
-                resetBtn.style.display = 'none';
-            }
-        }
-
-        // 切换服务状态
-        async function toggleService() {
-            const btn = document.getElementById('service-toggle-btn');
-            const originalText = btn.textContent;
-            const wasStopped = !serviceRunning; // 记录启动前的状态
-            btn.disabled = true;
-            btn.innerHTML = '<span class="loading"></span> 处理中...';
-
-            try {
-                const endpoint = serviceRunning ? '/api/contract/service/stop' : '/api/contract/service/start';
-                const response = await fetch(endpoint, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' }
-                });
-                const data = await response.json();
-
-                if (data.success) {
-                    serviceRunning = !serviceRunning;
-                    // 🔥 修复：先更新状态，再更新UI
-                    console.log('🔄 服务状态已切换，serviceRunning =', serviceRunning);
-                    updateServiceStatusUI();
-                    showAlert(data.message || '操作成功', 'success');
-                    
-                    // 🔥 新增：服务启动成功后，提示用户刷新列表
-                    if (wasStopped && serviceRunning) {
-                        // 服务刚从停止变为启动
-                        setTimeout(() => {
-                            showAlert('✅ 服务已准备就绪！您可以点击"刷新列表"按钮获取可签约小说', 'success');
-                        }, 1000);
-                    }
-                } else {
-                    showAlert(data.error || '操作失败', 'error');
-                    // 🔥 修复：操作失败时也要恢复UI
-                    updateServiceStatusUI();
-                }
-            } catch (error) {
-                showAlert('操作失败: ' + error.message, 'error');
-                // 🔥 修复：异常时也要恢复UI
-                updateServiceStatusUI();
-            } finally {
-                btn.disabled = false;
-                // 🔥 修复：不要直接设置textContent，让updateServiceStatusUI处理
-                // btn.textContent = originalText;
-            }
-        }
-
-        // 加载启用的用户列表
+        // ========================================
+        // User Management
+        // ========================================
         async function loadEnabledUsers() {
             const container = document.getElementById('users-list');
             container.innerHTML = '<div class="spinner-container"><div class="spinner"></div></div>';
-
+            
             try {
                 const response = await fetch('/api/contract/users/enabled');
                 const data = await response.json();
-
+                
                 if (data.success) {
-                    enabledUsers = data.users || [];
-                    renderUsersList(enabledUsers);
+                    state.enabledUsers = data.users || [];
+                    renderUsersList(state.enabledUsers);
                 } else {
                     container.innerHTML = `
                         <div class="empty-state">
@@ -781,75 +985,49 @@
             }
         }
 
-        // 渲染用户列表
         function renderUsersList(users) {
             const container = document.getElementById('users-list');
-
+            
             if (users.length === 0) {
                 container.innerHTML = `
                     <div class="empty-state">
                         <div class="empty-icon">👥</div>
                         <p>没有启用的用户配置</p>
-                        <p class="help-text">请在配置文件中启用用户</p>
+                        <p style="font-size: 0.9rem; margin-top: 8px;">请在配置文件中启用用户</p>
                     </div>
                 `;
                 return;
             }
-
+            
             container.innerHTML = users.map(user => `
-                <div class="list-item">
-                    <div class="list-item-content">
-                        <div class="list-item-title">${escapeHtml(user.name)}</div>
-                        <div class="list-item-subtitle">
-                            ID: ${escapeHtml(user.user_id)} | 
-                            📱 ${escapeHtml(user.contact_info.phone || 'N/A')}
-                        </div>
+                <div class="user-item">
+                    <div class="user-name">${escapeHtml(user.name)}</div>
+                    <div class="user-info">
+                        <strong>ID:</strong> ${escapeHtml(user.user_id)} | 
+                        <strong>手机:</strong> ${escapeHtml(user.contact_info?.phone || 'N/A')}
                     </div>
                 </div>
             `).join('');
         }
 
-        // 加载可签约小说列表
+        // ========================================
+        // Novel Management
+        // ========================================
         async function loadContractableNovels() {
-            console.log('📚 开始加载可签约小说列表...');  // 🔥 添加调试输出
-            
-            // 🔥 添加：检查服务状态
-            console.log('🔍 当前服务状态: serviceRunning =', serviceRunning);  // 🔥 添加调试输出
-            
-            const btn = document.getElementById('refresh-novels-header-btn');
-            if (!btn) {
-                console.error('❌ 找不到刷新按钮！');
-                alert('刷新按钮未找到，请刷新页面重试');
-                return;
-            }
-            
+            const btn = document.getElementById('refresh-novels-btn');
             const originalText = btn.innerHTML;
+            
             btn.disabled = true;
             btn.innerHTML = '<span class="loading"></span> 加载中...';
-            console.log('✅ 按钮状态已更新');
-
+            
             const container = document.getElementById('novels-list');
-            if (!container) {
-                console.error('❌ 找不到小说列表容器！');
-                btn.disabled = false;
-                btn.innerHTML = originalText;
-                return;
-            }
             container.innerHTML = '<div class="spinner-container"><div class="spinner"></div></div>';
-            console.log('✅ 容器内容已清空');
-
+            
             try {
-                console.log('📡 发送API请求: /api/contract/novels/contractable');  // 🔥 添加调试输出
-                console.log('📡 请求方法: GET');
-                
                 const response = await fetch('/api/contract/novels/contractable', {
                     method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
+                    headers: { 'Content-Type': 'application/json' }
                 });
-                
-                console.log('📡 响应状态:', response.status, response.statusText);
                 
                 if (!response.ok) {
                     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -857,33 +1035,22 @@
                 
                 const data = await response.json();
                 
-                console.log('📦 API响应:', data);  // 🔥 添加调试输出
-                console.log('📦 success:', data.success, ', task_id:', data.task_id);  // 🔥 添加调试输出
-
-                if (data.success) {
-                    // 获取任务结果
-                    const taskId = data.task_id;
-                    console.log('✅ 任务已提交，task_id:', taskId);  // 🔥 添加调试输出
-                    
-                    console.log('⏳ 开始轮询任务结果...');
-                    const result = await pollTaskResult(taskId);
-                    
-                    console.log('🎯 轮询结果:', result);  // 🔥 添加调试输出
+                if (data.success && data.task_id) {
+                    const result = await pollTaskResult(data.task_id);
                     
                     if (result && result.result) {
-                        currentAuthorName = result.result.current_author_name || '';
-                        contractableNovels = result.result.novels || [];
+                        state.currentAuthorName = result.result.current_author_name || '';
+                        state.contractableNovels = result.result.novels || [];
                         
-                        // 显示当前作者信息
-                        if (currentAuthorName) {
-                            document.getElementById('current-author-info').style.display = 'flex';
-                            document.getElementById('current-author-name').textContent = currentAuthorName;
+                        // Show current author info
+                        if (state.currentAuthorName) {
+                            const authorInfo = document.getElementById('current-author-info');
+                            document.getElementById('current-author-name').textContent = state.currentAuthorName;
+                            authorInfo.classList.add('show');
                         }
                         
-                        renderNovelsList(contractableNovels, currentAuthorName);
-                        
-                        showAlert(`成功获取 ${contractableNovels.length} 本可签约小说`, 'success');
-                        console.log('✅ 小说列表加载完成，总数:', contractableNovels.length);
+                        renderNovelsList(state.contractableNovels, state.currentAuthorName);
+                        showAlert(`成功获取 ${state.contractableNovels.length} 本可签约小说`, 'success');
                     } else {
                         container.innerHTML = `
                             <div class="empty-state">
@@ -891,7 +1058,6 @@
                                 <p>获取小说列表超时或失败</p>
                             </div>
                         `;
-                        console.warn('⚠️ 获取小说列表失败：结果为空或超时');
                     }
                 } else {
                     container.innerHTML = `
@@ -900,27 +1066,23 @@
                             <p>${data.error || '加载失败'}</p>
                         </div>
                     `;
-                    console.error('❌ API返回失败:', data.error);
                 }
             } catch (error) {
-                console.error('❌ 加载小说列表异常:', error);
-                console.error('❌ 错误堆栈:', error.stack);
+                console.error('加载小说列表失败:', error);
                 container.innerHTML = `
                     <div class="empty-state">
                         <div class="empty-icon">❌</div>
                         <p>加载失败: ${error.message}</p>
-                        <p class="help-text">请检查服务是否启动</p>
+                        <p style="font-size: 0.9rem; margin-top: 8px;">请检查服务是否启动</p>
                     </div>
                 `;
                 showAlert('加载失败: ' + error.message, 'error');
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = originalText;
-                console.log('✅ 按钮状态已恢复');
             }
         }
 
-        // 轮询任务结果
         async function pollTaskResult(taskId, maxAttempts = 30) {
             for (let i = 0; i < maxAttempts; i++) {
                 try {
@@ -942,87 +1104,139 @@
             return null;
         }
 
-        // 渲染小说列表
         function renderNovelsList(novels, authorName) {
+            console.log('🎨 渲染小说列表，数量:', novels.length);
+            
             const container = document.getElementById('novels-list');
-
+            
             if (novels.length === 0) {
                 container.innerHTML = `
                     <div class="empty-state">
                         <div class="empty-icon">📚</div>
                         <p>没有可签约的小说</p>
-                        <p class="help-text">所有小说已签约或不符合签约条件</p>
+                        <p style="font-size: 0.9rem; margin-top: 8px;">所有小说已签约或不符合签约条件</p>
                     </div>
                 `;
                 return;
             }
-
-            container.innerHTML = novels.map(novel => `
-                <div class="list-item">
-                    <div class="list-item-content">
-                        <div class="list-item-title">${escapeHtml(novel.title)}</div>
-                        <div class="list-item-subtitle">
-                            状态: ${escapeHtml(novel.status)}
-                            ${authorName ? `<span class="author-match matched">✓ 作者: ${escapeHtml(authorName)}</span>` : ''}
+            
+            container.innerHTML = novels.map(novel => {
+                const authorMatch = authorName 
+                    ? `<span class="author-badge matched">✓ 作者: ${escapeHtml(authorName)}</span>` 
+                    : '';
+                
+                return `
+                    <div class="novel-item">
+                        <div class="novel-header">
+                            <div class="novel-title">${escapeHtml(novel.title)}</div>
+                            <div class="novel-status">📖 ${escapeHtml(novel.status || '未知')}</div>
+                        </div>
+                        <div class="novel-meta">
+                            ${authorMatch}
+                        </div>
+                        <div class="novel-actions">
+                            <button class="btn btn-primary sign-contract-btn" data-novel-title="${escapeHtml(novel.title)}">
+                                ✍️ 签约
+                            </button>
                         </div>
                     </div>
-                    <div class="list-item-actions">
-                        <button class="btn btn-primary" onclick="openSignModal('${escapeHtml(novel.title)}')">
-                            📝 签约
-                        </button>
-                    </div>
-                </div>
-            `).join('');
+                `;
+            }).join('');
+            
+            console.log('✅ 小说列表HTML已生成');
+            console.log('🔍 开始绑定按钮事件...');
+            
+            // 使用DOM API直接绑定事件
+            const buttons = container.querySelectorAll('.sign-contract-btn');
+            console.log('🔍 找到签约按钮数量:', buttons.length);
+            
+            buttons.forEach((button, index) => {
+                console.log(`🔍 绑定第 ${index + 1} 个按钮，小说:`, button.dataset.novelTitle);
+                
+                // 移除所有旧的事件监听器
+                const newButton = button.cloneNode(true);
+                button.parentNode.replaceChild(newButton, button);
+                
+                // 添加新的事件监听器
+                newButton.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('🎯 签约按钮被点击！小说:', this.dataset.novelTitle);
+                    console.log('🎯 事件对象:', e);
+                    console.log('🎯 按钮元素:', this);
+                    openSignModal(this.dataset.novelTitle);
+                }, { capture: true });
+                
+                // 强制设置pointer-events
+                newButton.style.pointerEvents = 'auto';
+                newButton.style.cursor = 'pointer';
+                newButton.style.position = 'relative';
+                newButton.style.zIndex = '1000';
+            });
+            
+            console.log('✅ 所有按钮事件已绑定');
         }
 
-        // 打开签约模态框
+        // ========================================
+        // Modal Functions
+        // ========================================
         function openSignModal(novelTitle) {
+            console.log('📝 打开签约模态框:', novelTitle);
+            
+            state.currentNovelTitle = novelTitle;
             document.getElementById('modal-novel-title').textContent = novelTitle;
-            document.getElementById('modal-novel-title').dataset.value = novelTitle;
             
             const select = document.getElementById('modal-user-select');
             select.innerHTML = '<option value="">请选择用户配置</option>';
             
-            enabledUsers.forEach(user => {
+            if (state.enabledUsers.length === 0) {
+                showAlert('没有可用的用户配置，请先刷新用户列表', 'warning');
+                return;
+            }
+            
+            state.enabledUsers.forEach(user => {
                 const option = document.createElement('option');
                 option.value = user.user_id;
                 option.textContent = `${user.name} (${user.user_id})`;
                 
-                // 检查作者名是否匹配
-                if (currentAuthorName && user.name !== currentAuthorName) {
+                // Check author name match
+                if (state.currentAuthorName && user.name !== state.currentAuthorName) {
                     option.disabled = true;
-                    option.textContent += ' - 作者名不匹配';
+                    option.textContent += ' - ❌ 作者名不匹配';
                 }
                 
                 select.appendChild(option);
             });
             
-            document.getElementById('sign-modal').classList.add('active');
+            // Show modal
+            const overlay = document.getElementById('sign-modal-overlay');
+            overlay.classList.add('show');
+            console.log('✅ 模态框已显示');
         }
 
-        // 关闭模态框
-        function closeModal() {
-            document.getElementById('sign-modal').classList.remove('active');
+        function closeSignModal() {
+            const overlay = document.getElementById('sign-modal-overlay');
+            overlay.classList.remove('show');
+            state.currentNovelTitle = null;
         }
 
-        // 确认签约
         async function confirmSign() {
-            const novelTitle = document.getElementById('modal-novel-title').dataset.value;
+            const novelTitle = state.currentNovelTitle;
             const userId = document.getElementById('modal-user-select').value;
-
+            
             if (!userId) {
                 showAlert('请选择用户配置', 'warning');
                 return;
             }
-
-            const selectedUser = enabledUsers.find(u => u.user_id === userId);
-            if (selectedUser && currentAuthorName && selectedUser.name !== currentAuthorName) {
-                showAlert(`作者名不匹配！当前作者: ${currentAuthorName}, 配置作者: ${selectedUser.name}`, 'error');
+            
+            const selectedUser = state.enabledUsers.find(u => u.user_id === userId);
+            if (selectedUser && state.currentAuthorName && selectedUser.name !== state.currentAuthorName) {
+                showAlert(`作者名不匹配！当前作者: ${state.currentAuthorName}, 配置作者: ${selectedUser.name}`, 'error');
                 return;
             }
-
-            closeModal();
-
+            
+            closeSignModal();
+            
             try {
                 const response = await fetch('/api/contract/sign/auto', {
                     method: 'POST',
@@ -1032,12 +1246,11 @@
                         user_id: userId
                     })
                 });
+                
                 const data = await response.json();
-
+                
                 if (data.success) {
-                    showAlert(`签约任务已提交: 《${novelTitle}》`, 'success');
-                    
-                    // 可以添加任务进度跟踪
+                    showAlert(`✅ 签约任务已提交: 《${novelTitle}》`, 'success');
                     setTimeout(() => loadContractableNovels(), 3000);
                 } else {
                     showAlert(data.error || '签约失败', 'error');
@@ -1047,25 +1260,50 @@
             }
         }
 
-        // 转义HTML
-        function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
+        // ========================================
+        // Event Listeners
+        // ========================================
+        function setupEventListeners() {
+            console.log('🔧 设置事件监听器...');
+            
+            // Modal buttons
+            document.getElementById('modal-cancel-btn').addEventListener('click', closeSignModal);
+            document.getElementById('modal-confirm-btn').addEventListener('click', confirmSign);
+            
+            // Close modal on overlay click
+            document.getElementById('sign-modal-overlay').addEventListener('click', function(e) {
+                if (e.target === this) {
+                    closeSignModal();
+                }
+            });
+            
+            // Close modal on Escape key
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    closeSignModal();
+                }
+            });
+            
+            console.log('✅ 事件监听器设置完成');
         }
 
-        // 退出登录
         function logout() {
             if (confirm('确定要退出登录吗？')) {
                 window.location.href = '/logout';
             }
         }
 
-        // 点击模态框外部关闭
-        document.getElementById('sign-modal').addEventListener('click', (e) => {
-            if (e.target.id === 'sign-modal') {
-                closeModal();
-            }
+        // ========================================
+        // Initialization
+        // ========================================
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 签约管理页面加载完成');
+            
+            setupEventListeners();
+            checkServiceStatus();
+            loadEnabledUsers();
+            
+            console.log('✅ 初始化完成');
         });
     </script>
 </body>
