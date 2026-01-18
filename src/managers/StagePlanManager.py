@@ -448,25 +448,27 @@ class StagePlanManager:
     # ========================================================================
     
     def calculate_stage_boundaries(self, total_chapters: int) -> Dict:
-        """计算"起承转合"四阶段的边界"""
-        ratios = [0.15, 0.35, 0.30, 0.20]
-        chapters = [0]
-        cumulative_ratio = 0
+        """
+        计算"起承转合"四阶段的边界
         
-        for ratio in ratios[:-1]:
-            cumulative_ratio += ratio
-            chapters.append(int(total_chapters * cumulative_ratio))
+        优先从创意设定读取章节范围，失败时使用固定比例作为fallback
+        这样实现动态章节划分，适应每本书的创意设定。
+        """
+        from src.managers.StageBoundaryParser import parse_stage_boundaries
         
-        chapters.append(total_chapters)
+        # 获取创意设定
+        creative_seed = self.generator.novel_data.get("creative_seed", {})
         
-        return {
-            "opening_end": chapters[1],
-            "development_start": chapters[1] + 1,
-            "development_end": chapters[2], 
-            "climax_start": chapters[2] + 1,
-            "climax_end": chapters[3],
-            "ending_start": chapters[3] + 1,
-        }
+        # 使用统一的解析器
+        boundaries = parse_stage_boundaries(creative_seed, total_chapters)
+        
+        # 记录使用的方式
+        if creative_seed.get("completeStoryline"):
+            self.logger.info("✅ 尝试从创意设定读取章节范围")
+        else:
+            self.logger.info("ℹ️ 创意设定中没有 completeStoryline，使用固定比例")
+        
+        return boundaries
     
     def print_stage_overview(self):
         """打印详细的阶段计划概览"""

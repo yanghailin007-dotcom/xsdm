@@ -10,7 +10,7 @@ sys.path.insert(0, str(BASE_DIR))
 
 import json
 import re
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Optional
 from src.utils.logger import get_logger
 def parse_chapter_range(chapter_range: str) -> Tuple[int, int]:
     """解析章节范围字符串，返回(start, end)元组"""
@@ -28,25 +28,29 @@ def is_chapter_in_range(chapter_number: int, chapter_range: str) -> bool:
     """检查章节是否在指定范围内"""
     start_chap, end_chap = parse_chapter_range(chapter_range)
     return start_chap <= chapter_number <= end_chap
-def calculate_stage_boundaries(total_chapters: int) -> Dict:
-    """计算阶段边界 - 独立工具函数"""
-    ratios = [0.16, 0.26, 0.28, 0.18, 0.12]  # 确保总和为1.0
-    # 计算累积章节数，确保不重叠
-    chapters = [0]
-    for ratio in ratios:
-        chapters.append(chapters[-1] + int(total_chapters * ratio))
-    # 确保最后一个章节等于总章节数
-    chapters[-1] = total_chapters
-    return {
-        "opening_end": chapters[1],
-        "development_start": chapters[1] + 1,
-        "development_end": chapters[2], 
-        "climax_start": chapters[2] + 1,
-        "climax_end": chapters[3],
-        "ending_start": chapters[3] + 1,
-        "ending_end": chapters[4],
-        "final_start": chapters[4] + 1
-    }
+def calculate_stage_boundaries(total_chapters: int, creative_seed: Optional[Dict] = None) -> Dict:
+    """
+    计算阶段边界 - 独立工具函数
+    
+    现在支持从创意设定读取章节范围，优先级：
+    1. 从创意设定 (completeStoryline) 读取章节范围
+    2. 使用固定比例计算作为fallback
+    
+    Args:
+        total_chapters: 总章节数
+        creative_seed: 创意设定字典（可选）
+        
+    Returns:
+        阶段边界字典
+    """
+    from src.managers.StageBoundaryParser import parse_stage_boundaries
+    
+    # 如果没有提供 creative_seed，使用空字典
+    if creative_seed is None:
+        creative_seed = {}
+    
+    # 使用统一的解析器
+    return parse_stage_boundaries(creative_seed, total_chapters)
 def validate_event_structure(events: Dict) -> bool:
     """验证事件结构完整性"""
     required_keys = {
