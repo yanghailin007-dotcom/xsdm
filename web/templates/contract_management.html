@@ -424,10 +424,16 @@
             <h1>📝 番茄自动签约系统</h1>
             <p>自动完成番茄小说平台的签约流程，支持多用户配置管理</p>
             <div class="status-badge">
-                <div class="status-dot" id="service-status-dot"></div>
+                <div class="status-dot inactive" id="service-status-dot"></div>
                 <span id="service-status-text">服务未启动</span>
-                <button class="btn btn-secondary" id="service-toggle-btn" onclick="toggleService()" style="margin-left: auto; padding: 6px 12px; font-size: 0.85rem;">
+                <button class="btn btn-primary" id="service-toggle-btn" onclick="toggleService()" style="margin-left: auto; padding: 6px 12px; font-size: 0.85rem;">
                     启动服务
+                </button>
+                <button class="btn btn-success" id="refresh-novels-header-btn" onclick="loadContractableNovels()" style="margin-left: 8px; padding: 6px 12px; font-size: 0.85rem;">
+                    🔄 刷新小说列表
+                </button>
+                <button class="btn btn-danger" id="service-reset-btn" onclick="resetServiceState()" style="margin-left: 8px; padding: 6px 12px; font-size: 0.85rem; display: none;">
+                    重置状态
                 </button>
             </div>
         </div>
@@ -444,9 +450,6 @@
                         <span class="card-icon">📚</span>
                         可签约小说列表
                     </div>
-                    <button class="btn btn-primary" onclick="loadContractableNovels()" id="refresh-novels-btn">
-                        🔄 刷新列表
-                    </button>
                 </div>
 
                 <!-- 当前作者信息 -->
@@ -529,6 +532,9 @@
     </div>
 
     <script>
+        // 🔥 添加：页面加载调试
+        console.log('🚀 JavaScript开始加载...');
+        
         // 全局状态
         let serviceRunning = false;
         let enabledUsers = [];
@@ -537,8 +543,50 @@
 
         // 初始化
         document.addEventListener('DOMContentLoaded', () => {
-            checkServiceStatus();
-            loadEnabledUsers();
+            console.log('✅ DOM加载完成');
+            
+            // 🔥 立即检查按钮状态
+            const refreshBtn = document.getElementById('refresh-novels-btn');
+            console.log('🔍 按钮元素:', refreshBtn);
+            if (refreshBtn) {
+                console.log('🔍 按钮disabled属性:', refreshBtn.disabled);
+                console.log('🔍 按钮计算样式display:', window.getComputedStyle(refreshBtn).display);
+                console.log('🔍 按钮计算样式pointer-events:', window.getComputedStyle(refreshBtn).pointerEvents);
+                console.log('🔍 按钮计算样式visibility:', window.getComputedStyle(refreshBtn).visibility);
+                console.log('🔍 按钮offsetParent:', refreshBtn.offsetParent);
+                
+                // 🔥 强制启用按钮
+                refreshBtn.disabled = false;
+                console.log('✅ 已强制启用按钮');
+                
+                // 🔥 绑定刷新按钮点击事件
+                refreshBtn.addEventListener('click', function(e) {
+                    console.log('🔄 [事件监听器] 刷新按钮被点击');
+                    e.preventDefault();
+                    e.stopPropagation();
+                    loadContractableNovels();
+                });
+                console.log('✅ 已绑定事件监听器');
+            } else {
+                console.error('❌ 未找到刷新按钮！');
+            }
+            
+            try {
+                checkServiceStatus();
+                loadEnabledUsers();
+                console.log('✅ 初始化函数调用完成');
+            } catch (error) {
+                console.error('❌ 初始化失败:', error);
+            }
+        });
+        
+        // 🔥 添加：全局错误处理
+        window.addEventListener('error', (event) => {
+            console.error('❌ 全局错误:', event.error);
+        });
+        
+        window.addEventListener('unhandledrejection', (event) => {
+            console.error('❌ 未处理的Promise拒绝:', event.reason);
         });
 
         // 显示提示信息
@@ -563,33 +611,97 @@
                 const response = await fetch('/api/contract/service/status');
                 const data = await response.json();
                 
-                serviceRunning = data.running || false;
-                updateServiceStatusUI();
+                console.log('📊 服务状态响应:', data);  // 🔥 添加调试输出
+                console.log('📊 serviceRunning 更新前:', serviceRunning);  // 🔥 添加调试输出
+                
+                // 🔥 检测僵尸状态：状态文件说running，但实际进程不存在
+                const isZombie = data.running === true && data.process_running === false;
+                
+                // 🔥 修复：明确设置serviceRunning
+                serviceRunning = data.running === true;
+                
+                console.log('📊 serviceRunning 更新后:', serviceRunning);  // 🔥 添加调试输出
+                console.log('📊 调用 updateServiceStatusUI');  // 🔥 添加调试输出
+                
+                updateServiceStatusUI(isZombie);
+                
+                if (isZombie) {
+                    console.warn('⚠️ 检测到服务僵尸状态');
+                    showAlert('服务处于僵尸状态，请点击"重置状态"按钮修复', 'warning');
+                }
             } catch (error) {
-                console.error('检查服务状态失败:', error);
+                console.error('❌ 检查服务状态失败:', error);
                 serviceRunning = false;
                 updateServiceStatusUI();
             }
         }
+        
+        // 🔥 重置服务状态
+        async function resetServiceState() {
+            if (!confirm('确定要重置服务状态吗？这将停止服务并清理状态文件。')) {
+                return;
+            }
+            
+            const resetBtn = document.getElementById('service-reset-btn');
+            const originalText = resetBtn.textContent;
+            resetBtn.disabled = true;
+            resetBtn.textContent = '重置中...';
+            
+            try {
+                const response = await fetch('/api/contract/service/reset', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    showAlert(data.message || '服务状态已重置', 'success');
+                    // 重新检查服务状态
+                    setTimeout(() => checkServiceStatus(), 1000);
+                } else {
+                    showAlert(data.error || '重置失败', 'error');
+                }
+            } catch (error) {
+                showAlert('重置失败: ' + error.message, 'error');
+            } finally {
+                resetBtn.disabled = false;
+                resetBtn.textContent = originalText;
+            }
+        }
 
         // 更新服务状态UI
-        function updateServiceStatusUI() {
+        function updateServiceStatusUI(showResetButton = false) {
+            console.log('🔄 更新服务状态UI, serviceRunning =', serviceRunning);  // 🔥 添加调试输出
+            
             const dot = document.getElementById('service-status-dot');
             const text = document.getElementById('service-status-text');
             const btn = document.getElementById('service-toggle-btn');
+            const resetBtn = document.getElementById('service-reset-btn');
             
             if (serviceRunning) {
+                console.log('✅ 服务运行中，更新UI');  // 🔥 添加调试输出
                 dot.classList.remove('inactive');
                 text.textContent = '服务运行中';
                 btn.textContent = '停止服务';
-                btn.classList.remove('btn-primary');
-                btn.classList.add('btn-danger');
+                // 🔥 修复：强制设置按钮类，避免CSS冲突
+                btn.className = 'btn btn-danger';
+                
+                // 如果显示重置按钮，说明是僵尸状态
+                if (showResetButton) {
+                    resetBtn.style.display = 'inline-flex';
+                    text.textContent = '服务僵尸状态';
+                    dot.classList.add('inactive');
+                } else {
+                    resetBtn.style.display = 'none';
+                }
             } else {
+                console.log('⭕ 服务未启动，更新UI');  // 🔥 添加调试输出
                 dot.classList.add('inactive');
                 text.textContent = '服务未启动';
                 btn.textContent = '启动服务';
-                btn.classList.remove('btn-danger');
-                btn.classList.add('btn-primary');
+                // 🔥 修复：强制设置按钮类，避免CSS冲突
+                btn.className = 'btn btn-primary';
+                resetBtn.style.display = 'none';
             }
         }
 
@@ -597,6 +709,7 @@
         async function toggleService() {
             const btn = document.getElementById('service-toggle-btn');
             const originalText = btn.textContent;
+            const wasStopped = !serviceRunning; // 记录启动前的状态
             btn.disabled = true;
             btn.innerHTML = '<span class="loading"></span> 处理中...';
 
@@ -610,16 +723,31 @@
 
                 if (data.success) {
                     serviceRunning = !serviceRunning;
+                    // 🔥 修复：先更新状态，再更新UI
+                    console.log('🔄 服务状态已切换，serviceRunning =', serviceRunning);
                     updateServiceStatusUI();
                     showAlert(data.message || '操作成功', 'success');
+                    
+                    // 🔥 新增：服务启动成功后，提示用户刷新列表
+                    if (wasStopped && serviceRunning) {
+                        // 服务刚从停止变为启动
+                        setTimeout(() => {
+                            showAlert('✅ 服务已准备就绪！您可以点击"刷新列表"按钮获取可签约小说', 'success');
+                        }, 1000);
+                    }
                 } else {
                     showAlert(data.error || '操作失败', 'error');
+                    // 🔥 修复：操作失败时也要恢复UI
+                    updateServiceStatusUI();
                 }
             } catch (error) {
                 showAlert('操作失败: ' + error.message, 'error');
+                // 🔥 修复：异常时也要恢复UI
+                updateServiceStatusUI();
             } finally {
                 btn.disabled = false;
-                btn.textContent = originalText;
+                // 🔥 修复：不要直接设置textContent，让updateServiceStatusUI处理
+                // btn.textContent = originalText;
             }
         }
 
@@ -683,22 +811,64 @@
 
         // 加载可签约小说列表
         async function loadContractableNovels() {
-            const btn = document.getElementById('refresh-novels-btn');
+            console.log('📚 开始加载可签约小说列表...');  // 🔥 添加调试输出
+            
+            // 🔥 添加：检查服务状态
+            console.log('🔍 当前服务状态: serviceRunning =', serviceRunning);  // 🔥 添加调试输出
+            
+            const btn = document.getElementById('refresh-novels-header-btn');
+            if (!btn) {
+                console.error('❌ 找不到刷新按钮！');
+                alert('刷新按钮未找到，请刷新页面重试');
+                return;
+            }
+            
             const originalText = btn.innerHTML;
             btn.disabled = true;
             btn.innerHTML = '<span class="loading"></span> 加载中...';
+            console.log('✅ 按钮状态已更新');
 
             const container = document.getElementById('novels-list');
+            if (!container) {
+                console.error('❌ 找不到小说列表容器！');
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+                return;
+            }
             container.innerHTML = '<div class="spinner-container"><div class="spinner"></div></div>';
+            console.log('✅ 容器内容已清空');
 
             try {
-                const response = await fetch('/api/contract/novels/contractable');
+                console.log('📡 发送API请求: /api/contract/novels/contractable');  // 🔥 添加调试输出
+                console.log('📡 请求方法: GET');
+                
+                const response = await fetch('/api/contract/novels/contractable', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                console.log('📡 响应状态:', response.status, response.statusText);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
                 const data = await response.json();
+                
+                console.log('📦 API响应:', data);  // 🔥 添加调试输出
+                console.log('📦 success:', data.success, ', task_id:', data.task_id);  // 🔥 添加调试输出
 
                 if (data.success) {
                     // 获取任务结果
                     const taskId = data.task_id;
+                    console.log('✅ 任务已提交，task_id:', taskId);  // 🔥 添加调试输出
+                    
+                    console.log('⏳ 开始轮询任务结果...');
                     const result = await pollTaskResult(taskId);
+                    
+                    console.log('🎯 轮询结果:', result);  // 🔥 添加调试输出
                     
                     if (result && result.result) {
                         currentAuthorName = result.result.current_author_name || '';
@@ -713,6 +883,7 @@
                         renderNovelsList(contractableNovels, currentAuthorName);
                         
                         showAlert(`成功获取 ${contractableNovels.length} 本可签约小说`, 'success');
+                        console.log('✅ 小说列表加载完成，总数:', contractableNovels.length);
                     } else {
                         container.innerHTML = `
                             <div class="empty-state">
@@ -720,6 +891,7 @@
                                 <p>获取小说列表超时或失败</p>
                             </div>
                         `;
+                        console.warn('⚠️ 获取小说列表失败：结果为空或超时');
                     }
                 } else {
                     container.innerHTML = `
@@ -728,17 +900,23 @@
                             <p>${data.error || '加载失败'}</p>
                         </div>
                     `;
+                    console.error('❌ API返回失败:', data.error);
                 }
             } catch (error) {
+                console.error('❌ 加载小说列表异常:', error);
+                console.error('❌ 错误堆栈:', error.stack);
                 container.innerHTML = `
                     <div class="empty-state">
                         <div class="empty-icon">❌</div>
                         <p>加载失败: ${error.message}</p>
+                        <p class="help-text">请检查服务是否启动</p>
                     </div>
                 `;
+                showAlert('加载失败: ' + error.message, 'error');
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = originalText;
+                console.log('✅ 按钮状态已恢复');
             }
         }
 

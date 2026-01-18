@@ -32,9 +32,14 @@ class ContractAPI:
         """监控任务结果的后台线程"""
         while True:
             try:
-                # 获取任务结果
+                # 🔥 修复：不指定task_id，获取所有可用结果
                 result = self.client.get_task_result(timeout=1.0)
                 if result:
+                    # 🔥 修复：过滤准备完成信号，不将其作为任务结果处理
+                    if result.get("type") == "service_ready":
+                        print(f"📡 [API监控] 收到服务准备完成信号")
+                        continue
+                    
                     task_id = result.get("task_id")
                     if task_id:
                         self.task_results[task_id] = {
@@ -390,6 +395,12 @@ class ContractAPI:
     def get_contractable_novels(self) -> Dict[str, Any]:
         """获取所有可签约的小说列表（连载中且未签约）"""
         try:
+            # 🔥 添加：检查服务状态
+            is_running = self.client.is_service_running()
+            print(f"🔍 [API] 服务运行状态: {is_running}")
+            print(f"🔍 [API] 客户端队列ID: {id(self.client.task_queue)}")
+            print(f"🔍 [API] 服务进程PID: {self.client.service_process.pid if self.client.service_process else 'N/A'}")
+            
             # 提交获取小说列表任务
             task_id = self.client.submit_task("get_novels_list")
             self.active_tasks[task_id] = {
@@ -398,6 +409,9 @@ class ContractAPI:
                 "submit_time": datetime.now().isoformat()
             }
             
+            print(f"✅ [API] 任务已提交: {task_id}")
+            print(f"📊 [API] 活动任务数: {len(self.active_tasks)}")
+            
             return {
                 "success": True,
                 "task_id": task_id,
@@ -405,6 +419,9 @@ class ContractAPI:
                 "timestamp": datetime.now().isoformat()
             }
         except Exception as e:
+            print(f"❌ [API] 提交任务异常: {e}")
+            import traceback
+            print(f"错误详情:\n{traceback.format_exc()}")
             return {
                 "success": False,
                 "error": str(e),
@@ -483,5 +500,13 @@ class ContractAPI:
             }
 
 
-# 创建全局API实例
-contract_api = ContractAPI()
+# 🔥 修复：延迟创建全局API实例，避免在模块导入时创建
+# 这是因为Flask的use_reloader=True会导致模块被导入多次
+contract_api = None
+
+def get_contract_api():
+    """获取全局ContractAPI实例（延迟初始化）"""
+    global contract_api
+    if contract_api is None:
+        contract_api = ContractAPI()
+    return contract_api

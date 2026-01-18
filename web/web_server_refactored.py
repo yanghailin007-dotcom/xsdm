@@ -75,6 +75,16 @@ def create_app():
     app = Flask(__name__, static_folder=static_folder)
     app.config.from_object(FlaskConfig)
     
+    # 🔥 修复：在应用创建时初始化contract_api，确保单例
+    try:
+        from Chrome.automation.api.contract_api import ContractAPI
+        app.config['CONTRACT_API'] = ContractAPI()
+        logger.info(f"✅ 签约API已初始化: {id(app.config['CONTRACT_API'])}")
+        logger.info(f"✅ 队列ID: task_queue={id(app.config['CONTRACT_API'].client.task_queue)}, result_queue={id(app.config['CONTRACT_API'].client.result_queue)}")
+    except Exception as e:
+        logger.error(f"❌ 签约API初始化失败: {e}")
+        app.config['CONTRACT_API'] = None
+    
     # 创建全局管理器实例
     manager = NovelGenerationManager()
     
@@ -472,15 +482,17 @@ def register_fanqie_routes(app):
 def register_contract_routes(app):
     """注册签约上传相关API路由"""
     
-    # 尝试导入签约API
-    try:
-        from Chrome.automation.api.contract_api import contract_api
+    # 🔥 修复：从app.config获取已初始化的API实例
+    contract_api = app.config.get('CONTRACT_API')
+    
+    if contract_api is not None:
         contract_api_available = True
         logger.info("✅ 签约上传API加载成功")
-    except ImportError as e:
-        logger.warn(f"⚠️ 无法导入签约上传API: {e}")
-        contract_api = None
+        logger.info(f"✅ 使用API实例: {id(contract_api)}")
+        logger.info(f"✅ 客户端队列ID: task_queue={id(contract_api.client.task_queue)}, result_queue={id(contract_api.client.result_queue)}")
+    else:
         contract_api_available = False
+        logger.warn("⚠️ 签约上传API未初始化")
 
     @app.route('/contract')
     def contract_page():
@@ -492,6 +504,16 @@ def register_contract_routes(app):
         except Exception as e:
             logger.error(f"❌ 加载签约页面失败: {e}")
             return f"签约页面加载失败: {str(e)}", 500
+
+    @app.route('/contract-test')
+    def contract_test_page():
+        """签约系统测试页面（简化版）"""
+        try:
+            from flask import render_template
+            return render_template('contract_test.html')
+        except Exception as e:
+            logger.error(f"❌ 加载测试页面失败: {e}")
+            return f"测试页面加载失败: {str(e)}", 500
 
     @app.route('/api/contract/users/enabled', methods=['GET'])
     def get_contract_enabled_users():
@@ -593,7 +615,7 @@ def register_contract_routes(app):
                     "api_active": False,
                     "error": "签约上传API不可用"
                 })
-                
+            
             status = contract_api.get_service_status()
             return jsonify(status)
         except Exception as e:
@@ -603,6 +625,77 @@ def register_contract_routes(app):
                 "error": str(e)
             }), 500
 
+    @app.route('/api/contract/service/reset', methods=['POST'])
+    def reset_contract_signing_service():
+        """重置签约服务状态（清理僵尸状态）"""
+        try:
+            if not contract_api_available:
+                return jsonify({
+                    "success": False,
+                    "error": "签约上传API不可用"
+                }), 503
+            
+            # 停止服务
+            contract_api.client.stop_service()
+            
+            # 删除状态文件
+            import os
+            status_file = "logs/enhanced_contract_service_status.json"
+            if os.path.exists(status_file):
+                try:
+                    os.remove(status_file)
+                    logger.info(f"✅ 已删除状态文件: {status_file}")
+                except Exception as e:
+                    logger.warn(f"⚠️ 删除状态文件失败: {e}")
+            
+            return jsonify({
+                "success": True,
+                "message": "服务状态已重置，请重新启动服务"
+            })
+        except Exception as e:
+            logger.error(f"❌ 重置签约服务状态失败: {e}")
+            return jsonify({
+                "success": False,
+                "error": str(e)
+            }), 500
+
+    @app.route('/api/contract/service/ready', methods=['GET'])
+    def check_service_ready():
+        """检查服务是否准备就绪"""
+        try:
+            if not contract_api_available:
+                return jsonify({
+                    "ready": False,
+                    "error": "签约上传API不可用"
+                }), 503
+            
+            # 检查服务状态和队列匹配
+            status = contract_api.get_service_status()
+            is_ready = (
+                status.get("running", False) and
+                status.get("process_running", False)
+            )
+            
+            # 🔥 添加：检查队列是否可用
+            try:
+                queue_size = contract_api.client.task_queue.qsize()
+                logger.info(f"✅ 服务就绪检查: running={status.get('running')}, process_running={status.get('process_running')}, queue_size={queue_size}")
+            except:
+                queue_size = -1
+            
+            return jsonify({
+                "ready": is_ready,
+                "queue_size": queue_size,
+                "status": status,
+                "message": "服务已准备就绪" if is_ready else "服务未就绪"
+            })
+        except Exception as e:
+            logger.error(f"❌ 检查服务就绪状态失败: {e}")
+            return jsonify({
+                "ready": False,
+                "error": str(e)
+            }), 500
+    
     @app.route('/api/contract/tasks/<task_id>', methods=['GET'])
     def get_contract_task_status(task_id):
         """获取签约任务状态"""
@@ -806,12 +899,12 @@ def main():
     # 创建应用实例
     app, manager = create_app()
     
-    # 开发模式运行 - 启用热重载但确保正确退出
+    # 🔥 修复：禁用热重载，避免多进程队列问题
     app.run(
         host=FlaskConfig.HOST,
         port=FlaskConfig.PORT,
         debug=FlaskConfig.DEBUG,
-        use_reloader=True  # 恢复热重载功能
+        use_reloader=False  # 禁用热重载，避免队列ID不匹配
     )
 
 
