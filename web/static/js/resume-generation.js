@@ -5,6 +5,7 @@
 
 // 全局变量
 let currentResumeInfo = null;
+let resumeModeListenerSetup = false; // 防止重复设置监听器
 
 /**
  * 检查特定任务是否有可恢复的检查点
@@ -290,12 +291,19 @@ function handleTaskCompletion(data) {
  * 监听创意选择变化
  */
 function setupResumeModeListener() {
+    // 防止重复设置监听器
+    if (resumeModeListenerSetup) {
+        console.log('ℹ️ [RESUME] 恢复模式监听器已经设置过，跳过');
+        return;
+    }
+    
     console.log('🔧 [RESUME] 设置恢复模式监听器');
     
     const ideaSelect = document.getElementById('creative-idea-select');
     
     if (ideaSelect) {
-        ideaSelect.addEventListener('change', async function() {
+        // 使用防抖包装处理函数
+        const handleIdeaChange = debounce(async function() {
             const selectedOption = this.options[this.selectedIndex];
             const title = selectedOption.text.replace(/^📚\s*/, '').trim();
             
@@ -311,62 +319,53 @@ function setupResumeModeListener() {
                     showResumeOption(resumeInfo);
                 }
             }
-        });
+        }, 800); // 增加防抖延迟到800ms
+        
+        ideaSelect.addEventListener('change', handleIdeaChange);
     } else {
         console.log('ℹ️ [RESUME] 未找到 creative-idea-select 元素');
     }
     
-    // 监听填充创意按钮
-    const fillButton = document.querySelector('button[onclick="fillFromCreativeIdea()"]');
-    if (fillButton) {
-        const originalOnClick = fillButton.onclick;
-        fillButton.onclick = async function() {
-            // 先执行原有的填充逻辑
-            if (originalOnClick) {
-                originalOnClick.call(this);
-            }
-            
-            // 延迟检查，等待表单填充完成
-            setTimeout(async () => {
-                const titleInput = document.getElementById('novel-title');
-                if (titleInput && titleInput.value) {
-                    const resumeInfo = await checkTaskResumeStatus(titleInput.value);
-                    if (resumeInfo) {
-                        showResumeOption(resumeInfo);
-                    }
-                }
-            }, 100);
-        };
-    }
+    // 移除填充创意按钮的监听器（避免重复触发）
+    // 因为 fillFromCreativeIdea 已经在选择变化时被调用
     
-    // 监听标题输入框变化
+    // 监听标题输入框变化 - 使用更长的防抖延迟
     const titleInput = document.getElementById('novel-title');
     if (titleInput) {
-        let debounceTimer;
-        titleInput.addEventListener('input', function() {
-            clearTimeout(debounceTimer);
-            debounceTimer = setTimeout(async () => {
-                const title = this.value.trim();
-                clearResumeOption();
-                
-                if (title) {
-                    const resumeInfo = await checkTaskResumeStatus(title);
-                    if (resumeInfo) {
-                        showResumeOption(resumeInfo);
-                    }
+        const handleTitleChange = debounce(async function() {
+            const title = this.value.trim();
+            clearResumeOption();
+            
+            if (title && title.length > 2) { // 只有当标题长度大于2时才检查
+                const resumeInfo = await checkTaskResumeStatus(title);
+                if (resumeInfo) {
+                    showResumeOption(resumeInfo);
                 }
-            }, 500);
-        });
+            }
+        }, 1000); // 增加防抖延迟到1000ms
+        
+        titleInput.addEventListener('input', handleTitleChange);
     }
     
+    resumeModeListenerSetup = true;
     console.log('✅ [RESUME] 恢复模式监听器设置完成');
 }
 
 /**
- * 页面加载时设置监听器
+ * 页面加载时设置监听器 - 使用防抖避免重复执行
  */
+let domContentLoadedSetup = false;
 document.addEventListener('DOMContentLoaded', function() {
+    // 防止重复执行
+    if (domContentLoadedSetup) {
+        console.log('ℹ️ [RESUME] DOMContentLoaded 已经处理过，跳过');
+        return;
+    }
+    
+    domContentLoadedSetup = true;
     console.log('📄 [RESUME] DOM加载完成，准备设置监听器');
+    
+    // 延迟执行，避免与页面初始化冲突
     setTimeout(() => {
         setupResumeModeListener();
         
@@ -380,5 +379,5 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
         }
-    }, 500);
+    }, 1000); // 增加延迟到1秒
 });
