@@ -26,19 +26,21 @@ def compress_image(
     image_data: str,
     max_size_mb: float = MAX_IMAGE_SIZE_MB,
     quality: int = DEFAULT_QUALITY,
-    max_dimension: int = MAX_DIMENSION
+    max_dimension: int = MAX_DIMENSION,
+    output_format: str = 'JPEG'  # 🔥 修改：默认使用 JPEG 格式（兼容性更好）
 ) -> str:
     """
     压缩 base64 编码的图片
     
     Args:
-        image_data: base64 编码的图片数据
+        image_data: base64 编码的图片数据（可以是纯 base64 或 data URL 格式）
         max_size_mb: 最大允许大小（MB）
-        quality: JPEG 压缩质量 (1-100)
+        quality: JPEG 压缩质量 (1-100)，仅在 output_format='JPEG' 时有效
         max_dimension: 最大边长（像素）
+        output_format: 输出格式 ('PNG' 或 'JPEG')，默认 JPEG（兼容性更好）
     
     Returns:
-        压缩后的 base64 编码图片数据
+        压缩后的 base64 编码图片数据（data URL 格式：data:image/xxx;base64,xxx）
     """
     try:
         # 解码 base64
@@ -52,12 +54,13 @@ def compress_image(
         original_size = len(image_bytes)
         original_size_mb = original_size / (1024 * 1024)
         
-        logger.info(f"📸 原始图片大小: {original_size_mb:.2f} MB")
+        logger.info(f"📸 原始图片大小: {original_size_mb:.2f} MB, 输出格式: {output_format}")
         
-        # 如果已经足够小，直接返回
+        # 如果已经足够小，直接返回（添加格式前缀）
         if original_size <= max_size_mb * 1024 * 1024:
             logger.info(f"✅ 图片大小符合要求，无需压缩")
-            return image_data
+            # 🔥 返回带格式前缀的 data URL
+            return f"data:image/{output_format.lower()};base64,{image_data}"
         
         # 打开图片
         img = Image.open(io.BytesIO(image_bytes))
@@ -86,46 +89,106 @@ def compress_image(
             img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
             logger.info(f"{new_width}x{new_height}")
         
-        # 逐步压缩直到满足大小要求
-        current_quality = quality
-        output_buffer = io.BytesIO()
-        
-        while current_quality >= MIN_QUALITY:
-            output_buffer.seek(0)
-            output_buffer.truncate()
+        # 🔥 修改：默认使用 JPEG 格式（兼容性更好）
+        if output_format.upper() == 'JPEG':
+            # JPEG 格式：逐步压缩直到满足大小要求
+            current_quality = quality
+            output_buffer = io.BytesIO()
             
-            # 保存为 JPEG
-            img.save(output_buffer, format='JPEG', quality=current_quality, optimize=True)
+            while current_quality >= MIN_QUALITY:
+                output_buffer.seek(0)
+                output_buffer.truncate()
+                
+                # 保存为 JPEG
+                img.save(output_buffer, format='JPEG', quality=current_quality, optimize=True)
+                
+                compressed_size = output_buffer.tell()
+                compressed_size_mb = compressed_size / (1024 * 1024)
+                
+                logger.info(f"🔄 质量 {current_quality}: {compressed_size_mb:.2f} MB")
+                
+                if compressed_size <= max_size_mb * 1024 * 1024:
+                    # 压缩成功
+                    compressed_data = output_buffer.getvalue()
+                    base64_data = base64.b64encode(compressed_data).decode('utf-8')
+                    
+                    compression_ratio = (1 - compressed_size / original_size) * 100
+                    logger.info(f"✅ 压缩成功 (JPEG): {original_size_mb:.2f} MB -> {compressed_size_mb:.2f} MB "
+                              f"({compression_ratio:.1f}% 减少)")
+                    
+                    # 🔥 返回带格式前缀的 data URL
+                    return f"data:image/jpeg;base64,{base64_data}"
+                
+                # 降低质量重试
+                current_quality -= 5
+            
+            # 如果仍然太大，使用最小质量
+            logger.warn(f"⚠️  使用最低质量 {MIN_QUALITY} 仍然超过大小限制")
+            compressed_data = output_buffer.getvalue()
+            base64_data = base64.b64encode(compressed_data).decode('utf-8')
+            
+            # 🔥 返回带格式前缀的 data URL
+            return f"data:image/jpeg;base64,{base64_data}"
+        else:
+            # PNG 格式：直接保存（无法调整质量）
+            output_buffer = io.BytesIO()
+            img.save(output_buffer, format='PNG', optimize=True)
             
             compressed_size = output_buffer.tell()
             compressed_size_mb = compressed_size / (1024 * 1024)
             
-            logger.info(f"🔄 质量 {current_quality}: {compressed_size_mb:.2f} MB")
-            
+            # 检查是否满足大小要求
             if compressed_size <= max_size_mb * 1024 * 1024:
-                # 压缩成功
                 compressed_data = output_buffer.getvalue()
                 base64_data = base64.b64encode(compressed_data).decode('utf-8')
                 
                 compression_ratio = (1 - compressed_size / original_size) * 100
-                logger.info(f"✅ 压缩成功: {original_size_mb:.2f} MB -> {compressed_size_mb:.2f} MB "
+                logger.info(f"✅ 压缩成功 (PNG): {original_size_mb:.2f} MB -> {compressed_size_mb:.2f} MB "
                           f"({compression_ratio:.1f}% 减少)")
                 
-                return base64_data
-            
-            # 降低质量重试
-            current_quality -= 5
-        
-        # 如果仍然太大，使用最小质量
-        logger.warn(f"⚠️  使用最低质量 {MIN_QUALITY} 仍然超过大小限制")
-        compressed_data = output_buffer.getvalue()
-        base64_data = base64.b64encode(compressed_data).decode('utf-8')
-        
-        return base64_data
+                # 🔥 返回带格式前缀的 data URL
+                return f"data:image/png;base64,{base64_data}"
+            else:
+                # PNG 太大，尝试降采样
+                logger.warn(f"⚠️  PNG 格式仍然超过大小限制 ({compressed_size_mb:.2f} MB)，尝试降采样...")
+                
+                # 逐步降低分辨率
+                scale_factors = [0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3]
+                for scale in scale_factors:
+                    new_width = int(width * scale)
+                    new_height = int(height * scale)
+                    resized_img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+                    
+                    output_buffer.seek(0)
+                    output_buffer.truncate()
+                    resized_img.save(output_buffer, format='PNG', optimize=True)
+                    
+                    compressed_size = output_buffer.tell()
+                    compressed_size_mb = compressed_size / (1024 * 1024)
+                    
+                    logger.info(f"🔄 降采样 {scale*100:.0f}%: {new_width}x{new_height}, {compressed_size_mb:.2f} MB")
+                    
+                    if compressed_size <= max_size_mb * 1024 * 1024:
+                        compressed_data = output_buffer.getvalue()
+                        base64_data = base64.b64encode(compressed_data).decode('utf-8')
+                        
+                        compression_ratio = (1 - compressed_size / original_size) * 100
+                        logger.info(f"✅ 压缩成功 (PNG降采样): {original_size_mb:.2f} MB -> {compressed_size_mb:.2f} MB "
+                                  f"({compression_ratio:.1f}% 减少)")
+                        
+                        # 🔥 返回带格式前缀的 data URL
+                        return f"data:image/png;base64,{base64_data}"
+                
+                # 最后尝试：使用 JPEG 格式
+                logger.warn(f"⚠️  PNG 降采样后仍然超过大小限制，改用 JPEG 格式")
+                return compress_image(image_data, max_size_mb, quality, max_dimension, 'JPEG')
     
     except Exception as e:
         logger.error(f"❌ 图片压缩失败: {e}")
-        # 返回原始数据
+        # 返回原始数据（带格式前缀）
+        if ',' not in image_data:
+            # 如果原始数据没有格式前缀，添加默认的 JPEG 格式前缀
+            return f"data:image/jpeg;base64,{image_data}"
         return image_data
 
 

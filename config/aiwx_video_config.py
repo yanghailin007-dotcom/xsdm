@@ -34,7 +34,9 @@ AIWX_API_KEY = 'sk-0dDn3ajqtCc0PTMmD045Ff7902774431Ad0304E396C856E7'
 AIWX_MODEL_VEO_3_1 = "veo_3_1"
 AIWX_MODEL_VEO_3_1_FAST = "veo_3_1-fast"
 
-# 默认使用的模型
+# 默认使用的模型（统一使用 veo_3_1-fast）
+# 注意：首尾帧模式和参考图模式都使用相同的 veo_3_1-fast 模型
+# 唯一的区别只是图片数量不同
 DEFAULT_AIWX_MODEL = AIWX_MODEL_VEO_3_1_FAST
 
 # ============================================================================

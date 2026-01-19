@@ -20,6 +20,7 @@ from src.models.veo_models import (
     VeOGenerationConfig
 )
 from src.managers.VeOVideoManager import get_veo_video_manager
+from config.aiwx_video_config import DEFAULT_AIWX_MODEL
 
 # 创建蓝图
 veo_video_api = Blueprint('veo_video_api', __name__)
@@ -95,24 +96,12 @@ def create_video_generation():
                     logger.warn(f"  - 图片 {i+1}: 数据太短，可能无效")
         
         # 创建 VeO 原生请求
-        # 根据前端选择的模式自动选择正确的模型
-        # - mode='frame'（首尾帧模式）: veo_3_1-fast-fl
-        # - mode='reference'（参考图模式）: veo_3_1-fast
+        # 🔥 统一使用 veo_3_1-fast 模型，首尾帧模式和参考图模式调用方式完全一致
+        # 唯一的区别只是图片数量不同
         user_provided_model = data.get('model')
-        upload_mode = data.get('mode', 'reference')  # 默认为参考图模式
         
-        # 如果用户没有指定模型，根据上传模式自动选择
-        if user_provided_model is None:
-            if upload_mode == 'frame':
-                # 首尾帧模式（可能只有1张或2张图片）
-                # 🔥 修复：帧模式模型名称是 veo_3_1-fl（不是 veo_3_1-fast-fl）
-                auto_model = 'veo_3_1-fl'
-            else:
-                # 参考图模式
-                auto_model = 'veo_3_1-fast'
-        else:
-            # 使用用户指定的模型
-            auto_model = user_provided_model
+        # 使用用户指定的模型，如果没有则使用默认的 fast 模型
+        auto_model = user_provided_model if user_provided_model else DEFAULT_AIWX_MODEL
         
         veo_request = VeOCreateVideoRequest(
             images=images,
@@ -125,13 +114,7 @@ def create_video_generation():
             private=data.get('private', True)
         )
         
-        logger.info(f"🎨 上传模式: {upload_mode}")
         logger.info(f"🎨 图片数量: {len(images)}")
-        if upload_mode == 'frame':
-            logger.info(f"🎬 模式: 首尾帧模式 (使用 veo_3_1-fast-fl)")
-        else:
-            logger.info(f"🎬 模式: 参考图模式 (使用 veo_3_1-fast)")
-        
         logger.info(f"📝 提示词长度: {len(veo_request.prompt)} 字符")
         logger.info(f"🎬 模型: {veo_request.model}")
         logger.info(f"📐 方向: {veo_request.orientation}")

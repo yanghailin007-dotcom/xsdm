@@ -130,8 +130,7 @@ class VeOCreateVideoRequest:
             images_param = self.image_urls
         else:
             # 处理 images 列表
-            # 1. 过滤掉空值
-            # 2. 移除 data URL 前缀（如果有），只保留纯 base64
+            # 🔥 修复：保留 data URL 格式，让 API 能够识别图片格式
             images_param = []
             for img in self.images:
                 if not img or not isinstance(img, str):
@@ -140,18 +139,16 @@ class VeOCreateVideoRequest:
                 # 如果是 HTTP/HTTPS URL，直接使用
                 if self._is_url(img):
                     images_param.append(img)
-                # 如果是 data URL，移除前缀，只保留 base64 部分
+                # 如果是 data URL，保留完整格式（包含格式信息）
                 elif img.startswith('data:image/'):
+                    # 🔥 保留完整的 data URL 格式，让 API 能够识别图片格式
                     # 格式: data:image/jpeg;base64,<base64_data>
-                    if ',' in img:
-                        base64_part = img.split(',', 1)[1]
-                        images_param.append(base64_part)
-                    else:
-                        # 如果没有逗号，可能格式不正确，但还是保留
-                        images_param.append(img)
-                # 否则认为是纯 base64，直接使用
-                else:
                     images_param.append(img)
+                # 否则认为是纯 base64，添加默认的 JPEG 格式前缀
+                else:
+                    # 🔥 为纯 base64 数据添加格式前缀
+                    # 默认使用 JPEG 格式（因为压缩后通常是 JPEG）
+                    images_param.append(f"data:image/jpeg;base64,{img}")
         
         return {
             "images": images_param,
