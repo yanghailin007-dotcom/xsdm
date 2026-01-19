@@ -1,0 +1,99 @@
+/* ==================== 页面闪烁修复补丁 ==================== */
+
+/* 禁用所有可能导致闪烁的动画和过渡 */
+body,
+.creative-library-section,
+.creative-idea-preview-simple,
+#creative-idea-select,
+#preview-content,
+#creative-library-content {
+    /* 强制硬件加速,减少重绘 */
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+    will-change: auto;
+    
+    /* 移除所有过渡效果 */
+    transition: none !important;
+    animation: none !important;
+}
+
+/* 预览区域 - 移除所有动画 */
+.creative-idea-preview-simple,
+#preview-content {
+    display: block !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    transition: none !important;
+    animation: none !important;
+}
+
+/* 下拉选择框 - 移除过渡 */
+#creative-idea-select {
+    transition: none !important;
+    animation: none !important;
+}
+
+/* 移除所有伪元素的动画 */
+body::before,
+body::after,
+.creative-idea-preview-simple::before,
+.creative-idea-preview-simple::after {
+    animation: none !important;
+    transition: none !important;
+}
+
+/* 禁用卡片悬停动画 */
+.creative-idea-card,
+.creative-idea-card:hover,
+.creative-idea-card.selected {
+    transform: none !important;
+    transition: none !important;
+    animation: none !important;
+}
+
+/* 确保内容稳定显示 */
+#creative-library-content {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+/* 移除可能导致重绘的视觉效果 */
+.creative-idea-preview-simple * {
+    transition: none !important;
+    animation: none !important;
+}
+
+/* 状态消息 - 简化显示 */
+.status-message {
+    transition: none !important;
+    animation: none !important;
+}
+
+/* 禁用所有加载动画 */
+.loading,
+.spinner {
+    animation: none !important;
+}
+
+/* 强制使用静态渲染 */
+* {
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    perspective: 1000;
+    -webkit-perspective: 1000;
+}
+
+/* 移除模糊效果(可能导致性能问题) */
+.creative-library-section,
+.modal-overlay {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+/* 确保所有元素都有明确的渲染层 */
+.creative-library-section,
+.creative-idea-preview-simple,
+#creative-library-content {
+    contain: layout style paint;
+}

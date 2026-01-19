@@ -1152,8 +1152,8 @@ class StagePlanManager:
             try:
                 novel_title = self.generator.novel_data.get("novel_title", "")
                 if novel_title:
-                    # 清理文件名
-                    safe_title = re.sub(r'[\\/*?"<>|]', "_", novel_title)
+                    # 清理文件名（添加冒号到不允许的字符列表中）
+                    safe_title = re.sub(r'[\\/*?"<>|:]', "_", novel_title)
                     project_dir = Path("小说项目") / novel_title
                     if not project_dir.exists():
                         project_dir = Path("小说项目") / safe_title

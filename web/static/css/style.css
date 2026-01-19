@@ -176,7 +176,7 @@ body {
     overflow-x: hidden;
 }
 
-/* 护眼友好背景 */
+/* 护眼友好背景 - 优化版，移除导致闪烁的动画 */
 body::before {
     content: '';
     position: fixed;
@@ -184,42 +184,18 @@ body::before {
     left: 0;
     right: 0;
     bottom: 0;
-    background:
-        radial-gradient(circle at 20% 80%, rgba(43, 108, 176, 0.08) 0%, transparent 50%),
-        radial-gradient(circle at 80% 20%, rgba(22, 163, 74, 0.05) 0%, transparent 50%),
-        radial-gradient(circle at 40% 40%, rgba(221, 155, 133, 0.04) 0%, transparent 50%),
-        repeating-linear-gradient(
-            45deg,
-            transparent,
-            transparent 2px,
-            rgba(43, 108, 176, 0.02) 2px,
-            rgba(43, 108, 176, 0.02) 4px
-        );
+    /* 简化为静态渐变背景，移除动画 */
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 50%, #e2e8f0 100%);
     pointer-events: none;
     z-index: -1;
 }
 
-/* 添加柔和网格背景 */
+/* 移除网格背景动画 - 这是导致页面闪烁的主要原因 */
 body::after {
-    content: '';
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-image:
-        linear-gradient(rgba(43, 108, 176, 0.05) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(43, 108, 176, 0.05) 1px, transparent 1px);
-    background-size: 50px 50px;
-    pointer-events: none;
-    z-index: -1;
-    animation: gridMove 20s linear infinite;
+    display: none;
 }
 
-@keyframes gridMove {
-    0% { transform: translate(0, 0); }
-    100% { transform: translate(50px, 50px); }
-}
+/* 移除gridMove动画 - 不再使用 */
 
 /* 链接样式 */
 a {

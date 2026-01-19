@@ -1,19 +1,37 @@
 /**
- * 恢复生成功能 - 简洁版
+ * 恢复生成功能 - 优化版
  * 在生成模式下拉框中添加恢复模式选项
+ * 修复了页面闪烁问题
  */
 
 // 全局变量
 let currentResumeInfo = null;
 let resumeModeListenerSetup = false; // 防止重复设置监听器
+let isCheckingResume = false; // 防止重复检查
+let lastCheckedTitle = ''; // 记录上次检查的标题，避免重复检查
 
 /**
  * 检查特定任务是否有可恢复的检查点
+ * 添加防重复检查机制
  */
 async function checkTaskResumeStatus(title) {
     if (!title) {
         return null;
     }
+    
+    // 避免重复检查相同的标题
+    if (lastCheckedTitle === title && isCheckingResume) {
+        console.log(`⏭️ [RESUME] 跳过重复检查: ${title}`);
+        return null;
+    }
+    
+    if (isCheckingResume) {
+        console.log(`⏳ [RESUME] 正在检查中，跳过本次请求`);
+        return null;
+    }
+    
+    isCheckingResume = true;
+    lastCheckedTitle = title;
     
     console.log(`🔍 [RESUME] 检查任务恢复状态: ${title}`);
     
@@ -34,23 +52,35 @@ async function checkTaskResumeStatus(title) {
         
         if (result.success && result.resume_info) {
             console.log('✅ [RESUME] 发现可恢复的检查点:', result.resume_info);
+            isCheckingResume = false;
             return result.resume_info;
         }
         
         console.log('ℹ️ [RESUME] 没有找到可恢复的检查点');
+        isCheckingResume = false;
         return null;
         
     } catch (error) {
         console.error('❌ [RESUME] 检查任务恢复状态失败:', error);
+        isCheckingResume = false;
         return null;
     }
 }
 
 /**
  * 显示恢复选项（在生成模式下拉框中）
+ * 添加状态检查，避免不必要的DOM操作
  */
 function showResumeOption(resumeInfo) {
     if (!resumeInfo) {
+        return;
+    }
+    
+    // 检查是否已经是相同的恢复信息，避免重复更新
+    if (currentResumeInfo &&
+        currentResumeInfo.novel_title === resumeInfo.novel_title &&
+        currentResumeInfo.progress_percentage === resumeInfo.progress_percentage) {
+        console.log('⏭️ [RESUME] 恢复信息未变化，跳过更新');
         return;
     }
     
@@ -60,9 +90,13 @@ function showResumeOption(resumeInfo) {
     // 在生成模式下拉框中显示恢复模式选项
     const resumeOption = document.getElementById('resume-mode-option');
     if (resumeOption) {
-        resumeOption.style.display = 'block';
-        resumeOption.textContent = `🔄 恢复模式（继续未完成的生成 - ${resumeInfo.progress_percentage}%）`;
-        console.log('✅ [RESUME] 恢复模式选项已显示');
+        // 只在状态变化时才更新DOM
+        if (resumeOption.style.display === 'none' ||
+            !resumeOption.textContent.includes(`${resumeInfo.progress_percentage}%`)) {
+            resumeOption.style.display = 'block';
+            resumeOption.textContent = `🔄 恢复模式（继续未完成的生成 - ${resumeInfo.progress_percentage}%）`;
+            console.log('✅ [RESUME] 恢复模式选项已显示');
+        }
     } else {
         console.error('❌ [RESUME] 找不到 resume-mode-option 元素');
     }
@@ -70,14 +104,20 @@ function showResumeOption(resumeInfo) {
 
 /**
  * 清除恢复选项
+ * 添加状态检查，避免不必要的DOM操作
  */
 function clearResumeOption() {
+    if (!currentResumeInfo) {
+        return; // 如果没有恢复信息，无需清除
+    }
+    
     console.log('🧹 [RESUME] 清除恢复选项');
     currentResumeInfo = null;
+    lastCheckedTitle = ''; // 重置上次检查的标题
     
     // 隐藏恢复模式选项
     const resumeOption = document.getElementById('resume-mode-option');
-    if (resumeOption) {
+    if (resumeOption && resumeOption.style.display !== 'none') {
         resumeOption.style.display = 'none';
         console.log('✅ [RESUME] 恢复模式选项已隐藏');
     }
@@ -302,8 +342,9 @@ function setupResumeModeListener() {
     const ideaSelect = document.getElementById('creative-idea-select');
     
     if (ideaSelect) {
-        // 使用防抖包装处理函数
-        const handleIdeaChange = debounce(async function() {
+        // 使用防抖包装处理函数，增加延迟以减少API调用
+        let ideaChangeTimeout = null;
+        const handleIdeaChange = async function() {
             const selectedOption = this.options[this.selectedIndex];
             const title = selectedOption.text.replace(/^📚\s*/, '').trim();
             
@@ -319,20 +360,21 @@ function setupResumeModeListener() {
                     showResumeOption(resumeInfo);
                 }
             }
-        }, 800); // 增加防抖延迟到800ms
+        };
         
-        ideaSelect.addEventListener('change', handleIdeaChange);
+        ideaSelect.addEventListener('change', function() {
+            if (ideaChangeTimeout) clearTimeout(ideaChangeTimeout);
+            ideaChangeTimeout = setTimeout(() => handleIdeaChange.call(this), 1200);
+        });
     } else {
         console.log('ℹ️ [RESUME] 未找到 creative-idea-select 元素');
     }
     
-    // 移除填充创意按钮的监听器（避免重复触发）
-    // 因为 fillFromCreativeIdea 已经在选择变化时被调用
-    
     // 监听标题输入框变化 - 使用更长的防抖延迟
     const titleInput = document.getElementById('novel-title');
     if (titleInput) {
-        const handleTitleChange = debounce(async function() {
+        let titleChangeTimeout = null;
+        const handleTitleChange = async function() {
             const title = this.value.trim();
             clearResumeOption();
             
@@ -342,9 +384,12 @@ function setupResumeModeListener() {
                     showResumeOption(resumeInfo);
                 }
             }
-        }, 1000); // 增加防抖延迟到1000ms
+        };
         
-        titleInput.addEventListener('input', handleTitleChange);
+        titleInput.addEventListener('input', function() {
+            if (titleChangeTimeout) clearTimeout(titleChangeTimeout);
+            titleChangeTimeout = setTimeout(() => handleTitleChange.call(this), 1500);
+        });
     }
     
     resumeModeListenerSetup = true;
@@ -369,15 +414,16 @@ document.addEventListener('DOMContentLoaded', function() {
     setTimeout(() => {
         setupResumeModeListener();
         
-        // 页面加载后也检查一次当前标题
+        // 页面加载后也检查一次当前标题（仅在有值时）
         const titleInput = document.getElementById('novel-title');
         if (titleInput && titleInput.value) {
             console.log(`🔍 [RESUME] 页面加载时检查标题: ${titleInput.value}`);
+            // 添加一次性检查标志，避免后续输入触发重复检查
             checkTaskResumeStatus(titleInput.value).then(resumeInfo => {
                 if (resumeInfo) {
                     showResumeOption(resumeInfo);
                 }
             });
         }
-    }, 1000); // 增加延迟到1秒
+    }, 1500); // 增加延迟到1.5秒
 });

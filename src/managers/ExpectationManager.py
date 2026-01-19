@@ -1211,6 +1211,110 @@ def auto_bind_expectation_to_event(event: Dict) -> ExpectationType:
     return ExpectationType.NESTED_DOLL
 
 
+class ExpectationIntegrator:
+    """
+    期待感集成器 - 负责分析和标记事件
+    
+    这个类负责使用AI分析事件并自动添加期待感标签
+    """
+    
+    def __init__(self, expectation_manager: ExpectationManager):
+        """
+        初始化期待感集成器
+        
+        Args:
+            expectation_manager: 期待感管理器实例
+        """
+        self.expectation_manager = expectation_manager
+        self.logger = get_logger("ExpectationIntegrator")
+    
+    def analyze_and_tag_events(
+        self,
+        major_events: List[Dict],
+        stage_name: str,
+        api_client,
+        novel_title: str
+    ) -> Dict:
+        """
+        分析事件并添加期待感标签
+        
+        Args:
+            major_events: 重大事件列表
+            stage_name: 阶段名称
+            api_client: API客户端
+            novel_title: 小说标题
+            
+        Returns:
+            分析结果，包含tagged_count（已标记事件数量）
+        """
+        tagged_count = 0
+        
+        self.logger.info(f"🤖 AI智能分析开始：为{len(major_events)}个重大事件匹配合适的期待类型...")
+        
+        for i, event in enumerate(major_events, 1):
+            try:
+                # 使用自动匹配功能
+                exp_type = auto_bind_expectation_to_event(event)
+                
+                # 提取章节范围
+                chapter_range = event.get("chapter_range", "")
+                start_chapter, end_chapter = self._parse_chapter_range(chapter_range)
+                
+                # 为事件添加期待标签
+                exp_id = self.expectation_manager.tag_event_with_expectation(
+                    event_id=event.get("id", f"event_{i}"),
+                    expectation_type=exp_type,
+                    planting_chapter=start_chapter,
+                    description=event.get("main_goal", f"{event.get('name', '未知事件')}"),
+                    target_chapter=end_chapter,
+                    bound_event_id=event.get("id", f"event_{i}")
+                )
+                
+                # 在事件中添加期待感信息
+                event["expectation_tag"] = {
+                    "id": exp_id,
+                    "type": exp_type.value,
+                    "description": EXPECTATION_RULES[exp_type].description,
+                    "planting_chapter": start_chapter,
+                    "target_chapter": end_chapter
+                }
+                
+                tagged_count += 1
+                self.logger.info(f"  ✅ [{i}/{len(major_events)}] 事件 '{event.get('name')}' -> 期待类型: {exp_type.value}")
+                
+            except Exception as e:
+                self.logger.error(f"  ❌ 为事件 '{event.get('name')}' 添加期待标签失败: {e}")
+                continue
+        
+        self.logger.info(f"✅ AI智能分析完成：成功为 {tagged_count}/{len(major_events)} 个事件添加期待标签")
+        
+        return {
+            "tagged_count": tagged_count,
+            "total_events": len(major_events),
+            "stage_name": stage_name
+        }
+    
+    def _parse_chapter_range(self, chapter_range: str) -> Tuple[int, int]:
+        """
+        解析章节范围
+        
+        Args:
+            chapter_range: 章节范围字符串，如 "1-10"
+            
+        Returns:
+            (起始章节, 结束章节)
+        """
+        try:
+            if "-" in chapter_range:
+                parts = chapter_range.replace("章", "").replace("第", "").strip().split("-")
+                return int(parts[0]), int(parts[1])
+            else:
+                chapter = int(chapter_range.replace("章", "").replace("第", "").strip())
+                return chapter, chapter
+        except (ValueError, IndexError):
+            return 1, 1
+
+
 class ExpectationDensityMonitor:
     """期待感密度监控器"""
 
