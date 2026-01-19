@@ -224,38 +224,6 @@ class PathManager:
             self.logger.error(f"❌ 加载写作风格指南失败: {e}")
             return None
     
-    def save_element_timing_plan(self, novel_title: str, timing_data: Dict) -> bool:
-        """保存元素时机规划"""
-        try:
-            paths = self.path_config.get_project_paths(novel_title)
-            
-            with open(paths["element_timing"], 'w', encoding='utf-8') as f:
-                json.dump(timing_data, f, ensure_ascii=False, indent=2)
-            
-            self.logger.info(f"✅ 元素时机规划已保存: {paths['element_timing']}")
-            return True
-        except Exception as e:
-            self.logger.error(f"❌ 保存元素时机规划失败: {e}")
-            return False
-    
-    def load_element_timing_plan(self, novel_title: str) -> Optional[Dict]:
-        """加载元素时机规划"""
-        try:
-            paths = self.path_config.get_project_paths(novel_title)
-            
-            if not os.path.exists(paths["element_timing"]):
-                self.logger.info(f"⚠️ 元素时机规划文件不存在")
-                return None
-            
-            with open(paths["element_timing"], 'r', encoding='utf-8') as f:
-                timing_data = json.load(f)
-            
-            self.logger.info(f"✅ 元素时机规划已加载: {paths['element_timing']}")
-            return timing_data
-        except Exception as e:
-            self.logger.error(f"❌ 加载元素时机规划失败: {e}")
-            return None
-    
     def save_novel_overview(self, novel_title: str, overview_data: Dict) -> bool:
         """保存小说总览"""
         try:
@@ -482,7 +450,6 @@ class PathManager:
             # 迁移其他文件
             file_mappings = [
                 ("章节总览文件", "legacy_novel_overview", "novel_overview"),
-                ("元素登场时机文件", "legacy_element_timing", "element_timing"),
                 ("元素引入计划文件", "legacy_element_introduction", "element_introduction"),
                 ("写作风格指南文件", "legacy_writing_style", "writing_style_guide")
             ]

@@ -606,34 +606,8 @@ class ProjectManager:
             self.logger.info(f"章节总览已导出到: {paths['novel_overview']}")
         except Exception as e:
             self.logger.info(f"导出章节总览失败: {e}")
-    def save_element_timing_plan(self, novel_title: str, timing_plan: Dict):
-        """保存元素登场时机规划"""
-        try:
-            safe_title = re.sub(r'[\\/*?:"<>|]', "_", novel_title)
-            file_path = f"D:/work6.05/小说项目/{safe_title}_元素登场时机.json"
-            # 确保目录存在
-            os.makedirs("小说项目/", exist_ok=True)
-            with open(file_path, 'w', encoding='utf-8') as f:
-                json.dump(timing_plan, f, ensure_ascii=False, indent=2)
-            self.logger.info(f"✅ 元素登场时机规划已保存: {file_path}")
-            return True
-        except Exception as e:
-            self.logger.info(f"❌ 保存元素登场时机规划失败: {e}")
-            return False
-    def load_element_timing_plan(self, novel_title: str) -> Dict:
-        """加载元素登场时机规划"""
-        try:
-            safe_title = re.sub(r'[\\/*?:"<>|]', "_", novel_title)
-            file_path = f"小说项目/{safe_title}_元素登场时机.json"
-            if not os.path.exists(file_path):
-                return {}
-            with open(file_path, 'r', encoding='utf-8') as f:
-                timing_plan = json.load(f)
-            self.logger.info(f"✅ 元素登场时机规划已加载: {file_path}")
-            return timing_plan
-        except Exception as e:
-            self.logger.info(f"❌ 加载元素登场时机规划失败: {e}")
-            return {}
+    # 元素登场时机规划已移除，由期待感系统统一管理
+    # save_element_timing_plan 和 load_element_timing_plan 方法已废弃
     def save_element_introduction_schedule(self, novel_title: str, schedule: Dict, chapter_range: str):
         """保存章节元素引入计划"""
         try:

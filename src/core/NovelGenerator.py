@@ -27,7 +27,6 @@ from src.core.ProjectManager import ProjectManager
 from src.core.QualityAssessor import QualityAssessor
 
 # 导入管理器
-from src.managers.ElementTimingPlanner import ElementTimingPlanner
 from src.managers.EmotionalBlueprintManager import EmotionalBlueprintManager
 from src.managers.EmotionalPlanManager import EmotionalPlanManager
 from src.managers.EventDrivenManager import EventDrivenManager
@@ -212,19 +211,8 @@ class NovelGenerator:
         # 情感计划管理器
         self.emotional_plan_manager = EmotionalPlanManager(novel_generator=self)
         
-        # 元素时机规划器
-        self.element_timing_planner = ElementTimingPlanner(novel_generator=self)
-        
         # 联姻模式管理器
         self.romance_manager = RomancePatternManager(self.stage_plan_manager)
-        
-        # 设置依赖关系
-        self._setup_manager_dependencies()
-
-    def _setup_manager_dependencies(self):
-        """设置管理器间的依赖关系"""
-        self.element_timing_planner.set_project_manager(self.project_manager)
-        # 注意：ElementTimingPlanner可能需要更新以支持ExpectationManager
 
     def _initialize_modular_managers(self):
         """初始化拆分后的模块管理器"""
@@ -1226,10 +1214,8 @@ class NovelGenerator:
             print("❌ 生成阶段详细写作计划失败")
             return False
         
-        # 生成元素时机规划
-        self.novel_data["current_progress"]["stage"] = "元素时机规划"
-        if not self._generate_element_timing_plan():
-            print("⚠️ 元素登场时机规划生成失败，使用基础时机")
+        # 元素登场时机已由期待感系统管理
+        print("✅ 元素登场时机由期待感系统统一管理")
         
         # 初始化系统
         self.novel_data["current_progress"]["stage"] = "系统初始化"
@@ -1438,35 +1424,8 @@ class NovelGenerator:
             traceback.print_exc()
             return False
 
-    def _generate_element_timing_plan(self) -> bool:
-        """生成元素登场时机规划"""
-        print("=== 步骤7.5: 制定元素登场时机规划 ===")
-        
-        try:
-            if not self.novel_data.get("global_growth_plan"):
-                print("  ⚠️ 没有全局成长计划，无法生成元素时机规划")
-                return False
-            
-            if not self.novel_data.get("overall_stage_plans"):
-                print("  ⚠️ 没有全局写作计划成长计划，无法生成元素时机规划")
-                return False
-            
-            timing_plan = self.element_timing_planner.generate_element_timing_plan(
-                self.novel_data["global_growth_plan"],
-                self.novel_data.get("overall_stage_plans") or {}
-            )
-            
-            if timing_plan:
-                self.novel_data["element_timing_plan"] = timing_plan
-                print("✅ 元素登场时机规划制定完成并已保存")
-                return True
-            else:
-                print("❌ 元素登场时机规划生成失败")
-                return False
-                
-        except Exception as e:
-            print(f"⚠️ 元素时机规划器出错: {e}")
-            return False
+    # ElementTimingPlanner已移除，元素登场时机由期待感系统统一管理
+    # 期待感系统会在事件规划时自动处理元素登场时机
 
     def _initialize_systems(self):
         """初始化各种系统"""

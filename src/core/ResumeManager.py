@@ -102,7 +102,8 @@ class ResumeManager:
                            'creative_seed', 'core_worldview', 'character_design',
                            'faction_system', 'market_analysis', 'writing_style_guide',
                            'global_growth_plan', 'overall_stage_plans', 'stage_writing_plans',
-                           'element_timing_plan', 'emotional_blueprint']:
+                           # 元素时机规划已移除，由期待感系统管理
+                           'emotional_blueprint']:
                     if key in saved_data:
                         self.generator.novel_data[key] = saved_data[key]
                 

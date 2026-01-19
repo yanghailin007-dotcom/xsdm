@@ -57,8 +57,7 @@ class NovelPathConfig:
             "writing_plans_dir": str(project_dir / "planning"),
             "overall_stage_plans": str(project_dir / "planning" / "overall_stage_plans.json"),
             
-            # 元素和时机规划
-            "element_timing": str(project_dir / "planning" / "element_timing.json"),
+            # 元素规划（元素登场时机由期待感系统统一管理）
             "element_schedule": str(project_dir / "planning" / "element_schedule.json"),
             "element_introduction": str(project_dir / "planning" / "element_introduction.json"),
             
@@ -109,7 +108,6 @@ class NovelPathConfig:
             "legacy_chapters_dir": str(self.base_dir / f"{safe_title}_章节"),
             "legacy_project_info": str(self.base_dir / f"{safe_title}_项目信息.json"),
             "legacy_novel_overview": str(self.base_dir / f"{safe_title}_章节总览.json"),
-            "legacy_element_timing": str(self.base_dir / f"{safe_title}_元素登场时机.json"),
             "legacy_element_introduction": str(self.base_dir / f"{safe_title}_元素引入计划.json"),
             "legacy_writing_style": str(self.base_dir / f"{safe_title}_写作风格指南.json")
         }
@@ -247,7 +245,6 @@ class NovelPathConfig:
             ("legacy_project_info", "项目信息文件"),
             ("legacy_chapters_dir", "章节目录"),
             ("legacy_novel_overview", "章节总览文件"),
-            ("legacy_element_timing", "元素登场时机文件"),
             ("legacy_element_introduction", "元素引入计划文件"),
             ("legacy_writing_style", "写作风格指南文件")
         ]
@@ -314,7 +311,7 @@ class NovelPathConfig:
                 all_files["export_files"] = [str(f) for f in Path(paths["exports_dir"]).rglob("*")]
             
             # 旧版本文件
-            for file_key in ["legacy_project_info", "legacy_novel_overview", "legacy_element_timing",
+            for file_key in ["legacy_project_info", "legacy_novel_overview",
                            "legacy_element_introduction", "legacy_writing_style"]:
                 if os.path.exists(paths[file_key]):
                     all_files["legacy_files"].append(paths[file_key])
@@ -422,7 +419,8 @@ class NovelPathConfig:
 ### 规划目录
 - 阶段计划: {paths['stage_plans_dir']}
 - 写作计划: {paths['writing_plans_dir']}
-- 元素时机: {paths['element_timing']}
+- 元素调度: {paths['element_schedule']}
+- 元素引入: {paths['element_introduction']}
 
 ### 质量和管理
 - 质量报告: {paths['quality_reports_dir']}

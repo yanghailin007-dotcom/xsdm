@@ -271,10 +271,8 @@ class PhaseGenerator:
             print("❌ 生成阶段详细写作计划失败")
             return False
         
-        # 生成元素时机规划
-        self.generator.novel_data["current_progress"]["stage"] = "元素时机规划"
-        if not self._generate_element_timing_plan():
-            print("⚠️ 元素登场时机规划生成失败，使用基础时机")
+        # 元素登场时机已由期待感系统管理
+        print("✅ 元素登场时机由期待感系统统一管理")
         
         # 初始化系统
         self.generator.novel_data["current_progress"]["stage"] = "系统初始化"
@@ -443,35 +441,7 @@ class PhaseGenerator:
             traceback.print_exc()
             return False
     
-    def _generate_element_timing_plan(self) -> bool:
-        """生成元素登场时机规划"""
-        print("=== 步骤7.5: 制定元素登场时机规划 ===")
-        
-        try:
-            if not self.generator.novel_data.get("global_growth_plan"):
-                print("  ⚠️ 没有全局成长计划，无法生成元素时机规划")
-                return False
-            
-            if not self.generator.novel_data.get("overall_stage_plans"):
-                print("  ⚠️ 没有全局写作计划成长计划，无法生成元素时机规划")
-                return False
-            
-            timing_plan = self.generator.element_timing_planner.generate_element_timing_plan(
-                self.generator.novel_data["global_growth_plan"],
-                self.generator.novel_data.get("overall_stage_plans") or {}
-            )
-            
-            if timing_plan:
-                self.generator.novel_data["element_timing_plan"] = timing_plan
-                print("✅ 元素登场时机规划制定完成并已保存")
-                return True
-            else:
-                print("❌ 元素登场时机规划生成失败")
-                return False
-                
-        except Exception as e:
-            print(f"⚠️ 元素时机规划器出错: {e}")
-            return False
+    # ElementTimingPlanner已移除，元素登场时机由期待感系统统一管理
     
     def _initialize_systems(self):
         """初始化各种系统"""
@@ -482,8 +452,8 @@ class PhaseGenerator:
             print("✅ 事件系统初始化完成")
         
         if self.generator.novel_data["character_design"]:
-            self.generator.initialize_foreshadowing_elements()
-            print("✅ 伏笔管理系统初始化完成")
+            self.generator.initialize_expectation_elements()
+            print("✅ 期待感管理系统已就绪")
         
         print("✅ 第一阶段详细写作计划已生成")
     
@@ -598,7 +568,7 @@ class PhaseGenerator:
                 ("global_growth_plan", f"{safe_title}_成长路线.json"),
                 ("overall_stage_plans", f"{safe_title}_阶段计划.json"),
                 ("stage_writing_plans", f"{safe_title}_写作计划.json"),
-                ("element_timing_plan", f"{safe_title}_元素时机规划.json"),
+                # 元素时机规划已移除，由期待感系统管理
                 ("writing_style_guide", f"{safe_title}_写作风格.json"),
                 ("emotional_blueprint", f"{safe_title}_情绪蓝图.json")
             ]
@@ -746,7 +716,7 @@ class PhaseGenerator:
                 "global_growth_plan": f"{products_dir}/{safe_title}_成长路线.json",
                 "overall_stage_plans": f"{products_dir}/{safe_title}_阶段计划.json",
                 "stage_writing_plans": f"{products_dir}/{safe_title}_写作计划.json",
-                "element_timing_plan": f"{products_dir}/{safe_title}_元素时机规划.json",
+                # 元素时机规划已移除，由期待感系统管理
                 "writing_style_guide": f"{products_dir}/{safe_title}_写作风格.json",
                 "emotional_blueprint": f"{products_dir}/{safe_title}_情绪蓝图.json"
             }
@@ -777,7 +747,7 @@ class PhaseGenerator:
                 "global_growth_plan": products_mapping.get("global_growth_plan", {}),
                 "overall_stage_plans": products_mapping.get("overall_stage_plans", {}),
                 "stage_writing_plans": products_mapping.get("stage_writing_plans", {}),
-                "element_timing_plan": products_mapping.get("element_timing_plan", {}),
+                # 元素时机规划已移除，由期待感系统管理
                 "emotional_blueprint": products_mapping.get("emotional_blueprint", {}),
                 "current_progress": {
                     "completed_chapters": 0,
@@ -883,7 +853,7 @@ class PhaseGenerator:
                 "global_growth_plan": loaded_data.get("global_growth_plan", {}),
                 "overall_stage_plans": loaded_data.get("overall_stage_plans", {}),
                 "stage_writing_plans": loaded_data.get("stage_writing_plans", {}),
-                "element_timing_plan": loaded_data.get("element_timing_plan", {}),
+                # 元素时机规划已移除，由期待感系统管理
                 "emotional_blueprint": loaded_data.get("emotional_blueprint", {}),
                 "current_progress": {
                     "completed_chapters": 0,
@@ -947,7 +917,7 @@ class PhaseGenerator:
                 "global_growth_plan": phase_one_result.get("global_growth_plan", {}),
                 "overall_stage_plans": phase_one_result.get("overall_stage_plans", {}),
                 "stage_writing_plans": phase_one_result.get("stage_writing_plans", {}),
-                "element_timing_plan": phase_one_result.get("element_timing_plan", {}),
+                # 元素时机规划已移除，由期待感系统管理
                 "current_progress": {
                     "completed_chapters": 0,
                     "total_chapters": phase_one_result.get("total_chapters", 200),
@@ -1106,13 +1076,23 @@ class PhaseGenerator:
                     print(f"    ⚠️ 获取事件上下文失败: {e}")
                     event_context = {}
             
-            print(f"  🎭 获取伏笔上下文...")
-            if hasattr(self.generator, 'foreshadowing_manager') and hasattr(self.generator.foreshadowing_manager, 'get_context'):
+            print(f"  🎭 获取期待感上下文...")
+            if hasattr(self.generator, 'expectation_manager') and hasattr(self.generator.expectation_manager, 'pre_generation_check'):
                 try:
-                    foreshadowing_context = self.generator.foreshadowing_manager.get_context(chapter_num)
-                    print(f"    ✅ 伏笔上下文获取成功")
+                    expectation_constraints = self.generator.expectation_manager.pre_generation_check(
+                        chapter_num,
+                        event_context
+                    )
+                    foreshadowing_context = {
+                        "expectation_constraints": expectation_constraints,
+                        "active_expectations": len([
+                            e for e in self.generator.expectation_manager.expectations.values()
+                            if e.status.value in ["planted", "fermenting"]
+                        ])
+                    }
+                    print(f"    ✅ 期待感上下文获取成功: {len(expectation_constraints)}个约束")
                 except Exception as e:
-                    print(f"    ⚠️ 获取伏笔上下文失败: {e}")
+                    print(f"    ⚠️ 获取期待感上下文失败: {e}")
                     foreshadowing_context = {}
             
             print(f"  📈 获取成长规划上下文...")
