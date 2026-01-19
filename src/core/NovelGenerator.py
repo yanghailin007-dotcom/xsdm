@@ -31,7 +31,7 @@ from src.managers.ElementTimingPlanner import ElementTimingPlanner
 from src.managers.EmotionalBlueprintManager import EmotionalBlueprintManager
 from src.managers.EmotionalPlanManager import EmotionalPlanManager
 from src.managers.EventDrivenManager import EventDrivenManager
-from src.managers.ForeshadowingManager import ForeshadowingManager
+from src.managers.ExpectationManager import ExpectationManager, ExpectationType
 from src.managers.GlobalGrowthPlanner import GlobalGrowthPlanner
 from src.managers.RomancePatternManager import RomancePatternManager
 from src.managers.StagePlanManager import StagePlanManager
@@ -197,8 +197,8 @@ class NovelGenerator:
         # 事件驱动管理器
         self.event_driven_manager = EventDrivenManager(novel_generator=self)
         
-        # 伏笔管理器
-        self.foreshadowing_manager = ForeshadowingManager(novel_generator=self)
+        # 期待感管理器（替代原伏笔管理器）
+        self.expectation_manager = ExpectationManager()
         
         # 全局成长规划器
         self.global_growth_planner = GlobalGrowthPlanner(novel_generator=self)
@@ -223,9 +223,8 @@ class NovelGenerator:
 
     def _setup_manager_dependencies(self):
         """设置管理器间的依赖关系"""
-        self.element_timing_planner.set_foreshadowing_manager(self.foreshadowing_manager)
         self.element_timing_planner.set_project_manager(self.project_manager)
-        self.foreshadowing_manager.set_element_timing_planner(self.element_timing_planner)
+        # 注意：ElementTimingPlanner可能需要更新以支持ExpectationManager
 
     def _initialize_modular_managers(self):
         """初始化拆分后的模块管理器"""
@@ -976,13 +975,24 @@ class NovelGenerator:
                     print(f"    ⚠️ 获取事件上下文失败: {e}")
                     event_context = {}
             
-            print(f"  🎭 获取伏笔上下文...")
-            if hasattr(self, 'foreshadowing_manager') and hasattr(self.foreshadowing_manager, 'get_context'):
+            print(f"  🎭 获取期待感上下文...")
+            if hasattr(self, 'expectation_manager') and hasattr(self.expectation_manager, 'pre_generation_check'):
                 try:
-                    foreshadowing_context = self.foreshadowing_manager.get_context(chapter_num)
-                    print(f"    ✅ 伏笔上下文获取成功")
+                    # 使用期待感管理器的预生成检查
+                    expectation_constraints = self.expectation_manager.pre_generation_check(
+                        chapter_num,
+                        event_context
+                    )
+                    foreshadowing_context = {
+                        "expectation_constraints": expectation_constraints,
+                        "active_expectations": len([
+                            e for e in self.expectation_manager.expectations.values()
+                            if e.status.value in ["planted", "fermenting"]
+                        ])
+                    }
+                    print(f"    ✅ 期待感上下文获取成功: {len(expectation_constraints)}个约束")
                 except Exception as e:
-                    print(f"    ⚠️ 获取伏笔上下文失败: {e}")
+                    print(f"    ⚠️ 获取期待感上下文失败: {e}")
                     foreshadowing_context = {}
             
             print(f"  📈 获取成长规划上下文...")
@@ -1474,8 +1484,8 @@ class NovelGenerator:
             print("✅ 事件系统初始化完成")
         
         if self.novel_data["character_design"]:
-            self.initialize_foreshadowing_elements()
-            print("✅ 伏笔管理系统初始化完成")
+            # 期待感管理系统将在事件规划时自动初始化
+            print("✅ 期待感管理系统已就绪")
         
         print("✅ 第一阶段详细写作计划已生成")
 
@@ -1594,26 +1604,36 @@ class NovelGenerator:
 
     # ==================== 其他辅助方法 ====================
 
-    def initialize_foreshadowing_elements(self):
-        """初始化需要铺垫的重要元素"""
+    def initialize_expectation_elements(self):
+        """初始化需要铺垫的重要元素（使用期待感系统）"""
         if self.novel_data["core_worldview"]:
             factions = self.novel_data["core_worldview"].get("major_factions", [])
             for i, faction in enumerate(factions):
                 intro_chapter = 10 + (i * 15)
-                self.foreshadowing_manager.register_element(
-                    "factions", faction, "major", min(intro_chapter, 50)
+                # 使用期待感系统注册势力
+                self.expectation_manager.tag_event_with_expectation(
+                    event_id=f"faction_{faction}",
+                    expectation_type=ExpectationType.MYSTERY_FORESHADOW,
+                    planting_chapter=1,
+                    description=f"势力 '{faction}' 的介绍和铺垫",
+                    target_chapter=min(intro_chapter, 50)
                 )
-                print(f"✓ 从世界观注册势力伏笔: {faction}")
+                print(f"✓ 从世界观注册势力期待: {faction}")
         
         if self.novel_data["character_design"]:
             important_chars = self.novel_data["character_design"].get("important_characters", [])
             for i, char in enumerate(important_chars):
                 if i < 3:
                     intro_chapter = 5 + (i * 8)
-                    self.foreshadowing_manager.register_element(
-                        "characters", char["name"], "major", intro_chapter
+                    # 使用期待感系统注册角色
+                    self.expectation_manager.tag_event_with_expectation(
+                        event_id=f"character_{char['name']}",
+                        expectation_type=ExpectationType.MYSTERY_FORESHADOW,
+                        planting_chapter=1,
+                        description=f"角色 '{char['name']}' 的介绍和铺垫",
+                        target_chapter=intro_chapter
                     )
-                    print(f"✓ 从角色设计注册角色伏笔: {char['name']}")
+                    print(f"✓ 从角色设计注册角色期待: {char['name']}")
 
     def _save_writing_style_to_file(self, writing_style: Dict):
         """保存写作风格指南到JSON文件"""
