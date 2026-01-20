@@ -307,13 +307,29 @@ class ProductLoader:
         writing_plans = quality_data.get("writing_plans", {})
         if writing_plans:
             self.logger.info(f"[PRODUCTS_DEBUG] 从quality_data找到 {len(writing_plans)} 个写作计划")
+            
+            # 🔥 修复：合并所有阶段的写作计划，而不是只取第一个
+            all_stages = {}
+            stage_names = []
+            
             for stage_name, plan_data in writing_plans.items():
                 if plan_data and isinstance(plan_data, dict):
-                    products['writing']['content'] = json.dumps(plan_data, ensure_ascii=False, indent=2)
-                    products['writing']['complete'] = True
-                    products['writing']['file_path'] = f"quality_data/writing_plans/{stage_name}"
-                    self.logger.info(f"从quality_data加载写作计划: {stage_name}")
-                    break
+                    all_stages[stage_name] = plan_data
+                    stage_names.append(stage_name)
+                    self.logger.info(f"  收集阶段: {stage_name}")
+            
+            if all_stages:
+                # 创建合并后的写作计划（与_load_writing_plans中的格式一致）
+                merged_plan = {
+                    'stage_names': stage_names,
+                    'total_stages': len(stage_names),
+                    'stages': all_stages
+                }
+                
+                products['writing']['content'] = json.dumps(merged_plan, ensure_ascii=False, indent=2)
+                products['writing']['complete'] = True
+                products['writing']['file_path'] = f"quality_data/writing_plans/merged"
+                self.logger.info(f"从quality_data加载合并的写作计划: {len(stage_names)} 个阶段 ({stage_names})")
     
     def _load_from_standard_structure(self, products):
         if not products['worldview']['complete']:
@@ -321,6 +337,9 @@ class ProductLoader:
         
         if not products['characters']['complete']:
             self._load_characters(products)
+        
+        if not products['growth']['complete']:
+            self._load_growth_plan(products)
         
         if not products['writing']['complete']:
             self._load_writing_plans(products)
@@ -480,6 +499,52 @@ class ProductLoader:
                 except Exception as e:
                     self.logger.error(f"加载writing计划失败: {e}")
     
+    def _load_growth_plan(self, products):
+        """加载成长路线文件"""
+        self.logger.info(f"[GROWTH_DEBUG] 开始加载成长路线: original_title={self.original_title}, safe_title={self.safe_title}")
+        self.logger.info(f"[GROWTH_DEBUG] 项目目录: {self.project_dir}")
+        self.logger.info(f"[GROWTH_DEBUG] 项目目录是否存在: {self.project_dir.exists()}")
+        
+        growth_dirs = [
+            self.project_dir / "planning",
+            self.project_dir / "materials" / "phase_one_products"
+        ]
+        
+        for idx, growth_dir in enumerate(growth_dirs):
+            self.logger.info(f"[GROWTH_DEBUG] 检查目录 {idx}: {growth_dir}, 存在: {growth_dir.exists()}")
+            
+            if not growth_dir.exists():
+                continue
+            
+            # 尝试多种可能的文件名模式
+            patterns = [
+                f"{self.original_title}_成长路线.json",
+                f"{self.safe_title}_成长路线.json",
+                "*_成长路线.json",
+                "*growth*.json"
+            ]
+            
+            for pattern in patterns:
+                self.logger.info(f"[GROWTH_DEBUG]  搜索模式: {pattern}")
+                matching_files = list(growth_dir.glob(pattern))
+                self.logger.info(f"[GROWTH_DEBUG]  找到文件数: {len(matching_files)}")
+                if matching_files:
+                    self.logger.info(f"[GROWTH_DEBUG]  文件列表: {[f.name for f in matching_files]}")
+                
+                if matching_files:
+                    try:
+                        with open(matching_files[0], 'r', encoding='utf-8') as f:
+                            data = json.load(f)
+                        products['growth']['content'] = json.dumps(data, ensure_ascii=False, indent=2)
+                        products['growth']['complete'] = True
+                        products['growth']['file_path'] = str(matching_files[0])
+                        self.logger.info(f"已加载产物: growth (从 {matching_files[0].name})")
+                        return
+                    except Exception as e:
+                        self.logger.error(f"加载growth计划失败: {e}")
+        
+        self.logger.info(f"[GROWTH_DEBUG] 未找到成长路线文件")
+    
     def _load_market_analysis(self, products):
         market_dirs = [
             self.project_dir / "market_analysis",
@@ -524,16 +589,40 @@ class ProductLoader:
                         stage_data = writing_data['stages'][stage_name]
                         stage_plan = stage_data.get('stage_writing_plan', {})
                         
+                        # 🔥 新增：优先检查stage_plan中是否已经有expectation_map
+                        expectation_map = stage_plan.get('expectation_map')
+                        if expectation_map:
+                            all_expectation_maps[stage_name] = expectation_map
+                            total_exp = len(expectation_map.get('expectations', {}))
+                            self.logger.info(f"[STORYLINE] 从{stage_name}加载已有的期待感映射: {total_exp} 个期待")
+                        
                         # 提取该阶段的重大事件
                         major_events = stage_plan.get('event_system', {}).get('major_events', [])
                         # 🔥 修复：也提取特殊情感事件
                         special_emotional_events = stage_plan.get('event_system', {}).get('special_emotional_events', [])
+                        
+                        # 🔥 修复：无论是否有事件，都添加stage_info
+                        stage_info.append({
+                            'stage_name': stage_name,
+                            'chapter_range': stage_plan.get('chapter_range', ''),
+                            'major_event_count': len(major_events)
+                        })
                         
                         if major_events:
                             # 为每个事件添加阶段信息和中级事件
                             for event in major_events:
                                 event['_stage'] = stage_name
                                 event['_chapter_range'] = stage_plan.get('chapter_range', '')
+                                
+                                # 🔥 新增：解析起始章节用于排序
+                                chapter_range = event.get('chapter_range', '1-10')
+                                try:
+                                    from src.managers.StagePlanUtils import parse_chapter_range
+                                    start_ch, _ = parse_chapter_range(chapter_range)
+                                    event['_start_chapter'] = start_ch
+                                except:
+                                    event['_start_chapter'] = 1
+                                
                                 # 确保 composition 中的中级事件也添加到事件对象中
                                 # 保留所有原始字段，包括 special_events
                                 if 'composition' in event:
@@ -557,18 +646,10 @@ class ProductLoader:
                                     event['special_emotional_events'] = special_emotional_events
                             
                             all_major_events.extend(major_events)
-                            
-                            stage_info.append({
-                                'stage_name': stage_name,
-                                'chapter_range': stage_plan.get('chapter_range', ''),
-                                'major_event_count': len(major_events)
-                            })
-                            
-                            # 🔥 新增：提取该阶段的期待感映射
-                            expectation_map = stage_plan.get('expectation_map')
-                            if expectation_map:
-                                all_expectation_maps[stage_name] = expectation_map
-                                self.logger.info(f"[EXPECTATION_MAP] 提取阶段 {stage_name} 的期待感映射: {len(expectation_map.get('expectations', {}))} 个期待")
+                
+                # 🔥 新增：按章节顺序排序所有事件
+                all_major_events.sort(key=lambda e: e.get('_start_chapter', 1))
+                self.logger.info(f"[STORYLINE_DEBUG] 按章节排序后的事件顺序: {[(e.get('name'), e.get('_start_chapter')) for e in all_major_events]}")
                 
                 if all_major_events:
                     storyline_data = {
@@ -576,6 +657,10 @@ class ProductLoader:
                         'total_major_events': len(all_major_events),
                         'major_events': all_major_events
                     }
+                    # 🔥 新增：打印调试信息
+                    stage_names_debug = [s.get('stage_name', 'unknown') for s in stage_info]
+                    logger.info(f"[STORYLINE_DEBUG] 提取的故事线包含阶段: {stage_names_debug}")
+                    logger.info(f"[STORYLINE_DEBUG] 总事件数: {len(all_major_events)}, 各阶段事件数: {[(s.get('stage_name'), s.get('major_event_count')) for s in stage_info]}")
                     
                     # 🔥 新增：添加期待感映射到故事线数据
                     if all_expectation_maps:
@@ -688,12 +773,21 @@ class ProductLoader:
                                     # 从所有阶段提取重大事件
                                     stage_name_to_events = {}  # 存储每个阶段的事件
                                     stage_name_to_info = {}  # 存储阶段信息
+                                    all_expectation_maps = {}  # 🔥 新增：收集所有阶段的期待感映射
                                     
                                     for stage_name, stage_file in sorted_pairs:
                                         with open(stage_file, 'r', encoding='utf-8') as f:
                                             stage_data = json.load(f)
                                         
                                         stage_plan = stage_data.get('stage_writing_plan', {})
+                                        
+                                        # 🔥 新增：优先检查stage_plan中是否已经有expectation_map
+                                        expectation_map = stage_plan.get('expectation_map')
+                                        if expectation_map:
+                                            all_expectation_maps[stage_name] = expectation_map
+                                            total_exp = len(expectation_map.get('expectations', {}))
+                                            self.logger.info(f"[STORYLINE] 从{stage_name}加载已有的期待感映射: {total_exp} 个期待")
+                                        
                                         major_events = stage_plan.get('event_system', {}).get('major_events', [])
                                         # 🔥 修复：也提取特殊情感事件
                                         special_emotional_events = stage_plan.get('event_system', {}).get('special_emotional_events', [])
@@ -751,6 +845,13 @@ class ProductLoader:
                                             'total_major_events': len(all_major_events),
                                             'major_events': all_major_events
                                         }
+                                        
+                                        # 🔥 新增：添加期待感映射到故事线数据
+                                        if all_expectation_maps:
+                                            storyline_data['expectation_maps'] = all_expectation_maps
+                                            total_expectations = sum(len(em.get('expectations', {})) for em in all_expectation_maps.values())
+                                            self.logger.info(f"[EXPECTATION_MAP] 添加期待感映射到故事线(旧格式): {len(all_expectation_maps)} 个阶段, 共 {total_expectations} 个期待")
+                                        
                                         products[category]['content'] = json.dumps(storyline_data, ensure_ascii=False, indent=2)
                                         products[category]['complete'] = True
                                         products[category]['file_path'] = str(plans_dir)
@@ -1482,6 +1583,9 @@ def register_additional_routes(app):
                     if 'stage_info' in storyline_content and 'major_events' in storyline_content:
                         storyline_data = storyline_content
                         logger.info(f"[STORYLINE] 使用storyline产物数据: {len(storyline_content.get('stage_info', []))} 个阶段, {len(storyline_content.get('major_events', []))} 个重大事件")
+                        # 🔥 新增：打印所有阶段名称
+                        stage_names = [s.get('stage_name', 'unknown') for s in storyline_content.get('stage_info', [])]
+                        logger.info(f"[STORYLINE] 包含的阶段: {stage_names}")
                         
                         # 🔥 修复：提取期待感映射
                         if 'expectation_maps' in storyline_content:
@@ -1576,7 +1680,11 @@ def register_additional_routes(app):
                         
                         # 为每个重大事件添加期待感标签
                         for event in major_events:
+                            # 🔥 修复：优先使用事件的id字段，如果没有id才使用name
+                            # 确保与PhaseGenerator中的逻辑一致（event.get("id", f"event_{event_name}")）
+                            event_id = event.get('id') or f"event_{event.get('name', '未命名事件')}"
                             event_name = event.get('name', '未命名事件')
+                            
                             # 自动选择期待类型
                             exp_type = select_expectation_type(event)
                             
@@ -1591,7 +1699,7 @@ def register_additional_routes(app):
                             
                             # 种植期待
                             exp_id = expectation_manager.tag_event_with_expectation(
-                                event_id=event_name,
+                                event_id=event_id,  # 🔥 修复：使用event_id而不是event_name
                                 expectation_type=exp_type,
                                 planting_chapter=start_ch,
                                 description=f"{event_name}: {event.get('main_goal', '')[:80]}...",
@@ -1764,6 +1872,8 @@ def register_additional_routes(app):
                         
                         # 为每个重大事件添加期待感标签
                         for event in major_events:
+                            # 🔥 修复：优先使用事件的id字段，确保与PhaseGenerator中的逻辑一致
+                            event_id = event.get('id') or f"event_{event.get('name', '未命名事件')}"
                             event_name = event.get('name', '未命名事件')
                             exp_type = select_expectation_type(event)
                             
@@ -1776,7 +1886,7 @@ def register_additional_routes(app):
                                 target_ch = end_ch
                             
                             exp_id = expectation_manager.tag_event_with_expectation(
-                                event_id=event_name,
+                                event_id=event_id,  # 🔥 修复：使用event_id而不是event_name
                                 expectation_type=exp_type,
                                 planting_chapter=start_ch,
                                 description=f"{event_name}: {event.get('main_goal', '')[:80]}...",
@@ -1794,7 +1904,7 @@ def register_additional_routes(app):
             
             # ========== 最后：将期待感映射添加到故事线数据中 ==========
             if storyline_data and expectation_map:
-                storyline_data['expectation_map'] = expectation_map
+                storyline_data['expectation_maps'] = expectation_map  # 🔥 修复：使用复数形式 expectation_maps
                 
                 # 🔥 新增：详细的调试日志
                 if isinstance(expectation_map, dict):

@@ -638,31 +638,135 @@ document.addEventListener('keydown', function(event) {
 // ==================== 期待感相关功能（新增）====================
 
 function getExpectationBadge(event) {
-    // 获取事件的期待感标签
-    if (!currentStorylineData.expectation_map) {
+    // 🔥 优先从事件对象的 expectation_tag 字段获取
+    if (event.expectation_tag && event.expectation_tag.type) {
+        console.log('[EXPECTATION_DEBUG] 从事件对象获取期待感标签:', event.expectation_tag.type);
+        return createExpectationBadgeHTML(event.expectation_tag.type, event.expectation_tag.status || 'planted');
+    }
+    
+    // 备用：从 expectation_map 中查找（保持向后兼容）
+    const expectationMaps = currentStorylineData.expectation_maps || currentStorylineData.expectation_map;
+    
+    if (!expectationMaps) {
+        console.log('[EXPECTATION_DEBUG] 没有期待感映射数据');
         return '';
     }
     
-    const expectations = currentStorylineData.expectation_map.expectations || {};
-    const eventExpectations = Object.values(expectations).filter(exp =>
-        exp.description && exp.description.includes(event.name || event.main_goal || '')
+    console.log('[EXPECTATION_DEBUG] expectation_maps类型:', typeof expectationMaps);
+    console.log('[EXPECTATION_DEBUG] expectation_maps键:', Object.keys(expectationMaps));
+    console.log('[EXPECTATION_DEBUG] 当前事件:', event.name, event.main_goal);
+    console.log('[EXPECTATION_DEBUG] 事件id:', event.id);
+    
+    // 收集所有阶段的期待感
+    let allExpectations = [];
+    
+    // 检查是否是多阶段格式
+    const stageNames = Object.keys(expectationMaps);
+    const isMultiStage = stageNames.some(key =>
+        ['opening_stage', 'development_stage', 'climax_stage', 'ending_stage'].includes(key) ||
+        ['opening', 'development', 'climax', 'ending'].includes(key)
     );
+    
+    if (isMultiStage) {
+        console.log('[EXPECTATION_DEBUG] 检测到多阶段格式');
+        // 多阶段格式：遍历所有阶段
+        stageNames.forEach(stageName => {
+            const stageMap = expectationMaps[stageName];
+            if (stageMap && stageMap.expectations) {
+                const stageExpectations = Object.values(stageMap.expectations);
+                allExpectations.push(...stageExpectations);
+                console.log(`[EXPECTATION_DEBUG] 阶段 ${stageName} 包含 ${stageExpectations.length} 个期待`);
+            }
+        });
+    } else {
+        console.log('[EXPECTATION_DEBUG] 检测到单阶段格式');
+        // 单阶段格式：直接使用 expectations
+        if (expectationMaps.expectations) {
+            allExpectations = Object.values(expectationMaps.expectations);
+            console.log('[EXPECTATION_DEBUG] 单阶段包含', allExpectations.length, '个期待');
+        }
+    }
+    
+    console.log('[EXPECTATION_DEBUG] 总共收集到', allExpectations.length, '个期待');
+    
+    // 🔥 新增：打印所有期待的event_id和description用于调试
+    allExpectations.forEach((exp, idx) => {
+        console.log(`[EXPECTATION_DEBUG] 期待${idx}: event_id=${exp.event_id}, description前50字符=${exp.description ? exp.description.substring(0, 50) : '无'}`);
+    });
+    
+    // 通过事件ID或名称匹配期待感
+    const eventExpectations = allExpectations.filter(exp => {
+        // 🔥 优先通过event_id匹配
+        if (event.id && exp.event_id === event.id) {
+            console.log('[EXPECTATION_DEBUG] ✅ 通过ID匹配到期待:', exp.event_id);
+            return true;
+        }
+        
+        // 🔥 如果事件没有id，从event_id中提取事件名称进行匹配
+        if (!event.id && exp.event_id && exp.event_id.startsWith('event_')) {
+            const expEventName = exp.event_id.replace('event_', '');
+            // 检查是否匹配事件名称（支持部分匹配）
+            if (expEventName === event.name || (event.main_goal && event.main_goal.includes(expEventName))) {
+                console.log('[EXPECTATION_DEBUG] ✅ 从event_id提取名称匹配到期待:', expEventName);
+                return true;
+            }
+        }
+        
+        // 🔥 通过事件名称的简短部分匹配（提取冒号前的部分）
+        const shortName = event.name ? event.name.split('：')[0].split(':')[0].trim() : '';
+        const shortMainGoal = event.main_goal ? event.main_goal.split('：')[0].split(':')[0].trim() : '';
+        const matchName = shortName || shortMainGoal;
+        
+        if (matchName && exp.description && exp.description.includes(matchName)) {
+            console.log('[EXPECTATION_DEBUG] ✅ 通过简短名称匹配到期待:', matchName);
+            return true;
+        }
+        
+        // 🔥 备用：完整描述匹配
+        const eventName = event.name || event.main_goal || '';
+        if (exp.description && exp.description.includes(eventName)) {
+            console.log('[EXPECTATION_DEBUG] ✅ 通过完整名称匹配到期待:', eventName);
+            return true;
+        }
+        
+        return false;
+    });
+    
+    console.log('[EXPECTATION_DEBUG] 匹配到的期待数:', eventExpectations.length);
     
     if (eventExpectations.length === 0) {
         return '';
     }
     
     const expectation = eventExpectations[0];
+    return createExpectationBadgeHTML(expectation.type, expectation.status);
+}
+
+function createExpectationBadgeHTML(type, status) {
     const typeLabels = {
         'showcase': '展示橱窗',
         'suppression_release': '压抑释放',
         'nested_doll': '套娃期待',
         'emotional_hook': '情绪钩子',
         'power_gap': '实力差距',
-        'mystery_foreshadow': '伏笔揭秘'
+        'mystery_foreshadow': '伏笔揭秘',
+        'pig_eats_tiger': '扮猪吃虎',
+        'show_off_face_slap': '装逼打脸',
+        'identity_reveal': '身份反转',
+        'beauty_favor': '美人恩',
+        'fortuitous_encounter': '机缘巧合',
+        'competition': '比试切磋',
+        'auction_treasure': '拍卖会争宝',
+        'secret_realm_exploration': '秘境探险',
+        'alchemy_crafting': '炼丹炼器',
+        'formation_breaking': '阵法破解',
+        'sect_mission': '宗门任务',
+        'cross_world_teleport': '跨界传送',
+        'crisis_rescue': '危机救援',
+        'master_inheritance': '师恩传承'
     };
     
-    const typeLabel = typeLabels[expectation.type] || expectation.type;
+    const typeLabel = typeLabels[type] || type;
     const statusLabels = {
         'planted': '已种植',
         'fermenting': '发酵中',
@@ -671,7 +775,7 @@ function getExpectationBadge(event) {
         'failed': '失败'
     };
     
-    const statusLabel = statusLabels[expectation.status] || expectation.status;
+    const statusLabel = statusLabels[status] || status;
     const statusColors = {
         'planted': '#10b981',
         'fermenting': '#f59e0b',
@@ -680,7 +784,7 @@ function getExpectationBadge(event) {
         'failed': '#ef4444'
     };
     
-    const statusColor = statusColors[expectation.status] || '#6b7280';
+    const statusColor = statusColors[status] || '#6b7280';
     
     return `
         <span class="event-badge badge-expectation" title="期待感: ${typeLabel}\n状态: ${statusLabel}">
@@ -692,14 +796,69 @@ function getExpectationBadge(event) {
 
 function getExpectationInfo(event) {
     // 获取事件的期待感详细信息
-    if (!currentStorylineData.expectation_map) {
+    // 🔥 修复：支持多阶段格式 expectation_maps 和单阶段格式 expectation_map
+    const expectationMaps = currentStorylineData.expectation_maps || currentStorylineData.expectation_map;
+    
+    if (!expectationMaps) {
         return null;
     }
     
-    const expectations = currentStorylineData.expectation_map.expectations || {};
-    const eventExpectations = Object.values(expectations).filter(exp =>
-        exp.description && exp.description.includes(event.name || event.main_goal || '')
-    );
+    // 收集所有阶段的期待感
+    let allExpectations = [];
+    
+    // 检查是否是多阶段格式
+    const stageNames = Object.keys(expectationMaps);
+    const isMultiStage = stageNames.some(key => ['opening', 'development', 'climax', 'ending'].includes(key));
+    
+    if (isMultiStage) {
+        // 多阶段格式：遍历所有阶段
+        stageNames.forEach(stageName => {
+            const stageMap = expectationMaps[stageName];
+            if (stageMap && stageMap.expectations) {
+                const stageExpectations = Object.values(stageMap.expectations);
+                allExpectations.push(...stageExpectations);
+            }
+        });
+    } else {
+        // 单阶段格式：直接使用 expectations
+        if (expectationMaps.expectations) {
+            allExpectations = Object.values(expectationMaps.expectations);
+        }
+    }
+    
+    // 通过事件ID或名称匹配期待感
+    const eventExpectations = allExpectations.filter(exp => {
+        // 🔥 优先通过event_id匹配
+        if (event.id && exp.event_id === event.id) {
+            return true;
+        }
+        
+        // 🔥 如果事件没有id，从event_id中提取事件名称进行匹配
+        if (!event.id && exp.event_id && exp.event_id.startsWith('event_')) {
+            const expEventName = exp.event_id.replace('event_', '');
+            // �n            // 检查是否匹配事件名称（支持部分匹配）
+            if (expEventName === event.name || (event.main_goal && event.main_goal.includes(expEventName))) {
+                return true;
+            }
+        }
+        
+        // 🔥 通过事件名称的简短部分匹配（提取冒号前的部分）
+        const shortName = event.name ? event.name.split('：')[0].split(':')[0].trim() : '';
+        const shortMainGoal = event.main_goal ? event.main_goal.split('：')[0].split(':')[0].trim() : '';
+        const matchName = shortName || shortMainGoal;
+        
+        if (matchName && exp.description && exp.description.includes(matchName)) {
+            return true;
+        }
+        
+        // 🔥 备用：完整描述匹配
+        const eventName = event.name || event.main_goal || '';
+        if (exp.description && exp.description.includes(eventName)) {
+            return true;
+        }
+        
+        return false;
+    });
     
     if (eventExpectations.length === 0) {
         return null;
@@ -711,8 +870,22 @@ function getExpectationInfo(event) {
         'suppression_release': '压抑与释放',
         'nested_doll': '套娃式期待',
         'emotional_hook': '情绪钩子',
-        'power_gap': '实力差距',
-        'mystery_foreshadow': '伏笔揭秘'
+        'power_gap': '实力差距期待',
+        'mystery_foreshadow': '伏笔揭秘期待',
+        'pig_eats_tiger': '扮猪吃虎',
+        'show_off_face_slap': '装逼打脸',
+        'identity_reveal': '身份反转',
+        'beauty_favor': '美人恩',
+        'fortuitous_encounter': '机缘巧合',
+        'competition': '比试切磋',
+        'auction_treasure': '拍卖会争宝',
+        'secret_realm_exploration': '秘境探险',
+        'alchemy_crafting': '炼丹炼器',
+        'formation_breaking': '阵法破解',
+        'sect_mission': '宗门任务',
+        'cross_world_teleport': '跨界传送',
+        'crisis_rescue': '危机救援',
+        'master_inheritance': '师恩传承'
     };
     
     const typeLabel = typeLabels[expectation.type] || expectation.type;
