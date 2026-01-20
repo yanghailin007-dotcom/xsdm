@@ -408,20 +408,44 @@ class WorldStateManager:
             self.logger.info(f"❌ 保存金钱账本失败: {e}")
             return False
     def _death_validator(self, novel_title: str, actor_name: str, chapter_number: int) -> Tuple[bool, str]:
+        """
+        🔧 修复版死亡验证器 - 只检查character_development.json作为唯一真实来源
+        
+        修复要点:
+        1. 只从character_development.json读取角色状态
+        2. 未找到角色时返回False(拒绝)而不是True(允许)
+        3. 同时检查status和attributes.status两个字段
+        4. 提供更详细的错误信息
+        """
         character_file = os.path.join(self.storage_path, f"{novel_title}_character_development.json")
+        
         if not os.path.exists(character_file):
-            return True, "no character file"
+            return False, f"角色发展表不存在,这是首次生成但角色{actor_name}尚未被创建"
+        
         try:
             with open(character_file, 'r', encoding='utf-8') as f:
                 chars = json.load(f)
-        except:
-            return True, "cannot read character file"
+        except Exception as e:
+            self.logger.info(f"❌ 读取角色发展表失败: {e}")
+            return False, f"无法读取角色发展表: {e}"
+        
         char = chars.get(actor_name)
         if not char:
-            return True, "unknown character"
-        status = char.get('status', '').lower()
-        if status in ['死亡', 'dead', '已故']:
-            return False, f"角色 {actor_name} 已被记录为死亡 (status={status})，阻止后续行为。"
+            # 🔧 修复: 未找到角色时返回False,不允许未知角色继续
+            return False, f"角色 {actor_name} 不存在于角色发展表中,无法验证其状态。请先创建角色或检查角色名称是否正确。"
+        
+        # 🔧 修复: 检查多个可能的status字段位置
+        # 1. 顶层的status字段
+        status = char.get('status', 'active').lower()
+        if status in ['死亡', 'dead', '已故', '阵亡', '牺牲', 'exited', '退场']:
+            return False, f"角色 {actor_name} 已被记录为死亡/退场 (status={status}),在第{chapter_number}章阻止后续行为。"
+        
+        # 2. attributes中的status字段
+        attributes = char.get('attributes', {})
+        attr_status = attributes.get('status', 'active').lower()
+        if attr_status in ['死亡', 'dead', '已故', '阵亡', '牺牲', 'exited', '退场']:
+            return False, f"角色 {actor_name} 的attributes中标记为死亡/退场 (status={attr_status}),在第{chapter_number}章阻止后续行为。"
+        
         return True, "ok"
     # ---------------- Validator engine ----------------
     def register_validator(self, name: str, fn: Callable[[str, Dict], Tuple[bool, str]]):
@@ -889,41 +913,57 @@ class WorldStateManager:
             self.logger.info(f"   {category}: {len(elements)} 个元素")
         return cleaned_changes
     def initialize_world_state_from_novel_data(self, novel_title: str, novel_data: Dict):
-        """基于小说数据初始化世界状态"""
+        """
+        🔧 修复版: 基于小说数据初始化世界状态
+        
+        修复要点:
+        1. 不再在world_state中维护characters字段
+        2. 使用标准的cultivation_items和cultivation_skills分类
+        3. 角色信息统一由character_development.json管理
+        """
+        # 🔧 修复: 不再初始化characters字段,角色信息统一由character_development.json管理
         world_state = {
-            "characters": {},
-            "items": {},
+            # "characters": {},  # ← 移除这个字段,角色状态统一由character_development.json管理
+            "cultivation_items": {},  # 使用标准分类
+            "cultivation_skills": {},  # 使用标准分类
             "relationships": {},
-            "skills": {},
-            "locations": {}
+            "locations": {},
+            "economy": {}  # 新增: 经济系统
         }
-        # 从角色设计中提取角色信息
-        character_design = novel_data.get("character_design", {})
-        if character_design:
-            # 处理主角
-            main_character = character_design.get("main_character", {})
-            if main_character:
-                name = main_character.get("name", "主角")
-                world_state["characters"][name] = {
-                    "first_appearance": 1,
-                    "description": main_character.get("personality", ""),
-                    "attributes": main_character.get("attributes", {}),
-                    "last_updated": 1
-                }
-            # 处理配角
-            supporting_characters = character_design.get("supporting_characters", [])
-            for char in supporting_characters:
-                name = char.get("name", "")
-                if name:
-                    world_state["characters"][name] = {
-                        "first_appearance": 1,
-                        "description": char.get("personality", ""),
-                        "attributes": char.get("attributes", {}),
-                        "last_updated": 1
-                    }
-        # 从世界观中提取地点、物品等信息
+        
+        # 从世界观中提取物品、功法、地点等信息
         worldview = novel_data.get("core_worldview", {})
         if worldview:
+            # 🔧 修复: 使用标准的cultivation_items分类
+            items = worldview.get("items", [])
+            for item in items:
+                name = item.get("name", "")
+                if name:
+                    world_state["cultivation_items"][name] = {
+                        "owner": item.get("owner", ""),
+                        "status": item.get("status", "完好"),
+                        "type": item.get("type", "物品"),
+                        "description": item.get("description", ""),
+                        "first_appearance": 1,
+                        "last_updated": 1,
+                        "update_count": 1
+                    }
+            
+            # 🔧 修复: 使用标准的cultivation_skills分类
+            skills = worldview.get("skills", [])
+            for skill in skills:
+                name = skill.get("name", "")
+                if name:
+                    world_state["cultivation_skills"][name] = {
+                        "owner": skill.get("owner", ""),
+                        "level": skill.get("level", "初学"),
+                        "type": skill.get("type", "功法"),
+                        "description": skill.get("description", ""),
+                        "first_appearance": 1,
+                        "last_updated": 1,
+                        "update_count": 1
+                    }
+            
             # 提取地点
             locations = worldview.get("locations", [])
             for loc in locations:
@@ -931,28 +971,20 @@ class WorldStateManager:
                 if name:
                     world_state["locations"][name] = {
                         "description": loc.get("description", ""),
+                        "type": loc.get("type", "地点"),
                         "first_appearance": 1,
                         "last_updated": 1
                     }
-            # 提取物品
-            items = worldview.get("items", [])
-            for item in items:
-                name = item.get("name", "")
-                if name:
-                    world_state["items"][name] = {
-                        "owner": item.get("owner", ""),
-                        "status": item.get("status", ""),
-                        "first_appearance": 1,
-                        "last_updated": 1
-                    }
+        
         # 保存初始世界状态
         state_file = os.path.join(self.storage_path, f"{novel_title}_world_state.json")
         try:
             with open(state_file, 'w', encoding='utf-8') as f:
                 json.dump(world_state, f, ensure_ascii=False, indent=2)
-            self.logger.info(f"✅ 从novel_data初始化世界状态成功，保存到 {state_file}")
+            self.logger.info(f"✅ 从novel_data初始化世界状态成功(无characters字段),保存到 {state_file}")
         except Exception as e:
             self.logger.info(f"❌ 保存初始世界状态失败: {e}")
+        
         return world_state
     def manage_character_development_table(self, novel_title: str, character_data: Dict,
                                         current_chapter: int, action: str = "update") -> Dict:
@@ -2841,6 +2873,491 @@ class WorldStateManager:
     def get_novel_world_state(self, novel_title: str) -> Dict:
         """获取小说的世界状态（ContentGenerator需要的接口）"""
         return self.load_previous_assessments(novel_title)
+    
+    # ========================================================================
+    # 📊 统一角色状态管理接口 - 方案A实施
+    # ========================================================================
+    def get_character_complete_state(self, novel_title: str, character_name: str) -> Dict:
+        """
+        获取角色的完整状态信息（聚合多源数据）
+        
+        这是统一的角色状态查询接口，自动聚合以下数据源：
+        1. character_development.json - 角色基础信息
+        2. world_state.json - 技能/物品
+        3. money_ledger.json - 金钱交易记录
+        
+        Args:
+            novel_title: 小说标题
+            character_name: 角色名称
+            
+        Returns:
+            角色完整状态字典，包含：
+            - 基础信息: 身份、重要性、出场次数等
+            - 状态属性: 修为、位置、金钱等
+            - 技能列表: 从world_state聚合
+            - 物品列表: 从world_state聚合
+            - 最近交易: 从ledger获取最近10条
+        """
+        self.logger.info(f"🔍 获取角色完整状态: {character_name}")
+        
+        # 1. 加载角色基础信息
+        character_development = self._load_character_development_data(novel_title)
+        char_data = character_development.get(character_name, {})
+        
+        if not char_data:
+            self.logger.info(f"⚠️ 角色 {character_name} 不存在于角色发展表中")
+            return {}
+        
+        # 2. 加载世界状态
+        world_state = self.load_previous_assessments(novel_title)
+        
+        # 3. 聚合技能
+        skills = self._aggregate_character_skills(world_state, character_name)
+        
+        # 4. 聚合物品
+        items = self._aggregate_character_items(world_state, character_name)
+        
+        # 5. 计算当前金钱（从ledger）
+        money = self._compute_money_balance(novel_title, character_name)
+        
+        # 6. 获取最近交易
+        recent_txs = self._get_recent_transactions(novel_title, character_name, limit=10)
+        
+        # 7. 构建完整状态
+        attributes = char_data.get("attributes", {})
+        
+        complete_state = {
+            "基础信息": {
+                "姓名": character_name,
+                "角色类型": char_data.get("role_type", ""),
+                "重要性": char_data.get("importance", "minor"),
+                "状态": char_data.get("status", "active"),
+                "首次出场章节": char_data.get("first_appearance_chapter", 0),
+                "最后更新章节": char_data.get("last_updated_chapter", 0),
+                "总出场次数": char_data.get("total_appearances", 1)
+            },
+            "状态属性": {
+                "修为等级": attributes.get("cultivation_level", "未知"),
+                "位置": attributes.get("location", "未知"),
+                "金钱": money,  # ← 从ledger计算，保证准确性
+                "门派": attributes.get("faction", ""),
+                "称号": attributes.get("title", ""),
+                "修为体系": attributes.get("cultivation_system", "未知")
+            },
+            "技能列表": skills,
+            "物品列表": items,
+            "最近交易": recent_txs,
+            "人际关系": char_data.get("relationship_network", {}),
+            "性格特征": char_data.get("personality_traits", {}),
+            "发展里程碑": char_data.get("development_milestones", []),
+            "名场面": char_data.get("iconic_scenes", [])
+        }
+        
+        self.logger.info(f"✅ 获取角色完整状态成功: {character_name}")
+        self.logger.info(f"   技能数: {len(skills)}, 物品数: {len(items)}, 最近交易: {len(recent_txs)}")
+        
+        return complete_state
+    
+    def _aggregate_character_skills(self, world_state: Dict, character_name: str) -> List[Dict]:
+        """聚合角色的所有技能"""
+        skills = []
+        cultivation_skills = world_state.get("cultivation_skills", {})
+        
+        for skill_name, skill_data in cultivation_skills.items():
+            if skill_data.get("owner") == character_name:
+                skills.append({
+                    "名称": skill_name,
+                    "类型": skill_data.get("type", ""),
+                    "等级": skill_data.get("level", ""),
+                    "品质": skill_data.get("quality", ""),
+                    "描述": skill_data.get("description", ""),
+                    "首次出现": skill_data.get("first_appearance", 0),
+                    "最后更新": skill_data.get("last_updated", 0)
+                })
+        
+        return skills
+    
+    def _aggregate_character_items(self, world_state: Dict, character_name: str) -> List[Dict]:
+        """聚合角色的所有物品"""
+        items = []
+        cultivation_items = world_state.get("cultivation_items", {})
+        
+        for item_name, item_data in cultivation_items.items():
+            if item_data.get("owner") == character_name:
+                items.append({
+                    "名称": item_name,
+                    "类型": item_data.get("type", ""),
+                    "品质": item_data.get("quality", ""),
+                    "状态": item_data.get("status", ""),
+                    "描述": item_data.get("description", ""),
+                    "首次出现": item_data.get("first_appearance", 0),
+                    "最后更新": item_data.get("last_updated", 0)
+                })
+        
+        return items
+    
+    def _get_recent_transactions(self, novel_title: str, character_name: str, limit: int = 10) -> List[Dict]:
+        """获取角色最近的交易记录"""
+        ledger_file = self._money_ledger_file(novel_title)
+        
+        if not os.path.exists(ledger_file):
+            return []
+        
+        try:
+            with open(ledger_file, 'r', encoding='utf-8') as f:
+                ledger = json.load(f)
+            
+            # 筛选该角色的交易
+            char_txs = [tx for tx in ledger if tx.get("character") == character_name]
+            
+            # 按时间排序（最新的在前）
+            char_txs.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
+            
+            return char_txs[:limit]
+        except Exception as e:
+            self.logger.info(f"❌ 读取交易记录失败: {e}")
+            return []
+    
+    def validate_character_data_consistency(self, novel_title: str, character_name: str) -> Dict:
+        """
+        验证角色数据的一致性
+        
+        检查项：
+        1. attributes.money vs ledger计算值
+        2. 物品/技能的owner是否指向有效角色
+        3. 死亡验证（防止死人复活）
+        
+        Args:
+            novel_title: 小说标题
+            character_name: 角色名称
+            
+        Returns:
+            {
+                "character": "角色名",
+                "is_consistent": True/False,
+                "issues": [问题列表]
+            }
+        """
+        self.logger.info(f"🔍 验证角色数据一致性: {character_name}")
+        
+        issues = []
+        
+        # 1. 加载数据
+        char_data = self._load_character_development_data(novel_title).get(character_name, {})
+        world_state = self.load_previous_assessments(novel_title)
+        
+        if not char_data:
+            return {
+                "character": character_name,
+                "is_consistent": False,
+                "issues": [{"type": "CHARACTER_NOT_FOUND", "severity": "高",
+                           "description": f"角色 {character_name} 不存在于角色发展表中"}]
+            }
+        
+        # 2. 验证金钱一致性
+        recorded_money = char_data.get("attributes", {}).get("money", 0)
+        calculated_money = self._compute_money_balance(novel_title, character_name)
+        
+        if abs(recorded_money - calculated_money) > 0.01:
+            issues.append({
+                "type": "MONEY_MISMATCH",
+                "severity": "高",
+                "description": f"角色{character_name}的attributes.money({recorded_money})与ledger计算值({calculated_money})不一致",
+                "suggestion": "以ledger计算值为准，更新attributes.money",
+                "recorded_value": recorded_money,
+                "calculated_value": calculated_money
+            })
+        
+        # 3. 验证物品owner
+        cultivation_items = world_state.get("cultivation_items", {})
+        for item_name, item_data in cultivation_items.items():
+            if item_data.get("owner") == character_name:
+                # 检查角色是否存在
+                if character_name not in char_data:
+                    issues.append({
+                        "type": "ORPHANED_ITEM",
+                        "severity": "中",
+                        "description": f"物品{item_name}的owner指向不存在的角色{character_name}",
+                        "suggestion": "更新物品的owner或删除该物品"
+                    })
+        
+        # 4. 验证技能owner
+        cultivation_skills = world_state.get("cultivation_skills", {})
+        for skill_name, skill_data in cultivation_skills.items():
+            if skill_data.get("owner") == character_name:
+                if character_name not in char_data:
+                    issues.append({
+                        "type": "ORPHANED_SKILL",
+                        "severity": "中",
+                        "description": f"技能{skill_name}的owner指向不存在的角色{character_name}",
+                        "suggestion": "更新技能的owner或删除该技能"
+                    })
+        
+        # 5. 死亡验证（核心功能）
+        status = char_data.get("status", "active").lower()
+        attr_status = char_data.get("attributes", {}).get("status", "active").lower()
+        
+        dead_statuses = ["死亡", "dead", "已故", "阵亡", "牺牲", "exited", "退场"]
+        
+        if status in dead_statuses or attr_status in dead_statuses:
+            # 角色已死亡，检查是否有违规的活动记录
+            recent_txs = self._get_recent_transactions(novel_title, character_name, limit=5)
+            current_chapter = char_data.get("last_updated_chapter", 0)
+            
+            for tx in recent_txs:
+                tx_chapter = tx.get("chapter", 0)
+                if tx_chapter > current_chapter - 5:  # 死亡后5章内的交易
+                    issues.append({
+                        "type": "DEAD_CHARACTER_ACTIVITY",
+                        "severity": "高",
+                        "description": f"已死亡角色{character_name}在第{tx_chapter}章有交易记录（金额:{tx.get('amount')}）",
+                        "suggestion": "删除该交易记录或检查角色死亡时间",
+                        "transaction": tx
+                    })
+            
+            # 检查物品获取
+            for item_name, item_data in cultivation_items.items():
+                if item_data.get("owner") == character_name:
+                    item_first = item_data.get("first_appearance", 0)
+                    if item_first > current_chapter - 5:  # 死亡后5章内获得的物品
+                        issues.append({
+                            "type": "DEAD_CHARACTER_ITEM",
+                            "severity": "高",
+                            "description": f"已死亡角色{character_name}在第{item_first}章获得了物品{item_name}",
+                            "suggestion": "删除该物品记录或检查角色死亡时间"
+                        })
+        
+        return {
+            "character": character_name,
+            "is_consistent": len(issues) == 0,
+            "issues": issues
+        }
+    
+    def update_character_state(self, novel_title: str, character_name: str,
+                              state_updates: Dict, chapter_number: int,
+                              allow_revival: bool = False, revival_reason: str = "") -> bool:
+        """
+        统一的角色状态更新接口
+        
+        自动处理多源数据的同步更新，确保数据一致性
+        
+        Args:
+            novel_title: 小说标题
+            character_name: 角色名称
+            state_updates: 状态更新字典，格式：
+                {
+                    "attributes": {
+                        "cultivation_level": "金丹期",
+                        "location": "天宗",
+                        "money": 150,
+                        "status": "active"  # ← 死亡/复活状态更新
+                    },
+                    "skills": {
+                        "add": ["天罡剑诀"],
+                        "remove": [],
+                        "update": {
+                            "天罡剑诀": {"level": "大成"}
+                        }
+                    },
+                    "items": {
+                        "add": [
+                            {"name": "青云剑", "type": "法宝", "quality": "上品"}
+                        ],
+                        "remove": []
+                    }
+                }
+            chapter_number: 当前章节号
+            allow_revival: 是否允许复活已死亡角色（默认False）
+            revival_reason: 复活原因说明（当allow_revival=True时必须提供）
+            
+        Returns:
+            bool: 更新是否成功
+        
+        复活机制说明：
+            - 修仙小说中常有复活情节（转世、法宝救活、夺舍等）
+            - 如果allow_revival=True且提供了revival_reason，允许复活角色
+            - 复活操作会被记录到角色的发展里程碑中
+            - 正文生成时会根据复活状态调整角色描述
+        """
+        self.logger.info(f"🔄 更新角色状态: {character_name} (第{chapter_number}章)")
+        if allow_revival:
+            self.logger.info(f"   ⚠️ 复活模式已启用: {revival_reason}")
+        
+        try:
+            # 🔒 首先进行死亡验证
+            if "attributes" in state_updates:
+                new_status = state_updates["attributes"].get("status", "").lower()
+                
+                # 检查是否是设置死亡状态（总是允许）
+                if new_status in ["死亡", "dead", "已故", "阵亡", "牺牲", "exited", "退场"]:
+                    self.logger.info(f"   ⚰️ 设置死亡状态，跳过验证")
+                # 检查是否是复活操作
+                elif allow_revival and new_status in ["active", "活跃", "alive"]:
+                    # 允许复活，但需要验证复活原因
+                    if not revival_reason:
+                        self.logger.info(f"❌ 复活操作需要提供复活原因")
+                        return False
+                    
+                    # 检查角色是否确实已死亡
+                    char_data = self._load_character_development_data(novel_title).get(character_name, {})
+                    current_status = char_data.get("status", "active").lower()
+                    
+                    if current_status not in ["死亡", "dead", "已故", "阵亡", "牺牲", "exited", "退场"]:
+                        self.logger.info(f"⚠️ 角色 {character_name} 并未死亡，无需复活")
+                    else:
+                        self.logger.info(f"   ✅ 允许复活: {character_name} - {revival_reason}")
+                        
+                        # 记录复活里程碑
+                        revival_milestone = {
+                            "type": "复活",
+                            "chapter": chapter_number,
+                            "description": f"{character_name}在第{chapter_number}章复活",
+                            "reason": revival_reason,
+                            "timestamp": datetime.now().isoformat()
+                        }
+                        
+                        # 更新角色发展里程碑
+                        self.manage_character_development_table(
+                            novel_title,
+                            {
+                                "name": character_name,
+                                "development_milestones": [revival_milestone]
+                            },
+                            chapter_number,
+                            "update"
+                        )
+                
+                else:
+                    # 普通更新，检查角色是否已死亡
+                    ok, msg = self._death_validator(novel_title, character_name, chapter_number)
+                    if not ok:
+                        self.logger.info(f"❌ 死亡验证失败: {msg}")
+                        self.logger.info(f"   💡 提示：如果这是有计划的复活操作，请设置 allow_revival=True 并提供 revival_reason")
+                        return False
+            
+            # 1. 更新角色基础信息
+            if "attributes" in state_updates:
+                self.manage_character_development_table(
+                    novel_title,
+                    {
+                        "name": character_name,
+                        "attributes": state_updates["attributes"]
+                    },
+                    chapter_number,
+                    "update"
+                )
+                self.logger.info(f"   ✅ 已更新attributes")
+            
+            # 2. 更新技能
+            if "skills" in state_updates:
+                self._update_character_skills(novel_title, character_name,
+                                             state_updates["skills"], chapter_number)
+                self.logger.info(f"   ✅ 已更新skills")
+            
+            # 3. 更新物品
+            if "items" in state_updates:
+                self._update_character_items(novel_title, character_name,
+                                            state_updates["items"], chapter_number)
+                self.logger.info(f"   ✅ 已更新items")
+            
+            # 4. 如果更新了金钱，记录到ledger
+            if "attributes" in state_updates and "money" in state_updates["attributes"]:
+                # 计算金钱变化
+                char_data = self._load_character_development_data(novel_title).get(character_name, {})
+                old_money = char_data.get("attributes", {}).get("money", 0)
+                new_money = state_updates["attributes"]["money"]
+                money_change = new_money - old_money
+                
+                if abs(money_change) > 0.01:
+                    # 记录到ledger
+                    self.append_money_tx(novel_title, {
+                        "character": character_name,
+                        "amount": money_change,
+                        "counterparty": "系统",
+                        "reason": "系统调整",
+                        "chapter": chapter_number
+                    })
+                    self.logger.info(f"   ✅ 已记录金钱变化: {money_change}")
+            
+            self.logger.info(f"✅ 角色状态更新成功: {character_name}")
+            return True
+            
+        except Exception as e:
+            self.logger.info(f"❌ 更新角色状态失败: {e}")
+            import traceback
+            traceback.print_exc()
+            return False
+    
+    def _update_character_skills(self, novel_title: str, character_name: str,
+                                skill_updates: Dict, chapter_number: int):
+        """更新角色的技能"""
+        world_state = self.load_previous_assessments(novel_title)
+        cultivation_skills = world_state.setdefault("cultivation_skills", {})
+        
+        # 添加新技能
+        for skill_name in skill_updates.get("add", []):
+            if skill_name not in cultivation_skills:
+                cultivation_skills[skill_name] = {
+                    "owner": character_name,
+                    "level": "初学",
+                    "type": "功法",
+                    "quality": "普通",
+                    "status": "学习中",
+                    "first_appearance": chapter_number,
+                    "last_updated": chapter_number
+                }
+                self.logger.info(f"      ➕ 新增技能: {skill_name}")
+        
+        # 更新技能
+        for skill_name, updates in skill_updates.get("update", {}).items():
+            if skill_name in cultivation_skills:
+                old_data = cultivation_skills[skill_name].copy()
+                cultivation_skills[skill_name].update(updates)
+                cultivation_skills[skill_name]["last_updated"] = chapter_number
+                self.logger.info(f"      🔄 更新技能: {skill_name} {old_data} -> {cultivation_skills[skill_name]}")
+        
+        # 删除技能
+        for skill_name in skill_updates.get("remove", []):
+            if skill_name in cultivation_skills:
+                del cultivation_skills[skill_name]
+                self.logger.info(f"      ❌ 删除技能: {skill_name}")
+        
+        # 保存
+        state_file = os.path.join(self.storage_path, f"{novel_title}_world_state.json")
+        with open(state_file, 'w', encoding='utf-8') as f:
+            json.dump(world_state, f, ensure_ascii=False, indent=2)
+    
+    def _update_character_items(self, novel_title: str, character_name: str,
+                               item_updates: Dict, chapter_number: int):
+        """更新角色的物品"""
+        world_state = self.load_previous_assessments(novel_title)
+        cultivation_items = world_state.setdefault("cultivation_items", {})
+        
+        # 添加新物品
+        for item_data in item_updates.get("add", []):
+            item_name = item_data.get("name")
+            if item_name and item_name not in cultivation_items:
+                cultivation_items[item_name] = {
+                    "owner": character_name,
+                    "type": item_data.get("type", "物品"),
+                    "quality": item_data.get("quality", "普通"),
+                    "status": item_data.get("status", "完好"),
+                    "description": item_data.get("description", ""),
+                    "first_appearance": chapter_number,
+                    "last_updated": chapter_number
+                }
+                self.logger.info(f"      ➕ 新增物品: {item_name}")
+        
+        # 删除物品
+        for item_name in item_updates.get("remove", []):
+            if item_name in cultivation_items:
+                del cultivation_items[item_name]
+                self.logger.info(f"      ❌ 删除物品: {item_name}")
+        
+        # 保存
+        state_file = os.path.join(self.storage_path, f"{novel_title}_world_state.json")
+        with open(state_file, 'w', encoding='utf-8') as f:
+            json.dump(world_state, f, ensure_ascii=False, indent=2)
     
     def _should_accept_new_character(self, character_name: str, character_data: Dict,
                                    existing_characters: Dict, current_chapter: int) -> bool:
