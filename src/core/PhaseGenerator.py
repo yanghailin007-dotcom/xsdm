@@ -512,13 +512,9 @@ class PhaseGenerator:
             paths = path_config.ensure_directories(self.generator.novel_data["novel_title"])
             print(f"✅ 项目目录已创建: {paths['project_root']}")
             
-            # 创建第一阶段目录结构
-            phase_one_dir = f"小说项目/{safe_title}_第一阶段设定"
-            os.makedirs(phase_one_dir, exist_ok=True)
-            print(f"📁 第一阶段目录: {phase_one_dir}")
-            
-            # 创建产物子目录
-            products_dir = f"{phase_one_dir}/产物"
+            # 不再创建单独的第一阶段目录，所有文件统一保存到主项目目录
+            # 产物文件将保存到materials/目录的子目录中
+            products_dir = f"{paths['materials_dir']}/phase_one_products"
             os.makedirs(products_dir, exist_ok=True)
             print(f"📁 产物目录: {products_dir}")
             
@@ -581,7 +577,7 @@ class PhaseGenerator:
                     products_mapping[key] = file_path
                     print(f"✅ {key}已保存: {file_path}")
             
-            # 创建第一阶段索引文件
+            # 创建第一阶段索引文件（保存到主项目materials目录）
             phase_one_index = {
                 "novel_title": self.generator.novel_data["novel_title"],
                 "novel_synopsis": self.generator.novel_data["novel_synopsis"],
@@ -595,8 +591,8 @@ class PhaseGenerator:
                 "next_phase": "second_phase_content_generation"
             }
             
-            # 保存第一阶段索引文件
-            phase_one_index_file = f"{phase_one_dir}/{safe_title}_第一阶段索引.json"
+            # 保存第一阶段索引文件到materials目录
+            phase_one_index_file = f"{paths['materials_dir']}/{safe_title}_第一阶段索引.json"
             with open(phase_one_index_file, 'w', encoding='utf-8') as f:
                 json.dump(phase_one_index, f, ensure_ascii=False, indent=2)
             print(f"✅ 第一阶段索引文件已保存: {phase_one_index_file}")
@@ -668,25 +664,133 @@ class PhaseGenerator:
         try:
             print("[START] 开始第二阶段章节生成...")
             
-            # 首先检查是否是新的文件结构（产物目录）
+            # 从统一的项目目录结构加载
             import re
-            safe_title = re.sub(r'[\\/*?:"<>|]', "_", phase_one_result_file.replace("_第一阶段设定.json", "").replace("\\", "/"))
-            phase_one_dir = f"小说项目/{safe_title}_第一阶段设定"
-            products_dir = f"{phase_one_dir}/产物"
+            from src.config.path_config import path_config
             
-            print(f"🔍 检查第一阶段产物目录: {products_dir}")
+            safe_title = re.sub(r'[\\/*?:"<>|]', "_", phase_one_result_file.replace("_第一阶段设定.json", "").replace("\\", "/"))
+            paths = path_config.get_project_paths(safe_title)
+            products_dir = f"{paths['materials_dir']}/phase_one_products"
+            
+            print(f"🔍 检查统一产物目录: {products_dir}")
             
             if os.path.exists(products_dir):
-                # 新的文件结构：从单独文件读取
-                print("📂 使用新的文件结构，从单独文件读取产物...")
-                return self._load_phase_two_from_separate_files(phase_one_dir, safe_title, from_chapter, chapters_to_generate)
+                # 使用统一的文件结构：从单独文件读取
+                print("📂 使用统一的文件结构，从单独文件读取产物...")
+                return self._load_phase_two_from_unified_structure(products_dir, safe_title, paths, from_chapter, chapters_to_generate)
             else:
-                # 旧的文件结构：从索引文件读取
-                print("📋 使用旧的文件结构，从索引文件读取产物...")
+                # 兼容旧的文件结构
+                print("📋 兼容旧的文件结构，尝试从索引文件读取产物...")
                 return self._load_phase_two_from_index_file(phase_one_result_file, from_chapter, chapters_to_generate)
             
         except Exception as e:
             print(f"❌ 第二阶段生成失败: {e}")
+            import traceback
+            traceback.print_exc()
+            return False
+    
+    def _load_phase_two_from_unified_structure(self, products_dir: str, safe_title: str, paths: dict, from_chapter: int, chapters_to_generate: Optional[int] = None) -> bool:
+        """从统一的项目目录结构加载第二阶段数据"""
+        try:
+            products_mapping = {}
+            
+            # 首先读取第一阶段索引文件获取基础信息
+            phase_one_index_file = f"{paths['materials_dir']}/{safe_title}_第一阶段索引.json"
+            phase_one_index = {}
+            
+            if os.path.exists(phase_one_index_file):
+                with open(phase_one_index_file, 'r', encoding='utf-8') as f:
+                    phase_one_index = json.load(f)
+                print(f"✅ 已加载第一阶段索引文件")
+            else:
+                print(f"⚠️ 第一阶段索引文件不存在: {phase_one_index_file}")
+            
+            # 读取各个产物文件（从统一的项目目录）
+            product_files = {
+                "market_analysis": f"{paths['market_analysis']}",
+                "core_worldview": f"{paths['worldview_dir']}/{safe_title}_世界观.json",
+                "faction_system": f"{paths['worldview_dir']}/{safe_title}_势力系统.json",
+                "character_design": paths["character_design_file"],
+                "global_growth_plan": f"{products_dir}/{safe_title}_成长路线.json",
+                "overall_stage_plans": f"{products_dir}/{safe_title}_阶段计划.json",
+                "stage_writing_plans": f"{products_dir}/{safe_title}_写作计划.json",
+                "writing_style_guide": f"{products_dir}/{safe_title}_写作风格.json",
+                "emotional_blueprint": f"{products_dir}/{safe_title}_情绪蓝图.json"
+            }
+            
+            for product_name, file_path in product_files.items():
+                if os.path.exists(file_path):
+                    with open(file_path, 'r', encoding='utf-8') as f:
+                        products_mapping[product_name] = json.load(f)
+                    print(f"✅ 已加载产物: {product_name}")
+                else:
+                    print(f"⚠️ 产物文件不存在: {product_name} - {file_path}")
+            
+            # 从索引文件或使用默认值获取基础信息
+            total_chapters = phase_one_index.get("total_chapters", 200) if phase_one_index else 200
+            
+            # 构建小说数据
+            self.generator.novel_data = {
+                "novel_title": phase_one_index.get("novel_title", safe_title) if phase_one_index else safe_title,
+                "novel_synopsis": phase_one_index.get("novel_synopsis", "") if phase_one_index else "",
+                "category": phase_one_index.get("category", "未分类") if phase_one_index else "未分类",
+                "total_chapters": total_chapters,
+                "creative_seed": phase_one_index.get("creative_seed", {}) if phase_one_index else {},
+                "selected_plan": phase_one_index.get("selected_plan", {}) if phase_one_index else {},
+                "writing_style_guide": products_mapping.get("writing_style_guide", {}),
+                "market_analysis": products_mapping.get("market_analysis", {}),
+                "core_worldview": products_mapping.get("core_worldview", {}),
+                "faction_system": products_mapping.get("faction_system", {}),
+                "character_design": products_mapping.get("character_design", {}),
+                "global_growth_plan": products_mapping.get("global_growth_plan", {}),
+                "overall_stage_plans": products_mapping.get("overall_stage_plans", {}),
+                "stage_writing_plans": products_mapping.get("stage_writing_plans", {}),
+                "emotional_blueprint": products_mapping.get("emotional_blueprint", {}),
+                "current_progress": {
+                    "completed_chapters": 0,
+                    "total_chapters": total_chapters,
+                    "stage": "第二阶段章节生成",
+                    "current_stage": "第二阶段",
+                    "current_batch": 0,
+                    "start_time": datetime.now().isoformat()
+                },
+                "generated_chapters": {},
+                "used_chapter_titles": set(),
+                "previous_chapter_endings": {},
+                "plot_progression": [],
+                "chapter_quality_records": {},
+                "optimization_history": {},
+                "is_resuming": False,
+                "resume_data": None
+            }
+            
+            # 初始化质量评估器
+            novel_title = self.generator.novel_data['novel_title']
+            from src.core.QualityAssessor import QualityAssessor
+            self.generator.quality_assessor = QualityAssessor(
+                api_client=self.generator.api_client,
+                novel_title=novel_title
+            )
+            self.generator.content_generator.quality_assessor = self.generator.quality_assessor
+            print(f"✅ 质量评估器已初始化: {novel_title}")
+            
+            print(f"📚 小说标题: {self.generator.novel_data['novel_title']}")
+            print(f"📝 简介: {self.generator.novel_data['novel_synopsis'][:100] if self.generator.novel_data['novel_synopsis'] else '无'}...")
+            print(f"🏷️ 分类: {self.generator.novel_data['category']}")
+            print(f"📊 总章节数: {self.generator.novel_data['total_chapters']}")
+            
+            # 确定要生成的章节数
+            total_chapters = self.generator.novel_data["current_progress"]["total_chapters"]
+            if chapters_to_generate:
+                total_chapters = min(from_chapter + chapters_to_generate - 1, total_chapters)
+            
+            print(f"📚 从第{from_chapter}章生成到第{total_chapters}章")
+            
+            # 执行章节生成
+            return self._generate_all_chapters(total_chapters, start_chapter=from_chapter)
+            
+        except Exception as e:
+            print(f"❌ 从统一结构加载第二阶段数据失败: {e}")
             import traceback
             traceback.print_exc()
             return False
