@@ -532,6 +532,27 @@
     --text-sm: 14px;
 }
 
+/* 🔥 修复闪烁：确保所有动态模态框默认隐藏 */
+#product-edit-modal,
+#creative-editor-modal-phase-two,
+#character-editor-modal,
+#character-editor-modal-wrapper,
+#faction-system-modal,
+#storyline-modal,
+#event-detail-modal {
+    display: none !important;
+}
+
+/* 只有当这些模态框有特定类时才显示 */
+#product-edit-modal.visible,
+#creative-editor-modal-phase-two.visible,
+#character-editor-modal.visible,
+#faction-system-modal.visible,
+#storyline-modal.visible,
+#event-detail-modal.visible {
+    display: flex !important;
+}
+
 /* 脉冲动画 */
 @keyframes pulse {
     0%, 100% {

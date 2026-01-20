@@ -921,6 +921,12 @@ function createFactionSystemModal(factionData) {
     
     document.body.insertAdjacentHTML('beforeend', modalHtml);
     
+    // 🔥 修复闪烁：添加 visible 类来显示模态框
+    const modal = document.getElementById('faction-system-modal');
+    if (modal) {
+        modal.classList.add('visible');
+    }
+    
     // 动态设置滚动容器的高度
     setTimeout(() => {
         const modalContent = document.querySelector('.faction-modal-content');
@@ -1137,6 +1143,7 @@ function closeFactionModal(event) {
     if (!event || event.target.id === 'faction-system-modal' || event.target.classList.contains('close-btn')) {
         const modal = document.getElementById('faction-system-modal');
         if (modal) {
+            modal.classList.remove('visible');
             modal.classList.add('closing');
             setTimeout(() => modal.remove(), 300);
         }
@@ -1237,6 +1244,12 @@ function createProductEditModal(category, productData) {
     
     document.body.insertAdjacentHTML('beforeend', modalHtml);
     
+    // 🔥 修复闪烁：添加 visible 类来显示模态框
+    const modal = document.getElementById('product-edit-modal');
+    if (modal) {
+        modal.classList.add('visible');
+    }
+    
     // 添加字符计数功能
     const contentTextarea = document.getElementById('product-content');
     const charCountSpan = document.getElementById('product-char-count');
@@ -1302,7 +1315,11 @@ async function saveProductEdit(category) {
 function closeProductEditModal() {
     const modal = document.getElementById('product-edit-modal');
     if (modal) {
-        modal.remove();
+        modal.classList.remove('visible');
+        // 延迟移除DOM，等待动画完成
+        setTimeout(() => {
+            modal.remove();
+        }, 300);
     }
 }
 

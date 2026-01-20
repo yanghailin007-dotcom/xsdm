@@ -30,16 +30,8 @@ function initializeEditorWithCurrentProject() {
 // 显示创意编辑器模态框
 function showCreativeEditorModalForPhaseTwo() {
     const modal = document.getElementById('creative-editor-modal-phase-two');
-    modal.style.cssText = `
-        display: block !important;
-        position: fixed !important;
-        top: 0 !important;
-        left: 0 !important;
-        width: 100% !important;
-        height: 100% !important;
-        background: rgba(0,0,0,0.5) !important;
-        z-index: 999999 !important;
-    `;
+    // 🔥 修复闪烁：使用 visible 类而不是内联样式
+    modal.classList.add('visible');
     
     document.body.style.overflow = 'hidden';
     
@@ -365,7 +357,8 @@ async function applyCreativeDataToCurrentProject(updatedData) {
 function closeCreativeEditorForPhaseTwo() {
     const modal = document.getElementById('creative-editor-modal-phase-two');
     if (modal) {
-        modal.style.display = 'none';
+        // 🔥 修复闪烁：移除 visible 类而不是设置 display
+        modal.classList.remove('visible');
     }
     document.body.style.overflow = '';
     
