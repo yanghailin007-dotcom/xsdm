@@ -1,19 +1,51 @@
-/* 视频工作室样式 */
+/* 视频工作室样式 - 统一深色主题 */
 
 :root {
-    --primary-color: #8b5cf6;
-    --primary-hover: #7c3aed;
+    /* 统一的品牌色 - 蓝紫渐变 */
+    --primary-color: #667eea;
+    --primary-hover: #764ba2;
+    --primary-light: #8b9cf5;
+    --primary-dark: #5a67d8;
     --secondary-color: #06b6d4;
-    --success-color: #22c55e;
+    --accent-color: #8b5cf6;
+    
+    /* 功能色 */
+    --success-color: #10b981;
+    --success-hover: #059669;
     --warning-color: #f59e0b;
+    --warning-hover: #d97706;
     --danger-color: #ef4444;
+    --danger-hover: #dc2626;
+    --info-color: #3b82f6;
+    --info-hover: #2563eb;
+    
+    /* 背景色 - 深色主题 */
     --bg-primary: #0f172a;
     --bg-secondary: #1e293b;
     --bg-tertiary: #334155;
+    --bg-elevated: #475569;
     --bg-card: #1e293b;
+    
+    /* 文字色 */
     --text-primary: #f1f5f9;
     --text-secondary: #cbd5e1;
+    --text-tertiary: #94a3b8;
+    --text-disabled: #64748b;
+    
+    /* 边框色 */
     --border-color: #475569;
+    --border-light: #64748b;
+    --border-focus: #667eea;
+    
+    /* 渐变色 */
+    --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --gradient-secondary: linear-gradient(135deg, #8b5cf6 0%, #06b6d4 100%);
+    
+    /* 阴影 */
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
+    --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.15);
+    --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.2);
+    --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.25);
 }
 
 * {
@@ -55,14 +87,14 @@ body {
     font-weight: 700;
     flex-grow: 1;
     text-align: center;
-    background: linear-gradient(135deg, #8b5cf6, #06b6d4);
+    background: var(--gradient-primary);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
 }
 
 .btn-back {
-    background: linear-gradient(135deg, #8b5cf6, #06b6d4);
+    background: var(--gradient-primary);
     color: white;
     border: none;
     padding: 0.625rem 1.25rem;
@@ -70,16 +102,16 @@ body {
     font-weight: 600;
     font-size: 0.9375rem;
     cursor: pointer;
-    transition: all 0.3s;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
-    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
 }
 
 .btn-back:hover {
     transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(139, 92, 246, 0.4);
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
 }
 
 .nav-links {
@@ -239,7 +271,7 @@ body {
 
 .mode-btn.active {
     border-color: var(--primary-color);
-    background: rgba(139, 92, 246, 0.2);
+    background: rgba(102, 126, 234, 0.2);
 }
 
 .mode-icon {
@@ -276,7 +308,7 @@ body {
 
 .upload-area:hover {
     border-color: var(--primary-color);
-    background: rgba(139, 92, 246, 0.05);
+    background: rgba(102, 126, 234, 0.1);
 }
 
 .upload-area.dragover {
@@ -529,7 +561,7 @@ body {
 
 .ratio-btn.active {
     border-color: var(--primary-color);
-    background: rgba(139, 92, 246, 0.15);
+    background: rgba(102, 126, 234, 0.15);
 }
 
 .ratio-icon {
@@ -549,7 +581,7 @@ body {
 /* 生成按钮 */
 .btn-generate {
     width: 100%;
-    background: linear-gradient(135deg, #8b5cf6, #06b6d4);
+    background: var(--gradient-primary);
     color: white;
     border: none;
     padding: 1.25rem 2rem;
@@ -557,17 +589,23 @@ body {
     font-weight: 700;
     font-size: 1.125rem;
     cursor: pointer;
-    transition: all 0.3s;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 0.75rem;
-    box-shadow: 0 4px 20px rgba(139, 92, 246, 0.4);
+    box-shadow: 0 4px 20px rgba(102, 126, 234, 0.3);
 }
 
-.btn-generate:hover {
+.btn-generate:hover:not(:disabled) {
     transform: translateY(-2px);
-    box-shadow: 0 8px 30px rgba(139, 92, 246, 0.5);
+    box-shadow: 0 8px 30px rgba(102, 126, 234, 0.4);
+}
+
+.btn-generate:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
 }
 
 .btn-generate:disabled {
@@ -604,10 +642,10 @@ body {
 
 .progress-fill {
     height: 100%;
-    background: linear-gradient(90deg, #8b5cf6, #06b6d4);
+    background: var(--gradient-primary);
     border-radius: 1rem;
     width: 0%;
-    transition: width 0.3s;
+    transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .progress-fill.animate {
@@ -631,7 +669,7 @@ body {
     font-size: 1.5rem;
     font-weight: 700;
     color: var(--primary-color);
-    background: linear-gradient(135deg, #8b5cf6, #06b6d4);
+    background: var(--gradient-primary);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -676,7 +714,7 @@ body {
 
 .video-wrapper:hover {
     transform: scale(1.02);
-    box-shadow: 0 12px 40px rgba(139, 92, 246, 0.3);
+    box-shadow: 0 12px 40px rgba(102, 126, 234, 0.2);
 }
 
 .result-video {
@@ -712,8 +750,8 @@ body {
 }
 
 .fullscreen-btn:hover {
-    background: rgba(139, 92, 246, 0.9);
-    border-color: rgba(139, 92, 246, 1);
+    background: rgba(102, 126, 234, 0.9);
+    border-color: rgba(102, 126, 234, 1);
     transform: scale(1.1);
 }
 
@@ -787,7 +825,7 @@ body {
     height: auto;
     object-fit: contain;
     border-radius: 0.5rem;
-    box-shadow: 0 0 60px rgba(139, 92, 246, 0.3);
+    box-shadow: 0 0 60px rgba(102, 126, 234, 0.3);
 }
 
 .result-actions {
@@ -856,11 +894,19 @@ body {
 }
 
 .toast.success {
-    border-color: var(--success-color);
+    border-left: 4px solid var(--success-color);
 }
 
 .toast.error {
-    border-color: var(--danger-color);
+    border-left: 4px solid var(--danger-color);
+}
+
+.toast.warning {
+    border-left: 4px solid var(--warning-color);
+}
+
+.toast.info {
+    border-left: 4px solid var(--info-color);
 }
 
 /* 响应式 */
@@ -902,7 +948,7 @@ body {
 
 /* 素材库样式 */
 .nav-link.active {
-    background: rgba(139, 92, 246, 0.2);
+    background: rgba(102, 126, 234, 0.2);
     color: var(--primary-color);
     border-color: var(--primary-color);
 }
@@ -1037,7 +1083,7 @@ body {
 
 .video-card:hover {
     transform: translateY(-4px);
-    box-shadow: 0 8px 30px rgba(139, 92, 246, 0.2);
+    box-shadow: 0 8px 30px rgba(102, 126, 234, 0.2);
 }
 
 .video-card-preview {
@@ -1075,7 +1121,7 @@ body {
 .btn-play {
     width: 60px;
     height: 60px;
-    background: rgba(139, 92, 246, 0.9);
+    background: rgba(102, 126, 234, 0.9);
     border: 3px solid white;
     border-radius: 50%;
     color: white;
@@ -1084,7 +1130,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.3s;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .btn-play:hover {

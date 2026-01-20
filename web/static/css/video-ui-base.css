@@ -1,0 +1,396 @@
+/**
+ * 视频UI系统 - 基础样式
+ * Video UI System - Base Styles
+ * 
+ * 提供统一的CSS变量、重置样式和基础元素样式
+ * Provides unified CSS variables, reset styles, and base element styles
+ * 
+ * @version 1.0.0
+ * @date 2026-01-20
+ */
+
+/* ============================================
+   CSS变量定义系统
+   CSS Variables Definition System
+   ============================================ */
+
+:root {
+    /* ===== 核心品牌色 Core Brand Colors ===== */
+    --primary-color: #667eea;           /* 主色：蓝紫 */
+    --primary-hover: #764ba2;           /* 主色悬停：深紫 */
+    --primary-light: #8b9cf5;           /* 浅主色 */
+    --primary-dark: #5a67d8;            /* 深主色 */
+    
+    /* ===== 辅助色 Auxiliary Colors ===== */
+    --secondary-color: #06b6d4;         /* 辅助色：青色 */
+    --accent-color: #8b5cf6;            /* 强调色：紫色 */
+    
+    /* ===== 功能色 Functional Colors ===== */
+    --success-color: #10b981;           /* 成功：绿色 */
+    --success-hover: #059669;           /* 成功悬停 */
+    --warning-color: #f59e0b;           /* 警告：橙色 */
+    --warning-hover: #d97706;           /* 警告悬停 */
+    --danger-color: #ef4444;            /* 危险：红色 */
+    --danger-hover: #dc2626;            /* 危险悬停 */
+    --info-color: #3b82f6;              /* 信息：蓝色 */
+    --info-hover: #2563eb;              /* 信息悬停 */
+    
+    /* ===== 背景色 Background Colors (深色主题) ===== */
+    --bg-primary: #0f172a;              /* 主背景：最深的蓝黑 */
+    --bg-secondary: #1e293b;            /* 次背景：卡片背景 */
+    --bg-tertiary: #334155;             /* 第三级背景：输入框等 */
+    --bg-elevated: #475569;             /* 悬浮层背景 */
+    
+    /* ===== 文字色 Text Colors ===== */
+    --text-primary: #f1f5f9;            /* 主文字：接近白色 */
+    --text-secondary: #cbd5e1;          /* 次文字：浅灰 */
+    --text-tertiary: #94a3b8;           /* 第三级文字：中灰 */
+    --text-disabled: #64748b;           /* 禁用文字：深灰 */
+    
+    /* ===== 边框色 Border Colors ===== */
+    --border-color: #475569;            /* 主边框 */
+    --border-light: #64748b;            /* 浅边框 */
+    --border-focus: var(--primary-color); /* 聚焦边框 */
+    
+    /* ===== 阴影系统 Shadow System ===== */
+    --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.05);
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
+    --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.15);
+    --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.2);
+    --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.25);
+    --shadow-2xl: 0 25px 50px rgba(0, 0, 0, 0.3);
+    
+    /* ===== 渐变色 Gradient Colors ===== */
+    --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --gradient-secondary: linear-gradient(135deg, #8b5cf6 0%, #06b6d4 100%);
+    --gradient-success: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    --gradient-danger: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    --gradient-info: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    --gradient-warning: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    
+    /* ===== 圆角系统 Border Radius System ===== */
+    --radius-sm: 0.375rem;              /* 6px */
+    --radius-md: 0.5rem;                /* 8px */
+    --radius-lg: 0.75rem;               /* 12px */
+    --radius-xl: 1rem;                  /* 16px */
+    --radius-2xl: 1.25rem;              /* 20px */
+    --radius-full: 9999px;              /* 完全圆角 */
+    
+    /* ===== 间距系统 Spacing System ===== */
+    --space-xs: 0.25rem;                /* 4px */
+    --space-sm: 0.5rem;                 /* 8px */
+    --space-md: 0.75rem;                /* 12px */
+    --space-lg: 1rem;                   /* 16px */
+    --space-xl: 1.5rem;                 /* 24px */
+    --space-2xl: 2rem;                  /* 32px */
+    --space-3xl: 3rem;                  /* 48px */
+    
+    /* ===== 动画时长 Animation Duration ===== */
+    --duration-fast: 150ms;
+    --duration-normal: 250ms;
+    --duration-slow: 350ms;
+    
+    /* ===== 缓动函数 Easing Functions ===== */
+    --ease-in: cubic-bezier(0.4, 0, 1, 1);
+    --ease-out: cubic-bezier(0, 0, 0.2, 1);
+    --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+    
+    /* ===== 字体大小 Font Sizes ===== */
+    --text-xs: 0.75rem;                 /* 12px */
+    --text-sm: 0.875rem;                /* 14px */
+    --text-base: 1rem;                  /* 16px */
+    --text-lg: 1.125rem;                /* 18px */
+    --text-xl: 1.25rem;                 /* 20px */
+    --text-2xl: 1.5rem;                 /* 24px */
+    --text-3xl: 1.875rem;               /* 30px */
+    --text-4xl: 2.25rem;                /* 36px */
+    
+    /* ===== 字重 Font Weights ===== */
+    --font-normal: 400;
+    --font-medium: 500;
+    --font-semibold: 600;
+    --font-bold: 700;
+    
+    /* ===== 层级 Z-Index ===== */
+    --z-dropdown: 1000;
+    --z-sticky: 1020;
+    --z-fixed: 1030;
+    --z-modal-backdrop: 1040;
+    --z-modal: 1050;
+    --z-popover: 1060;
+    --z-tooltip: 1070;
+}
+
+/* ============================================
+   基础重置样式
+   Base Reset Styles
+   ============================================ */
+
+*,
+*::before,
+*::after {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html {
+    font-size: 16px;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    line-height: 1.6;
+    min-height: 100vh;
+    overflow-x: hidden;
+}
+
+/* ============================================
+   基础元素样式
+   Base Element Styles
+   ============================================ */
+
+/* 标题 Headings */
+h1, h2, h3, h4, h5, h6 {
+    margin: 0;
+    font-weight: var(--font-bold);
+    line-height: 1.2;
+    color: var(--text-primary);
+}
+
+h1 { font-size: var(--text-4xl); }
+h2 { font-size: var(--text-3xl); }
+h3 { font-size: var(--text-2xl); }
+h4 { font-size: var(--text-xl); }
+h5 { font-size: var(--text-lg); }
+h6 { font-size: var(--text-base); }
+
+/* 段落 Paragraphs */
+p {
+    margin: 0;
+    color: var(--text-secondary);
+}
+
+/* 链接 Links */
+a {
+    color: var(--primary-color);
+    text-decoration: none;
+    transition: color var(--duration-fast) ease;
+}
+
+a:hover {
+    color: var(--primary-hover);
+}
+
+/* 列表 Lists */
+ul, ol {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+/* 图片 Images */
+img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+}
+
+/* 按钮 Buttons (基础重置) */
+button {
+    font-family: inherit;
+    font-size: inherit;
+    line-height: inherit;
+    cursor: pointer;
+    border: none;
+    background: none;
+}
+
+/* 输入框 Inputs (基础重置) */
+input, textarea, select {
+    font-family: inherit;
+    font-size: inherit;
+    line-height: inherit;
+    color: inherit;
+}
+
+input:focus, textarea:focus, select:focus {
+    outline: none;
+}
+
+/* 滚动条 Scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-sm);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: var(--radius-sm);
+    transition: background var(--duration-fast) ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--border-light);
+}
+
+/* Firefox 滚动条 */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-color) var(--bg-tertiary);
+}
+
+/* ============================================
+   基础动画
+   Base Animations
+   ============================================ */
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+    }
+    to {
+        transform: translateX(0);
+    }
+}
+
+@keyframes slideInLeft {
+    from {
+        transform: translateX(-100%);
+    }
+    to {
+        transform: translateX(0);
+    }
+}
+
+@keyframes scaleIn {
+    from {
+        opacity: 0;
+        transform: scale(0.9);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
+
+@keyframes shimmer {
+    0% {
+        transform: translateX(-100%);
+    }
+    100% {
+        transform: translateX(100%);
+    }
+}
+
+/* ============================================
+   基础布局类
+   Base Layout Classes
+   ============================================ */
+
+.page-container {
+    min-height: 100vh;
+    background: var(--bg-primary);
+}
+
+.container {
+    width: 100%;
+    max-width: 1800px;
+    margin: 0 auto;
+    padding: 0 var(--space-2xl);
+}
+
+.flex {
+    display: flex;
+}
+
+.flex-col {
+    display: flex;
+    flex-direction: column;
+}
+
+.flex-center {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.flex-between {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.grid {
+    display: grid;
+}
+
+.hidden {
+    display: none;
+}
+
+/* ============================================
+   响应式基础
+   Responsive Base
+   ============================================ */
+
+/* 手机 */
+@media (max-width: 640px) {
+    :root {
+        --space-xs: 0.125rem;
+        --space-sm: 0.375rem;
+        --space-md: 0.5rem;
+        --space-lg: 0.75rem;
+        --space-xl: 1rem;
+        --space-2xl: 1.5rem;
+    }
+    
+    .container {
+        padding: 0 var(--space-lg);
+    }
+}
+
+/* 平板 */
+@media (min-width: 641px) and (max-width: 1024px) {
+    /* 中等屏幕优化 */
+}
+
+/* 桌面 */
+@media (min-width: 1025px) {
+    /* 大屏幕优化 */
+}
