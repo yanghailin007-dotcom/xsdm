@@ -147,8 +147,8 @@ class NanoBananaImageGenerator:
             image_size: 图片尺寸 (1K, 2K, 4K)
             save_path: 保存路径，如果为None则自动生成
             retry_count: 当前重试次数
-            reference_image: 参考图像路径（支持图像转图像生成，已弃用，请使用reference_images）
-            reference_images: 参考图像路径列表（支持多张参考图）
+            reference_image: 参考图像路径（单张，兼容旧版本）
+            reference_images: 参考图像路径列表（多张，最多5张，优先使用）
             
         Returns:
             dict: 包含生成结果的字典
@@ -165,7 +165,8 @@ class NanoBananaImageGenerator:
                 "error": "未配置API密钥，请在config/config.py中配置nanobanana.api_key"
             }
         
-        # 🔥 新增：处理多个参考图像
+        # 🔥 新增：处理参考图像（支持多个参考图像，最多5张）
+        # 🔥 集成图像压缩功能，避免请求体过大导致连接被服务器断开
         parts = []
         
         # 🔥 重要：先添加文本提示词，再添加参考图像（符合API规范）
@@ -173,38 +174,89 @@ class NanoBananaImageGenerator:
             "text": prompt
         })
         
-        # 兼容处理：将单个参考图像转换为列表
-        if reference_image and not reference_images:
-            reference_images = [reference_image]
-        
-        # 如果有多个参考图像，添加所有图像到parts
+        # 🔥 合并参考图像：优先使用 reference_images（数组），否则使用 reference_image（单张）
+        all_reference_images = []
         if reference_images:
-            for idx, ref_image_path in enumerate(reference_images):
+            # 新版本：使用多张参考图像
+            all_reference_images = reference_images[:5]  # 最多5张
+        elif reference_image:
+            # 兼容旧版本：使用单张参考图像
+            all_reference_images = [reference_image]
+        
+        # 添加所有参考图像到parts（先压缩）
+        if all_reference_images:
+            import mimetypes
+            # 🔥 导入图像压缩工具
+            try:
+                from src.utils.image_compressor import compress_image, MAX_IMAGE_SIZE_BYTES
+                # 限制单张参考图像最大1.5MB（比默认2MB更保守，避免多张图时超过限制）
+                max_size_mb = 1.5
+                self.logger.info(f"🗜️  参考图像压缩模式已启用，单张限制: {max_size_mb} MB")
+            except ImportError:
+                compress_image = None
+                max_size_mb = None
+                self.logger.warn("⚠️  图像压缩工具未找到，将使用原始图像")
+            
+            for idx, ref_path in enumerate(all_reference_images):
                 try:
                     # 读取并编码参考图像
-                    if not os.path.exists(ref_image_path):
-                        self.logger.warn(f"⚠️ 参考图像{idx+1}不存在: {ref_image_path}")
+                    if not os.path.exists(ref_path):
+                        self.logger.warn(f"⚠️ 参考图像{idx+1}不存在: {ref_path}")
+                        continue
+                    
+                    with open(ref_path, 'rb') as f:
+                        ref_image_data = f.read()
+                    
+                    original_size = len(ref_image_data)
+                    self.logger.debug(f"📸 参考图{idx+1}原始大小: {original_size / (1024*1024):.2f} MB")
+                    
+                    # 🔥 如果压缩工具可用，先压缩图像
+                    if compress_image and max_size_mb:
+                        try:
+                            # 将图像数据转换为base64 data URL格式
+                            raw_base64 = base64.b64encode(ref_image_data).decode('utf-8')
+                            data_url = f"data:image/jpeg;base64,{raw_base64}"
+                            
+                            # 压缩图像
+                            compressed_data_url = compress_image(
+                                data_url,
+                                max_size_mb=max_size_mb,
+                                quality=85,
+                                max_dimension=1280  # 限制最大尺寸为1280px
+                            )
+                            
+                            # 提取压缩后的base64数据
+                            if ',' in compressed_data_url:
+                                compressed_base64 = compressed_data_url.split(',', 1)[1]
+                            else:
+                                compressed_base64 = compressed_data_url
+                            
+                            ref_image_base64 = compressed_base64
+                            compressed_size = len(base64.b64decode(compressed_base64))
+                            compression_ratio = (1 - compressed_size / original_size) * 100
+                            self.logger.info(f"🗜️  参考图{idx+1}压缩: {original_size / (1024*1024):.2f} MB -> "
+                                           f"{compressed_size / (1024*1024):.2f} MB (压缩率: {compression_ratio:.1f}%)")
+                        except Exception as compress_error:
+                            self.logger.warn(f"⚠️  参考图{idx+1}压缩失败，使用原始数据: {compress_error}")
+                            ref_image_base64 = base64.b64encode(ref_image_data).decode('utf-8')
                     else:
-                        with open(ref_image_path, 'rb') as f:
-                            ref_image_data = f.read()
-                        
-                        # 获取MIME类型
-                        import mimetypes
-                        mime_type = mimetypes.guess_type(ref_image_path)[0] or 'image/jpeg'
-                        
-                        # 编码为base64
+                        # 不压缩，直接使用原始数据
                         ref_image_base64 = base64.b64encode(ref_image_data).decode('utf-8')
-                        
-                        parts.append({
-                            "inline_data": {  # 使用下划线格式，符合API规范
-                                "mime_type": mime_type,  # 使用下划线格式
-                                "data": ref_image_base64
-                            }
-                        })
-                        # 🔥 不打印参考图像的base64数据
-                        self.logger.debug(f"✅ 已添加参考图像{idx+1}: {ref_image_path} ({len(ref_image_data)} bytes, base64编码后长度: {len(ref_image_base64)} 字符)")
+                    
+                    # 获取MIME类型
+                    mime_type = mimetypes.guess_type(ref_path)[0] or 'image/jpeg'
+                    
+                    parts.append({
+                        "inline_data": {  # 使用下划线格式，符合API规范
+                            "mime_type": mime_type,  # 使用下划线格式
+                            "data": ref_image_base64
+                        }
+                    })
+                    self.logger.debug(f"✅ 已添加参考图像{idx+1}: {ref_path}")
                 except Exception as e:
-                    self.logger.debug(f"⚠️ 添加参考图像{idx+1}失败: {e}，跳过此图像")
+                    self.logger.debug(f"⚠️ 添加参考图像{idx+1}失败: {e}")
+            
+            self.logger.info(f"🖼️ 共添加 {len([p for p in parts if 'inline_data' in p])} 张参考图像（已压缩）")
         
         # 构建请求体（移除role字段，使用简化的contents结构）
         request_body = {
@@ -231,12 +283,12 @@ class NanoBananaImageGenerator:
             self.logger.info(f"  - 超时: {self.timeout}秒")
             self.logger.info(f"  - 提示词长度: {len(prompt)} 字符")
             self.logger.info(f"  - 提示词内容: {prompt}")  # 显示完整提示词
-            if reference_images:
-                self.logger.info(f"  - 参考图像数量: {len(reference_images)} 张")
-                for idx, ref_img in enumerate(reference_images):
-                    self.logger.info(f"    参考图{idx+1}: {ref_img}")
-            elif reference_image:
-                self.logger.info(f"  - 参考图像: {reference_image}")
+            
+            # 🔥 显示参考图像信息
+            if all_reference_images:
+                self.logger.info(f"  - 参考图像数量: {len(all_reference_images)} 张")
+                for idx, ref_path in enumerate(all_reference_images):
+                    self.logger.info(f"    参考图{idx+1}: {ref_path}")
             
             # 发送请求
             headers = {
@@ -250,11 +302,9 @@ class NanoBananaImageGenerator:
             request_body_size = len(json.dumps(request_body))
             self.logger.debug(f"请求体大小: {request_body_size} 字节")
             
-            # 如果有参考图像，单独记录
-            if reference_images:
-                self.logger.debug(f"  - 包含参考图像: {len(reference_images)} 张")
-            elif reference_image:
-                self.logger.debug(f"  - 包含参考图像: {reference_image}")
+            # 🔥 如果有参考图像，单独记录
+            if all_reference_images:
+                self.logger.debug(f"  - 包含 {len(all_reference_images)} 张参考图像")
             self.logger.debug(f"Authorization Header: Bearer {self.api_key[:20]}...{self.api_key[-4:]}")  # 日志中只显示部分
             
             response = requests.post(
@@ -283,7 +333,7 @@ class NanoBananaImageGenerator:
                 # 如果是可重试的错误，尝试重试
                 if retry_count < self.max_retries and response.status_code >= 500:
                     self.logger.info(f"尝试重试 ({retry_count + 1}/{self.max_retries})...")
-                    return self.generate_image(prompt, aspect_ratio, image_size, save_path, retry_count + 1)
+                    return self.generate_image(prompt, aspect_ratio, image_size, save_path, retry_count + 1, reference_image, reference_images)
                 
                 return {
                     "success": False,
@@ -448,7 +498,7 @@ class NanoBananaImageGenerator:
             
             if retry_count < self.max_retries:
                 self.logger.info(f"尝试重试 ({retry_count + 1}/{self.max_retries})...")
-                return self.generate_image(prompt, aspect_ratio, image_size, save_path, retry_count + 1)
+                return self.generate_image(prompt, aspect_ratio, image_size, save_path, retry_count + 1, reference_image, reference_images)
             
             return {
                 "success": False,

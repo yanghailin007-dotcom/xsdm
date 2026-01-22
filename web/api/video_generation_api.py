@@ -2120,13 +2120,13 @@ def generate_character_portrait():
         filename = f"{title or 'custom'}_{safe_name}_portrait_{timestamp}"
         logger.debug(f"💾 [VIDEO] 生成文件名: {filename}")
         
-        # 生成图像（支持多个参考图像）
+        # 🔥 生成图像（支持多个参考图像，最多5张）
         logger.debug(f"🚀 [VIDEO] 调用NanoBananaImageGenerator.generate_image()...")
         logger.debug(f"📤 [VIDEO] 请求参数:")
         logger.debug(f"  - prompt长度: {len(prompt)}")
         logger.debug(f"  - aspect_ratio: {aspect_ratio}")
         logger.debug(f"  - image_size: {image_size}")
-        logger.debug(f"  - reference_images: {len(ref_image_paths)} 张")
+        logger.debug(f"  - 参考图像数量: {len(ref_image_paths)} 张")
         
         result = generator.generate_image(
             prompt=prompt,

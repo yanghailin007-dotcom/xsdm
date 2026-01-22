@@ -8,7 +8,7 @@ const state = {
     characters: [],
     selectedNovel: null,
     selectedCharacter: null,
-    referenceImage: null,
+    referenceImages: [],
     generationHistory: []
 };
 
@@ -21,9 +21,7 @@ const elements = {
     referenceImageSection: document.getElementById('reference-image-section'),
     referenceUploadArea: document.getElementById('reference-upload-area'),
     referenceImageInput: document.getElementById('reference-image-input'),
-    referencePreview: document.getElementById('reference-preview'),
-    referencePreviewImg: document.getElementById('reference-preview-img'),
-    removeReferenceBtn: document.getElementById('remove-reference-btn'),
+    referenceThumbnails: document.getElementById('reference-thumbnails'),
     aspectRatio: document.getElementById('aspect-ratio'),
     imageSize: document.getElementById('image-size'),
     customPrompt: document.getElementById('custom-prompt'),
@@ -53,13 +51,12 @@ async function init() {
 function bindEvents() {
     // 小说选择
     elements.novelSelect.addEventListener('change', handleNovelChange);
-    
+
     // 参考图像
     elements.useReferenceCheckbox.addEventListener('change', toggleReferenceImage);
     elements.referenceUploadArea.addEventListener('click', () => elements.referenceImageInput.click());
     elements.referenceImageInput.addEventListener('change', handleReferenceImageUpload);
-    elements.removeReferenceBtn.addEventListener('click', removeReferenceImage);
-    
+
     // 拖拽上传
     elements.referenceUploadArea.addEventListener('dragover', (e) => {
         e.preventDefault();
@@ -69,7 +66,7 @@ function bindEvents() {
         elements.referenceUploadArea.classList.remove('drag-over');
     });
     elements.referenceUploadArea.addEventListener('drop', handleDrop);
-    
+
     // 生成按钮
     elements.generateBtn.addEventListener('click', generatePortrait);
 }
@@ -223,55 +220,95 @@ function toggleReferenceImage(e) {
         elements.referenceImageSection.classList.remove('hidden');
     } else {
         elements.referenceImageSection.classList.add('hidden');
-        state.referenceImage = null;
+        state.referenceImages = [];
+        renderThumbnails();
     }
 }
 
 // 处理参考图像上传
 function handleReferenceImageUpload(e) {
-    const file = e.target.files[0];
-    if (!file) return;
-    
-    processReferenceImage(file);
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
+
+    addReferenceImages(files);
+    e.target.value = '';
 }
 
 // 处理拖拽上传
 function handleDrop(e) {
     e.preventDefault();
     elements.referenceUploadArea.classList.remove('drag-over');
-    
-    const file = e.dataTransfer.files[0];
-    if (!file || !file.type.startsWith('image/')) {
+
+    const files = Array.from(e.dataTransfer.files).filter(file => file.type.startsWith('image/'));
+    if (files.length === 0) {
         showToast('error', '请上传图片文件');
         return;
     }
-    
-    processReferenceImage(file);
+
+    addReferenceImages(files);
 }
 
-// 处理参考图像
-function processReferenceImage(file) {
-    console.log('📷 处理参考图像:', file.name);
-    
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        state.referenceImage = e.target.result;
-        elements.referencePreviewImg.src = e.target.result;
-        elements.referencePreview.classList.remove('hidden');
-        elements.referenceUploadArea.querySelector('.upload-placeholder').classList.add('hidden');
-        showToast('success', '参考图像上传成功');
-    };
-    reader.readAsDataURL(file);
+// 添加参考图像
+function addReferenceImages(files) {
+    const remainingSlots = 5 - state.referenceImages.length;
+    if (remainingSlots <= 0) {
+        showToast('warning', '最多只能上传5张参考图像');
+        return;
+    }
+
+    const filesToAdd = files.slice(0, remainingSlots);
+    if (files.length > remainingSlots) {
+        showToast('warning', `最多只能上传5张图像，已选择前${remainingSlots}张`);
+    }
+
+    filesToAdd.forEach(file => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            state.referenceImages.push(e.target.result);
+            renderThumbnails();
+            if (state.referenceImages.length === filesToAdd.length) {
+                showToast('success', `成功添加${filesToAdd.length}张参考图像`);
+            }
+        };
+        reader.readAsDataURL(file);
+    });
+}
+
+// 渲染缩略图
+function renderThumbnails() {
+    elements.referenceThumbnails.innerHTML = '';
+
+    if (state.referenceImages.length === 0) {
+        elements.referenceUploadArea.querySelector('.upload-placeholder').classList.remove('hidden');
+        return;
+    }
+
+    elements.referenceUploadArea.querySelector('.upload-placeholder').classList.add('hidden');
+
+    state.referenceImages.forEach((imageData, index) => {
+        const thumbnailItem = document.createElement('div');
+        thumbnailItem.className = 'thumbnail-item';
+
+        const img = document.createElement('img');
+        img.src = imageData;
+        img.alt = `参考图 ${index + 1}`;
+
+        const removeBtn = document.createElement('button');
+        removeBtn.className = 'thumbnail-remove';
+        removeBtn.textContent = '×';
+        removeBtn.onclick = () => removeReferenceImage(index);
+
+        thumbnailItem.appendChild(img);
+        thumbnailItem.appendChild(removeBtn);
+        elements.referenceThumbnails.appendChild(thumbnailItem);
+    });
 }
 
 // 移除参考图像
-function removeReferenceImage() {
-    state.referenceImage = null;
-    elements.referencePreviewImg.src = '';
-    elements.referencePreview.classList.add('hidden');
-    elements.referenceUploadArea.querySelector('.upload-placeholder').classList.remove('hidden');
-    elements.referenceImageInput.value = '';
-    console.log('🗑️ 已移除参考图像');
+function removeReferenceImage(index) {
+    state.referenceImages.splice(index, 1);
+    renderThumbnails();
+    console.log(`🗑️ 已移除参考图像 ${index + 1}`);
 }
 
 // 更新生成按钮状态
@@ -297,7 +334,7 @@ async function generatePortrait() {
             character: state.selectedCharacter.name,
             aspectRatio: elements.aspectRatio.value,
             imageSize: elements.imageSize.value,
-            hasReferenceImage: !!state.referenceImage,
+            referenceImagesCount: state.referenceImages.length,
             customPrompt: elements.customPrompt.value
         });
         
@@ -311,19 +348,25 @@ async function generatePortrait() {
         };
         
         // 如果有参考图像，先上传
-        if (state.referenceImage) {
-            console.log('📷 上传参考图像...');
+        if (state.referenceImages.length > 0) {
+            console.log(`📷 上传${state.referenceImages.length}张参考图像...`);
             // 将base64转换为文件
-            const response = await fetch(state.referenceImage);
-            const blob = await response.blob();
-            const formData = new FormData();
-            formData.append('reference_image', blob);
-            
-            // 这里需要添加上传接口
-            // 暂时使用本地存储方式
-            const refImagePath = await uploadReferenceImage(blob);
-            if (refImagePath) {
-                requestData.reference_image = refImagePath;
+            const refImagePaths = [];
+            for (const imageData of state.referenceImages) {
+                const response = await fetch(imageData);
+                const blob = await response.blob();
+                const formData = new FormData();
+                formData.append('reference_image', blob);
+
+                // 这里需要添加上传接口
+                // 暂时使用本地存储方式
+                const refImagePath = await uploadReferenceImage(blob);
+                if (refImagePath) {
+                    refImagePaths.push(refImagePath);
+                }
+            }
+            if (refImagePaths.length > 0) {
+                requestData.reference_images = refImagePaths;
             }
         }
         
@@ -407,13 +450,15 @@ function downloadImage(url, filename) {
 
 // 用作参考图
 function useAsReference(url) {
-    state.referenceImage = url;
-    elements.referencePreviewImg.src = url;
-    elements.referencePreview.classList.remove('hidden');
-    elements.referenceUploadArea.querySelector('.upload-placeholder').classList.add('hidden');
+    if (state.referenceImages.length >= 5) {
+        showToast('warning', '最多只能添加5张参考图像');
+        return;
+    }
+    state.referenceImages.push(url);
+    renderThumbnails();
     elements.useReferenceCheckbox.checked = true;
     elements.referenceImageSection.classList.remove('hidden');
-    showToast('success', '已将生成的图像设置为参考图');
+    showToast('success', '已将生成的图像添加为参考图');
 }
 
 // 添加到历史记录

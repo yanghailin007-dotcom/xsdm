@@ -59,23 +59,20 @@
                         <div class="form-group">
                             <label>
                                 <input type="checkbox" id="use-reference-image">
-                                使用参考图像（可选）
+                                使用参考图像（可选，最多5张）
                             </label>
                             <div id="reference-image-section" class="hidden">
                                 <div class="file-upload-area" id="reference-upload-area">
-                                    <input type="file" id="reference-image-input" accept="image/*" class="hidden">
+                                    <input type="file" id="reference-image-input" accept="image/*" multiple class="hidden">
                                     <div class="upload-placeholder">
                                         <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
                                             <path d="M38 16H34V12H38V16ZM42 8H32V18H42V8ZM38 22H34V26H38V22ZM42 28H32V38H42V28ZM24 8H10V12H24V8ZM24 16H10V20H24V16ZM24 24H10V28H24V24ZM24 32H10V36H24V32ZM8 4H40V44H8V4ZM12 8V40H36V8H12Z" fill="#666"/>
                                         </svg>
                                         <p>点击或拖拽上传参考图像</p>
-                                        <p class="upload-hint">支持 JPG、PNG 格式，建议 500x500 以上</p>
-                                    </div>
-                                    <div class="upload-preview" id="reference-preview">
-                                        <img src="" alt="参考图像预览" id="reference-preview-img">
-                                        <button class="remove-btn" id="remove-reference-btn">×</button>
+                                        <p class="upload-hint">支持 JPG、PNG 格式，建议 500x500 以上，最多5张</p>
                                     </div>
                                 </div>
+                                <div class="reference-thumbnails" id="reference-thumbnails"></div>
                                 <p class="help-text">💡 上传参考图像后，AI会基于该图像的风格和特征生成新图像</p>
                             </div>
                         </div>
