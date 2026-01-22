@@ -355,7 +355,7 @@ class EventDecomposer:
                     if target_ch not in events_by_chapter:
                         events_by_chapter[target_ch] = []
                     events_by_chapter[target_ch].append(se)
-            
+
             if events_by_chapter:
                 special_emotional_context = "\n## 【情感融合要求】特殊情感事件\n"
                 for chapter_num, events in sorted(events_by_chapter.items()):
@@ -366,13 +366,47 @@ class EventDecomposer:
                         special_emotional_context += f"  - 关键元素: {', '.join(se.get('key_elements', []))}\n"
                         if se.get('context_hint'):
                             special_emotional_context += f"  - 上下文提示: {se.get('context_hint')}\n"
-                
+
                 special_emotional_context += "\n**重要**：请将这些情感元素自然地融入到对应章节的场景中，让情感发展与情节推进有机结合，不要生硬插入。\n"
-        
+
+        # 构建写作计划上下文
+        writing_context = f"""
+## 【写作计划上下文】本事件在整体故事中的作用
+
+### 所属重大事件
+- **重大事件名称**: {major_event.get('name')}
+- **重大事件目标**: {major_event.get('main_goal')}
+- **在重大事件中的贡献**: {medium_event.get('contribution_to_major', '推进情节')}
+
+### 关键情绪节拍（需要铺垫的情绪）
+{chr(10).join(f'- {beat}' for beat in medium_event.get('key_emotional_beats', [])) if medium_event.get('key_emotional_beats') else '- 无特定情绪节拍要求'}
+"""
+
+        # 添加情绪推导信息（如果有）
+        if 'emotional_derivation' in medium_event:
+            ed = medium_event['emotional_derivation']
+            writing_context += f"""
+### 情绪推导信息
+- **触发事件**: {ed.get('trigger_event', '未定义')}
+- **情绪反应**: {ed.get('emotional_response', '未定义')}
+- **情绪节拍**: {', '.join(ed.get('emotional_beats', []))}
+"""
+
+        # 添加阶段弧线对齐信息（如果有）
+        if 'alignment_with_stage_arc' in medium_event:
+            aln = medium_event['alignment_with_stage_arc']
+            writing_context += f"""
+### 在阶段情绪弧线中的位置
+- **位置**: {aln.get('position_in_arc', '未定义')}
+- **对阶段情绪的贡献**: {aln.get('contribution_to_stage_emotion', '未定义')}
+"""
+
         chapter_events_prompt = f"""
 # 任务：中型事件"章节分解" - 服务于中型事件目标
 {consistency_block}
 你需要将一个多章的中型事件分解为具体的章节事件。
+
+{writing_context}
 
 ## 当前中型事件信息
 - **所属阶段**: {stage_name}
@@ -494,6 +528,38 @@ class EventDecomposer:
             chapter_num = start_ch + i
             chapter_breakdown += f"- 第{chapter_num}章: 需要完成中型事件目标的{['起始','发展','高潮','收尾'][min(i, 3)]}部分\n"
         
+        # 构建写作计划上下文
+        writing_context = f"""
+## 【写作计划上下文】本事件在整体故事中的作用
+
+### 所属重大事件
+- **重大事件名称**: {major_event.get('name')}
+- **重大事件目标**: {major_event.get('main_goal')}
+- **在重大事件中的贡献**: {medium_event.get('contribution_to_major', '推进情节')}
+
+### 关键情绪节拍（需要铺垫的情绪）
+{chr(10).join(f'- {beat}' for beat in medium_event.get('key_emotional_beats', [])) if medium_event.get('key_emotional_beats') else '- 无特定情绪节拍要求'}
+"""
+
+        # 添加情绪推导信息（如果有）
+        if 'emotional_derivation' in medium_event:
+            ed = medium_event['emotional_derivation']
+            writing_context += f"""
+### 情绪推导信息
+- **触发事件**: {ed.get('trigger_event', '未定义')}
+- **情绪反应**: {ed.get('emotional_response', '未定义')}
+- **情绪节拍**: {', '.join(ed.get('emotional_beats', []))}
+"""
+
+        # 添加阶段弧线对齐信息（如果有）
+        if 'alignment_with_stage_arc' in medium_event:
+            aln = medium_event['alignment_with_stage_arc']
+            writing_context += f"""
+### 在阶段情绪弧线中的位置
+- **位置**: {aln.get('position_in_arc', '未定义')}
+- **对阶段情绪的贡献**: {aln.get('contribution_to_stage_emotion', '未定义')}
+"""
+
         # 🔥 新增：收集当前中型事件中的特殊情感事件
         special_emotional_context = ""
         special_events = medium_event.get("special_emotional_events", [])
@@ -506,7 +572,7 @@ class EventDecomposer:
                     if target_ch not in events_by_chapter:
                         events_by_chapter[target_ch] = []
                     events_by_chapter[target_ch].append(se)
-            
+
             if events_by_chapter:
                 special_emotional_context = "\n## 【情感融合要求】特殊情感事件\n"
                 for chapter_num, events in sorted(events_by_chapter.items()):
@@ -518,18 +584,21 @@ class EventDecomposer:
                             special_emotional_context += f"  - 关键元素: {', '.join(se.get('key_elements', []))}\n"
                             if se.get('context_hint'):
                                 special_emotional_context += f"  - 上下文提示: {se.get('context_hint')}\n"
-                
+
                 special_emotional_context += "\n**重要**：请将这些情感元素自然地融入到对应章节的场景中，让情感发展与情节推进有机结合。\n"
-        
+
         prompt = f"""
 # 任务：中型事件"多章场景构建"
 {consistency_block}
 你需要为一个跨{chapter_count}章的中型事件设计详细的场景事件序列。
 
+{writing_context}
+
 ## 当前中型事件信息
 - **中型事件名称**: {medium_event.get('name')}
 - **事件章节范围**: {medium_event.get('chapter_range')}
 - **事件核心目标**: {medium_event.get('main_goal')}
+- **事件情绪重点**: {medium_event.get('emotional_focus')}
 {special_emotional_context}
 
 ## 章节分配要求
@@ -544,45 +613,9 @@ class EventDecomposer:
 3. **最后一章** (收尾章): medium → medium → high → low
 
 ## 输出格式
-## 🔴 强制要求：每个场景必须包含name字段
-**每个scene_events对象必须包含一个简洁、有画面感的name字段！**
-- name字段长度：4-12个汉字
-- name字段内容：概括本场景的核心画面或关键事件
+返回JSON格式，包含：name, chapter_range, decomposition_type: "direct_scene", chapter_breakdown.overall_arc, scene_sequences[]
 
-{{
-    "name": "{medium_event.get('name')}",
-    "chapter_range": "{medium_event.get('chapter_range')}",
-    "decomposition_type": "direct_scene",
-    "chapter_breakdown": {{
-        "overall_arc": "整个中型事件的情节发展弧线"
-    }},
-    "scene_sequences": [
-        {{
-            "chapter_range": "{start_ch}-{start_ch}",
-            "chapter_role": "起始章",
-            "chapter_goal": "本章目标",
-            "scene_events": [
-                {{
-                    "name": "场景名称（必填，4-12字）",
-                    "sequence": 1,
-                    "role": "起",
-                    "position": "opening",
-                    "description": "场景描述",
-                    "purpose": "场景目的",
-                    "key_actions": ["关键动作"],
-                    "emotional_intensity": "low/medium/high",
-                    "emotional_impact": "情感冲击",
-                    "dialogue_highlights": ["关键对话"],
-                    "conflict_point": "冲突焦点",
-                    "sensory_details": "感官细节",
-                    "transition_to_next": "过渡说明",
-                    "estimated_word_count": "预计字数"
-                }},
-                ...
-            ]
-        }}
-    ]
-}}
+每个场景必须包含name（4-12字）、sequence、role、position、description、purpose、key_actions[]、emotional_intensity、emotional_impact、dialogue_highlights[]、conflict_point、sensory_details、transition_to_next、estimated_word_count
 """
         
         result = self.api_client.generate_content_with_retry(
@@ -625,11 +658,45 @@ class EventDecomposer:
 ## 已确定的事实 (一致性铁律)
 {consistency_guidance}
 """
-        
+
+        # 构建写作计划上下文
+        writing_context = f"""
+## 【写作计划上下文】本事件在整体故事中的作用
+
+### 所属重大事件
+- **重大事件名称**: {major_event.get('name')}
+- **重大事件目标**: {major_event.get('main_goal')}
+- **在重大事件中的贡献**: {medium_event.get('contribution_to_major', '推进情节')}
+
+### 关键情绪节拍（需要铺垫的情绪）
+{chr(10).join(f'- {beat}' for beat in medium_event.get('key_emotional_beats', [])) if medium_event.get('key_emotional_beats') else '- 无特定情绪节拍要求'}
+"""
+
+        # 添加情绪推导信息（如果有）
+        if 'emotional_derivation' in medium_event:
+            ed = medium_event['emotional_derivation']
+            writing_context += f"""
+### 情绪推导信息
+- **触发事件**: {ed.get('trigger_event', '未定义')}
+- **情绪反应**: {ed.get('emotional_response', '未定义')}
+- **情绪节拍**: {', '.join(ed.get('emotional_beats', []))}
+"""
+
+        # 添加阶段弧线对齐信息（如果有）
+        if 'alignment_with_stage_arc' in medium_event:
+            aln = medium_event['alignment_with_stage_arc']
+            writing_context += f"""
+### 在阶段情绪弧线中的位置
+- **位置**: {aln.get('position_in_arc', '未定义')}
+- **对阶段情绪的贡献**: {aln.get('contribution_to_stage_emotion', '未定义')}
+"""
+
         prompt = f"""
 # 任务：中型事件"智能场景分解" - AI自由决策最优结构
 {consistency_block}
 你需要为一个中型事件设计最优的场景分解结构。
+
+{writing_context}
 
 ## 当前中型事件信息
 - **中型事件名称**: {medium_event.get('name')}
@@ -670,75 +737,16 @@ class EventDecomposer:
 
 ## 输出格式（根据你的决策选择合适的格式）
 
-## 🔴 强制要求：每个场景必须包含name字段
-**每个scene_events或scenes对象必须包含一个简洁、有画面感的name字段！**
-- name字段长度：4-12个汉字
-- name字段内容：概括本场景的核心画面或关键事件
+每个场景必须包含name字段（4-12字，有画面感）
 
-### 方案A：不分解章节，直接生成场景序列
-适用于：连续的情节，章节之间紧密相关
-{{
-    "name": "{medium_event.get('name')}",
-    "chapter_range": "{chapter_range}",
-    "decomposition_type": "ai_free_direct_scenes",
-    "ai_decision": "说明你为什么选择这种结构",
-    "chapter_breakdown": {{
-        "overall_arc": "整个{chapter_count}章的情节发展弧线"
-    }},
-    "scene_sequences": [
-        {{
-            "chapter_range": "{start_ch}-{end_ch}",
-            "chapter_role": "整体推进",
-            "chapter_goal": "在{chapter_count}章内完成什么",
-            "scene_events": [
-                {{
-                    "name": "场景名称（必填，4-12字）",
-                    "sequence": 1,
-                    "role": "起/承/转/合/其他",
-                    "description": "场景描述",
-                    "emotional_intensity": "low/medium/high",
-                    "target_chapter": "{start_ch}"
-                }},
-                ...
-            ]
-        }}
-    ]
-}}
+### 方案A：直接生成场景序列（连续情节）
+返回：name, chapter_range, decomposition_type: "ai_free_direct_scenes", ai_decision, chapter_breakdown.overall_arc, scene_sequences[].scene_events[]
 
-### 方案B：分解为章节事件，每章独立场景
-适用于：章节之间相对独立，每章有自己的小目标
-{{
-    "name": "{medium_event.get('name')}",
-    "chapter_range": "{chapter_range}",
-    "decomposition_type": "ai_free_chapter_events",
-    "ai_decision": "说明你为什么选择这种结构",
-    "chapter_events": [
-        {{
-            "name": "第X章事件名称",
-            "chapter_range": "X-X",
-            "main_goal": "本章的目标",
-            "scene_structure": {{
-                "scenes": [
-                    {{
-                        "name": "场景名称（必填，4-12字）",
-                        "sequence": 1,
-                        "role": "起/承/转/合",
-                        "description": "场景描述",
-                        "emotional_intensity": "low/medium/high"
-                    }},
-                    ...
-                ]
-            }}
-        }},
-        ...
-    ]
-}}
+### 方案B：分解为章节事件（章节相对独立）
+返回：name, chapter_range, decomposition_type: "ai_free_chapter_events", ai_decision, chapter_events[].scene_structure.scenes[]
 
-### 方案C：混合方案（你自己设计）
-如果你认为有更好的结构，可以自由设计输出格式，但要确保包含：
-- scene_events 或 scenes 字段
-- 每个场景的 description 和 emotional_intensity
-- 明确的章节范围对应关系
+### 方案C：混合方案（自由设计）
+确保包含：scene_events或scenes字段、每个场景的description和emotional_intensity、明确的章节范围对应关系
 
 请根据你的专业判断，选择或创造最适合这个中型事件的结构。
 """
@@ -807,10 +815,43 @@ class EventDecomposer:
                 
                 special_emotional_context += "\n**重要**：请将这些情感元素自然地融入到本章的场景中，让情感发展与情节推进有机结合。\n"
         
+        # 构建写作计划上下文
+        writing_context = f"""
+## 【写作计划上下文】本事件在整体故事中的作用
+
+### 所属重大事件
+- **重大事件名称**: {major_event.get('name')}
+- **重大事件目标**: {major_event.get('main_goal')}
+- **在重大事件中的贡献**: {medium_event.get('contribution_to_major', '推进情节')}
+
+### 关键情绪节拍（需要铺垫的情绪）
+{chr(10).join(f'- {beat}' for beat in medium_event.get('key_emotional_beats', [])) if medium_event.get('key_emotional_beats') else '- 无特定情绪节拍要求'}
+
+### 情绪推导信息
+"""
+        # 添加情绪推导信息（如果有）
+        if 'emotional_derivation' in medium_event:
+            ed = medium_event['emotional_derivation']
+            writing_context += f"""- **触发事件**: {ed.get('trigger_event', '未定义')}
+- **情绪反应**: {ed.get('emotional_response', '未定义')}
+- **情绪节拍**: {', '.join(ed.get('emotional_beats', []))}
+"""
+
+        # 添加阶段弧线对齐信息（如果有）
+        if 'alignment_with_stage_arc' in medium_event:
+            aln = medium_event['alignment_with_stage_arc']
+            writing_context += f"""
+### 在阶段情绪弧线中的位置
+- **位置**: {aln.get('position_in_arc', '未定义')}
+- **对阶段情绪的贡献**: {aln.get('contribution_to_stage_emotion', '未定义')}
+"""
+
         prompt = f"""
 # 任务：单章中型事件"完整起承转合场景构建"
 {consistency_block}
 你需要为一个单章中型事件设计完整的起承转合场景结构。
+
+{writing_context}
 
 ## 当前中型事件信息
 - **中型事件名称**: {medium_event.get('name')}
@@ -834,95 +875,17 @@ class EventDecomposer:
 - 场景之间要有流畅的过渡，形成完整的叙事流
 - 最后一个场景必须包含吸引读者继续阅读的钩子
 
-## ⚠️ 重要：输出格式要求
-你必须严格按照以下JSON格式返回结果，不得使用其他格式。
+## 输出格式要求
+返回JSON格式，包含以下结构：
+- name, chapter_range, decomposition_type: "single_chapter_complete_arc"
+- chapter_breakdown.overall_arc: 整体弧线描述
+- scene_sequences[].scene_events[]: 场景数组（4-6个场景）
 
-## 🔴 强制要求：每个场景必须包含name字段
-**每个scene_events对象必须包含一个简洁、有画面感的name字段！**
-- name字段长度：4-12个汉字
-- name字段内容：概括本场景的核心画面或关键事件
-- 示例："黑暗中复苏"、"跪地求饶"、"系统审判"、"血泪觉醒"
-
-{{
-    "name": "{medium_event.get('name')}",
-    "chapter_range": "{chapter_range}",
-    "decomposition_type": "single_chapter_complete_arc",
-    "chapter_breakdown": {{
-        "overall_arc": "整个单章事件的完整起承转合弧线"
-    }},
-    "scene_sequences": [
-        {{
-            "chapter_range": "{start_ch}-{start_ch}",
-            "chapter_role": "单章完整",
-            "chapter_goal": "在单章内完成起承转合",
-            "scene_events": [
-                {{
-                    "name": "开篇场景名称（必填，4-12字）",
-                    "sequence": 1,
-                    "role": "起",
-                    "position": "opening",
-                    "description": "开篇场景描述",
-                    "purpose": "场景目的",
-                    "key_actions": ["动作1", "动作2"],
-                    "emotional_intensity": "low",
-                    "emotional_impact": "情感冲击",
-                    "dialogue_highlights": ["对话示例"],
-                    "conflict_point": "冲突焦点",
-                    "sensory_details": "感官细节",
-                    "transition_to_next": "过渡说明",
-                    "estimated_word_count": "预计字数"
-                }},
-                {{
-                    "sequence": 2,
-                    "role": "承",
-                    "position": "development1",
-                    "description": "发展场景描述",
-                    "purpose": "场景目的",
-                    "key_actions": ["动作1", "动作2"],
-                    "emotional_intensity": "medium",
-                    "emotional_impact": "情感冲击",
-                    "dialogue_highlights": ["对话示例"],
-                    "conflict_point": "冲突焦点",
-                    "sensory_details": "感官细节",
-                    "transition_to_next": "过渡说明",
-                    "estimated_word_count": "预计字数"
-                }},
-                {{
-                    "sequence": 3,
-                    "role": "转",
-                    "position": "climax",
-                    "description": "高潮场景描述",
-                    "purpose": "场景目的",
-                    "key_actions": ["动作1", "动作2"],
-                    "emotional_intensity": "high",
-                    "emotional_impact": "情感冲击",
-                    "dialogue_highlights": ["对话示例"],
-                    "conflict_point": "冲突焦点",
-                    "sensory_details": "感官细节",
-                    "transition_to_next": "过渡说明",
-                    "estimated_word_count": "预计字数"
-                }},
-                {{
-                    "sequence": 4,
-                    "role": "合",
-                    "position": "ending",
-                    "description": "收尾场景描述",
-                    "purpose": "场景目的",
-                    "key_actions": ["动作1", "动作2"],
-                    "emotional_intensity": "medium",
-                    "emotional_impact": "情感冲击",
-                    "dialogue_highlights": ["对话示例"],
-                    "conflict_point": "冲突焦点",
-                    "sensory_details": "感官细节",
-                    "transition_to_next": "过渡说明",
-                    "estimated_word_count": "预计字数"
-                }}
-            ]
-        }}
-    ]
-}}
-
-请严格按照上述格式返回JSON，不要添加任何其他字段或结构。
+每个场景必须包含：
+- **name**（必填，4-12字，有画面感）: 如"林中分赃"、"师兄拦路"
+- sequence, role（起/承/转/合）, position, description, purpose
+- key_actions[], emotional_intensity（low/medium/high）, emotional_impact
+- dialogue_highlights[], conflict_point, sensory_details, transition_to_next, estimated_word_count
 """
         
         result = self.api_client.generate_content_with_retry(
