@@ -232,15 +232,32 @@ class ProjectManager:
             writing_style_guide = {}
             try:
                 writing_style_path = path_manager.path_config.get_project_paths(novel_title)["writing_style_guide"]
+                self.logger.info(f"🔍 尝试加载写作风格指南: {writing_style_path}")
                 if os.path.exists(writing_style_path):
                     with open(writing_style_path, 'r', encoding='utf-8') as f:
                         writing_style_guide = json.load(f)
-                    self.logger.info(f"✅ 从独立文件加载写作风格指南")
-                elif project_data.get("writing_style_guide"):
-                    writing_style_guide = project_data.get("writing_style_guide", {})
-                    self.logger.info(f"✅ 从项目信息中加载写作风格指南")
+                    self.logger.info(f"✅ 从独立文件加载写作风格指南，包含键: {list(writing_style_guide.keys())}")
+                else:
+                    self.logger.warn(f"⚠️ 写作风格指南文件不存在: {writing_style_path}")
+                    # 尝试使用novel_data中的标题重新获取路径
+                    if project_data and "novel_title" in project_data:
+                        alt_title = project_data["novel_title"]
+                        if alt_title != novel_title:
+                            alt_paths = path_manager.path_config.get_project_paths(alt_title)
+                            alt_path = alt_paths["writing_style_guide"]
+                            self.logger.info(f"🔍 尝试使用备选标题加载: {alt_path}")
+                            if os.path.exists(alt_path):
+                                with open(alt_path, 'r', encoding='utf-8') as f:
+                                    writing_style_guide = json.load(f)
+                                self.logger.info(f"✅ 从备选路径加载写作风格指南")
+                    # 如果文件不存在，尝试从项目信息中获取
+                    if not writing_style_guide and project_data.get("writing_style_guide"):
+                        writing_style_guide = project_data.get("writing_style_guide", {})
+                        self.logger.info(f"✅ 从项目信息中加载写作风格指南")
             except Exception as e:
                 self.logger.warn(f"⚠️ 加载写作风格指南失败: {e}")
+                import traceback
+                self.logger.warn(f"详细错误: {traceback.format_exc()}")
                 writing_style_guide = project_data.get("writing_style_guide", {})
             
             # 如果独立文件不存在,从项目信息中迁移

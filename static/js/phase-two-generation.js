@@ -294,10 +294,11 @@ function displayProjectInfo(projectData) {
     // 更新表单默认值
     const fromChapter = document.getElementById('from-chapter');
     const chaptersToGenerate = document.getElementById('chapters-to-generate');
-    
+
     if (fromChapter) {
         fromChapter.value = completedChapters + 1;
-        fromChapter.min = completedChapters + 1;
+        // 移除最小值限制，允许从任何章节开始
+        // fromChapter.min = completedChapters + 1;
         // 添加事件监听器
         fromChapter.removeEventListener('input', updateChapterRange);
         fromChapter.addEventListener('input', updateChapterRange);

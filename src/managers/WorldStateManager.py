@@ -2770,7 +2770,14 @@ class WorldStateManager:
                 })
         return items
     def validate_money_consistency(self, novel_title: str, chapter_number: int, changes: Dict) -> List[Dict]:
-        """验证金钱变化的一致性 - 修复版，支持非交易性金钱变化"""
+        """
+        验证金钱变化的一致性 - 修复版
+
+        优先级：
+        1. 使用生成时记录的交易日志（ground truth）
+        2. 使用AI从内容提取的交易记录
+        3. 保留容错机制（money_change_reason解释小额差异）
+        """
         consistency_issues = []
         # 加载之前的世界状态
         previous_state = self.load_previous_assessments(novel_title)
@@ -2778,6 +2785,7 @@ class WorldStateManager:
             return consistency_issues
         characters_changes = changes.get('characters', {})
         economy_changes = changes.get('economy', {})
+
         # 处理列表类型的 economy_changes
         if isinstance(economy_changes, list):
             economy_changes_dict = {}
@@ -2785,12 +2793,17 @@ class WorldStateManager:
                 if isinstance(transaction, dict):
                     economy_changes_dict[f"transaction_{i}"] = transaction
             economy_changes = economy_changes_dict
+
+        # 💰 新增：加载生成时记录的交易日志（优先级最高）
+        generation_transactions = self._load_generation_transactions_for_chapter(novel_title, chapter_number)
+
         # 检查每个角色的金钱变化
         for char_name, char_data in characters_changes.items():
             attributes = char_data.get('attributes', {})
             # 只检查金钱发生变化的角色
             if 'money' not in attributes:
                 continue
+
             # --- 核心逻辑重构开始 ---
             # 安全地获取新旧金钱数值
             new_money = attributes.get('money')
@@ -2799,6 +2812,7 @@ class WorldStateManager:
                 new_money = float(new_money)
             except (TypeError, ValueError):
                 continue
+
             prev_char = previous_state.get('characters', {}).get(char_name, {})
             prev_attributes = prev_char.get('attributes', {})
             prev_money = prev_attributes.get('money', 0)
@@ -2806,42 +2820,68 @@ class WorldStateManager:
                 prev_money = float(prev_money if prev_money is not None else 0)
             except (TypeError, ValueError):
                 prev_money = 0
+
             # 1. 计算金钱总变化量
             money_change = new_money - prev_money
             if abs(money_change) < 0.01: # 变化太小，忽略
                 continue
-            # 2. 计算所有相关交易导致的变化量
-            related_transactions = self._find_related_transactions(char_name, economy_changes, money_change)
+
+            # 2. 优先使用生成时记录的交易日志
             total_transaction_amount = 0
-            for transaction in related_transactions:
-                amount = transaction.get('amount', 0)
-                try:
-                    amount = float(amount if amount is not None else 0)
-                except (TypeError, ValueError):
-                    amount = 0
-                if transaction.get('to_character') == char_name:
+            transaction_source = "generation"  # 默认使用生成时记录
+
+            gen_tx_for_char = [tx for tx in generation_transactions if tx.get('character') == char_name]
+            if gen_tx_for_char:
+                # 使用生成时记录的交易
+                for tx in gen_tx_for_char:
+                    amount = tx.get('amount', 0)
+                    try:
+                        amount = float(amount if amount is not None else 0)
+                    except (TypeError, ValueError):
+                        amount = 0
                     total_transaction_amount += amount
-                elif transaction.get('from_character') == char_name:
-                    total_transaction_amount -= amount
+                self.logger.info(f"   💰 [{char_name}] 使用生成时记录的交易: {len(gen_tx_for_char)}笔, 总额={total_transaction_amount}")
+            else:
+                # 回退到AI提取的交易
+                transaction_source = "extraction"
+                related_transactions = self._find_related_transactions(char_name, economy_changes, money_change)
+                for transaction in related_transactions:
+                    amount = transaction.get('amount', 0)
+                    try:
+                        amount = float(amount if amount is not None else 0)
+                    except (TypeError, ValueError):
+                        amount = 0
+                    if transaction.get('to_character') == char_name:
+                        total_transaction_amount += amount
+                    elif transaction.get('from_character') == char_name:
+                        total_transaction_amount -= amount
+
             # 3. 计算无法被交易记录解释的差额
             unexplained_change = money_change - total_transaction_amount
+
             # 4. 检查无法解释的差额是否合理
-            # 如果差额大于一个很小的值 (例如0.01)，说明存在无法解释的金钱变化
-            if abs(unexplained_change) > 0.01:
-                # 检查AI是否为这个无法解释的变化提供了“原因说明”
+            # 容错阈值：生成时记录用较小的容错，AI提取用较大的容错
+            tolerance = 0.01 if transaction_source == "generation" else 1.0
+
+            if abs(unexplained_change) > tolerance:
+                # 检查AI是否为这个无法解释的变化提供了"原因说明"
                 if 'money_change_reason' in attributes and attributes['money_change_reason']:
                     # 如果有原因说明，我们认为这是合理的非交易性变化，通过检查
                     self.logger.info(f"   - 角色 {char_name} 的金钱变化被解释为: '{attributes['money_change_reason']}'，验证通过。")
                 else:
-                    # 如果没有原因说明，这才是真正的一致性问题
+                    # 如果没有原因说明，且差额超过容错阈值
+                    severity = "高" if transaction_source == "generation" and abs(unexplained_change) > 0.1 else "中"
                     consistency_issues.append({
                         "type": "MONEY_CONSISTENCY",
                         "character": char_name,
-                        "description": f"{char_name}的金钱从{prev_money}变为{new_money}(变化:{money_change})，但交易记录总额({total_transaction_amount})与此不符，且未找到非交易性原因说明。",
-                        "severity": "高",
-                        "suggestion": f"请为{char_name}的金钱变化添加明确的交易记录，或在情节中说明差额({unexplained_change:.2f})的来源/去向，以便AI能提取到原因。"
+                        "description": f"{char_name}的金钱从{prev_money}变为{new_money}(变化:{money_change})，但{transaction_source}交易记录总额({total_transaction_amount})与此不符，差额({unexplained_change:.2f})。",
+                        "severity": severity,
+                        "suggestion": f"请为{char_name}的金钱变化添加明确的交易记录，或在情节中说明差额({unexplained_change:.2f})的来源/去向。"
                     })
+            else:
+                self.logger.info(f"   ✅ [{char_name}] 金钱验证通过: {prev_money} → {new_money} (来源: {transaction_source})")
             # --- 核心逻辑重构结束 ---
+
         # 检查交易双方的对应关系 (这部分逻辑保持不变)
         for transaction_id, transaction in economy_changes.items():
             from_char = transaction.get('from_character')
@@ -2850,17 +2890,48 @@ class WorldStateManager:
                 consistency_issues.append({
                     "type": "TRANSACTION_CONSISTENCY",
                     "description": f"交易{transaction_id}的付款方{from_char}不存在于角色列表中",
-                    "severity": "中", 
+                    "severity": "中",
                     "suggestion": "确认付款方角色名称是否正确，或改为系统交易"
                 })
             if to_char and to_char not in characters_changes and to_char != "系统":
                 consistency_issues.append({
                     "type": "TRANSACTION_CONSISTENCY",
-                    "description": f"交易{transaction_id}的收款方{to_char}不存在于角色列表中", 
+                    "description": f"交易{transaction_id}的收款方{to_char}不存在于角色列表中",
                     "severity": "中",
                     "suggestion": "确认收款方角色名称是否正确，或改为系统交易"
                 })
         return consistency_issues
+
+    def _load_generation_transactions_for_chapter(self, novel_title: str, chapter_number: int) -> List[Dict]:
+        """
+        加载指定章节生成时记录的交易日志
+
+        Args:
+            novel_title: 小说标题
+            chapter_number: 章节号
+
+        Returns:
+            该章节生成时记录的交易列表
+        """
+        try:
+            ledger_file = self._money_ledger_file(novel_title)
+            if not os.path.exists(ledger_file):
+                return []
+
+            with open(ledger_file, 'r', encoding='utf-8') as f:
+                ledger = json.load(f)
+
+            # 筛选该章节且来源为"generation"的交易记录
+            generation_tx = [
+                tx for tx in ledger
+                if tx.get('chapter') == chapter_number and tx.get('source') == 'generation'
+            ]
+
+            return generation_tx
+
+        except Exception as e:
+            self.logger.warn(f"  ⚠️ 加载第{chapter_number}章生成时交易记录失败: {e}")
+            return []
     def _find_related_transactions(self, character_name: str, transactions: Dict, money_change: float) -> List[Dict]:
         """查找与角色相关的交易记录"""
         related = []

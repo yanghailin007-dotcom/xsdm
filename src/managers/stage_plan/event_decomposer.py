@@ -266,7 +266,14 @@ class EventDecomposer:
                 "chapter_range": "string",
                 "main_goal": "目标",
                 "description": "事件描述",
-                
+
+                // === 阶段上下文（新增，必填）===
+                "stage_context": {{
+                    "stage_name": "{stage_name}",
+                    "stage_goal": "从顶层战略背景中提取的阶段核心目标",
+                    "contribution_to_stage": "本中型事件对阶段目标的贡献"
+                }},
+
                 // === 从事件推导的情绪 ===
                 "emotional_derivation": {{
                     "trigger_event": "触发这个情绪的具体事件描述",
@@ -274,13 +281,13 @@ class EventDecomposer:
                     "emotional_intensity": "low/medium/high",
                     "emotional_beats": ["情绪节拍1", "情绪节拍2"]
                 }},
-                
+
                 // === 与阶段情绪弧线对齐 ===
                 "alignment_with_stage_arc": {{
                     "position_in_arc": "起/承/转/合",
                     "contribution_to_stage_emotion": "这个事件如何推动阶段情绪发展"
                 }},
-                
+
                 "contribution_to_major": "对重大事件的贡献",
                 "special_emotional_events": [
                     {{
@@ -369,10 +376,22 @@ class EventDecomposer:
 
                 special_emotional_context += "\n**重要**：请将这些情感元素自然地融入到对应章节的场景中，让情感发展与情节推进有机结合，不要生硬插入。\n"
 
+        # 获取阶段上下文（如果有）
+        stage_context_info = medium_event.get('stage_context', {})
+        stage_context_section = ""
+        if stage_context_info:
+            stage_context_section = f"""
+### 所属阶段目标（最高层级指导）
+- **阶段名称**: {stage_context_info.get('stage_name', stage_name)}
+- **阶段核心目标**: {stage_context_info.get('stage_goal', '推进主线发展')}
+- **本事件对阶段的贡献**: {stage_context_info.get('contribution_to_stage', '服务于阶段目标')}
+"""
+
         # 构建写作计划上下文
         writing_context = f"""
 ## 【写作计划上下文】本事件在整体故事中的作用
 
+{stage_context_section}
 ### 所属重大事件
 - **重大事件名称**: {major_event.get('name')}
 - **重大事件目标**: {major_event.get('main_goal')}
@@ -527,11 +546,23 @@ class EventDecomposer:
         for i in range(chapter_count):
             chapter_num = start_ch + i
             chapter_breakdown += f"- 第{chapter_num}章: 需要完成中型事件目标的{['起始','发展','高潮','收尾'][min(i, 3)]}部分\n"
-        
+
+        # 获取阶段上下文（如果有）
+        stage_context_info = medium_event.get('stage_context', {})
+        stage_context_section = ""
+        if stage_context_info:
+            stage_context_section = f"""
+### 所属阶段目标（最高层级指导）
+- **阶段名称**: {stage_context_info.get('stage_name', stage_name)}
+- **阶段核心目标**: {stage_context_info.get('stage_goal', '推进主线发展')}
+- **本事件对阶段的贡献**: {stage_context_info.get('contribution_to_stage', '服务于阶段目标')}
+"""
+
         # 构建写作计划上下文
         writing_context = f"""
 ## 【写作计划上下文】本事件在整体故事中的作用
 
+{stage_context_section}
 ### 所属重大事件
 - **重大事件名称**: {major_event.get('name')}
 - **重大事件目标**: {major_event.get('main_goal')}
@@ -659,10 +690,22 @@ class EventDecomposer:
 {consistency_guidance}
 """
 
+        # 获取阶段上下文（如果有）
+        stage_context_info = medium_event.get('stage_context', {})
+        stage_context_section = ""
+        if stage_context_info:
+            stage_context_section = f"""
+### 所属阶段目标（最高层级指导）
+- **阶段名称**: {stage_context_info.get('stage_name', stage_name)}
+- **阶段核心目标**: {stage_context_info.get('stage_goal', '推进主线发展')}
+- **本事件对阶段的贡献**: {stage_context_info.get('contribution_to_stage', '服务于阶段目标')}
+"""
+
         # 构建写作计划上下文
         writing_context = f"""
 ## 【写作计划上下文】本事件在整体故事中的作用
 
+{stage_context_section}
 ### 所属重大事件
 - **重大事件名称**: {major_event.get('name')}
 - **重大事件目标**: {major_event.get('main_goal')}
@@ -815,10 +858,22 @@ class EventDecomposer:
                 
                 special_emotional_context += "\n**重要**：请将这些情感元素自然地融入到本章的场景中，让情感发展与情节推进有机结合。\n"
         
+        # 获取阶段上下文（如果有）
+        stage_context_info = medium_event.get('stage_context', {})
+        stage_context_section = ""
+        if stage_context_info:
+            stage_context_section = f"""
+### 所属阶段目标（最高层级指导）
+- **阶段名称**: {stage_context_info.get('stage_name', stage_name)}
+- **阶段核心目标**: {stage_context_info.get('stage_goal', '推进主线发展')}
+- **本事件对阶段的贡献**: {stage_context_info.get('contribution_to_stage', '服务于阶段目标')}
+"""
+
         # 构建写作计划上下文
         writing_context = f"""
 ## 【写作计划上下文】本事件在整体故事中的作用
 
+{stage_context_section}
 ### 所属重大事件
 - **重大事件名称**: {major_event.get('name')}
 - **重大事件目标**: {major_event.get('main_goal')}
