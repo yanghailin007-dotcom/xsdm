@@ -1336,6 +1336,9 @@ class ContentGenerator:
             novel_data["used_chapter_titles"] = set()
             self.logger.info("  ✓ 初始化 used_chapter_titles 集合")
 
+        # 🔧 修复：确保返回 chapter_data
+        return chapter_data
+
     def _clean_duplicate_title_in_content(self, chapter_data: Dict, chapter_number: int) -> Dict:
         """清理content中的重复标题"""
         import re
@@ -1652,7 +1655,62 @@ class ContentGenerator:
                         scenes_str_parts.append(f"- **{display_key}**: {formatted_value}")
             # ▲▲▲【核心修改结束】▲▲▲
         scenes_input_str = "\n".join(scenes_str_parts)
-        
+
+        # 🔥 优化：精简写作风格指南，只保留核心要素
+        # 注意：writing_style_guide.json 的实际结构是：
+        # - core_style (字符串)
+        # - dialogue_style (字典)
+        # - key_principles (数组)
+        # - language_characteristics, narration_techniques, chapter_techniques (字典)
+        writing_guide_full = chapter_params.get("writing_style_guide", {})
+        if writing_guide_full:
+            # 安全地获取对话风格（可能是字典）
+            dialogue_style = writing_guide_full.get("dialogue_style", {})
+            if isinstance(dialogue_style, dict):
+                dialogue_str = "; ".join([f"{k}:{v}" for k, v in dialogue_style.items()])
+            else:
+                dialogue_str = str(dialogue_style)
+
+            # 安全地获取关键原则（可能是数组）
+            key_principles = writing_guide_full.get("key_principles", [])
+            if isinstance(key_principles, list):
+                principles_str = "; ".join(key_principles)
+            else:
+                principles_str = str(key_principles)
+
+            writing_style_compressed = {
+                "核心风格": writing_guide_full.get("core_style", ""),
+                "对话风格": dialogue_str,
+                "关键原则": principles_str
+            }
+        else:
+            writing_style_compressed = {}
+
+        # 🔥 优化：将JSON转换为易读的文字格式
+        # 世界观：JSON转文字
+        worldview_info_json = chapter_params.get("worldview_info", "{}")
+        if worldview_info_json and worldview_info_json != "{}":
+            try:
+                worldview_data = json.loads(worldview_info_json) if isinstance(worldview_info_json, str) else worldview_info_json
+                parts = [f"{k}：{v}" for k, v in worldview_data.items()]
+                worldview_text = "；".join(parts)
+            except:
+                worldview_text = worldview_info_json
+        else:
+            worldview_text = "无特殊设定"
+
+        # 人物：JSON转文字
+        character_info_json = chapter_params.get("character_info", "{}")
+        if character_info_json and character_info_json != "{}":
+            try:
+                character_data = json.loads(character_info_json) if isinstance(character_info_json, str) else character_info_json
+                parts = [f"{k}：{v}" for k, v in character_data.items()]
+                character_text = "；".join(parts)
+            except:
+                character_text = character_info_json
+        else:
+            character_text = "无角色信息"
+
         # 构建章节生成提示词
         chapter_generation_prompt = f"""
 ## 章节创作指令 ##
@@ -1668,12 +1726,12 @@ class ContentGenerator:
 - **本章写作重点**: {chapter_params.get("writing_focus_from_plan", "保持节奏，制造悬念")}
 
 ## 3. 角色与世界观
-- **世界观设定**: {chapter_params.get("worldview_info", "{}")}
-- **人物设定**: {chapter_params.get("character_info", "{}")}
+- **世界观**: {worldview_text}
+- **人物**: {character_text}
 - **一致性铁律**: {chapter_params.get("consistency_guidance", "保持前后文一致")}
 
 ## 4. 风格指南
-- **小说整体写作风格**: {json.dumps(chapter_params.get("writing_style_guide", {}), ensure_ascii=False)}
+- **小说整体写作风格**: {json.dumps(writing_style_compressed, ensure_ascii=False)}
 
 ---
 
@@ -1897,6 +1955,12 @@ class ContentGenerator:
         total_chapters = novel_data["current_progress"]["total_chapters"]
         plot_direction = self._get_plot_direction_for_chapter(chapter_number, total_chapters)
         writing_style_guide = novel_data.get("writing_style_guide", {})
+
+        # 🔍 诊断：打印 writing_style_guide 的加载情况
+        if writing_style_guide:
+            self.logger.info(f"  ✅ 写作风格指南已加载，包含键: {list(writing_style_guide.keys())}")
+        else:
+            self.logger.warn(f"  ⚠️ 写作风格指南为空！novel_data中未找到writing_style_guide键或值为空")
         
         # 🔧 修复：安全获取 novel_synopsis，处理不同的数据结构
         novel_synopsis = None

@@ -285,6 +285,25 @@ class NovelGenerationManager:
             quality_data = self.load_quality_data(title)
             novel_data["quality_data"] = quality_data
 
+            # 🔥 修复：从独立文件加载写作风格指南
+            try:
+                writing_style_path = Path(paths.get("writing_style_guide", ""))
+                if writing_style_path.exists():
+                    with open(writing_style_path, 'r', encoding='utf-8') as f:
+                        writing_style_guide = json.load(f)
+                    novel_data["writing_style_guide"] = writing_style_guide
+                    logger.info(f"  ✅ 已加载写作风格指南: {len(writing_style_guide)} 个键")
+                else:
+                    # 如果独立文件不存在，尝试从项目信息中获取
+                    if novel_data.get("writing_style_guide"):
+                        logger.info(f"  ✅ 从项目信息中获取写作风格指南")
+                    else:
+                        logger.warn(f"  ⚠️ 写作风格指南文件不存在: {writing_style_path}")
+                        novel_data["writing_style_guide"] = {}
+            except Exception as e:
+                logger.warn(f"  ⚠️ 加载写作风格指南失败: {e}")
+                novel_data["writing_style_guide"] = novel_data.get("writing_style_guide", {})
+
             # 添加到项目集合
             self.novel_projects[title] = novel_data
             logger.info(f"  - 已加载 {len(generated_chapters)} 章")
@@ -602,7 +621,24 @@ class NovelGenerationManager:
                 }
                 standardized_data["global_growth_plan"] = global_growth_plan
                 logger.info("✅ 创建基础 global_growth_plan 结构")
-        
+
+        # 🔥 修复：确保 writing_style_guide 字段存在（动态加载）
+        if "writing_style_guide" not in standardized_data or not standardized_data.get("writing_style_guide"):
+            try:
+                from src.config.path_config import path_config
+                writing_style_path = Path(path_config.get_project_paths(title).get("writing_style_guide", ""))
+                if writing_style_path.exists():
+                    with open(writing_style_path, 'r', encoding='utf-8') as f:
+                        writing_style_guide = json.load(f)
+                    standardized_data["writing_style_guide"] = writing_style_guide
+                    logger.info(f"✅ 动态加载写作风格指南成功: {len(writing_style_guide)} 个键")
+                else:
+                    logger.warn(f"⚠️ 写作风格指南文件不存在: {writing_style_path}")
+                    standardized_data["writing_style_guide"] = {}
+            except Exception as e:
+                logger.warn(f"⚠️ 动态加载写作风格指南失败: {e}")
+                standardized_data["writing_style_guide"] = {}
+
         return standardized_data
 
     def get_chapter_detail(self, title: str, chapter_num: int) -> Optional[Dict[str, Any]]:
