@@ -423,9 +423,13 @@ class ChapterGenerator:
         
         return "\n".join(scenes_str_parts)
     
-    def _build_chapter_generation_prompt(self, chapter_params: Dict, chapter_number: int, 
+    def _build_chapter_generation_prompt(self, chapter_params: Dict, chapter_number: int,
                                         intensity_guidance: str, scenes_input_str: str) -> str:
         """构建章节生成提示词"""
+        character_info = chapter_params.get("character_info", "{}")
+        # 解析分层角色信息，生成更友好的提示词格式
+        character_prompt = self._format_character_info_for_prompt(character_info)
+
         return f"""
 ## 章节创作指令 ##
 为《{chapter_params.get('novel_title', '')}》创作第{chapter_number}章。
@@ -441,7 +445,10 @@ class ChapterGenerator:
 
 ## 3. 角色与世界观
 - **世界观设定**: {chapter_params.get("worldview_info", "{}")}
-- **人物设定**: {chapter_params.get("character_info", "{}")}
+
+### 角色信息（按重要性分层）
+{character_prompt}
+
 - **一致性铁律**: {chapter_params.get("consistency_guidance", "保持前后文一致")}
 
 ## 4. 风格指南
@@ -454,3 +461,57 @@ class ChapterGenerator:
 
 **重要提醒**：请严格遵循上述【情绪强度指南】，确保本章的情感表达和节奏控制符合要求的强度级别。
 """
+
+    def _format_character_info_for_prompt(self, character_info: str) -> str:
+        """
+        将分层的角色信息格式化为提示词友好的文本
+
+        Args:
+            character_info: JSON字符串格式的分层角色信息
+
+        Returns:
+            格式化后的角色信息文本
+        """
+        try:
+            import json
+            char_data = json.loads(character_info)
+
+            parts = []
+
+            # 主角
+            protagonist = char_data.get("protagonist", {})
+            if protagonist:
+                name = protagonist.get("name", "主角")
+                parts.append(f"**【主角】{name}**")
+                parts.append(f"- 完整信息: {json.dumps(protagonist, ensure_ascii=False)}")
+
+            # 前3个核心配角
+            key_supporting = char_data.get("key_supporting", [])
+            if key_supporting:
+                parts.append(f"\n**【核心配角】（前{len(key_supporting)}个，完整信息）**")
+                for char in key_supporting:
+                    parts.append(f"- {char.get('name', '未知')}: {json.dumps(char, ensure_ascii=False)}")
+
+            # 场景中提到的角色
+            mentioned = char_data.get("mentioned_characters", [])
+            if mentioned:
+                parts.append(f"\n**【本章涉及角色】（场景中提及，完整信息）**")
+                for char in mentioned:
+                    parts.append(f"- {char.get('name', '未知')}: {json.dumps(char, ensure_ascii=False)}")
+
+            # 其他角色摘要
+            others = char_data.get("other_characters", [])
+            if others:
+                parts.append(f"\n**【其他角色】（共{len(others)}个，仅摘要）**")
+                for char in others:
+                    parts.append(f"- {char.get('name', '未知')} ({char.get('role', '未知角色')}): {char.get('tag', '')}")
+                    if char.get('core_traits'):
+                        parts.append(f"  核心特质: {char.get('core_traits')}")
+
+            return "\n".join(parts) if parts else "暂无角色信息"
+
+        except json.JSONDecodeError:
+            # 如果解析失败，直接返回原始信息
+            return character_info
+        except Exception as e:
+            return f"角色信息解析错误: {str(e)}"

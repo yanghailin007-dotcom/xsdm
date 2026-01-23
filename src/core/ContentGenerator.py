@@ -1929,6 +1929,108 @@ class ContentGenerator:
                 "refinement_notes": "优化过程失败，使用原始内容"
             }
         }
+    def _build_layered_character_info(self, character_design: Dict, scene_events: List[Dict]) -> str:
+        """
+        构建分层的角色信息，优化token使用
+
+        策略：
+        - 主角：完整信息
+        - 前3个核心配角：完整信息
+        - 其他配角：只传摘要（名称+角色+标签）
+        - 场景中提到的角色：确保有完整信息
+
+        Args:
+            character_design: 完整的角色设计数据
+            scene_events: 本章的场景事件列表
+
+        Returns:
+            JSON格式的分层角色信息字符串
+        """
+        if not character_design:
+            return "{}"
+
+        # 提取主角完整信息
+        main_character = character_design.get("main_character", {})
+        important_characters = character_design.get("important_characters", [])
+
+        # 从场景事件中提取可能涉及的角色名
+        scene_character_names = set()
+        for scene in scene_events:
+            # 从各个文本字段中提取角色名
+            for field in ["description", "key_actions", "dialogue_highlights", "purpose", "name"]:
+                text = str(scene.get(field, ""))
+                # 简单提取：如果文本中包含某个角色的名字，加入集合
+                # 这里用后续的匹配逻辑来处理
+                pass
+
+        # 构建角色名列表（用于匹配）
+        all_character_names = []
+        if main_character.get("name"):
+            all_character_names.append(main_character["name"])
+        for char in important_characters:
+            if char.get("name"):
+                all_character_names.append(char["name"])
+
+        # 检查场景文本中出现的角色名
+        scene_text = ""
+        for scene in scene_events:
+            for field in ["description", "key_actions", "dialogue_highlights", "purpose", "conflict_point"]:
+                if scene.get(field):
+                    scene_text += str(scene[field]) + " "
+
+        # 匹配场景中出现的角色名
+        for char_name in all_character_names:
+            if char_name in scene_text:
+                scene_character_names.add(char_name)
+
+        # 构建分层结构
+        layered_info = {
+            "protagonist": main_character,  # 主角完整信息
+            "key_supporting": [],  # 前3个核心配角完整信息
+            "mentioned_characters": [],  # 场景中提到的角色（完整信息）
+            "other_characters": []  # 其他角色摘要
+        }
+
+        # 处理配角
+        mentioned_names = scene_character_names - {main_character.get("name")}
+        processed = set()
+
+        for char in important_characters:
+            char_name = char.get("name", "")
+            if not char_name:
+                continue
+
+            if char_name in mentioned_names:
+                # 场景中提到的角色，完整信息
+                layered_info["mentioned_characters"].append(char)
+                processed.add(char_name)
+            elif len(layered_info["key_supporting"]) < 3:
+                # 前3个核心配角，完整信息
+                layered_info["key_supporting"].append(char)
+                processed.add(char_name)
+            else:
+                # 其他角色，只传摘要
+                summary = {
+                    "name": char_name,
+                    "role": char.get("role", char.get("position", "未知角色")),
+                    "tag": char.get("tag", char.get("personality_tag", char.get("archetype", "")))
+                }
+                # 如果有soul_matrix，提取核心特质
+                if char.get("soul_matrix"):
+                    soul = char["soul_matrix"]
+                    if isinstance(soul, list) and len(soul) > 0:
+                        summary["core_traits"] = soul[:2]  # 只取前2个核心特质
+                layered_info["other_characters"].append(summary)
+
+        # 记录日志
+        total_chars = 1 + len(important_characters)
+        full_info_chars = 1 + len(layered_info["key_supporting"]) + len(layered_info["mentioned_characters"])
+        summary_chars = len(layered_info["other_characters"])
+
+        self.logger.info(f"  📊 角色信息分层: 总{total_chars}个角色 → 完整信息{full_info_chars}个 + 摘要{summary_chars}个")
+
+        return json.dumps(layered_info, ensure_ascii=False)
+
     def _prepare_chapter_params(self, chapter_number: int, novel_data: Dict) -> Dict:
         self.logger.info(f"  🔍 准备第{chapter_number}章参数...")
         novel_title = novel_data["novel_title"]
@@ -1942,10 +2044,10 @@ class ContentGenerator:
         # ----------------------------------------------------------------------
         # 3. 将一致性指导作为参数，传入场景准备函数
         scene_events, chapter_goal_from_plan, writing_focus_from_plan = self._ensure_scenes_are_ready_for_chapter(
-            chapter_number, 
-            context, 
+            chapter_number,
+            context,
             novel_data,
-            consistency_guidance  # <-- 将“接力棒”传下去
+            consistency_guidance  # <-- 将"接力棒"传下去
         )
         # --- 后续的参数准备逻辑基本不变 ---
         character_development_guidance = self._get_character_development_guidance(chapter_number, novel_data)
@@ -1961,7 +2063,7 @@ class ContentGenerator:
             self.logger.info(f"  ✅ 写作风格指南已加载，包含键: {list(writing_style_guide.keys())}")
         else:
             self.logger.warn(f"  ⚠️ 写作风格指南为空！novel_data中未找到writing_style_guide键或值为空")
-        
+
         # 🔧 修复：安全获取 novel_synopsis，处理不同的数据结构
         novel_synopsis = None
         if "novel_synopsis" in novel_data:
@@ -1970,11 +2072,15 @@ class ContentGenerator:
             novel_synopsis = novel_data["novel_info"].get("synopsis")
         elif "synopsis" in novel_data:
             novel_synopsis = novel_data["synopsis"]
-        
+
         # 如果还是找不到，使用默认值
         if not novel_synopsis:
             novel_synopsis = novel_data.get("novel_title", "未知小说")
             self.logger.warn(f"  ⚠️  未能找到 novel_synopsis，使用标题作为替代")
+
+        # 🆕 使用分层角色信息优化token使用
+        character_design = novel_data.get("character_design")
+        character_info = self._build_layered_character_info(character_design, scene_events) if character_design else "{}"
         
         params = {
             "chapter_number": chapter_number,
@@ -1986,7 +2092,7 @@ class ContentGenerator:
             "novel_synopsis": novel_synopsis,
             "writing_style_guide": writing_style_guide,
             "worldview_info": json.dumps(novel_data["core_worldview"], ensure_ascii=False) if novel_data.get("core_worldview") else "{}",
-            "character_info": json.dumps(novel_data["character_design"], ensure_ascii=False) if novel_data.get("character_design") else "{}",
+            "character_info": character_info,
             "character_development_guidance": character_development_guidance,
             "stage_writing_plan": stage_writing_plan,
             "previous_chapters_summary": self._generate_previous_chapters_summary(chapter_number, novel_data),
