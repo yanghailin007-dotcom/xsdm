@@ -975,6 +975,10 @@ class ContentGenerator:
                 self.logger.info(f"  ✨ 核心内容生成完毕，开始后处理...")
                 # 确保章节标题唯一性
                 chapter_data = self._handle_chapter_title_uniqueness(chapter_data, chapter_number, novel_data)
+
+                # 🔥 新增：清理content中的重复标题
+                chapter_data = self._clean_duplicate_title_in_content(chapter_data, chapter_number)
+
                 # 新增：从设计蓝图中提取情绪信息，并置于顶层以兼容旧结构
                 if chapter_data and chapter_data.get("chapter_design", {}).get("emotional_design"):
                     chapter_data["emotional_design"] = chapter_data["chapter_design"]["emotional_design"]
@@ -1331,6 +1335,35 @@ class ContentGenerator:
         if "used_chapter_titles" not in novel_data:
             novel_data["used_chapter_titles"] = set()
             self.logger.info("  ✓ 初始化 used_chapter_titles 集合")
+
+    def _clean_duplicate_title_in_content(self, chapter_data: Dict, chapter_number: int) -> Dict:
+        """清理content中的重复标题"""
+        import re
+
+        content = chapter_data.get("content", "")
+        chapter_title = chapter_data.get("chapter_title", "")
+
+        if not content or not chapter_title:
+            return chapter_data
+
+        # 尝试匹配并移除开头的标题行
+        # 匹配模式：第X章 标题 或 第X章：标题 或 直接的标题
+        patterns = [
+            rf"^第{chapter_number}章[：:\s]+{re.escape(chapter_title)}\s*\n+",  # 第X章：标题
+            rf"^第{chapter_number}章\s+{re.escape(chapter_title)}\s*\n+",      # 第X章 标题
+            rf"^{re.escape(chapter_title)}\s*\n+",                              # 直接标题
+        ]
+
+        cleaned_content = content
+        for pattern in patterns:
+            match = re.match(pattern, cleaned_content)
+            if match:
+                cleaned_content = cleaned_content[match.end():]
+                self.logger.info(f"  🧹 已清理content开头的重复标题")
+                break
+
+        chapter_data["content"] = cleaned_content
+        return chapter_data
         
         original_title = chapter_data.get("chapter_title", "")
         if not original_title:
@@ -1678,11 +1711,28 @@ class ContentGenerator:
                 elif position == 'development2':
                     scene['name'] = '发展场景2：' + (purpose[:8] if len(purpose) > 8 else purpose)
                 elif position == 'climax':
-                    scene['name'] = '高潮场景'
+                    # 尝试从description或purpose提取有意义的名称
+                    if description and len(description) > 0:
+                        scene['name'] = '高潮：' + (description[:10] if len(description) > 10 else description)
+                    elif purpose and len(purpose) > 0:
+                        scene['name'] = '高潮：' + (purpose[:10] if len(purpose) > 10 else purpose)
+                    else:
+                        scene['name'] = '高潮场景'
                 elif position == 'falling':
-                    scene['name'] = '回落场景'
+                    if description and len(description) > 0:
+                        scene['name'] = '回落：' + (description[:10] if len(description) > 10 else description)
+                    elif purpose and len(purpose) > 0:
+                        scene['name'] = '回落：' + (purpose[:10] if len(purpose) > 10 else purpose)
+                    else:
+                        scene['name'] = '回落场景'
                 elif position == 'ending':
-                    scene['name'] = '结尾场景'
+                    # 尝试从description或purpose提取有意义的名称
+                    if description and len(description) > 0:
+                        scene['name'] = '结尾：' + (description[:10] if len(description) > 10 else description)
+                    elif purpose and len(purpose) > 0:
+                        scene['name'] = '结尾：' + (purpose[:10] if len(purpose) > 10 else purpose)
+                    else:
+                        scene['name'] = '结尾场景'
                 else:
                     scene['name'] = f'场景{i+1}'
                 

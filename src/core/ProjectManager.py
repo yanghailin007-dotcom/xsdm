@@ -227,6 +227,21 @@ class ProjectManager:
             # 尝试从独立文件加载成长路线和写作计划
             growth_plan = growth_plan_manager.load_growth_plan(novel_title)
             stage_plans = growth_plan_manager.load_stage_writing_plans(novel_title)
+
+            # 🔥 新增：从独立文件加载写作风格指南
+            writing_style_guide = {}
+            try:
+                writing_style_path = path_manager.path_config.get_project_paths(novel_title)["writing_style_guide"]
+                if os.path.exists(writing_style_path):
+                    with open(writing_style_path, 'r', encoding='utf-8') as f:
+                        writing_style_guide = json.load(f)
+                    self.logger.info(f"✅ 从独立文件加载写作风格指南")
+                elif project_data.get("writing_style_guide"):
+                    writing_style_guide = project_data.get("writing_style_guide", {})
+                    self.logger.info(f"✅ 从项目信息中加载写作风格指南")
+            except Exception as e:
+                self.logger.warn(f"⚠️ 加载写作风格指南失败: {e}")
+                writing_style_guide = project_data.get("writing_style_guide", {})
             
             # 如果独立文件不存在,从项目信息中迁移
             if growth_plan is None and project_data.get("global_growth_plan"):
@@ -268,6 +283,9 @@ class ProjectManager:
                 "stage_writing_plans": stage_plans or project_data.get("stage_writing_plans", {}),
                 "core_worldview": project_data.get("core_worldview", {}),
                 "character_design": project_data.get("character_design", {}),
+                "faction_system": project_data.get("faction_system", {}),
+                "writing_style_guide": writing_style_guide,  # 使用从独立文件加载的数据
+                "emotional_blueprint": project_data.get("emotional_blueprint", {}),
                 # 🔥 修复：正确构建current_progress，确保包含必要的字段
                 "current_progress": project_data.get("progress", {
                     "completed_chapters": 0,
