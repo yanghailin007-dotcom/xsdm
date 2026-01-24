@@ -1645,18 +1645,19 @@ class WorldStateManager:
     
     def _is_non_character_entity(self, name: str) -> bool:
         """🔧 新增：判断名称是否为非角色实体（物品、地点等）"""
+        # 优化：使用精确匹配，避免误判正常名字
         non_character_patterns = [
-            r'.*[剑刀枪戟斧钺钩叉鞭锏锤拐棒].*$',      # 武器
-            r'.*[丹药丸散膏汤剂露酒茶].*$',            # 药物
-            r'.*[山川湖海江河溪涧泉瀑峰岭崖谷峡].*$',  # 地理
-            r'.*[金银铜铁玉石珍珠宝石翡翠玛瑙].*$',  # 宝物
-            r'.*[东西南北中上下左右前后].*$',        # 方位
+            r'^[剑刀枪戟斧钺钩叉鞭锏锤拐棒]+$',        # 纯武器
+            r'^[丹药丸散膏汤剂露酒茶]+$',            # 纯药物
+            r'^[山川湖海江河溪涧泉瀑峰岭崖谷峡]+$',  # 纯地理
+            r'^[金银铜铁玉石珍珠宝石翡翠玛瑙]+$',  # 纯宝物
+            r'^[东西南北中上下左右前后]+$',          # 纯方位
         ]
-        
+
         for pattern in non_character_patterns:
             if re.match(pattern, name):
                 return True
-        
+
         return False
     
     def _is_character_in_relationship_context(self, char1: str, char2: str, position: int, text: str) -> bool:
@@ -3481,17 +3482,22 @@ class WorldStateManager:
         self.logger.info(f"   ✅ 名称长度检查通过: 纯中文 {chinese_name_length} 字符, 完整 {full_name_length} 字符")
         
         # 3. 检查是否为常见的误识别模式
+        # 优化：使用更精确的模式，避免误判正常名字
         suspicious_patterns = [
-            r'.*[剑刀枪戟斧钺钩叉鞭锏锤拐棒].*$',  # 武器名称
-            r'.*[丹药丸散膏汤剂露酒茶].*$',        # 药物名称
-            r'.*[山川湖海江河溪涧泉瀑峰岭崖谷峡].*$',  # 地理名称
-            r'.*[金银铜铁玉石珍珠宝石翡翠玛瑙].*$',  # 宝物名称
-            r'.*[东西南北中上下左右前后].*$',      # 方位词
-            r'.*[的之而是与和在有对把被让给为].*$',  # 功能词
+            r'^[剑刀枪戟斧钺钩叉鞭锏锤拐棒]+$',        # 纯武器名称
+            r'^[丹药丸散膏汤剂露酒茶]+$',            # 纯药物名称
+            r'^[山川湖海江河溪涧泉瀑峰岭崖谷峡]+$',  # 纯地理名称
+            r'^[金银铜铁玉石珍珠宝石翡翠玛瑙]+$',  # 纯宝物名称
+            r'^[东西南北中上下左右前后]+$',          # 纯方位词（2字以内）
+            r'^[东西南北中上下左右前后]{2,}$',       # 纯方位组合（2字及以上）
+            r'^.[的之而是与和在有对把被让给为]$',    # 单字+功能词
+            r'^[的之而是与和在有对把被让给为]',      # 纯功能词
         ]
-        
+
+        pure_chinese_for_check = pure_chinese_name if pure_chinese_name else character_name
+
         for pattern in suspicious_patterns:
-            if re.match(pattern, character_name):
+            if re.match(pattern, pure_chinese_for_check):
                 self.logger.info(f"   ❌ 匹配到可疑模式: {pattern}")
                 return False
         

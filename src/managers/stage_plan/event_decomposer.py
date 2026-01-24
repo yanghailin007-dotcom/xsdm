@@ -177,7 +177,34 @@ class EventDecomposer:
         except Exception as e:
             self.logger.warn(f"构建顶层上下文时发生错误: {e}, 使用简化版上下文。")
             return "# 顶层战略背景\n简化版上下文"
-    
+
+    def _build_comprehensive_scene_context(self, global_novel_data: Dict, major_event: Dict,
+                                          medium_event: Dict, stage_name: str) -> str:
+        """
+        构建场景生成的综合上下文（使用共享的 SceneContextBuilder）
+
+        包含：
+        1. 角色信息（主角、重要配角）
+        2. 世界观设定（修炼体系、世界规则）
+        3. 重大事件完整信息
+        4. 阶段上下文
+
+        Args:
+            global_novel_data: 全局小说数据
+            major_event: 所属重大事件
+            medium_event: 当前中型事件
+            stage_name: 阶段名称
+
+        Returns:
+            格式化的上下文字符串
+        """
+        from src.utils.SceneContextBuilder import get_scene_context_builder
+
+        context_builder = get_scene_context_builder()
+        return context_builder.build_comprehensive_context(
+            medium_event, major_event, global_novel_data, stage_name
+        )
+
     def _build_decomposition_prompt(self, major_event_skeleton: Dict,
                                    stage_name: str, top_level_context: str,
                                    stage_emotional_arc: Optional[Dict] = None,
@@ -420,12 +447,19 @@ class EventDecomposer:
 - **对阶段情绪的贡献**: {aln.get('contribution_to_stage_emotion', '未定义')}
 """
 
+        # 🔥 新增：构建综合场景上下文（角色、世界观、重大事件）
+        comprehensive_scene_context = self._build_comprehensive_scene_context(
+            global_novel_data, major_event, medium_event, stage_name
+        )
+
         chapter_events_prompt = f"""
 # 任务：中型事件"章节分解" - 服务于中型事件目标
 {consistency_block}
 你需要将一个多章的中型事件分解为具体的章节事件。
 
 {writing_context}
+
+{comprehensive_scene_context}
 
 ## 当前中型事件信息
 - **所属阶段**: {stage_name}
@@ -493,7 +527,12 @@ class EventDecomposer:
 ## ⚠️ 重要：前一章场景回顾 (避免重复)
 这是前一章的第{idx}个章节事件。在为本章设计场景时，**严禁重复**以下场景。
 """
-            
+
+            # 🔥 新增：构建综合场景上下文（角色、世界观、重大事件）
+            comprehensive_scene_context = self._build_comprehensive_scene_context(
+                global_novel_data, major_event, medium_event
+            )
+
             scene_structure_prompt = f"""
 # 任务：章节事件"场景结构构建"
 你需要为一个章节事件设计完整的场景结构。
@@ -503,6 +542,8 @@ class EventDecomposer:
 - **章节范围**: {chapter_range}
 - **章节目标**: {main_goal}
 {previous_context}
+
+{comprehensive_scene_context}
 
 ## 场景构建要求
 请为这个章节设计4-6个场景事件，形成完整的戏剧结构。
@@ -618,12 +659,19 @@ class EventDecomposer:
 
                 special_emotional_context += "\n**重要**：请将这些情感元素自然地融入到对应章节的场景中，让情感发展与情节推进有机结合。\n"
 
+        # 🔥 新增：构建综合场景上下文（角色、世界观、重大事件）
+        comprehensive_scene_context = self._build_comprehensive_scene_context(
+            global_novel_data, major_event, medium_event, stage_name
+        )
+
         prompt = f"""
 # 任务：中型事件"多章场景构建"
 {consistency_block}
 你需要为一个跨{chapter_count}章的中型事件设计详细的场景事件序列。
 
 {writing_context}
+
+{comprehensive_scene_context}
 
 ## 当前中型事件信息
 - **中型事件名称**: {medium_event.get('name')}
@@ -734,12 +782,19 @@ class EventDecomposer:
 - **对阶段情绪的贡献**: {aln.get('contribution_to_stage_emotion', '未定义')}
 """
 
+        # 🔥 新增：构建综合场景上下文（角色、世界观、重大事件）
+        comprehensive_scene_context = self._build_comprehensive_scene_context(
+            global_novel_data, major_event, medium_event, stage_name
+        )
+
         prompt = f"""
 # 任务：中型事件"智能场景分解" - AI自由决策最优结构
 {consistency_block}
 你需要为一个中型事件设计最优的场景分解结构。
 
 {writing_context}
+
+{comprehensive_scene_context}
 
 ## 当前中型事件信息
 - **中型事件名称**: {medium_event.get('name')}
@@ -901,12 +956,19 @@ class EventDecomposer:
 - **对阶段情绪的贡献**: {aln.get('contribution_to_stage_emotion', '未定义')}
 """
 
+        # 🔥 新增：构建综合场景上下文（角色、世界观、重大事件）
+        comprehensive_scene_context = self._build_comprehensive_scene_context(
+            global_novel_data, major_event, medium_event, stage_name
+        )
+
         prompt = f"""
 # 任务：单章中型事件"完整起承转合场景构建"
 {consistency_block}
 你需要为一个单章中型事件设计完整的起承转合场景结构。
 
 {writing_context}
+
+{comprehensive_scene_context}
 
 ## 当前中型事件信息
 - **中型事件名称**: {medium_event.get('name')}

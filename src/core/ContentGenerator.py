@@ -248,6 +248,118 @@ class ContentGenerator:
 
         return previous_end_state.to_prompt_context()
 
+    def _get_previous_chapter_scenes_summary(self, current_chapter: int, context: 'GenerationContext') -> Optional[Dict]:
+        """获取前几章的场景信息概要，用于跨事件场景连续性
+
+        即使章节属于不同的medium_event，前几章的场景信息也应该传递给当前章节，
+        以确保AI知道哪些场景已经发生过，避免重复。
+
+        Args:
+            current_chapter: 当前章节号
+            context: 生成上下文
+
+        Returns:
+            包含前几章场景概要的字典，如果没有则返回None
+        """
+        if current_chapter <= 1:
+            return None
+
+        # 通过 stage_plan_manager 获取 plan_container（与 _ensure_scenes_are_ready_for_chapter 一致）
+        plan_container = self.novel_generator.stage_plan_manager.get_stage_plan_for_chapter(current_chapter)
+        if not plan_container:
+            return None
+
+        event_system = plan_container.get("event_system", {})
+        chapter_scene_events = event_system.get("chapter_scene_events", [])
+
+        if not chapter_scene_events:
+            return None
+
+        # 获取前3章的场景（最多3章，从最近到最远）
+        previous_chapters = []
+        for i in range(1, min(4, current_chapter)):  # 前1-3章
+            prev_chapter_num = current_chapter - i
+            for chap_entry in chapter_scene_events:
+                if chap_entry.get("chapter_number") == prev_chapter_num:
+                    previous_chapters.append({
+                        "chapter_number": prev_chapter_num,
+                        "scene_events": chap_entry.get("scene_events", [])
+                    })
+                    break
+
+        if not previous_chapters:
+            return None
+
+        # 构建场景概要
+        chapters_summary = []
+        for prev_chap in previous_chapters:
+            chap_num = prev_chap["chapter_number"]
+            scenes = prev_chap["scene_events"]
+
+            # 构建该章的详细场景列表
+            scene_details = []
+            for scene in scenes:
+                name = scene.get("name", "未命名场景")
+                purpose = scene.get("purpose", "")
+                key_actions = scene.get("key_actions", [])
+                emotional_impact = scene.get("emotional_impact", "")
+                conflict_point = scene.get("conflict_point", "")
+                position = scene.get("position", "")
+
+                # 构建详细场景描述
+                detail_parts = [f"- **{name}**"]
+                if position:
+                    detail_parts.append(f" [{position}]")
+                if purpose:
+                    detail_parts.append(f"\n  目标: {purpose}")
+                if key_actions and isinstance(key_actions, list):
+                    # 限制关键动作数量，避免过长
+                    actions_str = "、".join(key_actions[:3])
+                    if actions_str:
+                        detail_parts.append(f"\n  关键动作: {actions_str}")
+                if conflict_point:
+                    detail_parts.append(f"\n  冲突: {conflict_point}")
+                if emotional_impact:
+                    detail_parts.append(f"\n  情感: {emotional_impact}")
+
+                scene_details.append("".join(detail_parts))
+
+            chapters_summary.append({
+                "chapter": chap_num,
+                "scene_count": len(scenes),
+                "scene_names": scene_details
+            })
+
+        return {
+            "chapters": chapters_summary,
+            "total_chapters": len(previous_chapters),
+            "summary_text": self._format_previous_chapters_scenes_summary(chapters_summary)
+        }
+
+    def _format_previous_chapters_scenes_summary(self, chapters_summary: list) -> str:
+        """格式化前几章场景概要为文本
+
+        Args:
+            chapters_summary: 章节概要列表
+
+        Returns:
+            格式化的文本字符串
+        """
+        if not chapters_summary:
+            return ""
+
+        lines = ["## 前几章场景概要（用于保持连续性）", ""]
+        lines.append("以下是前几章已经发生的场景，请确保本章不重复这些场景，并注意承接上一章的结尾：")
+        lines.append("")
+
+        for chap in chapters_summary:
+            lines.append(f"### 第{chap['chapter']}章（共{chap['scene_count']}个场景）:")
+            for scene_info in chap['scene_names']:
+                lines.append(f"  {scene_info}")
+            lines.append("")
+
+        return "\n".join(lines)
+
     def set_custom_main_character_name(self, name: str):
         """设置主角名字"""
         self.custom_main_character_name = name
@@ -1038,6 +1150,9 @@ class ContentGenerator:
                     self._ensure_quality_assessor_initialized(novel_data)
                     # 执行到这里说明 quality_assessor 已成功初始化
                     self.quality_assessor.world_state_manager.initialize_world_state_from_novel_data(novel_data["novel_title"], novel_data)
+                # 🔧 修复：确保所有章节的 quality_assessor 都已初始化（不只是第1章）
+                elif self.quality_assessor is None:
+                    self._ensure_quality_assessor_initialized(novel_data)
                 # 存储上下文供后续使用
                 novel_data['_current_generation_context'] = context
                 # 准备章节参数
@@ -1878,6 +1993,12 @@ class ContentGenerator:
         previous_end_state = chapter_params.get("previous_end_state")
         transition_requirement = self._build_transition_requirement(previous_end_state, chapter_number)
 
+        # 🆕 获取前几章场景概要（用于跨事件场景连续性）
+        previous_chapter_scenes = chapter_params.get("previous_chapter_scenes")
+        previous_scenes_section = ""
+        if previous_chapter_scenes and previous_chapter_scenes.get("summary_text"):
+            previous_scenes_section = f"\n{previous_chapter_scenes['summary_text']}\n"
+
         chapter_generation_prompt = f"""
 ## 章节创作指令 ##
 为《{chapter_params.get('novel_title', '')}》创作第{chapter_number}章。
@@ -1891,6 +2012,8 @@ class ContentGenerator:
 
 - **本章核心目标**: {chapter_params.get("chapter_goal_from_plan", "推进主线情节")}
 - **本章写作重点**: {chapter_params.get("writing_focus_from_plan", "保持节奏，制造悬念")}
+
+{previous_scenes_section}
 
 ## 3. 角色与世界观
 - **世界观**: {worldview_text}
@@ -2253,6 +2376,11 @@ class ContentGenerator:
         previous_end_state = self._get_previous_chapter_end_state(chapter_number, novel_data)
         continuity_context = self._build_continuity_context(previous_end_state)
 
+        # 🆕 获取前几章的场景信息（用于跨事件场景连续性）
+        previous_chapter_scenes_summary = self._get_previous_chapter_scenes_summary(chapter_number, context)
+        if previous_chapter_scenes_summary:
+            self.logger.info(f"  📜 [场景连续性] 已获取前几章场景概要，共 {len(previous_chapter_scenes_summary.get('chapters', []))} 章")
+
         params = {
             "chapter_number": chapter_number,
             "pre_designed_scenes": scene_events,
@@ -2269,6 +2397,7 @@ class ContentGenerator:
             # 使用新的衔接上下文替代旧的 previous_chapters_summary
             "previous_chapters_summary": continuity_context,
             "previous_end_state": previous_end_state,  # 新增：原始结尾状态对象
+            "previous_chapter_scenes": previous_chapter_scenes_summary,  # 新增：前几章场景概要
             "plot_direction": plot_direction["plot_direction"],
             "chapter_connection_note": self._get_chapter_connection_note(chapter_number),
             "character_development_focus": plot_direction.get("character_development_focus", ""),
@@ -2498,9 +2627,68 @@ class ContentGenerator:
         }
         self._medium_event_manager.save_event_scenes(event_id, event_data)
 
+        # 🆕 同时保存到计划的 chapter_scene_events 数组中（与单章生成保持一致）
+        self._save_multi_chapter_scenes_to_plan(
+            plan_container, all_scenes_by_chapter, medium_event, start_ch, end_ch
+        )
+
         # 返回当前请求章节的场景
         current_scenes = all_scenes_by_chapter.get(chapter_number, [])
         return current_scenes, medium_event.get("main_goal", ""), medium_event.get("emotional_focus", "")
+
+    def _save_multi_chapter_scenes_to_plan(self, plan_container: Dict, all_scenes_by_chapter: Dict[int, List[Dict]],
+                                          medium_event: Dict, start_ch: int, end_ch: int):
+        """将多章生成的场景保存到计划的 chapter_scene_events 数组中
+
+        Args:
+            plan_container: 阶段计划容器
+            all_scenes_by_chapter: {chapter_number: [scenes]} 字典
+            medium_event: 中型事件数据
+            start_ch: 起始章节
+            end_ch: 结束章节
+        """
+        stage_name = plan_container.get('stage_name', '')
+        self.logger.info(f"    >> 正在将多章场景同步到计划并持久化...")
+
+        # 确保 plan_container 的结构完整
+        if "event_system" not in plan_container:
+            plan_container["event_system"] = {}
+        if "chapter_scene_events" not in plan_container["event_system"]:
+            plan_container["event_system"]["chapter_scene_events"] = []
+
+        chapter_scene_events = plan_container["event_system"]["chapter_scene_events"]
+
+        # 为每个章节保存场景
+        for ch_num, scenes in all_scenes_by_chapter.items():
+            # 查找该章节是否已存在条目
+            chapter_entry = next((item for item in chapter_scene_events if item.get("chapter_number") == ch_num), None)
+            if chapter_entry:
+                # 如果存在，则更新其场景列表
+                self.logger.info(f"    >> 更新章节 {ch_num} 的场景列表 ({len(scenes)} 个场景)")
+                chapter_entry["scene_events"] = scenes
+            else:
+                # 如果不存在，则创建新条目并添加
+                self.logger.info(f"    >> 为章节 {ch_num} 创建新的场景条目 ({len(scenes)} 个场景)")
+                new_entry = {
+                    "chapter_number": ch_num,
+                    "chapter_goal": f"完成事件 '{medium_event.get('name', '未命名')}' 的相关情节",
+                    "writing_focus": medium_event.get('purpose', '深化情感，推进剧情'),
+                    "scene_events": scenes
+                }
+                chapter_scene_events.append(new_entry)
+
+        # 保持章节有序
+        chapter_scene_events.sort(key=lambda x: x.get("chapter_number", 0))
+
+        # 调用 StagePlanManager 的方法来保存更新后的 plan_container
+        try:
+            self.novel_generator.stage_plan_manager.save_and_cache_stage_plan(
+                stage_name=stage_name,
+                plan_data=plan_container
+            )
+            self.logger.info(f"    >> 多章场景已成功保存到计划文件")
+        except Exception as e:
+            self.logger.error(f"    >> [持久化失败] 保存多章场景时发生错误: {e}")
 
     def _generate_multi_chapter_with_inheritance(self, medium_event: Dict, chapter_number: int,
                                                start_ch: int, end_ch: int,
@@ -2558,7 +2746,7 @@ class ContentGenerator:
         # 调用API生成
         try:
             result = self.api_client.generate_content_with_retry(
-                "multi_chapter_scene_generation",
+                "multi_chapter_scene_design",  # 修正：使用API支持的内容类型
                 prompt,
                 purpose=f"一次性生成跨{chapter_span}章的场景"
             )
@@ -2566,12 +2754,12 @@ class ContentGenerator:
             self.logger.error(f"      >> API调用失败: {e}")
             return {}
 
-        if not result or not result.get("content"):
+        if not result:
             self.logger.error(f"      >> 生成结果为空")
             return {}
 
-        # 解析结果
-        scenes_by_chapter = self._parse_multi_chapter_scenes(result.get("content"), start_ch, end_ch)
+        # 解析结果 (API返回的是已解析的字典，不是包含content字段的对象)
+        scenes_by_chapter = self._parse_multi_chapter_scenes(result, start_ch, end_ch)
 
         self.logger.info(f"      >> 成功生成 {len(scenes_by_chapter)} 个章节的场景")
         for ch, scenes in scenes_by_chapter.items():
@@ -2583,9 +2771,20 @@ class ContentGenerator:
                                          context: GenerationContext, novel_data: Dict,
                                          plan_container: Dict, consistency_guidance: str) -> str:
         """构建多章场景生成的prompt"""
+        from src.utils.SceneContextBuilder import get_scene_context_builder
+
         stage_name = plan_container.get('stage_name', '未知阶段')
         novel_title = novel_data.get('novel_title', '未知书名')
         novel_synopsis = novel_data.get('novel_synopsis', '')
+
+        # 获取所属重大事件
+        major_event = self._find_major_event_for_medium(medium_event, plan_container)
+
+        # 使用共享的上下文构建器
+        context_builder = get_scene_context_builder()
+        comprehensive_context = context_builder.build_comprehensive_context(
+            medium_event, major_event, novel_data, stage_name
+        )
 
         prompt = f"""
 # 任务：为跨{chapter_span}章的中型事件生成完整场景序列
@@ -2597,9 +2796,13 @@ class ContentGenerator:
 - **总章节数**: {chapter_span}
 - **情绪重点**: {medium_event.get('emotional_focus', '')}
 
-## 背景信息
+## 小说信息
 - **小说标题**: {novel_title}
 - **小说简介**: {novel_synopsis}
+
+{comprehensive_context}
+
+--- 一致性铁律 (AI必须严格遵守) ---
 
 {consistency_guidance}
 
@@ -2609,6 +2812,7 @@ class ContentGenerator:
 2. **各章侧重**: 每章应该有不同的重点，避免重复
 3. **自然衔接**: 场景在各章之间要流畅过渡
 4. **不可重复**: 不要让不同章节处理相同的情节（比如不要两章都写"退婚"）
+5. **角色一致性**: 严格遵守角色信息中的设定，确保姓名、性格、修为等一致
 
 ## 场景分配建议
 
@@ -2630,20 +2834,58 @@ class ContentGenerator:
 
 ## 输出格式
 
-请为每一章生成场景列表，格式如下：
+请为每一章生成场景列表，每个场景必须包含完整的字段信息：
 
 ```json
 {{
   "chapter_scenes": {{
     "{start_ch}": [
-      {{"position": "opening", "name": "场景名称", "purpose": "核心目标", "key_actions": "关键动作", "emotional_impact": "情感冲击", "estimated_word_count": 500}},
-      {{"position": "development1", "name": "场景名称", "purpose": "核心目标", ...}},
-      {{"position": "development2", ...}},
-      {{"position": "climax", ...}},
-      {{"position": "ending", ...}}
+      {{
+        "name": "场景名称（4-12字，有画面感）",
+        "sequence": 1,
+        "role": "起",
+        "position": "opening",
+        "description": "场景的详细描述",
+        "purpose": "这个场景的核心目的",
+        "key_actions": ["关键动作1", "关键动作2"],
+        "emotional_intensity": "low",
+        "emotional_impact": "带给读者的情感冲击",
+        "dialogue_highlights": ["示例对话1", "示例对话2"],
+        "conflict_point": "本场景的核心冲突点",
+        "sensory_details": "感官细节（视觉、听觉、触觉等）",
+        "transition_to_next": "如何过渡到下一个场景",
+        "estimated_word_count": 500
+      }},
+      {{
+        "position": "development1",
+        "name": "场景名称",
+        "sequence": 2,
+        "role": "承",
+        ...
+      }},
+      {{
+        "position": "climax",
+        "name": "场景名称",
+        "sequence": 3,
+        "role": "转",
+        ...
+      }},
+      {{
+        "position": "ending",
+        "name": "场景名称",
+        "sequence": 4,
+        "role": "合",
+        ...
+      }}
     ],
     "{start_ch + 1}": [
-      {{"position": "opening", "name": "场景名称", ...}},
+      {{
+        "position": "opening",
+        "name": "场景名称",
+        "sequence": 1,
+        "role": "起",
+        ...
+      }},
       ...
     ]
   }},
@@ -2651,20 +2893,82 @@ class ContentGenerator:
 }}
 ```
 
-**重要**：确保每个场景都有 position, name, purpose, key_actions, emotional_impact, estimated_word_count 字段。
+**重要**：
+1. 每个场景必须包含全部字段：name, sequence, role, position, description, purpose, key_actions[], emotional_intensity, emotional_impact, dialogue_highlights[], conflict_point, sensory_details, transition_to_next, estimated_word_count
+2. sequence 字段表示场景在本章中的顺序（从1开始）
+3. role 字段表示场景在戏剧结构中的作用：起/承/转/合
+4. emotional_intensity 必须是 low/medium/high 之一
+5. key_actions 和 dialogue_highlights 必须是数组格式
 
 请开始生成。
 """
         return prompt
 
-    def _parse_multi_chapter_scenes(self, content: str, start_ch: int, end_ch: int) -> Dict[int, List[Dict]]:
-        """解析多章场景生成结果"""
+    def _find_major_event_for_medium(self, medium_event: Dict, plan_container: Dict) -> Optional[Dict]:
+        """根据中型事件查找所属的重大事件
+
+        Args:
+            medium_event: 中型事件
+            plan_container: 写作计划容器
+
+        Returns:
+            重大事件字典，如果找不到则返回None
+        """
+        # 从写作计划中获取事件系统
+        stage_writing_plan = plan_container.get("stage_writing_plan", {})
+        event_system = stage_writing_plan.get("event_system", {})
+
+        # 遍历所有重大事件
+        major_events = event_system.get("major_events", [])
+        for major_event in major_events:
+            composition = major_event.get("composition", {})
+            # 检查所有阶段的中型事件
+            for phase_events in composition.values():
+                for event in phase_events:
+                    # 通过名称匹配
+                    if event.get("name") == medium_event.get("name"):
+                        return major_event
+
+        # 如果没找到，返回空字典而不是None
+        return {}
+
+    def _parse_multi_chapter_scenes(self, content, start_ch: int, end_ch: int) -> Dict[int, List[Dict]]:
+        """解析多章场景生成结果
+
+        Args:
+            content: 可以是字典（已解析）或字符串（JSON文本）
+            start_ch: 起始章节
+            end_ch: 结束章节
+        """
         import json
         import re
 
         scenes_by_chapter = {}
 
-        # 尝试提取JSON
+        # 如果content已经是字典，直接使用
+        if isinstance(content, dict):
+            result = content
+            chapter_scenes = result.get("chapter_scenes", {})
+            for ch_str, scenes in chapter_scenes.items():
+                ch_num = int(ch_str)
+                if start_ch <= ch_num <= end_ch:
+                    scenes_by_chapter[ch_num] = scenes
+            return scenes_by_chapter
+
+        # 否则尝试从字符串中提取JSON
+        # 首先尝试直接解析
+        try:
+            result = json.loads(content.strip())
+            chapter_scenes = result.get("chapter_scenes", {})
+            for ch_str, scenes in chapter_scenes.items():
+                ch_num = int(ch_str)
+                if start_ch <= ch_num <= end_ch:
+                    scenes_by_chapter[ch_num] = scenes
+            return scenes_by_chapter
+        except (json.JSONDecodeError, TypeError):
+            pass
+
+        # 尝试提取markdown代码块中的JSON
         json_pattern = r'```json\s*(\{.*?\})\s*```'
         match = re.search(json_pattern, content, re.DOTALL)
         if match:
