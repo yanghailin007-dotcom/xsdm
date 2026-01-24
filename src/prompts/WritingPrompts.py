@@ -451,7 +451,20 @@ json
         "关键事件2的简短描述"
     ],
     "next_chapter_hook": "[1句话描述] 结尾设置的悬念是什么，它如何吸引读者。",
-    "connection_to_previous": "[1句话描述] 本章是如何衔接上一章结尾的（首章可注明'故事开篇'）。"
+    "connection_to_previous": "[1句话描述] 本章是如何衔接上一章结尾的（首章可注明'故事开篇'）。",
+    "end_state": {
+        "time_point": "本章结束时的具体时间点（如：次日清晨、当晚子时、三日后）",
+        "location": "主要角色所在的地点",
+        "atmosphere": "氛围基调（紧张/轻松/压抑/欢快/平静等）",
+        "characters": [
+            {"name": "角色名", "location": "位置", "action": "正在做什么", "emotion": "情绪状态"}
+        ],
+        "current_event": "当前事件名称",
+        "event_concluded": true/false,
+        "unresolved": ["未解决的悬念"],
+        "hook": "结尾悬念",
+        "next_transition_hint": "建议下一章如何衔接"
+    }
 }
 """,
             "stage_event_continuity": """

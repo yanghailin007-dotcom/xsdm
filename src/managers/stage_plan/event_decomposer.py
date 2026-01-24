@@ -950,10 +950,21 @@ class EventDecomposer:
         )
         
         if result:
-            # 检查返回的数据结构
+            # 🆕 兼容多种返回格式
+            # 格式1: scene_sequences[].scene_events[] (新格式)
+            # 格式2: scene_structure.scenes[] (旧格式)
+            scenes = []
+
             if 'scene_sequences' in result and result['scene_sequences']:
-                scene_count = len(result['scene_sequences'][0].get('scene_events', []))
-                self.logger.info(f"      ✅ 成功为单章事件生成完整起承转合场景（{scene_count}个场景）")
+                scenes = result['scene_sequences'][0].get('scene_events', [])
+                self.logger.info(f"      ✅ 成功为单章事件生成完整起承转合场景（{len(scenes)}个场景）")
+            elif 'scene_structure' in result and result['scene_structure']:
+                scenes = result['scene_structure'].get('scenes', [])
+                # 转换为新格式
+                result['scene_sequences'] = [{
+                    'scene_events': scenes
+                }]
+                self.logger.info(f"      ✅ 成功为单章事件生成完整起承转合场景（旧格式，{len(scenes)}个场景）")
             else:
                 self.logger.warn(f"      ⚠️ API返回数据格式不符合预期")
                 self.logger.info(f"      📋 返回的键: {list(result.keys())}")

@@ -135,7 +135,18 @@ class ChapterGenerator:
                         )
                     except Exception as e:
                         self.logger.warn(f"  ⚠️ AI开场白生成异常，使用备用模板: {e}")
-                
+
+                # 提取并保存结尾状态（用于下一章衔接）
+                chapter_content = chapter_data.get("content", "")
+                self.logger.info(f"  🔍 [衔接系统] 章节生成成功，准备提取结尾状态，内容长度: {len(chapter_content)}")
+                if chapter_content:
+                    end_state = self._extract_and_save_end_state(chapter_content, chapter_number, novel_data)
+                    if end_state:
+                        chapter_data["end_state"] = end_state
+                        self.logger.info(f"  ✅ [衔接系统] 第{chapter_number}章结尾状态已添加到chapter_data")
+                    else:
+                        self.logger.warn(f"  ⚠️ [衔接系统] 第{chapter_number}章结尾状态提取失败")
+
                 # 成功返回
                 self.logger.info(f"🎉 第 {chapter_number} 章在第 {attempt + 1} 次尝试中生成成功！")
                 return chapter_data
@@ -430,6 +441,10 @@ class ChapterGenerator:
         # 解析分层角色信息，生成更友好的提示词格式
         character_prompt = self._format_character_info_for_prompt(character_info)
 
+        # 获取上一章结尾状态，构建衔接要求
+        previous_end_state = chapter_params.get("previous_end_state")
+        transition_requirement = self._build_transition_requirement(previous_end_state, chapter_number)
+
         return f"""
 ## 章节创作指令 ##
 为《{chapter_params.get('novel_title', '')}》创作第{chapter_number}章。
@@ -439,7 +454,8 @@ class ChapterGenerator:
 {scenes_input_str}
 
 ## 2. 背景与衔接
-- **前情提要**: {chapter_params.get("previous_chapters_summary", "无")}
+{transition_requirement}
+
 - **本章核心目标**: {chapter_params.get("chapter_goal_from_plan", "推进主线情节")}
 - **本章写作重点**: {chapter_params.get("writing_focus_from_plan", "保持节奏，制造悬念")}
 
@@ -459,8 +475,143 @@ class ChapterGenerator:
 请你作为一名优秀的小说家，根据以上所有指令，直接创作出本章的完整内容。
 你的任务是将【写作蓝图】中的六段式场景要点，流畅地、富有文采地串联成一篇完整的、高质量的小说章节。请特别注意每个场景的【功能定位】和【篇幅占比】，确保章节结构清晰，节奏感强。
 
-**重要提醒**：请严格遵循上述【情绪强度指南】，确保本章的情感表达和节奏控制符合要求的强度级别。
+**重要提醒**：
+1. 请严格遵循上述【情绪强度指南】，确保本章的情感表达和节奏控制符合要求的强度级别。
+2. {self._get_end_state_output_instruction(chapter_number)}
 """
+
+    def _build_transition_requirement(self, previous_end_state, chapter_number: int) -> str:
+        """构建衔接场景要求"""
+        self.logger.info(f"  🔧 [衔接系统] 构建第{chapter_number}章衔接要求...")
+
+        if not previous_end_state or chapter_number == 1:
+            self.logger.info(f"  ℹ️ [衔接系统] 第一章或无上一章状态，使用默认衔接")
+            return "- **前情提要**: 这是开篇第一章，需要建立故事基础。\n- **衔接要求**: 直接开始故事，无需与上一章衔接。"
+
+        # 根据上一章结尾状态构建衔接要求
+        hint = previous_end_state.next_transition_hint or "自然衔接"
+        event_status = "已完结" if previous_end_state.event_concluded else "进行中"
+
+        requirement = f"""- **上一章结尾状态**:
+  - 时间: {previous_end_state.time_point}
+  - 地点: {previous_end_state.location}
+  - 氛围: {previous_end_state.atmosphere}
+  - 当前事件: {previous_end_state.current_event}（{event_status}）"""
+
+        if previous_end_state.characters:
+            requirement += "\n  - 角色状态:"
+            for char in previous_end_state.characters[:3]:  # 最多显示3个角色
+                char_info = f"    · {char.get('name', '')}"
+                if char.get('action'):
+                    char_info += f": {char['action']}"
+                if char.get('emotion'):
+                    char_info += f"（{char['emotion']}）"
+                requirement += f"\n{char_info}"
+
+        if previous_end_state.hook:
+            requirement += f"\n  - 上一章悬念: {previous_end_state.hook}"
+
+        requirement += f"\n- **衔接建议**: {hint}"
+
+        # 根据事件状态给出具体衔接指导
+        if not previous_end_state.event_concluded:
+            requirement += "\n- **衔接方式**: 【直接继续】上一章的动作/对话，保持紧迫感，无缝连接。"
+        elif hint and "时间" in hint:
+            requirement += "\n- **衔接方式**: 【时间跳跃】简述时间流逝和场景变化，然后开始新事件。"
+        else:
+            requirement += "\n- **衔接方式**: 【事件切换】简短收尾上一事件，自然过渡到本章新事件。"
+
+        self.logger.info(f"  ✅ [衔接系统] 衔接要求构建完成")
+        return requirement
+
+    def _get_end_state_output_instruction(self, chapter_number: int) -> str:
+        """获取结尾状态输出指令"""
+        return f"""在章节内容结束后，请按以下JSON格式输出本章的【结尾状态报告】：
+
+```json
+{{
+  "chapter_number": {chapter_number},
+  "time_point": "本章结束时的具体时间点（如：次日清晨、当晚子时、三日后）",
+  "location": "主要角色所在的地点",
+  "atmosphere": "氛围基调（紧张/轻松/压抑/欢快/平静等）",
+  "characters": [
+    {{"name": "角色名", "location": "位置", "action": "正在做什么", "emotion": "情绪状态"}}
+  ],
+  "current_event": "当前事件名称",
+  "event_concluded": true/false,
+  "unresolved": ["未解决的悬念"],
+  "hook": "结尾悬念",
+  "next_transition_hint": "建议下一章如何衔接"
+}}
+```
+
+**注意**: 结尾状态报告必须放在章节内容之后，用于下一章的衔接。"""
+
+    def _extract_and_save_end_state(self, content: str, chapter_number: int, novel_data: Dict) -> Optional[Dict]:
+        """从生成的内容中提取并保存结尾状态"""
+        self.logger.info(f"  🔍 [衔接系统] 开始提取第{chapter_number}章结尾状态...")
+        import re
+
+        # 尝试从内容中提取JSON格式的结尾状态
+        end_state = None
+
+        # 模式1: 查找 ```json ... ``` 代码块
+        json_pattern = r'```json\s*(\{.*?\n.*?chapter_number.*?\})\s*```'
+        match = re.search(json_pattern, content, re.DOTALL)
+        if match:
+            try:
+                import json
+                end_state = json.loads(match.group(1))
+                self.logger.info(f"  ✅ [衔接系统] 从JSON代码块中提取到结尾状态")
+            except json.JSONDecodeError as e:
+                self.logger.warn(f"  ⚠️ [衔接系统] JSON解析失败: {e}")
+
+        # 模式2: 查找没有代码块包裹的JSON对象
+        if not end_state:
+            json_pattern2 = r'\{\s*"chapter_number"\s*:\s*' + str(chapter_number) + r'.*?\n.*?\n.*?\}'
+            match2 = re.search(json_pattern2, content, re.DOTALL)
+            if match2:
+                try:
+                    import json
+                    # 尝试扩展匹配范围，获取完整JSON
+                    start = match2.start()
+                    # 向后查找完整的JSON对象
+                    brace_count = 0
+                    i = start
+                    while i < len(content):
+                        if content[i] == '{':
+                            brace_count += 1
+                        elif content[i] == '}':
+                            brace_count -= 1
+                            if brace_count == 0:
+                                end_state = json.loads(content[start:i+1])
+                                self.logger.info(f"  ✅ [衔接系统] 从内容中提取到结尾状态")
+                                break
+                        i += 1
+                except (json.JSONDecodeError, ValueError) as e:
+                    self.logger.warn(f"  ⚠️ [衔接系统] 模式2解析失败: {e}")
+
+        if not end_state:
+            self.logger.warn(f"  ⚠️ [衔接系统] 未能从内容中提取到结尾状态")
+            return None
+
+        # 保存结尾状态
+        try:
+            self._ensure_chapter_state_manager_initialized(novel_data)
+            if self.cg._chapter_state_manager:
+                from src.core.content_generation.chapter_state_manager import ChapterEndState
+                chapter_end_state = ChapterEndState.from_dict(end_state)
+                self.cg._chapter_state_manager.set_end_state(chapter_end_state)
+                self.logger.info(f"  📌 [衔接系统] 第{chapter_number}章结尾状态已保存到管理器")
+                return end_state
+        except Exception as e:
+            self.logger.warn(f"  ⚠️ [衔接系统] 保存结尾状态失败: {e}")
+
+        return end_state
+
+    def _ensure_chapter_state_manager_initialized(self, novel_data: Dict):
+        """确保章节状态管理器已初始化（委托给ContentGenerator）"""
+        self.cg._ensure_chapter_state_manager_initialized(novel_data)
 
     def _format_character_info_for_prompt(self, character_info: str) -> str:
         """
