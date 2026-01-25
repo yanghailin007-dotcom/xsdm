@@ -19,7 +19,8 @@ class EventDecomposer:
                             creative_seed: Dict, overall_stage_plan: Dict,
                             global_novel_data: Dict,
                             stage_emotional_arc: Optional[Dict] = None,
-                            overall_emotional_blueprint: Optional[Dict] = None) -> Optional[Dict]:
+                            overall_emotional_blueprint: Optional[Dict] = None,
+                            plot_constraint_context: Optional[str] = None) -> Optional[Dict]:
         """
         分解重大事件为中型事件和特殊情感事件
         
@@ -32,6 +33,7 @@ class EventDecomposer:
             creative_seed: 创意种子
             overall_stage_plan: 整体阶段计划
             global_novel_data: 全局小说数据
+            plot_constraint_context: 情节连续性约束上下文，防止内容重复
             
         Returns:
             分解后的重大事件字典
@@ -45,7 +47,8 @@ class EventDecomposer:
             # 构建prompt
             prompt = self._build_decomposition_prompt(
                 major_event_skeleton, stage_name, top_level_context_block,
-                stage_emotional_arc, overall_emotional_blueprint
+                stage_emotional_arc, overall_emotional_blueprint,
+                plot_constraint_context
             )
             
             # 调用API生成
@@ -208,9 +211,20 @@ class EventDecomposer:
     def _build_decomposition_prompt(self, major_event_skeleton: Dict,
                                    stage_name: str, top_level_context: str,
                                    stage_emotional_arc: Optional[Dict] = None,
-                                   overall_emotional_blueprint: Optional[Dict] = None) -> str:
+                                   overall_emotional_blueprint: Optional[Dict] = None,
+                                   plot_constraint_context: Optional[str] = None) -> str:
         """构建事件分解prompt（从事件推导情绪）"""
         
+        # 构建情节约束部分
+        plot_constraint_section = ""
+        if plot_constraint_context:
+            plot_constraint_section = f"""
+
+## 【关键约束】情节连续性要求
+{plot_constraint_context}
+
+"""
+
         # 构建情绪弧线指导
         emotional_guidance = ""
         if stage_emotional_arc:
@@ -240,6 +254,7 @@ class EventDecomposer:
 你的任务是将一个宏观的"重大事件"，根据其在全书蓝图中的战略地位，分解为具体的、可执行的【中型事件】。
 
 {top_level_context}
+{plot_constraint_section}
 
 {emotional_guidance}
 
@@ -267,6 +282,11 @@ class EventDecomposer:
 1.  **目标继承与服务**: 你设计的每一个【中型事件】都必须是为实现【当前重大事件核心目标】和【顶层战略背景】服务的。
 2.  **结构完整**: 所有中型事件必须共同构成一个服务于重大事件目标的、逻辑连贯的"起、承、转、合"结构。
 3.  【绝对覆盖指令】: 你生成的所有中型事件的chapter_range，必须完整且无缝地覆盖父级"重大事件"的整个章节范围。
+4.  【🔥绝对禁止时间重叠】:
+    - 每个中型事件必须**紧接着上一个中型事件结束的地方开始**
+    - **严禁重新描述**前一个中型事件已经完成的情节
+    - 如果中型事件A在第1章结束时"老祖显圣"，那么中型事件B（第2章）必须从"显圣之后的反应"开始，不能重新描述"老祖显圣"的过程
+    - 这是**时间线连续**，不是**同一事件的不同角度描述**
 
 ## 【重要】特殊情感事件设计原则
 
@@ -292,7 +312,21 @@ class EventDecomposer:
                 "type": "medium_event",
                 "chapter_range": "string",
                 "main_goal": "目标",
-                "description": "事件描述",
+
+                // 🔥 新增：详细情节大纲（必需！）
+                // 必须提供足够多的具体情节点，以支撑该事件覆盖的所有章节内容
+                // 如果是1章事件，至少需要4-6个情节点；如果是2章事件，需要8-12个情节点
+                "plot_outline": [
+                    "情节点1：具体发生了什么（场景1内容）",
+                    "情节点2：然后发生了什么（场景2内容）",
+                    "情节点3：转折点是什么",
+                    "情节点4：高潮动作",
+                    "情节点5：结尾状态",
+                    "...必须足够详细，让场景生成器有足够的素材"
+                ],
+
+                // 保留description作为简短摘要
+                "description": "一句话概括事件核心",
 
                 // === 阶段上下文（新增，必填）===
                 "stage_context": {{
@@ -336,9 +370,12 @@ class EventDecomposer:
 }}
 
 注意：
-1. emotional_derivation 和 alignment_with_stage_arc 是新增的必需字段
-2. special_emotional_events 是中型事件的子字段，不是重大事件的顶级字段
-3. 情绪必须从事件中自然推导，不能为了符合目标而强行编造
+1. **plot_outline 是新增必需字段**：必须提供足够多的具体情节点
+2. 每个情节点应该是可以展开为300-500字场景的具体内容
+3. 情节点之间必须有因果关系和时间递进关系
+4. emotional_derivation 和 alignment_with_stage_arc 是新增的必需字段
+5. special_emotional_events 是中型事件的子字段，不是重大事件的顶级字段
+6. 情绪必须从事件中自然推导，不能为了符合目标而强行编造
 """
     
     def _decompose_to_chapter_then_scene(self, medium_event: Dict, major_event: Dict,
@@ -869,18 +906,20 @@ class EventDecomposer:
                                                     stage_name: str, novel_title: str, novel_synopsis: str,
                                                     creative_seed: Dict, overall_stage_plan: Dict,
                                                     global_novel_data: Dict,
-                                                    consistency_guidance: Optional[str] = None) -> Optional[Dict]:
+                                                    consistency_guidance: Optional[str] = None,
+                                                    previous_chapters_scenes: Optional[Dict] = None) -> Optional[Dict]:
         """
         为单章中型事件生成完整的起承转合场景
-        
+
         这个方法专门处理只有1章的中型事件，直接生成一个完整的起承转合场景序列，
         确保单章也能形成完整的戏剧结构。
-        
+
         Args:
             medium_event: 单章中型事件
             major_event: 所属重大事件
             其他参数同上
-            
+            previous_chapters_scenes: 前几章已完成场景信息（用于避免重复）
+
         Returns:
             包含完整场景序列的单章事件
         """
@@ -961,6 +1000,13 @@ class EventDecomposer:
             global_novel_data, major_event, medium_event, stage_name
         )
 
+        # 🔥 新增：构建前几章场景概要（用于避免重复）
+        previous_chapters_section = ""
+        if previous_chapters_scenes:
+            previous_chapters_section = self._format_previous_chapters_scenes_for_scene_generation(
+                previous_chapters_scenes, start_ch
+            )
+
         prompt = f"""
 # 任务：单章中型事件"完整起承转合场景构建"
 {consistency_block}
@@ -977,6 +1023,7 @@ class EventDecomposer:
 - **事件情绪重点**: {medium_event.get('emotional_focus')}
 - **情绪强度**: {medium_event.get('emotional_intensity', 'medium')}
 {special_emotional_context}
+{previous_chapters_section}
 
 ## 【关键要求】完整的起承转合结构
 由于只有1章，**必须**在一个章节内形成完整的起承转合戏剧结构：
@@ -1010,7 +1057,7 @@ class EventDecomposer:
             user_prompt=prompt,
             purpose=f"为单章中型事件'{medium_event.get('name')}'生成完整起承转合场景"
         )
-        
+
         if result:
             # 🆕 兼容多种返回格式
             # 格式1: scene_sequences[].scene_events[] (新格式)
@@ -1033,5 +1080,69 @@ class EventDecomposer:
                 self.logger.info(f"      📋 完整数据: {json.dumps(result, ensure_ascii=False)[:500]}")
         else:
             self.logger.error(f"      ❌ 生成单章完整场景失败，API返回为空")
-        
+
         return result
+
+    def _format_previous_chapters_scenes_for_scene_generation(self, previous_chapters_scenes: Dict,
+                                                           current_chapter: int) -> str:
+        """
+        格式化前几章已完成场景概要（专门用于场景生成，避免重复）
+
+        Args:
+            previous_chapters_scenes: 前几章场景数据
+            current_chapter: 当前章节号
+
+        Returns:
+            格式化后的前几章场景概要文本
+        """
+        if not previous_chapters_scenes:
+            return ""
+
+        lines = []
+        lines.append("## ⚠️ 【禁止重复】前几章已完成场景概要")
+        lines.append("")
+        lines.append("以下是前几章已经发生的场景事件。**本章严禁重复这些场景内容**！")
+        lines.append("")
+        lines.append("请仔细阅读每个场景的【关键动作】和【核心目标】，确保新场景不与已有场景重叠。")
+        lines.append("")
+
+        # 按章节分组展示
+        scenes_by_chapter = previous_chapters_scenes.get("scenes_by_chapter", {})
+        previous_chapters = sorted([int(ch) for ch in scenes_by_chapter.keys() if int(ch) < current_chapter])
+
+        for ch in previous_chapters:
+            scenes = scenes_by_chapter.get(str(ch), [])
+            if not scenes:
+                continue
+
+            lines.append(f"### 第{ch}章已完成场景（共{len(scenes)}个）:")
+            lines.append("")
+
+            for i, scene in enumerate(scenes, 1):
+                lines.append(f"**场景{i}：{scene.get('name', '未命名')}**")
+                lines.append(f"  - 位置：{scene.get('position', '未知')}")
+                lines.append(f"  - 目标：{scene.get('purpose', '未指定')}")
+
+                # 提取关键动作
+                key_actions = scene.get("key_actions", [])
+                if key_actions:
+                    lines.append(f"  - 已完成动作：")
+                    for action in key_actions[:3]:  # 最多显示3个动作
+                        lines.append(f"    • {action}")
+                    if len(key_actions) > 3:
+                        lines.append(f"    • ...等共{len(key_actions)}个动作")
+
+                lines.append("")
+
+        if not previous_chapters:
+            lines.append("（无前几章场景数据）")
+            lines.append("")
+
+        # 添加明确的禁止重复指令
+        lines.append("## 【绝对要求】场景设计时必须遵循以下原则：")
+        lines.append("1. **严禁重复**：不能设计与前几章相同或高度相似的场景")
+        lines.append("2. **递进关系**：新场景应该是已有情节的延续和发展，而非重新开始")
+        lines.append("3. **承接上一章**：如果上一章结尾是A状态，本章应该从A状态的延续开始")
+        lines.append("")
+
+        return "\n".join(lines)

@@ -697,8 +697,10 @@ class PhaseGenerator:
                 json.dump(phase_one_index, f, ensure_ascii=False, indent=2)
             print(f"✅ 第一阶段索引文件已保存: {phase_one_index_file}")
             
-            # 同时保存为主项目信息文件
-            main_project_file = f"小说项目/{safe_title}_项目信息.json"
+            # 同时保存为主项目信息文件（使用新路径结构）
+            main_project_file = f"小说项目/{safe_title}/{safe_title}_项目信息.json"
+            # 确保目录存在
+            os.makedirs(os.path.dirname(main_project_file), exist_ok=True)
             project_info = {
                 "novel_title": self.generator.novel_data["novel_title"],
                 "novel_synopsis": self.generator.novel_data["novel_synopsis"],

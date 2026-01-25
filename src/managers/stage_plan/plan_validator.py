@@ -480,3 +480,98 @@ class PlanValidator:
             "improvement_recommendations": [],
             "master_reviewer_verdict": "评估系统暂时不可用，使用满分默认值"
         }
+    def detect_plot_duplication_in_events(self, major_events: List[Dict]) -> Dict:
+        """
+        检测重大事件之间的情节重复
+        
+        Args:
+            major_events: 重大事件列表
+            
+        Returns:
+            {
+                "has_duplication": bool,
+                "duplication_details": [
+                    {"event1": "...", "event2": "...", "duplicated_content": "...", "severity": "high/medium"}
+                ],
+                "severity": "low/medium/high"
+            }
+        """
+        duplications = []
+        
+        # 核心情节关键词库（与 PlotStateManager 保持一致）
+        core_keywords = [
+            "退婚", "系统觉醒", "系统开启", "金手指", "金手指激活", 
+            "初次突破", "第一次杀人", "初遇女主", "加入宗门",
+            "第一次秘境", "第一次大比", "第一次复仇",
+            "开局", "穿越", "重生", "绑定系统", "显圣"
+        ]
+        
+        # 提取每个事件的核心情节关键词
+        event_plots = []
+        for event in major_events:
+            event_name = event.get("name", "")
+            main_goal = event.get("main_goal", "")
+            chapter_range = event.get("chapter_range", "")
+            
+            # 组合所有文本内容进行检测
+            combined_text = f"{event_name} {main_goal}".lower()
+            
+            # 检测核心情节
+            detected_plots = []
+            for keyword in core_keywords:
+                if keyword in combined_text:
+                    detected_plots.append(keyword)
+            
+            event_plots.append({
+                "event": event_name,
+                "chapter_range": chapter_range,
+                "plots": detected_plots,
+                "text": combined_text
+            })
+        
+        # 检测重复
+        for i in range(len(event_plots)):
+            for j in range(i + 1, len(event_plots)):
+                event1 = event_plots[i]
+                event2 = event_plots[j]
+                
+                # 检查是否有相同的情节关键词
+                common_plots = set(event1["plots"]) & set(event2["plots"])
+                if common_plots:
+                    # 判断严重程度
+                    severity = "low"
+                    for plot in common_plots:
+                        if plot in ["系统觉醒", "系统开启", "金手指激活", "退婚"]:
+                            severity = "high"
+                            break
+                        elif severity != "high":
+                            severity = "medium"
+                    
+                    duplications.append({
+                        "event1": f"{event1['event']} ({event1['chapter_range']})",
+                        "event2": f"{event2['event']} ({event2['chapter_range']})",
+                        "duplicated_content": ", ".join(common_plots),
+                        "severity": severity
+                    })
+        
+        # 计算整体严重程度
+        overall_severity = "low"
+        if any(d["severity"] == "high" for d in duplications):
+            overall_severity = "high"
+        elif len(duplications) > 0:
+            overall_severity = "medium"
+        
+        # 计算涉及重复的事件数量
+        events_with_duplication = set()
+        for d in duplications:
+            events_with_duplication.add(d["event1"].split(" (")[0])
+            events_with_duplication.add(d["event2"].split(" (")[0])
+        
+        return {
+            "has_duplication": len(duplications) > 0,
+            "duplication_details": duplications,
+            "severity": overall_severity,
+            "total_events": len(major_events),
+            "events_with_duplication": len(events_with_duplication),
+            "duplication_rate": round(len(events_with_duplication) / len(major_events) * 100, 1) if major_events else 0
+        }

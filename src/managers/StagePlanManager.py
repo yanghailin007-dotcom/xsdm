@@ -27,6 +27,7 @@ from src.managers.EventManager import EventManager
 from src.managers.WritingGuidanceManager import WritingGuidanceManager
 from src.managers.EmotionalPlanManager import EmotionalPlanManager
 from src.managers.StagePlanUtils import is_chapter_in_range, parse_chapter_range
+from src.managers.MediumEventSceneManager import MediumEventSceneManager
 from src.managers.stage_plan import (
     EventDecomposer,
     PlanValidator,
@@ -107,7 +108,8 @@ class StagePlanManager:
     def _init_components(self):
         """初始化专职组件"""
         api_client = self.generator.api_client
-        
+        project_path = getattr(self.generator, 'project_path', Path.cwd())
+
         self.event_decomposer = EventDecomposer(api_client)
         self.plan_validator = PlanValidator()
         self.plan_persistence = StagePlanPersistence(
@@ -117,6 +119,10 @@ class StagePlanManager:
         self.event_optimizer = EventOptimizer(api_client)
         self.major_event_generator = MajorEventGenerator(api_client)
         self.scene_assembler = SceneAssembler(api_client)
+
+        # 🔥 新增：初始化中型事件场景管理器（用于跨章场景共享和避免重复）
+        self.medium_event_scene_manager = MediumEventSceneManager(project_path)
+        self.logger.info("MediumEventSceneManager 初始化完成")
     
     # ========================================================================
     # 属性访问器
@@ -684,8 +690,19 @@ class StagePlanManager:
         else:
             self.logger.warn(f"    ⚠️ 未找到 {stage_name} 的情绪弧线，将仅基于事件分解")
         
-        for skeleton in major_event_skeletons:
+        # 🔥 新增：初始化情节状态管理器
+        from src.managers.PlotStateManager import PlotStateManager
+        plot_manager = PlotStateManager()
+        plot_manager.register_plot_points_from_events(major_event_skeletons)
+        self.logger.info(f"    📊 情节管理器已初始化，注册了 {len(plot_manager.tracked_plot_points)} 个核心情节跟踪点")
+        
+        for idx, skeleton in enumerate(major_event_skeletons):
             self.logger.info(f"    -> 正在解剖重大事件: '{skeleton['name']}' ({skeleton['chapter_range']})")
+            
+            # 🔥 新增：获取情节约束上下文
+            plot_constraint_context = plot_manager.get_context_for_next_event(fleshed_out_major_events)
+            if idx > 0:  # 只在非第一个事件时显示
+                self.logger.info(f"       📋 情节约束：已完成 {len(plot_manager.event_state_chain)} 个前置事件")
             
             fleshed_out_event = None
             for attempt in range(3):
@@ -700,7 +717,8 @@ class StagePlanManager:
                         overall_stage_plan=overall_stage_plan,
                         global_novel_data=self.generator.novel_data,
                         stage_emotional_arc=stage_emotional_arc,
-                        overall_emotional_blueprint=emotional_blueprint
+                        overall_emotional_blueprint=emotional_blueprint,
+                        plot_constraint_context=plot_constraint_context  # 🔥 新增参数
                     )
                     
                     if fleshed_out_event:
@@ -715,6 +733,17 @@ class StagePlanManager:
                         time.sleep(2 ** attempt)
             
             if fleshed_out_event:
+                # 🔥 新增：检查情节重复
+                duplication_issues = plot_manager.check_plot_duplication(fleshed_out_event)
+                if duplication_issues:
+                    self.logger.warn(f"       ⚠️ 检测到情节重复问题：{duplication_issues}")
+                else:
+                    self.logger.info(f"       ✅ 情节唯一性检查通过")
+
+                # 🔥 新增：标记事件完成，更新状态链
+                event_state = plot_manager.mark_event_completed(fleshed_out_event, idx)
+                self.logger.info(f"       📝 已记录事件状态：完成 {len(event_state.completed_plot_points)} 个情节点")
+                
                 # 验证并修正章节覆盖率
                 fleshed_out_event = self.plan_validator.validate_and_correct_major_event_coverage(
                     skeleton, fleshed_out_event
@@ -724,9 +753,17 @@ class StagePlanManager:
             else:
                 self.logger.error(f"    🚨 重大事件 '{skeleton['name']}' 解剖失败")
         
+        # 🔥 新增：输出情节状态摘要
+        state_summary = plot_manager.get_state_summary()
+        self.logger.info(f"    📊 情节状态摘要：")
+        self.logger.info(f"       - 总计跟踪情节：{state_summary['total_tracked_plots']}")
+        self.logger.info(f"       - 已完成情节：{state_summary['completed_plots']}")
+        self.logger.info(f"       - 进行中情节：{state_summary['in_progress_plots']}")
+        self.logger.info(f"       - 已处理事件：{state_summary['events_processed']}")
+        
         self.logger.info(f"    ✅ 第一阶段事件分解完成：共{len(fleshed_out_major_events)}个重大事件")
         return fleshed_out_major_events
-    
+
     def _decompose_major_event_to_medium_only(self, major_event: Dict) -> Dict:
         """
         只保留中型事件分解结果，移除场景分解
@@ -1192,9 +1229,9 @@ class StagePlanManager:
                                                    consistency_guidance: Optional[str] = None) -> List[Dict]:
         """
         为单章节事件生成场景（桥接方法）
-        
+
         这是 ContentGenerator 调用的桥接方法，委托给 EventDecomposer 处理
-        
+
         Args:
             event_data: 事件数据（中型事件）
             chapter_num: 章节号
@@ -1203,25 +1240,33 @@ class StagePlanManager:
             novel_title: 小说标题
             novel_synopsis: 小说简介
             consistency_guidance: 一致性指导
-            
+
         Returns:
             生成的场景列表
         """
         self.logger.info(f"  🎬 [桥接] 为单章事件 '{event_data.get('name')}' 生成场景...")
-        
+
         # 获取必要的上下文
         creative_seed = self.generator.novel_data.get("creative_seed", {})
         overall_stage_plan = self.generator.novel_data.get("overall_stage_plans", {})
         global_novel_data = self.generator.novel_data
-        
+
+        # 🔥 新增：获取前几章已完成场景信息（用于避免重复）
+        previous_chapters_scenes = self._get_previous_chapters_scenes_for_event(
+            chapter_num, event_data, stage_name, global_novel_data
+        )
+
+        if previous_chapters_scenes:
+            self.logger.info(f"  📜 [场景连续性] 已获取前几章场景概要，共 {len(previous_chapters_scenes.get('previous_chapters', []))} 章")
+
         # 构建临时重大事件结构（EventDecomposer 需要这个参数）
         temp_major_event = {
             "name": major_event_name,
             "chapter_range": event_data.get("chapter_range", f"{chapter_num}-{chapter_num}")
         }
-        
+
         try:
-            # 调用 EventDecomposer 的单章场景生成方法
+            # 调用 EventDecomposer 的单章场景生成方法，传递前几章场景
             result = self.event_decomposer._decompose_single_chapter_with_complete_arc(
                 medium_event=event_data,
                 major_event=temp_major_event,
@@ -1231,7 +1276,8 @@ class StagePlanManager:
                 creative_seed=creative_seed,
                 overall_stage_plan=overall_stage_plan,
                 global_novel_data=global_novel_data,
-                consistency_guidance=consistency_guidance
+                consistency_guidance=consistency_guidance,
+                previous_chapters_scenes=previous_chapters_scenes  # 🔥 传递前几章场景
             )
             
             if result and "scene_sequences" in result:
@@ -1250,7 +1296,53 @@ class StagePlanManager:
             import traceback
             traceback.print_exc()
             return []
-    
+
+    def _get_previous_chapters_scenes_for_event(self, chapter_num: int, event_data: Dict,
+                                               stage_name: str, global_novel_data: Dict) -> Optional[Dict]:
+        """
+        获取指定中型事件的前几章已完成场景信息（用于避免重复）
+
+        这是方案3的核心实现：在生成新章节场景时，先检查该中型事件是否在之前的章节
+        已经生成过场景，如果是，则将这些场景信息传递给场景生成器，确保不会重复。
+
+        Args:
+            chapter_num: 当前章节号
+            event_data: 中型事件数据
+            stage_name: 阶段名称
+            global_novel_data: 全局小说数据
+
+        Returns:
+            包含前几章场景信息的字典，格式：
+            {
+                "previous_chapters": [1],  # 已生成场景的章节号列表
+                "all_previous_scenes": [...],  # 所有之前章节的场景
+                "scenes_by_chapter": {"1": [...]},  # 按章节分组的场景
+                "event_summary": "事件摘要",
+                "event_name": "事件名称",
+                "chapter_range": "章节范围"
+            }
+            如果没有前几章场景，返回None
+        """
+        # 🔥 只在前3章启用场景连续性检查（这是用户明确要求的）
+        if chapter_num > 3:
+            self.logger.debug(f"  跳过场景连续性检查：第{chapter_num}章超过前3章范围")
+            return None
+
+        # 生成事件ID
+        event_id = self.medium_event_scene_manager.get_event_id(event_data, stage_name)
+
+        # 从缓存获取前几章的场景
+        cached_scenes = self.medium_event_scene_manager.get_cached_scenes(event_id, chapter_num)
+
+        if not cached_scenes:
+            self.logger.debug(f"  未找到事件 '{event_data.get('name')}' 的前几章场景缓存")
+            return None
+
+        self.logger.info(f"  ✅ [场景连续性] 找到事件 '{event_data.get('name')}' 的前几章场景："
+                        f"第{cached_scenes.get('previous_chapters', [])}章")
+
+        return cached_scenes
+
     def save_and_cache_stage_plan(self, stage_name: str, plan_data: Dict):
         """
         保存并缓存阶段计划
