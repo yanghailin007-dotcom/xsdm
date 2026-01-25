@@ -3,11 +3,14 @@
 
 用于解决章节之间的连贯性问题，通过结构化的结尾状态传递，
 确保AI在生成新章节时能够准确衔接上一章的结尾状态。
+
+新增：场景时间线追踪，防止相邻章节重复描写同一时间点的事件
 """
 import json
-from typing import Dict, Optional, List, Any
+from typing import Dict, Optional, List, Any, Tuple
 from dataclasses import dataclass, field, asdict
 from src.utils.logger import get_logger
+from datetime import datetime
 
 
 @dataclass
@@ -173,3 +176,275 @@ class ChapterStateManager:
     def get_all_states(self) -> Dict[int, ChapterEndState]:
         """获取所有已保存的结尾状态"""
         return self._end_states.copy()
+
+
+# ==================== 场景时间线追踪系统 ====================
+
+@dataclass
+class SceneTimelineInfo:
+    """
+    场景时间线信息
+
+    记录每个章节的时间覆盖范围，用于检测章节重复
+    """
+    chapter_number: int = 0
+
+    # === 时间范围 ===
+    start_time: str = ""           # 章节开始时间点（如：林家议事大厅，当日清晨）
+    end_time: str = ""             # 章节结束时间点（如：林家议事大厅，紫气消散后）
+
+    # === 关键事件序列 ===
+    key_events: List[str] = field(default_factory=list)  # 本章发生的关键事件序列
+
+    # === 场景摘要 ===
+    scene_summary: str = ""        # 场景摘要，用于AI理解本章发生了什么
+
+    # === 时间戳（用于排序）===
+    time_index: int = 0            # 相对时间索引，数字越大表示越晚
+
+    def to_prompt_context(self) -> str:
+        """转换为提示词上下文"""
+        lines = [f"### 第{self.chapter_number}章时间线信息"]
+        if self.start_time:
+            lines.append(f"- **开始时间**：{self.start_time}")
+        if self.end_time:
+            lines.append(f"- **结束时间**：{self.end_time}")
+        if self.key_events:
+            lines.append(f"- **关键事件序列**：")
+            for i, event in enumerate(self.key_events, 1):
+                lines.append(f"  {i}. {event}")
+        if self.scene_summary:
+            lines.append(f"- **场景摘要**：{self.scene_summary}")
+        return "\n".join(lines)
+
+    @classmethod
+    def from_dict(cls, data: Dict) -> 'SceneTimelineInfo':
+        """从字典创建 SceneTimelineInfo"""
+        if 'key_events' not in data:
+            data['key_events'] = []
+        return cls(**data)
+
+    def to_dict(self) -> Dict:
+        """转为字典"""
+        return asdict(self)
+
+
+class SceneTimelineTracker:
+    """
+    场景时间线追踪器
+
+    功能：
+    1. 记录每章的时间覆盖范围
+    2. 检测相邻章节是否有时间线重叠（重复描写）
+    3. 生成时间连续性约束，传递给AI
+    """
+
+    def __init__(self, novel_title: str):
+        self.logger = get_logger("SceneTimelineTracker")
+        self.novel_title = novel_title
+        # 存储每章的时间线信息：{chapter_number: SceneTimelineInfo}
+        self._timeline: Dict[int, SceneTimelineInfo] = {}
+        # 时间索引计数器
+        self._next_time_index = 1
+
+    def record_chapter_timeline(self, timeline_info: SceneTimelineInfo) -> None:
+        """
+        记录章节的时间线信息
+
+        Args:
+            timeline_info: 章节时间线信息
+        """
+        timeline_info.time_index = self._next_time_index
+        self._next_time_index += 1
+        self._timeline[timeline_info.chapter_number] = timeline_info
+        self.logger.info(f"  📍 第{timeline_info.chapter_number}章时间线已记录: {timeline_info.start_time} → {timeline_info.end_time}")
+
+    def get_timeline(self, chapter_number: int) -> Optional[SceneTimelineInfo]:
+        """获取指定章节的时间线信息"""
+        return self._timeline.get(chapter_number)
+
+    def get_previous_timeline(self, current_chapter: int) -> Optional[SceneTimelineInfo]:
+        """获取上一章的时间线信息"""
+        if current_chapter <= 1:
+            return None
+        return self.get_timeline(current_chapter - 1)
+
+    def check_timeline_continuity(self, current_chapter: int,
+                                  current_start_time: str = "") -> Tuple[bool, str]:
+        """
+        检查当前章节与上一章的时间线是否连续
+
+        Args:
+            current_chapter: 当前章节号
+            current_start_time: 当前章节计划开始的时间点
+
+        Returns:
+            (是否连续, 检查消息)
+        """
+        if current_chapter == 1:
+            return True, "第一章，无需检查连续性"
+
+        previous_timeline = self.get_previous_timeline(current_chapter)
+        if not previous_timeline:
+            return True, "上一章时间线未记录，跳过检查"
+
+        # 如果没有提供当前开始时间，返回警告
+        if not current_start_time:
+            return True, "⚠️ 当前章节未提供开始时间，无法检测连续性"
+
+        # 检查时间索引
+        prev_index = previous_timeline.time_index
+        curr_index = self._next_time_index
+
+        # 简单检测：如果当前开始时间与上一章结束时间相同或更早，可能有重复
+        has_overlap = (
+            current_start_time == previous_timeline.end_time or
+            current_start_time == previous_timeline.start_time or
+            (current_start_time in previous_timeline.scene_summary and
+             current_chapter - prev_index == 1)
+        )
+
+        if has_overlap:
+            warning_msg = (
+                f"⚠️ 检测到第{current_chapter}章可能与第{current_chapter-1}章存在时间线重叠！\n"
+                f"   上一章范围: {previous_timeline.start_time} → {previous_timeline.end_time}\n"
+                f"   本章开始: {current_start_time}\n"
+                f"   建议：确保本章从 '{previous_timeline.end_time}' 之后的时间点开始"
+            )
+            self.logger.warn(warning_msg)
+            return False, warning_msg
+
+        info_msg = (
+            f"✅ 时间线连续性检查通过\n"
+            f"   上一章结束: {previous_timeline.end_time}\n"
+            f"   本章开始: {current_start_time}"
+        )
+        return True, info_msg
+
+    def build_timeline_constraint_for_generation(self, current_chapter: int) -> str:
+        """
+        为章节生成构建时间线约束提示词
+
+        Args:
+            current_chapter: 当前章节号
+
+        Returns:
+            时间线约束提示词
+        """
+        if current_chapter == 1:
+            return "- **时间线要求**：这是第一章，建立故事的起始时间点。"
+
+        previous_timeline = self.get_previous_timeline(current_chapter)
+        if not previous_timeline:
+            return "- **时间线要求**：未找到上一章时间线信息，请自然衔接。"
+
+        constraint = f"""- **时间线铁律**：本章必须在上一章结束之后继续，严禁重复描写已写过的场景！
+  - 上一章时间范围：{previous_timeline.start_time} → {previous_timeline.end_time}
+  - 上一章关键事件：{'; '.join(previous_timeline.key_events[-3:])}  # 最近3个事件
+  - **绝对禁止**：不要从 '{previous_timeline.start_time}' 或更早的时间点重新开始
+  - **正确做法**：从 '{previous_timeline.end_time}' 之后的时间点继续故事，或进行时间跳跃"""
+
+        return constraint
+
+    def extract_timeline_from_chapter_content(self, chapter_number: int,
+                                              chapter_content: str) -> Optional[SceneTimelineInfo]:
+        """
+        从生成的章节内容中提取时间线信息
+
+        Args:
+            chapter_number: 章节号
+            chapter_content: 章节内容
+
+        Returns:
+            提取的时间线信息，如果提取失败返回None
+        """
+        import re
+
+        # 尝试从内容中提取结尾状态（其中包含时间信息）
+        # 查找 JSON 格式的结尾状态报告
+        json_pattern = r'```json\s*(\{.*?"chapter_number"\s*:\s*' + str(chapter_number) + r'.*?\})\s*```'
+        match = re.search(json_pattern, chapter_content, re.DOTALL)
+
+        if not match:
+            # 尝试查找不带代码块的JSON
+            json_pattern2 = r'\{\s*"chapter_number"\s*:\s*' + str(chapter_number) + r'.*?"time_point".*?\}'
+            match = re.search(json_pattern2, chapter_content, re.DOTALL)
+
+        if match:
+            try:
+                import json
+                # 扩展匹配范围以获取完整JSON
+                start = match.start()
+                brace_count = 0
+                i = start
+                while i < len(chapter_content):
+                    if chapter_content[i] == '{':
+                        brace_count += 1
+                    elif chapter_content[i] == '}':
+                        brace_count -= 1
+                        if brace_count == 0:
+                            end_state = json.loads(chapter_content[start:i+1])
+                            return self._convert_end_state_to_timeline(chapter_number, end_state)
+                    i += 1
+            except (json.JSONDecodeError, ValueError) as e:
+                self.logger.warn(f"  ⚠️ 解析章节{chapter_number}的结尾状态失败: {e}")
+
+        # 如果无法从JSON提取，使用简单的规则提取
+        return self._simple_extract_timeline(chapter_number, chapter_content)
+
+    def _convert_end_state_to_timeline(self, chapter_number: int,
+                                       end_state: Dict) -> SceneTimelineInfo:
+        """将结尾状态转换为时间线信息"""
+        # 从上一章的时间线推断开始时间
+        previous_timeline = self.get_previous_timeline(chapter_number)
+        start_time = previous_timeline.end_time if previous_timeline else "故事开始"
+
+        # 提取关键事件
+        key_events = end_state.get("unresolved", [])  # 使用未解决的悬念作为关键事件
+        current_event = end_state.get("current_event", "")
+        if current_event:
+            key_events.insert(0, current_event)
+
+        return SceneTimelineInfo(
+            chapter_number=chapter_number,
+            start_time=start_time,
+            end_time=end_state.get("time_point", "未知"),
+            key_events=key_events[:5],  # 最多5个
+            scene_summary=f"{end_state.get('location', '')} - {end_state.get('atmosphere', '')}"
+        )
+
+    def _simple_extract_timeline(self, chapter_number: int,
+                                 content: str) -> SceneTimelineInfo:
+        """简单的规则提取时间线信息"""
+        # 提取前200字作为场景摘要
+        summary = content[:200].replace('\n', ' ').strip() + "..."
+
+        # 尝试从内容中找时间关键词
+        time_keywords = ['清晨', '上午', '中午', '下午', '傍晚', '夜间', '子时', '次日',
+                        '三天后', '半月后', '数日后', '片刻后', '片刻', '当即']
+        found_time = "未知"
+        for keyword in time_keywords:
+            if keyword in content:
+                found_time = keyword
+                break
+
+        previous_timeline = self.get_previous_timeline(chapter_number)
+        start_time = previous_timeline.end_time if previous_timeline else found_time
+
+        return SceneTimelineInfo(
+            chapter_number=chapter_number,
+            start_time=start_time,
+            end_time=found_time,
+            key_events=[f"本章结束于{found_time}"],
+            scene_summary=summary[:100]
+        )
+
+    def get_all_timelines(self) -> Dict[int, SceneTimelineInfo]:
+        """获取所有已记录的时间线"""
+        return self._timeline.copy()
+
+    def clear_all_timelines(self):
+        """清空所有时间线记录"""
+        self._timeline.clear()
+        self._next_time_index = 1
+        self.logger.info("  🧹 已清空所有场景时间线记录")

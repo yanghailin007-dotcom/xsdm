@@ -288,6 +288,22 @@ class EventDecomposer:
     - 如果中型事件A在第1章结束时"老祖显圣"，那么中型事件B（第2章）必须从"显圣之后的反应"开始，不能重新描述"老祖显圣"的过程
     - 这是**时间线连续**，不是**同一事件的不同角度描述**
 
+## 【🔥强制规则】情节点数量要求
+
+每个中型事件的 plot_outline 必须严格遵循以下数量规则：
+
+| 章节数 | 情节点数量 | 计算方式 |
+|-------|----------|---------|
+| 1章   | 4-6个    | 每章4-6个 |
+| 2章   | 8-12个   | 每章4-6个 × 2 |
+| 3章   | 12-18个  | 每章4-6个 × 3 |
+| n章   | n×4 到 n×6个 | 每章4-6个 × n |
+
+**⚠️ 这是硬性要求，不是建议！**
+- 如果生成的情节点数量不足，将被判定为不合格
+- 情节点数量宁多勿少（在范围内）
+- 每个情节点必须是具体、可展开的内容，不能空洞
+
 ## 【重要】特殊情感事件设计原则
 
 特殊情感事件不是独立的章节事件，而是**附着在中型事件上的情感元素**，用于深化角色关系、调整叙事节奏。
@@ -314,8 +330,11 @@ class EventDecomposer:
                 "main_goal": "目标",
 
                 // 🔥 新增：详细情节大纲（必需！）
-                // 必须提供足够多的具体情节点，以支撑该事件覆盖的所有章节内容
-                // 如果是1章事件，至少需要4-6个情节点；如果是2章事件，需要8-12个情节点
+                // ⚠️【强制规则】情节点数量必须严格符合以下标准：
+                // - 1章事件：必须恰好4-6个情节点
+                // - 2章事件：必须恰好8-12个情节点（每章4-6个）
+                // - 3章事件：必须恰好12-18个情节点（每章4-6个）
+                // 规则：每章必须4-6个情节点，多章事件按章节数累加
                 "plot_outline": [
                     "情节点1：具体发生了什么（场景1内容）",
                     "情节点2：然后发生了什么（场景2内容）",
@@ -370,7 +389,11 @@ class EventDecomposer:
 }}
 
 注意：
-1. **plot_outline 是新增必需字段**：必须提供足够多的具体情节点
+1. **🔥 plot_outline 数量强制规则**：必须严格遵守"每章4-6个情节点"的规则
+   - 1章事件=4-6个情节点
+   - 2章事件=8-12个情节点
+   - 3章事件=12-18个情节点
+   - 检查方法：章节数×4 ≤ 情节点数 ≤ 章节数×6
 2. 每个情节点应该是可以展开为300-500字场景的具体内容
 3. 情节点之间必须有因果关系和时间递进关系
 4. emotional_derivation 和 alignment_with_stage_arc 是新增的必需字段
@@ -583,7 +606,23 @@ class EventDecomposer:
 {comprehensive_scene_context}
 
 ## 场景构建要求
-请为这个章节设计4-6个场景事件，形成完整的戏剧结构。
+请为这个章节设计4-6个场景事件，形成完整的起承转合戏剧结构。
+
+## 【强制要求】情绪强度分布
+你**必须**为每个场景设置不同的情绪强度：low/medium/high
+- **起**（开篇场景）: low
+- **承**（发展场景）: medium
+- **转**（高潮场景）: high
+- **合**（收尾场景）: medium → low
+
+## 输出格式
+返回JSON格式，包含 scene_structure.scenes[]
+
+每个场景必须包含以下完整字段：
+- **name**（必填，4-12字，有画面感）
+- sequence, role（起/承/转/合）, position, description, purpose
+- key_actions[], emotional_intensity（low/medium/high）, emotional_impact
+- dialogue_highlights[], conflict_point, sensory_details, transition_to_next, estimated_word_count, chapter_hook
 """
             
             scene_result = self.api_client.generate_content_with_retry(
@@ -731,7 +770,7 @@ class EventDecomposer:
 ## 输出格式
 返回JSON格式，包含：name, chapter_range, decomposition_type: "direct_scene", chapter_breakdown.overall_arc, scene_sequences[]
 
-每个场景必须包含name（4-12字）、sequence、role、position、description、purpose、key_actions[]、emotional_intensity、emotional_impact、dialogue_highlights[]、conflict_point、sensory_details、transition_to_next、estimated_word_count
+每个场景必须包含name（4-12字）、sequence、role、position、description、purpose、key_actions[]、emotional_intensity、emotional_impact、dialogue_highlights[]、conflict_point、sensory_details、transition_to_next、estimated_word_count、chapter_hook
 """
         
         result = self.api_client.generate_content_with_retry(
@@ -870,9 +909,43 @@ class EventDecomposer:
 - 每个场景都应该有独特的进展和意义
 - 章节之间要有明确的递进关系
 
+## 【强制要求】情绪强度分布
+
+你**必须**为每个场景设置不同的情绪强度：low/medium/high
+
+每章的结构要求：
+1. **起始章**: low → medium → high → medium（起承转合）
+2. **中间章节**: medium → medium → high → medium（持续发展）
+3. **收尾章**: medium → medium → high → low（高潮收束）
+
+场景之间要有流畅的过渡，形成完整的叙事流。最后一个场景必须包含吸引读者继续阅读的钩子。
+
 ## 输出格式（根据你的决策选择合适的格式）
 
-每个场景必须包含name字段（4-12字，有画面感）
+### 【强制要求】每个场景必须包含以下完整字段：
+
+**基础字段**：
+- **name**（必填，4-12字，有画面感）: 如"林中分赃"、"师兄拦路"
+- **sequence**: 场景序号
+- **role**: 场景在起承转合中的角色（起/承/转/合）
+- **position**: 场景位置描述
+- **description**: 场景详细描述（100-200字）
+- **purpose**: 场景在故事中的作用
+
+**动作与情感**：
+- **key_actions[]**: 关键动作列表（3-5个具体动作）
+- **emotional_intensity**: 情绪强度（low/medium/high）
+- **emotional_impact**: 情感冲击描述
+
+**对话与冲突**：
+- **dialogue_highlights[]**: 对话亮点（2-3句精彩对话）
+- **conflict_point**: 场景中的冲突点
+
+**细节与过渡**：
+- **sensory_details**: 感官细节（视觉、听觉、触觉等）
+- **transition_to_next**: 如何过渡到下一个场景
+- **estimated_word_count**: 预计字数
+- **chapter_hook**: 场景结尾钩子（吸引读者继续阅读的关键点，最后一章的最后一个场景必填）
 
 ### 方案A：直接生成场景序列（连续情节）
 返回：name, chapter_range, decomposition_type: "ai_free_direct_scenes", ai_decision, chapter_breakdown.overall_arc, scene_sequences[].scene_events[]
@@ -881,7 +954,7 @@ class EventDecomposer:
 返回：name, chapter_range, decomposition_type: "ai_free_chapter_events", ai_decision, chapter_events[].scene_structure.scenes[]
 
 ### 方案C：混合方案（自由设计）
-确保包含：scene_events或scenes字段、每个场景的description和emotional_intensity、明确的章节范围对应关系
+确保包含：scene_events或scenes字段、每个场景包含上述所有强制字段、明确的章节范围对应关系
 
 请根据你的专业判断，选择或创造最适合这个中型事件的结构。
 """
@@ -1049,7 +1122,7 @@ class EventDecomposer:
 - **name**（必填，4-12字，有画面感）: 如"林中分赃"、"师兄拦路"
 - sequence, role（起/承/转/合）, position, description, purpose
 - key_actions[], emotional_intensity（low/medium/high）, emotional_impact
-- dialogue_highlights[], conflict_point, sensory_details, transition_to_next, estimated_word_count
+- dialogue_highlights[], conflict_point, sensory_details, transition_to_next, estimated_word_count, chapter_hook
 """
         
         result = self.api_client.generate_content_with_retry(

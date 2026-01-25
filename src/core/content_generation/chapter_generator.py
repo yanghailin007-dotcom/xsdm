@@ -486,8 +486,14 @@ class ChapterGenerator:
 
         if not previous_end_state or chapter_number == 1:
             self.logger.info(f"  ℹ️ [衔接系统] 第一章或无上一章状态，使用默认衔接")
-            return "- **前情提要**: 这是开篇第一章，需要建立故事基础。\n- **衔接要求**: 直接开始故事，无需与上一章衔接。"
+            return """- **前情提要**: 这是开篇第一章，需要建立故事基础。
+- **衔接要求**: 直接开始故事，无需与上一章衔接。
 
+## ⚠️ 时间铁律
+- **第一章起始时间**: 建立故事的开端时间点
+- **本章任务**: 完成第一章的完整叙事弧"""
+
+        # ============ 核心修正：添加时间铁律警告 ============
         # 根据上一章结尾状态构建衔接要求
         hint = previous_end_state.next_transition_hint or "自然衔接"
         event_status = "已完结" if previous_end_state.event_concluded else "进行中"
@@ -521,8 +527,31 @@ class ChapterGenerator:
         else:
             requirement += "\n- **衔接方式**: 【事件切换】简短收尾上一事件，自然过渡到本章新事件。"
 
-        self.logger.info(f"  ✅ [衔接系统] 衔接要求构建完成")
-        return requirement
+        # ============ 新增：时间铁律（强约束） ============
+        timeline_warning = f"""
+
+## ⚠️⚠️⚠️ 时间铁律（绝对禁止违反）⚠️⚠️⚠️
+
+**第{chapter_number}章必须在第{chapter_number-1}章结束之后继续，严禁倒带重写已发生过的事件！**
+
+- 上一章结束于: {previous_end_state.time_point}
+- 上一章结束地点: {previous_end_state.location}
+- 上一章最终状态: {previous_end_state.current_event}
+
+**绝对禁止的行为**:
+1. ❌ 不要从 '{previous_end_state.time_point}' 之前的时间点重新开始
+2. ❌ 不要重写第{chapter_number-1}章已经写过的场景（如"林擎天准备打叶辰"等）
+3. ❌ 不要让已发生的事件"重来一遍"
+
+**正确做法**:
+1. ✅ 本章必须从 '{previous_end_state.time_point}' 之后的时间点开始
+2. ✅ 如果是事件切换，用1-2句话简短过渡，然后开始新事件
+3. ✅ 如果是时间跳跃，明确说明时间流逝（如"片刻之后""次日清晨"等）
+
+**记住**: 读者已经看过第{chapter_number-1}章了，重写相同内容会让他们觉得你在水字数！
+"""
+
+        return requirement + timeline_warning
 
     def _get_end_state_output_instruction(self, chapter_number: int) -> str:
         """获取结尾状态输出指令"""
@@ -591,6 +620,24 @@ class ChapterGenerator:
                 except (json.JSONDecodeError, ValueError) as e:
                     self.logger.warn(f"  ⚠️ [衔接系统] 模式2解析失败: {e}")
 
+        # ============ 新增：记录时间线信息 ============
+        if end_state:
+            try:
+                self._ensure_timeline_tracker_initialized(novel_data)
+                if self.cg._timeline_tracker:
+                    from src.core.content_generation.chapter_state_manager import SceneTimelineInfo
+                    timeline_info = SceneTimelineInfo(
+                        chapter_number=chapter_number,
+                        start_time=self._get_chapter_start_time(novel_data, chapter_number),
+                        end_time=end_state.get("time_point", "未知"),
+                        key_events=end_state.get("unresolved", [])[:3],
+                        scene_summary=f"{end_state.get('location', '')} - {end_state.get('atmosphere', '')}"
+                    )
+                    self.cg._timeline_tracker.record_chapter_timeline(timeline_info)
+                    self.logger.info(f"  📍 [时间线追踪] 第{chapter_number}章时间线已记录")
+            except Exception as e:
+                self.logger.warn(f"  ⚠️ [时间线追踪] 记录时间线失败: {e}")
+
         if not end_state:
             self.logger.warn(f"  ⚠️ [衔接系统] 未能从内容中提取到结尾状态")
             return None
@@ -609,9 +656,34 @@ class ChapterGenerator:
 
         return end_state
 
+    def _ensure_timeline_tracker_initialized(self, novel_data: Dict):
+        """确保 SceneTimelineTracker 已初始化"""
+        if not hasattr(self.cg, '_timeline_tracker') or self.cg._timeline_tracker is None:
+            self.cg._ensure_timeline_tracker_initialized(novel_data)
+
     def _ensure_chapter_state_manager_initialized(self, novel_data: Dict):
-        """确保章节状态管理器已初始化（委托给ContentGenerator）"""
+        """确保 ChapterStateManager 已初始化（委托给ContentGenerator）"""
         self.cg._ensure_chapter_state_manager_initialized(novel_data)
+
+    def _get_chapter_start_time(self, novel_data: Dict, chapter_number: int) -> str:
+        """获取章节的开始时间"""
+        # 如果是第一章，返回默认值
+        if chapter_number == 1:
+            return "故事开始"
+
+        # 尝试从时间线追踪器获取上一章的结束时间
+        if hasattr(self.cg, '_timeline_tracker') and self.cg._timeline_tracker:
+            prev_timeline = self.cg._timeline_tracker.get_previous_timeline(chapter_number)
+            if prev_timeline:
+                return prev_timeline.end_time
+
+        # 从上一章的结尾状态获取
+        if hasattr(self.cg, '_chapter_state_manager') and self.cg._chapter_state_manager:
+            prev_end_state = self.cg._chapter_state_manager.get_previous_end_state(chapter_number)
+            if prev_end_state:
+                return prev_end_state.time_point
+
+        return "未知"
 
     def _format_character_info_for_prompt(self, character_info: str) -> str:
         """

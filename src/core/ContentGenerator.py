@@ -17,7 +17,12 @@ from src.core.Contexts import GenerationContext
 from src.core.QualityAssessor import QualityAssessor
 from src.prompts.Prompts import Prompts
 from src.utils.logger import get_logger
-from src.core.content_generation.chapter_state_manager import ChapterStateManager, ChapterEndState
+from src.core.content_generation.chapter_state_manager import (
+    ChapterStateManager,
+    ChapterEndState,
+    SceneTimelineTracker,
+    SceneTimelineInfo
+)
 class ContentGenerator:
     # ============================================================================
     # 内部辅助类 - Prompt 构建器 (已整合多个方法)
@@ -124,6 +129,8 @@ class ContentGenerator:
         self.custom_main_character_name = None
         # 章节状态管理器（延迟初始化）
         self._chapter_state_manager: Optional[ChapterStateManager] = None
+        # 场景时间线追踪器（延迟初始化）
+        self._timeline_tracker: Optional[SceneTimelineTracker] = None
         # 初始化日志系统
         self.logger = get_logger("ContentGenerator")
         # ▼▼▼ 添加下面两行 ▼▼▼
@@ -204,6 +211,28 @@ class ContentGenerator:
             self.logger.info(f"  ✅ ChapterStateManager 初始化成功: {novel_title}")
         except Exception as e:
             self.logger.error(f"  ❌ ChapterStateManager 初始化失败: {e}")
+
+    def _ensure_timeline_tracker_initialized(self, novel_data: Dict):
+        """确保 SceneTimelineTracker 已初始化"""
+        if self._timeline_tracker is not None:
+            return  # 已经初始化
+
+        novel_title = novel_data.get("novel_title")
+        if not novel_title:
+            self.logger.warn("  ⚠️ 无法初始化 SceneTimelineTracker：novel_title 为空")
+            return
+
+        try:
+            self._timeline_tracker = SceneTimelineTracker(
+                novel_title=novel_title
+            )
+            self.logger.info(f"  ✅ SceneTimelineTracker 初始化成功: {novel_title}")
+        except Exception as e:
+            self.logger.error(f"  ❌ SceneTimelineTracker 初始化失败: {e}")
+
+    def get_timeline_tracker(self) -> Optional[SceneTimelineTracker]:
+        """获取场景时间线追踪器"""
+        return self._timeline_tracker
 
     def _get_previous_chapter_end_state(self, current_chapter: int, novel_data: Dict) -> Optional[ChapterEndState]:
         """获取上一章的结尾状态"""
@@ -2325,6 +2354,10 @@ class ContentGenerator:
         self.logger.info(f"  🔍 准备第{chapter_number}章参数...")
         novel_title = novel_data["novel_title"]
         context: GenerationContext = novel_data.get('_current_generation_context')
+
+        # 🆕 确保时间线追踪器已初始化
+        self._ensure_timeline_tracker_initialized(novel_data)
+
         # 【【【核心修正：提前生成！】】】
         # ----------------------------------------------------------------------
         # 1. 提前获取世界状态
