@@ -806,7 +806,32 @@ class StagePlanManager:
         continuity_assessment = self.assess_stage_event_continuity(
             temp_plan, stage_name, stage_range, creative_seed, novel_title, novel_synopsis
         )
-        
+
+        # 🔥 新增：验证重大事件章节范围覆盖
+        coverage_validation = self.plan_validator.validate_major_events_coverage(
+            fleshed_out_major_events, stage_range, auto_correct=True
+        )
+
+        if not coverage_validation.get("is_valid"):
+            self.logger.warn(f"  ⚠️ 重大事件覆盖验证发现问题，已自动修正")
+            # 如果进行了自动修正，使用修正后的事件
+            if "corrected_events" in coverage_validation:
+                fleshed_out_major_events = coverage_validation["corrected_events"]
+                temp_plan["stage_writing_plan"]["event_system"]["major_events"] = fleshed_out_major_events
+
+        # 🔥 新增：验证每个重大事件内中型事件的章节范围一致性
+        medium_events_valid = True
+        for major_event in fleshed_out_major_events:
+            medium_validation = self.plan_validator.validate_medium_events_range_consistency(
+                major_event
+            )
+            if not medium_validation.get("is_valid"):
+                medium_events_valid = False
+                # 可以在这里添加自动修正逻辑
+
+        if not medium_events_valid:
+            self.logger.warn(f"  ⚠️ 部分重大事件的中型事件范围存在问题")
+
         # 根据验证结果优化
         try:
             coherence_score = float(goal_coherence.get("overall_coherence_score", 10))

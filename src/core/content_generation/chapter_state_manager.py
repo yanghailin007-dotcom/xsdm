@@ -439,6 +439,126 @@ class SceneTimelineTracker:
             scene_summary=summary[:100]
         )
 
+    def validate_scene_time_progression(self, chapter_number: int, scenes: List[Dict]) -> Dict:
+        """
+        验证章节内场景的时间递进关系
+
+        检测：
+        1. 场景的 sequence 是否按顺序递增
+        2. 场景的 role (起/承/转/合) 是否符合预期顺序
+        3. 场景的 position 是否合理递进
+        4. 是否有明显的时序问题（如高潮在开篇之后）
+
+        Args:
+            chapter_number: 章节号
+            scenes: 场景列表
+
+        Returns:
+            {
+                "is_valid": bool,
+                "issues": List[Dict],
+                "warnings": List[str],
+                "scene_count": int
+            }
+        """
+        issues = []
+        warnings = []
+
+        if not scenes:
+            return {
+                "is_valid": False,
+                "issues": [{"type": "no_scenes", "message": "没有场景数据"}],
+                "warnings": [],
+                "scene_count": 0
+            }
+
+        # 检查 sequence 顺序
+        expected_sequences = []
+        actual_sequences = []
+        role_order = {"起": 1, "承": 2, "转": 3, "合": 4}
+        role_positions = {}
+
+        for i, scene in enumerate(scenes):
+            seq = scene.get("sequence", i + 1)
+            actual_sequences.append(seq)
+            expected_sequences.append(i + 1)
+
+            # 检查 role 顺序
+            role = scene.get("role", "")
+            if role in role_order:
+                if role in role_positions:
+                    issues.append({
+                        "type": "duplicate_role",
+                        "scene": scene.get("name", "未命名"),
+                        "role": role,
+                        "message": f"场景 '{scene.get('name')}' 的 role '{role}' 与前面的场景重复"
+                    })
+                else:
+                    role_positions[role] = i
+
+            # 检查 position 的合理性
+            position = scene.get("position", "")
+            if position:
+                # 检查是否有明显的时序问题
+                if "ending" in position and i < len(scenes) - 1:
+                    issues.append({
+                        "type": "premature_ending",
+                        "scene": scene.get("name", "未命名"),
+                        "position": position,
+                        "message": f"场景 '{scene.get('name')}' 的 position 是 'ending' 但不是最后一个场景"
+                    })
+
+        # 检查 sequence 是否连续
+        if actual_sequences != expected_sequences:
+            issues.append({
+                "type": "sequence_mismatch",
+                "expected": expected_sequences,
+                "actual": actual_sequences,
+                "message": f"场景 sequence 不连续: 期望 {expected_sequences}, 实际 {actual_sequences}"
+            })
+
+        # 检查 role 的递进关系
+        sorted_roles = sorted(role_positions.items(), key=lambda x: x[1])
+        role_values = [role_order[r] for r, _ in sorted_roles]
+
+        # 检查 role 是否递增（允许部分缺失，但不能倒退）
+        for i in range(len(role_values) - 1):
+            if role_values[i] > role_values[i + 1]:
+                issues.append({
+                    "type": "role_regression",
+                    "roles": [sorted_roles[i][0], sorted_roles[i + 1][0]],
+                    "message": f"场景 role 倒退: '{sorted_roles[i][0]}' 在 '{sorted_roles[i + 1][0]}' 之后"
+                })
+
+        # 检查缺少的关键 role
+        required_roles = {"起", "转"}  # 起和转是必须的
+        missing_roles = required_roles - set(role_positions.keys())
+        if missing_roles:
+            warnings.append(f"缺少必要的 role: {missing_roles}")
+
+        # 场景数量检查
+        scene_count = len(scenes)
+        if scene_count < 3:
+            warnings.append(f"场景数量过少 ({scene_count}个)，建议4-6个")
+        elif scene_count > 8:
+            warnings.append(f"场景数量过多 ({scene_count}个)，可能导致节奏过快")
+
+        is_valid = len(issues) == 0
+
+        if not is_valid:
+            self.logger.warn(f"  ⚠️ 第{chapter_number}章场景时间递进验证发现问题:")
+            for issue in issues:
+                self.logger.warn(f"     - {issue['message']}")
+        else:
+            self.logger.info(f"  ✅ 第{chapter_number}章场景时间递进验证通过")
+
+        return {
+            "is_valid": is_valid,
+            "issues": issues,
+            "warnings": warnings,
+            "scene_count": scene_count
+        }
+
     def get_all_timelines(self) -> Dict[int, SceneTimelineInfo]:
         """获取所有已记录的时间线"""
         return self._timeline.copy()

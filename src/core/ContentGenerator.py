@@ -1747,14 +1747,33 @@ class ContentGenerator:
             if alt != original_title:
                 return alt
         return f"第{chapter_number}章 {base_title}"
-    def _should_optimize_based_on_config(self, assessment: Dict) -> Tuple[bool, str]:
-        """基于配置决定是否需要优化 - 使用统一标准"""
-        score = assessment.get("overall_score", 0) 
-        # 使用统一质量标准
-        quality_threshold = self.quality_assessor.unified_quality_standards["optimization_thresholds"]["chapter_content"]
+    def _should_optimize_based_on_config(self, assessment: Dict, retry_count: int = 0, chapter_number: int = None) -> Tuple[bool, str]:
+        """基于配置决定是否需要优化 - 使用渐进式阈值
+
+        Args:
+            assessment: 质量评估结果
+            retry_count: 当前重试次数（0=首次尝试）
+            chapter_number: 章节号（用于黄金三章特殊处理）
+
+        Returns:
+            (是否需要优化, 原因说明)
+        """
+        score = assessment.get("overall_score", 0)
+
+        # 使用渐进式质量阈值（根据重试次数动态调整）
+        quality_threshold = self.quality_assessor.get_chapter_threshold_for_retry(
+            retry_count=retry_count,
+            chapter_number=chapter_number
+        )
+
+        # 记录当前使用的阈值（方便调试）
+        chapter_info = f"第{chapter_number}章" if chapter_number else "当前章节"
+        self.logger.info(f"  📊 [{chapter_info} 第{retry_count}次尝试] 使用质量阈值: {quality_threshold:.1f}分")
+
         # 强制优化阈值
         if score < quality_threshold:
-            return True, f"评分{score:.1f}低于优化阈值{quality_threshold}分，需要优化"
+            return True, f"评分{score:.1f}低于优化阈值{quality_threshold:.1f}分（第{retry_count}次尝试），需要优化"
+
         # 检查严重一致性问题的存在
         consistency_issues = assessment.get("consistency_issues", [])
         severe_issues = [issue for issue in consistency_issues if issue.get('severity') == '高']
@@ -1762,6 +1781,7 @@ class ContentGenerator:
             for issue in severe_issues:
                 self.logger.info(f"  - {issue}")
             return True, f"存在{len(severe_issues)}个严重一致性问题，需要优化"
+
         return False, f"评分{score:.1f}良好，跳过优化"
 
     def _build_transition_requirement(self, previous_end_state, chapter_number: int) -> str:
@@ -2364,8 +2384,10 @@ class ContentGenerator:
         world_state = self._get_previous_world_state(novel_title)
         # 2. 提前构建一致性指导，这是后续函数需要的关键数据
         consistency_guidance = self._build_consistency_guidance(world_state, novel_title)
+        # 3. 🔥 新增：添加时间线约束到一致性指导
+        consistency_guidance = self._add_timeline_constraint_to_guidance(consistency_guidance, chapter_number)
         # ----------------------------------------------------------------------
-        # 3. 将一致性指导作为参数，传入场景准备函数
+        # 4. 将一致性指导作为参数，传入场景准备函数
         scene_events, chapter_goal_from_plan, writing_focus_from_plan = self._ensure_scenes_are_ready_for_chapter(
             chapter_number,
             context,
@@ -2510,13 +2532,21 @@ class ContentGenerator:
         - 跨度=1章：单章生成
         - 跨度=2-3章：一次性生成全部场景，然后分配到各章
         - 跨度>3章：逐章生成，但继承同一 medium_event 内的场景
+
+        降级策略：
+        - 如果阶段计划获取失败，尝试使用备用数据源或生成默认场景
+        - 如果找不到覆盖章节的中型事件，生成紧急场景
         """
         self.logger.info(f"\n--- 核心诊断: 进入 _ensure_scenes_are_ready_for_chapter (第 {chapter_number} 章) ---")
         self.logger.info("  [步骤1a] 委托 NovelGenerator 的管理器获取本章的阶段计划...")
         plan_container = self.novel_generator.stage_plan_manager.get_stage_plan_for_chapter(chapter_number)
+
+        # 🔥 新增：降级处理 - 阶段计划获取失败
         if not plan_container:
-            self.logger.info(f"  [致命错误] 从 StagePlanManager 未能获取到第 {chapter_number} 章的阶段计划。动态生成无法继续。")
-            return [], "", ""
+            self.logger.warn(f"  ⚠️ [降级] 从 StagePlanManager 未能获取到第 {chapter_number} 章的阶段计划，尝试生成默认场景...")
+            return self._generate_fallback_scenes_for_chapter(chapter_number, novel_data, consistency_guidance,
+                                                           reason="阶段计划获取失败")
+
         self.logger.info(f"  [步骤1b] 成功从管理器获取到阶段计划: '{plan_container.get('stage_name', '未知阶段名')}'")
 
         # 检查预设场景
@@ -2539,10 +2569,17 @@ class ContentGenerator:
 
         # 🆕 获取 medium_event 信息
         medium_event = self._find_event_for_decomposition(chapter_number, plan_container)
+
+        # 🔥 新增：降级处理 - 找不到中型事件
         if not medium_event:
-            self.logger.info(f"  [错误] 动态生成失败：在阶段 '{plan_container.get('stage_name')}' 的计划中，未能找到任何覆盖第 {chapter_number} 章的父事件。")
-            self.logger.info("--- 核心诊断: 流程结束，返回空列表。 ---\n")
-            return [], "", ""
+            self.logger.warn(f"  ⚠️ [降级] 在阶段 '{plan_container.get('stage_name')}' 的计划中，未能找到任何覆盖第 {chapter_number} 章的中型事件。")
+            self.logger.warn(f"  ⚠️ [降级] 尝试使用阶段计划信息生成紧急场景...")
+            # 尝试从阶段计划中获取一些上下文信息
+            stage_goal = plan_container.get("stage_overview", "推进剧情发展")
+            return self._generate_fallback_scenes_for_chapter(chapter_number, novel_data, consistency_guidance,
+                                                           reason="中型事件未找到",
+                                                           stage_goal=stage_goal,
+                                                           plan_container=plan_container)
 
         # 🆕 计算章节跨度
         chapter_range = medium_event.get('chapter_range', '1-1')
@@ -2607,6 +2644,16 @@ class ContentGenerator:
 
         if not newly_generated_scenes:
             return [], "", ""
+
+        # 🔥 新增：验证场景时间递进关系
+        if hasattr(self.novel_generator, 'chapter_state_manager'):
+            validation_result = self.novel_generator.chapter_state_manager.validate_scene_time_progression(
+                chapter_number, newly_generated_scenes
+            )
+            if not validation_result.get("is_valid"):
+                self.logger.warn(f"  ⚠️ 场景时间递进验证发现问题，但仍然使用生成的场景")
+            for warning in validation_result.get("warnings", []):
+                self.logger.info(f"  ℹ️ {warning}")
 
         # 🆕 保存当前章节的场景到缓存
         self._update_medium_event_cache(event_id, chapter_number, newly_generated_scenes, medium_event)
@@ -2754,6 +2801,16 @@ class ContentGenerator:
 
         if not newly_generated_scenes:
             return [], "", ""
+
+        # 🔥 新增：验证场景时间递进关系
+        if hasattr(self.novel_generator, 'chapter_state_manager'):
+            validation_result = self.novel_generator.chapter_state_manager.validate_scene_time_progression(
+                chapter_number, newly_generated_scenes
+            )
+            if not validation_result.get("is_valid"):
+                self.logger.warn(f"  ⚠️ 场景时间递进验证发现问题，但仍然使用生成的场景")
+            for warning in validation_result.get("warnings", []):
+                self.logger.info(f"  ℹ️ {warning}")
 
         # 更新缓存
         self._update_medium_event_cache(event_id, chapter_number, newly_generated_scenes, medium_event)
@@ -3105,6 +3162,116 @@ class ContentGenerator:
     # ===========================================================================
     # 结束：MediumEvent 场景共享机制
     # ===========================================================================
+
+    def _generate_fallback_scenes_for_chapter(self, chapter_number: int, novel_data: Dict,
+                                              consistency_guidance: str,
+                                              reason: str = "未知原因",
+                                              stage_goal: str = None,
+                                              plan_container: Dict = None) -> Tuple[List[Dict], str, str]:
+        """
+        生成降级场景 - 当正常流程失败时使用
+
+        Args:
+            chapter_number: 章节号
+            novel_data: 小说数据
+            consistency_guidance: 一致性指导
+            reason: 降级原因
+            stage_goal: 阶段目标（如果有）
+            plan_container: 计划容器（如果有）
+
+        Returns:
+            (场景列表, 章节目标, 写作重点)
+        """
+        self.logger.warn(f"  🚨 [降级模式] 启动，为第{chapter_number}章生成紧急场景")
+        self.logger.warn(f"  🚨 [降级原因] {reason}")
+
+        # 尝试获取基本信息
+        novel_title = novel_data.get("novel_title", "未知")
+        novel_synopsis = novel_data.get("novel_synopsis", "")
+
+        # 获取章节目标
+        chapter_goal = stage_goal or f"推进第{chapter_number}章剧情"
+        writing_focus = "根据已有内容自然延续，保持连贯性"
+
+        # 生成4个默认场景（起承转合结构）
+        default_scenes = [
+            {
+                "name": f"第{chapter_number}章开篇",
+                "sequence": 1,
+                "role": "起",
+                "position": "opening",
+                "description": f"承接上文的自然开篇，建立本章基础情境",
+                "purpose": "引入本章内容，与上文保持连贯",
+                "key_actions": ["承接上文", "建立情境", "引入新元素"],
+                "emotional_intensity": "low" if chapter_number > 1 else "medium",
+                "emotional_impact": "平稳过渡",
+                "dialogue_highlights": [],
+                "conflict_point": "本章核心冲突的萌芽",
+                "sensory_details": "注重氛围描写",
+                "transition_to_next": "自然过渡到发展部分",
+                "estimated_word_count": 500,
+                "chapter_hook": ""
+            },
+            {
+                "name": f"第{chapter_number}章发展",
+                "sequence": 2,
+                "role": "承",
+                "position": "development",
+                "description": f"推进情节发展，深化冲突",
+                "purpose": "展开本章核心内容，增加复杂性",
+                "key_actions": ["情节推进", "角色互动", "信息揭示"],
+                "emotional_intensity": "medium",
+                "emotional_impact": "逐步上升",
+                "dialogue_highlights": [],
+                "conflict_point": "冲突逐步显现",
+                "sensory_details": "增强细节描写",
+                "transition_to_next": "为高潮做铺垫",
+                "estimated_word_count": 600,
+                "chapter_hook": ""
+            },
+            {
+                "name": f"第{chapter_number}章高潮",
+                "sequence": 3,
+                "role": "转",
+                "position": "climax",
+                "description": f"本章的高潮部分，冲突达到顶点",
+                "purpose": "形成本章的情感或冲突顶点",
+                "key_actions": ["冲突爆发", "关键转折", "情感高潮"],
+                "emotional_intensity": "high",
+                "emotional_impact": "本章最高点",
+                "dialogue_highlights": [],
+                "conflict_point": "核心冲突爆发",
+                "sensory_details": "强化感官体验",
+                "transition_to_next": "开始收束",
+                "estimated_word_count": 700,
+                "chapter_hook": ""
+            },
+            {
+                "name": f"第{chapter_number}章收尾",
+                "sequence": 4,
+                "role": "合",
+                "position": "ending",
+                "description": f"收束本章内容，为下一章铺垫",
+                "purpose": "解决本章部分问题，埋下后续伏笔",
+                "key_actions": ["收束情节", "解决部分问题", "埋下伏笔"],
+                "emotional_intensity": "medium",
+                "emotional_impact": "余韵悠长",
+                "dialogue_highlights": [],
+                "conflict_point": "留下悬念",
+                "sensory_details": "营造结束氛围",
+                "transition_to_next": "为下一章做好铺垫",
+                "estimated_word_count": 400,
+                "chapter_hook": "留下吸引读者继续阅读的钩子"
+            }
+        ]
+
+        # 添加一致性指导到场景描述中
+        if consistency_guidance:
+            for scene in default_scenes:
+                scene["consistency_note"] = "严格遵守一致性指导，不与之前内容冲突"
+
+        self.logger.info(f"  ✅ [降级模式] 已生成{len(default_scenes)}个默认场景")
+        return default_scenes, chapter_goal, writing_focus
 
     def _decompose_event_into_scenes(self, event_data: Dict, chapter_number: int, context: GenerationContext, novel_data: Dict, plan_container: Dict, consistency_guidance: str) -> List[Dict]:
         self.logger.info(f"    >> 进入真实的场景生成桥接函数 _decompose_event_into_scenes...")
@@ -3518,7 +3685,54 @@ class ContentGenerator:
                     guidance_parts.append(f"- `{char_a}` 与 `{char_b}` 的关系是: `{rel_type}`。他们已经认识！")
         guidance_parts.append("\n" + "-"*35 + "\n")
         return "\n".join(guidance_parts)
-    def _calculate_update_count(self, element_data: Dict) -> int:
+
+    def _add_timeline_constraint_to_guidance(self, consistency_guidance: str, chapter_number: int) -> str:
+        """
+        为一致性指导添加时间线约束
+
+        Args:
+            consistency_guidance: 原有的一致性指导
+            chapter_number: 当前章节号
+
+        Returns:
+            添加了时间线约束的一致性指导
+        """
+        if chapter_number == 1:
+            return consistency_guidance  # 第一章不需要时间线约束
+
+        # 检查是否有时间线追踪器
+        if not hasattr(self, '_timeline_tracker') or self._timeline_tracker is None:
+            return consistency_guidance
+
+        # 获取上一章的时间线信息
+        previous_timeline = self._timeline_tracker.get_previous_timeline(chapter_number)
+        if not previous_timeline:
+            return consistency_guidance
+
+        # 构建时间线约束
+        timeline_constraint = f"""
+【🔴时间线铁律 (必须严格遵守)】
+- **上一章时间范围**: {previous_timeline.start_time} → {previous_timeline.end_time}
+- **上一章关键事件**: {'; '.join(previous_timeline.key_events[-2:]) if previous_timeline.key_events else '无'}
+- **绝对禁止**: 严禁从 '{previous_timeline.start_time}' 或之前的时间点重新开始描写
+- **正确做法**: 本章必须从 '{previous_timeline.end_time}' 之后的时间点继续，或进行合理的时间跳跃
+- **禁止重复**: 不要重复描写上一章已经写过的场景和事件
+
+"""
+
+        # 将时间线约束插入到一致性指导的开头
+        if "--- 一致性铁律" in consistency_guidance:
+            # 替换原有的分隔符
+            consistency_guidance = consistency_guidance.replace(
+                "--- 一致性铁律 (AI必须严格遵守) ---\n",
+                timeline_constraint + "--- 一致性铁律 (AI必须严格遵守) ---\n"
+            )
+        else:
+            # 如果没有找到原有的分隔符，直接添加到开头
+            consistency_guidance = timeline_constraint + consistency_guidance
+
+        return consistency_guidance
+
         """计算元素的更新次数 - 简化版本（使用准确计数器）"""
         try:
             return int(element_data.get('update_count', 1))

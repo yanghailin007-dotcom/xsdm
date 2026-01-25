@@ -575,3 +575,402 @@ class PlanValidator:
             "events_with_duplication": len(events_with_duplication),
             "duplication_rate": round(len(events_with_duplication) / len(major_events) * 100, 1) if major_events else 0
         }
+
+    def validate_major_events_coverage(self, major_events: List[Dict], stage_range: str,
+                                       auto_correct: bool = False) -> Dict:
+        """
+        验证重大事件的章节范围覆盖情况
+
+        检测：
+        1. 是否完全覆盖阶段范围（无留白）
+        2. 是否有重叠的章节范围
+        3. 是否有超出阶段范围的事件
+
+        Args:
+            major_events: 重大事件列表
+            stage_range: 阶段章节范围（如 "1-20"）
+            auto_correct: 是否自动修正问题
+
+        Returns:
+            {
+                "is_valid": bool,
+                "has_gaps": bool,
+                "has_overlaps": bool,
+                "has_out_of_range": bool,
+                "gaps": [chapter_numbers],
+                "overlaps": [{"event1": name, "event2": name, "chapters": [chapters]}],
+                "out_of_range": [{"event": name, "range": range, "invalid_chapters": [chapters]}],
+                "coverage_report": str,
+                "corrected_events": List[Dict] (if auto_correct=True)
+            }
+        """
+        # 解析阶段范围
+        try:
+            stage_start, stage_end = parse_chapter_range(stage_range)
+            expected_chapters = set(range(stage_start, stage_end + 1))
+        except Exception as e:
+            self.logger.error(f"  ❌ 解析阶段范围失败: {stage_range}, {e}")
+            return {
+                "is_valid": False,
+                "error": f"无法解析阶段范围: {stage_range}"
+            }
+
+        # 收集所有事件的覆盖范围
+        event_ranges = []
+        for event in major_events:
+            event_name = event.get("name", "未命名")
+            range_str = event.get("chapter_range", "")
+            try:
+                e_start, e_end = parse_chapter_range(range_str)
+                event_ranges.append({
+                    "event": event,
+                    "name": event_name,
+                    "range": range_str,
+                    "start": e_start,
+                    "end": e_end,
+                    "chapters": set(range(e_start, e_end + 1))
+                })
+            except Exception as e:
+                self.logger.warn(f"  ⚠️ 跳过事件 '{event_name}': 无法解析章节范围 '{range_str}'")
+
+        # 检测问题
+        all_covered = set()
+        overlaps = []
+        out_of_range_events = []
+
+        # 检测重叠和超出范围
+        for i, er1 in enumerate(event_ranges):
+            # 检查是否超出阶段范围
+            invalid_chapters = []
+            for ch in er1["chapters"]:
+                if ch < stage_start or ch > stage_end:
+                    invalid_chapters.append(ch)
+            if invalid_chapters:
+                out_of_range_events.append({
+                    "event": er1["name"],
+                    "range": er1["range"],
+                    "invalid_chapters": invalid_chapters
+                })
+
+            # 检测重叠
+            for j, er2 in enumerate(event_ranges):
+                if i >= j:
+                    continue
+                overlap = er1["chapters"] & er2["chapters"]
+                if overlap:
+                    overlaps.append({
+                        "event1": er1["name"],
+                        "event2": er2["name"],
+                        "chapters": sorted(list(overlap))
+                    })
+
+            # 收集所有覆盖的章节
+            all_covered |= er1["chapters"]
+
+        # 检测留白
+        gaps = sorted(list(expected_chapters - all_covered))
+        has_gaps = len(gaps) > 0
+        has_overlaps = len(overlaps) > 0
+        has_out_of_range = len(out_of_range_events) > 0
+        is_valid = not (has_gaps or has_overlaps or has_out_of_range)
+
+        # 生成报告
+        report_lines = [
+            f"## 重大事件章节范围覆盖验证报告",
+            f"**阶段范围**: 第{stage_start}-{stage_end}章",
+            f"**验证结果**: {'✅ 通过' if is_valid else '❌ 存在问题'}",
+            ""
+        ]
+
+        if has_gaps:
+            report_lines.append(f"### ⚠️ 留白章节（未被任何事件覆盖）")
+            report_lines.append(f"共有 {len(gaps)} 个章节未被覆盖: {gaps}")
+            report_lines.append("")
+
+        if has_overlaps:
+            report_lines.append(f"### ⚠️ 重叠章节（被多个事件覆盖）")
+            for ov in overlaps:
+                report_lines.append(f"- '{ov['event1']}' 与 '{ov['event2']}' 重叠章节: {ov['chapters']}")
+            report_lines.append("")
+
+        if has_out_of_range:
+            report_lines.append(f"### ⚠️ 超出范围的事件")
+            for oor in out_of_range_events:
+                report_lines.append(f"- '{oor['event']}' ({oor['range']}) 超出阶段范围的章节: {oor['invalid_chapters']}")
+            report_lines.append("")
+
+        if is_valid:
+            report_lines.append("### ✅ 覆盖完整")
+            report_lines.append(f"所有 {len(expected_chapters)} 个章节都被正确覆盖，无重叠无留白。")
+
+        coverage_report = "\n".join(report_lines)
+        self.logger.info(f"\n{coverage_report}")
+
+        result = {
+            "is_valid": is_valid,
+            "has_gaps": has_gaps,
+            "has_overlaps": has_overlaps,
+            "has_out_of_range": has_out_of_range,
+            "gaps": gaps,
+            "overlaps": overlaps,
+            "out_of_range": out_of_range_events,
+            "coverage_report": coverage_report,
+            "stage_range": stage_range,
+            "expected_chapters": len(expected_chapters),
+            "actual_coverage": len(all_covered & expected_chapters)
+        }
+
+        # 自动修正
+        if auto_correct and not is_valid:
+            result["corrected_events"] = self._auto_correct_major_event_coverage(
+                event_ranges, gaps, overlaps, stage_start, stage_end
+            )
+
+        return result
+
+    def _auto_correct_major_event_coverage(self, event_ranges: List[Dict], gaps: List[int],
+                                          overlaps: List[Dict], stage_start: int, stage_end: int) -> List[Dict]:
+        """
+        自动修正重大事件的章节覆盖问题
+
+        策略：
+        1. 优先处理留白：扩展相邻事件的范围
+        2. 处理重叠：调整事件边界消除重叠
+        """
+        self.logger.info(f"  🔧 开始自动修正重大事件覆盖问题...")
+
+        # 创建章节到事件的映射（用于处理留白）
+        chapter_to_event = {}
+        for er in event_ranges:
+            for ch in er["chapters"]:
+                if ch not in chapter_to_event:
+                    chapter_to_event[ch] = []
+                chapter_to_event[ch].append(er)
+
+        # 处理留白：扩展相邻事件
+        for gap_ch in gaps:
+            # 找到最近的左侧事件
+            left_event = None
+            right_event = None
+
+            for er in event_ranges:
+                if er["end"] < gap_ch:
+                    if left_event is None or er["end"] > left_event["end"]:
+                        left_event = er
+                elif er["start"] > gap_ch:
+                    if right_event is None or er["start"] < right_event["start"]:
+                        right_event = er
+
+            # 扩展左侧或右侧事件
+            if left_event and (not right_event or (gap_ch - left_event["end"]) <= (right_event["start"] - gap_ch)):
+                old_end = left_event["end"]
+                left_event["end"] = gap_ch
+                left_event["chapters"].add(gap_ch)
+                left_event["range"] = f"{left_event['start']}-{gap_ch}"
+                self.logger.info(f"  ✅ 扩展事件 '{left_event['name']}' 的范围: {old_end} -> {gap_ch}")
+            elif right_event:
+                old_start = right_event["start"]
+                right_event["start"] = gap_ch
+                right_event["chapters"].add(gap_ch)
+                right_event["range"] = f"{gap_ch}-{right_event['end']}"
+                self.logger.info(f"  ✅ 扩展事件 '{right_event['name']}' 的范围: {old_start} -> {gap_ch}")
+
+        # 处理重叠：平均分配重叠章节
+        for ov in overlaps:
+            event1 = next((e for e in event_ranges if e["name"] == ov["event1"]), None)
+            event2 = next((e for e in event_ranges if e["name"] == ov["event2"]), None)
+            if not event1 or not event2:
+                continue
+
+            # 将重叠章节对半分
+            overlap_chapters = sorted(ov["chapters"])
+            mid_point = len(overlap_chapters) // 2
+
+            for i, ch in enumerate(overlap_chapters):
+                if i < mid_point:
+                    event2["chapters"].discard(ch)
+                else:
+                    event1["chapters"].discard(ch)
+
+            # 更新范围
+            if event1["chapters"]:
+                event1["start"] = min(event1["chapters"])
+                event1["end"] = max(event1["chapters"])
+                event1["range"] = f"{event1['start']}-{event1['end']}" if event1["start"] != event1["end"] else f"{event1['start']}"
+            if event2["chapters"]:
+                event2["start"] = min(event2["chapters"])
+                event2["end"] = max(event2["chapters"])
+                event2["range"] = f"{event2['start']}-{event2['end']}" if event2["start"] != event2["end"] else f"{event2['start']}"
+
+            self.logger.info(f"  ✅ 修正重叠: '{ov['event1']}' 与 '{ov['event2']}' 的重叠章节已重新分配")
+
+        # 返回修正后的事件
+        return [er["event"] for er in event_ranges]
+
+    def validate_medium_events_range_consistency(self, major_event: Dict) -> Dict:
+        """
+        验证单个重大事件内中型事件的章节范围一致性
+
+        检测：
+        1. 所有中型事件的 chapter_range 是否在父事件的范围内
+        2. 中型事件的并集是否等于父事件的 chapter_range
+        3. 中型事件之间是否有重叠或留白
+
+        Args:
+            major_event: 重大事件数据
+
+        Returns:
+            {
+                "is_valid": bool,
+                "major_event_name": str,
+                "major_event_range": str,
+                "issues": List[Dict],
+                "medium_events_count": int,
+                "coverage_analysis": Dict
+            }
+        """
+        major_event_name = major_event.get("name", "未命名")
+        major_range_str = major_event.get("chapter_range", "")
+
+        # 解析父事件范围
+        try:
+            parent_start, parent_end = parse_chapter_range(major_range_str)
+            parent_chapters = set(range(parent_start, parent_end + 1))
+        except Exception as e:
+            return {
+                "is_valid": False,
+                "major_event_name": major_event_name,
+                "major_event_range": major_range_str,
+                "error": f"无法解析父事件章节范围: {e}",
+                "issues": [{"type": "parse_error", "message": str(e)}]
+            }
+
+        # 收集所有中型事件
+        all_medium_events = []
+        composition = major_event.get("composition", {})
+        for phase_name, phase_events in composition.items():
+            if isinstance(phase_events, list):
+                for me in phase_events:
+                    all_medium_events.append({
+                        "event": me,
+                        "phase": phase_name,
+                        "name": me.get("name", "未命名"),
+                        "range": me.get("chapter_range", "")
+                    })
+
+        # 也包括特殊情感事件
+        special_events = major_event.get("special_emotional_events", [])
+        for se in special_events:
+            all_medium_events.append({
+                "event": se,
+                "phase": "special",
+                "name": se.get("name", "特殊情感事件"),
+                "range": se.get("chapter_range", "")
+            })
+
+        issues = []
+        all_covered = set()
+
+        # 检查每个中型事件
+        for me_info in all_medium_events:
+            me_name = me_info["name"]
+            me_range = me_info["range"]
+
+            try:
+                me_start, me_end = parse_chapter_range(me_range)
+                me_chapters = set(range(me_start, me_end + 1))
+
+                # 检查是否超出父事件范围
+                out_of_parent = me_chapters - parent_chapters
+                if out_of_parent:
+                    issues.append({
+                        "type": "out_of_range",
+                        "medium_event": me_name,
+                        "range": me_range,
+                        "invalid_chapters": sorted(list(out_of_parent)),
+                        "message": f"'{me_name}' ({me_range}) 超出父事件范围，章节: {sorted(list(out_of_parent))}"
+                    })
+
+                all_covered |= me_chapters
+
+            except Exception as e:
+                issues.append({
+                    "type": "parse_error",
+                    "medium_event": me_name,
+                    "range": me_range,
+                    "message": f"无法解析 '{me_name}' 的章节范围: {e}"
+                })
+
+        # 检查覆盖情况
+        gaps = parent_chapters - all_covered
+        if gaps:
+            issues.append({
+                "type": "gaps",
+                "gap_chapters": sorted(list(gaps)),
+                "message": f"父事件范围内有 {len(gaps)} 个章节未被中型事件覆盖: {sorted(list(gaps))}"
+            })
+
+        # 检查中型事件之间的重叠
+        medium_ranges = []
+        for me_info in all_medium_events:
+            try:
+                me_start, me_end = parse_chapter_range(me_info["range"])
+                medium_ranges.append({
+                    "name": me_info["name"],
+                    "start": me_start,
+                    "end": me_end,
+                    "chapters": set(range(me_start, me_end + 1))
+                })
+            except:
+                continue
+
+        overlaps = []
+        for i, mr1 in enumerate(medium_ranges):
+            for j, mr2 in enumerate(medium_ranges):
+                if i >= j:
+                    continue
+                overlap = mr1["chapters"] & mr2["chapters"]
+                if overlap:
+                    overlaps.append({
+                        "event1": mr1["name"],
+                        "event2": mr2["name"],
+                        "chapters": sorted(list(overlap))
+                    })
+
+        if overlaps:
+            for ov in overlaps:
+                issues.append({
+                    "type": "overlap",
+                    "medium_event1": ov["event1"],
+                    "medium_event2": ov["event2"],
+                    "overlapping_chapters": ov["chapters"],
+                    "message": f"'{ov['event1']}' 与 '{ov['event2']}' 重叠章节: {ov['chapters']}"
+                })
+
+        is_valid = len(issues) == 0
+        coverage_rate = len(all_covered & parent_chapters) / len(parent_chapters) if parent_chapters else 0
+
+        result = {
+            "is_valid": is_valid,
+            "major_event_name": major_event_name,
+            "major_event_range": major_range_str,
+            "issues": issues,
+            "medium_events_count": len(all_medium_events),
+            "coverage_analysis": {
+                "parent_chapters_count": len(parent_chapters),
+                "covered_chapters_count": len(all_covered & parent_chapters),
+                "coverage_rate": round(coverage_rate * 100, 1),
+                "gaps": sorted(list(gaps)),
+                "overlaps": overlaps
+            }
+        }
+
+        if not is_valid:
+            self.logger.warn(f"  ⚠️ 重大事件 '{major_event_name}' 的中型事件范围存在问题:")
+            for issue in issues:
+                self.logger.warn(f"     - {issue['message']}")
+        else:
+            self.logger.info(f"  ✅ 重大事件 '{major_event_name}' 的中型事件范围验证通过")
+
+        return result
+

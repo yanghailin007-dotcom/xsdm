@@ -113,8 +113,10 @@ class ChapterGenerator:
                 chapter_data["quality_assessment"] = assessment
                 self.logger.info(f"  质量评分: {score:.1f}分")
                 
-                # 根据质量决定是否优化
-                optimize_needed, optimize_reason = self.cg._should_optimize_based_on_config(assessment)
+                # 根据质量决定是否优化（使用渐进式阈值）
+                optimize_needed, optimize_reason = self.cg._should_optimize_based_on_config(
+                    assessment, retry_count=attempt, chapter_number=chapter_number
+                )
                 if optimize_needed:
                     self.logger.info(f"  🔧 进行优化: {optimize_reason}")
                     chapter_data = self._optimize_chapter_content(
@@ -577,7 +579,13 @@ class ChapterGenerator:
 **注意**: 结尾状态报告必须放在章节内容之后，用于下一章的衔接。"""
 
     def _extract_and_save_end_state(self, content: str, chapter_number: int, novel_data: Dict) -> Optional[Dict]:
-        """从生成的内容中提取并保存结尾状态"""
+        """从生成的内容中提取并保存结尾状态
+
+        多层级降级策略：
+        1. 尝试从内容中提取完整的JSON格式结尾状态
+        2. 使用模式匹配提取关键信息（时间、地点、氛围）
+        3. 使用智能默认值（基于章节内容分析）
+        """
         self.logger.info(f"  🔍 [衔接系统] 开始提取第{chapter_number}章结尾状态...")
         import re
 
@@ -620,6 +628,16 @@ class ChapterGenerator:
                 except (json.JSONDecodeError, ValueError) as e:
                     self.logger.warn(f"  ⚠️ [衔接系统] 模式2解析失败: {e}")
 
+        # ============ 🔥 新增：降级处理 - 模式匹配提取 ============
+        if not end_state:
+            self.logger.warn(f"  ⚠️ [衔接系统] JSON提取失败，尝试模式匹配提取关键信息...")
+            end_state = self._extract_end_state_by_pattern_matching(content, chapter_number)
+
+        # ============ 🔥 新增：降级处理 - 智能默认值 ============
+        if not end_state:
+            self.logger.warn(f"  ⚠️ [衔接系统] 模式匹配也失败，使用智能默认值...")
+            end_state = self._generate_intelligent_default_end_state(content, chapter_number, novel_data)
+
         # ============ 新增：记录时间线信息 ============
         if end_state:
             try:
@@ -639,7 +657,7 @@ class ChapterGenerator:
                 self.logger.warn(f"  ⚠️ [时间线追踪] 记录时间线失败: {e}")
 
         if not end_state:
-            self.logger.warn(f"  ⚠️ [衔接系统] 未能从内容中提取到结尾状态")
+            self.logger.warn(f"  ⚠️ [衔接系统] 所有提取方法均失败，返回None")
             return None
 
         # 保存结尾状态
@@ -654,6 +672,114 @@ class ChapterGenerator:
         except Exception as e:
             self.logger.warn(f"  ⚠️ [衔接系统] 保存结尾状态失败: {e}")
 
+        return end_state
+
+    def _extract_end_state_by_pattern_matching(self, content: str, chapter_number: int) -> Optional[Dict]:
+        """
+        使用模式匹配从内容中提取结尾状态信息
+
+        尝试提取：
+        - 时间点（清晨、傍晚、次日等）
+        - 地点（从内容末尾提取）
+        - 氛围（从关键词推断）
+        """
+        import re
+
+        # 提取内容最后500字作为分析样本
+        sample = content[-500:] if len(content) > 500 else content
+
+        # 时间关键词映射
+        time_keywords = {
+            '清晨': '清晨', '黎明': '黎明', '破晓': '破晓',
+            '上午': '上午', '中午': '中午', '午后': '午后',
+            '下午': '下午', '傍晚': '傍晚', '黄昏': '黄昏',
+            '夜晚': '夜晚', '夜间': '夜间', '深夜': '深夜',
+            '子时': '子时', '午夜': '午夜',
+            '次日': '次日清晨', '第二天': '次日',
+            '三天后': '三天后', '数日后': '数日后',
+            '片刻后': '片刻后', '片刻': '片刻', '随即': '随即'
+        }
+
+        # 查找时间关键词
+        time_point = "未知"
+        for keyword, value in time_keywords.items():
+            if keyword in sample:
+                time_point = value
+                break
+
+        # 尝试提取地点（查找常见的地点描述模式）
+        location_patterns = [
+            r'(在|于|位于)([^，。]{2,10})(室|厅|殿|阁|山|河|林|峰|谷|地|城|镇|村|家)',
+            r'([^，。]{2,15})(殿|阁|楼|台|亭|轩|榭)(中|内|之上)',
+            r'([^，。]{2,15})(广场|街道|山林|洞穴|密室|书房|卧室)'
+        ]
+        location = "未知"
+        for pattern in location_patterns:
+            match = re.search(pattern, sample)
+            if match:
+                location = match.group(0)[:20]
+                break
+
+        # 推断氛围
+        atmosphere_keywords = {
+            '紧张': ['杀意', '战斗', '逃亡', '追击', '危机', '危险'],
+            '轻松': ['欢笑', '闲聊', '宁静', '安详', '温馨'],
+            '压抑': ['沉默', '凝重', '沉重', '压抑', '阴沉'],
+            '欢快': ['喜悦', '欢快', '兴奋', '激动', '开心']
+        }
+        atmosphere = "平静"
+        for mood, keywords in atmosphere_keywords.items():
+            if any(kw in sample for kw in keywords):
+                atmosphere = mood
+                break
+
+        # 构建结尾状态
+        end_state = {
+            "chapter_number": chapter_number,
+            "time_point": time_point,
+            "location": location,
+            "atmosphere": atmosphere,
+            "characters": [],
+            "current_event": "章节内容",
+            "event_concluded": True,
+            "unresolved": [],
+            "hook": "",
+            "next_transition_hint": "自然过渡"
+        }
+
+        self.logger.info(f"  ✅ [衔接系统] 模式匹配提取成功: 时间={time_point}, 地点={location}, 氛围={atmosphere}")
+        return end_state
+
+    def _generate_intelligent_default_end_state(self, content: str, chapter_number: int, novel_data: Dict) -> Dict:
+        """
+        生成智能的默认结尾状态
+
+        基于章节号和上一章状态推断合理的默认值
+        """
+        # 获取上一章的结束时间
+        prev_time = self._get_chapter_start_time(novel_data, chapter_number)
+
+        # 根据章节长度推断可能的场景变化
+        word_count = len(content)
+        if word_count > 3000:
+            time_point = f"{prev_time}之后"
+        else:
+            time_point = prev_time
+
+        end_state = {
+            "chapter_number": chapter_number,
+            "time_point": time_point,
+            "location": "默认地点",
+            "atmosphere": "平静",
+            "characters": [],
+            "current_event": f"第{chapter_number}章内容",
+            "event_concluded": True,
+            "unresolved": [],
+            "hook": "继续阅读",
+            "next_transition_hint": "自然过渡到下一章"
+        }
+
+        self.logger.info(f"  ✅ [衔接系统] 使用智能默认值: {time_point}")
         return end_state
 
     def _ensure_timeline_tracker_initialized(self, novel_data: Dict):
