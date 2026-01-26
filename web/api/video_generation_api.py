@@ -2651,6 +2651,807 @@ def get_video_project(project_name):
         return jsonify({"success": False, "error": str(e)}), 500
 
 
+@video_api.route('/video/generate-portrait-first', methods=['POST'])
+@login_required
+def generate_portrait_first_workflow():
+    """
+    优化工作流：先生成人物剧照，再逐镜头生成视频
+
+    工作流程：
+    1. 提取重大事件中的角色
+    2. 为所有角色生成剧照
+    3. 为每个镜头匹配角色剧照作为参考图
+    4. 逐镜头生成视频
+
+    请求参数：
+    {
+        "title": "小说标题",
+        "video_type": "long_series",
+        "selected_events": ["event_0", "event_1", ...],  // 可选
+        "aspect_ratio": "9:16",  // 照片比例，默认9:16（竖屏）
+        "image_size": "4K"       // 照片质量，默认4K
+    }
+    """
+    try:
+        data = request.json or {}
+        title = data.get('title')
+        video_type = data.get('video_type', 'long_series')
+        selected_events = data.get('selected_events', [])
+        aspect_ratio = data.get('aspect_ratio', '9:16')
+        image_size = data.get('image_size', '4K')
+
+        if not title:
+            return jsonify({"success": False, "error": "小说标题不能为空"}), 400
+
+        logger.info(f"🎬 [PORTRAIT-FIRST] 开始优化工作流: {title}")
+
+        if not manager:
+            return jsonify({"success": False, "error": "管理器未初始化"}), 500
+
+        # 获取小说数据
+        novel_detail = manager.get_novel_detail(title)
+        if not novel_detail:
+            return jsonify({"success": False, "error": "小说项目不存在"}), 404
+
+        from src.managers.EventExtractor import get_event_extractor
+        event_extractor = get_event_extractor(logger)
+
+        # ========== 第一步：提取事件和角色 ==========
+        logger.info(f"📋 [步骤1/4] 提取事件和角色...")
+
+        # 提取重大事件
+        all_events = event_extractor.extract_all_major_events(novel_detail)
+        if selected_events:
+            all_events = _filter_selected_events(all_events, selected_events, logger)
+
+        # 提取角色（从事件中识别）
+        characters_in_events = _extract_characters_from_events(all_events)
+        logger.info(f"  👥 从事件中识别到 {len(characters_in_events)} 个角色")
+
+        # ========== 第二步：生成角色剧照 ==========
+        logger.info(f"📸 [步骤2/4] 生成角色剧照...")
+
+        character_portraits = {}
+        portrait_results = []
+
+        from src.utils.NanoBananaImageGenerator import get_image_generator
+        from pathlib import Path
+        import re
+
+        image_gen = get_image_generator()
+        safe_title = re.sub(r'[\\/*?:"<>|]', '_', title)
+        portraits_dir = Path(f"generated_images/{safe_title}_portraits")
+        portraits_dir.mkdir(parents=True, exist_ok=True)
+
+        for char_id, char_info in characters_in_events.items():
+            char_name = char_info.get('name', f'角色{char_id}')
+            char_appearance = char_info.get('appearance', '')
+            char_role = char_info.get('role', '角色')
+
+            # 生成角色剧照prompt
+            portrait_prompt = f"""高质量角色剧照，{char_appearance}
+
+角色：{char_name}
+身份：{char_role}
+风格：精修写真级人物肖像
+构图：人物居中，上半身或全身
+背景：虚化或纯色背景，突出人物
+细节：面部特征清晰，表情生动，光影柔和"""
+
+            try:
+                # 生成剧照
+                portrait_path = portraits_dir / f"{safe_title}_{char_name}_portrait.png"
+
+                result = image_gen.generate_image(
+                    prompt=portrait_prompt,
+                    save_path=str(portrait_path),
+                    image_size=image_size
+                )
+
+                if result.get('success'):
+                    portrait_url = f"/generated_images/{safe_title}_portraits/{safe_title}_{char_name}_portrait.png"
+                    character_portraits[char_id] = portrait_url
+
+                    portrait_results.append({
+                        "character_id": char_id,
+                        "character_name": char_name,
+                        "portrait_url": portrait_url,
+                        "status": "completed"
+                    })
+                    logger.info(f"  ✅ {char_name} 剧照生成成功")
+                else:
+                    portrait_results.append({
+                        "character_id": char_id,
+                        "character_name": char_name,
+                        "status": "failed",
+                        "error": result.get('error', '未知错误')
+                    })
+                    logger.warning(f"  ⚠️ {char_name} 剧照生成失败")
+
+            except Exception as e:
+                logger.error(f"  ❌ {char_name} 剧照生成异常: {e}")
+                portrait_results.append({
+                    "character_id": char_id,
+                    "character_name": char_name,
+                    "status": "error",
+                    "error": str(e)
+                })
+
+        # ========== 第三步：生成镜头序列，关联角色剧照 ==========
+        logger.info(f"🎬 [步骤3/4] 生成镜头序列并关联剧照...")
+
+        from src.managers.VideoAdapterManager import VideoAdapterManager
+
+        class MockGenerator:
+            def __init__(self, novel_data):
+                self.novel_data = novel_data
+                self.api_client = None
+
+        mock_generator = MockGenerator(novel_detail)
+        adapter = VideoAdapterManager(mock_generator)
+
+        video_result = adapter.convert_to_video(
+            novel_data=novel_detail,
+            video_type=video_type,
+            filtered_events=all_events
+        )
+
+        # 提取镜头并关联角色剧照
+        units = video_result.get("units", [])
+        shots_with_portraits = []
+
+        for unit in units:
+            storyboard = unit.get("storyboard", {})
+            scenes = storyboard.get("scenes", [])
+
+            for scene in scenes:
+                shot_sequence = scene.get("shot_sequence", [])
+                scene_characters = _identify_characters_in_scene(scene, characters_in_events)
+
+                for shot in shot_sequence:
+                    # 为这个镜头找到相关的角色剧照
+                    shot_portraits = []
+                    for char_id in scene_characters:
+                        if char_id in character_portraits:
+                            shot_portraits.append({
+                                "character_id": char_id,
+                                "character_name": characters_in_events[char_id].get('name', ''),
+                                "portrait_url": character_portraits[char_id]
+                            })
+
+                    shots_with_portraits.append({
+                        "shot_index": len(shots_with_portraits),
+                        "unit_number": unit.get("unit_number"),
+                        "unit_name": unit.get("medium_event_name", ""),
+                        "scene_number": scene.get("scene_number"),
+                        "scene_description": scene.get("scene_description", ""),
+                        "shot_number": shot.get("shot_number"),
+                        "shot_type": shot.get("shot_type", "中景"),
+                        "camera_movement": shot.get("camera_movement", "固定"),
+                        "duration_seconds": shot.get("duration_seconds", 8),
+                        "description": shot.get("description", ""),
+                        "audio_cue": shot.get("audio_note", shot.get("tiktok_note", "")),
+                        "generation_prompt": _generate_shot_prompt_with_portraits(shot, shot_portraits),
+                        "reference_portraits": shot_portraits,
+                        "reference_image_urls": [p["portrait_url"] for p in shot_portraits],
+                        "status": "pending"
+                    })
+
+        logger.info(f"  📊 共生成 {len(shots_with_portraits)} 个镜头")
+
+        # ========== 第四步：保存项目 ==========
+        logger.info(f"💾 [步骤4/4] 保存项目数据...")
+
+        project_name = f"{safe_title}_{video_type}"
+        project_dir = Path(f"视频项目/{project_name}")
+        project_dir.mkdir(parents=True, exist_ok=True)
+
+        storyboard_data = {
+            "project_name": project_name,
+            "novel_title": title,
+            "video_type": video_type,
+            "visual_style_guide": video_result.get("visual_style_guide", {}),
+            "units": units,
+            "character_portraits": portrait_results,
+            "total_episodes": len(units),
+            "total_shots": len(shots_with_portraits),
+            "creation_time": __import__('datetime').datetime.now().isoformat()
+        }
+
+        storyboard_file = project_dir / f"{project_name}_storyboard.json"
+        with open(storyboard_file, 'w', encoding='utf-8') as f:
+            import json
+            json.dump(storyboard, f, ensure_ascii=False, indent=2)
+
+        logger.info(f"💾 项目已保存: {storyboard_file}")
+
+        # 返回结果
+        return jsonify({
+            "success": True,
+            "project_name": project_name,
+            "workflow": "portrait_first",
+            "character_portraits": portrait_results,
+            "total_shots": len(shots_with_portraits),
+            "total_episodes": len(units),
+            "shots": shots_with_portraits,
+            "storyboard": storyboard_data,
+            "next_step": "使用 /video/generate-shots 逐镜头生成视频"
+        })
+
+    except Exception as e:
+        logger.error(f"❌ [PORTRAIT-FIRST] 工作流执行失败: {e}")
+        import traceback
+        logger.error(f"错误堆栈: {traceback.format_exc()}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@video_api.route('/video/generate-shots', methods=['POST'])
+@login_required
+def generate_shots_portrait_first():
+    """
+    逐镜头生成视频（使用角色剧照作为参考）
+
+    请求参数：
+    {
+        "project_name": "项目名称",
+        "shot_indices": [0, 1, 2, ...],  // 要生成的镜头索引，不指定则全部生成
+        "orientation": "portrait",  // 视频方向
+        "duration": 10  // 单个视频时长（秒）
+    }
+    """
+    try:
+        data = request.json or {}
+        project_name = data.get('project_name')
+        shot_indices = data.get('shot_indices', [])
+        orientation = data.get('orientation', 'portrait')
+        duration = data.get('duration', 10)
+
+        if not project_name:
+            return jsonify({"success": False, "error": "项目名称不能为空"}), 400
+
+        logger.info(f"🎬 [GENERATE-SHOTS] 开始生成镜头: {project_name}")
+
+        # 加载项目数据
+        project_dir = Path(f"视频项目/{project_name}")
+        storyboard_file = project_dir / f"{project_name}_storyboard.json"
+
+        if not storyboard_file.exists():
+            return jsonify({"success": False, "error": "项目不存在"}), 404
+
+        with open(storyboard_file, 'r', encoding='utf-8') as f:
+            import json
+            storyboard_data = json.load(f)
+
+        # 获取角色剧照
+        character_portraits = storyboard_data.get("character_portraits", [])
+        portrait_map = {p["character_id"]: p["portrait_url"] for p in character_portraits if p.get("status") == "completed"}
+
+        # 获取镜头序列（从shots字段或重新生成）
+        shots = storyboard_data.get("shots", [])
+        if not shots:
+            return jsonify({"success": False, "error": "项目没有镜头数据"}), 400
+
+        # 过滤要生成的镜头
+        shots_to_generate = shots
+        if shot_indices:
+            shots_to_generate = [s for s in shots if s["shot_index"] in shot_indices]
+
+        logger.info(f"  📊 需要生成 {len(shots_to_generate)} 个镜头")
+
+        # 这里返回任务信息，实际生成由前端调用video API完成
+        return jsonify({
+            "success": True,
+            "project_name": project_name,
+            "total_shots": len(shots),
+            "shots_to_generate": len(shots_to_generate),
+            "shots": shots_to_generate,
+            "portrait_map": portrait_map,
+            "instruction": "对每个镜头调用 /api/veo/generate，使用 reference_image_urls 作为参考图"
+        })
+
+    except Exception as e:
+        logger.error(f"❌ [GENERATE-SHOTS] 处理失败: {e}")
+        import traceback
+        logger.error(f"错误堆栈: {traceback.format_exc()}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+def _extract_characters_from_events(events: list) -> dict:
+    """
+    从事件中提取角色信息
+
+    返回: {character_id: {name, appearance, role}}
+    """
+    characters = {}
+
+    for event in events:
+        # 从事件描述中识别角色
+        event_name = event.get('name', '')
+        event_desc = event.get('description', '')
+        composition = event.get('composition', {})
+
+        # 检查composition中的各个阶段
+        for stage_key in ['起因', '发展', '高潮', '结局', '起', '承', '转', '合']:
+            stage_data = composition.get(stage_key, {})
+            if not stage_data:
+                continue
+
+            # 提取角色信息
+            stage_name = stage_data.get('name', '')
+            stage_desc = stage_data.get('description', '')
+
+            # 尝试解析角色名
+            import re
+            # 匹配中文角色名模式
+            char_pattern = r'([一-龥]{2,4})(?:说|道|想|看|听|做|动作|表情|神态|出手|攻击)'
+            chars_in_stage = re.findall(char_pattern, stage_name + stage_desc)
+
+            for char_name in set(chars_in_stage):
+                char_id = f"char_{hash(char_name) % 10000}"
+                if char_id not in characters:
+                    # 从事件上下文推断角色特征
+                    characters[char_id] = {
+                        "id": char_id,
+                        "name": char_name,
+                        "role": _infer_character_role(char_name, event),
+                        "appearance": _infer_character_appearance(char_name, event),
+                        "first_appearance": event_name
+                    }
+
+    return characters
+
+
+def _infer_character_role(char_name: str, event: dict) -> str:
+    """推断角色身份"""
+    event_name = event.get('name', '')
+    desc = event.get('description', '')
+
+    if '主角' in desc or '男主' in desc or '女主' in desc:
+        return '主角'
+    elif '族长' in event_name or '长老' in event_name:
+        return '族长/长老'
+    elif '退婚' in event_name or '圣女' in event_name:
+        return '外来者'
+    elif '子孙' in event_name or '弟子' in event_name:
+        return '家族成员'
+    else:
+        return '角色'
+
+
+def _infer_character_appearance(char_name: str, event: dict) -> str:
+    """推断角色外貌"""
+    desc = event.get('description', '')
+
+    # 基础外貌描述
+    if '主角' in desc or '男主' in desc:
+        return '年轻男性，面容英俊，眼神坚毅，气质不凡'
+    elif '女主' in desc or '圣女' in desc or '少女' in desc:
+        return '年轻女性，容貌绝美，气质出尘'
+    elif '族长' in event.get('name', ''):
+        return '中年男性，威严庄重，须发灰白，气场强大'
+    else:
+        return '古装人物，细节精致，表情生动'
+
+
+def _identify_characters_in_scene(scene: dict, all_characters: dict) -> list:
+    """
+    识别场景中出现的角色
+
+    返回: [character_id1, character_id2, ...]
+    """
+    scene_desc = scene.get('scene_description', '')
+    char_ids = []
+
+    for char_id, char_info in all_characters.items():
+        char_name = char_info.get('name', '')
+        if char_name in scene_desc:
+            char_ids.append(char_id)
+
+    return char_ids
+
+
+def _generate_shot_prompt_with_portraits(shot: dict, portraits: list) -> str:
+    """
+    生成包含角色剧照参考的镜头prompt
+
+    Args:
+        shot: 镜头数据
+        portraits: 该镜头中的角色剧照列表
+    """
+    base_prompt = f"""{shot.get('description', '')}
+景别：{shot.get('shot_type', '中景')}
+运镜：{shot.get('camera_movement', '固定')}
+时长：{shot.get('duration_seconds', 8)}秒"""
+
+    if portraits:
+        char_names = ', '.join([p['character_name'] for p in portraits])
+        base_prompt += f"""
+出场角色：{char_names}
+人物参考：请保持人物形象与参考剧照一致"""
+
+    return base_prompt
+
+
+@video_api.route('/video/adapt-to-short-drama', methods=['POST'])
+@login_required
+def adapt_to_short_drama():
+    """
+    短剧风格改造API
+
+    将小说的叙事格式改造为短剧专用格式：
+    1. 识别每个事件的核心情节点
+    2. 添加开场钩子（前3秒抓人）
+    3. 设计情绪峰值
+    4. 添加结尾悬念
+    5. 优化节奏（短剧特有的快节奏）
+
+    请求参数：
+    {
+        "title": "小说标题",
+        "selected_events": ["event_0", "event_1", ...],  // 可选
+        "drama_type": "爽文"  // 爽文/悬疑/甜宠
+    }
+    """
+    try:
+        data = request.json or {}
+        title = data.get('title')
+        selected_events = data.get('selected_events', [])
+        drama_type = data.get('drama_type', '爽文')
+
+        if not title:
+            return jsonify({"success": False, "error": "小说标题不能为空"}), 400
+
+        logger.info(f"🎬 [SHORT_DRAMA] 开始短剧风格改造: {title}, 类型: {drama_type}")
+
+        if not manager:
+            return jsonify({"success": False, "error": "管理器未初始化"}), 500
+
+        # 获取小说数据
+        novel_detail = manager.get_novel_detail(title)
+        if not novel_detail:
+            return jsonify({"success": False, "error": "小说项目不存在"}), 404
+
+        from src.managers.EventExtractor import get_event_extractor
+        event_extractor = get_event_extractor(logger)
+
+        # 提取原始事件
+        all_events = event_extractor.extract_all_major_events(novel_detail)
+        if selected_events:
+            all_events = _filter_selected_events(all_events, selected_events, logger)
+
+        logger.info(f"  📊 待改造事件: {len(all_events)} 个")
+
+        # 进行短剧风格改造
+        adapted_events = []
+        for event in all_events:
+            adapted = _adapt_event_to_short_drama(event, drama_type)
+            adapted_events.append(adapted)
+            logger.info(f"  ✅ 改造完成: {adapted['name']}")
+
+        # 生成改造报告
+        adaptation_report = {
+            "original_events": len(all_events),
+            "drama_type": drama_type,
+            "adaptation_summary": _generate_adaptation_summary(adapted_events),
+            "next_steps": [
+                "1. 查看改造后的事件结构",
+                "2. 确认情节点设计",
+                "3. 继续生成剧照和视频"
+            ]
+        }
+
+        return jsonify({
+            "success": True,
+            "title": title,
+            "drama_type": drama_type,
+            "original_events": len(all_events),
+            "adapted_events": adapted_events,
+            "report": adaptation_report
+        })
+
+    except Exception as e:
+        logger.error(f"❌ [SHORT_DRAMA] 改造失败: {e}")
+        import traceback
+        logger.error(f"错误堆栈: {traceback.format_exc()}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+def _adapt_event_to_short_drama(event: dict, drama_type: str) -> dict:
+    """
+    将单个事件改造为短剧格式
+
+    短剧必需元素：
+    - hook: 开场钩子（前3秒）
+    - conflict_core: 核心冲突
+    - emotional_beats: 情节点序列
+    - climax: 高潮时刻
+    - cliffhanger: 结尾悬念
+    """
+    event_name = event.get('name', '')
+    event_desc = event.get('description', '')
+    composition = event.get('composition', {})
+
+    # 识别叙事阶段
+    stages = ['起因', '发展', '高潮', '结局']
+    if not any(composition.get(s) for s in stages):
+        stages = ['起', '承', '转', '合']
+
+    # 构建短剧格式
+    adapted = {
+        "original_name": event_name,
+        "original_description": event_desc,
+        "drama_type": drama_type,
+        "chapter_range": event.get('chapter_range', ''),
+
+        # 短剧核心元素
+        "hook": _generate_hook(event, composition, drama_type),
+        "conflict_core": _extract_conflict_core(event, composition),
+        "emotional_beats": _generate_emotional_beats(event, composition, drama_type),
+        "climax": _extract_climax(event, composition),
+        "cliffhanger": _generate_cliffhanger(event, composition),
+
+        # 保留原始composition结构，但添加短剧标记
+        "composition": _enhance_composition_with_drama_tags(composition, drama_type)
+    }
+
+    # 生成短剧专用的事件名
+    adapted['name'] = _generate_short_drama_event_name(event, drama_type)
+
+    return adapted
+
+
+def _generate_hook(event: dict, composition: dict, drama_type: str) -> dict:
+    """生成开场钩子（前3秒抓人）"""
+    event_name = event.get('name', '')
+    event_desc = event.get('description', '')
+
+    # 根据事件类型生成钩子
+    if '退婚' in event_name:
+        hook = {
+            "visual": "高堂之上，圣女居高临下，一纸退婚书扔在案前",
+            "text": "退婚？好！今日之耻，我记下了！",
+            "duration": 3,
+            "purpose": "立即建立冲突，激发观众期待"
+        }
+    elif '穿越' in event_name or '牌位' in event_name:
+        hook = {
+            "visual": "黑暗的祠堂，牌位发出金光，周围族人跪地瑟瑟发抖",
+            "text": "我穿越成了家族牌位？而且家族今晚就要被灭门？",
+            "duration": 3,
+            "purpose": "抛出绝境设定，制造悬念"
+        }
+    elif '心声' in event_name:
+        hook = {
+            "visual": "金色文字环绕族长，所有族人惊恐跪地",
+            "text": "这是...先祖显灵？族长的心声竟然能被听到！",
+            "duration": 3,
+            "purpose": "揭示金手指，爽感释放"
+        }
+    else:
+        # 通用钩子
+        hook = {
+            "visual": _extract_visual_key_moment(event_desc),
+            "text": _generate_hook_text(event_name, drama_type),
+            "duration": 3,
+            "purpose": "快速抓人"
+        }
+
+    return hook
+
+
+def _generate_hook_text(event_name: str, drama_type: str) -> str:
+    """生成钩子文案"""
+    hooks = {
+        '爽文': [
+            "三十年河东，三十年河西，莫欺少年穷！",
+            "今日之辱，来日百倍奉还！",
+            "既然你们不仁，就休怪我不义！"
+        ],
+        '悬疑': [
+            "这一切，都在我的算计之中...",
+            "你以为这是巧合？不，这是命运的安排。",
+            "真相，往往隐藏在最不起眼的地方。"
+        ],
+        '甜宠': [
+            "这一眼，便是一眼万年。",
+            "原来你一直都在这里。",
+            "所有的相遇，都是久别重逢。"
+        ]
+    }
+
+    import random
+    type_hooks = hooks.get(drama_type, hooks['爽文'])
+    return random.choice(type_hooks)
+
+
+def _extract_visual_key_moment(description: str) -> str:
+    """从描述中提取视觉关键时刻"""
+    if '祠堂' in description:
+        return "破旧祠堂，香火摇曳，气氛压抑"
+    elif '大殿' in description or '退婚' in description:
+        return "宏伟大殿，气氛紧张，众目睽睽"
+    elif '战场' in description:
+        return "战场硝烟，刀光剑影，生死一线"
+    else:
+        return "关键时刻来临"
+
+
+def _extract_conflict_core(event: dict, composition: dict) -> dict:
+    """提取核心冲突"""
+    event_name = event.get('name', '')
+
+    if '退婚' in event_name:
+        return {
+            "sides": ["主角（被退婚）", "女方（圣女/大宗门）"],
+            "contradiction": "实力悬殊，身份不平等",
+            "escalation": "从受辱到反击的转变"
+        }
+    elif '心声' in event_name:
+        return {
+            "sides": ["主角（心声泄露）", "族人（从怀疑到跪拜）"],
+            "contradiction": "认知错位，真相惊人",
+            "escalation": "从被误解到被膜拜"
+        }
+    else:
+        # 通用冲突提取
+        return {
+            "sides": ["主角方", "对手方"],
+            "contradiction": "利益冲突/理念冲突",
+            "escalation": "冲突逐步升级"
+        }
+
+
+def _generate_emotional_beats(event: dict, composition: dict, drama_type: str) -> list:
+    """生成情节点序列"""
+    event_name = event.get('name', '')
+
+    # 根据事件类型生成不同的情节点
+    if '退婚' in event_name:
+        beats = [
+            {"beat": "压抑", "content": "圣女居高临下，家族低头哈腰", "duration": 15},
+            {"beat": "羞辱", "content": "退婚书扔出，全族震怒", "duration": 10},
+            {"beat": "转折", "content": "主角淡然接受，反而道谢", "duration": 10},
+            {"beat": "铺垫", "content": "族长不解，气氛微妙", "duration": 10}
+        ]
+    elif '心声' in event_name:
+        beats = [
+            {"beat": "质疑", "content": "族长突然说话，族人惊恐", "duration": 10},
+            {"beat": "泄露", "content": "心声说出众人秘密", "duration": 15},
+            {"beat": "震撼", "content": "金色文字环绕，族人跪拜", "duration": 15},
+            {"beat": "敬畏", "content": "先祖显灵，地位确立", "duration": 10}
+        ]
+    else:
+        # 通用情节点（4幕结构）
+        beats = [
+            {"beat": "起", "content": "冲突建立，局势紧张", "duration": 15},
+            {"beat": "承", "content": "矛盾升级，信息密集", "duration": 20},
+            {"beat": "转", "content": "意外发生，局势逆转", "duration": 20},
+            {"beat": "合", "content": "结果揭晓，情绪释放", "duration": 10}
+        ]
+
+    return beats
+
+
+def _extract_climax(event: dict, composition: dict) -> dict:
+    """提取高潮时刻"""
+    event_name = event.get('name', '')
+
+    if '退婚' in event_name:
+        return {
+            "moment": "主角道谢时，全场哗然，众人不解其意",
+            "visual": "主角淡然一笑，转身离去，圣女若有所思",
+            "emotional_peak": "爽感释放 - 以退为进，格局打开"
+        }
+    elif '心声' in event_name:
+        return {
+            "moment": "金色文字环绕族长，所有族人跪地膜拜",
+            "visual": "神圣景象，金光璀璨，震撼视觉",
+            "emotional_peak": "身份揭晓 - 从牌位到先祖"
+        }
+    else:
+        return {
+            "moment": "关键时刻来临",
+            "visual": "高光时刻，情绪达到顶点",
+            "emotional_peak": "情绪爆发"
+        }
+
+
+def _generate_cliffhanger(event: dict, composition: dict) -> dict:
+    """生成结尾悬念"""
+    event_name = event.get('name', '')
+    event_desc = event.get('description', '')
+
+    # 根据事件类型生成悬念
+    if '退婚' in event_name:
+        return {
+            "text": "圣女看着主角离去的背影，若有所思...",
+            "next_hook": "三日后，太乙圣地的人会再来...",
+            "purpose": "为后续剧情埋下伏笔"
+        }
+    elif '心声' in event_name:
+        return {
+            "text": "然而，被灭门的危机倒计时仍在继续...",
+            "next_hook": "仇敌今夜就会到来，家族能否逃过此劫？",
+            "purpose": "制造紧迫感，吸引看下集"
+        }
+    else:
+        return {
+            "text": "更大的风暴即将来临...",
+            "next_hook": "下一集，新的挑战等待着你",
+            "purpose": "保持观众观看欲望"
+        }
+
+
+def _enhance_composition_with_drama_tags(composition: dict, drama_type: str) -> dict:
+    """为composition添加短剧标签"""
+    enhanced = {}
+
+    stage_mapping = {
+        '起因': 'hook',
+        '发展': 'buildup',
+        '高潮': 'climax',
+        '结局': 'cliffhanger',
+        '起': 'hook',
+        '承': 'buildup',
+        '转': 'climax',
+        '合': 'cliffhanger'
+    }
+
+    for stage_key, stage_data in composition.items():
+        if stage_data:
+            stage_data['short_drama_role'] = stage_mapping.get(stage_key, 'buildup')
+            stage_data['drama_type'] = drama_type
+            enhanced[stage_key] = stage_data
+
+    return enhanced
+
+
+def _generate_short_drama_event_name(event: dict, drama_type: str) -> str:
+    """生成短剧风格的事件名"""
+    original_name = event.get('name', '')
+
+    # 短剧风格的事件名需要更吸引人
+    name_map = {
+        '地狱开局': "【开场】穿越成牌位，死期倒计时",
+        '神级反转': "【高潮】退婚现场，主角道谢谢全场",
+        '祠堂惊变': "【爆点】心声泄露，全族当场吓跪"
+    }
+
+    # 如果有直接映射，使用映射
+    for key, value in name_map.items():
+        if key in original_name:
+            return value
+
+    # 否则添加短剧标签
+    drama_tags = {
+        '爽文': '【爽点】',
+        '悬疑': '【谜题】',
+        '甜宠': '【糖点】'
+    }
+
+    tag = drama_tags.get(drama_type, '【精彩】')
+    return f"{tag} {original_name}"
+
+
+def _generate_adaptation_summary(events: list) -> str:
+    """生成改造摘要"""
+    total_hooks = len([e for e in events if e.get('hook')])
+    total_cliffhangers = len([e for e in events if e.get('cliffhanger')])
+
+    return f"""改造完成！共{len(events)}个事件已转换为短剧格式：
+
+✅ 开场钩子: {total_hooks}个（确保前3秒抓人）
+✅ 情节点: 总计{sum(len(e.get('emotional_beats', [])) for e in events)}个
+✅ 高潮时刻: {len(events)}个
+✅ 结尾悬念: {total_cliffhangers}个（确保看下集）
+
+格式特点：
+- 节奏紧凑，无冗余信息
+- 情绪递进，爽点/悬念密集
+- 每集独立完整，但有关联
+- 适配8-10秒短视频格式"""
+
+
 def register_video_routes(app):
     """注册视频生成API路由"""
     app.register_blueprint(video_api, url_prefix='/api')

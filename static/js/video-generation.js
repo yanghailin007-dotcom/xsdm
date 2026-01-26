@@ -89,6 +89,10 @@ class VideoGenerator {
         } else if (mode === 'video-workspace') {
             // 跳转到视频工作室
             window.location.href = '/video-studio';
+        } else if (mode === 'short-drama') {
+            // 短剧风格改造模式：直接进入小说选择和事件选择流程
+            console.log('🎭 [短剧模式] 启动短剧风格改造工作流');
+            this.startShortDramaWorkflow();
         }
     }
     
@@ -160,11 +164,33 @@ class VideoGenerator {
         document.getElementById('modeSelectionScreen').style.display = 'none';
         document.getElementById('welcomeScreen').style.display = 'block';
         this.updateCurrentStatus('小说模式：选择小说和视频类型');
-        
+
         // 显示左侧小说列表，使用CSS类
         document.querySelector('.main-container').classList.remove('hide-sidebar');
     }
-    
+
+    /**
+     * 短剧风格改造工作流
+     * 直接引导用户通过：小说选择 → 事件选择 → 短剧改造 → 剧照优先生成
+     */
+    startShortDramaWorkflow() {
+        console.log('🎭 [短剧模式] startShortDramaWorkflow 函数被调用');
+        this.selectedMode = 'novel'; // 复用小说模式逻辑
+        this.isShortDramaMode = true; // 标记为短剧模式
+        console.log('🎭 [短剧模式] isShortDramaMode 设置为 true');
+
+        document.getElementById('modeSelectionScreen').style.display = 'none';
+        document.getElementById('welcomeScreen').style.display = 'block';
+        this.updateCurrentStatus('🎭 短剧风格改造：选择小说');
+
+        // 显示左侧小说列表
+        document.querySelector('.main-container').classList.remove('hide-sidebar');
+
+        // 显示提示信息
+        this.showToast('🎭 短剧模式：选择小说后，请选择事件进行短剧风格改造', 'success');
+        console.log('🎭 [短剧模式] 工作流初始化完成');
+    }
+
     async loadVideoTypes() {
         try {
             const response = await fetch('/api/video/types');
@@ -1039,18 +1065,30 @@ class VideoGenerator {
         // 隐藏事件和角色选择屏幕，显示提示词预览
         document.getElementById('eventCharacterSelectionScreen').style.display = 'none';
         document.getElementById('promptPreviewScreen').style.display = 'block';
-        
+
         // 更新标题
         const typeName = this.videoTypes[this.selectedType].name;
         document.getElementById('promptPreviewTitle').textContent =
             `${this.selectedNovel} - ${typeName}`;
-        
+
         // 显示提示词
         document.getElementById('promptText').textContent = this.currentPrompt || '正在生成...';
-        
+
+        // 如果是短剧模式，显示特殊提示
+        if (this.isShortDramaMode) {
+            this.showToast('🎭 短剧模式：点击"短剧风格改造"开始转换！', 'success');
+
+            // 高亮短剧改造按钮
+            const adaptBtn = document.getElementById('adaptToShortDramaBtn');
+            if (adaptBtn) {
+                adaptBtn.style.boxShadow = '0 0 20px rgba(238, 90, 36, 0.6)';
+                adaptBtn.style.transform = 'scale(1.05)';
+            }
+        }
+
         // 更新状态
         this.updateCurrentStatus(`已选择: ${this.selectedNovel}<br>类型: ${typeName}<br>步骤: 查看提示词`);
-        
+
         // 高亮第四步
         this.highlightWorkflowStep(4);
     }

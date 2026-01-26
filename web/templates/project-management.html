@@ -400,7 +400,12 @@
             background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
             color: white;
         }
-        
+
+        .action-btn.success {
+            background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
+            color: white;
+        }
+
         .action-btn:hover {
             /* 移除 transform，只改变阴影 */
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
@@ -890,6 +895,9 @@
                         <button class="action-btn secondary" onclick="viewQualityAssessment('${escapeHtml(project.title)}')">
                             🎯 质量评估
                         </button>
+                        <button class="action-btn success" onclick="goToVideoGeneration('${escapeHtml(project.title)}')">
+                            🎬 视频生成
+                        </button>
                         <button class="action-btn secondary" onclick="viewProjectViewer('${escapeHtml(project.title)}')">
                             📊 项目可视化
                         </button>
@@ -1137,6 +1145,13 @@
             } catch (error) {
                 showStatusMessage(`❌ 删除失败: ${error.message}`, 'error');
             }
+        }
+
+        function goToVideoGeneration(projectTitle) {
+            // 跳转到视频生成页面，并自动选择当前小说
+            // 使用localStorage传递选中的小说标题
+            localStorage.setItem('selectedNovelForVideo', projectTitle);
+            window.location.href = '/video-generation';
         }
 
         function refreshProjects() {

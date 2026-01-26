@@ -2498,6 +2498,24 @@ body {
     box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.3), 0 20px 40px rgba(37, 99, 235, 0.4);
 }
 
+/* 短剧风格模式卡片 */
+.mode-card.short-drama-mode {
+    border-color: rgba(238, 90, 36, 0.4);
+    background: linear-gradient(135deg, rgba(238, 90, 36, 0.05), rgba(255, 107, 107, 0.05));
+}
+
+.mode-card.short-drama-mode:hover {
+    border-color: rgba(238, 90, 36, 0.6);
+    background: linear-gradient(135deg, rgba(238, 90, 36, 0.15), rgba(255, 107, 107, 0.1));
+    box-shadow: 0 20px 40px rgba(238, 90, 36, 0.3);
+}
+
+.mode-card.short-drama-mode.selected {
+    border-color: #ee5a24;
+    background: linear-gradient(135deg, rgba(238, 90, 36, 0.2), rgba(255, 107, 107, 0.15));
+    box-shadow: 0 0 0 4px rgba(238, 90, 36, 0.3), 0 20px 40px rgba(238, 90, 36, 0.4);
+}
+
 /* 响应式 */
 @media (max-width: 1200px) {
     .video-workspace-content {

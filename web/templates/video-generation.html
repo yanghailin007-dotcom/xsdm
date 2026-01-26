@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>视频生成系统</title>
-    <link rel="stylesheet" href="/static/css/video-generation.css">
-    <link rel="stylesheet" href="/static/css/video-generation-character-portrait.css">
+    <link rel="stylesheet" href="/static/css/video-generation.css?v=2">
+    <link rel="stylesheet" href="/static/css/video-generation-character-portrait.css?v=2">
 </head>
 <body>
     <div id="app">
@@ -142,6 +142,19 @@
                                     <li>▶️ 完整的播放控制功能</li>
                                     <li>🔧 OpenAI API 集成</li>
                                     <li>✨ 高质量视频输出</li>
+                                </ul>
+                            </div>
+
+                            <div class="mode-card short-drama-mode" data-mode="short-drama">
+                                <div class="mode-badge" style="background: linear-gradient(135deg, #ff6b6b, #ee5a24);">热门</div>
+                                <div class="mode-icon">🎭</div>
+                                <h3>短剧风格改造</h3>
+                                <p class="mode-desc">将小说转换为短剧格式，支持剧照优先工作流</p>
+                                <ul class="mode-features">
+                                    <li>🎬 自动添加钩子和悬念</li>
+                                    <li>📸 生成角色固定形象</li>
+                                    <li>🎯 情节点优化</li>
+                                    <li>🚀 分镜头生成视频</li>
                                 </ul>
                             </div>
                         </div>
@@ -488,8 +501,14 @@
 
                         <div class="prompt-actions">
                             <button id="editPromptBtn" class="btn-secondary">✏️ 编辑提示词</button>
+                            <button id="adaptToShortDramaBtn" class="btn-secondary btn-large" style="margin-bottom: 8px;">
+                                🎬 短剧风格改造
+                            </button>
                             <button id="generateStoryboardBtn" class="btn-primary btn-large">
                                 🎬 生成分镜头脚本
+                            </button>
+                            <button id="generatePortraitFirstBtn" class="btn-success btn-large" style="margin-top: 12px;">
+                                📸 剧照优先工作流（推荐）
                             </button>
                         </div>
                     </div>
@@ -945,6 +964,6 @@
         </div>
     </div>
 
-    <script src="/static/js/video-generation.js"></script>
+    <script src="/static/js/video-generation.js?v=3"></script>
 </body>
 </html>

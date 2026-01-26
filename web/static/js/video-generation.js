@@ -91,6 +91,10 @@ class VideoGenerator {
         } else if (mode === 'video-workspace') {
             // 跳转到独立的视频工作台页面
             window.location.href = '/video-studio';
+        } else if (mode === 'short-drama') {
+            // 短剧风格改造模式：直接进入小说选择和事件选择流程
+            console.log('🎭 [短剧模式] 启动短剧风格改造工作流');
+            this.startShortDramaWorkflow();
         }
     }
     
@@ -796,7 +800,29 @@ class VideoGenerator {
         // 直接跳转到独立的人物剧照工作室页面
         window.location.href = '/portrait-studio';
     }
-    
+
+    /**
+     * 短剧风格改造工作流
+     * 直接引导用户通过：小说选择 → 事件选择 → 短剧改造 → 剧照优先生成
+     */
+    startShortDramaWorkflow() {
+        console.log('🎭 [短剧模式] startShortDramaWorkflow 函数被调用');
+        this.selectedMode = 'novel'; // 复用小说模式逻辑
+        this.isShortDramaMode = true; // 标记为短剧模式
+        console.log('🎭 [短剧模式] isShortDramaMode 设置为 true');
+
+        document.getElementById('modeSelectionScreen').style.display = 'none';
+        document.getElementById('welcomeScreen').style.display = 'block';
+        this.updateCurrentStatus('🎭 短剧风格改造：选择小说');
+
+        // 显示左侧小说列表
+        document.querySelector('.main-container').classList.remove('hide-sidebar');
+
+        // 显示提示信息
+        this.showToast('🎭 短剧模式：选择小说后，请选择事件进行短剧风格改造', 'success');
+        console.log('🎭 [短剧模式] 工作流初始化完成');
+    }
+
     showPortraitNovelConfig() {
         document.getElementById('portraitModeScreen').style.display = 'none';
         document.getElementById('portraitNovelConfigScreen').style.display = 'block';
@@ -1700,18 +1726,30 @@ class VideoGenerator {
         // 隐藏事件和角色选择屏幕，显示提示词预览
         document.getElementById('eventCharacterSelectionScreen').style.display = 'none';
         document.getElementById('promptPreviewScreen').style.display = 'block';
-        
+
         // 更新标题
         const typeName = this.videoTypes[this.selectedType].name;
         document.getElementById('promptPreviewTitle').textContent =
             `${this.selectedNovel} - ${typeName}`;
-        
+
         // 显示提示词
         document.getElementById('promptText').textContent = this.currentPrompt || '正在生成...';
-        
+
+        // 如果是短剧模式，显示特殊提示
+        if (this.isShortDramaMode) {
+            this.showToast('🎭 短剧模式：点击"短剧风格改造"开始转换！', 'success');
+
+            // 高亮短剧改造按钮
+            const adaptBtn = document.getElementById('adaptToShortDramaBtn');
+            if (adaptBtn) {
+                adaptBtn.style.boxShadow = '0 0 20px rgba(238, 90, 36, 0.6)';
+                adaptBtn.style.transform = 'scale(1.05)';
+            }
+        }
+
         // 更新状态
         this.updateCurrentStatus(`已选择: ${this.selectedNovel}<br>类型: ${typeName}<br>步骤: 查看提示词`);
-        
+
         // 高亮第四步
         this.highlightWorkflowStep(4);
     }
@@ -2193,7 +2231,465 @@ class VideoGenerator {
             this.showToast('导出失败: ' + error.message, 'error');
         }
     }
-    
+
+    // ==================== 优化工作流：剧照优先 ====================
+
+    /**
+     * 启动剧照优先工作流
+     * 1. 先进行短剧风格改造
+     * 2. 从改造后的事件中提取角色
+     * 3. 生成角色剧照
+     * 4. 为每个镜头匹配角色剧照
+     * 5. 逐镜头生成视频
+     */
+    async startPortraitFirstWorkflow() {
+        console.log('🎬 [剧照优先] 启动优化工作流...');
+
+        if (!this.selectedNovel) {
+            this.showToast('请先选择小说', 'error');
+            return;
+        }
+
+        if (!this.selectedType) {
+            this.showToast('请先选择视频类型', 'error');
+            return;
+        }
+
+        try {
+            // 步骤1: 短剧风格改造
+            this.updateCurrentStatus('📝 正在进行短剧风格改造...');
+            this.showToast('正在分析事件并进行短剧风格改造...', 'success');
+
+            const adaptResponse = await fetch('/api/video/adapt-to-short-drama', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    title: this.selectedNovel,
+                    selected_events: Array.from(this.selectedEvents),
+                    drama_type: '爽文'  // 默认爽文类型
+                })
+            });
+
+            const adaptData = await adaptResponse.json();
+
+            if (!adaptData.success) {
+                throw new Error(adaptData.error || '风格改造失败');
+            }
+
+            console.log('✅ [短剧改造] 完成:', adaptData.report);
+
+            // 步骤2: 显示改造结果，询问是否继续
+            const confirmed = confirm(
+                `短剧风格改造完成！\n\n` +
+                `改造事件数: ${adaptData.adapted_events.length}个\n` +
+                `类型: ${adaptData.drama_type}\n\n` +
+                `${adaptData.report}\n\n` +
+                `是否继续生成剧照和视频？`
+            );
+
+            if (!confirmed) {
+                this.showToast('已取消，可稍后继续', 'info');
+                return;
+            }
+
+            // 步骤3: 生成剧照优先工作流
+            await this._executePortraitFirstGeneration(adaptData.adapted_events);
+
+        } catch (error) {
+            console.error('剧照优先工作流失败:', error);
+            this.showToast('工作流执行失败: ' + error.message, 'error');
+        }
+    }
+
+    /**
+     * 执行剧照优先生成（内部方法）
+     */
+    async _executePortraitFirstGeneration(adaptedEvents) {
+        this.updateCurrentStatus('📸 正在生成角色剧照...');
+
+        const response = await fetch('/api/video/generate-portrait-first', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                title: this.selectedNovel,
+                video_type: this.selectedType,
+                selected_events: Array.from(this.selectedEvents),
+                aspect_ratio: '9:16',
+                image_size: '4K'
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            this.storyboard = data.storyboard;
+            this.shots = data.shots;
+            this.characterPortraits = data.character_portraits;
+            this.adaptedEvents = adaptedEvents;
+
+            console.log(`✅ [剧照优先] 工作流完成:`);
+            console.log(`   - 角色剧照: ${data.character_portraits.length} 个`);
+            console.log(`   - 镜头总数: ${data.total_shots} 个`);
+            console.log(`   - 分集数: ${data.total_episodes} 个`);
+
+            this.showPortraitFirstResults(data);
+        } else {
+            throw new Error(data.error || '工作流执行失败');
+        }
+    }
+
+    /**
+     * 显示剧照优先工作流的结果
+     */
+    showPortraitFirstResults(data) {
+        // 隐藏选择屏幕，显示结果屏幕
+        document.getElementById('eventCharacterSelectionScreen').style.display = 'none';
+        document.getElementById('storyboardScreen').style.display = 'block';
+
+        // 显示右侧分镜头列表
+        document.getElementById('helpSidebar').style.display = 'none';
+        document.getElementById('rightSidebar').style.display = 'block';
+
+        // 更新标题
+        document.getElementById('storyboardTitle').textContent = `📸 分镜头脚本 (${data.total_shots}个镜头)`;
+
+        // 渲染角色剧照
+        this.renderCharacterPortraits(data.character_portraits);
+
+        // 渲染镜头列表
+        this.renderShotsList();
+
+        // 更新统计
+        document.getElementById('totalShots').textContent = data.total_shots;
+        document.getElementById('completedShots').textContent = '0';
+
+        this.updateCurrentStatus(`📸 已生成 ${data.character_portraits.length} 个角色剧照，${data.total_shots} 个镜头待生成`);
+        this.highlightWorkflowStep(4);
+    }
+
+    /**
+     * 单独的短剧风格改造方法
+     */
+    async adaptToShortDrama() {
+        console.log('🎬 [短剧改造] 开始短剧风格改造...');
+
+        if (!this.selectedNovel) {
+            this.showToast('请先选择小说', 'error');
+            return;
+        }
+
+        try {
+            this.updateCurrentStatus('📝 正在进行短剧风格改造...');
+
+            const response = await fetch('/api/video/adapt-to-short-drama', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    title: this.selectedNovel,
+                    selected_events: Array.from(this.selectedEvents),
+                    drama_type: '爽文'  // 可以添加类型选择
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                console.log('✅ [短剧改造] 完成:', data.report);
+
+                // 显示改造结果
+                this.showShortDramaAdaptationResults(data);
+                this.showToast('短剧风格改造完成！', 'success');
+            } else {
+                throw new Error(data.error || '风格改造失败');
+            }
+        } catch (error) {
+            console.error('短剧风格改造失败:', error);
+            this.showToast('改造失败: ' + error.message, 'error');
+        }
+    }
+
+    /**
+     * 显示短剧改造结果
+     */
+    showShortDramaAdaptationResults(data) {
+        // 隐藏选择屏幕，显示结果
+        document.getElementById('eventCharacterSelectionScreen').style.display = 'none';
+
+        // 创建结果展示区域（复用storyboard screen）
+        const resultScreen = document.getElementById('storyboardScreen');
+        resultScreen.style.display = 'block';
+
+        // 更新标题
+        document.getElementById('storyboardTitle').textContent = `📝 短剧风格改造结果`;
+
+        // 显示改造摘要
+        const container = document.getElementById('shotsList');
+        container.innerHTML = `
+            <div class="adaptation-results" style="padding: 20px;">
+                <div class="result-summary" style="background: #f0f9ff; padding: 20px; border-radius: 8px; margin-bottom: 24px;">
+                    <h3 style="color: #0284c7;">🎬 改造摘要</h3>
+                    <pre style="white-space: pre-wrap; background: #fff; padding: 16px; border-radius: 8px; font-size: 14px;">${data.report}</pre>
+                </div>
+                <div class="adapted-events" style="display: grid; gap: 16px;">
+                    ${data.adapted_events.map((e, i) => `
+                        <div class="adapted-event-item" style="background: #fff; padding: 16px; border-radius: 8px; border-left: 4px solid #0284c7;">
+                            <h4 style="margin: 0 0 12px 0; color: #333;">${i + 1}. ${e.name}</h4>
+                            <div class="event-details" style="display: grid; gap: 12px;">
+                                <div class="event-detail">
+                                    <strong style="color: #dc2626;">🎣 开场钩子:</strong>
+                                    <p style="margin: 4px 0;">${e.hook?.text || '无'}</p>
+                                    <p class="hint" style="color: #666; font-size: 12px;">(${e.hook?.visual || ''})</p>
+                                </div>
+                                <div class="event-detail">
+                                    <strong style="color: #dc2626;">⚔️ 核心冲突:</strong>
+                                    <p style="margin: 4px 0;">${e.conflict_core?.sides?.join(' vs ') || '未知'}</p>
+                                    <p class="hint" style="color: #666; font-size: 12px;">${e.conflict_core?.contradiction || ''}</p>
+                                </div>
+                                <div class="event-detail">
+                                    <strong style="color: #dc2626;">📈 情节点:</strong>
+                                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                                        ${e.emotional_beats?.map(b => `<span style="background: #fef3c7; padding: 4px 8px; border-radius: 4px; font-size: 12px;">[${b.beat}] ${b.content}</span>`).join('')}
+                                    </div>
+                                </div>
+                                <div class="event-detail">
+                                    <strong style="color: #dc2626;">🔥 高潮时刻:</strong>
+                                    <p style="margin: 4px 0;">${e.climax?.moment || '无'}</p>
+                                </div>
+                                <div class="event-detail">
+                                    <strong style="color: #dc2626;">❓ 结尾悬念:</strong>
+                                    <p style="margin: 4px 0;">${e.cliffhanger?.text || '无'}</p>
+                                    <p class="hint" style="color: #666; font-size: 12px;">👉 ${e.cliffhanger?.next_hook || '继续观看'}</p>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+                <div class="next-steps" style="background: #fef3c7; padding: 16px; border-radius: 8px; margin-top: 24px;">
+                    <h3 style="margin: 0 0 12px 0; color: #0284c7;">📋 后续步骤</h3>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        ${data.report.next_steps.map(s => `<li style="margin: 4px 0;">${s}</li>`).join('')}
+                    </ul>
+                </div>
+                <div class="action-buttons" style="margin-top: 24px; text-align: center;">
+                    <button class="btn-success" onclick="videoGenerator.startPortraitFirstWorkflow()" style="padding: 12px 24px; font-size: 16px;">
+                        📸 继续生成剧照和视频
+                    </button>
+                    <button class="btn-secondary" onclick="videoGenerator.showModeSelectionScreen()" style="padding: 12px 24px; font-size: 16px;">
+                        🔙 返回重新选择
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * 渲染角色剧照列表
+     */
+    renderCharacterPortraits(portraits) {
+        const container = document.getElementById('characterPortraitsContainer');
+        if (!container) {
+            // 创建容器
+            const rightSidebar = document.getElementById('rightSidebar');
+            const portraitsSection = document.createElement('div');
+            portraitsSection.id = 'characterPortraitsContainer';
+            portraitsSection.className = 'character-portraits-section';
+            portraitsSection.innerHTML = `
+                <h3>👥 角色剧照</h3>
+                <div class="portraits-grid" id="portraitsGrid"></div>
+            `;
+            rightSidebar.insertBefore(portraitsSection, rightSidebar.firstChild);
+            const grid = document.getElementById('portraitsGrid');
+            this._populatePortraitsGrid(portraits, grid);
+        } else {
+            const grid = document.getElementById('portraitsGrid');
+            this._populatePortraitsGrid(portraits, grid);
+        }
+    }
+
+    /**
+     * 填充剧照网格
+     */
+    _populatePortraitsGrid(portraits, grid) {
+        if (!grid) return;
+
+        grid.innerHTML = portraits.map(p => `
+            <div class="portrait-card" data-character-id="${p.character_id}">
+                <img src="${p.portrait_url}" alt="${p.character_name}" class="portrait-image">
+                <div class="portrait-info">
+                    <span class="character-name">${p.character_name}</span>
+                    <span class="portrait-status ${p.status === 'completed' ? 'completed' : 'failed'}">
+                        ${p.status === 'completed' ? '✅' : '❌'}
+                    </span>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    /**
+     * 渲染镜头列表（带角色剧照关联）
+     */
+    renderShotsList() {
+        const container = document.getElementById('shotsList');
+        if (!container) return;
+
+        container.innerHTML = this.shots.map((shot, index) => {
+            const statusClass = shot.status || 'pending';
+            const statusText = {
+                'pending': '待生成',
+                'generating': '生成中',
+                'completed': '已完成',
+                'failed': '失败'
+            }[shot.status] || '待生成';
+
+            const portraits = shot.reference_portraits || [];
+            const portraitsHtml = portraits.map(p => `
+                <img src="${p.portrait_url}" alt="${p.character_name}" class="shot-portrait-thumb" title="${p.character_name}">
+            `).join('');
+
+            return `
+                <div class="shot-item ${statusClass}" data-index="${index}" onclick="videoGenerator.viewShot(${index})">
+                    <div class="shot-header">
+                        <span class="shot-number">#${shot.shot_index + 1}</span>
+                        <span class="shot-status">${statusText}</span>
+                    </div>
+                    <div class="shot-portraits">
+                        ${portraitsHtml || '<span class="no-portraits">无角色</span>'}
+                    </div>
+                    <div class="shot-info">
+                        <span class="shot-type">${shot.shot_type}</span>
+                        <span class="shot-duration">${shot.duration_seconds}s</span>
+                    </div>
+                    <div class="shot-description">${shot.description.substring(0, 50)}...</div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    /**
+     * 生成单个镜头（使用角色剧照作为参考）
+     */
+    async generateShotWithPortrait(index) {
+        const shot = this.shots[index];
+
+        // 更新状态
+        shot.status = 'generating';
+        this.renderShotsList();
+
+        // 显示进度
+        const progressSection = document.getElementById('shotProgressSection');
+        const progressBar = document.getElementById('shotProgressBar');
+        const progressText = document.getElementById('shotProgressText');
+
+        progressSection.style.display = 'block';
+        document.getElementById('startShotGenerationBtn').disabled = true;
+
+        try {
+            this.showToast(`正在生成镜头 #${index + 1}...`, 'success');
+
+            // 获取角色剧照URL作为参考图
+            const referenceImageUrls = shot.reference_image_urls || [];
+
+            // 构建请求
+            const requestData = {
+                prompt: shot.generation_prompt || shot.description,
+                image_urls: referenceImageUrls,
+                orientation: 'portrait',
+                size: 'large',
+                duration: 8,  // VeO限制8-10秒
+                watermark: false,
+                private: true
+            };
+
+            console.log(`📤 [镜头${index}] 请求数据:`, {
+                prompt: requestData.prompt.substring(0, 100) + '...',
+                reference_count: referenceImageUrls.length
+            });
+
+            // 调用VeO API生成视频
+            const veoResponse = await fetch('/api/veo/generate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(requestData)
+            });
+
+            const veoData = await veoResponse.json();
+
+            if (veoData.success) {
+                // 更新镜头状态
+                shot.status = 'completed';
+                shot.video_url = veoData.video_url;
+                shot.video_path = veoData.video_path;
+                shot.thumbnail_path = veoData.thumbnail_path;
+
+                this.updateShotPreview(veoData);
+                this.showToast(`镜头 #${index + 1} 生成完成！`, 'success');
+            } else {
+                throw new Error(veoData.error || '生成失败');
+            }
+
+        } catch (error) {
+            console.error('生成镜头失败:', error);
+            shot.status = 'failed';
+            this.showToast('生成失败: ' + error.message, 'error');
+        } finally {
+            document.getElementById('startShotGenerationBtn').disabled = false;
+            this.renderShotsList();
+            this.updateStats();
+        }
+    }
+
+    /**
+     * 批量生成所有镜头
+     */
+    async generateAllShotsWithPortraits() {
+        if (this.shots.length === 0) {
+            this.showToast('没有可生成的镜头', 'error');
+            return;
+        }
+
+        const pendingShots = this.shots.filter(s => s.status !== 'completed');
+
+        if (pendingShots.length === 0) {
+            this.showToast('所有镜头已生成完成', 'success');
+            return;
+        }
+
+        if (!confirm(`确定要生成所有 ${pendingShots.length} 个镜头吗？\n每个镜头约8-10秒，总时长约${Math.round(pendingShots.length * 8 / 60)}分钟`)) {
+            return;
+        }
+
+        this.showToast(`开始批量生成 ${pendingShots.length} 个镜头...`, 'success');
+
+        let successCount = 0;
+        let failCount = 0;
+
+        // 依次生成每个镜头
+        for (let i = 0; i < this.shots.length; i++) {
+            if (this.shots[i].status !== 'completed') {
+                await this.generateShotWithPortrait(i);
+
+                if (this.shots[i].status === 'completed') {
+                    successCount++;
+                } else {
+                    failCount++;
+                }
+
+                // 等待一段时间避免API限流
+                await new Promise(resolve => setTimeout(resolve, 2000));
+            }
+        }
+
+        this.showToast(`批量生成完成！成功: ${successCount}, 失败: ${failCount}`, successCount > 0 ? 'success' : 'error');
+    }
+
     bindEvents() {
         console.log('🔧 [事件绑定] 开始绑定所有事件...');
         
@@ -2473,7 +2969,37 @@ class VideoGenerator {
             console.error('❌ [绑定] 未找到 generateStoryboardBtn 按钮');
             console.error('❌ [绑定] 页面中可用的按钮:', document.querySelectorAll('button[id]'));
         }
-        
+
+        // 剧照优先工作流按钮
+        const generatePortraitFirstBtn = document.getElementById('generatePortraitFirstBtn');
+        if (generatePortraitFirstBtn) {
+            console.log('✅ [绑定] 找到 generatePortraitFirstBtn 按钮，开始绑定事件');
+
+            generatePortraitFirstBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('🔘 [按钮] generatePortraitFirstBtn 被点击!');
+                this.startPortraitFirstWorkflow();
+            });
+
+            console.log('✅ [绑定] 剧照优先工作流事件绑定完成');
+        }
+
+        // 短剧风格改造按钮
+        const adaptToShortDramaBtn = document.getElementById('adaptToShortDramaBtn');
+        if (adaptToShortDramaBtn) {
+            console.log('✅ [绑定] 找到 adaptToShortDramaBtn 按钮，开始绑定事件');
+
+            adaptToShortDramaBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('🔘 [按钮] adaptToShortDramaBtn 被点击!');
+                this.adaptToShortDrama();
+            });
+
+            console.log('✅ [绑定] 短剧风格改造事件绑定完成');
+        }
+
         // 全部生成
         document.getElementById('generateAllBtn').addEventListener('click', () => {
             this.generateAll();
