@@ -62,16 +62,16 @@ class PlanValidator:
             self.logger.error(f"  ❌ 【网文白金策划师】目标层级评估出错: {e}，使用默认结果。")
             return self._create_default_coherence_assessment()
     
-    def validate_scene_planning_coverage(self, stage_writing_plan: Dict, 
+    def validate_scene_planning_coverage(self, stage_writing_plan: Dict,
                                        stage_name: str, stage_range: str) -> Dict:
         """
-        验证场景规划覆盖的完整性
-        
+        验证场景规划覆盖的完整性（P1-2修复：增强场景内容完整性检查）
+
         Args:
             stage_writing_plan: 阶段写作计划
             stage_name: 阶段名称
             stage_range: 阶段章节范围
-            
+
         Returns:
             覆盖率分析结果
         """
@@ -79,28 +79,35 @@ class PlanValidator:
             plan_data = stage_writing_plan["stage_writing_plan"]
         else:
             plan_data = stage_writing_plan
-        
+
         event_system = plan_data.get("event_system", {})
         chapter_scene_events = event_system.get("chapter_scene_events", [])
-        
+
         # 解析阶段范围
         start_ch, end_ch = parse_chapter_range(stage_range)
         expected_chapters = set(range(start_ch, end_ch + 1))
-        
+
         # 获取实际覆盖的章节
         covered_chapters = set(chapter["chapter_number"] for chapter in chapter_scene_events)
-        
+
         # 找出缺失的章节
         missing_chapters = expected_chapters - covered_chapters
         extra_chapters = covered_chapters - expected_chapters
-        
-        # 分析场景分布
+
+        # ============ P1-2修复：增强场景分布分析 ============
         scene_distribution = {}
+        scene_completeness = {}  # 新增：场景完整性检查
+
         for chapter in chapter_scene_events:
             chapter_num = chapter["chapter_number"]
-            scene_count = len(chapter.get("scene_events", []))
+            scenes = chapter.get("scene_events", [])
+            scene_count = len(scenes)
             scene_distribution[chapter_num] = scene_count
-        
+
+            # 新增：检查场景内容完整性
+            completeness_score = self._check_scene_completeness(scenes, chapter_num)
+            scene_completeness[chapter_num] = completeness_score
+
         coverage_analysis = {
             "stage_name": stage_name,
             "stage_range": stage_range,
@@ -111,23 +118,130 @@ class PlanValidator:
             "extra_chapters": sorted(extra_chapters),
             "average_scenes_per_chapter": sum(scene_distribution.values()) / len(scene_distribution) if scene_distribution else 0,
             "scene_distribution": scene_distribution,
+            "scene_completeness": scene_completeness,  # 新增
             "issues": []
         }
-        
+
         # 识别问题
         if missing_chapters:
             coverage_analysis["issues"].append(f"缺失{len(missing_chapters)}个章节的场景规划: {sorted(missing_chapters)}")
         if extra_chapters:
             coverage_analysis["issues"].append(f"存在{len(extra_chapters)}个超出阶段范围的章节: {sorted(extra_chapters)}")
-        
-        # 检查场景数量合理性
+
+        # ============ P1-2修复：增强场景数量和质量检查 ============
         for chapter_num, scene_count in scene_distribution.items():
             if scene_count < 3:
-                coverage_analysis["issues"].append(f"第{chapter_num}章场景数量过少({scene_count}个)，可能无法形成完整结构")
+                coverage_analysis["issues"].append(f"第{chapter_num}章场景数量过少({scene_count}个)，可能无法形成完整起承转合结构")
             elif scene_count > 8:
                 coverage_analysis["issues"].append(f"第{chapter_num}章场景数量过多({scene_count}个)，可能导致节奏过快")
-        
+
+        # 新增：检查场景完整性
+        incomplete_chapters = []
+        for chapter_num, completeness in scene_completeness.items():
+            if completeness["score"] < 0.6:
+                incomplete_chapters.append(chapter_num)
+                coverage_analysis["issues"].append(
+                    f"第{chapter_num}章场景内容不完整: {completeness['missing_fields']}"
+                )
+
+        if incomplete_chapters:
+            self.logger.warn(f"  ⚠️ 场景完整性检查：{len(incomplete_chapters)}个章节场景内容不完整: {incomplete_chapters}")
+
         return coverage_analysis
+
+    def _check_scene_completeness(self, scenes: list, chapter_num: int) -> Dict:
+        """
+        检查场景内容的完整性（P1-2新增）
+
+        Args:
+            scenes: 场景列表
+            chapter_num: 章节号
+
+        Returns:
+            {
+                "score": 0-1的完整性评分,
+                "missing_fields": 缺失的字段列表,
+                "issues": 具体问题列表
+            }
+        """
+        if not scenes:
+            return {
+                "score": 0.0,
+                "missing_fields": ["无场景"],
+                "issues": ["该章节没有任何场景规划"]
+            }
+
+        # 必需字段及其权重
+        required_fields = {
+            "name": 0.15,          # 场景名称
+            "description": 0.15,   # 场景描述
+            "purpose": 0.15,       # 场景目的
+            "key_actions": 0.15,   # 关键动作
+            "emotional_intensity": 0.10,  # 情绪强度
+            "position": 0.10,      # 位置
+            "transition_to_next": 0.10,    # 过渡
+            "chapter_hook": 0.10,  # 钩子
+        }
+
+        total_weight = sum(required_fields.values())
+        achieved_weight = 0.0
+        missing_fields = []
+        issues = []
+
+        for scene in scenes:
+            scene_score = 0.0
+            scene_missing = []
+
+            for field, weight in required_fields.items():
+                value = scene.get(field)
+                if not value:
+                    scene_missing.append(field)
+                elif isinstance(value, list) and len(value) == 0:
+                    scene_missing.append(field)
+                elif isinstance(value, str) and len(value.strip()) == 0:
+                    scene_missing.append(field)
+                else:
+                    # 字段存在且非空
+                    scene_score += weight
+
+                    # 额外检查：内容质量
+                    if field == "description" and len(str(value)) < 20:
+                        issues.append(f"场景 '{scene.get('name', '?')}' 的描述过短")
+                    elif field == "key_actions" and isinstance(value, list) and len(value) < 2:
+                        issues.append(f"场景 '{scene.get('name', '?')}' 的关键动作过少")
+
+            scene_total = sum(required_fields.values())
+            if scene_score < scene_total * 0.6:
+                missing_fields.append(f"场景 '{scene.get('name', '?')}' 缺少: {scene_missing}")
+
+            achieved_weight += scene_score
+
+        # 计算整体完整性评分
+        max_possible = total_weight * len(scenes)
+        completeness_score = achieved_weight / max_possible if max_possible > 0 else 0
+
+        # 检查场景角色分布（起承转合）
+        role_distribution = {}
+        for scene in scenes:
+            role = scene.get("role", "")
+            if role:
+                role_distribution[role] = role_distribution.get(role, 0) + 1
+
+        # 检查是否有完整的起承转合
+        required_roles = {"起", "转"}  # 起和转是必须的
+        missing_roles = required_roles - set(role_distribution.keys())
+        if missing_roles:
+            issues.append(f"缺少必要的戏剧结构角色: {missing_roles}")
+
+        if issues:
+            missing_fields.extend(issues)
+
+        return {
+            "score": round(completeness_score, 2),
+            "missing_fields": missing_fields[:5],  # 最多显示5个
+            "issues": issues[:5],
+            "role_distribution": role_distribution
+        }
     
     def validate_and_correct_major_event_coverage(self, major_event_skeleton: Dict,
                                                  fleshed_out_major_event: Dict) -> Dict:

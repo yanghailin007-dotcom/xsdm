@@ -267,12 +267,164 @@ class SceneTimelineTracker:
         """获取上一章的时间线信息"""
         if current_chapter <= 1:
             return None
-        return self.get_timeline(current_chapter - 1)
+    # ========================================================================
+    # P0-2 修复：时间语义分析 - 用于语义级时间点比较
+    # ========================================================================
+
+    # 时间语义映射表 - 将不同的时间表达映射到统一的语义值
+    TIME_SEMANTIC_MAP = {
+        # 清晨类
+        '清晨': 'dawn', '黎明': 'dawn', '破晓': 'dawn', '东方既白': 'dawn', '天亮': 'dawn',
+        '次日清晨': 'next_dawn', '第二天清晨': 'next_dawn', '隔日清晨': 'next_dawn',
+
+        # 上午类
+        '上午': 'morning', '巳时': 'morning',
+
+        # 中午类
+        '中午': 'noon', '午时': 'noon', '正午': 'noon', '晌午': 'noon',
+
+        # 下午类
+        '下午': 'afternoon', '未时': 'afternoon',
+
+        # 傍晚类
+        '傍晚': 'dusk', '黄昏': 'dusk', '日落': 'dusk', '夕阳': 'dusk', '酉时': 'dusk',
+
+        # 夜晚类
+        '夜晚': 'night', '夜间': 'night', '入夜': 'night',
+        '晚上': 'night', '夜里': 'night',
+
+        # 深夜类
+        '深夜': 'late_night', '午夜': 'late_night', '子时': 'late_night',
+        '半夜': 'late_night',
+
+        # 次日通用
+        '次日': 'next_day', '第二天': 'next_day', '隔日': 'next_day',
+        '次日清晨': 'next_dawn',
+
+        # 短时段
+        '片刻': 'moment', '片刻后': 'moment', '随即': 'moment', '当即': 'moment',
+        '不久': 'soon', '良久': 'while',
+
+        # 修仙特定
+        '一炷香': 'incense_time', '一炷香后': 'incense_time',
+        '半柱香': 'half_incense', '半柱香后': 'half_incense',
+        '一盏茶': 'tea_time',
+    }
+
+    # 时间层级排序 - 数字越大表示时间越晚
+    TIME_HIERARCHY = {
+        'dawn': 1,          # 清晨
+        'morning': 2,       # 上午
+        'noon': 3,          # 中午
+        'afternoon': 4,     # 下午
+        'dusk': 5,          # 傍晚
+        'night': 6,         # 夜晚
+        'late_night': 7,    # 深夜
+        'next_dawn': 10,    # 次日清晨
+        'next_day': 11,     # 次日
+        'moment': 0.1,      # 片刻
+        'soon': 0.2,        # 不久
+        'while': 0.5,       # 良久
+        'incense_time': 0.3,  # 一炷香
+        'half_incense': 0.25,  # 半柱香
+        'tea_time': 0.35,    # 一盏茶
+    }
+
+    @classmethod
+    def normalize_time_semantic(cls, time_str: str) -> tuple:
+        """
+        将时间字符串规范化为语义值和层级
+
+        Args:
+            time_str: 时间字符串，如"次日清晨"
+
+        Returns:
+            (语义值, 时间层级, 相对天数偏移)
+        """
+        import re
+
+        if not time_str or time_str in ["未知", "故事开始"]:
+            return "unknown", 0, 0
+
+        # 检查天数偏移
+        day_offset = 0
+        if '次日' in time_str or '第二天' in time_str or '隔日' in time_str:
+            day_offset = 1
+        elif '三日后' in time_str or '三天后' in time_str:
+            day_offset = 3
+        elif '数日后' in time_str:
+            day_offset = 5  # 假设数日是5天
+
+        # 提取基础时间语义
+        base_semantic = None
+        for keyword, semantic in cls.TIME_SEMANTIC_MAP.items():
+            if keyword in time_str:
+                base_semantic = semantic
+                break
+
+        if not base_semantic:
+            # 尝试匹配更复杂的模式
+            if re.search(r'(之后|后)', time_str):
+                # 相对时间，继承上一个时间
+                return "relative", 0, 0
+            return "unknown", 0, day_offset
+
+        # 获取时间层级
+        hierarchy = cls.TIME_HIERARCHY.get(base_semantic, 0)
+
+        return base_semantic, hierarchy, day_offset
+
+    @classmethod
+    def compare_time_semantic(cls, time1: str, time2: str) -> str:
+        """
+        比较两个时间点的语义关系
+
+        Args:
+            time1: 时间1
+            time2: 时间2
+
+        Returns:
+            "before": time1 在 time2 之前
+            "same": time1 和 time2 语义相同
+            "after": time1 在 time2 之后
+            "unknown": 无法确定
+        """
+        semantic1, hier1, day1 = cls.normalize_time_semantic(time1)
+        semantic2, hier2, day2 = cls.normalize_time_semantic(time2)
+
+        if semantic1 == "unknown" or semantic2 == "unknown":
+            return "unknown"
+
+        # 相对时间无法精确比较
+        if semantic1 == "relative" or semantic2 == "relative":
+            return "unknown"
+
+        # 完全相同的语义
+        if semantic1 == semantic2 and day1 == day2:
+            return "same"
+
+        # 比较天数偏移
+        if day1 < day2:
+            return "before"
+        elif day1 > day2:
+            return "after"
+
+        # 同一天内比较时间层级
+        if hier1 < hier2:
+            return "before"
+        elif hier1 > hier2:
+            return "after"
+
+        return "same"
+
+    # ========================================================================
+    # 原有方法继续
+    # ========================================================================
 
     def check_timeline_continuity(self, current_chapter: int,
                                   current_start_time: str = "") -> Tuple[bool, str]:
         """
-        检查当前章节与上一章的时间线是否连续
+        检查当前章节与上一章的时间线是否连续（P0-2修复：语义级比较）
 
         Args:
             current_chapter: 当前章节号
@@ -292,32 +444,71 @@ class SceneTimelineTracker:
         if not current_start_time:
             return True, "⚠️ 当前章节未提供开始时间，无法检测连续性"
 
-        # 检查时间索引
-        prev_index = previous_timeline.time_index
-        curr_index = self._next_time_index
+        prev_end_time = previous_timeline.end_time
 
-        # 简单检测：如果当前开始时间与上一章结束时间相同或更早，可能有重复
-        has_overlap = (
-            current_start_time == previous_timeline.end_time or
-            current_start_time == previous_timeline.start_time or
-            (current_start_time in previous_timeline.scene_summary and
-             current_chapter - prev_index == 1)
-        )
+        # ============ P0-2修复：使用语义级时间比较 ============
+        time_relation = self.compare_time_semantic(current_start_time, prev_end_time)
 
-        if has_overlap:
+        if time_relation == "same":
+            # 语义上相同的时间点，需要进一步检查字符串是否完全相同
+            if current_start_time == prev_end_time:
+                warning_msg = (
+                    f"⚠️ 检测到第{current_chapter}章可能与第{current_chapter-1}章存在时间线重叠！\n"
+                    f"   上一章结束: {prev_end_time}\n"
+                    f"   本章开始: {current_start_time}\n"
+                    f"   【语义分析】两个时间点完全相同\n"
+                    f"   建议：本章应该从 '{prev_end_time}' 之后继续"
+                )
+                self.logger.warn(warning_msg)
+                return False, warning_msg
+            else:
+                # 语义相同但表述不同（如"次日清晨" vs "第二天早上"）
+                warning_msg = (
+                    f"⚠️ 检测到第{current_chapter}章可能与第{current_chapter-1}章存在时间线语义重叠！\n"
+                    f"   上一章结束: {prev_end_time}\n"
+                    f"   本章开始: {current_start_time}\n"
+                    f"   【语义分析】两个时间点语义相同，可能重复\n"
+                    f"   建议：确保本章内容从上一章结束后继续，而非重新开始"
+                )
+                self.logger.warn(warning_msg)
+                return False, warning_msg
+
+        elif time_relation == "before":
+            # 当前时间在上一章结束时间之前 - 严重问题！
             warning_msg = (
-                f"⚠️ 检测到第{current_chapter}章可能与第{current_chapter-1}章存在时间线重叠！\n"
-                f"   上一章范围: {previous_timeline.start_time} → {previous_timeline.end_time}\n"
+                f"🚨 严重问题：第{current_chapter}章时间线倒退！\n"
+                f"   上一章结束: {prev_end_time}\n"
                 f"   本章开始: {current_start_time}\n"
-                f"   建议：确保本章从 '{previous_timeline.end_time}' 之后的时间点开始"
+                f"   【语义分析】本章开始时间早于上一章结束时间\n"
+                f"   必须：将本章开始时间改为 '{prev_end_time}' 之后！"
             )
-            self.logger.warn(warning_msg)
+            self.logger.error(warning_msg)
             return False, warning_msg
 
+        elif time_relation == "unknown":
+            # 无法确定关系，使用简单的字符串检查作为备用
+            if current_start_time == prev_end_time:
+                warning_msg = (
+                    f"⚠️ 检测到时间点相同（语义分析失效）\n"
+                    f"   上一章结束: {prev_end_time}\n"
+                    f"   本章开始: {current_start_time}"
+                )
+                self.logger.warn(warning_msg)
+                return False, warning_msg
+            # 未知但字符串不同，通过检查
+            info_msg = (
+                f"✅ 时间线连续性检查通过（语义未知但字符串不同）\n"
+                f"   上一章结束: {prev_end_time}\n"
+                f"   本章开始: {current_start_time}"
+            )
+            return True, info_msg
+
+        # time_relation == "after"，正常情况
         info_msg = (
-            f"✅ 时间线连续性检查通过\n"
-            f"   上一章结束: {previous_timeline.end_time}\n"
-            f"   本章开始: {current_start_time}"
+            f"✅ 时间线连续性检查通过（语义验证）\n"
+            f"   上一章结束: {prev_end_time}\n"
+            f"   本章开始: {current_start_time}\n"
+            f"   【语义分析】本章在上一章之后继续"
         )
         return True, info_msg
 

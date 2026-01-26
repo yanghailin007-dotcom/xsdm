@@ -628,14 +628,19 @@ class ChapterGenerator:
                 except (json.JSONDecodeError, ValueError) as e:
                     self.logger.warn(f"  ⚠️ [衔接系统] 模式2解析失败: {e}")
 
-        # ============ 🔥 新增：降级处理 - 模式匹配提取 ============
+        # ============ 🔥 P0-1修复：降级策略3 - AI专门提取结尾状态 ============
         if not end_state:
-            self.logger.warn(f"  ⚠️ [衔接系统] JSON提取失败，尝试模式匹配提取关键信息...")
-            end_state = self._extract_end_state_by_pattern_matching(content, chapter_number)
+            self.logger.warn(f"  ⚠️ [衔接系统] JSON提取失败，使用AI专门提取结尾状态...")
+            end_state = self._extract_end_state_by_ai(content, chapter_number, novel_data)
 
-        # ============ 🔥 新增：降级处理 - 智能默认值 ============
+        # ============ 🔥 P0-1修复：降级策略4 - 增强模式匹配提取 ============
         if not end_state:
-            self.logger.warn(f"  ⚠️ [衔接系统] 模式匹配也失败，使用智能默认值...")
+            self.logger.warn(f"  ⚠️ [衔接系统] AI提取失败，尝试增强模式匹配提取...")
+            end_state = self._extract_end_state_by_enhanced_pattern_matching(content, chapter_number)
+
+        # ============ 🔥 P0-1修复：降级策略5 - 智能内容分析默认值 ============
+        if not end_state:
+            self.logger.warn(f"  ⚠️ [衔接系统] 模式匹配也失败，使用智能内容分析...")
             end_state = self._generate_intelligent_default_end_state(content, chapter_number, novel_data)
 
         # ============ 新增：记录时间线信息 ============
@@ -673,6 +678,290 @@ class ChapterGenerator:
             self.logger.warn(f"  ⚠️ [衔接系统] 保存结尾状态失败: {e}")
 
         return end_state
+
+    # ========================================================================
+    # P0-1 修复：新增AI专门提取结尾状态
+    # ========================================================================
+
+    def _extract_end_state_by_ai(self, content: str, chapter_number: int, novel_data: Dict) -> Optional[Dict]:
+        """
+        使用AI专门提取章节结尾状态
+
+        当JSON解析失败时，使用专门的AI调用来分析章节内容并提取结尾状态。
+        这比模式匹配更可靠，比依赖生成内容中的JSON更稳定。
+        """
+        try:
+            # 获取上一章的结尾状态作为上下文
+            previous_end_state = None
+            if hasattr(self.cg, '_chapter_state_manager') and self.cg._chapter_state_manager:
+                previous_end_state = self.cg._chapter_state_manager.get_previous_end_state(chapter_number)
+
+            # 构建上下文
+            prev_context = ""
+            if previous_end_state:
+                prev_context = f"""
+上一章结束时：
+- 时间：{previous_end_state.time_point}
+- 地点：{previous_end_state.location}
+- 事件：{previous_end_state.current_event}
+"""
+
+            # 取章节末尾1000字作为分析样本
+            sample = content[-1000:] if len(content) > 1000 else content
+            # 清理可能的markdown代码块标记
+            sample = re.sub(r'```[a-z]*\n?', '', sample)
+
+            prompt = f"""你是小说结尾状态分析专家。请仔细分析以下章节内容的结尾部分，提取关键的结尾状态信息。
+
+{prev_context}
+
+## 章节内容末尾（约1000字）：
+{sample}
+
+## 任务：
+请分析上述章节结尾，提取以下信息并以JSON格式返回：
+
+1. **time_point**: 本章结束时的具体时间点（如：次日清晨、当晚子时、三日后、片刻后等）
+2. **location**: 主要角色所在的地点（具体到房间或场所）
+3. **atmosphere**: 氛围基调（紧张/轻松/压抑/欢快/平静/期待/悬疑等）
+4. **current_event**: 当前事件名称（简短描述）
+5. **event_concluded**: 本章事件是否完结（true/false）
+6. **unresolved**: 未解决的悬念或冲突列表（1-3个）
+7. **hook**: 结尾悬念或钩子（吸引读者继续阅读的点）
+
+请严格按照以下JSON格式返回：
+```json
+{{
+  "time_point": "时间点",
+  "location": "地点",
+  "atmosphere": "氛围",
+  "current_event": "事件名称",
+  "event_concluded": true,
+  "unresolved": ["悬念1", "悬念2"],
+  "hook": "结尾钩子"
+}}
+```
+
+注意：
+- 时间点要具体，不要用"未知"或"结束"
+- 地点要明确，从内容中推断实际位置
+- 氛围要根据结尾的情感基调判断
+- 如果事件明显未完，event_concluded设为false
+"""
+
+            result = self.api_client.generate_content_with_retry(
+                "end_state_extraction",
+                prompt,
+                purpose=f"提取第{chapter_number}章结尾状态",
+                temperature=0.3  # 使用较低温度确保提取稳定
+            )
+
+            if result and isinstance(result, dict):
+                # 验证必需字段
+                required_fields = ["time_point", "location", "atmosphere"]
+                missing = [f for f in required_fields if not result.get(f)]
+                if missing:
+                    self.logger.warn(f"  ⚠️ AI提取缺少必需字段: {missing}")
+                    # 补充缺失字段
+                    if "time_point" in missing:
+                        result["time_point"] = self._infer_time_from_content(sample)
+                    if "location" in missing:
+                        result["location"] = self._infer_location_from_content(sample)
+                    if "atmosphere" in missing:
+                        result["atmosphere"] = self._infer_atmosphere_from_content(sample)
+
+                result.setdefault("chapter_number", chapter_number)
+                result.setdefault("event_concluded", True)
+                result.setdefault("unresolved", [])
+                result.setdefault("hook", "")
+                result.setdefault("characters", [])
+                result.setdefault("current_event", f"第{chapter_number}章内容")
+
+                self.logger.info(f"  ✅ [衔接系统] AI专门提取成功: {result.get('time_point')} @ {result.get('location')}")
+                return result
+            else:
+                self.logger.warn(f"  ⚠️ [衔接系统] AI提取返回无效结果")
+                return None
+
+        except Exception as e:
+            self.logger.warn(f"  ⚠️ [衔接系统] AI提取异常: {e}")
+            return None
+
+    def _extract_end_state_by_enhanced_pattern_matching(self, content: str, chapter_number: int) -> Optional[Dict]:
+        """
+        增强的模式匹配提取结尾状态
+
+        相比原版增加了：
+        - 更多的时间关键词识别
+        - 更智能的地点推断
+        - 角色状态提取
+        - 事件状态判断
+        """
+        import re
+
+        # 取章节末尾800字作为分析样本
+        sample = content[-800:] if len(content) > 800 else content
+
+        # ========== 增强的时间关键词映射 ==========
+        time_keywords = {
+            # 基础时间
+            '清晨': '清晨', '黎明': '黎明', '破晓': '破晓', '东方既白': '清晨',
+            '上午': '上午', '中午': '中午', '午时': '中午', '午后': '午后',
+            '下午': '下午', '傍晚': '傍晚', '黄昏': '黄昏', '日落': '傍晚',
+            '夜晚': '夜晚', '夜间': '夜间', '深夜': '深夜', '午夜': '午夜',
+            '子时': '子时',
+
+            # 时间跳跃
+            '次日': '次日清晨', '第二天': '次日', '隔日': '次日',
+            '三日后': '三日后', '三天后': '三日后', '数日后': '数日后',
+            '半月后': '半月后', '半个月后': '半月后',
+            '片刻后': '片刻后', '片刻': '片刻', '随即': '随即', '当即': '当即',
+            '不久': '不久', '良久': '良久',
+
+            # 修仙/玄幻特定时间
+            '一炷香后': '一炷香后', '半柱香': '半柱香',
+            '茶香散尽': '茶香散尽', '一盏茶': '一盏茶',
+
+            # 相对时间
+            '之后': '之后', '后来': '后来', '这时': '这时',
+        }
+
+        # 查找时间关键词（优先匹配更长的关键词）
+        time_point = "未知"
+        # 按长度排序，优先匹配长的
+        sorted_keywords = sorted(time_keywords.items(), key=lambda x: -len(x[0]))
+        for keyword, value in sorted_keywords:
+            if keyword in sample:
+                time_point = value
+                # 尝试获取更完整的时间表达
+                time_pattern = rf'[^，。]{0,10}{keyword}[^，。]{{0,10}}'
+                time_match = re.search(time_pattern, sample)
+                if time_match:
+                    time_point = time_match.group(0).strip()
+                break
+
+        # ========== 增强的地点提取 ==========
+        location_patterns = [
+            # 建筑物类型
+            r'([^，。]{2,15})(殿|阁|楼|台|亭|轩|榭|堂|厅)(中|内|之上|之中)',
+            r'([^，。]{2,10})(室|房|屋|舍)(中|内|里)',
+            # 自然场所
+            r'([^，。]{2,15})(山|河|林|峰|谷|地|崖|洞|湖|海|江)(中|内|之上|旁)',
+            # 特殊场所
+            r'([^，。]{2,15})(广场|街道|山林|密室|书房|卧室|演武场|练功房|庭院)',
+            # 介词引导的地点
+            r'(在|于|位于)([^，。]{2,20})',
+        ]
+        location = "未知"
+        for pattern in location_patterns:
+            match = re.search(pattern, sample)
+            if match:
+                # 提取地点部分
+                loc_text = match.group(0)
+                # 移除介词
+                loc_text = re.sub(r'^(在|于|位于)', '', loc_text)
+                # 限制长度
+                location = loc_text[:20].strip()
+                break
+
+        # ========== 增强的氛围推断 ==========
+        atmosphere_keywords = {
+            '紧张': ['杀意', '战斗', '逃亡', '追击', '危机', '危险', '紧绷', '警惕', '对峙'],
+            '轻松': ['欢笑', '闲聊', '宁静', '安详', '温馨', '惬意', '轻松'],
+            '压抑': ['沉默', '凝重', '沉重', '压抑', '阴沉', '窒息', '阴霾'],
+            '欢快': ['喜悦', '欢快', '兴奋', '激动', '开心', '雀跃'],
+            '悬疑': ['疑惑', '不解', '疑惑', '神秘', '诡异', '蹊跷'],
+            '期待': ['期待', '盼望', '渴望', '向往'],
+        }
+        atmosphere = "平静"
+        atmosphere_scores = {}
+        for mood, keywords in atmosphere_keywords.items():
+            score = sum(1 for kw in keywords if kw in sample)
+            if score > 0:
+                atmosphere_scores[mood] = score
+        if atmosphere_scores:
+            atmosphere = max(atmosphere_scores, key=atmosphere_scores.get)
+
+        # ========== 尝试提取事件状态 ==========
+        event_concluded = True
+        if any(kw in sample for kw in ['未完', '未完待续', '还在继续', '尚未结束', '正要']):
+            event_concluded = False
+        if any(kw in sample for kw in ['终于', '完结', '结束', '完成', '落幕']):
+            event_concluded = True
+
+        # ========== 尝试提取悬念 ==========
+        hook_patterns = [
+            r'然而([^，。]{5,30})',
+            r'就在([^，。]{5,30})',
+            r'突然([^，。]{5,30})',
+            r'原来([^，。]{5,30})',
+        ]
+        hook = ""
+        for pattern in hook_patterns:
+            match = re.search(pattern, sample[-300:] if len(sample) > 300 else sample)
+            if match:
+                hook = match.group(0)[:50]
+                break
+
+        # 构建结尾状态
+        end_state = {
+            "chapter_number": chapter_number,
+            "time_point": time_point,
+            "location": location,
+            "atmosphere": atmosphere,
+            "characters": [],
+            "current_event": f"第{chapter_number}章内容",
+            "event_concluded": event_concluded,
+            "unresolved": [hook] if hook else [],
+            "hook": hook,
+            "next_transition_hint": "自然过渡"
+        }
+
+        self.logger.info(f"  ✅ [衔接系统] 增强模式匹配提取: 时间={time_point}, 地点={location}, 氛围={atmosphere}")
+        return end_state
+
+    # 辅助方法：从内容推断时间
+    def _infer_time_from_content(self, content: str) -> str:
+        """当AI提取失败时，从内容推断时间"""
+        time_patterns = [
+            (r'(次日|第二天|隔日)', '次日清晨'),
+            (r'(清晨|黎明|破晓)', '清晨'),
+            (r'(中午|午时)', '中午'),
+            (r'(傍晚|黄昏|日落)', '傍晚'),
+            (r'(夜晚|深夜|午夜)', '夜晚'),
+            (r'(片刻|随即|当即|不久)', '片刻后'),
+        ]
+        import re
+        for pattern, default in time_patterns:
+            if re.search(pattern, content):
+                return default
+        return "随后"
+
+    # 辅助方法：从内容推断地点
+    def _infer_location_from_content(self, content: str) -> str:
+        """当AI提取失败时，从内容推断地点"""
+        import re
+        location_patterns = [
+            r'([^，。]{2,15})(殿|阁|楼|台|亭|轩|榭)',
+            r'([^，。]{2,10})(室|房|屋)',
+            r'([^，。]{2,15})(山|林|峰|谷)',
+        ]
+        for pattern in location_patterns:
+            match = re.search(pattern, content)
+            if match:
+                return match.group(0)[:20]
+        return "某处"
+
+    # 辅助方法：从内容推断氛围
+    def _infer_atmosphere_from_content(self, content: str) -> str:
+        """当AI提取失败时，从内容推断氛围"""
+        if any(kw in content for kw in ['战斗', '危机', '危险']):
+            return "紧张"
+        elif any(kw in content for kw in ['欢笑', '喜悦', '温馨']):
+            return "轻松"
+        elif any(kw in content for kw in ['沉默', '凝重', '压抑']):
+            return "压抑"
+        return "平静"
 
     def _extract_end_state_by_pattern_matching(self, content: str, chapter_number: int) -> Optional[Dict]:
         """
@@ -752,34 +1041,88 @@ class ChapterGenerator:
 
     def _generate_intelligent_default_end_state(self, content: str, chapter_number: int, novel_data: Dict) -> Dict:
         """
-        生成智能的默认结尾状态
+        生成智能的默认结尾状态（P0-1修复：增强内容分析）
 
-        基于章节号和上一章状态推断合理的默认值
+        基于章节内容分析，而不是使用固定默认值
         """
+        import re
+
         # 获取上一章的结束时间
         prev_time = self._get_chapter_start_time(novel_data, chapter_number)
+        prev_end_state = None
+        if hasattr(self.cg, '_chapter_state_manager') and self.cg._chapter_state_manager:
+            prev_end_state = self.cg._chapter_state_manager.get_previous_end_state(chapter_number)
 
-        # 根据章节长度推断可能的场景变化
+        # ============ 智能推断时间点 ============
+        # 分析章节末尾内容
+        sample = content[-500:] if len(content) > 500 else content
+
+        # 时间推断逻辑
+        inferred_time = None
+        time_indicators = [
+            # (模式, 时间推断规则)
+            (r'(次日|第二天|隔日)', '次日'),
+            (r'(三日后|三天后|数日后)', '三日后'),
+            (r'(片刻|随即|当即)', '片刻后'),
+            (r'(一炷香|半柱香)', '一炷香后'),
+        ]
+
+        for pattern, time_hint in time_indicators:
+            if re.search(pattern, sample):
+                inferred_time = time_hint
+                break
+
+        # 根据字数推断时间跨度
         word_count = len(content)
-        if word_count > 3000:
-            time_point = f"{prev_time}之后"
+        if inferred_time:
+            time_point = inferred_time
+        elif word_count > 3000:
+            # 长章节可能跨越较长时段
+            time_point = f"{prev_time}之后" if prev_time and prev_time != "故事开始" else "稍后"
         else:
-            time_point = prev_time
+            time_point = prev_time if prev_time else "随后"
+
+        # ============ 智能推断地点 ============
+        inferred_location = self._infer_location_from_content(sample)
+        # 如果上一章有地点，且当前地点未知，可能还在同一地点
+        if inferred_location == "某处" and prev_end_state and prev_end_state.location:
+            inferred_location = prev_end_state.location
+
+        # ============ 智能推断氛围 ============
+        inferred_atmosphere = self._infer_atmosphere_from_content(sample)
+
+        # ============ 智能推断事件状态 ============
+        event_concluded = True
+        if any(kw in sample for kw in ['未完', '还在继续', '尚未', '正要', '即将']):
+            event_concluded = False
+
+        # ============ 尝试提取悬念 ============
+        hook = ""
+        hook_patterns = [
+            r'然而([^，。]{3,20})',
+            r'就在([^，。]{3,20})',
+            r'突然([^，。]{3,20})',
+        ]
+        for pattern in hook_patterns:
+            match = re.search(pattern, sample[-200:] if len(sample) > 200 else sample)
+            if match:
+                hook = match.group(0).strip()
+                break
 
         end_state = {
             "chapter_number": chapter_number,
             "time_point": time_point,
-            "location": "默认地点",
-            "atmosphere": "平静",
+            "location": inferred_location,
+            "atmosphere": inferred_atmosphere,
             "characters": [],
             "current_event": f"第{chapter_number}章内容",
-            "event_concluded": True,
-            "unresolved": [],
-            "hook": "继续阅读",
+            "event_concluded": event_concluded,
+            "unresolved": [hook] if hook else [],
+            "hook": hook,
             "next_transition_hint": "自然过渡到下一章"
         }
 
-        self.logger.info(f"  ✅ [衔接系统] 使用智能默认值: {time_point}")
+        self.logger.info(f"  ✅ [衔接系统] 智能分析默认值: 时间={time_point}, 地点={inferred_location}, 氛围={inferred_atmosphere}")
         return end_state
 
     def _ensure_timeline_tracker_initialized(self, novel_data: Dict):
@@ -813,7 +1156,7 @@ class ChapterGenerator:
 
     def _format_character_info_for_prompt(self, character_info: str) -> str:
         """
-        将分层的角色信息格式化为提示词友好的文本
+        将分层的角色信息格式化为提示词友好的文本（P2修复：增强角色状态传递）
 
         Args:
             character_info: JSON字符串格式的分层角色信息
@@ -832,30 +1175,65 @@ class ChapterGenerator:
             if protagonist:
                 name = protagonist.get("name", "主角")
                 parts.append(f"**【主角】{name}**")
-                parts.append(f"- 完整信息: {json.dumps(protagonist, ensure_ascii=False)}")
+                # P2修复：提供更结构化的主角信息
+                parts.append(self._format_character_detail(protagonist, is_protagonist=True))
 
-            # 前3个核心配角
+            # 前5个核心配角（从3个增加到5个）
             key_supporting = char_data.get("key_supporting", [])
             if key_supporting:
                 parts.append(f"\n**【核心配角】（前{len(key_supporting)}个，完整信息）**")
                 for char in key_supporting:
-                    parts.append(f"- {char.get('name', '未知')}: {json.dumps(char, ensure_ascii=False)}")
+                    parts.append(f"- **{char.get('name', '未知')}**")
+                    parts.append(f"  {self._format_character_detail(char)}")
 
             # 场景中提到的角色
             mentioned = char_data.get("mentioned_characters", [])
             if mentioned:
                 parts.append(f"\n**【本章涉及角色】（场景中提及，完整信息）**")
                 for char in mentioned:
-                    parts.append(f"- {char.get('name', '未知')}: {json.dumps(char, ensure_ascii=False)}")
+                    parts.append(f"- **{char.get('name', '未知')}**")
+                    parts.append(f"  {self._format_character_detail(char)}")
 
-            # 其他角色摘要
+            # P2修复：其他角色 - 提供更完整的状态信息
             others = char_data.get("other_characters", [])
             if others:
-                parts.append(f"\n**【其他角色】（共{len(others)}个，仅摘要）**")
-                for char in others:
-                    parts.append(f"- {char.get('name', '未知')} ({char.get('role', '未知角色')}): {char.get('tag', '')}")
-                    if char.get('core_traits'):
-                        parts.append(f"  核心特质: {char.get('core_traits')}")
+                parts.append(f"\n**【其他角色】（共{len(others)}个，增强信息）**")
+                for char in others[:10]:  # 最多显示10个，避免提示词过长
+                    name = char.get('name', '未知')
+                    role = char.get('role', '未知角色')
+                    tag = char.get('tag', '')
+                    core_traits = char.get('core_traits', '')
+
+                    parts.append(f"- **{name}** ({role})")
+                    if tag:
+                        parts.append(f"  标签: {tag}")
+                    if core_traits:
+                        parts.append(f"  核心特质: {core_traits}")
+
+                    # P2修复：新增：提供当前状态信息
+                    current_status = char.get('current_status', {})
+                    if current_status:
+                        status_parts = []
+                        if current_status.get('location'):
+                            status_parts.append(f"位置: {current_status['location']}")
+                        if current_status.get('emotion'):
+                            status_parts.append(f"情绪: {current_status['emotion']}")
+                        if current_status.get('action'):
+                            status_parts.append(f"动作: {current_status['action']}")
+                        if status_parts:
+                            parts.append(f"  当前状态: {'; '.join(status_parts)}")
+
+                    # P2修复：新增：提供关系信息
+                    relationships = char.get('relationships', {})
+                    if relationships:
+                        rel_parts = []
+                        for target, rel_type in list(relationships.items())[:3]:
+                            rel_parts.append(f"{target}={rel_type}")
+                        if rel_parts:
+                            parts.append(f"  关系: {', '.join(rel_parts)}")
+
+                if len(others) > 10:
+                    parts.append(f"... 还有 {len(others) - 10} 个其他角色")
 
             return "\n".join(parts) if parts else "暂无角色信息"
 
@@ -864,3 +1242,60 @@ class ChapterGenerator:
             return character_info
         except Exception as e:
             return f"角色信息解析错误: {str(e)}"
+
+    def _format_character_detail(self, char: Dict, is_protagonist: bool = False) -> str:
+        """
+        格式化单个角色的详细信息（P2新增辅助方法）
+
+        Args:
+            char: 角色字典
+            is_protagonist: 是否是主角
+
+        Returns:
+            格式化后的角色信息字符串
+        """
+        import json
+
+        # 核心信息
+        details = []
+        if char.get('age'):
+            details.append(f"年龄: {char['age']}")
+        if char.get('personality'):
+            details.append(f"性格: {char['personality']}")
+        if char.get('appearance'):
+            details.append(f"外貌: {char['appearance'][:50]}...")  # 限制长度
+        if char.get('identity'):
+            details.append(f"身份: {char['identity']}")
+
+        # 主角额外信息
+        if is_protagonist:
+            if char.get('background'):
+                details.append(f"背景: {char['background'][:80]}...")
+            if char.get('goal'):
+                details.append(f"目标: {char['goal']}")
+
+        # 当前状态
+        if char.get('current_location'):
+            details.append(f"当前位置: {char['current_location']}")
+        if char.get('current_emotion'):
+            details.append(f"当前情绪: {char['current_emotion']}")
+
+        # 关系
+        relationships = char.get('relationships', {})
+        if relationships:
+            rel_list = [f"{k}={v}" for k, v in list(relationships.items())[:3]]
+            details.append(f"关系: {', '.join(rel_list)}")
+
+        # 能力/修为
+        if char.get('cultivation_level'):
+            details.append(f"修为: {char['cultivation_level']}")
+        if char.get('abilities'):
+            abilities = char['abilities']
+            if isinstance(abilities, list) and abilities:
+                details.append(f"能力: {', '.join(abilities[:3])}")
+
+        if details:
+            return " | ".join(details)
+        else:
+            # 如果没有提取到任何信息，返回完整JSON
+            return json.dumps(char, ensure_ascii=False)

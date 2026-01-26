@@ -2709,18 +2709,19 @@ class ContentGenerator:
 
         # 🆕 同时保存到计划的 chapter_scene_events 数组中（与单章生成保持一致）
         self._save_multi_chapter_scenes_to_plan(
-            plan_container, all_scenes_by_chapter, medium_event, start_ch, end_ch
+            event_id, plan_container, all_scenes_by_chapter, medium_event, start_ch, end_ch
         )
 
         # 返回当前请求章节的场景
         current_scenes = all_scenes_by_chapter.get(chapter_number, [])
         return current_scenes, medium_event.get("main_goal", ""), medium_event.get("emotional_focus", "")
 
-    def _save_multi_chapter_scenes_to_plan(self, plan_container: Dict, all_scenes_by_chapter: Dict[int, List[Dict]],
+    def _save_multi_chapter_scenes_to_plan(self, event_id: str, plan_container: Dict, all_scenes_by_chapter: Dict[int, List[Dict]],
                                           medium_event: Dict, start_ch: int, end_ch: int):
         """将多章生成的场景保存到计划的 chapter_scene_events 数组中
 
         Args:
+            event_id: 中型事件ID（用于清理缓存）
             plan_container: 阶段计划容器
             all_scenes_by_chapter: {chapter_number: [scenes]} 字典
             medium_event: 中型事件数据
@@ -2769,6 +2770,16 @@ class ContentGenerator:
             self.logger.info(f"    >> 多章场景已成功保存到计划文件")
         except Exception as e:
             self.logger.error(f"    >> [持久化失败] 保存多章场景时发生错误: {e}")
+            return
+
+        # 🔥 场景已整合到写作计划，标记并清理缓存
+        try:
+            if self._medium_event_manager.mark_event_integrated(event_id):
+                # 可选：立即清理缓存，或保留用于调试
+                # self._medium_event_manager.clear_event_after_integration(event_id)
+                self.logger.info(f"    >> 事件缓存已标记为可清理: {event_id}")
+        except Exception as e:
+            self.logger.warning(f"    >> 清理事件缓存时出错（非致命）: {e}")
 
     def _generate_multi_chapter_with_inheritance(self, medium_event: Dict, chapter_number: int,
                                                start_ch: int, end_ch: int,

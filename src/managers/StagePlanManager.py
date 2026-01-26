@@ -110,6 +110,11 @@ class StagePlanManager:
         api_client = self.generator.api_client
         project_path = getattr(self.generator, 'project_path', Path.cwd())
 
+        # 🔥 获取小说标题，用于创建项目隔离的缓存目录
+        novel_title = None
+        if hasattr(self.generator, 'novel_data') and self.generator.novel_data:
+            novel_title = self.generator.novel_data.get('novel_title')
+
         self.event_decomposer = EventDecomposer(api_client)
         self.plan_validator = PlanValidator()
         self.plan_persistence = StagePlanPersistence(
@@ -121,8 +126,9 @@ class StagePlanManager:
         self.scene_assembler = SceneAssembler(api_client)
 
         # 🔥 新增：初始化中型事件场景管理器（用于跨章场景共享和避免重复）
-        self.medium_event_scene_manager = MediumEventSceneManager(project_path)
-        self.logger.info("MediumEventSceneManager 初始化完成")
+        # 传入 novel_title 实现项目级别的缓存隔离
+        self.medium_event_scene_manager = MediumEventSceneManager(project_path, novel_title)
+        self.logger.info(f"MediumEventSceneManager 初始化完成 (项目: {novel_title or '未指定'})")
     
     # ========================================================================
     # 属性访问器

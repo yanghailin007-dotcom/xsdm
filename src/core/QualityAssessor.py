@@ -241,15 +241,15 @@ class QualityAssessor:
 
     def get_chapter_threshold_for_retry(self, retry_count: int = 0, chapter_number: int = None) -> float:
         """
-        根据重试次数获取渐进式质量阈值
+        根据重试次数获取渐进式质量阈值（P1-1修复：提高最低阈值）
 
-        策略：随着重试次数增加，逐渐降低阈值，避免无限重试
+        策略：随着重试次数增加，逐渐降低阈值，但最低不低于7.5分
         - retry_count=0 (首次): 8.5分
         - retry_count=1 (第1次重试): 8.0分
         - retry_count=2 (第2次重试): 7.5分
-        - retry_count>=3 (第3次及以上): 7.0分
+        - retry_count>=3 (第3次及以上): 7.5分（最低阈值，不再降低）
 
-        黄金三章特殊处理：始终使用较高标准
+        黄金三章特殊处理：始终使用较高标准，最低不低于7.8分
 
         Args:
             retry_count: 当前重试次数（0表示首次尝试）
@@ -264,26 +264,26 @@ class QualityAssessor:
         if chapter_number in [1, 2, 3]:
             golden_standards = self.unified_quality_standards["golden_chapters"]
             base_threshold = golden_standards.get(chapter_number, {}).get("min_quality", 8.5)
-            # 黄金三章也根据重试次数略微放宽，但不会低于8.0
+            # 黄金三章也根据重试次数略微放宽，但最低不低于7.8分
             if retry_count == 0:
                 return base_threshold
             elif retry_count == 1:
-                return max(8.0, base_threshold - 0.3)
+                return max(7.8, base_threshold - 0.3)
             elif retry_count == 2:
                 return max(7.8, base_threshold - 0.5)
             else:
-                return max(7.5, base_threshold - 0.7)
+                # P1-1修复：最低阈值从7.5提高到7.8
+                return max(7.8, base_threshold - 0.7)
 
         # 常规章节的渐进式阈值
+        # P1-1修复：最低阈值从7.0提高到7.5
         if retry_count == 0:
             return standards.get("chapter_content", 8.5)
         elif retry_count == 1:
             return standards.get("chapter_content_retry_1", 8.0)
-        elif retry_count == 2:
-            return standards.get("chapter_content_retry_2", 7.5)
         else:
-            # retry_count >= 3
-            return standards.get("chapter_content_retry_3", 7.0)
+            # retry_count >= 2，统一返回7.5作为最低阈值
+            return max(7.5, standards.get("chapter_content_retry_2", 7.5))
     def assess_chapter_quality(self, assessment_params: Dict) -> Optional[Dict]:
         """评估章节质量（包含一致性检查）- 增强黄金三章评估"""
         # ▼▼▼ 添加这一行，为后续函数提供小说标题 ▼▼▼
