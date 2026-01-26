@@ -10,6 +10,7 @@
         <button class="result-tab" onclick="switchResultTab('worldview')">🌍 世界观</button>
         <button class="result-tab" onclick="switchResultTab('characters')">👥 角色</button>
         <button class="result-tab" onclick="switchResultTab('outlines')">📚 章节大纲</button>
+        <button class="result-tab" onclick="switchResultTab('quality')">🎯 质量评估</button>
         <button class="result-tab" onclick="switchResultTab('validation')">✅ 验证结果</button>
     </div>
 
@@ -34,6 +35,15 @@
     <div class="result-content" id="result-outlines">
         <div id="outlines-content">
             <!-- 章节大纲将在这里动态生成 -->
+        </div>
+    </div>
+
+    <div class="result-content" id="result-quality">
+        <div id="quality-content">
+            <!-- 质量评估内容将在这里动态生成 -->
+            <div class="loading-spinner" id="quality-loading">
+                <p>正在加载质量评估报告...</p>
+            </div>
         </div>
     </div>
 

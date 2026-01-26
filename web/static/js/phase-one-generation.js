@@ -157,13 +157,261 @@ function handlePhaseOneFailed(taskStatus) {
 function showResultsSection(result) {
     const resultsSection = document.getElementById('results-section');
     resultsSection.classList.add('active');
-    
+
     // 填充结果数据
     fillOverviewResult(result);
     fillWorldviewResult(result);
     fillCharactersResult(result);
     fillOutlinesResult(result);
     fillValidationResult(result);
+
+    // 加载质量评估报告
+    loadQualityAssessment(result.novel_title);
+}
+
+// ==================== 质量评估功能 ====================
+
+// 加载质量评估报告
+async function loadQualityAssessment(novelTitle) {
+    if (!novelTitle) {
+        document.getElementById('quality-loading').innerHTML = '<p style="color: #ef4444;">无法加载评估报告：缺少小说标题</p>';
+        return;
+    }
+
+    try {
+        const encodedTitle = encodeURIComponent(novelTitle);
+        const response = await fetch(`/api/quality-assessment/${encodedTitle}`);
+
+        if (response.status === 404) {
+            document.getElementById('quality-loading').innerHTML = `
+                <div style="text-align: center; padding: 40px;">
+                    <p style="color: #f59e0b; margin-bottom: 16px;">📊 质量评估报告未找到</p>
+                    <p style="color: #6b7280; margin-bottom: 16px;">这可能是因为生成是在此功能添加之前完成的</p>
+                    <button class="btn btn-primary" onclick="triggerQualityAssessment('${encodedTitle}')">
+                        🔄 立即生成评估报告
+                    </button>
+                </div>
+            `;
+            return;
+        }
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+
+        const data = await response.json();
+        if (data.success) {
+            displayQualityAssessment(data.report);
+        } else {
+            throw new Error(data.error || '加载失败');
+        }
+    } catch (error) {
+        console.error('加载质量评估失败:', error);
+        document.getElementById('quality-loading').innerHTML = `
+            <div style="text-align: center; padding: 40px;">
+                <p style="color: #ef4444; margin-bottom: 16px;">❌ 加载评估报告失败: ${error.message}</p>
+                <button class="btn btn-secondary" onclick="triggerQualityAssessment('${encodedTitle}')">
+                    🔄 重试
+                </button>
+            </div>
+        `;
+    }
+}
+
+// 触发质量评估
+async function triggerQualityAssessment(encodedTitle) {
+    const loadingDiv = document.getElementById('quality-loading');
+    loadingDiv.innerHTML = '<p style="text-align: center;">🔄 正在生成AI质量评估报告，请稍候...</p>';
+
+    try {
+        const response = await fetch(`/api/quality-assessment/trigger/${encodedTitle}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ deep_analysis: true })
+        });
+
+        const data = await response.json();
+        if (data.success) {
+            displayQualityAssessment(data.report);
+            showStatusMessage('✅ 质量评估完成', 'success');
+        } else {
+            throw new Error(data.error || '评估失败');
+        }
+    } catch (error) {
+        console.error('触发质量评估失败:', error);
+        loadingDiv.innerHTML = `
+            <div style="text-align: center; padding: 40px;">
+                <p style="color: #ef4444;">❌ 评估失败: ${error.message}</p>
+            </div>
+        `;
+    }
+}
+
+// 显示质量评估报告
+function displayQualityAssessment(report) {
+    const qualityContent = document.getElementById('quality-content');
+
+    // 移除加载动画
+    const loadingDiv = document.getElementById('quality-loading');
+    if (loadingDiv) loadingDiv.remove();
+
+    // 生成报告HTML
+    const readinessInfo = {
+        'ready': { text: '可以继续', color: '#10b981', icon: '✅' },
+        'needs_review': { text: '建议检查', color: '#f59e0b', icon: '⚠️' },
+        'needs_revision': { text: '需要修改', color: '#ef4444', icon: '❌' }
+    };
+
+    const readiness = readinessInfo[report.readiness] || readinessInfo['needs_review'];
+    const score = report.overall_score || 0;
+    const scoreColor = score >= 80 ? '#10b981' : score >= 60 ? '#f59e0b' : '#ef4444';
+
+    let html = `
+        <div class="quality-assessment-report">
+            <!-- 总体评分卡片 -->
+            <div class="quality-score-card" style="background: linear-gradient(135deg, ${readiness.color}20 0%, ${readiness.color}10 100%); border: 2px solid ${readiness.color}; border-radius: 12px; padding: 24px; margin-bottom: 24px; text-align: center;">
+                <div style="font-size: 14px; color: #6b7280; margin-bottom: 8px;">总体评分</div>
+                <div style="font-size: 48px; font-weight: bold; color: ${scoreColor};">${score}<span style="font-size: 24px; color: #9ca3af;">/100</span></div>
+                <div style="margin-top: 12px; padding: 8px 16px; background: ${readiness.color}; color: white; border-radius: 20px; display: inline-block;">
+                    ${readiness.icon} ${readiness.text}
+                </div>
+                ${report.token_saved > 0 ? `<div style="margin-top: 12px; font-size: 12px; color: #6b7280;">节省约 ${report.token_saved.toLocaleString()} tokens</div>` : ''}
+            </div>
+
+            <!-- 优点列表 -->
+            <div class="quality-section" style="margin-bottom: 24px;">
+                <h4 style="color: #10b981; margin-bottom: 12px;">✅ 优点 (${report.strengths?.length || 0})</h4>
+                <div style="display: grid; gap: 8px;">
+    `;
+
+    if (report.strengths && report.strengths.length > 0) {
+        report.strengths.forEach(strength => {
+            html += `
+                <div style="padding: 12px; background: #f0fdf4; border-left: 4px solid #10b981; border-radius: 6px;">
+                    ${strength}
+                </div>
+            `;
+        });
+    } else {
+        html += `<div style="padding: 12px; color: #9ca3af; text-align: center;">暂无优点记录</div>`;
+    }
+
+    html += `
+                </div>
+            </div>
+
+            <!-- 问题列表 -->
+            <div class="quality-section" style="margin-bottom: 24px;">
+                <h4 style="color: #ef4444; margin-bottom: 12px;">⚠️ 发现的问题 (${report.issues?.length || 0})</h4>
+    `;
+
+    if (report.issues && report.issues.length > 0) {
+        // 按严重程度分组
+        const severityOrder = ['critical', 'high', 'medium', 'low', 'info'];
+        const severityLabels = {
+            'critical': '🔴 严重',
+            'high': '🟠 高',
+            'medium': '🟡 中等',
+            'low': '🟢 低',
+            'info': '🔵 信息'
+        };
+
+        for (const severity of severityOrder) {
+            const issues = report.issues.filter(i => i.severity === severity);
+            if (issues.length === 0) continue;
+
+            html += `
+                <div style="margin-bottom: 16px;">
+                    <div style="font-weight: bold; margin-bottom: 8px;">${severityLabels[severity]} (${issues.length})</div>
+                    <div style="display: grid; gap: 8px;">
+            `;
+
+            issues.forEach((issue, idx) => {
+                const issueId = `issue-${severity}-${idx}`;
+                html += `
+                    <div class="issue-card" id="${issueId}" style="padding: 12px; background: #fef2f2; border-left: 4px solid #ef4444; border-radius: 6px;">
+                        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
+                            <span style="font-weight: bold; color: #374151;">[${issue.category}] ${issue.location}</span>
+                            ${issue.auto_fixable ? '<span style="font-size: 11px; padding: 2px 8px; background: #dbeafe; color: #1d4ed8; border-radius: 10px;">可自动修复</span>' : ''}
+                        </div>
+                        <div style="color: #4b5563; margin-bottom: 8px;">${issue.description}</div>
+                        <div style="color: #6b7280; font-size: 14px; font-style: italic;">💡 建议: ${issue.suggestion}</div>
+                    </div>
+                `;
+            });
+
+            html += `
+                    </div>
+                </div>
+            `;
+        }
+
+        // 添加批量修复按钮
+        const autoFixableCount = report.issues.filter(i => i.auto_fixable).length;
+        if (autoFixableCount > 0) {
+            html += `
+                <div style="margin-top: 16px; text-align: center;">
+                    <button class="btn btn-primary" onclick="fixQualityIssues('${encodeURIComponent(report.plan_file || '')}')">
+                        🔧 自动修复 ${autoFixableCount} 个可修复问题
+                    </button>
+                </div>
+            `;
+        }
+    } else {
+        html += `<div style="padding: 24px; background: #f0fdf4; border-radius: 8px; text-align: center; color: #10b981;">🎉 未发现问题！</div>`;
+    }
+
+    html += `
+            </div>
+
+            <!-- 总结 -->
+            <div class="quality-section">
+                <h4 style="color: #6b7280; margin-bottom: 12px;">📝 总结</h4>
+                <div style="padding: 16px; background: #f9fafb; border-radius: 8px; color: #374151;">
+                    ${report.summary || '无总结信息'}
+                </div>
+            </div>
+        </div>
+    `;
+
+    qualityContent.innerHTML = html;
+}
+
+// 修复质量问题
+async function fixQualityIssues(encodedPlanFile) {
+    if (!confirm('确定要自动修复这些问题吗？将创建备份文件。')) {
+        return;
+    }
+
+    showStatusMessage('🔄 正在修复问题...', 'info');
+
+    try {
+        // 这里需要novel_title而不是plan_file
+        // 从phaseOneResult获取
+        const novelTitle = phaseOneResult?.novel_title;
+        if (!novelTitle) {
+            throw new Error('无法获取小说标题');
+        }
+
+        const encodedTitle = encodeURIComponent(novelTitle);
+        const response = await fetch(`/api/quality-assessment/fix/${encodedTitle}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ auto_fix_only: true })
+        });
+
+        const data = await response.json();
+        if (data.success) {
+            showStatusMessage(`✅ 修复完成: ${data.fixed_count}个已修复, ${data.skipped_count}个需手动处理`, 'success');
+            // 重新加载评估报告
+            setTimeout(() => loadQualityAssessment(novelTitle), 1000);
+        } else {
+            throw new Error(data.error || '修复失败');
+        }
+    } catch (error) {
+        console.error('修复失败:', error);
+        showStatusMessage(`❌ 修复失败: ${error.message}`, 'error');
+    }
 }
 
 // 填充总览结果

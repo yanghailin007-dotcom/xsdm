@@ -74,7 +74,22 @@ def create_app():
     static_folder = os.path.join(BASE_DIR, 'static')
     app = Flask(__name__, static_folder=static_folder)
     app.config.from_object(FlaskConfig)
-    
+
+    # 🔥 注册 phase_api 蓝图（包含质量评估API）
+    try:
+        from web.api import phase_generation_api
+        phase_generation_api.app.config = app.config  # 共享配置
+        phase_generation_api.app = app  # 设置app引用
+        phase_generation_api.manager = NovelGenerationManager()  # 设置管理器
+        # 注册蓝图中的所有路由
+        for rule in phase_generation_api.phase_api.deferred_functions:
+            rule(phase_generation_api.phase_api)
+        phase_generation_api.phase_api.deferred_functions = []
+        app.register_blueprint(phase_generation_api.phase_api)
+        logger.info("✅ phase_api 蓝图已注册")
+    except Exception as e:
+        logger.error(f"⚠️ phase_api 蓝图注册失败: {e}")
+
     # 🔥 修复：在应用创建时初始化contract_api，确保单例
     try:
         from Chrome.automation.api.contract_api import ContractAPI
@@ -473,9 +488,137 @@ def register_fanqie_routes(app):
                 "success": True,
                 "progress": progress
             })
-            
+
         except Exception as e:
             logger.error(f"❌ 获取上传进度失败: {e}")
+            return jsonify({"success": False, "error": str(e)}), 500
+
+
+def register_quality_assessment_routes(app):
+    """注册质量评估API路由"""
+
+    @app.route('/api/quality-assessment/<path:novel_title>', methods=['GET'])
+    def get_quality_assessment(novel_title):
+        """获取小说的质量评估报告"""
+        try:
+            from web.auth import login_required
+            from flask import session
+            if 'logged_in' not in session:
+                return jsonify({"success": False, "error": "需要登录", "code": "AUTH_REQUIRED"}), 401
+
+            from pathlib import Path
+            import re
+            import json
+
+            # URL解码
+            novel_title = re.sub(r'_|\+', ' ', novel_title)
+
+            logger.info(f"[QUALITY_ASSESSMENT] 获取质量评估: {novel_title}")
+
+            # 构建评估报告路径
+            safe_title = re.sub(r'[\\/*?:"<>|]', "_", novel_title)
+            report_path = Path(f"小说项目/{safe_title}/plans/{safe_title}_opening_stage_writing_plan_quality_report.json")
+
+            if not report_path.exists():
+                # 尝试从materials目录查找
+                alt_report_path = Path(f"小说项目/{safe_title}/materials/phase_one_products/{safe_title}_quality_assessment.json")
+                if alt_report_path.exists():
+                    report_path = alt_report_path
+                else:
+                    return jsonify({
+                        "success": False,
+                        "error": "评估报告不存在",
+                        "hint": "请先生成第一阶段设定"
+                    }), 404
+
+            # 读取评估报告
+            with open(report_path, 'r', encoding='utf-8') as f:
+                report = json.load(f)
+
+            logger.info(f"[QUALITY_ASSESSMENT] 返回评估报告: {report.get('overall_score', 0)}/100")
+
+            return jsonify({
+                "success": True,
+                "report": report
+            })
+
+        except Exception as e:
+            logger.error(f"[QUALITY_ASSESSMENT] 获取评估报告失败: {e}")
+            import traceback
+            logger.error(f"错误堆栈: {traceback.format_exc()}")
+            return jsonify({"success": False, "error": str(e)}), 500
+
+
+    @app.route('/api/quality-assessment/trigger/<path:novel_title>', methods=['POST'])
+    def trigger_quality_assessment(novel_title):
+        """手动触发质量评估"""
+        try:
+            from web.auth import login_required
+            from flask import session, request
+            if 'logged_in' not in session:
+                return jsonify({"success": False, "error": "需要登录", "code": "AUTH_REQUIRED"}), 401
+
+            from pathlib import Path
+            import re
+            from src.core.PlanQualityAssessor import PlanQualityAssessor
+            from datetime import datetime
+
+            # URL解码
+            novel_title = re.sub(r'_|\+', ' ', novel_title)
+
+            logger.info(f"[QUALITY_ASSESSMENT] 触发质量评估: {novel_title}")
+
+            # 构建写作计划路径
+            safe_title = re.sub(r'[\\/*?:"<>|]', "_", novel_title)
+            plan_path = Path(f"小说项目/{safe_title}/plans/{safe_title}_opening_stage_writing_plan.json")
+
+            if not plan_path.exists():
+                return jsonify({
+                    "success": False,
+                    "error": "写作计划文件不存在"
+                }), 404
+
+            # 获取API密钥（用于AI评估）
+            request_data = request.get_json() or {}
+            api_key = request_data.get('api_key')
+            use_deep_analysis = request_data.get('deep_analysis', True)
+
+            # 创建评估器并执行评估
+            assessor = PlanQualityAssessor(api_key=api_key)
+            result = assessor.assess(plan_path, use_deep_analysis=use_deep_analysis)
+
+            # 转换为字典格式
+            report = {
+                "overall_score": result.overall_score,
+                "readiness": result.readiness,
+                "strengths": result.strengths,
+                "issues": [
+                    {
+                        "category": i.category,
+                        "severity": i.severity.value,
+                        "location": i.location,
+                        "description": i.description,
+                        "suggestion": i.suggestion,
+                        "auto_fixable": i.auto_fixable
+                    }
+                    for i in result.issues
+                ],
+                "summary": result.summary,
+                "token_saved": result.token_saved,
+                "assessment_time": datetime.now().isoformat()
+            }
+
+            logger.info(f"[QUALITY_ASSESSMENT] 评估完成: {report['overall_score']}/100")
+
+            return jsonify({
+                "success": True,
+                "report": report
+            })
+
+        except Exception as e:
+            logger.error(f"[QUALITY_ASSESSMENT] 触发评估失败: {e}")
+            import traceback
+            logger.error(f"错误堆栈: {traceback.format_exc()}")
             return jsonify({"success": False, "error": str(e)}), 500
 
 

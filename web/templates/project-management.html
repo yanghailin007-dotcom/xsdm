@@ -887,6 +887,9 @@
                         <button class="action-btn secondary" onclick="viewPhaseOneResult('${escapeHtml(project.title)}')">
                             👁️ 查看设定
                         </button>
+                        <button class="action-btn secondary" onclick="viewQualityAssessment('${escapeHtml(project.title)}')">
+                            🎯 质量评估
+                        </button>
                         <button class="action-btn secondary" onclick="viewProjectViewer('${escapeHtml(project.title)}')">
                             📊 项目可视化
                         </button>
@@ -1222,6 +1225,232 @@
             if (confirm('确定要退出登录吗？')) {
                 window.location.href = '/logout';
             }
+        }
+
+        // ==================== 质量评估功能 ====================
+
+        // 查看质量评估
+        async function viewQualityAssessment(projectTitle) {
+            // 创建或显示模态框
+            let modal = document.getElementById('quality-assessment-modal');
+            if (!modal) {
+                modal = createQualityAssessmentModal();
+                document.body.appendChild(modal);
+            }
+
+            modal.style.display = 'flex';
+
+            // 加载评估报告
+            await loadQualityAssessmentReport(projectTitle);
+        }
+
+        // 创建质量评估模态框
+        function createQualityAssessmentModal() {
+            const modal = document.createElement('div');
+            modal.id = 'quality-assessment-modal';
+            modal.style.cssText = `
+                display: none;
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0,0,0,0.6);
+                z-index: 9999;
+                justify-content: center;
+                align-items: center;
+            `;
+
+            modal.innerHTML = `
+                <div style="background: white; border-radius: 16px; width: 90%; max-width: 800px; max-height: 90vh; overflow: hidden; display: flex; flex-direction: column;">
+                    <div style="padding: 20px 24px; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center;">
+                        <h2 style="margin: 0; font-size: 20px;">🎯 写作计划质量评估报告</h2>
+                        <button onclick="closeQualityAssessmentModal()" style="background: none; border: none; font-size: 24px; cursor: pointer;">&times;</button>
+                    </div>
+                    <div id="quality-assessment-content" style="padding: 24px; overflow-y: auto; flex: 1;">
+                        <p style="text-align: center; color: #6b7280;">正在加载评估报告...</p>
+                    </div>
+                </div>
+            `;
+
+            return modal;
+        }
+
+        // 关闭模态框
+        function closeQualityAssessmentModal() {
+            const modal = document.getElementById('quality-assessment-modal');
+            if (modal) {
+                modal.style.display = 'none';
+            }
+        }
+
+        // 加载质量评估报告
+        async function loadQualityAssessmentReport(projectTitle) {
+            const contentDiv = document.getElementById('quality-assessment-content');
+
+            try {
+                const encodedTitle = encodeURIComponent(projectTitle);
+                const response = await fetch(`/api/quality-assessment/${encodedTitle}`);
+
+                if (response.status === 404) {
+                    contentDiv.innerHTML = `
+                        <div style="text-align: center; padding: 40px;">
+                            <p style="color: #f59e0b; margin-bottom: 16px; font-size: 18px;">📊 质量评估报告未找到</p>
+                            <p style="color: #6b7280; margin-bottom: 20px;">这可能是因为生成是在此功能添加之前完成的</p>
+                            <button onclick="triggerQualityAssessment('${encodedTitle}', '${projectTitle}')" style="padding: 12px 24px; background: #667eea; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px;">
+                                🔄 立即生成评估报告
+                            </button>
+                        </div>
+                    `;
+                    return;
+                }
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const data = await response.json();
+                if (data.success) {
+                    displayQualityReport(data.report);
+                } else {
+                    throw new Error(data.error || '加载失败');
+                }
+            } catch (error) {
+                console.error('加载质量评估失败:', error);
+                contentDiv.innerHTML = `
+                    <div style="text-align: center; padding: 40px;">
+                        <p style="color: #ef4444; margin-bottom: 16px;">❌ 加载评估报告失败: ${error.message}</p>
+                        <button onclick="closeQualityAssessmentModal()" style="padding: 12px 24px; background: #6b7280; color: white; border: none; border-radius: 8px; cursor: pointer;">
+                            关闭
+                        </button>
+                    </div>
+                `;
+            }
+        }
+
+        // 触发质量评估
+        async function triggerQualityAssessment(encodedTitle, projectTitle) {
+            const contentDiv = document.getElementById('quality-assessment-content');
+            contentDiv.innerHTML = '<p style="text-align: center; padding: 40px;">🔄 正在生成AI质量评估报告，请稍候...</p>';
+
+            try {
+                const response = await fetch(`/api/quality-assessment/trigger/${encodedTitle}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ deep_analysis: true })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    displayQualityReport(data.report);
+                } else {
+                    throw new Error(data.error || '评估失败');
+                }
+            } catch (error) {
+                console.error('触发质量评估失败:', error);
+                contentDiv.innerHTML = `
+                    <div style="text-align: center; padding: 40px;">
+                        <p style="color: #ef4444;">❌ 评估失败: ${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        // 显示质量评估报告
+        function displayQualityReport(report) {
+            const contentDiv = document.getElementById('quality-assessment-content');
+
+            const readinessInfo = {
+                'ready': { text: '可以继续', color: '#10b981', icon: '✅' },
+                'needs_review': { text: '建议检查', color: '#f59e0b', icon: '⚠️' },
+                'needs_revision': { text: '需要修改', color: '#ef4444', icon: '❌' }
+            };
+
+            const readiness = readinessInfo[report.readiness] || readinessInfo['needs_review'];
+            const score = report.overall_score || 0;
+            const scoreColor = score >= 80 ? '#10b981' : score >= 60 ? '#f59e0b' : '#ef4444';
+
+            let html = `
+                <!-- 总体评分卡片 -->
+                <div style="background: linear-gradient(135deg, ${readiness.color}20 0%, ${readiness.color}10 100%); border: 2px solid ${readiness.color}; border-radius: 12px; padding: 24px; margin-bottom: 24px; text-align: center;">
+                    <div style="font-size: 14px; color: #6b7280; margin-bottom: 8px;">总体评分</div>
+                    <div style="font-size: 48px; font-weight: bold; color: ${scoreColor};">${score}<span style="font-size: 24px; color: #9ca3af;">/100</span></div>
+                    <div style="margin-top: 12px; padding: 8px 16px; background: ${readiness.color}; color: white; border-radius: 20px; display: inline-block;">
+                        ${readiness.icon} ${readiness.text}
+                    </div>
+                    ${report.token_saved > 0 ? `<div style="margin-top: 12px; font-size: 12px; color: #6b7280;">节省约 ${report.token_saved.toLocaleString()} tokens</div>` : ''}
+                </div>
+
+                <!-- 优点列表 -->
+                <div style="margin-bottom: 24px;">
+                    <h4 style="color: #10b981; margin-bottom: 12px;">✅ 优点 (${report.strengths?.length || 0})</h4>
+                    <div style="display: grid; gap: 8px;">
+            `;
+
+            if (report.strengths && report.strengths.length > 0) {
+                report.strengths.forEach(strength => {
+                    html += `<div style="padding: 12px; background: #f0fdf4; border-left: 4px solid #10b981; border-radius: 6px;">${strength}</div>`;
+                });
+            } else {
+                html += `<div style="padding: 12px; color: #9ca3af; text-align: center;">暂无优点记录</div>`;
+            }
+
+            html += `</div></div>`;
+
+            // 问题列表
+            html += `
+                <div style="margin-bottom: 24px;">
+                    <h4 style="color: #ef4444; margin-bottom: 12px;">⚠️ 发现的问题 (${report.issues?.length || 0})</h4>
+            `;
+
+            if (report.issues && report.issues.length > 0) {
+                const severityOrder = ['critical', 'high', 'medium', 'low', 'info'];
+                const severityLabels = {
+                    'critical': '🔴 严重',
+                    'high': '🟠 高',
+                    'medium': '🟡 中等',
+                    'low': '🟢 低',
+                    'info': '🔵 信息'
+                };
+
+                for (const severity of severityOrder) {
+                    const issues = report.issues.filter(i => i.severity === severity);
+                    if (issues.length === 0) continue;
+
+                    html += `<div style="margin-bottom: 16px;"><div style="font-weight: bold; margin-bottom: 8px;">${severityLabels[severity]} (${issues.length})</div>`;
+
+                    issues.forEach(issue => {
+                        html += `
+                            <div style="padding: 12px; background: #fef2f2; border-left: 4px solid #ef4444; border-radius: 6px; margin-bottom: 8px;">
+                                <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
+                                    <span style="font-weight: bold; color: #374151;">[${issue.category}] ${issue.location}</span>
+                                    ${issue.auto_fixable ? '<span style="font-size: 11px; padding: 2px 8px; background: #dbeafe; color: #1d4ed8; border-radius: 10px;">可自动修复</span>' : ''}
+                                </div>
+                                <div style="color: #4b5563; margin-bottom: 8px;">${issue.description}</div>
+                                <div style="color: #6b7280; font-size: 14px; font-style: italic;">💡 建议: ${issue.suggestion}</div>
+                            </div>
+                        `;
+                    });
+
+                    html += '</div>';
+                }
+            } else {
+                html += `<div style="padding: 24px; background: #f0fdf4; border-radius: 8px; text-align: center; color: #10b981;">🎉 未发现问题！</div>`;
+            }
+
+            html += `</div>`;
+
+            // 总结
+            html += `
+                <div>
+                    <h4 style="color: #6b7280; margin-bottom: 12px;">📝 总结</h4>
+                    <div style="padding: 16px; background: #f9fafb; border-radius: 8px; color: #374151;">
+                        ${report.summary || '无总结信息'}
+                    </div>
+                </div>
+            `;
+
+            contentDiv.innerHTML = html;
         }
     </script>
 </body>

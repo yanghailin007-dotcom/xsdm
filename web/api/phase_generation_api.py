@@ -2511,3 +2511,257 @@ def register_additional_routes(app):
             import traceback
             logger.error(f"错误堆栈: {traceback.format_exc()}")
             return jsonify({"success": False, "error": str(e)}), 500
+
+
+    # ==================== 质量评估API路由 ====================
+
+    @app.route('/api/quality-assessment/<path:novel_title>', methods=['GET'])
+    @login_required
+    def get_quality_assessment(novel_title):
+        """获取小说的质量评估报告"""
+        try:
+            from pathlib import Path
+            import re
+
+            # URL解码
+            novel_title = re.sub(r'_|\+', ' ', novel_title)
+
+            logger.info(f"[QUALITY_ASSESSMENT] 获取质量评估: {novel_title}")
+
+            # 构建评估报告路径
+            safe_title = re.sub(r'[\\/*?:"<>|]', "_", novel_title)
+            report_path = Path(f"小说项目/{safe_title}/plans/{safe_title}_opening_stage_writing_plan_quality_report.json")
+
+            if not report_path.exists():
+                # 尝试从materials目录查找
+                alt_report_path = Path(f"小说项目/{safe_title}/materials/phase_one_products/{safe_title}_quality_assessment.json")
+                if alt_report_path.exists():
+                    report_path = alt_report_path
+                else:
+                    return jsonify({
+                        "success": False,
+                        "error": "评估报告不存在",
+                        "hint": "请先生成第一阶段设定"
+                    }), 404
+
+            # 读取评估报告
+            with open(report_path, 'r', encoding='utf-8') as f:
+                report = json.load(f)
+
+            logger.info(f"[QUALITY_ASSESSMENT] 返回评估报告: {report.get('overall_score', 0)}/100")
+
+            return jsonify({
+                "success": True,
+                "report": report
+            })
+
+        except Exception as e:
+            logger.error(f"[QUALITY_ASSESSMENT] 获取评估报告失败: {e}")
+            import traceback
+            logger.error(f"错误堆栈: {traceback.format_exc()}")
+            return jsonify({"success": False, "error": str(e)}), 500
+
+
+    @app.route('/api/quality-assessment/trigger/<path:novel_title>', methods=['POST'])
+    @login_required
+    def trigger_quality_assessment(novel_title):
+        """手动触发质量评估"""
+        try:
+            from pathlib import Path
+            import re
+            from src.core.PlanQualityAssessor import PlanQualityAssessor
+
+            # URL解码
+            novel_title = re.sub(r'_|\+', ' ', novel_title)
+
+            logger.info(f"[QUALITY_ASSESSMENT] 触发质量评估: {novel_title}")
+
+            # 构建写作计划路径
+            safe_title = re.sub(r'[\\/*?:"<>|]', "_", novel_title)
+            plan_path = Path(f"小说项目/{safe_title}/plans/{safe_title}_opening_stage_writing_plan.json")
+
+            if not plan_path.exists():
+                return jsonify({
+                    "success": False,
+                    "error": "写作计划文件不存在"
+                }), 404
+
+            # 获取API密钥（用于AI评估）
+            api_key = request.json.get('api_key') if request.json else None
+            use_deep_analysis = request.json.get('deep_analysis', True) if request.json else True
+
+            # 创建评估器并执行评估
+            assessor = PlanQualityAssessor(api_key=api_key)
+            result = assessor.assess(plan_path, use_deep_analysis=use_deep_analysis)
+
+            # 转换为字典格式
+            report = {
+                "overall_score": result.overall_score,
+                "readiness": result.readiness,
+                "strengths": result.strengths,
+                "issues": [
+                    {
+                        "category": i.category,
+                        "severity": i.severity.value,
+                        "location": i.location,
+                        "description": i.description,
+                        "suggestion": i.suggestion,
+                        "auto_fixable": i.auto_fixable
+                    }
+                    for i in result.issues
+                ],
+                "summary": result.summary,
+                "token_saved": result.token_saved,
+                "assessment_time": datetime.now().isoformat()
+            }
+
+            logger.info(f"[QUALITY_ASSESSMENT] 评估完成: {report['overall_score']}/100")
+
+            return jsonify({
+                "success": True,
+                "report": report
+            })
+
+        except Exception as e:
+            logger.error(f"[QUALITY_ASSESSMENT] 触发评估失败: {e}")
+            import traceback
+            logger.error(f"错误堆栈: {traceback.format_exc()}")
+            return jsonify({"success": False, "error": str(e)}), 500
+
+
+    @app.route('/api/quality-assessment/fix/<path:novel_title>', methods=['POST'])
+    @login_required
+    def fix_quality_issues(novel_title):
+        """修复质量问题（基于AI建议）"""
+        try:
+            from pathlib import Path
+            import re
+
+            # URL解码
+            novel_title = re.sub(r'_|\+', ' ', novel_title)
+
+            logger.info(f"[QUALITY_ASSESSMENT] 修复质量问题: {novel_title}")
+
+            # 获取要修复的问题列表
+            fix_data = request.json or {}
+            issues_to_fix = fix_data.get('issues', [])
+            auto_fix_only = fix_data.get('auto_fix_only', False)
+
+            if not issues_to_fix:
+                return jsonify({
+                    "success": False,
+                    "error": "未指定要修复的问题"
+                }), 400
+
+            # 构建路径
+            safe_title = re.sub(r'[\\/*?:"<>|]', "_", novel_title)
+            plan_path = Path(f"小说项目/{safe_title}/plans/{safe_title}_opening_stage_writing_plan.json")
+
+            if not plan_path.exists():
+                return jsonify({
+                    "success": False,
+                    "error": "写作计划文件不存在"
+                }), 404
+
+            # 读取当前计划
+            with open(plan_path, 'r', encoding='utf-8') as f:
+                plan_data = json.load(f)
+
+            # 执行修复
+            fixed_count = 0
+            skipped_count = 0
+            fix_results = []
+
+            for issue in issues_to_fix:
+                issue_id = issue.get('id') or f"{issue.get('category')}_{issue.get('location')}"
+                location = issue.get('location', '')
+                category = issue.get('category', '')
+                suggestion = issue.get('suggestion', '')
+
+                try:
+                    # 根据问题类别执行不同的修复策略
+                    if category == 'commercial' and 'expectation_tags' in suggestion:
+                        # 添加缺失的情感标签
+                        fixed = _add_missing_expectation_tags(plan_data, location)
+                        if fixed:
+                            fixed_count += 1
+                            fix_results.append({"id": issue_id, "status": "fixed", "action": "添加情感标签"})
+                        else:
+                            skipped_count += 1
+                            fix_results.append({"id": issue_id, "status": "skipped", "reason": "无法自动修复"})
+
+                    elif category == 'pacing' and '章节' in suggestion:
+                        # 章节分配问题 - 记录建议，需要手动调整
+                        skipped_count += 1
+                        fix_results.append({"id": issue_id, "status": "manual_required", "suggestion": suggestion})
+
+                    elif category == 'structure' and '事件' in suggestion:
+                        # 结构问题 - 记录建议，需要手动调整
+                        skipped_count += 1
+                        fix_results.append({"id": issue_id, "status": "manual_required", "suggestion": suggestion})
+
+                    else:
+                        # 其他问题，如果标记为可自动修复则尝试
+                        if issue.get('auto_fixable', False) and not auto_fix_only:
+                            # 这里可以扩展更多的自动修复逻辑
+                            skipped_count += 1
+                            fix_results.append({"id": issue_id, "status": "not_implemented", "reason": "该类型修复尚未实现"})
+                        else:
+                            skipped_count += 1
+                            fix_results.append({"id": issue_id, "status": "manual_required", "suggestion": suggestion})
+
+                except Exception as e:
+                    logger.error(f"修复问题失败 {issue_id}: {e}")
+                    fix_results.append({"id": issue_id, "status": "error", "error": str(e)})
+
+            # 如果有修复，保存更新后的计划
+            if fixed_count > 0:
+                # 创建备份
+                backup_path = plan_path.with_suffix('.json.backup')
+                with open(backup_path, 'w', encoding='utf-8') as f:
+                    json.load(open(plan_path, 'r', encoding='utf-8'))  # 先读取原始内容
+                    with open(plan_path, 'r', encoding='utf-8') as original:
+                        f.write(original.read())
+                logger.info(f"已创建备份: {backup_path}")
+
+                # 保存修复后的计划
+                with open(plan_path, 'w', encoding='utf-8') as f:
+                    json.dump(plan_data, f, ensure_ascii=False, indent=2)
+
+            return jsonify({
+                "success": True,
+                "fixed_count": fixed_count,
+                "skipped_count": skipped_count,
+                "fix_results": fix_results,
+                "backup_created": fixed_count > 0
+            })
+
+        except Exception as e:
+            logger.error(f"[QUALITY_ASSESSMENT] 修复失败: {e}")
+            import traceback
+            logger.error(f"错误堆栈: {traceback.format_exc()}")
+            return jsonify({"success": False, "error": str(e)}), 500
+
+
+    def _add_missing_expectation_tags(plan_data: dict, location: str) -> bool:
+        """为缺失情感标签的事件添加标签"""
+        try:
+            # 解析location，如 "major_events" 意味着所有major_events
+            # 或 "major_event[0]" 表示特定事件
+
+            stage_plan = plan_data.get('stage_writing_plan', {})
+            event_system = stage_plan.get('event_system', {})
+            major_events = event_system.get('major_events', [])
+
+            if not major_events:
+                return False
+
+            # 为所有大型事件添加默认的情感标签
+            for event in major_events:
+                if not event.get('expectation_tags'):
+                    event['expectation_tags'] = ['期待', '紧张', '反转']
+
+            return True
+        except Exception as e:
+            logger.error(f"添加情感标签失败: {e}")
+            return False

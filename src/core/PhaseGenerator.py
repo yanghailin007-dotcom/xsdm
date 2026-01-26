@@ -119,9 +119,29 @@ class PhaseGenerator:
                 print("⚠️ 项目信息文件保存失败，但第一阶段核心内容已完成")
             update_progress_callback('completed', 100, "第一阶段设定生成完成")
             
-            print("\n🎉 第一阶段设定生成完成！")
+            print(f"\n🎉 第一阶段设定生成完成！")
             print("✅ 已完成：基础规划、世界观构建、角色设计、全书规划")
             print("📝 下一步：可以继续第二阶段的章节内容生成")
+
+            # 🔥 新增：自动进行质量评估
+            update_progress_callback('assessment', 99, "正在进行AI质量评估...")
+            print("\n" + "="*60)
+            print("📊 正在进行写作计划AI质量评估...")
+            print("="*60)
+            assessment_result = self._assess_writing_plan_quality()
+            if assessment_result:
+                self.generator.novel_data["quality_assessment"] = assessment_result
+                print(f"✅ 评估完成！得分: {assessment_result.get('overall_score', 0)}/100")
+                print(f"   状态: {assessment_result.get('readiness', 'unknown')}")
+                issue_count = len(assessment_result.get('issues', []))
+                if issue_count > 0:
+                    print(f"   发现 {issue_count} 个问题，详见评估报告")
+                else:
+                    print("   未发现问题")
+            else:
+                print("⚠️ 评估失败，但不影响后续流程")
+
+            update_progress_callback('completed', 100, "第一阶段设定生成完成")
             return True
 
         except Exception as e:
@@ -1446,3 +1466,83 @@ class PhaseGenerator:
             return True
         else:
             return False
+
+    # ==================== 质量评估方法 ====================
+
+    def _assess_writing_plan_quality(self) -> Optional[Dict]:
+        """
+        对写作计划进行AI质量评估
+
+        Returns:
+            评估结果字典，包含:
+            - overall_score: 总体评分
+            - readiness: 准备状态 (ready/needs_review/needs_revision)
+            - strengths: 优点列表
+            - issues: 问题列表
+            - summary: 总结
+            - token_saved: 节省的token数
+        """
+        try:
+            # 导入评估器
+            from src.core.PlanQualityAssessor import PlanQualityAssessor
+            from pathlib import Path
+            import re
+
+            # 获取API密钥
+            api_key = None
+            if hasattr(self.generator, 'api_client'):
+                api_key = getattr(self.generator.api_client, 'api_key', None)
+
+            # 检查是否有写作计划
+            stage_writing_plans = self.generator.novel_data.get("stage_writing_plans", {})
+            if not stage_writing_plans:
+                print("⚠️ 没有写作计划，跳过评估")
+                return None
+
+            # 获取opening_stage的写作计划路径
+            novel_title = self.generator.novel_data.get("novel_title", "")
+            safe_title = re.sub(r'[\\/*?:"<>|]', "_", novel_title)
+
+            # 构建写作计划文件路径
+            plan_path = Path(f"小说项目/{safe_title}/plans/{safe_title}_opening_stage_writing_plan.json")
+
+            if not plan_path.exists():
+                print(f"⚠️ 写作计划文件不存在: {plan_path}")
+                return None
+
+            print(f"📋 评估文件: {plan_path}")
+
+            # 创建评估器
+            assessor = PlanQualityAssessor(api_key=api_key)
+
+            # 进行评估（如果配置了API则使用AI深度分析）
+            use_ai = api_key is not None
+            result = assessor.assess(plan_path, use_deep_analysis=use_ai)
+
+            # 转换为字典格式返回
+            return {
+                "overall_score": result.overall_score,
+                "readiness": result.readiness,
+                "strengths": result.strengths,
+                "issues": [
+                    {
+                        "category": i.category,
+                        "severity": i.severity.value,
+                        "location": i.location,
+                        "description": i.description,
+                        "suggestion": i.suggestion,
+                        "auto_fixable": i.auto_fixable
+                    }
+                    for i in result.issues
+                ],
+                "summary": result.summary,
+                "token_saved": result.token_saved,
+                "plan_file": str(plan_path),
+                "assessment_time": datetime.now().isoformat()
+            }
+
+        except Exception as e:
+            print(f"❌ 写作计划评估失败: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
