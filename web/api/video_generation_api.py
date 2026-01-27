@@ -224,7 +224,7 @@ def get_video_types():
 def get_novel_content():
     """
     获取小说的事件和角色内容
-    
+
     查询参数：
     - title: 小说标题
     """
@@ -232,15 +232,35 @@ def get_novel_content():
         title = request.args.get('title')
         if not title:
             return jsonify({"success": False, "error": "小说标题不能为空"}), 400
-        
+
         logger.info(f"📊 [VIDEO] 获取小说内容: {title}")
-        
+        logger.info(f"📊 [VIDEO] 当前加载的小说项目列表: {list(manager.novel_projects.keys()) if manager else 'N/A'}")
+
         if not manager:
             return jsonify({"success": False, "error": "管理器未初始化"}), 500
-        
-        # 获取小说数据
+
+        # 获取小说数据 - 先尝试精确匹配
         novel_detail = manager.get_novel_detail(title)
         if not novel_detail:
+            # 如果精确匹配失败，尝试模糊匹配
+            logger.warning(f"⚠️ [VIDEO] 精确匹配失败，尝试模糊匹配: {title}")
+            for available_title in manager.novel_projects.keys():
+                if title.strip() == available_title.strip():
+                    logger.info(f"✅ [VIDEO] 通过去除空白匹配成功: {available_title}")
+                    novel_detail = manager.get_novel_detail(available_title)
+                    break
+                elif title.lower() == available_title.lower():
+                    logger.info(f"✅ [VIDEO] 通过大小写不敏感匹配成功: {available_title}")
+                    novel_detail = manager.get_novel_detail(available_title)
+                    break
+                elif title in available_title or available_title in title:
+                    logger.info(f"✅ [VIDEO] 通过部分匹配成功: {available_title}")
+                    novel_detail = manager.get_novel_detail(available_title)
+                    break
+
+        if not novel_detail:
+            logger.error(f"❌ [VIDEO] 小说项目不存在: {title}")
+            logger.error(f"❌ [VIDEO] 可用的小说: {list(manager.novel_projects.keys())}")
             return jsonify({"success": False, "error": "小说项目不存在"}), 404
         
         # 🔥 使用通用事件提取器提取事件和角色
@@ -280,12 +300,22 @@ def get_novel_content():
                                 medium_event.get("role_in_stage_arc") or
                                 f"中级事件 {len(medium_events_list) + 1}"
                             )
-                            
+
+                            # 🔥 修复：生成复合ID，格式为 major_event_X_event_Y_Z
+                            # 其中 X 是重大事件索引，Y 是阶段索引（在stage_order中的位置），Z 是该阶段中的子事件索引
+                            stage_idx = stage_order.index(stage)
+                            # 计算当前阶段中已经有多少个中级事件
+                            medium_idx_in_stage = len([me for me in medium_events_list if me.get('stage') == stage])
+                            medium_event_id = f"major_event_{idx}_event_{stage_idx}_{medium_idx_in_stage}"
+
                             medium_events_list.append({
-                                "id": f"event_{len(events)}_{len(medium_events_list)}",
+                                "id": medium_event_id,
                                 "title": event_title,
                                 "description": medium_event.get("description", ""),
                                 "stage": stage,
+                                "stage_idx": stage_idx,
+                                "medium_idx": medium_idx_in_stage,
+                                "parent_id": f"major_event_{idx}",
                                 "characters": medium_event.get("characters", ""),
                                 "location": medium_event.get("location", ""),
                                 "emotion": medium_event.get("emotion", "")
@@ -342,7 +372,7 @@ def get_novel_content():
 def generate_prompt():
     """
     生成视频生成提示词（基于选中的事件和角色）
-    
+
     请求参数：
     {
         "title": "小说标题",
@@ -355,13 +385,24 @@ def generate_prompt():
         ]
     }
     """
+    import re
+
     try:
         data = request.json or {}
         title = data.get('title')
         video_type = data.get('video_type', 'long_series')
         selected_events = data.get('selected_events', [])
         selected_characters = data.get('selected_characters', [])
-        
+
+        # 🔥 规范化 selected_characters 格式（可能是字符串列表或字典列表）
+        normalized_characters = []
+        for char in selected_characters:
+            if isinstance(char, str):
+                normalized_characters.append({"name": char, "role": "选中角色"})
+            elif isinstance(char, dict):
+                normalized_characters.append(char)
+        selected_characters = normalized_characters
+
         if not title:
             return jsonify({"success": False, "error": "小说标题不能为空"}), 400
         
@@ -422,20 +463,22 @@ def generate_prompt():
             for selected_event in selected_events:
                 # 处理不同格式的输入
                 if isinstance(selected_event, str):
-                    # 🔥 新增：处理复合ID格式（major_event_X_event_Y_Z）
-                    if '_event_' in selected_event and selected_event.startswith('major_event_'):
+                    # 🔥 修复：处理复合ID格式（major_event_X_event_Y_Z）
+                    # 复合ID应该有格式：major_event_数字_event_数字_数字
+                    # 检查是否有两个 _event_ 或者 _event_ 出现在 major_event_ 之后
+                    if selected_event.startswith('major_event_') and selected_event.count('_event_') >= 2:
                         # 这是中级事件的复合ID（格式：major_event_X_event_Y_Z）
                         # 从右边分割，找到最后一个 _event_
                         parts = selected_event.rsplit('_event_', 1)
                         parent_id = parts[0]
-                        
+
                         # 从父事件中查找对应的子事件
                         major_event = major_events_map.get(parent_id)
                         if major_event:
                             composition = major_event.get("composition", {})
                             # 子事件ID格式：event_Y_Z，其中Y是重大事件索引，Z是子事件索引
                             child_id_suffix = selected_event.replace(f'{parent_id}_', '')
-                            
+
                             # 遍历所有阶段查找子事件
                             found = False
                             for stage in ["起", "承", "转", "合"]:
@@ -446,7 +489,7 @@ def generate_prompt():
                                     # 需要从 parent_id 中提取父事件索引
                                     parent_idx = parent_id.replace("major_event_", "")
                                     full_child_id = f"event_{parent_idx}_{idx}"
-                                    
+
                                     # 检查子事件ID是否匹配
                                     if child_id_suffix == full_child_id:
                                         medium_event_copy = dict(medium_event)
@@ -458,12 +501,33 @@ def generate_prompt():
                                         break
                                 if found:
                                     break
-                            
+
                             if not found:
-                                logger.warn(f"⚠️ [VIDEO] 无法在复合ID '{selected_event}' 中找到子事件")
+                                logger.warn(f"⚠️ [VIDEO] 无法在复合ID '{selected_event}' 中找到子事件，直接使用父事件")
+                                # 🔥 修复：如果找不到子事件，展开父事件的所有中级事件
+                                medium_events_from_extractor = event_extractor.extract_medium_events(major_event)
+                                for medium_event in medium_events_from_extractor:
+                                    medium_event_copy = dict(medium_event)
+                                    medium_event_copy["parent_major"] = major_event.get("name", major_event.get("title", ""))
+                                    expanded_events.append(medium_event_copy)
                         else:
-                            logger.warn(f"⚠️ [VIDEO] 无法在复合ID '{selected_event}' 中找到父事件 '{parent_id}'")
-                    
+                            logger.warn(f"⚠️ [VIDEO] 无法在复合ID '{selected_event}' 中找到父事件 '{parent_id}'，尝试从索引提取")
+                            # 🔥 修复：尝试从parent_id中提取索引直接访问
+                            try:
+                                parent_idx = int(parent_id.replace("major_event_", ""))
+                                if 0 <= parent_idx < len(all_major_events):
+                                    major_event = all_major_events[parent_idx]
+                                    medium_events_from_extractor = event_extractor.extract_medium_events(major_event)
+                                    for medium_event in medium_events_from_extractor:
+                                        medium_event_copy = dict(medium_event)
+                                        medium_event_copy["parent_major"] = major_event.get("name", major_event.get("title", ""))
+                                        expanded_events.append(medium_event_copy)
+                                    logger.info(f"📊 [VIDEO] 通过索引 {parent_idx} 成功找到父事件并展开")
+                                else:
+                                    logger.error(f"❌ [VIDEO] 索引 {parent_idx} 超出范围 [0, {len(all_major_events)})")
+                            except (ValueError, IndexError) as e:
+                                logger.error(f"❌ [VIDEO] 无法从 '{parent_id}' 提取有效索引: {e}")
+
                     # 🔥 原有逻辑：尝试从重大事件映射中查找
                     else:
                         major_event = major_events_map.get(selected_event)
@@ -479,7 +543,23 @@ def generate_prompt():
                             
                             logger.info(f"📊 [VIDEO] 通过ID '{selected_event}' 展开重大事件 '{major_event.get('name')}' 为 {len([e for e in expanded_events if e.get('parent_major') == major_event.get('name')])} 个中级事件")
                         else:
-                            logger.warn(f"⚠️ [VIDEO] 未找到ID为 '{selected_event}' 的事件")
+                            # 🔥 修复：尝试从selected_event中提取索引作为备用方案
+                            logger.warn(f"⚠️ [VIDEO] 未找到ID为 '{selected_event}' 的事件，尝试从索引提取")
+                            try:
+                                # 尝试从 major_event_X 格式中提取索引
+                                event_idx = int(selected_event.replace("major_event_", "").replace("event_", ""))
+                                if 0 <= event_idx < len(all_major_events):
+                                    major_event = all_major_events[event_idx]
+                                    medium_events_from_extractor = event_extractor.extract_medium_events(major_event)
+                                    for medium_event in medium_events_from_extractor:
+                                        medium_event_copy = dict(medium_event)
+                                        medium_event_copy["parent_major"] = major_event.get("name", major_event.get("title", ""))
+                                        expanded_events.append(medium_event_copy)
+                                    logger.info(f"📊 [VIDEO] 通过索引 {event_idx} 成功展开重大事件")
+                                else:
+                                    logger.error(f"❌ [VIDEO] 索引 {event_idx} 超出范围 [0, {len(all_major_events)})")
+                            except (ValueError, IndexError) as e:
+                                logger.error(f"❌ [VIDEO] 无法从 '{selected_event}' 提取有效索引: {e}")
                 
                 elif isinstance(selected_event, dict):
                     # 如果是字典，检查是否是重大事件（有composition字段）
@@ -513,19 +593,95 @@ def generate_prompt():
         
         logger.info(f"✅ [VIDEO] 最终使用 {len(selected_events)} 个中级事件生成提示词")
         
-        # 如果没有选中角色，提取主要角色
+        # 🔥 如果没有选中角色，从角色设计和事件中自动提取角色
         if not selected_characters:
+            # 第一步：从角色设计中获取所有已知角色
             from src.managers.EventExtractor import get_event_extractor
             event_extractor = get_event_extractor(logger)
-            all_characters = event_extractor.extract_character_designs(novel_detail)
-            
-            # 只选择主角和重要配角
-            selected_characters = [
-                char for char in all_characters
-                if char.get("role", "") in ["主角", "重要配角", "配角"]
-            ][:5]  # 最多5个角色
-            
-            logger.info(f"👥 [VIDEO] 未指定角色，自动提取主要角色: {len(selected_characters)}个")
+            all_character_designs = event_extractor.extract_character_designs(novel_detail)
+
+            logger.info(f"👥 [VIDEO] 从角色设计中提取到 {len(all_character_designs)} 个角色")
+
+            # 第二步：收集事件中的所有文本（用于检查角色是否参与）
+            event_text_parts = []
+            for event in selected_events:
+                for field in ["description", "main_goal", "role_in_stage_arc", "title", "plot_outline"]:
+                    field_value = event.get(field, "")
+                    if field_value:
+                        # 如果是列表，合并所有元素
+                        if isinstance(field_value, list):
+                            event_text_parts.extend([str(item) for item in field_value])
+                        else:
+                            event_text_parts.append(str(field_value))
+
+                # 检查 characters 字段
+                event_characters = event.get("characters", "")
+                if event_characters:
+                    event_text_parts.append(str(event_characters))
+
+            # 合并所有文本
+            all_text = " ".join(event_text_parts)
+
+            # 第三步：构建角色列表
+            # 策略：优先选择在事件文本中出现的角色，然后按角色重要性排序
+            character_candidates = []
+
+            for char_design in all_character_designs:
+                char_name = char_design.get("name", "")
+                if not char_name:
+                    continue
+
+                # 检查角色是否在事件文本中出现
+                appears_in_events = char_name in all_text
+
+                character_candidates.append({
+                    "name": char_name,
+                    "role": char_design.get("role_type", char_design.get("role", "角色")),
+                    "description": char_design.get("description", char_design.get("background", char_design.get("core_personality", "")))[:200],
+                    "appears_in_events": appears_in_events,
+                    "full_data": char_design
+                })
+
+            # 按优先级排序：
+            # 1. 在事件中出现的角色优先
+            # 2. 按角色重要性排序（主角 > 重要角色 > 配角）
+            role_priority = {
+                "主角": 0,
+                "核心盟友": 1,
+                "核心反派": 2,
+                "重要角色": 3,
+                "重要配角": 4,
+                "配角": 5,
+                "角色": 6
+            }
+
+            def get_priority(char):
+                role = char.get("role", "角色")
+                base_priority = role_priority.get(role, 99)
+                # 如果在事件中出现，优先级提高
+                if char.get("appears_in_events"):
+                    base_priority -= 10
+                return base_priority
+
+            character_candidates.sort(key=get_priority)
+
+            # 构建最终的角色列表
+            for char in character_candidates:
+                selected_characters.append({
+                    "name": char["name"],
+                    "role": char["role"],
+                    "description": char["description"]
+                })
+
+            # 最多20个角色
+            selected_characters = selected_characters[:20]
+
+            # 统计参与角色数量
+            active_count = sum(1 for c in character_candidates[:len(selected_characters)] if c.get("appears_in_events"))
+
+            logger.info(f"👥 [VIDEO] 提取到 {len(selected_characters)} 个角色（其中 {active_count} 个在事件中出现）")
+            if selected_characters:
+                logger.info(f"👥 [VIDEO] 角色列表: {[c['name'] + '(' + c.get('role', '角色') + ')' for c in selected_characters[:8]]}...")
         
         # 生成详细的场景级提示词
         prompt = scene_prompt_generator.generate_video_type_prompt(

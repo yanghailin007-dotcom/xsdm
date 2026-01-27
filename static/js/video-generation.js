@@ -167,6 +167,16 @@ class VideoGenerator {
 
         // 显示左侧小说列表，使用CSS类
         document.querySelector('.main-container').classList.remove('hide-sidebar');
+
+        // 自动选中第一个小说（如果有的话）
+        setTimeout(() => {
+            const firstNovel = document.querySelector('.novel-item');
+            if (firstNovel && !this.selectedNovel) {
+                const novelTitle = firstNovel.dataset.title;
+                this.selectNovel(novelTitle);
+                console.log('📚 自动选中小说:', novelTitle);
+            }
+        }, 500);
     }
 
     /**
@@ -186,8 +196,19 @@ class VideoGenerator {
         // 显示左侧小说列表
         document.querySelector('.main-container').classList.remove('hide-sidebar');
 
+        // 自动选中第一个小说（如果有的话）
+        setTimeout(() => {
+            const firstNovel = document.querySelector('.novel-item');
+            if (firstNovel && !this.selectedNovel) {
+                const novelTitle = firstNovel.dataset.title;
+                this.selectNovel(novelTitle);
+                console.log('🎭 [短剧模式] 自动选中小说:', novelTitle);
+                this.showToast(`🎭 已自动选择：${novelTitle}`, 'success');
+            }
+        }, 500);
+
         // 显示提示信息
-        this.showToast('🎭 短剧模式：选择小说后，请选择事件进行短剧风格改造', 'success');
+        this.showToast('🎭 短剧模式：请选择视频类型，然后选择事件进行短剧风格改造', 'success');
         console.log('🎭 [短剧模式] 工作流初始化完成');
     }
 
@@ -373,20 +394,33 @@ class VideoGenerator {
     }
     
     selectType(type) {
+        // 检查是否已选择小说
+        if (!this.selectedNovel) {
+            this.showToast('请先从左侧选择小说！', 'warning');
+            // 高亮左侧小说列表提示用户
+            const sidebar = document.querySelector('.sidebar');
+            sidebar.style.boxShadow = '0 0 20px rgba(255, 165, 0, 0.5)';
+            setTimeout(() => {
+                sidebar.style.boxShadow = '';
+            }, 2000);
+            return;
+        }
+
         // 移除之前的选中状态
         document.querySelectorAll('.type-card').forEach(card => {
             card.classList.remove('selected');
         });
-        
+
         // 添加新的选中状态
         const selectedCard = document.querySelector(`.type-card[data-type="${type}"]`);
         if (selectedCard) {
             selectedCard.classList.add('selected');
         }
-        
+
         this.selectedType = type;
         console.log('🎬 选中类型:', type);
-        
+        console.log('📚 当前小说:', this.selectedNovel);
+
         // 进入事件和角色选择阶段
         this.showEventCharacterSelection();
     }
@@ -395,23 +429,42 @@ class VideoGenerator {
         // 隐藏欢迎屏幕，显示事件和角色选择屏幕
         document.getElementById('welcomeScreen').style.display = 'none';
         document.getElementById('eventCharacterSelectionScreen').style.display = 'block';
-        
+
         // 切换左侧边栏到事件和角色视图
         document.getElementById('novelListView').style.display = 'none';
         document.getElementById('eventCharacterView').style.display = 'block';
-        
+
         // 更新标题
         const typeName = this.videoTypes[this.selectedType].name;
         document.getElementById('eventCharacterTitle').textContent =
             `选择事件和角色 - ${typeName}`;
         document.getElementById('sidebarTitle').textContent = '🎬 选择内容';
-        
+
+        // 🔥 短剧模式：修改按钮文本和提示
+        if (this.isShortDramaMode) {
+            const confirmBtn = document.getElementById('confirmSelectionBtn');
+            if (confirmBtn) {
+                confirmBtn.textContent = '🎭 确认并进入短剧改造';
+                confirmBtn.classList.remove('btn-primary');
+                confirmBtn.classList.add('btn-success');
+            }
+
+            // 更新状态提示
+            this.updateCurrentStatus(`🎭 短剧模式: ${this.selectedNovel}<br>类型: ${typeName}<br>步骤: 选择要改编的事件`);
+        } else {
+            const confirmBtn = document.getElementById('confirmSelectionBtn');
+            if (confirmBtn) {
+                confirmBtn.textContent = '✅ 确认选择并生成提示词';
+                confirmBtn.classList.remove('btn-success');
+                confirmBtn.classList.add('btn-primary');
+            }
+            // 更新状态
+            this.updateCurrentStatus(`已选择: ${this.selectedNovel}<br>类型: ${typeName}<br>步骤: 选择事件和角色`);
+        }
+
         // 加载事件和角色数据
         this.loadEventsAndCharacters();
-        
-        // 更新状态
-        this.updateCurrentStatus(`已选择: ${this.selectedNovel}<br>类型: ${typeName}<br>步骤: 选择事件和角色`);
-        
+
         // 高亮第三步
         this.highlightWorkflowStep(3);
     }
@@ -479,7 +532,8 @@ class VideoGenerator {
                     ${hasChildren ? `
                         <div class="medium-events-list" style="display: none;">
                             ${event.children.map(child => {
-                                const childId = `${event.id}_${child.id}`;
+                                // 🔥 修复：直接使用 child.id，不再拼接
+                                const childId = child.id;
                                 const childSelected = this.selectedEvents.has(childId);
                                 const stageBadges = {
                                     '起': '<span class="stage-badge stage-start">起</span>',
@@ -488,7 +542,7 @@ class VideoGenerator {
                                     '合': '<span class="stage-badge stage-end">合</span>'
                                 };
                                 const stageBadge = stageBadges[child.stage] || '';
-                                
+
                                 return `
                                     <div class="medium-event-item ${childSelected ? 'selected' : ''}" data-id="${childId}" data-type="medium" data-parent="${event.id}">
                                         <div class="item-checkbox">
@@ -1021,11 +1075,24 @@ class VideoGenerator {
     }
     
     async confirmSelection() {
+        // 短剧模式：如果没有选择事件，自动选择前3个重大事件
+        if (this.isShortDramaMode && this.selectedEvents.size === 0) {
+            if (this.events.length > 0) {
+                const autoSelectCount = Math.min(3, this.events.length);
+                for (let i = 0; i < autoSelectCount; i++) {
+                    this.selectedEvents.add(this.events[i].id);
+                }
+                this.renderEventsList();
+                this.updateSelectionStats();
+                this.showToast(`🎭 短剧模式：自动选择了前 ${autoSelectCount} 个事件`, 'success');
+            }
+        }
+
         if (this.selectedEvents.size === 0 && this.selectedCharacters.size === 0) {
             this.showToast('请至少选择一个事件或角色', 'error');
             return;
         }
-        
+
         // 生成提示词
         await this.generatePrompt();
     }
@@ -1689,18 +1756,52 @@ class VideoGenerator {
             this.showPromptEditModal();
         });
         
+        // 短剧风格改造按钮
+        console.log('🔍 [绑定] 开始查找 adaptToShortDramaBtn 按钮...');
+        const adaptToShortDramaBtn = document.getElementById('adaptToShortDramaBtn');
+        console.log('🔍 [绑定] 按钮元素:', adaptToShortDramaBtn);
+
+        if (adaptToShortDramaBtn) {
+            console.log('✅ [绑定] 找到 adaptToShortDramaBtn 按钮，开始绑定事件');
+
+            // 移除旧的事件监听器（如果有）
+            const newAdaptBtn = adaptToShortDramaBtn.cloneNode(true);
+            adaptToShortDramaBtn.parentNode.replaceChild(newAdaptBtn, adaptToShortDramaBtn);
+
+            newAdaptBtn.addEventListener('click', (e) => {
+                console.log('='.repeat(60));
+                console.log('🎭 [按钮] adaptToShortDramaBtn 被点击!');
+                console.log('📊 [按钮] this.isShortDramaMode:', this.isShortDramaMode);
+                console.log('📊 [按钮] this.selectedNovel:', this.selectedNovel);
+                console.log('📊 [按钮] this.selectedType:', this.selectedType);
+                console.log('='.repeat(60));
+
+                // 防止默认行为
+                e.preventDefault();
+                e.stopPropagation();
+
+                // 短剧模式：直接生成分镜头脚本
+                this.showToast('🎭 开始短剧风格改造...', 'success');
+                this.generateStoryboard();
+            });
+
+            console.log('✅ [绑定] 短剧改造按钮事件绑定完成');
+        } else {
+            console.log('⚠️ [绑定] 未找到 adaptToShortDramaBtn 按钮（可能在非短剧模式下）');
+        }
+
         // 生成分镜头
         console.log('🔍 [绑定] 开始查找 generateStoryboardBtn 按钮...');
         const generateStoryboardBtn = document.getElementById('generateStoryboardBtn');
         console.log('🔍 [绑定] 按钮元素:', generateStoryboardBtn);
-        
+
         if (generateStoryboardBtn) {
             console.log('✅ [绑定] 找到 generateStoryboardBtn 按钮，开始绑定事件');
-            
+
             // 移除旧的事件监听器（如果有）
             const newBtn = generateStoryboardBtn.cloneNode(true);
             generateStoryboardBtn.parentNode.replaceChild(newBtn, generateStoryboardBtn);
-            
+
             newBtn.addEventListener('click', (e) => {
                 console.log('='.repeat(60));
                 console.log('🔘 [按钮] generateStoryboardBtn 被点击!');
@@ -1709,14 +1810,14 @@ class VideoGenerator {
                 console.log('📊 [按钮] this.selectedType:', this.selectedType);
                 console.log('📊 [按钮] 当前提示词长度:', this.currentPrompt?.length || 0);
                 console.log('='.repeat(60));
-                
+
                 // 防止默认行为
                 e.preventDefault();
                 e.stopPropagation();
-                
+
                 this.generateStoryboard();
             });
-            
+
             console.log('✅ [绑定] 事件绑定完成');
         } else {
             console.error('❌ [绑定] 未找到 generateStoryboardBtn 按钮');

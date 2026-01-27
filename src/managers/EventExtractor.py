@@ -258,20 +258,28 @@ class EventExtractor:
     def extract_character_designs(self, novel_data: Dict) -> List[Dict]:
         """
         提取角色设计数据
-        
+
         Args:
             novel_data: 小说数据字典
-            
+
         Returns:
             角色列表
         """
         characters = []
-        
-        # 从多个可能的路径提取角色数据
+
+        # 🔥 优先从项目文件读取角色设计（最完整）
+        characters = self._extract_character_designs_from_files(novel_data)
+
+        # 如果文件读取成功，直接返回
+        if characters:
+            self.logger.info(f"✅ [EventExtractor] 从文件中提取到 {len(characters)} 个角色设计")
+            return characters
+
+        # 备用方案：从 novel_data 中提取
         # 1. 从 quality_data.character_development
         quality_data = novel_data.get("quality_data", {})
         character_development = quality_data.get("character_development", {})
-        
+
         if character_development:
             for char_name, char_data in character_development.items():
                 if isinstance(char_data, dict):
@@ -279,7 +287,7 @@ class EventExtractor:
                         "name": char_name,
                         **char_data
                     })
-        
+
         # 2. 从 character_design 字段
         if not characters:
             character_design = novel_data.get("character_design", {})
@@ -290,11 +298,7 @@ class EventExtractor:
                             "name": char_name,
                             **char_data
                         })
-        
-        # 3. 🔥 新增：直接从项目文件读取角色设计
-        if not characters:
-            characters = self._extract_character_designs_from_files(novel_data)
-        
+
         self.logger.info(f"✅ [EventExtractor] 提取到 {len(characters)} 个角色设计")
         return characters
     
