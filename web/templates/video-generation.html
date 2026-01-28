@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>视频生成系统</title>
-    <link rel="stylesheet" href="/static/css/video-generation.css?v=2">
+    <link rel="stylesheet" href="/static/css/video-generation.css?v=6">
     <link rel="stylesheet" href="/static/css/video-generation-character-portrait.css?v=2">
 </head>
 <body>
@@ -486,6 +486,176 @@
                     </div>
                 </div>
 
+                <!-- 统一工作流屏幕 -->
+                <div id="unifiedWorkflowScreen" class="unified-workflow-screen" style="display: none;">
+                    <div class="screen-header">
+                        <button id="backToTypesFromWorkflowBtn" class="btn-secondary">← 重新选择</button>
+                        <h2 id="workflowTitle">🎬 小说转视频工作流</h2>
+                        <div class="header-stats">
+                            <span id="workflowStepIndicator" class="step-indicator">
+                                <span class="step active" data-step="1">1</span>
+                                <span class="step-line"></span>
+                                <span class="step" data-step="2">2</span>
+                                <span class="step-line"></span>
+                                <span class="step" data-step="3">3</span>
+                                <span class="step-line"></span>
+                                <span class="step" data-step="4">4</span>
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- 工作流步骤信息 -->
+                    <div class="workflow-steps-info">
+                        <div class="step-info" id="stepInfo">
+                            <h3 id="currentStepTitle">步骤1: 风格转换</h3>
+                            <p id="currentStepDesc">将小说内容转换为选定视频风格的格式</p>
+                        </div>
+                    </div>
+
+                    <!-- 当前步骤结果展示区 -->
+                    <div id="workflowResultSection" class="workflow-result-section">
+                        <div id="workflowResultContent" class="workflow-result-content">
+                            <div class="placeholder">
+                                <p>👆 点击"开始执行"开始工作流</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 工作流操作按钮 -->
+                    <div class="workflow-actions">
+                        <button id="startWorkflowBtn" class="btn-primary btn-large">
+                            🚀 开始执行工作流
+                        </button>
+                        <button id="continueWorkflowBtn" class="btn-success btn-large" style="display: none;">
+                            ➡️ 继续下一步
+                        </button>
+                        <button id="regenerateStepBtn" class="btn-secondary" style="display: none;">
+                            🔄 重新生成当前步骤
+                        </button>
+                        <button id="skipStepBtn" class="btn-secondary" style="display: none;">
+                            ⏭️ 跳过此步骤
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 按集制作工作流屏幕 -->
+                <div id="episodeWorkflowScreen" class="episode-workflow-screen" style="display: none;">
+                    <div class="screen-header">
+                        <button id="backToModeFromEpisodeBtn" class="btn-secondary">← 返回模式选择</button>
+                        <h2 id="episodeWorkflowTitle">📺 按集制作视频</h2>
+                        <div class="header-stats">
+                            <span class="stat-item">
+                                <span class="stat-label">选中集数:</span>
+                                <span id="selectedEpisodesCount" class="stat-value">0</span>
+                            </span>
+                            <span class="stat-item">
+                                <span class="stat-label">角色剧照:</span>
+                                <span id="portraitStatusCount" class="stat-value">0/0</span>
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- 工作流步骤导航 -->
+                    <div class="episode-workflow-nav">
+                        <button class="workflow-nav-btn active" data-step="select-episodes">
+                            <span class="step-num">1</span>
+                            <span class="step-text">选择剧集</span>
+                        </button>
+                        <button class="workflow-nav-btn" data-step="check-portraits">
+                            <span class="step-num">2</span>
+                            <span class="step-text">准备剧照</span>
+                        </button>
+                        <button class="workflow-nav-btn" data-step="generate-storyboard">
+                            <span class="step-num">3</span>
+                            <span class="step-text">分镜头</span>
+                        </button>
+                        <button class="workflow-nav-btn" data-step="generate-video">
+                            <span class="step-num">4</span>
+                            <span class="step-text">生成视频</span>
+                        </button>
+                    </div>
+
+                    <!-- 工作流内容区 -->
+                    <div id="episodeWorkflowContent" class="episode-workflow-content">
+                        <!-- 步骤1: 选择剧集 -->
+                        <div id="episodeStep1" class="workflow-step-panel active">
+                            <div class="panel-header">
+                                <h3>📋 选择要制作的剧集</h3>
+                                <p>请先选择一个重大事件（篇章），然后选择其中的中级事件（集）进行制作</p>
+                            </div>
+
+                            <!-- 重大事件选择 -->
+                            <div class="major-event-selector">
+                                <h4>重大事件（篇章）</h4>
+                                <div id="majorEventList" class="major-event-list">
+                                    <div class="loading">加载中...</div>
+                                </div>
+                            </div>
+
+                            <!-- 中级事件（集）列表 -->
+                            <div class="episode-selector" id="episodeSelector" style="display: none;">
+                                <h4>中级事件（集数）<span id="selectedMajorEventName"></span></h4>
+                                <div class="episode-actions">
+                                    <button id="selectAllEpisodesBtn" class="btn-sm">全选</button>
+                                    <button id="clearEpisodesBtn" class="btn-sm">清空</button>
+                                </div>
+                                <div id="episodeList" class="episode-list">
+                                    <!-- 集数列表将动态生成 -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 步骤2: 准备剧照 -->
+                        <div id="episodeStep2" class="workflow-step-panel">
+                            <div class="panel-header">
+                                <h3>🎨 角色剧照准备</h3>
+                                <p>检查选中集数中出现的角色，确保每个角色都有剧照</p>
+                            </div>
+
+                            <div id="episodeCharacterPortraits" class="character-portraits-list">
+                                <!-- 角色剧照列表 -->
+                            </div>
+                        </div>
+
+                        <!-- 步骤3: 生成分镜头 -->
+                        <div id="episodeStep3" class="workflow-step-panel">
+                            <div class="panel-header">
+                                <h3>🎬 分镜头脚本生成</h3>
+                                <p>为选中的集数生成分镜头脚本</p>
+                            </div>
+
+                            <div id="episodeStoryboardPreview" class="storyboard-preview">
+                                <!-- 分镜头预览 -->
+                            </div>
+                        </div>
+
+                        <!-- 步骤4: 生成视频 -->
+                        <div id="episodeStep4" class="workflow-step-panel">
+                            <div class="panel-header">
+                                <h3>🎥 视频生成</h3>
+                                <p>根据分镜头脚本生成视频</p>
+                            </div>
+
+                            <div id="episodeVideoPreview" class="video-preview">
+                                <!-- 视频预览 -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 底部操作按钮 -->
+                    <div class="episode-workflow-actions">
+                        <button id="episodePrevBtn" class="btn-secondary" style="display: none;">
+                            ← 上一步
+                        </button>
+                        <button id="episodeNextBtn" class="btn-primary btn-large">
+                            下一步 →
+                        </button>
+                        <button id="episodeGenerateBtn" class="btn-success btn-large" style="display: none;">
+                            🚀 开始生成
+                        </button>
+                    </div>
+                </div>
+
                 <!-- 提示词预览屏幕 -->
                 <div id="promptPreviewScreen" class="prompt-preview-screen" style="display: none;">
                     <div class="screen-header">
@@ -501,14 +671,14 @@
 
                         <div class="prompt-actions">
                             <button id="editPromptBtn" class="btn-secondary">✏️ 编辑提示词</button>
-                            <button id="adaptToShortDramaBtn" class="btn-secondary btn-large" style="margin-bottom: 8px;">
-                                🎬 短剧风格改造
+                            <button id="startEpisodeWorkflowBtn" class="btn-success btn-large">
+                                📺 按集制作
                             </button>
-                            <button id="generateStoryboardBtn" class="btn-primary btn-large">
-                                🎬 生成分镜头脚本
+                            <button id="startWorkflowFromPromptBtn" class="btn-primary btn-large">
+                                🚀 启动统一工作流
                             </button>
-                            <button id="generatePortraitFirstBtn" class="btn-success btn-large" style="margin-top: 12px;">
-                                📸 剧照优先工作流（推荐）
+                            <button id="generateStoryboardBtn" class="btn-secondary btn-large">
+                                🎬 直接生成分镜头（快速模式）
                             </button>
                         </div>
                     </div>
@@ -942,7 +1112,6 @@
                 </div>
             </aside>
         </div>
-    </div>
 
     <!-- Toast 通知 -->
     <div id="toast" class="toast"></div>
@@ -964,6 +1133,6 @@
         </div>
     </div>
 
-    <script src="/static/js/video-generation.js?v=3"></script>
+    <script src="/static/js/video-generation.js?v=6"></script>
 </body>
 </html>

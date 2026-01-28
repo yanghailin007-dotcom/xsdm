@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>视频制作中心</title>
+
+    <!-- CSS -->
+    <link rel="stylesheet" href="/static/css/video/variables.css">
+    <link rel="stylesheet" href="/static/css/video/base.css">
+    <link rel="stylesheet" href="/static/css/video/components.css">
+    <link rel="stylesheet" href="/static/css/video/index.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- 导航栏 -->
+        <nav class="navbar">
+            <a href="/landing" class="navbar-brand">
+                🏠 首页
+            </a>
+            <h1 class="nav-title">🎬 视频制作中心</h1>
+            <nav class="navbar-nav">
+                <a href="/novels" class="nav-link">📚 小说项目</a>
+                <a href="/dashboard" class="nav-link">🏠 控制台</a>
+            </nav>
+        </nav>
+
+        <!-- 主内容区 -->
+        <main class="main-content">
+            <!-- 欢迎横幅 -->
+            <div class="welcome-banner">
+                <div class="banner-content">
+                    <h1 class="banner-title">将小说变成精彩视频</h1>
+                    <p class="banner-subtitle">一站式视频制作平台：剧照管理 → 分镜制作 → 视频渲染</p>
+                </div>
+                <div class="banner-actions">
+                    <a href="/video/project" class="btn btn-primary btn-lg">
+                        <span>🚀</span>
+                        <span>开始新项目</span>
+                    </a>
+                    <a href="/video/workflow" class="btn btn-secondary btn-lg">
+                        <span>📋</span>
+                        <span>查看进行中</span>
+                    </a>
+                </div>
+            </div>
+
+            <!-- 工作台入口 -->
+            <h2 class="section-title">选择工作台</h2>
+            <div class="workshop-grid">
+                <!-- 项目管理器 -->
+                <a href="/video/project" class="workshop-card">
+                    <div class="workshop-icon">📖</div>
+                    <div class="workshop-content">
+                        <h3 class="workshop-title">项目管理器</h3>
+                        <p class="workshop-desc">管理小说项目，规划分集，组织资源</p>
+                        <div class="workshop-features">
+                            <span class="feature-tag">• 导入小说</span>
+                            <span class="feature-tag">• 规划分集</span>
+                            <span class="feature-tag">• 资源管理</span>
+                        </div>
+                    </div>
+                    <div class="workshop-arrow">→</div>
+                </a>
+
+                <!-- 剧照工作台 -->
+                <a href="/video/portrait" class="workshop-card">
+                    <div class="workshop-icon">🎨</div>
+                    <div class="workshop-content">
+                        <h3 class="workshop-title">剧照工作台</h3>
+                        <p class="workshop-desc">制作人物角色、道具场景、首尾帧</p>
+                        <div class="workshop-features">
+                            <span class="feature-tag">• 人物角色</span>
+                            <span class="feature-tag">• 道具场景</span>
+                            <span class="feature-tag">• 首尾帧</span>
+                        </div>
+                    </div>
+                    <div class="workshop-arrow">→</div>
+                </a>
+
+                <!-- 视频工作台 -->
+                <a href="/video/studio" class="workshop-card">
+                    <div class="workshop-icon">🎬</div>
+                    <div class="workshop-content">
+                        <h3 class="workshop-title">视频工作台</h3>
+                        <p class="workshop-desc">分镜编辑、视频渲染、时间线管理</p>
+                        <div class="workshop-features">
+                            <span class="feature-tag">• 分镜编辑</span>
+                            <span class="feature-tag">• 视频生成</span>
+                            <span class="feature-tag">• 时间线</span>
+                        </div>
+                    </div>
+                    <div class="workshop-arrow">→</div>
+                </a>
+
+                <!-- 流程控制器 -->
+                <a href="/video/workflow" class="workshop-card">
+                    <div class="workshop-icon">🎬</div>
+                    <div class="workshop-content">
+                        <h3 class="workshop-title">流程控制器</h3>
+                        <p class="workshop-desc">小说自动转剧集、批量生成、进度管理</p>
+                        <div class="workshop-features">
+                            <span class="feature-tag">• 自动分镜</span>
+                            <span class="feature-tag">• 批量渲染</span>
+                            <span class="feature-tag">• 进度跟踪</span>
+                        </div>
+                    </div>
+                    <div class="workshop-arrow">→</div>
+                </a>
+            </div>
+
+            <!-- 最近项目 -->
+            <h2 class="section-title">最近项目</h2>
+            <div class="recent-projects" id="recentProjects">
+                <div class="loading-spinner"></div>
+            </div>
+
+            <!-- 统计数据 -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon">📖</div>
+                    <div class="stat-content">
+                        <div class="stat-value" id="statNovels">-</div>
+                        <div class="stat-label">小说项目</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">🎨</div>
+                    <div class="stat-content">
+                        <div class="stat-value" id="statPortraits">-</div>
+                        <div class="stat-label">角色剧照</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">🎬</div>
+                    <div class="stat-content">
+                        <div class="stat-value" id="statVideos">-</div>
+                        <div class="stat-label">已完成视频</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">📋</div>
+                    <div class="stat-content">
+                        <div class="stat-value" id="statTasks">-</div>
+                        <div class="stat-label">进行中任务</div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Toast 容器 -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script src="/static/js/video/core/api.js"></script>
+    <script src="/static/js/video/index.js"></script>
+</body>
+</html>

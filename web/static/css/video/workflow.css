@@ -1,0 +1,606 @@
+/**
+ * 流程控制器样式
+ */
+
+/* ========== 页面布局 ========== */
+.workflow-layout {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    gap: var(--space-lg);
+    min-height: calc(100vh - 180px);
+}
+
+/* ========== 左侧项目面板 ========== */
+.project-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+}
+
+.sidebar-section {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: var(--space-md);
+}
+
+.sidebar-section h3 {
+    font-size: var(--font-base);
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: var(--space-md);
+}
+
+/* ========== 小说选择器 ========== */
+.novel-selector {
+    margin-bottom: var(--space-md);
+}
+
+.novel-selector select {
+    width: 100%;
+    padding: var(--space-sm);
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-size: var(--font-sm);
+}
+
+/* ========== 章节树 ========== */
+.chapter-tree {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.tree-item {
+    margin-bottom: var(--space-xs);
+}
+
+.tree-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+    padding: var(--space-sm);
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all var(--transition-base);
+}
+
+.tree-header:hover {
+    background: var(--bg-primary);
+}
+
+.tree-header.expanded {
+    background: var(--primary-light);
+}
+
+.tree-toggle {
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    transition: transform var(--transition-base);
+}
+
+.tree-header.expanded .tree-toggle {
+    transform: rotate(90deg);
+}
+
+.tree-label {
+    flex: 1;
+    font-size: var(--font-sm);
+    color: var(--text-primary);
+}
+
+.tree-count {
+    font-size: var(--font-xs);
+    color: var(--text-muted);
+}
+
+.tree-checkbox {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--primary-color);
+}
+
+.tree-children {
+    display: none;
+    padding-left: var(--space-lg);
+}
+
+.tree-children.visible {
+    display: block;
+}
+
+.tree-item.leaf .tree-header {
+    padding-left: var(--space-lg);
+}
+
+/* ========== 右侧主内容区 ========== */
+.workflow-main {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+}
+
+/* ========== 流程步骤 ========== */
+.workflow-steps {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-sm);
+    padding: var(--space-lg);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+}
+
+.workflow-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-sm);
+}
+
+.step-number {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-tertiary);
+    border: 2px solid var(--border-color);
+    border-radius: 50%;
+    color: var(--text-muted);
+    font-size: var(--font-base);
+    font-weight: 600;
+    transition: all var(--transition-base);
+}
+
+.workflow-step.active .step-number {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+    color: white;
+}
+
+.workflow-step.completed .step-number {
+    background: var(--success-color);
+    border-color: var(--success-color);
+    color: white;
+}
+
+.step-label {
+    font-size: var(--font-sm);
+    color: var(--text-secondary);
+}
+
+.workflow-step.active .step-label {
+    color: var(--primary-color);
+}
+
+.step-connector {
+    width: 60px;
+    height: 2px;
+    background: var(--border-color);
+}
+
+.workflow-step.completed ~ .step-connector {
+    background: var(--success-color);
+}
+
+/* ========== 步骤内容面板 ========== */
+.step-content {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: var(--space-lg);
+    min-height: 400px;
+}
+
+.step-content-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--space-lg);
+}
+
+.step-content-header h3 {
+    font-size: var(--font-xl);
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.step-actions {
+    display: flex;
+    gap: var(--space-sm);
+}
+
+/* ========== 配置选项 ========== */
+.config-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: var(--space-md);
+    margin-bottom: var(--space-lg);
+}
+
+.config-card {
+    padding: var(--space-md);
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+}
+
+.config-card h4 {
+    font-size: var(--font-sm);
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: var(--space-md);
+}
+
+.config-option {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-sm);
+    margin-bottom: var(--space-xs);
+    background: var(--bg-secondary);
+    border-radius: var(--radius-sm);
+}
+
+.config-option:last-child {
+    margin-bottom: 0;
+}
+
+.config-label {
+    font-size: var(--font-sm);
+    color: var(--text-primary);
+}
+
+.config-value {
+    font-size: var(--font-sm);
+    color: var(--text-secondary);
+}
+
+/* ========== 批量生成进度 ========== */
+.batch-progress {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: var(--space-lg);
+}
+
+.batch-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--space-md);
+}
+
+.batch-title {
+    font-size: var(--font-lg);
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.batch-stats {
+    display: flex;
+    gap: var(--space-lg);
+}
+
+.batch-stat {
+    text-align: center;
+}
+
+.batch-stat-value {
+    font-size: var(--font-xl);
+    font-weight: 700;
+    color: var(--primary-color);
+}
+
+.batch-stat-label {
+    font-size: var(--font-xs);
+    color: var(--text-muted);
+}
+
+.batch-progress-bar {
+    height: 12px;
+    background: var(--bg-secondary);
+    border-radius: var(--radius-full);
+    overflow: hidden;
+    margin-bottom: var(--space-md);
+}
+
+.batch-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+    border-radius: var(--radius-full);
+    width: 0%;
+    transition: width 0.3s ease;
+}
+
+/* ========== 任务列表 ========== */
+.task-list {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.task-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    padding: var(--space-md);
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--space-sm);
+}
+
+.task-item:last-child {
+    margin-bottom: 0;
+}
+
+.task-status {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.task-status.pending {
+    background: var(--bg-secondary);
+    color: var(--text-muted);
+}
+
+.task-status.processing {
+    background: var(--warning-color);
+    color: white;
+    animation: pulse 1s infinite;
+}
+
+.task-status.completed {
+    background: var(--success-color);
+    color: white;
+}
+
+.task-status.failed {
+    background: var(--danger-color);
+    color: white;
+}
+
+.task-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.task-title {
+    font-size: var(--font-base);
+    font-weight: 500;
+    color: var(--text-primary);
+    margin-bottom: var(--space-xs);
+}
+
+.task-meta {
+    display: flex;
+    gap: var(--space-md);
+    font-size: var(--font-sm);
+    color: var(--text-muted);
+}
+
+.task-progress {
+    width: 100px;
+}
+
+.task-progress-bar {
+    height: 4px;
+    background: var(--bg-secondary);
+    border-radius: var(--radius-full);
+    overflow: hidden;
+}
+
+.task-progress-fill {
+    height: 100%;
+    background: var(--primary-color);
+    border-radius: var(--radius-full);
+    width: 0%;
+    transition: width 0.3s ease;
+}
+
+/* ========== 输出预览 ========== */
+.output-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: var(--space-md);
+}
+
+.output-item {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+}
+
+.output-thumbnail {
+    aspect-ratio: 16:9;
+    background: var(--bg-secondary);
+    position: relative;
+}
+
+.output-thumbnail img,
+.output-thumbnail video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.output-overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: var(--space-sm);
+    background: linear-gradient(transparent, rgba(0, 0, 0, 0.8));
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.output-title {
+    font-size: var(--font-xs);
+    color: white;
+}
+
+.output-actions {
+    display: flex;
+    gap: var(--space-xs);
+}
+
+.output-actions button {
+    padding: var(--space-xs);
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    border-radius: var(--radius-sm);
+    color: white;
+    cursor: pointer;
+}
+
+.output-actions button:hover {
+    background: var(--primary-color);
+}
+
+.output-info {
+    padding: var(--space-sm);
+}
+
+.output-meta {
+    display: flex;
+    justify-content: space-between;
+    font-size: var(--font-xs);
+    color: var(--text-muted);
+}
+
+/* ========== 控制按钮组 ========== */
+.workflow-controls {
+    display: flex;
+    justify-content: center;
+    gap: var(--space-md);
+    padding: var(--space-lg);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+}
+
+.workflow-controls-left,
+.workflow-controls-right {
+    flex: 1;
+    display: flex;
+    gap: var(--space-sm);
+}
+
+.workflow-controls-left {
+    justify-content: flex-start;
+}
+
+.workflow-controls-right {
+    justify-content: flex-end;
+}
+
+.workflow-controls-center {
+    display: flex;
+    gap: var(--space-sm);
+}
+
+/* ========== 设置面板 ========== */
+.settings-panel {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: var(--space-md);
+}
+
+.setting-group {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: var(--space-md);
+}
+
+.setting-group h4 {
+    font-size: var(--font-sm);
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: var(--space-md);
+}
+
+.setting-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--space-sm);
+    margin-bottom: var(--space-xs);
+}
+
+.setting-row:last-child {
+    margin-bottom: 0;
+}
+
+.setting-label {
+    font-size: var(--font-sm);
+    color: var(--text-primary);
+}
+
+.setting-input {
+    width: 120px;
+    padding: var(--space-xs) var(--space-sm);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-size: var(--font-sm);
+    text-align: center;
+}
+
+.setting-input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+}
+
+/* ========== 响应式 ========== */
+@media (max-width: 1024px) {
+    .workflow-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .project-sidebar {
+        max-height: 400px;
+        overflow-y: auto;
+    }
+
+    .workflow-steps {
+        flex-wrap: wrap;
+    }
+
+    .step-connector {
+        display: none;
+    }
+}
+
+@media (max-width: 640px) {
+    .batch-stats {
+        flex-direction: column;
+        gap: var(--space-sm);
+    }
+
+    .workflow-controls {
+        flex-direction: column;
+    }
+
+    .workflow-controls-left,
+    .workflow-controls-right {
+        justify-content: center;
+    }
+}

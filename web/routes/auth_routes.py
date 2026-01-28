@@ -242,7 +242,45 @@ def register_page_routes(app):
         from urllib.parse import unquote
         project_title = unquote(project_title)
         return render_template('worldview-viewer.html', project_title=project_title)
-    
+
+    # ========== 新的视频制作中心路由 ==========
+
+    @app.route('/video', methods=['GET'])
+    @login_required
+    def video_center():
+        """视频制作中心首页"""
+        return render_template('video/index.html')
+
+    @app.route('/video/project', methods=['GET'])
+    @login_required
+    def video_project_center():
+        """项目管理器"""
+        return render_template('video/project.html')
+
+    @app.route('/video/project/<project_id>', methods=['GET'])
+    @login_required
+    def video_project_detail(project_id):
+        """项目详情"""
+        return render_template('video/project.html', project_id=project_id)
+
+    @app.route('/video/portrait', methods=['GET'])
+    @login_required
+    def video_portrait():
+        """剧照工作台"""
+        return render_template('video/portrait.html')
+
+    @app.route('/video/studio', methods=['GET'])
+    @login_required
+    def video_studio_new():
+        """视频工作台（新版）"""
+        return render_template('video/studio.html')
+
+    @app.route('/video/workflow', methods=['GET'])
+    @login_required
+    def video_workflow():
+        """流程控制器"""
+        return render_template('video/workflow.html')
+
     # 错误处理
     @app.errorhandler(404)
     def not_found(error):

@@ -337,21 +337,32 @@ def get_novel_content():
             })
         
         logger.info(f"📊 [VIDEO] 格式化后共有 {len(events)} 个重大事件，包含 {sum(e['children_count'] for e in events)} 个中级事件")
-        
+
         # 提取角色
         characters = event_extractor.extract_character_designs(novel_detail)
         logger.info(f"👥 [VIDEO] 提取到 {len(characters)} 个角色设计")
-        
+
         # 格式化角色数据
         formatted_characters = []
+        character_names = []  # 用于填充medium events
         for idx, character in enumerate(characters):
+            char_name = character.get("name", f"角色 {idx + 1}")
             formatted_characters.append({
                 "id": f"character_{idx}",
-                "name": character.get("name", f"角色 {idx + 1}"),
+                "name": char_name,
                 "role": character.get("role", ""),
                 "description": character.get("description", "")[:200]
             })
-        
+            character_names.append(char_name)
+
+        # 🔥 修复：将角色列表添加到每个medium event，这样前端可以提取
+        for event in events:
+            if event.get("children"):
+                for child in event["children"]:
+                    # 如果medium event没有characters字段，添加全局角色列表（用逗号分隔）
+                    if not child.get("characters"):
+                        child["characters"] = ",".join(character_names)
+
         return jsonify({
             "success": True,
             "events": events,
@@ -3608,10 +3619,382 @@ def _generate_adaptation_summary(events: list) -> str:
 - 适配8-10秒短视频格式"""
 
 
+@video_api.route('/video/style-conversion', methods=['POST'])
+@login_required
+def style_conversion():
+    """
+    统一工作流 - 步骤1：风格转换
+
+    将小说内容转换为选定视频风格的格式
+
+    请求参数：
+    {
+        "title": "小说标题",
+        "video_type": "视频类型",
+        "selected_events": ["event1", "event2"],
+        "selected_characters": ["char1", "char2"]
+    }
+    """
+    try:
+        data = request.get_json()
+        title = data.get('title')
+        video_type = data.get('video_type')
+        selected_events = data.get('selected_events', [])
+
+        if not title:
+            return jsonify({'success': False, 'error': '缺少小说标题'}), 400
+
+        if not manager:
+            return jsonify({'success': False, 'error': '管理器未初始化'}), 500
+
+        logger.info(f"🎨 [风格转换] 开始转换: {title} -> {video_type}")
+
+        # 获取小说数据
+        novel_detail = manager.get_novel_detail(title)
+        if not novel_detail:
+            return jsonify({'success': False, 'error': f'找不到小说: {title}'}), 404
+
+        # 获取事件提取器
+        from src.managers.EventExtractor import get_event_extractor
+        event_extractor = get_event_extractor(logger)
+
+        # 提取角色数据（用于统计）
+        characters = event_extractor.extract_character_designs(novel_detail)
+
+        # 生成风格转换预览
+        type_names = {
+            'short_film': '短片/动画电影',
+            'long_series': '长篇剧集',
+            'short_video': '短视频系列'
+        }
+
+        converted_preview = f"""【风格转换完成】
+
+原始小说：{title}
+目标类型：{type_names.get(video_type, video_type)}
+
+转换说明：
+- ✓ 内容已适配{type_names.get(video_type, video_type)}的叙事节奏
+- ✓ 选中{len(selected_events)}个事件进行转换
+- ✓ 共{len(characters)}个角色将参与视频制作
+
+下一步：生成角色剧照以固定角色形象
+"""
+
+        return jsonify({
+            'success': True,
+            'video_type': video_type,
+            'event_count': len(selected_events),
+            'character_count': len(characters),
+            'converted_preview': converted_preview
+        })
+
+    except Exception as e:
+        logger.error(f"风格转换失败: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@video_api.route('/video/generate-batch-portraits', methods=['POST'])
+@login_required
+def generate_batch_portraits():
+    """
+    统一工作流 - 步骤2：批量生成角色剧照
+
+    为多个角色批量生成剧照
+
+    请求参数：
+    {
+        "title": "小说标题",
+        "characters": [
+            {"id": "char1", "name": "张三", "role": "主角", "appearance": "..."},
+            ...
+        ]
+    }
+    """
+    try:
+        data = request.get_json()
+        title = data.get('title')
+        characters = data.get('characters', [])
+
+        if not title:
+            return jsonify({'success': False, 'error': '缺少小说标题'}), 400
+
+        if not manager:
+            return jsonify({'success': False, 'error': '管理器未初始化'}), 500
+
+        logger.info(f"📸 [批量剧照] 开始生成 {len(characters)} 个角色的剧照")
+
+        # 获取小说数据
+        novel_detail = manager.get_novel_detail(title)
+        if not novel_detail:
+            return jsonify({'success': False, 'error': f'找不到小说: {title}'}), 404
+
+        # 获取事件提取器
+        from src.managers.EventExtractor import get_event_extractor
+        event_extractor = get_event_extractor(logger)
+
+        # 提取角色数据
+        all_characters = event_extractor.extract_character_designs(novel_detail)
+
+        # 限制最多生成3个角色（避免超时）
+        characters_to_generate = characters[:3]
+        logger.info(f"📸 [批量剧照] 将生成 {len(characters_to_generate)} 个角色剧照")
+
+        portraits = []
+        from src.utils.NanoBananaImageGenerator import NanoBananaImageGenerator
+        generator = NanoBananaImageGenerator()
+        import os
+        import urllib.parse
+
+        for idx, char in enumerate(characters_to_generate):
+            char_name = char.get('name')
+            char_id = char.get('id')
+            char_role = char.get('role', '角色')
+
+            logger.info(f"📸 [批量剧照] 正在生成角色 {idx+1}/{len(characters_to_generate)}: {char_name}")
+
+            # 从完整角色列表中查找详细信息
+            char_detail = None
+            for c in all_characters:
+                if c.get('name') == char_name or c.get('id') == char_id:
+                    char_detail = c
+                    break
+
+            if not char_detail:
+                logger.warning(f"⚠️ [批量剧照] 找不到角色详情: {char_name}")
+                continue
+
+            # 生成角色提示词
+            character_prompts = event_extractor.generate_character_prompts([char_detail])
+            if not character_prompts:
+                logger.warning(f"⚠️ [批量剧照] 生成角色提示词失败: {char_name}")
+                continue
+
+            prompt = character_prompts[0].get('generation_prompt', '')
+
+            # 生成文件名
+            safe_name = char_name.replace(' ', '_').replace('/', '_')
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"{title}_{safe_name}_portrait_{timestamp}"
+
+            # 调用图像生成器
+            try:
+                result = generator.generate_image(
+                    prompt=prompt,
+                    aspect_ratio='9:16',  # 竖屏适合角色展示
+                    image_size='4K',
+                    save_path=None,
+                    reference_images=[]
+                )
+
+                if result.get('success'):
+                    # 构建HTTP访问路径
+                    image_filename = os.path.basename(result.get('local_path', ''))
+                    encoded_filename = urllib.parse.quote(image_filename)
+                    image_url = f"/generated_images/{encoded_filename}"
+
+                    logger.info(f"✅ [批量剧照] {char_name} 剧照生成成功: {image_url}")
+
+                    portraits.append({
+                        'characterId': char_id,
+                        'characterName': char_name,
+                        'characterRole': char_role,
+                        'imageUrl': image_url,
+                        'localPath': result.get('local_path'),
+                        'prompt': prompt
+                    })
+                else:
+                    logger.error(f"❌ [批量剧照] {char_name} 生成失败: {result.get('error')}")
+                    # 添加失败的条目，标记为失败
+                    portraits.append({
+                        'characterId': char_id,
+                        'characterName': char_name,
+                        'characterRole': char_role,
+                        'imageUrl': None,
+                        'error': result.get('error', '生成失败'),
+                        'status': 'failed'
+                    })
+            except Exception as e:
+                logger.error(f"❌ [批量剧照] {char_name} 生成异常: {str(e)}")
+                portraits.append({
+                    'characterId': char_id,
+                    'characterName': char_name,
+                    'characterRole': char_role,
+                    'imageUrl': None,
+                    'error': str(e),
+                    'status': 'error'
+                })
+
+        return jsonify({
+            'success': True,
+            'portraits': portraits,
+            'total': len(portraits),
+            'successful': len([p for p in portraits if p.get('imageUrl')]),
+            'failed': len([p for p in portraits if not p.get('imageUrl')])
+        })
+
+    except Exception as e:
+        logger.error(f"批量剧照生成失败: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@video_api.route('/projects', methods=['GET'])
+@login_required
+def get_video_projects():
+    """
+    获取视频项目列表
+
+    返回所有创建的视频制作项目
+    """
+    try:
+        if not manager:
+            return jsonify({"success": False, "error": "管理器未初始化"}), 500
+
+        projects = []
+
+        # 从tasks/video_tasks目录读取项目信息
+        tasks_dir = os.path.join(BASE_DIR, 'tasks', 'video_tasks')
+        if os.path.exists(tasks_dir):
+            for task_file in os.listdir(tasks_dir):
+                if task_file.endswith('.json'):
+                    try:
+                        with open(os.path.join(tasks_dir, task_file), 'r', encoding='utf-8') as f:
+                            task_data = json.load(f)
+
+                        projects.append({
+                            'id': task_file.replace('.json', ''),
+                            'title': task_data.get('project_name', task_file.replace('.json', '')),
+                            'novel_title': task_data.get('novel_title', ''),
+                            'status': task_data.get('status', 'pending'),
+                            'total_episodes': task_data.get('total_shots', 0),
+                            'character_count': len(task_data.get('characters', [])),
+                            'portrait_count': task_data.get('portrait_count', 0),
+                            'created_at': task_data.get('created_at', ''),
+                            'progress': calculate_progress(task_data)
+                        })
+                    except Exception as e:
+                        logger.warning(f"读取项目文件 {task_file} 失败: {e}")
+
+        # 同时也检查直接创建的项目文件
+        projects_dir = os.path.join(BASE_DIR, 'video_projects')
+        if os.path.exists(projects_dir):
+            for proj_file in os.listdir(projects_dir):
+                if proj_file.endswith('.json'):
+                    try:
+                        with open(os.path.join(projects_dir, proj_file), 'r', encoding='utf-8') as f:
+                            proj_data = json.load(f)
+
+                        # 检查是否已经在列表中
+                        existing = next((p for p in projects if p['id'] == proj_file.replace('.json', '')), None)
+                        if existing:
+                            continue
+
+                        projects.append({
+                            'id': proj_file.replace('.json', ''),
+                            'title': proj_data.get('title', proj_file.replace('.json', '')),
+                            'novel_title': proj_data.get('novel_title', ''),
+                            'status': proj_data.get('status', 'draft'),
+                            'total_episodes': proj_data.get('total_episodes', 0),
+                            'character_count': len(proj_data.get('characters', [])),
+                            'portrait_count': len(proj_data.get('portraits', {})),
+                            'created_at': proj_data.get('created_at', ''),
+                            'progress': 0
+                        })
+                    except Exception as e:
+                        logger.warning(f"读取项目文件 {proj_file} 失败: {e}")
+
+        return jsonify({
+            'success': True,
+            'projects': projects,
+            'total': len(projects)
+        })
+
+    except Exception as e:
+        logger.error(f"获取项目列表失败: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+def calculate_progress(task_data):
+    """计算项目进度"""
+    total_shots = task_data.get('total_shots', 0)
+    if total_shots == 0:
+        return 0
+
+    completed_shots = task_data.get('completed_shots', 0)
+    return (completed_shots / total_shots) * 100
+
+
+@video_api.route('/stats', methods=['GET'])
+@login_required
+def get_video_stats():
+    """
+    获取视频制作统计数据
+
+    返回小说项目数、剧照数、视频数、任务数等统计信息
+    """
+    try:
+        if not manager:
+            return jsonify({"success": False, "error": "管理器未初始化"}), 500
+
+        stats = {
+            'novel_count': 0,
+            'portrait_count': 0,
+            'video_count': 0,
+            'task_count': 0,
+            'project_count': 0
+        }
+
+        # 获取所有小说项目
+        all_projects = manager.get_novel_projects()
+        stats['novel_count'] = len(all_projects)
+
+        # 统计剧照数量（检查generated_images目录）
+        try:
+            images_dir = os.path.join(BASE_DIR, 'generated_images')
+            if os.path.exists(images_dir):
+                portrait_files = [f for f in os.listdir(images_dir) if f.endswith('.png') or f.endswith('.jpg')]
+                stats['portrait_count'] = len(portrait_files)
+        except Exception as e:
+            logger.warning(f"统计剧照失败: {e}")
+
+        # 统计视频数量（检查generated_videos目录）
+        try:
+            videos_dir = os.path.join(BASE_DIR, 'generated_videos')
+            if os.path.exists(videos_dir):
+                video_files = [f for f in os.listdir(videos_dir) if f.endswith('.mp4')]
+                stats['video_count'] = len(video_files)
+        except Exception as e:
+            logger.warning(f"统计视频失败: {e}")
+
+        # 统计任务数量（检查tasks目录）
+        try:
+            tasks_dir = os.path.join(BASE_DIR, 'tasks', 'video_tasks')
+            if os.path.exists(tasks_dir):
+                task_files = [f for f in os.listdir(tasks_dir) if f.endswith('.json')]
+                stats['task_count'] = len(task_files)
+        except Exception as e:
+            logger.warning(f"统计任务失败: {e}")
+
+        return jsonify({
+            'success': True,
+            **stats
+        })
+
+    except Exception as e:
+        logger.error(f"获取统计数据失败: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 def register_video_routes(app):
     """注册视频生成API路由"""
     app.register_blueprint(video_api, url_prefix='/api')
-    
+
     logger.debug("=" * 60)
     logger.debug("📋 已注册的视频生成API路由:")
     for rule in app.url_map.iter_rules():

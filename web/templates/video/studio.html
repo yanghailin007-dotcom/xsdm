@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>视频工作台 - 视频制作中心</title>
+
+    <link rel="stylesheet" href="/static/css/video/variables.css">
+    <link rel="stylesheet" href="/static/css/video/base.css">
+    <link rel="stylesheet" href="/static/css/video/components.css">
+    <link rel="stylesheet" href="/static/css/video/studio.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- 导航栏 -->
+        <nav class="navbar">
+            <a href="/video" class="navbar-brand">← 返回中心</a>
+            <h1 class="nav-title">🎬 视频工作台</h1>
+            <nav class="navbar-nav">
+                <a href="/video/project" class="nav-link">📖 项目管理器</a>
+                <a href="/video/portrait" class="nav-link">🎨 剧照工作台</a>
+                <a href="/video/workflow" class="nav-link">🎬 流程控制器</a>
+            </nav>
+        </nav>
+
+        <!-- 主内容区 -->
+        <main class="main-content">
+            <div class="studio-layout">
+                <!-- 左侧控制面板 -->
+                <div class="studio-controls">
+                    <!-- 提示词输入 -->
+                    <div class="control-section">
+                        <h3>📝 视频描述</h3>
+                        <textarea id="videoPrompt" class="prompt-editor" rows="5"
+                            placeholder="描述您想要生成的视频内容、场景、动作、风格等...
+
+例如：一位剑仙在云端修行的场景，使用水墨画风，背景是壮观的云海和山峦..."></textarea>
+
+                        <div class="prompt-templates" style="margin-top: var(--space-md);">
+                            <div class="template-buttons">
+                                <button class="template-btn" onclick="applyTemplate('xianxia')">仙侠</button>
+                                <button class="template-btn" onclick="applyTemplate('modern')">都市</button>
+                                <button class="template-btn" onclick="applyTemplate('scifi')">科幻</button>
+                                <button class="template-btn" onclick="applyTemplate('fantasy')">奇幻</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 图片输入 -->
+                    <div class="image-upload-section">
+                        <h3>🖼️ 图片输入</h3>
+                        <div class="upload-mode-selector">
+                            <button class="mode-btn active" data-mode="reference" onclick="setUploadMode('reference')">
+                                <span class="mode-icon">📷</span>
+                                <span class="mode-name">参考图</span>
+                            </button>
+                            <button class="mode-btn" data-mode="frame" onclick="setUploadMode('frame')">
+                                <span class="mode-icon">🎬</span>
+                                <span class="mode-name">首尾帧</span>
+                            </button>
+                        </div>
+
+                        <!-- 参考图模式 -->
+                        <div id="referenceMode" class="upload-mode-content active">
+                            <div class="upload-area" id="referenceUploadArea">
+                                <input type="file" id="referenceImageInput" accept="image/*" hidden>
+                                <div class="upload-placeholder" id="referencePlaceholder">
+                                    <span class="upload-icon">📷</span>
+                                    <p>点击或拖拽上传参考图</p>
+                                    <span class="upload-hint">支持 JPG、PNG 格式</span>
+                                </div>
+                                <div class="uploaded-image" id="referencePreview" style="display: none;">
+                                    <img src="" alt="参考图预览" id="referencePreviewImg">
+                                    <button class="remove-image-btn" onclick="removeReference()">✕</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 首尾帧模式 -->
+                        <div id="frameMode" class="upload-mode-content">
+                            <div class="frame-upload-container">
+                                <div class="upload-area frame-upload" id="firstFrameUploadArea">
+                                    <input type="file" id="firstFrameInput" accept="image/*" hidden>
+                                    <div class="upload-placeholder" id="firstFramePlaceholder">
+                                        <span class="upload-icon">🎬</span>
+                                        <p>首帧</p>
+                                        <span class="upload-hint">上传起始画面</span>
+                                    </div>
+                                    <div class="uploaded-image" id="firstFramePreview" style="display: none;">
+                                        <img src="" alt="首帧预览" id="firstFramePreviewImg">
+                                        <button class="remove-image-btn" onclick="removeFrame('first')">✕</button>
+                                        <span class="frame-label">首帧</span>
+                                    </div>
+                                </div>
+
+                                <div class="frame-arrow">→</div>
+
+                                <div class="upload-area frame-upload" id="lastFrameUploadArea">
+                                    <input type="file" id="lastFrameInput" accept="image/*" hidden>
+                                    <div class="upload-placeholder" id="lastFramePlaceholder">
+                                        <span class="upload-icon">🎬</span>
+                                        <p>尾帧</p>
+                                        <span class="upload-hint">上传结束画面</span>
+                                    </div>
+                                    <div class="uploaded-image" id="lastFramePreview" style="display: none;">
+                                        <img src="" alt="尾帧预览" id="lastFramePreviewImg">
+                                        <button class="remove-image-btn" onclick="removeFrame('last')">✕</button>
+                                        <span class="frame-label">尾帧</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 视频配置 -->
+                    <div class="control-section">
+                        <h3>⚙️ 视频配置</h3>
+
+                        <div class="setting-row">
+                            <label>视频时长：</label>
+                            <select id="durationSelect" class="input">
+                                <option value="5">5秒</option>
+                                <option value="10" selected>10秒</option>
+                            </select>
+                        </div>
+
+                        <div class="setting-row">
+                            <label>分辨率：</label>
+                            <select id="resolutionSelect" class="input">
+                                <option value="720p">720p (HD)</option>
+                                <option value="1080p" selected>1080p (Full HD)</option>
+                                <option value="4K">4K (Ultra HD)</option>
+                            </select>
+                        </div>
+
+                        <div class="setting-row">
+                            <label>视频比例：</label>
+                            <div class="ratio-buttons" style="grid-template-columns: repeat(3, 1fr);">
+                                <button class="ratio-btn active" data-ratio="16:9" onclick="selectRatio(this)">
+                                    <span class="ratio-icon">🖼️</span>
+                                    <span class="ratio-name">横屏</span>
+                                </button>
+                                <button class="ratio-btn" data-ratio="9:16" onclick="selectRatio(this)">
+                                    <span class="ratio-icon">📱</span>
+                                    <span class="ratio-name">竖屏</span>
+                                </button>
+                                <button class="ratio-btn" data-ratio="1:1" onclick="selectRatio(this)">
+                                    <span class="ratio-icon">⬜</span>
+                                    <span class="ratio-name">方形</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 生成按钮 -->
+                    <button class="btn-generate" onclick="generateVideo()">
+                        <span class="btn-icon">🎬</span>
+                        <span class="btn-text">生成视频</span>
+                    </button>
+
+                    <!-- 生成历史 -->
+                    <div class="control-section">
+                        <h3>📋 生成历史</h3>
+                        <div id="historyList" class="history-list">
+                            <p class="empty-hint">暂无生成记录</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 右侧预览区 -->
+                <div class="studio-preview">
+                    <!-- 视频预览 -->
+                    <div class="video-player-container">
+                        <div id="videoPlaceholder" class="video-placeholder">
+                            <div class="placeholder-content">
+                                <div class="placeholder-icon">🎬</div>
+                                <p>配置参数后点击"生成视频"开始创作</p>
+                                <p class="hint">支持多种风格和质量选项</p>
+                            </div>
+                        </div>
+
+                        <video id="videoPlayer" class="video-player" style="display: none;" controls>
+                            <source src="" type="video/mp4">
+                            您的浏览器不支持视频播放。
+                        </video>
+                    </div>
+
+                    <!-- 视频信息 -->
+                    <div id="videoInfoPanel" class="video-info-panel" style="display: none;">
+                        <h4>视频信息</h4>
+                        <div class="info-grid">
+                            <div class="info-item">
+                                <span class="info-label">分辨率:</span>
+                                <span id="videoResolution" class="info-value">-</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">时长:</span>
+                                <span id="videoDuration" class="info-value">-</span>
+                            </div>
+                        </div>
+                        <div class="video-actions">
+                            <button class="btn btn-sm" onclick="downloadVideo()">📥 下载</button>
+                            <button class="btn btn-sm" onclick="regenerateVideo()">🔄 重新生成</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Toast 容器 -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script src="/static/js/video/core/api.js"></script>
+    <script src="/static/js/video/studio.js"></script>
+</body>
+</html>

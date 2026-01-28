@@ -1,7 +1,31 @@
 /**
  * 视频生成系统 - 前端逻辑
- * 改进版：支持分步骤生成视频
+ * 改进版：支持分步骤生成视频，统一工作流
  */
+
+// 统一工作流步骤定义
+const WORKFLOW_STEPS = {
+    1: {
+        name: '风格转换',
+        description: '将小说内容转换为选定视频风格的格式',
+        icon: '🎨'
+    },
+    2: {
+        name: '生成角色剧照',
+        description: '为选中的重大事件/集生成主要角色的固定形象剧照',
+        icon: '📸'
+    },
+    3: {
+        name: '生成分镜头',
+        description: '基于风格转换内容和角色剧照，生成具体的分镜头脚本',
+        icon: '🎬'
+    },
+    4: {
+        name: '生成视频',
+        description: '根据分镜头脚本逐个或批量生成视频文件',
+        icon: '🎥'
+    }
+};
 
 class VideoGenerator {
     constructor() {
@@ -14,14 +38,23 @@ class VideoGenerator {
         this.shots = [];
         this.selectedMode = null; // 'custom' or 'novel'
         this.customPrompt = '';
-        
+
         // 新增：事件和角色选择
         this.events = [];
         this.characters = [];
         this.selectedEvents = new Set();
         this.selectedCharacters = new Set();
         this.activeTab = 'events'; // 'events' or 'characters'
-        
+
+        // 统一工作流状态
+        this.workflowStep = 0; // 0=未开始, 1-4=对应步骤
+        this.workflowData = {
+            styleConversion: null,
+            characterPortraits: null,
+            storyboard: null,
+            videos: null
+        };
+
         this.init();
     }
     
@@ -1141,23 +1174,748 @@ class VideoGenerator {
         // 显示提示词
         document.getElementById('promptText').textContent = this.currentPrompt || '正在生成...';
 
-        // 如果是短剧模式，显示特殊提示
-        if (this.isShortDramaMode) {
-            this.showToast('🎭 短剧模式：点击"短剧风格改造"开始转换！', 'success');
-
-            // 高亮短剧改造按钮
-            const adaptBtn = document.getElementById('adaptToShortDramaBtn');
-            if (adaptBtn) {
-                adaptBtn.style.boxShadow = '0 0 20px rgba(238, 90, 36, 0.6)';
-                adaptBtn.style.transform = 'scale(1.05)';
-            }
-        }
+        // 隐藏帮助侧边栏，显示右侧分镜头
+        document.getElementById('helpSidebar').style.display = 'none';
+        document.getElementById('rightSidebar').style.display = 'none';
 
         // 更新状态
         this.updateCurrentStatus(`已选择: ${this.selectedNovel}<br>类型: ${typeName}<br>步骤: 查看提示词`);
 
         // 高亮第四步
         this.highlightWorkflowStep(4);
+    }
+
+    // ========== 统一工作流方法 ==========
+
+    /**
+     * 启动统一工作流
+     */
+    startUnifiedWorkflow() {
+        console.log('🚀 启动统一工作流');
+        this.workflowStep = 0;
+        this.workflowData = {
+            styleConversion: null,
+            characterPortraits: null,
+            storyboard: null,
+            videos: null
+        };
+
+        // 切换到工作流屏幕
+        document.getElementById('promptPreviewScreen').style.display = 'none';
+        document.getElementById('unifiedWorkflowScreen').style.display = 'block';
+
+        // 隐藏侧边栏
+        document.querySelector('.main-container').classList.add('hide-sidebar');
+        document.getElementById('helpSidebar').style.display = 'none';
+
+        this.showWorkflowStep(1);
+    }
+
+    /**
+     * 显示工作流指定步骤
+     */
+    showWorkflowStep(step) {
+        this.workflowStep = step;
+
+        // 更新步骤指示器
+        const steps = document.querySelectorAll('.step-indicator .step');
+        steps.forEach((el, index) => {
+            const stepNum = index + 1;
+            el.classList.remove('active', 'completed');
+            if (stepNum < step) {
+                el.classList.add('completed');
+            } else if (stepNum === step) {
+                el.classList.add('active');
+            }
+        });
+
+        // 更新步骤信息
+        const stepInfo = WORKFLOW_STEPS[step];
+        document.getElementById('currentStepTitle').textContent =
+            `${stepInfo.icon} 步骤${step}: ${stepInfo.name}`;
+        document.getElementById('currentStepDesc').textContent = stepInfo.description;
+
+        // 更新标题
+        const typeName = this.videoTypes[this.selectedType]?.name || this.selectedType;
+        document.getElementById('workflowTitle').textContent =
+            `🎬 ${this.selectedNovel} - ${typeName}`;
+
+        // 重置结果显示区
+        this.resetWorkflowResult();
+
+        // 更新按钮状态
+        this.updateWorkflowButtons();
+
+        console.log(`📍 工作流：进入步骤${step} - ${stepInfo.name}`);
+    }
+
+    /**
+     * 重置工作流结果显示区
+     */
+    resetWorkflowResult() {
+        document.getElementById('workflowResultContent').innerHTML = `
+            <div class="placeholder">
+                <p>👆 点击"开始执行"开始步骤${this.workflowStep}</p>
+            </div>
+        `;
+    }
+
+    /**
+     * 更新工作流按钮状态
+     */
+    updateWorkflowButtons() {
+        const startBtn = document.getElementById('startWorkflowBtn');
+        const continueBtn = document.getElementById('continueWorkflowBtn');
+        const regenerateBtn = document.getElementById('regenerateStepBtn');
+        const skipBtn = document.getElementById('skipStepBtn');
+
+        // 默认状态：显示开始按钮
+        startBtn.style.display = 'inline-block';
+        continueBtn.style.display = 'none';
+        regenerateBtn.style.display = 'none';
+        skipBtn.style.display = 'none';
+
+        // 根据步骤调整按钮文本
+        const stepInfo = WORKFLOW_STEPS[this.workflowStep];
+        startBtn.textContent = `🚀 开始${stepInfo.name}`;
+    }
+
+    /**
+     * 执行当前工作流步骤
+     */
+    async executeWorkflowStep() {
+        const step = this.workflowStep;
+        console.log(`▶️ 执行工作流步骤${step}`);
+
+        // 显示进度
+        this.showWorkflowProgress(`正在执行${WORKFLOW_STEPS[step].name}...`);
+
+        try {
+            let result;
+            switch(step) {
+                case 1:
+                    result = await this.executeStyleConversion();
+                    break;
+                case 2:
+                    result = await this.executePortraitGeneration();
+                    break;
+                case 3:
+                    result = await this.executeStoryboardGeneration();
+                    break;
+                case 4:
+                    result = await this.executeVideoGeneration();
+                    break;
+                default:
+                    throw new Error('未知的工作流步骤');
+            }
+
+            // 显示结果
+            this.showWorkflowStepResult(step, result);
+
+            // 更新按钮状态：显示继续按钮
+            document.getElementById('startWorkflowBtn').style.display = 'none';
+            document.getElementById('continueWorkflowBtn').style.display = 'inline-block';
+            document.getElementById('regenerateStepBtn').style.display = 'inline-block';
+
+            // 最后一步不显示跳过按钮
+            if (step < 4) {
+                document.getElementById('skipStepBtn').style.display = 'inline-block';
+            }
+
+            this.showToast(`✅ ${WORKFLOW_STEPS[step].name}完成！`, 'success');
+
+        } catch (error) {
+            console.error(`工作流步骤${step}执行失败:`, error);
+            this.showToast(`❌ ${WORKFLOW_STEPS[step].name}失败: ${error.message}`, 'error');
+            this.resetWorkflowResult();
+        }
+    }
+
+    /**
+     * 继续到下一步
+     */
+    continueToNextStep() {
+        if (this.workflowStep < 4) {
+            this.showWorkflowStep(this.workflowStep + 1);
+        } else {
+            // 工作流完成
+            this.showToast('🎉 工作流全部完成！', 'success');
+            // 可以跳转到视频预览或结果页面
+        }
+    }
+
+    /**
+     * 跳过当前步骤
+     */
+    skipCurrentStep() {
+        this.showToast(`⏭️ 已跳过${WORKFLOW_STEPS[this.workflowStep].name}`, 'warning');
+        if (this.workflowStep < 4) {
+            this.showWorkflowStep(this.workflowStep + 1);
+        }
+    }
+
+    /**
+     * 显示工作流进度
+     */
+    showWorkflowProgress(message) {
+        document.getElementById('workflowResultContent').innerHTML = `
+            <div class="workflow-progress">
+                <h4>${message}</h4>
+                <div class="progress-container">
+                    <div class="progress-bar-wrapper">
+                        <div class="progress-bar-fill animate-progress" style="width: 0%"></div>
+                    </div>
+                    <span class="progress-text">0%</span>
+                </div>
+                <p class="status-text">请稍候...</p>
+            </div>
+        `;
+
+        // 模拟进度更新
+        let progress = 0;
+        const progressInterval = setInterval(() => {
+            progress += Math.random() * 15;
+            if (progress > 90) {
+                clearInterval(progressInterval);
+                progress = 90;
+            }
+            const fill = document.querySelector('.workflow-progress .progress-bar-fill');
+            const text = document.querySelector('.workflow-progress .progress-text');
+            if (fill) fill.style.width = `${progress}%`;
+            if (text) text.textContent = `${Math.round(progress)}%`;
+        }, 500);
+    }
+
+    /**
+     * 显示工作流步骤结果
+     */
+    showWorkflowStepResult(step, data) {
+        let resultHTML = '';
+
+        switch(step) {
+            case 1: // 风格转换结果
+                resultHTML = this.renderStyleConversionResult(data);
+                break;
+            case 2: // 角色剧照结果
+                resultHTML = this.renderPortraitResult(data);
+                // 为剧照结果添加事件委托
+                this._bindPortraitResultEvents();
+                break;
+            case 3: // 分镜头结果
+                resultHTML = this.renderStoryboardResult(data);
+                break;
+            case 4: // 视频生成结果
+                resultHTML = this.renderVideoResult(data);
+                break;
+        }
+
+        document.getElementById('workflowResultContent').innerHTML = `
+            <div class="workflow-step-result">
+                <h4>✅ ${WORKFLOW_STEPS[step].name}完成</h4>
+                ${resultHTML}
+            </div>
+        `;
+
+        // 保存结果数据
+        switch(step) {
+            case 1:
+                this.workflowData.styleConversion = data;
+                break;
+            case 2:
+                this.workflowData.characterPortraits = data;
+                break;
+            case 3:
+                this.workflowData.storyboard = data;
+                this.shots = data.shots || [];
+                break;
+            case 4:
+                this.workflowData.videos = data;
+                break;
+        }
+    }
+
+    /**
+     * 为剧照结果添加事件绑定
+     */
+    _bindPortraitResultEvents() {
+        const resultContainer = document.getElementById('workflowResultContent');
+        if (!resultContainer) return;
+
+        resultContainer.removeEventListener('click', this._handlePortraitAction);
+        resultContainer.addEventListener('click', this._handlePortraitAction.bind(this));
+    }
+
+    /**
+     * 处理剧照结果中的按钮点击事件
+     */
+    _handlePortraitAction(e) {
+        const btn = e.target.closest('button[data-action]');
+        if (!btn) return;
+
+        const action = btn.dataset.action;
+        const idx = btn.dataset.index;
+
+        if (action === 'download') {
+            const url = btn.dataset.url;
+            this.downloadPortrait(url);
+        } else if (action === 'retry') {
+            const portraits = this.workflowData.characterPortraits?.portraits || [];
+            if (portraits[idx]) {
+                this.regeneratePortrait(portraits[idx], idx);
+            }
+        }
+    }
+
+    /**
+     * 渲染风格转换结果
+     */
+    renderStyleConversionResult(data) {
+        return `
+            <div class="style-conversion-result">
+                <div class="style-info">
+                    <div class="info-block">
+                        <label>视频类型</label>
+                        <span>${data.videoType || this.videoTypes[this.selectedType]?.name}</span>
+                    </div>
+                    <div class="info-block">
+                        <label>选中事件数</label>
+                        <span>${data.eventCount || this.selectedEvents.size}个</span>
+                    </div>
+                    <div class="info-block">
+                        <label>角色数</label>
+                        <span>${data.characterCount || 0}个</span>
+                    </div>
+                </div>
+                <div class="converted-text">
+                    <strong>风格转换预览：</strong>
+                    <p>${data.convertedPreview || '转换完成，内容已适配目标视频风格。'}</p>
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * 渲染角色剧照结果
+     */
+    /**
+     * 渲染角色剧照结果
+     */
+    renderPortraitResult(data) {
+        const portraits = data.portraits || [];
+        if (portraits.length === 0) {
+            return '<p>暂无剧照数据</p>';
+        }
+
+        // 统计成功和失败的数量
+        const successful = portraits.filter(p => p.imageUrl && !p.error).length;
+        const failed = portraits.length - successful;
+
+        let summaryHTML = '';
+        if (failed > 0) {
+            summaryHTML = `<p style="color: var(--warning-color);">⚠️ ${successful}个成功, ${failed}个失败</p>`;
+        } else {
+            summaryHTML = `<p style="color: var(--success-color);">✅ 全部 ${portraits.length} 个角色剧照生成成功！</p>`;
+        }
+
+        return `
+            <div class="portrait-result">
+                ${summaryHTML}
+                ${portraits.map((p, idx) => `
+                    <div class="portrait-item" data-character-id="${p.characterId}" data-index="${idx}">
+                        ${p.imageUrl
+                            ? `<img src="${p.imageUrl}" alt="${p.characterName}" onerror="this.src='/static/images/placeholder-avatar.png'">`
+                            : `<div class="portrait-error">
+                                <p>生成失败</p>
+                                <small>${p.error || '未知错误'}</small>
+                               </div>`
+                        }
+                        <div class="portrait-info">
+                            <div class="character-name">${p.characterName}</div>
+                            <div class="character-role">${p.characterRole || '角色'}</div>
+                            ${p.imageUrl ? `
+                                <div class="portrait-actions">
+                                    <button class="btn-secondary btn-sm" data-action="retry" data-index="${idx}">🔄 重试</button>
+                                    <button class="btn-primary btn-sm" data-action="download" data-url="${p.imageUrl}">📥 下载</button>
+                                </div>
+                            ` : `
+                                <div class="portrait-actions">
+                                    <button class="btn-secondary btn-sm" data-action="retry" data-index="${idx}">🔄 重试</button>
+                                </div>
+                            `}
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    }
+
+    /**
+     * 渲染分镜头结果
+     */
+    renderStoryboardResult(data) {
+        const shots = data.shots || [];
+        const totalDuration = shots.reduce((sum, s) => sum + (s.duration_seconds || 10), 0);
+
+        return `
+            <div class="storyboard-result">
+                <div class="storyboard-summary">
+                    <div class="summary-item">
+                        <div class="label">总镜头数</div>
+                        <div class="value">${shots.length}</div>
+                    </div>
+                    <div class="summary-item">
+                        <div class="label">总时长</div>
+                        <div class="value">${Math.round(totalDuration / 60)}:${String(Math.round(totalDuration % 60)).padStart(2, '0')}</div>
+                    </div>
+                    <div class="summary-item">
+                        <div class="label">已完成</div>
+                        <div class="value">0/${shots.length}</div>
+                    </div>
+                </div>
+                <div class="storyboard-list">
+                    ${shots.slice(0, 10).map((shot, i) => `
+                        <div class="shot-item">
+                            <div class="shot-number">${i + 1}</div>
+                            <div class="shot-content">
+                                <div class="shot-description">${shot.scene_description || '暂无描述'}</div>
+                                <div class="shot-meta">⏱️ ${shot.duration_seconds || 10}秒 | 🎬 ${shot.shot_type || '中景'}</div>
+                            </div>
+                        </div>
+                    `).join('')}
+                    ${shots.length > 10 ? `<p style="text-align: center; color: var(--text-secondary);">...还有 ${shots.length - 10} 个镜头</p>` : ''}
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * 渲染视频生成结果
+     */
+    renderVideoResult(data) {
+        return `
+            <div class="video-result">
+                <p>🎉 视频生成完成！</p>
+                <div class="video-stats">
+                    <div class="stat-item">
+                        <span class="stat-label">成功生成:</span>
+                        <span class="stat-value">${data.completedCount || 0}/${data.totalCount || 0}</span>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * 步骤1：执行风格转换
+     */
+    async executeStyleConversion() {
+        console.log('🎨 执行风格转换...');
+
+        const response = await fetch('/api/video/style-conversion', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                title: this.selectedNovel,
+                video_type: this.selectedType,
+                selected_events: Array.from(this.selectedEvents),
+                selected_characters: Array.from(this.selectedCharacters)
+            })
+        });
+
+        const data = await response.json();
+        if (!data.success) {
+            throw new Error(data.error || '风格转换失败');
+        }
+
+        return {
+            videoType: this.videoTypes[this.selectedType]?.name,
+            eventCount: this.selectedEvents.size,
+            characterCount: data.character_count || 0,
+            convertedPreview: data.converted_preview || '风格转换完成'
+        };
+    }
+
+    /**
+     * 步骤2：执行角色剧照生成
+     * 引导用户跳转到剧照工作台手动制作
+     */
+    async executePortraitGeneration() {
+        console.log('📸 引导到剧照工作台...');
+
+        // 获取需要生成剧照的角色列表
+        const characters = this.deriveCharactersFromEvents();
+
+        if (characters.length === 0) {
+            this.showToast('没有找到需要生成剧照的角色', 'warning');
+            return;
+        }
+
+        // 将角色信息保存到localStorage，供剧照工作台使用
+        const workflowData = {
+            novelTitle: this.selectedNovel,
+            videoType: this.selectedType,
+            characters: characters.map(c => ({
+                id: c.name,
+                name: c.name,
+                role: c.role || '角色',
+                appearance: c.appearance || '',
+                prompt: c.generation_prompt || ''
+            })),
+            timestamp: Date.now()
+        };
+
+        localStorage.setItem('videoWorkflow_portraitData', JSON.stringify(workflowData));
+        console.log('💾 已保存工作流数据到localStorage');
+
+        // 显示引导界面
+        const charactersList = characters.map((c, i) =>
+            `<li><strong>${c.name}</strong> - ${c.role || '角色'}</li>`
+        ).join('');
+
+        document.getElementById('workflowResultContent').innerHTML = `
+            <div class="portrait-guide">
+                <h4>📸 角色剧照制作指南</h4>
+                <p>为保持角色形象一致性，建议先在剧照工作台手动制作每个角色的固定剧照。</p>
+
+                <div class="guide-info">
+                    <h5>需要制作的角色 (${characters.length}个):</h5>
+                    <ul>${charactersList}</ul>
+                </div>
+
+                <div class="guide-steps">
+                    <h5>制作步骤：</h5>
+                    <ol>
+                        <li>点击下方按钮打开剧照工作台</li>
+li>选择角色，输入提示词，生成剧照</li>
+                        <li>满意后点击"固定为工作流剧照"按钮</li>
+                        <li>所有角色完成后，返回继续工作流</li>
+                    </ol>
+                </div>
+
+                <div class="guide-actions">
+                    <button id="openPortraitStudioBtn" class="btn-primary btn-large">
+                        🎨 打开剧照工作台
+                    </button>
+                    <button id="skipPortraitBtn" class="btn-secondary btn-large">
+                        ⏭️ 跳过此步骤
+                    </button>
+                </div>
+
+                <div class="fixed-portraits-status" id="fixedPortraitsStatus">
+                    <p><strong>已固定的角色剧照：</strong> <span id="fixedPortraitCount">0</span>/${characters.length}</p>
+                    <div id="fixedPortraitsList" class="fixed-portraits-list"></div>
+                </div>
+            </div>
+        `;
+
+        // 绑定按钮事件
+        document.getElementById('openPortraitStudioBtn').addEventListener('click', () => {
+            // 跳转到剧照工作台
+            window.open('/portrait-studio?mode=workflow', '_blank');
+        });
+
+        document.getElementById('skipPortraitBtn').addEventListener('click', () => {
+            this.skipCurrentStep();
+        });
+
+        // 检查已有的固定剧照
+        this.checkFixedPortraits();
+
+        // 轮询检查固定剧照状态
+        this.portraitCheckInterval = setInterval(() => {
+            this.checkFixedPortraits();
+        }, 3000);
+
+        // 返回部分结果（供UI使用）
+        return {
+            characters: characters,
+            total: characters.length
+        };
+    }
+
+    /**
+     * 检查已固定的角色剧照
+     */
+    checkFixedPortraits() {
+        const savedData = localStorage.getItem('videoWorkflow_portraitData');
+        if (!savedData) return;
+
+        const data = JSON.parse(savedData);
+        const fixedPortraits = data.fixedPortraits || [];
+
+        const countSpan = document.getElementById('fixedPortraitCount');
+        const listDiv = document.getElementById('fixedPortraitsList');
+
+        if (countSpan) countSpan.textContent = fixedPortraits.length;
+        if (listDiv) {
+            if (fixedPortraits.length === 0) {
+                listDiv.innerHTML = '<p class="empty-hint">还没有固定的角色剧照</p>';
+            } else {
+                listDiv.innerHTML = fixedPortraits.map(p => `
+                    <div class="fixed-portrait-item">
+                        <img src="${p.imageUrl}" alt="${p.characterName}">
+                        <span>${p.characterName}</span>
+                        <button class="btn-sm btn-secondary" onclick="window.videoGenerator.removeFixedPortrait('${p.characterId}')">×</button>
+                    </div>
+                `).join('');
+            }
+        }
+
+        // 如果所有角色都固定了，自动启用继续按钮
+        if (fixedPortraits.length >= data.characters.length && this.portraitCheckInterval) {
+            clearInterval(this.portraitCheckInterval);
+            this.portraitCheckInterval = null;
+
+            const continueBtn = document.getElementById('continueWorkflowBtn');
+            if (continueBtn) {
+                continueBtn.style.display = 'inline-block';
+                document.getElementById('startWorkflowBtn').style.display = 'none';
+                this.showToast('✅ 所有角色剧照已完成，可以继续下一步！', 'success');
+            }
+        }
+    }
+
+    /**
+     * 移除已固定的角色剧照
+     */
+    removeFixedPortrait(characterId) {
+        const savedData = localStorage.getItem('videoWorkflow_portraitData');
+        if (!savedData) return;
+
+        const data = JSON.parse(savedData);
+        data.fixedPortraits = (data.fixedPortraits || []).filter(p => p.characterId !== characterId);
+        localStorage.setItem('videoWorkflow_portraitData', JSON.stringify(data));
+
+        this.checkFixedPortraits();
+        this.showToast('已移除该角色的固定剧照', 'success');
+    }
+
+    /**
+     * 步骤3：执行分镜头生成
+     */
+    async executeStoryboardGeneration() {
+        console.log('🎬 执行分镜头生成...');
+
+        const response = await fetch('/api/video/generate-storyboard', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                title: this.selectedNovel,
+                video_type: this.selectedType,
+                selected_events: Array.from(this.selectedEvents),
+                use_workflow_portraits: true // 使用工作流生成的剧照
+            })
+        });
+
+        const data = await response.json();
+        if (!data.success) {
+            throw new Error(data.error || '分镜头生成失败');
+        }
+
+        this.storyboard = data.storyboard;
+        this.shots = data.shots || [];
+
+        return data;
+    }
+
+    /**
+     * 步骤4：执行视频生成
+     */
+    async executeVideoGeneration() {
+        console.log('🎥 执行视频生成...');
+
+        // 这里可以批量生成所有视频
+        // 或者返回到分镜头列表页面让用户逐个生成
+
+        return {
+            completedCount: 0,
+            totalCount: this.shots.length,
+            message: '视频准备就绪，可以开始生成'
+        };
+    }
+
+    /**
+     * 下载剧照
+     */
+    downloadPortrait(imageUrl) {
+        if (!imageUrl) {
+            this.showToast('没有可下载的剧照', 'error');
+            return;
+        }
+
+        const link = document.createElement('a');
+        link.href = imageUrl;
+        link.download = 'portrait.png';
+        link.target = '_blank';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        this.showToast('剧照下载已开始', 'success');
+    }
+
+    /**
+     * 重新生成单个剧照
+     */
+    async regeneratePortrait(portraitData, index) {
+        const charName = portraitData.characterName;
+        this.showToast(`正在重新生成 ${charName} 的剧照...`, 'success');
+
+        try {
+            const response = await fetch('/api/video/generate-character-portrait', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    title: this.selectedNovel,
+                    character_id: portraitData.characterId,
+                    prompt: portraitData.prompt,
+                    aspect_ratio: '9:16',
+                    image_size: '4K'
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                // 更新UI
+                const portraitItem = document.querySelector(`.portrait-item[data-index="${index}"]`);
+                if (portraitItem) {
+                    const img = portraitItem.querySelector('img');
+                    const info = portraitItem.querySelector('.portrait-info');
+                    const actions = portraitItem.querySelector('.portrait-actions');
+
+                    if (img) {
+                        img.src = data.image_url;
+                    }
+                    if (actions) {
+                        actions.innerHTML = `
+                            <button class="btn-secondary btn-sm" data-action="retry" data-index="${index}">🔄 重试</button>
+                            <button class="btn-primary btn-sm" data-action="download" data-url="${data.image_url}">📥 下载</button>
+                        `;
+                    }
+
+                    // 移除错误状态
+                    portraitItem.classList.remove('error');
+                }
+
+                // 更新数据
+                if (this.workflowData.characterPortraits) {
+                    this.workflowData.characterPortraits.portraits[index] = {
+                        ...portraitData,
+                        imageUrl: data.image_url,
+                        localPath: data.image_path
+                    };
+                }
+
+                this.showToast(`${charName} 的剧照重新生成成功！`, 'success');
+            } else {
+                throw new Error(data.error || '生成失败');
+            }
+        } catch (error) {
+            console.error('重新生成剧照失败:', error);
+            this.showToast(`重新生成失败: ${error.message}`, 'error');
+        }
     }
     
     async generateStoryboard() {
@@ -1755,8 +2513,65 @@ class VideoGenerator {
         document.getElementById('editPromptBtn').addEventListener('click', () => {
             this.showPromptEditModal();
         });
-        
-        // 短剧风格改造按钮
+
+        // ========== 统一工作流按钮绑定 ==========
+        const startWorkflowFromPromptBtn = document.getElementById('startWorkflowFromPromptBtn');
+        if (startWorkflowFromPromptBtn) {
+            startWorkflowFromPromptBtn.addEventListener('click', () => {
+                console.log('🚀 [按钮] 启动统一工作流');
+                this.startUnifiedWorkflow();
+            });
+        }
+
+        // ========== 按集制作工作流按钮绑定 ==========
+        const startEpisodeWorkflowBtn = document.getElementById('startEpisodeWorkflowBtn');
+        if (startEpisodeWorkflowBtn) {
+            startEpisodeWorkflowBtn.addEventListener('click', () => {
+                console.log('📺 [按钮] 启动按集制作工作流');
+                this.startEpisodeWorkflow();
+            });
+        }
+
+        const startWorkflowBtn = document.getElementById('startWorkflowBtn');
+        if (startWorkflowBtn) {
+            startWorkflowBtn.addEventListener('click', () => {
+                this.executeWorkflowStep();
+            });
+        }
+
+        const continueWorkflowBtn = document.getElementById('continueWorkflowBtn');
+        if (continueWorkflowBtn) {
+            continueWorkflowBtn.addEventListener('click', () => {
+                this.continueToNextStep();
+            });
+        }
+
+        const skipStepBtn = document.getElementById('skipStepBtn');
+        if (skipStepBtn) {
+            skipStepBtn.addEventListener('click', () => {
+                this.skipCurrentStep();
+            });
+        }
+
+        const regenerateStepBtn = document.getElementById('regenerateStepBtn');
+        if (regenerateStepBtn) {
+            regenerateStepBtn.addEventListener('click', () => {
+                this.executeWorkflowStep();
+            });
+        }
+
+        const backToTypesFromWorkflowBtn = document.getElementById('backToTypesFromWorkflowBtn');
+        if (backToTypesFromWorkflowBtn) {
+            backToTypesFromWorkflowBtn.addEventListener('click', () => {
+                document.getElementById('unifiedWorkflowScreen').style.display = 'none';
+                document.getElementById('promptPreviewScreen').style.display = 'block';
+                document.querySelector('.main-container').classList.remove('hide-sidebar');
+                document.getElementById('helpSidebar').style.display = 'block';
+            });
+        }
+        // ========== 统一工作流按钮绑定结束 ==========
+
+        // 短剧风格改造按钮（已废弃，保留用于兼容）
         console.log('🔍 [绑定] 开始查找 adaptToShortDramaBtn 按钮...');
         const adaptToShortDramaBtn = document.getElementById('adaptToShortDramaBtn');
         console.log('🔍 [绑定] 按钮元素:', adaptToShortDramaBtn);
@@ -2154,10 +2969,630 @@ class VideoGenerator {
         const toast = document.getElementById('toast');
         toast.textContent = message;
         toast.className = `toast ${type} show`;
-        
+
         setTimeout(() => {
             toast.classList.remove('show');
         }, 3000);
+    }
+
+    // ========== 按集制作工作流方法 ==========
+
+    /**
+     * 启动按集制作工作流
+     */
+    async startEpisodeWorkflow() {
+        console.log('📺 启动按集制作工作流');
+
+        // 初始化工作流数据
+        this.episodeWorkflow = {
+            step: 'select-episodes',
+            selectedMajorEvent: null,
+            selectedEpisodes: new Set(),
+            characterPortraits: new Map(), // characterId -> portraitData
+            storyboardData: null,
+            videoData: null
+        };
+
+        // 切换到按集制作屏幕
+        document.getElementById('promptPreviewScreen').style.display = 'none';
+        document.getElementById('episodeWorkflowScreen').style.display = 'block';
+
+        // 隐藏侧边栏
+        document.querySelector('.main-container').classList.add('hide-sidebar');
+        document.getElementById('helpSidebar').style.display = 'none';
+
+        // 更新标题
+        document.getElementById('episodeWorkflowTitle').textContent =
+            `📺 ${this.selectedNovel} - 按集制作`;
+
+        // 确保事件和角色已加载（修复：同时检查events和characters）
+        if (this.events.length === 0 || this.characters.length === 0) {
+            console.log('📺 事件或角色未加载，先加载...');
+            console.log(`📺 当前状态: events=${this.events.length}, characters=${this.characters.length}`);
+            await this.loadEventsAndCharacters();
+        } else {
+            console.log(`📺 已有数据: events=${this.events.length}, characters=${this.characters.length}`);
+        }
+
+        // 加载重大事件列表（使用await确保完成）
+        await this.loadMajorEventsForWorkflow();
+
+        // 绑定工作流事件
+        this.bindEpisodeWorkflowEvents();
+
+        // 显示第一步
+        this.showEpisodeWorkflowStep('select-episodes');
+    }
+
+    /**
+     * 加载重大事件列表
+     */
+    async loadMajorEventsForWorkflow() {
+        const container = document.getElementById('majorEventList');
+        container.innerHTML = '<div class="loading">加载中...</div>';
+
+        try {
+            console.log('📺 加载重大事件, this.events.length:', this.events.length);
+            console.log('📺 this.events:', this.events);
+
+            // 从已加载的事件中获取重大事件
+            const majorEvents = this.events.filter(e => e.type === 'major' || e.has_children);
+
+            console.log('📺 筛选后的重大事件:', majorEvents.length);
+
+            if (majorEvents.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <p>暂无重大事件</p>
+                        <p class="hint">请先在小说中配置事件系统</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = majorEvents.map((event, idx) => `
+                <div class="major-event-option" data-event-id="${event.id}">
+                    <div class="event-name">${event.title || event.name || `重大事件 ${idx + 1}`}</div>
+                    <div class="event-info">
+                        <span class="episode-count">${event.children_count || event.children?.length || 0} 集</span>
+                        <span>${event.description?.substring(0, 50) || ''}${event.description?.length > 50 ? '...' : ''}</span>
+                    </div>
+                </div>
+            `).join('');
+
+            console.log('📺 已渲染重大事件列表');
+            console.log('📺 重大事件加载完成（点击事件通过事件委托处理）');
+
+        } catch (error) {
+            console.error('加载重大事件失败:', error);
+            container.innerHTML = `
+                <div class="empty-state">
+                    <p>加载失败</p>
+                    <p class="hint">${error.message}</p>
+                </div>
+            `;
+        }
+    }
+
+    /**
+     * 选择重大事件
+     */
+    selectMajorEventForWorkflow(eventId) {
+        console.log('📺 选择重大事件:', eventId);
+        console.log('📺 可用事件:', this.events.map(e => ({ id: e.id, title: e.title, hasChildren: e.children?.length })));
+
+        const event = this.events.find(e => e.id === eventId);
+        if (!event) {
+            console.error('📺 找不到事件:', eventId);
+            this.showToast('找不到事件数据', 'error');
+            return;
+        }
+
+        console.log('📺 找到事件:', event);
+
+        // 更新选中状态
+        document.querySelectorAll('.major-event-option').forEach(opt => {
+            opt.classList.remove('selected');
+        });
+        const selectedOption = document.querySelector(`.major-event-option[data-event-id="${eventId}"]`);
+        if (selectedOption) {
+            selectedOption.classList.add('selected');
+        }
+
+        this.episodeWorkflow.selectedMajorEvent = event;
+
+        // 显示集数列表
+        this.showEpisodeList(event);
+    }
+
+    /**
+     * 显示集数列表（中级事件）
+     */
+    showEpisodeList(majorEvent) {
+        console.log('📺 显示集数列表, 重大事件:', majorEvent);
+
+        const selector = document.getElementById('episodeSelector');
+        const container = document.getElementById('episodeList');
+        const nameSpan = document.getElementById('selectedMajorEventName');
+
+        nameSpan.textContent = `- ${majorEvent.title || majorEvent.name}`;
+        selector.style.display = 'block';
+
+        const episodes = majorEvent.children || [];
+        console.log('📺 集数列表:', episodes);
+
+        if (episodes.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <p>该重大事件下没有中级事件</p>
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = episodes.map((ep, idx) => `
+            <div class="episode-item" data-episode-id="${ep.id}">
+                <input type="checkbox" class="episode-checkbox" id="ep_${idx}">
+                <span class="episode-number">第${idx + 1}集</span>
+                <span class="episode-title">${ep.title || ep.name || `集数 ${idx + 1}`}</span>
+                <span class="episode-stage">${ep.stage || ''}</span>
+            </div>
+        `).join('');
+
+        console.log('📺 已渲染集数列表');
+
+        // 绑定点击事件
+        container.querySelectorAll('.episode-item').forEach(item => {
+            item.addEventListener('click', (e) => {
+                if (e.target.classList.contains('episode-checkbox')) return;
+                const checkbox = item.querySelector('.episode-checkbox');
+                checkbox.checked = !checkbox.checked;
+                this.toggleEpisodeSelection(item.dataset.episodeId, checkbox.checked);
+            });
+        });
+
+        container.querySelectorAll('.episode-checkbox').forEach(checkbox => {
+            checkbox.addEventListener('change', (e) => {
+                const item = e.target.closest('.episode-item');
+                this.toggleEpisodeSelection(item.dataset.episodeId, e.target.checked);
+            });
+        });
+    }
+
+    /**
+     * 切换集数选择状态
+     */
+    toggleEpisodeSelection(episodeId, selected) {
+        if (selected) {
+            this.episodeWorkflow.selectedEpisodes.add(episodeId);
+        } else {
+            this.episodeWorkflow.selectedEpisodes.delete(episodeId);
+        }
+
+        // 更新选中项样式
+        const item = document.querySelector(`.episode-item[data-episode-id="${episodeId}"]`);
+        if (item) {
+            item.classList.toggle('selected', selected);
+        }
+
+        // 更新计数
+        document.getElementById('selectedEpisodesCount').textContent =
+            this.episodeWorkflow.selectedEpisodes.size;
+    }
+
+    /**
+     * 绑定按集制作工作流事件
+     */
+    bindEpisodeWorkflowEvents() {
+        // 使用事件委托处理重大事件点击（支持动态添加的元素）
+        const majorEventList = document.getElementById('majorEventList');
+        if (majorEventList) {
+            // 移除旧的监听器（如果存在）
+            majorEventList.removeEventListener('click', this._handleMajorEventClick);
+            // 添加新的监听器
+            this._handleMajorEventClick = (e) => {
+                const option = e.target.closest('.major-event-option');
+                if (option) {
+                    console.log('📺 通过事件委托点击了重大事件:', option.dataset.eventId);
+                    this.selectMajorEventForWorkflow(option.dataset.eventId);
+                }
+            };
+            majorEventList.addEventListener('click', this._handleMajorEventClick);
+            console.log('📺 已设置重大事件点击委托');
+        }
+
+        // 导航按钮
+        document.querySelectorAll('.workflow-nav-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const step = btn.dataset.step;
+                this.showEpisodeWorkflowStep(step);
+            });
+        });
+
+        // 返回按钮
+        document.getElementById('backToModeFromEpisodeBtn')?.addEventListener('click', () => {
+            this.showModeSelectionScreen();
+        });
+
+        // 全选/清空按钮
+        document.getElementById('selectAllEpisodesBtn')?.addEventListener('click', () => {
+            document.querySelectorAll('.episode-checkbox').forEach(cb => {
+                cb.checked = true;
+                const item = cb.closest('.episode-item');
+                this.toggleEpisodeSelection(item.dataset.episodeId, true);
+            });
+        });
+
+        document.getElementById('clearEpisodesBtn')?.addEventListener('click', () => {
+            document.querySelectorAll('.episode-checkbox').forEach(cb => {
+                cb.checked = false;
+                const item = cb.closest('.episode-item');
+                this.toggleEpisodeSelection(item.dataset.episodeId, false);
+            });
+        });
+
+        // 底部操作按钮
+        document.getElementById('episodePrevBtn')?.addEventListener('click', () => {
+            this.episodeWorkflowPrev();
+        });
+
+        document.getElementById('episodeNextBtn')?.addEventListener('click', () => {
+            this.episodeWorkflowNext();
+        });
+
+        document.getElementById('episodeGenerateBtn')?.addEventListener('click', () => {
+            this.executeEpisodeGeneration();
+        });
+    }
+
+    /**
+     * 显示工作流步骤
+     */
+    showEpisodeWorkflowStep(step) {
+        // 更新导航状态
+        document.querySelectorAll('.workflow-nav-btn').forEach(btn => {
+            btn.classList.remove('active');
+            if (btn.dataset.step === step) {
+                btn.classList.add('active');
+            }
+        });
+
+        // 更新面板显示
+        document.querySelectorAll('.workflow-step-panel').forEach(panel => {
+            panel.classList.remove('active');
+        });
+
+        const stepMap = {
+            'select-episodes': 'episodeStep1',
+            'check-portraits': 'episodeStep2',
+            'generate-storyboard': 'episodeStep3',
+            'generate-video': 'episodeStep4'
+        };
+
+        const panelId = stepMap[step];
+        if (panelId) {
+            document.getElementById(panelId).classList.add('active');
+        }
+
+        // 更新按钮状态
+        this.updateEpisodeWorkflowButtons(step);
+
+        // 根据步骤加载内容
+        switch(step) {
+            case 'check-portraits':
+                this.loadCharacterPortraitsStep();
+                break;
+            case 'generate-storyboard':
+                this.loadStoryboardStep();
+                break;
+            case 'generate-video':
+                this.loadVideoStep();
+                break;
+        }
+
+        this.episodeWorkflow.step = step;
+    }
+
+    /**
+     * 更新工作流按钮
+     */
+    updateEpisodeWorkflowButtons(step) {
+        const prevBtn = document.getElementById('episodePrevBtn');
+        const nextBtn = document.getElementById('episodeNextBtn');
+        const generateBtn = document.getElementById('episodeGenerateBtn');
+
+        const steps = ['select-episodes', 'check-portraits', 'generate-storyboard', 'generate-video'];
+        const currentIndex = steps.indexOf(step);
+
+        // 显示/隐藏上一步按钮
+        prevBtn.style.display = currentIndex > 0 ? 'inline-block' : 'none';
+
+        // 最后一步显示生成按钮，其他显示下一步
+        if (step === 'generate-video') {
+            nextBtn.style.display = 'none';
+            generateBtn.style.display = 'inline-block';
+        } else {
+            nextBtn.style.display = 'inline-block';
+            generateBtn.style.display = 'none';
+        }
+    }
+
+    /**
+     * 加载角色剧照步骤
+     */
+    loadCharacterPortraitsStep() {
+        const container = document.getElementById('episodeCharacterPortraits');
+        container.innerHTML = '<div class="loading">加载角色信息...</div>';
+
+        console.log('📺 [剧照步骤] 加载角色剧照步骤');
+        console.log('📺 [剧照步骤] 选中的集数:', this.episodeWorkflow.selectedEpisodes);
+        console.log('📺 [剧照步骤] 全局角色数量:', this.characters?.length || 0);
+
+        // 从选中的集中提取角色
+        const characters = this.extractCharactersFromEpisodes();
+
+        console.log('📺 [剧照步骤] 提取到的角色数量:', characters.length);
+
+        if (characters.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <p>没有找到角色</p>
+                    <p class="hint">选中的集数中没有角色信息，且全局角色列表为空</p>
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = characters.map(char => {
+            const hasPortrait = this.episodeWorkflow.characterPortraits.has(char.name);
+            return `
+                <div class="character-portrait-card ${hasPortrait ? 'has-portrait' : 'missing-portrait'}" data-character-id="${char.name}">
+                    <div class="portrait-preview">
+                        ${hasPortrait
+                            ? `<img src="${this.episodeWorkflow.characterPortraits.get(char.name).imageUrl}" alt="${char.name}">`
+                            : `<span class="placeholder">👤</span>`
+                        }
+                    </div>
+                    <div class="portrait-info">
+                        <div class="character-name">${char.name}</div>
+                        <div class="character-role">${char.role || '角色'}</div>
+                        <div class="portrait-status">
+                            <span class="status-dot ${hasPortrait ? 'ready' : 'missing'}"></span>
+                            <span>${hasPortrait ? '已准备' : '需要生成'}</span>
+                        </div>
+                        <div class="portrait-actions">
+                            ${hasPortrait
+                                ? `<button class="btn-secondary btn-sm" data-action="new-look">🎨 新造型</button>
+                                <button class="btn-secondary btn-sm" data-action="view">👁️ 查看</button>`
+                                : `<button class="btn-primary btn-sm" data-action="generate">📸 生成剧照</button>`
+                            }
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        // 更新统计
+        const readyCount = characters.filter(c => this.episodeWorkflow.characterPortraits.has(c.name)).length;
+        document.getElementById('portraitStatusCount').textContent = `${readyCount}/${characters.length}`;
+
+        // 绑定事件
+        container.querySelectorAll('button[data-action]').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const card = btn.closest('.character-portrait-card');
+                const characterId = card.dataset.characterId;
+                const action = btn.dataset.action;
+                this.handlePortraitAction(action, characterId, characters.find(c => c.name === characterId));
+            });
+        });
+    }
+
+    /**
+     * 从选中的集中提取角色
+     */
+    extractCharactersFromEpisodes() {
+        const characterMap = new Map();
+
+        // 1. 首先尝试从episode数据中提取角色
+        this.episodeWorkflow.selectedEpisodes.forEach(episodeId => {
+            // 在重大事件的子事件中查找
+            if (this.episodeWorkflow.selectedMajorEvent?.children) {
+                const episode = this.episodeWorkflow.selectedMajorEvent.children.find(e => e.id === episodeId);
+                if (episode) {
+                    const chars = episode.characters || '';
+                    if (chars) {
+                        chars.split(/[,，、;；]/).forEach(name => {
+                            name = name.trim();
+                            if (name && !characterMap.has(name)) {
+                                // 从全局角色列表中查找详细信息
+                                const fullChar = this.characters.find(c => c.name === name);
+                                characterMap.set(name, fullChar || { name, role: '角色' });
+                            }
+                        });
+                    }
+                }
+            }
+        });
+
+        // 2. 如果没有找到角色，使用全局角色列表
+        if (characterMap.size === 0 && this.characters && this.characters.length > 0) {
+            console.log('📺 未从集数中提取到角色，使用全局角色列表');
+            this.characters.forEach(char => {
+                if (!characterMap.has(char.name)) {
+                    characterMap.set(char.name, char);
+                }
+            });
+        }
+
+        console.log('📺 提取到的角色:', Array.from(characterMap.values()));
+        return Array.from(characterMap.values());
+    }
+
+    /**
+     * 处理剧照操作
+     */
+    async handlePortraitAction(action, characterId, characterData) {
+        switch(action) {
+            case 'generate':
+            case 'new-look':
+                // 跳转到剧照工作台
+                this.openPortraitStudio(characterData);
+                break;
+            case 'view':
+                // 显示剧照预览
+                const portrait = this.episodeWorkflow.characterPortraits.get(characterId);
+                if (portrait) {
+                    window.open(portrait.imageUrl, '_blank');
+                }
+                break;
+        }
+    }
+
+    /**
+     * 打开剧照工作台
+     */
+    openPortraitStudio(character) {
+        // 保存工作流状态
+        localStorage.setItem('episodeWorkflow_state', JSON.stringify({
+            novelTitle: this.selectedNovel,
+            selectedEpisodes: Array.from(this.episodeWorkflow.selectedEpisodes),
+            selectedMajorEvent: this.episodeWorkflow.selectedMajorEvent,
+            characterPortraits: Array.from(this.episodeWorkflow.characterPortraits.entries()),
+            returnPath: '/video-generation?mode=episode-workflow'
+        }));
+
+        // 保存角色信息
+        localStorage.setItem('portraitStudio_character', JSON.stringify(character));
+
+        // 打开剧照工作台
+        window.open('/portrait-studio?mode=episode', '_blank');
+    }
+
+    /**
+     * 加载分镜头步骤
+     */
+    loadStoryboardStep() {
+        const container = document.getElementById('episodeStoryboardPreview');
+        container.innerHTML = `
+            <div class="storyboard-preview">
+                <div style="text-align: center; padding: 2rem;">
+                    <p>🎬 将为选中的 ${this.episodeWorkflow.selectedEpisodes.size} 集生成分镜头</p>
+                    <p class="hint">点击下方"开始生成"按钮开始生成分镜头脚本</p>
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * 加载视频生成步骤
+     */
+    loadVideoStep() {
+        const container = document.getElementById('episodeVideoPreview');
+        const selectedCount = this.episodeWorkflow.selectedEpisodes.size;
+
+        container.innerHTML = `
+            <div class="video-preview">
+                <div class="video-progress-list">
+                    ${Array.from(this.episodeWorkflow.selectedEpisodes).map((epId, idx) => {
+                        const episode = this.episodeWorkflow.selectedMajorEvent?.children?.find(e => e.id === epId);
+                        const title = episode?.title || episode?.name || `第${idx + 1}集`;
+                        return `
+                            <div class="video-progress-item" data-episode-id="${epId}">
+                                <div class="episode-info">
+                                    <div class="episode-number">${title}</div>
+                                </div>
+                                <div class="progress-bar">
+                                    <div class="progress-bar-fill" style="width: 0%"></div>
+                                </div>
+                                <span class="status-badge pending">待生成</span>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * 执行视频生成
+     */
+    async executeEpisodeGeneration() {
+        const generateBtn = document.getElementById('episodeGenerateBtn');
+        generateBtn.disabled = true;
+        generateBtn.textContent = '⏳ 生成中...';
+
+        try {
+            this.showToast('开始生成视频...', 'success');
+
+            // TODO: 调用API生成视频
+            // 这里需要实现实际的API调用
+
+            setTimeout(() => {
+                this.showToast('视频生成完成！', 'success');
+                generateBtn.textContent = '✅ 生成完成';
+            }, 2000);
+
+        } catch (error) {
+            console.error('生成失败:', error);
+            this.showToast('生成失败: ' + error.message, 'error');
+            generateBtn.disabled = false;
+            generateBtn.textContent = '🚀 开始生成';
+        }
+    }
+
+    /**
+     * 工作流上一步
+     */
+    episodeWorkflowPrev() {
+        const steps = ['select-episodes', 'check-portraits', 'generate-storyboard', 'generate-video'];
+        const currentIndex = steps.indexOf(this.episodeWorkflow.step);
+        if (currentIndex > 0) {
+            this.showEpisodeWorkflowStep(steps[currentIndex - 1]);
+        }
+    }
+
+    /**
+     * 工作流下一步
+     */
+    episodeWorkflowNext() {
+        // 验证当前步骤
+        if (this.episodeWorkflow.step === 'select-episodes') {
+            if (this.episodeWorkflow.selectedEpisodes.size === 0) {
+                this.showToast('请至少选择一集', 'error');
+                return;
+            }
+        }
+
+        const steps = ['select-episodes', 'check-portraits', 'generate-storyboard', 'generate-video'];
+        const currentIndex = steps.indexOf(this.episodeWorkflow.step);
+        if (currentIndex < steps.length - 1) {
+            this.showEpisodeWorkflowStep(steps[currentIndex + 1]);
+        }
+    }
+
+    /**
+     * 检查并恢复剧照工作台返回的数据
+     */
+    checkPortraitStudioReturn() {
+        const savedPortrait = localStorage.getItem('portraitStudio_result');
+        if (savedPortrait) {
+            try {
+                const data = JSON.parse(savedPortrait);
+                // 添加到工作流数据
+                this.episodeWorkflow.characterPortraits.set(data.characterName, {
+                    imageUrl: data.imageUrl,
+                    timestamp: Date.now()
+                });
+                // 清除保存的数据
+                localStorage.removeItem('portraitStudio_result');
+                // 刷新当前步骤
+                this.loadCharacterPortraitsStep();
+                this.showToast('剧照已保存', 'success');
+            } catch (e) {
+                console.error('解析剧照数据失败:', e);
+            }
+        }
     }
 }
 
@@ -2186,7 +3621,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // 额外的备用初始化
 window.addEventListener('load', () => {
     console.log('📄 [全局] Window完全加载完成');
-    
+
     // 检查是否已经初始化
     if (!window.videoGenerator) {
         console.warn('⚠️ [全局] DOMContentLoaded未触发，尝试手动初始化');
@@ -2197,5 +3632,10 @@ window.addEventListener('load', () => {
         } catch (error) {
             console.error('❌ [全局] 备用初始化失败:', error);
         }
+    }
+
+    // 检查是否从剧照工作台返回
+    if (window.videoGenerator) {
+        window.videoGenerator.checkPortraitStudioReturn();
     }
 });

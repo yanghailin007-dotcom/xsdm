@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>流程控制器 - 视频制作中心</title>
+
+    <link rel="stylesheet" href="/static/css/video/variables.css">
+    <link rel="stylesheet" href="/static/css/video/base.css">
+    <link rel="stylesheet" href="/static/css/video/components.css">
+    <link rel="stylesheet" href="/static/css/video/workflow.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- 导航栏 -->
+        <nav class="navbar">
+            <a href="/video" class="navbar-brand">← 返回中心</a>
+            <h1 class="nav-title">🎬 流程控制器</h1>
+            <nav class="navbar-nav">
+                <a href="/video/project" class="nav-link">📖 项目管理器</a>
+                <a href="/video/portrait" class="nav-link">🎨 剧照工作台</a>
+                <a href="/video/studio" class="nav-link">🎬 视频工作台</a>
+            </nav>
+        </nav>
+
+        <!-- 主内容区 -->
+        <main class="main-content">
+            <div class="workflow-layout">
+                <!-- 左侧项目面板 -->
+                <div class="project-sidebar">
+                    <!-- 小说选择 -->
+                    <div class="sidebar-section">
+                        <h3>📚 选择小说</h3>
+                        <div class="novel-selector">
+                            <select id="novelSelect" class="input" onchange="loadChapters()">
+                                <option value="">请选择小说...</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- 章节树 -->
+                    <div class="sidebar-section">
+                        <h3>📋 章节结构</h3>
+                        <div id="chapterTree" class="chapter-tree">
+                            <p class="empty-hint">请先选择小说</p>
+                        </div>
+                    </div>
+
+                    <!-- 选择统计 -->
+                    <div class="sidebar-section">
+                        <h3>📊 选择统计</h3>
+                        <div class="config-option">
+                            <span class="config-label">重大事件:</span>
+                            <span class="config-value" id="majorEventsCount">0</span>
+                        </div>
+                        <div class="config-option">
+                            <span class="config-label">中级事件:</span>
+                            <span class="config-value" id="mediumEventsCount">0</span>
+                        </div>
+                        <div class="config-option">
+                            <span class="config-label">角色数:</span>
+                            <span class="config-value" id="charactersCount">0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 右侧主内容区 -->
+                <div class="workflow-main">
+                    <!-- 流程步骤 -->
+                    <div class="workflow-steps">
+                        <div class="workflow-step active" data-step="1">
+                            <div class="step-number">1</div>
+                            <span class="step-label">准备剧照</span>
+                        </div>
+                        <div class="step-connector"></div>
+                        <div class="workflow-step" data-step="2">
+                            <div class="step-number">2</div>
+                            <span class="step-label">生成分镜</span>
+                        </div>
+                        <div class="step-connector"></div>
+                        <div class="workflow-step" data-step="3">
+                            <div class="step-number">3</div>
+                            <span class="step-label">生成视频</span>
+                        </div>
+                        <div class="step-connector"></div>
+                        <div class="workflow-step" data-step="4">
+                            <div class="step-number">4</div>
+                            <span class="step-label">完成</span>
+                        </div>
+                    </div>
+
+                    <!-- 步骤内容 -->
+                    <div class="step-content" id="stepContent">
+                        <!-- 步骤1: 准备剧照 -->
+                        <div id="step1" class="step-panel">
+                            <div class="step-content-header">
+                                <h3>🎨 准备角色剧照</h3>
+                                <div class="step-actions">
+                                    <button class="btn btn-sm" onclick="autoGeneratePortraits()">🚀 自动生成全部</button>
+                                </div>
+                            </div>
+
+                            <div class="config-grid">
+                                <div class="config-card">
+                                    <h4>生成设置</h4>
+                                    <div class="config-option">
+                                        <span class="config-label">图片比例</span>
+                                        <select class="input input-sm" id="portraitRatio">
+                                            <option value="9:16">9:16 竖屏</option>
+                                            <option value="16:9">16:9 横屏</option>
+                                            <option value="1:1">1:1 方形</option>
+                                        </select>
+                                    </div>
+                                    <div class="config-option">
+                                        <span class="config-label">图片质量</span>
+                                        <select class="input input-sm" id="portraitQuality">
+                                            <option value="4K">4K 超高清</option>
+                                            <option value="2K">2K 高清</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="config-card">
+                                    <h4>角色列表</h4>
+                                    <div id="characterList" class="character-list">
+                                        <p class="empty-hint">请先选择章节</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 步骤2: 生成分镜 -->
+                        <div id="step2" class="step-panel" style="display: none;">
+                            <div class="step-content-header">
+                                <h3>🎬 生成分镜头脚本</h3>
+                                <div class="step-actions">
+                                    <button class="btn btn-sm" onclick="previewStoryboard()">👁️ 预览</button>
+                                </div>
+                            </div>
+
+                            <div class="settings-panel">
+                                <div class="setting-group">
+                                    <h4>分镜设置</h4>
+                                    <div class="setting-row">
+                                        <span class="setting-label">每个事件镜头数</span>
+                                        <input type="number" class="setting-input" id="shotsPerEvent" value="3" min="1" max="10">
+                                    </div>
+                                    <div class="setting-row">
+                                        <span class="setting-label">镜头风格</span>
+                                        <select class="input input-sm" id="shotStyle">
+                                            <option value="cinematic">电影风格</option>
+                                            <option value="anime">动漫风格</option>
+                                            <option value="documentary">纪录片风格</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="setting-group">
+                                    <h4>输出预览</h4>
+                                    <div id="storyboardPreview" class="output-grid">
+                                        <p class="empty-hint">点击"生成分镜"开始</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 步骤3: 生成视频 -->
+                        <div id="step3" class="step-panel" style="display: none;">
+                            <div class="step-content-header">
+                                <h3>🎥 批量生成视频</h3>
+                                <div class="step-actions">
+                                    <button class="btn btn-sm btn-primary" onclick="startBatchGenerate()">🚀 开始批量生成</button>
+                                </div>
+                            </div>
+
+                            <div class="batch-progress">
+                                <div class="batch-header">
+                                    <span class="batch-title">生成进度</span>
+                                    <div class="batch-stats">
+                                        <div class="batch-stat">
+                                            <div class="batch-stat-value" id="completedCount">0</div>
+                                            <div class="batch-stat-label">已完成</div>
+                                        </div>
+                                        <div class="batch-stat">
+                                            <div class="batch-stat-value" id="totalCount">0</div>
+                                            <div class="batch-stat-label">总计</div>
+                                        </div>
+                                        <div class="batch-stat">
+                                            <div class="batch-stat-value" id="progressPercent">0%</div>
+                                            <div class="batch-stat-label">进度</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="batch-progress-bar">
+                                    <div class="batch-progress-fill" id="batchProgressFill"></div>
+                                </div>
+                            </div>
+
+                            <div class="task-list" id="taskList">
+                                <p class="empty-hint">准备开始批量生成...</p>
+                            </div>
+
+                            <div class="output-grid" id="outputGrid" style="margin-top: var(--space-lg);">
+                                <p class="empty-hint">生成的视频将显示在这里</p>
+                            </div>
+                        </div>
+
+                        <!-- 步骤4: 完成 -->
+                        <div id="step4" class="step-panel" style="display: none;">
+                            <div class="step-content-header">
+                                <h3>✨ 完成</h3>
+                            </div>
+
+                            <div style="text-align: center; padding: var(--space-xl);">
+                                <div style="font-size: 4rem; margin-bottom: var(--space-md);">🎉</div>
+                                <h4>视频制作完成！</h4>
+                                <p style="color: var(--text-secondary); margin-bottom: var(--space-lg);">
+                                    所有视频已成功生成，您可以在下方查看或下载
+                                </p>
+
+                                <div class="output-grid" id="finalOutputs">
+                                    <p class="empty-hint">暂无输出</p>
+                                </div>
+
+                                <div style="display: flex; gap: var(--space-md); justify-content: center; margin-top: var(--space-lg);">
+                                    <button class="btn btn-primary" onclick="downloadAll()">📥 下载全部</button>
+                                    <button class="btn" onclick="resetWorkflow()">🔄 重新开始</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 控制按钮 -->
+                    <div class="workflow-controls">
+                        <div class="workflow-controls-left">
+                            <button class="btn" id="prevStepBtn" onclick="prevStep()" disabled>← 上一步</button>
+                        </div>
+                        <div class="workflow-controls-center">
+                            <button class="btn btn-primary" id="nextStepBtn" onclick="nextStep()">下一步 →</button>
+                        </div>
+                        <div class="workflow-controls-right">
+                            <button class="btn" onclick="saveProgress()">💾 保存进度</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Toast 容器 -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script src="/static/js/video/core/api.js"></script>
+    <script src="/static/js/video/workflow.js"></script>
+</body>
+</html>
