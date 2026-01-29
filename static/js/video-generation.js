@@ -62,7 +62,7 @@ class VideoGenerator {
         console.log('🎬 视频生成系统初始化...');
 
         // 🔥 优先检查URL参数，处理从短剧风格改造页面跳转过来的情况
-        if (this.checkURLParams()) {
+        if (await this.checkURLParams()) {
             console.log('🔗 [URL参数] 已处理URL参数，跳过常规初始化');
             return; // 如果有URL参数，直接返回
         }
@@ -5201,60 +5201,6 @@ li>选择角色，输入提示词，生成剧照</li>
             .video-generation-progress .status-badge.skipped {
                 background: var(--bg-tertiary);
                 color: var(--text-tertiary);
-            }
-        `;
-        document.head.appendChild(style);
-    }
-                flex: 1;
-            }
-            .video-generation-progress .shot-number {
-                font-weight: bold;
-                color: var(--primary-color);
-            }
-            .video-generation-progress .shot-title {
-                color: var(--text-secondary);
-                font-size: 0.85rem;
-                margin-left: 0.5rem;
-            }
-            .video-generation-progress .progress-bar {
-                flex: 2;
-                height: 8px;
-                background: var(--bg-dark);
-                border-radius: 4px;
-                overflow: hidden;
-            }
-            .video-generation-progress .progress-bar-fill {
-                height: 100%;
-                background: linear-gradient(90deg, var(--primary-color), var(--accent-color));
-                transition: width 0.3s ease;
-            }
-            .video-generation-progress .progress-bar-fill.processing {
-                animation: progress-pulse 1.5s infinite;
-            }
-            @keyframes progress-pulse {
-                0%, 100% { opacity: 1; }
-                50% { opacity: 0.7; }
-            }
-            .video-generation-progress .status-badge {
-                padding: 0.25rem 0.5rem;
-                border-radius: 4px;
-                font-size: 0.75rem;
-            }
-            .video-generation-progress .status-badge.pending {
-                background: var(--bg-dark);
-                color: var(--text-secondary);
-            }
-            .video-generation-progress .status-badge.processing {
-                background: var(--warning-light);
-                color: var(--warning-color);
-            }
-            .video-generation-progress .status-badge.completed {
-                background: var(--success-light);
-                color: var(--success-color);
-            }
-            .video-generation-progress .status-badge.error {
-                background: var(--danger-light);
-                color: var(--danger-color);
             }
         `;
         document.head.appendChild(style);
