@@ -4410,13 +4410,21 @@ def generate_episode_storyboard():
 
             stage_note = stage_descriptions.get(episode_stage, '')
 
-            # 生成分镜头场景
+            # 🔥 提取事件数据和角色信息用于生成详细提示语
+            event_data = {
+                'description': episode.get('description', episode.get('plot_outline', '')),
+                'location': episode.get('location', ''),
+                'characters': episode.get('characters', [])
+            }
+
+            # 生成分镜头场景（传递事件数据）
             scenes = _generate_episode_scenes(
                 episode_title,
                 episode_stage,
                 stage_note,
                 novel_title,
-                character_profiles
+                character_profiles,
+                event_data  # 🔥 新增参数
             )
 
             storyboards[episode_id] = {
@@ -4442,7 +4450,8 @@ def generate_episode_storyboard():
 
 
 def _generate_episode_scenes(episode_title: str, stage: str, stage_note: str,
-                              novel_title: str, character_profiles: list) -> list:
+                              novel_title: str, character_profiles: list,
+                              event_data: dict = None) -> list:
     """
     为单个剧集生成场景分镜头
 
@@ -4452,10 +4461,13 @@ def _generate_episode_scenes(episode_title: str, stage: str, stage_note: str,
         stage_note: 阶段说明
         novel_title: 小说标题
         character_profiles: 角色档案列表
+        event_data: 事件数据（包含描述、地点、角色等）
 
     Returns:
         场景列表
     """
+    event_data = event_data or {}
+
     # 根据不同阶段生成不同数量的场景
     scene_counts = {
         '起': 4,
@@ -4466,6 +4478,12 @@ def _generate_episode_scenes(episode_title: str, stage: str, stage_note: str,
 
     num_scenes = scene_counts.get(stage, 4)
     scenes = []
+
+    # 提取事件中的角色列表
+    event_characters = event_data.get('characters', [])
+    if isinstance(event_characters, str):
+        # 如果是字符串，尝试解析
+        event_characters = [c.strip() for c in event_characters.split(',') if c.strip()]
 
     for i in range(num_scenes):
         scene_num = i + 1
@@ -4481,8 +4499,11 @@ def _generate_episode_scenes(episode_title: str, stage: str, stage_note: str,
         templates = scene_templates.get(stage, ['场景一', '场景二', '场景三', '场景四'])
         scene_title = templates[i] if i < len(templates) else f'场景{scene_num}'
 
-        # 生成分镜头
-        shots = _generate_scene_shots(scene_title, episode_title, stage, scene_num)
+        # 🔥 生成分镜头（传递事件数据和角色信息）
+        shots = _generate_scene_shots(
+            scene_title, episode_title, stage, scene_num,
+            event_data, character_profiles
+        )
 
         scene = {
             'scene_number': scene_num,
@@ -4498,19 +4519,30 @@ def _generate_episode_scenes(episode_title: str, stage: str, stage_note: str,
     return scenes
 
 
-def _generate_scene_shots(scene_title: str, episode_title: str, stage: str, scene_num: int) -> list:
+def _generate_scene_shots(scene_title: str, episode_title: str, stage: str, scene_num: int,
+                           event_data: dict = None, characters: list = None) -> list:
     """
-    为场景生成分镜头序列
+    为场景生成分镜头序列（包含Veo 3 AI提示语）
 
     Args:
         scene_title: 场景标题
         episode_title: 剧集标题
         stage: 剧集阶段
         scene_num: 场景编号
+        event_data: 事件数据（包含情节点）
+        characters: 参与角色列表
 
     Returns:
-        分镜头列表
+        分镜头列表（每个镜头包含veo_prompt用于AI视频生成）
     """
+    characters = characters or []
+    event_data = event_data or {}
+
+    # 提取事件信息
+    event_description = event_data.get('description', event_data.get('plot_outline', ''))
+    event_location = event_data.get('location', _generate_location_description(stage, scene_num))
+    main_characters = event_data.get('characters', [])
+
     # 根据场景类型生成不同的镜头
     shot_types = {
         '开篇亮相': ['全景', '中景', '特写', '拉远'],
@@ -4533,46 +4565,174 @@ def _generate_scene_shots(scene_title: str, episode_title: str, stage: str, scen
         '新的开始': ['中景', '全景', '推镜头', '淡出']
     }
 
-    camera_movements = {
-        '全景': '展现环境和人物关系',
-        '中景': '展示人物动作和交流',
-        '特写': '突出表情和细节',
-        '拉远': '拉大空间，强调环境',
-        '推镜头': '引导注意力',
-        '跟拍': '跟随人物动作',
-        '摇镜头': '扫描场景',
-        '升降': '展现高度变化',
-        '仰拍': '强调威严',
-        '固定': '稳定观察',
-        '慢镜头': '延长重要时刻',
-        '淡出': '结束场景',
-        '急推': '制造紧张',
-        '甩镜头': '表现震惊',
-        '晃动': '表现混乱',
-        '快速切换': '加快节奏',
-        '主观视角': '代入感',
-        '爆炸': '视觉冲击',
-        '拉镜头': '扩大视野',
-        '慢动作': '强调重要性'
-    }
-
     # 获取适合该场景的镜头类型
     default_shots = ['全景', '中景', '特写', '固定']
     shot_type_list = shot_types.get(scene_title, default_shots)
 
     shots = []
     for i, shot_type in enumerate(shot_type_list):
+        # 🔥 根据事件数据和角色生成详细的Veo 3提示语
+        veo_prompt = _generate_veo_prompt(
+            shot_type=shot_type,
+            scene_title=scene_title,
+            episode_title=episode_title,
+            stage=stage,
+            event_description=event_description,
+            event_location=event_location,
+            characters=characters,
+            main_characters=main_characters
+        )
+
         shot = {
             'shot_number': i + 1,
             'shot_type': shot_type,
             'camera_movement': shot_type,
             'duration': 8,  # 秒
             'description': _generate_shot_description(shot_type, episode_title, scene_title),
-            'audio_note': _generate_audio_note(stage, shot_type)
+            'audio_note': _generate_audio_note(stage, shot_type),
+            'veo_prompt': veo_prompt  # 🔥 详细的AI视频生成提示语
         }
         shots.append(shot)
 
     return shots
+
+
+def _generate_veo_prompt(shot_type: str, scene_title: str, episode_title: str, stage: str,
+                          event_description: str, event_location: str,
+                          characters: list, main_characters: list) -> str:
+    """
+    生成Veo 3专用的AI视频提示语（中文版）
+
+    Args:
+        shot_type: 镜头类型
+        scene_title: 场景标题
+        episode_title: 剧集标题
+        stage: 剧集阶段
+        event_description: 事件描述
+        event_location: 事件地点
+        characters: 所有角色列表
+        main_characters: 主要参与角色
+
+    Returns:
+        Veo 3提示语字符串（中文）
+    """
+    # 基础镜头提示语模板（中文）
+    shot_prompts = {
+        '全景': '{location}全景镜头。{atmosphere}。电影级灯光，专业色彩分级，展现空间层次感。',
+        '中景': '{characters}中景镜头，腰部以上构图。{action}。专业电影灯光，浅景深，人物动作清晰自然。',
+        '特写': '人物面部特写，{emotion}。戏剧性侧光照明，高对比度，超细节纹理捕捉，电影级人像质感。',
+        '拉远': '拉远镜头展现{location}全貌。景深扩大，空间环境层次分明，专业运镜配合大气透视效果。',
+        '推镜头': '缓慢推进镜头聚焦{subject}。浅景深效果，电影级推轨移动，边缘渐晕虚化突出主体。',
+        '跟拍': '跟随{character}移动的跟拍镜头。稳定器防抖，动态运镜，自然运动模糊，环境信息丰富。',
+        '摇镜头': '{location}横摇扫描镜头。平滑水平移动展现场景细节，大气深度感，专业空间感知。',
+        '升降': '{location}升降镜头展现垂直层次。垂直运镜展示空间关系和尺度感，电影级视觉效果。',
+        '仰拍': '仰视{character}的低角度镜头。强化威严感和力量感，戏剧性天空背景，镜头光晕特效。',
+        '固定': '固定机位拍摄{scene}。三脚架稳定构图，自然光照明，专业色彩还原。',
+        '慢镜头': '{emotion}慢动作镜头。高帧率捕捉，平滑运动，戏剧性时间延展，情感张力十足。',
+        '淡出': '{scene}淡出转场。渐进式亮度降低，平滑结束场景，专业色彩时间调校。',
+        '急推': '急速推进{subject}。快速推轨移动制造冲击力，焦点变换，戏剧性张力爆发。',
+        '甩镜头': '急速甩摇展现{scene}。快速水平运动模糊，动态能量，戏剧性视觉效果。',
+        '晃动': '手持晃动镜头表现{action}。纪录片风格混乱感，自然运动模糊，紧张氛围营造。',
+        '快速切换': '快速剪辑展现{action}。快节奏编辑，动态角度，高能量运动，专业动作摄影。',
+        '主观视角': '{scene}第一人称视角。沉浸式体验，自然头部运动，深度感和临场感。',
+        '爆炸': '{location}爆炸特效。高冲击力视觉特效，戏剧性灯光，粒子效果和冲击波细节。',
+        '拉镜头': '拉远镜头展现{location}。构图扩展展示环境，深度层次分明，空间关系清晰。',
+        '慢动作': '{action}慢动作特写。高FPS捕捉，细节运动保留，戏剧性时间控制。'
+    }
+
+    # 氛围描述（根据阶段）- 中文
+    atmosphere_by_stage = {
+        '起': '开篇氛围，神秘莫测，悬念丛生，柔和晨光透过云层',
+        '承': '情节推进，张力渐增，自然光配合微妙阴影',
+        '转': '戏剧转折，情感强烈，激烈灯光，强烈对比冲击',
+        '合': '高潮收尾，史诗级宏大场面，震撼灯光，视觉冲击力强大'
+    }
+
+    # 角色描述（如果有）
+    char_desc = ''
+    if characters:
+        main_chars = [c for c in characters if c.get('name') in main_characters][:3]
+        if main_chars:
+            char_names = [c.get('name', '') for c in main_chars]
+            char_desc = f"{', '.join(char_names)}等角色"
+        else:
+            # 如果没有匹配到，使用前3个角色
+            char_names = [c.get('name', '') for c in characters[:3] if c.get('name')]
+            if char_names:
+                char_desc = f"{', '.join(char_names)}等角色"
+
+    if not char_desc:
+        char_desc = '角色身着古装'
+
+    # 场景动作描述（基于事件内容）
+    action_desc = event_description if event_description else f'{episode_title}的剧情场景'
+
+    # 替换模板变量
+    prompt_template = shot_prompts.get(shot_type, shot_prompts['固定'])
+    atmosphere = atmosphere_by_stage.get(stage, '电影氛围，专业灯光')
+
+    # 处理地点描述
+    location_map = {
+        '庭院': '古色古香的庭院',
+        '书房': '古典书房',
+        '大殿': '庄严大殿',
+        '演武场': '宗门演武场',
+        '密室': '幽静密室',
+        '山林': '云雾缭绕的山林',
+        '主厅': '宽敞主厅',
+        '门口': '府邸大门',
+        '洞府': '修仙洞府',
+        '广场': '宗门广场',
+        '天际': '天际云端',
+        '战场': '激战战场',
+        '虚空': '神秘虚空',
+        '巅峰': '绝顶山峰'
+    }
+
+    # 转换地点为中文描述
+    location_cn = location_map.get(event_location, event_location) if event_location else '古风场景'
+
+    # 获取主要角色名（用于跟拍等需要角色名的镜头）
+    character_name = ''
+    if main_characters:
+        character_name = main_characters[0]
+    elif characters and len(characters) > 0:
+        first_char = characters[0]
+        if isinstance(first_char, dict):
+            character_name = first_char.get('name', '')
+        elif isinstance(first_char, str):
+            character_name = first_char.split(':')[0] if ':' in first_char else first_char
+
+    if not character_name:
+        character_name = '角色'
+
+    veo_prompt = prompt_template.format(
+        location=location_cn,
+        atmosphere=atmosphere,
+        characters=char_desc,
+        action=action_desc[:50] if action_desc else '戏剧性互动',
+        emotion='强烈情感表达' if stage in ['转', '合'] else '细腻情感',
+        subject='主要人物' if main_characters else '场景主体',
+        scene=scene_title,
+        character=character_name  # 🔥 添加：用于跟拍镜头
+    )
+
+    # 添加风格后缀（中文）
+    style_suffix = _get_style_suffix(stage)
+    veo_prompt = f"{veo_prompt} {style_suffix}"
+
+    return veo_prompt
+
+
+def _get_style_suffix(stage: str) -> str:
+    """根据阶段返回视觉风格后缀（中文）"""
+    styles = {
+        '起': '仙侠修真风格，飘渺仙气，古风建筑，飘逸长袍，灵气流转的视觉效果。',
+        '承': '中国古风美学，精致古装，自然柔和灯光，细腻阴影层次。',
+        '转': '戏剧性中国奇幻风格，激烈灯光，神秘特效，强大视觉冲击力。',
+        '合': '史诗级仙侠高潮风格，宏大场面，天庭特效，庄严电影级摄影。'
+    }
+    return styles.get(stage, styles['起'])
 
 
 def _generate_shot_description(shot_type: str, episode_title: str, scene_title: str) -> str:

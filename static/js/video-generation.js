@@ -279,8 +279,25 @@ class VideoGenerator {
             const saved = localStorage.getItem('episodeWorkflow_characterPortraits');
             if (saved) {
                 const portraits = JSON.parse(saved);
-                this.episodeWorkflow.characterPortraits = new Map(Object.entries(portraits));
-                console.log('📺 [恢复剧照] 从localStorage恢复剧照数据:', Array.from(this.episodeWorkflow.characterPortraits.keys()));
+
+                // 🔥 检查并清除旧格式URL的缓存
+                let hasOldFormat = false;
+                for (const [name, data] of Object.entries(portraits)) {
+                    if (data.imageUrl && (data.imageUrl.includes('\\') || data.imageUrl.match(/_[^_]+_[^_]+\.png$/))) {
+                        console.log(`🗑️ [清理缓存] 发现旧格式URL，清除缓存: ${name}`, data.imageUrl);
+                        hasOldFormat = true;
+                        break;
+                    }
+                }
+
+                if (hasOldFormat) {
+                    console.log('🗑️ [清理缓存] 清除旧格式剧照缓存');
+                    localStorage.removeItem('episodeWorkflow_characterPortraits');
+                    this.episodeWorkflow.characterPortraits = new Map();
+                } else {
+                    this.episodeWorkflow.characterPortraits = new Map(Object.entries(portraits));
+                    console.log('📺 [恢复剧照] 从localStorage恢复剧照数据:', Array.from(this.episodeWorkflow.characterPortraits.keys()));
+                }
             }
         } catch (e) {
             console.error('❌ [恢复剧照] 恢复剧照数据失败:', e);
@@ -4214,7 +4231,7 @@ li>选择角色，输入提示词，生成剧照</li>
     }
 
     /**
-     * 渲染分镜头结果
+     * 渲染分镜头结果（包含AI视频生成提示语）
      */
     renderStoryboardResults(storyboards) {
         const container = document.getElementById('episodeStoryboardPreview');
@@ -4246,12 +4263,23 @@ li>选择角色，输入提示词，生成剧照</li>
                                     <span style="color: var(--text-secondary); font-size: 0.85rem;">${Math.floor((scene.estimated_duration_seconds || 0) / 60)}分${(scene.estimated_duration_seconds || 0) % 60}秒</span>
                                 </div>
                                 <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 0.5rem;">📍 ${scene.location || '场景'}</p>
-                                <div class="shots-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0.5rem;">
+                                <div class="shots-container">
                                     ${(scene.shot_sequence || []).map(shot => `
-                                        <div style="background: var(--bg-dark); padding: 0.5rem; border-radius: 4px; font-size: 0.85rem;">
-                                            <span style="color: var(--primary-color);">${shot.shot_number}.</span>
-                                            <strong>${shot.shot_type}</strong>
-                                            <span style="color: var(--text-secondary);">· ${shot.duration}秒</span>
+                                        <div class="shot-card" style="background: var(--bg-dark); padding: 0.75rem; border-radius: 6px; margin-bottom: 0.5rem;">
+                                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                                                <div>
+                                                    <span style="color: var(--primary-color); font-weight: bold;">${shot.shot_number}.</span>
+                                                    <strong style="margin-left: 0.5rem;">${shot.shot_type}</strong>
+                                                    <span style="color: var(--text-secondary); margin-left: 0.5rem;">· ${shot.duration}秒</span>
+                                                </div>
+                                                <button class="btn-secondary btn-sm" onclick="this.parentElement.parentElement.querySelector('.veo-prompt').classList.toggle('hidden')" style="font-size: 0.75rem;">
+                                                    🤖 AI提示语
+                                                </button>
+                                            </div>
+                                            <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 0.25rem;">${shot.description || ''}</p>
+                                            <div class="veo-prompt hidden" style="margin-top: 0.5rem; padding: 0.5rem; background: var(--bg-tertiary); border-radius: 4px; border-left: 3px solid var(--primary-color);">
+                                                <p style="color: var(--accent-color); font-size: 0.8rem; margin: 0; font-family: monospace;">${shot.veo_prompt || '暂无提示语'}</p>
+                                            </div>
                                         </div>
                                     `).join('')}
                                 </div>
@@ -4269,31 +4297,1133 @@ li>选择角色，输入提示词，生成剧照</li>
     /**
      * 加载视频生成步骤
      */
-    loadVideoStep() {
+    async loadVideoStep() {
         const container = document.getElementById('episodeVideoPreview');
-        const selectedCount = this.episodeWorkflow.selectedEpisodes.size;
 
-        container.innerHTML = `
-            <div class="video-preview">
-                <div class="video-progress-list">
-                    ${Array.from(this.episodeWorkflow.selectedEpisodes).map((epId, idx) => {
-                        const episode = this.episodeWorkflow.selectedMajorEvent?.children?.find(e => e.id === epId);
-                        const title = episode?.title || episode?.name || `第${idx + 1}集`;
-                        return `
-                            <div class="video-progress-item" data-episode-id="${epId}">
-                                <div class="episode-info">
-                                    <div class="episode-number">${title}</div>
-                                </div>
-                                <div class="progress-bar">
-                                    <div class="progress-bar-fill" style="width: 0%"></div>
-                                </div>
-                                <span class="status-badge pending">待生成</span>
-                            </div>
-                        `;
-                    }).join('')}
+        // 检查是否已生成分镜头
+        if (!this.episodeWorkflow.storyboardData) {
+            container.innerHTML = `
+                <div class="video-preview-placeholder" style="padding: 3rem; text-align: center;">
+                    <div style="font-size: 3rem; margin-bottom: 1rem;">🎬</div>
+                    <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">请先完成分镜头脚本生成</p>
+                    <button class="btn-primary" onclick="this.episodeWorkflow.step = 'generate-storyboard'; this.showEpisodeWorkflowStep('generate-storyboard');">返回上一步</button>
+                </div>
+            `;
+            return;
+        }
+
+        // 先加载已生成的视频
+        await this.loadGeneratedVideos();
+
+        // 显示生成按钮区域
+        const generateBtnArea = document.createElement('div');
+        generateBtnArea.className = 'video-generate-action-area';
+        generateBtnArea.style.cssText = `
+            text-align: center;
+            padding: 2rem;
+            border-top: 1px solid var(--border);
+            margin-top: 1.5rem;
+        `;
+
+        generateBtnArea.innerHTML = `
+            <div style="margin-bottom: 1rem;">
+                <button id="generateAllVideosBtn" class="btn-primary btn-large" style="min-width: 200px; padding: 1rem 2rem;">
+                    🎬 批量生成视频
+                </button>
+            </div>
+            <p style="color: var(--text-secondary); font-size: 0.9rem;">
+                将为每个镜头使用 AI 生成视频（使用角色剧照作为参考图）
+            </p>
+        `;
+
+        container.appendChild(generateBtnArea);
+
+        // 绑定生成按钮事件
+        const generateBtn = document.getElementById('generateAllVideosBtn');
+        if (generateBtn) {
+            generateBtn.onclick = () => this.generateAllVideos();
+        }
+    }
+
+    /**
+     * 加载已生成的视频
+     */
+    async loadGeneratedVideos() {
+        const container = document.getElementById('episodeVideoPreview');
+
+        try {
+            const response = await fetch('/api/video/studio/library?status=all');
+            const data = await response.json();
+
+            if (data.success && data.videos && data.videos.length > 0) {
+                // 按集数筛选当前项目的视频
+                const novelVideos = this.filterVideosByNovel(data.videos);
+
+                if (novelVideos.length > 0) {
+                    this.renderGeneratedVideos(novelVideos);
+                } else {
+                    this.showNoVideosState();
+                }
+            } else {
+                this.showNoVideosState();
+            }
+        } catch (error) {
+            console.error('加载视频失败:', error);
+            this.showNoVideosState();
+        }
+    }
+
+    /**
+     * 筛选当前小说的视频
+     */
+    filterVideosByNovel(videos) {
+        const novelTitle = this.selectedNovel || '';
+        return videos.filter(video => {
+            const prompt = video.prompt || '';
+            return prompt.includes(novelTitle) || prompt.includes(this.extractNovelShortTitle(novelTitle));
+        });
+    }
+
+    /**
+     * 提取小说简称
+     */
+    extractNovelShortTitle(fullTitle) {
+        // 提取小说名的主要部分
+        if (fullTitle.includes('：')) {
+            return fullTitle.split('：')[0];
+        }
+        return fullTitle.substring(0, 10);
+    }
+
+    /**
+     * 显示无视频状态
+     */
+    showNoVideosState() {
+        const container = document.getElementById('episodeVideoPreview');
+        if (container) {
+            container.innerHTML = `
+                <div class="no-videos-state" style="text-align: center; padding: 2rem; color: var(--text-secondary);">
+                    <div style="font-size: 2rem; margin-bottom: 0.5rem;">🎬</div>
+                    <p>还没有生成的视频</p>
+                    <p style="font-size: 0.85rem;">点击下方按钮开始生成</p>
+                </div>
+            `;
+        }
+    }
+
+    /**
+     * 渲染已生成的视频列表
+     */
+    renderGeneratedVideos(videos) {
+        const container = document.getElementById('episodeVideoPreview');
+
+        const videosHTML = `
+            <div class="generated-videos-section">
+                <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h3 style="margin: 0;">📹 已生成的视频 (${videos.length})</h3>
+                    <button class="btn-secondary btn-sm" onclick="window.location.reload()">🔄 刷新</button>
+                </div>
+                <div class="videos-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem;">
+                    ${videos.map(video => this.renderVideoCard(video)).join('')}
                 </div>
             </div>
         `;
+
+        // 插入到容器开头
+        const existingContent = container.innerHTML;
+        container.innerHTML = videosHTML + existingContent;
+    }
+
+    /**
+     * 渲染单个视频卡片
+     */
+    renderVideoCard(video) {
+        const statusClass = video.status === 'completed' ? 'completed' : 'processing';
+        const statusText = video.status === 'completed' ? '已完成' : '生成中';
+        const statusIcon = video.status === 'completed' ? '✅' : '⏳';
+
+        let content = '';
+        if (video.status === 'completed' && video.url) {
+            content = `
+                <div class="video-player-wrapper" style="width: 100%; aspect-ratio: 16/9; background: #000; border-radius: 4px; overflow: hidden; margin-bottom: 0.5rem;">
+                    <video src="${video.url}" controls style="width: 100%; height: 100%;"></video>
+                </div>
+            `;
+        } else {
+            content = `
+                <div class="video-placeholder" style="width: 100%; aspect-ratio: 16/9; background: var(--bg-dark); border-radius: 4px; display: flex; align-items: center; justify-content: center; margin-bottom: 0.5rem;">
+                    <div style="text-align: center;">
+                        <div style="font-size: 1.5rem;">⏳</div>
+                        <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.25rem;">生成中...</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        return `
+            <div class="video-card" data-video-id="${video.id}" style="background: var(--bg-secondary); border-radius: 8px; padding: 0.75rem; overflow: hidden;">
+                ${content}
+                <div class="video-info" style="font-size: 0.8rem; margin-bottom: 0.5rem;">
+                    <div class="video-prompt" style="color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                        ${video.prompt.substring(0, 40)}${video.prompt.length > 40 ? '...' : ''}
+                    </div>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span class="status-badge ${statusClass}" style="font-size: 0.75rem; padding: 0.25rem 0.5rem; border-radius: 4px;">
+                        ${statusIcon} ${statusText}
+                    </span>
+                    <div class="video-actions">
+                        ${video.status === 'completed' && video.url ? `
+                            <button onclick="window.open('${video.url}', '_blank')" class="btn-sm" style="margin-right: 0.25rem;">🔗</button>
+                            <button onclick="downloadVideo('${video.url}')" class="btn-sm">📥</button>
+                        ` : `
+                            <button onclick="location.reload()" class="btn-sm">🔄</button>
+                        `}
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * 批量生成所有视频（交互式模式：每个镜头需确认）
+     */
+    async generateAllVideos() {
+        const storyboardData = this.episodeWorkflow.storyboardData;
+        const characterPortraits = this.episodeWorkflow.characterPortraits;
+
+        if (!storyboardData) {
+            this.showToast('请先生成分镜头脚本', 'warning');
+            return;
+        }
+
+        // 收集所有镜头
+        const allShots = [];
+        for (const [epId, storyboard] of Object.entries(storyboardData)) {
+            const scenes = storyboard.scenes || [];
+            for (const scene of scenes) {
+                const shots = scene.shot_sequence || [];
+                for (const shot of shots) {
+                    if (shot.veo_prompt) {
+                        allShots.push({
+                            episode_id: epId,
+                            episode_title: storyboard.title,
+                            stage: storyboard.stage,
+                            scene_title: scene.scene_title,
+                            shot_number: shot.shot_number,
+                            shot_type: shot.shot_type,
+                            prompt: shot.veo_prompt
+                        });
+                    }
+                }
+            }
+        }
+
+        if (allShots.length === 0) {
+            this.showToast('没有可生成镜头', 'warning');
+            return;
+        }
+
+        console.log(`🎬 [视频生成] 准备生成 ${allShots.length} 个视频`);
+
+        // 显示生成进度概览
+        this.showVideoGenerationOverview(allShots);
+
+        // 交互式逐个生成：每个镜头需要确认
+        let completedCount = 0;
+        let skippedCount = 0;
+
+        for (let i = 0; i < allShots.length; i++) {
+            const shot = allShots[i];
+
+            // 显示生成前确认对话框
+            const confirmResult = await this.showGenerationConfirmDialog(shot, i + 1, allShots.length, characterPortraits);
+
+            if (confirmResult.action === 'cancel') {
+                this.showToast('已取消批量生成', 'info');
+                break;
+            } else if (confirmResult.action === 'skip') {
+                skippedCount++;
+                this.updateShotStatus(i, 'skipped', '已跳过');
+                continue;
+            }
+
+            // 更新状态为生成中
+            this.updateShotStatus(i, 'processing', '生成中...');
+
+            // 生成视频
+            const result = await this.generateSingleVideo(shot, i + 1, allShots.length, characterPortraits, confirmResult.selectedImages);
+
+            if (result.success) {
+                completedCount++;
+
+                // 显示生成后的预览对话框
+                const continueResult = await this.showVideoPreviewDialog(shot, i + 1, allShots.length, result.videoUrl);
+
+                if (continueResult === 'cancel') {
+                    this.showToast('已停止批量生成', 'info');
+                    break;
+                }
+            } else {
+                // 生成失败，询问是否继续
+                const continueAnyway = await this.showGenerationFailedDialog(shot, i + 1, allShots.length, result.error);
+                if (!continueAnyway) {
+                    break;
+                }
+            }
+        }
+
+        // 显示最终结果
+        this.showToast(`批量生成完成！成功: ${completedCount}, 跳过: ${skippedCount}`, 'success');
+
+        // 刷新列表
+        setTimeout(() => {
+            this.loadVideoStep();
+        }, 1000);
+    }
+
+    /**
+     * 显示生成前确认对话框
+     */
+    async showGenerationConfirmDialog(shot, currentIndex, total, characterPortraits) {
+        return new Promise((resolve) => {
+            // 获取匹配的角色剧照
+            const selectedImages = this.getPortraitImageUrlsForShot(shot, characterPortraits);
+            const allPortraits = Array.from(characterPortraits.entries());
+
+            // 创建对话框
+            const modal = document.createElement('div');
+            modal.className = 'video-confirm-modal';
+            modal.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0, 0, 0, 0.8);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 10000;
+            `;
+
+            modal.innerHTML = `
+                <div class="modal-content" style="
+                    background: var(--bg-secondary);
+                    border-radius: 12px;
+                    max-width: 800px;
+                    max-height: 90vh;
+                    overflow-y: auto;
+                    padding: 1.5rem;
+                    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+                ">
+                    <div class="modal-header" style="
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                        margin-bottom: 1rem;
+                        border-bottom: 1px solid var(--border);
+                        padding-bottom: 1rem;
+                    ">
+                        <h3 style="margin: 0;">🎬 确认生成镜头 ${currentIndex}/${total}</h3>
+                        <button class="btn-close" style="background: none; border: none; font-size: 1.5rem; cursor: pointer;">×</button>
+                    </div>
+
+                    <div class="modal-body">
+                        <div class="shot-info-section" style="margin-bottom: 1rem;">
+                            <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
+                                <span class="badge" style="background: var(--primary-light); padding: 0.25rem 0.5rem; border-radius: 4px;">${shot.episode_title}</span>
+                                <span class="badge" style="background: var(--accent-color); padding: 0.25rem 0.5rem; border-radius: 4px;">${shot.shot_type}</span>
+                            </div>
+                            <p style="color: var(--text-secondary); margin: 0;">📍 ${shot.scene_title}</p>
+                        </div>
+
+                        <div class="prompt-section" style="margin-bottom: 1rem;">
+                            <label style="font-weight: bold; display: block; margin-bottom: 0.5rem;">📝 AI提示语：</label>
+                            <textarea id="promptEditArea" style="
+                                width: 100%;
+                                min-height: 100px;
+                                background: var(--bg-dark);
+                                border: 1px solid var(--border);
+                                border-radius: 6px;
+                                padding: 0.75rem;
+                                color: var(--text-primary);
+                                font-size: 0.9rem;
+                                resize: vertical;
+                            ">${shot.prompt}</textarea>
+                        </div>
+
+                        <div class="reference-section" style="margin-bottom: 1rem;">
+                            <label style="font-weight: bold; display: block; margin-bottom: 0.5rem;">🖼️ 参考角色剧照：</label>
+                            <div id="portraitSelector" class="portrait-selector" style="
+                                display: flex;
+                                flex-wrap: wrap;
+                                gap: 0.75rem;
+                                padding: 0.75rem;
+                                background: var(--bg-dark);
+                                border-radius: 6px;
+                                min-height: 80px;
+                            ">
+                                ${allPortraits.map(([name, data], idx) => `
+                                    <label class="portrait-checkbox" style="
+                                        display: flex;
+                                        flex-direction: column;
+                                        align-items: center;
+                                        cursor: pointer;
+                                        position: relative;
+                                    ">
+                                        <input type="checkbox" class="portrait-check" data-name="${name}" data-url="${data.imageUrl}"
+                                            ${selectedImages.includes(data.imageUrl) ? 'checked' : ''}
+                                            style="position: absolute; opacity: 0; width: 0; height: 0;">
+                                        <div class="portrait-thumb" style="
+                                            width: 60px;
+                                            height: 60px;
+                                            border-radius: 6px;
+                                            overflow: hidden;
+                                            border: 2px solid ${selectedImages.includes(data.imageUrl) ? 'var(--primary-color)' : 'var(--border)'};
+                                            transition: all 0.2s;
+                                        ">
+                                            <img src="${data.imageUrl}" style="width: 100%; height: 100%; object-fit: cover;">
+                                        </div>
+                                        <span style="font-size: 0.7rem; margin-top: 0.25rem; max-width: 60px; overflow: hidden; text-overflow: ellipsis;">${name}</span>
+                                        <div class="check-indicator" style="
+                                            position: absolute;
+                                            top: 4px;
+                                            right: 4px;
+                                            width: 16px;
+                                            height: 16px;
+                                            background: ${selectedImages.includes(data.imageUrl) ? 'var(--primary-color)' : 'rgba(0,0,0,0.5)'};
+                                            border-radius: 50%;
+                                            display: flex;
+                                            align-items: center;
+                                            justify-content: center;
+                                            font-size: 10px;
+                                        ">${selectedImages.includes(data.imageUrl) ? '✓' : ''}</div>
+                                    </label>
+                                `).join('')}
+                            </div>
+                            <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.25rem;">
+                                已选择 <span id="selectedCount">${selectedImages.length}</span> 张参考图
+                            </p>
+                        </div>
+
+                        <div class="params-section" style="margin-bottom: 1rem;">
+                            <label style="font-weight: bold; display: block; margin-bottom: 0.5rem;">⚙️ 生成参数：</label>
+                            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem;">
+                                <div>
+                                    <label style="font-size: 0.85rem; color: var(--text-secondary);">方向：</label>
+                                    <select id="paramOrientation" style="
+                                        width: 100%;
+                                        padding: 0.5rem;
+                                        background: var(--bg-dark);
+                                        border: 1px solid var(--border);
+                                        border-radius: 4px;
+                                        color: var(--text-primary);
+                                    ">
+                                        <option value="landscape" selected>横屏 (16:9)</option>
+                                        <option value="portrait">竖屏 (9:16)</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label style="font-size: 0.85rem; color: var(--text-secondary);">尺寸：</label>
+                                    <select id="paramSize" style="
+                                        width: 100%;
+                                        padding: 0.5rem;
+                                        background: var(--bg-dark);
+                                        border: 1px solid var(--border);
+                                        border-radius: 4px;
+                                        color: var(--text-primary);
+                                    ">
+                                        <option value="large" selected>大尺寸 (1080p)</option>
+                                        <option value="small">小尺寸 (720p)</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="modal-footer" style="
+                        display: flex;
+                        justify-content: center;
+                        gap: 1rem;
+                        padding-top: 1rem;
+                        border-top: 1px solid var(--border);
+                    ">
+                        <button class="btn-cancel" style="
+                            padding: 0.75rem 1.5rem;
+                            background: var(--danger-color);
+                            border: none;
+                            border-radius: 6px;
+                            color: white;
+                            cursor: pointer;
+                        ">❌ 全部取消</button>
+                        <button class="btn-skip" style="
+                            padding: 0.75rem 1.5rem;
+                            background: var(--bg-tertiary);
+                            border: 1px solid var(--border);
+                            border-radius: 6px;
+                            color: var(--text-primary);
+                            cursor: pointer;
+                        ">⏭️ 跳过此镜头</button>
+                        <button class="btn-generate" style="
+                            padding: 0.75rem 2rem;
+                            background: var(--primary-color);
+                            border: none;
+                            border-radius: 6px;
+                            color: white;
+                            cursor: pointer;
+                            font-weight: bold;
+                        ">✅ 开始生成</button>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(modal);
+
+            // 绑定事件
+            const closeBtn = modal.querySelector('.btn-close');
+            const cancelBtn = modal.querySelector('.btn-cancel');
+            const skipBtn = modal.querySelector('.btn-skip');
+            const generateBtn = modal.querySelector('.btn-generate');
+
+            // 处理剧照选择
+            const portraitChecks = modal.querySelectorAll('.portrait-check');
+            const selectedCountEl = document.getElementById('selectedCount');
+
+            portraitChecks.forEach(check => {
+                check.addEventListener('change', () => {
+                    const thumb = check.parentElement.querySelector('.portrait-thumb');
+                    const indicator = check.parentElement.querySelector('.check-indicator');
+                    const count = modal.querySelectorAll('.portrait-check:checked').length;
+
+                    selectedCountEl.textContent = count;
+
+                    if (check.checked) {
+                        thumb.style.borderColor = 'var(--primary-color)';
+                        indicator.textContent = '✓';
+                        indicator.style.background = 'var(--primary-color)';
+                    } else {
+                        thumb.style.borderColor = 'var(--border)';
+                        indicator.textContent = '';
+                        indicator.style.background = 'rgba(0,0,0,0.5)';
+                    }
+                });
+            });
+
+            // 关闭/取消
+            closeBtn.onclick = cancelBtn.onclick = () => {
+                modal.remove();
+                resolve({ action: 'cancel', selectedImages: [] });
+            };
+
+            // 跳过
+            skipBtn.onclick = () => {
+                modal.remove();
+                resolve({ action: 'skip', selectedImages: [] });
+            };
+
+            // 生成
+            generateBtn.onclick = () => {
+                const editedPrompt = document.getElementById('promptEditArea').value;
+                const checkedImages = Array.from(modal.querySelectorAll('.portrait-check:checked'))
+                    .map(check => check.dataset.url);
+                const orientation = document.getElementById('paramOrientation').value;
+                const size = document.getElementById('paramSize').value;
+
+                modal.remove();
+                resolve({
+                    action: 'generate',
+                    prompt: editedPrompt,
+                    selectedImages: checkedImages,
+                    orientation,
+                    size
+                });
+            };
+        });
+    }
+
+    /**
+     * 显示生成后的视频预览对话框
+     */
+    async showVideoPreviewDialog(shot, currentIndex, total, videoUrl) {
+        return new Promise((resolve) => {
+            const modal = document.createElement('div');
+            modal.className = 'video-preview-modal';
+            modal.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0, 0, 0, 0.9);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 10000;
+            `;
+
+            modal.innerHTML = `
+                <div class="modal-content" style="
+                    background: var(--bg-secondary);
+                    border-radius: 12px;
+                    max-width: 900px;
+                    width: 90%;
+                    padding: 1.5rem;
+                    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+                ">
+                    <div class="modal-header" style="
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                        margin-bottom: 1rem;
+                    ">
+                        <div>
+                            <h3 style="margin: 0;">✅ 镜头 ${currentIndex}/${total} 生成完成</h3>
+                            <p style="margin: 0.25rem 0 0 0; color: var(--text-secondary); font-size: 0.9rem;">
+                                ${shot.episode_title} - ${shot.scene_title}
+                            </p>
+                        </div>
+                        <span style="color: var(--success-color); font-size: 2rem;">✓</span>
+                    </div>
+
+                    <div class="video-preview" style="
+                        background: #000;
+                        border-radius: 8px;
+                        overflow: hidden;
+                        aspect-ratio: 16/9;
+                        margin-bottom: 1rem;
+                    ">
+                        <video src="${videoUrl}" controls autoplay style="width: 100%; height: 100%;"></video>
+                    </div>
+
+                    <div class="prompt-preview" style="
+                        background: var(--bg-dark);
+                        padding: 0.75rem;
+                        border-radius: 6px;
+                        margin-bottom: 1rem;
+                        font-size: 0.85rem;
+                        color: var(--text-secondary);
+                        max-height: 80px;
+                        overflow-y: auto;
+                    ">
+                        ${shot.prompt.substring(0, 200)}${shot.prompt.length > 200 ? '...' : ''}
+                    </div>
+
+                    <div class="modal-footer" style="
+                        display: flex;
+                        justify-content: center;
+                        gap: 1rem;
+                    ">
+                        <button class="btn-stop" style="
+                            padding: 0.75rem 1.5rem;
+                            background: var(--danger-color);
+                            border: none;
+                            border-radius: 6px;
+                            color: white;
+                            cursor: pointer;
+                        ">⏹️ 停止批量生成</button>
+                        <button class="btn-download" style="
+                            padding: 0.75rem 1.5rem;
+                            background: var(--bg-tertiary);
+                            border: 1px solid var(--border);
+                            border-radius: 6px;
+                            color: var(--text-primary);
+                            cursor: pointer;
+                        ">📥 下载视频</button>
+                        <button class="btn-continue" style="
+                            padding: 0.75rem 2rem;
+                            background: var(--success-color);
+                            border: none;
+                            border-radius: 6px;
+                            color: white;
+                            cursor: pointer;
+                            font-weight: bold;
+                        ">➡️ 继续下一个</button>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(modal);
+
+            // 绑定事件
+            modal.querySelector('.btn-stop').onclick = () => {
+                modal.remove();
+                resolve('cancel');
+            };
+
+            modal.querySelector('.btn-download').onclick = () => {
+                downloadVideo(videoUrl);
+            };
+
+            modal.querySelector('.btn-continue').onclick = () => {
+                modal.remove();
+                resolve('continue');
+            };
+        });
+    }
+
+    /**
+     * 显示生成失败对话框
+     */
+    async showGenerationFailedDialog(shot, currentIndex, total, error) {
+        return new Promise((resolve) => {
+            const modal = document.createElement('div');
+            modal.className = 'video-error-modal';
+            modal.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0, 0, 0, 0.8);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 10000;
+            `;
+
+            modal.innerHTML = `
+                <div class="modal-content" style="
+                    background: var(--bg-secondary);
+                    border-radius: 12px;
+                    max-width: 500px;
+                    padding: 1.5rem;
+                    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+                ">
+                    <div class="modal-header" style="
+                        text-align: center;
+                        margin-bottom: 1rem;
+                    ">
+                        <div style="font-size: 3rem; margin-bottom: 0.5rem;">❌</div>
+                        <h3 style="margin: 0;">生成失败</h3>
+                        <p style="color: var(--text-secondary); margin: 0.5rem 0 0 0;">
+                            镜头 ${currentIndex}/${total}: ${shot.episode_title}
+                        </p>
+                    </div>
+
+                    <div class="error-message" style="
+                        background: var(--danger-light);
+                        padding: 0.75rem;
+                        border-radius: 6px;
+                        margin-bottom: 1rem;
+                        color: var(--danger-color);
+                        font-size: 0.9rem;
+                    ">
+                        ${error || '未知错误'}
+                    </div>
+
+                    <div class="modal-footer" style="
+                        display: flex;
+                        justify-content: center;
+                        gap: 1rem;
+                    ">
+                        <button class="btn-stop" style="
+                            padding: 0.75rem 1.5rem;
+                            background: var(--danger-color);
+                            border: none;
+                            border-radius: 6px;
+                            color: white;
+                            cursor: pointer;
+                        ">停止生成</button>
+                        <button class="btn-continue" style="
+                            padding: 0.75rem 2rem;
+                            background: var(--primary-color);
+                            border: none;
+                            border-radius: 6px;
+                            color: white;
+                            cursor: pointer;
+                        ">继续下一个</button>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(modal);
+
+            modal.querySelector('.btn-stop').onclick = () => {
+                modal.remove();
+                resolve(false);
+            };
+
+            modal.querySelector('.btn-continue').onclick = () => {
+                modal.remove();
+                resolve(true);
+            };
+        });
+    }
+
+    /**
+     * 更新镜头状态
+     */
+    updateShotStatus(index, status, text) {
+        const progressItem = document.getElementById(`shot-progress-${index}`);
+        if (!progressItem) return;
+
+        const statusBadge = progressItem.querySelector('.status-badge');
+        const progressBar = progressItem.querySelector('.progress-bar-fill');
+
+        if (status === 'processing') {
+            statusBadge.className = 'status-badge processing';
+            statusBadge.textContent = text || '生成中...';
+            progressBar.style.width = '50%';
+            progressBar.classList.add('processing');
+        } else if (status === 'completed') {
+            statusBadge.className = 'status-badge completed';
+            statusBadge.textContent = text || '已完成';
+            progressBar.style.width = '100%';
+            progressBar.classList.remove('processing');
+        } else if (status === 'error') {
+            statusBadge.className = 'status-badge error';
+            statusBadge.textContent = text || '失败';
+            progressBar.style.width = '100%';
+            progressBar.style.background = 'var(--danger-color)';
+        } else if (status === 'skipped') {
+            statusBadge.className = 'status-badge';
+            statusBadge.textContent = text || '已跳过';
+            progressBar.style.width = '100%';
+            progressBar.style.background = 'var(--text-tertiary)';
+        }
+    }
+
+    /**
+     * 显示视频生成进度概览
+     */
+    showVideoGenerationOverview(shots) {
+        const container = document.getElementById('episodeVideoPreview');
+        const total = shots.length;
+
+        container.innerHTML = `
+            <div class="video-generation-progress">
+                <div class="progress-header" style="text-align: center; padding: 2rem;">
+                    <h3>🎬 准备批量生成</h3>
+                    <p style="color: var(--text-secondary);">共 ${total} 个镜头需要确认生成</p>
+                    <p style="font-size: 0.85rem; color: var(--text-tertiary); margin-top: 0.5rem;">
+                        每个镜头将显示确认对话框，您可以：编辑提示语、选择参考图、调整参数
+                    </p>
+                </div>
+                <div class="progress-list" style="max-height: 400px; overflow-y: auto; padding: 0 1rem;">
+                    ${shots.map((shot, index) => `
+                        <div class="video-progress-item" data-shot-index="${index}" id="shot-progress-${index}">
+                            <div class="shot-info">
+                                <span class="shot-number">镜头 ${index + 1}</span>
+                                <span class="shot-title">${shot.episode_title} - ${shot.scene_title}</span>
+                            </div>
+                            <div class="progress-bar">
+                                <div class="progress-bar-fill" style="width: 0%"></div>
+                            </div>
+                            <span class="status-badge">待确认</span>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+
+        // 添加样式
+        this.addProgressStyles();
+    }
+
+    /**
+     * 添加进度样式
+     */
+    addProgressStyles() {
+        // 检查是否已添加样式
+        if (document.getElementById('video-progress-styles')) return;
+
+        const style = document.createElement('style');
+        style.id = 'video-progress-styles';
+        style.textContent = `
+            .video-generation-progress .video-progress-item {
+                display: flex;
+                align-items: center;
+                gap: 1rem;
+                padding: 0.75rem;
+                background: var(--bg-secondary);
+                border-radius: 6px;
+                margin-bottom: 0.5rem;
+            }
+            .video-generation-progress .shot-info {
+                flex: 1;
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+            }
+            .video-generation-progress .shot-number {
+                font-weight: bold;
+                color: var(--primary-color);
+                min-width: 50px;
+            }
+            .video-generation-progress .shot-title {
+                color: var(--text-secondary);
+                font-size: 0.85rem;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+            .video-generation-progress .progress-bar {
+                flex: 2;
+                height: 8px;
+                background: var(--bg-dark);
+                border-radius: 4px;
+                overflow: hidden;
+            }
+            .video-generation-progress .progress-bar-fill {
+                height: 100%;
+                background: linear-gradient(90deg, var(--primary-color), var(--accent-color));
+                transition: width 0.3s ease;
+            }
+            .video-generation-progress .progress-bar-fill.processing {
+                animation: progress-pulse 1.5s infinite;
+            }
+            @keyframes progress-pulse {
+                0%, 100% { opacity: 1; }
+                50% { opacity: 0.7; }
+            }
+            .video-generation-progress .status-badge {
+                padding: 0.25rem 0.5rem;
+                border-radius: 4px;
+                font-size: 0.75rem;
+                background: var(--bg-dark);
+                color: var(--text-secondary);
+                min-width: 60px;
+                text-align: center;
+            }
+            .video-generation-progress .status-badge.processing {
+                background: var(--warning-light);
+                color: var(--warning-color);
+            }
+            .video-generation-progress .status-badge.completed {
+                background: var(--success-light);
+                color: var(--success-color);
+            }
+            .video-generation-progress .status-badge.error {
+                background: var(--danger-light);
+                color: var(--danger-color);
+            }
+            .video-generation-progress .status-badge.skipped {
+                background: var(--bg-tertiary);
+                color: var(--text-tertiary);
+            }
+        `;
+        document.head.appendChild(style);
+    }
+                flex: 1;
+            }
+            .video-generation-progress .shot-number {
+                font-weight: bold;
+                color: var(--primary-color);
+            }
+            .video-generation-progress .shot-title {
+                color: var(--text-secondary);
+                font-size: 0.85rem;
+                margin-left: 0.5rem;
+            }
+            .video-generation-progress .progress-bar {
+                flex: 2;
+                height: 8px;
+                background: var(--bg-dark);
+                border-radius: 4px;
+                overflow: hidden;
+            }
+            .video-generation-progress .progress-bar-fill {
+                height: 100%;
+                background: linear-gradient(90deg, var(--primary-color), var(--accent-color));
+                transition: width 0.3s ease;
+            }
+            .video-generation-progress .progress-bar-fill.processing {
+                animation: progress-pulse 1.5s infinite;
+            }
+            @keyframes progress-pulse {
+                0%, 100% { opacity: 1; }
+                50% { opacity: 0.7; }
+            }
+            .video-generation-progress .status-badge {
+                padding: 0.25rem 0.5rem;
+                border-radius: 4px;
+                font-size: 0.75rem;
+            }
+            .video-generation-progress .status-badge.pending {
+                background: var(--bg-dark);
+                color: var(--text-secondary);
+            }
+            .video-generation-progress .status-badge.processing {
+                background: var(--warning-light);
+                color: var(--warning-color);
+            }
+            .video-generation-progress .status-badge.completed {
+                background: var(--success-light);
+                color: var(--success-color);
+            }
+            .video-generation-progress .status-badge.error {
+                background: var(--danger-light);
+                color: var(--danger-color);
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
+    /**
+     * 生成单个视频（使用确认对话框传递的参数）
+     */
+    async generateSingleVideo(shot, index, total, characterPortraits, selectedImages = null, customPrompt = null, orientation = 'landscape', size = 'large') {
+        try {
+            // 使用确认对话框选择的图片，如果没有则使用自动匹配的
+            let imageUrls = selectedImages;
+            if (!imageUrls || imageUrls.length === 0) {
+                imageUrls = this.getPortraitImageUrlsForShot(shot, characterPortraits);
+            }
+
+            // 使用确认对话框编辑的提示词，如果没有则使用原始提示词
+            const prompt = customPrompt || shot.prompt;
+
+            console.log(`🎬 [生成视频] 镜头 ${index}:`, {
+                prompt: prompt.substring(0, 100) + '...',
+                imageCount: imageUrls.length,
+                orientation,
+                size
+            });
+
+            // 调用 VeO API
+            const response = await fetch('/api/veo/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    prompt: prompt,
+                    image_urls: imageUrls,
+                    orientation: orientation,
+                    size: size,
+                    watermark: false,
+                    private: true,
+                    // 🔥 传递元数据用于按项目/分集组织视频
+                    metadata: {
+                        novel_title: this.selectedNovel || '',
+                        episode_title: shot.episode_title || '',
+                        shot_number: shot.shot_number || '',
+                        shot_type: shot.shot_type || '',
+                        scene_title: shot.scene_title || ''
+                    }
+                })
+            });
+
+            const result = await response.json();
+
+            if (result.id) {
+                console.log(`✅ 镜头 ${index} 生成任务创建成功: ${result.id}`);
+
+                // 轮询检查状态并获取视频URL
+                const videoUrl = await this.pollVideoStatusAndGetUrl(result.id);
+
+                if (videoUrl) {
+                    return { success: true, videoUrl };
+                } else {
+                    return { success: false, error: '生成超时或失败' };
+                }
+
+            } else if (result.error) {
+                throw new Error(result.error?.message || '生成失败');
+            }
+
+        } catch (error) {
+            console.error(`❌ 镜头 ${index} 生成失败:`, error);
+            return { success: false, error: error.message };
+        }
+    }
+
+    /**
+     * 轮询视频生成状态并返回视频URL
+     */
+    async pollVideoStatusAndGetUrl(videoId) {
+        const maxAttempts = 60; // 最多检查5分钟
+        const interval = 5000; // 每5秒检查一次
+
+        for (let i = 0; i < maxAttempts; i++) {
+            await new Promise(resolve => setTimeout(resolve, interval));
+
+            try {
+                const response = await fetch(`/api/veo/status/${videoId}`);
+                const result = await response.json();
+
+                if (result.status === 'completed') {
+                    console.log(`✅ 视频 ${videoId} 生成完成`, result);
+                    // 返回视频URL - 响应格式: result.videos[0].url
+                    const videoUrl = result.result?.videos?.[0]?.url || result.video_url || `/static/generated_videos/${videoId}.mp4`;
+                    console.log(`📹 视频 URL: ${videoUrl}`);
+                    return videoUrl;
+                } else if (result.status === 'failed') {
+                    console.error(`❌ 视频 ${videoId} 生成失败`, result);
+                    return null;
+                }
+
+            } catch (error) {
+                console.error('检查状态失败:', error);
+            }
+        }
+
+        console.warn(`⏰ 视频 ${videoId} 生成超时`);
+        return null;
+    }
+
+    /**
+     * 获取镜头对应的角色剧照URL
+     */
+    getPortraitImageUrlsForShot(shot, characterPortraits) {
+        const urls = [];
+
+        // 从提示词中提取角色名
+        for (const [charName, portraitData] of characterPortraits) {
+            if (portraitData && portraitData.imageUrl) {
+                // 检查这个角色是否在当前镜头中
+                if (shot.prompt.includes(charName)) {
+                    urls.push(portraitData.imageUrl);
+                }
+            }
+        }
+
+        // 如果没有匹配到角色，使用所有剧照
+        if (urls.length === 0) {
+            for (const [charName, portraitData] of characterPortraits) {
+                if (portraitData && portraitData.imageUrl) {
+                    urls.push(portraitData.imageUrl);
+                }
+            }
+        }
+
+        return urls;
+    }
+
+    /**
+     * 打开视频工作台并传递提示语和剧照
+     */
+    openVideoStudioWithPrompts() {
+        // 准备角色剧照数据
+        const characterPortraits = [];
+        for (const [charName, portraitData] of this.episodeWorkflow.characterPortraits) {
+            if (portraitData && portraitData.imageUrl) {
+                characterPortraits.push({
+                    name: charName,
+                    url: portraitData.imageUrl
+                });
+            }
+        }
+
+        // 准备视频生成数据
+        const videoData = {
+            novel_title: this.selectedNovel,
+            storyboard: this.episodeWorkflow.storyboardData,
+            selected_episodes: Array.from(this.episodeWorkflow.selectedEpisodes),
+            character_portraits: characterPortraits,  // 🔥 新增：角色剧照
+            timestamp: new Date().toISOString()
+        };
+
+        console.log('🎬 [视频生成] 准备传递到视频工作台的数据:', videoData);
+        console.log(`🎬 [视频生成] 包含 ${characterPortraits.length} 个角色剧照`);
+
+        // 保存到localStorage供视频工作台读取
+        localStorage.setItem('videoStudio_importData', JSON.stringify(videoData));
+
+        // 显示提示
+        this.showToast(`正在跳转到视频工作台...（包含${characterPortraits.length}个角色剧照）`, 'info');
+
+        // 跳转到视频工作台
+        window.open('/video/studio', '_blank');
     }
 
     /**
@@ -4376,6 +5506,26 @@ li>选择角色，输入提示词，生成剧照</li>
             }
         }
     }
+}
+
+/**
+ * 全局函数：下载视频
+ */
+function downloadVideo(url) {
+    if (!url) {
+        console.error('下载视频失败：URL为空');
+        return;
+    }
+    console.log('📥 [下载视频] URL:', url);
+    // 创建一个隐藏的a标签来触发下载
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `video_${Date.now()}.mp4`;
+    a.target = '_blank';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    console.log('✅ [下载视频] 下载已触发');
 }
 
 // 页面加载完成后初始化

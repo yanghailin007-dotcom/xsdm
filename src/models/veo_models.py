@@ -97,7 +97,7 @@ class VeOVideoRequest:
 @dataclass
 class VeOCreateVideoRequest:
     """VeO 创建视频请求 (原生格式)
-    
+
     支持两种图片输入模式：
     1. URL 模式（推荐）：直接传递图片 URL，无需 base64 编码
     2. Base64 模式：传递 base64 编码的图片数据（会自动压缩）
@@ -111,6 +111,9 @@ class VeOCreateVideoRequest:
     duration: int = 10
     watermark: bool = False
     private: bool = True
+
+    # 🔥 新增：元数据字段，用于按项目/分集组织视频
+    metadata: Dict[str, Any] = field(default_factory=dict)
     
     def has_image_urls(self) -> bool:
         """检查是否有图片 URL（不包括 data URL）"""

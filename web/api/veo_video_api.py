@@ -44,7 +44,13 @@ def create_video_generation():
         "size": "small" | "large",
         "duration": 10 | 15,
         "watermark": false,
-        "private": true
+        "private": true,
+        "metadata": {  // 🔥 新增：元数据，用于按项目/分集组织视频
+            "novel_title": "小说名",
+            "episode_title": "第一集",
+            "shot_number": "1",
+            "shot_type": "全景"
+        }
     }
     
     响应：
@@ -99,10 +105,15 @@ def create_video_generation():
         # 🔥 统一使用 veo_3_1-fast 模型，首尾帧模式和参考图模式调用方式完全一致
         # 唯一的区别只是图片数量不同
         user_provided_model = data.get('model')
-        
+
         # 使用用户指定的模型，如果没有则使用默认的 fast 模型
         auto_model = user_provided_model if user_provided_model else DEFAULT_AIWX_MODEL
-        
+
+        # 🔥 提取元数据（用于按项目/分集组织视频）
+        metadata = data.get('metadata', {})
+        if metadata:
+            logger.info(f"📁 视频元数据: {metadata}")
+
         veo_request = VeOCreateVideoRequest(
             images=images,
             model=auto_model,
@@ -111,7 +122,8 @@ def create_video_generation():
             size=data.get('size', 'large'),
             duration=10,  # VeO只支持10秒
             watermark=data.get('watermark', False),
-            private=data.get('private', True)
+            private=data.get('private', True),
+            metadata=metadata  # 🔥 传递元数据
         )
         
         logger.info(f"🎨 图片数量: {len(images)}")

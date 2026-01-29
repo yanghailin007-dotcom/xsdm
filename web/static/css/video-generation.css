@@ -29,6 +29,7 @@
     --bg-secondary: #12121a;    /* 次级背景 */
     --bg-tertiary: #1a1a24;     /* 卡片/面板背景 */
     --bg-elevated: #222230;     /* 悬浮元素背景 */
+    --bg-dark: #1a1a24;         /* 深色背景（兼容） */
 
     /* 文字色 */
     --text-primary: #f4f4f5;
@@ -37,6 +38,7 @@
     --text-muted: #52525b;
 
     /* 边框色 */
+    --border: var(--border-color);
     --border-color: #27272a;
     --border-light: #3f3f46;
     --border-focus: var(--primary-color);
@@ -4365,4 +4367,49 @@ body {
 .workflow-intro p {
     margin: 0;
     color: var(--text-secondary);
+}
+
+/* ============================================
+   分镜头脚本样式（包含AI提示语）
+   ============================================ */
+
+.shots-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.shot-card {
+    background: var(--bg-dark);
+    padding: 0.75rem;
+    border-radius: 6px;
+    margin-bottom: 0.5rem;
+    transition: all 0.2s ease;
+}
+
+.shot-card:hover {
+    background: var(--bg-tertiary);
+    transform: translateX(4px);
+}
+
+.veo-prompt {
+    margin-top: 0.5rem;
+    padding: 0.75rem;
+    background: linear-gradient(135deg, rgba(6, 182, 212, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%);
+    border-radius: 6px;
+    border-left: 3px solid var(--accent-color);
+    font-size: 0.85rem;
+    line-height: 1.6;
+}
+
+.veo-prompt.hidden {
+    display: none;
+}
+
+.veo-prompt p {
+    color: var(--accent-color);
+    margin: 0;
+    font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    white-space: pre-wrap;
+    word-wrap: break-word;
 }

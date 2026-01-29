@@ -51,6 +51,47 @@ VEO_VIDEO_STORAGE_DIR = BASE_DIR / "static" / "generated_videos"
 VEO_VIDEO_STORAGE_DIR.mkdir(parents=True, exist_ok=True)
 logger.info(f"📁 VeO视频本地存储目录: {VEO_VIDEO_STORAGE_DIR}")
 
+# 🔥 新增：视频项目目录（按项目/分集组织）
+VIDEO_PROJECT_BASE_DIR = BASE_DIR / "视频项目"
+VIDEO_PROJECT_BASE_DIR.mkdir(parents=True, exist_ok=True)
+logger.info(f"📁 视频项目目录: {VIDEO_PROJECT_BASE_DIR}")
+
+
+def sanitize_path(name: str) -> str:
+    """清理文件名，移除Windows不允许的字符"""
+    invalid_chars = ['<', '>', ':', '"', '/', '\\', '|', '?', '：', '、', '？', '！', '＊', '＂', '＜', '＞', '／', '＼', '｜']
+    result = name
+    for char in invalid_chars:
+        result = result.replace(char, '_')
+    return result.strip('_')
+
+
+def get_video_save_path(metadata: Dict[str, Any], task_id: str) -> Path:
+    """
+    根据元数据获取视频保存路径
+
+    路径结构: 视频项目/{小说名}/{分集}/videos/{镜头号}_{类型}.mp4
+    如果没有元数据，则使用默认路径: static/generated_videos/{task_id}.mp4
+    """
+    novel_title = metadata.get('novel_title', '')
+    episode_title = metadata.get('episode_title', '')
+    shot_number = metadata.get('shot_number', '')
+    shot_type = metadata.get('shot_type', 'shot')
+
+    if novel_title and episode_title:
+        # 使用项目目录结构
+        safe_novel = sanitize_path(novel_title)
+        safe_episode = sanitize_path(episode_title)
+        safe_shot = sanitize_path(f"{shot_number}_{shot_type}")
+
+        project_dir = VIDEO_PROJECT_BASE_DIR / safe_novel / safe_episode / "videos"
+        project_dir.mkdir(parents=True, exist_ok=True)
+
+        return project_dir / f"{safe_shot}.mp4"
+    else:
+        # 使用默认路径
+        return VEO_VIDEO_STORAGE_DIR / f"{task_id}.mp4"
+
 
 class VeOVideoGenerationTask:
     """VeO 视频生成任务"""
@@ -73,6 +114,11 @@ class VeOVideoGenerationTask:
         
         # 转换为原生格式（如果提供了原生请求则使用，否则转换）
         self.native_request = native_request or VeOCreateVideoRequest.from_openai_format(request)
+
+        # 🔥 保存元数据用于组织视频路径
+        if self.native_request and hasattr(self.native_request, 'metadata'):
+            self.metadata.update(self.native_request.metadata)
+            logger.debug(f"📁 任务 {self.id} 元数据: {self.metadata}")
     
     def update_progress(self, progress: int, stage: str = ""):
         """更新进度"""
@@ -524,8 +570,8 @@ class VeOVideoManager:
                             self.logger.info(f"🎬 视频URL: {video_url}")
                             task.update_progress(95, "正在下载视频到本地...")
                             
-                            # 🔥 新增：下载视频到本地
-                            local_path = self._download_video_to_local(task.id, video_url)
+                            # 🔥 新增：下载视频到本地（传递任务元数据）
+                            local_path = self._download_video_to_local(task.id, video_url, task.metadata)
                             
                             # 提取视频分辨率
                             width = query_response.width or (1280 if task.native_request and task.native_request.orientation == "landscape" else 720)
@@ -613,59 +659,66 @@ class VeOVideoManager:
                 break
     
     
-    def _download_video_to_local(self, task_id: str, video_url: str) -> Optional[str]:
+    def _download_video_to_local(self, task_id: str, video_url: str, task_metadata: Dict[str, Any] = None) -> Optional[str]:
         """
         下载视频到本地存储
-        
+
         Args:
             task_id: 任务ID
             video_url: 视频远程URL
-            
+            task_metadata: 任务元数据（用于确定保存路径）
+
         Returns:
-            本地文件路径（相对于static/generated_videos），如果下载失败则返回None
+            本地文件路径（相对路径），如果下载失败则返回None
         """
         try:
-            # 生成本地文件名
-            local_filename = f"{task_id}.mp4"
-            local_file_path = VEO_VIDEO_STORAGE_DIR / local_filename
-            
+            # 🔥 根据元数据确定保存路径
+            local_file_path = get_video_save_path(task_metadata or {}, task_id)
+
             self.logger.info(f"📥 开始下载视频: {video_url}")
             self.logger.info(f"💾 保存到: {local_file_path}")
-            
+
             # 如果文件已存在，先删除
             if local_file_path.exists():
                 self.logger.info(f"🗑️  删除已存在的文件: {local_file_path}")
                 local_file_path.unlink()
-            
+
             # 下载视频
             response = requests.get(
                 video_url,
                 stream=True,
                 timeout=REQUEST_CONFIG.get('download_timeout', 300)
             )
-            
+
             if response.status_code == 200:
                 # 写入文件
                 total_size = int(response.headers.get('content-length', 0))
                 downloaded_size = 0
-                
+
                 with open(local_file_path, 'wb') as f:
                     for chunk in response.iter_content(chunk_size=8192):
                         if chunk:
                             f.write(chunk)
                             downloaded_size += len(chunk)
-                            
+
                             # 显示下载进度
                             if total_size > 0:
                                 progress = int(downloaded_size / total_size * 100)
                                 if progress % 10 == 0:  # 每10%记录一次
                                     self.logger.info(f"📥 下载进度: {progress}%")
-                
+
                 file_size_mb = local_file_path.stat().st_size / (1024 * 1024)
-                self.logger.info(f"✅ 视频下载完成: {local_filename} ({file_size_mb:.2f} MB)")
-                
-                # 返回相对路径（用于URL构造）
-                return local_filename
+                self.logger.info(f"✅ 视频下载完成: {local_file_path.name} ({file_size_mb:.2f} MB)")
+
+                # 🔥 返回可访问的URL路径
+                # 如果是项目目录路径，返回绝对路径的web访问格式
+                if "视频项目" in str(local_file_path):
+                    # 项目目录视频需要特殊处理（可能需要通过API访问）
+                    relative = local_file_path.relative_to(BASE_DIR)
+                    return f"/{str(relative).replace('\\', '/')}"
+                else:
+                    # 默认 generated_videos 目录
+                    return f"/static/generated_videos/{local_file_path.name}"
             
             else:
                 self.logger.error(f"❌ 下载失败: HTTP {response.status_code}")

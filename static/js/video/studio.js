@@ -13,7 +13,220 @@ let lastFrame = null;
 document.addEventListener('DOMContentLoaded', () => {
     setupUploadHandlers();
     loadGenerationHistory();
+    checkImportedData();  // 🔥 检查是否有导入的分镜头数据
 });
+
+/**
+ * 🔥 检查并加载导入的分镜头数据
+ */
+function checkImportedData() {
+    const importedDataStr = localStorage.getItem('videoStudio_importData');
+    if (!importedDataStr) return;
+
+    try {
+        const importedData = JSON.parse(importedDataStr);
+        console.log('🎬 [视频工作台] 检测到导入的分镜头数据:', importedData);
+
+        // 清除已导入的数据标记
+        localStorage.removeItem('videoStudio_importData');
+
+        // 🔥 处理角色剧照
+        if (importedData.character_portraits && importedData.character_portraits.length > 0) {
+            loadCharacterPortraits(importedData.character_portraits);
+        }
+
+        // 显示导入成功提示
+        const portraitCount = importedData.character_portraits?.length || 0;
+        const episodeCount = Object.keys(importedData.storyboard || {}).length;
+        showToast(`已导入 ${importedData.novel_title} 的分镜头数据（${episodeCount}集，${portraitCount}个角色剧照）`, 'success');
+
+        // 生成提示语并填充到编辑器
+        const prompt = generatePromptFromStoryboard(importedData, importedData.character_portraits);
+        const editor = document.getElementById('videoPrompt');
+        if (editor) {
+            editor.value = prompt;
+        }
+
+        // 显示导入数据概览
+        showImportedDataOverview(importedData);
+
+    } catch (e) {
+        console.error('❌ [视频工作台] 解析导入数据失败:', e);
+    }
+}
+
+/**
+ * 🔥 加载角色剧照到参考图区域
+ */
+function loadCharacterPortraits(portraits) {
+    // 自动切换到参考图模式
+    setUploadMode('reference');
+
+    // 显示已导入的角色剧照
+    const uploadArea = document.getElementById('referenceUploadArea');
+    if (!uploadArea) return;
+
+    // 创建角色剧照容器
+    const portraitsContainer = document.createElement('div');
+    portraitsContainer.id = 'importedPortraitsContainer';
+    portraitsContainer.style.cssText = `
+        margin-top: 1rem;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    `;
+
+    portraits.forEach((portrait, index) => {
+        const portraitDiv = document.createElement('div');
+        portraitDiv.className = 'imported-portrait';
+        portraitDiv.style.cssText = `
+            position: relative;
+            width: 80px;
+            height: 80px;
+            border-radius: 4px;
+            overflow: hidden;
+            border: 2px solid var(--accent-color);
+        `;
+
+        portraitDiv.innerHTML = `
+            <img src="${portrait.url}" alt="${portrait.name}" style="width: 100%; height: 100%; object-fit: cover;">
+            <div style="position: absolute; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,0.7); color: white; font-size: 0.7rem; padding: 2px 4px; text-align: center;">
+                角色${index + 1}: ${portrait.name}
+            </div>
+            <button onclick="this.parentElement.remove();" style="position: absolute; top: 2px; right: 2px; background: rgba(255,0,0,0.8); color: white; border: none; border-radius: 50%; width: 16px; height: 16px; cursor: pointer; font-size: 10px;">×</button>
+        `;
+
+        portraitsContainer.appendChild(portraitDiv);
+    });
+
+    // 添加到参考图区域
+    const previewDiv = document.getElementById('referencePreview');
+    const placeholderDiv = document.getElementById('referencePlaceholder');
+
+    if (previewDiv) {
+        previewDiv.style.display = 'block';
+        previewDiv.innerHTML = '';
+        previewDiv.appendChild(portraitsContainer);
+    }
+    if (placeholderDiv) {
+        placeholderDiv.style.display = 'none';
+    }
+
+    console.log(`🎬 [视频工作台] 已加载 ${portraits.length} 个角色剧照`);
+}
+
+/**
+ * 🔥 从分镜头数据生成视频提示语（包含角色信息）
+ */
+function generatePromptFromStoryboard(data, characterPortraits) {
+    const storyboard = data.storyboard || {};
+    const episodes = Object.entries(storyboard);
+
+    if (episodes.length === 0) return '';
+
+    // 生成角色映射
+    let charMap = '';
+    if (characterPortraits && characterPortraits.length > 0) {
+        charMap = '\n【角色参考图】\n';
+        characterPortraits.forEach((portrait, index) => {
+            charMap += `  角色${index + 1}: ${portrait.name}（参考图 ${index + 1}）\n`;
+        });
+        charMap += '\n';
+    }
+
+    let prompt = `【${data.novel_title}】视频生成提示语${charMap}`;
+    prompt += `\n共 ${episodes.length} 集，`;
+
+    // 收集每个镜头的提示语（包含角色）
+    let allShots = [];
+    for (const [epId, epData] of episodes) {
+        const scenes = epData.scenes || [];
+        prompt += `\n📺 ${epData.title}（${epData.stage}）`;
+
+        // 添加涉及角色
+        const charsInvolved = epData.characters_involved || [];
+        if (charsInvolved.length > 0) {
+            prompt += ` - 角色: ${charsInvolved.join('、')}`;
+        }
+        prompt += `\n`;
+
+        for (const scene of scenes) {
+            const shots = scene.shot_sequence || [];
+            for (const shot of shots) {
+                if (shot.veo_prompt) {
+                    allShots.push(`【${shot.shot_type}】${shot.veo_prompt}`);
+                }
+            }
+        }
+    }
+
+    prompt += `\n总计 ${allShots.length} 个镜头：\n\n`;
+    prompt += allShots.join('\n\n');
+
+    return prompt;
+}
+
+/**
+ * 🔥 显示导入数据概览
+ */
+function showImportedDataOverview(data) {
+    const storyboard = data.storyboard || {};
+    const episodes = Object.entries(storyboard);
+
+    // 在历史记录上方显示导入信息
+    const historyList = document.getElementById('historyList');
+    if (!historyList) return;
+
+    // 移除旧的概览
+    const oldOverview = historyList.querySelector('.imported-data-overview');
+    if (oldOverview) oldOverview.remove();
+
+    const overviewDiv = document.createElement('div');
+    overviewDiv.className = 'imported-data-overview';
+    overviewDiv.style.cssText = `
+        background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(6, 182, 212, 0.1) 100%);
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        border-left: 3px solid var(--success-color);
+    `;
+
+    const portraitCount = data.character_portraits?.length || 0;
+
+    let html = '<div style="font-weight: bold; margin-bottom: 0.5rem;">📥 导入的分镜头数据</div>';
+    html += `<div style="font-size: 0.9rem; color: var(--text-secondary);">`;
+    html += `<div>📖 小说：${data.novel_title}</div>`;
+    html += `<div>📺 集数：${episodes.length} 集</div>`;
+    html += `<div>👤 角色剧照：${portraitCount} 个</div>`;
+
+    // 计算镜头总数
+    let totalShots = 0;
+    for (const [epId, epData] of episodes) {
+        const scenes = epData.scenes || [];
+        for (const scene of scenes) {
+            totalShots += (scene.shot_sequence || []).length;
+        }
+    }
+    html += `<div>🎬 镜头：${totalShots} 个</div>`;
+    html += `</div>`;
+
+    // 显示角色列表
+    if (data.character_portraits && data.character_portraits.length > 0) {
+        html += '<div style="margin-top: 0.5rem; display: flex; flex-wrap: wrap; gap: 0.5rem;">';
+        data.character_portraits.forEach((portrait, index) => {
+            html += `
+                <div style="display: flex; align-items: center; gap: 0.25rem; background: var(--bg-dark); padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.8rem;">
+                    <span style="color: var(--accent-color);">👤</span>
+                    <span>角色${index + 1}: ${portrait.name}</span>
+                </div>
+            `;
+        });
+        html += '</div>';
+    }
+
+    overviewDiv.innerHTML = html;
+    historyList.insertBefore(overviewDiv, historyList.firstChild);
+}
 
 /**
  * 设置上传处理器
