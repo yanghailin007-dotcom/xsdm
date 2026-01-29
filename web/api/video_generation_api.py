@@ -2359,23 +2359,22 @@ def generate_character_portrait():
                     novel_title = data.get('novel_title', title)
                     episode_info = data.get('episode_info', '')
 
-                    # 🔥 路径安全处理：移除Windows文件名不允许的字符
-                    def sanitize_path(name):
-                        """清理文件名，移除Windows不允许的字符"""
-                        # Windows不允许的字符: < > : " / \ | ? *
-                        # 包括中文冒号 ：
-                        invalid_chars = ['<', '>', ':', '"', '/', '\\', '|', '?', '：', '、', '？', '！', '＊', '＂', '＜', '＞', '／', '＼', '｜']
+                    # 🔥 路径安全处理：只对文件名进行清理，目录名使用原始值
+                    def sanitize_filename(name):
+                        """清理文件名，只移除Windows不允许的字符（保留中文标点）"""
+                        invalid_chars = ['<', '>', '"', '/', '\\', '|', '?']
                         result = name
                         for char in invalid_chars:
                             result = result.replace(char, '_')
                         return result.strip('_')
 
-                    safe_novel_title = sanitize_path(novel_title)
-                    safe_character_name = sanitize_path(character_name)
-                    safe_episode = sanitize_path(episode_info) if episode_info else '默认'
+                    safe_character_name = sanitize_filename(character_name)
+
+                    # 🔥 使用原始的小说名和剧集信息（实际目录已用这些名称创建）
+                    safe_episode = episode_info if episode_info else '默认'
 
                     # 🔥 新目录结构: 视频项目/{小说名}/{分集}/{角色名}.png
-                    video_project_base = os.path.join('视频项目', safe_novel_title, safe_episode)
+                    video_project_base = os.path.join('视频项目', novel_title, safe_episode)
 
                     logger.info(f"📁 [VIDEO] 视频项目路径构建:")
                     logger.info(f"  - 原始小说标题: {novel_title}")
@@ -2408,11 +2407,11 @@ def generate_character_portrait():
                         logger.info(f"✅ [VIDEO] 剧照已保存到视频项目: {project_file_path}")
 
                         # 构建项目内的访问URL: /project-files/{小说名}/{分集}/{角色名}.png
-                        project_image_url = f"/project-files/{safe_novel_title}/{safe_episode}/{project_filename}"
+                        project_image_url = f"/project-files/{novel_title}/{safe_episode}/{project_filename}"
                         logger.info(f"🌐 [VIDEO] 视频项目内访问URL: {project_image_url}")
 
                         # 保存项目目录信息供后续使用
-                        video_project_dir = f"{safe_novel_title}/{safe_episode}"
+                        video_project_dir = f"{novel_title}/{safe_episode}"
                     else:
                         logger.error(f"❌ [VIDEO] 原始文件不存在: {original_file}")
                 except Exception as e:
@@ -4337,6 +4336,75 @@ def convert_to_short_drama():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
+@video_api.route('/video/episode-workflow/check-storyboards', methods=['POST'])
+@login_required
+def check_episode_storyboards():
+    """
+    检查分镜头文件是否已存在
+
+    请求参数:
+    {
+        "novel_title": "小说标题",
+        "episodes": [
+            {"id": "major_event_0_event_0_0", "title": "诈尸惊魂..."}
+        ]
+    }
+
+    响应:
+    {
+        "success": true,
+        "existing_storyboards": {
+            "major_event_0_event_0_0": {"title": "...", "path": "..."},
+            ...
+        },
+        "missing_episodes": ["major_event_0_event_1_0", ...]
+    }
+    """
+    try:
+        data = request.json or {}
+        novel_title = data.get('novel_title', '')
+        episodes = data.get('episodes', [])
+
+        logger.info(f"🔍 [检查分镜头] 检查 {len(episodes)} 集的分镜头文件")
+
+        existing_storyboards = {}
+        missing_episodes = []
+
+        for episode in episodes:
+            episode_id = episode.get('id', '')
+            episode_title = episode.get('title', '')
+
+            # 尝试加载分镜头文件
+            storyboard_data = _load_storyboard_file(novel_title, episode_title, episode_id)
+
+            if storyboard_data:
+                existing_storyboards[episode_id] = {
+                    'title': storyboard_data.get('video_title', episode_title),
+                    'episode_title': episode_title,
+                    'shots_count': len(storyboard_data.get('shots', [])),
+                    'data': storyboard_data
+                }
+                logger.info(f"  ✅ 找到分镜头: {episode_title}")
+            else:
+                missing_episodes.append(episode_id)
+                logger.info(f"  ❌ 未找到分镜头: {episode_title}")
+
+        return jsonify({
+            "success": True,
+            "existing_storyboards": existing_storyboards,
+            "missing_episodes": missing_episodes,
+            "total_checked": len(episodes),
+            "existing_count": len(existing_storyboards),
+            "missing_count": len(missing_episodes)
+        })
+
+    except Exception as e:
+        logger.error(f"❌ [检查分镜头] 检查失败: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
 @video_api.route('/video/episode-workflow/generate-storyboard', methods=['POST'])
 @login_required
 def generate_episode_storyboard():
@@ -4417,32 +4485,52 @@ def generate_episode_storyboard():
                 # AI生成成功，使用AI结果
                 shots = storyboard_result.get('shots', [])
 
-                # 转换为场景格式（适配新的短视频格式）
+                # 🔥 修复：转换为正确的场景格式
+                # 前端期望每个场景有 shot_sequence 数组
                 scenes = []
                 for shot in shots:
+                    # 将每个镜头包装为一个场景
+                    scene_title = shot.get('screen_action', '')[:50] if shot.get('screen_action') else f"镜头{shot.get('shot_number', 1)}"
+
+                    # 🔥 新格式支持：提取角色信息
+                    shot_characters = shot.get('characters', [])
+
                     scenes.append({
                         'scene_number': shot.get('shot_number', 1),
-                        'shot_type': shot.get('shot_type', '中景'),
-                        'camera_movement': shot.get('shot_type', '中景'),
-                        'duration': shot.get('duration', 8),
-                        'description': shot.get('screen_action', shot.get('description', '')),
-                        'dialogue': shot.get('dialogue', ''),  # 新增：台词（用于后期配音）
-                        'audio_note': shot.get('audio', shot.get('audio_note', '背景音乐')),
-                        'veo_prompt': shot.get('veo_prompt', ''),
-                        'plot_points': [shot.get('plot_content', '')] if shot.get('plot_content') else shot.get('plot_points', [])
+                        'scene_title': scene_title,
+                        'location': shot.get('location', '场景'),
+                        'estimated_duration_seconds': shot.get('duration', 8),
+                        'shot_sequence': [{  # 🔥 关键：将镜头包装在 shot_sequence 数组中
+                            'shot_number': shot.get('shot_number', 1),
+                            'shot_type': shot.get('shot_type', '中景'),
+                            'camera_movement': shot.get('shot_type', '中景'),
+                            'duration': shot.get('duration', 8),
+                            'description': shot.get('screen_action', shot.get('description', '')),
+                            'dialogue': shot.get('dialogue', ''),
+                            'audio_note': shot.get('audio', shot.get('audio_note', '背景音乐')),
+                            'veo_prompt': shot.get('veo_prompt', ''),
+                            'plot_points': [shot.get('plot_content', '')] if shot.get('plot_content') else shot.get('plot_points', []),
+                            # 🔥 新增：角色信息（用于视频生成时匹配参考图）
+                            'characters': shot_characters
+                        }]
                     })
 
+                # 🔥 新增：提取角色参考图映射
+                character_images = storyboard_result.get('character_images', [])
+
                 storyboards[episode_id] = {
-                    'title': storyboard_result.get('video_title', episode_title),  # 新格式用video_title
+                    'title': storyboard_result.get('video_title', episode_title),
                     'stage': episode_stage,
                     'scenes': scenes,
-                    'total_duration': storyboard_result.get('total_duration', len(scenes) * 8),
-                    'hook': storyboard_result.get('hook', ''),  # 新增：开头钩子
-                    'ending_hook': storyboard_result.get('ending_hook', ''),  # 新增：结尾钩子
-                    'ai_generated': True
+                    'total_duration': sum(s['estimated_duration_seconds'] for s in scenes),
+                    'hook': storyboard_result.get('hook', ''),
+                    'ending_hook': storyboard_result.get('ending_hook', ''),
+                    'ai_generated': True,
+                    # 🔥 新增：角色参考图映射（用于前端显示和视频生成）
+                    'character_images': character_images
                 }
 
-                logger.info(f"  ✅ [按集制作] AI生成分镜头成功: {len(scenes)} 个镜头")
+                logger.info(f"  ✅ [按集制作] AI生成分镜头成功: {len(scenes)} 个场景, {len(character_images)} 个角色")
             else:
                 # AI生成失败，回退到原有逻辑
                 logger.warn(f"  ⚠️ [按集制作] AI生成失败，使用备用方案")
@@ -5182,6 +5270,9 @@ def _generate_storyboard_with_ai(novel_title: str, episode: dict) -> dict:
     logger.info(f"   阶段: {episode_stage}")
     logger.info(f"   episode_id: {episode_id}")
 
+    # 🔥 加载角色设计文件
+    character_data = _load_character_design_file(novel_title)
+
     # 🔥 直接从写作计划文件加载数据（根据episode_id智能选择正确的阶段文件）
     writing_plan = _load_writing_plan_file(novel_title, episode_id)
 
@@ -5218,12 +5309,22 @@ def _generate_storyboard_with_ai(novel_title: str, episode: dict) -> dict:
     logger.info(f"   事件名称: {event_name}")
     logger.info(f"   所属重大事件: {major_event_name}")
     logger.info(f"   情节点数量: {len(plot_points)}")
+    logger.info(f"   角色数据: {len(character_data)} 个角色")
 
-    # 构建系统提示词
+    # 🔥 构建角色参考图映射信息
+    character_reference_info = _build_character_reference_info(character_data)
+
+    # 构建系统提示词 - 全新的短视频格式
     system_prompt = """你是一位专业的短视频/短剧分镜头脚本设计师，擅长将小说情节转化为高吸引力的短视频分镜头。
 
 【核心任务】
-根据提供的小说信息和事件情节点，设计出适合竖屏短视频（9:16）的高质量分镜头脚本。
+根据提供的小说信息、事件情节点和角色信息，设计出适合竖屏短视频（9:16）的高质量分镜头脚本。
+
+【角色-参考图绑定机制】
+⚠️ 重要：AI视频生成时会根据角色名自动查找对应的参考图。
+- 在镜头的 veo_prompt 中，直接使用角色姓名即可
+- 参考图使用格式：「{角色名}，{详细外貌描述}，{动作描述}，{场景环境}」
+- 系统会自动根据角色名匹配项目中的角色参考图
 
 【短视频分镜头原则】
 1. **黄金前3秒**: 开头必须抓人眼球，用强烈的视觉冲突或悬念
@@ -5231,22 +5332,38 @@ def _generate_storyboard_with_ai(novel_title: str, episode: dict) -> dict:
 3. **爽点密集**: 情绪快速递进，反转要有冲击力
 4. **竖屏构图**: 一切为手机竖屏优化，人物居中或偏上
 5. **音乐配合**: 每个镜头标注合适的音效/背景音乐
+6. **角色一致性**: 使用角色名确保同一角色在不同镜头中形象一致
+7. **统一时长**: 所有镜头必须严格为8秒
 
 【输出格式】
 严格按以下JSON格式输出，不要包含任何其他文字：
 ```json
 {
-  "video_title": "视频标题（吸引眼球的）",
+  "video_title": "视频标题（吸引眼球的，15字内）",
   "hook": "开头3秒钩子描述",
   "total_duration": 预计总时长（秒）,
+  "character_images": [
+    {
+      "character_name": "角色名",
+      "reference_index": 1,
+      "appearance_brief": "外貌简述"
+    }
+  ],
   "shots": [
     {
       "shot_number": 1,
-      "shot_type": "镜头类型（特写/中景/全景/推近/拉远/跟拍/摇镜头/主观视角）",
-      "duration": 秒数,
+      "shot_type": "镜头类型（特写/中景/全景/推近/拉远/跟拍/摇镜头/主观视角/俯拍/仰拍）",
+      "duration": 8,
       "screen_action": "画面动作描述（具体、可拍摄）",
-      "dialogue": "角色台词（如果有，用于后期配音生成）",
-      "veo_prompt": "AI视频生成提示词（详细中文描述，包含场景、人物、动作、氛围、光影）",
+      "characters": [
+        {
+          "name": "角色名",
+          "action": "该角色在本镜头中的动作",
+          "position": "位置描述（如画面中央/左侧/背景）"
+        }
+      ],
+      "dialogue": "角色台词（格式：角色名:台词内容）（如果有，用于后期配音生成）",
+      "veo_prompt": "AI视频生成提示词（直接使用角色名，如：林战，身穿兽皮战甲，面容震撼，站在画面中央，背景是祠堂）",
       "audio": "音效/BGM描述",
       "plot_content": "对应的情节点内容"
     }
@@ -5255,12 +5372,18 @@ def _generate_storyboard_with_ai(novel_title: str, episode: dict) -> dict:
 }
 ```
 
+【veo_prompt编写规范】
+1. 直接使用角色名，系统会自动匹配对应的参考图
+2. 格式：「{角色名}，{详细外貌描述}，{动作描述}，{场景环境}，{光影氛围}」
+3. 多角色场景：「{角色A}站在左侧，{角色B}站在右侧，{场景描述}」
+4. 无角色场景：直接描述场景、环境、氛围
+
 【台词设计要求】
 1. 台词要简洁有力，符合短剧快节奏特点
 2. 每句台词控制在3-10字内
-3. 台词要推动剧情或展现人物性格
-4. 旁白/内心独白可以用括号标注，如（旁白）：xxx
-5. 如果该镜头不需要台词，填空字符串""
+3. 台词格式：角色名:台词内容（如：林战:老祖英明！）
+4. 旁白/内心独白：（旁白）：xxx 或 （林长生内心）：xxx
+5. 无台词镜头填空字符串""
 """
 
     # 构建用户提示词 - 传递完整上下文（从写作计划文件中提取）
@@ -5309,21 +5432,33 @@ def _generate_storyboard_with_ai(novel_title: str, episode: dict) -> dict:
 {core_selling_points}
 """
 
+    # 🔥 添加角色参考图信息
+    if character_reference_info:
+        user_prompt += f"""
+
+【角色参考图映射】
+以下是本镜头涉及的角色（系统会根据角色名自动匹配参考图）：
+"""
+        for char_info in character_reference_info:
+            user_prompt += f"- 参考图{char_info['reference_index']}: {char_info['character_name']} - {char_info['appearance_brief']}\n"
+        user_prompt += "\n⚠️ 在编写veo_prompt时，直接使用角色名即可，系统会自动匹配对应的参考图。\n"
+
     user_prompt += f"""
 
 【设计要求】
 1. 根据情节点内容，设计3-6个镜头
-2. 每个镜头可包含2-3个相关情节点
-3. veo_prompt需要详细描述画面内容，用于AI视频生成
-4. 镜头类型要多样化（特写、中景、全景、推拉摇移等）
-5. 视频方向为竖屏（9:16），适合手机观看
-6. **台词设计**：为每个需要说话的角色设计台词，台词要简洁有力（3-10字），符合人物性格和剧情需要
-7. **无台词镜头**：如果该镜头是纯动作/环境描写，dialogue填空字符串""
+2. **每个镜头时长必须严格为8秒**
+3. veo_prompt必须直接包含角色名，格式：「{角色名}，外貌描述，动作，场景环境」
+4. 多角色场景：「{角色A}站在左侧，{角色B}站在右侧，{场景描述}」
+5. 镜头类型要多样化（特写、中景、全景、推拉摇移等）
+6. 视频方向为竖屏（9:16），适合手机观看
+7. **台词设计**：为每个需要说话的角色设计台词，格式为「角色名:台词内容」，3-10字，符合人物性格
+8. **无台词镜头**：如果该镜头是纯动作/环境描写，dialogue填空字符串""
 
 请直接输出JSON格式的分镜头脚本。"""
 
     # 🔥 优先检查是否已有保存的分镜头文件
-    existing_storyboard = _load_storyboard_file(novel_title, event_name)
+    existing_storyboard = _load_storyboard_file(novel_title, event_name, episode_id)
     if existing_storyboard:
         logger.info(f"✅ [AI分镜头] 使用已保存的分镜头，跳过AI生成")
         return existing_storyboard
@@ -5353,8 +5488,8 @@ def _generate_storyboard_with_ai(novel_title: str, episode: dict) -> dict:
 
         logger.info(f"✅ [AI分镜头] AI生成成功，镜头数: {len(storyboard_data.get('shots', []))}")
 
-        # 保存生成的分镜头到文件
-        _save_storyboard_to_file(novel_title, event_name, episode_id, storyboard_data)
+        # 保存生成的分镜头到文件（按重大事件组织目录）
+        _save_storyboard_to_file(novel_title, event_name, episode_id, storyboard_data, major_event_name)
 
         return storyboard_data
 
@@ -5365,23 +5500,140 @@ def _generate_storyboard_with_ai(novel_title: str, episode: dict) -> dict:
         return None
 
 
-def _save_storyboard_to_file(novel_title: str, event_name: str, episode_id: str, storyboard_data: dict):
+def _load_character_design_file(novel_title: str) -> dict:
+    """
+    加载角色设计文件
+
+    Args:
+        novel_title: 小说标题
+
+    Returns:
+        角色数据字典，包含main_character和important_characters
+    """
+    try:
+        from pathlib import Path
+
+        # 查找角色设计文件
+        novel_dir = Path('小说项目') / novel_title
+        character_file = novel_dir / 'characters' / f'{novel_title}_角色设计.json'
+
+        if not character_file.exists():
+            logger.warn(f"⚠️ [角色加载] 未找到角色设计文件: {character_file}")
+            return {}
+
+        with open(character_file, 'r', encoding='utf-8') as f:
+            character_data = json.load(f)
+
+        logger.info(f"✅ [角色加载] 成功加载角色设计文件: {len(character_data.get('important_characters', []))} 个重要角色")
+        return character_data
+
+    except Exception as e:
+        logger.error(f"❌ [角色加载] 加载角色设计文件失败: {e}")
+        return {}
+
+
+def _build_character_reference_info(character_data: dict) -> list:
+    """
+    构建角色参考图映射信息
+
+    Args:
+        character_data: 角色数据字典
+
+    Returns:
+        角色参考图信息列表，每个元素包含：
+        - character_name: 角色名
+        - reference_index: 参考图序号
+        - appearance_brief: 外貌简述
+    """
+    reference_info = []
+    index = 1
+
+    # 首先添加主角
+    main_char = character_data.get('main_character', {})
+    if main_char:
+        appearance = _extract_appearance_brief(main_char)
+        reference_info.append({
+            'character_name': main_char.get('name', '主角'),
+            'reference_index': index,
+            'appearance_brief': appearance
+        })
+        index += 1
+
+    # 然后添加重要角色（最多10个）
+    important_chars = character_data.get('important_characters', [])
+    for char in important_chars[:10]:
+        appearance = _extract_appearance_brief(char)
+        reference_info.append({
+            'character_name': char.get('name', '未命名'),
+            'reference_index': index,
+            'appearance_brief': appearance
+        })
+        index += 1
+
+    return reference_info
+
+
+def _extract_appearance_brief(character: dict) -> str:
+    """
+    提取角色外貌简述
+
+    Args:
+        character: 角色数据
+
+    Returns:
+        外貌简述字符串
+    """
+    # 尝试从不同字段提取外貌信息
+    living_chars = character.get('living_characteristics', {})
+    physical = living_chars.get('physical_presence', '')
+
+    initial_state = character.get('initial_state', {})
+    description = initial_state.get('description', '')
+
+    # 优先使用 physical_presence，其次使用 description
+    if physical:
+        return physical[:100]  # 限制长度
+    elif description:
+        return description[:100]
+    else:
+        return character.get('name', '角色')  # 回退到角色名
+
+
+def _save_storyboard_to_file(novel_title: str, event_name: str, episode_id: str, storyboard_data: dict, major_event_name: str = ''):
     """
     保存分镜头数据到文件
 
     Args:
         novel_title: 小说标题
         event_name: 事件名称（如：诈尸惊魂：开局就在火葬场）
-        episode_id: 剧集ID
+        episode_id: 剧集ID（如：major_event_0_event_0_0）
         storyboard_data: 分镜头数据
+        major_event_name: 重大事件名称（用于创建子目录）
     """
     try:
-        # 创建保存目录
-        save_dir = Path('视频项目') / novel_title / 'storyboards'
+        import re
+
+        # 🔥 根据episode_id确定重大事件序号，用于组织目录结构
+        # episode_id格式: major_event_0_event_0_0
+        major_idx = 0
+        if episode_id:
+            numbers = re.findall(r'\d+', episode_id)
+            if len(numbers) >= 1:
+                major_idx = int(numbers[0])
+
+        # 🔥 创建子目录：第一集、第二集等，或使用重大事件名称
+        if major_event_name:
+            # 使用重大事件名称作为子目录
+            safe_major_name = re.sub(r'[<>:"/\\|?*]', '_', major_event_name[:30])  # 限制长度
+            sub_dir_name = f"{major_idx + 1}集_{safe_major_name}"
+        else:
+            sub_dir_name = f"{major_idx + 1}集"
+
+        # 创建保存目录：视频项目/小说名/X集_重大事件名/storyboards/
+        save_dir = Path('视频项目') / novel_title / sub_dir_name / 'storyboards'
         save_dir.mkdir(parents=True, exist_ok=True)
 
         # 生成文件名：{事件名称}.json（不带时间戳）
-        import re
         safe_event_name = re.sub(r'[<>:"/\\|?*]', '_', event_name)
         filename = f"{safe_event_name}.json"
         filepath = save_dir / filename
@@ -5396,40 +5648,101 @@ def _save_storyboard_to_file(novel_title: str, event_name: str, episode_id: str,
         logger.error(f"❌ [AI分镜头] 保存分镜头文件失败: {e}")
 
 
-def _load_storyboard_file(novel_title: str, event_name: str) -> dict:
+def _load_storyboard_file(novel_title: str, event_name: str, episode_id: str = '') -> dict:
     """
     加载已保存的分镜头文件
 
     Args:
-        novel_title: 小说标题
+        novel_title: 小说标题（可能是清理过的，也可能是原始的）
         event_name: 事件名称
+        episode_id: 剧集ID（可选，用于确定子目录）
 
     Returns:
         分镜头数据字典，如果文件不存在返回None
     """
     try:
-        save_dir = Path('视频项目') / novel_title / 'storyboards'
+        import re
 
-        if not save_dir.exists():
+        # 🔥 获取实际存在的小说目录
+        project_base = Path('视频项目')
+        actual_novel_dir = None
+
+        # 尝试多种方式找到实际的小说目录
+        if project_base.exists():
+            for novel_dir in project_base.iterdir():
+                if not novel_dir.is_dir():
+                    continue
+
+                # 精确匹配
+                if novel_dir.name == novel_title:
+                    actual_novel_dir = novel_dir
+                    break
+
+                # 模糊匹配：移除特殊字符后比较
+                # 心声泄露：我成了家族老阴比 vs 心声泄露_我成了家族老阴比
+                normalize_name = lambda name: re.sub(r'[<>:"/\\|?*：：、＿_]', '', name)
+                if normalize_name(novel_dir.name) == normalize_name(novel_title):
+                    actual_novel_dir = novel_dir
+                    break
+
+        if not actual_novel_dir:
+            logger.info(f"📂 [AI分镜头] 未找到小说目录: {novel_title}")
             return None
 
-        # 查找匹配的文件（事件名称.json）
-        import re
+        logger.info(f"📂 [AI分镜头] 使用实际目录: {actual_novel_dir.name}")
+
+        # 🔥 尝试多个可能的路径
+        possible_paths = []
+
+        # 路径1：新的组织方式（按重大事件组织）
+        if episode_id:
+            numbers = re.findall(r'\d+', episode_id)
+            if len(numbers) >= 1:
+                major_idx = int(numbers[0])
+                # 尝试在所有 "X集*" 子目录下查找
+                for episode_dir in actual_novel_dir.iterdir():
+                    if not episode_dir.is_dir():
+                        continue
+
+                    # 匹配目录名模式：数字集_... 或 数字集
+                    dir_name = episode_dir.name
+                    if re.match(r'^\d+集', dir_name):
+                        # 检查是否是正确的重大事件序号
+                        dir_major_idx = int(re.findall(r'^(\d+)集', dir_name)[0]) - 1
+                        if dir_major_idx == major_idx:
+                            storyboards_path = episode_dir / 'storyboards'
+                            if storyboards_path.exists():
+                                possible_paths.append(storyboards_path)
+                                logger.info(f"📂 [AI分镜头] 找到匹配的剧集目录: {dir_name}")
+
+        # 路径2：旧的扁平结构（向后兼容）
+        path2 = actual_novel_dir / 'storyboards'
+        if path2.exists():
+            possible_paths.append(path2)
+
+        # 查找匹配的文件
         safe_event_name = re.sub(r'[<>:"/\\|?*]', '_', event_name)
         filename = f"{safe_event_name}.json"
-        filepath = save_dir / filename
 
-        if not filepath.exists():
-            logger.info(f"📂 [AI分镜头] 未找到已保存的分镜头: {filename}")
-            return None
+        for search_dir in possible_paths:
+            filepath = search_dir / filename
+            if filepath.exists():
+                logger.info(f"📂 [AI分镜头] 找到已保存的分镜头: {filepath}")
 
-        logger.info(f"📂 [AI分镜头] 找到已保存的分镜头文件: {filepath}")
+                with open(filepath, 'r', encoding='utf-8') as f:
+                    storyboard_data = json.load(f)
 
-        with open(filepath, 'r', encoding='utf-8') as f:
-            storyboard_data = json.load(f)
+                # 检查是否有角色参考图信息
+                character_images = storyboard_data.get('character_images', [])
+                if character_images:
+                    logger.info(f"✅ [AI分镜头] 已加载现有分镜头 (包含{len(character_images)}个角色)")
+                else:
+                    logger.info(f"✅ [AI分镜头] 已加载现有分镜头 (旧格式)")
 
-        logger.info(f"✅ [AI分镜头] 已加载现有分镜头文件")
-        return storyboard_data
+                return storyboard_data
+
+        logger.info(f"📂 [AI分镜头] 未找到已保存的分镜头: {filename}")
+        return None
 
     except Exception as e:
         logger.error(f"❌ [AI分镜头] 加载分镜头文件失败: {e}")

@@ -59,7 +59,8 @@ logger.info(f"📁 视频项目目录: {VIDEO_PROJECT_BASE_DIR}")
 
 def sanitize_path(name: str) -> str:
     """清理文件名，移除Windows不允许的字符"""
-    invalid_chars = ['<', '>', ':', '"', '/', '\\', '|', '?', '：', '、', '？', '！', '＊', '＂', '＜', '＞', '／', '＼', '｜']
+    # 注意：只处理ASCII冒号，保留中文冒号（Windows支持中文标点符号）
+    invalid_chars = ['<', '>', ':', '"', '/', '\\', '|', '?', '、', '？', '！', '＊', '＂', '＜', '＞', '／', '＼', '｜']
     result = name
     for char in invalid_chars:
         result = result.replace(char, '_')
@@ -711,11 +712,13 @@ class VeOVideoManager:
                 self.logger.info(f"✅ 视频下载完成: {local_file_path.name} ({file_size_mb:.2f} MB)")
 
                 # 🔥 返回可访问的URL路径
-                # 如果是项目目录路径，返回绝对路径的web访问格式
+                # 如果是项目目录路径，使用 /project-files/ 路由
                 if "视频项目" in str(local_file_path):
-                    # 项目目录视频需要特殊处理（可能需要通过API访问）
-                    relative = local_file_path.relative_to(BASE_DIR)
-                    return f"/{str(relative).replace('\\', '/')}"
+                    # 获取相对于"视频项目"目录的路径
+                    relative_to_project = local_file_path.relative_to(VIDEO_PROJECT_BASE_DIR)
+                    # 使用 /project-files/ 路由访问
+                    from urllib.parse import quote
+                    return f"/project-files/{quote(str(relative_to_project))}"
                 else:
                     # 默认 generated_videos 目录
                     return f"/static/generated_videos/{local_file_path.name}"

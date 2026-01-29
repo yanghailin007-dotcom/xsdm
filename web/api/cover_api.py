@@ -143,6 +143,7 @@ def register_cover_routes(app):
         """提供视频项目内的文件（如剧照）"""
         try:
             import os
+            import re
             from pathlib import Path
             from urllib.parse import unquote
 
@@ -163,6 +164,81 @@ def register_cover_routes(app):
             if not str(full_path).startswith(str(base_path)):
                 logger.error(f"❌ [project-files] 非法路径访问: {filepath}")
                 return jsonify({"error": "非法路径访问"}), 403
+
+            # 🔥 如果文件不存在，尝试智能匹配
+            if not full_path.exists():
+                logger.info(f"🔍 [project-files] 文件不存在，尝试智能匹配...")
+
+                # 解析路径：小说名/集名/文件名
+                path_parts = decoded_filepath.split('\\') if '\\' in decoded_filepath else decoded_filepath.split('/')
+                if len(path_parts) >= 3:
+                    requested_novel = path_parts[0]
+                    requested_episode = path_parts[1]
+                    requested_file = path_parts[2]
+
+                    # 尝试找到实际的小说目录（优先选择包含中文冒号的目录）
+                    actual_novel_dir = None
+                    normalize_name = lambda name: re.sub(r'[<>:"/\\|?*：：、＿_]', '', name)
+
+                    # 先收集所有匹配的目录
+                    matching_dirs = []
+                    for novel_dir in base_path.iterdir():
+                        if not novel_dir.is_dir():
+                            continue
+                        if normalize_name(novel_dir.name) == normalize_name(requested_novel):
+                            matching_dirs.append(novel_dir)
+
+                    # 优先选择包含中文冒号的目录（正确的格式）
+                    for novel_dir in matching_dirs:
+                        if '：' in novel_dir.name:
+                            actual_novel_dir = novel_dir
+                            break
+
+                    # 如果没有找到带冒号的，使用第一个匹配的
+                    if not actual_novel_dir and matching_dirs:
+                        actual_novel_dir = matching_dirs[0]
+
+                    if actual_novel_dir:
+                        logger.info(f"📂 [project-files] 找到实际小说目录: {actual_novel_dir.name}")
+
+                        # 尝试找到实际的剧集目录
+                        actual_episode_dir = None
+
+                        # 提取请求的集数：如 "第一集" -> 1, "第2集" -> 2
+                        episode_num_match = re.search(r'第?(\d+)集', requested_episode)
+                        if episode_num_match:
+                            requested_num = int(episode_num_match.group(1))
+
+                            # 查找匹配的剧集目录
+                            for episode_dir in actual_novel_dir.iterdir():
+                                if not episode_dir.is_dir():
+                                    continue
+
+                                # 匹配 "数字集_*" 模式
+                                dir_num_match = re.match(r'^(\d+)集', episode_dir.name)
+                                if dir_num_match:
+                                    dir_num = int(dir_num_match.group(1))
+                                    if dir_num == requested_num:
+                                        actual_episode_dir = episode_dir
+                                        logger.info(f"📂 [project-files] 找到实际剧集目录: {episode_dir.name}")
+                                        break
+
+                        # 如果还是找不到，尝试遍历所有子目录
+                        if not actual_episode_dir:
+                            for episode_dir in actual_novel_dir.iterdir():
+                                if not episode_dir.is_dir():
+                                    continue
+                                # 检查文件是否在这个目录中
+                                test_path = episode_dir / requested_file
+                                if test_path.exists():
+                                    actual_episode_dir = episode_dir
+                                    logger.info(f"📂 [project-files] 在目录中找到文件: {episode_dir.name}")
+                                    break
+
+                        if actual_episode_dir:
+                            # 构建新的完整路径
+                            full_path = actual_episode_dir / requested_file
+                            logger.info(f"📂 [project-files] 智能匹配后路径: {full_path}")
 
             if not full_path.exists():
                 logger.error(f"❌ [project-files] 文件不存在: {full_path}")

@@ -3993,15 +3993,24 @@ li>选择角色，输入提示词，生成剧照</li>
         const prompt = this.generateCharacterPortraitPrompt(character);
         console.log('📸 [打开剧照工作台] 生成的提示词:', prompt);
 
-        // 🔥 获取剧集信息
-        let episodeInfo = '';
-        if (this.episodeWorkflow.selectedEpisodes.size > 0) {
-            const episodeIds = Array.from(this.episodeWorkflow.selectedEpisodes);
-            episodeInfo = episodeIds.map((id, idx) => {
-                const episode = this.episodeWorkflow.selectedMajorEvent?.children?.find(e => e.id === id);
-                return episode?.title || `第${idx + 1}集`;
-            }).join('_');
+        // 🔥 获取剧集信息 - 使用实际的目录名
+        let episodeInfo = '默认';
+        if (this.episodeWorkflow.selectedMajorEvent) {
+            // 🔥 使用重大事件的名称来构建目录名
+            const majorEvent = this.episodeWorkflow.selectedMajorEvent;
+            const majorIndex = majorEvent.major_index || 0;
+
+            // 目录名格式: {majorIndex + 1}集_{重大事件名称}
+            // 如: 1集_黄金开局：退婚流当场变'舔狗流'
+            const sanitizeForPath = (name) => {
+                // 只移除Windows不允许的字符，保留中文标点
+                return name.replace(/[<>"/\\|?]/g, '_');
+            };
+
+            const eventTitle = sanitizeForPath(majorEvent.title || majorEvent.name || '');
+            episodeInfo = `${majorIndex + 1}集_${eventTitle}`;
         }
+
         console.log('📸 [打开剧照工作台] 剧集信息:', episodeInfo);
 
         // 保存工作流状态
@@ -4099,11 +4108,11 @@ li>选择角色，输入提示词，生成剧照</li>
     /**
      * 加载分镜头步骤
      */
-    loadStoryboardStep() {
+    async loadStoryboardStep() {
         const container = document.getElementById('episodeStoryboardPreview');
         const selectedCount = this.episodeWorkflow.selectedEpisodes.size;
 
-        // 检查是否已生成过分镜头
+        // 检查是否已生成过分镜头（内存中）
         if (this.episodeWorkflow.storyboardData) {
             this.renderStoryboardResults(this.episodeWorkflow.storyboardData);
             return;
@@ -4126,6 +4135,64 @@ li>选择角色，输入提示词，生成剧照</li>
             }
         });
 
+        // 🔥 先检查服务端是否已有分镜头文件
+        container.innerHTML = `
+            <div class="storyboard-preview" style="padding: 2rem;">
+                <div style="text-align: center;">
+                    <div class="progress-spinner" style="margin: 0 auto 1.5rem;"></div>
+                    <p style="color: var(--text-secondary);">正在检查分镜头文件...</p>
+                </div>
+            </div>
+        `;
+
+        try {
+            const checkResponse = await fetch('/api/video/episode-workflow/check-storyboards', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    novel_title: this.selectedNovel,
+                    episodes: episodeList
+                })
+            });
+
+            const checkResult = await checkResponse.json();
+
+            if (checkResult.success && checkResult.existing_count > 0) {
+                // 有部分或全部分镜头已存在
+                const existing = checkResult.existing_storyboards;
+                const missing = checkResult.missing_episodes || [];
+
+                // 合并已存在的分镜头数据
+                const allStoryboards = {};
+                for (const [epId, data] of Object.entries(existing)) {
+                    allStoryboards[epId] = this.convertStoryboardToDisplayFormat(epId, data.data, data);
+                }
+
+                // 如果全部都已存在，直接显示结果
+                if (missing.length === 0) {
+                    this.episodeWorkflow.storyboardData = allStoryboards;
+                    this.renderStoryboardResults(allStoryboards);
+                    this.showToast(`已加载 ${checkResult.existing_count} 个分镜头文件`, 'success');
+                    return;
+                }
+
+                // 部分存在，显示混合界面
+                this.renderPartialStoryboardUI(episodeList, existing, missing, allStoryboards);
+                return;
+            }
+        } catch (e) {
+            console.warn('检查分镜头文件失败:', e);
+        }
+
+        // 全部不存在或检查失败，显示生成界面
+        this.renderGenerateStoryboardUI(episodeList, selectedCount);
+    }
+
+    /**
+     * 渲染生成分镜头的UI
+     */
+    renderGenerateStoryboardUI(episodeList, selectedCount) {
+        const container = document.getElementById('episodeStoryboardPreview');
         container.innerHTML = `
             <div class="storyboard-preview">
                 <div class="storyboard-intro" style="text-align: center; padding: 2rem;">
@@ -4150,6 +4217,91 @@ li>选择角色，输入提示词，生成剧照</li>
         if (generateBtn) {
             generateBtn.onclick = () => this.generateEpisodeStoryboard(episodeList);
         }
+    }
+
+    /**
+     * 渲染部分分镜头已存在的UI
+     */
+    renderPartialStoryboardUI(episodeList, existing, missing, existingStoryboards) {
+        const container = document.getElementById('episodeStoryboardPreview');
+
+        const existingTitles = Object.values(existing).map(e => e.episode_title).join('、');
+        const missingTitles = episodeList
+            .filter(ep => missing.includes(ep.id))
+            .map(ep => ep.title)
+            .join('、');
+
+        container.innerHTML = `
+            <div class="storyboard-preview">
+                <div class="storyboard-intro" style="text-align: center; padding: 2rem;">
+                    <p style="font-size: 1.1rem; margin-bottom: 0.5rem;">✅ 已找到 ${Object.keys(existing).length} 个分镜头文件</p>
+                    <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1rem;">已存在：${existingTitles}</p>
+
+                    ${missing.length > 0 ? `
+                        <p style="font-size: 1rem; margin-bottom: 0.5rem;">📝 还需要生成 ${missing.length} 个分镜头</p>
+                        <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1.5rem;">待生成：${missingTitles}</p>
+                        <button id="generateMissingBtn" class="btn-primary btn-large" style="min-width: 200px;">
+                            🎬 生成剩余分镜头
+                        </button>
+                    ` : ''}
+
+                    <button id="loadExistingBtn" class="btn-secondary btn-large" style="min-width: 200px; margin-top: 1rem;">
+                        📋 查看现有分镜头
+                    </button>
+                </div>
+            </div>
+        `;
+
+        // 绑定按钮事件
+        const generateBtn = document.getElementById('generateMissingBtn');
+        if (generateBtn) {
+            const missingEpisodes = episodeList.filter(ep => missing.includes(ep.id));
+            generateBtn.onclick = () => this.generateEpisodeStoryboard(missingEpisodes, existingStoryboards);
+        }
+
+        const loadBtn = document.getElementById('loadExistingBtn');
+        if (loadBtn) {
+            loadBtn.onclick = () => {
+                this.episodeWorkflow.storyboardData = existingStoryboards;
+                this.renderStoryboardResults(existingStoryboards);
+            };
+        }
+    }
+
+    /**
+     * 将分镜头数据转换为显示格式
+     */
+    convertStoryboardToDisplayFormat(episodeId, storyboardData, metaInfo) {
+        const shots = storyboardData.shots || [];
+        const scenes = shots.map(shot => ({
+            scene_number: shot.shot_number,
+            scene_title: (shot.screen_action || '').substring(0, 50),
+            location: shot.location || '场景',
+            estimated_duration_seconds: shot.duration || 8,
+            shot_sequence: [{
+                shot_number: shot.shot_number,
+                shot_type: shot.shot_type || '中景',
+                camera_movement: shot.shot_type || '中景',
+                duration: shot.duration || 8,
+                description: shot.screen_action || shot.description || '',
+                dialogue: shot.dialogue || '',
+                audio_note: shot.audio || '',
+                veo_prompt: shot.veo_prompt || '',
+                plot_points: shot.plot_content ? [shot.plot_content] : [],
+                characters: shot.characters || []
+            }]
+        }));
+
+        return {
+            title: metaInfo.title || storyboardData.video_title || metaInfo.episode_title,
+            stage: '',
+            scenes: scenes,
+            total_duration: scenes.reduce((sum, s) => sum + (s.estimated_duration_seconds || 8), 0),
+            hook: storyboardData.hook || '',
+            ending_hook: storyboardData.ending_hook || '',
+            ai_generated: true,
+            character_images: storyboardData.character_images || []
+        };
     }
 
     /**
@@ -4244,6 +4396,25 @@ li>选择角色，输入提示词，生成剧照</li>
                 return sum + (scene.estimated_duration_seconds || 0);
             }, 0);
 
+            // 🔥 新增：角色参考图信息
+            let characterImagesHtml = '';
+            const characterImages = storyboard.character_images || [];
+            if (characterImages.length > 0) {
+                characterImagesHtml = `
+                    <div style="padding: 0.75rem 1.5rem; background: var(--bg-dark); border-bottom: 1px solid var(--border);">
+                        <div style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.5rem;">👥 角色参考图映射：</div>
+                        <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+                            ${characterImages.map(char => `
+                                <span style="display: inline-flex; align-items: center; padding: 0.25rem 0.75rem; background: var(--bg-tertiary); border-radius: 4px; font-size: 0.8rem;">
+                                    <span style="color: var(--primary-color); font-weight: bold; margin-right: 0.5rem;">参考图${char.reference_index}</span>
+                                    <span style="color: var(--text-primary);">${char.character_name}</span>
+                                </span>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+
             html += `
                 <div class="episode-storyboard" style="background: var(--bg-secondary); border-radius: 12px; margin-bottom: 1.5rem; overflow: hidden;">
                     <div class="episode-storyboard-header" style="padding: 1rem 1.5rem; background: var(--bg-tertiary); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
@@ -4255,6 +4426,7 @@ li>选择角色，输入提示词，生成剧照</li>
                             📋 展开详情
                         </button>
                     </div>
+                    ${characterImagesHtml}
                     <div class="scene-details">
                         ${scenes.map((scene, idx) => `
                             <div class="scene-block" style="padding: 1rem 1.5rem; border-bottom: 1px solid var(--border);">
@@ -4264,7 +4436,23 @@ li>选择角色，输入提示词，生成剧照</li>
                                 </div>
                                 <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 0.5rem;">📍 ${scene.location || '场景'}</p>
                                 <div class="shots-container">
-                                    ${(scene.shot_sequence || []).map(shot => `
+                                    ${(scene.shot_sequence || []).map(shot => {
+                                        // 🔥 新增：显示镜头中的角色信息
+                                        let shotCharactersHtml = '';
+                                        const shotCharacters = shot.characters || [];
+                                        if (shotCharacters.length > 0) {
+                                            shotCharactersHtml = `
+                                                <div style="margin-top: 0.5rem; padding: 0.25rem 0.5rem; background: var(--bg-tertiary); border-radius: 4px; font-size: 0.75rem;">
+                                                    <span style="color: var(--text-secondary);">👤 </span>
+                                                    ${shotCharacters.map(ch => `
+                                                        <span style="color: var(--primary-color);">参考图${ch.reference_index} ${ch.name}</span>
+                                                        ${ch.action ? `<span style="color: var(--text-secondary);">: ${ch.action}</span>` : ''}
+                                                    `).join(' · ')}
+                                                </div>
+                                            `;
+                                        }
+
+                                        return `
                                         <div class="shot-card" style="background: var(--bg-dark); padding: 0.75rem; border-radius: 6px; margin-bottom: 0.5rem;">
                                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
                                                 <div>
@@ -4277,11 +4465,13 @@ li>选择角色，输入提示词，生成剧照</li>
                                                 </button>
                                             </div>
                                             <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 0.25rem;">${shot.description || ''}</p>
+                                            ${shotCharactersHtml}
+                                            ${shot.dialogue ? `<p style="color: var(--accent-color); font-size: 0.8rem; margin-bottom: 0.25rem; font-style: italic;">💬 ${shot.dialogue}</p>` : ''}
                                             <div class="veo-prompt hidden" style="margin-top: 0.5rem; padding: 0.5rem; background: var(--bg-tertiary); border-radius: 4px; border-left: 3px solid var(--primary-color);">
                                                 <p style="color: var(--accent-color); font-size: 0.8rem; margin: 0; font-family: monospace;">${shot.veo_prompt || '暂无提示语'}</p>
                                             </div>
                                         </div>
-                                    `).join('')}
+                                    `}).join('')}
                                 </div>
                             </div>
                         `).join('')}
@@ -4497,6 +4687,24 @@ li>选择角色，输入提示词，生成剧照</li>
             return;
         }
 
+        // 🔥 构建剧集目录名称（与openPortraitStudio中的逻辑一致）
+        let episodeDirectoryName = '默认';
+        if (this.episodeWorkflow.selectedMajorEvent) {
+            const majorEvent = this.episodeWorkflow.selectedMajorEvent;
+            const majorIndex = majorEvent.major_index || 0;
+
+            // 目录名格式: {majorIndex + 1}集_{重大事件名称}
+            // 如: 1集_黄金开局：退婚流当场变'舔狗流'
+            const sanitizeForPath = (name) => {
+                return name.replace(/[<>"/\\|?]/g, '_');
+            };
+
+            const eventTitle = sanitizeForPath(majorEvent.title || majorEvent.name || '');
+            episodeDirectoryName = `${majorIndex + 1}集_${eventTitle}`;
+        }
+
+        console.log('🎬 [视频生成] 剧集目录名称:', episodeDirectoryName);
+
         // 收集所有镜头
         const allShots = [];
         for (const [epId, storyboard] of Object.entries(storyboardData)) {
@@ -4508,6 +4716,7 @@ li>选择角色，输入提示词，生成剧照</li>
                         allShots.push({
                             episode_id: epId,
                             episode_title: storyboard.title,
+                            episode_directory_name: episodeDirectoryName,  // 🔥 新增：剧集目录名称
                             stage: storyboard.stage,
                             scene_title: scene.scene_title,
                             shot_number: shot.shot_number,
@@ -5209,7 +5418,7 @@ li>选择角色，输入提示词，生成剧照</li>
     /**
      * 生成单个视频（使用确认对话框传递的参数）
      */
-    async generateSingleVideo(shot, index, total, characterPortraits, selectedImages = null, customPrompt = null, orientation = 'portrait', size = 'large') {
+    async generateSingleVideo(shot, index, total, characterPortraits, selectedImages = null, customPrompt = null, orientation = 'landscape', size = 'large') {
         try {
             // 使用确认对话框选择的图片，如果没有则使用自动匹配的
             let imageUrls = selectedImages;
@@ -5239,9 +5448,10 @@ li>选择角色，输入提示词，生成剧照</li>
                     watermark: false,
                     private: true,
                     // 🔥 传递元数据用于按项目/分集组织视频
+                    // 使用 episode_directory_name 而不是 episode_title（storyboard标题）
                     metadata: {
                         novel_title: this.selectedNovel || '',
-                        episode_title: shot.episode_title || '',
+                        episode_title: shot.episode_directory_name || shot.episode_title || '',
                         shot_number: shot.shot_number || '',
                         shot_type: shot.shot_type || '',
                         scene_title: shot.scene_title || ''
