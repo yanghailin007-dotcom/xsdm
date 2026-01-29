@@ -2274,17 +2274,25 @@ def generate_character_portrait():
         logger.debug(f"📝 [VIDEO] 提示词长度: {len(prompt)} 字符")
         logger.debug(f"📝 [VIDEO] 提示词预览: {prompt[:100]}...")  # 只显示前100字符
         logger.debug(f"🖼️ [VIDEO] 参考图像数量: {len(ref_image_paths)}")
-        # 生成文件名
+
+        # 🔥 生成文件名：项目名+角色+剧集
         if is_custom_mode:
             # 自定义模式：使用通用文件名
             safe_name = 'custom'
+            filename = f"{title or 'custom'}_custom_portrait"
         else:
-            # 角色模式：使用角色名
+            # 角色模式：使用标准命名 项目名_角色名_剧集
             character_name = character_data.get('name', 'unknown')
-            safe_name = character_name.replace(' ', '_').replace('/', '_')
-        
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"{title or 'custom'}_{safe_name}_portrait_{timestamp}"
+            safe_character = character_name.replace(' ', '_').replace('/', '_')
+
+            # 获取剧集信息（如果有）
+            episode_info = data.get('episode_info', '')
+            if episode_info:
+                safe_episode = episode_info.replace(' ', '_').replace('/', '_')
+                filename = f"{title}_{safe_character}_{safe_episode}"
+            else:
+                filename = f"{title}_{safe_character}"
+
         logger.debug(f"💾 [VIDEO] 生成文件名: {filename}")
         
         # 🔥 生成图像（支持多个参考图像，最多5张）
@@ -2321,26 +2329,116 @@ def generate_character_portrait():
         
         if result.get('success'):
             logger.info(f"✅ [VIDEO] 角色剧照生成成功: {result.get('local_path')}")
+
+            # 🔥 复制到视频项目的目录
+            import os
+            import shutil
+            project_file_path = None  # 初始化变量
+            project_filename = None
+            video_project_dir = None
+
+            # 🔥 添加调试日志
+            logger.info(f"🔍 [VIDEO] 视频项目复制检查:")
+            logger.info(f"  - is_custom_mode: {is_custom_mode}")
+            logger.info(f"  - title: {title}")
+            logger.info(f"  - 条件满足: {not is_custom_mode and title}")
+
+            if not is_custom_mode and title:
+                try:
+                    # 获取小说标题（用于创建视频项目目录）
+                    novel_title = data.get('novel_title', title)
+                    episode_info = data.get('episode_info', '')
+
+                    # 🔥 路径安全处理：移除Windows文件名不允许的字符
+                    def sanitize_path(name):
+                        """清理文件名，移除Windows不允许的字符"""
+                        # Windows不允许的字符: < > : " / \ | ? *
+                        # 包括中文冒号 ：
+                        invalid_chars = ['<', '>', ':', '"', '/', '\\', '|', '?', '：', '、', '？', '！', '＊', '＂', '＜', '＞', '／', '＼', '｜']
+                        result = name
+                        for char in invalid_chars:
+                            result = result.replace(char, '_')
+                        return result.strip('_')
+
+                    safe_novel_title = sanitize_path(novel_title)
+                    safe_character_name = sanitize_path(character_name)
+                    safe_episode = sanitize_path(episode_info) if episode_info else '默认'
+
+                    # 🔥 新目录结构: 视频项目/{小说名}/{分集}/{角色名}.png
+                    video_project_base = os.path.join('视频项目', safe_novel_title, safe_episode)
+
+                    logger.info(f"📁 [VIDEO] 视频项目路径构建:")
+                    logger.info(f"  - 原始小说标题: {novel_title}")
+                    logger.info(f"  - 清理后标题: {safe_novel_title}")
+                    logger.info(f"  - 原始角色名: {character_name}")
+                    logger.info(f"  - 清理后角色名: {safe_character_name}")
+                    logger.info(f"  - 剧集信息: {episode_info}")
+                    logger.info(f"  - 项目目录: {video_project_base}")
+
+                    # 创建视频项目目录（如果不存在）
+                    if not os.path.exists(video_project_base):
+                        os.makedirs(video_project_base, exist_ok=True)
+                        logger.info(f"📁 [VIDEO] 创建视频项目目录: {video_project_base}")
+
+                    # 复制文件到视频项目目录
+                    original_file = result.get('local_path')
+                    if original_file and os.path.exists(original_file):
+                        # 使用角色名作为文件名: {角色名}.png
+                        project_filename = f"{safe_character_name}.png"
+                        project_file_path = os.path.join(video_project_base, project_filename)
+
+                        # 如果文件已存在，添加序号
+                        counter = 1
+                        while os.path.exists(project_file_path):
+                            project_filename = f"{safe_character_name}_{counter}.png"
+                            project_file_path = os.path.join(video_project_base, project_filename)
+                            counter += 1
+
+                        shutil.copy2(original_file, project_file_path)
+                        logger.info(f"✅ [VIDEO] 剧照已保存到视频项目: {project_file_path}")
+
+                        # 构建项目内的访问URL: /project-files/{小说名}/{分集}/{角色名}.png
+                        project_image_url = f"/project-files/{safe_novel_title}/{safe_episode}/{project_filename}"
+                        logger.info(f"🌐 [VIDEO] 视频项目内访问URL: {project_image_url}")
+
+                        # 保存项目目录信息供后续使用
+                        video_project_dir = f"{safe_novel_title}/{safe_episode}"
+                    else:
+                        logger.error(f"❌ [VIDEO] 原始文件不存在: {original_file}")
+                except Exception as e:
+                    logger.error(f"⚠️ [VIDEO] 保存到视频项目失败: {e}")
+                    import traceback
+                    logger.error(f"错误堆栈: {traceback.format_exc()}")
+
             # 构建HTTP访问路径（浏览器可访问）
             import urllib.parse
-            image_filename = os.path.basename(result.get('local_path', ''))
-            # URL编码文件名，处理中文和特殊字符
-            encoded_filename = urllib.parse.quote(image_filename)
-            image_url = f"/generated_images/{encoded_filename}"
-            logger.info(f"🌐 [VIDEO] 图片访问URL: {image_url}")
-            logger.info(f"🌐 [VIDEO] 原始文件名: {image_filename}")
-            logger.info(f"🌐 [VIDEO] 编码后文件名: {encoded_filename}")
-            
+
+            # 🔥 优先使用视频项目内的URL
+            if project_file_path and os.path.exists(project_file_path):
+                # 使用项目文件路径
+                project_filename_encoded = urllib.parse.quote(project_filename)
+                image_url = f"/project-files/{urllib.parse.quote(video_project_dir)}/{project_filename_encoded}"
+                logger.info(f"🌐 [VIDEO] 使用视频项目URL: {image_url}")
+            else:
+                # 回退到generated_images路径
+                image_filename = os.path.basename(result.get('local_path', ''))
+                encoded_filename = urllib.parse.quote(image_filename)
+                image_url = f"/generated_images/{encoded_filename}"
+                logger.info(f"🌐 [VIDEO] 使用generated_images URL: {image_url}")
+                logger.info(f"🌐 [VIDEO] 原始文件名: {image_filename}")
+                logger.info(f"🌐 [VIDEO] 编码后文件名: {encoded_filename}")
+
             # 构建返回消息
             if is_custom_mode:
                 message = f"自定义剧照生成成功" + (f" (使用{len(ref_image_paths)}张参考图)" if ref_image_paths else "")
             else:
                 message = f"角色 {character_name} 的剧照生成成功" + (f" (使用{len(ref_image_paths)}张参考图)" if ref_image_paths else "")
-            
+
             return jsonify({
                 "success": True,
                 "image_path": result.get('local_path'),  # 本地路径（用于下载）
                 "image_url": image_url,  # HTTP URL（用于浏览器显示）
+                "project_image_path": project_file_path,  # 🔥 视频项目内的文件路径
                 "prompt": prompt,
                 "character_name": character_name if not is_custom_mode else '自定义',
                 "used_reference_images": len(ref_image_paths),  # 🔥 新增：使用了多少张参考图
@@ -2355,6 +2453,97 @@ def generate_character_portrait():
             
     except Exception as e:
         logger.error(f"❌ [VIDEO] 生成角色剧照失败: {e}")
+        import traceback
+        logger.error(f"错误堆栈: {traceback.format_exc()}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@video_api.route('/video/discover-portraits', methods=['GET'])
+@login_required
+def discover_character_portraits():
+    """
+    扫描视频项目目录，发现已有的角色剧照
+
+    新目录结构: 视频项目/{小说名}/{分集}/{角色名}.png
+
+    返回格式：
+    {
+        "success": true,
+        "portraits": [
+            {
+                "character_name": "林长生",
+                "novel_title": "心声泄露：我成了家族老阴比",
+                "episode_info": "第一集",
+                "image_url": "/project-files/...",
+                "local_path": "视频项目/..."
+            }
+        ]
+    }
+    """
+    try:
+        import os
+        from pathlib import Path
+        import urllib.parse
+
+        project_base = Path('视频项目')
+        if not project_base.exists():
+            return jsonify({
+                "success": True,
+                "portraits": [],
+                "message": "视频项目目录不存在"
+            })
+
+        portraits = []
+
+        # 🔥 新结构：遍历小说目录
+        for novel_dir in project_base.iterdir():
+            if not novel_dir.is_dir():
+                continue
+
+            novel_title = novel_dir.name
+            logger.info(f"🔍 [发现剧照] 扫描小说目录: {novel_title}")
+
+            # 🔥 遍历分集目录
+            for episode_dir in novel_dir.iterdir():
+                if not episode_dir.is_dir():
+                    continue
+
+                episode_info = episode_dir.name
+                logger.info(f"  📁 扫描分集: {episode_info}")
+
+                # 查找分集中的图片文件
+                image_files = list(episode_dir.glob('*.png')) + list(episode_dir.glob('*.jpg')) + list(episode_dir.glob('*.jpeg'))
+
+                for img_file in image_files:
+                    # 从文件名提取角色名（去掉扩展名和序号）
+                    character_name = img_file.stem
+                    # 处理带序号的文件名，如 "林长生_1" -> "林长生"
+                    if '_' in character_name and character_name.split('_')[-1].isdigit():
+                        character_name = '_'.join(character_name.split('_')[:-1])
+
+                    # 构建访问URL
+                    relative_path = img_file.relative_to(project_base)
+                    image_url = f"/project-files/{urllib.parse.quote(str(relative_path), safe='/')}"
+
+                    portrait_info = {
+                        "character_name": character_name,
+                        "novel_title": novel_title,
+                        "episode_info": episode_info,
+                        "image_url": image_url,
+                        "local_path": str(img_file),
+                        "filename": img_file.name
+                    }
+                    portraits.append(portrait_info)
+                    logger.info(f"    ✅ 发现剧照: {character_name} -> {image_url}")
+
+        logger.info(f"📊 [发现剧照] 共发现 {len(portraits)} 个剧照文件")
+        return jsonify({
+            "success": True,
+            "portraits": portraits
+        })
+
+    except Exception as e:
+        logger.error(f"❌ [发现剧照] 扫描失败: {e}")
         import traceback
         logger.error(f"错误堆栈: {traceback.format_exc()}")
         return jsonify({"success": False, "error": str(e)}), 500
@@ -3989,6 +4178,474 @@ def get_video_stats():
         import traceback
         logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@video_api.route('/video/convert-to-short-drama', methods=['POST'])
+@login_required
+def convert_to_short_drama():
+    """
+    将小说转换为短剧风格
+
+    请求参数:
+    {
+        "novel_title": "小说标题"
+    }
+
+    返回:
+    {
+        "success": true,
+        "sample_original": "原始内容示例",
+        "sample_converted": "短剧风格内容示例",
+        "stats": {...}
+    }
+    """
+    try:
+        logger.info("=" * 60)
+        logger.info("🎭 [短剧转换] 收到转换请求")
+
+        if not manager:
+            logger.error("❌ [短剧转换] 管理器未初始化")
+            return jsonify({"success": False, "error": "管理器未初始化"}), 500
+
+        data = request.get_json()
+        logger.info(f"📦 [短剧转换] 请求数据: {data}")
+
+        novel_title = data.get('novel_title')
+        if not novel_title:
+            logger.error("❌ [短剧转换] 缺少小说标题")
+            return jsonify({"success": False, "error": "缺少小说标题"}), 400
+
+        logger.info(f"📚 [短剧转换] 小说标题: {novel_title}")
+
+        # 获取小说详情
+        novel_detail = manager.get_novel_detail(novel_title)
+        if not novel_detail:
+            logger.error(f"❌ [短剧转换] 找不到小说: {novel_title}")
+            return jsonify({"success": False, "error": f"找不到该小说: {novel_title}"}), 404
+
+        logger.info(f"✅ [短剧转换] 找到小说，keys: {list(novel_detail.keys())[:10]}")
+
+        # 尝试多种方式获取事件数据
+        events = novel_detail.get('events', [])
+        if not events:
+            events = novel_detail.get('major_events', [])
+        if not events:
+            events = novel_detail.get('medium_events', [])
+        if not events:
+            # 尝试从storyline获取
+            storyline = novel_detail.get('storyline', {})
+            if isinstance(storyline, dict):
+                events = storyline.get('events', [])
+            elif isinstance(storyline, list):
+                events = storyline
+
+        logger.info(f"📊 [短剧转换] 找到事件数量: {len(events) if events else 0}")
+
+        # 获取角色信息
+        characters = novel_detail.get('characters', [])
+        if not characters:
+            characters = novel_detail.get('character_profiles', [])
+
+        # 获取小说描述
+        description = novel_detail.get('description', '')
+        premise = novel_detail.get('premise', '')
+        summary = novel_detail.get('summary', '')
+
+        # 选择一个事件作为示例，如果没有事件则使用小说描述
+        if events and len(events) > 0:
+            sample_event = events[0]
+            if isinstance(sample_event, dict):
+                event_title = sample_event.get('title', sample_event.get('name', '未知事件'))
+                event_description = sample_event.get('description', sample_event.get('content', sample_event.get('summary', '')))
+            else:
+                event_title = "事件"
+                event_description = str(sample_event)
+        else:
+            # 没有事件时使用小说描述
+            event_title = novel_title
+            event_description = description or premise or summary or f"《{novel_title}》是一部精彩的作品"
+
+        # 确保描述不为空
+        if not event_description or len(event_description) < 10:
+            event_description = f"这是《{novel_title}》的故事内容，讲述了精彩的情节和动人的故事。"
+
+        logger.info(f"📝 [短剧转换] 事件标题: {event_title}, 描述长度: {len(event_description)}")
+
+        # 构建原始内容
+        original_content = f"""【事件标题】{event_title}
+
+【原始内容】
+{event_description}"""
+
+        # 构建短剧风格内容（添加钩子、悬念等）
+        preview_text = event_description[:80] + "..." if len(event_description) > 80 else event_description
+
+        converted_content = f"""🎬 【短剧脚本】{event_title}
+
+【开场钩子】
+（3秒黄金开场 - 紧抓观众注意力）
+{preview_text}
+
+【悬念设置】
+（5秒处抛出悬念）
+真相到底是什么？让我们一起来看...
+
+【剧情推进】
+{event_description}
+
+【卡点留白】
+（结尾悬念 - 引导继续观看）
+接下来会发生什么？点击下方继续观看..."""
+
+        # 统计信息
+        stats = {
+            'total_events': len(events) if events else 0,
+            'total_characters': len(characters) if characters else 0,
+            'estimated_episodes': len(events) if events else 10,
+            'novel_title': novel_title
+        }
+
+        logger.info(f"✅ [短剧转换] 转换完成! 事件数: {stats['total_events']}, 角色数: {stats['total_characters']}")
+        logger.info("=" * 60)
+
+        return jsonify({
+            "success": True,
+            "sample_original": original_content,
+            "sample_converted": converted_content,
+            "stats": stats,
+            "novel_data": {
+                "title": novel_title,
+                "events": (events or [])[:10],
+                "characters": (characters or [])[:20]
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"❌ [短剧转换] 转换失败: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@video_api.route('/video/episode-workflow/generate-storyboard', methods=['POST'])
+@login_required
+def generate_episode_storyboard():
+    """
+    按集制作工作流 - 为选中的集数生成分镜头脚本
+
+    请求参数:
+    {
+        "novel_title": "小说标题",
+        "episodes": [
+            {
+                "id": "major_event_16_event_0_0",
+                "title": "天道成了看门狗",
+                "stage": "起",
+                "major_event": "这界太小，准备搬家"
+            },
+            ...
+        ]
+    }
+
+    返回:
+    {
+        "success": true,
+        "storyboards": {
+            "major_event_16_event_0_0": {
+                "title": "天道成了看门狗",
+                "scenes": [...]
+            },
+            ...
+        }
+    }
+    """
+    try:
+        data = request.get_json()
+        novel_title = data.get('novel_title')
+        episodes = data.get('episodes', [])
+
+        if not novel_title:
+            return jsonify({"success": False, "error": "缺少小说标题"}), 400
+
+        if not episodes:
+            return jsonify({"success": False, "error": "没有选中任何集数"}), 400
+
+        logger.info(f"🎬 [按集制作] 开始为 {len(episodes)} 集生成分镜头脚本")
+        logger.info(f"📚 [按集制作] 小说: {novel_title}")
+
+        # 获取小说详情
+        novel_detail = manager.get_novel_detail(novel_title)
+        if not novel_detail:
+            return jsonify({"success": False, "error": f"找不到小说: {novel_title}"}), 404
+
+        # 获取角色信息用于生成分镜头
+        characters = novel_detail.get('characters', [])
+        character_profiles = []
+        for char in characters:
+            if isinstance(char, dict):
+                char_name = char.get('name', '')
+                char_desc = char.get('description', char.get('appearance', ''))
+                if char_name:
+                    character_profiles.append(f"{char_name}: {char_desc}")
+            elif isinstance(char, str):
+                character_profiles.append(char)
+
+        # 为每一集生成分镜头
+        storyboards = {}
+
+        for episode in episodes:
+            episode_id = episode.get('id')
+            episode_title = episode.get('title', '未知标题')
+            episode_stage = episode.get('stage', '')
+
+            logger.info(f"  📺 [按集制作] 生成分镜头: {episode_title} ({episode_stage})")
+
+            # 根据剧集的阶段调整内容风格
+            stage_descriptions = {
+                '起': '开篇引入，设定悬念',
+                '承': '情节推进，矛盾升级',
+                '转': '剧情转折，意外发生',
+                '合': '高潮结局，收尾呼应'
+            }
+
+            stage_note = stage_descriptions.get(episode_stage, '')
+
+            # 生成分镜头场景
+            scenes = _generate_episode_scenes(
+                episode_title,
+                episode_stage,
+                stage_note,
+                novel_title,
+                character_profiles
+            )
+
+            storyboards[episode_id] = {
+                'title': episode_title,
+                'stage': episode_stage,
+                'scenes': scenes
+            }
+
+        logger.info(f"✅ [按集制作] 分镜头生成完成，共 {len(storyboards)} 集")
+
+        return jsonify({
+            "success": True,
+            "storyboards": storyboards,
+            "total_episodes": len(storyboards),
+            "message": f"已为 {len(storyboards)} 集生成分镜头脚本"
+        })
+
+    except Exception as e:
+        logger.error(f"❌ [按集制作] 分镜头生成失败: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+def _generate_episode_scenes(episode_title: str, stage: str, stage_note: str,
+                              novel_title: str, character_profiles: list) -> list:
+    """
+    为单个剧集生成场景分镜头
+
+    Args:
+        episode_title: 剧集标题
+        stage: 剧集阶段（起承转合）
+        stage_note: 阶段说明
+        novel_title: 小说标题
+        character_profiles: 角色档案列表
+
+    Returns:
+        场景列表
+    """
+    # 根据不同阶段生成不同数量的场景
+    scene_counts = {
+        '起': 4,
+        '承': 5,
+        '转': 4,
+        '合': 5
+    }
+
+    num_scenes = scene_counts.get(stage, 4)
+    scenes = []
+
+    for i in range(num_scenes):
+        scene_num = i + 1
+
+        # 生成场景标题
+        scene_templates = {
+            '起': ['开篇亮相', '悬念引入', '事件发生', '埋下伏笔'],
+            '承': ['情节展开', '矛盾升级', '多方博弈', '局势变化', '推向高潮'],
+            '转': ['意外转折', '真相揭露', '危机爆发', '峰回路转'],
+            '合': ['终极对决', '高潮爆发', '尘埃落定', '余韵悠长', '新的开始']
+        }
+
+        templates = scene_templates.get(stage, ['场景一', '场景二', '场景三', '场景四'])
+        scene_title = templates[i] if i < len(templates) else f'场景{scene_num}'
+
+        # 生成分镜头
+        shots = _generate_scene_shots(scene_title, episode_title, stage, scene_num)
+
+        scene = {
+            'scene_number': scene_num,
+            'scene_title': scene_title,
+            'shot_sequence': shots,
+            'estimated_duration_seconds': sum(s.get('duration', 8) for s in shots),
+            'location': _generate_location_description(stage, scene_num),
+            'characters_involved': _select_characters_for_scene(character_profiles, min(3, len(character_profiles)))
+        }
+
+        scenes.append(scene)
+
+    return scenes
+
+
+def _generate_scene_shots(scene_title: str, episode_title: str, stage: str, scene_num: int) -> list:
+    """
+    为场景生成分镜头序列
+
+    Args:
+        scene_title: 场景标题
+        episode_title: 剧集标题
+        stage: 剧集阶段
+        scene_num: 场景编号
+
+    Returns:
+        分镜头列表
+    """
+    # 根据场景类型生成不同的镜头
+    shot_types = {
+        '开篇亮相': ['全景', '中景', '特写', '拉远'],
+        '悬念引入': ['特写', '中景', '全景', '主观视角'],
+        '事件发生': ['全景', '中景', '特写', '跟拍'],
+        '埋下伏笔': ['中景', '特写', '全景', '固定'],
+        '情节展开': ['全景', '中景', '跟拍', '特写'],
+        '矛盾升级': ['特写', '中景', '推镜头', '拉镜头'],
+        '多方博弈': ['全景', '中景', '特写', '摇镜头'],
+        '局势变化': ['全景', '推镜头', '特写', '升降'],
+        '推向高潮': ['跟拍', '特写', '仰拍', '全景'],
+        '意外转折': ['特写', '中景', '急推', '甩镜头'],
+        '真相揭露': ['特写', '慢镜头', '全景', '固定'],
+        '危机爆发': ['全景', '晃动', '特写', '快速切换'],
+        '峰回路转': ['特写', '中景', '拉远', '全景'],
+        '终极对决': ['仰拍', '全景', '特写', '慢动作'],
+        '高潮爆发': ['快速切换', '特写', '全景', '爆炸'],
+        '尘埃落定': ['全景', '拉远', '中景', '固定'],
+        '余韵悠长': ['固定', '特写', '慢镜头', '淡出'],
+        '新的开始': ['中景', '全景', '推镜头', '淡出']
+    }
+
+    camera_movements = {
+        '全景': '展现环境和人物关系',
+        '中景': '展示人物动作和交流',
+        '特写': '突出表情和细节',
+        '拉远': '拉大空间，强调环境',
+        '推镜头': '引导注意力',
+        '跟拍': '跟随人物动作',
+        '摇镜头': '扫描场景',
+        '升降': '展现高度变化',
+        '仰拍': '强调威严',
+        '固定': '稳定观察',
+        '慢镜头': '延长重要时刻',
+        '淡出': '结束场景',
+        '急推': '制造紧张',
+        '甩镜头': '表现震惊',
+        '晃动': '表现混乱',
+        '快速切换': '加快节奏',
+        '主观视角': '代入感',
+        '爆炸': '视觉冲击',
+        '拉镜头': '扩大视野',
+        '慢动作': '强调重要性'
+    }
+
+    # 获取适合该场景的镜头类型
+    default_shots = ['全景', '中景', '特写', '固定']
+    shot_type_list = shot_types.get(scene_title, default_shots)
+
+    shots = []
+    for i, shot_type in enumerate(shot_type_list):
+        shot = {
+            'shot_number': i + 1,
+            'shot_type': shot_type,
+            'camera_movement': shot_type,
+            'duration': 8,  # 秒
+            'description': _generate_shot_description(shot_type, episode_title, scene_title),
+            'audio_note': _generate_audio_note(stage, shot_type)
+        }
+        shots.append(shot)
+
+    return shots
+
+
+def _generate_shot_description(shot_type: str, episode_title: str, scene_title: str) -> str:
+    """生成长头描述"""
+    descriptions = {
+        '全景': f'展现{episode_title}的整体场景',
+        '中景': f'展示{scene_title}中的人物交流',
+        '特写': f'突出人物表情和情感细节',
+        '拉远': f'拉大景深，展现{episode_title}的环境氛围',
+        '推镜头': f'推近主体，引导观众视线',
+        '跟拍': f'跟随人物动作，增强代入感',
+        '摇镜头': f'扫描场景，展示{scene_title}的环境',
+        '升降': f'垂直运镜，展现场景层次',
+        '仰拍': f'仰拍镜头，增强视觉冲击力',
+        '固定': f'固定镜头，稳定观察场景',
+        '慢镜头': f'慢动作处理，强化重要时刻',
+        '淡出': f'画面淡出，完成场景过渡',
+        '急推': f'急速推镜头，制造紧张感',
+        '甩镜头': f'甩镜头特效，表现戏剧性',
+        '晃动': f'镜头晃动，表现不稳定状态',
+        '快速切换': f'快速切换镜头，加快叙事节奏',
+        '主观视角': f'主观视角拍摄，增强代入感',
+        '爆炸': f'视觉冲击特效',
+        '拉镜头': f'拉镜头扩大视野',
+        '慢动作': f'慢动作突出重点'
+    }
+    return descriptions.get(shot_type, f'{shot_type}镜头展示{scene_title}')
+
+
+def _generate_audio_note(stage: str, shot_type: str) -> str:
+    """生成音频备注"""
+    audio_notes = {
+        '起': ['轻快背景音乐', '音效点缀', '环境音'],
+        '承': ['节奏加快', '紧张音乐渐强', '音效密集'],
+        '转': ['音效突出', '音乐转折', '静音对比'],
+        '合': ['高潮音乐', '宏大配乐', '音效丰富']
+    }
+
+    stage_notes = audio_notes.get(stage, ['背景音乐'])
+    return stage_notes[0] if stage_notes else '背景音乐'
+
+
+def _generate_location_description(stage: str, scene_num: int) -> str:
+    """生成场景地点描述"""
+    locations = {
+        '起': ['主厅', '庭院', '书房', '门口'],
+        '承': ['大殿', '演武场', '密室', '山林'],
+        '转': ['战场', '禁地', '洞府', '天际'],
+        '合': ['巅峰', '广场', '仙宫', '虚空']
+    }
+
+    loc_list = locations.get(stage, ['场景'])
+    return loc_list[scene_num % len(loc_list)] if loc_list else '场景'
+
+
+def _select_characters_for_scene(character_profiles: list, max_chars: int) -> list:
+    """为场景选择角色"""
+    if not character_profiles:
+        return ['主角']
+
+    # 简单选择：取前 max_chars 个角色
+    selected = []
+    for i in range(min(max_chars, len(character_profiles))):
+        char_str = character_profiles[i]
+        if isinstance(char_str, str):
+            # 提取角色名称
+            char_name = char_str.split(':')[0].strip()
+            selected.append(char_name)
+        elif isinstance(char_str, dict):
+            char_name = char_str.get('name', '角色')
+            selected.append(char_name)
+
+    return selected
 
 
 def register_video_routes(app):

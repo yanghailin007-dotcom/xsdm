@@ -6,11 +6,64 @@
 // 全局变量
 let referenceImages = [];
 let currentGeneratedImage = null;
+let loadedCharacter = null; // 🔥 从工作流传入的角色数据
 
 // 初始化
 document.addEventListener('DOMContentLoaded', function() {
+    loadCharacterFromWorkflow(); // 🔥 加载角色数据
     initializeEventListeners();
 });
+
+/**
+ * 🔥 从工作流传入的角色数据
+ */
+function loadCharacterFromWorkflow() {
+    try {
+        console.log('📸 [剧照工作室] 尝试从localStorage加载角色数据...');
+        const characterData = localStorage.getItem('portraitStudio_character');
+        console.log('📸 [剧照工作室] localStorage中的数据:', characterData);
+
+        if (characterData) {
+            loadedCharacter = JSON.parse(characterData);
+            console.log('📸 [剧照工作室] 成功解析角色数据:', loadedCharacter);
+
+            // 如果有预生成的提示词，自动填充
+            if (loadedCharacter.generatedPrompt) {
+                console.log('📸 [剧照工作室] 发现预生成的提示词，准备填充...');
+                const promptEditor = document.getElementById('promptEditor');
+                console.log('📸 [剧照工作室] promptEditor元素:', promptEditor);
+
+                if (promptEditor) {
+                    promptEditor.value = loadedCharacter.generatedPrompt;
+                    console.log('✅ [剧照工作室] 已自动填充提示词');
+                } else {
+                    console.warn('⚠️ [剧照工作室] 找不到promptEditor元素');
+                }
+            } else {
+                console.warn('⚠️ [剧照工作室] 没有预生成的提示词');
+            }
+
+            // 更新页面标题显示角色名称和剧集
+            const pageHeader = document.querySelector('.page-header h2');
+            if (pageHeader && loadedCharacter.name) {
+                let title = `🎨 ${loadedCharacter.name} - 剧照创作`;
+                if (loadedCharacter.episode_info) {
+                    title += ` (${loadedCharacter.episode_info})`;
+                }
+                pageHeader.textContent = title;
+                console.log('✅ [剧照工作室] 已更新页面标题');
+            }
+
+            // 清除localStorage，避免下次打开还使用旧数据
+            localStorage.removeItem('portraitStudio_character');
+            console.log('✅ [剧照工作室] 已清除localStorage中的角色数据');
+        } else {
+            console.log('ℹ️ [剧照工作室] localStorage中没有角色数据');
+        }
+    } catch (e) {
+        console.error('❌ [剧照工作室] 加载角色数据失败:', e);
+    }
+}
 
 /**
  * 初始化事件监听器
@@ -221,26 +274,32 @@ function applyTemplate(template) {
 async function generatePortrait() {
     const promptEditor = document.getElementById('promptEditor');
     const prompt = promptEditor.value.trim();
-    
+
     if (!prompt) {
         showToast('请输入生成提示词');
         return;
     }
-    
+
     const aspectRatio = document.querySelector('.ratio-btn.active')?.dataset.ratio || '9:16';
     const imageSize = document.getElementById('qualitySelect')?.value || '4K';
     const styleSelect = document.getElementById('styleSelect')?.value || '';
-    
+
     // 显示进度
     const progressCard = document.getElementById('progressCard');
     const resultCard = document.getElementById('resultCard');
     const generateBtn = document.getElementById('generateBtn');
-    
+
     progressCard.style.display = 'block';
     resultCard.style.display = 'none';
     generateBtn.disabled = true;
-    
+
     try {
+        // 🔥 获取剧集信息（如果有）
+        let episodeInfo = '';
+        if (loadedCharacter && loadedCharacter.episode_info) {
+            episodeInfo = loadedCharacter.episode_info;
+        }
+
         const response = await fetch('/api/video/generate-character-portrait', {
             method: 'POST',
             headers: {
@@ -252,23 +311,45 @@ async function generatePortrait() {
                 style: styleSelect,
                 aspect_ratio: aspectRatio,
                 image_size: imageSize,
-                reference_images: referenceImages
+                reference_images: referenceImages,
+                // 🔥 传递角色和剧集信息用于文件命名
+                character_data: loadedCharacter || {},
+                episode_info: episodeInfo
             })
         });
-        
+
         const result = await response.json();
-        
+
         if (result.success) {
             currentGeneratedImage = result;
-            
+
             // 显示结果
             const resultImage = document.getElementById('resultImage');
             resultImage.src = result.image_url;
-            
+
             progressCard.style.display = 'none';
             resultCard.style.display = 'block';
-            
+
             showToast(`剧照生成成功！${result.message || ''}`);
+
+            // 🔥 如果是从工作流打开的，保存剧照信息并返回
+            if (loadedCharacter && loadedCharacter.name) {
+                console.log('📸 [剧照工作室] 准备保存剧照信息到localStorage...');
+                console.log('📸 [剧照工作室] loadedCharacter:', loadedCharacter);
+                console.log('📸 [剧照工作室] result:', result);
+
+                const portraitResult = {
+                    characterName: loadedCharacter.name,
+                    imageUrl: result.image_url,
+                    imagePath: result.image_path,
+                    timestamp: new Date().toISOString()
+                };
+                console.log('📸 [剧照工作室] 即将保存的数据:', portraitResult);
+
+                localStorage.setItem('portraitStudio_result', JSON.stringify(portraitResult));
+                console.log('✅ [剧照工作室] 剧照信息已保存到localStorage');
+                console.log('📸 [剧照工作室] 保存的imageUrl:', portraitResult.imageUrl);
+            }
         } else {
             throw new Error(result.error || '生成失败');
         }

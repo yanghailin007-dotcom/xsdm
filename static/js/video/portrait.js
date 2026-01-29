@@ -6,12 +6,14 @@
 let currentMode = 'create';
 let selectedRatio = '9:16';
 let referenceImages = [];
+let loadedCharacter = null; // 从工作流传入的角色数据
 
 // 页面加载完成后执行
 document.addEventListener('DOMContentLoaded', () => {
     setupUploadZone();
     setupTabs();
     loadNovels();
+    loadCharacterFromWorkflow(); // 🔥 加载从工作流传入的角色数据
 });
 
 /**
@@ -369,4 +371,37 @@ function showToast(message, type = 'info') {
     setTimeout(() => {
         toast.remove();
     }, 3000);
+}
+
+/**
+ * 🔥 从工作流传入的角色数据
+ */
+function loadCharacterFromWorkflow() {
+    try {
+        const characterData = localStorage.getItem('portraitStudio_character');
+        if (characterData) {
+            loadedCharacter = JSON.parse(characterData);
+            console.log('📸 [剧照工作台] 加载角色数据:', loadedCharacter);
+
+            // 如果有预生成的提示词，自动填充
+            if (loadedCharacter.generatedPrompt) {
+                const promptEditor = document.getElementById('promptEditor');
+                if (promptEditor) {
+                    promptEditor.value = loadedCharacter.generatedPrompt;
+                    console.log('✅ [剧照工作台] 已自动填充提示词');
+                }
+            }
+
+            // 更新标题显示角色名称
+            const pageTitle = document.querySelector('.create-panel h3, .panel-header h3');
+            if (pageTitle && loadedCharacter.name) {
+                pageTitle.textContent = `🎨 生成剧照 - ${loadedCharacter.name}`;
+            }
+
+            // 清除localStorage，避免下次打开还使用旧数据
+            localStorage.removeItem('portraitStudio_character');
+        }
+    } catch (e) {
+        console.error('❌ [剧照工作台] 加载角色数据失败:', e);
+    }
 }

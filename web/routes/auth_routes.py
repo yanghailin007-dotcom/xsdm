@@ -214,7 +214,13 @@ def register_page_routes(app):
     def portrait_studio():
         """人物剧照工作室页面"""
         return render_template('portrait-studio.html')
-    
+
+    @app.route('/short-drama', methods=['GET'])
+    @login_required
+    def short_drama():
+        """短剧风格改造页面"""
+        return render_template('short-drama.html')
+
     @app.route('/still-image-library', methods=['GET'])
     @login_required
     def still_image_library():

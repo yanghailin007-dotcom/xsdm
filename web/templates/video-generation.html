@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>视频生成系统</title>
-    <link rel="stylesheet" href="/static/css/video-generation.css?v=6">
+    <link rel="stylesheet" href="/static/css/video-generation.css?v=20">
     <link rel="stylesheet" href="/static/css/video-generation-character-portrait.css?v=2">
 </head>
 <body>
@@ -608,8 +608,13 @@
                         <!-- 步骤2: 准备剧照 -->
                         <div id="episodeStep2" class="workflow-step-panel">
                             <div class="panel-header">
-                                <h3>🎨 角色剧照准备</h3>
-                                <p>检查选中集数中出现的角色，确保每个角色都有剧照</p>
+                                <div>
+                                    <h3>🎨 角色剧照准备</h3>
+                                    <p>检查选中集数中出现的角色，确保每个角色都有剧照</p>
+                                </div>
+                                <button id="refreshPortraitsBtn" class="btn-secondary btn-sm" title="刷新剧照列表">
+                                    🔄 刷新
+                                </button>
                             </div>
 
                             <div id="episodeCharacterPortraits" class="character-portraits-list">
@@ -1133,6 +1138,19 @@
         </div>
     </div>
 
-    <script src="/static/js/video-generation.js?v=6"></script>
+    <!-- 剧照预览模态框 -->
+    <div id="portraitModal" class="portrait-modal">
+        <div class="portrait-modal-overlay" onclick="closePortraitModal()"></div>
+        <button class="portrait-modal-close" onclick="closePortraitModal()">✕</button>
+        <div class="portrait-modal-content">
+            <img id="portraitModalImage" src="" alt="剧照预览">
+            <div class="portrait-modal-info">
+                <h3 id="portraitModalName">角色名</h3>
+                <p id="portraitModalRole">角色</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/video-generation.js?v=26"></script>
 </body>
 </html>
