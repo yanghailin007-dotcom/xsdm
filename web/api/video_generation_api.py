@@ -5663,27 +5663,38 @@ def _load_storyboard_file(novel_title: str, event_name: str, episode_id: str = '
     try:
         import re
 
-        # 🔥 获取实际存在的小说目录
+        # 🔥 获取实际存在的小说目录（优先选择带冒号的正确目录）
         project_base = Path('视频项目')
         actual_novel_dir = None
+        normalize_name = lambda name: re.sub(r'[<>:"/\\|?*：：、＿_]', '', name)
 
         # 尝试多种方式找到实际的小说目录
         if project_base.exists():
+            # 先收集所有匹配的目录
+            matching_dirs = []
             for novel_dir in project_base.iterdir():
                 if not novel_dir.is_dir():
                     continue
 
                 # 精确匹配
                 if novel_dir.name == novel_title:
-                    actual_novel_dir = novel_dir
+                    matching_dirs.insert(0, novel_dir)  # 精确匹配优先
                     break
 
                 # 模糊匹配：移除特殊字符后比较
                 # 心声泄露：我成了家族老阴比 vs 心声泄露_我成了家族老阴比
-                normalize_name = lambda name: re.sub(r'[<>:"/\\|?*：：、＿_]', '', name)
                 if normalize_name(novel_dir.name) == normalize_name(novel_title):
+                    matching_dirs.append(novel_dir)
+
+            # 优先选择包含中文冒号的目录（正确的格式）
+            for novel_dir in matching_dirs:
+                if '：' in novel_dir.name:
                     actual_novel_dir = novel_dir
                     break
+
+            # 如果没有找到带冒号的，使用第一个匹配的
+            if not actual_novel_dir and matching_dirs:
+                actual_novel_dir = matching_dirs[0]
 
         if not actual_novel_dir:
             logger.info(f"📂 [AI分镜头] 未找到小说目录: {novel_title}")

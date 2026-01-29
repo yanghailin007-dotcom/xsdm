@@ -4929,8 +4929,8 @@ li>选择角色，输入提示词，生成剧照</li>
                                         border-radius: 4px;
                                         color: var(--text-primary);
                                     ">
-                                        <option value="portrait" selected>竖屏 (9:16)</option>
-                                        <option value="landscape">横屏 (16:9)</option>
+                                        <option value="portrait">竖屏 (9:16)</option>
+                                        <option value="landscape" selected>横屏 (16:9)</option>
                                     </select>
                                 </div>
                                 <div>
