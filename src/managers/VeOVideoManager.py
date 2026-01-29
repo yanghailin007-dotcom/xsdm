@@ -71,11 +71,12 @@ def get_video_save_path(metadata: Dict[str, Any], task_id: str) -> Path:
     """
     根据元数据获取视频保存路径
 
-    路径结构: 视频项目/{小说名}/{分集}/videos/{镜头号}_{类型}.mp4
+    路径结构: 视频项目/{小说名}/{分集}/videos/{事件名}_{镜头号}_{类型}.mp4
     如果没有元数据，则使用默认路径: static/generated_videos/{task_id}.mp4
     """
     novel_title = metadata.get('novel_title', '')
     episode_title = metadata.get('episode_title', '')
+    event_name = metadata.get('event_name', '')  # 中级事件名称
     shot_number = metadata.get('shot_number', '')
     shot_type = metadata.get('shot_type', 'shot')
 
@@ -83,12 +84,19 @@ def get_video_save_path(metadata: Dict[str, Any], task_id: str) -> Path:
         # 使用项目目录结构
         safe_novel = sanitize_path(novel_title)
         safe_episode = sanitize_path(episode_title)
-        safe_shot = sanitize_path(f"{shot_number}_{shot_type}")
+        safe_event = sanitize_path(event_name) if event_name else ''
+        safe_shot_type = sanitize_path(shot_type.replace('/', '_'))  # 替换斜杠
+
+        # 文件名格式: {事件名}_{镜头号}_{类型}.mp4
+        if safe_event:
+            filename = f"{safe_event}_{shot_number}_{safe_shot_type}.mp4"
+        else:
+            filename = f"{shot_number}_{safe_shot_type}.mp4"
 
         project_dir = VIDEO_PROJECT_BASE_DIR / safe_novel / safe_episode / "videos"
         project_dir.mkdir(parents=True, exist_ok=True)
 
-        return project_dir / f"{safe_shot}.mp4"
+        return project_dir / filename
     else:
         # 使用默认路径
         return VEO_VIDEO_STORAGE_DIR / f"{task_id}.mp4"
@@ -408,43 +416,92 @@ class VeOVideoManager:
                 # 🔥 修复：处理图片（可选）
                 compressed_images = None
                 if task.native_request.images:
-                    # 检查是否所有图片都是URL
-                    all_urls = all(self._is_url(img) for img in task.native_request.images if img)
-                    
-                    if all_urls:
-                        # 🔥 强制使用base64模式：下载URL图片并转换为base64
-                        self.logger.info(f"🔗 检测到图片URL，强制转换为base64模式...")
-                        self.logger.info(f"📥 开始下载 {len(task.native_request.images)} 张图片并转换为base64...")
-                        
-                        # 下载URL图片并转换为base64
-                        base64_images = []
-                        for idx, img_url in enumerate(task.native_request.images):
+                    # 分类图片：URL、本地路径、base64
+                    url_images = []
+                    local_paths = []
+                    base64_images = []
+
+                    for img in task.native_request.images:
+                        if self._is_url(img):
+                            url_images.append(img)
+                        elif self._is_local_file_path(img):
+                            local_paths.append(img)
+                        else:
+                            # 纯base64字符串
+                            base64_images.append(img)
+
+                    # 处理本地文件路径：读取并转换为base64
+                    if local_paths:
+                        self.logger.info(f"📂 检测到 {len(local_paths)} 个本地文件路径，开始读取...")
+                        from urllib.parse import unquote
+                        import base64
+                        from pathlib import Path
+
+                        for local_path in local_paths:
                             try:
-                                self.logger.info(f"📥 下载图片 {idx+1}/{len(task.native_request.images)}: {img_url}")
+                                # 解析路径
+                                if local_path.startswith('/project-files/'):
+                                    decoded_path = unquote(local_path.replace('/project-files/', ''))
+                                    base_dir = Path('视频项目')
+                                elif local_path.startswith('/generated_images/'):
+                                    decoded_path = unquote(local_path.replace('/generated_images/', ''))
+                                    base_dir = Path('generated_images')
+                                elif local_path.startswith('/static/generated_images/'):
+                                    decoded_path = unquote(local_path.replace('/static/generated_images/', ''))
+                                    base_dir = Path('static/generated_images')
+                                else:
+                                    self.logger.error(f"❌ 未知的本地路径格式: {local_path}")
+                                    continue
+
+                                full_path = (base_dir / decoded_path).resolve()
+
+                                # 安全检查
+                                if not str(full_path).startswith(str(base_dir.resolve())):
+                                    self.logger.error(f"❌ 非法路径: {local_path}")
+                                    continue
+
+                                if not full_path.exists():
+                                    self.logger.error(f"❌ 文件不存在: {full_path}")
+                                    continue
+
+                                # 读取文件并转换为base64
+                                with open(full_path, 'rb') as f:
+                                    file_data = f.read()
+                                base64_string = base64.b64encode(file_data).decode('utf-8')
+                                base64_images.append(base64_string)
+                                self.logger.info(f"✅ 已读取本地文件: {full_path.name}, 大小: {len(file_data)/1024:.2f} KB")
+
+                            except Exception as e:
+                                self.logger.error(f"❌ 读取本地文件失败 {local_path}: {e}")
+                                raise Exception(f"无法读取本地文件 {local_path}: {e}")
+
+                    # 合并所有base64图片进行压缩
+                    all_base64_images = base64_images
+
+                    if url_images:
+                        # 下载URL图片并转换为base64
+                        self.logger.info(f"🔗 检测到 {len(url_images)} 个URL图片，开始下载...")
+                        for idx, img_url in enumerate(url_images):
+                            try:
+                                self.logger.info(f"📥 下载图片 {idx+1}/{len(url_images)}: {img_url}")
                                 response = requests.get(img_url, timeout=30)
                                 if response.status_code == 200:
                                     import base64
                                     image_data = response.content
                                     base64_string = base64.b64encode(image_data).decode('utf-8')
-                                    base64_images.append(base64_string)
+                                    all_base64_images.append(base64_string)
                                     self.logger.info(f"✅ 图片 {idx+1} 转换成功，大小: {len(image_data)/1024:.2f} KB")
                                 else:
                                     raise Exception(f"下载失败: HTTP {response.status_code}")
                             except Exception as e:
                                 self.logger.error(f"❌ 下载图片 {idx+1} 失败: {e}")
                                 raise Exception(f"无法下载图片 {idx+1}: {e}")
-                        
-                        # 压缩base64图片
-                        self.logger.info(f"🖼️  Base64模式：开始压缩 {len(base64_images)} 张图片...")
+
+                    # 压缩base64图片
+                    if all_base64_images:
+                        self.logger.info(f"🖼️  Base64模式：开始压缩 {len(all_base64_images)} 张图片...")
                         compressed_images, compression_stats = validate_and_compress_images(
-                            base64_images,
-                            max_size_mb=MAX_IMAGE_SIZE_MB
-                        )
-                    else:
-                        # 已经是base64模式：需要压缩
-                        self.logger.info(f"🖼️  Base64模式：开始压缩 {len(task.native_request.images)} 张图片...")
-                        compressed_images, compression_stats = validate_and_compress_images(
-                            task.native_request.images,
+                            all_base64_images,
                             max_size_mb=MAX_IMAGE_SIZE_MB
                         )
                     
@@ -580,7 +637,9 @@ class VeOVideoManager:
                             resolution = f"{width}x{height}"
                             
                             # 🔥 使用本地路径作为URL（如果是本地下载）
-                            final_url = f"/static/generated_videos/{local_path}" if local_path else video_url
+                            # local_path 已经是完整的URL路径（如 /project-files/... 或 /static/generated_videos/...）
+                            # 不需要再添加前缀
+                            final_url = local_path if local_path else video_url
                             
                             # 🔥 新增：保存原始远程URL到metadata，以便本地文件丢失时可以恢复
                             original_url = video_url  # 保存原始远程URL
@@ -739,6 +798,12 @@ class VeOVideoManager:
         if not img_str or not isinstance(img_str, str):
             return False
         return img_str.startswith(('http://', 'https://'))
+
+    def _is_local_file_path(self, img_str: str) -> bool:
+        """判断是否为本地文件路径"""
+        if not img_str or not isinstance(img_str, str):
+            return False
+        return img_str.startswith(('/project-files/', '/generated_images/', '/static/'))
     
     
     def start(self):

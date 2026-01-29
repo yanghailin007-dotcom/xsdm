@@ -197,6 +197,12 @@ class VideoGenerator {
         // 隐藏模式选择屏幕
         document.getElementById('modeSelectionScreen').style.display = 'none';
 
+        // 🔥 清空之前的剧照数据（切换小说时）
+        if (this.episodeWorkflow?.characterPortraits) {
+            this.episodeWorkflow.characterPortraits.clear();
+        }
+        localStorage.removeItem('episodeWorkflow_characterPortraits');
+
         // 显示按集制作工作流屏幕
         const screen = document.getElementById('episodeWorkflowScreen');
         if (screen) {
@@ -310,15 +316,28 @@ class VideoGenerator {
     async discoverPortraits() {
         try {
             console.log('🔍 [发现剧照] 开始扫描视频项目目录...');
+            console.log('📚 [发现剧照] 当前小说:', this.selectedNovel);
+
             const response = await fetch('/api/video/discover-portraits');
             const data = await response.json();
 
             if (data.success && data.portraits && data.portraits.length > 0) {
-                console.log(`✅ [发现剧照] 发现 ${data.portraits.length} 个剧照文件:`, data.portraits);
+                // 🔥 只保留当前小说的剧照
+                const currentNovelPortraits = data.portraits.filter(p => {
+                    // 匹配小说标题（处理中文冒号等差异）
+                    const portraitNovel = p.novel_title || '';
+                    const selectedNovel = this.selectedNovel || '';
+
+                    // 精确匹配或规范化匹配
+                    const normalize = (s) => s.replace(/[<>:"/\\|?*：：、＿_]/g, '').toLowerCase();
+                    return normalize(portraitNovel) === normalize(selectedNovel);
+                });
+
+                console.log(`✅ [发现剧照] 当前小说 ${this.selectedNovel} 的剧照: ${currentNovelPortraits.length} 个`);
 
                 // 将发现的剧照添加到工作流
                 let addedCount = 0;
-                data.portraits.forEach(portrait => {
+                currentNovelPortraits.forEach(portrait => {
                     const characterName = portrait.character_name;
                     if (!this.episodeWorkflow.characterPortraits.has(characterName)) {
                         this.episodeWorkflow.characterPortraits.set(characterName, {
@@ -328,21 +347,16 @@ class VideoGenerator {
                         });
                         addedCount++;
                         console.log(`✅ [发现剧照] 添加角色: ${characterName} -> ${portrait.image_url}`);
-                    } else {
-                        console.log(`ℹ️ [发现剧照] 角色 ${characterName} 已有剧照，跳过`);
                     }
                 });
 
-                if (addedCount > 0) {
-                    // 保存到localStorage
-                    this.saveCharacterPortraits();
-                    this.showToast(`✅ 发现并添加了 ${addedCount} 个剧照`, 'success');
-                } else {
-                    this.showToast('ℹ️ 没有发现新的剧照', 'info');
-                }
+                this.saveCharacterPortraits();
 
-                // 刷新显示
-                this.loadCharacterPortraitsStep();
+                if (currentNovelPortraits.length > 0) {
+                    this.showToast(`发现 ${currentNovelPortraits.length} 个角色剧照`, 'success');
+                } else {
+                    this.showToast('当前小说没有发现剧照文件', 'info');
+                }
 
                 return { success: true, addedCount };
             } else {
@@ -3410,6 +3424,12 @@ li>选择角色，输入提示词，生成剧照</li>
     async startEpisodeWorkflow() {
         console.log('📺 启动按集制作工作流');
 
+        // 🔥 清空之前的剧照数据
+        if (this.episodeWorkflow?.characterPortraits) {
+            this.episodeWorkflow.characterPortraits.clear();
+        }
+        localStorage.removeItem('episodeWorkflow_characterPortraits');
+
         // 初始化工作流数据
         this.episodeWorkflow = {
             step: 'select-episodes',
@@ -4761,7 +4781,7 @@ li>选择角色，输入提示词，生成剧照</li>
             this.updateShotStatus(i, 'processing', '生成中...');
 
             // 生成视频
-            const result = await this.generateSingleVideo(shot, i + 1, allShots.length, characterPortraits, confirmResult.selectedImages);
+            const result = await this.generateSingleVideo(shot, i + 1, allShots.length, characterPortraits, confirmResult.selectedImages, confirmResult.prompt, confirmResult.model, confirmResult.orientation, confirmResult.size, confirmResult.useFirstLastFrame);
 
             if (result.success) {
                 completedCount++;
@@ -4772,6 +4792,11 @@ li>选择角色，输入提示词，生成剧照</li>
                 if (continueResult === 'cancel') {
                     this.showToast('已停止批量生成', 'info');
                     break;
+                } else if (continueResult === 'regenerate') {
+                    // 重新生成当前镜头：回退索引，再次循环
+                    i--;
+                    completedCount--;
+                    continue;
                 }
             } else {
                 // 生成失败，询问是否继续
@@ -4796,9 +4821,16 @@ li>选择角色，输入提示词，生成剧照</li>
      */
     async showGenerationConfirmDialog(shot, currentIndex, total, characterPortraits) {
         return new Promise((resolve) => {
-            // 获取匹配的角色剧照
-            const selectedImages = this.getPortraitImageUrlsForShot(shot, characterPortraits);
+            // 🔥 默认不选中任何图片，让用户手动选择
+            const selectedImages = [];
             const allPortraits = Array.from(characterPortraits.entries());
+
+            // 🔥 生成唯一键用于保存/加载提示词
+            const shotKey = `videoPrompt_${this.selectedNovel}_${shot.episode_id}_${shot.shot_number}`;
+
+            // 🔥 尝试加载之前保存的提示词
+            const savedPrompt = localStorage.getItem(shotKey);
+            const promptToUse = savedPrompt || shot.prompt;
 
             // 创建对话框
             const modal = document.createElement('div');
@@ -4843,12 +4875,13 @@ li>选择角色，输入提示词，生成剧照</li>
                             <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
                                 <span class="badge" style="background: var(--primary-light); padding: 0.25rem 0.5rem; border-radius: 4px;">${shot.episode_title}</span>
                                 <span class="badge" style="background: var(--accent-color); padding: 0.25rem 0.5rem; border-radius: 4px;">${shot.shot_type}</span>
+                                ${savedPrompt ? '<span class="badge" style="background: var(--success-color); color: white; padding: 0.25rem 0.5rem; border-radius: 4px;">已保存</span>' : ''}
                             </div>
                             <p style="color: var(--text-secondary); margin: 0;">📍 ${shot.scene_title}</p>
                         </div>
 
                         <div class="prompt-section" style="margin-bottom: 1rem;">
-                            <label style="font-weight: bold; display: block; margin-bottom: 0.5rem;">📝 AI提示语：</label>
+                            <label style="font-weight: bold; display: block; margin-bottom: 0.5rem;">📝 AI提示语：${savedPrompt ? '<span style="font-size: 0.75rem; color: var(--success-color);">(已加载保存的版本)</span>' : ''}</label>
                             <textarea id="promptEditArea" style="
                                 width: 100%;
                                 min-height: 100px;
@@ -4859,7 +4892,11 @@ li>选择角色，输入提示词，生成剧照</li>
                                 color: var(--text-primary);
                                 font-size: 0.9rem;
                                 resize: vertical;
-                            ">${shot.prompt}</textarea>
+                            ">${promptToUse}</textarea>
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.5rem;">
+                                <small style="color: var(--text-secondary);">💾 修改后会自动保存</small>
+                                ${savedPrompt ? `<button id="resetPromptBtn" style="font-size: 0.75rem; padding: 0.25rem 0.5rem; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 4px; cursor: pointer;">重置为原始提示词</button>` : ''}
+                            </div>
                         </div>
 
                         <div class="reference-section" style="margin-bottom: 1rem;">
@@ -4920,6 +4957,20 @@ li>选择角色，输入提示词，生成剧照</li>
                             <label style="font-weight: bold; display: block; margin-bottom: 0.5rem;">⚙️ 生成参数：</label>
                             <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem;">
                                 <div>
+                                    <label style="font-size: 0.85rem; color: var(--text-secondary);">模型：</label>
+                                    <select id="paramModel" style="
+                                        width: 100%;
+                                        padding: 0.5rem;
+                                        background: var(--bg-dark);
+                                        border: 1px solid var(--border);
+                                        border-radius: 4px;
+                                        color: var(--text-primary);
+                                    ">
+                                        <option value="veo_3_1-fast-components" selected>参考图模式 (推荐)</option>
+                                        <option value="veo_3_1-fast">首尾帧模式</option>
+                                    </select>
+                                </div>
+                                <div>
                                     <label style="font-size: 0.85rem; color: var(--text-secondary);">方向：</label>
                                     <select id="paramOrientation" style="
                                         width: 100%;
@@ -4947,6 +4998,12 @@ li>选择角色，输入提示词，生成剧照</li>
                                         <option value="small">小尺寸 (720p)</option>
                                     </select>
                                 </div>
+                            </div>
+                            <div style="margin-top: 0.5rem;">
+                                <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; color: var(--text-secondary); cursor: pointer;">
+                                    <input type="checkbox" id="paramFirstLastFrame" style="margin: 0;">
+                                    <span>启用首尾帧模式（需传2张图片：首帧+尾帧）</span>
+                                </label>
                             </div>
                         </div>
                     </div>
@@ -4994,6 +5051,8 @@ li>选择角色，输入提示词，生成剧照</li>
             const cancelBtn = modal.querySelector('.btn-cancel');
             const skipBtn = modal.querySelector('.btn-skip');
             const generateBtn = modal.querySelector('.btn-generate');
+            const resetBtn = modal.querySelector('#resetPromptBtn');
+            const promptArea = document.getElementById('promptEditArea');
 
             // 处理剧照选择
             const portraitChecks = modal.querySelectorAll('.portrait-check');
@@ -5019,6 +5078,25 @@ li>选择角色，输入提示词，生成剧照</li>
                 });
             });
 
+            // 重置提示词按钮
+            if (resetBtn) {
+                resetBtn.onclick = () => {
+                    if (confirm('确定要重置为原始提示词吗？已保存的版本将被删除。')) {
+                        promptArea.value = shot.prompt;
+                        localStorage.removeItem(shotKey);
+                        resetBtn.remove();
+                        // 移除"已保存"标签
+                        const savedBadge = modal.querySelector('.badge[style*="success"]');
+                        if (savedBadge) savedBadge.remove();
+                        // 更新标签文本
+                        const label = modal.querySelector('.prompt-section label');
+                        if (label) {
+                            label.innerHTML = '📝 AI提示语：';
+                        }
+                    }
+                };
+            }
+
             // 关闭/取消
             closeBtn.onclick = cancelBtn.onclick = () => {
                 modal.remove();
@@ -5031,21 +5109,42 @@ li>选择角色，输入提示词，生成剧照</li>
                 resolve({ action: 'skip', selectedImages: [] });
             };
 
-            // 生成
+            // 生成 - 保存修改的提示词
             generateBtn.onclick = () => {
-                const editedPrompt = document.getElementById('promptEditArea').value;
+                const editedPrompt = promptArea.value;
                 const checkedImages = Array.from(modal.querySelectorAll('.portrait-check:checked'))
                     .map(check => check.dataset.url);
+                const model = document.getElementById('paramModel').value;
                 const orientation = document.getElementById('paramOrientation').value;
                 const size = document.getElementById('paramSize').value;
+                const useFirstLastFrame = document.getElementById('paramFirstLastFrame').checked;
+
+                console.log('🔍 [调试] 用户选中的图片数量:', checkedImages.length);
+                console.log('🔍 [调试] 选中的图片URL:', checkedImages);
+                console.log('🔍 [调试] 模型:', model);
+                console.log('🔍 [调试] 首尾帧模式:', useFirstLastFrame);
+
+                // 🔥 首尾帧模式需要2张图片
+                if (useFirstLastFrame && checkedImages.length !== 2) {
+                    this.showToast('首尾帧模式需要选择2张图片（首帧+尾帧）', 'warning');
+                    return;
+                }
+
+                // 🔥 保存修改的提示词
+                if (editedPrompt !== shot.prompt) {
+                    localStorage.setItem(shotKey, editedPrompt);
+                    console.log('💾 已保存修改的提示词:', shotKey);
+                }
 
                 modal.remove();
                 resolve({
                     action: 'generate',
                     prompt: editedPrompt,
                     selectedImages: checkedImages,
+                    model,
                     orientation,
-                    size
+                    size,
+                    useFirstLastFrame
                 });
             };
         });
@@ -5122,6 +5221,7 @@ li>选择角色，输入提示词，生成剧照</li>
                         display: flex;
                         justify-content: center;
                         gap: 1rem;
+                        flex-wrap: wrap;
                     ">
                         <button class="btn-stop" style="
                             padding: 0.75rem 1.5rem;
@@ -5131,6 +5231,14 @@ li>选择角色，输入提示词，生成剧照</li>
                             color: white;
                             cursor: pointer;
                         ">⏹️ 停止批量生成</button>
+                        <button class="btn-regenerate" style="
+                            padding: 0.75rem 1.5rem;
+                            background: var(--warning-color);
+                            border: none;
+                            border-radius: 6px;
+                            color: white;
+                            cursor: pointer;
+                        ">🔄 重新生成</button>
                         <button class="btn-download" style="
                             padding: 0.75rem 1.5rem;
                             background: var(--bg-tertiary);
@@ -5158,6 +5266,11 @@ li>选择角色，输入提示词，生成剧照</li>
             modal.querySelector('.btn-stop').onclick = () => {
                 modal.remove();
                 resolve('cancel');
+            };
+
+            modal.querySelector('.btn-regenerate').onclick = () => {
+                modal.remove();
+                resolve('regenerate');
             };
 
             modal.querySelector('.btn-download').onclick = () => {
@@ -5418,13 +5531,34 @@ li>选择角色，输入提示词，生成剧照</li>
     /**
      * 生成单个视频（使用确认对话框传递的参数）
      */
-    async generateSingleVideo(shot, index, total, characterPortraits, selectedImages = null, customPrompt = null, orientation = 'landscape', size = 'large') {
+    async generateSingleVideo(shot, index, total, characterPortraits, selectedImages = null, customPrompt = null, model = 'veo_3_1-fast-components', orientation = 'landscape', size = 'large', useFirstLastFrame = false) {
         try {
-            // 使用确认对话框选择的图片，如果没有则使用自动匹配的
-            let imageUrls = selectedImages;
-            if (!imageUrls || imageUrls.length === 0) {
+            console.log('🔍 [调试] generateSingleVideo 收到的参数:', {
+                selectedImagesType: Array.isArray(selectedImages) ? 'array' : typeof selectedImages,
+                selectedImagesLength: Array.isArray(selectedImages) ? selectedImages.length : 'N/A',
+                selectedImages: selectedImages,
+                model: model,
+                useFirstLastFrame: useFirstLastFrame
+            });
+
+            // 🔥 首尾帧模式需要2张图片
+            if (useFirstLastFrame && Array.isArray(selectedImages) && selectedImages.length !== 2) {
+                return { success: false, error: '首尾帧模式需要选择2张图片（首帧+尾帧）' };
+            }
+
+            // 🔥 处理图片选择：
+            // - selectedImages 是数组（包括空数组）：使用用户选择的图片，空数组表示不使用图片
+            // - selectedImages 是 null/undefined：自动匹配角色图片
+            let imageUrls;
+            if (Array.isArray(selectedImages)) {
+                // 用户显式选择了图片（可能为空）
+                imageUrls = selectedImages;
+            } else {
+                // 没有传 selectedImages，自动匹配
                 imageUrls = this.getPortraitImageUrlsForShot(shot, characterPortraits);
             }
+
+            console.log('🔍 [调试] 最终使用的 imageUrls:', imageUrls.length, '张');
 
             // 使用确认对话框编辑的提示词，如果没有则使用原始提示词
             const prompt = customPrompt || shot.prompt;
@@ -5432,8 +5566,10 @@ li>选择角色，输入提示词，生成剧照</li>
             console.log(`🎬 [生成视频] 镜头 ${index}:`, {
                 prompt: prompt.substring(0, 100) + '...',
                 imageCount: imageUrls.length,
+                model,
                 orientation,
-                size
+                size,
+                useFirstLastFrame
             });
 
             // 调用 VeO API
@@ -5441,6 +5577,7 @@ li>选择角色，输入提示词，生成剧照</li>
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
+                    model: model,
                     prompt: prompt,
                     image_urls: imageUrls,
                     orientation: orientation,
@@ -5452,6 +5589,7 @@ li>选择角色，输入提示词，生成剧照</li>
                     metadata: {
                         novel_title: this.selectedNovel || '',
                         episode_title: shot.episode_directory_name || shot.episode_title || '',
+                        event_name: shot.episode_title || '',  // 中级事件名称，用于文件命名
                         shot_number: shot.shot_number || '',
                         shot_type: shot.shot_type || '',
                         scene_title: shot.scene_title || ''
@@ -5499,8 +5637,23 @@ li>选择角色，输入提示词，生成剧照</li>
 
                 if (result.status === 'completed') {
                     console.log(`✅ 视频 ${videoId} 生成完成`, result);
-                    // 返回视频URL - 响应格式: result.videos[0].url
-                    const videoUrl = result.result?.videos?.[0]?.url || result.video_url || `/static/generated_videos/${videoId}.mp4`;
+
+                    // 🔥 获取视频URL - 检查多个可能的位置
+                    let videoUrl = null;
+
+                    // 优先级1: result.result.videos[0].url
+                    if (result.result?.videos?.[0]?.url) {
+                        videoUrl = result.result.videos[0].url;
+                    }
+                    // 优先级2: result.video_url
+                    else if (result.video_url) {
+                        videoUrl = result.video_url;
+                    }
+                    // 优先级3: fallback (仅当URL不包含project-files时使用)
+                    else if (!result.result?.videos?.[0]?.url && !result.video_url) {
+                        videoUrl = `/static/generated_videos/${videoId}.mp4`;
+                    }
+
                     console.log(`📹 视频 URL: ${videoUrl}`);
                     return videoUrl;
                 } else if (result.status === 'failed') {

@@ -152,23 +152,35 @@ def create_video_generation():
             "type": "text",
             "text": veo_request.prompt
         })
-        
+
         # 添加图片内容
         for img_data in veo_request.images:
             image_url_value = None
 
-            # 🔥 检查是否是本地文件路径（以 /project-files/ 开头）
-            if img_data.startswith('/project-files/'):
+            # 🔥 检查是否是本地文件路径（/project-files/ 或 /generated_images/ 或 /static/）
+            if img_data.startswith('/project-files/') or img_data.startswith('/generated_images/') or img_data.startswith('/static/'):
                 # 本地文件模式：读取文件并转换为 base64
                 try:
                     from urllib.parse import unquote
 
-                    # URL 解码
-                    decoded_path = unquote(img_data.replace('/project-files/', ''))
+                    # 提取路径部分
+                    if img_data.startswith('/project-files/'):
+                        decoded_path = unquote(img_data.replace('/project-files/', ''))
+                        base_path = Path('视频项目').resolve()
+                    elif img_data.startswith('/generated_images/'):
+                        decoded_path = unquote(img_data.replace('/generated_images/', ''))
+                        base_path = Path('generated_images').resolve()
+                    elif img_data.startswith('/static/generated_images/'):
+                        decoded_path = unquote(img_data.replace('/static/generated_images/', ''))
+                        base_path = Path('static/generated_images').resolve()
+                    else:
+                        decoded_path = unquote(img_data)
+                        base_path = Path('.').resolve()
+
                     logger.info(f"📂 本地文件路径: {decoded_path}")
+                    logger.info(f"📂 基础路径: {base_path}")
 
                     # 构建完整文件路径
-                    base_path = Path('视频项目').resolve()
                     full_path = (base_path / decoded_path).resolve()
 
                     # 安全检查
