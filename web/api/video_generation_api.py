@@ -22,6 +22,8 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__fil
 sys.path.append(BASE_DIR)
 
 from src.utils.logger import get_logger
+from src.core.APIClient import APIClient
+from config.config import CONFIG
 
 # 加载视频配置
 def load_video_config():
@@ -53,6 +55,14 @@ try:
 except Exception as e:
     logger.error(f"无法初始化NovelGenerationManager: {e}")
     manager = None
+
+# 初始化AI客户端（用于生成分镜头）
+try:
+    ai_client = APIClient(CONFIG)
+    logger.info("✅ AI客户端初始化成功")
+except Exception as e:
+    logger.error(f"无法初始化AI客户端: {e}")
+    ai_client = None
 
 
 # API登录装饰器
@@ -243,7 +253,7 @@ def get_novel_content():
         novel_detail = manager.get_novel_detail(title)
         if not novel_detail:
             # 如果精确匹配失败，尝试模糊匹配
-            logger.warning(f"⚠️ [VIDEO] 精确匹配失败，尝试模糊匹配: {title}")
+            logger.warn(f"⚠️ [VIDEO] 精确匹配失败，尝试模糊匹配: {title}")
             for available_title in manager.novel_projects.keys():
                 if title.strip() == available_title.strip():
                     logger.info(f"✅ [VIDEO] 通过去除空白匹配成功: {available_title}")
@@ -3122,7 +3132,7 @@ def generate_portrait_first_workflow():
                         "status": "failed",
                         "error": result.get('error', '未知错误')
                     })
-                    logger.warning(f"  ⚠️ {char_name} 剧照生成失败")
+                    logger.warn(f"  ⚠️ {char_name} 剧照生成失败")
 
             except Exception as e:
                 logger.error(f"  ❌ {char_name} 剧照生成异常: {e}")
@@ -3952,13 +3962,13 @@ def generate_batch_portraits():
                     break
 
             if not char_detail:
-                logger.warning(f"⚠️ [批量剧照] 找不到角色详情: {char_name}")
+                logger.warn(f"⚠️ [批量剧照] 找不到角色详情: {char_name}")
                 continue
 
             # 生成角色提示词
             character_prompts = event_extractor.generate_character_prompts([char_detail])
             if not character_prompts:
-                logger.warning(f"⚠️ [批量剧照] 生成角色提示词失败: {char_name}")
+                logger.warn(f"⚠️ [批量剧照] 生成角色提示词失败: {char_name}")
                 continue
 
             prompt = character_prompts[0].get('generation_prompt', '')
@@ -4066,7 +4076,7 @@ def get_video_projects():
                             'progress': calculate_progress(task_data)
                         })
                     except Exception as e:
-                        logger.warning(f"读取项目文件 {task_file} 失败: {e}")
+                        logger.warn(f"读取项目文件 {task_file} 失败: {e}")
 
         # 同时也检查直接创建的项目文件
         projects_dir = os.path.join(BASE_DIR, 'video_projects')
@@ -4094,7 +4104,7 @@ def get_video_projects():
                             'progress': 0
                         })
                     except Exception as e:
-                        logger.warning(f"读取项目文件 {proj_file} 失败: {e}")
+                        logger.warn(f"读取项目文件 {proj_file} 失败: {e}")
 
         return jsonify({
             'success': True,
@@ -4148,7 +4158,7 @@ def get_video_stats():
                 portrait_files = [f for f in os.listdir(images_dir) if f.endswith('.png') or f.endswith('.jpg')]
                 stats['portrait_count'] = len(portrait_files)
         except Exception as e:
-            logger.warning(f"统计剧照失败: {e}")
+            logger.warn(f"统计剧照失败: {e}")
 
         # 统计视频数量（检查generated_videos目录）
         try:
@@ -4157,7 +4167,7 @@ def get_video_stats():
                 video_files = [f for f in os.listdir(videos_dir) if f.endswith('.mp4')]
                 stats['video_count'] = len(video_files)
         except Exception as e:
-            logger.warning(f"统计视频失败: {e}")
+            logger.warn(f"统计视频失败: {e}")
 
         # 统计任务数量（检查tasks目录）
         try:
@@ -4166,7 +4176,7 @@ def get_video_stats():
                 task_files = [f for f in os.listdir(tasks_dir) if f.endswith('.json')]
                 stats['task_count'] = len(task_files)
         except Exception as e:
-            logger.warning(f"统计任务失败: {e}")
+            logger.warn(f"统计任务失败: {e}")
 
         return jsonify({
             'success': True,
@@ -4390,7 +4400,7 @@ def generate_episode_storyboard():
             elif isinstance(char, str):
                 character_profiles.append(char)
 
-        # 为每一集生成分镜头
+        # 🔥 使用AI生成分镜头
         storyboards = {}
 
         for episode in episodes:
@@ -4398,40 +4408,85 @@ def generate_episode_storyboard():
             episode_title = episode.get('title', '未知标题')
             episode_stage = episode.get('stage', '')
 
-            logger.info(f"  📺 [按集制作] 生成分镜头: {episode_title} ({episode_stage})")
+            logger.info(f"  📺 [按集制作] 使用AI生成分镜头: {episode_title} ({episode_stage})")
 
-            # 根据剧集的阶段调整内容风格
-            stage_descriptions = {
-                '起': '开篇引入，设定悬念',
-                '承': '情节推进，矛盾升级',
-                '转': '剧情转折，意外发生',
-                '合': '高潮结局，收尾呼应'
-            }
+            # 🔥 调用AI生成分镜头（传递小说标题和剧集信息）
+            storyboard_result = _generate_storyboard_with_ai(novel_title, episode)
 
-            stage_note = stage_descriptions.get(episode_stage, '')
+            if storyboard_result:
+                # AI生成成功，使用AI结果
+                shots = storyboard_result.get('shots', [])
 
-            # 🔥 提取事件数据和角色信息用于生成详细提示语
-            event_data = {
-                'description': episode.get('description', episode.get('plot_outline', '')),
-                'location': episode.get('location', ''),
-                'characters': episode.get('characters', [])
-            }
+                # 转换为场景格式（适配新的短视频格式）
+                scenes = []
+                for shot in shots:
+                    scenes.append({
+                        'scene_number': shot.get('shot_number', 1),
+                        'shot_type': shot.get('shot_type', '中景'),
+                        'camera_movement': shot.get('shot_type', '中景'),
+                        'duration': shot.get('duration', 8),
+                        'description': shot.get('screen_action', shot.get('description', '')),
+                        'dialogue': shot.get('dialogue', ''),  # 新增：台词（用于后期配音）
+                        'audio_note': shot.get('audio', shot.get('audio_note', '背景音乐')),
+                        'veo_prompt': shot.get('veo_prompt', ''),
+                        'plot_points': [shot.get('plot_content', '')] if shot.get('plot_content') else shot.get('plot_points', [])
+                    })
 
-            # 生成分镜头场景（传递事件数据）
-            scenes = _generate_episode_scenes(
-                episode_title,
-                episode_stage,
-                stage_note,
-                novel_title,
-                character_profiles,
-                event_data  # 🔥 新增参数
-            )
+                storyboards[episode_id] = {
+                    'title': storyboard_result.get('video_title', episode_title),  # 新格式用video_title
+                    'stage': episode_stage,
+                    'scenes': scenes,
+                    'total_duration': storyboard_result.get('total_duration', len(scenes) * 8),
+                    'hook': storyboard_result.get('hook', ''),  # 新增：开头钩子
+                    'ending_hook': storyboard_result.get('ending_hook', ''),  # 新增：结尾钩子
+                    'ai_generated': True
+                }
 
-            storyboards[episode_id] = {
-                'title': episode_title,
-                'stage': episode_stage,
-                'scenes': scenes
-            }
+                logger.info(f"  ✅ [按集制作] AI生成分镜头成功: {len(scenes)} 个镜头")
+            else:
+                # AI生成失败，回退到原有逻辑
+                logger.warn(f"  ⚠️ [按集制作] AI生成失败，使用备用方案")
+
+                # 根据剧集的阶段调整内容风格
+                stage_descriptions = {
+                    '起': '开篇引入，设定悬念',
+                    '承': '情节推进，矛盾升级',
+                    '转': '剧情转折，意外发生',
+                    '合': '高潮结局，收尾呼应'
+                }
+
+                stage_note = stage_descriptions.get(episode_stage, '')
+
+                # 提取事件数据和角色信息用于生成详细提示语
+                event_content = episode.get('content', [])
+                if isinstance(event_content, list) and event_content:
+                    event_description = '，'.join(event_content[:3])
+                else:
+                    event_description = episode.get('description', episode.get('plot_outline', ''))
+
+                event_data = {
+                    'description': event_description,
+                    'content': event_content,
+                    'location': episode.get('location', ''),
+                    'characters': episode.get('characters', [])
+                }
+
+                # 使用原有逻辑生成分镜头场景
+                scenes = _generate_episode_scenes(
+                    episode_title,
+                    episode_stage,
+                    stage_note,
+                    novel_title,
+                    character_profiles,
+                    event_data
+                )
+
+                storyboards[episode_id] = {
+                    'title': episode_title,
+                    'stage': episode_stage,
+                    'scenes': scenes,
+                    'ai_generated': False
+                }
 
         logger.info(f"✅ [按集制作] 分镜头生成完成，共 {len(storyboards)} 集")
 
@@ -4524,6 +4579,8 @@ def _generate_scene_shots(scene_title: str, episode_title: str, stage: str, scen
     """
     为场景生成分镜头序列（包含Veo 3 AI提示语）
 
+    🔥 新逻辑：每个情节点(content)对应一个独立的分镜头
+
     Args:
         scene_title: 场景标题
         episode_title: 剧集标题
@@ -4538,68 +4595,109 @@ def _generate_scene_shots(scene_title: str, episode_title: str, stage: str, scen
     characters = characters or []
     event_data = event_data or {}
 
-    # 提取事件信息
-    event_description = event_data.get('description', event_data.get('plot_outline', ''))
-    event_location = event_data.get('location', _generate_location_description(stage, scene_num))
-    main_characters = event_data.get('characters', [])
+    # 🔥 提取事件信息 - 优先使用 content 字段
+    event_content = event_data.get('content', [])
 
-    # 根据场景类型生成不同的镜头
-    shot_types = {
-        '开篇亮相': ['全景', '中景', '特写', '拉远'],
-        '悬念引入': ['特写', '中景', '全景', '主观视角'],
-        '事件发生': ['全景', '中景', '特写', '跟拍'],
-        '埋下伏笔': ['中景', '特写', '全景', '固定'],
-        '情节展开': ['全景', '中景', '跟拍', '特写'],
-        '矛盾升级': ['特写', '中景', '推镜头', '拉镜头'],
-        '多方博弈': ['全景', '中景', '特写', '摇镜头'],
-        '局势变化': ['全景', '推镜头', '特写', '升降'],
-        '推向高潮': ['跟拍', '特写', '仰拍', '全景'],
-        '意外转折': ['特写', '中景', '急推', '甩镜头'],
-        '真相揭露': ['特写', '慢镜头', '全景', '固定'],
-        '危机爆发': ['全景', '晃动', '特写', '快速切换'],
-        '峰回路转': ['特写', '中景', '拉远', '全景'],
-        '终极对决': ['仰拍', '全景', '特写', '慢动作'],
-        '高潮爆发': ['快速切换', '特写', '全景', '爆炸'],
-        '尘埃落定': ['全景', '拉远', '中景', '固定'],
-        '余韵悠长': ['固定', '特写', '慢镜头', '淡出'],
-        '新的开始': ['中景', '全景', '推镜头', '淡出']
-    }
+    # 如果 content 不是数组或为空，回退到旧逻辑
+    if not isinstance(event_content, list) or len(event_content) == 0:
+        event_description = event_data.get('description', event_data.get('plot_outline', ''))
+        # 使用默认镜头类型
+        shot_types_data = ['全景', '中景', '特写', '固定']
+        shots = []
+        for i, shot_type in enumerate(shot_types_data):
+            veo_prompt = _generate_veo_prompt(
+                shot_type=shot_type,
+                scene_title=scene_title,
+                episode_title=episode_title,
+                stage=stage,
+                event_description=event_description,
+                event_location=event_data.get('location', ''),
+                characters=characters,
+                main_characters=event_data.get('characters', []),
+                shot_index=i,
+                total_shots=len(shot_types_data)
+            )
+            shots.append({
+                'shot_number': i + 1,
+                'shot_type': shot_type,
+                'camera_movement': shot_type,
+                'duration': 8,
+                'description': _generate_shot_description(shot_type, episode_title, scene_title),
+                'audio_note': _generate_audio_note(stage, shot_type),
+                'veo_prompt': veo_prompt
+            })
+        return shots
 
-    # 获取适合该场景的镜头类型
-    default_shots = ['全景', '中景', '特写', '固定']
-    shot_type_list = shot_types.get(scene_title, default_shots)
+    # 🔥 新逻辑：每个情节点对应一个镜头
+    # 为每个情节点分配合适的镜头类型
+    shot_type_sequence = _generate_shot_type_sequence(len(event_content), stage)
 
     shots = []
-    for i, shot_type in enumerate(shot_type_list):
-        # 🔥 根据事件数据和角色生成详细的Veo 3提示语
+    for i, plot_point in enumerate(event_content):
+        shot_type = shot_type_sequence[i] if i < len(shot_type_sequence) else '中景'
+
+        # 🔥 为每个情节点生成独立的提示语
         veo_prompt = _generate_veo_prompt(
             shot_type=shot_type,
             scene_title=scene_title,
             episode_title=episode_title,
             stage=stage,
-            event_description=event_description,
-            event_location=event_location,
+            event_description=plot_point,  # 🔥 使用单个情节点，不是全部
+            event_location=event_data.get('location', ''),
             characters=characters,
-            main_characters=main_characters
+            main_characters=event_data.get('characters', []),
+            shot_index=i,
+            total_shots=len(event_content),
+            plot_point=plot_point  # 🔥 传递情节点用于生成更具体的描述
         )
 
-        shot = {
+        shots.append({
             'shot_number': i + 1,
             'shot_type': shot_type,
             'camera_movement': shot_type,
-            'duration': 8,  # 秒
-            'description': _generate_shot_description(shot_type, episode_title, scene_title),
+            'duration': 8,
+            'description': f'{plot_point}（{shot_type}）',
             'audio_note': _generate_audio_note(stage, shot_type),
-            'veo_prompt': veo_prompt  # 🔥 详细的AI视频生成提示语
-        }
-        shots.append(shot)
+            'veo_prompt': veo_prompt
+        })
 
     return shots
 
 
+def _generate_shot_type_sequence(num_plots: int, stage: str) -> list:
+    """
+    根据情节点数量和阶段，生成合适的镜头类型序列
+
+    Args:
+        num_plots: 情节点数量
+        stage: 剧集阶段（起承转合）
+
+    Returns:
+        镜头类型列表
+    """
+    # 不同阶段的镜头类型优先级
+    stage_shot_priority = {
+        '起': ['全景', '中景', '特写', '中景', '特写', '跟拍', '全景'],
+        '承': ['中景', '全景', '跟拍', '特写', '中景', '拉远', '推镜头'],
+        '转': ['特写', '急推', '中景', '晃动', '全景', '仰拍', '甩镜头'],
+        '合': ['全景', '仰拍', '特写', '慢动作', '拉远', '全景', '固定']
+    }
+
+    priority = stage_shot_priority.get(stage, ['全景', '中景', '特写', '中景'])
+
+    # 扩展到需要的数量
+    sequence = []
+    for i in range(num_plots):
+        sequence.append(priority[i % len(priority)])
+
+    return sequence
+
+
 def _generate_veo_prompt(shot_type: str, scene_title: str, episode_title: str, stage: str,
                           event_description: str, event_location: str,
-                          characters: list, main_characters: list) -> str:
+                          characters: list, main_characters: list,
+                          shot_index: int = 0, total_shots: int = 1,
+                          plot_point: str = None) -> str:
     """
     生成Veo 3专用的AI视频提示语（中文版）
 
@@ -4616,9 +4714,9 @@ def _generate_veo_prompt(shot_type: str, scene_title: str, episode_title: str, s
     Returns:
         Veo 3提示语字符串（中文）
     """
-    # 基础镜头提示语模板（中文）
+    # 基础镜头提示语模板（中文）- 针对短剧优化
     shot_prompts = {
-        '全景': '{location}全景镜头。{atmosphere}。电影级灯光，专业色彩分级，展现空间层次感。',
+        '全景': '{location}全景镜头。{atmosphere}。电影级灯光，专业色彩分级，展现空间层次感。仙侠修真风格，飘渺仙气，古风建筑，飘逸长袍，灵气流转的视觉效果。',
         '中景': '{characters}中景镜头，腰部以上构图。{action}。专业电影灯光，浅景深，人物动作清晰自然。',
         '特写': '人物面部特写，{emotion}。戏剧性侧光照明，高对比度，超细节纹理捕捉，电影级人像质感。',
         '拉远': '拉远镜头展现{location}全貌。景深扩大，空间环境层次分明，专业运镜配合大气透视效果。',
@@ -4640,38 +4738,61 @@ def _generate_veo_prompt(shot_type: str, scene_title: str, episode_title: str, s
         '慢动作': '{action}慢动作特写。高FPS捕捉，细节运动保留，戏剧性时间控制。'
     }
 
-    # 氛围描述（根据阶段）- 中文
+    # 氛围描述（根据阶段）- 中文，针对短剧开局优化
     atmosphere_by_stage = {
-        '起': '开篇氛围，神秘莫测，悬念丛生，柔和晨光透过云层',
-        '承': '情节推进，张力渐增，自然光配合微妙阴影',
-        '转': '戏剧转折，情感强烈，激烈灯光，强烈对比冲击',
-        '合': '高潮收尾，史诗级宏大场面，震撼灯光，视觉冲击力强大'
+        '起': '{location}场景开篇。{action}。清晨光线，神秘氛围，悬念丛生。古风建筑，烟雾缭绕，仙侠修真风格',
+        '承': '{location}场景。{action}。情节推进，张力渐增。自然光配合微妙阴影，戏剧性光影',
+        '转': '{location}场景。{action}。戏剧转折，情感强烈。激烈灯光，强烈对比冲击',
+        '合': '{location}场景。{action}。高潮收尾，史诗级宏大场面。震撼灯光，视觉冲击力强大'
     }
 
     # 角色描述（如果有）
+    # 🔥 修复：characters 可能是字符串列表或字典列表
     char_desc = ''
     if characters:
-        main_chars = [c for c in characters if c.get('name') in main_characters][:3]
-        if main_chars:
-            char_names = [c.get('name', '') for c in main_chars]
+        # 提取角色名称列表
+        char_names = []
+        for c in characters[:3]:
+            if isinstance(c, dict):
+                name = c.get('name', '')
+                if name:
+                    char_names.append(name)
+            elif isinstance(c, str):
+                # 从 "角色名: 描述" 格式中提取名称
+                if ':' in c:
+                    name = c.split(':')[0].strip()
+                else:
+                    name = c.strip()
+                if name:
+                    char_names.append(name)
+
+        if char_names:
             char_desc = f"{', '.join(char_names)}等角色"
-        else:
-            # 如果没有匹配到，使用前3个角色
-            char_names = [c.get('name', '') for c in characters[:3] if c.get('name')]
-            if char_names:
-                char_desc = f"{', '.join(char_names)}等角色"
 
     if not char_desc:
         char_desc = '角色身着古装'
 
     # 场景动作描述（基于事件内容）
-    action_desc = event_description if event_description else f'{episode_title}的剧情场景'
+    if event_description:
+        action_desc = event_description
+    else:
+        # 🔥 根据事件标题生成场景描述
+        # 例如："诈尸惊魂：开局就在火葬场" → "主角在火葬场突然醒来，周围人惊慌失措"
+        if '火葬场' in episode_title or '灵堂' in episode_title or '葬礼' in episode_title:
+            action_desc = '主角躺在灵堂/火葬场突然醒来，周围守灵的人惊慌失措，误以为诈尸'
+        elif '重生' in episode_title or '穿越' in episode_title:
+            action_desc = '主角重生/穿越醒来，发现自己回到过去，观察陌生又熟悉的环境'
+        elif '战斗' in episode_title or '对决' in episode_title or '激战' in episode_title:
+            action_desc = '双方激烈战斗，刀光剑影，能量碰撞，场面震撼'
+        elif '修炼' in episode_title or '突破' in episode_title or '升级' in episode_title:
+            action_desc = '主角闭关修炼，周身灵气涌动，突破境界，天地异象'
+        elif '退婚' in episode_title or '羞辱' in episode_title:
+            action_desc = '主角面对众人的羞辱和退婚，神色平静，眼神坚定'
+        else:
+            # 通用描述：根据场景类型生成
+            action_desc = f'{episode_title.replace("：", "").replace(":", "")}的关键场景展现'
 
-    # 替换模板变量
-    prompt_template = shot_prompts.get(shot_type, shot_prompts['固定'])
-    atmosphere = atmosphere_by_stage.get(stage, '电影氛围，专业灯光')
-
-    # 处理地点描述
+    # 🔥 改进地点映射 - 根据事件标题智能推断地点
     location_map = {
         '庭院': '古色古香的庭院',
         '书房': '古典书房',
@@ -4686,11 +4807,23 @@ def _generate_veo_prompt(shot_type: str, scene_title: str, episode_title: str, s
         '天际': '天际云端',
         '战场': '激战战场',
         '虚空': '神秘虚空',
-        '巅峰': '绝顶山峰'
+        '巅峰': '绝顶山峰',
+        '灵堂': '肃穆灵堂，白布挽联，香烛缭绕',
+        '火葬场': '火葬场灵堂，棺木陈列，守灵人群',
+        '墓地': '阴森墓地，石碑林立，雾气弥漫'
     }
 
-    # 转换地点为中文描述
-    location_cn = location_map.get(event_location, event_location) if event_location else '古风场景'
+    # 🔥 智能推断地点
+    if not event_location:
+        if '火葬场' in episode_title or '灵堂' in episode_title or '葬礼' in episode_title or '诈尸' in episode_title:
+            location_cn = '肃穆灵堂，白布挽联，香烛缭绕，守灵人群在旁'
+        elif '重生' in episode_title or '醒来' in episode_title:
+            location_cn = '古朴卧房，纱帐轻拂，晨光透过窗棂'
+        else:
+            location_cn = '古风场景'
+    else:
+        # 转换地点为中文描述
+        location_cn = location_map.get(event_location, event_location)
 
     # 获取主要角色名（用于跟拍等需要角色名的镜头）
     character_name = ''
@@ -4706,16 +4839,56 @@ def _generate_veo_prompt(shot_type: str, scene_title: str, episode_title: str, s
     if not character_name:
         character_name = '角色'
 
-    veo_prompt = prompt_template.format(
-        location=location_cn,
-        atmosphere=atmosphere,
+    # 🔥 获取镜头模板并替换占位符
+    prompt_template = shot_prompts.get(shot_type, shot_prompts['中景'])
+
+    # 🔥 先替换氛围描述中的占位符
+    atmosphere_with_placeholders = atmosphere_by_stage.get(stage, '电影氛围，专业灯光')
+    atmosphere = atmosphere_with_placeholders.format(
         characters=char_desc,
-        action=action_desc[:50] if action_desc else '戏剧性互动',
-        emotion='强烈情感表达' if stage in ['转', '合'] else '细腻情感',
-        subject='主要人物' if main_characters else '场景主体',
-        scene=scene_title,
-        character=character_name  # 🔥 添加：用于跟拍镜头
+        action=action_desc[:30] if action_desc else '剧情展开'
     )
+
+    # 根据不同的镜头类型，使用不同的模板
+    if shot_type in ['全景', '拉远', '摇镜头', '升降', '爆炸', '拉镜头']:
+        # 这些镜头需要 location
+        veo_prompt = prompt_template.format(
+            location=location_cn,
+            atmosphere=atmosphere
+        )
+    elif shot_type in ['中景', '晃动', '快速切换', '慢动作']:
+        # 这些镜头需要 characters 和 action
+        veo_prompt = prompt_template.format(
+            characters=char_desc,
+            action=action_desc[:50] if action_desc else '戏剧性互动'
+        )
+    elif shot_type in ['特写', '慢镜头']:
+        # 这些镜头需要 emotion
+        veo_prompt = prompt_template.format(
+            emotion='强烈情感表达' if stage in ['转', '合'] else '细腻情感'
+        )
+    elif shot_type in ['推镜头', '急推']:
+        # 这些镜头需要 subject
+        veo_prompt = prompt_template.format(
+            subject='主要人物' if main_characters else '场景主体'
+        )
+    elif shot_type in ['跟拍', '仰拍']:
+        # 这些镜头需要 character
+        veo_prompt = prompt_template.format(
+            character=character_name
+        )
+    elif shot_type in ['固定', '淡出', '甩镜头', '主观视角']:
+        # 这些镜头需要 scene
+        veo_prompt = prompt_template.format(
+            scene=scene_title
+        )
+    else:
+        # 默认使用中景模板
+        default_template = shot_prompts['中景']
+        veo_prompt = default_template.format(
+            characters=char_desc,
+            action=action_desc[:50] if action_desc else '戏剧性互动'
+        )
 
     # 添加风格后缀（中文）
     style_suffix = _get_style_suffix(stage)
@@ -4806,6 +4979,461 @@ def _select_characters_for_scene(character_profiles: list, max_chars: int) -> li
             selected.append(char_name)
 
     return selected
+
+
+# ==================== AI驱动的分镜头生成 ====================
+
+def _load_writing_plan_file(novel_title: str, episode_id: str = None) -> dict:
+    """
+    直接从文件系统加载写作计划JSON文件
+
+    Args:
+        novel_title: 小说标题
+        episode_id: 剧集ID，用于确定加载哪个阶段的写作计划
+
+    Returns:
+        写作计划数据字典，如果文件不存在返回空字典
+    """
+    try:
+        from pathlib import Path
+        import re
+
+        novel_dir = Path('小说项目') / novel_title
+        plans_dir = novel_dir / 'plans'
+
+        if not plans_dir.exists():
+            logger.warn(f"⚠️ plans目录不存在: {plans_dir}")
+            return {}
+
+        # 查找所有写作计划文件
+        plan_files = list(plans_dir.glob('*writing_plan.json'))
+
+        if not plan_files:
+            logger.warn(f"⚠️ 未找到写作计划文件: {plans_dir}/*writing_plan.json")
+            return {}
+
+        # 🔥 根据episode_id确定应该加载哪个阶段的文件
+        target_stage = None
+        if episode_id:
+            # 解析major_idx
+            match = re.search(r'major_event_(\d+)', episode_id)
+            if match:
+                major_idx = int(match.group(1))
+
+                # 根据major_idx判断阶段
+                # opening_stage: major_event 0-2 (前3个事件)
+                # development_stage: major_event 3-7
+                # conflict_stage: major_event 8-12
+                # climax_stage: major_event 13+
+                if major_idx <= 2:
+                    target_stage = 'opening'
+                elif major_idx <= 7:
+                    target_stage = 'development'
+                elif major_idx <= 12:
+                    target_stage = 'conflict'
+                else:
+                    target_stage = 'climax'
+
+                logger.info(f"🎯 根据major_idx={major_idx}，目标阶段: {target_stage}")
+
+        # 如果确定了目标阶段，优先加载对应的文件
+        if target_stage:
+            for plan_file in plan_files:
+                if target_stage in plan_file.name.lower():
+                    logger.info(f"📂 读取写作计划文件: {plan_file}")
+                    with open(plan_file, 'r', encoding='utf-8') as f:
+                        plan_data = json.load(f)
+                    logger.info(f"✅ 写作计划文件加载成功: {plan_file.name}")
+                    return plan_data
+
+        # 回退：使用第一个找到的文件
+        plan_file = plan_files[0]
+        logger.info(f"📂 读取写作计划文件（默认）: {plan_file}")
+
+        with open(plan_file, 'r', encoding='utf-8') as f:
+            plan_data = json.load(f)
+
+        logger.info(f"✅ 写作计划文件加载成功")
+        return plan_data
+
+    except Exception as e:
+        logger.error(f"❌ 加载写作计划文件失败: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return {}
+
+
+def _find_event_in_writing_plan(writing_plan: dict, episode_id: str, episode_stage: str) -> dict:
+    """
+    从写作计划中查找对应的事件数据
+
+    Args:
+        writing_plan: 写作计划数据
+        episode_id: 剧集ID，格式如: major_event_0_event_2_0
+        episode_stage: 剧集阶段（起承转合）
+
+    Returns:
+        包含情节点的事件数据，如果找不到返回默认数据
+    """
+    try:
+        # 解析episode_id，格式: major_event_{major_idx}_event_{stage_idx}_{sub_idx}
+        # 例如: major_event_0_event_2_0 → major_idx=0, stage_idx=2, sub_idx=0
+        import re
+
+        # 使用正则提取所有数字
+        numbers = re.findall(r'\d+', episode_id)
+        if len(numbers) >= 3:
+            major_idx = int(numbers[0])  # 第一个数字是major_idx
+            stage_idx = int(numbers[1])  # 第二个数字是stage_idx
+            sub_idx = int(numbers[2]) if len(numbers) > 2 else 0  # 第三个数字是该阶段内的索引
+        else:
+            # 回退方案
+            major_idx = 0
+            stage_idx = 0
+            sub_idx = 0
+
+        # 根据stage_idx确定阶段名称
+        stage_names = ['起', '承', '转', '合']
+        if stage_idx < len(stage_names):
+            stage_from_id = stage_names[stage_idx]
+        else:
+            stage_from_id = '起'
+
+        logger.info(f"🔍 解析episode_id: major_idx={major_idx}, stage_idx={stage_idx}({stage_from_id}), sub_idx={sub_idx}")
+
+        # 从写作计划中提取事件系统
+        stage_plan = writing_plan.get('stage_writing_plan', {})
+        event_system = stage_plan.get('event_system', {})
+        major_events = event_system.get('major_events', [])
+
+        if not major_events or major_idx >= len(major_events):
+            logger.warn(f"⚠️ 未找到major_event[{major_idx}]，总数: {len(major_events)}")
+            return {}
+
+        major_event = major_events[major_idx]
+        composition = major_event.get('composition', {})
+
+        # 使用解析出的stage名称，而不是传入的episode_stage
+        target_stage = stage_from_id
+        stage_events = composition.get(target_stage, [])
+
+        if not stage_events:
+            logger.warn(f"⚠️ 未找到{target_stage}阶段的事件，可用阶段: {list(composition.keys())}")
+            return {}
+
+        # 使用sub_idx作为该阶段内的事件索引
+        if sub_idx >= len(stage_events):
+            logger.warn(f"⚠️ 未找到{target_stage}阶段的第{sub_idx}个事件，总数: {len(stage_events)}")
+            # 如果超出范围，使用第一个事件
+            sub_idx = 0
+
+        medium_event = stage_events[sub_idx]
+
+        # 提取情节点（plot_outline）
+        plot_outline = medium_event.get('plot_outline', [])
+        description = medium_event.get('description', '')
+        name = medium_event.get('name', '')
+
+        logger.info(f"✅ 找到事件: {name}, 情节点数: {len(plot_outline)}")
+
+        return {
+            'name': name,
+            'description': description,
+            'plot_outline': plot_outline,
+            'major_event_name': major_event.get('name', ''),
+            'emotional_derivation': medium_event.get('emotional_derivation', {})
+        }
+
+    except Exception as e:
+        logger.error(f"❌ 查找事件失败: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return {}
+
+
+def _generate_storyboard_with_ai(novel_title: str, episode: dict) -> dict:
+    """
+    使用AI（gemini-2.5-pro）生成分镜头脚本
+
+    AI会综合考虑以下因素：
+    - 世界观设定
+    - 角色信息
+    - 写作计划
+    - 市场分析
+    - 事件情节点（将2-3个情节合并为一个镜头）
+
+    Args:
+        novel_title: 小说标题
+        episode: 单个剧集信息（包含id、标题、阶段等）
+
+    Returns:
+        分镜头数据字典
+    """
+    if not ai_client:
+        logger.error("❌ AI客户端未初始化，无法使用AI生成分镜头")
+        return None
+
+    episode_id = episode.get('id', '')
+    episode_title = episode.get('title', '未知标题')
+    episode_stage = episode.get('stage', '起')
+
+    logger.info(f"🤖 [AI分镜头] 开始为剧集生成AI分镜头: {episode_title}")
+    logger.info(f"   小说: {novel_title}")
+    logger.info(f"   阶段: {episode_stage}")
+    logger.info(f"   episode_id: {episode_id}")
+
+    # 🔥 直接从写作计划文件加载数据（根据episode_id智能选择正确的阶段文件）
+    writing_plan = _load_writing_plan_file(novel_title, episode_id)
+
+    if not writing_plan:
+        logger.error("❌ 无法加载写作计划文件")
+        return None
+
+    # 🔥 从写作计划中查找对应的事件数据
+    event_data = _find_event_in_writing_plan(writing_plan, episode_id, episode_stage)
+
+    # 提取情节点和事件信息
+    if event_data:
+        # 从写作计划成功获取数据
+        plot_outline = event_data.get('plot_outline', [])
+        event_name = event_data.get('name', episode_title)
+        major_event_name = event_data.get('major_event_name', '')
+        event_description = event_data.get('description', '')
+        plot_points = plot_outline if plot_outline else [event_description]
+    else:
+        # 🔥 回退方案：使用 episode 参数中传递的数据
+        logger.warn(f"⚠️ [AI分镜头] 写作计划中未找到对应事件，使用 episode 参数数据")
+
+        event_name = episode.get('title', episode_title)
+        major_event_name = episode.get('major_event', '')
+        event_description = episode.get('description', '')
+
+        # 尝试获取 content 字段
+        event_content = episode.get('content', [])
+        if isinstance(event_content, list) and event_content:
+            plot_points = event_content
+        else:
+            plot_points = [event_description] if event_description else [event_name]
+
+    logger.info(f"   事件名称: {event_name}")
+    logger.info(f"   所属重大事件: {major_event_name}")
+    logger.info(f"   情节点数量: {len(plot_points)}")
+
+    # 构建系统提示词
+    system_prompt = """你是一位专业的短视频/短剧分镜头脚本设计师，擅长将小说情节转化为高吸引力的短视频分镜头。
+
+【核心任务】
+根据提供的小说信息和事件情节点，设计出适合竖屏短视频（9:16）的高质量分镜头脚本。
+
+【短视频分镜头原则】
+1. **黄金前3秒**: 开头必须抓人眼球，用强烈的视觉冲突或悬念
+2. **快节奏**: 每2-3秒一个新画面，避免拖沓
+3. **爽点密集**: 情绪快速递进，反转要有冲击力
+4. **竖屏构图**: 一切为手机竖屏优化，人物居中或偏上
+5. **音乐配合**: 每个镜头标注合适的音效/背景音乐
+
+【输出格式】
+严格按以下JSON格式输出，不要包含任何其他文字：
+```json
+{
+  "video_title": "视频标题（吸引眼球的）",
+  "hook": "开头3秒钩子描述",
+  "total_duration": 预计总时长（秒）,
+  "shots": [
+    {
+      "shot_number": 1,
+      "shot_type": "镜头类型（特写/中景/全景/推近/拉远/跟拍/摇镜头/主观视角）",
+      "duration": 秒数,
+      "screen_action": "画面动作描述（具体、可拍摄）",
+      "dialogue": "角色台词（如果有，用于后期配音生成）",
+      "veo_prompt": "AI视频生成提示词（详细中文描述，包含场景、人物、动作、氛围、光影）",
+      "audio": "音效/BGM描述",
+      "plot_content": "对应的情节点内容"
+    }
+  ],
+  "ending_hook": "结尾悬念或爽点"
+}
+```
+
+【台词设计要求】
+1. 台词要简洁有力，符合短剧快节奏特点
+2. 每句台词控制在3-10字内
+3. 台词要推动剧情或展现人物性格
+4. 旁白/内心独白可以用括号标注，如（旁白）：xxx
+5. 如果该镜头不需要台词，填空字符串""
+"""
+
+    # 构建用户提示词 - 传递完整上下文（从写作计划文件中提取）
+    user_prompt = f"""请为以下剧集设计分镜头脚本：
+
+【剧集信息】
+- 剧集标题: {event_name}
+- 所属重大事件: {major_event_name}
+- 剧集阶段: {episode_stage}
+
+【情节点列表】（详细情节描述）
+"""
+
+    # 添加情节点
+    for i, point in enumerate(plot_points, 1):
+        user_prompt += f"{i}. {point}\n"
+
+    # 🔥 从写作计划中提取核心设定和世界观
+    novel_metadata = writing_plan.get('stage_writing_plan', {}).get('novel_metadata', {})
+    creative_seed = novel_metadata.get('creative_seed', {})
+
+    # 添加核心设定
+    core_setting = creative_seed.get('coreSetting', '')
+    if core_setting:
+        user_prompt += f"""
+
+【核心设定】
+{core_setting}
+"""
+
+    # 添加简介
+    synopsis = creative_seed.get('synopsis', '')
+    if synopsis:
+        user_prompt += f"""
+
+【故事简介】
+{synopsis}
+"""
+
+    # 🔥 添加市场定位参考
+    core_selling_points = creative_seed.get('coreSellingPoints', '')
+    if core_selling_points:
+        user_prompt += f"""
+
+【核心卖点】
+{core_selling_points}
+"""
+
+    user_prompt += f"""
+
+【设计要求】
+1. 根据情节点内容，设计3-6个镜头
+2. 每个镜头可包含2-3个相关情节点
+3. veo_prompt需要详细描述画面内容，用于AI视频生成
+4. 镜头类型要多样化（特写、中景、全景、推拉摇移等）
+5. 视频方向为竖屏（9:16），适合手机观看
+6. **台词设计**：为每个需要说话的角色设计台词，台词要简洁有力（3-10字），符合人物性格和剧情需要
+7. **无台词镜头**：如果该镜头是纯动作/环境描写，dialogue填空字符串""
+
+请直接输出JSON格式的分镜头脚本。"""
+
+    # 🔥 优先检查是否已有保存的分镜头文件
+    existing_storyboard = _load_storyboard_file(novel_title, event_name)
+    if existing_storyboard:
+        logger.info(f"✅ [AI分镜头] 使用已保存的分镜头，跳过AI生成")
+        return existing_storyboard
+
+    # 调用AI生成
+    try:
+        logger.info(f"🚀 [AI分镜头] 调用AI生成，使用模型: gemini-2.5-pro")
+        result = ai_client.call_api(
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            temperature=0.7,
+            purpose="AI分镜头生成",
+            provider="gemini",
+            model_name="gemini-2.5-pro"
+        )
+
+        if not result:
+            logger.error("❌ [AI分镜头] AI调用失败，未返回结果")
+            return None
+
+        # 解析JSON结果
+        storyboard_data = ai_client.parse_json_response(result)
+        if not storyboard_data:
+            logger.error("❌ [AI分镜头] JSON解析失败")
+            logger.error(f"原始结果: {result[:500]}...")
+            return None
+
+        logger.info(f"✅ [AI分镜头] AI生成成功，镜头数: {len(storyboard_data.get('shots', []))}")
+
+        # 保存生成的分镜头到文件
+        _save_storyboard_to_file(novel_title, event_name, episode_id, storyboard_data)
+
+        return storyboard_data
+
+    except Exception as e:
+        logger.error(f"❌ [AI分镜头] AI生成异常: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return None
+
+
+def _save_storyboard_to_file(novel_title: str, event_name: str, episode_id: str, storyboard_data: dict):
+    """
+    保存分镜头数据到文件
+
+    Args:
+        novel_title: 小说标题
+        event_name: 事件名称（如：诈尸惊魂：开局就在火葬场）
+        episode_id: 剧集ID
+        storyboard_data: 分镜头数据
+    """
+    try:
+        # 创建保存目录
+        save_dir = Path('视频项目') / novel_title / 'storyboards'
+        save_dir.mkdir(parents=True, exist_ok=True)
+
+        # 生成文件名：{事件名称}.json（不带时间戳）
+        import re
+        safe_event_name = re.sub(r'[<>:"/\\|?*]', '_', event_name)
+        filename = f"{safe_event_name}.json"
+        filepath = save_dir / filename
+
+        # 保存数据
+        with open(filepath, 'w', encoding='utf-8') as f:
+            json.dump(storyboard_data, f, ensure_ascii=False, indent=2)
+
+        logger.info(f"💾 [AI分镜头] 分镜头已保存到: {filepath}")
+
+    except Exception as e:
+        logger.error(f"❌ [AI分镜头] 保存分镜头文件失败: {e}")
+
+
+def _load_storyboard_file(novel_title: str, event_name: str) -> dict:
+    """
+    加载已保存的分镜头文件
+
+    Args:
+        novel_title: 小说标题
+        event_name: 事件名称
+
+    Returns:
+        分镜头数据字典，如果文件不存在返回None
+    """
+    try:
+        save_dir = Path('视频项目') / novel_title / 'storyboards'
+
+        if not save_dir.exists():
+            return None
+
+        # 查找匹配的文件（事件名称.json）
+        import re
+        safe_event_name = re.sub(r'[<>:"/\\|?*]', '_', event_name)
+        filename = f"{safe_event_name}.json"
+        filepath = save_dir / filename
+
+        if not filepath.exists():
+            logger.info(f"📂 [AI分镜头] 未找到已保存的分镜头: {filename}")
+            return None
+
+        logger.info(f"📂 [AI分镜头] 找到已保存的分镜头文件: {filepath}")
+
+        with open(filepath, 'r', encoding='utf-8') as f:
+            storyboard_data = json.load(f)
+
+        logger.info(f"✅ [AI分镜头] 已加载现有分镜头文件")
+        return storyboard_data
+
+    except Exception as e:
+        logger.error(f"❌ [AI分镜头] 加载分镜头文件失败: {e}")
+        return None
 
 
 def register_video_routes(app):

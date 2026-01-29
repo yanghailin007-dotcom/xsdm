@@ -1,13 +1,16 @@
 """
 VeO 视频生成 API 路由
 支持两种图片输入模式：
-1. 图片 URL（推荐）：直接传递图片 URL，无需 base64 编码
+1. 图片 URL（本地文件路径）：如 /project-files/xxx.png，会自动读取并转换为 base64
 2. Base64 图片：传递 base64 编码的图片数据（会自动压缩）
 """
 from flask import Blueprint, request, jsonify
 from typing import Dict, Any, List, Optional
 import traceback
 import os
+import base64
+from pathlib import Path
+from urllib.parse import unquote
 
 from src.utils.logger import get_logger
 from src.models.veo_models import (
@@ -151,13 +154,57 @@ def create_video_generation():
         })
         
         # 添加图片内容
-        for img_base64 in veo_request.images:
-            messages[0]["content"].append({
-                "type": "image_url",
-                "image_url": {
-                    "url": f"data:image/jpeg;base64,{img_base64}"
-                }
-            })
+        for img_data in veo_request.images:
+            image_url_value = None
+
+            # 🔥 检查是否是本地文件路径（以 /project-files/ 开头）
+            if img_data.startswith('/project-files/'):
+                # 本地文件模式：读取文件并转换为 base64
+                try:
+                    from urllib.parse import unquote
+
+                    # URL 解码
+                    decoded_path = unquote(img_data.replace('/project-files/', ''))
+                    logger.info(f"📂 本地文件路径: {decoded_path}")
+
+                    # 构建完整文件路径
+                    base_path = Path('视频项目').resolve()
+                    full_path = (base_path / decoded_path).resolve()
+
+                    # 安全检查
+                    if not str(full_path).startswith(str(base_path)):
+                        logger.error(f"❌ 非法路径访问: {img_data}")
+                        continue
+
+                    if not full_path.exists():
+                        logger.error(f"❌ 文件不存在: {full_path}")
+                        continue
+
+                    # 读取文件并转换为 base64
+                    with open(full_path, 'rb') as f:
+                        file_data = f.read()
+                    base64_data = base64.b64encode(file_data).decode('utf-8')
+                    image_url_value = f"data:image/jpeg;base64,{base64_data}"
+                    logger.info(f"✅ 文件已转换为 base64，大小: {len(file_data)} 字节")
+
+                except Exception as e:
+                    logger.error(f"❌ 读取本地文件失败 {img_data}: {e}")
+                    continue
+
+            elif img_data.startswith(('http://', 'https://')):
+                # 外部 URL 模式：直接使用
+                image_url_value = img_data
+            else:
+                # Base64 模式：需要添加 data URI 前缀
+                image_url_value = f"data:image/jpeg;base64,{img_data}"
+
+            if image_url_value:
+                messages[0]["content"].append({
+                    "type": "image_url",
+                    "image_url": {
+                        "url": image_url_value
+                    }
+                })
         
         openai_request = VeOVideoRequest(
             model=veo_request.model,

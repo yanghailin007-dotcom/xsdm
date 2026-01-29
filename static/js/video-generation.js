@@ -4720,8 +4720,8 @@ li>选择角色，输入提示词，生成剧照</li>
                                         border-radius: 4px;
                                         color: var(--text-primary);
                                     ">
-                                        <option value="landscape" selected>横屏 (16:9)</option>
-                                        <option value="portrait">竖屏 (9:16)</option>
+                                        <option value="portrait" selected>竖屏 (9:16)</option>
+                                        <option value="landscape">横屏 (16:9)</option>
                                     </select>
                                 </div>
                                 <div>
@@ -5209,7 +5209,7 @@ li>选择角色，输入提示词，生成剧照</li>
     /**
      * 生成单个视频（使用确认对话框传递的参数）
      */
-    async generateSingleVideo(shot, index, total, characterPortraits, selectedImages = null, customPrompt = null, orientation = 'landscape', size = 'large') {
+    async generateSingleVideo(shot, index, total, characterPortraits, selectedImages = null, customPrompt = null, orientation = 'portrait', size = 'large') {
         try {
             // 使用确认对话框选择的图片，如果没有则使用自动匹配的
             let imageUrls = selectedImages;
