@@ -42,6 +42,7 @@ class VideoGenerator {
         // 新增：事件和角色选择
         this.events = [];
         this.characters = [];
+        this.worldview = {};  // 🔥 世界观数据
         this.selectedEvents = new Set();
         this.selectedCharacters = new Set();
         this.activeTab = 'events'; // 'events' or 'characters'
@@ -947,15 +948,18 @@ class VideoGenerator {
         try {
             const response = await fetch(`/api/video/novel-content?title=${encodeURIComponent(this.selectedNovel)}`);
             const data = await response.json();
-            
+
             if (data.success) {
                 this.events = data.events || [];
                 this.characters = data.characters || [];
-                
+                // 🔥 存储世界观数据用于角色生成
+                this.worldview = data.worldview || {};
+                console.log('🌍 已加载世界观数据:', this.worldview);
+
                 // 不再默认全选，由用户手动选择
                 // this.events.forEach(e => this.selectedEvents.add(e.id));
                 // this.characters.forEach(c => this.selectedCharacters.add(c.id));
-                
+
                 this.renderEventsList();
                 this.renderCharactersList();
                 this.updateSelectionStats();
@@ -3815,39 +3819,105 @@ li>选择角色，输入提示词，生成剧照</li>
             return;
         }
 
-        container.innerHTML = characters.map(char => {
+        // 🔥 美化的头部区域
+        const headerHtml = `
+            <div class="character-portraits-header" style="
+                display: flex; justify-content: space-between; align-items: center;
+                padding: 1rem; background: linear-gradient(135deg, var(--bg-tertiary) 0%, var(--bg-secondary) 100%);
+                border-radius: 12px; margin-bottom: 1.5rem; border: 1px solid var(--border-color);
+            ">
+                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                    <div style="
+                        width: 40px; height: 40px; background: var(--accent-color);
+                        border-radius: 10px; display: flex; align-items: center; justify-content: center;
+                        font-size: 1.2rem;
+                    ">👥</div>
+                    <div>
+                        <div style="font-size: 0.85rem; color: var(--text-secondary);">角色列表</div>
+                        <div style="font-size: 1.1rem; font-weight: 600;">
+                            已加载 <strong style="color: var(--accent-color);">${characters.length}</strong> 个角色
+                        </div>
+                    </div>
+                </div>
+                <div style="display: flex; align-items: center; gap: 1rem;">
+                    <div style="text-align: right;">
+                        <div style="font-size: 0.75rem; color: var(--text-secondary);">剧照进度</div>
+                        <div id="portraitStatusCount" style="font-size: 1.1rem; font-weight: 600; color: var(--primary-color);">0/${characters.length}</div>
+                    </div>
+                    <button id="addCharacterBtn" class="btn-primary" style="
+                        display: flex; align-items: center; gap: 0.5rem;
+                        padding: 0.6rem 1rem; border-radius: 8px; font-size: 0.9rem;
+                        cursor: pointer; border: none;
+                    ">
+                        <span>➕</span>
+                        <span>添加角色</span>
+                    </button>
+                </div>
+            </div>
+            <div class="character-portraits-grid" style="
+                display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+                gap: 1rem; max-height: 550px; overflow-y: auto; padding: 0;
+            ">
+        `;
+
+        const cardsHtml = characters.map(char => {
             const hasPortrait = this.episodeWorkflow.characterPortraits.has(char.name);
             const portrait = hasPortrait ? this.episodeWorkflow.characterPortraits.get(char.name) : null;
             return `
-                <div class="character-portrait-card ${hasPortrait ? 'has-portrait' : 'missing-portrait'}" data-character-id="${char.name}" style="width: 110px; max-width: 110px;">
-                    <div class="portrait-preview" style="width: 110px; height: 190px;">
+                <div class="character-portrait-card ${hasPortrait ? 'has-portrait' : 'missing-portrait'}" data-character-id="${char.name}" style="
+                    width: 120px; position: relative; overflow: hidden;
+                ">
+                    <div class="portrait-image-wrapper" style="
+                        width: 120px; height: 160px; position: relative;
+                        background: linear-gradient(180deg, var(--bg-tertiary) 0%, var(--bg-dark) 100%);
+                        border-radius: 12px; overflow: hidden; border: 2px solid ${hasPortrait ? 'var(--primary-color)' : 'var(--border-color)'};
+                    ">
                         ${hasPortrait
-                            ? `<img src="${portrait.imageUrl}" alt="${char.name}" data-full-url="${portrait.imageUrl}" style="width: 110px; height: 190px; object-fit: contain;">`
-                            : `<span class="placeholder">👤</span>`
+                            ? `<img src="${portrait.imageUrl}" alt="${char.name}" data-full-url="${portrait.imageUrl}" style="width: 100%; height: 100%; object-fit: cover;" />`
+                            : `<div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, var(--bg-tertiary) 0%, var(--bg-dark) 100%);">
+                                <span style="font-size: 3rem; opacity: 0.3;">👤</span>
+                               </div>`
                         }
-                        <span class="status-dot ${hasPortrait ? 'ready' : 'missing'}"></span>
+                        <div class="status-badge" style="
+                            position: absolute; top: 8px; right: 8px;
+                            padding: 0.25rem 0.5rem; border-radius: 6px; font-size: 0.7rem; font-weight: 600;
+                            background: ${hasPortrait ? 'var(--success-color, #22c55e)' : 'var(--warning-color, #f59e0b)'};
+                            color: white; backdrop-filter: blur(4px);
+                        ">${hasPortrait ? '✓' : '待生成'}</div>
                     </div>
-                    <div class="portrait-info">
-                        <div class="character-name" title="${char.name}">${char.name}</div>
+                    <div class="portrait-name" style="
+                        margin-top: 0.5rem; text-align: center;
+                    ">
+                        <div style="
+                            font-weight: 600; font-size: 0.9rem; color: var(--text-primary);
+                            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+                            padding: 0 0.25rem;
+                        " title="${char.name}">${char.name}</div>
+                        ${char.role ? `<div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.1rem;">${char.role}</div>` : ''}
                     </div>
-                    <div class="portrait-actions">
+                    <div class="portrait-actions" style="
+                        margin-top: 0.5rem; display: flex; gap: 0.25rem;
+                    ">
                         ${hasPortrait
-                            ? `<button class="btn-secondary" data-action="new-look">🎨 新造型</button>
-                               <button class="btn-secondary" data-action="view">👁️ 查看</button>`
-                            : `<button class="btn-primary" data-action="generate">📸 生成</button>`
+                            ? `<button class="btn-action" data-action="view" style="flex: 1; padding: 0.4rem; font-size: 0.8rem; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary);">查看</button>
+                               <button class="btn-action" data-action="new-look" style="flex: 1; padding: 0.4rem; font-size: 0.8rem; background: var(--accent-color); border: none; border-radius: 6px; color: white;">新造型</button>`
+                            : `<button class="btn-action" data-action="generate" style="width: 100%; padding: 0.5rem; font-size: 0.85rem; background: var(--primary-color); border: none; border-radius: 6px; color: white; font-weight: 500;">📸 生成剧照</button>`
                         }
                     </div>
                 </div>
             `;
-        }).join('');
+        }).join('') + `
+            </div>
+        `;
 
-        // 🔥 强制设置容器样式（确保网格布局正确）
-        container.style.display = 'grid';
-        container.style.gridTemplateColumns = 'repeat(auto-fill, 110px)';
-        container.style.gap = '1rem';
-        container.style.maxHeight = '500px';
-        container.style.overflowY = 'auto';
-        container.style.padding = '1rem';
+        // 🔥 设置容器HTML
+        container.innerHTML = headerHtml + cardsHtml;
+
+        // 🔥 清除容器的grid样式（现在grid在子容器中）
+        container.style.display = 'block';
+        container.style.maxHeight = 'none';
+        container.style.overflowY = 'visible';
+        container.style.padding = '0';
 
         // 更新统计
         const readyCount = characters.filter(c => this.episodeWorkflow.characterPortraits.has(c.name)).length;
@@ -3857,9 +3927,9 @@ li>选择角色，输入提示词，生成剧照</li>
         }
 
         // 绑定按钮点击事件
-        container.querySelectorAll('button[data-action]').forEach(btn => {
+        container.querySelectorAll('.btn-action').forEach(btn => {
             btn.addEventListener('click', (e) => {
-                e.stopPropagation(); // 阻止冒泡到卡片
+                e.stopPropagation();
                 const card = btn.closest('.character-portrait-card');
                 const characterId = card.dataset.characterId;
                 const action = btn.dataset.action;
@@ -3869,7 +3939,9 @@ li>选择角色，输入提示词，生成剧照</li>
 
         // 🔥 绑定卡片点击事件（放大查看剧照）
         container.querySelectorAll('.character-portrait-card.has-portrait').forEach(card => {
-            card.addEventListener('click', () => {
+            card.style.cursor = 'pointer';
+            card.addEventListener('click', (e) => {
+                if (e.target.classList.contains('btn-action')) return;
                 const characterId = card.dataset.characterId;
                 const character = characters.find(c => c.name === characterId);
                 const portrait = this.episodeWorkflow.characterPortraits.get(characterId);
@@ -3878,6 +3950,407 @@ li>选择角色，输入提示词，生成剧照</li>
                 }
             });
         });
+
+        // 🔥 绑定"添加角色"按钮事件
+        const addCharacterBtn = document.getElementById('addCharacterBtn');
+        if (addCharacterBtn) {
+            addCharacterBtn.addEventListener('click', () => {
+                this.showAddCharacterDialog();
+            });
+        }
+    }
+
+    /**
+     * 🔶 显示添加角色对话框
+     */
+    showAddCharacterDialog() {
+        const modalId = 'addCharacterModal';
+        let modal = document.getElementById(modalId);
+
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = modalId;
+            modal.className = 'modal-overlay';
+            modal.style.cssText = `
+                position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+                background: rgba(0,0,0,0.7); display: none;
+                justify-content: center; align-items: center; z-index: 10000;
+            `;
+            document.body.appendChild(modal);
+        }
+
+        modal.innerHTML = `
+            <div class="modal-content" style="
+                background: var(--bg-primary); border-radius: 16px;
+                max-width: 500px; width: 90%; max-height: 85vh;
+                display: flex; flex-direction: column;
+                box-shadow: 0 25px 80px rgba(0,0,0,0.4);
+                overflow: hidden; color: var(--text-primary);
+            ">
+                <!-- 头部 -->
+                <div style="
+                    padding: 1.5rem; background: linear-gradient(135deg, var(--accent-color) 0%, #6366f1 100%);
+                    border-bottom: none;
+                ">
+                    <h2 style="margin: 0; display: flex; align-items: center; gap: 0.5rem; color: white; font-size: 1.3rem;">
+                        <span>➕</span>
+                        <span>添加新角色</span>
+                    </h2>
+                    <p style="margin: 0.5rem 0 0; color: rgba(255,255,255,0.9); font-size: 0.9rem;">
+                        输入角色名，AI将根据小说背景自动生成角色描述
+                    </p>
+                </div>
+
+                <!-- 内容区 -->
+                <div style="padding: 1.5rem; overflow-y: auto; flex: 1; color: var(--text-primary);">
+                    <!-- 角色名输入 -->
+                    <div style="margin-bottom: 1.25rem;">
+                        <label style="display: block; font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 0.5rem; font-weight: 500;">
+                            角色名 <span style="color: var(--accent-color);">*</span>
+                        </label>
+                        <input type="text" id="newCharNameInput" placeholder="如：林啸天、三长老" style="
+                            width: 100%; padding: 0.75rem 1rem; border: 2px solid var(--border-color);
+                            border-radius: 10px; background: var(--bg-primary); font-size: 1rem; color: var(--text-primary);
+                            transition: all 0.2s;
+                        " onfocus="this.style.borderColor='var(--accent-color)'" onblur="this.style.borderColor='var(--border-color)'" />
+                    </div>
+
+                    <!-- AI生成按钮 -->
+                    <div style="text-align: center; margin: 1.5rem 0;">
+                        <button id="aiGenerateDescBtn" class="btn-secondary" style="
+                            width: 100%; padding: 0.75rem; border-radius: 10px;
+                            font-size: 0.95rem; display: flex; align-items: center; justify-content: center; gap: 0.5rem;
+                        ">
+                            <span>🤖</span>
+                            <span>AI生成角色描述</span>
+                        </button>
+                        <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.5rem;">
+                            点击后AI将根据角色名和小说背景自动生成详细描述
+                        </p>
+                    </div>
+
+                    <!-- AI生成的字段 -->
+                    <div id="aiGeneratedFields" style="display: none;">
+                        <div style="
+                            padding: 1rem; background: var(--bg-tertiary); border-radius: 10px;
+                            margin-bottom: 1rem; border-left: 3px solid var(--accent-color);
+                        ">
+                            <div style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.75rem;">
+                                ✨ AI已生成角色档案，您可以根据需要修改
+                            </div>
+                        </div>
+
+                        <!-- 角色定位 -->
+                        <div style="margin-bottom: 1rem;">
+                            <label style="display: block; font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 0.5rem;">角色定位</label>
+                            <select id="newCharRole" style="
+                                width: 100%; padding: 0.6rem 1rem; border: 2px solid var(--border-color);
+                                border-radius: 10px; background: var(--bg-primary); color: var(--text-primary);
+                            ">
+                                <option value="" style="color: var(--text-primary);">请选择</option>
+                                <option value="主角" style="color: var(--text-primary);">主角</option>
+                                <option value="配角" style="color: var(--text-primary);">配角</option>
+                                <option value="反派" style="color: var(--text-primary);">反派</option>
+                                <option value="导师" style="color: var(--text-primary);">导师</option>
+                                <option value="长者" style="color: var(--text-primary);">长者</option>
+                                <option value="路人" style="color: var(--text-primary);">路人</option>
+                            </select>
+                        </div>
+
+                        <!-- 角色背景 -->
+                        <div style="margin-bottom: 1rem;">
+                            <label style="display: block; font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 0.5rem;">角色背景</label>
+                            <textarea id="newCharBackground" rows="3" placeholder="身世、经历、动机等背景信息" style="
+                                width: 100%; padding: 0.75rem; border: 2px solid var(--border-color);
+                                border-radius: 10px; background: var(--bg-primary); resize: vertical; font-size: 0.9rem; color: var(--text-primary);
+                            "></textarea>
+                        </div>
+
+                        <!-- 性别 -->
+                        <div style="margin-bottom: 1rem;">
+                            <label style="display: block; font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 0.5rem;">性别</label>
+                            <select id="newCharGender" style="
+                                width: 100%; padding: 0.6rem 1rem; border: 2px solid var(--border-color);
+                                border-radius: 10px; background: var(--bg-primary); color: var(--text-primary);
+                            ">
+                                <option value="" style="color: var(--text-primary);">请选择</option>
+                                <option value="男" style="color: var(--text-primary);">男</option>
+                                <option value="女" style="color: var(--text-primary);">女</option>
+                            </select>
+                        </div>
+
+                        <!-- 年龄 -->
+                        <div style="margin-bottom: 1rem;">
+                            <label style="display: block; font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 0.5rem;">年龄</label>
+                            <input type="text" id="newCharAge" placeholder="如：50岁左右、中年" style="
+                                width: 100%; padding: 0.6rem 1rem; border: 2px solid var(--border-color);
+                                border-radius: 10px; background: var(--bg-primary); color: var(--text-primary);
+                            " />
+                        </div>
+
+                        <!-- 外貌描述 -->
+                        <div style="margin-bottom: 1rem;">
+                            <label style="display: block; font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 0.5rem;">外貌描述</label>
+                            <textarea id="newCharAppearance" rows="4" placeholder="AI将自动生成，也可手动编辑" style="
+                                width: 100%; padding: 0.75rem; border: 2px solid var(--border-color);
+                                border-radius: 10px; background: var(--bg-primary); resize: vertical; font-size: 0.9rem; color: var(--text-primary);
+                            "></textarea>
+                        </div>
+
+                        <!-- 性格特点 -->
+                        <div style="margin-bottom: 1rem;">
+                            <label style="display: block; font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 0.5rem;">性格特点</label>
+                            <input type="text" id="newCharPersonality" placeholder="如：威严、果断、温和等" style="
+                                width: 100%; padding: 0.6rem 1rem; border: 2px solid var(--border-color);
+                                border-radius: 10px; background: var(--bg-primary); color: var(--text-primary);
+                            " />
+                        </div>
+
+                        <!-- 出场事件/原因 -->
+                        <div style="margin-bottom: 1rem;">
+                            <label style="display: block; font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 0.5rem;">出场原因</label>
+                            <textarea id="newCharAppearingEvent" rows="2" placeholder="该角色在当前事件中出现的原因" style="
+                                width: 100%; padding: 0.75rem; border: 2px solid var(--border-color);
+                                border-radius: 10px; background: var(--bg-primary); resize: vertical; font-size: 0.9rem; color: var(--text-primary);
+                            "></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 底部按钮 -->
+                <div style="padding: 1rem 1.5rem; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 0.75rem; background: var(--bg-secondary);">
+                    <button id="closeAddCharModalBtn" style="
+                        padding: 0.6rem 1.5rem; border-radius: 8px; font-size: 0.9rem;
+                    " class="btn-secondary">取消</button>
+                    <button id="saveNewCharBtn" class="btn-primary" disabled style="
+                        padding: 0.6rem 1.5rem; border-radius: 8px; font-size: 0.9rem;
+                        opacity: 0.5; cursor: not-allowed;
+                    ">💾 保存角色</button>
+                </div>
+            </div>
+        `;
+
+        modal.style.display = 'flex';
+
+        // 绑定事件
+        const nameInput = modal.querySelector('#newCharNameInput');
+        const aiGenerateBtn = modal.querySelector('#aiGenerateDescBtn');
+        const saveBtn = modal.querySelector('#saveNewCharBtn');
+        const closeBtn = modal.querySelector('#closeAddCharModalBtn');
+        const aiFields = modal.querySelector('#aiGeneratedFields');
+
+        // 名字输入时启用保存按钮
+        nameInput.addEventListener('input', () => {
+            const hasValue = nameInput.value.trim().length > 0;
+            saveBtn.disabled = !hasValue;
+            saveBtn.style.opacity = hasValue ? '1' : '0.5';
+            saveBtn.style.cursor = hasValue ? 'pointer' : 'not-allowed';
+        });
+
+        // AI生成按钮
+        aiGenerateBtn.addEventListener('click', async () => {
+            const characterName = nameInput.value.trim();
+            if (!characterName) {
+                this.showToast('请先输入角色名', 'error');
+                return;
+            }
+
+            aiGenerateBtn.disabled = true;
+            aiGenerateBtn.innerHTML = '<span>🔄</span><span>生成中...</span>';
+
+            try {
+                // 🔥 构建增强的上下文信息
+                let enhancedContext = `角色名: ${characterName}\n`;
+
+                // 添加世界观数据
+                if (this.worldview) {
+                    if (this.worldview.quality_data) {
+                        const qd = this.worldview.quality_data;
+                        if (qd.theme) enhancedContext += `\n主题: ${qd.theme}`;
+                        if (qd.tone) enhancedContext += `\n基调: ${qd.tone}`;
+                        if (qd.genre) enhancedContext += `\n类型: ${qd.genre}`;
+                        if (qd.worldview) enhancedContext += `\n世界观: ${qd.worldview}`;
+                    }
+                    if (this.worldview.core_worldview) {
+                        const cw = this.worldview.core_worldview;
+                        if (cw.worldview_name) enhancedContext += `\n核心世界观: ${cw.worldview_name}`;
+                        if (cw.core_power) enhancedContext += `\n核心力量: ${cw.core_power}`;
+                    }
+                    if (this.worldview.novel_description) enhancedContext += `\n小说描述: ${this.worldview.novel_description}`;
+                    if (this.worldview.novel_premise) enhancedContext += `\n故事前提: ${this.worldview.novel_premise}`;
+                }
+
+                // 添加现有角色信息
+                if (this.characters && this.characters.length > 0) {
+                    enhancedContext += `\n\n现有角色:\n`;
+                    this.characters.forEach(char => {
+                        enhancedContext += `- ${char.name}${char.role ? '(' + char.role + ')' : ''}: ${char.description || ''}\n`;
+                    });
+                }
+
+                // 添加当前选中的事件上下文（如果是从某个事件添加角色）
+                const selectedEventIds = Array.from(this.selectedEvents);
+                if (selectedEventIds.length > 0) {
+                    const selectedEvent = this.events.find(e => e.id === selectedEventIds[0]) ||
+                                          this.events.flatMap(e => e.children || []).find(c => c.id === selectedEventIds[0]);
+                    if (selectedEvent) {
+                        enhancedContext += `\n\n当前事件: ${selectedEvent.title || selectedEvent.name || '未命名事件'}`;
+                        if (selectedEvent.description) enhancedContext += `\n事件描述: ${selectedEvent.description}`;
+                        if (selectedEvent.stage) enhancedContext += `\n阶段: ${selectedEvent.stage}`;
+                    }
+                }
+
+                console.log('🔍 角色生成上下文:', enhancedContext);
+
+                const response = await fetch('/api/characters/generate-description', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        novel_title: this.selectedNovel,
+                        character_name: characterName,
+                        context: enhancedContext
+                    })
+                });
+
+                const result = await response.json();
+                if (result.success && result.description) {
+                    // 🔥 解析完整的角色数据
+                    const characterData = result.character_data || {};
+
+                    // 填充各字段
+                    if (characterData.description || result.description) {
+                        modal.querySelector('#newCharAppearance').value = characterData.description || result.description;
+                    }
+                    if (characterData.gender) {
+                        modal.querySelector('#newCharGender').value = characterData.gender;
+                    } else {
+                        // 尝试从描述中提取性别
+                        const desc = result.description;
+                        if (desc.includes('男') || desc.includes('先生') || desc.includes('老先生') || desc.includes('族长') || desc.includes('父亲') || desc.includes('长老')) {
+                            modal.querySelector('#newCharGender').value = '男';
+                        } else if (desc.includes('女') || desc.includes('小姐') || desc.includes('女士') || desc.includes('母亲') || desc.includes('夫人')) {
+                            modal.querySelector('#newCharGender').value = '女';
+                        }
+                    }
+                    if (characterData.age) {
+                        modal.querySelector('#newCharAge').value = characterData.age;
+                    } else {
+                        const ageMatch = result.description.match(/(\d+岁|中年|青年|老年|少年|少女|儿童)/);
+                        if (ageMatch) {
+                            modal.querySelector('#newCharAge').value = ageMatch[1];
+                        }
+                    }
+                    if (characterData.personality) {
+                        modal.querySelector('#newCharPersonality').value = characterData.personality;
+                    }
+                    if (characterData.role) {
+                        modal.querySelector('#newCharRole').value = characterData.role;
+                    }
+                    if (characterData.background) {
+                        modal.querySelector('#newCharBackground').value = characterData.background;
+                    }
+                    if (characterData.appearing_event) {
+                        modal.querySelector('#newCharAppearingEvent').value = characterData.appearing_event;
+                    }
+
+                    // 显示字段
+                    aiFields.style.display = 'block';
+                    saveBtn.disabled = false;
+                    saveBtn.style.opacity = '1';
+                    saveBtn.style.cursor = 'pointer';
+                    this.showToast('AI生成完成', 'success');
+                } else {
+                    this.showToast('AI生成失败，请手动输入', 'error');
+                    aiFields.style.display = 'block';
+                }
+            } catch (e) {
+                console.error('AI生成角色描述失败:', e);
+                this.showToast('AI生成失败，请手动输入', 'error');
+                aiFields.style.display = 'block';
+            } finally {
+                aiGenerateBtn.disabled = false;
+                aiGenerateBtn.innerHTML = '<span>🤖</span><span>AI生成角色描述</span>';
+            }
+        });
+
+        // 保存按钮
+        saveBtn.addEventListener('click', () => {
+            this.saveNewCharacterFromDialog(modal);
+        });
+
+        // 取消按钮
+        closeBtn.addEventListener('click', () => {
+            modal.style.display = 'none';
+        });
+
+        // 点击背景关闭
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.style.display = 'none';
+            }
+        });
+
+        // 聚焦到名字输入框
+        nameInput.focus();
+    }
+
+    /**
+     * 💾 从对话框保存新角色
+     */
+    async saveNewCharacterFromDialog(modal) {
+        const name = modal.querySelector('#newCharNameInput').value.trim();
+        const role = modal.querySelector('#newCharRole')?.value.trim() || '';
+        const background = modal.querySelector('#newCharBackground')?.value.trim() || '';
+        const gender = modal.querySelector('#newCharGender').value.trim();
+        const age = modal.querySelector('#newCharAge').value.trim();
+        const appearance = modal.querySelector('#newCharAppearance').value.trim();
+        const personality = modal.querySelector('#newCharPersonality').value.trim();
+        const appearing_event = modal.querySelector('#newCharAppearingEvent')?.value.trim() || '';
+
+        if (!name) {
+            this.showToast('角色名不能为空', 'error');
+            return;
+        }
+
+        const character = {
+            name,
+            role,  // 🔥 新增：角色定位
+            background,  // 🔥 新增：角色背景
+            appearing_event,  // 🔥 新增：出场原因
+            gender,
+            age,
+            appearance,
+            personality,
+            description: `${gender ? gender + '，' : ''}${age ? age + '，' : ''}${appearance}`
+        };
+
+        try {
+            const response = await fetch('/api/characters/add-character', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    novel_title: this.selectedNovel,
+                    character: character,
+                    generate_portrait: false
+                })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                this.showToast(`✅ 角色 "${name}" 已添加`, 'success');
+                modal.style.display = 'none';
+
+                // 重新加载角色列表和剧照显示
+                await this.loadEventsAndCharacters();
+                this.loadCharacterPortraitsStep();
+            } else {
+                this.showToast('添加角色失败: ' + (result.error || '未知错误'), 'error');
+            }
+        } catch (error) {
+            console.error('保存角色失败:', error);
+            this.showToast('保存角色失败: ' + error.message, 'error');
+        }
     }
 
     /**
@@ -3969,9 +4442,9 @@ li>选择角色，输入提示词，生成剧照</li>
             }
         });
 
-        // 2. 如果没有找到角色，使用全局角色列表
-        if (characterMap.size === 0 && this.characters && this.characters.length > 0) {
-            console.log('📺 未从集数中提取到角色，使用全局角色列表');
+        // 2. 🔥 始终添加全局角色列表（包括新添加的角色）
+        if (this.characters && this.characters.length > 0) {
+            console.log('📺 添加全局角色列表，当前角色数量:', this.characters.length);
             this.characters.forEach(char => {
                 if (!characterMap.has(char.name)) {
                     characterMap.set(char.name, char);
@@ -4004,7 +4477,7 @@ li>选择角色，输入提示词，生成剧照</li>
     }
 
     /**
-     * 打开剧照工作台
+     * 🔶 显示添加角色对话框
      */
     openPortraitStudio(character) {
         console.log('📸 [打开剧照工作台] 角色数据:', character);
