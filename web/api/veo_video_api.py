@@ -140,13 +140,16 @@ def create_video_generation():
         
         # 转换为 OpenAI 格式请求（用于内部处理）
         from src.models.veo_models import VeOVideoRequest
-        
+
+        # 🔥 收集处理好的 base64 图片数据（不含前缀，用于 VeOManager）
+        processed_base64_images = []
+
         # 构建消息格式
         messages = [{
             "role": "user",
             "content": []
         }]
-        
+
         # 添加文本内容
         messages[0]["content"].append({
             "type": "text",
@@ -157,8 +160,8 @@ def create_video_generation():
         for img_data in veo_request.images:
             image_url_value = None
 
-            # 🔥 检查是否是本地文件路径（/project-files/ 或 /generated_images/ 或 /static/）
-            if img_data.startswith('/project-files/') or img_data.startswith('/generated_images/') or img_data.startswith('/static/'):
+            # 🔥 检查是否是本地文件路径（/project-files/ 或 /generated_images/ 或 /static/ 或 /api/short-drama/projects/）
+            if img_data.startswith('/project-files/') or img_data.startswith('/generated_images/') or img_data.startswith('/static/') or img_data.startswith('/api/short-drama/projects/'):
                 # 本地文件模式：读取文件并转换为 base64
                 try:
                     from urllib.parse import unquote
@@ -173,6 +176,10 @@ def create_video_generation():
                     elif img_data.startswith('/static/generated_images/'):
                         decoded_path = unquote(img_data.replace('/static/generated_images/', ''))
                         base_path = Path('static/generated_images').resolve()
+                    elif img_data.startswith('/api/short-drama/projects/'):
+                        # 处理角色图片URL: /api/short-drama/projects/{小说名}/{集数名}/{文件名}
+                        decoded_path = unquote(img_data.replace('/api/short-drama/projects/', ''))
+                        base_path = Path('视频项目').resolve()
                     else:
                         decoded_path = unquote(img_data)
                         base_path = Path('.').resolve()
@@ -183,6 +190,8 @@ def create_video_generation():
                     # 构建完整文件路径
                     full_path = (base_path / decoded_path).resolve()
 
+                    logger.info(f"📂 完整文件路径: {full_path}")
+
                     # 安全检查
                     if not str(full_path).startswith(str(base_path)):
                         logger.error(f"❌ 非法路径访问: {img_data}")
@@ -190,6 +199,10 @@ def create_video_generation():
 
                     if not full_path.exists():
                         logger.error(f"❌ 文件不存在: {full_path}")
+                        # 尝试列出父目录的内容，帮助调试
+                        if full_path.parent.exists():
+                            existing_files = list(full_path.parent.glob('*.png')) + list(full_path.parent.glob('*.jpg'))
+                            logger.info(f"📂 父目录中的图片文件: {[f.name for f in existing_files]}")
                         continue
 
                     # 读取文件并转换为 base64
@@ -197,6 +210,8 @@ def create_video_generation():
                         file_data = f.read()
                     base64_data = base64.b64encode(file_data).decode('utf-8')
                     image_url_value = f"data:image/jpeg;base64,{base64_data}"
+                    # 🔥 收集纯 base64 数据（不含前缀），用于 VeOManager
+                    processed_base64_images.append(base64_data)
                     logger.info(f"✅ 文件已转换为 base64，大小: {len(file_data)} 字节")
 
                 except Exception as e:
@@ -206,9 +221,13 @@ def create_video_generation():
             elif img_data.startswith(('http://', 'https://')):
                 # 外部 URL 模式：直接使用
                 image_url_value = img_data
+                # 外部 URL 需要由 VeOManager 下载，暂时保留原值
+                processed_base64_images.append(img_data)
             else:
                 # Base64 模式：需要添加 data URI 前缀
                 image_url_value = f"data:image/jpeg;base64,{img_data}"
+                # 收集纯 base64 数据
+                processed_base64_images.append(img_data)
 
             if image_url_value:
                 messages[0]["content"].append({
@@ -217,6 +236,10 @@ def create_video_generation():
                         "url": image_url_value
                     }
                 })
+
+        # 🔥 更新 veo_request.images 为处理好的图片数据
+        # 这样 VeOManager 就可以直接使用，不需要再次处理
+        veo_request.images = processed_base64_images
         
         openai_request = VeOVideoRequest(
             model=veo_request.model,

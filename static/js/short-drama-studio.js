@@ -18,6 +18,9 @@ class ShortDramaStudio {
         this.shots = [];
         this.stopBatchGeneration = false;
 
+        // 后台任务跟踪
+        this.backgroundTasks = new Map(); // taskId -> { shotIndex, shot, startTime, progress, status }
+
         this.init();
     }
 
@@ -1682,6 +1685,15 @@ class ShortDramaStudio {
                     justify-content: center;
                     gap: 1rem;
                 ">
+                    <button class="btn-background" id="btnBackgroundGeneration" style="
+                        padding: 0.75rem 1.5rem;
+                        background: var(--warning);
+                        border: none;
+                        border-radius: 6px;
+                        color: white;
+                        cursor: pointer;
+                        font-weight: 500;
+                    ">📥 切换到后台</button>
                     <button class="btn-stop" id="btnStopGeneration" style="
                         padding: 0.75rem 1.5rem;
                         background: var(--danger);
@@ -1697,11 +1709,176 @@ class ShortDramaStudio {
 
         document.body.appendChild(modal);
 
+        // 绑定后台运行按钮
+        modal.querySelector('#btnBackgroundGeneration').onclick = () => {
+            this.minimizeVideoProgressModal(shotIndex);
+        };
+
         // 绑定停止按钮
         modal.querySelector('#btnStopGeneration').onclick = () => {
             this.closeVideoProgressModal();
             this.showToast('已停止生成', 'info');
         };
+    }
+
+    /**
+     * 最小化视频进度弹窗到后台
+     */
+    minimizeVideoProgressModal(shotIndex) {
+        // 获取当前的任务ID（如果已经开始生成）
+        const shot = this.shots[shotIndex];
+        if (!shot) return;
+
+        // 关闭弹窗
+        this.closeVideoProgressModal();
+
+        // 添加到后台任务列表
+        const taskId = shot.currentTaskId || `bg_${shotIndex}_${Date.now()}`;
+
+        this.backgroundTasks.set(taskId, {
+            shotIndex: shotIndex,
+            shot: shot,
+            taskId: taskId,
+            startTime: Date.now(),
+            progress: 0,
+            status: '处理中...'
+        });
+
+        // 更新后台任务显示
+        this.updateBackgroundTasksWidget();
+
+        this.showToast('视频正在后台生成中...', 'info');
+    }
+
+    /**
+     * 更新后台任务小组件
+     */
+    updateBackgroundTasksWidget() {
+        let widget = document.getElementById('backgroundTasksWidget');
+
+        if (this.backgroundTasks.size === 0) {
+            if (widget) widget.remove();
+            return;
+        }
+
+        if (!widget) {
+            widget = document.createElement('div');
+            widget.id = 'backgroundTasksWidget';
+            widget.style.cssText = `
+                position: fixed;
+                bottom: 20px;
+                right: 20px;
+                z-index: 9999;
+                max-width: 350px;
+                width: auto;
+            `;
+            document.body.appendChild(widget);
+        }
+
+        widget.innerHTML = `
+            <div style="
+                background: var(--bg-secondary);
+                border: 1px solid var(--border);
+                border-radius: 12px;
+                padding: 1rem;
+                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+                margin-bottom: 0.5rem;
+            ">
+                <div style="
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    margin-bottom: 0.75rem;
+                ">
+                    <span style="font-weight: 600; color: var(--text-secondary);">
+                        🎬 后台生成中 (${this.backgroundTasks.size})
+                    </span>
+                </div>
+                ${Array.from(this.backgroundTasks.values()).map(task => {
+                    const shot = task.shot;
+                    return `
+                        <div class="bg-task-item" data-task-id="${task.taskId}" style="
+                            background: var(--bg-tertiary);
+                            padding: 0.75rem;
+                            border-radius: 8px;
+                            margin-bottom: 0.5rem;
+                            cursor: pointer;
+                            transition: background 0.2s;
+                        ">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div style="flex: 1; min-width: 0;">
+                                    <div style="font-size: 0.85rem; font-weight: 500; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                        #${shot.shot_number || (task.shotIndex + 1)} ${shot.shot_type || '镜头'}
+                                    </div>
+                                    <div style="font-size: 0.75rem; color: var(--text-tertiary); margin-top: 0.25rem;">
+                                        ${task.status || '处理中...'}
+                                    </div>
+                                </div>
+                                <div style="margin-left: 0.75rem;">
+                                    <div class="task-spinner" style="
+                                        width: 20px;
+                                        height: 20px;
+                                        border: 2px solid var(--border);
+                                        border-top-color: var(--primary);
+                                        border-radius: 50%;
+                                        animation: spin 1s linear infinite;
+                                    "></div>
+                                </div>
+                            </div>
+                            <div style="
+                                margin-top: 0.5rem;
+                                height: 4px;
+                                background: var(--bg-dark);
+                                border-radius: 2px;
+                                overflow: hidden;
+                            ">
+                                <div style="
+                                    width: ${task.progress || 0}%;
+                                    height: 100%;
+                                    background: var(--primary);
+                                    transition: width 0.3s;
+                                "></div>
+                            </div>
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+        `;
+
+        // 绑定点击事件，可以重新打开进度弹窗
+        widget.querySelectorAll('.bg-task-item').forEach(item => {
+            item.addEventListener('click', () => {
+                const taskId = item.dataset.taskId;
+                const task = this.backgroundTasks.get(taskId);
+                if (task) {
+                    // 从后台任务中移除
+                    this.backgroundTasks.delete(taskId);
+                    this.updateBackgroundTasksWidget();
+                    // 重新显示进度弹窗
+                    this.showVideoProgressModal(task.shot, task.shotIndex);
+                }
+            });
+        });
+    }
+
+    /**
+     * 更新后台任务的进度
+     */
+    updateBackgroundTaskProgress(taskId, progress, status) {
+        const task = this.backgroundTasks.get(taskId);
+        if (task) {
+            task.progress = progress;
+            task.status = status;
+            this.updateBackgroundTasksWidget();
+        }
+    }
+
+    /**
+     * 从后台任务中移除已完成的任务
+     */
+    removeBackgroundTask(taskId) {
+        this.backgroundTasks.delete(taskId);
+        this.updateBackgroundTasksWidget();
     }
 
     /**
@@ -2574,6 +2751,9 @@ class ShortDramaStudio {
             let attempts = 0;
             const shot = this.shots[shotIndex];
 
+            // 保存任务ID，用于后台任务跟踪
+            shot.currentTaskId = taskId;
+
             const poll = async () => {
                 try {
                     const response = await fetch(`/api/veo/status/${taskId}`);
@@ -2590,15 +2770,26 @@ class ShortDramaStudio {
                         statusText = `生成中 ${data.progress || 0}%`;
                     }
 
+                    // 更新弹窗进度
                     this.updateVideoProgressModal(Math.round(progress), statusText, shotIndex);
+
+                    // 同时更新后台任务进度
+                    this.updateBackgroundTaskProgress(taskId, Math.round(progress), statusText);
 
                     if (data.status === 'completed') {
                         // 视频生成完成
                         shot.generating = false;
                         shot.videoExists = true;
                         shot.hasError = false;
+                        delete shot.currentTaskId;
 
-                        if (data.result && data.result.video_url) {
+                        // 🔥 修复：根据实际数据结构获取视频URL
+                        // 数据格式: data.result.videos[0].url
+                        if (data.result && data.result.videos && data.result.videos.length > 0) {
+                            shot.videoUrl = data.result.videos[0].url;
+                            shot.videoPath = data.result.videos[0].url;
+                        } else if (data.result && data.result.video_url) {
+                            // 兼容旧格式
                             shot.videoUrl = data.result.video_url;
                             shot.videoPath = data.result.video_path;
                         }
@@ -2607,14 +2798,19 @@ class ShortDramaStudio {
                         this.updateVideoCard(shotIndex);
                         this.updateProjectStatus();
 
+                        // 移除后台任务
+                        this.removeBackgroundTask(taskId);
+
                         this.showToast(`镜头 #${shot.shot_number || (shotIndex + 1)} 生成完成`, 'success');
                         resolve();
 
                     } else if (data.status === 'failed') {
                         shot.generating = false;
                         shot.hasError = true;
+                        delete shot.currentTaskId;
                         this.updateVideoCard(shotIndex);
                         this.closeVideoProgressModal();
+                        this.removeBackgroundTask(taskId);
                         reject(new Error(data.error || '生成失败'));
                     } else if (attempts < maxAttempts) {
                         attempts++;
@@ -2622,16 +2818,20 @@ class ShortDramaStudio {
                     } else {
                         shot.generating = false;
                         shot.hasError = true;
+                        delete shot.currentTaskId;
                         this.updateVideoCard(shotIndex);
                         this.closeVideoProgressModal();
+                        this.removeBackgroundTask(taskId);
                         reject(new Error('生成超时'));
                     }
                 } catch (error) {
                     console.error('检查状态失败:', error);
                     shot.generating = false;
                     shot.hasError = true;
+                    delete shot.currentTaskId;
                     this.updateVideoCard(shotIndex);
                     this.closeVideoProgressModal();
+                    this.removeBackgroundTask(taskId);
                     this.showToast(`生成失败: ${error.message}`, 'error');
                     reject(error);
                 }
@@ -2719,7 +2919,13 @@ class ShortDramaStudio {
                         shot.videoExists = true;
                         shot.hasError = false;
 
-                        if (data.result && data.result.video_url) {
+                        // 🔥 修复：根据实际数据结构获取视频URL
+                        // 数据格式: data.result.videos[0].url
+                        if (data.result && data.result.videos && data.result.videos.length > 0) {
+                            shot.videoUrl = data.result.videos[0].url;
+                            shot.videoPath = data.result.videos[0].url;
+                        } else if (data.result && data.result.video_url) {
+                            // 兼容旧格式
                             shot.videoUrl = data.result.video_url;
                             shot.videoPath = data.result.video_path;
                         }

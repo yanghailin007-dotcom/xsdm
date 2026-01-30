@@ -777,7 +777,9 @@ class VeOVideoManager:
                     relative_to_project = local_file_path.relative_to(VIDEO_PROJECT_BASE_DIR)
                     # 使用 /project-files/ 路由访问
                     from urllib.parse import quote
-                    return f"/project-files/{quote(str(relative_to_project))}"
+                    # 🔥 修复：使用 as_posix() 确保路径使用正斜杠
+                    posix_path = relative_to_project.as_posix()
+                    return f"/project-files/{quote(posix_path)}"
                 else:
                     # 默认 generated_videos 目录
                     return f"/static/generated_videos/{local_file_path.name}"
