@@ -59,6 +59,19 @@ class VideoGenerator {
         this.init();
     }
 
+    /**
+     * 🔥 统一的路径清理函数（与后端sanitize_path保持一致）
+     * 清理文件名，移除Windows不允许的字符
+     */
+    sanitizePath(name) {
+        const invalidChars = ['<', '>', ':', '"', '/', '\\', '|', '?', '、', '？', '！', '＊', '＂', '＜', '＞', '／', '＼', '｜', '!'];
+        let result = name;
+        for (const char of invalidChars) {
+            result = result.replace(new RegExp(char.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), '_');
+        }
+        return result.replace(/^_+|_+$/g, ''); // 去除首尾下划线
+    }
+
     async init() {
         console.log('🎬 视频生成系统初始化...');
 
@@ -4493,14 +4506,8 @@ li>选择角色，输入提示词，生成剧照</li>
             const majorEvent = this.episodeWorkflow.selectedMajorEvent;
             const majorIndex = majorEvent.major_index || 0;
 
-            // 目录名格式: {majorIndex + 1}集_{重大事件名称}
-            // 如: 1集_黄金开局：退婚流当场变'舔狗流'
-            const sanitizeForPath = (name) => {
-                // 只移除Windows不允许的字符，保留中文标点
-                return name.replace(/[<>"/\\|?]/g, '_');
-            };
-
-            const eventTitle = sanitizeForPath(majorEvent.title || majorEvent.name || '');
+            // 🔥 使用统一的路径清理函数
+            const eventTitle = this.sanitizePath(majorEvent.title || majorEvent.name || '');
             episodeInfo = `${majorIndex + 1}集_${eventTitle}`;
         }
 
@@ -5186,13 +5193,8 @@ li>选择角色，输入提示词，生成剧照</li>
             const majorEvent = this.episodeWorkflow.selectedMajorEvent;
             const majorIndex = majorEvent.major_index || 0;
 
-            // 目录名格式: {majorIndex + 1}集_{重大事件名称}
-            // 如: 1集_黄金开局：退婚流当场变'舔狗流'
-            const sanitizeForPath = (name) => {
-                return name.replace(/[<>"/\\|?]/g, '_');
-            };
-
-            const eventTitle = sanitizeForPath(majorEvent.title || majorEvent.name || '');
+            // 🔥 使用统一的路径清理函数
+            const eventTitle = this.sanitizePath(majorEvent.title || majorEvent.name || '');
             episodeDirectoryName = `${majorIndex + 1}集_${eventTitle}`;
         }
 
@@ -5209,11 +5211,12 @@ li>选择角色，输入提示词，生成剧照</li>
                         allShots.push({
                             episode_id: epId,
                             episode_title: storyboard.title,
-                            episode_directory_name: episodeDirectoryName,  // 🔥 新增：剧集目录名称
+                            episode_directory_name: episodeDirectoryName,  // 🔥 已使用sanitizePath清理
+                            event_name: this.sanitizePath(storyboard.title || ''),  // 🔥 清理事件名
                             stage: storyboard.stage,
                             scene_title: scene.scene_title,
                             shot_number: shot.shot_number,
-                            shot_type: shot.shot_type,
+                            shot_type: (shot.shot_type || 'shot').replace(/\//g, '_'),  // 🔥 清理斜杠
                             prompt: shot.veo_prompt
                         });
                     }
@@ -5238,6 +5241,59 @@ li>选择角色，输入提示词，生成剧照</li>
         for (let i = 0; i < allShots.length; i++) {
             const shot = allShots[i];
 
+            // 🔥 检查视频是否已存在
+            const existingVideo = await this.checkVideoExists(shot);
+            if (existingVideo) {
+                console.log(`✅ 镜头 ${i + 1} 视频已存在: ${existingVideo.video_url}`);
+
+                // 直接显示预览对话框（已存在的视频）
+                const continueResult = await this.showVideoPreviewDialog(shot, i + 1, allShots.length, existingVideo.video_url, true);
+
+                if (continueResult === 'cancel') {
+                    this.showToast('已停止批量生成', 'info');
+                    break;
+                } else if (continueResult === 'regenerate') {
+                    // 用户选择重新生成，显示确认对话框
+                    const confirmResult = await this.showGenerationConfirmDialog(shot, i + 1, allShots.length, characterPortraits);
+
+                    if (confirmResult.action === 'cancel') {
+                        this.showToast('已取消批量生成', 'info');
+                        break;
+                    } else if (confirmResult.action === 'skip') {
+                        skippedCount++;
+                        this.updateShotStatus(i, 'skipped', '已跳过');
+                        continue;
+                    }
+
+                    // 重新生成
+                    this.updateShotStatus(i, 'processing', '生成中...');
+                    const result = await this.generateSingleVideo(shot, i + 1, allShots.length, characterPortraits, confirmResult.selectedImages, confirmResult.prompt, confirmResult.model, confirmResult.orientation, confirmResult.size, confirmResult.useFirstLastFrame);
+
+                    if (result.success) {
+                        completedCount++;
+                        const previewResult = await this.showVideoPreviewDialog(shot, i + 1, allShots.length, result.videoUrl, false);
+                        if (previewResult === 'cancel') {
+                            this.showToast('已停止批量生成', 'info');
+                            break;
+                        } else if (previewResult === 'regenerate') {
+                            i--;
+                            completedCount--;
+                            continue;
+                        }
+                    } else {
+                        const continueAnyway = await this.showGenerationFailedDialog(shot, i + 1, allShots.length, result.error);
+                        if (!continueAnyway) {
+                            break;
+                        }
+                    }
+                } else {
+                    // 用户确认使用现有视频
+                    completedCount++;
+                    this.updateShotStatus(i, 'completed', '已存在');
+                    continue;
+                }
+            }
+
             // 显示生成前确认对话框
             const confirmResult = await this.showGenerationConfirmDialog(shot, i + 1, allShots.length, characterPortraits);
 
@@ -5260,7 +5316,7 @@ li>选择角色，输入提示词，生成剧照</li>
                 completedCount++;
 
                 // 显示生成后的预览对话框
-                const continueResult = await this.showVideoPreviewDialog(shot, i + 1, allShots.length, result.videoUrl);
+                const continueResult = await this.showVideoPreviewDialog(shot, i + 1, allShots.length, result.videoUrl, false);
 
                 if (continueResult === 'cancel') {
                     this.showToast('已停止批量生成', 'info');
@@ -5625,8 +5681,13 @@ li>选择角色，输入提示词，生成剧照</li>
 
     /**
      * 显示生成后的视频预览对话框
+     * @param {Object} shot - 镜头数据
+     * @param {number} currentIndex - 当前索引
+     * @param {number} total - 总数
+     * @param {string} videoUrl - 视频URL
+     * @param {boolean} isExistingVideo - 是否为已存在的视频
      */
-    async showVideoPreviewDialog(shot, currentIndex, total, videoUrl) {
+    async showVideoPreviewDialog(shot, currentIndex, total, videoUrl, isExistingVideo = false) {
         return new Promise((resolve) => {
             const modal = document.createElement('div');
             modal.className = 'video-preview-modal';
@@ -5642,6 +5703,11 @@ li>选择角色，输入提示词，生成剧照</li>
                 justify-content: center;
                 z-index: 10000;
             `;
+
+            // 根据是否为已存在的视频显示不同的标题和样式
+            const titleIcon = isExistingVideo ? '📁' : '✅';
+            const titleText = isExistingVideo ? '已存在的视频' : '生成完成';
+            const titleColor = isExistingVideo ? 'var(--info-color)' : 'var(--success-color)';
 
             modal.innerHTML = `
                 <div class="modal-content" style="
@@ -5659,13 +5725,27 @@ li>选择角色，输入提示词，生成剧照</li>
                         margin-bottom: 1rem;
                     ">
                         <div>
-                            <h3 style="margin: 0;">✅ 镜头 ${currentIndex}/${total} 生成完成</h3>
+                            <h3 style="margin: 0;">${titleIcon} 镜头 ${currentIndex}/${total} ${titleText}</h3>
                             <p style="margin: 0.25rem 0 0 0; color: var(--text-secondary); font-size: 0.9rem;">
                                 ${shot.episode_title} - ${shot.scene_title}
                             </p>
                         </div>
-                        <span style="color: var(--success-color); font-size: 2rem;">✓</span>
+                        <span style="color: ${titleColor}; font-size: 2rem;">${isExistingVideo ? '▶' : '✓'}</span>
                     </div>
+
+                    ${isExistingVideo ? `
+                    <div style="
+                        background: var(--info-color);
+                        color: white;
+                        padding: 0.5rem 1rem;
+                        border-radius: 6px;
+                        margin-bottom: 1rem;
+                        font-size: 0.9rem;
+                        text-align: center;
+                    ">
+                        💡 该镜头的视频文件已存在，您可以选择直接使用或重新生成
+                    </div>
+                    ` : ''}
 
                     <div class="video-preview" style="
                         background: #000;
@@ -5704,6 +5784,17 @@ li>选择角色，输入提示词，生成剧照</li>
                             color: white;
                             cursor: pointer;
                         ">⏹️ 停止批量生成</button>
+                        ${isExistingVideo ? `
+                        <button class="btn-use-existing" style="
+                            padding: 0.75rem 2rem;
+                            background: var(--success-color);
+                            border: none;
+                            border-radius: 6px;
+                            color: white;
+                            cursor: pointer;
+                            font-weight: bold;
+                        ">✅ 使用此视频</button>
+                        ` : ''}
                         <button class="btn-regenerate" style="
                             padding: 0.75rem 1.5rem;
                             background: var(--warning-color);
@@ -5720,6 +5811,7 @@ li>选择角色，输入提示词，生成剧照</li>
                             color: var(--text-primary);
                             cursor: pointer;
                         ">📥 下载视频</button>
+                        ${!isExistingVideo ? `
                         <button class="btn-continue" style="
                             padding: 0.75rem 2rem;
                             background: var(--success-color);
@@ -5729,6 +5821,16 @@ li>选择角色，输入提示词，生成剧照</li>
                             cursor: pointer;
                             font-weight: bold;
                         ">➡️ 继续下一个</button>
+                        ` : `
+                        <button class="btn-continue" style="
+                            padding: 0.75rem 2rem;
+                            background: var(--bg-tertiary);
+                            border: 1px solid var(--border);
+                            border-radius: 6px;
+                            color: var(--text-primary);
+                            cursor: pointer;
+                        ">➡️ 跳过</button>
+                        `}
                     </div>
                 </div>
             `;
@@ -5754,6 +5856,17 @@ li>选择角色，输入提示词，生成剧照</li>
                 modal.remove();
                 resolve('continue');
             };
+
+            // 如果是已存在的视频，处理"使用此视频"按钮
+            if (isExistingVideo) {
+                const btnUseExisting = modal.querySelector('.btn-use-existing');
+                if (btnUseExisting) {
+                    btnUseExisting.onclick = () => {
+                        modal.remove();
+                        resolve('use-existing');  // 使用已存在的视频
+                    };
+                }
+            }
         });
     }
 
@@ -6002,6 +6115,47 @@ li>选择角色，输入提示词，生成剧照</li>
     }
 
     /**
+     * 检查指定镜头的视频文件是否已存在
+     */
+    async checkVideoExists(shot) {
+        try {
+            // 构造剧集目录名称（与generateAllVideos中的逻辑一致）
+            let episodeDirectoryName = '默认';
+            if (this.episodeWorkflow.selectedMajorEvent) {
+                const majorEvent = this.episodeWorkflow.selectedMajorEvent;
+                const majorIndex = majorEvent.major_index || 0;
+
+                const eventTitle = this.sanitizePath(majorEvent.title || majorEvent.name || '');
+                episodeDirectoryName = `${majorIndex + 1}集_${eventTitle}`;
+            }
+
+            // 调用后端API检查视频是否存在
+            const response = await fetch('/api/video/check-exists', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    novel_title: this.selectedNovel,
+                    episode_title: episodeDirectoryName,
+                    event_name: this.sanitizePath(shot.event_name || shot.episode_title || ''),
+                    shot_number: shot.shot_number || '',
+                    shot_type: (shot.shot_type || 'shot').replace(/\//g, '_')  // 清理斜杠
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success && data.exists) {
+                return data;
+            }
+
+            return null;
+        } catch (error) {
+            console.error('检查视频是否存在失败:', error);
+            return null;
+        }
+    }
+
+    /**
      * 生成单个视频（使用确认对话框传递的参数）
      */
     async generateSingleVideo(shot, index, total, characterPortraits, selectedImages = null, customPrompt = null, model = 'veo_3_1-fast-components', orientation = 'landscape', size = 'large', useFirstLastFrame = false) {
@@ -6058,11 +6212,11 @@ li>选择角色，输入提示词，生成剧照</li>
                     watermark: false,
                     private: true,
                     // 🔥 传递元数据用于按项目/分集组织视频
-                    // 使用 episode_directory_name 而不是 episode_title（storyboard标题）
+                    // 注意：shot.episode_directory_name, shot.event_name, shot.shot_type 都已经过清理
                     metadata: {
                         novel_title: this.selectedNovel || '',
                         episode_title: shot.episode_directory_name || shot.episode_title || '',
-                        event_name: shot.episode_title || '',  // 中级事件名称，用于文件命名
+                        event_name: shot.event_name || this.sanitizePath(shot.episode_title || ''),
                         shot_number: shot.shot_number || '',
                         shot_type: shot.shot_type || '',
                         scene_title: shot.scene_title || ''

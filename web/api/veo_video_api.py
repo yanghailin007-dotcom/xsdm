@@ -529,10 +529,10 @@ def get_video_library():
 def delete_video_from_library(video_id: str):
     """
     从素材库删除视频
-    
+
     参数：
     - video_id: 视频ID
-    
+
     响应：
     {
         "success": true,
@@ -541,10 +541,10 @@ def delete_video_from_library(video_id: str):
     """
     try:
         logger.info(f"🗑️ 删除视频: {video_id}")
-        
+
         manager = get_veo_video_manager()
         success = manager.delete_generation(video_id)
-        
+
         if success:
             return jsonify({
                 "success": True,
@@ -555,9 +555,90 @@ def delete_video_from_library(video_id: str):
                 "success": False,
                 "error": "删除失败"
             }), 400
-    
+
     except Exception as e:
         logger.error(f"❌ 删除视频失败: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+
+@veo_video_api.route('/api/video/check-exists', methods=['POST'])
+def check_video_exists():
+    """
+    检查指定镜头的视频文件是否已存在
+
+    请求体：
+    {
+        "novel_title": "小说名",
+        "episode_title": "1集_黄金开局：退婚流当场变'舔狗流'",
+        "event_name": "事件名",
+        "shot_number": "1",
+        "shot_type": "全景"
+    }
+
+    响应：
+    {
+        "success": true,
+        "exists": true,
+        "video_url": "/project-files/...",
+        "file_path": "视频项目/..."
+    }
+    """
+    try:
+        data = request.json or {}
+        novel_title = data.get('novel_title', '')
+        episode_title = data.get('episode_title', '')
+        event_name = data.get('event_name', '')
+        shot_number = data.get('shot_number', '')
+        shot_type = data.get('shot_type', 'shot')
+
+        logger.info(f"🔍 检查视频是否存在: {novel_title}/{episode_title}/{event_name}_{shot_number}_{shot_type}")
+
+        # 导入路径构造函数
+        from src.managers.VeOVideoManager import get_video_save_path, sanitize_path, VIDEO_PROJECT_BASE_DIR
+
+        # 构造元数据
+        metadata = {
+            'novel_title': novel_title,
+            'episode_title': episode_title,
+            'event_name': event_name,
+            'shot_number': shot_number,
+            'shot_type': shot_type
+        }
+
+        # 获取视频保存路径
+        video_path = get_video_save_path(metadata, 'check')
+
+        # 检查文件是否存在
+        if video_path.exists():
+            # 构造HTTP URL路径
+            relative_path = video_path.relative_to(VIDEO_PROJECT_BASE_DIR)
+            video_url = f"/project-files/{str(relative_path).replace('\\', '/')}"
+
+            logger.info(f"✅ 视频文件已存在: {video_path}")
+
+            return jsonify({
+                "success": True,
+                "exists": True,
+                "video_url": video_url,
+                "file_path": str(video_path)
+            }), 200
+        else:
+            logger.info(f"❌ 视频文件不存在: {video_path}")
+
+            return jsonify({
+                "success": True,
+                "exists": False,
+                "video_url": None,
+                "file_path": str(video_path)
+            }), 200
+
+    except Exception as e:
+        logger.error(f"❌ 检查视频是否存在失败: {e}")
+        import traceback
+        logger.error(f"错误堆栈: {traceback.format_exc()}")
         return jsonify({
             "success": False,
             "error": str(e)
