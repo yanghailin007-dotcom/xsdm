@@ -918,48 +918,61 @@ def generate_storyboard():
         
         # 提取事件
         all_events = event_extractor.extract_all_major_events(novel_detail)
-        
+
         # 🔥 如果指定了选中事件，只处理选中的
         if selected_events:
             logger.info(f"🎯 [VIDEO] 用户选中了 {len(selected_events)} 个事件，过滤中...")
             all_events = _filter_selected_events(all_events, selected_events, logger)
-        
+
         logger.info(f"📊 [VIDEO] 最终处理 {len(all_events)} 个事件")
-        
+
         # 提取角色
         characters = event_extractor.extract_character_designs(novel_detail)
         character_prompts = event_extractor.generate_character_prompts(characters)
         logger.info(f"👥 [VIDEO] 提取到 {len(characters)} 个角色设计")
-        
+
+        # 🔥 获取视频场景提示词生成器（用于世界一致性）
+        from src.prompts.VideoScenePrompts import get_video_scene_prompts
+        scene_prompt_generator = get_video_scene_prompts()
+
         # 使用视频适配器进行转换
         from src.managers.VideoAdapterManager import VideoAdapterManager
-        
+
         class MockGenerator:
             def __init__(self, novel_data):
                 self.novel_data = novel_data
                 self.api_client = None
-        
+
         mock_generator = MockGenerator(novel_detail)
         adapter = VideoAdapterManager(mock_generator)
-        
+
         # 🔥 传递过滤后的事件列表
         video_result = adapter.convert_to_video(
             novel_data=novel_detail,
             video_type=video_type,
             filtered_events=all_events  # 🔥 新增参数
         )
-        
+
         # 提取所有镜头
         units = video_result.get("units", [])
         shots = []
-        
+
         for unit in units:
             storyboard = unit.get("storyboard", {})
             scenes = storyboard.get("scenes", [])
-            
+
             for scene in scenes:
                 shot_sequence = scene.get("shot_sequence", [])
                 for shot in shot_sequence:
+                    # 🔥 使用世界一致性提示词生成器
+                    generation_prompt = scene_prompt_generator.generate_shot_world_consistency_prompt(
+                        shot_description=shot.get('description', ''),
+                        shot_type=shot.get('shot_type', '中景'),
+                        camera_movement=shot.get('camera_movement', '固定'),
+                        duration=shot.get('duration_seconds', 5),
+                        novel_data=novel_detail
+                    )
+
                     shots.append({
                         "shot_index": len(shots),
                         "unit_number": unit.get("unit_number"),
@@ -971,10 +984,8 @@ def generate_storyboard():
                         "duration_seconds": shot.get("duration_seconds", 5),
                         "description": shot.get("description", ""),
                         "audio_cue": shot.get("audio_note", shot.get("tiktok_note", "")),
-                        "generation_prompt": f"""{shot.get('description', '')}
-景别：{shot.get('shot_type', '中景')}
-运镜：{shot.get('camera_movement', '固定')}
-时长：{shot.get('duration_seconds', 5)}秒""",
+                        "veo_prompt": generation_prompt,  # 🔥 使用前端期望的字段名
+                        "screen_action": shot.get("description", ""),  # 保留兼容字段
                         "status": "pending",
                         "visual_style": video_result.get("visual_style_guide", {}).get("overall_style", "写实")
                     })
@@ -2958,37 +2969,68 @@ def list_video_projects():
 def get_video_project(project_name):
     """
     获取指定视频项目的详细信息
-    
+
     参数：
     - project_name: 项目名称
     """
     try:
         video_projects_dir = Path("视频项目")
         project_path = video_projects_dir / project_name
-        
+
         if not project_path.exists():
             return jsonify({"success": False, "error": "项目不存在"}), 404
-        
+
         # 查找JSON文件
         json_files = list(project_path.glob("*.json"))
         if not json_files:
             return jsonify({"success": False, "error": "项目数据文件不存在"}), 404
-        
+
         # 读取分镜头数据
         with open(json_files[0], 'r', encoding='utf-8') as f:
             storyboard_data = json.load(f)
-        
+
+        # 🔥 获取小说数据用于世界一致性提示词
+        novel_title = storyboard_data.get("novel_title")
+        novel_detail = None
+        if novel_title:
+            try:
+                from web.managers.novel_manager import NovelManager
+                manager = NovelManager()
+                novel_detail = manager.get_novel_detail(novel_title)
+            except Exception as e:
+                logger.warning(f"⚠️ [VIDEO] 无法加载小说数据: {e}")
+
+        # 🔥 获取视频场景提示词生成器
+        from src.prompts.VideoScenePrompts import get_video_scene_prompts
+        scene_prompt_generator = get_video_scene_prompts()
+
         # 提取所有镜头
         units = storyboard_data.get("units", [])
         shots = []
-        
+
         for unit in units:
             storyboard = unit.get("storyboard", {})
             scenes = storyboard.get("scenes", [])
-            
+
             for scene in scenes:
                 shot_sequence = scene.get("shot_sequence", [])
                 for shot in shot_sequence:
+                    # 🔥 使用世界一致性提示词生成器（如果有小说数据）
+                    if novel_detail:
+                        generation_prompt = scene_prompt_generator.generate_shot_world_consistency_prompt(
+                            shot_description=shot.get('description', ''),
+                            shot_type=shot.get('shot_type', '中景'),
+                            camera_movement=shot.get('camera_movement', '固定'),
+                            duration=shot.get('duration_seconds', 5),
+                            novel_data=novel_detail
+                        )
+                    else:
+                        # 没有小说数据时使用原始格式
+                        generation_prompt = f"""{shot.get('description', '')}
+景别：{shot.get('shot_type', '中景')}
+运镜：{shot.get('camera_movement', '固定')}
+时长：{shot.get('duration_seconds', 5)}秒"""
+
                     shots.append({
                         "shot_index": len(shots),
                         "unit_number": unit.get("unit_number"),
@@ -2996,11 +3038,15 @@ def get_video_project(project_name):
                         "scene_description": scene.get("scene_description", ""),
                         "shot_number": shot.get("shot_number"),
                         "shot_type": shot.get("shot_type", "中景"),
-                        "camera_movement": shot.get("camera_movement", "固定"),
+                        "camera_movement": shot.get("camera_movement", '固定'),
                         "duration_seconds": shot.get("duration_seconds", 5),
                         "description": shot.get("description", ""),
                         "audio_cue": shot.get("audio_note", shot.get("tiktok_note", "")),
-                        "generation_prompt": f"""{shot.get('description', '')}
+                        "veo_prompt": generation_prompt,  # 🔥 使用前端期望的字段名
+                        "screen_action": shot.get("description", ""),  # 保留兼容字段
+                        "status": "pending",
+                        "visual_style": storyboard_data.get("visual_style_guide", {}).get("overall_style", "写实")
+                    })
 景别：{shot.get('shot_type', '中景')}
 运镜：{shot.get('camera_movement', '固定')}
 时长：{shot.get('duration_seconds', 5)}秒""",

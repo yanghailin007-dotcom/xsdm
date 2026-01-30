@@ -11,10 +11,94 @@ from src.utils.logger import get_logger
 
 class VideoScenePrompts:
     """视频场景生成提示词"""
-    
+
+    # 🔥 世界风格一致性配置 - 详细的场景设定
+    WORLD_STYLE_CONSISTENCY = {
+        "玄幻": {
+            "world_type": "东方修仙世界",
+            "environment_prefix": "修仙世界，",
+            "setting_description": "古风仙侠建筑，灵气缭绕，山峰悬浮，仙鹤飞舞",
+            "forbidden_elements": ["现代建筑", "电线电缆", "汽车", "手机", "电脑", "现代服装", "霓虹灯", "高楼大厦"],
+            "required_elements": ["法阵", "灵气光效", "古建筑", "长袍仙衣", "玉佩", "宝剑", "飞剑"],
+            "character_style": "身着古风长袍仙衣，发髻高束，气质出尘",
+            "lighting": "灵力光效，柔和仙气，天光云影",
+            "color_tone": "金紫青白为主，仙气飘渺"
+        },
+        "武侠": {
+            "world_type": "古代江湖世界",
+            "environment_prefix": "古代江湖，",
+            "setting_description": "古风建筑，客栈、镖局、门派，山林竹海，古镇街道",
+            "forbidden_elements": ["现代建筑", "电线电缆", "汽车", "手机", "电脑", "现代服装", "霓虹灯", "高楼大厦"],
+            "required_elements": ["古建筑", "长衫短打", "刀剑兵器", "马匹", "茶馆", "竹林", "古街道"],
+            "character_style": "身着古风武侠服装，束发佩簪，英武气概",
+            "lighting": "自然光，晨光夕照，火把烛光",
+            "color_tone": "棕绿自然色调，古朴厚重"
+        },
+        "都市": {
+            "world_type": "现代都市世界",
+            "environment_prefix": "现代都市，",
+            "setting_description": "城市街道，高楼大厦，商场餐厅，办公室，咖啡馆",
+            "forbidden_elements": ["古装", "长袍", "飞剑", "法术光效", "古建筑", "马车", "灵气"],
+            "required_elements": ["现代服装", "汽车", "手机", "高楼大厦", "霓虹灯", "咖啡馆", "办公室"],
+            "character_style": "现代时尚服装，发型整洁",
+            "lighting": "城市灯光，室内照明，霓虹灯光",
+            "color_tone": "城市多彩色调，现代感强"
+        },
+        "都市修真": {
+            "world_type": "现代都市中的修仙世界",
+            "environment_prefix": "现代都市隐藏修仙界，",
+            "setting_description": "表面是现代都市，暗中有修仙者，古董店、老茶馆、山中小院",
+            "forbidden_elements": ["过于明显的法术特效（在公共场合）", "飞天遁地（有人时）"],
+            "required_elements": ["现代与古典融合", "古董店", "老茶馆", "公园角落", "高人流中的宁静"],
+            "character_style": "现代服装为主，修炼时换古装，气质出尘",
+            "lighting": "现代灯光与灵气光效结合",
+            "color_tone": "现代城市色调中点缀金色灵气"
+        },
+        "高武": {
+            "world_type": "高武世界",
+            "environment_prefix": "高武世界，",
+            "setting_description": "现代或近未来背景，但武道通神，强者可断山河，城市有武道场",
+            "forbidden_elements": ["明显的仙侠法术"],
+            "required_elements": ["武道场", "强者威压", "气势特效", "现代建筑与武道结合"],
+            "character_style": "现代武道服装，肌肉线条明显，眼神锐利",
+            "lighting": "强光对比，突出气势",
+            "color_tone": "热血色调，金红为主"
+        },
+        "科幻": {
+            "world_type": "未来科幻世界",
+            "environment_prefix": "未来科幻，",
+            "setting_description": "未来都市，全息投影，飞行器，太空站，机械义肢",
+            "forbidden_elements": ["古装", "冷兵器", "马车", "古建筑"],
+            "required_elements": ["全息投影", "能量武器", "机械装甲", "未来建筑", "霓虹全息", "飞行器"],
+            "character_style": "未来科技服装，可能带机械义肢或装备",
+            "lighting": "冷光，全息光效，能量光",
+            "color_tone": "蓝白为主，金属质感"
+        },
+        "历史": {
+            "world_type": "古代历史世界",
+            "environment_prefix": "古代历史，",
+            "setting_description": "古代宫廷、市井，符合历史朝代的建筑和服饰",
+            "forbidden_elements": ["现代建筑", "电线电缆", "汽车", "手机", "电脑", "现代服装"],
+            "required_elements": ["历史朝代建筑", "古装", "马车", "古代街道", "宫廷内院"],
+            "character_style": "符合历史朝代的古装和发型",
+            "lighting": "自然光，火把烛光",
+            "color_tone": "古朴历史色调"
+        },
+        "末世": {
+            "world_type": "末世废土世界",
+            "environment_prefix": "末世废土，",
+            "setting_description": "废弃城市，废墟荒野，生存营地",
+            "forbidden_elements": ["整洁现代建筑", "繁华都市"],
+            "required_elements": ["废墟", "破损建筑", "生存装备", "荒凉景象"],
+            "character_style": "破旧防护服装，装备实用为主",
+            "lighting": "昏暗光效，阳光穿透废墟",
+            "color_tone": "灰暗废土色调"
+        }
+    }
+
     def __init__(self):
         self.logger = get_logger("VideoScenePrompts")
-    
+
     def generate_scene_prompt(self, medium_event: Dict, novel_data: Dict) -> str:
         """
         为单个中级事件生成详细的场景提示词
@@ -485,6 +569,76 @@ class VideoScenePrompts:
             "short_video": "意外反转或悬念"
         }
         return pace_map.get(video_type, "自然收尾")
+
+    def generate_shot_world_consistency_prompt(
+        self,
+        shot_description: str,
+        shot_type: str,
+        camera_movement: str,
+        duration: int,
+        novel_data: Dict
+    ) -> str:
+        """
+        为单个镜头生成带世界一致性的视频生成提示词
+
+        Args:
+            shot_description: 镜头场景描述
+            shot_type: 景别（全景/中景/近景/特写）
+            camera_movement: 运镜方式
+            duration: 时长（秒）
+            novel_data: 小说数据，包含 category 等信息
+
+        Returns:
+            增强后的视频生成提示词，包含世界一致性信息
+        """
+        # 获取小说类型
+        category = novel_data.get("category", "玄幻")
+
+        # 获取世界风格配置
+        world_config = self.WORLD_STYLE_CONSISTENCY.get(category, self.WORLD_STYLE_CONSISTENCY["玄幻"])
+
+        # 构建世界一致性提示词前缀
+        world_prefix = f"""【世界设定】{world_config['world_type']}
+【环境风格】{world_config['setting_description']}
+【角色形象】{world_config['character_style']}
+【光影效果】{world_config['lighting']}
+【色调】{world_config['color_tone']}"""
+
+        # 禁止元素提醒
+        if world_config.get("forbidden_elements"):
+            forbidden_list = "、".join(world_config["forbidden_elements"][:5])
+            world_prefix += f"\n【禁止出现】{forbidden_list}等{world_config['world_type']}不该有的元素"
+
+        # 必需元素提醒
+        if world_config.get("required_elements"):
+            required_list = "、".join(world_config["required_elements"][:5])
+            world_prefix += f"\n【场景元素】可包含{required_list}等符合{world_config['world_type']}的元素"
+
+        # 构建完整提示词
+        enhanced_prompt = f"""{world_config['environment_prefix']}{shot_description}
+
+{world_prefix}
+
+【镜头信息】
+景别：{shot_type}
+运镜：{camera_movement}
+时长：{duration}秒"""
+
+        return enhanced_prompt
+
+    def get_world_style_config(self, category: str = None) -> Dict:
+        """
+        获取指定类型的世界风格配置
+
+        Args:
+            category: 小说类型（玄幻、武侠、都市等）
+
+        Returns:
+            世界风格配置字典
+        """
+        if category and category in self.WORLD_STYLE_CONSISTENCY:
+            return self.WORLD_STYLE_CONSISTENCY[category]
+        return self.WORLD_STYLE_CONSISTENCY["玄幻"]  # 默认玄幻风格
 
 
 # 创建全局实例

@@ -733,7 +733,19 @@ body {
 }
 
 .task-row.done {
-    border-left: 3px solid var(--success);
+    border-left: 5px solid var(--success);
+    background: rgba(76, 175, 80, 0.05);
+}
+
+.task-row.done .task-index {
+    color: var(--success);
+}
+
+.status-dot.done {
+    width: 12px;
+    height: 12px;
+    background: var(--success);
+    box-shadow: 0 0 8px rgba(76, 175, 80, 0.5);
 }
 
 .task-row.processing {
@@ -924,10 +936,6 @@ body {
     height: 8px;
     border-radius: 50%;
     background: var(--text-tertiary);
-}
-
-.status-dot.done {
-    background: var(--success);
 }
 
 .status-dot.processing {
