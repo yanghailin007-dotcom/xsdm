@@ -71,7 +71,7 @@ def get_video_save_path(metadata: Dict[str, Any], task_id: str) -> Path:
     """
     根据元数据获取视频保存路径
 
-    路径结构: 视频项目/{小说名}/{分集}/videos/{事件名}_{镜头号}_{类型}.mp4
+    路径结构: 视频项目/{小说名}/{分集}/videos/{镜头号}_{事件名}_{类型}.mp4
     如果没有元数据，则使用默认路径: static/generated_videos/{task_id}.mp4
     """
     novel_title = metadata.get('novel_title', '')
@@ -87,9 +87,9 @@ def get_video_save_path(metadata: Dict[str, Any], task_id: str) -> Path:
         safe_event = sanitize_path(event_name) if event_name else ''
         safe_shot_type = sanitize_path(shot_type.replace('/', '_'))  # 替换斜杠
 
-        # 文件名格式: {事件名}_{镜头号}_{类型}.mp4
+        # 文件名格式: {镜头号}_{事件名}_{类型}.mp4
         if safe_event:
-            filename = f"{safe_event}_{shot_number}_{safe_shot_type}.mp4"
+            filename = f"{shot_number}_{safe_event}_{safe_shot_type}.mp4"
         else:
             filename = f"{shot_number}_{safe_shot_type}.mp4"
 

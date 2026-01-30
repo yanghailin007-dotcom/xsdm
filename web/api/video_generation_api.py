@@ -2347,47 +2347,61 @@ def generate_character_portrait():
             project_filename = None
             video_project_dir = None
 
+            # 🔥 获取项目信息（从 character_data 或请求参数中）
+            novel_title = None
+            episode_info = None
+
+            # 优先从 character_data 获取项目信息
+            if character_data:
+                novel_title = character_data.get('novel_title') or character_data.get('title')
+                episode_info = character_data.get('episode_info') or data.get('episode_info', '')
+
+            # 如果没有，从请求参数获取
+            if not novel_title:
+                novel_title = data.get('novel_title') or title
+            if not episode_info:
+                episode_info = data.get('episode_info', '')
+
             # 🔥 添加调试日志
             logger.info(f"🔍 [VIDEO] 视频项目复制检查:")
             logger.info(f"  - is_custom_mode: {is_custom_mode}")
             logger.info(f"  - title: {title}")
-            logger.info(f"  - 条件满足: {not is_custom_mode and title}")
+            logger.info(f"  - novel_title: {novel_title}")
+            logger.info(f"  - episode_info: {episode_info}")
+            logger.info(f"  - 条件满足: {bool(novel_title)}")
 
-            if not is_custom_mode and title:
+            # 🔥 只要有 novel_title 就保存到项目目录
+            if novel_title:
                 try:
-                    # 获取小说标题（用于创建视频项目目录）
-                    novel_title = data.get('novel_title', title)
-                    episode_info = data.get('episode_info', '')
-
                     # 🔥 路径安全处理：只对文件名进行清理，目录名使用原始值
                     def sanitize_filename(name):
                         """清理文件名，只移除Windows不允许的字符（保留中文标点）"""
-                        invalid_chars = ['<', '>', '"', '/', '\\', '|', '?']
+                        invalid_chars = ['<', '>', '"', '/', '\\', '|', '?', '*']
                         result = name
                         for char in invalid_chars:
                             result = result.replace(char, '_')
                         return result.strip('_')
 
+                    # 获取角色名
+                    character_name = character_data.get('name') if character_data else 'custom'
                     safe_character_name = sanitize_filename(character_name)
 
                     # 🔥 使用原始的小说名和剧集信息（实际目录已用这些名称创建）
                     safe_episode = episode_info if episode_info else '默认'
 
                     # 🔥 新目录结构: 视频项目/{小说名}/{分集}/{角色名}.png
-                    video_project_base = os.path.join('视频项目', novel_title, safe_episode)
+                    video_project_base = os.path.join(BASE_DIR, '视频项目', novel_title, safe_episode)
 
                     logger.info(f"📁 [VIDEO] 视频项目路径构建:")
                     logger.info(f"  - 原始小说标题: {novel_title}")
-                    logger.info(f"  - 清理后标题: {safe_novel_title}")
                     logger.info(f"  - 原始角色名: {character_name}")
                     logger.info(f"  - 清理后角色名: {safe_character_name}")
                     logger.info(f"  - 剧集信息: {episode_info}")
                     logger.info(f"  - 项目目录: {video_project_base}")
 
                     # 创建视频项目目录（如果不存在）
-                    if not os.path.exists(video_project_base):
-                        os.makedirs(video_project_base, exist_ok=True)
-                        logger.info(f"📁 [VIDEO] 创建视频项目目录: {video_project_base}")
+                    os.makedirs(video_project_base, exist_ok=True)
+                    logger.info(f"📁 [VIDEO] 确保/创建视频项目目录: {video_project_base}")
 
                     # 复制文件到视频项目目录
                     original_file = result.get('local_path')
@@ -2407,10 +2421,6 @@ def generate_character_portrait():
                         logger.info(f"✅ [VIDEO] 剧照已保存到视频项目: {project_file_path}")
 
                         # 构建项目内的访问URL: /project-files/{小说名}/{分集}/{角色名}.png
-                        project_image_url = f"/project-files/{novel_title}/{safe_episode}/{project_filename}"
-                        logger.info(f"🌐 [VIDEO] 视频项目内访问URL: {project_image_url}")
-
-                        # 保存项目目录信息供后续使用
                         video_project_dir = f"{novel_title}/{safe_episode}"
                     else:
                         logger.error(f"❌ [VIDEO] 原始文件不存在: {original_file}")

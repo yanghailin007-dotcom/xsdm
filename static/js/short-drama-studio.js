@@ -13,7 +13,7 @@ class ShortDramaStudio {
         this.characters = [];
         this.selectedNovel = null;
         this.selectedMajorEvent = null;
-        this.selectedEpisodes = new Set();
+        this.selectedEpisodes = []; // 🔥 改为数组以保持选择顺序
         this.characterPortraits = new Map();
         this.shots = [];
         this.stopBatchGeneration = false;
@@ -109,6 +109,22 @@ class ShortDramaStudio {
         });
         document.getElementById('settingModel')?.addEventListener('change', () => {
             this.onSettingChange();
+        });
+
+        // 监听从剧照工作室返回
+        window.addEventListener('storage', (e) => {
+            if (e.key === 'portraitStudio_result' && e.newValue) {
+                console.log('📸 检测到剧照已保存，刷新角色剧照列表');
+                this.loadCharacterPortraitsStep();
+            }
+        });
+
+        // 页面重新可见时刷新剧照
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible' && this.currentStep === 'check-portraits') {
+                console.log('📸 页面重新可见，刷新角色剧照列表');
+                this.loadCharacterPortraitsStep();
+            }
         });
     }
 
@@ -466,9 +482,10 @@ class ShortDramaStudio {
 
         if (container) {
             container.innerHTML = episodes.map((ep, idx) => {
-                const epId = ep.id || `episode_${idx}`;
-                const isChecked = this.selectedEpisodes.has(epId) ? 'checked' : '';
-                const selectedClass = this.selectedEpisodes.has(epId) ? 'selected' : '';
+                // 🔥 使用标题作为ID，确保与分镜头文件key匹配
+                const epId = ep.title || `episode_${idx}`;
+                const isChecked = this.selectedEpisodes.includes(epId) ? 'checked' : '';
+                const selectedClass = this.selectedEpisodes.includes(epId) ? 'selected' : '';
 
                 return `
                     <div class="episode-item ${selectedClass}" data-episode-id="${epId}">
@@ -483,7 +500,7 @@ class ShortDramaStudio {
             }).join('');
 
             // 默认全选（如果还没有选中任何集数）
-            if (this.selectedEpisodes.size === 0) {
+            if (this.selectedEpisodes.length === 0) {
                 this.selectAllEpisodes(true);
             }
         }
@@ -494,9 +511,14 @@ class ShortDramaStudio {
      */
     toggleEpisodeSelection(episodeId, selected) {
         if (selected) {
-            this.selectedEpisodes.add(episodeId);
+            if (!this.selectedEpisodes.includes(episodeId)) {
+                this.selectedEpisodes.push(episodeId);
+            }
         } else {
-            this.selectedEpisodes.delete(episodeId);
+            const index = this.selectedEpisodes.indexOf(episodeId);
+            if (index > -1) {
+                this.selectedEpisodes.splice(index, 1);
+            }
         }
 
         // 更新选中项样式和复选框状态
@@ -512,7 +534,7 @@ class ShortDramaStudio {
         // 更新计数
         const countSpan = document.getElementById('selectedEpisodesCount');
         if (countSpan) {
-            countSpan.textContent = this.selectedEpisodes.size;
+            countSpan.textContent = this.selectedEpisodes.length;
         }
 
         // 更新项目状态
@@ -529,9 +551,14 @@ class ShortDramaStudio {
 
             // 更新数据
             if (selectAll) {
-                this.selectedEpisodes.add(episodeId);
+                if (!this.selectedEpisodes.includes(episodeId)) {
+                    this.selectedEpisodes.push(episodeId);
+                }
             } else {
-                this.selectedEpisodes.delete(episodeId);
+                const index = this.selectedEpisodes.indexOf(episodeId);
+                if (index > -1) {
+                    this.selectedEpisodes.splice(index, 1);
+                }
             }
 
             // 更新UI
@@ -544,7 +571,7 @@ class ShortDramaStudio {
         // 更新计数
         const countSpan = document.getElementById('selectedEpisodesCount');
         if (countSpan) {
-            countSpan.textContent = this.selectedEpisodes.size;
+            countSpan.textContent = this.selectedEpisodes.length;
         }
 
         // 更新项目状态
@@ -773,6 +800,9 @@ class ShortDramaStudio {
     /**
      * 生成角色剧照
      */
+    /**
+     * 生成角色剧照
+     */
     async generatePortrait(characterName) {
         const character = this.characters.find(c => c.name === characterName);
         if (!character) {
@@ -780,9 +810,100 @@ class ShortDramaStudio {
             return;
         }
 
-        // 打开剧照生成页面
+        // 构建剧集目录名称
         const episodeDirectoryName = this.getEpisodeDirectoryName();
-        window.location.href = `/portrait-studio?novel=${encodeURIComponent(this.selectedNovel)}&character=${encodeURIComponent(characterName)}&episode=${encodeURIComponent(episodeDirectoryName)}`;
+
+        // 生成角色剧照提示词（参考旧代码逻辑）
+        const prompt = this.generateCharacterPortraitPrompt(character);
+
+        // 保存数据到localStorage供剧照工作台使用
+        const dataToSave = {
+            id: character.id,
+            name: character.name,
+            role: character.role || '',
+            description: character.description || '',
+            appearance: character.appearance || '',
+            generatedPrompt: prompt,
+            episode_info: episodeDirectoryName,
+            novel_title: this.selectedNovel,
+            return_url: `/short-drama-studio`, // 保存返回地址
+            return_step: 'check-portraits' // 保存返回步骤
+        };
+
+        console.log('📸 保存角色数据到localStorage:', dataToSave);
+        localStorage.setItem('portraitStudio_character', JSON.stringify(dataToSave));
+
+        // 打开剧照工作台（新窗口）
+        window.open('/portrait-studio?mode=episode', '_blank');
+    }
+
+    /**
+     * 根据角色信息生成AI剧照提示词（参考旧代码格式）
+     */
+    generateCharacterPortraitPrompt(character) {
+        const name = character.name || '';
+        const role = character.role || '';
+        const description = character.description || '';
+        const appearance = character.appearance || '';
+
+        // 根据角色类型确定风格和构图
+        let style = '';
+        let composition = '';
+        let expression = '';
+        let background = '';
+
+        // 角色类型分析
+        if (role.includes('主角') || role.includes('男主') || role.includes('女主')) {
+            style = '仙侠修真风格，高质量人物立绘';
+            composition = '半身正面像，胸部以上构图，突出面部特征';
+            expression = '自信坚定，眼神有神，气场强大';
+            background = '仙气缭绕的背景，云雾缭绕';
+        } else if (role.includes('反派') || role.includes('BOSS') || role.includes('敌人')) {
+            style = '仙侠反派风格，霸气外露';
+            composition = '全身像或半身像，威严姿态';
+            expression = '冷漠傲慢，眼神锐利，压迫感强';
+            background = '黑暗气息，神秘背景';
+        } else if (role.includes('长老') || role.includes('族长') || role.includes('宗师') || role.includes('真仙')) {
+            style = '仙侠高人风格，仙风道骨';
+            composition = '半身像，端庄肃穆';
+            expression = '慈祥中带着威严，眼神深邃';
+            background = '道家仙山，古色古香';
+        } else if (role.includes('少女') || role.includes('女主')) {
+            style = '仙侠美女风格，精致唯美';
+            composition = '半身像，优美姿态';
+            expression = '温柔恬静或娇俏可爱';
+            background = '花海或仙宫，梦幻氛围';
+        } else {
+            style = '仙侠人物立绘，精致细节';
+            composition = '半身正面像';
+            expression = '生动自然';
+            background = '仙侠风格背景';
+        }
+
+        // 构建完整提示词
+        let prompt = `角色名称：${name}\n`;
+        prompt += `角色定位：${role}\n`;
+        prompt += `\n`;
+        prompt += `【画面要求】\n`;
+        prompt += `风格：${style}\n`;
+        prompt += `构图：${composition}\n`;
+        prompt += `表情：${expression}\n`;
+        prompt += `背景：${background}\n`;
+
+        // 添加描述细节
+        if (description || appearance) {
+            prompt += `\n【角色特征】\n${appearance || description}\n`;
+        }
+
+        // 添加技术要求
+        prompt += `\n【技术要求】\n`;
+        prompt += `- 高清画质，细节精致\n`;
+        prompt += `- 专业插画质量\n`;
+        prompt += `- 光影效果出色，立体感强\n`;
+        prompt += `- 色彩和谐，符合仙侠美学\n`;
+        prompt += `- 人物比例协调，五官端正\n`;
+
+        return prompt;
     }
 
     /**
@@ -885,6 +1006,72 @@ class ShortDramaStudio {
     }
 
     /**
+     * 显示图片预览模态框
+     */
+    showImagePreview(imageUrl) {
+        const modal = document.createElement('div');
+        modal.className = 'image-preview-modal';
+
+        modal.innerHTML = `
+            <button class="image-preview-close" onclick="this.parentElement.remove()">✕</button>
+            <img src="${imageUrl}" alt="预览图">
+        `;
+
+        // 点击背景关闭
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.remove();
+            }
+        });
+
+        // ESC键关闭
+        const escHandler = (e) => {
+            if (e.key === 'Escape') {
+                modal.remove();
+                document.removeEventListener('keydown', escHandler);
+            }
+        };
+        document.addEventListener('keydown', escHandler);
+
+        document.body.appendChild(modal);
+    }
+
+    /**
+     * 获取项目视频生成设置
+     */
+    getVideoSettings() {
+        const settings = this.currentProject?.settings || {};
+        const aspectRatio = settings.aspect_ratio || '9:16';
+        const quality = settings.quality || '4K';
+
+        // 根据比例和质量计算实际分辨率
+        let size = '1920x1080'; // 默认 1080p
+        if (aspectRatio === '16:9') {
+            // 横屏: 宽x高
+            if (quality === '4K') size = '3840x2160';
+            else if (quality === '2K') size = '2560x1440';
+            else size = '1920x1080';
+        } else {
+            // 竖屏: 宽x高
+            if (quality === '4K') size = '2160x3840';
+            else if (quality === '2K') size = '1440x2560';
+            else size = '1080x1920';
+        }
+
+        // 4K需要使用专门的4K模型
+        let model = 'veo_3_1-fast-components';
+        if (quality === '4K') {
+            model = 'veo_3_1-fast-components-4K';
+        }
+
+        return {
+            orientation: aspectRatio === '16:9' ? 'landscape' : 'portrait',
+            size: size,
+            model: model
+        };
+    }
+
+    /**
      * 加载分镜头步骤
      */
     async loadStoryboardStep() {
@@ -982,21 +1169,58 @@ class ShortDramaStudio {
         const container = document.getElementById('storyboardContent');
         if (!container) return;
 
-        // 收集所有镜头
-        const allShots = [];
-        let episodeIndex = 0;
+        // 将分镜头转换为数组
+        const storyboardArray = Object.entries(storyboards).map(([title, data]) => {
+            // 从标题中提取集数进行排序，格式如 "1集_xxx"
+            const episodeMatch = title.match(/^(\d+)[集期]/);
+            const episodeNumber = episodeMatch ? parseInt(episodeMatch[1]) : 999;
+            return { title, data, episodeNumber };
+        });
 
-        for (const [title, data] of Object.entries(storyboards)) {
+        // 🔥 按照选择事件的顺序排序
+        storyboardArray.sort((a, b) => {
+            // 获取两个事件在 selectedEpisodes 中的索引
+            const indexA = this.selectedEpisodes.indexOf(a.title);
+            const indexB = this.selectedEpisodes.indexOf(b.title);
+
+            // 如果两个都在选择列表中，按选择顺序排序
+            if (indexA !== -1 && indexB !== -1) {
+                return indexA - indexB;
+            }
+            // 只有一个在选择列表中，选择的排在前面
+            if (indexA !== -1) return -1;
+            if (indexB !== -1) return 1;
+            // 都不在选择列表中，按集数排序
+            return a.episodeNumber - b.episodeNumber;
+        });
+
+        // 收集所有镜头，并按事件顺序 + 镜头编号排序
+        const allShots = [];
+
+        for (const { title, data, episodeNumber } of storyboardArray) {
             const shots = data.shots || [];
+            const selectedIndex = this.selectedEpisodes.indexOf(title);
             for (const shot of shots) {
                 allShots.push({
                     ...shot,
                     episode_title: title,
-                    episode_index: episodeIndex
+                    episode_index: episodeNumber,
+                    episode_order: selectedIndex === -1 ? 9999 : selectedIndex // 🔥 事件选择顺序
                 });
             }
-            episodeIndex++;
         }
+
+        // 🔥 按事件选择顺序 + 镜头编号排序
+        allShots.sort((a, b) => {
+            // 首先按事件选择顺序
+            if (a.episode_order !== b.episode_order) {
+                return a.episode_order - b.episode_order;
+            }
+            // 同一事件内按镜头编号排序
+            const numA = parseInt(a.shot_number) || 0;
+            const numB = parseInt(b.shot_number) || 0;
+            return numA - numB;
+        });
 
         if (allShots.length === 0) {
             container.innerHTML = `
@@ -1014,7 +1238,7 @@ class ShortDramaStudio {
         container.innerHTML = `
             <div style="margin-bottom: 1.5rem;">
                 <p style="font-size: 0.9rem; color: var(--text-secondary);">
-                    共 <strong>${allShots.length}</strong> 个镜头（从 ${Object.keys(storyboards).length} 个分镜头文件加载）
+                    共 <strong>${allShots.length}</strong> 个镜头（从 ${storyboardArray.length} 个分镜头文件加载）
                 </p>
             </div>
             <div class="shots-list">
@@ -1132,27 +1356,40 @@ class ShortDramaStudio {
      */
     async checkExistingVideos() {
         const episodeDirectoryName = this.getEpisodeDirectoryName();
-        const videosDir = `视频项目/${this.selectedNovel}/${episodeDirectoryName}/videos`;
 
-        // 为每个镜头检查视频是否存在
-        for (let i = 0; i < this.shots.length; i++) {
-            const shot = this.shots[i];
-            const videoFileName = this.sanitizeFileName(`${shot.shot_number || (i + 1)}_${shot.shot_type || 'shot'}.mp4`);
-            const videoPath = `${videosDir}/${videoFileName}`;
+        try {
+            // 使用新的API列出视频文件
+            const response = await fetch(`/api/short-drama/list-videos?novel=${encodeURIComponent(this.selectedNovel)}&episode=${encodeURIComponent(episodeDirectoryName)}`);
+            const data = await response.json();
 
-            // 这里可以通过 API 检查文件是否存在
-            try {
-                const response = await fetch(`/api/short-drama/check-video?path=${encodeURIComponent(videoPath)}`);
-                const data = await response.json();
+            if (data.videos && data.videos.length > 0) {
+                console.log('🎬 找到已存在的视频:', data.videos);
 
-                if (data.exists) {
-                    shot.videoExists = true;
-                    shot.videoPath = data.path || videoPath;
-                    shot.videoUrl = data.url || `/api/short-drama/video-file?path=${encodeURIComponent(videoPath)}`;
+                // 创建序号到视频信息的映射
+                const videoMap = {};
+                for (const video of data.videos) {
+                    videoMap[video.sequence] = video;
                 }
-            } catch (e) {
-                console.log('检查视频失败:', e);
+
+                // 为每个镜头匹配视频
+                for (let i = 0; i < this.shots.length; i++) {
+                    const shot = this.shots[i];
+                    // 使用全局序号（i+1）来匹配视频
+                    const seqNum = i + 1;
+                    const video = videoMap[seqNum];
+
+                    if (video) {
+                        shot.videoExists = true;
+                        shot.videoPath = video.path;
+                        shot.videoUrl = video.url;
+                        console.log(`✅ 镜头 #${seqNum} 视频已存在: ${video.filename}`);
+                    }
+                }
+            } else {
+                console.log('🎬 没有找到已存在的视频');
             }
+        } catch (e) {
+            console.error('检查视频失败:', e);
         }
     }
 
@@ -1203,14 +1440,16 @@ class ShortDramaStudio {
         const statusClass = isCompleted ? 'done' : isGenerating ? 'processing' : hasError ? 'error' : 'pending';
         const statusText = isCompleted ? '已完成' : isGenerating ? '生成中...' : hasError ? '失败' : '待生成';
 
-        // 参考图（如果有）
+        // 参考图缩略图
         const referenceImages = shot.reference_images || [];
-        const thumbnailHtml = referenceImages.length > 0
-            ? `<div class="task-thumbnail">
-                <img src="${referenceImages[0]}" alt="参考图" onerror="this.parentElement.innerHTML='<span class=\\'no-image\\'>📷</span>'">
-                ${referenceImages.length > 1 ? `<span class="thumb-count">+${referenceImages.length - 1}</span>` : ''}
-               </div>`
-            : `<div class="task-thumbnail"><span class="no-image">📷</span></div>`;
+        const hasRefs = referenceImages.length > 0;
+
+        // 生成参考图缩略图HTML（仅在有参考图时）
+        const refsThumbnailsHtml = hasRefs ? referenceImages.map(img => `
+            <div class="ref-thumb" onclick="event.stopPropagation(); shortDramaStudio.showImagePreview('${img}')">
+                <img src="${img}" alt="参考图">
+            </div>
+        `).join('') : '';
 
         // 视频预览（如果已完成）
         const videoPreviewHtml = isCompleted && shot.videoUrl
@@ -1231,22 +1470,36 @@ class ShortDramaStudio {
                     <div class="task-meta">
                         <span class="meta-tag">${shot.shot_type || '镜头'}</span>
                         <span class="meta-tag">⏱️ ${shot.duration || 5}秒</span>
+                        ${isCompleted ? '<span class="meta-tag success">📸 ' + referenceImages.length + '张参考</span>' : ''}
                     </div>
+                    ${isCompleted && hasRefs ? `
+                    <div class="task-refs">
+                        <span class="refs-label">参考图:</span>
+                        <div class="refs-thumbnails">${refsThumbnailsHtml}</div>
+                    </div>
+                    ` : ''}
                 </div>
                 <div class="task-visual">
-                    ${thumbnailHtml}
-                    <span class="visual-arrow">→</span>
+                    ${hasRefs ? `<div class="refs-thumbnails">${refsThumbnailsHtml}</div>` : '<div class="task-visual-empty"></div>'}
+                    ${hasRefs ? '<span class="visual-arrow">→</span>' : ''}
                     ${videoPreviewHtml}
                 </div>
                 <div class="task-actions">
                     <button class="task-btn edit-btn" onclick="shortDramaStudio.editShotPrompt(${idx})" title="编辑提示词">
                         <span>✏️</span>
                     </button>
-                    <button class="task-btn ${isCompleted ? 'view-btn' : 'generate-btn'}"
-                            onclick="${isCompleted ? `shortDramaStudio.previewVideo(${idx})` : `shortDramaStudio.generateShotVideo(${idx})`}"
-                            title="${isCompleted ? '查看视频' : '生成视频'}">
-                        <span>${isCompleted ? '👁️' : '🎬'}</span>
+                    ${isCompleted ? `
+                    <button class="task-btn view-btn" onclick="shortDramaStudio.previewVideo(${idx})" title="查看视频">
+                        <span>👁️</span>
                     </button>
+                    <button class="task-btn retry-btn" onclick="shortDramaStudio.generateShotVideo(${idx})" title="重新生成">
+                        <span>🔄</span>
+                    </button>
+                    ` : `
+                    <button class="task-btn generate-btn" onclick="shortDramaStudio.generateShotVideo(${idx})" title="生成视频">
+                        <span>🎬</span>
+                    </button>
+                    `}
                     ${hasError ? `<button class="task-btn retry-btn" onclick="shortDramaStudio.generateShotVideo(${idx})" title="重试"><span>🔄</span></button>` : ''}
                 </div>
                 <div class="task-status">
@@ -1294,16 +1547,17 @@ class ShortDramaStudio {
 
         try {
             const episodeDirectoryName = this.getEpisodeDirectoryName();
+            const videoSettings = this.getVideoSettings();
 
             const response = await fetch('/api/veo/generate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    model: 'veo_3_1-fast',
+                    model: videoSettings.model,
                     prompt: shot.veo_prompt || shot.screen_action || '',
                     image_urls: [],
-                    orientation: 'portrait',
-                    size: 'large',
+                    orientation: videoSettings.orientation,
+                    size: videoSettings.size,
                     watermark: false,
                     private: true,
                     metadata: {
@@ -1665,6 +1919,9 @@ class ShortDramaStudio {
         // 获取角色剧照数据
         const characterPortraits = this.characterPortraits;
 
+        // 获取项目视频设置作为默认值
+        const videoSettings = this.getVideoSettings();
+
         return new Promise((resolve) => {
             // 默认不选中任何图片，让用户手动选择
             const selectedImages = [];
@@ -1834,7 +2091,8 @@ class ShortDramaStudio {
                                         color: var(--text-primary);
                                         font-size: 0.95rem;
                                     ">
-                                        <option value="veo_3_1-fast-components" selected>参考图模式 (推荐)</option>
+                                        <option value="veo_3_1-fast-components-4K" ${videoSettings.model === 'veo_3_1-fast-components-4K' ? 'selected' : ''}>4K参考图模式</option>
+                                        <option value="veo_3_1-fast-components" ${videoSettings.model === 'veo_3_1-fast-components' ? 'selected' : ''}>1080p参考图模式</option>
                                         <option value="veo_3_1-fast">首尾帧模式</option>
                                     </select>
                                 </div>
@@ -1849,8 +2107,8 @@ class ShortDramaStudio {
                                         color: var(--text-primary);
                                         font-size: 0.95rem;
                                     ">
-                                        <option value="portrait" selected>竖屏 (9:16)</option>
-                                        <option value="landscape">横屏 (16:9)</option>
+                                        <option value="portrait" ${videoSettings.orientation === 'portrait' ? 'selected' : ''}>竖屏 (9:16)</option>
+                                        <option value="landscape" ${videoSettings.orientation === 'landscape' ? 'selected' : ''}>横屏 (16:9)</option>
                                     </select>
                                 </div>
                                 <div>
@@ -1864,8 +2122,12 @@ class ShortDramaStudio {
                                         color: var(--text-primary);
                                         font-size: 0.95rem;
                                     ">
-                                        <option value="large" selected>大尺寸 (1080p)</option>
-                                        <option value="small">小尺寸 (720p)</option>
+                                        <option value="2160x3840" ${videoSettings.size === '2160x3840' ? 'selected' : ''}>4K竖屏 (2160x3840)</option>
+                                        <option value="3840x2160" ${videoSettings.size === '3840x2160' ? 'selected' : ''}>4K横屏 (3840x2160)</option>
+                                        <option value="1440x2560" ${videoSettings.size === '1440x2560' ? 'selected' : ''}>2K竖屏 (1440x2560)</option>
+                                        <option value="2560x1440" ${videoSettings.size === '2560x1440' ? 'selected' : ''}>2K横屏 (2560x1440)</option>
+                                        <option value="1080x1920" ${videoSettings.size === '1080x1920' ? 'selected' : ''}>1080p竖屏 (1080x1920)</option>
+                                        <option value="1920x1080" ${videoSettings.size === '1920x1080' ? 'selected' : ''}>1080p横屏 (1920x1080)</option>
                                     </select>
                                 </div>
                             </div>
@@ -2055,6 +2317,9 @@ class ShortDramaStudio {
             throw new Error('cancelAll');
         }
         if (result.action !== 'generate') return;
+
+        // 保存选中的参考图到镜头数据
+        shot.reference_images = result.selectedImages || [];
 
         // 开始生成，显示进度弹窗
         this.showVideoProgressModal(shot, idx);
@@ -2397,16 +2662,17 @@ class ShortDramaStudio {
 
         try {
             const episodeDirectoryName = this.getEpisodeDirectoryName();
+            const videoSettings = this.getVideoSettings();
 
             const response = await fetch('/api/veo/generate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    model: 'veo_3_1-fast',
+                    model: videoSettings.model,
                     prompt: shot.veo_prompt || shot.screen_action || '',
                     image_urls: [],
-                    orientation: 'portrait',
-                    size: 'large',
+                    orientation: videoSettings.orientation,
+                    size: videoSettings.size,
                     watermark: false,
                     private: true,
                     metadata: {
@@ -2700,7 +2966,7 @@ class ShortDramaStudio {
         const shotsEl = document.getElementById('statusShots');
         const videosEl = document.getElementById('statusVideos');
 
-        if (episodesEl) episodesEl.textContent = this.selectedEpisodes.size;
+        if (episodesEl) episodesEl.textContent = this.selectedEpisodes.length;
         if (portraitsEl) portraitsEl.textContent = this.characterPortraits.size;
         if (shotsEl) shotsEl.textContent = this.shots?.length || 0;
         if (videosEl) videosEl.textContent = '0'; // TODO: 计算已完成视频数

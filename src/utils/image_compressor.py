@@ -47,7 +47,13 @@ def compress_image(
         if ',' in image_data:
             # 移除 data URL 前缀（如果有）
             image_data = image_data.split(',', 1)[1]
-        
+
+        # 🔥 修复 Base64 填充问题
+        # Base64 字符串长度必须是 4 的倍数，不足的用 = 填充
+        missing_padding = len(image_data) % 4
+        if missing_padding:
+            image_data += '=' * (4 - missing_padding)
+
         image_bytes = base64.b64decode(image_data)
         
         # 检查原始大小
@@ -199,15 +205,28 @@ def validate_and_compress_images(
 ) -> Tuple[list, dict]:
     """
     验证并压缩图片列表
-    
+
     Args:
         images: base64 图片列表
         max_size_mb: 最大允许大小（MB）
         quality: JPEG 压缩质量
-    
+
     Returns:
         (压缩后的图片列表, 压缩统计信息)
     """
+    import re
+
+    def is_valid_base64(s: str) -> bool:
+        """检查字符串是否是有效的 base64 数据"""
+        if not s or len(s) < 10:
+            return False
+        # Base64 只包含 A-Z, a-z, 0-9, +, /, = 字符
+        # 移除可能的 data URL 前缀
+        if ',' in s:
+            s = s.split(',', 1)[1]
+        pattern = r'^[A-Za-z0-9+/]*={0,2}$'
+        return bool(re.match(pattern, s))
+
     compressed_images = []
     stats = {
         'total': len(images),
@@ -217,31 +236,49 @@ def validate_and_compress_images(
         'total_original_size_mb': 0,
         'total_compressed_size_mb': 0
     }
-    
+
     for i, img in enumerate(images):
         try:
             if not img or not isinstance(img, str):
                 logger.warn(f"⚠️  图片 {i} 数据无效，跳过")
                 stats['failed'] += 1
                 continue
-            
+
+            # 🔥 检查是否是有效的 base64 数据
+            if not is_valid_base64(img):
+                logger.warn(f"⚠️  图片 {i} 不是有效的 base64 数据，跳过. 预览: {img[:100]}...")
+                stats['failed'] += 1
+                continue
+
             # 计算原始大小
             if ',' in img:
                 img_data = img.split(',', 1)[1]
             else:
                 img_data = img
-            
+
+            # 🔥 修复填充问题
+            missing_padding = len(img_data) % 4
+            if missing_padding:
+                img_data += '=' * (4 - missing_padding)
+
             original_bytes = len(base64.b64decode(img_data))
             stats['total_original_size_mb'] = stats.get('total_original_size_mb', 0.0) + original_bytes / (1024 * 1024)
-            
+
             # 压缩图片
             compressed = compress_image(img, max_size_mb, quality)
             compressed_images.append(compressed)
-            
+
             # 计算压缩后大小
-            compressed_bytes = len(base64.b64decode(compressed))
+            if ',' in compressed:
+                compressed_data = compressed.split(',', 1)[1]
+            else:
+                compressed_data = compressed
+            missing_padding = len(compressed_data) % 4
+            if missing_padding:
+                compressed_data += '=' * (4 - missing_padding)
+            compressed_bytes = len(base64.b64decode(compressed_data))
             stats['total_compressed_size_mb'] = stats.get('total_compressed_size_mb', 0.0) + compressed_bytes / (1024 * 1024)
-            
+
             if compressed_bytes < original_bytes:
                 stats['compressed'] += 1
             else:

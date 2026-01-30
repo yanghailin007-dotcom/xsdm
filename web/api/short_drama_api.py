@@ -511,6 +511,89 @@ def serve_project_file(filepath):
         return jsonify({'error': str(e)}), 500
 
 
+@short_drama_api.route('/check-video', methods=['GET'])
+def check_video():
+    """检查视频文件是否存在"""
+    try:
+        from urllib.parse import unquote
+
+        video_path = request.args.get('path')
+        if not video_path:
+            return jsonify({'exists': False}), 400
+
+        # 解码路径
+        decoded_path = unquote(video_path)
+
+        logger.info(f'🎬 [视频检查] 检查文件: {decoded_path}')
+
+        file_path = VIDEO_PROJECTS_DIR / decoded_path
+
+        if file_path.exists() and file_path.is_file():
+            # 返回相对路径用于API访问
+            rel_path = file_path.relative_to(VIDEO_PROJECTS_DIR)
+            url = f"/api/short-drama/projects/{rel_path.as_posix()}"
+
+            logger.info(f'🎬 [视频检查] 文件存在: {file_path}')
+            return jsonify({
+                'exists': True,
+                'path': str(file_path),
+                'url': url
+            })
+        else:
+            logger.info(f'🎬 [视频检查] 文件不存在: {file_path}')
+            return jsonify({'exists': False})
+    except Exception as e:
+        logger.error(f'检查视频失败: {e}')
+        return jsonify({'exists': False, 'error': str(e)}), 500
+
+
+@short_drama_api.route('/list-videos', methods=['GET'])
+def list_videos():
+    """列出指定目录的视频文件"""
+    try:
+        from urllib.parse import unquote
+
+        episode = request.args.get('episode')
+        novel = request.args.get('novel')
+
+        if not episode or not novel:
+            return jsonify({'videos': []}), 400
+
+        # 构建视频目录路径
+        video_dir = VIDEO_PROJECTS_DIR / novel / episode / 'videos'
+
+        logger.info(f'🎬 [视频列表] 扫描目录: {video_dir}')
+
+        if not video_dir.exists():
+            return jsonify({'videos': []})
+
+        videos = []
+        for video_file in video_dir.glob('*.mp4'):
+            # 从文件名提取序号: "3_全景_快速摇镜头.mp4" -> 3
+            name = video_file.stem  # 不含扩展名
+            import re
+            match = re.match(r'^(\d+)_', name)
+            if match:
+                seq_num = int(match.group(1))
+                videos.append({
+                    'sequence': seq_num,
+                    'name': name,
+                    'filename': video_file.name,
+                    'path': str(video_file.relative_to(VIDEO_PROJECTS_DIR)),
+                    'url': f"/api/short-drama/projects/{video_file.relative_to(VIDEO_PROJECTS_DIR).as_posix()}"
+                })
+
+        # 按序号排序
+        videos.sort(key=lambda v: v['sequence'])
+
+        logger.info(f'🎬 [视频列表] 找到 {len(videos)} 个视频文件')
+        return jsonify({'videos': videos})
+
+    except Exception as e:
+        logger.error(f'列出视频失败: {e}')
+        return jsonify({'videos': [], 'error': str(e)}), 500
+
+
 @short_drama_api.route('/characters/<character_id>/portrait', methods=['POST'])
 def generate_character_portrait(character_id):
     """生成角色剧照"""

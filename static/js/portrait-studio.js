@@ -54,14 +54,39 @@ function loadCharacterFromWorkflow() {
                 console.log('✅ [剧照工作室] 已更新页面标题');
             }
 
-            // 清除localStorage，避免下次打开还使用旧数据
-            localStorage.removeItem('portraitStudio_character');
-            console.log('✅ [剧照工作室] 已清除localStorage中的角色数据');
+            // 设置返回按钮
+            const backBtn = document.getElementById('btnBack');
+            if (backBtn) {
+                const returnUrl = loadedCharacter.return_url || '/landing';
+                backBtn.onclick = () => {
+                    window.location.href = returnUrl;
+                };
+                console.log('✅ [剧照工作室] 已设置返回按钮到:', returnUrl);
+            }
+
+            // 不清除localStorage，因为保存了返回地址等数据
+            // localStorage.removeItem('portraitStudio_character');
         } else {
             console.log('ℹ️ [剧照工作室] localStorage中没有角色数据');
+
+            // 没有数据时，返回按钮默认去首页
+            const backBtn = document.getElementById('btnBack');
+            if (backBtn) {
+                backBtn.onclick = () => {
+                    window.location.href = '/landing';
+                };
+            }
         }
     } catch (e) {
         console.error('❌ [剧照工作室] 加载角色数据失败:', e);
+
+        // 出错时，返回按钮默认去首页
+        const backBtn = document.getElementById('btnBack');
+        if (backBtn) {
+            backBtn.onclick = () => {
+                window.location.href = '/landing';
+            };
+        }
     }
 }
 
@@ -281,7 +306,7 @@ async function generatePortrait() {
     }
 
     const aspectRatio = document.querySelector('.ratio-btn.active')?.dataset.ratio || '9:16';
-    const imageSize = document.getElementById('qualitySelect')?.value || '4K';
+    const imageSize = document.getElementById('qualitySelect')?.value || '1K';
     const styleSelect = document.getElementById('styleSelect')?.value || '';
 
     // 显示进度
