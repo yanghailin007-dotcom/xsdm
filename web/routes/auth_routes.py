@@ -196,7 +196,13 @@ def register_page_routes(app):
     def video_generation():
         """视频生成页面"""
         return render_template('video-generation.html')
-    
+
+    @app.route('/short-drama-studio', methods=['GET'])
+    @login_required
+    def short_drama_studio():
+        """短剧工作台页面"""
+        return render_template('short-drama-studio.html')
+
     @app.route('/video-generation-debug', methods=['GET'])
     @login_required
     def video_generation_debug():
