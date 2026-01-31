@@ -117,6 +117,41 @@ def create_video_generation():
         if metadata:
             logger.info(f"📁 视频元数据: {metadata}")
 
+        # 🔥 质量检查 - 如果提供了小说标题，对剧本进行质量检查
+        skip_quality_check = data.get('skip_quality_check', False)
+        if not skip_quality_check and metadata.get('novel_title'):
+            try:
+                from web.api.script_quality_check import ScriptQualityChecker, load_all_novel_data
+
+                novel_title = metadata.get('novel_title', '')
+                episode_title = metadata.get('episode_title', '')
+
+                # 构建待检查的镜头数据
+                check_shots = [{
+                    "description": data.get('prompt', ''),
+                    "veo_prompt": data.get('prompt', ''),
+                    "shot_type": metadata.get('shot_type', '中景'),
+                    "generation_prompt": data.get('prompt', '')
+                }]
+
+                # 使用新的API加载所有小说数据
+                novel_data = load_all_novel_data(novel_title)
+                checker = ScriptQualityChecker(novel_data, novel_title)
+                result = checker.check(check_shots, episode_title)
+
+                logger.info(f"📋 剧本质量检查结果: 评分={result.score}, 通过={result.passed}")
+
+                # 如果有严重问题，记录警告但仍然允许生成（前端已做拦截）
+                if not result.passed:
+                    critical_issues = [i for i in result.issues if i.get('severity') == 'critical']
+                    if critical_issues:
+                        logger.warning(f"⚠️ 剧本质量检查未通过: {len(critical_issues)} 个严重问题")
+                        for issue in critical_issues:
+                            logger.warning(f"  - {issue.get('message')}: {issue.get('suggestion')}")
+
+            except Exception as e:
+                logger.warning(f"⚠️ 质量检查失败，继续生成: {e}")
+
         veo_request = VeOCreateVideoRequest(
             images=images,
             model=auto_model,

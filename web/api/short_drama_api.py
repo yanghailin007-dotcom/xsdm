@@ -497,14 +497,13 @@ def serve_project_file(filepath):
         # 解码路径
         decoded_path = unquote(filepath)
 
-        logger.info(f'📸 [剧照] 请求文件: {decoded_path}')
-
         file_path = VIDEO_PROJECTS_DIR / decoded_path
 
         if file_path.exists() and file_path.is_file():
+            # 正常情况不打印日志
             return send_from_directory(str(file_path.parent), file_path.name)
         else:
-            logger.warning(f'📸 [剧照] 文件不存在: {file_path}')
+            logger.error(f'📸 [剧照] 文件不存在: {file_path}')
             return jsonify({'error': '文件不存在'}), 404
     except Exception as e:
         logger.error(f'提供文件访问失败: {e}')

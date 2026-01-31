@@ -3047,13 +3047,7 @@ def get_video_project(project_name):
                         "status": "pending",
                         "visual_style": storyboard_data.get("visual_style_guide", {}).get("overall_style", "写实")
                     })
-景别：{shot.get('shot_type', '中景')}
-运镜：{shot.get('camera_movement', '固定')}
-时长：{shot.get('duration_seconds', 5)}秒""",
-                        "status": "pending",
-                        "visual_style": storyboard_data.get("visual_style_guide", {}).get("overall_style", "写实")
-                    })
-        
+
         logger.info(f"📊 [VIDEO] 加载项目 {project_name}: {len(shots)} 个镜头")
         
         return jsonify({

@@ -61,6 +61,7 @@ from web.api.character_api import register_character_routes
 from web.api.veo_video_api import register_veo_video_routes
 from web.api.still_image_api import register_still_image_routes
 from web.api.short_drama_api import register_short_drama_routes
+from web.api.script_quality_check import register_script_quality_routes
 
 # 导入页面路由模块
 from web.routes.auth_routes import register_auth_routes, register_page_routes
@@ -299,6 +300,9 @@ def create_app():
 
     # 17. 短剧工作台 API 路由
     register_short_drama_routes(app)
+
+    # 18. 剧本质量检查 API 路由
+    register_script_quality_routes(app)
 
     return app, manager
 
@@ -1034,7 +1038,7 @@ def main():
     
     # 注册退出清理函数
     atexit.register(cleanup_on_exit)
-    
+
     # 打印操作提示
     logger.info("=" * 60)
     logger.info("💡 使用提示：")
@@ -1042,10 +1046,24 @@ def main():
     logger.info("   • 复制日志内容请使用：右键 -> 标记 -> 选择文本 -> Enter")
     logger.info("   • 或者使用 Ctrl+Shift+C（部分终端支持）")
     logger.info("=" * 60)
-    
+
     # 创建应用实例
     app, manager = create_app()
-    
+
+    # 🔥 过滤werkzeug的视频文件请求日志
+    class VideoRequestFilter(logging.Filter):
+        def filter(self, record):
+            # 只记录非200的响应或非视频文件的请求
+            msg = record.getMessage()
+            if '.mp4' in msg and '206' in msg:
+                return False  # 不记录视频文件的部分内容请求
+            if '.mp4' in msg and '200' in msg:
+                return False  # 不记录视频文件的完整请求
+            return True
+
+    werkzeug_logger = logging.getLogger('werkzeug')
+    werkzeug_logger.addFilter(VideoRequestFilter())
+
     # 🔥 修复：禁用热重载，避免多进程队列问题
     app.run(
         host=FlaskConfig.HOST,

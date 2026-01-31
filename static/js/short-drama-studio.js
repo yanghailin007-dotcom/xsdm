@@ -17,6 +17,7 @@ class ShortDramaStudio {
         this.characterPortraits = new Map();
         this.shots = [];
         this.stopBatchGeneration = false;
+        this._improvedData = null; // 用于存储剧本改进数据
 
         // 后台任务跟踪
         this.backgroundTasks = new Map(); // taskId -> { shotIndex, shot, startTime, progress, status }
@@ -1419,6 +1420,10 @@ class ShortDramaStudio {
                             <span class="btn-icon">🔄</span>
                             <span class="btn-text">刷新</span>
                         </button>
+                        <button class="toolbar-btn" onclick="shortDramaStudio.runQualityCheck()">
+                            <span class="btn-icon">📋</span>
+                            <span class="btn-text">剧本质量检查</span>
+                        </button>
                         <button class="toolbar-btn primary" onclick="shortDramaStudio.batchGenerateFirstFive()">
                             <span class="btn-icon">🚀</span>
                             <span class="btn-text">批量生成（前5个）</span>
@@ -2495,6 +2500,28 @@ class ShortDramaStudio {
         }
         if (result.action !== 'generate') return;
 
+        // 🔥 质量检查 - 在生成视频前对剧本进行严格检查
+        const qualityCheckResult = await this.checkScriptQuality([shot]);
+        if (!qualityCheckResult.passed) {
+            const criticalIssues = qualityCheckResult.issues.filter(i => i.severity === 'critical');
+            if (criticalIssues.length > 0) {
+                const confirmed = confirm(
+                    `⚠️ 剧本质量检查未通过！\n\n` +
+                    `发现 ${criticalIssues.length} 个严重问题：\n` +
+                    criticalIssues.map(i => `• ${i.message}`).join('\n') +
+                    `\n\n建议：\n` +
+                    `• ${qualityCheckResult.recommendations.join('\n• ')}\n\n` +
+                    `是否仍要继续生成？（不推荐）`
+                );
+                if (!confirmed) {
+                    this.showToast('已取消生成，请先优化剧本', 'warning');
+                    return;
+                }
+            }
+        } else if (qualityCheckResult.score < 80) {
+            this.showToast(`剧本质量评分: ${qualityCheckResult.score}/100 - 建议优化后再生成`, 'info');
+        }
+
         // 保存选中的参考图到镜头数据
         shot.reference_images = result.selectedImages || [];
 
@@ -2720,6 +2747,451 @@ class ShortDramaStudio {
             console.error('下载失败:', error);
             this.showToast('下载失败', 'error');
         }
+    }
+
+    /**
+     * 检查剧本质量
+     * 在生成视频前对剧本进行严格检查，确保符合视频生成要求
+     */
+    async checkScriptQuality(shots) {
+        try {
+            const episodeDirectoryName = this.getEpisodeDirectoryName();
+            const response = await fetch('/api/script/quality-check', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    novel_title: this.selectedNovel || '',
+                    episode_title: episodeDirectoryName,
+                    shots: shots
+                })
+            });
+
+            const data = await response.json();
+            if (data.success !== false) {
+                return {
+                    passed: data.passed || false,
+                    score: data.score || 0,
+                    issues: data.issues || [],
+                    warnings: data.warnings || [],
+                    recommendations: data.recommendations || []
+                };
+            }
+            // API返回失败，返回低分
+            return { passed: false, score: 0, issues: [], warnings: [], recommendations: ['无法连接到质量检查服务'] };
+        } catch (error) {
+            console.error('质量检查失败:', error);
+            // 质量检查失败时返回低分，表示无法验证
+            return { passed: false, score: 0, issues: [], warnings: [], recommendations: ['质量检查服务异常'] };
+        }
+    }
+
+    /**
+     * 运行剧本质量检查（手动触发）
+     */
+    async runQualityCheck() {
+        if (this.shots.length === 0) {
+            this.showToast('没有可检查的镜头数据', 'warning');
+            return;
+        }
+
+        this.showToast('正在检查剧本质量...', 'info');
+        this.showLoading('正在分析剧本...');
+
+        const result = await this.checkScriptQuality(this.shots);
+        this.hideLoading();
+
+        // 如果评分低于80分，自动获取改进建议
+        let improvedData = null;
+        if (result.score < 80) {
+            this.showLoading('正在生成改进方案...');
+            improvedData = await this.getScriptImprovements(this.shots, result);
+            this.hideLoading();
+        }
+
+        // 显示质量检查结果弹窗
+        this.showQualityCheckModal(result, improvedData);
+    }
+
+    /**
+     * 获取剧本改进方案
+     */
+    async getScriptImprovements(shots, checkResult) {
+        try {
+            const episodeDirectoryName = this.getEpisodeDirectoryName();
+            const response = await fetch('/api/script/improve', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    novel_title: this.selectedNovel || '',
+                    episode_title: episodeDirectoryName,
+                    shots: shots,
+                    issues: checkResult.issues || [],
+                    improve_type: 'script'
+                })
+            });
+
+            const data = await response.json();
+            if (data.success !== false && data.improved_shots) {
+                return data;
+            }
+            return null;
+        } catch (e) {
+            console.error('获取改进方案失败:', e);
+            return null;
+        }
+    }
+
+    /**
+     * 显示质量检查结果弹窗（带修复功能）
+     */
+    showQualityCheckModal(result, improvedData) {
+        const issuesHtml = result.issues.map(i => {
+            const severityIcon = i.severity === 'critical' ? '🔴' : i.severity === 'warning' ? '⚠️' : 'ℹ️';
+            return `<li>${severityIcon} <strong>${i.category}:</strong> ${i.message}<br><small class="text-secondary">${i.suggestion || ''}</small></li>`;
+        }).join('');
+
+        const warningsHtml = result.warnings.map(w => `<li>⚠️ ${w}</li>`).join('');
+
+        const recommendationsHtml = result.recommendations.map(r => `<li>💡 ${r}</li>`).join('');
+
+        const scoreColor = result.score >= 80 ? '#4caf50' : result.score >= 60 ? '#ff9800' : '#f44336';
+        const scoreText = result.score >= 80 ? '良好' : result.score >= 60 ? '及格' : '需改进';
+
+        // 是否显示修复按钮
+        const showFixButton = result.score < 80 && improvedData && improvedData.improved_shots;
+
+        // 设计文件变更列表
+        let designChangesHtml = '';
+        if (improvedData && improvedData.design_changes && improvedData.design_changes.length > 0) {
+            designChangesHtml = `
+                <div style="margin-bottom: 16px; padding: 12px; background: rgba(255,152,0,0.1); border-left: 3px solid #ff9800; border-radius: 4px;">
+                    <h4 style="margin: 0 0 8px 0; font-size: 14px; color: #ff9800;">📁 需要修改的设计文件 (${improvedData.design_changes.length})</h4>
+                    <ul style="margin: 0; padding-left: 20px; font-size: 13px;">
+                        ${improvedData.design_changes.map(c => `
+                            <li><strong>${c.file}</strong>: ${c.issue}</li>
+                        `).join('')}
+                    </ul>
+                </div>
+            `;
+        }
+
+        // 改进摘要
+        let improvementSummaryHtml = '';
+        if (improvedData && improvedData.improvements_summary) {
+            improvementSummaryHtml = `
+                <div style="margin-bottom: 16px; padding: 12px; background: rgba(76,175,80,0.1); border-left: 3px solid #4caf50; border-radius: 4px;">
+                    <h4 style="margin: 0 0 8px 0; font-size: 14px; color: #4caf50;">✨ 改进方案摘要</h4>
+                    <p style="margin: 0; font-size: 13px; line-height: 1.5;">${improvedData.improvements_summary}</p>
+                </div>
+            `;
+        }
+
+        const modalId = 'qualityCheckModal_' + Date.now();
+        const modalHtml = `
+            <div id="${modalId}" class="modal-overlay" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 10000;">
+                <div class="modal-content" style="background: var(--bg-primary); border-radius: 12px; padding: 24px; max-width: 650px; max-height: 85vh; overflow-y: auto; color: var(--text-primary); box-shadow: 0 10px 40px rgba(0,0,0,0.3);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h2 style="margin: 0; display: flex; align-items: center; gap: 8px;">📋 剧本质量检查报告</h2>
+                        <button onclick="document.getElementById('${modalId}').remove()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: var(--text-secondary);">×</button>
+                    </div>
+
+                    <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 20px; padding: 16px; background: var(--bg-secondary); border-radius: 8px;">
+                        <div style="text-align: center;">
+                            <div style="font-size: 48px; font-weight: bold; color: ${scoreColor};">${result.score}</div>
+                            <div style="font-size: 14px; color: var(--text-secondary);">质量评分</div>
+                        </div>
+                        <div style="flex: 1;">
+                            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                <span style="width: 12px; height: 12px; border-radius: 50%; background: ${result.passed ? '#4caf50' : '#f44336'};"></span>
+                                <span style="font-weight: 500;">${result.passed ? '检查通过 ✅' : '检查未通过 ❌'}</span>
+                            </div>
+                            <div style="font-size: 14px; color: ${scoreColor}; font-weight: 500;">${scoreText}</div>
+                        </div>
+                    </div>
+
+                    ${improvementSummaryHtml}
+
+                    ${result.issues.length > 0 ? `
+                    <div style="margin-bottom: 16px;">
+                        <h3 style="margin: 0 0 10px 0; font-size: 15px; display: flex; align-items: center; gap: 6px;">⚠️ 发现的问题 (${result.issues.length})</h3>
+                        <ul style="margin: 0; padding-left: 20px; font-size: 13px;">${issuesHtml}</ul>
+                    </div>
+                    ` : ''}
+
+                    ${result.warnings.length > 0 ? `
+                    <div style="margin-bottom: 16px;">
+                        <h3 style="margin: 0 0 10px 0; font-size: 15px;">💡 警告 (${result.warnings.length})</h3>
+                        <ul style="margin: 0; padding-left: 20px; font-size: 13px;">${warningsHtml}</ul>
+                    </div>
+                    ` : ''}
+
+                    ${result.recommendations.length > 0 ? `
+                    <div style="margin-bottom: 16px;">
+                        <h3 style="margin: 0 0 10px 0; font-size: 15px;">📝 改进建议</h3>
+                        <ul style="margin: 0; padding-left: 20px; font-size: 13px;">${recommendationsHtml}</ul>
+                    </div>
+                    ` : ''}
+
+                    ${designChangesHtml}
+
+                    <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 12px; flex-wrap: wrap;">
+                        ${showFixButton ? `
+                            <button onclick="shortDramaStudio.showFixConfirm()"
+                                    style="padding: 10px 20px; background: linear-gradient(135deg, #4caf50, #45a049); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 500; display: flex; align-items: center; gap: 6px;">
+                                <span>🔧</span>
+                                <span>一键修复 (${improvedData.improved_shots.length}个镜头)</span>
+                            </button>
+                        ` : ''}
+                        <button onclick="document.getElementById('${modalId}').remove()" style="padding: 10px 20px; background: var(--bg-secondary); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 6px; cursor: pointer;">
+                            关闭
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+        // 保存改进数据供后续使用
+        this.setImprovedData(improvedData);
+    }
+
+    /**
+     * 显示修复确认对话框（从按钮触发）
+     */
+    showFixConfirm() {
+        console.log('[DEBUG] showFixConfirm called');
+        const improvedData = this.getImprovedData();
+        console.log('[DEBUG] improvedData:', improvedData);
+        if (!improvedData) {
+            this.showToast('改进数据丢失，请重新检查', 'error');
+            return;
+        }
+        this.showFixConfirmDialog(improvedData);
+    }
+
+    /**
+     * 显示修复确认对话框
+     */
+    async showFixConfirmDialog(improvedData) {
+        return new Promise((resolve) => {
+            const improvedShots = improvedData.improved_shots || [];
+            const designChanges = improvedData.design_changes || [];
+
+            // 统计修复内容
+            const fixSummary = [];
+            fixSummary.push(`📝 将修复 ${improvedShots.length} 个镜头`);
+            if (designChanges.length > 0) {
+                fixSummary.push(`📁 将更新 ${designChanges.length} 个设计文件`);
+            }
+
+            // 生成完整的修复项列表（所有镜头）
+            const keyFixesHtml = improvedShots.map((shot, i) => {
+                // 优先使用index，否则使用数组索引+1作为镜头号
+                const shotNum = shot.index !== undefined && shot.index !== null ? shot.index + 1 : i + 1;
+                const reason = shot.improvement_reason || '优化描述';
+                const shortReason = reason.length > 50 ? reason.substring(0, 50) + '...' : reason;
+                return `<li style="padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.1);"><strong>镜头${shotNum}</strong>: ${shortReason}</li>`;
+            }).join('');
+
+            const modalId = 'fixConfirmModal_' + Date.now();
+            const modalHtml = `
+                <div id="${modalId}" class="modal-overlay" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 10001;">
+                    <div class="modal-content" style="background: var(--bg-primary); border-radius: 12px; padding: 24px; max-width: 600px; max-height: 85vh; overflow: hidden; display: flex; flex-direction: column; color: var(--text-primary); box-shadow: 0 10px 40px rgba(0,0,0,0.4);">
+                        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px; flex-shrink: 0;">
+                            <span style="font-size: 32px;">🔧</span>
+                            <h2 style="margin: 0;">确认应用修复</h2>
+                        </div>
+
+                        <div style="flex: 1; overflow-y: auto; margin-bottom: 20px;">
+                            <p style="margin: 0 0 16px 0; color: var(--text-secondary);">AI分析发现剧本存在以下问题，建议应用修复。此操作将覆盖现有镜头数据。</p>
+
+                            <div style="padding: 12px; background: var(--bg-secondary); border-radius: 8px; margin-bottom: 12px;">
+                                <div style="font-weight: 500; margin-bottom: 8px;">修复摘要:</div>
+                                ${fixSummary.map(s => `<div style="padding: 4px 0;">${s}</div>`).join('')}
+                            </div>
+
+                            ${improvedShots.length > 0 ? `
+                            <div style="padding: 12px; background: rgba(255,152,0,0.1); border-radius: 8px;">
+                                <div style="font-weight: 500; margin-bottom: 8px;">将修复以下镜头 (${improvedShots.length}个):</div>
+                                <ul style="margin: 0; padding-left: 20px; font-size: 13px; max-height: 300px; overflow-y: auto;">
+                                    ${keyFixesHtml}
+                                </ul>
+                            </div>
+                            ` : ''}
+                        </div>
+
+                        <div style="display: flex; gap: 12px; justify-content: flex-end; flex-shrink: 0;">
+                            <button onclick="shortDramaStudio.cancelFixConfirm('${modalId}')"
+                                    style="padding: 10px 20px; background: var(--bg-secondary); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 6px; cursor: pointer;">
+                                取消
+                            </button>
+                            <button onclick="shortDramaStudio.confirmFixApply()"
+                                    style="padding: 10px 20px; background: linear-gradient(135deg, #4caf50, #45a049); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 500;">
+                                确认修复
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+            // 保存当前modalId和resolve函数供按钮调用
+            this._fixConfirmModalId = modalId;
+            this._fixConfirmResolve = resolve;
+        });
+    }
+
+    /**
+     * 取消修复确认
+     */
+    cancelFixConfirm(modalId) {
+        if (this._fixConfirmResolve) {
+            this._fixConfirmResolve(false);
+            this._fixConfirmResolve = null;
+        }
+        this._fixConfirmModalId = null;
+        document.getElementById(modalId)?.remove();
+    }
+
+    /**
+     * 确认并应用修复
+     */
+    async confirmFixApply() {
+        if (this._fixConfirmResolve) {
+            this._fixConfirmResolve(true);
+            this._fixConfirmResolve = null;
+        }
+        // 关闭确认弹窗
+        const modalId = this._fixConfirmModalId;
+        this._fixConfirmModalId = null;
+        document.getElementById(modalId)?.remove();
+
+        // 执行应用修复
+        await this._doApplyFixes();
+    }
+
+    /**
+     * 执行修复的内部方法
+     */
+    async _doApplyFixes() {
+        const improvedData = this.getImprovedData();
+        if (!improvedData) {
+            this.showToast('改进数据丢失，请重新检查', 'error');
+            return;
+        }
+
+        this.showLoading('正在应用修复...');
+
+        try {
+            const episodeDirectoryName = this.getEpisodeDirectoryName();
+            const response = await fetch('/api/script/apply-fixes', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    novel_title: this.selectedNovel || '',
+                    episode_title: episodeDirectoryName,
+                    original_shots: this.shots,
+                    improved_shots: improvedData.improved_shots || [],
+                    design_changes: improvedData.design_changes || [],
+                    apply_design_changes: true
+                })
+            });
+
+            const data = await response.json();
+            this.hideLoading();
+
+            if (data.success) {
+                // 更新本地镜头数据
+                if (data.updated_shots) {
+                    this.shots = data.updated_shots;
+                    this.renderVideoCards();
+                }
+
+                // 显示成功消息
+                let successMsg = `✅ 修复完成！\n\n${data.summary || ''}`;
+                if (data.design_files_updated && data.design_files_updated.length > 0) {
+                    successMsg += `\n\n已更新设计文件:\n• ${data.design_files_updated.join('\n• ')}`;
+                }
+                this.showToast(successMsg, 'success');
+
+                // 显示修复对比弹窗
+                this.showFixCompareModal(improvedData);
+            } else {
+                this.showToast(`修复失败: ${data.error || '未知错误'}`, 'error');
+            }
+        } catch (e) {
+            this.hideLoading();
+            console.error('应用修复失败:', e);
+            this.showToast(`修复失败: ${e.message}`, 'error');
+        }
+    }
+
+    /**
+     * 显示修复对比弹窗
+     */
+    showFixCompareModal(improvedData) {
+        const improvedShots = improvedData.improved_shots || [];
+        if (improvedShots.length === 0) return;
+
+        const modalId = 'fixCompareModal_' + Date.now();
+
+        // 生成完整的修复列表（所有镜头）
+        const compareItems = improvedShots.map((shot, i) => {
+            // 优先使用index，否则使用数组索引+1作为镜头号
+            const shotNum = shot.index !== undefined && shot.index !== null ? shot.index + 1 : i + 1;
+            const newDesc = shot.description || '';
+            const newDialogue = shot.dialogue || '';
+            const reason = shot.improvement_reason || '优化描述';
+
+            return `
+                <div style="margin-bottom: 16px; padding: 12px; background: var(--bg-secondary); border-radius: 8px; border-left: 3px solid var(--primary);">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap;">
+                        <span style="background: var(--primary); color: white; padding: 3px 10px; border-radius: 4px; font-size: 13px; font-weight: 500;">📹 镜头 ${shotNum}</span>
+                        <span style="color: #4caf50; font-size: 12px;">${reason}</span>
+                    </div>
+                    ${newDialogue ? `<div style="margin-bottom: 6px; padding: 6px 10px; background: rgba(100,149,237,0.1); border-radius: 4px; font-size: 13px;">💬 ${newDialogue}</div>` : ''}
+                    <div style="font-size: 13px; color: var(--text-secondary); line-height: 1.5;">${newDesc}</div>
+                </div>
+            `;
+        }).join('');
+
+        const modalHtml = `
+            <div id="${modalId}" class="modal-overlay" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 10002;">
+                <div class="modal-content" style="background: var(--bg-primary); border-radius: 12px; padding: 24px; max-width: 650px; max-height: 85vh; overflow: hidden; display: flex; flex-direction: column; color: var(--text-primary);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-shrink: 0;">
+                        <h2 style="margin: 0; display: flex; align-items: center; gap: 8px;">✅ 修复完成 - 共 ${improvedShots.length} 个镜头</h2>
+                        <button onclick="document.getElementById('${modalId}').remove()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: var(--text-secondary);">×</button>
+                    </div>
+
+                    <p style="margin: 0 0 16px 0; color: var(--text-secondary); flex-shrink: 0;">以下是所有镜头的修复详情：</p>
+
+                    <div style="flex: 1; overflow-y: auto; padding-right: 8px;">
+                        ${compareItems}
+                    </div>
+
+                    <div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border-color); text-align: right; flex-shrink: 0;">
+                        <button onclick="document.getElementById('${modalId}').remove()" style="padding: 10px 20px; background: var(--primary); color: white; border: none; border-radius: 6px; cursor: pointer;">
+                            知道了
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+    }
+
+    /**
+     * 存储改进数据到实例变量（用于跨方法传递）
+     */
+    setImprovedData(data) {
+        this._improvedData = data;
+    }
+
+    getImprovedData() {
+        return this._improvedData;
     }
 
     /**
@@ -3081,8 +3553,75 @@ class ShortDramaStudio {
     }
 
     /**
-     * 保存项目
+     * 显示加载遮罩
      */
+    showLoading(message = '加载中...') {
+        // 移除已存在的loading
+        this.hideLoading();
+
+        const overlay = document.createElement('div');
+        overlay.id = 'loadingOverlay';
+        overlay.className = 'loading-overlay';
+        overlay.innerHTML = `
+            <div class="loading-spinner">
+                <div class="spinner"></div>
+                <div class="loading-text">${message}</div>
+            </div>
+        `;
+
+        // 添加样式
+        if (!document.getElementById('loadingStyles')) {
+            const style = document.createElement('style');
+            style.id = 'loadingStyles';
+            style.textContent = `
+                .loading-overlay {
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    bottom: 0;
+                    background: rgba(0, 0, 0, 0.7);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    z-index: 9999;
+                }
+                .loading-spinner {
+                    text-align: center;
+                    color: white;
+                }
+                .spinner {
+                    width: 40px;
+                    height: 40px;
+                    margin: 0 auto 16px;
+                    border: 4px solid rgba(255, 255, 255, 0.3);
+                    border-top-color: var(--primary, #4CAF50);
+                    border-radius: 50%;
+                    animation: spin 1s linear infinite;
+                }
+                .loading-text {
+                    font-size: 14px;
+                }
+                @keyframes spin {
+                    to { transform: rotate(360deg); }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+
+        document.body.appendChild(overlay);
+    }
+
+    /**
+     * 隐藏加载遮罩
+     */
+    hideLoading() {
+        const overlay = document.getElementById('loadingOverlay');
+        if (overlay) {
+            overlay.remove();
+        }
+    }
+
     /**
      * 保存项目
      */
@@ -3181,3 +3720,5 @@ class ShortDramaStudio {
 
 // 初始化
 const shortDramaStudio = new ShortDramaStudio();
+// 暴露到全局作用域供inline onclick使用
+window.shortDramaStudio = shortDramaStudio;
