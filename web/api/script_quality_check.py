@@ -665,26 +665,32 @@ def _find_matching_storyboard_file(shot: dict, storyboard_files: list) -> tuple:
             # 计算匹配分数
             score = 0
             if existing_number == shot_number:
-                score += 100  # shot_number 匹配权重最高
+                score += 10  # shot_number 匹配
 
             # veo_prompt 相似度（前50个字符）
             if shot_veo and existing_veo:
                 min_len = min(len(shot_veo), len(existing_veo), 50)
-                if shot_veo[:min_len] == existing_veo[:min_len]:
-                    score += 50
+                for j in range(min_len):
+                    if shot_veo[j] == existing_veo[j]:
+                        score += 1
+                    else:
+                        break
 
             # screen_action 相似度（前30个字符）
             if shot_screen and existing_screen:
                 min_len = min(len(shot_screen), len(existing_screen), 30)
-                if shot_screen[:min_len] == existing_screen[:min_len]:
-                    score += 30
+                for j in range(min_len):
+                    if shot_screen[j] == existing_screen[j]:
+                        score += 1
+                    else:
+                        break
 
             if score > best_score:
                 best_score = score
                 best_match = (sb_file, i, existing_shot)
 
-    # 只有当分数足够高时才认为是匹配
-    if best_score >= 100:  # 至少 shot_number 匹配
+    # 降低匹配阈值，只要有一些内容相似就匹配
+    if best_score >= 20:  # 至少 shot_number 匹配 + 一些内容相似
         return best_match
     return None, None, None
 
@@ -695,6 +701,7 @@ def _save_shots_to_file(novel_title: str, episode_title: str, shots: list) -> bo
         video_project_path = get_video_project_path()
         logger.info(f"_save_shots_to_file: 视频项目路径 = {video_project_path}, exists={video_project_path.exists()}")
         logger.info(f"_save_shots_to_file: novel_title={novel_title}, episode_title={episode_title}")
+        logger.info(f"_save_shots_to_file: shots数量={len(shots)}")
 
         # 查找视频项目中的分集目录
         episode_dir = None
@@ -709,11 +716,10 @@ def _save_shots_to_file(novel_title: str, episode_title: str, shots: list) -> bo
                 # 模糊匹配 - 处理引号等特殊字符差异
                 novel_dir = video_project_path / novel_title
                 if novel_dir.exists():
-                    logger.info(f"_save_shots_to_file: 开始模糊匹配，episode_title={repr(episode_title)}")
+                    logger.info(f"_save_shots_to_file: 开始模糊匹配")
                     for item in novel_dir.iterdir():
                         if item.is_dir():
                             item_name = item.name
-                            logger.info(f"_save_shots_to_file: 检查目录: {repr(item_name)}")
                             # 直接子串匹配
                             if episode_title in item_name or item_name in episode_title:
                                 episode_dir = item
@@ -753,59 +759,64 @@ def _save_shots_to_file(novel_title: str, episode_title: str, shots: list) -> bo
             logger.warn(f"_save_shots_to_file: 没有找到storyboard文件")
             return False
 
-        # 为每个shot查找匹配的storyboard文件和镜头
-        # 使用字典来组织：file_path -> {shot_index: improved_shot}
-        file_updates = {}  # {file_path: {"updates": {index: improved_shot}, "modified": False}}
+        # 统计每个storyboard文件的匹配数量，找到最匹配的文件
+        file_match_counts = {}  # {file_path: count}
 
         for shot in shots:
-            sb_file, shot_idx, existing_shot = _find_matching_storyboard_file(shot, storyboard_files)
-            if sb_file and shot_idx is not None:
-                if sb_file not in file_updates:
-                    file_updates[sb_file] = {"updates": {}, "modified": False, "data": None}
-                file_updates[sb_file]["updates"][shot_idx] = shot
-                logger.info(f"  找到匹配: shot_number={shot.get('shot_number')} -> {sb_file.name}[{shot_idx}]")
+            sb_file, _, _ = _find_matching_storyboard_file(shot, storyboard_files)
+            if sb_file:
+                file_match_counts[sb_file] = file_match_counts.get(sb_file, 0) + 1
 
-        # 应用更新到文件
-        saved_count = 0
-        for sb_file, update_info in file_updates.items():
-            try:
-                with open(sb_file, 'r', encoding='utf-8') as f:
-                    file_data = json.load(f)
-            except:
-                logger.warn(f"    无法读取文件 {sb_file.name}")
-                continue
+        logger.info(f"_save_shots_to_file: 文件匹配统计: {[(f.name, c) for f, c in file_match_counts.items()]}")
 
-            existing_shots = file_data.get("shots", [])
-            updated = False
+        if not file_match_counts:
+            logger.warn(f"_save_shots_to_file: 没有找到匹配的storyboard文件")
+            return False
 
-            for shot_idx, improved_shot in update_info["updates"].items():
-                if 0 <= shot_idx < len(existing_shots):
-                    existing_shot = existing_shots[shot_idx]
+        # 找到匹配数量最多的文件，只更新这个文件
+        best_file = max(file_match_counts.items(), key=lambda x: x[1])[0]
+        logger.info(f"_save_shots_to_file: 选择最匹配的文件: {best_file.name} (匹配{file_match_counts[best_file]}个镜头)")
 
-                    # 更新字段
-                    if improved_shot.get("screen_action"):
-                        old_action = existing_shot.get("screen_action", "")
-                        existing_shot["screen_action"] = improved_shot["screen_action"]
-                        logger.info(f"    ✅ 更新镜头 {existing_shot.get('shot_number')}: screen_action {len(old_action)}->{len(improved_shot['screen_action'])}")
-                        updated = True
-                    if improved_shot.get("veo_prompt"):
-                        existing_shot["veo_prompt"] = improved_shot["veo_prompt"]
-                    if improved_shot.get("dialogue"):
-                        existing_shot["dialogue"] = improved_shot["dialogue"]
-                    if improved_shot.get("shot_type"):
-                        existing_shot["shot_type"] = improved_shot["shot_type"]
-                    if improved_shot.get("duration"):
-                        existing_shot["duration"] = improved_shot["duration"]
+        # 只更新最匹配的文件
+        try:
+            with open(best_file, 'r', encoding='utf-8') as f:
+                file_data = json.load(f)
+        except:
+            logger.warn(f"无法读取文件: {best_file.name}")
+            return False
 
-            if updated:
-                # 保存文件
-                with open(sb_file, 'w', encoding='utf-8') as f:
-                    json.dump(file_data, f, ensure_ascii=False, indent=2)
-                logger.info(f"  ✅ 已保存文件: {sb_file.name}")
-                saved_count += 1
+        existing_shots = file_data.get("shots", [])
+        updated = False
 
-        logger.info(f"_save_shots_to_file: 保存了 {saved_count} 个storyboard文件")
-        return saved_count > 0
+        for shot in shots:
+            _, shot_idx, existing_shot = _find_matching_storyboard_file(shot, [best_file])
+            if shot_idx is not None and 0 <= shot_idx < len(existing_shots):
+                existing_shot = existing_shots[shot_idx]
+
+                # 更新字段
+                if shot.get("screen_action"):
+                    old_action = existing_shot.get("screen_action", "")
+                    existing_shot["screen_action"] = shot["screen_action"]
+                    logger.info(f"  ✅ 更新镜头 {shot.get('shot_number')} ({shot_idx}): screen_action {len(old_action)}->{len(shot['screen_action'])}")
+                    updated = True
+                if shot.get("veo_prompt"):
+                    existing_shot["veo_prompt"] = shot["veo_prompt"]
+                if shot.get("dialogue"):
+                    existing_shot["dialogue"] = shot["dialogue"]
+                if shot.get("shot_type"):
+                    existing_shot["shot_type"] = shot["shot_type"]
+                if shot.get("duration"):
+                    existing_shot["duration"] = shot["duration"]
+
+        if updated:
+            # 保存文件
+            with open(best_file, 'w', encoding='utf-8') as f:
+                json.dump(file_data, f, ensure_ascii=False, indent=2)
+            logger.info(f"  ✅ 已保存文件: {best_file.name}")
+            return True
+        else:
+            logger.warn(f"没有镜头需要更新")
+            return False
 
     except Exception as e:
         logger.error(f"保存镜头文件失败: {e}")
@@ -1573,6 +1584,9 @@ class ScriptQualityChecker:
             # 获取视觉化的世界观元素
             visual_world_elements = self._get_visual_world_elements()
 
+            # 获取角色名称映射
+            character_name_mapping = self._get_character_name_mapping()
+
             user_prompt = f"""任务：改进以下{len(shots)}个镜头的剧本描述。
 
 ## 当前剧本（{len(shots)}个镜头）
@@ -1580,6 +1594,14 @@ class ScriptQualityChecker:
 
 ## 需要改进的问题
 {issues_summary}
+
+## 【强制】角色名称要求 - 必须使用正确的角色名
+以下角色名称必须准确使用，不可使用通用称呼（如"族长"、"少年"、"主角"等）：
+{character_name_mapping}
+
+**注意：**
+- 必须使用角色具体名字，不能用"族长"、"少年"、"主角"等通用称呼
+- 例如：用"林战"而不是"族长"，用"叶凡"而不是"少年"或"叶辰"
 
 ## 【强制】世界一致性要求 - 每个镜头必须包含
 {self._get_world_consistency_requirements()}
@@ -1596,8 +1618,9 @@ class ScriptQualityChecker:
 **关键要求：**
 1. 每个镜头的screen_action描述必须融入世界观元素
 2. **每个镜头的veo_prompt必须包含统一的视觉世界观元素**（{visual_world_elements}），确保所有镜头生成的视频画面风格一致
-3. veo_prompt应该用英文描述，包含：场景环境+人物动作+视觉氛围+世界览权重元素
-4. 突出"迪化流"、"偷听心声"等特色元素的视觉表现
+3. **必须使用具体的角色名字，禁止使用"族长"、"少年"、"主角"等通用称呼**
+4. veo_prompt应该用简体中文描述，包含：场景环境+人物动作+视觉氛围+世界览权重元素
+5. 突出"迪化流"、"偷听心声"等特色元素的视觉表现
 
 【强制要求】你必须返回JSON格式的结果，其中improved_shots数组必须包含全部{len(shots)}个镜头，不能缺少任何一个！
 
@@ -1607,14 +1630,14 @@ JSON格式示例：
     "improved_shots": [
         {{
             "index": 1,
-            "description": "第1个镜头的详细改进描述（中文）...",
-            "veo_prompt": "第1个镜头的英文提示词，必须包含{visual_world_elements}等视觉元素...",
+            "description": "第1个镜头的详细改进描述（中文），使用具体角色名字...",
+            "veo_prompt": "第1个镜头的简体中文提示词，必须包含{visual_world_elements}等视觉元素，使用具体角色名字...",
             "improvement_reason": "改进原因"
         }},
         {{
             "index": 2,
-            "description": "第2个镜头的详细改进描述（中文）...",
-            "veo_prompt": "第2个镜头的英文提示词，必须包含{visual_world_elements}等视觉元素...",
+            "description": "第2个镜头的详细改进描述（中文），使用具体角色名字...",
+            "veo_prompt": "第2个镜头的简体中文提示词，必须包含{visual_world_elements}等视觉元素，使用具体角色名字...",
             "improvement_reason": "改进原因"
         }}
         // ... 继续到第{len(shots)}个镜头
@@ -1630,7 +1653,15 @@ JSON格式示例：
 
 【最关键指令】你必须严格按照用户要求的JSON格式返回结果，不能有任何文字说明在JSON之外。improved_shots数组必须包含全部镜头的改进内容，绝对不能为空。每个镜头都必须包含详细的改进后描述。
 
-【veo_prompt关键要求】每个镜头的veo_prompt必须包含统一的视觉世界观元素：{visual_world_elements}。这确保所有镜头生成的视频画面风格一致，处于同一个世界中。
+【角色名称强制要求】所有角色必须使用具体名字，禁止使用通用称呼如"族长"、"少年"、"主角"等。例如：
+- 用"林战"而不是"族长"
+- 用"叶凡"而不是"少年"或"主角"
+
+【veo_prompt关键要求】每个镜头的veo_prompt必须：
+1. 使用简体中文描述
+2. 包含统一的视觉世界观元素：{visual_world_elements}
+3. 使用具体角色名字，不用通用称呼
+这确保所有镜头生成的视频画面风格一致，处于同一个世界中。
 
 注意：index从1开始编号（第1个镜头用index:1，第2个用index:2，以此类推）。"""
 
@@ -1812,6 +1843,38 @@ JSON格式示例：
             ]
 
         return "、".join(visual_elements)
+
+    def _get_character_name_mapping(self) -> str:
+        """获取角色名称映射，确保生成时使用正确的角色名"""
+        name_info = []
+
+        # 主角信息
+        if self.main_character:
+            main_name = self.main_character.get("name", "")
+            if main_name:
+                name_info.append(f"主角：{main_name}")
+                # 添加外形特征描述，帮助AI识别
+                living_chars = self.main_character.get("living_characteristics", {})
+                physical = living_chars.get("physical_presence", "")
+                if physical:
+                    name_info.append(f"  - 外形：{physical}")
+
+        # 重要角色信息
+        if self.important_characters:
+            name_info.append("\n重要角色：")
+            for char in self.important_characters[:15]:  # 限制数量
+                char_name = char.get("name", "")
+                char_role = char.get("role", "")
+                if char_name:
+                    desc = char.get("initial_state", {}).get("description", "")
+                    name_info.append(f"- {char_name}（{char_role}）")
+                    if desc:
+                        name_info.append(f"  - 外形：{desc}")
+
+        if not name_info:
+            return "暂无角色信息"
+
+        return "\n".join(name_info)
 
     def check_design_consistency(self) -> List[Dict]:
         """检查设计文件一致性"""
