@@ -4210,6 +4210,32 @@ class ShortDramaStudio {
         }
         if (result.action !== 'generate') return;
 
+        // 🔥 如果视频已存在，先备份
+        if (shot.videoExists && (shot.videoPath || shot.videoUrl)) {
+            try {
+                const episodeDirectoryName = this.getEpisodeDirectoryName();
+                const backupResponse = await fetch('/api/short-drama/backup', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        novel_title: this.selectedNovel || '',
+                        episode_title: episodeDirectoryName,
+                        file_type: 'video',
+                        shot_number: shot.shot_number || shot.scene_number || (idx + 1),
+                        file_path: shot.videoPath
+                    })
+                });
+                const backupResult = await backupResponse.json();
+                if (backupResult.success) {
+                    this.showToast('原视频已备份，可随时还原', 'success');
+                } else {
+                    console.warn('视频备份失败:', backupResult.error);
+                }
+            } catch (e) {
+                console.error('备份视频失败:', e);
+            }
+        }
+
         // 🔥 质量检查已禁用 - 直接生成视频，不再调用质量检查API
         // 如果需要质量检查，用户可以手动点击"剧本质量检查"按钮
 
