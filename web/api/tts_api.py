@@ -303,11 +303,11 @@ class TTSManager:
         '活泼': 'fluent',
         '热情': 'fluent',
 
-        # 低语类
-        '低语': 'whisper',
-        '轻声': 'whisper',
-        '耳语': 'whisper',
-        '低沉': 'whisper',
+        # 低语类 (speech-2.8不支持whisper，映射到calm或None)
+        '低语': 'calm',
+        '轻声': 'calm',
+        '耳语': 'calm',
+        '低沉': 'calm',
 
         # 特殊/默认
         '纯画面': None,
@@ -354,7 +354,7 @@ class TTSManager:
             speed: 语速 0.5-2.0
             pitch: 音调 -12到12
             vol: 音量 0.1-10.0
-            emotion: 情绪 (happy/sad/angry/fearful/disgusted/surprised/calm/fluent/whisper)
+            emotion: 情绪 (happy/sad/angry/fearful/disgusted/surprised/calm/fluent)
 
         Returns:
             {"success": bool, "audio_url": str, "audio_path": str, "duration": float}
