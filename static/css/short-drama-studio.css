@@ -2086,16 +2086,23 @@ select option {
     box-shadow: var(--shadow-md);
 }
 
-.dubbing-scene.completed {
-    border-left: 4px solid var(--success);
+.dubbing-scene.done {
+    border: 2px solid var(--success);
+    box-shadow: 0 0 0 1px var(--success);
 }
 
-.dubbing-scene.processing {
-    border-left: 4px solid var(--warning);
+.dubbing-scene.generating {
+    border: 2px solid var(--warning);
+    box-shadow: 0 0 0 1px var(--warning);
 }
 
 .dubbing-scene.error {
-    border-left: 4px solid var(--danger);
+    border: 2px solid var(--danger);
+    box-shadow: 0 0 0 1px var(--danger);
+}
+
+.dubbing-scene.pending {
+    border: 1px solid var(--border);
 }
 
 .dubbing-scene-number {

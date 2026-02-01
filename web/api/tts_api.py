@@ -38,7 +38,7 @@ TTS_CONFIG = {
     "async_url": "https://api.minimaxi.com/v1/t2a_async_v2",  # 异步API
     "query_url": "https://api.minimaxi.com/v1/query/t2a_async_query_v2",  # 查询API
     "files_url": "https://api.minimaxi.com/v1/files/retrieve",  # 文件检索API
-    'model_audio': MINIMAX_CONFIG.get("model", 'speech-2.8-turbo'),
+    'model_audio': os.getenv('MINIMAX_TTS_MODEL', MINIMAX_CONFIG.get("model", 'speech-2.8-turbo')),
     'default_sample_rate': MINIMAX_CONFIG.get("default_sample_rate", 32000),
     'default_bitrate': MINIMAX_CONFIG.get("default_bitrate", 128000),
     'default_format': MINIMAX_CONFIG.get("default_format", 'mp3')
@@ -631,10 +631,14 @@ tts_manager = TTSManager()
 @tts_api.route('/config', methods=['GET'])
 def get_tts_config():
     """获取TTS配置状态"""
+    # 获取当前配置的模型
+    current_model = os.getenv('MINIMAX_TTS_MODEL', TTS_CONFIG['model_audio'])
+
     return jsonify({
         'success': True,
         'configured': bool(tts_manager.group_id and tts_manager.api_key),
-        'voices': CHARACTER_VOICES
+        'voices': CHARACTER_VOICES,
+        'model': current_model
     })
 
 
@@ -645,6 +649,7 @@ def update_tts_config():
         data = request.json
         group_id = data.get('group_id')
         api_key = data.get('api_key')
+        model = data.get('model')
 
         if group_id and api_key:
             # 更新环境变量
@@ -652,6 +657,12 @@ def update_tts_config():
             os.environ['MINIMAX_API_KEY'] = api_key
             tts_manager.group_id = group_id
             tts_manager.api_key = api_key
+
+            # 更新模型配置（如果提供）
+            if model:
+                os.environ['MINIMAX_TTS_MODEL'] = model
+                TTS_CONFIG['model_audio'] = model
+                logger.info(f'🎙️ [TTS] 模型已更新为: {model}')
 
             return jsonify({
                 'success': True,

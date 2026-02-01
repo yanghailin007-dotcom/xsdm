@@ -2942,6 +2942,18 @@ class ShortDramaStudio {
             justify-content: center; align-items: center; z-index: 10000;
         `;
 
+        // 🔥 可用的TTS模型列表
+        const ttsModels = [
+            { id: 'speech-2.8-turbo', name: 'speech-2.8-turbo (推荐)' },
+            { id: 'speech-01-turbo', name: 'speech-01-turbo' },
+            { id: 'speech-01-hd', name: 'speech-01-hd' },
+            { id: 'speech-02-turbo', name: 'speech-02-turbo' },
+            { id: 'speech-02-hd', name: 'speech-02-hd' },
+        ];
+
+        // 获取当前配置的模型
+        const currentModel = this.ttsModel || 'speech-2.8-turbo';
+
         modal.innerHTML = `
             <div class="modal-content" style="
                 background: var(--bg-secondary); border-radius: 16px;
@@ -2971,6 +2983,22 @@ class ShortDramaStudio {
                     ">
                 </div>
 
+                <div style="margin-bottom: 1rem;">
+                    <label style="font-weight: 600; display: block; margin-bottom: 0.5rem;">TTS模型</label>
+                    <select id="ttsModel" style="
+                        width: 100%; padding: 10px; background: var(--bg-dark);
+                        border: 1px solid var(--border); border-radius: 8px;
+                        color: var(--text-primary); font-size: 1rem;
+                    ">
+                        ${ttsModels.map(m => `
+                            <option value="${m.id}" ${m.id === currentModel ? 'selected' : ''}>${m.name}</option>
+                        `).join('')}
+                    </select>
+                    <div style="font-size: 0.75rem; color: var(--text-tertiary); margin-top: 4px;">
+                        💡 不同模型支持不同的音色和功能
+                    </div>
+                </div>
+
                 <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
                     <button id="saveTtsConfigBtn" class="btn btn-primary" style="flex: 1;">保存配置</button>
                     <button class="btn btn-secondary" onclick="this.closest('.modal-overlay').remove()" style="flex: 1;">取消</button>
@@ -2997,6 +3025,7 @@ class ShortDramaStudio {
         saveBtn.addEventListener('click', async () => {
             const groupId = document.getElementById('ttsGroupId').value.trim();
             const apiKey = document.getElementById('ttsApiKey').value.trim();
+            const model = document.getElementById('ttsModel').value;
 
             if (!groupId || !apiKey) {
                 this.showToast('Group ID和API Key不能为空', 'error');
@@ -3008,13 +3037,15 @@ class ShortDramaStudio {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     group_id: groupId,
-                    api_key: apiKey
+                    api_key: apiKey,
+                    model: model
                 })
             });
 
             const result = await response.json();
             if (result.success) {
                 this.showToast('TTS配置已保存', 'success');
+                this.ttsModel = model;  // 更新本地模型配置
                 modal.remove();
                 this.loadDubbingStep(); // 刷新页面
             } else {
@@ -5772,6 +5803,12 @@ class ShortDramaStudio {
         const ttsConfigResponse = await fetch('/api/tts/config');
         const ttsConfig = await ttsConfigResponse.json();
         const ttsConfigured = ttsConfig.success && ttsConfig.configured;
+
+        // 🔥 获取当前配置的模型
+        if (ttsConfig.model) {
+            this.ttsModel = ttsConfig.model;
+            console.log('🎙️ [配音] 当前TTS模型:', this.ttsModel);
+        }
 
         // 🔥 展开对话场景为独立的配音子镜头
         const expandedDialogueShots = [];
