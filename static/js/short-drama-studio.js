@@ -633,7 +633,7 @@ class ShortDramaStudio {
     /**
      * 切换工作流步骤
      */
-    goToStep(step) {
+    goToStep(step, forceReload = false) {
         this.currentStep = step;
 
         // 更新步骤导航状态
@@ -662,22 +662,42 @@ class ShortDramaStudio {
             workspace?.classList.remove('video-mode');
         }
 
-        // 根据步骤加载内容
+        // 初始化已加载步骤跟踪
+        if (!this.loadedSteps) {
+            this.loadedSteps = new Set();
+        }
+
+        // 根据步骤加载内容（仅未加载过或强制刷新时）
         switch (step) {
             case 'check-portraits':
-                this.loadCharacterPortraitsStep();
+                if (!this.loadedSteps.has('check-portraits') || forceReload) {
+                    this.loadCharacterPortraitsStep();
+                    this.loadedSteps.add('check-portraits');
+                }
                 break;
             case 'storyboard':
-                this.loadStoryboardStep();
+                if (!this.loadedSteps.has('storyboard') || forceReload) {
+                    this.loadStoryboardStep();
+                    this.loadedSteps.add('storyboard');
+                }
                 break;
             case 'video':
-                this.loadVideoStep();
+                if (!this.loadedSteps.has('video') || forceReload) {
+                    this.loadVideoStep();
+                    this.loadedSteps.add('video');
+                }
                 break;
             case 'dubbing':
-                this.loadDubbingStep();
+                if (!this.loadedSteps.has('dubbing') || forceReload) {
+                    this.loadDubbingStep();
+                    this.loadedSteps.add('dubbing');
+                }
                 break;
             case 'export':
-                this.loadExportStep();
+                if (!this.loadedSteps.has('export') || forceReload) {
+                    this.loadExportStep();
+                    this.loadedSteps.add('export');
+                }
                 break;
         }
     }
@@ -1831,7 +1851,7 @@ class ShortDramaStudio {
         const shot = this.shots[idx];
         if (!shot) return;
 
-        const dialogue = shot.dialogue || shot._dialogue_data || {};
+        const dialogue = shot._dialogue_data || shot.dialogue || {};
         const { speaker, lines, tone } = this.parseDialogue(dialogue);
 
         if (!lines || speaker === '无' || speaker === '未知') {
@@ -1850,7 +1870,7 @@ class ShortDramaStudio {
         const shot = this.shots[idx];
         if (!shot) return;
 
-        const dialogue = shot.dialogue || shot._dialogue_data || {};
+        const dialogue = shot._dialogue_data || shot.dialogue || {};
         const { speaker, lines, tone } = this.parseDialogue(dialogue);
 
         if (!lines || speaker === '无' || speaker === '未知') {
@@ -2141,7 +2161,7 @@ class ShortDramaStudio {
             }
 
             // 保存台词到shot对象
-            const dialogue = shot.dialogue || shot._dialogue_data || {};
+            const dialogue = shot._dialogue_data || shot.dialogue || {};
             if (typeof dialogue === 'object') {
                 dialogue.lines = finalLines;
                 dialogue.speaker = finalSpeaker;
@@ -2177,7 +2197,7 @@ class ShortDramaStudio {
             }
 
             // 保存台词到shot对象
-            const dialogue = shot.dialogue || shot._dialogue_data || {};
+            const dialogue = shot._dialogue_data || shot.dialogue || {};
             if (typeof dialogue === 'object') {
                 dialogue.lines = finalLines;
                 dialogue.speaker = finalSpeaker;
@@ -2276,7 +2296,7 @@ class ShortDramaStudio {
      */
     async batchGenerateDubbing() {
         const dialogueShots = this.shots.filter(shot => {
-            const dialogue = shot.dialogue || shot._dialogue_data || {};
+            const dialogue = shot._dialogue_data || shot.dialogue || {};
             const { speaker, lines } = this.parseDialogue(dialogue);
             return speaker && speaker !== '无' && speaker !== '未知' && lines;
         });
@@ -2507,7 +2527,7 @@ class ShortDramaStudio {
      * 渲染单个配音场景（支持更新和返回模板）
      */
     renderDubbingScene(shot, idx) {
-        const dialogue = shot.dialogue || shot._dialogue_data || {};
+        const dialogue = shot._dialogue_data || shot.dialogue || {};
         const { speaker, lines, tone } = this.parseDialogue(dialogue);
 
         const hasAudio = shot.audioUrl || shot.audio_path;
@@ -2603,7 +2623,7 @@ class ShortDramaStudio {
      */
     updateDubbingStats() {
         const dialogueShots = this.shots.filter(shot => {
-            const dialogue = shot.dialogue || shot._dialogue_data || {};
+            const dialogue = shot._dialogue_data || shot.dialogue || {};
             if (typeof dialogue === 'string') return dialogue.trim();
             if (typeof dialogue === 'object') {
                 const speaker = dialogue.speaker || '';
@@ -2628,9 +2648,34 @@ class ShortDramaStudio {
     }
 
     /**
+     * 清除步骤缓存（用于数据更新后强制刷新）
+     */
+    invalidateStepCache(step = null) {
+        if (!this.loadedSteps) return;
+
+        if (step) {
+            this.loadedSteps.delete(step);
+        } else {
+            this.loadedSteps.clear();
+        }
+    }
+
+    /**
+     * 刷新当前步骤
+     */
+    refreshCurrentStep() {
+        if (this.currentStep) {
+            this.invalidateStepCache(this.currentStep);
+            this.goToStep(this.currentStep, true);
+        }
+    }
+
+    /**
      * 刷新视频状态
      */
     async refreshVideos() {
+        this.invalidateStepCache('video');
+        this.loadedSteps?.delete('video');
         await this.loadVideoStep();
         this.showToast('已刷新视频状态', 'success');
     }
@@ -4172,7 +4217,7 @@ class ShortDramaStudio {
             return;
         }
 
-        const dialogue = shot.dialogue || shot._dialogue_data || {};
+        const dialogue = shot._dialogue_data || shot.dialogue || {};
         const { speaker, lines, tone } = this.parseDialogue(dialogue);
 
         // 创建预览弹窗
@@ -4782,7 +4827,7 @@ class ShortDramaStudio {
         // 🔥 提取所有有台词的角色（从镜头中提取）
         const speakerSet = new Set();
         this.shots.forEach(shot => {
-            const dialogue = shot.dialogue || shot._dialogue_data || {};
+            const dialogue = shot._dialogue_data || shot.dialogue || {};
             const { speaker } = this.parseDialogue(dialogue);
             if (speaker && speaker !== '无' && speaker !== '未知') {
                 speakerSet.add(speaker);
@@ -4828,7 +4873,7 @@ class ShortDramaStudio {
 
         // 过滤出有台词的镜头
         const dialogueShots = this.shots.filter(shot => {
-            const dialogue = shot.dialogue || shot._dialogue_data || {};
+            const dialogue = shot._dialogue_data || shot.dialogue || {};
             const { speaker, lines } = this.parseDialogue(dialogue);
             return speaker && speaker !== '无' && speaker !== '未知' && lines;
         });

@@ -5406,29 +5406,21 @@ def _generate_storyboard_with_ai(novel_title: str, episode: dict) -> dict:
   "video_title": "视频标题（吸引眼球的，15字内）",
   "hook": "开头3秒钩子描述",
   "total_duration": 预计总时长（秒）,
-  "character_images": [
+  "scenes": [
     {
-      "character_name": "角色名",
-      "reference_index": 1,
-      "appearance_brief": "外貌简述"
-    }
-  ],
-  "shots": [
-    {
-      "shot_number": 1,
-      "shot_type": "镜头类型（特写/中景/全景/推近/拉远/跟拍/摇镜头/主观视角/俯拍/仰拍）",
+      "scene_number": 1,
       "duration": 8,
-      "screen_action": "画面动作描述（具体、可拍摄）",
-      "characters": [
-        {
-          "name": "角色名",
-          "action": "该角色在本镜头中的动作",
-          "position": "位置描述（如画面中央/左侧/背景）"
-        }
-      ],
-      "dialogue": "角色台词（格式：角色名:台词内容）（如果有，用于后期配音生成）",
-      "veo_prompt": "AI视频生成提示词（直接使用角色名，如：林战，身穿兽皮战甲，面容震撼，站在画面中央，背景是祠堂）",
-      "audio": "音效/BGM描述",
+      "visual": {
+        "shot_type": "镜头类型（特写/中景/全景/推近/拉远/跟拍/摇镜头/主观视角/俯拍/仰拍）",
+        "description": "画面动作描述（具体、可拍摄）",
+        "veo_prompt": "AI视频生成提示词（直接使用角色名，如：林战，身穿兽皮战甲，面容震撼，站在画面中央，背景是祠堂）"
+      },
+      "dialogue": {
+        "speaker": "说话角色名（无台词填'无'）",
+        "lines": "角色台词内容（无台词填空字符串''）",
+        "tone": "语气描述（如：愤怒、温柔、紧张等）",
+        "audio_note": "音效/BGM描述"
+      },
       "plot_content": "对应的情节点内容"
     }
   ],
@@ -5445,9 +5437,8 @@ def _generate_storyboard_with_ai(novel_title: str, episode: dict) -> dict:
 【台词设计要求】
 1. 台词要简洁有力，符合短剧快节奏特点
 2. 每句台词控制在3-10字内
-3. 台词格式：角色名:台词内容（如：林战:老祖英明！）
-4. 旁白/内心独白：（旁白）：xxx 或 （林长生内心）：xxx
-5. 无台词镜头填空字符串""
+3. speaker填写角色名，旁白填写"旁白"，内心独白填写"主角内心混响"
+4. 无台词镜头：speaker填"无"，lines填空字符串""
 """
 
     # 构建用户提示词 - 传递完整上下文（从写作计划文件中提取）
@@ -5510,14 +5501,14 @@ def _generate_storyboard_with_ai(novel_title: str, episode: dict) -> dict:
     user_prompt += f"""
 
 【设计要求】
-1. 根据情节点内容，设计3-6个镜头
+1. 根据情节点内容，设计3-6个镜头（每个镜头对应一个scene）
 2. **每个镜头时长必须严格为8秒**
 3. veo_prompt必须直接包含角色名，格式：「{角色名}，外貌描述，动作，场景环境」
 4. 多角色场景：「{角色A}站在左侧，{角色B}站在右侧，{场景描述}」
 5. 镜头类型要多样化（特写、中景、全景、推拉摇移等）
 6. 视频方向为竖屏（9:16），适合手机观看
-7. **台词设计**：为每个需要说话的角色设计台词，格式为「角色名:台词内容」，3-10字，符合人物性格
-8. **无台词镜头**：如果该镜头是纯动作/环境描写，dialogue填空字符串""
+7. **台词设计**：为每个需要说话的角色设计台词，speaker填角色名，lines填台词内容（3-10字）
+8. **无台词镜头**：speaker填"无"，lines填空字符串""
 
 请直接输出JSON格式的分镜头脚本。"""
 
@@ -5550,7 +5541,13 @@ def _generate_storyboard_with_ai(novel_title: str, episode: dict) -> dict:
             logger.error(f"原始结果: {result[:500]}...")
             return None
 
-        logger.info(f"✅ [AI分镜头] AI生成成功，镜头数: {len(storyboard_data.get('shots', []))}")
+        # 🔥 验证新格式
+        if 'scenes' not in storyboard_data:
+            logger.error("❌ [AI分镜头] AI未返回新格式（缺少scenes字段），请检查系统提示词")
+            logger.error(f"返回的字段: {list(storyboard_data.keys())}")
+            return None
+
+        logger.info(f"✅ [AI分镜头] AI生成成功，场景数: {len(storyboard_data.get('scenes', []))}")
 
         # 保存生成的分镜头到文件（按重大事件组织目录）
         _save_storyboard_to_file(novel_title, event_name, episode_id, storyboard_data, major_event_name)

@@ -651,7 +651,7 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: var(--space-lg) var(--space-xl);
+    padding: var(--space-lg) var(--space-xl) var(--space-lg) calc(var(--space-xl) + var(--space-md));
     background: var(--bg-secondary);
     border-bottom: 1px solid var(--border);
 }
@@ -716,7 +716,7 @@ body {
 
 .task-row {
     display: grid;
-    grid-template-columns: 50px 1fr 280px 120px 100px;
+    grid-template-columns: 50px 1fr 200px 100px 120px;
     gap: var(--space-md);
     align-items: center;
     padding: var(--space-md);
@@ -725,6 +725,7 @@ body {
     border-radius: var(--radius-md);
     margin-bottom: var(--space-sm);
     transition: all 0.2s;
+    min-height: 120px;
 }
 
 .task-row:hover {
@@ -798,6 +799,12 @@ body {
     font-size: 0.85rem;
     color: var(--text-secondary);
     line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-height: 3.6em;
 }
 
 .task-meta {
@@ -878,8 +885,11 @@ body {
 
 .task-actions {
     display: flex;
+    flex-direction: column;
     gap: var(--space-xs);
     justify-content: center;
+    align-items: center;
+    min-height: 80px;
 }
 
 .task-btn {
@@ -1966,17 +1976,21 @@ select option {
 
 .dubbing-scene-list {
     display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
     gap: var(--space-md);
     overflow-y: auto;
+    align-items: start;
 }
 
 .dubbing-scene {
     display: flex;
+    flex-direction: column;
     background: var(--bg-secondary);
     border: 1px solid var(--border);
     border-radius: var(--radius-md);
     overflow: hidden;
     transition: all 0.2s;
+    min-height: 280px;
 }
 
 .dubbing-scene:hover {
@@ -2223,8 +2237,10 @@ select option {
 
 .dubbing-scene .scene-content {
     display: flex;
+    flex: 1;
     padding: var(--space-md);
     gap: var(--space-md);
+    min-height: 140px;
 }
 
 .dubbing-scene .scene-visual {
@@ -2232,6 +2248,7 @@ select option {
     padding: var(--space-sm);
     background: var(--bg-dark);
     border-radius: var(--radius-sm);
+    min-width: 0;
 }
 
 .dubbing-scene .visual-label {
@@ -2244,6 +2261,11 @@ select option {
     font-size: 0.8rem;
     color: var(--text-secondary);
     line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .dubbing-scene .scene-dialogue {
@@ -2251,6 +2273,7 @@ select option {
     padding: var(--space-sm);
     background: var(--bg-dark);
     border-radius: var(--radius-sm);
+    min-width: 0;
 }
 
 .dubbing-scene .dialogue-label {
@@ -2264,21 +2287,32 @@ select option {
     font-weight: 600;
     color: var(--primary);
     margin-bottom: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .dubbing-scene .dialogue-lines {
     font-size: 0.9rem;
     color: var(--text-primary);
     line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .dubbing-scene .scene-actions {
     display: flex;
+    flex-direction: column;
     align-items: center;
-    gap: var(--space-xs);
-    padding: var(--space-sm) var(--space-md);
+    gap: var(--space-sm);
+    padding: var(--space-md);
     background: var(--bg-tertiary);
     border-top: 1px solid var(--border);
+    min-height: 80px;
+    justify-content: center;
 }
 
 .dubbing-scene .scene-btn {
