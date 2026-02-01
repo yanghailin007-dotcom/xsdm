@@ -225,7 +225,7 @@ CONFIG = {
         "character_voices": {
             # ===== 主角 =====
             "林长生": "male-qn-qingse",             # 青涩青年 - 适合青年男主
-            "林战": "male-qn-qingse",               # 青涩青年 - 适合青年男主
+            "林战": "Chinese (Mandarin)_Reliable_Executive",  # 沉稳高管 - 中年男性
             "叶凡": "male-qn-qingse",               # 青涩青年 - 适合青年男主
             "默认": "male-qn-qingse",               # 默认青年男声
 
