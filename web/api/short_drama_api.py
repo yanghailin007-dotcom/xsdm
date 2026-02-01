@@ -410,44 +410,59 @@ def get_portraits():
 
         # 构建剧集目录路径
         episode_dir = VIDEO_PROJECTS_DIR / novel_title / episode_name
+        # 🔥 同时扫描父项目目录（用于 _三视图.png 等高优先级剧照）
+        project_dir = VIDEO_PROJECTS_DIR / novel_title
 
         logger.info(f'📸 [剧照] 扫描目录: {episode_dir}')
+        logger.info(f'📸 [剧照] 同时扫描项目目录: {project_dir}')
 
-        if not episode_dir.exists():
-            logger.info(f'📸 [剧照] 目录不存在: {episode_dir}')
-            return jsonify({
-                'success': True,
-                'portraits': []
-            })
-
-        # 扫描剧照文件
+        # 扫描剧照文件 - 先扫描剧集目录，再扫描项目目录的 _三视图 文件
         portraits = {}
-        portrait_files = list(episode_dir.glob('*.png')) + list(episode_dir.glob('*.jpg'))
+        portrait_files = []
+
+        # 剧集目录中的所有剧照
+        if episode_dir.exists():
+            portrait_files.extend(list(episode_dir.glob('*.png')) + list(episode_dir.glob('*.jpg')))
+
+        # 🔥 项目目录中的 _三视图 剧照（最高优先级）
+        if project_dir.exists():
+            three_view_files = [f for f in project_dir.glob('*_三视图.*')]
+            portrait_files.extend(three_view_files)
+            logger.info(f'📸 [剧照] 发现三视图文件: {[f.name for f in three_view_files]}')
 
         for file_path in portrait_files:
-            # 文件名格式: 角色名.png 或 角色名_1.png
+            # 文件名格式: 角色名.png 或 角色名_1.png 或 角色名_三视图.png
             stem = file_path.stem  # 不含扩展名
             ext = file_path.suffix
 
-            # 解析角色名和编号
-            if '_' in stem:
-                # 角色名_编号 格式
-                char_name, number_str = stem.rsplit('_', 1)
-                try:
-                    number = int(number_str)
-                except ValueError:
+            # 🔥 特殊处理后缀：_三视图 (最高优先级)
+            is_three_view = stem.endswith('_三视图')
+            if is_three_view:
+                char_name = stem[:-4]  # 移除 '_三视图' 后缀
+                number = 999  # 三视图优先级最高
+                is_priority = True  # 标记为优先剧照
+            else:
+                # 解析角色名和编号
+                is_priority = False
+                if '_' in stem:
+                    # 角色名_编号 格式
+                    char_name, number_str = stem.rsplit('_', 1)
+                    try:
+                        number = int(number_str)
+                    except ValueError:
+                        char_name = stem
+                        number = 0
+                else:
                     char_name = stem
                     number = 0
-            else:
-                char_name = stem
-                number = 0
 
             # 获取文件修改时间
             mtime = file_path.stat().st_mtime
 
-            # 构建URL路径 - 使用 URL 编码
-            # 格式: /api/short-drama/projects/编码的小说名/编码的集数名/文件名.png
-            url = f"/api/short-drama/projects/{quote(novel_title)}/{quote(episode_name)}/{quote(file_path.name)}"
+            # 🔥 构建URL路径 - 根据文件位置决定URL
+            # 项目目录的 _三视图 文件使用不同路径
+            rel_path = file_path.relative_to(VIDEO_PROJECTS_DIR)
+            url = f"/api/short-drama/projects/{rel_path.as_posix()}"
 
             if char_name not in portraits:
                 portraits[char_name] = []
@@ -457,14 +472,19 @@ def get_portraits():
                 'number': number,
                 'url': url,
                 'mtime': mtime,
-                'path': str(file_path)
+                'path': str(file_path),
+                'isPriority': is_priority  # 🔥 标记是否为优先剧照
             })
 
-        # 对每个角色的剧照按编号排序，取最新的作为主图
+        # 对每个角色的剧照按优先级、编号和修改时间排序
+        # 优先级: 三视图 > 编号 > 修改时间
         result = []
         for char_name, char_portraits in portraits.items():
-            # 按编号和修改时间排序，编号越大越新
-            char_portraits.sort(key=lambda x: (x['number'], x['mtime']), reverse=True)
+            char_portraits.sort(key=lambda x: (
+                x['isPriority'],  # False < True, so True comes first when reverse=True
+                x['number'],
+                x['mtime']
+            ), reverse=True)
 
             result.append({
                 'character': char_name,
@@ -539,6 +559,70 @@ def get_reference_images():
 
     except Exception as e:
         logger.error(f'获取参考图列表失败: {e}')
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@short_drama_api.route('/scene-props', methods=['GET'])
+def get_scene_props():
+    """获取项目的场景道具参考图片列表（场景道具目录）"""
+    try:
+        from urllib.parse import quote
+        import os
+
+        novel_title = request.args.get('novel', '')
+
+        if not novel_title:
+            return jsonify({
+                'success': False,
+                'error': '缺少小说标题'
+            }), 400
+
+        # 🔥 构建场景道具目录路径（项目级别，与episode同级）
+        scene_props_dir = VIDEO_PROJECTS_DIR / novel_title / '场景道具'
+
+        logger.info(f'🎬 [场景道具] 扫描目录: {scene_props_dir}')
+
+        if not scene_props_dir.exists():
+            logger.info(f'🎬 [场景道具] 目录不存在: {scene_props_dir}')
+            return jsonify({
+                'success': True,
+                'images': []
+            }), 200
+
+        images = []
+        # 支持常见图片格式
+        for pattern in ['*.png', '*.jpg', '*.jpeg', '*.webp', '*.gif']:
+            for file_path in scene_props_dir.glob(pattern):
+                # 获取文件修改时间
+                mtime = file_path.stat().st_mtime
+
+                # 构建URL路径
+                rel_path = file_path.relative_to(VIDEO_PROJECTS_DIR)
+                url = f"/api/short-drama/projects/{rel_path.as_posix()}"
+
+                images.append({
+                    'name': file_path.name,
+                    'url': url,
+                    'mtime': mtime,
+                    'size': file_path.stat().st_size,
+                    'type': 'scene-prop'
+                })
+
+        # 按修改时间排序，最新的在前
+        images.sort(key=lambda x: x['mtime'], reverse=True)
+
+        logger.info(f'🎬 [场景道具] 找到 {len(images)} 张场景道具参考图')
+
+        return jsonify({
+            'success': True,
+            'images': images
+        }), 200
+
+    except Exception as e:
+        logger.error(f'获取场景道具列表失败: {e}')
         return jsonify({
             'success': False,
             'error': str(e)
@@ -626,16 +710,20 @@ def list_videos():
 
         videos = []
         for video_file in video_dir.glob('*.mp4'):
-            # 从文件名提取序号: "3_全景_快速摇镜头.mp4" -> 3
+            # 从文件名提取信息: "1_川剧变脸：从退婚到'送温暖'_中景.mp4"
             name = video_file.stem  # 不含扩展名
             import re
-            match = re.match(r'^(\d+)_', name)
+            match = re.match(r'^(\d+)_(.+)', name)
             if match:
                 seq_num = int(match.group(1))
+                # 剩余部分是 "storyboard_title_shot_type" 或完整标题
+                rest_of_name = match.group(2)
+
                 videos.append({
                     'sequence': seq_num,
                     'name': name,
                     'filename': video_file.name,
+                    'storyboard_key': rest_of_name,  # 🔥 用于匹配storyboard
                     'path': str(video_file.relative_to(VIDEO_PROJECTS_DIR)),
                     'url': f"/api/short-drama/projects/{video_file.relative_to(VIDEO_PROJECTS_DIR).as_posix()}"
                 })

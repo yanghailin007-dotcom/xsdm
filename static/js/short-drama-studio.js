@@ -708,14 +708,20 @@ class ShortDramaStudio {
                     appearanceDesc = appearanceDesc.substring(0, 50) + '...';
                 }
 
+                // 🔥 检查是否为三视图（优先级剧照）
+                const isThreeView = portraitInfo && portraitInfo.mainPortrait && portraitInfo.mainPortrait.isPriority;
+
                 return `
                     <div class="character-card ${portraitInfo ? 'has-portrait' : ''}">
                         <div class="character-card-header">
-                            <div class="character-avatar">
+                            <div class="character-avatar" style="position: relative;">
                                 ${portraitInfo
                                     ? `<img src="${portraitInfo.mainPortrait.url}" alt="${charName}" onerror="this.parentElement.innerHTML='<span style=\\'font-size: 2rem;\\'>👤</span>'">`
                                     : '<span style="font-size: 2rem;">👤</span>'
                                 }
+                                ${isThreeView ? `
+                                    <div style="position: absolute; top: -5px; right: -5px; background: linear-gradient(135deg, #ff6b6b, #feca57); color: white; font-size: 10px; padding: 2px 6px; border-radius: 10px; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.2); z-index: 1;">三视图</div>
+                                ` : ''}
                             </div>
                             <div class="character-info">
                                 <div class="character-name">${charName}</div>
@@ -1053,9 +1059,10 @@ class ShortDramaStudio {
                 ${portraits.map((p, idx) => `
                     <div class="portrait-thumb ${p.url === mainPortrait.url ? 'active' : ''}"
                          onclick="shortDramaStudio.showMainPortrait('${p.url}')"
-                         style="cursor: pointer; border: 2px solid ${p.url === mainPortrait.url ? 'var(--primary)' : 'var(--border)'}; border-radius: 8px; overflow: hidden;">
+                         style="cursor: pointer; border: 2px solid ${p.url === mainPortrait.url ? 'var(--primary)' : 'var(--border)'}; border-radius: 8px; overflow: hidden; position: relative;">
                         <img src="${p.url}" alt="造型${p.number > 0 ? '_' + p.number : ''}"
                              style="width: 100%; height: 100px; object-fit: cover; display: block;">
+                        ${p.isPriority ? `<div style="position: absolute; top: 2px; right: 2px; background: linear-gradient(135deg, #ff6b6b, #feca57); color: white; font-size: 9px; padding: 1px 4px; border-radius: 6px; font-weight: bold;">三视图</div>` : ''}
                     </div>
                 `).join('')}
             </div>
@@ -1069,7 +1076,7 @@ class ShortDramaStudio {
                 max-height: 90vh; overflow-y: auto;
             ">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
-                    <h2 style="margin: 0;">${characterName}</h2>
+                    <h2 style="margin: 0;">${characterName}${mainPortrait.isPriority ? ' <span style="background: linear-gradient(135deg, #ff6b6b, #feca57); color: white; font-size: 12px; padding: 2px 8px; border-radius: 12px; vertical-align: middle;">三视图</span>' : ''}</h2>
                     <button class="btn-close" onclick="this.closest('.modal-overlay').remove()" style="background: none; border: none; color: var(--text-secondary); font-size: 1.5rem; cursor: pointer;">✕</button>
                 </div>
                 ${portraitsHtml}
@@ -1265,6 +1272,44 @@ class ShortDramaStudio {
     }
 
     /**
+     * 标准化镜头数据 - 支持新旧两种格式
+     * 新格式: {scene_number, visual: {shot_type, description, veo_prompt}, dialogue: {speaker, lines, tone}}
+     * 旧格式: {shot_number, shot_type, screen_action, dialogue, veo_prompt}
+     */
+    normalizeShotData(shot, title, episodeNumber, selectedIndex) {
+        // 检查是否是新格式 (有 visual 字段)
+        if (shot.visual) {
+            // 新格式转旧格式
+            const visual = shot.visual || {};
+            const dialogue = shot.dialogue || {};
+
+            return {
+                shot_number: shot.scene_number || shot.shot_number,
+                shot_type: visual.shot_type || shot.shot_type || '镜头',
+                screen_action: visual.description || shot.screen_action || '',
+                dialogue: dialogue.lines || dialogue.speaker || '',
+                // 保留原始dialogue对象供后期使用
+                _dialogue_data: dialogue,
+                veo_prompt: visual.veo_prompt || shot.veo_prompt || '',
+                duration: shot.duration || 5,
+                plot_content: shot.plot_content || '',
+                episode_title: title,
+                episode_index: episodeNumber,
+                episode_order: selectedIndex === -1 ? 9999 : selectedIndex,
+                audio: dialogue.audio_note || shot.audio || ''
+            };
+        } else {
+            // 旧格式，直接使用
+            return {
+                ...shot,
+                episode_title: title,
+                episode_index: episodeNumber,
+                episode_order: selectedIndex === -1 ? 9999 : selectedIndex
+            };
+        }
+    }
+
+    /**
      * 渲染分镜头（从本地文件加载）
      */
     renderStoryboards(storyboards) {
@@ -1300,15 +1345,15 @@ class ShortDramaStudio {
         const allShots = [];
 
         for (const { title, data, episodeNumber } of storyboardArray) {
-            const shots = data.shots || [];
+            // 🔥 支持新旧两种格式
+            // 旧格式: data.shots, 新格式: data.scenes
+            const sourceShots = data.shots || data.scenes || [];
             const selectedIndex = this.selectedEpisodes.indexOf(title);
-            for (const shot of shots) {
-                allShots.push({
-                    ...shot,
-                    episode_title: title,
-                    episode_index: episodeNumber,
-                    episode_order: selectedIndex === -1 ? 9999 : selectedIndex // 🔥 事件选择顺序
-                });
+
+            for (const shot of sourceShots) {
+                // 🔥 转换新格式到旧格式（保持内部数据结构一致）
+                const normalizedShot = this.normalizeShotData(shot, title, episodeNumber, selectedIndex);
+                allShots.push(normalizedShot);
             }
         }
 
@@ -1318,9 +1363,9 @@ class ShortDramaStudio {
             if (a.episode_order !== b.episode_order) {
                 return a.episode_order - b.episode_order;
             }
-            // 同一事件内按镜头编号排序
-            const numA = parseInt(a.shot_number) || 0;
-            const numB = parseInt(b.shot_number) || 0;
+            // 同一事件内按镜头编号排序 (支持 shot_number 和 scene_number)
+            const numA = parseInt(a.shot_number || a.scene_number) || 0;
+            const numB = parseInt(b.shot_number || b.scene_number) || 0;
             return numA - numB;
         });
 
@@ -1346,12 +1391,13 @@ class ShortDramaStudio {
             <div class="shots-list">
                 ${allShots.map((shot, idx) => `
                     <div class="shot-item" id="storyboardShot_${idx}">
-                        <div class="shot-number">#${shot.shot_number || (idx + 1)}</div>
+                        <div class="shot-number">#${shot.shot_number || shot.scene_number || (idx + 1)}</div>
                         <div class="shot-info">
                             <div class="shot-type">${shot.shot_type || '镜头'}</div>
                             <div class="shot-duration">⏱️ ${shot.duration || 5}秒</div>
                             <div class="shot-episode" style="font-size: 0.75rem; color: var(--text-tertiary);">${shot.episode_title || ''}</div>
                             <div class="shot-desc">${shot.veo_prompt?.substring(0, 100) || shot.screen_action?.substring(0, 100) || ''}...</div>
+                            ${shot._dialogue_data && shot._dialogue_data.speaker ? `<div class="shot-dialogue" style="font-size: 0.75rem; color: var(--accent);">💬 ${shot._dialogue_data.speaker}: ${shot._dialogue_data.lines?.substring(0, 30) || ''}...</div>` : ''}
                         </div>
                         <button class="btn btn-sm btn-primary" onclick="shortDramaStudio.generateShotVideo(${idx})">生成视频</button>
                     </div>
@@ -1408,11 +1454,12 @@ class ShortDramaStudio {
             <div class="shots-list">
                 ${allShots.map((shot, idx) => `
                     <div class="shot-item" id="shot_${idx}">
-                        <div class="shot-number">#${idx + 1}</div>
+                        <div class="shot-number">#${shot.shot_number || shot.scene_number || (idx + 1)}</div>
                         <div class="shot-info">
                             <div class="shot-type">${shot.shot_type || '镜头'}</div>
                             <div class="shot-duration">⏱️ ${shot.duration || 5}秒</div>
                             <div class="shot-desc">${shot.veo_prompt?.substring(0, 100)}...</div>
+                            ${shot._dialogue_data && shot._dialogue_data.speaker ? `<div class="shot-dialogue" style="font-size: 0.7rem; color: var(--accent); margin-top: 4px;">💬 ${shot._dialogue_data.speaker}: ${shot._dialogue_data.lines?.substring(0, 20) || ''}...</div>` : ''}
                         </div>
                         <button class="btn btn-sm btn-primary" onclick="shortDramaStudio.generateShotVideo(${idx})">生成视频</button>
                     </div>
@@ -1459,34 +1506,83 @@ class ShortDramaStudio {
     async checkExistingVideos() {
         const episodeDirectoryName = this.getEpisodeDirectoryName();
 
+        console.log('🎬 [视频检查] 开始检查视频...');
+        console.log('🎬 [视频检查] Episode:', episodeDirectoryName);
+        console.log('🎬 [视频检查] Shots数量:', this.shots.length);
+
         try {
             // 使用新的API列出视频文件
             const response = await fetch(`/api/short-drama/list-videos?novel=${encodeURIComponent(this.selectedNovel)}&episode=${encodeURIComponent(episodeDirectoryName)}`);
             const data = await response.json();
 
-            if (data.videos && data.videos.length > 0) {
-                console.log('🎬 找到已存在的视频:', data.videos);
+            console.log('🎬 [视频检查] API返回的视频:', data.videos);
 
-                // 创建序号到视频信息的映射
-                const videoMap = {};
-                for (const video of data.videos) {
-                    videoMap[video.sequence] = video;
+            if (data.videos && data.videos.length > 0) {
+                // 🔥 先重置所有镜头的videoExists标志
+                for (let i = 0; i < this.shots.length; i++) {
+                    this.shots[i].videoExists = false;
+                    this.shots[i].videoPath = null;
+                    this.shots[i].videoUrl = null;
                 }
+
+                // 🔥 按episode_title分组统计
+                const episodeStats = {};
+                for (const shot of this.shots) {
+                    const ep = shot.episode_title || 'unknown';
+                    if (!episodeStats[ep]) episodeStats[ep] = 0;
+                    episodeStats[ep]++;
+                }
+                console.log('📊 Shots按episode分组:', episodeStats);
 
                 // 为每个镜头匹配视频
+                let matchedCount = 0;
                 for (let i = 0; i < this.shots.length; i++) {
                     const shot = this.shots[i];
-                    // 使用全局序号（i+1）来匹配视频
-                    const seqNum = i + 1;
-                    const video = videoMap[seqNum];
+                    const episodeTitle = shot.episode_title || '';
+                    const shotNumber = shot.shot_number || (i + 1);
+                    const shotType = shot.shot_type || '';
 
-                    if (video) {
+                    console.log(`🔍 镜头 #${i + 1}: episode="${episodeTitle}", shot_number=${shotNumber}, shot_type="${shotType}"`);
+
+                    // 🔥 在所有视频中查找匹配的视频
+                    let matchedVideo = null;
+                    for (const video of data.videos) {
+                        const videoKey = video.storyboard_key || '';
+                        const videoSeq = video.sequence;
+
+                        // 检查序列号是否匹配
+                        if (videoSeq === shotNumber) {
+                            console.log(`   检查视频: seq=${videoSeq}, key="${videoKey}"`);
+
+                            // 🔥 检查key是否匹配episode_title
+                            // 视频文件名格式: {sequence}_{episode_title}_{shot_type}.mp4
+                            // videoKey应该包含episodeTitle
+                            if (videoKey.startsWith(episodeTitle)) {
+                                // 进一步检查shot_type（可选）
+                                if (!shotType || videoKey.includes(shotType.replace('/', '_'))) {
+                                    matchedVideo = video;
+                                    console.log(`   ✅ 匹配成功!`);
+                                    break;
+                                } else {
+                                    console.log(`   ⚠️ shot_type不匹配: 需要"${shotType}", key中不包含`);
+                                }
+                            } else {
+                                console.log(`   ⚠️ episode_title不匹配: key="${videoKey}" 不以 "${episodeTitle}" 开头`);
+                            }
+                        }
+                    }
+
+                    if (matchedVideo) {
                         shot.videoExists = true;
-                        shot.videoPath = video.path;
-                        shot.videoUrl = video.url;
-                        console.log(`✅ 镜头 #${seqNum} 视频已存在: ${video.filename}`);
+                        shot.videoPath = matchedVideo.path;
+                        shot.videoUrl = matchedVideo.url;
+                        matchedCount++;
+                        console.log(`✅ 镜头 #${i + 1} 视频已存在: ${matchedVideo.filename}`);
+                    } else {
+                        console.log(`⭕ 镜头 #${i + 1} 无视频`);
                     }
                 }
+                console.log(`🎬 匹配完成: ${matchedCount}/${this.shots.length} 个镜头有视频`);
             } else {
                 console.log('🎬 没有找到已存在的视频');
             }
@@ -1550,6 +1646,10 @@ class ShortDramaStudio {
         const referenceImages = shot.reference_images || [];
         const hasRefs = referenceImages.length > 0;
 
+        // 🔥 获取台词信息（新格式）
+        const dialogueData = shot._dialogue_data;
+        const hasDialogue = dialogueData && dialogueData.speaker && dialogueData.speaker !== '无';
+
         // 生成参考图缩略图HTML（仅在有参考图时）
         const refsThumbnailsHtml = hasRefs ? referenceImages.map(img => `
             <div class="ref-thumb" onclick="event.stopPropagation(); shortDramaStudio.showImagePreview('${img}')">
@@ -1567,12 +1667,19 @@ class ShortDramaStudio {
 
         return `
             <div class="task-row ${statusClass}" id="taskRow_${idx}">
-                <div class="task-index">#${shot.shot_number || (idx + 1)}</div>
+                <div class="task-index">#${shot.shot_number || shot.scene_number || (idx + 1)}</div>
                 <div class="task-content">
                     <div class="task-prompt">
                         <span class="prompt-label">提示词:</span>
                         <span class="prompt-text">${(shot.veo_prompt || shot.screen_action || '').substring(0, 150)}${(shot.veo_prompt || shot.screen_action || '').length > 150 ? '...' : ''}</span>
                     </div>
+                    ${hasDialogue ? `
+                    <div class="task-dialogue">
+                        <span class="prompt-label">💬 台词:</span>
+                        <span class="dialogue-text">${dialogueData.speaker}: ${dialogueData.lines?.substring(0, 50) || ''}${dialogueData.lines?.length > 50 ? '...' : ''}</span>
+                        ${dialogueData.tone ? `<span class="dialogue-tone" style="font-size: 0.75rem; color: var(--text-tertiary);">(${dialogueData.tone})</span>` : ''}
+                    </div>
+                    ` : ''}
                     <div class="task-meta">
                         <span class="meta-tag">${shot.shot_type || '镜头'}</span>
                         <span class="meta-tag">⏱️ ${shot.duration || 5}秒</span>
@@ -2225,6 +2332,19 @@ class ShortDramaStudio {
             console.error('加载参考图失败:', error);
         }
 
+        // 🔥 自动加载 场景道具 目录中的图片
+        let sceneProps = [];
+        try {
+            const response = await fetch(`/api/short-drama/scene-props?novel=${encodeURIComponent(this.selectedNovel || '')}`);
+            const data = await response.json();
+            if (data.success && data.images) {
+                sceneProps = data.images;
+                console.log(`🎬 自动加载了 ${sceneProps.length} 张场景道具参考图`);
+            }
+        } catch (error) {
+            console.error('加载场景道具失败:', error);
+        }
+
         return new Promise((resolve) => {
             // 默认不选中任何图片，让用户手动选择
             const selectedImages = [];
@@ -2233,12 +2353,13 @@ class ShortDramaStudio {
             // 生成唯一键用于保存/加载提示词
             const shotKey = `videoPrompt_${this.selectedNovel}_${shot.episode_title || ''}_${shot.shot_number || (idx + 1)}`;
 
-            // 🔥 构建完整提示词：使用 shot 的所有字段
+            // 🔥 构建完整提示词：只包含画面要求，不包含台词
             const buildFullPrompt = (s) => {
                 const parts = [];
                 if (s.shot_type) parts.push(`【镜头类型】${s.shot_type}`);
                 if (s.screen_action) parts.push(`【画面描述】${s.screen_action}`);
-                if (s.dialogue) parts.push(`【对话】${s.dialogue}`);
+                // 🔥 去除台词，避免内容审核问题，台词后期用其他软件添加
+                // if (s.dialogue) parts.push(`【对话】${s.dialogue}`);
                 if (s.veo_prompt) parts.push(`【AI提示】${s.veo_prompt}`);
                 if (s.plot_content) parts.push(`【情节】${s.plot_content}`);
                 return parts.join('\n');
@@ -2447,6 +2568,61 @@ class ShortDramaStudio {
                                 已选择 <span id="selectedCount" style="color: var(--primary); font-weight: 600;">0</span> 张参考图
                                 ${allPortraits.length > 0 || referenceImages.length > 0 ? '<span style="color: var(--text-tertiary); margin-left: 16px;">💡 点击图片选择，绿色边框为已上传的参考图</span>' : ''}
                             </p>
+                        </div>
+
+                        <!-- 🔥 场景道具参考图选择 -->
+                        <div class="reference-section" style="margin-bottom: 20px;">
+                            <label style="font-weight: 600; display: block; margin-bottom: 12px; font-size: 1rem;">🎬 选择场景道具参考图：</label>
+                            <div id="scenePropsSelector" class="portrait-selector" style="
+                                display: flex;
+                                flex-wrap: wrap;
+                                gap: 16px;
+                                padding: 16px;
+                                background: var(--bg-dark);
+                                border-radius: 12px;
+                                min-height: 80px;
+                            ">
+                                ${sceneProps.length > 0 ? sceneProps.map((img, sIdx) => `
+                                    <label class="portrait-checkbox" style="
+                                        display: flex;
+                                        flex-direction: column;
+                                        align-items: center;
+                                        cursor: pointer;
+                                        position: relative;
+                                        transition: transform 0.2s;
+                                    " onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+                                        <input type="checkbox" class="portrait-check" data-name="场景道具_${img.name}" data-url="${img.url}" data-type="scene-prop"
+                                            style="position: absolute; opacity: 0; width: 0; height: 0;">
+                                        <div class="portrait-thumb" style="
+                                            width: 80px;
+                                            height: 80px;
+                                            border-radius: 12px;
+                                            overflow: hidden;
+                                            border: 3px solid #9c27b0;
+                                            transition: all 0.2s;
+                                            background: var(--bg-tertiary);
+                                        ">
+                                            <img src="${img.url}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.parentElement.parentElement.remove()">
+                                        </div>
+                                        <span style="font-size: 0.8rem; margin-top: 8px; max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-secondary);">${img.name.replace(/\.[^/.]+$/, '')}</span>
+                                        <div class="check-indicator" style="
+                                            position: absolute;
+                                            top: 6px;
+                                            right: 6px;
+                                            width: 24px;
+                                            height: 24px;
+                                            background: rgba(156, 39, 176, 0.8);
+                                            border-radius: 50%;
+                                            display: flex;
+                                            align-items: center;
+                                            justify-content: center;
+                                            font-size: 12px;
+                                            color: white;
+                                        ">✓</div>
+                                    </label>
+                                `).join('') : ''}
+                                ${sceneProps.length === 0 ? '<div style="color: var(--text-tertiary); padding: 12px;">暂无场景道具参考图，请将图片放在 <code>场景道具</code> 目录中</div>' : ''}
+                            </div>
                         </div>
 
                         <!-- 生成参数 -->
