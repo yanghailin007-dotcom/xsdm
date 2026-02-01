@@ -223,7 +223,8 @@ CONFIG = {
         "default_format": "mp3",
         # 角色音色映射 (使用官方demo确认有效的音色ID)
         "character_voices": {
-            # ===== 官方demo推荐音色 =====
+            # ===== 主角 =====
+            "林长生": "audiobook_male_1",          # 有声书男声1 - 适合青年男主
             "林战": "audiobook_male_1",            # 有声书男声1 - 适合青年男主
             "叶凡": "Chinese (Mandarin)_Lyrical_Voice",  # 抒情男声 - 适合青年男主
             "默认": "audiobook_male_1",            # 默认男声

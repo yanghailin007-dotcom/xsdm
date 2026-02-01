@@ -410,6 +410,7 @@ def generate_speech():
         "novel_title": "小说名",
         "episode_title": "集数名",
         "scene_number": 1,
+        "event_name": "起因",  # 中级事件名
         "speaker": "林战",
         "lines": "老祖宗……苏醒了！",
         "voice_id": "male-qn-qingse",
@@ -424,6 +425,7 @@ def generate_speech():
         novel_title = data.get('novel_title')
         episode_title = data.get('episode_title')
         scene_number = data.get('scene_number') or data.get('shot_number')
+        event_name = data.get('event_name', '')  # 中级事件名
         speaker = data.get('speaker', '默认')
         lines = data.get('lines', '')
         voice_id = data.get('voice_id')
@@ -445,8 +447,19 @@ def generate_speech():
 
         if result.get('success'):
             # 保存音频文件
+            from src.managers.VeOVideoManager import sanitize_path
+
             episode_dir = VIDEO_PROJECTS_DIR / novel_title / episode_title / 'audio'
-            filename = f"{scene_number}_{speaker}_{hash(lines) % 1000}.mp3"
+
+            # 文件名格式: {镜头号}_{事件名}_{角色}.mp3（与视频命名保持一致）
+            safe_event = sanitize_path(event_name) if event_name else ''
+            safe_speaker = sanitize_path(speaker)
+
+            if safe_event:
+                filename = f"{scene_number}_{safe_event}_{safe_speaker}.mp3"
+            else:
+                filename = f"{scene_number}_{safe_speaker}.mp3"
+
             audio_path = episode_dir / filename
 
             saved_path = tts_manager.save_audio(result['audio_base64'], audio_path)

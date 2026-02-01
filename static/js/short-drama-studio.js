@@ -1775,6 +1775,44 @@ class ShortDramaStudio {
     }
 
     /**
+     * 解析台词数据，返回 {speaker, lines, tone}
+     * 支持格式:
+     * - 对象: {speaker: "角色", lines: "台词", tone: "语气"}
+     * - 字符串: "(角色): 台词内容" 或 "角色: 台词内容"
+     */
+    parseDialogue(dialogue) {
+        let speaker = '';
+        let lines = '';
+        let tone = '';
+
+        if (typeof dialogue === 'string') {
+            lines = dialogue;
+            // 尝试从字符串中解析角色名: "(角色名): 台词" 或 "角色名: 台词"
+            const speakerMatch = lines.match(/^[(\[]?([^)\]:]+)[)\]]?:?\s*(.+)$/);
+            if (speakerMatch) {
+                speaker = speakerMatch[1].trim();
+                lines = speakerMatch[2].trim();
+            } else {
+                speaker = '未知';
+            }
+        } else if (typeof dialogue === 'object' && dialogue !== null) {
+            speaker = dialogue.speaker || '';
+            lines = dialogue.lines || '';
+            tone = dialogue.tone || '';
+            // 如果speaker为空，尝试从lines中解析
+            if (!speaker && lines) {
+                const speakerMatch = lines.match(/^[(\[]?([^)\]:]+)[)\]]?:?\s*(.+)$/);
+                if (speakerMatch) {
+                    speaker = speakerMatch[1].trim();
+                    lines = speakerMatch[2].trim();
+                }
+            }
+        }
+
+        return { speaker, lines, tone };
+    }
+
+    /**
      * 清文件名
      */
     sanitizeFileName(name) {
@@ -1794,25 +1832,33 @@ class ShortDramaStudio {
         if (!shot) return;
 
         const dialogue = shot.dialogue || shot._dialogue_data || {};
-        let speaker = '';
-        let lines = '';
-        let tone = '';
+        const { speaker, lines, tone } = this.parseDialogue(dialogue);
 
-        if (typeof dialogue === 'string') {
-            lines = dialogue;
-            speaker = '未知';
-        } else if (typeof dialogue === 'object') {
-            speaker = dialogue.speaker || '';
-            lines = dialogue.lines || '';
-            tone = dialogue.tone || '';
-        }
-
-        if (!lines || speaker === '无') {
-            this.showToast('此镜头无台词', 'info');
+        if (!lines || speaker === '无' || speaker === '未知') {
+            this.showToast('此镜头无台词或无法识别角色', 'info');
             return;
         }
 
         // 显示配音确认弹窗
+        this.showDubbingConfirmModal(idx, shot, speaker, lines, tone);
+    }
+
+    /**
+     * 编辑台词（打开编辑弹窗）
+     */
+    editDubbing(idx) {
+        const shot = this.shots[idx];
+        if (!shot) return;
+
+        const dialogue = shot.dialogue || shot._dialogue_data || {};
+        const { speaker, lines, tone } = this.parseDialogue(dialogue);
+
+        if (!lines || speaker === '无' || speaker === '未知') {
+            this.showToast('此镜头无台词或无法识别角色', 'info');
+            return;
+        }
+
+        // 显示配音编辑弹窗
         this.showDubbingConfirmModal(idx, shot, speaker, lines, tone);
     }
 
@@ -1843,8 +1889,9 @@ class ShortDramaStudio {
         const allCharacters = new Set();
         this.shots.forEach(s => {
             const d = s.dialogue || s._dialogue_data || {};
-            if (typeof d === 'object' && d.speaker && d.speaker !== '无') {
-                allCharacters.add(d.speaker);
+            const { speaker } = this.parseDialogue(d);
+            if (speaker && speaker !== '无' && speaker !== '未知') {
+                allCharacters.add(speaker);
             }
         });
         this.characters?.forEach(c => {
@@ -1852,7 +1899,7 @@ class ShortDramaStudio {
         });
 
         // 如果当前说话者不在列表中，添加进去
-        if (speaker && speaker !== '无') {
+        if (speaker && speaker !== '无' && speaker !== '未知') {
             allCharacters.add(speaker);
         }
 
@@ -1860,7 +1907,7 @@ class ShortDramaStudio {
         const sortedCharacters = Array.from(allCharacters).sort();
 
         // 当前说话者的默认音色
-        const defaultVoiceId = characterVoiceMap[speaker] || this.characterVoices['默认'] || 'female-qn-dahu';
+        const defaultVoiceId = characterVoiceMap[speaker] || this.characterVoices['默认'] || 'audiobook_male_1';
 
         modal.innerHTML = `
             <div class="modal-content" style="
@@ -2010,6 +2057,16 @@ class ShortDramaStudio {
                         font-size: 1rem;
                         cursor: pointer;
                     ">取消</button>
+                    <button class="btn-save" style="
+                        padding: 12px 24px;
+                        background: var(--success);
+                        border: none;
+                        border-radius: 10px;
+                        color: white;
+                        font-size: 1rem;
+                        cursor: pointer;
+                        font-weight: 600;
+                    ">💾 保存台词</button>
                     <button class="btn-generate" style="
                         padding: 12px 32px;
                         background: var(--primary);
@@ -2019,7 +2076,7 @@ class ShortDramaStudio {
                         font-size: 1rem;
                         cursor: pointer;
                         font-weight: 600;
-                    ">🎙️ 开始生成配音</button>
+                    ">🎙️ 保存并生成</button>
                 </div>
             </div>
         `;
@@ -2072,7 +2129,39 @@ class ShortDramaStudio {
             }
         });
 
-        // 确认生成
+        // 保存台词按钮（仅保存，不生成）
+        const saveBtn = modal.querySelector('.btn-save');
+        saveBtn.addEventListener('click', () => {
+            const finalLines = modal.querySelector('#dialogueLinesEdit').value.trim();
+            const finalSpeaker = modal.querySelector('#paramSpeaker').value;
+
+            if (!finalLines) {
+                this.showToast('台词不能为空', 'error');
+                return;
+            }
+
+            // 保存台词到shot对象
+            const dialogue = shot.dialogue || shot._dialogue_data || {};
+            if (typeof dialogue === 'object') {
+                dialogue.lines = finalLines;
+                dialogue.speaker = finalSpeaker;
+            } else {
+                shot.dialogue = { speaker: finalSpeaker, lines: finalLines };
+            }
+
+            // 保存角色-音色映射
+            const finalVoiceId = modal.querySelector('#paramVoiceId').value;
+            characterVoiceMap[finalSpeaker] = finalVoiceId;
+
+            // 刷新显示
+            this.renderDubbingScene(shot, idx);
+            this.showToast('台词已保存', 'success');
+
+            // 移除弹窗
+            modal.remove();
+        });
+
+        // 保存并生成按钮
         const generateBtn = modal.querySelector('.btn-generate');
         generateBtn.addEventListener('click', async () => {
             const finalLines = modal.querySelector('#dialogueLinesEdit').value.trim();
@@ -2085,6 +2174,15 @@ class ShortDramaStudio {
             if (!finalLines) {
                 this.showToast('台词不能为空', 'error');
                 return;
+            }
+
+            // 保存台词到shot对象
+            const dialogue = shot.dialogue || shot._dialogue_data || {};
+            if (typeof dialogue === 'object') {
+                dialogue.lines = finalLines;
+                dialogue.speaker = finalSpeaker;
+            } else {
+                shot.dialogue = { speaker: finalSpeaker, lines: finalLines };
             }
 
             // 保存角色-音色映射
@@ -2105,6 +2203,14 @@ class ShortDramaStudio {
         const shot = this.shots[idx];
         if (!shot) return;
 
+        // 清理台词：移除可能存在的角色名前缀
+        // 匹配模式: "角色名:台词", "(角色名):台词", "角色名：台词" 等
+        let cleanLines = lines;
+        const prefixPattern = /^[[(\s]*[^\]):：]+[\])]:?\s*/;
+        if (prefixPattern.test(cleanLines)) {
+            cleanLines = cleanLines.replace(prefixPattern, '');
+        }
+
         // 标记为生成中
         shot.dubbingGenerating = true;
         shot.dubbingError = false;
@@ -2112,7 +2218,7 @@ class ShortDramaStudio {
         document.getElementById(`dubbingScene_${idx}`)?.classList.add('generating');
 
         // 显示进度提示
-        const progressToast = this.showToast(`正在生成配音: ${lines.substring(0, 20)}...`, 'info', 0);
+        const progressToast = this.showToast(`正在生成配音: ${cleanLines.substring(0, 20)}...`, 'info', 0);
 
         try {
             const episodeDirectoryName = this.getEpisodeDirectoryName();
@@ -2124,8 +2230,9 @@ class ShortDramaStudio {
                     novel_title: this.selectedNovel || '',
                     episode_title: episodeDirectoryName,
                     scene_number: shot.shot_number || shot.scene_number || (idx + 1),
+                    event_name: shot.event_name || shot.event || '',  // 中级事件名
                     speaker: speaker,
-                    lines: lines,
+                    lines: cleanLines,  // 使用清理后的台词
                     voice_id: voiceId,
                     speed: speed,
                     pitch: pitch,
@@ -2170,13 +2277,8 @@ class ShortDramaStudio {
     async batchGenerateDubbing() {
         const dialogueShots = this.shots.filter(shot => {
             const dialogue = shot.dialogue || shot._dialogue_data || {};
-            if (typeof dialogue === 'string') return dialogue.trim();
-            if (typeof dialogue === 'object') {
-                const speaker = dialogue.speaker || '';
-                const lines = dialogue.lines || '';
-                return speaker && speaker !== '无' && lines;
-            }
-            return false;
+            const { speaker, lines } = this.parseDialogue(dialogue);
+            return speaker && speaker !== '无' && speaker !== '未知' && lines;
         });
 
         if (dialogueShots.length === 0) {
@@ -2406,18 +2508,7 @@ class ShortDramaStudio {
      */
     renderDubbingScene(shot, idx) {
         const dialogue = shot.dialogue || shot._dialogue_data || {};
-        let speaker = '';
-        let lines = '';
-        let tone = '';
-
-        if (typeof dialogue === 'string') {
-            lines = dialogue;
-            speaker = '未知';
-        } else if (typeof dialogue === 'object') {
-            speaker = dialogue.speaker || '';
-            lines = dialogue.lines || '';
-            tone = dialogue.tone || '';
-        }
+        const { speaker, lines, tone } = this.parseDialogue(dialogue);
 
         const hasAudio = shot.audioUrl || shot.audio_path;
         const isGenerating = shot.dubbingGenerating;
@@ -2455,6 +2546,9 @@ class ShortDramaStudio {
                         <audio id="audio_${idx}" src="${shot.audioUrl}" controls style="width: 100%; height: 32px;"></audio>
                     </div>
                     <div style="display: flex; gap: 8px; margin-top: 8px;">
+                        <button class="scene-btn edit-btn" onclick="shortDramaStudio.editDubbing(${idx})">
+                            <span>✏️</span> 编辑台词
+                        </button>
                         <button class="scene-btn download-btn" onclick="shortDramaStudio.downloadAudio('${shot.audioUrl}', '${speaker}_${shot.shot_number || idx}')">
                             <span>⬇️</span> 下载
                         </button>
@@ -4069,6 +4163,102 @@ class ShortDramaStudio {
     }
 
     /**
+     * 预览配音（已完成的配音）
+     */
+    previewAudio(idx) {
+        const shot = this.shots[idx];
+        if (!shot || !shot.audioUrl) {
+            this.showToast('配音不存在', 'error');
+            return;
+        }
+
+        const dialogue = shot.dialogue || shot._dialogue_data || {};
+        const { speaker, lines, tone } = this.parseDialogue(dialogue);
+
+        // 创建预览弹窗
+        const modal = document.createElement('div');
+        modal.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+        `;
+
+        modal.innerHTML = `
+            <div style="
+                background: var(--bg-secondary);
+                border-radius: 16px;
+                width: 90%;
+                max-width: 500px;
+                padding: 24px;
+                box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            ">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                    <h3 style="margin: 0;">🎙️ 配音预览 #${shot.shot_number || (idx + 1)}</h3>
+                    <button onclick="this.closest('.audio-preview-modal')?.remove()" style="
+                        background: none;
+                        border: none;
+                        font-size: 1.5rem;
+                        cursor: pointer;
+                        color: var(--text-secondary);
+                    ">×</button>
+                </div>
+                <div style="
+                    background: var(--bg-dark);
+                    border-radius: 12px;
+                    padding: 20px;
+                    margin-bottom: 16px;
+                ">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+                        <span style="background: var(--primary); color: white; padding: 4px 12px; border-radius: 6px; font-size: 0.85rem;">${speaker || '未知'}</span>
+                        ${tone ? `<span style="color: var(--text-tertiary); font-size: 0.85rem;">🎭 ${tone}</span>` : ''}
+                    </div>
+                    <div style="color: var(--text-secondary); font-style: italic; margin-bottom: 16px;">
+                        "${lines || ''}"
+                    </div>
+                    <audio src="${shot.audioUrl}" controls autoplay style="width: 100%;"></audio>
+                </div>
+                <div style="display: flex; gap: 12px; justify-content: center;">
+                    <button onclick="shortDramaStudio.downloadAudio('${shot.audioUrl}', '${speaker || 'audio'}_${shot.shot_number || idx}')" style="
+                        padding: 12px 24px;
+                        background: var(--bg-tertiary);
+                        border: 1px solid var(--border);
+                        border-radius: 8px;
+                        cursor: pointer;
+                    ">📥 下载</button>
+                    <button onclick="this.closest('.audio-preview-modal')?.remove(); shortDramaStudio.editDubbing(${idx});" style="
+                        padding: 12px 24px;
+                        background: var(--primary);
+                        border: none;
+                        border-radius: 8px;
+                        cursor: pointer;
+                    ">✏️ 编辑台词</button>
+                    <button onclick="this.closest('.audio-preview-modal')?.remove()" style="
+                        padding: 12px 24px;
+                        background: var(--bg-tertiary);
+                        border: 1px solid var(--border);
+                        border-radius: 8px;
+                        cursor: pointer;
+                    ">关闭</button>
+                </div>
+            </div>
+        `;
+
+        modal.className = 'audio-preview-modal';
+        document.body.appendChild(modal);
+
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) modal.remove();
+        });
+    }
+
+    /**
      * 重新生成视频
      */
     async regenerateVideo(idx) {
@@ -4593,11 +4783,9 @@ class ShortDramaStudio {
         const speakerSet = new Set();
         this.shots.forEach(shot => {
             const dialogue = shot.dialogue || shot._dialogue_data || {};
-            if (typeof dialogue === 'object') {
-                const speaker = dialogue.speaker || '';
-                if (speaker && speaker !== '无') {
-                    speakerSet.add(speaker);
-                }
+            const { speaker } = this.parseDialogue(dialogue);
+            if (speaker && speaker !== '无' && speaker !== '未知') {
+                speakerSet.add(speaker);
             }
         });
 
@@ -4641,13 +4829,8 @@ class ShortDramaStudio {
         // 过滤出有台词的镜头
         const dialogueShots = this.shots.filter(shot => {
             const dialogue = shot.dialogue || shot._dialogue_data || {};
-            if (typeof dialogue === 'string') return dialogue.trim();
-            if (typeof dialogue === 'object') {
-                const speaker = dialogue.speaker || '';
-                const lines = dialogue.lines || '';
-                return speaker && speaker !== '无' && lines;
-            }
-            return false;
+            const { speaker, lines } = this.parseDialogue(dialogue);
+            return speaker && speaker !== '无' && speaker !== '未知' && lines;
         });
 
         container.innerHTML = `
