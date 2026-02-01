@@ -254,24 +254,35 @@ class ShortDramaStudio {
             const response = await fetch('/api/tts/voices');
             const data = await response.json();
 
-            if (data.success && data.voices) {
-                // 将音色列表转换为角色映射
-                this.characterVoices = {};
-                data.voices.forEach(voice => {
-                    this.characterVoices[voice.character] = voice.voice_id;
-                });
+            if (data.success) {
+                // 优先使用后端返回的 character_voices 映射
+                if (data.character_voices) {
+                    this.characterVoices = data.character_voices;
+                } else if (data.voices) {
+                    // 兼容旧格式：从 voices 数组构建映射
+                    this.characterVoices = {};
+                    data.voices.forEach(voice => {
+                        // 新格式：voice.id, voice.name
+                        // 旧格式：voice.voice_id, voice.character
+                        const id = voice.id || voice.voice_id;
+                        const name = voice.name || voice.character;
+                        if (id && name) {
+                            this.characterVoices[name] = id;
+                        }
+                    });
+                }
                 console.log('🎙️ [TTS] 音色列表已加载:', this.characterVoices);
             } else {
                 // 使用默认音色
                 this.characterVoices = {
                     '林战': 'male-qn-qingse',
                     '大长老': 'male-qn-jingying',
-                    '三长老': 'male-qn-yuansu',
-                    '叶凡': 'male-qn-qingche',
-                    '旁白': 'male-qn-pingshu',
-                    '系统音': 'female-qn-dahu',
-                    '林啸天': 'male-qn-wengeng',
-                    '默认': 'female-qn-dahu'
+                    '三长老': 'male-qn-badao',
+                    '叶凡': 'male-qn-qingse',
+                    '旁白': 'male-qn-qingse',
+                    '系统音': 'female-tianmei',
+                    '林啸天': 'male-qn-daxuesheng',
+                    '默认': 'male-qn-qingse'
                 };
             }
         } catch (error) {
@@ -1365,6 +1376,7 @@ class ShortDramaStudio {
                 duration: shot.duration || 5,
                 plot_content: shot.plot_content || '',
                 episode_title: title,
+                event_name: title,  // 事件名用于文件命名
                 episode_index: episodeNumber,
                 episode_order: selectedIndex === -1 ? 9999 : selectedIndex,
                 audio: dialogue.audio_note || shot.audio || ''
@@ -1374,6 +1386,7 @@ class ShortDramaStudio {
             return {
                 ...shot,
                 episode_title: title,
+                event_name: shot.event_name || title,  // 确保有 event_name
                 episode_index: episodeNumber,
                 episode_order: selectedIndex === -1 ? 9999 : selectedIndex
             };
@@ -2370,36 +2383,38 @@ class ShortDramaStudio {
     }
 
     /**
-     * 下载所有音频文件
+     * 下载所有音频文件（打包成ZIP）
      */
     async downloadAllAudio() {
         try {
-            // 收集所有已生成的音频
-            const audioFiles = this.shots
-                .filter(shot => shot.audioUrl)
-                .map(shot => ({
-                    url: shot.audioUrl,
-                    filename: shot.audioPath ? shot.audioPath.split(/[\\/]/).pop() : `${shot.shot_number}_${shot.dialogue?.speaker || '配音'}.mp3`
-                }));
+            const episodeDirectoryName = this.getEpisodeDirectoryName();
 
-            if (audioFiles.length === 0) {
-                this.showToast('没有已生成的配音音频', 'info');
-                return;
-            }
+            const response = await fetch('/api/tts/download-batch', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    novel_title: this.selectedNovel || '',
+                    episode_title: episodeDirectoryName
+                })
+            });
 
-            // 逐个下载（浏览器限制）
-            for (const file of audioFiles) {
+            if (response.ok) {
+                // 下载ZIP文件
+                const blob = await response.blob();
+                const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
-                a.href = file.url;
-                a.download = file.filename;
+                a.href = url;
+                a.download = `${episodeDirectoryName}_配音合集.zip`;
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
-                await new Promise(r => setTimeout(r, 500));
+                URL.revokeObjectURL(url);
+
+                this.showToast('配音合集已打包下载', 'success');
+            } else {
+                const result = await response.json();
+                this.showToast(`下载失败: ${result.error || '未知错误'}`, 'error');
             }
-
-            this.showToast(`已下载 ${audioFiles.length} 个音频文件`, 'success');
-
         } catch (error) {
             this.showToast(`下载失败: ${error.message}`, 'error');
         }

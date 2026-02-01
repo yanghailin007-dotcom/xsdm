@@ -221,35 +221,34 @@ CONFIG = {
         "default_sample_rate": 32000,
         "default_bitrate": 128000,
         "default_format": "mp3",
-        # 角色音色映射 (使用官方demo确认有效的音色ID)
+        # 角色音色映射 (使用 speech-2.8-turbo 模型支持的音色ID)
         "character_voices": {
             # ===== 主角 =====
-            "林长生": "audiobook_male_1",          # 有声书男声1 - 适合青年男主
-            "林战": "audiobook_male_1",            # 有声书男声1 - 适合青年男主
-            "叶凡": "Chinese (Mandarin)_Lyrical_Voice",  # 抒情男声 - 适合青年男主
-            "默认": "audiobook_male_1",            # 默认男声
+            "林长生": "male-qn-qingse",             # 青涩青年 - 适合青年男主
+            "林战": "male-qn-qingse",               # 青涩青年 - 适合青年男主
+            "叶凡": "male-qn-qingse",               # 青涩青年 - 适合青年男主
+            "默认": "male-qn-qingse",               # 默认青年男声
 
             # ===== 长辈男声 =====
-            "大长老": "Chinese (Mandarin)_Reliable_Executive",  # 沉稳高管 - 长辈音色
-            "三长老": "Chinese (Mandarin)_Wise_Scholar",        # 博学长者
-            "林啸天": "Chinese (Mandarin)_Gentleman",           # 温润男声 - 长辈
+            "大长老": "male-qn-jingying",           # 精英青年 - 长辈音色
+            "三长老": "male-qn-badao",              # 霸道青年 - 长辈音色
+            "林啸天": "male-qn-daxuesheng",         # 青年大学生 - 长辈音色
 
             # ===== 旁白/叙述 =====
-            "旁白": "audiobook_male_1",            # 有声书男声适合旁白
-            "叙述者": "audiobook_male_1",
-            "解说": "audiobook_male_1",
+            "旁白": "male-qn-qingse",               # 青涩青年适合旁白
+            "叙述者": "male-qn-qingse",
+            "解说": "male-qn-qingse",
 
             # ===== 女声 =====
-            "系统音": "Chinese (Mandarin)_Sweet_Lady",          # 甜美女声
-            "女主角": "English_Graceful_Lady",                  # 优雅女士
-            "少女": "English_radiant_girl",
+            "系统音": "female-tianmei",             # 甜美女性 - 系统音
+            "女主角": "female-yujie",               # 御姐音色
+            "少女": "female-shaonv",                # 少女音色
 
             # ===== 特殊音色 =====
-            "新闻主播": "Chinese (Mandarin)_News_Anchor",
-            "电台主播": "Chinese (Mandarin)_Radio_Host",
-            "空姐": "Chinese (Mandarin)_HK_Flight_Attendant",
-            "高管": "Chinese (Mandarin)_Reliable_Executive",
-            "不羁青年": "Chinese (Mandarin)_Unrestrained_Young_Man"
+            "新闻主播": "female-chengshu",          # 成熟女性
+            "电台主播": "male-qn-qingse",
+            "空姐": "female-yujie",
+            "高管": "male-qn-jingying"
         }
     },
     
