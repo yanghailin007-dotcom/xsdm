@@ -861,6 +861,26 @@ body {
     text-overflow: ellipsis;
 }
 
+.task-dialogue {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-top: 4px;
+}
+
+.dialogue-text {
+    font-size: 0.85rem;
+    color: var(--text-primary);
+    line-height: 1.3;
+    word-break: break-word;
+}
+
+.dialogue-tone {
+    font-size: 0.75rem;
+    color: var(--text-tertiary);
+    margin-top: 2px;
+}
+
 .task-meta {
     display: flex;
     gap: var(--space-xs);
@@ -886,8 +906,8 @@ body {
 .task-thumbnail,
 .task-video-preview,
 .task-video-placeholder {
-    width: 80px;
-    height: 45px;
+    width: 120px;
+    height: 68px;
     border-radius: var(--radius-sm);
     overflow: hidden;
     background: var(--bg-dark);
@@ -1896,6 +1916,11 @@ select option {
 }
 
 /* ==================== 参考图缩略图 ==================== */
+/* 隐藏左侧的参考图，右侧task-visual中已有显示 */
+.task-content .task-refs {
+    display: none;
+}
+
 .task-refs {
     margin-top: 8px;
     display: flex;

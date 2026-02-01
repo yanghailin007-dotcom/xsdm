@@ -1357,14 +1357,41 @@ class ShortDramaStudio {
      * 标准化镜头数据 - 支持新旧两种格式
      * 新格式: {scene_number, visual: {shot_type, description, veo_prompt}, dialogue: {speaker, lines, tone}}
      * 旧格式: {shot_number, shot_type, screen_action, dialogue, veo_prompt}
+     * 对话格式: {scene_number, visual, dialogues: [{speaker, lines, tone}, ...]}
      */
     normalizeShotData(shot, title, episodeNumber, selectedIndex) {
         // 检查是否是新格式 (有 visual 字段)
         if (shot.visual) {
             // 新格式转旧格式
             const visual = shot.visual || {};
-            const dialogue = shot.dialogue || {};
 
+            // 检查是否有多个对话 (对话场景)
+            if (shot.dialogues && Array.isArray(shot.dialogues) && shot.dialogues.length > 0) {
+                // 对话场景：保留原始结构，不展开
+                // 视频生成时生成1个视频，配音生成时展开为多个音频
+                return {
+                    shot_number: shot.scene_number || shot.shot_number,
+                    shot_type: visual.shot_type || shot.shot_type || '镜头',
+                    screen_action: visual.description || shot.screen_action || '',
+                    // 保留dialogues数组用于配音展开
+                    dialogues: shot.dialogues,
+                    // 使用第一个对话作为默认显示（用于视频步骤）
+                    dialogue: shot.dialogues[0].lines || shot.dialogues[0].speaker || '',
+                    _dialogue_data: shot.dialogues[0],
+                    veo_prompt: visual.veo_prompt || shot.veo_prompt || '',
+                    duration: shot.duration || 5,
+                    plot_content: shot.plot_content || '',
+                    episode_title: title,
+                    event_name: title,  // 事件名用于文件命名
+                    episode_index: episodeNumber,
+                    episode_order: selectedIndex === -1 ? 9999 : selectedIndex,
+                    audio: shot.dialogues[0].audio_note || shot.audio || '',
+                    is_dialogue_scene: true,  // 标记为对话场景
+                    dialogue_count: shot.dialogues.length  // 对话总数
+                };
+            }
+
+            const dialogue = shot.dialogue || {};
             return {
                 shot_number: shot.scene_number || shot.shot_number,
                 shot_type: visual.shot_type || shot.shot_type || '镜头',
@@ -1391,6 +1418,93 @@ class ShortDramaStudio {
                 episode_order: selectedIndex === -1 ? 9999 : selectedIndex
             };
         }
+    }
+
+    /**
+     * 合并连续的对话场景
+     * 将连续的对话镜头合并为一个场景，包含多个对话
+     */
+    groupDialogueScenes(shots) {
+        if (!shots || shots.length === 0) return shots;
+
+        const grouped = [];
+        let currentDialogueGroup = null;
+        let currentGroupIndex = 0;
+
+        for (let i = 0; i < shots.length; i++) {
+            const shot = shots[i];
+            const dialogue = shot._dialogue_data || shot.dialogue || {};
+            const { speaker } = this.parseDialogue(dialogue);
+
+            // 检查是否有台词（不是"无"或"未知"或空）
+            const hasDialogue = speaker && speaker !== '无' && speaker !== '未知' && speaker !== '旁白' && speaker !== '主角内心混响';
+
+            // 检查是否应该开始新的对话组
+            if (hasDialogue) {
+                if (!currentDialogueGroup) {
+                    // 开始新的对话组
+                    currentDialogueGroup = {
+                        shot_number: shot.shot_number,
+                        shot_type: shot.shot_type,
+                        screen_action: shot.screen_action,
+                        veo_prompt: shot.veo_prompt,
+                        duration: shot.duration,
+                        plot_content: shot.plot_content,
+                        episode_title: shot.episode_title,
+                        event_name: shot.event_name,
+                        episode_index: shot.episode_index,
+                        episode_order: shot.episode_order,
+                        dialogues: [],
+                        is_dialogue_scene: true,
+                        shared_scene_id: `${shot.shot_number}_${shot.episode_title}`.replace(/\s+/g, '_')
+                    };
+                    grouped.push(currentDialogueGroup);
+                }
+
+                // 添加对话到当前组
+                currentDialogueGroup.dialogues.push({
+                    speaker: speaker,
+                    lines: dialogue.lines || '',
+                    tone: dialogue.tone || '',
+                    audio_note: dialogue.audio_note || shot.audio || '',
+                    _dialogue_data: dialogue,
+                    // 用于子镜头索引
+                    sub_shot_index: grouped.length - 1,
+                    dialogue_index: currentDialogueGroup.dialogues.length + 1,
+                    dialogue_count: 0 // 稍后更新总数
+                });
+
+                // 累计时长
+                currentDialogueGroup.duration = (currentDialogueGroup.duration || 0) + (shot.duration || 0);
+            } else {
+                // 非对话镜头，结束当前对话组
+                currentDialogueGroup = null;
+                // 更新对话组中的对话总数
+                if (grouped.length > 0) {
+                    const lastGroup = grouped[grouped.length - 1];
+                    if (lastGroup.is_dialogue_scene && lastGroup.dialogues) {
+                        lastGroup.dialogues.forEach(d => d.dialogue_count = lastGroup.dialogues.length);
+                    }
+                }
+                // 直接添加非对话镜头
+                grouped.push(shot);
+            }
+        }
+
+        // 更新最后一个对话组的对话总数
+        if (grouped.length > 0) {
+            const lastGroup = grouped[grouped.length - 1];
+            if (lastGroup.is_dialogue_scene && lastGroup.dialogues) {
+                lastGroup.dialogues.forEach(d => d.dialogue_count = lastGroup.dialogues.length);
+            }
+        }
+
+        // 如果没有对话组，返回原数组
+        if (grouped.every(s => !s.is_dialogue_scene)) {
+            return shots;
+        }
+
+        return grouped;
     }
 
     /**
@@ -1434,11 +1548,21 @@ class ShortDramaStudio {
             const sourceShots = data.shots || data.scenes || [];
             const selectedIndex = this.selectedEpisodes.indexOf(title);
 
+            // 🔥 先转换所有镜头
+            const normalizedShots = [];
             for (const shot of sourceShots) {
-                // 🔥 转换新格式到旧格式（保持内部数据结构一致）
                 const normalizedShot = this.normalizeShotData(shot, title, episodeNumber, selectedIndex);
-                allShots.push(normalizedShot);
+                // 🔥 对话场景返回的是数组，需要展开
+                if (Array.isArray(normalizedShot)) {
+                    normalizedShots.push(...normalizedShot);
+                } else {
+                    normalizedShots.push(normalizedShot);
+                }
             }
+
+            // 🔥 合并连续的对话场景
+            const groupedShots = this.groupDialogueScenes(normalizedShots);
+            allShots.push(...groupedShots);
         }
 
         // 🔥 按事件选择顺序 + 镜头编号排序
@@ -1869,9 +1993,37 @@ class ShortDramaStudio {
         const referenceImages = shot.reference_images || [];
         const hasRefs = referenceImages.length > 0;
 
-        // 🔥 获取台词信息（新格式）
-        const dialogueData = shot._dialogue_data;
-        const hasDialogue = dialogueData && dialogueData.speaker && dialogueData.speaker !== '无';
+        // 🔥 获取台词信息（支持dialogues数组和dialogue对象）
+        let hasDialogue = false;
+        let dialogueDisplayHtml = '';
+
+        // 检查是否是对话场景（dialogues数组）
+        if (shot.dialogues && Array.isArray(shot.dialogues) && shot.dialogues.length > 0) {
+            hasDialogue = true;
+            const firstLines = shot.dialogues.slice(0, 2).map(d =>
+                `${d.speaker}: ${d.lines?.substring(0, 20) || ''}${d.lines?.length > 20 ? '...' : ''}`
+            ).join('\n');
+            const count = shot.dialogues.length;
+            dialogueDisplayHtml = `
+                <div class="task-dialogue">
+                    <span class="prompt-label">💬 对话:</span>
+                    <span class="dialogue-text">${firstLines}${count > 2 ? `\n... 等 ${count} 句` : ''}</span>
+                </div>
+            `;
+        } else {
+            // 普通单个对话
+            const dialogueData = shot._dialogue_data || shot.dialogue;
+            if (dialogueData && dialogueData.speaker && dialogueData.speaker !== '无') {
+                hasDialogue = true;
+                dialogueDisplayHtml = `
+                    <div class="task-dialogue">
+                        <span class="prompt-label">💬 台词:</span>
+                        <span class="dialogue-text">${dialogueData.speaker}: ${dialogueData.lines?.substring(0, 50) || ''}${dialogueData.lines?.length > 50 ? '...' : ''}</span>
+                        ${dialogueData.tone ? `<span class="dialogue-tone">(${dialogueData.tone})</span>` : ''}
+                    </div>
+                `;
+            }
+        }
 
         // 生成参考图缩略图HTML（仅在有参考图时）
         const refsThumbnailsHtml = hasRefs ? referenceImages.map(img => `
@@ -1902,13 +2054,7 @@ class ShortDramaStudio {
                         <span class="plot-text">${shot.plot_content.substring(0, 150)}${shot.plot_content.length > 150 ? '...' : ''}</span>
                     </div>
                     ` : ''}
-                    ${hasDialogue ? `
-                    <div class="task-dialogue">
-                        <span class="prompt-label">💬 台词:</span>
-                        <span class="dialogue-text">${dialogueData.speaker}: ${dialogueData.lines?.substring(0, 50) || ''}${dialogueData.lines?.length > 50 ? '...' : ''}</span>
-                        ${dialogueData.tone ? `<span class="dialogue-tone" style="font-size: 0.75rem; color: var(--text-tertiary);">(${dialogueData.tone})</span>` : ''}
-                    </div>
-                    ` : ''}
+                    ${hasDialogue ? dialogueDisplayHtml : ''}
                     <div class="task-meta">
                         <span class="meta-tag">${shot.shot_type || '镜头'}</span>
                         <span class="meta-tag">⏱️ ${shot.duration || 5}秒</span>
@@ -1922,8 +2068,8 @@ class ShortDramaStudio {
                     ` : ''}
                 </div>
                 <div class="task-visual">
-                    ${hasRefs ? `<div class="refs-thumbnails">${refsThumbnailsHtml}</div>` : '<div class="task-visual-empty"></div>'}
-                    ${hasRefs ? '<span class="visual-arrow">→</span>' : ''}
+                    ${hasRefs && !isCompleted ? `<div class="refs-thumbnails">${refsThumbnailsHtml}</div>` : '<div class="task-visual-empty"></div>'}
+                    ${hasRefs && !isCompleted ? '<span class="visual-arrow">→</span>' : ''}
                     ${videoPreviewHtml}
                 </div>
                 <div class="task-actions">
@@ -2009,11 +2155,46 @@ class ShortDramaStudio {
      * 生成单个镜头的配音（带确认弹窗）
      */
     async generateDubbing(idx) {
-        const shot = this.shots[idx];
-        if (!shot) return;
+        console.log('🎙️ [配音] generateDubbing called with idx:', idx);
 
-        const dialogue = shot._dialogue_data || shot.dialogue || {};
-        const { speaker, lines, tone } = this.parseDialogue(dialogue);
+        // 🔥 优先从展开的配音镜头中获取
+        let shot = this.expandedDubbingShots?.[idx];
+        console.log('🎙️ [配音] 从expandedDubbingShots获取:', shot ? 'found' : 'not found');
+
+        if (!shot) {
+            // 回退到原始shots
+            shot = this.shots[idx];
+            console.log('🎙️ [配音] 从this.shots获取:', shot ? 'found' : 'not found');
+        }
+        if (!shot) {
+            console.error('🎙️ [配音] shot未找到, idx:', idx);
+            return;
+        }
+
+        // 🔥 获取对话数据
+        let speaker, lines, tone;
+
+        // 如果是展开的子镜头（有_dialogue_data）
+        if (shot._dialogue_data && typeof shot._dialogue_data === 'object') {
+            speaker = shot._dialogue_data.speaker;
+            lines = shot._dialogue_data.lines;
+            tone = shot._dialogue_data.tone;
+        } else {
+            // 如果是对话场景（有dialogues数组）
+            if (shot.dialogues && Array.isArray(shot.dialogues) && shot.dialogues.length > 0) {
+                const firstDialogue = shot.dialogues[0];
+                speaker = firstDialogue.speaker;
+                lines = firstDialogue.lines;
+                tone = firstDialogue.tone;
+            } else {
+                // 普通镜头：解析dialogue对象
+                const dialogueData = shot.dialogue || {};
+                const parsed = this.parseDialogue(dialogueData);
+                speaker = parsed.speaker;
+                lines = parsed.lines;
+                tone = parsed.tone;
+            }
+        }
 
         if (!lines || speaker === '无' || speaker === '未知') {
             this.showToast('此镜头无台词或无法识别角色', 'info');
@@ -2028,11 +2209,33 @@ class ShortDramaStudio {
      * 编辑台词（打开编辑弹窗）
      */
     editDubbing(idx) {
-        const shot = this.shots[idx];
+        // 🔥 优先从展开的配音镜头中获取
+        let shot = this.expandedDubbingShots?.[idx];
+        if (!shot) {
+            // 回退到原始shots
+            shot = this.shots[idx];
+        }
         if (!shot) return;
 
-        const dialogue = shot._dialogue_data || shot.dialogue || {};
-        const { speaker, lines, tone } = this.parseDialogue(dialogue);
+        // 🔥 获取对话数据
+        let speaker, lines, tone;
+
+        if (shot._dialogue_data && typeof shot._dialogue_data === 'object') {
+            speaker = shot._dialogue_data.speaker;
+            lines = shot._dialogue_data.lines;
+            tone = shot._dialogue_data.tone;
+        } else if (shot.dialogues && Array.isArray(shot.dialogues) && shot.dialogues.length > 0) {
+            const firstDialogue = shot.dialogues[0];
+            speaker = firstDialogue.speaker;
+            lines = firstDialogue.lines;
+            tone = firstDialogue.tone;
+        } else {
+            const dialogueData = shot.dialogue || {};
+            const parsed = this.parseDialogue(dialogueData);
+            speaker = parsed.speaker;
+            lines = parsed.lines;
+            tone = parsed.tone;
+        }
 
         if (!lines || speaker === '无' || speaker === '未知') {
             this.showToast('此镜头无台词或无法识别角色', 'info');
@@ -2381,7 +2584,11 @@ class ShortDramaStudio {
      * 执行配音生成（实际API调用）
      */
     async executeDubbingGeneration(idx, speaker, lines, voiceId, speed, pitch, vol) {
-        const shot = this.shots[idx];
+        // 🔥 优先从展开的配音镜头中获取
+        let shot = this.expandedDubbingShots?.[idx];
+        if (!shot) {
+            shot = this.shots[idx];
+        }
         if (!shot) return;
 
         // 清理台词：移除可能存在的角色名前缀
@@ -2390,6 +2597,16 @@ class ShortDramaStudio {
         const prefixPattern = /^[[(\s]*[^\]):：]+[\])]:?\s*/;
         if (prefixPattern.test(cleanLines)) {
             cleanLines = cleanLines.replace(prefixPattern, '');
+        }
+
+        // 获取语气信息
+        let tone = '';
+        if (shot._dialogue_data && typeof shot._dialogue_data === 'object') {
+            tone = shot._dialogue_data.tone || '';
+        } else {
+            const dialogue = shot.dialogue || {};
+            const parsedDialogue = this.parseDialogue(dialogue);
+            tone = parsedDialogue.tone || dialogue.tone || '';
         }
 
         // 检查是否有已存在的音频，如果有则备份
@@ -2436,8 +2653,11 @@ class ShortDramaStudio {
                     episode_title: episodeDirectoryName,
                     scene_number: shot.shot_number || shot.scene_number || (idx + 1),
                     event_name: shot.event_name || shot.event || '',  // 中级事件名
+                    dialogue_index: shot.dialogue_index,  // 对话序号（对话场景用）
+                    dialogue_count: shot.dialogue_count,  // 该场景对话总数
                     speaker: speaker,
                     lines: cleanLines,  // 使用清理后的台词
+                    tone: tone,  // 传递语气描述，后端会自动转换为emotion
                     voice_id: voiceId,
                     speed: speed,
                     pitch: pitch,
@@ -2482,27 +2702,49 @@ class ShortDramaStudio {
      * 批量生成所有配音
      */
     async batchGenerateDubbing() {
-        const dialogueShots = this.shots.filter(shot => {
-            const dialogue = shot._dialogue_data || shot.dialogue || {};
-            const { speaker, lines } = this.parseDialogue(dialogue);
-            return speaker && speaker !== '无' && speaker !== '未知' && lines;
-        });
+        // 🔥 展开对话场景为独立的配音子镜头
+        const expandedDialogueShots = [];
+        for (const shot of this.shots) {
+            if (shot.is_dialogue_scene && shot.dialogues && Array.isArray(shot.dialogues)) {
+                // 对话场景：展开为多个子镜头
+                shot.dialogues.forEach((dlg, dlgIdx) => {
+                    expandedDialogueShots.push({
+                        ...shot,
+                        _dialogue_data: dlg,
+                        dialogue: dlg.lines || dlg.speaker || '',
+                        dialogue_index: dlgIdx + 1,
+                        dialogue_count: shot.dialogues.length
+                    });
+                });
+            } else {
+                // 普通镜头：检查是否有台词
+                const dialogue = shot._dialogue_data || shot.dialogue || {};
+                const { speaker, lines } = this.parseDialogue(dialogue);
+                if (speaker && speaker !== '无' && speaker !== '未知' && lines) {
+                    expandedDialogueShots.push(shot);
+                }
+            }
+        }
 
-        if (dialogueShots.length === 0) {
+        if (expandedDialogueShots.length === 0) {
             this.showToast('没有找到有台词的镜头', 'info');
             return;
         }
 
-        const total = dialogueShots.length;
+        const total = expandedDialogueShots.length;
         let completed = 0;
         let failed = 0;
 
-        for (const shot of dialogueShots) {
+        for (const shot of expandedDialogueShots) {
             const idx = this.shots.indexOf(shot);
-            if (idx === -1) continue;
-
-            await this.generateDubbing(idx);
-            completed++;
+            if (idx === -1) {
+                // 对于展开的子镜头，需要特殊处理
+                await this.generateDubbingForSubShot(shot);
+                completed++;
+            } else {
+                await this.generateDubbing(idx);
+                completed++;
+            }
 
             // 等待一小段时间避免API限流
             await new Promise(r => setTimeout(r, 1500));
@@ -2512,7 +2754,78 @@ class ShortDramaStudio {
             this.showToast(`批量生成进度: ${progress}%`, 'info');
         }
 
-        this.showToast(`批量生成完成！成功: ${completed}, 失败: ${failed}`, 'success');
+        this.showToast(`批量生成完成！`, 'success');
+    }
+
+    /**
+     * 为子镜头生成配音（用于对话场景中的单句对话）
+     */
+    async generateDubbingForSubShot(shot) {
+        const dialogue = shot._dialogue_data || shot.dialogue || {};
+        const { speaker, lines, tone } = this.parseDialogue(dialogue);
+
+        if (!lines || speaker === '无' || speaker === '未知') {
+            return;
+        }
+
+        // 标记为生成中
+        shot.dubbingGenerating = true;
+        shot.dubbingError = false;
+
+        // 显示进度提示
+        const progressToast = this.showToast(`正在生成配音: ${lines.substring(0, 20)}...`, 'info', 0);
+
+        try {
+            const episodeDirectoryName = this.getEpisodeDirectoryName();
+
+            // 获取角色-音色映射
+            let voiceId = this.characterVoiceMap[speaker] || this.characterVoices['默认'] || 'female-qn-dahu';
+
+            const response = await fetch('/api/tts/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    novel_title: this.selectedNovel || '',
+                    episode_title: episodeDirectoryName,
+                    scene_number: shot.shot_number || shot.scene_number,
+                    event_name: shot.event_name || shot.event || '',
+                    dialogue_index: shot.dialogue_index,
+                    dialogue_count: shot.dialogue_count,
+                    speaker: speaker,
+                    lines: lines,
+                    tone: tone,  // 传递语气描述，后端会自动转换为emotion
+                    voice_id: voiceId,
+                    speed: 1.0,
+                    pitch: 0,
+                    vol: 1.0
+                })
+            });
+
+            const result = await response.json();
+
+            // 移除进度提示
+            if (progressToast) progressToast.remove();
+
+            if (result.success && result.audio_url) {
+                // 添加时间戳避免浏览器缓存
+                const timestamp = Date.now();
+                shot.audioUrl = result.audio_url + (result.audio_url.includes('?') ? '&' : '?') + 't=' + timestamp;
+                shot.audioPath = result.audio_path;
+                shot.audioDuration = result.duration;
+                shot.dubbingGenerating = false;
+                shot.dubbingError = false;
+                this.showToast('配音生成成功', 'success');
+            } else {
+                shot.dubbingGenerating = false;
+                shot.dubbingError = true;
+                this.showToast(`生成失败: ${result.error || '未知错误'}`, 'error');
+            }
+        } catch (error) {
+            shot.dubbingGenerating = false;
+            shot.dubbingError = true;
+            if (progressToast) progressToast.remove();
+            this.showToast(`生成失败: ${error.message}`, 'error');
+        }
     }
 
     /**
@@ -2730,9 +3043,16 @@ class ShortDramaStudio {
         // 获取事件名（从 episode_title 或 event_name）
         const eventName = shot.episode_title || shot.event_name || '';
 
+        // 对话场景的序号显示
+        const dialogueIndex = shot.dialogue_index;
+        const dialogueCount = shot.dialogue_count;
+        const dialogueLabel = (dialogueIndex && dialogueCount && dialogueCount > 1)
+            ? `<span class="dialogue-index" style="font-size: 0.75rem; color: var(--primary); background: var(--bg-tertiary); padding: 2px 6px; border-radius: 4px; margin-left: 4px;">对话${dialogueIndex}/${dialogueCount}</span>`
+            : '';
+
         const innerHTML = `
             <div class="scene-header">
-                <span class="scene-number">#${shot.shot_number || shot.scene_number || (idx + 1)}</span>
+                <span class="scene-number">#${shot.shot_number || shot.scene_number || (idx + 1)}${dialogueLabel}</span>
                 ${eventName ? `<span class="scene-event" title="事件：${eventName}" style="font-size: 0.75rem; color: var(--accent); background: var(--bg-tertiary); padding: 2px 8px; border-radius: 4px;">📋 ${eventName.length > 12 ? eventName.substring(0, 12) + '...' : eventName}</span>` : ''}
                 <span class="scene-type">${shot.shot_type || '镜头'}</span>
                 <span class="scene-duration">⏱️ ${shot.duration || 5}秒</span>
@@ -5453,18 +5773,91 @@ class ShortDramaStudio {
         const ttsConfig = await ttsConfigResponse.json();
         const ttsConfigured = ttsConfig.success && ttsConfig.configured;
 
-        // 过滤出有台词的镜头
-        const dialogueShots = this.shots.filter(shot => {
-            const dialogue = shot._dialogue_data || shot.dialogue || {};
-            const { speaker, lines } = this.parseDialogue(dialogue);
-            return speaker && speaker !== '无' && speaker !== '未知' && lines;
-        });
+        // 🔥 展开对话场景为独立的配音子镜头
+        const expandedDialogueShots = [];
+        for (let i = 0; i < this.shots.length; i++) {
+            const shot = this.shots[i];
+            // 检查是否是对话场景（有dialogues数组）
+            if (shot.dialogues && Array.isArray(shot.dialogues) && shot.dialogues.length > 0) {
+                // 🔥 初始化子镜头音频状态数组（如果不存在）
+                if (!shot._sub_audios || !Array.isArray(shot._sub_audios)) {
+                    shot._sub_audios = new Array(shot.dialogues.length).fill(null);
+                }
+
+                // 对话场景：展开为多个子镜头
+                shot.dialogues.forEach((dlg, dlgIdx) => {
+                    expandedDialogueShots.push({
+                        ...shot,
+                        // 保存原始索引和子镜头索引
+                        _original_shot_index: i,
+                        _sub_dialogue_index: dlgIdx,
+                        // 覆盖对话数据
+                        _dialogue_data: dlg,
+                        dialogue: dlg.lines || dlg.speaker || '',
+                        // 子镜头特定信息
+                        dialogue_index: dlgIdx + 1,
+                        dialogue_count: shot.dialogues.length,
+                        // 保留原始场景信息用于显示
+                        original_scene_number: shot.shot_number,
+                        is_dialogue_scene: true,
+                        // 🔥 使用原始shot的状态引用（双向绑定）
+                        get audioUrl() { return shot._sub_audios?.[dlgIdx]?.audioUrl; },
+                        get audio_path() { return shot._sub_audios?.[dlgIdx]?.audio_path; },
+                        get audioDuration() { return shot._sub_audios?.[dlgIdx]?.audioDuration; },
+                        get dubbingGenerating() { return shot._sub_audios?.[dlgIdx]?.dubbingGenerating || false; },
+                        get dubbingError() { return shot._sub_audios?.[dlgIdx]?.dubbingError || false; },
+                        set audioUrl(v) {
+                            if (!shot._sub_audios) shot._sub_audios = [];
+                            if (!shot._sub_audios[dlgIdx]) shot._sub_audios[dlgIdx] = {};
+                            shot._sub_audios[dlgIdx].audioUrl = v;
+                        },
+                        set audio_path(v) {
+                            if (!shot._sub_audios) shot._sub_audios = [];
+                            if (!shot._sub_audios[dlgIdx]) shot._sub_audios[dlgIdx] = {};
+                            shot._sub_audios[dlgIdx].audio_path = v;
+                        },
+                        set audioDuration(v) {
+                            if (!shot._sub_audios) shot._sub_audios = [];
+                            if (!shot._sub_audios[dlgIdx]) shot._sub_audios[dlgIdx] = {};
+                            shot._sub_audios[dlgIdx].audioDuration = v;
+                        },
+                        set dubbingGenerating(v) {
+                            if (!shot._sub_audios) shot._sub_audios = [];
+                            if (!shot._sub_audios[dlgIdx]) shot._sub_audios[dlgIdx] = {};
+                            shot._sub_audios[dlgIdx].dubbingGenerating = v;
+                        },
+                        set dubbingError(v) {
+                            if (!shot._sub_audios) shot._sub_audios = [];
+                            if (!shot._sub_audios[dlgIdx]) shot._sub_audios[dlgIdx] = {};
+                            shot._sub_audios[dlgIdx].dubbingError = v;
+                        }
+                    });
+                });
+            } else {
+                // 普通镜头：直接检查是否有台词
+                const dialogue = shot._dialogue_data || shot.dialogue || {};
+                const { speaker, lines } = this.parseDialogue(dialogue);
+                if (speaker && speaker !== '无' && speaker !== '未知' && lines) {
+                    // 添加原始索引
+                    shot._original_shot_index = i;
+                    expandedDialogueShots.push(shot);
+                }
+            }
+        }
 
         // 检查已存在的音频文件
         await this.checkExistingAudio();
 
+        // 🔥 保存展开后的镜头列表供后续使用
+        this.expandedDubbingShots = expandedDialogueShots;
+        console.log('🎙️ [配音] 展开后的镜头数量:', expandedDialogueShots.length);
+        console.log('🎙️ [配音] 原始镜头数量:', this.shots.length);
+        // 检查对话场景
+        const dialogueScenes = expandedDialogueShots.filter(s => s.is_dialogue_scene);
+        console.log('🎙️ [配音] 对话场景子镜头数量:', dialogueScenes.length);
+
         // 按事件分组
-        const eventGroups = this.groupShotsByEvent(dialogueShots);
+        const eventGroups = this.groupShotsByEvent(expandedDialogueShots);
 
         let scenesHtml = '';
         eventGroups.forEach((group, groupIdx) => {
@@ -5486,10 +5879,12 @@ class ShortDramaStudio {
                 `;
             }
 
-            // 渲染该事件的所有镜头，使用 this.shots 中的正确索引
-            group.shots.forEach(shot => {
-                const originalIdx = this.shots.indexOf(shot);
-                scenesHtml += this.renderDubbingScene(shot, originalIdx);
+            // 渲染该事件的所有镜头，使用展开后的索引
+            group.shots.forEach((shot) => {
+                // 🔥 在展开的镜头列表中查找索引
+                const expandedIdx = expandedDialogueShots.indexOf(shot);
+                console.log(`🎙️ [配音] 渲染镜头: scene=#${shot.shot_number}, expandedIdx=${expandedIdx}, dialogue="${shot._dialogue_data?.lines?.substring(0, 15)}..."`);
+                scenesHtml += this.renderDubbingScene(shot, expandedIdx);
             });
         });
 
@@ -5498,9 +5893,9 @@ class ShortDramaStudio {
                 <!-- 工具栏 -->
                 <div class="dubbing-toolbar">
                     <div class="dubbing-stats">
-                        <span class="stat-item">共 ${dialogueShots.length} 个镜头</span>
-                        <span class="stat-item completed">已完成 ${dialogueShots.filter(s => s.audioUrl || s.audio_path).length}</span>
-                        <span class="stat-item pending">待生成 ${dialogueShots.filter(s => !(s.audioUrl || s.audio_path)).length}</span>
+                        <span class="stat-item">共 ${expandedDialogueShots.length} 个镜头</span>
+                        <span class="stat-item completed">已完成 ${expandedDialogueShots.filter(s => s.audioUrl || s.audio_path).length}</span>
+                        <span class="stat-item pending">待生成 ${expandedDialogueShots.filter(s => !(s.audioUrl || s.audio_path)).length}</span>
                     </div>
                     <div class="toolbar-actions">
                         ${ttsConfigured ?

@@ -242,7 +242,109 @@ class TTSManager:
         self.group_id = os.getenv('MINIMAX_GROUP_ID') or MINIMAX_CONFIG.get("group_id", '')
         self.api_key = os.getenv('MINIMAX_API_KEY') or MINIMAX_CONFIG.get("api_key", '')
 
-    def generate_speech(self, text, voice_id='female-qn-dahu', speed=1.0, pitch=0, vol=1.0):
+    # 语气/情绪 映射表
+    TONE_TO_EMOTION = {
+        # 高兴类
+        '高兴': 'happy',
+        '开心': 'happy',
+        '快乐': 'happy',
+        '兴奋': 'happy',
+        '愉快': 'happy',
+        '欣喜': 'happy',
+        '喜悦': 'happy',
+
+        # 悲伤类
+        '悲伤': 'sad',
+        '难过': 'sad',
+        '痛苦': 'sad',
+        '哀伤': 'sad',
+        '悲伤低沉': 'sad',
+        '哀痛': 'sad',
+
+        # 愤怒类
+        '愤怒': 'angry',
+        '生气': 'angry',
+        '愤怒激烈': 'angry',
+        '怒斥': 'angry',
+        '咆哮': 'angry',
+        '暴怒': 'angry',
+
+        # 害怕类
+        '害怕': 'fearful',
+        '恐惧': 'fearful',
+        '惊恐': 'fearful',
+        '紧张': 'fearful',
+        '不安': 'fearful',
+
+        # 厌恶类
+        '厌恶': 'disgusted',
+        '讨厌': 'disgusted',
+        '嫌弃': 'disgusted',
+
+        # 惊讶类
+        '惊讶': 'surprised',
+        '震惊': 'surprised',
+        '惊愕': 'surprised',
+        '诧异': 'surprised',
+        '意外': 'surprised',
+
+        # 中性/平静类
+        '平静': 'calm',
+        '冷静': 'calm',
+        '淡定': 'calm',
+        '中性': 'calm',
+        '严肃': 'calm',
+        '严肃认真': 'calm',
+        '温和': 'calm',
+        '温和诚恳': 'calm',
+
+        # 生动类
+        '生动': 'fluent',
+        '活泼': 'fluent',
+        '热情': 'fluent',
+
+        # 低语类
+        '低语': 'whisper',
+        '轻声': 'whisper',
+        '耳语': 'whisper',
+        '低沉': 'whisper',
+
+        # 特殊/默认
+        '纯画面': None,
+        '无': None,
+        '态度转变': 'surprised',
+        '恭敬': 'calm',
+        '恭敬齐声': 'calm',
+    }
+
+    def tone_to_emotion(self, tone):
+        """
+        将语气描述转换为emotion参数
+
+        Args:
+            tone: 语气描述，如"愤怒"、"高兴"、"严肃"等
+
+        Returns:
+            对应的emotion参数值，如果无法匹配则返回None（让AI自动判断）
+        """
+        if not tone or not isinstance(tone, str):
+            return None
+
+        tone = tone.strip()
+
+        # 精确匹配
+        if tone in self.TONE_TO_EMOTION:
+            return self.TONE_TO_EMOTION[tone]
+
+        # 模糊匹配
+        for key, emotion in self.TONE_TO_EMOTION.items():
+            if key in tone or tone in key:
+                return emotion
+
+        # 默认返回None，让AI自动判断情绪
+        return None
+
+    def generate_speech(self, text, voice_id='female-qn-dahu', speed=1.0, pitch=0, vol=1.0, emotion=None):
         """
         生成语音 (使用异步API)
 
@@ -252,6 +354,7 @@ class TTSManager:
             speed: 语速 0.5-2.0
             pitch: 音调 -12到12
             vol: 音量 0.1-10.0
+            emotion: 情绪 (happy/sad/angry/fearful/disgusted/surprised/calm/fluent/whisper)
 
         Returns:
             {"success": bool, "audio_url": str, "audio_path": str, "duration": float}
@@ -268,15 +371,21 @@ class TTSManager:
         }
 
         # 按照新API格式构建请求
+        voice_setting = {
+            'voice_id': voice_id,
+            'speed': speed,
+            'vol': vol,
+            'pitch': pitch
+        }
+
+        # 添加情绪参数（如果指定）
+        if emotion:
+            voice_setting['emotion'] = emotion
+
         payload = {
             'model': TTS_CONFIG['model_audio'],
             'text': text,
-            'voice_setting': {
-                'voice_id': voice_id,
-                'speed': speed,
-                'vol': vol,
-                'pitch': pitch
-            },
+            'voice_setting': voice_setting,
             'audio_setting': {
                 'audio_sample_rate': TTS_CONFIG['default_sample_rate'],
                 'bitrate': TTS_CONFIG['default_bitrate'],
@@ -289,7 +398,8 @@ class TTSManager:
         try:
             logger.info(f'🎙️ [TTS] 提交异步任务: voice_id={voice_id}, text="{text[:30]}..."')
             logger.info(f'🎙️ [TTS] 请求URL: {TTS_CONFIG["async_url"]}')
-            logger.info(f'🎙️ [TTS] 请求参数: model={TTS_CONFIG["model_audio"]}, speed={speed}, pitch={pitch}, vol={vol}')
+            logger.info(f'🎙️ [TTS] 请求参数: model={TTS_CONFIG["model_audio"]}, speed={speed}, pitch={pitch}, vol={vol}, emotion={emotion}')
+            logger.info(f'🎙️ [TTS] voice_setting: {voice_setting}')
 
             # 第一步：提交异步任务
             submit_response = requests.post(
@@ -584,6 +694,7 @@ def generate_speech():
         "event_name": "起因",  # 中级事件名
         "speaker": "林战",
         "lines": "老祖宗……苏醒了！",
+        "tone": "愤怒",  # 语气/情绪描述
         "voice_id": "male-qn-qingse",
         "speed": 1.0,
         "pitch": 0,
@@ -599,7 +710,9 @@ def generate_speech():
         event_name = data.get('event_name', '')  # 中级事件名
         speaker = data.get('speaker', '默认')
         lines = data.get('lines', '')
+        tone = data.get('tone', '')  # 语气描述
         voice_id = data.get('voice_id')
+        emotion = data.get('emotion')  # 直接指定的emotion（优先级高于tone）
         speed = float(data.get('speed', 1.0))
         pitch = int(data.get('pitch', 0))
         vol = float(data.get('vol', 1.0))
@@ -613,8 +726,14 @@ def generate_speech():
         # 使用指定的音色，或根据角色名选择默认音色
         final_voice_id = voice_id or CHARACTER_VOICES.get(speaker, CHARACTER_VOICES['默认'])
 
+        # 处理emotion参数：优先使用直接指定的emotion，否则从tone转换
+        final_emotion = emotion
+        if not final_emotion and tone:
+            final_emotion = tts_manager.tone_to_emotion(tone)
+            logger.info(f'🎙️ [TTS] 语气转换: tone="{tone}" -> emotion="{final_emotion}"')
+
         # 生成语音
-        result = tts_manager.generate_speech(lines, final_voice_id, speed, pitch, vol)
+        result = tts_manager.generate_speech(lines, final_voice_id, speed, pitch, vol, final_emotion)
 
         if result.get('success'):
             # 保存音频文件
@@ -622,11 +741,20 @@ def generate_speech():
 
             episode_dir = VIDEO_PROJECTS_DIR / novel_title / episode_title / 'audio'
 
-            # 文件名格式: {镜头号}_{事件名}_{角色}.mp3（与视频命名保持一致）
+            # 获取对话序号信息（用于对话场景）
+            dialogue_index = scene.get('dialogue_index')
+            dialogue_count = scene.get('dialogue_count')
+
             safe_event = sanitize_path(event_name) if event_name else ''
             safe_speaker = sanitize_path(speaker)
 
-            if safe_event:
+            # 文件名格式：
+            # 单独对话: {镜头号}_{事件名}_{角色}.mp3
+            # 对话场景: {镜头号}_{事件名}_对话{序号}_{角色}.mp3
+            if dialogue_index and dialogue_count and dialogue_count > 1:
+                # 对话场景中的一句对话
+                filename = f"{scene_number}_{safe_event}_对话{dialogue_index}_{safe_speaker}.mp3"
+            elif safe_event:
                 filename = f"{scene_number}_{safe_event}_{safe_speaker}.mp3"
             else:
                 filename = f"{scene_number}_{safe_speaker}.mp3"
@@ -691,9 +819,11 @@ def generate_batch_speech():
             if isinstance(dialogue, dict):
                 speaker = dialogue.get('speaker', '')
                 lines = dialogue.get('lines', '')
+                tone = dialogue.get('tone', '')  # 获取语气描述
             else:
                 speaker = str(dialogue) if dialogue else ''
                 lines = ''
+                tone = ''
 
             if not speaker or not lines or speaker == '无':
                 results.append({
@@ -707,8 +837,11 @@ def generate_batch_speech():
             # 确定音色
             voice_id = CHARACTER_VOICES.get(speaker, CHARACTER_VOICES['默认'])
 
+            # 从tone转换emotion
+            emotion = tts_manager.tone_to_emotion(tone) if tone else None
+
             # 生成语音
-            result = tts_manager.generate_speech(lines, voice_id)
+            result = tts_manager.generate_speech(lines, voice_id, 1.0, 0, 1.0, emotion)
 
             if result.get('success'):
                 # 保存音频文件
