@@ -945,10 +945,6 @@ def generate_storyboard():
         character_prompts = event_extractor.generate_character_prompts(characters)
         logger.info(f"👥 [VIDEO] 提取到 {len(characters)} 个角色设计")
 
-        # 🔥 获取视频场景提示词生成器（用于世界一致性）
-        from src.prompts.VideoScenePrompts import get_video_scene_prompts
-        scene_prompt_generator = get_video_scene_prompts()
-
         # 使用视频适配器进行转换
         from src.managers.VideoAdapterManager import VideoAdapterManager
 
@@ -978,14 +974,8 @@ def generate_storyboard():
             for scene in scenes:
                 shot_sequence = scene.get("shot_sequence", [])
                 for shot in shot_sequence:
-                    # 🔥 使用世界一致性提示词生成器
-                    generation_prompt = scene_prompt_generator.generate_shot_world_consistency_prompt(
-                        shot_description=shot.get('description', ''),
-                        shot_type=shot.get('shot_type', '中景'),
-                        camera_movement=shot.get('camera_movement', '固定'),
-                        duration=shot.get('duration_seconds', 5),
-                        novel_data=novel_detail
-                    )
+                    # 🔥 直接使用镜头描述，专注于视频画面本身
+                    generation_prompt = shot.get('description', shot.get('veo_prompt', ''))
 
                     shots.append({
                         "shot_index": len(shots),
@@ -998,7 +988,7 @@ def generate_storyboard():
                         "duration_seconds": shot.get("duration_seconds", 5),
                         "description": shot.get("description", ""),
                         "audio_cue": shot.get("audio_note", shot.get("tiktok_note", "")),
-                        "veo_prompt": generation_prompt,  # 🔥 使用前端期望的字段名
+                        "veo_prompt": generation_prompt,  # 🔥 直接使用镜头描述
                         "screen_action": shot.get("description", ""),  # 保留兼容字段
                         "status": "pending",
                         "visual_style": video_result.get("visual_style_guide", {}).get("overall_style", "写实")
@@ -3003,21 +2993,6 @@ def get_video_project(project_name):
         with open(json_files[0], 'r', encoding='utf-8') as f:
             storyboard_data = json.load(f)
 
-        # 🔥 获取小说数据用于世界一致性提示词
-        novel_title = storyboard_data.get("novel_title")
-        novel_detail = None
-        if novel_title:
-            try:
-                from web.managers.novel_manager import NovelManager
-                manager = NovelManager()
-                novel_detail = manager.get_novel_detail(novel_title)
-            except Exception as e:
-                logger.warning(f"⚠️ [VIDEO] 无法加载小说数据: {e}")
-
-        # 🔥 获取视频场景提示词生成器
-        from src.prompts.VideoScenePrompts import get_video_scene_prompts
-        scene_prompt_generator = get_video_scene_prompts()
-
         # 提取所有镜头
         units = storyboard_data.get("units", [])
         shots = []
@@ -3029,21 +3004,8 @@ def get_video_project(project_name):
             for scene in scenes:
                 shot_sequence = scene.get("shot_sequence", [])
                 for shot in shot_sequence:
-                    # 🔥 使用世界一致性提示词生成器（如果有小说数据）
-                    if novel_detail:
-                        generation_prompt = scene_prompt_generator.generate_shot_world_consistency_prompt(
-                            shot_description=shot.get('description', ''),
-                            shot_type=shot.get('shot_type', '中景'),
-                            camera_movement=shot.get('camera_movement', '固定'),
-                            duration=shot.get('duration_seconds', 5),
-                            novel_data=novel_detail
-                        )
-                    else:
-                        # 没有小说数据时使用原始格式
-                        generation_prompt = f"""{shot.get('description', '')}
-景别：{shot.get('shot_type', '中景')}
-运镜：{shot.get('camera_movement', '固定')}
-时长：{shot.get('duration_seconds', 5)}秒"""
+                    # 🔥 直接使用镜头描述，专注于视频画面本身
+                    generation_prompt = shot.get('description', shot.get('veo_prompt', ''))
 
                     shots.append({
                         "shot_index": len(shots),
