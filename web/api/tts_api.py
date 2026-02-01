@@ -716,6 +716,9 @@ def generate_speech():
         speed = float(data.get('speed', 1.0))
         pitch = int(data.get('pitch', 0))
         vol = float(data.get('vol', 1.0))
+        # 获取对话序号信息（用于对话场景）
+        dialogue_index = data.get('dialogue_index')
+        dialogue_count = data.get('dialogue_count')
 
         if not lines:
             return jsonify({
@@ -740,10 +743,6 @@ def generate_speech():
             from src.managers.VeOVideoManager import sanitize_path
 
             episode_dir = VIDEO_PROJECTS_DIR / novel_title / episode_title / 'audio'
-
-            # 获取对话序号信息（用于对话场景）
-            dialogue_index = scene.get('dialogue_index')
-            dialogue_count = scene.get('dialogue_count')
 
             safe_event = sanitize_path(event_name) if event_name else ''
             safe_speaker = sanitize_path(speaker)
