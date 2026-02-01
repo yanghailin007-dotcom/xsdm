@@ -2226,6 +2226,18 @@ select option {
     color: var(--primary);
 }
 
+.dubbing-scene .scene-event {
+    font-size: 0.75rem;
+    color: var(--accent);
+    background: var(--bg-tertiary);
+    padding: 2px 8px;
+    border-radius: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 200px;
+}
+
 .dubbing-scene .scene-type {
     color: var(--text-secondary);
 }

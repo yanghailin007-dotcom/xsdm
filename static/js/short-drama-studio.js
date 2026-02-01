@@ -1103,8 +1103,8 @@ class ShortDramaStudio {
         if (!this.selectedMajorEvent) return '默认';
 
         const majorIndex = this.events.findIndex(e => e.id === this.selectedMajorEvent.id);
-        const sanitize = (name) => name.replace(/[<>:"/\\|?]/g, '_');
-        const eventTitle = sanitize(this.selectedMajorEvent.title || this.selectedMajorEvent.name);
+        // 使用原始标题，不要替换特殊字符（因为目录名保留了原始字符）
+        const eventTitle = this.selectedMajorEvent.title || this.selectedMajorEvent.name;
 
         return `${majorIndex + 1}集_${eventTitle}`;
     }
@@ -2553,9 +2553,13 @@ class ShortDramaStudio {
         const statusClass = hasAudio ? 'done' : isGenerating ? 'processing' : hasError ? 'error' : 'pending';
         const statusText = hasAudio ? '已完成' : isGenerating ? '生成中...' : hasError ? '失败' : '待生成';
 
+        // 获取事件名（从 episode_title 或 event_name）
+        const eventName = shot.episode_title || shot.event_name || '';
+
         const innerHTML = `
             <div class="scene-header">
                 <span class="scene-number">#${shot.shot_number || shot.scene_number || (idx + 1)}</span>
+                ${eventName ? `<span class="scene-event" title="事件：${eventName}" style="font-size: 0.75rem; color: var(--accent); background: var(--bg-tertiary); padding: 2px 8px; border-radius: 4px;">📋 ${eventName.length > 12 ? eventName.substring(0, 12) + '...' : eventName}</span>` : ''}
                 <span class="scene-type">${shot.shot_type || '镜头'}</span>
                 <span class="scene-duration">⏱️ ${shot.duration || 5}秒</span>
                 <span class="task-status ${statusClass}">${statusText}</span>
