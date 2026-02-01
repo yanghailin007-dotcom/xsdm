@@ -1738,7 +1738,9 @@ class ShortDramaStudio {
                     }
 
                     if (matchedAudio) {
-                        shot.audioUrl = matchedAudio.url;
+                        // 添加时间戳避免浏览器缓存
+                        const timestamp = Date.now();
+                        shot.audioUrl = matchedAudio.url + (matchedAudio.url.includes('?') ? '&' : '?') + 't=' + timestamp;
                         shot.audio_path = matchedAudio.path;
                         matchedCount++;
                         console.log(`✅ 镜头 #${shotNumber} 音频已存在: ${matchedAudio.filename}`);
@@ -2449,7 +2451,9 @@ class ShortDramaStudio {
             if (progressToast) progressToast.remove();
 
             if (result.success && result.audio_url) {
-                shot.audioUrl = result.audio_url;
+                // 添加时间戳避免浏览器缓存旧音频
+                const timestamp = Date.now();
+                shot.audioUrl = result.audio_url + (result.audio_url.includes('?') ? '&' : '?') + 't=' + timestamp;
                 shot.audioPath = result.audio_path;
                 shot.audioDuration = result.duration;
                 shot.dubbingGenerating = false;
