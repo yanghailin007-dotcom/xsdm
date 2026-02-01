@@ -691,6 +691,23 @@ class ShortDramaStudio {
                 const charRole = char.role || '角色';
                 const portraitInfo = this.characterPortraits.get(charName);
 
+                // 提取角色外观描述
+                let appearanceDesc = '';
+                if (char.living_characteristics?.physical_presence) {
+                    appearanceDesc = char.living_characteristics.physical_presence;
+                } else if (char.initial_state?.description) {
+                    appearanceDesc = char.initial_state.description;
+                } else if (char.appearance) {
+                    appearanceDesc = char.appearance;
+                } else if (char.description) {
+                    appearanceDesc = char.description;
+                }
+
+                // 限制描述长度
+                if (appearanceDesc.length > 50) {
+                    appearanceDesc = appearanceDesc.substring(0, 50) + '...';
+                }
+
                 return `
                     <div class="character-card ${portraitInfo ? 'has-portrait' : ''}">
                         <div class="character-card-header">
@@ -703,6 +720,7 @@ class ShortDramaStudio {
                             <div class="character-info">
                                 <div class="character-name">${charName}</div>
                                 <div class="character-role">${charRole}</div>
+                                ${appearanceDesc ? `<div class="character-appearance" title="${char.living_characteristics?.physical_presence || char.initial_state?.description || char.appearance || char.description}">${appearanceDesc}</div>` : ''}
                                 ${portraitInfo && portraitInfo.portraits.length > 1
                                     ? `<div class="portrait-count">${portraitInfo.portraits.length} 个造型</div>`
                                     : ''
@@ -842,70 +860,150 @@ class ShortDramaStudio {
     }
 
     /**
-     * 根据角色信息生成AI剧照提示词（参考旧代码格式）
+     * 根据角色信息生成AI剧照提示词（使用角色设计文件中的详细特征）
      */
     generateCharacterPortraitPrompt(character) {
         const name = character.name || '';
         const role = character.role || '';
-        const description = character.description || '';
-        const appearance = character.appearance || '';
 
-        // 根据角色类型确定风格和构图
-        let style = '';
-        let composition = '';
-        let expression = '';
-        let background = '';
+        // 从角色设计文件结构中提取详细外观信息
+        let physicalDescription = '';
+        let personality = '';
+        let age = '';
+        let clothing = '';
 
-        // 角色类型分析
-        if (role.includes('主角') || role.includes('男主') || role.includes('女主')) {
-            style = '仙侠修真风格，高质量人物立绘';
-            composition = '半身正面像，胸部以上构图，突出面部特征';
-            expression = '自信坚定，眼神有神，气场强大';
-            background = '仙气缭绕的背景，云雾缭绕';
-        } else if (role.includes('反派') || role.includes('BOSS') || role.includes('敌人')) {
-            style = '仙侠反派风格，霸气外露';
-            composition = '全身像或半身像，威严姿态';
-            expression = '冷漠傲慢，眼神锐利，压迫感强';
-            background = '黑暗气息，神秘背景';
-        } else if (role.includes('长老') || role.includes('族长') || role.includes('宗师') || role.includes('真仙')) {
-            style = '仙侠高人风格，仙风道骨';
-            composition = '半身像，端庄肃穆';
-            expression = '慈祥中带着威严，眼神深邃';
-            background = '道家仙山，古色古香';
-        } else if (role.includes('少女') || role.includes('女主')) {
-            style = '仙侠美女风格，精致唯美';
-            composition = '半身像，优美姿态';
-            expression = '温柔恬静或娇俏可爱';
-            background = '花海或仙宫，梦幻氛围';
-        } else {
-            style = '仙侠人物立绘，精致细节';
-            composition = '半身正面像';
-            expression = '生动自然';
-            background = '仙侠风格背景';
+        // 尝试从不同字段中提取信息
+        if (character.living_characteristics) {
+            physicalDescription = character.living_characteristics.physical_presence || '';
+            personality = character.living_characteristics.distinctive_traits || character.living_characteristics.communication_style || '';
         }
 
-        // 构建完整提示词
+        // 从initial_state中提取
+        if (character.initial_state) {
+            if (!physicalDescription) {
+                physicalDescription = character.initial_state.description || '';
+            }
+        }
+
+        // 从top-level字段提取（兼容旧格式）
+        if (!physicalDescription) {
+            physicalDescription = character.appearance || character.description || '';
+        }
+
+        // 从soul_matrix中提取核心特质
+        if (character.soul_matrix && character.soul_matrix.length > 0) {
+            const firstTrait = character.soul_matrix[0];
+            if (typeof firstTrait === 'object') {
+                personality = firstTrait.core_trait || personality;
+            } else if (typeof firstTrait === 'string') {
+                personality = firstTrait;
+            }
+        }
+
+        // 提取年龄
+        age = character.age || character.initial_state?.age || '';
+
+        // 构建详细的角色特征描述
+        let characterFeatures = [];
+
+        // 添加身体特征（最重要）
+        if (physicalDescription) {
+            characterFeatures.push(`外形：${physicalDescription}`);
+        }
+
+        // 添加性格特质
+        if (personality) {
+            characterFeatures.push(`性格：${personality}`);
+        }
+
+        // 添加年龄
+        if (age) {
+            characterFeatures.push(`年龄：${age}`);
+        }
+
+        // 添加服装/装备信息（从physical_description中提取关键词）
+        const clothingKeywords = ['身穿', '身披', '着', '战甲', '锦袍', '长袍', '铠甲', '盔甲', '衣服', '套装'];
+        for (const keyword of clothingKeywords) {
+            if (physicalDescription.includes(keyword)) {
+                // 找到包含服装关键词的句子
+                const sentences = physicalDescription.split(/[，。；！]/);
+                for (const sentence of sentences) {
+                    if (sentence.includes(keyword)) {
+                        clothing = sentence.trim();
+                        break;
+                    }
+                }
+                if (clothing) break;
+            }
+        }
+        if (clothing) {
+            characterFeatures.push(`服装：${clothing}`);
+        }
+
+        // 根据角色的actual特征构建提示词，而不是用通用模板
         let prompt = `角色名称：${name}\n`;
         prompt += `角色定位：${role}\n`;
         prompt += `\n`;
+
+        // 如果有详细的特征描述，优先使用
+        if (characterFeatures.length > 0) {
+            prompt += `【角色特征】\n`;
+            prompt += characterFeatures.join('\n');
+            prompt += `\n\n`;
+        }
+
+        // 根据角色定位添加画面要求（使用更精确的风格）
         prompt += `【画面要求】\n`;
+
+        // 根据实际角色特征确定风格，而不是通用模板
+        let style = '高质量人物立绘，细节丰富';
+        let composition = '半身正面像，突出面部特征和表情';
+        let expression = '自然生动';
+        let background = '东方玄幻修仙世界风格背景';
+
+        // 根据physical_description中的关键词调整风格
+        if (physicalDescription) {
+            if (physicalDescription.includes('横肉') || physicalDescription.includes('魁梧') || physicalDescription.includes('壮汉')) {
+                // 粗犷威猛型角色
+                style = '东方玄幻风格，粗犷威猛，力量感十足';
+                expression = '威严霸气，眼神锐利，气势逼人';
+                background = '压抑的氛围，强者威压的视觉效果';
+            } else if (physicalDescription.includes('仙风') || physicalDescription.includes('鹤发') || physicalDescription.includes('童颜')) {
+                // 仙风道骨型角色
+                style = '东方玄幻风格，仙风道骨，高人风范';
+                expression = '慈祥深邃，眼神空灵，道法自然';
+                background = '仙气缭绕，云雾飘渺，道韵天成';
+            } else if (physicalDescription.includes('绝美') || physicalDescription.includes('容') || physicalDescription.includes('少女') || physicalDescription.includes('美女')) {
+                // 美女型角色
+                style = '东方玄幻风格，精致唯美，仙气飘飘';
+                expression = '温柔恬静或清冷孤傲，眼神灵动';
+                background = '花海仙宫，梦幻氛围';
+            } else if (physicalDescription.includes('阴鸷') || physicalDescription.includes('阴') || physicalDescription.includes('煞')) {
+                // 阴狠型角色
+                style = '东方玄幻风格，阴狠霸气，魔道气息';
+                expression = '阴鸷狠戾，眼神如蛇，压迫感强';
+                background = '黑暗气息，血煞之气，魔道氛围';
+            } else {
+                // 默认风格
+                style = '东方玄幻修真风格，高质量人物立绘';
+                expression = '生动自然，眼神有神';
+                background = '东方玄幻修仙世界风格，灵气氤氲';
+            }
+        }
+
         prompt += `风格：${style}\n`;
         prompt += `构图：${composition}\n`;
         prompt += `表情：${expression}\n`;
         prompt += `背景：${background}\n`;
-
-        // 添加描述细节
-        if (description || appearance) {
-            prompt += `\n【角色特征】\n${appearance || description}\n`;
-        }
 
         // 添加技术要求
         prompt += `\n【技术要求】\n`;
         prompt += `- 高清画质，细节精致\n`;
         prompt += `- 专业插画质量\n`;
         prompt += `- 光影效果出色，立体感强\n`;
-        prompt += `- 色彩和谐，符合仙侠美学\n`;
+        prompt += `- 色彩和谐，符合东方玄幻美学\n`;
         prompt += `- 人物比例协调，五官端正\n`;
+        prompt += `- 空气中弥漫灵气粒子效果\n`;
 
         return prompt;
     }
@@ -1591,7 +1689,7 @@ class ShortDramaStudio {
             shot.generating = false;
             shot.hasError = true;
             this.updateVideoCard(shotIndex);
-            this.closeVideoProgressModal();
+            this.closeVideoProgressModal(shotIndex);
             this.showToast('生成视频失败: ' + error.message, 'error');
         }
     }
@@ -1612,9 +1710,16 @@ class ShortDramaStudio {
      * 显示视频进度弹窗（参考旧样式）
      */
     showVideoProgressModal(shot, shotIndex) {
+        // 🔥 为每个任务创建独立的模态框 ID
+        const modalId = `videoProgressModal_${shotIndex}`;
+        // 先关闭可能存在的旧弹窗
+        const oldModal = document.getElementById(modalId);
+        if (oldModal) oldModal.remove();
+
         const modal = document.createElement('div');
         modal.className = 'modal';
-        modal.id = 'videoProgressModal';
+        modal.id = modalId;
+        modal.dataset.shotIndex = shotIndex; // 保存 shotIndex 用于识别
         modal.style.cssText = `
             position: fixed;
             top: 0;
@@ -1721,7 +1826,7 @@ class ShortDramaStudio {
 
         // 绑定停止按钮
         modal.querySelector('#btnStopGeneration').onclick = () => {
-            this.closeVideoProgressModal();
+            this.closeVideoProgressModal(shotIndex);
             this.showToast('已停止生成', 'info');
         };
     }
@@ -1735,7 +1840,7 @@ class ShortDramaStudio {
         if (!shot) return;
 
         // 关闭弹窗
-        this.closeVideoProgressModal();
+        this.closeVideoProgressModal(shotIndex);
 
         // 添加到后台任务列表
         const taskId = shot.currentTaskId || `bg_${shotIndex}_${Date.now()}`;
@@ -1890,7 +1995,9 @@ class ShortDramaStudio {
      * 更新视频进度弹窗（参考旧样式）
      */
     updateVideoProgressModal(progress, status, shotIndex = null, videoUrl = null) {
-        const modal = document.getElementById('videoProgressModal');
+        // 🔥 优先使用特定任务的弹窗 ID
+        const modalId = shotIndex !== null ? `videoProgressModal_${shotIndex}` : 'videoProgressModal';
+        const modal = document.getElementById(modalId);
         if (!modal) return;
 
         const statusIcon = modal.querySelector('#videoStatusIcon');
@@ -1913,7 +2020,7 @@ class ShortDramaStudio {
         // 生成完成后，2秒后自动关闭弹窗
         if (progress >= 100 && shotIndex !== null) {
             setTimeout(() => {
-                this.closeVideoProgressModal();
+                this.closeVideoProgressModal(shotIndex);
                 // 更新卡片显示已完成
                 this.updateVideoCard(shotIndex);
             }, 2000);
@@ -2104,6 +2211,20 @@ class ShortDramaStudio {
         // 获取项目视频设置作为默认值
         const videoSettings = this.getVideoSettings();
 
+        // 🔥 自动加载 reference_images 目录中的图片
+        let referenceImages = [];
+        try {
+            const episodeDirectoryName = this.getEpisodeDirectoryName();
+            const response = await fetch(`/api/short-drama/reference-images?novel=${encodeURIComponent(this.selectedNovel || '')}&episode=${encodeURIComponent(episodeDirectoryName)}`);
+            const data = await response.json();
+            if (data.success && data.images) {
+                referenceImages = data.images;
+                console.log(`📸 自动加载了 ${referenceImages.length} 张参考图`);
+            }
+        } catch (error) {
+            console.error('加载参考图失败:', error);
+        }
+
         return new Promise((resolve) => {
             // 默认不选中任何图片，让用户手动选择
             const selectedImages = [];
@@ -2112,9 +2233,22 @@ class ShortDramaStudio {
             // 生成唯一键用于保存/加载提示词
             const shotKey = `videoPrompt_${this.selectedNovel}_${shot.episode_title || ''}_${shot.shot_number || (idx + 1)}`;
 
-            // 尝试加载之前保存的提示词
+            // 🔥 构建完整提示词：使用 shot 的所有字段
+            const buildFullPrompt = (s) => {
+                const parts = [];
+                if (s.shot_type) parts.push(`【镜头类型】${s.shot_type}`);
+                if (s.screen_action) parts.push(`【画面描述】${s.screen_action}`);
+                if (s.dialogue) parts.push(`【对话】${s.dialogue}`);
+                if (s.veo_prompt) parts.push(`【AI提示】${s.veo_prompt}`);
+                if (s.plot_content) parts.push(`【情节】${s.plot_content}`);
+                return parts.join('\n');
+            };
+
+            const fullPrompt = buildFullPrompt(shot);
+
+            // 尝试加载之前保存的提示词，如果没有则使用完整提示词
             const savedPrompt = localStorage.getItem(shotKey);
-            const promptToUse = savedPrompt || shot.veo_prompt || shot.screen_action || '';
+            const promptToUse = savedPrompt || fullPrompt;
 
             // 创建对话框
             const modal = document.createElement('div');
@@ -2198,7 +2332,24 @@ class ShortDramaStudio {
 
                         <!-- 参考角色剧照选择 -->
                         <div class="reference-section" style="margin-bottom: 20px;">
-                            <label style="font-weight: 600; display: block; margin-bottom: 12px; font-size: 1rem;">🖼️ 选择参考角色剧照：</label>
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                                <label style="font-weight: 600; font-size: 1rem; margin: 0;">🖼️ 选择参考角色剧照：</label>
+                                <button type="button" id="addLocalImageBtn" style="
+                                    padding: 8px 16px;
+                                    background: var(--primary);
+                                    border: none;
+                                    border-radius: 8px;
+                                    color: white;
+                                    font-size: 0.9rem;
+                                    cursor: pointer;
+                                    display: flex;
+                                    align-items: center;
+                                    gap: 6px;
+                                ">
+                                    <span>+</span> 添加本地图片
+                                </button>
+                                <input type="file" id="localImageInput" accept="image/*" multiple style="display: none;">
+                            </div>
                             <div id="portraitSelector" class="portrait-selector" style="
                                 display: flex;
                                 flex-wrap: wrap;
@@ -2221,7 +2372,7 @@ class ShortDramaStudio {
                                         position: relative;
                                         transition: transform 0.2s;
                                     " onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
-                                        <input type="checkbox" class="portrait-check" data-name="${name}" data-url="${portraitUrl}"
+                                        <input type="checkbox" class="portrait-check" data-name="${name}" data-url="${portraitUrl}" data-type="character"
                                             style="position: absolute; opacity: 0; width: 0; height: 0;">
                                         <div class="portrait-thumb" style="
                                             width: 80px;
@@ -2250,11 +2401,51 @@ class ShortDramaStudio {
                                             color: white;
                                         ">✓</div>
                                     </label>
-                                `}).join('') : '<div style="color: var(--text-tertiary); padding: 20px;">暂无角色剧照，请先在"角色剧照"步骤生成</div>'}
+                                `}).join('') : ''}
+                                ${referenceImages.length > 0 ? referenceImages.map((img, rIdx) => `
+                                    <label class="portrait-checkbox" style="
+                                        display: flex;
+                                        flex-direction: column;
+                                        align-items: center;
+                                        cursor: pointer;
+                                        position: relative;
+                                        transition: transform 0.2s;
+                                    " onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+                                        <input type="checkbox" class="portrait-check" data-name="参考图_${rIdx + 1}" data-url="${img.url}" data-type="reference"
+                                            style="position: absolute; opacity: 0; width: 0; height: 0;">
+                                        <div class="portrait-thumb" style="
+                                            width: 80px;
+                                            height: 80px;
+                                            border-radius: 12px;
+                                            overflow: hidden;
+                                            border: 3px solid var(--success, #4caf50);
+                                            transition: all 0.2s;
+                                            background: var(--bg-tertiary);
+                                        ">
+                                            <img src="${img.url}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.parentElement.parentElement.remove()">
+                                        </div>
+                                        <span style="font-size: 0.8rem; margin-top: 8px; max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-secondary);">参考图${rIdx + 1}</span>
+                                        <div class="check-indicator" style="
+                                            position: absolute;
+                                            top: 6px;
+                                            right: 6px;
+                                            width: 24px;
+                                            height: 24px;
+                                            background: rgba(0,0,0,0.6);
+                                            border-radius: 50%;
+                                            display: flex;
+                                            align-items: center;
+                                            justify-content: center;
+                                            font-size: 12px;
+                                            color: white;
+                                        ">✓</div>
+                                    </label>
+                                `).join('') : ''}
+                                ${(allPortraits.length === 0 && referenceImages.length === 0) ? '<div style="color: var(--text-tertiary); padding: 20px;">暂无剧照，请先生成角色剧照，或点击上方按钮添加本地图片</div>' : ''}
                             </div>
                             <p style="font-size: 0.9rem; color: var(--text-secondary); margin-top: 12px;">
                                 已选择 <span id="selectedCount" style="color: var(--primary); font-weight: 600;">0</span> 张参考图
-                                ${allPortraits.length > 0 ? '<span style="color: var(--text-tertiary); margin-left: 16px;">💡 点击图片选择，首尾帧模式需要选择2张</span>' : ''}
+                                ${allPortraits.length > 0 || referenceImages.length > 0 ? '<span style="color: var(--text-tertiary); margin-left: 16px;">💡 点击图片选择，绿色边框为已上传的参考图</span>' : ''}
                             </p>
                         </div>
 
@@ -2413,6 +2604,193 @@ class ShortDramaStudio {
                 }
             });
 
+            // 本地图片上传功能
+            const addLocalImageBtn = document.getElementById('addLocalImageBtn');
+            const localImageInput = document.getElementById('localImageInput');
+            const portraitSelector = document.getElementById('portraitSelector');
+
+            if (addLocalImageBtn && localImageInput) {
+                addLocalImageBtn.onclick = () => {
+                    localImageInput.click();
+                };
+
+                localImageInput.onchange = async (e) => {
+                    const files = Array.from(e.target.files);
+                    if (files.length === 0) return;
+
+                    // 移除"暂无图片"提示
+                    const emptyMsg = portraitSelector.querySelector('div[color="var(--text-tertiary)"]');
+                    if (emptyMsg) emptyMsg.remove();
+
+                    for (let idx = 0; idx < files.length; idx++) {
+                        const file = files[idx];
+                        const fileName = file.name.replace(/\.[^/.]+$/, ''); // 移除扩展名
+                        const uniqueId = 'local_' + Date.now() + '_' + idx;
+
+                        // 上传图片到服务器
+                        let imageUrl = '';
+                        try {
+                            const formData = new FormData();
+                            formData.append('image', file);
+                            formData.append('novel_title', this.selectedNovel || '');
+                            formData.append('episode_title', this.getEpisodeDirectoryName() || '');
+
+                            const response = await fetch('/api/video/reference-image/upload', {
+                                method: 'POST',
+                                body: formData
+                            });
+
+                            if (!response.ok) {
+                                throw new Error(`上传失败: ${response.status}`);
+                            }
+
+                            const result = await response.json();
+                            imageUrl = result.url;
+                        } catch (error) {
+                            console.error('上传图片失败:', error);
+                            // 降级到本地预览
+                            const reader = new FileReader();
+                            imageUrl = await new Promise((resolve) => {
+                                reader.onload = (event) => resolve(event.target.result);
+                                reader.readAsDataURL(file);
+                            });
+                        }
+
+                        // 创建本地图片的复选框元素
+                        const localImageLabel = document.createElement('label');
+                        localImageLabel.className = 'portrait-checkbox';
+                        localImageLabel.style.cssText = `
+                            display: flex;
+                            flex-direction: column;
+                            align-items: center;
+                            cursor: pointer;
+                            position: relative;
+                            transition: transform 0.2s;
+                        `;
+                        localImageLabel.onmouseover = () => localImageLabel.style.transform = 'scale(1.05)';
+                        localImageLabel.onmouseout = () => localImageLabel.style.transform = 'scale(1)';
+
+                        localImageLabel.innerHTML = `
+                            <input type="checkbox" class="portrait-check" data-name="本地图片_${fileName}" data-url="${imageUrl}" data-type="local" data-blob="false"
+                                style="position: absolute; opacity: 0; width: 0; height: 0;">
+                            <div class="portrait-thumb" style="
+                                width: 80px;
+                                height: 80px;
+                                border-radius: 12px;
+                                overflow: hidden;
+                                border: 3px solid var(--accent-color, #9c27b0);
+                                transition: all 0.2s;
+                                background: var(--bg-tertiary);
+                                position: relative;
+                            ">
+                                <img src="${imageUrl}" style="width: 100%; height: 100%; object-fit: cover;">
+                                <span style="
+                                    position: absolute;
+                                    bottom: 0;
+                                    left: 0;
+                                    right: 0;
+                                    background: rgba(0,0,0,0.6);
+                                    color: white;
+                                    font-size: 0.65rem;
+                                    padding: 2px;
+                                    text-align: center;
+                                ">本地</span>
+                            </div>
+                            <span style="font-size: 0.8rem; margin-top: 8px; max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-secondary);">${fileName.substring(0, 8)}</span>
+                            <button class="remove-local-img" data-id="${uniqueId}" style="
+                                position: absolute;
+                                top: -6px;
+                                left: -6px;
+                                width: 20px;
+                                height: 20px;
+                                background: var(--danger);
+                                border: none;
+                                border-radius: 50%;
+                                color: white;
+                                font-size: 12px;
+                                cursor: pointer;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                padding: 0;
+                                z-index: 10;
+                            ">×</button>
+                            <div class="check-indicator" style="
+                                position: absolute;
+                                top: 6px;
+                                right: 6px;
+                                width: 24px;
+                                height: 24px;
+                                background: rgba(0,0,0,0.6);
+                                border-radius: 50%;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                font-size: 12px;
+                                color: white;
+                            ">✓</div>
+                        `;
+
+                        // 绑定复选框事件
+                        const checkbox = localImageLabel.querySelector('.portrait-check');
+                        checkbox.addEventListener('change', () => {
+                            const thumb = localImageLabel.querySelector('.portrait-thumb');
+                            const indicator = localImageLabel.querySelector('.check-indicator');
+                            const count = modal.querySelectorAll('.portrait-check:checked').length;
+
+                            selectedCountEl.textContent = count;
+
+                            if (checkbox.checked) {
+                                thumb.style.borderColor = 'var(--primary)';
+                                thumb.style.boxShadow = '0 0 0 3px var(--primary-light)';
+                                indicator.textContent = '✓';
+                                indicator.style.background = 'var(--primary)';
+                            } else {
+                                thumb.style.borderColor = 'var(--accent-color, #9c27b0)';
+                                thumb.style.boxShadow = 'none';
+                                indicator.textContent = '';
+                                indicator.style.background = 'rgba(0,0,0,0.6)';
+                            }
+
+                            if (firstLastFrameCheck.checked && count !== 2) {
+                                selectedCountEl.textContent = count + ' (首尾帧需要2张)';
+                            }
+                        });
+
+                        // 绑定删除按钮事件
+                        const removeBtn = localImageLabel.querySelector('.remove-local-img');
+                        removeBtn.onclick = (e) => {
+                            e.stopPropagation();
+                            e.preventDefault();
+                            if (checkbox.checked) {
+                                // 更新计数
+                                const count = modal.querySelectorAll('.portrait-check:checked').length - 1;
+                                selectedCountEl.textContent = count;
+                            }
+                            localImageLabel.remove();
+                        };
+
+                        portraitSelector.appendChild(localImageLabel);
+
+                        // 🔥 本地图片默认选中
+                        checkbox.checked = true;
+                        // 手动触发选中视觉效果
+                        const thumb = localImageLabel.querySelector('.portrait-thumb');
+                        const indicator = localImageLabel.querySelector('.check-indicator');
+                        thumb.style.borderColor = 'var(--primary)';
+                        thumb.style.boxShadow = '0 0 0 3px var(--primary-light)';
+                        indicator.textContent = '✓';
+                        indicator.style.background = 'var(--primary)';
+                        // 更新计数
+                        const newCount = modal.querySelectorAll('.portrait-check:checked').length;
+                        selectedCountEl.textContent = newCount;
+                    }
+
+                    // 清空input，允许重复选择同一文件
+                    localImageInput.value = '';
+                };
+            }
+
             // 关闭按钮
             closeBtn.onclick = () => {
                 modal.remove();
@@ -2434,7 +2812,12 @@ class ShortDramaStudio {
             // 重置提示词按钮
             if (resetBtn) {
                 resetBtn.onclick = () => {
-                    promptArea.value = shot.veo_prompt || shot.screen_action || '';
+                    // 重置为完整提示词（包含所有字段）
+                    promptArea.value = fullPrompt;
+                    // 清除 localStorage 中的旧值
+                    localStorage.removeItem(shotKey);
+                    console.log('已清除保存的提示词:', shotKey);
+                    console.log('已重置为完整提示词');
                 };
             }
 
@@ -2448,6 +2831,14 @@ class ShortDramaStudio {
                 const size = document.getElementById('paramSize').value;
                 const useFirstLastFrame = document.getElementById('paramFirstLastFrame').checked;
 
+                console.log('📝 提示词调试信息:');
+                console.log('  - shotKey:', shotKey);
+                console.log('  - shot.episode_title:', shot.episode_title);
+                console.log('  - shot.shot_number:', shot.shot_number);
+                console.log('  - 原始 veo_prompt:', shot.veo_prompt);
+                console.log('  - 原始 screen_action:', shot.screen_action);
+                console.log('  - localStorage 中的值:', savedPrompt);
+                console.log('  - 编辑后的提示词:', editedPrompt);
                 console.log('选中的图片数量:', checkedImages.length);
                 console.log('首尾帧模式:', useFirstLastFrame);
 
@@ -2457,8 +2848,8 @@ class ShortDramaStudio {
                     return;
                 }
 
-                // 保存修改的提示词
-                if (editedPrompt !== (shot.veo_prompt || shot.screen_action || '')) {
+                // 保存修改的提示词（与完整提示词比较）
+                if (editedPrompt !== fullPrompt) {
                     localStorage.setItem(shotKey, editedPrompt);
                     console.log('已保存修改的提示词:', shotKey);
                 }
@@ -2500,30 +2891,17 @@ class ShortDramaStudio {
         }
         if (result.action !== 'generate') return;
 
-        // 🔥 质量检查 - 在生成视频前对剧本进行严格检查
-        const qualityCheckResult = await this.checkScriptQuality([shot]);
-        if (!qualityCheckResult.passed) {
-            const criticalIssues = qualityCheckResult.issues.filter(i => i.severity === 'critical');
-            if (criticalIssues.length > 0) {
-                const confirmed = confirm(
-                    `⚠️ 剧本质量检查未通过！\n\n` +
-                    `发现 ${criticalIssues.length} 个严重问题：\n` +
-                    criticalIssues.map(i => `• ${i.message}`).join('\n') +
-                    `\n\n建议：\n` +
-                    `• ${qualityCheckResult.recommendations.join('\n• ')}\n\n` +
-                    `是否仍要继续生成？（不推荐）`
-                );
-                if (!confirmed) {
-                    this.showToast('已取消生成，请先优化剧本', 'warning');
-                    return;
-                }
-            }
-        } else if (qualityCheckResult.score < 80) {
-            this.showToast(`剧本质量评分: ${qualityCheckResult.score}/100 - 建议优化后再生成`, 'info');
-        }
+        // 🔥 质量检查已禁用 - 直接生成视频，不再调用质量检查API
+        // 如果需要质量检查，用户可以手动点击"剧本质量检查"按钮
 
         // 保存选中的参考图到镜头数据
         shot.reference_images = result.selectedImages || [];
+
+        // 🔥 更新 shot 对象中的提示词，确保进度弹窗显示正确的提示词
+        if (result.prompt && result.prompt !== (shot.veo_prompt || shot.screen_action || '')) {
+            shot.veo_prompt = result.prompt;
+            console.log('已更新 shot.veo_prompt:', result.prompt);
+        }
 
         // 开始生成，显示进度弹窗
         this.showVideoProgressModal(shot, idx);
@@ -2534,6 +2912,23 @@ class ShortDramaStudio {
 
         try {
             const episodeDirectoryName = this.getEpisodeDirectoryName();
+
+            // 🔥 使用完整提示词构建函数
+            const buildFullPrompt = (s) => {
+                const parts = [];
+                if (s.shot_type) parts.push(`【镜头类型】${s.shot_type}`);
+                if (s.screen_action) parts.push(`【画面描述】${s.screen_action}`);
+                if (s.dialogue) parts.push(`【对话】${s.dialogue}`);
+                if (s.veo_prompt) parts.push(`【AI提示】${s.veo_prompt}`);
+                if (s.plot_content) parts.push(`【情节】${s.plot_content}`);
+                return parts.join('\n');
+            };
+            const fullPrompt = buildFullPrompt(shot);
+
+            // 🔥 如果用户编辑的提示词与完整提示词相同，则不更新 shot.veo_prompt
+            if (result.prompt !== fullPrompt) {
+                shot.veo_prompt = result.prompt;
+            }
 
             const response = await fetch('/api/veo/generate', {
                 method: 'POST',
@@ -2568,7 +2963,7 @@ class ShortDramaStudio {
             shot.generating = false;
             shot.hasError = true;
             this.updateVideoCard(idx);
-            this.closeVideoProgressModal();
+            this.closeVideoProgressModal(idx);
 
             if (error.message !== 'cancelAll' && error.message !== 'skip') {
                 this.showToast('生成失败: ' + error.message, 'error');
@@ -3281,7 +3676,8 @@ class ShortDramaStudio {
                         shot.hasError = true;
                         delete shot.currentTaskId;
                         this.updateVideoCard(shotIndex);
-                        this.closeVideoProgressModal();
+                        // 🔥 只关闭当前任务的弹窗，不影响其他任务
+                        this.closeVideoProgressModal(shotIndex);
                         this.removeBackgroundTask(taskId);
                         reject(new Error(data.error || '生成失败'));
                     } else if (attempts < maxAttempts) {
@@ -3292,7 +3688,8 @@ class ShortDramaStudio {
                         shot.hasError = true;
                         delete shot.currentTaskId;
                         this.updateVideoCard(shotIndex);
-                        this.closeVideoProgressModal();
+                        // 🔥 只关闭当前任务的弹窗，不影响其他任务
+                        this.closeVideoProgressModal(shotIndex);
                         this.removeBackgroundTask(taskId);
                         reject(new Error('生成超时'));
                     }
@@ -3302,9 +3699,10 @@ class ShortDramaStudio {
                     shot.hasError = true;
                     delete shot.currentTaskId;
                     this.updateVideoCard(shotIndex);
-                    this.closeVideoProgressModal();
+                    // 🔥 只关闭当前任务的弹窗，不影响其他任务
+                    this.closeVideoProgressModal(shotIndex);
                     this.removeBackgroundTask(taskId);
-                    this.showToast(`生成失败: ${error.message}`, 'error');
+                    this.showToast(`镜头 #${shot.shot_number || (shotIndex + 1)} 生成失败: ${error.message}`, 'error');
                     reject(error);
                 }
             };
@@ -3315,10 +3713,20 @@ class ShortDramaStudio {
 
     /**
      * 关闭视频进度弹窗
+     * @param {number} shotIndex - 要关闭的任务索引，如果不传则关闭所有
      */
-    closeVideoProgressModal() {
-        const modal = document.getElementById('videoProgressModal');
-        if (modal) modal.remove();
+    closeVideoProgressModal(shotIndex = null) {
+        if (shotIndex !== null) {
+            // 只关闭特定任务的弹窗
+            const modal = document.getElementById(`videoProgressModal_${shotIndex}`);
+            if (modal) modal.remove();
+        } else {
+            // 关闭所有进度弹窗
+            document.querySelectorAll('[id^="videoProgressModal_"]').forEach(modal => modal.remove());
+            // 兼容旧的 ID
+            const oldModal = document.getElementById('videoProgressModal');
+            if (oldModal) oldModal.remove();
+        }
     }
 
     /**

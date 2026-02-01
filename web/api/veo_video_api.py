@@ -12,6 +12,7 @@ import base64
 from pathlib import Path
 from urllib.parse import unquote
 
+from web.auth import login_required
 from src.utils.logger import get_logger
 from src.models.veo_models import (
     VeOCreateVideoRequest,
@@ -117,8 +118,10 @@ def create_video_generation():
         if metadata:
             logger.info(f"📁 视频元数据: {metadata}")
 
-        # 🔥 质量检查 - 如果提供了小说标题，对剧本进行质量检查
-        skip_quality_check = data.get('skip_quality_check', False)
+        # 🔥 质量检查已禁用 - 用户点击生成视频时不需要质量检查
+        # 前端已移除自动质量检查，如需检查可手动点击"剧本质量检查"按钮
+        skip_quality_check = data.get('skip_quality_check', True)  # 默认跳过
+
         if not skip_quality_check and metadata.get('novel_title'):
             try:
                 from web.api.script_quality_check import ScriptQualityChecker, load_all_novel_data
@@ -139,18 +142,19 @@ def create_video_generation():
                 checker = ScriptQualityChecker(novel_data, novel_title)
                 result = checker.check(check_shots, episode_title)
 
-                logger.info(f"📋 剧本质量检查结果: 评分={result.score}, 通过={result.passed}")
+                logger.info(f"📋 剧本质量检查结果: 评分={result.get('score', 'N/A')}, 通过={result.get('passed', 'N/A')}")
 
                 # 如果有严重问题，记录警告但仍然允许生成（前端已做拦截）
-                if not result.passed:
-                    critical_issues = [i for i in result.issues if i.get('severity') == 'critical']
+                if not result.get('passed', True):
+                    critical_issues = [i for i in result.get('issues', []) if i.get('severity') == 'critical']
                     if critical_issues:
-                        logger.warning(f"⚠️ 剧本质量检查未通过: {len(critical_issues)} 个严重问题")
                         for issue in critical_issues:
-                            logger.warning(f"  - {issue.get('message')}: {issue.get('suggestion')}")
+                            logger.warning(f"  - {issue.get('message')}: {issue.get('suggestion', '')}")
 
             except Exception as e:
                 logger.warning(f"⚠️ 质量检查失败，继续生成: {e}")
+        else:
+            logger.info(f"⏭️ 跳过质量检查，直接生成视频")
 
         veo_request = VeOCreateVideoRequest(
             images=images,
@@ -575,6 +579,90 @@ def get_video_library():
     
     except Exception as e:
         logger.error(f"❌ 获取视频素材库失败: {e}")
+        import traceback
+        logger.error(f"错误堆栈: {traceback.format_exc()}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+
+@veo_video_api.route('/api/video/reference-image/upload', methods=['POST'])
+@login_required
+def upload_reference_image():
+    """
+    上传本地参考图片到项目目录
+
+    请求体：multipart/form-data
+    - image: 图片文件
+    - novel_title: 小说标题
+    - episode_title: 分集标题
+    - shot_number: 镜头编号（可选）
+
+    响应：
+    {
+        "success": true,
+        "url": "/api/short-drama/projects/...",
+        "name": "文件名"
+    }
+    """
+    try:
+        from flask import send_from_directory
+        import uuid
+        from pathlib import Path
+
+        # 获取表单数据
+        if 'image' not in request.files:
+            return jsonify({
+                "success": False,
+                "error": "缺少图片文件"
+            }), 400
+
+        file = request.files['image']
+        novel_title = request.form.get('novel_title', '')
+        episode_title = request.form.get('episode_title', '')
+        shot_number = request.form.get('shot_number', '')
+
+        if not novel_title:
+            return jsonify({
+                "success": False,
+                "error": "缺少小说标题"
+            }), 400
+
+        logger.info(f"📤 上传参考图片: {file.filename}, 项目: {novel_title}, 分集: {episode_title}")
+
+        # 构建保存路径：视频项目/小说标题/分集标题/reference_images/
+        # 使用URL安全的文件名
+        import re
+        safe_novel_title = re.sub(r'[\\/*?"<>|]', '_', novel_title)
+        safe_episode_title = re.sub(r'[\\/*?"<>|]', '_', episode_title)
+
+        # 创建目录
+        base_dir = Path("视频项目") / safe_novel_title / safe_episode_title / "reference_images"
+        base_dir.mkdir(parents=True, exist_ok=True)
+
+        # 生成唯一文件名
+        file_ext = Path(file.filename).suffix or '.png'
+        unique_id = str(uuid.uuid4())[:8]
+        filename = f"ref_{unique_id}{file_ext}"
+        file_path = base_dir / filename
+
+        # 保存文件
+        file.save(str(file_path))
+        logger.info(f"✅ 图片已保存: {file_path}")
+
+        # 返回访问URL
+        url_path = f"/api/short-drama/projects/{safe_novel_title}/{safe_episode_title}/reference_images/{filename}"
+
+        return jsonify({
+            "success": True,
+            "url": url_path,
+            "name": filename,
+            "full_path": str(file_path)
+        })
+
+    except Exception as e:
+        logger.error(f"❌ 上传参考图片失败: {e}")
         import traceback
         logger.error(f"错误堆栈: {traceback.format_exc()}")
         return jsonify({

@@ -678,10 +678,23 @@ class VeOVideoManager:
                     elif query_response.is_failed():
                         # 任务失败
                         error_msg = "视频生成失败"
+
+                        # 🔥 优先检查 error 字段（API返回的错误信息）
+                        if query_response.error:
+                            error_code = query_response.error.get('code', '')
+                            error_message = query_response.error.get('message', '')
+                            if error_message:
+                                error_msg = f"{error_message}"
+                                if error_code:
+                                    error_msg = f"[{error_code}] {error_message}"
+                                self.logger.error(f"❌ API错误: {error_msg}")
+
+                        # 其次检查 detail 字段
                         if query_response.detail:
                             error_detail = query_response.detail.get('failure_reason')
-                            if error_detail:
+                            if error_detail and error_msg == "视频生成失败":
                                 error_msg = error_detail
+
                         task.fail(error_msg)
                         return
                     

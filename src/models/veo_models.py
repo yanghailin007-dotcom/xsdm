@@ -232,7 +232,7 @@ class VeOTaskResponse:
 @dataclass
 class VeOQueryResponse:
     """VeO 视频查询响应（标准格式）
-    
+
     匹配 /v1/video/query 接口的响应格式
     """
     id: str
@@ -247,7 +247,8 @@ class VeOQueryResponse:
     progress: Optional[int] = None  # 🔥 新增：生成进度（0-100）
     model: Optional[str] = None  # 🔥 新增：使用的模型
     seconds: Optional[str] = None  # 🔥 新增：视频时长
-    
+    error: Optional[Dict[str, str]] = None  # 🔥 新增：错误信息
+
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'VeOQueryResponse':
         """从字典创建"""
@@ -263,7 +264,8 @@ class VeOQueryResponse:
             thumbnail_url=data.get("thumbnail_url"),
             progress=data.get("progress"),  # 🔥 解析进度
             model=data.get("model"),  # 🔥 解析模型
-            seconds=data.get("seconds")  # 🔥 解析时长
+            seconds=data.get("seconds"),  # 🔥 解析时长
+            error=data.get("error")  # 🔥 解析错误信息
         )
     
     def to_dict(self) -> Dict[str, Any]:

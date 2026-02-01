@@ -77,6 +77,13 @@ def create_app():
     app = Flask(__name__, static_folder=static_folder)
     app.config.from_object(FlaskConfig)
 
+    # 🔥 禁用Flask的请求日志，避免打印base64图片数据
+    import logging
+    log = logging.getLogger('werkzeug')
+    log.setLevel(logging.WARNING)
+    # 同时禁用Flask的请求日志记录器
+    logging.getLogger('werkzeug').setLevel(logging.WARNING)
+
     # 🔥 注册 phase_api 蓝图（包含质量评估API）
     try:
         from web.api import phase_generation_api
@@ -1063,6 +1070,8 @@ def main():
 
     werkzeug_logger = logging.getLogger('werkzeug')
     werkzeug_logger.addFilter(VideoRequestFilter())
+    # 禁用werkzeug的请求日志，避免打印base64图片数据
+    werkzeug_logger.setLevel(logging.WARNING)
 
     # 🔥 修复：禁用热重载，避免多进程队列问题
     app.run(

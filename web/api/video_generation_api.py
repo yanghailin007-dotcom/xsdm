@@ -352,17 +352,31 @@ def get_novel_content():
         characters = event_extractor.extract_character_designs(novel_detail)
         logger.info(f"👥 [VIDEO] 提取到 {len(characters)} 个角色设计")
 
-        # 格式化角色数据
+        # 格式化角色数据 - 保留完整的角色设计信息用于剧照生成
         formatted_characters = []
         character_names = []  # 用于填充medium events
         for idx, character in enumerate(characters):
             char_name = character.get("name", f"角色 {idx + 1}")
-            formatted_characters.append({
+
+            # 构建完整的角色数据结构
+            formatted_char = {
                 "id": f"character_{idx}",
                 "name": char_name,
                 "role": character.get("role", ""),
-                "description": character.get("description", "")[:200]
-            })
+                # 详细的外形描述
+                "description": character.get("description", ""),
+                "appearance": character.get("appearance", ""),
+                "age": character.get("age", ""),
+                "gender": character.get("gender", ""),
+                "personality": character.get("personality", ""),
+                # 从角色设计文件中提取的详细字段
+                "initial_state": character.get("initial_state", {}),
+                "living_characteristics": character.get("living_characteristics", {}),
+                "soul_matrix": character.get("soul_matrix", []),
+                "background": character.get("background", ""),
+                "appearing_event": character.get("appearing_event", "")
+            }
+            formatted_characters.append(formatted_char)
             character_names.append(char_name)
 
         # 🔥 修复：将角色列表添加到每个medium event，这样前端可以提取

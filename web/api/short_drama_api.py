@@ -487,6 +487,64 @@ def get_portraits():
         }), 500
 
 
+@short_drama_api.route('/reference-images', methods=['GET'])
+def get_reference_images():
+    """获取项目的参考图片列表（reference_images目录）"""
+    try:
+        from urllib.parse import quote
+        import os
+
+        novel_title = request.args.get('novel', '')
+        episode_title = request.args.get('episode', '')
+
+        if not novel_title or not episode_title:
+            return jsonify({
+                'success': False,
+                'error': '缺少小说标题或分集标题'
+            }), 400
+
+        # 构建参考图片目录路径
+        ref_images_dir = VIDEO_PROJECTS_DIR / novel_title / episode_title / 'reference_images'
+
+        if not ref_images_dir.exists():
+            return jsonify({
+                'success': True,
+                'images': []
+            }), 200
+
+        images = []
+        for file_path in ref_images_dir.glob('*.png'):
+            # 获取文件修改时间
+            mtime = file_path.stat().st_mtime
+
+            # 构建URL路径
+            url = f"/api/short-drama/projects/{quote(novel_title)}/{quote(episode_title)}/reference_images/{quote(file_path.name)}"
+
+            images.append({
+                'name': file_path.name,
+                'url': url,
+                'mtime': mtime,
+                'size': file_path.stat().st_size
+            })
+
+        # 按修改时间排序，最新的在前
+        images.sort(key=lambda x: x['mtime'], reverse=True)
+
+        logger.info(f'📸 [参考图] 找到 {len(images)} 张参考图')
+
+        return jsonify({
+            'success': True,
+            'images': images
+        }), 200
+
+    except Exception as e:
+        logger.error(f'获取参考图列表失败: {e}')
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
 @short_drama_api.route('/projects/<path:filepath>', methods=['GET'])
 def serve_project_file(filepath):
     """提供项目文件访问（剧照、视频等）"""
