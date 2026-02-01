@@ -694,7 +694,7 @@ def generate_character_description():
 
 def _build_portrait_prompt(character):
     """
-    构建剧照生成提示词
+    构建剧照生成提示词（三视图半身图）
 
     Args:
         character: 角色数据字典
@@ -709,29 +709,59 @@ def _build_portrait_prompt(character):
     gender = character.get('gender', '')
     personality = character.get('personality', '')
 
+    # 构建详细的三视图提示词
     prompt_parts = []
 
-    if name:
-        prompt_parts.append(f"{name}")
-
+    # 基础描述
+    base_desc = f"Character portrait of {gender if gender else 'person'}"
     if age:
-        prompt_parts.append(f"{age}")
+        base_desc += f", {age}"
 
-    if gender:
-        prompt_parts.append(f"{gender}")
-
+    # 外貌特征
     if appearance:
-        prompt_parts.append(appearance)
-    elif description:
-        prompt_parts.append(description)
+        # 提取关键外貌特征
+        appearance_keywords = appearance.replace('，', ',').replace('。', ' ').split()
+        main_features = appearance_keywords[:5] if appearance_keywords else []
+        if main_features:
+            base_desc += f", {', '.join(main_features)}"
 
+    prompt_parts.append(base_desc)
+
+    # 三视图半身图要求
+    prompt_parts.append("three-view drawing (front view, side view, back view)")
+    prompt_parts.append("half-body shot (chest up)")
+    prompt_parts.append("split view, character design reference sheet")
+
+    # 表情
     if personality:
-        prompt_parts.append(f"气质{personality}")
+        # 从性格中提取表情关键词
+        if '傲慢' in personality or '狂妄' in personality or '高高在上' in personality or '轻蔑' in personality:
+            prompt_parts.append("arrogant expression, contemptuous sneer")
+        elif '阴险' in personality or '狡诈' in personality or '算计' in personality:
+            prompt_parts.append("sinister expression, calculating eyes")
+        elif '坚毅' in personality or '不屈' in personality or '倔强' in personality:
+            prompt_parts.append("determined expression, firm gaze")
+        elif '温和' in personality or '慈祥' in personality:
+            prompt_parts.append("kind expression, gentle smile")
+        else:
+            prompt_parts.append("neutral expression")
+    else:
+        prompt_parts.append("neutral expression")
 
-    # 添加剧照风格要求
-    prompt_parts.append("人物剧照，高清，细节丰富，专业摄影")
+    # 服装描述（从description或appearance中提取）
+    if '长袍' in appearance or '长袍' in description or '锦袍' in description:
+        prompt_parts.append("wearing ancient Chinese silk robes with gold embroidery")
+    if '玉佩' in appearance or '首饰' in description or '饰物' in description:
+        prompt_parts.append("jade accessories")
 
-    return "，".join(prompt_parts)
+    # 风格要求
+    prompt_parts.append("Style: Oriental fantasy Xianxia art style")
+    prompt_parts.append("pure white background")
+    prompt_parts.append("highly detailed")
+    prompt_parts.append("clean lines")
+    prompt_parts.append("professional character design")
+
+    return ", ".join(prompt_parts)
 
 
 # ==================== 路由注册函数 ====================
