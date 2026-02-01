@@ -4,7 +4,7 @@
 将旧格式分镜头转换为新标准格式：
 - shots -> scenes
 - screen_action -> visual.description
-- dialogue -> dialogue.speaker, dialogue.lines, dialogue.tone, dialogue.audio_note
+- dialogue -> dialogue.speaker, dialogue.lines, dialogue.lines_en, dialogue.tone, dialogue.audio_note
 - 添加 visual.shot_type, visual.veo_prompt
 - 添加 plot_content
 """
@@ -28,6 +28,7 @@ def parse_dialogue(dialogue_str: str) -> Dict[str, str]:
         return {
             "speaker": "无",
             "lines": "",
+            "lines_en": "",  # 英文翻译字段
             "tone": "纯画面",
             "audio_note": ""
         }
@@ -65,6 +66,7 @@ def parse_dialogue(dialogue_str: str) -> Dict[str, str]:
     return {
         "speaker": speaker,
         "lines": lines,
+        "lines_en": "",  # 英文翻译字段（旧格式数据为空，需要后续补充）
         "tone": tone,
         "audio_note": ""
     }
@@ -87,6 +89,10 @@ def convert_shot_to_scene(shot: Dict[str, Any], idx: int) -> Dict[str, Any]:
         dialogue_obj = dialogue_str
     else:
         dialogue_obj = parse_dialogue(dialogue_str)
+
+    # 确保 lines_en 字段存在（兼容旧数据）
+    if "lines_en" not in dialogue_obj:
+        dialogue_obj["lines_en"] = ""
 
     # 获取音频备注
     audio_note = shot.get("audio", "")

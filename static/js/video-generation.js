@@ -6199,13 +6199,20 @@ li>选择角色，输入提示词，生成剧照</li>
                 useFirstLastFrame
             });
 
+            // 🔥 构建包含台词的 prompt，用于 AI 口型同步
+            let finalPrompt = prompt;
+            const dialogueData = shot.dialogue || shot._dialogue_data;
+            if (dialogueData && dialogueData.lines_en && dialogueData.lines_en.trim()) {
+                finalPrompt += `. Character speaking: "${dialogueData.lines_en}"`;
+            }
+
             // 调用 VeO API
             const response = await fetch('/api/veo/generate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     model: model,
-                    prompt: prompt,
+                    prompt: finalPrompt,
                     image_urls: imageUrls,
                     orientation: orientation,
                     size: size,
@@ -6219,7 +6226,8 @@ li>选择角色，输入提示词，生成剧照</li>
                         event_name: shot.event_name || this.sanitizePath(shot.episode_title || ''),
                         shot_number: shot.shot_number || '',
                         shot_type: shot.shot_type || '',
-                        scene_title: shot.scene_title || ''
+                        scene_title: shot.scene_title || '',
+                        lines_en: dialogueData?.lines_en || ''  // 传递英文台词
                     }
                 })
             });

@@ -5379,7 +5379,8 @@ def _generate_storyboard_with_ai(novel_title: str, episode: dict) -> dict:
       },
       "dialogue": {
         "speaker": "说话角色名（无台词填'无'）",
-        "lines": "角色台词内容（无台词填空字符串''）",
+        "lines": "角色台词内容（中文，无台词填空字符串''）",
+        "lines_en": "English subtitle translation for lip-sync (translate the lines to natural English, empty string if no dialogue)",
         "tone": "语气描述（如：愤怒、温柔、紧张等）",
         "audio_note": "音效/BGM描述"
       },
@@ -5398,9 +5399,9 @@ def _generate_storyboard_with_ai(novel_title: str, episode: dict) -> dict:
   "duration": 16,
   "visual": {...},
   "dialogues": [
-    {"speaker": "林战", "lines": "你还是离开林家吧。", "tone": "严肃", "audio_note": "..."},
-    {"speaker": "叶凡", "lines": "我偏不。", "tone": "坚定", "audio_note": "..."},
-    {"speaker": "林战", "lines": "那就别怪我。", "tone": "冷漠", "audio_note": "..."}
+    {"speaker": "林战", "lines": "你还是离开林家吧。", "lines_en": "You should leave the Lin family.", "tone": "严肃", "audio_note": "..."},
+    {"speaker": "叶凡", "lines": "我偏不。", "lines_en": "I won't.", "tone": "坚定", "audio_note": "..."},
+    {"speaker": "林战", "lines": "那就别怪我。", "lines_en": "Then don't blame me.", "tone": "冷漠", "audio_note": "..."}
   ],
   "plot_content": "情节点描述"
 }
@@ -5410,6 +5411,7 @@ def _generate_storyboard_with_ai(novel_title: str, episode: dict) -> dict:
 - 对话场景使用 `dialogues`（复数）而不是 `dialogue`（单数）
 - 同一镜头中的多句台词，画面保持不变，只显示不同角色说话
 - 音频文件命名规则：`{镜头号}_{事件名}_对话{序号}_{角色}.mp3`
+- **重要**：每个对话必须包含 `lines_en` 英文翻译，用于AI视频生成时的口型同步
 
 【veo_prompt编写规范】
 1. 直接使用角色名，系统会自动匹配对应的参考图
@@ -5421,7 +5423,12 @@ def _generate_storyboard_with_ai(novel_title: str, episode: dict) -> dict:
 1. 台词要简洁有力，符合短剧快节奏特点
 2. 每句台词控制在3-10字内
 3. speaker填写角色名，旁白填写"旁白"，内心独白填写"主角内心混响"
-4. 无台词镜头：speaker填"无"，lines填空字符串""
+4. 无台词镜头：speaker填"无"，lines填空字符串""，lines_en也填空字符串""
+5. **双语要求**：每句台词必须提供英文翻译(lines_en)，用于AI视频生成时的口型同步
+   - 英文翻译要自然口语化，符合角色身份
+   - 意译优先于直译，保持情感和语气
+   - 例如："你还是离开林家吧。" → "You should leave the Lin family."
+   - 例如："我偏不！" → "I won't!"
 """
 
     # 构建用户提示词 - 传递完整上下文（从写作计划文件中提取）

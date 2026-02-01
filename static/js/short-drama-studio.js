@@ -3294,12 +3294,22 @@ class ShortDramaStudio {
             const episodeDirectoryName = this.getEpisodeDirectoryName();
             const videoSettings = this.getVideoSettings();
 
+            // 🔥 构建包含台词的 prompt，用于 AI 口型同步
+            let prompt = shot.veo_prompt || shot.screen_action || '';
+
+            // 检查是否有英文台词，用于口型同步
+            const dialogueData = shot._dialogue_data || shot.dialogue;
+            if (dialogueData && dialogueData.lines_en && dialogueData.lines_en.trim()) {
+                // 将英文台词添加到 prompt 中，用于 AI 视频生成时的口型同步
+                prompt += `. Character speaking: "${dialogueData.lines_en}"`;
+            }
+
             const response = await fetch('/api/veo/generate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     model: videoSettings.model,
-                    prompt: shot.veo_prompt || shot.screen_action || '',
+                    prompt: prompt,
                     image_urls: [],
                     orientation: videoSettings.orientation,
                     size: videoSettings.size,
@@ -3311,7 +3321,8 @@ class ShortDramaStudio {
                         event_name: shot.episode_title || '',
                         shot_number: String(shot.shot_number || (shotIndex + 1)),
                         shot_type: shot.shot_type || 'shot',
-                        dialogue_index: shot.dialogue_index || 1
+                        dialogue_index: shot.dialogue_index || 1,
+                        lines_en: dialogueData?.lines_en || ''  // 传递英文台词
                     }
                 })
             });
@@ -4665,6 +4676,9 @@ class ShortDramaStudio {
             // 直接使用用户编辑的提示词
             shot.veo_prompt = result.prompt;
 
+            // 获取对话数据中的英文台词
+            const dialogueData = shot._dialogue_data || shot.dialogue;
+
             const response = await fetch('/api/veo/generate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -4682,7 +4696,8 @@ class ShortDramaStudio {
                         event_name: shot.episode_title || '',
                         shot_number: String(shot.shot_number || (idx + 1)),
                         shot_type: shot.shot_type || 'shot',
-                        dialogue_index: shot.dialogue_index || 1
+                        dialogue_index: shot.dialogue_index || 1,
+                        lines_en: dialogueData?.lines_en || ''  // 传递英文台词
                     }
                 })
             });
@@ -6160,12 +6175,21 @@ class ShortDramaStudio {
             const episodeDirectoryName = this.getEpisodeDirectoryName();
             const videoSettings = this.getVideoSettings();
 
+            // 🔥 构建包含台词的 prompt，用于 AI 口型同步
+            let prompt = shot.veo_prompt || shot.screen_action || '';
+
+            // 检查是否有英文台词，用于口型同步
+            const dialogueData = shot._dialogue_data || shot.dialogue;
+            if (dialogueData && dialogueData.lines_en && dialogueData.lines_en.trim()) {
+                prompt += `. Character speaking: "${dialogueData.lines_en}"`;
+            }
+
             const response = await fetch('/api/veo/generate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     model: videoSettings.model,
-                    prompt: shot.veo_prompt || shot.screen_action || '',
+                    prompt: prompt,
                     image_urls: [],
                     orientation: videoSettings.orientation,
                     size: videoSettings.size,
@@ -6177,7 +6201,8 @@ class ShortDramaStudio {
                         event_name: shot.episode_title || '',
                         shot_number: String(shot.shot_number || (shotIndex + 1)),
                         shot_type: shot.shot_type || 'shot',
-                        dialogue_index: shot.dialogue_index || 1
+                        dialogue_index: shot.dialogue_index || 1,
+                        lines_en: dialogueData?.lines_en || ''  // 传递英文台词
                     }
                 })
             });
