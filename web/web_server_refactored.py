@@ -62,6 +62,7 @@ from web.api.veo_video_api import register_veo_video_routes
 from web.api.still_image_api import register_still_image_routes
 from web.api.short_drama_api import register_short_drama_routes
 from web.api.script_quality_check import register_script_quality_routes
+from web.api.tts_api import register_tts_routes
 
 # 导入页面路由模块
 from web.routes.auth_routes import register_auth_routes, register_page_routes
@@ -310,6 +311,9 @@ def create_app():
 
     # 18. 剧本质量检查 API 路由
     register_script_quality_routes(app)
+
+    # 19. TTS配音制作 API 路由
+    register_tts_routes(app)
 
     return app, manager
 

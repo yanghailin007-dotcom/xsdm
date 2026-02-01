@@ -117,8 +117,13 @@
                     <div class="step-label">生成视频</div>
                 </div>
                 <div class="step-line"></div>
-                <div class="step-item" data-step="export" onclick="shortDramaStudio.goToStep('export')">
+                <div class="step-item" data-step="dubbing" onclick="shortDramaStudio.goToStep('dubbing')">
                     <div class="step-circle">5</div>
+                    <div class="step-label">配音制作</div>
+                </div>
+                <div class="step-line"></div>
+                <div class="step-item" data-step="export" onclick="shortDramaStudio.goToStep('export')">
+                    <div class="step-circle">6</div>
                     <div class="step-label">导出</div>
                 </div>
             </div>
@@ -206,6 +211,20 @@
                         </div>
                         <div id="videoContent" class="video-content">
                             <!-- 视频生成内容 -->
+                        </div>
+                    </div>
+
+                    <!-- 配音制作步骤 -->
+                    <div id="dubbingStep" class="step-content">
+                        <div class="step-header">
+                            <h2>🎙️ 配音制作</h2>
+                            <p>为镜头台词生成语音配音</p>
+                            <button class="btn btn-sm btn-secondary" onclick="shortDramaStudio.showTTSConfig()">
+                                ⚙️ TTS配置
+                            </button>
+                        </div>
+                        <div id="dubbingContent" class="dubbing-content">
+                            <!-- 配音制作内容 -->
                         </div>
                     </div>
 

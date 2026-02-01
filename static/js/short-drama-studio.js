@@ -11,6 +11,7 @@ class ShortDramaStudio {
         this.novels = [];
         this.events = [];
         this.characters = [];
+        this.characterVoices = {}; // 配音音色映射
         this.selectedNovel = null;
         this.selectedMajorEvent = null;
         this.selectedEpisodes = []; // 🔥 改为数组以保持选择顺序
@@ -36,6 +37,9 @@ class ShortDramaStudio {
 
         // 加载小说列表
         await this.loadNovels();
+
+        // 加载TTS音色列表
+        await this.loadVoices();
 
         console.log('✅ [短剧工作台] 初始化完成');
     }
@@ -240,6 +244,50 @@ class ShortDramaStudio {
             this.novels.map(novel => `
                 <option value="${novel.title}">${novel.title}</option>
             `).join('');
+    }
+
+    /**
+     * 加载TTS音色列表
+     */
+    async loadVoices() {
+        try {
+            const response = await fetch('/api/tts/voices');
+            const data = await response.json();
+
+            if (data.success && data.voices) {
+                // 将音色列表转换为角色映射
+                this.characterVoices = {};
+                data.voices.forEach(voice => {
+                    this.characterVoices[voice.character] = voice.voice_id;
+                });
+                console.log('🎙️ [TTS] 音色列表已加载:', this.characterVoices);
+            } else {
+                // 使用默认音色
+                this.characterVoices = {
+                    '林战': 'male-qn-qingse',
+                    '大长老': 'male-qn-jingying',
+                    '三长老': 'male-qn-yuansu',
+                    '叶凡': 'male-qn-qingche',
+                    '旁白': 'male-qn-pingshu',
+                    '系统音': 'female-qn-dahu',
+                    '林啸天': 'male-qn-wengeng',
+                    '默认': 'female-qn-dahu'
+                };
+            }
+        } catch (error) {
+            console.error('加载音色列表失败:', error);
+            // 使用默认音色
+            this.characterVoices = {
+                '林战': 'male-qn-qingse',
+                '大长老': 'male-qn-jingying',
+                '三长老': 'male-qn-yuansu',
+                '叶凡': 'male-qn-qingche',
+                '旁白': 'male-qn-pingshu',
+                '系统音': 'female-qn-dahu',
+                '林啸天': 'male-qn-wengeng',
+                '默认': 'female-qn-dahu'
+            };
+        }
     }
 
     /**
@@ -608,7 +656,7 @@ class ShortDramaStudio {
 
         // 视频生成模式下隐藏侧边栏
         const workspace = document.querySelector('.workspace-content');
-        if (step === 'video') {
+        if (step === 'video' || step === 'dubbing') {
             workspace?.classList.add('video-mode');
         } else {
             workspace?.classList.remove('video-mode');
@@ -624,6 +672,9 @@ class ShortDramaStudio {
                 break;
             case 'video':
                 this.loadVideoStep();
+                break;
+            case 'dubbing':
+                this.loadDubbingStep();
                 break;
             case 'export':
                 this.loadExportStep();
@@ -1733,6 +1784,753 @@ class ShortDramaStudio {
             result = result.replace(new RegExp(char.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), '_');
         }
         return result.replace(/^_+|_+$/g, '');
+    }
+
+    /**
+     * 生成单个镜头的配音（带确认弹窗）
+     */
+    async generateDubbing(idx) {
+        const shot = this.shots[idx];
+        if (!shot) return;
+
+        const dialogue = shot.dialogue || shot._dialogue_data || {};
+        let speaker = '';
+        let lines = '';
+        let tone = '';
+
+        if (typeof dialogue === 'string') {
+            lines = dialogue;
+            speaker = '未知';
+        } else if (typeof dialogue === 'object') {
+            speaker = dialogue.speaker || '';
+            lines = dialogue.lines || '';
+            tone = dialogue.tone || '';
+        }
+
+        if (!lines || speaker === '无') {
+            this.showToast('此镜头无台词', 'info');
+            return;
+        }
+
+        // 显示配音确认弹窗
+        this.showDubbingConfirmModal(idx, shot, speaker, lines, tone);
+    }
+
+    /**
+     * 显示配音生成确认弹窗
+     */
+    showDubbingConfirmModal(idx, shot, speaker, lines, tone) {
+        const modal = document.createElement('div');
+        modal.className = 'dubbing-confirm-modal';
+        modal.id = 'dubbingConfirmModal';
+        modal.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.85);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+        `;
+
+        // 🔥 使用实际的角色-音色映射
+        const characterVoiceMap = this.characterVoiceMap || {};
+
+        // 获取所有角色（从台词中提取的 + 项目角色）
+        const allCharacters = new Set();
+        this.shots.forEach(s => {
+            const d = s.dialogue || s._dialogue_data || {};
+            if (typeof d === 'object' && d.speaker && d.speaker !== '无') {
+                allCharacters.add(d.speaker);
+            }
+        });
+        this.characters?.forEach(c => {
+            if (c.name) allCharacters.add(c.name);
+        });
+
+        // 如果当前说话者不在列表中，添加进去
+        if (speaker && speaker !== '无') {
+            allCharacters.add(speaker);
+        }
+
+        // 按字母顺序排序
+        const sortedCharacters = Array.from(allCharacters).sort();
+
+        // 当前说话者的默认音色
+        const defaultVoiceId = characterVoiceMap[speaker] || this.characterVoices['默认'] || 'female-qn-dahu';
+
+        modal.innerHTML = `
+            <div class="modal-content" style="
+                background: var(--bg-secondary);
+                border-radius: 16px;
+                max-width: 700px;
+                width: 90%;
+                max-height: 90vh;
+                overflow-y: auto;
+                padding: 24px;
+                box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            ">
+                <div class="modal-header" style="
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-bottom: 20px;
+                    border-bottom: 1px solid var(--border);
+                    padding-bottom: 16px;
+                ">
+                    <div>
+                        <h3 style="margin: 0; font-size: 1.4rem;">🎙️ 确认生成配音 #${shot.shot_number || shot.scene_number || (idx + 1)}</h3>
+                        <p style="margin: 4px 0 0 0; color: var(--text-secondary); font-size: 0.9rem;">
+                            ${shot.episode_title || ''} · ${shot.shot_type || '镜头'}
+                        </p>
+                    </div>
+                    <button class="btn-close" onclick="this.closest('.dubbing-confirm-modal').remove()" style="background: none; border: none; font-size: 1.8rem; cursor: pointer; color: var(--text-secondary);">×</button>
+                </div>
+
+                <div class="modal-body">
+                    <!-- 镜头信息 -->
+                    <div style="margin-bottom: 20px; padding: 16px; background: var(--bg-dark); border-radius: 12px;">
+                        <div style="display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap;">
+                            <span class="badge" style="background: var(--primary-light); color: var(--primary); padding: 4px 12px; border-radius: 6px; font-size: 0.85rem;">${shot.shot_type || '镜头'}</span>
+                            <span class="badge" style="background: var(--bg-tertiary); padding: 4px 12px; border-radius: 6px; font-size: 0.85rem;">⏱️ ${shot.duration || 5}秒</span>
+                        </div>
+                        <p style="color: var(--text-secondary); margin: 0; font-size: 0.85rem;">
+                            🎬 画面: ${(shot.veo_prompt || shot.screen_action || '').substring(0, 100)}...
+                        </p>
+                    </div>
+
+                    <!-- 台词确认 -->
+                    <div style="margin-bottom: 20px;">
+                        <label style="font-weight: 600; display: block; margin-bottom: 12px; font-size: 1rem;">💬 台词确认：</label>
+                        <div style="padding: 16px; background: var(--bg-dark); border-radius: 12px; border: 1px solid var(--border);">
+                            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                <span id="currentSpeakerBadge" style="background: var(--primary); color: white; padding: 4px 12px; border-radius: 6px; font-size: 0.85rem; font-weight: 600;">${speaker}</span>
+                                ${tone ? `<span style="color: var(--text-tertiary); font-size: 0.85rem; font-style: italic;">🎭 ${tone}</span>` : ''}
+                            </div>
+                            <textarea id="dialogueLinesEdit" style="
+                                width: 100%;
+                                min-height: 80px;
+                                background: var(--bg-tertiary);
+                                border: 1px solid var(--border);
+                                border-radius: 8px;
+                                padding: 12px;
+                                color: var(--text-primary);
+                                font-size: 1rem;
+                                line-height: 1.6;
+                                resize: vertical;
+                                font-family: inherit;
+                            ">${lines}</textarea>
+                        </div>
+                    </div>
+
+                    <!-- 音色配置 -->
+                    <div style="margin-bottom: 20px;">
+                        <label style="font-weight: 600; display: block; margin-bottom: 12px; font-size: 1rem;">🎵 音色配置：</label>
+                        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px;">
+                            <!-- 角色选择 -->
+                            <div>
+                                <label style="font-size: 0.9rem; color: var(--text-secondary); display: block; margin-bottom: 6px;">角色 (${sortedCharacters.length}个):</label>
+                                <select id="paramSpeaker" style="
+                                    width: 100%;
+                                    padding: 10px;
+                                    background: var(--bg-dark);
+                                    border: 1px solid var(--border);
+                                    border-radius: 8px;
+                                    color: var(--text-primary);
+                                    font-size: 0.95rem;
+                                ">
+                                    ${sortedCharacters.map(char => `
+                                        <option value="${char}" ${char === speaker ? 'selected' : ''}>${char}</option>
+                                    `).join('')}
+                                </select>
+                            </div>
+                            <!-- 音色ID -->
+                            <div>
+                                <label style="font-size: 0.9rem; color: var(--text-secondary); display: block; margin-bottom: 6px;">音色ID:</label>
+                                <select id="paramVoiceId" style="
+                                    width: 100%;
+                                    padding: 10px;
+                                    background: var(--bg-dark);
+                                    border: 1px solid var(--border);
+                                    border-radius: 8px;
+                                    color: var(--text-primary);
+                                    font-size: 0.95rem;
+                                ">
+                                    ${Object.entries(this.characterVoices).map(([name, id]) => `
+                                        <option value="${id}" ${id === defaultVoiceId ? 'selected' : ''}>${name} (${id})</option>
+                                    `).join('')}
+                                </select>
+                            </div>
+                            <!-- 语速 -->
+                            <div>
+                                <label style="font-size: 0.9rem; color: var(--text-secondary); display: block; margin-bottom: 6px;">语速: <span id="speedValue">1.0</span></label>
+                                <input type="range" id="paramSpeed" min="0.5" max="2" step="0.1" value="1.0" style="width: 100%;">
+                            </div>
+                            <!-- 音调 -->
+                            <div>
+                                <label style="font-size: 0.9rem; color: var(--text-secondary); display: block; margin-bottom: 6px;">音调: <span id="pitchValue">0</span></label>
+                                <input type="range" id="paramPitch" min="-12" max="12" step="1" value="0" style="width: 100%;">
+                            </div>
+                            <!-- 音量 -->
+                            <div>
+                                <label style="font-size: 0.9rem; color: var(--text-secondary); display: block; margin-bottom: 6px;">音量: <span id="volValue">1.0</span></label>
+                                <input type="range" id="paramVol" min="0.1" max="10" step="0.1" value="1.0" style="width: 100%;">
+                            </div>
+                        </div>
+                        <p style="font-size: 0.85rem; color: var(--text-tertiary); margin-top: 12px;">
+                            💡 提示: 语速 0.5-2.0, 音调 -12到12, 音量 0.1-10.0
+                        </p>
+                    </div>
+
+                    <!-- 预估时长 -->
+                    <div style="padding: 12px; background: rgba(59, 130, 246, 0.1); border-radius: 8px; border-left: 4px solid var(--primary);">
+                        <span style="font-size: 0.9rem; color: var(--text-secondary);">
+                            ⏱️ 预估音频时长: <strong style="color: var(--text-primary);">${(lines.length / 3.5).toFixed(1)}秒</strong>
+                            （约 ${Math.ceil(lines.length / 15)} 字）
+                        </span>
+                    </div>
+                </div>
+
+                <div class="modal-footer" style="
+                    display: flex;
+                    justify-content: center;
+                    gap: 16px;
+                    padding-top: 20px;
+                    border-top: 1px solid var(--border);
+                ">
+                    <button class="btn-cancel" onclick="this.closest('.dubbing-confirm-modal').remove()" style="
+                        padding: 12px 24px;
+                        background: var(--bg-tertiary);
+                        border: 1px solid var(--border);
+                        border-radius: 10px;
+                        color: var(--text-primary);
+                        font-size: 1rem;
+                        cursor: pointer;
+                    ">取消</button>
+                    <button class="btn-generate" style="
+                        padding: 12px 32px;
+                        background: var(--primary);
+                        border: none;
+                        border-radius: 10px;
+                        color: white;
+                        font-size: 1rem;
+                        cursor: pointer;
+                        font-weight: 600;
+                    ">🎙️ 开始生成配音</button>
+                </div>
+            </div>
+        `;
+
+        // 点击背景关闭
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) modal.remove();
+        });
+
+        document.body.appendChild(modal);
+
+        // 绑定滑块值显示
+        const speedSlider = modal.querySelector('#paramSpeed');
+        const pitchSlider = modal.querySelector('#paramPitch');
+        const volSlider = modal.querySelector('#paramVol');
+
+        speedSlider.addEventListener('input', (e) => {
+            modal.querySelector('#speedValue').textContent = e.target.value;
+        });
+        pitchSlider.addEventListener('input', (e) => {
+            modal.querySelector('#pitchValue').textContent = e.target.value;
+        });
+        volSlider.addEventListener('input', (e) => {
+            modal.querySelector('#volValue').textContent = e.target.value;
+        });
+
+        // 角色切换时自动选择对应音色
+        const speakerSelect = modal.querySelector('#paramSpeaker');
+        const voiceIdSelect = modal.querySelector('#paramVoiceId');
+        const speakerBadge = modal.querySelector('#currentSpeakerBadge');
+
+        speakerSelect.addEventListener('change', (e) => {
+            const selectedSpeaker = e.target.value;
+            // 更新badge显示
+            speakerBadge.textContent = selectedSpeaker;
+
+            // 从映射中查找音色
+            let voiceId = characterVoiceMap[selectedSpeaker];
+            if (!voiceId) {
+                // 尝试从配置中查找
+                voiceId = this.characterVoices[selectedSpeaker];
+            }
+            if (!voiceId) {
+                // 使用默认音色
+                voiceId = this.characterVoices['默认'] || 'female-qn-dahu';
+            }
+
+            if (voiceId) {
+                voiceIdSelect.value = voiceId;
+            }
+        });
+
+        // 确认生成
+        const generateBtn = modal.querySelector('.btn-generate');
+        generateBtn.addEventListener('click', async () => {
+            const finalLines = modal.querySelector('#dialogueLinesEdit').value.trim();
+            const finalSpeaker = modal.querySelector('#paramSpeaker').value;
+            const finalVoiceId = modal.querySelector('#paramVoiceId').value;
+            const speed = parseFloat(modal.querySelector('#paramSpeed').value);
+            const pitch = parseInt(modal.querySelector('#paramPitch').value);
+            const vol = parseFloat(modal.querySelector('#paramVol').value);
+
+            if (!finalLines) {
+                this.showToast('台词不能为空', 'error');
+                return;
+            }
+
+            // 保存角色-音色映射
+            characterVoiceMap[finalSpeaker] = finalVoiceId;
+
+            // 移除弹窗
+            modal.remove();
+
+            // 执行生成
+            await this.executeDubbingGeneration(idx, finalSpeaker, finalLines, finalVoiceId, speed, pitch, vol);
+        });
+    }
+
+    /**
+     * 执行配音生成（实际API调用）
+     */
+    async executeDubbingGeneration(idx, speaker, lines, voiceId, speed, pitch, vol) {
+        const shot = this.shots[idx];
+        if (!shot) return;
+
+        // 标记为生成中
+        shot.dubbingGenerating = true;
+        shot.dubbingError = false;
+        this.renderDubbingScene(shot, idx);
+        document.getElementById(`dubbingScene_${idx}`)?.classList.add('generating');
+
+        // 显示进度提示
+        const progressToast = this.showToast(`正在生成配音: ${lines.substring(0, 20)}...`, 'info', 0);
+
+        try {
+            const episodeDirectoryName = this.getEpisodeDirectoryName();
+
+            const response = await fetch('/api/tts/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    novel_title: this.selectedNovel || '',
+                    episode_title: episodeDirectoryName,
+                    scene_number: shot.shot_number || shot.scene_number || (idx + 1),
+                    speaker: speaker,
+                    lines: lines,
+                    voice_id: voiceId,
+                    speed: speed,
+                    pitch: pitch,
+                    vol: vol
+                })
+            });
+
+            const result = await response.json();
+
+            // 移除进度提示
+            if (progressToast) progressToast.remove();
+
+            if (result.success && result.audio_url) {
+                shot.audioUrl = result.audio_url;
+                shot.audioPath = result.audio_path;
+                shot.audioDuration = result.duration;
+                shot.dubbingGenerating = false;
+                shot.dubbingError = false;
+
+                this.renderDubbingScene(shot, idx);
+                this.updateDubbingStats();
+                this.showToast('配音生成成功', 'success');
+            } else {
+                shot.dubbingGenerating = false;
+                shot.dubbingError = true;
+                this.renderDubbingScene(shot, idx);
+                this.showToast(`生成失败: ${result.error || '未知错误'}`, 'error');
+            }
+
+        } catch (error) {
+            shot.dubbingGenerating = false;
+            shot.dubbingError = true;
+            this.renderDubbingScene(shot, idx);
+            if (progressToast) progressToast.remove();
+            this.showToast(`生成失败: ${error.message}`, 'error');
+        }
+    }
+
+    /**
+     * 批量生成所有配音
+     */
+    async batchGenerateDubbing() {
+        const dialogueShots = this.shots.filter(shot => {
+            const dialogue = shot.dialogue || shot._dialogue_data || {};
+            if (typeof dialogue === 'string') return dialogue.trim();
+            if (typeof dialogue === 'object') {
+                const speaker = dialogue.speaker || '';
+                const lines = dialogue.lines || '';
+                return speaker && speaker !== '无' && lines;
+            }
+            return false;
+        });
+
+        if (dialogueShots.length === 0) {
+            this.showToast('没有找到有台词的镜头', 'info');
+            return;
+        }
+
+        const total = dialogueShots.length;
+        let completed = 0;
+        let failed = 0;
+
+        for (const shot of dialogueShots) {
+            const idx = this.shots.indexOf(shot);
+            if (idx === -1) continue;
+
+            await this.generateDubbing(idx);
+            completed++;
+
+            // 等待一小段时间避免API限流
+            await new Promise(r => setTimeout(r, 1500));
+
+            // 更新进度
+            const progress = Math.round((completed / total) * 100);
+            this.showToast(`批量生成进度: ${progress}%`, 'info');
+        }
+
+        this.showToast(`批量生成完成！成功: ${completed}, 失败: ${failed}`, 'success');
+    }
+
+    /**
+     * 导出SRT字幕文件
+     */
+    async exportSubtitle() {
+        try {
+            const episodeDirectoryName = this.getEpisodeDirectoryName();
+
+            const response = await fetch('/api/tts/export-subtitle', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    novel_title: this.selectedNovel || '',
+                    episode_title: episodeDirectoryName,
+                    scenes: this.shots
+                })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                // 触发下载SRT文件
+                const blob = new Blob([result.content], { type: 'text/plain;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${episodeDirectoryName}_配音字幕.srt`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+
+                this.showToast('字幕文件已导出', 'success');
+            } else {
+                this.showToast(`导出失败: ${result.error}`, 'error');
+            }
+
+        } catch (error) {
+            this.showToast(`导出失败: ${error.message}`, 'error');
+        }
+    }
+
+    /**
+     * 下载所有音频文件
+     */
+    async downloadAllAudio() {
+        try {
+            // 收集所有已生成的音频
+            const audioFiles = this.shots
+                .filter(shot => shot.audioUrl)
+                .map(shot => ({
+                    url: shot.audioUrl,
+                    filename: shot.audioPath ? shot.audioPath.split(/[\\/]/).pop() : `${shot.shot_number}_${shot.dialogue?.speaker || '配音'}.mp3`
+                }));
+
+            if (audioFiles.length === 0) {
+                this.showToast('没有已生成的配音音频', 'info');
+                return;
+            }
+
+            // 逐个下载（浏览器限制）
+            for (const file of audioFiles) {
+                const a = document.createElement('a');
+                a.href = file.url;
+                a.download = file.filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                await new Promise(r => setTimeout(r, 500));
+            }
+
+            this.showToast(`已下载 ${audioFiles.length} 个音频文件`, 'success');
+
+        } catch (error) {
+            this.showToast(`下载失败: ${error.message}`, 'error');
+        }
+    }
+
+    /**
+     * 播放音频
+     */
+    playAudio(url) {
+        const audio = new Audio(url);
+        audio.play().catch(e => {
+            this.showToast('播放失败，请先下载音频到本地', 'error');
+        });
+    }
+
+    /**
+     * 下载单个音频
+     */
+    downloadAudio(url, filename) {
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        this.showToast('开始下载', 'success');
+    }
+
+    /**
+     * 显示TTS配置弹窗
+     */
+    showTTSConfig() {
+        const modal = document.createElement('div');
+        modal.className = 'modal-overlay';
+        modal.style.cssText = `
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.8); display: flex;
+            justify-content: center; align-items: center; z-index: 10000;
+        `;
+
+        modal.innerHTML = `
+            <div class="modal-content" style="
+                background: var(--bg-secondary); border-radius: 16px;
+                max-width: 500px; width: 90%; padding: 2rem;
+                box-shadow: 0 25px 80px rgba(0,0,0,0.4);
+            ">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                    <h2 style="margin: 0;">🎙️ TTS配置</h2>
+                    <button class="btn-close" onclick="this.closest('.modal-overlay').remove()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer;">✕</button>
+                </div>
+
+                <div style="margin-bottom: 1rem;">
+                    <label style="font-weight: 600; display: block; margin-bottom: 0.5rem;">MiniMax Group ID</label>
+                    <input type="text" id="ttsGroupId" placeholder="请输入MiniMax Group ID" style="
+                        width: 100%; padding: 10px; background: var(--bg-dark);
+                        border: 1px solid var(--border); border-radius: 8px;
+                        color: var(--text-primary); font-size: 1rem;
+                    ">
+                </div>
+
+                <div style="margin-bottom: 1rem;">
+                    <label style="font-weight: 600; display: block; margin-bottom: 0.5rem;">MiniMax API Key</label>
+                    <input type="password" id="ttsApiKey" placeholder="请输入MiniMax API Key" style="
+                        width: 100%; padding: 10px; background: var(--bg-dark);
+                        border: 1px solid var(--border); border-radius: 8px;
+                        color: var(--text-primary); font-size: 1rem;
+                    ">
+                </div>
+
+                <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+                    <button id="saveTtsConfigBtn" class="btn btn-primary" style="flex: 1;">保存配置</button>
+                    <button class="btn btn-secondary" onclick="this.closest('.modal-overlay').remove()" style="flex: 1;">取消</button>
+                </div>
+
+                <div style="margin-top: 1rem; padding: 1rem; background: var(--bg-tertiary); border-radius: 8px; font-size: 0.85rem; color: var(--text-secondary);">
+                    <p style="margin: 0 0 0.5rem 0;">📌 获取MiniMax API密钥：</p>
+                    <ol style="margin: 0; padding-left: 1.5rem;">
+                        <li>访问 <a href="https://www.minimaxi.com" target="_blank">https://www.minimaxi.com</a></li>
+                        <li>注册/登录账号</li>
+                        <li>进入控制台获取 Group ID 和 API Key</li>
+                    </ol>
+                </div>
+            </div>
+        `;
+
+        // 点击背景关闭
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) modal.remove();
+        });
+
+        // 保存配置
+        const saveBtn = modal.querySelector('#saveTtsConfigBtn');
+        saveBtn.addEventListener('click', async () => {
+            const groupId = document.getElementById('ttsGroupId').value.trim();
+            const apiKey = document.getElementById('ttsApiKey').value.trim();
+
+            if (!groupId || !apiKey) {
+                this.showToast('Group ID和API Key不能为空', 'error');
+                return;
+            }
+
+            const response = await fetch('/api/tts/config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    group_id: groupId,
+                    api_key: apiKey
+                })
+            });
+
+            const result = await response.json();
+            if (result.success) {
+                this.showToast('TTS配置已保存', 'success');
+                modal.remove();
+                this.loadDubbingStep(); // 刷新页面
+            } else {
+                this.showToast(`保存失败: ${result.error}`, 'error');
+            }
+        });
+
+        document.body.appendChild(modal);
+    }
+
+    /**
+     * 渲染单个配音场景（支持更新和返回模板）
+     */
+    renderDubbingScene(shot, idx) {
+        const dialogue = shot.dialogue || shot._dialogue_data || {};
+        let speaker = '';
+        let lines = '';
+        let tone = '';
+
+        if (typeof dialogue === 'string') {
+            lines = dialogue;
+            speaker = '未知';
+        } else if (typeof dialogue === 'object') {
+            speaker = dialogue.speaker || '';
+            lines = dialogue.lines || '';
+            tone = dialogue.tone || '';
+        }
+
+        const hasAudio = shot.audioUrl || shot.audio_path;
+        const isGenerating = shot.dubbingGenerating;
+        const hasError = shot.dubbingError;
+
+        // 状态样式和文字（与视频卡片保持一致）
+        const statusClass = hasAudio ? 'done' : isGenerating ? 'processing' : hasError ? 'error' : 'pending';
+        const statusText = hasAudio ? '已完成' : isGenerating ? '生成中...' : hasError ? '失败' : '待生成';
+
+        const innerHTML = `
+            <div class="scene-header">
+                <span class="scene-number">#${shot.shot_number || shot.scene_number || (idx + 1)}</span>
+                <span class="scene-type">${shot.shot_type || '镜头'}</span>
+                <span class="scene-duration">⏱️ ${shot.duration || 5}秒</span>
+                <span class="task-status ${statusClass}">${statusText}</span>
+            </div>
+
+            <div class="scene-content">
+                <div class="scene-visual">
+                    <div class="visual-label">🎬 画面</div>
+                    <div class="visual-desc">${(shot.veo_prompt || shot.screen_action || '').substring(0, 100)}...</div>
+                </div>
+
+                <div class="scene-dialogue">
+                    <div class="dialogue-label">💬 台词</div>
+                    <div class="dialogue-speaker">${speaker}</div>
+                    <div class="dialogue-lines">"${lines}"</div>
+                    ${tone ? `<div class="dialogue-tone" style="font-size: 0.75rem; color: var(--text-tertiary);">🎭 ${tone}</div>` : ''}
+                </div>
+            </div>
+
+            <div class="scene-actions">
+                ${hasAudio ? `
+                    <div class="audio-player-wrapper" style="width: 100%;">
+                        <audio id="audio_${idx}" src="${shot.audioUrl}" controls style="width: 100%; height: 32px;"></audio>
+                    </div>
+                    <div style="display: flex; gap: 8px; margin-top: 8px;">
+                        <button class="scene-btn download-btn" onclick="shortDramaStudio.downloadAudio('${shot.audioUrl}', '${speaker}_${shot.shot_number || idx}')">
+                            <span>⬇️</span> 下载
+                        </button>
+                        <button class="scene-btn regenerate-btn" onclick="shortDramaStudio.generateDubbing(${idx})">
+                            <span>🔄</span> 重生成
+                        </button>
+                    </div>
+                ` : isGenerating ? `
+                    <div class="generating-status">生成中...</div>
+                    <button class="scene-btn" disabled>请稍候...</button>
+                ` : hasError ? `
+                    <button class="scene-btn generate-btn" onclick="shortDramaStudio.generateDubbing(${idx})">
+                        <span>🔄</span> 重试
+                    </button>
+                ` : `
+                    <button class="scene-btn generate-btn" onclick="shortDramaStudio.generateDubbing(${idx})">
+                        <span>🎙️</span> 生成配音
+                    </button>
+                `}
+            </div>
+        `;
+
+        // 如果元素存在，更新它；否则返回模板字符串
+        const sceneEl = document.getElementById(`dubbingScene_${idx}`);
+        if (sceneEl) {
+            sceneEl.innerHTML = innerHTML;
+            // 更新状态类
+            sceneEl.classList.remove('generating', 'error', 'done', 'pending');
+            if (isGenerating) {
+                sceneEl.classList.add('generating');
+            } else if (hasError) {
+                sceneEl.classList.add('error');
+            } else if (hasAudio) {
+                sceneEl.classList.add('done');
+            } else {
+                sceneEl.classList.add('pending');
+            }
+            return;
+        }
+
+        // 返回带外层div的模板字符串（用于初始渲染）
+        const initialClass = isGenerating ? 'generating' : hasError ? 'error' : hasAudio ? 'done' : 'pending';
+        return `
+            <div class="dubbing-scene ${initialClass}" id="dubbingScene_${idx}" data-idx="${idx}">
+                ${innerHTML}
+            </div>
+        `;
+    }
+
+    /**
+     * 更新配音统计数字
+     */
+    updateDubbingStats() {
+        const dialogueShots = this.shots.filter(shot => {
+            const dialogue = shot.dialogue || shot._dialogue_data || {};
+            if (typeof dialogue === 'string') return dialogue.trim();
+            if (typeof dialogue === 'object') {
+                const speaker = dialogue.speaker || '';
+                const lines = dialogue.lines || '';
+                return speaker && speaker !== '无' && lines;
+            }
+            return false;
+        });
+
+        const completedCount = dialogueShots.filter(s => s.audioUrl || s.audio_path).length;
+        const pendingCount = dialogueShots.filter(s => !(s.audioUrl || s.audio_path)).length;
+        const totalCount = dialogueShots.length;
+
+        const statsContainer = document.querySelector('.dubbing-stats');
+        if (statsContainer) {
+            statsContainer.innerHTML = `
+                <span class="stat-item">共 ${totalCount} 个镜头</span>
+                <span class="stat-item completed">已完成 ${completedCount}</span>
+                <span class="stat-item pending">待生成 ${pendingCount}</span>
+            `;
+        }
     }
 
     /**
@@ -3763,6 +4561,123 @@ class ShortDramaStudio {
 
     getImprovedData() {
         return this._improvedData;
+    }
+
+    /**
+     * 加载配音制作步骤
+     */
+    async loadDubbingStep() {
+        const container = document.getElementById('dubbingContent');
+        if (!container) return;
+
+        if (!this.shots || this.shots.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <p style="font-size: 2rem;">🎙️</p>
+                    <p>还没有分镜头数据</p>
+                    <p style="font-size: 0.85rem; color: var(--text-secondary);">
+                        请先在"分镜头"步骤生成分镜头
+                    </p>
+                </div>
+            `;
+            return;
+        }
+
+        // 🔥 加载角色数据
+        if (!this.characters || this.characters.length === 0) {
+            console.log('🎙️ [配音] 角色数据为空，正在加载...');
+            await this.loadEventsAndCharacters();
+        }
+
+        // 🔥 提取所有有台词的角色（从镜头中提取）
+        const speakerSet = new Set();
+        this.shots.forEach(shot => {
+            const dialogue = shot.dialogue || shot._dialogue_data || {};
+            if (typeof dialogue === 'object') {
+                const speaker = dialogue.speaker || '';
+                if (speaker && speaker !== '无') {
+                    speakerSet.add(speaker);
+                }
+            }
+        });
+
+        // 合并项目角色和台词中的角色
+        const allSpeakers = new Set([...speakerSet]);
+        this.characters.forEach(char => {
+            if (char.name) allSpeakers.add(char.name);
+        });
+
+        // 🔥 构建角色-音色映射
+        this.characterVoiceMap = {};
+        allSpeakers.forEach(speaker => {
+            // 从配置中查找匹配的音色
+            let matchedVoice = this.characterVoices[speaker];
+
+            // 如果没有直接匹配，尝试模糊匹配
+            if (!matchedVoice) {
+                for (const [charName, voiceId] of Object.entries(this.characterVoices)) {
+                    if (speaker.includes(charName) || charName.includes(speaker)) {
+                        matchedVoice = voiceId;
+                        break;
+                    }
+                }
+            }
+
+            // 如果还没找到，使用默认音色
+            if (!matchedVoice) {
+                matchedVoice = this.characterVoices['默认'] || 'female-qn-dahu';
+            }
+
+            this.characterVoiceMap[speaker] = matchedVoice;
+        });
+
+        console.log('🎙️ [配音] 角色-音色映射:', this.characterVoiceMap);
+
+        // 检查TTS配置
+        const ttsConfigResponse = await fetch('/api/tts/config');
+        const ttsConfig = await ttsConfigResponse.json();
+        const ttsConfigured = ttsConfig.success && ttsConfig.configured;
+
+        // 过滤出有台词的镜头
+        const dialogueShots = this.shots.filter(shot => {
+            const dialogue = shot.dialogue || shot._dialogue_data || {};
+            if (typeof dialogue === 'string') return dialogue.trim();
+            if (typeof dialogue === 'object') {
+                const speaker = dialogue.speaker || '';
+                const lines = dialogue.lines || '';
+                return speaker && speaker !== '无' && lines;
+            }
+            return false;
+        });
+
+        container.innerHTML = `
+            <div class="dubbing-workspace">
+                <!-- 工具栏 -->
+                <div class="dubbing-toolbar">
+                    <div class="dubbing-stats">
+                        <span class="stat-item">共 ${dialogueShots.length} 个镜头</span>
+                        <span class="stat-item completed">已完成 ${dialogueShots.filter(s => s.audioUrl || s.audio_path).length}</span>
+                        <span class="stat-item pending">待生成 ${dialogueShots.filter(s => !(s.audioUrl || s.audio_path)).length}</span>
+                    </div>
+                    <div class="toolbar-actions">
+                        ${ttsConfigured ?
+                            '<button class="toolbar-btn primary" onclick="shortDramaStudio.batchGenerateDubbing()"><span class="btn-icon">🎙️</span><span class="btn-text">全部生成配音</span></button>' :
+                            '<button class="toolbar-btn warning" onclick="shortDramaStudio.showTTSConfig()"><span class="btn-icon">⚙️</span><span class="btn-text">配置API</span></button>'
+                        }
+                        <button class="toolbar-btn" onclick="shortDramaStudio.exportSubtitle()"><span class="btn-icon">📝</span><span class="btn-text">导出字幕</span></button>
+                        <button class="toolbar-btn" onclick="shortDramaStudio.downloadAllAudio()"><span class="btn-icon">📦</span><span class="btn-text">打包下载</span></button>
+                    </div>
+                </div>
+
+                <!-- 镜头列表 -->
+                <div class="dubbing-scene-list">
+                    ${dialogueShots.map((shot, idx) => this.renderDubbingScene(shot, idx)).join('')}
+                </div>
+            </div>
+        `;
+
+        // 更新项目状态
+        this.updateProjectStatus();
     }
 
     /**

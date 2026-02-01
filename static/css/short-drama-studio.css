@@ -929,6 +929,29 @@ body {
     align-items: center;
     gap: var(--space-xs);
     justify-content: center;
+    font-size: 0.75rem;
+    padding: 2px 8px;
+    border-radius: 4px;
+}
+
+.task-status.done {
+    background: var(--success);
+    color: white;
+}
+
+.task-status.processing {
+    background: var(--warning);
+    color: white;
+}
+
+.task-status.error {
+    background: var(--danger);
+    color: white;
+}
+
+.task-status.pending {
+    background: var(--surface-tertiary);
+    color: var(--text-tertiary);
 }
 
 .status-dot {
@@ -1766,6 +1789,7 @@ select option {
 .select-episodes-content,
 .storyboard-content,
 .video-content,
+.dubbing-content,
 .export-content {
     padding: var(--space-lg);
 }
@@ -1903,4 +1927,461 @@ select option {
 
 .btn-close:hover {
     color: var(--text-primary);
+}
+
+/* ==================== 配音制作 ==================== */
+.dubbing-content {
+    padding: var(--space-lg);
+}
+
+.dubbing-workspace {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    gap: var(--space-lg);
+}
+
+.dubbing-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--space-md);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    flex-wrap: wrap;
+    gap: var(--space-md);
+}
+
+.dubbing-stats {
+    display: flex;
+    gap: var(--space-lg);
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+.dubbing-toolbar .btn {
+    font-size: 0.85rem;
+}
+
+.dubbing-scene-list {
+    display: grid;
+    gap: var(--space-md);
+    overflow-y: auto;
+}
+
+.dubbing-scene {
+    display: flex;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    transition: all 0.2s;
+}
+
+.dubbing-scene:hover {
+    border-color: var(--border-light);
+    box-shadow: var(--shadow-md);
+}
+
+.dubbing-scene.completed {
+    border-left: 4px solid var(--success);
+}
+
+.dubbing-scene.processing {
+    border-left: 4px solid var(--warning);
+}
+
+.dubbing-scene.error {
+    border-left: 4px solid var(--danger);
+}
+
+.dubbing-scene-number {
+    width: 60px;
+    background: var(--bg-tertiary);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-md);
+    border-right: 1px solid var(--border);
+}
+
+.dubbing-scene-number .number {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.dubbing-scene-number .duration {
+    font-size: 0.75rem;
+    color: var(--text-tertiary);
+    margin-top: 4px;
+}
+
+.dubbing-scene-content {
+    flex: 1;
+    padding: var(--space-md);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+}
+
+.dubbing-dialogue {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-sm);
+}
+
+.dubbing-speaker {
+    padding: 2px 8px;
+    background: var(--primary);
+    color: white;
+    font-size: 0.75rem;
+    border-radius: 4px;
+    font-weight: 500;
+    flex-shrink: 0;
+}
+
+.dubbing-speaker.narrator {
+    background: var(--info);
+}
+
+.dubbing-speaker.system {
+    background: var(--warning);
+    color: var(--bg-primary);
+}
+
+.dubbing-lines {
+    flex: 1;
+    font-size: 0.95rem;
+    color: var(--text-primary);
+    line-height: 1.5;
+}
+
+.dubbing-tone {
+    font-size: 0.8rem;
+    color: var(--text-tertiary);
+    font-style: italic;
+}
+
+.dubbing-scene-actions {
+    width: 180px;
+    padding: var(--space-md);
+    background: var(--bg-tertiary);
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+    align-items: center;
+}
+
+.dubbing-audio-player {
+    width: 100%;
+}
+
+.dubbing-audio-player audio {
+    width: 100%;
+    height: 32px;
+}
+
+.dubbing-audio-placeholder {
+    width: 100%;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    color: var(--text-tertiary);
+    background: var(--bg-dark);
+    border-radius: var(--radius-sm);
+}
+
+.dubbing-scene-actions .btn {
+    width: 100%;
+    justify-content: center;
+    font-size: 0.8rem;
+}
+
+/* 配音空状态 */
+.dubbing-empty {
+    text-align: center;
+    padding: var(--space-xl);
+    color: var(--text-secondary);
+}
+
+.dubbing-empty .icon {
+    font-size: 3rem;
+    margin-bottom: var(--space-md);
+    opacity: 0.5;
+}
+
+/* 配音配置模态框 */
+.tts-config-modal .config-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+}
+
+.tts-config-modal .form-row {
+    display: flex;
+    gap: var(--space-md);
+}
+
+.tts-config-modal .form-row .form-group {
+    flex: 1;
+}
+
+.tts-config-modal .voice-preview {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: var(--space-sm);
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-md);
+    margin-top: var(--space-sm);
+}
+
+.tts-config-modal .voice-preview button {
+    padding: var(--space-xs) var(--space-sm);
+    background: var(--primary);
+    border: none;
+    border-radius: var(--radius-sm);
+    color: white;
+    cursor: pointer;
+    font-size: 0.8rem;
+}
+
+/* 配音音色选择器 */
+.voice-selector {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: var(--space-sm);
+    margin-top: var(--space-sm);
+}
+
+.voice-option {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: var(--space-sm);
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.voice-option:hover {
+    background: var(--bg-elevated);
+}
+
+.voice-option.selected {
+    background: var(--primary-light);
+    border-color: var(--primary);
+}
+
+.voice-option input {
+    margin: 0;
+}
+
+.voice-option .voice-name {
+    flex: 1;
+    font-size: 0.85rem;
+    color: var(--text-primary);
+}
+
+.voice-option .voice-id {
+    font-size: 0.7rem;
+    color: var(--text-tertiary);
+}
+
+/* ==================== 配音场景卡片样式 ==================== */
+.dubbing-scene .scene-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: var(--space-sm) var(--space-md);
+    background: var(--bg-tertiary);
+    border-bottom: 1px solid var(--border);
+    font-size: 0.85rem;
+}
+
+.dubbing-scene .scene-number {
+    font-weight: 700;
+    color: var(--primary);
+}
+
+.dubbing-scene .scene-type {
+    color: var(--text-secondary);
+}
+
+.dubbing-scene .scene-duration {
+    margin-left: auto;
+    color: var(--text-tertiary);
+}
+
+.dubbing-scene .scene-content {
+    display: flex;
+    padding: var(--space-md);
+    gap: var(--space-md);
+}
+
+.dubbing-scene .scene-visual {
+    flex: 1;
+    padding: var(--space-sm);
+    background: var(--bg-dark);
+    border-radius: var(--radius-sm);
+}
+
+.dubbing-scene .visual-label {
+    font-size: 0.75rem;
+    color: var(--text-tertiary);
+    margin-bottom: var(--space-xs);
+}
+
+.dubbing-scene .visual-desc {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    line-height: 1.4;
+}
+
+.dubbing-scene .scene-dialogue {
+    flex: 1;
+    padding: var(--space-sm);
+    background: var(--bg-dark);
+    border-radius: var(--radius-sm);
+}
+
+.dubbing-scene .dialogue-label {
+    font-size: 0.75rem;
+    color: var(--text-tertiary);
+    margin-bottom: var(--space-xs);
+}
+
+.dubbing-scene .dialogue-speaker {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--primary);
+    margin-bottom: 4px;
+}
+
+.dubbing-scene .dialogue-lines {
+    font-size: 0.9rem;
+    color: var(--text-primary);
+    line-height: 1.4;
+}
+
+.dubbing-scene .scene-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+    padding: var(--space-sm) var(--space-md);
+    background: var(--bg-tertiary);
+    border-top: 1px solid var(--border);
+}
+
+.dubbing-scene .scene-btn {
+    padding: var(--space-xs) var(--space-sm);
+    font-size: 0.8rem;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.dubbing-scene .audio-btn {
+    background: var(--success);
+    color: white;
+}
+
+.dubbing-scene .download-btn {
+    background: var(--info);
+    color: white;
+}
+
+.dubbing-scene .regenerate-btn {
+    background: var(--warning);
+    color: var(--bg-primary);
+}
+
+.dubbing-scene .generate-btn {
+    background: var(--primary);
+    color: white;
+}
+
+.dubbing-scene .generating-status {
+    font-size: 0.8rem;
+    color: var(--warning);
+    animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+.dubbing-scene.generating {
+    pointer-events: none;
+    opacity: 0.7;
+}
+
+/* ==================== 配音场景卡片样式 ==================== */
+.audio-player-wrapper audio {
+    width: 100%;
+    height: 32px;
+    border-radius: 4px;
+}
+
+.audio-player-wrapper audio::-webkit-media-controls-panel {
+    background: var(--bg-tertiary);
+}
+
+.audio-player-wrapper audio::-webkit-media-controls-current-time-display,
+.audio-player-wrapper audio::-webkit-media-controls-time-remaining-display {
+    color: var(--text-primary);
+}
+
+.audio-player-wrapper audio::-webkit-media-controls-play-button {
+    background-color: var(--primary);
+    border-radius: 50%;
+}
+
+/* ==================== 配音确认弹窗 ==================== */
+.dubbing-confirm-modal .modal-content label {
+    color: var(--text-primary);
+}
+
+.dubbing-confirm-modal textarea:focus,
+.dubbing-confirm-modal select:focus,
+.dubbing-confirm-modal input[type="range"]:focus {
+    outline: none;
+    border-color: var(--primary);
+}
+
+.dubbing-confirm-modal input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 6px;
+    background: var(--bg-tertiary);
+    border-radius: 3px;
+    outline: none;
+}
+
+.dubbing-confirm-modal input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    background: var(--primary);
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+.dubbing-confirm-modal input[type="range"]::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+    background: var(--primary);
+    border-radius: 50%;
+    cursor: pointer;
+    border: none;
 }

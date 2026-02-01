@@ -212,6 +212,45 @@ CONFIG = {
         "timeout": 300,  # 增加到300秒（5分钟），图像生成较慢
         "max_retries": 3
     },
+
+    # MiniMax TTS语音合成配置 (用于配音制作)
+    "minimax_tts": {
+        "group_id": "2017772342268141667",
+        "api_key": "sk-api-aomH3HEEi6b-QcE_ZdQHJJ2gHqKmuoI_0MLPls7bBhKusdA3ief8Zar6x2IHOj7Cjuv7vvGVFnnwYL1czCY7iKOguMt0YAV-2JPoxjPXShcUL8u1zQLa8eo",
+        "model": "speech-2.8-turbo",
+        "default_sample_rate": 32000,
+        "default_bitrate": 128000,
+        "default_format": "mp3",
+        # 角色音色映射 (使用官方demo确认有效的音色ID)
+        "character_voices": {
+            # ===== 官方demo推荐音色 =====
+            "林战": "audiobook_male_1",            # 有声书男声1 - 适合青年男主
+            "叶凡": "Chinese (Mandarin)_Lyrical_Voice",  # 抒情男声 - 适合青年男主
+            "默认": "audiobook_male_1",            # 默认男声
+
+            # ===== 长辈男声 =====
+            "大长老": "Chinese (Mandarin)_Reliable_Executive",  # 沉稳高管 - 长辈音色
+            "三长老": "Chinese (Mandarin)_Wise_Scholar",        # 博学长者
+            "林啸天": "Chinese (Mandarin)_Gentleman",           # 温润男声 - 长辈
+
+            # ===== 旁白/叙述 =====
+            "旁白": "audiobook_male_1",            # 有声书男声适合旁白
+            "叙述者": "audiobook_male_1",
+            "解说": "audiobook_male_1",
+
+            # ===== 女声 =====
+            "系统音": "Chinese (Mandarin)_Sweet_Lady",          # 甜美女声
+            "女主角": "English_Graceful_Lady",                  # 优雅女士
+            "少女": "English_radiant_girl",
+
+            # ===== 特殊音色 =====
+            "新闻主播": "Chinese (Mandarin)_News_Anchor",
+            "电台主播": "Chinese (Mandarin)_Radio_Host",
+            "空姐": "Chinese (Mandarin)_HK_Flight_Attendant",
+            "高管": "Chinese (Mandarin)_Reliable_Executive",
+            "不羁青年": "Chinese (Mandarin)_Unrestrained_Young_Man"
+        }
+    },
     
     # 视频生成配置
     "video_generation": {
