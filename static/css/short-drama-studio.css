@@ -714,9 +714,35 @@ body {
     padding: var(--space-md) var(--space-xl);
 }
 
+/* 事件分隔线 */
+.event-separator {
+    padding: var(--space-sm) 0;
+    margin: var(--space-sm) 0;
+}
+
+.event-separator.first {
+    margin-top: 0;
+    padding-top: 0;
+}
+
+.event-separator-line {
+    display: none;
+}
+
+.event-separator-label {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: #4ade80;
+    background: var(--bg-secondary);
+    padding: 4px 12px;
+    border-radius: var(--radius-sm);
+    border-left: 3px solid #4ade80;
+    white-space: nowrap;
+}
+
 .task-row {
     display: grid;
-    grid-template-columns: 50px 1fr 200px 100px 120px;
+    grid-template-columns: 50px 1fr 200px 140px 100px;
     gap: var(--space-md);
     align-items: center;
     padding: var(--space-md);
@@ -725,7 +751,7 @@ body {
     border-radius: var(--radius-md);
     margin-bottom: var(--space-sm);
     transition: all 0.2s;
-    min-height: 120px;
+    min-height: 180px;
 }
 
 .task-row:hover {
@@ -807,6 +833,34 @@ body {
     max-height: 3.6em;
 }
 
+.task-plot {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-xs);
+    margin-top: 4px;
+}
+
+.plot-label {
+    font-size: 0.75rem;
+    color: var(--accent);
+    white-space: nowrap;
+    padding: 2px 6px;
+    background: var(--bg-tertiary);
+    border-radius: 4px;
+}
+
+.plot-text {
+    font-size: 0.85rem;
+    color: var(--text-tertiary);
+    line-height: 1.4;
+    font-style: italic;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 .task-meta {
     display: flex;
     gap: var(--space-xs);
@@ -822,8 +876,11 @@ body {
 
 .task-visual {
     display: flex;
+    flex-direction: column;
     align-items: center;
+    justify-content: center;
     gap: var(--space-sm);
+    min-height: 60px;
 }
 
 .task-thumbnail,
@@ -838,6 +895,7 @@ body {
     align-items: center;
     justify-content: center;
     position: relative;
+    flex-shrink: 0;
 }
 
 .task-thumbnail img,
@@ -889,7 +947,7 @@ body {
     gap: var(--space-xs);
     justify-content: center;
     align-items: center;
-    min-height: 80px;
+    min-height: 170px;
 }
 
 .task-btn {
@@ -1975,11 +2033,16 @@ select option {
 }
 
 .dubbing-scene-list {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+    display: flex;
+    flex-direction: column;
     gap: var(--space-md);
     overflow-y: auto;
-    align-items: start;
+    align-items: stretch;
+}
+
+.dubbing-scene {
+    width: 100%;
+    max-width: 100%;
 }
 
 .dubbing-scene {

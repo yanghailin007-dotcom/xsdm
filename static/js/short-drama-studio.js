@@ -1676,6 +1676,86 @@ class ShortDramaStudio {
     }
 
     /**
+     * 检查已存在的音频文件
+     */
+    async checkExistingAudio() {
+        const episodeDirectoryName = this.getEpisodeDirectoryName();
+
+        console.log('🎙️ [音频检查] 开始检查音频...');
+        console.log('🎙️ [音频检查] Episode:', episodeDirectoryName);
+
+        try {
+            // 调用API列出音频文件
+            const response = await fetch(`/api/tts/list-audio?novel=${encodeURIComponent(this.selectedNovel)}&episode=${encodeURIComponent(episodeDirectoryName)}`);
+            const data = await response.json();
+
+            console.log('🎙️ [音频检查] API返回的音频:', data.audios);
+
+            // 先重置所有镜头的音频状态
+            for (let i = 0; i < this.shots.length; i++) {
+                this.shots[i].audioUrl = null;
+                this.shots[i].audio_path = null;
+            }
+
+            if (data.audios && data.audios.length > 0) {
+                // 为每个镜头匹配音频
+                let matchedCount = 0;
+                for (let i = 0; i < this.shots.length; i++) {
+                    const shot = this.shots[i];
+                    const dialogue = shot._dialogue_data || shot.dialogue || {};
+                    const { speaker } = this.parseDialogue(dialogue);
+
+                    const episodeTitle = shot.episode_title || shot.event_name || '';
+                    const shotNumber = shot.shot_number || shot.scene_number || (i + 1);
+
+                    console.log(`🔍 镜头 #${shotNumber}: episode="${episodeTitle}", speaker="${speaker}"`);
+
+                    // 在所有音频中查找匹配的文件
+                    // 文件名格式: {scene_number}_{event_name}_{speaker}.mp3
+                    let matchedAudio = null;
+                    for (const audio of data.audios) {
+                        const audioSceneNum = audio.scene_number;
+                        const audioEventName = audio.event_name || '';
+                        const audioSpeaker = audio.speaker || '';
+
+                        // 检查镜头号是否匹配
+                        if (audioSceneNum === shotNumber) {
+                            console.log(`   检查音频: ${audio.filename}, seq=${audioSceneNum}, event="${audioEventName}", speaker="${audioSpeaker}"`);
+                            // 检查事件名和说话者是否匹配
+                            if (audioEventName === episodeTitle && audioSpeaker === speaker) {
+                                matchedAudio = audio;
+                                console.log(`   ✅ 匹配成功!`);
+                                break;
+                            } else {
+                                if (audioEventName !== episodeTitle) {
+                                    console.log(`   ⚠️ 事件名不匹配: "${audioEventName}" != "${episodeTitle}"`);
+                                }
+                                if (audioSpeaker !== speaker) {
+                                    console.log(`   ⚠️ 说话者不匹配: "${audioSpeaker}" != "${speaker}"`);
+                                }
+                            }
+                        }
+                    }
+
+                    if (matchedAudio) {
+                        shot.audioUrl = matchedAudio.url;
+                        shot.audio_path = matchedAudio.path;
+                        matchedCount++;
+                        console.log(`✅ 镜头 #${shotNumber} 音频已存在: ${matchedAudio.filename}`);
+                    } else {
+                        console.log(`⭕ 镜头 #${shotNumber} 无匹配音频`);
+                    }
+                }
+                console.log(`🎙️ 匹配完成: ${matchedCount}/${this.shots.length} 个镜头有音频`);
+            } else {
+                console.log('🎙️ 没有找到已存在的音频');
+            }
+        } catch (e) {
+            console.error('检查音频失败:', e);
+        }
+    }
+
+    /**
      * 渲染视频卡片（使用剪映风格的列表）
      */
     renderVideoCards() {
@@ -1684,6 +1764,36 @@ class ShortDramaStudio {
 
         const completedCount = this.shots.filter(s => s.videoExists).length;
         const totalCount = this.shots.length;
+
+        // 按事件分组
+        const eventGroups = this.groupShotsByEvent(this.shots);
+
+        let rowsHtml = '';
+        eventGroups.forEach((group, groupIdx) => {
+            // 添加事件分隔线（第一个事件之前不添加）
+            if (groupIdx > 0) {
+                rowsHtml += `
+                    <div class="event-separator">
+                        <div class="event-separator-line"></div>
+                        <div class="event-separator-label">${group.eventName}</div>
+                        <div class="event-separator-line"></div>
+                    </div>
+                `;
+            } else if (group.eventName) {
+                // 第一个事件也显示标签，但没有上面的分隔线
+                rowsHtml += `
+                    <div class="event-separator first">
+                        <div class="event-separator-label">${group.eventName}</div>
+                    </div>
+                `;
+            }
+
+            // 渲染该事件的所有镜头
+            group.shots.forEach(shot => {
+                const idx = this.shots.indexOf(shot);
+                rowsHtml += this.renderVideoTaskRow(shot, idx);
+            });
+        });
 
         container.innerHTML = `
             <div class="video-workspace">
@@ -1709,10 +1819,37 @@ class ShortDramaStudio {
                     </div>
                 </div>
                 <div class="video-task-list">
-                    ${this.shots.map((shot, idx) => this.renderVideoTaskRow(shot, idx)).join('')}
+                    ${rowsHtml}
                 </div>
             </div>
         `;
+    }
+
+    /**
+     * 按事件分组镜头
+     */
+    groupShotsByEvent(shots) {
+        const groups = [];
+        let currentEvent = null;
+        let currentGroup = null;
+
+        shots.forEach(shot => {
+            const eventName = shot.episode_title || shot.event_name || '未分组';
+
+            if (eventName !== currentEvent) {
+                // 新的事件组
+                currentGroup = {
+                    eventName: eventName,
+                    shots: []
+                };
+                groups.push(currentGroup);
+                currentEvent = eventName;
+            }
+
+            currentGroup.shots.push(shot);
+        });
+
+        return groups;
     }
 
     /**
@@ -1754,9 +1891,15 @@ class ShortDramaStudio {
                 <div class="task-index">#${shot.shot_number || shot.scene_number || (idx + 1)}</div>
                 <div class="task-content">
                     <div class="task-prompt">
-                        <span class="prompt-label">提示词:</span>
+                        <span class="prompt-label">AI提示:</span>
                         <span class="prompt-text">${(shot.veo_prompt || shot.screen_action || '').substring(0, 150)}${(shot.veo_prompt || shot.screen_action || '').length > 150 ? '...' : ''}</span>
                     </div>
+                    ${shot.plot_content ? `
+                    <div class="task-plot">
+                        <span class="plot-label">📖 情节:</span>
+                        <span class="plot-text">${shot.plot_content.substring(0, 150)}${shot.plot_content.length > 150 ? '...' : ''}</span>
+                    </div>
+                    ` : ''}
                     ${hasDialogue ? `
                     <div class="task-dialogue">
                         <span class="prompt-label">💬 台词:</span>
@@ -1788,6 +1931,9 @@ class ShortDramaStudio {
                     ${isCompleted ? `
                     <button class="task-btn view-btn" onclick="shortDramaStudio.previewVideo(${idx})" title="查看视频">
                         <span>👁️</span>
+                    </button>
+                    <button class="task-btn restore-btn" onclick="shortDramaStudio.showVideoRestoreModal(${idx})" title="还原备份">
+                        <span>♻️</span>
                     </button>
                     <button class="task-btn retry-btn" onclick="shortDramaStudio.generateShotVideo(${idx})" title="重新生成">
                         <span>🔄</span>
@@ -2244,6 +2390,30 @@ class ShortDramaStudio {
             cleanLines = cleanLines.replace(prefixPattern, '');
         }
 
+        // 检查是否有已存在的音频，如果有则备份
+        if (shot.audioUrl || shot.audio_path) {
+            try {
+                const episodeDirectoryName = this.getEpisodeDirectoryName();
+                const backupResponse = await fetch('/api/short-drama/backup', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        novel_title: this.selectedNovel || '',
+                        episode_title: episodeDirectoryName,
+                        file_type: 'audio',
+                        shot_number: shot.shot_number || shot.scene_number || (idx + 1),
+                        file_path: shot.audio_path
+                    })
+                });
+                const backupResult = await backupResponse.json();
+                if (backupResult.success) {
+                    this.showToast('原配音已备份，可随时还原', 'success');
+                }
+            } catch (e) {
+                console.error('备份音频失败:', e);
+            }
+        }
+
         // 标记为生成中
         shot.dubbingGenerating = true;
         shot.dubbingError = false;
@@ -2590,6 +2760,9 @@ class ShortDramaStudio {
                         </button>
                         <button class="scene-btn download-btn" onclick="shortDramaStudio.downloadAudio('${shot.audioUrl}', '${speaker}_${shot.shot_number || idx}')">
                             <span>⬇️</span> 下载
+                        </button>
+                        <button class="scene-btn restore-btn" onclick="shortDramaStudio.showAudioRestoreModal(${idx})" title="还原备份">
+                            <span>♻️</span> 还原
                         </button>
                         <button class="scene-btn regenerate-btn" onclick="shortDramaStudio.generateDubbing(${idx})">
                             <span>🔄</span> 重生成
@@ -3309,23 +3482,20 @@ class ShortDramaStudio {
             // 生成唯一键用于保存/加载提示词
             const shotKey = `videoPrompt_${this.selectedNovel}_${shot.episode_title || ''}_${shot.shot_number || (idx + 1)}`;
 
-            // 🔥 构建完整提示词：只包含画面要求，不包含台词
-            const buildFullPrompt = (s) => {
+            // 🔥 构建AI提示词：只包含画面要求，不包含台词和情节
+            const buildAIPrompt = (s) => {
                 const parts = [];
                 if (s.shot_type) parts.push(`【镜头类型】${s.shot_type}`);
                 if (s.screen_action) parts.push(`【画面描述】${s.screen_action}`);
-                // 🔥 去除台词，避免内容审核问题，台词后期用其他软件添加
-                // if (s.dialogue) parts.push(`【对话】${s.dialogue}`);
                 if (s.veo_prompt) parts.push(`【AI提示】${s.veo_prompt}`);
-                if (s.plot_content) parts.push(`【情节】${s.plot_content}`);
                 return parts.join('\n');
             };
 
-            const fullPrompt = buildFullPrompt(shot);
+            const aiPrompt = buildAIPrompt(shot);
 
-            // 尝试加载之前保存的提示词，如果没有则使用完整提示词
+            // 尝试加载之前保存的提示词，如果没有则使用AI提示词
             const savedPrompt = localStorage.getItem(shotKey);
-            const promptToUse = savedPrompt || fullPrompt;
+            const promptToUse = savedPrompt || aiPrompt;
 
             // 创建对话框
             const modal = document.createElement('div');
@@ -3406,6 +3576,23 @@ class ShortDramaStudio {
                                 ${savedPrompt ? `<button id="resetPromptBtn" style="font-size: 0.85rem; padding: 6px 12px; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 6px; cursor: pointer;">重置为原始提示词</button>` : ''}
                             </div>
                         </div>
+
+                        <!-- 情节参考区（只读） -->
+                        ${shot.plot_content ? `
+                        <div class="plot-section" style="margin-bottom: 20px;">
+                            <label style="font-weight: 600; display: block; margin-bottom: 8px; font-size: 0.95rem; color: var(--text-secondary);">📖 情节参考（仅供参考，不发送给AI）</label>
+                            <div style="
+                                width: 100%;
+                                background: var(--bg-tertiary);
+                                border: 1px dashed var(--border);
+                                border-radius: 8px;
+                                padding: 12px 16px;
+                                color: var(--text-secondary);
+                                font-size: 0.9rem;
+                                line-height: 1.5;
+                            ">${shot.plot_content}</div>
+                        </div>
+                        ` : ''}
 
                         <!-- 参考角色剧照选择 -->
                         <div class="reference-section" style="margin-bottom: 20px;">
@@ -3944,12 +4131,12 @@ class ShortDramaStudio {
             // 重置提示词按钮
             if (resetBtn) {
                 resetBtn.onclick = () => {
-                    // 重置为完整提示词（包含所有字段）
-                    promptArea.value = fullPrompt;
+                    // 重置为AI提示词（不包含情节）
+                    promptArea.value = aiPrompt;
                     // 清除 localStorage 中的旧值
                     localStorage.removeItem(shotKey);
                     console.log('已清除保存的提示词:', shotKey);
-                    console.log('已重置为完整提示词');
+                    console.log('已重置为AI提示词');
                 };
             }
 
@@ -3980,8 +4167,8 @@ class ShortDramaStudio {
                     return;
                 }
 
-                // 保存修改的提示词（与完整提示词比较）
-                if (editedPrompt !== fullPrompt) {
+                // 保存修改的提示词（与原始AI提示词比较）
+                if (editedPrompt !== aiPrompt) {
                     localStorage.setItem(shotKey, editedPrompt);
                     console.log('已保存修改的提示词:', shotKey);
                 }
@@ -4045,22 +4232,8 @@ class ShortDramaStudio {
         try {
             const episodeDirectoryName = this.getEpisodeDirectoryName();
 
-            // 🔥 使用完整提示词构建函数
-            const buildFullPrompt = (s) => {
-                const parts = [];
-                if (s.shot_type) parts.push(`【镜头类型】${s.shot_type}`);
-                if (s.screen_action) parts.push(`【画面描述】${s.screen_action}`);
-                if (s.dialogue) parts.push(`【对话】${s.dialogue}`);
-                if (s.veo_prompt) parts.push(`【AI提示】${s.veo_prompt}`);
-                if (s.plot_content) parts.push(`【情节】${s.plot_content}`);
-                return parts.join('\n');
-            };
-            const fullPrompt = buildFullPrompt(shot);
-
-            // 🔥 如果用户编辑的提示词与完整提示词相同，则不更新 shot.veo_prompt
-            if (result.prompt !== fullPrompt) {
-                shot.veo_prompt = result.prompt;
-            }
+            // 直接使用用户编辑的提示词
+            shot.veo_prompt = result.prompt;
 
             const response = await fetch('/api/veo/generate', {
                 method: 'POST',
@@ -4329,6 +4502,33 @@ class ShortDramaStudio {
         const shot = this.shots[idx];
         if (!shot) return;
 
+        // 检查是否有已存在的视频
+        if (shot.videoPath || shot.videoUrl) {
+            // 备份原视频
+            try {
+                const episodeDirectoryName = this.getEpisodeDirectoryName();
+                const backupResponse = await fetch('/api/short-drama/backup', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        novel_title: this.selectedNovel || '',
+                        episode_title: episodeDirectoryName,
+                        file_type: 'video',
+                        shot_number: shot.shot_number || shot.scene_number || (idx + 1),
+                        file_path: shot.videoPath
+                    })
+                });
+                const backupResult = await backupResponse.json();
+                if (backupResult.success) {
+                    this.showToast('原视频已备份，可随时还原', 'success');
+                } else {
+                    this.showToast(`备份失败: ${backupResult.error}`, 'warning');
+                }
+            } catch (e) {
+                console.error('备份视频失败:', e);
+            }
+        }
+
         shot.videoExists = false;
         shot.videoUrl = null;
         shot.videoPath = null;
@@ -4369,6 +4569,339 @@ class ShortDramaStudio {
         } catch (error) {
             console.error('下载失败:', error);
             this.showToast('下载失败', 'error');
+        }
+    }
+
+    /**
+     * 显示视频备份还原弹窗
+     */
+    async showVideoRestoreModal(idx) {
+        const shot = this.shots[idx];
+        if (!shot) return;
+
+        const episodeDirectoryName = this.getEpisodeDirectoryName();
+        const shotNumber = shot.shot_number || shot.scene_number || (idx + 1);
+
+        try {
+            const response = await fetch(`/api/short-drama/backups?novel=${encodeURIComponent(this.selectedNovel || '')}&episode=${encodeURIComponent(episodeDirectoryName)}&file_type=video&shot_number=${shotNumber}`);
+            const data = await response.json();
+
+            if (!data.success) {
+                this.showToast('获取备份列表失败', 'error');
+                return;
+            }
+
+            const backups = data.backups || [];
+
+            if (backups.length === 0) {
+                this.showToast('没有可用的备份', 'info');
+                return;
+            }
+
+            // 创建弹窗
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0, 0, 0, 0.85);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 10000;
+            `;
+
+            const formatSize = (bytes) => {
+                if (bytes < 1024) return bytes + ' B';
+                if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+                return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+            };
+
+            modal.innerHTML = `
+                <div style="
+                    background: var(--bg-secondary);
+                    border-radius: 12px;
+                    max-width: 500px;
+                    width: 90%;
+                    max-height: 80vh;
+                    overflow-y: auto;
+                    padding: 20px;
+                    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+                ">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                        <h3 style="margin: 0;">♻️ 视频备份还原</h3>
+                        <button onclick="this.closest('.restore-modal').remove()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer;">×</button>
+                    </div>
+                    <p style="color: var(--text-secondary); margin-bottom: 16px;">镜头 #${shotNumber} · ${backups.length} 个备份</p>
+                    <div class="backup-list" style="display: flex; flex-direction: column; gap: 8px;">
+                        ${backups.map((backup, bIdx) => `
+                            <div style="
+                                display: flex;
+                                justify-content: space-between;
+                                align-items: center;
+                                padding: 12px;
+                                background: var(--bg-dark);
+                                border-radius: 8px;
+                                border: 1px solid var(--border);
+                            ">
+                                <div>
+                                    <div style="font-size: 0.9rem; margin-bottom: 4px;">📅 ${backup.timestamp}</div>
+                                    <div style="font-size: 0.8rem; color: var(--text-tertiary);">${formatSize(backup.size)}</div>
+                                </div>
+                                <div style="display: flex; gap: 8px;">
+                                    <button class="restore-btn" data-path="${backup.path}" style="
+                                        padding: 6px 12px;
+                                        background: var(--success);
+                                        border: none;
+                                        border-radius: 6px;
+                                        color: white;
+                                        cursor: pointer;
+                                        font-size: 0.85rem;
+                                    ">还原</button>
+                                    <button class="delete-backup-btn" data-path="${backup.path}" style="
+                                        padding: 6px 12px;
+                                        background: var(--bg-tertiary);
+                                        border: 1px solid var(--border);
+                                        border-radius: 6px;
+                                        color: var(--text-secondary);
+                                        cursor: pointer;
+                                        font-size: 0.85rem;
+                                    ">删除</button>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+
+            modal.className = 'restore-modal';
+            document.body.appendChild(modal);
+
+            // 绑定还原按钮事件
+            modal.querySelectorAll('.restore-btn').forEach(btn => {
+                btn.onclick = async () => {
+                    const backupPath = btn.dataset.path;
+                    const restoreResponse = await fetch('/api/short-drama/restore', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            novel_title: this.selectedNovel || '',
+                            episode_title: episodeDirectoryName,
+                            backup_path: backupPath,
+                            backup_current: true
+                        })
+                    });
+                    const restoreResult = await restoreResponse.json();
+                    if (restoreResult.success) {
+                        this.showToast('视频已还原', 'success');
+                        modal.remove();
+                        // 刷新视频状态
+                        await this.refreshVideos();
+                    } else {
+                        this.showToast(`还原失败: ${restoreResult.error}`, 'error');
+                    }
+                };
+            });
+
+            // 绑定删除按钮事件
+            modal.querySelectorAll('.delete-backup-btn').forEach(btn => {
+                btn.onclick = async () => {
+                    if (!confirm('确定要删除此备份吗？')) return;
+                    const backupPath = btn.dataset.path;
+                    const deleteResponse = await fetch('/api/short-drama/backup/delete', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ backup_path: backupPath })
+                    });
+                    const deleteResult = await deleteResponse.json();
+                    if (deleteResult.success) {
+                        this.showToast('备份已删除', 'success');
+                        btn.closest('div[style*="flex: justify-content"]').remove();
+                        if (modal.querySelectorAll('.backup-list > div').length === 0) {
+                            modal.remove();
+                        }
+                    } else {
+                        this.showToast(`删除失败: ${deleteResult.error}`, 'error');
+                    }
+                };
+            });
+
+            // 点击背景关闭
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) modal.remove();
+            });
+        } catch (error) {
+            console.error('显示备份弹窗失败:', error);
+            this.showToast('获取备份列表失败', 'error');
+        }
+    }
+
+    /**
+     * 显示音频备份还原弹窗
+     */
+    async showAudioRestoreModal(idx) {
+        const shot = this.shots[idx];
+        if (!shot) return;
+
+        const episodeDirectoryName = this.getEpisodeDirectoryName();
+        const shotNumber = shot.shot_number || shot.scene_number || (idx + 1);
+
+        try {
+            const response = await fetch(`/api/short-drama/backups?novel=${encodeURIComponent(this.selectedNovel || '')}&episode=${encodeURIComponent(episodeDirectoryName)}&file_type=audio&shot_number=${shotNumber}`);
+            const data = await response.json();
+
+            if (!data.success) {
+                this.showToast('获取备份列表失败', 'error');
+                return;
+            }
+
+            const backups = data.backups || [];
+
+            if (backups.length === 0) {
+                this.showToast('没有可用的备份', 'info');
+                return;
+            }
+
+            // 创建弹窗
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0, 0, 0, 0.85);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 10000;
+            `;
+
+            const formatSize = (bytes) => {
+                if (bytes < 1024) return bytes + ' B';
+                if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+                return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+            };
+
+            modal.innerHTML = `
+                <div style="
+                    background: var(--bg-secondary);
+                    border-radius: 12px;
+                    max-width: 500px;
+                    width: 90%;
+                    max-height: 80vh;
+                    overflow-y: auto;
+                    padding: 20px;
+                    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+                ">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                        <h3 style="margin: 0;">♻️ 音频备份还原</h3>
+                        <button onclick="this.closest('.audio-restore-modal').remove()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer;">×</button>
+                    </div>
+                    <p style="color: var(--text-secondary); margin-bottom: 16px;">镜头 #${shotNumber} · ${backups.length} 个备份</p>
+                    <div class="backup-list" style="display: flex; flex-direction: column; gap: 8px;">
+                        ${backups.map((backup) => `
+                            <div style="
+                                display: flex;
+                                justify-content: space-between;
+                                align-items: center;
+                                padding: 12px;
+                                background: var(--bg-dark);
+                                border-radius: 8px;
+                                border: 1px solid var(--border);
+                            ">
+                                <div>
+                                    <div style="font-size: 0.9rem; margin-bottom: 4px;">📅 ${backup.timestamp}</div>
+                                    <div style="font-size: 0.8rem; color: var(--text-tertiary);">${formatSize(backup.size)}</div>
+                                </div>
+                                <div style="display: flex; gap: 8px;">
+                                    <button class="restore-btn" data-path="${backup.path}" style="
+                                        padding: 6px 12px;
+                                        background: var(--success);
+                                        border: none;
+                                        border-radius: 6px;
+                                        color: white;
+                                        cursor: pointer;
+                                        font-size: 0.85rem;
+                                    ">还原</button>
+                                    <button class="delete-backup-btn" data-path="${backup.path}" style="
+                                        padding: 6px 12px;
+                                        background: var(--bg-tertiary);
+                                        border: 1px solid var(--border);
+                                        border-radius: 6px;
+                                        color: var(--text-secondary);
+                                        cursor: pointer;
+                                        font-size: 0.85rem;
+                                    ">删除</button>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+
+            modal.className = 'audio-restore-modal';
+            document.body.appendChild(modal);
+
+            // 绑定还原按钮事件
+            modal.querySelectorAll('.restore-btn').forEach(btn => {
+                btn.onclick = async () => {
+                    const backupPath = btn.dataset.path;
+                    const restoreResponse = await fetch('/api/short-drama/restore', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            novel_title: this.selectedNovel || '',
+                            episode_title: episodeDirectoryName,
+                            backup_path: backupPath,
+                            backup_current: true
+                        })
+                    });
+                    const restoreResult = await restoreResponse.json();
+                    if (restoreResult.success) {
+                        this.showToast('音频已还原，请刷新配音页面', 'success');
+                        modal.remove();
+                        // 重新加载配音步骤
+                        this.loadedSteps.delete('dubbing');
+                        await this.loadDubbingStep();
+                    } else {
+                        this.showToast(`还原失败: ${restoreResult.error}`, 'error');
+                    }
+                };
+            });
+
+            // 绑定删除按钮事件
+            modal.querySelectorAll('.delete-backup-btn').forEach(btn => {
+                btn.onclick = async () => {
+                    if (!confirm('确定要删除此备份吗？')) return;
+                    const backupPath = btn.dataset.path;
+                    const deleteResponse = await fetch('/api/short-drama/backup/delete', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ backup_path: backupPath })
+                    });
+                    const deleteResult = await deleteResponse.json();
+                    if (deleteResult.success) {
+                        this.showToast('备份已删除', 'success');
+                        btn.closest('div[style*="flex: justify-content"]').remove();
+                        if (modal.querySelectorAll('.backup-list > div').length === 0) {
+                            modal.remove();
+                        }
+                    } else {
+                        this.showToast(`删除失败: ${deleteResult.error}`, 'error');
+                    }
+                };
+            });
+
+            // 点击背景关闭
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) modal.remove();
+            });
+        } catch (error) {
+            console.error('显示音频备份弹窗失败:', error);
+            this.showToast('获取备份列表失败', 'error');
         }
     }
 
@@ -4897,6 +5430,39 @@ class ShortDramaStudio {
             return speaker && speaker !== '无' && speaker !== '未知' && lines;
         });
 
+        // 检查已存在的音频文件
+        await this.checkExistingAudio();
+
+        // 按事件分组
+        const eventGroups = this.groupShotsByEvent(dialogueShots);
+
+        let scenesHtml = '';
+        eventGroups.forEach((group, groupIdx) => {
+            // 添加事件分隔线（第一个事件之前不添加）
+            if (groupIdx > 0) {
+                scenesHtml += `
+                    <div class="event-separator">
+                        <div class="event-separator-line"></div>
+                        <div class="event-separator-label">${group.eventName}</div>
+                        <div class="event-separator-line"></div>
+                    </div>
+                `;
+            } else if (group.eventName) {
+                // 第一个事件也显示标签，但没有上面的分隔线
+                scenesHtml += `
+                    <div class="event-separator first">
+                        <div class="event-separator-label">${group.eventName}</div>
+                    </div>
+                `;
+            }
+
+            // 渲染该事件的所有镜头，使用 this.shots 中的正确索引
+            group.shots.forEach(shot => {
+                const originalIdx = this.shots.indexOf(shot);
+                scenesHtml += this.renderDubbingScene(shot, originalIdx);
+            });
+        });
+
         container.innerHTML = `
             <div class="dubbing-workspace">
                 <!-- 工具栏 -->
@@ -4918,7 +5484,7 @@ class ShortDramaStudio {
 
                 <!-- 镜头列表 -->
                 <div class="dubbing-scene-list">
-                    ${dialogueShots.map((shot, idx) => this.renderDubbingScene(shot, idx)).join('')}
+                    ${scenesHtml}
                 </div>
             </div>
         `;

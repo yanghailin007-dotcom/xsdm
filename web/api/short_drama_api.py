@@ -8,7 +8,9 @@ from pathlib import Path
 import json
 import uuid
 import os
+import shutil
 from datetime import datetime
+from urllib.parse import unquote
 
 from src.utils.logger import get_logger
 
@@ -808,6 +810,252 @@ def get_shot_status(shot_id):
             'success': False,
             'error': str(e)
         }), 500
+
+
+# ==================== 文件备份与还原 API ====================
+
+@short_drama_api.route('/backup', methods=['POST'])
+def backup_file():
+    """
+    备份文件（用于重新生成前备份原文件）
+
+    请求体：
+    {
+        "novel_title": "小说名",
+        "episode_title": "集数名",
+        "file_type": "video" | "audio",
+        "shot_number": 1,
+        "file_path": "原文件相对路径"
+    }
+    """
+    try:
+        data = request.json
+        novel_title = data.get('novel_title')
+        episode_title = data.get('episode_title')
+        file_type = data.get('file_type', 'video')
+        shot_number = data.get('shot_number')
+        file_path = data.get('file_path')
+
+        if not all([novel_title, episode_title, shot_number]):
+            return jsonify({'success': False, 'error': '缺少必要参数'}), 400
+
+        # 构建备份目录
+        backup_dir = VIDEO_PROJECTS_DIR / novel_title / episode_title / '.backups' / file_type
+        backup_dir.mkdir(parents=True, exist_ok=True)
+
+        # 原文件路径
+        if file_path:
+            # 如果提供了完整路径
+            if file_path.startswith('/'):
+                # URL路径，需要解码
+                original_file = VIDEO_PROJECTS_DIR / unquote(file_path.lstrip('/'))
+            else:
+                original_file = VIDEO_PROJECTS_DIR / file_path
+        else:
+            # 根据类型和镜头号构建路径
+            if file_type == 'video':
+                file_dir = VIDEO_PROJECTS_DIR / novel_title / episode_title / 'videos'
+                pattern = f"*_{shot_number}_*.mp4"
+            else:  # audio
+                file_dir = VIDEO_PROJECTS_DIR / novel_title / episode_title / 'audio'
+                pattern = f"{shot_number}_*.mp3"
+
+            files = list(file_dir.glob(pattern))
+            if not files:
+                return jsonify({'success': False, 'error': '未找到原文件'}), 404
+            original_file = files[0]
+
+        if not original_file.exists():
+            return jsonify({'success': False, 'error': f'原文件不存在: {original_file}'}), 404
+
+        # 生成备份文件名（带时间戳）
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        backup_filename = f"{original_file.stem}_{timestamp}{original_file.suffix}"
+        backup_path = backup_dir / backup_filename
+
+        # 复制文件到备份目录
+        shutil.copy2(original_file, backup_path)
+
+        logger.info(f'💾 文件已备份: {original_file} -> {backup_path}')
+
+        return jsonify({
+            'success': True,
+            'backup_path': str(backup_path.relative_to(VIDEO_PROJECTS_DIR)),
+            'backup_filename': backup_filename,
+            'timestamp': timestamp
+        })
+    except Exception as e:
+        logger.error(f'备份文件失败: {e}')
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@short_drama_api.route('/backups', methods=['GET'])
+def list_backups():
+    """
+    列出某个镜头的所有备份
+
+    参数：
+        novel_title: 小说名
+        episode_title: 集数名
+        file_type: video | audio
+        shot_number: 镜头号
+    """
+    try:
+        novel_title = request.args.get('novel')
+        episode_title = request.args.get('episode')
+        file_type = request.args.get('file_type', 'video')
+        shot_number = request.args.get('shot_number')
+
+        if not all([novel_title, episode_title, shot_number]):
+            return jsonify({'success': False, 'error': '缺少必要参数'}), 400
+
+        backup_dir = VIDEO_PROJECTS_DIR / novel_title / episode_title / '.backups' / file_type
+
+        if not backup_dir.exists():
+            return jsonify({'success': True, 'backups': []})
+
+        # 查找该镜头的所有备份
+        backups = []
+        pattern = f"*_{shot_number}_*"
+        for backup_file in backup_dir.glob(pattern):
+            # 解析时间戳
+            parts = backup_file.stem.split('_')
+            if len(parts) >= 2:
+                timestamp_str = parts[-1]
+                try:
+                    timestamp = datetime.strptime(timestamp_str, '%Y%m%d_%H%M%S')
+                    timestamp_formatted = timestamp.strftime('%Y-%m-%d %H:%M:%S')
+                except:
+                    timestamp_formatted = timestamp_str
+            else:
+                timestamp_formatted = 'Unknown'
+
+            backups.append({
+                'filename': backup_file.name,
+                'path': str(backup_file.relative_to(VIDEO_PROJECTS_DIR)),
+                'timestamp': timestamp_formatted,
+                'size': backup_file.stat().st_size
+            })
+
+        # 按时间倒序排列
+        backups.sort(key=lambda x: x['timestamp'], reverse=True)
+
+        return jsonify({
+            'success': True,
+            'backups': backups
+        })
+    except Exception as e:
+        logger.error(f'列出备份失败: {e}')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@short_drama_api.route('/restore', methods=['POST'])
+def restore_backup():
+    """
+    从备份还原文件
+
+    请求体：
+    {
+        "novel_title": "小说名",
+        "episode_title": "集数名",
+        "backup_path": "备份文件相对路径",
+        "backup_current": true  # 是否先备份当前文件
+    }
+    """
+    try:
+        data = request.json
+        novel_title = data.get('novel_title')
+        episode_title = data.get('episode_title')
+        backup_path = data.get('backup_path')
+        backup_current = data.get('backup_current', True)
+
+        if not all([novel_title, episode_title, backup_path]):
+            return jsonify({'success': False, 'error': '缺少必要参数'}), 400
+
+        # 备份文件完整路径
+        backup_file = VIDEO_PROJECTS_DIR / backup_path
+
+        if not backup_file.exists():
+            return jsonify({'success': False, 'error': '备份文件不存在'}), 404
+
+        # 确定目标文件路径
+        if backup_path.startswith('.backups/video/'):
+            # 视频文件
+            target_dir = VIDEO_PROJECTS_DIR / novel_title / episode_title / 'videos'
+        elif backup_path.startswith('.backups/audio/'):
+            # 音频文件
+            target_dir = VIDEO_PROJECTS_DIR / novel_title / episode_title / 'audio'
+        else:
+            return jsonify({'success': False, 'error': '无法确定目标目录'}), 400
+
+        # 从备份文件名提取原始文件名（去掉时间戳）
+        backup_filename = backup_file.name
+        # 格式: original_name_timestamp.ext
+        parts = backup_filename.rsplit('_', 2)
+        if len(parts) >= 3:
+            original_filename = '_'.join(parts[:-2]) + backup_file.suffix
+        else:
+            original_filename = backup_filename
+
+        target_file = target_dir / original_filename
+
+        # 如果要求，先备份当前文件
+        if backup_current and target_file.exists():
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            current_backup = target_dir.parent / '.backups' / backup_path.split('/')[2] / f"{target_file.stem}_current_{timestamp}{target_file.suffix}"
+            current_backup.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(target_file, current_backup)
+            logger.info(f'💾 当前文件已备份: {current_backup}')
+
+        # 还原文件
+        shutil.copy2(backup_file, target_file)
+
+        logger.info(f'♻️ 文件已还原: {backup_file} -> {target_file}')
+
+        return jsonify({
+            'success': True,
+            'restored_file': str(target_file.relative_to(VIDEO_PROJECTS_DIR)),
+            'original_filename': original_filename
+        })
+    except Exception as e:
+        logger.error(f'还原备份失败: {e}')
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@short_drama_api.route('/backup/delete', methods=['POST'])
+def delete_backup():
+    """
+    删除备份文件
+
+    请求体：
+    {
+        "backup_path": "备份文件相对路径"
+    }
+    """
+    try:
+        data = request.json
+        backup_path = data.get('backup_path')
+
+        if not backup_path:
+            return jsonify({'success': False, 'error': '缺少必要参数'}), 400
+
+        backup_file = VIDEO_PROJECTS_DIR / backup_path
+
+        if not backup_file.exists():
+            return jsonify({'success': False, 'error': '备份文件不存在'}), 404
+
+        backup_file.unlink()
+
+        logger.info(f'🗑️ 备份已删除: {backup_path}')
+
+        return jsonify({'success': True})
+    except Exception as e:
+        logger.error(f'删除备份失败: {e}')
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 def register_short_drama_routes(app):

@@ -856,6 +856,72 @@ def download_batch_audio():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@tts_api.route('/list-audio', methods=['GET'])
+def list_audio_files():
+    """
+    列出指定项目的所有音频文件
+
+    参数：
+        novel_title: 小说名
+        episode_title: 集数名
+    """
+    try:
+        novel_title = request.args.get('novel')
+        episode_title = request.args.get('episode')
+
+        if not novel_title or not episode_title:
+            return jsonify({'success': False, 'error': '缺少必要参数'}), 400
+
+        # 音频目录
+        audio_dir = VIDEO_PROJECTS_DIR / novel_title / episode_title / 'audio'
+
+        logger.info(f'🎙️ [音频列表] 检查目录: {audio_dir}')
+
+        if not audio_dir.exists():
+            return jsonify({'success': True, 'audios': []})
+
+        # 收集所有音频文件
+        audio_files = []
+        for audio_path in audio_dir.glob('*.mp3'):
+            # 解析文件名: {scene_number}_{event_name}_{speaker}.mp3
+            filename = audio_path.stem  # 不含扩展名
+            parts = filename.split('_', 2)
+
+            scene_number = int(parts[0]) if len(parts) > 0 and parts[0].isdigit() else None
+            event_name = parts[1] if len(parts) > 1 else ''
+            speaker = parts[2] if len(parts) > 2 else ''
+
+            logger.info(f'  📄 文件: {audio_path.name}')
+            logger.info(f'     scene_number={scene_number}, event_name="{event_name}", speaker="{speaker}"')
+
+            # 生成URL
+            from urllib.parse import quote
+            rel_path = audio_path.relative_to(VIDEO_PROJECTS_DIR)
+            audio_url = f"/api/tts/audio/{quote(str(rel_path), safe='')}"
+
+            audio_files.append({
+                'filename': audio_path.name,
+                'scene_number': scene_number,
+                'event_name': event_name,
+                'speaker': speaker,
+                'path': str(audio_path),
+                'url': audio_url
+            })
+
+        logger.info(f'🎙️ [音频列表] 找到 {len(audio_files)} 个音频文件')
+
+        return jsonify({
+            'success': True,
+            'audios': audio_files
+        })
+
+    except Exception as e:
+        logger.error(f'列出音频文件失败: {e}')
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @tts_api.route('/export-subtitle', methods=['POST'])
 def export_subtitle():
     """
