@@ -1755,27 +1755,21 @@ class ShortDramaStudio {
                     // 🔥 在所有视频中查找匹配的视频
                     let matchedVideo = null;
                     for (const video of data.videos) {
-                        const videoKey = video.storyboard_key || '';
+                        // 新格式视频有 episode_name 字段
+                        const videoEpisodeName = video.episode_name || video.storyboard_key || '';
                         const videoSeq = video.sequence;
+                        const videoSceneNum = video.scene_number || 0;
+                        const videoShotType = video.shot_type || '';
 
-                        // 检查序列号是否匹配
-                        if (videoSeq === shotNumber) {
-                            console.log(`   检查视频: seq=${videoSeq}, key="${videoKey}"`);
-
-                            // 🔥 检查key是否匹配episode_title
-                            // 视频文件名格式: {sequence}_{episode_title}_{shot_type}.mp4
-                            // videoKey应该包含episodeTitle
-                            if (videoKey.startsWith(episodeTitle)) {
-                                // 进一步检查shot_type（可选）
-                                if (!shotType || videoKey.includes(shotType.replace('/', '_'))) {
-                                    matchedVideo = video;
-                                    console.log(`   ✅ 匹配成功!`);
-                                    break;
-                                } else {
-                                    console.log(`   ⚠️ shot_type不匹配: 需要"${shotType}", key中不包含`);
-                                }
+                        // 检查章节名是否匹配
+                        if (videoEpisodeName === episodeTitle || videoEpisodeName.startsWith(episodeTitle)) {
+                            // 进一步检查shot_type（可选）
+                            if (!shotType || videoShotType.includes(shotType.replace('/', '_')) || shotType.includes(videoShotType)) {
+                                matchedVideo = video;
+                                console.log(`   ✅ 匹配成功!`);
+                                break;
                             } else {
-                                console.log(`   ⚠️ episode_title不匹配: key="${videoKey}" 不以 "${episodeTitle}" 开头`);
+                                console.log(`   ⚠️ shot_type不匹配: 需要"${shotType}", video有"${videoShotType}"`);
                             }
                         }
                     }
@@ -1814,67 +1808,121 @@ class ShortDramaStudio {
             const data = await response.json();
 
             console.log('🎙️ [音频检查] API返回的音频:', data.audios);
+            console.log('🎙️ [音频检查] 音频文件详情:');
+            data.audios.forEach((audio, idx) => {
+                console.log(`   [${idx}] ${audio.filename}`);
+                console.log(`       scene_number=${audio.scene_number}, event_name="${audio.event_name}", speaker="${audio.speaker}"`);
+            });
+
+            // 打印所有镜头信息用于对比
+            console.log('🎙️ [音频检查] 镜头信息:');
+            for (let i = 0; i < this.shots.length; i++) {
+                const shot = this.shots[i];
+                const episodeTitle = shot.episode_title || '';
+                const shotNumber = shot.shot_number || (i + 1);
+                const dialogue = shot._dialogue_data || shot.dialogue || {};
+                const { speaker } = this.parseDialogue(dialogue);
+                const isDialogueScene = shot.is_dialogue_scene && shot.dialogues && Array.isArray(shot.dialogues);
+                console.log(`   [${i}] shot_number=${shotNumber}, episode="${episodeTitle}", speaker="${speaker}", isDialogueScene=${isDialogueScene}`);
+                if (isDialogueScene) {
+                    shot.dialogues.forEach((dlg, dlgIdx) => {
+                        const { speaker: dlgSpeaker } = this.parseDialogue(dlg);
+                        console.log(`       对话${dlgIdx + 1}: speaker="${dlgSpeaker}"`);
+                    });
+                }
+            }
 
             // 先重置所有镜头的音频状态
             for (let i = 0; i < this.shots.length; i++) {
                 this.shots[i].audioUrl = null;
                 this.shots[i].audio_path = null;
+                // 重置子镜头音频状态
+                if (this.shots[i]._sub_audios) {
+                    this.shots[i]._sub_audios = new Array(this.shots[i]._sub_audios.length).fill(null);
+                }
             }
 
             if (data.audios && data.audios.length > 0) {
-                // 为每个镜头匹配音频
+                // 为每个镜头匹配音频（使用和视频一样的匹配逻辑）
                 let matchedCount = 0;
+                console.log('🎙️ [音频检查] 开始匹配镜头...');
                 for (let i = 0; i < this.shots.length; i++) {
                     const shot = this.shots[i];
-                    const dialogue = shot._dialogue_data || shot.dialogue || {};
-                    const { speaker } = this.parseDialogue(dialogue);
+                    const episodeTitle = shot.episode_title || '';
+                    const shotNumber = shot.shot_number || (i + 1);
 
-                    const episodeTitle = shot.episode_title || shot.event_name || '';
-                    const shotNumber = shot.shot_number || shot.scene_number || (i + 1);
+                    console.log(`🎙️ [镜头 #${shotNumber}] 事件="${episodeTitle}"`);
 
-                    console.log(`🔍 镜头 #${shotNumber}: episode="${episodeTitle}", speaker="${speaker}"`);
+                    // 检查是否是对话场景
+                    if (shot.is_dialogue_scene && shot.dialogues && Array.isArray(shot.dialogues)) {
+                        // 对话场景：遍历每个子对话
+                        for (let dlgIdx = 0; dlgIdx < shot.dialogues.length; dlgIdx++) {
+                            const dlg = shot.dialogues[dlgIdx];
+                            const { speaker } = this.parseDialogue(dlg);
+                            const dialogueIndex = dlgIdx + 1;
 
-                    // 在所有音频中查找匹配的文件
-                    // 文件名格式: {scene_number}_{event_name}_{speaker}.mp3
-                    let matchedAudio = null;
-                    for (const audio of data.audios) {
-                        const audioSceneNum = audio.scene_number;
-                        const audioEventName = audio.event_name || '';
-                        const audioSpeaker = audio.speaker || '';
+                            console.log(`   🔍 对话${dialogueIndex}: speaker="${speaker}"`);
 
-                        // 检查镜头号是否匹配
-                        if (audioSceneNum === shotNumber) {
-                            console.log(`   检查音频: ${audio.filename}, seq=${audioSceneNum}, event="${audioEventName}", speaker="${audioSpeaker}"`);
-                            // 检查事件名和说话者是否匹配
-                            if (audioEventName === episodeTitle && audioSpeaker === speaker) {
-                                matchedAudio = audio;
-                                console.log(`   ✅ 匹配成功!`);
-                                break;
-                            } else {
-                                if (audioEventName !== episodeTitle) {
-                                    console.log(`   ⚠️ 事件名不匹配: "${audioEventName}" != "${episodeTitle}"`);
-                                }
-                                if (audioSpeaker !== speaker) {
-                                    console.log(`   ⚠️ 说话者不匹配: "${audioSpeaker}" != "${speaker}"`);
+                            // 查找匹配的音频文件
+                            // 新格式: {章节序号:03d}_{场景序号:02d}_{中级事件名}_对话{对话序号:02d}_{角色}_{句子序号:03d}.mp3
+                            let matchedAudio = null;
+                            for (const audio of data.audios) {
+                                const audioEventName = audio.event_name || '';
+                                const audioSpeaker = audio.speaker || '';
+                                const audioDialogueIdx = audio.dialogue_idx || 1;
+
+                                // 匹配事件名和说话人
+                                if (audioEventName === episodeTitle && audioSpeaker === speaker && audioDialogueIdx === dialogueIndex) {
+                                    matchedAudio = audio;
+                                    console.log(`      ✅ ${audio.filename}`);
+                                    break;
                                 }
                             }
+
+                            if (matchedAudio) {
+                                if (!shot._sub_audios) shot._sub_audios = [];
+                                if (!shot._sub_audios[dlgIdx]) shot._sub_audios[dlgIdx] = {};
+                                const timestamp = Date.now();
+                                shot._sub_audios[dlgIdx].audioUrl = matchedAudio.url + (matchedAudio.url.includes('?') ? '&' : '?') + 't=' + timestamp;
+                                shot._sub_audios[dlgIdx].audio_path = matchedAudio.path;
+                                matchedCount++;
+                            } else {
+                                console.log(`      ❌ 无匹配`);
+                            }
+                        }
+                    } else {
+                        // 普通镜头：单个音频
+                        const dialogue = shot._dialogue_data || shot.dialogue || {};
+                        const { speaker } = this.parseDialogue(dialogue);
+
+                        console.log(`   🔍 speaker="${speaker}"`);
+
+                        let matchedAudio = null;
+                        for (const audio of data.audios) {
+                            const audioEventName = audio.event_name || '';
+                            const audioSpeaker = audio.speaker || '';
+
+                            // 匹配事件名和说话人
+                            if (audioEventName === episodeTitle && audioSpeaker === speaker) {
+                                matchedAudio = audio;
+                                console.log(`   ✅ ${audio.filename}`);
+                                break;
+                            }
+                        }
+
+                        if (matchedAudio) {
+                            const timestamp = Date.now();
+                            shot.audioUrl = matchedAudio.url + (matchedAudio.url.includes('?') ? '&' : '?') + 't=' + timestamp;
+                            shot.audio_path = matchedAudio.path;
+                            matchedCount++;
+                        } else {
+                            console.log(`   ❌ 无匹配`);
                         }
                     }
-
-                    if (matchedAudio) {
-                        // 添加时间戳避免浏览器缓存
-                        const timestamp = Date.now();
-                        shot.audioUrl = matchedAudio.url + (matchedAudio.url.includes('?') ? '&' : '?') + 't=' + timestamp;
-                        shot.audio_path = matchedAudio.path;
-                        matchedCount++;
-                        console.log(`✅ 镜头 #${shotNumber} 音频已存在: ${matchedAudio.filename}`);
-                    } else {
-                        console.log(`⭕ 镜头 #${shotNumber} 无匹配音频`);
-                    }
                 }
-                console.log(`🎙️ 匹配完成: ${matchedCount}/${this.shots.length} 个镜头有音频`);
+                console.log(`🎙️ [音频检查] 匹配完成: ${matchedCount} 个音频文件已匹配`);
             } else {
-                console.log('🎙️ 没有找到已存在的音频');
+                console.log('🎙️ [音频检查] 没有找到已存在的音频');
             }
         } catch (e) {
             console.error('检查音频失败:', e);
@@ -3262,7 +3310,8 @@ class ShortDramaStudio {
                         episode_title: episodeDirectoryName,
                         event_name: shot.episode_title || '',
                         shot_number: String(shot.shot_number || (shotIndex + 1)),
-                        shot_type: shot.shot_type || 'shot'
+                        shot_type: shot.shot_type || 'shot',
+                        dialogue_index: shot.dialogue_index || 1
                     }
                 })
             });
@@ -4632,7 +4681,8 @@ class ShortDramaStudio {
                         episode_title: episodeDirectoryName,
                         event_name: shot.episode_title || '',
                         shot_number: String(shot.shot_number || (idx + 1)),
-                        shot_type: shot.shot_type || 'shot'
+                        shot_type: shot.shot_type || 'shot',
+                        dialogue_index: shot.dialogue_index || 1
                     }
                 })
             });
@@ -6126,7 +6176,8 @@ class ShortDramaStudio {
                         episode_title: episodeDirectoryName,
                         event_name: shot.episode_title || '',
                         shot_number: String(shot.shot_number || (shotIndex + 1)),
-                        shot_type: shot.shot_type || 'shot'
+                        shot_type: shot.shot_type || 'shot',
+                        dialogue_index: shot.dialogue_index || 1
                     }
                 })
             });

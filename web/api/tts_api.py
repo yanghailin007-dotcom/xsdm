@@ -628,6 +628,114 @@ class TTSManager:
 tts_manager = TTSManager()
 
 
+def get_episode_number(novel_title, episode_name):
+    """
+    根据章节名获取章节序号
+
+    从项目信息.json中读取episodes列表，返回章节名对应的序号
+    """
+    project_info_path = VIDEO_PROJECTS_DIR / novel_title / "项目信息.json"
+
+    if not project_info_path.exists():
+        logger.warning(f'未找到项目信息文件: {project_info_path}')
+        return 1  # 默认返回1
+
+    try:
+        import json
+        with open(project_info_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+
+        episodes = data.get('episodes', [])
+        # 查找章节名对应的序号
+        for idx, ep_name in enumerate(episodes, 1):
+            if ep_name == episode_name or ep_name in episode_name or episode_name in ep_name:
+                return idx
+
+        logger.warning(f'未找到章节: {episode_name}')
+        return 1
+
+    except Exception as e:
+        logger.error(f'读取项目信息失败: {e}')
+        return 1
+
+
+def get_next_scene_and_sentence_number(audio_dir, episode_num, episode_name, dialogue_idx, character):
+    """
+    获取下一个场景序号和句子序号
+
+    检查目录中已存在的文件，找出当前章节、对话、角色的最大场景序号和句子序号
+
+    返回: (scene_num, sentence_num)
+    """
+    if not audio_dir.exists():
+        return 1, 1
+
+    # 新格式前缀: {章节序号:03d}_XX_{章节名}_对话{对话序号:02d}_{角色}_
+    prefix = f"{episode_num:03d}_"
+    prefix2 = f"_{episode_name}_对话{dialogue_idx:02d}_{character}_"
+
+    max_scene_num = 0
+    max_sentence_num = 0
+
+    for audio_file in audio_dir.glob("*.mp3"):
+        stem = audio_file.stem
+        # 匹配新格式: {章节序号:03d}_{场景序号:02d}_{章节名}_对话{对话序号:02d}_{角色}_{句子序号:03d}
+        if stem.startswith(prefix) and prefix2 in stem:
+            # 提取场景序号和句子序号
+            parts = stem.split('_')
+            if len(parts) >= 6:
+                try:
+                    scene_num = int(parts[1])  # 场景序号
+                    sentence_num = int(parts[-1])  # 句子序号（最后部分）
+                    if scene_num > max_scene_num:
+                        max_scene_num = scene_num
+                    if sentence_num > max_sentence_num:
+                        max_sentence_num = sentence_num
+                except ValueError:
+                    pass
+
+    # 如果找到了该章节该对话该角色的文件，增加场景序号，重置句子序号
+    # 否则返回新的场景序号
+    if max_scene_num > 0:
+        # 检查是否是同一个对话组
+        # 如果是新的对话组，返回 max_scene_num + 1
+        # 否则返回 max_scene_num, max_sentence_num + 1
+        # 这里简化逻辑：每次都创建新场景
+        return max_scene_num + 1, 1
+    else:
+        return 1, 1
+
+
+def get_next_sentence_number(audio_dir, episode_num, episode_name, dialogue_idx, character):
+    """
+    获取下一个句子序号
+
+    检查目录中已存在的文件，找出当前章节、场景、对话、角色的最大句子序号
+    """
+    if not audio_dir.exists():
+        return 1
+
+    # 新格式前缀: {章节序号:03d}_{场景序号:02d}_{章节名}_对话{对话序号:02d}_{角色}_
+    prefix = f"{episode_num:03d}_"
+    prefix2 = f"_{episode_name}_对话{dialogue_idx:02d}_{character}_"
+
+    max_num = 0
+    for audio_file in audio_dir.glob("*.mp3"):
+        stem = audio_file.stem
+        if stem.startswith(prefix) and prefix2 in stem:
+            # 提取句子序号
+            parts = stem.split('_')
+            if len(parts) >= 6:
+                try:
+                    num = int(parts[-1])  # 最后部分是句子序号
+                    if num > max_num:
+                        max_num = num
+                except ValueError:
+                    pass
+
+    return max_num + 1
+
+
 @tts_api.route('/config', methods=['GET'])
 def get_tts_config():
     """获取TTS配置状态"""
@@ -758,16 +866,18 @@ def generate_speech():
             safe_event = sanitize_path(event_name) if event_name else ''
             safe_speaker = sanitize_path(speaker)
 
-            # 文件名格式：
-            # 单独对话: {镜头号}_{事件名}_{角色}.mp3
-            # 对话场景: {镜头号}_{事件名}_对话{序号}_{角色}.mp3
-            if dialogue_index and dialogue_count and dialogue_count > 1:
-                # 对话场景中的一句对话
-                filename = f"{scene_number}_{safe_event}_对话{dialogue_index}_{safe_speaker}.mp3"
-            elif safe_event:
-                filename = f"{scene_number}_{safe_event}_{safe_speaker}.mp3"
-            else:
-                filename = f"{scene_number}_{safe_speaker}.mp3"
+            # 新文件名格式: {章节序号:03d}_{场景序号:02d}_{中级事件名}_对话{对话序号:02d}_{角色}_{句子序号:03d}.mp3
+            # 获取章节序号
+            episode_number = get_episode_number(novel_title, safe_event)
+
+            # 获取对话序号
+            dialogue_idx = dialogue_index if dialogue_index else 1
+
+            # 获取场景序号和句子序号
+            scene_num, sentence_num = get_next_scene_and_sentence_number(episode_dir, episode_number, safe_event, dialogue_idx, safe_speaker)
+
+            # 生成新格式文件名
+            filename = f"{episode_number:03d}_{scene_num:02d}_{safe_event}_对话{dialogue_idx:02d}_{safe_speaker}_{sentence_num:03d}.mp3"
 
             audio_path = episode_dir / filename
 
@@ -859,15 +969,22 @@ def generate_batch_speech():
 
                 episode_dir = VIDEO_PROJECTS_DIR / novel_title / episode_title / 'audio'
 
-                # 文件名格式: {镜头号}_{事件名}_{角色}.mp3（与视频命名保持一致）
+                # 新文件名格式: {章节序号:03d}_{场景序号:02d}_{中级事件名}_对话{对话序号:02d}_{角色}_{句子序号:03d}.mp3
                 event_name = scene.get('event_name') or scene.get('event') or ''
                 safe_event = sanitize_path(event_name) if event_name else ''
                 safe_speaker = sanitize_path(speaker)
 
-                if safe_event:
-                    filename = f"{scene_number}_{safe_event}_{safe_speaker}.mp3"
-                else:
-                    filename = f"{scene_number}_{safe_speaker}.mp3"
+                # 获取章节序号
+                episode_number = get_episode_number(novel_title, safe_event)
+
+                # 获取对话序号
+                dialogue_idx = scene.get('dialogue_index', 1)
+
+                # 获取场景序号和句子序号
+                scene_num, sentence_num = get_next_scene_and_sentence_number(episode_dir, episode_number, safe_event, dialogue_idx, safe_speaker)
+
+                # 生成新格式文件名
+                filename = f"{episode_number:03d}_{scene_num:02d}_{safe_event}_对话{dialogue_idx:02d}_{safe_speaker}_{sentence_num:03d}.mp3"
 
                 audio_path = episode_dir / filename
 
@@ -1026,13 +1143,55 @@ def list_audio_files():
         # 收集所有音频文件
         audio_files = []
         for audio_path in audio_dir.glob('*.mp3'):
-            # 解析文件名: {scene_number}_{event_name}_{speaker}.mp3
-            filename = audio_path.stem  # 不含扩展名
-            parts = filename.split('_', 2)
+            # 解析新格式文件名
+            # 新格式: {章节序号:03d}_{场景序号:02d}_{中级事件名}_对话{对话序号:02d}_{角色}_{句子序号:03d}
+            filename = audio_path.stem
+            import re
 
+            # 尝试匹配新格式
+            new_match = re.match(r'^(\d+)_(\d+)_(.+?)_对话(\d+)_(.+?)_(\d+)$', filename)
+            if new_match:
+                episode_num = int(new_match.group(1))
+                scene_num = int(new_match.group(2))
+                event_name = new_match.group(3)
+                dialogue_idx = int(new_match.group(4))
+                character = new_match.group(5)
+                sentence_num = int(new_match.group(6))
+
+                logger.info(f'  📄 文件: {audio_path.name}')
+                logger.info(f'     episode_num={episode_num}, scene_num={scene_num}, event_name="{event_name}", dialogue_idx={dialogue_idx}, character="{character}"')
+
+                # 生成URL
+                from urllib.parse import quote
+                rel_path = audio_path.relative_to(VIDEO_PROJECTS_DIR)
+                audio_url = f"/api/tts/audio/{quote(str(rel_path), safe='')}"
+
+                audio_files.append({
+                    'filename': audio_path.name,
+                    'scene_number': scene_num,  # 使用场景序号
+                    'episode_num': episode_num,
+                    'event_name': event_name,
+                    'dialogue_idx': dialogue_idx,
+                    'speaker': character,
+                    'sentence_num': sentence_num,
+                    'path': str(audio_path),
+                    'url': audio_url
+                })
+                continue
+
+            # 兼容旧格式
+            parts = filename.split('_', 3)
             scene_number = int(parts[0]) if len(parts) > 0 and parts[0].isdigit() else None
-            event_name = parts[1] if len(parts) > 1 else ''
-            speaker = parts[2] if len(parts) > 2 else ''
+
+            if len(parts) == 4:
+                event_name = parts[1]
+                speaker = parts[3]
+            elif len(parts) >= 3:
+                event_name = parts[1]
+                speaker = parts[2]
+            else:
+                event_name = ''
+                speaker = ''
 
             logger.info(f'  📄 文件: {audio_path.name}')
             logger.info(f'     scene_number={scene_number}, event_name="{event_name}", speaker="{speaker}"')

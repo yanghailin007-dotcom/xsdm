@@ -283,7 +283,8 @@ def create_video_generation():
         openai_request = VeOVideoRequest(
             model=veo_request.model,
             messages=messages,
-            stream=True
+            stream=True,
+            metadata=metadata  # 传递 metadata
         )
         
         # 获取管理器并创建任务（传递原生请求对象以保留配置参数）

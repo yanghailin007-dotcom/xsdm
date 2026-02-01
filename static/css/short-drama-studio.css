@@ -2087,18 +2087,18 @@ select option {
 }
 
 .dubbing-scene.done {
-    border: 2px solid var(--success);
-    box-shadow: 0 0 0 1px var(--success);
+    border-left: 5px solid var(--success);
+    background: rgba(76, 175, 80, 0.05);
 }
 
 .dubbing-scene.generating {
-    border: 2px solid var(--warning);
-    box-shadow: 0 0 0 1px var(--warning);
+    border-left: 5px solid var(--warning);
+    background: rgba(255, 193, 7, 0.05);
 }
 
 .dubbing-scene.error {
-    border: 2px solid var(--danger);
-    box-shadow: 0 0 0 1px var(--danger);
+    border-left: 5px solid var(--danger);
+    background: rgba(220, 53, 69, 0.05);
 }
 
 .dubbing-scene.pending {

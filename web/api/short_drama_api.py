@@ -712,20 +712,47 @@ def list_videos():
 
         videos = []
         for video_file in video_dir.glob('*.mp4'):
-            # 从文件名提取信息: "1_川剧变脸：从退婚到'送温暖'_中景.mp4"
+            # 新文件名格式: "001_01_诈尸惊魂_对话01_中景_特写_001.mp4"
+            # 格式: {章节序号:03d}_{场景序号:02d}_{中级事件名}_对话{对话序号:02d}_{镜头类型}_{句子序号:03d}
             name = video_file.stem  # 不含扩展名
             import re
-            match = re.match(r'^(\d+)_(.+)', name)
-            if match:
-                seq_num = int(match.group(1))
-                # 剩余部分是 "storyboard_title_shot_type" 或完整标题
-                rest_of_name = match.group(2)
+
+            # 尝试匹配新格式
+            new_match = re.match(r'^(\d+)_(\d+)_(.+?)_对话(\d+)_(.+?)_(\d+)$', name)
+            if new_match:
+                episode_num = int(new_match.group(1))
+                scene_num = int(new_match.group(2))
+                episode_name = new_match.group(3)
+                dialogue_idx = int(new_match.group(4))
+                shot_type = new_match.group(5)
+                sentence_num = int(new_match.group(6))
+
+                videos.append({
+                    'sequence': episode_num,
+                    'scene_number': scene_num,
+                    'episode_name': episode_name,
+                    'dialogue_index': dialogue_idx,
+                    'shot_type': shot_type,
+                    'sentence_num': sentence_num,
+                    'name': name,
+                    'filename': video_file.name,
+                    'storyboard_key': episode_name,  # 用于匹配storyboard
+                    'path': str(video_file.relative_to(VIDEO_PROJECTS_DIR)),
+                    'url': f"/api/short-drama/projects/{video_file.relative_to(VIDEO_PROJECTS_DIR).as_posix()}"
+                })
+                continue
+
+            # 尝试匹配旧格式: {镜头号}_{事件名}_{镜头类型}
+            old_match = re.match(r'^(\d+)_(.+)', name)
+            if old_match:
+                seq_num = int(old_match.group(1))
+                rest_of_name = old_match.group(2)
 
                 videos.append({
                     'sequence': seq_num,
                     'name': name,
                     'filename': video_file.name,
-                    'storyboard_key': rest_of_name,  # 🔥 用于匹配storyboard
+                    'storyboard_key': rest_of_name,
                     'path': str(video_file.relative_to(VIDEO_PROJECTS_DIR)),
                     'url': f"/api/short-drama/projects/{video_file.relative_to(VIDEO_PROJECTS_DIR).as_posix()}"
                 })

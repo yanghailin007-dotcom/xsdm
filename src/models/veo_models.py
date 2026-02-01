@@ -84,7 +84,10 @@ class VeOVideoRequest:
     model: str
     messages: List[Dict[str, Any]]
     stream: bool = True
-    
+
+    # 元数据字段（可选，用于传递项目信息等）
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
     def to_dict(self) -> Dict[str, Any]:
         """转换为字典 (OpenAI 格式)"""
         return {
@@ -208,7 +211,8 @@ class VeOCreateVideoRequest:
             size="large",
             duration=10,  # VeO 只支持 10 秒
             watermark=False,
-            private=True
+            private=True,
+            metadata=getattr(request, 'metadata', {})  # 传递 metadata
         )
 
 

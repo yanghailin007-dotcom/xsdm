@@ -67,11 +67,66 @@ def sanitize_path(name: str) -> str:
     return result.strip('_')
 
 
+def get_episode_number(novel_title: str, event_name: str) -> int:
+    """
+    根据章节名（中级事件名）获取章节序号
+
+    从项目信息.json中读取episodes列表，返回章节名对应的序号
+    """
+    project_info_path = VIDEO_PROJECT_BASE_DIR / novel_title / "项目信息.json"
+
+    if not project_info_path.exists():
+        return 1
+
+    try:
+        with open(project_info_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+
+        episodes = data.get('episodes', [])
+        for idx, ep_name in enumerate(episodes, 1):
+            if ep_name == event_name or ep_name in event_name or event_name in ep_name:
+                return idx
+
+        return 1
+    except Exception as e:
+        logger.error(f"获取章节序号失败: {e}")
+        return 1
+
+
+def get_next_scene_number(video_dir: Path, episode_num: int, event_name: str) -> int:
+    """
+    获取下一个场景序号
+
+    检查目录中已存在的视频文件，找出当前章节事件的最大场景序号
+    新格式: {章节序号:03d}_{场景序号:02d}_{中级事件名}_...
+    """
+    if not video_dir.exists():
+        return 1
+
+    prefix = f"{episode_num:03d}_"
+    prefix2 = f"_{event_name}_"
+
+    max_scene_num = 0
+    for video_file in video_dir.glob("*.mp4"):
+        stem = video_file.stem
+        if stem.startswith(prefix) and prefix2 in stem:
+            parts = stem.split('_')
+            if len(parts) >= 2:
+                try:
+                    scene_num = int(parts[1])  # 场景序号
+                    if scene_num > max_scene_num:
+                        max_scene_num = scene_num
+                except ValueError:
+                    pass
+
+    return max_scene_num + 1
+
+
 def get_video_save_path(metadata: Dict[str, Any], task_id: str) -> Path:
     """
     根据元数据获取视频保存路径
 
-    路径结构: 视频项目/{小说名}/{分集}/videos/{镜头号}_{事件名}_{类型}.mp4
+    新格式路径结构: 视频项目/{小说名}/{分集}/videos/{章节序号:03d}_{场景序号:02d}_{中级事件名}_对话{对话序号:02d}_{类型}_{句子序号:03d}.mp4
     如果没有元数据，则使用默认路径: static/generated_videos/{task_id}.mp4
     """
     novel_title = metadata.get('novel_title', '')
@@ -79,22 +134,30 @@ def get_video_save_path(metadata: Dict[str, Any], task_id: str) -> Path:
     event_name = metadata.get('event_name', '')  # 中级事件名称
     shot_number = metadata.get('shot_number', '')
     shot_type = metadata.get('shot_type', 'shot')
+    dialogue_index = metadata.get('dialogue_index', 1)  # 对话序号
 
     if novel_title and episode_title:
         # 使用项目目录结构
         safe_novel = sanitize_path(novel_title)
         safe_episode = sanitize_path(episode_title)
         safe_event = sanitize_path(event_name) if event_name else ''
-        safe_shot_type = sanitize_path(shot_type.replace('/', '_'))  # 替换斜杠
+        safe_shot_type = sanitize_path(shot_type.replace('/', '_'))
 
-        # 文件名格式: {镜头号}_{事件名}_{类型}.mp4
-        if safe_event:
-            filename = f"{shot_number}_{safe_event}_{safe_shot_type}.mp4"
-        else:
-            filename = f"{shot_number}_{safe_shot_type}.mp4"
+        # 获取章节序号
+        episode_num = get_episode_number(safe_novel, safe_event)
 
+        # 创建项目目录
         project_dir = VIDEO_PROJECT_BASE_DIR / safe_novel / safe_episode / "videos"
         project_dir.mkdir(parents=True, exist_ok=True)
+
+        # 获取场景序号
+        scene_num = get_next_scene_number(project_dir, episode_num, safe_event)
+
+        # 新文件名格式: {章节序号:03d}_{场景序号:02d}_{中级事件名}_对话{对话序号:02d}_{类型}_{句子序号:03d}.mp4
+        if safe_event:
+            filename = f"{episode_num:03d}_{scene_num:02d}_{safe_event}_对话{dialogue_index:02d}_{safe_shot_type}_001.mp4"
+        else:
+            filename = f"{episode_num:03d}_{scene_num:02d}_对话{dialogue_index:02d}_{safe_shot_type}_001.mp4"
 
         return project_dir / filename
     else:
