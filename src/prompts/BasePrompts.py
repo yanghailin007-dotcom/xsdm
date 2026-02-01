@@ -237,30 +237,32 @@ Workflow
     def get_prompt(self, key: str, platform: str = "fanqie") -> str:
         """
         获取提示词，支持平台适配
-        
+
         Args:
             key: 提示词键名
-            platform: 目标平台代码 (fanqie/qidian/zhihu)
-        
+            platform: 目标平台代码 (fanqie/qidian/zhihu/short_drama)
+
         Returns:
             格式化后的提示词
         """
         template = self.prompts.get(key, "")
         if not template:
             return template
-        
+
         # 获取平台适配器
         if self.platform_adapter_factory:
             adapter = self.platform_adapter_factory.get_adapter(platform)
             platform_name = adapter.platform_name
             platform_context = adapter.get_prompt_context()
             platform_style_guide = adapter.get_content_style_guide()
-            
+
             # 根据平台设置避免复杂设定的描述
             if platform == "qidian":
                 avoid_complex_setting = "避免过于复杂的世界观解释，但允许合理的世界观设定。"
             elif platform == "zhihu":
                 avoid_complex_setting = "允许新颖有趣的世界观设定，但需要逻辑自洽。"
+            elif platform == "short_drama":
+                avoid_complex_setting = "禁止复杂世界观设定，所有设定必须能在3秒内让观众理解，优先使用观众熟悉的概念（霸总、战神、赘婿、神医等）。"
             else:  # fanqie (default)
                 avoid_complex_setting = "严禁复杂的世界观解释、外星人、超能力、阴谋论等宏大设定。"
         else:
