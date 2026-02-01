@@ -2068,8 +2068,8 @@ class ShortDramaStudio {
                     ` : ''}
                 </div>
                 <div class="task-visual">
-                    ${hasRefs && !isCompleted ? `<div class="refs-thumbnails">${refsThumbnailsHtml}</div>` : '<div class="task-visual-empty"></div>'}
-                    ${hasRefs && !isCompleted ? '<span class="visual-arrow">→</span>' : ''}
+                    ${hasRefs ? `<div class="refs-thumbnails">${refsThumbnailsHtml}</div>` : '<div class="task-visual-empty"></div>'}
+                    ${hasRefs ? '<span class="visual-arrow">→</span>' : ''}
                     ${videoPreviewHtml}
                 </div>
                 <div class="task-actions">
