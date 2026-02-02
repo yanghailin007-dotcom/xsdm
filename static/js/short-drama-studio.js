@@ -11,7 +11,8 @@ class ShortDramaStudio {
         this.novels = [];
         this.events = [];
         this.characters = [];
-        this.characterVoices = {}; // 配音音色映射
+        this.characterVoices = {}; // 配音音色映射（默认配置）
+        this.characterVoiceMap = {}; // 用户选择的角色-音色映射
         this.selectedNovel = null;
         this.selectedMajorEvent = null;
         this.selectedEpisodes = []; // 🔥 改为数组以保持选择顺序
@@ -6487,6 +6488,12 @@ class ShortDramaStudio {
             const modelSelect = document.getElementById('settingModel');
             if (modelSelect) modelSelect.value = settings.model;
         }
+
+        // 🔥 从项目数据中恢复配音音色映射
+        if (this.currentProject && this.currentProject.character_voice_map) {
+            this.characterVoiceMap = this.currentProject.character_voice_map;
+            console.log('🎙️ [配音] 恢复角色-音色映射:', this.characterVoiceMap);
+        }
     }
 
     /**
@@ -6653,7 +6660,8 @@ class ShortDramaStudio {
                         title: this.selectedNovel,
                         episodes: Array.from(this.selectedEpisodes),
                         characters: this.characters,
-                        settings: settings
+                        settings: settings,
+                        character_voice_map: this.characterVoiceMap  // 🔥 保存配音音色映射
                     })
                 });
 
@@ -6674,7 +6682,8 @@ class ShortDramaStudio {
                         title: this.selectedNovel,
                         episodes: Array.from(this.selectedEpisodes),
                         characters: this.characters,
-                        settings: settings
+                        settings: settings,
+                        character_voice_map: this.characterVoiceMap  // 🔥 保存配音音色映射
                     })
                 });
 
