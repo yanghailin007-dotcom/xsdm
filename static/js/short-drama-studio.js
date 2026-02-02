@@ -3232,7 +3232,7 @@ class ShortDramaStudio {
 
         const innerHTML = `
             <div class="scene-header">
-                <span class="scene-number">#${shot.shot_number || shot.scene_number || (idx + 1)}${dialogueLabel}</span>
+                <span class="scene-number">#${shot.scene_number || shot.shot_number || (idx + 1)}${dialogueLabel}</span>
                 ${eventName ? `<span class="scene-event" title="事件：${eventName}" style="font-size: 0.75rem; color: var(--accent); background: var(--bg-tertiary); padding: 2px 8px; border-radius: 4px;">📋 ${eventName.length > 12 ? eventName.substring(0, 12) + '...' : eventName}</span>` : ''}
                 <span class="scene-type">${shot.shot_type || '镜头'}</span>
                 <span class="scene-duration">⏱️ ${shot.duration || 5}秒</span>
