@@ -460,13 +460,13 @@ def get_portraits():
 
         # 构建剧集目录路径
         episode_dir = VIDEO_PROJECTS_DIR / novel_title / episode_name
-        # 🔥 同时扫描父项目目录（用于 _三视图.png 等高优先级剧照）
+        # 🔥 同时扫描父项目目录（用于角色参考图）
         project_dir = VIDEO_PROJECTS_DIR / novel_title
 
         logger.info(f'📸 [剧照] 扫描目录: {episode_dir}')
         logger.info(f'📸 [剧照] 同时扫描项目目录: {project_dir}')
 
-        # 扫描剧照文件 - 先扫描剧集目录，再扫描项目目录的 _三视图 文件
+        # 扫描剧照文件
         portraits = {}
         portrait_files = []
 
@@ -474,11 +474,30 @@ def get_portraits():
         if episode_dir.exists():
             portrait_files.extend(list(episode_dir.glob('*.png')) + list(episode_dir.glob('*.jpg')))
 
-        # 🔥 项目目录中的 _三视图 剧照（最高优先级）
+        # 🔥 项目目录中的角色参考图（包括 _三视图 和普通角色图）
         if project_dir.exists():
+            # 扫描 _三视图 文件（最高优先级）
             three_view_files = [f for f in project_dir.glob('*_三视图.*')]
             portrait_files.extend(three_view_files)
             logger.info(f'📸 [剧照] 发现三视图文件: {[f.name for f in three_view_files]}')
+
+            # 🔥 扫描项目目录中的其他角色参考图（排除三视图，已添加）
+            # 获取所有图片文件
+            all_project_images = list(project_dir.glob('*.png')) + list(project_dir.glob('*.jpg'))
+            # 筛选出角色名图片（格式：角色名.png 或 角色名_数字.png）
+            for img in all_project_images:
+                stem = img.stem
+                # 跳过已处理的 _三视图 文件
+                if stem.endswith('_三视图'):
+                    continue
+                # 跳过明显不是角色图的文件（包含特殊字符的）
+                if any(x in stem for x in ['_', '-']) and not stem.split('_')[-1].isdigit():
+                    # 如果有下划线但最后一部分不是数字，可能是其他图片
+                    continue
+                portrait_files.append(img)
+
+            logger.info(f'📸 [剧照] 项目目录图片文件数量: {len(all_project_images)}')
+            logger.info(f'📸 [剧照] 添加的角色参考图: {[f.name for f in portrait_files if f.parent == project_dir and not f.name.endswith("_三视图")]}')
 
         for file_path in portrait_files:
             # 文件名格式: 角色名.png 或 角色名_1.png 或 角色名_三视图.png
