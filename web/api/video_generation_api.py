@@ -5526,7 +5526,9 @@ def _generate_storyboard_with_ai(novel_title: str, episode: dict) -> dict:
         "lines": "角色台词内容（中文，无台词填空字符串''）",
         "lines_en": "English subtitle translation for lip-sync (translate the lines to natural English, empty string if no dialogue)",
         "tone": "语气描述（如：愤怒、温柔、紧张等）",
-        "audio_note": "音效/BGM描述"
+        "tone_en": "English translation of tone (e.g. 'angry', 'gentle', 'nervous')",
+        "audio_note": "音效/BGM描述",
+        "audio_note_en": "English translation of audio note (e.g. 'heavy breathing, bone friction sound')"
       },
       "plot_content": "对应的情节点内容"
     }
@@ -5543,9 +5545,9 @@ def _generate_storyboard_with_ai(novel_title: str, episode: dict) -> dict:
   "duration": 16,
   "visual": {...},
   "dialogues": [
-    {"speaker": "林战", "lines": "你还是离开林家吧。", "lines_en": "You should leave the Lin family.", "tone": "严肃", "audio_note": "..."},
-    {"speaker": "叶凡", "lines": "我偏不。", "lines_en": "I won't.", "tone": "坚定", "audio_note": "..."},
-    {"speaker": "林战", "lines": "那就别怪我。", "lines_en": "Then don't blame me.", "tone": "冷漠", "audio_note": "..."}
+    {"speaker": "林战", "lines": "你还是离开林家吧。", "lines_en": "You should leave the Lin family.", "tone": "严肃", "tone_en": "serious", "audio_note": "...", "audio_note_en": "..."},
+    {"speaker": "叶凡", "lines": "我偏不。", "lines_en": "I won't.", "tone": "坚定", "tone_en": "firm", "audio_note": "...", "audio_note_en": "..."},
+    {"speaker": "林战", "lines": "那就别怪我。", "lines_en": "Then don't blame me.", "tone": "冷漠", "tone_en": "cold", "audio_note": "...", "audio_note_en": "..."}
   ],
   "plot_content": "情节点描述"
 }
@@ -5650,6 +5652,11 @@ def _generate_storyboard_with_ai(novel_title: str, episode: dict) -> dict:
    - 使用 `dialogue` 对象格式
    - 单句台词，镜头时长8秒
 9. **无台词镜头**：speaker填"无"，lines填空字符串""
+
+**⚠️ 重要：必须包含对话场景**
+- 即使情节点中没有明确描述对话，也要根据情节合理设计角色之间的对话
+- 对话是推动剧情和展示角色性格的关键，务必在分镜头中包含至少1-2个对话场景
+- 对话要简洁有力，符合短剧快节奏特点
 
 请直接输出JSON格式的分镜头脚本。"""
 
