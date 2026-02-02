@@ -5400,8 +5400,8 @@ def _generate_storyboard_with_ai(novel_title: str, episode: dict) -> dict:
         else:
             plot_points = [event_description] if event_description else [event_name]
 
-    logger.info(f"   事件名称: {event_name}")
-    logger.info(f"   所属重大事件: {major_event_name}")
+    logger.info(f"   事件名称: {event_name} (type: {type(event_name)})")
+    logger.info(f"   所属重大事件: {major_event_name} (type: {type(major_event_name)})")
     logger.info(f"   情节点数量: {len(plot_points)}")
     logger.info(f"   角色数据: {len(character_data)} 个角色")
 
@@ -5781,7 +5781,10 @@ def _save_storyboard_to_file(novel_title: str, event_name: str, episode_id: str,
         logger.info(f"💾 [AI分镜头] 分镜头已保存到: {filepath}")
 
     except Exception as e:
+        import traceback
         logger.error(f"❌ [AI分镜头] 保存分镜头文件失败: {e}")
+        logger.error(f"📋 完整堆栈:\n{traceback.format_exc()}")
+        logger.error(f"📋 参数类型: novel_title={type(novel_title)}, event_name={type(event_name)}, major_event_name={type(major_event_name)}")
 
 
 def _load_storyboard_file(novel_title: str, event_name: str, episode_id: str = '') -> dict:
