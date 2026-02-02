@@ -1010,6 +1010,22 @@ def generate_storyboard():
         character_prompts = event_extractor.generate_character_prompts(characters)
         logger.info(f"👥 [VIDEO] 提取到 {len(characters)} 个角色设计")
 
+        # 🔥 读取项目配置（视频方向等）
+        project_config = _load_project_config(title)
+        aspect_ratio = project_config.get('settings', {}).get('aspect_ratio', '9:16')
+        logger.info(f"📐 [VIDEO] 项目视频方向: {aspect_ratio}")
+
+        # 根据aspect_ratio确定视频方向描述
+        if aspect_ratio == '9:16':
+            orientation_desc = "竖屏（9:16），适合手机观看"
+            composition_desc = "竖屏构图：一切为手机竖屏优化，人物居中或偏上"
+        elif aspect_ratio == '16:9':
+            orientation_desc = "横屏（16:9），适合电脑/电视观看"
+            composition_desc = "横屏构图：遵循三分法则，人物视线留有空间"
+        else:
+            orientation_desc = f"{aspect_ratio}比例"
+            composition_desc = f"{aspect_ratio}构图"
+
         # 🔥 新增：使用AI为每个重大事件生成分镜头
         ai_storyboards = {}
         all_ai_shots = []
@@ -1045,7 +1061,10 @@ def generate_storyboard():
                     "stage": medium_event["stage"],
                     "major_event": major_event.get("name", ""),
                     "description": medium_event["description"],
-                    "content": medium_event.get("plot_outline", [])
+                    "content": medium_event.get("plot_outline", []),
+                    "aspect_ratio": aspect_ratio,  # 传递视频方向配置
+                    "orientation_desc": orientation_desc,
+                    "composition_desc": composition_desc
                 }
 
                 # 调用AI生成
@@ -5409,9 +5428,15 @@ def _generate_storyboard_with_ai(novel_title: str, episode: dict) -> dict:
     episode_title = to_string(episode.get('title'), '未知标题')
     episode_stage = to_string(episode.get('stage'), '起')
 
+    # 🔥 获取视频方向配置
+    aspect_ratio = episode.get('aspect_ratio', '9:16')
+    orientation_desc = episode.get('orientation_desc', '竖屏（9:16），适合手机观看')
+    composition_desc = episode.get('composition_desc', '竖屏构图：一切为手机竖屏优化，人物居中或偏上')
+
     logger.info(f"🤖 [AI分镜头] 开始为剧集生成AI分镜头: {episode_title}")
     logger.info(f"   小说: {novel_title}")
     logger.info(f"   阶段: {episode_stage}")
+    logger.info(f"   视频方向: {aspect_ratio}")
     logger.info(f"   episode_id: {episode_id}")
 
     # 🔥 加载角色设计文件
@@ -5459,22 +5484,22 @@ def _generate_storyboard_with_ai(novel_title: str, episode: dict) -> dict:
     character_reference_info = _build_character_reference_info(character_data)
 
     # 构建系统提示词 - 全新的短视频格式
-    system_prompt = """你是一位专业的短视频/短剧分镜头脚本设计师，擅长将小说情节转化为高吸引力的短视频分镜头。
+    system_prompt = f"""你是一位专业的短视频/短剧分镜头脚本设计师，擅长将小说情节转化为高吸引力的短视频分镜头。
 
 【核心任务】
-根据提供的小说信息、事件情节点和角色信息，设计出适合竖屏短视频（9:16）的高质量分镜头脚本。
+根据提供的小说信息、事件情节点和角色信息，设计出适合{orientation_desc}的高质量分镜头脚本。
 
 【角色-参考图绑定机制】
 ⚠️ 重要：AI视频生成时会根据角色名自动查找对应的参考图。
 - 在镜头的 veo_prompt 中，直接使用角色姓名即可
-- 参考图使用格式：「{角色名}，{详细外貌描述}，{动作描述}，{场景环境}」
+- 参考图使用格式：「角色名，详细外貌描述，动作描述，场景环境」
 - 系统会自动根据角色名匹配项目中的角色参考图
 
 【短视频分镜头原则】
 1. **黄金前3秒**: 开头必须抓人眼球，用强烈的视觉冲突或悬念
 2. **快节奏**: 每2-3秒一个新画面，避免拖沓
 3. **爽点密集**: 情绪快速递进，反转要有冲击力
-4. **竖屏构图**: 一切为手机竖屏优化，人物居中或偏上
+4. **{composition_desc}**
 5. **音乐配合**: 每个镜头标注合适的音效/背景音乐
 6. **角色一致性**: 使用角色名确保同一角色在不同镜头中形象一致
 7. **统一时长**: 所有镜头必须严格为8秒
@@ -5614,7 +5639,7 @@ def _generate_storyboard_with_ai(novel_title: str, episode: dict) -> dict:
 3. veo_prompt必须直接包含角色名，格式：「角色名，外貌描述，动作，场景环境」
 4. 多角色场景：「角色A站在左侧，角色B站在右侧，场景描述」
 5. 镜头类型要多样化（特写、中景、全景、推拉摇移等）
-6. 视频方向为竖屏（9:16），适合手机观看
+6. 视频方向为{orientation_desc}
 7. **对话场景处理**：
    - 如果场景是角色之间的对话交流，使用 `dialogues` 数组格式
    - 将多句对话放在同一个镜头中，画面保持不变
@@ -5674,6 +5699,40 @@ def _generate_storyboard_with_ai(novel_title: str, episode: dict) -> dict:
         import traceback
         logger.error(traceback.format_exc())
         return None
+
+
+def _load_project_config(novel_title: str) -> dict:
+    """
+    加载项目配置信息
+
+    Args:
+        novel_title: 小说标题
+
+    Returns:
+        项目配置字典
+    """
+    try:
+        project_file = Path('视频项目') / novel_title / '项目信息.json'
+        if project_file.exists():
+            with open(project_file, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        # 返回默认配置
+        return {
+            'settings': {
+                'aspect_ratio': '9:16',
+                'quality': '4K',
+                'model': 'veo_3_1-fast'
+            }
+        }
+    except Exception as e:
+        logger.warn(f"⚠️ 加载项目配置失败: {e}")
+        return {
+            'settings': {
+                'aspect_ratio': '9:16',
+                'quality': '4K',
+                'model': 'veo_3_1-fast'
+            }
+        }
 
 
 def _load_character_design_file(novel_title: str) -> dict:
