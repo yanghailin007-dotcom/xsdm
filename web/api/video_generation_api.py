@@ -246,6 +246,9 @@ def get_novel_content():
         if not title:
             return jsonify({"success": False, "error": "小说标题不能为空"}), 400
 
+        # 🔥 刷新项目列表，确保新创建的项目能被加载
+        manager.load_existing_novels()
+
         logger.info(f"📊 [VIDEO] 获取小说内容: {title}")
         logger.info(f"📊 [VIDEO] 当前加载的小说项目列表: {list(manager.novel_projects.keys()) if manager else 'N/A'}")
 
@@ -915,12 +918,15 @@ def generate_storyboard():
         title = data.get('title')
         video_type = data.get('video_type', 'long_series')
         selected_events = data.get('selected_events', [])  # 🔥 新增：获取选中事件列表
-        
+
         if not title:
             return jsonify({"success": False, "error": "小说标题不能为空"}), 400
-        
+
+        # 🔥 刷新项目列表，确保新创建的项目能被加载
+        manager.load_existing_novels()
+
         logger.info(f"🎬 [VIDEO] 生成分镜头: {title} - {video_type}")
-        
+
         if not manager:
             return jsonify({"success": False, "error": "管理器未初始化"}), 500
         
