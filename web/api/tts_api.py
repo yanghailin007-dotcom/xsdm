@@ -1237,17 +1237,6 @@ def list_audio_files():
                     'url': audio_url
                 })
                 continue
-                    'filename': audio_path.name,
-                    'scene_number': scene_num,  # 使用场景序号
-                    'episode_num': episode_num,
-                    'event_name': event_name,
-                    'dialogue_idx': dialogue_idx,
-                    'speaker': character,
-                    'sentence_num': sentence_num,
-                    'path': str(audio_path),
-                    'url': audio_url
-                })
-                continue
 
             # 兼容旧格式
             parts = filename.split('_', 3)
