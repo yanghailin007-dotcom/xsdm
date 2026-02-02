@@ -1377,6 +1377,8 @@ class ShortDramaStudio {
 
             if (data.success && data.storyboard) {
                 this.currentProject = { ...this.currentProject, storyboard: data.storyboard };
+                // 🔥 保存项目到文件系统，这样后续剧照API才能找到目录
+                await this.saveProject();
                 this.renderStoryboard(data.storyboard);
             } else {
                 container.innerHTML = `

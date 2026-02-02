@@ -786,6 +786,81 @@ def _estimate_total_duration(events: List[Dict], video_type: str) -> float:
         return len(events) * 1.0
 
 
+def _save_storyboard_to_file(novel_title: str, video_type: str, storyboard: Dict, shots: List[Dict]) -> None:
+    """
+    保存分镜头数据到文件系统（用于短剧工作室）
+
+    为每个unit（重大事件）创建对应的剧集目录，并保存分镜头JSON
+
+    Args:
+        novel_title: 小说标题
+        video_type: 视频类型
+        storyboard: 分镜头数据
+        shots: 镜头列表
+    """
+    try:
+        # 使用与short_drama_api相同的目录
+        VIDEO_PROJECTS_DIR = BASE_DIR / '视频项目'
+        VIDEO_PROJECTS_DIR.mkdir(exist_ok=True)
+
+        novel_dir = VIDEO_PROJECTS_DIR / novel_title
+        novel_dir.mkdir(exist_ok=True)
+
+        # 保存项目信息（如果不存在）
+        project_info_file = novel_dir / '项目信息.json'
+        if not project_info_file.exists():
+            import uuid
+            project_info = {
+                'id': str(uuid.uuid4())[:8],
+                'title': novel_title,
+                'created_at': datetime.now().isoformat(),
+                'updated_at': datetime.now().isoformat(),
+                'status': 'in_progress',
+                'settings': {
+                    'aspect_ratio': '9:16',
+                    'quality': '4K',
+                    'model': 'veo_3_1-fast'
+                }
+            }
+            with open(project_info_file, 'w', encoding='utf-8') as f:
+                json.dump(project_info, f, ensure_ascii=False, indent=2)
+            logger.info(f'📁 [VIDEO] 创建项目信息: {project_info_file}')
+
+        # 为每个unit创建剧集目录并保存分镜头
+        units = storyboard.get("units", [])
+        for idx, unit in enumerate(units):
+            unit_number = unit.get("unit_number", idx + 1)
+            unit_title = unit.get("title", unit.get("unit_title", f"第{unit_number}集"))
+
+            # 剧集目录名格式: {unit_number}集_{unit_title}
+            episode_dir_name = f"{unit_number}集_{unit_title}"
+            episode_dir = novel_dir / episode_dir_name
+            episode_dir.mkdir(exist_ok=True)
+
+            # 保存分镜头JSON
+            storyboard_file = episode_dir / "storyboard.json"
+            storyboard_data = {
+                "unit_number": unit_number,
+                "title": unit_title,
+                "storyboard": unit.get("storyboard", {}),
+                "shots": [s for s in shots if s.get("unit_number") == unit_number],
+                "total_shots": len([s for s in shots if s.get("unit_number") == unit_number]),
+                "created_at": datetime.now().isoformat()
+            }
+
+            with open(storyboard_file, 'w', encoding='utf-8') as f:
+                json.dump(storyboard_data, f, ensure_ascii=False, indent=2)
+
+            logger.info(f'📁 [VIDEO] 保存分镜头: {storyboard_file} ({len(storyboard_data["shots"])} 镜头)')
+
+        logger.info(f'✅ [VIDEO] 分镜头已保存到文件系统')
+
+    except Exception as e:
+        logger.error(f'❌ [VIDEO] 保存分镜头失败: {e}')
+        import traceback
+        logger.error(f'错误堆栈: {traceback.format_exc()}')
+
+
 def _filter_selected_events(all_events: List[Dict], selected_event_ids: List[str], logger) -> List[Dict]:
     """
     过滤出用户选中的事件（支持重大事件和中级事件）
@@ -962,7 +1037,10 @@ def generate_storyboard():
                         "status": "pending",
                         "visual_style": video_result.get("visual_style_guide", {}).get("overall_style", "写实")
                     })
-        
+
+        # 🔥 新增：保存分镜头到文件系统（用于短剧工作室）
+        _save_storyboard_to_file(title, video_type, video_result, shots)
+
         return jsonify({
             "success": True,
             "storyboard": video_result,
