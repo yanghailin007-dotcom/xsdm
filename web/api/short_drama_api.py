@@ -6,6 +6,7 @@
 from flask import Blueprint, request, jsonify, send_from_directory
 from pathlib import Path
 import json
+import re
 import uuid
 import os
 import shutil
