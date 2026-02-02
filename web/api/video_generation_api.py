@@ -5739,6 +5739,16 @@ def _save_storyboard_to_file(novel_title: str, event_name: str, episode_id: str,
     try:
         import re
 
+        # 🔥 确保参数是字符串类型（可能是字典）
+        def to_string(value, default=''):
+            if isinstance(value, dict):
+                return value.get('zh', value.get('title', str(value)))
+            return str(value) if value else default
+
+        event_name = to_string(event_name, '未知事件')
+        major_event_name = to_string(major_event_name, '')
+        novel_title = to_string(novel_title, '未知小说')
+
         # 🔥 根据episode_id确定重大事件序号，用于组织目录结构
         # episode_id格式: major_event_0_event_0_0
         major_idx = 0
@@ -5788,6 +5798,15 @@ def _load_storyboard_file(novel_title: str, event_name: str, episode_id: str = '
     """
     try:
         import re
+
+        # 🔥 确保参数是字符串类型（可能是字典）
+        def to_string(value, default=''):
+            if isinstance(value, dict):
+                return value.get('zh', value.get('title', str(value)))
+            return str(value) if value else default
+
+        event_name = to_string(event_name, '未知事件')
+        novel_title = to_string(novel_title, '未知小说')
 
         # 🔥 获取实际存在的小说目录（优先选择带冒号的正确目录）
         project_base = Path('视频项目')
