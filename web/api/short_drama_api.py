@@ -784,16 +784,15 @@ def list_videos():
             name = video_file.stem  # 不含扩展名
             import re
 
-            # 尝试匹配新格式
-            # 使用贪婪匹配(.+)确保事件名正确解析（事件名可能包含下划线）
-            new_match = re.match(r'^(\d+)_(\d+)_(.+)_对话(\d+)_(.+?)_(\d+)$', name)
-            if new_match:
-                episode_num = int(new_match.group(1))
-                scene_num = int(new_match.group(2))
-                episode_name = new_match.group(3)
-                dialogue_idx = int(new_match.group(4))
-                shot_type = new_match.group(5)
-                sentence_num = int(new_match.group(6))
+            # 🔥 优先尝试匹配对话场景格式（有"对话"前缀）
+            dialogue_match = re.match(r'^(\d+)_(\d+)_(.+)_对话(\d+)_(.+?)_(\d+)$', name)
+            if dialogue_match:
+                episode_num = int(dialogue_match.group(1))
+                scene_num = int(dialogue_match.group(2))
+                episode_name = dialogue_match.group(3)
+                dialogue_idx = int(dialogue_match.group(4))
+                shot_type = dialogue_match.group(5)
+                sentence_num = int(dialogue_match.group(6))
 
                 videos.append({
                     'sequence': episode_num,
@@ -802,9 +801,36 @@ def list_videos():
                     'dialogue_index': dialogue_idx,
                     'shot_type': shot_type,
                     'sentence_num': sentence_num,
+                    'is_dialogue_scene': True,
                     'name': name,
                     'filename': video_file.name,
-                    'storyboard_key': episode_name,  # 用于匹配storyboard
+                    'storyboard_key': episode_name,
+                    'path': str(video_file.relative_to(VIDEO_PROJECTS_DIR)),
+                    'url': f"/api/short-drama/projects/{video_file.relative_to(VIDEO_PROJECTS_DIR).as_posix()}"
+                })
+                continue
+
+            # 🔥 尝试匹配普通场景格式（无"对话"前缀）
+            # 格式: {章节序号:03d}_{场景序号:02d}_{事件名}_{镜头类型}_{句子序号:03d}
+            normal_match = re.match(r'^(\d+)_(\d+)_(.+)_(.+?)_(\d+)$', name)
+            if normal_match:
+                episode_num = int(normal_match.group(1))
+                scene_num = int(normal_match.group(2))
+                episode_name = normal_match.group(3)
+                shot_type = normal_match.group(4)
+                sentence_num = int(normal_match.group(5))
+
+                videos.append({
+                    'sequence': episode_num,
+                    'scene_number': scene_num,
+                    'episode_name': episode_name,
+                    'dialogue_index': None,
+                    'shot_type': shot_type,
+                    'sentence_num': sentence_num,
+                    'is_dialogue_scene': False,
+                    'name': name,
+                    'filename': video_file.name,
+                    'storyboard_key': episode_name,
                     'path': str(video_file.relative_to(VIDEO_PROJECTS_DIR)),
                     'url': f"/api/short-drama/projects/{video_file.relative_to(VIDEO_PROJECTS_DIR).as_posix()}"
                 })

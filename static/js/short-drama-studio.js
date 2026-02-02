@@ -1698,14 +1698,35 @@ class ShortDramaStudio {
 
         const allShots = [];
 
-        // 🔥 按章节顺序提取镜头（Object.entries在现代JS中保持插入顺序）
-        // 后端已经按文件名中的章节号排序返回
-        for (const [epId, epData] of Object.entries(storyboard)) {
+        // 🔥 修复：按照 selectedEpisodes 的顺序处理事件
+        const storyboardEntries = Object.entries(storyboard);
+        const sortedEntries = [];
+        const processedEpIds = new Set();
+
+        // 首先添加在 selectedEpisodes 中的条目（按选择顺序）
+        for (const epId of this.selectedEpisodes) {
+            const idx = storyboardEntries.findIndex(([key]) => key === epId);
+            if (idx !== -1) {
+                sortedEntries.push(storyboardEntries[idx]);
+                processedEpIds.add(epId);
+            }
+        }
+
+        // 然后添加不在 selectedEpisodes 中的条目
+        for (const entry of storyboardEntries) {
+            const epId = entry[0];
+            if (!processedEpIds.has(epId)) {
+                sortedEntries.push(entry);
+            }
+        }
+
+        // 🔥 按章节顺序提取镜头
+        sortedEntries.forEach(([epId, epData], epIndex) => {
             // 🔥 优先使用后端提供的显示名称
             const eventName = epData._display_name || epId;
 
             const scenes = epData.scenes || [];
-            console.log(`📂 文件: ${epId} -> 事件名: ${eventName}, 场景: ${scenes.length}`);
+            console.log(`📂 [${epIndex}] 文件: ${epId} -> 事件名: ${eventName}, 场景: ${scenes.length}`);
 
             for (const scene of scenes) {
                 const shots = scene.shot_sequence || [];
@@ -1726,12 +1747,14 @@ class ShortDramaStudio {
                             episode_id: epId,
                             episode_title: eventName,  // 使用后端提供的显示名称
                             event_name: eventName,
-                            scene_title: scene.scene_title
+                            scene_title: scene.scene_title,
+                            // 🔥 添加 episode_order 用于排序
+                            episode_order: epIndex
                         });
                     }
                 }
             }
-        }
+        });
 
         console.log(`✅ 总共提取到 ${allShots.length} 个镜头`);
 
@@ -1845,6 +1868,15 @@ class ShortDramaStudio {
 
             console.log('🎬 [视频检查] API返回的视频:', data.videos);
 
+            // 🔥 详细打印每个视频的信息
+            if (data.videos && data.videos.length > 0) {
+                console.log('🎬 [视频检查] 视频文件详情:');
+                data.videos.forEach((video, idx) => {
+                    console.log(`   [${idx}] ${video.filename}`);
+                    console.log(`       scene_number=${video.scene_number}, episode_name="${video.episode_name}", shot_type="${video.shot_type}", is_dialogue=${video.is_dialogue_scene}`);
+                });
+            }
+
             if (data.videos && data.videos.length > 0) {
                 // 🔥 先重置所有镜头的videoExists标志
                 for (let i = 0; i < this.shots.length; i++) {
@@ -1880,6 +1912,9 @@ class ShortDramaStudio {
                         const videoEpisodeName = video.episode_name || video.storyboard_key || '';
                         const videoSceneNum = video.scene_number || 0;
                         const videoShotType = video.shot_type || '';
+                        const videoIsDialogue = video.is_dialogue_scene;
+
+                        console.log(`   🔍 检查视频: scene_number=${videoSceneNum}, event="${videoEpisodeName}", shot_type="${videoShotType}", is_dialogue=${videoIsDialogue}`);
 
                         // 🔥 优先使用 scene_number 匹配（最可靠）
                         if (videoSceneNum === sceneNumber) {
@@ -3471,9 +3506,11 @@ class ShortDramaStudio {
                         novel_title: this.selectedNovel || '',
                         episode_title: episodeDirectoryName,
                         event_name: shot.episode_title || '',
+                        scene_number: shot.scene_number || (i + 1),  // 🔥 添加场景序号
                         shot_number: String(shot.shot_number || (shotIndex + 1)),
                         shot_type: shot.shot_type || 'shot',
                         dialogue_index: shot.dialogue_index || 1,
+                        is_dialogue_scene: shot.is_dialogue_scene || false,  // 🔥 添加是否为对话场景标志
                         lines_en: dialogueData?.lines_en || ''  // 传递英文台词
                     }
                 })
@@ -3504,8 +3541,16 @@ class ShortDramaStudio {
         const row = document.getElementById(`taskRow_${shotIndex}`);
         const shot = this.shots[shotIndex];
 
+        console.log(`🎬 [更新卡片] shotIndex=${shotIndex}, row存在=${!!row}, shot.videoExists=${shot?.videoExists}, shot.generating=${shot?.generating}`);
+
         if (row && shot) {
             row.outerHTML = this.renderVideoTaskRow(shot, shotIndex);
+        } else if (shot && shot.videoExists) {
+            console.warn(`🎬 [更新卡片] 找不到行元素 taskRow_${shotIndex}, 但视频已生成`);
+            // 尝试重新渲染整个视频列表
+            this.renderVideoCards();
+        } else {
+            console.warn(`🎬 [更新卡片] row不存在, shot=${shot ? '存在但未完成' : '不存在'}`);
         }
     }
 
@@ -3645,17 +3690,21 @@ class ShortDramaStudio {
         // 关闭弹窗
         this.closeVideoProgressModal(shotIndex);
 
-        // 添加到后台任务列表
-        const taskId = shot.currentTaskId || `bg_${shotIndex}_${Date.now()}`;
+        // 🔥 修复：始终使用 shotIndex 作为后台任务的键，避免 ID 不匹配问题
+        const bgTaskKey = `bg_${shotIndex}`;
+        const apiTaskId = shot.currentTaskId || null;
 
-        this.backgroundTasks.set(taskId, {
+        this.backgroundTasks.set(bgTaskKey, {
             shotIndex: shotIndex,
             shot: shot,
-            taskId: taskId,
+            taskId: bgTaskKey,
+            apiTaskId: apiTaskId,  // 保存真实的 API 任务 ID
             startTime: Date.now(),
             progress: 0,
             status: '处理中...'
         });
+
+        console.log(`🎬 [后台任务] 添加任务 bgTaskKey=${bgTaskKey}, apiTaskId=${apiTaskId}`);
 
         // 更新后台任务显示
         this.updateBackgroundTasksWidget();
@@ -3777,20 +3826,33 @@ class ShortDramaStudio {
     /**
      * 更新后台任务的进度
      */
-    updateBackgroundTaskProgress(taskId, progress, status) {
-        const task = this.backgroundTasks.get(taskId);
+    updateBackgroundTaskProgress(shotIndex, progress, status, apiTaskId = null) {
+        // 🔥 修复：使用 shotIndex 查找后台任务
+        const bgTaskKey = `bg_${shotIndex}`;
+        const task = this.backgroundTasks.get(bgTaskKey);
+
         if (task) {
             task.progress = progress;
             task.status = status;
+            // 如果提供了 API 任务 ID，更新它
+            if (apiTaskId) {
+                task.apiTaskId = apiTaskId;
+            }
             this.updateBackgroundTasksWidget();
+            console.log(`🎬 [后台任务] 更新进度 shotIndex=${shotIndex}, progress=${progress}%, status=${status}`);
+        } else {
+            console.log(`🎬 [后台任务] 未找到任务 bgTaskKey=${bgTaskKey}`);
         }
     }
 
     /**
      * 从后台任务中移除已完成的任务
      */
-    removeBackgroundTask(taskId) {
-        this.backgroundTasks.delete(taskId);
+    removeBackgroundTask(shotIndex) {
+        // 🔥 修复：使用 shotIndex 查找后台任务
+        const bgTaskKey = `bg_${shotIndex}`;
+        this.backgroundTasks.delete(bgTaskKey);
+        console.log(`🎬 [后台任务] 移除任务 bgTaskKey=${bgTaskKey}`);
         this.updateBackgroundTasksWidget();
     }
 
@@ -5955,6 +6017,21 @@ class ShortDramaStudio {
         const container = document.getElementById('dubbingContent');
         if (!container) return;
 
+        // 🔥 如果没有镜头数据，尝试从 storyboard 加载
+        if (!this.shots || this.shots.length === 0) {
+            const episodeDirectoryName = this.getEpisodeDirectoryName();
+            try {
+                const response = await fetch(`/api/short-drama/storyboards?novel=${encodeURIComponent(this.selectedNovel)}&episode=${encodeURIComponent(episodeDirectoryName)}`);
+                const data = await response.json();
+                if (data.success && data.storyboards) {
+                    this.renderStoryboard(data.storyboards);
+                    console.log('🎙️ [配音] 已加载 storyboard 数据');
+                }
+            } catch (error) {
+                console.error('🎙️ [配音] 加载 storyboard 失败:', error);
+            }
+        }
+
         if (!this.shots || this.shots.length === 0) {
             container.innerHTML = `
                 <div class="empty-state">
@@ -5967,6 +6044,21 @@ class ShortDramaStudio {
             `;
             return;
         }
+
+        // 🔥 确保镜头按 episode_order 和 shot_number 排序
+        this.shots.sort((a, b) => {
+            // 首先按事件选择顺序
+            const orderA = a.episode_order ?? 9999;
+            const orderB = b.episode_order ?? 9999;
+            if (orderA !== orderB) {
+                return orderA - orderB;
+            }
+            // 同一事件内按镜头编号排序
+            const numA = parseInt(a.shot_number || a.scene_number) || 0;
+            const numB = parseInt(b.shot_number || b.scene_number) || 0;
+            return numA - numB;
+        });
+        console.log('🎙️ [配音] 镜头已按 episode_order 排序');
 
         // 🔥 加载角色数据
         if (!this.characters || this.characters.length === 0) {
@@ -6110,8 +6202,19 @@ class ShortDramaStudio {
         const dialogueScenes = expandedDialogueShots.filter(s => s.is_dialogue_scene);
         console.log('🎙️ [配音] 对话场景子镜头数量:', dialogueScenes.length);
 
+        // 🔥 调试：打印展开镜头的 episode_title 和 episode_order
+        console.log('🎙️ [配音] 展开镜头的事件顺序:');
+        expandedDialogueShots.forEach((shot, idx) => {
+            console.log(`  [${idx}] episode_title="${shot.episode_title}", episode_order=${shot.episode_order}, shot_number=${shot.shot_number}, dialogue="${shot._dialogue_data?.lines?.substring(0, 20)}..."`);
+        });
+
         // 按事件分组
         const eventGroups = this.groupShotsByEvent(expandedDialogueShots);
+
+        console.log('🎙️ [配音] 事件分组结果:');
+        eventGroups.forEach((group, idx) => {
+            console.log(`  组${idx}: ${group.eventName}, ${group.shots.length}个镜头`);
+        });
 
         let scenesHtml = '';
         eventGroups.forEach((group, groupIdx) => {
@@ -6223,8 +6326,8 @@ class ShortDramaStudio {
                     // 更新弹窗进度
                     this.updateVideoProgressModal(Math.round(progress), statusText, shotIndex);
 
-                    // 同时更新后台任务进度
-                    this.updateBackgroundTaskProgress(taskId, Math.round(progress), statusText);
+                    // 🔥 修复：使用 shotIndex 更新后台任务进度，传递 API taskId
+                    this.updateBackgroundTaskProgress(shotIndex, Math.round(progress), statusText, taskId);
 
                     if (data.status === 'completed') {
                         // 视频生成完成
@@ -6248,8 +6351,8 @@ class ShortDramaStudio {
                         this.updateVideoCard(shotIndex);
                         this.updateProjectStatus();
 
-                        // 移除后台任务
-                        this.removeBackgroundTask(taskId);
+                        // 🔥 修复：使用 shotIndex 移除后台任务
+                        this.removeBackgroundTask(shotIndex);
 
                         this.showToast(`镜头 #${shot.shot_number || (shotIndex + 1)} 生成完成`, 'success');
                         resolve();
@@ -6261,7 +6364,7 @@ class ShortDramaStudio {
                         this.updateVideoCard(shotIndex);
                         // 🔥 只关闭当前任务的弹窗，不影响其他任务
                         this.closeVideoProgressModal(shotIndex);
-                        this.removeBackgroundTask(taskId);
+                        this.removeBackgroundTask(shotIndex);
                         reject(new Error(data.error || '生成失败'));
                     } else if (attempts < maxAttempts) {
                         attempts++;
@@ -6273,7 +6376,7 @@ class ShortDramaStudio {
                         this.updateVideoCard(shotIndex);
                         // 🔥 只关闭当前任务的弹窗，不影响其他任务
                         this.closeVideoProgressModal(shotIndex);
-                        this.removeBackgroundTask(taskId);
+                        this.removeBackgroundTask(shotIndex);
                         reject(new Error('生成超时'));
                     }
                 } catch (error) {
@@ -6284,7 +6387,7 @@ class ShortDramaStudio {
                     this.updateVideoCard(shotIndex);
                     // 🔥 只关闭当前任务的弹窗，不影响其他任务
                     this.closeVideoProgressModal(shotIndex);
-                    this.removeBackgroundTask(taskId);
+                    this.removeBackgroundTask(shotIndex);
                     this.showToast(`镜头 #${shot.shot_number || (shotIndex + 1)} 生成失败: ${error.message}`, 'error');
                     reject(error);
                 }
@@ -6351,9 +6454,11 @@ class ShortDramaStudio {
                         novel_title: this.selectedNovel || '',
                         episode_title: episodeDirectoryName,
                         event_name: shot.episode_title || '',
+                        scene_number: shot.scene_number || (i + 1),  // 🔥 添加场景序号
                         shot_number: String(shot.shot_number || (shotIndex + 1)),
                         shot_type: shot.shot_type || 'shot',
                         dialogue_index: shot.dialogue_index || 1,
+                        is_dialogue_scene: shot.is_dialogue_scene || false,  // 🔥 添加是否为对话场景标志
                         lines_en: dialogueData?.lines_en || ''  // 传递英文台词
                     }
                 })
@@ -6383,10 +6488,14 @@ class ShortDramaStudio {
             let attempts = 0;
             const shot = this.shots[shotIndex];
 
+            console.log(`🎬 [批量轮询] 开始轮询 shotIndex=${shotIndex}, taskId=${taskId}`);
+
             const poll = async () => {
                 try {
                     const response = await fetch(`/api/veo/status/${taskId}`);
                     const data = await response.json();
+
+                    console.log(`🎬 [批量轮询] shotIndex=${shotIndex}, status=${data.status}, attempt=${attempts + 1}/${maxAttempts}`);
 
                     if (data.status === 'completed') {
                         shot.generating = false;
@@ -6398,12 +6507,17 @@ class ShortDramaStudio {
                         if (data.result && data.result.videos && data.result.videos.length > 0) {
                             shot.videoUrl = data.result.videos[0].url;
                             shot.videoPath = data.result.videos[0].url;
+                            console.log(`🎬 [批量轮询] 视频URL: ${shot.videoUrl}`);
                         } else if (data.result && data.result.video_url) {
                             // 兼容旧格式
                             shot.videoUrl = data.result.video_url;
                             shot.videoPath = data.result.video_path;
+                            console.log(`🎬 [批量轮询] 视频URL(旧格式): ${shot.videoUrl}`);
+                        } else {
+                            console.error(`🎬 [批量轮询] 完成但无视频URL:`, data.result);
                         }
 
+                        console.log(`🎬 [批量轮询] shotIndex=${shotIndex} 准备更新卡片，videoExists=${shot.videoExists}`);
                         this.updateVideoCard(shotIndex);
                         this.updateProjectStatus();
                         this.showToast(`镜头 #${shot.shot_number || (shotIndex + 1)} 生成完成`, 'success');

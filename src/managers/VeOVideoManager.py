@@ -126,15 +126,17 @@ def get_video_save_path(metadata: Dict[str, Any], task_id: str) -> Path:
     """
     根据元数据获取视频保存路径
 
-    新格式路径结构: 视频项目/{小说名}/{分集}/videos/{章节序号:03d}_{场景序号:02d}_{中级事件名}_对话{对话序号:02d}_{类型}_{句子序号:03d}.mp4
+    新格式路径结构: 视频项目/{小说名}/{分集}/videos/{章节序号:03d}_{场景序号:02d}_{中级事件名}_[对话{对话序号:02d}_]_{类型}_{句子序号:03d}.mp4
     如果没有元数据，则使用默认路径: static/generated_videos/{task_id}.mp4
     """
     novel_title = metadata.get('novel_title', '')
     episode_title = metadata.get('episode_title', '')
     event_name = metadata.get('event_name', '')  # 中级事件名称
-    shot_number = metadata.get('shot_number', '')
+    scene_number = metadata.get('scene_number', 1)  # 🔥 优先使用传递的场景序号
+    shot_number = metadata.get('shot_number', '1')
     shot_type = metadata.get('shot_type', 'shot')
     dialogue_index = metadata.get('dialogue_index', 1)  # 对话序号
+    is_dialogue_scene = metadata.get('is_dialogue_scene', False)  # 🔥 是否为对话场景
 
     if novel_title and episode_title:
         # 使用项目目录结构
@@ -150,14 +152,16 @@ def get_video_save_path(metadata: Dict[str, Any], task_id: str) -> Path:
         project_dir = VIDEO_PROJECT_BASE_DIR / safe_novel / safe_episode / "videos"
         project_dir.mkdir(parents=True, exist_ok=True)
 
-        # 获取场景序号
-        scene_num = get_next_scene_number(project_dir, episode_num, safe_event)
+        # 🔥 使用传递的场景序号，而不是运行计数器
+        scene_num = int(scene_number) if isinstance(scene_number, int) else int(shot_number)
 
-        # 新文件名格式: {章节序号:03d}_{场景序号:02d}_{中级事件名}_对话{对话序号:02d}_{类型}_{句子序号:03d}.mp4
+        # 🔥 构建文件名：只对对话场景添加"对话"前缀
+        # 新文件名格式: {章节序号:03d}_{场景序号:02d}_{中级事件名}_[对话{对话序号:02d}_]_{类型}_{句子序号:03d}.mp4
+        dialogue_prefix = f"_对话{dialogue_index:02d}" if is_dialogue_scene else ""
         if safe_event:
-            filename = f"{episode_num:03d}_{scene_num:02d}_{safe_event}_对话{dialogue_index:02d}_{safe_shot_type}_001.mp4"
+            filename = f"{episode_num:03d}_{scene_num:02d}_{safe_event}{dialogue_prefix}_{safe_shot_type}_{int(shot_number):03d}.mp4"
         else:
-            filename = f"{episode_num:03d}_{scene_num:02d}_对话{dialogue_index:02d}_{safe_shot_type}_001.mp4"
+            filename = f"{episode_num:03d}_{scene_num:02d}{dialogue_prefix}_{safe_shot_type}_{int(shot_number):03d}.mp4"
 
         return project_dir / filename
     else:
