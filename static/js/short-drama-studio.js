@@ -1312,11 +1312,37 @@ class ShortDramaStudio {
         const container = document.getElementById('storyboardContent');
         if (!container) return;
 
+        // 检查是否选择了小说
+        if (!this.selectedNovel) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <p>请先选择小说项目</p>
+                </div>
+            `;
+            return;
+        }
+
+        // 检查是否选择了事件
+        const selectedEpisodesList = Array.from(this.selectedEpisodes);
+        console.log('🎬 [分镜头] 生成参数:', {
+            novel: this.selectedNovel,
+            selectedEpisodes: selectedEpisodesList,
+            count: selectedEpisodesList.length
+        });
+
+        if (selectedEpisodesList.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <p>请先选择要生成分镜头的集数</p>
+                    <p style="font-size: 0.85rem; color: var(--text-secondary);">在左侧面板勾选要生成的集数</p>
+                </div>
+            `;
+            return;
+        }
+
         container.innerHTML = '<div class="loading-state"><div class="spinner"></div><p>正在生成分镜头...</p></div>';
 
         try {
-            const selectedEpisodesList = Array.from(this.selectedEpisodes);
-
             const response = await fetch('/api/video/generate-storyboard', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -1329,6 +1355,7 @@ class ShortDramaStudio {
             });
 
             const data = await response.json();
+            console.log('🎬 [分镜头] API响应:', data);
 
             if (data.success && data.storyboard) {
                 this.currentProject = { ...this.currentProject, storyboard: data.storyboard };
@@ -1337,7 +1364,7 @@ class ShortDramaStudio {
                 container.innerHTML = `
                     <div class="empty-state">
                         <p>分镜头生成失败</p>
-                        <p style="font-size: 0.85rem; color: var(--text-secondary);">${data.error || ''}</p>
+                        <p style="font-size: 0.85rem; color: var(--text-secondary);">${data.error || '未知错误'}</p>
                         <button class="btn btn-primary" onclick="shortDramaStudio.generateStoryboard()">重试</button>
                     </div>
                 `;
@@ -1348,6 +1375,7 @@ class ShortDramaStudio {
                 <div class="empty-state">
                     <p>生成分镜头失败</p>
                     <p style="font-size: 0.85rem; color: var(--text-secondary);">${error.message}</p>
+                    <button class="btn btn-primary" onclick="shortDramaStudio.generateStoryboard()">重试</button>
                 </div>
             `;
         }
