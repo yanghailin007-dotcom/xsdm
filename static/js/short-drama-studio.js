@@ -1762,14 +1762,40 @@ class ShortDramaStudio {
         const container = document.getElementById('videoContent');
         if (!container) return;
 
-        if (!this.shots || this.shots.length === 0) {
+        container.innerHTML = '<div class="loading-state"><div class="spinner"></div><p>加载分镜头数据...</p></div>';
+
+        // 🔥 自动从API加载分镜头数据，不依赖缓存的 this.shots
+        const episodeDirectoryName = this.getEpisodeDirectoryName();
+        console.log('🎬 [视频步骤] 开始加载分镜头数据, 剧集:', episodeDirectoryName);
+
+        try {
+            const response = await fetch(`/api/short-drama/storyboards?novel=${encodeURIComponent(this.selectedNovel)}&episode=${encodeURIComponent(episodeDirectoryName)}`);
+            const data = await response.json();
+
+            console.log('📊 [视频步骤] API返回:', data);
+
+            if (data.success && data.storyboards) {
+                // 使用 renderStoryboard 解析数据
+                this.renderStoryboard(data.storyboards);
+                console.log('✅ [视频步骤] 分镜头数据已加载');
+            } else {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <p style="font-size: 2rem;">🎬</p>
+                        <p>还没有分镜头数据</p>
+                        <p style="font-size: 0.85rem; color: var(--text-secondary);">
+                            请先在"分镜头"步骤生成分镜头
+                        </p>
+                    </div>
+                `;
+                return;
+            }
+        } catch (error) {
+            console.error('❌ [视频步骤] 加载分镜头失败:', error);
             container.innerHTML = `
                 <div class="empty-state">
-                    <p style="font-size: 2rem;">🎬</p>
-                    <p>还没有分镜头数据</p>
-                    <p style="font-size: 0.85rem; color: var(--text-secondary);">
-                        请先在"分镜头"步骤生成分镜头
-                    </p>
+                    <p style="font-size: 2rem;">❌</p>
+                    <p>加载分镜头数据失败</p>
                 </div>
             `;
             return;
