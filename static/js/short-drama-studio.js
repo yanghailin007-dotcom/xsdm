@@ -1677,9 +1677,9 @@ class ShortDramaStudio {
         // 🔥 按章节顺序提取镜头（Object.entries在现代JS中保持插入顺序）
         // 后端已经按文件名中的章节号排序返回
         for (const [epId, epData] of Object.entries(storyboard)) {
-            // 从文件名中提取事件名（去掉章节范围前缀）
-            // 文件名格式: 第1-3章_事件名.json 或 事件名.json
-            const eventName = epId.replace(/^第?\d+(?:-\d+)?章_?/, '').trim();
+            // 从文件名中提取事件名（去掉后缀）
+            // 文件名格式: 事件名_[第1-3章][起].json 或 事件名_[起].json 或 事件名.json
+            const eventName = epId.replace(/_\[第?\d+(?:-\d+)?章\]\[?[起承转合]?\]?$|_\[[起承转合]\]$/, '').trim();
             const scenes = epData.scenes || [];
             for (const scene of scenes) {
                 const shots = scene.shot_sequence || [];

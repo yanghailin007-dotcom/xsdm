@@ -5746,7 +5746,7 @@ def _generate_storyboard_with_ai(novel_title: str, episode: dict) -> dict:
         logger.info(f"✅ [AI分镜头] AI生成成功，场景数: {len(storyboard_data.get('scenes', []))}")
 
         # 保存生成的分镜头到文件（按重大事件组织目录）
-        _save_storyboard_to_file(novel_title, event_name, episode_id, storyboard_data, major_event_name, major_event_chapter_range)
+        _save_storyboard_to_file(novel_title, event_name, episode_id, storyboard_data, major_event_name, major_event_chapter_range, episode_stage)
 
         return storyboard_data
 
@@ -5890,7 +5890,7 @@ def _extract_appearance_brief(character: dict) -> str:
         return character.get('name', '角色')  # 回退到角色名
 
 
-def _save_storyboard_to_file(novel_title: str, event_name: str, episode_id: str, storyboard_data: dict, major_event_name: str = '', chapter_range: str = ''):
+def _save_storyboard_to_file(novel_title: str, event_name: str, episode_id: str, storyboard_data: dict, major_event_name: str = '', chapter_range: str = '', stage: str = ''):
     """
     保存分镜头数据到文件
 
@@ -5901,6 +5901,7 @@ def _save_storyboard_to_file(novel_title: str, event_name: str, episode_id: str,
         storyboard_data: 分镜头数据
         major_event_name: 重大事件名称（用于创建子目录）
         chapter_range: 章节范围（如：第1-3章）用于文件名
+        stage: 中级事件阶段（起/承/转/合）用于区分同一章节范围内的事件
     """
     try:
         import re
@@ -5915,6 +5916,7 @@ def _save_storyboard_to_file(novel_title: str, event_name: str, episode_id: str,
         event_name = to_string(event_name, '未知事件')
         major_event_name = to_string(major_event_name, '')
         chapter_range = to_string(chapter_range, '')  # 章节范围
+        stage = to_string(stage, '')  # 阶段（起承转合）
         novel_title = to_string(novel_title, '未知小说')
 
         # 🔥 根据episode_id确定重大事件序号，用于组织目录结构
@@ -5937,12 +5939,17 @@ def _save_storyboard_to_file(novel_title: str, event_name: str, episode_id: str,
         save_dir = Path('视频项目') / novel_title / sub_dir_name / 'storyboards'
         save_dir.mkdir(parents=True, exist_ok=True)
 
-        # 生成文件名：章节范围_事件名.json（章节在前便于排序）
+        # 生成文件名：事件名_[章节范围](阶段).json
+        # 例如: 废土猎场_第1-3章(起).json 或 废土猎场(起).json
         safe_event_name = re.sub(r'[<>:"/\\|?*]', '_', event_name)
-        safe_chapter_range = re.sub(r'[<>:"/\\|?*]', '_', chapter_range) if chapter_range else ''
-        if safe_chapter_range:
-            # 格式: 第1-3章_事件名.json
-            filename = f"{safe_chapter_range}_{safe_event_name}.json"
+        suffix_parts = []
+        if chapter_range:
+            suffix_parts.append(chapter_range)
+        if stage:
+            suffix_parts.append(stage)
+
+        if suffix_parts:
+            filename = f"{safe_event_name}_{''.join(f'[{s}]' for s in suffix_parts)}.json"
         else:
             filename = f"{safe_event_name}.json"
         filepath = save_dir / filename
