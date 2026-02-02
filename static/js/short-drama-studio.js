@@ -2884,6 +2884,7 @@ class ShortDramaStudio {
                     event_name: shot.event_name || shot.event || '',  // 中级事件名
                     dialogue_index: shot.dialogue_index,  // 对话序号（对话场景用）
                     dialogue_count: shot.dialogue_count,  // 该场景对话总数
+                    is_dialogue_scene: shot.is_dialogue_scene || false,  // 🔥 是否为对话场景
                     speaker: speaker,
                     lines: cleanLines,  // 使用清理后的台词
                     tone: tone,  // 传递语气描述，后端会自动转换为emotion
@@ -3020,6 +3021,7 @@ class ShortDramaStudio {
                     event_name: shot.event_name || shot.event || '',
                     dialogue_index: shot.dialogue_index,
                     dialogue_count: shot.dialogue_count,
+                    is_dialogue_scene: shot.is_dialogue_scene || false,  // 🔥 是否为对话场景
                     speaker: speaker,
                     lines: lines,
                     tone: tone,  // 传递语气描述，后端会自动转换为emotion

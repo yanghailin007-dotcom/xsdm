@@ -839,6 +839,8 @@ def generate_speech():
         # 获取对话序号信息（用于对话场景）
         dialogue_index = data.get('dialogue_index')
         dialogue_count = data.get('dialogue_count')
+        scene_number = data.get('scene_number')  # 🔥 新增：场景序号
+        is_dialogue_scene = data.get('is_dialogue_scene', True)  # 🔥 新增：是否为对话场景
 
         if not lines:
             return jsonify({
@@ -867,18 +869,27 @@ def generate_speech():
             safe_event = sanitize_path(event_name) if event_name else ''
             safe_speaker = sanitize_path(speaker)
 
-            # 新文件名格式: {章节序号:03d}_{场景序号:02d}_{中级事件名}_对话{对话序号:02d}_{角色}_{句子序号:03d}.mp3
+            # 新文件名格式:
+            # 对话场景: {章节序号:03d}_{场景序号:02d}_{中级事件名}_对话{对话序号:02d}_{角色}_{句子序号:03d}.mp3
+            # 普通场景: {章节序号:03d}_{场景序号:02d}_{中级事件名}_{角色}_{句子序号:03d}.mp3
             # 获取章节序号
             episode_number = get_episode_number(novel_title, safe_event)
 
             # 获取对话序号
             dialogue_idx = dialogue_index if dialogue_index else 1
 
-            # 获取场景序号和句子序号
-            scene_num, sentence_num = get_next_scene_and_sentence_number(episode_dir, episode_number, safe_event, dialogue_idx, safe_speaker)
+            # 🔥 使用传递的场景序号，而不是运行计数器
+            if scene_number is not None:
+                scene_num = int(scene_number)
+                # 对于非对话场景，句子序号使用1
+                sentence_num = 1
+            else:
+                # 兼容旧逻辑：使用运行计数器
+                scene_num, sentence_num = get_next_scene_and_sentence_number(episode_dir, episode_number, safe_event, dialogue_idx, safe_speaker)
 
-            # 生成新格式文件名
-            filename = f"{episode_number:03d}_{scene_num:02d}_{safe_event}_对话{dialogue_idx:02d}_{safe_speaker}_{sentence_num:03d}.mp3"
+            # 🔥 根据是否为对话场景生成不同格式的文件名
+            dialogue_prefix = f"_对话{dialogue_idx:02d}" if is_dialogue_scene else ""
+            filename = f"{episode_number:03d}_{scene_num:02d}_{safe_event}{dialogue_prefix}_{safe_speaker}_{sentence_num:03d}.mp3"
 
             audio_path = episode_dir / filename
 
@@ -970,7 +981,9 @@ def generate_batch_speech():
 
                 episode_dir = VIDEO_PROJECTS_DIR / novel_title / episode_title / 'audio'
 
-                # 新文件名格式: {章节序号:03d}_{场景序号:02d}_{中级事件名}_对话{对话序号:02d}_{角色}_{句子序号:03d}.mp3
+                # 新文件名格式:
+                # 对话场景: {章节序号:03d}_{场景序号:02d}_{中级事件名}_对话{对话序号:02d}_{角色}_{句子序号:03d}.mp3
+                # 普通场景: {章节序号:03d}_{场景序号:02d}_{中级事件名}_{角色}_{句子序号:03d}.mp3
                 event_name = scene.get('event_name') or scene.get('event') or ''
                 safe_event = sanitize_path(event_name) if event_name else ''
                 safe_speaker = sanitize_path(speaker)
@@ -981,11 +994,22 @@ def generate_batch_speech():
                 # 获取对话序号
                 dialogue_idx = scene.get('dialogue_index', 1)
 
-                # 获取场景序号和句子序号
-                scene_num, sentence_num = get_next_scene_and_sentence_number(episode_dir, episode_number, safe_event, dialogue_idx, safe_speaker)
+                # 🔥 检查是否为对话场景
+                is_dialogue_scene = scene.get('is_dialogue_scene', True)
 
-                # 生成新格式文件名
-                filename = f"{episode_number:03d}_{scene_num:02d}_{safe_event}_对话{dialogue_idx:02d}_{safe_speaker}_{sentence_num:03d}.mp3"
+                # 🔥 使用传递的场景序号，而不是运行计数器
+                # 优先使用 scene.scene_number，否则使用 scene_number
+                provided_scene_num = scene.get('scene_number') or scene.get('shot_number')
+                if provided_scene_num is not None:
+                    scene_num = int(provided_scene_num)
+                    sentence_num = 1  # 使用场景序号时，句子序号固定为1
+                else:
+                    # 兼容旧逻辑：使用运行计数器
+                    scene_num, sentence_num = get_next_scene_and_sentence_number(episode_dir, episode_number, safe_event, dialogue_idx, safe_speaker)
+
+                # 🔥 根据是否为对话场景生成不同格式的文件名
+                dialogue_prefix = f"_对话{dialogue_idx:02d}" if is_dialogue_scene else ""
+                filename = f"{episode_number:03d}_{scene_num:02d}_{safe_event}{dialogue_prefix}_{safe_speaker}_{sentence_num:03d}.mp3"
 
                 audio_path = episode_dir / filename
 
@@ -1144,20 +1168,21 @@ def list_audio_files():
         # 收集所有音频文件
         audio_files = []
         for audio_path in audio_dir.glob('*.mp3'):
-            # 解析新格式文件名
-            # 新格式: {章节序号:03d}_{场景序号:02d}_{中级事件名}_对话{对话序号:02d}_{角色}_{句子序号:03d}
+            # 解析新格式文件名（两种格式）:
+            # 对话场景: {章节序号:03d}_{场景序号:02d}_{中级事件名}_对话{对话序号:02d}_{角色}_{句子序号:03d}
+            # 普通场景: {章节序号:03d}_{场景序号:02d}_{中级事件名}_{角色}_{句子序号:03d}
             filename = audio_path.stem
             import re
 
-            # 尝试匹配新格式
-            new_match = re.match(r'^(\d+)_(\d+)_(.+?)_对话(\d+)_(.+?)_(\d+)$', filename)
-            if new_match:
-                episode_num = int(new_match.group(1))
-                scene_num = int(new_match.group(2))
-                event_name = new_match.group(3)
-                dialogue_idx = int(new_match.group(4))
-                character = new_match.group(5)
-                sentence_num = int(new_match.group(6))
+            # 🔥 优先尝试匹配对话场景格式（有"对话"前缀）
+            dialogue_match = re.match(r'^(\d+)_(\d+)_(.+?)_对话(\d+)_(.+?)_(\d+)$', filename)
+            if dialogue_match:
+                episode_num = int(dialogue_match.group(1))
+                scene_num = int(dialogue_match.group(2))
+                event_name = dialogue_match.group(3)
+                dialogue_idx = int(dialogue_match.group(4))
+                character = dialogue_match.group(5)
+                sentence_num = int(dialogue_match.group(6))
 
                 logger.info(f'  📄 文件: {audio_path.name}')
                 logger.info(f'     episode_num={episode_num}, scene_num={scene_num}, event_name="{event_name}", dialogue_idx={dialogue_idx}, character="{character}"')
@@ -1168,6 +1193,50 @@ def list_audio_files():
                 audio_url = f"/api/tts/audio/{quote(str(rel_path), safe='')}"
 
                 audio_files.append({
+                    'filename': audio_path.name,
+                    'scene_number': scene_num,
+                    'episode_num': episode_num,
+                    'event_name': event_name,
+                    'dialogue_idx': dialogue_idx,
+                    'speaker': character,
+                    'sentence_num': sentence_num,
+                    'is_dialogue_scene': True,
+                    'path': str(audio_path),
+                    'url': audio_url
+                })
+                continue
+
+            # 🔥 尝试匹配普通场景格式（无"对话"前缀）
+            # 格式: {章节序号:03d}_{场景序号:02d}_{事件名}_{角色}_{句子序号:03d}
+            normal_match = re.match(r'^(\d+)_(\d+)_(.+?)_(.+?)_(\d+)$', filename)
+            if normal_match:
+                episode_num = int(normal_match.group(1))
+                scene_num = int(normal_match.group(2))
+                event_name = normal_match.group(3)
+                character = normal_match.group(4)
+                sentence_num = int(normal_match.group(5))
+
+                logger.info(f'  📄 文件: {audio_path.name} (普通场景)')
+                logger.info(f'     episode_num={episode_num}, scene_num={scene_num}, event_name="{event_name}", character="{character}"')
+
+                # 生成URL
+                from urllib.parse import quote
+                rel_path = audio_path.relative_to(VIDEO_PROJECTS_DIR)
+                audio_url = f"/api/tts/audio/{quote(str(rel_path), safe='')}"
+
+                audio_files.append({
+                    'filename': audio_path.name,
+                    'scene_number': scene_num,
+                    'episode_num': episode_num,
+                    'event_name': event_name,
+                    'dialogue_idx': None,
+                    'speaker': character,
+                    'sentence_num': sentence_num,
+                    'is_dialogue_scene': False,
+                    'path': str(audio_path),
+                    'url': audio_url
+                })
+                continue
                     'filename': audio_path.name,
                     'scene_number': scene_num,  # 使用场景序号
                     'episode_num': episode_num,
