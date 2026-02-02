@@ -1181,7 +1181,11 @@ class VideoAdapterManager:
             "total_scenes": 0,
             "scenes": []
         }
-        
+
+        # 🔥 调试日志
+        self.logger.info(f"🎬 [Storyboard] 单元类型: {unit.get('unit_type')}")
+        self.logger.info(f"🎬 [Storyboard] major_events数量: {len(unit.get('major_events', []))}")
+
         # 对于长剧集模式，使用中级事件而不是重大事件
         if unit.get("unit_type") == "分集" and unit.get("medium_event"):
             # 使用中级事件生成场景
@@ -1192,13 +1196,26 @@ class VideoAdapterManager:
         else:
             # 原有逻辑：使用重大事件
             major_events = unit.get("major_events", [])
+            self.logger.info(f"🎬 [Storyboard] 处理 {len(major_events)} 个重大事件")
             for event_idx, event in enumerate(major_events, 1):
+                self.logger.info(f"🎬 [Storyboard]   处理事件 {event_idx}: {event.get('name')}")
                 scene = self._convert_event_to_scene(event, event_idx, novel_data)
                 if scene:
+                    self.logger.info(f"🎬 [Storyboard]   ✓ 场景生成成功: {scene.get('scene_title')}")
                     storyboard["scenes"].append(scene)
-        
+                else:
+                    self.logger.warn(f"🎬 [Storyboard]   ✗ 场景生成失败")
+                    # 🔥 添加默认场景，防止完全失败
+                    storyboard["scenes"].append({
+                        "scene_number": event_idx,
+                        "scene_title": event.get("name", f"场景{event_idx}"),
+                        "scene_description": event.get("main_goal", ""),
+                        "shot_sequence": self._generate_default_shots(event)
+                    })
+
         storyboard["total_scenes"] = len(storyboard["scenes"])
-        
+        self.logger.info(f"🎬 [Storyboard] 生成了 {len(storyboard['scenes'])} 个场景")
+
         # 计算总时长
         total_duration = sum(
             scene.get("estimated_duration_seconds", 0)
@@ -1206,7 +1223,7 @@ class VideoAdapterManager:
         )
         storyboard["total_duration_seconds"] = total_duration
         storyboard["total_duration_minutes"] = round(total_duration / 60, 1)
-        
+
         return storyboard
     
     def _convert_medium_event_to_scene(
@@ -1290,23 +1307,31 @@ class VideoAdapterManager:
         """将事件转换为场景"""
         event_name = event.get("name", "未命名事件")
         main_goal = event.get("main_goal", "")
-        
+
+        # 🔥 修复：构建正确的context对象
+        context = {
+            "novel_data": novel_data,
+            "unit_number": scene_number,
+            "stage": "major_event"
+        }
+
         # 使用当前策略生成镜头序列
         if self.current_strategy is None:
             self.logger.warn("策略未初始化，使用默认镜头序列")
             shot_sequence = self._generate_default_shots(event)
         else:
-            shot_sequence = self.current_strategy.generate_shot_sequence(event, novel_data)
-        
+            shot_sequence = self.current_strategy.generate_shot_sequence(event, context)
+
         if not shot_sequence:
+            self.logger.warn(f"⚠️ 事件 {event_name} 没有生成任何镜头")
             return None
-        
+
         # 计算场景时长
         scene_duration = sum(
             shot.get("duration_seconds", 0)
             for shot in shot_sequence
         )
-        
+
         return {
             "scene_number": scene_number,
             "scene_title": event_name,
