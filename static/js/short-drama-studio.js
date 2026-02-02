@@ -1948,9 +1948,9 @@ class ShortDramaStudio {
                 for (let i = 0; i < this.shots.length; i++) {
                     const shot = this.shots[i];
                     const episodeTitle = shot.episode_title || '';
-                    const shotNumber = shot.shot_number || (i + 1);
+                    const sceneNumber = shot.scene_number || 1;
 
-                    console.log(`🎙️ [镜头 #${shotNumber}] 事件="${episodeTitle}"`);
+                    console.log(`🎙️ [镜头 #${i + 1}] scene_number=${sceneNumber}, episode="${episodeTitle}"`);
 
                     // 检查是否是对话场景
                     if (shot.is_dialogue_scene && shot.dialogues && Array.isArray(shot.dialogues)) {
@@ -1962,19 +1962,27 @@ class ShortDramaStudio {
 
                             console.log(`   🔍 对话${dialogueIndex}: speaker="${speaker}"`);
 
-                            // 查找匹配的音频文件
-                            // 新格式: {章节序号:03d}_{场景序号:02d}_{中级事件名}_对话{对话序号:02d}_{角色}_{句子序号:03d}.mp3
+                            // 🔥 优先使用 scene_number 匹配（最可靠）
                             let matchedAudio = null;
                             for (const audio of data.audios) {
+                                const audioSceneNum = audio.scene_number || 0;
                                 const audioEventName = audio.event_name || '';
                                 const audioSpeaker = audio.speaker || '';
                                 const audioDialogueIdx = audio.dialogue_idx || 1;
 
-                                // 匹配事件名和说话人
-                                if (audioEventName === episodeTitle && audioSpeaker === speaker && audioDialogueIdx === dialogueIndex) {
-                                    matchedAudio = audio;
-                                    console.log(`      ✅ ${audio.filename}`);
-                                    break;
+                                // 优先使用 scene_number 匹配
+                                if (audioSceneNum === sceneNumber) {
+                                    // 再检查事件名和说话人是否匹配（使用包含关系）
+                                    const eventMatches = audioEventName.includes(episodeTitle) ||
+                                                         episodeTitle.includes(audioEventName) ||
+                                                         audioEventName === episodeTitle;
+                                    const speakerMatches = audioSpeaker === speaker || audioSpeaker.includes(speaker) || speaker.includes(audioSpeaker);
+
+                                    if (eventMatches && speakerMatches && audioDialogueIdx === dialogueIndex) {
+                                        matchedAudio = audio;
+                                        console.log(`      ✅ ${audio.filename} (scene_number=${audioSceneNum})`);
+                                        break;
+                                    }
                                 }
                             }
 
@@ -1996,16 +2004,26 @@ class ShortDramaStudio {
 
                         console.log(`   🔍 speaker="${speaker}"`);
 
+                        // 🔥 优先使用 scene_number 匹配（最可靠）
                         let matchedAudio = null;
                         for (const audio of data.audios) {
+                            const audioSceneNum = audio.scene_number || 0;
                             const audioEventName = audio.event_name || '';
                             const audioSpeaker = audio.speaker || '';
 
-                            // 匹配事件名和说话人
-                            if (audioEventName === episodeTitle && audioSpeaker === speaker) {
-                                matchedAudio = audio;
-                                console.log(`   ✅ ${audio.filename}`);
-                                break;
+                            // 优先使用 scene_number 匹配
+                            if (audioSceneNum === sceneNumber) {
+                                // 再检查事件名和说话人是否匹配（使用包含关系）
+                                const eventMatches = audioEventName.includes(episodeTitle) ||
+                                                     episodeTitle.includes(audioEventName) ||
+                                                     audioEventName === episodeTitle;
+                                const speakerMatches = audioSpeaker === speaker || audioSpeaker.includes(speaker) || speaker.includes(audioSpeaker);
+
+                                if (eventMatches && speakerMatches) {
+                                    matchedAudio = audio;
+                                    console.log(`   ✅ ${audio.filename} (scene_number=${audioSceneNum})`);
+                                    break;
+                                }
                             }
                         }
 
