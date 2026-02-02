@@ -944,8 +944,12 @@ def generate_storyboard():
 
         # 🔥 如果指定了选中事件，只处理选中的
         if selected_events:
-            logger.info(f"🎯 [VIDEO] 用户选中了 {len(selected_events)} 个事件，过滤中...")
+            logger.info(f"🎯 [VIDEO] 用户选中了 {len(selected_events)} 个事件: {selected_events}")
+            logger.info(f"🎯 [VIDEO] 过滤前事件数: {len(all_events)}")
             all_events = _filter_selected_events(all_events, selected_events, logger)
+            logger.info(f"🎯 [VIDEO] 过滤后事件数: {len(all_events)}")
+        else:
+            logger.info(f"🎯 [VIDEO] 没有选中事件，使用全部 {len(all_events)} 个事件")
 
         logger.info(f"📊 [VIDEO] 最终处理 {len(all_events)} 个事件")
 
