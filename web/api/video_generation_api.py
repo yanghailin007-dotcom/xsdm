@@ -1035,6 +1035,7 @@ def generate_storyboard():
             # 获取该重大事件的中级事件
             composition = major_event.get("composition", {})
             medium_events_list = []
+            medium_event_counter = 0  # 全局计数器，用于确定中级事件的顺序
 
             for stage in ["起", "承", "转", "合"]:
                 medium_events = composition.get(stage, [])
@@ -1047,9 +1048,13 @@ def generate_storyboard():
                             "id": episode_id,
                             "title": medium_event.get("name", medium_event.get("title", f"事件{medium_idx}")),
                             "stage": stage,
+                            "stage_idx": stage_idx,
+                            "medium_idx": medium_idx,
+                            "global_order": medium_event_counter,  # 全局顺序
                             "description": medium_event.get("description", ""),
                             "plot_outline": medium_event.get("plot_outline", [])
                         })
+                        medium_event_counter += 1
 
             # 为每个中级事件调用AI生成
             for medium_event in medium_events_list:
@@ -1061,6 +1066,7 @@ def generate_storyboard():
                     "title": medium_event["title"],
                     "stage": medium_event["stage"],
                     "major_event": major_event.get("name", ""),
+                    "major_event_chapter_range": major_event.get("chapter_range", ""),  # 添加章节范围
                     "description": medium_event["description"],
                     "content": medium_event.get("plot_outline", []),
                     "aspect_ratio": aspect_ratio,  # 传递视频方向配置
@@ -1074,65 +1080,53 @@ def generate_storyboard():
                 if storyboard_result:
                     scenes = storyboard_result.get("scenes", [])
 
-                    # 🔥 转换AI生成的格式为前端期望的shot_sequence格式
+                    # 🔥 AI已直接生成shot_sequence格式，无需转换
+                    # 只需按unit(重大事件)组织数据
                     unit_id = f"major_event_{major_idx}"
                     unit_title = major_event.get("name", f"第{major_idx + 1}集")
 
                     if unit_id not in storyboard_by_unit:
                         storyboard_by_unit[unit_id] = {
                             "title": unit_title,
-                            "scenes": []
+                            "scenes": []  # 使用临时列表存储带排序键的场景
                         }
 
-                    # 将AI生成的每个scene转换为一个包含shot_sequence的scene
-                    converted_scene = {
-                        "scene_number": len(storyboard_by_unit[unit_id]["scenes"]) + 1,
-                        "scene_title": medium_event['title'],
-                        "shot_sequence": []
-                    }
-
+                    # AI生成的场景已包含shot_sequence，直接使用
+                    # 为每个场景添加排序键（基于中级事件的顺序）
                     for scene in scenes:
-                        # AI生成的格式: {visual: {...}, dialogue: {...}}
-                        # 转换为: {shot_number, shot_type, ..., visual: {...}, dialogue: {...}}
-                        visual = scene.get("visual", {})
-                        dialogue = scene.get("dialogue", {})
+                        # 确保scene有scene_title
+                        if "scene_title" not in scene:
+                            scene["scene_title"] = medium_event.get('title', '')
 
-                        shot = {
-                            "shot_number": scene.get("scene_number", len(converted_scene["shot_sequence"]) + 1),
-                            "shot_type": visual.get("shot_type", "中景"),
-                            "camera_movement": "固定",
-                            "duration": scene.get("duration", 8),
-                            "description": visual.get("description", ""),
-                            "veo_prompt": visual.get("veo_prompt", ""),
-                            "screen_action": visual.get("description", ""),
-                            "dialogue": dialogue,
-                            "audio_note": dialogue.get("audio_note", ""),
-                            "visual": visual
-                        }
-                        converted_scene["shot_sequence"].append(shot)
+                        # 添加排序键，确保场景按中级事件顺序排列
+                        scene["_sort_key"] = medium_event.get('global_order', 0)
+                        scene["_medium_event_id"] = medium_event['id']
 
-                        # 同时添加到all_ai_shots用于视频生成
-                        all_ai_shots.append({
-                            "shot_index": len(all_ai_shots),
-                            "unit_number": major_idx + 1,
-                            "scene_number": len(storyboard_by_unit[unit_id]["scenes"]) + 1,
-                            "scene_description": visual.get("description", ""),
-                            "shot_number": shot["shot_number"],
-                            "shot_type": shot["shot_type"],
-                            "camera_movement": shot["camera_movement"],
-                            "duration_seconds": shot["duration"],
-                            "description": shot["description"],
-                            "audio_cue": shot["audio_note"],
-                            "veo_prompt": shot["veo_prompt"],
-                            "screen_action": shot["description"],
-                            "dialogue": shot["dialogue"],
-                            "status": "pending",
-                            "visual_style": "写实"
-                        })
+                        # 收集shots用于视频生成
+                        shot_sequence = scene.get("shot_sequence", [])
+                        for shot in shot_sequence:
+                            all_ai_shots.append({
+                                "shot_index": len(all_ai_shots),
+                                "unit_number": major_idx + 1,
+                                "scene_number": scene.get("scene_number", 1),
+                                "scene_description": scene.get("scene_title", ""),
+                                "shot_number": shot.get("shot_number", len(all_ai_shots) + 1),
+                                "shot_type": shot.get("shot_type", "中景"),
+                                "camera_movement": shot.get("camera_movement", "固定"),
+                                "duration_seconds": shot.get("duration_seconds", 8),
+                                "description": shot.get("visual", {}).get("description", ""),
+                                "audio_cue": shot.get("dialogue", {}).get("audio_note", ""),
+                                "veo_prompt": shot.get("veo_prompt", ""),
+                                "screen_action": shot.get("visual", {}).get("description", ""),
+                                "dialogue": shot.get("dialogue", {}),
+                                "status": "pending",
+                                "visual_style": "写实",
+                                "_medium_event_id": medium_event['id']
+                            })
 
-                    storyboard_by_unit[unit_id]["scenes"].append(converted_scene)
+                        storyboard_by_unit[unit_id]["scenes"].append(scene)
 
-                    logger.info(f"✅ [AI分镜头] {medium_event['title']} 生成完成，{len(scenes)} 镜头")
+                    logger.info(f"✅ [AI分镜头] {medium_event['title']} 生成完成，{len(scenes)} 场景，{sum(len(s.get('shot_sequence', [])) for s in scenes)} 镜头")
                 else:
                     logger.warn(f"⚠️ [AI分镜头] {medium_event['title']} 生成失败")
 
@@ -1140,13 +1134,23 @@ def generate_storyboard():
         units = []
         for unit_id, unit_data in storyboard_by_unit.items():
             major_idx = int(unit_id.split("_")[-1])
+
+            # 🔥 按中级事件的顺序对场景进行排序
+            scenes = unit_data.get("scenes", [])
+            scenes.sort(key=lambda s: s.get("_sort_key", 0))
+
+            # 移除临时排序键
+            for scene in scenes:
+                scene.pop("_sort_key", None)
+                scene.pop("_medium_event_id", None)
+
             units.append({
                 "id": unit_id,
                 "unit_number": major_idx + 1,
                 "title": unit_data["title"],
                 "unit_title": unit_data["title"],
                 "storyboard": {
-                    "scenes": unit_data["scenes"]
+                    "scenes": scenes
                 }
             })
 
@@ -5465,6 +5469,7 @@ def _generate_storyboard_with_ai(novel_title: str, episode: dict) -> dict:
     episode_id = to_string(episode.get('id'), '')
     episode_title = to_string(episode.get('title'), '未知标题')
     episode_stage = to_string(episode.get('stage'), '起')
+    major_event_chapter_range = to_string(episode.get('major_event_chapter_range', ''), '')  # 提取章节范围
 
     # 🔥 获取视频方向配置
     aspect_ratio = episode.get('aspect_ratio', '9:16')
@@ -5553,22 +5558,27 @@ def _generate_storyboard_with_ai(novel_title: str, episode: dict) -> dict:
   "scenes": [
     {
       "scene_number": 1,
-      "duration": 8,
-      "visual": {
-        "shot_type": "镜头类型（特写/中景/全景/推近/拉远/跟拍/摇镜头/主观视角/俯拍/仰拍）",
-        "description": "画面动作描述（具体、可拍摄）",
-        "veo_prompt": "AI视频生成提示词（直接使用角色名，如：林战，身穿兽皮战甲，面容震撼，站在画面中央，背景是祠堂）"
-      },
-      "dialogue": {
-        "speaker": "说话角色名（无台词填'无'）",
-        "lines": "角色台词内容（中文，无台词填空字符串''）",
-        "lines_en": "English subtitle translation for lip-sync (translate the lines to natural English, empty string if no dialogue)",
-        "tone": "语气描述（如：愤怒、温柔、紧张等）",
-        "tone_en": "English translation of tone (e.g. 'angry', 'gentle', 'nervous')",
-        "audio_note": "音效/BGM描述",
-        "audio_note_en": "English translation of audio note (e.g. 'heavy breathing, bone friction sound')"
-      },
-      "plot_content": "对应的情节点内容"
+      "scene_title": "场景标题（简洁概括此场景内容）",
+      "shot_sequence": [
+        {
+          "shot_number": 1,
+          "shot_type": "镜头类型（特写/中景/全景/推近/拉远/跟拍/摇镜头/主观视角/俯拍/仰拍）",
+          "veo_prompt": "AI视频生成提示词（直接使用角色名，如：林战，身穿兽皮战甲，面容震撼，站在画面中央，背景是祠堂）",
+          "dialogue": {
+            "speaker": "说话角色名（无台词填'无'）",
+            "lines": "角色台词内容（中文，无台词填空字符串''）",
+            "lines_en": "English subtitle translation for lip-sync (translate the lines to natural English, empty string if no dialogue)",
+            "tone": "语气描述（如：愤怒、温柔、紧张等）",
+            "tone_en": "English translation of tone (e.g. 'angry', 'gentle', 'nervous')",
+            "audio_note": "音效/BGM描述",
+            "audio_note_en": "English translation of audio note (e.g. 'heavy breathing, bone friction sound')"
+          },
+          "visual": {
+            "description": "画面动作描述（具体、可拍摄）"
+          },
+          "duration_seconds": 8
+        }
+      ]
     }
   ],
   "ending_hook": "结尾悬念或爽点"
@@ -5576,25 +5586,25 @@ def _generate_storyboard_with_ai(novel_title: str, episode: dict) -> dict:
 ```
 
 **⚠️ 对话场景特殊格式**：
-当场景是角色之间的对话时，使用以下格式：
+当镜头是角色之间的对话时，dialogue字段使用dialogues数组格式：
 ```json
 {
-  "scene_number": 3,
-  "duration": 16,
-  "visual": {...},
+  "shot_number": 3,
+  "shot_type": "中景",
+  "veo_prompt": "两人对峙画面...",
   "dialogues": [
     {"speaker": "林战", "lines": "你还是离开林家吧。", "lines_en": "You should leave the Lin family.", "tone": "严肃", "tone_en": "serious", "audio_note": "...", "audio_note_en": "..."},
     {"speaker": "叶凡", "lines": "我偏不。", "lines_en": "I won't.", "tone": "坚定", "tone_en": "firm", "audio_note": "...", "audio_note_en": "..."},
     {"speaker": "林战", "lines": "那就别怪我。", "lines_en": "Then don't blame me.", "tone": "冷漠", "tone_en": "cold", "audio_note": "...", "audio_note_en": "..."}
   ],
-  "plot_content": "情节点描述"
+  "duration_seconds": 16
 }
 ```
 
 注意：
-- 对话场景使用 `dialogues`（复数）而不是 `dialogue`（单数）
+- 每个场景(scene)包含一个shot_sequence数组，数组中包含多个镜头(shot)
+- 对话镜头使用 `dialogues`（复数）数组，包含多句对话
 - 同一镜头中的多句台词，画面保持不变，只显示不同角色说话
-- 音频文件命名规则：`镜头号_事件名_对话序号_角色.mp3`
 - **重要**：每个对话必须包含 `lines_en` 英文翻译，用于AI视频生成时的口型同步
 
 【veo_prompt编写规范】
@@ -5736,7 +5746,7 @@ def _generate_storyboard_with_ai(novel_title: str, episode: dict) -> dict:
         logger.info(f"✅ [AI分镜头] AI生成成功，场景数: {len(storyboard_data.get('scenes', []))}")
 
         # 保存生成的分镜头到文件（按重大事件组织目录）
-        _save_storyboard_to_file(novel_title, event_name, episode_id, storyboard_data, major_event_name)
+        _save_storyboard_to_file(novel_title, event_name, episode_id, storyboard_data, major_event_name, major_event_chapter_range)
 
         return storyboard_data
 
@@ -5880,7 +5890,7 @@ def _extract_appearance_brief(character: dict) -> str:
         return character.get('name', '角色')  # 回退到角色名
 
 
-def _save_storyboard_to_file(novel_title: str, event_name: str, episode_id: str, storyboard_data: dict, major_event_name: str = ''):
+def _save_storyboard_to_file(novel_title: str, event_name: str, episode_id: str, storyboard_data: dict, major_event_name: str = '', chapter_range: str = ''):
     """
     保存分镜头数据到文件
 
@@ -5890,6 +5900,7 @@ def _save_storyboard_to_file(novel_title: str, event_name: str, episode_id: str,
         episode_id: 剧集ID（如：major_event_0_event_0_0）
         storyboard_data: 分镜头数据
         major_event_name: 重大事件名称（用于创建子目录）
+        chapter_range: 章节范围（如：第1-3章）用于文件名
     """
     try:
         import re
@@ -5903,6 +5914,7 @@ def _save_storyboard_to_file(novel_title: str, event_name: str, episode_id: str,
         episode_id = to_string(episode_id, '')
         event_name = to_string(event_name, '未知事件')
         major_event_name = to_string(major_event_name, '')
+        chapter_range = to_string(chapter_range, '')  # 章节范围
         novel_title = to_string(novel_title, '未知小说')
 
         # 🔥 根据episode_id确定重大事件序号，用于组织目录结构
@@ -5925,9 +5937,13 @@ def _save_storyboard_to_file(novel_title: str, event_name: str, episode_id: str,
         save_dir = Path('视频项目') / novel_title / sub_dir_name / 'storyboards'
         save_dir.mkdir(parents=True, exist_ok=True)
 
-        # 生成文件名：{事件名称}.json（不带时间戳）
+        # 生成文件名：{事件名称}[章节范围].json
         safe_event_name = re.sub(r'[<>:"/\\|?*]', '_', event_name)
-        filename = f"{safe_event_name}.json"
+        safe_chapter_range = re.sub(r'[<>:"/\\|?*]', '_', chapter_range) if chapter_range else ''
+        if safe_chapter_range:
+            filename = f"{safe_event_name}_[{safe_chapter_range}].json"
+        else:
+            filename = f"{safe_event_name}.json"
         filepath = save_dir / filename
 
         # 保存数据
