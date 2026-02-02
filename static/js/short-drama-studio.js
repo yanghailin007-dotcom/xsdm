@@ -1674,7 +1674,12 @@ class ShortDramaStudio {
 
         const allShots = [];
 
+        // 🔥 按章节顺序提取镜头（Object.entries在现代JS中保持插入顺序）
+        // 后端已经按文件名中的章节号排序返回
         for (const [epId, epData] of Object.entries(storyboard)) {
+            // 从文件名中提取事件名（去掉章节范围后缀）
+            // 文件名格式: 事件名_[第X-Y章].json 或 事件名.json
+            const eventName = epId.replace(/\[第\d+(?:-\d+)?章\]/, '').trim();
             const scenes = epData.scenes || [];
             for (const scene of scenes) {
                 const shots = scene.shot_sequence || [];
@@ -1683,7 +1688,8 @@ class ShortDramaStudio {
                         allShots.push({
                             ...shot,
                             episode_id: epId,
-                            episode_title: epData.title,
+                            episode_title: eventName,  // 使用从文件名提取的事件名
+                            event_name: eventName,
                             scene_title: scene.scene_title
                         });
                     }
@@ -1714,8 +1720,9 @@ class ShortDramaStudio {
                         <div class="shot-info">
                             <div class="shot-type">${shot.shot_type || '镜头'}</div>
                             <div class="shot-duration">⏱️ ${shot.duration || 5}秒</div>
+                            <div class="shot-episode" style="font-size: 0.75rem; color: var(--text-tertiary);">${shot.episode_title || ''}</div>
                             <div class="shot-desc">${shot.veo_prompt?.substring(0, 100)}...</div>
-                            ${shot._dialogue_data && shot._dialogue_data.speaker ? `<div class="shot-dialogue" style="font-size: 0.7rem; color: var(--accent); margin-top: 4px;">💬 ${shot._dialogue_data.speaker}: ${shot._dialogue_data.lines?.substring(0, 20) || ''}...</div>` : ''}
+                            ${shot._dialogue_data && shot._dialogue_data.speaker ? `<div class="shot-dialogue" style="font-size: 0.75rem; color: var(--accent);">💬 ${shot._dialogue_data.speaker}: ${shot._dialogue_data.lines?.substring(0, 30) || ''}...</div>` : ''}
                         </div>
                         <button class="btn btn-sm btn-primary" onclick="shortDramaStudio.generateShotVideo(${idx})">生成视频</button>
                     </div>

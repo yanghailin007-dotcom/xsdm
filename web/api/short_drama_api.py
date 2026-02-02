@@ -368,9 +368,30 @@ def get_storyboards():
                 'storyboards': {}
             })
 
-        # 扫描分镜头文件
+        # 扫描分镜头文件并按章节顺序排序
+        import re
+
+        storyboard_files = list(storyboard_dir.glob('*.json'))
+
+        def extract_chapter_number(filepath):
+            """从文件名中提取章节号用于排序
+            文件名格式: 事件名_[第X-Y章].json 或 事件名_[第X章].json
+            返回起始章节号，无章节信息则返回大数排在后面
+            """
+            name = filepath.stem
+            # 匹配 [第X章] 或 [第X-Y章]
+            match = re.search(r'\[第(\d+)(?:-\d+)?章\]', name)
+            if match:
+                return int(match.group(1))
+            # 没有章节信息的文件，返回大数排在后面
+            return 999999
+
+        # 按章节号排序文件
+        storyboard_files.sort(key=extract_chapter_number)
+
+        # 按顺序加载分镜头
         storyboards = {}
-        for json_file in storyboard_dir.glob('*.json'):
+        for json_file in storyboard_files:
             try:
                 with open(json_file, 'r', encoding='utf-8') as f:
                     data = json.load(f)
@@ -380,7 +401,7 @@ def get_storyboards():
             except Exception as e:
                 logger.error(f'读取分镜头文件失败 {json_file}: {e}')
 
-        logger.info(f'📜 [分镜头] 加载了 {len(storyboards)} 个分镜头文件')
+        logger.info(f'📜 [分镜头] 加载了 {len(storyboards)} 个分镜头文件（按章节顺序）')
 
         return jsonify({
             'success': True,
