@@ -5933,7 +5933,9 @@ def _save_storyboard_to_file(novel_title: str, event_name: str, episode_id: str,
             safe_major_name = re.sub(r'[<>:"/\\|?*]', '_', major_event_name[:30])  # 限制长度
             sub_dir_name = f"{major_idx + 1}集_{safe_major_name}"
         else:
-            sub_dir_name = f"{major_idx + 1}集"
+            # 回退方案：使用事件名创建唯一目录
+            safe_event_name = re.sub(r'[<>:"/\\|?*]', '_', event_name[:30])
+            sub_dir_name = f"{major_idx + 1}集_{safe_event_name}"
 
         # 创建保存目录：视频项目/小说名/X集_重大事件名/storyboards/
         save_dir = Path('视频项目') / novel_title / sub_dir_name / 'storyboards'
@@ -5965,44 +5967,6 @@ def _save_storyboard_to_file(novel_title: str, event_name: str, episode_id: str,
         logger.error(f"❌ [AI分镜头] 保存分镜头文件失败: {e}")
         logger.error(f"📋 完整堆栈:\n{traceback.format_exc()}")
         logger.error(f"📋 参数类型: novel_title={type(novel_title)}, event_name={type(event_name)}, major_event_name={type(major_event_name)}")
-
-
-def _save_ai_storyboard_to_file(novel_title: str, event_title: str, storyboard_data: dict, unit_number: int) -> None:
-    """
-    保存AI生成的原始分镜头数据到文件
-
-    Args:
-        novel_title: 小说标题
-        event_title: 事件标题
-        storyboard_data: AI生成的分镜头数据
-        unit_number: 集数
-    """
-    try:
-        from pathlib import Path
-
-        # 使用与short_drama_api相同的目录
-        VIDEO_PROJECTS_DIR = BASE_DIR / '视频项目'
-        novel_dir = VIDEO_PROJECTS_DIR / novel_title
-        novel_dir.mkdir(exist_ok=True)
-
-        # 找到对应的重大事件目录
-        for item in novel_dir.iterdir():
-            if item.is_dir() and item.name.startswith(f"{unit_number}集"):
-                episode_dir = item / "storyboards"
-                episode_dir.mkdir(exist_ok=True)
-
-                # 保存AI原始分镜头数据
-                safe_title = re.sub(r'[<>:"/\\|?*]', '_', event_title)
-                filepath = episode_dir / f"{safe_title}.json"
-
-                with open(filepath, 'w', encoding='utf-8') as f:
-                    json.dump(storyboard_data, f, ensure_ascii=False, indent=2)
-
-                logger.info(f'💾 [AI分镜头] 保存原始分镜头: {filepath}')
-                break
-
-    except Exception as e:
-        logger.error(f'❌ [AI分镜头] 保存原始分镜头失败: {e}')
 
 
 def _load_storyboard_file(novel_title: str, event_name: str, episode_id: str = '') -> dict:
