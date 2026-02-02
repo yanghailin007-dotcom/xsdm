@@ -86,7 +86,10 @@ def get_eligible_novels():
     try:
         if not manager:
             return jsonify({"success": False, "error": "管理器未初始化"}), 500
-        
+
+        # 🔥 刷新项目列表，确保新创建的项目能被加载
+        manager.load_existing_novels()
+
         # 获取所有小说项目
         all_projects = manager.get_novel_projects()
         
