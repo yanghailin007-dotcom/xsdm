@@ -1698,30 +1698,17 @@ class ShortDramaStudio {
 
         const allShots = [];
 
-        // 🔥 修复：按照 selectedEpisodes 的顺序处理事件
+        // 🔥 直接使用后端返回的顺序（后端已通过[起][承][合]标记排序）
+        // 不再使用 selectedEpisodes 排序，因为其中的 id 与 storyboard key 不匹配
         const storyboardEntries = Object.entries(storyboard);
-        const sortedEntries = [];
-        const processedEpIds = new Set();
 
-        // 首先添加在 selectedEpisodes 中的条目（按选择顺序）
-        for (const epId of this.selectedEpisodes) {
-            const idx = storyboardEntries.findIndex(([key]) => key === epId);
-            if (idx !== -1) {
-                sortedEntries.push(storyboardEntries[idx]);
-                processedEpIds.add(epId);
-            }
-        }
-
-        // 然后添加不在 selectedEpisodes 中的条目
-        for (const entry of storyboardEntries) {
-            const epId = entry[0];
-            if (!processedEpIds.has(epId)) {
-                sortedEntries.push(entry);
-            }
-        }
+        console.log('📂 [storyboard] 后端返回的顺序:');
+        storyboardEntries.forEach(([key, data]) => {
+            console.log(`  - ${key} -> ${data._display_name || key}`);
+        });
 
         // 🔥 按章节顺序提取镜头
-        sortedEntries.forEach(([epId, epData], epIndex) => {
+        storyboardEntries.forEach(([epId, epData], epIndex) => {
             // 🔥 优先使用后端提供的显示名称
             const eventName = epData._display_name || epId;
 
@@ -1748,7 +1735,7 @@ class ShortDramaStudio {
                             episode_title: eventName,  // 使用后端提供的显示名称
                             event_name: eventName,
                             scene_title: scene.scene_title,
-                            // 🔥 添加 episode_order 用于排序
+                            // 🔥 添加 episode_order 用于排序（直接使用后端顺序）
                             episode_order: epIndex
                         });
                     }
