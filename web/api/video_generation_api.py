@@ -5355,9 +5355,15 @@ def _generate_storyboard_with_ai(novel_title: str, episode: dict) -> dict:
         logger.error("❌ AI客户端未初始化，无法使用AI生成分镜头")
         return None
 
-    episode_id = episode.get('id', '')
-    episode_title = episode.get('title', '未知标题')
-    episode_stage = episode.get('stage', '起')
+    # 🔥 确保参数是字符串类型（可能是字典）
+    def to_string(value, default=''):
+        if isinstance(value, dict):
+            return value.get('zh', value.get('title', value.get('id', str(value))))
+        return str(value) if value else default
+
+    episode_id = to_string(episode.get('id'), '')
+    episode_title = to_string(episode.get('title'), '未知标题')
+    episode_stage = to_string(episode.get('stage'), '起')
 
     logger.info(f"🤖 [AI分镜头] 开始为剧集生成AI分镜头: {episode_title}")
     logger.info(f"   小说: {novel_title}")
@@ -5742,9 +5748,10 @@ def _save_storyboard_to_file(novel_title: str, event_name: str, episode_id: str,
         # 🔥 确保参数是字符串类型（可能是字典）
         def to_string(value, default=''):
             if isinstance(value, dict):
-                return value.get('zh', value.get('title', str(value)))
+                return value.get('zh', value.get('title', value.get('id', str(value))))
             return str(value) if value else default
 
+        episode_id = to_string(episode_id, '')
         event_name = to_string(event_name, '未知事件')
         major_event_name = to_string(major_event_name, '')
         novel_title = to_string(novel_title, '未知小说')
