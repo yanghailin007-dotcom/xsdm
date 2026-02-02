@@ -506,6 +506,11 @@ class ShortDramaStudio {
 
         this.selectedMajorEvent = event;
 
+        // 🔥 调试：输出重大事件的完整数据
+        console.log('📺 [工作流] 重大事件完整数据:', JSON.stringify(event, null, 2));
+        console.log('📺 [工作流] 子事件数量:', event.children?.length || 0);
+        console.log('📺 [工作流] 子事件数据:', event.children);
+
         // 更新选中状态
         document.querySelectorAll('.major-event-option').forEach(opt => {
             opt.classList.remove('selected');
