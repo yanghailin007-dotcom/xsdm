@@ -401,6 +401,10 @@ def get_storyboards():
         storyboards = {}
         for json_file in storyboard_files:
             try:
+                # 记录排序键用于调试
+                sort_key = extract_sort_key(json_file)
+                logger.info(f"📂 文件: {json_file.name} -> 排序键: 章节{sort_key[0]}, 阶段{sort_key[1]}")
+
                 with open(json_file, 'r', encoding='utf-8') as f:
                     data = json.load(f)
                     # 使用文件名（不含扩展名）作为 key
