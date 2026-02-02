@@ -1480,7 +1480,7 @@ class ShortDramaStudio {
                 episode_title: title,
                 event_name: title,  // 事件名用于文件命名
                 episode_index: episodeNumber,
-                episode_order: selectedIndex === -1 ? 9999 : selectedIndex,
+                episode_order: order,
                 audio: dialogue.audio_note || shot.audio || ''
             };
         } else {
@@ -1490,7 +1490,7 @@ class ShortDramaStudio {
                 episode_title: title,
                 event_name: shot.event_name || title,  // 确保有 event_name
                 episode_index: episodeNumber,
-                episode_order: selectedIndex === -1 ? 9999 : selectedIndex
+                episode_order: order
             };
         }
     }
