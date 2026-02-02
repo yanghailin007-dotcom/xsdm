@@ -830,10 +830,18 @@ def _save_storyboard_to_file(novel_title: str, video_type: str, storyboard: Dict
         units = storyboard.get("units", [])
         for idx, unit in enumerate(units):
             unit_number = unit.get("unit_number", idx + 1)
-            unit_title = unit.get("title", unit.get("unit_title", f"第{unit_number}集"))
+            # 🔥 title可能是字典，需要提取实际的标题字符串
+            title_value = unit.get("title", unit.get("unit_title", f"第{unit_number}集"))
+            if isinstance(title_value, dict):
+                unit_title = title_value.get("zh", title_value.get("title", str(title_value)))
+            else:
+                unit_title = str(title_value) if title_value else f"第{unit_number}集"
 
             # 剧集目录名格式: {unit_number}集_{unit_title}
-            episode_dir_name = f"{unit_number}集_{unit_title}"
+            # 清理目录名中的非法字符
+            import re
+            clean_title = re.sub(r'[<>:"/\\|?*]', '_', unit_title)
+            episode_dir_name = f"{unit_number}集_{clean_title}"
             episode_dir = novel_dir / episode_dir_name
             episode_dir.mkdir(exist_ok=True)
 
@@ -847,6 +855,19 @@ def _save_storyboard_to_file(novel_title: str, video_type: str, storyboard: Dict
                 "total_shots": len([s for s in shots if s.get("unit_number") == unit_number]),
                 "created_at": datetime.now().isoformat()
             }
+
+            # 🔥 确保所有数据都是JSON可序列化的
+            def make_serializable(obj):
+                if isinstance(obj, dict):
+                    return {k: make_serializable(v) for k, v in obj.items()}
+                elif isinstance(obj, list):
+                    return [make_serializable(item) for item in obj]
+                elif isinstance(obj, (datetime, type(None))):
+                    return str(obj) if obj else None
+                else:
+                    return obj
+
+            storyboard_data = make_serializable(storyboard_data)
 
             with open(storyboard_file, 'w', encoding='utf-8') as f:
                 json.dump(storyboard_data, f, ensure_ascii=False, indent=2)
