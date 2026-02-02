@@ -1844,28 +1844,31 @@ class ShortDramaStudio {
                     const shot = this.shots[i];
                     const episodeTitle = shot.episode_title || '';
                     const shotNumber = shot.shot_number || (i + 1);
+                    const sceneNumber = shot.scene_number || 1;
                     const shotType = shot.shot_type || '';
 
-                    console.log(`🔍 镜头 #${i + 1}: episode="${episodeTitle}", shot_number=${shotNumber}, shot_type="${shotType}"`);
+                    console.log(`🔍 镜头 #${i + 1}: episode="${episodeTitle}", scene_number=${sceneNumber}, shot_number=${shotNumber}, shot_type="${shotType}"`);
 
                     // 🔥 在所有视频中查找匹配的视频
                     let matchedVideo = null;
                     for (const video of data.videos) {
-                        // 新格式视频有 episode_name 字段
+                        // 新格式视频有 episode_name 和 scene_number 字段
                         const videoEpisodeName = video.episode_name || video.storyboard_key || '';
-                        const videoSeq = video.sequence;
                         const videoSceneNum = video.scene_number || 0;
                         const videoShotType = video.shot_type || '';
 
-                        // 检查章节名是否匹配
-                        if (videoEpisodeName === episodeTitle || videoEpisodeName.startsWith(episodeTitle)) {
-                            // 进一步检查shot_type（可选）
-                            if (!shotType || videoShotType.includes(shotType.replace('/', '_')) || shotType.includes(videoShotType)) {
+                        // 🔥 优先使用 scene_number 匹配（最可靠）
+                        if (videoSceneNum === sceneNumber) {
+                            // 再检查事件名是否匹配（包含关系即可）
+                            const eventMatches = videoEpisodeName.includes(episodeTitle) ||
+                                                 episodeTitle.includes(videoEpisodeName) ||
+                                                 videoEpisodeName === episodeTitle;
+                            if (eventMatches) {
                                 matchedVideo = video;
-                                console.log(`   ✅ 匹配成功!`);
+                                console.log(`   ✅ 匹配成功! scene_number=${sceneNumber}, event="${videoEpisodeName}"`);
                                 break;
                             } else {
-                                console.log(`   ⚠️ shot_type不匹配: 需要"${shotType}", video有"${videoShotType}"`);
+                                console.log(`   ⚠️ scene_number匹配但事件名不匹配: video event="${videoEpisodeName}", shot event="${episodeTitle}"`);
                             }
                         }
                     }

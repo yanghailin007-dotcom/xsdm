@@ -763,7 +763,8 @@ def list_videos():
             import re
 
             # 尝试匹配新格式
-            new_match = re.match(r'^(\d+)_(\d+)_(.+?)_对话(\d+)_(.+?)_(\d+)$', name)
+            # 使用贪婪匹配(.+)确保事件名正确解析（事件名可能包含下划线）
+            new_match = re.match(r'^(\d+)_(\d+)_(.+)_对话(\d+)_(.+?)_(\d+)$', name)
             if new_match:
                 episode_num = int(new_match.group(1))
                 scene_num = int(new_match.group(2))
