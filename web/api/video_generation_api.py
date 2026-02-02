@@ -6064,27 +6064,53 @@ def _load_storyboard_file(novel_title: str, event_name: str, episode_id: str = '
             possible_paths.append(path2)
 
         # 查找匹配的文件
+        # 🔥 文件名可能是：事件名.json 或 事件名_[章节][阶段].json
         safe_event_name = re.sub(r'[<>:"/\\|?*]', '_', event_name)
-        filename = f"{safe_event_name}.json"
+
+        # 可能的文件名格式
+        possible_filenames = [
+            f"{safe_event_name}.json",  # 基础格式
+            # 带章节和阶段的格式（通配符匹配）
+        ]
 
         for search_dir in possible_paths:
-            filepath = search_dir / filename
-            if filepath.exists():
-                logger.info(f"📂 [AI分镜头] 找到已保存的分镜头: {filepath}")
+            # 先尝试精确匹配
+            for filename in possible_filenames:
+                filepath = search_dir / filename
+                if filepath.exists():
+                    logger.info(f"📂 [AI分镜头] 找到已保存的分镜头: {filepath}")
 
-                with open(filepath, 'r', encoding='utf-8') as f:
-                    storyboard_data = json.load(f)
+                    with open(filepath, 'r', encoding='utf-8') as f:
+                        storyboard_data = json.load(f)
 
-                # 检查是否有角色参考图信息
-                character_images = storyboard_data.get('character_images', [])
-                if character_images:
-                    logger.info(f"✅ [AI分镜头] 已加载现有分镜头 (包含{len(character_images)}个角色)")
-                else:
-                    logger.info(f"✅ [AI分镜头] 已加载现有分镜头 (旧格式)")
+                    # 检查是否有角色参考图信息
+                    character_images = storyboard_data.get('character_images', [])
+                    if character_images:
+                        logger.info(f"✅ [AI分镜头] 已加载现有分镜头 (包含{len(character_images)}个角色)")
+                    else:
+                        logger.info(f"✅ [AI分镜头] 已加载现有分镜头 (旧格式)")
 
-                return storyboard_data
+                    return storyboard_data
 
-        logger.info(f"📂 [AI分镜头] 未找到已保存的分镜头: {filename}")
+            # 如果精确匹配失败，尝试通配符匹配（查找以事件名开头的文件）
+            if search_dir.exists():
+                for json_file in search_dir.glob('*.json'):
+                    # 检查文件名是否以事件名开头（允许后面有章节、阶段等后缀）
+                    if json_file.stem.startswith(safe_event_name):
+                        logger.info(f"📂 [AI分镜头] 找到匹配的分镜头文件: {json_file.name}")
+
+                        with open(json_file, 'r', encoding='utf-8') as f:
+                            storyboard_data = json.load(f)
+
+                        character_images = storyboard_data.get('character_images', [])
+                        if character_images:
+                            logger.info(f"✅ [AI分镜头] 已加载现有分镜头 (包含{len(character_images)}个角色)")
+                        else:
+                            logger.info(f"✅ [AI分镜头] 已加载现有分镜头 (旧格式)")
+
+                        return storyboard_data
+
+        logger.info(f"📂 [AI分镜头] 未找到已保存的分镜头: {safe_event_name}")
         return None
 
     except Exception as e:
