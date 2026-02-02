@@ -4980,6 +4980,92 @@ def _generate_shot_type_sequence(num_plots: int, stage: str) -> list:
     return sequence
 
 
+def _generate_relationship_state(episode_title: str, event_description: str = None) -> str:
+    """
+    根据事件标题和描述生成人物与环境关系状态描述
+
+    Args:
+        episode_title: 事件标题
+        event_description: 事件描述（可选）
+
+    Returns:
+        关系状态描述字符串
+    """
+    # 关键词与对应关系状态的映射
+    relationship_keywords = {
+        # 战斗相关 - 对峙/战斗
+        '战斗': '对峙状态，剑拔弩张，杀气腾腾，',
+        '激战': '激烈战斗，能量碰撞，场面震撼，',
+        '对决': '生死对决，双方对峙，张力十足，',
+        '交锋': '交锋对峙，火花四溅，',
+        '厮杀': '激烈厮杀，血肉横飞，',
+        '攻击': '主动攻击，气势汹汹，',
+        '反击': '奋力反击，不甘示弱，',
+        '防御': '严阵以待，防御姿态，',
+
+        # 追逐/逃亡相关 - 逼近/逃跑
+        '追杀': '危险逼近，生死追杀，',
+        '追击': '紧追不舍，逼近状态，',
+        '逃亡': '仓皇逃亡，危险紧迫，',
+        '逃跑': '慌不择路，紧迫逃亡，',
+        '逃离': '紧急撤离，后有追兵，',
+        '追逐': '激烈追逐，前后拉锯，',
+
+        # 围困相关 - 包围
+        '包围': '陷入包围，四面楚歌，',
+        '围困': '被围困中，寻找破局，',
+        '困': '陷入困境，绝境求生，',
+        '围攻': '遭受围攻，岌岌可危，',
+
+        # 狩猎/猎杀相关 - 狩猎
+        '猎杀': '冷静狩猎，掌控局势，',
+        '狩猎': '潜伏狩猎，蓄势待发，',
+        '猎物': '猎杀时刻，占据上风，',
+        '捕猎': '精心捕猎，步步紧逼，',
+
+        # 观察/潜行相关 - 观察
+        '观察': '暗中观察，冷静分析，',
+        '监视': '监视评估，战术分析，',
+        '潜行': '潜行靠近，谨慎观察，',
+        '埋伏': '设伏埋击，静待时机，',
+
+        # 危险/威胁相关 - 逼近/威胁
+        '危险': '危险逼近，紧张氛围，',
+        '威胁': '面临威胁，压迫感强，',
+        '逼近': '威胁逼近，一触即发，',
+        '袭击': '突袭逼近，猝不及防，',
+        '偷袭': '暗处偷袭，危机四伏，',
+
+        # 绝境/生死相关 - 绝望对峙
+        '绝境': '绝境求生，背水一战，',
+        '生死': '生死攸关，紧张对峙，',
+        '濒死': '濒死状态，绝地反击，',
+    }
+
+    # 检查事件标题中的关键词
+    title_lower = episode_title.lower()
+    for keyword, state in relationship_keywords.items():
+        if keyword in episode_title:
+            return state
+
+    # 检查事件描述中的关键词
+    if event_description:
+        for keyword, state in relationship_keywords.items():
+            if keyword in event_description:
+                return state
+
+    # 默认：根据标题内容推断
+    if any(word in episode_title for word in ['变异', '怪物', '敌人', '对手', '仇人']):
+        return '与威胁对峙，剑拔弩张，'
+    elif any(word in episode_title for word in ['逃', '躲', '避']):
+        return '危险逼近，紧急逃亡，'
+    elif any(word in episode_title for word in ['杀', '猎', '捕']):
+        return '占据主动，掌控局势，'
+
+    # 默认返回空字符串
+    return ''
+
+
 def _generate_veo_prompt(shot_type: str, scene_title: str, episode_title: str, stage: str,
                           event_description: str, event_location: str,
                           characters: list, main_characters: list,
@@ -5002,27 +5088,40 @@ def _generate_veo_prompt(shot_type: str, scene_title: str, episode_title: str, s
         Veo 3提示语字符串（中文）
     """
     # 基础镜头提示语模板（中文）- 针对短剧优化
+    # 🔥 新增关系状态描述（人物与环境/威胁的关系）
+    relationship_templates = {
+        # 对峙状态
+        '对峙': '{character}与{threat}呈对峙状态，{tension}。战斗一触即发，压迫感十足。',
+        '逼近': '{threat}正在逼近{character}，危险迫在眉睫，{reaction}。紧张氛围拉满。',
+        '包围': '{character}被{threat}包围，绝望中寻找破局机会，{action}。',
+        '战斗': '{character}与{threat}激烈交战，{combat}。场面震撼，充满张力。',
+        '逃跑': '{character}在{threat}追击下逃亡，危险紧迫，惊心动魄。',
+        '狩猎': '{character}冷静狩猎{threat}，占据上风，掌控局势，猎杀时刻。',
+        '观察': '{character}暗中观察{threat}，评估威胁等级，冷静分析战术。'
+    }
+
     shot_prompts = {
-        '全景': '{location}全景镜头。{atmosphere}。电影级灯光，专业色彩分级，展现空间层次感。仙侠修真风格，飘渺仙气，古风建筑，飘逸长袍，灵气流转的视觉效果。',
-        '中景': '{characters}中景镜头，腰部以上构图。{action}。专业电影灯光，浅景深，人物动作清晰自然。',
-        '特写': '人物面部特写，{emotion}。戏剧性侧光照明，高对比度，超细节纹理捕捉，电影级人像质感。',
-        '拉远': '拉远镜头展现{location}全貌。景深扩大，空间环境层次分明，专业运镜配合大气透视效果。',
-        '推镜头': '缓慢推进镜头聚焦{subject}。浅景深效果，电影级推轨移动，边缘渐晕虚化突出主体。',
-        '跟拍': '跟随{character}移动的跟拍镜头。稳定器防抖，动态运镜，自然运动模糊，环境信息丰富。',
-        '摇镜头': '{location}横摇扫描镜头。平滑水平移动展现场景细节，大气深度感，专业空间感知。',
-        '升降': '{location}升降镜头展现垂直层次。垂直运镜展示空间关系和尺度感，电影级视觉效果。',
-        '仰拍': '仰视{character}的低角度镜头。强化威严感和力量感，戏剧性天空背景，镜头光晕特效。',
-        '固定': '固定机位拍摄{scene}。三脚架稳定构图，自然光照明，专业色彩还原。',
-        '慢镜头': '{emotion}慢动作镜头。高帧率捕捉，平滑运动，戏剧性时间延展，情感张力十足。',
-        '淡出': '{scene}淡出转场。渐进式亮度降低，平滑结束场景，专业色彩时间调校。',
-        '急推': '急速推进{subject}。快速推轨移动制造冲击力，焦点变换，戏剧性张力爆发。',
-        '甩镜头': '急速甩摇展现{scene}。快速水平运动模糊，动态能量，戏剧性视觉效果。',
-        '晃动': '手持晃动镜头表现{action}。纪录片风格混乱感，自然运动模糊，紧张氛围营造。',
-        '快速切换': '快速剪辑展现{action}。快节奏编辑，动态角度，高能量运动，专业动作摄影。',
-        '主观视角': '{scene}第一人称视角。沉浸式体验，自然头部运动，深度感和临场感。',
-        '爆炸': '{location}爆炸特效。高冲击力视觉特效，戏剧性灯光，粒子效果和冲击波细节。',
-        '拉镜头': '拉远镜头展现{location}。构图扩展展示环境，深度层次分明，空间关系清晰。',
-        '慢动作': '{action}慢动作特写。高FPS捕捉，细节运动保留，戏剧性时间控制。'
+        '全景': '{location}全景镜头。{atmosphere}。{relationship_state}电影级灯光，专业色彩分级，展现空间层次感。',
+        '中景': '{characters}中景镜头，腰部以上构图。{action}。{relationship_state}专业电影灯光，浅景深，人物动作清晰自然。',
+        '特写': '人物面部特写，{emotion}。{relationship_state}戏剧性侧光照明，高对比度，超细节纹理捕捉，电影级人像质感。',
+        '特写转全景': '{character}特写，{emotion}。随后镜头拉远至全景，{relationship_state}视觉冲击力强，戏剧性运镜。',
+        '拉远': '拉远镜头展现{location}全貌。{relationship_state}景深扩大，空间环境层次分明，专业运镜配合大气透视效果。',
+        '推镜头': '缓慢推进镜头聚焦{subject}。{relationship_state}浅景深效果，电影级推轨移动，边缘渐晕虚化突出主体。',
+        '跟拍': '跟随{character}移动的跟拍镜头。{relationship_state}稳定器防抖，动态运镜，自然运动模糊，环境信息丰富。',
+        '摇镜头': '{location}横摇扫描镜头。{relationship_state}平滑水平移动展现场景细节，大气深度感，专业空间感知。',
+        '升降': '{location}升降镜头展现垂直层次。{relationship_state}垂直运镜展示空间关系和尺度感，电影级视觉效果。',
+        '仰拍': '仰视{character}的低角度镜头。{relationship_state}强化威严感和力量感，戏剧性天空背景，镜头光晕特效。',
+        '固定': '固定机位拍摄{scene}。{relationship_state}三脚架稳定构图，自然光照明，专业色彩还原。',
+        '慢镜头': '{emotion}慢动作镜头。{relationship_state}高帧率捕捉，平滑运动，戏剧性时间延展，情感张力十足。',
+        '淡出': '{scene}淡出转场。{relationship_state}渐进式亮度降低，平滑结束场景，专业色彩时间调校。',
+        '急推': '急速推进{subject}。{relationship_state}快速推轨移动制造冲击力，焦点变换，戏剧性张力爆发。',
+        '甩镜头': '急速甩摇展现{scene}。{relationship_state}快速水平运动模糊，动态能量，戏剧性视觉效果。',
+        '晃动': '手持晃动镜头表现{action}。{relationship_state}纪录片风格混乱感，自然运动模糊，紧张氛围营造。',
+        '快速切换': '快速剪辑展现{action}。{relationship_state}快节奏编辑，动态角度，高能量运动，专业动作摄影。',
+        '主观视角': '{scene}第一人称视角。{relationship_state}沉浸式体验，自然头部运动，深度感和临场感。',
+        '爆炸': '{location}爆炸特效。{relationship_state}高冲击力视觉特效，戏剧性灯光，粒子效果和冲击波细节。',
+        '拉镜头': '拉远镜头展现{location}。{relationship_state}构图扩展展示环境，深度层次分明，空间关系清晰。',
+        '慢动作': '{action}慢动作特写。{relationship_state}高FPS捕捉，细节运动保留，戏剧性时间控制。'
     }
 
     # 氛围描述（根据阶段）- 中文，针对短剧开局优化
@@ -5137,44 +5236,61 @@ def _generate_veo_prompt(shot_type: str, scene_title: str, episode_title: str, s
     )
 
     # 根据不同的镜头类型，使用不同的模板
+    # 🔥 生成关系状态描述（基于事件内容）
+    relationship_state = _generate_relationship_state(episode_title, event_description)
+
     if shot_type in ['全景', '拉远', '摇镜头', '升降', '爆炸', '拉镜头']:
         # 这些镜头需要 location
         veo_prompt = prompt_template.format(
             location=location_cn,
-            atmosphere=atmosphere
+            atmosphere=atmosphere,
+            relationship_state=relationship_state
         )
     elif shot_type in ['中景', '晃动', '快速切换', '慢动作']:
         # 这些镜头需要 characters 和 action
         veo_prompt = prompt_template.format(
             characters=char_desc,
-            action=action_desc[:50] if action_desc else '戏剧性互动'
+            action=action_desc[:50] if action_desc else '戏剧性互动',
+            relationship_state=relationship_state
         )
     elif shot_type in ['特写', '慢镜头']:
         # 这些镜头需要 emotion
         veo_prompt = prompt_template.format(
-            emotion='强烈情感表达' if stage in ['转', '合'] else '细腻情感'
+            emotion='强烈情感表达' if stage in ['转', '合'] else '细腻情感',
+            relationship_state=relationship_state
+        )
+    elif shot_type == '特写转全景':
+        # 特写转全景需要 character, emotion, location
+        veo_prompt = prompt_template.format(
+            character=character_name,
+            emotion='紧张' if stage in ['转', '合'] else '凝重',
+            relationship_state=relationship_state
         )
     elif shot_type in ['推镜头', '急推']:
         # 这些镜头需要 subject
         veo_prompt = prompt_template.format(
-            subject='主要人物' if main_characters else '场景主体'
+            subject='主要人物' if main_characters else '场景主体',
+            relationship_state=relationship_state
         )
     elif shot_type in ['跟拍', '仰拍']:
         # 这些镜头需要 character
         veo_prompt = prompt_template.format(
-            character=character_name
+            character=character_name,
+            relationship_state=relationship_state
         )
     elif shot_type in ['固定', '淡出', '甩镜头', '主观视角']:
         # 这些镜头需要 scene
         veo_prompt = prompt_template.format(
-            scene=scene_title
+            scene=scene_title,
+            relationship_state=relationship_state
         )
     else:
         # 默认使用中景模板
         default_template = shot_prompts['中景']
         veo_prompt = default_template.format(
             characters=char_desc,
-            action=action_desc[:50] if action_desc else '戏剧性互动'
+            action=action_desc[:50] if action_desc else '戏剧性互动',
+            relationship_state=relationship_state
         )
 
     # 添加风格后缀（中文）

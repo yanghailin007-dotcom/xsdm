@@ -1586,29 +1586,19 @@ class ShortDramaStudio {
         const container = document.getElementById('storyboardContent');
         if (!container) return;
 
-        // 将分镜头转换为数组
+        // 🔥 直接使用后端返回的顺序（后端已添加_order字段）
         const storyboardArray = Object.entries(storyboards).map(([title, data]) => {
-            // 从标题中提取集数进行排序，格式如 "1集_xxx"
+            // 从标题中提取集数用于显示，格式如 "1集_xxx"
             const episodeMatch = title.match(/^(\d+)[集期]/);
             const episodeNumber = episodeMatch ? parseInt(episodeMatch[1]) : 999;
             return { title, data, episodeNumber };
         });
 
-        // 🔥 按照选择事件的顺序排序
+        // 🔥 按后端提供的_order字段排序
         storyboardArray.sort((a, b) => {
-            // 获取两个事件在 selectedEpisodes 中的索引
-            const indexA = this.selectedEpisodes.indexOf(a.title);
-            const indexB = this.selectedEpisodes.indexOf(b.title);
-
-            // 如果两个都在选择列表中，按选择顺序排序
-            if (indexA !== -1 && indexB !== -1) {
-                return indexA - indexB;
-            }
-            // 只有一个在选择列表中，选择的排在前面
-            if (indexA !== -1) return -1;
-            if (indexB !== -1) return 1;
-            // 都不在选择列表中，按集数排序
-            return a.episodeNumber - b.episodeNumber;
+            const orderA = a.data._order || 999;
+            const orderB = b.data._order || 999;
+            return orderA - orderB;
         });
 
         // 收集所有镜头，并按事件顺序 + 镜头编号排序
@@ -1618,12 +1608,12 @@ class ShortDramaStudio {
             // 🔥 支持新旧两种格式
             // 旧格式: data.shots, 新格式: data.scenes
             const sourceShots = data.shots || data.scenes || [];
-            const selectedIndex = this.selectedEpisodes.indexOf(title);
+            const eventOrder = data._order || 999;
 
             // 🔥 先转换所有镜头
             const normalizedShots = [];
             for (const shot of sourceShots) {
-                const normalizedShot = this.normalizeShotData(shot, title, episodeNumber, selectedIndex);
+                const normalizedShot = this.normalizeShotData(shot, title, episodeNumber, eventOrder);
                 // 🔥 对话场景返回的是数组，需要展开
                 if (Array.isArray(normalizedShot)) {
                     normalizedShots.push(...normalizedShot);
