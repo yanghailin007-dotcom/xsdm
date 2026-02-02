@@ -368,34 +368,34 @@ def get_storyboards():
                 'storyboards': {}
             })
 
-        # 扫描分镜头文件并按章节顺序排序
+        # 扫描分镜头文件并按章节+阶段顺序排序
         import re
 
         storyboard_files = list(storyboard_dir.glob('*.json'))
 
-        def extract_chapter_number(filepath):
-            """从文件名中提取章节号用于排序
-            文件名格式: 事件名_[第1-3章][起].json
-            优先按章节号排序，没有章节号的按阶段排序(起=1,承=2,转=3,合=4)
+        def extract_sort_key(filepath):
+            """从文件名中提取排序键
+            文件名格式: 事件名_[1-3章][起].json 或 事件名_[起].json
+
+            返回元组 (chapter_num, stage_order) 用于排序
+            - chapter_num: 章节起始号，无章节时为999999
+            - stage_order: 阶段顺序(起=1,承=2,转=3,合=4)，无阶段时为9
             """
             name = filepath.stem
 
-            # 首先尝试提取章节号
-            chapter_match = re.search(r'_\[第(\d+)(?:-\d+)?章\]', name)
-            if chapter_match:
-                return int(chapter_match.group(1))
+            # 提取章节号 (格式: [1-3章] 或 [1章])
+            chapter_match = re.search(r'\[(\d+)(?:-\d+)?章\]', name)
+            chapter_num = int(chapter_match.group(1)) if chapter_match else 999999
 
-            # 没有章节号，按阶段排序
+            # 提取阶段 (格式: [起] [承] [转] [合])
             stage_order = {'起': 1, '承': 2, '转': 3, '合': 4}
-            stage_match = re.search(r'_\[([起承转合])\]', name)
-            if stage_match:
-                return 1000 + stage_order.get(stage_match.group(1), 5)  # 1001-1004
+            stage_match = re.search(r'\[([起承转合])\]', name)
+            stage_num = stage_order.get(stage_match.group(1), 9) if stage_match else 9
 
-            # 没有任何排序信息，返回大数
-            return 999999
+            return (chapter_num, stage_num)
 
-        # 按章节号排序文件
-        storyboard_files.sort(key=extract_chapter_number)
+        # 按章节和阶段排序文件
+        storyboard_files.sort(key=extract_sort_key)
 
         # 按顺序加载分镜头
         storyboards = {}

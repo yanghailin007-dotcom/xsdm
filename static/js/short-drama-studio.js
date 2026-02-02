@@ -1678,12 +1678,16 @@ class ShortDramaStudio {
         // 后端已经按文件名中的章节号排序返回
         for (const [epId, epData] of Object.entries(storyboard)) {
             // 从文件名中提取事件名（去掉后缀）
-            // 文件名格式: 事件名_[1-3章][起].json 或 事件名_[起].json 或 事件名.json
+            // 文件名格式: 事件名_[1-3章][起].json
             const eventName = epId.replace(/_\[\d+(?:-\d+)?章\]\[[起承转合]\]$|_\[[起承转合]\]$/, '').trim();
+
             const scenes = epData.scenes || [];
+            console.log(`📂 处理文件: ${epId}, 事件名: ${eventName}, 场景数: ${scenes.length}`);
+
             for (const scene of scenes) {
                 const shots = scene.shot_sequence || [];
                 for (const shot of shots) {
+                    console.log(`  - 镜头: veo_prompt=${shot.veo_prompt ? '有' : '无'}, shot_type=${shot.shot_type}`);
                     if (shot.veo_prompt) {
                         allShots.push({
                             ...shot,
@@ -1700,6 +1704,8 @@ class ShortDramaStudio {
                 }
             }
         }
+
+        console.log(`✅ 总共提取到 ${allShots.length} 个镜头`);
 
         if (allShots.length === 0) {
             container.innerHTML = `
@@ -1736,6 +1742,7 @@ class ShortDramaStudio {
 
         // 保存镜头数据
         this.shots = allShots;
+        console.log(`💾 已保存 ${this.shots.length} 个镜头到 this.shots`);
     }
 
     /**
@@ -1995,11 +2002,16 @@ class ShortDramaStudio {
         const container = document.getElementById('videoContent');
         if (!container) return;
 
+        console.log(`🎬 渲染视频卡片, shots数量: ${this.shots?.length || 0}`);
+
         const completedCount = this.shots.filter(s => s.videoExists).length;
         const totalCount = this.shots.length;
 
         // 按事件分组
         const eventGroups = this.groupShotsByEvent(this.shots);
+
+        console.log(`📊 分组数量: ${eventGroups.length}`);
+        eventGroups.forEach((g, i) => console.log(`  组${i}: ${g.eventName}, ${g.shots.length}个镜头`));
 
         let rowsHtml = '';
         eventGroups.forEach((group, groupIdx) => {
