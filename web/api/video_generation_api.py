@@ -5484,10 +5484,11 @@ def _generate_storyboard_with_ai(novel_title: str, episode: dict) -> dict:
     character_reference_info = _build_character_reference_info(character_data)
 
     # 构建系统提示词 - 全新的短视频格式
-    system_prompt = f"""你是一位专业的短视频/短剧分镜头脚本设计师，擅长将小说情节转化为高吸引力的短视频分镜头。
+    # 使用普通字符串拼接，避免f-string中的大括号问题
+    system_prompt = """你是一位专业的短视频/短剧分镜头脚本设计师，擅长将小说情节转化为高吸引力的短视频分镜头。
 
 【核心任务】
-根据提供的小说信息、事件情节点和角色信息，设计出适合{orientation_desc}的高质量分镜头脚本。
+根据提供的小说信息、事件情节点和角色信息，设计出适合""" + orientation_desc + """的高质量分镜头脚本。
 
 【角色-参考图绑定机制】
 ⚠️ 重要：AI视频生成时会根据角色名自动查找对应的参考图。
@@ -5499,7 +5500,7 @@ def _generate_storyboard_with_ai(novel_title: str, episode: dict) -> dict:
 1. **黄金前3秒**: 开头必须抓人眼球，用强烈的视觉冲突或悬念
 2. **快节奏**: 每2-3秒一个新画面，避免拖沓
 3. **爽点密集**: 情绪快速递进，反转要有冲击力
-4. **{composition_desc}**
+4. **""" + composition_desc + """**
 5. **音乐配合**: 每个镜头标注合适的音效/背景音乐
 6. **角色一致性**: 使用角色名确保同一角色在不同镜头中形象一致
 7. **统一时长**: 所有镜头必须严格为8秒
@@ -5553,7 +5554,7 @@ def _generate_storyboard_with_ai(novel_title: str, episode: dict) -> dict:
 注意：
 - 对话场景使用 `dialogues`（复数）而不是 `dialogue`（单数）
 - 同一镜头中的多句台词，画面保持不变，只显示不同角色说话
-- 音频文件命名规则：`{镜头号}_{事件名}_对话{序号}_{角色}.mp3`
+- 音频文件命名规则：`镜头号_事件名_对话序号_角色.mp3`
 - **重要**：每个对话必须包含 `lines_en` 英文翻译，用于AI视频生成时的口型同步
 
 【veo_prompt编写规范】
