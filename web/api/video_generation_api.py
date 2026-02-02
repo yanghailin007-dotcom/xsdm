@@ -789,108 +789,56 @@ def _estimate_total_duration(events: List[Dict], video_type: str) -> float:
 def _filter_selected_events(all_events: List[Dict], selected_event_ids: List[str], logger) -> List[Dict]:
     """
     过滤出用户选中的事件（支持重大事件和中级事件）
-    
+
     Args:
         all_events: 所有重大事件列表
         selected_event_ids: 选中的事件ID列表（可能包含重大事件ID或中级事件ID）
         logger: 日志记录器
-    
+
     Returns:
         过滤后的事件列表（只包含选中的事件）
     """
     filtered_events = []
     selected_medium_events_map = {}  # 🔥 用map来跟踪每个事件选中的中级事件
-    
+    selected_major_indices = set()  # 🔥 新增：直接选中的重大事件索引
+
     logger.debug(f"🔍 开始过滤事件，选中事件ID列表: {selected_event_ids}")
-    
-    # 第一遍：收集所有选中的中级事件
-    for idx, major_event in enumerate(all_events):
-        major_event_id = f"major_event_{idx}"
-        major_event_id_alt = f"event_{idx}"
-        major_event_name = major_event.get("name", major_event.get("title", ""))
-        
-        logger.debug(f"  检查事件 {idx}: {major_event_name} (ID: {major_event_id}, {major_event_id_alt})")
-        
-        # 检查是否选中了这个重大事件（通过ID或名称）
-        major_selected = (
-            major_event_id in selected_event_ids or
-            major_event_id_alt in selected_event_ids or
-            major_event_name in selected_event_ids
-        )
-        
-        # 检查是否有选中的中级事件
-        composition = major_event.get("composition", {})
-        event_selected_medium = []
-        
-        logger.debug(f"    检查composition中的中级事件...")
-        
-        for stage_idx, stage in enumerate(["起", "承", "转", "合", "起因", "发展", "高潮", "结局"]):
-            medium_events = composition.get(stage, [])
-            if not isinstance(medium_events, list):
-                continue
-            
-            logger.debug(f"      Stage '{stage}': {len(medium_events)} 个中级事件")
-            
-            for medium_idx, medium_event in enumerate(medium_events):
-                # 生成中级事件的可能ID格式（与前端保持一致）
-                # 前端生成格式: major_event_X_event_Y_Z
-                # 其中X是父事件索引，Y是阶段索引（在阶段列表中的位置），Z是该阶段中的中级事件索引
-                
-                # 注意：前端生成ID时使用的阶段索引可能与我们遍历的stage_idx不同
-                # 让我们尝试多种可能的格式
-                medium_event_id = f"{major_event_id}_event_{stage_idx}_{medium_idx}"
-                medium_event_id_alt = f"{major_event_id_alt}_event_{stage_idx}_{medium_idx}"
-                medium_event_id_alt2 = f"{major_event_id_alt}_{medium_idx}"
-                
-                # 检查是否被选中
-                if (medium_event_id in selected_event_ids or
-                    medium_event_id_alt in selected_event_ids or
-                    medium_event_id_alt2 in selected_event_ids):
-                    event_selected_medium.append(medium_event)
-                    logger.debug(f"  ✅ 选中中级事件: {medium_event.get('name', medium_event.get('title', '未命名'))} (stage={stage}, stage_idx={stage_idx}, medium_idx={medium_idx}, matched_id={medium_event_id})")
-        
-        # 保存到map中
-        if event_selected_medium:
-            selected_medium_events_map[idx] = event_selected_medium
-            logger.info(f"  📊 事件 {idx} ({major_event_name}): 找到 {len(event_selected_medium)} 个选中的中级事件")
-    
-    # 第二遍：根据选中的事件构建过滤后的列表
-    for idx, major_event in enumerate(all_events):
-        major_event_id = f"major_event_{idx}"
-        major_event_id_alt = f"event_{idx}"
-        major_event_name = major_event.get("name", major_event.get("title", ""))
-        
-        # 检查是否选中了这个重大事件（通过ID或名称）
-        major_selected = (
-            major_event_id in selected_event_ids or
-            major_event_id_alt in selected_event_ids or
-            major_event_name in selected_event_ids
-        )
-        
-        # 如果选中了整个重大事件
-        if major_selected:
-            filtered_events.append(major_event)
-            logger.info(f"  ✅ 选中重大事件: {major_event_name}")
-        
-        # 如果有选中的中级事件
-        elif idx in selected_medium_events_map:
-            selected_medium_events = selected_medium_events_map[idx]
-            composition = major_event.get("composition", {})
-            
-            # 创建一个新的重大事件对象，只保留选中的中级事件
-            filtered_major = dict(major_event)
-            new_composition = {}
-            for stage in ["起", "承", "转", "合", "起因", "发展", "高潮", "结局"]:
-                medium_events = composition.get(stage, [])
-                if isinstance(medium_events, list):
-                    # 过滤出选中的中级事件
-                    filtered = [e for e in medium_events if e in selected_medium_events]
-                    if filtered:
-                        new_composition[stage] = filtered
-            filtered_major["composition"] = new_composition
-            filtered_events.append(filtered_major)
-            logger.info(f"  ✅ 部分选中重大事件: {major_event_name} (包含 {len(selected_medium_events)} 个中级事件)")
-    
+
+    # 🔥 第一步：解析selected_event_ids，分离出重大事件ID和中事件ID
+    for event_id in selected_event_ids:
+        # 检查是否是中级事件ID（格式：major_event_X_event_Y_Z）
+        import re
+        medium_pattern = re.match(r'^major_event_(\d+)_event_\d+_\d+$', event_id)
+        if medium_pattern:
+            major_idx = int(medium_pattern.group(1))
+            selected_major_indices.add(major_idx)
+            logger.debug(f"  选中中级事件 {event_id}，属于重大事件 {major_idx}")
+        else:
+            # 可能是重大事件ID
+            for idx, major_event in enumerate(all_events):
+                major_event_id = f"major_event_{idx}"
+                major_event_id_alt = f"event_{idx}"
+                major_event_name = major_event.get("name", "")
+                if event_id in [major_event_id, major_event_id_alt, major_event_name]:
+                    selected_major_indices.add(idx)
+                    logger.debug(f"  选中重大事件 {event_id}，索引 {idx}")
+
+    logger.info(f"🎯 过滤结果：用户选中的重大事件索引: {selected_major_indices}")
+
+    # 如果没有选中任何事件，返回空列表
+    if not selected_major_indices:
+        logger.warn("⚠️ 没有选中任何有效事件")
+        return []
+
+    # 🔥 第二步：根据选中的重大事件索引构建结果
+    for idx in sorted(selected_major_indices):
+        if idx < len(all_events):
+            filtered_events.append(all_events[idx])
+            logger.info(f"  ✅ 包含重大事件 {idx}: {all_events[idx].get('name')}")
+
+    # 🔥 第三步：如果有选中的中级事件，进一步过滤重大事件中的内容
+    # （当前版本暂不支持按中级事件细分，直接使用完整重大事件）
+
     return filtered_events
 
 

@@ -21,45 +21,45 @@ class EventExtractor:
     def extract_all_major_events(self, novel_data: Dict) -> List[Dict]:
         """
         提取所有重大事件
-        
+
         支持多种数据格式：
         1. quality_data.writing_plans (新格式)
         2. stage_writing_plans (中间格式)
         3. 直接从项目文件读取 (旧格式: _stage_writing_plan.json)
-        
+
         Args:
             novel_data: 小说数据字典
-            
+
         Returns:
             重大事件列表（已按章节排序）
         """
         all_events = []
-        
+
         # 1. 首先尝试从 quality_data.writing_plans 获取
         quality_data = novel_data.get("quality_data", {})
         writing_plans = quality_data.get("writing_plans", {})
-        
+
         self.logger.info(f"📊 [EventExtractor] quality_data 存在: {bool(quality_data)}")
         self.logger.info(f"📊 [EventExtractor] writing_plans 键: {list(writing_plans.keys()) if writing_plans else '无'}")
-        
+
         if writing_plans:
             # 遍历所有写作计划
             for stage_name, plan_data in writing_plans.items():
                 if not isinstance(plan_data, dict):
                     continue
-                
+
                 self.logger.info(f"📊 [EventExtractor] 处理阶段: {stage_name}")
-                self.logger.info(f"📊 [EventExtractor] plan_data 键: {list(plan_data.keys())}")
-                
+                self.logger.info(f"📊 [EventExtractor] plan_data 键: {list(plan_data.keys()) if isinstance(plan_data, dict) else 'N/A'}")
+
                 # 尝试从多个可能的位置提取事件
                 events = (
                     plan_data.get('stage_writing_plan', {}).get('event_system', {}).get('major_events', []) or
                     plan_data.get('event_system', {}).get('major_events', []) or
                     plan_data.get('major_events', [])
                 )
-                
+
                 self.logger.info(f"📊 [EventExtractor] 从 {stage_name} 提取到 {len(events)} 个重大事件")
-                
+
                 # 为每个事件添加元数据
                 for event in events:
                     self._enrich_event_metadata(event, stage_name)
@@ -67,24 +67,24 @@ class EventExtractor:
         else:
             # 2. 🔥 新增：尝试从 stage_writing_plans 获取（中间格式）
             stage_writing_plans = novel_data.get("stage_writing_plans", {})
-            
+
             if stage_writing_plans:
                 self.logger.info(f"📊 [EventExtractor] 从 stage_writing_plans 提取")
-                self.logger.info(f"📊 [EventExtractor] stage_writing_plans 键: {list(stage_writing_plans.keys())}")
-                
+                self.logger.info(f"📊 [EventExtractor] stage_writing_plans 键: {list(stage_writing_plans.keys()) if stage_writing_plans else '无'}")
+
                 for stage_name, stage_data in stage_writing_plans.items():
                     if not isinstance(stage_data, dict):
                         continue
-                    
+
                     # 尝试从多个可能的位置提取事件
                     events = (
                         stage_data.get('stage_writing_plan', {}).get('event_system', {}).get('major_events', []) or
                         stage_data.get('event_system', {}).get('major_events', []) or
                         stage_data.get('major_events', [])
                     )
-                    
+
                     self.logger.info(f"📊 [EventExtractor] 从 {stage_name} 提取到 {len(events)} 个重大事件")
-                    
+
                     # 为每个事件添加元数据
                     for event in events:
                         self._enrich_event_metadata(event, stage_name)
@@ -96,11 +96,16 @@ class EventExtractor:
                     self.logger.warn("⚠️ 无法确定项目标题，跳过直接文件读取")
                 else:
                     all_events = self._extract_from_project_files(title, novel_data)
-        
+
         # 按章节排序
         all_events.sort(key=lambda x: x.get("_start_chapter", 0))
-        
+
         self.logger.info(f"✅ [EventExtractor] 总共提取到 {len(all_events)} 个重大事件")
+
+        # 🔥 详细日志：打印每个事件的信息
+        for idx, event in enumerate(all_events):
+            self.logger.info(f"  事件{idx}: {event.get('name')} (阶段: {event.get('_stage_name', 'N/A')})")
+
         return all_events
     
     def _extract_from_project_files(self, title: str, novel_data: Dict) -> List[Dict]:
