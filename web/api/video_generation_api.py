@@ -5928,7 +5928,9 @@ def _save_storyboard_to_file(novel_title: str, event_name: str, episode_id: str,
                 major_idx = int(numbers[0])
 
         # 🔥 创建子目录：第一集、第二集等，或使用重大事件名称
-        if major_event_name:
+        # 过滤掉无效的事件名（如video_type值）
+        invalid_names = ['short_video', 'long_series', 'short_film', 'custom', 'video']
+        if major_event_name and major_event_name not in invalid_names:
             # 使用重大事件名称作为子目录
             safe_major_name = re.sub(r'[<>:"/\\|?*]', '_', major_event_name[:30])  # 限制长度
             sub_dir_name = f"{major_idx + 1}集_{safe_major_name}"
