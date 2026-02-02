@@ -1010,56 +1010,100 @@ def generate_storyboard():
         character_prompts = event_extractor.generate_character_prompts(characters)
         logger.info(f"👥 [VIDEO] 提取到 {len(characters)} 个角色设计")
 
-        # 使用视频适配器进行转换
-        from src.managers.VideoAdapterManager import VideoAdapterManager
+        # 🔥 新增：使用AI为每个重大事件生成分镜头
+        ai_storyboards = {}
+        all_ai_shots = []
 
-        class MockGenerator:
-            def __init__(self, novel_data):
-                self.novel_data = novel_data
-                self.api_client = None
+        for major_idx, major_event in enumerate(all_events):
+            # 获取该重大事件的中级事件
+            composition = major_event.get("composition", {})
+            medium_events_list = []
 
-        mock_generator = MockGenerator(novel_detail)
-        adapter = VideoAdapterManager(mock_generator)
+            for stage in ["起", "承", "转", "合"]:
+                medium_events = composition.get(stage, [])
+                if isinstance(medium_events, list):
+                    for medium_idx, medium_event in enumerate(medium_events):
+                        stage_idx = ["起", "承", "转", "合"].index(stage)
+                        episode_id = f"major_event_{major_idx}_event_{stage_idx}_{medium_idx}"
 
-        # 🔥 传递过滤后的事件列表
-        video_result = adapter.convert_to_video(
-            novel_data=novel_detail,
-            video_type=video_type,
-            filtered_events=all_events  # 🔥 新增参数
-        )
+                        medium_events_list.append({
+                            "id": episode_id,
+                            "title": medium_event.get("name", medium_event.get("title", f"事件{medium_idx}")),
+                            "stage": stage,
+                            "description": medium_event.get("description", ""),
+                            "plot_outline": medium_event.get("plot_outline", [])
+                        })
 
-        # 提取所有镜头
-        units = video_result.get("units", [])
-        shots = []
+            # 为每个中级事件调用AI生成
+            for medium_event in medium_events_list:
+                logger.info(f"🤖 [AI分镜头] 开始为事件生成分镜头: {medium_event['title']}")
 
-        for unit in units:
-            storyboard = unit.get("storyboard", {})
-            scenes = storyboard.get("scenes", [])
+                # 构造episode数据
+                episode_data = {
+                    "id": medium_event["id"],
+                    "title": medium_event["title"],
+                    "stage": medium_event["stage"],
+                    "major_event": major_event.get("name", ""),
+                    "description": medium_event["description"],
+                    "content": medium_event.get("plot_outline", [])
+                }
 
-            for scene in scenes:
-                shot_sequence = scene.get("shot_sequence", [])
-                for shot in shot_sequence:
-                    # 🔥 直接使用镜头描述，专注于视频画面本身
-                    generation_prompt = shot.get('description', shot.get('veo_prompt', ''))
+                # 调用AI生成
+                storyboard_result = _generate_storyboard_with_ai(title, episode_data)
 
-                    shots.append({
-                        "shot_index": len(shots),
-                        "unit_number": unit.get("unit_number"),
-                        "scene_number": scene.get("scene_number"),
-                        "scene_description": scene.get("scene_description", ""),
-                        "shot_number": shot.get("shot_number"),
-                        "shot_type": shot.get("shot_type", "中景"),
-                        "camera_movement": shot.get("camera_movement", "固定"),
-                        "duration_seconds": shot.get("duration_seconds", 5),
-                        "description": shot.get("description", ""),
-                        "audio_cue": shot.get("audio_note", shot.get("tiktok_note", "")),
-                        "veo_prompt": generation_prompt,  # 🔥 直接使用镜头描述
-                        "screen_action": shot.get("description", ""),  # 保留兼容字段
-                        "status": "pending",
-                        "visual_style": video_result.get("visual_style_guide", {}).get("overall_style", "写实")
-                    })
+                if storyboard_result:
+                    # 提取镜头
+                    scenes = storyboard_result.get("scenes", [])
+                    for scene in scenes:
+                        shot_sequence = scene.get("shot_sequence", [])
+                        for shot in shot_sequence:
+                            all_ai_shots.append({
+                                "shot_index": len(all_ai_shots),
+                                "unit_number": major_idx + 1,  # 集数从1开始
+                                "scene_number": scene.get("scene_number"),
+                                "scene_description": scene.get("scene_description", ""),
+                                "shot_number": shot.get("shot_number"),
+                                "shot_type": shot.get("shot_type", "中景"),
+                                "camera_movement": shot.get("camera_movement", "固定"),
+                                "duration_seconds": shot.get("duration", 8),
+                                "description": shot.get("description", ""),
+                                "audio_cue": shot.get("audio_note", ""),
+                                "veo_prompt": shot.get("veo_prompt", shot.get("description", "")),
+                                "screen_action": shot.get("description", ""),
+                                "dialogue": shot.get("dialogue", ""),
+                                "status": "pending",
+                                "visual_style": "写实"
+                            })
 
-        # 🔥 新增：保存分镜头到文件系统（用于短剧工作室）
+                    ai_storyboards[medium_event["id"]] = storyboard_result
+                    logger.info(f"✅ [AI分镜头] {medium_event['title']} 生成完成，{len(scenes)} 场")
+                else:
+                    logger.warn(f"⚠️ [AI分镜头] {medium_event['title']} 生成失败")
+
+        # 构建返回结果
+        units = []
+        for major_idx, major_event in enumerate(all_events):
+            unit_number = major_idx + 1
+            units.append({
+                "unit_number": unit_number,
+                "title": major_event.get("name", f"第{unit_number}集"),
+                "unit_title": major_event.get("name", f"第{unit_number}集"),
+                "storyboard": {
+                    "scenes": []  # AI生成的场景已在shots中
+                }
+            })
+
+        video_result = {
+            "units": units,
+            "visual_style_guide": {"overall_style": "写实"},
+            "total_units": len(units)
+        }
+
+        shots = all_ai_shots
+
+        logger.info(f"✅ [VIDEO] AI生成分镜头完成: {len(shots)} 镜头, {len(units)} 集")
+
+        # 🔥 保存分镜头到文件系统
         _save_storyboard_to_file(title, video_type, video_result, shots)
 
         return jsonify({
