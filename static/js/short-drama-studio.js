@@ -1678,8 +1678,8 @@ class ShortDramaStudio {
         // 后端已经按文件名中的章节号排序返回
         for (const [epId, epData] of Object.entries(storyboard)) {
             // 从文件名中提取事件名（去掉后缀）
-            // 文件名格式: 事件名_[第1-3章][起].json 或 事件名_[起].json 或 事件名.json
-            const eventName = epId.replace(/_\[第?\d+(?:-\d+)?章\]\[?[起承转合]?\]?$|_\[[起承转合]\]$/, '').trim();
+            // 文件名格式: 事件名_[1-3章][起].json 或 事件名_[起].json 或 事件名.json
+            const eventName = epId.replace(/_\[\d+(?:-\d+)?章\]\[[起承转合]\]$|_\[[起承转合]\]$/, '').trim();
             const scenes = epData.scenes || [];
             for (const scene of scenes) {
                 const shots = scene.shot_sequence || [];
@@ -1687,6 +1687,10 @@ class ShortDramaStudio {
                     if (shot.veo_prompt) {
                         allShots.push({
                             ...shot,
+                            // 🔥 确保关键字段存在
+                            duration: shot.duration_seconds || shot.duration || 8,
+                            // 将dialogue对象也保存为_dialogue_data以便后续使用
+                            _dialogue_data: shot.dialogue || shot._dialogue_data,
                             episode_id: epId,
                             episode_title: eventName,  // 使用从文件名提取的事件名
                             event_name: eventName,

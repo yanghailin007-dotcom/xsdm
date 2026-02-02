@@ -5943,17 +5943,19 @@ def _save_storyboard_to_file(novel_title: str, event_name: str, episode_id: str,
         save_dir = Path('视频项目') / novel_title / sub_dir_name / 'storyboards'
         save_dir.mkdir(parents=True, exist_ok=True)
 
-        # 生成文件名：事件名_[章节范围](阶段).json
-        # 例如: 废土猎场_第1-3章(起).json 或 废土猎场(起).json
+        # 生成文件名：事件名_[章节范围][阶段].json
+        # 例如: 废土猎场_[1-3章][起].json 或 废土猎场[起].json
         safe_event_name = re.sub(r'[<>:"/\\|?*]', '_', event_name)
         suffix_parts = []
         if chapter_range:
-            suffix_parts.append(chapter_range)
+            # 移除章节范围中的"第"字，简化格式
+            clean_chapter = chapter_range.replace('第', '')
+            suffix_parts.append(f"[{clean_chapter}]")
         if stage:
-            suffix_parts.append(stage)
+            suffix_parts.append(f"[{stage}]")
 
         if suffix_parts:
-            filename = f"{safe_event_name}_{''.join(f'[{s}]' for s in suffix_parts)}.json"
+            filename = f"{safe_event_name}_{''.join(suffix_parts)}.json"
         else:
             filename = f"{safe_event_name}.json"
         filepath = save_dir / filename
