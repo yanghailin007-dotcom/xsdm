@@ -1678,19 +1678,8 @@ class ShortDramaStudio {
         // 🔥 按章节顺序提取镜头（Object.entries在现代JS中保持插入顺序）
         // 后端已经按文件名中的章节号排序返回
         for (const [epId, epData] of Object.entries(storyboard)) {
-            // 从文件名中提取事件名（去掉后缀）
-            // 文件名格式: 事件名_[1-3章][起].json
-            let eventName = epId;
-            // 移除章节和阶段后缀 - 从后往前匹配
-            const stageSuffix = /\[([起承转合])\]$/.exec(eventName);
-            if (stageSuffix) {
-                eventName = eventName.substring(0, eventName.lastIndexOf('['));
-            }
-            const chapterSuffix = /\[\d+(?:-\d+)?章\]$/.exec(eventName);
-            if (chapterSuffix) {
-                eventName = eventName.substring(0, eventName.lastIndexOf('['));
-            }
-            eventName = eventName.trim();
+            // 🔥 优先使用后端提供的显示名称
+            const eventName = epData._display_name || epId;
 
             const scenes = epData.scenes || [];
             console.log(`📂 文件: ${epId} -> 事件名: ${eventName}, 场景: ${scenes.length}`);
@@ -1708,7 +1697,7 @@ class ShortDramaStudio {
                             // 将dialogue对象也保存为_dialogue_data以便后续使用
                             _dialogue_data: shot.dialogue || shot._dialogue_data,
                             episode_id: epId,
-                            episode_title: eventName,  // 使用从文件名提取的事件名
+                            episode_title: eventName,  // 使用后端提供的显示名称
                             event_name: eventName,
                             scene_title: scene.scene_title
                         });

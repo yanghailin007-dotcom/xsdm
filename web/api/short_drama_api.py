@@ -397,7 +397,7 @@ def get_storyboards():
         # 按章节和阶段排序文件
         storyboard_files.sort(key=extract_sort_key)
 
-        # 按顺序加载分镜头
+        # 按顺序加载分镜头，同时提取事件显示名称
         storyboards = {}
         for json_file in storyboard_files:
             try:
@@ -409,6 +409,18 @@ def get_storyboards():
                     data = json.load(f)
                     # 使用文件名（不含扩展名）作为 key
                     key = json_file.stem
+                    # 🔥 提取显示名称（去掉章节和阶段后缀）
+                    display_name = key
+                    # 去掉 _[1-3章][起] 这样的后缀
+                    stage_match = re.search(r'\[([起承转合])\]$', display_name)
+                    if stage_match:
+                        display_name = display_name[:display_name.rfind('[')]
+                    chapter_match = re.search(r'\[\d+(?:-\d+)?章\]$', display_name)
+                    if chapter_match:
+                        display_name = display_name[:display_name.rfind('[')]
+
+                    # 在数据中添加显示名称字段
+                    data['_display_name'] = display_name
                     storyboards[key] = data
             except Exception as e:
                 logger.error(f'读取分镜头文件失败 {json_file}: {e}')
