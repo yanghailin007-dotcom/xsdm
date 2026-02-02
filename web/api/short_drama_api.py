@@ -23,6 +23,10 @@ BASE_DIR = Path(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(
 VIDEO_PROJECTS_DIR = BASE_DIR / '视频项目'
 VIDEO_PROJECTS_DIR.mkdir(exist_ok=True)
 
+# 小说项目目录
+NOVEL_PROJECTS_DIR = BASE_DIR / '小说项目'
+NOVEL_PROJECTS_DIR.mkdir(exist_ok=True)
+
 
 def get_project_dir(novel_title: str) -> Path:
     """获取小说项目目录"""
@@ -368,67 +372,92 @@ def get_storyboards():
                 'storyboards': {}
             })
 
-        # 扫描分镜头文件并按章节+阶段顺序排序
-        import re
+        # 🔥 尝试从 plan 文件中获取事件顺序
+        medium_event_order = {}
+        plan_file = NOVEL_PROJECTS_DIR / novel_title / 'plans' / f'{novel_title}_opening_stage_writing_plan.json'
 
+        if plan_file.exists():
+            try:
+                with open(plan_file, 'r', encoding='utf-8') as f:
+                    plan_data = json.load(f)
+
+                event_system = plan_data.get('stage_writing_plan', {}).get('event_system', {})
+                major_events = event_system.get('major_events', [])
+
+                # 遍历所有重大事件和中型事件，建立顺序映射
+                event_index = 0
+                for major_event in major_events:
+                    composition = major_event.get('composition', {})
+                    for stage in ['起', '承', '转', '合']:
+                        medium_events = composition.get(stage, [])
+                        for medium_event in medium_events:
+                            event_name = medium_event.get('name')
+                            if event_name:
+                                medium_event_order[event_name] = event_index
+                                event_index += 1
+                                logger.info(f"📋 [Plan] 事件 {event_index}: {event_name} ({stage})")
+
+                logger.info(f'✅ [Plan] 从 plan 文件加载了 {len(medium_event_order)} 个事件顺序')
+            except Exception as e:
+                logger.error(f'读取 plan 文件失败: {e}')
+
+        # 扫描分镜头文件
         storyboard_files = list(storyboard_dir.glob('*.json'))
 
-        def extract_sort_key(filepath):
-            """从文件名中提取排序键
-            文件名格式: 事件名_[1-3章][起].json 或 事件名_[起].json
+        # 🔥 根据 plan 文件的顺序来排序 storyboards
+        def get_event_order(filepath):
+            """获取事件在 plan 中的顺序"""
+            stem = filepath.stem
+            # 去掉后缀 (_[1-3章][起] 等) 来匹配 plan 中的事件名
+            event_name = stem
+            import re
+            # 去掉 _[1-3章][起承转合] 这样的后缀
+            stage_match = re.search(r'\[([起承转合])\]$', event_name)
+            if stage_match:
+                event_name = event_name[:event_name.rfind('[')]
+            chapter_match = re.search(r'\[\d+(?:-\d+)?章\]$', event_name)
+            if chapter_match:
+                event_name = event_name[:event_name.rfind('[')]
+            event_name = event_name.rstrip('_')
 
-            返回元组 (chapter_num, stage_order) 用于排序
-            - chapter_num: 章节起始号，无章节时为999999
-            - stage_order: 阶段顺序(起=1,承=2,转=3,合=4)，无阶段时为9
-            """
-            name = filepath.stem
+            # 在 plan 中查找
+            if event_name in medium_event_order:
+                return medium_event_order[event_name]
+            # 如果不在 plan 中，返回一个大数字（排在最后）
+            return 999999
 
-            # 提取章节号 (格式: [1-3章] 或 [1章])
-            chapter_match = re.search(r'\[(\d+)(?:-\d+)?章\]', name)
-            chapter_num = int(chapter_match.group(1)) if chapter_match else 999999
+        # 按事件顺序排序文件
+        storyboard_files.sort(key=get_event_order)
 
-            # 提取阶段 (格式: [起] [承] [转] [合])
-            stage_order = {'起': 1, '承': 2, '转': 3, '合': 4}
-            stage_match = re.search(r'\[([起承转合])\]', name)
-            stage_num = stage_order.get(stage_match.group(1), 9) if stage_match else 9
-
-            return (chapter_num, stage_num)
-
-        # 按章节和阶段排序文件
-        storyboard_files.sort(key=extract_sort_key)
-
-        # 按顺序加载分镜头，同时提取事件显示名称
+        # 按顺序加载分镜头
         storyboards = {}
         for json_file in storyboard_files:
             try:
-                # 记录排序键用于调试
-                sort_key = extract_sort_key(json_file)
-                logger.info(f"📂 文件: {json_file.name} -> 排序键: 章节{sort_key[0]}, 阶段{sort_key[1]}")
+                order = get_event_order(json_file)
+                logger.info(f"📂 文件: {json_file.name} -> 顺序: {order}")
 
                 with open(json_file, 'r', encoding='utf-8') as f:
                     data = json.load(f)
                     # 使用文件名（不含扩展名）作为 key
                     key = json_file.stem
-                    # 🔥 提取显示名称（去掉章节和阶段后缀）
+                    # 提取显示名称
                     display_name = key
-                    # 去掉 _[1-3章][起] 这样的后缀
                     stage_match = re.search(r'\[([起承转合])\]$', display_name)
                     if stage_match:
                         display_name = display_name[:display_name.rfind('[')]
                     chapter_match = re.search(r'\[\d+(?:-\d+)?章\]$', display_name)
                     if chapter_match:
                         display_name = display_name[:display_name.rfind('[')]
-
-                    # 🔥 去掉末尾可能留下的下划线
                     display_name = display_name.rstrip('_')
 
-                    # 在数据中添加显示名称字段
+                    # 在数据中添加显示名称和顺序字段
                     data['_display_name'] = display_name
+                    data['_order'] = order
                     storyboards[key] = data
             except Exception as e:
                 logger.error(f'读取分镜头文件失败 {json_file}: {e}')
 
-        logger.info(f'📜 [分镜头] 加载了 {len(storyboards)} 个分镜头文件（按章节顺序）')
+        logger.info(f'📜 [分镜头] 加载了 {len(storyboards)} 个分镜头文件')
 
         return jsonify({
             'success': True,

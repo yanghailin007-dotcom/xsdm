@@ -54,7 +54,11 @@ logger.info(f"📁 VeO视频本地存储目录: {VEO_VIDEO_STORAGE_DIR}")
 # 🔥 新增：视频项目目录（按项目/分集组织）
 VIDEO_PROJECT_BASE_DIR = BASE_DIR / "视频项目"
 VIDEO_PROJECT_BASE_DIR.mkdir(parents=True, exist_ok=True)
+# 🔥 新增：小说项目目录（用于读取 plan 文件）
+NOVEL_PROJECTS_DIR = BASE_DIR / "小说项目"
+NOVEL_PROJECTS_DIR.mkdir(exist_ok=True)
 logger.info(f"📁 视频项目目录: {VIDEO_PROJECT_BASE_DIR}")
+logger.info(f"📁 小说项目目录: {NOVEL_PROJECTS_DIR}")
 
 
 def sanitize_path(name: str) -> str:
@@ -71,37 +75,56 @@ def get_episode_number(novel_title: str, event_name: str, episode_title: str = N
     """
     根据章节名（中级事件名）获取章节序号
 
-    优先从项目信息.json中读取episodes列表。
-    如果找不到，则从storyboard目录读取文件顺序（通过[起][承][合]等标记）。
+    优先从 plan 文件中读取事件顺序。
+    如果 plan 文件不存在，则尝试从项目信息.json 读取。
+    如果都找不到，则从 storyboard 目录读取文件顺序（通过[起][承][合]等标记）。
     """
-    project_dir = VIDEO_PROJECT_BASE_DIR / novel_title
+    import re
 
-    # 🔥 优先尝试从项目信息读取
-    project_info_path = project_dir / "项目信息.json"
-    if project_info_path.exists():
+    # 🔥 优先尝试从 plan 文件读取
+    plan_file = NOVEL_PROJECTS_DIR / novel_title / 'plans' / f'{novel_title}_opening_stage_writing_plan.json'
+    if plan_file.exists():
         try:
-            with open(project_info_path, 'r', encoding='utf-8') as f:
-                data = json.load(f)
+            with open(plan_file, 'r', encoding='utf-8') as f:
+                plan_data = json.load(f)
 
-            episodes = data.get('episodes', [])
+            event_system = plan_data.get('stage_writing_plan', {}).get('event_system', {})
+            major_events = event_system.get('major_events', [])
+
+            # 遍历所有重大事件和中型事件，建立顺序映射
+            event_index = 0
+            event_order_map = {}
+            for major_event in major_events:
+                composition = major_event.get('composition', {})
+                for stage in ['起', '承', '转', '合']:
+                    medium_events = composition.get(stage, [])
+                    for medium_event in medium_events:
+                        medium_event_name = medium_event.get('name')
+                        if medium_event_name:
+                            event_order_map[medium_event_name] = event_index
+                            event_index += 1
+
             # 尝试多种匹配方式
-            for idx, ep_name in enumerate(episodes, 1):
-                # 完全匹配
-                if ep_name == event_name or ep_name == episode_title:
-                    return idx
-                # 包含匹配（处理带前后缀的情况）
-                if ep_name in event_name or event_name in ep_name:
-                    return idx
-                if episode_title and (ep_name in episode_title or episode_title in ep_name):
-                    return idx
-        except Exception as e:
-            logger.error(f"读取项目信息失败: {e}")
+            for name, order in event_order_map.items():
+                if name == event_name or name == episode_title:
+                    logger.info(f"📋 [Plan] 匹配: {event_name} -> 序号 {order + 1}")
+                    return order + 1
+                # 包含匹配
+                if name in event_name or event_name in name:
+                    logger.info(f"📋 [Plan] 包含匹配: {event_name} <-> {name} -> 序号 {order + 1}")
+                    return order + 1
+                if episode_title and (name in episode_title or episode_title in name):
+                    logger.info(f"📋 [Plan] 包含匹配: {episode_title} <-> {name} -> 序号 {order + 1}")
+                    return order + 1
 
-    # 🔥 如果项目信息中没有找到，从storyboard目录读取文件顺序
-    # 通过文件名中的 [起][承][合] 等标记确定顺序
+            logger.info(f"⚠️ [Plan] 未找到匹配的事件: event_name={event_name}, episode_title={episode_title}")
+        except Exception as e:
+            logger.error(f"读取 plan 文件失败: {e}")
+
+    # 🔥 回退：尝试从 storyboard 目录读取文件顺序
+    project_dir = VIDEO_PROJECT_BASE_DIR / novel_title
     storyboard_dir = project_dir / "1集_黄金开局：脊椎重铸与废土首杀" / "storyboards"
     if storyboard_dir.exists():
-        import re
         sequence_map = {'起': 1, '承': 2, '合': 3, '转': 4}
         storyboard_files = []
 
@@ -123,7 +146,7 @@ def get_episode_number(novel_title: str, event_name: str, episode_title: str = N
         # 查找匹配的事件
         for seq_num, event_part, _ in storyboard_files:
             if event_part in event_name or event_name in event_part:
-                logger.info(f"📂 从storyboard文件匹配: {event_name} -> 序号 {seq_num}")
+                logger.info(f"📂 [storyboard] 从文件匹配: {event_name} -> 序号 {seq_num}")
                 return seq_num
 
     # 默认返回1
