@@ -1673,7 +1673,6 @@ class ShortDramaStudio {
         if (!container) return;
 
         const allShots = [];
-        let globalShotNumber = 1;  // 🔥 全局镜头编号
 
         // 🔥 按章节顺序提取镜头（Object.entries在现代JS中保持插入顺序）
         // 后端已经按文件名中的章节号排序返回
@@ -1686,12 +1685,16 @@ class ShortDramaStudio {
 
             for (const scene of scenes) {
                 const shots = scene.shot_sequence || [];
+                // 🔥 scene_number 表示该中级事件中的第几个场景
+                const sceneNumber = scene.scene_number || 1;
+
                 for (const shot of shots) {
                     if (shot.veo_prompt) {
                         allShots.push({
                             ...shot,
-                            // 🔥 使用全局镜头编号
-                            shot_number: globalShotNumber++,
+                            // 🔥 使用场景编号（该中级事件中的第几个场景）
+                            scene_number: sceneNumber,
+                            shot_number: shot.shot_number || 1,  // 该场景内的第几个镜头
                             // 🔥 确保关键字段存在
                             duration: shot.duration_seconds || shot.duration || 8,
                             // 将dialogue对象也保存为_dialogue_data以便后续使用
@@ -1727,7 +1730,7 @@ class ShortDramaStudio {
             <div class="shots-list">
                 ${allShots.map((shot, idx) => `
                     <div class="shot-item" id="shot_${idx}">
-                        <div class="shot-number">#${shot.shot_number}</div>
+                        <div class="shot-number">#${shot.scene_number || shot.shot_number || (idx + 1)}</div>
                         <div class="shot-info">
                             <div class="shot-type">${shot.shot_type || '镜头'}</div>
                             <div class="shot-duration">⏱️ ${shot.duration || 5}秒</div>
@@ -2188,7 +2191,7 @@ class ShortDramaStudio {
 
         return `
             <div class="task-row ${statusClass}" id="taskRow_${idx}">
-                <div class="task-index">#${shot.shot_number || shot.scene_number || (idx + 1)}</div>
+                <div class="task-index">#${shot.scene_number || shot.shot_number || (idx + 1)}</div>
                 <div class="task-content">
                     <div class="task-prompt">
                         <span class="prompt-label">AI提示:</span>
