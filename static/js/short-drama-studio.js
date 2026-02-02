@@ -1673,6 +1673,7 @@ class ShortDramaStudio {
         if (!container) return;
 
         const allShots = [];
+        let globalShotNumber = 1;  // 🔥 全局镜头编号
 
         // 🔥 按章节顺序提取镜头（Object.entries在现代JS中保持插入顺序）
         // 后端已经按文件名中的章节号排序返回
@@ -1697,10 +1698,11 @@ class ShortDramaStudio {
             for (const scene of scenes) {
                 const shots = scene.shot_sequence || [];
                 for (const shot of shots) {
-                    console.log(`  - 镜头: veo_prompt=${shot.veo_prompt ? '有' : '无'}, shot_type=${shot.shot_type}`);
                     if (shot.veo_prompt) {
                         allShots.push({
                             ...shot,
+                            // 🔥 使用全局镜头编号
+                            shot_number: globalShotNumber++,
                             // 🔥 确保关键字段存在
                             duration: shot.duration_seconds || shot.duration || 8,
                             // 将dialogue对象也保存为_dialogue_data以便后续使用
@@ -1736,7 +1738,7 @@ class ShortDramaStudio {
             <div class="shots-list">
                 ${allShots.map((shot, idx) => `
                     <div class="shot-item" id="shot_${idx}">
-                        <div class="shot-number">#${shot.shot_number || shot.scene_number || (idx + 1)}</div>
+                        <div class="shot-number">#${shot.shot_number}</div>
                         <div class="shot-info">
                             <div class="shot-type">${shot.shot_type || '镜头'}</div>
                             <div class="shot-duration">⏱️ ${shot.duration || 5}秒</div>
