@@ -442,6 +442,7 @@ class TTSManager:
                 }
 
             logger.info(f'🎙️ [TTS] 任务已提交: task_id={task_id}')
+            logger.info(f'🎙️ [TTS] 准备进入轮询逻辑...')
 
             # 第二步：轮询查询任务状态
             max_attempts = 60  # 最多查询60次

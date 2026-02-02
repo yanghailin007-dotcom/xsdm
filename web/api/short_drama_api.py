@@ -419,6 +419,9 @@ def get_storyboards():
                     if chapter_match:
                         display_name = display_name[:display_name.rfind('[')]
 
+                    # 🔥 去掉末尾可能留下的下划线
+                    display_name = display_name.rstrip('_')
+
                     # 在数据中添加显示名称字段
                     data['_display_name'] = display_name
                     storyboards[key] = data
