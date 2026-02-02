@@ -3395,14 +3395,20 @@ class ShortDramaStudio {
             const episodeDirectoryName = this.getEpisodeDirectoryName();
             const videoSettings = this.getVideoSettings();
 
-            // 🔥 构建包含台词的 prompt，用于 AI 口型同步
+            // 🔥 构建包含台词和音频提示的 prompt，用于 AI 口型同步
             let prompt = shot.veo_prompt || shot.screen_action || '';
 
-            // 检查是否有英文台词，用于口型同步
+            // 检查是否有英文台词和音频提示，用于口型同步
             const dialogueData = shot._dialogue_data || shot.dialogue;
-            if (dialogueData && dialogueData.lines_en && dialogueData.lines_en.trim()) {
-                // 将英文台词添加到 prompt 中，用于 AI 视频生成时的口型同步
-                prompt += `. Character speaking: "${dialogueData.lines_en}"`;
+            if (dialogueData) {
+                // 添加英文台词
+                if (dialogueData.lines_en && dialogueData.lines_en.trim()) {
+                    prompt += `. Character speaking: "${dialogueData.lines_en}"`;
+                }
+                // 添加音频提示（音效/BGM等）
+                if (dialogueData.audio_note_en && dialogueData.audio_note_en.trim()) {
+                    prompt += `. Audio: ${dialogueData.audio_note_en}`;
+                }
             }
 
             const response = await fetch('/api/veo/generate', {
