@@ -776,7 +776,19 @@ class ShortDramaStudio {
             container.innerHTML = characters.map((char, idx) => {
                 const charName = char.name || `角色${idx + 1}`;
                 const charRole = char.role || '角色';
-                const portraitInfo = this.characterPortraits.get(charName);
+
+                // 🔥 宽松匹配：查找包含角色名的剧照
+                let portraitInfo = this.characterPortraits.get(charName);
+                if (!portraitInfo) {
+                    // 精确匹配失败，尝试模糊匹配
+                    for (const [key, value] of this.characterPortraits.entries()) {
+                        if (key.includes(charName) || charName.includes(key)) {
+                            portraitInfo = value;
+                            console.log(`🎭 [剧照] 模糊匹配: "${charName}" <- "${key}"`);
+                            break;
+                        }
+                    }
+                }
 
                 // 提取角色外观描述
                 let appearanceDesc = '';
@@ -1118,7 +1130,18 @@ class ShortDramaStudio {
      * 查看剧照
      */
     viewPortrait(characterName) {
-        const portrait = this.characterPortraits.get(characterName);
+        // 🔥 宽松匹配：查找包含角色名的剧照
+        let portrait = this.characterPortraits.get(characterName);
+        if (!portrait) {
+            // 精确匹配失败，尝试模糊匹配
+            for (const [key, value] of this.characterPortraits.entries()) {
+                if (key.includes(characterName) || characterName.includes(key)) {
+                    portrait = value;
+                    console.log(`🎭 [剧照查看] 模糊匹配: "${characterName}" <- "${key}"`);
+                    break;
+                }
+            }
+        }
         if (portrait) {
             // 打开模态框显示剧照
             this.showPortraitModal(characterName, portrait);
