@@ -545,8 +545,13 @@ class ShortDramaStudio {
 
         if (container) {
             container.innerHTML = episodes.map((ep, idx) => {
-                // 🔥 使用标题作为ID，确保与分镜头文件key匹配
-                const epId = ep.title || `episode_${idx}`;
+                // 🔥 生成与后端匹配的事件ID格式: major_event_X_event_Y_Z
+                // X是重大事件索引，Y是阶段索引，Z是中级事件索引
+                const majorIdx = this.events.findIndex(e => e.id === majorEvent.id);
+                const stageOrder = ['起', '承', '转', '合', '起因', '发展', '高潮', '结局'];
+                const stageIdx = stageOrder.indexOf(ep.stage) >= 0 ? stageOrder.indexOf(ep.stage) : 0;
+                const epId = `major_event_${majorIdx}_event_${stageIdx}_${idx}`;
+
                 const isChecked = this.selectedEpisodes.includes(epId) ? 'checked' : '';
                 const selectedClass = this.selectedEpisodes.includes(epId) ? 'selected' : '';
 
