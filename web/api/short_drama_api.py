@@ -375,12 +375,12 @@ def get_storyboards():
 
         def extract_chapter_number(filepath):
             """从文件名中提取章节号用于排序
-            文件名格式: 事件名_[第X-Y章].json 或 事件名_[第X章].json
+            文件名格式: 第1-3章_事件名.json 或 第1章_事件名.json
             返回起始章节号，无章节信息则返回大数排在后面
             """
             name = filepath.stem
-            # 匹配 [第X章] 或 [第X-Y章]
-            match = re.search(r'\[第(\d+)(?:-\d+)?章\]', name)
+            # 匹配开头的 "第X章" 或 "第X-Y章"
+            match = re.match(r'^第?(\d+)(?:-\d+)?章', name)
             if match:
                 return int(match.group(1))
             # 没有章节信息的文件，返回大数排在后面

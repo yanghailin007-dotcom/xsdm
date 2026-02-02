@@ -5937,11 +5937,12 @@ def _save_storyboard_to_file(novel_title: str, event_name: str, episode_id: str,
         save_dir = Path('视频项目') / novel_title / sub_dir_name / 'storyboards'
         save_dir.mkdir(parents=True, exist_ok=True)
 
-        # 生成文件名：{事件名称}[章节范围].json
+        # 生成文件名：章节范围_事件名.json（章节在前便于排序）
         safe_event_name = re.sub(r'[<>:"/\\|?*]', '_', event_name)
         safe_chapter_range = re.sub(r'[<>:"/\\|?*]', '_', chapter_range) if chapter_range else ''
         if safe_chapter_range:
-            filename = f"{safe_event_name}_[{safe_chapter_range}].json"
+            # 格式: 第1-3章_事件名.json
+            filename = f"{safe_chapter_range}_{safe_event_name}.json"
         else:
             filename = f"{safe_event_name}.json"
         filepath = save_dir / filename
