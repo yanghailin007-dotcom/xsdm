@@ -67,30 +67,68 @@ def sanitize_path(name: str) -> str:
     return result.strip('_')
 
 
-def get_episode_number(novel_title: str, event_name: str) -> int:
+def get_episode_number(novel_title: str, event_name: str, episode_title: str = None) -> int:
     """
     根据章节名（中级事件名）获取章节序号
 
-    从项目信息.json中读取episodes列表，返回章节名对应的序号
+    优先从项目信息.json中读取episodes列表。
+    如果找不到，则从storyboard目录读取文件顺序（通过[起][承][合]等标记）。
     """
-    project_info_path = VIDEO_PROJECT_BASE_DIR / novel_title / "项目信息.json"
+    project_dir = VIDEO_PROJECT_BASE_DIR / novel_title
 
-    if not project_info_path.exists():
-        return 1
+    # 🔥 优先尝试从项目信息读取
+    project_info_path = project_dir / "项目信息.json"
+    if project_info_path.exists():
+        try:
+            with open(project_info_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
 
-    try:
-        with open(project_info_path, 'r', encoding='utf-8') as f:
-            data = json.load(f)
+            episodes = data.get('episodes', [])
+            # 尝试多种匹配方式
+            for idx, ep_name in enumerate(episodes, 1):
+                # 完全匹配
+                if ep_name == event_name or ep_name == episode_title:
+                    return idx
+                # 包含匹配（处理带前后缀的情况）
+                if ep_name in event_name or event_name in ep_name:
+                    return idx
+                if episode_title and (ep_name in episode_title or episode_title in ep_name):
+                    return idx
+        except Exception as e:
+            logger.error(f"读取项目信息失败: {e}")
 
-        episodes = data.get('episodes', [])
-        for idx, ep_name in enumerate(episodes, 1):
-            if ep_name == event_name or ep_name in event_name or event_name in ep_name:
-                return idx
+    # 🔥 如果项目信息中没有找到，从storyboard目录读取文件顺序
+    # 通过文件名中的 [起][承][合] 等标记确定顺序
+    storyboard_dir = project_dir / "1集_黄金开局：脊椎重铸与废土首杀" / "storyboards"
+    if storyboard_dir.exists():
+        import re
+        sequence_map = {'起': 1, '承': 2, '合': 3, '转': 4}
+        storyboard_files = []
 
-        return 1
-    except Exception as e:
-        logger.error(f"获取章节序号失败: {e}")
-        return 1
+        for json_file in storyboard_dir.glob("*.json"):
+            # 从文件名中提取顺序标记
+            match = re.search(r'\[([起承合转])\]', json_file.stem)
+            if match:
+                sequence_char = match.group(1)
+                seq_num = sequence_map.get(sequence_char, 999)
+                # 从文件名中提取事件名（去掉顺序标记部分）
+                event_part = json_file.stem
+                for key in sequence_map.keys():
+                    event_part = event_part.replace(f'[{key}]', '').replace(f'〔{key}〕', '')
+                storyboard_files.append((seq_num, event_part, json_file))
+
+        # 按顺序排序
+        storyboard_files.sort(key=lambda x: x[0])
+
+        # 查找匹配的事件
+        for seq_num, event_part, _ in storyboard_files:
+            if event_part in event_name or event_name in event_part:
+                logger.info(f"📂 从storyboard文件匹配: {event_name} -> 序号 {seq_num}")
+                return seq_num
+
+    # 默认返回1
+    logger.warning(f"⚠️ 无法确定 {event_name} 的序号，使用默认值1")
+    return 1
 
 
 def get_next_scene_number(video_dir: Path, episode_num: int, event_name: str) -> int:
@@ -132,11 +170,14 @@ def get_video_save_path(metadata: Dict[str, Any], task_id: str) -> Path:
     novel_title = metadata.get('novel_title', '')
     episode_title = metadata.get('episode_title', '')
     event_name = metadata.get('event_name', '')  # 中级事件名称
-    scene_number = metadata.get('scene_number', 1)  # 🔥 优先使用传递的场景序号
+    scene_number = metadata.get('scene_number', 1)  # 🔥 使用传递的场景序号
     shot_number = metadata.get('shot_number', '1')
     shot_type = metadata.get('shot_type', 'shot')
     dialogue_index = metadata.get('dialogue_index', 1)  # 对话序号
     is_dialogue_scene = metadata.get('is_dialogue_scene', False)  # 🔥 是否为对话场景
+
+    # 🔥 调试日志
+    logger.info(f"🎬 [文件名] event_name={event_name}, scene_number={scene_number}, shot_number={shot_number}, shot_type={shot_type}")
 
     if novel_title and episode_title:
         # 使用项目目录结构
@@ -145,14 +186,14 @@ def get_video_save_path(metadata: Dict[str, Any], task_id: str) -> Path:
         safe_event = sanitize_path(event_name) if event_name else ''
         safe_shot_type = sanitize_path(shot_type.replace('/', '_'))
 
-        # 获取章节序号
-        episode_num = get_episode_number(safe_novel, safe_event)
+        # 🔥 获取章节序号（从storyboard文件顺序）
+        episode_num = get_episode_number(safe_novel, safe_event, episode_title)
 
         # 创建项目目录
         project_dir = VIDEO_PROJECT_BASE_DIR / safe_novel / safe_episode / "videos"
         project_dir.mkdir(parents=True, exist_ok=True)
 
-        # 🔥 使用传递的场景序号，而不是运行计数器
+        # 🔥 使用传递的场景序号
         scene_num = int(scene_number) if isinstance(scene_number, int) else int(shot_number)
 
         # 🔥 构建文件名：只对对话场景添加"对话"前缀
@@ -163,6 +204,7 @@ def get_video_save_path(metadata: Dict[str, Any], task_id: str) -> Path:
         else:
             filename = f"{episode_num:03d}_{scene_num:02d}{dialogue_prefix}_{safe_shot_type}_{int(shot_number):03d}.mp4"
 
+        logger.info(f"🎬 [文件名] 生成文件: {filename}")
         return project_dir / filename
     else:
         # 使用默认路径
