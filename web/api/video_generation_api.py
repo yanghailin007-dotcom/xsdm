@@ -926,6 +926,7 @@ def generate_storyboard():
         manager.load_existing_novels()
 
         logger.info(f"🎬 [VIDEO] 生成分镜头: {title} - {video_type}")
+        logger.info(f"🎬 [VIDEO] 选中事件: {selected_events} (共{len(selected_events)}个)")
 
         if not manager:
             return jsonify({"success": False, "error": "管理器未初始化"}), 500
@@ -938,9 +939,16 @@ def generate_storyboard():
         # 🔥 新增：使用通用事件提取器提取事件和角色
         from src.managers.EventExtractor import get_event_extractor
         event_extractor = get_event_extractor(logger)
-        
+
         # 提取事件
         all_events = event_extractor.extract_all_major_events(novel_detail)
+        logger.info(f"📊 [VIDEO] 提取到 {len(all_events)} 个重大事件")
+
+        # 🔥 详细日志：打印每个重大事件的信息
+        for idx, evt in enumerate(all_events):
+            composition = evt.get("composition", {})
+            total_medium = sum(len(composition.get(s, [])) for s in ["起", "承", "转", "合", "起因", "发展", "高潮", "结局"] if isinstance(composition.get(s, []), list))
+            logger.info(f"📊 [VIDEO]   重大事件{idx}: {evt.get('name')}, 包含 {total_medium} 个中级事件")
 
         # 🔥 如果指定了选中事件，只处理选中的
         if selected_events:

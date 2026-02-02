@@ -1324,11 +1324,17 @@ class ShortDramaStudio {
 
         // 检查是否选择了事件
         const selectedEpisodesList = Array.from(this.selectedEpisodes);
-        console.log('🎬 [分镜头] 生成参数:', {
-            novel: this.selectedNovel,
-            selectedEpisodes: selectedEpisodesList,
-            count: selectedEpisodesList.length
-        });
+        console.log('🎬 [分镜头] ===== 生成调试信息 =====');
+        console.log('🎬 [分镜头] 选择小说:', this.selectedNovel);
+        console.log('🎬 [分镜头] 选择事件:', selectedEpisodesList);
+        console.log('🎬 [分镜头] 事件数量:', selectedEpisodesList.length);
+        console.log('🎬 [分镜头] 事件对象:', this.events);
+        console.log('🎬 [分镜头] 第一个事件:', this.events[0]);
+        if (this.events[0] && this.events[0].children) {
+            console.log('🎬 [分镜头] 第一个事件的子事件数量:', this.events[0].children.length);
+            console.log('🎬 [分镜头] 第一个子事件:', this.events[0].children[0]);
+        }
+        console.log('🎬 [分镜头] ========================');
 
         if (selectedEpisodesList.length === 0) {
             container.innerHTML = `
@@ -1355,7 +1361,14 @@ class ShortDramaStudio {
             });
 
             const data = await response.json();
-            console.log('🎬 [分镜头] API响应:', data);
+            console.log('🎬 [分镜头] ===== API响应调试 =====');
+            console.log('🎬 [分镜头] 响应状态:', response.status);
+            console.log('🎬 [分镜头] 响应数据:', data);
+            console.log('🎬 [分镜头] success:', data.success);
+            console.log('🎬 [分镜头] storyboard:', data.storyboard);
+            console.log('🎬 [分镜头] shots数量:', data.storyboard?.shots?.length || 0);
+            console.log('🎬 [分镜头] total_shots:', data.storyboard?.total_shots || 0);
+            console.log('🎬 [分镜头] ========================');
 
             if (data.success && data.storyboard) {
                 this.currentProject = { ...this.currentProject, storyboard: data.storyboard };
