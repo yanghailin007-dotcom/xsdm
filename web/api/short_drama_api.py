@@ -450,25 +450,51 @@ def generate_storyboard_from_idea(title: str, description: str, style: str,
 
 每个镜头需要包含：
 1. shot_number: 镜头编号（从1开始）
-2. shot_type: 镜头类型（主观视角/特写/中景/全景/远景）
-3. veo_prompt: 画面场景描述（静态）- 人物状态/表情/环境/光线/质感
-4. visual.description: 动作序列描述（动态）- 发生了什么/情节推进
-5. dialogue: 对话信息（可选，如果无对话则speaker为"无"）
-6. duration_seconds: 镜头时长
+2. shot_type: 镜头类型（特写/主观视角/近景/中景/全景/远景）
+3. veo_prompt: 画面描述（静态画面）
+   - 描述在这个镜头范围内看到什么（人物状态、表情、服装、环境、光线、质感、色彩）
+   - 用姿态词表达空间关系：站立/坐下/跪地/悬空/倒地/扑向/后退/侧身
+   - 不要描述动作过程，只描述画面定格时的样子
+   - 示例："林启面部特写，满脸汗水与血污，双眼布满血丝，牙关紧咬，双手抓起锋利废铁片对准背部，废铁片反射幽冷金属光泽，绝望中的决绝表情。"
+4. visual.description: 动作序列（动态过程）
+   - 描述镜头中发生的动作变化，用箭头 → 连接
+   - 格式：状态A → 状态B → 状态C
+   - 示例："挥下废铁片 → 咬牙切开背部皮肉 → 鲜血碎肉飞溅 → 露出白森森脊柱"
+5. dialogue: 对话信息（可选，如果无对话则speaker为"无"，lines为""，tone为"无"）
+   - speaker: 说话者
+   - lines: 台词（中文）
+   - lines_en: 台词（英文）
+   - tone: 语气（中文）
+   - tone_en: 语气（英文）
+   - audio_note: 音效描述（中文）
+   - audio_note_en: 音效描述（英文）
+6. duration_seconds: 镜头时长（秒）
 
-【重要 - veo_prompt 写法规范】
-- shot_type已定义构图范围（特写=局部，中景=半身交互，全景=全身+环境）
-- veo_prompt只需描述"在这个范围内看到什么"
-- 用姿态词表达空间关系：站立/坐下/跪地/悬空/倒地/扑向/后退
-- 不要重复shot_type的含义，不要说"左侧特写"这种
-- 示例：
-  * 特写：聚焦机械手扼住咽喉，金属质感，血迹细节
-  * 中景：林启站立，右臂扼住尸狗咽喉使其悬空，废墟背景
-  * 全景：林启巍然不动，尸狗扑来被截停，完整环境
+【完整示例参考】
+{
+  "shot_number": 1,
+  "shot_type": "特写",
+  "veo_prompt": "林启面部特写，面部扭曲痛苦表情，双眼紧闭，汗珠与污泥混杂，下半身浸泡在冒泡的酸液中，周围是腐烂尸体残骸，昏暗光线，恐怖氛围。",
+  "dialogue": {
+    "speaker": "林启",
+    "lines": "啊——！",
+    "lines_en": "Ah—!",
+    "tone": "撕心裂肺的痛苦",
+    "tone_en": "heart-wrenching pain",
+    "audio_note": "刺耳的尖叫，酸液腐蚀血肉的滋滋声",
+    "audio_note_en": "piercing scream, sizzling sound of acid corroding flesh"
+  },
+  "visual": {
+    "description": "猛然睁眼 → 瞳孔放大 → 剧烈挣扎 → 下半身被酸液腐蚀"
+  },
+  "duration_seconds": 8
+}
 
-【visual.description 写法规范】
-- 描述动作过程，用箭头连接：A → B → C
-- 示例：机械手伸出 → 卡住咽喉 → 尸狗挣扎 → 主角冷漠
+【重要规则】
+- veo_prompt只描述静态画面，不包含动作变化
+- visual.description只描述动态过程，用箭头连接
+- shot_type已定义构图范围，veo_prompt不需要重复说明"特写"等词汇
+- 如果没有对话，dialogue的speaker设为"无"，lines为空字符串""，tone为"无"
 
 请以JSON格式返回，结构如下：
 {
@@ -477,7 +503,7 @@ def generate_storyboard_from_idea(title: str, description: str, style: str,
     "total_duration": 总时长,
     "scenes": [
         {
-            "scene_number": 1,
+            "scene_number": 场景号,
             "scene_title": "场景标题",
             "shot_sequence": [镜头列表]
         }
@@ -492,12 +518,13 @@ def generate_storyboard_from_idea(title: str, description: str, style: str,
 创意描述：{description}
 
 要求：
-- 生成 {shot_count} 个镜头
+- 生成 {shot_count} 个镜头，每个镜头一个独立场景（scene_number从1开始）
 - 每个镜头约 {shot_duration} 秒
 - 风格要符合{style}特色
 - 保持画面连贯性和节奏感
 - 确保视觉冲击力
-- 注意：用姿态词明确空间关系，避免人物重叠
+- veo_prompt要详细描述画面中的视觉元素（人物、环境、光线、质感）
+- visual.description要用箭头→描述动作过程
 
 请直接返回JSON格式的分镜头数据，不要包含其他说明文字。"""
 
