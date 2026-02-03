@@ -826,7 +826,8 @@ def generate_speech():
 
         novel_title = data.get('novel_title')
         episode_title = data.get('episode_title')
-        scene_number = data.get('scene_number') or data.get('shot_number')
+        scene_number = data.get('scene_number')  # 🔥 场景号
+        shot_number = data.get('shot_number')  # 🔥 镜头号（场景内的编号）
         event_name = data.get('event_name', '')  # 中级事件名
         speaker = data.get('speaker', '默认')
         lines = data.get('lines', '')
@@ -839,8 +840,7 @@ def generate_speech():
         # 获取对话序号信息（用于对话场景）
         dialogue_index = data.get('dialogue_index')
         dialogue_count = data.get('dialogue_count')
-        scene_number = data.get('scene_number')  # 🔥 新增：场景序号
-        is_dialogue_scene = data.get('is_dialogue_scene', True)  # 🔥 新增：是否为对话场景
+        is_dialogue_scene = data.get('is_dialogue_scene', False)  # 🔥 是否为对话场景
 
         if not lines:
             return jsonify({
@@ -878,14 +878,18 @@ def generate_speech():
             # 获取对话序号
             dialogue_idx = dialogue_index if dialogue_index else 1
 
-            # 🔥 使用传递的场景序号，而不是运行计数器
+            # 🔥 使用传递的场景序号和镜头号
             if scene_number is not None:
                 scene_num = int(scene_number)
-                # 对于非对话场景，句子序号使用1
-                sentence_num = 1
             else:
                 # 兼容旧逻辑：使用运行计数器
-                scene_num, sentence_num = get_next_scene_and_sentence_number(episode_dir, episode_number, safe_event, dialogue_idx, safe_speaker)
+                scene_num, _ = get_next_scene_and_sentence_number(episode_dir, episode_number, safe_event, dialogue_idx, safe_speaker)
+
+            # 🔥 使用镜头号作为序号（对于非对话场景，镜头号=序号）
+            if shot_number is not None:
+                sentence_num = int(shot_number)
+            else:
+                sentence_num = 1
 
             # 🔥 根据是否为对话场景生成不同格式的文件名
             dialogue_prefix = f"_对话{dialogue_idx:02d}" if is_dialogue_scene else ""
@@ -944,7 +948,8 @@ def generate_batch_speech():
         success_count = 0
 
         for i, scene in enumerate(scenes):
-            scene_number = scene.get('scene_number') or scene.get('shot_number') or (i + 1)
+            scene_num_from_data = scene.get('scene_number') or scene.get('shot_number')
+            shot_num_from_data = scene.get('shot_number')
 
             # 检查是否有台词
             dialogue = scene.get('dialogue') or scene.get('_dialogue_data', {})
@@ -959,7 +964,7 @@ def generate_batch_speech():
 
             if not speaker or not lines or speaker == '无':
                 results.append({
-                    'scene_number': scene_number,
+                    'scene_number': scene_num_from_data or (i + 1),
                     'success': False,
                     'skipped': True,
                     'reason': '无台词'
@@ -995,21 +1000,15 @@ def generate_batch_speech():
                 dialogue_idx = scene.get('dialogue_index', 1)
 
                 # 🔥 检查是否为对话场景
-                is_dialogue_scene = scene.get('is_dialogue_scene', True)
+                is_dialogue_scene = scene.get('is_dialogue_scene', False)
 
-                # 🔥 使用传递的场景序号，而不是运行计数器
-                # 优先使用 scene.scene_number，否则使用 scene_number
-                provided_scene_num = scene.get('scene_number') or scene.get('shot_number')
-                if provided_scene_num is not None:
-                    scene_num = int(provided_scene_num)
-                    sentence_num = 1  # 使用场景序号时，句子序号固定为1
-                else:
-                    # 兼容旧逻辑：使用运行计数器
-                    scene_num, sentence_num = get_next_scene_and_sentence_number(episode_dir, episode_number, safe_event, dialogue_idx, safe_speaker)
+                # 🔥 使用传递的场景序号和镜头号
+                scene_num = int(scene_num_from_data) if scene_num_from_data else 1
+                shot_num = int(shot_num_from_data) if shot_num_from_data else 1
 
                 # 🔥 根据是否为对话场景生成不同格式的文件名
                 dialogue_prefix = f"_对话{dialogue_idx:02d}" if is_dialogue_scene else ""
-                filename = f"{episode_number:03d}_{scene_num:02d}_{safe_event}{dialogue_prefix}_{safe_speaker}_{sentence_num:03d}.mp3"
+                filename = f"{episode_number:03d}_{scene_num:02d}_{safe_event}{dialogue_prefix}_{safe_speaker}_{shot_num:03d}.mp3"
 
                 audio_path = episode_dir / filename
 
@@ -1020,7 +1019,8 @@ def generate_batch_speech():
                 audio_url = f"/api/tts/audio/{quote(str(rel_path), safe='')}"
 
                 results.append({
-                    'scene_number': scene_number,
+                    'scene_number': scene_num,  # 🔥 使用正确的场景号
+                    'shot_number': shot_num,   # 🔥 添加镜头号
                     'success': True,
                     'audio_url': audio_url,
                     'filename': filename,

@@ -1704,7 +1704,7 @@ class ShortDramaStudio {
             <div class="shots-list">
                 ${allShots.map((shot, idx) => `
                     <div class="shot-item" id="storyboardShot_${idx}">
-                        <div class="shot-number">#${shot.shot_number || shot.scene_number || (idx + 1)}</div>
+                        <div class="shot-number">S${shot.scene_number || 1}-#${shot.shot_number || 1}</div>
                         <div class="shot-info">
                             <div class="shot-type">${shot.shot_type || '镜头'}</div>
                             <div class="shot-duration">⏱️ ${shot.duration || 5}秒</div>
@@ -2294,7 +2294,7 @@ class ShortDramaStudio {
 
         return `
             <div class="task-row ${statusClass}" id="taskRow_${idx}">
-                <div class="task-index">#${shot.scene_number || shot.shot_number || (idx + 1)}</div>
+                <div class="task-index">S${shot.scene_number || 1}-#${shot.shot_number || 1}</div>
                 <div class="task-content">
                     <div class="task-prompt">
                         <span class="prompt-label">AI提示:</span>
@@ -2903,14 +2903,15 @@ class ShortDramaStudio {
                 body: JSON.stringify({
                     novel_title: this.selectedNovel || '',
                     episode_title: episodeDirectoryName,
-                    scene_number: shot.shot_number || shot.scene_number || (idx + 1),
-                    event_name: shot.event_name || shot.event || '',  // 中级事件名
-                    dialogue_index: shot.dialogue_index,  // 对话序号（对话场景用）
-                    dialogue_count: shot.dialogue_count,  // 该场景对话总数
-                    is_dialogue_scene: shot.is_dialogue_scene || false,  // 🔥 是否为对话场景
+                    scene_number: shot.scene_number || 1,  // 🔥 场景号
+                    shot_number: shot.shot_number || (idx + 1),  // 🔥 镜头号（场景内的编号）
+                    event_name: shot.event_name || shot.event || '',
+                    dialogue_index: shot.dialogue_index,
+                    dialogue_count: shot.dialogue_count,
+                    is_dialogue_scene: shot.is_dialogue_scene || false,
                     speaker: speaker,
-                    lines: cleanLines,  // 使用清理后的台词
-                    tone: tone,  // 传递语气描述，后端会自动转换为emotion
+                    lines: cleanLines,
+                    tone: tone,
                     voice_id: voiceId,
                     speed: speed,
                     pitch: pitch,
