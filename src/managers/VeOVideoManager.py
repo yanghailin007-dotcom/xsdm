@@ -155,7 +155,7 @@ def get_episode_number(novel_title: str, event_name: str, episode_title: str = N
                 return seq_num
 
     # 默认返回1
-    logger.warning(f"⚠️ 无法确定 {event_name} 的序号，使用默认值1")
+    logger.warn(f"⚠️ 无法确定 {event_name} 的序号，使用默认值1")
     return 1
 
 
