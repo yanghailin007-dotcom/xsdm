@@ -1448,6 +1448,11 @@ class ShortDramaStudio {
         // 🔥 episodeOrder 是后端提供的事件顺序（_order字段），直接使用
         const order = episodeOrder !== undefined && episodeOrder !== null ? episodeOrder : 9999;
 
+        // 🔥 获取场景号（从 _scene_number 或 scene_number）
+        const sceneNumber = shot._scene_number || shot.scene_number || 1;
+        // 🔥 shot_number 是场景内的镜头号，不是场景号！
+        const shotNumber = shot.shot_number || 1;
+
         // 检查是否是新格式 (有 visual 字段)
         if (shot.visual) {
             // 新格式转旧格式
@@ -1456,9 +1461,9 @@ class ShortDramaStudio {
             // 检查是否有多个对话 (对话场景)
             if (shot.dialogues && Array.isArray(shot.dialogues) && shot.dialogues.length > 0) {
                 // 对话场景：保留原始结构，不展开
-                // 视频生成时生成1个视频，配音生成时展开为多个音频
                 return {
-                    shot_number: shot.scene_number || shot.shot_number,
+                    scene_number: sceneNumber,  // 🔥 场景号
+                    shot_number: shotNumber,     // 🔥 镜头号
                     shot_type: visual.shot_type || shot.shot_type || '镜头',
                     screen_action: visual.description || shot.screen_action || '',
                     // 保留dialogues数组用于配音展开
@@ -1470,38 +1475,40 @@ class ShortDramaStudio {
                     duration: shot.duration || 5,
                     plot_content: shot.plot_content || '',
                     episode_title: title,
-                    event_name: title,  // 事件名用于文件命名
+                    event_name: title,
                     episode_index: episodeNumber,
                     episode_order: order,
                     audio: shot.dialogues[0].audio_note || shot.audio || '',
-                    is_dialogue_scene: true,  // 标记为对话场景
-                    dialogue_count: shot.dialogues.length  // 对话总数
+                    is_dialogue_scene: true,
+                    dialogue_count: shot.dialogues.length
                 };
             }
 
             const dialogue = shot.dialogue || {};
             return {
-                shot_number: shot.scene_number || shot.shot_number,
+                scene_number: sceneNumber,  // 🔥 场景号
+                shot_number: shotNumber,     // 🔥 镜头号
                 shot_type: visual.shot_type || shot.shot_type || '镜头',
                 screen_action: visual.description || shot.screen_action || '',
                 dialogue: dialogue.lines || dialogue.speaker || '',
-                // 保留原始dialogue对象供后期使用
                 _dialogue_data: dialogue,
                 veo_prompt: visual.veo_prompt || shot.veo_prompt || '',
                 duration: shot.duration || 5,
                 plot_content: shot.plot_content || '',
                 episode_title: title,
-                event_name: title,  // 事件名用于文件命名
+                event_name: title,
                 episode_index: episodeNumber,
                 episode_order: order,
                 audio: dialogue.audio_note || shot.audio || ''
             };
         } else {
-            // 旧格式，直接使用
+            // 旧格式，直接使用并添加场景号
             return {
                 ...shot,
+                scene_number: sceneNumber,  // 🔥 确保有场景号
+                shot_number: shotNumber,     // 🔥 确保有镜头号
                 episode_title: title,
-                event_name: shot.event_name || title,  // 确保有 event_name
+                event_name: shot.event_name || title,
                 episode_index: episodeNumber,
                 episode_order: order
             };
@@ -1617,35 +1624,59 @@ class ShortDramaStudio {
         for (const data of storyboardList) {
             const title = data._key || '';
             const episodeNumber = 1; // 默认值，可根据需要调整
-            // 🔥 支持新旧两种格式
-            // 旧格式: data.shots, 新格式: data.scenes
-            const sourceShots = data.scenes || data.shots || [];
             const eventOrder = data._order || 999;
 
-            // 🔥 先转换所有镜头
-            const normalizedShots = [];
-            for (const shot of sourceShots) {
-                const normalizedShot = this.normalizeShotData(shot, title, episodeNumber, eventOrder);
-                // 🔥 对话场景返回的是数组，需要展开
-                if (Array.isArray(normalizedShot)) {
-                    normalizedShots.push(...normalizedShot);
-                } else {
-                    normalizedShots.push(normalizedShot);
+            // 🔥 检查是否是新的嵌套格式: scenes -> shot_sequence
+            const scenes = data.scenes || [];
+            const hasNestedStructure = scenes.length > 0 && scenes[0].shot_sequence;
+
+            if (hasNestedStructure) {
+                // 新格式: scenes [{scene_number, shot_sequence: [{shot_number, ...}]}]
+                for (const scene of scenes) {
+                    const sceneNumber = scene.scene_number || 1;
+                    const shotSequence = scene.shot_sequence || [];
+
+                    for (const shot of shotSequence) {
+                        // 将 scene_number 添加到镜头数据中
+                        const shotWithScene = {
+                            ...shot,
+                            _scene_number: sceneNumber  // 保留场景号
+                        };
+                        const normalizedShot = this.normalizeShotData(shotWithScene, title, episodeNumber, eventOrder);
+                        if (Array.isArray(normalizedShot)) {
+                            allShots.push(...normalizedShot);
+                        } else {
+                            allShots.push(normalizedShot);
+                        }
+                    }
+                }
+            } else {
+                // 旧格式: data.shots 或 data.scenes 直接是镜头数组
+                const sourceShots = data.scenes || data.shots || [];
+                for (const shot of sourceShots) {
+                    const normalizedShot = this.normalizeShotData(shot, title, episodeNumber, eventOrder);
+                    if (Array.isArray(normalizedShot)) {
+                        allShots.push(...normalizedShot);
+                    } else {
+                        allShots.push(normalizedShot);
+                    }
                 }
             }
-
-            // 🔥 合并连续的对话场景
-            const groupedShots = this.groupDialogueScenes(normalizedShots);
-            allShots.push(...groupedShots);
         }
 
-        // 🔥 按事件选择顺序 + 镜头编号排序
+        // 🔥 按事件选择顺序 + 场景号 + 镜头编号排序
         allShots.sort((a, b) => {
             // 首先按事件选择顺序
             if (a.episode_order !== b.episode_order) {
                 return a.episode_order - b.episode_order;
             }
-            // 同一事件内按镜头编号排序 (支持 shot_number 和 scene_number)
+            // 然后按场景号
+            const sceneA = parseInt(a._scene_number || a.scene_number || 1) || 1;
+            const sceneB = parseInt(b._scene_number || b.scene_number || 1) || 1;
+            if (sceneA !== sceneB) {
+                return sceneA - sceneB;
+            }
+            // 最后按镜头编号
             const numA = parseInt(a.shot_number || a.scene_number) || 0;
             const numB = parseInt(b.shot_number || b.scene_number) || 0;
             return numA - numB;
@@ -3500,12 +3531,12 @@ class ShortDramaStudio {
                         novel_title: this.selectedNovel || '',
                         episode_title: episodeDirectoryName,
                         event_name: shot.episode_title || '',
-                        scene_number: shot.scene_number || (i + 1),  // 🔥 添加场景序号
-                        shot_number: String(shot.shot_number || (shotIndex + 1)),
+                        scene_number: shot.scene_number || 1,  // 🔥 场景号（从分镜头文件获取）
+                        shot_number: String(shot.shot_number || (shotIndex + 1)),  // 🔥 镜头号（场景内的编号）
                         shot_type: shot.shot_type || 'shot',
                         dialogue_index: shot.dialogue_index || 1,
-                        is_dialogue_scene: shot.is_dialogue_scene || false,  // 🔥 添加是否为对话场景标志
-                        lines_en: dialogueData?.lines_en || ''  // 传递英文台词
+                        is_dialogue_scene: shot.is_dialogue_scene || false,
+                        lines_en: dialogueData?.lines_en || ''
                     }
                 })
             });
@@ -6543,12 +6574,12 @@ class ShortDramaStudio {
                         novel_title: this.selectedNovel || '',
                         episode_title: episodeDirectoryName,
                         event_name: shot.episode_title || '',
-                        scene_number: shot.scene_number || (i + 1),  // 🔥 添加场景序号
-                        shot_number: String(shot.shot_number || (shotIndex + 1)),
+                        scene_number: shot.scene_number || 1,  // 🔥 场景号（从分镜头文件获取）
+                        shot_number: String(shot.shot_number || (shotIndex + 1)),  // 🔥 镜头号（场景内的编号）
                         shot_type: shot.shot_type || 'shot',
                         dialogue_index: shot.dialogue_index || 1,
-                        is_dialogue_scene: shot.is_dialogue_scene || false,  // 🔥 添加是否为对话场景标志
-                        lines_en: dialogueData?.lines_en || ''  // 传递英文台词
+                        is_dialogue_scene: shot.is_dialogue_scene || false,
+                        lines_en: dialogueData?.lines_en || ''
                     }
                 })
             });

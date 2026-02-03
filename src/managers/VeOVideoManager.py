@@ -216,18 +216,26 @@ def get_video_save_path(metadata: Dict[str, Any], task_id: str) -> Path:
         project_dir = VIDEO_PROJECT_BASE_DIR / safe_novel / safe_episode / "videos"
         project_dir.mkdir(parents=True, exist_ok=True)
 
-        # 🔥 使用传递的场景序号
-        scene_num = int(scene_number) if isinstance(scene_number, int) else int(shot_number)
+        # 🔥 使用传递的场景序号（支持字符串和整数）
+        try:
+            scene_num = int(scene_number) if scene_number else 1
+        except (ValueError, TypeError):
+            scene_num = 1
 
-        logger.info(f"🎬 [文件名] scene_number={scene_number} (type: {type(scene_number)}), shot_number={shot_number}, scene_num={scene_num}")
+        # 🔥 镜头号是场景内的编号
+        try:
+            shot_num = int(shot_number) if shot_number else 1
+        except (ValueError, TypeError):
+            shot_num = 1
 
-        # 🔥 构建文件名：只对对话场景添加"对话"前缀
-        # 新文件名格式: {章节序号:03d}_{场景序号:02d}_{中级事件名}_[对话{对话序号:02d}_]_{类型}_{句子序号:03d}.mp4
+        logger.info(f"🎬 [文件名] scene_number={scene_number}→scene_num={scene_num}, shot_number={shot_number}→shot_num={shot_num}, shot_type={shot_type}")
+
+        # 🔥 构建文件名：{章节序号:03d}_{场景序号:02d}_{事件名}_{类型}_{镜头号:03d}.mp4
         dialogue_prefix = f"_对话{dialogue_index:02d}" if is_dialogue_scene else ""
         if safe_event:
-            filename = f"{episode_num:03d}_{scene_num:02d}_{safe_event}{dialogue_prefix}_{safe_shot_type}_{int(shot_number):03d}.mp4"
+            filename = f"{episode_num:03d}_{scene_num:02d}_{safe_event}{dialogue_prefix}_{safe_shot_type}_{shot_num:03d}.mp4"
         else:
-            filename = f"{episode_num:03d}_{scene_num:02d}{dialogue_prefix}_{safe_shot_type}_{int(shot_number):03d}.mp4"
+            filename = f"{episode_num:03d}_{scene_num:02d}{dialogue_prefix}_{safe_shot_type}_{shot_num:03d}.mp4"
 
         logger.info(f"🎬 [文件名] 生成文件: {filename}")
         return project_dir / filename
