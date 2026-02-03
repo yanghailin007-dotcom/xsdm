@@ -3542,6 +3542,9 @@ class ShortDramaStudio {
                 })
             });
 
+            // 🔥 调试日志
+            console.log('🎬 [视频生成] scene_number:', shot.scene_number, 'shot_number:', shot.shot_number, 'event_name:', shot.episode_title);
+
             const data = await response.json();
 
             if (data.id) {
@@ -6584,6 +6587,9 @@ class ShortDramaStudio {
                     }
                 })
             });
+
+            // 🔥 调试日志
+            console.log('🎬 [视频生成] scene_number:', shot.scene_number, 'shot_number:', shot.shot_number, 'event_name:', shot.episode_title);
 
             const data = await response.json();
 
