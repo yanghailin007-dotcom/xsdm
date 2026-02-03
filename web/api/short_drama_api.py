@@ -471,7 +471,9 @@ def get_storyboards():
         logger.info(f'📜 [分镜头] 加载了 {len(storyboards)} 个分镜头文件')
         logger.info(f'📜 [返回的 storyboards 数据结构]:')
         for key, data in storyboards.items():
-            logger.info(f"  key={key}, _display_name={data.get(\"_display_name\")}, _order={data.get(\"_order\")}")
+            display_name = data.get('_display_name', 'N/A')
+            order = data.get('_order', 'N/A')
+            logger.info(f"  key={key}, _display_name={display_name}, _order={order}")
 
         return jsonify({
             'success': True,
