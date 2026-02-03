@@ -421,14 +421,23 @@ def get_storyboards():
                 event_name = event_name[:event_name.rfind('[')]
             event_name = event_name.rstrip('_')
 
+            logger.info(f"🔍 [排序] 文件名: {stem} -> 提取的事件名: {event_name}")
+
             # 在 plan 中查找
             if event_name in medium_event_order:
-                return medium_event_order[event_name]
+                order = medium_event_order[event_name]
+                logger.info(f"  ✅ 匹配成功: order={order}")
+                return order
             # 如果不在 plan 中，返回一个大数字（排在最后）
+            logger.info(f"  ❌ 未匹配，使用默认值 999999")
             return 999999
 
         # 按事件顺序排序文件
         storyboard_files.sort(key=get_event_order)
+
+        logger.info(f"📂 [排序后文件顺序]:")
+        for idx, f in enumerate(storyboard_files):
+            logger.info(f"  [{idx}] {f.name}")
 
         # 按顺序加载分镜头
         storyboards = {}
@@ -455,10 +464,14 @@ def get_storyboards():
                     data['_display_name'] = display_name
                     data['_order'] = order
                     storyboards[key] = data
+                    logger.info(f"📋 [加载] key={key}, display_name={display_name}, _order={order}")
             except Exception as e:
                 logger.error(f'读取分镜头文件失败 {json_file}: {e}')
 
         logger.info(f'📜 [分镜头] 加载了 {len(storyboards)} 个分镜头文件')
+        logger.info(f'📜 [返回的 storyboards 数据结构]:')
+        for key, data in storyboards.items():
+            logger.info(f"  key={key}, _display_name={data.get(\"_display_name\")}, _order={data.get(\"_order\")}")
 
         return jsonify({
             'success': True,
