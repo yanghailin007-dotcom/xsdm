@@ -75,6 +75,72 @@
                     </div>
                 </div>
             </div>
+
+            <!-- 从创意创建 -->
+            <div class="import-section">
+                <div class="section-header">
+                    <h2 class="section-title">快速创意导入</h2>
+                </div>
+                <div class="import-panel">
+                    <p style="color: var(--text-secondary); margin-bottom: 1rem;">
+                        有一个好想法？直接输入创意，AI为你生成分镜头
+                    </p>
+                    <button class="btn btn-success" id="createFromIdeaBtn" style="width: 100%;">
+                        📝 从创意创建单集短剧
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 创意导入模态框 -->
+        <div id="ideaImportModal" class="modal" style="display: none;">
+            <div class="modal-content" style="max-width: 600px;">
+                <div class="modal-header">
+                    <h3>📝 单集创意导入</h3>
+                    <button class="modal-close" onclick="shortDramaStudio.closeIdeaModal()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>剧集标题 <span class="required">*</span></label>
+                        <input type="text" id="ideaTitle" class="form-input" placeholder="例如：废土：开局徒手搓高达">
+                    </div>
+                    <div class="form-group">
+                        <label>创意描述 <span class="required">*</span></label>
+                        <textarea id="ideaDescription" class="form-textarea" rows="4"
+                            placeholder="描述你的核心场景或剧情构想...&#10;例如：主角林启在废土世界苏醒，发现自己被改造成半机械体，正在遭遇变异生物的攻击..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>风格</label>
+                        <select id="ideaStyle" class="form-select">
+                            <option value="通用">通用</option>
+                            <option value="科幻">科幻</option>
+                            <option value="奇幻">奇幻</option>
+                            <option value="都市">都市</option>
+                            <option value="悬疑">悬疑</option>
+                            <option value="恐怖">恐怖</option>
+                            <option value="动作">动作</option>
+                            <option value="爱情">爱情</option>
+                            <option value="喜剧">喜剧</option>
+                            <option value="废土">废土</option>
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group" style="flex: 1;">
+                            <label>预计镜头数</label>
+                            <input type="number" id="ideaShotCount" class="form-input" value="3" min="1" max="10">
+                        </div>
+                        <div class="form-group" style="flex: 1;">
+                            <label>每镜头时长(秒)</label>
+                            <input type="number" id="ideaShotDuration" class="form-input" value="8" min="4" max="15">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" onclick="shortDramaStudio.closeIdeaModal()">取消</button>
+                    <button class="btn btn-primary" onclick="shortDramaStudio.submitIdeaImport()">生成分镜头</button>
+                </div>
+            </div>
+        </div>
         </div>
 
         <!-- 项目工作区页面 -->

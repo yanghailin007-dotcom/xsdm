@@ -349,6 +349,233 @@ def create_from_novel():
         }), 500
 
 
+@short_drama_api.route('/create-from-idea', methods=['POST'])
+def create_from_idea():
+    """从创意直接创建项目并生成分镜头"""
+    try:
+        data = request.json or {}
+        title = data.get('title', '').strip()
+        description = data.get('description', '').strip()
+        style = data.get('style', '通用')
+        shot_count = data.get('shot_count', 3)
+        shot_duration = data.get('shot_duration', 8)
+
+        # 验证必填字段
+        if not title:
+            return jsonify({
+                'success': False,
+                'error': '请输入剧集标题'
+            }), 400
+        if not description:
+            return jsonify({
+                'success': False,
+                'error': '请输入创意描述'
+            }), 400
+
+        # 限制参数范围
+        shot_count = max(1, min(10, int(shot_count)))
+        shot_duration = max(4, min(15, int(shot_duration)))
+
+        logger.info(f'📝 [创意导入] 标题: {title}, 风格: {style}, 镜头数: {shot_count}')
+
+        # 1. 创建项目目录
+        project_dir = VIDEO_PROJECTS_DIR / title
+        project_dir.mkdir(exist_ok=True)
+
+        episode_name = '1集_创意导入'
+        episode_dir = project_dir / episode_name
+        episode_dir.mkdir(exist_ok=True)
+
+        storyboard_dir = episode_dir / 'storyboards'
+        storyboard_dir.mkdir(exist_ok=True)
+
+        # 2. 调用AI生成分镜头
+        storyboard_data = generate_storyboard_from_idea(
+            title=title,
+            description=description,
+            style=style,
+            shot_count=shot_count,
+            shot_duration=shot_duration
+        )
+
+        # 3. 保存分镜头JSON
+        storyboard_filename = f"{clean_filename(title)}_创意分镜头.json"
+        storyboard_file = storyboard_dir / storyboard_filename
+
+        with open(storyboard_file, 'w', encoding='utf-8') as f:
+            json.dump(storyboard_data, f, ensure_ascii=False, indent=2)
+
+        logger.info(f'✅ [创意导入] 分镜头已保存: {storyboard_file}')
+
+        # 4. 创建/更新项目
+        project = ShortDramaProject(title=title)
+        project.episodes = [episode_name]
+        project.save()
+
+        return jsonify({
+            'success': True,
+            'project': project.to_dict(),
+            'storyboard': storyboard_data,
+            'message': f'成功生成 {shot_count} 个分镜头'
+        }), 201
+
+    except Exception as e:
+        logger.error(f'❌ [创意导入] 创建失败: {e}')
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+def generate_storyboard_from_idea(title: str, description: str, style: str,
+                                   shot_count: int, shot_duration: int) -> dict:
+    """
+    根据创意描述生成分镜头数据
+
+    Args:
+        title: 剧集标题
+        description: 创意描述
+        style: 风格
+        shot_count: 镜头数量
+        shot_duration: 每镜头时长
+
+    Returns:
+        分镜头数据字典
+    """
+    try:
+        # 构建生成提示词
+        system_prompt = """你是一位专业的影视分镜头设计师。根据用户提供的创意描述，生成详细的分镜头脚本。
+
+每个镜头需要包含：
+1. shot_number: 镜头编号（从1开始）
+2. shot_type: 镜头类型（主观视角/特写/中景/全景/远景等）
+3. veo_prompt: 画面场景描述（静态）- 人物状态/表情/环境/光线/构图
+4. visual.description: 动作序列描述（动态）- 发生了什么/镜头运动/情节推进
+5. dialogue: 对话信息（可选，如果无对话则speaker为"无"）
+6. duration_seconds: 镜头时长
+
+请以JSON格式返回，结构如下：
+{
+    "video_title": "视频标题",
+    "hook": "开篇钩子（一句话吸引眼球）",
+    "total_duration": 总时长,
+    "scenes": [
+        {
+            "scene_number": 1,
+            "scene_title": "场景标题",
+            "shot_sequence": [镜头列表]
+        }
+    ],
+    "ending_hook": "结尾钩子"
+}"""
+
+        user_prompt = f"""请根据以下创意生成分镜头脚本：
+
+剧集标题：{title}
+风格：{style}
+创意描述：{description}
+
+要求：
+- 生成 {shot_count} 个镜头
+- 每个镜头约 {shot_duration} 秒
+- 风格要符合{style}特色
+- 保持画面连贯性和节奏感
+- 确保视觉冲击力
+
+请直接返回JSON格式的分镜头数据，不要包含其他说明文字。"""
+
+        # 调用AI生成
+        import requests
+        ai_config = _get_ai_config()
+
+        response = requests.post(
+            ai_config['api_url'],
+            headers={
+                'Authorization': f'Bearer {ai_config["api_key"]}',
+                'Content-Type': 'application/json'
+            },
+            json={
+                'model': ai_config.get('model', 'gpt-4o'),
+                'messages': [
+                    {'role': 'system', 'content': system_prompt},
+                    {'role': 'user', 'content': user_prompt}
+                ],
+                'temperature': 0.7,
+                'response_format': {'type': 'json_object'}
+            },
+            timeout=120
+        )
+
+        if response.status_code == 200:
+            result = response.json()
+            content = result['choices'][0]['message']['content']
+            storyboard_data = json.loads(content)
+            logger.info(f'✅ [AI生成] 分镜头生成成功')
+            return storyboard_data
+        else:
+            logger.error(f'❌ [AI生成] API调用失败: {response.status_code}')
+            raise Exception(f'AI API调用失败: {response.status_code}')
+
+    except Exception as e:
+        logger.error(f'❌ [AI生成] 分镜头生成失败: {e}')
+        # 返回一个基础模板作为兜底
+        return _get_default_storyboard(title, description, shot_count, shot_duration)
+
+
+def _get_ai_config() -> dict:
+    """获取AI配置"""
+    import os
+    return {
+        'api_url': os.getenv('OPENAI_API_BASE', 'https://api.openai.com/v1/chat/completions'),
+        'api_key': os.getenv('OPENAI_API_KEY', ''),
+        'model': os.getenv('OPENAI_MODEL', 'gpt-4o')
+    }
+
+
+def _get_default_storyboard(title: str, description: str, shot_count: int, shot_duration: int) -> dict:
+    """生成默认分镜头模板（AI失败时的兜底方案）"""
+    shots = []
+    for i in range(1, shot_count + 1):
+        shots.append({
+            'shot_number': i,
+            'shot_type': ['主观视角', '特写', '中景', '全景'][i % 4],
+            'veo_prompt': f'{title} - 镜头{i}：{description[:50]}...',
+            'dialogue': {
+                'speaker': '无',
+                'lines': '',
+                'tone': ''
+            },
+            'visual': {
+                'description': f'镜头{i}的动作描述'
+            },
+            'duration_seconds': shot_duration
+        })
+
+    return {
+        'video_title': title,
+        'hook': description[:50] + '...',
+        'total_duration': shot_count * shot_duration,
+        'scenes': [
+            {
+                'scene_number': 1,
+                'scene_title': '创意场景',
+                'shot_sequence': shots
+            }
+        ],
+        'ending_hook': '敬请期待'
+    }
+
+
+def clean_filename(name: str) -> str:
+    """清理文件名，移除非法字符"""
+    # 移除或替换Windows文件名中的非法字符
+    illegal_chars = r'[<>:"/\\|?*]'
+    cleaned = re.sub(illegal_chars, '_', name)
+    return cleaned.strip()
+
+
 # ==================== 角色管理 API ====================
 
 @short_drama_api.route('/storyboards', methods=['GET'])

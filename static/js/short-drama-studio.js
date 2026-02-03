@@ -109,6 +109,11 @@ class ShortDramaStudio {
             this.createFromNovel();
         });
 
+        // 从创意创建按钮
+        document.getElementById('createFromIdeaBtn')?.addEventListener('click', () => {
+            this.openIdeaModal();
+        });
+
         // 设置变更监听
         document.getElementById('settingAspectRatio')?.addEventListener('change', () => {
             this.onSettingChange();
@@ -6915,6 +6920,123 @@ class ShortDramaStudio {
         if (portraitsEl) portraitsEl.textContent = this.characterPortraits.size;
         if (shotsEl) shotsEl.textContent = this.shots?.length || 0;
         if (videosEl) videosEl.textContent = '0'; // TODO: 计算已完成视频数
+    }
+
+    /**
+     * 打开创意导入模态框
+     */
+    openIdeaModal() {
+        const modal = document.getElementById('ideaImportModal');
+        if (modal) {
+            modal.style.display = 'flex';
+            // 清空之前的输入
+            document.getElementById('ideaTitle').value = '';
+            document.getElementById('ideaDescription').value = '';
+            document.getElementById('ideaStyle').value = '通用';
+            document.getElementById('ideaShotCount').value = '3';
+            document.getElementById('ideaShotDuration').value = '8';
+        }
+    }
+
+    /**
+     * 关闭创意导入模态框
+     */
+    closeIdeaModal() {
+        const modal = document.getElementById('ideaImportModal');
+        if (modal) {
+            modal.style.display = 'none';
+        }
+    }
+
+    /**
+     * 提交创意导入
+     */
+    async submitIdeaImport() {
+        const title = document.getElementById('ideaTitle').value.trim();
+        const description = document.getElementById('ideaDescription').value.trim();
+        const style = document.getElementById('ideaStyle').value;
+        const shotCount = parseInt(document.getElementById('ideaShotCount').value) || 3;
+        const shotDuration = parseInt(document.getElementById('ideaShotDuration').value) || 8;
+
+        // 验证必填字段
+        if (!title) {
+            this.showToast('请输入剧集标题', 'warning');
+            return;
+        }
+        if (!description) {
+            this.showToast('请输入创意描述', 'warning');
+            return;
+        }
+
+        // 显示加载状态
+        const submitBtn = document.querySelector('#ideaImportModal .btn-primary');
+        const originalText = submitBtn.textContent;
+        submitBtn.textContent = '🔄 生成中...';
+        submitBtn.disabled = true;
+
+        try {
+            const response = await fetch('/api/short-drama/create-from-idea', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    title,
+                    description,
+                    style,
+                    shot_count: shotCount,
+                    shot_duration: shotDuration
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                this.showToast('分镜头生成成功！', 'success');
+                this.closeIdeaModal();
+
+                // 重新加载项目列表
+                await this.loadProjects();
+
+                // 打开新创建的项目
+                const newProject = this.projects.find(p => p.title === title);
+                if (newProject) {
+                    await this.openProject(newProject.id);
+                }
+            } else {
+                this.showToast(data.error || '生成失败', 'error');
+            }
+        } catch (error) {
+            console.error('创意导入失败:', error);
+            this.showToast('创意导入失败', 'error');
+        } finally {
+            submitBtn.textContent = originalText;
+            submitBtn.disabled = false;
+        }
+    }
+
+    /**
+     * 从创意启动工作流（直接跳到分镜头预览）
+     */
+    async startWorkflowFromIdea(title) {
+        console.log('📝 [工作流] 从创意启动:', title);
+
+        this.selectedNovel = title;
+
+        // 查找项目
+        const existingProject = this.projects.find(p => p.title === title);
+        if (existingProject) {
+            this.currentProject = existingProject;
+            this.loadProjectSettings(existingProject.settings);
+        } else {
+            this.currentProject = { title };
+        }
+
+        // 切换到工作区视图
+        document.getElementById('projectListView').classList.remove('active');
+        document.getElementById('projectWorkspaceView').classList.add('active');
+        document.getElementById('currentProjectName').textContent = `📺 ${title} - 创意导入`;
+
+        // 直接跳到分镜头步骤（跳过选事件步骤）
+        this.goToStep('storyboard');
     }
 }
 
