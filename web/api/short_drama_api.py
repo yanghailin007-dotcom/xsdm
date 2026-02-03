@@ -110,6 +110,10 @@ class ShortDramaProject:
         project_dir = get_project_dir(self.title)
         project_dir.mkdir(parents=True, exist_ok=True)
 
+        # 🔥 创建场景道具目录
+        scene_props_dir = project_dir / '场景道具'
+        scene_props_dir.mkdir(exist_ok=True)
+
         project_file = project_dir / '项目信息.json'
         with open(project_file, 'w', encoding='utf-8') as f:
             json.dump(self.to_dict(), f, ensure_ascii=False, indent=2)
