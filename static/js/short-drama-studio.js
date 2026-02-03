@@ -1704,7 +1704,7 @@ class ShortDramaStudio {
             <div class="shots-list">
                 ${allShots.map((shot, idx) => `
                     <div class="shot-item" id="storyboardShot_${idx}">
-                        <div class="shot-number">S${shot.scene_number || 1}-#${shot.shot_number || 1}</div>
+                        <div class="shot-number">S${shot._scene_number || shot.scene_number || 1}-#${shot.shot_number || 1}</div>
                         <div class="shot-info">
                             <div class="shot-type">${shot.shot_type || '镜头'}</div>
                             <div class="shot-duration">⏱️ ${shot.duration || 5}秒</div>
@@ -1800,7 +1800,7 @@ class ShortDramaStudio {
             <div class="shots-list">
                 ${allShots.map((shot, idx) => `
                     <div class="shot-item" id="shot_${idx}">
-                        <div class="shot-number">#${shot.scene_number || shot.shot_number || (idx + 1)}</div>
+                        <div class="shot-number">S${shot._scene_number || shot.scene_number || 1}-#${shot.shot_number || 1}</div>
                         <div class="shot-info">
                             <div class="shot-type">${shot.shot_type || '镜头'}</div>
                             <div class="shot-duration">⏱️ ${shot.duration || 5}秒</div>
@@ -2903,7 +2903,7 @@ class ShortDramaStudio {
                 body: JSON.stringify({
                     novel_title: this.selectedNovel || '',
                     episode_title: episodeDirectoryName,
-                    scene_number: shot.scene_number || 1,  // 🔥 场景号
+                    scene_number: shot._scene_number || shot.scene_number || 1,  // 🔥 场景号
                     shot_number: shot.shot_number || (idx + 1),  // 🔥 镜头号（场景内的编号）
                     event_name: shot.event_name || shot.event || '',
                     dialogue_index: shot.dialogue_index,
@@ -3041,7 +3041,8 @@ class ShortDramaStudio {
                 body: JSON.stringify({
                     novel_title: this.selectedNovel || '',
                     episode_title: episodeDirectoryName,
-                    scene_number: shot.shot_number || shot.scene_number,
+                    scene_number: shot._scene_number || shot.scene_number || 1,  // 🔥 场景号
+                    shot_number: shot.shot_number || 1,  // 🔥 镜头号（场景内的编号）
                     event_name: shot.event_name || shot.event || '',
                     dialogue_index: shot.dialogue_index,
                     dialogue_count: shot.dialogue_count,
@@ -3336,9 +3337,14 @@ class ShortDramaStudio {
             ? `<span class="dialogue-index" style="font-size: 0.75rem; color: var(--primary); background: var(--bg-tertiary); padding: 2px 6px; border-radius: 4px; margin-left: 4px;">对话${dialogueIndex}/${dialogueCount}</span>`
             : '';
 
+        // 场景号和镜头号显示
+        const sceneNum = shot._scene_number || shot.scene_number || 1;
+        const shotNum = shot.shot_number || (idx + 1);
+        const shotLabel = `S${sceneNum}-#${shotNum}`;
+
         const innerHTML = `
             <div class="scene-header">
-                <span class="scene-number">#${shot.scene_number || shot.shot_number || (idx + 1)}${dialogueLabel}</span>
+                <span class="scene-number">${shotLabel}${dialogueLabel}</span>
                 ${eventName ? `<span class="scene-event" title="事件：${eventName}" style="font-size: 0.75rem; color: var(--accent); background: var(--bg-tertiary); padding: 2px 8px; border-radius: 4px;">📋 ${eventName.length > 12 ? eventName.substring(0, 12) + '...' : eventName}</span>` : ''}
                 <span class="scene-type">${shot.shot_type || '镜头'}</span>
                 <span class="scene-duration">⏱️ ${shot.duration || 5}秒</span>
@@ -3368,7 +3374,7 @@ class ShortDramaStudio {
                         <button class="scene-btn edit-btn" onclick="shortDramaStudio.editDubbing(${idx})">
                             <span>✏️</span> 编辑台词
                         </button>
-                        <button class="scene-btn download-btn" onclick="shortDramaStudio.downloadAudio('${shot.audioUrl}', '${speaker}_${shot.shot_number || idx}')">
+                        <button class="scene-btn download-btn" onclick="shortDramaStudio.downloadAudio('${shot.audioUrl}', '${speaker}_S${sceneNum}_${shotNum}')">
                             <span>⬇️</span> 下载
                         </button>
                         <button class="scene-btn restore-btn" onclick="shortDramaStudio.showAudioRestoreModal(${idx})" title="还原备份">
@@ -3532,7 +3538,7 @@ class ShortDramaStudio {
                         novel_title: this.selectedNovel || '',
                         episode_title: episodeDirectoryName,
                         event_name: shot.episode_title || '',
-                        scene_number: shot.scene_number || 1,  // 🔥 场景号（从分镜头文件获取）
+                        scene_number: shot._scene_number || shot.scene_number || 1,  // 🔥 场景号（从分镜头文件获取）
                         shot_number: String(shot.shot_number || (shotIndex + 1)),  // 🔥 镜头号（场景内的编号）
                         shot_type: shot.shot_type || 'shot',
                         dialogue_index: shot.dialogue_index || 1,
@@ -4994,6 +5000,7 @@ class ShortDramaStudio {
                         novel_title: this.selectedNovel || '',
                         episode_title: episodeDirectoryName,
                         event_name: shot.episode_title || '',
+                        scene_number: shot._scene_number || shot.scene_number || 1,
                         shot_number: String(shot.shot_number || (idx + 1)),
                         shot_type: shot.shot_type || 'shot',
                         dialogue_index: shot.dialogue_index || 1,
@@ -6578,7 +6585,7 @@ class ShortDramaStudio {
                         novel_title: this.selectedNovel || '',
                         episode_title: episodeDirectoryName,
                         event_name: shot.episode_title || '',
-                        scene_number: shot.scene_number || 1,  // 🔥 场景号（从分镜头文件获取）
+                        scene_number: shot._scene_number || shot.scene_number || 1,  // 🔥 场景号（从分镜头文件获取）
                         shot_number: String(shot.shot_number || (shotIndex + 1)),  // 🔥 镜头号（场景内的编号）
                         shot_type: shot.shot_type || 'shot',
                         dialogue_index: shot.dialogue_index || 1,
@@ -6589,7 +6596,7 @@ class ShortDramaStudio {
             });
 
             // 🔥 调试日志
-            console.log('🎬 [视频生成] scene_number:', shot.scene_number, 'shot_number:', shot.shot_number, 'event_name:', shot.episode_title);
+            console.log('🎬 [视频生成] scene_number:', shot._scene_number || shot.scene_number, 'shot_number:', shot.shot_number, 'event_name:', shot.episode_title);
 
             const data = await response.json();
 
