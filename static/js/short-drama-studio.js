@@ -1637,6 +1637,8 @@ class ShortDramaStudio {
             const numB = parseInt(b.shot_number || b.scene_number) || 0;
             return numA - numB;
         });
+
+        if (allShots.length === 0) {
             container.innerHTML = `
                 <div class="empty-state">
                     <p style="font-size: 2rem;">🎬</p>
