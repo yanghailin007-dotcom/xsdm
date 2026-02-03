@@ -3616,19 +3616,44 @@ class ShortDramaStudio {
                     padding: 1rem;
                     border-radius: 8px;
                     margin-bottom: 1rem;
-                    text-align: center;
                 ">
-                    <div class="video-progress-spinner" style="
-                        width: 40px;
-                        height: 40px;
-                        border: 3px solid var(--border);
-                        border-top-color: var(--primary);
-                        border-radius: 50%;
-                        animation: spin 1s linear infinite;
-                        margin: 0 auto 0.75rem;
-                    "></div>
-                    <p style="margin: 0; font-size: 0.9rem; color: var(--text-secondary);" id="videoProgressText">正在生成视频...</p>
-                    <p style="margin: 0.25rem 0 0 0; font-size: 0.8rem; color: var(--text-tertiary);" id="videoProgressStatus">正在提交任务</p>
+                    <!-- 进度条 -->
+                    <div style="
+                        width: 100%;
+                        height: 8px;
+                        background: var(--bg-dark);
+                        border-radius: 4px;
+                        overflow: hidden;
+                        margin-bottom: 0.75rem;
+                    ">
+                        <div id="videoProgressBar" style="
+                            width: 0%;
+                            height: 100%;
+                            background: linear-gradient(90deg, var(--primary), var(--accent));
+                            border-radius: 4px;
+                            transition: width 0.3s ease;
+                        "></div>
+                    </div>
+
+                    <div style="
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                    ">
+                        <div class="video-progress-spinner" style="
+                            width: 32px;
+                            height: 32px;
+                            border: 3px solid var(--border);
+                            border-top-color: var(--primary);
+                            border-radius: 50%;
+                            animation: spin 1s linear infinite;
+                        "></div>
+                        <div style="flex: 1; margin-left: 1rem;">
+                            <p style="margin: 0; font-size: 0.9rem; color: var(--text-secondary);" id="videoProgressText">正在生成视频...</p>
+                            <p style="margin: 0.25rem 0 0 0; font-size: 0.8rem; color: var(--text-tertiary);" id="videoProgressStatus">⏳ 提交任务中...</p>
+                        </div>
+                        <span style="font-size: 1.5rem; font-weight: bold; color: var(--primary);" id="videoProgressPercent">0%</span>
+                    </div>
                 </div>
 
                 <div style="
@@ -3764,6 +3789,8 @@ class ShortDramaStudio {
                 </div>
                 ${Array.from(this.backgroundTasks.values()).map(task => {
                     const shot = task.shot;
+                    const progress = task.progress || 0;
+                    const status = task.status || '处理中...';
                     return `
                         <div class="bg-task-item" data-task-id="${task.taskId}" style="
                             background: var(--bg-tertiary);
@@ -3773,37 +3800,29 @@ class ShortDramaStudio {
                             cursor: pointer;
                             transition: background 0.2s;
                         ">
-                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
                                 <div style="flex: 1; min-width: 0;">
                                     <div style="font-size: 0.85rem; font-weight: 500; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                                         #${shot.shot_number || (task.shotIndex + 1)} ${shot.shot_type || '镜头'}
                                     </div>
                                     <div style="font-size: 0.75rem; color: var(--text-tertiary); margin-top: 0.25rem;">
-                                        ${task.status || '处理中...'}
+                                        ${status}
                                     </div>
                                 </div>
-                                <div style="margin-left: 0.75rem;">
-                                    <div class="task-spinner" style="
-                                        width: 20px;
-                                        height: 20px;
-                                        border: 2px solid var(--border);
-                                        border-top-color: var(--primary);
-                                        border-radius: 50%;
-                                        animation: spin 1s linear infinite;
-                                    "></div>
+                                <div style="margin-left: 0.75rem; font-size: 0.85rem; font-weight: bold; color: var(--primary);">
+                                    ${progress}%
                                 </div>
                             </div>
                             <div style="
-                                margin-top: 0.5rem;
                                 height: 4px;
                                 background: var(--bg-dark);
                                 border-radius: 2px;
                                 overflow: hidden;
                             ">
                                 <div style="
-                                    width: ${task.progress || 0}%;
+                                    width: ${progress}%;
                                     height: 100%;
-                                    background: var(--primary);
+                                    background: ${progress >= 100 ? 'var(--success)' : 'var(--primary)'};
                                     transition: width 0.3s;
                                 "></div>
                             </div>
@@ -3874,19 +3893,44 @@ class ShortDramaStudio {
         const statusIcon = modal.querySelector('#videoStatusIcon');
         const progressText = modal.querySelector('#videoProgressText');
         const progressStatus = modal.querySelector('#videoProgressStatus');
+        const progressBar = modal.querySelector('#videoProgressBar');
+        const progressPercent = modal.querySelector('#videoProgressPercent');
 
         if (statusIcon) {
             if (progress >= 100) {
                 statusIcon.textContent = '✓';
                 statusIcon.style.color = 'var(--success)';
-            } else if (status.includes('失败')) {
+            } else if (status.includes('失败') || status.includes('❌')) {
                 statusIcon.textContent = '✗';
                 statusIcon.style.color = 'var(--danger)';
             }
         }
 
-        if (progressText) progressText.textContent = progress >= 100 ? '✅ 生成完成!' : `生成进度: ${progress}%`;
-        if (progressStatus) progressStatus.textContent = status;
+        if (progressBar) {
+            progressBar.style.width = `${Math.min(100, progress)}%`;
+            // 根据进度改变颜色
+            if (progress >= 100) {
+                progressBar.style.background = 'var(--success)';
+            } else if (progress < 30) {
+                progressBar.style.background = 'linear-gradient(90deg, #f59e0b, #f97316)';
+            } else {
+                progressBar.style.background = 'linear-gradient(90deg, var(--primary), var(--accent))';
+            }
+        }
+
+        if (progressPercent) {
+            progressPercent.textContent = `${Math.min(100, Math.round(progress))}%`;
+        }
+
+        if (progressText) {
+            progressText.textContent = progress >= 100 ? '✅ 生成完成!' : status;
+        }
+
+        if (progressStatus) {
+            // 提取状态文本中的表情符号和主要文本
+            const statusLines = status.split('\n');
+            progressStatus.textContent = statusLines[0] || status;
+        }
 
         // 生成完成后，2秒后自动关闭弹窗
         if (progress >= 100 && shotIndex !== null) {
@@ -6319,83 +6363,122 @@ class ShortDramaStudio {
      */
     pollVideoStatus(taskId, shotIndex) {
         return new Promise((resolve, reject) => {
-            const maxAttempts = 120;
+            const maxAttempts = 240; // 增加最大尝试次数（20分钟）
             let attempts = 0;
             const shot = this.shots[shotIndex];
 
             // 保存任务ID，用于后台任务跟踪
             shot.currentTaskId = taskId;
 
+            // 🔥 状态映射和进度计算
+            const getStatusInfo = (data) => {
+                const status = data.status || 'pending';
+
+                // 根据后端返回的状态映射到前端显示
+                switch (status) {
+                    case 'pending':
+                        return { progress: 5, text: '⏳ 提交任务中...', phase: 'submitting' };
+                    case 'processing':
+                        // processing 阶段细分为几个阶段
+                        const baseProgress = 15;
+                        const phaseProgress = Math.min(85, baseProgress + (attempts * 2));
+                        return {
+                            progress: phaseProgress,
+                            text: attempts < 10 ? '🎬 任务已提交，等待处理...' :
+                                  attempts < 30 ? '🎨 AI生成中...' :
+                                  attempts < 60 ? '⏳ 视频渲染中...' :
+                                  '📥 准备下载...',
+                            phase: 'processing'
+                        };
+                    case 'completed':
+                        return { progress: 100, text: '✅ 生成完成!', phase: 'completed' };
+                    case 'failed':
+                        return { progress: 0, text: '❌ 生成失败', phase: 'failed' };
+                    case 'cancelled':
+                        return { progress: 0, text: '⏹️ 已取消', phase: 'cancelled' };
+                    default:
+                        return { progress: 5, text: '⏳ 初始化...', phase: 'unknown' };
+                }
+            };
+
             const poll = async () => {
                 try {
                     const response = await fetch(`/api/veo/status/${taskId}`);
                     const data = await response.json();
 
-                    // 更新进度
-                    let progress = 0;
-                    let statusText = '处理中...';
-
-                    if (data.status === 'processing' || data.status === 'pending') {
-                        progress = 10 + (attempts / maxAttempts) * 50;
-                    } else if (data.status === 'generating') {
-                        progress = 60 + (data.progress || 0) * 0.4;
-                        statusText = `生成中 ${data.progress || 0}%`;
-                    }
+                    // 获取状态信息
+                    const statusInfo = getStatusInfo(data);
+                    const progress = statusInfo.progress;
+                    const statusText = statusInfo.text;
 
                     // 更新弹窗进度
-                    this.updateVideoProgressModal(Math.round(progress), statusText, shotIndex);
+                    this.updateVideoProgressModal(progress, statusText, shotIndex);
 
-                    // 🔥 修复：使用 shotIndex 更新后台任务进度，传递 API taskId
-                    this.updateBackgroundTaskProgress(shotIndex, Math.round(progress), statusText, taskId);
+                    // 🔥 使用 shotIndex 更新后台任务进度
+                    this.updateBackgroundTaskProgress(shotIndex, progress, statusText, taskId);
 
-                    if (data.status === 'completed') {
+                    if (data.status === 'completed' || statusInfo.phase === 'completed') {
                         // 视频生成完成
                         shot.generating = false;
                         shot.videoExists = true;
                         shot.hasError = false;
                         delete shot.currentTaskId;
 
-                        // 🔥 修复：根据实际数据结构获取视频URL
-                        // 数据格式: data.result.videos[0].url
+                        // 🔥 根据实际数据结构获取视频URL
                         if (data.result && data.result.videos && data.result.videos.length > 0) {
                             shot.videoUrl = data.result.videos[0].url;
                             shot.videoPath = data.result.videos[0].url;
                         } else if (data.result && data.result.video_url) {
-                            // 兼容旧格式
                             shot.videoUrl = data.result.video_url;
                             shot.videoPath = data.result.video_path;
                         }
 
-                        this.updateVideoProgressModal(100, '✅ 完成!', shotIndex, shot.videoUrl);
+                        this.updateVideoProgressModal(100, '✅ 生成完成!', shotIndex, shot.videoUrl);
                         this.updateVideoCard(shotIndex);
                         this.updateProjectStatus();
 
-                        // 🔥 修复：使用 shotIndex 移除后台任务
+                        // 🔥 使用 shotIndex 移除后台任务
                         this.removeBackgroundTask(shotIndex);
 
                         this.showToast(`镜头 #${shot.shot_number || (shotIndex + 1)} 生成完成`, 'success');
                         resolve();
 
-                    } else if (data.status === 'failed') {
+                    } else if (data.status === 'failed' || statusInfo.phase === 'failed') {
                         shot.generating = false;
                         shot.hasError = true;
                         delete shot.currentTaskId;
                         this.updateVideoCard(shotIndex);
-                        // 🔥 只关闭当前任务的弹窗，不影响其他任务
                         this.closeVideoProgressModal(shotIndex);
                         this.removeBackgroundTask(shotIndex);
-                        reject(new Error(data.error || '生成失败'));
+                        const errorMsg = data.error?.message || data.message || '生成失败';
+                        this.showToast(`镜头 #${shot.shot_number || (shotIndex + 1)} 生成失败: ${errorMsg}`, 'error');
+                        reject(new Error(errorMsg));
+
+                    } else if (data.status === 'cancelled' || statusInfo.phase === 'cancelled') {
+                        shot.generating = false;
+                        delete shot.currentTaskId;
+                        this.updateVideoCard(shotIndex);
+                        this.closeVideoProgressModal(shotIndex);
+                        this.removeBackgroundTask(shotIndex);
+                        this.showToast('任务已取消', 'info');
+                        reject(new Error('Task cancelled'));
+
                     } else if (attempts < maxAttempts) {
+                        // 继续轮询
                         attempts++;
-                        setTimeout(poll, 5000);
+                        // 根据阶段调整轮询间隔
+                        const interval = data.status === 'pending' ? 3000 :
+                                        data.status === 'processing' ? 5000 : 3000;
+                        setTimeout(poll, interval);
                     } else {
+                        // 超时
                         shot.generating = false;
                         shot.hasError = true;
                         delete shot.currentTaskId;
                         this.updateVideoCard(shotIndex);
-                        // 🔥 只关闭当前任务的弹窗，不影响其他任务
                         this.closeVideoProgressModal(shotIndex);
                         this.removeBackgroundTask(shotIndex);
+                        this.showToast(`镜头 #${shot.shot_number || (shotIndex + 1)} 生成超时`, 'error');
                         reject(new Error('生成超时'));
                     }
                 } catch (error) {
@@ -6404,7 +6487,6 @@ class ShortDramaStudio {
                     shot.hasError = true;
                     delete shot.currentTaskId;
                     this.updateVideoCard(shotIndex);
-                    // 🔥 只关闭当前任务的弹窗，不影响其他任务
                     this.closeVideoProgressModal(shotIndex);
                     this.removeBackgroundTask(shotIndex);
                     this.showToast(`镜头 #${shot.shot_number || (shotIndex + 1)} 生成失败: ${error.message}`, 'error');
