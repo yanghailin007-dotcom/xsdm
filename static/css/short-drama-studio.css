@@ -1601,7 +1601,8 @@ body {
 }
 
 .form-select,
-.form-input {
+.form-input,
+.form-textarea {
     width: 100%;
     padding: var(--space-sm);
     background: var(--bg-dark);
@@ -1609,10 +1610,19 @@ body {
     border-radius: var(--radius-md);
     color: var(--text-primary);
     font-size: 0.9rem;
+    box-sizing: border-box;
+}
+
+.form-textarea {
+    resize: vertical;
+    min-height: 100px;
+    font-family: inherit;
+    line-height: 1.5;
 }
 
 .form-select:focus,
-.form-input:focus {
+.form-input:focus,
+.form-textarea:focus {
     outline: none;
     border-color: var(--primary);
     background: var(--bg-tertiary);
