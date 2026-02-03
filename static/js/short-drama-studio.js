@@ -4204,7 +4204,10 @@ class ShortDramaStudio {
             const allPortraits = Array.from(characterPortraits.entries());
 
             // 生成唯一键用于保存/加载提示词
-            const shotKey = `videoPrompt_${this.selectedNovel}_${shot.episode_title || ''}_${shot.shot_number || (idx + 1)}`;
+            // 🔥 包含 scene_number 和 shot_number 确保唯一性
+            const sceneNum = shot._scene_number || shot.scene_number || 1;
+            const shotNum = shot.shot_number || (idx + 1);
+            const shotKey = `videoPrompt_${this.selectedNovel}_${shot.episode_title || ''}_S${sceneNum}_#${shotNum}`;
 
             // 🔥 构建AI提示词：区分画面场景和动作序列
             // veo_prompt: 画面场景（静态）- 人物状态、表情、环境、光线、构图
@@ -4988,11 +4991,10 @@ class ShortDramaStudio {
         // 保存选中的参考图到镜头数据
         shot.reference_images = result.selectedImages || [];
 
-        // 🔥 更新 shot 对象中的提示词，确保进度弹窗显示正确的提示词
-        if (result.prompt && result.prompt !== (shot.veo_prompt || shot.screen_action || '')) {
-            shot.veo_prompt = result.prompt;
-            console.log('已更新 shot.veo_prompt:', result.prompt);
-        }
+        // 🔥 注意：不要覆盖原始的 veo_prompt
+        // result.prompt 是带标签的显示格式（【镜头类型】...），不应该保存到 shot.veo_prompt
+        // 如果用户编辑了提示词，需要提取其中的 veo_prompt 部分或者使用原始值
+        // TODO: 实现智能解析，从带标签的提示词中提取 veo_prompt
 
         // 开始生成，显示进度弹窗
         this.showVideoProgressModal(shot, idx);
@@ -5004,8 +5006,8 @@ class ShortDramaStudio {
         try {
             const episodeDirectoryName = this.getEpisodeDirectoryName();
 
-            // 直接使用用户编辑的提示词
-            shot.veo_prompt = result.prompt;
+            // 🔥 使用原始的 veo_prompt，不要使用带标签的格式化版本
+            const promptForApi = shot.veo_prompt || shot.screen_action || '';
 
             // 获取对话数据中的英文台词
             const dialogueData = shot._dialogue_data || shot.dialogue;
@@ -5015,7 +5017,7 @@ class ShortDramaStudio {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     model: result.model || 'veo_3_1-fast-components',
-                    prompt: result.prompt,
+                    prompt: promptForApi,  // 🔥 使用干净的 veo_prompt，不是带标签的格式
                     image_urls: result.selectedImages || [],
                     orientation: result.orientation || 'portrait',
                     size: result.size || 'large',
