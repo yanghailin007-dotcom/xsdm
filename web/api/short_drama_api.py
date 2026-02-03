@@ -10,12 +10,23 @@ import re
 import uuid
 import os
 import shutil
+import sys
 from datetime import datetime
 from urllib.parse import unquote
 
 from src.utils.logger import get_logger
+from src.core.APIClient import APIClient
+from config.config import CONFIG
 
 logger = get_logger(__name__)
+
+# 初始化AI客户端
+try:
+    api_client = APIClient(CONFIG)
+    logger.info("✅ [短剧API] AI客户端初始化成功")
+except Exception as e:
+    logger.warning(f"⚠️ [短剧API] AI客户端初始化失败: {e}")
+    api_client = None
 
 short_drama_api = Blueprint('short_drama_api', __name__, url_prefix='/api/short-drama')
 
@@ -528,52 +539,51 @@ def generate_storyboard_from_idea(title: str, description: str, style: str,
 
 请直接返回JSON格式的分镜头数据，不要包含其他说明文字。"""
 
-        # 调用AI生成
-        import requests
-        ai_config = _get_ai_config()
+        # 🔥 使用通用的APIClient调用AI
+        if api_client is None:
+            logger.error("❌ [AI生成] AI客户端未初始化")
+            raise Exception("AI客户端未初始化")
 
-        response = requests.post(
-            ai_config['api_url'],
-            headers={
-                'Authorization': f'Bearer {ai_config["api_key"]}',
-                'Content-Type': 'application/json'
-            },
-            json={
-                'model': ai_config.get('model', 'gpt-4o'),
-                'messages': [
-                    {'role': 'system', 'content': system_prompt},
-                    {'role': 'user', 'content': user_prompt}
-                ],
-                'temperature': 0.7,
-                'response_format': {'type': 'json_object'}
-            },
-            timeout=120
+        logger.info(f"🚀 [AI生成] 开始调用AI生成分镜头...")
+        logger.info(f"   - 剧集标题: {title}")
+        logger.info(f"   - 风格: {style}")
+        logger.info(f"   - 镜头数: {shot_count}")
+
+        # 使用APIClient调用AI（不使用流式，需要JSON格式）
+        response_text = api_client.call_api(
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            temperature=0.7,
+            purpose="创意分镜头生成"
         )
 
-        if response.status_code == 200:
-            result = response.json()
-            content = result['choices'][0]['message']['content']
-            storyboard_data = json.loads(content)
-            logger.info(f'✅ [AI生成] 分镜头生成成功')
+        if not response_text:
+            raise Exception("AI返回空响应")
+
+        # 解析JSON响应
+        try:
+            # 尝试提取JSON（可能被```json包裹）
+            json_text = response_text.strip()
+            if json_text.startswith("```json"):
+                json_text = json_text[7:]
+            elif json_text.startswith("```"):
+                json_text = json_text[3:]
+            if json_text.endswith("```"):
+                json_text = json_text[:-3]
+            json_text = json_text.strip()
+
+            storyboard_data = json.loads(json_text)
+            logger.info(f'✅ [AI生成] 分镜头生成成功，共 {len(storyboard_data.get("scenes", []))} 个场景')
             return storyboard_data
-        else:
-            logger.error(f'❌ [AI生成] API调用失败: {response.status_code}')
-            raise Exception(f'AI API调用失败: {response.status_code}')
+        except json.JSONDecodeError as e:
+            logger.error(f'❌ [AI生成] JSON解析失败: {e}')
+            logger.error(f'   AI响应: {response_text[:500]}...')
+            raise Exception(f"AI返回的不是有效的JSON格式: {e}")
 
     except Exception as e:
         logger.error(f'❌ [AI生成] 分镜头生成失败: {e}')
         # 返回一个基础模板作为兜底
         return _get_default_storyboard(title, description, shot_count, shot_duration)
-
-
-def _get_ai_config() -> dict:
-    """获取AI配置"""
-    import os
-    return {
-        'api_url': os.getenv('OPENAI_API_BASE', 'https://api.openai.com/v1/chat/completions'),
-        'api_key': os.getenv('OPENAI_API_KEY', ''),
-        'model': os.getenv('OPENAI_MODEL', 'gpt-4o')
-    }
 
 
 def _get_default_storyboard(title: str, description: str, shot_count: int, shot_duration: int) -> dict:
