@@ -450,11 +450,25 @@ def generate_storyboard_from_idea(title: str, description: str, style: str,
 
 每个镜头需要包含：
 1. shot_number: 镜头编号（从1开始）
-2. shot_type: 镜头类型（主观视角/特写/中景/全景/远景等）
-3. veo_prompt: 画面场景描述（静态）- 人物状态/表情/环境/光线/构图
-4. visual.description: 动作序列描述（动态）- 发生了什么/镜头运动/情节推进
+2. shot_type: 镜头类型（主观视角/特写/中景/全景/远景）
+3. veo_prompt: 画面场景描述（静态）- 人物状态/表情/环境/光线/质感
+4. visual.description: 动作序列描述（动态）- 发生了什么/情节推进
 5. dialogue: 对话信息（可选，如果无对话则speaker为"无"）
 6. duration_seconds: 镜头时长
+
+【重要 - veo_prompt 写法规范】
+- shot_type已定义构图范围（特写=局部，中景=半身交互，全景=全身+环境）
+- veo_prompt只需描述"在这个范围内看到什么"
+- 用姿态词表达空间关系：站立/坐下/跪地/悬空/倒地/扑向/后退
+- 不要重复shot_type的含义，不要说"左侧特写"这种
+- 示例：
+  * 特写：聚焦机械手扼住咽喉，金属质感，血迹细节
+  * 中景：林启站立，右臂扼住尸狗咽喉使其悬空，废墟背景
+  * 全景：林启巍然不动，尸狗扑来被截停，完整环境
+
+【visual.description 写法规范】
+- 描述动作过程，用箭头连接：A → B → C
+- 示例：机械手伸出 → 卡住咽喉 → 尸狗挣扎 → 主角冷漠
 
 请以JSON格式返回，结构如下：
 {
@@ -483,6 +497,7 @@ def generate_storyboard_from_idea(title: str, description: str, style: str,
 - 风格要符合{style}特色
 - 保持画面连贯性和节奏感
 - 确保视觉冲击力
+- 注意：用姿态词明确空间关系，避免人物重叠
 
 请直接返回JSON格式的分镜头数据，不要包含其他说明文字。"""
 
