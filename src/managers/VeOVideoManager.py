@@ -219,6 +219,8 @@ def get_video_save_path(metadata: Dict[str, Any], task_id: str) -> Path:
         # 🔥 使用传递的场景序号
         scene_num = int(scene_number) if isinstance(scene_number, int) else int(shot_number)
 
+        logger.info(f"🎬 [文件名] scene_number={scene_number} (type: {type(scene_number)}), shot_number={shot_number}, scene_num={scene_num}")
+
         # 🔥 构建文件名：只对对话场景添加"对话"前缀
         # 新文件名格式: {章节序号:03d}_{场景序号:02d}_{中级事件名}_[对话{对话序号:02d}_]_{类型}_{句子序号:03d}.mp4
         dialogue_prefix = f"_对话{dialogue_index:02d}" if is_dialogue_scene else ""

@@ -1589,39 +1589,24 @@ class ShortDramaStudio {
         const container = document.getElementById('storyboardContent');
         if (!container) return;
 
-        // 🔥 直接使用后端返回的顺序（后端已添加_order字段）
-        const storyboardArray = Object.entries(storyboards).map(([title, data]) => {
-            // 从标题中提取集数用于显示，格式如 "1集_xxx"
-            const episodeMatch = title.match(/^(\d+)[集期]/);
-            const episodeNumber = episodeMatch ? parseInt(episodeMatch[1]) : 999;
-            return { title, data, episodeNumber };
-        });
+        // 🔥 后端现在返回列表（已按_order排序）
+        const storyboardList = Array.isArray(storyboards) ? storyboards : [];
 
-        // 🔥 调试日志：检查 _order 值
-        console.log('📊 [Storyboards] 后端返回的 _order 值:');
-        storyboardArray.forEach(({ title, data }) => {
-            console.log(`  ${title}: _order=${data._order}, _display_name=${data._display_name || title}`);
-        });
-
-        // 🔥 按后端提供的_order字段排序
-        storyboardArray.sort((a, b) => {
-            const orderA = a.data._order || 999;
-            const orderB = b.data._order || 999;
-            return orderA - orderB;
-        });
-
-        console.log('📊 [Storyboards] 排序后的顺序:');
-        storyboardArray.forEach(({ title, data }, idx) => {
-            console.log(`  [${idx}] ${title}: _order=${data._order}`);
+        console.log('📊 [Storyboards] 后端返回的列表，长度:', storyboardList.length);
+        storyboardList.forEach((data, idx) => {
+            console.log(`  [${idx}] _key=${data._key}, _order=${data._order}, _display_name=${data._display_name}`);
         });
 
         // 收集所有镜头，并按事件顺序 + 镜头编号排序
         const allShots = [];
 
-        for (const { title, data, episodeNumber } of storyboardArray) {
+        // 🔥 后端列表已排序，直接处理
+        for (const data of storyboardList) {
+            const title = data._key || '';
+            const episodeNumber = 1; // 默认值，可根据需要调整
             // 🔥 支持新旧两种格式
             // 旧格式: data.shots, 新格式: data.scenes
-            const sourceShots = data.shots || data.scenes || [];
+            const sourceShots = data.scenes || data.shots || [];
             const eventOrder = data._order || 999;
 
             // 🔥 先转换所有镜头
@@ -1652,8 +1637,6 @@ class ShortDramaStudio {
             const numB = parseInt(b.shot_number || b.scene_number) || 0;
             return numA - numB;
         });
-
-        if (allShots.length === 0) {
             container.innerHTML = `
                 <div class="empty-state">
                     <p style="font-size: 2rem;">🎬</p>
@@ -1702,35 +1685,24 @@ class ShortDramaStudio {
 
         const allShots = [];
 
-        // 🔥 直接使用后端返回的顺序（后端已添加_order字段）
-        const storyboardEntries = Object.entries(storyboard);
+        // 🔥 后端现在返回列表（已按_order排序）
+        const storyboardList = Array.isArray(storyboard) ? storyboard : [];
 
-        console.log('📂 [storyboard] 后端返回的 _order 值:');
-        storyboardEntries.forEach(([key, data]) => {
-            console.log(`  - ${key}: _order=${data._order}, _display_name=${data._display_name || key}`);
+        console.log('📂 [storyboard] 后端返回的数据是列表，长度:', storyboardList.length);
+        storyboardList.forEach((data, idx) => {
+            console.log(`  [${idx}] _key=${data._key}, _order=${data._order}, _display_name=${data._display_name}`);
         });
 
-        // 🔥 按 _order 字段排序（后端已提供正确的顺序）
-        storyboardEntries.sort((a, b) => {
-            const orderA = a[1]._order || 999;
-            const orderB = b[1]._order || 999;
-            return orderA - orderB;
-        });
-
-        console.log('📂 [storyboard] 排序后的顺序:');
-        storyboardEntries.forEach(([key, data], idx) => {
-            console.log(`  [${idx}] ${key}: _order=${data._order}, _display_name=${data._display_name || key}`);
-        });
-
-        // 🔥 按章节顺序提取镜头
-        storyboardEntries.forEach(([epId, epData], epIndex) => {
+        // 🔥 按章节顺序提取镜头（后端列表已排序）
+        storyboardList.forEach((epData, epIndex) => {
             // 🔥 优先使用后端提供的显示名称
+            const epId = epData._key || `event_${epIndex}`;
             const eventName = epData._display_name || epId;
             // 🔥 使用后端提供的 _order 作为 episode_order
             const eventOrder = epData._order || epIndex;
 
             const scenes = epData.scenes || [];
-            console.log(`📂 [${epIndex}] 文件: ${epId} -> 事件名: ${eventName}, 场景: ${scenes.length}`);
+            console.log(`📂 [${epIndex}] 文件: ${epId} -> 事件名: ${eventName}, 场景: ${scenes.length}, _order=${eventOrder}`);
 
             for (const scene of scenes) {
                 const shots = scene.shot_sequence || [];
@@ -1755,6 +1727,7 @@ class ShortDramaStudio {
                             // 🔥 添加 episode_order 用于排序（直接使用后端顺序）
                             episode_order: eventOrder
                         });
+                        console.log(`📷 [镜头] scene=${sceneNumber}, shot=${shot.shot_number}, type=${shot.shot_type}`);
                     }
                 }
             }

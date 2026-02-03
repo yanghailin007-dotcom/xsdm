@@ -439,8 +439,8 @@ def get_storyboards():
         for idx, f in enumerate(storyboard_files):
             logger.info(f"  [{idx}] {f.name}")
 
-        # 按顺序加载分镜头
-        storyboards = {}
+        # 按顺序加载分镜头，使用列表保持顺序
+        storyboards_list = []
         for json_file in storyboard_files:
             try:
                 order = get_event_order(json_file)
@@ -463,21 +463,21 @@ def get_storyboards():
                     # 在数据中添加显示名称和顺序字段
                     data['_display_name'] = display_name
                     data['_order'] = order
-                    storyboards[key] = data
+                    data['_key'] = key  # 保留原始key
+                    # 将数据添加到列表中（保持顺序）
+                    storyboards_list.append(data)
                     logger.info(f"📋 [加载] key={key}, display_name={display_name}, _order={order}")
             except Exception as e:
                 logger.error(f'读取分镜头文件失败 {json_file}: {e}')
 
-        logger.info(f'📜 [分镜头] 加载了 {len(storyboards)} 个分镜头文件')
-        logger.info(f'📜 [返回的 storyboards 数据结构]:')
-        for key, data in storyboards.items():
-            display_name = data.get('_display_name', 'N/A')
-            order = data.get('_order', 'N/A')
-            logger.info(f"  key={key}, _display_name={display_name}, _order={order}")
+        logger.info(f'📜 [分镜头] 加载了 {len(storyboards_list)} 个分镜头文件')
+        logger.info(f'📜 [返回的 storyboards 列表顺序]:')
+        for idx, data in enumerate(storyboards_list):
+            logger.info(f"  [{idx}] _key={data.get(\"_key\")}, _display_name={data.get(\"_display_name\")}, _order={data.get(\"_order\")}")
 
         return jsonify({
             'success': True,
-            'storyboards': storyboards
+            'storyboards': storyboards_list  # 返回列表而不是字典
         }), 200
 
     except Exception as e:
