@@ -68,6 +68,11 @@ def sanitize_path(name: str) -> str:
     result = name
     for char in invalid_chars:
         result = result.replace(char, '_')
+    # 🔥 移除空格，避免文件名包含空格
+    result = result.replace(' ', '_')
+    # 🔥 移除连续的下划线
+    while '__' in result:
+        result = result.replace('__', '_')
     return result.strip('_')
 
 
