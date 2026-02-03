@@ -4117,21 +4117,23 @@ class ShortDramaStudio {
             // 生成唯一键用于保存/加载提示词
             const shotKey = `videoPrompt_${this.selectedNovel}_${shot.episode_title || ''}_${shot.shot_number || (idx + 1)}`;
 
-            // 🔥 构建AI提示词：只包含画面要求，不包含台词和情节
+            // 🔥 构建AI提示词：区分画面场景和动作序列
+            // veo_prompt: 画面场景（静态）- 人物状态、表情、环境、光线、构图
+            // visual.description: 动作序列（动态）- 发生了什么、镜头运动、情节推进
             const buildAIPrompt = (s) => {
                 const parts = [];
                 if (s.shot_type) parts.push(`【镜头类型】${s.shot_type}`);
 
-                // 🔥 优先使用 veo_prompt，它已经包含了完整的画面描述
-                // 如果存在 visual.description，也一并包含
-                if (s.visual?.description && s.veo_prompt) {
-                    // 两者都有，组合使用
-                    parts.push(`【画面描述】${s.visual.description}`);
-                    parts.push(`【AI提示】${s.veo_prompt}`);
-                } else if (s.veo_prompt) {
-                    parts.push(`【AI提示】${s.veo_prompt}`);
+                // 画面场景描述（静态）
+                if (s.veo_prompt) {
+                    parts.push(`【画面场景】${s.veo_prompt}`);
                 } else if (s.screen_action) {
-                    parts.push(`【画面描述】${s.screen_action}`);
+                    parts.push(`【画面场景】${s.screen_action}`);
+                }
+
+                // 动作序列描述（动态）
+                if (s.visual?.description) {
+                    parts.push(`【动作序列】${s.visual.description}`);
                 }
 
                 return parts.join('\n');
