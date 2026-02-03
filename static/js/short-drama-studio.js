@@ -4121,8 +4121,19 @@ class ShortDramaStudio {
             const buildAIPrompt = (s) => {
                 const parts = [];
                 if (s.shot_type) parts.push(`【镜头类型】${s.shot_type}`);
-                if (s.screen_action) parts.push(`【画面描述】${s.screen_action}`);
-                if (s.veo_prompt) parts.push(`【AI提示】${s.veo_prompt}`);
+
+                // 🔥 优先使用 veo_prompt，它已经包含了完整的画面描述
+                // 如果存在 visual.description，也一并包含
+                if (s.visual?.description && s.veo_prompt) {
+                    // 两者都有，组合使用
+                    parts.push(`【画面描述】${s.visual.description}`);
+                    parts.push(`【AI提示】${s.veo_prompt}`);
+                } else if (s.veo_prompt) {
+                    parts.push(`【AI提示】${s.veo_prompt}`);
+                } else if (s.screen_action) {
+                    parts.push(`【画面描述】${s.screen_action}`);
+                }
+
                 return parts.join('\n');
             };
 
