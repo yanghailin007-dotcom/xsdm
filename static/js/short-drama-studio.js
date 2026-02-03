@@ -430,9 +430,20 @@ class ShortDramaStudio {
             console.log('📊 API 返回数据:', eventsData);
 
             if (eventsData.success) {
+                // 🔥 检查是否是创意导入项目
+                const isCreativeProject = eventsData.is_creative_project || false;
+                this.isCreativeProject = isCreativeProject; // 保存为实例属性
+                console.log('📝 [创意导入] 是否为创意项目:', isCreativeProject);
+
                 // 构建事件树
                 this.events = this.buildEventTree(eventsData);
                 console.log('✅ [工作流] 加载事件:', this.events.length);
+
+                // 🔥 如果是创意导入项目且只有一个事件，自动选择它
+                if (isCreativeProject && this.events.length === 1) {
+                    this.selectedMajorEvent = this.events[0];
+                    console.log('📝 [创意导入] 自动选择唯一事件:', this.selectedMajorEvent);
+                }
 
                 // 加载角色数据
                 if (eventsData.characters && Array.isArray(eventsData.characters)) {
@@ -1131,6 +1142,11 @@ class ShortDramaStudio {
      * 获取剧集目录名称
      */
     getEpisodeDirectoryName() {
+        // 🔥 如果是创意导入项目，使用固定的目录名
+        if (this.isCreativeProject) {
+            return '1集_创意导入';
+        }
+
         if (!this.selectedMajorEvent) return '默认';
 
         const majorIndex = this.events.findIndex(e => e.id === this.selectedMajorEvent.id);
