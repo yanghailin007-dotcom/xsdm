@@ -4652,6 +4652,15 @@ class ShortDramaStudio {
 
             // 首尾帧模式切换
             firstLastFrameCheck.addEventListener('change', () => {
+                const modelSelect = document.getElementById('paramModel');
+                if (firstLastFrameCheck.checked) {
+                    // 启用首尾帧模式时，自动切换到 veo_3_1-fast 模型
+                    if (modelSelect) {
+                        modelSelect.value = 'veo_3_1-fast';
+                        // 显示提示
+                        shortDramaStudio.showToast('已切换到首尾帧模式 (veo_3_1-fast)', 'info');
+                    }
+                }
                 const count = modal.querySelectorAll('.portrait-check:checked').length;
                 if (firstLastFrameCheck.checked && count < 1) {
                     selectedCountEl.textContent = count + ' (首尾帧至少需要1张)';
