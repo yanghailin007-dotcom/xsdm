@@ -4563,7 +4563,7 @@ class ShortDramaStudio {
                             <div style="margin-top: 16px;">
                                 <label style="display: flex; align-items: center; gap: 10px; font-size: 0.95rem; color: var(--text-secondary); cursor: pointer;">
                                     <input type="checkbox" id="paramFirstLastFrame" style="margin: 0; width: 18px; height: 18px;">
-                                    <span>🎞️ 启用首尾帧模式（需选择2张图片：首帧+尾帧）</span>
+                                    <span>🎞️ 启用首尾帧模式（需选择1-2张图片）</span>
                                 </label>
                             </div>
                         </div>
@@ -4644,8 +4644,8 @@ class ShortDramaStudio {
                     }
 
                     // 首尾帧模式提示
-                    if (firstLastFrameCheck.checked && count !== 2) {
-                        selectedCountEl.textContent = count + ' (首尾帧需要2张)';
+                    if (firstLastFrameCheck.checked && count < 1) {
+                        selectedCountEl.textContent = count + ' (首尾帧至少需要1张)';
                     }
                 });
             });
@@ -4653,8 +4653,8 @@ class ShortDramaStudio {
             // 首尾帧模式切换
             firstLastFrameCheck.addEventListener('change', () => {
                 const count = modal.querySelectorAll('.portrait-check:checked').length;
-                if (firstLastFrameCheck.checked && count !== 2) {
-                    selectedCountEl.textContent = count + ' (首尾帧需要2张)';
+                if (firstLastFrameCheck.checked && count < 1) {
+                    selectedCountEl.textContent = count + ' (首尾帧至少需要1张)';
                 } else {
                     selectedCountEl.textContent = count;
                 }
@@ -4808,8 +4808,8 @@ class ShortDramaStudio {
                                 indicator.style.background = 'rgba(0,0,0,0.6)';
                             }
 
-                            if (firstLastFrameCheck.checked && count !== 2) {
-                                selectedCountEl.textContent = count + ' (首尾帧需要2张)';
+                            if (firstLastFrameCheck.checked && count < 1) {
+                                selectedCountEl.textContent = count + ' (首尾帧至少需要1张)';
                             }
                         });
 
@@ -4898,9 +4898,9 @@ class ShortDramaStudio {
                 console.log('选中的图片数量:', checkedImages.length);
                 console.log('首尾帧模式:', useFirstLastFrame);
 
-                // 首尾帧模式需要2张图片
-                if (useFirstLastFrame && checkedImages.length !== 2) {
-                    this.showToast('首尾帧模式需要选择2张图片（首帧+尾帧）', 'warning');
+                // 首尾帧模式需要1-2张图片
+                if (useFirstLastFrame && checkedImages.length < 1) {
+                    this.showToast('首尾帧模式至少需要选择1张图片', 'warning');
                     return;
                 }
 
