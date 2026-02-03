@@ -171,7 +171,7 @@ class ShortDramaStudio {
                     <p style="font-size: 2rem;">📭</p>
                     <p>还没有项目</p>
                     <p style="font-size: 0.85rem; color: var(--text-secondary);">
-                        从小说创建项目，或新建空项目
+                        从小说创建项目，或从创意快速导入
                     </p>
                 </div>
             `;
@@ -187,38 +187,36 @@ class ShortDramaStudio {
             grouped[project.title].push(project);
         });
 
-        container.innerHTML = `
-            <div class="projects-grid">
-                ${this.projects.map(project => {
-                    const duplicates = grouped[project.title] || [];
-                    const isDuplicate = duplicates.length > 1;
+        // 直接生成项目卡片，不嵌套projects-grid
+        container.innerHTML = this.projects.map(project => {
+            const duplicates = grouped[project.title] || [];
+            const isDuplicate = duplicates.length > 1;
 
-                    return `
-                    <div class="project-card" onclick="shortDramaStudio.openProject('${project.id}')">
-                        <div class="project-card-header">
-                            <div class="project-card-title">${project.title}</div>
-                            ${isDuplicate ? '<span class="project-card-badge pending">重复</span>' : ''}
+            return `
+                <div class="project-card" onclick="shortDramaStudio.openProject('${project.id}')">
+                    <div class="project-card-header">
+                        <div class="project-card-title">${project.title}</div>
+                        ${isDuplicate ? '<span class="project-card-badge pending">重复</span>' : ''}
+                    </div>
+                    <div class="project-card-meta">
+                        <span>📊 ${project.episodes_count || 0}集</span>
+                        <span>👥 ${project.characters_count || 0}角色</span>
+                    </div>
+                    <div class="project-card-progress">
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: ${project.progress || 0}%"></div>
                         </div>
-                        <div class="project-card-meta">
-                            <span>📊 ${project.episodes_count || 0}集</span>
-                            <span>👥 ${project.characters_count || 0}角色</span>
-                        </div>
-                        <div class="project-card-progress">
-                            <div class="progress-bar">
-                                <div class="progress-fill" style="width: ${project.progress || 0}%"></div>
-                            </div>
-                            <div class="project-card-stats">
-                                <span>进度: ${project.progress || 0}%</span>
-                            </div>
-                        </div>
-                        <div class="project-card-actions">
-                            <button class="btn btn-sm btn-secondary" onclick="event.stopPropagation(); shortDramaStudio.openProject('${project.id}')">打开</button>
-                            <button class="btn btn-sm btn-secondary" onclick="event.stopPropagation(); shortDramaStudio.deleteProject('${project.id}')" style="color: var(--danger);">删除</button>
+                        <div class="project-card-stats">
+                            <span>进度: ${project.progress || 0}%</span>
                         </div>
                     </div>
-                `}).join('')}
-            </div>
-        `;
+                    <div class="project-card-actions">
+                        <button class="btn btn-sm btn-secondary" onclick="event.stopPropagation(); shortDramaStudio.openProject('${project.id}')">打开</button>
+                        <button class="btn btn-sm btn-secondary" onclick="event.stopPropagation(); shortDramaStudio.deleteProject('${project.id}')" style="color: var(--danger);">删除</button>
+                    </div>
+                </div>
+            `;
+        }).join('');
     }
 
     /**
@@ -399,8 +397,18 @@ class ShortDramaStudio {
         await this.loadEventsAndCharacters();
 
         // 切换到工作区视图
-        document.getElementById('projectListView').classList.remove('active');
-        document.getElementById('projectWorkspaceView').classList.add('active');
+        const listView = document.getElementById('projectListView');
+        const workspaceView = document.getElementById('projectWorkspaceView');
+        console.log('🔄 [视图切换] 切换前:', {
+            listView: listView?.className,
+            workspaceView: workspaceView?.className
+        });
+        listView?.classList.remove('active');
+        workspaceView?.classList.add('active');
+        console.log('🔄 [视图切换] 切换后:', {
+            listView: listView?.className,
+            workspaceView: workspaceView?.className
+        });
         document.getElementById('currentProjectName').textContent = `📺 ${novelTitle} - 按集制作`;
 
         // 加载重大事件
@@ -7037,6 +7045,25 @@ class ShortDramaStudio {
 
         // 直接跳到分镜头步骤（跳过选事件步骤）
         this.goToStep('storyboard');
+    }
+
+    /**
+     * 切换项目列表区域的折叠状态
+     */
+    toggleProjectsSection() {
+        const section = document.getElementById('projectsSection');
+        const list = document.getElementById('projectsList');
+        const titleBtn = section.querySelector('.section-title .btn-text');
+
+        if (list.style.display === 'none') {
+            // 展开
+            list.style.display = 'grid';
+            titleBtn.textContent = '▼ 收起';
+        } else {
+            // 收起
+            list.style.display = 'none';
+            titleBtn.textContent = '▶ 展开';
+        }
     }
 }
 
