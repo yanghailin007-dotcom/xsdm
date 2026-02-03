@@ -452,12 +452,17 @@ class VeOVideoManager:
                     except ValueError:
                         self.logger.warn(f"⚠️  无效状态: {status_str}，使用默认值")
                         task.status = VideoStatus.PENDING
-                    
+
+                    # 🔥 跳过已完成的任务（不需要加载到内存）
+                    if task.status == VideoStatus.COMPLETED:
+                        self.logger.debug(f"⏭️  跳过已完成任务: {task_id}")
+                        continue
+
                     # 设置其他属性
                     task.created_at = task_data.get("created", int(time.time()))
                     if task_data.get("completed"):
                         task.completed_at = task_data["completed"]
-                    
+
                     # 设置错误信息（如果有）
                     if task_data.get("error"):
                         task.error = task_data["error"]
@@ -499,9 +504,42 @@ class VeOVideoManager:
                     self.logger.warn(f"加载任务文件失败 {task_file}: {e}")
             
             self.logger.info(f"✅ 从磁盘加载了 {loaded_count} 个任务")
-        
+
+            # 🔥 清理超过30天的已完成任务文件
+            self._cleanup_old_tasks()
+
         except Exception as e:
             self.logger.error(f"❌ 加载任务失败: {e}")
+
+    def _cleanup_old_tasks(self, days_to_keep: int = 30):
+        """清理超过指定天数的已完成任务文件"""
+        try:
+            import time as time_module
+            current_time = int(time_module.time())
+            cutoff_time = current_time - (days_to_keep * 24 * 3600)
+
+            cleaned_count = 0
+            for task_file in self.storage_dir.glob("*.json"):
+                try:
+                    # 读取任务状态
+                    with open(task_file, 'r', encoding='utf-8') as f:
+                        task_data = json.load(f)
+
+                    status_str = task_data.get("status", "")
+                    # 只清理已完成的任务
+                    if status_str == "completed":
+                        # 检查文件修改时间
+                        file_mtime = task_file.stat().st_mtime
+                        if file_mtime < cutoff_time:
+                            task_file.unlink()
+                            cleaned_count += 1
+                except Exception as e:
+                    self.logger.debug(f"清理任务文件失败 {task_file}: {e}")
+
+            if cleaned_count > 0:
+                self.logger.info(f"🧹 清理了 {cleaned_count} 个超过{days_to_keep}天的已完成任务文件")
+        except Exception as e:
+            self.logger.debug(f"清理任务文件失败: {e}")
     
     def _save_task(self, task: VeOVideoGenerationTask):
         """保存任务到磁盘"""
