@@ -473,7 +473,10 @@ def get_storyboards():
         logger.info(f'📜 [分镜头] 加载了 {len(storyboards_list)} 个分镜头文件')
         logger.info(f'📜 [返回的 storyboards 列表顺序]:')
         for idx, data in enumerate(storyboards_list):
-            logger.info(f"  [{idx}] _key={data.get(\"_key\")}, _display_name={data.get(\"_display_name\")}, _order={data.get(\"_order\")}")
+            key = data.get('_key', 'N/A')
+            display_name = data.get('_display_name', 'N/A')
+            order = data.get('_order', 'N/A')
+            logger.info(f"  [{idx}] _key={key}, _display_name={display_name}, _order={order}")
 
         return jsonify({
             'success': True,
