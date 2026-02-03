@@ -1652,7 +1652,7 @@ class ShortDramaStudio {
         container.innerHTML = `
             <div style="margin-bottom: 1.5rem;">
                 <p style="font-size: 0.9rem; color: var(--text-secondary);">
-                    共 <strong>${allShots.length}</strong> 个镜头（从 ${storyboardArray.length} 个分镜头文件加载）
+                    共 <strong>${allShots.length}</strong> 个镜头
                 </p>
             </div>
             <div class="shots-list">
