@@ -1,7 +1,19 @@
 @echo off
+chcp 65001 >nul
 echo ========================================
 echo 打包Flask后端为可执行文件
 echo ========================================
+
+REM 切换到项目根目录
+cd /d "%~dp0.."
+
+REM 激活虚拟环境
+if exist ".venv\Scripts\activate.bat" (
+    echo 使用虚拟环境...
+    call .venv\Scripts\activate.bat
+) else (
+    echo 警告: 未找到虚拟环境，使用系统Python
+)
 
 REM 检查是否安装了pyinstaller
 python -c "import PyInstaller" 2>nul
