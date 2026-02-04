@@ -3344,13 +3344,12 @@ class ShortDramaStudio {
         document.body.appendChild(modal);
     }
 
-    /**
-// VeO配置功能 - 添加到 ShortDramaStudio 类中
+    // VeO配置功能
 
-/**
- * 显示VeO配置弹窗
- */
-showVeOConfig() {
+    /**
+     * 显示VeO配置弹窗
+     */
+    showVeOConfig() {
     const modal = document.createElement('div');
     modal.className = 'modal-overlay';
     modal.style.cssText = `
@@ -3524,6 +3523,8 @@ saveVeOConfig(config) {
         this.showToast('保存配置失败', 'error');
     }
 }
+
+    /**
      * 渲染单个配音场景（支持更新和返回模板）
      */
     renderDubbingScene(shot, idx) {
