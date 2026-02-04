@@ -370,6 +370,7 @@ def create_from_idea():
     try:
         data = request.json or {}
         title = data.get('title', '').strip()
+        episode = data.get('episode', 1)
         description = data.get('description', '').strip()
         style = data.get('style', '通用')
         shot_count = data.get('shot_count', 3)
@@ -379,7 +380,7 @@ def create_from_idea():
         if not title:
             return jsonify({
                 'success': False,
-                'error': '请输入剧集标题'
+                'error': '请输入剧集名称'
             }), 400
         if not description:
             return jsonify({
@@ -388,16 +389,17 @@ def create_from_idea():
             }), 400
 
         # 限制参数范围
+        episode = max(1, min(999, int(episode)))
         shot_count = max(1, min(10, int(shot_count)))
         shot_duration = max(4, min(15, int(shot_duration)))
 
-        logger.info(f'📝 [创意导入] 标题: {title}, 风格: {style}, 镜头数: {shot_count}')
+        logger.info(f'📝 [创意导入] 标题: {title}, 第{episode}集, 风格: {style}, 镜头数: {shot_count}')
 
         # 1. 创建项目目录
         project_dir = VIDEO_PROJECTS_DIR / title
         project_dir.mkdir(exist_ok=True)
 
-        episode_name = '1集_创意导入'
+        episode_name = f'{episode}集_创意导入'
         episode_dir = project_dir / episode_name
         episode_dir.mkdir(exist_ok=True)
 
@@ -406,7 +408,7 @@ def create_from_idea():
 
         # 2. 调用AI生成分镜头
         storyboard_data = generate_storyboard_from_idea(
-            title=title,
+            title=f"{title} 第{episode}集",
             description=description,
             style=style,
             shot_count=shot_count,
@@ -414,7 +416,7 @@ def create_from_idea():
         )
 
         # 3. 保存分镜头JSON
-        storyboard_filename = f"{clean_filename(title)}_创意分镜头.json"
+        storyboard_filename = f"{clean_filename(title)}_第{episode}集_创意分镜头.json"
         storyboard_file = storyboard_dir / storyboard_filename
 
         with open(storyboard_file, 'w', encoding='utf-8') as f:

@@ -327,13 +327,19 @@
             </div>
             <div class="modal-body">
                 <div class="form-group">
-                    <label>剧集标题 <span class="required">*</span></label>
+                    <label>剧集名称 <span class="required">*</span></label>
                     <input type="text" id="ideaTitle" class="form-input" placeholder="例如：废土：开局徒手搓高达">
+                    <small style="color: var(--text-tertiary); font-size: 0.85rem;">系列名称，后续可以继续添加新集数</small>
                 </div>
                 <div class="form-group">
-                    <label>创意描述 <span class="required">*</span></label>
+                    <label>集数 <span class="required">*</span></label>
+                    <input type="number" id="ideaEpisode" class="form-input" value="1" min="1" max="999" placeholder="第几集">
+                    <small style="color: var(--text-tertiary); font-size: 0.85rem;">💡 先制作第1集测试效果，如果流量好再继续制作第2集、第3集...</small>
+                </div>
+                <div class="form-group">
+                    <label>本集创意描述 <span class="required">*</span></label>
                     <textarea id="ideaDescription" class="form-textarea" rows="4"
-                        placeholder="描述你的核心场景或剧情构想...&#10;例如：主角林启在废土世界苏醒，发现自己被改造成半机械体，正在遭遇变异生物的攻击..."></textarea>
+                        placeholder="描述本集的核心场景或剧情构想...&#10;例如：主角林启在废土世界苏醒，发现自己被改造成半机械体，正在遭遇变异生物的攻击..."></textarea>
                 </div>
                 <div class="form-group">
                     <label>风格</label>

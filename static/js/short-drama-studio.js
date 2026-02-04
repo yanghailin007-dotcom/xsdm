@@ -1144,6 +1144,11 @@ class ShortDramaStudio {
     getEpisodeDirectoryName() {
         // 🔥 如果是创意导入项目，使用固定的目录名
         if (this.isCreativeProject) {
+            // 从当前选择的事件中获取集数信息
+            if (this.selectedMajorEvent && this.selectedMajorEvent.title) {
+                // 如果事件标题包含集数信息，使用它
+                return this.selectedMajorEvent.title;
+            }
             return '1集_创意导入';
         }
 
@@ -7244,6 +7249,7 @@ saveVeOConfig(config) {
             modal.style.display = 'flex';
             // 清空之前的输入
             document.getElementById('ideaTitle').value = '';
+            document.getElementById('ideaEpisode').value = '1';
             document.getElementById('ideaDescription').value = '';
             document.getElementById('ideaStyle').value = '通用';
             document.getElementById('ideaShotCount').value = '3';
@@ -7266,6 +7272,7 @@ saveVeOConfig(config) {
      */
     async submitIdeaImport() {
         const title = document.getElementById('ideaTitle').value.trim();
+        const episode = parseInt(document.getElementById('ideaEpisode').value) || 1;
         const description = document.getElementById('ideaDescription').value.trim();
         const style = document.getElementById('ideaStyle').value;
         const shotCount = parseInt(document.getElementById('ideaShotCount').value) || 3;
@@ -7273,7 +7280,11 @@ saveVeOConfig(config) {
 
         // 验证必填字段
         if (!title) {
-            this.showToast('请输入剧集标题', 'warning');
+            this.showToast('请输入剧集名称', 'warning');
+            return;
+        }
+        if (!episode || episode < 1) {
+            this.showToast('请输入有效的集数', 'warning');
             return;
         }
         if (!description) {
@@ -7293,6 +7304,7 @@ saveVeOConfig(config) {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     title,
+                    episode,
                     description,
                     style,
                     shot_count: shotCount,
@@ -7303,7 +7315,7 @@ saveVeOConfig(config) {
             const data = await response.json();
 
             if (data.success) {
-                this.showToast('分镜头生成成功！', 'success');
+                this.showToast(`第${episode}集分镜头生成成功！`, 'success');
                 this.closeIdeaModal();
 
                 // 重新加载项目列表
