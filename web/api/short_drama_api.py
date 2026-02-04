@@ -524,7 +524,13 @@ def generate_storyboard_from_idea(title: str, description: str, style: str,
         }
     ],
     "ending_hook": "结尾钩子"
-}"""
+}
+
+【JSON格式要求】
+- 严格遵守JSON规范
+- 不要在最后一个属性后添加逗号
+- 确保所有引号正确闭合
+- 数字类型不要加引号"""
 
         user_prompt = f"""请根据以下创意生成分镜头脚本：
 
@@ -575,6 +581,11 @@ def generate_storyboard_from_idea(title: str, description: str, style: str,
             if json_text.endswith("```"):
                 json_text = json_text[:-3]
             json_text = json_text.strip()
+
+            # 🔥 清理JSON中的常见问题
+            import re
+            # 移除对象/数组末尾的多余逗号
+            json_text = re.sub(r',(\s*[}\]])', r'\1', json_text)
 
             storyboard_data = json.loads(json_text)
             logger.info(f'✅ [AI生成] 分镜头生成成功，共 {len(storyboard_data.get("scenes", []))} 个场景')
