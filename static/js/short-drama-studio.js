@@ -3734,6 +3734,12 @@ saveVeOConfig(config) {
                 }
             }
 
+            // 🔥 打印发送给API的实际提示词，方便排查
+            console.log('📤 [发送给VeO API的提示词 - 批量生成]');
+            console.log('  - 镜头: S' + (shot._scene_number || shot.scene_number || 1) + '#' + (shot.shot_number || (shotIndex + 1)));
+            console.log('  - 提示词长度:', prompt.length, '字符');
+            console.log('  - 提示词内容:\n' + prompt);
+
             const response = await fetch('/api/veo/generate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -5191,10 +5197,12 @@ saveVeOConfig(config) {
         // 保存选中的参考图到镜头数据
         shot.reference_images = result.selectedImages || [];
 
-        // 🔥 注意：不要覆盖原始的 veo_prompt
-        // result.prompt 是带标签的显示格式（【镜头类型】...），不应该保存到 shot.veo_prompt
-        // 如果用户编辑了提示词，需要提取其中的 veo_prompt 部分或者使用原始值
-        // TODO: 实现智能解析，从带标签的提示词中提取 veo_prompt
+        // 🔥 保存用户编辑的提示词到shot对象
+        // result.prompt 是用户在弹窗中编辑的提示词（可能包含标签格式）
+        if (result.prompt && result.prompt.trim()) {
+            shot.veo_prompt = result.prompt.trim();
+            console.log('✏️ [提示词更新] 已保存用户编辑的提示词到shot对象');
+        }
 
         // 开始生成，显示进度弹窗
         this.showVideoProgressModal(shot, idx);
@@ -5206,8 +5214,14 @@ saveVeOConfig(config) {
         try {
             const episodeDirectoryName = this.getEpisodeDirectoryName();
 
-            // 🔥 使用原始的 veo_prompt，不要使用带标签的格式化版本
+            // 🔥 使用用户编辑的提示词（如果有），否则使用原始值
             const promptForApi = shot.veo_prompt || shot.screen_action || '';
+
+            // 🔥 打印发送给API的实际提示词，方便排查
+            console.log('📤 [发送给VeO API的提示词]');
+            console.log('  - 镜头: S' + (shot._scene_number || shot.scene_number || 1) + '#' + (shot.shot_number || (idx + 1)));
+            console.log('  - 提示词长度:', promptForApi.length, '字符');
+            console.log('  - 提示词内容:\n' + promptForApi);
 
             // 获取对话数据中的英文台词
             const dialogueData = shot._dialogue_data || shot.dialogue;
@@ -6804,6 +6818,12 @@ saveVeOConfig(config) {
             if (dialogueData && dialogueData.lines_en && dialogueData.lines_en.trim()) {
                 prompt += `. Character speaking: "${dialogueData.lines_en}"`;
             }
+
+            // 🔥 打印发送给API的实际提示词，方便排查
+            console.log('📤 [发送给VeO API的提示词 - Promise模式]');
+            console.log('  - 镜头: S' + (shot._scene_number || shot.scene_number || 1) + '#' + (shot.shot_number || (shotIndex + 1)));
+            console.log('  - 提示词长度:', prompt.length, '字符');
+            console.log('  - 提示词内容:\n' + prompt);
 
             const response = await fetch('/api/veo/generate', {
                 method: 'POST',
