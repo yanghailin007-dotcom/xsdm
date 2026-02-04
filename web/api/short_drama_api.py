@@ -479,13 +479,20 @@ def generate_storyboard_from_idea(title: str, description: str, style: str,
    - 示例："挥下废铁片 → 咬牙切开背部皮肉 → 鲜血碎肉飞溅 → 露出白森森脊柱"
 5. dialogue: 对话信息（可选，如果无对话则speaker为"无"，lines为""，tone为"无"）
    - speaker: 说话者
-   - lines: 台词（中文）
+   - lines: 台词（中文）- 根据镜头时长合理安排台词量，8秒镜头至少2-3句对话
    - lines_en: 台词（英文）
    - tone: 语气（中文）
    - tone_en: 语气（英文）
    - audio_note: 音效描述（中文）
    - audio_note_en: 音效描述（英文）
 6. duration_seconds: 镜头时长（秒）
+
+【对话设计原则】
+- 短剧节奏快，对话要密集
+- 8秒镜头建议2-3句台词（每句2-3秒）
+- 10秒以上镜头建议3-5句台词
+- 对话要推动剧情，不要空洞
+- 台词要符合人物性格和情境
 
 【完整示例参考】
 {
@@ -494,12 +501,12 @@ def generate_storyboard_from_idea(title: str, description: str, style: str,
   "veo_prompt": "林启面部特写，面部扭曲痛苦表情，双眼紧闭，汗珠与污泥混杂，下半身浸泡在冒泡的酸液中，周围是腐烂尸体残骸，昏暗光线，恐怖氛围。",
   "dialogue": {
     "speaker": "林启",
-    "lines": "啊——！",
-    "lines_en": "Ah—!",
-    "tone": "撕心裂肺的痛苦",
-    "tone_en": "heart-wrenching pain",
-    "audio_note": "刺耳的尖叫，酸液腐蚀血肉的滋滋声",
-    "audio_note_en": "piercing scream, sizzling sound of acid corroding flesh"
+    "lines": "啊——！这酸液...要把我融化了！不行，我不能死在这里！我还要活着出去！",
+    "lines_en": "Ah—! This acid... it's melting me! No, I can't die here! I must survive!",
+    "tone": "撕心裂肺的痛苦，绝望中的求生意志",
+    "tone_en": "heart-wrenching pain, desperate will to survive",
+    "audio_note": "刺耳的尖叫，酸液腐蚀血肉的滋滋声，沉重的喘息",
+    "audio_note_en": "piercing scream, sizzling sound of acid corroding flesh, heavy breathing"
   },
   "visual": {
     "description": "猛然睁眼 → 瞳孔放大 → 剧烈挣扎 → 下半身被酸液腐蚀"
