@@ -634,6 +634,10 @@ class VeOVideoManager:
                                 elif local_path.startswith('/static/generated_images/'):
                                     decoded_path = unquote(local_path.replace('/static/generated_images/', ''))
                                     base_dir = Path('static/generated_images')
+                                elif local_path.startswith('/api/short-drama/projects/'):
+                                    # 🔥 添加对参考图路径的支持
+                                    decoded_path = unquote(local_path.replace('/api/short-drama/projects/', ''))
+                                    base_dir = Path('视频项目')
                                 else:
                                     self.logger.error(f"❌ 未知的本地路径格式: {local_path}")
                                     continue
@@ -1003,7 +1007,8 @@ class VeOVideoManager:
         """判断是否为本地文件路径"""
         if not img_str or not isinstance(img_str, str):
             return False
-        return img_str.startswith(('/project-files/', '/generated_images/', '/static/'))
+        # 🔥 添加 /api/short-drama/projects/ 前缀支持，与 veo_video_api.py 保持一致
+        return img_str.startswith(('/project-files/', '/generated_images/', '/static/', '/api/short-drama/projects/'))
     
     
     def start(self):

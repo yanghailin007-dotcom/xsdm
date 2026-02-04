@@ -11,15 +11,18 @@ from src.utils.logger import get_logger
 logger = get_logger(__name__)
 
 # VeO API 最大请求体大小限制（保守估计）
-MAX_IMAGE_SIZE_MB = 2
+# 🔥 提高到4MB以保留更高质量的图片
+MAX_IMAGE_SIZE_MB = 4
 MAX_IMAGE_SIZE_BYTES = MAX_IMAGE_SIZE_MB * 1024 * 1024
 
 # 推荐的压缩质量
-DEFAULT_QUALITY = 85
-MIN_QUALITY = 60
+# 🔥 提高质量参数以保留更多细节
+DEFAULT_QUALITY = 95  # 非常高质量（原85）
+MIN_QUALITY = 80      # 即使压缩也保持高质量（原60）
 
 # 推荐的最大尺寸
-MAX_DIMENSION = 1920  # 1920x1920
+# 🔥 提高到2560以保留更多像素
+MAX_DIMENSION = 2560  # 2560x2560（原1920x1920）
 
 
 def compress_image(

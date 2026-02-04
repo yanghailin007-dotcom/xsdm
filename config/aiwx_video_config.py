@@ -28,7 +28,7 @@ AIWX_VIDEO_CREATE_URL = f"{AIWX_BASE_URL}/v1/video/create"
 AIWX_VIDEO_QUERY_URL = f"{AIWX_BASE_URL}/v1/video/query"
 
 # API密钥配置 - 使用官方提供的密钥
-AIWX_API_KEY = 'sk-0dDn3ajqtCc0PTMmD045Ff7902774431Ad0304E396C856E7'
+AIWX_API_KEY = 'sk-zO9XLgXnznOLwFEM2cE7543942F94dFa92EcBe4a8bF483C8'
 
 # 模型配置 - Veo 3.1 系列
 AIWX_MODEL_VEO_3_1 = "veo_3_1"
@@ -90,8 +90,8 @@ REQUEST_CONFIG = {
 POLLING_CONFIG = {
     'enabled': True,
     'max_attempts': 60,  # 最大轮询次数
-    'poll_interval': 5,  # 轮询间隔（秒）
-    'progress_update_interval': 5,  # 进度更新间隔（秒）
+    'poll_interval': 10,  # 轮询间隔（秒）- 从5秒调整到10秒，减少API调用频率
+    'progress_update_interval': 10,  # 进度更新间隔（秒）- 从5秒调整到10秒
 }
 
 # ============================================================================
