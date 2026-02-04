@@ -2257,6 +2257,10 @@ class ShortDramaStudio {
         const statusClass = isCompleted ? 'done' : isGenerating ? 'processing' : hasError ? 'error' : 'pending';
         const statusText = isCompleted ? '已完成' : isGenerating ? '生成中...' : hasError ? '失败' : '待生成';
 
+        // 🔥 获取错误信息
+        const errorMessage = shot.errorMessage || '';
+        const hasErrorMessage = hasError && errorMessage;
+
         // 参考图缩略图
         const referenceImages = shot.reference_images || [];
         const hasRefs = referenceImages.length > 0;
@@ -2323,6 +2327,18 @@ class ShortDramaStudio {
                     </div>
                     ` : ''}
                     ${hasDialogue ? dialogueDisplayHtml : ''}
+                    ${hasErrorMessage ? `
+                    <div class="task-error" style="
+                        background: var(--danger-bg, rgba(239, 68, 68, 0.1));
+                        border-left: 3px solid var(--danger);
+                        padding: 0.5rem 0.75rem;
+                        border-radius: 4px;
+                        margin-top: 0.5rem;
+                    ">
+                        <span class="error-label" style="color: var(--danger); font-weight: 500;">❌ 错误原因:</span>
+                        <span class="error-text" style="color: var(--text-secondary); margin-left: 0.5rem;">${errorMessage}</span>
+                    </div>
+                    ` : ''}
                     <div class="task-meta">
                         <span class="meta-tag">${shot.shot_type || '镜头'}</span>
                         <span class="meta-tag">⏱️ ${shot.duration || 5}秒</span>
@@ -3836,6 +3852,10 @@ class ShortDramaStudio {
                     const shot = task.shot;
                     const progress = task.progress || 0;
                     const status = task.status || '处理中...';
+                    // 🔥 优化显示：显示场景编号和镜头编号
+                    const sceneNum = shot._scene_number || shot.scene_number || '?';
+                    const shotNum = shot.shot_number || (task.shotIndex + 1);
+                    const displayTitle = `S${sceneNum}#${shotNum} ${shot.shot_type || '镜头'}`;
                     return `
                         <div class="bg-task-item" data-task-id="${task.taskId}" style="
                             background: var(--bg-tertiary);
@@ -3848,7 +3868,7 @@ class ShortDramaStudio {
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
                                 <div style="flex: 1; min-width: 0;">
                                     <div style="font-size: 0.85rem; font-weight: 500; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                                        #${shot.shot_number || (task.shotIndex + 1)} ${shot.shot_type || '镜头'}
+                                        ${displayTitle}
                                     </div>
                                     <div style="font-size: 0.75rem; color: var(--text-tertiary); margin-top: 0.25rem;">
                                         ${status}
@@ -6506,11 +6526,13 @@ class ShortDramaStudio {
                     } else if (data.status === 'failed' || statusInfo.phase === 'failed') {
                         shot.generating = false;
                         shot.hasError = true;
+                        // 🔥 保存错误信息到shot对象
+                        const errorMsg = data.error?.message || data.message || '生成失败';
+                        shot.errorMessage = errorMsg;
                         delete shot.currentTaskId;
                         this.updateVideoCard(shotIndex);
                         this.closeVideoProgressModal(shotIndex);
                         this.removeBackgroundTask(shotIndex);
-                        const errorMsg = data.error?.message || data.message || '生成失败';
                         this.showToast(`镜头 #${shot.shot_number || (shotIndex + 1)} 生成失败: ${errorMsg}`, 'error');
                         reject(new Error(errorMsg));
 
