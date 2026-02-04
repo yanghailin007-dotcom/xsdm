@@ -1,0 +1,17 @@
+# Electron
+node_modules/
+dist/
+build/
+*.log
+
+# Python打包
+backend_dist/
+*.spec
+build/
+dist/
+
+# 临时文件
+*.tmp
+*.temp
+.DS_Store
+Thumbs.db
