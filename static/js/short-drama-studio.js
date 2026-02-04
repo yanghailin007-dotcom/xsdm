@@ -3774,6 +3774,7 @@ saveVeOConfig(config) {
             console.error('生成视频失败:', error);
             shot.generating = false;
             shot.hasError = true;
+            shot.errorMessage = error.message || '生成失败';
             this.updateVideoCard(shotIndex);
             this.closeVideoProgressModal(shotIndex);
             this.showToast('生成视频失败: ' + error.message, 'error');
@@ -5246,6 +5247,7 @@ saveVeOConfig(config) {
             console.error('生成视频失败:', error);
             shot.generating = false;
             shot.hasError = true;
+            shot.errorMessage = error.message || '生成失败';
             this.updateVideoCard(idx);
             this.closeVideoProgressModal(idx);
 
@@ -6735,6 +6737,7 @@ saveVeOConfig(config) {
                         // 超时
                         shot.generating = false;
                         shot.hasError = true;
+                        shot.errorMessage = '生成超时';
                         delete shot.currentTaskId;
                         this.updateVideoCard(shotIndex);
                         this.closeVideoProgressModal(shotIndex);
@@ -6746,6 +6749,7 @@ saveVeOConfig(config) {
                     console.error('检查状态失败:', error);
                     shot.generating = false;
                     shot.hasError = true;
+                    shot.errorMessage = error.message || '检查状态失败';
                     delete shot.currentTaskId;
                     this.updateVideoCard(shotIndex);
                     this.closeVideoProgressModal(shotIndex);
@@ -6840,6 +6844,7 @@ saveVeOConfig(config) {
             console.error('生成视频失败:', error);
             shot.generating = false;
             shot.hasError = true;
+            shot.errorMessage = error.message || '生成失败';
             this.updateVideoCard(shotIndex);
         }
     }
@@ -6891,6 +6896,7 @@ saveVeOConfig(config) {
                     } else if (data.status === 'failed') {
                         shot.generating = false;
                         shot.hasError = true;
+                        shot.errorMessage = data.error?.message || data.message || '生成失败';
                         this.updateVideoCard(shotIndex);
                         resolve();
                     } else if (attempts < maxAttempts) {
@@ -6899,6 +6905,7 @@ saveVeOConfig(config) {
                     } else {
                         shot.generating = false;
                         shot.hasError = true;
+                        shot.errorMessage = '生成超时';
                         this.updateVideoCard(shotIndex);
                         resolve();
                     }
@@ -6906,6 +6913,7 @@ saveVeOConfig(config) {
                     console.error('检查状态失败:', error);
                     shot.generating = false;
                     shot.hasError = true;
+                    shot.errorMessage = error.message || '检查状态失败';
                     this.updateVideoCard(shotIndex);
                     resolve();
                 }
