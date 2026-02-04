@@ -6430,21 +6430,24 @@ class ShortDramaStudio {
             // 🔥 状态映射和进度计算
             const getStatusInfo = (data) => {
                 const status = data.status || 'pending';
+                const apiProgress = data.progress || 0; // 🔥 使用后端返回的实际进度
 
                 // 根据后端返回的状态映射到前端显示
                 switch (status) {
                     case 'pending':
-                        return { progress: 5, text: '⏳ 提交任务中...', phase: 'submitting' };
+                    case 'queued':
+                        return { progress: Math.max(5, apiProgress), text: '⏳ 任务排队中...', phase: 'submitting' };
                     case 'processing':
-                        // processing 阶段细分为几个阶段
-                        const baseProgress = 15;
-                        const phaseProgress = Math.min(85, baseProgress + (attempts * 2));
+                    case 'in_progress':
+                        // 🔥 使用后端返回的实际进度，而不是基于轮询次数计算
+                        const actualProgress = Math.max(10, Math.min(95, apiProgress));
+                        const progressText = apiProgress < 20 ? '🎬 任务已提交，等待处理...' :
+                                           apiProgress < 50 ? '🎨 AI生成中...' :
+                                           apiProgress < 80 ? '⏳ 视频渲染中...' :
+                                           '📥 准备下载...';
                         return {
-                            progress: phaseProgress,
-                            text: attempts < 10 ? '🎬 任务已提交，等待处理...' :
-                                  attempts < 30 ? '🎨 AI生成中...' :
-                                  attempts < 60 ? '⏳ 视频渲染中...' :
-                                  '📥 准备下载...',
+                            progress: actualProgress,
+                            text: progressText,
                             phase: 'processing'
                         };
                     case 'completed':
@@ -6454,7 +6457,7 @@ class ShortDramaStudio {
                     case 'cancelled':
                         return { progress: 0, text: '⏹️ 已取消', phase: 'cancelled' };
                     default:
-                        return { progress: 5, text: '⏳ 初始化...', phase: 'unknown' };
+                        return { progress: Math.max(5, apiProgress), text: '⏳ 初始化...', phase: 'unknown' };
                 }
             };
 
