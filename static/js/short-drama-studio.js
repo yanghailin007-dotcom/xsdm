@@ -3345,6 +3345,185 @@ class ShortDramaStudio {
     }
 
     /**
+// VeO配置功能 - 添加到 ShortDramaStudio 类中
+
+/**
+ * 显示VeO配置弹窗
+ */
+showVeOConfig() {
+    const modal = document.createElement('div');
+    modal.className = 'modal-overlay';
+    modal.style.cssText = `
+        position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(0,0,0,0.8); display: flex;
+        justify-content: center; align-items: center; z-index: 10000;
+    `;
+
+    // 🔥 可用的VeO模型列表
+    const veoModels = [
+        { id: 'veo_3_1-fast-components', name: 'veo_3_1-fast-components (推荐)', desc: '参考图模式，适合大多数场景' },
+        { id: 'veo_3_1-fast', name: 'veo_3_1-fast', desc: '首尾帧模式，适合精确控制' },
+        { id: 'veo_3_1', name: 'veo_3_1', desc: '标准模式，质量最高' }
+    ];
+
+    // 获取当前配置
+    const currentConfig = this.loadVeOConfig();
+
+    modal.innerHTML = `
+        <div class="modal-content" style="
+            background: var(--bg-secondary); border-radius: 16px;
+            max-width: 500px; width: 90%; padding: 2rem;
+            box-shadow: 0 25px 80px rgba(0,0,0,0.4);
+        ">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                <h2 style="margin: 0;">🎬 VeO视频生成配置</h2>
+                <button class="btn-close" onclick="this.closest('.modal-overlay').remove()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer;">✕</button>
+            </div>
+
+            <div style="margin-bottom: 1rem;">
+                <label style="font-weight: 600; display: block; margin-bottom: 0.5rem;">API Base URL</label>
+                <input type="text" id="veoApiUrl" value="${currentConfig.apiUrl}" placeholder="https://jyapi.ai-wx.cn" style="
+                    width: 100%; padding: 10px; background: var(--bg-dark);
+                    border: 1px solid var(--border); border-radius: 8px;
+                    color: var(--text-primary); font-size: 1rem;
+                ">
+            </div>
+
+            <div style="margin-bottom: 1rem;">
+                <label style="font-weight: 600; display: block; margin-bottom: 0.5rem;">API Key</label>
+                <input type="password" id="veoApiKey" value="${currentConfig.apiKey}" placeholder="请输入API Key" style="
+                    width: 100%; padding: 10px; background: var(--bg-dark);
+                    border: 1px solid var(--border); border-radius: 8px;
+                    color: var(--text-primary); font-size: 1rem;
+                ">
+            </div>
+
+            <div style="margin-bottom: 1rem;">
+                <label style="font-weight: 600; display: block; margin-bottom: 0.5rem;">默认模型</label>
+                <select id="veoModel" style="
+                    width: 100%; padding: 10px; background: var(--bg-dark);
+                    border: 1px solid var(--border); border-radius: 8px;
+                    color: var(--text-primary); font-size: 1rem;
+                ">
+                    ${veoModels.map(m => `
+                        <option value="${m.id}" ${m.id === currentConfig.model ? 'selected' : ''}>${m.name}</option>
+                    `).join('')}
+                </select>
+                <div style="font-size: 0.75rem; color: var(--text-tertiary); margin-top: 4px;" id="modelDesc">
+                    💡 ${veoModels.find(m => m.id === currentConfig.model)?.desc || '选择合适的模型'}
+                </div>
+            </div>
+
+            <div style="margin-bottom: 1rem;">
+                <label style="font-weight: 600; display: block; margin-bottom: 0.5rem;">轮询间隔（秒）</label>
+                <input type="number" id="veoPollInterval" value="${currentConfig.pollInterval}" min="5" max="60" style="
+                    width: 100%; padding: 10px; background: var(--bg-dark);
+                    border: 1px solid var(--border); border-radius: 8px;
+                    color: var(--text-primary); font-size: 1rem;
+                ">
+                <div style="font-size: 0.75rem; color: var(--text-tertiary); margin-top: 4px;">
+                    💡 查询任务状态的间隔时间，建议10-15秒
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+                <button id="saveVeoConfigBtn" class="btn btn-primary" style="flex: 1;">保存配置</button>
+                <button class="btn btn-secondary" onclick="this.closest('.modal-overlay').remove()" style="flex: 1;">取消</button>
+            </div>
+
+            <div style="margin-top: 1rem; padding: 1rem; background: var(--bg-tertiary); border-radius: 8px; font-size: 0.85rem; color: var(--text-secondary);">
+                <p style="margin: 0 0 0.5rem 0;">📌 获取AI-WX API密钥：</p>
+                <ol style="margin: 0; padding-left: 1.5rem;">
+                    <li>访问 <a href="https://jyapi.ai-wx.cn" target="_blank">https://jyapi.ai-wx.cn</a></li>
+                    <li>注册/登录账号</li>
+                    <li>获取API Key</li>
+                </ol>
+            </div>
+        </div>
+    `;
+
+    // 点击背景关闭
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) modal.remove();
+    });
+
+    // 模型选择变化时更新提示
+    const modelSelect = modal.querySelector('#veoModel');
+    const modelDesc = modal.querySelector('#modelDesc');
+    modelSelect.addEventListener('change', () => {
+        const selectedModel = veoModels.find(m => m.id === modelSelect.value);
+        if (selectedModel && modelDesc) {
+            modelDesc.textContent = '💡 ' + selectedModel.desc;
+        }
+    });
+
+    // 保存配置
+    const saveBtn = modal.querySelector('#saveVeoConfigBtn');
+    saveBtn.addEventListener('click', () => {
+        const apiUrl = document.getElementById('veoApiUrl').value.trim();
+        const apiKey = document.getElementById('veoApiKey').value.trim();
+        const model = document.getElementById('veoModel').value;
+        const pollInterval = parseInt(document.getElementById('veoPollInterval').value);
+
+        if (!apiUrl || !apiKey) {
+            this.showToast('API URL和API Key不能为空', 'error');
+            return;
+        }
+
+        if (pollInterval < 5 || pollInterval > 60) {
+            this.showToast('轮询间隔必须在5-60秒之间', 'error');
+            return;
+        }
+
+        // 保存配置到localStorage
+        this.saveVeOConfig({
+            apiUrl,
+            apiKey,
+            model,
+            pollInterval
+        });
+
+        this.showToast('VeO配置已保存', 'success');
+        modal.remove();
+    });
+
+    document.body.appendChild(modal);
+}
+
+/**
+ * 加载VeO配置
+ */
+loadVeOConfig() {
+    const defaultConfig = {
+        apiUrl: 'https://jyapi.ai-wx.cn',
+        apiKey: 'sk-0dDn3ajqtCc0PTMmD045Ff7902774431Ad0304E396C856E7',
+        model: 'veo_3_1-fast-components',
+        pollInterval: 10
+    };
+
+    try {
+        const saved = localStorage.getItem('veo_config');
+        if (saved) {
+            return { ...defaultConfig, ...JSON.parse(saved) };
+        }
+    } catch (e) {
+        console.error('加载VeO配置失败:', e);
+    }
+
+    return defaultConfig;
+}
+
+/**
+ * 保存VeO配置
+ */
+saveVeOConfig(config) {
+    try {
+        localStorage.setItem('veo_config', JSON.stringify(config));
+    } catch (e) {
+        console.error('保存VeO配置失败:', e);
+        this.showToast('保存配置失败', 'error');
+    }
+}
      * 渲染单个配音场景（支持更新和返回模板）
      */
     renderDubbingScene(shot, idx) {
