@@ -1341,8 +1341,9 @@ class ShortDramaStudio {
             const response = await fetch(`/api/short-drama/storyboards?novel=${encodeURIComponent(this.selectedNovel)}&episode=${encodeURIComponent(episodeDirectoryName)}`);
             const data = await response.json();
 
-            if (data.success && data.storyboards && Object.keys(data.storyboards).length > 0) {
-                console.log('✅ [分镜头] 从本地加载分镜头:', Object.keys(data.storyboards));
+            // 🔥 后端返回的是数组格式
+            if (data.success && data.storyboards && data.storyboards.length > 0) {
+                console.log('✅ [分镜头] 从本地加载分镜头:', data.storyboards.length, '个文件');
                 this.renderStoryboards(data.storyboards);
             } else {
                 // 没有本地分镜头，显示生成按钮
