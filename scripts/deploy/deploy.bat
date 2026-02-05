@@ -8,7 +8,7 @@ echo.
 REM 服务器配置
 set SERVER_IP=8.163.37.124
 set SERVER_USER=root
-set KEY_PATH=d:\work6.05\xsdm.pem
+set KEY_PATH=d:\work6.06\xsdm.pem
  
 echo 服务器信息:
 echo   IP: %SERVER_IP%
