@@ -4,27 +4,27 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>短剧工作台 - 大文娱创作平台</title>
-    <link rel="stylesheet" href="/static/css/short-drama-studio.css">
+    <link rel="stylesheet" href="/static/css/short-drama-studio.css?v=3">
     <style>
         /* ==================== 设计系统变量 - 覆盖原CSS ==================== */
         :root {
-            /* 覆盖原CSS变量 */
-            --primary: #6366f1;
-            --primary-hover: #4f46e5;
-            --primary-light: rgba(99, 102, 241, 0.2);
-            --success: #22c55e;
-            --warning: #f59e0b;
-            --danger: #ef4444;
-            --info: #06b6d4;
-            --bg-primary: #0f172a;
-            --bg-secondary: #1e293b;
-            --bg-tertiary: #334155;
-            --bg-elevated: #475569;
-            --text-primary: #f8fafc;
-            --text-secondary: #cbd5e1;
-            --text-tertiary: #94a3b8;
-            --border: rgba(255, 255, 255, 0.1);
-            --border-light: rgba(255, 255, 255, 0.2);
+            /* 覆盖原CSS变量 - 使用!important确保优先级 */
+            --primary: #6366f1 !important;
+            --primary-hover: #4f46e5 !important;
+            --primary-light: rgba(99, 102, 241, 0.2) !important;
+            --success: #22c55e !important;
+            --warning: #f59e0b !important;
+            --danger: #ef4444 !important;
+            --info: #06b6d4 !important;
+            --bg-primary: #0f172a !important;
+            --bg-secondary: rgba(30, 41, 59, 0.8) !important;
+            --bg-tertiary: rgba(51, 65, 85, 0.8) !important;
+            --bg-elevated: #475569 !important;
+            --text-primary: #f8fafc !important;
+            --text-secondary: #cbd5e1 !important;
+            --text-tertiary: #94a3b8 !important;
+            --border: rgba(255, 255, 255, 0.1) !important;
+            --border-light: rgba(255, 255, 255, 0.2) !important;
             --primary-500: #6366f1;
             --primary-600: #4f46e5;
             --accent-500: #06b6d4;
@@ -815,17 +815,30 @@
         }
 
         /* ==================== 面板显示控制 ==================== */
-        .workspace-content.hide-side-panels .left-panel,
-        .workspace-content.hide-side-panels .right-panel {
-            display: none;
+        .workspace-content.hide-side-panels #leftSidePanel,
+        .workspace-content.hide-side-panels #rightSidePanel {
+            display: none !important;
         }
 
         .workspace-content.hide-side-panels .main-area {
-            grid-column: 1 / -1;
-            max-width: 100%;
+            grid-column: 1 / -1 !important;
+            max-width: 100% !important;
+            width: 100% !important;
         }
 
         /* ==================== 分镜头列表样式 ==================== */
+        #videoStep .step-content,
+        #dubbingStep .step-content,
+        #storyboardStep .step-content {
+            display: none;
+        }
+
+        #videoStep.step-content.active,
+        #dubbingStep.step-content.active,
+        #storyboardStep.step-content.active {
+            display: block !important;
+        }
+
         .shots-list {
             display: flex;
             flex-direction: column;
@@ -837,10 +850,11 @@
             align-items: center;
             gap: 1rem;
             padding: 1rem;
-            background: rgba(30, 41, 59, 0.6);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 0.75rem;
+            background: rgba(30, 41, 59, 0.6) !important;
+            border: 1px solid rgba(255, 255, 255, 0.1) !important;
+            border-radius: 0.75rem !important;
             transition: all 0.2s;
+            margin-bottom: 0.75rem;
         }
 
         .shot-item:hover {
@@ -1410,6 +1424,6 @@
     <!-- Toast 通知 -->
     <div id="toastContainer" class="toast-container"></div>
 
-    <script src="/static/js/short-drama-studio.js"></script>
+    <script src="/static/js/short-drama-studio.js?v=3"></script>
 </body>
 </html>
