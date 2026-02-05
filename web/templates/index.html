@@ -7,6 +7,388 @@
     <link rel="stylesheet" href="/static/css/style.css?v=20251207-114500">
     <link rel="stylesheet" href="/static/css/confirm-dialog.css">
     <style>
+        /* ==================== 暗色科技主题覆盖 ==================== */
+        :root {
+            --dark-bg-primary: #0f172a;
+            --dark-bg-secondary: #1e293b;
+            --dark-bg-card: rgba(30, 41, 59, 0.9);
+            --dark-bg-hover: rgba(51, 65, 85, 0.6);
+            --dark-text-primary: #f1f5f9;
+            --dark-text-secondary: #94a3b8;
+            --dark-text-tertiary: #64748b;
+            --dark-border: rgba(148, 163, 184, 0.15);
+            --dark-accent-blue: #3b82f6;
+            --dark-accent-cyan: #06b6d4;
+            --dark-accent-purple: #8b5cf6;
+        }
+
+        /* 全局背景 */
+        html, body {
+            background: var(--dark-bg-primary) !important;
+            color: var(--dark-text-primary) !important;
+        }
+
+        body::before {
+            background: var(--dark-bg-primary) !important;
+        }
+
+        /* ==================== 导航栏 ==================== */
+        .navbar {
+            background: rgba(15, 23, 42, 0.95) !important;
+            backdrop-filter: blur(20px) !important;
+            border-bottom: 1px solid var(--dark-border) !important;
+        }
+
+        .navbar-title {
+            color: var(--dark-text-primary) !important;
+        }
+
+        /* ==================== 按钮样式 ==================== */
+        .btn {
+            border-radius: 0.5rem !important;
+            font-weight: 500 !important;
+            transition: all 0.2s !important;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%) !important;
+            border-color: transparent !important;
+            color: white !important;
+        }
+
+        .btn-secondary {
+            background: rgba(30, 41, 59, 0.8) !important;
+            border: 1px solid var(--dark-border) !important;
+            color: var(--dark-text-secondary) !important;
+        }
+
+        .btn-secondary:hover {
+            background: var(--dark-bg-hover) !important;
+            border-color: var(--dark-accent-blue) !important;
+            color: var(--dark-text-primary) !important;
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+        }
+
+        .btn-warning {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%) !important;
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%) !important;
+        }
+
+        /* ==================== Hero区域 ==================== */
+        .hero {
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.2) 0%, rgba(139, 92, 246, 0.1) 100%) !important;
+            border-bottom: 1px solid var(--dark-border) !important;
+        }
+
+        .hero-badge {
+            background: rgba(99, 102, 241, 0.2) !important;
+            border: 1px solid rgba(99, 102, 241, 0.3) !important;
+            color: var(--dark-text-primary) !important;
+        }
+
+        .hero h1 {
+            color: var(--dark-text-primary) !important;
+        }
+
+        .hero-subtitle {
+            color: var(--dark-text-secondary) !important;
+        }
+
+        .hero-stat-value {
+            background: linear-gradient(45deg, #fff, #c7d2fe) !important;
+            background-clip: text !important;
+            -webkit-background-clip: text !important;
+            -webkit-text-fill-color: transparent !important;
+        }
+
+        .hero-stat-label {
+            color: var(--dark-text-tertiary) !important;
+        }
+
+        /* ==================== 区域标题 ==================== */
+        .section-title {
+            color: var(--dark-text-primary) !important;
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%) !important;
+            background-clip: text !important;
+            -webkit-background-clip: text !important;
+            -webkit-text-fill-color: transparent !important;
+        }
+
+        .section-subtitle {
+            color: var(--dark-text-secondary) !important;
+        }
+
+        /* ==================== 特性卡片 ==================== */
+        .feature-card {
+            background: var(--dark-bg-card) !important;
+            border: 1px solid var(--dark-border) !important;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3) !important;
+        }
+
+        .feature-card:hover {
+            border-color: var(--dark-accent-blue) !important;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4) !important;
+        }
+
+        .feature-card h3 {
+            color: var(--dark-text-primary) !important;
+        }
+
+        .feature-card p {
+            color: var(--dark-text-secondary) !important;
+        }
+
+        /* ==================== 操作卡片 ==================== */
+        .action-card {
+            background: var(--dark-bg-card) !important;
+            border: 1px solid var(--dark-border) !important;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3) !important;
+        }
+
+        .action-card.primary {
+            background: linear-gradient(135deg, rgba(6, 182, 212, 0.1) 0%, var(--dark-bg-card) 100%) !important;
+            border-color: rgba(6, 182, 212, 0.3) !important;
+        }
+
+        .action-card.secondary {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.05) 0%, var(--dark-bg-card) 100%) !important;
+        }
+
+        .action-card:hover {
+            border-color: var(--dark-accent-blue) !important;
+            transform: translateY(-4px) !important;
+        }
+
+        .action-card h3 {
+            color: var(--dark-text-primary) !important;
+        }
+
+        .action-card p {
+            color: var(--dark-text-secondary) !important;
+        }
+
+        .action-btn {
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%) !important;
+        }
+
+        /* ==================== 表单区域 ==================== */
+        .form-section {
+            background: var(--dark-bg-card) !important;
+            border: 1px solid var(--dark-border) !important;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3) !important;
+        }
+
+        .form-section h2 {
+            color: var(--dark-accent-cyan) !important;
+        }
+
+        .form-group label {
+            color: var(--dark-text-secondary) !important;
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            background: rgba(15, 23, 42, 0.6) !important;
+            border: 1px solid var(--dark-border) !important;
+            color: var(--dark-text-primary) !important;
+            border-radius: 0.5rem !important;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus,
+        .form-group select:focus {
+            border-color: var(--dark-accent-blue) !important;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1) !important;
+            outline: none !important;
+        }
+
+        /* ==================== 创意区域 ==================== */
+        .creative-ideas-section {
+            background: var(--dark-bg-card) !important;
+            border: 1px solid var(--dark-border) !important;
+        }
+
+        .creative-ideas-section h3 {
+            color: var(--dark-text-primary) !important;
+        }
+
+        #creative-idea-preview {
+            background: rgba(15, 23, 42, 0.6) !important;
+            border: 1px solid var(--dark-border) !important;
+        }
+
+        #creative-idea-preview h4 {
+            color: var(--dark-text-primary) !important;
+        }
+
+        #preview-content {
+            color: var(--dark-text-secondary) !important;
+        }
+
+        /* ==================== 加载遮罩 ==================== */
+        .loading-overlay {
+            background: rgba(0, 0, 0, 0.7) !important;
+        }
+
+        .loading-content {
+            background: var(--dark-bg-card) !important;
+            border: 1px solid var(--dark-border) !important;
+            color: var(--dark-text-primary) !important;
+        }
+
+        .loading-spinner {
+            border: 4px solid rgba(99, 102, 241, 0.2) !important;
+            border-top: 4px solid #6366f1 !important;
+        }
+
+        /* ==================== 状态消息 ==================== */
+        .status-message.success {
+            background: rgba(16, 185, 129, 0.2) !important;
+            color: #4ade80 !important;
+            border: 1px solid rgba(16, 185, 129, 0.3) !important;
+        }
+
+        .status-message.error {
+            background: rgba(239, 68, 68, 0.2) !important;
+            color: #f87171 !important;
+            border: 1px solid rgba(239, 68, 68, 0.3) !important;
+        }
+
+        /* ==================== 创意编辑器模态框 ==================== */
+        #creative-editor-modal > div {
+            background: var(--dark-bg-secondary) !important;
+            border: 1px solid var(--dark-border) !important;
+        }
+
+        #creative-editor-modal .modal-header,
+        #creative-editor-modal [style*="background: linear-gradient(135deg, #667eea"] {
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%) !important;
+        }
+
+        #creative-editor-modal [style*="background: #fafbfc"],
+        #creative-editor-modal [style*="background: white"],
+        #creative-editor-modal [style*="background:#fff"],
+        #creative-editor-modal [style*="background: #fff"] {
+            background: var(--dark-bg-secondary) !important;
+        }
+
+        #creative-editor-modal [style*="background: #f9fafb"],
+        #creative-editor-modal [style*="background:#f9fafb"] {
+            background: rgba(15, 23, 42, 0.5) !important;
+        }
+
+        #creative-editor-modal input,
+        #creative-editor-modal textarea,
+        #creative-editor-modal select {
+            background: rgba(15, 23, 42, 0.6) !important;
+            border-color: var(--dark-border) !important;
+            color: var(--dark-text-primary) !important;
+        }
+
+        #creative-editor-modal [style*="color: #1f2937"],
+        #creative-editor-modal [style*="color:#1f2937"] {
+            color: var(--dark-text-primary) !important;
+        }
+
+        #creative-editor-modal [style*="color: #374151"],
+        #creative-editor-modal [style*="color:#374151"] {
+            color: var(--dark-text-secondary) !important;
+        }
+
+        #creative-editor-modal [style*="color: #6b7280"],
+        #creative-editor-modal [style*="color:#6b7280"] {
+            color: var(--dark-text-tertiary) !important;
+        }
+
+        #creative-editor-modal [style*="border: 1px solid #e5e7eb"],
+        #creative-editor-modal [style*="border: 2px solid #e5e7eb"] {
+            border-color: var(--dark-border) !important;
+        }
+
+        #creative-editor-modal [style*="border: 2px solid #d1d5db"] {
+            border-color: rgba(148, 163, 184, 0.3) !important;
+        }
+
+        /* 故事线阶段编辑器 */
+        #creative-editor-modal [style*="background: linear-gradient(135deg, #fef9e7"],
+        #creative-editor-modal [style*="background: linear-gradient(135deg, #fef3c7"] {
+            background: linear-gradient(135deg, rgba(251, 191, 36, 0.1) 0%, rgba(251, 191, 36, 0.05) 100%) !important;
+        }
+
+        #creative-editor-modal [style*="background: linear-gradient(135deg, #eff6ff"],
+        #creative-editor-modal [style*="background: linear-gradient(135deg, #dbeafe"] {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(59, 130, 246, 0.05) 100%) !important;
+        }
+
+        #creative-editor-modal [style*="background: linear-gradient(135deg, #fef2f2"],
+        #creative-editor-modal [style*="background: linear-gradient(135deg, #fee2e2"] {
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(239, 68, 68, 0.05) 100%) !important;
+        }
+
+        #creative-editor-modal [style*="background: linear-gradient(135deg, #ecfdf5"],
+        #creative-editor-modal [style*="background: linear-gradient(135deg, #d1fae5"] {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(16, 185, 129, 0.05) 100%) !important;
+        }
+
+        #creative-editor-modal [style*="border: 2px solid #fbbf24"] {
+            border-color: rgba(251, 191, 36, 0.5) !important;
+        }
+
+        #creative-editor-modal [style*="border: 2px solid #3b82f6"] {
+            border-color: rgba(59, 130, 246, 0.5) !important;
+        }
+
+        #creative-editor-modal [style*="border: 2px solid #ef4444"] {
+            border-color: rgba(239, 68, 68, 0.5) !important;
+        }
+
+        #creative-editor-modal [style*="border: 2px solid #10b981"] {
+            border-color: rgba(16, 185, 129, 0.5) !important;
+        }
+
+        #creative-editor-modal [style*="color: #92400e"] {
+            color: #fbbf24 !important;
+        }
+
+        #creative-editor-modal [style*="color: #1e3a8a"] {
+            color: #60a5fa !important;
+        }
+
+        #creative-editor-modal [style*="color: #991b1b"] {
+            color: #f87171 !important;
+        }
+
+        #creative-editor-modal [style*="color: #064e3b"] {
+            color: #34d399 !important;
+        }
+
+        /* ==================== 滚动条 ==================== */
+        ::-webkit-scrollbar {
+            width: 8px !important;
+            height: 8px !important;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--dark-bg-primary) !important;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(99, 102, 241, 0.5) !important;
+            border-radius: 4px !important;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(99, 102, 241, 0.7) !important;
+        }
+    </style>
+    <style>
         /* 英雄区现代化样式 */
         .hero {
             position: relative;
