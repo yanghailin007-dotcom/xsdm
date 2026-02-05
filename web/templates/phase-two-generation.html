@@ -6,6 +6,316 @@
     <title>两阶段小说生成 - 第二阶段章节生成</title>
     <link rel="stylesheet" href="/static/css/style.css">
     <link rel="stylesheet" href="/static/css/phase-two-generation.css">
+    <style>
+        /* ==================== 暗色科技主题 ==================== */
+        :root {
+            --dark-bg-primary: #0f172a;
+            --dark-bg-secondary: #1e293b;
+            --dark-bg-card: rgba(30, 41, 59, 0.9);
+            --dark-bg-hover: rgba(51, 65, 85, 0.6);
+            --dark-text-primary: #f1f5f9;
+            --dark-text-secondary: #94a3b8;
+            --dark-text-tertiary: #64748b;
+            --dark-border: rgba(148, 163, 184, 0.15);
+            --dark-accent-blue: #3b82f6;
+            --dark-accent-cyan: #06b6d4;
+            --dark-accent-purple: #8b5cf6;
+        }
+
+        html, body {
+            background: var(--dark-bg-primary) !important;
+            color: var(--dark-text-primary) !important;
+        }
+
+        body::before {
+            background: var(--dark-bg-primary) !important;
+        }
+
+        /* ==================== 导航栏 ==================== */
+        .navbar {
+            background: rgba(15, 23, 42, 0.95) !important;
+            border-bottom: 1px solid var(--dark-border) !important;
+        }
+
+        .navbar-title {
+            color: var(--dark-text-primary) !important;
+        }
+
+        /* ==================== 按钮 ==================== */
+        .btn-primary {
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%) !important;
+        }
+
+        .btn-secondary {
+            background: rgba(30, 41, 59, 0.8) !important;
+            border: 1px solid var(--dark-border) !important;
+            color: var(--dark-text-secondary) !important;
+        }
+
+        .btn-secondary:hover {
+            background: var(--dark-bg-hover) !important;
+            border-color: var(--dark-accent-blue) !important;
+            color: var(--dark-text-primary) !important;
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%) !important;
+        }
+
+        /* ==================== 页面头部 ==================== */
+        .phase-header {
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.3) 0%, rgba(139, 92, 246, 0.2) 100%) !important;
+            border: 1px solid var(--dark-border) !important;
+        }
+
+        .phase-header h1, .phase-header p {
+            color: var(--dark-text-primary) !important;
+        }
+
+        /* ==================== 进度指示器 ==================== */
+        .phase-progress {
+            background: var(--dark-bg-card) !important;
+            border: 1px solid var(--dark-border) !important;
+        }
+
+        .phase-step {
+            color: var(--dark-text-secondary) !important;
+        }
+
+        .phase-step.completed {
+            color: #4ade80 !important;
+        }
+
+        .phase-step.active {
+            color: var(--dark-accent-cyan) !important;
+        }
+
+        .phase-step.pending {
+            color: var(--dark-text-tertiary) !important;
+        }
+
+        /* ==================== 侧边栏 ==================== */
+        .sidebar, .right-sidebar {
+            background: var(--dark-bg-card) !important;
+            border: 1px solid var(--dark-border) !important;
+        }
+
+        .section-title {
+            color: var(--dark-accent-cyan) !important;
+        }
+
+        /* ==================== 主内容区 ==================== */
+        .main-content {
+            background: var(--dark-bg-card) !important;
+            border: 1px solid var(--dark-border) !important;
+        }
+
+        /* ==================== 产物卡片 ==================== */
+        .product-category-card {
+            background: rgba(30, 41, 59, 0.6) !important;
+            border: 1px solid var(--dark-border) !important;
+        }
+
+        .product-category-card:hover {
+            border-color: var(--dark-accent-blue) !important;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3) !important;
+        }
+
+        .product-category-card h4 {
+            color: var(--dark-text-primary) !important;
+        }
+
+        .product-category-card p {
+            color: var(--dark-text-secondary) !important;
+        }
+
+        .product-btn {
+            background: rgba(99, 102, 241, 0.2) !important;
+            border: 1px solid rgba(99, 102, 241, 0.4) !important;
+            color: var(--dark-accent-blue) !important;
+        }
+
+        .product-btn:hover {
+            background: rgba(99, 102, 241, 0.3) !important;
+            color: white !important;
+        }
+
+        /* ==================== 表单 ==================== */
+        .form-group label {
+            color: var(--dark-text-secondary) !important;
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            background: rgba(15, 23, 42, 0.6) !important;
+            border: 1px solid var(--dark-border) !important;
+            color: var(--dark-text-primary) !important;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus,
+        .form-group select:focus {
+            border-color: var(--dark-accent-blue) !important;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1) !important;
+        }
+
+        /* ==================== 进度区域 ==================== */
+        .progress-section {
+            background: rgba(30, 41, 59, 0.6) !important;
+            border: 1px solid var(--dark-border) !important;
+        }
+
+        .progress-header h3 {
+            color: var(--dark-text-primary) !important;
+        }
+
+        .progress-percentage {
+            color: var(--dark-accent-cyan) !important;
+        }
+
+        .progress-bar-container {
+            background: rgba(148, 163, 184, 0.2) !important;
+        }
+
+        #current-chapter-info {
+            background: rgba(15, 23, 42, 0.6) !important;
+            border: 1px solid var(--dark-border) !important;
+        }
+
+        #current-chapter-info h4,
+        #current-chapter-info p {
+            color: var(--dark-text-primary) !important;
+        }
+
+        /* ==================== 统计网格 ==================== */
+        .stats-grid {
+            background: rgba(30, 41, 59, 0.6) !important;
+            border: 1px solid var(--dark-border) !important;
+        }
+
+        .stat-value {
+            color: var(--dark-text-primary) !important;
+        }
+
+        .stat-label {
+            color: var(--dark-text-secondary) !important;
+        }
+
+        /* ==================== 日志容器 ==================== */
+        .log-container {
+            background: rgba(15, 23, 42, 0.6) !important;
+            border: 1px solid var(--dark-border) !important;
+        }
+
+        .log-entry {
+            color: var(--dark-text-secondary) !important;
+        }
+
+        .log-entry.info {
+            color: var(--dark-text-secondary) !important;
+        }
+
+        .log-entry.success {
+            color: #4ade80 !important;
+        }
+
+        .log-entry.error {
+            color: #f87171 !important;
+        }
+
+        /* ==================== 章节进度卡片 ==================== */
+        .chapter-card {
+            background: rgba(30, 41, 59, 0.6) !important;
+            border: 1px solid var(--dark-border) !important;
+        }
+
+        .chapter-card h4 {
+            color: var(--dark-text-primary) !important;
+        }
+
+        .chapter-card p {
+            color: var(--dark-text-secondary) !important;
+        }
+
+        /* ==================== 结果区域 ==================== */
+        .result-item {
+            background: rgba(30, 41, 59, 0.6) !important;
+            border: 1px solid var(--dark-border) !important;
+        }
+
+        .result-item h4 {
+            color: var(--dark-text-primary) !important;
+        }
+
+        .result-item p {
+            color: var(--dark-text-secondary) !important;
+        }
+
+        /* ==================== 项目卡片 ==================== */
+        .project-item {
+            background: rgba(30, 41, 59, 0.6) !important;
+            border: 1px solid var(--dark-border) !important;
+        }
+
+        .project-item:hover {
+            background: var(--dark-bg-hover) !important;
+            border-color: var(--dark-accent-blue) !important;
+        }
+
+        .project-item h4 {
+            color: var(--dark-text-primary) !important;
+        }
+
+        .project-item p {
+            color: var(--dark-text-secondary) !important;
+        }
+
+        /* ==================== 状态消息 ==================== */
+        .status-message.success {
+            background: rgba(16, 185, 129, 0.2) !important;
+            color: #4ade80 !important;
+            border: 1px solid rgba(16, 185, 129, 0.3) !important;
+        }
+
+        .status-message.error {
+            background: rgba(239, 68, 68, 0.2) !important;
+            color: #f87171 !important;
+            border: 1px solid rgba(239, 68, 68, 0.3) !important;
+        }
+
+        /* ==================== 滚动条 ==================== */
+        ::-webkit-scrollbar {
+            width: 8px !important;
+            height: 8px !important;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--dark-bg-primary) !important;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(99, 102, 241, 0.5) !important;
+            border-radius: 4px !important;
+        }
+
+        /* ==================== 加载动画 ==================== */
+        .loading-spinner {
+            border-color: rgba(99, 102, 241, 0.2) !important;
+            border-top-color: #6366f1 !important;
+        }
+
+        /* ==================== 提示文字 ==================== */
+        .form-group div[style*="font-size: 12px"],
+        .form-group div[style*="color: #666"] {
+            color: var(--dark-text-tertiary) !important;
+        }
+
+        #projects-list p,
+        #project-details p {
+            color: var(--dark-text-tertiary) !important;
+        }
+    </style>
 </head>
 <body>
     <!-- 顶部导航 -->
