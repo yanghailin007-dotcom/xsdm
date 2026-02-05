@@ -6,6 +6,204 @@
     <title>两阶段小说生成 - 项目管理</title>
     <link rel="stylesheet" href="/static/css/style.css">
     <style>
+        /* ==================== 暗色科技主题 ==================== */
+        :root {
+            --dark-bg-primary: #0f172a;
+            --dark-bg-secondary: #1e293b;
+            --dark-bg-card: rgba(30, 41, 59, 0.9);
+            --dark-bg-hover: rgba(51, 65, 85, 0.6);
+            --dark-text-primary: #f1f5f9;
+            --dark-text-secondary: #94a3b8;
+            --dark-text-tertiary: #64748b;
+            --dark-border: rgba(148, 163, 184, 0.15);
+            --dark-accent-blue: #3b82f6;
+            --dark-accent-cyan: #06b6d4;
+            --dark-accent-purple: #8b5cf6;
+        }
+
+        html, body {
+            background: var(--dark-bg-primary) !important;
+            color: var(--dark-text-primary) !important;
+        }
+
+        body::before {
+            background: var(--dark-bg-primary) !important;
+        }
+
+        /* ==================== 导航栏 ==================== */
+        .navbar {
+            background: rgba(15, 23, 42, 0.95) !important;
+            border-bottom: 1px solid var(--dark-border) !important;
+        }
+
+        .navbar-title {
+            color: var(--dark-text-primary) !important;
+        }
+
+        /* ==================== 页面头部 ==================== */
+        .page-header {
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.3) 0%, rgba(139, 92, 246, 0.2) 100%) !important;
+            border: 1px solid var(--dark-border) !important;
+        }
+
+        .page-header h1, .page-header p {
+            color: var(--dark-text-primary) !important;
+        }
+
+        /* ==================== 统计卡片 ==================== */
+        .stat-card {
+            background: var(--dark-bg-card) !important;
+            border: 1px solid var(--dark-border) !important;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3) !important;
+        }
+
+        .stat-value {
+            color: var(--dark-text-primary) !important;
+        }
+
+        .stat-label {
+            color: var(--dark-text-secondary) !important;
+        }
+
+        /* ==================== 筛选栏 ==================== */
+        .filter-bar {
+            background: var(--dark-bg-card) !important;
+            border: 1px solid var(--dark-border) !important;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3) !important;
+        }
+
+        .filter-select {
+            background: rgba(15, 23, 42, 0.6) !important;
+            border: 1px solid var(--dark-border) !important;
+            color: var(--dark-text-primary) !important;
+        }
+
+        .filter-select option {
+            background: var(--dark-bg-secondary) !important;
+            color: var(--dark-text-primary) !important;
+        }
+
+        /* ==================== 按钮 ==================== */
+        .btn-primary {
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%) !important;
+        }
+
+        .btn-secondary {
+            background: rgba(30, 41, 59, 0.8) !important;
+            border: 1px solid var(--dark-border) !important;
+            color: var(--dark-text-secondary) !important;
+        }
+
+        .btn-secondary:hover {
+            background: var(--dark-bg-hover) !important;
+            border-color: var(--dark-accent-blue) !important;
+            color: var(--dark-text-primary) !important;
+        }
+
+        /* ==================== 项目卡片 ==================== */
+        .project-card {
+            background: var(--dark-bg-card) !important;
+            border: 1px solid var(--dark-border) !important;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3) !important;
+        }
+
+        .project-card:hover {
+            box-shadow: 0 8px 35px rgba(0, 0, 0, 0.4) !important;
+            border-color: var(--dark-accent-blue) !important;
+        }
+
+        .project-title {
+            color: var(--dark-text-primary) !important;
+        }
+
+        .meta-item {
+            color: var(--dark-text-tertiary) !important;
+        }
+
+        .project-description {
+            color: var(--dark-text-secondary) !important;
+        }
+
+        /* ==================== 进度区域 ==================== */
+        .project-progress {
+            background: rgba(15, 23, 42, 0.6) !important;
+        }
+
+        .progress-title {
+            color: var(--dark-text-primary) !important;
+        }
+
+        .progress-bar {
+            background: rgba(148, 163, 184, 0.2) !important;
+        }
+
+        .progress-details {
+            color: var(--dark-text-tertiary) !important;
+        }
+
+        /* ==================== 阶段指示器 ==================== */
+        .phase-info {
+            color: var(--dark-text-secondary) !important;
+        }
+
+        .phase-name {
+            color: var(--dark-text-primary) !important;
+        }
+
+        .phase-time {
+            color: var(--dark-text-tertiary) !important;
+        }
+
+        .phase-indicator.pending {
+            background: var(--dark-border) !important;
+        }
+
+        /* ==================== 操作按钮 ==================== */
+        .action-btn.secondary {
+            background: rgba(30, 41, 59, 0.8) !important;
+            border: 1px solid var(--dark-border) !important;
+            color: var(--dark-text-secondary) !important;
+        }
+
+        .action-btn.secondary:hover {
+            background: var(--dark-bg-hover) !important;
+            border-color: var(--dark-accent-blue) !important;
+            color: var(--dark-text-primary) !important;
+        }
+
+        /* ==================== 空状态 ==================== */
+        .empty-state {
+            background: var(--dark-bg-card) !important;
+            border: 1px solid var(--dark-border) !important;
+        }
+
+        .empty-icon {
+            color: var(--dark-text-tertiary) !important;
+        }
+
+        .empty-title {
+            color: var(--dark-text-primary) !important;
+        }
+
+        .empty-description {
+            color: var(--dark-text-secondary) !important;
+        }
+
+        /* ==================== 滚动条 ==================== */
+        ::-webkit-scrollbar {
+            width: 8px !important;
+            height: 8px !important;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--dark-bg-primary) !important;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(99, 102, 241, 0.5) !important;
+            border-radius: 4px !important;
+        }
+
         /* 项目管理页面专用样式 */
         .project-management-container {
             max-width: 1400px;
