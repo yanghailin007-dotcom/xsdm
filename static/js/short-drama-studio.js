@@ -1461,6 +1461,19 @@ class ShortDramaStudio {
     }
 
     /**
+     * 重新生成分镜头
+     */
+    async regenerateStoryboard() {
+        // 确认用户是否要重新生成
+        if (!confirm('确定要重新生成分镜头吗？这将覆盖现有的分镜头数据。')) {
+            return;
+        }
+
+        // 调用生成分镜头方法
+        await this.generateStoryboard();
+    }
+
+    /**
      * 标准化镜头数据 - 支持新旧两种格式
      * 新格式: {scene_number, visual: {shot_type, description, veo_prompt}, dialogue: {speaker, lines, tone}}
      * 旧格式: {shot_number, shot_type, screen_action, dialogue, veo_prompt}
@@ -1718,10 +1731,13 @@ class ShortDramaStudio {
         this.shots = allShots;
 
         container.innerHTML = `
-            <div style="margin-bottom: 1.5rem;">
-                <p style="font-size: 0.9rem; color: var(--text-secondary);">
+            <div style="margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center;">
+                <p style="font-size: 0.9rem; color: var(--text-secondary); margin: 0;">
                     共 <strong>${allShots.length}</strong> 个镜头
                 </p>
+                <button class="btn btn-secondary" onclick="shortDramaStudio.regenerateStoryboard()" style="font-size: 0.85rem;">
+                    🔄 重新生成分镜头
+                </button>
             </div>
             <div class="shots-list">
                 ${allShots.map((shot, idx) => `
@@ -1749,7 +1765,8 @@ class ShortDramaStudio {
      */
     renderStoryboard(storyboard) {
         const container = document.getElementById('storyboardContent');
-        if (!container) return;
+        // 🔥 注意：这个方法可能被 loadVideoStep 调用，此时 container 可能不存在
+        // 所以我们不能依赖 container 存在
 
         const allShots = [];
 
@@ -1803,6 +1820,16 @@ class ShortDramaStudio {
 
         console.log(`✅ 总共提取到 ${allShots.length} 个镜头`);
 
+        // 保存镜头数据（无论container是否存在都要保存）
+        this.shots = allShots;
+        console.log(`💾 已保存 ${this.shots.length} 个镜头到 this.shots`);
+
+        // 如果container不存在，说明是从loadVideoStep调用的，不需要渲染DOM
+        if (!container) {
+            console.log('📝 [storyboard] container不存在，跳过DOM渲染');
+            return;
+        }
+
         if (allShots.length === 0) {
             container.innerHTML = `
                 <div class="empty-state">
@@ -1835,10 +1862,6 @@ class ShortDramaStudio {
                 `).join('')}
             </div>
         `;
-
-        // 保存镜头数据
-        this.shots = allShots;
-        console.log(`💾 已保存 ${this.shots.length} 个镜头到 this.shots`);
     }
 
     /**
@@ -1859,11 +1882,13 @@ class ShortDramaStudio {
             const data = await response.json();
 
             console.log('📊 [视频步骤] API返回:', data);
+            console.log('📊 [视频步骤] storyboards数量:', data.storyboards?.length);
+            console.log('📊 [视频步骤] storyboards内容:', JSON.stringify(data.storyboards, null, 2));
 
-            if (data.success && data.storyboards) {
+            if (data.success && data.storyboards && data.storyboards.length > 0) {
                 // 使用 renderStoryboard 解析数据
                 this.renderStoryboard(data.storyboards);
-                console.log('✅ [视频步骤] 分镜头数据已加载');
+                console.log('✅ [视频步骤] 分镜头数据已加载, this.shots.length:', this.shots?.length);
             } else {
                 container.innerHTML = `
                     <div class="empty-state">
@@ -2158,6 +2183,21 @@ class ShortDramaStudio {
         if (!container) return;
 
         console.log(`🎬 渲染视频卡片, shots数量: ${this.shots?.length || 0}`);
+        console.log(`🎬 this.shots内容:`, this.shots);
+
+        if (!this.shots || this.shots.length === 0) {
+            console.error('❌ this.shots为空或未定义');
+            container.innerHTML = `
+                <div class="empty-state">
+                    <p style="font-size: 2rem;">🎬</p>
+                    <p>没有分镜头数据</p>
+                    <p style="font-size: 0.85rem; color: var(--text-secondary);">
+                        请先在"分镜头"步骤生成分镜头
+                    </p>
+                </div>
+            `;
+            return;
+        }
 
         const completedCount = this.shots.filter(s => s.videoExists).length;
         const totalCount = this.shots.length;
