@@ -3,9 +3,1080 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>视频生成系统</title>
-    <link rel="stylesheet" href="/static/css/video-generation.css?v=24">
-    <link rel="stylesheet" href="/static/css/video-generation-character-portrait.css?v=2">
+    <title>视频生成系统 - 大文娱创作平台</title>
+    <style>
+        /* ==================== 设计系统变量 ==================== */
+        :root {
+            --primary-500: #6366f1;
+            --primary-600: #4f46e5;
+            --accent-500: #06b6d4;
+            --purple-500: #a855f7;
+            --pink-500: #ec4899;
+            
+            --gray-900: #0f172a;
+            --gray-800: #1e293b;
+            --gray-700: #334155;
+            --gray-600: #475569;
+            
+            --text-primary: #f8fafc;
+            --text-secondary: #cbd5e1;
+            --text-tertiary: #94a3b8;
+            --text-muted: #64748b;
+            
+            --space-1: 0.25rem;
+            --space-2: 0.5rem;
+            --space-3: 0.75rem;
+            --space-4: 1rem;
+            --space-5: 1.25rem;
+            --space-6: 1.5rem;
+            --space-8: 2rem;
+            
+            --radius-lg: 0.75rem;
+            --radius-xl: 1rem;
+            --radius-2xl: 1.5rem;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            font-size: 16px;
+        }
+
+        body {
+            background: var(--gray-900);
+            color: var(--text-primary);
+            min-height: 100vh;
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        /* ==================== 全局背景效果 ==================== */
+        #app {
+            min-height: 100vh;
+            position: relative;
+        }
+
+        #app::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(ellipse at top, #1b2735 0%, #090a0f 100%);
+            z-index: -2;
+        }
+
+        #app::after {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image: 
+                radial-gradient(2px 2px at 20px 30px, rgba(255,255,255,0.3), transparent),
+                radial-gradient(2px 2px at 40px 70px, rgba(255,255,255,0.2), transparent);
+            background-repeat: repeat;
+            background-size: 200px 200px;
+            animation: twinkle 10s infinite linear;
+            z-index: -1;
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        @keyframes twinkle {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 0.3; }
+        }
+
+        /* ==================== 导航栏 ==================== */
+        .navbar {
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 1rem 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .nav-container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 0 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .btn-back {
+            padding: 0.5rem 1rem;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 0.75rem;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-back:hover {
+            background: rgba(99, 102, 241, 0.2);
+            border-color: rgba(99, 102, 241, 0.4);
+            color: var(--text-primary);
+        }
+
+        .nav-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #6366f1 0%, #06b6d4 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .nav-link {
+            padding: 0.5rem 1rem;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 0.75rem;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+
+        .nav-link:hover {
+            background: rgba(99, 102, 241, 0.2);
+            border-color: rgba(99, 102, 241, 0.4);
+            color: var(--text-primary);
+        }
+
+        /* ==================== 主布局 ==================== */
+        .main-container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 1.5rem;
+            display: grid;
+            grid-template-columns: 280px 1fr 280px;
+            gap: 1.5rem;
+            min-height: calc(100vh - 80px);
+        }
+
+        @media (max-width: 1200px) {
+            .main-container {
+                grid-template-columns: 260px 1fr;
+            }
+            .right-sidebar, .help-sidebar {
+                display: none;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .main-container {
+                grid-template-columns: 1fr;
+                padding: 1rem;
+            }
+            .sidebar {
+                display: none;
+            }
+        }
+
+        /* ==================== 侧边栏通用样式 ==================== */
+        .sidebar, .right-sidebar, .help-sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .sidebar-view {
+            background: rgba(30, 41, 59, 0.6);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 1rem;
+            overflow: hidden;
+        }
+
+        .sidebar-header {
+            padding: 1rem 1.25rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .sidebar-header h2, .sidebar-header h3 {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        /* ==================== 按钮样式 ==================== */
+        .btn-icon {
+            width: 32px;
+            height: 32px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 0.5rem;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-icon:hover {
+            background: rgba(99, 102, 241, 0.2);
+            border-color: rgba(99, 102, 241, 0.4);
+            color: var(--text-primary);
+        }
+
+        .btn-sm {
+            padding: 0.375rem 0.75rem;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 0.5rem;
+            color: var(--text-secondary);
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-sm:hover {
+            background: rgba(99, 102, 241, 0.2);
+            border-color: rgba(99, 102, 241, 0.4);
+            color: var(--text-primary);
+        }
+
+        .btn-secondary {
+            padding: 0.5rem 1rem;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 0.75rem;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(99, 102, 241, 0.2);
+            border-color: rgba(99, 102, 241, 0.4);
+            color: var(--text-primary);
+        }
+
+        .btn-primary {
+            padding: 0.75rem 1.5rem;
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #06b6d4 100%);
+            border: none;
+            border-radius: 0.75rem;
+            color: white;
+            font-size: 0.875rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+        }
+
+        .btn-primary:hover {
+            box-shadow: 0 8px 25px rgba(99, 102, 241, 0.5);
+            transform: translateY(-2px);
+        }
+
+        .btn-success {
+            padding: 0.75rem 1.5rem;
+            background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+            border: none;
+            border-radius: 0.75rem;
+            color: white;
+            font-size: 0.875rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 4px 15px rgba(34, 197, 94, 0.4);
+        }
+
+        .btn-success:hover {
+            box-shadow: 0 8px 25px rgba(34, 197, 94, 0.5);
+            transform: translateY(-2px);
+        }
+
+        .btn-large {
+            padding: 1rem 2rem;
+            font-size: 1rem;
+        }
+
+        .btn-close {
+            width: 32px;
+            height: 32px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 0.5rem;
+            color: var(--text-secondary);
+            font-size: 1.25rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-close:hover {
+            background: rgba(239, 68, 68, 0.2);
+            border-color: rgba(239, 68, 68, 0.4);
+            color: #f87171;
+        }
+
+        /* ==================== 标签切换 ==================== */
+        .tab-switcher {
+            display: flex;
+            padding: 0.5rem;
+            gap: 0.25rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 0.5rem;
+            background: transparent;
+            border: none;
+            border-radius: 0.5rem;
+            color: var(--text-tertiary);
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .tab-btn:hover {
+            color: var(--text-secondary);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .tab-btn.active {
+            background: rgba(99, 102, 241, 0.2);
+            color: var(--primary-400);
+        }
+
+        .tab-content {
+            display: none;
+            padding: 1rem;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* ==================== 列表样式 ==================== */
+        .novel-list, .content-list, .generated-shots-list {
+            max-height: 400px;
+            overflow-y: auto;
+            padding: 0.5rem;
+        }
+
+        .novel-list::-webkit-scrollbar, .content-list::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .novel-list::-webkit-scrollbar-thumb, .content-list::-webkit-scrollbar-thumb {
+            background: rgba(99, 102, 241, 0.4);
+            border-radius: 2px;
+        }
+
+        .novel-item, .event-item, .character-item {
+            padding: 0.75rem;
+            margin-bottom: 0.5rem;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 0.5rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        .novel-item:hover, .event-item:hover, .character-item:hover {
+            background: rgba(99, 102, 241, 0.1);
+            border-color: rgba(99, 102, 241, 0.3);
+            color: var(--text-primary);
+        }
+
+        .novel-item.selected, .event-item.selected, .character-item.selected {
+            background: rgba(99, 102, 241, 0.2);
+            border-color: var(--primary-500);
+            color: var(--text-primary);
+        }
+
+        .selection-summary {
+            padding: 0.75rem 1rem;
+            font-size: 0.75rem;
+            color: var(--text-tertiary);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .sidebar-actions {
+            padding: 1rem;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        /* ==================== 主内容区 ==================== */
+        .main-content {
+            background: rgba(30, 41, 59, 0.4);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 1rem;
+            overflow: hidden;
+            min-height: calc(100vh - 140px);
+        }
+
+        /* ==================== 模式选择屏幕 ==================== */
+        .mode-selection-screen {
+            padding: 2rem;
+            text-align: center;
+        }
+
+        .mode-selection-content h1 {
+            font-size: 2rem;
+            font-weight: 800;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, #6366f1 0%, #06b6d4 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .mode-selection-content > p {
+            color: var(--text-tertiary);
+            margin-bottom: 2rem;
+        }
+
+        .mode-selector {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+            text-align: left;
+        }
+
+        .mode-card {
+            position: relative;
+            background: rgba(30, 41, 59, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-decoration: none;
+            color: inherit;
+            display: block;
+        }
+
+        .mode-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(135deg, #6366f1 0%, #06b6d4 100%);
+            opacity: 0;
+            transition: opacity 0.3s;
+            border-radius: 1rem 1rem 0 0;
+        }
+
+        .mode-card:hover {
+            transform: translateY(-4px);
+            border-color: rgba(99, 102, 241, 0.3);
+            box-shadow: 0 10px 40px rgba(99, 102, 241, 0.2);
+        }
+
+        .mode-card:hover::before {
+            opacity: 1;
+        }
+
+        .mode-card.short-drama-mode:hover {
+            border-color: rgba(236, 72, 153, 0.3);
+            box-shadow: 0 10px 40px rgba(236, 72, 153, 0.2);
+        }
+
+        .mode-card.short-drama-mode::before {
+            background: linear-gradient(135deg, #ec4899 0%, #f43f5e 100%);
+        }
+
+        .mode-badge {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            padding: 0.25rem 0.75rem;
+            background: linear-gradient(135deg, #6366f1 0%, #06b6d4 100%);
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: white;
+        }
+
+        .mode-icon {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #06b6d4 100%);
+            border-radius: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            margin-bottom: 1rem;
+            box-shadow: 0 8px 30px rgba(99, 102, 241, 0.3);
+        }
+
+        .mode-card h3 {
+            font-size: 1.125rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            color: var(--text-primary);
+        }
+
+        .mode-desc {
+            font-size: 0.875rem;
+            color: var(--text-tertiary);
+            margin-bottom: 1rem;
+            line-height: 1.5;
+        }
+
+        .mode-features {
+            list-style: none;
+        }
+
+        .mode-features li {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            padding: 0.25rem 0;
+        }
+
+        /* ==================== 屏幕头部 ==================== */
+        .screen-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .screen-header h2 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            flex: 1;
+        }
+
+        .header-stats {
+            display: flex;
+            gap: 1.5rem;
+        }
+
+        .stat-item {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        .stat-label {
+            color: var(--text-tertiary);
+        }
+
+        .stat-value {
+            color: var(--primary-400);
+            font-weight: 600;
+        }
+
+        /* ==================== 工作流导航 ==================== */
+        .episode-workflow-nav {
+            display: flex;
+            padding: 1rem 1.5rem;
+            gap: 0.5rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            overflow-x: auto;
+        }
+
+        .workflow-nav-btn {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 0.5rem;
+            color: var(--text-tertiary);
+            font-size: 0.875rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+        .workflow-nav-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text-secondary);
+        }
+
+        .workflow-nav-btn.active {
+            background: rgba(99, 102, 241, 0.2);
+            border-color: rgba(99, 102, 241, 0.4);
+            color: var(--primary-400);
+        }
+
+        .workflow-nav-btn .step-num {
+            width: 24px;
+            height: 24px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .workflow-nav-btn.active .step-num {
+            background: var(--primary-500);
+            color: white;
+        }
+
+        /* ==================== 工作流内容 ==================== */
+        .workflow-step-panel {
+            display: none;
+            padding: 1.5rem;
+        }
+
+        .workflow-step-panel.active {
+            display: block;
+        }
+
+        .panel-header {
+            margin-bottom: 1.5rem;
+        }
+
+        .panel-header h3 {
+            font-size: 1.125rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: var(--text-primary);
+        }
+
+        .panel-header p {
+            font-size: 0.875rem;
+            color: var(--text-tertiary);
+        }
+
+        /* ==================== 表单样式 ==================== */
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 0.75rem;
+            color: var(--text-primary);
+            font-size: 0.875rem;
+            transition: all 0.2s;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary-500);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+
+        .form-control::placeholder {
+            color: var(--text-muted);
+        }
+
+        textarea.form-control {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        /* ==================== 进度条 ==================== */
+        .progress-bar {
+            height: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 9999px;
+            overflow: hidden;
+            margin-top: 0.5rem;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(135deg, #6366f1 0%, #06b6d4 100%);
+            border-radius: 9999px;
+            transition: width 0.3s;
+        }
+
+        .progress-info {
+            padding: 1rem;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 0.75rem;
+            margin-top: 1rem;
+        }
+
+        .progress-info p {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+        }
+
+        /* ==================== 空状态 ==================== */
+        .empty-state {
+            text-align: center;
+            padding: 3rem 1.5rem;
+        }
+
+        .empty-state p {
+            color: var(--text-tertiary);
+            font-size: 0.875rem;
+        }
+
+        .empty-state .hint {
+            font-size: 0.75rem;
+            margin-top: 0.5rem;
+            color: var(--text-muted);
+        }
+
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-tertiary);
+        }
+
+        /* ==================== 右侧边栏 ==================== */
+        .right-sidebar-header {
+            padding: 1rem 1.25rem;
+            background: rgba(30, 41, 59, 0.6);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .right-sidebar-header h3 {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+
+        .count-badge {
+            padding: 0.25rem 0.75rem;
+            background: rgba(99, 102, 241, 0.2);
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--primary-400);
+        }
+
+        .quick-actions {
+            display: flex;
+            gap: 0.5rem;
+            padding: 1rem;
+            background: rgba(30, 41, 59, 0.6);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 1rem;
+        }
+
+        /* ==================== 帮助卡片 ==================== */
+        .help-card {
+            background: rgba(30, 41, 59, 0.6);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 1rem;
+            padding: 1.25rem;
+        }
+
+        .help-card h3 {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .help-card ol {
+            list-style: none;
+            counter-reset: step;
+        }
+
+        .help-card li {
+            font-size: 0.8rem;
+            color: var(--text-tertiary);
+            padding: 0.5rem 0;
+            padding-left: 1.5rem;
+            position: relative;
+            counter-increment: step;
+        }
+
+        .help-card li::before {
+            content: counter(step);
+            position: absolute;
+            left: 0;
+            width: 18px;
+            height: 18px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+        }
+
+        .help-card li.active {
+            color: var(--primary-400);
+        }
+
+        .help-card li.active::before {
+            background: var(--primary-500);
+            color: white;
+        }
+
+        .current-status {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        .current-status p {
+            padding: 0.5rem;
+            background: rgba(99, 102, 241, 0.1);
+            border-radius: 0.5rem;
+            border-left: 3px solid var(--primary-500);
+        }
+
+        /* ==================== Toast 通知 ==================== */
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            padding: 1rem 1.5rem;
+            background: rgba(30, 41, 59, 0.9);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 1rem;
+            color: var(--text-primary);
+            font-size: 0.875rem;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            transform: translateX(150%);
+            transition: transform 0.3s;
+            z-index: 1000;
+        }
+
+        .toast.show {
+            transform: translateX(0);
+        }
+
+        /* ==================== 模态框 ==================== */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 1.5rem;
+        }
+
+        .modal-content {
+            background: rgba(30, 41, 59, 0.9);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 1rem;
+            width: 100%;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow: hidden;
+        }
+
+        .modal-header {
+            padding: 1.25rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h3 {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .modal-body {
+            padding: 1.25rem;
+            overflow-y: auto;
+            max-height: 60vh;
+        }
+
+        .modal-footer {
+            padding: 1.25rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.75rem;
+        }
+
+        .prompt-edit-textarea {
+            width: 100%;
+            min-height: 200px;
+            padding: 1rem;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 0.75rem;
+            color: var(--text-primary);
+            font-size: 0.875rem;
+            line-height: 1.6;
+            resize: vertical;
+        }
+
+        .prompt-edit-textarea:focus {
+            outline: none;
+            border-color: var(--primary-500);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+
+        /* ==================== 剧照模态框 ==================== */
+        .portrait-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .portrait-modal.active {
+            display: flex;
+        }
+
+        .portrait-modal-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.9);
+            backdrop-filter: blur(10px);
+        }
+
+        .portrait-modal-close {
+            position: absolute;
+            top: 2rem;
+            right: 2rem;
+            width: 48px;
+            height: 48px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            color: var(--text-primary);
+            font-size: 1.5rem;
+            cursor: pointer;
+            z-index: 1001;
+            transition: all 0.2s;
+        }
+
+        .portrait-modal-close:hover {
+            background: rgba(239, 68, 68, 0.2);
+            border-color: rgba(239, 68, 68, 0.4);
+            color: #f87171;
+        }
+
+        .portrait-modal-content {
+            position: relative;
+            z-index: 1001;
+            max-width: 90vw;
+            max-height: 90vh;
+            text-align: center;
+        }
+
+        .portrait-modal-content img {
+            max-width: 100%;
+            max-height: 70vh;
+            border-radius: 1rem;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+        }
+
+        .portrait-modal-info {
+            margin-top: 1.5rem;
+        }
+
+        .portrait-modal-info h3 {
+            font-size: 1.5rem;
+            color: var(--text-primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .portrait-modal-info p {
+            color: var(--text-secondary);
+        }
+
+        /* ==================== 隐藏元素 ==================== */
+        .hidden {
+            display: none !important;
+        }
+
+        /* ==================== 响应式调整 ==================== */
+        @media (max-width: 768px) {
+            .mode-selection-screen {
+                padding: 1rem;
+            }
+
+            .mode-selection-content h1 {
+                font-size: 1.5rem;
+            }
+
+            .screen-header {
+                padding: 1rem;
+            }
+
+            .workflow-step-panel {
+                padding: 1rem;
+            }
+        }
+    </style>
 </head>
 <body>
     <div id="app">
@@ -28,9 +1099,7 @@
                 <div id="novelListView" class="sidebar-view">
                     <div class="sidebar-header">
                         <h2>📚 我的小说</h2>
-                        <button id="refreshNovelsBtn" class="btn-icon" title="刷新列表">
-                            🔄
-                        </button>
+                        <button id="refreshNovelsBtn" class="btn-icon" title="刷新列表">🔄</button>
                     </div>
                     <div id="novelList" class="novel-list">
                         <div class="loading">加载中...</div>
@@ -41,22 +1110,14 @@
                 <div id="eventCharacterView" class="sidebar-view" style="display: none;">
                     <div class="sidebar-header">
                         <h2 id="sidebarTitle">🎬 选择内容</h2>
-                        <button id="refreshContentBtn" class="btn-icon" title="刷新列表">
-                            🔄
-                        </button>
+                        <button id="refreshContentBtn" class="btn-icon" title="刷新列表">🔄</button>
                     </div>
                     
-                    <!-- 切换标签 -->
                     <div class="tab-switcher">
-                        <button id="eventsTabBtn" class="tab-btn active" data-tab="events">
-                            📊 事件
-                        </button>
-                        <button id="charactersTabBtn" class="tab-btn" data-tab="characters">
-                            👥 角色
-                        </button>
+                        <button id="eventsTabBtn" class="tab-btn active" data-tab="events">📊 事件</button>
+                        <button id="charactersTabBtn" class="tab-btn" data-tab="characters">👥 角色</button>
                     </div>
 
-                    <!-- 事件列表 -->
                     <div id="eventsTab" class="tab-content active">
                         <div class="selection-summary">
                             <span id="selectedEventsCount">已选: 0个事件</span>
@@ -66,7 +1127,6 @@
                         </div>
                     </div>
 
-                    <!-- 角色列表 -->
                     <div id="charactersTab" class="tab-content">
                         <div class="selection-summary">
                             <span id="selectedCharactersCount">已选: 0个角色</span>
@@ -76,7 +1136,6 @@
                         </div>
                     </div>
 
-                    <!-- 操作按钮 -->
                     <div class="sidebar-actions">
                         <button id="selectAllEventsBtn" class="btn-sm">全选事件</button>
                         <button id="selectAllCharactersBtn" class="btn-sm">全选角色</button>
@@ -94,7 +1153,6 @@
                         <p>选择适合您需求的视频生成方式</p>
                         
                         <div id="modeSelector" class="mode-selector">
-                            <!-- 模式卡片 -->
                             <div class="mode-card custom-mode" data-mode="custom">
                                 <div class="mode-badge">推荐</div>
                                 <div class="mode-icon">✨</div>
@@ -146,7 +1204,7 @@
                             </div>
 
                             <a href="/short-drama-studio" class="mode-card short-drama-mode">
-                                <div class="mode-badge" style="background: linear-gradient(135deg, #ff6b6b, #ee5a24);">推荐</div>
+                                <div class="mode-badge" style="background: linear-gradient(135deg, #ec4899, #f43f5e);">推荐</div>
                                 <div class="mode-icon">🎬</div>
                                 <h3>短剧工作台</h3>
                                 <p class="mode-desc">选集 → 角色剧照 → 分镜头 → 视频生成，一站式短剧制作</p>
@@ -161,910 +1219,19 @@
                     </div>
                 </div>
 
-                <!-- 欢迎/选择屏幕 -->
-                <div id="welcomeScreen" class="welcome-screen" style="display: none;">
+                <!-- 其他屏幕容器 -->
+                <div id="welcomeScreen" style="display: none;">
                     <div class="screen-header">
                         <button id="backToModeFromWelcomeBtn" class="btn-secondary">← 返回模式选择</button>
-                        <h2 class="welcome-title">🎬 将小说转换为视频</h2>
+                        <h2>🎬 将小说转换为视频</h2>
                     </div>
-                    <div class="welcome-content">
-                        <p>支持三种视频模式，满足不同创作需求</p>
-                        
-                        <div id="videoTypeSelector" class="video-type-selector">
-                            <!-- 视频类型卡片将由JS动态生成 -->
-                        </div>
+                    <div style="padding: 2rem;">
+                        <p style="color: var(--text-tertiary);">支持三种视频模式，满足不同创作需求</p>
+                        <div id="videoTypeSelector" style="margin-top: 1.5rem;"></div>
                     </div>
                 </div>
 
-                <!-- 剧照生成模式屏幕 -->
-                <div id="portraitModeScreen" class="portrait-mode-screen" style="display: none;">
-                    <div class="screen-header">
-                        <button id="backToModeFromPortraitBtn" class="btn-secondary">← 返回模式选择</button>
-                        <h2 id="portraitModeTitle">🎨 人物剧照生成</h2>
-                    </div>
-                    
-                    <div class="portrait-mode-content">
-                        <!-- 子模式选择 -->
-                        <div class="portrait-submode-selector">
-                            <div class="submode-cards">
-                                <div class="submode-card portrait-novel-submode" data-submode="novel">
-                                    <div class="submode-icon">📚</div>
-                                    <h3>小说角色</h3>
-                                    <p class="submode-desc">从已生成的小说中选择角色</p>
-                                    <ul class="submode-features">
-                                        <li>👥 自动提取角色设计</li>
-                                        <li>🎨 保持角色一致性</li>
-                                        <li>📖 支持参考图像</li>
-                                        <li>✨ 多种比例和质量</li>
-                                    </ul>
-                                </div>
-                                
-                                <div class="submode-card portrait-custom-submode" data-submode="custom">
-                                    <div class="submode-icon">✨</div>
-                                    <h3>自定义角色</h3>
-                                    <p class="submode-desc">完全自定义角色描述</p>
-                                    <ul class="submode-features">
-                                        <li>🎯 自由描述角色特征</li>
-                                        <li>🖼️ 支持参考图像</li>
-                                        <li>✨ 灵活的生成选项</li>
-                                        <li>🎨 自定义提示词</li>
-                                    </ul>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- 剧照生成配置屏幕 - 小说角色 -->
-                <div id="portraitNovelConfigScreen" class="portrait-config-screen" style="display: none;">
-                    <div class="screen-header">
-                        <button id="backToPortraitSubmodeBtn" class="btn-secondary">← 返回模式选择</button>
-                        <h2>👥 选择角色</h2>
-                    </div>
-                    
-                    <div class="portrait-config-content">
-                        <div class="novel-selector">
-                            <label>选择小说项目：</label>
-                            <select id="portraitNovelSelect" class="form-control">
-                                <option value="">请选择小说...</option>
-                            </select>
-                        </div>
-                        
-                        <div class="character-selector">
-                            <h3>选择角色</h3>
-                            <div id="portraitCharacterList" class="character-grid">
-                                <p class="empty-hint">请先选择小说</p>
-                            </div>
-                        </div>
-                        
-                        <div class="portrait-settings">
-                            <h3>生成设置</h3>
-                            <div class="setting-group">
-                                <label>参考图像（可选）：</label>
-                                <div class="file-upload-area" id="portraitRefUploadArea">
-                                    <input type="file" id="portraitRefInput" accept="image/*" class="hidden">
-                                    <div class="upload-placeholder">
-                                        <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
-                                            <path d="M38 16H34V12H38V16ZM42 8H32V18H42V8ZM38 22H34V26H38V22ZM42 28H32V38H42V28Z" fill="#666"/>
-                                        </svg>
-                                        <p>点击或拖拽上传参考图像</p>
-                                    </div>
-                                    <div class="upload-preview" id="portraitRefPreview" style="display: none;">
-                                        <img src="" alt="参考图像预览">
-                                        <button class="remove-btn" id="removePortraitRefBtn">×</button>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="setting-group">
-                                <label>图片比例：</label>
-                                <select id="portraitAspectRatio" class="form-control">
-                                    <option value="9:16" selected>9:16 (竖屏)</option>
-                                    <option value="16:9">16:9 (横屏)</option>
-                                    <option value="1:1">1:1 (正方形)</option>
-                                    <option value="4:3">4:3 (标准)</option>
-                                </select>
-                            </div>
-                            
-                            <div class="setting-group">
-                                <label>图片质量：</label>
-                                <select id="portraitImageSize" class="form-control">
-                                    <option value="4K" selected>4K (超高清)</option>
-                                    <option value="2K">2K (高清)</option>
-                                    <option value="1K">1K (标清)</option>
-                                </select>
-                            </div>
-                            
-                            <div class="setting-group">
-                                <label>自定义提示词（可选）：</label>
-                                <textarea id="portraitCustomPrompt" class="form-control" rows="3" placeholder="添加额外的描述来调整生成效果..."></textarea>
-                            </div>
-                        </div>
-                        
-                        <div class="portrait-actions">
-                            <button id="generatePortraitBtn" class="btn-primary btn-large">
-                                🎨 生成剧照
-                            </button>
-                        </div>
-                        
-                        <!-- 生成结果 -->
-                        <div id="portraitResultSection" class="portrait-result-section" style="display: none;">
-                            <h3>✨ 生成结果</h3>
-                            <div class="result-image-container">
-                                <img id="generatedPortraitImage" src="" alt="生成的剧照">
-                            </div>
-                            <div class="result-actions">
-                                <button id="downloadPortraitBtn" class="btn-secondary">📥 下载</button>
-                                <button id="usePortraitAsRefBtn" class="btn-secondary">🔄 用作参考图</button>
-                            </div>
-                        </div>
-                        
-                        <!-- 生成进度 -->
-                        <div id="portraitProgressSection" class="portrait-progress-section" style="display: none;">
-                            <div class="progress-info">
-                                <p>⏳ 正在生成剧照...</p>
-                                <div class="progress-bar">
-                                    <div class="progress-bar-fill animate-progress"></div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- 剧照生成配置屏幕 - 自定义角色 -->
-                <div id="portraitCustomConfigScreen" class="portrait-config-screen" style="display: none;">
-                    <div class="screen-header">
-                        <button id="backToPortraitSubmodeFromCustomBtn" class="btn-secondary">← 返回模式选择</button>
-                        <h2>✨ 自定义角色</h2>
-                    </div>
-                    
-                    <div class="portrait-config-content">
-                        <div class="custom-character-form">
-                            <div class="form-group">
-                                <label>角色名称：</label>
-                                <input type="text" id="customCharacterName" class="form-control" placeholder="例如：剑仙">
-                            </div>
-                            
-                            <div class="form-group">
-                                <label>角色定位：</label>
-                                <input type="text" id="customCharacterRole" class="form-control" placeholder="例如：主角、配角、反派">
-                            </div>
-                            
-                            <div class="form-group">
-                                <label>角色外貌：</label>
-                                <textarea id="customCharacterAppearance" class="form-control" rows="3" placeholder="描述角色的外貌特征，如身高、体型、发型、服装、配饰等..."></textarea>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label>性格特点：</label>
-                                <textarea id="customCharacterPersonality" class="form-control" rows="3" placeholder="描述角色的性格特点，如勇敢、冷静、热情、狡猾等..."></textarea>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label>服装风格：</label>
-                                <input type="text" id="customCharacterOutfit" class="form-control" placeholder="例如：古装、现代服装、战斗盔甲">
-                            </div>
-                            
-                            <div class="form-group">
-                                <label>参考图像（可选）：</label>
-                                <div class="file-upload-area" id="customPortraitRefUploadArea">
-                                    <input type="file" id="customPortraitRefInput" accept="image/*" class="hidden">
-                                    <div class="upload-placeholder">
-                                        <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
-                                            <path d="M38 16H34V12H38V16ZM42 8H32V18H42V8Z" fill="#666"/>
-                                        </svg>
-                                        <p>点击或拖拽上传参考图像</p>
-                                    </div>
-                                    <div class="upload-preview" id="customPortraitRefPreview" style="display: none;">
-                                        <img src="" alt="参考图像预览">
-                                        <button class="remove-btn" id="removeCustomPortraitRefBtn">×</button>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="setting-group">
-                                <label>图片比例：</label>
-                                <select id="customPortraitAspectRatio" class="form-control">
-                                    <option value="9:16" selected>9:16 (竖屏)</option>
-                                    <option value="16:9">16:9 (横屏)</option>
-                                    <option value="1:1">1:1 (正方形)</option>
-                                    <option value="4:3">4:3 (标准)</option>
-                                </select>
-                            </div>
-                            
-                            <div class="setting-group">
-                                <label>图片质量：</label>
-                                <select id="customPortraitImageSize" class="form-control">
-                                    <option value="4K" selected>4K (超高清)</option>
-                                    <option value="2K">2K (高清)</option>
-                                    <option value="1K">1K (标清)</option>
-                                </select>
-                            </div>
-                            
-                            <div class="setting-group">
-                                <label>额外提示词（可选）：</label>
-                                <textarea id="customPortraitExtraPrompt" class="form-control" rows="3" placeholder="添加额外的描述，如场景、动作、表情、光影效果等..."></textarea>
-                            </div>
-                        </div>
-                        
-                        <div class="portrait-actions">
-                            <button id="generateCustomPortraitBtn" class="btn-primary btn-large">
-                                🎨 生成剧照
-                            </button>
-                        </div>
-                        
-                        <!-- 生成结果 -->
-                        <div id="customPortraitResultSection" class="portrait-result-section" style="display: none;">
-                            <h3>✨ 生成结果</h3>
-                            <div class="result-image-container">
-                                <img id="customGeneratedPortraitImage" src="" alt="生成的剧照">
-                            </div>
-                            <div class="result-actions">
-                                <button id="downloadCustomPortraitBtn" class="btn-secondary">📥 下载</button>
-                                <button id="useCustomPortraitAsRefBtn" class="btn-secondary">🔄 用作参考图</button>
-                            </div>
-                        </div>
-                        
-                        <!-- 生成进度 -->
-                        <div id="customPortraitProgressSection" class="portrait-progress-section" style="display: none;">
-                            <div class="progress-info">
-                                <p>⏳ 正在生成剧照...</p>
-                                <div class="progress-bar">
-                                    <div class="progress-bar-fill animate-progress"></div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- 自定义模式提示词输入屏幕 -->
-                <div id="customPromptScreen" class="custom-prompt-screen" style="display: none;">
-                    <div class="screen-header">
-                        <button id="backToModeBtn" class="btn-secondary">← 返回模式选择</button>
-                        <h2 id="customPromptTitle">自定义模式 - 输入提示词</h2>
-                    </div>
-
-                    <div class="custom-prompt-content">
-                        <div class="prompt-input-card">
-                            <h3>📝 输入视频生成提示词</h3>
-                            <p class="hint">描述您想要生成的视频内容、风格、场景等细节</p>
-                            
-                            <textarea id="customPromptInput" class="custom-prompt-textarea" placeholder="例如：一个仙侠风格的视频，主角在云端修行的场景，使用水墨画风，背景是壮观的云海和山峦..."></textarea>
-                            
-                            <div class="prompt-presets">
-                                <h4>快速模板：</h4>
-                                <div class="preset-buttons">
-                                    <button class="preset-btn" data-preset="xianxia">仙侠修真</button>
-                                    <button class="preset-btn" data-preset="modern">现代都市</button>
-                                    <button class="preset-btn" data-preset="scifi">科幻未来</button>
-                                    <button class="preset-btn" data-preset="romance">浪漫爱情</button>
-                                    <button class="preset-btn" data-preset="fantasy">奇幻魔法</button>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="prompt-actions">
-                            <button id="previewCustomPromptBtn" class="btn-secondary">👁️ 预览提示词</button>
-                            <button id="generateStoryboardFromCustomBtn" class="btn-primary btn-large">
-                                🎬 生成分镜头脚本
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 事件和角色选择屏幕 -->
-                <div id="eventCharacterSelectionScreen" class="event-character-selection-screen" style="display: none;">
-                    <div class="screen-header">
-                        <button id="backToTypesFromEventBtn" class="btn-secondary">← 重新选择类型</button>
-                        <h2 id="eventCharacterTitle">选择事件和角色</h2>
-                    </div>
-
-                    <div class="event-character-content">
-                        <div class="selection-guide">
-                            <h3>📋 选择说明</h3>
-                            <p>请在左侧选择要生成视频的事件和角色。选中的内容将被用于生成分镜头脚本。</p>
-                            <div class="selection-stats">
-                                <span class="stat-item">
-                                    <span class="stat-label">已选事件:</span>
-                                    <span id="selectedEventsCountMain" class="stat-value">0</span>
-                                </span>
-                                <span class="stat-item">
-                                    <span class="stat-label">已选角色:</span>
-                                    <span id="selectedCharactersCountMain" class="stat-value">0</span>
-                                </span>
-                            </div>
-                        </div>
-
-                        <div class="selection-actions">
-                            <button id="confirmSelectionBtn" class="btn-primary btn-large">
-                                ✅ 确认选择并生成提示词
-                            </button>
-                            <button id="selectAllContentBtn" class="btn-secondary">
-                                📋 全选所有内容
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 统一工作流屏幕 -->
-                <div id="unifiedWorkflowScreen" class="unified-workflow-screen" style="display: none;">
-                    <div class="screen-header">
-                        <button id="backToTypesFromWorkflowBtn" class="btn-secondary">← 重新选择</button>
-                        <h2 id="workflowTitle">🎬 小说转视频工作流</h2>
-                        <div class="header-stats">
-                            <span id="workflowStepIndicator" class="step-indicator">
-                                <span class="step active" data-step="1">1</span>
-                                <span class="step-line"></span>
-                                <span class="step" data-step="2">2</span>
-                                <span class="step-line"></span>
-                                <span class="step" data-step="3">3</span>
-                                <span class="step-line"></span>
-                                <span class="step" data-step="4">4</span>
-                            </span>
-                        </div>
-                    </div>
-
-                    <!-- 工作流步骤信息 -->
-                    <div class="workflow-steps-info">
-                        <div class="step-info" id="stepInfo">
-                            <h3 id="currentStepTitle">步骤1: 风格转换</h3>
-                            <p id="currentStepDesc">将小说内容转换为选定视频风格的格式</p>
-                        </div>
-                    </div>
-
-                    <!-- 当前步骤结果展示区 -->
-                    <div id="workflowResultSection" class="workflow-result-section">
-                        <div id="workflowResultContent" class="workflow-result-content">
-                            <div class="placeholder">
-                                <p>👆 点击"开始执行"开始工作流</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- 工作流操作按钮 -->
-                    <div class="workflow-actions">
-                        <button id="startWorkflowBtn" class="btn-primary btn-large">
-                            🚀 开始执行工作流
-                        </button>
-                        <button id="continueWorkflowBtn" class="btn-success btn-large" style="display: none;">
-                            ➡️ 继续下一步
-                        </button>
-                        <button id="regenerateStepBtn" class="btn-secondary" style="display: none;">
-                            🔄 重新生成当前步骤
-                        </button>
-                        <button id="skipStepBtn" class="btn-secondary" style="display: none;">
-                            ⏭️ 跳过此步骤
-                        </button>
-                    </div>
-                </div>
-
-                <!-- 按集制作工作流屏幕 -->
-                <div id="episodeWorkflowScreen" class="episode-workflow-screen" style="display: none;">
-                    <div class="screen-header">
-                        <button id="backToModeFromEpisodeBtn" class="btn-secondary">← 返回模式选择</button>
-                        <h2 id="episodeWorkflowTitle">📺 按集制作视频</h2>
-                        <div class="header-stats">
-                            <span class="stat-item">
-                                <span class="stat-label">选中集数:</span>
-                                <span id="selectedEpisodesCount" class="stat-value">0</span>
-                            </span>
-                            <span class="stat-item">
-                                <span class="stat-label">角色剧照:</span>
-                                <span id="portraitStatusCount" class="stat-value">0/0</span>
-                            </span>
-                        </div>
-                    </div>
-
-                    <!-- 工作流步骤导航 -->
-                    <div class="episode-workflow-nav">
-                        <button class="workflow-nav-btn active" data-step="select-episodes">
-                            <span class="step-num">1</span>
-                            <span class="step-text">选择剧集</span>
-                        </button>
-                        <button class="workflow-nav-btn" data-step="check-portraits">
-                            <span class="step-num">2</span>
-                            <span class="step-text">准备剧照</span>
-                        </button>
-                        <button class="workflow-nav-btn" data-step="generate-storyboard">
-                            <span class="step-num">3</span>
-                            <span class="step-text">分镜头</span>
-                        </button>
-                        <button class="workflow-nav-btn" data-step="generate-video">
-                            <span class="step-num">4</span>
-                            <span class="step-text">生成视频</span>
-                        </button>
-                    </div>
-
-                    <!-- 工作流内容区 -->
-                    <div id="episodeWorkflowContent" class="episode-workflow-content">
-                        <!-- 步骤1: 选择剧集 -->
-                        <div id="episodeStep1" class="workflow-step-panel active">
-                            <div class="panel-header">
-                                <h3>📋 选择要制作的剧集</h3>
-                                <p>请先选择一个重大事件（篇章），然后选择其中的中级事件（集）进行制作</p>
-                            </div>
-
-                            <!-- 重大事件选择 -->
-                            <div class="major-event-selector">
-                                <h4>重大事件（篇章）</h4>
-                                <div id="majorEventList" class="major-event-list">
-                                    <div class="loading">加载中...</div>
-                                </div>
-                            </div>
-
-                            <!-- 中级事件（集）列表 -->
-                            <div class="episode-selector" id="episodeSelector" style="display: none;">
-                                <h4>中级事件（集数）<span id="selectedMajorEventName"></span></h4>
-                                <div class="episode-actions">
-                                    <button id="selectAllEpisodesBtn" class="btn-sm">全选</button>
-                                    <button id="clearEpisodesBtn" class="btn-sm">清空</button>
-                                </div>
-                                <div id="episodeList" class="episode-list">
-                                    <!-- 集数列表将动态生成 -->
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- 步骤2: 准备剧照 -->
-                        <div id="episodeStep2" class="workflow-step-panel">
-                            <div class="panel-header">
-                                <div>
-                                    <h3>🎨 角色剧照准备</h3>
-                                    <p>检查选中集数中出现的角色，确保每个角色都有剧照</p>
-                                </div>
-                                <button id="refreshPortraitsBtn" class="btn-secondary btn-sm" title="刷新剧照列表">
-                                    🔄 刷新
-                                </button>
-                            </div>
-
-                            <div id="episodeCharacterPortraits" class="character-portraits-list">
-                                <!-- 角色剧照列表 -->
-                            </div>
-                        </div>
-
-                        <!-- 步骤3: 生成分镜头 -->
-                        <div id="episodeStep3" class="workflow-step-panel">
-                            <div class="panel-header">
-                                <h3>🎬 分镜头脚本生成</h3>
-                                <p>为选中的集数生成分镜头脚本</p>
-                            </div>
-
-                            <div id="episodeStoryboardPreview" class="storyboard-preview">
-                                <!-- 分镜头预览 -->
-                            </div>
-                        </div>
-
-                        <!-- 步骤4: 生成视频 -->
-                        <div id="episodeStep4" class="workflow-step-panel">
-                            <div class="panel-header">
-                                <h3>🎥 视频生成</h3>
-                                <p>根据分镜头脚本生成视频</p>
-                            </div>
-
-                            <div id="episodeVideoPreview" class="video-preview">
-                                <!-- 视频预览 -->
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- 底部操作按钮 -->
-                    <div class="episode-workflow-actions">
-                        <button id="episodePrevBtn" class="btn-secondary" style="display: none;">
-                            ← 上一步
-                        </button>
-                        <button id="episodeNextBtn" class="btn-primary btn-large">
-                            下一步 →
-                        </button>
-                        <button id="episodeGenerateBtn" class="btn-success btn-large" style="display: none;">
-                            🚀 开始生成
-                        </button>
-                    </div>
-                </div>
-
-                <!-- 提示词预览屏幕 -->
-                <div id="promptPreviewScreen" class="prompt-preview-screen" style="display: none;">
-                    <div class="screen-header">
-                        <button id="backToTypesBtn" class="btn-secondary">← 重新选择</button>
-                        <h2 id="promptPreviewTitle"></h2>
-                    </div>
-
-                    <div class="prompt-preview-content">
-                        <div class="prompt-info-card">
-                            <h3>📝 生成提示词</h3>
-                            <div id="promptText" class="prompt-text"></div>
-                        </div>
-
-                        <div class="prompt-actions">
-                            <button id="editPromptBtn" class="btn-secondary">✏️ 编辑提示词</button>
-                            <button id="startEpisodeWorkflowBtn" class="btn-success btn-large">
-                                📺 按集制作
-                            </button>
-                            <button id="startWorkflowFromPromptBtn" class="btn-primary btn-large">
-                                🚀 启动统一工作流
-                            </button>
-                            <button id="generateStoryboardBtn" class="btn-secondary btn-large">
-                                🎬 直接生成分镜头（快速模式）
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 分镜头列表屏幕 -->
-                <div id="storyboardScreen" class="storyboard-screen" style="display: none;">
-                    <div class="screen-header">
-                        <button id="backToPromptBtn" class="btn-secondary">← 返回提示词</button>
-                        <h2 id="storyboardTitle"></h2>
-                        <div class="header-stats">
-                            <span class="stat-item">
-                                <span class="stat-label">总镜头:</span>
-                                <span id="totalShots" class="stat-value">0</span>
-                            </span>
-                            <span class="stat-item">
-                                <span class="stat-label">已完成:</span>
-                                <span id="completedShots" class="stat-value">0</span>
-                            </span>
-                            <span class="stat-item">
-                                <span class="stat-label">预计时长:</span>
-                                <span id="estimatedDuration" class="stat-value">0分钟</span>
-                            </span>
-                        </div>
-                    </div>
-
-                    <!-- 全局操作 -->
-                    <div class="global-actions">
-                        <button id="generateAllBtn" class="btn-primary">
-                            🚀 全部生成
-                        </button>
-                        <button id="exportStoryboardBtn" class="btn-secondary">
-                            📄 导出脚本
-                        </button>
-                        <button id="regenerateStoryboardBtn" class="btn-secondary">
-                            🔄 重新生成
-                        </button>
-                    </div>
-
-                    <!-- 分镜头列表 -->
-                    <div id="shotsList" class="shots-list">
-                        <div class="loading">正在加载分镜头...</div>
-                    </div>
-                </div>
-
-                <!-- 单个镜头生成屏幕 -->
-                <div id="shotGenerationScreen" class="shot-generation-screen" style="display: none;">
-                    <div class="screen-header">
-                        <button id="backToStoryboardBtn" class="btn-secondary">← 返回列表</button>
-                        <h2 id="shotGenerationTitle"></h2>
-                    </div>
-
-                    <div class="shot-detail-content">
-                        <div class="shot-info-panel">
-                            <div class="shot-header">
-                                <h3 id="shotNumber">镜头 #1</h3>
-                                <span id="shotDuration" class="shot-duration">预计时长: 5秒</span>
-                            </div>
-
-                            <div class="shot-details">
-                                <div class="detail-section">
-                                    <h4>🎬 场景描述</h4>
-                                    <p id="shotSceneDescription"></p>
-                                </div>
-
-                                <div class="detail-section">
-                                    <h4>📹 镜头类型</h4>
-                                    <p id="shotType"></p>
-                                </div>
-
-                                <div class="detail-section">
-                                    <h4>🎨 视觉风格</h4>
-                                    <p id="shotVisualStyle"></p>
-                                </div>
-
-                                <div class="detail-section">
-                                    <h4>🎵 音效/音乐</h4>
-                                    <p id="shotAudio"></p>
-                                </div>
-
-                                <div class="detail-section">
-                                    <h4>💬 生成提示词</h4>
-                                    <textarea id="shotPrompt" class="prompt-textarea"></textarea>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="shot-preview-panel">
-                            <div class="preview-header">
-                                <h4>预览区域</h4>
-                            </div>
-                            <div id="shotPreview" class="shot-preview">
-                                <div class="preview-placeholder">
-                                    <p>🎬 点击"开始生成"开始生成视频</p>
-                                </div>
-                            </div>
-
-                            <div class="generation-actions">
-                                <button id="startShotGenerationBtn" class="btn-primary btn-large">
-                                    🚀 开始生成
-                                </button>
-                                <button id="saveShotPromptBtn" class="btn-secondary">
-                                    💾 保存提示词修改
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- 生成进度 -->
-                    <div id="shotProgressSection" class="shot-progress-section" style="display: none;">
-                        <h4>生成进度</h4>
-                        <div class="progress-bar">
-                            <div id="shotProgressBar" class="progress-bar-fill">0%</div>
-                        </div>
-                        <p id="shotProgressText" class="progress-text">准备中...</p>
-                    </div>
-                    </div>
-
-                    <!-- 角色剧照生成面板 -->
-                    <div id="characterPortraitPanel" class="character-portrait-panel" style="display: none;">
-                        <div class="panel-header">
-                            <h2>👤 角色剧照生成</h2>
-                            <button id="closePortraitPanelBtn" class="btn-close">✕</button>
-                        </div>
-                        
-                        <div class="portrait-content">
-                            <!-- 角色基本信息 -->
-                            <div class="character-info-section">
-                                <div class="character-avatar">
-                                    <img id="characterPortraitPreview" src="/static/images/placeholder-avatar.png" alt="角色预览">
-                                </div>
-                                <div class="character-basic-info">
-                                    <h3 id="portraitCharacterName">角色名称</h3>
-                                    <p id="portraitCharacterRole">角色定位</p>
-                                </div>
-                            </div>
-
-                            <!-- 角色详细信息 -->
-                            <div class="character-details-section">
-                                <div class="detail-group">
-                                    <h4>🎨 外貌特征</h4>
-                                    <p id="portraitAppearance">暂无描述</p>
-                                </div>
-                                <div class="detail-group">
-                                    <h4>💭 性格特点</h4>
-                                    <p id="portraitPersonality">暂无描述</p>
-                                </div>
-                                <div class="detail-group">
-                                    <h4>📖 背景故事</h4>
-                                    <p id="portraitBackground">暂无描述</p>
-                                </div>
-                                <div class="detail-group">
-                                    <h4>💬 对话风格</h4>
-                                    <p id="portraitDialogueStyle">暂无描述</p>
-                                </div>
-                            </div>
-
-                            <!-- 相关事件 -->
-                            <div class="related-events-section">
-                                <h4>🎬 相关事件</h4>
-                                <div id="portraitRelatedEvents" class="related-events-list">
-                                    <p class="empty-hint">加载中...</p>
-                                </div>
-                            </div>
-
-                            <!-- 生成设置 -->
-                            <div class="generation-settings-section">
-                                <h4>⚙️ 生成设置</h4>
-                                <div class="setting-row">
-                                    <label>图片比例：</label>
-                                    <select id="portraitAspectRatio" class="setting-select">
-                                        <option value="9:16" selected>竖屏 (9:16) - 适合角色展示</option>
-                                        <option value="3:4">竖屏 (3:4)</option>
-                                        <option value="1:1">方形 (1:1)</option>
-                                        <option value="16:9">横屏 (16:9)</option>
-                                    </select>
-                                </div>
-                                <div class="setting-row">
-                                    <label>图片质量：</label>
-                                    <select id="portraitImageSize" class="setting-select">
-                                        <option value="4K" selected>4K (超高清)</option>
-                                        <option value="2K">2K (高清)</option>
-                                        <option value="1K">1K (标清)</option>
-                                    </select>
-                                </div>
-                            </div>
-
-                            <!-- 生成按钮 -->
-                            <div class="portrait-actions">
-                                <button id="generatePortraitBtn" class="btn-primary btn-large">
-                                    🎨 生成角色剧照
-                                </button>
-                                <button id="regeneratePortraitBtn" class="btn-secondary" style="display: none;">
-                                    🔄 重新生成
-                                </button>
-                            </div>
-
-                            <!-- 生成结果 -->
-                            <div id="portraitResultSection" class="portrait-result-section" style="display: none;">
-                                <h4>✨ 生成结果</h4>
-                                <div class="result-image-container">
-                                    <img id="generatedPortraitImage" src="" alt="生成的剧照">
-                                </div>
-                                <div class="result-actions">
-                                    <button id="downloadPortraitBtn" class="btn-sm">📥 下载剧照</button>
-                                    <button id="useInVideoBtn" class="btn-sm">🎬 用于视频制作</button>
-                                </div>
-                            </div>
-
-                            <!-- 生成进度 -->
-                            <div id="portraitProgressSection" class="portrait-progress-section" style="display: none;">
-                                <div class="progress-info">
-                                    <p>⏳ 正在生成角色剧照...</p>
-                                    <div class="progress-bar">
-                                        <div class="progress-bar-fill animate-progress"></div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- 视频工作台屏幕 -->
-                <div id="videoWorkspaceScreen" class="video-workspace-screen" style="display: none;">
-                    <div class="screen-header">
-                        <button id="backToModeFromWorkspaceBtn" class="btn-secondary">← 返回模式选择</button>
-                        <h2>🎬 视频工作台</h2>
-                    </div>
-                    
-                    <div class="video-workspace-content">
-                        <!-- 左侧：控制面板 -->
-                        <div class="workspace-controls">
-                            <div class="control-section">
-                                <h3>📝 视频配置</h3>
-                                
-                                <div class="form-group">
-                                    <label>提示词：</label>
-                                    <textarea id="workspacePrompt" class="form-control" rows="4" placeholder="描述您想要生成的视频内容..."></textarea>
-                                </div>
-                                
-                                <div class="form-group">
-                                    <label>视频时长：</label>
-                                    <select id="workspaceDuration" class="form-control">
-                                        <option value="5">5秒</option>
-                                        <option value="10" selected>10秒</option>
-                                        <option value="15">15秒</option>
-                                        <option value="20">20秒</option>
-                                    </select>
-                                </div>
-                                
-                                <div class="form-group">
-                                    <label>分辨率：</label>
-                                    <select id="workspaceResolution" class="form-control">
-                                        <option value="720p">720p (HD)</option>
-                                        <option value="1080p" selected>1080p (Full HD)</option>
-                                        <option value="4K">4K (Ultra HD)</option>
-                                    </select>
-                                </div>
-                                
-                                <div class="form-group">
-                                    <label>视频风格：</label>
-                                    <select id="workspaceStyle" class="form-control">
-                                        <option value="cinematic">电影风格</option>
-                                        <option value="anime">动漫风格</option>
-                                        <option value="realistic">写实风格</option>
-                                        <option value="artistic">艺术风格</option>
-                                    </select>
-                                </div>
-                                
-                                <div class="form-group">
-                                    <label>帧率：</label>
-                                    <select id="workspaceFps" class="form-control">
-                                        <option value="24">24 fps (电影)</option>
-                                        <option value="30" selected>30 fps (标准)</option>
-                                        <option value="60">60 fps (流畅)</option>
-                                    </select>
-                                </div>
-                            </div>
-                            
-                            <div class="control-section">
-                                <h3>🚀 生成操作</h3>
-                                
-                                <button id="generateVideoBtn" class="btn-primary btn-large" style="width: 100%;">
-                                    🎬 生成视频
-                                </button>
-                                
-                                <div id="workspaceProgressSection" class="progress-section" style="display: none;">
-                                    <h4>生成进度</h4>
-                                    <div class="progress-bar">
-                                        <div id="workspaceProgressBar" class="progress-bar-fill">0%</div>
-                                    </div>
-                                    <p id="workspaceProgressText" class="progress-text">准备中...</p>
-                                </div>
-                            </div>
-                            
-                            <div class="control-section">
-                                <h3>📋 生成历史</h3>
-                                <div id="workspaceHistoryList" class="history-list">
-                                    <p class="empty-hint">暂无生成记录</p>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- 右侧：视频预览区域 -->
-                        <div class="workspace-preview">
-                            <div class="preview-header">
-                                <h3>📺 视频预览</h3>
-                                <div id="videoStats" class="video-stats" style="display: none;">
-                                    <span class="stat-item">时长: <span id="videoDurationDisplay">-</span></span>
-                                    <span class="stat-item">分辨率: <span id="videoResolutionDisplay">-</span></span>
-                                    <span class="stat-item">大小: <span id="videoSizeDisplay">-</span></span>
-                                </div>
-                            </div>
-                            
-                            <div class="video-player-container">
-                                <div id="videoPlayerPlaceholder" class="video-placeholder">
-                                    <div class="placeholder-content">
-                                        <div class="placeholder-icon">🎬</div>
-                                        <p>配置参数后点击"生成视频"开始创作</p>
-                                        <p class="hint">支持多种风格和质量选项</p>
-                                    </div>
-                                </div>
-                                
-                                <video id="workspaceVideoPlayer" class="video-player" style="display: none;" controls>
-                                    <source src="" type="video/mp4">
-                                    您的浏览器不支持视频播放。
-                                </video>
-                            </div>
-                            
-                            <!-- 播放控制栏 -->
-                            <div id="videoPlaybackControls" class="playback-controls" style="display: none;">
-                                <div class="control-buttons">
-                                    <button id="playPauseBtn" class="control-btn" title="播放/暂停">
-                                        <span id="playPauseIcon">▶️</span>
-                                    </button>
-                                    <button id="stopBtn" class="control-btn" title="停止">⏹️</button>
-                                    <button id="muteBtn" class="control-btn" title="静音">🔊</button>
-                                    <button id="fullscreenBtn" class="control-btn" title="全屏">⛶</button>
-                                </div>
-                                
-                                <div class="progress-section">
-                                    <span id="currentTimeDisplay" class="time-display">0:00</span>
-                                    <div class="video-progress-bar">
-                                        <div id="videoProgress" class="video-progress-fill"></div>
-                                    </div>
-                                    <span id="totalTimeDisplay" class="time-display">0:00</span>
-                                </div>
-                                
-                                <div class="volume-control">
-                                    <span class="volume-icon">🔊</span>
-                                    <input type="range" id="volumeSlider" class="volume-slider" min="0" max="100" value="100">
-                                </div>
-                            </div>
-                            
-                            <!-- 视频信息面板 -->
-                            <div id="videoInfoPanel" class="video-info-panel" style="display: none;">
-                                <h4>视频信息</h4>
-                                <div class="info-grid">
-                                    <div class="info-item">
-                                        <span class="info-label">生成ID:</span>
-                                        <span id="videoIdDisplay" class="info-value">-</span>
-                                    </div>
-                                    <div class="info-item">
-                                        <span class="info-label">状态:</span>
-                                        <span id="videoStatusDisplay" class="info-value">-</span>
-                                    </div>
-                                    <div class="info-item">
-                                        <span class="info-label">创建时间:</span>
-                                        <span id="videoCreatedDisplay" class="info-value">-</span>
-                                    </div>
-                                </div>
-                                
-                                <div class="video-actions">
-                                    <button id="downloadVideoBtn" class="btn-secondary">📥 下载视频</button>
-                                    <button id="shareVideoBtn" class="btn-secondary">🔗 分享</button>
-                                    <button id="regenerateVideoBtn" class="btn-secondary">🔄 重新生成</button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                <!-- 更多屏幕将在这里动态加载 -->
             </main>
 
             <!-- 右侧：已生成的分镜头列表 -->
@@ -1074,21 +1241,22 @@
                     <span id="generatedShotsCount" class="count-badge">0</span>
                 </div>
                 
-                <div id="generatedShotsList" class="generated-shots-list">
-                    <div class="empty-state">
-                        <p>🎬 还没有生成分镜头</p>
-                        <p class="hint">选择事件和角色后开始生成</p>
+                <div style="background: rgba(30, 41, 59, 0.6); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 1rem; padding: 1rem; flex: 1;">
+                    <div id="generatedShotsList" class="generated-shots-list">
+                        <div class="empty-state">
+                            <p>🎬 还没有生成分镜头</p>
+                            <p class="hint">选择事件和角色后开始生成</p>
+                        </div>
                     </div>
                 </div>
 
-                <!-- 快速操作 -->
                 <div class="quick-actions" id="quickActions" style="display: none;">
                     <button id="exportGeneratedBtn" class="btn-sm">📥 导出</button>
                     <button id="clearGeneratedBtn" class="btn-sm">🗑️ 清空</button>
                 </div>
             </aside>
 
-            <!-- 右侧：帮助信息（在某些阶段显示） -->
+            <!-- 右侧：帮助信息 -->
             <aside class="help-sidebar" id="helpSidebar">
                 <div class="help-card">
                     <h3>💡 使用流程</h3>
@@ -1112,45 +1280,67 @@
                 <div class="help-card">
                     <h3>📖 视频类型说明</h3>
                     <div id="typeDescriptions" class="type-descriptions">
-                        <!-- 动态生成 -->
+                        <p style="font-size: 0.8rem; color: var(--text-tertiary);">选择模式后查看详细说明</p>
                     </div>
                 </div>
             </aside>
         </div>
 
-    <!-- Toast 通知 -->
-    <div id="toast" class="toast"></div>
+        <!-- Toast 通知 -->
+        <div id="toast" class="toast"></div>
 
-    <!-- 提示词编辑模态框 -->
-    <div id="promptEditModal" class="modal" style="display: none;">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>编辑生成提示词</h3>
-                <button id="closePromptModalBtn" class="btn-close">✕</button>
-            </div>
-            <div class="modal-body">
-                <textarea id="promptEditTextarea" class="prompt-edit-textarea"></textarea>
-            </div>
-            <div class="modal-footer">
-                <button id="cancelPromptEditBtn" class="btn-secondary">取消</button>
-                <button id="savePromptEditBtn" class="btn-primary">保存</button>
+        <!-- 提示词编辑模态框 -->
+        <div id="promptEditModal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>编辑生成提示词</h3>
+                    <button id="closePromptModalBtn" class="btn-close">✕</button>
+                </div>
+                <div class="modal-body">
+                    <textarea id="promptEditTextarea" class="prompt-edit-textarea"></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button id="cancelPromptEditBtn" class="btn-secondary">取消</button>
+                    <button id="savePromptEditBtn" class="btn-primary">保存</button>
+                </div>
             </div>
         </div>
-    </div>
 
-    <!-- 剧照预览模态框 -->
-    <div id="portraitModal" class="portrait-modal">
-        <div class="portrait-modal-overlay" onclick="closePortraitModal()"></div>
-        <button class="portrait-modal-close" onclick="closePortraitModal()">✕</button>
-        <div class="portrait-modal-content">
-            <img id="portraitModalImage" src="" alt="剧照预览">
-            <div class="portrait-modal-info">
-                <h3 id="portraitModalName">角色名</h3>
-                <p id="portraitModalRole">角色</p>
+        <!-- 剧照预览模态框 -->
+        <div id="portraitModal" class="portrait-modal">
+            <div class="portrait-modal-overlay" onclick="closePortraitModal()"></div>
+            <button class="portrait-modal-close" onclick="closePortraitModal()">✕</button>
+            <div class="portrait-modal-content">
+                <img id="portraitModalImage" src="" alt="剧照预览">
+                <div class="portrait-modal-info">
+                    <h3 id="portraitModalName">角色名</h3>
+                    <p id="portraitModalRole">角色</p>
+                </div>
             </div>
         </div>
+
+        <script src="/static/js/video-generation.js?v=40"></script>
     </div>
 
-    <script src="/static/js/video-generation.js?v=39"></script>
+    <script>
+        // 剧照模态框控制
+        function closePortraitModal() {
+            document.getElementById('portraitModal').classList.remove('active');
+        }
+
+        // Toast 通知
+        function showToast(message, duration = 3000) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, duration);
+        }
+
+        // 导出到全局
+        window.showToast = showToast;
+        window.closePortraitModal = closePortraitModal;
+    </script>
 </body>
 </html>
