@@ -4,312 +4,405 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>小说生成系统 - 封面制作</title>
-    <link rel="stylesheet" href="/static/css/style.css">
     <style>
-        /* 封面制作页面样式 */
-        .cover-maker-container {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 20px;
+        /* ==================== 基础变量 ==================== */
+        :root {
+            --primary-500: #6366f1;
+            --primary-600: #4f46e5;
+            --primary-400: #818cf8;
+            --accent-500: #06b6d4;
+            --accent-400: #22d3ee;
+            --purple-500: #a855f7;
+            
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-tertiary: #334155;
+            
+            --text-primary: #f8fafc;
+            --text-secondary: #cbd5e1;
+            --text-tertiary: #94a3b8;
+            --text-muted: #64748b;
+            
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            
+            --radius-sm: 0.5rem;
+            --radius-md: 0.75rem;
+            --radius-lg: 1rem;
+            --radius-xl: 1.5rem;
+            --radius-2xl: 2rem;
         }
 
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            background: var(--bg-primary);
+            min-height: 100vh;
+            color: var(--text-primary);
+            overflow-x: hidden;
+        }
+
+        /* ==================== 宇宙背景 ==================== */
+        .universe {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            z-index: 0;
+            background: radial-gradient(ellipse at bottom, #1b2735 0%, #090a0f 100%);
+        }
+
+        .stars {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                radial-gradient(2px 2px at 20px 30px, rgba(255,255,255,0.8), transparent),
+                radial-gradient(2px 2px at 40px 70px, rgba(255,255,255,0.6), transparent),
+                radial-gradient(1px 1px at 90px 40px, rgba(255,255,255,0.9), transparent),
+                radial-gradient(2px 2px at 130px 80px, rgba(255,255,255,0.7), transparent);
+            background-repeat: repeat;
+            background-size: 200px 200px;
+            animation: twinkle 8s infinite linear;
+            opacity: 0.8;
+        }
+
+        .stars:nth-child(2) {
+            background-size: 300px 300px;
+            animation: twinkle 12s infinite linear reverse;
+            opacity: 0.5;
+        }
+
+        .stars:nth-child(3) {
+            background-size: 400px 400px;
+            animation: twinkle 15s infinite linear;
+            opacity: 0.3;
+        }
+
+        @keyframes twinkle {
+            0%, 100% { opacity: 0.8; }
+            50% { opacity: 0.4; }
+        }
+
+        .meteor {
+            position: absolute;
+            width: 300px;
+            height: 2px;
+            background: linear-gradient(90deg, 
+                rgba(255,255,255,0) 0%, 
+                rgba(99, 102, 241, 0.8) 50%, 
+                rgba(255,255,255,0) 100%);
+            transform: rotate(-45deg);
+            animation: meteor 4s infinite;
+            opacity: 0;
+        }
+
+        .meteor:nth-child(4) { top: 10%; left: 80%; animation-delay: 0s; }
+        .meteor:nth-child(5) { top: 30%; left: 60%; animation-delay: 1.5s; }
+        .meteor:nth-child(6) { top: 50%; left: 90%; animation-delay: 3s; }
+        .meteor:nth-child(7) { top: 70%; left: 70%; animation-delay: 4.5s; }
+
+        @keyframes meteor {
+            0% { transform: translateX(0) translateY(0) rotate(-45deg); opacity: 0; }
+            10% { opacity: 1; }
+            100% { transform: translateX(-800px) translateY(800px) rotate(-45deg); opacity: 0; }
+        }
+
+        .glow {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(100px);
+            opacity: 0.4;
+            animation: pulse 6s infinite ease-in-out;
+        }
+
+        .glow-1 {
+            top: -10%;
+            left: -10%;
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(99, 102, 241, 0.4) 0%, transparent 70%);
+        }
+
+        .glow-2 {
+            bottom: -10%;
+            right: -10%;
+            width: 500px;
+            height: 500px;
+            background: radial-gradient(circle, rgba(6, 182, 212, 0.4) 0%, transparent 70%);
+            animation-delay: 3s;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 0.4; }
+            50% { transform: scale(1.1); opacity: 0.6; }
+        }
+
+        /* ==================== 顶部导航 ==================== */
+        .top-nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 100;
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .nav-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .nav-title a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+
+        .nav-title a:hover {
+            color: var(--primary-400);
+        }
+
+        .nav-actions {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        .nav-btn {
+            padding: 0.5rem 1rem;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 0.5rem;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .nav-btn:hover {
+            background: rgba(99, 102, 241, 0.2);
+            border-color: rgba(99, 102, 241, 0.4);
+            color: var(--primary-400);
+            transform: translateY(-2px);
+        }
+
+        .nav-btn.danger {
+            color: var(--danger);
+            border-color: rgba(239, 68, 68, 0.3);
+        }
+
+        .nav-btn.danger:hover {
+            background: rgba(239, 68, 68, 0.2);
+            border-color: rgba(239, 68, 68, 0.5);
+        }
+
+        /* ==================== 主内容区 ==================== */
+        .main-content {
+            position: relative;
+            z-index: 10;
+            padding: 6rem 2rem 3rem;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* 页面标题 */
         .page-header {
-            background: var(--gradient-primary);
-            color: white;
-            padding: 40px 20px;
             text-align: center;
-            border-radius: var(--radius-2xl);
-            margin-bottom: 40px;
+            margin-bottom: 3rem;
+            animation: fadeInDown 0.8s ease-out;
         }
 
         .page-header h1 {
             font-size: clamp(2rem, 4vw, 2.5rem);
-            margin-bottom: 12px;
-            font-weight: 700;
+            margin-bottom: 0.75rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #6366f1 0%, #06b6d4 50%, #8b5cf6 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
         }
 
         .page-header p {
             font-size: 1.125rem;
-            opacity: 0.9;
+            color: var(--text-secondary);
             max-width: 600px;
             margin: 0 auto;
         }
 
-        /* 主要内容区域 */
-        .main-content {
+        @keyframes fadeInDown {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ==================== 两列布局 ==================== */
+        .content-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 32px;
-            margin-bottom: 40px;
+            gap: 2rem;
+            margin-bottom: 3rem;
         }
 
         @media (max-width: 1024px) {
-            .main-content {
+            .content-grid {
                 grid-template-columns: 1fr;
-                gap: 24px;
             }
         }
 
-        /* 小说选择区域 */
-        .novel-selection {
-            background: rgba(255, 255, 255, 0.95);
+        /* 玻璃卡片样式 */
+        .glass-card {
+            background: rgba(30, 41, 59, 0.6);
             backdrop-filter: blur(20px);
-            padding: 32px;
-            border-radius: var(--radius-2xl);
-            box-shadow: var(--shadow-lg);
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: var(--radius-lg);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 2rem;
+            transition: all 0.3s;
+        }
+
+        .glass-card:hover {
+            border-color: rgba(99, 102, 241, 0.3);
+            box-shadow: 0 20px 60px rgba(99, 102, 241, 0.1);
         }
 
         .section-title {
-            font-size: 1.5rem;
+            font-size: 1.25rem;
             font-weight: 700;
-            color: var(--gray-800);
-            margin-bottom: 24px;
+            color: var(--text-primary);
+            margin-bottom: 1.5rem;
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 0.75rem;
         }
 
+        /* ==================== 小说选择区域 ==================== */
         .novel-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-            gap: 16px;
-            margin-bottom: 24px;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 1rem;
             max-height: 400px;
             overflow-y: auto;
-            padding: 8px;
+            padding: 0.5rem;
         }
 
         .novel-item {
-            background: white;
-            border: 2px solid var(--gray-200);
-            border-radius: var(--radius-lg);
-            padding: 16px;
+            background: rgba(15, 23, 42, 0.5);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: var(--radius-md);
+            padding: 1rem;
             cursor: pointer;
-            transition: all var(--transition-fast);
+            transition: all 0.3s;
             text-align: center;
         }
 
         .novel-item:hover {
-            border-color: var(--primary-300);
+            border-color: var(--primary-500);
             transform: translateY(-2px);
-            box-shadow: var(--shadow-md);
+            box-shadow: 0 8px 25px rgba(99, 102, 241, 0.2);
         }
 
         .novel-item.selected {
             border-color: var(--primary-500);
-            background: var(--primary-50);
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+            background: rgba(99, 102, 241, 0.15);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
         }
 
         .novel-item-title {
             font-weight: 600;
-            color: var(--gray-800);
-            margin-bottom: 8px;
-            font-size: var(--text-sm);
+            color: var(--text-primary);
+            margin-bottom: 0.5rem;
+            font-size: 0.875rem;
             line-height: 1.3;
         }
 
         .novel-item-meta {
-            font-size: var(--text-xs);
-            color: var(--gray-500);
+            font-size: 0.75rem;
+            color: var(--text-tertiary);
         }
 
-        /* 封面配置区域 */
-        .cover-config {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(20px);
-            padding: 32px;
-            border-radius: var(--radius-2xl);
-            box-shadow: var(--shadow-lg);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-        }
-
+        /* ==================== 表单样式 ==================== */
         .form-group {
-            margin-bottom: 24px;
+            margin-bottom: 1.5rem;
         }
 
         .form-label {
             display: block;
             font-weight: 600;
-            color: var(--gray-700);
-            margin-bottom: 8px;
-            font-size: var(--text-sm);
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            font-size: 0.875rem;
         }
 
         .form-input, .form-select, .form-textarea {
             width: 100%;
-            padding: 12px 16px;
-            border: 2px solid var(--gray-200);
-            border-radius: var(--radius-lg);
-            font-size: var(--text-sm);
-            transition: border-color var(--transition-fast);
-            background: white;
+            padding: 0.75rem 1rem;
+            background: rgba(15, 23, 42, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: var(--radius-md);
+            font-size: 0.875rem;
+            transition: all 0.3s;
+            color: var(--text-primary);
+            font-family: inherit;
+        }
+
+        .form-input::placeholder, .form-textarea::placeholder {
+            color: var(--text-muted);
         }
 
         .form-input:focus, .form-select:focus, .form-textarea:focus {
             outline: none;
             border-color: var(--primary-500);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
         }
 
         .form-textarea {
             resize: vertical;
             min-height: 120px;
-            font-family: inherit;
-        }
-        
-        /* 提示词显示区域大幅优化 */
-        .prompt-display-area {
-            width: calc(100% + 48px); /* 补偿父容器的padding */
-            margin-left: -24px; /* 向左扩展补偿 */
-            margin-right: -24px; /* 向右扩展补偿 */
-            min-height: 500px !important;
-            max-height: 600px !important;
-            font-family: 'SF Pro Display', 'Helvetica Neue', 'Arial', 'PingFang SC', 'Microsoft YaHei', sans-serif;
-            font-size: 16px;
-            line-height: 1.8;
-            background: #ffffff;
-            border: 2px solid var(--gray-200);
-            padding: 12px 16px;
-            border-radius: var(--radius-lg);
-            white-space: pre-wrap;
-            overflow-wrap: break-word;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-            transition: all 0.3s ease;
-            color: #2c3e50;
-            font-weight: 400;
-            resize: vertical;
-            box-sizing: border-box;
-        }
-        
-        .prompt-display-area:focus {
-            outline: none;
-            border-color: var(--primary-500);
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-        }
-        
-        /* 提示词容器样式优化 */
-        .prompt-container {
-            background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
-            border-radius: 16px;
-            padding: 24px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-            border: 1px solid #e1e5e9;
-        }
-        
-        /* 提示词标题样式 */
-        .prompt-title {
-            font-size: 18px;
-            font-weight: 600;
-            color: #1a202c;
-            margin-bottom: 16px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        
-        .prompt-title::before {
-            content: "📝";
-            font-size: 20px;
-        }
-        
-        /* 操作按钮区域 */
-        .prompt-actions {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-top: 20px;
-            padding-top: 20px;
-            border-top: 1px solid #e1e5e9;
-        }
-        
-        .help-text {
-            font-size: 14px;
-            line-height: 1.6;
-            color: #64748b;
-            flex: 1;
-        }
-        
-        .copy-button {
-            background: linear-gradient(135deg, #4a90e2 0%, #357abd 100%);
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: 500;
-            transition: all 0.3s ease;
-            box-shadow: 0 2px 8px rgba(74, 144, 226, 0.3);
-        }
-        
-        .copy-button:hover {
-            background: linear-gradient(135deg, #357abd 0%, #2968a8 100%);
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(74, 144, 226, 0.4);
-        }
-        
-        .copy-button:active {
-            transform: translateY(0);
         }
 
         .form-help {
-            font-size: var(--text-xs);
-            color: var(--gray-500);
-            margin-top: 4px;
+            font-size: 0.75rem;
+            color: var(--text-tertiary);
+            margin-top: 0.5rem;
         }
 
-        /* 样式选择网格 */
-        .style-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-            gap: 12px;
-        }
-
-        .style-option {
-            padding: 12px;
-            border: 2px solid var(--gray-200);
-            border-radius: var(--radius-lg);
-            cursor: pointer;
-            transition: all var(--transition-fast);
-            text-align: center;
-            background: white;
-        }
-
-        .style-option:hover {
-            border-color: var(--primary-300);
-        }
-
-        .style-option.selected {
-            border-color: var(--primary-500);
-            background: var(--primary-50);
-        }
-
-        .style-option-icon {
-            font-size: 24px;
-            margin-bottom: 4px;
-        }
-
-        .style-option-label {
-            font-size: var(--text-xs);
-            font-weight: 600;
-            color: var(--gray-700);
-        }
-
-        /* 颜色选择 */
+        /* ==================== 颜色选择 ==================== */
         .color-options {
             display: flex;
-            gap: 12px;
+            gap: 1rem;
             flex-wrap: wrap;
         }
 
         .color-option {
             width: 40px;
             height: 40px;
-            border-radius: var(--radius-lg);
+            border-radius: var(--radius-md);
             cursor: pointer;
             border: 3px solid transparent;
-            transition: all var(--transition-fast);
+            transition: all 0.3s;
             position: relative;
         }
 
@@ -318,32 +411,167 @@
         }
 
         .color-option.selected {
-            border-color: var(--gray-800);
-            box-shadow: 0 0 0 2px white, 0 0 0 4px var(--gray-800);
+            border-color: var(--text-primary);
+            box-shadow: 0 0 0 2px var(--bg-primary), 0 0 0 4px var(--primary-500);
         }
 
-        /* 生成按钮 */
+        /* ==================== 提示词标签页 ==================== */
+        .prompt-tabs {
+            display: flex;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding-bottom: 0.75rem;
+        }
+
+        .prompt-tab {
+            padding: 0.5rem 1rem;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: var(--radius-md);
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .prompt-tab:hover {
+            background: rgba(99, 102, 241, 0.1);
+            border-color: rgba(99, 102, 241, 0.3);
+        }
+
+        .prompt-tab.active {
+            background: rgba(99, 102, 241, 0.2);
+            color: var(--primary-400);
+            border-color: var(--primary-500);
+        }
+
+        .prompt-content {
+            background: rgba(15, 23, 42, 0.4);
+            border-radius: var(--radius-md);
+            padding: 1.25rem;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .preset-group {
+            margin-bottom: 1.25rem;
+        }
+
+        .preset-group label {
+            display: block;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            font-size: 0.875rem;
+        }
+
+        .prompt-presets {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin-bottom: 0.75rem;
+        }
+
+        .preset-btn {
+            padding: 0.375rem 0.75rem;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: var(--radius-md);
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .preset-btn:hover {
+            background: rgba(99, 102, 241, 0.2);
+            border-color: rgba(99, 102, 241, 0.4);
+        }
+
+        .preset-btn.active {
+            background: rgba(99, 102, 241, 0.3);
+            color: var(--primary-400);
+            border-color: var(--primary-500);
+        }
+
+        /* 提示词显示区域 */
+        .prompt-display-area {
+            width: 100%;
+            min-height: 400px;
+            font-family: 'SF Pro Display', 'Helvetica Neue', 'Arial', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            font-size: 0.875rem;
+            line-height: 1.8;
+            background: rgba(15, 23, 42, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 1rem;
+            border-radius: var(--radius-md);
+            white-space: pre-wrap;
+            overflow-wrap: break-word;
+            color: var(--text-secondary);
+            resize: vertical;
+        }
+
+        .prompt-display-area:focus {
+            outline: none;
+            border-color: var(--primary-500);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+
+        .prompt-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .help-text {
+            font-size: 0.75rem;
+            line-height: 1.6;
+            color: var(--text-tertiary);
+            flex: 1;
+        }
+
+        .copy-button {
+            background: linear-gradient(135deg, var(--primary-500) 0%, var(--purple-500) 100%);
+            color: white;
+            border: none;
+            padding: 0.625rem 1.25rem;
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+
+        .copy-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+        }
+
+        /* ==================== 生成按钮 ==================== */
         .generate-section {
             text-align: center;
-            margin-top: 32px;
+            margin-top: 2rem;
         }
 
         .generate-btn {
-            background: var(--gradient-primary);
+            background: linear-gradient(135deg, var(--primary-500) 0%, var(--purple-500) 100%);
             color: white;
             border: none;
-            padding: 16px 32px;
-            border-radius: var(--radius-lg);
+            padding: 1rem 2rem;
+            border-radius: var(--radius-md);
             font-size: 1rem;
             font-weight: 600;
             cursor: pointer;
-            transition: all var(--transition-normal);
-            box-shadow: var(--shadow-md);
+            transition: all 0.3s;
+            box-shadow: 0 4px 20px rgba(99, 102, 241, 0.3);
         }
 
         .generate-btn:hover:not(:disabled) {
             transform: translateY(-2px);
-            box-shadow: var(--shadow-lg);
+            box-shadow: 0 8px 30px rgba(99, 102, 241, 0.4);
         }
 
         .generate-btn:disabled {
@@ -351,314 +579,40 @@
             cursor: not-allowed;
         }
 
-        /* 封面图库区域 */
+        /* ==================== 封面图库 ==================== */
         .cover-gallery {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(20px);
-            padding: 32px;
-            border-radius: var(--radius-2xl);
-            box-shadow: var(--shadow-lg);
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            margin-top: 3rem;
+        }
+
+        .gallery-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+            gap: 1rem;
         }
 
         .gallery-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-            gap: 24px;
-            margin-top: 24px;
+            gap: 1.5rem;
         }
 
         .cover-item {
-            background: white;
-            border-radius: var(--radius-lg);
+            background: rgba(30, 41, 59, 0.6);
+            border-radius: var(--radius-md);
             overflow: hidden;
-            box-shadow: var(--shadow-md);
-            transition: all var(--transition-normal);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s;
             cursor: pointer;
+            position: relative;
         }
 
         .cover-item:hover {
             transform: translateY(-4px);
-            box-shadow: var(--shadow-xl);
-        }
-
-        .cover-image {
-            width: 100%;
-            height: 280px;
-            object-fit: cover;
-            background: var(--gray-100);
-        }
-
-        .cover-info {
-            padding: 16px;
-        }
-
-        .cover-title {
-            font-weight: 600;
-            color: var(--gray-800);
-            margin-bottom: 8px;
-            font-size: var(--text-sm);
-        }
-
-        .cover-meta {
-            font-size: var(--text-xs);
-            color: var(--gray-500);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        /* 空状态 */
-        .empty-state {
-            text-align: center;
-            padding: 60px 20px;
-            color: var(--gray-500);
-        }
-
-        .empty-icon {
-            font-size: 48px;
-            margin-bottom: 16px;
-            opacity: 0.5;
-        }
-
-        .empty-title {
-            font-size: 1.25rem;
-            font-weight: 600;
-            color: var(--gray-700);
-            margin-bottom: 8px;
-        }
-
-        .empty-description {
-            font-size: var(--text-sm);
-            margin-bottom: 24px;
-        }
-
-        /* 加载状态 */
-        .loading-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.7);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 99999;
-        }
-
-        .loading-content {
-            background: white;
-            padding: 40px;
-            border-radius: var(--radius-2xl);
-            text-align: center;
-            max-width: 400px;
-            box-shadow: var(--shadow-xl);
-        }
-
-        .spinner {
-            width: 40px;
-            height: 40px;
-            border: 4px solid var(--gray-200);
-            border-top: 4px solid var(--primary-500);
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 20px;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        /* 进度条 */
-        .progress-bar {
-            width: 100%;
-            height: 8px;
-            background: var(--gray-200);
-            border-radius: var(--radius-full);
-            overflow: hidden;
-            margin: 16px 0;
-        }
-
-        .progress-fill {
-            height: 100%;
-            background: var(--gradient-primary);
-            border-radius: var(--radius-full);
-            transition: width var(--transition-normal);
-        }
-
-        /* 响应式设计 */
-        @media (max-width: 768px) {
-            .cover-maker-container {
-                padding: 16px;
-            }
-
-            .novel-selection, .cover-config, .cover-gallery {
-                padding: 24px;
-            }
-
-            .gallery-grid {
-                grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-                gap: 16px;
-            }
-
-            .cover-image {
-                height: 200px;
-            }
-        }
-
-        /* 提示词标签页 */
-        .prompt-tabs {
-            display: flex;
-            gap: 12px;
-            margin-bottom: 16px;
-            border-bottom: 2px solid var(--gray-200);
-            padding-bottom: 12px;
-        }
-        
-        .prompt-tab {
-            padding: 8px 16px;
-            background: var(--gray-100);
-            border: 1px solid var(--gray-200);
-            border-radius: var(--radius-lg);
-            font-size: var(--text-sm);
-            cursor: pointer;
-            transition: all var(--transition-fast);
-        }
-        
-        .prompt-tab.active {
-            background: var(--primary-100);
-            color: var(--primary-700);
-            border-color: var(--primary-300);
-        }
-        
-        /* 提示词内容区域 */
-        .prompt-content {
-            background: rgba(255, 255, 255, 0.5);
-            border-radius: var(--radius-lg);
-            padding: 20px;
-            border: 1px solid rgba(102, 126, 234, 0.1);
-            margin-top: 8px;
-        }
-        
-        .prompt-presets-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 16px;
-        }
-        
-        .preset-group {
-            margin-bottom: 20px;
-        }
-        
-        .preset-group label {
-            display: block;
-            font-weight: 600;
-            color: var(--gray-700);
-            margin-bottom: 8px;
-            font-size: var(--text-sm);
-        }
-        
-        /* 提示词预设 */
-        .prompt-presets {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-            margin-bottom: 12px;
-        }
-        
-        .preset-btn {
-            padding: 6px 12px;
-            background: var(--gray-100);
-            border: 1px solid var(--gray-200);
-            border-radius: var(--radius-lg);
-            font-size: var(--text-xs);
-            cursor: pointer;
-            transition: all var(--transition-fast);
-        }
-        
-        .preset-btn:hover {
-            background: var(--gray-200);
-        }
-        
-        .preset-btn.active {
-            background: var(--primary-100);
-            color: var(--primary-700);
-            border-color: var(--primary-300);
-        }
-
-        /* 选中操作栏样式 */
-        .selection-actions {
-            background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
-            border: 1px solid #e1e5e9;
-            border-radius: 12px;
-            padding: 16px 20px;
-            margin-bottom: 24px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-            animation: slideDown 0.3s ease-out;
-        }
-
-        .selection-info {
-            font-size: 14px;
-            color: #495057;
-            font-weight: 500;
-        }
-
-        .selection-info span {
-            color: #007bff;
-            font-weight: 600;
-        }
-
-        .selection-buttons {
-            display: flex;
-            gap: 8px;
-        }
-
-        .btn-small {
-            padding: 6px 12px;
-            font-size: 12px;
-            font-weight: 500;
-            border-radius: 6px;
-            border: 1px solid;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            text-decoration: none;
-            display: inline-block;
-        }
-
-        .btn-secondary {
-            background: #6c757d;
-            color: white;
-            border-color: #6c757d;
-        }
-
-        .btn-secondary:hover {
-            background: #5a6268;
-            border-color: #545b62;
-            transform: translateY(-1px);
-        }
-
-        .btn-primary {
-            background: #007bff;
-            color: white;
-            border-color: #007bff;
-        }
-
-        .btn-primary:hover {
-            background: #0056b3;
-            border-color: #004085;
-            transform: translateY(-1px);
-        }
-
-        /* 封面选中状态样式 */
-        .cover-item {
-            position: relative;
-            cursor: pointer;
-            transition: all var(--transition-normal);
+            border-color: rgba(99, 102, 241, 0.3);
+            box-shadow: 0 12px 40px rgba(99, 102, 241, 0.2);
         }
 
         .cover-item::before {
@@ -668,39 +622,38 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(0, 123, 255, 0.1);
+            background: rgba(99, 102, 241, 0.1);
             border: 3px solid transparent;
-            border-radius: var(--radius-lg);
+            border-radius: var(--radius-md);
             opacity: 0;
-            transition: all 0.3s ease;
+            transition: all 0.3s;
             pointer-events: none;
             z-index: 1;
         }
 
         .cover-item.selected::before {
             opacity: 1;
-            border-color: #007bff;
-            background: rgba(0, 123, 255, 0.05);
+            border-color: var(--primary-500);
         }
 
         .cover-item .select-checkbox {
             position: absolute;
-            top: 12px;
-            right: 12px;
+            top: 0.75rem;
+            right: 0.75rem;
             width: 24px;
             height: 24px;
-            background: white;
-            border: 2px solid #dee2e6;
+            background: rgba(15, 23, 42, 0.8);
+            border: 2px solid rgba(255, 255, 255, 0.3);
             border-radius: 6px;
             display: flex;
             align-items: center;
             justify-content: center;
             opacity: 0;
             transform: scale(0.8);
-            transition: all 0.3s ease;
+            transition: all 0.3s;
             z-index: 2;
             cursor: pointer;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
         }
 
         .cover-item:hover .select-checkbox {
@@ -711,8 +664,8 @@
         .cover-item.selected .select-checkbox {
             opacity: 1;
             transform: scale(1);
-            background: #007bff;
-            border-color: #007bff;
+            background: var(--primary-500);
+            border-color: var(--primary-500);
             color: white;
         }
 
@@ -722,80 +675,310 @@
             font-weight: bold;
         }
 
-        /* 动画效果 */
+        .cover-image {
+            width: 100%;
+            height: 280px;
+            object-fit: cover;
+            background: var(--bg-secondary);
+        }
+
+        .cover-info {
+            padding: 1rem;
+        }
+
+        .cover-title {
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 0.5rem;
+            font-size: 0.875rem;
+        }
+
+        .cover-meta {
+            font-size: 0.75rem;
+            color: var(--text-tertiary);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* ==================== 选中操作栏 ==================== */
+        .selection-actions {
+            background: rgba(30, 41, 59, 0.8);
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            border-radius: var(--radius-md);
+            padding: 1rem 1.25rem;
+            margin-bottom: 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+            animation: slideDown 0.3s ease-out;
+        }
+
+        .selection-info {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .selection-info span {
+            color: var(--primary-400);
+            font-weight: 700;
+        }
+
+        .selection-buttons {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .btn-small {
+            padding: 0.5rem 1rem;
+            font-size: 0.75rem;
+            font-weight: 500;
+            border-radius: var(--radius-sm);
+            border: 1px solid;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-secondary);
+            border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary-500) 0%, var(--purple-500) 100%);
+            color: white;
+            border-color: transparent;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, var(--success) 0%, #16a34a 100%);
+            color: white;
+            border-color: transparent;
+        }
+
+        .btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(34, 197, 94, 0.4);
+        }
+
+        /* ==================== 空状态 ==================== */
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: var(--text-tertiary);
+            background: rgba(30, 41, 59, 0.4);
+            border-radius: var(--radius-lg);
+            border: 1px dashed rgba(255, 255, 255, 0.1);
+        }
+
+        .empty-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+
+        .empty-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .empty-description {
+            font-size: 0.875rem;
+            margin-bottom: 1.5rem;
+        }
+
+        /* ==================== 加载状态 ==================== */
+        .loading-state {
+            text-align: center;
+            padding: 3rem 2rem;
+            color: var(--text-tertiary);
+        }
+
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(15, 23, 42, 0.9);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 99999;
+            backdrop-filter: blur(10px);
+        }
+
+        .loading-content {
+            background: rgba(30, 41, 59, 0.95);
+            padding: 2.5rem;
+            border-radius: var(--radius-lg);
+            text-align: center;
+            max-width: 400px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            border-top: 4px solid var(--primary-500);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 9999px;
+            overflow: hidden;
+            margin: 1rem 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary-500), var(--accent-500));
+            border-radius: 9999px;
+            transition: width 0.5s ease;
+        }
+
+        /* ==================== 复选框样式 ==================== */
+        input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: var(--primary-500);
+            cursor: pointer;
+        }
+
+        /* ==================== 动画 ==================== */
         @keyframes slideDown {
-            from {
-                opacity: 0;
-                transform: translateY(-10px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
         @keyframes checkmark {
-            0% {
-                transform: scale(0);
-            }
-            50% {
-                transform: scale(1.2);
-            }
-            100% {
-                transform: scale(1);
-            }
+            0% { transform: scale(0); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
         }
 
         .cover-item.selected .select-checkbox {
             animation: checkmark 0.3s ease-out;
         }
 
-        /* 响应式设计优化 */
+        /* ==================== 响应式设计 ==================== */
         @media (max-width: 768px) {
+            .main-content {
+                padding: 5rem 1rem 2rem;
+            }
+
+            .top-nav {
+                padding: 0.75rem 1rem;
+            }
+
+            .nav-actions {
+                gap: 0.5rem;
+            }
+
+            .nav-btn span {
+                display: none;
+            }
+
+            .glass-card {
+                padding: 1.5rem;
+            }
+
+            .gallery-grid {
+                grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+                gap: 1rem;
+            }
+
+            .cover-image {
+                height: 200px;
+            }
+
             .selection-actions {
                 flex-direction: column;
-                gap: 12px;
                 align-items: stretch;
             }
-            
+
             .selection-buttons {
                 justify-content: center;
-                flex-wrap: wrap;
             }
-            
-            .btn-small {
-                font-size: 11px;
-                padding: 4px 8px;
+
+            .novel-grid {
+                grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            }
+
+            .prompt-actions {
+                flex-direction: column;
+                gap: 1rem;
+                align-items: stretch;
             }
         }
     </style>
 </head>
 <body>
+    <!-- 宇宙背景 -->
+    <div class="universe">
+        <div class="stars"></div>
+        <div class="stars"></div>
+        <div class="stars"></div>
+        <div class="meteor"></div>
+        <div class="meteor"></div>
+        <div class="meteor"></div>
+        <div class="meteor"></div>
+        <div class="glow glow-1"></div>
+        <div class="glow glow-2"></div>
+    </div>
+
     <!-- 顶部导航 -->
-    <nav class="navbar">
-        <div class="navbar-content">
-            <div class="navbar-title">
-                <button class="btn btn-secondary btn-small" onclick="location.href='/landing'" style="margin-right: 12px;">
-                    🏠 返回首页
-                </button>
-                🎨 封面制作
-            </div>
-            <div class="navbar-actions">
-                <button class="btn btn-secondary btn-small" onclick="location.href='/novels'">
-                    📚 我的作品
-                </button>
-                <button class="btn btn-secondary btn-small" onclick="location.href='/dashboard'">
-                    📊 仪表板
-                </button>
-                <button class="btn btn-danger btn-small" onclick="logout()">
-                    退出登录
-                </button>
-            </div>
+    <nav class="top-nav">
+        <div class="nav-title">
+            <a href="/landing">🏠</a>
+            <span>🎨 封面制作</span>
+        </div>
+        <div class="nav-actions">
+            <a href="/" class="nav-btn">
+                <span>📚</span> 我的作品
+            </a>
+            <a href="/dashboard" class="nav-btn">
+                <span>📊</span> 仪表板
+            </a>
+            <button class="nav-btn danger" onclick="logout()">
+                <span>🚪</span> 退出
+            </button>
         </div>
     </nav>
 
-    <!-- 主容器 -->
-    <div class="cover-maker-container">
+    <!-- 主内容 -->
+    <main class="main-content">
         <!-- 页面标题 -->
         <div class="page-header">
             <h1>🎨 AI小说封面制作</h1>
@@ -803,16 +986,16 @@
         </div>
 
         <!-- 主要内容区域 -->
-        <div class="main-content">
+        <div class="content-grid">
             <!-- 小说选择区域 -->
-            <div class="novel-selection">
+            <div class="glass-card">
                 <h2 class="section-title">
                     📚 选择小说
                 </h2>
                 
                 <div id="novel-loading" class="loading-state">
-                    <div class="spinner" style="width: 24px; height: 24px; margin: 0 auto 16px;"></div>
-                    <p style="color: var(--gray-500); font-size: var(--text-sm);">加载小说列表中...</p>
+                    <div class="spinner" style="width: 32px; height: 32px;"></div>
+                    <p>加载小说列表中...</p>
                 </div>
 
                 <div id="novel-grid" class="novel-grid" style="display: none;">
@@ -823,14 +1006,14 @@
                     <div class="empty-icon">📝</div>
                     <div class="empty-title">暂无小说作品</div>
                     <div class="empty-description">您还没有完成的小说作品，无法制作封面</div>
-                    <button class="btn btn-primary" onclick="location.href='/'">
+                    <button class="nav-btn" onclick="location.href='/landing'" style="margin-top: 1rem;">
                         🚀 开始创作
                     </button>
                 </div>
             </div>
 
             <!-- 封面配置区域 -->
-            <div class="cover-config">
+            <div class="glass-card">
                 <h2 class="section-title">
                     ⚙️ 封面设置
                 </h2>
@@ -862,11 +1045,11 @@
                     <div class="form-group">
                         <label class="form-label">配色方案</label>
                         <div class="color-options">
-                            <div class="color-option selected" data-color="blue" style="background: linear-gradient(135deg, #667eea, #764ba2);" title="蓝色调"></div>
-                            <div class="color-option" data-color="red" style="background: linear-gradient(135deg, #f093fb, #f5576c);" title="红色调"></div>
-                            <div class="color-option" data-color="green" style="background: linear-gradient(135deg, #4facfe, #00f2fe);" title="绿色调"></div>
-                            <div class="color-option" data-color="purple" style="background: linear-gradient(135deg, #a8edea, #fed6e3);" title="紫色调"></div>
-                            <div class="color-option" data-color="gold" style="background: linear-gradient(135deg, #ffecd2, #fcb69f);" title="金色调"></div>
+                            <div class="color-option selected" data-color="blue" style="background: linear-gradient(135deg, #6366f1, #8b5cf6);" title="蓝紫调"></div>
+                            <div class="color-option" data-color="red" style="background: linear-gradient(135deg, #f43f5e, #ec4899);" title="粉色调"></div>
+                            <div class="color-option" data-color="green" style="background: linear-gradient(135deg, #10b981, #06b6d4);" title="青绿色调"></div>
+                            <div class="color-option" data-color="purple" style="background: linear-gradient(135deg, #a855f7, #6366f1);" title="紫色调"></div>
+                            <div class="color-option" data-color="gold" style="background: linear-gradient(135deg, #f59e0b, #f97316);" title="金橙色调"></div>
                         </div>
                     </div>
 
@@ -882,67 +1065,65 @@
                         
                         <!-- 默认提示词区域 -->
                         <div id="default-prompt-section" class="prompt-content">
-                            <div class="prompt-container">
-                                <div class="preset-group">
-                                    <label class="prompt-title">小说类型选择</label>
-                                    <select id="default-style-type" onchange="updateDefaultPrompt()" style="width: 100%; padding: 12px 16px; border: 2px solid #e1e5e9; border-radius: 8px; font-size: 15px; background: white; color: #2c3e50;">
-                                        <option value="fantasy">玄幻修仙</option>
-                                        <option value="urban">都市言情</option>
-                                        <option value="historical">历史古装</option>
-                                        <option value="scifi">科幻未来</option>
-                                        <option value="wuxia">武侠江湖</option>
-                                        <option value="romance">浪漫言情</option>
-                                        <option value="suspense">悬疑推理</option>
-                                        <option value="game">游戏竞技</option>
-                                        <option value="military">军事战争</option>
-                                        <option value="female_suspense">女频悬疑</option>
-                                        <option value="scifi_apocalypse">科幻末世</option>
-                                        <option value="female_derivative">女频衍生</option>
-                                        <option value="republican_romance">民国言情</option>
-                                        <option value="suspense_creative">悬疑脑洞</option>
-                                        <option value="sweet_romance">青春甜宠</option>
-                                        <option value="male_leads">双男主</option>
-                                        <option value="ancient_creative">古言脑洞</option>
-                                        <option value="modern_creative">现言脑洞</option>
-                                        <option value="fantasy_romance">玄幻言情</option>
-                                        <option value="palace_intrigue">宫斗宅斗</option>
-                                        <option value="wealthy_president">豪门总裁</option>
-                                        <option value="anime_derivative">动漫衍生</option>
-                                        <option value="entertainment">星光璀璨</option>
-                                        <option value="workplace_marriage">职场婚恋</option>
-                                        <option value="female_leads">双女主</option>
-                                        <option value="period">年代</option>
-                                        <option value="farming">种田</option>
-                                        <option value="quick_transmigration">快穿</option>
-                                        <option value="western_fantasy">西方奇幻</option>
-                                        <option value="male_derivative">男频衍生</option>
-                                        <option value="urban_martial">都市高武</option>
-                                        <option value="suspense_supernatural">悬疑灵异</option>
-                                        <option value="war_spy">抗战谍战</option>
-                                        <option value="historical_ancient">历史古代</option>
-                                        <option value="historical_creative">历史脑洞</option>
-                                        <option value="urban_farming">都市种田</option>
-                                        <option value="urban_creative">都市脑洞</option>
-                                        <option value="urban_daily">都市日常</option>
-                                        <option value="fantasy_creative">玄幻脑洞</option>
-                                        <option value="war_god_son">战神赘婿</option>
-                                        <option value="traditional_fantasy">传统玄幻</option>
-                                        <option value="urban_cultivation">都市修真</option>
-                                    </select>
-                                </div>
-                                
-                                <!-- 生成的默认提示词显示区域 -->
-                                <div class="preset-group" style="margin-top: 24px;">
-                                    <label class="prompt-title">生成的专业提示词</label>
-                                    <textarea id="generated-default-prompt" class="prompt-display-area" readonly placeholder="请选择小说类型来生成完整的默认提示词..."></textarea>
-                                    <div class="prompt-actions">
-                                        <div class="help-text">
-                                            💡 这是基于NovelGenerator.py中的完整模板生成的专业级提示词，包含所有必要的配置和约束条件，确保生成高质量的封面设计
-                                        </div>
-                                        <button type="button" class="copy-button" onclick="copyToCustom()">
-                                            📋 复制到自定义
-                                        </button>
+                            <div class="preset-group">
+                                <label>小说类型选择</label>
+                                <select id="default-style-type" onchange="updateDefaultPrompt()" class="form-select" style="width: 100%;">
+                                    <option value="fantasy">玄幻修仙</option>
+                                    <option value="urban">都市言情</option>
+                                    <option value="historical">历史古装</option>
+                                    <option value="scifi">科幻未来</option>
+                                    <option value="wuxia">武侠江湖</option>
+                                    <option value="romance">浪漫言情</option>
+                                    <option value="suspense">悬疑推理</option>
+                                    <option value="game">游戏竞技</option>
+                                    <option value="military">军事战争</option>
+                                    <option value="female_suspense">女频悬疑</option>
+                                    <option value="scifi_apocalypse">科幻末世</option>
+                                    <option value="female_derivative">女频衍生</option>
+                                    <option value="republican_romance">民国言情</option>
+                                    <option value="suspense_creative">悬疑脑洞</option>
+                                    <option value="sweet_romance">青春甜宠</option>
+                                    <option value="male_leads">双男主</option>
+                                    <option value="ancient_creative">古言脑洞</option>
+                                    <option value="modern_creative">现言脑洞</option>
+                                    <option value="fantasy_romance">玄幻言情</option>
+                                    <option value="palace_intrigue">宫斗宅斗</option>
+                                    <option value="wealthy_president">豪门总裁</option>
+                                    <option value="anime_derivative">动漫衍生</option>
+                                    <option value="entertainment">星光璀璨</option>
+                                    <option value="workplace_marriage">职场婚恋</option>
+                                    <option value="female_leads">双女主</option>
+                                    <option value="period">年代</option>
+                                    <option value="farming">种田</option>
+                                    <option value="quick_transmigration">快穿</option>
+                                    <option value="western_fantasy">西方奇幻</option>
+                                    <option value="male_derivative">男频衍生</option>
+                                    <option value="urban_martial">都市高武</option>
+                                    <option value="suspense_supernatural">悬疑灵异</option>
+                                    <option value="war_spy">抗战谍战</option>
+                                    <option value="historical_ancient">历史古代</option>
+                                    <option value="historical_creative">历史脑洞</option>
+                                    <option value="urban_farming">都市种田</option>
+                                    <option value="urban_creative">都市脑洞</option>
+                                    <option value="urban_daily">都市日常</option>
+                                    <option value="fantasy_creative">玄幻脑洞</option>
+                                    <option value="war_god_son">战神赘婿</option>
+                                    <option value="traditional_fantasy">传统玄幻</option>
+                                    <option value="urban_cultivation">都市修真</option>
+                                </select>
+                            </div>
+                            
+                            <!-- 生成的默认提示词显示区域 -->
+                            <div class="preset-group" style="margin-top: 1.5rem;">
+                                <label>生成的专业提示词</label>
+                                <textarea id="generated-default-prompt" class="prompt-display-area" readonly placeholder="请选择小说类型来生成完整的默认提示词..."></textarea>
+                                <div class="prompt-actions">
+                                    <div class="help-text">
+                                        💡 这是基于NovelGenerator.py中的完整模板生成的专业级提示词，包含所有必要的配置和约束条件，确保生成高质量的封面设计
                                     </div>
+                                    <button type="button" class="copy-button" onclick="copyToCustom()">
+                                        📋 复制到自定义
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -963,7 +1144,12 @@
                         </div>
                         <div class="preset-group">
                             <label>自定义提示词:</label>
-                            <textarea id="custom-prompt" class="form-textarea" placeholder="请输入自定义的封面设计要求，比如场景、元素、氛围等...&#10;&#10;例如：&#10;- 古风玄幻风格，主角站在山巅，背景是云海和宫殿&#10;- 现代都市言情，男女主角在咖啡厅相遇，温馨浪漫&#10;- 科幻未来感，太空飞船，星空背景，科技感十足"></textarea>
+                            <textarea id="custom-prompt" class="prompt-display-area" placeholder="请输入自定义的封面设计要求，比如场景、元素、氛围等...
+
+例如：
+- 古风玄幻风格，主角站在山巅，背景是云海和宫殿
+- 现代都市言情，男女主角在咖啡厅相遇，温馨浪漫
+- 科幻未来感，太空飞船，星空背景，科技感十足"></textarea>
                             <div class="form-help">💡 提示：详细描述您想要的封面效果，AI将根据您的要求生成定制化封面。可以基于默认提示词进行修改。</div>
                         </div>
                     </div>
@@ -988,7 +1174,7 @@
                     </div>
 
                     <div class="form-group">
-                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                        <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
                             <input type="checkbox" id="add-watermark">
                             <span class="form-label" style="margin: 0;">添加水印</span>
                         </label>
@@ -1005,13 +1191,15 @@
         </div>
 
         <!-- 封面图库区域 -->
-        <div class="cover-gallery">
-            <h2 class="section-title">
-                🖼️ 封面图库
-                <span style="font-size: var(--text-sm); font-weight: normal; color: var(--gray-500); margin-left: 8px;">
-                    (<span id="cover-count">0</span>个封面)
-                </span>
-            </h2>
+        <div class="cover-gallery glass-card">
+            <div class="gallery-header">
+                <h2 class="section-title" style="margin: 0;">
+                    🖼️ 封面图库
+                    <span style="font-size: 0.875rem; font-weight: normal; color: var(--text-tertiary); margin-left: 0.5rem;">
+                        (<span id="cover-count">0</span>个封面)
+                    </span>
+                </h2>
+            </div>
 
             <!-- 选中操作栏 -->
             <div id="selection-actions" class="selection-actions" style="display: none;">
@@ -1019,16 +1207,16 @@
                     <span>已选择 <span id="selected-count">0</span> 个封面</span>
                 </div>
                 <div class="selection-buttons">
-                    <button class="btn btn-secondary btn-small" onclick="selectAllCovers()">
+                    <button class="btn-small btn-secondary" onclick="selectAllCovers()">
                         全选
                     </button>
-                    <button class="btn btn-secondary btn-small" onclick="deselectAllCovers()">
+                    <button class="btn-small btn-secondary" onclick="deselectAllCovers()">
                         取消全选
                     </button>
-                    <button class="btn btn-primary btn-small" onclick="useSelectedCovers()">
+                    <button class="btn-small btn-primary" onclick="useSelectedCovers()">
                         使用选中的封面
                     </button>
-                    <button class="btn btn-success btn-small" onclick="copySelectedCoversToNovels()">
+                    <button class="btn-small btn-success" onclick="copySelectedCoversToNovels()">
                         📋 拷贝封面到小说目录
                     </button>
                 </div>
@@ -1044,7 +1232,7 @@
                 <div class="empty-description">选择小说并配置封面设置后，点击"开始生成封面"来创建您的第一个封面作品</div>
             </div>
         </div>
-    </div>
+    </main>
 
     <script>
         // 全局变量
@@ -1527,7 +1715,7 @@
                 <div class="cover-item ${selectedCovers.has(cover.id) ? 'selected' : ''}" data-cover-id="${cover.id}">
                     <div class="select-checkbox" onclick="toggleCoverSelection(event, '${cover.id}')"></div>
                     <img src="${encodeCoverUrl(cover.url)}" alt="${cover.novel_title}" class="cover-image"
-                         onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjI4MCIgdmlld0JveD0iMCAwIDIwMCAyODAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIyMDAiIGhlaWdodD0iMjgwIiBmaWxsPSIjRjVGNUY1Ii8+CjxwYXRoIGQ9Ik04MCA5MEgxMjBWMTIwSDgwVjkwWiIgZmlsbD0iI0QxRDVEMSIvPgo8cGF0aCBkPSJNNzAgMTMwSDEzMFYxNDBINzBWMTMwWiIgZmlsbD0iI0QxRDVEMSIvPgo8dGV4dCB4PSIxMDAiIHk9IjE4MCIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjE0IiBmaWxsPSIjOUNBM0FGIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj7lm77niYfliqDovb3lpLHotKU8L3RleHQ+Cjwvc3ZnPgo='">
+                         onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjI4MCIgdmlld0JveD0iMCAwIDIwMCAyODAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIyMDAiIGhlaWdodD0iMjgwIiBmaWxsPSIjRjVGNUY1Ii8+CjxwYXRoIGQ9Ik04MCAxMjBIMTIwVjE2MEg4MFYxMjBaIiBmaWxsPSIjRDFENUQxIi8+CjxwYXRoIGQ9Ik03MCAxODBIMTMwVjE5MEg3MFYxODBaIiBmaWxsPSIjRDFENUQxIi8+Cjx0ZXh0IHg9IjEwMCIgeT0iMjMwIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5Q0EzQUYiIHRleHQtYW5jaG9yPSJtaWRkbGUiPuWbvueJh+WKoOi9veWksei0pTwvdGV4dD4KPC9zdmc+'">
                     <div class="cover-info">
                         <div class="cover-title">${escapeHtml(cover.novel_title)}</div>
                         <div class="cover-meta">
@@ -1551,22 +1739,22 @@
             const modal = document.createElement('div');
             modal.style.cssText = `
                 position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-                background: rgba(0,0,0,0.8); z-index: 99999;
+                background: rgba(15, 23, 42, 0.95); z-index: 99999;
                 display: flex; justify-content: center; align-items: center;
-                padding: 20px;
+                padding: 20px; backdrop-filter: blur(10px);
             `;
 
             // 确保弹窗中的图片URL也正确编码
             const encodedUrl = encodeCoverUrl(cover.url);
             
             modal.innerHTML = `
-                <div style="background: white; border-radius: 12px; max-width: 90%; max-height: 90%; overflow: auto; position: relative;">
-                    <button onclick="this.closest('div').parentElement.remove()" style="position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.5); color: white; border: none; border-radius: 50%; width: 30px; height: 30px; cursor: pointer; font-size: 16px;">×</button>
-                    <img src="${encodedUrl}" alt="${escapeHtml(cover.novel_title)}" style="max-width: 100%; max-height: 80vh; object-fit: contain;">
-                    <div style="padding: 20px; text-align: center;">
-                        <h3 style="margin: 0 0 8px 0;">${escapeHtml(cover.novel_title)}</h3>
-                        <p style="margin: 0; color: #666;">作者：${escapeHtml(cover.author_name)}</p>
-                        <p style="margin: 8px 0 0 0; color: #999; font-size: 14px;">生成时间：${new Date(cover.timestamp).toLocaleString()}</p>
+                <div style="background: rgba(30, 41, 59, 0.95); border-radius: 16px; max-width: 90%; max-height: 90%; overflow: auto; position: relative; border: 1px solid rgba(255, 255, 255, 0.1);">
+                    <button onclick="this.closest('div').parentElement.remove()" style="position: absolute; top: 15px; right: 15px; background: rgba(239, 68, 68, 0.8); color: white; border: none; border-radius: 50%; width: 36px; height: 36px; cursor: pointer; font-size: 20px; z-index: 10;">×</button>
+                    <img src="${encodedUrl}" alt="${escapeHtml(cover.novel_title)}" style="max-width: 100%; max-height: 70vh; object-fit: contain; display: block;">
+                    <div style="padding: 24px; text-align: center;">
+                        <h3 style="margin: 0 0 8px 0; color: var(--text-primary); font-size: 1.25rem;">${escapeHtml(cover.novel_title)}</h3>
+                        <p style="margin: 0; color: var(--text-secondary);">作者：${escapeHtml(cover.author_name)}</p>
+                        <p style="margin: 8px 0 0 0; color: var(--text-tertiary); font-size: 0.875rem;">生成时间：${new Date(cover.timestamp).toLocaleString()}</p>
                     </div>
                 </div>
             `;
@@ -1588,11 +1776,11 @@
             overlay.innerHTML = `
                 <div class="loading-content">
                     <div class="spinner"></div>
-                    <h3>${message}</h3>
+                    <h3 style="color: var(--text-primary); margin-bottom: 1rem;">${message}</h3>
                     <div class="progress-bar">
                         <div class="progress-fill" id="loading-progress" style="width: 0%"></div>
                     </div>
-                    <p style="color: #666; font-size: 14px; margin-top: 16px;">AI正在为您创作精美的封面，请耐心等待...</p>
+                    <p style="color: var(--text-tertiary); font-size: 0.875rem; margin-top: 1rem;">AI正在为您创作精美的封面，请耐心等待...</p>
                 </div>
             `;
 
@@ -1603,7 +1791,8 @@
             const progressInterval = setInterval(() => {
                 progress += Math.random() * 15;
                 if (progress > 90) progress = 90;
-                document.getElementById('loading-progress').style.width = progress + '%';
+                const progressEl = document.getElementById('loading-progress');
+                if (progressEl) progressEl.style.width = progress + '%';
             }, 800);
 
             overlay.progressInterval = progressInterval;
@@ -1624,11 +1813,11 @@
         function showSuccessMessage(message) {
             const messageDiv = document.createElement('div');
             messageDiv.style.cssText = `
-                position: fixed; top: 20px; right: 20px; z-index: 100001;
+                position: fixed; top: 100px; right: 20px; z-index: 100001;
                 background: linear-gradient(135deg, #10b981, #059669); color: white;
-                padding: 16px 24px; border-radius: 8px; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+                padding: 16px 24px; border-radius: 12px; box-shadow: 0 4px 20px rgba(16, 185, 129, 0.3);
                 font-weight: 600; animation: slideInRight 0.3s ease-out;
-                max-width: 400px;
+                max-width: 400px; border: 1px solid rgba(255, 255, 255, 0.1);
             `;
             messageDiv.textContent = message;
             
@@ -1652,11 +1841,11 @@
             const grid = document.getElementById('novel-grid');
             if (grid) {
                 grid.innerHTML = `
-                    <div style="grid-column: 1 / -1; text-align: center; padding: 40px; color: var(--error-600);">
+                    <div style="grid-column: 1 / -1; text-align: center; padding: 40px; color: var(--danger);">
                         <div style="font-size: 48px; margin-bottom: 16px;">❌</div>
-                        <h3 style="margin-bottom: 12px;">加载失败</h3>
-                        <p>${message}</p>
-                        <button class="btn btn-primary" onclick="loadNovels()" style="margin-top: 20px;">
+                        <h3 style="margin-bottom: 12px; color: var(--text-primary);">加载失败</h3>
+                        <p style="color: var(--text-secondary);">${message}</p>
+                        <button class="nav-btn" onclick="loadNovels()" style="margin-top: 20px;">
                             重试
                         </button>
                     </div>
@@ -1810,40 +1999,40 @@
             const modal = document.createElement('div');
             modal.style.cssText = `
                 position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-                background: rgba(0,0,0,0.8); z-index: 99999;
+                background: rgba(15, 23, 42, 0.95); z-index: 99999;
                 display: flex; justify-content: center; align-items: center;
-                padding: 20px;
+                padding: 20px; backdrop-filter: blur(10px);
             `;
             
             const coverThumbnails = selectedCoverList.map(cover => `
                 <div style="display: inline-block; margin: 8px; text-align: center; vertical-align: top;">
                     <img src="${encodeCoverUrl(cover.url)}" alt="${cover.novel_title}"
-                         style="width: 100px; height: 140px; object-fit: cover; border-radius: 8px; border: 2px solid #007bff;">
-                    <div style="margin-top: 4px; font-size: 12px; color: white;">${escapeHtml(cover.novel_title)}</div>
+                         style="width: 100px; height: 140px; object-fit: cover; border-radius: 8px; border: 2px solid var(--primary-500);">
+                    <div style="margin-top: 4px; font-size: 12px; color: var(--text-secondary);">${escapeHtml(cover.novel_title)}</div>
                 </div>
             `).join('');
             
             modal.innerHTML = `
-                <div style="background: white; border-radius: 12px; max-width: 90%; max-height: 90%; overflow: auto; position: relative;">
-                    <button onclick="this.closest('div').parentElement.remove()" style="position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.5); color: white; border: none; border-radius: 50%; width: 30px; height: 30px; cursor: pointer; font-size: 16px;">×</button>
+                <div style="background: rgba(30, 41, 59, 0.95); border-radius: 16px; max-width: 90%; max-height: 90%; overflow: auto; position: relative; border: 1px solid rgba(255, 255, 255, 0.1);">
+                    <button onclick="this.closest('div').parentElement.remove()" style="position: absolute; top: 15px; right: 15px; background: rgba(239, 68, 68, 0.8); color: white; border: none; border-radius: 50%; width: 36px; height: 36px; cursor: pointer; font-size: 20px; z-index: 10;">×</button>
                     <div style="padding: 30px; text-align: center;">
-                        <h2 style="margin: 0 0 20px 0; color: #333;">确认使用选中的封面</h2>
-                        <div style="margin-bottom: 20px; color: #666;">
-                            您已选择 <strong style="color: #007bff;">${selectedCoverList.length}</strong> 个封面：
+                        <h2 style="margin: 0 0 20px 0; color: var(--text-primary);">确认使用选中的封面</h2>
+                        <div style="margin-bottom: 20px; color: var(--text-secondary);">
+                            您已选择 <strong style="color: var(--primary-400);">${selectedCoverList.length}</strong> 个封面：
                         </div>
-                        <div style="margin-bottom: 30px; padding: 20px; background: #f8f9fa; border-radius: 8px;">
+                        <div style="margin-bottom: 30px; padding: 20px; background: rgba(15, 23, 42, 0.5); border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.05);">
                             ${coverThumbnails}
                         </div>
-                        <div style="color: #666; margin-bottom: 20px; font-size: 14px;">
+                        <div style="color: var(--text-tertiary); margin-bottom: 20px; font-size: 14px;">
                             💡 这些封面将被标记为"已选择"，在上传时可以优先使用
                         </div>
                         <div style="display: flex; gap: 10px; justify-content: center;">
                             <button onclick="confirmUseSelectedCovers(${JSON.stringify(selectedCoverList).replace(/"/g, '&quot;')})"
-                                    style="background: #007bff; color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; font-size: 14px;">
+                                    style="background: linear-gradient(135deg, var(--primary-500), var(--purple-500)); color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600;">
                                 确认使用
                             </button>
                             <button onclick="this.closest('div').parentElement.remove()"
-                                    style="background: #6c757d; color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; font-size: 14px;">
+                                    style="background: rgba(255, 255, 255, 0.1); color: var(--text-secondary); border: 1px solid rgba(255, 255, 255, 0.2); padding: 12px 24px; border-radius: 8px; cursor: pointer; font-size: 14px;">
                                 取消
                             </button>
                         </div>
@@ -1896,33 +2085,33 @@
             const modal = document.createElement('div');
             modal.style.cssText = `
                 position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-                background: rgba(0,0,0,0.8); z-index: 99999;
+                background: rgba(15, 23, 42, 0.95); z-index: 99999;
                 display: flex; justify-content: center; align-items: center;
-                padding: 20px;
+                padding: 20px; backdrop-filter: blur(10px);
             `;
             
             const coverThumbnails = selectedCoverList.map(cover => `
                 <div style="display: inline-block; margin: 8px; text-align: center; vertical-align: top;">
                     <img src="${encodeCoverUrl(cover.url)}" alt="${cover.novel_title}"
-                         style="width: 80px; height: 112px; object-fit: cover; border-radius: 4px; border: 2px solid #28a745;">
-                    <div style="margin-top: 4px; font-size: 11px; color: white; max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(cover.novel_title)}">${escapeHtml(cover.novel_title)}</div>
+                         style="width: 80px; height: 112px; object-fit: cover; border-radius: 4px; border: 2px solid var(--success);">
+                    <div style="margin-top: 4px; font-size: 11px; color: var(--text-secondary); max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(cover.novel_title)}">${escapeHtml(cover.novel_title)}</div>
                 </div>
             `).join('');
             
             modal.innerHTML = `
-                <div style="background: white; border-radius: 12px; max-width: 90%; max-height: 90%; overflow: auto; position: relative;">
-                    <button onclick="this.closest('div').parentElement.remove()" style="position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.5); color: white; border: none; border-radius: 50%; width: 30px; height: 30px; cursor: pointer; font-size: 16px;">×</button>
+                <div style="background: rgba(30, 41, 59, 0.95); border-radius: 16px; max-width: 90%; max-height: 90%; overflow: auto; position: relative; border: 1px solid rgba(255, 255, 255, 0.1);">
+                    <button onclick="this.closest('div').parentElement.remove()" style="position: absolute; top: 15px; right: 15px; background: rgba(239, 68, 68, 0.8); color: white; border: none; border-radius: 50%; width: 36px; height: 36px; cursor: pointer; font-size: 20px; z-index: 10;">×</button>
                     <div style="padding: 30px; text-align: center;">
-                        <h2 style="margin: 0 0 20px 0; color: #333;">确认拷贝封面到小说目录</h2>
-                        <div style="margin-bottom: 20px; color: #666;">
-                            您已选择 <strong style="color: #28a745;">${selectedCoverList.length}</strong> 个封面，将拷贝到对应的小说项目目录：
+                        <h2 style="margin: 0 0 20px 0; color: var(--text-primary);">确认拷贝封面到小说目录</h2>
+                        <div style="margin-bottom: 20px; color: var(--text-secondary);">
+                            您已选择 <strong style="color: var(--success);">${selectedCoverList.length}</strong> 个封面，将拷贝到对应的小说项目目录：
                         </div>
-                        <div style="margin-bottom: 30px; padding: 20px; background: #f8f9fa; border-radius: 8px;">
+                        <div style="margin-bottom: 30px; padding: 20px; background: rgba(15, 23, 42, 0.5); border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.05);">
                             ${coverThumbnails}
                         </div>
-                        <div style="color: #666; margin-bottom: 20px; font-size: 14px; background: #e7f3ff; padding: 15px; border-radius: 8px; text-align: left;">
-                            <div style="font-weight: 600; margin-bottom: 8px; color: #0066cc;">💡 拷贝说明：</div>
-                            <div style="line-height: 1.5;">
+                        <div style="color: var(--text-secondary); margin-bottom: 20px; font-size: 14px; background: rgba(99, 102, 241, 0.1); padding: 15px; border-radius: 8px; text-align: left; border: 1px solid rgba(99, 102, 241, 0.2);">
+                            <div style="font-weight: 600; margin-bottom: 8px; color: var(--primary-400);">💡 拷贝说明：</div>
+                            <div style="line-height: 1.5; color: var(--text-tertiary);">
                                 • 每个封面将拷贝到对应小说的项目目录<br>
                                 • 文件名格式：{小说名}_封面.jpg<br>
                                 • 如果目标文件已存在，将被覆盖<br>
@@ -1931,11 +2120,11 @@
                         </div>
                         <div style="display: flex; gap: 10px; justify-content: center;">
                             <button onclick="confirmCopyCoversToNovels(${JSON.stringify(selectedCoverList).replace(/"/g, '&quot;')})"
-                                    style="background: #28a745; color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; font-size: 14px;">
+                                    style="background: linear-gradient(135deg, var(--success), #16a34a); color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600;">
                                 确认拷贝
                             </button>
                             <button onclick="this.closest('div').parentElement.remove()"
-                                    style="background: #6c757d; color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; font-size: 14px;">
+                                    style="background: rgba(255, 255, 255, 0.1); color: var(--text-secondary); border: 1px solid rgba(255, 255, 255, 0.2); padding: 12px 24px; border-radius: 8px; cursor: pointer; font-size: 14px;">
                                 取消
                             </button>
                         </div>
@@ -1993,39 +2182,39 @@
                         const resultModal = document.createElement('div');
                         resultModal.style.cssText = `
                             position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-                            background: rgba(0,0,0,0.8); z-index: 99999;
+                            background: rgba(15, 23, 42, 0.95); z-index: 99999;
                             display: flex; justify-content: center; align-items: center;
-                            padding: 20px;
+                            padding: 20px; backdrop-filter: blur(10px);
                         `;
                         
                         const successResults = result.results.filter(r => r.success);
                         const failedResults = result.results.filter(r => !r.success);
                         
                         resultModal.innerHTML = `
-                            <div style="background: white; border-radius: 12px; max-width: 600px; position: relative;">
-                                <button onclick="this.closest('div').parentElement.remove()" style="position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.5); color: white; border: none; border-radius: 50%; width: 30px; height: 30px; cursor: pointer; font-size: 16px;">×</button>
+                            <div style="background: rgba(30, 41, 59, 0.95); border-radius: 16px; max-width: 600px; position: relative; border: 1px solid rgba(255, 255, 255, 0.1);">
+                                <button onclick="this.closest('div').parentElement.remove()" style="position: absolute; top: 15px; right: 15px; background: rgba(239, 68, 68, 0.8); color: white; border: none; border-radius: 50%; width: 36px; height: 36px; cursor: pointer; font-size: 20px; z-index: 10;">×</button>
                                 <div style="padding: 30px; text-align: center;">
                                     <div style="font-size: 48px; margin-bottom: 20px;">🎉</div>
-                                    <h3 style="margin: 0 0 15px 0; color: #333;">封面拷贝完成！</h3>
-                                    <div style="color: #666; margin-bottom: 25px; line-height: 1.6;">
-                                        成功拷贝 <strong style="color: #28a745;">${result.success_count}</strong> / ${result.total_count} 个封面
+                                    <h3 style="margin: 0 0 15px 0; color: var(--text-primary);">封面拷贝完成！</h3>
+                                    <div style="color: var(--text-secondary); margin-bottom: 25px; line-height: 1.6;">
+                                        成功拷贝 <strong style="color: var(--success);">${result.success_count}</strong> / ${result.total_count} 个封面
                                     </div>
                                     
                                     ${failedResults.length > 0 ? `
-                                        <div style="background: #f8d7da; padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: left;">
-                                            <div style="font-weight: 600; margin-bottom: 10px; color: #721c24;">⚠️ 失败的拷贝：</div>
+                                        <div style="background: rgba(239, 68, 68, 0.1); padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: left; border: 1px solid rgba(239, 68, 68, 0.2);">
+                                            <div style="font-weight: 600; margin-bottom: 10px; color: var(--danger);">⚠️ 失败的拷贝：</div>
                                             ${failedResults.map(item => `
-                                                <div style="font-size: 13px; color: #721c24; margin-bottom: 5px;">
+                                                <div style="font-size: 13px; color: var(--danger); margin-bottom: 5px;">
                                                     • ${escapeHtml(item.novel_title)}: ${escapeHtml(item.error)}
                                                 </div>
                                             `).join('')}
                                         </div>
                                     ` : ''}
                                     
-                                    <div style="background: #d4edda; padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: left;">
-                                        <div style="font-weight: 600; margin-bottom: 10px; color: #155724;">✅ 成功的拷贝：</div>
+                                    <div style="background: rgba(34, 197, 94, 0.1); padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: left; border: 1px solid rgba(34, 197, 94, 0.2);">
+                                        <div style="font-weight: 600; margin-bottom: 10px; color: var(--success);">✅ 成功的拷贝：</div>
                                         ${successResults.map(item => `
-                                            <div style="font-size: 13px; color: #155724; margin-bottom: 5px;">
+                                            <div style="font-size: 13px; color: var(--success); margin-bottom: 5px;">
                                                 • ${escapeHtml(item.novel_title)} → ${escapeHtml(item.cover_filename)}
                                             </div>
                                         `).join('')}
@@ -2033,11 +2222,11 @@
                                     
                                     <div style="display: flex; gap: 10px; justify-content: center;">
                                         <button onclick="location.href='/fanqie-upload'"
-                                                style="background: #28a745; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 14px;">
+                                                style="background: linear-gradient(135deg, var(--success), #16a34a); color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600;">
                                             前往番茄上传
                                         </button>
                                         <button onclick="this.closest('div').parentElement.remove(); deselectAllCovers();"
-                                                style="background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 14px;">
+                                                style="background: rgba(255, 255, 255, 0.1); color: var(--text-secondary); border: 1px solid rgba(255, 255, 255, 0.2); padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 14px;">
                                             完成
                                         </button>
                                     </div>
@@ -2103,24 +2292,24 @@
                     const infoModal = document.createElement('div');
                     infoModal.style.cssText = `
                         position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-                        background: rgba(0,0,0,0.8); z-index: 99999;
+                        background: rgba(15, 23, 42, 0.95); z-index: 99999;
                         display: flex; justify-content: center; align-items: center;
-                        padding: 20px;
+                        padding: 20px; backdrop-filter: blur(10px);
                     `;
                     
                     infoModal.innerHTML = `
-                        <div style="background: white; border-radius: 12px; max-width: 500px; position: relative;">
-                            <button onclick="this.closest('div').parentElement.remove()" style="position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.5); color: white; border: none; border-radius: 50%; width: 30px; height: 30px; cursor: pointer; font-size: 16px;">×</button>
+                        <div style="background: rgba(30, 41, 59, 0.95); border-radius: 16px; max-width: 500px; position: relative; border: 1px solid rgba(255, 255, 255, 0.1);">
+                            <button onclick="this.closest('div').parentElement.remove()" style="position: absolute; top: 15px; right: 15px; background: rgba(239, 68, 68, 0.8); color: white; border: none; border-radius: 50%; width: 36px; height: 36px; cursor: pointer; font-size: 20px; z-index: 10;">×</button>
                             <div style="padding: 30px; text-align: center;">
                                 <div style="font-size: 48px; margin-bottom: 20px;">🎉</div>
-                                <h3 style="margin: 0 0 15px 0; color: #333;">封面选择完成！</h3>
-                                <div style="color: #666; margin-bottom: 20px; line-height: 1.6;">
-                                    您已成功选择 <strong style="color: #007bff;">${selectedCoverList.length}</strong> 个封面<br>
+                                <h3 style="margin: 0 0 15px 0; color: var(--text-primary);">封面选择完成！</h3>
+                                <div style="color: var(--text-secondary); margin-bottom: 20px; line-height: 1.6;">
+                                    您已成功选择 <strong style="color: var(--primary-400);">${selectedCoverList.length}</strong> 个封面<br>
                                     这些封面将在番茄自动上传时使用
                                 </div>
-                                <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: left;">
-                                    <div style="font-weight: 600; margin-bottom: 10px; color: #333;">📋 使用说明：</div>
-                                    <div style="font-size: 14px; color: #666; line-height: 1.5;">
+                                <div style="background: rgba(15, 23, 42, 0.5); padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: left; border: 1px solid rgba(255, 255, 255, 0.05);">
+                                    <div style="font-weight: 600; margin-bottom: 10px; color: var(--text-primary);">📋 使用说明：</div>
+                                    <div style="font-size: 14px; color: var(--text-tertiary); line-height: 1.5;">
                                         1. 前往"番茄一键上传"页面<br>
                                         2. 选择相应的小说作品<br>
                                         3. 系统将自动使用您选择的封面<br>
@@ -2129,11 +2318,11 @@
                                 </div>
                                 <div style="display: flex; gap: 10px; justify-content: center;">
                                     <button onclick="location.href='/fanqie-upload'"
-                                            style="background: #28a745; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 14px;">
+                                            style="background: linear-gradient(135deg, var(--success), #16a34a); color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600;">
                                         前往番茄上传
                                     </button>
                                     <button onclick="this.closest('div').parentElement.remove()"
-                                            style="background: #6c757d; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 14px;">
+                                            style="background: rgba(255, 255, 255, 0.1); color: var(--text-secondary); border: 1px solid rgba(255, 255, 255, 0.2); padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 14px;">
                                         知道了
                                     </button>
                                 </div>
@@ -2164,29 +2353,29 @@
             const modal = document.createElement('div');
             modal.style.cssText = `
                 position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-                background: rgba(0,0,0,0.8); z-index: 99999;
+                background: rgba(15, 23, 42, 0.95); z-index: 99999;
                 display: flex; justify-content: center; align-items: center;
-                padding: 20px;
+                padding: 20px; backdrop-filter: blur(10px);
             `;
 
             // 确保弹窗中的图片URL也正确编码
             const encodedUrl = encodeCoverUrl(cover.url);
             
             modal.innerHTML = `
-                <div style="background: white; border-radius: 12px; max-width: 90%; max-height: 90%; overflow: auto; position: relative;">
-                    <button onclick="this.closest('div').parentElement.remove()" style="position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.5); color: white; border: none; border-radius: 50%; width: 30px; height: 30px; cursor: pointer; font-size: 16px;">×</button>
-                    <img src="${encodedUrl}" alt="${escapeHtml(cover.novel_title)}" style="max-width: 100%; max-height: 80vh; object-fit: contain;">
-                    <div style="padding: 20px; text-align: center;">
-                        <h3 style="margin: 0 0 8px 0;">${escapeHtml(cover.novel_title)}</h3>
-                        <p style="margin: 0; color: #666;">作者：${escapeHtml(cover.author_name)}</p>
-                        <p style="margin: 8px 0 0 0; color: #999; font-size: 14px;">生成时间：${new Date(cover.timestamp).toLocaleString()}</p>
+                <div style="background: rgba(30, 41, 59, 0.95); border-radius: 16px; max-width: 90%; max-height: 90%; overflow: auto; position: relative; border: 1px solid rgba(255, 255, 255, 0.1);">
+                    <button onclick="this.closest('div').parentElement.remove()" style="position: absolute; top: 15px; right: 15px; background: rgba(239, 68, 68, 0.8); color: white; border: none; border-radius: 50%; width: 36px; height: 36px; cursor: pointer; font-size: 20px; z-index: 10;">×</button>
+                    <img src="${encodedUrl}" alt="${escapeHtml(cover.novel_title)}" style="max-width: 100%; max-height: 70vh; object-fit: contain; display: block;">
+                    <div style="padding: 24px; text-align: center;">
+                        <h3 style="margin: 0 0 8px 0; color: var(--text-primary); font-size: 1.25rem;">${escapeHtml(cover.novel_title)}</h3>
+                        <p style="margin: 0; color: var(--text-secondary);">作者：${escapeHtml(cover.author_name)}</p>
+                        <p style="margin: 8px 0 0 0; color: var(--text-tertiary); font-size: 0.875rem;">生成时间：${new Date(cover.timestamp).toLocaleString()}</p>
                         <div style="margin-top: 15px;">
                             <button onclick="toggleCoverSelection(event, '${cover.id}'); this.closest('div').parentElement.remove();"
-                                    style="background: ${selectedCovers.has(cover.id) ? '#28a745' : '#007bff'}; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; margin-right: 10px;">
+                                    style="background: ${selectedCovers.has(cover.id) ? 'linear-gradient(135deg, var(--success), #16a34a)' : 'linear-gradient(135deg, var(--primary-500), var(--purple-500))'}; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; margin-right: 10px; font-weight: 600;">
                                 ${selectedCovers.has(cover.id) ? '✓ 已选中' : '选择此封面'}
                             </button>
                             <button onclick="window.open('${encodedUrl}', '_blank')"
-                                    style="background: #17a2b8; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">
+                                    style="background: rgba(255, 255, 255, 0.1); color: var(--text-secondary); border: 1px solid rgba(255, 255, 255, 0.2); padding: 10px 20px; border-radius: 8px; cursor: pointer;">
                                 📥 下载原图
                             </button>
                         </div>

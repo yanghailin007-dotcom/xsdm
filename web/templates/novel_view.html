@@ -5,6 +5,497 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>小说生成系统 - 阅读页面</title>
     <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        /* ==================== 暗色科技主题覆盖 ==================== */
+        :root {
+            /* 暗色主题配色 - 与 short-drama-studio.html 统一 */
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-card: rgba(30, 41, 59, 0.8);
+            --bg-hover: rgba(51, 65, 85, 0.5);
+            
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --text-tertiary: #64748b;
+            --text-muted: #475569;
+            
+            --accent-blue: #3b82f6;
+            --accent-purple: #8b5cf6;
+            --accent-cyan: #06b6d4;
+            --accent-green: #10b981;
+            --accent-orange: #f59e0b;
+            --accent-red: #ef4444;
+            
+            --border-color: rgba(148, 163, 184, 0.1);
+            --border-hover: rgba(148, 163, 184, 0.2);
+            
+            --gradient-primary: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            --gradient-accent: linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%);
+            --gradient-success: linear-gradient(135deg, #10b981 0%, #22c55e 100%);
+            --gradient-warm: linear-gradient(135deg, #f59e0b 0%, #f97316 100%);
+        }
+
+        /* 全局背景 */
+        body {
+            background: var(--bg-primary) !important;
+            color: var(--text-primary) !important;
+        }
+        
+        body::before {
+            background: var(--bg-primary) !important;
+        }
+
+        /* 导航栏 */
+        .navbar {
+            background: rgba(15, 23, 42, 0.95) !important;
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border-color);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .navbar-title {
+            color: var(--text-primary) !important;
+        }
+
+        /* 按钮样式统一 */
+        .btn {
+            border-radius: 0.5rem;
+            font-weight: 500;
+            transition: all 0.2s;
+            border: 1px solid transparent;
+        }
+
+        .btn-primary {
+            background: var(--gradient-primary) !important;
+            border-color: transparent !important;
+            color: white !important;
+        }
+
+        .btn-primary:hover {
+            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background: rgba(30, 41, 59, 0.8) !important;
+            border: 1px solid var(--border-color) !important;
+            color: var(--text-secondary) !important;
+        }
+
+        .btn-secondary:hover {
+            background: var(--bg-hover) !important;
+            border-color: var(--border-hover) !important;
+            color: var(--text-primary) !important;
+        }
+
+        .btn-danger {
+            background: rgba(239, 68, 68, 0.2) !important;
+            border: 1px solid rgba(239, 68, 68, 0.3) !important;
+            color: #f87171 !important;
+        }
+
+        .btn-danger:hover {
+            background: rgba(239, 68, 68, 0.3) !important;
+        }
+
+        /* 卡片和区块 */
+        .design-section,
+        .assessment-card,
+        .card {
+            background: var(--bg-card) !important;
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--border-color) !important;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .design-section:hover,
+        .assessment-card:hover,
+        .card:hover {
+            border-color: var(--border-hover) !important;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .design-section-title,
+        .assessment-title,
+        .card-header {
+            color: var(--accent-cyan) !important;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .design-item-label,
+        .detail-label {
+            color: var(--text-tertiary) !important;
+        }
+
+        .design-item-value,
+        .detail-value {
+            color: var(--text-primary) !important;
+        }
+
+        /* 中间内容区 */
+        .center-content {
+            background: var(--bg-card) !important;
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--border-color) !important;
+            border-radius: 0.75rem;
+        }
+
+        .content-header {
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .content-header h2 {
+            color: var(--text-primary) !important;
+        }
+
+        #chapter-meta {
+            color: var(--text-secondary) !important;
+        }
+
+        .content-body {
+            color: var(--text-primary) !important;
+        }
+
+        /* 章节目录 */
+        .chapters-list {
+            background: transparent !important;
+        }
+
+        .chapter-item {
+            background: rgba(30, 41, 59, 0.5) !important;
+            border: 1px solid var(--border-color) !important;
+            color: var(--text-secondary) !important;
+            border-radius: 0.5rem;
+            margin-bottom: 0.5rem;
+            transition: all 0.2s;
+        }
+
+        .chapter-item:hover {
+            background: var(--bg-hover) !important;
+            border-color: var(--accent-blue) !important;
+            color: var(--text-primary) !important;
+        }
+
+        .chapter-item.active {
+            background: rgba(99, 102, 241, 0.2) !important;
+            border-color: var(--accent-blue) !important;
+            color: var(--accent-blue) !important;
+        }
+
+        /* 分页导航 */
+        .chapter-pagination,
+        .page-navigation,
+        .chapter-navigation {
+            background: rgba(15, 23, 42, 0.8) !important;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .page-indicator,
+        .chapter-indicator {
+            color: var(--text-secondary) !important;
+        }
+
+        /* 阅读设置面板 */
+        .reading-settings-panel,
+        .page-settings-panel {
+            background: var(--bg-secondary) !important;
+            border: 1px solid var(--border-color) !important;
+            border-radius: 0.75rem;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        .reading-settings-panel h4,
+        .page-settings-panel h4 {
+            color: var(--text-primary) !important;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .setting-item label {
+            color: var(--text-secondary) !important;
+        }
+
+        /* 主题按钮 */
+        .theme-btn,
+        .page-mode-btn {
+            background: rgba(30, 41, 59, 0.8) !important;
+            border: 1px solid var(--border-color) !important;
+            color: var(--text-secondary) !important;
+            border-radius: 0.5rem;
+        }
+
+        .theme-btn:hover,
+        .page-mode-btn:hover {
+            background: var(--bg-hover) !important;
+            border-color: var(--accent-blue) !important;
+            color: var(--text-primary) !important;
+        }
+
+        .theme-btn.active,
+        .page-mode-btn.active {
+            background: var(--gradient-primary) !important;
+            border-color: transparent !important;
+            color: white !important;
+        }
+
+        /* 字体大小显示 */
+        #font-size-display,
+        #line-height-display,
+        #page-size-display {
+            color: var(--text-primary) !important;
+            background: rgba(30, 41, 59, 0.8) !important;
+            border: 1px solid var(--border-color);
+            border-radius: 0.375rem;
+            padding: 0.25rem 0.75rem;
+        }
+
+        /* 状态标签 */
+        .status-badge {
+            border-radius: 0.375rem;
+            font-size: 0.75rem;
+            font-weight: 500;
+            padding: 0.25rem 0.75rem;
+        }
+
+        .status-generating {
+            background: rgba(245, 158, 11, 0.2) !important;
+            color: #fbbf24 !important;
+        }
+
+        .status-completed {
+            background: rgba(16, 185, 129, 0.2) !important;
+            color: #4ade80 !important;
+        }
+
+        /* 加载占位符 */
+        .loading-placeholder {
+            color: var(--text-tertiary) !important;
+        }
+
+        /* 右侧评估卡片内容 */
+        .assessment-details {
+            color: var(--text-secondary) !important;
+        }
+
+        /* JSON 显示区域 */
+        .json-display {
+            background: rgba(15, 23, 42, 0.9) !important;
+            border: 1px solid var(--border-color) !important;
+            color: var(--text-secondary) !important;
+            border-radius: 0.5rem;
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+        }
+
+        /* 沉浸阅读模式 */
+        .reading-layout {
+            background: var(--bg-primary) !important;
+        }
+
+        .reading-toolbar {
+            background: rgba(15, 23, 42, 0.95) !important;
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .reading-title {
+            color: var(--text-primary) !important;
+        }
+
+        .reading-content {
+            background: var(--bg-card) !important;
+            border: 1px solid var(--border-color) !important;
+            border-radius: 0.75rem;
+        }
+
+        .reading-chapter-header h1 {
+            color: var(--text-primary) !important;
+        }
+
+        .reading-chapter-meta {
+            color: var(--text-secondary) !important;
+        }
+
+        .reading-text {
+            color: var(--text-primary) !important;
+        }
+
+        /* 章节菜单 */
+        .chapter-menu {
+            background: var(--bg-secondary) !important;
+            border-right: 1px solid var(--border-color);
+            box-shadow: 4px 0 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .chapter-menu-header {
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .chapter-menu-header h3 {
+            color: var(--text-primary) !important;
+        }
+
+        .close-btn {
+            color: var(--text-tertiary) !important;
+        }
+
+        .close-btn:hover {
+            color: var(--text-primary) !important;
+        }
+
+        /* 阅读导航 */
+        .reading-navigation {
+            border-top: 1px solid var(--border-color);
+        }
+
+        .reading-nav-btn {
+            background: rgba(30, 41, 59, 0.8) !important;
+            border: 1px solid var(--border-color) !important;
+            color: var(--text-secondary) !important;
+            border-radius: 0.5rem;
+        }
+
+        .reading-nav-btn:hover {
+            background: var(--bg-hover) !important;
+            border-color: var(--accent-blue) !important;
+            color: var(--text-primary) !important;
+        }
+
+        .reading-nav-center {
+            color: var(--text-secondary) !important;
+        }
+
+        /* 分页导航 */
+        .reading-page-navigation {
+            background: rgba(15, 23, 42, 0.8) !important;
+            border-top: 1px solid var(--border-color);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .reading-page-nav-btn {
+            background: rgba(30, 41, 59, 0.8) !important;
+            border: 1px solid var(--border-color) !important;
+            color: var(--text-secondary) !important;
+            border-radius: 0.5rem;
+        }
+
+        .reading-page-nav-btn:hover:not(:disabled) {
+            background: var(--bg-hover) !important;
+            border-color: var(--accent-blue) !important;
+            color: var(--text-primary) !important;
+        }
+
+        .reading-page-indicator {
+            color: var(--text-secondary) !important;
+        }
+
+        .reading-page-settings-btn {
+            background: rgba(30, 41, 59, 0.8) !important;
+            border: 1px solid var(--border-color) !important;
+            color: var(--text-secondary) !important;
+        }
+
+        /* Switch 开关 */
+        .slider {
+            background-color: var(--bg-hover) !important;
+        }
+
+        .slider:before {
+            background-color: var(--text-primary) !important;
+        }
+
+        input:checked + .slider {
+            background: var(--gradient-primary) !important;
+        }
+
+        /* 滚动条 */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-primary) !important;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(99, 102, 241, 0.5) !important;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(99, 102, 241, 0.7) !important;
+        }
+
+        /* 提示文本 */
+        .prompt-label {
+            color: var(--accent-cyan) !important;
+        }
+
+        .dialogue-text {
+            color: var(--text-primary) !important;
+        }
+
+        .dialogue-tone {
+            color: var(--text-tertiary) !important;
+        }
+
+        /* 角色卡片 */
+        .character-card {
+            background: var(--bg-card) !important;
+            border: 1px solid var(--border-color) !important;
+        }
+
+        .character-card:hover {
+            border-color: var(--accent-cyan) !important;
+            box-shadow: 0 8px 30px rgba(6, 182, 212, 0.2);
+        }
+
+        .character-name {
+            color: var(--text-primary) !important;
+        }
+
+        .character-role {
+            color: var(--text-tertiary) !important;
+        }
+
+        /* 输入框和表单 */
+        input, textarea, select {
+            background: rgba(30, 41, 59, 0.8) !important;
+            border: 1px solid var(--border-color) !important;
+            color: var(--text-primary) !important;
+            border-radius: 0.5rem;
+        }
+
+        input:focus, textarea:focus, select:focus {
+            border-color: var(--accent-blue) !important;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1) !important;
+            outline: none;
+        }
+
+        /* 链接 */
+        a {
+            color: var(--accent-blue) !important;
+        }
+
+        a:hover {
+            color: var(--accent-cyan) !important;
+        }
+
+        /* 打印样式保持 */
+        @media print {
+            body {
+                background: white !important;
+                color: black !important;
+            }
+            
+            .navbar,
+            .left-sidebar,
+            .right-sidebar,
+            .chapter-navigation {
+                display: none !important;
+            }
+        }
+    </style>
 </head>
 <body>
     <!-- 顶部导航 -->

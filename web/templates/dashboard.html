@@ -4,199 +4,322 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>小说生成系统 - 仪表板</title>
-    <link rel="stylesheet" href="/static/css/style.css">
     <style>
-        /* 仪表板现代化样式 */
-        .dashboard-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 24px;
-            margin: 40px 0;
+        /* ==================== 基础变量 ==================== */
+        :root {
+            --primary-500: #6366f1;
+            --primary-600: #4f46e5;
+            --primary-400: #818cf8;
+            --accent-500: #06b6d4;
+            --accent-400: #22d3ee;
+            --purple-500: #a855f7;
+            
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-tertiary: #334155;
+            
+            --text-primary: #f8fafc;
+            --text-secondary: #cbd5e1;
+            --text-tertiary: #94a3b8;
+            --text-muted: #64748b;
+            
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            
+            --gradient-primary: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            --gradient-success: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+            --gradient-warning: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
         }
 
-        .metric-card {
-            background: rgba(255, 255, 255, 0.95);
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            background: var(--bg-primary);
+            min-height: 100vh;
+            color: var(--text-primary);
+            overflow-x: hidden;
+        }
+
+        /* ==================== 背景动画 ==================== */
+        .universe {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            z-index: 0;
+            background: radial-gradient(ellipse at bottom, #1b2735 0%, #090a0f 100%);
+        }
+
+        .stars {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                radial-gradient(2px 2px at 20px 30px, rgba(255,255,255,0.8), transparent),
+                radial-gradient(2px 2px at 40px 70px, rgba(255,255,255,0.6), transparent),
+                radial-gradient(1px 1px at 90px 40px, rgba(255,255,255,0.9), transparent),
+                radial-gradient(2px 2px at 130px 80px, rgba(255,255,255,0.7), transparent);
+            background-repeat: repeat;
+            background-size: 200px 200px;
+            animation: twinkle 8s infinite linear;
+            opacity: 0.8;
+        }
+
+        @keyframes twinkle {
+            0%, 100% { opacity: 0.8; }
+            50% { opacity: 0.4; }
+        }
+
+        /* ==================== 顶部导航 ==================== */
+        .top-nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 100;
+            background: rgba(15, 23, 42, 0.8);
             backdrop-filter: blur(20px);
-            padding: 32px 24px;
-            border-radius: var(--radius-2xl);
-            box-shadow: var(--shadow-lg);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .nav-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .nav-title a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+
+        .nav-title a:hover {
+            color: var(--primary-400);
+        }
+
+        .nav-actions {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        .nav-btn {
+            padding: 0.5rem 1rem;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 0.5rem;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .nav-btn:hover {
+            background: rgba(99, 102, 241, 0.2);
+            border-color: rgba(99, 102, 241, 0.4);
+            color: var(--primary-400);
+            transform: translateY(-2px);
+        }
+
+        .nav-btn.primary {
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            color: white;
+            border-color: transparent;
+        }
+
+        .nav-btn.primary:hover {
+            box-shadow: 0 4px 20px rgba(99, 102, 241, 0.4);
+        }
+
+        .nav-btn.danger {
+            color: var(--danger);
+            border-color: rgba(239, 68, 68, 0.3);
+        }
+
+        .nav-btn.danger:hover {
+            background: rgba(239, 68, 68, 0.2);
+            border-color: rgba(239, 68, 68, 0.5);
+        }
+
+        /* ==================== 主内容区 ==================== */
+        .main-content {
+            position: relative;
+            z-index: 10;
+            padding: 6rem 2rem 3rem;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* 页面标题 */
+        .page-header {
             text-align: center;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            transition: all var(--transition-normal);
+            margin-bottom: 2.5rem;
+            animation: fadeInDown 0.8s ease-out;
+        }
+
+        .page-header h1 {
+            font-size: clamp(2rem, 4vw, 2.5rem);
+            margin-bottom: 0.75rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #6366f1 0%, #06b6d4 50%, #8b5cf6 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .page-header p {
+            font-size: 1.125rem;
+            color: var(--text-secondary);
+        }
+
+        @keyframes fadeInDown {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* 指标卡网格 */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2.5rem;
+        }
+
+        /* 玻璃卡片 */
+        .glass-card {
+            background: rgba(30, 41, 59, 0.6);
+            backdrop-filter: blur(20px);
+            padding: 1.5rem;
+            border-radius: 1rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s;
             position: relative;
             overflow: hidden;
         }
 
-        .metric-card::before {
+        .glass-card::before {
             content: '';
             position: absolute;
             top: 0;
             left: 0;
             right: 0;
-            bottom: 0;
+            height: 3px;
             background: var(--gradient-primary);
-            opacity: 0.03;
-            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s;
         }
 
-        .metric-card:hover {
+        .glass-card:hover {
             transform: translateY(-4px);
-            box-shadow: var(--shadow-xl);
+            border-color: rgba(99, 102, 241, 0.3);
+            box-shadow: 0 20px 60px rgba(99, 102, 241, 0.15);
+        }
+
+        .glass-card:hover::before {
+            opacity: 1;
+        }
+
+        /* 指标卡片 */
+        .metric-card {
+            text-align: center;
         }
 
         .metric-icon {
-            width: 60px;
-            height: 60px;
-            margin: 0 auto 16px;
+            width: 56px;
+            height: 56px;
+            margin: 0 auto 1rem;
             background: var(--gradient-primary);
-            border-radius: var(--radius-xl);
+            border-radius: 1rem;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 24px;
-            color: white;
-            box-shadow: var(--shadow-md);
+            font-size: 1.5rem;
+            box-shadow: 0 8px 25px rgba(99, 102, 241, 0.3);
         }
 
         .metric-value {
-            font-size: 3rem;
+            font-size: 2.5rem;
             font-weight: 800;
-            background: var(--gradient-primary);
-            background-clip: text;
+            background: linear-gradient(135deg, #6366f1 0%, #06b6d4 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-            margin: 16px 0;
-            position: relative;
-            z-index: 1;
+            background-clip: text;
+            margin: 0.5rem 0;
         }
 
         .metric-label {
-            color: var(--gray-600);
-            font-size: var(--text-sm);
+            color: var(--text-tertiary);
+            font-size: 0.875rem;
             text-transform: uppercase;
             letter-spacing: 0.05em;
             font-weight: 600;
-            position: relative;
-            z-index: 1;
         }
 
         .metric-trend {
-            margin-top: 12px;
-            font-size: var(--text-xs);
-            color: var(--gray-500);
-            position: relative;
-            z-index: 1;
+            margin-top: 0.75rem;
+            font-size: 0.75rem;
+            color: var(--text-muted);
         }
 
         .metric-trend.positive {
-            color: var(--success-600);
+            color: #4ade80;
         }
 
-        .metric-trend.negative {
-            color: var(--error-600);
+        /* 进度条容器 */
+        .progress-section {
+            margin-bottom: 2.5rem;
         }
 
-        /* 章节表格现代化样式 */
-        .chapters-table-container {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(20px);
-            border-radius: var(--radius-2xl);
-            box-shadow: var(--shadow-lg);
-            overflow: hidden;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            margin: 40px 0;
-        }
-
-        .chapters-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 0;
-        }
-
-        .chapters-table thead {
-            background: var(--gradient-primary);
-            color: white;
-        }
-
-        .chapters-table th {
-            padding: 20px 16px;
-            text-align: left;
-            font-weight: 600;
-            font-size: var(--text-sm);
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
-
-        .chapters-table td {
-            padding: 16px;
-            text-align: left;
-            border-bottom: 1px solid var(--gray-100);
-            color: var(--gray-700);
-        }
-
-        .chapters-table tbody tr {
-            transition: all var(--transition-fast);
-        }
-
-        .chapters-table tbody tr:hover {
-            background: var(--primary-50);
-        }
-
-        .chapters-table tbody tr:last-child td {
-            border-bottom: none;
-        }
-
-        .badge {
-            display: inline-flex;
+        .section-title {
+            font-size: 1.125rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 1rem;
+            display: flex;
             align-items: center;
-            gap: 4px;
-            padding: 6px 12px;
-            border-radius: var(--radius-full);
-            font-size: var(--text-xs);
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
+            gap: 0.5rem;
         }
 
-        .badge-success {
-            background: var(--success-100);
-            color: var(--success-700);
-            border: 1px solid var(--success-200);
-        }
-
-        .badge-warning {
-            background: var(--warning-100);
-            color: var(--warning-700);
-            border: 1px solid var(--warning-200);
-        }
-
-        .badge-danger {
-            background: var(--error-100);
-            color: var(--error-700);
-            border: 1px solid var(--error-200);
-        }
-
-        /* 进度条现代化样式 */
         .progress-container {
-            background: var(--gray-100);
-            height: 32px;
-            border-radius: var(--radius-full);
+            background: rgba(15, 23, 42, 0.5);
+            height: 40px;
+            border-radius: 9999px;
             overflow: hidden;
-            margin: 16px 0;
-            position: relative;
+            border: 1px solid rgba(255, 255, 255, 0.1);
         }
 
         .progress-fill {
             height: 100%;
             background: var(--gradient-primary);
-            transition: width var(--transition-normal);
+            transition: width 0.5s ease;
             display: flex;
             align-items: center;
             justify-content: center;
             color: white;
-            font-size: var(--text-xs);
-            font-weight: 600;
-            border-radius: var(--radius-full);
+            font-size: 0.875rem;
+            font-weight: 700;
             position: relative;
             overflow: hidden;
         }
@@ -208,7 +331,7 @@
             left: -100%;
             width: 100%;
             height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
             animation: shimmer 2s infinite;
         }
 
@@ -217,72 +340,124 @@
             100% { left: 100%; }
         }
 
-        /* 图表容器现代化样式 */
-        .chart-container {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(20px);
-            padding: 32px;
-            border-radius: var(--radius-2xl);
-            box-shadow: var(--shadow-lg);
-            margin: 40px 0;
-            border: 1px solid rgba(255, 255, 255, 0.2);
+        /* 章节表格 */
+        .table-container {
+            overflow-x: auto;
+            margin-bottom: 2.5rem;
         }
 
-        .chart-title {
-            font-weight: 700;
-            color: var(--gray-800);
-            margin-bottom: 24px;
-            font-size: 1.25rem;
-            display: flex;
+        .chapters-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.875rem;
+        }
+
+        .chapters-table thead {
+            background: rgba(99, 102, 241, 0.2);
+        }
+
+        .chapters-table th {
+            padding: 1rem;
+            text-align: left;
+            font-weight: 600;
+            color: var(--text-primary);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .chapters-table td {
+            padding: 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            color: var(--text-secondary);
+        }
+
+        .chapters-table tbody tr {
+            transition: all 0.3s;
+        }
+
+        .chapters-table tbody tr:hover {
+            background: rgba(99, 102, 241, 0.1);
+        }
+
+        /* 徽章 */
+        .badge {
+            display: inline-flex;
             align-items: center;
-            gap: 8px;
+            gap: 0.25rem;
+            padding: 0.375rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .badge-success {
+            background: rgba(34, 197, 94, 0.15);
+            color: #4ade80;
+            border: 1px solid rgba(34, 197, 94, 0.3);
+        }
+
+        .badge-warning {
+            background: rgba(245, 158, 11, 0.15);
+            color: #fbbf24;
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+
+        .badge-danger {
+            background: rgba(239, 68, 68, 0.15);
+            color: #f87171;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        /* 图表区域 */
+        .chart-section {
+            margin-bottom: 2.5rem;
         }
 
         .simple-bar-chart {
             display: flex;
             flex-direction: column;
-            gap: 20px;
+            gap: 1rem;
         }
 
         .bar-item {
             display: flex;
             align-items: center;
-            gap: 16px;
+            gap: 1rem;
         }
 
         .bar-label {
-            width: 100px;
-            font-size: var(--text-sm);
+            width: 80px;
+            font-size: 0.875rem;
             font-weight: 600;
-            color: var(--gray-600);
+            color: var(--text-tertiary);
+            flex-shrink: 0;
         }
 
         .bar-container {
             flex: 1;
-            height: 36px;
-            background: var(--gray-100);
-            border-radius: var(--radius-lg);
+            height: 32px;
+            background: rgba(15, 23, 42, 0.5);
+            border-radius: 0.5rem;
             overflow: hidden;
-            position: relative;
+            border: 1px solid rgba(255, 255, 255, 0.1);
         }
 
         .bar {
             height: 100%;
-            background: var(--gradient-primary);
-            border-radius: var(--radius-lg);
+            border-radius: 0.5rem;
             display: flex;
             align-items: center;
-            color: white;
-            padding: 0 16px;
-            font-size: var(--text-sm);
+            padding: 0 1rem;
+            font-size: 0.875rem;
             font-weight: 600;
-            transition: width var(--transition-normal);
+            transition: width 0.5s ease;
             position: relative;
         }
 
         .bar-score {
             position: absolute;
-            right: 16px;
+            right: 1rem;
             font-weight: 700;
         }
 
@@ -298,107 +473,181 @@
             background: var(--gradient-success);
         }
 
-        /* 统计信息卡片 */
+        /* 统计网格 */
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 24px;
+            gap: 1.5rem;
         }
 
         .stat-card {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(20px);
-            padding: 24px;
-            border-radius: var(--radius-xl);
-            box-shadow: var(--shadow-md);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            transition: all var(--transition-normal);
+            text-align: center;
         }
 
-        .stat-card:hover {
-            transform: translateY(-2px);
-            box-shadow: var(--shadow-lg);
+        .stat-card .stat-label {
+            color: var(--text-tertiary);
+            font-size: 0.875rem;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
         }
 
-        .stat-label {
-            color: var(--gray-600);
-            font-size: var(--text-sm);
-            margin-bottom: 8px;
-            font-weight: 600;
-        }
-
-        .stat-value {
+        .stat-card .stat-value {
             font-size: 2rem;
             font-weight: 800;
-            color: var(--primary-600);
+            color: var(--primary-400);
         }
 
-        .stat-value.large {
-            font-size: 2.5rem;
+        .stat-card .stat-value.success {
+            color: #4ade80;
         }
 
-        .stat-value.success {
-            color: var(--success-600);
+        .stat-card .stat-value.warning {
+            color: #fbbf24;
         }
 
-        .stat-value.warning {
-            color: var(--warning-600);
+        /* 按钮 */
+        .btn {
+            padding: 0.5rem 1rem;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 0.5rem;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn:hover {
+            background: rgba(99, 102, 241, 0.2);
+            border-color: rgba(99, 102, 241, 0.4);
+            color: var(--primary-400);
+        }
+
+        /* 加载动画 */
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            border-top-color: var(--primary-500);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* 空状态 */
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: var(--text-tertiary);
+        }
+
+        /* 响应式 */
+        @media (max-width: 768px) {
+            .main-content {
+                padding: 5rem 1rem 2rem;
+            }
+
+            .top-nav {
+                padding: 0.75rem 1rem;
+            }
+
+            .nav-actions {
+                gap: 0.5rem;
+            }
+
+            .nav-btn span {
+                display: none;
+            }
+
+            .dashboard-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .metric-value {
+                font-size: 1.75rem;
+            }
+
+            .bar-label {
+                width: 60px;
+                font-size: 0.75rem;
+            }
+
+            .chapters-table {
+                font-size: 0.75rem;
+            }
+
+            .chapters-table th,
+            .chapters-table td {
+                padding: 0.75rem 0.5rem;
+            }
         }
     </style>
 </head>
 <body>
+    <!-- 背景 -->
+    <div class="universe">
+        <div class="stars"></div>
+    </div>
+
     <!-- 顶部导航 -->
-    <nav class="navbar">
-        <div class="navbar-content">
-            <div class="navbar-title">
-                <button class="btn btn-secondary btn-small" onclick="location.href='/landing'" style="margin-right: 12px;">
-                    🏠 返回首页
-                </button>
-                📊 仪表板
-            </div>
-            <div class="navbar-actions">
-                <button class="btn btn-primary btn-small" onclick="location.href='/novels'">
-                    📚 查看作品
-                </button>
-                <button class="btn btn-secondary btn-small" onclick="location.href='/cover-maker'">
-                    🎨 封面制作
-                </button>
-                <button class="btn btn-secondary btn-small" onclick="refreshData()">
-                    🔄 刷新
-                </button>
-                <button class="btn btn-danger btn-small" onclick="logout()">
-                    退出登录
-                </button>
-            </div>
+    <nav class="top-nav">
+        <div class="nav-title">
+            <a href="/landing">🏠</a>
+            <span>📊 仪表板</span>
+        </div>
+        <div class="nav-actions">
+            <a href="/novels" class="nav-btn primary">
+                <span>📚</span> 查看作品
+            </a>
+            <a href="/cover-maker" class="nav-btn">
+                <span>🎨</span> 封面制作
+            </a>
+            <button class="nav-btn" onclick="refreshData()">
+                <span>🔄</span> 刷新
+            </button>
+            <button class="nav-btn danger" onclick="logout()">
+                <span>🚪</span> 退出
+            </button>
         </div>
     </nav>
 
-    <!-- 主容器 -->
-    <div class="container">
+    <!-- 主内容 -->
+    <main class="main-content">
+        <!-- 页面标题 -->
+        <div class="page-header">
+            <h1>📊 创作仪表板</h1>
+            <p>实时监控您的AI小说创作进度和质量</p>
+        </div>
+
         <!-- 指标卡 -->
         <div class="dashboard-grid">
-            <div class="metric-card">
+            <div class="glass-card metric-card">
                 <div class="metric-icon">📚</div>
                 <div class="metric-label">生成章节数</div>
                 <div class="metric-value" id="metric-chapters">0</div>
                 <div class="metric-trend positive">↑ 本次生成</div>
             </div>
 
-            <div class="metric-card">
+            <div class="glass-card metric-card">
                 <div class="metric-icon">📝</div>
                 <div class="metric-label">总字数</div>
                 <div class="metric-value" id="metric-words">0</div>
                 <div class="metric-trend">文字统计</div>
             </div>
 
-            <div class="metric-card">
+            <div class="glass-card metric-card">
                 <div class="metric-icon">⭐</div>
                 <div class="metric-label">平均评分</div>
                 <div class="metric-value" id="metric-score">-</div>
                 <div class="metric-trend">质量评估</div>
             </div>
 
-            <div class="metric-card">
+            <div class="glass-card metric-card">
                 <div class="metric-icon">📈</div>
                 <div class="metric-label">生成进度</div>
                 <div class="metric-value" id="metric-progress">0%</div>
@@ -407,48 +656,48 @@
         </div>
 
         <!-- 进度条 -->
-        <div class="chart-container">
-            <div class="chart-title">📈 生成进度</div>
+        <div class="glass-card progress-section">
+            <div class="section-title">📈 生成进度</div>
             <div class="progress-container">
                 <div class="progress-fill" id="main-progress" style="width: 0%">0%</div>
             </div>
         </div>
 
         <!-- 章节详情表 -->
-        <div class="chapters-table-container">
-            <div style="padding: 24px; border-bottom: 1px solid var(--gray-100);">
-                <h3 style="margin: 0; color: var(--gray-800); font-size: 1.25rem; font-weight: 700;">📚 章节详情</h3>
+        <div class="glass-card">
+            <div class="section-title">📚 章节详情</div>
+            <div class="table-container">
+                <table class="chapters-table">
+                    <thead>
+                        <tr>
+                            <th>章节</th>
+                            <th>标题</th>
+                            <th>字数</th>
+                            <th>评分</th>
+                            <th>状态</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="chapters-tbody">
+                        <tr>
+                            <td colspan="6" class="empty-state">
+                                <div class="spinner" style="margin-bottom: 1rem;"></div>
+                                加载中...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
-            <table class="chapters-table">
-                <thead>
-                    <tr>
-                        <th>章节</th>
-                        <th>标题</th>
-                        <th>字数</th>
-                        <th>评分</th>
-                        <th>状态</th>
-                        <th>操作</th>
-                    </tr>
-                </thead>
-                <tbody id="chapters-tbody">
-                    <tr>
-                        <td colspan="6" style="text-align: center; color: var(--gray-500); padding: 40px; font-size: var(--text-sm);">
-                            <div class="spinner" style="margin: 0 auto 12px;"></div>
-                            加载中...
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
         </div>
 
         <!-- 评分分布 -->
-        <div class="chart-container">
-            <div class="chart-title">⭐ 评分分布</div>
+        <div class="glass-card chart-section">
+            <div class="section-title">⭐ 评分分布</div>
             <div class="simple-bar-chart" id="score-distribution">
                 <div class="bar-item">
                     <div class="bar-label">加载中...</div>
                     <div class="bar-container">
-                        <div class="bar" style="width: 20%;">
+                        <div class="bar medium" style="width: 20%;">
                             <span class="bar-score">0.0</span>
                         </div>
                     </div>
@@ -457,39 +706,38 @@
         </div>
 
         <!-- 统计信息 -->
-        <div class="chart-container">
-            <div class="chart-title">📊 统计信息</div>
+        <div class="glass-card">
+            <div class="section-title">📊 统计信息</div>
             <div class="stats-grid">
-                <div class="stat-card">
+                <div class="glass-card stat-card">
                     <div class="stat-label">最高评分</div>
-                    <div class="stat-value success large" id="max-score">-</div>
+                    <div class="stat-value success" id="max-score">-</div>
                 </div>
-                <div class="stat-card">
+                <div class="glass-card stat-card">
                     <div class="stat-label">最低评分</div>
-                    <div class="stat-value warning large" id="min-score">-</div>
+                    <div class="stat-value warning" id="min-score">-</div>
                 </div>
-                <div class="stat-card">
+                <div class="glass-card stat-card">
                     <div class="stat-label">平均字数</div>
-                    <div class="stat-value large" id="avg-words">-</div>
+                    <div class="stat-value" id="avg-words">-</div>
                 </div>
-                <div class="stat-card">
+                <div class="glass-card stat-card">
                     <div class="stat-label">生成时间</div>
-                    <div class="stat-value" id="generation-time" style="font-size: var(--text-base);">-</div>
+                    <div class="stat-value" id="generation-time" style="font-size: 1.25rem;">-</div>
                 </div>
             </div>
         </div>
-    </div>
+    </main>
 
     <script>
         // 初始化
         document.addEventListener('DOMContentLoaded', () => {
             refreshData();
-            setInterval(refreshData, 5000); // 每 5 秒刷新一次
+            setInterval(refreshData, 5000);
         });
 
         async function refreshData() {
             try {
-                // 加载项目列表
                 const projectsResponse = await fetch('/api/projects');
                 const projects = await projectsResponse.json();
 
@@ -498,20 +746,12 @@
                     return;
                 }
 
-                // 获取最新项目
                 const latestProject = projects[0];
-                
-                // 加载最新项目的详情
                 const detailResponse = await fetch(`/api/project/${encodeURIComponent(latestProject.title)}`);
                 const novelDetail = await detailResponse.json();
 
-                // 更新指标
                 updateMetrics(latestProject, novelDetail);
-
-                // 更新表格
                 updateChaptersTable(novelDetail);
-
-                // 更新图表
                 updateCharts(novelDetail);
             } catch (error) {
                 console.error('刷新失败:', error);
@@ -532,29 +772,25 @@
             }
 
             document.getElementById('chapters-tbody').innerHTML =
-                '<tr><td colspan="6" style="text-align: center; color: var(--gray-500); padding: 40px; font-size: var(--text-sm);">暂无项目数据</td></tr>';
+                '<tr><td colspan="6" class="empty-state">暂无项目数据</td></tr>';
             
             document.getElementById('score-distribution').innerHTML =
-                '<div style="text-align: center; color: var(--gray-500); padding: 40px;">暂无数据</div>';
+                '<div class="empty-state">暂无数据</div>';
         }
 
         function showError(message) {
             console.error(message);
-            // 可以在这里显示错误提示
         }
 
         function updateMetrics(project, novelDetail) {
             const generatedChapters = novelDetail.generated_chapters || {};
             const chapterArray = Object.values(generatedChapters);
             
-            // 生成章节数
             document.getElementById('metric-chapters').textContent = chapterArray.length;
 
-            // 总字数
             const totalWords = chapterArray.reduce((sum, ch) => sum + (ch.word_count || 0), 0);
             document.getElementById('metric-words').textContent = totalWords.toLocaleString();
 
-            // 平均评分
             const scores = chapterArray.map(ch => {
                 const qa = ch.quality_assessment;
                 return qa && qa.overall_score ? qa.overall_score : 0;
@@ -565,12 +801,10 @@
                 : '-';
             document.getElementById('metric-score').textContent = avgScore;
 
-            // 进度
             const progress = project.total_chapters > 0 ?
                 Math.round((chapterArray.length / project.total_chapters) * 100) : 0;
             document.getElementById('metric-progress').textContent = progress + '%';
 
-            // 进度条
             const progressBar = document.getElementById('main-progress');
             if (progressBar) {
                 progressBar.style.width = progress + '%';
@@ -589,7 +823,7 @@
                 .sort((a, b) => a.chapter_number - b.chapter_number);
 
             if (chapterArray.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--gray-500); padding: 40px; font-size: var(--text-sm);">暂无章节数据</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="6" class="empty-state">暂无章节数据</td></tr>';
                 return;
             }
 
@@ -603,13 +837,13 @@
                         <td>${escapeHtml(ch.chapter_title || ch.title || '未命名')}</td>
                         <td>${(ch.word_count || 0).toLocaleString()}</td>
                         <td>
-                            ${score > 0 ? `<span style="font-weight: 600; color: #667eea;">${score.toFixed(1)}</span>` : '-'}
+                            ${score > 0 ? `<span style="font-weight: 600; color: var(--primary-400);">${score.toFixed(1)}</span>` : '-'}
                         </td>
                         <td>
                             <span class="badge badge-success">已完成</span>
                         </td>
                         <td>
-                            <button class="btn btn-secondary btn-small" onclick="viewChapter('${novelDetail.novel_title || novelDetail.title}', ${ch.chapter_number})">
+                            <button class="btn" onclick="viewChapter('${novelDetail.novel_title || novelDetail.title}', ${ch.chapter_number})">
                                 查看
                             </button>
                         </td>
@@ -629,7 +863,7 @@
                 .sort((a, b) => a.chapter_number - b.chapter_number);
 
             if (chapterArray.length === 0) {
-                scoreDistribution.innerHTML = '<div style="text-align: center; color: var(--gray-500); padding: 40px;">暂无数据</div>';
+                scoreDistribution.innerHTML = '<div class="empty-state">暂无数据</div>';
                 return;
             }
 
@@ -651,7 +885,6 @@
                 `;
             }).join('');
 
-            // 统计信息
             const scores = chapterArray.map(ch => {
                 const qa = ch.quality_assessment;
                 return qa && qa.overall_score ? qa.overall_score : 0;
@@ -666,7 +899,6 @@
             document.getElementById('avg-words').textContent =
                 words.length > 0 ? Math.round(words.reduce((a, b) => a + b) / words.length).toLocaleString() : '-';
                 
-            // 生成时间
             const genTimes = chapterArray.map(ch => ch.generation_time).filter(time => time);
             if (genTimes.length > 0) {
                 const firstTime = new Date(genTimes[0]);
@@ -699,6 +931,12 @@
                 "'": '&#039;'
             };
             return String(text).replace(/[&<>"']/g, m => map[m]);
+        }
+
+        function logout() {
+            if (confirm('确定要退出登录吗？')) {
+                window.location.href = '/logout';
+            }
         }
     </script>
 </body>
