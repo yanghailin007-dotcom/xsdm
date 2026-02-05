@@ -814,6 +814,17 @@
             display: block;
         }
 
+        /* ==================== 面板显示控制 ==================== */
+        .workspace-content.hide-side-panels .left-panel,
+        .workspace-content.hide-side-panels .right-panel {
+            display: none;
+        }
+
+        .workspace-content.hide-side-panels .main-area {
+            grid-column: 1 / -1;
+            max-width: 100%;
+        }
+
         /* ==================== 视频生成和配音制作步骤内容 ==================== */
         #videoContent, #dubbingContent {
             padding: 1rem;
@@ -1039,9 +1050,9 @@
             </div>
 
             <!-- 工作区内容 -->
-            <div class="workspace-content">
-                <!-- 左侧面板 - 重大事件列表 -->
-                <aside class="left-panel">
+            <div class="workspace-content" id="workspaceContent">
+                <!-- 左侧面板 - 重大事件列表 (只在选集步骤显示) -->
+                <aside class="left-panel" id="leftSidePanel">
                     <div class="panel-section">
                         <div class="panel-header">
                             <h3 class="panel-title">📋 重大事件</h3>
@@ -1163,8 +1174,8 @@
                     </div>
                 </main>
 
-                <!-- 右侧面板 - 项目状态 -->
-                <aside class="right-panel">
+                <!-- 右侧面板 - 项目状态 (只在选集步骤显示) -->
+                <aside class="right-panel" id="rightSidePanel">
                     <div class="panel-section">
                         <div class="panel-header">
                             <h3 class="panel-title">📊 项目状态</h3>

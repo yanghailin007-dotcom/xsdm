@@ -397,6 +397,16 @@ class ShortDramaStudio {
         if (stepContent) {
             stepContent.classList.add('active');
         }
+
+        // 控制左右面板显示/隐藏：只在"选集"步骤显示面板
+        const workspaceContent = document.getElementById('workspaceContent');
+        if (workspaceContent) {
+            if (step === 'select-episodes') {
+                workspaceContent.classList.remove('hide-side-panels');
+            } else {
+                workspaceContent.classList.add('hide-side-panels');
+            }
+        }
     }
 
     /**
