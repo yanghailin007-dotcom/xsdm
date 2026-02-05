@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>短剧工作台 - 大文娱创作平台</title>
-    <link rel="stylesheet" href="/static/css/short-drama-studio.css?v=4">
     <style>
         /* ==================== 设计系统变量 - 覆盖原CSS ==================== */
         :root {
@@ -947,6 +946,93 @@
         .shot-status.completed {
             background: rgba(34, 197, 94, 0.2);
             color: #4ade80;
+        }
+
+        /* ==================== 基础样式补充 ==================== */
+        body {
+            margin: 0;
+            padding: 0;
+            background: #0f172a;
+            color: #f8fafc;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        }
+
+        /* 导航栏样式 */
+        .nav-left, .nav-center, .nav-right {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+        }
+
+        /* 项目卡片补充样式 */
+        .project-card-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+        }
+
+        .project-card-meta {
+            display: flex;
+            gap: 1.5rem;
+            margin-bottom: 1rem;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .project-card-progress {
+            margin-top: 1rem;
+        }
+
+        .project-card-stats {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85rem;
+            color: var(--text-tertiary);
+        }
+
+        /* 角色卡片样式 */
+        .character-card {
+            background: rgba(30, 41, 59, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 0.75rem;
+            padding: 1rem;
+        }
+
+        .character-card-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .character-avatar {
+            width: 60px;
+            height: 60px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            overflow: hidden;
+        }
+
+        .character-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .character-name {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .character-role {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
         }
 
         /* ==================== 视频生成和配音制作步骤内容 ==================== */
