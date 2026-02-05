@@ -778,7 +778,283 @@ def clean_filename(name: str) -> str:
     return cleaned.strip()
 
 
-# ==================== 角色管理 API ====================
+# ==================== 故事节拍 API ====================
+
+@short_drama_api.route('/story-beats/generate', methods=['POST'])
+def generate_story_beats():
+    """
+    生成故事节拍 (Step 3)
+    根据集数内容生成叙事节拍框架
+    """
+    try:
+        data = request.get_json()
+        project_id = data.get('projectId')
+        episode_id = data.get('episodeId')
+
+        if not project_id:
+            return jsonify({'success': False, 'message': '缺少项目ID'}), 400
+
+        # 获取项目信息
+        project_file = None
+        for project_dir in VIDEO_PROJECTS_DIR.iterdir():
+            if project_dir.is_dir():
+                pf = project_dir / '项目信息.json'
+                if pf.exists():
+                    try:
+                        with open(pf, 'r', encoding='utf-8') as f:
+                            project_data = json.load(f)
+                        if project_data.get('id') == project_id:
+                            project_file = pf
+                            break
+                    except:
+                        continue
+
+        if not project_file:
+            return jsonify({'success': False, 'message': '项目不存在'}), 404
+
+        # 读取项目数据
+        with open(project_file, 'r', encoding='utf-8') as f:
+            project_data = json.load(f)
+
+        # 获取集数信息
+        episodes = project_data.get('episodes', [])
+        if not episodes:
+            return jsonify({'success': False, 'message': '项目没有集数'}), 400
+
+        # 使用第一个集数
+        episode = episodes[0] if isinstance(episodes, list) else episodes
+        episode_title = episode.get('title', '') if isinstance(episode, dict) else str(episode)
+        episode_content = episode.get('content', '') if isinstance(episode, dict) else ''
+
+        # 获取角色信息
+        characters = project_data.get('characters', [])
+
+        # 调用AI生成故事节拍
+        logger.info(f"[故事节拍] 开始生成: {episode_title}")
+
+        if api_client:
+            try:
+                story_beats = _generate_story_beats_with_ai(
+                    episode_title=episode_title,
+                    episode_content=episode_content,
+                    characters=characters,
+                    total_duration=80  # 默认80秒
+                )
+            except Exception as e:
+                logger.error(f"[故事节拍] AI生成失败: {e}")
+                # 使用默认数据
+                story_beats = _get_default_story_beats()
+        else:
+            # 没有AI客户端，使用默认数据
+            story_beats = _get_default_story_beats()
+
+        # 保存到项目数据
+        project_data['storyBeats'] = story_beats
+        project_data['updated_at'] = datetime.now().isoformat()
+
+        with open(project_file, 'w', encoding='utf-8') as f:
+            json.dump(project_data, f, ensure_ascii=False, indent=2)
+
+        logger.info(f"[故事节拍] 生成成功: {len(story_beats.get('scenes', []))} 场景")
+
+        return jsonify({
+            'success': True,
+            'storyBeats': story_beats
+        })
+
+    except Exception as e:
+        logger.error(f"[故事节拍] 生成失败: {e}")
+        return jsonify({
+            'success': False,
+            'message': f'生成失败: {str(e)}'
+        }), 500
+
+
+def _generate_story_beats_with_ai(episode_title, episode_content, characters, total_duration=80):
+    """
+    使用AI生成故事节拍
+    """
+    # 构建Prompt
+    characters_str = "\n".join([
+        f"- {c.get('name', '')}: {c.get('identity', '')}, {c.get('traits', '')}"
+        for c in characters
+    ]) if characters else "- 未设置角色"
+
+    prompt = f"""你是一个专业的短剧编剧。请根据以下集数内容，生成{total_duration}秒的叙事节拍(Story Beats)。
+
+## 输入信息
+集数标题：{episode_title}
+集数内容：{episode_content[:2000] if episode_content else '（暂无详细内容，请根据标题生成）'}
+
+角色设定：
+{characters_str}
+
+总时长要求：{total_duration}秒
+
+## 输出要求
+
+1. **三幕结构分配**
+   - 第一幕「建立」(0-30%)：建立场景、人物、核心矛盾
+   - 第二幕「对抗」(30-70%)：冲突升级、内心挣扎
+   - 第三幕「高潮」(70-100%)：决战时刻、人物觉醒
+
+2. **每个场景包含**
+   - sceneNumber: 场景序号
+   - sceneTitleCn/En: 中英文标题
+   - storyBeatCn/En: 叙事目的
+   - durationSeconds: 时长(秒)
+   - emotionalArc: 情绪曲线（如：绝决→紧张→希望）
+   - dialogues: 对白列表
+
+3. **对白设计**
+   - 每个场景至少1句对白
+   - 包含speaker, linesCn, linesEn, toneCn, toneEn
+
+只输出JSON格式，不要解释。
+"""
+
+    try:
+        # 调用AI
+        response = api_client.generate_text(
+            prompt=prompt,
+            max_tokens=4000,
+            temperature=0.7
+        )
+
+        # 解析JSON
+        content = response.get('content', '') if isinstance(response, dict) else str(response)
+
+        # 提取JSON部分
+        import re
+        json_match = re.search(r'\{[\s\S]*\}', content)
+        if json_match:
+            story_beats = json.loads(json_match.group())
+        else:
+            story_beats = json.loads(content)
+
+        # 验证格式
+        if 'scenes' not in story_beats:
+            story_beats = {'scenes': story_beats if isinstance(story_beats, list) else []}
+
+        return story_beats
+
+    except Exception as e:
+        logger.error(f"AI生成故事节拍失败: {e}")
+        return _get_default_story_beats()
+
+
+def _get_default_story_beats():
+    """获取默认故事节拍"""
+    return {
+        'scenes': [
+            {
+                'sceneNumber': 1,
+                'sceneTitleCn': '开场',
+                'sceneTitleEn': 'Opening',
+                'storyBeatCn': '建立场景，展示主角状态',
+                'storyBeatEn': 'Establish scene, show protagonist status',
+                'durationSeconds': 8,
+                'emotionalArc': '平静→紧张',
+                'dialogues': [
+                    {
+                        'speaker': '主角',
+                        'linesCn': '这是一个开始...',
+                        'linesEn': 'This is a beginning...',
+                        'toneCn': '内心独白',
+                        'toneEn': 'Inner monologue'
+                    }
+                ]
+            },
+            {
+                'sceneNumber': 2,
+                'sceneTitleCn': '冲突',
+                'sceneTitleEn': 'Conflict',
+                'storyBeatCn': '冲突出现，推动剧情',
+                'storyBeatEn': 'Conflict emerges, drive plot forward',
+                'durationSeconds': 8,
+                'emotionalArc': '紧张→焦虑',
+                'dialogues': [
+                    {
+                        'speaker': '反派',
+                        'linesCn': '你以为你能成功吗？',
+                        'linesEn': 'Do you think you can succeed?',
+                        'toneCn': '挑衅',
+                        'toneEn': 'Provocative'
+                    }
+                ]
+            },
+            {
+                'sceneNumber': 3,
+                'sceneTitleCn': '高潮',
+                'sceneTitleEn': 'Climax',
+                'storyBeatCn': '主角觉醒，展现力量',
+                'storyBeatEn': 'Protagonist awakens, shows power',
+                'durationSeconds': 8,
+                'emotionalArc': '绝望→希望',
+                'dialogues': [
+                    {
+                        'speaker': '主角',
+                        'linesCn': '我不会放弃！',
+                        'linesEn': 'I will not give up!',
+                        'toneCn': '坚定',
+                        'toneEn': 'Determined'
+                    }
+                ]
+            }
+        ]
+    }
+
+
+@short_drama_api.route('/story-beats/<project_id>', methods=['GET'])
+def get_story_beats(project_id):
+    """
+    获取项目的故事节拍
+    """
+    try:
+        # 查找项目
+        project_file = None
+        for project_dir in VIDEO_PROJECTS_DIR.iterdir():
+            if project_dir.is_dir():
+                pf = project_dir / '项目信息.json'
+                if pf.exists():
+                    try:
+                        with open(pf, 'r', encoding='utf-8') as f:
+                            project_data = json.load(f)
+                        if project_data.get('id') == project_id:
+                            project_file = pf
+                            break
+                    except:
+                        continue
+
+        if not project_file:
+            return jsonify({'success': False, 'message': '项目不存在'}), 404
+
+        with open(project_file, 'r', encoding='utf-8') as f:
+            project_data = json.load(f)
+
+        story_beats = project_data.get('storyBeats')
+
+        if not story_beats:
+            return jsonify({
+                'success': True,
+                'storyBeats': None,
+                'message': '暂无故事节拍数据'
+            })
+
+        return jsonify({
+            'success': True,
+            'storyBeats': story_beats
+        })
+
+    except Exception as e:
+        logger.error(f"[获取故事节拍] 失败: {e}")
+        return jsonify({
+            'success': False,
+            'message': f'获取失败: {str(e)}'
+        }), 500
+
+
+# ==================== 分镜头管理 API ====================
 
 @short_drama_api.route('/storyboards', methods=['GET'])
 def get_storyboards():

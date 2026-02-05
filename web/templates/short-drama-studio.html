@@ -872,7 +872,8 @@
         #dubbingStep.step-content,
         #storyboardStep.step-content,
         #check-portraitsStep.step-content,
-        #exportStep.step-content {
+        #exportStep.step-content,
+        #story-beatsStep.step-content {
             display: none;
             padding: 1.5rem !important;
         }
@@ -882,7 +883,8 @@
         #dubbingStep.step-content.active,
         #storyboardStep.step-content.active,
         #check-portraitsStep.step-content.active,
-        #exportStep.step-content.active {
+        #exportStep.step-content.active,
+        #story-beatsStep.step-content.active {
             display: block !important;
             padding: 1.5rem !important;
         }
@@ -891,7 +893,8 @@
         #select-episodesStep .step-header,
         #videoStep .step-header,
         #dubbingStep .step-header,
-        #storyboardStep .step-header {
+        #storyboardStep .step-header,
+        #story-beatsStep .step-header {
             display: flex !important;
             align-items: center !important;
             justify-content: space-between !important;
@@ -903,7 +906,8 @@
         #select-episodesStep .step-header h2,
         #videoStep .step-header h2,
         #dubbingStep .step-header h2,
-        #storyboardStep .step-header h2 {
+        #storyboardStep .step-header h2,
+        #story-beatsStep .step-header h2 {
             font-size: 1.25rem !important;
             font-weight: 700 !important;
             color: var(--text-primary) !important;
@@ -911,7 +915,8 @@
 
         #select-episodesStep .step-header p,
         #dubbingStep .step-header p,
-        #storyboardStep .step-header p {
+        #storyboardStep .step-header p,
+        #story-beatsStep .step-header p {
             width: 100% !important;
             font-size: 0.875rem !important;
             color: var(--text-tertiary) !important;
@@ -1990,23 +1995,28 @@
                     <div class="step-label">角色剧照</div>
                 </div>
                 <div class="step-line"></div>
-                <div class="step-item" data-step="storyboard" onclick="shortDramaStudio.goToStep('storyboard')">
+                <div class="step-item" data-step="story-beats" onclick="shortDramaStudio.goToStep('story-beats')">
                     <div class="step-circle">3</div>
-                    <div class="step-label">分镜头</div>
+                    <div class="step-label">故事节拍</div>
+                </div>
+                <div class="step-line"></div>
+                <div class="step-item" data-step="storyboard" onclick="shortDramaStudio.goToStep('storyboard')">
+                    <div class="step-circle">4</div>
+                    <div class="step-label">分镜生成</div>
                 </div>
                 <div class="step-line"></div>
                 <div class="step-item active" data-step="video" onclick="shortDramaStudio.goToStep('video')">
-                    <div class="step-circle">4</div>
+                    <div class="step-circle">5</div>
                     <div class="step-label">生成视频</div>
                 </div>
                 <div class="step-line"></div>
                 <div class="step-item" data-step="dubbing" onclick="shortDramaStudio.goToStep('dubbing')">
-                    <div class="step-circle">5</div>
+                    <div class="step-circle">6</div>
                     <div class="step-label">配音制作</div>
                 </div>
                 <div class="step-line"></div>
                 <div class="step-item" data-step="export" onclick="shortDramaStudio.goToStep('export')">
-                    <div class="step-circle">6</div>
+                    <div class="step-circle">7</div>
                     <div class="step-label">导出</div>
                 </div>
             </div>
@@ -2076,15 +2086,41 @@
                         </div>
                     </div>
 
-                    <!-- 分镜头步骤 -->
+                    <!-- 故事节拍步骤 -->
+                    <div id="story-beatsStep" class="step-content">
+                        <div class="step-header">
+                            <div>
+                                <h2>📋 故事节拍</h2>
+                                <p>AI生成场景叙事框架，确认后进入分镜生成</p>
+                            </div>
+                            <button class="btn btn-sm btn-primary" onclick="shortDramaStudio.generateStoryBeats()">
+                                🚀 生成故事节拍
+                            </button>
+                        </div>
+                        <div id="storyBeatsContent">
+                            <!-- 故事节拍内容 -->
+                            <div class="empty-state" id="storyBeatsEmptyState">
+                                <p>📝</p>
+                                <p>请先生成故事节拍</p>
+                                <p style="font-size: 0.875rem; color: var(--text-tertiary); margin-top: 0.5rem;">
+                                    AI将根据集数内容生成叙事节拍，包括场景划分、情绪曲线、对白设计
+                                </p>
+                            </div>
+                            <div id="storyBeatsEditor" style="display: none;">
+                                <!-- 故事节拍编辑器 -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 分镜生成步骤 -->
                     <div id="storyboardStep" class="step-content">
                         <div class="step-header">
                             <div>
-                                <h2>🎬 分镜头</h2>
-                                <p>为选中的集数生成分镜头脚本</p>
+                                <h2>🎬 分镜生成</h2>
+                                <p>基于故事节拍生成完整分镜脚本和Veo提示词</p>
                             </div>
                             <button class="btn btn-sm btn-primary" onclick="shortDramaStudio.loadStoryboardStep()">
-                                🎬 生成分镜头
+                                🎬 开始分镜生成
                             </button>
                         </div>
                         <div id="storyboardContent">
@@ -2150,6 +2186,10 @@
                             <div class="status-item">
                                 <span class="status-label">角色剧照</span>
                                 <span class="status-value" id="statusPortraits">0</span>
+                            </div>
+                            <div class="status-item">
+                                <span class="status-label">故事节拍</span>
+                                <span class="status-value" id="statusStoryBeats">0</span>
                             </div>
                             <div class="status-item">
                                 <span class="status-label">分镜头</span>
