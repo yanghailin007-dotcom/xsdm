@@ -407,6 +407,270 @@ class ShortDramaStudio {
                 workspaceContent.classList.add('hide-side-panels');
             }
         }
+
+        // 根据步骤加载对应内容
+        if (step === 'video') {
+            this.renderVideoStep();
+        } else if (step === 'dubbing') {
+            this.renderDubbingStep();
+        } else if (step === 'storyboard') {
+            this.renderStoryboardStep();
+        } else if (step === 'check-portraits') {
+            this.renderPortraitsStep();
+        }
+    }
+
+    /**
+     * 渲染视频生成步骤
+     */
+    renderVideoStep() {
+        const container = document.getElementById('videoContent');
+        if (!container) return;
+        
+        // 如果没有项目数据，显示空状态
+        if (!this.currentProject || !this.currentProject.episodes) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <p>🎬</p>
+                    <p>暂无视频生成任务</p>
+                    <p style="font-size: 0.875rem; margin-top: 0.5rem;">请先完成分镜头脚本</p>
+                </div>
+            `;
+            return;
+        }
+
+        // 渲染视频生成界面
+        this.loadVideoShots();
+    }
+
+    /**
+     * 渲染配音制作步骤
+     */
+    renderDubbingStep() {
+        const container = document.getElementById('dubbingContent');
+        if (!container) return;
+        
+        // 如果没有项目数据，显示空状态
+        if (!this.currentProject || !this.currentProject.episodes) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <p>🎙️</p>
+                    <p>暂无配音任务</p>
+                    <p style="font-size: 0.875rem; margin-top: 0.5rem;">请先完成视频生成</p>
+                </div>
+            `;
+            return;
+        }
+
+        // 渲染配音界面
+        this.loadDubbingShots();
+    }
+
+    /**
+     * 渲染分镜头步骤
+     */
+    renderStoryboardStep() {
+        const container = document.getElementById('storyboardContent');
+        if (!container) return;
+        
+        if (!this.currentProject || !this.currentProject.episodes) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <p>🎬</p>
+                    <p>暂无分镜头</p>
+                    <p style="font-size: 0.875rem; margin-top: 0.5rem;">请先选择集数并生成剧本</p>
+                </div>
+            `;
+            return;
+        }
+
+        this.renderShotsList();
+    }
+
+    /**
+     * 渲染角色剧照步骤
+     */
+    renderPortraitsStep() {
+        if (!this.currentProject) return;
+        this.renderCharactersList();
+    }
+
+    /**
+     * 加载视频镜头列表
+     */
+    async loadVideoShots() {
+        const container = document.getElementById('videoContent');
+        if (!container) return;
+
+        // 获取所有镜头
+        const episodes = this.currentProject?.episodes || [];
+        let allShots = [];
+        episodes.forEach(ep => {
+            if (ep.shots) {
+                allShots = allShots.concat(ep.shots);
+            }
+        });
+
+        if (allShots.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <p>🎬</p>
+                    <p>暂无镜头</p>
+                    <p style="font-size: 0.875rem; margin-top: 0.5rem;">请先生成分镜头脚本</p>
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = `
+            <div class="batch-generate-panel">
+                <h3>🚀 批量生成设置</h3>
+                <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
+                    <span style="color: var(--text-secondary);">共 ${allShots.length} 个镜头</span>
+                    <button class="btn btn-primary" onclick="shortDramaStudio.generateAllVideos()">
+                        🎬 批量生成全部视频
+                    </button>
+                </div>
+            </div>
+            <div class="shots-list">
+                ${allShots.map((shot, idx) => `
+                    <div class="shot-item">
+                        <div class="shot-number">#${idx + 1}</div>
+                        <div class="shot-info">
+                            <div class="shot-type">${shot.shot_type || '镜头'}</div>
+                            <div class="shot-duration">⏱️ ${shot.duration || 5}秒 · ${shot.status === 'completed' ? '✅ 已完成' : shot.status === 'processing' ? '⏳ 处理中' : '⏸️ 待生成'}</div>
+                        </div>
+                        <div class="shot-status ${shot.status || 'pending'}">
+                            ${this.getStatusText(shot.status)}
+                        </div>
+                        ${shot.status !== 'completed' ? `
+                            <button class="btn btn-sm btn-primary" onclick="shortDramaStudio.generateVideo('${shot.id}')">
+                                🎬 生成
+                            </button>
+                        ` : `
+                            <button class="btn btn-sm btn-secondary" onclick="shortDramaStudio.previewVideo('${shot.id}')">
+                                👁️ 预览
+                            </button>
+                        `}
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    }
+
+    /**
+     * 加载配音镜头列表
+     */
+    async loadDubbingShots() {
+        const container = document.getElementById('dubbingContent');
+        if (!container) return;
+
+        // 获取已完成视频的镜头
+        const episodes = this.currentProject?.episodes || [];
+        let allShots = [];
+        episodes.forEach(ep => {
+            if (ep.shots) {
+                allShots = allShots.concat(ep.shots.filter(s => s.status === 'completed'));
+            }
+        });
+
+        if (allShots.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <p>🎙️</p>
+                    <p>暂无可配音的镜头</p>
+                    <p style="font-size: 0.875rem; margin-top: 0.5rem;">请先完成视频生成</p>
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = `
+            <div class="batch-generate-panel">
+                <h3>🎙️ 批量配音设置</h3>
+                <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
+                    <span style="color: var(--text-secondary);">共 ${allShots.length} 个镜头待配音</span>
+                    <button class="btn btn-primary" onclick="shortDramaStudio.generateAllDubbing()">
+                        🎙️ 批量生成全部配音
+                    </button>
+                </div>
+            </div>
+            <div class="shots-list">
+                ${allShots.map((shot, idx) => `
+                    <div class="shot-item">
+                        <div class="shot-number">#${idx + 1}</div>
+                        <div class="shot-info">
+                            <div class="shot-type">${shot.shot_type || '镜头'}</div>
+                            <div class="shot-duration">📝 ${shot.dialogue ? shot.dialogue.substring(0, 50) + '...' : '无台词'}</div>
+                        </div>
+                        <div class="shot-status ${shot.dubbing_status || 'pending'}">
+                            ${this.getStatusText(shot.dubbing_status)}
+                        </div>
+                        ${shot.dubbing_status !== 'completed' ? `
+                            <button class="btn btn-sm btn-primary" onclick="shortDramaStudio.generateDubbing('${shot.id}')">
+                                🎙️ 生成配音
+                            </button>
+                        ` : `
+                            <button class="btn btn-sm btn-secondary" onclick="shortDramaStudio.playDubbing('${shot.id}')">
+                                ▶️ 播放
+                            </button>
+                        `}
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    }
+
+    /**
+     * 批量生成所有视频
+     */
+    async generateAllVideos() {
+        this.showToast('开始批量生成视频...', 'info');
+        // 实现批量生成逻辑
+    }
+
+    /**
+     * 批量生成所有配音
+     */
+    async generateAllDubbing() {
+        this.showToast('开始批量生成配音...', 'info');
+        // 实现批量生成逻辑
+    }
+
+    /**
+     * 生成单个配音
+     */
+    async generateDubbing(shotId) {
+        this.showToast('正在生成配音...', 'info');
+        // 实现生成逻辑
+    }
+
+    /**
+     * 预览视频
+     */
+    previewVideo(shotId) {
+        this.showToast('视频预览功能开发中...', 'info');
+    }
+
+    /**
+     * 播放配音
+     */
+    playDubbing(shotId) {
+        this.showToast('播放配音功能开发中...', 'info');
+    }
+
+    /**
+     * 显示VeO配置
+     */
+    showVeOConfig() {
+        this.showToast('VeO配置功能开发中...', 'info');
+    }
+
+    /**
+     * 显示TTS配置
+     */
+    showTTSConfig() {
+        this.showToast('TTS配置功能开发中...', 'info');
     }
 
     /**

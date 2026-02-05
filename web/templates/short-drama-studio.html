@@ -825,25 +825,106 @@
             max-width: 100%;
         }
 
+        /* ==================== 分镜头列表样式 ==================== */
+        .shots-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .shot-item {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem;
+            background: rgba(30, 41, 59, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 0.75rem;
+            transition: all 0.2s;
+        }
+
+        .shot-item:hover {
+            background: rgba(99, 102, 241, 0.1);
+            border-color: rgba(99, 102, 241, 0.3);
+        }
+
+        .shot-number {
+            width: 40px;
+            height: 40px;
+            background: rgba(99, 102, 241, 0.2);
+            border-radius: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            color: var(--primary-400);
+            flex-shrink: 0;
+        }
+
+        .shot-info {
+            flex: 1;
+        }
+
+        .shot-type {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 0.25rem;
+        }
+
+        .shot-duration {
+            font-size: 0.8rem;
+            color: var(--text-tertiary);
+        }
+
+        .shot-status {
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .shot-status.pending {
+            background: rgba(245, 158, 11, 0.2);
+            color: #fbbf24;
+        }
+
+        .shot-status.processing {
+            background: rgba(99, 102, 241, 0.2);
+            color: #818cf8;
+        }
+
+        .shot-status.completed {
+            background: rgba(34, 197, 94, 0.2);
+            color: #4ade80;
+        }
+
         /* ==================== 视频生成和配音制作步骤内容 ==================== */
         #videoContent, #dubbingContent {
-            padding: 1rem;
+            padding: 0;
         }
 
         .shot-card, .video-card, .dubbing-card {
             background: rgba(30, 41, 59, 0.8);
             border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: 0.75rem;
-            padding: 1rem;
+            padding: 1.25rem;
             margin-bottom: 1rem;
         }
 
         .batch-generate-panel {
-            background: rgba(99, 102, 241, 0.1);
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(6, 182, 212, 0.1) 100%);
             border: 1px solid rgba(99, 102, 241, 0.3);
             border-radius: 0.75rem;
-            padding: 1rem;
+            padding: 1.25rem;
             margin-bottom: 1.5rem;
+        }
+
+        .batch-generate-panel h3 {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 1rem;
         }
 
         /* ==================== 角色网格 ==================== */
