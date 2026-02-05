@@ -41,15 +41,15 @@ class VeOGenerationConfig:
     model: str = "veo_3_1"
     orientation: str = "portrait"
     size: str = "small"
-    duration: int = 10
+    duration: int = 8
     aspect_ratio: str = "9:16"
     enable_upsample: bool = False
     
     def __post_init__(self):
         """初始化后验证"""
-        # 验证时长
-        if self.duration not in [10]:
-            raise ValueError(f"不支持的视频时长: {self.duration}, 仅支持 10 秒")
+        # 验证时长 - VeO API 只支持 8 秒
+        if self.duration not in [8]:
+            raise ValueError(f"不支持的视频时长: {self.duration}, VeO API 仅支持 8 秒")
         
         # 验证方向和宽高比一致性
         if self.orientation == "portrait" and self.aspect_ratio != "9:16":
@@ -104,6 +104,11 @@ class VeOCreateVideoRequest:
     支持两种图片输入模式：
     1. URL 模式（推荐）：直接传递图片 URL，无需 base64 编码
     2. Base64 模式：传递 base64 编码的图片数据（会自动压缩）
+    
+    🔥 支持首尾帧模式：
+    - first_frame: 首帧图片（视频开始画面）
+    - last_frame: 尾帧图片（视频结束画面）
+    - use_first_last_frame: 是否启用首尾帧模式
     """
     images: List[str] = field(default_factory=list)  # 支持图片 URL 或 base64
     image_urls: List[str] = field(default_factory=list)  # 新增：专门的图片 URL 字段
@@ -111,9 +116,14 @@ class VeOCreateVideoRequest:
     orientation: str = "portrait"
     prompt: str = ""
     size: str = "large"
-    duration: int = 10
+    duration: int = 8
     watermark: bool = False
     private: bool = True
+    
+    # 🔥 首尾帧模式支持
+    first_frame: Optional[str] = None  # 首帧图片 URL 或 base64
+    last_frame: Optional[str] = None   # 尾帧图片 URL 或 base64
+    use_first_last_frame: bool = False  # 是否启用首尾帧模式
 
     # 🔥 新增：元数据字段，用于按项目/分集组织视频
     metadata: Dict[str, Any] = field(default_factory=dict)
@@ -129,32 +139,66 @@ class VeOCreateVideoRequest:
         # 只识别 http:// 和 https://，不识别 data:
         return img_str.startswith(('http://', 'https://'))
     
+    def _process_image(self, img: str) -> Optional[str]:
+        """处理单张图片，返回标准格式"""
+        if not img or not isinstance(img, str):
+            return None
+        
+        # 如果是 HTTP/HTTPS URL，直接使用
+        if self._is_url(img):
+            return img
+        # 如果是 data URL，保留完整格式
+        elif img.startswith('data:image/'):
+            return img
+        # 否则认为是纯 base64，添加默认的 JPEG 格式前缀
+        else:
+            return f"data:image/jpeg;base64,{img}"
+    
     def to_dict(self) -> Dict[str, Any]:
         """转换为字典"""
+        # 🔥 处理首尾帧模式
+        if self.use_first_last_frame and (self.first_frame or self.last_frame):
+            # 首尾帧模式：使用 image_refs 字段
+            image_refs = []
+            
+            if self.first_frame:
+                processed = self._process_image(self.first_frame)
+                if processed:
+                    image_refs.append({
+                        "type": "first_frame",
+                        "url": processed
+                    })
+            
+            if self.last_frame:
+                processed = self._process_image(self.last_frame)
+                if processed:
+                    image_refs.append({
+                        "type": "last_frame", 
+                        "url": processed
+                    })
+            
+            return {
+                "image_refs": image_refs,
+                "model": self.model,
+                "orientation": self.orientation,
+                "prompt": self.prompt,
+                "size": self.size,
+                "duration": self.duration,
+                "watermark": self.watermark,
+                "private": self.private
+            }
+        
+        # 普通模式：使用 images 字段
         # 优先使用 image_urls（如果有）
         if self.image_urls:
             images_param = self.image_urls
         else:
             # 处理 images 列表
-            # 🔥 修复：保留 data URL 格式，让 API 能够识别图片格式
             images_param = []
             for img in self.images:
-                if not img or not isinstance(img, str):
-                    continue
-                
-                # 如果是 HTTP/HTTPS URL，直接使用
-                if self._is_url(img):
-                    images_param.append(img)
-                # 如果是 data URL，保留完整格式（包含格式信息）
-                elif img.startswith('data:image/'):
-                    # 🔥 保留完整的 data URL 格式，让 API 能够识别图片格式
-                    # 格式: data:image/jpeg;base64,<base64_data>
-                    images_param.append(img)
-                # 否则认为是纯 base64，添加默认的 JPEG 格式前缀
-                else:
-                    # 🔥 为纯 base64 数据添加格式前缀
-                    # 默认使用 JPEG 格式（因为压缩后通常是 JPEG）
-                    images_param.append(f"data:image/jpeg;base64,{img}")
+                processed = self._process_image(img)
+                if processed:
+                    images_param.append(processed)
         
         return {
             "images": images_param,
@@ -209,7 +253,7 @@ class VeOCreateVideoRequest:
             orientation="portrait",
             prompt=prompt,
             size="large",
-            duration=10,  # VeO 只支持 10 秒
+            duration=8,  # 🔥 VeO API 只支持 8 秒
             watermark=False,
             private=True,
             metadata=getattr(request, 'metadata', {})  # 传递 metadata

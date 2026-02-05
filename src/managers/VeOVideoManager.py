@@ -833,11 +833,21 @@ class VeOVideoManager:
                             # 🔥 新增：保存原始远程URL到metadata，以便本地文件丢失时可以恢复
                             original_url = video_url  # 保存原始远程URL
                             
+                            # 🔥 获取实际视频时长（从 API 响应或请求配置）
+                            actual_duration = 8.0  # VeO 默认 8 秒
+                            if query_response.seconds:
+                                try:
+                                    actual_duration = float(query_response.seconds)
+                                except (ValueError, TypeError):
+                                    pass
+                            elif task.native_request and task.native_request.duration:
+                                actual_duration = float(task.native_request.duration)
+                            
                             # 创建真实结果
                             video = VeOVideoResult(
                                 id=f"video_{uuid.uuid4().hex[:8]}",
                                 url=final_url,  # 使用本地路径
-                                duration_seconds=float(10),
+                                duration_seconds=actual_duration,
                                 resolution=resolution,
                                 size_bytes=1024000,
                                 format="mp4",
@@ -1079,7 +1089,7 @@ class VeOVideoManager:
             生成配置
         """
         # 从messages中提取duration（如果有）
-        duration = 10  # VeO只支持10秒
+        duration = 8  # 🔥 VeO API 只支持 8 秒
         orientation = "portrait"
         aspect_ratio = "9:16"
         

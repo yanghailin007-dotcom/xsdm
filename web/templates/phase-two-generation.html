@@ -299,6 +299,236 @@
             border-radius: 4px !important;
         }
 
+        /* ==================== 项目卡片（左侧） ==================== */
+        .project-card {
+            background: rgba(30, 41, 59, 0.6) !important;
+            border: 1px solid var(--dark-border) !important;
+        }
+
+        .project-card.selected {
+            background: rgba(99, 102, 241, 0.2) !important;
+            border-color: var(--dark-accent-blue) !important;
+        }
+
+        .project-card:hover {
+            background: var(--dark-bg-hover) !important;
+            border-color: var(--dark-accent-blue) !important;
+        }
+
+        .project-title {
+            color: var(--dark-text-primary) !important;
+        }
+
+        .project-info {
+            color: var(--dark-text-secondary) !important;
+        }
+
+        .project-status {
+            color: var(--dark-text-tertiary) !important;
+        }
+
+        .project-status.status-ready {
+            color: #4ade80 !important;
+        }
+
+        /* ==================== 创意编辑器模态框 ==================== */
+        #creative-editor-modal-phase-two > div {
+            background: var(--dark-bg-secondary) !important;
+            border: 1px solid var(--dark-border) !important;
+        }
+
+        #creative-editor-modal-phase-two [style*="background: white"],
+        #creative-editor-modal-phase-two [style*="background: #fafbfc"],
+        #creative-editor-modal-phase-two [style*="background:white"],
+        #creative-editor-modal-phase-two [style*="background:#fafbfc"] {
+            background: rgba(30, 41, 59, 0.6) !important;
+        }
+
+        #creative-editor-modal-phase-two [style*="background: linear-gradient(135deg, #fef9e7"],
+        #creative-editor-modal-phase-two [style*="background: linear-gradient(135deg, #fef3c7"] {
+            background: linear-gradient(135deg, rgba(251, 191, 36, 0.1) 0%, rgba(251, 191, 36, 0.05) 100%) !important;
+        }
+
+        #creative-editor-modal-phase-two [style*="background: linear-gradient(135deg, #eff6ff"],
+        #creative-editor-modal-phase-two [style*="background: linear-gradient(135deg, #dbeafe"] {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(59, 130, 246, 0.05) 100%) !important;
+        }
+
+        #creative-editor-modal-phase-two [style*="background: linear-gradient(135deg, #fef2f2"],
+        #creative-editor-modal-phase-two [style*="background: linear-gradient(135deg, #fee2e2"] {
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(239, 68, 68, 0.05) 100%) !important;
+        }
+
+        #creative-editor-modal-phase-two [style*="background: linear-gradient(135deg, #ecfdf5"],
+        #creative-editor-modal-phase-two [style*="background: linear-gradient(135deg, #d1fae5"] {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(16, 185, 129, 0.05) 100%) !important;
+        }
+
+        #creative-editor-modal-phase-two input,
+        #creative-editor-modal-phase-two textarea {
+            background: rgba(15, 23, 42, 0.6) !important;
+            border-color: var(--dark-border) !important;
+            color: var(--dark-text-primary) !important;
+        }
+
+        #creative-editor-modal-phase-two [style*="color: #1f2937"],
+        #creative-editor-modal-phase-two [style*="color:#1f2937"] {
+            color: var(--dark-text-primary) !important;
+        }
+
+        #creative-editor-modal-phase-two [style*="color: #374151"],
+        #creative-editor-modal-phase-two [style*="color:#374151"] {
+            color: var(--dark-text-secondary) !important;
+        }
+
+        #creative-editor-modal-phase-two [style*="color: #6b7280"],
+        #creative-editor-modal-phase-two [style*="color:#6b7280"] {
+            color: var(--dark-text-tertiary) !important;
+        }
+
+        #creative-editor-modal-phase-two [style*="color: #92400e"] {
+            color: #fbbf24 !important;
+        }
+
+        #creative-editor-modal-phase-two [style*="color: #1e3a8a"] {
+            color: #60a5fa !important;
+        }
+
+        #creative-editor-modal-phase-two [style*="color: #991b1b"] {
+            color: #f87171 !important;
+        }
+
+        #creative-editor-modal-phase-two [style*="color: #064e3b"] {
+            color: #34d399 !important;
+        }
+
+        /* ==================== 当前章节信息区域 ==================== */
+        #current-chapter-info {
+            background: rgba(30, 41, 59, 0.6) !important;
+            border: 1px solid var(--dark-border) !important;
+        }
+
+        #current-chapter-info h4,
+        #current-chapter-info p {
+            color: var(--dark-text-primary) !important;
+        }
+
+        /* ==================== 第一阶段产物管理区域 ==================== */
+        .phase-one-products-section {
+            background: rgba(30, 41, 59, 0.4) !important;
+            border: 1px solid var(--dark-border) !important;
+            border-radius: 16px;
+            padding: 24px;
+        }
+
+        .creative-header {
+            background: transparent !important;
+        }
+
+        .creative-badge {
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.2) 0%, rgba(139, 92, 246, 0.2) 100%) !important;
+            border: 1px solid rgba(99, 102, 241, 0.3) !important;
+            color: var(--dark-text-primary) !important;
+        }
+
+        .creative-header h3 {
+            color: var(--dark-text-primary) !important;
+        }
+
+        .creative-subtitle {
+            color: var(--dark-text-secondary) !important;
+        }
+
+        /* 产物分类卡片 */
+        .products-categories-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 16px;
+        }
+
+        .product-category-card {
+            background: rgba(30, 41, 59, 0.6) !important;
+            border: 1px solid var(--dark-border) !important;
+            border-radius: 12px;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .product-category-card:hover {
+            background: rgba(51, 65, 85, 0.8) !important;
+            border-color: var(--dark-accent-blue) !important;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(99, 102, 241, 0.15);
+        }
+
+        .product-category-card .product-icon {
+            font-size: 32px;
+            margin-bottom: 12px;
+        }
+
+        .product-category-card h4 {
+            color: var(--dark-text-primary) !important;
+            margin: 0 0 8px 0;
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .product-category-card p {
+            color: var(--dark-text-secondary) !important;
+            font-size: 13px;
+            margin: 0 0 12px 0;
+            line-height: 1.5;
+        }
+
+        .product-category-card .product-status {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 12px;
+        }
+
+        .product-category-card .status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--dark-text-tertiary);
+        }
+
+        .product-category-card .status-indicator.complete {
+            background: #22c55e;
+        }
+
+        .product-category-card .status-text {
+            color: var(--dark-text-secondary) !important;
+            font-size: 12px;
+        }
+
+        .product-category-card .product-btn {
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.8) 0%, rgba(139, 92, 246, 0.8) 100%) !important;
+            color: white !important;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            text-align: center;
+            transition: all 0.2s;
+        }
+
+        .product-category-card:hover .product-btn {
+            background: linear-gradient(135deg, rgba(99, 102, 241, 1) 0%, rgba(139, 92, 246, 1) 100%) !important;
+        }
+
+        /* 快速操作区域 */
+        .quick-actions-section {
+            background: transparent !important;
+        }
+
+        .quick-actions-section h4 {
+            color: var(--dark-text-primary) !important;
+            margin-bottom: 16px;
+        }
+
         /* ==================== 加载动画 ==================== */
         .loading-spinner {
             border-color: rgba(99, 102, 241, 0.2) !important;

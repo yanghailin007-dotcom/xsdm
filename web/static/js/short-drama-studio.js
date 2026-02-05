@@ -38,6 +38,23 @@ class ShortDramaStudio {
                 }
             });
         });
+
+        // 🔥 设置控件变更事件 - 自动保存
+        const settingControls = [
+            'settingAspectRatio',
+            'settingQuality',
+            'settingModel',
+            'settingFirstLastFrame'
+        ];
+        
+        settingControls.forEach(id => {
+            const element = document.getElementById(id);
+            if (element) {
+                element.addEventListener('change', () => {
+                    this.saveProjectSettings();
+                });
+            }
+        });
     }
 
     /**
@@ -238,9 +255,69 @@ class ShortDramaStudio {
                 this.renderEpisodesList();
                 this.renderCharacters();
                 this.renderStoryboard();
+                this.loadProjectSettings();  // 🔥 加载项目设置
             }
         } catch (error) {
             console.error('加载项目数据失败:', error);
+        }
+    }
+
+    /**
+     * 🔥 加载项目设置到UI
+     */
+    loadProjectSettings() {
+        const settings = this.currentProject?.settings || {};
+        
+        // 视频比例
+        const aspectRatio = settings.aspect_ratio || '9:16';
+        const ratioSelect = document.getElementById('settingAspectRatio');
+        if (ratioSelect) ratioSelect.value = aspectRatio;
+        
+        // 视频质量
+        const quality = settings.quality || '4K';
+        const qualitySelect = document.getElementById('settingQuality');
+        if (qualitySelect) qualitySelect.value = quality;
+        
+        // 生成模型
+        const model = settings.model || 'veo_3_1-fast';
+        const modelSelect = document.getElementById('settingModel');
+        if (modelSelect) modelSelect.value = model;
+        
+        // 🔥 首尾帧模式（默认开启）
+        const useFirstLastFrame = settings.use_first_last_frame !== false;  // 默认 true
+        const firstLastFrameCheckbox = document.getElementById('settingFirstLastFrame');
+        if (firstLastFrameCheckbox) firstLastFrameCheckbox.checked = useFirstLastFrame;
+        
+        console.log('🎬 项目设置已加载:', settings);
+    }
+
+    /**
+     * 🔥 保存项目设置
+     */
+    async saveProjectSettings() {
+        if (!this.currentProject) return;
+        
+        try {
+            const settings = {
+                aspect_ratio: document.getElementById('settingAspectRatio')?.value || '9:16',
+                quality: document.getElementById('settingQuality')?.value || '4K',
+                model: document.getElementById('settingModel')?.value || 'veo_3_1-fast',
+                use_first_last_frame: document.getElementById('settingFirstLastFrame')?.checked ?? true
+            };
+            
+            const response = await fetch(`/api/short-drama/projects/${this.currentProject.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ settings })
+            });
+            
+            const data = await response.json();
+            if (data.success) {
+                this.currentProject.settings = settings;
+                console.log('🎬 项目设置已保存:', settings);
+            }
+        } catch (error) {
+            console.error('保存项目设置失败:', error);
         }
     }
 
@@ -347,7 +424,7 @@ class ShortDramaStudio {
                         <div class="shot-number">#${idx + 1}</div>
                         <div class="shot-info">
                             <div class="shot-type">${shot.shot_type || '镜头'}</div>
-                            <div class="shot-duration">⏱️ ${shot.duration || 5}秒</div>
+                            <div class="shot-duration">⏱️ ${shot.duration || 8}秒</div>
                         </div>
                         <div class="shot-status ${shot.status || 'pending'}">
                             ${this.getStatusText(shot.status)}
@@ -671,7 +748,7 @@ class ShortDramaStudio {
                     ${actionHtml}
                 </div>
                 <div class="task-meta">
-                    <span style="font-size: 0.75rem; color: var(--text-secondary);">${shot.duration || 5}秒</span>
+                    <span style="font-size: 0.75rem; color: var(--text-secondary);">${shot.duration || 8}秒</span>
                 </div>
             </div>
         `;
@@ -843,19 +920,60 @@ class ShortDramaStudio {
         this.showToast('正在生成视频...', 'info');
 
         try {
+            // 🔥 查找对应的 shot 对象
+            let targetShot = null;
+            let targetEpisode = null;
+            const episodes = this.currentProject?.episodes || [];
+            for (const ep of episodes) {
+                const shot = ep.shots?.find(s => s.id === shotId);
+                if (shot) {
+                    targetShot = shot;
+                    targetEpisode = ep;
+                    break;
+                }
+            }
+
+            if (!targetShot) {
+                this.showToast('找不到对应的镜头', 'error');
+                return;
+            }
+
+            // 🔥 构建生成参数
+            const requestBody = {
+                project_id: this.currentProject.id,
+                prompt: targetShot.generation_prompt || targetShot.description || '',
+                image_urls: targetShot.reference_images || targetShot.reference_image_urls || [],
+                orientation: targetShot.orientation || 'portrait',
+                duration: targetShot.duration || 8,  // 🔥 VeO API 只支持 8 秒
+                // 元数据
+                novel_title: this.currentProject.novel_title || this.currentProject.title,
+                episode_title: targetEpisode.title,
+                event_name: targetShot.event_name || '',
+                scene_number: targetShot.scene_number || 1,
+                shot_number: targetShot.shot_number || '1',
+                shot_type: targetShot.shot_type || 'shot'
+            };
+
+            console.log('🎬 提交视频生成任务:', requestBody);
+
             const response = await fetch(`/api/short-drama/shots/${shotId}/video`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    project_id: this.currentProject.id
-                })
+                body: JSON.stringify(requestBody)
             });
 
             const data = await response.json();
             if (data.success) {
                 this.showToast('视频生成任务已提交', 'success');
+                // 更新 shot 状态
+                targetShot.status = 'processing';
+                targetShot.video_task_id = data.task_id;
+                // 刷新显示
+                this.renderStoryboard();
                 // 轮询检查状态
                 this.pollVideoStatus(shotId);
+            } else {
+                this.showToast(data.error || '提交任务失败', 'error');
             }
         } catch (error) {
             console.error('生成视频失败:', error);
@@ -880,7 +998,26 @@ class ShortDramaStudio {
                         this.showToast('视频生成完成', 'success');
                         await this.loadProjectData();
                     } else if (data.status === 'failed') {
-                        this.showToast('视频生成失败', 'error');
+                        // 🔥 显示具体的错误信息
+                        const errorMsg = data.error || '未知错误';
+                        this.showToast(`视频生成失败: ${errorMsg}`, 'error');
+                        console.error(`视频生成失败 [shotId=${shotId}]:`, errorMsg);
+                        
+                        // 🔥 更新 shot 状态并刷新 UI
+                        let targetShot = null;
+                        const episodes = this.currentProject?.episodes || [];
+                        for (const ep of episodes) {
+                            const shot = ep.shots?.find(s => s.id === shotId);
+                            if (shot) {
+                                targetShot = shot;
+                                break;
+                            }
+                        }
+                        if (targetShot) {
+                            targetShot.status = 'failed';
+                            targetShot.error_message = errorMsg;
+                            this.renderStoryboard();
+                        }
                     } else if (attempts < maxAttempts) {
                         attempts++;
                         setTimeout(poll, 5000); // 每5秒检查一次

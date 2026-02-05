@@ -64,7 +64,8 @@ class ShortDramaProject:
         self.settings = {
             'aspect_ratio': '9:16',
             'quality': '4K',
-            'model': 'veo_3_1-fast'
+            'model': 'veo_3_1-fast',
+            'use_first_last_frame': True  # 🔥 默认开启首尾帧模式
         }
 
     def to_dict(self):
@@ -1370,19 +1371,128 @@ def generate_shot_video(shot_id):
     try:
         data = request.json or {}
         project_id = data.get('project_id')
-
-        logger.info(f'🎬 生成镜头视频: {shot_id}')
-
-        # 这里调用视频生成API
-        # 暂时返回成功
+        
+        # 获取请求体中的生成参数
+        prompt = data.get('prompt', '')
+        image_urls = data.get('image_urls', [])
+        orientation = data.get('orientation', 'portrait')
+        duration = data.get('duration', 8)  # 🔥 VeO API 只支持 8 秒
+        
+        logger.info(f'🎬 生成镜头视频: shot_id={shot_id}, project_id={project_id}')
+        
+        # 🔥 加载项目配置，检查首尾帧模式
+        use_first_last_frame = False
+        first_frame = None
+        last_frame = None
+        
+        if project_id:
+            try:
+                project = ShortDramaProject.load(project_id)
+                if project:
+                    settings = project.settings or {}
+                    use_first_last_frame = settings.get('use_first_last_frame', True)  # 默认开启
+                    logger.info(f'🎬 项目首尾帧模式: {use_first_last_frame}')
+                    
+                    # 🔥 如果启用首尾帧且有多张参考图，分别设置首帧和尾帧
+                    if use_first_last_frame and len(image_urls) >= 2:
+                        first_frame = image_urls[0]  # 第一张作为首帧
+                        last_frame = image_urls[-1]  # 最后一张作为尾帧
+                        logger.info(f'🎬 使用首尾帧: 首帧={first_frame[:50]}..., 尾帧={last_frame[:50]}...')
+                    elif use_first_last_frame and len(image_urls) == 1:
+                        # 只有一张图时，同时作为首帧和尾帧（静态效果）
+                        first_frame = image_urls[0]
+                        last_frame = image_urls[0]
+                        logger.info(f'🎬 单图首尾帧模式: {first_frame[:50]}...')
+            except Exception as e:
+                logger.warning(f'⚠️ 加载项目配置失败: {e}')
+        
+        # 导入 VeOVideoManager
+        from src.managers.VeOVideoManager import get_veo_video_manager
+        from src.models.veo_models import VeOCreateVideoRequest, VeOVideoRequest
+        
+        # 获取 VeO 管理器实例
+        veo_manager = get_veo_video_manager()
+        
+        # 🔥 创建原生格式请求（支持首尾帧模式）
+        if use_first_last_frame and (first_frame or last_frame):
+            # 首尾帧模式
+            native_request = VeOCreateVideoRequest(
+                use_first_last_frame=True,
+                first_frame=first_frame,
+                last_frame=last_frame,
+                model="veo_3_1-fast",
+                orientation=orientation,
+                prompt=prompt,
+                size="large",
+                duration=duration,
+                watermark=False,
+                private=True,
+                metadata={
+                    'shot_id': shot_id,
+                    'project_id': project_id,
+                    'novel_title': data.get('novel_title', ''),
+                    'episode_title': data.get('episode_title', ''),
+                    'event_name': data.get('event_name', ''),
+                    'scene_number': data.get('scene_number', 1),
+                    'shot_number': data.get('shot_number', '1'),
+                    'shot_type': data.get('shot_type', 'shot'),
+                    'use_first_last_frame': True
+                }
+            )
+            logger.info('🎬 创建首尾帧模式请求')
+        else:
+            # 普通参考图模式
+            native_request = VeOCreateVideoRequest(
+                images=image_urls,
+                model="veo_3_1-fast",
+                orientation=orientation,
+                prompt=prompt,
+                size="large",
+                duration=duration,
+                watermark=False,
+                private=True,
+                metadata={
+                    'shot_id': shot_id,
+                    'project_id': project_id,
+                    'novel_title': data.get('novel_title', ''),
+                    'episode_title': data.get('episode_title', ''),
+                    'event_name': data.get('event_name', ''),
+                    'scene_number': data.get('scene_number', 1),
+                    'shot_number': data.get('shot_number', '1'),
+                    'shot_type': data.get('shot_type', 'shot')
+                }
+            )
+            logger.info('🎬 创建普通参考图模式请求')
+        
+        # 创建 OpenAI 格式请求（用于兼容性）
+        openai_request = VeOVideoRequest(
+            model="veo_3_1-fast",
+            messages=[{
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": prompt}
+                ]
+            }]
+        )
+        
+        # 提交生成任务
+        response = veo_manager.create_generation(openai_request, native_request)
+        
+        # 从响应中获取任务ID
+        task_id = response.id
+        
+        logger.info(f'✅ 视频生成任务已提交: task_id={task_id}')
 
         return jsonify({
             'success': True,
             'message': '视频生成任务已提交',
-            'task_id': f'task_{uuid.uuid4().hex[:8]}'
+            'task_id': task_id
         }), 202
+        
     except Exception as e:
         logger.error(f'生成视频失败: {e}')
+        import traceback
+        logger.error(f'错误堆栈: {traceback.format_exc()}')
         return jsonify({
             'success': False,
             'error': str(e)
@@ -1393,16 +1503,53 @@ def generate_shot_video(shot_id):
 def get_shot_status(shot_id):
     """获取镜头生成状态"""
     try:
-        # 这里查询视频生成状态
-        # 暂时返回处理中
-
-        return jsonify({
-            'success': True,
-            'status': 'processing',
-            'progress': 50
-        }), 200
+        # 从 VeOVideoManager 查询任务状态
+        from src.managers.VeOVideoManager import get_veo_video_manager
+        
+        # 获取 VeO 任务管理器实例（单例）
+        veo_manager = get_veo_video_manager()
+        
+        # 查找与该镜头相关的任务
+        # 任务ID格式为 veo_{uuid}，我们需要查找包含 shot_id 的任务
+        task = None
+        for task_id, t in veo_manager.tasks.items():
+            # 检查任务元数据中的 shot_id
+            if t.metadata.get('shot_id') == shot_id:
+                task = t
+                break
+            # 或者检查任务ID是否包含 shot_id（备用匹配）
+            if shot_id in task_id:
+                task = t
+                break
+        
+        if task:
+            # 返回任务的实际状态
+            status = task.status.value if hasattr(task.status, 'value') else str(task.status)
+            response = {
+                'success': True,
+                'status': status,
+                'progress': task._current_progress if hasattr(task, '_current_progress') else 0,
+                'stage': task._current_stage if hasattr(task, '_current_stage') else ''
+            }
+            
+            # 如果任务失败，包含错误信息
+            if status == 'failed' and task.error:
+                response['error'] = task.error
+                logger.warning(f'❌ 镜头 {shot_id} 生成失败: {task.error}')
+            
+            return jsonify(response), 200
+        else:
+            # 没有找到任务，返回待生成状态
+            return jsonify({
+                'success': True,
+                'status': 'pending',
+                'progress': 0
+            }), 200
+            
     except Exception as e:
         logger.error(f'获取镜头状态失败: {e}')
+        import traceback
+        logger.error(f'错误堆栈: {traceback.format_exc()}')
         return jsonify({
             'success': False,
             'error': str(e)

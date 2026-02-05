@@ -65,7 +65,7 @@ DEFAULT_AIWX_VIDEO_CONFIG = {
     "model": DEFAULT_AIWX_MODEL,
     "orientation": "portrait",  # portrait 竖屏, landscape 横屏
     "size": "large",  # small 720p, large 1080p
-    "duration": 15,  # 视频时长（秒）
+    "duration": 8,  # 🔥 视频时长（秒）- VeO API 只支持 8 秒
     "watermark": False,  # 是否添加水印
     "private": True  # 是否私有
 }
