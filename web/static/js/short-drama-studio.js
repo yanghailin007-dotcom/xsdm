@@ -522,6 +522,10 @@ class ShortDramaStudio {
             return;
         }
 
+        // 🔥 加载项目的参考图
+        const referenceImages = await this.loadReferenceImages();
+
+        // 渲染任务列表 - 使用 task-row 布局
         container.innerHTML = `
             <div class="batch-generate-panel">
                 <h3>🚀 批量生成设置</h3>
@@ -532,28 +536,143 @@ class ShortDramaStudio {
                     </button>
                 </div>
             </div>
-            <div class="shots-list">
-                ${allShots.map((shot, idx) => `
-                    <div class="shot-item">
-                        <div class="shot-number">#${idx + 1}</div>
-                        <div class="shot-info">
-                            <div class="shot-type">${shot.shot_type || '镜头'}</div>
-                            <div class="shot-duration">⏱️ ${shot.duration || 5}秒 · ${shot.status === 'completed' ? '✅ 已完成' : shot.status === 'processing' ? '⏳ 处理中' : '⏸️ 待生成'}</div>
+            <div class="video-tasks-list">
+                ${allShots.map((shot, idx) => this.renderVideoTaskRow(shot, idx, referenceImages)).join('')}
+            </div>
+        `;
+    }
+
+    /**
+     * 加载项目的参考图
+     */
+    async loadReferenceImages() {
+        try {
+            const novelTitle = this.currentProject?.title;
+            const episodeTitle = this.currentProject?.episodes?.[0]?.title || '1集_创意导入';
+            
+            if (!novelTitle) return [];
+
+            const response = await fetch(`/api/short-drama/reference-images?novel=${encodeURIComponent(novelTitle)}&episode=${encodeURIComponent(episodeTitle)}`);
+            const data = await response.json();
+
+            if (data.success && data.images) {
+                return data.images.map(img => img.url);
+            }
+        } catch (error) {
+            console.error('加载参考图失败:', error);
+        }
+        return [];
+    }
+
+    /**
+     * 渲染单个视频任务行
+     */
+    renderVideoTaskRow(shot, idx, projectReferenceImages = []) {
+        const status = shot.status || 'pending';
+        const isCompleted = status === 'completed' || status === 'done';
+        const isProcessing = status === 'processing';
+        
+        // 🔥 获取参考图 - 支持多种字段名
+        let refImages = [];
+        if (shot.reference_images && shot.reference_images.length > 0) {
+            refImages = shot.reference_images;
+        } else if (shot.reference_image_urls && shot.reference_image_urls.length > 0) {
+            refImages = shot.reference_image_urls;
+        } else if (shot.reference_portraits && shot.reference_portraits.length > 0) {
+            // 从角色肖像中提取URL
+            refImages = shot.reference_portraits.map(p => p.portrait_url || p.image_url).filter(Boolean);
+        } else if (shot.image_url) {
+            refImages = [shot.image_url];
+        } else if (isCompleted && projectReferenceImages.length > 0) {
+            // 🔥 已完成任务使用项目的参考图
+            refImages = projectReferenceImages;
+        }
+        
+        // 参考图 HTML - 所有状态都显示
+        let refsHtml = '';
+        if (refImages.length > 0) {
+            refsHtml = `
+                <div class="refs-thumbnails">
+                    ${refImages.slice(0, 2).map(img => `
+                        <div class="ref-thumb">
+                            <img src="${img}" alt="参考" onerror="this.style.display='none'">
                         </div>
-                        <div class="shot-status ${shot.status || 'pending'}">
-                            ${this.getStatusText(shot.status)}
-                        </div>
-                        ${shot.status !== 'completed' ? `
-                            <button class="btn btn-sm btn-primary" onclick="shortDramaStudio.generateVideo('${shot.id}')">
-                                🎬 生成
-                            </button>
-                        ` : `
-                            <button class="btn btn-sm btn-secondary" onclick="shortDramaStudio.previewVideo('${shot.id}')">
-                                👁️ 预览
-                            </button>
-                        `}
+                    `).join('')}
+                </div>
+            `;
+        }
+        
+        // 视频预览 HTML
+        let videoHtml = '';
+        if (isCompleted && shot.video_url) {
+            videoHtml = `
+                <div class="task-video-preview" onclick="shortDramaStudio.previewVideo('${shot.id}')">
+                    <video src="${shot.video_url}" preload="metadata" muted></video>
+                    <div class="play-icon">▶</div>
+                </div>
+            `;
+        } else if (isProcessing) {
+            videoHtml = `
+                <div class="task-video-preview">
+                    <div class="generating-indicator">
+                        <div class="spinner" style="width: 20px; height: 20px;"></div>
+                        <span style="font-size: 0.7rem; color: var(--text-secondary);">生成中</span>
                     </div>
-                `).join('')}
+                </div>
+            `;
+        } else {
+            videoHtml = `
+                <div class="task-video-placeholder" onclick="shortDramaStudio.generateVideo('${shot.id}')">
+                    <span>⏳</span>
+                </div>
+            `;
+        }
+        
+        // 操作按钮
+        let actionHtml = '';
+        if (isCompleted) {
+            actionHtml = `
+                <button class="btn btn-sm btn-secondary" onclick="shortDramaStudio.previewVideo('${shot.id}')">
+                    👁️ 预览
+                </button>
+            `;
+        } else if (isProcessing) {
+            actionHtml = `
+                <button class="btn btn-sm" disabled>
+                    ⏳ 处理中
+                </button>
+            `;
+        } else {
+            actionHtml = `
+                <button class="btn btn-sm btn-primary" onclick="shortDramaStudio.generateVideo('${shot.id}')">
+                    🎬 生成
+                </button>
+            `;
+        }
+        
+        // 🔥 已完成任务添加 completed 类用于样式区分
+        const completedClass = isCompleted ? 'task-completed' : '';
+        
+        return `
+            <div class="task-row ${status} ${completedClass}">
+                <div class="task-number">#${idx + 1}</div>
+                <div class="task-info">
+                    <div class="task-title">${shot.shot_type || '镜头'}</div>
+                    <div class="task-desc">${shot.description ? shot.description.substring(0, 50) + '...' : '暂无描述'} · ⏱️ ${shot.duration || 5}秒</div>
+                    <div class="task-status-row">
+                        <span class="status-badge ${status}">${this.getStatusText(status)}</span>
+                    </div>
+                </div>
+                <div class="task-visual">
+                    ${refsHtml}
+                    ${videoHtml}
+                </div>
+                <div class="task-actions">
+                    ${actionHtml}
+                </div>
+                <div class="task-meta">
+                    <span style="font-size: 0.75rem; color: var(--text-secondary);">${shot.duration || 5}秒</span>
+                </div>
             </div>
         `;
     }
@@ -595,20 +714,20 @@ class ShortDramaStudio {
                     </button>
                 </div>
             </div>
-            <div class="shots-list">
+            <div class="dubbing-list">
                 ${allShots.map((shot, idx) => `
-                    <div class="shot-item">
-                        <div class="shot-number">#${idx + 1}</div>
-                        <div class="shot-info">
-                            <div class="shot-type">${shot.shot_type || '镜头'}</div>
-                            <div class="shot-duration">📝 ${shot.dialogue ? shot.dialogue.substring(0, 50) + '...' : '无台词'}</div>
+                    <div class="dubbing-item">
+                        <div class="dubbing-index">#${idx + 1}</div>
+                        <div class="dubbing-info">
+                            <div class="dubbing-type">${shot.shot_type || '镜头'}</div>
+                            <div class="dubbing-dialogue">📝 ${shot.dialogue ? shot.dialogue.substring(0, 50) + '...' : '无台词'}</div>
                         </div>
-                        <div class="shot-status ${shot.dubbing_status || 'pending'}">
+                        <div class="dubbing-status ${shot.dubbing_status || 'pending'}">
                             ${this.getStatusText(shot.dubbing_status)}
                         </div>
                         ${shot.dubbing_status !== 'completed' ? `
                             <button class="btn btn-sm btn-primary" onclick="shortDramaStudio.generateDubbing('${shot.id}')">
-                                🎙️ 生成配音
+                                🎙️ 生成
                             </button>
                         ` : `
                             <button class="btn btn-sm btn-secondary" onclick="shortDramaStudio.playDubbing('${shot.id}')">
