@@ -5009,16 +5009,30 @@ saveVeOConfig(config) {
                         thumb.style.boxShadow = '0 0 0 3px var(--primary-light)';
                         indicator.textContent = '✓';
                         indicator.style.background = 'var(--primary)';
+
+                        // 🔥 首尾帧模式：添加帧位置选择按钮
+                        if (firstLastFrameCheck.checked) {
+                            this.updateFramePositionButtons(check.parentElement, modal);
+                        }
                     } else {
                         thumb.style.borderColor = 'var(--border)';
                         thumb.style.boxShadow = 'none';
                         indicator.textContent = '';
                         indicator.style.background = 'rgba(0,0,0,0.6)';
+
+                        // 移除帧位置按钮
+                        const frameButtons = check.parentElement.querySelector('.frame-position-buttons');
+                        if (frameButtons) frameButtons.remove();
+                        check.removeAttribute('data-frame-position');
                     }
 
                     // 首尾帧模式提示
                     if (firstLastFrameCheck.checked && count < 1) {
                         selectedCountEl.textContent = count + ' (首尾帧至少需要1张)';
+                    } else if (firstLastFrameCheck.checked && count > 0) {
+                        const firstCount = modal.querySelectorAll('.portrait-check[data-frame-position="first"]').length;
+                        const lastCount = modal.querySelectorAll('.portrait-check[data-frame-position="last"]').length;
+                        selectedCountEl.textContent = count + ` (首帧:${firstCount} 尾帧:${lastCount})`;
                     }
                 });
             });
@@ -5033,7 +5047,19 @@ saveVeOConfig(config) {
                         // 显示提示
                         shortDramaStudio.showToast('已切换到首尾帧模式 (veo_3_1-fast)', 'info');
                     }
+
+                    // 为已选中的图片添加帧位置选择按钮
+                    modal.querySelectorAll('.portrait-check:checked').forEach(check => {
+                        this.updateFramePositionButtons(check.parentElement, modal);
+                    });
+                } else {
+                    // 关闭首尾帧模式时，移除所有帧位置按钮和标记
+                    modal.querySelectorAll('.frame-position-buttons').forEach(btn => btn.remove());
+                    modal.querySelectorAll('.portrait-check').forEach(check => {
+                        check.removeAttribute('data-frame-position');
+                    });
                 }
+
                 const count = modal.querySelectorAll('.portrait-check:checked').length;
                 if (firstLastFrameCheck.checked && count < 1) {
                     selectedCountEl.textContent = count + ' (首尾帧至少需要1张)';
@@ -5262,12 +5288,38 @@ saveVeOConfig(config) {
             // 生成按钮
             generateBtn.onclick = () => {
                 const editedPrompt = promptArea.value;
-                const checkedImages = Array.from(modal.querySelectorAll('.portrait-check:checked'))
-                    .map(check => check.dataset.url);
                 const model = document.getElementById('paramModel').value;
                 const orientation = document.getElementById('paramOrientation').value;
                 const size = document.getElementById('paramSize').value;
                 const useFirstLastFrame = document.getElementById('paramFirstLastFrame').checked;
+
+                // 🔥 收集选中的图片，首尾帧模式需要按顺序
+                let checkedImages = [];
+                if (useFirstLastFrame) {
+                    // 首尾帧模式：按首帧、尾帧顺序收集
+                    const firstFrames = Array.from(modal.querySelectorAll('.portrait-check[data-frame-position="first"]:checked'))
+                        .map(check => check.dataset.url);
+                    const lastFrames = Array.from(modal.querySelectorAll('.portrait-check[data-frame-position="last"]:checked'))
+                        .map(check => check.dataset.url);
+
+                    // 首帧在前，尾帧在后
+                    checkedImages = [...firstFrames, ...lastFrames];
+
+                    console.log('首尾帧模式图片顺序:');
+                    console.log('  - 首帧数量:', firstFrames.length);
+                    console.log('  - 尾帧数量:', lastFrames.length);
+                    console.log('  - 传输顺序:', checkedImages);
+
+                    // 验证：首尾帧模式至少需要1张图片
+                    if (checkedImages.length < 1) {
+                        this.showToast('首尾帧模式至少需要选择1张图片并标注为首帧或尾帧', 'warning');
+                        return;
+                    }
+                } else {
+                    // 普通模式：直接收集所有选中的图片
+                    checkedImages = Array.from(modal.querySelectorAll('.portrait-check:checked'))
+                        .map(check => check.dataset.url);
+                }
 
                 console.log('📝 提示词调试信息:');
                 console.log('  - shotKey:', shotKey);
@@ -5279,12 +5331,6 @@ saveVeOConfig(config) {
                 console.log('  - 编辑后的提示词:', editedPrompt);
                 console.log('选中的图片数量:', checkedImages.length);
                 console.log('首尾帧模式:', useFirstLastFrame);
-
-                // 首尾帧模式需要1-2张图片
-                if (useFirstLastFrame && checkedImages.length < 1) {
-                    this.showToast('首尾帧模式至少需要选择1张图片', 'warning');
-                    return;
-                }
 
                 // 保存修改的提示词（与原始AI提示词比较）
                 if (editedPrompt !== aiPrompt) {
@@ -5312,6 +5358,91 @@ saveVeOConfig(config) {
                 }
             });
         });
+    }
+
+    /**
+     * 更新帧位置选择按钮（首尾帧模式）
+     */
+    updateFramePositionButtons(imageLabel, modal) {
+        // 移除已存在的按钮
+        const existingButtons = imageLabel.querySelector('.frame-position-buttons');
+        if (existingButtons) existingButtons.remove();
+
+        // 创建帧位置选择按钮容器
+        const buttonContainer = document.createElement('div');
+        buttonContainer.className = 'frame-position-buttons';
+        buttonContainer.style.cssText = `
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 4px;
+            z-index: 10;
+        `;
+
+        const checkbox = imageLabel.querySelector('.portrait-check');
+        const currentPosition = checkbox.getAttribute('data-frame-position');
+
+        // 首帧按钮
+        const firstBtn = document.createElement('button');
+        firstBtn.textContent = '首';
+        firstBtn.style.cssText = `
+            padding: 4px 8px;
+            font-size: 0.75rem;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            background: ${currentPosition === 'first' ? 'var(--success)' : 'var(--bg-tertiary)'};
+            color: white;
+            font-weight: ${currentPosition === 'first' ? 'bold' : 'normal'};
+        `;
+        firstBtn.onclick = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            checkbox.setAttribute('data-frame-position', 'first');
+            this.updateFramePositionButtons(imageLabel, modal);
+            this.updateFrameCountDisplay(modal);
+        };
+
+        // 尾帧按钮
+        const lastBtn = document.createElement('button');
+        lastBtn.textContent = '尾';
+        lastBtn.style.cssText = `
+            padding: 4px 8px;
+            font-size: 0.75rem;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            background: ${currentPosition === 'last' ? 'var(--danger)' : 'var(--bg-tertiary)'};
+            color: white;
+            font-weight: ${currentPosition === 'last' ? 'bold' : 'normal'};
+        `;
+        lastBtn.onclick = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            checkbox.setAttribute('data-frame-position', 'last');
+            this.updateFramePositionButtons(imageLabel, modal);
+            this.updateFrameCountDisplay(modal);
+        };
+
+        buttonContainer.appendChild(firstBtn);
+        buttonContainer.appendChild(lastBtn);
+        imageLabel.appendChild(buttonContainer);
+    }
+
+    /**
+     * 更新帧数量显示
+     */
+    updateFrameCountDisplay(modal) {
+        const selectedCountEl = document.getElementById('selectedCount');
+        if (!selectedCountEl) return;
+
+        const firstCount = modal.querySelectorAll('.portrait-check[data-frame-position="first"]:checked').length;
+        const lastCount = modal.querySelectorAll('.portrait-check[data-frame-position="last"]:checked').length;
+        const totalCount = modal.querySelectorAll('.portrait-check:checked').length;
+
+        selectedCountEl.textContent = totalCount + ` (首帧:${firstCount} 尾帧:${lastCount})`;
     }
 
     /**
