@@ -211,6 +211,99 @@ class ShortDramaStudio {
     }
 
     /**
+     * 打开创意导入模态框
+     */
+    openIdeaModal() {
+        const modal = document.getElementById('ideaImportModal');
+        if (modal) {
+            modal.style.display = 'flex';
+        }
+    }
+
+    /**
+     * 关闭创意导入模态框
+     */
+    closeIdeaModal() {
+        const modal = document.getElementById('ideaImportModal');
+        if (modal) {
+            modal.style.display = 'none';
+        }
+        // 重置表单
+        document.getElementById('ideaTitle').value = '';
+        document.getElementById('ideaDescription').value = '';
+        document.getElementById('ideaStyle').value = '通用';
+        document.getElementById('ideaShotCount').value = '3';
+        document.getElementById('ideaShotDuration').value = '8';
+    }
+
+    /**
+     * 提交创意导入（生成故事节拍 Step 3）
+     */
+    async submitIdeaImport() {
+        const title = document.getElementById('ideaTitle').value.trim();
+        const episode = document.getElementById('ideaEpisode').value;
+        const description = document.getElementById('ideaDescription').value.trim();
+        const style = document.getElementById('ideaStyle').value;
+        const shotCount = document.getElementById('ideaShotCount').value;
+        const shotDuration = document.getElementById('ideaShotDuration').value;
+
+        if (!title) {
+            this.showToast('请输入剧集名称', 'warning');
+            return;
+        }
+        if (!description) {
+            this.showToast('请输入创意描述', 'warning');
+            return;
+        }
+
+        const button = document.querySelector('#ideaImportModal .btn-primary');
+        if (button) {
+            button.disabled = true;
+            button.innerHTML = '🚀 生成中...';
+        }
+
+        try {
+            const response = await fetch('/api/short-drama/create-from-idea', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    title,
+                    episode: parseInt(episode),
+                    description,
+                    style,
+                    shot_count: parseInt(shotCount),
+                    shot_duration: parseInt(shotDuration)
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                this.showToast('项目创建成功，跳转到故事节拍', 'success');
+                this.closeIdeaModal();
+                
+                // 加载新创建的项目
+                this.currentProject = data.project;
+                this.showWorkspace();
+                this.loadProjectData();
+                
+                // 直接跳转到故事节拍步骤
+                this.goToStep('story-beats');
+            } else {
+                this.showToast(data.error || '创建失败', 'error');
+            }
+        } catch (error) {
+            console.error('创意导入失败:', error);
+            this.showToast('创意导入失败', 'error');
+        } finally {
+            if (button) {
+                button.disabled = false;
+                button.innerHTML = '🚀 开始创作';
+            }
+        }
+    }
+
+    /**
      * 打开项目
      */
     async openProject(projectId) {

@@ -442,7 +442,7 @@ def create_from_novel():
 
 @short_drama_api.route('/create-from-idea', methods=['POST'])
 def create_from_idea():
-    """从创意直接创建项目并生成分镜头"""
+    """从创意创建项目，先生成故事节拍（Step 3）"""
     try:
         data = request.json or {}
         title = data.get('title', '').strip()
@@ -468,8 +468,11 @@ def create_from_idea():
         episode = max(1, min(999, int(episode)))
         shot_count = max(1, min(10, int(shot_count)))
         shot_duration = max(4, min(15, int(shot_duration)))
+        
+        # 计算总时长
+        total_duration = shot_count * shot_duration
 
-        logger.info(f'📝 [创意导入] 标题: {title}, 第{episode}集, 风格: {style}, 镜头数: {shot_count}')
+        logger.info(f'📝 [创意导入] 标题: {title}, 第{episode}集, 风格: {style}, 预计{shot_count}个镜头, 总时长{total_duration}秒')
 
         # 1. 创建项目目录
         project_dir = VIDEO_PROJECTS_DIR / title
@@ -479,37 +482,53 @@ def create_from_idea():
         episode_dir = project_dir / episode_name
         episode_dir.mkdir(exist_ok=True)
 
-        storyboard_dir = episode_dir / 'storyboards'
-        storyboard_dir.mkdir(exist_ok=True)
-
-        # 2. 调用AI生成分镜头
-        storyboard_data = generate_storyboard_from_idea(
+        # 2. 调用AI生成故事节拍 (Step 3)
+        logger.info(f'[创意导入] 开始生成故事节拍...')
+        story_beats = generate_story_beats_from_idea(
             title=f"{title} 第{episode}集",
             description=description,
             style=style,
-            shot_count=shot_count,
-            shot_duration=shot_duration
+            total_duration=total_duration
         )
 
-        # 3. 保存分镜头JSON
-        storyboard_filename = f"{clean_filename(title)}_第{episode}集_创意分镜头.json"
-        storyboard_file = storyboard_dir / storyboard_filename
+        # 3. 创建项目信息
+        project_data = {
+            'id': str(uuid.uuid4())[:8],
+            'title': title,
+            'created_at': datetime.now().isoformat(),
+            'updated_at': datetime.now().isoformat(),
+            'status': 'draft',
+            'episodes': [{
+                'id': episode_name,
+                'title': f'第{episode}集',
+                'name': episode_name,
+                'content': description,
+                'shot_count': shot_count,
+                'shot_duration': shot_duration
+            }],
+            'characters': [],  # 创意导入暂无角色，后续可添加
+            'settings': {
+                'aspect_ratio': '9:16',
+                'quality': '1080p',
+                'model': 'veo_3_1-fast',
+                'use_first_last_frame': True
+            },
+            'storyBeats': story_beats  # 保存故事节拍
+        }
 
-        with open(storyboard_file, 'w', encoding='utf-8') as f:
-            json.dump(storyboard_data, f, ensure_ascii=False, indent=2)
+        # 4. 保存项目JSON
+        project_file = project_dir / '项目信息.json'
+        with open(project_file, 'w', encoding='utf-8') as f:
+            json.dump(project_data, f, ensure_ascii=False, indent=2)
 
-        logger.info(f'✅ [创意导入] 分镜头已保存: {storyboard_file}')
-
-        # 4. 创建/更新项目
-        project = ShortDramaProject(title=title)
-        project.episodes = [episode_name]
-        project.save()
+        logger.info(f'✅ [创意导入] 项目已创建: {project_file}')
+        logger.info(f'✅ [创意导入] 故事节拍已生成: {len(story_beats.get("scenes", []))} 场景')
 
         return jsonify({
             'success': True,
-            'project': project.to_dict(),
-            'storyboard': storyboard_data,
-            'message': f'成功生成 {shot_count} 个分镜头'
+            'project': project_data,
+            'storyBeats': story_beats,
+            'message': f'成功创建项目并生成故事节拍，共{len(story_beats.get("scenes", []))}个场景'
         }), 201
 
     except Exception as e:
@@ -520,6 +539,161 @@ def create_from_idea():
             'success': False,
             'error': str(e)
         }), 500
+
+
+def generate_story_beats_from_idea(title: str, description: str, style: str, total_duration: int = 80) -> dict:
+    """
+    根据创意描述生成故事节拍 (Step 3)
+    
+    Args:
+        title: 剧集标题
+        description: 创意描述
+        style: 风格
+        total_duration: 总时长（秒）
+        
+    Returns:
+        故事节拍数据字典
+    """
+    try:
+        # 计算场景数（每个场景平均4-8秒）
+        avg_scene_duration = 6
+        scene_count = max(3, min(15, total_duration // avg_scene_duration))
+        
+        # 调整每个场景时长使总和等于总时长
+        base_duration = total_duration // scene_count
+        remainder = total_duration % scene_count
+        
+        system_prompt = f"""你是一个专业的短剧编剧。请根据以下创意描述，生成{total_duration}秒的故事节拍(Story Beats)。
+
+## 输出要求
+
+1. **三幕结构分配**
+   - 第一幕「建立」(0-30%)：建立场景、人物、核心矛盾
+   - 第二幕「对抗」(30-70%)：冲突升级、内心挣扎
+   - 第三幕「高潮」(70-100%)：高潮时刻、人物觉醒、悬念收尾
+
+2. **场景设计原则**
+   - 生成{scene_count}个场景
+   - 每个场景时长4-10秒
+   - 总时长严格等于{total_duration}秒
+   - 场景之间有逻辑连贯性
+
+3. **对白设计**
+   - 每个场景至少1句对白
+   - 对白要推动剧情或展示人物性格
+   - 提供中英文双语
+
+4. **输出格式**
+只输出JSON，格式如下：
+{{
+  "scenes": [
+    {{
+      "sceneNumber": 1,
+      "sceneTitleCn": "中文场景标题",
+      "sceneTitleEn": "English Scene Title",
+      "storyBeatCn": "中文叙事目的",
+      "storyBeatEn": "English story purpose",
+      "durationSeconds": 6,
+      "emotionalArc": "绝决→紧张",
+      "dialogues": [
+        {{
+          "timestamp": 0,
+          "speaker": "角色名",
+          "linesCn": "中文台词",
+          "linesEn": "English lines",
+          "toneCn": "语气描述",
+          "toneEn": "Tone description"
+        }}
+      ]
+    }}
+  ]
+}}
+"""
+
+        user_prompt = f"""
+剧集标题：{title}
+风格：{style}
+总时长：{total_duration}秒
+预计场景数：{scene_count}
+
+创意描述：
+{description}
+
+请生成故事节拍JSON。
+"""
+
+        if api_client:
+            try:
+                response = api_client.generate_text(
+                    prompt=user_prompt,
+                    system_prompt=system_prompt,
+                    max_tokens=4000,
+                    temperature=0.7
+                )
+                
+                content = response.get('content', '') if isinstance(response, dict) else str(response)
+                
+                # 提取JSON
+                import re
+                json_match = re.search(r'\{[\s\S]*\}', content)
+                if json_match:
+                    story_beats = json.loads(json_match.group())
+                else:
+                    story_beats = json.loads(content)
+                
+                # 验证并调整时长
+                if 'scenes' in story_beats:
+                    scenes = story_beats['scenes']
+                    # 调整场景数使之符合预期
+                    if len(scenes) != scene_count:
+                        logger.warning(f'故事节拍场景数不匹配: 期望{scene_count}, 实际{len(scenes)}')
+                    
+                    # 调整时长使总和等于总时长
+                    total = sum(s.get('durationSeconds', base_duration) for s in scenes)
+                    if total != total_duration:
+                        # 均匀分配差额
+                        diff = total_duration - total
+                        if diff != 0 and len(scenes) > 0:
+                            adjust = diff // len(scenes)
+                            for s in scenes:
+                                s['durationSeconds'] = s.get('durationSeconds', base_duration) + adjust
+                
+                return story_beats
+                
+            except Exception as e:
+                logger.error(f'AI生成故事节拍失败: {e}')
+                return _get_default_story_beats_for_idea(scene_count, base_duration, remainder)
+        else:
+            return _get_default_story_beats_for_idea(scene_count, base_duration, remainder)
+            
+    except Exception as e:
+        logger.error(f'生成故事节拍失败: {e}')
+        return _get_default_story_beats_for_idea(3, 8, 0)
+
+
+def _get_default_story_beats_for_idea(scene_count: int, base_duration: int, remainder: int):
+    """获取默认故事节拍（用于创意导入）"""
+    scenes = []
+    for i in range(scene_count):
+        duration = base_duration + (1 if i < remainder else 0)
+        scenes.append({
+            'sceneNumber': i + 1,
+            'sceneTitleCn': f'场景{i+1}',
+            'sceneTitleEn': f'Scene {i+1}',
+            'storyBeatCn': '展示情节发展',
+            'storyBeatEn': 'Show plot development',
+            'durationSeconds': duration,
+            'emotionalArc': '平静→紧张',
+            'dialogues': [{
+                'timestamp': 0,
+                'speaker': '主角',
+                'linesCn': '这是一个重要的时刻...',
+                'linesEn': 'This is an important moment...',
+                'toneCn': '内心独白',
+                'toneEn': 'Inner monologue'
+            }]
+        })
+    return {'scenes': scenes}
 
 
 def generate_storyboard_from_idea(title: str, description: str, style: str,
