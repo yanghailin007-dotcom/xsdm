@@ -137,8 +137,79 @@ class ShortDramaProject:
                             project.episodes = data.get('episodes', [])
                             project.characters = data.get('characters', [])
                             project.settings = data.get('settings', project.settings)
+
+                            # 🔥 加载每个episode的storyboard数据
+                            project._load_episode_storyboards(project_dir)
+
                             return project
         return None
+
+    def _load_episode_storyboards(self, project_dir):
+        """加载每个episode的storyboard数据并转换为shots数组"""
+        if not isinstance(self.episodes, list):
+            return
+
+        enriched_episodes = []
+        for episode_name in self.episodes:
+            # 如果已经是字典对象（有shots），直接使用
+            if isinstance(episode_name, dict):
+                enriched_episodes.append(episode_name)
+                continue
+
+            # 构建episode目录路径
+            episode_dir = project_dir / episode_name
+            storyboard_dir = episode_dir / 'storyboards'
+
+            # 创建episode对象
+            episode_obj = {
+                'title': episode_name,
+                'shots': []
+            }
+
+            # 如果storyboard目录存在，加载storyboard文件
+            if storyboard_dir.exists() and storyboard_dir.is_dir():
+                storyboard_files = list(storyboard_dir.glob('*.json'))
+
+                shot_id_counter = 1
+                for json_file in storyboard_files:
+                    try:
+                        with open(json_file, 'r', encoding='utf-8') as f:
+                            storyboard_data = json.load(f)
+
+                            # 从scenes中提取shot_sequence
+                            scenes = storyboard_data.get('scenes', [])
+                            for scene in scenes:
+                                shot_sequence = scene.get('shot_sequence', [])
+                                scene_title = scene.get('scene_title', '')
+                                scene_number = scene.get('scene_number', 1)
+
+                                for shot in shot_sequence:
+                                    # 转换为frontend期望的格式
+                                    shot_obj = {
+                                        'id': f"shot_{shot_id_counter}",
+                                        'shot_number': shot.get('shot_number', 1),
+                                        'scene_number': scene_number,
+                                        'scene_title': scene_title,
+                                        'shot_type': shot.get('shot_type', ''),
+                                        'duration': shot.get('duration_seconds', shot.get('duration', 8)),
+                                        'veo_prompt': shot.get('veo_prompt', ''),
+                                        'dialogue': shot.get('dialogue', {}),
+                                        'visual': shot.get('visual', {}),
+                                        'status': 'pending'  # 默认状态
+                                    }
+                                    episode_obj['shots'].append(shot_obj)
+                                    shot_id_counter += 1
+
+                    except Exception as e:
+                        logger.error(f'加载storyboard文件失败 {json_file}: {e}')
+
+                logger.info(f'📋 [Episode] {episode_name}: 加载了 {len(episode_obj["shots"])} 个镜头')
+
+            enriched_episodes.append(episode_obj)
+
+        # 更新episodes为enriched版本
+        self.episodes = enriched_episodes
+
 
     @staticmethod
     def load_by_title(title):
@@ -157,6 +228,10 @@ class ShortDramaProject:
         project.episodes = data.get('episodes', [])
         project.characters = data.get('characters', [])
         project.settings = data.get('settings', project.settings)
+
+        # 🔥 加载每个episode的storyboard数据
+        project_dir = project_file.parent
+        project._load_episode_storyboards(project_dir)
 
         return project
 
@@ -723,7 +798,7 @@ def get_storyboards():
         if not storyboard_dir.exists():
             return jsonify({
                 'success': True,
-                'storyboards': {}
+                'storyboards': []  # 返回空数组而不是空字典
             })
 
         # 🔥 尝试从 plan 文件中获取事件顺序

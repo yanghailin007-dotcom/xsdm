@@ -470,6 +470,32 @@ class ShortDramaStudio {
         const eventData = data.events || [];
 
         eventData.forEach((major, idx) => {
+            // 处理children - 优先从composition中提取（创意导入项目）
+            let children = [];
+
+            if (major.composition && typeof major.composition === 'object' && Object.keys(major.composition).length > 0) {
+                // composition 是一个包含 '起', '承', '转', '合' 的对象
+                const phases = ['起', '承', '转', '合'];
+                let sceneIndex = 0;
+                phases.forEach(phase => {
+                    if (major.composition[phase] && Array.isArray(major.composition[phase])) {
+                        major.composition[phase].forEach(scene => {
+                            // 确保每个场景都有id
+                            const sceneWithId = {
+                                ...scene,
+                                id: scene.id || `scene_${sceneIndex}`,
+                                phase: phase
+                            };
+                            children.push(sceneWithId);
+                            sceneIndex++;
+                        });
+                    }
+                });
+            } else if (major.children) {
+                // 普通小说项目的children结构
+                children = major.children;
+            }
+
             events.push({
                 id: major.id || `major_${idx}`,
                 title: major.title || major.name,
@@ -477,9 +503,9 @@ class ShortDramaStudio {
                 type: 'major',
                 description: major.description || '',
                 stage: major.stage,
-                children: major.children || [],
-                children_count: major.children_count || (major.children || []).length,
-                has_children: major.has_children,
+                children: children,
+                children_count: major.children_count || children.length,
+                has_children: children.length > 0,
                 chapter_range: major.chapter_range,
                 characters: major.characters,
                 location: major.location,
@@ -1144,11 +1170,7 @@ class ShortDramaStudio {
     getEpisodeDirectoryName() {
         // 🔥 如果是创意导入项目，使用固定的目录名
         if (this.isCreativeProject) {
-            // 从当前选择的事件中获取集数信息
-            if (this.selectedMajorEvent && this.selectedMajorEvent.title) {
-                // 如果事件标题包含集数信息，使用它
-                return this.selectedMajorEvent.title;
-            }
+            // 创意导入项目固定使用 "1集_创意导入" 作为目录名
             return '1集_创意导入';
         }
 
@@ -1337,15 +1359,23 @@ class ShortDramaStudio {
         try {
             // 先尝试从本地文件加载已存在的分镜头
             const episodeDirectoryName = this.getEpisodeDirectoryName();
+            console.log('🎬 [loadStoryboardStep] episodeDirectoryName:', episodeDirectoryName);
+            console.log('🎬 [loadStoryboardStep] selectedNovel:', this.selectedNovel);
 
             const response = await fetch(`/api/short-drama/storyboards?novel=${encodeURIComponent(this.selectedNovel)}&episode=${encodeURIComponent(episodeDirectoryName)}`);
             const data = await response.json();
+
+            console.log('🎬 [loadStoryboardStep] API响应:', data);
+            console.log('🎬 [loadStoryboardStep] data.success:', data.success);
+            console.log('🎬 [loadStoryboardStep] data.storyboards:', data.storyboards);
+            console.log('🎬 [loadStoryboardStep] storyboards.length:', data.storyboards?.length);
 
             // 🔥 后端返回的是数组格式
             if (data.success && data.storyboards && data.storyboards.length > 0) {
                 console.log('✅ [分镜头] 从本地加载分镜头:', data.storyboards.length, '个文件');
                 this.renderStoryboards(data.storyboards);
             } else {
+                console.log('❌ [分镜头] 没有找到分镜头数据');
                 // 没有本地分镜头，显示生成按钮
                 container.innerHTML = `
                     <div class="empty-state">
@@ -1410,6 +1440,18 @@ class ShortDramaStudio {
             return;
         }
 
+        // 🔥 检查是否为创意导入项目（已有shot_sequence数据）
+        const hasEmbeddedStoryboard = this.checkEmbeddedStoryboard(selectedEpisodesList);
+
+        if (hasEmbeddedStoryboard) {
+            console.log('🎬 [分镜头] 检测到创意导入项目，使用嵌入的分镜头数据');
+            const storyboard = this.extractEmbeddedStoryboard(selectedEpisodesList);
+            this.currentProject = { ...this.currentProject, storyboard: storyboard };
+            await this.saveProject();
+            this.renderStoryboard(storyboard);
+            return;
+        }
+
         container.innerHTML = '<div class="loading-state"><div class="spinner"></div><p>正在生成分镜头...</p></div>';
 
         try {
@@ -1458,6 +1500,67 @@ class ShortDramaStudio {
                 </div>
             `;
         }
+    }
+
+    /**
+     * 检查选中的事件是否包含嵌入的分镜头数据（创意导入项目）
+     */
+    checkEmbeddedStoryboard(selectedEpisodesList) {
+        if (!this.events || this.events.length === 0) return false;
+
+        // 查找选中的事件
+        for (const episodeId of selectedEpisodesList) {
+            const event = this.findEventById(episodeId);
+            if (event && event.shot_sequence && Array.isArray(event.shot_sequence) && event.shot_sequence.length > 0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * 从选中的事件中提取嵌入的分镜头数据
+     */
+    extractEmbeddedStoryboard(selectedEpisodesList) {
+        const storyboard = [];
+
+        selectedEpisodesList.forEach((episodeId, index) => {
+            const event = this.findEventById(episodeId);
+            if (!event) return;
+
+            // 创意导入项目的事件本身就是场景
+            const storyboardEntry = {
+                _key: event.id || episodeId,
+                _display_name: event.scene_title || event.title || event.name || `场景 ${index + 1}`,
+                _order: index,
+                scenes: [{
+                    scene_number: event.scene_number || 1,
+                    scene_title: event.scene_title || event.title || event.name,
+                    shot_sequence: event.shot_sequence || []
+                }]
+            };
+
+            storyboard.push(storyboardEntry);
+        });
+
+        console.log('🎬 [分镜头] 提取的嵌入分镜头数据:', storyboard);
+        return storyboard;
+    }
+
+    /**
+     * 根据ID查找事件（在所有重大事件的children中查找）
+     */
+    findEventById(eventId) {
+        for (const majorEvent of this.events) {
+            if (majorEvent.children) {
+                for (const child of majorEvent.children) {
+                    if (child.id === eventId || child.scene_number === eventId) {
+                        return child;
+                    }
+                }
+            }
+        }
+        return null;
     }
 
     /**
@@ -1641,11 +1744,16 @@ class ShortDramaStudio {
      * 渲染分镜头（从本地文件加载）
      */
     renderStoryboards(storyboards) {
+        console.log('🎬 [renderStoryboards] 开始渲染，storyboards:', storyboards);
         const container = document.getElementById('storyboardContent');
-        if (!container) return;
+        if (!container) {
+            console.log('❌ [renderStoryboards] container不存在');
+            return;
+        }
 
         // 🔥 后端现在返回列表（已按_order排序）
         const storyboardList = Array.isArray(storyboards) ? storyboards : [];
+        console.log('🎬 [renderStoryboards] storyboardList.length:', storyboardList.length);
 
         console.log('📊 [Storyboards] 后端返回的列表，长度:', storyboardList.length);
         storyboardList.forEach((data, idx) => {

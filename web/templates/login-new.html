@@ -4,109 +4,33 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>登录 - 大文娱创作平台</title>
+    <link rel="stylesheet" href="/static/css/design-system.css">
+    <link rel="stylesheet" href="/static/css/components.css">
     <style>
-        /* ==================== 完整设计系统内联版 ==================== */
-        :root {
-            --primary-50: #eef2ff;
-            --primary-100: #e0e7ff;
-            --primary-200: #c7d2fe;
-            --primary-300: #a5b4fc;
-            --primary-400: #818cf8;
-            --primary-500: #6366f1;
-            --primary-600: #4f46e5;
-            --primary-700: #4338ca;
-            --primary-800: #3730a3;
-            --primary-900: #312e81;
-
-            --accent-500: #06b6d4;
-            --accent-600: #0891b2;
-
-            --success-500: #22c55e;
-            --error-500: #ef4444;
-            --error-600: #dc2626;
-
-            --gray-50: #f8fafc;
-            --gray-100: #f1f5f9;
-            --gray-200: #e2e8f0;
-            --gray-300: #cbd5e1;
-            --gray-400: #94a3b8;
-            --gray-500: #64748b;
-            --gray-600: #475569;
-            --gray-700: #334155;
-            --gray-800: #1e293b;
-            --gray-900: #0f172a;
-
-            --bg-primary: #0f172a;
-            --bg-secondary: #1e293b;
-            --bg-card: rgba(30, 41, 59, 0.8);
-
-            --text-primary: #f8fafc;
-            --text-secondary: #cbd5e1;
-            --text-tertiary: #94a3b8;
-            --text-muted: #64748b;
-
-            --text-xs: 0.75rem;
-            --text-sm: 0.875rem;
-            --text-base: 1rem;
-            --text-lg: 1.125rem;
-            --text-xl: 1.25rem;
-            --text-2xl: 1.5rem;
-            --text-3xl: 1.875rem;
-
-            --space-1: 0.25rem;
-            --space-2: 0.5rem;
-            --space-3: 0.75rem;
-            --space-4: 1rem;
-            --space-5: 1.25rem;
-            --space-6: 1.5rem;
-            --space-8: 2rem;
-            --space-10: 2.5rem;
-
-            --radius-lg: 0.75rem;
-            --radius-xl: 1rem;
-            --radius-2xl: 1.5rem;
-            --radius-3xl: 2rem;
-            --radius-full: 9999px;
-
-            --transition-fast: 150ms ease;
-            --transition-normal: 250ms ease;
-        }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        html {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
-            font-size: 16px;
-        }
-
-        body {
-            background: var(--bg-primary);
-            color: var(--text-primary);
-            min-height: 100vh;
-            line-height: 1.6;
-        }
-
-        /* ==================== 登录页面样式 ==================== */
+        /* 登录页面专用样式 */
         .login-page {
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 1.5rem;
+            padding: var(--space-6);
             position: relative;
             overflow: hidden;
-            background: 
-                radial-gradient(ellipse at top, #1b2735 0%, #090a0f 100%);
         }
 
         /* 动态背景 */
-        .login-page::before {
-            content: '';
+        .login-bg {
             position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: -1;
+        }
+
+        .login-bg::before {
+            content: '';
+            position: absolute;
             top: -50%;
             left: -50%;
             width: 200%;
@@ -116,29 +40,6 @@
                 radial-gradient(circle at 70% 70%, rgba(6, 182, 212, 0.15) 0%, transparent 40%),
                 radial-gradient(circle at 50% 50%, rgba(168, 85, 247, 0.1) 0%, transparent 50%);
             animation: rotate 30s linear infinite;
-            z-index: 0;
-            pointer-events: none;
-        }
-
-        /* 星星背景 */
-        .login-page::after {
-            content: '';
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-image: 
-                radial-gradient(2px 2px at 20px 30px, rgba(255,255,255,0.6), transparent),
-                radial-gradient(2px 2px at 40px 70px, rgba(255,255,255,0.4), transparent),
-                radial-gradient(1px 1px at 90px 40px, rgba(255,255,255,0.5), transparent),
-                radial-gradient(2px 2px at 130px 80px, rgba(255,255,255,0.3), transparent);
-            background-repeat: repeat;
-            background-size: 200px 200px;
-            animation: twinkle 8s infinite linear;
-            z-index: 0;
-            pointer-events: none;
-            opacity: 0.6;
         }
 
         @keyframes rotate {
@@ -146,42 +47,21 @@
             to { transform: rotate(360deg); }
         }
 
-        @keyframes twinkle {
-            0%, 100% { opacity: 0.6; }
-            50% { opacity: 0.3; }
-        }
-
         /* 登录容器 */
         .login-container {
             width: 100%;
             max-width: 420px;
-            position: relative;
-            z-index: 10;
             animation: fadeInUp 0.6s ease-out;
         }
 
-        @keyframes fadeInUp {
-            from { 
-                opacity: 0;
-                transform: translateY(30px);
-            }
-            to { 
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
         .login-card {
-            background: rgba(30, 41, 59, 0.7);
-            backdrop-filter: blur(20px);
+            background: rgba(30, 41, 59, 0.6);
+            backdrop-filter: blur(40px);
             border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 2rem;
-            padding: 2.5rem;
+            border-radius: var(--radius-3xl);
+            padding: var(--space-10);
             position: relative;
             overflow: hidden;
-            box-shadow: 
-                0 25px 50px -12px rgba(0, 0, 0, 0.5),
-                0 0 0 1px rgba(255, 255, 255, 0.05);
         }
 
         .login-card::before {
@@ -194,7 +74,7 @@
             background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
         }
 
-        /* 装饰发光 */
+        /* 装饰性发光 */
         .login-glow {
             position: absolute;
             width: 200px;
@@ -217,10 +97,10 @@
             background: var(--accent-500);
         }
 
-        /* 头部 */
+        /* Logo区域 */
         .login-header {
             text-align: center;
-            margin-bottom: 2rem;
+            margin-bottom: var(--space-8);
             position: relative;
             z-index: 1;
         }
@@ -228,34 +108,29 @@
         .login-logo {
             width: 80px;
             height: 80px;
-            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #06b6d4 100%);
-            border-radius: 1.5rem;
+            background: var(--gradient-primary);
+            border-radius: var(--radius-2xl);
             display: flex;
             align-items: center;
             justify-content: center;
             font-size: 40px;
-            margin: 0 auto 1.5rem;
-            box-shadow: 0 10px 40px rgba(99, 102, 241, 0.4);
+            margin: 0 auto var(--space-5);
+            box-shadow: var(--shadow-glow);
             animation: float 3s ease-in-out infinite;
         }
 
-        @keyframes float {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-10px); }
-        }
-
         .login-title {
-            font-size: 1.5rem;
+            font-size: var(--text-2xl);
             font-weight: 800;
-            margin-bottom: 0.5rem;
-            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #06b6d4 100%);
+            margin-bottom: var(--space-2);
+            background: var(--gradient-primary);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
         }
 
         .login-subtitle {
-            font-size: 0.875rem;
+            font-size: var(--text-sm);
             color: var(--text-tertiary);
         }
 
@@ -266,15 +141,7 @@
         }
 
         .form-group {
-            margin-bottom: 1.25rem;
-        }
-
-        .form-label {
-            display: block;
-            margin-bottom: 0.5rem;
-            font-size: 0.875rem;
-            font-weight: 500;
-            color: var(--text-secondary);
+            margin-bottom: var(--space-5);
         }
 
         .input-wrapper {
@@ -283,35 +150,17 @@
 
         .input-icon {
             position: absolute;
-            left: 1rem;
+            left: var(--space-4);
             top: 50%;
             transform: translateY(-50%);
             font-size: 18px;
             color: var(--text-muted);
             pointer-events: none;
-            transition: color 0.15s;
+            transition: color var(--transition-fast);
         }
 
         .form-input {
-            width: 100%;
-            padding: 0.75rem 1rem 0.75rem 3rem;
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 0.75rem;
-            color: var(--text-primary);
-            font-size: 0.875rem;
-            transition: all 0.15s;
-        }
-
-        .form-input::placeholder {
-            color: var(--text-muted);
-        }
-
-        .form-input:focus {
-            outline: none;
-            border-color: var(--primary-500);
-            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
-            background: rgba(255, 255, 255, 0.08);
+            padding-left: var(--space-12);
         }
 
         .form-input:focus + .input-icon {
@@ -323,13 +172,13 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
-            margin-bottom: 1.5rem;
+            margin-bottom: var(--space-6);
         }
 
         .checkbox-wrapper {
             display: flex;
             align-items: center;
-            gap: 0.5rem;
+            gap: var(--space-2);
             cursor: pointer;
         }
 
@@ -341,96 +190,37 @@
         }
 
         .checkbox-label {
-            font-size: 0.875rem;
+            font-size: var(--text-sm);
             color: var(--text-secondary);
         }
 
         .forgot-link {
-            font-size: 0.875rem;
+            font-size: var(--text-sm);
             color: var(--primary-400);
             text-decoration: none;
-            transition: color 0.15s;
+            transition: color var(--transition-fast);
         }
 
         .forgot-link:hover {
             color: var(--primary-300);
         }
 
-        /* 按钮 */
-        .btn {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 0.5rem;
-            padding: 0.75rem 1.5rem;
-            font-size: 0.875rem;
-            font-weight: 600;
-            border-radius: 0.75rem;
-            cursor: pointer;
-            transition: all 0.15s;
-            border: none;
-            outline: none;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .btn::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
+        /* 登录按钮 */
+        .login-btn {
             width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
-            transition: left 0.5s;
-        }
-
-        .btn:hover::before {
-            left: 100%;
-        }
-
-        .btn-primary {
-            width: 100%;
-            padding: 1rem;
-            font-size: 1rem;
-            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #06b6d4 100%);
-            color: white;
-            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
-            margin-bottom: 1.5rem;
-        }
-
-        .btn-primary:hover {
-            box-shadow: 0 10px 30px rgba(99, 102, 241, 0.5);
-            transform: translateY(-2px);
-        }
-
-        .btn-primary:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        .btn-secondary {
-            background: rgba(255, 255, 255, 0.1);
-            color: var(--text-primary);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            padding: 0.25rem 0.75rem;
-            font-size: 0.75rem;
-        }
-
-        .btn-secondary:hover {
-            background: rgba(255, 255, 255, 0.15);
-            border-color: rgba(255, 255, 255, 0.3);
+            padding: var(--space-4);
+            font-size: var(--text-base);
+            margin-bottom: var(--space-6);
         }
 
         /* 分隔线 */
         .divider-text {
             display: flex;
             align-items: center;
-            gap: 1rem;
-            margin-bottom: 1.5rem;
+            gap: var(--space-4);
+            margin-bottom: var(--space-6);
             color: var(--text-muted);
-            font-size: 0.75rem;
+            font-size: var(--text-xs);
         }
 
         .divider-text::before,
@@ -445,44 +235,45 @@
         .demo-accounts {
             background: rgba(255, 255, 255, 0.03);
             border: 1px solid rgba(255, 255, 255, 0.05);
-            border-radius: 1rem;
-            padding: 1.25rem;
-            margin-bottom: 1.5rem;
+            border-radius: var(--radius-xl);
+            padding: var(--space-5);
+            margin-bottom: var(--space-6);
         }
 
         .demo-title {
-            font-size: 0.75rem;
+            font-size: var(--text-xs);
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0.1em;
             color: var(--text-tertiary);
-            margin-bottom: 1rem;
+            margin-bottom: var(--space-4);
             text-align: center;
         }
 
         .demo-list {
             display: flex;
             flex-direction: column;
-            gap: 0.75rem;
+            gap: var(--space-3);
         }
 
         .demo-item {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 0.75rem 1rem;
+            padding: var(--space-3) var(--space-4);
             background: rgba(255, 255, 255, 0.03);
-            border-radius: 0.75rem;
+            border-radius: var(--radius-lg);
             cursor: pointer;
-            transition: all 0.15s;
+            transition: all var(--transition-fast);
         }
 
         .demo-item:hover {
             background: rgba(99, 102, 241, 0.1);
+            border-color: rgba(99, 102, 241, 0.3);
         }
 
         .demo-info {
-            font-size: 0.875rem;
+            font-size: var(--text-sm);
             color: var(--text-secondary);
         }
 
@@ -490,10 +281,15 @@
             color: var(--text-primary);
         }
 
+        .demo-btn {
+            padding: var(--space-1) var(--space-3);
+            font-size: var(--text-xs);
+        }
+
         /* 注册链接 */
         .register-prompt {
             text-align: center;
-            font-size: 0.875rem;
+            font-size: var(--text-sm);
             color: var(--text-secondary);
         }
 
@@ -501,7 +297,7 @@
             color: var(--primary-400);
             text-decoration: none;
             font-weight: 600;
-            transition: color 0.15s;
+            transition: color var(--transition-fast);
         }
 
         .register-link:hover {
@@ -510,24 +306,8 @@
 
         /* 错误提示 */
         .alert {
-            display: none;
-            align-items: center;
-            gap: 0.5rem;
-            padding: 0.75rem 1rem;
-            border-radius: 0.75rem;
-            margin-bottom: 1.25rem;
-            font-size: 0.875rem;
+            margin-bottom: var(--space-5);
             animation: shake 0.5s ease-out;
-        }
-
-        .alert.show {
-            display: flex;
-        }
-
-        .alert-error {
-            background: rgba(239, 68, 68, 0.1);
-            border: 1px solid rgba(239, 68, 68, 0.3);
-            color: #f87171;
         }
 
         @keyframes shake {
@@ -536,37 +316,23 @@
             75% { transform: translateX(5px); }
         }
 
-        /* 加载动画 */
-        .loading-spinner {
-            width: 16px;
-            height: 16px;
-            border: 2px solid rgba(255, 255, 255, 0.3);
-            border-top-color: white;
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
         /* 页脚 */
         .login-footer {
             text-align: center;
-            margin-top: 2rem;
-            font-size: 0.75rem;
+            margin-top: var(--space-8);
+            font-size: var(--text-xs);
             color: var(--text-muted);
         }
 
         /* 响应式 */
         @media (max-width: 480px) {
             .login-card {
-                padding: 1.5rem;
+                padding: var(--space-6);
             }
 
             .form-options {
                 flex-direction: column;
-                gap: 0.75rem;
+                gap: var(--space-3);
                 align-items: flex-start;
             }
         }
@@ -574,6 +340,9 @@
 </head>
 <body>
     <div class="login-page">
+        <!-- 背景 -->
+        <div class="login-bg"></div>
+
         <!-- 登录容器 -->
         <div class="login-container">
             <div class="login-card">
@@ -589,7 +358,7 @@
                 </div>
 
                 <!-- 错误提示（默认隐藏） -->
-                <div id="errorAlert" class="alert alert-error">
+                <div id="errorAlert" class="alert alert-error" style="display: none;">
                     <span>⚠️</span>
                     <span id="errorMessage">用户名或密码错误</span>
                 </div>
@@ -599,7 +368,7 @@
                     <div class="form-group">
                         <label class="form-label">用户名</label>
                         <div class="input-wrapper">
-                            <input type="text" id="username" class="form-input" placeholder="请输入用户名" required autocomplete="username">
+                            <input type="text" id="username" class="form-input" placeholder="请输入用户名" required>
                             <span class="input-icon">👤</span>
                         </div>
                     </div>
@@ -607,7 +376,7 @@
                     <div class="form-group">
                         <label class="form-label">密码</label>
                         <div class="input-wrapper">
-                            <input type="password" id="password" class="form-input" placeholder="请输入密码" required autocomplete="current-password">
+                            <input type="password" id="password" class="form-input" placeholder="请输入密码" required>
                             <span class="input-icon">🔒</span>
                         </div>
                     </div>
@@ -620,9 +389,9 @@
                         <a href="#" class="forgot-link">忘记密码？</a>
                     </div>
 
-                    <button type="submit" class="btn btn-primary" id="loginBtn">
+                    <button type="submit" class="btn btn-primary login-btn" id="loginBtn">
                         <span>登 录</span>
-                        <div id="loadingSpinner" class="loading-spinner" style="display: none;"></div>
+                        <span id="loadingSpinner" class="loading-spinner loading-spinner-small" style="display: none;"></span>
                     </button>
                 </form>
 
@@ -635,11 +404,11 @@
                     <div class="demo-list">
                         <div class="demo-item" onclick="fillDemo('test', 'test')">
                             <span class="demo-info"><strong>test</strong> / 任意密码</span>
-                            <button class="btn btn-secondary">使用</button>
+                            <button class="btn btn-small btn-secondary demo-btn">使用</button>
                         </div>
                         <div class="demo-item" onclick="fillDemo('admin', 'admin')">
                             <span class="demo-info"><strong>admin</strong> / admin</span>
-                            <button class="btn btn-secondary">使用</button>
+                            <button class="btn btn-small btn-secondary demo-btn">使用</button>
                         </div>
                     </div>
                 </div>
@@ -676,11 +445,11 @@
             const errorAlert = document.getElementById('errorAlert');
             
             // 隐藏错误提示
-            errorAlert.classList.remove('show');
+            errorAlert.style.display = 'none';
             
             // 显示加载状态
             loginBtn.disabled = true;
-            spinner.style.display = 'block';
+            spinner.style.display = 'inline-block';
             
             try {
                 const response = await fetch('/login', {
@@ -695,7 +464,7 @@
                     const data = await response.json();
                     // 成功动画
                     loginBtn.innerHTML = '<span>✓ 登录成功</span>';
-                    loginBtn.style.background = 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)';
+                    loginBtn.style.background = 'var(--gradient-success)';
                     
                     setTimeout(() => {
                         window.location.href = data.redirect || '/landing';
@@ -707,7 +476,7 @@
             } catch (error) {
                 // 显示错误
                 document.getElementById('errorMessage').textContent = error.message;
-                errorAlert.classList.add('show');
+                errorAlert.style.display = 'flex';
                 
                 // 重置按钮
                 loginBtn.disabled = false;
@@ -717,13 +486,13 @@
 
         // 输入时清除错误
         document.getElementById('username').addEventListener('input', () => {
-            document.getElementById('errorAlert').classList.remove('show');
+            document.getElementById('errorAlert').style.display = 'none';
         });
         document.getElementById('password').addEventListener('input', () => {
-            document.getElementById('errorAlert').classList.remove('show');
+            document.getElementById('errorAlert').style.display = 'none';
         });
 
-        // 页面加载完成后焦点到用户名
+        // 页面加载完成后的动画
         document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('username').focus();
         });
