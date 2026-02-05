@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>短剧工作台 - 大文娱创作平台</title>
-    <link rel="stylesheet" href="/static/css/short-drama-studio.css?v=3">
+    <link rel="stylesheet" href="/static/css/short-drama-studio.css?v=4">
     <style>
         /* ==================== 设计系统变量 - 覆盖原CSS ==================== */
         :root {
@@ -826,19 +826,55 @@
             width: 100% !important;
         }
 
-        /* ==================== 分镜头列表样式 ==================== */
-        #videoStep .step-content,
-        #dubbingStep .step-content,
-        #storyboardStep .step-content {
+        /* ==================== 步骤内容样式覆盖 ==================== */
+        /* 覆盖外部CSS的.step-content样式 */
+        #videoStep.step-content,
+        #dubbingStep.step-content,
+        #storyboardStep.step-content,
+        #check-portraitsStep.step-content,
+        #exportStep.step-content {
             display: none;
+            padding: 1.5rem !important;
         }
 
         #videoStep.step-content.active,
         #dubbingStep.step-content.active,
-        #storyboardStep.step-content.active {
+        #storyboardStep.step-content.active,
+        #check-portraitsStep.step-content.active,
+        #exportStep.step-content.active {
             display: block !important;
+            padding: 1.5rem !important;
         }
 
+        /* 覆盖.step-header样式 */
+        #videoStep .step-header,
+        #dubbingStep .step-header,
+        #storyboardStep .step-header {
+            display: flex !important;
+            align-items: center !important;
+            justify-content: space-between !important;
+            margin-bottom: 1.5rem !important;
+            flex-wrap: wrap !important;
+            gap: 1rem !important;
+        }
+
+        #videoStep .step-header h2,
+        #dubbingStep .step-header h2,
+        #storyboardStep .step-header h2 {
+            font-size: 1.25rem !important;
+            font-weight: 700 !important;
+            color: var(--text-primary) !important;
+        }
+
+        #videoStep .step-header p,
+        #dubbingStep .step-header p,
+        #storyboardStep .step-header p {
+            width: 100% !important;
+            font-size: 0.875rem !important;
+            color: var(--text-tertiary) !important;
+        }
+
+        /* ==================== 分镜头列表样式 ==================== */
         .shots-list {
             display: flex;
             flex-direction: column;
@@ -914,8 +950,10 @@
         }
 
         /* ==================== 视频生成和配音制作步骤内容 ==================== */
-        #videoContent, #dubbingContent {
-            padding: 0;
+        #videoContent, #dubbingContent, #storyboardContent {
+            padding: 0 !important;
+            display: block !important;
+            width: 100% !important;
         }
 
         .shot-card, .video-card, .dubbing-card {
@@ -1424,6 +1462,6 @@
     <!-- Toast 通知 -->
     <div id="toastContainer" class="toast-container"></div>
 
-    <script src="/static/js/short-drama-studio.js?v=3"></script>
+    <script src="/static/js/short-drama-studio.js?v=4"></script>
 </body>
 </html>
