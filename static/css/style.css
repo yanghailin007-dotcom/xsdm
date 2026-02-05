@@ -890,19 +890,24 @@ a:hover {
 }
 
 .btn-danger {
-    background: var(--gradient-error);
-    color: white;
-    box-shadow: var(--shadow-md);
+    background: rgba(239, 68, 68, 0.1);
+    color: #dc2626;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    box-shadow: none;
 }
 
 .btn-danger:hover {
-    /* 移除 transform，只改变阴影 */
-    box-shadow: var(--shadow-lg);
+    background: rgba(239, 68, 68, 0.15);
+    border-color: rgba(239, 68, 68, 0.5);
 }
 
 .btn-small {
     padding: var(--space-2) var(--space-3);
     font-size: var(--text-xs);
+    height: 32px;
+    display: inline-flex;
+    align-items: center;
+    box-sizing: border-box;
 }
 
 .btn:disabled {
@@ -917,17 +922,18 @@ a:hover {
 /* ==================== 顶部导航栏 ==================== */
 
 .navbar {
-    /* 使用纯色背景替代模糊背景，避免滚动时的重绘闪烁 */
-    background: #ffffff;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    /* 深色主题导航栏 */
+    background: rgba(15, 23, 42, 0.95);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
     padding: var(--space-4) 0;
     position: sticky;
     top: 0;
     z-index: 100;
-    border-bottom: 1px solid rgba(43, 108, 176, 0.1);
+    border-bottom: 1px solid rgba(148, 163, 184, 0.1);
     /* 硬件加速，减少重绘 */
     transform: translateZ(0);
     -webkit-transform: translateZ(0);
+    backdrop-filter: blur(10px);
 }
 
 .navbar-content {
@@ -942,15 +948,51 @@ a:hover {
 .navbar-title {
     font-size: var(--text-xl);
     font-weight: 700;
-    color: var(--primary-700);
+    color: #f1f5f9;
     display: flex;
     align-items: center;
-    gap: var(--space-2);
+    gap: var(--space-3);
+}
+
+.navbar-title .btn {
+    height: 32px;
+    display: inline-flex;
+    align-items: center;
+    box-sizing: border-box;
+    background: rgba(51, 65, 85, 0.6);
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    color: #94a3b8;
+}
+
+.navbar-title .btn:hover {
+    background: rgba(71, 85, 105, 0.8);
+    color: #f1f5f9;
+    border-color: rgba(148, 163, 184, 0.3);
 }
 
 .navbar-actions {
     display: flex;
     gap: var(--space-3);
+    align-items: center;
+}
+
+.navbar-actions .btn {
+    background: rgba(51, 65, 85, 0.6);
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    color: #94a3b8;
+}
+
+.navbar-actions .btn:hover {
+    background: rgba(71, 85, 105, 0.8);
+    color: #f1f5f9;
+    border-color: rgba(148, 163, 184, 0.3);
+}
+
+.navbar-actions .btn {
+    height: 32px;
+    display: inline-flex;
+    align-items: center;
+    box-sizing: border-box;
 }
 
 /* ==================== 加载动画 ==================== */

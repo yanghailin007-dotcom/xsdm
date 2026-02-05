@@ -5530,7 +5530,7 @@ li>选择角色，输入提示词，生成剧照</li>
                             </div>
                             <div style="margin-top: 0.5rem;">
                                 <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; color: var(--text-secondary); cursor: pointer;">
-                                    <input type="checkbox" id="paramFirstLastFrame" style="margin: 0;">
+                                    <input type="checkbox" id="paramFirstLastFrame" checked style="margin: 0;">
                                     <span>启用首尾帧模式（需传2张图片：首帧+尾帧）</span>
                                 </label>
                             </div>

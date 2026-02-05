@@ -233,6 +233,16 @@ body {
     color: var(--text-primary);
 }
 
+.btn-danger {
+    background: var(--danger);
+    color: white;
+}
+
+.btn-danger:hover {
+    background: #dc2626;
+    transform: translateY(-1px);
+}
+
 .btn-sm {
     padding: var(--space-xs) var(--space-sm);
     font-size: 0.85rem;
@@ -296,6 +306,10 @@ body {
     transition: all 0.3s;
     position: relative;
     overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 220px;
 }
 
 .project-card::before {
@@ -325,6 +339,12 @@ body {
     align-items: flex-start;
     justify-content: space-between;
     margin-bottom: var(--space-md);
+}
+
+.project-card-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
 }
 
 .project-card-title {
@@ -361,6 +381,10 @@ body {
 
 .project-card-progress {
     margin-top: var(--space-md);
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
 }
 
 .progress-bar {
@@ -386,13 +410,50 @@ body {
 
 .project-card-actions {
     display: flex;
-    gap: var(--space-sm);
-    margin-top: var(--space-md);
+    gap: var(--space-md);
+    margin-top: auto;
+    padding-top: var(--space-md);
+    justify-content: flex-end;
+    border-top: 1px solid var(--border);
 }
 
 .project-card-actions .btn {
-    flex: 1;
+    display: inline-flex;
+    align-items: center;
+    padding: var(--space-sm) var(--space-lg);
+    font-size: 0.85rem;
+    min-width: 80px;
+    height: 36px;
     justify-content: center;
+    border-radius: var(--radius-md);
+    transition: all 0.2s ease;
+    box-sizing: border-box;
+}
+
+.project-card-actions .btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.project-card-actions .btn-secondary {
+    background: var(--primary);
+    border: 2px solid transparent;
+    color: white;
+}
+
+.project-card-actions .btn-secondary:hover {
+    background: var(--primary-hover);
+}
+
+.project-card-actions .btn-danger {
+    background: transparent;
+    border: 2px solid var(--danger);
+    color: var(--danger);
+}
+
+.project-card-actions .btn-danger:hover {
+    background: var(--danger);
+    color: white;
 }
 
 /* 导入面板 */

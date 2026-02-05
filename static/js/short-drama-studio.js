@@ -211,8 +211,8 @@ class ShortDramaStudio {
                         </div>
                     </div>
                     <div class="project-card-actions">
-                        <button class="btn btn-sm btn-secondary" onclick="event.stopPropagation(); shortDramaStudio.openProject('${project.id}')">打开</button>
-                        <button class="btn btn-sm btn-secondary" onclick="event.stopPropagation(); shortDramaStudio.deleteProject('${project.id}')" style="color: var(--danger);">删除</button>
+                        <button class="btn btn-sm btn-secondary" onclick="event.stopPropagation(); shortDramaStudio.openProject('${project.id}')">📂 打开</button>
+                        <button class="btn btn-sm btn-danger" onclick="event.stopPropagation(); shortDramaStudio.deleteProject('${project.id}')">🗑️ 删除</button>
                     </div>
                 </div>
             `;
@@ -1269,7 +1269,12 @@ class ShortDramaStudio {
 
         // 点击背景关闭
         modal.addEventListener('click', (e) => {
-            if (e.target === modal) modal.remove();
+            if (e.target === modal) {
+                modal.remove();
+                // 清理样式标签
+                const styleEl = document.getElementById('dubbingModalStyles');
+                if (styleEl) styleEl.remove();
+            }
         });
 
         document.body.appendChild(modal);
@@ -1349,10 +1354,14 @@ class ShortDramaStudio {
             model = 'veo_3_1-fast-components-4K';
         }
 
+        // 🔥 首尾帧模式设置（默认开启）
+        const useFirstLastFrame = settings.use_first_last_frame !== false;  // 默认 true
+
         return {
             orientation: aspectRatio === '16:9' ? 'landscape' : 'portrait',
             size: size,
-            model: model
+            model: model,
+            use_first_last_frame: useFirstLastFrame
         };
     }
 
@@ -2740,6 +2749,32 @@ class ShortDramaStudio {
         // 当前说话者的默认音色
         const defaultVoiceId = characterVoiceMap[speaker] || this.characterVoices['默认'] || 'audiobook_male_1';
 
+        // 🔥 添加下拉菜单深色样式
+        const styleEl = document.createElement('style');
+        styleEl.id = 'dubbingModalStyles';
+        styleEl.textContent = `
+            #dubbingConfirmModal select {
+                background-color: #0f172a !important;
+                color: #ffffff !important;
+            }
+            #dubbingConfirmModal select option {
+                background-color: #1e293b !important;
+                color: #ffffff !important;
+                padding: 10px !important;
+            }
+            #dubbingConfirmModal select option:hover,
+            #dubbingConfirmModal select option:focus,
+            #dubbingConfirmModal select option:checked {
+                background-color: #3b82f6 !important;
+                color: #ffffff !important;
+            }
+            #dubbingConfirmModal select optgroup {
+                background-color: #0f172a !important;
+                color: #94a3b8 !important;
+            }
+        `;
+        document.head.appendChild(styleEl);
+
         modal.innerHTML = `
             <div class="modal-content" style="
                 background: var(--bg-secondary);
@@ -2765,7 +2800,7 @@ class ShortDramaStudio {
                             ${shot.episode_title || ''} · ${shot.shot_type || '镜头'}
                         </p>
                     </div>
-                    <button class="btn-close" onclick="this.closest('.dubbing-confirm-modal').remove()" style="background: none; border: none; font-size: 1.8rem; cursor: pointer; color: var(--text-secondary);">×</button>
+                    <button class="btn-close" onclick="this.closest('.dubbing-confirm-modal').remove(); document.getElementById('dubbingModalStyles')?.remove();" style="background: none; border: none; font-size: 1.8rem; cursor: pointer; color: var(--text-secondary);">×</button>
                 </div>
 
                 <div class="modal-body">
@@ -2832,14 +2867,17 @@ class ShortDramaStudio {
                                     width: 100%;
                                     padding: 10px;
                                     background: var(--bg-dark);
-                                    border: 1px solid var(--border);
+                                    border-style: solid;
+                                    border-width: 3px;
+                                    border-color: #3b82f6;
                                     border-radius: 8px;
-                                    color: var(--text-primary);
+                                    color: #ffffff;
                                     font-size: 0.95rem;
-                                ">
-                                    ${Object.entries(this.characterVoices).map(([name, id]) => `
-                                        <option value="${id}" ${id === defaultVoiceId ? 'selected' : ''}>${name} (${id})</option>
-                                    `).join('')}
+                                    font-weight: 600;
+                                    cursor: pointer;
+                                    outline: none;
+                                " onfocus="this.style.borderColor='#60a5fa'; this.style.boxShadow='0 0 0 3px rgba(59, 130, 246, 0.3)'" onblur="this.style.borderColor='#3b82f6'; this.style.boxShadow='none'">
+                                    ${(() => { let hasSelected = false; return Object.entries(this.characterVoices).map(([name, id]) => { const isSelected = !hasSelected && id === defaultVoiceId; if (isSelected) hasSelected = true; return `<option value="${id}" ${isSelected ? 'selected' : ''} style="background: #1e293b; color: #fff; padding: 8px;">${name} (${id})</option>`; }).join(''); })()}
                                 </select>
                             </div>
                             <!-- 语速 -->
@@ -2879,7 +2917,7 @@ class ShortDramaStudio {
                     padding-top: 20px;
                     border-top: 1px solid var(--border);
                 ">
-                    <button class="btn-cancel" onclick="this.closest('.dubbing-confirm-modal').remove()" style="
+                    <button class="btn-cancel" onclick="this.closest('.dubbing-confirm-modal').remove(); document.getElementById('dubbingModalStyles')?.remove();" style="
                         padding: 12px 24px;
                         background: var(--bg-tertiary);
                         border: 1px solid var(--border);
@@ -2988,8 +3026,10 @@ class ShortDramaStudio {
             this.renderDubbingScene(shot, idx);
             this.showToast('台词已保存', 'success');
 
-            // 移除弹窗
+            // 移除弹窗和样式
             modal.remove();
+            const styleEl = document.getElementById('dubbingModalStyles');
+            if (styleEl) styleEl.remove();
         });
 
         // 保存并生成按钮
@@ -3019,8 +3059,10 @@ class ShortDramaStudio {
             // 保存角色-音色映射
             characterVoiceMap[finalSpeaker] = finalVoiceId;
 
-            // 移除弹窗
+            // 移除弹窗和样式
             modal.remove();
+            const styleEl2 = document.getElementById('dubbingModalStyles');
+            if (styleEl2) styleEl2.remove();
 
             // 执行生成
             await this.executeDubbingGeneration(idx, finalSpeaker, finalLines, finalVoiceId, speed, pitch, vol);
@@ -4935,7 +4977,7 @@ saveVeOConfig(config) {
                             </div>
                             <div style="margin-top: 16px;">
                                 <label style="display: flex; align-items: center; gap: 10px; font-size: 0.95rem; color: var(--text-secondary); cursor: pointer;">
-                                    <input type="checkbox" id="paramFirstLastFrame" style="margin: 0; width: 18px; height: 18px;">
+                                    <input type="checkbox" id="paramFirstLastFrame" ${videoSettings.use_first_last_frame ? 'checked' : ''} style="margin: 0; width: 18px; height: 18px;">
                                     <span>🎞️ 启用首尾帧模式（需选择1-2张图片）</span>
                                 </label>
                             </div>
