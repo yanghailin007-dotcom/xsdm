@@ -721,8 +721,17 @@ class ShortDramaStudio {
             stepContent.classList.add('active');
         }
 
-        // 视频生成模式下隐藏侧边栏
+        // 🔥 控制侧边栏显示：只在选集步骤显示侧边栏
         const workspace = document.querySelector('.workspace-content');
+        if (step === 'select-episodes') {
+            // 选集步骤：显示侧边栏
+            workspace?.classList.remove('hide-side-panels');
+        } else {
+            // 其他步骤：隐藏侧边栏
+            workspace?.classList.add('hide-side-panels');
+        }
+
+        // 视频生成模式下隐藏侧边栏
         if (step === 'video' || step === 'dubbing') {
             workspace?.classList.add('video-mode');
         } else {
