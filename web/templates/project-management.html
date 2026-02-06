@@ -63,6 +63,27 @@
             color: var(--dark-text-primary);
         }
 
+        /* 统一退出按钮样式 */
+        .btn-logout {
+            padding: 8px 16px;
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: 8px;
+            color: #f87171;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .btn-logout:hover {
+            background: rgba(239, 68, 68, 0.2);
+            color: #fca5a5;
+        }
+
         /* ==================== 页面头部 ==================== */
         .page-header {
             background: linear-gradient(135deg, rgba(99, 102, 241, 0.3) 0%, rgba(139, 92, 246, 0.2) 100%) !important;
@@ -799,7 +820,7 @@
                 <button class="btn btn-secondary btn-small" onclick="location.href='/phase-one-setup'">🎨 第一阶段</button>
                 <button class="btn btn-secondary btn-small" onclick="location.href='/phase-two-generation'">📝 第二阶段</button>
                 <button class="btn btn-secondary btn-small" onclick="location.href='/novels'">📚 查看生成</button>
-                <button class="btn btn-danger btn-small" onclick="logout()">退出登录</button>
+                <button class="btn-logout" onclick="logout()">🚪 退出</button>
             </div>
         </div>
     </nav>

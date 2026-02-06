@@ -28,6 +28,27 @@
             background: rgba(255, 255, 255, 0.1);
             color: #f8fafc;
         }
+        
+        /* 统一退出按钮样式 */
+        .btn-logout {
+            padding: 8px 16px;
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: 8px;
+            color: #f87171;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .btn-logout:hover {
+            background: rgba(239, 68, 68, 0.2);
+            color: #fca5a5;
+        }
     </style>
 </head>
 <body>
@@ -45,7 +66,7 @@
             </div>
             <div class="navbar-actions">
                 <button class="btn btn-secondary btn-small" onclick="showHelp()">❓ 帮助</button>
-                <button class="btn btn-danger btn-small" onclick="logout()">退出登录</button>
+                <button class="btn-logout" onclick="logout()">🚪 退出</button>
             </div>
         </div>
     </nav>

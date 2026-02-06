@@ -222,6 +222,27 @@
             border-color: rgba(239, 68, 68, 0.5);
         }
 
+        /* 统一退出按钮样式 */
+        .btn-logout {
+            padding: 8px 16px;
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: 8px;
+            color: #f87171;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .btn-logout:hover {
+            background: rgba(239, 68, 68, 0.2);
+            color: #fca5a5;
+        }
+
         /* ==================== 主内容区 ==================== */
         .main-content {
             position: relative;
@@ -972,9 +993,7 @@
             <a href="/dashboard" class="nav-btn">
                 <span>📊</span> 仪表板
             </a>
-            <button class="nav-btn danger" onclick="logout()">
-                <span>🚪</span> 退出
-            </button>
+            <button class="btn-logout" onclick="logout()">🚪 退出</button>
         </div>
     </nav>
 

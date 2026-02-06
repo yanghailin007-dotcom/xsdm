@@ -66,6 +66,27 @@
             color: var(--dark-text-primary);
         }
 
+        /* 统一退出按钮样式 */
+        .btn-logout {
+            padding: 8px 16px;
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: 8px;
+            color: #f87171;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .btn-logout:hover {
+            background: rgba(239, 68, 68, 0.2);
+            color: #fca5a5;
+        }
+
         /* ==================== 按钮样式 ==================== */
         .btn {
             border-radius: 0.5rem !important;
@@ -1146,7 +1167,7 @@
                 <button class="btn btn-warning btn-small" onclick="location.href='/fanqie-upload'">🍅 番茄上传</button>
                 <button class="btn btn-success btn-small" onclick="location.href='/contract'">📝 番茄签约</button>
                 <button class="btn btn-secondary btn-small" onclick="location.href='/dashboard'">📊 仪表板</button>
-                <button class="btn btn-danger btn-small" onclick="logout()">🚪 退出</button>
+                <button class="btn-logout" onclick="logout()">🚪 退出</button>
             </div>
         </div>
     </nav>
