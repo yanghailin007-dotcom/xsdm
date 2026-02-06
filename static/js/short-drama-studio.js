@@ -751,6 +751,12 @@ class ShortDramaStudio {
                     this.loadedSteps.add('check-portraits');
                 }
                 break;
+            case 'story-beats':
+                if (!this.loadedSteps.has('story-beats') || forceReload) {
+                    this.renderStoryBeatsStep();
+                    this.loadedSteps.add('story-beats');
+                }
+                break;
             case 'storyboard':
                 if (!this.loadedSteps.has('storyboard') || forceReload) {
                     this.loadStoryboardStep();
@@ -4953,39 +4959,16 @@ saveVeOConfig(config) {
             const shotNum = shot.shot_number || (idx + 1);
             const shotKey = `videoPrompt_${this.selectedNovel}_${shot.episode_title || ''}_S${sceneNum}_#${shotNum}`;
 
-            // 🔥 构建AI提示词：区分画面场景和动作序列
-            // veo_prompt: 画面场景（静态）- 人物状态、表情、环境、光线、构图
-            // visual.description: 动作序列（动态）- 发生了什么、镜头运动、情节推进
-            const buildAIPrompt = (s) => {
-                const parts = [];
-                if (s.shot_type) parts.push(`【镜头类型】${s.shot_type}`);
+            // 🔥 构建AI提示词：获取中英文版本
+            const promptEN = this.getCurrentVeoPrompt(shot);
+            const promptCN = this.getCurrentVeoPromptCN(shot);
 
-                // 🔥 优先使用当前模式的提示词（数据流A）
-                const currentPrompt = this.getCurrentVeoPrompt(s);
-                const currentVisualDesc = this.getCurrentVisualDescription(s);
+            // 尝试加载之前保存的提示词
+            const savedPromptEN = localStorage.getItem(shotKey + '_en');
+            const savedPromptCN = localStorage.getItem(shotKey + '_cn');
 
-                // 画面场景描述（静态）- 使用当前模式的提示词
-                if (currentPrompt) {
-                    parts.push(`【画面场景】${currentPrompt}`);
-                } else if (s.veo_prompt) {
-                    parts.push(`【画面场景】${s.veo_prompt}`);
-                } else if (s.screen_action) {
-                    parts.push(`【画面场景】${s.screen_action}`);
-                }
-
-                // 动作序列描述（动态）
-                if (s.visual?.description) {
-                    parts.push(`【动作序列】${s.visual.description}`);
-                }
-
-                return parts.join('\n');
-            };
-
-            const aiPrompt = buildAIPrompt(shot);
-
-            // 尝试加载之前保存的提示词，如果没有则使用AI提示词
-            const savedPrompt = localStorage.getItem(shotKey);
-            const promptToUse = savedPrompt || aiPrompt;
+            const promptToUseEN = savedPromptEN || promptEN;
+            const promptToUseCN = savedPromptCN || promptCN;
 
             // 创建对话框
             const modal = document.createElement('div');
@@ -5041,17 +5024,17 @@ saveVeOConfig(config) {
                                 <span class="badge" style="background: var(--accent-color, #f3e5f5); color: var(--text-primary); padding: 4px 12px; border-radius: 6px; font-size: 0.85rem;">${shot.shot_type || '镜头'}</span>
                                 <span class="badge" style="background: var(--bg-tertiary); padding: 4px 12px; border-radius: 6px; font-size: 0.85rem;">⏱️ ${shot.duration || 5}秒</span>
                                 ${shot.preferred_mode ? `<span class="badge" style="background: #6366f1; color: white; padding: 4px 12px; border-radius: 6px; font-size: 0.85rem;">🎨 ${shot.preferred_mode === 'standard' ? '标准模式' : shot.preferred_mode === 'reference' ? '参考图模式' : '首尾帧模式'}</span>` : ''}
-                                ${savedPrompt ? '<span class="badge" style="background: var(--success); color: white; padding: 4px 12px; border-radius: 6px; font-size: 0.85rem;">已保存提示词</span>' : ''}
+                                ${savedPromptCN ? '<span class="badge" style="background: var(--success); color: white; padding: 4px 12px; border-radius: 6px; font-size: 0.85rem;">已保存提示词</span>' : ''}
                             </div>
                             <p style="color: var(--text-secondary); margin: 0; font-size: 0.9rem;">📍 ${shot.scene_title || ''}</p>
                         </div>
 
                         <!-- 提示词编辑区 -->
                         <div class="prompt-section" style="margin-bottom: 20px;">
-                            <label style="font-weight: 600; display: block; margin-bottom: 12px; font-size: 1rem;">📝 AI提示语${savedPrompt ? '<span style="font-size: 0.8rem; color: var(--success); margin-left: 8px;">(已加载保存的版本)</span>' : shot.preferred_mode ? `<span style="font-size: 0.8rem; color: #6366f1; margin-left: 8px;">(使用${shot.preferred_mode === 'standard' ? '标准' : shot.preferred_mode === 'reference' ? '参考图' : '首尾帧'}模式)</span>` : ''}</label>
-                            <textarea id="promptEditArea" style="
+                            <label style="font-weight: 600; display: block; margin-bottom: 12px; font-size: 1rem;">📝 AI提示语（中文）${savedPromptCN ? '<span style="font-size: 0.8rem; color: var(--success); margin-left: 8px;">(已加载保存的版本)</span>' : shot.preferred_mode ? `<span style="font-size: 0.8rem; color: #6366f1; margin-left: 8px;">(使用${shot.preferred_mode === 'standard' ? '标准' : shot.preferred_mode === 'reference' ? '参考图' : '首尾帧'}模式)</span>` : ''}</label>
+                            <textarea id="promptEditAreaCN" style="
                                 width: 100%;
-                                min-height: 120px;
+                                min-height: 100px;
                                 background: var(--bg-dark);
                                 border: 1px solid var(--border);
                                 border-radius: 12px;
@@ -5061,10 +5044,33 @@ saveVeOConfig(config) {
                                 line-height: 1.6;
                                 resize: vertical;
                                 font-family: inherit;
-                            ">${promptToUse}</textarea>
-                            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 12px;">
+                            ">${promptToUseCN}</textarea>
+
+                            <label style="font-weight: 600; display: block; margin: 16px 0 12px 0; font-size: 1rem;">🌐 AI提示语（英文 - 实际发送给VeO）${savedPromptEN ? '<span style="font-size: 0.8rem; color: var(--success); margin-left: 8px;">(已加载保存的版本)</span>' : ''}</label>
+                            <textarea id="promptEditAreaEN" style="
+                                width: 100%;
+                                min-height: 100px;
+                                background: var(--bg-dark);
+                                border: 1px solid var(--border);
+                                border-radius: 12px;
+                                padding: 16px;
+                                color: var(--text-primary);
+                                font-size: 1rem;
+                                line-height: 1.6;
+                                resize: vertical;
+                                font-family: inherit;
+                            ">${promptToUseEN}</textarea>
+
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 12px; gap: 12px;">
+                                <div style="display: flex; gap: 8px;">
+                                    <button id="translateToEnBtn" style="font-size: 0.85rem; padding: 6px 12px; background: var(--primary); color: white; border: none; border-radius: 6px; cursor: pointer;">
+                                        中文 → 英文
+                                    </button>
+                                    <button id="translateToCnBtn" style="font-size: 0.85rem; padding: 6px 12px; background: var(--primary); color: white; border: none; border-radius: 6px; cursor: pointer;">
+                                        英文 → 中文
+                                    </button>
+                                </div>
                                 <small style="color: var(--text-secondary); font-size: 0.9rem;">💾 修改后会自动保存到本地</small>
-                                ${savedPrompt ? `<button id="resetPromptBtn" style="font-size: 0.85rem; padding: 6px 12px; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 6px; cursor: pointer;">重置为原始提示词</button>` : ''}
                             </div>
                         </div>
 
