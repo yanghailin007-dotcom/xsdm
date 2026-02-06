@@ -2116,9 +2116,14 @@
                                 <h2>📋 故事节拍</h2>
                                 <p>AI生成场景叙事框架，确认后进入分镜生成</p>
                             </div>
-                            <button class="btn btn-sm btn-primary" onclick="shortDramaStudio.generateStoryBeats()">
-                                🚀 生成故事节拍
-                            </button>
+                            <div style="display: flex; gap: 0.5rem;">
+                                <button class="btn btn-sm btn-secondary" onclick="console.log('🔍 调试按钮被点击'); console.log('shortDramaStudio:', shortDramaStudio); console.log('currentProject:', shortDramaStudio.currentProject); console.log('storyBeats:', shortDramaStudio.currentProject?.storyBeats); shortDramaStudio.renderStoryBeatsStep();">
+                                    🔍 调试加载
+                                </button>
+                                <button class="btn btn-sm btn-primary" onclick="shortDramaStudio.generateStoryBeats()">
+                                    🚀 生成故事节拍
+                                </button>
+                            </div>
                         </div>
                         <div id="story-beatsContent">
                             <!-- 故事节拍内容 -->
@@ -2363,7 +2368,7 @@
     <!-- Toast 通知 -->
     <div id="toastContainer" class="toast-container"></div>
 
-    <script src="/static/js/short-drama-studio.js?v=7"></script>
+    <script src="/static/js/short-drama-studio.js?v=16"></script>
     <script>
         // 补充缺失的故事节拍功能
         if (shortDramaStudio && !shortDramaStudio.generateStoryBeats) {
@@ -2514,6 +2519,176 @@
             shortDramaStudio.saveStoryBeats = async function() {
                 // 保存功能暂不需要，数据格式与后端一致
                 this.showToast('故事节拍已自动保存', 'success');
+            };
+            
+            // 🔥 基于故事节拍生成分镜头
+            shortDramaStudio.loadStoryboardStep = async function() {
+                const container = document.getElementById('storyboardContent');
+                if (!container) return;
+                
+                if (!this.currentProject?.storyBeats?.scenes) {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <p>🎬</p>
+                            <p>请先生成故事节拍</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                // 显示加载状态
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <p>⏳</p>
+                        <p>正在基于故事节拍生成分镜头...</p>
+                    </div>
+                `;
+                
+                try {
+                    const response = await fetch('/api/short-drama/storyboard/generate-from-beats', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            projectId: this.currentProject.id,
+                            storyBeats: this.currentProject.storyBeats
+                        })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        // 更新项目数据
+                        this.currentProject.shots = data.shots;
+                        this.showToast('分镜头生成成功', 'success');
+                        this.renderShotsList();
+                    } else {
+                        throw new Error(data.message || '生成失败');
+                    }
+                } catch (error) {
+                    console.error('生成分镜头失败:', error);
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <p>❌</p>
+                            <p>生成分镜头失败</p>
+                            <p style="font-size: 0.85rem; color: var(--text-secondary);">${error.message}</p>
+                        </div>
+                    `;
+                }
+            };
+            
+            // 🔥 渲染分镜头列表（使用中文描述展示）
+            shortDramaStudio.renderShotsList = function() {
+                const container = document.getElementById('storyboardContent');
+                if (!container) return;
+                
+                const shots = this.currentProject?.shots || [];
+                
+                if (shots.length === 0) {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <p>🎬</p>
+                            <p>暂无分镜头</p>
+                            <button class="btn btn-primary" onclick="shortDramaStudio.loadStoryboardStep()" style="margin-top: 1rem;">
+                                生成分镜头
+                            </button>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                // 按场景分组
+                const scenesMap = {};
+                shots.forEach(shot => {
+                    const sceneNum = shot.scene_number || 1;
+                    if (!scenesMap[sceneNum]) {
+                        scenesMap[sceneNum] = {
+                            title: shot.scene_title || `场景${sceneNum}`,
+                            shots: []
+                        };
+                    }
+                    scenesMap[sceneNum].shots.push(shot);
+                });
+                
+                let html = `
+                    <div class="storyboard-header" style="margin-bottom: 1.5rem; padding: 1rem; background: rgba(99, 102, 241, 0.1); border-radius: 0.75rem;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <h3 style="margin: 0; color: var(--text-primary);">🎬 分镜头脚本</h3>
+                            <span style="color: var(--text-secondary);">共 ${shots.length} 个镜头</span>
+                        </div>
+                    </div>
+                    <div class="scenes-list" style="display: flex; flex-direction: column; gap: 1.5rem;">
+                `;
+                
+                // 遍历场景
+                Object.keys(scenesMap).sort((a, b) => parseInt(a) - parseInt(b)).forEach(sceneNum => {
+                    const scene = scenesMap[sceneNum];
+                    html += `
+                        <div class="scene-card" style="background: var(--bg-secondary); border-radius: 0.75rem; padding: 1rem; border: 1px solid rgba(255, 255, 255, 0.1);">
+                            <h4 style="margin: 0 0 1rem 0; color: #818cf8; font-size: 1rem;">${scene.title}</h4>
+                            <div class="shots-list" style="display: flex; flex-direction: column; gap: 0.75rem;">
+                    `;
+                    
+                    // 遍历镜头
+                    scene.shots.forEach((shot, idx) => {
+                        // 🔥 使用中文描述 visual_description 展示给用户
+                        const visualDesc = shot.visual_description || '暂无画面描述';
+                        const visualElements = shot.visual_elements || {};
+                        
+                        html += `
+                            <div class="shot-item" style="background: rgba(0, 0, 0, 0.2); border-radius: 0.5rem; padding: 0.75rem; border-left: 3px solid #6366f1;">
+                                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem;">
+                                    <span style="font-size: 0.75rem; color: #818cf8; background: rgba(99, 102, 241, 0.2); padding: 0.125rem 0.5rem; border-radius: 0.25rem;">镜头 ${shot.shot_number}</span>
+                                    <span style="font-size: 0.75rem; color: var(--text-tertiary);">${shot.duration || 8}秒</span>
+                                </div>
+                                
+                                <!-- 中文画面描述（展示给用户） -->
+                                <div style="margin-bottom: 0.75rem;">
+                                    <p style="font-size: 0.875rem; color: var(--text-primary); margin: 0; line-height: 1.5;">
+                                        ${visualDesc}
+                                    </p>
+                                </div>
+                                
+                                <!-- 视觉元素详情 -->
+                                ${visualElements.人物 || visualElements.光线 ? `
+                                    <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.75rem;">
+                                        ${visualElements.人物 ? `<span style="font-size: 0.75rem; color: var(--text-secondary); background: rgba(255, 255, 255, 0.05); padding: 0.25rem 0.5rem; border-radius: 0.25rem;">👤 ${visualElements.人物.clothing || '传统服饰'}</span>` : ''}
+                                        ${visualElements.光线 ? `<span style="font-size: 0.75rem; color: var(--text-secondary); background: rgba(255, 255, 255, 0.05); padding: 0.25rem 0.5rem; border-radius: 0.25rem;">💡 ${visualElements.光线}</span>` : ''}
+                                        ${visualElements.镜头 ? `<span style="font-size: 0.75rem; color: var(--text-secondary); background: rgba(255, 255, 255, 0.05); padding: 0.25rem 0.5rem; border-radius: 0.25rem;">🎥 ${visualElements.镜头}</span>` : ''}
+                                    </div>
+                                ` : ''}
+                                
+                                <!-- 对白 -->
+                                ${shot.dialogue?.lines ? `
+                                    <div style="background: rgba(99, 102, 241, 0.1); border-radius: 0.375rem; padding: 0.5rem; margin-top: 0.5rem;">
+                                        <p style="font-size: 0.75rem; color: #818cf8; margin: 0 0 0.25rem 0;">${shot.dialogue.speaker}</p>
+                                        <p style="font-size: 0.875rem; color: var(--text-primary); margin: 0;">"${shot.dialogue.lines}"</p>
+                                    </div>
+                                ` : ''}
+                                
+                                <!-- 英文提示词（折叠显示，用于调试/复制） -->
+                                <details style="margin-top: 0.75rem; font-size: 0.75rem;">
+                                    <summary style="color: var(--text-tertiary); cursor: pointer;">查看AI提示词（英文）</summary>
+                                    <p style="color: var(--text-secondary); margin: 0.5rem 0 0 0; padding: 0.5rem; background: rgba(0, 0, 0, 0.3); border-radius: 0.25rem; font-family: monospace; white-space: pre-wrap; word-break: break-all;">${shot.veo_prompt || 'N/A'}</p>
+                                </details>
+                            </div>
+                        `;
+                    });
+                    
+                    html += `
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                html += `
+                    </div>
+                    <div style="margin-top: 1.5rem; display: flex; gap: 1rem; justify-content: center;">
+                        <button class="btn btn-secondary" onclick="shortDramaStudio.loadStoryboardStep()">🔄 重新生成</button>
+                        <button class="btn btn-primary" onclick="shortDramaStudio.goToStep('video')">✓ 确认并进入视频生成 →</button>
+                    </div>
+                `;
+                
+                container.innerHTML = html;
             };
             
             console.log('✅ 故事节拍功能已补充');

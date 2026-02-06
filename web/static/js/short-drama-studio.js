@@ -29,15 +29,9 @@ class ShortDramaStudio {
     }
 
     bindEvents() {
-        // 步骤导航
-        document.querySelectorAll('.step-item').forEach(item => {
-            item.addEventListener('click', (e) => {
-                const step = item.dataset.step;
-                if (this.currentProject) {
-                    this.goToStep(step);
-                }
-            });
-        });
+        // 步骤导航 - 移除事件监听器，因为HTML中已经有onclick属性
+        // 如果同时使用addEventListener和onclick，可能会导致冲突
+        console.log('🔧 bindEvents - 跳过步骤导航事件绑定（使用HTML onclick）');
 
         // 🔥 设置控件变更事件 - 自动保存
         const settingControls = [
@@ -46,7 +40,7 @@ class ShortDramaStudio {
             'settingModel',
             'settingFirstLastFrame'
         ];
-        
+
         settingControls.forEach(id => {
             const element = document.getElementById(id);
             if (element) {
@@ -307,51 +301,89 @@ class ShortDramaStudio {
      * 打开项目
      */
     async openProject(projectId) {
+        console.log('═══════════════════════════════════════');
+        console.log('📂 openProject 被调用, projectId:', projectId);
+        console.log('═══════════════════════════════════════');
+
         try {
             const response = await fetch(`/api/short-drama/projects/${projectId}`);
             const data = await response.json();
 
+            console.log('📂 API 响应:', data);
+
             if (data.success) {
                 this.currentProject = data.project;
+                console.log('📂 打开项目:', this.currentProject);
+                console.log('📂 项目storyBeats:', this.currentProject.storyBeats);
+
+                console.log('📂 准备调用 showWorkspace');
                 this.showWorkspace();
-                this.loadProjectData();
+
+                console.log('📂 准备调用 loadProjectData');
+                await this.loadProjectData();
+                console.log('📂 loadProjectData 调用完成');
             }
         } catch (error) {
             console.error('打开项目失败:', error);
             this.showToast('打开项目失败', 'error');
         }
+
+        console.log('═══════════════════════════════════════');
+        console.log('📂 openProject 执行完成');
+        console.log('═══════════════════════════════════════');
     }
 
     /**
      * 显示工作区
      */
     showWorkspace() {
+        console.log('🏢 showWorkspace - 显示工作区');
+        console.log('🏢 currentProject:', this.currentProject);
+
         document.getElementById('projectListView').classList.remove('active');
         document.getElementById('projectWorkspaceView').classList.add('active');
 
         document.getElementById('currentProjectName').textContent = this.currentProject.title;
 
-        this.goToStep('characters');
+        console.log('🏢 准备切换到 select-episodes 步骤');
+        // 默认进入选集步骤
+        this.goToStep('select-episodes');
     }
 
     /**
      * 加载项目数据
      */
     async loadProjectData() {
+        console.log('📦 loadProjectData - 开始加载项目数据');
+        console.log('📦 currentProject.id:', this.currentProject?.id);
+
         try {
             const response = await fetch(`/api/short-drama/projects/${this.currentProject.id}/data`);
             const data = await response.json();
 
             if (data.success) {
+                console.log('📦 加载项目数据成功');
+                console.log('📦 API返回的storyBeats:', data.project.storyBeats);
+
                 this.currentProject = { ...this.currentProject, ...data.project };
+
+                console.log('📦 合并后的storyBeats:', this.currentProject.storyBeats);
+
                 this.updateProjectStatus();
                 this.renderEpisodesList();
                 this.renderCharacters();
                 this.renderStoryboard();
-                this.loadProjectSettings();  // 🔥 加载项目设置
-                
+                this.loadProjectSettings();
+
+                // 🔥 直接渲染故事节拍内容（如果有数据）
+                if (this.currentProject.storyBeats) {
+                    console.log('✅ 检测到故事节拍数据，直接渲染');
+                    this.renderStoryBeatsStep();
+                }
+
                 // 🔥 如果当前在故事节拍步骤，重新渲染
                 if (this.currentStep === 'story-beats') {
+                    console.log('🔄 当前在故事节拍步骤，重新渲染');
                     this.renderStoryBeatsStep();
                 }
             }
@@ -553,7 +585,14 @@ class ShortDramaStudio {
      * 切换步骤
      */
     goToStep(step) {
+        console.log('═══════════════════════════════════════');
+        console.log(`🔄 goToStep 被调用! 步骤: ${step}`);
+        console.log('═══════════════════════════════════════');
+
         this.currentStep = step;
+
+        console.log(`🔄 切换到步骤: ${step}`);
+        console.log(`🔄 当前项目:`, this.currentProject);
 
         // 更新步骤导航
         document.querySelectorAll('.step-item').forEach(item => {
@@ -571,6 +610,9 @@ class ShortDramaStudio {
         const stepContent = document.getElementById(`${step}Step`);
         if (stepContent) {
             stepContent.classList.add('active');
+            console.log(`✅ 步骤内容元素已激活: ${step}Step`);
+        } else {
+            console.error(`❌ 找不到步骤内容元素: ${step}Step`);
         }
 
         // 控制左右面板显示/隐藏：只在"选集"步骤显示面板
@@ -591,10 +633,16 @@ class ShortDramaStudio {
         } else if (step === 'storyboard') {
             this.renderStoryboardStep();
         } else if (step === 'story-beats') {
+            console.log('🎬 进入故事节拍步骤');
+            console.log('🎬 currentProject.storyBeats:', this.currentProject?.storyBeats);
             this.renderStoryBeatsStep();
         } else if (step === 'check-portraits') {
             this.renderPortraitsStep();
         }
+
+        console.log('═══════════════════════════════════════');
+        console.log(`✅ goToStep 执行完成`);
+        console.log('═══════════════════════════════════════');
     }
 
     /**
@@ -647,10 +695,19 @@ class ShortDramaStudio {
      * 渲染故事节拍步骤
      */
     renderStoryBeatsStep() {
+        console.log('🎬 renderStoryBeatsStep 被调用');
+
         const container = document.getElementById('story-beatsContent');
-        if (!container) return;
-        
+        if (!container) {
+            console.error('❌ 找不到 story-beatsContent 容器');
+            return;
+        }
+
+        console.log('🎬 渲染故事节拍步骤, currentProject:', this.currentProject);
+        console.log('🎬 storyBeats数据:', this.currentProject?.storyBeats);
+
         if (!this.currentProject || !this.currentProject.episodes) {
+            console.log('⚠️ 项目或集数数据不存在');
             container.innerHTML = `
                 <div class="empty-state">
                     <p>📝</p>
@@ -661,10 +718,15 @@ class ShortDramaStudio {
             return;
         }
 
+        // 检查是否有故事节拍数据（支持多种数据结构）
+        const storyBeats = this.currentProject.storyBeats || this.currentProject.story_beats;
+
         // 如果已有故事节拍数据，渲染编辑器
-        if (this.currentProject.storyBeats) {
+        if (storyBeats && (storyBeats.scenes || storyBeats.beats)) {
+            console.log('✅ 找到故事节拍数据，开始渲染');
             this.renderStoryBeatsEditor();
         } else {
+            console.log('⚠️ 未找到故事节拍数据');
             container.innerHTML = `
                 <div class="empty-state">
                     <p>📝</p>
@@ -728,9 +790,13 @@ class ShortDramaStudio {
      */
     renderStoryBeatsEditor() {
         const container = document.getElementById('story-beatsContent');
-        const storyBeats = this.currentProject?.storyBeats;
-        
-        if (!storyBeats || !storyBeats.scenes) {
+        // 支持多种数据结构：storyBeats 或 story_beats
+        const storyBeats = this.currentProject?.storyBeats || this.currentProject?.story_beats;
+
+        console.log('🎬 renderStoryBeatsEditor - storyBeats:', storyBeats);
+
+        if (!storyBeats || (!storyBeats.scenes && !storyBeats.beats)) {
+            console.log('⚠️ 没有找到scenes或beats数据');
             container.innerHTML = `
                 <div class="empty-state">
                     <p>📝</p>
@@ -740,13 +806,31 @@ class ShortDramaStudio {
             return;
         }
 
-        const totalDuration = storyBeats.scenes.reduce((sum, scene) => sum + (scene.durationSeconds || 0), 0);
+        // 兼容 scenes 或 beats 字段
+        const scenes = storyBeats.scenes || storyBeats.beats || [];
+        console.log('✅ 找到场景数据，共', scenes.length, '个场景');
+        console.log('📋 场景数据结构:', scenes[0]);
+
+        // 计算总时长 - 兼容多种数据结构
+        const totalDuration = scenes.reduce((sum, scene) => {
+            // 如果场景有 durationSeconds 字段，直接使用
+            if (scene.durationSeconds || scene.duration_seconds) {
+                return sum + (scene.durationSeconds || scene.duration_seconds || 0);
+            }
+            // 否则从 shot_sequence 计算
+            if (scene.shot_sequence && Array.isArray(scene.shot_sequence)) {
+                const shotDuration = scene.shot_sequence.reduce((s, shot) =>
+                    s + (shot.duration_seconds || shot.durationSeconds || 0), 0);
+                return sum + shotDuration;
+            }
+            return sum;
+        }, 0);
 
         let html = `
             <div class="story-beats-header" style="margin-bottom: 1.5rem; padding: 1rem; background: rgba(99, 102, 241, 0.1); border-radius: 0.75rem; border: 1px solid rgba(99, 102, 241, 0.2);">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
                     <h3 style="font-size: 1rem; color: var(--text-primary); margin: 0;">故事节拍概览</h3>
-                    <span style="font-size: 0.875rem; color: var(--text-secondary);">${storyBeats.scenes.length} 场景 | ${totalDuration}秒</span>
+                    <span style="font-size: 0.875rem; color: var(--text-secondary);">${scenes.length} 场景 | ${totalDuration}秒</span>
                 </div>
                 <div style="display: flex; gap: 1rem; font-size: 0.875rem; color: var(--text-tertiary);">
                     <span>第一幕: 建立 (0-${Math.round(totalDuration * 0.3)}秒)</span>
@@ -757,47 +841,87 @@ class ShortDramaStudio {
             <div class="story-beats-list" style="display: flex; flex-direction: column; gap: 1rem;">
         `;
 
-        storyBeats.scenes.forEach((scene, index) => {
-            const startTime = storyBeats.scenes.slice(0, index).reduce((sum, s) => sum + (s.durationSeconds || 0), 0);
-            const endTime = startTime + (scene.durationSeconds || 0);
-            
+        scenes.forEach((scene, index) => {
+            // 计算场景时长
+            let sceneDuration = scene.durationSeconds || scene.duration_seconds || 0;
+            if (!sceneDuration && scene.shot_sequence && Array.isArray(scene.shot_sequence)) {
+                sceneDuration = scene.shot_sequence.reduce((s, shot) =>
+                    s + (shot.duration_seconds || shot.durationSeconds || 0), 0);
+            }
+
+            // 计算开始和结束时间
+            const startTime = scenes.slice(0, index).reduce((sum, s) => {
+                let dur = s.durationSeconds || s.duration_seconds || 0;
+                if (!dur && s.shot_sequence) {
+                    dur = s.shot_sequence.reduce((ss, shot) =>
+                        ss + (shot.duration_seconds || shot.durationSeconds || 0), 0);
+                }
+                return sum + dur;
+            }, 0);
+            const endTime = startTime + sceneDuration;
+
+            // 获取场景标题
+            const sceneTitle = scene.sceneTitleCn || scene.scene_title_cn || scene.scene_title || scene.title || '未命名场景';
+            const sceneTitleEn = scene.sceneTitleEn || scene.scene_title_en || '';
+
+            // 获取叙事目的
+            const storyBeat = scene.storyBeatCn || scene.story_beat_cn || scene.beat || scene.storyBeat || '-';
+
+            // 获取情绪曲线
+            const emotionalArc = scene.emotionalArc || scene.emotional_arc || '-';
+
+            // 提取对白 - 兼容 dialogues 和 shot_sequence
+            let dialogues = [];
+            if (scene.dialogues && Array.isArray(scene.dialogues)) {
+                dialogues = scene.dialogues;
+            } else if (scene.shot_sequence && Array.isArray(scene.shot_sequence)) {
+                // 从 shot_sequence 中提取对白
+                dialogues = scene.shot_sequence
+                    .filter(shot => shot.dialogue && (shot.dialogue.lines || shot.dialogue.linesCn || shot.dialogue.lines_cn))
+                    .map(shot => ({
+                        speaker: shot.dialogue.speaker || '未知',
+                        linesCn: shot.dialogue.linesCn || shot.dialogue.lines_cn || shot.dialogue.lines || '',
+                        lines: shot.dialogue.lines || shot.dialogue.lines_en || ''
+                    }));
+            }
+
             html += `
                 <div class="scene-card" style="background: var(--bg-secondary); border-radius: 0.75rem; padding: 1rem; border: 1px solid rgba(255, 255, 255, 0.1);">
                     <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem;">
                         <div>
                             <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem;">
-                                <span style="background: rgba(99, 102, 241, 0.2); color: #818cf8; padding: 0.125rem 0.5rem; border-radius: 0.25rem; font-size: 0.75rem; font-weight: 600;">场景 ${index + 1}</span>
+                                <span style="background: rgba(99, 102, 241, 0.2); color: #818cf8; padding: 0.125rem 0.5rem; border-radius: 0.25rem; font-size: 0.75rem; font-weight: 600;">场景 ${scene.scene_number || index + 1}</span>
                                 <span style="font-size: 0.75rem; color: var(--text-tertiary);">${startTime}-${endTime}秒</span>
                             </div>
-                            <h4 style="font-size: 1rem; color: var(--text-primary); margin: 0;">${scene.sceneTitleCn || '未命名场景'}</h4>
-                            <p style="font-size: 0.75rem; color: var(--text-tertiary); margin: 0.25rem 0 0 0;">${scene.sceneTitleEn || ''}</p>
+                            <h4 style="font-size: 1rem; color: var(--text-primary); margin: 0;">${sceneTitle}</h4>
+                            ${sceneTitleEn ? `<p style="font-size: 0.75rem; color: var(--text-tertiary); margin: 0.25rem 0 0 0;">${sceneTitleEn}</p>` : ''}
                         </div>
-                        <span style="font-size: 0.875rem; color: var(--text-secondary); background: rgba(255, 255, 255, 0.05); padding: 0.25rem 0.5rem; border-radius: 0.25rem;">${scene.durationSeconds || 0}秒</span>
+                        <span style="font-size: 0.875rem; color: var(--text-secondary); background: rgba(255, 255, 255, 0.05); padding: 0.25rem 0.5rem; border-radius: 0.25rem;">${sceneDuration}秒</span>
                     </div>
-                    
+
                     <div style="margin-bottom: 0.75rem;">
                         <p style="font-size: 0.875rem; color: var(--text-secondary); margin: 0; line-height: 1.5;">
-                            <strong style="color: var(--text-primary);">叙事目的:</strong> ${scene.storyBeatCn || '-'}
+                            <strong style="color: var(--text-primary);">叙事目的:</strong> ${storyBeat}
                         </p>
                     </div>
 
                     <div style="margin-bottom: 0.75rem;">
                         <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
                             <span style="font-size: 0.75rem; color: var(--text-tertiary);">情绪曲线:</span>
-                            <span style="font-size: 0.875rem; color: var(--text-primary);">${scene.emotionalArc || '-'}</span>
+                            <span style="font-size: 0.875rem; color: var(--text-primary);">${emotionalArc}</span>
                         </div>
                         <div style="height: 4px; background: rgba(255, 255, 255, 0.1); border-radius: 2px; overflow: hidden;">
                             <div style="height: 100%; background: linear-gradient(90deg, #6366f1, #8b5cf6); width: 100%;"></div>
                         </div>
                     </div>
 
-                    ${scene.dialogues && scene.dialogues.length > 0 ? `
+                    ${dialogues.length > 0 ? `
                         <div style="background: rgba(0, 0, 0, 0.2); border-radius: 0.5rem; padding: 0.75rem;">
                             <p style="font-size: 0.75rem; color: var(--text-tertiary); margin: 0 0 0.5rem 0;">对白:</p>
-                            ${scene.dialogues.map(d => `
+                            ${dialogues.map(d => `
                                 <div style="margin-bottom: 0.5rem;">
                                     <span style="font-size: 0.75rem; color: #818cf8; margin-right: 0.5rem;">${d.speaker}</span>
-                                    <span style="font-size: 0.875rem; color: var(--text-primary);">${d.linesCn || d.lines || '-'}</span>
+                                    <span style="font-size: 0.875rem; color: var(--text-primary);">${d.linesCn || d.lines_cn || d.lines || '-'}</span>
                                 </div>
                             `).join('')}
                         </div>
