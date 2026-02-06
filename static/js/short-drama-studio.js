@@ -2830,6 +2830,11 @@ class ShortDramaStudio {
         // 更新镜头的首选模式
         shot.preferred_mode = newMode;
 
+        // 🔥 同时更新 currentProject.shots 中的数据，确保持久化
+        if (this.currentProject?.shots?.[shotIndex]) {
+            this.currentProject.shots[shotIndex].preferred_mode = newMode;
+        }
+
         // 🔥 更新显示的提示词（使用中文版本）
         const promptTextElement = document.getElementById(`prompt-text-${shotIndex}`);
         if (promptTextElement) {
