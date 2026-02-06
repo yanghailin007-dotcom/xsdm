@@ -2730,24 +2730,64 @@ class ShortDramaStudio {
     }
 
     /**
+     * 根据项目配置获取格式描述
+     */
+    getFormatDescription() {
+        const settings = this.currentProject?.settings || {};
+        const aspectRatio = settings.aspect_ratio || '9:16';
+        
+        const formatMap = {
+            '9:16': 'vertical 9:16 format',
+            '16:9': 'horizontal 16:9 format',
+            '1:1': 'square 1:1 format'
+        };
+        
+        return formatMap[aspectRatio] || 'vertical 9:16 format';
+    }
+
+    /**
+     * 替换提示词中的格式描述
+     */
+    replaceFormatInPrompt(prompt) {
+        if (!prompt) return '';
+        
+        // 替换各种格式描述为当前项目配置
+        const formatPatterns = [
+            /vertical\s+9:16\s+format/gi,
+            /horizontal\s+16:9\s+format/gi,
+            /square\s+1:1\s+format/gi
+        ];
+        
+        const currentFormat = this.getFormatDescription();
+        let result = prompt;
+        
+        formatPatterns.forEach(pattern => {
+            result = result.replace(pattern, currentFormat);
+        });
+        
+        return result;
+    }
+
+    /**
      * 获取当前模式的VeO提示词（英文，用于API调用）
      */
     getCurrentVeoPrompt(shot) {
         const mode = shot.preferred_mode || 'standard';
+        let prompt = '';
 
         // 🔥 优先使用用户编辑版本
         if (shot.veo_prompt_custom) {
-            return shot.veo_prompt_custom;
+            prompt = shot.veo_prompt_custom;
+        } else if (mode === 'reference' && shot.veo_prompt_reference) {
+            prompt = shot.veo_prompt_reference;
+        } else if (mode === 'frames' && shot.veo_prompt_frames) {
+            prompt = shot.veo_prompt_frames;
+        } else {
+            prompt = shot.veo_prompt_standard || shot.veo_prompt || '';
         }
-
-        // 🔥 使用对应模式的英文版本（用于API调用）
-        if (mode === 'reference' && shot.veo_prompt_reference) {
-            return shot.veo_prompt_reference;
-        }
-        if (mode === 'frames' && shot.veo_prompt_frames) {
-            return shot.veo_prompt_frames;
-        }
-        return shot.veo_prompt_standard || shot.veo_prompt || '';
+        
+        // 根据项目配置替换格式描述
+        return this.replaceFormatInPrompt(prompt);
     }
 
     /**
@@ -2755,25 +2795,24 @@ class ShortDramaStudio {
      */
     getCurrentVeoPromptCN(shot) {
         const mode = shot.preferred_mode || 'standard';
+        let prompt = '';
 
         // 🔥 优先使用用户编辑的中文版本
         if (shot.veo_prompt_custom_cn) {
-            return shot.veo_prompt_custom_cn;
+            prompt = shot.veo_prompt_custom_cn;
+        } else if (mode === 'reference' && shot.veo_prompt_reference_cn) {
+            prompt = shot.veo_prompt_reference_cn;
+        } else if (mode === 'frames' && shot.veo_prompt_frames_cn) {
+            prompt = shot.veo_prompt_frames_cn;
+        } else if (shot.veo_prompt_standard_cn) {
+            prompt = shot.veo_prompt_standard_cn;
+        } else {
+            // 🔥 回退：如果没有中文版本，返回英文版本
+            prompt = this.getCurrentVeoPrompt(shot);
         }
-
-        // 🔥 使用对应模式的中文版本（用于界面显示）
-        if (mode === 'reference' && shot.veo_prompt_reference_cn) {
-            return shot.veo_prompt_reference_cn;
-        }
-        if (mode === 'frames' && shot.veo_prompt_frames_cn) {
-            return shot.veo_prompt_frames_cn;
-        }
-        if (shot.veo_prompt_standard_cn) {
-            return shot.veo_prompt_standard_cn;
-        }
-
-        // 🔥 回退：如果没有中文版本，返回英文版本
-        return this.getCurrentVeoPrompt(shot);
+        
+        // 根据项目配置替换格式描述
+        return this.replaceFormatInPrompt(prompt);
     }
 
     /**
