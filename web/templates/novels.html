@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>小说生成系统 - 我的作品</title>
+    <link rel="stylesheet" href="/static/css/confirm-dialog.css">
     <style>
         /* ==================== 基础变量 ==================== */
         :root {
@@ -1340,10 +1341,13 @@
         }
 
         function logout() {
-            if (confirm('确定要退出登录吗？')) {
-                window.location.href = '/logout';
-            }
+            confirmLogout().then(confirmed => {
+                if (confirmed) {
+                    window.location.href = '/logout';
+                }
+            });
         }
     </script>
+    <script src="/static/js/confirm-dialog.js"></script>
 </body>
 </html>

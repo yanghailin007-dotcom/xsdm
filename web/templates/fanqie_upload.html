@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>番茄小说一键上传 - 大文娱创作平台</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="/static/css/confirm-dialog.css">
     <style>
         /* ==================== 设计系统变量 ==================== */
         :root {
@@ -187,6 +188,27 @@
             border-radius: 0.5rem;
             font-size: 0.875rem;
             color: var(--text-secondary);
+        }
+
+        .btn-logout {
+            padding: 8px 16px;
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: 8px;
+            color: #f87171;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin-left: 10px;
+        }
+
+        .btn-logout:hover {
+            background: rgba(239, 68, 68, 0.2);
+            color: #fca5a5;
         }
 
         /* ==================== 主容器 ==================== */
@@ -1075,6 +1097,7 @@
             <div class="nav-user">
                 <i class="fas fa-user-circle"></i> 创作者
             </div>
+            <button class="btn-logout" onclick="logout()">🚪 退出</button>
         </div>
     </nav>
 
@@ -1746,6 +1769,43 @@
                 }
             });
         });
+    </script>
+    <script src="/static/js/confirm-dialog.js"></script>
+    <script>
+        // 退出登录函数
+        function logout() {
+            ConfirmDialog.confirm({
+                title: '确认退出',
+                message: '您确定要退出登录吗？',
+                confirmText: '退出',
+                cancelText: '取消',
+                type: 'warning',
+                onConfirm: async () => {
+                    try {
+                        const response = await fetch('/api/auth/logout', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' }
+                        });
+                        const data = await response.json();
+                        if (data.success) {
+                            window.location.href = '/login';
+                        } else {
+                            ConfirmDialog.alert({
+                                title: '退出失败',
+                                message: data.error || '退出登录失败，请重试',
+                                type: 'error'
+                            });
+                        }
+                    } catch (error) {
+                        ConfirmDialog.alert({
+                            title: '退出失败',
+                            message: '网络错误，请检查网络连接后重试',
+                            type: 'error'
+                        });
+                    }
+                }
+            });
+        }
     </script>
 </body>
 </html>

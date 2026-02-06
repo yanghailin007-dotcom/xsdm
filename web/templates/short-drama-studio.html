@@ -2308,7 +2308,30 @@
         .episode-checkbox-item input[type="checkbox"] {
             display: none;
         }
+
+        /* 退出登录按钮样式 */
+        .btn-logout {
+            padding: 8px 16px;
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: 8px;
+            color: #f87171;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin-left: 10px;
+        }
+        
+        .btn-logout:hover {
+            background: rgba(239, 68, 68, 0.2);
+            color: #fca5a5;
+        }
     </style>
+    <link rel="stylesheet" href="/static/css/confirm-dialog.css">
 </head>
 <body>
     <!-- 顶部导航栏 -->
@@ -2342,6 +2365,7 @@
             </div>
             <div class="nav-right">
                 <span class="nav-user" id="navUsername">用户</span>
+                <button class="btn-logout" onclick="logout()">🚪 退出</button>
             </div>
         </div>
     </nav>
@@ -2811,6 +2835,7 @@
     <div id="toastContainer" class="toast-container"></div>
 
     <script src="/static/js/short-drama-studio.js?v=17"></script>
+    <script src="/static/js/confirm-dialog.js"></script>
     <script>
         // 补充缺失的故事节拍功能
         if (shortDramaStudio && !shortDramaStudio.generateStoryBeats) {
@@ -3313,6 +3338,43 @@
             };
             
             console.log('✅ 故事节拍功能已补充');
+        }
+        
+        // 退出登录功能
+        function logout() {
+            if (typeof confirmDialog !== 'undefined') {
+                confirmDialog.show({
+                    title: '确认退出',
+                    message: '确定要退出登录吗？',
+                    confirmText: '退出',
+                    cancelText: '取消',
+                    type: 'warning',
+                    onConfirm: function() {
+                        // 执行退出登录
+                        fetch('/api/logout', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            }
+                        }).then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                window.location.href = '/login';
+                            } else {
+                                alert('退出登录失败，请重试');
+                            }
+                        }).catch(error => {
+                            console.error('退出登录错误:', error);
+                            window.location.href = '/login';
+                        });
+                    }
+                });
+            } else {
+                // 降级方案：使用原生 confirm
+                if (confirm('确定要退出登录吗？')) {
+                    window.location.href = '/logout';
+                }
+            }
         }
     </script>
 </body>

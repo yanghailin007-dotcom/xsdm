@@ -6,6 +6,7 @@
     <title>两阶段小说生成 - 第二阶段章节生成</title>
     <link rel="stylesheet" href="/static/css/style.css">
     <link rel="stylesheet" href="/static/css/phase-two-generation.css">
+    <link rel="stylesheet" href="/static/css/confirm-dialog.css">
     <style>
         /* ==================== 暗色科技主题 ==================== */
         :root {
@@ -941,9 +942,19 @@
     <script src="/static/js/creative-editor-phase-two.js"></script>
     <script src="/static/js/character-editor.js"></script>
     <script src="/static/js/character-editor-json-based.js"></script>
+    <script src="/static/js/confirm-dialog.js"></script>
     <link rel="stylesheet" href="/static/css/character-editor.css">
     <link rel="stylesheet" href="/static/css/character-editor-json-based.css">
     <script>
+        // 退出登录函数
+        function logout() {
+            confirmLogout().then(confirmed => {
+                if (confirmed) {
+                    window.location.href = '/logout';
+                }
+            });
+        }
+
         // 动态加载创意编辑器模态框
         fetch('/templates/components/creative-editor-modal.html')
             .then(response => response.text())

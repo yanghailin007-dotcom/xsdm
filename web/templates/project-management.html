@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>两阶段小说生成 - 项目管理</title>
     <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="/static/css/confirm-dialog.css">
     <style>
         /* ==================== 暗色科技主题 ==================== */
         :root {
@@ -1497,9 +1498,11 @@
 
         // 退出登录函数
         function logout() {
-            if (confirm('确定要退出登录吗？')) {
-                window.location.href = '/logout';
-            }
+            confirmLogout().then(confirmed => {
+                if (confirmed) {
+                    window.location.href = '/logout';
+                }
+            });
         }
 
         // ==================== 质量评估功能 ====================
@@ -1728,5 +1731,6 @@
             contentDiv.innerHTML = html;
         }
     </script>
+    <script src="/static/js/confirm-dialog.js"></script>
 </body>
 </html>

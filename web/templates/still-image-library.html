@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>图像素材库</title>
     <link rel="stylesheet" href="/static/css/still-image-library.css">
+    <link rel="stylesheet" href="/static/css/confirm-dialog.css">
 </head>
 <body>
     <div id="app">
@@ -17,6 +18,7 @@
                     <a href="/novels" class="nav-link">📚 小说项目</a>
                     <a href="/portrait-studio" class="nav-link">🎨 剧照工作台</a>
                     <a href="/video-generation" class="nav-link">🎬 视频生成</a>
+                    <button class="btn-logout" onclick="logout()">🚪 退出</button>
                 </div>
             </div>
         </nav>
@@ -155,5 +157,15 @@
     </div>
 
     <script src="/static/js/still-image-library.js"></script>
+    <script src="/static/js/confirm-dialog.js"></script>
+    <script>
+        function logout() {
+            confirmLogout().then(confirmed => {
+                if (confirmed) {
+                    window.location.href = '/logout';
+                }
+            });
+        }
+    </script>
 </body>
 </html>

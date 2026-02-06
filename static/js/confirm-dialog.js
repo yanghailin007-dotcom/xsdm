@@ -10,7 +10,8 @@
  * @param {string} options.message - 对话框消息
  * @param {string} options.confirmText - 确认按钮文本
  * @param {string} options.cancelText - 取消按钮文本
- * @param {string} options.type - 对话框类型: 'default', 'danger', 'warning'
+ * @param {string} options.type - 对话框类型: 'default', 'danger', 'warning', 'logout'
+ * @param {string} options.icon - 图标 emoji
  * @returns {Promise<boolean>} - 返回用户的选择结果
  */
 function showConfirmDialog(options) {
@@ -23,16 +24,30 @@ function showConfirmDialog(options) {
         const dialog = document.createElement('div');
         dialog.className = 'confirm-dialog';
         
+        // 特殊样式类
+        if (options.type === 'logout') {
+            dialog.classList.add('confirm-logout-dialog');
+        }
+        
         // 创建对话框内容
         let confirmBtnClass = 'confirm-dialog-btn-primary';
+        let iconClass = options.type || 'default';
+        let icon = options.icon || '❓';
+        
         if (options.type === 'danger') {
             confirmBtnClass = 'confirm-dialog-btn-danger';
+            icon = '🗑️';
         } else if (options.type === 'warning') {
             confirmBtnClass = 'confirm-dialog-btn-primary';
+            icon = '⚠️';
+        } else if (options.type === 'logout') {
+            confirmBtnClass = 'confirm-dialog-btn-danger';
+            icon = '🚪';
         }
         
         dialog.innerHTML = `
             <div class="confirm-dialog-header">
+                <span class="confirm-dialog-icon ${iconClass}">${icon}</span>
                 <h3 class="confirm-dialog-title">${escapeHtml(options.title || '确认')}</h3>
             </div>
             <div class="confirm-dialog-body">
@@ -78,6 +93,17 @@ function showConfirmDialog(options) {
                 resolve(false);
             }
         });
+        
+        // ESC键关闭
+        const handleEsc = (e) => {
+            if (e.key === 'Escape') {
+                document.body.removeChild(overlay);
+                document.body.style.overflow = '';
+                resolve(false);
+                document.removeEventListener('keydown', handleEsc);
+            }
+        };
+        document.addEventListener('keydown', handleEsc);
     });
 }
 
@@ -95,11 +121,11 @@ function escapeHtml(text) {
  */
 function confirmLogout() {
     return showConfirmDialog({
-        title: '确认退出',
-        message: '确定要退出登录吗？',
+        title: '确认退出登录',
+        message: '退出后需要重新登录才能继续使用，确定要退出吗？',
         confirmText: '确认退出',
         cancelText: '取消',
-        type: 'default'
+        type: 'logout'
     });
 }
 

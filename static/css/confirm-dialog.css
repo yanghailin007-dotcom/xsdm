@@ -1,4 +1,4 @@
-/* 确认对话框样式 */
+/* 确认对话框样式 - 暗色主题 */
 
 .confirm-dialog-overlay {
     position: fixed;
@@ -6,7 +6,8 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(0, 0, 0, 0.5);
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(10px);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -24,90 +25,139 @@
 }
 
 .confirm-dialog {
-    background: white;
-    border-radius: 12px;
+    background: rgba(30, 41, 59, 0.95);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
     padding: 30px;
-    max-width: 400px;
+    max-width: 420px;
     width: 90%;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
     animation: slideIn 0.3s ease;
 }
 
 @keyframes slideIn {
     from {
-        transform: translateY(-20px);
+        transform: translateY(-30px) scale(0.95);
         opacity: 0;
     }
     to {
-        transform: translateY(0);
+        transform: translateY(0) scale(1);
         opacity: 1;
     }
 }
 
 .confirm-dialog-header {
+    text-align: center;
     margin-bottom: 20px;
 }
 
+.confirm-dialog-icon {
+    font-size: 48px;
+    margin-bottom: 15px;
+    display: block;
+}
+
+.confirm-dialog-icon.logout {
+    background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.confirm-dialog-icon.danger {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.confirm-dialog-icon.warning {
+    background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
 .confirm-dialog-title {
-    font-size: 20px;
-    font-weight: 600;
-    color: #333;
+    font-size: 22px;
+    font-weight: 700;
+    color: #f8fafc;
     margin: 0;
 }
 
 .confirm-dialog-body {
-    margin-bottom: 20px;
+    margin-bottom: 25px;
+    text-align: center;
 }
 
 .confirm-dialog-message {
-    font-size: 14px;
-    color: #666;
+    font-size: 15px;
+    color: #94a3b8;
     line-height: 1.6;
     margin: 0;
 }
 
 .confirm-dialog-footer {
     display: flex;
-    gap: 10px;
-    justify-content: flex-end;
+    gap: 12px;
+    justify-content: center;
 }
 
 .confirm-dialog-btn {
-    padding: 10px 20px;
+    padding: 12px 24px;
     border: none;
-    border-radius: 6px;
+    border-radius: 8px;
     font-size: 14px;
-    font-weight: 500;
+    font-weight: 600;
     cursor: pointer;
-    transition: all 0.3s;
+    transition: all 0.2s;
+    min-width: 100px;
 }
 
-.confirm-dialog-btn-primary {
-    background: #667eea;
-    color: white;
-}
-
-.confirm-dialog-btn-primary:hover {
-    background: #5568d3;
-    transform: translateY(-1px);
+.confirm-dialog-btn:hover {
+    transform: translateY(-2px);
 }
 
 .confirm-dialog-btn-secondary {
-    background: #f0f0f0;
-    color: #333;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #cbd5e1;
 }
 
 .confirm-dialog-btn-secondary:hover {
-    background: #e0e0e0;
-    transform: translateY(-1px);
+    background: rgba(255, 255, 255, 0.1);
+    color: #f8fafc;
+}
+
+.confirm-dialog-btn-primary {
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+    color: white;
+    box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+}
+
+.confirm-dialog-btn-primary:hover {
+    box-shadow: 0 6px 20px rgba(99, 102, 241, 0.5);
 }
 
 .confirm-dialog-btn-danger {
-    background: #f5222d;
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
     color: white;
+    box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4);
 }
 
 .confirm-dialog-btn-danger:hover {
-    background: #d4181f;
-    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(239, 68, 68, 0.5);
+}
+
+/* 退出登录专用样式 */
+.confirm-logout-dialog .confirm-dialog-icon {
+    font-size: 56px;
+}
+
+.confirm-logout-dialog .confirm-dialog-title {
+    background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
 }

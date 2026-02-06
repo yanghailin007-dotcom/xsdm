@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>人物剧照工作室</title>
     <link rel="stylesheet" href="/static/css/portrait-studio.css">
+    <link rel="stylesheet" href="/static/css/confirm-dialog.css">
 </head>
 <body>
     <div id="app">
@@ -16,6 +17,7 @@
                 <div class="nav-links">
                     <a href="/novels" class="nav-link">📚 小说项目</a>
                     <a href="/video-generation" class="nav-link">🎬 视频生成</a>
+                    <button class="btn-logout" onclick="logout()">🚪 退出</button>
                 </div>
             </div>
         </nav>
@@ -185,5 +187,15 @@
     <div id="toast" class="toast"></div>
 
     <script src="/static/js/portrait-studio.js"></script>
+    <script src="/static/js/confirm-dialog.js"></script>
+    <script>
+        function logout() {
+            confirmLogout().then(confirmed => {
+                if (confirmed) {
+                    window.location.href = '/logout';
+                }
+            });
+        }
+    </script>
 </body>
 </html>

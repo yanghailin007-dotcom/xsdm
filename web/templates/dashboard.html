@@ -587,6 +587,7 @@
             }
         }
     </style>
+    <link rel="stylesheet" href="/static/css/confirm-dialog.css">
 </head>
 <body>
     <!-- 背景 -->
@@ -934,10 +935,13 @@
         }
 
         function logout() {
-            if (confirm('确定要退出登录吗？')) {
-                window.location.href = '/logout';
-            }
+            confirmLogout().then(confirmed => {
+                if (confirmed) {
+                    window.location.href = '/logout';
+                }
+            });
         }
     </script>
+    <script src="/static/js/confirm-dialog.js"></script>
 </body>
 </html>

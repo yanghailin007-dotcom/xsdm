@@ -6,6 +6,7 @@
     <title>小说封面生成器 - AI智能封面制作</title>
     <link rel="stylesheet" href="/static/css/style.css">
     <link rel="stylesheet" href="/static/css/cover_generator.css">
+    <link rel="stylesheet" href="/static/css/confirm-dialog.css">
     <style>
         /* 统一返回首页按钮样式 */
         .btn-back {
@@ -407,12 +408,15 @@
     </div>
 
     <script src="/static/js/cover_generator.js"></script>
+    <script src="/static/js/confirm-dialog.js"></script>
     <script>
         // 退出登录函数
         function logout() {
-            if (confirm('确定要退出登录吗？')) {
-                window.location.href = '/logout';
-            }
+            confirmLogout().then(confirmed => {
+                if (confirmed) {
+                    window.location.href = '/logout';
+                }
+            });
         }
 
         // 显示帮助

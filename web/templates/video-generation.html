@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>视频生成系统 - 大文娱创作平台</title>
+    <link rel="stylesheet" href="/static/css/confirm-dialog.css">
     <style>
         /* ==================== 设计系统变量 ==================== */
         :root {
@@ -1088,6 +1089,7 @@
                 <div class="nav-links">
                     <a href="/novels" class="nav-link">📚 小说项目</a>
                     <a href="/dashboard" class="nav-link">🏠 控制台</a>
+                    <button class="btn-logout" onclick="logout()">🚪 退出</button>
                 </div>
             </div>
         </nav>
@@ -1341,6 +1343,16 @@
         // 导出到全局
         window.showToast = showToast;
         window.closePortraitModal = closePortraitModal;
+    </script>
+    <script src="/static/js/confirm-dialog.js"></script>
+    <script>
+        function logout() {
+            confirmLogout().then(confirmed => {
+                if (confirmed) {
+                    window.location.href = '/logout';
+                }
+            });
+        }
     </script>
 </body>
 </html>
