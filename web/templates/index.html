@@ -41,6 +41,29 @@
 
         .navbar-title {
             color: var(--dark-text-primary) !important;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .btn-back {
+            padding: 8px 16px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            color: var(--dark-text-secondary);
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-back:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--dark-text-primary);
         }
 
         /* ==================== 按钮样式 ==================== */
@@ -1111,7 +1134,10 @@
     <!-- 顶部导航 -->
     <nav class="navbar">
         <div class="navbar-content">
-            <div class="navbar-title">🏠 小说生成系统</div>
+            <div class="navbar-title">
+                <button class="btn-back" onclick="location.href='/landing'">🏠 返回首页</button>
+                <span>小说生成系统</span>
+            </div>
             <div class="navbar-actions">
                 <button class="btn btn-primary btn-small" onclick="location.href='/phase-one-setup'">🎨 两阶段生成</button>
                 <button class="btn btn-secondary btn-small" onclick="location.href='/project-management'">📂 项目管理</button>
@@ -1120,7 +1146,7 @@
                 <button class="btn btn-warning btn-small" onclick="location.href='/fanqie-upload'">🍅 番茄上传</button>
                 <button class="btn btn-success btn-small" onclick="location.href='/contract'">📝 番茄签约</button>
                 <button class="btn btn-secondary btn-small" onclick="location.href='/dashboard'">📊 仪表板</button>
-                <button class="btn btn-danger btn-small" onclick="logout()">退出登录</button>
+                <button class="btn btn-danger btn-small" onclick="logout()">🚪 退出</button>
             </div>
         </div>
     </nav>
