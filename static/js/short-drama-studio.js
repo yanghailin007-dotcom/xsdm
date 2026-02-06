@@ -2617,9 +2617,9 @@ class ShortDramaStudio {
         const hasMultipleModes = shot.veo_prompt_standard && shot.veo_prompt_reference && shot.veo_prompt_frames;
         const currentMode = shot.preferred_mode || 'standard';
 
-        // 🔥 根据当前模式获取提示词
-        const currentPrompt = this.getCurrentVeoPrompt(shot);
-        const currentVisualDesc = this.getCurrentVisualDescription(shot);
+        // 🔥 根据当前模式获取提示词（中文用于显示，英文用于API）
+        const currentPromptCN = this.getCurrentVeoPromptCN(shot);
+        const currentPromptEN = this.getCurrentVeoPrompt(shot);
 
         // 🔥 模式选择器HTML（仅在支持多模式时显示）
         const modeSelectorHtml = hasMultipleModes ? `
@@ -2641,7 +2641,8 @@ class ShortDramaStudio {
                     ${modeSelectorHtml}
                     <div class="task-prompt">
                         <span class="prompt-label">AI提示:</span>
-                        <span class="prompt-text" id="prompt-text-${idx}">${(currentPrompt || shot.screen_action || '').substring(0, 150)}${(currentPrompt || shot.screen_action || '').length > 150 ? '...' : ''}</span>
+                        <span class="prompt-text" id="prompt-text-${idx}">${(currentPromptCN || shot.screen_action || '').substring(0, 150)}${(currentPromptCN || shot.screen_action || '').length > 150 ? '...' : ''}</span>
+                        <button class="btn-view-english" onclick="shortDramaStudio.showEnglishPrompt(${idx})" style="margin-left: 0.5rem; font-size: 0.75rem; padding: 0.25rem 0.5rem; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 0.25rem; cursor: pointer;" title="查看英文原文">EN</button>
                     </div>
                     ${shot.plot_content ? `
                     <div class="task-plot">
@@ -2723,10 +2724,17 @@ class ShortDramaStudio {
     }
 
     /**
-     * 获取当前模式的VeO提示词
+     * 获取当前模式的VeO提示词（英文，用于API调用）
      */
     getCurrentVeoPrompt(shot) {
         const mode = shot.preferred_mode || 'standard';
+
+        // 🔥 优先使用用户编辑版本
+        if (shot.veo_prompt_custom) {
+            return shot.veo_prompt_custom;
+        }
+
+        // 🔥 使用对应模式的英文版本（用于API调用）
         if (mode === 'reference' && shot.veo_prompt_reference) {
             return shot.veo_prompt_reference;
         }
@@ -2734,6 +2742,32 @@ class ShortDramaStudio {
             return shot.veo_prompt_frames;
         }
         return shot.veo_prompt_standard || shot.veo_prompt || '';
+    }
+
+    /**
+     * 获取当前模式的中文提示词（用于界面显示）
+     */
+    getCurrentVeoPromptCN(shot) {
+        const mode = shot.preferred_mode || 'standard';
+
+        // 🔥 优先使用用户编辑的中文版本
+        if (shot.veo_prompt_custom_cn) {
+            return shot.veo_prompt_custom_cn;
+        }
+
+        // 🔥 使用对应模式的中文版本（用于界面显示）
+        if (mode === 'reference' && shot.veo_prompt_reference_cn) {
+            return shot.veo_prompt_reference_cn;
+        }
+        if (mode === 'frames' && shot.veo_prompt_frames_cn) {
+            return shot.veo_prompt_frames_cn;
+        }
+        if (shot.veo_prompt_standard_cn) {
+            return shot.veo_prompt_standard_cn;
+        }
+
+        // 🔥 回退：如果没有中文版本，返回英文版本
+        return this.getCurrentVeoPrompt(shot);
     }
 
     /**
@@ -2751,14 +2785,108 @@ class ShortDramaStudio {
         // 更新镜头的首选模式
         shot.preferred_mode = newMode;
 
-        // 更新显示的提示词
+        // 🔥 更新显示的提示词（使用中文版本）
         const promptTextElement = document.getElementById(`prompt-text-${shotIndex}`);
         if (promptTextElement) {
-            const newPrompt = this.getCurrentVeoPrompt(shot);
+            const newPrompt = this.getCurrentVeoPromptCN(shot);
             promptTextElement.textContent = `${newPrompt.substring(0, 150)}${newPrompt.length > 150 ? '...' : ''}`;
         }
 
         console.log(`🎨 [模式切换] 镜头${shotIndex} 切换到 ${newMode} 模式`);
+    }
+
+    /**
+     * 显示英文原文提示词
+     */
+    showEnglishPrompt(shotIndex) {
+        const shot = this.shots[shotIndex];
+        if (!shot) return;
+
+        const promptEN = this.getCurrentVeoPrompt(shot);
+        const promptCN = this.getCurrentVeoPromptCN(shot);
+
+        // 创建弹窗
+        const modal = document.createElement('div');
+        modal.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.85);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+        `;
+
+        modal.innerHTML = `
+            <div style="
+                background: var(--bg-secondary);
+                border-radius: 16px;
+                max-width: 800px;
+                width: 90%;
+                max-height: 80vh;
+                overflow-y: auto;
+                padding: 24px;
+                box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            ">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h3 style="margin: 0;">🌐 提示词对照</h3>
+                    <button onclick="this.closest('div').parentElement.remove()" style="
+                        background: none;
+                        border: none;
+                        font-size: 1.8rem;
+                        cursor: pointer;
+                        color: var(--text-secondary);
+                    ">×</button>
+                </div>
+
+                <div style="margin-bottom: 20px;">
+                    <label style="font-weight: 600; display: block; margin-bottom: 8px;">📝 中文版本</label>
+                    <div style="
+                        background: var(--bg-dark);
+                        border: 1px solid var(--border);
+                        border-radius: 8px;
+                        padding: 12px;
+                        color: var(--text-primary);
+                        line-height: 1.6;
+                        white-space: pre-wrap;
+                    ">${promptCN}</div>
+                </div>
+
+                <div>
+                    <label style="font-weight: 600; display: block; margin-bottom: 8px;">🌐 英文原文（实际发送给VeO）</label>
+                    <div style="
+                        background: var(--bg-dark);
+                        border: 1px solid var(--border);
+                        border-radius: 8px;
+                        padding: 12px;
+                        color: var(--text-primary);
+                        line-height: 1.6;
+                        white-space: pre-wrap;
+                    ">${promptEN}</div>
+                </div>
+
+                <div style="margin-top: 20px; text-align: center;">
+                    <button onclick="this.closest('div').parentElement.remove()" style="
+                        padding: 10px 24px;
+                        background: var(--primary);
+                        border: none;
+                        border-radius: 8px;
+                        color: white;
+                        cursor: pointer;
+                    ">关闭</button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        // 点击背景关闭
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) modal.remove();
+        });
     }
 
     /**

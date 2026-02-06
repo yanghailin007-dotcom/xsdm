@@ -40,6 +40,36 @@ NOVEL_PROJECTS_DIR = BASE_DIR / '小说项目'
 NOVEL_PROJECTS_DIR.mkdir(exist_ok=True)
 
 
+def _translate_to_chinese_sync(text: str) -> str:
+    """同步翻译英文到中文（内部使用）"""
+    try:
+        if not api_client:
+            logger.warning('AI客户端未初始化，跳过翻译')
+            return text
+
+        system_prompt = """你是一个专业的视频提示词翻译专家。
+请将英文视频生成提示词翻译成流畅的中文，保持专业术语的准确性。
+注意：
+- 保持技术术语的准确性（如 cinematic, photorealistic, 8k 等可以保留或翻译为"电影级"、"写实风格"、"8K超清"）
+- 翻译要自然流畅，符合中文表达习惯
+- 保持原文的结构和重点
+- 只返回翻译结果，不要添加任何解释"""
+
+        response = api_client.chat_completion(
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": f"请翻译以下视频提示词：\n\n{text}"}
+            ],
+            model="gpt-4o-mini",
+            temperature=0.3
+        )
+
+        return response.choices[0].message.content.strip()
+    except Exception as e:
+        logger.error(f'翻译失败: {e}')
+        return text  # 翻译失败返回原文
+
+
 def get_project_dir(novel_title: str) -> Path:
     """获取小说项目目录"""
     return VIDEO_PROJECTS_DIR / novel_title
@@ -1375,14 +1405,33 @@ def generate_storyboard_from_beats():
         
         # 🔥 使用 VeOPromptService 生成三种模式的提示词
         from web.services.veo_prompt_service import generate_veo_prompts_for_scenes
-        
+
         shots = generate_veo_prompts_for_scenes(
             story_beats=story_beats,
             characters=characters,
             has_reference_image=has_reference_image,
             has_first_last_frame=has_first_last_frame
         )
-        
+
+        # 🔥 为每个镜头添加中文翻译版本
+        logger.info(f'🌐 [翻译] 开始翻译提示词为中文...')
+        for shot in shots:
+            try:
+                # 翻译三种模式的英文提示词
+                if shot.get('veo_prompt_standard'):
+                    shot['veo_prompt_standard_cn'] = _translate_to_chinese_sync(shot['veo_prompt_standard'])
+
+                if shot.get('veo_prompt_reference'):
+                    shot['veo_prompt_reference_cn'] = _translate_to_chinese_sync(shot['veo_prompt_reference'])
+
+                if shot.get('veo_prompt_frames'):
+                    shot['veo_prompt_frames_cn'] = _translate_to_chinese_sync(shot['veo_prompt_frames'])
+
+                logger.info(f'   ✅ 镜头 {shot.get("shot_number", "?")} 翻译完成')
+            except Exception as e:
+                logger.warning(f'   ⚠️ 镜头 {shot.get("shot_number", "?")} 翻译失败: {e}')
+                # 翻译失败不影响整体流程，继续
+
         logger.info(f'✅ [生成分镜] 生成 {len(shots)} 个镜头')
         
         # 保存 shots 到项目文件
@@ -1405,6 +1454,112 @@ def generate_storyboard_from_beats():
         return jsonify({
             'success': False,
             'message': f'生成分镜失败: {str(e)}'
+        }), 500
+
+
+# ==================== 翻译 API ====================
+
+@short_drama_api.route('/translate/to-chinese', methods=['POST'])
+def translate_to_chinese():
+    """将英文提示词翻译成中文"""
+    try:
+        data = request.get_json()
+        text = data.get('text', '')
+
+        if not text:
+            return jsonify({
+                'success': False,
+                'error': '缺少文本'
+            }), 400
+
+        if not api_client:
+            return jsonify({
+                'success': False,
+                'error': 'AI客户端未初始化'
+            }), 500
+
+        # 调用AI翻译
+        system_prompt = """你是一个专业的视频提示词翻译专家。
+请将英文视频生成提示词翻译成流畅的中文，保持专业术语的准确性。
+注意：
+- 保持技术术语的准确性（如 cinematic, photorealistic, 8k 等可以保留或翻译为"电影级"、"写实风格"、"8K超清"）
+- 翻译要自然流畅，符合中文表达习惯
+- 保持原文的结构和重点
+- 只返回翻译结果，不要添加任何解释"""
+
+        response = api_client.chat_completion(
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": f"请翻译以下视频提示词：\n\n{text}"}
+            ],
+            model="gpt-4o-mini",
+            temperature=0.3
+        )
+
+        translated_text = response.choices[0].message.content.strip()
+
+        return jsonify({
+            'success': True,
+            'translated_text': translated_text
+        }), 200
+
+    except Exception as e:
+        logger.error(f'翻译失败: {e}')
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@short_drama_api.route('/translate/to-english', methods=['POST'])
+def translate_to_english():
+    """将中文提示词翻译成英文"""
+    try:
+        data = request.get_json()
+        text = data.get('text', '')
+
+        if not text:
+            return jsonify({
+                'success': False,
+                'error': '缺少文本'
+            }), 400
+
+        if not api_client:
+            return jsonify({
+                'success': False,
+                'error': 'AI客户端未初始化'
+            }), 500
+
+        # 调用AI翻译
+        system_prompt = """你是一个专业的视频提示词翻译专家。
+请将中文视频生成提示词翻译成专业的英文，适合用于AI视频生成。
+注意：
+- 使用专业的视频生成术语（如 cinematic, photorealistic, 8k, medium shot, soft lighting 等）
+- 翻译要准确，符合英文表达习惯
+- 保持原文的结构和重点
+- 只返回翻译结果，不要添加任何解释"""
+
+        response = api_client.chat_completion(
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": f"请翻译以下视频提示词：\n\n{text}"}
+            ],
+            model="gpt-4o-mini",
+            temperature=0.3
+        )
+
+        translated_text = response.choices[0].message.content.strip()
+
+        return jsonify({
+            'success': True,
+            'translated_text': translated_text
+        }), 200
+
+    except Exception as e:
+        logger.error(f'翻译失败: {e}')
+        return jsonify({
+            'success': False,
+            'error': str(e)
         }), 500
 
 
