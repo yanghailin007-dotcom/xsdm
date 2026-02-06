@@ -669,12 +669,12 @@
         /* ==================== 空状态 ==================== */
         .empty-state {
             text-align: center;
-            padding: 4rem 2rem;
+            padding: 2rem 1rem;
         }
 
         .empty-state p:first-child {
-            font-size: 3rem;
-            margin-bottom: 1rem;
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
         }
 
         .empty-state p:last-child {
@@ -2496,7 +2496,9 @@
                 const container = document.getElementById('story-beatsContent');
                 if (!container) return;
                 
-                if (this.currentProject?.storyBeats) {
+                const storyBeats = this.currentProject?.storyBeats;
+                // 修复：检查 scenes 数组是否存在且有内容
+                if (storyBeats && storyBeats.scenes && storyBeats.scenes.length > 0) {
                     this.renderStoryBeatsEditor();
                 } else {
                     container.innerHTML = `

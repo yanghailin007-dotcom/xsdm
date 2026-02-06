@@ -349,6 +349,11 @@ class ShortDramaStudio {
                 this.renderCharacters();
                 this.renderStoryboard();
                 this.loadProjectSettings();  // 🔥 加载项目设置
+                
+                // 🔥 如果当前在故事节拍步骤，重新渲染
+                if (this.currentStep === 'story-beats') {
+                    this.renderStoryBeatsStep();
+                }
             }
         } catch (error) {
             console.error('加载项目数据失败:', error);
