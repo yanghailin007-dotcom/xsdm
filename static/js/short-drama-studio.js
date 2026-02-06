@@ -2839,7 +2839,7 @@ class ShortDramaStudio {
             ">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                     <h3 style="margin: 0;">🌐 提示词对照</h3>
-                    <button onclick="this.closest('div').parentElement.remove()" style="
+                    <button onclick="this.closest('[style*=\"position: fixed\"]')?.remove()" style="
                         background: none;
                         border: none;
                         font-size: 1.8rem;
@@ -2875,7 +2875,7 @@ class ShortDramaStudio {
                 </div>
 
                 <div style="margin-top: 20px; text-align: center;">
-                    <button onclick="this.closest('div').parentElement.remove()" style="
+                    <button onclick="this.closest('[style*=\"position: fixed\"]')?.remove()" style="
                         padding: 10px 24px;
                         background: var(--primary);
                         border: none;
