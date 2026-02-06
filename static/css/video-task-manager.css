@@ -57,19 +57,23 @@ body {
 }
 
 .btn-back {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    border: none;
-    padding: 0.625rem 1.25rem;
-    border-radius: 0.5rem;
-    font-weight: 600;
+    padding: 8px 16px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    color: var(--text-secondary);
     cursor: pointer;
-    transition: all 0.3s;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
 }
 
 .btn-back:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-primary);
 }
 
 .nav-links {

@@ -39,6 +39,28 @@
             color: white;
             font-size: 1.5rem;
             font-weight: 700;
+            display: flex;
+            align-items: center;
+        }
+
+        .btn-back {
+            padding: 8px 16px;
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 8px;
+            color: white;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin-right: 16px;
+        }
+
+        .btn-back:hover {
+            background: rgba(255, 255, 255, 0.3);
         }
 
         .navbar-actions {
@@ -647,7 +669,7 @@
     <nav class="navbar">
         <div class="navbar-content">
             <div class="navbar-title">
-                <button class="btn btn-secondary" onclick="location.href='/landing'" style="margin-right: 16px;">
+                <button class="btn-back" onclick="location.href='/landing'">
                     🏠 返回首页
                 </button>
                 📝 番茄自动签约管理
