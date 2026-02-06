@@ -1991,6 +1991,111 @@ class ShortDramaStudio {
     }
 
     /**
+     * 保存优化格式的分镜头数据到文件系统（数据流A持久化）
+     */
+    async saveShotsV2(shots) {
+        try {
+            const episodeDirectoryName = this.getEpisodeDirectoryName();
+            console.log('💾 [保存] 开始保存 shots_v2.json, 剧集:', episodeDirectoryName);
+
+            const response = await fetch('/api/short-drama/shots-v2', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    novel: this.selectedNovel,
+                    episode: episodeDirectoryName,
+                    shots: shots
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                console.log('✅ [保存] shots_v2.json 保存成功');
+            } else {
+                console.error('❌ [保存] shots_v2.json 保存失败:', data.error);
+            }
+        } catch (error) {
+            console.error('❌ [保存] shots_v2.json 保存异常:', error);
+        }
+    }
+
+    /**
+     * 从文件系统加载优化格式的分镜头数据（数据流A）
+     */
+    async loadShotsV2() {
+        try {
+            const episodeDirectoryName = this.getEpisodeDirectoryName();
+            console.log('📂 [加载] 尝试加载 shots_v2.json, 剧集:', episodeDirectoryName);
+
+            const response = await fetch(`/api/short-drama/shots-v2?novel=${encodeURIComponent(this.selectedNovel)}&episode=${encodeURIComponent(episodeDirectoryName)}`);
+            const data = await response.json();
+
+            if (data.success && data.shots && data.shots.length > 0) {
+                console.log('✅ [加载] shots_v2.json 加载成功, 镜头数:', data.shots.length);
+                return { shots: data.shots };
+            } else {
+                console.log('⚠️ [加载] shots_v2.json 不存在或为空');
+                return null;
+            }
+        } catch (error) {
+            console.error('❌ [加载] shots_v2.json 加载异常:', error);
+            return null;
+        }
+    }
+
+    /**
+     * 统一数据格式：将优化格式的 shots 转换为视频生成步骤需要的格式
+     */
+    normalizeShots(shots) {
+        console.log('🔄 [格式化] 开始格式化镜头数据, 原始数量:', shots.length);
+
+        return shots.map((shot, idx) => {
+            // 确保必需字段存在
+            const normalized = {
+                id: shot.id || `shot_${idx}`,
+                shot_number: shot.shot_number || idx + 1,
+                scene_number: shot.scene_number || 1,
+                scene_title: shot.scene_title || `场景${shot.scene_number || 1}`,
+                duration: shot.duration || shot.duration_seconds || 8,
+
+                // 🔥 保留优化格式的所有字段
+                visual_description: shot.visual_description,
+                visual_description_standard: shot.visual_description_standard,
+                visual_description_reference: shot.visual_description_reference,
+                visual_description_frames: shot.visual_description_frames,
+
+                veo_prompt: shot.veo_prompt,
+                veo_prompt_standard: shot.veo_prompt_standard,
+                veo_prompt_reference: shot.veo_prompt_reference,
+                veo_prompt_frames: shot.veo_prompt_frames,
+
+                preferred_mode: shot.preferred_mode || 'standard',
+
+                visual_elements: shot.visual_elements || {},
+                dialogue: shot.dialogue || shot._dialogue_data,
+                image_prompts: shot.image_prompts || {},
+                reference_images: shot.reference_images || [],
+
+                // 兼容旧格式字段
+                shot_type: shot.shot_type || '中景',
+                screen_action: shot.screen_action || shot.visual_description_standard || shot.visual_description,
+
+                // 视频生成状态
+                status: shot.status || 'pending',
+                videoExists: false,
+                videoPath: null,
+                videoUrl: null,
+
+                // 保留原始数据
+                _originalData: shot
+            };
+
+            return normalized;
+        });
+    }
+
+    /**
      * 加载视频步骤
      */
     async loadVideoStep() {
@@ -1999,23 +2104,43 @@ class ShortDramaStudio {
 
         container.innerHTML = '<div class="loading-state"><div class="spinner"></div><p>加载分镜头数据...</p></div>';
 
-        // 🔥 自动从API加载分镜头数据，不依赖缓存的 this.shots
         const episodeDirectoryName = this.getEpisodeDirectoryName();
         console.log('🎬 [视频步骤] 开始加载分镜头数据, 剧集:', episodeDirectoryName);
 
+        let allShots = [];
+
         try {
-            const response = await fetch(`/api/short-drama/storyboards?novel=${encodeURIComponent(this.selectedNovel)}&episode=${encodeURIComponent(episodeDirectoryName)}`);
-            const data = await response.json();
+            // 🔥 优先级1: 内存中的优化数据（数据流A）
+            if (this.currentProject?.shots?.length > 0) {
+                console.log('✅ [视频步骤] 使用内存中的优化数据（数据流A）, 镜头数:', this.currentProject.shots.length);
+                allShots = this.normalizeShots(this.currentProject.shots);
+            }
+            // 🔥 优先级2: 文件系统中的优化数据（shots_v2.json）
+            else {
+                const v2Data = await this.loadShotsV2();
+                if (v2Data?.shots?.length > 0) {
+                    console.log('✅ [视频步骤] 使用文件系统中的优化数据（shots_v2.json）, 镜头数:', v2Data.shots.length);
+                    allShots = this.normalizeShots(v2Data.shots);
+                }
+                // 🔥 优先级3: 回退到旧格式（storyboards/*.json）
+                else {
+                    console.log('⚠️ [视频步骤] 回退到旧格式数据（数据流B）');
+                    const response = await fetch(`/api/short-drama/storyboards?novel=${encodeURIComponent(this.selectedNovel)}&episode=${encodeURIComponent(episodeDirectoryName)}`);
+                    const data = await response.json();
 
-            console.log('📊 [视频步骤] API返回:', data);
-            console.log('📊 [视频步骤] storyboards数量:', data.storyboards?.length);
-            console.log('📊 [视频步骤] storyboards内容:', JSON.stringify(data.storyboards, null, 2));
+                    console.log('📊 [视频步骤] API返回:', data);
+                    console.log('📊 [视频步骤] storyboards数量:', data.storyboards?.length);
 
-            if (data.success && data.storyboards && data.storyboards.length > 0) {
-                // 使用 renderStoryboard 解析数据
-                this.renderStoryboard(data.storyboards);
-                console.log('✅ [视频步骤] 分镜头数据已加载, this.shots.length:', this.shots?.length);
-            } else {
+                    if (data.success && data.storyboards && data.storyboards.length > 0) {
+                        // 使用 renderStoryboard 解析数据
+                        this.renderStoryboard(data.storyboards);
+                        allShots = this.shots;
+                        console.log('✅ [视频步骤] 旧格式数据已加载, this.shots.length:', this.shots?.length);
+                    }
+                }
+            }
+
+            if (allShots.length === 0) {
                 container.innerHTML = `
                     <div class="empty-state">
                         <p style="font-size: 2rem;">🎬</p>
@@ -2027,6 +2152,10 @@ class ShortDramaStudio {
                 `;
                 return;
             }
+
+            this.shots = allShots;
+            console.log('✅ [视频步骤] 最终加载的镜头数:', this.shots.length);
+
         } catch (error) {
             console.error('❌ [视频步骤] 加载分镜头失败:', error);
             container.innerHTML = `
@@ -2484,13 +2613,35 @@ class ShortDramaStudio {
                </div>`
             : `<div class="task-video-placeholder">${isGenerating ? '<span class="spinner"></span>' : '⏳'}</div>`;
 
+        // 🔥 检查是否支持多模式（数据流A）
+        const hasMultipleModes = shot.veo_prompt_standard && shot.veo_prompt_reference && shot.veo_prompt_frames;
+        const currentMode = shot.preferred_mode || 'standard';
+
+        // 🔥 根据当前模式获取提示词
+        const currentPrompt = this.getCurrentVeoPrompt(shot);
+        const currentVisualDesc = this.getCurrentVisualDescription(shot);
+
+        // 🔥 模式选择器HTML（仅在支持多模式时显示）
+        const modeSelectorHtml = hasMultipleModes ? `
+            <div class="task-mode-selector" style="margin-bottom: 0.5rem;">
+                <span class="prompt-label">🎨 模式:</span>
+                <select id="mode-select-${idx}" onchange="shortDramaStudio.updateShotMode(${idx})"
+                        style="font-size: 0.75rem; padding: 0.25rem 0.5rem; border-radius: 0.25rem; background: rgba(0,0,0,0.3); color: var(--text-primary); border: 1px solid rgba(255,255,255,0.1);">
+                    <option value="standard" ${currentMode === 'standard' ? 'selected' : ''}>标准模式</option>
+                    <option value="reference" ${currentMode === 'reference' ? 'selected' : ''}>参考图模式</option>
+                    <option value="frames" ${currentMode === 'frames' ? 'selected' : ''}>首尾帧模式</option>
+                </select>
+            </div>
+        ` : '';
+
         return `
             <div class="task-row ${statusClass}" id="taskRow_${idx}">
                 <div class="task-index">S${shot.scene_number || 1}-#${shot.shot_number || 1}</div>
                 <div class="task-content">
+                    ${modeSelectorHtml}
                     <div class="task-prompt">
                         <span class="prompt-label">AI提示:</span>
-                        <span class="prompt-text">${(shot.veo_prompt || shot.screen_action || '').substring(0, 150)}${(shot.veo_prompt || shot.screen_action || '').length > 150 ? '...' : ''}</span>
+                        <span class="prompt-text" id="prompt-text-${idx}">${(currentPrompt || shot.screen_action || '').substring(0, 150)}${(currentPrompt || shot.screen_action || '').length > 150 ? '...' : ''}</span>
                     </div>
                     ${shot.plot_content ? `
                     <div class="task-plot">
@@ -2555,6 +2706,59 @@ class ShortDramaStudio {
                 </div>
             </div>
         `;
+    }
+
+    /**
+     * 获取当前模式的视觉描述
+     */
+    getCurrentVisualDescription(shot) {
+        const mode = shot.preferred_mode || 'standard';
+        if (mode === 'reference' && shot.visual_description_reference) {
+            return shot.visual_description_reference;
+        }
+        if (mode === 'frames' && shot.visual_description_frames) {
+            return shot.visual_description_frames;
+        }
+        return shot.visual_description_standard || shot.visual_description || shot.screen_action || '';
+    }
+
+    /**
+     * 获取当前模式的VeO提示词
+     */
+    getCurrentVeoPrompt(shot) {
+        const mode = shot.preferred_mode || 'standard';
+        if (mode === 'reference' && shot.veo_prompt_reference) {
+            return shot.veo_prompt_reference;
+        }
+        if (mode === 'frames' && shot.veo_prompt_frames) {
+            return shot.veo_prompt_frames;
+        }
+        return shot.veo_prompt_standard || shot.veo_prompt || '';
+    }
+
+    /**
+     * 更新镜头的提示词模式
+     */
+    updateShotMode(shotIndex) {
+        const selectElement = document.getElementById(`mode-select-${shotIndex}`);
+        if (!selectElement) return;
+
+        const newMode = selectElement.value;
+        const shot = this.shots[shotIndex];
+
+        if (!shot) return;
+
+        // 更新镜头的首选模式
+        shot.preferred_mode = newMode;
+
+        // 更新显示的提示词
+        const promptTextElement = document.getElementById(`prompt-text-${shotIndex}`);
+        if (promptTextElement) {
+            const newPrompt = this.getCurrentVeoPrompt(shot);
+            promptTextElement.textContent = `${newPrompt.substring(0, 150)}${newPrompt.length > 150 ? '...' : ''}`;
+        }
+
+        console.log(`🎨 [模式切换] 镜头${shotIndex} 切换到 ${newMode} 模式`);
     }
 
     /**
@@ -5551,12 +5755,14 @@ saveVeOConfig(config) {
         try {
             const episodeDirectoryName = this.getEpisodeDirectoryName();
 
-            // 🔥 使用用户编辑的提示词（如果有），否则使用原始值
-            const promptForApi = shot.veo_prompt || shot.screen_action || '';
+            // 🔥 使用当前模式的提示词（支持数据流A的多模式）
+            const promptForApi = shot.veo_prompt || this.getCurrentVeoPrompt(shot) || shot.screen_action || '';
+            const selectedMode = shot.preferred_mode || 'standard';
 
             // 🔥 打印发送给API的实际提示词，方便排查
             console.log('📤 [发送给VeO API的提示词]');
             console.log('  - 镜头: S' + (shot._scene_number || shot.scene_number || 1) + '#' + (shot.shot_number || (idx + 1)));
+            console.log('  - 模式:', selectedMode);
             console.log('  - 提示词长度:', promptForApi.length, '字符');
             console.log('  - 提示词内容:\n' + promptForApi);
 
@@ -5568,12 +5774,15 @@ saveVeOConfig(config) {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     model: result.model || 'veo_3_1-fast-components',
-                    prompt: promptForApi,  // 🔥 使用干净的 veo_prompt，不是带标签的格式
+                    prompt: promptForApi,  // 🔥 使用当前模式的 veo_prompt
                     image_urls: result.selectedImages || [],
                     orientation: result.orientation || 'portrait',
                     size: result.size || 'large',
                     watermark: false,
                     private: true,
+                    // 🔥 添加模式信息和图片提示词（数据流A）
+                    mode: selectedMode,
+                    image_prompts: shot.image_prompts || {},
                     metadata: {
                         novel_title: this.selectedNovel || '',
                         episode_title: episodeDirectoryName,
@@ -5582,7 +5791,8 @@ saveVeOConfig(config) {
                         shot_number: String(shot.shot_number || (idx + 1)),
                         shot_type: shot.shot_type || 'shot',
                         dialogue_index: shot.dialogue_index || 1,
-                        lines_en: dialogueData?.lines_en || ''  // 传递英文台词
+                        lines_en: dialogueData?.lines_en || '',  // 传递英文台词
+                        mode: selectedMode  // 🔥 在metadata中也记录模式
                     }
                 })
             });

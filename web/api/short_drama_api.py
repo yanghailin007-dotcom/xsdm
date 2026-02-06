@@ -1410,6 +1410,95 @@ def generate_storyboard_from_beats():
 
 # ==================== 分镜头管理 API ====================
 
+@short_drama_api.route('/shots-v2', methods=['GET'])
+def get_shots_v2():
+    """获取优化格式的分镜头数据（数据流A）"""
+    try:
+        novel_title = request.args.get('novel')
+        episode_name = request.args.get('episode')
+
+        if not novel_title or not episode_name:
+            return jsonify({
+                'success': False,
+                'error': '缺少参数'
+            }), 400
+
+        # 构建 shots_v2.json 文件路径
+        shots_file = VIDEO_PROJECTS_DIR / novel_title / episode_name / 'shots_v2.json'
+
+        if not shots_file.exists():
+            return jsonify({
+                'success': True,
+                'shots': []
+            })
+
+        # 读取文件
+        with open(shots_file, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+
+        shots = data.get('shots', [])
+        logger.info(f'✅ [shots-v2] 加载了 {len(shots)} 个镜头')
+
+        return jsonify({
+            'success': True,
+            'shots': shots
+        }), 200
+
+    except Exception as e:
+        logger.error(f'获取 shots_v2 失败: {e}')
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@short_drama_api.route('/shots-v2', methods=['POST'])
+def save_shots_v2():
+    """保存优化格式的分镜头数据（数据流A持久化）"""
+    try:
+        data = request.get_json()
+        novel_title = data.get('novel')
+        episode_name = data.get('episode')
+        shots = data.get('shots', [])
+
+        if not novel_title or not episode_name:
+            return jsonify({
+                'success': False,
+                'error': '缺少参数'
+            }), 400
+
+        # 确保目录存在
+        episode_dir = VIDEO_PROJECTS_DIR / novel_title / episode_name
+        episode_dir.mkdir(parents=True, exist_ok=True)
+
+        # 构建文件路径
+        shots_file = episode_dir / 'shots_v2.json'
+
+        # 保存数据
+        save_data = {
+            'version': '2.0',
+            'created_at': datetime.now().isoformat(),
+            'shots': shots
+        }
+
+        with open(shots_file, 'w', encoding='utf-8') as f:
+            json.dump(save_data, f, ensure_ascii=False, indent=2)
+
+        logger.info(f'✅ [shots-v2] 保存了 {len(shots)} 个镜头到 {shots_file}')
+
+        return jsonify({
+            'success': True,
+            'message': f'成功保存 {len(shots)} 个镜头'
+        }), 200
+
+    except Exception as e:
+        logger.error(f'保存 shots_v2 失败: {e}')
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
 @short_drama_api.route('/storyboards', methods=['GET'])
 def get_storyboards():
     """获取指定剧集的分镜头列表"""
