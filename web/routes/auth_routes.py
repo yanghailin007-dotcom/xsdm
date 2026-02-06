@@ -233,6 +233,12 @@ def register_page_routes(app):
         """图像素材库页面"""
         return render_template('still-image-library.html')
     
+    @app.route('/library', methods=['GET'])
+    @login_required
+    def library_redirect():
+        """素材库页面（兼容旧链接）"""
+        return redirect('/still-image-library')
+    
     @app.route('/video-studio', methods=['GET'])
     @login_required
     def video_studio():
