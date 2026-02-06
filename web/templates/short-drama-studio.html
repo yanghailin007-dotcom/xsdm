@@ -3060,9 +3060,7 @@
                                 <!-- 英文提示词（折叠显示，根据模式切换） -->
                                 <details style="margin-top: 0.75rem; font-size: 0.75rem;">
                                     <summary style="color: var(--text-tertiary); cursor: pointer;">查看AI提示词（英文）</summary>
-                                    <p id="veo-prompt-${shotId}" style="color: var(--text-secondary); margin: 0.5rem 0 0 0; padding: 0.5rem; background: rgba(0, 0, 0, 0.3); border-radius: 0.25rem; font-family: monospace; white-space: pre-wrap; word-break: break-all;">
-                                        ${shot.preferred_mode === 'reference' ? veoPromptReference : (shot.preferred_mode === 'frames' ? veoPromptFrames : veoPromptStandard)}
-                                    </p>
+                                    <p id="veo-prompt-${shotId}" style="color: var(--text-secondary); margin: 0.5rem 0 0 0; padding: 0.5rem; background: rgba(0, 0, 0, 0.3); border-radius: 0.25rem; font-family: monospace; white-space: pre-wrap; word-break: break-all;">${shot.preferred_mode === 'reference' ? veoPromptReference : (shot.preferred_mode === 'frames' ? veoPromptFrames : veoPromptStandard)}</p>
                                 </details>
                                 
                                 <!-- 🔥 图片生成提示词（用于Midjourney/SD等） -->

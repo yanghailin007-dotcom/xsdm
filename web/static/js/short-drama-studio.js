@@ -8307,9 +8307,7 @@ saveVeOConfig(config) {
                             
                             <details class="shot-details">
                                 <summary>查看AI提示词（英文）</summary>
-                                <p id="veo-prompt-${shotId}" class="veo-prompt">
-                                    ${shot.preferred_mode === 'reference' ? veoPromptReference : (shot.preferred_mode === 'frames' ? veoPromptFrames : veoPromptStandard)}
-                                </p>
+                                <p id="veo-prompt-${shotId}" class="veo-prompt">${shot.preferred_mode === 'reference' ? veoPromptReference : (shot.preferred_mode === 'frames' ? veoPromptFrames : veoPromptStandard)}</p>
                             </details>
                             
                             ${shot.image_prompts ? `
