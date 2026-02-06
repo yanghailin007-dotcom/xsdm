@@ -1,17 +1,27 @@
-/* 剧照图片素材库样式 */
+/* 剧照图片素材库样式 - 暗色主题 */
 
 :root {
-    --primary-color: #4a90e2;
-    --success-color: #52c41a;
-    --warning-color: #faad14;
-    --danger-color: #f5222d;
-    --text-color: #333;
-    --text-secondary: #666;
-    --border-color: #d9d9d9;
-    --bg-color: #f5f5f5;
-    --card-bg: #ffffff;
-    --shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    --shadow-hover: 0 4px 16px rgba(0, 0, 0, 0.15);
+    --primary: #6366f1;
+    --primary-hover: #4f46e5;
+    --primary-light: rgba(99, 102, 241, 0.2);
+    --accent: #06b6d4;
+    --purple: #a855f7;
+    
+    --gray-900: #0f172a;
+    --gray-800: #1e293b;
+    --gray-700: #334155;
+    
+    --text-primary: #f8fafc;
+    --text-secondary: #cbd5e1;
+    --text-tertiary: #94a3b8;
+    --text-muted: #64748b;
+    
+    --border: rgba(255, 255, 255, 0.1);
+    --border-light: rgba(255, 255, 255, 0.2);
+    
+    --success: #22c55e;
+    --warning: #f59e0b;
+    --danger: #ef4444;
 }
 
 * {
@@ -21,17 +31,58 @@
 }
 
 body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
-    background-color: var(--bg-color);
-    color: var(--text-color);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+    background: var(--gray-900);
+    color: var(--text-primary);
+    min-height: 100vh;
     line-height: 1.6;
+    position: relative;
+}
+
+/* 星空背景 */
+body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: radial-gradient(ellipse at bottom, #1b2735 0%, #090a0f 100%);
+    z-index: -2;
+}
+
+body::after {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image: 
+        radial-gradient(2px 2px at 20px 30px, rgba(255,255,255,0.3), transparent),
+        radial-gradient(2px 2px at 40px 70px, rgba(255,255,255,0.2), transparent);
+    background-repeat: repeat;
+    background-size: 200px 200px;
+    animation: twinkle 10s infinite linear;
+    z-index: -1;
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+@keyframes twinkle {
+    0%, 100% { opacity: 0.5; }
+    50% { opacity: 0.3; }
 }
 
 /* 导航栏样式 */
 .navbar {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: rgba(15, 23, 42, 0.8);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border);
     padding: 15px 0;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    position: sticky;
+    top: 0;
+    z-index: 100;
 }
 
 .nav-container {
@@ -47,23 +98,23 @@ body {
 
 .btn-back {
     padding: 8px 16px;
-    background: rgba(255, 255, 255, 0.2);
-    border: 1px solid rgba(255, 255, 255, 0.3);
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border);
     border-radius: 8px;
-    color: white;
+    color: var(--text-secondary);
     cursor: pointer;
     font-size: 14px;
     font-weight: 500;
-    transition: all 0.3s;
+    transition: all 0.2s;
 }
 
 .btn-back:hover {
-    background: rgba(255, 255, 255, 0.3);
-    transform: translateY(-2px);
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-primary);
 }
 
 .nav-title {
-    color: white;
+    color: var(--text-primary);
     font-size: 1.5em;
     font-weight: 600;
     margin: 0;
@@ -79,19 +130,19 @@ body {
 
 .nav-link {
     padding: 8px 16px;
-    background: rgba(255, 255, 255, 0.15);
-    border: 1px solid rgba(255, 255, 255, 0.25);
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border);
     border-radius: 8px;
-    color: white;
+    color: var(--text-secondary);
     text-decoration: none;
     font-size: 14px;
     font-weight: 500;
-    transition: all 0.3s;
+    transition: all 0.2s;
 }
 
 .nav-link:hover {
-    background: rgba(255, 255, 255, 0.25);
-    transform: translateY(-2px);
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-primary);
 }
 
 #app {
@@ -109,22 +160,28 @@ body {
     text-align: center;
     margin-bottom: 30px;
     margin-top: 20px;
-    padding: 30px 20px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    border-radius: 12px;
-    color: white;
-    box-shadow: var(--shadow);
+    padding: 40px 20px;
+    background: rgba(30, 41, 59, 0.6);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    color: var(--text-primary);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
 }
 
 .page-header h2 {
     font-size: 2em;
     margin-bottom: 10px;
-    font-weight: 600;
+    font-weight: 700;
+    background: linear-gradient(135deg, #ec4899 0%, #f43f5e 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
 }
 
 .page-subtitle {
     font-size: 1.1em;
-    opacity: 0.9;
+    color: var(--text-secondary);
 }
 
 /* 统计信息 */
@@ -134,9 +191,11 @@ body {
     gap: 20px;
     margin-bottom: 30px;
     padding: 20px;
-    background: var(--card-bg);
-    border-radius: 12px;
-    box-shadow: var(--shadow);
+    background: rgba(30, 41, 59, 0.6);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
 }
 
 .stat-item {
@@ -144,7 +203,8 @@ body {
     align-items: center;
     gap: 8px;
     padding: 12px 20px;
-    background: var(--bg-color);
+    background: rgba(15, 23, 42, 0.5);
+    border: 1px solid var(--border);
     border-radius: 8px;
     flex: 1;
     min-width: 150px;
@@ -161,8 +221,8 @@ body {
 
 .stat-value {
     font-size: 1.3em;
-    font-weight: 600;
-    color: var(--primary-color);
+    font-weight: 700;
+    color: var(--primary);
 }
 
 /* 过滤器 */
@@ -172,9 +232,11 @@ body {
     gap: 15px;
     margin-bottom: 30px;
     padding: 20px;
-    background: var(--card-bg);
-    border-radius: 12px;
-    box-shadow: var(--shadow);
+    background: rgba(30, 41, 59, 0.6);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
 }
 
 .filter-group {
@@ -190,29 +252,31 @@ body {
 
 .filter-group select {
     padding: 8px 12px;
-    border: 1px solid var(--border-color);
-    border-radius: 6px;
-    background: white;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: rgba(15, 23, 42, 0.5);
+    color: var(--text-primary);
     font-size: 14px;
     min-width: 150px;
     cursor: pointer;
+    transition: all 0.2s;
 }
 
 .filter-group select:focus {
     outline: none;
-    border-color: var(--primary-color);
-    box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.1);
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
 }
 
 /* 按钮 */
 .btn {
     padding: 8px 16px;
     border: none;
-    border-radius: 6px;
+    border-radius: 8px;
     font-size: 14px;
-    font-weight: 500;
+    font-weight: 600;
     cursor: pointer;
-    transition: all 0.3s;
+    transition: all 0.2s;
     display: inline-flex;
     align-items: center;
     gap: 6px;
@@ -220,35 +284,37 @@ body {
 
 .btn:hover {
     transform: translateY(-2px);
-    box-shadow: var(--shadow-hover);
 }
 
 .btn-primary {
-    background: var(--primary-color);
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #06b6d4 100%);
     color: white;
+    box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
 }
 
 .btn-primary:hover {
-    background: #357abd;
+    box-shadow: 0 8px 25px rgba(99, 102, 241, 0.5);
 }
 
 .btn-secondary {
-    background: #fff;
-    color: var(--text-color);
-    border: 1px solid var(--border-color);
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
 }
 
 .btn-secondary:hover {
-    background: var(--bg-color);
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-primary);
 }
 
 .btn-danger {
-    background: var(--danger-color);
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
     color: white;
+    box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4);
 }
 
 .btn-danger:hover {
-    background: #d4182c;
+    box-shadow: 0 8px 25px rgba(239, 68, 68, 0.5);
 }
 
 /* 图片网格 */
@@ -260,24 +326,27 @@ body {
 }
 
 .image-card {
-    background: var(--card-bg);
+    background: rgba(30, 41, 59, 0.6);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--border);
     border-radius: 12px;
     overflow: hidden;
-    box-shadow: var(--shadow);
-    transition: all 0.3s;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    transition: all 0.2s;
     cursor: pointer;
 }
 
 .image-card:hover {
     transform: translateY(-4px);
-    box-shadow: var(--shadow-hover);
+    border-color: rgba(99, 102, 241, 0.3);
+    box-shadow: 0 8px 35px rgba(0, 0, 0, 0.4);
 }
 
 .image-thumbnail {
     width: 100%;
     height: 320px;
     object-fit: cover;
-    background: var(--bg-color);
+    background: rgba(15, 23, 42, 0.5);
 }
 
 .image-info {
@@ -289,30 +358,30 @@ body {
     padding: 4px 8px;
     border-radius: 4px;
     font-size: 12px;
-    font-weight: 500;
+    font-weight: 600;
     margin-bottom: 8px;
 }
 
 .type-character {
-    background: #e6f7ff;
-    color: #1890ff;
+    background: rgba(6, 182, 212, 0.2);
+    color: #22d3ee;
 }
 
 .type-scene {
-    background: #f6ffed;
-    color: #52c41a;
+    background: rgba(34, 197, 94, 0.2);
+    color: #4ade80;
 }
 
 .type-custom {
-    background: #fff7e6;
-    color: #faad14;
+    background: rgba(245, 158, 11, 0.2);
+    color: #fbbf24;
 }
 
 .image-title {
     font-size: 16px;
     font-weight: 600;
     margin-bottom: 8px;
-    color: var(--text-color);
+    color: var(--text-primary);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -323,7 +392,7 @@ body {
     flex-wrap: wrap;
     gap: 10px;
     font-size: 13px;
-    color: var(--text-secondary);
+    color: var(--text-tertiary);
     margin-bottom: 10px;
 }
 
@@ -348,14 +417,17 @@ body {
 .empty-state {
     text-align: center;
     padding: 80px 20px;
-    background: var(--card-bg);
-    border-radius: 12px;
-    box-shadow: var(--shadow);
+    background: rgba(30, 41, 59, 0.6);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
 }
 
 .empty-icon {
     font-size: 4em;
     margin-bottom: 20px;
+    opacity: 0.5;
 }
 
 .empty-state p {
@@ -366,7 +438,7 @@ body {
 
 .empty-hint {
     font-size: 0.9em;
-    color: var(--text-secondary);
+    color: var(--text-tertiary);
     margin-bottom: 30px;
 }
 
@@ -381,17 +453,19 @@ body {
 .loading-state {
     text-align: center;
     padding: 80px 20px;
-    background: var(--card-bg);
-    border-radius: 12px;
-    box-shadow: var(--shadow);
+    background: rgba(30, 41, 59, 0.6);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
 }
 
 .spinner {
     width: 50px;
     height: 50px;
     margin: 0 auto 20px;
-    border: 4px solid var(--bg-color);
-    border-top-color: var(--primary-color);
+    border: 4px solid rgba(255, 255, 255, 0.1);
+    border-top-color: var(--primary);
     border-radius: 50%;
     animation: spin 1s linear infinite;
 }
@@ -422,17 +496,15 @@ body {
 }
 
 @keyframes fadeIn {
-    from {
-        opacity: 0;
-    }
-    to {
-        opacity: 1;
-    }
+    from { opacity: 0; }
+    to { opacity: 1; }
 }
 
 .modal-content {
-    background: var(--card-bg);
-    border-radius: 12px;
+    background: rgba(30, 41, 59, 0.95);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--border);
+    border-radius: 16px;
     max-width: 900px;
     width: 90%;
     max-height: 90vh;
@@ -458,13 +530,14 @@ body {
     right: 20px;
     font-size: 28px;
     font-weight: bold;
-    color: var(--text-secondary);
+    color: var(--text-tertiary);
     cursor: pointer;
     z-index: 1;
+    transition: all 0.2s;
 }
 
 .close:hover {
-    color: var(--text-color);
+    color: var(--text-primary);
 }
 
 .modal-body {
@@ -477,7 +550,7 @@ body {
     object-fit: contain;
     border-radius: 8px;
     margin-bottom: 20px;
-    background: var(--bg-color);
+    background: rgba(15, 23, 42, 0.5);
 }
 
 .modal-info {
@@ -486,7 +559,7 @@ body {
 
 .modal-info h3 {
     margin-bottom: 20px;
-    color: var(--text-color);
+    color: var(--text-primary);
 }
 
 .info-row {
@@ -497,13 +570,13 @@ body {
 
 .info-label {
     font-weight: 600;
-    color: var(--text-secondary);
+    color: var(--text-tertiary);
     min-width: 100px;
     flex-shrink: 0;
 }
 
 .info-value {
-    color: var(--text-color);
+    color: var(--text-primary);
     word-break: break-word;
 }
 
@@ -512,7 +585,7 @@ body {
     gap: 10px;
     margin-top: 20px;
     padding-top: 20px;
-    border-top: 1px solid var(--border-color);
+    border-top: 1px solid var(--border);
 }
 
 .modal-actions button {
@@ -523,7 +596,7 @@ body {
 
 /* 响应式 */
 @media (max-width: 768px) {
-    .page-header h1 {
+    .page-header h2 {
         font-size: 1.8em;
     }
     
