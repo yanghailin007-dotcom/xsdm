@@ -114,6 +114,27 @@
             color: var(--primary-400);
         }
 
+        /* 统一返回首页按钮样式 */
+        .btn-back {
+            padding: 8px 16px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-back:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text-primary);
+        }
+
         .nav-actions {
             display: flex;
             gap: 0.75rem;
@@ -619,7 +640,7 @@
     <!-- 顶部导航 -->
     <nav class="top-nav">
         <div class="nav-title">
-            <a href="/landing">🏠</a>
+            <button class="btn-back" onclick="location.href='/landing'">🏠 返回首页</button>
             <span>📊 仪表板</span>
         </div>
         <div class="nav-actions">
