@@ -55,16 +55,16 @@ def _translate_to_chinese_sync(text: str) -> str:
 - 保持原文的结构和重点
 - 只返回翻译结果，不要添加任何解释"""
 
-        response = api_client.chat_completion(
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": f"请翻译以下视频提示词：\n\n{text}"}
-            ],
-            model="gpt-4o-mini",
-            temperature=0.3
+        # 使用正确的 API 方法
+        response = api_client.call_api(
+            system_prompt=system_prompt,
+            user_prompt=f"请翻译以下视频提示词：\n\n{text}",
+            json_mode=False
         )
 
-        return response.choices[0].message.content.strip()
+        if response:
+            return response.strip()
+        return text
     except Exception as e:
         logger.error(f'翻译失败: {e}')
         return text  # 翻译失败返回原文
@@ -1413,26 +1413,8 @@ def generate_storyboard_from_beats():
             has_first_last_frame=has_first_last_frame
         )
 
-        # 🔥 为每个镜头添加中文翻译版本
-        logger.info(f'🌐 [翻译] 开始翻译提示词为中文...')
-        for shot in shots:
-            try:
-                # 翻译三种模式的英文提示词
-                if shot.get('veo_prompt_standard'):
-                    shot['veo_prompt_standard_cn'] = _translate_to_chinese_sync(shot['veo_prompt_standard'])
-
-                if shot.get('veo_prompt_reference'):
-                    shot['veo_prompt_reference_cn'] = _translate_to_chinese_sync(shot['veo_prompt_reference'])
-
-                if shot.get('veo_prompt_frames'):
-                    shot['veo_prompt_frames_cn'] = _translate_to_chinese_sync(shot['veo_prompt_frames'])
-
-                logger.info(f'   ✅ 镜头 {shot.get("shot_number", "?")} 翻译完成')
-            except Exception as e:
-                logger.warning(f'   ⚠️ 镜头 {shot.get("shot_number", "?")} 翻译失败: {e}')
-                # 翻译失败不影响整体流程，继续
-
-        logger.info(f'✅ [生成分镜] 生成 {len(shots)} 个镜头')
+        # 🔥 不再自动翻译，翻译功能改为 UI 手动触发
+        logger.info(f'✅ [生成分镜] 生成 {len(shots)} 个镜头（未翻译，请使用批量翻译功能）')
         
         # 保存 shots 到项目文件
         project_data['shots'] = shots
@@ -1487,20 +1469,21 @@ def translate_to_chinese():
 - 保持原文的结构和重点
 - 只返回翻译结果，不要添加任何解释"""
 
-        response = api_client.chat_completion(
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": f"请翻译以下视频提示词：\n\n{text}"}
-            ],
-            model="gpt-4o-mini",
-            temperature=0.3
+        translated_text = api_client.call_api(
+            system_prompt=system_prompt,
+            user_prompt=f"请翻译以下视频提示词：\n\n{text}",
+            json_mode=False
         )
 
-        translated_text = response.choices[0].message.content.strip()
+        if not translated_text:
+            return jsonify({
+                'success': False,
+                'error': '翻译失败'
+            }), 500
 
         return jsonify({
             'success': True,
-            'translated_text': translated_text
+            'translated_text': translated_text.strip()
         }), 200
 
     except Exception as e:
@@ -1539,20 +1522,21 @@ def translate_to_english():
 - 保持原文的结构和重点
 - 只返回翻译结果，不要添加任何解释"""
 
-        response = api_client.chat_completion(
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": f"请翻译以下视频提示词：\n\n{text}"}
-            ],
-            model="gpt-4o-mini",
-            temperature=0.3
+        translated_text = api_client.call_api(
+            system_prompt=system_prompt,
+            user_prompt=f"请翻译以下视频提示词：\n\n{text}",
+            json_mode=False
         )
 
-        translated_text = response.choices[0].message.content.strip()
+        if not translated_text:
+            return jsonify({
+                'success': False,
+                'error': '翻译失败'
+            }), 500
 
         return jsonify({
             'success': True,
-            'translated_text': translated_text
+            'translated_text': translated_text.strip()
         }), 200
 
     except Exception as e:
@@ -1560,6 +1544,100 @@ def translate_to_english():
         return jsonify({
             'success': False,
             'error': str(e)
+        }), 500
+
+
+@short_drama_api.route('/shots/translate-all', methods=['POST'])
+def translate_all_shots():
+    """
+    批量翻译所有镜头的提示词
+    一次性翻译整个文件的所有英文提示词为中文
+    """
+    try:
+        data = request.get_json()
+        novel_title = data.get('novel')
+        episode_name = data.get('episode')
+        
+        if not novel_title or not episode_name:
+            return jsonify({
+                'success': False,
+                'error': '缺少小说标题或集数名称'
+            }), 400
+        
+        # 构建 shots_v2.json 文件路径
+        shots_file = VIDEO_PROJECTS_DIR / novel_title / episode_name / 'shots_v2.json'
+        
+        if not shots_file.exists():
+            return jsonify({
+                'success': False,
+                'error': '分镜文件不存在'
+            }), 404
+        
+        # 读取文件
+        with open(shots_file, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        
+        shots = data.get('shots', [])
+        if not shots:
+            return jsonify({
+                'success': False,
+                'error': '没有可翻译的镜头'
+            }), 400
+        
+        if not api_client:
+            return jsonify({
+                'success': False,
+                'error': 'AI客户端未初始化'
+            }), 500
+        
+        logger.info(f'🌐 [批量翻译] 开始翻译 {len(shots)} 个镜头...')
+        
+        translated_count = 0
+        failed_count = 0
+        
+        for shot in shots:
+            try:
+                # 翻译三种模式的英文提示词
+                if shot.get('veo_prompt_standard') and not shot.get('veo_prompt_standard_cn'):
+                    shot['veo_prompt_standard_cn'] = _translate_to_chinese_sync(shot['veo_prompt_standard'])
+                
+                if shot.get('veo_prompt_reference') and not shot.get('veo_prompt_reference_cn'):
+                    shot['veo_prompt_reference_cn'] = _translate_to_chinese_sync(shot['veo_prompt_reference'])
+                
+                if shot.get('veo_prompt_frames') and not shot.get('veo_prompt_frames_cn'):
+                    shot['veo_prompt_frames_cn'] = _translate_to_chinese_sync(shot['veo_prompt_frames'])
+                
+                translated_count += 1
+                logger.info(f'   ✅ 镜头 {shot.get("shot_number", "?")} 翻译完成')
+            except Exception as e:
+                failed_count += 1
+                logger.warning(f'   ⚠️ 镜头 {shot.get("shot_number", "?")} 翻译失败: {e}')
+                continue
+        
+        # 保存翻译后的数据
+        data['shots'] = shots
+        data['updatedAt'] = datetime.now().isoformat()
+        
+        with open(shots_file, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+        
+        logger.info(f'✅ [批量翻译] 完成: {translated_count} 成功, {failed_count} 失败')
+        
+        return jsonify({
+            'success': True,
+            'message': f'翻译完成: {translated_count} 个镜头成功, {failed_count} 个失败',
+            'translatedCount': translated_count,
+            'failedCount': failed_count,
+            'shots': shots
+        })
+        
+    except Exception as e:
+        logger.error(f'❌ [批量翻译] 失败: {e}')
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({
+            'success': False,
+            'error': f'批量翻译失败: {str(e)}'
         }), 500
 
 

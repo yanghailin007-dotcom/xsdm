@@ -8405,10 +8405,22 @@ saveVeOConfig(config) {
             scenesMap[sceneNum].shots.push(shot);
         });
         
+        // 检查是否已经有中文翻译
+        const hasChineseTranslation = shots.some(s => s.veo_prompt_standard_cn || s.veo_prompt_reference_cn || s.veo_prompt_frames_cn);
+        
         let html = `
             <div class="storyboard-header">
                 <h3>🎬 分镜头脚本</h3>
-                <span>共 ${shots.length} 个镜头</span>
+                <div style="display: flex; gap: 0.5rem; align-items: center;">
+                    <span>共 ${shots.length} 个镜头</span>
+                    ${!hasChineseTranslation ? `
+                        <button class="btn btn-sm btn-secondary" onclick="shortDramaStudio.translateAllShots()" title="一次性翻译所有英文提示词为中文">
+                            🌐 批量翻译
+                        </button>
+                    ` : `
+                        <span style="font-size: 0.8rem; color: var(--success);">✓ 已翻译</span>
+                    `}
+                </div>
             </div>
             <div class="scenes-list">
         `;
@@ -8598,6 +8610,58 @@ saveVeOConfig(config) {
         });
         
         console.log('Shot模式选择已保存');
+    }
+
+    /**
+     * 批量翻译所有镜头的提示词
+     */
+    async translateAllShots() {
+        if (!this.selectedNovel || !this.episodeDirectoryName) {
+            this.showToast('请先选择小说和集数', 'warning');
+            return;
+        }
+        
+        const shots = this.currentProject?.shots || [];
+        if (shots.length === 0) {
+            this.showToast('没有可翻译的镜头', 'warning');
+            return;
+        }
+        
+        // 检查是否已经翻译过
+        const hasTranslation = shots.some(s => s.veo_prompt_standard_cn || s.veo_prompt_reference_cn || s.veo_prompt_frames_cn);
+        if (hasTranslation) {
+            const confirmed = confirm('镜头已有中文翻译，是否重新翻译？');
+            if (!confirmed) return;
+        }
+        
+        this.showToast('开始批量翻译，请稍候...', 'info');
+        
+        try {
+            const response = await fetch('/api/short-drama/shots/translate-all', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    novel: this.selectedNovel,
+                    episode: this.episodeDirectoryName
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                // 更新本地数据
+                if (data.shots) {
+                    this.currentProject.shots = data.shots;
+                }
+                this.renderShotsList();
+                this.showToast(`翻译完成: ${data.translatedCount} 成功, ${data.failedCount} 失败`, 'success');
+            } else {
+                this.showToast(data.error || '翻译失败', 'error');
+            }
+        } catch (error) {
+            console.error('批量翻译失败:', error);
+            this.showToast('批量翻译失败: ' + error.message, 'error');
+        }
     }
 
     /**
