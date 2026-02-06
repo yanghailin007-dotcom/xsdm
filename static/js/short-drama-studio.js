@@ -536,11 +536,11 @@ class ShortDramaStudio {
         }
 
         container.innerHTML = this.events.map((event, idx) => `
-            <div class="major-event-option" data-event-id="${event.id}">
+            <div class="major-event-item" data-event-id="${event.id}">
                 <div class="event-name">${event.title}</div>
                 <div class="event-info">
                     <span class="episode-count">${event.children_count}集</span>
-                    ${event.description ? `<span>${event.description.substring(0, 50)}...</span>` : ''}
+                    ${event.description ? `<span class="event-desc">${event.description.substring(0, 40)}${event.description.length > 40 ? '...' : ''}</span>` : ''}
                 </div>
             </div>
         `).join('');
@@ -563,12 +563,12 @@ class ShortDramaStudio {
         console.log('📺 [工作流] 子事件数据:', event.children);
 
         // 更新选中状态
-        document.querySelectorAll('.major-event-option').forEach(opt => {
-            opt.classList.remove('selected');
+        document.querySelectorAll('.major-event-item').forEach(item => {
+            item.classList.remove('selected');
         });
-        const selectedOption = document.querySelector(`.major-event-option[data-event-id="${eventId}"]`);
-        if (selectedOption) {
-            selectedOption.classList.add('selected');
+        const selectedItem = document.querySelector(`.major-event-item[data-event-id="${eventId}"]`);
+        if (selectedItem) {
+            selectedItem.classList.add('selected');
         }
 
         // 显示集数列表
