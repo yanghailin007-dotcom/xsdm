@@ -1991,6 +1991,111 @@ class ShortDramaStudio {
     }
 
     /**
+     * 保存优化格式的分镜头数据到文件系统（数据流A持久化）
+     */
+    async saveShotsV2(shots) {
+        try {
+            const episodeDirectoryName = this.getEpisodeDirectoryName();
+            console.log('💾 [保存] 开始保存 shots_v2.json, 剧集:', episodeDirectoryName);
+
+            const response = await fetch('/api/short-drama/shots-v2', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    novel: this.selectedNovel,
+                    episode: episodeDirectoryName,
+                    shots: shots
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                console.log('✅ [保存] shots_v2.json 保存成功');
+            } else {
+                console.error('❌ [保存] shots_v2.json 保存失败:', data.error);
+            }
+        } catch (error) {
+            console.error('❌ [保存] shots_v2.json 保存异常:', error);
+        }
+    }
+
+    /**
+     * 从文件系统加载优化格式的分镜头数据（数据流A）
+     */
+    async loadShotsV2() {
+        try {
+            const episodeDirectoryName = this.getEpisodeDirectoryName();
+            console.log('📂 [加载] 尝试加载 shots_v2.json, 剧集:', episodeDirectoryName);
+
+            const response = await fetch(`/api/short-drama/shots-v2?novel=${encodeURIComponent(this.selectedNovel)}&episode=${encodeURIComponent(episodeDirectoryName)}`);
+            const data = await response.json();
+
+            if (data.success && data.shots && data.shots.length > 0) {
+                console.log('✅ [加载] shots_v2.json 加载成功, 镜头数:', data.shots.length);
+                return { shots: data.shots };
+            } else {
+                console.log('⚠️ [加载] shots_v2.json 不存在或为空');
+                return null;
+            }
+        } catch (error) {
+            console.error('❌ [加载] shots_v2.json 加载异常:', error);
+            return null;
+        }
+    }
+
+    /**
+     * 统一数据格式：将优化格式的 shots 转换为视频生成步骤需要的格式
+     */
+    normalizeShots(shots) {
+        console.log('🔄 [格式化] 开始格式化镜头数据, 原始数量:', shots.length);
+
+        return shots.map((shot, idx) => {
+            // 确保必需字段存在
+            const normalized = {
+                id: shot.id || `shot_${idx}`,
+                shot_number: shot.shot_number || idx + 1,
+                scene_number: shot.scene_number || 1,
+                scene_title: shot.scene_title || `场景${shot.scene_number || 1}`,
+                duration: shot.duration || shot.duration_seconds || 8,
+
+                // 🔥 保留优化格式的所有字段
+                visual_description: shot.visual_description,
+                visual_description_standard: shot.visual_description_standard,
+                visual_description_reference: shot.visual_description_reference,
+                visual_description_frames: shot.visual_description_frames,
+
+                veo_prompt: shot.veo_prompt,
+                veo_prompt_standard: shot.veo_prompt_standard,
+                veo_prompt_reference: shot.veo_prompt_reference,
+                veo_prompt_frames: shot.veo_prompt_frames,
+
+                preferred_mode: shot.preferred_mode || 'standard',
+
+                visual_elements: shot.visual_elements || {},
+                dialogue: shot.dialogue || shot._dialogue_data,
+                image_prompts: shot.image_prompts || {},
+                reference_images: shot.reference_images || [],
+
+                // 兼容旧格式字段
+                shot_type: shot.shot_type || '中景',
+                screen_action: shot.screen_action || shot.visual_description_standard || shot.visual_description,
+
+                // 视频生成状态
+                status: shot.status || 'pending',
+                videoExists: false,
+                videoPath: null,
+                videoUrl: null,
+
+                // 保留原始数据
+                _originalData: shot
+            };
+
+            return normalized;
+        });
+    }
+
+    /**
      * 加载视频步骤
      */
     async loadVideoStep() {
@@ -1999,23 +2104,43 @@ class ShortDramaStudio {
 
         container.innerHTML = '<div class="loading-state"><div class="spinner"></div><p>加载分镜头数据...</p></div>';
 
-        // 🔥 自动从API加载分镜头数据，不依赖缓存的 this.shots
         const episodeDirectoryName = this.getEpisodeDirectoryName();
         console.log('🎬 [视频步骤] 开始加载分镜头数据, 剧集:', episodeDirectoryName);
 
+        let allShots = [];
+
         try {
-            const response = await fetch(`/api/short-drama/storyboards?novel=${encodeURIComponent(this.selectedNovel)}&episode=${encodeURIComponent(episodeDirectoryName)}`);
-            const data = await response.json();
+            // 🔥 优先级1: 内存中的优化数据（数据流A）
+            if (this.currentProject?.shots?.length > 0) {
+                console.log('✅ [视频步骤] 使用内存中的优化数据（数据流A）, 镜头数:', this.currentProject.shots.length);
+                allShots = this.normalizeShots(this.currentProject.shots);
+            }
+            // 🔥 优先级2: 文件系统中的优化数据（shots_v2.json）
+            else {
+                const v2Data = await this.loadShotsV2();
+                if (v2Data?.shots?.length > 0) {
+                    console.log('✅ [视频步骤] 使用文件系统中的优化数据（shots_v2.json）, 镜头数:', v2Data.shots.length);
+                    allShots = this.normalizeShots(v2Data.shots);
+                }
+                // 🔥 优先级3: 回退到旧格式（storyboards/*.json）
+                else {
+                    console.log('⚠️ [视频步骤] 回退到旧格式数据（数据流B）');
+                    const response = await fetch(`/api/short-drama/storyboards?novel=${encodeURIComponent(this.selectedNovel)}&episode=${encodeURIComponent(episodeDirectoryName)}`);
+                    const data = await response.json();
 
-            console.log('📊 [视频步骤] API返回:', data);
-            console.log('📊 [视频步骤] storyboards数量:', data.storyboards?.length);
-            console.log('📊 [视频步骤] storyboards内容:', JSON.stringify(data.storyboards, null, 2));
+                    console.log('📊 [视频步骤] API返回:', data);
+                    console.log('📊 [视频步骤] storyboards数量:', data.storyboards?.length);
 
-            if (data.success && data.storyboards && data.storyboards.length > 0) {
-                // 使用 renderStoryboard 解析数据
-                this.renderStoryboard(data.storyboards);
-                console.log('✅ [视频步骤] 分镜头数据已加载, this.shots.length:', this.shots?.length);
-            } else {
+                    if (data.success && data.storyboards && data.storyboards.length > 0) {
+                        // 使用 renderStoryboard 解析数据
+                        this.renderStoryboard(data.storyboards);
+                        allShots = this.shots;
+                        console.log('✅ [视频步骤] 旧格式数据已加载, this.shots.length:', this.shots?.length);
+                    }
+                }
+            }
+
+            if (allShots.length === 0) {
                 container.innerHTML = `
                     <div class="empty-state">
                         <p style="font-size: 2rem;">🎬</p>
@@ -2027,6 +2152,10 @@ class ShortDramaStudio {
                 `;
                 return;
             }
+
+            this.shots = allShots;
+            console.log('✅ [视频步骤] 最终加载的镜头数:', this.shots.length);
+
         } catch (error) {
             console.error('❌ [视频步骤] 加载分镜头失败:', error);
             container.innerHTML = `
@@ -2484,13 +2613,35 @@ class ShortDramaStudio {
                </div>`
             : `<div class="task-video-placeholder">${isGenerating ? '<span class="spinner"></span>' : '⏳'}</div>`;
 
+        // 🔥 检查是否支持多模式（数据流A）
+        const hasMultipleModes = shot.veo_prompt_standard && shot.veo_prompt_reference && shot.veo_prompt_frames;
+        const currentMode = shot.preferred_mode || 'standard';
+
+        // 🔥 根据当前模式获取提示词
+        const currentPrompt = this.getCurrentVeoPrompt(shot);
+        const currentVisualDesc = this.getCurrentVisualDescription(shot);
+
+        // 🔥 模式选择器HTML（仅在支持多模式时显示）
+        const modeSelectorHtml = hasMultipleModes ? `
+            <div class="task-mode-selector" style="margin-bottom: 0.5rem;">
+                <span class="prompt-label">🎨 模式:</span>
+                <select id="mode-select-${idx}" onchange="shortDramaStudio.updateShotMode(${idx})"
+                        style="font-size: 0.75rem; padding: 0.25rem 0.5rem; border-radius: 0.25rem; background: rgba(0,0,0,0.3); color: var(--text-primary); border: 1px solid rgba(255,255,255,0.1);">
+                    <option value="standard" ${currentMode === 'standard' ? 'selected' : ''}>标准模式</option>
+                    <option value="reference" ${currentMode === 'reference' ? 'selected' : ''}>参考图模式</option>
+                    <option value="frames" ${currentMode === 'frames' ? 'selected' : ''}>首尾帧模式</option>
+                </select>
+            </div>
+        ` : '';
+
         return `
             <div class="task-row ${statusClass}" id="taskRow_${idx}">
                 <div class="task-index">S${shot.scene_number || 1}-#${shot.shot_number || 1}</div>
                 <div class="task-content">
+                    ${modeSelectorHtml}
                     <div class="task-prompt">
                         <span class="prompt-label">AI提示:</span>
-                        <span class="prompt-text">${(shot.veo_prompt || shot.screen_action || '').substring(0, 150)}${(shot.veo_prompt || shot.screen_action || '').length > 150 ? '...' : ''}</span>
+                        <span class="prompt-text" id="prompt-text-${idx}">${(currentPrompt || shot.screen_action || '').substring(0, 150)}${(currentPrompt || shot.screen_action || '').length > 150 ? '...' : ''}</span>
                     </div>
                     ${shot.plot_content ? `
                     <div class="task-plot">
@@ -2555,6 +2706,59 @@ class ShortDramaStudio {
                 </div>
             </div>
         `;
+    }
+
+    /**
+     * 获取当前模式的视觉描述
+     */
+    getCurrentVisualDescription(shot) {
+        const mode = shot.preferred_mode || 'standard';
+        if (mode === 'reference' && shot.visual_description_reference) {
+            return shot.visual_description_reference;
+        }
+        if (mode === 'frames' && shot.visual_description_frames) {
+            return shot.visual_description_frames;
+        }
+        return shot.visual_description_standard || shot.visual_description || shot.screen_action || '';
+    }
+
+    /**
+     * 获取当前模式的VeO提示词
+     */
+    getCurrentVeoPrompt(shot) {
+        const mode = shot.preferred_mode || 'standard';
+        if (mode === 'reference' && shot.veo_prompt_reference) {
+            return shot.veo_prompt_reference;
+        }
+        if (mode === 'frames' && shot.veo_prompt_frames) {
+            return shot.veo_prompt_frames;
+        }
+        return shot.veo_prompt_standard || shot.veo_prompt || '';
+    }
+
+    /**
+     * 更新镜头的提示词模式
+     */
+    updateShotMode(shotIndex) {
+        const selectElement = document.getElementById(`mode-select-${shotIndex}`);
+        if (!selectElement) return;
+
+        const newMode = selectElement.value;
+        const shot = this.shots[shotIndex];
+
+        if (!shot) return;
+
+        // 更新镜头的首选模式
+        shot.preferred_mode = newMode;
+
+        // 更新显示的提示词
+        const promptTextElement = document.getElementById(`prompt-text-${shotIndex}`);
+        if (promptTextElement) {
+            const newPrompt = this.getCurrentVeoPrompt(shot);
+            promptTextElement.textContent = `${newPrompt.substring(0, 150)}${newPrompt.length > 150 ? '...' : ''}`;
+        }
+
+        console.log(`🎨 [模式切换] 镜头${shotIndex} 切换到 ${newMode} 模式`);
     }
 
     /**
@@ -4628,8 +4832,14 @@ saveVeOConfig(config) {
                 const parts = [];
                 if (s.shot_type) parts.push(`【镜头类型】${s.shot_type}`);
 
-                // 画面场景描述（静态）
-                if (s.veo_prompt) {
+                // 🔥 优先使用当前模式的提示词（数据流A）
+                const currentPrompt = this.getCurrentVeoPrompt(s);
+                const currentVisualDesc = this.getCurrentVisualDescription(s);
+
+                // 画面场景描述（静态）- 使用当前模式的提示词
+                if (currentPrompt) {
+                    parts.push(`【画面场景】${currentPrompt}`);
+                } else if (s.veo_prompt) {
                     parts.push(`【画面场景】${s.veo_prompt}`);
                 } else if (s.screen_action) {
                     parts.push(`【画面场景】${s.screen_action}`);
@@ -4702,6 +4912,7 @@ saveVeOConfig(config) {
                                 <span class="badge" style="background: var(--primary-light, #e3f2fd); color: var(--primary); padding: 4px 12px; border-radius: 6px; font-size: 0.85rem;">${shot.episode_title || '镜头'}</span>
                                 <span class="badge" style="background: var(--accent-color, #f3e5f5); color: var(--text-primary); padding: 4px 12px; border-radius: 6px; font-size: 0.85rem;">${shot.shot_type || '镜头'}</span>
                                 <span class="badge" style="background: var(--bg-tertiary); padding: 4px 12px; border-radius: 6px; font-size: 0.85rem;">⏱️ ${shot.duration || 5}秒</span>
+                                ${shot.preferred_mode ? `<span class="badge" style="background: #6366f1; color: white; padding: 4px 12px; border-radius: 6px; font-size: 0.85rem;">🎨 ${shot.preferred_mode === 'standard' ? '标准模式' : shot.preferred_mode === 'reference' ? '参考图模式' : '首尾帧模式'}</span>` : ''}
                                 ${savedPrompt ? '<span class="badge" style="background: var(--success); color: white; padding: 4px 12px; border-radius: 6px; font-size: 0.85rem;">已保存提示词</span>' : ''}
                             </div>
                             <p style="color: var(--text-secondary); margin: 0; font-size: 0.9rem;">📍 ${shot.scene_title || ''}</p>
@@ -4709,7 +4920,7 @@ saveVeOConfig(config) {
 
                         <!-- 提示词编辑区 -->
                         <div class="prompt-section" style="margin-bottom: 20px;">
-                            <label style="font-weight: 600; display: block; margin-bottom: 12px; font-size: 1rem;">📝 AI提示语${savedPrompt ? '<span style="font-size: 0.8rem; color: var(--success); margin-left: 8px;">(已加载保存的版本)</span>' : ''}</label>
+                            <label style="font-weight: 600; display: block; margin-bottom: 12px; font-size: 1rem;">📝 AI提示语${savedPrompt ? '<span style="font-size: 0.8rem; color: var(--success); margin-left: 8px;">(已加载保存的版本)</span>' : shot.preferred_mode ? `<span style="font-size: 0.8rem; color: #6366f1; margin-left: 8px;">(使用${shot.preferred_mode === 'standard' ? '标准' : shot.preferred_mode === 'reference' ? '参考图' : '首尾帧'}模式)</span>` : ''}</label>
                             <textarea id="promptEditArea" style="
                                 width: 100%;
                                 min-height: 120px;
@@ -5551,12 +5762,14 @@ saveVeOConfig(config) {
         try {
             const episodeDirectoryName = this.getEpisodeDirectoryName();
 
-            // 🔥 使用用户编辑的提示词（如果有），否则使用原始值
-            const promptForApi = shot.veo_prompt || shot.screen_action || '';
+            // 🔥 使用当前模式的提示词（支持数据流A的多模式）
+            const promptForApi = shot.veo_prompt || this.getCurrentVeoPrompt(shot) || shot.screen_action || '';
+            const selectedMode = shot.preferred_mode || 'standard';
 
             // 🔥 打印发送给API的实际提示词，方便排查
             console.log('📤 [发送给VeO API的提示词]');
             console.log('  - 镜头: S' + (shot._scene_number || shot.scene_number || 1) + '#' + (shot.shot_number || (idx + 1)));
+            console.log('  - 模式:', selectedMode);
             console.log('  - 提示词长度:', promptForApi.length, '字符');
             console.log('  - 提示词内容:\n' + promptForApi);
 
@@ -5568,12 +5781,15 @@ saveVeOConfig(config) {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     model: result.model || 'veo_3_1-fast-components',
-                    prompt: promptForApi,  // 🔥 使用干净的 veo_prompt，不是带标签的格式
+                    prompt: promptForApi,  // 🔥 使用当前模式的 veo_prompt
                     image_urls: result.selectedImages || [],
                     orientation: result.orientation || 'portrait',
                     size: result.size || 'large',
                     watermark: false,
                     private: true,
+                    // 🔥 添加模式信息和图片提示词（数据流A）
+                    mode: selectedMode,
+                    image_prompts: shot.image_prompts || {},
                     metadata: {
                         novel_title: this.selectedNovel || '',
                         episode_title: episodeDirectoryName,
@@ -5582,7 +5798,8 @@ saveVeOConfig(config) {
                         shot_number: String(shot.shot_number || (idx + 1)),
                         shot_type: shot.shot_type || 'shot',
                         dialogue_index: shot.dialogue_index || 1,
-                        lines_en: dialogueData?.lines_en || ''  // 传递英文台词
+                        lines_en: dialogueData?.lines_en || '',  // 传递英文台词
+                        mode: selectedMode  // 🔥 在metadata中也记录模式
                     }
                 })
             });
@@ -7989,7 +8206,7 @@ saveVeOConfig(config) {
                 <div class="empty-state">
                     <p>🎬</p>
                     <p>暂无分镜头</p>
-                    <button class="btn btn-primary" onclick="shortDramaStudio.loadStoryboardStep()" style="margin-top: 1rem;">
+                    <button class="btn btn-primary" onclick="shortDramaStudio.loadStoryboardStep()">
                         生成分镜头
                     </button>
                 </div>
@@ -8010,21 +8227,22 @@ saveVeOConfig(config) {
         });
         
         let html = `
-            <div class="storyboard-header" style="margin-bottom: 1.5rem; padding: 1rem; background: rgba(99, 102, 241, 0.1); border-radius: 0.75rem;">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <h3 style="margin: 0; color: var(--text-primary);">🎬 分镜头脚本</h3>
-                    <span style="color: var(--text-secondary);">共 ${shots.length} 个镜头</span>
-                </div>
+            <div class="storyboard-header">
+                <h3>🎬 分镜头脚本</h3>
+                <span>共 ${shots.length} 个镜头</span>
             </div>
-            <div class="scenes-list" style="display: flex; flex-direction: column; gap: 1.5rem;">
+            <div class="scenes-list">
         `;
         
         Object.keys(scenesMap).sort((a, b) => parseInt(a) - parseInt(b)).forEach(sceneNum => {
             const scene = scenesMap[sceneNum];
             html += `
-                <div class="scene-card" style="background: var(--bg-secondary); border-radius: 0.75rem; padding: 1rem; border: 1px solid rgba(255, 255, 255, 0.1);">
-                    <h4 style="margin: 0 0 1rem 0; color: #818cf8; font-size: 1rem;">${scene.title}</h4>
-                    <div class="shots-list" style="display: flex; flex-direction: column; gap: 0.75rem;">
+                <div class="scene-card">
+                    <div class="scene-header">
+                        <h4 class="scene-title">${scene.title}</h4>
+                        <span class="scene-count">${scene.shots.length} 镜头</span>
+                    </div>
+                    <div class="shots-list">
             `;
             
             scene.shots.forEach((shot, idx) => {
@@ -8040,102 +8258,104 @@ saveVeOConfig(config) {
                 const shotId = shot.id || `shot_${sceneNum}_${idx}`;
                 
                 html += `
-                    <div class="shot-item" style="background: rgba(0, 0, 0, 0.2); border-radius: 0.5rem; padding: 0.75rem; border-left: 3px solid #6366f1;">
-                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem;">
-                            <span style="font-size: 0.75rem; color: #818cf8; background: rgba(99, 102, 241, 0.2); padding: 0.125rem 0.5rem; border-radius: 0.25rem;">镜头 ${shot.shot_number}</span>
-                            <span style="font-size: 0.75rem; color: var(--text-tertiary);">${shot.duration || 8}秒</span>
-                        </div>
-                        
-                        <div style="margin-bottom: 0.75rem; display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
-                            <span style="font-size: 0.75rem; color: var(--text-tertiary);">提示词模式：</span>
-                            <select id="mode-select-${shotId}" onchange="shortDramaStudio.switchPromptMode('${shotId}')" 
-                                    style="font-size: 0.75rem; padding: 0.25rem 0.5rem; border-radius: 0.25rem; background: rgba(0,0,0,0.3); color: var(--text-primary); border: 1px solid rgba(255,255,255,0.1);">
-                                <option value="standard" ${shot.preferred_mode === 'standard' ? 'selected' : ''}>标准模式</option>
-                                <option value="reference" ${shot.preferred_mode === 'reference' ? 'selected' : ''}>参考图模式</option>
-                                <option value="frames" ${shot.preferred_mode === 'frames' ? 'selected' : ''}>首尾帧模式</option>
-                            </select>
-                        </div>
-                        
-                        <div id="visual-desc-${shotId}" style="margin-bottom: 0.75rem;">
-                            <p id="visual-desc-text-${shotId}" style="font-size: 0.875rem; color: var(--text-primary); margin: 0; line-height: 1.5;">
-                                ${shot.preferred_mode === 'reference' ? visualDescReference : (shot.preferred_mode === 'frames' ? visualDescFrames : visualDescStandard)}
-                            </p>
-                        </div>
-                        
-                        <div id="shot-data-${shotId}" style="display: none;"
-                             data-standard="${this.escapeHtml(visualDescStandard)}"
-                             data-reference="${this.escapeHtml(visualDescReference)}"
-                             data-frames="${this.escapeHtml(visualDescFrames)}"
-                             data-prompt-standard="${this.escapeHtml(veoPromptStandard)}"
-                             data-prompt-reference="${this.escapeHtml(veoPromptReference)}"
-                             data-prompt-frames="${this.escapeHtml(veoPromptFrames)}">
-                        </div>
-                        
-                        ${visualElements.人物 || visualElements.光线 ? `
-                            <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.75rem;">
-                                ${visualElements.人物 ? `<span style="font-size: 0.75rem; color: var(--text-secondary); background: rgba(255, 255, 255, 0.05); padding: 0.25rem 0.5rem; border-radius: 0.25rem;">人物: ${visualElements.人物.clothing || '传统服饰'}</span>` : ''}
-                                ${visualElements.光线 ? `<span style="font-size: 0.75rem; color: var(--text-secondary); background: rgba(255, 255, 255, 0.05); padding: 0.25rem 0.5rem; border-radius: 0.25rem;">光线: ${visualElements.光线}</span>` : ''}
-                                ${visualElements.镜头 ? `<span style="font-size: 0.75rem; color: var(--text-secondary); background: rgba(255, 255, 255, 0.05); padding: 0.25rem 0.5rem; border-radius: 0.25rem;">镜头: ${visualElements.镜头}</span>` : ''}
+                    <div class="shot-item">
+                        <div class="shot-number">${shot.shot_number}</div>
+                        <div class="shot-info">
+                            <div class="shot-header">
+                                <span class="shot-type">${shot.shot_type || '镜头'}</span>
+                                <span class="shot-duration">⏱️ ${shot.duration || 8}秒</span>
                             </div>
-                        ` : ''}
-                        
-                        ${shot.dialogue?.lines ? `
-                            <div style="background: rgba(99, 102, 241, 0.1); border-radius: 0.375rem; padding: 0.5rem; margin-top: 0.5rem;">
-                                <p style="font-size: 0.75rem; color: #818cf8; margin: 0 0 0.25rem 0;">${shot.dialogue.speaker}</p>
-                                <p style="font-size: 0.875rem; color: var(--text-primary); margin: 0;">${shot.dialogue.lines}</p>
+                            
+                            <div class="shot-mode-selector">
+                                <label>提示词模式：</label>
+                                <select id="mode-select-${shotId}" onchange="shortDramaStudio.switchPromptMode('${shotId}')" class="mode-select">
+                                    <option value="standard" ${shot.preferred_mode === 'standard' ? 'selected' : ''}>标准模式</option>
+                                    <option value="reference" ${shot.preferred_mode === 'reference' ? 'selected' : ''}>参考图模式</option>
+                                    <option value="frames" ${shot.preferred_mode === 'frames' ? 'selected' : ''}>首尾帧模式</option>
+                                </select>
                             </div>
-                        ` : ''}
-                        
-                        <details style="margin-top: 0.75rem; font-size: 0.75rem;">
-                            <summary style="color: var(--text-tertiary); cursor: pointer;">查看AI提示词（英文）</summary>
-                            <p id="veo-prompt-${shotId}" style="color: var(--text-secondary); margin: 0.5rem 0 0 0; padding: 0.5rem; background: rgba(0, 0, 0, 0.3); border-radius: 0.25rem; font-family: monospace; white-space: pre-wrap; word-break: break-all;">
-                                ${shot.preferred_mode === 'reference' ? veoPromptReference : (shot.preferred_mode === 'frames' ? veoPromptFrames : veoPromptStandard)}
-                            </p>
-                        </details>
-                        
-                        ${shot.image_prompts ? `
-                            <details style="margin-top: 0.5rem; font-size: 0.75rem;">
-                                <summary style="color: #f59e0b; cursor: pointer;">图片生成提示词（Midjourney/SD）</summary>
-                                <div style="margin-top: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
-                                    ${shot.image_prompts.scene ? `
-                                        <div style="background: rgba(245, 158, 11, 0.1); border-radius: 0.375rem; padding: 0.5rem; border-left: 2px solid #f59e0b;">
-                                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
-                                                <span style="color: #f59e0b; font-weight: 500;">场景图/背景</span>
-                                                <button class="btn btn-sm" onclick="shortDramaStudio.copyToClipboard('${this.escapeHtml(shot.image_prompts.scene)}')" style="padding: 0.125rem 0.375rem; font-size: 0.7rem;">复制</button>
-                                            </div>
-                                            <p style="color: var(--text-secondary); margin: 0; font-family: monospace; white-space: pre-wrap; word-break: break-all; font-size: 0.7rem;">${shot.image_prompts.scene}</p>
-                                        </div>
-                                    ` : ''}
-                                    ${shot.image_prompts.character ? `
-                                        <div style="background: rgba(245, 158, 11, 0.1); border-radius: 0.375rem; padding: 0.5rem; border-left: 2px solid #f59e0b;">
-                                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
-                                                <span style="color: #f59e0b; font-weight: 500;">角色图/人物</span>
-                                                <button class="btn btn-sm" onclick="shortDramaStudio.copyToClipboard('${this.escapeHtml(shot.image_prompts.character)}')" style="padding: 0.125rem 0.375rem; font-size: 0.7rem;">复制</button>
-                                            </div>
-                                            <p style="color: var(--text-secondary); margin: 0; font-family: monospace; white-space: pre-wrap; word-break: break-all; font-size: 0.7rem;">${shot.image_prompts.character}</p>
-                                        </div>
-                                    ` : ''}
-                                    ${shot.image_prompts.first_frame ? `
-                                        <div style="background: rgba(245, 158, 11, 0.1); border-radius: 0.375rem; padding: 0.5rem; border-left: 2px solid #f59e0b;">
-                                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
-                                                <span style="color: #f59e0b; font-weight: 500;">首帧画面</span>
-                                                <button class="btn btn-sm" onclick="shortDramaStudio.copyToClipboard('${this.escapeHtml(shot.image_prompts.first_frame)}')" style="padding: 0.125rem 0.375rem; font-size: 0.7rem;">复制</button>
-                                            </div>
-                                            <p style="color: var(--text-secondary); margin: 0; font-family: monospace; white-space: pre-wrap; word-break: break-all; font-size: 0.7rem;">${shot.image_prompts.first_frame}</p>
-                                        </div>
-                                    ` : ''}
-                                    ${shot.image_prompts.last_frame ? `
-                                        <div style="background: rgba(245, 158, 11, 0.1); border-radius: 0.375rem; padding: 0.5rem; border-left: 2px solid #f59e0b;">
-                                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
-                                                <span style="color: #f59e0b; font-weight: 500;">尾帧画面</span>
-                                                <button class="btn btn-sm" onclick="shortDramaStudio.copyToClipboard('${this.escapeHtml(shot.image_prompts.last_frame)}')" style="padding: 0.125rem 0.375rem; font-size: 0.7rem;">复制</button>
-                                            </div>
-                                            <p style="color: var(--text-secondary); margin: 0; font-family: monospace; white-space: pre-wrap; word-break: break-all; font-size: 0.7rem;">${shot.image_prompts.last_frame}</p>
-                                        </div>
-                                    ` : ''}
+                            
+                            <div id="visual-desc-${shotId}" class="shot-description">
+                                <p id="visual-desc-text-${shotId}">
+                                    ${shot.preferred_mode === 'reference' ? visualDescReference : (shot.preferred_mode === 'frames' ? visualDescFrames : visualDescStandard)}
+                                </p>
+                            </div>
+                            
+                            <div id="shot-data-${shotId}" style="display: none;"
+                                 data-standard="${this.escapeHtml(visualDescStandard)}"
+                                 data-reference="${this.escapeHtml(visualDescReference)}"
+                                 data-frames="${this.escapeHtml(visualDescFrames)}"
+                                 data-prompt-standard="${this.escapeHtml(veoPromptStandard)}"
+                                 data-prompt-reference="${this.escapeHtml(veoPromptReference)}"
+                                 data-prompt-frames="${this.escapeHtml(veoPromptFrames)}">
+                            </div>
+                            
+                            ${visualElements.人物 || visualElements.光线 || visualElements.镜头 ? `
+                                <div class="shot-tags">
+                                    ${visualElements.人物 ? `<span class="shot-tag character">👤 ${visualElements.人物.clothing || '传统服饰'}</span>` : ''}
+                                    ${visualElements.光线 ? `<span class="shot-tag lighting">💡 ${visualElements.光线}</span>` : ''}
+                                    ${visualElements.镜头 ? `<span class="shot-tag camera">🎥 ${visualElements.镜头}</span>` : ''}
                                 </div>
+                            ` : ''}
+                            
+                            ${shot.dialogue?.lines ? `
+                                <div class="shot-dialogue">
+                                    <p class="dialogue-speaker">${shot.dialogue.speaker}</p>
+                                    <p class="dialogue-text">"${shot.dialogue.lines}"</p>
+                                </div>
+                            ` : ''}
+                            
+                            <details class="shot-details">
+                                <summary>查看AI提示词（英文）</summary>
+                                <p id="veo-prompt-${shotId}" class="veo-prompt">
+                                    ${shot.preferred_mode === 'reference' ? veoPromptReference : (shot.preferred_mode === 'frames' ? veoPromptFrames : veoPromptStandard)}
+                                </p>
                             </details>
-                        ` : ''}
+                            
+                            ${shot.image_prompts ? `
+                                <details class="shot-details image-prompts">
+                                    <summary>🎨 图片生成提示词</summary>
+                                    <div class="image-prompts-list">
+                                        ${shot.image_prompts.scene ? `
+                                            <div class="image-prompt-item">
+                                                <div class="prompt-header">
+                                                    <span>🏞️ 场景图</span>
+                                                    <button class="btn btn-sm" onclick="shortDramaStudio.copyToClipboard('${this.escapeHtml(shot.image_prompts.scene)}')">复制</button>
+                                                </div>
+                                                <p class="prompt-text">${shot.image_prompts.scene}</p>
+                                            </div>
+                                        ` : ''}
+                                        ${shot.image_prompts.character ? `
+                                            <div class="image-prompt-item">
+                                                <div class="prompt-header">
+                                                    <span>👤 角色图</span>
+                                                    <button class="btn btn-sm" onclick="shortDramaStudio.copyToClipboard('${this.escapeHtml(shot.image_prompts.character)}')">复制</button>
+                                                </div>
+                                                <p class="prompt-text">${shot.image_prompts.character}</p>
+                                            </div>
+                                        ` : ''}
+                                        ${shot.image_prompts.first_frame ? `
+                                            <div class="image-prompt-item">
+                                                <div class="prompt-header">
+                                                    <span>🎬 首帧</span>
+                                                    <button class="btn btn-sm" onclick="shortDramaStudio.copyToClipboard('${this.escapeHtml(shot.image_prompts.first_frame)}')">复制</button>
+                                                </div>
+                                                <p class="prompt-text">${shot.image_prompts.first_frame}</p>
+                                            </div>
+                                        ` : ''}
+                                        ${shot.image_prompts.last_frame ? `
+                                            <div class="image-prompt-item">
+                                                <div class="prompt-header">
+                                                    <span>🎬 尾帧</span>
+                                                    <button class="btn btn-sm" onclick="shortDramaStudio.copyToClipboard('${this.escapeHtml(shot.image_prompts.last_frame)}')">复制</button>
+                                                </div>
+                                                <p class="prompt-text">${shot.image_prompts.last_frame}</p>
+                                            </div>
+                                        ` : ''}
+                                    </div>
+                                </details>
+                            ` : ''}
+                        </div>
                     </div>
                 `;
             });
@@ -8148,9 +8368,9 @@ saveVeOConfig(config) {
         
         html += `
             </div>
-            <div style="margin-top: 1.5rem; display: flex; gap: 1rem; justify-content: center;">
-                <button class="btn btn-secondary" onclick="shortDramaStudio.loadStoryboardStep()">重新生成</button>
-                <button class="btn btn-primary" onclick="shortDramaStudio.saveShotModes(); shortDramaStudio.goToStep('video')">确认并进入视频生成</button>
+            <div class="storyboard-actions">
+                <button class="btn btn-secondary" onclick="shortDramaStudio.loadStoryboardStep()">🔄 重新生成</button>
+                <button class="btn btn-primary" onclick="shortDramaStudio.saveShotModes(); shortDramaStudio.goToStep('video')">✓ 确认并进入视频生成</button>
             </div>
         `;
         
