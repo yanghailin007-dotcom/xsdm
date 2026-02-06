@@ -61,6 +61,7 @@ class ShortDramaProject:
         self.status = 'draft'  # draft, in_progress, completed
         self.episodes = []
         self.characters = []
+        self.storyBeats = None  # 故事节拍数据
         self.settings = {
             'aspect_ratio': '9:16',
             'quality': '4K',
@@ -82,6 +83,7 @@ class ShortDramaProject:
             'progress': self._calculate_progress(),
             'episodes': self.episodes,
             'characters': self.characters,
+            'storyBeats': self.storyBeats,
             'settings': self.settings
         }
 
@@ -123,6 +125,7 @@ class ShortDramaProject:
     @staticmethod
     def load(project_id):
         """从文件加载项目"""
+        logger.info(f"[ShortDramaProject.load] 查找项目: {project_id}")
         # 遍历所有项目目录查找
         for project_dir in VIDEO_PROJECTS_DIR.iterdir():
             if project_dir.is_dir():
@@ -131,18 +134,23 @@ class ShortDramaProject:
                     with open(project_file, 'r', encoding='utf-8') as f:
                         data = json.load(f)
                         if data.get('id') == project_id:
+                            logger.info(f"[ShortDramaProject.load] 找到项目文件: {project_file}")
+                            logger.info(f"[ShortDramaProject.load] 文件中的storyBeats: {'storyBeats' in data}")
                             project = ShortDramaProject(project_id, data['title'])
                             project.created_at = data.get('created_at', project.created_at)
                             project.updated_at = data.get('updated_at', project.updated_at)
                             project.status = data.get('status', 'draft')
                             project.episodes = data.get('episodes', [])
                             project.characters = data.get('characters', [])
+                            project.storyBeats = data.get('storyBeats')
                             project.settings = data.get('settings', project.settings)
+                            logger.info(f"[ShortDramaProject.load] 加载后storyBeats: {project.storyBeats is not None}")
 
                             # 🔥 加载每个episode的storyboard数据
                             project._load_episode_storyboards(project_dir)
 
                             return project
+        logger.warning(f"[ShortDramaProject.load] 未找到项目: {project_id}")
         return None
 
     def _load_episode_storyboards(self, project_dir):
@@ -228,6 +236,7 @@ class ShortDramaProject:
         project.status = data.get('status', 'draft')
         project.episodes = data.get('episodes', [])
         project.characters = data.get('characters', [])
+        project.storyBeats = data.get('storyBeats')
         project.settings = data.get('settings', project.settings)
 
         # 🔥 加载每个episode的storyboard数据
@@ -389,16 +398,23 @@ def delete_project(project_id):
 def get_project_data(project_id):
     """获取项目完整数据"""
     try:
+        logger.info(f"[项目数据] 加载项目: {project_id}")
         project = ShortDramaProject.load(project_id)
         if not project:
+            logger.warning(f"[项目数据] 项目不存在: {project_id}")
             return jsonify({
                 'success': False,
                 'error': '项目不存在'
             }), 404
 
+        result = project.to_dict()
+        logger.info(f"[项目数据] 返回数据: storyBeats exists = {'storyBeats' in result and result['storyBeats'] is not None}")
+        if 'storyBeats' in result and result['storyBeats']:
+            logger.info(f"[项目数据] 返回数据: scenes count = {len(result['storyBeats'].get('scenes', []))}")
+
         return jsonify({
             'success': True,
-            'project': project.to_dict()
+            'project': result
         }), 200
     except Exception as e:
         logger.error(f'获取项目数据失败: {e}')
@@ -491,7 +507,42 @@ def create_from_idea():
             total_duration=total_duration
         )
 
-        # 3. 创建项目信息
+        # 3. 将故事节拍转换为前端兼容的分镜头格式
+        shots = []
+        scene_number = 1
+        for scene in story_beats.get('scenes', []):
+            # 每个场景可以包含多个对白，为每个对白创建一个镜头
+            dialogues = scene.get('dialogues', [])
+            if not dialogues:
+                # 如果没有对白，创建一个空对白的镜头
+                dialogues = [{'speaker': '无', 'lines': '', 'tone': ''}]
+            
+            for idx, dlg in enumerate(dialogues):
+                shots.append({
+                    'id': f'shot_{scene_number}_{idx+1}',
+                    'scene_number': scene_number,
+                    'shot_number': idx + 1,
+                    'shot_type': '中景',  # 默认镜头类型
+                    'veo_prompt': scene.get('storyBeatCn', ''),  # 使用叙事目的作为画面提示
+                    'visual': {
+                        'description': scene.get('storyBeatCn', '')
+                    },
+                    'dialogue': {
+                        'speaker': dlg.get('speaker', '无'),
+                        'lines': dlg.get('linesCn', dlg.get('lines', '')),
+                        'lines_en': dlg.get('linesEn', dlg.get('lines_en', '')),
+                        'tone': dlg.get('toneCn', dlg.get('tone', '')),
+                        'tone_en': dlg.get('toneEn', dlg.get('tone_en', ''))
+                    },
+                    'duration': scene.get('durationSeconds', 8),
+                    'duration_seconds': scene.get('durationSeconds', 8),
+                    'status': 'pending',
+                    'scene_title': scene.get('sceneTitleCn', f'场景{scene_number}'),
+                    'emotional_arc': scene.get('emotionalArc', '')
+                })
+            scene_number += 1
+        
+        # 4. 创建项目信息（兼容前端格式）
         project_data = {
             'id': str(uuid.uuid4())[:8],
             'title': title,
@@ -503,8 +554,9 @@ def create_from_idea():
                 'title': f'第{episode}集',
                 'name': episode_name,
                 'content': description,
-                'shot_count': shot_count,
-                'shot_duration': shot_duration
+                'shot_count': len(shots),
+                'shot_duration': shot_duration,
+                'shots': shots  # 添加前端兼容的shots数组
             }],
             'characters': [],  # 创意导入暂无角色，后续可添加
             'settings': {
@@ -513,10 +565,10 @@ def create_from_idea():
                 'model': 'veo_3_1-fast',
                 'use_first_last_frame': True
             },
-            'storyBeats': story_beats  # 保存故事节拍
+            'storyBeats': story_beats  # 保存原始故事节拍
         }
 
-        # 4. 保存项目JSON
+        # 5. 保存项目JSON
         project_file = project_dir / '项目信息.json'
         with open(project_file, 'w', encoding='utf-8') as f:
             json.dump(project_data, f, ensure_ascii=False, indent=2)
@@ -624,11 +676,11 @@ def generate_story_beats_from_idea(title: str, description: str, style: str, tot
 
         if api_client:
             try:
-                response = api_client.generate_text(
-                    prompt=user_prompt,
+                response = api_client.call_api(
                     system_prompt=system_prompt,
-                    max_tokens=4000,
-                    temperature=0.7
+                    user_prompt=user_prompt,
+                    temperature=0.7,
+                    purpose="故事节拍生成"
                 )
                 
                 content = response.get('content', '') if isinstance(response, dict) else str(response)
@@ -1026,8 +1078,18 @@ def generate_story_beats():
         project_data['storyBeats'] = story_beats
         project_data['updated_at'] = datetime.now().isoformat()
 
+        logger.info(f"[故事节拍] 正在保存到: {project_file}")
+        logger.info(f"[故事节拍] storyBeats scenes: {len(story_beats.get('scenes', []))}")
+
         with open(project_file, 'w', encoding='utf-8') as f:
             json.dump(project_data, f, ensure_ascii=False, indent=2)
+
+        # 验证保存是否成功
+        with open(project_file, 'r', encoding='utf-8') as f:
+            verify_data = json.load(f)
+        logger.info(f"[故事节拍] 验证保存: storyBeats exists = {'storyBeats' in verify_data}")
+        if 'storyBeats' in verify_data:
+            logger.info(f"[故事节拍] 验证保存: scenes count = {len(verify_data['storyBeats'].get('scenes', []))}")
 
         logger.info(f"[故事节拍] 生成成功: {len(story_beats.get('scenes', []))} 场景")
 
@@ -1089,10 +1151,11 @@ def _generate_story_beats_with_ai(episode_title, episode_content, characters, to
 
     try:
         # 调用AI
-        response = api_client.generate_text(
-            prompt=prompt,
-            max_tokens=4000,
-            temperature=0.7
+        response = api_client.call_api(
+            system_prompt="你是一个专业的短剧编剧，擅长设计故事节拍。请严格按照要求的JSON格式输出。",
+            user_prompt=prompt,
+            temperature=0.7,
+            purpose="故事节拍生成"
         )
 
         # 解析JSON
@@ -1106,9 +1169,22 @@ def _generate_story_beats_with_ai(episode_title, episode_content, characters, to
         else:
             story_beats = json.loads(content)
 
-        # 验证格式
+        # 验证格式 - 处理 'beats'、'acts' 或 'scenes' 字段
         if 'scenes' not in story_beats:
-            story_beats = {'scenes': story_beats if isinstance(story_beats, list) else []}
+            # 如果存在 'beats' 字段，将其重命名为 'scenes'
+            if 'beats' in story_beats and isinstance(story_beats['beats'], list):
+                story_beats['scenes'] = story_beats.pop('beats')
+            # 如果存在 'acts' 字段，提取所有 acts 中的 scenes 合并
+            elif 'acts' in story_beats and isinstance(story_beats['acts'], list):
+                all_scenes = []
+                for act in story_beats['acts']:
+                    if 'scenes' in act and isinstance(act['scenes'], list):
+                        all_scenes.extend(act['scenes'])
+                story_beats['scenes'] = all_scenes
+            elif isinstance(story_beats, list):
+                story_beats = {'scenes': story_beats}
+            else:
+                story_beats = {'scenes': []}
 
         return story_beats
 

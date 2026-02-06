@@ -642,7 +642,7 @@ class ShortDramaStudio {
      * 渲染故事节拍步骤
      */
     renderStoryBeatsStep() {
-        const container = document.getElementById('storyBeatsContent');
+        const container = document.getElementById('story-beatsContent');
         if (!container) return;
         
         if (!this.currentProject || !this.currentProject.episodes) {
@@ -681,7 +681,7 @@ class ShortDramaStudio {
             return;
         }
 
-        const button = document.querySelector('#storyBeatsStep .btn-primary');
+        const button = document.querySelector('#story-beatsStep .btn-primary');
         if (button) {
             button.disabled = true;
             button.innerHTML = '⏳ 生成中...';
@@ -722,7 +722,7 @@ class ShortDramaStudio {
      * 渲染故事节拍编辑器
      */
     renderStoryBeatsEditor() {
-        const container = document.getElementById('storyBeatsContent');
+        const container = document.getElementById('story-beatsContent');
         const storyBeats = this.currentProject?.storyBeats;
         
         if (!storyBeats || !storyBeats.scenes) {
