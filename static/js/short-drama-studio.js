@@ -7355,17 +7355,258 @@ saveVeOConfig(config) {
         const container = document.getElementById('exportContent');
         if (!container) return;
 
+        const shots = this.shots || [];
+        const completedShots = shots.filter(s => s.videoExists && s.videoUrl);
+        const hasAudio = shots.some(s => s.audioUrl);
+        
+        const completedCount = completedShots.length;
+        const totalCount = shots.length;
+        const progressPercent = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+
         container.innerHTML = `
-            <div class="export-section">
-                <div class="empty-state">
-                    <p style="font-size: 2rem;">📤</p>
-                    <p>导出功能</p>
-                    <p style="font-size: 0.85rem; color: var(--text-secondary);">
-                        完成视频生成后，可以在这里导出最终成片
-                    </p>
+            <div class="export-section" style="max-width: 900px; margin: 0 auto;">
+                <!-- 导出进度概览 -->
+                <div class="export-overview" style="background: var(--bg-secondary); border-radius: 16px; padding: 24px; margin-bottom: 24px; border: 1px solid var(--border);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                        <h3 style="margin: 0; font-size: 1.2rem;">📊 生成进度</h3>
+                        <span style="font-size: 1.5rem; font-weight: 700; color: var(--primary);">${progressPercent}%</span>
+                    </div>
+                    <div style="background: var(--bg-dark); height: 8px; border-radius: 4px; overflow: hidden; margin-bottom: 12px;">
+                        <div style="width: ${progressPercent}%; height: 100%; background: linear-gradient(90deg, var(--primary), var(--accent-color)); transition: width 0.3s;"></div>
+                    </div>
+                    <div style="display: flex; gap: 16px; flex-wrap: wrap; color: var(--text-secondary); font-size: 0.9rem;">
+                        <span>✅ 已完成: ${completedCount}</span>
+                        <span>⏳ 待生成: ${totalCount - completedCount}</span>
+                        <span>🎬 总镜头: ${totalCount}</span>
+                        ${hasAudio ? '<span>🔊 已配音: 是</span>' : '<span>🔇 已配音: 否</span>'}
+                    </div>
+                </div>
+
+                <!-- 导出选项网格 -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;">
+                    <!-- 视频导出 -->
+                    <div class="export-card" style="background: var(--bg-secondary); border-radius: 12px; padding: 20px; border: 1px solid var(--border); ${completedCount === 0 ? 'opacity: 0.6;' : ''}">
+                        <div style="font-size: 2rem; margin-bottom: 12px;">🎬</div>
+                        <h4 style="margin: 0 0 8px 0;">批量下载视频</h4>
+                        <p style="margin: 0 0 16px 0; font-size: 0.85rem; color: var(--text-secondary);">打包下载所有已生成的视频文件 (${completedCount}个)</p>
+                        <button class="btn btn-primary" onclick="shortDramaStudio.exportVideosZip()" ${completedCount === 0 ? 'disabled' : ''} style="width: 100%;">
+                            📥 下载视频包
+                        </button>
+                    </div>
+
+                    <!-- 音频导出 -->
+                    <div class="export-card" style="background: var(--bg-secondary); border-radius: 12px; padding: 20px; border: 1px solid var(--border); ${!hasAudio ? 'opacity: 0.6;' : ''}">
+                        <div style="font-size: 2rem; margin-bottom: 12px;">🔊</div>
+                        <h4 style="margin: 0 0 8px 0;">导出配音音频</h4>
+                        <p style="margin: 0 0 16px 0; font-size: 0.85rem; color: var(--text-secondary);">打包下载所有配音音频文件</p>
+                        <button class="btn btn-primary" onclick="shortDramaStudio.exportAudioZip()" ${!hasAudio ? 'disabled' : ''} style="width: 100%;">
+                            📥 下载音频包
+                        </button>
+                    </div>
+
+                    <!-- 字幕导出 -->
+                    <div class="export-card" style="background: var(--bg-secondary); border-radius: 12px; padding: 20px; border: 1px solid var(--border);">
+                        <div style="font-size: 2rem; margin-bottom: 12px;">📝</div>
+                        <h4 style="margin: 0 0 8px 0;">导出字幕文件</h4>
+                        <p style="margin: 0 0 16px 0; font-size: 0.85rem; color: var(--text-secondary);">导出 SRT 格式字幕文件</p>
+                        <button class="btn btn-primary" onclick="shortDramaStudio.exportSubtitle()" style="width: 100%;">
+                            📥 下载字幕
+                        </button>
+                    </div>
+
+                    <!-- 项目配置导出 -->
+                    <div class="export-card" style="background: var(--bg-secondary); border-radius: 12px; padding: 20px; border: 1px solid var(--border);">
+                        <div style="font-size: 2rem; margin-bottom: 12px;">⚙️</div>
+                        <h4 style="margin: 0 0 8px 0;">导出项目配置</h4>
+                        <p style="margin: 0 0 16px 0; font-size: 0.85rem; color: var(--text-secondary);">导出分镜配置、提示词等 JSON 文件</p>
+                        <button class="btn btn-primary" onclick="shortDramaStudio.exportProjectConfig()" style="width: 100%;">
+                            📥 下载配置
+                        </button>
+                    </div>
+
+                    <!-- 完整成片导出 -->
+                    <div class="export-card" style="background: linear-gradient(135deg, rgba(99,102,241,0.1), rgba(168,85,247,0.1)); border-radius: 12px; padding: 20px; border: 1px solid var(--primary); ${completedCount < totalCount ? 'opacity: 0.6;' : ''}">
+                        <div style="font-size: 2rem; margin-bottom: 12px;">🎞️</div>
+                        <h4 style="margin: 0 0 8px 0; color: var(--primary);">一键打包全部</h4>
+                        <p style="margin: 0 0 16px 0; font-size: 0.85rem; color: var(--text-secondary);">ZIP 包含视频+音频+字幕+配置文件</p>
+                        <button class="btn btn-primary" onclick="shortDramaStudio.exportCompletePackage()" ${completedCount === 0 ? 'disabled' : ''} style="width: 100%; background: linear-gradient(135deg, var(--primary), var(--accent-color));">
+                            📦 打包下载全部
+                        </button>
+                    </div>
+
+                    <!-- 视频列表预览 -->
+                    <div class="export-card" style="background: var(--bg-secondary); border-radius: 12px; padding: 20px; border: 1px solid var(--border); grid-column: 1 / -1;">
+                        <h4 style="margin: 0 0 16px 0;">📋 视频列表 (${completedCount}/${totalCount})</h4>
+                        <div style="max-height: 300px; overflow-y: auto;">
+                            ${completedCount > 0 ? completedShots.map((shot, idx) => `
+                                <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px; background: var(--bg-dark); border-radius: 8px; margin-bottom: 8px;">
+                                    <div style="display: flex; align-items: center; gap: 12px;">
+                                        <span style="background: var(--primary); color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem;">S${shot.scene_number || 1}-#${shot.shot_number || idx + 1}</span>
+                                        <span style="font-size: 0.9rem;">${shot.shot_type || '镜头'}</span>
+                                        <span style="font-size: 0.8rem; color: var(--text-secondary);">${shot.duration || 5}秒</span>
+                                    </div>
+                                    <a href="${shot.videoUrl}" target="_blank" download style="font-size: 0.85rem; color: var(--primary); text-decoration: none;">⬇️ 下载</a>
+                                </div>
+                            `).join('') : '<p style="text-align: center; color: var(--text-secondary); padding: 20px;">暂无已完成的视频</p>'}
+                        </div>
+                    </div>
                 </div>
             </div>
         `;
+    }
+
+    /**
+     * 批量导出视频 ZIP
+     */
+    async exportVideosZip() {
+        const completedShots = this.shots.filter(s => s.videoExists && s.videoUrl);
+        if (completedShots.length === 0) {
+            this.showToast('没有可导出的视频', 'warning');
+            return;
+        }
+
+        this.showToast(`正在打包 ${completedShots.length} 个视频...`, 'info');
+
+        try {
+            const episodeDirectoryName = this.getEpisodeDirectoryName();
+            
+            // 调用后端 API 打包视频
+            const response = await fetch('/api/export/videos-zip', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    novel_title: this.selectedNovel,
+                    episode_title: episodeDirectoryName,
+                    shots: completedShots.map(s => ({
+                        scene_number: s.scene_number,
+                        shot_number: s.shot_number,
+                        video_url: s.videoUrl,
+                        shot_type: s.shot_type
+                    }))
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error('打包失败');
+            }
+
+            // 下载 ZIP 文件
+            const blob = await response.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${episodeDirectoryName}_视频合集_${completedShots.length}个.zip`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            this.showToast('视频包下载成功！', 'success');
+        } catch (error) {
+            console.error('导出视频失败:', error);
+            this.showToast('导出失败: ' + error.message, 'error');
+        }
+    }
+
+    /**
+     * 导出音频 ZIP
+     */
+    async exportAudioZip() {
+        const shotsWithAudio = this.shots.filter(s => s.audioUrl);
+        if (shotsWithAudio.length === 0) {
+            this.showToast('没有可导出的音频', 'warning');
+            return;
+        }
+
+        this.showToast(`正在打包 ${shotsWithAudio.length} 个音频...`, 'info');
+        
+        // 复用已有的 downloadAllAudio 方法
+        await this.downloadAllAudio();
+    }
+
+    /**
+     * 导出项目配置
+     */
+    async exportProjectConfig() {
+        try {
+            const config = {
+                project_name: this.currentProject?.title || '未命名项目',
+                novel_title: this.selectedNovel,
+                episode: this.getEpisodeDirectoryName(),
+                export_time: new Date().toISOString(),
+                settings: this.currentProject?.settings || {},
+                shots: this.shots.map(s => ({
+                    id: s.id,
+                    scene_number: s.scene_number,
+                    shot_number: s.shot_number,
+                    shot_type: s.shot_type,
+                    duration: s.duration,
+                    dialogue: s.dialogue,
+                    veo_prompt_standard: s.veo_prompt_standard,
+                    veo_prompt_reference: s.veo_prompt_reference,
+                    veo_prompt_frames: s.veo_prompt_frames,
+                    preferred_mode: s.preferred_mode,
+                    visual_elements: s.visual_elements,
+                    video_exists: s.videoExists || false,
+                    audio_exists: !!s.audioUrl
+                })),
+                characters: this.currentProject?.characters || []
+            };
+
+            const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${this.getEpisodeDirectoryName()}_项目配置.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            this.showToast('项目配置已导出', 'success');
+        } catch (error) {
+            console.error('导出配置失败:', error);
+            this.showToast('导出失败: ' + error.message, 'error');
+        }
+    }
+
+    /**
+     * 一键打包全部
+     */
+    async exportCompletePackage() {
+        this.showToast('正在打包全部内容，请稍候...', 'info');
+
+        try {
+            const episodeDirectoryName = this.getEpisodeDirectoryName();
+            
+            const response = await fetch('/api/export/complete-package', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    novel_title: this.selectedNovel,
+                    episode_title: episodeDirectoryName
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error('打包失败');
+            }
+
+            const blob = await response.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${episodeDirectoryName}_完整成片包.zip`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            this.showToast('完整成片包下载成功！', 'success');
+        } catch (error) {
+            console.error('导出完整包失败:', error);
+            this.showToast('导出失败: ' + error.message, 'error');
+        }
     }
 
     /**
