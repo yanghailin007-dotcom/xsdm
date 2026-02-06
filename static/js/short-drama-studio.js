@@ -2813,6 +2813,7 @@ class ShortDramaStudio {
 
         // 创建弹窗
         const modal = document.createElement('div');
+        modal.className = 'prompt-compare-modal';
         modal.style.cssText = `
             position: fixed;
             top: 0;
@@ -2839,7 +2840,7 @@ class ShortDramaStudio {
             ">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                     <h3 style="margin: 0;">🌐 提示词对照</h3>
-                    <button onclick="this.closest('[style*=\"position: fixed\"]')?.remove()" style="
+                    <button class="prompt-modal-close" style="
                         background: none;
                         border: none;
                         font-size: 1.8rem;
@@ -2875,7 +2876,7 @@ class ShortDramaStudio {
                 </div>
 
                 <div style="margin-top: 20px; text-align: center;">
-                    <button onclick="this.closest('[style*=\"position: fixed\"]')?.remove()" style="
+                    <button class="prompt-modal-close" style="
                         padding: 10px 24px;
                         background: var(--primary);
                         border: none;
@@ -2886,6 +2887,11 @@ class ShortDramaStudio {
                 </div>
             </div>
         `;
+
+        // 绑定关闭事件
+        modal.querySelectorAll('.prompt-modal-close').forEach(btn => {
+            btn.addEventListener('click', () => modal.remove());
+        });
 
         document.body.appendChild(modal);
 
