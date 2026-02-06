@@ -2389,7 +2389,7 @@
     <!-- Toast 通知 -->
     <div id="toastContainer" class="toast-container"></div>
 
-    <script src="/static/js/short-drama-studio.js?v=16"></script>
+    <script src="/static/js/short-drama-studio.js?v=17"></script>
     <script>
         // 补充缺失的故事节拍功能
         if (shortDramaStudio && !shortDramaStudio.generateStoryBeats) {
@@ -2691,9 +2691,17 @@
                     
                     // 遍历镜头
                     scene.shots.forEach((shot, idx) => {
-                        // 🔥 使用中文描述 visual_description 展示给用户
-                        const visualDesc = shot.visual_description || '暂无画面描述';
+                        // 🔥 获取三种模式的描述，兼容旧数据
+                        const visualDescStandard = shot.visual_description_standard || shot.visual_description || '暂无画面描述';
+                        const visualDescReference = shot.visual_description_reference || shot.visual_description || '暂无画面描述';
+                        const visualDescFrames = shot.visual_description_frames || shot.visual_description || '暂无画面描述';
+                        
+                        const veoPromptStandard = shot.veo_prompt_standard || shot.veo_prompt || 'N/A';
+                        const veoPromptReference = shot.veo_prompt_reference || shot.veo_prompt || 'N/A';
+                        const veoPromptFrames = shot.veo_prompt_frames || shot.veo_prompt || 'N/A';
+                        
                         const visualElements = shot.visual_elements || {};
+                        const shotId = shot.id || `shot_${sceneNum}_${idx}`;
                         
                         html += `
                             <div class="shot-item" style="background: rgba(0, 0, 0, 0.2); border-radius: 0.5rem; padding: 0.75rem; border-left: 3px solid #6366f1;">
@@ -2702,11 +2710,32 @@
                                     <span style="font-size: 0.75rem; color: var(--text-tertiary);">${shot.duration || 8}秒</span>
                                 </div>
                                 
-                                <!-- 中文画面描述（展示给用户） -->
-                                <div style="margin-bottom: 0.75rem;">
-                                    <p style="font-size: 0.875rem; color: var(--text-primary); margin: 0; line-height: 1.5;">
-                                        ${visualDesc}
+                                <!-- 🔥 模式选择器 -->
+                                <div style="margin-bottom: 0.75rem; display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
+                                    <span style="font-size: 0.75rem; color: var(--text-tertiary);">提示词模式：</span>
+                                    <select id="mode-select-${shotId}" onchange="shortDramaStudio.switchPromptMode('${shotId}')" 
+                                            style="font-size: 0.75rem; padding: 0.25rem 0.5rem; border-radius: 0.25rem; background: rgba(0,0,0,0.3); color: var(--text-primary); border: 1px solid rgba(255,255,255,0.1);">
+                                        <option value="standard" ${shot.preferred_mode === 'standard' ? 'selected' : ''}>📋 标准模式</option>
+                                        <option value="reference" ${shot.preferred_mode === 'reference' ? 'selected' : ''}>🖼️ 参考图模式</option>
+                                        <option value="frames" ${shot.preferred_mode === 'frames' ? 'selected' : ''}>🎞️ 首尾帧模式</option>
+                                    </select>
+                                </div>
+                                
+                                <!-- 🔥 三种模式的中文描述（根据选择显示） -->
+                                <div id="visual-desc-${shotId}" style="margin-bottom: 0.75rem;">
+                                    <p id="visual-desc-text-${shotId}" style="font-size: 0.875rem; color: var(--text-primary); margin: 0; line-height: 1.5;">
+                                        ${shot.preferred_mode === 'reference' ? visualDescReference : (shot.preferred_mode === 'frames' ? visualDescFrames : visualDescStandard)}
                                     </p>
+                                </div>
+                                
+                                <!-- 隐藏的三种模式数据 -->
+                                <div id="shot-data-${shotId}" style="display: none;"
+                                     data-standard="${this.escapeHtml(visualDescStandard)}"
+                                     data-reference="${this.escapeHtml(visualDescReference)}"
+                                     data-frames="${this.escapeHtml(visualDescFrames)}"
+                                     data-prompt-standard="${this.escapeHtml(veoPromptStandard)}"
+                                     data-prompt-reference="${this.escapeHtml(veoPromptReference)}"
+                                     data-prompt-frames="${this.escapeHtml(veoPromptFrames)}">
                                 </div>
                                 
                                 <!-- 视觉元素详情 -->
@@ -2726,11 +2755,58 @@
                                     </div>
                                 ` : ''}
                                 
-                                <!-- 英文提示词（折叠显示，用于调试/复制） -->
+                                <!-- 英文提示词（折叠显示，根据模式切换） -->
                                 <details style="margin-top: 0.75rem; font-size: 0.75rem;">
                                     <summary style="color: var(--text-tertiary); cursor: pointer;">查看AI提示词（英文）</summary>
-                                    <p style="color: var(--text-secondary); margin: 0.5rem 0 0 0; padding: 0.5rem; background: rgba(0, 0, 0, 0.3); border-radius: 0.25rem; font-family: monospace; white-space: pre-wrap; word-break: break-all;">${shot.veo_prompt || 'N/A'}</p>
+                                    <p id="veo-prompt-${shotId}" style="color: var(--text-secondary); margin: 0.5rem 0 0 0; padding: 0.5rem; background: rgba(0, 0, 0, 0.3); border-radius: 0.25rem; font-family: monospace; white-space: pre-wrap; word-break: break-all;">
+                                        ${shot.preferred_mode === 'reference' ? veoPromptReference : (shot.preferred_mode === 'frames' ? veoPromptFrames : veoPromptStandard)}
+                                    </p>
                                 </details>
+                                
+                                <!-- 🔥 图片生成提示词（用于Midjourney/SD等） -->
+                                ${shot.image_prompts ? `
+                                    <details style="margin-top: 0.5rem; font-size: 0.75rem;">
+                                        <summary style="color: #f59e0b; cursor: pointer;">🎨 图片生成提示词（Midjourney/SD）</summary>
+                                        <div style="margin-top: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
+                                            ${shot.image_prompts.scene ? `
+                                                <div style="background: rgba(245, 158, 11, 0.1); border-radius: 0.375rem; padding: 0.5rem; border-left: 2px solid #f59e0b;">
+                                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
+                                                        <span style="color: #f59e0b; font-weight: 500;">🏞️ 场景图/背景</span>
+                                                        <button class="btn btn-sm" onclick="shortDramaStudio.copyToClipboard('${this.escapeHtml(shot.image_prompts.scene)}')" style="padding: 0.125rem 0.375rem; font-size: 0.7rem;">复制</button>
+                                                    </div>
+                                                    <p style="color: var(--text-secondary); margin: 0; font-family: monospace; white-space: pre-wrap; word-break: break-all; font-size: 0.7rem;">${shot.image_prompts.scene}</p>
+                                                </div>
+                                            ` : ''}
+                                            ${shot.image_prompts.character ? `
+                                                <div style="background: rgba(245, 158, 11, 0.1); border-radius: 0.375rem; padding: 0.5rem; border-left: 2px solid #f59e0b;">
+                                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
+                                                        <span style="color: #f59e0b; font-weight: 500;">👤 角色图/人物</span>
+                                                        <button class="btn btn-sm" onclick="shortDramaStudio.copyToClipboard('${this.escapeHtml(shot.image_prompts.character)}')" style="padding: 0.125rem 0.375rem; font-size: 0.7rem;">复制</button>
+                                                    </div>
+                                                    <p style="color: var(--text-secondary); margin: 0; font-family: monospace; white-space: pre-wrap; word-break: break-all; font-size: 0.7rem;">${shot.image_prompts.character}</p>
+                                                </div>
+                                            ` : ''}
+                                            ${shot.image_prompts.first_frame ? `
+                                                <div style="background: rgba(245, 158, 11, 0.1); border-radius: 0.375rem; padding: 0.5rem; border-left: 2px solid #f59e0b;">
+                                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
+                                                        <span style="color: #f59e0b; font-weight: 500;">🎬 首帧画面</span>
+                                                        <button class="btn btn-sm" onclick="shortDramaStudio.copyToClipboard('${this.escapeHtml(shot.image_prompts.first_frame)}')" style="padding: 0.125rem 0.375rem; font-size: 0.7rem;">复制</button>
+                                                    </div>
+                                                    <p style="color: var(--text-secondary); margin: 0; font-family: monospace; white-space: pre-wrap; word-break: break-all; font-size: 0.7rem;">${shot.image_prompts.first_frame}</p>
+                                                </div>
+                                            ` : ''}
+                                            ${shot.image_prompts.last_frame ? `
+                                                <div style="background: rgba(245, 158, 11, 0.1); border-radius: 0.375rem; padding: 0.5rem; border-left: 2px solid #f59e0b;">
+                                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
+                                                        <span style="color: #f59e0b; font-weight: 500;">🎬 尾帧画面</span>
+                                                        <button class="btn btn-sm" onclick="shortDramaStudio.copyToClipboard('${this.escapeHtml(shot.image_prompts.last_frame)}')" style="padding: 0.125rem 0.375rem; font-size: 0.7rem;">复制</button>
+                                                    </div>
+                                                    <p style="color: var(--text-secondary); margin: 0; font-family: monospace; white-space: pre-wrap; word-break: break-all; font-size: 0.7rem;">${shot.image_prompts.last_frame}</p>
+                                                </div>
+                                            ` : ''}
+                                        </div>
+                                    </details>
+                                ` : ''}
                             </div>
                         `;
                     });
@@ -2745,11 +2821,76 @@
                     </div>
                     <div style="margin-top: 1.5rem; display: flex; gap: 1rem; justify-content: center;">
                         <button class="btn btn-secondary" onclick="shortDramaStudio.loadStoryboardStep()">🔄 重新生成</button>
-                        <button class="btn btn-primary" onclick="shortDramaStudio.goToStep('video')">✓ 确认并进入视频生成 →</button>
+                        <button class="btn btn-primary" onclick="shortDramaStudio.saveShotModes(); shortDramaStudio.goToStep('video')">✓ 确认并进入视频生成 →</button>
                     </div>
                 `;
                 
                 container.innerHTML = html;
+            };
+            
+            // 🔥 切换提示词模式
+            shortDramaStudio.switchPromptMode = function(shotId) {
+                const select = document.getElementById(`mode-select-${shotId}`);
+                const mode = select.value;
+                const dataDiv = document.getElementById(`shot-data-${shotId}`);
+                const visualDescText = document.getElementById(`visual-desc-text-${shotId}`);
+                const veoPromptText = document.getElementById(`veo-prompt-${shotId}`);
+                
+                // 更新显示
+                visualDescText.textContent = dataDiv.getAttribute(`data-${mode}`);
+                veoPromptText.textContent = dataDiv.getAttribute(`data-prompt-${mode}`);
+                
+                // 更新shot数据
+                const shot = this.currentProject?.shots?.find(s => (s.id || '').toString() === shotId.toString());
+                if (shot) {
+                    shot.preferred_mode = mode;
+                }
+            };
+            
+            // 🔥 HTML转义辅助函数
+            shortDramaStudio.escapeHtml = function(text) {
+                if (!text) return '';
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML.replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+            };
+            
+            // 🔥 保存所有shot的模式选择
+            shortDramaStudio.saveShotModes = function() {
+                if (!this.currentProject?.shots) return;
+                
+                this.currentProject.shots.forEach(shot => {
+                    const shotId = shot.id || `shot_${shot.scene_number}_${shot.shot_number}`;
+                    const select = document.getElementById(`mode-select-${shotId}`);
+                    if (select) {
+                        shot.preferred_mode = select.value;
+                    }
+                });
+                
+                console.log('✅ Shot模式选择已保存');
+            };
+            
+            // 🔥 复制到剪贴板
+            shortDramaStudio.copyToClipboard = function(text) {
+                if (!text) return;
+                // 解码HTML实体
+                const textarea = document.createElement('textarea');
+                textarea.innerHTML = text;
+                const decodedText = textarea.value;
+                
+                navigator.clipboard.writeText(decodedText).then(() => {
+                    this.showToast('已复制到剪贴板', 'success');
+                }).catch(err => {
+                    console.error('复制失败:', err);
+                    // 降级方案
+                    textarea.style.position = 'fixed';
+                    textarea.style.opacity = '0';
+                    document.body.appendChild(textarea);
+                    textarea.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(textarea);
+                    this.showToast('已复制到剪贴板', 'success');
+                });
             };
             
             console.log('✅ 故事节拍功能已补充');

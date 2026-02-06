@@ -1,5 +1,5 @@
 """
-短剧工作�?API
+短剧工作台 API
 处理项目、角色、分镜头、视频生成等操作
 """
 
@@ -20,10 +20,10 @@ from config.config import CONFIG
 
 logger = get_logger(__name__)
 
-# 初始化AI客户�?
+# 初始化AI客户端
 try:
     api_client = APIClient(CONFIG)
-    logger.info("�?[短剧API] AI客户端初始化成功")
+    logger.info("✅ [短剧API] AI客户端初始化成功")
 except Exception as e:
     logger.warning(f"⚠️ [短剧API] AI客户端初始化失败: {e}")
     api_client = None
@@ -55,7 +55,7 @@ class ShortDramaProject:
 
     def __init__(self, project_id=None, title=None):
         self.id = project_id or str(uuid.uuid4())[:8]
-        self.title = title or '未命名项�?
+        self.title = title or '未命名项目'
         self.created_at = datetime.now().isoformat()
         self.updated_at = datetime.now().isoformat()
         self.status = 'draft'  # draft, in_progress, completed
@@ -89,7 +89,7 @@ class ShortDramaProject:
 
     def _calculate_progress(self):
         """计算项目进度"""
-        # 如果episodes是字符串ID列表，返�?
+        # 如果episodes是字符串ID列表，返回0
         if not self.episodes or not isinstance(self.episodes, list):
             return 0
 
@@ -109,7 +109,7 @@ class ShortDramaProject:
         return 0
 
     def save(self):
-        """保存项目到文�?""
+        """保存项目到文件"""
         project_dir = get_project_dir(self.title)
         project_dir.mkdir(parents=True, exist_ok=True)
 
@@ -120,13 +120,13 @@ class ShortDramaProject:
         project_file = project_dir / '项目信息.json'
         with open(project_file, 'w', encoding='utf-8') as f:
             json.dump(self.to_dict(), f, ensure_ascii=False, indent=2)
-        logger.info(f'�?项目已保�? {project_file}')
+        logger.info(f'✅ 项目已保存: {project_file}')
 
     @staticmethod
     def load(project_id):
-        """从文件加载项�?""
+        """从文件加载项目"""
         logger.info(f"[ShortDramaProject.load] 查找项目: {project_id}")
-        # 遍历所有项目目录查�?
+        # 遍历所有项目目录查找
         for project_dir in VIDEO_PROJECTS_DIR.iterdir():
             if project_dir.is_dir():
                 project_file = project_dir / '项目信息.json'
@@ -150,7 +150,7 @@ class ShortDramaProject:
                             project._load_episode_storyboards(project_dir)
 
                             return project
-        logger.warning(f"[ShortDramaProject.load] 未找到项�? {project_id}")
+        logger.warning(f"[ShortDramaProject.load] 未找到项目: {project_id}")
         return None
 
     def _load_episode_storyboards(self, project_dir):
@@ -193,7 +193,16 @@ class ShortDramaProject:
                                 scene_number = scene.get('scene_number', 1)
 
                                 for shot in shot_sequence:
-                                    # 转换为frontend期望的格�?
+                                    # 🔥 兼容新旧数据结构：优先使用新模式，否则使用旧模式
+                                    veo_prompt_standard = shot.get('veo_prompt_standard') or shot.get('veo_prompt', '')
+                                    veo_prompt_reference = shot.get('veo_prompt_reference') or shot.get('veo_prompt', '')
+                                    veo_prompt_frames = shot.get('veo_prompt_frames') or shot.get('veo_prompt', '')
+                                    
+                                    visual_standard = shot.get('visual_description_standard') or shot.get('visual_description', '') or shot.get('veo_prompt', '')
+                                    visual_reference = shot.get('visual_description_reference') or shot.get('visual_description', '') or shot.get('veo_prompt', '')
+                                    visual_frames = shot.get('visual_description_frames') or shot.get('visual_description', '') or shot.get('veo_prompt', '')
+                                    
+                                    # 转换为frontend期望的格式
                                     shot_obj = {
                                         'id': f"shot_{shot_id_counter}",
                                         'shot_number': shot.get('shot_number', 1),
@@ -201,10 +210,21 @@ class ShortDramaProject:
                                         'scene_title': scene_title,
                                         'shot_type': shot.get('shot_type', ''),
                                         'duration': shot.get('duration_seconds', shot.get('duration', 8)),
+                                        # 三种模式的英文提示词
+                                        'veo_prompt_standard': veo_prompt_standard,
+                                        'veo_prompt_reference': veo_prompt_reference,
+                                        'veo_prompt_frames': veo_prompt_frames,
+                                        # 三种模式的中文描述
+                                        'visual_description_standard': visual_standard,
+                                        'visual_description_reference': visual_reference,
+                                        'visual_description_frames': visual_frames,
+                                        # 兼容旧模式
                                         'veo_prompt': shot.get('veo_prompt', ''),
+                                        'visual_description': shot.get('visual_description', ''),
+                                        'preferred_mode': shot.get('preferred_mode', 'standard'),
                                         'dialogue': shot.get('dialogue', {}),
                                         'visual': shot.get('visual', {}),
-                                        'status': 'pending'  # 默认状�?
+                                        'status': 'pending'
                                     }
                                     episode_obj['shots'].append(shot_obj)
                                     shot_id_counter += 1
@@ -212,7 +232,7 @@ class ShortDramaProject:
                     except Exception as e:
                         logger.error(f'加载storyboard文件失败 {json_file}: {e}')
 
-                logger.info(f'📋 [Episode] {episode_name}: 加载�?{len(episode_obj["shots"])} 个镜�?)
+                logger.info(f'📋 [Episode] {episode_name}: 加载了 {len(episode_obj["shots"])} 个镜头')
 
             enriched_episodes.append(episode_obj)
 
@@ -247,7 +267,7 @@ class ShortDramaProject:
 
     @staticmethod
     def list_all():
-        """列出所有项�?""
+        """列出所有项目"""
         projects = []
         for project_dir in VIDEO_PROJECTS_DIR.iterdir():
             if project_dir.is_dir():
@@ -260,7 +280,7 @@ class ShortDramaProject:
                     except Exception as e:
                         logger.error(f'加载项目失败 {project_dir}: {e}')
 
-        # 按更新时间排�?
+        # 按更新时间排序
         projects.sort(key=lambda x: x.get('updated_at', ''), reverse=True)
         return projects
 
@@ -286,15 +306,15 @@ def list_projects():
 
 @short_drama_api.route('/projects', methods=['POST'])
 def create_project():
-    """创建新项�?""
+    """创建新项目"""
     try:
         data = request.json or {}
-        title = data.get('title', '未命名项�?)
+        title = data.get('title', '未命名项目')
 
         project = ShortDramaProject(title=title)
         project.save()
 
-        logger.info(f'�?创建项目: {project.id} - {title}')
+        logger.info(f'✅ 创建项目: {project.id} - {title}')
 
         return jsonify({
             'success': True,
@@ -316,7 +336,7 @@ def get_project(project_id):
         if not project:
             return jsonify({
                 'success': False,
-                'error': '项目不存�?
+                'error': '项目不存在'
             }), 404
 
         return jsonify({
@@ -339,7 +359,7 @@ def update_project(project_id):
         if not project:
             return jsonify({
                 'success': False,
-                'error': '项目不存�?
+                'error': '项目不存在'
             }), 404
 
         data = request.json or {}
@@ -352,7 +372,7 @@ def update_project(project_id):
 
         project.save()
 
-        logger.info(f'�?更新项目: {project_id}')
+        logger.info(f'✅ 更新项目: {project_id}')
 
         return jsonify({
             'success': True,
@@ -378,13 +398,13 @@ def delete_project(project_id):
             import shutil
             if project_dir.exists():
                 shutil.rmtree(project_dir)
-                logger.info(f'�?删除项目: {project_id} - {project.title}')
+                logger.info(f'✅ 删除项目: {project_id} - {project.title}')
         else:
-            logger.warning(f'⚠️ 项目不存�? {project_id}')
+            logger.warning(f'⚠️ 项目不存在: {project_id}')
 
         return jsonify({
             'success': True,
-            'message': '项目已删�?
+            'message': '项目已删除'
         }), 200
     except Exception as e:
         logger.error(f'删除项目失败: {e}')
@@ -401,10 +421,10 @@ def get_project_data(project_id):
         logger.info(f"[项目数据] 加载项目: {project_id}")
         project = ShortDramaProject.load(project_id)
         if not project:
-            logger.warning(f"[项目数据] 项目不存�? {project_id}")
+            logger.warning(f"[项目数据] 项目不存在: {project_id}")
             return jsonify({
                 'success': False,
-                'error': '项目不存�?
+                'error': '项目不存在'
             }), 404
 
         result = project.to_dict()
@@ -426,7 +446,7 @@ def get_project_data(project_id):
 
 @short_drama_api.route('/projects/from-novel', methods=['POST'])
 def create_from_novel():
-    """从小说创建项�?""
+    """从小说创建项目"""
     try:
         data = request.json or {}
         novel_id = data.get('novel_id')
@@ -442,14 +462,14 @@ def create_from_novel():
         project = ShortDramaProject(title=f'短剧项目_{novel_id}')
         project.save()
 
-        logger.info(f'�?从小说创建项�? {project.id}')
+        logger.info(f'✅ 从小说创建项目: {project.id}')
 
         return jsonify({
             'success': True,
             'project': project.to_dict()
         }), 201
     except Exception as e:
-        logger.error(f'从小说创建项目失�? {e}')
+        logger.error(f'从小说创建项目失败: {e}')
         return jsonify({
             'success': False,
             'error': str(e)
@@ -458,7 +478,7 @@ def create_from_novel():
 
 @short_drama_api.route('/create-from-idea', methods=['POST'])
 def create_from_idea():
-    """从创意创建项目，先生成故事节拍（Step 3�?""
+    """从创意创建项目，先生成故事节拍（Step 3）"""
     try:
         data = request.json or {}
         title = data.get('title', '').strip()
@@ -472,12 +492,12 @@ def create_from_idea():
         if not title:
             return jsonify({
                 'success': False,
-                'error': '请输入剧集名�?
+                'error': '请输入剧集名称'
             }), 400
         if not description:
             return jsonify({
                 'success': False,
-                'error': '请输入创意描�?
+                'error': '请输入创意描述'
             }), 400
 
         # 限制参数范围
@@ -485,10 +505,10 @@ def create_from_idea():
         shot_count = max(1, min(10, int(shot_count)))
         shot_duration = max(4, min(15, int(shot_duration)))
         
-        # 计算总时�?
+        # 计算总时长
         total_duration = shot_count * shot_duration
 
-        logger.info(f'📝 [创意导入] 标题: {title}, 第{episode}�? 风格: {style}, 预计{shot_count}个镜�? 总时长{total_duration}�?)
+        logger.info(f'📝 [创意导入] 标题: {title}, 第{episode}集, 风格: {style}, 预计{shot_count}个镜头, 总时长{total_duration}秒')
 
         # 1. 创建项目目录
         project_dir = VIDEO_PROJECTS_DIR / title
@@ -499,9 +519,9 @@ def create_from_idea():
         episode_dir.mkdir(exist_ok=True)
 
         # 2. 调用AI生成故事节拍 (Step 3)
-        logger.info(f'[创意导入] 开始生成故事节�?..')
+        logger.info(f'[创意导入] 开始生成故事节拍...')
         story_beats = generate_story_beats_from_idea(
-            title=f"{title} 第{episode}�?,
+            title=f"{title} 第{episode}集",
             description=description,
             style=style,
             total_duration=total_duration
@@ -511,11 +531,11 @@ def create_from_idea():
         shots = []
         scene_number = 1
         for scene in story_beats.get('scenes', []):
-            # 每个场景可以包含多个对白，为每个对白创建一个镜�?
+            # 每个场景可以包含多个对白，为每个对白创建一个镜头
             dialogues = scene.get('dialogues', [])
             if not dialogues:
-                # 如果没有对白，创建一个空对白的镜�?
-                dialogues = [{'speaker': '�?, 'lines': '', 'tone': ''}]
+                # 如果没有对白，创建一个空对白的镜头
+                dialogues = [{'speaker': '无', 'lines': '', 'tone': ''}]
             
             for idx, dlg in enumerate(dialogues):
                 shots.append({
@@ -528,7 +548,7 @@ def create_from_idea():
                         'description': scene.get('storyBeatCn', '')
                     },
                     'dialogue': {
-                        'speaker': dlg.get('speaker', '�?),
+                        'speaker': dlg.get('speaker', '无'),
                         'lines': dlg.get('linesCn', dlg.get('lines', '')),
                         'lines_en': dlg.get('linesEn', dlg.get('lines_en', '')),
                         'tone': dlg.get('toneCn', dlg.get('tone', '')),
@@ -551,7 +571,7 @@ def create_from_idea():
             'status': 'draft',
             'episodes': [{
                 'id': episode_name,
-                'title': f'第{episode}�?,
+                'title': f'第{episode}集',
                 'name': episode_name,
                 'content': description,
                 'shot_count': len(shots),
@@ -573,18 +593,18 @@ def create_from_idea():
         with open(project_file, 'w', encoding='utf-8') as f:
             json.dump(project_data, f, ensure_ascii=False, indent=2)
 
-        logger.info(f'�?[创意导入] 项目已创�? {project_file}')
-        logger.info(f'�?[创意导入] 故事节拍已生�? {len(story_beats.get("scenes", []))} 场景')
+        logger.info(f'✅ [创意导入] 项目已创建: {project_file}')
+        logger.info(f'✅ [创意导入] 故事节拍已生成: {len(story_beats.get("scenes", []))} 场景')
 
         return jsonify({
             'success': True,
             'project': project_data,
             'storyBeats': story_beats,
-            'message': f'成功创建项目并生成故事节拍，共{len(story_beats.get("scenes", []))}个场�?
+            'message': f'成功创建项目并生成故事节拍，共{len(story_beats.get("scenes", []))}个场景'
         }), 201
 
     except Exception as e:
-        logger.error(f'�?[创意导入] 创建失败: {e}')
+        logger.error(f'❌ [创意导入] 创建失败: {e}')
         import traceback
         traceback.print_exc()
         return jsonify({
@@ -611,29 +631,29 @@ def generate_story_beats_from_idea(title: str, description: str, style: str, tot
         avg_scene_duration = 6
         scene_count = max(3, min(15, total_duration // avg_scene_duration))
         
-        # 调整每个场景时长使总和等于总时�?
+        # 调整每个场景时长使总和等于总时长
         base_duration = total_duration // scene_count
         remainder = total_duration % scene_count
         
-        system_prompt = f"""你是一个专业的短剧编剧。请根据以下创意描述，生成{total_duration}秒的故事节拍(Story Beats)�?
+        system_prompt = f"""你是一个专业的短剧编剧。请根据以下创意描述，生成{total_duration}秒的故事节拍(Story Beats)。
 
 ## 输出要求
 
 1. **三幕结构分配**
-   - 第一幕「建立�?0-30%)：建立场景、人物、核心矛�?
-   - 第二幕「对抗�?30-70%)：冲突升级、内心挣�?
-   - 第三幕「高潮�?70-100%)：高潮时刻、人物觉醒、悬念收�?
+   - 第一幕「建立」(0-30%)：建立场景、人物、核心矛盾
+   - 第二幕「对抗」(30-70%)：冲突升级、内心挣扎
+   - 第三幕「高潮」(70-100%)：高潮时刻、人物觉醒、悬念收尾
 
 2. **场景设计原则**
-   - 生成{scene_count}个场�?
-   - 每个场景时长4-10�?
-   - 总时长严格等于{total_duration}�?
-   - 场景之间有逻辑连贯�?
+   - 生成{scene_count}个场景
+   - 每个场景时长4-10秒
+   - 总时长严格等于{total_duration}秒
+   - 场景之间有逻辑连贯性
 
 3. **对白设计**
-   - 每个场景至少1句对�?
+   - 每个场景至少1句对白
    - 对白要推动剧情或展示人物性格
-   - 提供中英文双�?
+   - 提供中英文双语
 
 4. **输出格式**
 只输出JSON，格式如下：
@@ -646,11 +666,11 @@ def generate_story_beats_from_idea(title: str, description: str, style: str, tot
       "storyBeatCn": "中文叙事目的",
       "storyBeatEn": "English story purpose",
       "durationSeconds": 6,
-      "emotionalArc": "绝决→紧�?,
+      "emotionalArc": "绝决→紧张",
       "dialogues": [
         {{
           "timestamp": 0,
-          "speaker": "角色�?,
+          "speaker": "角色名",
           "linesCn": "中文台词",
           "linesEn": "English lines",
           "toneCn": "语气描述",
@@ -665,13 +685,13 @@ def generate_story_beats_from_idea(title: str, description: str, style: str, tot
         user_prompt = f"""
 剧集标题：{title}
 风格：{style}
-总时长：{total_duration}�?
+总时长：{total_duration}秒
 预计场景数：{scene_count}
 
-创意描述�?
+创意描述：
 {description}
 
-请生成故事节拍JSON�?
+请生成故事节拍JSON。
 """
 
         if api_client:
@@ -693,14 +713,14 @@ def generate_story_beats_from_idea(title: str, description: str, style: str, tot
                 else:
                     story_beats = json.loads(content)
                 
-                # 验证并调整时�?
+                # 验证并调整时长
                 if 'scenes' in story_beats:
                     scenes = story_beats['scenes']
-                    # 调整场景数使之符合预�?
+                    # 调整场景数使之符合预期
                     if len(scenes) != scene_count:
                         logger.warning(f'故事节拍场景数不匹配: 期望{scene_count}, 实际{len(scenes)}')
                     
-                    # 调整时长使总和等于总时�?
+                    # 调整时长使总和等于总时长
                     total = sum(s.get('durationSeconds', base_duration) for s in scenes)
                     if total != total_duration:
                         # 均匀分配差额
@@ -735,7 +755,7 @@ def _get_default_story_beats_for_idea(scene_count: int, base_duration: int, rema
             'storyBeatCn': '展示情节发展',
             'storyBeatEn': 'Show plot development',
             'durationSeconds': duration,
-            'emotionalArc': '平静→紧�?,
+            'emotionalArc': '平静→紧张',
             'dialogues': [{
                 'timestamp': 0,
                 'speaker': '主角',
@@ -751,127 +771,127 @@ def _get_default_story_beats_for_idea(scene_count: int, base_duration: int, rema
 def generate_storyboard_from_idea(title: str, description: str, style: str,
                                    shot_count: int, shot_duration: int) -> dict:
     """
-    根据创意描述生成分镜头数�?
+    根据创意描述生成分镜头数据
 
     Args:
         title: 剧集标题
         description: 创意描述
         style: 风格
         shot_count: 镜头数量
-        shot_duration: 每镜头时�?
+        shot_duration: 每镜头时长
 
     Returns:
-        分镜头数据字�?
+        分镜头数据字典
     """
     try:
-        # 构建生成提示�?
-        system_prompt = """你是一位专业的影视分镜头设计师，擅长为AI视频生成工具（如Sora、Runway、Veo）设计高质量的分镜头脚本�?
+        # 构建生成提示词
+        system_prompt = """你是一位专业的影视分镜头设计师，擅长为AI视频生成工具（如Sora、Runway、Veo）设计高质量的分镜头脚本。
 
 每个镜头需要包含：
 1. shot_number: 镜头编号（从1开始）
-2. shot_type: 镜头类型（特�?主观视角/近景/中景/全景/远景�?
+2. shot_type: 镜头类型（特写/主观视角/近景/中景/全景/远景）
 3. veo_prompt: 画面描述（静态画面）- 这是最关键的部分，需要包含：
 
-   【画面构成�?
+   【画面构成】
    - 描述在这个镜头范围内看到什么（人物状态、表情、服装、环境）
-   - 用姿态词表达空间关系：站�?坐下/跪地/悬空/倒地/扑向/后退/侧身
+   - 用姿态词表达空间关系：站立/坐下/跪地/悬空/倒地/扑向/后退/侧身
    - 不要描述动作过程，只描述画面定格时的样子
 
-   【运镜指令】（提升电影感的关键�?
+   【运镜指令】（提升电影感的关键）
    - 推镜头（Push in）：从远到近，增强紧张感和代入感
    - 拉镜头（Pull out）：从近到远，展现环境和空间关系
    - 环绕镜头（Orbit）：围绕主体旋转，展现立体感
    - 跟随镜头（Follow）：跟随人物移动，增强动态感
-   - 升降镜头（Crane up/down）：垂直移动，展现宏大场�?
-   - 示例�?缓慢推镜头，从全景推至面部特�?�?环绕镜头�?60度展现人�?
+   - 升降镜头（Crane up/down）：垂直移动，展现宏大场景
+   - 示例："缓慢推镜头，从全景推至面部特写"、"环绕镜头，360度展现人物"
 
-   【光影细节】（提升画面质感�?
-   - 体积光（Volumetric lighting）：光束穿透烟�?尘埃的效�?
-   - 丁达尔效应（God rays）：光线透过缝隙形成的光�?
-   - 边缘光（Rim light）：勾勒人物轮廓的背�?
-   - 戏剧性光影（Dramatic lighting）：强烈的明暗对�?
-   - 色温对比（Color temperature）：冷暖光源的对�?
-   - 示例�?体积光穿透石室缝隙，形成明显的丁达尔效应"�?金色边缘光勾勒人物轮�?
+   【光影细节】（提升画面质感）
+   - 体积光（Volumetric lighting）：光束穿透烟雾/尘埃的效果
+   - 丁达尔效应（God rays）：光线透过缝隙形成的光柱
+   - 边缘光（Rim light）：勾勒人物轮廓的背光
+   - 戏剧性光影（Dramatic lighting）：强烈的明暗对比
+   - 色温对比（Color temperature）：冷暖光源的对比
+   - 示例："体积光穿透石室缝隙，形成明显的丁达尔效应"、"金色边缘光勾勒人物轮廓"
 
    【材质质感】（增强真实感）
-   - 皮肤质感：细腻的毛孔、汗珠、血�?
+   - 皮肤质感：细腻的毛孔、汗珠、血管
    - 服装材质：丝绸的光泽、布料的褶皱、金属的反光
    - 环境质感：石材的粗糙、水面的波纹、尘埃的漂浮
    - 特效质感：灵气的流动、能量的闪烁、光芒的扩散
-   - 示例�?皮肤呈现晶莹剔透的玉质光泽，细密的汗珠反射光线"
+   - 示例："皮肤呈现晶莹剔透的玉质光泽，细密的汗珠反射光线"
 
-   【完整示例�?
-   "幽暗封闭的石室内部，缓慢推镜头从全景推至中景，地面刻画着繁复发光的聚灵阵法，慕佩灵身着素白长裙盘膝坐于阵眼中心，体积光从石室顶部缝隙射入形成明显的丁达尔效应，金色边缘光勾勒出人物轮廓，四周摆放着五色灵石散发柔和光晕，空气中漂浮着肉眼可见的灵气光尘如萤火虫般流动，皮肤呈现出玉质般的细腻光泽，衣料质感柔软飘逸，压抑而神圣的氛围�?
+   【完整示例】
+   "幽暗封闭的石室内部，缓慢推镜头从全景推至中景，地面刻画着繁复发光的聚灵阵法，慕佩灵身着素白长裙盘膝坐于阵眼中心，体积光从石室顶部缝隙射入形成明显的丁达尔效应，金色边缘光勾勒出人物轮廓，四周摆放着五色灵石散发柔和光晕，空气中漂浮着肉眼可见的灵气光尘如萤火虫般流动，皮肤呈现出玉质般的细腻光泽，衣料质感柔软飘逸，压抑而神圣的氛围。"
 
 4. visual.description: 动作序列（动态过程）
-   - 描述镜头中发生的动作变化，用箭头 �?连接
-   - 格式：状态A �?状态B �?状态C
-   - 示例�?阵法光芒骤然亮起 �?灵石开始剧烈颤�?�?灵气光尘疯狂涌向慕佩�?
+   - 描述镜头中发生的动作变化，用箭头 → 连接
+   - 格式：状态A → 状态B → 状态C
+   - 示例："阵法光芒骤然亮起 → 灵石开始剧烈颤抖 → 灵气光尘疯狂涌向慕佩灵"
 
-5. dialogue: 对话信息（可选，如果无对话则speaker�?�?，lines�?"，tone�?�?�?
-   - speaker: 说话�?
-   - lines: 台词（中文）- 根据镜头时长合理安排台词�?
+5. dialogue: 对话信息（可选，如果无对话则speaker为"无"，lines为""，tone为"无"）
+   - speaker: 说话者
+   - lines: 台词（中文）- 根据镜头时长合理安排台词量
    - lines_en: 台词（英文）
    - tone: 语气（中文）
    - tone_en: 语气（英文）
    - audio_note: 音效描述（中文）
    - audio_note_en: 音效描述（英文）
 
-6. duration_seconds: 镜头时长（秒�? 根据镜头内容调整时长
-   - 快节奏动作场景：4-6�?
-   - 对话场景�?-8�?
-   - 情绪渲染场景�?-10�?
-   - 宏大场景展示�?0-12�?
+6. duration_seconds: 镜头时长（秒）- 根据镜头内容调整时长
+   - 快节奏动作场景：4-6秒
+   - 对话场景：6-8秒
+   - 情绪渲染场景：8-10秒
+   - 宏大场景展示：10-12秒
 
-【节奏控制原则�?
+【节奏控制原则】
 - 利用长短镜头交替制造节奏感
 - 紧张场景用短镜头快切
 - 情感高潮用长镜头渲染
-- 避免所有镜头都是相同时�?
+- 避免所有镜头都是相同时长
 
-【对话设计原则�?
-- 短剧节奏快，对话要密�?
-- 8秒镜头建�?-3句台词（每句2-3秒）
-- 10秒以上镜头建�?-5句台�?
+【对话设计原则】
+- 短剧节奏快，对话要密集
+- 8秒镜头建议2-3句台词（每句2-3秒）
+- 10秒以上镜头建议3-5句台词
 - 对话要推动剧情，不要空洞
-- 台词要符合人物性格和情�?
+- 台词要符合人物性格和情境
 
-【完整示例参考�?
+【完整示例参考】
 {
   "shot_number": 1,
   "shot_type": "全景",
-  "veo_prompt": "幽暗封闭的石室内部，缓慢推镜头从全景推至中景，地面刻画着繁复发光的聚灵阵法，慕佩灵身着素白长裙盘膝坐于阵眼中心，体积光从石室顶部缝隙射入形成明显的丁达尔效应，金色边缘光勾勒出人物轮廓，四周摆放着五色灵石散发柔和光晕，空气中漂浮着肉眼可见的灵气光尘如萤火虫般流动，皮肤呈现出玉质般的细腻光泽，衣料质感柔软飘逸，压抑而神圣的氛围�?,
+  "veo_prompt": "幽暗封闭的石室内部，缓慢推镜头从全景推至中景，地面刻画着繁复发光的聚灵阵法，慕佩灵身着素白长裙盘膝坐于阵眼中心，体积光从石室顶部缝隙射入形成明显的丁达尔效应，金色边缘光勾勒出人物轮廓，四周摆放着五色灵石散发柔和光晕，空气中漂浮着肉眼可见的灵气光尘如萤火虫般流动，皮肤呈现出玉质般的细腻光泽，衣料质感柔软飘逸，压抑而神圣的氛围。",
   "dialogue": {
-    "speaker": "慕佩�?,
+    "speaker": "慕佩灵",
     "lines": "如果不拼这一次，我永远只是韩前辈身边的累赘！",
     "lines_en": "If I don't risk it all this time, I'll forever be a burden to Senior Han!",
-    "tone": "内心独白，决�?,
+    "tone": "内心独白，决绝",
     "tone_en": "Inner monologue, determined",
     "audio_note": "低沉的阵法嗡鸣声，心跳声逐渐放大",
     "audio_note_en": "Low hum of the array, heartbeat gradually amplifying"
   },
   "visual": {
-    "description": "阵法光芒骤然亮起 �?灵石开始剧烈颤�?�?灵气光尘疯狂涌向慕佩�?
+    "description": "阵法光芒骤然亮起 → 灵石开始剧烈颤抖 → 灵气光尘疯狂涌向慕佩灵"
   },
   "duration_seconds": 8
 }
 
-【重要规则�?
-- veo_prompt必须包含运镜指令、光影细节、材质质�?
-- veo_prompt只描述静态画面，不包含动作变�?
-- visual.description只描述动态过程，用箭头连�?
-- shot_type已定义构图范围，veo_prompt不需要重复说�?特写"等词�?
-- 如果没有对话，dialogue的speaker设为"�?，lines为空字符�?"，tone�?�?
-- 根据镜头内容调整时长，避免所有镜头都是固定时�?
+【重要规则】
+- veo_prompt必须包含运镜指令、光影细节、材质质感
+- veo_prompt只描述静态画面，不包含动作变化
+- visual.description只描述动态过程，用箭头连接
+- shot_type已定义构图范围，veo_prompt不需要重复说明"特写"等词汇
+- 如果没有对话，dialogue的speaker设为"无"，lines为空字符串""，tone为"无"
+- 根据镜头内容调整时长，避免所有镜头都是固定时长
 
 请以JSON格式返回，结构如下：
 {
     "video_title": "视频标题",
-    "hook": "开篇钩子（一句话吸引眼球�?,
-    "total_duration": 总时�?
+    "hook": "开篇钩子（一句话吸引眼球）",
+    "total_duration": 总时长,
     "scenes": [
         {
-            "scene_number": 场景�?
+            "scene_number": 场景号,
             "scene_title": "场景标题",
             "shot_sequence": [镜头列表]
         }
@@ -879,61 +899,61 @@ def generate_storyboard_from_idea(title: str, description: str, style: str,
     "ending_hook": "结尾钩子"
 }
 
-【JSON格式要求�?
+【JSON格式要求】
 - 严格遵守JSON规范
 - 不要在最后一个属性后添加逗号
-- 确保所有引号正确闭�?
-- 数字类型不要加引�?""
+- 确保所有引号正确闭合
+- 数字类型不要加引号"""
 
-        user_prompt = f"""请根据以下创意生成分镜头脚本�?
+        user_prompt = f"""请根据以下创意生成分镜头脚本：
 
 剧集标题：{title}
 风格：{style}
 创意描述：{description}
 
-要求�?
-- 生成 {shot_count} 个镜头，每个镜头一个独立场景（scene_number�?开始）
+要求：
+- 生成 {shot_count} 个镜头，每个镜头一个独立场景（scene_number从1开始）
 - 每个镜头时长根据内容调整（快节奏4-6秒，对话6-8秒，情绪渲染8-10秒，宏大场景10-12秒）
 - 风格要符合{style}特色
-- 保持画面连贯性和节奏感，利用长短镜头交替制造节�?
-- 确保视觉冲击力和电影�?
+- 保持画面连贯性和节奏感，利用长短镜头交替制造节奏
+- 确保视觉冲击力和电影感
 
-【veo_prompt必须包含以下元素�?
-1. 运镜指令：推镜头/拉镜�?环绕镜头/跟随镜头/升降镜头
-2. 光影细节：体积光/丁达尔效�?边缘�?戏剧性光�?色温对比
-3. 材质质感：皮肤质�?服装材质/环境质感/特效质感
-4. 画面构成：人物状态、表情、服装、环�?
+【veo_prompt必须包含以下元素】
+1. 运镜指令：推镜头/拉镜头/环绕镜头/跟随镜头/升降镜头
+2. 光影细节：体积光/丁达尔效应/边缘光/戏剧性光影/色温对比
+3. 材质质感：皮肤质感/服装材质/环境质感/特效质感
+4. 画面构成：人物状态、表情、服装、环境
 
-【visual.description要求�?
+【visual.description要求】
 - 用箭头→描述动作过程
-- 描述画面中的动态变�?
+- 描述画面中的动态变化
 
-请直接返回JSON格式的分镜头数据，不要包含其他说明文字�?""
+请直接返回JSON格式的分镜头数据，不要包含其他说明文字。"""
 
         # 🔥 使用通用的APIClient调用AI
         if api_client is None:
-            logger.error("�?[AI生成] AI客户端未初始�?)
-            raise Exception("AI客户端未初始�?)
+            logger.error("❌ [AI生成] AI客户端未初始化")
+            raise Exception("AI客户端未初始化")
 
-        logger.info(f"🚀 [AI生成] 开始调用AI生成分镜�?..")
+        logger.info(f"🚀 [AI生成] 开始调用AI生成分镜头...")
         logger.info(f"   - 剧集标题: {title}")
         logger.info(f"   - 风格: {style}")
-        logger.info(f"   - 镜头�? {shot_count}")
+        logger.info(f"   - 镜头数: {shot_count}")
 
-        # 使用APIClient调用AI（不使用流式，需要JSON格式�?
+        # 使用APIClient调用AI（不使用流式，需要JSON格式）
         response_text = api_client.call_api(
             system_prompt=system_prompt,
             user_prompt=user_prompt,
             temperature=0.7,
-            purpose="创意分镜头生�?
+            purpose="创意分镜头生成"
         )
 
         if not response_text:
-            raise Exception("AI返回空响�?)
+            raise Exception("AI返回空响应")
 
         # 解析JSON响应
         try:
-            # 尝试提取JSON（可能被```json包裹�?
+            # 尝试提取JSON（可能被```json包裹）
             json_text = response_text.strip()
             if json_text.startswith("```json"):
                 json_text = json_text[7:]
@@ -949,21 +969,21 @@ def generate_storyboard_from_idea(title: str, description: str, style: str,
             json_text = re.sub(r',(\s*[}\]])', r'\1', json_text)
 
             storyboard_data = json.loads(json_text)
-            logger.info(f'�?[AI生成] 分镜头生成成功，�?{len(storyboard_data.get("scenes", []))} 个场�?)
+            logger.info(f'✅ [AI生成] 分镜头生成成功，共 {len(storyboard_data.get("scenes", []))} 个场景')
             return storyboard_data
         except json.JSONDecodeError as e:
-            logger.error(f'�?[AI生成] JSON解析失败: {e}')
+            logger.error(f'❌ [AI生成] JSON解析失败: {e}')
             logger.error(f'   AI响应: {response_text[:500]}...')
             raise Exception(f"AI返回的不是有效的JSON格式: {e}")
 
     except Exception as e:
-        logger.error(f'�?[AI生成] 分镜头生成失�? {e}')
+        logger.error(f'❌ [AI生成] 分镜头生成失败: {e}')
         # 返回一个基础模板作为兜底
         return _get_default_storyboard(title, description, shot_count, shot_duration)
 
 
 def _get_default_storyboard(title: str, description: str, shot_count: int, shot_duration: int) -> dict:
-    """生成默认分镜头模板（AI失败时的兜底方案�?""
+    """生成默认分镜头模板（AI失败时的兜底方案）"""
     shots = []
     for i in range(1, shot_count + 1):
         shots.append({
@@ -971,12 +991,12 @@ def _get_default_storyboard(title: str, description: str, shot_count: int, shot_
             'shot_type': ['主观视角', '特写', '中景', '全景'][i % 4],
             'veo_prompt': f'{title} - 镜头{i}：{description[:50]}...',
             'dialogue': {
-                'speaker': '�?,
+                'speaker': '无',
                 'lines': '',
                 'tone': ''
             },
             'visual': {
-                'description': f'镜头{i}的动作描�?
+                'description': f'镜头{i}的动作描述'
             },
             'duration_seconds': shot_duration
         })
@@ -998,7 +1018,7 @@ def _get_default_storyboard(title: str, description: str, shot_count: int, shot_
 
 def clean_filename(name: str) -> str:
     """清理文件名，移除非法字符"""
-    # 移除或替换Windows文件名中的非法字�?
+    # 移除或替换Windows文件名中的非法字符
     illegal_chars = r'[<>:"/\\|?*]'
     cleaned = re.sub(illegal_chars, '_', name)
     return cleaned.strip()
@@ -1036,7 +1056,7 @@ def generate_story_beats():
                         continue
 
         if not project_file:
-            return jsonify({'success': False, 'message': '项目不存�?}), 404
+            return jsonify({'success': False, 'message': '项目不存在'}), 404
 
         # 读取项目数据
         with open(project_file, 'r', encoding='utf-8') as f:
@@ -1047,7 +1067,7 @@ def generate_story_beats():
         if not episodes:
             return jsonify({'success': False, 'message': '项目没有集数'}), 400
 
-        # 使用第一个集�?
+        # 使用第一个集数
         episode = episodes[0] if isinstance(episodes, list) else episodes
         episode_title = episode.get('title', '') if isinstance(episode, dict) else str(episode)
         episode_content = episode.get('content', '') if isinstance(episode, dict) else ''
@@ -1056,7 +1076,7 @@ def generate_story_beats():
         characters = project_data.get('characters', [])
 
         # 调用AI生成故事节拍
-        logger.info(f"[故事节拍] 开始生�? {episode_title}")
+        logger.info(f"[故事节拍] 开始生成: {episode_title}")
 
         if api_client:
             try:
@@ -1064,7 +1084,7 @@ def generate_story_beats():
                     episode_title=episode_title,
                     episode_content=episode_content,
                     characters=characters,
-                    total_duration=80  # 默认80�?
+                    total_duration=80  # 默认80秒
                 )
             except Exception as e:
                 logger.error(f"[故事节拍] AI生成失败: {e}")
@@ -1074,11 +1094,11 @@ def generate_story_beats():
             # 没有AI客户端，使用默认数据
             story_beats = _get_default_story_beats()
 
-        # 保存到项目数�?
+        # 保存到项目数据
         project_data['storyBeats'] = story_beats
         project_data['updated_at'] = datetime.now().isoformat()
 
-        logger.info(f"[故事节拍] 正在保存�? {project_file}")
+        logger.info(f"[故事节拍] 正在保存到: {project_file}")
         logger.info(f"[故事节拍] storyBeats scenes: {len(story_beats.get('scenes', []))}")
 
         with open(project_file, 'w', encoding='utf-8') as f:
@@ -1114,45 +1134,45 @@ def _generate_story_beats_with_ai(episode_title, episode_content, characters, to
     characters_str = "\n".join([
         f"- {c.get('name', '')}: {c.get('identity', '')}, {c.get('traits', '')}"
         for c in characters
-    ]) if characters else "- 未设置角�?
+    ]) if characters else "- 未设置角色"
 
-    prompt = f"""你是一个专业的短剧编剧。请根据以下集数内容，生成{total_duration}秒的叙事节拍(Story Beats)�?
+    prompt = f"""你是一个专业的短剧编剧。请根据以下集数内容，生成{total_duration}秒的叙事节拍(Story Beats)。
 
 ## 输入信息
 集数标题：{episode_title}
 集数内容：{episode_content[:2000] if episode_content else '（暂无详细内容，请根据标题生成）'}
 
-角色设定�?
+角色设定：
 {characters_str}
 
-总时长要求：{total_duration}�?
+总时长要求：{total_duration}秒
 
 ## 输出要求
 
 1. **三幕结构分配**
-   - 第一幕「建立�?0-30%)：建立场景、人物、核心矛�?
-   - 第二幕「对抗�?30-70%)：冲突升级、内心挣�?
-   - 第三幕「高潮�?70-100%)：决战时刻、人物觉�?
+   - 第一幕「建立」(0-30%)：建立场景、人物、核心矛盾
+   - 第二幕「对抗」(30-70%)：冲突升级、内心挣扎
+   - 第三幕「高潮」(70-100%)：决战时刻、人物觉醒
 
 2. **每个场景包含**
    - sceneNumber: 场景序号
-   - sceneTitleCn/En: 中英文标�?
+   - sceneTitleCn/En: 中英文标题
    - storyBeatCn/En: 叙事目的
-   - durationSeconds: 时长(�?
+   - durationSeconds: 时长(秒)
    - emotionalArc: 情绪曲线（如：绝决→紧张→希望）
    - dialogues: 对白列表
 
 3. **对白设计**
-   - 每个场景至少1句对�?
+   - 每个场景至少1句对白
    - 包含speaker, linesCn, linesEn, toneCn, toneEn
 
-只输出JSON格式，不要解释�?
+只输出JSON格式，不要解释。
 """
 
     try:
         # 调用AI
         response = api_client.call_api(
-            system_prompt="你是一个专业的短剧编剧，擅长设计故事节拍。请严格按照要求的JSON格式输出�?,
+            system_prompt="你是一个专业的短剧编剧，擅长设计故事节拍。请严格按照要求的JSON格式输出。",
             user_prompt=prompt,
             temperature=0.7,
             purpose="故事节拍生成"
@@ -1169,12 +1189,12 @@ def _generate_story_beats_with_ai(episode_title, episode_content, characters, to
         else:
             story_beats = json.loads(content)
 
-        # 验证格式 - 处理 'beats'�?acts' �?'scenes' 字段
+        # 验证格式 - 处理 'beats'、'acts' 或 'scenes' 字段
         if 'scenes' not in story_beats:
-            # 如果存在 'beats' 字段，将其重命名�?'scenes'
+            # 如果存在 'beats' 字段，将其重命名为 'scenes'
             if 'beats' in story_beats and isinstance(story_beats['beats'], list):
                 story_beats['scenes'] = story_beats.pop('beats')
-            # 如果存在 'acts' 字段，提取所�?acts 中的 scenes 合并
+            # 如果存在 'acts' 字段，提取所有 acts 中的 scenes 合并
             elif 'acts' in story_beats and isinstance(story_beats['acts'], list):
                 all_scenes = []
                 for act in story_beats['acts']:
@@ -1199,16 +1219,16 @@ def _get_default_story_beats():
         'scenes': [
             {
                 'sceneNumber': 1,
-                'sceneTitleCn': '开�?,
+                'sceneTitleCn': '开场',
                 'sceneTitleEn': 'Opening',
-                'storyBeatCn': '建立场景，展示主角状�?,
+                'storyBeatCn': '建立场景，展示主角状态',
                 'storyBeatEn': 'Establish scene, show protagonist status',
                 'durationSeconds': 8,
-                'emotionalArc': '平静→紧�?,
+                'emotionalArc': '平静→紧张',
                 'dialogues': [
                     {
                         'speaker': '主角',
-                        'linesCn': '这是一个开�?..',
+                        'linesCn': '这是一个开始...',
                         'linesEn': 'This is a beginning...',
                         'toneCn': '内心独白',
                         'toneEn': 'Inner monologue'
@@ -1219,14 +1239,14 @@ def _get_default_story_beats():
                 'sceneNumber': 2,
                 'sceneTitleCn': '冲突',
                 'sceneTitleEn': 'Conflict',
-                'storyBeatCn': '冲突出现，推动剧�?,
+                'storyBeatCn': '冲突出现，推动剧情',
                 'storyBeatEn': 'Conflict emerges, drive plot forward',
                 'durationSeconds': 8,
-                'emotionalArc': '紧张→焦�?,
+                'emotionalArc': '紧张→焦虑',
                 'dialogues': [
                     {
                         'speaker': '反派',
-                        'linesCn': '你以为你能成功吗�?,
+                        'linesCn': '你以为你能成功吗？',
                         'linesEn': 'Do you think you can succeed?',
                         'toneCn': '挑衅',
                         'toneEn': 'Provocative'
@@ -1237,10 +1257,10 @@ def _get_default_story_beats():
                 'sceneNumber': 3,
                 'sceneTitleCn': '高潮',
                 'sceneTitleEn': 'Climax',
-                'storyBeatCn': '主角觉醒，展现力�?,
+                'storyBeatCn': '主角觉醒，展现力量',
                 'storyBeatEn': 'Protagonist awakens, shows power',
                 'durationSeconds': 8,
-                'emotionalArc': '绝望→希�?,
+                'emotionalArc': '绝望→希望',
                 'dialogues': [
                     {
                         'speaker': '主角',
@@ -1258,7 +1278,7 @@ def _get_default_story_beats():
 @short_drama_api.route('/story-beats/<project_id>', methods=['GET'])
 def get_story_beats(project_id):
     """
-    获取项目的故事节�?
+    获取项目的故事节拍
     """
     try:
         # 查找项目
@@ -1277,7 +1297,7 @@ def get_story_beats(project_id):
                         continue
 
         if not project_file:
-            return jsonify({'success': False, 'message': '项目不存�?}), 404
+            return jsonify({'success': False, 'message': '项目不存在'}), 404
 
         with open(project_file, 'r', encoding='utf-8') as f:
             project_data = json.load(f)
@@ -1304,7 +1324,91 @@ def get_story_beats(project_id):
         }), 500
 
 
-# ==================== 分镜头管�?API ====================
+@short_drama_api.route('/storyboard/generate-from-beats', methods=['POST'])
+def generate_storyboard_from_beats():
+    """
+    从故事节拍生成分镜头 (Step 4)
+    使用 VeOPromptService 生成三种模式的提示词
+    """
+    try:
+        data = request.get_json()
+        project_id = data.get('projectId')
+        story_beats = data.get('storyBeats')
+        has_reference_image = data.get('hasReferenceImage', False)
+        has_first_last_frame = data.get('hasFirstLastFrame', False)
+        
+        if not project_id:
+            return jsonify({'success': False, 'message': '缺少项目ID'}), 400
+        
+        if not story_beats:
+            return jsonify({'success': False, 'message': '缺少故事节拍数据'}), 400
+        
+        logger.info(f'🎬 [生成分镜] 项目: {project_id}')
+        logger.info(f'   参考图: {has_reference_image}, 首尾帧: {has_first_last_frame}')
+        
+        # 查找项目
+        project_file = None
+        project_dir = None
+        for pd in VIDEO_PROJECTS_DIR.iterdir():
+            if pd.is_dir():
+                pf = pd / '项目信息.json'
+                if pf.exists():
+                    try:
+                        with open(pf, 'r', encoding='utf-8') as f:
+                            pd_data = json.load(f)
+                        if pd_data.get('id') == project_id:
+                            project_file = pf
+                            project_dir = pd
+                            break
+                    except:
+                        continue
+        
+        if not project_file or not project_dir:
+            return jsonify({'success': False, 'message': '项目不存在'}), 404
+        
+        # 加载项目数据
+        with open(project_file, 'r', encoding='utf-8') as f:
+            project_data = json.load(f)
+        
+        # 获取角色列表
+        characters = project_data.get('characters', [])
+        
+        # 🔥 使用 VeOPromptService 生成三种模式的提示词
+        from web.services.veo_prompt_service import generate_veo_prompts_for_scenes
+        
+        shots = generate_veo_prompts_for_scenes(
+            story_beats=story_beats,
+            characters=characters,
+            has_reference_image=has_reference_image,
+            has_first_last_frame=has_first_last_frame
+        )
+        
+        logger.info(f'✅ [生成分镜] 生成 {len(shots)} 个镜头')
+        
+        # 保存 shots 到项目文件
+        project_data['shots'] = shots
+        project_data['updatedAt'] = datetime.now().isoformat()
+        
+        with open(project_file, 'w', encoding='utf-8') as f:
+            json.dump(project_data, f, ensure_ascii=False, indent=2)
+        
+        return jsonify({
+            'success': True,
+            'message': f'成功生成 {len(shots)} 个镜头',
+            'shots': shots
+        })
+        
+    except Exception as e:
+        logger.error(f'❌ [生成分镜] 失败: {e}')
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({
+            'success': False,
+            'message': f'生成分镜失败: {str(e)}'
+        }), 500
+
+
+# ==================== 分镜头管理 API ====================
 
 @short_drama_api.route('/storyboards', methods=['GET'])
 def get_storyboards():
@@ -1319,7 +1423,7 @@ def get_storyboards():
                 'error': '缺少参数'
             }), 400
 
-        # 构建分镜头目录路�?
+        # 构建分镜头目录路径
         storyboard_dir = VIDEO_PROJECTS_DIR / novel_title / episode_name / 'storyboards'
 
         if not storyboard_dir.exists():
@@ -1328,7 +1432,7 @@ def get_storyboards():
                 'storyboards': []  # 返回空数组而不是空字典
             })
 
-        # 🔥 尝试�?plan 文件中获取事件顺�?
+        # 🔥 尝试从 plan 文件中获取事件顺序
         medium_event_order = {}
         plan_file = NOVEL_PROJECTS_DIR / novel_title / 'plans' / f'{novel_title}_opening_stage_writing_plan.json'
 
@@ -1340,11 +1444,11 @@ def get_storyboards():
                 event_system = plan_data.get('stage_writing_plan', {}).get('event_system', {})
                 major_events = event_system.get('major_events', [])
 
-                # 遍历所有重大事件和中型事件，建立顺序映�?
+                # 遍历所有重大事件和中型事件，建立顺序映射
                 event_index = 0
                 for major_event in major_events:
                     composition = major_event.get('composition', {})
-                    for stage in ['�?, '�?, '�?, '�?]:
+                    for stage in ['起', '承', '转', '合']:
                         medium_events = composition.get(stage, [])
                         for medium_event in medium_events:
                             event_name = medium_event.get('name')
@@ -1353,18 +1457,18 @@ def get_storyboards():
                                 event_index += 1
                                 logger.info(f"📋 [Plan] 事件 {event_index}: {event_name} ({stage})")
 
-                logger.info(f'�?[Plan] �?plan 文件加载�?{len(medium_event_order)} 个事件顺�?)
+                logger.info(f'✅ [Plan] 从 plan 文件加载了 {len(medium_event_order)} 个事件顺序')
             except Exception as e:
                 logger.error(f'读取 plan 文件失败: {e}')
 
-        # 扫描分镜头文�?
+        # 扫描分镜头文件
         storyboard_files = list(storyboard_dir.glob('*.json'))
 
         # 🔥 根据 plan 文件的顺序来排序 storyboards
         def get_event_order(filepath):
-            """获取事件�?plan 中的顺序"""
+            """获取事件在 plan 中的顺序"""
             stem = filepath.stem
-            # 去掉后缀 (_[1-3章][起] �? 来匹�?plan 中的事件�?
+            # 去掉后缀 (_[1-3章][起] 等) 来匹配 plan 中的事件名
             event_name = stem
             import re
             # 去掉 _[1-3章][起承转合] 这样的后缀
@@ -1376,25 +1480,25 @@ def get_storyboards():
                 event_name = event_name[:event_name.rfind('[')]
             event_name = event_name.rstrip('_')
 
-            logger.info(f"🔍 [排序] 文件�? {stem} -> 提取的事件名: {event_name}")
+            logger.info(f"🔍 [排序] 文件名: {stem} -> 提取的事件名: {event_name}")
 
-            # �?plan 中查�?
+            # 在 plan 中查找
             if event_name in medium_event_order:
                 order = medium_event_order[event_name]
-                logger.info(f"  �?匹配成功: order={order}")
+                logger.info(f"  ✅ 匹配成功: order={order}")
                 return order
             # 如果不在 plan 中，返回一个大数字（排在最后）
-            logger.info(f"  �?未匹配，使用默认�?999999")
+            logger.info(f"  ❌ 未匹配，使用默认值 999999")
             return 999999
 
-        # 按事件顺序排序文�?
+        # 按事件顺序排序文件
         storyboard_files.sort(key=get_event_order)
 
         logger.info(f"📂 [排序后文件顺序]:")
         for idx, f in enumerate(storyboard_files):
             logger.info(f"  [{idx}] {f.name}")
 
-        # 按顺序加载分镜头，使用列表保持顺�?
+        # 按顺序加载分镜头，使用列表保持顺序
         storyboards_list = []
         for json_file in storyboard_files:
             try:
@@ -1415,18 +1519,18 @@ def get_storyboards():
                         display_name = display_name[:display_name.rfind('[')]
                     display_name = display_name.rstrip('_')
 
-                    # 在数据中添加显示名称和顺序字�?
+                    # 在数据中添加显示名称和顺序字段
                     data['_display_name'] = display_name
                     data['_order'] = order
                     data['_key'] = key  # 保留原始key
-                    # 将数据添加到列表中（保持顺序�?
+                    # 将数据添加到列表中（保持顺序）
                     storyboards_list.append(data)
                     logger.info(f"📋 [加载] key={key}, display_name={display_name}, _order={order}")
             except Exception as e:
-                logger.error(f'读取分镜头文件失�?{json_file}: {e}')
+                logger.error(f'读取分镜头文件失败 {json_file}: {e}')
 
-        logger.info(f'📜 [分镜头] 加载�?{len(storyboards_list)} 个分镜头文件')
-        logger.info(f'📜 [返回�?storyboards 列表顺序]:')
+        logger.info(f'📜 [分镜头] 加载了 {len(storyboards_list)} 个分镜头文件')
+        logger.info(f'📜 [返回的 storyboards 列表顺序]:')
         for idx, data in enumerate(storyboards_list):
             key = data.get('_key', 'N/A')
             display_name = data.get('_display_name', 'N/A')
@@ -1435,11 +1539,11 @@ def get_storyboards():
 
         return jsonify({
             'success': True,
-            'storyboards': storyboards_list  # 返回列表而不是字�?
+            'storyboards': storyboards_list  # 返回列表而不是字典
         }), 200
 
     except Exception as e:
-        logger.error(f'获取分镜头列表失�? {e}')
+        logger.error(f'获取分镜头列表失败: {e}')
         return jsonify({
             'success': False,
             'error': str(e)
@@ -1448,7 +1552,7 @@ def get_storyboards():
 
 @short_drama_api.route('/portraits', methods=['GET'])
 def get_portraits():
-    """获取指定剧集的剧照列�?""
+    """获取指定剧集的剧照列表"""
     try:
         from urllib.parse import quote
 
@@ -1463,7 +1567,7 @@ def get_portraits():
 
         # 构建剧集目录路径
         episode_dir = VIDEO_PROJECTS_DIR / novel_title / episode_name
-        # 🔥 同时扫描父项目目录（用于角色参考图�?
+        # 🔥 同时扫描父项目目录（用于角色参考图）
         project_dir = VIDEO_PROJECTS_DIR / novel_title
 
         logger.info(f'📸 [剧照] 扫描目录: {episode_dir}')
@@ -1473,46 +1577,46 @@ def get_portraits():
         portraits = {}
         portrait_files = []
 
-        # 剧集目录中的所有剧�?
+        # 剧集目录中的所有剧照
         if episode_dir.exists():
             portrait_files.extend(list(episode_dir.glob('*.png')) + list(episode_dir.glob('*.jpg')))
 
-        # 🔥 项目目录中的角色参考图（包�?_三视�?和普通角色图�?
+        # 🔥 项目目录中的角色参考图（包括 _三视图 和普通角色图）
         if project_dir.exists():
-            # 扫描 _三视�?文件（最高优先级�?
-            three_view_files = [f for f in project_dir.glob('*_三视�?*')]
+            # 扫描 _三视图 文件（最高优先级）
+            three_view_files = [f for f in project_dir.glob('*_三视图.*')]
             portrait_files.extend(three_view_files)
-            logger.info(f'📸 [剧照] 发现三视图文�? {[f.name for f in three_view_files]}')
+            logger.info(f'📸 [剧照] 发现三视图文件: {[f.name for f in three_view_files]}')
 
-            # 🔥 扫描项目目录中的其他角色参考图（排除三视图，已添加�?
-            # 获取所有图片文�?
+            # 🔥 扫描项目目录中的其他角色参考图（排除三视图，已添加）
+            # 获取所有图片文件
             all_project_images = list(project_dir.glob('*.png')) + list(project_dir.glob('*.jpg'))
-            # 筛选出角色名图片（格式：角色名.png �?角色名_数字.png�?
+            # 筛选出角色名图片（格式：角色名.png 或 角色名_数字.png）
             for img in all_project_images:
                 stem = img.stem
-                # 跳过已处理的 _三视�?文件
-                if stem.endswith('_三视�?):
+                # 跳过已处理的 _三视图 文件
+                if stem.endswith('_三视图'):
                     continue
-                # 跳过明显不是角色图的文件（包含特殊字符的�?
+                # 跳过明显不是角色图的文件（包含特殊字符的）
                 if any(x in stem for x in ['_', '-']) and not stem.split('_')[-1].isdigit():
                     # 如果有下划线但最后一部分不是数字，可能是其他图片
                     continue
                 portrait_files.append(img)
 
             logger.info(f'📸 [剧照] 项目目录图片文件数量: {len(all_project_images)}')
-            logger.info(f'📸 [剧照] 添加的角色参考图: {[f.name for f in portrait_files if f.parent == project_dir and not f.name.endswith("_三视�?)]}')
+            logger.info(f'📸 [剧照] 添加的角色参考图: {[f.name for f in portrait_files if f.parent == project_dir and not f.name.endswith("_三视图")]}')
 
         for file_path in portrait_files:
-            # 文件名格�? 角色�?png �?角色名_1.png �?角色名_三视�?png
-            stem = file_path.stem  # 不含扩展�?
+            # 文件名格式: 角色名.png 或 角色名_1.png 或 角色名_三视图.png
+            stem = file_path.stem  # 不含扩展名
             ext = file_path.suffix
 
-            # 🔥 特殊处理后缀：_三视�?(最高优先级)
-            is_three_view = stem.endswith('_三视�?)
+            # 🔥 特殊处理后缀：_三视图 (最高优先级)
+            is_three_view = stem.endswith('_三视图')
             if is_three_view:
-                char_name = stem[:-4]  # 移除 '_三视�? 后缀
-                number = 999  # 三视图优先级最�?
-                is_priority = True  # 标记为优先剧�?
+                char_name = stem[:-4]  # 移除 '_三视图' 后缀
+                number = 999  # 三视图优先级最高
+                is_priority = True  # 标记为优先剧照
             else:
                 # 解析角色名和编号
                 is_priority = False
@@ -1532,7 +1636,7 @@ def get_portraits():
             mtime = file_path.stat().st_mtime
 
             # 🔥 构建URL路径 - 根据文件位置决定URL
-            # 项目目录�?_三视�?文件使用不同路径
+            # 项目目录的 _三视图 文件使用不同路径
             rel_path = file_path.relative_to(VIDEO_PROJECTS_DIR)
             url = f"/api/short-drama/projects/{rel_path.as_posix()}"
 
@@ -1545,11 +1649,11 @@ def get_portraits():
                 'url': url,
                 'mtime': mtime,
                 'path': str(file_path),
-                'isPriority': is_priority  # 🔥 标记是否为优先剧�?
+                'isPriority': is_priority  # 🔥 标记是否为优先剧照
             })
 
         # 对每个角色的剧照按优先级、编号和修改时间排序
-        # 优先�? 三视�?> 编号 > 修改时间
+        # 优先级: 三视图 > 编号 > 修改时间
         result = []
         for char_name, char_portraits in portraits.items():
             char_portraits.sort(key=lambda x: (
@@ -1564,7 +1668,7 @@ def get_portraits():
                 'mainPortrait': char_portraits[0]  # 最新的作为主图
             })
 
-        logger.info(f'📸 [剧照] 扫描�?{len(result)} 个角色的剧照')
+        logger.info(f'📸 [剧照] 扫描到 {len(result)} 个角色的剧照')
 
         return jsonify({
             'success': True,
@@ -1581,7 +1685,7 @@ def get_portraits():
 
 @short_drama_api.route('/reference-images', methods=['GET'])
 def get_reference_images():
-    """获取项目的参考图片列表（reference_images目录�?""
+    """获取项目的参考图片列表（reference_images目录）"""
     try:
         from urllib.parse import quote
         import os
@@ -1592,10 +1696,10 @@ def get_reference_images():
         if not novel_title or not episode_title:
             return jsonify({
                 'success': False,
-                'error': '缺少小说标题或分集标�?
+                'error': '缺少小说标题或分集标题'
             }), 400
 
-        # 构建参考图片目录路�?
+        # 构建参考图片目录路径
         ref_images_dir = VIDEO_PROJECTS_DIR / novel_title / episode_title / 'reference_images'
 
         if not ref_images_dir.exists():
@@ -1639,7 +1743,7 @@ def get_reference_images():
 
 @short_drama_api.route('/scene-props', methods=['GET'])
 def get_scene_props():
-    """获取项目的场景道具参考图片列表（场景道具目录�?""
+    """获取项目的场景道具参考图片列表（场景道具目录）"""
     try:
         from urllib.parse import quote
         import os
@@ -1652,13 +1756,13 @@ def get_scene_props():
                 'error': '缺少小说标题'
             }), 400
 
-        # 🔥 构建场景道具目录路径（项目级别，与episode同级�?
+        # 🔥 构建场景道具目录路径（项目级别，与episode同级）
         scene_props_dir = VIDEO_PROJECTS_DIR / novel_title / '场景道具'
 
         logger.info(f'🎬 [场景道具] 扫描目录: {scene_props_dir}')
 
         if not scene_props_dir.exists():
-            logger.info(f'🎬 [场景道具] 目录不存�? {scene_props_dir}')
+            logger.info(f'🎬 [场景道具] 目录不存在: {scene_props_dir}')
             return jsonify({
                 'success': True,
                 'images': []
@@ -1703,9 +1807,9 @@ def get_scene_props():
 
 @short_drama_api.route('/projects/<path:filepath>', methods=['GET'])
 def serve_project_file(filepath):
-    """提供项目文件访问（剧照、视频等�?""
+    """提供项目文件访问（剧照、视频等）"""
     try:
-        # filepath �?URL 编码的路径，需要解�?
+        # filepath 是 URL 编码的路径，需要解码
         from urllib.parse import unquote
 
         # 解码路径
@@ -1714,11 +1818,11 @@ def serve_project_file(filepath):
         file_path = VIDEO_PROJECTS_DIR / decoded_path
 
         if file_path.exists() and file_path.is_file():
-            # 正常情况不打印日�?
+            # 正常情况不打印日志
             return send_from_directory(str(file_path.parent), file_path.name)
         else:
-            logger.error(f'📸 [剧照] 文件不存�? {file_path}')
-            return jsonify({'error': '文件不存�?}), 404
+            logger.error(f'📸 [剧照] 文件不存在: {file_path}')
+            return jsonify({'error': '文件不存在'}), 404
     except Exception as e:
         logger.error(f'提供文件访问失败: {e}')
         return jsonify({'error': str(e)}), 500
@@ -1726,7 +1830,7 @@ def serve_project_file(filepath):
 
 @short_drama_api.route('/check-video', methods=['GET'])
 def check_video():
-    """检查视频文件是否存�?""
+    """检查视频文件是否存在"""
     try:
         from urllib.parse import unquote
 
@@ -1737,7 +1841,7 @@ def check_video():
         # 解码路径
         decoded_path = unquote(video_path)
 
-        logger.info(f'🎬 [视频检查] 检查文�? {decoded_path}')
+        logger.info(f'🎬 [视频检查] 检查文件: {decoded_path}')
 
         file_path = VIDEO_PROJECTS_DIR / decoded_path
 
@@ -1753,16 +1857,16 @@ def check_video():
                 'url': url
             })
         else:
-            logger.info(f'🎬 [视频检查] 文件不存�? {file_path}')
+            logger.info(f'🎬 [视频检查] 文件不存在: {file_path}')
             return jsonify({'exists': False})
     except Exception as e:
-        logger.error(f'检查视频失�? {e}')
+        logger.error(f'检查视频失败: {e}')
         return jsonify({'exists': False, 'error': str(e)}), 500
 
 
 @short_drama_api.route('/list-videos', methods=['GET'])
 def list_videos():
-    """列出指定目录的视频文�?""
+    """列出指定目录的视频文件"""
     try:
         from urllib.parse import unquote
 
@@ -1784,10 +1888,10 @@ def list_videos():
         for video_file in video_dir.glob('*.mp4'):
             # 新文件名格式: "001_01_诈尸惊魂_对话01_中景_特写_001.mp4"
             # 格式: {章节序号:03d}_{场景序号:02d}_{中级事件名}_对话{对话序号:02d}_{镜头类型}_{句子序号:03d}
-            name = video_file.stem  # 不含扩展�?
+            name = video_file.stem  # 不含扩展名
             import re
 
-            # 🔥 优先尝试匹配对话场景格式（有"对话"前缀�?
+            # 🔥 优先尝试匹配对话场景格式（有"对话"前缀）
             dialogue_match = re.match(r'^(\d+)_(\d+)_(.+)_对话(\d+)_(.+?)_(\d+)$', name)
             if dialogue_match:
                 episode_num = int(dialogue_match.group(1))
@@ -1813,7 +1917,7 @@ def list_videos():
                 })
                 continue
 
-            # 🔥 尝试匹配普通场景格式（�?对话"前缀�?
+            # 🔥 尝试匹配普通场景格式（无"对话"前缀）
             # 格式: {章节序号:03d}_{场景序号:02d}_{事件名}_{镜头类型}_{句子序号:03d}
             normal_match = re.match(r'^(\d+)_(\d+)_(.+)_(.+?)_(\d+)$', name)
             if normal_match:
@@ -1839,7 +1943,7 @@ def list_videos():
                 })
                 continue
 
-            # 尝试匹配旧格�? {镜头号}_{事件名}_{镜头类型}
+            # 尝试匹配旧格式: {镜头号}_{事件名}_{镜头类型}
             old_match = re.match(r'^(\d+)_(.+)', name)
             if old_match:
                 seq_num = int(old_match.group(1))
@@ -1854,10 +1958,10 @@ def list_videos():
                     'url': f"/api/short-drama/projects/{video_file.relative_to(VIDEO_PROJECTS_DIR).as_posix()}"
                 })
 
-        # 按序号排�?
+        # 按序号排序
         videos.sort(key=lambda v: v['sequence'])
 
-        logger.info(f'🎬 [视频列表] 找到 {len(videos)} 个视频文�?)
+        logger.info(f'🎬 [视频列表] 找到 {len(videos)} 个视频文件')
         return jsonify({'videos': videos})
 
     except Exception as e:
@@ -1879,7 +1983,7 @@ def generate_character_portrait(character_id):
 
         return jsonify({
             'success': True,
-            'message': '剧照生成任务已提�?
+            'message': '剧照生成任务已提交'
         }), 202
     except Exception as e:
         logger.error(f'生成剧照失败: {e}')
@@ -1889,7 +1993,7 @@ def generate_character_portrait(character_id):
         }), 500
 
 
-# ==================== 分镜头管�?API ====================
+# ==================== 分镜头管理 API ====================
 
 @short_drama_api.route('/shots/<shot_id>/video', methods=['POST'])
 def generate_shot_video(shot_id):
@@ -1898,37 +2002,63 @@ def generate_shot_video(shot_id):
         data = request.json or {}
         project_id = data.get('project_id')
         
-        # 获取请求体中的生成参�?
-        prompt = data.get('prompt', '')
+        # 获取请求体中的生成参数
+        prompt = data.get('prompt', '')  # 前端传入的提示词（备用）
+        preferred_mode = data.get('preferred_mode', 'standard')  # 🔥 用户选择的模式
         image_urls = data.get('image_urls', [])
         orientation = data.get('orientation', 'portrait')
-        duration = data.get('duration', 8)  # 🔥 VeO API 只支�?8 �?
+        duration = data.get('duration', 8)  # 🔥 VeO API 只支持 8 秒
         
-        logger.info(f'🎬 生成镜头视频: shot_id={shot_id}, project_id={project_id}')
+        logger.info(f'🎬 生成镜头视频: shot_id={shot_id}, project_id={project_id}, mode={preferred_mode}')
         
-        # 🔥 加载项目配置，检查首尾帧模式
+        # 🔥 加载项目配置和shot数据，获取对应模式的提示词
         use_first_last_frame = False
         first_frame = None
         last_frame = None
+        final_prompt = prompt  # 默认使用前端传入的提示词
         
         if project_id:
             try:
                 project = ShortDramaProject.load(project_id)
                 if project:
                     settings = project.settings or {}
-                    use_first_last_frame = settings.get('use_first_last_frame', True)  # 默认开�?
-                    logger.info(f'🎬 项目首尾帧模�? {use_first_last_frame}')
+                    use_first_last_frame = settings.get('use_first_last_frame', True)  # 默认开启
+                    logger.info(f'🎬 项目首尾帧模式: {use_first_last_frame}')
+                    
+                    # 🔥 根据用户选择的模式获取对应的提示词
+                    shots = project.data.get('shots', [])
+                    shot = None
+                    for s in shots:
+                        if s.get('id') == shot_id:
+                            shot = s
+                            break
+                    
+                    if shot:
+                        # 根据preferred_mode选择对应的提示词
+                        if preferred_mode == 'reference' and shot.get('veo_prompt_reference'):
+                            final_prompt = shot['veo_prompt_reference']
+                            logger.info(f'🎬 使用参考图模式提示词')
+                        elif preferred_mode == 'frames' and shot.get('veo_prompt_frames'):
+                            final_prompt = shot['veo_prompt_frames']
+                            logger.info(f'🎬 使用首尾帧模式提示词')
+                        elif shot.get('veo_prompt_standard'):
+                            final_prompt = shot['veo_prompt_standard']
+                            logger.info(f'🎬 使用标准模式提示词')
+                        else:
+                            # 兼容旧数据
+                            final_prompt = shot.get('veo_prompt', prompt)
+                            logger.info(f'🎬 使用备用提示词')
                     
                     # 🔥 如果启用首尾帧且有多张参考图，分别设置首帧和尾帧
                     if use_first_last_frame and len(image_urls) >= 2:
-                        first_frame = image_urls[0]  # 第一张作为首�?
-                        last_frame = image_urls[-1]  # 最后一张作为尾�?
-                        logger.info(f'🎬 使用首尾�? 首帧={first_frame[:50]}..., 尾帧={last_frame[:50]}...')
+                        first_frame = image_urls[0]  # 第一张作为首帧
+                        last_frame = image_urls[-1]  # 最后一张作为尾帧
+                        logger.info(f'🎬 使用首尾帧: 首帧={first_frame[:50]}..., 尾帧={last_frame[:50]}...')
                     elif use_first_last_frame and len(image_urls) == 1:
                         # 只有一张图时，同时作为首帧和尾帧（静态效果）
                         first_frame = image_urls[0]
                         last_frame = image_urls[0]
-                        logger.info(f'🎬 单图首尾帧模�? {first_frame[:50]}...')
+                        logger.info(f'🎬 单图首尾帧模式: {first_frame[:50]}...')
             except Exception as e:
                 logger.warning(f'⚠️ 加载项目配置失败: {e}')
         
@@ -1936,19 +2066,19 @@ def generate_shot_video(shot_id):
         from src.managers.VeOVideoManager import get_veo_video_manager
         from src.models.veo_models import VeOCreateVideoRequest, VeOVideoRequest
         
-        # 获取 VeO 管理器实�?
+        # 获取 VeO 管理器实例
         veo_manager = get_veo_video_manager()
         
-        # 🔥 创建原生格式请求（支持首尾帧模式�?
+        # 🔥 创建原生格式请求（支持首尾帧模式）
         if use_first_last_frame and (first_frame or last_frame):
-            # 首尾帧模�?
+            # 首尾帧模式
             native_request = VeOCreateVideoRequest(
                 use_first_last_frame=True,
                 first_frame=first_frame,
                 last_frame=last_frame,
                 model="veo_3_1-fast",
                 orientation=orientation,
-                prompt=prompt,
+                prompt=final_prompt,  # 🔥 使用选择的提示词
                 size="large",
                 duration=duration,
                 watermark=False,
@@ -1962,17 +2092,18 @@ def generate_shot_video(shot_id):
                     'scene_number': data.get('scene_number', 1),
                     'shot_number': data.get('shot_number', '1'),
                     'shot_type': data.get('shot_type', 'shot'),
-                    'use_first_last_frame': True
+                    'use_first_last_frame': True,
+                    'preferred_mode': preferred_mode  # 🔥 记录选择的模式
                 }
             )
-            logger.info('🎬 创建首尾帧模式请�?)
+            logger.info('🎬 创建首尾帧模式请求')
         else:
             # 普通参考图模式
             native_request = VeOCreateVideoRequest(
                 images=image_urls,
                 model="veo_3_1-fast",
                 orientation=orientation,
-                prompt=prompt,
+                prompt=final_prompt,  # 🔥 使用选择的提示词
                 size="large",
                 duration=duration,
                 watermark=False,
@@ -1985,7 +2116,8 @@ def generate_shot_video(shot_id):
                     'event_name': data.get('event_name', ''),
                     'scene_number': data.get('scene_number', 1),
                     'shot_number': data.get('shot_number', '1'),
-                    'shot_type': data.get('shot_type', 'shot')
+                    'shot_type': data.get('shot_type', 'shot'),
+                    'preferred_mode': preferred_mode  # 🔥 记录选择的模式
                 }
             )
             logger.info('🎬 创建普通参考图模式请求')
@@ -1996,7 +2128,7 @@ def generate_shot_video(shot_id):
             messages=[{
                 "role": "user",
                 "content": [
-                    {"type": "text", "text": prompt}
+                    {"type": "text", "text": final_prompt}  # 🔥 使用选择的提示词
                 ]
             }]
         )
@@ -2007,11 +2139,11 @@ def generate_shot_video(shot_id):
         # 从响应中获取任务ID
         task_id = response.id
         
-        logger.info(f'�?视频生成任务已提�? task_id={task_id}')
+        logger.info(f'✅ 视频生成任务已提交: task_id={task_id}')
 
         return jsonify({
             'success': True,
-            'message': '视频生成任务已提�?,
+            'message': '视频生成任务已提交',
             'task_id': task_id
         }), 202
         
@@ -2027,16 +2159,16 @@ def generate_shot_video(shot_id):
 
 @short_drama_api.route('/shots/<shot_id>/status', methods=['GET'])
 def get_shot_status(shot_id):
-    """获取镜头生成状�?""
+    """获取镜头生成状态"""
     try:
-        # �?VeOVideoManager 查询任务状�?
+        # 从 VeOVideoManager 查询任务状态
         from src.managers.VeOVideoManager import get_veo_video_manager
         
-        # 获取 VeO 任务管理器实例（单例�?
+        # 获取 VeO 任务管理器实例（单例）
         veo_manager = get_veo_video_manager()
         
-        # 查找与该镜头相关的任�?
-        # 任务ID格式�?veo_{uuid}，我们需要查找包�?shot_id 的任�?
+        # 查找与该镜头相关的任务
+        # 任务ID格式为 veo_{uuid}，我们需要查找包含 shot_id 的任务
         task = None
         for task_id, t in veo_manager.tasks.items():
             # 检查任务元数据中的 shot_id
@@ -2049,7 +2181,7 @@ def get_shot_status(shot_id):
                 break
         
         if task:
-            # 返回任务的实际状�?
+            # 返回任务的实际状态
             status = task.status.value if hasattr(task.status, 'value') else str(task.status)
             response = {
                 'success': True,
@@ -2058,14 +2190,14 @@ def get_shot_status(shot_id):
                 'stage': task._current_stage if hasattr(task, '_current_stage') else ''
             }
             
-            # 如果任务失败，包含错误信�?
+            # 如果任务失败，包含错误信息
             if status == 'failed' and task.error:
                 response['error'] = task.error
-                logger.warning(f'�?镜头 {shot_id} 生成失败: {task.error}')
+                logger.warning(f'❌ 镜头 {shot_id} 生成失败: {task.error}')
             
             return jsonify(response), 200
         else:
-            # 没有找到任务，返回待生成状�?
+            # 没有找到任务，返回待生成状态
             return jsonify({
                 'success': True,
                 'status': 'pending',
@@ -2073,7 +2205,7 @@ def get_shot_status(shot_id):
             }), 200
             
     except Exception as e:
-        logger.error(f'获取镜头状态失�? {e}')
+        logger.error(f'获取镜头状态失败: {e}')
         import traceback
         logger.error(f'错误堆栈: {traceback.format_exc()}')
         return jsonify({
@@ -2082,7 +2214,7 @@ def get_shot_status(shot_id):
         }), 500
 
 
-# ==================== 文件备份与还�?API ====================
+# ==================== 文件备份与还原 API ====================
 
 @short_drama_api.route('/backup', methods=['POST'])
 def backup_file():
@@ -2091,11 +2223,11 @@ def backup_file():
 
     请求体：
     {
-        "novel_title": "小说�?,
-        "episode_title": "集数�?,
+        "novel_title": "小说名",
+        "episode_title": "集数名",
         "file_type": "video" | "audio",
         "shot_number": 1,
-        "file_path": "原文件相对路�?
+        "file_path": "原文件相对路径"
     }
     """
     try:
@@ -2113,11 +2245,11 @@ def backup_file():
         backup_dir = VIDEO_PROJECTS_DIR / novel_title / episode_title / '.backups' / file_type
         backup_dir.mkdir(parents=True, exist_ok=True)
 
-        # 原文件路�?
+        # 原文件路径
         if file_path:
-            # 如果提供了完整路�?
+            # 如果提供了完整路径
             if file_path.startswith('/'):
-                # URL路径，需要解�?
+                # URL路径，需要解码
                 original_file = VIDEO_PROJECTS_DIR / unquote(file_path.lstrip('/'))
             else:
                 original_file = VIDEO_PROJECTS_DIR / file_path
@@ -2138,15 +2270,15 @@ def backup_file():
         if not original_file.exists():
             return jsonify({'success': False, 'error': f'原文件不存在: {original_file}'}), 404
 
-        # 生成备份文件名（带时间戳�?
+        # 生成备份文件名（带时间戳）
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         backup_filename = f"{original_file.stem}_{timestamp}{original_file.suffix}"
         backup_path = backup_dir / backup_filename
 
-        # 复制文件到备份目�?
+        # 复制文件到备份目录
         shutil.copy2(original_file, backup_path)
 
-        logger.info(f'💾 文件已备�? {original_file} -> {backup_path}')
+        logger.info(f'💾 文件已备份: {original_file} -> {backup_path}')
 
         return jsonify({
             'success': True,
@@ -2164,13 +2296,13 @@ def backup_file():
 @short_drama_api.route('/backups', methods=['GET'])
 def list_backups():
     """
-    列出某个镜头的所有备�?
+    列出某个镜头的所有备份
 
-    参数�?
-        novel_title: 小说�?
-        episode_title: 集数�?
+    参数：
+        novel_title: 小说名
+        episode_title: 集数名
         file_type: video | audio
-        shot_number: 镜头�?
+        shot_number: 镜头号
     """
     try:
         novel_title = request.args.get('novel')
@@ -2186,11 +2318,11 @@ def list_backups():
         if not backup_dir.exists():
             return jsonify({'success': True, 'backups': []})
 
-        # 查找该镜头的所有备�?
+        # 查找该镜头的所有备份
         backups = []
         pattern = f"*_{shot_number}_*"
         for backup_file in backup_dir.glob(pattern):
-            # 解析时间�?
+            # 解析时间戳
             parts = backup_file.stem.split('_')
             if len(parts) >= 2:
                 timestamp_str = parts[-1]
@@ -2224,14 +2356,14 @@ def list_backups():
 @short_drama_api.route('/restore', methods=['POST'])
 def restore_backup():
     """
-    从备份还原文�?
+    从备份还原文件
 
     请求体：
     {
-        "novel_title": "小说�?,
-        "episode_title": "集数�?,
+        "novel_title": "小说名",
+        "episode_title": "集数名",
         "backup_path": "备份文件相对路径",
-        "backup_current": true  # 是否先备份当前文�?
+        "backup_current": true  # 是否先备份当前文件
     }
     """
     try:
@@ -2248,7 +2380,7 @@ def restore_backup():
         backup_file = VIDEO_PROJECTS_DIR / backup_path
 
         if not backup_file.exists():
-            return jsonify({'success': False, 'error': '备份文件不存�?}), 404
+            return jsonify({'success': False, 'error': '备份文件不存在'}), 404
 
         # 确定目标文件路径
         if backup_path.startswith('.backups/video/'):
@@ -2277,12 +2409,12 @@ def restore_backup():
             current_backup = target_dir.parent / '.backups' / backup_path.split('/')[2] / f"{target_file.stem}_current_{timestamp}{target_file.suffix}"
             current_backup.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(target_file, current_backup)
-            logger.info(f'💾 当前文件已备�? {current_backup}')
+            logger.info(f'💾 当前文件已备份: {current_backup}')
 
         # 还原文件
         shutil.copy2(backup_file, target_file)
 
-        logger.info(f'♻️ 文件已还�? {backup_file} -> {target_file}')
+        logger.info(f'♻️ 文件已还原: {backup_file} -> {target_file}')
 
         return jsonify({
             'success': True,
@@ -2316,11 +2448,11 @@ def delete_backup():
         backup_file = VIDEO_PROJECTS_DIR / backup_path
 
         if not backup_file.exists():
-            return jsonify({'success': False, 'error': '备份文件不存�?}), 404
+            return jsonify({'success': False, 'error': '备份文件不存在'}), 404
 
         backup_file.unlink()
 
-        logger.info(f'🗑�?备份已删�? {backup_path}')
+        logger.info(f'🗑️ 备份已删除: {backup_path}')
 
         return jsonify({'success': True})
     except Exception as e:
@@ -2329,106 +2461,6 @@ def delete_backup():
 
 
 def register_short_drama_routes(app):
-    """注册短剧工作台路�?""
+    """注册短剧工作台路由"""
     app.register_blueprint(short_drama_api)
-    logger.info('�?短剧工作�?API 已注�?)
-
-
-@short_drama_api.route('/storyboard/generate-from-beats', methods=['POST'])
-def generate_storyboard_from_beats():
-    """
-    基于故事节拍生成分镜头（带专业VeO Prompt）
-    
-    请求参数:
-    {
-        "projectId": "项目ID",
-        "storyBeats": {故事节拍数据},
-        "hasReferenceImage": false,  // 是否有角色参考图
-        "hasFirstLastFrame": false   // 是否使用首尾帧模式
-    }
-    
-    返回:
-    {
-        "success": True,
-        "shots": [...],
-        "total_shots": 10,
-        "prompt_mode": "standard|reference|frames"  // 使用的提示词模式
-    }
-    """
-    try:
-        from web.services.veo_prompt_service import generate_veo_prompts_for_scenes
-        
-        data = request.get_json()
-        project_id = data.get('projectId')
-        story_beats = data.get('storyBeats')
-        has_reference_image = data.get('hasReferenceImage', False)
-        has_first_last_frame = data.get('hasFirstLastFrame', False)
-        
-        if not project_id or not story_beats:
-            return jsonify({
-                'success': False,
-                'message': '缺少必要参数'
-            }), 400
-        
-        # 确定提示词模式
-        prompt_mode = "standard"
-        if has_first_last_frame:
-            prompt_mode = "frames"
-        elif has_reference_image:
-            prompt_mode = "reference"
-        
-        logger.info(f'[生成分镜头] 项目: {project_id}, 模式: {prompt_mode}')
-        logger.info(f'[生成分镜头] 场景数: {len(story_beats.get("scenes", []))}')
-        logger.info(f'[生成分镜头] 参考图: {has_reference_image}, 首尾帧: {has_first_last_frame}')
-        
-        # 使用 VeO Prompt 服务生成分镜头（传入模式参数）
-        shots = generate_veo_prompts_for_scenes(
-            story_beats,
-            has_reference_image=has_reference_image,
-            has_first_last_frame=has_first_last_frame
-        )
-        
-        # 查找并更新项目文件
-        project_file = None
-        for project_dir in VIDEO_PROJECTS_DIR.iterdir():
-            if project_dir.is_dir():
-                pf = project_dir / '项目信息.json'
-                if pf.exists():
-                    try:
-                        with open(pf, 'r', encoding='utf-8') as f:
-                            pd = json.load(f)
-                        if pd.get('id') == project_id:
-                            project_file = pf
-                            break
-                    except:
-                        continue
-        
-        if project_file:
-            with open(project_file, 'r', encoding='utf-8') as f:
-                project_data = json.load(f)
-            
-            # 更新 shots 到项目数据
-            project_data['shots'] = shots
-            project_data['updated_at'] = datetime.now().isoformat()
-            
-            with open(project_file, 'w', encoding='utf-8') as f:
-                json.dump(project_data, f, ensure_ascii=False, indent=2)
-            
-            logger.info(f'[生成分镜头] 已保存到项目文件: {len(shots)} 个镜头')
-        
-        return jsonify({
-            'success': True,
-            'shots': shots,
-            'total_shots': len(shots),
-            'prompt_mode': prompt_mode,
-            'message': f'成功生成 {len(shots)} 个分镜头（{prompt_mode}模式）'
-        })
-        
-    except Exception as e:
-        logger.error(f'[生成分镜头] 失败: {e}')
-        import traceback
-        logger.error(traceback.format_exc())
-        return jsonify({
-            'success': False,
-            'message': f'生成失败: {str(e)}'
-        }), 500
+    logger.info('✅ 短剧工作台 API 已注册')
