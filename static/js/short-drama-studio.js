@@ -5330,9 +5330,9 @@ saveVeOConfig(config) {
                                         color: var(--text-primary);
                                         font-size: 0.95rem;
                                     ">
-                                        <option value="veo_3_1-fast-components-4K" ${videoSettings.model === 'veo_3_1-fast-components-4K' ? 'selected' : ''}>4K参考图模式</option>
-                                        <option value="veo_3_1-fast-components" ${videoSettings.model === 'veo_3_1-fast-components' ? 'selected' : ''}>1080p参考图模式</option>
-                                        <option value="veo_3_1-fast" ${videoSettings.model === 'veo_3_1-fast' ? 'selected' : ''}>首尾帧模式</option>
+                                        <option value="veo_3_1-fast-components-4K" ${shot.preferred_mode === 'reference' && videoSettings.model === 'veo_3_1-fast-components-4K' ? 'selected' : ''}>4K参考图模式</option>
+                                        <option value="veo_3_1-fast-components" ${shot.preferred_mode === 'reference' && videoSettings.model !== 'veo_3_1-fast-components-4K' ? 'selected' : ''}>1080p参考图模式</option>
+                                        <option value="veo_3_1-fast" ${shot.preferred_mode === 'frames' ? 'selected' : ''}>首尾帧模式</option>
                                     </select>
                                 </div>
                                 <div>
@@ -5372,7 +5372,7 @@ saveVeOConfig(config) {
                             </div>
                             <div style="margin-top: 16px;">
                                 <label style="display: flex; align-items: center; gap: 10px; font-size: 0.95rem; color: var(--text-secondary); cursor: pointer;">
-                                    <input type="checkbox" id="paramFirstLastFrame" ${videoSettings.use_first_last_frame ? 'checked' : ''} style="margin: 0; width: 18px; height: 18px;">
+                                    <input type="checkbox" id="paramFirstLastFrame" ${shot.preferred_mode === 'frames' ? 'checked' : ''} style="margin: 0; width: 18px; height: 18px;">
                                     <span>🎞️ 启用首尾帧模式（需选择1-2张图片）</span>
                                 </label>
                             </div>
