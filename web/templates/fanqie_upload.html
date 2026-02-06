@@ -107,6 +107,26 @@
             align-items: center;
         }
 
+        .btn-back {
+            padding: 8px 16px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-back:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text-primary);
+        }
+
         .nav-logo {
             display: flex;
             align-items: center;
@@ -1028,10 +1048,26 @@
     <!-- 导航栏 -->
     <nav class="navbar">
         <div class="nav-container">
-            <a href="/" class="nav-logo">
-                <div class="logo-icon">🎬</div>
-                <span class="logo-text">大文娱创作平台</span>
-            </a>
+            <div class="nav-left" style="display: flex; align-items: center; gap: 1rem;">
+                <button class="btn-back" onclick="window.location.href='/landing'" style="
+                    padding: 8px 16px;
+                    background: rgba(255, 255, 255, 0.05);
+                    border: 1px solid var(--border);
+                    border-radius: 8px;
+                    color: var(--text-secondary);
+                    cursor: pointer;
+                    font-size: 14px;
+                    font-weight: 500;
+                    transition: all 0.2s;
+                    display: flex;
+                    align-items: center;
+                    gap: 6px;
+                ">🏠 返回首页</button>
+                <a href="/" class="nav-logo">
+                    <div class="logo-icon">🎬</div>
+                    <span class="logo-text">大文娱创作平台</span>
+                </a>
+            </div>
             <div class="nav-center">
                 <a href="/short-drama-studio" class="nav-item">短剧工作台</a>
                 <a href="/fanqie-upload" class="nav-item active">番茄上传</a>
