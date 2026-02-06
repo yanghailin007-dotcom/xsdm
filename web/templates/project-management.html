@@ -375,6 +375,7 @@
             grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
             gap: 24px;
             margin-bottom: 30px;
+            align-items: stretch;
         }
 
         .project-card {
@@ -387,6 +388,9 @@
             transition: box-shadow 0.3s ease;
             position: relative;
             overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
         }
         
         .project-card:hover {
@@ -421,6 +425,7 @@
 
         .project-header {
             margin-bottom: 20px;
+            min-height: 80px; /* 固定header高度，容纳两行标题+meta */
         }
 
         .project-title {
@@ -429,6 +434,11 @@
             color: #1f2937;
             margin-bottom: 8px;
             line-height: 1.3;
+            height: 2.6em; /* 固定两行高度: 1.25rem * 1.3 * 2 = 2.6em */
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
         }
 
         .project-meta {
@@ -463,6 +473,7 @@
             -webkit-line-clamp: 3;
             -webkit-box-orient: vertical;
             overflow: hidden;
+            height: 63px; /* 固定3行高度: 14px * 1.5 * 3 = 63px */
         }
 
         .project-progress {
@@ -517,6 +528,7 @@
             align-items: center;
             gap: 8px;
             margin-bottom: 16px;
+            flex: 1;
         }
 
         .phase-indicator {
@@ -562,28 +574,35 @@
         }
 
         .project-actions {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
+            display: flex;
+            flex-wrap: wrap;
             gap: 8px;
+            align-items: stretch;
+        }
+        
+        .project-actions .action-btn {
+            flex: 1 1 calc(25% - 6px);
+            min-width: 100px;
+            max-width: calc(50% - 4px);
         }
 
         @media (max-width: 1200px) {
-            .project-actions {
-                grid-template-columns: repeat(3, 1fr);
+            .project-actions .action-btn {
+                flex: 1 1 calc(33.333% - 5.333px);
             }
         }
 
         @media (max-width: 768px) {
-            .project-actions {
-                grid-template-columns: repeat(2, 1fr);
+            .project-actions .action-btn {
+                flex: 1 1 calc(50% - 4px);
             }
         }
 
         .action-btn {
-            padding: 8px 12px;
+            padding: 10px 16px;
             border: none;
-            border-radius: 6px;
-            font-size: 12px;
+            border-radius: 8px;
+            font-size: 13px;
             font-weight: 600;
             cursor: pointer;
             /* 优化过渡效果 */
@@ -591,10 +610,12 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            gap: 4px;
+            gap: 6px;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+            height: 40px;
+            line-height: 1;
         }
         
         .action-btn.primary {
@@ -603,14 +624,18 @@
         }
         
         .action-btn.secondary {
-            background: #f3f4f6;
-            color: #374151;
-            border: 1px solid #e5e7eb;
+            background: rgba(255, 255, 255, 0.08);
+            color: #cbd5e1;
+            border: 1px solid rgba(255, 255, 255, 0.15);
         }
         
         .action-btn.danger {
             background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
             color: white;
+            margin-left: auto;
+            flex: 0 0 auto !important;
+            min-width: 80px !important;
+            max-width: none !important;
         }
 
         .action-btn.success {
@@ -727,11 +752,12 @@
             }
             
             .project-actions {
-                flex-direction: column;
+                flex-direction: row;
             }
             
-            .action-btn {
-                flex: none;
+            .project-actions .action-btn {
+                flex: 1 1 calc(50% - 4px);
+                max-width: none;
             }
         }
     </style>
