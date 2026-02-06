@@ -47,9 +47,15 @@ class VeOPromptService:
                        story_beat_cn: str,
                        dialogues: List[Dict],
                        emotional_arc: str,
-                       characters: List[Dict] = None) -> Dict[str, str]:
+                       characters: List[Dict] = None,
+                       has_reference_image: bool = False,
+                       has_first_last_frame: bool = False) -> Dict[str, str]:
         """
         生成 VeO 优化的提示词
+        
+        Args:
+            has_reference_image: 是否有角色参考图
+            has_first_last_frame: 是否使用首尾帧模式
         
         Returns:
             {
@@ -67,14 +73,24 @@ class VeOPromptService:
             "lighting": cls._select_lighting(emotional_arc),
             "camera": cls._select_camera_angle(story_beat_cn),
             "style": cls._select_cinematic_style(emotional_arc),
-            "mood": cls._extract_mood(emotional_arc)
+            "mood": cls._extract_mood(emotional_arc),
+            "has_reference_image": has_reference_image,
+            "has_first_last_frame": has_first_last_frame
         }
         
-        # 构建 VeO Prompt (英文，简洁，视觉化 - 用于AI生成)
-        veo_prompt = cls._build_veo_prompt(components)
-        
-        # 构建中文视觉描述 (用于前端展示给用户)
-        visual_description_cn = cls._build_visual_description_cn(components)
+        # 根据输入模式选择不同的提示词构建策略
+        if has_first_last_frame:
+            # 首尾帧模式：强调中间动态过程
+            veo_prompt = cls._build_veo_prompt_with_frames(components)
+            visual_description_cn = cls._build_visual_description_cn_with_frames(components)
+        elif has_reference_image:
+            # 参考图模式：强调场景、动作、氛围，弱化角色外貌
+            veo_prompt = cls._build_veo_prompt_with_reference(components)
+            visual_description_cn = cls._build_visual_description_cn_with_reference(components)
+        else:
+            # 标准模式：完整描述
+            veo_prompt = cls._build_veo_prompt(components)
+            visual_description_cn = cls._build_visual_description_cn(components)
         
         # 构建角色参考图 Prompt
         image_prompt = cls._build_image_prompt(components)
@@ -392,16 +408,186 @@ class VeOPromptService:
     def _build_negative_prompt(cls) -> str:
         """构建负面提示词"""
         return "blurry, low quality, distorted face, extra limbs, bad anatomy, watermark, text, cartoon, anime, painting, illustration"
+    
+    # ==================== 参考图模式提示词构建 ====================
+    
+    @classmethod
+    def _build_veo_prompt_with_reference(cls, components: Dict) -> str:
+        """
+        构建带参考图的 VeO Prompt
+        
+        策略：
+        - 弱化角色外貌描述（参考图已提供）
+        - 强调动作、姿态变化
+        - 强调场景环境和氛围
+        - 强调光影效果
+        """
+        subject = components["subject"]
+        
+        # 简化角色描述，只保留服装和表情，不描述具体外貌
+        subject_desc = f"character in {subject.get('clothing', 'traditional robe')}, {subject.get('expression', 'neutral')}"
+        
+        parts = [
+            "character acting",  # 强调角色表演
+            subject_desc,
+            components["action"],  # 重点：动作
+            f"in {components['setting']}",  # 重点：场景
+            components["lighting"],  # 重点：光影
+            f"dynamic {components['camera']}",  # 强调动态运镜
+            components["style"],
+            f"{components['mood']}, vertical 9:16 format, character reference image provided"
+        ]
+        
+        return ", ".join(parts)
+    
+    @classmethod
+    def _build_visual_description_cn_with_reference(cls, components: Dict) -> str:
+        """构建带参考图的中文视觉描述"""
+        subject = components["subject"]
+        
+        clothing_map = {
+            "white flowing robe": "白衣",
+            "blue-green taoist robe": "青袍", 
+            "red battle robe": "红袍",
+            "purple noble robe": "紫袍",
+            "black assassin outfit": "黑衣",
+            "simple white linen robe": "素衣",
+            "traditional chinese robe": "传统服饰"
+        }
+        
+        action_map = {
+            "kneeling": "跪姿",
+            "standing": "站立",
+            "sitting cross-legged": "盘坐",
+            "lying down injured": "倒地",
+            "levitating": "悬浮",
+            "in combat stance": "战斗姿态",
+            "retreating": "后退",
+            "chasing": "追击",
+            "coughing blood": "咳血",
+            "forming hand seals": "掐诀",
+            "healing meditation": "疗伤",
+            "standing still": "静立"
+        }
+        
+        setting_map = {
+            "ancient cultivation cave": "修炼洞府",
+            "grand palace hall": "宗门大殿",
+            "spirit herb garden": "灵药园",
+            "cliff edge with mist": "云雾悬崖",
+            "sealed stone chamber": "密室",
+            "battlefield ruins": "战场",
+            "mountain sect entrance": "山门",
+            "bamboo forest": "竹林",
+            "hidden chamber": "暗室",
+            "traditional rooftop at night": "屋顶",
+            "stone meditation room": "静室",
+            "vast training courtyard": "广场",
+            "traditional chinese interior": "内景"
+        }
+        
+        clothing = clothing_map.get(subject.get('clothing', ''), '传统服饰')
+        
+        parts = [
+            f"【参考图角色】身着{clothing}",
+            f"【动作】{action_map.get(components['action'], components['action'])}",
+            f"【场景】{setting_map.get(components['setting'], components['setting'])}",
+            f"【光线】{components['lighting']}",
+            "【提示】使用角色参考图，保持人物一致性"
+        ]
+        
+        return "；".join(parts)
+    
+    # ==================== 首尾帧模式提示词构建 ====================
+    
+    @classmethod
+    def _build_veo_prompt_with_frames(cls, components: Dict) -> str:
+        """
+        构建首尾帧模式的 VeO Prompt
+        
+        策略：
+        - 描述从首帧到尾帧的中间动态过程
+        - 强调动作变化和运动轨迹
+        - 强调时间流逝感
+        """
+        subject = components["subject"]
+        
+        # 构建动态描述
+        action = components["action"]
+        mood = components["mood"]
+        
+        # 根据动作类型添加动态关键词
+        dynamic_keywords = {
+            "kneeling": "gradually rising from kneeling position",
+            "standing": "slight body movement and breathing",
+            "levitating": "ascending into the air with flowing motion",
+            "in combat stance": "dynamic combat movement and weapon swing",
+            "retreating": "stepping back with defensive motion",
+            "chasing": "rapid forward movement with motion blur",
+            "coughing blood": "collapsing motion with blood splatter effect",
+            "forming hand seals": "hand gestures with glowing energy trails"
+        }
+        
+        dynamic_desc = dynamic_keywords.get(action, f"subtle {action} motion")
+        
+        parts = [
+            "smooth video transition",
+            "character maintaining consistent appearance",
+            dynamic_desc,  # 重点：中间动态
+            f"in {components['setting']}",
+            components["lighting"],
+            f"{components['camera']} with slight movement",
+            components["style"],
+            f"{mood} transitioning, vertical 9:16 format, first and last frame provided"
+        ]
+        
+        return ", ".join(parts)
+    
+    @classmethod
+    def _build_visual_description_cn_with_frames(cls, components: Dict) -> str:
+        """构建首尾帧模式的中文视觉描述"""
+        
+        action_map = {
+            "kneeling": "从跪姿缓缓起身",
+            "standing": "静立，呼吸起伏",
+            "levitating": "缓缓升空，衣袂飘动",
+            "in combat stance": "战斗姿态，武器挥舞",
+            "retreating": "后退防御，步伐移动",
+            "chasing": "疾速追击，动作模糊",
+            "coughing blood": "咳血倒地，动态效果",
+            "forming hand seals": "手掐法诀，流光拖尾",
+            "sitting cross-legged": "打坐调息，气息流转",
+            "healing meditation": "疗伤运气，光芒流转"
+        }
+        
+        action_cn = action_map.get(components['action'], components['action'])
+        
+        parts = [
+            "【模式】首尾帧视频生成",
+            f"【中间动态】{action_cn}",
+            f"【场景】{components['setting']}",
+            f"【光线】{components['lighting']}",
+            "【提示】保持人物一致性，平滑过渡"
+        ]
+        
+        return "；".join(parts)
 
 
 # 便捷函数
-def generate_veo_prompts_for_scenes(story_beats: Dict, characters: List[Dict] = None) -> List[Dict]:
+def generate_veo_prompts_for_scenes(
+    story_beats: Dict, 
+    characters: List[Dict] = None,
+    has_reference_image: bool = False,
+    has_first_last_frame: bool = False
+) -> List[Dict]:
     """
     为故事节拍中的所有场景生成 VeO Prompts
     
     Args:
         story_beats: 故事节拍数据 {scenes: [...]}
         characters: 角色列表
+        has_reference_image: 是否有角色参考图
+        has_first_last_frame: 是否使用首尾帧模式
         
     Returns:
         带 veo_prompt 的 shots 列表
@@ -416,7 +602,9 @@ def generate_veo_prompts_for_scenes(story_beats: Dict, characters: List[Dict] = 
             story_beat_cn=scene.get('storyBeatCn', ''),
             dialogues=scene.get('dialogues', []),
             emotional_arc=scene.get('emotionalArc', ''),
-            characters=characters
+            characters=characters,
+            has_reference_image=has_reference_image,
+            has_first_last_frame=has_first_last_frame
         )
         
         # 为每个对白创建一个镜头
