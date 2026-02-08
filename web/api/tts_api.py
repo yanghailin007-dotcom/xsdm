@@ -1371,6 +1371,99 @@ def export_subtitle():
         }), 500
 
 
+# ==================== Gemini配置API ====================
+
+@tts_api.route('/gemini/config', methods=['POST'])
+def update_gemini_config():
+    """更新Gemini API配置
+    修改config/config.py中的CONFIG字典，影响AIClient的调用
+    """
+    try:
+        data = request.json
+        api_url = data.get('api_url')
+        api_key = data.get('api_key')
+        model = data.get('model')
+
+        if not api_url or not api_key:
+            return jsonify({
+                'success': False,
+                'error': 'api_url和api_key不能为空'
+            }), 400
+
+        # 导入CONFIG并修改
+        from config.config import CONFIG
+        
+        # 更新API URL
+        if 'api_urls' not in CONFIG:
+            CONFIG['api_urls'] = {}
+        CONFIG['api_urls']['gemini'] = api_url
+        
+        # 更新API Key
+        if 'api_keys' not in CONFIG:
+            CONFIG['api_keys'] = {}
+        CONFIG['api_keys']['gemini'] = api_key
+        
+        # 更新模型（如果提供）
+        if model:
+            if 'models' not in CONFIG:
+                CONFIG['models'] = {}
+            CONFIG['models']['gemini'] = model
+            logger.info(f'🤖 [Gemini] 模型已更新为: {model}')
+        
+        # 设置默认提供商为gemini（如果还没有设置）
+        if not CONFIG.get('default_provider'):
+            CONFIG['default_provider'] = 'gemini'
+        
+        logger.info(f'🤖 [Gemini] API配置已更新: URL={api_url[:30]}..., Key={api_key[:10]}...')
+        
+        return jsonify({
+            'success': True,
+            'message': 'Gemini配置已更新并生效',
+            'config': {
+                'api_url': api_url,
+                'model': model or CONFIG.get('models', {}).get('gemini', 'gemini-2.5-pro')
+            }
+        })
+
+    except Exception as e:
+        logger.error(f'更新Gemini配置失败: {e}')
+        import traceback
+        logger.error(f'错误堆栈: {traceback.format_exc()}')
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@tts_api.route('/gemini/config', methods=['GET'])
+def get_gemini_config():
+    """获取当前Gemini配置状态"""
+    try:
+        from config.config import CONFIG
+        
+        api_url = CONFIG.get('api_urls', {}).get('gemini', '')
+        api_key = CONFIG.get('api_keys', {}).get('gemini', '')
+        model = CONFIG.get('models', {}).get('gemini', 'gemini-2.5-pro')
+        
+        # 只返回是否已配置，不返回完整的key
+        configured = bool(api_url and api_key)
+        
+        return jsonify({
+            'success': True,
+            'configured': configured,
+            'api_url': api_url,
+            'model': model,
+            'key_prefix': api_key[:10] + '...' if api_key else None
+        })
+        
+    except Exception as e:
+        logger.error(f'获取Gemini配置失败: {e}')
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
 # ==================== 路由注册函数 ====================
 
 def register_tts_routes(app):

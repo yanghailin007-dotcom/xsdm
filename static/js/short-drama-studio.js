@@ -99,9 +99,9 @@ class ShortDramaStudio {
             this.backToProjects();
         });
 
-        // 新建项目按钮
-        document.getElementById('createProjectBtn')?.addEventListener('click', () => {
-            this.createNewProject();
+        // Gemini配置按钮
+        document.getElementById('geminiConfigBtn')?.addEventListener('click', () => {
+            this.showGeminiConfig();
         });
 
         // 从小说创建按钮
@@ -4113,6 +4113,168 @@ saveVeOConfig(config) {
         localStorage.setItem('veo_config', JSON.stringify(config));
     } catch (e) {
         console.error('保存VeO配置失败:', e);
+        this.showToast('保存配置失败', 'error');
+    }
+}
+
+// Gemini配置功能
+
+/**
+ * 显示Gemini配置弹窗
+ */
+showGeminiConfig() {
+    const modal = document.createElement('div');
+    modal.className = 'modal-overlay';
+    modal.style.cssText = `
+        position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(0,0,0,0.8); display: flex;
+        justify-content: center; align-items: center; z-index: 10000;
+    `;
+
+    // 获取当前配置
+    const currentConfig = this.loadGeminiConfig();
+
+    modal.innerHTML = `
+        <div class="modal-content" style="
+            background: var(--bg-secondary); border-radius: 16px;
+            max-width: 500px; width: 90%; padding: 2rem;
+            box-shadow: 0 25px 80px rgba(0,0,0,0.4);
+        ">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                <h2 style="margin: 0;">🤖 Gemini API配置</h2>
+                <button class="btn-close" onclick="this.closest('.modal-overlay').remove()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer;">✕</button>
+            </div>
+
+            <div style="margin-bottom: 1rem;">
+                <label style="font-weight: 600; display: block; margin-bottom: 0.5rem;">API Base URL</label>
+                <input type="text" id="geminiApiUrl" value="${currentConfig.apiUrl}" placeholder="https://generativelanguage.googleapis.com" style="
+                    width: 100%; padding: 10px; background: var(--bg-dark);
+                    border: 1px solid var(--border); border-radius: 8px;
+                    color: var(--text-primary); font-size: 1rem;
+                ">
+            </div>
+
+            <div style="margin-bottom: 1rem;">
+                <label style="font-weight: 600; display: block; margin-bottom: 0.5rem;">API Key</label>
+                <input type="password" id="geminiApiKey" value="${currentConfig.apiKey}" placeholder="请输入Gemini API Key" style="
+                    width: 100%; padding: 10px; background: var(--bg-dark);
+                    border: 1px solid var(--border); border-radius: 8px;
+                    color: var(--text-primary); font-size: 1rem;
+                ">
+            </div>
+
+            <div style="margin-bottom: 1rem;">
+                <label style="font-weight: 600; display: block; margin-bottom: 0.5rem;">默认模型</label>
+                <select id="geminiModel" style="
+                    width: 100%; padding: 10px; background: var(--bg-dark);
+                    border: 1px solid var(--border); border-radius: 8px;
+                    color: var(--text-primary); font-size: 1rem;
+                ">
+                    <option value="gemini-2.5-pro" ${currentConfig.model === 'gemini-2.5-pro' ? 'selected' : ''}>Gemini 2.5 Pro (推荐)</option>
+                    <option value="gemini-2.0-flash" ${currentConfig.model === 'gemini-2.0-flash' ? 'selected' : ''}>Gemini 2.0 Flash</option>
+                    <option value="gemini-1.5-pro" ${currentConfig.model === 'gemini-1.5-pro' ? 'selected' : ''}>Gemini 1.5 Pro</option>
+                    <option value="gemini-3-pro-preview" ${currentConfig.model === 'gemini-3-pro-preview' ? 'selected' : ''}>Gemini 3 Pro Preview</option>
+                </select>
+            </div>
+
+            <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+                <button id="saveGeminiConfigBtn" class="btn btn-primary" style="flex: 1;">保存配置</button>
+                <button class="btn btn-secondary" onclick="this.closest('.modal-overlay').remove()" style="flex: 1;">取消</button>
+            </div>
+
+            <div style="margin-top: 1rem; padding: 1rem; background: var(--bg-tertiary); border-radius: 8px; font-size: 0.85rem; color: var(--text-secondary);">
+                <p style="margin: 0 0 0.5rem 0;">📌 获取Gemini API密钥：</p>
+                <ol style="margin: 0; padding-left: 1.5rem;">
+                    <li>访问 <a href="https://aistudio.google.com/app/apikey" target="_blank">Google AI Studio</a></li>
+                    <li>登录Google账号</li>
+                    <li>创建新的API Key</li>
+                </ol>
+            </div>
+        </div>
+    `;
+
+    // 点击背景关闭
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) modal.remove();
+    });
+
+    // 保存配置
+    const saveBtn = modal.querySelector('#saveGeminiConfigBtn');
+    saveBtn.addEventListener('click', async () => {
+        const apiUrl = document.getElementById('geminiApiUrl').value.trim();
+        const apiKey = document.getElementById('geminiApiKey').value.trim();
+        const model = document.getElementById('geminiModel').value;
+
+        if (!apiUrl || !apiKey) {
+            this.showToast('API URL和API Key不能为空', 'error');
+            return;
+        }
+
+        // 保存配置到localStorage
+        this.saveGeminiConfig({
+            apiUrl,
+            apiKey,
+            model
+        });
+
+        // 同步到后端
+        try {
+            const response = await fetch('/api/gemini/config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    api_url: apiUrl,
+                    api_key: apiKey,
+                    model: model
+                })
+            });
+
+            const result = await response.json();
+            if (result.success) {
+                this.showToast('Gemini配置已保存并生效', 'success');
+                modal.remove();
+            } else {
+                this.showToast(`保存失败: ${result.error}`, 'error');
+            }
+        } catch (error) {
+            console.error('保存Gemini配置失败:', error);
+            this.showToast('保存失败，请检查网络', 'error');
+        }
+    });
+
+    document.body.appendChild(modal);
+}
+
+/**
+ * 加载Gemini配置
+ */
+loadGeminiConfig() {
+    const defaultConfig = {
+        apiUrl: 'https://generativelanguage.googleapis.com',
+        apiKey: '',
+        model: 'gemini-2.5-pro'
+    };
+
+    try {
+        const saved = localStorage.getItem('gemini_config');
+        if (saved) {
+            return { ...defaultConfig, ...JSON.parse(saved) };
+        }
+    } catch (e) {
+        console.error('加载Gemini配置失败:', e);
+    }
+
+    return defaultConfig;
+}
+
+/**
+ * 保存Gemini配置到localStorage
+ */
+saveGeminiConfig(config) {
+    try {
+        localStorage.setItem('gemini_config', JSON.stringify(config));
+    } catch (e) {
+        console.error('保存Gemini配置失败:', e);
         this.showToast('保存配置失败', 'error');
     }
 }
