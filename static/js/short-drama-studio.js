@@ -8732,6 +8732,30 @@ saveGeminiConfig(config) {
         const container = document.getElementById('storyboardContent');
         if (!container) return;
         
+        // 🔥 首先检查是否已有分镜头数据
+        if (this.currentProject?.shots && this.currentProject.shots.length > 0) {
+            console.log('✅ [分镜头] 使用内存中的分镜头数据:', this.currentProject.shots.length);
+            this.renderShotsList();
+            return;
+        }
+        
+        // 🔥 其次尝试从文件系统加载已保存的分镜头
+        container.innerHTML = `
+            <div class="empty-state">
+                <p>⏳</p>
+                <p>正在加载分镜头...</p>
+            </div>
+        `;
+        
+        const existingShots = await this.loadShotsV2();
+        if (existingShots?.shots?.length > 0) {
+            console.log('✅ [分镜头] 从文件加载已存在的分镜头:', existingShots.shots.length);
+            this.currentProject.shots = existingShots.shots;
+            this.renderShotsList();
+            return;
+        }
+        
+        // 🔥 没有已存在的分镜头，需要生成
         if (!this.currentProject?.storyBeats?.scenes) {
             container.innerHTML = `
                 <div class="empty-state">

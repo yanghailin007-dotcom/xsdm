@@ -244,11 +244,13 @@ class ShortDramaProject:
                             'visual_description_standard': shot_cn.get('visual_description_standard', ''),
                             'visual_description_reference': shot_cn.get('visual_description_reference', ''),
                             'visual_description_frames': shot_cn.get('visual_description_frames', ''),
-                            # 🔥 中文场景图提示词（用于显示）
-                            'image_prompt': shot_cn.get('image_prompt', ''),
-                            # 🔥 英文场景图提示词（用于AI生成）
-                            'image_prompt_en': shot_en.get('image_prompt', ''),
+                            # 🔥 四种图片提示词（英文，用于AI生成）
+                            'image_prompts': shot_en.get('image_prompts', {}),
+                            # 🔥 四种图片提示词（中文，用于显示）
+                            'image_prompts_cn': shot_cn.get('image_prompts_cn', {}),
                             # 兼容旧模式
+                            'image_prompt': shot_cn.get('image_prompt', ''),
+                            'image_prompt_en': shot_en.get('image_prompt', ''),
                             'veo_prompt': shot_en.get('veo_prompt_standard', ''),
                             'visual_description': shot_cn.get('visual_description_standard', ''),
                             'preferred_mode': 'standard',
@@ -677,9 +679,37 @@ def create_from_idea():
             json.dump(shots_v2_cn_data, f, ensure_ascii=False, indent=2)
         logger.info(f'✅ [创意导入] 中文分镜头已保存: {shots_v2_cn_file}')
 
-        # 使用中文版本作为前端展示的shots
-        shots = shots_cn
-        
+        # 🔥 合并中英文数据，保存完整的 shots 到项目信息
+        merged_shots = []
+        for i, (shot_cn, shot_en) in enumerate(zip(shots_cn, shots_en), 1):
+            merged_shot = {
+                'id': f'shot_{i}',
+                'shot_number': shot_cn.get('shot_number', i),
+                'scene_number': 1,
+                'scene_title': shot_cn.get('scene_title', ''),
+                'shot_type': shot_cn.get('shot_type', ''),
+                'duration': shot_cn.get('duration_seconds', 8),
+                # 🔥 英文提示词（用于AI生成）
+                'veo_prompt_standard': shot_en.get('veo_prompt_standard', ''),
+                'veo_prompt_reference': shot_en.get('veo_prompt_reference', ''),
+                'veo_prompt_frames': shot_en.get('veo_prompt_frames', ''),
+                # 🔥 中文描述（用于显示）
+                'visual_description_standard': shot_cn.get('visual_description_standard', ''),
+                'visual_description_reference': shot_cn.get('visual_description_reference', ''),
+                'visual_description_frames': shot_cn.get('visual_description_frames', ''),
+                # 🔥 四种图片提示词（英文，用于AI生成）
+                'image_prompts': shot_en.get('image_prompts', {}),
+                # 🔥 四种图片提示词（中文，用于显示）
+                'image_prompts_cn': shot_cn.get('image_prompts_cn', {}),
+                # 兼容旧模式
+                'veo_prompt': shot_en.get('veo_prompt_standard', ''),
+                'visual_description': shot_cn.get('visual_description_standard', ''),
+                'preferred_mode': 'standard',
+                'dialogue': shot_cn.get('dialogue', {}),
+                'status': 'pending'
+            }
+            merged_shots.append(merged_shot)
+
         # 6. 创建项目信息（兼容前端格式）
         project_data = {
             'id': str(uuid.uuid4())[:8],
@@ -692,9 +722,9 @@ def create_from_idea():
                 'title': f'第{episode}集',
                 'name': episode_name,
                 'content': description,
-                'shot_count': len(shots),
+                'shot_count': len(merged_shots),
                 'shot_duration': shot_duration,
-                'shots': shots  # 添加前端兼容的shots数组
+                'shots': merged_shots  # 🔥 保存合并后的完整数据
             }],
             'characters': [],  # 创意导入暂无角色，后续可添加
             'settings': {
@@ -1545,7 +1575,7 @@ def generate_storyboard_from_beats():
                 'visual_description_frames': shot_cn.get('visual_description_frames', ''),
                 # 🔥 图片生成提示词（四种类型）
                 'image_prompts': shot_en.get('image_prompts', {}),
-                'image_prompts_cn': shot_cn.get('image_prompts', {}),
+                'image_prompts_cn': shot_cn.get('image_prompts_cn', {}),
                 # 兼容旧格式
                 'image_prompt': shot_cn.get('image_prompt', ''),
                 'image_prompt_en': shot_en.get('image_prompt', ''),

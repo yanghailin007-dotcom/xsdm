@@ -5001,39 +5001,16 @@ saveGeminiConfig(config) {
             const shotNum = shot.shot_number || (idx + 1);
             const shotKey = `videoPrompt_${this.selectedNovel}_${shot.episode_title || ''}_S${sceneNum}_#${shotNum}`;
 
-            // 🔥 构建AI提示词：区分画面场景和动作序列
-            // veo_prompt: 画面场景（静态）- 人物状态、表情、环境、光线、构图
-            // visual.description: 动作序列（动态）- 发生了什么、镜头运动、情节推进
-            const buildAIPrompt = (s) => {
-                const parts = [];
-                if (s.shot_type) parts.push(`【镜头类型】${s.shot_type}`);
+            // 🔥 获取当前模式的英文提示词和中文描述
+            const currentPromptEN = this.getCurrentVeoPrompt(shot);
+            const currentPromptCN = this.getCurrentVisualDescription(shot);
 
-                // 🔥 优先使用当前模式的提示词（数据流A）
-                const currentPrompt = this.getCurrentVeoPrompt(s);
-                const currentVisualDesc = this.getCurrentVisualDescription(s);
+            // 尝试加载之前保存的提示词
+            const savedPromptEN = localStorage.getItem(shotKey + '_en');
+            const savedPromptCN = localStorage.getItem(shotKey + '_cn');
 
-                // 画面场景描述（静态）- 使用当前模式的提示词
-                if (currentPrompt) {
-                    parts.push(`【画面场景】${currentPrompt}`);
-                } else if (s.veo_prompt) {
-                    parts.push(`【画面场景】${s.veo_prompt}`);
-                } else if (s.screen_action) {
-                    parts.push(`【画面场景】${s.screen_action}`);
-                }
-
-                // 动作序列描述（动态）
-                if (s.visual?.description) {
-                    parts.push(`【动作序列】${s.visual.description}`);
-                }
-
-                return parts.join('\n');
-            };
-
-            const aiPrompt = buildAIPrompt(shot);
-
-            // 尝试加载之前保存的提示词，如果没有则使用AI提示词
-            const savedPrompt = localStorage.getItem(shotKey);
-            const promptToUse = savedPrompt || aiPrompt;
+            const promptToUseEN = savedPromptEN || currentPromptEN || '';
+            const promptToUseCN = savedPromptCN || currentPromptCN || '';
 
             // 创建对话框
             const modal = document.createElement('div');
@@ -5096,10 +5073,10 @@ saveGeminiConfig(config) {
 
                         <!-- 提示词编辑区 -->
                         <div class="prompt-section" style="margin-bottom: 20px;">
-                            <label style="font-weight: 600; display: block; margin-bottom: 12px; font-size: 1rem;">📝 AI提示语${savedPrompt ? '<span style="font-size: 0.8rem; color: var(--success); margin-left: 8px;">(已加载保存的版本)</span>' : shot.preferred_mode ? `<span style="font-size: 0.8rem; color: #6366f1; margin-left: 8px;">(使用${shot.preferred_mode === 'standard' ? '标准' : shot.preferred_mode === 'reference' ? '参考图' : '首尾帧'}模式)</span>` : ''}</label>
-                            <textarea id="promptEditArea" style="
+                            <label style="font-weight: 600; display: block; margin-bottom: 12px; font-size: 1rem;">📝 AI提示语（中文）<span style="font-size: 0.8rem; color: #6366f1; margin-left: 8px;">(使用${shot.preferred_mode === 'standard' ? '标准' : shot.preferred_mode === 'reference' ? '参考图' : '首尾帧'}模式)</span></label>
+                            <textarea id="promptEditAreaCN" style="
                                 width: 100%;
-                                min-height: 120px;
+                                min-height: 100px;
                                 background: var(--bg-dark);
                                 border: 1px solid var(--border);
                                 border-radius: 12px;
@@ -5109,10 +5086,33 @@ saveGeminiConfig(config) {
                                 line-height: 1.6;
                                 resize: vertical;
                                 font-family: inherit;
-                            ">${promptToUse}</textarea>
-                            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 12px;">
+                            ">${promptToUseCN}</textarea>
+
+                            <label style="font-weight: 600; display: block; margin: 16px 0 12px 0; font-size: 1rem;">🌐 AI提示语（英文 - 实际发送给VeO）</label>
+                            <textarea id="promptEditAreaEN" style="
+                                width: 100%;
+                                min-height: 100px;
+                                background: var(--bg-dark);
+                                border: 1px solid var(--border);
+                                border-radius: 12px;
+                                padding: 16px;
+                                color: var(--text-primary);
+                                font-size: 1rem;
+                                line-height: 1.6;
+                                resize: vertical;
+                                font-family: inherit;
+                            ">${promptToUseEN}</textarea>
+
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 12px; gap: 12px;">
+                                <div style="display: flex; gap: 8px;">
+                                    <button id="translateToEnBtn" style="font-size: 0.85rem; padding: 6px 12px; background: var(--primary); color: white; border: none; border-radius: 6px; cursor: pointer;">
+                                        中文 → 英文
+                                    </button>
+                                    <button id="translateToCnBtn" style="font-size: 0.85rem; padding: 6px 12px; background: var(--primary); color: white; border: none; border-radius: 6px; cursor: pointer;">
+                                        英文 → 中文
+                                    </button>
+                                </div>
                                 <small style="color: var(--text-secondary); font-size: 0.9rem;">💾 修改后会自动保存到本地</small>
-                                ${savedPrompt ? `<button id="resetPromptBtn" style="font-size: 0.85rem; padding: 6px 12px; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 6px; cursor: pointer;">重置为原始提示词</button>` : ''}
                             </div>
                         </div>
 
@@ -5417,8 +5417,10 @@ saveGeminiConfig(config) {
             const cancelBtn = modal.querySelector('.btn-cancel');
             const skipBtn = modal.querySelector('.btn-skip');
             const generateBtn = modal.querySelector('.btn-generate');
-            const resetBtn = modal.querySelector('#resetPromptBtn');
-            const promptArea = document.getElementById('promptEditArea');
+            const promptAreaCN = document.getElementById('promptEditAreaCN');
+            const promptAreaEN = document.getElementById('promptEditAreaEN');
+            const translateToEnBtn = document.getElementById('translateToEnBtn');
+            const translateToCnBtn = document.getElementById('translateToCnBtn');
 
             // 处理剧照选择
             const portraitChecks = modal.querySelectorAll('.portrait-check');
@@ -5702,21 +5704,22 @@ saveGeminiConfig(config) {
                 resolve({ action: 'skip' });
             };
 
-            // 重置提示词按钮
-            if (resetBtn) {
-                resetBtn.onclick = () => {
-                    // 重置为AI提示词（不包含情节）
-                    promptArea.value = aiPrompt;
-                    // 清除 localStorage 中的旧值
-                    localStorage.removeItem(shotKey);
-                    console.log('已清除保存的提示词:', shotKey);
-                    console.log('已重置为AI提示词');
+            // 翻译按钮（TODO: 实现翻译功能）
+            if (translateToEnBtn) {
+                translateToEnBtn.onclick = () => {
+                    this.showToast('翻译功能开发中...', 'info');
+                };
+            }
+            if (translateToCnBtn) {
+                translateToCnBtn.onclick = () => {
+                    this.showToast('翻译功能开发中...', 'info');
                 };
             }
 
             // 生成按钮
             generateBtn.onclick = () => {
-                const editedPrompt = promptArea.value;
+                const editedPromptCN = promptAreaCN.value;
+                const editedPromptEN = promptAreaEN.value;
                 const model = document.getElementById('paramModel').value;
                 const orientation = document.getElementById('paramOrientation').value;
                 const size = document.getElementById('paramSize').value;
@@ -5754,23 +5757,28 @@ saveGeminiConfig(config) {
                 console.log('  - shotKey:', shotKey);
                 console.log('  - shot.episode_title:', shot.episode_title);
                 console.log('  - shot.shot_number:', shot.shot_number);
-                console.log('  - 原始 veo_prompt:', shot.veo_prompt);
-                console.log('  - 原始 screen_action:', shot.screen_action);
-                console.log('  - localStorage 中的值:', savedPrompt);
-                console.log('  - 编辑后的提示词:', editedPrompt);
+                console.log('  - 原始中文描述:', currentPromptCN);
+                console.log('  - 原始英文提示词:', currentPromptEN);
+                console.log('  - 编辑后的中文:', editedPromptCN);
+                console.log('  - 编辑后的英文:', editedPromptEN);
                 console.log('选中的图片数量:', checkedImages.length);
                 console.log('首尾帧模式:', useFirstLastFrame);
 
-                // 保存修改的提示词（与原始AI提示词比较）
-                if (editedPrompt !== aiPrompt) {
-                    localStorage.setItem(shotKey, editedPrompt);
-                    console.log('已保存修改的提示词:', shotKey);
+                // 保存修改的提示词
+                if (editedPromptCN !== currentPromptCN) {
+                    localStorage.setItem(shotKey + '_cn', editedPromptCN);
+                    console.log('已保存修改的中文描述');
+                }
+                if (editedPromptEN !== currentPromptEN) {
+                    localStorage.setItem(shotKey + '_en', editedPromptEN);
+                    console.log('已保存修改的英文提示词');
                 }
 
                 modal.remove();
                 resolve({
                     action: 'generate',
-                    prompt: editedPrompt,
+                    prompt: editedPromptEN,  // 🔥 使用英文提示词发送给AI
+                    promptCN: editedPromptCN,  // 保存中文描述用于显示
                     selectedImages: checkedImages,
                     model,
                     orientation,
