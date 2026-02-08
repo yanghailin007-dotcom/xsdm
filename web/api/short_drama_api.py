@@ -557,42 +557,34 @@ def create_from_idea():
             total_duration=total_duration
         )
 
-        # 3. 将故事节拍转换为前端兼容的分镜头格式
-        shots = []
-        scene_number = 1
-        for scene in story_beats.get('scenes', []):
-            # 每个场景可以包含多个对白，为每个对白创建一个镜头
-            dialogues = scene.get('dialogues', [])
-            if not dialogues:
-                # 如果没有对白，创建一个空对白的镜头
-                dialogues = [{'speaker': '无', 'lines': '', 'tone': ''}]
-            
-            for idx, dlg in enumerate(dialogues):
-                shots.append({
-                    'id': f'shot_{scene_number}_{idx+1}',
-                    'scene_number': scene_number,
-                    'shot_number': idx + 1,
-                    'shot_type': '中景',  # 默认镜头类型
-                    'veo_prompt': scene.get('storyBeatCn', ''),  # 使用叙事目的作为画面提示
-                    'visual': {
-                        'description': scene.get('storyBeatCn', '')
-                    },
-                    'dialogue': {
-                        'speaker': dlg.get('speaker', '无'),
-                        'lines': dlg.get('linesCn', dlg.get('lines', '')),
-                        'lines_en': dlg.get('linesEn', dlg.get('lines_en', '')),
-                        'tone': dlg.get('toneCn', dlg.get('tone', '')),
-                        'tone_en': dlg.get('toneEn', dlg.get('tone_en', ''))
-                    },
-                    'duration': scene.get('durationSeconds', 8),
-                    'duration_seconds': scene.get('durationSeconds', 8),
-                    'status': 'pending',
-                    'scene_title': scene.get('sceneTitleCn', f'场景{scene_number}'),
-                    'emotional_arc': scene.get('emotionalArc', '')
-                })
-            scene_number += 1
+        # 3. 基于故事节拍生成专业分镜头（全英文）(Step 4)
+        logger.info(f'[创意导入] 基于故事节拍生成分镜头（全英文）...')
+        shots_en = generate_shots_from_storybeats(
+            title=title,
+            story_beats=story_beats,
+            style=style,
+            shot_duration=shot_duration
+        )
+
+        # 4. 调用AI将分镜头翻译成中文 (Step 5)
+        logger.info(f'[创意导入] 调用AI翻译分镜头为中文...')
+        shots = translate_shots_to_chinese(shots_en)
+
+        # 5. 保存为 shots_v2.json 格式
+        shots_v2_data = {
+            'version': '2.0',
+            'generated_at': datetime.now().isoformat(),
+            'title': title,
+            'episode': episode,
+            'total_shots': len(shots),
+            'shots': shots
+        }
+        shots_v2_file = episode_dir / 'shots_v2.json'
+        with open(shots_v2_file, 'w', encoding='utf-8') as f:
+            json.dump(shots_v2_data, f, ensure_ascii=False, indent=2)
+        logger.info(f'✅ [创意导入] 分镜头已保存: {shots_v2_file}')
         
-        # 4. 创建项目信息（兼容前端格式）
+        # 6. 创建项目信息（兼容前端格式）
         project_data = {
             'id': str(uuid.uuid4())[:8],
             'title': title,
@@ -618,7 +610,7 @@ def create_from_idea():
             'storyBeats': story_beats  # 保存原始故事节拍
         }
 
-        # 5. 保存项目JSON
+        # 7. 保存项目JSON
         project_file = project_dir / '项目信息.json'
         with open(project_file, 'w', encoding='utf-8') as f:
             json.dump(project_data, f, ensure_ascii=False, indent=2)
@@ -1437,6 +1429,325 @@ def generate_storyboard_from_beats():
             'success': False,
             'message': f'生成分镜失败: {str(e)}'
         }), 500
+
+
+def generate_shots_from_storybeats(title: str, story_beats: dict, style: str, shot_duration: int = 8) -> list:
+    """
+    基于故事节拍生成专业分镜头（全英文版本）
+    
+    Args:
+        title: 剧集标题
+        story_beats: 故事节拍数据
+        style: 风格
+        shot_duration: 每个镜头时长
+        
+    Returns:
+        全英文的分镜头列表
+    """
+    try:
+        scenes = story_beats.get('scenes', [])
+        if not scenes:
+            logger.warning('故事节拍没有场景数据，返回空分镜头')
+            return []
+        
+        # 构建提示词
+        system_prompt = f"""You are a professional cinematographer specializing in AI video generation prompts.
+
+Based on the provided story beats, generate professional video shot descriptions in English.
+
+Each shot must include:
+1. shot_number: Sequential number
+2. shot_type: Shot type (Close-up/Medium shot/Wide shot/Establishing shot/POV)
+2. veo_prompt: Detailed English video prompt for AI generation, including:
+   - Camera movement (push in, pull out, orbit, follow, crane up/down)
+   - Lighting details (volumetric lighting, god rays, rim light, dramatic lighting)
+   - Material textures (skin details, fabric, environment, special effects)
+   - Cinematic composition
+3. visual_description: Dynamic action sequence using arrows (→)
+4. dialogue: 
+   - speaker: Character name or "None"
+   - lines: English dialogue lines (appropriate for shot duration)
+   - lines_cn: Chinese translation
+   - tone: English tone description
+   - tone_cn: Chinese tone description
+   - audio_note: Sound effect description in English
+   - audio_note_cn: Sound effect description in Chinese
+5. duration_seconds: Shot duration
+
+Style: {style}
+
+Output JSON format:
+{{
+    "shots": [
+        {{
+            "shot_number": 1,
+            "shot_type": "Close-up",
+            "veo_prompt": "Detailed English video generation prompt...",
+            "visual_description": "Action A → Action B → Action C",
+            "dialogue": {{
+                "speaker": "Character Name",
+                "lines": "English dialogue",
+                "lines_cn": "中文台词",
+                "tone": "determined, tense",
+                "tone_cn": "决绝、紧张",
+                "audio_note": "Sound description",
+                "audio_note_cn": "音效描述"
+            }},
+            "duration_seconds": 8
+        }}
+    ]
+}}"""
+
+        # 构建故事节拍摘要
+        scenes_summary = []
+        for i, scene in enumerate(scenes, 1):
+            scene_title = scene.get('sceneTitleEn', scene.get('sceneTitleCn', f'Scene {i}'))
+            story_beat = scene.get('storyBeatEn', scene.get('storyBeatCn', ''))
+            duration = scene.get('durationSeconds', shot_duration)
+            dialogues = scene.get('dialogues', [])
+            
+            dialogue_summary = []
+            for dlg in dialogues:
+                speaker = dlg.get('speaker', 'Unknown')
+                lines = dlg.get('linesEn', dlg.get('lines', ''))
+                tone = dlg.get('toneEn', dlg.get('tone', ''))
+                dialogue_summary.append(f"{speaker}: {lines} (Tone: {tone})")
+            
+            scenes_summary.append(f"""Scene {i}: {scene_title}
+Duration: {duration}s
+Story Beat: {story_beat}
+Dialogues:
+{chr(10).join(dialogue_summary) if dialogue_summary else 'No dialogue'}
+""")
+
+        user_prompt = f"""Generate professional video shots based on these story beats:
+
+Title: {title}
+Style: {style}
+
+Story Beats:
+{chr(10).join(scenes_summary)}
+
+Requirements:
+1. Create {len(scenes)} shots, one per scene
+2. Each shot should have professional cinematography language
+3. veo_prompt must include camera movement, lighting, and textures
+4. Dialogue should be natural and fit the shot duration
+5. Output valid JSON only
+
+Generate shots now:"""
+
+        logger.info(f'🎥 [分镜头生成] 调用AI生成全英文分镜头...')
+        
+        if not api_client:
+            logger.error('AI客户端未初始化')
+            return _get_default_shots_from_storybeats(scenes, shot_duration)
+        
+        response = api_client.call_api(
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            temperature=0.7,
+            purpose="创意分镜头生成-英文"
+        )
+        
+        if not response:
+            logger.error('AI返回空响应')
+            return _get_default_shots_from_storybeats(scenes, shot_duration)
+        
+        # 解析JSON
+        try:
+            import re
+            json_text = response.strip()
+            if json_text.startswith("```json"):
+                json_text = json_text[7:]
+            elif json_text.startswith("```"):
+                json_text = json_text[3:]
+            if json_text.endswith("```"):
+                json_text = json_text[:-3]
+            json_text = json_text.strip()
+            
+            # 清理JSON
+            json_text = re.sub(r',(\s*[}\]])', r'\1', json_text)
+            
+            data = json.loads(json_text)
+            shots = data.get('shots', [])
+            
+            logger.info(f'✅ [分镜头生成] 成功生成 {len(shots)} 个全英文镜头')
+            return shots
+            
+        except json.JSONDecodeError as e:
+            logger.error(f'JSON解析失败: {e}')
+            return _get_default_shots_from_storybeats(scenes, shot_duration)
+            
+    except Exception as e:
+        logger.error(f'生成分镜头失败: {e}')
+        import traceback
+        logger.error(traceback.format_exc())
+        return _get_default_shots_from_storybeats(story_beats.get('scenes', []), shot_duration)
+
+
+def _get_default_shots_from_storybeats(scenes: list, shot_duration: int) -> list:
+    """默认分镜头生成（AI失败时的充底方案）"""
+    shots = []
+    for i, scene in enumerate(scenes, 1):
+        story_beat = scene.get('storyBeatEn', scene.get('storyBeatCn', f'Scene {i}'))
+        dialogues = scene.get('dialogues', [])
+        
+        if dialogues:
+            dlg = dialogues[0]
+            speaker = dlg.get('speaker', 'None')
+            lines = dlg.get('linesEn', dlg.get('lines', ''))
+            lines_cn = dlg.get('linesCn', lines)
+            tone = dlg.get('toneEn', dlg.get('tone', ''))
+            tone_cn = dlg.get('toneCn', tone)
+        else:
+            speaker = 'None'
+            lines = ''
+            lines_cn = ''
+            tone = ''
+            tone_cn = ''
+        
+        shots.append({
+            'shot_number': i,
+            'shot_type': 'Medium shot',
+            'veo_prompt': f'{story_beat}. Cinematic composition, dramatic lighting.',
+            'visual_description': f'Scene {i} unfolds',
+            'dialogue': {
+                'speaker': speaker,
+                'lines': lines,
+                'lines_cn': lines_cn,
+                'tone': tone,
+                'tone_cn': tone_cn,
+                'audio_note': 'Ambient sound',
+                'audio_note_cn': '环境音'
+            },
+            'duration_seconds': scene.get('durationSeconds', shot_duration)
+        })
+    
+    logger.warning(f'使用默认分镜头: {len(shots)} 个')
+    return shots
+
+
+def translate_shots_to_chinese(shots: list) -> list:
+    """
+    将全英文分镜头翻译成中文
+    使用AI翻译 veo_prompt 和 visual_description
+    """
+    if not shots:
+        return shots
+    
+    try:
+        logger.info(f'🌐 [翻译] 开始翻译 {len(shots)} 个镜头...')
+        
+        # 准备需要翻译的内容
+        shots_to_translate = []
+        for i, shot in enumerate(shots):
+            veo_prompt = shot.get('veo_prompt', '')
+            visual_desc = shot.get('visual_description', '')
+            
+            shots_to_translate.append({
+                'index': i,
+                'veo_prompt': veo_prompt,
+                'visual_description': visual_desc
+            })
+        
+        if not api_client:
+            logger.warning('AI客户端未初始化，跳过翻译')
+            # 复制英文到中文字段
+            for shot in shots:
+                shot['veo_prompt_cn'] = shot.get('veo_prompt', '')
+                shot['visual_description_cn'] = shot.get('visual_description', '')
+            return shots
+        
+        # 批量翻译所有镜头
+        system_prompt = """You are a professional video prompt translator.
+Translate the following English video prompts to Chinese.
+
+Requirements:
+1. Maintain technical accuracy (cinematic terms can be kept or translated appropriately)
+2. Ensure natural, fluent Chinese expression
+3. Preserve the cinematic and visual quality of descriptions
+4. Return JSON format only
+
+Output format:
+{
+    "translations": [
+        {
+            "veo_prompt_cn": "Chinese translation of veo_prompt",
+            "visual_description_cn": "Chinese translation of visual_description"
+        }
+    ]
+}"""
+
+        user_prompt = f"""Translate these video prompts to Chinese:
+
+{json.dumps(shots_to_translate, ensure_ascii=False, indent=2)}
+
+Provide JSON output with translations array in the same order."""
+
+        response = api_client.call_api(
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            temperature=0.3,
+            purpose="分镜头翻译-中文"
+        )
+        
+        if not response:
+            logger.error('翻译AI返回空响应')
+            # 复制英文到中文字段
+            for shot in shots:
+                shot['veo_prompt_cn'] = shot.get('veo_prompt', '')
+                shot['visual_description_cn'] = shot.get('visual_description', '')
+            return shots
+        
+        # 解析翻译结果
+        try:
+            import re
+            json_text = response.strip()
+            if json_text.startswith("```json"):
+                json_text = json_text[7:]
+            elif json_text.startswith("```"):
+                json_text = json_text[3:]
+            if json_text.endswith("```"):
+                json_text = json_text[:-3]
+            json_text = json_text.strip()
+            
+            data = json.loads(json_text)
+            translations = data.get('translations', [])
+            
+            # 应用翻译结果
+            for i, trans in enumerate(translations):
+                if i < len(shots):
+                    shots[i]['veo_prompt_cn'] = trans.get('veo_prompt_cn', shots[i].get('veo_prompt', ''))
+                    shots[i]['visual_description_cn'] = trans.get('visual_description_cn', shots[i].get('visual_description', ''))
+            
+            # 确保所有镜头都有中文字段
+            for shot in shots:
+                if 'veo_prompt_cn' not in shot:
+                    shot['veo_prompt_cn'] = shot.get('veo_prompt', '')
+                if 'visual_description_cn' not in shot:
+                    shot['visual_description_cn'] = shot.get('visual_description', '')
+            
+            logger.info(f'✅ [翻译] 完成 {len(translations)} 个镜头翻译')
+            return shots
+            
+        except json.JSONDecodeError as e:
+            logger.error(f'翻译JSON解析失败: {e}')
+            # 复制英文到中文字段
+            for shot in shots:
+                shot['veo_prompt_cn'] = shot.get('veo_prompt', '')
+                shot['visual_description_cn'] = shot.get('visual_description', '')
+            return shots
+            
+    except Exception as e:
+        logger.error(f'翻译分镜头失败: {e}')
+        import traceback
+        logger.error(traceback.format_exc())
+        # 复制英文到中文字段
+        for shot in shots:
+            shot['veo_prompt_cn'] = shot.get('veo_prompt', '')
+            shot['visual_description_cn'] = shot.get('visual_description', '')
+        return shots
 
 
 # ==================== 翻译 API ====================
