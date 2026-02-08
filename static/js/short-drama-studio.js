@@ -8423,6 +8423,7 @@ saveGeminiConfig(config) {
         const title = document.getElementById('ideaTitle').value.trim();
         const episode = parseInt(document.getElementById('ideaEpisode').value) || 1;
         const description = document.getElementById('ideaDescription').value.trim();
+        const worldSetting = document.getElementById('ideaWorldSetting').value.trim();
         const style = document.getElementById('ideaStyle').value;
         const shotCount = parseInt(document.getElementById('ideaShotCount').value) || 3;
         const shotDuration = parseInt(document.getElementById('ideaShotDuration').value) || 8;
@@ -8455,6 +8456,7 @@ saveGeminiConfig(config) {
                     title,
                     episode,
                     description,
+                    world_setting: worldSetting,
                     style,
                     shot_count: shotCount,
                     shot_duration: shotDuration

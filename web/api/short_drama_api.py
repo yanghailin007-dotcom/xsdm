@@ -514,6 +514,7 @@ def create_from_idea():
         title = data.get('title', '').strip()
         episode = data.get('episode', 1)
         description = data.get('description', '').strip()
+        world_setting = data.get('world_setting', '').strip()
         style = data.get('style', '通用')
         shot_count = data.get('shot_count', 3)
         shot_duration = data.get('shot_duration', 8)
@@ -539,6 +540,8 @@ def create_from_idea():
         total_duration = shot_count * shot_duration
 
         logger.info(f'📝 [创意导入] 标题: {title}, 第{episode}集, 风格: {style}, 预计{shot_count}个镜头, 总时长{total_duration}秒')
+        if world_setting:
+            logger.info(f'   世界观设定: {world_setting[:100]}...')
 
         # 1. 创建项目目录
         project_dir = VIDEO_PROJECTS_DIR / title
@@ -553,6 +556,7 @@ def create_from_idea():
         story_beats = generate_story_beats_from_idea(
             title=f"{title} 第{episode}集",
             description=description,
+            world_setting=world_setting,
             style=style,
             total_duration=total_duration
         )
@@ -654,13 +658,14 @@ def create_from_idea():
         }), 500
 
 
-def generate_story_beats_from_idea(title: str, description: str, style: str, total_duration: int = 80) -> dict:
+def generate_story_beats_from_idea(title: str, description: str, world_setting: str, style: str, total_duration: int = 80) -> dict:
     """
     根据创意描述生成故事节拍 (Step 3)
     
     Args:
         title: 剧集标题
         description: 创意描述
+        world_setting: 世界观设定
         style: 风格
         total_duration: 总时长（秒）
         
@@ -723,11 +728,18 @@ def generate_story_beats_from_idea(title: str, description: str, style: str, tot
 }}
 """
 
+        # 构建用户提示词
+        world_setting_section = f"""
+世界观设定：
+{world_setting}
+""" if world_setting else ""
+
         user_prompt = f"""
 剧集标题：{title}
 风格：{style}
 总时长：{total_duration}秒
 预计场景数：{scene_count}
+{world_setting_section}
 
 创意描述：
 {description}
