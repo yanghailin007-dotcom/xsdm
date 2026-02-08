@@ -8304,7 +8304,25 @@ saveGeminiConfig(config) {
     async loadStoryboardStep() {
         const container = document.getElementById('storyboardContent');
         if (!container) return;
-        
+
+        // 🔥 优先检查是否已有 shots 数据（避免重复生成）
+        if (this.currentProject?.shots && this.currentProject.shots.length > 0) {
+            console.log('✅ [分镜头] 已有 shots 数据，直接显示');
+            this.renderShotsList();
+            return;
+        }
+
+        // 🔥 检查 episodes 中是否有 shots 数据（创意导入）
+        if (this.currentProject?.episodes && this.currentProject.episodes.length > 0) {
+            const firstEpisode = this.currentProject.episodes[0];
+            if (firstEpisode.shots && firstEpisode.shots.length > 0) {
+                console.log('✅ [分镜头] 从 episodes 加载 shots 数据');
+                this.currentProject.shots = firstEpisode.shots;
+                this.renderShotsList();
+                return;
+            }
+        }
+
         if (!this.currentProject?.storyBeats?.scenes) {
             container.innerHTML = `
                 <div class="empty-state">
@@ -8314,7 +8332,26 @@ saveGeminiConfig(config) {
             `;
             return;
         }
-        
+
+        // 🔥 显示生成按钮，让用户手动触发生成
+        container.innerHTML = `
+            <div class="empty-state">
+                <p>🎬</p>
+                <p>暂无分镜头数据</p>
+                <button class="btn btn-primary" onclick="shortDramaStudio.generateStoryboard()">
+                    生成分镜头
+                </button>
+            </div>
+        `;
+    }
+
+    /**
+     * 生成分镜头（手动触发）
+     */
+    async generateStoryboard() {
+        const container = document.getElementById('storyboardContent');
+        if (!container) return;
+
         const settings = this.getVideoSettings();
         let modeText = '标准模式';
         if (settings.useFirstLastFrame) {
@@ -8322,7 +8359,7 @@ saveGeminiConfig(config) {
         } else if (settings.hasReferenceImages) {
             modeText = '参考图模式（使用角色剧照）';
         }
-        
+
         container.innerHTML = `
             <div class="empty-state">
                 <p>⏳</p>
@@ -8332,7 +8369,7 @@ saveGeminiConfig(config) {
                 </p>
             </div>
         `;
-        
+
         try {
             const response = await fetch('/api/short-drama/storyboard/generate-from-beats', {
                 method: 'POST',
@@ -8344,9 +8381,9 @@ saveGeminiConfig(config) {
                     hasFirstLastFrame: settings.useFirstLastFrame
                 })
             });
-            
+
             const data = await response.json();
-            
+
             if (data.success) {
                 this.currentProject.shots = data.shots;
                 // 🔥 保存到文件系统（数据流A持久化）
@@ -8363,6 +8400,9 @@ saveGeminiConfig(config) {
                     <p>❌</p>
                     <p>生成分镜头失败</p>
                     <p style="font-size: 0.85rem; color: var(--text-secondary);">${error.message}</p>
+                    <button class="btn btn-primary" onclick="shortDramaStudio.generateStoryboard()">
+                        重试
+                    </button>
                 </div>
             `;
         }
