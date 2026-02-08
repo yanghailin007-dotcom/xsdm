@@ -1511,11 +1511,107 @@ def generate_storyboard_from_beats():
 
         # 🔥 不再自动翻译，翻译功能改为 UI 手动触发
         logger.info(f'✅ [生成分镜] 生成 {len(shots)} 个镜头（未翻译，请使用批量翻译功能）')
-        
-        # 保存 shots 到项目文件
-        project_data['shots'] = shots
+
+        # 🔥 检查是否是创意导入的项目
+        episodes = project_data.get('episodes', [])
+        is_creative_import = False
+        episode_dir = None
+
+        if episodes and len(episodes) > 0:
+            first_episode = episodes[0]
+            if isinstance(first_episode, dict):
+                episode_name = first_episode.get('name') or first_episode.get('id') or first_episode.get('title', '')
+                if '创意导入' in episode_name:
+                    is_creative_import = True
+                    episode_dir = project_dir / episode_name
+
+        if is_creative_import and episode_dir:
+            # 🔥 创意导入项目：更新 episodes[0].shots 和 shots_v2 文件
+            logger.info(f'📝 [生成分镜] 检测到创意导入项目，更新 episodes 和 shots_v2 文件')
+
+            # 更新 episodes[0].shots
+            project_data['episodes'][0]['shots'] = shots
+
+            # 🔥 需要将 shots 分离成英文和中文两个版本
+            # 英文版本：只保留英文字段
+            shots_en = []
+            for shot in shots:
+                shot_en = {
+                    'shot_number': shot.get('shot_number'),
+                    'shot_type': shot.get('shot_type'),
+                    'scene_title': shot.get('scene_title'),
+                    'veo_prompt_standard': shot.get('veo_prompt_standard', ''),
+                    'veo_prompt_reference': shot.get('veo_prompt_reference', ''),
+                    'veo_prompt_frames': shot.get('veo_prompt_frames', ''),
+                    'visual_description_standard': shot.get('visual_description_standard', ''),
+                    'visual_description_reference': shot.get('visual_description_reference', ''),
+                    'visual_description_frames': shot.get('visual_description_frames', ''),
+                    'image_prompt': shot.get('image_prompt', ''),
+                    'dialogue': {
+                        'speaker': shot.get('dialogue', {}).get('speaker', ''),
+                        'lines_en': shot.get('dialogue', {}).get('lines_en', ''),
+                        'tone_en': shot.get('dialogue', {}).get('tone', ''),
+                        'audio_note_en': ''
+                    },
+                    'duration_seconds': shot.get('duration', 8)
+                }
+                shots_en.append(shot_en)
+
+            # 中文版本：包含中英文字段
+            shots_cn = []
+            for shot in shots:
+                shot_cn = {
+                    'shot_number': shot.get('shot_number'),
+                    'shot_type': shot.get('shot_type'),
+                    'scene_title': shot.get('scene_title'),
+                    'veo_prompt_standard': shot.get('visual_description_standard', ''),
+                    'veo_prompt_reference': shot.get('visual_description_reference', ''),
+                    'veo_prompt_frames': shot.get('visual_description_frames', ''),
+                    'visual_description_standard': shot.get('visual_description_standard', ''),
+                    'visual_description_reference': shot.get('visual_description_reference', ''),
+                    'visual_description_frames': shot.get('visual_description_frames', ''),
+                    'image_prompt': shot.get('image_prompt', ''),
+                    'dialogue': shot.get('dialogue', {}),
+                    'duration_seconds': shot.get('duration', 8)
+                }
+                shots_cn.append(shot_cn)
+
+            # 保存英文版 shots_v2.json
+            shots_v2_en_data = {
+                'version': '2.0',
+                'generated_at': datetime.now().isoformat(),
+                'language': 'en',
+                'title': project_data.get('title', ''),
+                'episode': 1,
+                'total_shots': len(shots_en),
+                'shots': shots_en
+            }
+            shots_v2_en_file = episode_dir / 'shots_v2.json'
+            with open(shots_v2_en_file, 'w', encoding='utf-8') as f:
+                json.dump(shots_v2_en_data, f, ensure_ascii=False, indent=2)
+            logger.info(f'✅ [生成分镜] 已更新英文版: {shots_v2_en_file}')
+
+            # 保存中文版 shots_v2_cn.json
+            shots_v2_cn_data = {
+                'version': '2.0',
+                'generated_at': datetime.now().isoformat(),
+                'language': 'cn',
+                'title': project_data.get('title', ''),
+                'episode': 1,
+                'total_shots': len(shots_cn),
+                'shots': shots_cn
+            }
+            shots_v2_cn_file = episode_dir / 'shots_v2_cn.json'
+            with open(shots_v2_cn_file, 'w', encoding='utf-8') as f:
+                json.dump(shots_v2_cn_data, f, ensure_ascii=False, indent=2)
+            logger.info(f'✅ [生成分镜] 已更新中文版: {shots_v2_cn_file}')
+        else:
+            # 🔥 非创意导入项目：保存到项目根级别的 shots 字段
+            logger.info(f'📝 [生成分镜] 普通项目，保存到项目根级别 shots 字段')
+            project_data['shots'] = shots
+
+        # 保存项目文件
         project_data['updatedAt'] = datetime.now().isoformat()
-        
         with open(project_file, 'w', encoding='utf-8') as f:
             json.dump(project_data, f, ensure_ascii=False, indent=2)
         
