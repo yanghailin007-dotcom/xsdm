@@ -1650,13 +1650,7 @@ def _get_default_shots_from_storybeats(scenes: list, shot_duration: int) -> list
 def translate_shots_to_chinese(shots: list) -> list:
     """
     将全英文分镜头翻译成中文，返回完全独立的中文版本
-    
-    翻译字段包括：
-    - veo_prompt 相关字段
-    - visual_description 相关字段  
-    - dialogue 内的台词、语气、音效
-    - image_prompt 相关字段
-    - scene_title
+    一次性调用AI翻译所有字段，节省成本
     """
     if not shots:
         return shots
@@ -1666,61 +1660,139 @@ def translate_shots_to_chinese(shots: list) -> list:
     shots_cn = copy.deepcopy(shots)
     
     try:
-        logger.info(f'🌐 [翻译] 开始翻译 {len(shots_cn)} 个镜头...')
+        logger.info(f'🌐 [翻译] 开始批量翻译 {len(shots_cn)} 个镜头...')
         
         if not api_client:
             logger.warning('AI客户端未初始化，返回原始数据')
             return shots_cn
         
-        # 逐个翻译每个镜头
-        for i, shot in enumerate(shots_cn):
-            try:
-                # 1. 翻译 veo_prompt 字段
-                veo_fields = ['veo_prompt_standard', 'veo_prompt_reference', 'veo_prompt_frames']
-                for field in veo_fields:
-                    if field in shot and shot[field]:
-                        shot[field] = _translate_text_to_chinese(shot[field])
-                
-                # 2. 翻译 visual_description 字段
-                visual_fields = ['visual_description_standard', 'visual_description_reference', 'visual_description_frames']
-                for field in visual_fields:
-                    if field in shot and shot[field]:
-                        shot[field] = _translate_text_to_chinese(shot[field])
-                
-                # 3. 翻译 image_prompt 字段
-                if 'image_prompt' in shot and shot['image_prompt']:
-                    shot['image_prompt'] = _translate_text_to_chinese(shot['image_prompt'])
-                
-                # 翻译 image_prompts 内的字段
-                if 'image_prompts' in shot:
-                    for key in shot['image_prompts']:
-                        if shot['image_prompts'][key]:
-                            shot['image_prompts'][key] = _translate_text_to_chinese(shot['image_prompts'][key])
-                
-                # 4. 翻译 dialogue 内的字段
-                if 'dialogue' in shot:
-                    dialogue = shot['dialogue']
-                    # 台词：lines_en -> lines
-                    if 'lines_en' in dialogue and dialogue['lines_en']:
-                        dialogue['lines'] = _translate_text_to_chinese(dialogue['lines_en'])
-                    # 语气：tone_en -> tone
-                    if 'tone_en' in dialogue and dialogue['tone_en']:
-                        dialogue['tone'] = _translate_text_to_chinese(dialogue['tone_en'])
-                    # 音效：audio_note_en -> audio_note
-                    if 'audio_note_en' in dialogue and dialogue['audio_note_en']:
-                        dialogue['audio_note'] = _translate_text_to_chinese(dialogue['audio_note_en'])
-                
-                # 5. 翻译 scene_title
-                if 'scene_title' in shot and shot['scene_title']:
-                    shot['scene_title'] = _translate_text_to_chinese(shot['scene_title'])
-                
-                logger.info(f'   ✅ 镜头 {i+1} 翻译完成')
-                
-            except Exception as e:
-                logger.warning(f'   ⚠️ 镜头 {i+1} 翻译失败: {e}')
-                continue
+        # 收集所有需要翻译的文本
+        texts_to_translate = []
+        text_mapping = []  # 记录每个文本对应的位置
         
-        logger.info(f'✅ [翻译] 完成 {len(shots_cn)} 个镜头翻译')
+        for shot_idx, shot in enumerate(shots_cn):
+            # 1. veo_prompt 字段
+            for field in ['veo_prompt_standard', 'veo_prompt_reference', 'veo_prompt_frames']:
+                if field in shot and shot[field]:
+                    texts_to_translate.append(shot[field])
+                    text_mapping.append(('shot', shot_idx, field))
+            
+            # 2. visual_description 字段
+            for field in ['visual_description_standard', 'visual_description_reference', 'visual_description_frames']:
+                if field in shot and shot[field]:
+                    texts_to_translate.append(shot[field])
+                    text_mapping.append(('shot', shot_idx, field))
+            
+            # 3. image_prompt
+            if 'image_prompt' in shot and shot['image_prompt']:
+                texts_to_translate.append(shot['image_prompt'])
+                text_mapping.append(('shot', shot_idx, 'image_prompt'))
+            
+            # 4. image_prompts 内的字段
+            if 'image_prompts' in shot:
+                for key in shot['image_prompts']:
+                    if shot['image_prompts'][key]:
+                        texts_to_translate.append(shot['image_prompts'][key])
+                        text_mapping.append(('image_prompts', shot_idx, key))
+            
+            # 5. dialogue 内的字段
+            if 'dialogue' in shot:
+                dialogue = shot['dialogue']
+                if 'lines_en' in dialogue and dialogue['lines_en']:
+                    texts_to_translate.append(dialogue['lines_en'])
+                    text_mapping.append(('dialogue_lines', shot_idx))
+                if 'tone_en' in dialogue and dialogue['tone_en']:
+                    texts_to_translate.append(dialogue['tone_en'])
+                    text_mapping.append(('dialogue_tone', shot_idx))
+                if 'audio_note_en' in dialogue and dialogue['audio_note_en']:
+                    texts_to_translate.append(dialogue['audio_note_en'])
+                    text_mapping.append(('dialogue_audio', shot_idx))
+            
+            # 6. scene_title
+            if 'scene_title' in shot and shot['scene_title']:
+                texts_to_translate.append(shot['scene_title'])
+                text_mapping.append(('scene_title', shot_idx))
+        
+        if not texts_to_translate:
+            logger.warning('没有需要翻译的内容')
+            return shots_cn
+        
+        logger.info(f'   共 {len(texts_to_translate)} 个文本需要翻译')
+        
+        # 一次性调用AI翻译所有文本
+        system_prompt = """你是一个专业的视频提示词翻译专家。
+请将以下英文视频提示词列表翻译成流畅的中文，保持专业术语的准确性。
+
+要求：
+1. 保持技术术语的准确性（如 cinematic, photorealistic, 8k 等可以保留或翻译为"电影级"、"写实风格"、"8K超清"）
+2. 翻译要自然流畅，符合中文表达习惯
+3. 只返回JSON格式结果，不要添加任何解释
+4. 保持文本顺序一致
+
+输出格式：
+{
+    "translations": ["翻译1", "翻译2", ...]
+}"""
+
+        # 构建用户提示
+        texts_json = json.dumps(texts_to_translate, ensure_ascii=False, indent=2)
+        user_prompt = f"请翻译以下 {len(texts_to_translate)} 个文本：\n\n{texts_json}\n\n返回JSON格式。"
+        
+        response = api_client.call_api(
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            temperature=0.3,
+            purpose="批量翻译分镜头-中文"
+        )
+        
+        if not response:
+            logger.error('翻译AI返回空响应')
+            return shots_cn
+        
+        # 解析翻译结果
+        try:
+            import re
+            json_text = response.strip()
+            if json_text.startswith("```json"):
+                json_text = json_text[7:]
+            elif json_text.startswith("```"):
+                json_text = json_text[3:]
+            if json_text.endswith("```"):
+                json_text = json_text[:-3]
+            json_text = json_text.strip()
+            
+            data = json.loads(json_text)
+            translations = data.get('translations', [])
+            
+            # 应用翻译结果
+            for i, translated in enumerate(translations):
+                if i >= len(text_mapping):
+                    break
+                
+                mapping = text_mapping[i]
+                shot_idx = mapping[1]
+                
+                if mapping[0] == 'shot':
+                    field = mapping[2]
+                    shots_cn[shot_idx][field] = translated
+                elif mapping[0] == 'image_prompts':
+                    key = mapping[2]
+                    shots_cn[shot_idx]['image_prompts'][key] = translated
+                elif mapping[0] == 'dialogue_lines':
+                    shots_cn[shot_idx]['dialogue']['lines'] = translated
+                elif mapping[0] == 'dialogue_tone':
+                    shots_cn[shot_idx]['dialogue']['tone'] = translated
+                elif mapping[0] == 'dialogue_audio':
+                    shots_cn[shot_idx]['dialogue']['audio_note'] = translated
+                elif mapping[0] == 'scene_title':
+                    shots_cn[shot_idx]['scene_title'] = translated
+            
+            logger.info(f'✅ [翻译] 完成 {len(translations)}/{len(texts_to_translate)} 个文本翻译')
+            
+        except Exception as e:
+            logger.error(f'解析翻译结果失败: {e}')
+            return shots_cn
+        
         return shots_cn
         
     except Exception as e:
@@ -1728,38 +1800,6 @@ def translate_shots_to_chinese(shots: list) -> list:
         import traceback
         logger.error(traceback.format_exc())
         return shots_cn
-
-
-def _translate_text_to_chinese(text: str) -> str:
-    """
-    使用AI翻译单个文本到中文
-    """
-    if not text or not api_client:
-        return text
-    
-    try:
-        system_prompt = """你是一个专业的视频提示词翻译专家。
-请将以下英文视频提示词翻译成流畅的中文，保持专业术语的准确性。
-注意：
-- 保持技术术语的准确性（如 cinematic, photorealistic, 8k 等可以保留或翻译为"电影级"、"写实风格"、"8K超清"）
-- 翻译要自然流畅，符合中文表达习惯
-- 只返回翻译结果，不要添加任何解释
-- 保持原有的标点符号和格式"""
-
-        response = api_client.call_api(
-            system_prompt=system_prompt,
-            user_prompt=f"请翻译以下内容：\n\n{text}",
-            temperature=0.3,
-            purpose="文本翻译-中文"
-        )
-        
-        if response:
-            return response.strip()
-        return text
-        
-    except Exception as e:
-        logger.warning(f'翻译失败: {e}')
-        return text
 
 
 # ==================== 翻译 API ====================
