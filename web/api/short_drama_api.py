@@ -1142,7 +1142,7 @@ def generate_storyboard_from_idea(title: str, description: str, style: str,
             # 🔥 清理JSON中的常见问题
             import re
             # 移除对象/数组末尾的多余逗号
-            json_text = re.sub(r',(\s*[}\]])', r'\1', json_text)
+            json_text = re.sub(r',(\s*[}\]])', '\\1', json_text)
 
             storyboard_data = json.loads(json_text)
             logger.info(f'✅ [AI生成] 分镜头生成成功，共 {len(storyboard_data.get("scenes", []))} 个场景')
@@ -1924,7 +1924,8 @@ Story Beats:
 9. **Output valid JSON only**
 
 Generate shots now:
-
+        """
+        
         logger.info(f'🎥 [分镜头生成] 调用AI生成全英文分镜头...')
         
         if not api_client:
@@ -1955,7 +1956,7 @@ Generate shots now:
             json_text = json_text.strip()
             
             # 清理JSON
-            json_text = re.sub(r',(\s*[}\]])', r'\1', json_text)
+            json_text = re.sub(r',(\s*[}\]])', '\\1', json_text)
             
             data = json.loads(json_text)
             shots = data.get('shots', [])
