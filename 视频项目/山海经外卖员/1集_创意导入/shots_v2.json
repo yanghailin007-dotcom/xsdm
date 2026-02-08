@@ -24,7 +24,18 @@
       "shot_number": 1,
       "shot_type": "特写",
       "veo_prompt_standard": "Cinematic close-up, night, rain-slicked city street, young delivery rider in yellow tactical jacket and helmet looking at glowing smartphone screen. Raindrops slide down the visor. His expression shifts from confusion to greedy excitement as he sees the price. He grips the handlebars tight and revs the throttle. Neon lights reflect on the wet helmet. 8k resolution, high contrast, cyberpunk atmosphere.",
-      "visual_description_standard": "骑手看手机 → 见天价瞳孔地震 → 狞笑轰油门"
+      "visual_description_standard": "骑手看手机 → 见天价瞳孔地震 → 狞笑轰油门",
+      "image_prompt": "",
+      "image_prompt_en": "",
+      "image_prompts_cn": {},
+      "status": "pending",
+      "visual": {},
+      "veo_prompt": "Cinematic close-up, night, rain-slicked city street, young delivery rider in yellow tactical jacket and helmet looking at glowing smartphone screen. Raindrops slide down the visor. His expression shifts from confusion to greedy excitement as he sees the price. He grips the handlebars tight and revs the throttle. Neon lights reflect on the wet helmet. 8k resolution, high contrast, cyberpunk atmosphere.",
+      "veo_prompt_frames": "",
+      "veo_prompt_reference": "",
+      "visual_description": "骑手看手机 → 见天价瞳孔地震 → 狞笑轰油门",
+      "visual_description_frames": "骑手看手机 → 见天价瞳孔地震 → 狞笑轰油门",
+      "visual_description_reference": "骑手看手机 → 见天价瞳孔地震 → 狞笑轰油门"
     },
     {
       "dialogue": {
@@ -50,7 +61,18 @@
       "shot_number": 2,
       "shot_type": "中景",
       "veo_prompt_standard": "Cinematic tracking shot, abandoned urban demolition zone at night, piles of twisted rebar and concrete, thick volumetric fog. The delivery rider walks cautiously holding a flashlight, the beam cutting through the dust. The atmosphere is eerie and silent. 8k, horror movie lighting, cold blue tones.",
-      "visual_description_standard": "骑手踏入废墟 → 手电扫视残骸 → 驻足打颤"
+      "visual_description_standard": "骑手踏入废墟 → 手电扫视残骸 → 驻足打颤",
+      "image_prompt": "",
+      "image_prompt_en": "",
+      "image_prompts_cn": {},
+      "status": "pending",
+      "visual": {},
+      "veo_prompt": "Cinematic tracking shot, abandoned urban demolition zone at night, piles of twisted rebar and concrete, thick volumetric fog. The delivery rider walks cautiously holding a flashlight, the beam cutting through the dust. The atmosphere is eerie and silent. 8k, horror movie lighting, cold blue tones.",
+      "veo_prompt_frames": "",
+      "veo_prompt_reference": "",
+      "visual_description": "骑手踏入废墟 → 手电扫视残骸 → 驻足打颤",
+      "visual_description_frames": "骑手踏入废墟 → 手电扫视残骸 → 驻足打颤",
+      "visual_description_reference": "骑手踏入废墟 → 手电扫视残骸 → 驻足打颤"
     },
     {
       "dialogue": {
@@ -76,7 +98,18 @@
       "shot_number": 3,
       "shot_type": "动作镜头",
       "veo_prompt_standard": "Cinematic action shot, low angle. A massive shadow of a beast with five tails lunges from the darkness. The delivery rider clumsily rolls on the ground to dodge. Debris explodes where he was standing. Dust flies everywhere. Fast camera movement, motion blur, intense conflict. 8k, high shutter speed look.",
-      "visual_description_standard": "黑影扑杀 → 骑手翻滚极限闪避 → 地面炸裂"
+      "visual_description_standard": "黑影扑杀 → 骑手翻滚极限闪避 → 地面炸裂",
+      "image_prompt": "",
+      "image_prompt_en": "",
+      "image_prompts_cn": {},
+      "status": "pending",
+      "visual": {},
+      "veo_prompt": "Cinematic action shot, low angle. A massive shadow of a beast with five tails lunges from the darkness. The delivery rider clumsily rolls on the ground to dodge. Debris explodes where he was standing. Dust flies everywhere. Fast camera movement, motion blur, intense conflict. 8k, high shutter speed look.",
+      "veo_prompt_frames": "",
+      "veo_prompt_reference": "",
+      "visual_description": "黑影扑杀 → 骑手翻滚极限闪避 → 地面炸裂",
+      "visual_description_frames": "黑影扑杀 → 骑手翻滚极限闪避 → 地面炸裂",
+      "visual_description_reference": "黑影扑杀 → 骑手翻滚极限闪避 → 地面炸裂"
     },
     {
       "dialogue": {
@@ -102,7 +135,18 @@
       "shot_number": 4,
       "shot_type": "中景（怪兽正面）",
       "veo_prompt_standard": "Cinematic medium shot, mythical beast Zheng from Shan Hai Jing emerges from dust and smoke. Red leopard-like body with black cloud patterns, single white jade spiral horn glowing with soft light. Five tails fan out majestically like a peacock display - leftmost tail crimson red with floating sparks, second tail cyan blue with swirling wind trails, center tail golden with crackling lightning, fourth tail purple with dripping poison mist, rightmost tail transparent crystal with frost patterns. Golden vertical pupils locked on camera with fierce intensity. Moonlight streams through broken windows illuminating the scene. Chinese mythology aesthetic, fantasy style, 8k, dramatic lighting, vertical 9:16 format.",
-      "visual_description_standard": "狰从烟尘中缓步走出 → 五尾如孔雀开屏展开 → 独角发光锁定主角"
+      "visual_description_standard": "狰从烟尘中缓步走出 → 五尾如孔雀开屏展开 → 独角发光锁定主角",
+      "image_prompt": "",
+      "image_prompt_en": "",
+      "image_prompts_cn": {},
+      "status": "pending",
+      "visual": {},
+      "veo_prompt": "Cinematic medium shot, mythical beast Zheng from Shan Hai Jing emerges from dust and smoke. Red leopard-like body with black cloud patterns, single white jade spiral horn glowing with soft light. Five tails fan out majestically like a peacock display - leftmost tail crimson red with floating sparks, second tail cyan blue with swirling wind trails, center tail golden with crackling lightning, fourth tail purple with dripping poison mist, rightmost tail transparent crystal with frost patterns. Golden vertical pupils locked on camera with fierce intensity. Moonlight streams through broken windows illuminating the scene. Chinese mythology aesthetic, fantasy style, 8k, dramatic lighting, vertical 9:16 format.",
+      "veo_prompt_frames": "",
+      "veo_prompt_reference": "",
+      "visual_description": "狰从烟尘中缓步走出 → 五尾如孔雀开屏展开 → 独角发光锁定主角",
+      "visual_description_frames": "狰从烟尘中缓步走出 → 五尾如孔雀开屏展开 → 独角发光锁定主角",
+      "visual_description_reference": "狰从烟尘中缓步走出 → 五尾如孔雀开屏展开 → 独角发光锁定主角"
     },
     {
       "dialogue": {
@@ -128,7 +172,18 @@
       "shot_number": 5,
       "shot_type": "中特写",
       "veo_prompt_standard": "Cinematic medium close-up. The delivery rider is half-kneeling, terrified but shouting. He holds up the insulated delivery bag like a shield in front of him. In the foreground, the blurry silhouette of a red leopard-like beast looms. Rim lighting highlights the rider's desperate face. 8k, dramatic lighting.",
-      "visual_description_standard": "骑手狂吼设定 → 猛推外卖箱 → 巨兽顿住"
+      "visual_description_standard": "骑手狂吼设定 → 猛推外卖箱 → 巨兽顿住",
+      "image_prompt": "",
+      "image_prompt_en": "",
+      "image_prompts_cn": {},
+      "status": "pending",
+      "visual": {},
+      "veo_prompt": "Cinematic medium close-up. The delivery rider is half-kneeling, terrified but shouting. He holds up the insulated delivery bag like a shield in front of him. In the foreground, the blurry silhouette of a red leopard-like beast looms. Rim lighting highlights the rider's desperate face. 8k, dramatic lighting.",
+      "veo_prompt_frames": "",
+      "veo_prompt_reference": "",
+      "visual_description": "骑手狂吼设定 → 猛推外卖箱 → 巨兽顿住",
+      "visual_description_frames": "骑手狂吼设定 → 猛推外卖箱 → 巨兽顿住",
+      "visual_description_reference": "骑手狂吼设定 → 猛推外卖箱 → 巨兽顿住"
     },
     {
       "dialogue": {
@@ -154,7 +209,18 @@
       "shot_number": 6,
       "shot_type": "特写（怪兽反应）",
       "veo_prompt_standard": "Cinematic close-up of mythical beast Zheng's face. Golden vertical pupils suddenly contract to thin lines. Expression changes from fierce anger to surprised confusion. Five tails that were attacking freeze stiff upright. One tail accidentally knocks over a coffee cup in foreground, ice cubes spill out and splash onto the beast's own foot. It awkwardly lifts that foot and hops slightly.反差萌 moment, Chinese fantasy style, 8k, comedic timing, vertical 9:16 format.",
-      "visual_description_standard": "狰瞳孔收缩成细线 → 五尾僵直竖起 → 尾巴打翻咖啡杯 → 冰块洒脚跳开"
+      "visual_description_standard": "狰瞳孔收缩成细线 → 五尾僵直竖起 → 尾巴打翻咖啡杯 → 冰块洒脚跳开",
+      "image_prompt": "",
+      "image_prompt_en": "",
+      "image_prompts_cn": {},
+      "status": "pending",
+      "visual": {},
+      "veo_prompt": "Cinematic close-up of mythical beast Zheng's face. Golden vertical pupils suddenly contract to thin lines. Expression changes from fierce anger to surprised confusion. Five tails that were attacking freeze stiff upright. One tail accidentally knocks over a coffee cup in foreground, ice cubes spill out and splash onto the beast's own foot. It awkwardly lifts that foot and hops slightly.反差萌 moment, Chinese fantasy style, 8k, comedic timing, vertical 9:16 format.",
+      "veo_prompt_frames": "",
+      "veo_prompt_reference": "",
+      "visual_description": "狰瞳孔收缩成细线 → 五尾僵直竖起 → 尾巴打翻咖啡杯 → 冰块洒脚跳开",
+      "visual_description_frames": "狰瞳孔收缩成细线 → 五尾僵直竖起 → 尾巴打翻咖啡杯 → 冰块洒脚跳开",
+      "visual_description_reference": "狰瞳孔收缩成细线 → 五尾僵直竖起 → 尾巴打翻咖啡杯 → 冰块洒脚跳开"
     },
     {
       "dialogue": {
@@ -180,7 +246,18 @@
       "shot_number": 7,
       "shot_type": "全景",
       "veo_prompt_standard": "Cinematic wide shot. Five massive elemental tails sweep across the screen from the side - the crimson fire tail with floating sparks, the cyan wind tail with swirling air currents, the golden lightning tail with crackling electricity, the purple poison tail with dripping venom, and the transparent ice tail with frost crystals. Heavy concrete slabs and twisted metal are swept away effortlessly like dust. The path clears instantly. Dust swirls in the magical elemental energy. The rider stands small in the background, watching in awe. 8k, VFX heavy, magical realism, Chinese fantasy style.",
-      "visual_description_standard": "五元素巨尾横扫 → 废墟崩飞 → 通路显现（火尾带火星/风尾卷气流/雷尾缠电光/毒尾滴粘液/冰尾凝霜花）"
+      "visual_description_standard": "五元素巨尾横扫 → 废墟崩飞 → 通路显现（火尾带火星/风尾卷气流/雷尾缠电光/毒尾滴粘液/冰尾凝霜花）",
+      "image_prompt": "",
+      "image_prompt_en": "",
+      "image_prompts_cn": {},
+      "status": "pending",
+      "visual": {},
+      "veo_prompt": "Cinematic wide shot. Five massive elemental tails sweep across the screen from the side - the crimson fire tail with floating sparks, the cyan wind tail with swirling air currents, the golden lightning tail with crackling electricity, the purple poison tail with dripping venom, and the transparent ice tail with frost crystals. Heavy concrete slabs and twisted metal are swept away effortlessly like dust. The path clears instantly. Dust swirls in the magical elemental energy. The rider stands small in the background, watching in awe. 8k, VFX heavy, magical realism, Chinese fantasy style.",
+      "veo_prompt_frames": "",
+      "veo_prompt_reference": "",
+      "visual_description": "五元素巨尾横扫 → 废墟崩飞 → 通路显现（火尾带火星/风尾卷气流/雷尾缠电光/毒尾滴粘液/冰尾凝霜花）",
+      "visual_description_frames": "五元素巨尾横扫 → 废墟崩飞 → 通路显现（火尾带火星/风尾卷气流/雷尾缠电光/毒尾滴粘液/冰尾凝霜花）",
+      "visual_description_reference": "五元素巨尾横扫 → 废墟崩飞 → 通路显现（火尾带火星/风尾卷气流/雷尾缠电光/毒尾滴粘液/冰尾凝霜花）"
     },
     {
       "dialogue": {
@@ -206,7 +283,18 @@
       "shot_number": 8,
       "shot_type": "定场镜头",
       "veo_prompt_standard": "Cinematic shot, starts over-the-shoulder of the rider looking at his phone map. The map shows '44 Zhang'e Road'. Camera pulls back and up rapidly (drone shot) to reveal the demolition zone ruins forming the shape of an ancient mythological structure, overlaid with the modern city lights. Cyber-mythology aesthetic. 8k, grand scale.",
-      "visual_description_standard": "手机地图特写 → 镜头高空后拉 → 揭示古城布局"
+      "visual_description_standard": "手机地图特写 → 镜头高空后拉 → 揭示古城布局",
+      "image_prompt": "",
+      "image_prompt_en": "",
+      "image_prompts_cn": {},
+      "status": "pending",
+      "visual": {},
+      "veo_prompt": "Cinematic shot, starts over-the-shoulder of the rider looking at his phone map. The map shows '44 Zhang'e Road'. Camera pulls back and up rapidly (drone shot) to reveal the demolition zone ruins forming the shape of an ancient mythological structure, overlaid with the modern city lights. Cyber-mythology aesthetic. 8k, grand scale.",
+      "veo_prompt_frames": "",
+      "veo_prompt_reference": "",
+      "visual_description": "手机地图特写 → 镜头高空后拉 → 揭示古城布局",
+      "visual_description_frames": "手机地图特写 → 镜头高空后拉 → 揭示古城布局",
+      "visual_description_reference": "手机地图特写 → 镜头高空后拉 → 揭示古城布局"
     }
   ],
   "language": "en",
