@@ -1234,13 +1234,19 @@ def generate_story_beats():
         # 调用AI生成故事节拍
         logger.info(f"[故事节拍] 开始生成: {episode_title}")
 
+        # 🔥 获取项目的初始创意和世界观（如果有）
+        initial_idea = episode_content  # 这就是初始创意
+        world_setting = project_data.get('world_setting', '') or project_data.get('settings', {}).get('world_setting', '')
+        
         if api_client:
             try:
                 story_beats = _generate_story_beats_with_ai(
                     episode_title=episode_title,
                     episode_content=episode_content,
                     characters=characters,
-                    total_duration=80  # 默认80秒
+                    total_duration=80,  # 默认80秒
+                    initial_idea=initial_idea,  # 🔥 传递初始创意
+                    world_setting=world_setting   # 🔥 传递世界观
                 )
             except Exception as e:
                 logger.error(f"[故事节拍] AI生成失败: {e}")
@@ -1282,27 +1288,38 @@ def generate_story_beats():
         }), 500
 
 
-def _generate_story_beats_with_ai(episode_title, episode_content, characters, total_duration=80):
+def _generate_story_beats_with_ai(episode_title, episode_content, characters, total_duration=80, initial_idea=None, world_setting=None):
     """
-    使用AI生成故事节拍
+    使用AI生成故事节拍 - 优化版，充分利用初始创意
     """
+    # 🔥 优先使用初始创意作为核心设计依据
+    core_concept = initial_idea or episode_content
+    
     # 构建Prompt
     characters_str = "\n".join([
         f"- {c.get('name', '')}: {c.get('identity', '')}, {c.get('traits', '')}"
         for c in characters
     ]) if characters else "- 未设置角色"
 
+    # 🔥 构建世界观部分
+    world_setting_section = f"""
+## 世界观设定
+{world_setting}
+""" if world_setting else ""
+
     # 🔥 优化：计算高密度场景数
     avg_scene_duration = 3
     scene_count = max(6, min(20, total_duration // avg_scene_duration))
     base_duration = total_duration // scene_count
     
-    prompt = f"""你是一个专业的【抖音/快手短剧】编剧。请根据以下集数内容，生成{total_duration}秒的高密度叙事节拍。
+    prompt = f"""你是一个专业的【抖音/快手短剧】编剧。请基于以下**核心创意**生成{total_duration}秒的高密度故事节拍。
 
-## 输入信息
+## 🔥 核心创意（必须紧紧围绕此展开）
+{core_concept[:2000] if core_concept else '（暂无详细内容，请根据标题生成）'}
+
+## 补充信息
 集数标题：{episode_title}
-集数内容：{episode_content[:2000] if episode_content else '（暂无详细内容，请根据标题生成）'}
-
+{world_setting_section}
 角色设定：
 {characters_str}
 
