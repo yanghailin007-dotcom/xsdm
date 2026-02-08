@@ -190,20 +190,14 @@ class ShortDramaProject:
 
         enriched_episodes = []
         for episode_name in self.episodes:
-            # 如果已经是字典对象（有shots），直接使用
-            if isinstance(episode_name, dict):
-                enriched_episodes.append(episode_name)
-                continue
-
             # 构建episode目录路径
-            episode_dir = project_dir / episode_name
-            storyboard_dir = episode_dir / 'storyboards'
-
-            # 创建episode对象
-            episode_obj = {
-                'title': episode_name,
-                'shots': []
-            }
+            if isinstance(episode_name, dict):
+                # 如果是字典对象，提取 name 或 id 字段作为目录名
+                episode_dir_name = episode_name.get('name') or episode_name.get('id') or episode_name.get('title', '')
+                episode_dir = project_dir / episode_dir_name
+            else:
+                episode_dir = project_dir / episode_name
+                episode_dir_name = episode_name
 
             # 🔥 优先检查是否存在 shots_v2_cn.json（创意导入格式）
             shots_v2_cn_file = episode_dir / 'shots_v2_cn.json'
@@ -221,6 +215,17 @@ class ShortDramaProject:
 
                     shots_cn = shots_cn_data.get('shots', [])
                     shots_en = shots_en_data.get('shots', [])
+
+                    # 创建episode对象
+                    episode_obj = {
+                        'title': episode_dir_name,
+                        'shots': []
+                    }
+
+                    # 如果原来是字典对象，保留其他字段
+                    if isinstance(episode_name, dict):
+                        episode_obj.update(episode_name)
+                        episode_obj['shots'] = []  # 清空原有的 shots，使用 shots_v2 的数据
 
                     # 合并中英文数据
                     for i, (shot_cn, shot_en) in enumerate(zip(shots_cn, shots_en), 1):
@@ -253,12 +258,25 @@ class ShortDramaProject:
                         }
                         episode_obj['shots'].append(shot_obj)
 
-                    logger.info(f'📋 [Episode] {episode_name}: 从 shots_v2 加载了 {len(episode_obj["shots"])} 个镜头')
+                    logger.info(f'📋 [Episode] {episode_dir_name}: 从 shots_v2 加载了 {len(episode_obj["shots"])} 个镜头')
                     enriched_episodes.append(episode_obj)
                     continue
 
                 except Exception as e:
-                    logger.error(f'加载 shots_v2 文件失败 {episode_name}: {e}')
+                    logger.error(f'加载 shots_v2 文件失败 {episode_dir_name}: {e}')
+
+            # 如果已经是字典对象（有shots），直接使用
+            if isinstance(episode_name, dict):
+                enriched_episodes.append(episode_name)
+                continue
+
+            # 创建episode对象
+            episode_obj = {
+                'title': episode_dir_name,
+                'shots': []
+            }
+
+            storyboard_dir = episode_dir / 'storyboards'
 
             # 如果storyboard目录存在，加载storyboard文件
             if storyboard_dir.exists() and storyboard_dir.is_dir():
