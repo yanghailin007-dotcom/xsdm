@@ -820,8 +820,20 @@
                 <button class="btn btn-secondary btn-small" onclick="location.href='/phase-one-setup'">🎨 第一阶段</button>
                 <button class="btn btn-secondary btn-small" onclick="location.href='/phase-two-generation'">📝 第二阶段</button>
                 <button class="btn btn-secondary btn-small" onclick="location.href='/novels'">📚 查看生成</button>
-                <span class="nav-user" style="margin-right: 12px; color: var(--text-secondary); display: inline-flex; align-items: center; height: fit-content;">👤 <span id="usernameText">加载中...</span></span>
-                <button class="btn-logout" onclick="logout()">🚪 退出</button>
+                <!-- 用户头像下拉菜单 -->
+                <div class="user-menu">
+                    <div class="user-avatar" onclick="toggleUserMenu(event)">
+                        <span class="avatar-text" id="avatarText">用</span>
+                    </div>
+                    <div class="user-dropdown" id="userDropdown">
+                        <div class="dropdown-header">
+                            <span id="dropdownUsername">加载中...</span>
+                        </div>
+                        <div class="dropdown-divider"></div>
+                        <a href="/account" class="dropdown-item">⚙️ 管理账户</a>
+                        <a href="#" class="dropdown-item" onclick="logout(); return false;">🚪 退出登录</a>
+                    </div>
+                </div>
             </div>
         </div>
     </nav>
