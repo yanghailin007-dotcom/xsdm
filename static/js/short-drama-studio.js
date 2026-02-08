@@ -8757,8 +8757,8 @@ saveGeminiConfig(config) {
             document.getElementById('ideaEpisode').value = '1';
             document.getElementById('ideaDescription').value = '';
             document.getElementById('ideaStyle').value = '通用';
-            document.getElementById('ideaShotCount').value = '3';
-            document.getElementById('ideaShotDuration').value = '8';
+            document.getElementById('ideaShotDuration').value = '5';
+            document.getElementById('durationValue').textContent = '5秒';
         }
     }
 
@@ -8781,8 +8781,8 @@ saveGeminiConfig(config) {
         const description = document.getElementById('ideaDescription').value.trim();
         const worldSetting = document.getElementById('ideaWorldSetting').value.trim();
         const style = document.getElementById('ideaStyle').value;
-        const shotCount = parseInt(document.getElementById('ideaShotCount').value) || 3;
-        const shotDuration = parseInt(document.getElementById('ideaShotDuration').value) || 8;
+        // 🔥 移除 shot_count，让AI自由决定分镜数量
+        const shotDuration = parseInt(document.getElementById('ideaShotDuration').value) || 5;
 
         // 验证必填字段
         if (!title) {
@@ -8814,7 +8814,7 @@ saveGeminiConfig(config) {
                     description,
                     world_setting: worldSetting,
                     style,
-                    shot_count: shotCount,
+                    // 🔥 不再传递 shot_count，让AI自由决定
                     shot_duration: shotDuration
                 })
             });
