@@ -46,58 +46,57 @@
             min-height: 100vh;
         }
 
-        /* ==================== 导航栏 ==================== */
-        .navbar {
-            background: rgba(15, 23, 42, 0.95);
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-            padding: var(--space-4) 0;
-            position: sticky;
+        /* ==================== 顶部导航 ==================== */
+        .top-nav {
+            position: fixed;
             top: 0;
-            z-index: 100;
-            backdrop-filter: blur(10px);
-        }
-
-        .navbar-content {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 0 var(--space-6);
+            left: 0;
+            right: 0;
+            padding: 1rem 2rem;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            z-index: 100;
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
         }
 
-        .navbar-title {
+        .nav-title {
             font-size: 1.25rem;
             font-weight: 700;
-            color: #f1f5f9;
             display: flex;
             align-items: center;
+            gap: 0.75rem;
+            color: var(--text-primary);
         }
 
-        .navbar-actions {
+        .nav-actions {
             display: flex;
-            gap: var(--space-4);
+            gap: 0.75rem;
+            flex-wrap: wrap;
             align-items: center;
         }
 
         .btn-back {
-            padding: 8px 16px;
-            background: rgba(51, 65, 85, 0.6);
-            border: 1px solid rgba(148, 163, 184, 0.2);
-            border-radius: 8px;
-            color: #94a3b8;
+            padding: 0.5rem 1rem;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 0.5rem;
+            color: var(--text-secondary);
             cursor: pointer;
-            font-size: 14px;
+            font-size: 0.875rem;
             font-weight: 500;
-            transition: all 0.2s;
-            display: flex;
+            transition: all 0.3s;
+            display: inline-flex;
             align-items: center;
-            gap: 6px;
+            gap: 0.5rem;
+            line-height: 1.5;
         }
 
         .btn-back:hover {
-            background: rgba(71, 85, 105, 0.8);
-            color: #f1f5f9;
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text-primary);
         }
 
         /* ==================== 用户头像下拉菜单 ==================== */
@@ -205,7 +204,9 @@
         .main-container {
             max-width: 800px;
             margin: 0 auto;
-            padding: var(--space-8) var(--space-6);
+            padding: 6rem 2rem 3rem;
+            position: relative;
+            z-index: 10;
         }
 
         .page-header {
@@ -391,13 +392,12 @@
 </head>
 <body>
     <!-- 导航栏 -->
-    <nav class="navbar">
-        <div class="navbar-content">
-            <div class="navbar-title">
-                <button class="btn-back" onclick="location.href='/landing'">🏠 返回首页</button>
-                <span style="margin-left: 12px;">⚙️ 账户管理</span>
-            </div>
-            <div class="navbar-actions">
+    <nav class="top-nav">
+        <div class="nav-title">
+            <button class="btn-back" onclick="location.href='/landing'">🏠 返回首页</button>
+            <span>⚙️ 账户管理</span>
+        </div>
+        <div class="nav-actions">
                 <!-- 用户头像下拉菜单 -->
                 <div class="user-menu">
                     <div class="user-avatar" onclick="toggleUserMenu(event)">
