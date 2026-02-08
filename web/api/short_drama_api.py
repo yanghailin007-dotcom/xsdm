@@ -608,13 +608,14 @@ def create_from_idea():
 
         # 限制参数范围
         episode = max(1, min(999, int(episode)))
-        shot_count = max(1, min(10, int(shot_count)))
-        shot_duration = max(4, min(15, int(shot_duration)))
+        # 🔥 移除 shot_count 限制，让AI自由决定分镜数量
+        shot_duration = max(3, min(10, int(shot_duration)))  # 短视频节奏：3-10秒/镜头
         
-        # 计算总时长
-        total_duration = shot_count * shot_duration
+        # 🔥 基于故事复杂度预估总时长（不再用 shot_count * shot_duration）
+        # 让AI先决定分镜数量，再计算总时长
+        estimated_duration = 60  # 默认60秒，实际由故事节拍决定
 
-        logger.info(f'📝 [创意导入] 标题: {title}, 第{episode}集, 风格: {style}, 预计{shot_count}个镜头, 总时长{total_duration}秒')
+        logger.info(f'📝 [创意导入] 标题: {title}, 第{episode}集, 风格: {style}, 镜头时长{shot_duration}秒, AI自由决定分镜数量')
         if world_setting:
             logger.info(f'   世界观设定: {world_setting[:100]}...')
 
@@ -776,32 +777,44 @@ def generate_story_beats_from_idea(title: str, description: str, world_setting: 
         故事节拍数据字典
     """
     try:
-        # 🔥 优化：增加场景密度，每3-4秒一个节拍（短视频节奏）
-        avg_scene_duration = 3
-        scene_count = max(6, min(20, total_duration // avg_scene_duration))
+        # 🔥 优化：让AI自由决定场景数量和时长
+        # 根据创意复杂度预估：简单故事6-8场景，复杂故事10-15场景
+        min_scenes = 6
+        max_scenes = 15
+        suggested_duration = total_duration or 60  # 默认60秒
         
-        # 调整每个场景时长使总和等于总时长
-        base_duration = total_duration // scene_count
-        remainder = total_duration % scene_count
-        
-        system_prompt = f"""你是一个专业的短剧编剧。请根据以下创意描述，生成{total_duration}秒的故事节拍(Story Beats)。
+        system_prompt = f"""你是一个专业的【短视频短剧】编剧。请根据以下创意描述，生成故事节拍(Story Beats)。
 
-## 输出要求
+## 🎬 场景设计原则（AI自由决定）
 
-1. **三幕结构分配**
-   - 第一幕「建立」(0-30%)：建立场景、人物、核心矛盾
-   - 第二幕「对抗」(30-70%)：冲突升级、内心挣扎
-   - 第三幕「高潮」(70-100%)：高潮时刻、人物觉醒、悬念收尾
+1. **场景数量由AI根据故事复杂度决定**
+   - 简单故事（单线叙事）：6-8个场景
+   - 标准故事（有转折）：8-10个场景  
+   - 复杂故事（多冲突、多转折）：10-15个场景
+   - **关键：每个情绪转折都应该是一个独立场景**
 
-2. **场景设计原则**
-   - 生成{scene_count}个场景
-   - 每个场景时长4-10秒
-   - 总时长严格等于{total_duration}秒
-   - 场景之间有逻辑连贯性
+2. **场景时长原则**
+   - 快节奏/动作场景：3-5秒
+   - 对白/情绪场景：5-8秒
+   - 高潮/关键转折：8-12秒
+   - **总时长约{suggested_duration}秒（可上下浮动20%）**
 
-3. **对白设计**
-   - 每个场景至少1句对白
-   - 对白要推动剧情或展示人物性格
+3. **短视频叙事结构（不是传统三幕）**
+   - **0-10%：黄金3秒钩子** - 炸裂开场，立即抓住注意力
+   - **10-30%：快速铺垫** - 用画面快速建立人物和背景
+   - **30-50%：第一次转折** - 小高潮或意外事件
+   - **50-70%：冲突升级** - 主角面临更大危机
+   - **70-90%：大高潮** - 情绪顶点，解决核心冲突
+   - **90-100%：强钩子结尾** - 引出下集或留下悬念
+
+4. **情绪过山车设计（关键）**
+   - 相邻场景情绪必须不同（如：紧张→幽默→紧张）
+   - 禁止连续3个场景同一情绪
+   - 必须有至少一次180°情绪反转
+
+5. **对白设计**
+   - 每个场景1-2句对白，简短有力
+   - 对白必须是"钩子型"（留悬念、带情绪）
    - 提供中英文双语
 
 4. **输出格式**
@@ -831,7 +844,7 @@ def generate_story_beats_from_idea(title: str, description: str, world_setting: 
 }}
 """
 
-        # 构建用户提示词
+        # 构建用户提示词 - 优化版：让AI自由决定场景数
         world_setting_section = f"""
 世界观设定：
 {world_setting}
@@ -840,12 +853,19 @@ def generate_story_beats_from_idea(title: str, description: str, world_setting: 
         user_prompt = f"""
 剧集标题：{title}
 风格：{style}
-总时长：{total_duration}秒
-预计场景数：{scene_count}
+参考总时长：{suggested_duration}秒（AI可根据故事需要调整±20%）
+建议场景数：{min_scenes}-{max_scenes}个（AI根据创意复杂度自由决定）
 {world_setting_section}
 
-创意描述：
+## 🔥 核心创意（必须紧紧围绕此展开）
 {description}
+
+## 生成要求：
+1. **AI自由决定场景数量**：根据创意复杂度生成{min_scenes}-{max_scenes}个场景
+2. **每个场景必须有明确的情绪标签**：如"疑惑→贪婪→决绝"
+3. **相邻场景情绪必须不同**：形成情绪过山车
+4. **场景时长由AI决定**：快节奏3-5秒，对白5-8秒，高潮8-12秒
+5. **必须有强钩子开场和悬念结尾**
 
 请生成故事节拍JSON。
 """
@@ -1736,12 +1756,26 @@ def generate_shots_from_storybeats(title: str, story_beats: dict, style: str, sh
             logger.warning('故事节拍没有场景数据，返回空分镜头')
             return []
         
-        # 构建提示词
-        system_prompt = f"""You are a professional cinematographer specializing in AI video generation prompts.
+        # 构建提示词 - 优化版：让AI自由决定分镜数量
+        system_prompt = f"""You are a professional cinematographer and short film director specializing in AI video generation for viral short videos (抖音/快手 style).
 
 Based on the provided story beats, generate professional video shot descriptions in English.
 
-Each shot must include:
+## 🎬 Shot Generation Guidelines
+
+### Shot Count Strategy (AI decides based on story complexity)
+- **Simple scene** (establishing shot, transition): 1-2 shots
+- **Standard scene** (dialogue, action): 2-3 shots  
+- **Complex scene** (fight, chase, emotional turning point): 3-4 shots
+- **Key dramatic moments**: Use multiple shots with different angles for impact
+
+### Rhythm Requirements for Short Videos
+- **3-second rule**: Every 3 seconds must have visual change or emotional shift
+- **Shot variety**: Alternate between Close-up, Medium, Wide, POV shots
+- **Pacing**: Fast-paced action = more cuts; Emotional moments = longer takes
+- **Hook shots**: First shot must grab attention within 1 second
+
+### Each shot must include:
 1. shot_number: Sequential number
 2. shot_type: Shot type (Close-up/Medium shot/Wide shot/Establishing shot/POV)
 3. scene_title: Brief scene title in English
@@ -1862,22 +1896,34 @@ Dialogues:
 {chr(10).join(dialogue_summary) if dialogue_summary else 'No dialogue'}
 """)
 
+        # 计算参考分镜数（给AI参考，不限制）
+        estimated_shots = len(scenes) * 2  # 建议每个场景2个分镜左右
+        
         user_prompt = f"""Generate professional video shots based on these story beats:
 
 Title: {title}
 Style: {style}
+Total Scenes: {len(scenes)}
+Suggested Shot Count: {estimated_shots}-{estimated_shots + len(scenes)} (AI decides exact number based on complexity)
 
 Story Beats:
 {chr(10).join(scenes_summary)}
 
-Requirements:
-1. Create {len(scenes)} shots, one per scene
-2. Each shot should have professional cinematography language
-3. veo_prompt must include camera movement, lighting, and textures
-4. Dialogue should be natural and fit the shot duration
-5. Output valid JSON only
+## Requirements:
+1. **AI decides shot count** based on each scene's narrative complexity
+   - Simple scenes: 1-2 shots
+   - Complex/action scenes: 3-4 shots with multiple angles
+   - Key emotional moments: Use shot-reverse-shot, close-ups for impact
+2. **Pacing for short videos**: Fast rhythm, 3-second visual changes
+3. **First shot must be a HOOK** - grab attention immediately
+4. **Include visual variety**: Mix close-ups, medium, wide shots, POV
+5. **Show, don't tell**: Use visual storytelling over exposition
+6. **End with cliffhanger**: Last shot should leave viewer wanting more
+7. **Professional cinematography**: Include camera movement, lighting, textures
+8. **Dialogue**: Natural, concise, fit the shot duration (max 2 lines per shot)
+9. **Output valid JSON only**
 
-Generate shots now:"""
+Generate shots now:
 
         logger.info(f'🎥 [分镜头生成] 调用AI生成全英文分镜头...')
         
