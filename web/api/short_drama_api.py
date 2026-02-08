@@ -205,6 +205,61 @@ class ShortDramaProject:
                 'shots': []
             }
 
+            # 🔥 优先检查是否存在 shots_v2_cn.json（创意导入格式）
+            shots_v2_cn_file = episode_dir / 'shots_v2_cn.json'
+            shots_v2_en_file = episode_dir / 'shots_v2.json'
+
+            if shots_v2_cn_file.exists() and shots_v2_en_file.exists():
+                try:
+                    # 加载中文版本（用于显示）
+                    with open(shots_v2_cn_file, 'r', encoding='utf-8') as f:
+                        shots_cn_data = json.load(f)
+
+                    # 加载英文版本（用于AI提示词）
+                    with open(shots_v2_en_file, 'r', encoding='utf-8') as f:
+                        shots_en_data = json.load(f)
+
+                    shots_cn = shots_cn_data.get('shots', [])
+                    shots_en = shots_en_data.get('shots', [])
+
+                    # 合并中英文数据
+                    for i, (shot_cn, shot_en) in enumerate(zip(shots_cn, shots_en), 1):
+                        shot_obj = {
+                            'id': f"shot_{i}",
+                            'shot_number': shot_cn.get('shot_number', i),
+                            'scene_number': 1,
+                            'scene_title': shot_cn.get('scene_title', ''),
+                            'shot_type': shot_cn.get('shot_type', ''),
+                            'duration': shot_cn.get('duration_seconds', 8),
+                            # 🔥 英文提示词（用于AI生成）
+                            'veo_prompt_standard': shot_en.get('veo_prompt_standard', ''),
+                            'veo_prompt_reference': shot_en.get('veo_prompt_reference', ''),
+                            'veo_prompt_frames': shot_en.get('veo_prompt_frames', ''),
+                            # 🔥 中文描述（用于显示）
+                            'visual_description_standard': shot_cn.get('visual_description_standard', ''),
+                            'visual_description_reference': shot_cn.get('visual_description_reference', ''),
+                            'visual_description_frames': shot_cn.get('visual_description_frames', ''),
+                            # 🔥 中文场景图提示词（用于显示）
+                            'image_prompt': shot_cn.get('image_prompt', ''),
+                            # 🔥 英文场景图提示词（用于AI生成）
+                            'image_prompt_en': shot_en.get('image_prompt', ''),
+                            # 兼容旧模式
+                            'veo_prompt': shot_en.get('veo_prompt_standard', ''),
+                            'visual_description': shot_cn.get('visual_description_standard', ''),
+                            'preferred_mode': 'standard',
+                            'dialogue': shot_cn.get('dialogue', {}),
+                            'visual': {},
+                            'status': 'pending'
+                        }
+                        episode_obj['shots'].append(shot_obj)
+
+                    logger.info(f'📋 [Episode] {episode_name}: 从 shots_v2 加载了 {len(episode_obj["shots"])} 个镜头')
+                    enriched_episodes.append(episode_obj)
+                    continue
+
+                except Exception as e:
+                    logger.error(f'加载 shots_v2 文件失败 {episode_name}: {e}')
+
             # 如果storyboard目录存在，加载storyboard文件
             if storyboard_dir.exists() and storyboard_dir.is_dir():
                 storyboard_files = list(storyboard_dir.glob('*.json'))
