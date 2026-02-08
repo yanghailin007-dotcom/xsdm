@@ -8533,37 +8533,37 @@ saveGeminiConfig(config) {
                                         ${shot.image_prompts.scene ? `
                                             <div class="image-prompt-item">
                                                 <div class="prompt-header">
-                                                    <span>🏞️ 场景图</span>
-                                                    <button class="btn btn-sm" onclick="shortDramaStudio.copyToClipboard('${this.escapeHtml(shot.image_prompts.scene)}')">复制</button>
+                                                    <span>🏞️ 场景图（空场景背景）</span>
+                                                    <button class="btn btn-sm" onclick="shortDramaStudio.copyToClipboard('${this.escapeHtml(shot.image_prompts.scene)}')">复制英文</button>
                                                 </div>
-                                                <p class="prompt-text">${shot.image_prompts.scene}</p>
+                                                <p class="prompt-text">${shot.image_prompts_cn?.scene || shot.image_prompts.scene}</p>
                                             </div>
                                         ` : ''}
                                         ${shot.image_prompts.character ? `
                                             <div class="image-prompt-item">
                                                 <div class="prompt-header">
-                                                    <span>👤 角色图</span>
-                                                    <button class="btn btn-sm" onclick="shortDramaStudio.copyToClipboard('${this.escapeHtml(shot.image_prompts.character)}')">复制</button>
+                                                    <span>👤 角色图（角色参考）</span>
+                                                    <button class="btn btn-sm" onclick="shortDramaStudio.copyToClipboard('${this.escapeHtml(shot.image_prompts.character)}')">复制英文</button>
                                                 </div>
-                                                <p class="prompt-text">${shot.image_prompts.character}</p>
+                                                <p class="prompt-text">${shot.image_prompts_cn?.character || shot.image_prompts.character}</p>
                                             </div>
                                         ` : ''}
                                         ${shot.image_prompts.first_frame ? `
                                             <div class="image-prompt-item">
                                                 <div class="prompt-header">
-                                                    <span>🎬 首帧</span>
-                                                    <button class="btn btn-sm" onclick="shortDramaStudio.copyToClipboard('${this.escapeHtml(shot.image_prompts.first_frame)}')">复制</button>
+                                                    <span>🎬 首帧（起始画面）</span>
+                                                    <button class="btn btn-sm" onclick="shortDramaStudio.copyToClipboard('${this.escapeHtml(shot.image_prompts.first_frame)}')">复制英文</button>
                                                 </div>
-                                                <p class="prompt-text">${shot.image_prompts.first_frame}</p>
+                                                <p class="prompt-text">${shot.image_prompts_cn?.first_frame || shot.image_prompts.first_frame}</p>
                                             </div>
                                         ` : ''}
                                         ${shot.image_prompts.last_frame ? `
                                             <div class="image-prompt-item">
                                                 <div class="prompt-header">
-                                                    <span>🎬 尾帧</span>
-                                                    <button class="btn btn-sm" onclick="shortDramaStudio.copyToClipboard('${this.escapeHtml(shot.image_prompts.last_frame)}')">复制</button>
+                                                    <span>🎬 尾帧（结束画面）</span>
+                                                    <button class="btn btn-sm" onclick="shortDramaStudio.copyToClipboard('${this.escapeHtml(shot.image_prompts.last_frame)}')">复制英文</button>
                                                 </div>
-                                                <p class="prompt-text">${shot.image_prompts.last_frame}</p>
+                                                <p class="prompt-text">${shot.image_prompts_cn?.last_frame || shot.image_prompts.last_frame}</p>
                                             </div>
                                         ` : ''}
                                     </div>
