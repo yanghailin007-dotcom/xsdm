@@ -1687,8 +1687,10 @@ def translate_shots_to_chinese(shots: list) -> list:
    - visual_description_frames
    - image_prompt
    - scene_title
+   - shot_type (镜头类型：Wide shot→全景, Close-up→特写, Medium shot→中景, 等)
 
 2. dialogue对象内的字段：
+   - speaker (说话者名称，如果是英文人名进行音译或意译为中文名)
    - lines_en → 翻译后存到 lines（保留lines_en原文）
    - tone_en → 翻译后存到 tone（保留tone_en原文）
    - audio_note_en → 翻译后存到 audio_note（保留audio_note_en原文）
@@ -1699,6 +1701,8 @@ def translate_shots_to_chinese(shots: list) -> list:
 - 保持JSON结构完整，不要修改任何key名
 - 只翻译指定字段的值，其他字段保持不变
 - 技术术语：cinematic→电影级, photorealistic→写实风格, 8k→8K超清
+- shot_type常见翻译：Wide shot→全景, Close-up→特写, Medium shot→中景, Extreme close-up→极特写, POV→第一人称视角, Establishing shot→定场镜头, Over-the-shoulder→过肩镜头
+- speaker翻译：英文人名进行音译或意译为中文名（如 Zheng→郑, Li→李）
 - 翻译要自然流畅，符合中文表达习惯
 
 【重要】
