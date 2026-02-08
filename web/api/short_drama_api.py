@@ -1525,6 +1525,39 @@ def generate_storyboard_from_beats():
 
         logger.info(f'✅ [生成分镜] 翻译完成')
 
+        # 🔥 合并中英文数据（与 _load_episode_storyboards 一致）
+        merged_shots = []
+        for i, (shot_cn, shot_en) in enumerate(zip(shots_cn, shots_en), 1):
+            merged_shot = {
+                'id': f"shot_{i}",
+                'shot_number': shot_cn.get('shot_number', i),
+                'scene_number': 1,
+                'scene_title': shot_cn.get('scene_title', ''),
+                'shot_type': shot_cn.get('shot_type', ''),
+                'duration': shot_cn.get('duration_seconds', 8),
+                # 🔥 英文提示词（用于AI生成）
+                'veo_prompt_standard': shot_en.get('veo_prompt_standard', ''),
+                'veo_prompt_reference': shot_en.get('veo_prompt_reference', ''),
+                'veo_prompt_frames': shot_en.get('veo_prompt_frames', ''),
+                # 🔥 中文描述（用于显示）
+                'visual_description_standard': shot_cn.get('visual_description_standard', ''),
+                'visual_description_reference': shot_cn.get('visual_description_reference', ''),
+                'visual_description_frames': shot_cn.get('visual_description_frames', ''),
+                # 🔥 场景图提示词
+                'image_prompt': shot_cn.get('image_prompt', ''),
+                'image_prompt_en': shot_en.get('image_prompt', ''),
+                # 兼容旧模式
+                'veo_prompt': shot_en.get('veo_prompt_standard', ''),
+                'visual_description': shot_cn.get('visual_description_standard', ''),
+                'preferred_mode': 'standard',
+                'dialogue': shot_cn.get('dialogue', {}),
+                'visual': {},
+                'status': 'pending'
+            }
+            merged_shots.append(merged_shot)
+
+        logger.info(f'✅ [生成分镜] 合并中英文数据完成')
+
         # 🔥 检查是否是创意导入的项目
         episodes = project_data.get('episodes', [])
         is_creative_import = False
@@ -1542,8 +1575,8 @@ def generate_storyboard_from_beats():
             # 🔥 创意导入项目：更新 episodes[0].shots 和 shots_v2 文件
             logger.info(f'📝 [生成分镜] 检测到创意导入项目，更新 episodes 和 shots_v2 文件')
 
-            # 更新 episodes[0].shots（使用中文版本）
-            project_data['episodes'][0]['shots'] = shots_cn
+            # 更新 episodes[0].shots（使用合并后的数据）
+            project_data['episodes'][0]['shots'] = merged_shots
 
             # 保存英文版 shots_v2.json
             shots_v2_en_data = {
@@ -1575,9 +1608,9 @@ def generate_storyboard_from_beats():
                 json.dump(shots_v2_cn_data, f, ensure_ascii=False, indent=2)
             logger.info(f'✅ [生成分镜] 已更新中文版: {shots_v2_cn_file}')
         else:
-            # 🔥 非创意导入项目：保存到项目根级别的 shots 字段（使用中文版本）
+            # 🔥 非创意导入项目：保存到项目根级别的 shots 字段（使用合并后的数据）
             logger.info(f'📝 [生成分镜] 普通项目，保存到项目根级别 shots 字段')
-            project_data['shots'] = shots_cn
+            project_data['shots'] = merged_shots
 
         # 保存项目文件
         project_data['updatedAt'] = datetime.now().isoformat()
@@ -1586,8 +1619,8 @@ def generate_storyboard_from_beats():
 
         return jsonify({
             'success': True,
-            'message': f'成功生成 {len(shots_cn)} 个镜头',
-            'shots': shots_cn
+            'message': f'成功生成 {len(merged_shots)} 个镜头',
+            'shots': merged_shots
         })
         
     except Exception as e:
