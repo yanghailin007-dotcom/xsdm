@@ -1454,7 +1454,7 @@ def get_story_beats(project_id):
 def generate_storyboard_from_beats():
     """
     从故事节拍生成分镜头 (Step 4)
-    使用 VeOPromptService 生成三种模式的提示词
+    🔥 使用 AI 生成高质量提示词（与创意导入一致）
     """
     try:
         data = request.get_json()
@@ -1462,16 +1462,16 @@ def generate_storyboard_from_beats():
         story_beats = data.get('storyBeats')
         has_reference_image = data.get('hasReferenceImage', False)
         has_first_last_frame = data.get('hasFirstLastFrame', False)
-        
+
         if not project_id:
             return jsonify({'success': False, 'message': '缺少项目ID'}), 400
-        
+
         if not story_beats:
             return jsonify({'success': False, 'message': '缺少故事节拍数据'}), 400
-        
+
         logger.info(f'🎬 [生成分镜] 项目: {project_id}')
         logger.info(f'   参考图: {has_reference_image}, 首尾帧: {has_first_last_frame}')
-        
+
         # 查找项目
         project_file = None
         project_dir = None
@@ -1488,29 +1488,42 @@ def generate_storyboard_from_beats():
                             break
                     except:
                         continue
-        
+
         if not project_file or not project_dir:
             return jsonify({'success': False, 'message': '项目不存在'}), 404
-        
+
         # 加载项目数据
         with open(project_file, 'r', encoding='utf-8') as f:
             project_data = json.load(f)
-        
-        # 获取角色列表
-        characters = project_data.get('characters', [])
-        
-        # 🔥 使用 VeOPromptService 生成三种模式的提示词
-        from web.services.veo_prompt_service import generate_veo_prompts_for_scenes
 
-        shots = generate_veo_prompts_for_scenes(
+        # 🔥 使用 AI 生成分镜头（与创意导入一致）
+        logger.info(f'🤖 [生成分镜] 使用 AI 生成高质量分镜头（全英文）...')
+
+        title = project_data.get('title', '')
+        style = project_data.get('settings', {}).get('style', 'cinematic')
+
+        # 调用 AI 生成分镜头（全英文）
+        shots_en = generate_shots_from_storybeats(
+            title=title,
             story_beats=story_beats,
-            characters=characters,
-            has_reference_image=has_reference_image,
-            has_first_last_frame=has_first_last_frame
+            style=style,
+            shot_duration=8
         )
 
-        # 🔥 不再自动翻译，翻译功能改为 UI 手动触发
-        logger.info(f'✅ [生成分镜] 生成 {len(shots)} 个镜头（未翻译，请使用批量翻译功能）')
+        if not shots_en:
+            logger.error('❌ [生成分镜] AI 生成失败')
+            return jsonify({
+                'success': False,
+                'message': 'AI 生成分镜失败，请检查 AI 配置'
+            }), 500
+
+        logger.info(f'✅ [生成分镜] AI 生成了 {len(shots_en)} 个英文镜头')
+
+        # 🔥 调用 AI 翻译成中文
+        logger.info(f'🌐 [生成分镜] 翻译分镜头为中文...')
+        shots_cn = translate_shots_to_chinese(shots_en)
+
+        logger.info(f'✅ [生成分镜] 翻译完成')
 
         # 🔥 检查是否是创意导入的项目
         episodes = project_data.get('episodes', [])
@@ -1529,52 +1542,8 @@ def generate_storyboard_from_beats():
             # 🔥 创意导入项目：更新 episodes[0].shots 和 shots_v2 文件
             logger.info(f'📝 [生成分镜] 检测到创意导入项目，更新 episodes 和 shots_v2 文件')
 
-            # 更新 episodes[0].shots
-            project_data['episodes'][0]['shots'] = shots
-
-            # 🔥 需要将 shots 分离成英文和中文两个版本
-            # 英文版本：只保留英文字段
-            shots_en = []
-            for shot in shots:
-                shot_en = {
-                    'shot_number': shot.get('shot_number'),
-                    'shot_type': shot.get('shot_type'),
-                    'scene_title': shot.get('scene_title'),
-                    'veo_prompt_standard': shot.get('veo_prompt_standard', ''),
-                    'veo_prompt_reference': shot.get('veo_prompt_reference', ''),
-                    'veo_prompt_frames': shot.get('veo_prompt_frames', ''),
-                    'visual_description_standard': shot.get('visual_description_standard', ''),
-                    'visual_description_reference': shot.get('visual_description_reference', ''),
-                    'visual_description_frames': shot.get('visual_description_frames', ''),
-                    'image_prompt': shot.get('image_prompt', ''),
-                    'dialogue': {
-                        'speaker': shot.get('dialogue', {}).get('speaker', ''),
-                        'lines_en': shot.get('dialogue', {}).get('lines_en', ''),
-                        'tone_en': shot.get('dialogue', {}).get('tone', ''),
-                        'audio_note_en': ''
-                    },
-                    'duration_seconds': shot.get('duration', 8)
-                }
-                shots_en.append(shot_en)
-
-            # 中文版本：包含中英文字段
-            shots_cn = []
-            for shot in shots:
-                shot_cn = {
-                    'shot_number': shot.get('shot_number'),
-                    'shot_type': shot.get('shot_type'),
-                    'scene_title': shot.get('scene_title'),
-                    'veo_prompt_standard': shot.get('visual_description_standard', ''),
-                    'veo_prompt_reference': shot.get('visual_description_reference', ''),
-                    'veo_prompt_frames': shot.get('visual_description_frames', ''),
-                    'visual_description_standard': shot.get('visual_description_standard', ''),
-                    'visual_description_reference': shot.get('visual_description_reference', ''),
-                    'visual_description_frames': shot.get('visual_description_frames', ''),
-                    'image_prompt': shot.get('image_prompt', ''),
-                    'dialogue': shot.get('dialogue', {}),
-                    'duration_seconds': shot.get('duration', 8)
-                }
-                shots_cn.append(shot_cn)
+            # 更新 episodes[0].shots（使用中文版本）
+            project_data['episodes'][0]['shots'] = shots_cn
 
             # 保存英文版 shots_v2.json
             shots_v2_en_data = {
@@ -1606,19 +1575,19 @@ def generate_storyboard_from_beats():
                 json.dump(shots_v2_cn_data, f, ensure_ascii=False, indent=2)
             logger.info(f'✅ [生成分镜] 已更新中文版: {shots_v2_cn_file}')
         else:
-            # 🔥 非创意导入项目：保存到项目根级别的 shots 字段
+            # 🔥 非创意导入项目：保存到项目根级别的 shots 字段（使用中文版本）
             logger.info(f'📝 [生成分镜] 普通项目，保存到项目根级别 shots 字段')
-            project_data['shots'] = shots
+            project_data['shots'] = shots_cn
 
         # 保存项目文件
         project_data['updatedAt'] = datetime.now().isoformat()
         with open(project_file, 'w', encoding='utf-8') as f:
             json.dump(project_data, f, ensure_ascii=False, indent=2)
-        
+
         return jsonify({
             'success': True,
-            'message': f'成功生成 {len(shots)} 个镜头',
-            'shots': shots
+            'message': f'成功生成 {len(shots_cn)} 个镜头',
+            'shots': shots_cn
         })
         
     except Exception as e:
