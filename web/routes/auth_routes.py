@@ -299,6 +299,20 @@ def register_page_routes(app):
         """流程控制器"""
         return render_template('video/workflow.html')
 
+    @app.route('/api/current-user', methods=['GET'])
+    def get_current_user():
+        """获取当前登录用户信息"""
+        if session.get('logged_in'):
+            return jsonify({
+                'success': True,
+                'username': session.get('username', 'unknown'),
+                'logged_in': True
+            })
+        return jsonify({
+            'success': False,
+            'logged_in': False
+        }), 401
+
     # 错误处理
     @app.errorhandler(404)
     def not_found(error):

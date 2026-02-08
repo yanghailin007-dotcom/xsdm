@@ -2032,20 +2032,54 @@ class ShortDramaStudio {
     async loadShotsV2() {
         try {
             const episodeDirectoryName = this.getEpisodeDirectoryName();
-            console.log('📂 [加载] 尝试加载 shots_v2.json, 剧集:', episodeDirectoryName);
+            console.log('📂 [加载] 尝试加载 shots_v2, 剧集:', episodeDirectoryName);
 
-            const response = await fetch(`/api/short-drama/shots-v2?novel=${encodeURIComponent(this.selectedNovel)}&episode=${encodeURIComponent(episodeDirectoryName)}`);
-            const data = await response.json();
+            // 🔥 同时加载英文和中文版本
+            const [enResponse, cnResponse] = await Promise.all([
+                fetch(`/api/short-drama/shots-v2?novel=${encodeURIComponent(this.selectedNovel)}&episode=${encodeURIComponent(episodeDirectoryName)}`),
+                fetch(`/api/short-drama/shots-v2-cn?novel=${encodeURIComponent(this.selectedNovel)}&episode=${encodeURIComponent(episodeDirectoryName)}`)
+            ]);
 
-            if (data.success && data.shots && data.shots.length > 0) {
-                console.log('✅ [加载] shots_v2.json 加载成功, 镜头数:', data.shots.length);
-                return { shots: data.shots };
+            const enData = await enResponse.json();
+            const cnData = await cnResponse.json();
+
+            // 🔥 合并中英文数据
+            if (enData.success && enData.shots && enData.shots.length > 0) {
+                let mergedShots = enData.shots;
+                
+                // 如果有中文版本，合并中文字段
+                if (cnData.success && cnData.shots && cnData.shots.length > 0) {
+                    console.log('✅ [加载] 合并中英文数据, 英文:', enData.shots.length, '中文:', cnData.shots.length);
+                    mergedShots = enData.shots.map((shot, idx) => {
+                        const cnShot = cnData.shots[idx];
+                        if (cnShot) {
+                            return {
+                                ...shot,
+                                // 中文提示词字段
+                                veo_prompt_standard_cn: cnShot.veo_prompt_standard,
+                                veo_prompt_reference_cn: cnShot.veo_prompt_reference,
+                                veo_prompt_frames_cn: cnShot.veo_prompt_frames,
+                                visual_description_standard_cn: cnShot.visual_description_standard,
+                                visual_description_reference_cn: cnShot.visual_description_reference,
+                                visual_description_frames_cn: cnShot.visual_description_frames,
+                                scene_title: cnShot.scene_title,
+                                shot_type: cnShot.shot_type,
+                                image_prompts_cn: cnShot.image_prompts
+                            };
+                        }
+                        return shot;
+                    });
+                } else {
+                    console.log('✅ [加载] 只加载到英文数据:', enData.shots.length);
+                }
+                
+                return { shots: mergedShots };
             } else {
-                console.log('⚠️ [加载] shots_v2.json 不存在或为空');
+                console.log('⚠️ [加载] shots_v2 不存在或为空');
                 return null;
             }
         } catch (error) {
-            console.error('❌ [加载] shots_v2.json 加载异常:', error);
+            console.error('❌ [加载] shots_v2 加载异常:', error);
             return null;
         }
     }
@@ -2055,6 +2089,17 @@ class ShortDramaStudio {
      */
     normalizeShots(shots) {
         console.log('🔄 [格式化] 开始格式化镜头数据, 原始数量:', shots.length);
+        
+        // 🔥 调试：检查第一个镜头的中文字段
+        if (shots.length > 0 && shots[0].veo_prompt_standard_cn) {
+            console.log('✅ [格式化] 检测到中文字段:', {
+                veo_prompt_standard_cn_preview: shots[0].veo_prompt_standard_cn.substring(0, 50) + '...'
+            });
+        } else if (shots.length > 0) {
+            console.log('⚠️ [格式化] 第一个镜头缺少中文字段, 可用字段:', 
+                Object.keys(shots[0]).filter(k => k.includes('veo') || k.includes('cn'))
+            );
+        }
 
         return shots.map((shot, idx) => {
             // 确保必需字段存在
@@ -2128,7 +2173,32 @@ class ShortDramaStudio {
             // 🔥 优先级1: 内存中的优化数据（数据流A）
             if (this.currentProject?.shots?.length > 0) {
                 console.log('✅ [视频步骤] 使用内存中的优化数据（数据流A）, 镜头数:', this.currentProject.shots.length);
-                allShots = this.normalizeShots(this.currentProject.shots);
+                
+                // 🔥 同时加载文件系统中的中文版本进行合并
+                const v2Data = await this.loadShotsV2();
+                if (v2Data?.shots?.length > 0) {
+                    console.log('✅ [视频步骤] 合并文件系统中的中文数据');
+                    // 合并内存数据和文件系统数据（保留内存数据的主体，添加中文提示词字段）
+                    allShots = this.normalizeShots(this.currentProject.shots.map((shot, idx) => {
+                        const v2Shot = v2Data.shots[idx];
+                        if (v2Shot) {
+                            return {
+                                ...shot,
+                                // 从文件系统数据中合并中文字段
+                                veo_prompt_standard_cn: v2Shot.veo_prompt_standard_cn,
+                                veo_prompt_reference_cn: v2Shot.veo_prompt_reference_cn,
+                                veo_prompt_frames_cn: v2Shot.veo_prompt_frames_cn,
+                                visual_description_standard_cn: v2Shot.visual_description_standard_cn,
+                                visual_description_reference_cn: v2Shot.visual_description_reference_cn,
+                                visual_description_frames_cn: v2Shot.visual_description_frames_cn,
+                                image_prompts_cn: v2Shot.image_prompts_cn
+                            };
+                        }
+                        return shot;
+                    }));
+                } else {
+                    allShots = this.normalizeShots(this.currentProject.shots);
+                }
             }
             // 🔥 优先级2: 文件系统中的优化数据（shots_v2.json）
             else {
@@ -2657,7 +2727,6 @@ class ShortDramaStudio {
                     <div class="task-prompt">
                         <span class="prompt-label">AI提示:</span>
                         <span class="prompt-text" id="prompt-text-${idx}">${(currentPromptCN || '').substring(0, 150)}${(currentPromptCN || '').length > 150 ? '...' : ''}</span>
-                        <button class="btn-view-english" onclick="shortDramaStudio.showEnglishPrompt(${idx})" style="margin-left: 0.5rem; font-size: 0.75rem; padding: 0.25rem 0.5rem; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 0.25rem; cursor: pointer;" title="查看英文原文">EN</button>
                     </div>
                     ${shot.plot_content ? `
                     <div class="task-plot">
@@ -2694,9 +2763,10 @@ class ShortDramaStudio {
                     ${hasRefs ? `<div class="refs-thumbnails">${refsThumbnailsHtml}</div>` : '<div class="task-visual-empty"></div>'}
                     ${hasRefs ? '<span class="visual-arrow">→</span>' : ''}
                     ${videoPreviewHtml}
+                    <button class="btn-view-english" onclick="shortDramaStudio.showEnglishPrompt(${idx})" style="margin-top: 0.5rem; font-size: 0.75rem; padding: 0.25rem 0.5rem; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 0.25rem; cursor: pointer; align-self: center;" title="查看英文原文">EN</button>
                 </div>
                 <div class="task-actions">
-                    <button class="task-btn edit-btn" onclick="shortDramaStudio.editShotPrompt(${idx})" title="编辑提示词">
+                    <button class="task-btn edit-btn" onclick="shortDramaStudio.editShotPrompt(${idx})" title="编辑中英文提示词">
                         <span>✏️</span>
                     </button>
                     ${isCompleted ? `
@@ -2817,6 +2887,14 @@ class ShortDramaStudio {
             prompt = shot.veo_prompt_standard_cn;
         } else {
             // 🔥 回退：如果没有中文版本，返回英文版本
+            console.log('⚠️ [getCurrentVeoPromptCN] 未找到中文字段，回退到英文:', {
+                mode,
+                has_custom_cn: !!shot.veo_prompt_custom_cn,
+                has_standard_cn: !!shot.veo_prompt_standard_cn,
+                has_reference_cn: !!shot.veo_prompt_reference_cn,
+                has_frames_cn: !!shot.veo_prompt_frames_cn,
+                shot_keys: Object.keys(shot).filter(k => k.includes('veo') || k.includes('prompt'))
+            });
             prompt = this.getCurrentVeoPrompt(shot);
         }
         
@@ -2869,6 +2947,14 @@ class ShortDramaStudio {
 
         const promptEN = this.getCurrentVeoPrompt(shot);
         const promptCN = this.getCurrentVeoPromptCN(shot);
+        
+        console.log('🔍 [showEnglishPrompt] 提示词对照:', {
+            shotIndex,
+            mode: shot.preferred_mode || 'standard',
+            promptCN_preview: promptCN ? promptCN.substring(0, 50) + '...' : 'empty',
+            promptEN_preview: promptEN ? promptEN.substring(0, 50) + '...' : 'empty',
+            veo_prompt_standard_cn_preview: shot.veo_prompt_standard_cn ? shot.veo_prompt_standard_cn.substring(0, 50) + '...' : 'not found'
+        });
 
         // 创建弹窗
         const modal = document.createElement('div');
@@ -6460,18 +6546,271 @@ saveGeminiConfig(config) {
     }
 
     /**
-     * 编辑提示词
+     * 编辑提示词（支持中英文三种模式）
      */
     editShotPrompt(idx) {
         const shot = this.shots[idx];
         if (!shot) return;
 
-        const newPrompt = prompt('编辑提示词:', shot.veo_prompt || shot.screen_action || '');
-        if (newPrompt !== null && newPrompt.trim()) {
-            shot.veo_prompt = newPrompt.trim();
-            this.updateVideoCard(idx);
-            this.showToast('提示词已更新', 'success');
-        }
+        // 创建编辑弹窗
+        const modal = document.createElement('div');
+        modal.className = 'prompt-edit-modal';
+        modal.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.85);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+        `;
+
+        // 获取当前模式的提示词
+        const mode = shot.preferred_mode || 'standard';
+        
+        // 获取当前值
+        const getPromptValue = (field, modeSuffix = '') => {
+            const key = modeSuffix ? `${field}_${modeSuffix}` : field;
+            return shot[key] || '';
+        };
+
+        modal.innerHTML = `
+            <div style="
+                background: var(--bg-secondary);
+                border-radius: 16px;
+                max-width: 900px;
+                width: 90%;
+                max-height: 85vh;
+                overflow-y: auto;
+                padding: 24px;
+                box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            ">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h3 style="margin: 0;">✏️ 编辑提示词 - 镜头 ${shot.shot_number || (idx + 1)}</h3>
+                    <button class="modal-close" style="
+                        background: none;
+                        border: none;
+                        font-size: 1.8rem;
+                        cursor: pointer;
+                        color: var(--text-secondary);
+                    ">×</button>
+                </div>
+
+                <!-- 模式选择 -->
+                <div style="margin-bottom: 20px; padding: 12px; background: var(--bg-dark); border-radius: 8px;">
+                    <label style="font-weight: 600; margin-right: 12px;">当前模式:</label>
+                    <select id="edit-mode-select" style="
+                        padding: 6px 12px;
+                        border-radius: 6px;
+                        background: var(--bg-secondary);
+                        border: 1px solid var(--border);
+                        color: var(--text-primary);
+                    ">
+                        <option value="standard" ${mode === 'standard' ? 'selected' : ''}>🎯 标准模式 (Standard)</option>
+                        <option value="reference" ${mode === 'reference' ? 'selected' : ''}>👤 参考图模式 (Reference)</option>
+                        <option value="frames" ${mode === 'frames' ? 'selected' : ''}>🎬 首尾帧模式 (Frames)</option>
+                    </select>
+                    <span style="margin-left: 12px; color: var(--text-secondary); font-size: 0.85rem;">
+                        ${mode === 'standard' ? '纯文本提示词' : mode === 'reference' ? '使用角色参考图' : '使用场景首尾帧'}
+                    </span>
+                </div>
+
+                <!-- 中文提示词编辑 -->
+                <div style="margin-bottom: 20px;">
+                    <label style="font-weight: 600; display: block; margin-bottom: 8px; color: #f59e0b;">📝 中文提示词（界面显示）</label>
+                    <textarea id="edit-prompt-cn-standard" style="
+                        width: 100%;
+                        min-height: 80px;
+                        padding: 12px;
+                        border-radius: 8px;
+                        background: var(--bg-dark);
+                        border: 1px solid var(--border);
+                        color: var(--text-primary);
+                        font-family: inherit;
+                        line-height: 1.5;
+                        resize: vertical;
+                        display: ${mode === 'standard' ? 'block' : 'none'};
+                    " placeholder="输入标准模式中文提示词...">${this.escapeHtml(shot.veo_prompt_standard_cn || shot.veo_prompt_standard || '')}</textarea>
+                    <textarea id="edit-prompt-cn-reference" style="
+                        width: 100%;
+                        min-height: 80px;
+                        padding: 12px;
+                        border-radius: 8px;
+                        background: var(--bg-dark);
+                        border: 1px solid var(--border);
+                        color: var(--text-primary);
+                        font-family: inherit;
+                        line-height: 1.5;
+                        resize: vertical;
+                        display: ${mode === 'reference' ? 'block' : 'none'};
+                    " placeholder="输入参考图模式中文提示词...">${this.escapeHtml(shot.veo_prompt_reference_cn || shot.veo_prompt_reference || '')}</textarea>
+                    <textarea id="edit-prompt-cn-frames" style="
+                        width: 100%;
+                        min-height: 80px;
+                        padding: 12px;
+                        border-radius: 8px;
+                        background: var(--bg-dark);
+                        border: 1px solid var(--border);
+                        color: var(--text-primary);
+                        font-family: inherit;
+                        line-height: 1.5;
+                        resize: vertical;
+                        display: ${mode === 'frames' ? 'block' : 'none'};
+                    " placeholder="输入首尾帧模式中文提示词...">${this.escapeHtml(shot.veo_prompt_frames_cn || shot.veo_prompt_frames || '')}</textarea>
+                </div>
+
+                <!-- 英文提示词编辑 -->
+                <div style="margin-bottom: 20px;">
+                    <label style="font-weight: 600; display: block; margin-bottom: 8px; color: #3b82f6;">🌐 英文提示词（发送给 VeO API）</label>
+                    <textarea id="edit-prompt-en-standard" style="
+                        width: 100%;
+                        min-height: 80px;
+                        padding: 12px;
+                        border-radius: 8px;
+                        background: var(--bg-dark);
+                        border: 1px solid var(--border);
+                        color: var(--text-primary);
+                        font-family: inherit;
+                        line-height: 1.5;
+                        resize: vertical;
+                        display: ${mode === 'standard' ? 'block' : 'none'};
+                    " placeholder="输入标准模式英文提示词...">${this.escapeHtml(shot.veo_prompt_standard || '')}</textarea>
+                    <textarea id="edit-prompt-en-reference" style="
+                        width: 100%;
+                        min-height: 80px;
+                        padding: 12px;
+                        border-radius: 8px;
+                        background: var(--bg-dark);
+                        border: 1px solid var(--border);
+                        color: var(--text-primary);
+                        font-family: inherit;
+                        line-height: 1.5;
+                        resize: vertical;
+                        display: ${mode === 'reference' ? 'block' : 'none'};
+                    " placeholder="输入参考图模式英文提示词...">${this.escapeHtml(shot.veo_prompt_reference || '')}</textarea>
+                    <textarea id="edit-prompt-en-frames" style="
+                        width: 100%;
+                        min-height: 80px;
+                        padding: 12px;
+                        border-radius: 8px;
+                        background: var(--bg-dark);
+                        border: 1px solid var(--border);
+                        color: var(--text-primary);
+                        font-family: inherit;
+                        line-height: 1.5;
+                        resize: vertical;
+                        display: ${mode === 'frames' ? 'block' : 'none'};
+                    " placeholder="输入首尾帧模式英文提示词...">${this.escapeHtml(shot.veo_prompt_frames || '')}</textarea>
+                </div>
+
+                <!-- 提示说明 -->
+                <div style="
+                    background: rgba(245, 158, 11, 0.1);
+                    border-left: 3px solid #f59e0b;
+                    padding: 12px;
+                    border-radius: 0 8px 8px 0;
+                    margin-bottom: 20px;
+                    font-size: 0.85rem;
+                    color: var(--text-secondary);
+                ">
+                    💡 <strong>提示:</strong> 中文版本用于界面显示，英文版本实际发送给 VeO API。建议保持中英文含义一致。
+                </div>
+
+                <!-- 按钮 -->
+                <div style="display: flex; justify-content: flex-end; gap: 12px;">
+                    <button class="modal-cancel" style="
+                        padding: 10px 20px;
+                        background: var(--bg-tertiary);
+                        border: 1px solid var(--border);
+                        border-radius: 8px;
+                        color: var(--text-primary);
+                        cursor: pointer;
+                    ">取消</button>
+                    <button class="modal-save" style="
+                        padding: 10px 24px;
+                        background: var(--primary);
+                        border: none;
+                        border-radius: 8px;
+                        color: white;
+                        cursor: pointer;
+                        font-weight: 500;
+                    ">💾 保存</button>
+                </div>
+            </div>
+        `;
+
+        // 模式切换处理
+        const modeSelect = modal.querySelector('#edit-mode-select');
+        modeSelect.addEventListener('change', (e) => {
+            const newMode = e.target.value;
+            // 隐藏所有 textarea
+            ['standard', 'reference', 'frames'].forEach(m => {
+                modal.querySelector(`#edit-prompt-cn-${m}`).style.display = 'none';
+                modal.querySelector(`#edit-prompt-en-${m}`).style.display = 'none';
+            });
+            // 显示当前模式的 textarea
+            modal.querySelector(`#edit-prompt-cn-${newMode}`).style.display = 'block';
+            modal.querySelector(`#edit-prompt-en-${newMode}`).style.display = 'block';
+            // 更新说明文字
+            const descMap = {
+                'standard': '纯文本提示词',
+                'reference': '使用角色参考图',
+                'frames': '使用场景首尾帧'
+            };
+            e.target.nextElementSibling.textContent = descMap[newMode];
+        });
+
+        // 关闭弹窗
+        modal.querySelector('.modal-close').addEventListener('click', () => modal.remove());
+        modal.querySelector('.modal-cancel').addEventListener('click', () => modal.remove());
+        
+        // 点击背景关闭
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) modal.remove();
+        });
+
+        // 保存处理
+        modal.querySelector('.modal-save').addEventListener('click', () => {
+            // 获取所有模式的值
+            const cnStandard = modal.querySelector('#edit-prompt-cn-standard').value.trim();
+            const cnReference = modal.querySelector('#edit-prompt-cn-reference').value.trim();
+            const cnFrames = modal.querySelector('#edit-prompt-cn-frames').value.trim();
+            const enStandard = modal.querySelector('#edit-prompt-en-standard').value.trim();
+            const enReference = modal.querySelector('#edit-prompt-en-reference').value.trim();
+            const enFrames = modal.querySelector('#edit-prompt-en-frames').value.trim();
+
+            // 更新 shot 数据
+            if (cnStandard) shot.veo_prompt_standard_cn = cnStandard;
+            if (cnReference) shot.veo_prompt_reference_cn = cnReference;
+            if (cnFrames) shot.veo_prompt_frames_cn = cnFrames;
+            if (enStandard) shot.veo_prompt_standard = enStandard;
+            if (enReference) shot.veo_prompt_reference = enReference;
+            if (enFrames) shot.veo_prompt_frames = enFrames;
+
+            // 更新当前显示的提示词
+            const newMode = modeSelect.value;
+            shot.preferred_mode = newMode;
+            
+            // 重新渲染该行
+            const rowElement = document.getElementById(`taskRow_${idx}`);
+            if (rowElement) {
+                rowElement.outerHTML = this.renderVideoTaskRow(shot, idx);
+            }
+
+            this.showToast('提示词已保存', 'success');
+            modal.remove();
+            
+            console.log('💾 [编辑提示词] 已保存镜头', idx, '的提示词:', {
+                mode: newMode,
+                hasCN: !!cnStandard || !!cnReference || !!cnFrames,
+                hasEN: !!enStandard || !!enReference || !!enFrames
+            });
+        });
+
+        document.body.appendChild(modal);
     }
 
     /**
@@ -8972,36 +9311,44 @@ saveGeminiConfig(config) {
                                             <div class="image-prompt-item">
                                                 <div class="prompt-header">
                                                     <span>🏞️ 场景图</span>
-                                                    <button class="btn btn-sm" onclick="shortDramaStudio.copyToClipboard('${this.escapeHtml(shot.image_prompts.scene)}')">复制</button>
                                                 </div>
                                                 <p class="prompt-text">${shot.image_prompts.scene}</p>
+                                                <div class="prompt-actions">
+                                                    <button class="btn btn-sm" onclick="shortDramaStudio.copyToClipboard('${this.escapeHtml(shot.image_prompts.scene)}')">复制</button>
+                                                </div>
                                             </div>
                                         ` : ''}
                                         ${shot.image_prompts.character ? `
                                             <div class="image-prompt-item">
                                                 <div class="prompt-header">
                                                     <span>👤 角色图</span>
-                                                    <button class="btn btn-sm" onclick="shortDramaStudio.copyToClipboard('${this.escapeHtml(shot.image_prompts.character)}')">复制</button>
                                                 </div>
                                                 <p class="prompt-text">${shot.image_prompts.character}</p>
+                                                <div class="prompt-actions">
+                                                    <button class="btn btn-sm" onclick="shortDramaStudio.copyToClipboard('${this.escapeHtml(shot.image_prompts.character)}')">复制</button>
+                                                </div>
                                             </div>
                                         ` : ''}
                                         ${shot.image_prompts.first_frame ? `
                                             <div class="image-prompt-item">
                                                 <div class="prompt-header">
                                                     <span>🎬 首帧</span>
-                                                    <button class="btn btn-sm" onclick="shortDramaStudio.copyToClipboard('${this.escapeHtml(shot.image_prompts.first_frame)}')">复制</button>
                                                 </div>
                                                 <p class="prompt-text">${shot.image_prompts.first_frame}</p>
+                                                <div class="prompt-actions">
+                                                    <button class="btn btn-sm" onclick="shortDramaStudio.copyToClipboard('${this.escapeHtml(shot.image_prompts.first_frame)}')">复制</button>
+                                                </div>
                                             </div>
                                         ` : ''}
                                         ${shot.image_prompts.last_frame ? `
                                             <div class="image-prompt-item">
                                                 <div class="prompt-header">
                                                     <span>🎬 尾帧</span>
-                                                    <button class="btn btn-sm" onclick="shortDramaStudio.copyToClipboard('${this.escapeHtml(shot.image_prompts.last_frame)}')">复制</button>
                                                 </div>
                                                 <p class="prompt-text">${shot.image_prompts.last_frame}</p>
+                                                <div class="prompt-actions">
+                                                    <button class="btn btn-sm" onclick="shortDramaStudio.copyToClipboard('${this.escapeHtml(shot.image_prompts.last_frame)}')">复制</button>
+                                                </div>
                                             </div>
                                         ` : ''}
                                     </div>

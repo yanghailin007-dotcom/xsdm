@@ -2022,6 +2022,153 @@ def translate_shots_to_chinese(shots: list) -> list:
         return shots
 
 
+# ============================================================
+# Shots V2 API 路由 - 用于加载和保存优化格式的分镜头数据
+# ============================================================
+
+@short_drama_api.route('/shots-v2', methods=['GET'])
+def get_shots_v2():
+    """获取英文版 shots_v2.json 数据"""
+    try:
+        novel = request.args.get('novel', '').strip()
+        episode = request.args.get('episode', '').strip()
+        
+        if not novel or not episode:
+            return jsonify({
+                'success': False,
+                'error': '缺少 novel 或 episode 参数'
+            }), 400
+        
+        # 构建文件路径
+        base_dir = Path(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+        novel_dir = base_dir / '视频项目' / novel
+        episode_dir = novel_dir / episode
+        shots_file = episode_dir / 'shots_v2.json'
+        
+        if not shots_file.exists():
+            return jsonify({
+                'success': False,
+                'error': 'shots_v2.json 不存在'
+            }), 404
+        
+        with open(shots_file, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        
+        shots = data.get('shots', [])
+        
+        return jsonify({
+            'success': True,
+            'shots': shots,
+            'language': 'en'
+        }), 200
+        
+    except Exception as e:
+        logger.error(f'获取 shots_v2 失败: {e}')
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@short_drama_api.route('/shots-v2-cn', methods=['GET'])
+def get_shots_v2_cn():
+    """获取中文版 shots_v2_cn.json 数据"""
+    try:
+        novel = request.args.get('novel', '').strip()
+        episode = request.args.get('episode', '').strip()
+        
+        if not novel or not episode:
+            return jsonify({
+                'success': False,
+                'error': '缺少 novel 或 episode 参数'
+            }), 400
+        
+        # 构建文件路径
+        base_dir = Path(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+        novel_dir = base_dir / '视频项目' / novel
+        episode_dir = novel_dir / episode
+        shots_file = episode_dir / 'shots_v2_cn.json'
+        
+        if not shots_file.exists():
+            return jsonify({
+                'success': False,
+                'error': 'shots_v2_cn.json 不存在'
+            }), 404
+        
+        with open(shots_file, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        
+        shots = data.get('shots', [])
+        
+        return jsonify({
+            'success': True,
+            'shots': shots,
+            'language': 'cn'
+        }), 200
+        
+    except Exception as e:
+        logger.error(f'获取 shots_v2_cn 失败: {e}')
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@short_drama_api.route('/shots-v2', methods=['POST'])
+def save_shots_v2():
+    """保存 shots_v2.json 数据（英文版）"""
+    try:
+        data = request.json or {}
+        novel = data.get('novel', '').strip()
+        episode = data.get('episode', '').strip()
+        shots = data.get('shots', [])
+        
+        if not novel or not episode:
+            return jsonify({
+                'success': False,
+                'error': '缺少 novel 或 episode 参数'
+            }), 400
+        
+        if not shots:
+            return jsonify({
+                'success': False,
+                'error': 'shots 数据为空'
+            }), 400
+        
+        # 构建文件路径
+        base_dir = Path(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+        novel_dir = base_dir / '视频项目' / novel
+        episode_dir = novel_dir / episode
+        shots_file = episode_dir / 'shots_v2.json'
+        
+        # 确保目录存在
+        episode_dir.mkdir(parents=True, exist_ok=True)
+        
+        # 保存数据
+        shots_data = {
+            'shots': shots,
+            'language': 'en',
+            'updated_at': datetime.now().isoformat()
+        }
+        
+        with open(shots_file, 'w', encoding='utf-8') as f:
+            json.dump(shots_data, f, ensure_ascii=False, indent=2)
+        
+        logger.info(f'✅ [Shots V2] 已保存 {len(shots)} 个镜头到 {shots_file}')
+        
+        return jsonify({
+            'success': True,
+            'message': f'已保存 {len(shots)} 个镜头'
+        }), 200
+        
+    except Exception as e:
+        logger.error(f'保存 shots_v2 失败: {e}')
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
 def register_short_drama_routes(app):
     """注册短剧工作台路由"""
     app.register_blueprint(short_drama_api)
