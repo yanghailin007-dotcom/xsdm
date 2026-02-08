@@ -44,6 +44,20 @@ class UserAuth:
     def get_user_list(self) -> list:
         """获取用户列表（仅用于开发环境）"""
         return list(self.users.keys())
+    
+    def update_password(self, username: str, new_password: str) -> bool:
+        """更新用户密码"""
+        if not username or username not in self.users:
+            return False
+        
+        # 特殊用户不允许修改密码
+        if username.lower() == 'test':
+            logger.warning(f"⚠️ 尝试修改测试用户密码被拒绝: {username}")
+            return False
+        
+        self.users[username] = new_password
+        logger.info(f"🔐 用户密码已更新: {username}")
+        return True
 
 # 创建全局认证实例
 user_auth = UserAuth()

@@ -299,6 +299,12 @@ def register_page_routes(app):
         """流程控制器"""
         return render_template('video/workflow.html')
 
+    @app.route('/account', methods=['GET'])
+    @login_required
+    def account():
+        """账户管理页面"""
+        return render_template('account.html')
+
     @app.route('/api/current-user', methods=['GET'])
     def get_current_user():
         """获取当前登录用户信息"""
@@ -312,6 +318,38 @@ def register_page_routes(app):
             'success': False,
             'logged_in': False
         }), 401
+
+    @app.route('/api/account/change-password', methods=['POST'])
+    @login_required
+    def change_password():
+        """修改密码"""
+        try:
+            data = request.json
+            current_password = data.get('current_password', '')
+            new_password = data.get('new_password', '')
+            
+            if not current_password or not new_password:
+                return jsonify({'success': False, 'error': '请填写所有必填字段'}), 400
+            
+            if len(new_password) < 6:
+                return jsonify({'success': False, 'error': '新密码至少需要6位'}), 400
+            
+            username = session.get('username')
+            
+            # 验证当前密码
+            if not user_auth.verify_user(username, current_password):
+                return jsonify({'success': False, 'error': '当前密码错误'}), 401
+            
+            # 更新密码
+            if user_auth.update_password(username, new_password):
+                logger.info(f"🔐 用户 {username} 修改密码成功")
+                return jsonify({'success': True, 'message': '密码修改成功'})
+            else:
+                return jsonify({'success': False, 'error': '密码修改失败'}), 500
+                
+        except Exception as e:
+            logger.error(f"修改密码失败: {e}")
+            return jsonify({'success': False, 'error': '服务器错误'}), 500
 
     # 错误处理
     @app.errorhandler(404)
