@@ -776,9 +776,9 @@ def generate_story_beats_from_idea(title: str, description: str, world_setting: 
         故事节拍数据字典
     """
     try:
-        # 计算场景数（每个场景平均4-8秒）
-        avg_scene_duration = 6
-        scene_count = max(3, min(15, total_duration // avg_scene_duration))
+        # 🔥 优化：增加场景密度，每3-4秒一个节拍（短视频节奏）
+        avg_scene_duration = 3
+        scene_count = max(6, min(20, total_duration // avg_scene_duration))
         
         # 调整每个场景时长使总和等于总时长
         base_duration = total_duration // scene_count
@@ -1292,7 +1292,12 @@ def _generate_story_beats_with_ai(episode_title, episode_content, characters, to
         for c in characters
     ]) if characters else "- 未设置角色"
 
-    prompt = f"""你是一个专业的短剧编剧。请根据以下集数内容，生成{total_duration}秒的叙事节拍(Story Beats)。
+    # 🔥 优化：计算高密度场景数
+    avg_scene_duration = 3
+    scene_count = max(6, min(20, total_duration // avg_scene_duration))
+    base_duration = total_duration // scene_count
+    
+    prompt = f"""你是一个专业的【抖音/快手短剧】编剧。请根据以下集数内容，生成{total_duration}秒的高密度叙事节拍。
 
 ## 输入信息
 集数标题：{episode_title}
@@ -1302,25 +1307,54 @@ def _generate_story_beats_with_ai(episode_title, episode_content, characters, to
 {characters_str}
 
 总时长要求：{total_duration}秒
+场景密度：{scene_count}个场景（约每{base_duration}秒一个）
+
+## 🎬 短视频节奏铁律（必须遵守）
+
+### 1. 黄金3秒法则
+- **第1个场景必须是"炸裂开场"** - 冲突、悬念、或视觉冲击
+- 严禁慢热铺垫！前3秒必须抓住观众
+
+### 2. 节奏密度要求
+- 生成{scene_count}个场景
+- **每3秒必须有：情绪转折 或 视觉变化 或 新信息**
+- 相邻场景之间必须有强烈对比（情绪/视觉/节奏）
+
+### 3. 情绪过山车设计（关键）
+每个场景必须标注情绪，且整体形成波浪：
+```
+例：平静→惊讶→恐惧→荒诞→紧张→爆笑→悬疑
+```
+- 禁止连续3个场景同一情绪
+- 必须有至少一次180°情绪反转（如恐惧→爆笑）
+
+### 4. 短视频结构（不是三幕）
+- **0-10%：超级钩子**（炸裂开场，颠覆预期）
+- **10-30%：快速铺垫**（用画面而非对话交代背景）
+- **30-50%：第一次转折**（小高潮或意外）
+- **50-70%：第二次转折**（升级或反转）
+- **70-90%：大高潮**（情绪顶点）
+- **90-100%：强钩子结尾**（必须引出下集/悬念）
+
+### 5. 视觉变化要求
+- 每个场景必须有明确的【视觉变化描述】
+- 镜头类型必须交替（特写→全景→POV等），禁止连续同类型
+- 必须有"视觉冲击点"（炸裂特效、夸张表情、反转画面）
+
+### 6. 对白设计
+- 每个场景最多2句对白（短视频节奏快）
+- 对白必须是"钩子型"（留悬念、带情绪、有反转）
+- 严禁解释性对白
 
 ## 输出要求
-
-1. **三幕结构分配**
-   - 第一幕「建立」(0-30%)：建立场景、人物、核心矛盾
-   - 第二幕「对抗」(30-70%)：冲突升级、内心挣扎
-   - 第三幕「高潮」(70-100%)：决战时刻、人物觉醒
-
-2. **每个场景包含**
-   - sceneNumber: 场景序号
-   - sceneTitleCn/En: 中英文标题
-   - storyBeatCn/En: 叙事目的
-   - durationSeconds: 时长(秒)
-   - emotionalArc: 情绪曲线（如：绝决→紧张→希望）
-   - dialogues: 对白列表
-
-3. **对白设计**
-   - 每个场景至少1句对白
-   - 包含speaker, linesCn, linesEn, toneCn, toneEn
+每个场景包含：
+- sceneNumber: 场景序号
+- sceneTitleCn/En: 中英文标题（突出情绪或转折）
+- storyBeatCn/En: 叙事目的 + 视觉变化描述
+- durationSeconds: 时长(秒)
+- emotionalArc: 情绪曲线（如：绝决→紧张→希望）
+- visualChange: 画面如何变化（如：从特写拉远到全景）
+- dialogues: 对白列表（最多2句，简短有力）
 
 只输出JSON格式，不要解释。
 """
