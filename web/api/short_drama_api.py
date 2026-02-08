@@ -1489,23 +1489,46 @@ Based on the provided story beats, generate professional video shot descriptions
 Each shot must include:
 1. shot_number: Sequential number
 2. shot_type: Shot type (Close-up/Medium shot/Wide shot/Establishing shot/POV)
-2. veo_prompt: Detailed English video prompt for AI generation, including:
-   - Camera movement (push in, pull out, orbit, follow, crane up/down)
-   - Lighting details (volumetric lighting, god rays, rim light, dramatic lighting)
-   - Material textures (skin details, fabric, environment, special effects)
-   - Cinematic composition
-3. visual_description: Dynamic action sequence using arrows (→)
-4. dialogue: 
+3. scene_title: Brief scene title in English
+4. Three different video generation modes:
+   - veo_prompt_standard: Standard mode prompt (text-only, no reference images)
+   - veo_prompt_reference: Reference mode prompt (with character reference images)
+   - veo_prompt_frames: Frame mode prompt (with scene reference frames)
+5. Three corresponding visual descriptions:
+   - visual_description_standard: Dynamic action for standard mode
+   - visual_description_reference: Dynamic action for reference mode
+   - visual_description_frames: Dynamic action for frame mode
+6. image_prompt: Scene image generation prompt for creating reference frames
+7. dialogue:
    - speaker: Character name or "None"
-   - lines: English dialogue lines (appropriate for shot duration)
-   - lines_cn: Chinese translation
-   - tone: English tone description
-   - tone_cn: Chinese tone description
-   - audio_note: Sound effect description in English
-   - audio_note_cn: Sound effect description in Chinese
-5. duration_seconds: Shot duration
+   - lines_en: English dialogue lines (appropriate for shot duration)
+   - tone_en: English tone description
+   - audio_note_en: Sound effect description in English
+8. duration_seconds: Shot duration
 
 Style: {style}
+
+【Three Generation Modes Explained】
+1. Standard Mode (veo_prompt_standard): Pure text prompt without any reference images
+   - Include complete character appearance descriptions
+   - Detailed environment and lighting
+   - Camera movements and composition
+
+2. Reference Mode (veo_prompt_reference): Uses character reference images
+   - Character name only (system will match reference images)
+   - Focus on actions, expressions, and poses
+   - Environment and lighting details
+
+3. Frame Mode (veo_prompt_frames): Uses scene reference frames
+   - Minimal description, rely on reference frame
+   - Focus on camera movement and action changes
+   - Lighting and atmosphere adjustments
+
+【image_prompt Guidelines】
+- Describe the key frame/scene for image generation
+- Include character positions, environment, lighting
+- Static composition suitable for reference frame
+- Photorealistic, cinematic quality
 
 Output JSON format:
 {{
@@ -1513,16 +1536,19 @@ Output JSON format:
         {{
             "shot_number": 1,
             "shot_type": "Close-up",
-            "veo_prompt": "Detailed English video generation prompt...",
-            "visual_description": "Action A → Action B → Action C",
+            "scene_title": "Scene title in English",
+            "veo_prompt_standard": "Complete text prompt with full character descriptions, environment, lighting, camera movement...",
+            "veo_prompt_reference": "Character name, action, expression, environment, lighting...",
+            "veo_prompt_frames": "Camera movement, action changes, lighting adjustments...",
+            "visual_description_standard": "Action A → Action B → Action C",
+            "visual_description_reference": "Action A → Action B → Action C",
+            "visual_description_frames": "Action A → Action B → Action C",
+            "image_prompt": "Photorealistic scene description for image generation...",
             "dialogue": {{
                 "speaker": "Character Name",
-                "lines": "English dialogue",
-                "lines_cn": "中文台词",
-                "tone": "determined, tense",
-                "tone_cn": "决绝、紧张",
-                "audio_note": "Sound description",
-                "audio_note_cn": "音效描述"
+                "lines_en": "English dialogue",
+                "tone_en": "determined, tense",
+                "audio_note_en": "Sound description"
             }},
             "duration_seconds": 8
         }}
@@ -1622,39 +1648,45 @@ def _get_default_shots_from_storybeats(scenes: list, shot_duration: int) -> list
     shots = []
     for i, scene in enumerate(scenes, 1):
         story_beat = scene.get('storyBeatEn', scene.get('storyBeatCn', f'Scene {i}'))
+        scene_title = scene.get('sceneTitleEn', scene.get('sceneTitleCn', f'Scene {i}'))
         dialogues = scene.get('dialogues', [])
-        
+
         if dialogues:
             dlg = dialogues[0]
             speaker = dlg.get('speaker', 'None')
-            lines = dlg.get('linesEn', dlg.get('lines', ''))
-            lines_cn = dlg.get('linesCn', lines)
-            tone = dlg.get('toneEn', dlg.get('tone', ''))
-            tone_cn = dlg.get('toneCn', tone)
+            lines_en = dlg.get('linesEn', dlg.get('lines', ''))
+            tone_en = dlg.get('toneEn', dlg.get('tone', ''))
         else:
             speaker = 'None'
-            lines = ''
-            lines_cn = ''
-            tone = ''
-            tone_cn = ''
-        
+            lines_en = ''
+            tone_en = ''
+
+        # 生成基础提示词
+        base_prompt = f'{story_beat}. Cinematic composition, dramatic lighting.'
+
         shots.append({
             'shot_number': i,
             'shot_type': 'Medium shot',
-            'veo_prompt': f'{story_beat}. Cinematic composition, dramatic lighting.',
-            'visual_description': f'Scene {i} unfolds',
+            'scene_title': scene_title,
+            # 三种模式的提示词
+            'veo_prompt_standard': f'{base_prompt} Full character appearance description.',
+            'veo_prompt_reference': f'Character in scene. {base_prompt}',
+            'veo_prompt_frames': f'Camera follows action. {base_prompt}',
+            # 三种模式的视觉描述
+            'visual_description_standard': f'Scene {i} unfolds with cinematic movement',
+            'visual_description_reference': f'Character performs action in scene {i}',
+            'visual_description_frames': f'Camera captures scene {i} dynamics',
+            # 场景图提示词
+            'image_prompt': f'Photorealistic scene: {story_beat}. Cinematic lighting, detailed environment.',
             'dialogue': {
                 'speaker': speaker,
-                'lines': lines,
-                'lines_cn': lines_cn,
-                'tone': tone,
-                'tone_cn': tone_cn,
-                'audio_note': 'Ambient sound',
-                'audio_note_cn': '环境音'
+                'lines_en': lines_en,
+                'tone_en': tone_en,
+                'audio_note_en': 'Ambient sound'
             },
             'duration_seconds': scene.get('durationSeconds', shot_duration)
         })
-    
+
     logger.warning(f'使用默认分镜头: {len(shots)} 个')
     return shots
 
