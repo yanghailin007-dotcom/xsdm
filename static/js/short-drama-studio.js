@@ -2065,7 +2065,7 @@ class ShortDramaStudio {
                 scene_title: shot.scene_title || `场景${shot.scene_number || 1}`,
                 duration: shot.duration || shot.duration_seconds || 8,
 
-                // 🔥 保留优化格式的所有字段
+                // 🔥 保留优化格式的所有字段（英文）
                 visual_description: shot.visual_description,
                 visual_description_standard: shot.visual_description_standard,
                 visual_description_reference: shot.visual_description_reference,
@@ -2075,6 +2075,15 @@ class ShortDramaStudio {
                 veo_prompt_standard: shot.veo_prompt_standard,
                 veo_prompt_reference: shot.veo_prompt_reference,
                 veo_prompt_frames: shot.veo_prompt_frames,
+
+                // 🔥 保留中文提示词字段
+                visual_description_standard_cn: shot.visual_description_standard_cn,
+                visual_description_reference_cn: shot.visual_description_reference_cn,
+                visual_description_frames_cn: shot.visual_description_frames_cn,
+
+                veo_prompt_standard_cn: shot.veo_prompt_standard_cn,
+                veo_prompt_reference_cn: shot.veo_prompt_reference_cn,
+                veo_prompt_frames_cn: shot.veo_prompt_frames_cn,
 
                 preferred_mode: shot.preferred_mode || 'standard',
 
@@ -2627,6 +2636,38 @@ class ShortDramaStudio {
         const currentPromptCN = this.getCurrentVeoPromptCN(shot);
         const currentPromptEN = this.getCurrentVeoPrompt(shot);
 
+        // 🔥 获取当前模式的画面描述（中文）
+        let visualDescCN = '';
+        if (currentMode === 'reference' && shot.visual_description_reference_cn) {
+            visualDescCN = shot.visual_description_reference_cn;
+        } else if (currentMode === 'frames' && shot.visual_description_frames_cn) {
+            visualDescCN = shot.visual_description_frames_cn;
+        } else if (shot.visual_description_standard_cn) {
+            visualDescCN = shot.visual_description_standard_cn;
+        }
+
+        // 🔥 构建图片提示词显示HTML
+        let imagePromptsHtml = '';
+        if (shot.image_prompts && Object.keys(shot.image_prompts).length > 0) {
+            const imgPrompts = shot.image_prompts;
+            const promptsList = [];
+            if (imgPrompts.character) promptsList.push(`👤 角色: ${imgPrompts.character.substring(0, 80)}${imgPrompts.character.length > 80 ? '...' : ''}`);
+            if (imgPrompts.scene) promptsList.push(`🏞️ 场景: ${imgPrompts.scene.substring(0, 80)}${imgPrompts.scene.length > 80 ? '...' : ''}`);
+            if (imgPrompts.first_frame) promptsList.push(`🖼️ 首帧: ${imgPrompts.first_frame.substring(0, 80)}${imgPrompts.first_frame.length > 80 ? '...' : ''}`);
+            if (imgPrompts.last_frame) promptsList.push(`🖼️ 尾帧: ${imgPrompts.last_frame.substring(0, 80)}${imgPrompts.last_frame.length > 80 ? '...' : ''}`);
+            
+            if (promptsList.length > 0) {
+                imagePromptsHtml = `
+                    <div class="task-image-prompts" style="margin-top: 0.5rem; padding: 0.5rem; background: rgba(99, 102, 241, 0.1); border-radius: 0.25rem; border-left: 3px solid #6366f1;">
+                        <span class="prompt-label" style="color: #818cf8;">🎨 图片提示词:</span>
+                        <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.25rem; line-height: 1.4;">
+                            ${promptsList.join('<br>')}
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
         // 🔥 模式选择器HTML（仅在支持多模式时显示）
         const modeSelectorHtml = hasMultipleModes ? `
             <div class="task-mode-selector" style="margin-bottom: 0.5rem;">
@@ -2647,7 +2688,9 @@ class ShortDramaStudio {
                     ${modeSelectorHtml}
                     <div class="task-prompt">
                         <span class="prompt-label">AI提示:</span>
-                        <span class="prompt-text" id="prompt-text-${idx}">${(currentPromptCN || shot.screen_action || '').substring(0, 150)}${(currentPromptCN || shot.screen_action || '').length > 150 ? '...' : ''}</span>
+                        <span class="prompt-text" id="prompt-text-${idx}">${(currentPromptCN || '').substring(0, 150)}${(currentPromptCN || '').length > 150 ? '...' : ''}</span>
+                        ${visualDescCN ? `<div class="task-visual-desc" style="margin-top: 0.25rem; font-size: 0.75rem; color: var(--text-tertiary);"><span class="prompt-label">画面描述:</span> ${visualDescCN.substring(0, 100)}${visualDescCN.length > 100 ? '...' : ''}</div>` : ''}
+                        ${imagePromptsHtml}
                         <button class="btn-view-english" onclick="shortDramaStudio.showEnglishPrompt(${idx})" style="margin-left: 0.5rem; font-size: 0.75rem; padding: 0.25rem 0.5rem; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 0.25rem; cursor: pointer;" title="查看英文原文">EN</button>
                     </div>
                     ${shot.plot_content ? `
@@ -2840,6 +2883,12 @@ class ShortDramaStudio {
         if (promptTextElement) {
             const newPrompt = this.getCurrentVeoPromptCN(shot);
             promptTextElement.textContent = `${newPrompt.substring(0, 150)}${newPrompt.length > 150 ? '...' : ''}`;
+        }
+
+        // 🔥 重新渲染该行以更新画面描述和图片提示词
+        const rowElement = document.getElementById(`taskRow_${shotIndex}`);
+        if (rowElement) {
+            rowElement.outerHTML = this.renderVideoTaskRow(shot, shotIndex);
         }
 
         console.log(`🎨 [模式切换] 镜头${shotIndex} 切换到 ${newMode} 模式`);
