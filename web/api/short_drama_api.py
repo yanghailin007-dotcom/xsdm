@@ -566,23 +566,42 @@ def create_from_idea():
             shot_duration=shot_duration
         )
 
-        # 4. 调用AI将分镜头翻译成中文 (Step 5)
-        logger.info(f'[创意导入] 调用AI翻译分镜头为中文...')
-        shots = translate_shots_to_chinese(shots_en)
-
-        # 5. 保存为 shots_v2.json 格式
+        # 4. 保存英文版 shots_v2.json
         shots_v2_data = {
             'version': '2.0',
             'generated_at': datetime.now().isoformat(),
+            'language': 'en',
             'title': title,
             'episode': episode,
-            'total_shots': len(shots),
-            'shots': shots
+            'total_shots': len(shots_en),
+            'shots': shots_en
         }
         shots_v2_file = episode_dir / 'shots_v2.json'
         with open(shots_v2_file, 'w', encoding='utf-8') as f:
             json.dump(shots_v2_data, f, ensure_ascii=False, indent=2)
-        logger.info(f'✅ [创意导入] 分镜头已保存: {shots_v2_file}')
+        logger.info(f'✅ [创意导入] 英文分镜头已保存: {shots_v2_file}')
+
+        # 5. 调用AI将分镜头翻译成中文 (Step 5)
+        logger.info(f'[创意导入] 调用AI翻译分镜头为中文...')
+        shots_cn = translate_shots_to_chinese(shots_en)
+
+        # 6. 保存中文版 shots_v2_cn.json
+        shots_v2_cn_data = {
+            'version': '2.0',
+            'generated_at': datetime.now().isoformat(),
+            'language': 'cn',
+            'title': title,
+            'episode': episode,
+            'total_shots': len(shots_cn),
+            'shots': shots_cn
+        }
+        shots_v2_cn_file = episode_dir / 'shots_v2_cn.json'
+        with open(shots_v2_cn_file, 'w', encoding='utf-8') as f:
+            json.dump(shots_v2_cn_data, f, ensure_ascii=False, indent=2)
+        logger.info(f'✅ [创意导入] 中文分镜头已保存: {shots_v2_cn_file}')
+
+        # 使用中文版本作为前端展示的shots
+        shots = shots_cn
         
         # 6. 创建项目信息（兼容前端格式）
         project_data = {
@@ -1630,124 +1649,117 @@ def _get_default_shots_from_storybeats(scenes: list, shot_duration: int) -> list
 
 def translate_shots_to_chinese(shots: list) -> list:
     """
-    将全英文分镜头翻译成中文
-    使用AI翻译 veo_prompt 和 visual_description
+    将全英文分镜头翻译成中文，返回完全独立的中文版本
+    
+    翻译字段包括：
+    - veo_prompt 相关字段
+    - visual_description 相关字段  
+    - dialogue 内的台词、语气、音效
+    - image_prompt 相关字段
+    - scene_title
     """
     if not shots:
         return shots
     
+    # 创建深拷贝作为中文版本基础
+    import copy
+    shots_cn = copy.deepcopy(shots)
+    
     try:
-        logger.info(f'🌐 [翻译] 开始翻译 {len(shots)} 个镜头...')
-        
-        # 准备需要翻译的内容
-        shots_to_translate = []
-        for i, shot in enumerate(shots):
-            veo_prompt = shot.get('veo_prompt', '')
-            visual_desc = shot.get('visual_description', '')
-            
-            shots_to_translate.append({
-                'index': i,
-                'veo_prompt': veo_prompt,
-                'visual_description': visual_desc
-            })
+        logger.info(f'🌐 [翻译] 开始翻译 {len(shots_cn)} 个镜头...')
         
         if not api_client:
-            logger.warning('AI客户端未初始化，跳过翻译')
-            # 复制英文到中文字段
-            for shot in shots:
-                shot['veo_prompt_cn'] = shot.get('veo_prompt', '')
-                shot['visual_description_cn'] = shot.get('visual_description', '')
-            return shots
+            logger.warning('AI客户端未初始化，返回原始数据')
+            return shots_cn
         
-        # 批量翻译所有镜头
-        system_prompt = """You are a professional video prompt translator.
-Translate the following English video prompts to Chinese.
-
-Requirements:
-1. Maintain technical accuracy (cinematic terms can be kept or translated appropriately)
-2. Ensure natural, fluent Chinese expression
-3. Preserve the cinematic and visual quality of descriptions
-4. Return JSON format only
-
-Output format:
-{
-    "translations": [
-        {
-            "veo_prompt_cn": "Chinese translation of veo_prompt",
-            "visual_description_cn": "Chinese translation of visual_description"
-        }
-    ]
-}"""
-
-        user_prompt = f"""Translate these video prompts to Chinese:
-
-{json.dumps(shots_to_translate, ensure_ascii=False, indent=2)}
-
-Provide JSON output with translations array in the same order."""
-
-        response = api_client.call_api(
-            system_prompt=system_prompt,
-            user_prompt=user_prompt,
-            temperature=0.3,
-            purpose="分镜头翻译-中文"
-        )
+        # 逐个翻译每个镜头
+        for i, shot in enumerate(shots_cn):
+            try:
+                # 1. 翻译 veo_prompt 字段
+                veo_fields = ['veo_prompt_standard', 'veo_prompt_reference', 'veo_prompt_frames']
+                for field in veo_fields:
+                    if field in shot and shot[field]:
+                        shot[field] = _translate_text_to_chinese(shot[field])
+                
+                # 2. 翻译 visual_description 字段
+                visual_fields = ['visual_description_standard', 'visual_description_reference', 'visual_description_frames']
+                for field in visual_fields:
+                    if field in shot and shot[field]:
+                        shot[field] = _translate_text_to_chinese(shot[field])
+                
+                # 3. 翻译 image_prompt 字段
+                if 'image_prompt' in shot and shot['image_prompt']:
+                    shot['image_prompt'] = _translate_text_to_chinese(shot['image_prompt'])
+                
+                # 翻译 image_prompts 内的字段
+                if 'image_prompts' in shot:
+                    for key in shot['image_prompts']:
+                        if shot['image_prompts'][key]:
+                            shot['image_prompts'][key] = _translate_text_to_chinese(shot['image_prompts'][key])
+                
+                # 4. 翻译 dialogue 内的字段
+                if 'dialogue' in shot:
+                    dialogue = shot['dialogue']
+                    # 台词：lines_en -> lines
+                    if 'lines_en' in dialogue and dialogue['lines_en']:
+                        dialogue['lines'] = _translate_text_to_chinese(dialogue['lines_en'])
+                    # 语气：tone_en -> tone
+                    if 'tone_en' in dialogue and dialogue['tone_en']:
+                        dialogue['tone'] = _translate_text_to_chinese(dialogue['tone_en'])
+                    # 音效：audio_note_en -> audio_note
+                    if 'audio_note_en' in dialogue and dialogue['audio_note_en']:
+                        dialogue['audio_note'] = _translate_text_to_chinese(dialogue['audio_note_en'])
+                
+                # 5. 翻译 scene_title
+                if 'scene_title' in shot and shot['scene_title']:
+                    shot['scene_title'] = _translate_text_to_chinese(shot['scene_title'])
+                
+                logger.info(f'   ✅ 镜头 {i+1} 翻译完成')
+                
+            except Exception as e:
+                logger.warning(f'   ⚠️ 镜头 {i+1} 翻译失败: {e}')
+                continue
         
-        if not response:
-            logger.error('翻译AI返回空响应')
-            # 复制英文到中文字段
-            for shot in shots:
-                shot['veo_prompt_cn'] = shot.get('veo_prompt', '')
-                shot['visual_description_cn'] = shot.get('visual_description', '')
-            return shots
+        logger.info(f'✅ [翻译] 完成 {len(shots_cn)} 个镜头翻译')
+        return shots_cn
         
-        # 解析翻译结果
-        try:
-            import re
-            json_text = response.strip()
-            if json_text.startswith("```json"):
-                json_text = json_text[7:]
-            elif json_text.startswith("```"):
-                json_text = json_text[3:]
-            if json_text.endswith("```"):
-                json_text = json_text[:-3]
-            json_text = json_text.strip()
-            
-            data = json.loads(json_text)
-            translations = data.get('translations', [])
-            
-            # 应用翻译结果
-            for i, trans in enumerate(translations):
-                if i < len(shots):
-                    shots[i]['veo_prompt_cn'] = trans.get('veo_prompt_cn', shots[i].get('veo_prompt', ''))
-                    shots[i]['visual_description_cn'] = trans.get('visual_description_cn', shots[i].get('visual_description', ''))
-            
-            # 确保所有镜头都有中文字段
-            for shot in shots:
-                if 'veo_prompt_cn' not in shot:
-                    shot['veo_prompt_cn'] = shot.get('veo_prompt', '')
-                if 'visual_description_cn' not in shot:
-                    shot['visual_description_cn'] = shot.get('visual_description', '')
-            
-            logger.info(f'✅ [翻译] 完成 {len(translations)} 个镜头翻译')
-            return shots
-            
-        except json.JSONDecodeError as e:
-            logger.error(f'翻译JSON解析失败: {e}')
-            # 复制英文到中文字段
-            for shot in shots:
-                shot['veo_prompt_cn'] = shot.get('veo_prompt', '')
-                shot['visual_description_cn'] = shot.get('visual_description', '')
-            return shots
-            
     except Exception as e:
         logger.error(f'翻译分镜头失败: {e}')
         import traceback
         logger.error(traceback.format_exc())
-        # 复制英文到中文字段
-        for shot in shots:
-            shot['veo_prompt_cn'] = shot.get('veo_prompt', '')
-            shot['visual_description_cn'] = shot.get('visual_description', '')
-        return shots
+        return shots_cn
+
+
+def _translate_text_to_chinese(text: str) -> str:
+    """
+    使用AI翻译单个文本到中文
+    """
+    if not text or not api_client:
+        return text
+    
+    try:
+        system_prompt = """你是一个专业的视频提示词翻译专家。
+请将以下英文视频提示词翻译成流畅的中文，保持专业术语的准确性。
+注意：
+- 保持技术术语的准确性（如 cinematic, photorealistic, 8k 等可以保留或翻译为"电影级"、"写实风格"、"8K超清"）
+- 翻译要自然流畅，符合中文表达习惯
+- 只返回翻译结果，不要添加任何解释
+- 保持原有的标点符号和格式"""
+
+        response = api_client.call_api(
+            system_prompt=system_prompt,
+            user_prompt=f"请翻译以下内容：\n\n{text}",
+            temperature=0.3,
+            purpose="文本翻译-中文"
+        )
+        
+        if response:
+            return response.strip()
+        return text
+        
+    except Exception as e:
+        logger.warning(f'翻译失败: {e}')
+        return text
 
 
 # ==================== 翻译 API ====================
