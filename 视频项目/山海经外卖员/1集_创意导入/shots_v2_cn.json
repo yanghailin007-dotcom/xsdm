@@ -1,0 +1,214 @@
+{
+  "shots": [
+    {
+      "dialogue": {
+        "audio_note": "雨声环境音，提示音，突然的引擎轰鸣",
+        "audio_note_en": "Rain ambience, notification ping, sudden loud engine rev",
+        "lines": "三倍配送费？备注说……多带冰，要冰镇五条尾巴？……只要钱到位，阎王殿我也送！",
+        "lines_en": "Triple delivery fee? Note says... bring extra ice, need to freeze five tails? ...As long as the money is right, I'll deliver to Hell itself!",
+        "speaker": "主角",
+        "tone": "从困惑转为贪婪和决绝",
+        "tone_en": "Confused turning to greedy and determined"
+      },
+      "duration": 10,
+      "id": "shot_1",
+      "image_prompts": {
+        "character": "电影级角色肖像，年轻外卖员，黄色战术夹克，雨天湿润头盔面罩抬起，贪婪表情，霓虹灯光，写实风格，8K，上半身",
+        "first_frame": "电影级画面，特写，外卖员困惑地看手机，雨滴落下，霓虹城市背景，8K，竖屏9:16",
+        "last_frame": "电影级画面，特写，外卖员兴奋地咧嘴笑，手拧油门，背景动态模糊，8K，竖屏9:16",
+        "scene": "电影级场景背景，雨夜湿滑城市街道，模糊霓虹灯光，湿润沥青路面，赛博朋克氛围，无人，空场景，8K"
+      },
+      "preferred_mode": "standard",
+      "scene_number": 1,
+      "scene_title": "诡异订单",
+      "shot_number": 1,
+      "shot_type": "特写",
+      "veo_prompt_standard": "电影级特写，夜晚，湿滑城市街道，年轻外卖员身穿黄色战术夹克和头盔，看着发光手机屏幕。雨滴滑落面罩。看到价格后表情从困惑转为贪婪兴奋。紧握车把猛踩油门。霓虹灯光反射在湿润头盔上。8K分辨率，高对比度，赛博朋克氛围。",
+      "visual_description_standard": "骑手看手机 → 见天价瞳孔地震 → 狞笑轰油门"
+    },
+    {
+      "dialogue": {
+        "audio_note": "碎石脚步声，低沉金属撞击声，深沉低吼",
+        "audio_note_en": "Footsteps on gravel, low metal clashing sound, deep growl",
+        "lines": "有人吗？你的'冰美式'到了……该死，连个鬼影都没有。",
+        "lines_en": "Anyone here? Your 'Iced Americano' is here... Damn, not even a ghost in sight.",
+        "speaker": "主角",
+        "tone": "紧张，声音微颤",
+        "tone_en": "Nervous, voice trembling slightly"
+      },
+      "duration": 15,
+      "id": "shot_2",
+      "image_prompts": {
+        "character": "电影级角色肖像，外卖员手持手电筒，紧张表情，黄色夹克沾满灰尘，黑暗背景，写实风格，8K",
+        "first_frame": "电影级画面，中景，骑手拿着手电筒穿行拆迁区，光束划破黑暗，诡异氛围，8K，竖屏9:16",
+        "last_frame": "电影级画面，中景，骑手停下恐惧四顾，手电筒照亮扭曲金属，8K，竖屏9:16",
+        "scene": "电影级场景背景，夜晚废弃拆迁区，扭曲钢筋和混凝土堆，浓雾，恐怖氛围，冷月光，无人，空场景，8K"
+      },
+      "preferred_mode": "standard",
+      "scene_number": 1,
+      "scene_title": "深入废墟",
+      "shot_number": 2,
+      "shot_type": "中景",
+      "veo_prompt_standard": "电影级跟踪镜头，夜晚废弃城市拆迁区，成堆扭曲钢筋和混凝土，浓厚体积雾。外卖员小心翼翼手持手电筒前行，光束穿透尘埃。氛围诡异寂静。8K，恐怖电影灯光，冷蓝色调。",
+      "visual_description_standard": "骑手踏入废墟 → 手电扫视残骸 → 驻足打颤"
+    },
+    {
+      "dialogue": {
+        "audio_note": "巨大咆哮，撞击声，瓦砾崩塌声",
+        "audio_note_en": "Loud roar, impact sound, crashing debris",
+        "lines": "又是拆迁队的走狗！滚！……卧槽！尾巴？五条？！",
+        "lines_en": "Another dog from the demolition team! Get out! ... Holy crap! Tails? Five of them?!",
+        "speaker": "狰（巨兽）",
+        "tone": "巨兽：咆哮/心灵感应。主角：惊恐尖叫。",
+        "tone_en": "Beast: Roaring/Telepathic. Protagonist: Panicked screaming."
+      },
+      "duration": 15,
+      "id": "shot_3",
+      "image_prompts": {
+        "character": "电影级角色肖像，外卖员翻滚中，惊恐面容，脸上沾满泥土，动态动作姿势，写实风格，8K",
+        "first_frame": "电影级画面，低角度，巨大兽影扑向镜头，骑手开始闪避，紧张感，8K，竖屏9:16",
+        "last_frame": "电影级画面，低角度，骑手倒地惊恐回望，尘埃落下，碎片散落，8K，竖屏9:16",
+        "scene": "电影级场景背景，拆迁区被破坏的地面，撞击坑，尘云，空中碎片，动态灯光，无人，空场景，8K"
+      },
+      "preferred_mode": "standard",
+      "scene_number": 1,
+      "scene_title": "狰兽突袭",
+      "shot_number": 3,
+      "shot_type": "动作镜头",
+      "veo_prompt_standard": "电影级动作镜头，低角度。巨大五尾兽影从黑暗中扑出。外卖员笨拙地翻滚躲避。刚才站立处 debris 爆炸。尘埃四处飞扬。快速镜头运动，动态模糊，激烈冲突。8K，高速快门效果。",
+      "visual_description_standard": "黑影扑杀 → 骑手翻滚极限闪避 → 地面炸裂"
+    },
+    {
+      "dialogue": {
+        "audio_note": "沉重脚步声，威压低吼",
+        "audio_note_en": "Heavy footsteps, oppressive growl",
+        "lines": "拆迁队的……都得死。",
+        "lines_en": "The demolition team's... all must die.",
+        "speaker": "狰（巨兽）",
+        "tone": "低沉，威压，杀意",
+        "tone_en": "Deep, oppressive, murderous"
+      },
+      "duration": 5,
+      "id": "shot_3_5",
+      "image_prompts": {
+        "character": "电影级异兽肖像，山海经神兽狰，赤豹身形带黑色云纹，单只白玉螺旋独角发光，五尾如孔雀开屏展开（左一赤红带火星，左二青蓝带风痕，中间金色带雷电，右二紫色带毒雾，右一透明带冰晶），金黄色竖瞳，凶猛表情，写实风格，8K，全身",
+        "first_frame": "电影级画面，中景，狰从烟尘中缓步走出，五尾 majestic 展开，独角发光，金眼锁定镜头，月光透过破窗，8K，竖屏9:16",
+        "last_frame": "电影级画面，中景，狰傲然站立，五尾完全展开元素特效可见，威严姿态，8K，竖屏9:16",
+        "scene": "电影级场景背景，废弃拆迁区内部，月光从破损屋顶倾泻，尘埃粒子漂浮，神秘氛围，无人，空场景，8K"
+      },
+      "preferred_mode": "standard",
+      "scene_number": 1,
+      "scene_title": "狰正面亮相",
+      "shot_number": 4,
+      "shot_type": "中景（怪兽正面）",
+      "veo_prompt_standard": "电影级中景，山海经神兽狰从烟尘中缓步走出。赤豹身形带黑色云纹，单只白玉螺旋独角散发柔光。五尾 majestic 如孔雀开屏展开——最左尾赤红带漂浮火星，第二尾青蓝带旋转风痕，中间尾金色带噼啪雷电，第四尾紫色带滴落毒雾，最右尾透明水晶带霜花图案。金黄色竖瞳凶猛锁定镜头。月光从破窗倾泻照亮场景。中式神话美学，奇幻风格，8K，戏剧性灯光，竖屏9:16格式。",
+      "visual_description_standard": "狰从烟尘中缓步走出 → 五尾如孔雀开屏展开 → 独角发光锁定主角"
+    },
+    {
+      "dialogue": {
+        "audio_note": "粗重喘息，巨兽低吼戛然而止",
+        "audio_note_en": "Heavy breathing, beast growling stops abruptly",
+        "lines": "赤豹，五尾，一角……你是狰？我不是来拆迁的！我是来给'章峨山'的尾巴送冰的！",
+        "lines_en": "Red leopard, five tails, one horn... You are Zheng? I'm not here to demolish! I'm here to deliver ice for the tails of 'Mount Zhang'e'!",
+        "speaker": "主角",
+        "tone": "绝望，声嘶力竭",
+        "tone_en": "Desperate, shouting to be heard"
+      },
+      "duration": 20,
+      "id": "shot_4",
+      "image_prompts": {
+        "character": "电影级角色肖像，外卖员大喊，手持蓝色外卖袋，绝望表情，汗水，写实风格，8K",
+        "first_frame": "电影级画面，中近景，骑手半跪但向屏幕外威胁大喊，高举袋子，戏剧性灯光，8K，竖屏9:16",
+        "last_frame": "电影级画面，中近景，骑手稳稳举着袋子，眼睛睁大充满期待，阴影笼罩，8K，竖屏9:16",
+        "scene": "电影级场景背景，拆迁区废墟，戏剧性月光边缘光，尘埃粒子，不祥阴影投射地面，无人，空场景，8K"
+      },
+      "preferred_mode": "standard",
+      "scene_number": 1,
+      "scene_title": "身份揭晓",
+      "shot_number": 5,
+      "shot_type": "中特写",
+      "veo_prompt_standard": "电影级中近景。外卖员半跪着，惊恐但大喊。他将保温外卖袋像盾牌一样高举在身前。前景中，赤豹状异兽的模糊剪影隐约可见。边缘光凸显骑手绝望的面容。8K，戏剧性灯光。",
+      "visual_description_standard": "骑手狂吼设定 → 猛推外卖箱 → 巨兽顿住"
+    },
+    {
+      "dialogue": {
+        "audio_note": "冰块落地清脆声，巨兽疑惑低鸣",
+        "audio_note_en": "Ice cubes clinking sound, beast confused grunt",
+        "lines": "……哈？",
+        "lines_en": "...Huh?",
+        "speaker": "狰（巨兽）",
+        "tone": "懵逼，反差萌",
+        "tone_en": "Confused,反差萌"
+      },
+      "duration": 3,
+      "id": "shot_4_5",
+      "image_prompts": {
+        "character": "电影级异兽肖像，神兽狰特写，金黄色竖瞳收缩成细线，表情从愤怒变为惊讶，五尾僵直竖起，一尾不小心打翻咖啡杯，冰块洒落，兽笨拙抬脚，反差萌表情，写实风格，8K",
+        "first_frame": "电影级画面，特写，狰的脸，愤怒表情露齿，8K，竖屏9:16",
+        "last_frame": "电影级画面，特写，狰的瞳孔收缩成细线，惊讶表情，一尾打翻咖啡杯，地上冰块，脚 awkwardly 抬起，8K，竖屏9:16",
+        "scene": "电影级场景背景，拆迁区地面有咖啡杯和洒落的冰块，氛围尘埃，无人，空场景，8K"
+      },
+      "preferred_mode": "standard",
+      "scene_number": 1,
+      "scene_title": "狰的懵逼时刻",
+      "shot_number": 6,
+      "shot_type": "特写（怪兽反应）",
+      "veo_prompt_standard": "电影级神兽狰面部特写。金黄色竖瞳突然收缩成细线。表情从凶猛愤怒变为惊讶困惑。原本攻击的五尾 freeze 僵直竖起。前景中一尾不小心打翻咖啡杯，冰块洒出溅到异兽自己脚上。它 awkwardly 抬起那只脚稍微跳了一下。反差萌时刻，中式奇幻风格，8K，喜剧节奏，竖屏9:16格式。",
+      "visual_description_standard": "狰瞳孔收缩成细线 → 五尾僵直竖起 → 尾巴打翻咖啡杯 → 冰块洒脚跳开"
+    },
+    {
+      "dialogue": {
+        "audio_note": "风啸声，碎石崩塌，魔幻风铃声",
+        "audio_note_en": "Whoosh of wind, crashing rocks, magical chime",
+        "lines": "早说啊。冰留下，路通了。",
+        "lines_en": "Should've said so earlier. Leave the ice, the road is cleared.",
+        "speaker": "狰（人声）",
+        "tone": "冷漠，傲慢但帮忙（傲娇）",
+        "tone_en": "Cold, arrogant but helpful (tsundere)"
+      },
+      "duration": 10,
+      "id": "shot_5",
+      "image_prompts": {
+        "character": "电影级角色肖像，外卖员静止站立，背对镜头，观看 destruction，剪影，写实风格，8K",
+        "first_frame": "电影级画面，全景，五元素巨尾进入画面，击中混凝土堆，尘埃爆炸，8K，竖屏9:16",
+        "last_frame": "电影级画面，全景，废墟中通路显现，尘埃落下，魔法粒子消散，8K，竖屏9:16",
+        "scene": "电影级场景背景，拆迁区，魔法元素能量轨迹，飞溅混凝土碎片，清出通路，动态动作，无人，空场景，8K"
+      },
+      "preferred_mode": "standard",
+      "scene_number": 1,
+      "scene_title": "巨兽开路",
+      "shot_number": 7,
+      "shot_type": "全景",
+      "veo_prompt_standard": "电影级全景。五条巨大元素巨尾从侧面扫过画面——赤红火尾带漂浮火星，青蓝风尾带旋转气流，金色雷电尾带噼啪电光，紫色毒尾带滴落毒液，透明冰尾带霜花结晶。厚重混凝土板和扭曲金属如尘埃般轻松扫开。通路瞬间清空。尘埃在魔法元素能量中旋转。骑手渺小地站在背景中，敬畏观看。8K，重特效，魔法写实，中式奇幻风格。",
+      "visual_description_standard": "五元素巨尾横扫 → 废墟崩飞 → 通路显现（火尾带火星/风尾卷气流/雷尾缠电光/毒尾滴粘液/冰尾凝霜花）"
+    },
+    {
+      "dialogue": {
+        "audio_note": "诡异风声，低沉贝斯轰鸣，数字故障音",
+        "audio_note_en": "Eerie wind, deep bass drone, digital glitch sound",
+        "lines": "订单完成。等等……定位显示'章峨路44号'？这座城市底下，到底埋了多少《山海经》里的怪物？",
+        "lines_en": "Order complete. Wait... the location shows '44 Zhang'e Road'? Just how many monsters from 'Shan Hai Jing' are buried beneath this city?",
+        "speaker": "主角",
+        "tone": "震惊顿悟，深沉独白",
+        "tone_en": "Shocked realization, profound monologue"
+      },
+      "duration": 10,
+      "id": "shot_6",
+      "image_prompts": {
+        "character": "电影级角色肖像，外卖员低头看手机，沉思，背影，写实风格，8K",
+        "first_frame": "电影级画面，过肩镜头，手机屏幕显示地图'章峨路44号'，背景废墟，8K，竖屏9:16",
+        "last_frame": "电影级画面，高角度航拍，骑手是微小点，废墟形成巨大古代符号，远处城市灯光，8K，竖屏9:16",
+        "scene": "电影级场景背景，夜晚城市废墟航拍，布局 resembling 古代符文，与现代城市天际线融合，神秘，雾，无人，空场景，8K"
+      },
+      "preferred_mode": "standard",
+      "scene_number": 1,
+      "scene_title": "古城现世",
+      "shot_number": 8,
+      "shot_type": "定场镜头",
+      "veo_prompt_standard": "电影级镜头，从骑手肩后开始，看他手机地图。地图显示'章峨路44号'。镜头快速后拉上升（无人机镜头），揭示拆迁区废墟形成古代神话结构形状，与现代城市灯光重叠。赛博-神话美学。8K，宏大尺度。",
+      "visual_description_standard": "手机地图特写 → 镜头高空后拉 → 揭示古城布局"
+    }
+  ],
+  "language": "cn",
+  "updated_at": "2026-02-09T12:00:00.000000"
+}
