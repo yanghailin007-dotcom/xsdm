@@ -1543,7 +1543,10 @@ def generate_storyboard_from_beats():
                 'visual_description_standard': shot_cn.get('visual_description_standard', ''),
                 'visual_description_reference': shot_cn.get('visual_description_reference', ''),
                 'visual_description_frames': shot_cn.get('visual_description_frames', ''),
-                # 🔥 场景图提示词
+                # 🔥 图片生成提示词（四种类型）
+                'image_prompts': shot_en.get('image_prompts', {}),
+                'image_prompts_cn': shot_cn.get('image_prompts', {}),
+                # 兼容旧格式
                 'image_prompt': shot_cn.get('image_prompt', ''),
                 'image_prompt_en': shot_en.get('image_prompt', ''),
                 # 兼容旧模式
@@ -1669,7 +1672,11 @@ Each shot must include:
    - visual_description_standard: Dynamic action for standard mode
    - visual_description_reference: Dynamic action for reference mode
    - visual_description_frames: Dynamic action for frame mode
-6. image_prompt: Scene image generation prompt for creating reference frames
+6. image_prompts: Four types of image generation prompts (for external AI image tools like Midjourney/Stable Diffusion)
+   - scene: Empty scene background (no characters, just environment)
+   - character: Character portrait/reference image
+   - first_frame: Starting frame of the shot
+   - last_frame: Ending frame of the shot
 7. dialogue:
    - speaker: Character name or "None"
    - lines_en: English dialogue lines (appropriate for shot duration)
@@ -1695,11 +1702,32 @@ Style: {style}
    - Focus on camera movement and action changes
    - Lighting and atmosphere adjustments
 
-【image_prompt Guidelines】
-- Describe the key frame/scene for image generation
-- Include character positions, environment, lighting
-- Static composition suitable for reference frame
-- Photorealistic, cinematic quality
+【image_prompts Guidelines】
+Generate four types of prompts for external image generation:
+
+1. scene: Empty scene background
+   - No characters, no people
+   - Focus on environment, architecture, lighting
+   - Suitable for background composition
+   - Example: "cinematic scene background, abandoned urban demolition zone at dusk, twisted rebar and concrete debris, volumetric fog, cold blue lighting, photorealistic, 8k, highly detailed environment, no people, empty scene"
+
+2. character: Character portrait/reference
+   - Focus on character appearance, clothing, expression
+   - Upper body or full body shot
+   - Neutral pose, suitable for reference
+   - Example: "cinematic character portrait, young delivery rider, yellow tactical jacket, cracked helmet, determined expression, photorealistic, 8k, highly detailed face, character reference, upper body"
+
+3. first_frame: Starting frame of the shot
+   - Complete scene with character in starting position
+   - Static composition, frozen moment
+   - Include character, environment, lighting
+   - Example: "cinematic film frame, medium shot, young delivery rider looking at phone in demolition zone, dusk lighting, photorealistic, 8k, still image, frozen moment, vertical 9:16 format"
+
+4. last_frame: Ending frame of the shot
+   - Complete scene with character in ending position
+   - Show action completion or transition
+   - Should connect naturally with first_frame
+   - Example: "cinematic film frame, medium shot, young delivery rider looking up from phone with concerned expression, demolition zone, dusk lighting, photorealistic, 8k, action completed, still image, vertical 9:16 format"
 
 Output JSON format:
 {{
@@ -1714,7 +1742,12 @@ Output JSON format:
             "visual_description_standard": "Action A → Action B → Action C",
             "visual_description_reference": "Action A → Action B → Action C",
             "visual_description_frames": "Action A → Action B → Action C",
-            "image_prompt": "Photorealistic scene description for image generation...",
+            "image_prompts": {{
+                "scene": "Empty scene background prompt...",
+                "character": "Character portrait prompt...",
+                "first_frame": "Starting frame prompt...",
+                "last_frame": "Ending frame prompt..."
+            }},
             "dialogue": {{
                 "speaker": "Character Name",
                 "lines_en": "English dialogue",
