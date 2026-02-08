@@ -762,6 +762,8 @@ class ShortDramaStudio {
                     this.loadStoryboardStep();
                     this.loadedSteps.add('storyboard');
                 }
+                // 更新按钮状态（显示"开始生成"或"重新生成"）
+                this.updateStoryboardButtonState();
                 break;
             case 'video':
                 if (!this.loadedSteps.has('video') || forceReload) {
@@ -9080,33 +9082,90 @@ saveGeminiConfig(config) {
     }
 
     /**
-     * 加载分镜步骤
+     * 处理分镜生成按钮点击
+     * 检查是否已有数据，询问是否重新生成
      */
-    async loadStoryboardStep() {
+    async handleStoryboardGenerate() {
+        // 检查是否已有分镜数据（包括内存和文件系统）
+        let hasShots = this.currentProject?.shots && this.currentProject.shots.length > 0;
+        
+        // 如果内存中没有，检查文件系统
+        if (!hasShots) {
+            const existingShots = await this.loadShotsV2();
+            hasShots = existingShots?.shots?.length > 0;
+            if (hasShots) {
+                this.currentProject.shots = existingShots.shots;
+            }
+        }
+        
+        if (hasShots) {
+            // 已有数据，询问是否重新生成
+            const shotCount = this.currentProject.shots.length;
+            const confirmed = confirm(`已存在 ${shotCount} 个分镜头，确定要重新生成吗？\n\n这将覆盖现有数据，重新基于故事节拍生成新的分镜脚本。`);
+            if (!confirmed) {
+                return;
+            }
+            // 清除现有数据，强制重新生成
+            this.currentProject.shots = null;
+        }
+        
+        // 调用加载/生成函数（强制生成模式）
+        await this.loadStoryboardStep(true);
+        
+        // 更新按钮状态
+        this.updateStoryboardButtonState();
+    }
+    
+    /**
+     * 更新分镜生成按钮状态
+     */
+    updateStoryboardButtonState() {
+        const btn = document.getElementById('storyboardGenerateBtn');
+        if (!btn) return;
+        
+        const hasShots = this.currentProject?.shots && this.currentProject.shots.length > 0;
+        if (hasShots) {
+            btn.innerHTML = '🔄 重新生成分镜';
+            btn.classList.remove('btn-primary');
+            btn.classList.add('btn-secondary');
+        } else {
+            btn.innerHTML = '🎬 开始分镜生成';
+            btn.classList.remove('btn-secondary');
+            btn.classList.add('btn-primary');
+        }
+    }
+
+    /**
+     * 加载分镜步骤
+     * @param {boolean} forceGenerate - 是否强制重新生成
+     */
+    async loadStoryboardStep(forceGenerate = false) {
         const container = document.getElementById('storyboardContent');
         if (!container) return;
         
-        // 🔥 首先检查是否已有分镜头数据
-        if (this.currentProject?.shots && this.currentProject.shots.length > 0) {
+        // 🔥 首先检查是否已有分镜头数据（除非强制重新生成）
+        if (!forceGenerate && this.currentProject?.shots && this.currentProject.shots.length > 0) {
             console.log('✅ [分镜头] 使用内存中的分镜头数据:', this.currentProject.shots.length);
             this.renderShotsList();
             return;
         }
         
-        // 🔥 其次尝试从文件系统加载已保存的分镜头
-        container.innerHTML = `
-            <div class="empty-state">
-                <p>⏳</p>
-                <p>正在加载分镜头...</p>
-            </div>
-        `;
-        
-        const existingShots = await this.loadShotsV2();
-        if (existingShots?.shots?.length > 0) {
-            console.log('✅ [分镜头] 从文件加载已存在的分镜头:', existingShots.shots.length);
-            this.currentProject.shots = existingShots.shots;
-            this.renderShotsList();
-            return;
+        // 🔥 其次尝试从文件系统加载已保存的分镜头（除非强制重新生成）
+        if (!forceGenerate) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <p>⏳</p>
+                    <p>正在加载分镜头...</p>
+                </div>
+            `;
+            
+            const existingShots = await this.loadShotsV2();
+            if (existingShots?.shots?.length > 0) {
+                console.log('✅ [分镜头] 从文件加载已存在的分镜头:', existingShots.shots.length);
+                this.currentProject.shots = existingShots.shots;
+                this.renderShotsList();
+                return;
+            }
         }
         
         // 🔥 没有已存在的分镜头，需要生成
@@ -9179,6 +9238,9 @@ saveGeminiConfig(config) {
     renderShotsList() {
         const container = document.getElementById('storyboardContent');
         if (!container) return;
+        
+        // 更新按钮状态
+        this.updateStoryboardButtonState();
         
         const shots = this.currentProject?.shots || [];
         
