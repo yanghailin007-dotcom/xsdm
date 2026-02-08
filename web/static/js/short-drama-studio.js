@@ -8305,22 +8305,22 @@ saveGeminiConfig(config) {
         const container = document.getElementById('storyboardContent');
         if (!container) return;
 
-        // 🔥 优先检查是否已有 shots 数据（避免重复生成）
-        if (this.currentProject?.shots && this.currentProject.shots.length > 0) {
-            console.log('✅ [分镜头] 已有 shots 数据，直接显示');
-            this.renderShotsList();
-            return;
-        }
-
-        // 🔥 检查 episodes 中是否有 shots 数据（创意导入）
+        // 🔥 优先检查 episodes 中是否有 shots 数据（创意导入优先级最高）
         if (this.currentProject?.episodes && this.currentProject.episodes.length > 0) {
             const firstEpisode = this.currentProject.episodes[0];
             if (firstEpisode.shots && firstEpisode.shots.length > 0) {
-                console.log('✅ [分镜头] 从 episodes 加载 shots 数据');
+                console.log('✅ [分镜头] 从 episodes 加载 shots 数据（创意导入）');
                 this.currentProject.shots = firstEpisode.shots;
                 this.renderShotsList();
                 return;
             }
+        }
+
+        // 🔥 其次检查根级别的 shots 数据（手动生成）
+        if (this.currentProject?.shots && this.currentProject.shots.length > 0) {
+            console.log('✅ [分镜头] 已有根级别 shots 数据，直接显示');
+            this.renderShotsList();
+            return;
         }
 
         if (!this.currentProject?.storyBeats?.scenes) {
