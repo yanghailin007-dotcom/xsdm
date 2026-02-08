@@ -4122,7 +4122,7 @@ saveVeOConfig(config) {
 /**
  * 显示Gemini配置弹窗
  */
-showGeminiConfig() {
+async showGeminiConfig() {
     const modal = document.createElement('div');
     modal.className = 'modal-overlay';
     modal.style.cssText = `
@@ -4131,8 +4131,22 @@ showGeminiConfig() {
         justify-content: center; align-items: center; z-index: 10000;
     `;
 
-    // 获取当前配置
-    const currentConfig = this.loadGeminiConfig();
+    // 从后端获取当前配置
+    let currentConfig = this.loadGeminiConfig();
+    try {
+        const response = await fetch('/api/tts/gemini/config');
+        const result = await response.json();
+        if (result.success && result.configured) {
+            // 使用后端配置覆盖本地缓存
+            currentConfig = {
+                apiUrl: result.api_url || currentConfig.apiUrl,
+                apiKey: result.api_key || currentConfig.apiKey,
+                model: result.model || currentConfig.model
+            };
+        }
+    } catch (e) {
+        console.log('获取后端配置失败，使用本地缓存:', e);
+    }
 
     modal.innerHTML = `
         <div class="modal-content" style="
@@ -4170,10 +4184,10 @@ showGeminiConfig() {
                     border: 1px solid var(--border); border-radius: 8px;
                     color: var(--text-primary); font-size: 1rem;
                 ">
-                    <option value="gemini-2.5-pro" ${currentConfig.model === 'gemini-2.5-pro' ? 'selected' : ''}>Gemini 2.5 Pro (推荐)</option>
-                    <option value="gemini-2.0-flash" ${currentConfig.model === 'gemini-2.0-flash' ? 'selected' : ''}>Gemini 2.0 Flash</option>
-                    <option value="gemini-1.5-pro" ${currentConfig.model === 'gemini-1.5-pro' ? 'selected' : ''}>Gemini 1.5 Pro</option>
-                    <option value="gemini-3-pro-preview" ${currentConfig.model === 'gemini-3-pro-preview' ? 'selected' : ''}>Gemini 3 Pro Preview</option>
+                    <option value="gemini-2.5-pro" ${currentConfig.model === 'gemini-2.5-pro' ? 'selected' : ''} style="background: #1e293b; color: #fff;">Gemini 2.5 Pro (推荐)</option>
+                    <option value="gemini-2.0-flash" ${currentConfig.model === 'gemini-2.0-flash' ? 'selected' : ''} style="background: #1e293b; color: #fff;">Gemini 2.0 Flash</option>
+                    <option value="gemini-1.5-pro" ${currentConfig.model === 'gemini-1.5-pro' ? 'selected' : ''} style="background: #1e293b; color: #fff;">Gemini 1.5 Pro</option>
+                    <option value="gemini-3-pro-preview" ${currentConfig.model === 'gemini-3-pro-preview' ? 'selected' : ''} style="background: #1e293b; color: #fff;">Gemini 3 Pro Preview</option>
                 </select>
             </div>
 

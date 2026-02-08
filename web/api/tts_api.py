@@ -1452,6 +1452,7 @@ def get_gemini_config():
             'success': True,
             'configured': configured,
             'api_url': api_url,
+            'api_key': api_key,  # 返回完整key供前端填充
             'model': model,
             'key_prefix': api_key[:10] + '...' if api_key else None
         })
