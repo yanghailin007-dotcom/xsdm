@@ -27,6 +27,19 @@ function loadCharacterFromWorkflow() {
             loadedCharacter = JSON.parse(characterData);
             console.log('📸 [剧照工作室] 成功解析角色数据:', loadedCharacter);
 
+            // 检查数据是否过期（超过1小时视为过期）
+            const timestamp = loadedCharacter.timestamp || 0;
+            const now = Date.now();
+            const oneHour = 60 * 60 * 1000;
+            
+            if (now - timestamp > oneHour) {
+                console.log('ℹ️ [剧照工作室] 角色数据已过期（超过1小时），使用默认工作区');
+                localStorage.removeItem('portraitStudio_character');
+                loadedCharacter = null;
+                setupDefaultBackButton();
+                return;
+            }
+
             // 如果有预生成的提示词，自动填充
             if (loadedCharacter.generatedPrompt) {
                 console.log('📸 [剧照工作室] 发现预生成的提示词，准备填充...');
@@ -64,29 +77,28 @@ function loadCharacterFromWorkflow() {
                 console.log('✅ [剧照工作室] 已设置返回按钮到:', returnUrl);
             }
 
-            // 不清除localStorage，因为保存了返回地址等数据
-            // localStorage.removeItem('portraitStudio_character');
+            // 🔥 使用完后立即清除，避免下次进入还显示旧数据
+            localStorage.removeItem('portraitStudio_character');
+            console.log('✅ [剧照工作室] 已清除localStorage中的角色数据');
         } else {
-            console.log('ℹ️ [剧照工作室] localStorage中没有角色数据');
-
-            // 没有数据时，返回按钮默认去首页
-            const backBtn = document.getElementById('btnBack');
-            if (backBtn) {
-                backBtn.onclick = () => {
-                    window.location.href = '/landing';
-                };
-            }
+            console.log('ℹ️ [剧照工作室] localStorage中没有角色数据，显示默认工作区');
+            setupDefaultBackButton();
         }
     } catch (e) {
         console.error('❌ [剧照工作室] 加载角色数据失败:', e);
+        setupDefaultBackButton();
+    }
+}
 
-        // 出错时，返回按钮默认去首页
-        const backBtn = document.getElementById('btnBack');
-        if (backBtn) {
-            backBtn.onclick = () => {
-                window.location.href = '/landing';
-            };
-        }
+/**
+ * 设置默认返回按钮（首页）
+ */
+function setupDefaultBackButton() {
+    const backBtn = document.getElementById('btnBack');
+    if (backBtn) {
+        backBtn.onclick = () => {
+            window.location.href = '/landing';
+        };
     }
 }
 

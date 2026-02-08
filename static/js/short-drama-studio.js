@@ -1022,7 +1022,8 @@ class ShortDramaStudio {
             episode_info: episodeDirectoryName,
             novel_title: this.selectedNovel,
             return_url: `/short-drama-studio`, // 保存返回地址
-            return_step: 'check-portraits' // 保存返回步骤
+            return_step: 'check-portraits', // 保存返回步骤
+            timestamp: Date.now() // 🔥 添加时间戳，用于过期检查
         };
 
         console.log('📸 保存角色数据到localStorage:', dataToSave);

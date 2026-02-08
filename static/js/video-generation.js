@@ -4527,7 +4527,8 @@ li>选择角色，输入提示词，生成剧照</li>
             ...character,
             generatedPrompt: prompt,  // 添加自动生成的提示词
             episode_info: episodeInfo,  // 🔥 添加剧集信息用于文件命名
-            novel_title: this.selectedNovel  // 🔥 添加小说标题用于保存到视频项目
+            novel_title: this.selectedNovel,  // 🔥 添加小说标题用于保存到视频项目
+            timestamp: Date.now() // 🔥 添加时间戳，用于过期检查
         };
         console.log('📸 [打开剧照工作台] 保存到localStorage的数据:', dataToSave);
         localStorage.setItem('portraitStudio_character', JSON.stringify(dataToSave));
