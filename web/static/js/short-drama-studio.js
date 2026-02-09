@@ -801,6 +801,9 @@ class ShortDramaStudio {
             // 加载剧照信息
             await this.loadPortraits();
 
+            // 从后端加载视觉资产
+            await this.loadVisualAssetsFromAPI();
+
             // 初始化并渲染视觉资产库
             setTimeout(() => {
                 this.initVisualAssetsPanel();
@@ -813,6 +816,44 @@ class ShortDramaStudio {
             console.log('✅ [视觉资产库] 初始化完成');
         } catch (error) {
             console.error('❌ [视觉资产库] 加载失败:', error);
+        }
+    }
+
+    /**
+     * 从 API 加载视觉资产
+     */
+    async loadVisualAssetsFromAPI() {
+        try {
+            if (!this.currentProject?.id) return;
+
+            const response = await fetch(`/api/projects/${this.currentProject.id}/visual-assets`);
+            const data = await response.json();
+
+            if (data.success) {
+                // 初始化视觉资产结构
+                if (!this.currentProject.visualAssets) {
+                    this.currentProject.visualAssets = { characters: {}, scenes: {}, props: {} };
+                }
+
+                // 合并 API 数据
+                this.currentProject.visualAssets = {
+                    characters: data.data?.characters || {},
+                    scenes: data.data?.scenes || {},
+                    props: data.data?.props || {}
+                };
+
+                console.log('✅ [视觉资产库] 从 API 加载完成:', 
+                    Object.keys(this.currentProject.visualAssets.characters).length, '角色,',
+                    Object.keys(this.currentProject.visualAssets.scenes).length, '场景,',
+                    Object.keys(this.currentProject.visualAssets.props).length, '道具'
+                );
+            }
+        } catch (error) {
+            console.error('❌ [视觉资产库] API 加载失败:', error);
+            // 使用本地数据
+            if (!this.currentProject.visualAssets) {
+                this.currentProject.visualAssets = { characters: {}, scenes: {}, props: {} };
+            }
         }
     }
 
@@ -879,23 +920,71 @@ class ShortDramaStudio {
                 grid.appendChild(card);
             });
         } else if (category === 'scenes') {
-            // 场景 - 暂时显示占位
-            grid.innerHTML = `
-                <div style="grid-column: span 2; text-align: center; padding: 40px 20px; color: #64748b;">
-                    <p style="font-size: 32px; margin-bottom: 12px;">🏞️</p>
-                    <p style="font-size: 13px;">暂无场景</p>
-                    <p style="font-size: 11px; margin-top: 8px; color: #475569;">点击下方"生成"创建</p>
-                </div>
-            `;
+            // 场景 - 从 visualAssets 加载
+            const scenes = this.currentProject?.visualAssets?.scenes || {};
+            const sceneNames = Object.keys(scenes);
+            
+            if (sceneNames.length === 0) {
+                grid.innerHTML = `
+                    <div style="grid-column: span 2; text-align: center; padding: 40px 20px; color: #64748b;">
+                        <p style="font-size: 32px; margin-bottom: 12px;">🏞️</p>
+                        <p style="font-size: 13px;">暂无场景</p>
+                        <p style="font-size: 11px; margin-top: 8px; color: #475569;">点击下方"生成"创建</p>
+                    </div>
+                `;
+            } else {
+                sceneNames.forEach(sceneName => {
+                    const scene = scenes[sceneName];
+                    const imageUrl = scene.referenceUrl;
+                    
+                    const card = document.createElement('div');
+                    card.className = 'va-asset-card';
+                    card.innerHTML = `
+                        ${imageUrl 
+                            ? `<img src="${imageUrl}" alt="${sceneName}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">`
+                            : ''}
+                        <div style="display: ${imageUrl ? 'none' : 'flex'}; align-items: center; justify-content: center; height: 100%; font-size: 24px;">🏞️</div>
+                        <div class="asset-label">${sceneName}</div>
+                    `;
+                    card.addEventListener('click', () => {
+                        this.selectVisualAsset('scene', scene, imageUrl);
+                    });
+                    grid.appendChild(card);
+                });
+            }
         } else if (category === 'props') {
-            // 道具 - 暂时显示占位
-            grid.innerHTML = `
-                <div style="grid-column: span 2; text-align: center; padding: 40px 20px; color: #64748b;">
-                    <p style="font-size: 32px; margin-bottom: 12px;">🎒</p>
-                    <p style="font-size: 13px;">暂无道具</p>
-                    <p style="font-size: 11px; margin-top: 8px; color: #475569;">点击下方"生成"创建</p>
-                </div>
-            `;
+            // 道具 - 从 visualAssets 加载
+            const props = this.currentProject?.visualAssets?.props || {};
+            const propNames = Object.keys(props);
+            
+            if (propNames.length === 0) {
+                grid.innerHTML = `
+                    <div style="grid-column: span 2; text-align: center; padding: 40px 20px; color: #64748b;">
+                        <p style="font-size: 32px; margin-bottom: 12px;">🎒</p>
+                        <p style="font-size: 13px;">暂无道具</p>
+                        <p style="font-size: 11px; margin-top: 8px; color: #475569;">点击下方"生成"创建</p>
+                    </div>
+                `;
+            } else {
+                propNames.forEach(propName => {
+                    const prop = props[propName];
+                    const imageUrl = prop.referenceUrl;
+                    
+                    const card = document.createElement('div');
+                    card.className = 'va-asset-card';
+                    card.innerHTML = `
+                        ${imageUrl 
+                            ? `<img src="${imageUrl}" alt="${propName}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">`
+                            : ''}
+                        <div style="display: ${imageUrl ? 'none' : 'flex'}; align-items: center; justify-content: center; height: 100%; font-size: 24px;">🎒</div>
+                        <div class="asset-label">${propName}</div>
+                    `;
+                    card.addEventListener('click', () => {
+                        this.selectVisualAsset('prop', prop, imageUrl);
+                    });
+                    grid.appendChild(card);
+                });
+            }
         }
     }
 
@@ -915,12 +1004,27 @@ class ShortDramaStudio {
 
         // 提取标准描述
         let description = '';
+        let clothing = '';
+        let expression = '';
+        let lighting = '';
+        let colorTone = '';
+        let category = '';
+        
         if (type === 'character') {
             description = data.living_characteristics?.physical_presence 
                 || data.initial_state?.description 
                 || data.appearance 
                 || data.description 
                 || '';
+            clothing = data.clothing || '';
+            expression = data.expression || '';
+        } else if (type === 'scene') {
+            description = data.description || '';
+            lighting = data.lighting || '';
+            colorTone = data.colorTone || '';
+        } else if (type === 'prop') {
+            description = data.description || '';
+            category = data.category || '';
         }
 
         panel.innerHTML = `
@@ -953,9 +1057,14 @@ class ShortDramaStudio {
                 <div class="va-form-row">
                     <textarea id="vaAssetDescription" placeholder="详细描述外观特征、颜色、风格...">${description}</textarea>
                 </div>
-                <button class="btn btn-sm btn-primary" onclick="shortDramaStudio.saveAssetDescription('${data.name || data}', '${type}')" style="width: 100%;">
-                    💾 保存描述
-                </button>
+                <div style="display: flex; gap: 8px;">
+                    <button class="btn btn-sm btn-primary" onclick="shortDramaStudio.saveAssetDescription('${data.name || data}', '${type}')" style="flex: 1;">
+                        💾 保存
+                    </button>
+                    <button class="btn btn-sm" onclick="shortDramaStudio.generateAssetImage('${data.name || data}', '${type}')" style="flex: 1; background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color: white; border: none;">
+                        🎨 生成图片
+                    </button>
+                </div>
             </div>
 
             ${type === 'character' ? `
@@ -963,11 +1072,11 @@ class ShortDramaStudio {
                 <h5>🎨 角色特征</h5>
                 <div class="va-form-row">
                     <label>服装</label>
-                    <input type="text" id="vaCharClothing" placeholder="例如：青色长袍、白色内衫">
+                    <input type="text" id="vaCharClothing" value="${clothing}" placeholder="例如：青色长袍、白色内衫">
                 </div>
                 <div class="va-form-row">
                     <label>标志性表情</label>
-                    <input type="text" id="vaCharExpression" placeholder="例如：沉稳、坚毅">
+                    <input type="text" id="vaCharExpression" value="${expression}" placeholder="例如：沉稳、坚毅">
                 </div>
             </div>
             ` : ''}
@@ -977,11 +1086,21 @@ class ShortDramaStudio {
                 <h5>🌟 场景特征</h5>
                 <div class="va-form-row">
                     <label>光线</label>
-                    <input type="text" id="vaSceneLighting" placeholder="例如：晨光、柔和">
+                    <input type="text" id="vaSceneLighting" value="${lighting}" placeholder="例如：晨光、柔和">
                 </div>
                 <div class="va-form-row">
                     <label>色调</label>
-                    <input type="text" id="vaSceneColorTone" placeholder="例如：青绿色调">
+                    <input type="text" id="vaSceneColorTone" value="${colorTone}" placeholder="例如：青绿色调">
+                </div>
+            </div>
+            ` : ''}
+
+            ${type === 'prop' ? `
+            <div class="va-property-group">
+                <h5>🎒 道具特征</h5>
+                <div class="va-form-row">
+                    <label>分类</label>
+                    <input type="text" id="vaPropCategory" value="${category}" placeholder="例如：武器、饰品、工具">
                 </div>
             </div>
             ` : ''}
@@ -991,27 +1110,105 @@ class ShortDramaStudio {
     /**
      * 保存资产描述
      */
-    saveAssetDescription(name, type) {
+    async saveAssetDescription(name, type) {
         const description = document.getElementById('vaAssetDescription')?.value;
         if (!description) {
             this.showToast('请输入描述', 'warning');
             return;
         }
 
-        // 存储到项目数据
+        // 收集额外字段
+        const extraData = { description };
+        
+        if (type === 'character') {
+            const clothing = document.getElementById('vaCharClothing')?.value;
+            const expression = document.getElementById('vaCharExpression')?.value;
+            if (clothing) extraData.clothing = clothing;
+            if (expression) extraData.expression = expression;
+        } else if (type === 'scene') {
+            const lighting = document.getElementById('vaSceneLighting')?.value;
+            const colorTone = document.getElementById('vaSceneColorTone')?.value;
+            if (lighting) extraData.lighting = lighting;
+            if (colorTone) extraData.colorTone = colorTone;
+        } else if (type === 'prop') {
+            const category = document.getElementById('vaPropCategory')?.value;
+            if (category) extraData.category = category;
+        }
+
+        // 本地更新
         if (!this.currentProject.visualAssets) {
             this.currentProject.visualAssets = {};
         }
         if (!this.currentProject.visualAssets[type + 's']) {
             this.currentProject.visualAssets[type + 's'] = {};
         }
-
         this.currentProject.visualAssets[type + 's'][name] = {
-            standardDescription: description,
+            ...this.currentProject.visualAssets[type + 's'][name],
+            ...extraData,
             updatedAt: new Date().toISOString()
         };
 
-        this.showToast('✓ 描述已保存', 'success');
+        // 同步到后端 API
+        try {
+            if (this.currentProject?.id) {
+                const categoryMap = {
+                    'character': 'characters',
+                    'scene': 'scenes',
+                    'prop': 'props'
+                };
+                const category = categoryMap[type];
+
+                const response = await fetch(
+                    `/api/projects/${this.currentProject.id}/visual-assets/${category}/${encodeURIComponent(name)}`,
+                    {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(extraData)
+                    }
+                );
+
+                const data = await response.json();
+                if (data.success) {
+                    this.showToast('✓ 描述已保存到服务器', 'success');
+                } else {
+                    this.showToast('✓ 已保存本地（后端同步失败）', 'warning');
+                }
+            } else {
+                this.showToast('✓ 已保存本地', 'success');
+            }
+        } catch (error) {
+            console.error('保存到后端失败:', error);
+            this.showToast('✓ 已保存本地（后端同步失败）', 'warning');
+        }
+    }
+
+    /**
+     * 保存所有视觉资产到项目（用于分镜生成前同步）
+     */
+    async saveVisualAssetsToProject() {
+        if (!this.currentProject?.id || !this.currentProject?.visualAssets) {
+            return;
+        }
+        
+        try {
+            // 同步字段名称兼容
+            const projectData = {
+                visualAssets: this.currentProject.visualAssets
+            };
+            
+            const response = await fetch(`/api/projects/${this.currentProject.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(projectData)
+            });
+            
+            const data = await response.json();
+            if (data.success) {
+                console.log('✅ [视觉资产] 已同步到项目，用于分镜生成');
+            }
+        } catch (error) {
+            console.error('保存视觉资产失败:', error);
+        }
     }
 
     /**
@@ -1036,9 +1233,9 @@ class ShortDramaStudio {
     }
 
     /**
-     * 生成视觉资产
+     * 创建视觉资产 - 使用已有 API 创建场景/道具
      */
-    generateVisualAsset() {
+    async generateVisualAsset() {
         const activeTab = document.querySelector('.va-category-tab.active');
         const category = activeTab?.dataset.category || 'characters';
         
@@ -1049,7 +1246,96 @@ class ShortDramaStudio {
         };
         
         const info = categoryMap[category];
-        this.showToast(`${info.icon} ${info.name}生成功能即将上线`, 'info');
+        
+        // 角色暂不支持在此创建
+        if (category === 'characters') {
+            this.showToast(`🎭 角色请通过"导入角色"添加`, 'info');
+            return;
+        }
+        
+        // 显示创建对话框
+        const name = prompt(`输入${info.name}名称:`, '');
+        if (!name) return;
+        
+        const description = prompt('输入标准描述:', '');
+        if (!description) return;
+        
+        // 根据类别收集额外字段
+        const options = {};
+        if (category === 'scenes') {
+            const lighting = prompt('光线（可选）:', '');
+            const colorTone = prompt('色调（可选）:', '');
+            if (lighting) options.lighting = lighting;
+            if (colorTone) options.colorTone = colorTone;
+        } else if (category === 'props') {
+            const propCategory = prompt('分类（可选，如:武器、饰品）:', '');
+            if (propCategory) options.category = propCategory;
+        }
+        
+        try {
+            this.showToast(`⏳ 正在创建${info.name}...`, 'info');
+            
+            // 使用已有的 POST API 创建
+            const result = await this.createVisualAsset(category, name, description, options);
+            
+            if (result) {
+                this.showToast(`✅ ${info.name}「${name}」创建成功`, 'success');
+                // 刷新网格
+                this.loadVisualAssetsGrid(category);
+                // 自动选中新创建的资产
+                this.selectVisualAsset(category === 'scenes' ? 'scene' : 'prop', result, '');
+            }
+        } catch (error) {
+            console.error('创建视觉资产失败:', error);
+            this.showToast('❌ 创建失败，请重试', 'error');
+        }
+    }
+
+    /**
+     * 创建新的视觉资产（用于场景和道具）
+     */
+    async createVisualAsset(category, name, description, options = {}) {
+        if (!this.currentProject?.id) {
+            this.showToast('请先创建项目', 'warning');
+            return null;
+        }
+        
+        try {
+            const response = await fetch(`/api/projects/${this.currentProject.id}/visual-assets/${category}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name,
+                    description,
+                    ...options
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                // 更新本地数据
+                if (!this.currentProject.visualAssets) {
+                    this.currentProject.visualAssets = { characters: {}, scenes: {}, props: {} };
+                }
+                if (!this.currentProject.visualAssets[category]) {
+                    this.currentProject.visualAssets[category] = {};
+                }
+                this.currentProject.visualAssets[category][name] = data.data;
+                
+                // 刷新网格
+                this.loadVisualAssetsGrid(category);
+                
+                return data.data;
+            } else {
+                this.showToast(`❌ 创建失败: ${data.error}`, 'error');
+                return null;
+            }
+        } catch (error) {
+            console.error('创建视觉资产失败:', error);
+            this.showToast('❌ 创建失败', 'error');
+            return null;
+        }
     }
 
     /**
@@ -1085,6 +1371,464 @@ class ShortDramaStudio {
             }
         } catch (error) {
             console.error('❌ [剧照] 加载失败:', error);
+        }
+    }
+
+    /**
+     * 打开图片生成配置模态框
+     */
+    openImageGenConfigModal() {
+        const modal = document.getElementById('imageGenConfigModal');
+        if (!modal) return;
+        
+        // 加载已保存的配置
+        const config = this.getImageGenConfig();
+        document.getElementById('imgGenProvider').value = config.provider || '';
+        document.getElementById('imgGenApiUrl').value = config.apiUrl || '';
+        document.getElementById('imgGenApiKey').value = config.apiKey || '';
+        document.getElementById('imgGenModel').value = config.model || '';
+        document.getElementById('imgGenSize').value = config.size || '1024x1024';
+        document.getElementById('imgGenSaveToProject').checked = config.saveToProject || false;
+        
+        modal.style.display = 'flex';
+    }
+
+    /**
+     * 关闭图片生成配置模态框
+     */
+    closeImageGenConfigModal() {
+        const modal = document.getElementById('imageGenConfigModal');
+        if (modal) modal.style.display = 'none';
+    }
+
+    /**
+     * 保存图片生成配置
+     */
+    async saveImageGenConfig() {
+        const config = {
+            provider: document.getElementById('imgGenProvider').value,
+            apiUrl: document.getElementById('imgGenApiUrl').value.trim(),
+            apiKey: document.getElementById('imgGenApiKey').value.trim(),
+            model: document.getElementById('imgGenModel').value,
+            size: document.getElementById('imgGenSize').value,
+            saveToProject: document.getElementById('imgGenSaveToProject').checked
+        };
+        
+        // 验证必填字段
+        if (!config.provider) {
+            this.showToast('请选择服务提供商', 'warning');
+            return;
+        }
+        if (!config.apiUrl) {
+            this.showToast('请输入 API URL', 'warning');
+            return;
+        }
+        
+        // 保存到本地存储
+        localStorage.setItem('shortDrama_imageGenConfig', JSON.stringify({
+            provider: config.provider,
+            apiUrl: config.apiUrl,
+            model: config.model,
+            size: config.size,
+            // 注意：API Key 单独存储以提高安全性
+        }));
+        
+        if (config.apiKey) {
+            localStorage.setItem('shortDrama_imageGenApiKey', config.apiKey);
+        }
+        
+        // 如果选择保存到项目，则同步到项目配置
+        if (config.saveToProject && this.currentProject?.id) {
+            try {
+                const projectConfig = {
+                    imageGen: {
+                        provider: config.provider,
+                        apiUrl: config.apiUrl,
+                        model: config.model,
+                        size: config.size
+                        // API Key 不保存到项目
+                    }
+                };
+                
+                const response = await fetch(`/api/projects/${this.currentProject.id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ settings: projectConfig })
+                });
+                
+                if (response.ok) {
+                    this.showToast('配置已保存到项目', 'success');
+                }
+            } catch (error) {
+                console.error('保存项目配置失败:', error);
+            }
+        }
+        
+        this.closeImageGenConfigModal();
+        this.showToast('💾 图片生成配置已保存', 'success');
+    }
+
+    /**
+     * Get image generation config
+     */
+    getImageGenConfig() {
+        let config = {};
+        if (this.currentProject?.settings?.imageGen) {
+            config = { ...this.currentProject.settings.imageGen };
+        }
+        
+        const localConfig = localStorage.getItem('shortDrama_imageGenConfig');
+        if (localConfig) {
+            try {
+                const parsed = JSON.parse(localConfig);
+                config = { ...config, ...parsed };
+            } catch (e) {
+                console.error('Parse local config failed:', e);
+            }
+        }
+        
+        const apiKey = localStorage.getItem('shortDrama_imageGenApiKey');
+        if (apiKey) {
+            config.apiKey = apiKey;
+        }
+        
+        return config;
+    }
+
+    /**
+     * Show image generation config modal
+     */
+    async showImageGenConfig() {
+        const modal = document.createElement('div');
+        modal.className = 'modal-overlay';
+        modal.style.cssText = `
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.8); display: flex;
+            justify-content: center; align-items: center; z-index: 10000;
+        `;
+
+        // 从后端获取当前配置
+        let config = this.getImageGenConfig();
+        try {
+            const response = await fetch('/api/image-gen/config');
+            const result = await response.json();
+            if (result.success && result.configured) {
+                config = {
+                    provider: result.provider || config.provider,
+                    apiUrl: result.api_url || config.apiUrl,
+                    apiKey: result.api_key || config.apiKey,
+                    model: result.model || config.model,
+                    size: result.size || config.size
+                };
+            }
+        } catch (e) {
+            console.log('获取后端配置失败，使用本地缓存:', e);
+        }
+
+        modal.innerHTML = `
+            <div class="modal-content" style="
+                background: var(--bg-secondary); border-radius: 16px;
+                max-width: 500px; width: 90%; padding: 2rem;
+                box-shadow: 0 25px 80px rgba(0,0,0,0.4);
+            ">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                    <h2 style="margin: 0;">🖼️ 图片生成配置</h2>
+                    <button class="btn-close" onclick="this.closest('.modal-overlay').remove()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer;">✕</button>
+                </div>
+
+                <div style="margin-bottom: 1rem;">
+                    <label style="font-weight: 600; display: block; margin-bottom: 0.5rem;">服务提供商</label>
+                    <select id="imgGenProviderModal" style="
+                        width: 100%; padding: 10px; background: var(--bg-dark);
+                        border: 1px solid var(--border); border-radius: 8px;
+                        color: var(--text-primary); font-size: 1rem;
+                    ">
+                        <option value="">-- 请选择 --</option>
+                        <option value="nano-banana" ${config.provider === 'nano-banana' ? 'selected' : ''}>Nano Banana (推荐)</option>
+                        <option value="openai" ${config.provider === 'openai' ? 'selected' : ''}>OpenAI (DALL-E)</option>
+                        <option value="stability" ${config.provider === 'stability' ? 'selected' : ''}>Stability AI</option>
+                        <option value="midjourney" ${config.provider === 'midjourney' ? 'selected' : ''}>Midjourney API</option>
+                        <option value="custom" ${config.provider === 'custom' ? 'selected' : ''}>自定义</option>
+                    </select>
+                </div>
+
+                <div style="margin-bottom: 1rem;">
+                    <label style="font-weight: 600; display: block; margin-bottom: 0.5rem;">API URL</label>
+                    <input type="text" id="imgGenApiUrlModal" value="${config.apiUrl || ''}" placeholder="https://api.nanobanana.com/v1/images" style="
+                        width: 100%; padding: 10px; background: var(--bg-dark);
+                        border: 1px solid var(--border); border-radius: 8px;
+                        color: var(--text-primary); font-size: 1rem;
+                    ">
+                </div>
+
+                <div style="margin-bottom: 1rem;">
+                    <label style="font-weight: 600; display: block; margin-bottom: 0.5rem;">API Key</label>
+                    <input type="password" id="imgGenApiKeyModal" value="${config.apiKey || ''}" placeholder="请输入API Key" style="
+                        width: 100%; padding: 10px; background: var(--bg-dark);
+                        border: 1px solid var(--border); border-radius: 8px;
+                        color: var(--text-primary); font-size: 1rem;
+                    ">
+                    <div style="font-size: 0.75rem; color: var(--text-tertiary); margin-top: 4px;">
+                        🔒 配置将保存到服务器
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 1rem;">
+                    <label style="font-weight: 600; display: block; margin-bottom: 0.5rem;">默认模型</label>
+                    <select id="imgGenModelModal" style="
+                        width: 100%; padding: 10px; background: var(--bg-dark);
+                        border: 1px solid var(--border); border-radius: 8px;
+                        color: var(--text-primary); font-size: 1rem;
+                    ">
+                        <option value="">-- 请选择 --</option>
+                        <optgroup label="Nano Banana">
+                            <option value="flux-1.1-pro" ${config.model === 'flux-1.1-pro' ? 'selected' : ''}>FLUX 1.1 Pro (推荐)</option>
+                            <option value="flux-pro" ${config.model === 'flux-pro' ? 'selected' : ''}>FLUX Pro</option>
+                            <option value="flux-dev" ${config.model === 'flux-dev' ? 'selected' : ''}>FLUX Dev</option>
+                            <option value="flux-schnell" ${config.model === 'flux-schnell' ? 'selected' : ''}>FLUX Schnell (快速)</option>
+                        </optgroup>
+                        <optgroup label="OpenAI">
+                            <option value="dall-e-3" ${config.model === 'dall-e-3' ? 'selected' : ''}>DALL-E 3</option>
+                            <option value="dall-e-2" ${config.model === 'dall-e-2' ? 'selected' : ''}>DALL-E 2</option>
+                        </optgroup>
+                        <optgroup label="Stability AI">
+                            <option value="sd-xl" ${config.model === 'sd-xl' ? 'selected' : ''}>Stable Diffusion XL</option>
+                            <option value="sd-3" ${config.model === 'sd-3' ? 'selected' : ''}>Stable Diffusion 3</option>
+                        </optgroup>
+                    </select>
+                </div>
+
+                <div style="margin-bottom: 1rem;">
+                    <label style="font-weight: 600; display: block; margin-bottom: 0.5rem;">默认尺寸</label>
+                    <select id="imgGenSizeModal" style="
+                        width: 100%; padding: 10px; background: var(--bg-dark);
+                        border: 1px solid var(--border); border-radius: 8px;
+                        color: var(--text-primary); font-size: 1rem;
+                    ">
+                        <option value="1024x1024" ${config.size === '1024x1024' ? 'selected' : ''}>1024x1024 (正方形)</option>
+                        <option value="1024x1792" ${config.size === '1024x1792' ? 'selected' : ''}>1024x1792 (竖屏)</option>
+                        <option value="1792x1024" ${config.size === '1792x1024' ? 'selected' : ''}>1792x1024 (横屏)</option>
+                        <option value="1440x2560" ${config.size === '1440x2560' ? 'selected' : ''}>1440x2560 (2K竖屏)</option>
+                        <option value="2560x1440" ${config.size === '2560x1440' ? 'selected' : ''}>2560x1440 (2K横屏)</option>
+                    </select>
+                </div>
+
+                <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+                    <button id="saveImgGenConfigBtn" class="btn btn-primary" style="flex: 1;">保存配置</button>
+                    <button class="btn btn-secondary" onclick="this.closest('.modal-overlay').remove()" style="flex: 1;">取消</button>
+                </div>
+
+                <div style="margin-top: 1rem; padding: 1rem; background: var(--bg-tertiary); border-radius: 8px; font-size: 0.85rem; color: var(--text-secondary);">
+                    <p style="margin: 0 0 0.5rem 0;">📌 获取Nano Banana API密钥：</p>
+                    <ol style="margin: 0; padding-left: 1.5rem;">
+                        <li>访问 <a href="https://nanobanana.com" target="_blank" style="color: var(--primary);">Nano Banana官网</a></li>
+                        <li>注册并登录账号</li>
+                        <li>在控制台创建API Key</li>
+                    </ol>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        // 点击背景关闭
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) modal.remove();
+        });
+
+        // 保存配置
+        const saveBtn = modal.querySelector('#saveImgGenConfigBtn');
+        saveBtn.addEventListener('click', async () => {
+            const provider = modal.querySelector('#imgGenProviderModal').value;
+            const apiUrl = modal.querySelector('#imgGenApiUrlModal').value.trim();
+            const apiKey = modal.querySelector('#imgGenApiKeyModal').value.trim();
+            const model = modal.querySelector('#imgGenModelModal').value;
+            const size = modal.querySelector('#imgGenSizeModal').value;
+
+            if (!provider) {
+                this.showToast('请选择服务提供商', 'warning');
+                return;
+            }
+            if (!apiUrl) {
+                this.showToast('请输入 API URL', 'warning');
+                return;
+            }
+            if (!apiKey) {
+                this.showToast('请输入 API Key', 'warning');
+                return;
+            }
+
+            // 保存到localStorage
+            localStorage.setItem('shortDrama_imageGenConfig', JSON.stringify({
+                provider: provider,
+                apiUrl: apiUrl,
+                model: model,
+                size: size
+            }));
+            localStorage.setItem('shortDrama_imageGenApiKey', apiKey);
+
+            // 同步到后端
+            try {
+                const response = await fetch('/api/image-gen/config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        provider: provider,
+                        api_url: apiUrl,
+                        api_key: apiKey,
+                        model: model,
+                        size: size
+                    })
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    this.showToast('💾 图片生成配置已保存并生效', 'success');
+                    modal.remove();
+                } else {
+                    this.showToast(`保存失败: ${result.error}`, 'error');
+                }
+            } catch (error) {
+                console.error('保存图片配置失败:', error);
+                this.showToast('保存失败，请检查网络', 'error');
+            }
+        });
+    }
+
+    /**
+     * 生成图片（使用配置的服务）
+     */
+    async generateImage(prompt, options = {}) {
+        const config = this.getImageGenConfig();
+        
+        if (!config.apiUrl || !config.apiKey) {
+            this.showToast('请先配置图片生成服务', 'warning');
+            this.showImageGenConfig();
+            return null;
+        }
+        
+        try {
+            this.showToast('🎨 正在生成图片...', 'info');
+            
+            const requestBody = {
+                prompt: prompt,
+                model: options.model || config.model || 'dall-e-3',
+                size: options.size || config.size || '1024x1024',
+                n: 1,
+                ...options
+            };
+            
+            const response = await fetch(config.apiUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${config.apiKey}`
+                },
+                body: JSON.stringify(requestBody)
+            });
+            
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error?.message || `生成失败: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            
+            // 解析不同 API 格式
+            let imageUrl = null;
+            if (data.data?.[0]?.url) {
+                imageUrl = data.data[0].url; // OpenAI 格式
+            } else if (data.artifacts?.[0]?.base64) {
+                imageUrl = `data:image/png;base64,${data.artifacts[0].base64}`; // Stability 格式
+            } else if (data.image_url) {
+                imageUrl = data.image_url; // 通用格式
+            }
+            
+            if (imageUrl) {
+                this.showToast('✅ 图片生成成功', 'success');
+                return imageUrl;
+            } else {
+                throw new Error('未能获取图片 URL');
+            }
+            
+        } catch (error) {
+            console.error('图片生成失败:', error);
+            this.showToast(`❌ 生成失败: ${error.message}`, 'error');
+            return null;
+        }
+    }
+
+    /**
+     * 为视觉资产生成图片
+     */
+    async generateAssetImage(name, type) {
+        // 获取资产数据
+        const typeMap = {
+            'character': 'characters',
+            'scene': 'scenes', 
+            'prop': 'props'
+        };
+        const category = typeMap[type];
+        const asset = this.currentProject?.visualAssets?.[category]?.[name];
+        
+        if (!asset) {
+            this.showToast('资产不存在', 'error');
+            return;
+        }
+        
+        // 构建生成提示词
+        let prompt = '';
+        const description = asset.description || '';
+        
+        if (type === 'character') {
+            const clothing = asset.clothing || '';
+            const expression = asset.expression || '';
+            prompt = `Professional character portrait of ${name}`;
+            if (description) prompt += `, ${description}`;
+            if (clothing) prompt += `, wearing ${clothing}`;
+            if (expression) prompt += `, ${expression} expression`;
+            prompt += `, high quality, detailed, cinematic lighting, portrait photography style`;
+        } else if (type === 'scene') {
+            const lighting = asset.lighting || '';
+            const colorTone = asset.colorTone || '';
+            prompt = `Cinematic scene of ${name}`;
+            if (description) prompt += `, ${description}`;
+            if (lighting) prompt += `, ${lighting} lighting`;
+            if (colorTone) prompt += `, ${colorTone} color tone`;
+            prompt += `, high quality, detailed environment, cinematic composition`;
+        } else if (type === 'prop') {
+            const propCategory = asset.category || '';
+            prompt = `Detailed image of ${name}`;
+            if (description) prompt += `, ${description}`;
+            if (propCategory) prompt += `, ${propCategory}`;
+            prompt += `, high quality, detailed, product photography style, clean background`;
+        }
+        
+        // 生成图片
+        const imageUrl = await this.generateImage(prompt);
+        
+        if (imageUrl) {
+            // 更新资产的图片 URL
+            asset.referenceUrl = imageUrl;
+            asset.updatedAt = new Date().toISOString();
+            
+            // 保存到后端
+            try {
+                await fetch(`/api/projects/${this.currentProject.id}/visual-assets/${category}/${encodeURIComponent(name)}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ referenceUrl: imageUrl })
+                });
+                
+                // 刷新显示
+                this.selectVisualAsset(type, asset, imageUrl);
+                this.loadVisualAssetsGrid(category);
+                
+                this.showToast(`✅ ${name} 图片已生成并保存`, 'success');
+            } catch (error) {
+                console.error('保存图片 URL 失败:', error);
+                this.showToast('图片生成成功，但保存失败', 'warning');
+            }
         }
     }
 
@@ -8261,6 +9005,9 @@ saveGeminiConfig(config) {
             button.innerHTML = '生成中...';
         }
         try {
+            // 🔥 先保存视觉资产到项目（确保AI生成时使用标准描述）
+            await this.saveVisualAssetsToProject();
+
             const response = await fetch('/api/short-drama/story-beats/generate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -8511,6 +9258,9 @@ saveGeminiConfig(config) {
         `;
 
         try {
+            // 🔥 先保存视觉资产到项目（确保AI生成时使用标准描述）
+            await this.saveVisualAssetsToProject();
+
             const response = await fetch('/api/short-drama/storyboard/generate-from-beats', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },

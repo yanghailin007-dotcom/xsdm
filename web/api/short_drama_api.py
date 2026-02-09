@@ -92,6 +92,11 @@ class ShortDramaProject:
         self.episodes = []
         self.characters = []
         self.storyBeats = None  # 故事节拍数据
+        self.visualAssets = {   # 🔥 视觉资产库
+            'characters': {},   # {name: {description, tags, referenceUrl, ...}}
+            'scenes': {},       # {name: {description, tags, referenceUrl, ...}}
+            'props': {}         # {name: {description, tags, referenceUrl, ...}}
+        }
         self.settings = {
             'aspect_ratio': '9:16',
             'quality': '4K',
@@ -114,6 +119,7 @@ class ShortDramaProject:
             'episodes': self.episodes,
             'characters': self.characters,
             'storyBeats': self.storyBeats,
+            'visualAssets': self.visualAssets,
             'settings': self.settings
         }
 
@@ -475,6 +481,10 @@ def update_project(project_id):
         project.settings = data.get('settings', project.settings)
         project.updated_at = datetime.now().isoformat()
 
+        # 🔥 同步角色到视觉资产库
+        if project.characters:
+            _sync_characters_to_visual_assets(project)
+
         project.save()
 
         logger.info(f'✅ 更新项目: {project_id}')
@@ -489,6 +499,91 @@ def update_project(project_id):
             'success': False,
             'error': str(e)
         }), 500
+
+
+def _sync_characters_to_visual_assets_obj(characters, visual_assets):
+    """将角色列表同步到视觉资产字典
+    
+    Args:
+        characters: 角色列表
+        visual_assets: 视觉资产字典（将被修改）
+    """
+    try:
+        if not characters:
+            return
+            
+        if 'characters' not in visual_assets:
+            visual_assets['characters'] = {}
+        
+        characters_assets = visual_assets['characters']
+        
+        for char in characters:
+            if isinstance(char, dict):
+                char_name = char.get('name')
+                if char_name and char_name not in characters_assets:
+                    # 提取角色描述
+                    description = char.get('living_characteristics', {}).get('physical_presence', '')
+                    if not description:
+                        description = char.get('initial_state', {}).get('description', '')
+                    if not description:
+                        description = char.get('appearance', '')
+                    if not description:
+                        description = char.get('description', '')
+                    
+                    characters_assets[char_name] = {
+                        'id': str(uuid.uuid4())[:8],
+                        'name': char_name,
+                        'description': description,
+                        'tags': [char.get('role', '')] if char.get('role') else [],
+                        'referenceUrl': '',
+                        'role': char.get('role', ''),
+                        'clothing': '',
+                        'expression': '',
+                        'createdAt': datetime.now().isoformat(),
+                        'updatedAt': datetime.now().isoformat()
+                    }
+    except Exception as e:
+        logger.error(f'同步角色到视觉资产失败: {e}')
+
+
+def _sync_characters_to_visual_assets(project):
+    """将项目中的角色同步到视觉资产库"""
+    try:
+        if not project.visualAssets:
+            project.visualAssets = {'characters': {}, 'scenes': {}, 'props': {}}
+        
+        characters_assets = project.visualAssets.get('characters', {})
+        
+        for char in project.characters:
+            if isinstance(char, dict):
+                char_name = char.get('name')
+                if char_name and char_name not in characters_assets:
+                    # 提取角色描述
+                    description = char.get('living_characteristics', {}).get('physical_presence', '')
+                    if not description:
+                        description = char.get('initial_state', {}).get('description', '')
+                    if not description:
+                        description = char.get('appearance', '')
+                    if not description:
+                        description = char.get('description', '')
+                    
+                    characters_assets[char_name] = {
+                        'id': str(uuid.uuid4())[:8],
+                        'name': char_name,
+                        'description': description,
+                        'tags': [char.get('role', '')] if char.get('role') else [],
+                        'referenceUrl': '',
+                        'role': char.get('role', ''),
+                        'clothing': '',
+                        'expression': '',
+                        'createdAt': datetime.now().isoformat(),
+                        'updatedAt': datetime.now().isoformat()
+                    }
+                    logger.info(f'🔧 同步角色到视觉资产: {char_name}')
+        
+        project.visualAssets['characters'] = characters_assets
+    except Exception as e:
+        logger.error(f'同步角色到视觉资产失败: {e}')
 
 
 @short_drama_api.route('/projects/<project_id>', methods=['DELETE'])
@@ -639,11 +734,16 @@ def create_from_idea():
 
         # 3. 基于故事节拍生成专业分镜头（全英文）(Step 4)
         logger.info(f'[创意导入] 基于故事节拍生成分镜头（全英文）...')
+        
+        # 🔥 创建基础视觉资产（创意导入项目暂无角色，由AI自由创建）
+        visual_assets = {'characters': {}, 'scenes': {}, 'props': {}}
+        
         shots_en = generate_shots_from_storybeats(
             title=title,
             story_beats=story_beats,
             style=style,
-            shot_duration=shot_duration
+            shot_duration=shot_duration,
+            visual_assets=visual_assets
         )
 
         # 4. 保存英文版 shots_v2.json
@@ -1251,6 +1351,14 @@ def generate_story_beats():
         # 获取角色信息
         characters = project_data.get('characters', [])
 
+        # 🔥 获取视觉资产库（同步角色到视觉资产）
+        visual_assets = project_data.get('visualAssets', {'characters': {}, 'scenes': {}, 'props': {}})
+        if not visual_assets:
+            visual_assets = {'characters': {}, 'scenes': {}, 'props': {}}
+        
+        # 🔥 自动同步角色到视觉资产
+        _sync_characters_to_visual_assets_obj(characters, visual_assets)
+
         # 调用AI生成故事节拍
         logger.info(f"[故事节拍] 开始生成: {episode_title}")
 
@@ -1266,7 +1374,8 @@ def generate_story_beats():
                     characters=characters,
                     total_duration=80,  # 默认80秒
                     initial_idea=initial_idea,  # 🔥 传递初始创意
-                    world_setting=world_setting   # 🔥 传递世界观
+                    world_setting=world_setting,   # 🔥 传递世界观
+                    visual_assets=visual_assets    # 🔥 传递视觉资产
                 )
             except Exception as e:
                 logger.error(f"[故事节拍] AI生成失败: {e}")
@@ -1308,24 +1417,74 @@ def generate_story_beats():
         }), 500
 
 
-def _generate_story_beats_with_ai(episode_title, episode_content, characters, total_duration=80, initial_idea=None, world_setting=None):
+def _generate_story_beats_with_ai(episode_title, episode_content, characters, total_duration=80, initial_idea=None, world_setting=None, visual_assets=None):
     """
-    使用AI生成故事节拍 - 优化版，充分利用初始创意
+    使用AI生成故事节拍 - 优化版，充分利用初始创意和视觉资产
+    
+    Args:
+        visual_assets: 视觉资产库，用于标准化角色/场景/道具描述
     """
     # 🔥 优先使用初始创意作为核心设计依据
     core_concept = initial_idea or episode_content
     
-    # 构建Prompt
-    characters_str = "\n".join([
-        f"- {c.get('name', '')}: {c.get('identity', '')}, {c.get('traits', '')}"
-        for c in characters
-    ]) if characters else "- 未设置角色"
+    # 🔥 从视觉资产库获取标准描述
+    visual_assets = visual_assets or {'characters': {}, 'scenes': {}, 'props': {}}
+    va_characters = visual_assets.get('characters', {})
+    va_scenes = visual_assets.get('scenes', {})
+    
+    # 构建角色字符串（使用视觉资产的标准描述）
+    characters_str = ""
+    if characters:
+        char_list = []
+        for c in characters:
+            char_name = c.get('name', '')
+            # 优先使用视觉资产的标准描述
+            if char_name in va_characters:
+                va_char = va_characters[char_name]
+                description = va_char.get('description', '')
+                clothing = va_char.get('clothing', '')
+                expression = va_char.get('expression', '')
+                char_info = f"- {char_name}"
+                if description:
+                    char_info += f" [外观: {description}]"
+                if clothing:
+                    char_info += f" [服装: {clothing}]"
+                if expression:
+                    char_info += f" [标志表情: {expression}]"
+                char_list.append(char_info)
+            else:
+                # 使用基础信息
+                char_list.append(f"- {char_name}: {c.get('identity', '')}, {c.get('traits', '')}")
+        characters_str = "\n".join(char_list)
+    else:
+        characters_str = "- 未设置角色"
+    
+    # 🔥 构建场景资产字符串
+    scenes_str = ""
+    if va_scenes:
+        scene_list = []
+        for scene_name, scene_data in va_scenes.items():
+            scene_info = f"- {scene_name}"
+            if scene_data.get('description'):
+                scene_info += f": {scene_data['description']}"
+            if scene_data.get('lighting'):
+                scene_info += f" [光线: {scene_data['lighting']}"
+            if scene_data.get('colorTone'):
+                scene_info += f" 色调: {scene_data['colorTone']}]"
+            scene_list.append(scene_info)
+        scenes_str = "\n".join(scene_list)
 
     # 🔥 构建世界观部分
     world_setting_section = f"""
 ## 世界观设定
 {world_setting}
 """ if world_setting else ""
+
+    # 🔥 构建场景资产部分
+    scenes_section = f"""
+## 预设场景库（可使用）
+{scenes_str}
+""" if scenes_str else ""
 
     # 🔥 优化：计算高密度场景数
     avg_scene_duration = 3
@@ -1339,8 +1498,8 @@ def _generate_story_beats_with_ai(episode_title, episode_content, characters, to
 
 ## 补充信息
 集数标题：{episode_title}
-{world_setting_section}
-角色设定：
+{world_setting_section}{scenes_section}
+角色设定（使用标准描述）：
 {characters_str}
 
 总时长要求：{total_duration}秒
@@ -1383,11 +1542,17 @@ def _generate_story_beats_with_ai(episode_title, episode_content, characters, to
 - 对白必须是"钩子型"（留悬念、带情绪、有反转）
 - 严禁解释性对白
 
+### 7. 视觉资产使用规范（关键）
+**生成分镜时必须严格使用以上角色标准描述，确保视觉一致性：**
+- 角色外观必须与标准描述完全一致
+- 服装必须使用规定的服装描述
+- 表情必须符合标志性表情设定
+
 ## 输出要求
 每个场景包含：
 - sceneNumber: 场景序号
 - sceneTitleCn/En: 中英文标题（突出情绪或转折）
-- storyBeatCn/En: 叙事目的 + 视觉变化描述
+- storyBeatCn/En: 叙事目的 + 视觉变化描述（必须使用标准角色描述）
 - durationSeconds: 时长(秒)
 - emotionalArc: 情绪曲线（如：绝决→紧张→希望）
 - visualChange: 画面如何变化（如：从特写拉远到全景）
@@ -1603,12 +1768,22 @@ def generate_storyboard_from_beats():
         title = project_data.get('title', '')
         style = project_data.get('settings', {}).get('style', 'cinematic')
 
-        # 调用 AI 生成分镜头（全英文）
+        # 🔥 获取视觉资产库
+        visual_assets = project_data.get('visualAssets', {'characters': {}, 'scenes': {}, 'props': {}})
+        if not visual_assets:
+            visual_assets = {'characters': {}, 'scenes': {}, 'props': {}}
+        
+        # 同步角色到视觉资产
+        characters = project_data.get('characters', [])
+        _sync_characters_to_visual_assets_obj(characters, visual_assets)
+
+        # 调用 AI 生成分镜头（全英文，传递视觉资产）
         shots_en = generate_shots_from_storybeats(
             title=title,
             story_beats=story_beats,
             style=style,
-            shot_duration=8
+            shot_duration=8,
+            visual_assets=visual_assets
         )
 
         if not shots_en:
@@ -1737,7 +1912,7 @@ def generate_storyboard_from_beats():
         }), 500
 
 
-def generate_shots_from_storybeats(title: str, story_beats: dict, style: str, shot_duration: int = 8) -> list:
+def generate_shots_from_storybeats(title: str, story_beats: dict, style: str, shot_duration: int = 8, visual_assets: dict = None) -> list:
     """
     基于故事节拍生成专业分镜头（全英文版本）
     
@@ -1746,6 +1921,7 @@ def generate_shots_from_storybeats(title: str, story_beats: dict, style: str, sh
         story_beats: 故事节拍数据
         style: 风格
         shot_duration: 每个镜头时长
+        visual_assets: 视觉资产库，用于标准化角色描述
         
     Returns:
         全英文的分镜头列表
@@ -1755,6 +1931,10 @@ def generate_shots_from_storybeats(title: str, story_beats: dict, style: str, sh
         if not scenes:
             logger.warning('故事节拍没有场景数据，返回空分镜头')
             return []
+        
+        # 🔥 处理视觉资产
+        visual_assets = visual_assets or {'characters': {}, 'scenes': {}, 'props': {}}
+        va_characters = visual_assets.get('characters', {})
         
         # 构建提示词 - 优化版：让AI自由决定分镜数量
         system_prompt = f"""You are a professional cinematographer and short film director specializing in AI video generation for viral short videos (抖音/快手 style).
@@ -1800,6 +1980,16 @@ Based on the provided story beats, generate professional video shot descriptions
 8. duration_seconds: Shot duration
 
 Style: {style}
+
+## 🔥 Character Visual Assets (MUST USE for consistency)
+When generating character descriptions in prompts, you MUST use the following standardized character descriptions from the visual asset library:
+{chr(10).join([f"- {name}: {data.get('description', '')} [Clothing: {data.get('clothing', 'N/A')}] [Expression: {data.get('expression', 'N/A')}]" for name, data in va_characters.items()]) if va_characters else "- Use detailed descriptions from story beats"}
+
+IMPORTANT: 
+1. In Standard Mode: Include complete character appearance using the above standardized descriptions
+2. In Reference Mode: Use character name + the standardized clothing/expression details
+3. Maintain visual consistency across all shots for the same character
+4. Character clothing and appearance must match the visual assets exactly
 
 【Three Generation Modes Explained】
 1. Standard Mode (veo_prompt_standard): Pure text prompt without any reference images
@@ -2261,6 +2451,348 @@ def save_shots_v2():
         
     except Exception as e:
         logger.error(f'保存 shots_v2 失败: {e}')
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+# ==================== 视觉资产库 API ====================
+
+@short_drama_api.route('/projects/<project_id>/visual-assets', methods=['GET'])
+def get_visual_assets(project_id):
+    """
+    获取项目的视觉资产库
+    
+    返回: {
+        'characters': {...},
+        'scenes': {...},
+        'props': {...}
+    }
+    """
+    try:
+        project = ShortDramaProject.load(project_id)
+        if not project:
+            return jsonify({'success': False, 'error': '项目不存在'}), 404
+        
+        # 🔥 自动同步角色到视觉资产库
+        if project.characters:
+            _sync_characters_to_visual_assets(project)
+            project.save()
+        
+        # 确保返回完整的结构
+        visual_assets = project.visualAssets or {'characters': {}, 'scenes': {}, 'props': {}}
+        
+        return jsonify({
+            'success': True,
+            'data': visual_assets
+        })
+    except Exception as e:
+        logger.error(f'获取视觉资产失败: {e}')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@short_drama_api.route('/projects/<project_id>/visual-assets/<category>', methods=['POST'])
+def create_visual_asset(project_id, category):
+    """
+    创建新的视觉资产
+    
+    category: characters | scenes | props
+    
+    请求体: {
+        'name': '资产名称',
+        'description': '标准描述',
+        'tags': ['标签1', '标签2'],
+        'referenceUrl': '参考图URL'
+    }
+    """
+    try:
+        if category not in ['characters', 'scenes', 'props']:
+            return jsonify({'success': False, 'error': '无效的类别'}), 400
+        
+        project = ShortDramaProject.load(project_id)
+        if not project:
+            return jsonify({'success': False, 'error': '项目不存在'}), 404
+        
+        data = request.json
+        if not data or 'name' not in data:
+            return jsonify({'success': False, 'error': '缺少资产名称'}), 400
+        
+        asset_name = data['name']
+        
+        # 创建资产数据
+        asset_data = {
+            'id': str(uuid.uuid4())[:8],
+            'name': asset_name,
+            'description': data.get('description', ''),
+            'tags': data.get('tags', []),
+            'referenceUrl': data.get('referenceUrl', ''),
+            'createdAt': datetime.now().isoformat(),
+            'updatedAt': datetime.now().isoformat()
+        }
+        
+        # 添加类别特定字段
+        if category == 'characters':
+            asset_data['clothing'] = data.get('clothing', '')
+            asset_data['expression'] = data.get('expression', '')
+        elif category == 'scenes':
+            asset_data['lighting'] = data.get('lighting', '')
+            asset_data['colorTone'] = data.get('colorTone', '')
+        elif category == 'props':
+            asset_data['category'] = data.get('category', '')
+        
+        # 保存到项目
+        if not project.visualAssets:
+            project.visualAssets = {'characters': {}, 'scenes': {}, 'props': {}}
+        
+        project.visualAssets[category][asset_name] = asset_data
+        project.updated_at = datetime.now().isoformat()
+        project.save()
+        
+        logger.info(f'✅ 创建视觉资产: {category}/{asset_name}')
+        
+        return jsonify({
+            'success': True,
+            'message': '资产创建成功',
+            'data': asset_data
+        })
+        
+    except Exception as e:
+        logger.error(f'创建视觉资产失败: {e}')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@short_drama_api.route('/projects/<project_id>/visual-assets/<category>/<asset_name>', methods=['PUT'])
+def update_visual_asset(project_id, category, asset_name):
+    """
+    更新视觉资产
+    
+    请求体: {
+        'description': '标准描述',
+        'tags': [...],
+        ...
+    }
+    """
+    try:
+        if category not in ['characters', 'scenes', 'props']:
+            return jsonify({'success': False, 'error': '无效的类别'}), 400
+        
+        project = ShortDramaProject.load(project_id)
+        if not project:
+            return jsonify({'success': False, 'error': '项目不存在'}), 404
+        
+        if not project.visualAssets or asset_name not in project.visualAssets.get(category, {}):
+            return jsonify({'success': False, 'error': '资产不存在'}), 404
+        
+        data = request.json
+        asset = project.visualAssets[category][asset_name]
+        
+        # 更新字段
+        if 'description' in data:
+            asset['description'] = data['description']
+        if 'tags' in data:
+            asset['tags'] = data['tags']
+        if 'referenceUrl' in data:
+            asset['referenceUrl'] = data['referenceUrl']
+        if 'clothing' in data:
+            asset['clothing'] = data['clothing']
+        if 'expression' in data:
+            asset['expression'] = data['expression']
+        if 'lighting' in data:
+            asset['lighting'] = data['lighting']
+        if 'colorTone' in data:
+            asset['colorTone'] = data['colorTone']
+        
+        asset['updatedAt'] = datetime.now().isoformat()
+        project.updated_at = datetime.now().isoformat()
+        project.save()
+        
+        logger.info(f'✅ 更新视觉资产: {category}/{asset_name}')
+        
+        return jsonify({
+            'success': True,
+            'message': '资产更新成功',
+            'data': asset
+        })
+        
+    except Exception as e:
+        logger.error(f'更新视觉资产失败: {e}')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@short_drama_api.route('/projects/<project_id>/visual-assets/<category>/<asset_name>', methods=['DELETE'])
+def delete_visual_asset(project_id, category, asset_name):
+    """删除视觉资产"""
+    try:
+        project = ShortDramaProject.load(project_id)
+        if not project:
+            return jsonify({'success': False, 'error': '项目不存在'}), 404
+        
+        if category in project.visualAssets and asset_name in project.visualAssets[category]:
+            del project.visualAssets[category][asset_name]
+            project.updated_at = datetime.now().isoformat()
+            project.save()
+            
+            logger.info(f'✅ 删除视觉资产: {category}/{asset_name}')
+            return jsonify({'success': True, 'message': '资产已删除'})
+        
+        return jsonify({'success': False, 'error': '资产不存在'}), 404
+        
+    except Exception as e:
+        logger.error(f'删除视觉资产失败: {e}')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@short_drama_api.route('/projects/<project_id>/visual-assets/generate', methods=['POST'])
+def generate_visual_asset(project_id):
+    """
+    AI 生成视觉资产（场景或道具）
+    
+    请求体: {
+        'category': 'scenes' | 'props',
+        'name': '名称',
+        'prompt': '生成提示词',
+        'style': '风格描述'
+    }
+    """
+    try:
+        data = request.json
+        category = data.get('category')
+        
+        if category not in ['scenes', 'props']:
+            return jsonify({'success': False, 'error': '仅支持生成场景和道具'}), 400
+        
+        project = ShortDramaProject.load(project_id)
+        if not project:
+            return jsonify({'success': False, 'error': '项目不存在'}), 404
+        
+        name = data.get('name')
+        prompt = data.get('prompt')
+        style = data.get('style', '')
+        
+        if not name or not prompt:
+            return jsonify({'success': False, 'error': '缺少名称或提示词'}), 400
+        
+        # 调用 AI 生成图像
+        # TODO: 集成实际的 AI 图像生成服务
+        
+        # 模拟生成结果
+        asset_data = {
+            'id': str(uuid.uuid4())[:8],
+            'name': name,
+            'description': f'{style} {prompt}'.strip(),
+            'tags': [style] if style else [],
+            'referenceUrl': '',  # 生成的图像 URL
+            'createdAt': datetime.now().isoformat(),
+            'updatedAt': datetime.now().isoformat(),
+            'status': 'generating'  # 生成中状态
+        }
+        
+        if category == 'scenes':
+            asset_data['lighting'] = ''
+            asset_data['colorTone'] = ''
+        elif category == 'props':
+            asset_data['category'] = ''
+        
+        # 保存到项目
+        if not project.visualAssets:
+            project.visualAssets = {'characters': {}, 'scenes': {}, 'props': {}}
+        
+        project.visualAssets[category][name] = asset_data
+        project.updated_at = datetime.now().isoformat()
+        project.save()
+        
+        logger.info(f'🎨 AI生成视觉资产: {category}/{name}')
+        
+        return jsonify({
+            'success': True,
+            'message': '开始生成视觉资产',
+            'data': asset_data
+        })
+        
+    except Exception as e:
+        logger.error(f'生成视觉资产失败: {e}')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ============================================================
+# 图片生成配置 API
+# ============================================================
+
+# 配置文件路径
+IMAGE_GEN_CONFIG_FILE = Path(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))) / 'config' / 'image_gen_config.json'
+
+@short_drama_api.route('/image-gen/config', methods=['GET'])
+def get_image_gen_config():
+    """获取图片生成配置"""
+    try:
+        if IMAGE_GEN_CONFIG_FILE.exists():
+            with open(IMAGE_GEN_CONFIG_FILE, 'r', encoding='utf-8') as f:
+                config = json.load(f)
+            return jsonify({
+                'success': True,
+                'configured': True,
+                'provider': config.get('provider', ''),
+                'api_url': config.get('api_url', ''),
+                'api_key': config.get('api_key', ''),
+                'model': config.get('model', ''),
+                'size': config.get('size', '1024x1024')
+            }), 200
+        else:
+            return jsonify({
+                'success': True,
+                'configured': False
+            }), 200
+    except Exception as e:
+        logger.error(f'获取图片配置失败: {e}')
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@short_drama_api.route('/image-gen/config', methods=['POST'])
+def save_image_gen_config():
+    """保存图片生成配置"""
+    try:
+        data = request.json or {}
+        provider = data.get('provider', '')
+        api_url = data.get('api_url', '')
+        api_key = data.get('api_key', '')
+        model = data.get('model', '')
+        size = data.get('size', '1024x1024')
+
+        if not provider or not api_url or not api_key:
+            return jsonify({
+                'success': False,
+                'error': '缺少必要参数'
+            }), 400
+
+        # 确保配置目录存在
+        IMAGE_GEN_CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
+
+        # 保存配置
+        config = {
+            'provider': provider,
+            'api_url': api_url,
+            'api_key': api_key,
+            'model': model,
+            'size': size,
+            'updated_at': datetime.now().isoformat()
+        }
+
+        with open(IMAGE_GEN_CONFIG_FILE, 'w', encoding='utf-8') as f:
+            json.dump(config, f, ensure_ascii=False, indent=2)
+
+        logger.info(f'✅ 图片生成配置已保存: provider={provider}, model={model}')
+
+        return jsonify({
+            'success': True,
+            'message': '配置已保存'
+        }), 200
+
+    except Exception as e:
+        logger.error(f'保存图片配置失败: {e}')
         return jsonify({
             'success': False,
             'error': str(e)
