@@ -8874,8 +8874,12 @@ saveGeminiConfig(config) {
             document.getElementById('ideaEpisode').value = '1';
             document.getElementById('ideaDescription').value = '';
             document.getElementById('ideaStyle').value = '通用';
-            document.getElementById('ideaShotCount').value = '3';
             document.getElementById('ideaShotDuration').value = '8';
+            // 清空主角信息
+            document.getElementById('ideaProtagonistName').value = '';
+            document.getElementById('ideaProtagonistAge').value = '';
+            document.getElementById('ideaProtagonistAppearance').value = '';
+            document.getElementById('ideaProtagonistRole').value = '';
         }
     }
 
@@ -8897,7 +8901,6 @@ saveGeminiConfig(config) {
         const episode = parseInt(document.getElementById('ideaEpisode').value) || 1;
         const description = document.getElementById('ideaDescription').value.trim();
         const style = document.getElementById('ideaStyle').value;
-        const shotCount = parseInt(document.getElementById('ideaShotCount').value) || 3;
         const shotDuration = parseInt(document.getElementById('ideaShotDuration').value) || 8;
         
         // 主角信息
@@ -8943,7 +8946,6 @@ saveGeminiConfig(config) {
                     episode,
                     description,
                     style,
-                    shot_count: shotCount,
                     shot_duration: shotDuration,
                     protagonist: {
                         name: protagonistName,

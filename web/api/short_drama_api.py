@@ -940,17 +940,18 @@ def generate_story_beats_from_idea(title: str, description: str, world_setting: 
     Returns:
         故事节拍数据字典
     """
+    # 🔥 优化：让AI自由决定场景数量和时长
+    # 根据创意复杂度预估：简单故事6-8场景，复杂故事10-15场景
+    min_scenes = 6
+    max_scenes = 15
+    suggested_duration = total_duration or 60  # 默认60秒
+    
+    # 计算参考场景数和时长分配（用于回退逻辑）
+    scene_count = max(min_scenes, min(max_scenes, suggested_duration // 8))
+    base_duration = suggested_duration // scene_count
+    remainder = suggested_duration % scene_count
+    
     try:
-        # 🔥 优化：让AI自由决定场景数量和时长
-        # 根据创意复杂度预估：简单故事6-8场景，复杂故事10-15场景
-        min_scenes = 6
-        max_scenes = 15
-        suggested_duration = total_duration or 60  # 默认60秒
-        
-        # 计算参考场景数和时长分配（用于回退逻辑）
-        scene_count = max(min_scenes, min(max_scenes, suggested_duration // 8))
-        base_duration = suggested_duration // scene_count
-        remainder = suggested_duration % scene_count
         
         system_prompt = f"""你是一个专业的【短视频短剧】编剧。请根据以下创意描述，生成故事节拍(Story Beats)。
 
