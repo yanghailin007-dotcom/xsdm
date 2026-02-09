@@ -2858,7 +2858,7 @@ def save_shots_v2():
 def get_visual_assets(project_id):
     """
     获取项目的视觉资产库
-    
+
     返回: {
         'characters': {...},
         'scenes': {...},
@@ -2869,21 +2869,52 @@ def get_visual_assets(project_id):
         project = ShortDramaProject.load(project_id)
         if not project:
             return jsonify({'success': False, 'error': '项目不存在'}), 404
-        
-        # 🔥 自动同步角色到视觉资产库
-        if project.characters:
-            _sync_characters_to_visual_assets(project)
-            project.save()
-        
-        # 确保返回完整的结构
-        visual_assets = project.visualAssets or {'characters': {}, 'scenes': {}, 'props': {}}
-        
+
+        # 🔥 优先从文件加载视觉资产（如果存在）
+        visual_assets = None
+
+        # 尝试从文件加载
+        try:
+            base_dir = Path(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+            novel_dir = base_dir / '视频项目' / project.title
+
+            # 查找第一个集的视觉资产文件
+            if project.episodes and len(project.episodes) > 0:
+                first_episode = project.episodes[0]
+                episode_id = first_episode.get('id') or first_episode.get('name')
+                if episode_id:
+                    assets_file = novel_dir / episode_id / 'visual_assets.json'
+                    if assets_file.exists():
+                        with open(assets_file, 'r', encoding='utf-8') as f:
+                            file_assets = json.load(f)
+                            # 转换数组格式为字典格式
+                            visual_assets = {
+                                'characters': {item.get('name', f'char_{i}'): item for i, item in enumerate(file_assets.get('characters', []))},
+                                'scenes': {item.get('name', f'scene_{i}'): item for i, item in enumerate(file_assets.get('scenes', []))},
+                                'props': {item.get('name', f'prop_{i}'): item for i, item in enumerate(file_assets.get('props', []))}
+                            }
+                            logger.info(f'✅ 从文件加载视觉资产: {assets_file}')
+        except Exception as e:
+            logger.warning(f'从文件加载视觉资产失败: {e}')
+
+        # 如果文件加载失败，使用项目对象中的数据
+        if not visual_assets:
+            # 🔥 自动同步角色到视觉资产库
+            if project.characters:
+                _sync_characters_to_visual_assets(project)
+                project.save()
+
+            visual_assets = project.visualAssets or {'characters': {}, 'scenes': {}, 'props': {}}
+            logger.info('使用项目对象中的视觉资产')
+
         return jsonify({
             'success': True,
             'data': visual_assets
         })
     except Exception as e:
         logger.error(f'获取视觉资产失败: {e}')
+        import traceback
+        logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
