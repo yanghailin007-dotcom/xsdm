@@ -24,6 +24,13 @@ class ShortDramaStudio {
         // 后台任务跟踪
         this.backgroundTasks = new Map(); // taskId -> { shotIndex, shot, startTime, progress, status }
 
+        // Konva 无限画布相关
+        this.portraitStage = null;
+        this.portraitLayer = null;
+        this.portraitTransformer = null;
+        this.portraitScale = 1;
+        this.portraitCanvasItems = [];
+
         this.init();
     }
 
@@ -129,7 +136,7 @@ class ShortDramaStudio {
         window.addEventListener('storage', (e) => {
             if (e.key === 'portraitStudio_result' && e.newValue) {
                 console.log('📸 检测到剧照已保存，刷新角色剧照列表');
-                this.loadCharacterPortraitsStep();
+                this.loadVisualAssetsStep();
             }
         });
 
@@ -137,7 +144,7 @@ class ShortDramaStudio {
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'visible' && this.currentStep === 'check-portraits') {
                 console.log('📸 页面重新可见，刷新角色剧照列表');
-                this.loadCharacterPortraitsStep();
+                this.loadVisualAssetsStep();
             }
         });
     }
@@ -747,14 +754,8 @@ class ShortDramaStudio {
         switch (step) {
             case 'check-portraits':
                 if (!this.loadedSteps.has('check-portraits') || forceReload) {
-                    this.loadCharacterPortraitsStep();
+                    this.loadVisualAssetsStep();
                     this.loadedSteps.add('check-portraits');
-                }
-                break;
-            case 'story-beats':
-                if (!this.loadedSteps.has('story-beats') || forceReload) {
-                    this.renderStoryBeatsStep();
-                    this.loadedSteps.add('story-beats');
                 }
                 break;
             case 'storyboard':
@@ -762,8 +763,6 @@ class ShortDramaStudio {
                     this.loadStoryboardStep();
                     this.loadedSteps.add('storyboard');
                 }
-                // 更新按钮状态（显示"开始生成"或"重新生成"）
-                this.updateStoryboardButtonState();
                 break;
             case 'video':
                 if (!this.loadedSteps.has('video') || forceReload) {
@@ -787,145 +786,555 @@ class ShortDramaStudio {
     }
 
     /**
-     * 加载角色剧照步骤
+     * 加载视觉资产库步骤
      */
-    async loadCharacterPortraitsStep() {
+    async loadVisualAssetsStep() {
         try {
-            const container = document.getElementById('charactersGrid');
-            if (!container) {
-                console.error('❌ 找不到 charactersGrid 容器');
-                return;
-            }
-
-            container.innerHTML = '<div class="loading-state"><div class="spinner"></div><p>加载角色信息...</p></div>';
+            console.log('🎨 [视觉资产库] 开始初始化');
 
             // 如果角色还没加载，先加载角色数据
             if (!this.characters || this.characters.length === 0) {
-                console.log('🎭 [角色剧照] 角色数据为空，正在加载...');
+                console.log('🎭 [视觉资产库] 角色数据为空，正在加载...');
                 await this.loadEventsAndCharacters();
-            }
-
-            console.log('🎭 [角色剧照] 开始加载');
-            console.log('🎭 [角色剧照] this.characters:', this.characters);
-            console.log('🎭 [角色剧照] selectedEpisodes:', Array.from(this.selectedEpisodes));
-
-            // 直接使用全局角色列表（API 已经返回了所有角色）
-            let characters = [];
-
-            if (this.characters && this.characters.length > 0) {
-                characters = [...this.characters];
-                console.log('🎭 [角色剧照] 使用全局角色列表:', characters.length);
-            } else {
-                // 尝试从选中的集中提取角色
-                characters = this.extractCharactersFromEpisodes();
-                console.log('🎭 [角色剧照] 从集数提取角色:', characters.length);
-            }
-
-            if (characters.length === 0) {
-                container.innerHTML = `
-                    <div class="empty-state">
-                        <p style="font-size: 2rem;">👥</p>
-                        <p>没有找到角色</p>
-                        <p style="font-size: 0.85rem; color: var(--text-secondary);">
-                            请先在小说中配置角色信息
-                        </p>
-                    </div>
-                `;
-                return;
             }
 
             // 加载剧照信息
             await this.loadPortraits();
 
-            console.log('🎭 [角色剧照] 最终角色列表:', characters.length);
-            console.log('🎭 [角色剧照] 剧照映射:', this.characterPortraits);
+            // 从后端加载视觉资产
+            await this.loadVisualAssetsFromAPI();
 
-            // 渲染角色卡片
-            container.innerHTML = characters.map((char, idx) => {
-                const charName = char.name || `角色${idx + 1}`;
-                const charRole = char.role || '角色';
-
-                // 🔥 宽松匹配：查找包含角色名的剧照
-                let portraitInfo = this.characterPortraits.get(charName);
-                if (!portraitInfo) {
-                    // 精确匹配失败，尝试模糊匹配
-                    for (const [key, value] of this.characterPortraits.entries()) {
-                        if (key.includes(charName) || charName.includes(key)) {
-                            portraitInfo = value;
-                            console.log(`🎭 [剧照] 模糊匹配: "${charName}" <- "${key}"`);
-                            break;
-                        }
-                    }
-                }
-
-                // 提取角色外观描述
-                let appearanceDesc = '';
-                if (char.living_characteristics?.physical_presence) {
-                    appearanceDesc = char.living_characteristics.physical_presence;
-                } else if (char.initial_state?.description) {
-                    appearanceDesc = char.initial_state.description;
-                } else if (char.appearance) {
-                    appearanceDesc = char.appearance;
-                } else if (char.description) {
-                    appearanceDesc = char.description;
-                }
-
-                // 限制描述长度
-                if (appearanceDesc.length > 50) {
-                    appearanceDesc = appearanceDesc.substring(0, 50) + '...';
-                }
-
-                // 🔥 检查是否为三视图（优先级剧照）
-                const isThreeView = portraitInfo && portraitInfo.mainPortrait && portraitInfo.mainPortrait.isPriority;
-
-                return `
-                    <div class="character-card ${portraitInfo ? 'has-portrait' : ''}">
-                        <div class="character-card-header">
-                            <div class="character-avatar" style="position: relative;">
-                                ${portraitInfo
-                                    ? `<img src="${portraitInfo.mainPortrait.url}" alt="${charName}" onerror="this.parentElement.innerHTML='<span style=\\'font-size: 2rem;\\'>👤</span>'">`
-                                    : '<span style="font-size: 2rem;">👤</span>'
-                                }
-                                ${isThreeView ? `
-                                    <div style="position: absolute; top: -5px; right: -5px; background: linear-gradient(135deg, #ff6b6b, #feca57); color: white; font-size: 10px; padding: 2px 6px; border-radius: 10px; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.2); z-index: 1;">三视图</div>
-                                ` : ''}
-                            </div>
-                            <div class="character-info">
-                                <div class="character-name">${charName}</div>
-                                <div class="character-role">${charRole}</div>
-                                ${appearanceDesc ? `<div class="character-appearance" title="${char.living_characteristics?.physical_presence || char.initial_state?.description || char.appearance || char.description}">${appearanceDesc}</div>` : ''}
-                                ${portraitInfo && portraitInfo.portraits.length > 1
-                                    ? `<div class="portrait-count">${portraitInfo.portraits.length} 个造型</div>`
-                                    : ''
-                                }
-                            </div>
-                        </div>
-                        <div class="character-actions">
-                            ${portraitInfo
-                                ? `<button class="btn btn-sm btn-secondary" onclick="shortDramaStudio.viewPortrait('${charName}')">查看</button>`
-                                : `<button class="btn btn-sm btn-primary" onclick="shortDramaStudio.generatePortrait('${charName}')">📸 生成剧照</button>`
-                            }
-                        </div>
-                    </div>
-                `;
-            }).join('');
-
-            console.log('✅ [角色剧照] 渲染完成，共', characters.length, '个角色');
+            // 初始化并渲染视觉资产库
+            setTimeout(() => {
+                this.initVisualAssetsPanel();
+                this.initPortraitCanvas(this.characters);
+            }, 100);
 
             // 更新项目状态
             this.updateProjectStatus();
+
+            console.log('✅ [视觉资产库] 初始化完成');
         } catch (error) {
-            console.error('❌ [角色剧照] 加载失败:', error);
-            const container = document.getElementById('charactersGrid');
-            if (container) {
-                container.innerHTML = `
-                    <div class="empty-state">
-                        <p style="font-size: 2rem;">❌</p>
-                        <p>加载角色失败</p>
-                        <p style="font-size: 0.85rem; color: var(--text-secondary);">${error.message}</p>
+            console.error('❌ [视觉资产库] 加载失败:', error);
+        }
+    }
+
+    /**
+     * 从 API 加载视觉资产
+     */
+    async loadVisualAssetsFromAPI() {
+        try {
+            if (!this.currentProject?.id) return;
+
+            const response = await fetch(`/api/projects/${this.currentProject.id}/visual-assets`);
+            const data = await response.json();
+
+            if (data.success) {
+                // 初始化视觉资产结构
+                if (!this.currentProject.visualAssets) {
+                    this.currentProject.visualAssets = { characters: {}, scenes: {}, props: {} };
+                }
+
+                // 合并 API 数据
+                this.currentProject.visualAssets = {
+                    characters: data.data?.characters || {},
+                    scenes: data.data?.scenes || {},
+                    props: data.data?.props || {}
+                };
+
+                console.log('✅ [视觉资产库] 从 API 加载完成:', 
+                    Object.keys(this.currentProject.visualAssets.characters).length, '角色,',
+                    Object.keys(this.currentProject.visualAssets.scenes).length, '场景,',
+                    Object.keys(this.currentProject.visualAssets.props).length, '道具'
+                );
+            }
+        } catch (error) {
+            console.error('❌ [视觉资产库] API 加载失败:', error);
+            // 使用本地数据
+            if (!this.currentProject.visualAssets) {
+                this.currentProject.visualAssets = { characters: {}, scenes: {}, props: {} };
+            }
+        }
+    }
+
+    /**
+     * 初始化视觉资产库面板
+     */
+    initVisualAssetsPanel() {
+        // 绑定分类切换
+        document.querySelectorAll('.va-category-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.va-category-tab').forEach(t => {
+                    t.classList.remove('active');
+                    t.style.color = '#64748b';
+                });
+                tab.classList.add('active');
+                tab.style.color = '#6366f1';
+                
+                const category = tab.dataset.category;
+                this.loadVisualAssetsGrid(category);
+            });
+        });
+
+        // 初始化加载角色类别
+        this.loadVisualAssetsGrid('characters');
+
+        // 绑定上传/生成按钮
+        document.getElementById('vaUploadBtn')?.addEventListener('click', () => {
+            this.uploadVisualAsset();
+        });
+
+        document.getElementById('vaGenerateBtn')?.addEventListener('click', () => {
+            this.generateVisualAsset();
+        });
+    }
+
+    /**
+     * 加载素材网格
+     */
+    loadVisualAssetsGrid(category) {
+        const grid = document.getElementById('visualAssetsGrid');
+        if (!grid) return;
+
+        grid.innerHTML = '';
+
+        if (category === 'characters') {
+            // 加载角色
+            this.characters.forEach((char, idx) => {
+                const charName = char.name || `角色${idx + 1}`;
+                const portraitInfo = this.characterPortraits.get(charName);
+                const imageUrl = portraitInfo?.mainPortrait?.url;
+
+                const card = document.createElement('div');
+                card.className = 'va-asset-card';
+                card.innerHTML = `
+                    ${imageUrl 
+                        ? `<img src="${imageUrl}" alt="${charName}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">`
+                        : ''}
+                    <div style="display: ${imageUrl ? 'none' : 'flex'}; align-items: center; justify-content: center; height: 100%; font-size: 24px;">👤</div>
+                    <div class="asset-label">${charName}</div>
+                `;
+                card.addEventListener('click', () => {
+                    this.selectVisualAsset('character', char, imageUrl);
+                });
+                grid.appendChild(card);
+            });
+        } else if (category === 'scenes') {
+            // 场景 - 从 visualAssets 加载
+            const scenes = this.currentProject?.visualAssets?.scenes || {};
+            const sceneNames = Object.keys(scenes);
+            
+            if (sceneNames.length === 0) {
+                grid.innerHTML = `
+                    <div style="grid-column: span 2; text-align: center; padding: 40px 20px; color: #64748b;">
+                        <p style="font-size: 32px; margin-bottom: 12px;">🏞️</p>
+                        <p style="font-size: 13px;">暂无场景</p>
+                        <p style="font-size: 11px; margin-top: 8px; color: #475569;">点击下方"生成"创建</p>
                     </div>
                 `;
+            } else {
+                sceneNames.forEach(sceneName => {
+                    const scene = scenes[sceneName];
+                    const imageUrl = scene.referenceUrl;
+                    
+                    const card = document.createElement('div');
+                    card.className = 'va-asset-card';
+                    card.innerHTML = `
+                        ${imageUrl 
+                            ? `<img src="${imageUrl}" alt="${sceneName}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">`
+                            : ''}
+                        <div style="display: ${imageUrl ? 'none' : 'flex'}; align-items: center; justify-content: center; height: 100%; font-size: 24px;">🏞️</div>
+                        <div class="asset-label">${sceneName}</div>
+                    `;
+                    card.addEventListener('click', () => {
+                        this.selectVisualAsset('scene', scene, imageUrl);
+                    });
+                    grid.appendChild(card);
+                });
             }
+        } else if (category === 'props') {
+            // 道具 - 从 visualAssets 加载
+            const props = this.currentProject?.visualAssets?.props || {};
+            const propNames = Object.keys(props);
+            
+            if (propNames.length === 0) {
+                grid.innerHTML = `
+                    <div style="grid-column: span 2; text-align: center; padding: 40px 20px; color: #64748b;">
+                        <p style="font-size: 32px; margin-bottom: 12px;">🎒</p>
+                        <p style="font-size: 13px;">暂无道具</p>
+                        <p style="font-size: 11px; margin-top: 8px; color: #475569;">点击下方"生成"创建</p>
+                    </div>
+                `;
+            } else {
+                propNames.forEach(propName => {
+                    const prop = props[propName];
+                    const imageUrl = prop.referenceUrl;
+                    
+                    const card = document.createElement('div');
+                    card.className = 'va-asset-card';
+                    card.innerHTML = `
+                        ${imageUrl 
+                            ? `<img src="${imageUrl}" alt="${propName}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">`
+                            : ''}
+                        <div style="display: ${imageUrl ? 'none' : 'flex'}; align-items: center; justify-content: center; height: 100%; font-size: 24px;">🎒</div>
+                        <div class="asset-label">${propName}</div>
+                    `;
+                    card.addEventListener('click', () => {
+                        this.selectVisualAsset('prop', prop, imageUrl);
+                    });
+                    grid.appendChild(card);
+                });
+            }
+        }
+    }
+
+    /**
+     * 选中视觉资产
+     */
+    selectVisualAsset(type, data, imageUrl) {
+        const panel = document.getElementById('vaPropertiesContent');
+        if (!panel) return;
+
+        const typeMap = {
+            'character': { icon: '🎭', label: '角色', color: '#ec4899' },
+            'scene': { icon: '🏞️', label: '场景', color: '#22c55e' },
+            'prop': { icon: '🎒', label: '道具', color: '#f59e0b' }
+        };
+        const typeInfo = typeMap[type] || typeMap['character'];
+
+        // 提取标准描述
+        let description = '';
+        let clothing = '';
+        let expression = '';
+        let lighting = '';
+        let colorTone = '';
+        let category = '';
+        
+        if (type === 'character') {
+            description = data.living_characteristics?.physical_presence 
+                || data.initial_state?.description 
+                || data.appearance 
+                || data.description 
+                || '';
+            clothing = data.clothing || '';
+            expression = data.expression || '';
+        } else if (type === 'scene') {
+            description = data.description || '';
+            lighting = data.lighting || '';
+            colorTone = data.colorTone || '';
+        } else if (type === 'prop') {
+            description = data.description || '';
+            category = data.category || '';
+        }
+
+        panel.innerHTML = `
+            <div class="va-asset-preview">
+                ${imageUrl 
+                    ? `<img src="${imageUrl}" alt="${data.name || data}">`
+                    : `<div style="display: flex; align-items: center; justify-content: center; height: 100%; font-size: 48px;">${typeInfo.icon}</div>`}
+            </div>
+
+            <div class="va-property-group">
+                <h5>📋 基本信息</h5>
+                <div class="va-form-row">
+                    <span class="va-asset-type-badge ${type}">${typeInfo.icon} ${typeInfo.label}</span>
+                </div>
+                <div class="va-form-row">
+                    <label>名称</label>
+                    <input type="text" value="${data.name || data}" readonly>
+                </div>
+                ${data.role ? `
+                <div class="va-form-row">
+                    <label>角色</label>
+                    <input type="text" value="${data.role}" readonly>
+                </div>
+                ` : ''}
+            </div>
+
+            <div class="va-property-group">
+                <h5>📝 标准描述</h5>
+                <p class="va-hint">用于分镜生成的标准化描述</p>
+                <div class="va-form-row">
+                    <textarea id="vaAssetDescription" placeholder="详细描述外观特征、颜色、风格...">${description}</textarea>
+                </div>
+                <div style="display: flex; gap: 8px;">
+                    <button class="btn btn-sm btn-primary" onclick="shortDramaStudio.saveAssetDescription('${data.name || data}', '${type}')" style="flex: 1;">
+                        💾 保存
+                    </button>
+                    <button class="btn btn-sm" onclick="shortDramaStudio.generateAssetImage('${data.name || data}', '${type}')" style="flex: 1; background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color: white; border: none;">
+                        🎨 生成图片
+                    </button>
+                </div>
+            </div>
+
+            ${type === 'character' ? `
+            <div class="va-property-group">
+                <h5>🎨 角色特征</h5>
+                <div class="va-form-row">
+                    <label>服装</label>
+                    <input type="text" id="vaCharClothing" value="${clothing}" placeholder="例如：青色长袍、白色内衫">
+                </div>
+                <div class="va-form-row">
+                    <label>标志性表情</label>
+                    <input type="text" id="vaCharExpression" value="${expression}" placeholder="例如：沉稳、坚毅">
+                </div>
+            </div>
+            ` : ''}
+
+            ${type === 'scene' ? `
+            <div class="va-property-group">
+                <h5>🌟 场景特征</h5>
+                <div class="va-form-row">
+                    <label>光线</label>
+                    <input type="text" id="vaSceneLighting" value="${lighting}" placeholder="例如：晨光、柔和">
+                </div>
+                <div class="va-form-row">
+                    <label>色调</label>
+                    <input type="text" id="vaSceneColorTone" value="${colorTone}" placeholder="例如：青绿色调">
+                </div>
+            </div>
+            ` : ''}
+
+            ${type === 'prop' ? `
+            <div class="va-property-group">
+                <h5>🎒 道具特征</h5>
+                <div class="va-form-row">
+                    <label>分类</label>
+                    <input type="text" id="vaPropCategory" value="${category}" placeholder="例如：武器、饰品、工具">
+                </div>
+            </div>
+            ` : ''}
+        `;
+    }
+
+    /**
+     * 保存资产描述
+     */
+    async saveAssetDescription(name, type) {
+        const description = document.getElementById('vaAssetDescription')?.value;
+        if (!description) {
+            this.showToast('请输入描述', 'warning');
+            return;
+        }
+
+        // 收集额外字段
+        const extraData = { description };
+        
+        if (type === 'character') {
+            const clothing = document.getElementById('vaCharClothing')?.value;
+            const expression = document.getElementById('vaCharExpression')?.value;
+            if (clothing) extraData.clothing = clothing;
+            if (expression) extraData.expression = expression;
+        } else if (type === 'scene') {
+            const lighting = document.getElementById('vaSceneLighting')?.value;
+            const colorTone = document.getElementById('vaSceneColorTone')?.value;
+            if (lighting) extraData.lighting = lighting;
+            if (colorTone) extraData.colorTone = colorTone;
+        } else if (type === 'prop') {
+            const category = document.getElementById('vaPropCategory')?.value;
+            if (category) extraData.category = category;
+        }
+
+        // 本地更新
+        if (!this.currentProject.visualAssets) {
+            this.currentProject.visualAssets = {};
+        }
+        if (!this.currentProject.visualAssets[type + 's']) {
+            this.currentProject.visualAssets[type + 's'] = {};
+        }
+        this.currentProject.visualAssets[type + 's'][name] = {
+            ...this.currentProject.visualAssets[type + 's'][name],
+            ...extraData,
+            updatedAt: new Date().toISOString()
+        };
+
+        // 同步到后端 API
+        try {
+            if (this.currentProject?.id) {
+                const categoryMap = {
+                    'character': 'characters',
+                    'scene': 'scenes',
+                    'prop': 'props'
+                };
+                const category = categoryMap[type];
+
+                const response = await fetch(
+                    `/api/projects/${this.currentProject.id}/visual-assets/${category}/${encodeURIComponent(name)}`,
+                    {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(extraData)
+                    }
+                );
+
+                const data = await response.json();
+                if (data.success) {
+                    this.showToast('✓ 描述已保存到服务器', 'success');
+                } else {
+                    this.showToast('✓ 已保存本地（后端同步失败）', 'warning');
+                }
+            } else {
+                this.showToast('✓ 已保存本地', 'success');
+            }
+        } catch (error) {
+            console.error('保存到后端失败:', error);
+            this.showToast('✓ 已保存本地（后端同步失败）', 'warning');
+        }
+    }
+
+    /**
+     * 保存所有视觉资产到项目（用于分镜生成前同步）
+     */
+    async saveVisualAssetsToProject() {
+        if (!this.currentProject?.id || !this.currentProject?.visualAssets) {
+            return;
+        }
+        
+        try {
+            // 同步字段名称兼容
+            const projectData = {
+                visualAssets: this.currentProject.visualAssets
+            };
+            
+            const response = await fetch(`/api/projects/${this.currentProject.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(projectData)
+            });
+            
+            const data = await response.json();
+            if (data.success) {
+                console.log('✅ [视觉资产] 已同步到项目，用于分镜生成');
+            }
+        } catch (error) {
+            console.error('保存视觉资产失败:', error);
+        }
+    }
+
+    /**
+     * 上传视觉资产
+     */
+    uploadVisualAsset() {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        input.onchange = (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    // TODO: 上传到服务器
+                    this.showToast('图片已选择，正在上传...', 'info');
+                };
+                reader.readAsDataURL(file);
+            }
+        };
+        input.click();
+    }
+
+    /**
+     * 创建视觉资产 - 使用已有 API 创建场景/道具
+     */
+    async generateVisualAsset() {
+        const activeTab = document.querySelector('.va-category-tab.active');
+        const category = activeTab?.dataset.category || 'characters';
+        
+        const categoryMap = {
+            'characters': { name: '角色', icon: '🎭' },
+            'scenes': { name: '场景', icon: '🏞️' },
+            'props': { name: '道具', icon: '🎒' }
+        };
+        
+        const info = categoryMap[category];
+        
+        // 角色暂不支持在此创建
+        if (category === 'characters') {
+            this.showToast(`🎭 角色请通过"导入角色"添加`, 'info');
+            return;
+        }
+        
+        // 显示创建对话框
+        const name = prompt(`输入${info.name}名称:`, '');
+        if (!name) return;
+        
+        const description = prompt('输入标准描述:', '');
+        if (!description) return;
+        
+        // 根据类别收集额外字段
+        const options = {};
+        if (category === 'scenes') {
+            const lighting = prompt('光线（可选）:', '');
+            const colorTone = prompt('色调（可选）:', '');
+            if (lighting) options.lighting = lighting;
+            if (colorTone) options.colorTone = colorTone;
+        } else if (category === 'props') {
+            const propCategory = prompt('分类（可选，如:武器、饰品）:', '');
+            if (propCategory) options.category = propCategory;
+        }
+        
+        try {
+            this.showToast(`⏳ 正在创建${info.name}...`, 'info');
+            
+            // 使用已有的 POST API 创建
+            const result = await this.createVisualAsset(category, name, description, options);
+            
+            if (result) {
+                this.showToast(`✅ ${info.name}「${name}」创建成功`, 'success');
+                // 刷新网格
+                this.loadVisualAssetsGrid(category);
+                // 自动选中新创建的资产
+                this.selectVisualAsset(category === 'scenes' ? 'scene' : 'prop', result, '');
+            }
+        } catch (error) {
+            console.error('创建视觉资产失败:', error);
+            this.showToast('❌ 创建失败，请重试', 'error');
+        }
+    }
+
+    /**
+     * 创建新的视觉资产（用于场景和道具）
+     */
+    async createVisualAsset(category, name, description, options = {}) {
+        if (!this.currentProject?.id) {
+            this.showToast('请先创建项目', 'warning');
+            return null;
+        }
+        
+        try {
+            const response = await fetch(`/api/projects/${this.currentProject.id}/visual-assets/${category}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name,
+                    description,
+                    ...options
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                // 更新本地数据
+                if (!this.currentProject.visualAssets) {
+                    this.currentProject.visualAssets = { characters: {}, scenes: {}, props: {} };
+                }
+                if (!this.currentProject.visualAssets[category]) {
+                    this.currentProject.visualAssets[category] = {};
+                }
+                this.currentProject.visualAssets[category][name] = data.data;
+                
+                // 刷新网格
+                this.loadVisualAssetsGrid(category);
+                
+                return data.data;
+            } else {
+                this.showToast(`❌ 创建失败: ${data.error}`, 'error');
+                return null;
+            }
+        } catch (error) {
+            console.error('创建视觉资产失败:', error);
+            this.showToast('❌ 创建失败', 'error');
+            return null;
         }
     }
 
@@ -962,6 +1371,464 @@ class ShortDramaStudio {
             }
         } catch (error) {
             console.error('❌ [剧照] 加载失败:', error);
+        }
+    }
+
+    /**
+     * 打开图片生成配置模态框
+     */
+    openImageGenConfigModal() {
+        const modal = document.getElementById('imageGenConfigModal');
+        if (!modal) return;
+        
+        // 加载已保存的配置
+        const config = this.getImageGenConfig();
+        document.getElementById('imgGenProvider').value = config.provider || '';
+        document.getElementById('imgGenApiUrl').value = config.apiUrl || '';
+        document.getElementById('imgGenApiKey').value = config.apiKey || '';
+        document.getElementById('imgGenModel').value = config.model || '';
+        document.getElementById('imgGenSize').value = config.size || '1024x1024';
+        document.getElementById('imgGenSaveToProject').checked = config.saveToProject || false;
+        
+        modal.style.display = 'flex';
+    }
+
+    /**
+     * 关闭图片生成配置模态框
+     */
+    closeImageGenConfigModal() {
+        const modal = document.getElementById('imageGenConfigModal');
+        if (modal) modal.style.display = 'none';
+    }
+
+    /**
+     * 保存图片生成配置
+     */
+    async saveImageGenConfig() {
+        const config = {
+            provider: document.getElementById('imgGenProvider').value,
+            apiUrl: document.getElementById('imgGenApiUrl').value.trim(),
+            apiKey: document.getElementById('imgGenApiKey').value.trim(),
+            model: document.getElementById('imgGenModel').value,
+            size: document.getElementById('imgGenSize').value,
+            saveToProject: document.getElementById('imgGenSaveToProject').checked
+        };
+        
+        // 验证必填字段
+        if (!config.provider) {
+            this.showToast('请选择服务提供商', 'warning');
+            return;
+        }
+        if (!config.apiUrl) {
+            this.showToast('请输入 API URL', 'warning');
+            return;
+        }
+        
+        // 保存到本地存储
+        localStorage.setItem('shortDrama_imageGenConfig', JSON.stringify({
+            provider: config.provider,
+            apiUrl: config.apiUrl,
+            model: config.model,
+            size: config.size,
+            // 注意：API Key 单独存储以提高安全性
+        }));
+        
+        if (config.apiKey) {
+            localStorage.setItem('shortDrama_imageGenApiKey', config.apiKey);
+        }
+        
+        // 如果选择保存到项目，则同步到项目配置
+        if (config.saveToProject && this.currentProject?.id) {
+            try {
+                const projectConfig = {
+                    imageGen: {
+                        provider: config.provider,
+                        apiUrl: config.apiUrl,
+                        model: config.model,
+                        size: config.size
+                        // API Key 不保存到项目
+                    }
+                };
+                
+                const response = await fetch(`/api/projects/${this.currentProject.id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ settings: projectConfig })
+                });
+                
+                if (response.ok) {
+                    this.showToast('配置已保存到项目', 'success');
+                }
+            } catch (error) {
+                console.error('保存项目配置失败:', error);
+            }
+        }
+        
+        this.closeImageGenConfigModal();
+        this.showToast('💾 图片生成配置已保存', 'success');
+    }
+
+    /**
+     * Get image generation config
+     */
+    getImageGenConfig() {
+        let config = {};
+        if (this.currentProject?.settings?.imageGen) {
+            config = { ...this.currentProject.settings.imageGen };
+        }
+        
+        const localConfig = localStorage.getItem('shortDrama_imageGenConfig');
+        if (localConfig) {
+            try {
+                const parsed = JSON.parse(localConfig);
+                config = { ...config, ...parsed };
+            } catch (e) {
+                console.error('Parse local config failed:', e);
+            }
+        }
+        
+        const apiKey = localStorage.getItem('shortDrama_imageGenApiKey');
+        if (apiKey) {
+            config.apiKey = apiKey;
+        }
+        
+        return config;
+    }
+
+    /**
+     * Show image generation config modal
+     */
+    async showImageGenConfig() {
+        const modal = document.createElement('div');
+        modal.className = 'modal-overlay';
+        modal.style.cssText = `
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.8); display: flex;
+            justify-content: center; align-items: center; z-index: 10000;
+        `;
+
+        // 从后端获取当前配置
+        let config = this.getImageGenConfig();
+        try {
+            const response = await fetch('/api/image-gen/config');
+            const result = await response.json();
+            if (result.success && result.configured) {
+                config = {
+                    provider: result.provider || config.provider,
+                    apiUrl: result.api_url || config.apiUrl,
+                    apiKey: result.api_key || config.apiKey,
+                    model: result.model || config.model,
+                    size: result.size || config.size
+                };
+            }
+        } catch (e) {
+            console.log('获取后端配置失败，使用本地缓存:', e);
+        }
+
+        modal.innerHTML = `
+            <div class="modal-content" style="
+                background: var(--bg-secondary); border-radius: 16px;
+                max-width: 500px; width: 90%; padding: 2rem;
+                box-shadow: 0 25px 80px rgba(0,0,0,0.4);
+            ">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                    <h2 style="margin: 0;">🖼️ 图片生成配置</h2>
+                    <button class="btn-close" onclick="this.closest('.modal-overlay').remove()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer;">✕</button>
+                </div>
+
+                <div style="margin-bottom: 1rem;">
+                    <label style="font-weight: 600; display: block; margin-bottom: 0.5rem;">服务提供商</label>
+                    <select id="imgGenProviderModal" style="
+                        width: 100%; padding: 10px; background: var(--bg-dark);
+                        border: 1px solid var(--border); border-radius: 8px;
+                        color: var(--text-primary); font-size: 1rem;
+                    ">
+                        <option value="">-- 请选择 --</option>
+                        <option value="nano-banana" ${config.provider === 'nano-banana' ? 'selected' : ''}>Nano Banana (推荐)</option>
+                        <option value="openai" ${config.provider === 'openai' ? 'selected' : ''}>OpenAI (DALL-E)</option>
+                        <option value="stability" ${config.provider === 'stability' ? 'selected' : ''}>Stability AI</option>
+                        <option value="midjourney" ${config.provider === 'midjourney' ? 'selected' : ''}>Midjourney API</option>
+                        <option value="custom" ${config.provider === 'custom' ? 'selected' : ''}>自定义</option>
+                    </select>
+                </div>
+
+                <div style="margin-bottom: 1rem;">
+                    <label style="font-weight: 600; display: block; margin-bottom: 0.5rem;">API URL</label>
+                    <input type="text" id="imgGenApiUrlModal" value="${config.apiUrl || ''}" placeholder="https://api.nanobanana.com/v1/images" style="
+                        width: 100%; padding: 10px; background: var(--bg-dark);
+                        border: 1px solid var(--border); border-radius: 8px;
+                        color: var(--text-primary); font-size: 1rem;
+                    ">
+                </div>
+
+                <div style="margin-bottom: 1rem;">
+                    <label style="font-weight: 600; display: block; margin-bottom: 0.5rem;">API Key</label>
+                    <input type="password" id="imgGenApiKeyModal" value="${config.apiKey || ''}" placeholder="请输入API Key" style="
+                        width: 100%; padding: 10px; background: var(--bg-dark);
+                        border: 1px solid var(--border); border-radius: 8px;
+                        color: var(--text-primary); font-size: 1rem;
+                    ">
+                    <div style="font-size: 0.75rem; color: var(--text-tertiary); margin-top: 4px;">
+                        🔒 配置将保存到服务器
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 1rem;">
+                    <label style="font-weight: 600; display: block; margin-bottom: 0.5rem;">默认模型</label>
+                    <select id="imgGenModelModal" style="
+                        width: 100%; padding: 10px; background: var(--bg-dark);
+                        border: 1px solid var(--border); border-radius: 8px;
+                        color: var(--text-primary); font-size: 1rem;
+                    ">
+                        <option value="">-- 请选择 --</option>
+                        <optgroup label="Nano Banana">
+                            <option value="flux-1.1-pro" ${config.model === 'flux-1.1-pro' ? 'selected' : ''}>FLUX 1.1 Pro (推荐)</option>
+                            <option value="flux-pro" ${config.model === 'flux-pro' ? 'selected' : ''}>FLUX Pro</option>
+                            <option value="flux-dev" ${config.model === 'flux-dev' ? 'selected' : ''}>FLUX Dev</option>
+                            <option value="flux-schnell" ${config.model === 'flux-schnell' ? 'selected' : ''}>FLUX Schnell (快速)</option>
+                        </optgroup>
+                        <optgroup label="OpenAI">
+                            <option value="dall-e-3" ${config.model === 'dall-e-3' ? 'selected' : ''}>DALL-E 3</option>
+                            <option value="dall-e-2" ${config.model === 'dall-e-2' ? 'selected' : ''}>DALL-E 2</option>
+                        </optgroup>
+                        <optgroup label="Stability AI">
+                            <option value="sd-xl" ${config.model === 'sd-xl' ? 'selected' : ''}>Stable Diffusion XL</option>
+                            <option value="sd-3" ${config.model === 'sd-3' ? 'selected' : ''}>Stable Diffusion 3</option>
+                        </optgroup>
+                    </select>
+                </div>
+
+                <div style="margin-bottom: 1rem;">
+                    <label style="font-weight: 600; display: block; margin-bottom: 0.5rem;">默认尺寸</label>
+                    <select id="imgGenSizeModal" style="
+                        width: 100%; padding: 10px; background: var(--bg-dark);
+                        border: 1px solid var(--border); border-radius: 8px;
+                        color: var(--text-primary); font-size: 1rem;
+                    ">
+                        <option value="1024x1024" ${config.size === '1024x1024' ? 'selected' : ''}>1024x1024 (正方形)</option>
+                        <option value="1024x1792" ${config.size === '1024x1792' ? 'selected' : ''}>1024x1792 (竖屏)</option>
+                        <option value="1792x1024" ${config.size === '1792x1024' ? 'selected' : ''}>1792x1024 (横屏)</option>
+                        <option value="1440x2560" ${config.size === '1440x2560' ? 'selected' : ''}>1440x2560 (2K竖屏)</option>
+                        <option value="2560x1440" ${config.size === '2560x1440' ? 'selected' : ''}>2560x1440 (2K横屏)</option>
+                    </select>
+                </div>
+
+                <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+                    <button id="saveImgGenConfigBtn" class="btn btn-primary" style="flex: 1;">保存配置</button>
+                    <button class="btn btn-secondary" onclick="this.closest('.modal-overlay').remove()" style="flex: 1;">取消</button>
+                </div>
+
+                <div style="margin-top: 1rem; padding: 1rem; background: var(--bg-tertiary); border-radius: 8px; font-size: 0.85rem; color: var(--text-secondary);">
+                    <p style="margin: 0 0 0.5rem 0;">📌 获取Nano Banana API密钥：</p>
+                    <ol style="margin: 0; padding-left: 1.5rem;">
+                        <li>访问 <a href="https://nanobanana.com" target="_blank" style="color: var(--primary);">Nano Banana官网</a></li>
+                        <li>注册并登录账号</li>
+                        <li>在控制台创建API Key</li>
+                    </ol>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        // 点击背景关闭
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) modal.remove();
+        });
+
+        // 保存配置
+        const saveBtn = modal.querySelector('#saveImgGenConfigBtn');
+        saveBtn.addEventListener('click', async () => {
+            const provider = modal.querySelector('#imgGenProviderModal').value;
+            const apiUrl = modal.querySelector('#imgGenApiUrlModal').value.trim();
+            const apiKey = modal.querySelector('#imgGenApiKeyModal').value.trim();
+            const model = modal.querySelector('#imgGenModelModal').value;
+            const size = modal.querySelector('#imgGenSizeModal').value;
+
+            if (!provider) {
+                this.showToast('请选择服务提供商', 'warning');
+                return;
+            }
+            if (!apiUrl) {
+                this.showToast('请输入 API URL', 'warning');
+                return;
+            }
+            if (!apiKey) {
+                this.showToast('请输入 API Key', 'warning');
+                return;
+            }
+
+            // 保存到localStorage
+            localStorage.setItem('shortDrama_imageGenConfig', JSON.stringify({
+                provider: provider,
+                apiUrl: apiUrl,
+                model: model,
+                size: size
+            }));
+            localStorage.setItem('shortDrama_imageGenApiKey', apiKey);
+
+            // 同步到后端
+            try {
+                const response = await fetch('/api/image-gen/config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        provider: provider,
+                        api_url: apiUrl,
+                        api_key: apiKey,
+                        model: model,
+                        size: size
+                    })
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    this.showToast('💾 图片生成配置已保存并生效', 'success');
+                    modal.remove();
+                } else {
+                    this.showToast(`保存失败: ${result.error}`, 'error');
+                }
+            } catch (error) {
+                console.error('保存图片配置失败:', error);
+                this.showToast('保存失败，请检查网络', 'error');
+            }
+        });
+    }
+
+    /**
+     * 生成图片（使用配置的服务）
+     */
+    async generateImage(prompt, options = {}) {
+        const config = this.getImageGenConfig();
+        
+        if (!config.apiUrl || !config.apiKey) {
+            this.showToast('请先配置图片生成服务', 'warning');
+            this.showImageGenConfig();
+            return null;
+        }
+        
+        try {
+            this.showToast('🎨 正在生成图片...', 'info');
+            
+            const requestBody = {
+                prompt: prompt,
+                model: options.model || config.model || 'dall-e-3',
+                size: options.size || config.size || '1024x1024',
+                n: 1,
+                ...options
+            };
+            
+            const response = await fetch(config.apiUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${config.apiKey}`
+                },
+                body: JSON.stringify(requestBody)
+            });
+            
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error?.message || `生成失败: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            
+            // 解析不同 API 格式
+            let imageUrl = null;
+            if (data.data?.[0]?.url) {
+                imageUrl = data.data[0].url; // OpenAI 格式
+            } else if (data.artifacts?.[0]?.base64) {
+                imageUrl = `data:image/png;base64,${data.artifacts[0].base64}`; // Stability 格式
+            } else if (data.image_url) {
+                imageUrl = data.image_url; // 通用格式
+            }
+            
+            if (imageUrl) {
+                this.showToast('✅ 图片生成成功', 'success');
+                return imageUrl;
+            } else {
+                throw new Error('未能获取图片 URL');
+            }
+            
+        } catch (error) {
+            console.error('图片生成失败:', error);
+            this.showToast(`❌ 生成失败: ${error.message}`, 'error');
+            return null;
+        }
+    }
+
+    /**
+     * 为视觉资产生成图片
+     */
+    async generateAssetImage(name, type) {
+        // 获取资产数据
+        const typeMap = {
+            'character': 'characters',
+            'scene': 'scenes', 
+            'prop': 'props'
+        };
+        const category = typeMap[type];
+        const asset = this.currentProject?.visualAssets?.[category]?.[name];
+        
+        if (!asset) {
+            this.showToast('资产不存在', 'error');
+            return;
+        }
+        
+        // 构建生成提示词
+        let prompt = '';
+        const description = asset.description || '';
+        
+        if (type === 'character') {
+            const clothing = asset.clothing || '';
+            const expression = asset.expression || '';
+            prompt = `Professional character portrait of ${name}`;
+            if (description) prompt += `, ${description}`;
+            if (clothing) prompt += `, wearing ${clothing}`;
+            if (expression) prompt += `, ${expression} expression`;
+            prompt += `, high quality, detailed, cinematic lighting, portrait photography style`;
+        } else if (type === 'scene') {
+            const lighting = asset.lighting || '';
+            const colorTone = asset.colorTone || '';
+            prompt = `Cinematic scene of ${name}`;
+            if (description) prompt += `, ${description}`;
+            if (lighting) prompt += `, ${lighting} lighting`;
+            if (colorTone) prompt += `, ${colorTone} color tone`;
+            prompt += `, high quality, detailed environment, cinematic composition`;
+        } else if (type === 'prop') {
+            const propCategory = asset.category || '';
+            prompt = `Detailed image of ${name}`;
+            if (description) prompt += `, ${description}`;
+            if (propCategory) prompt += `, ${propCategory}`;
+            prompt += `, high quality, detailed, product photography style, clean background`;
+        }
+        
+        // 生成图片
+        const imageUrl = await this.generateImage(prompt);
+        
+        if (imageUrl) {
+            // 更新资产的图片 URL
+            asset.referenceUrl = imageUrl;
+            asset.updatedAt = new Date().toISOString();
+            
+            // 保存到后端
+            try {
+                await fetch(`/api/projects/${this.currentProject.id}/visual-assets/${category}/${encodeURIComponent(name)}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ referenceUrl: imageUrl })
+                });
+                
+                // 刷新显示
+                this.selectVisualAsset(type, asset, imageUrl);
+                this.loadVisualAssetsGrid(category);
+                
+                this.showToast(`✅ ${name} 图片已生成并保存`, 'success');
+            } catch (error) {
+                console.error('保存图片 URL 失败:', error);
+                this.showToast('图片生成成功，但保存失败', 'warning');
+            }
         }
     }
 
@@ -2035,54 +2902,20 @@ class ShortDramaStudio {
     async loadShotsV2() {
         try {
             const episodeDirectoryName = this.getEpisodeDirectoryName();
-            console.log('📂 [加载] 尝试加载 shots_v2, 剧集:', episodeDirectoryName);
+            console.log('📂 [加载] 尝试加载 shots_v2.json, 剧集:', episodeDirectoryName);
 
-            // 🔥 同时加载英文和中文版本
-            const [enResponse, cnResponse] = await Promise.all([
-                fetch(`/api/short-drama/shots-v2?novel=${encodeURIComponent(this.selectedNovel)}&episode=${encodeURIComponent(episodeDirectoryName)}`),
-                fetch(`/api/short-drama/shots-v2-cn?novel=${encodeURIComponent(this.selectedNovel)}&episode=${encodeURIComponent(episodeDirectoryName)}`)
-            ]);
+            const response = await fetch(`/api/short-drama/shots-v2?novel=${encodeURIComponent(this.selectedNovel)}&episode=${encodeURIComponent(episodeDirectoryName)}`);
+            const data = await response.json();
 
-            const enData = await enResponse.json();
-            const cnData = await cnResponse.json();
-
-            // 🔥 合并中英文数据
-            if (enData.success && enData.shots && enData.shots.length > 0) {
-                let mergedShots = enData.shots;
-                
-                // 如果有中文版本，合并中文字段
-                if (cnData.success && cnData.shots && cnData.shots.length > 0) {
-                    console.log('✅ [加载] 合并中英文数据, 英文:', enData.shots.length, '中文:', cnData.shots.length);
-                    mergedShots = enData.shots.map((shot, idx) => {
-                        const cnShot = cnData.shots[idx];
-                        if (cnShot) {
-                            return {
-                                ...shot,
-                                // 中文提示词字段
-                                veo_prompt_standard_cn: cnShot.veo_prompt_standard,
-                                veo_prompt_reference_cn: cnShot.veo_prompt_reference,
-                                veo_prompt_frames_cn: cnShot.veo_prompt_frames,
-                                visual_description_standard_cn: cnShot.visual_description_standard,
-                                visual_description_reference_cn: cnShot.visual_description_reference,
-                                visual_description_frames_cn: cnShot.visual_description_frames,
-                                scene_title: cnShot.scene_title,
-                                shot_type: cnShot.shot_type,
-                                image_prompts_cn: cnShot.image_prompts
-                            };
-                        }
-                        return shot;
-                    });
-                } else {
-                    console.log('✅ [加载] 只加载到英文数据:', enData.shots.length);
-                }
-                
-                return { shots: mergedShots };
+            if (data.success && data.shots && data.shots.length > 0) {
+                console.log('✅ [加载] shots_v2.json 加载成功, 镜头数:', data.shots.length);
+                return { shots: data.shots };
             } else {
-                console.log('⚠️ [加载] shots_v2 不存在或为空');
+                console.log('⚠️ [加载] shots_v2.json 不存在或为空');
                 return null;
             }
         } catch (error) {
-            console.error('❌ [加载] shots_v2 加载异常:', error);
+            console.error('❌ [加载] shots_v2.json 加载异常:', error);
             return null;
         }
     }
@@ -2092,17 +2925,6 @@ class ShortDramaStudio {
      */
     normalizeShots(shots) {
         console.log('🔄 [格式化] 开始格式化镜头数据, 原始数量:', shots.length);
-        
-        // 🔥 调试：检查第一个镜头的中文字段
-        if (shots.length > 0 && shots[0].veo_prompt_standard_cn) {
-            console.log('✅ [格式化] 检测到中文字段:', {
-                veo_prompt_standard_cn_preview: shots[0].veo_prompt_standard_cn.substring(0, 50) + '...'
-            });
-        } else if (shots.length > 0) {
-            console.log('⚠️ [格式化] 第一个镜头缺少中文字段, 可用字段:', 
-                Object.keys(shots[0]).filter(k => k.includes('veo') || k.includes('cn'))
-            );
-        }
 
         return shots.map((shot, idx) => {
             // 确保必需字段存在
@@ -2113,7 +2935,7 @@ class ShortDramaStudio {
                 scene_title: shot.scene_title || `场景${shot.scene_number || 1}`,
                 duration: shot.duration || shot.duration_seconds || 8,
 
-                // 🔥 保留优化格式的所有字段（英文）
+                // 🔥 保留优化格式的所有字段
                 visual_description: shot.visual_description,
                 visual_description_standard: shot.visual_description_standard,
                 visual_description_reference: shot.visual_description_reference,
@@ -2123,15 +2945,6 @@ class ShortDramaStudio {
                 veo_prompt_standard: shot.veo_prompt_standard,
                 veo_prompt_reference: shot.veo_prompt_reference,
                 veo_prompt_frames: shot.veo_prompt_frames,
-
-                // 🔥 保留中文提示词字段
-                visual_description_standard_cn: shot.visual_description_standard_cn,
-                visual_description_reference_cn: shot.visual_description_reference_cn,
-                visual_description_frames_cn: shot.visual_description_frames_cn,
-
-                veo_prompt_standard_cn: shot.veo_prompt_standard_cn,
-                veo_prompt_reference_cn: shot.veo_prompt_reference_cn,
-                veo_prompt_frames_cn: shot.veo_prompt_frames_cn,
 
                 preferred_mode: shot.preferred_mode || 'standard',
 
@@ -2176,32 +2989,7 @@ class ShortDramaStudio {
             // 🔥 优先级1: 内存中的优化数据（数据流A）
             if (this.currentProject?.shots?.length > 0) {
                 console.log('✅ [视频步骤] 使用内存中的优化数据（数据流A）, 镜头数:', this.currentProject.shots.length);
-                
-                // 🔥 同时加载文件系统中的中文版本进行合并
-                const v2Data = await this.loadShotsV2();
-                if (v2Data?.shots?.length > 0) {
-                    console.log('✅ [视频步骤] 合并文件系统中的中文数据');
-                    // 合并内存数据和文件系统数据（保留内存数据的主体，添加中文提示词字段）
-                    allShots = this.normalizeShots(this.currentProject.shots.map((shot, idx) => {
-                        const v2Shot = v2Data.shots[idx];
-                        if (v2Shot) {
-                            return {
-                                ...shot,
-                                // 从文件系统数据中合并中文字段
-                                veo_prompt_standard_cn: v2Shot.veo_prompt_standard_cn,
-                                veo_prompt_reference_cn: v2Shot.veo_prompt_reference_cn,
-                                veo_prompt_frames_cn: v2Shot.veo_prompt_frames_cn,
-                                visual_description_standard_cn: v2Shot.visual_description_standard_cn,
-                                visual_description_reference_cn: v2Shot.visual_description_reference_cn,
-                                visual_description_frames_cn: v2Shot.visual_description_frames_cn,
-                                image_prompts_cn: v2Shot.image_prompts_cn
-                            };
-                        }
-                        return shot;
-                    }));
-                } else {
-                    allShots = this.normalizeShots(this.currentProject.shots);
-                }
+                allShots = this.normalizeShots(this.currentProject.shots);
             }
             // 🔥 优先级2: 文件系统中的优化数据（shots_v2.json）
             else {
@@ -2705,9 +3493,9 @@ class ShortDramaStudio {
         const hasMultipleModes = shot.veo_prompt_standard && shot.veo_prompt_reference && shot.veo_prompt_frames;
         const currentMode = shot.preferred_mode || 'standard';
 
-        // 🔥 根据当前模式获取提示词（中文用于显示，英文用于API）
-        const currentPromptCN = this.getCurrentVeoPromptCN(shot);
-        const currentPromptEN = this.getCurrentVeoPrompt(shot);
+        // 🔥 根据当前模式获取提示词
+        const currentPrompt = this.getCurrentVeoPrompt(shot);
+        const currentVisualDesc = this.getCurrentVisualDescription(shot);
 
         // 🔥 模式选择器HTML（仅在支持多模式时显示）
         const modeSelectorHtml = hasMultipleModes ? `
@@ -2729,7 +3517,7 @@ class ShortDramaStudio {
                     ${modeSelectorHtml}
                     <div class="task-prompt">
                         <span class="prompt-label">AI提示:</span>
-                        <span class="prompt-text" id="prompt-text-${idx}">${(currentPromptCN || '').substring(0, 150)}${(currentPromptCN || '').length > 150 ? '...' : ''}</span>
+                        <span class="prompt-text" id="prompt-text-${idx}">${(currentPrompt || shot.screen_action || '').substring(0, 150)}${(currentPrompt || shot.screen_action || '').length > 150 ? '...' : ''}</span>
                     </div>
                     ${shot.plot_content ? `
                     <div class="task-plot">
@@ -2766,10 +3554,9 @@ class ShortDramaStudio {
                     ${hasRefs ? `<div class="refs-thumbnails">${refsThumbnailsHtml}</div>` : '<div class="task-visual-empty"></div>'}
                     ${hasRefs ? '<span class="visual-arrow">→</span>' : ''}
                     ${videoPreviewHtml}
-                    <button class="btn-view-english" onclick="shortDramaStudio.showEnglishPrompt(${idx})" style="margin-top: 0.5rem; font-size: 0.75rem; padding: 0.25rem 0.5rem; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 0.25rem; cursor: pointer; align-self: center;" title="查看英文原文">EN</button>
                 </div>
                 <div class="task-actions">
-                    <button class="task-btn edit-btn" onclick="shortDramaStudio.editShotPrompt(${idx})" title="编辑中英文提示词">
+                    <button class="task-btn edit-btn" onclick="shortDramaStudio.editShotPrompt(${idx})" title="编辑提示词">
                         <span>✏️</span>
                     </button>
                     ${isCompleted ? `
@@ -2812,97 +3599,17 @@ class ShortDramaStudio {
     }
 
     /**
-     * 根据项目配置获取格式描述
-     */
-    getFormatDescription() {
-        const settings = this.currentProject?.settings || {};
-        const aspectRatio = settings.aspect_ratio || '9:16';
-        
-        const formatMap = {
-            '9:16': 'vertical 9:16 format',
-            '16:9': 'horizontal 16:9 format',
-            '1:1': 'square 1:1 format'
-        };
-        
-        return formatMap[aspectRatio] || 'vertical 9:16 format';
-    }
-
-    /**
-     * 替换提示词中的格式描述
-     */
-    replaceFormatInPrompt(prompt) {
-        if (!prompt) return '';
-        
-        // 替换各种格式描述为当前项目配置
-        const formatPatterns = [
-            /vertical\s+9:16\s+format/gi,
-            /horizontal\s+16:9\s+format/gi,
-            /square\s+1:1\s+format/gi
-        ];
-        
-        const currentFormat = this.getFormatDescription();
-        let result = prompt;
-        
-        formatPatterns.forEach(pattern => {
-            result = result.replace(pattern, currentFormat);
-        });
-        
-        return result;
-    }
-
-    /**
-     * 获取当前模式的VeO提示词（英文，用于API调用）
+     * 获取当前模式的VeO提示词
      */
     getCurrentVeoPrompt(shot) {
         const mode = shot.preferred_mode || 'standard';
-        let prompt = '';
-
-        // 🔥 优先使用用户编辑版本
-        if (shot.veo_prompt_custom) {
-            prompt = shot.veo_prompt_custom;
-        } else if (mode === 'reference' && shot.veo_prompt_reference) {
-            prompt = shot.veo_prompt_reference;
-        } else if (mode === 'frames' && shot.veo_prompt_frames) {
-            prompt = shot.veo_prompt_frames;
-        } else {
-            prompt = shot.veo_prompt_standard || shot.veo_prompt || '';
+        if (mode === 'reference' && shot.veo_prompt_reference) {
+            return shot.veo_prompt_reference;
         }
-        
-        // 根据项目配置替换格式描述
-        return this.replaceFormatInPrompt(prompt);
-    }
-
-    /**
-     * 获取当前模式的中文提示词（用于界面显示）
-     */
-    getCurrentVeoPromptCN(shot) {
-        const mode = shot.preferred_mode || 'standard';
-        let prompt = '';
-
-        // 🔥 优先使用用户编辑的中文版本
-        if (shot.veo_prompt_custom_cn) {
-            prompt = shot.veo_prompt_custom_cn;
-        } else if (mode === 'reference' && shot.veo_prompt_reference_cn) {
-            prompt = shot.veo_prompt_reference_cn;
-        } else if (mode === 'frames' && shot.veo_prompt_frames_cn) {
-            prompt = shot.veo_prompt_frames_cn;
-        } else if (shot.veo_prompt_standard_cn) {
-            prompt = shot.veo_prompt_standard_cn;
-        } else {
-            // 🔥 回退：如果没有中文版本，返回英文版本
-            console.log('⚠️ [getCurrentVeoPromptCN] 未找到中文字段，回退到英文:', {
-                mode,
-                has_custom_cn: !!shot.veo_prompt_custom_cn,
-                has_standard_cn: !!shot.veo_prompt_standard_cn,
-                has_reference_cn: !!shot.veo_prompt_reference_cn,
-                has_frames_cn: !!shot.veo_prompt_frames_cn,
-                shot_keys: Object.keys(shot).filter(k => k.includes('veo') || k.includes('prompt'))
-            });
-            prompt = this.getCurrentVeoPrompt(shot);
+        if (mode === 'frames' && shot.veo_prompt_frames) {
+            return shot.veo_prompt_frames;
         }
-        
-        // 根据项目配置替换格式描述
-        return this.replaceFormatInPrompt(prompt);
+        return shot.veo_prompt_standard || shot.veo_prompt || '';
     }
 
     /**
@@ -2920,133 +3627,14 @@ class ShortDramaStudio {
         // 更新镜头的首选模式
         shot.preferred_mode = newMode;
 
-        // 🔥 同时更新 currentProject.shots 中的数据，确保持久化
-        if (this.currentProject?.shots?.[shotIndex]) {
-            this.currentProject.shots[shotIndex].preferred_mode = newMode;
-        }
-
-        // 🔥 更新显示的提示词（使用中文版本）
+        // 更新显示的提示词
         const promptTextElement = document.getElementById(`prompt-text-${shotIndex}`);
         if (promptTextElement) {
-            const newPrompt = this.getCurrentVeoPromptCN(shot);
+            const newPrompt = this.getCurrentVeoPrompt(shot);
             promptTextElement.textContent = `${newPrompt.substring(0, 150)}${newPrompt.length > 150 ? '...' : ''}`;
         }
 
-        // 🔥 重新渲染该行以更新画面描述和图片提示词
-        const rowElement = document.getElementById(`taskRow_${shotIndex}`);
-        if (rowElement) {
-            rowElement.outerHTML = this.renderVideoTaskRow(shot, shotIndex);
-        }
-
         console.log(`🎨 [模式切换] 镜头${shotIndex} 切换到 ${newMode} 模式`);
-    }
-
-    /**
-     * 显示英文原文提示词
-     */
-    showEnglishPrompt(shotIndex) {
-        const shot = this.shots[shotIndex];
-        if (!shot) return;
-
-        const promptEN = this.getCurrentVeoPrompt(shot);
-        const promptCN = this.getCurrentVeoPromptCN(shot);
-        
-        console.log('🔍 [showEnglishPrompt] 提示词对照:', {
-            shotIndex,
-            mode: shot.preferred_mode || 'standard',
-            promptCN_preview: promptCN ? promptCN.substring(0, 50) + '...' : 'empty',
-            promptEN_preview: promptEN ? promptEN.substring(0, 50) + '...' : 'empty',
-            veo_prompt_standard_cn_preview: shot.veo_prompt_standard_cn ? shot.veo_prompt_standard_cn.substring(0, 50) + '...' : 'not found'
-        });
-
-        // 创建弹窗
-        const modal = document.createElement('div');
-        modal.className = 'prompt-compare-modal';
-        modal.style.cssText = `
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.85);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 10000;
-        `;
-
-        modal.innerHTML = `
-            <div style="
-                background: var(--bg-secondary);
-                border-radius: 16px;
-                max-width: 800px;
-                width: 90%;
-                max-height: 80vh;
-                overflow-y: auto;
-                padding: 24px;
-                box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
-            ">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                    <h3 style="margin: 0;">🌐 提示词对照</h3>
-                    <button class="prompt-modal-close" style="
-                        background: none;
-                        border: none;
-                        font-size: 1.8rem;
-                        cursor: pointer;
-                        color: var(--text-secondary);
-                    ">×</button>
-                </div>
-
-                <div style="margin-bottom: 20px;">
-                    <label style="font-weight: 600; display: block; margin-bottom: 8px;">📝 中文版本</label>
-                    <div style="
-                        background: var(--bg-dark);
-                        border: 1px solid var(--border);
-                        border-radius: 8px;
-                        padding: 12px;
-                        color: var(--text-primary);
-                        line-height: 1.6;
-                        white-space: pre-wrap;
-                    ">${promptCN}</div>
-                </div>
-
-                <div>
-                    <label style="font-weight: 600; display: block; margin-bottom: 8px;">🌐 英文原文（实际发送给VeO）</label>
-                    <div style="
-                        background: var(--bg-dark);
-                        border: 1px solid var(--border);
-                        border-radius: 8px;
-                        padding: 12px;
-                        color: var(--text-primary);
-                        line-height: 1.6;
-                        white-space: pre-wrap;
-                    ">${promptEN}</div>
-                </div>
-
-                <div style="margin-top: 20px; text-align: center;">
-                    <button class="prompt-modal-close" style="
-                        padding: 10px 24px;
-                        background: var(--primary);
-                        border: none;
-                        border-radius: 8px;
-                        color: white;
-                        cursor: pointer;
-                    ">关闭</button>
-                </div>
-            </div>
-        `;
-
-        // 绑定关闭事件
-        modal.querySelectorAll('.prompt-modal-close').forEach(btn => {
-            btn.addEventListener('click', () => modal.remove());
-        });
-
-        document.body.appendChild(modal);
-
-        // 点击背景关闭
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) modal.remove();
-        });
     }
 
     /**
@@ -4265,7 +4853,7 @@ async showGeminiConfig() {
 
             <div style="margin-bottom: 1rem;">
                 <label style="font-weight: 600; display: block; margin-bottom: 0.5rem;">API Base URL</label>
-                <input type="text" id="geminiApiUrl" value="${currentConfig.apiUrl}" placeholder="https://generativelanguage.googleapis.com" style="
+                <input type="text" id="geminiApiUrl" value="${currentConfig.apiUrl}" placeholder="https://api.gemini.com" style="
                     width: 100%; padding: 10px; background: var(--bg-dark);
                     border: 1px solid var(--border); border-radius: 8px;
                     color: var(--text-primary); font-size: 1rem;
@@ -4337,7 +4925,7 @@ async showGeminiConfig() {
 
         // 同步到后端
         try {
-            const response = await fetch('/api/gemini/config', {
+            const response = await fetch('/api/tts/gemini/config', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -4386,7 +4974,7 @@ loadGeminiConfig() {
 }
 
 /**
- * 保存Gemini配置到localStorage
+ * 保存Gemini配置
  */
 saveGeminiConfig(config) {
     try {
@@ -5289,16 +5877,16 @@ saveGeminiConfig(config) {
             const shotNum = shot.shot_number || (idx + 1);
             const shotKey = `videoPrompt_${this.selectedNovel}_${shot.episode_title || ''}_S${sceneNum}_#${shotNum}`;
 
-            // 🔥 构建AI提示词：获取中英文版本
-            const promptEN = this.getCurrentVeoPrompt(shot);
-            const promptCN = this.getCurrentVeoPromptCN(shot);
+            // 🔥 获取当前模式的英文提示词和中文描述
+            const currentPromptEN = this.getCurrentVeoPrompt(shot);
+            const currentPromptCN = this.getCurrentVisualDescription(shot);
 
             // 尝试加载之前保存的提示词
             const savedPromptEN = localStorage.getItem(shotKey + '_en');
             const savedPromptCN = localStorage.getItem(shotKey + '_cn');
 
-            const promptToUseEN = savedPromptEN || promptEN;
-            const promptToUseCN = savedPromptCN || promptCN;
+            const promptToUseEN = savedPromptEN || currentPromptEN || '';
+            const promptToUseCN = savedPromptCN || currentPromptCN || '';
 
             // 创建对话框
             const modal = document.createElement('div');
@@ -5351,17 +5939,17 @@ saveGeminiConfig(config) {
                         <div class="shot-info-section" style="margin-bottom: 16px;">
                             <div style="display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap;">
                                 <span class="badge" style="background: var(--primary-light, #e3f2fd); color: var(--primary); padding: 4px 12px; border-radius: 6px; font-size: 0.85rem;">${shot.episode_title || '镜头'}</span>
-                                <span class="badge" style="background: var(--bg-tertiary); color: var(--text-secondary); padding: 4px 12px; border-radius: 6px; font-size: 0.85rem;">${shot.shot_type || '镜头'}</span>
+                                <span class="badge" style="background: var(--accent-color, #f3e5f5); color: var(--text-primary); padding: 4px 12px; border-radius: 6px; font-size: 0.85rem;">${shot.shot_type || '镜头'}</span>
                                 <span class="badge" style="background: var(--bg-tertiary); padding: 4px 12px; border-radius: 6px; font-size: 0.85rem;">⏱️ ${shot.duration || 5}秒</span>
                                 ${shot.preferred_mode ? `<span class="badge" style="background: #6366f1; color: white; padding: 4px 12px; border-radius: 6px; font-size: 0.85rem;">🎨 ${shot.preferred_mode === 'standard' ? '标准模式' : shot.preferred_mode === 'reference' ? '参考图模式' : '首尾帧模式'}</span>` : ''}
-                                ${savedPromptCN ? '<span class="badge" style="background: var(--success); color: white; padding: 4px 12px; border-radius: 6px; font-size: 0.85rem;">已保存提示词</span>' : ''}
+                                ${savedPrompt ? '<span class="badge" style="background: var(--success); color: white; padding: 4px 12px; border-radius: 6px; font-size: 0.85rem;">已保存提示词</span>' : ''}
                             </div>
                             <p style="color: var(--text-secondary); margin: 0; font-size: 0.9rem;">📍 ${shot.scene_title || ''}</p>
                         </div>
 
                         <!-- 提示词编辑区 -->
                         <div class="prompt-section" style="margin-bottom: 20px;">
-                            <label style="font-weight: 600; display: block; margin-bottom: 12px; font-size: 1rem;">📝 AI提示语（中文）${savedPromptCN ? '<span style="font-size: 0.8rem; color: var(--success); margin-left: 8px;">(已加载保存的版本)</span>' : shot.preferred_mode ? `<span style="font-size: 0.8rem; color: #6366f1; margin-left: 8px;">(使用${shot.preferred_mode === 'standard' ? '标准' : shot.preferred_mode === 'reference' ? '参考图' : '首尾帧'}模式)</span>` : ''}</label>
+                            <label style="font-weight: 600; display: block; margin-bottom: 12px; font-size: 1rem;">📝 AI提示语（中文）<span style="font-size: 0.8rem; color: #6366f1; margin-left: 8px;">(使用${shot.preferred_mode === 'standard' ? '标准' : shot.preferred_mode === 'reference' ? '参考图' : '首尾帧'}模式)</span></label>
                             <textarea id="promptEditAreaCN" style="
                                 width: 100%;
                                 min-height: 100px;
@@ -5376,7 +5964,7 @@ saveGeminiConfig(config) {
                                 font-family: inherit;
                             ">${promptToUseCN}</textarea>
 
-                            <label style="font-weight: 600; display: block; margin: 16px 0 12px 0; font-size: 1rem;">🌐 AI提示语（英文 - 实际发送给VeO）${savedPromptEN ? '<span style="font-size: 0.8rem; color: var(--success); margin-left: 8px;">(已加载保存的版本)</span>' : ''}</label>
+                            <label style="font-weight: 600; display: block; margin: 16px 0 12px 0; font-size: 1rem;">🌐 AI提示语（英文 - 实际发送给VeO）</label>
                             <textarea id="promptEditAreaEN" style="
                                 width: 100%;
                                 min-height: 100px;
@@ -5610,9 +6198,9 @@ saveGeminiConfig(config) {
                                         color: var(--text-primary);
                                         font-size: 0.95rem;
                                     ">
-                                        <option value="veo_3_1-fast-components-4K" ${shot.preferred_mode === 'reference' && videoSettings.model === 'veo_3_1-fast-components-4K' ? 'selected' : ''}>4K参考图模式</option>
-                                        <option value="veo_3_1-fast-components" ${shot.preferred_mode === 'reference' && videoSettings.model !== 'veo_3_1-fast-components-4K' ? 'selected' : ''}>1080p参考图模式</option>
-                                        <option value="veo_3_1-fast" ${shot.preferred_mode === 'frames' ? 'selected' : ''}>首尾帧模式</option>
+                                        <option value="veo_3_1-fast-components-4K" ${videoSettings.model === 'veo_3_1-fast-components-4K' ? 'selected' : ''}>4K参考图模式</option>
+                                        <option value="veo_3_1-fast-components" ${videoSettings.model === 'veo_3_1-fast-components' ? 'selected' : ''}>1080p参考图模式</option>
+                                        <option value="veo_3_1-fast" ${videoSettings.model === 'veo_3_1-fast' ? 'selected' : ''}>首尾帧模式</option>
                                     </select>
                                 </div>
                                 <div>
@@ -5652,7 +6240,7 @@ saveGeminiConfig(config) {
                             </div>
                             <div style="margin-top: 16px;">
                                 <label style="display: flex; align-items: center; gap: 10px; font-size: 0.95rem; color: var(--text-secondary); cursor: pointer;">
-                                    <input type="checkbox" id="paramFirstLastFrame" ${shot.preferred_mode === 'frames' ? 'checked' : ''} style="margin: 0; width: 18px; height: 18px;">
+                                    <input type="checkbox" id="paramFirstLastFrame" ${videoSettings.use_first_last_frame ? 'checked' : ''} style="margin: 0; width: 18px; height: 18px;">
                                     <span>🎞️ 启用首尾帧模式（需选择1-2张图片）</span>
                                 </label>
                             </div>
@@ -5705,8 +6293,10 @@ saveGeminiConfig(config) {
             const cancelBtn = modal.querySelector('.btn-cancel');
             const skipBtn = modal.querySelector('.btn-skip');
             const generateBtn = modal.querySelector('.btn-generate');
-            const resetBtn = modal.querySelector('#resetPromptBtn');
-            const promptArea = document.getElementById('promptEditArea');
+            const promptAreaCN = document.getElementById('promptEditAreaCN');
+            const promptAreaEN = document.getElementById('promptEditAreaEN');
+            const translateToEnBtn = document.getElementById('translateToEnBtn');
+            const translateToCnBtn = document.getElementById('translateToCnBtn');
 
             // 处理剧照选择
             const portraitChecks = modal.querySelectorAll('.portrait-check');
@@ -5990,21 +6580,22 @@ saveGeminiConfig(config) {
                 resolve({ action: 'skip' });
             };
 
-            // 重置提示词按钮
-            if (resetBtn) {
-                resetBtn.onclick = () => {
-                    // 重置为AI提示词（不包含情节）
-                    promptArea.value = aiPrompt;
-                    // 清除 localStorage 中的旧值
-                    localStorage.removeItem(shotKey);
-                    console.log('已清除保存的提示词:', shotKey);
-                    console.log('已重置为AI提示词');
+            // 翻译按钮（TODO: 实现翻译功能）
+            if (translateToEnBtn) {
+                translateToEnBtn.onclick = () => {
+                    this.showToast('翻译功能开发中...', 'info');
+                };
+            }
+            if (translateToCnBtn) {
+                translateToCnBtn.onclick = () => {
+                    this.showToast('翻译功能开发中...', 'info');
                 };
             }
 
             // 生成按钮
             generateBtn.onclick = () => {
-                const editedPrompt = promptArea.value;
+                const editedPromptCN = promptAreaCN.value;
+                const editedPromptEN = promptAreaEN.value;
                 const model = document.getElementById('paramModel').value;
                 const orientation = document.getElementById('paramOrientation').value;
                 const size = document.getElementById('paramSize').value;
@@ -6042,23 +6633,28 @@ saveGeminiConfig(config) {
                 console.log('  - shotKey:', shotKey);
                 console.log('  - shot.episode_title:', shot.episode_title);
                 console.log('  - shot.shot_number:', shot.shot_number);
-                console.log('  - 原始 veo_prompt:', shot.veo_prompt);
-                console.log('  - 原始 screen_action:', shot.screen_action);
-                console.log('  - localStorage 中的值:', savedPrompt);
-                console.log('  - 编辑后的提示词:', editedPrompt);
+                console.log('  - 原始中文描述:', currentPromptCN);
+                console.log('  - 原始英文提示词:', currentPromptEN);
+                console.log('  - 编辑后的中文:', editedPromptCN);
+                console.log('  - 编辑后的英文:', editedPromptEN);
                 console.log('选中的图片数量:', checkedImages.length);
                 console.log('首尾帧模式:', useFirstLastFrame);
 
-                // 保存修改的提示词（与原始AI提示词比较）
-                if (editedPrompt !== aiPrompt) {
-                    localStorage.setItem(shotKey, editedPrompt);
-                    console.log('已保存修改的提示词:', shotKey);
+                // 保存修改的提示词
+                if (editedPromptCN !== currentPromptCN) {
+                    localStorage.setItem(shotKey + '_cn', editedPromptCN);
+                    console.log('已保存修改的中文描述');
+                }
+                if (editedPromptEN !== currentPromptEN) {
+                    localStorage.setItem(shotKey + '_en', editedPromptEN);
+                    console.log('已保存修改的英文提示词');
                 }
 
                 modal.remove();
                 resolve({
                     action: 'generate',
-                    prompt: editedPrompt,
+                    prompt: editedPromptEN,  // 🔥 使用英文提示词发送给AI
+                    promptCN: editedPromptCN,  // 保存中文描述用于显示
                     selectedImages: checkedImages,
                     model,
                     orientation,
@@ -6549,271 +7145,18 @@ saveGeminiConfig(config) {
     }
 
     /**
-     * 编辑提示词（支持中英文三种模式）
+     * 编辑提示词
      */
     editShotPrompt(idx) {
         const shot = this.shots[idx];
         if (!shot) return;
 
-        // 创建编辑弹窗
-        const modal = document.createElement('div');
-        modal.className = 'prompt-edit-modal';
-        modal.style.cssText = `
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.85);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 10000;
-        `;
-
-        // 获取当前模式的提示词
-        const mode = shot.preferred_mode || 'standard';
-        
-        // 获取当前值
-        const getPromptValue = (field, modeSuffix = '') => {
-            const key = modeSuffix ? `${field}_${modeSuffix}` : field;
-            return shot[key] || '';
-        };
-
-        modal.innerHTML = `
-            <div style="
-                background: var(--bg-secondary);
-                border-radius: 16px;
-                max-width: 900px;
-                width: 90%;
-                max-height: 85vh;
-                overflow-y: auto;
-                padding: 24px;
-                box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
-            ">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                    <h3 style="margin: 0;">✏️ 编辑提示词 - 镜头 ${shot.shot_number || (idx + 1)}</h3>
-                    <button class="modal-close" style="
-                        background: none;
-                        border: none;
-                        font-size: 1.8rem;
-                        cursor: pointer;
-                        color: var(--text-secondary);
-                    ">×</button>
-                </div>
-
-                <!-- 模式选择 -->
-                <div style="margin-bottom: 20px; padding: 12px; background: var(--bg-dark); border-radius: 8px;">
-                    <label style="font-weight: 600; margin-right: 12px;">当前模式:</label>
-                    <select id="edit-mode-select" style="
-                        padding: 6px 12px;
-                        border-radius: 6px;
-                        background: var(--bg-secondary);
-                        border: 1px solid var(--border);
-                        color: var(--text-primary);
-                    ">
-                        <option value="standard" ${mode === 'standard' ? 'selected' : ''}>🎯 标准模式 (Standard)</option>
-                        <option value="reference" ${mode === 'reference' ? 'selected' : ''}>👤 参考图模式 (Reference)</option>
-                        <option value="frames" ${mode === 'frames' ? 'selected' : ''}>🎬 首尾帧模式 (Frames)</option>
-                    </select>
-                    <span style="margin-left: 12px; color: var(--text-secondary); font-size: 0.85rem;">
-                        ${mode === 'standard' ? '纯文本提示词' : mode === 'reference' ? '使用角色参考图' : '使用场景首尾帧'}
-                    </span>
-                </div>
-
-                <!-- 中文提示词编辑 -->
-                <div style="margin-bottom: 20px;">
-                    <label style="font-weight: 600; display: block; margin-bottom: 8px; color: #f59e0b;">📝 中文提示词（界面显示）</label>
-                    <textarea id="edit-prompt-cn-standard" style="
-                        width: 100%;
-                        min-height: 80px;
-                        padding: 12px;
-                        border-radius: 8px;
-                        background: var(--bg-dark);
-                        border: 1px solid var(--border);
-                        color: var(--text-primary);
-                        font-family: inherit;
-                        line-height: 1.5;
-                        resize: vertical;
-                        display: ${mode === 'standard' ? 'block' : 'none'};
-                    " placeholder="输入标准模式中文提示词...">${this.escapeHtml(shot.veo_prompt_standard_cn || shot.veo_prompt_standard || '')}</textarea>
-                    <textarea id="edit-prompt-cn-reference" style="
-                        width: 100%;
-                        min-height: 80px;
-                        padding: 12px;
-                        border-radius: 8px;
-                        background: var(--bg-dark);
-                        border: 1px solid var(--border);
-                        color: var(--text-primary);
-                        font-family: inherit;
-                        line-height: 1.5;
-                        resize: vertical;
-                        display: ${mode === 'reference' ? 'block' : 'none'};
-                    " placeholder="输入参考图模式中文提示词...">${this.escapeHtml(shot.veo_prompt_reference_cn || shot.veo_prompt_reference || '')}</textarea>
-                    <textarea id="edit-prompt-cn-frames" style="
-                        width: 100%;
-                        min-height: 80px;
-                        padding: 12px;
-                        border-radius: 8px;
-                        background: var(--bg-dark);
-                        border: 1px solid var(--border);
-                        color: var(--text-primary);
-                        font-family: inherit;
-                        line-height: 1.5;
-                        resize: vertical;
-                        display: ${mode === 'frames' ? 'block' : 'none'};
-                    " placeholder="输入首尾帧模式中文提示词...">${this.escapeHtml(shot.veo_prompt_frames_cn || shot.veo_prompt_frames || '')}</textarea>
-                </div>
-
-                <!-- 英文提示词编辑 -->
-                <div style="margin-bottom: 20px;">
-                    <label style="font-weight: 600; display: block; margin-bottom: 8px; color: #3b82f6;">🌐 英文提示词（发送给 VeO API）</label>
-                    <textarea id="edit-prompt-en-standard" style="
-                        width: 100%;
-                        min-height: 80px;
-                        padding: 12px;
-                        border-radius: 8px;
-                        background: var(--bg-dark);
-                        border: 1px solid var(--border);
-                        color: var(--text-primary);
-                        font-family: inherit;
-                        line-height: 1.5;
-                        resize: vertical;
-                        display: ${mode === 'standard' ? 'block' : 'none'};
-                    " placeholder="输入标准模式英文提示词...">${this.escapeHtml(shot.veo_prompt_standard || '')}</textarea>
-                    <textarea id="edit-prompt-en-reference" style="
-                        width: 100%;
-                        min-height: 80px;
-                        padding: 12px;
-                        border-radius: 8px;
-                        background: var(--bg-dark);
-                        border: 1px solid var(--border);
-                        color: var(--text-primary);
-                        font-family: inherit;
-                        line-height: 1.5;
-                        resize: vertical;
-                        display: ${mode === 'reference' ? 'block' : 'none'};
-                    " placeholder="输入参考图模式英文提示词...">${this.escapeHtml(shot.veo_prompt_reference || '')}</textarea>
-                    <textarea id="edit-prompt-en-frames" style="
-                        width: 100%;
-                        min-height: 80px;
-                        padding: 12px;
-                        border-radius: 8px;
-                        background: var(--bg-dark);
-                        border: 1px solid var(--border);
-                        color: var(--text-primary);
-                        font-family: inherit;
-                        line-height: 1.5;
-                        resize: vertical;
-                        display: ${mode === 'frames' ? 'block' : 'none'};
-                    " placeholder="输入首尾帧模式英文提示词...">${this.escapeHtml(shot.veo_prompt_frames || '')}</textarea>
-                </div>
-
-                <!-- 提示说明 -->
-                <div style="
-                    background: rgba(245, 158, 11, 0.1);
-                    border-left: 3px solid #f59e0b;
-                    padding: 12px;
-                    border-radius: 0 8px 8px 0;
-                    margin-bottom: 20px;
-                    font-size: 0.85rem;
-                    color: var(--text-secondary);
-                ">
-                    💡 <strong>提示:</strong> 中文版本用于界面显示，英文版本实际发送给 VeO API。建议保持中英文含义一致。
-                </div>
-
-                <!-- 按钮 -->
-                <div style="display: flex; justify-content: flex-end; gap: 12px;">
-                    <button class="modal-cancel" style="
-                        padding: 10px 20px;
-                        background: var(--bg-tertiary);
-                        border: 1px solid var(--border);
-                        border-radius: 8px;
-                        color: var(--text-primary);
-                        cursor: pointer;
-                    ">取消</button>
-                    <button class="modal-save" style="
-                        padding: 10px 24px;
-                        background: var(--primary);
-                        border: none;
-                        border-radius: 8px;
-                        color: white;
-                        cursor: pointer;
-                        font-weight: 500;
-                    ">💾 保存</button>
-                </div>
-            </div>
-        `;
-
-        // 模式切换处理
-        const modeSelect = modal.querySelector('#edit-mode-select');
-        modeSelect.addEventListener('change', (e) => {
-            const newMode = e.target.value;
-            // 隐藏所有 textarea
-            ['standard', 'reference', 'frames'].forEach(m => {
-                modal.querySelector(`#edit-prompt-cn-${m}`).style.display = 'none';
-                modal.querySelector(`#edit-prompt-en-${m}`).style.display = 'none';
-            });
-            // 显示当前模式的 textarea
-            modal.querySelector(`#edit-prompt-cn-${newMode}`).style.display = 'block';
-            modal.querySelector(`#edit-prompt-en-${newMode}`).style.display = 'block';
-            // 更新说明文字
-            const descMap = {
-                'standard': '纯文本提示词',
-                'reference': '使用角色参考图',
-                'frames': '使用场景首尾帧'
-            };
-            e.target.nextElementSibling.textContent = descMap[newMode];
-        });
-
-        // 关闭弹窗
-        modal.querySelector('.modal-close').addEventListener('click', () => modal.remove());
-        modal.querySelector('.modal-cancel').addEventListener('click', () => modal.remove());
-        
-        // 点击背景关闭
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) modal.remove();
-        });
-
-        // 保存处理
-        modal.querySelector('.modal-save').addEventListener('click', () => {
-            // 获取所有模式的值
-            const cnStandard = modal.querySelector('#edit-prompt-cn-standard').value.trim();
-            const cnReference = modal.querySelector('#edit-prompt-cn-reference').value.trim();
-            const cnFrames = modal.querySelector('#edit-prompt-cn-frames').value.trim();
-            const enStandard = modal.querySelector('#edit-prompt-en-standard').value.trim();
-            const enReference = modal.querySelector('#edit-prompt-en-reference').value.trim();
-            const enFrames = modal.querySelector('#edit-prompt-en-frames').value.trim();
-
-            // 更新 shot 数据
-            if (cnStandard) shot.veo_prompt_standard_cn = cnStandard;
-            if (cnReference) shot.veo_prompt_reference_cn = cnReference;
-            if (cnFrames) shot.veo_prompt_frames_cn = cnFrames;
-            if (enStandard) shot.veo_prompt_standard = enStandard;
-            if (enReference) shot.veo_prompt_reference = enReference;
-            if (enFrames) shot.veo_prompt_frames = enFrames;
-
-            // 更新当前显示的提示词
-            const newMode = modeSelect.value;
-            shot.preferred_mode = newMode;
-            
-            // 重新渲染该行
-            const rowElement = document.getElementById(`taskRow_${idx}`);
-            if (rowElement) {
-                rowElement.outerHTML = this.renderVideoTaskRow(shot, idx);
-            }
-
-            this.showToast('提示词已保存', 'success');
-            modal.remove();
-            
-            console.log('💾 [编辑提示词] 已保存镜头', idx, '的提示词:', {
-                mode: newMode,
-                hasCN: !!cnStandard || !!cnReference || !!cnFrames,
-                hasEN: !!enStandard || !!enReference || !!enFrames
-            });
-        });
-
-        document.body.appendChild(modal);
+        const newPrompt = prompt('编辑提示词:', shot.veo_prompt || shot.screen_action || '');
+        if (newPrompt !== null && newPrompt.trim()) {
+            shot.veo_prompt = newPrompt.trim();
+            this.updateVideoCard(idx);
+            this.showToast('提示词已更新', 'success');
+        }
     }
 
     /**
@@ -7888,258 +8231,17 @@ saveGeminiConfig(config) {
         const container = document.getElementById('exportContent');
         if (!container) return;
 
-        const shots = this.shots || [];
-        const completedShots = shots.filter(s => s.videoExists && s.videoUrl);
-        const hasAudio = shots.some(s => s.audioUrl);
-        
-        const completedCount = completedShots.length;
-        const totalCount = shots.length;
-        const progressPercent = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
-
         container.innerHTML = `
-            <div class="export-section" style="max-width: 900px; margin: 0 auto;">
-                <!-- 导出进度概览 -->
-                <div class="export-overview" style="background: var(--bg-secondary); border-radius: 16px; padding: 24px; margin-bottom: 24px; border: 1px solid var(--border);">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-                        <h3 style="margin: 0; font-size: 1.2rem;">📊 生成进度</h3>
-                        <span style="font-size: 1.5rem; font-weight: 700; color: var(--primary);">${progressPercent}%</span>
-                    </div>
-                    <div style="background: var(--bg-dark); height: 8px; border-radius: 4px; overflow: hidden; margin-bottom: 12px;">
-                        <div style="width: ${progressPercent}%; height: 100%; background: linear-gradient(90deg, var(--primary), var(--accent-color)); transition: width 0.3s;"></div>
-                    </div>
-                    <div style="display: flex; gap: 16px; flex-wrap: wrap; color: var(--text-secondary); font-size: 0.9rem;">
-                        <span>✅ 已完成: ${completedCount}</span>
-                        <span>⏳ 待生成: ${totalCount - completedCount}</span>
-                        <span>🎬 总镜头: ${totalCount}</span>
-                        ${hasAudio ? '<span>🔊 已配音: 是</span>' : '<span>🔇 已配音: 否</span>'}
-                    </div>
-                </div>
-
-                <!-- 导出选项网格 -->
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;">
-                    <!-- 视频导出 -->
-                    <div class="export-card" style="background: var(--bg-secondary); border-radius: 12px; padding: 20px; border: 1px solid var(--border); ${completedCount === 0 ? 'opacity: 0.6;' : ''}">
-                        <div style="font-size: 2rem; margin-bottom: 12px;">🎬</div>
-                        <h4 style="margin: 0 0 8px 0;">批量下载视频</h4>
-                        <p style="margin: 0 0 16px 0; font-size: 0.85rem; color: var(--text-secondary);">打包下载所有已生成的视频文件 (${completedCount}个)</p>
-                        <button class="btn btn-primary" onclick="shortDramaStudio.exportVideosZip()" ${completedCount === 0 ? 'disabled' : ''} style="width: 100%;">
-                            📥 下载视频包
-                        </button>
-                    </div>
-
-                    <!-- 音频导出 -->
-                    <div class="export-card" style="background: var(--bg-secondary); border-radius: 12px; padding: 20px; border: 1px solid var(--border); ${!hasAudio ? 'opacity: 0.6;' : ''}">
-                        <div style="font-size: 2rem; margin-bottom: 12px;">🔊</div>
-                        <h4 style="margin: 0 0 8px 0;">导出配音音频</h4>
-                        <p style="margin: 0 0 16px 0; font-size: 0.85rem; color: var(--text-secondary);">打包下载所有配音音频文件</p>
-                        <button class="btn btn-primary" onclick="shortDramaStudio.exportAudioZip()" ${!hasAudio ? 'disabled' : ''} style="width: 100%;">
-                            📥 下载音频包
-                        </button>
-                    </div>
-
-                    <!-- 字幕导出 -->
-                    <div class="export-card" style="background: var(--bg-secondary); border-radius: 12px; padding: 20px; border: 1px solid var(--border);">
-                        <div style="font-size: 2rem; margin-bottom: 12px;">📝</div>
-                        <h4 style="margin: 0 0 8px 0;">导出字幕文件</h4>
-                        <p style="margin: 0 0 16px 0; font-size: 0.85rem; color: var(--text-secondary);">导出 SRT 格式字幕文件</p>
-                        <button class="btn btn-primary" onclick="shortDramaStudio.exportSubtitle()" style="width: 100%;">
-                            📥 下载字幕
-                        </button>
-                    </div>
-
-                    <!-- 项目配置导出 -->
-                    <div class="export-card" style="background: var(--bg-secondary); border-radius: 12px; padding: 20px; border: 1px solid var(--border);">
-                        <div style="font-size: 2rem; margin-bottom: 12px;">⚙️</div>
-                        <h4 style="margin: 0 0 8px 0;">导出项目配置</h4>
-                        <p style="margin: 0 0 16px 0; font-size: 0.85rem; color: var(--text-secondary);">导出分镜配置、提示词等 JSON 文件</p>
-                        <button class="btn btn-primary" onclick="shortDramaStudio.exportProjectConfig()" style="width: 100%;">
-                            📥 下载配置
-                        </button>
-                    </div>
-
-                    <!-- 完整成片导出 -->
-                    <div class="export-card" style="background: linear-gradient(135deg, rgba(99,102,241,0.1), rgba(168,85,247,0.1)); border-radius: 12px; padding: 20px; border: 1px solid var(--primary); ${completedCount < totalCount ? 'opacity: 0.6;' : ''}">
-                        <div style="font-size: 2rem; margin-bottom: 12px;">🎞️</div>
-                        <h4 style="margin: 0 0 8px 0; color: var(--primary);">一键打包全部</h4>
-                        <p style="margin: 0 0 16px 0; font-size: 0.85rem; color: var(--text-secondary);">ZIP 包含视频+音频+字幕+配置文件</p>
-                        <button class="btn btn-primary" onclick="shortDramaStudio.exportCompletePackage()" ${completedCount === 0 ? 'disabled' : ''} style="width: 100%; background: linear-gradient(135deg, var(--primary), var(--accent-color));">
-                            📦 打包下载全部
-                        </button>
-                    </div>
-
-                    <!-- 视频列表预览 -->
-                    <div class="export-card" style="background: var(--bg-secondary); border-radius: 12px; padding: 20px; border: 1px solid var(--border); grid-column: 1 / -1;">
-                        <h4 style="margin: 0 0 16px 0;">📋 视频列表 (${completedCount}/${totalCount})</h4>
-                        <div style="max-height: 300px; overflow-y: auto;">
-                            ${completedCount > 0 ? completedShots.map((shot, idx) => `
-                                <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px; background: var(--bg-dark); border-radius: 8px; margin-bottom: 8px;">
-                                    <div style="display: flex; align-items: center; gap: 12px;">
-                                        <span style="background: var(--primary); color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem;">S${shot.scene_number || 1}-#${shot.shot_number || idx + 1}</span>
-                                        <span style="font-size: 0.9rem;">${shot.shot_type || '镜头'}</span>
-                                        <span style="font-size: 0.8rem; color: var(--text-secondary);">${shot.duration || 5}秒</span>
-                                    </div>
-                                    <a href="${shot.videoUrl}" target="_blank" download style="font-size: 0.85rem; color: var(--primary); text-decoration: none;">⬇️ 下载</a>
-                                </div>
-                            `).join('') : '<p style="text-align: center; color: var(--text-secondary); padding: 20px;">暂无已完成的视频</p>'}
-                        </div>
-                    </div>
+            <div class="export-section">
+                <div class="empty-state">
+                    <p style="font-size: 2rem;">📤</p>
+                    <p>导出功能</p>
+                    <p style="font-size: 0.85rem; color: var(--text-secondary);">
+                        完成视频生成后，可以在这里导出最终成片
+                    </p>
                 </div>
             </div>
         `;
-    }
-
-    /**
-     * 批量导出视频 ZIP
-     */
-    async exportVideosZip() {
-        const completedShots = this.shots.filter(s => s.videoExists && s.videoUrl);
-        if (completedShots.length === 0) {
-            this.showToast('没有可导出的视频', 'warning');
-            return;
-        }
-
-        this.showToast(`正在打包 ${completedShots.length} 个视频...`, 'info');
-
-        try {
-            const episodeDirectoryName = this.getEpisodeDirectoryName();
-            
-            // 调用后端 API 打包视频
-            const response = await fetch('/api/export/videos-zip', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    novel_title: this.selectedNovel,
-                    episode_title: episodeDirectoryName,
-                    shots: completedShots.map(s => ({
-                        scene_number: s.scene_number,
-                        shot_number: s.shot_number,
-                        video_url: s.videoUrl,
-                        shot_type: s.shot_type
-                    }))
-                })
-            });
-
-            if (!response.ok) {
-                throw new Error('打包失败');
-            }
-
-            // 下载 ZIP 文件
-            const blob = await response.blob();
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `${episodeDirectoryName}_视频合集_${completedShots.length}个.zip`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-
-            this.showToast('视频包下载成功！', 'success');
-        } catch (error) {
-            console.error('导出视频失败:', error);
-            this.showToast('导出失败: ' + error.message, 'error');
-        }
-    }
-
-    /**
-     * 导出音频 ZIP
-     */
-    async exportAudioZip() {
-        const shotsWithAudio = this.shots.filter(s => s.audioUrl);
-        if (shotsWithAudio.length === 0) {
-            this.showToast('没有可导出的音频', 'warning');
-            return;
-        }
-
-        this.showToast(`正在打包 ${shotsWithAudio.length} 个音频...`, 'info');
-        
-        // 复用已有的 downloadAllAudio 方法
-        await this.downloadAllAudio();
-    }
-
-    /**
-     * 导出项目配置
-     */
-    async exportProjectConfig() {
-        try {
-            const config = {
-                project_name: this.currentProject?.title || '未命名项目',
-                novel_title: this.selectedNovel,
-                episode: this.getEpisodeDirectoryName(),
-                export_time: new Date().toISOString(),
-                settings: this.currentProject?.settings || {},
-                shots: this.shots.map(s => ({
-                    id: s.id,
-                    scene_number: s.scene_number,
-                    shot_number: s.shot_number,
-                    shot_type: s.shot_type,
-                    duration: s.duration,
-                    dialogue: s.dialogue,
-                    veo_prompt_standard: s.veo_prompt_standard,
-                    veo_prompt_reference: s.veo_prompt_reference,
-                    veo_prompt_frames: s.veo_prompt_frames,
-                    preferred_mode: s.preferred_mode,
-                    visual_elements: s.visual_elements,
-                    video_exists: s.videoExists || false,
-                    audio_exists: !!s.audioUrl
-                })),
-                characters: this.currentProject?.characters || []
-            };
-
-            const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `${this.getEpisodeDirectoryName()}_项目配置.json`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-
-            this.showToast('项目配置已导出', 'success');
-        } catch (error) {
-            console.error('导出配置失败:', error);
-            this.showToast('导出失败: ' + error.message, 'error');
-        }
-    }
-
-    /**
-     * 一键打包全部
-     */
-    async exportCompletePackage() {
-        this.showToast('正在打包全部内容，请稍候...', 'info');
-
-        try {
-            const episodeDirectoryName = this.getEpisodeDirectoryName();
-            
-            const response = await fetch('/api/export/complete-package', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    novel_title: this.selectedNovel,
-                    episode_title: episodeDirectoryName
-                })
-            });
-
-            if (!response.ok) {
-                throw new Error('打包失败');
-            }
-
-            const blob = await response.blob();
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `${episodeDirectoryName}_完整成片包.zip`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-
-            this.showToast('完整成片包下载成功！', 'success');
-        } catch (error) {
-            console.error('导出完整包失败:', error);
-            this.showToast('导出失败: ' + error.message, 'error');
-        }
     }
 
     /**
@@ -8758,8 +8860,8 @@ saveGeminiConfig(config) {
             document.getElementById('ideaEpisode').value = '1';
             document.getElementById('ideaDescription').value = '';
             document.getElementById('ideaStyle').value = '通用';
-            document.getElementById('ideaShotDuration').value = '5';
-            document.getElementById('durationValue').textContent = '5秒';
+            document.getElementById('ideaShotCount').value = '3';
+            document.getElementById('ideaShotDuration').value = '8';
         }
     }
 
@@ -8780,10 +8882,9 @@ saveGeminiConfig(config) {
         const title = document.getElementById('ideaTitle').value.trim();
         const episode = parseInt(document.getElementById('ideaEpisode').value) || 1;
         const description = document.getElementById('ideaDescription').value.trim();
-        const worldSetting = document.getElementById('ideaWorldSetting').value.trim();
         const style = document.getElementById('ideaStyle').value;
-        // 🔥 移除 shot_count，让AI自由决定分镜数量
-        const shotDuration = parseInt(document.getElementById('ideaShotDuration').value) || 5;
+        const shotCount = parseInt(document.getElementById('ideaShotCount').value) || 3;
+        const shotDuration = parseInt(document.getElementById('ideaShotDuration').value) || 8;
 
         // 验证必填字段
         if (!title) {
@@ -8813,9 +8914,8 @@ saveGeminiConfig(config) {
                     title,
                     episode,
                     description,
-                    world_setting: worldSetting,
                     style,
-                    // 🔥 不再传递 shot_count，让AI自由决定
+                    shot_count: shotCount,
                     shot_duration: shotDuration
                 })
             });
@@ -8905,6 +9005,9 @@ saveGeminiConfig(config) {
             button.innerHTML = '生成中...';
         }
         try {
+            // 🔥 先保存视觉资产到项目（确保AI生成时使用标准描述）
+            await this.saveVisualAssetsToProject();
+
             const response = await fetch('/api/short-drama/story-beats/generate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -9083,93 +9186,30 @@ saveGeminiConfig(config) {
     }
 
     /**
-     * 处理分镜生成按钮点击
-     * 检查是否已有数据，询问是否重新生成
-     */
-    async handleStoryboardGenerate() {
-        // 检查是否已有分镜数据（包括内存和文件系统）
-        let hasShots = this.currentProject?.shots && this.currentProject.shots.length > 0;
-        
-        // 如果内存中没有，检查文件系统
-        if (!hasShots) {
-            const existingShots = await this.loadShotsV2();
-            hasShots = existingShots?.shots?.length > 0;
-            if (hasShots) {
-                this.currentProject.shots = existingShots.shots;
-            }
-        }
-        
-        if (hasShots) {
-            // 已有数据，询问是否重新生成
-            const shotCount = this.currentProject.shots.length;
-            const confirmed = confirm(`已存在 ${shotCount} 个分镜头，确定要重新生成吗？\n\n这将覆盖现有数据，重新基于故事节拍生成新的分镜脚本。`);
-            if (!confirmed) {
-                return;
-            }
-            // 清除现有数据，强制重新生成
-            this.currentProject.shots = null;
-        }
-        
-        // 调用加载/生成函数（强制生成模式）
-        await this.loadStoryboardStep(true);
-        
-        // 更新按钮状态
-        this.updateStoryboardButtonState();
-    }
-    
-    /**
-     * 更新分镜生成按钮状态
-     */
-    updateStoryboardButtonState() {
-        const btn = document.getElementById('storyboardGenerateBtn');
-        if (!btn) return;
-        
-        const hasShots = this.currentProject?.shots && this.currentProject.shots.length > 0;
-        if (hasShots) {
-            btn.innerHTML = '🔄 重新生成分镜';
-            btn.classList.remove('btn-primary');
-            btn.classList.add('btn-secondary');
-        } else {
-            btn.innerHTML = '🎬 开始分镜生成';
-            btn.classList.remove('btn-secondary');
-            btn.classList.add('btn-primary');
-        }
-    }
-
-    /**
      * 加载分镜步骤
-     * @param {boolean} forceGenerate - 是否强制重新生成
      */
-    async loadStoryboardStep(forceGenerate = false) {
+    async loadStoryboardStep() {
         const container = document.getElementById('storyboardContent');
         if (!container) return;
-        
-        // 🔥 首先检查是否已有分镜头数据（除非强制重新生成）
-        if (!forceGenerate && this.currentProject?.shots && this.currentProject.shots.length > 0) {
-            console.log('✅ [分镜头] 使用内存中的分镜头数据:', this.currentProject.shots.length);
-            this.renderShotsList();
-            return;
-        }
-        
-        // 🔥 其次尝试从文件系统加载已保存的分镜头（除非强制重新生成）
-        if (!forceGenerate) {
-            container.innerHTML = `
-                <div class="empty-state">
-                    <p>⏳</p>
-                    <p>正在加载分镜头...</p>
-                </div>
-            `;
-            
-            const existingShots = await this.loadShotsV2();
-            if (existingShots?.shots?.length > 0) {
-                console.log('✅ [分镜头] 从文件加载已存在的分镜头:', existingShots.shots.length);
-                this.currentProject.shots = existingShots.shots;
+
+        // 🔥 优先检查 episodes 中是否有 shots 数据（创意导入优先级最高）
+        if (this.currentProject?.episodes && this.currentProject.episodes.length > 0) {
+            const firstEpisode = this.currentProject.episodes[0];
+            if (firstEpisode.shots && firstEpisode.shots.length > 0) {
+                console.log('✅ [分镜头] 从 episodes 加载 shots 数据（创意导入）');
+                this.currentProject.shots = firstEpisode.shots;
                 this.renderShotsList();
                 return;
             }
         }
-        
-        // 🔥 没有已存在的分镜头，需要生成
+
+        // 🔥 其次检查根级别的 shots 数据（手动生成）
+        if (this.currentProject?.shots && this.currentProject.shots.length > 0) {
+            console.log('✅ [分镜头] 已有根级别 shots 数据，直接显示');
+            this.renderShotsList();
+            return;
+        }
+
         if (!this.currentProject?.storyBeats?.scenes) {
             container.innerHTML = `
                 <div class="empty-state">
@@ -9179,7 +9219,26 @@ saveGeminiConfig(config) {
             `;
             return;
         }
-        
+
+        // 🔥 显示生成按钮，让用户手动触发生成
+        container.innerHTML = `
+            <div class="empty-state">
+                <p>🎬</p>
+                <p>暂无分镜头数据</p>
+                <button class="btn btn-primary" onclick="shortDramaStudio.generateStoryboard()">
+                    生成分镜头
+                </button>
+            </div>
+        `;
+    }
+
+    /**
+     * 生成分镜头（手动触发）
+     */
+    async generateStoryboard() {
+        const container = document.getElementById('storyboardContent');
+        if (!container) return;
+
         const settings = this.getVideoSettings();
         let modeText = '标准模式';
         if (settings.useFirstLastFrame) {
@@ -9187,7 +9246,7 @@ saveGeminiConfig(config) {
         } else if (settings.hasReferenceImages) {
             modeText = '参考图模式（使用角色剧照）';
         }
-        
+
         container.innerHTML = `
             <div class="empty-state">
                 <p>⏳</p>
@@ -9197,8 +9256,11 @@ saveGeminiConfig(config) {
                 </p>
             </div>
         `;
-        
+
         try {
+            // 🔥 先保存视觉资产到项目（确保AI生成时使用标准描述）
+            await this.saveVisualAssetsToProject();
+
             const response = await fetch('/api/short-drama/storyboard/generate-from-beats', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -9209,9 +9271,9 @@ saveGeminiConfig(config) {
                     hasFirstLastFrame: settings.useFirstLastFrame
                 })
             });
-            
+
             const data = await response.json();
-            
+
             if (data.success) {
                 this.currentProject.shots = data.shots;
                 // 🔥 保存到文件系统（数据流A持久化）
@@ -9228,6 +9290,9 @@ saveGeminiConfig(config) {
                     <p>❌</p>
                     <p>生成分镜头失败</p>
                     <p style="font-size: 0.85rem; color: var(--text-secondary);">${error.message}</p>
+                    <button class="btn btn-primary" onclick="shortDramaStudio.generateStoryboard()">
+                        重试
+                    </button>
                 </div>
             `;
         }
@@ -9239,9 +9304,6 @@ saveGeminiConfig(config) {
     renderShotsList() {
         const container = document.getElementById('storyboardContent');
         if (!container) return;
-        
-        // 更新按钮状态
-        this.updateStoryboardButtonState();
         
         const shots = this.currentProject?.shots || [];
         
@@ -9270,22 +9332,10 @@ saveGeminiConfig(config) {
             scenesMap[sceneNum].shots.push(shot);
         });
         
-        // 检查是否已经有中文翻译
-        const hasChineseTranslation = shots.some(s => s.veo_prompt_standard_cn || s.veo_prompt_reference_cn || s.veo_prompt_frames_cn);
-        
         let html = `
             <div class="storyboard-header">
                 <h3>🎬 分镜头脚本</h3>
-                <div style="display: flex; gap: 0.5rem; align-items: center;">
-                    <span>共 ${shots.length} 个镜头</span>
-                    ${!hasChineseTranslation ? `
-                        <button class="btn btn-sm btn-secondary" onclick="shortDramaStudio.translateAllShots()" title="一次性翻译所有英文提示词为中文">
-                            🌐 批量翻译
-                        </button>
-                    ` : `
-                        <span style="font-size: 0.8rem; color: var(--success);">✓ 已翻译</span>
-                    `}
-                </div>
+                <span>共 ${shots.length} 个镜头</span>
             </div>
             <div class="scenes-list">
         `;
@@ -9373,45 +9423,37 @@ saveGeminiConfig(config) {
                                         ${shot.image_prompts.scene ? `
                                             <div class="image-prompt-item">
                                                 <div class="prompt-header">
-                                                    <span>🏞️ 场景图</span>
+                                                    <span>🏞️ 场景图（空场景背景）</span>
+                                                    <button class="btn btn-sm" onclick="shortDramaStudio.copyToClipboard('${this.escapeHtml(shot.image_prompts.scene)}')">复制英文</button>
                                                 </div>
-                                                <p class="prompt-text">${shot.image_prompts.scene}</p>
-                                                <div class="prompt-actions">
-                                                    <button class="btn btn-sm" onclick="shortDramaStudio.copyToClipboard('${this.escapeHtml(shot.image_prompts.scene)}')">复制</button>
-                                                </div>
+                                                <p class="prompt-text">${shot.image_prompts_cn?.scene || shot.image_prompts.scene}</p>
                                             </div>
                                         ` : ''}
                                         ${shot.image_prompts.character ? `
                                             <div class="image-prompt-item">
                                                 <div class="prompt-header">
-                                                    <span>👤 角色图</span>
+                                                    <span>👤 角色图（角色参考）</span>
+                                                    <button class="btn btn-sm" onclick="shortDramaStudio.copyToClipboard('${this.escapeHtml(shot.image_prompts.character)}')">复制英文</button>
                                                 </div>
-                                                <p class="prompt-text">${shot.image_prompts.character}</p>
-                                                <div class="prompt-actions">
-                                                    <button class="btn btn-sm" onclick="shortDramaStudio.copyToClipboard('${this.escapeHtml(shot.image_prompts.character)}')">复制</button>
-                                                </div>
+                                                <p class="prompt-text">${shot.image_prompts_cn?.character || shot.image_prompts.character}</p>
                                             </div>
                                         ` : ''}
                                         ${shot.image_prompts.first_frame ? `
                                             <div class="image-prompt-item">
                                                 <div class="prompt-header">
-                                                    <span>🎬 首帧</span>
+                                                    <span>🎬 首帧（起始画面）</span>
+                                                    <button class="btn btn-sm" onclick="shortDramaStudio.copyToClipboard('${this.escapeHtml(shot.image_prompts.first_frame)}')">复制英文</button>
                                                 </div>
-                                                <p class="prompt-text">${shot.image_prompts.first_frame}</p>
-                                                <div class="prompt-actions">
-                                                    <button class="btn btn-sm" onclick="shortDramaStudio.copyToClipboard('${this.escapeHtml(shot.image_prompts.first_frame)}')">复制</button>
-                                                </div>
+                                                <p class="prompt-text">${shot.image_prompts_cn?.first_frame || shot.image_prompts.first_frame}</p>
                                             </div>
                                         ` : ''}
                                         ${shot.image_prompts.last_frame ? `
                                             <div class="image-prompt-item">
                                                 <div class="prompt-header">
-                                                    <span>🎬 尾帧</span>
+                                                    <span>🎬 尾帧（结束画面）</span>
+                                                    <button class="btn btn-sm" onclick="shortDramaStudio.copyToClipboard('${this.escapeHtml(shot.image_prompts.last_frame)}')">复制英文</button>
                                                 </div>
-                                                <p class="prompt-text">${shot.image_prompts.last_frame}</p>
-                                                <div class="prompt-actions">
-                                                    <button class="btn btn-sm" onclick="shortDramaStudio.copyToClipboard('${this.escapeHtml(shot.image_prompts.last_frame)}')">复制</button>
-                                                </div>
+                                                <p class="prompt-text">${shot.image_prompts_cn?.last_frame || shot.image_prompts.last_frame}</p>
                                             </div>
                                         ` : ''}
                                     </div>
@@ -9486,58 +9528,6 @@ saveGeminiConfig(config) {
     }
 
     /**
-     * 批量翻译所有镜头的提示词
-     */
-    async translateAllShots() {
-        if (!this.selectedNovel || !this.episodeDirectoryName) {
-            this.showToast('请先选择小说和集数', 'warning');
-            return;
-        }
-        
-        const shots = this.currentProject?.shots || [];
-        if (shots.length === 0) {
-            this.showToast('没有可翻译的镜头', 'warning');
-            return;
-        }
-        
-        // 检查是否已经翻译过
-        const hasTranslation = shots.some(s => s.veo_prompt_standard_cn || s.veo_prompt_reference_cn || s.veo_prompt_frames_cn);
-        if (hasTranslation) {
-            const confirmed = confirm('镜头已有中文翻译，是否重新翻译？');
-            if (!confirmed) return;
-        }
-        
-        this.showToast('开始批量翻译，请稍候...', 'info');
-        
-        try {
-            const response = await fetch('/api/short-drama/shots/translate-all', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    novel: this.selectedNovel,
-                    episode: this.episodeDirectoryName
-                })
-            });
-            
-            const data = await response.json();
-            
-            if (data.success) {
-                // 更新本地数据
-                if (data.shots) {
-                    this.currentProject.shots = data.shots;
-                }
-                this.renderShotsList();
-                this.showToast(`翻译完成: ${data.translatedCount} 成功, ${data.failedCount} 失败`, 'success');
-            } else {
-                this.showToast(data.error || '翻译失败', 'error');
-            }
-        } catch (error) {
-            console.error('批量翻译失败:', error);
-            this.showToast('批量翻译失败: ' + error.message, 'error');
-        }
-    }
-
-    /**
      * 复制到剪贴板
      */
     copyToClipboard(text) {
@@ -9558,6 +9548,536 @@ saveGeminiConfig(config) {
             document.body.removeChild(textarea);
             this.showToast('已复制到剪贴板', 'success');
         });
+    }
+
+    // ==================== 角色剧照无限画布方法 ====================
+
+    /**
+     * 初始化角色剧照无限画布
+     */
+    initPortraitCanvas(characters) {
+        if (typeof Konva === 'undefined') {
+            console.warn('⚠️ Konva.js 未加载，跳过画布初始化');
+            return;
+        }
+
+        const container = document.getElementById('portrait-konva-container');
+        if (!container) {
+            console.warn('⚠️ 找不到画布容器');
+            return;
+        }
+
+        // 如果已有舞台，先清空
+        if (this.portraitStage) {
+            this.portraitStage.destroy();
+            this.portraitStage = null;
+        }
+
+        const { width, height } = container.getBoundingClientRect();
+
+        // 创建舞台
+        this.portraitStage = new Konva.Stage({
+            container: 'portrait-konva-container',
+            width: width,
+            height: height,
+            draggable: false
+        });
+
+        // 创建主图层
+        this.portraitLayer = new Konva.Layer();
+        this.portraitStage.add(this.portraitLayer);
+
+        // 创建变换器
+        this.portraitTransformer = new Konva.Transformer({
+            borderStroke: '#6366f1',
+            borderStrokeWidth: 2,
+            anchorStroke: '#6366f1',
+            anchorFill: '#0f172a',
+            anchorSize: 8,
+            padding: 4,
+            keepRatio: true,
+            enabledAnchors: ['top-left', 'top-right', 'bottom-left', 'bottom-right']
+        });
+        this.portraitLayer.add(this.portraitTransformer);
+
+        // 创建格子背景
+        this.createPortraitGridBackground();
+
+        // 绑定事件
+        this.bindPortraitCanvasEvents();
+
+        // 渲染角色到画布
+        this.renderCharactersToCanvas(characters);
+
+        // 初始化工具栏
+        this.initPortraitToolbar();
+
+        console.log('✅ [角色剧照画布] 初始化完成');
+    }
+
+    /**
+     * 创建格子背景
+     */
+    createPortraitGridBackground() {
+        const gridLayer = new Konva.Layer();
+        const gridSize = 50;
+        const stageWidth = 3000;
+        const stageHeight = 2000;
+
+        // 垂直线
+        for (let x = 0; x <= stageWidth; x += gridSize) {
+            gridLayer.add(new Konva.Line({
+                points: [x, 0, x, stageHeight],
+                stroke: 'rgba(99, 102, 241, 0.1)',
+                strokeWidth: 1
+            }));
+        }
+
+        // 水平线
+        for (let y = 0; y <= stageHeight; y += gridSize) {
+            gridLayer.add(new Konva.Line({
+                points: [0, y, stageWidth, y],
+                stroke: 'rgba(99, 102, 241, 0.1)',
+                strokeWidth: 1
+            }));
+        }
+
+        // 三大区域标记
+        const regions = [
+            { x: 500, y: 200, name: '🎭 角色区', color: 'rgba(236, 72, 153, 0.15)' },
+            { x: 1500, y: 200, name: '🏞 ️场景区', color: 'rgba(34, 197, 94, 0.15)' },
+            { x: 2500, y: 200, name: '🎒 道具区', color: 'rgba(245, 158, 11, 0.15)' }
+        ];
+
+        regions.forEach(region => {
+            gridLayer.add(new Konva.Rect({
+                x: region.x - 400,
+                y: region.y - 150,
+                width: 800,
+                height: 1700,
+                fill: region.color,
+                stroke: region.color.replace('0.15', '0.3'),
+                strokeWidth: 2,
+                cornerRadius: 12
+            }));
+
+            gridLayer.add(new Konva.Text({
+                x: region.x,
+                y: region.y - 120,
+                text: region.name,
+                fontSize: 24,
+                fontStyle: 'bold',
+                fill: 'rgba(255, 255, 255, 0.6)',
+                align: 'center'
+            }));
+        });
+
+        this.portraitStage.add(gridLayer);
+        gridLayer.moveToBottom();
+
+        // 居中显示
+        const container = document.getElementById('portrait-konva-container');
+        const viewWidth = container.offsetWidth;
+        const viewHeight = container.offsetHeight;
+        
+        this.portraitStage.x((viewWidth - stageWidth) / 2);
+        this.portraitStage.y((viewHeight - stageHeight) / 2);
+    }
+
+    /**
+     * 渲染角色到画布
+     */
+    renderCharactersToCanvas(characters) {
+        if (!characters || characters.length === 0) return;
+
+        // 角色区起始位置
+        let startX = 200;
+        let startY = 300;
+        const gapX = 220;
+        const gapY = 320;
+        const perRow = 3;
+
+        characters.forEach((char, idx) => {
+            const charName = char.name || `角色${idx + 1}`;
+            
+            // 查找剧照
+            let portraitUrl = null;
+            const portraitInfo = this.characterPortraits.get(charName);
+            if (portraitInfo && portraitInfo.mainPortrait) {
+                portraitUrl = portraitInfo.mainPortrait.url;
+            }
+
+            // 计算位置（网格布局）
+            const row = Math.floor(idx / perRow);
+            const col = idx % perRow;
+            const x = startX + col * gapX;
+            const y = startY + row * gapY;
+
+            // 创建角色卡片组
+            this.createCharacterCard(charName, char, portraitUrl, x, y);
+        });
+
+        this.portraitLayer.batchDraw();
+    }
+
+    /**
+     * 创建角色卡片
+     */
+    createCharacterCard(name, charData, imageUrl, x, y) {
+        const group = new Konva.Group({
+            x: x,
+            y: y,
+            draggable: true,
+            name: 'character-card'
+        });
+
+        // 卡片背景
+        const cardWidth = 180;
+        const cardHeight = imageUrl ? 260 : 120;
+
+        group.add(new Konva.Rect({
+            width: cardWidth,
+            height: cardHeight,
+            fill: 'rgba(30, 41, 59, 0.9)',
+            stroke: 'rgba(99, 102, 241, 0.3)',
+            strokeWidth: 1,
+            cornerRadius: 12,
+            shadowColor: 'rgba(0, 0, 0, 0.3)',
+            shadowBlur: 10,
+            shadowOffset: { x: 0, y: 4 }
+        }));
+
+        if (imageUrl) {
+            // 有剧照 - 加载图片
+            const imageObj = new Image();
+            imageObj.onload = () => {
+                const imgHeight = 180;
+                const img = new Konva.Image({
+                    x: 10,
+                    y: 10,
+                    image: imageObj,
+                    width: cardWidth - 20,
+                    height: imgHeight,
+                    cornerRadius: 8
+                });
+                group.add(img);
+
+                // 角色名
+                group.add(new Konva.Text({
+                    x: 10,
+                    y: imgHeight + 20,
+                    text: name,
+                    fontSize: 14,
+                    fontStyle: 'bold',
+                    fill: '#f1f5f9',
+                    width: cardWidth - 20,
+                    ellipsis: true
+                }));
+
+                // 角色角色
+                if (charData.role) {
+                    group.add(new Konva.Text({
+                        x: 10,
+                        y: imgHeight + 40,
+                        text: charData.role,
+                        fontSize: 11,
+                        fill: '#94a3b8',
+                        width: cardWidth - 20
+                    }));
+                }
+
+                this.portraitLayer.batchDraw();
+            };
+            imageObj.src = imageUrl;
+        } else {
+            // 无剧照 - 显示占位符
+            group.add(new Konva.Rect({
+                x: 10,
+                y: 10,
+                width: cardWidth - 20,
+                height: 60,
+                fill: 'rgba(99, 102, 241, 0.1)',
+                cornerRadius: 8
+            }));
+
+            group.add(new Konva.Text({
+                x: 0,
+                y: 35,
+                text: '👤',
+                fontSize: 24,
+                fill: '#64748b',
+                width: cardWidth,
+                align: 'center'
+            }));
+
+            group.add(new Konva.Text({
+                x: 10,
+                y: 80,
+                text: name,
+                fontSize: 14,
+                fontStyle: 'bold',
+                fill: '#f1f5f9',
+                width: cardWidth - 20,
+                ellipsis: true
+            }));
+
+            group.add(new Konva.Text({
+                x: 10,
+                y: 100,
+                text: '点击生成剧照',
+                fontSize: 11,
+                fill: '#6366f1',
+                width: cardWidth - 20
+            }));
+        }
+
+        // 添加点击事件
+        group.on('click tap', () => {
+            this.selectPortraitCard(group);
+        });
+
+        group.on('dblclick dbltap', () => {
+            // 双击打开生成/查看剧照
+            const portraitInfo = this.characterPortraits.get(name);
+            if (portraitInfo) {
+                this.viewPortrait(name);
+            } else {
+                this.generatePortrait(name);
+            }
+        });
+
+        // 拖拽事件
+        group.on('dragstart', () => {
+            group.shadowBlur(20);
+        });
+
+        group.on('dragend', () => {
+            group.shadowBlur(10);
+        });
+
+        // 存储元数据
+        group.setAttr('meta', {
+            name: name,
+            charData: charData,
+            hasPortrait: !!imageUrl
+        });
+
+        this.portraitLayer.add(group);
+        this.portraitCanvasItems.push(group);
+    }
+
+    /**
+     * 绑定画布事件
+     */
+    bindPortraitCanvasEvents() {
+        const stage = this.portraitStage;
+        const container = document.getElementById('portrait-konva-container');
+
+        // 滚轮缩放
+        container.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            
+            const oldScale = stage.scaleX();
+            const pointer = stage.getPointerPosition();
+            
+            const mousePointTo = {
+                x: (pointer.x - stage.x()) / oldScale,
+                y: (pointer.y - stage.y()) / oldScale
+            };
+
+            const zoomDirection = e.deltaY > 0 ? -1 : 1;
+            const newScale = Math.max(0.3, Math.min(2, oldScale + zoomDirection * 0.1));
+
+            stage.scale({ x: newScale, y: newScale });
+            
+            const newPos = {
+                x: pointer.x - mousePointTo.x * newScale,
+                y: pointer.y - mousePointTo.y * newScale
+            };
+            
+            stage.position(newPos);
+            this.portraitScale = newScale;
+            this.updatePortraitZoomDisplay();
+            
+            stage.batchDraw();
+        });
+
+        // 鼠标事件用于平移
+        let isPanning = false;
+        let lastPos = { x: 0, y: 0 };
+
+        stage.on('mousedown', (e) => {
+            if (e.target === stage || e.target.hasName('grid-bg')) {
+                isPanning = true;
+                lastPos = { x: e.evt.clientX, y: e.evt.clientY };
+                container.classList.add('panning');
+            } else {
+                // 点击空白处取消选择
+                this.portraitTransformer.nodes([]);
+            }
+        });
+
+        stage.on('mousemove', (e) => {
+            if (isPanning) {
+                const dx = e.evt.clientX - lastPos.x;
+                const dy = e.evt.clientY - lastPos.y;
+                
+                stage.x(stage.x() + dx);
+                stage.y(stage.y() + dy);
+                
+                lastPos = { x: e.evt.clientX, y: e.evt.clientY };
+                stage.batchDraw();
+            }
+        });
+
+        stage.on('mouseup', () => {
+            isPanning = false;
+            container.classList.remove('panning');
+        });
+    }
+
+    /**
+     * 选中卡片
+     */
+    selectPortraitCard(group) {
+        this.portraitTransformer.nodes([group]);
+        this.portraitTransformer.moveToTop();
+        this.portraitLayer.batchDraw();
+    }
+
+    /**
+     * 初始化工具栏
+     */
+    initPortraitToolbar() {
+        // 工具切换
+        document.getElementById('pc-tool-select')?.addEventListener('click', () => {
+            this.setPortraitTool('select');
+        });
+
+        document.getElementById('pc-tool-hand')?.addEventListener('click', () => {
+            this.setPortraitTool('hand');
+        });
+
+        document.getElementById('pc-tool-fit')?.addEventListener('click', () => {
+            this.fitPortraitCanvas();
+        });
+
+        document.getElementById('pc-tool-export')?.addEventListener('click', () => {
+            this.exportPortraitCanvas();
+        });
+
+        // 缩放控制
+        document.getElementById('pc-zoom-in')?.addEventListener('click', () => {
+            this.zoomPortraitCanvas(0.2);
+        });
+
+        document.getElementById('pc-zoom-out')?.addEventListener('click', () => {
+            this.zoomPortraitCanvas(-0.2);
+        });
+    }
+
+    /**
+     * 设置工具
+     */
+    setPortraitTool(tool) {
+        document.querySelectorAll('.pc-tool-btn').forEach(btn => btn.classList.remove('active'));
+        document.getElementById(`pc-tool-${tool}`)?.classList.add('active');
+        
+        const container = document.getElementById('portrait-konva-container');
+        if (tool === 'hand') {
+            container.style.cursor = 'grab';
+        } else {
+            container.style.cursor = 'default';
+        }
+    }
+
+    /**
+     * 适应画布
+     */
+    fitPortraitCanvas() {
+        if (!this.portraitStage) return;
+        
+        const stage = this.portraitStage;
+        const container = document.getElementById('portrait-konva-container');
+        
+        stage.scale({ x: 0.5, y: 0.5 });
+        stage.position({
+            x: (container.offsetWidth - 3000 * 0.5) / 2,
+            y: (container.offsetHeight - 2000 * 0.5) / 2
+        });
+        
+        this.portraitScale = 0.5;
+        this.updatePortraitZoomDisplay();
+        stage.batchDraw();
+    }
+
+    /**
+     * 缩放画布
+     */
+    zoomPortraitCanvas(delta) {
+        if (!this.portraitStage) return;
+        
+        const stage = this.portraitStage;
+        const oldScale = stage.scaleX();
+        const newScale = Math.max(0.3, Math.min(2, oldScale + delta));
+        
+        const center = {
+            x: stage.width() / 2,
+            y: stage.height() / 2
+        };
+        
+        const mousePointTo = {
+            x: (center.x - stage.x()) / oldScale,
+            y: (center.y - stage.y()) / oldScale
+        };
+        
+        stage.scale({ x: newScale, y: newScale });
+        stage.position({
+            x: center.x - mousePointTo.x * newScale,
+            y: center.y - mousePointTo.y * newScale
+        });
+        
+        this.portraitScale = newScale;
+        this.updatePortraitZoomDisplay();
+        stage.batchDraw();
+    }
+
+    /**
+     * 更新缩放显示
+     */
+    updatePortraitZoomDisplay() {
+        const percentage = Math.round(this.portraitScale * 100);
+        const zoomValue = document.getElementById('pc-zoom-value');
+        if (zoomValue) {
+            zoomValue.textContent = percentage + '%';
+        }
+    }
+
+    /**
+     * 导出画布
+     */
+    exportPortraitCanvas() {
+        if (!this.portraitStage) return;
+        
+        // 隐藏变换器
+        this.portraitTransformer.visible(false);
+        this.portraitLayer.batchDraw();
+        
+        const dataURL = this.portraitStage.toDataURL({
+            pixelRatio: 2,
+            x: 0,
+            y: 0,
+            width: 3000,
+            height: 2000
+        });
+        
+        this.portraitTransformer.visible(true);
+        this.portraitLayer.batchDraw();
+        
+        const link = document.createElement('a');
+        link.download = `角色剧照画布_${new Date().toISOString().slice(0, 10)}.png`;
+        link.href = dataURL;
+        link.click();
     }
 }
 

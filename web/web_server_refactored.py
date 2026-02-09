@@ -78,6 +78,15 @@ def create_app():
     app = Flask(__name__, static_folder=static_folder)
     app.config.from_object(FlaskConfig)
 
+    # 🔥 禁用静态文件缓存（开发环境）
+    @app.after_request
+    def add_header(response):
+        if 'Cache-Control' not in response.headers:
+            response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+            response.headers['Pragma'] = 'no-cache'
+            response.headers['Expires'] = '0'
+        return response
+
     # 🔥 禁用Flask的请求日志，避免打印base64图片数据
     import logging
     log = logging.getLogger('werkzeug')
