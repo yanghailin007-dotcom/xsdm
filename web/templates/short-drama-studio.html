@@ -3469,6 +3469,36 @@
                     <textarea id="ideaDescription" class="form-textarea" rows="4"
                         placeholder="描述本集的核心场景或剧情构想..."></textarea>
                 </div>
+                
+                <!-- 主角信息 -->
+                <div class="form-group" style="background: rgba(245, 158, 11, 0.05); border: 1px solid rgba(245, 158, 11, 0.2); border-radius: 0.5rem; padding: 1rem; margin: 1rem 0;">
+                    <label style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem; color: #f59e0b;">
+                        <span>🎭</span>
+                        <span>主角信息</span>
+                        <small style="font-weight: normal; color: var(--text-tertiary);">（用于角色一致性）</small>
+                    </label>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.75rem;">
+                        <div>
+                            <label style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.25rem; display: block;">主角姓名 <span class="required">*</span></label>
+                            <input type="text" id="ideaProtagonistName" class="form-input" placeholder="例如：林小满" style="width: 100%;">
+                        </div>
+                        <div>
+                            <label style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.25rem; display: block;">年龄</label>
+                            <input type="text" id="ideaProtagonistAge" class="form-input" placeholder="例如：22岁" style="width: 100%;">
+                        </div>
+                    </div>
+                    <div style="margin-bottom: 0.75rem;">
+                        <label style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.25rem; display: block;">外观特征 <span class="required">*</span></label>
+                        <textarea id="ideaProtagonistAppearance" class="form-textarea" rows="2" style="width: 100%; min-height: 60px;"
+                            placeholder="描述主角的外观特征，如：黄色战术外卖服，黑色低马尾，戴黑框眼镜，左臂有红色山海经图腾胎记..."></textarea>
+                        <small style="color: var(--text-tertiary); font-size: 0.75rem;">💡 详细的外观描述有助于AI生成一致的角色形象</small>
+                    </div>
+                    <div>
+                        <label style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.25rem; display: block;">性格/身份</label>
+                        <input type="text" id="ideaProtagonistRole" class="form-input" placeholder="例如：底层外卖骑手，性格贪婪但勇敢" style="width: 100%;">
+                    </div>
+                </div>
+                
                 <div class="form-group">
                     <label>世界观设定 <small style="font-weight: normal; color: var(--text-tertiary);">可选</small></label>
                     <textarea id="ideaWorldSetting" class="form-textarea" rows="3"

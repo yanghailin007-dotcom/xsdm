@@ -688,6 +688,7 @@ def create_from_idea():
         style = data.get('style', '通用')
         shot_count = data.get('shot_count', 3)
         shot_duration = data.get('shot_duration', 8)
+        protagonist = data.get('protagonist', {})
 
         # 验证必填字段
         if not title:
@@ -700,6 +701,20 @@ def create_from_idea():
                 'success': False,
                 'error': '请输入创意描述'
             }), 400
+        
+        # 验证主角信息
+        protagonist_name = protagonist.get('name', '').strip()
+        protagonist_appearance = protagonist.get('appearance', '').strip()
+        if not protagonist_name:
+            return jsonify({
+                'success': False,
+                'error': '请输入主角姓名'
+            }), 400
+        if not protagonist_appearance:
+            return jsonify({
+                'success': False,
+                'error': '请输入主角外观特征'
+            }), 400
 
         # 限制参数范围
         episode = max(1, min(999, int(episode)))
@@ -708,9 +723,10 @@ def create_from_idea():
         
         # 🔥 基于故事复杂度预估总时长（不再用 shot_count * shot_duration）
         # 让AI先决定分镜数量，再计算总时长
-        estimated_duration = 60  # 默认60秒，实际由故事节拍决定
+        total_duration = 60  # 默认60秒，实际由故事节拍决定
 
         logger.info(f'📝 [创意导入] 标题: {title}, 第{episode}集, 风格: {style}, 镜头时长{shot_duration}秒, AI自由决定分镜数量')
+        logger.info(f'🎭 [创意导入] 主角: {protagonist_name}, 外观: {protagonist_appearance[:50]}...')
         if world_setting:
             logger.info(f'   世界观设定: {world_setting[:100]}...')
 
@@ -721,6 +737,22 @@ def create_from_idea():
         episode_name = f'{episode}集_创意导入'
         episode_dir = project_dir / episode_name
         episode_dir.mkdir(exist_ok=True)
+        
+        # 🔥 创建主角角色信息
+        protagonist_role = protagonist.get('role', '主角')
+        protagonist_age = protagonist.get('age', '')
+        protagonist_character = {
+            'id': 'protagonist_001',
+            'name': protagonist_name,
+            'role': protagonist_role,
+            'age': protagonist_age,
+            'description': f'{protagonist_name}，{protagonist_age + "，" if protagonist_age else ""}{protagonist_appearance}',
+            'appearance': protagonist_appearance,
+            'living_characteristics': {
+                'physical_presence': protagonist_appearance
+            },
+            'is_protagonist': True
+        }
 
         # 2. 调用AI生成故事节拍 (Step 3)
         logger.info(f'[创意导入] 开始生成故事节拍...')
@@ -729,14 +761,21 @@ def create_from_idea():
             description=description,
             world_setting=world_setting,
             style=style,
-            total_duration=total_duration
+            total_duration=total_duration,
+            protagonist=protagonist_character
         )
 
         # 3. 基于故事节拍生成专业分镜头（全英文）(Step 4)
         logger.info(f'[创意导入] 基于故事节拍生成分镜头（全英文）...')
         
-        # 🔥 创建基础视觉资产（创意导入项目暂无角色，由AI自由创建）
-        visual_assets = {'characters': {}, 'scenes': {}, 'props': {}}
+        # 🔥 创建基础视觉资产（包含主角信息）
+        visual_assets = {
+            'characters': {
+                'protagonist': protagonist_character
+            },
+            'scenes': {},
+            'props': {}
+        }
         
         shots_en = generate_shots_from_storybeats(
             title=title,
@@ -851,7 +890,7 @@ def create_from_idea():
                 'shot_duration': shot_duration,
                 'shots': merged_shots  # 🔥 保存合并后的完整数据
             }],
-            'characters': [],  # 创意导入暂无角色，后续可添加
+            'characters': [protagonist_character],  # 🔥 保存主角信息
             'settings': {
                 'aspect_ratio': '9:16',
                 'quality': '1080p',
@@ -886,7 +925,7 @@ def create_from_idea():
         }), 500
 
 
-def generate_story_beats_from_idea(title: str, description: str, world_setting: str, style: str, total_duration: int = 80) -> dict:
+def generate_story_beats_from_idea(title: str, description: str, world_setting: str, style: str, total_duration: int = 80, protagonist: dict = None) -> dict:
     """
     根据创意描述生成故事节拍 (Step 3)
     
@@ -896,6 +935,7 @@ def generate_story_beats_from_idea(title: str, description: str, world_setting: 
         world_setting: 世界观设定
         style: 风格
         total_duration: 总时长（秒）
+        protagonist: 主角信息字典
         
     Returns:
         故事节拍数据字典
@@ -906,6 +946,11 @@ def generate_story_beats_from_idea(title: str, description: str, world_setting: 
         min_scenes = 6
         max_scenes = 15
         suggested_duration = total_duration or 60  # 默认60秒
+        
+        # 计算参考场景数和时长分配（用于回退逻辑）
+        scene_count = max(min_scenes, min(max_scenes, suggested_duration // 8))
+        base_duration = suggested_duration // scene_count
+        remainder = suggested_duration % scene_count
         
         system_prompt = f"""你是一个专业的【短视频短剧】编剧。请根据以下创意描述，生成故事节拍(Story Beats)。
 
@@ -973,6 +1018,23 @@ def generate_story_beats_from_idea(title: str, description: str, world_setting: 
 世界观设定：
 {world_setting}
 """ if world_setting else ""
+        
+        # 🔥 构建主角信息部分
+        protagonist_section = ""
+        if protagonist:
+            protagonist_name = protagonist.get('name', '主角')
+            protagonist_age = protagonist.get('age', '')
+            protagonist_appearance = protagonist.get('appearance', '')
+            protagonist_role = protagonist.get('role', '主角')
+            protagonist_section = f"""
+主角信息：
+- 姓名：{protagonist_name}
+- 年龄：{protagonist_age or '未指定'}
+- 身份/性格：{protagonist_role}
+- 外观特征：{protagonist_appearance}
+
+**重要：在对话中直接使用主角姓名"{protagonist_name}"，不要使用"主角"这个词。**
+"""
 
         user_prompt = f"""
 剧集标题：{title}
@@ -980,6 +1042,7 @@ def generate_story_beats_from_idea(title: str, description: str, world_setting: 
 参考总时长：{suggested_duration}秒（AI可根据故事需要调整±20%）
 建议场景数：{min_scenes}-{max_scenes}个（AI根据创意复杂度自由决定）
 {world_setting_section}
+{protagonist_section}
 
 ## 🔥 核心创意（必须紧紧围绕此展开）
 {description}
@@ -990,6 +1053,7 @@ def generate_story_beats_from_idea(title: str, description: str, world_setting: 
 3. **相邻场景情绪必须不同**：形成情绪过山车
 4. **场景时长由AI决定**：快节奏3-5秒，对白5-8秒，高潮8-12秒
 5. **必须有强钩子开场和悬念结尾**
+6. **对白中的speaker必须使用角色真实姓名**，如"{protagonist.get('name', '主角') if protagonist else '主角'}"，而不是"主角"
 
 请生成故事节拍JSON。
 """
@@ -1029,22 +1093,33 @@ def generate_story_beats_from_idea(title: str, description: str, world_setting: 
                             adjust = diff // len(scenes)
                             for s in scenes:
                                 s['durationSeconds'] = s.get('durationSeconds', base_duration) + adjust
+                    
+                    # 🔥 将"主角"替换为具体名字
+                    if protagonist:
+                        protagonist_name = protagonist.get('name', '主角')
+                        for scene in scenes:
+                            for dialogue in scene.get('dialogues', []):
+                                if dialogue.get('speaker') == '主角':
+                                    dialogue['speaker'] = protagonist_name
                 
                 return story_beats
                 
             except Exception as e:
                 logger.error(f'AI生成故事节拍失败: {e}')
-                return _get_default_story_beats_for_idea(scene_count, base_duration, remainder)
+                return _get_default_story_beats_for_idea(scene_count, base_duration, remainder, protagonist)
         else:
-            return _get_default_story_beats_for_idea(scene_count, base_duration, remainder)
+            return _get_default_story_beats_for_idea(scene_count, base_duration, remainder, protagonist)
             
     except Exception as e:
         logger.error(f'生成故事节拍失败: {e}')
-        return _get_default_story_beats_for_idea(3, 8, 0)
+        return _get_default_story_beats_for_idea(3, 8, 0, protagonist)
 
 
-def _get_default_story_beats_for_idea(scene_count: int, base_duration: int, remainder: int):
+def _get_default_story_beats_for_idea(scene_count: int, base_duration: int, remainder: int, protagonist: dict = None):
     """获取默认故事节拍（用于创意导入）"""
+    # 🔥 获取主角名字
+    protagonist_name = protagonist.get('name', '主角') if protagonist else '主角'
+    
     scenes = []
     for i in range(scene_count):
         duration = base_duration + (1 if i < remainder else 0)
@@ -1058,7 +1133,7 @@ def _get_default_story_beats_for_idea(scene_count: int, base_duration: int, rema
             'emotionalArc': '平静→紧张',
             'dialogues': [{
                 'timestamp': 0,
-                'speaker': '主角',
+                'speaker': protagonist_name,
                 'linesCn': '这是一个重要的时刻...',
                 'linesEn': 'This is an important moment...',
                 'toneCn': '内心独白',

@@ -8899,6 +8899,12 @@ saveGeminiConfig(config) {
         const style = document.getElementById('ideaStyle').value;
         const shotCount = parseInt(document.getElementById('ideaShotCount').value) || 3;
         const shotDuration = parseInt(document.getElementById('ideaShotDuration').value) || 8;
+        
+        // 主角信息
+        const protagonistName = document.getElementById('ideaProtagonistName')?.value.trim();
+        const protagonistAge = document.getElementById('ideaProtagonistAge')?.value.trim();
+        const protagonistAppearance = document.getElementById('ideaProtagonistAppearance')?.value.trim();
+        const protagonistRole = document.getElementById('ideaProtagonistRole')?.value.trim();
 
         // 验证必填字段
         if (!title) {
@@ -8911,6 +8917,14 @@ saveGeminiConfig(config) {
         }
         if (!description) {
             this.showToast('请输入创意描述', 'warning');
+            return;
+        }
+        if (!protagonistName) {
+            this.showToast('请输入主角姓名', 'warning');
+            return;
+        }
+        if (!protagonistAppearance) {
+            this.showToast('请输入主角外观特征', 'warning');
             return;
         }
 
@@ -8930,7 +8944,13 @@ saveGeminiConfig(config) {
                     description,
                     style,
                     shot_count: shotCount,
-                    shot_duration: shotDuration
+                    shot_duration: shotDuration,
+                    protagonist: {
+                        name: protagonistName,
+                        age: protagonistAge,
+                        appearance: protagonistAppearance,
+                        role: protagonistRole
+                    }
                 })
             });
 
