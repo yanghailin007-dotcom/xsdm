@@ -221,6 +221,12 @@ def register_page_routes(app):
         """人物剧照工作室页面"""
         return render_template('portrait-studio.html')
 
+    @app.route('/portrait-studio-v2', methods=['GET'])
+    @login_required
+    def portrait_studio_v2():
+        """人物剧照工作室页面 - 无限画布版本（Konva.js）"""
+        return render_template('portrait-studio-new.html')
+
     @app.route('/short-drama', methods=['GET'])
     @login_required
     def short_drama():
