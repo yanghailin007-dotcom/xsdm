@@ -840,7 +840,7 @@ class ShortDramaStudio {
         try {
             if (!this.currentProject?.id) return;
 
-            const response = await fetch(`/api/projects/${this.currentProject.id}/visual-assets`);
+            const response = await fetch(`/api/short-drama/projects/${this.currentProject.id}/visual-assets`);
             const data = await response.json();
 
             if (data.success) {
