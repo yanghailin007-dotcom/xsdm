@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>角色剧照工作台 - 无限画布</title>
+    <link rel="stylesheet" href="/static/css/portrait-studio.css">
+    <link rel="stylesheet" href="/static/css/confirm-dialog.css">
+    <!-- Konva.js -->
+    <script src="https://cdn.jsdelivr.net/npm/konva@9.2.0/konva.min.js"></script>
+    <style>
+        /* ==================== 用户头像下拉菜单 ==================== */
+        .user-menu { position: relative; display: inline-flex; align-items: center; }
+        .user-avatar { width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s ease; border: 2px solid rgba(255, 255, 255, 0.1); overflow: hidden; }
+        .user-avatar:hover { transform: scale(1.05); border-color: rgba(255, 255, 255, 0.3); box-shadow: 0 0 20px rgba(99, 102, 241, 0.4); }
+        .user-avatar .avatar-text { font-size: 16px; font-weight: 600; color: white; text-transform: uppercase; }
+        .user-dropdown { position: absolute; top: calc(100% + 8px); right: 0; min-width: 180px; background: rgba(30, 41, 59, 0.98); border: 1px solid rgba(148, 163, 184, 0.2); border-radius: 12px; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4); opacity: 0; visibility: hidden; transform: translateY(-10px); transition: all 0.2s ease; z-index: 1000; backdrop-filter: blur(10px); }
+        .user-dropdown.active { opacity: 1; visibility: visible; transform: translateY(0); }
+        .dropdown-header { padding: 12px 16px; border-bottom: 1px solid rgba(148, 163, 184, 0.1); }
+        .dropdown-header span { color: #f1f5f9; font-weight: 600; font-size: 14px; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .dropdown-divider { height: 1px; background: rgba(148, 163, 184, 0.1); margin: 4px 0; }
+        .dropdown-item { display: flex; align-items: center; gap: 10px; padding: 10px 16px; color: #94a3b8; text-decoration: none; font-size: 14px; transition: all 0.15s ease; cursor: pointer; }
+        .dropdown-item:hover { background: rgba(99, 102, 241, 0.1); color: #f1f5f9; }
+
+        /* ==================== 无限画布工作室 ==================== */
+        .studio-container {
+            display: flex;
+            height: calc(100vh - 70px);
+            overflow: hidden;
+        }
+
+        /* 左侧素材面板 */
+        .assets-panel {
+            width: 280px;
+            background: rgba(15, 23, 42, 0.95);
+            border-right: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            flex-direction: column;
+            z-index: 10;
+        }
+
+        .panel-header {
+            padding: 16px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .panel-header h3 {
+            font-size: 14px;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .asset-categories {
+            display: flex;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .category-tab {
+            flex: 1;
+            padding: 12px 8px;
+            background: transparent;
+            border: none;
+            color: #64748b;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .category-tab:hover { color: #cbd5e1; }
+        .category-tab.active { color: #6366f1; background: rgba(99, 102, 241, 0.1); }
+        .category-tab .icon { font-size: 18px; }
+
+        .assets-grid {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+        }
+
+        .asset-item {
+            aspect-ratio: 3/4;
+            background: rgba(30, 41, 59, 0.8);
+            border: 2px solid rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            overflow: hidden;
+            cursor: grab;
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .asset-item:hover {
+            border-color: #6366f1;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
+        }
+
+        .asset-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .asset-item .asset-label {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 4px 8px;
+            background: linear-gradient(transparent, rgba(0,0,0,0.8));
+            font-size: 11px;
+            color: #e2e8f0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .asset-item.dragging { opacity: 0.5; cursor: grabbing; }
+
+        .panel-actions {
+            padding: 12px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-panel {
+            flex: 1;
+            padding: 8px 12px;
+            background: rgba(99, 102, 241, 0.2);
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            border-radius: 6px;
+            color: #818cf8;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-panel:hover { background: rgba(99, 102, 241, 0.3); }
+
+        /* 画布区域 */
+        .canvas-wrapper {
+            flex: 1;
+            position: relative;
+            background: #0a0f1a;
+            overflow: hidden;
+        }
+
+        #konva-container {
+            width: 100%;
+            height: 100%;
+            cursor: grab;
+        }
+
+        #konva-container.panning { cursor: grabbing; }
+
+        /* 画布背景网格 */
+        .canvas-bg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image: 
+                radial-gradient(circle at 1px 1px, rgba(99, 102, 241, 0.3) 1px, transparent 0);
+            background-size: 20px 20px;
+            pointer-events: none;
+        }
+
+        /* 工具栏 */
+        .toolbar {
+            position: absolute;
+            top: 16px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 8px;
+            padding: 8px;
+            background: rgba(15, 23, 42, 0.9);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            z-index: 100;
+        }
+
+        .tool-btn {
+            width: 36px;
+            height: 36px;
+            background: transparent;
+            border: none;
+            border-radius: 8px;
+            color: #64748b;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .tool-btn:hover { color: #cbd5e1; background: rgba(255, 255, 255, 0.05); }
+        .tool-btn.active { color: #6366f1; background: rgba(99, 102, 241, 0.2); }
+
+        .tool-divider {
+            width: 1px;
+            height: 24px;
+            background: rgba(255, 255, 255, 0.1);
+            margin: 6px 4px;
+        }
+
+        /* 缩放控制 */
+        .zoom-control {
+            position: absolute;
+            bottom: 16px;
+            right: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            background: rgba(15, 23, 42, 0.9);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            z-index: 100;
+        }
+
+        .zoom-btn {
+            width: 28px;
+            height: 28px;
+            background: transparent;
+            border: none;
+            border-radius: 6px;
+            color: #64748b;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .zoom-btn:hover { color: #cbd5e1; background: rgba(255, 255, 255, 0.05); }
+        .zoom-value { font-size: 12px; color: #94a3b8; min-width: 50px; text-align: center; }
+
+        /* 右侧面板 - 选中元素属性 */
+        .properties-panel {
+            width: 300px;
+            background: rgba(15, 23, 42, 0.95);
+            border-left: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            flex-direction: column;
+            z-index: 10;
+        }
+
+        .properties-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+        }
+
+        .property-group {
+            margin-bottom: 20px;
+        }
+
+        .property-group h4 {
+            font-size: 12px;
+            color: #64748b;
+            text-transform: uppercase;
+            margin-bottom: 12px;
+            letter-spacing: 0.5px;
+        }
+
+        .property-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        .property-label { font-size: 13px; color: #94a3b8; }
+        .property-value { font-size: 13px; color: #e2e8f0; }
+
+        /* 提示信息 */
+        .canvas-hint {
+            position: absolute;
+            bottom: 16px;
+            left: 16px;
+            padding: 8px 12px;
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            font-size: 12px;
+            color: #64748b;
+            z-index: 100;
+        }
+
+        .canvas-hint kbd {
+            display: inline-block;
+            padding: 2px 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 11px;
+        }
+
+        /* 加载动画 */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(10, 15, 26, 0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s;
+        }
+
+        .loading-overlay.active { opacity: 1; visibility: visible; }
+
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(99, 102, 241, 0.2);
+            border-top-color: #6366f1;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* 生成对话框 */
+        .generate-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s;
+        }
+
+        .generate-modal.active { opacity: 1; visibility: visible; }
+
+        .modal-content {
+            width: 90%;
+            max-width: 600px;
+            max-height: 90vh;
+            background: rgba(15, 23, 42, 0.98);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .modal-header {
+            padding: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .modal-header h3 { font-size: 18px; margin-bottom: 4px; }
+        .modal-header p { font-size: 13px; color: #64748b; }
+
+        .modal-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .form-group { margin-bottom: 16px; }
+        .form-group label { display: block; margin-bottom: 6px; font-size: 13px; color: #94a3b8; }
+        .form-group textarea, .form-group input {
+            width: 100%;
+            padding: 10px 12px;
+            background: rgba(30, 41, 59, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            color: #e2e8f0;
+            font-size: 14px;
+            resize: vertical;
+        }
+
+        .form-group textarea { min-height: 100px; }
+
+        .modal-footer {
+            padding: 16px 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+        }
+
+        .btn { padding: 10px 20px; border-radius: 8px; font-size: 14px; cursor: pointer; transition: all 0.2s; }
+        .btn-secondary { background: rgba(255, 255, 255, 0.1); border: none; color: #94a3b8; }
+        .btn-secondary:hover { background: rgba(255, 255, 255, 0.15); color: #e2e8f0; }
+        .btn-primary { background: linear-gradient(135deg, #6366f1, #8b5cf6); border: none; color: white; }
+        .btn-primary:hover { opacity: 0.9; }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <!-- 导航栏 -->
+        <nav class="navbar">
+            <div class="nav-container">
+                <button class="btn-back" id="btnBack">🏠 返回</button>
+                <h1 class="nav-title">🎨 角色剧照工作台</h1>
+                <div class="nav-links">
+                    <a href="/novels" class="nav-link">📚 小说项目</a>
+                    <a href="/video-generation" class="nav-link">🎬 视频生成</a>
+                    <div class="user-menu">
+                        <div class="user-avatar" onclick="toggleUserMenu(event)">
+                            <span class="avatar-text" id="avatarText">用</span>
+                        </div>
+                        <div class="user-dropdown" id="userDropdown">
+                            <div class="dropdown-header">
+                                <span id="dropdownUsername">加载中...</span>
+                            </div>
+                            <div class="dropdown-divider"></div>
+                            <a href="/account" class="dropdown-item">⚙️ 管理账户</a>
+                            <a href="#" class="dropdown-item" onclick="logout(); return false;">🚪 退出登录</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <!-- 工作室主体 -->
+        <div class="studio-container">
+            <!-- 左侧素材面板 -->
+            <div class="assets-panel">
+                <div class="panel-header">
+                    <h3>🎭 素材库</h3>
+                </div>
+                <div class="asset-categories">
+                    <button class="category-tab active" data-category="character">
+                        <span class="icon">👤</span>
+                        <span>角色</span>
+                    </button>
+                    <button class="category-tab" data-category="scene">
+                        <span class="icon">🏞️</span>
+                        <span>场景</span>
+                    </button>
+                    <button class="category-tab" data-category="prop">
+                        <span class="icon">🎒</span>
+                        <span>道具</span>
+                    </button>
+                </div>
+                <div class="assets-grid" id="assetsGrid">
+                    <!-- 动态加载素材 -->
+                </div>
+                <div class="panel-actions">
+                    <button class="btn-panel" id="uploadAssetBtn">⬆️ 上传</button>
+                    <button class="btn-panel" id="generateAssetBtn">✨ 生成</button>
+                </div>
+            </div>
+
+            <!-- 画布区域 -->
+            <div class="canvas-wrapper">
+                <div class="canvas-bg"></div>
+                <div id="konva-container"></div>
+                
+                <!-- 工具栏 -->
+                <div class="toolbar">
+                    <button class="tool-btn active" id="tool-select" title="选择 (V)">↖️</button>
+                    <button class="tool-btn" id="tool-hand" title="抓手 (H)">✋</button>
+                    <div class="tool-divider"></div>
+                    <button class="tool-btn" id="tool-fit" title="适应画布">⛶</button>
+                    <button class="tool-btn" id="tool-clear" title="清空画布">🗑️</button>
+                    <div class="tool-divider"></div>
+                    <button class="tool-btn" id="tool-export" title="导出图片">💾</button>
+                </div>
+
+                <!-- 缩放控制 -->
+                <div class="zoom-control">
+                    <button class="zoom-btn" id="zoomOut">−</button>
+                    <span class="zoom-value" id="zoomValue">100%</span>
+                    <button class="zoom-btn" id="zoomIn">+</button>
+                </div>
+
+                <!-- 提示 -->
+                <div class="canvas-hint">
+                    <kbd>滚轮</kbd> 缩放 <kbd>空格+拖拽</kbd> 平移 <kbd>拖拽</kbd> 移动图片
+                </div>
+            </div>
+
+            <!-- 右侧属性面板 -->
+            <div class="properties-panel">
+                <div class="panel-header">
+                    <h3>⚙️ 属性</h3>
+                </div>
+                <div class="properties-content" id="propertiesContent">
+                    <div class="empty-state" style="text-align: center; padding: 40px 20px; color: #64748b;">
+                        <div style="font-size: 48px; margin-bottom: 16px;">🖱️</div>
+                        <p>点击画布上的图片<br>查看和编辑属性</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 生成对话框 -->
+    <div class="generate-modal" id="generateModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>✨ AI 生成剧照</h3>
+                <p>使用 AI 生成新的角色、场景或道具图片</p>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>类型</label>
+                    <select id="generateType" style="width: 100%; padding: 10px; background: rgba(30, 41, 59, 0.8); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: #e2e8f0;">
+                        <option value="character">🎭 角色</option>
+                        <option value="scene">🏞️ 场景</option>
+                        <option value="prop">🎒 道具</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>提示词</label>
+                    <textarea id="generatePrompt" placeholder="描述你想要生成的内容...
+
+例如：一位白发剑仙，身穿青色长袍，手持长剑，站在云端之上"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="cancelGenerate">取消</button>
+                <button class="btn btn-primary" id="confirmGenerate">开始生成</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 加载遮罩 -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-spinner"></div>
+    </div>
+
+    <script src="/static/js/user-info.js"></script>
+    <script src="/static/js/portrait-studio-konva.js"></script>
+</body>
+</html>
