@@ -147,6 +147,14 @@ class ShortDramaStudio {
                 this.loadVisualAssetsStep();
             }
         });
+
+        // 侧边栏折叠按钮
+        document.getElementById('toggleLeftPanel')?.addEventListener('click', () => {
+            this.togglePanel('left');
+        });
+        document.getElementById('toggleRightPanel')?.addEventListener('click', () => {
+            this.togglePanel('right');
+        });
     }
 
     /**
@@ -10089,31 +10097,50 @@ saveGeminiConfig(config) {
             return;
         }
 
-        const novel = this.currentProject.novel;
-        const episode = this.currentProject.episode;
+        // 获取项目名称（novel）
+        const novel = this.currentProject.title;
 
-        if (!novel || !episode) {
+        // 获取当前选中的集（episode）
+        let episode = null;
+        if (this.selectedEpisodes && this.selectedEpisodes.length > 0) {
+            episode = this.selectedEpisodes[0];
+        }
+
+        if (!novel) {
             this.showToast('项目信息不完整', 'error');
+            console.error('项目信息:', { novel, currentProject: this.currentProject });
             return;
         }
 
+        // 🔥 构建确认消息
+        let confirmMsg = `确定要重新生成视觉资产吗？\n项目: ${novel}`;
+        if (episode) {
+            confirmMsg += `\n集数: ${episode}`;
+        } else {
+            confirmMsg += `\n集数: 自动检测`;
+        }
+        confirmMsg += `\n\n这将覆盖现有的视觉资产数据。`;
+
         // 确认对话框
-        if (!confirm('确定要重新生成视觉资产吗？这将覆盖现有的视觉资产数据。')) {
+        if (!confirm(confirmMsg)) {
             return;
         }
 
         try {
             this.showToast('🔄 正在重新生成视觉资产...', 'info');
 
+            // 🔥 构建请求体，如果没有 episode 则不传，让后端自动检测
+            const requestBody = { novel: novel };
+            if (episode) {
+                requestBody.episode = episode;
+            }
+
             const response = await fetch('/api/short-drama/visual-assets/regenerate', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({
-                    novel: novel,
-                    episode: episode
-                })
+                body: JSON.stringify(requestBody)
             });
 
             const result = await response.json();
@@ -10121,10 +10148,17 @@ saveGeminiConfig(config) {
             if (result.success) {
                 this.showToast(`✅ 视觉资产重新生成成功！角色: ${result.stats.characters}, 场景: ${result.stats.scenes}, 道具: ${result.stats.props}`, 'success');
 
-                // 刷新画布
-                this.loadCharacterPortraitsStep();
+                // 刷新画布（如果函数存在）
+                if (typeof this.loadCharacterPortraitsStep === 'function') {
+                    this.loadCharacterPortraitsStep();
+                }
             } else {
-                this.showToast(`❌ 重新生成失败: ${result.error}`, 'error');
+                // 🔥 改进错误提示，引导用户完成前置步骤
+                let errorMsg = result.error || '未知错误';
+                if (errorMsg.includes('分镜头文件') || errorMsg.includes('集数')) {
+                    errorMsg += ' 💡提示：视觉资产是从分镜头数据中提取的，请先完成【分镜生成】步骤。';
+                }
+                this.showToast(`❌ 重新生成失败: ${errorMsg}`, 'error');
             }
         } catch (error) {
             console.error('重新生成视觉资产失败:', error);
@@ -10141,16 +10175,23 @@ saveGeminiConfig(config) {
             return;
         }
 
-        const novel = this.currentProject.novel;
-        const episode = this.currentProject.episode;
+        // 获取项目名称（novel）
+        const novel = this.currentProject.title;
+
+        // 获取当前选中的集（episode）
+        let episode = null;
+        if (this.selectedEpisodes && this.selectedEpisodes.length > 0) {
+            episode = this.selectedEpisodes[0];
+        }
 
         if (!novel || !episode) {
-            this.showToast('项目信息不完整', 'error');
+            this.showToast(`项目信息不完整: novel=${novel}, episode=${episode}`, 'error');
+            console.error('项目信息:', { novel, episode, currentProject: this.currentProject, selectedEpisodes: this.selectedEpisodes });
             return;
         }
 
         // 确认对话框
-        if (!confirm('确定要重新生成帧序列吗？这将覆盖现有的帧序列数据。')) {
+        if (!confirm(`确定要重新生成帧序列吗？\n项目: ${novel}\n集数: ${episode}\n\n这将覆盖现有的帧序列数据。`)) {
             return;
         }
 
@@ -10178,6 +10219,67 @@ saveGeminiConfig(config) {
         } catch (error) {
             console.error('重新生成帧序列失败:', error);
             this.showToast(`❌ 重新生成失败: ${error.message}`, 'error');
+        }
+    }
+
+    /**
+     * 切换侧边栏显示/隐藏
+     */
+    togglePanel(side) {
+        const panel = side === 'left' ? document.getElementById('leftPanel') : document.getElementById('rightPanel');
+        const toggleBtn = side === 'left' ? document.getElementById('toggleLeftPanel') : document.getElementById('toggleRightPanel');
+
+        if (!panel || !toggleBtn) return;
+
+        const isCollapsed = panel.style.width === '0px' || panel.style.width === '';
+
+        if (isCollapsed) {
+            // 展开
+            panel.style.width = side === 'left' ? '240px' : '280px';
+            panel.style.opacity = '1';
+            panel.style.pointerEvents = 'auto';
+            toggleBtn.querySelector('span').textContent = side === 'left' ? '◀' : '▶';
+
+            // 保存状态到localStorage
+            localStorage.setItem(`panel_${side}_collapsed`, 'false');
+        } else {
+            // 收缩
+            panel.style.width = '0px';
+            panel.style.opacity = '0';
+            panel.style.pointerEvents = 'none';
+            toggleBtn.querySelector('span').textContent = side === 'left' ? '▶' : '◀';
+
+            // 保存状态到localStorage
+            localStorage.setItem(`panel_${side}_collapsed`, 'true');
+        }
+
+        // 调整画布大小（如果Konva画布存在）
+        setTimeout(() => {
+            if (this.portraitStage) {
+                const container = document.getElementById('portraitCanvasContainer');
+                if (container) {
+                    this.portraitStage.width(container.offsetWidth);
+                    this.portraitStage.height(container.offsetHeight);
+                    this.portraitStage.batchDraw();
+                }
+            }
+        }, 300); // 等待CSS过渡完成
+    }
+
+    /**
+     * 恢复侧边栏状态
+     */
+    restorePanelStates() {
+        // 恢复左侧面板状态
+        const leftCollapsed = localStorage.getItem('panel_left_collapsed') === 'true';
+        if (leftCollapsed) {
+            this.togglePanel('left');
+        }
+
+        // 恢复右侧面板状态
+        const rightCollapsed = localStorage.getItem('panel_right_collapsed') === 'true';
+        if (rightCollapsed) {
+            this.togglePanel('right');
         }
     }
 }

@@ -2445,19 +2445,24 @@ def extract_visual_assets_from_shots(shots_en: list, shots_cn: list, title: str)
 请分析并提取视觉资产清单。"""
 
         # 调用AI
-        response = api_client.generate_content(
-            contents=[{
-                'role': 'user',
-                'parts': [{'text': user_prompt}]
-            }],
-            config={
-                'system_instruction': system_prompt,
-                'temperature': 0.3,
-                'response_mime_type': 'application/json'
-            }
+        result_text = api_client.call_api(
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            temperature=0.3,
+            purpose="提取视觉资产"
         )
 
-        result_text = response.text.strip()
+        if not result_text:
+            logger.error('AI调用失败，返回空结果')
+            return {
+                'version': '1.0',
+                'generated_at': datetime.now().isoformat(),
+                'characters': [],
+                'scenes': [],
+                'props': []
+            }
+
+        result_text = result_text.strip()
 
         # 清理可能的markdown代码块标记
         if result_text.startswith('```'):
@@ -2642,18 +2647,18 @@ def generate_frame_sequences_from_shots(shots_en, shots_cn, visual_assets, title
 请生成{frame_count}个连续的画面提示词。"""
 
             # 调用AI生成
-            response = api_client.generate_content(
-                contents=[{
-                    'role': 'user',
-                    'parts': [{'text': user_prompt}]
-                }],
-                config={
-                    'system_instruction': system_prompt,
-                    'temperature': 0.7,
-                    'response_mime_type': 'application/json'
-                }
+            result_text = api_client.call_api(
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                temperature=0.7,
+                purpose=f"生成帧序列-{shot_id}"
             )
-            result_text = response.text.strip()
+
+            if not result_text:
+                logger.warning(f'  ⚠️ {shot_id} AI调用失败，跳过')
+                continue
+
+            result_text = result_text.strip()
 
             # 清理markdown代码块标记
             if result_text.startswith('```'):
@@ -3291,15 +3296,45 @@ def regenerate_visual_assets():
         novel = data.get('novel', '').strip()
         episode = data.get('episode', '').strip()
 
-        if not novel or not episode:
+        if not novel:
             return jsonify({
                 'success': False,
-                'error': '缺少 novel 或 episode 参数'
+                'error': '缺少 novel 参数'
             }), 400
 
         # 构建文件路径
         base_dir = Path(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
         novel_dir = base_dir / '视频项目' / novel
+
+        # 🔥 如果没有提供 episode，自动检测项目目录下的集数
+        if not episode:
+            logger.info(f'🔍 [重新生成] 未提供 episode，自动检测 {novel} 目录下的集数')
+            
+            if not novel_dir.exists():
+                return jsonify({
+                    'success': False,
+                    'error': f'项目目录不存在: {novel}'
+                }), 404
+            
+            # 查找包含 shots_v2.json 的子目录
+            available_episodes = []
+            for item in novel_dir.iterdir():
+                if item.is_dir():
+                    shots_v2_file = item / 'shots_v2.json'
+                    shots_v2_cn_file = item / 'shots_v2_cn.json'
+                    if shots_v2_file.exists() and shots_v2_cn_file.exists():
+                        available_episodes.append(item.name)
+            
+            if not available_episodes:
+                return jsonify({
+                    'success': False,
+                    'error': f'项目 "{novel}" 下没有找到可用的集数。请先完成【分镜生成】步骤，生成分镜头文件后再试。'
+                }), 404
+            
+            # 使用第一个可用的集数
+            episode = available_episodes[0]
+            logger.info(f'✅ [重新生成] 自动选择集数: {episode} (可用: {available_episodes})')
+
         episode_dir = novel_dir / episode
 
         # 检查分镜头文件是否存在
@@ -3309,7 +3344,7 @@ def regenerate_visual_assets():
         if not shots_en_file.exists() or not shots_cn_file.exists():
             return jsonify({
                 'success': False,
-                'error': '分镜头文件不存在，无法重新生成视觉资产'
+                'error': f'分镜头文件不存在: {episode}，无法重新生成视觉资产'
             }), 404
 
         # 读取分镜头数据
