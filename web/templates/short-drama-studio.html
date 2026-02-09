@@ -2835,6 +2835,11 @@
             overflow: visible !important;
         }
         
+        /* 左侧面板折叠时，按钮显示在左侧 */
+        .assets-panel.collapsed #toggleLeftPanel {
+            right: -20px !important;
+        }
+        
         .properties-panel.collapsed {
             width: 0 !important;
             min-width: 0 !important;
@@ -2843,32 +2848,14 @@
             overflow: visible !important;
         }
         
-        /* 🔥 折叠按钮始终可见，面板折叠时改变位置和文字 */
-        #toggleLeftPanel {
-            transition: all 0.3s ease;
-        }
-        
-        #toggleRightPanel {
-            transition: all 0.3s ease;
-        }
-        
-        /* 🔥 面板折叠时的展开按钮样式 - 按钮是子元素不是兄弟元素 */
-        .assets-panel.collapsed #toggleLeftPanel {
-            right: -40px !important;
-            z-index: 1000 !important;
-            box-shadow: 0 0 30px rgba(99, 102, 241, 0.9), 0 0 60px rgba(139, 92, 246, 0.6) !important;
-            animation: panelExpandPulse 1.5s infinite !important;
-            background: linear-gradient(180deg, #4f46e5, #7c3aed) !important;
-            border: 2px solid rgba(255,255,255,0.5) !important;
-        }
-        
+        /* 右侧面板折叠时，按钮显示在右侧 */
         .properties-panel.collapsed #toggleRightPanel {
-            left: -40px !important;
-            z-index: 1000 !important;
-            box-shadow: 0 0 30px rgba(99, 102, 241, 0.9), 0 0 60px rgba(139, 92, 246, 0.6) !important;
-            animation: panelExpandPulseRight 1.5s infinite !important;
-            background: linear-gradient(180deg, #4f46e5, #7c3aed) !important;
-            border: 2px solid rgba(255,255,255,0.5) !important;
+            left: -20px !important;
+        }
+        
+        /* 折叠按钮样式 */
+        #toggleLeftPanel, #toggleRightPanel {
+            transition: all 0.3s ease;
         }
         
         /* 展开按钮脉冲动画 */
@@ -3158,14 +3145,13 @@
                         </div>
                         
                         <!-- 三栏布局：左侧素材面板 | 中间画布 | 右侧属性面板 -->
-                        <div style="display: flex; gap: 1rem; height: 600px;" id="visualAssetsLayout">
+                        <div style="display: flex; gap: 1rem; height: 600px; position: relative;" id="visualAssetsLayout">
                             
                             <!-- 左侧：素材面板 -->
-                            <div class="assets-panel" id="leftPanel" style="position: relative; width: 240px; background: rgba(15, 23, 42, 0.9); border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); display: flex; flex-direction: column; overflow: hidden; transition: all 0.3s ease;">
-                                <!-- 折叠按钮 - 左侧 -->
-                                <button class="panel-toggle-btn" id="toggleLeftPanel" title="点击收起素材面板 (快捷键: [)" style="position: absolute; right: -28px; top: 50%; transform: translateY(-50%); width: 28px; height: 100px; background: linear-gradient(180deg, #6366f1, #8b5cf6); border: 2px solid rgba(255,255,255,0.4); border-radius: 0 12px 12px 0; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100; transition: all 0.3s ease; box-shadow: 4px 0 20px rgba(99, 102, 241, 0.6), 0 0 30px rgba(99, 102, 241, 0.3);">
-                                    <span style="color: white; font-size: 16px; font-weight: bold; text-shadow: 0 1px 3px rgba(0,0,0,0.4); margin-bottom: 4px;">◀</span>
-                                    <span style="color: white; font-size: 9px; font-weight: 600; text-shadow: 0 1px 2px rgba(0,0,0,0.4); writing-mode: vertical-rl; letter-spacing: 2px;">收起</span>
+                            <div class="assets-panel" id="leftPanel" style="position: relative; width: 240px; background: rgba(15, 23, 42, 0.9); border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); display: flex; flex-direction: column; overflow: visible; transition: all 0.3s ease;">
+                                <!-- 折叠按钮 - 缩小版 -->
+                                <button class="panel-toggle-btn" id="toggleLeftPanel" title="点击收起素材面板" style="position: absolute; right: -20px; top: 50%; transform: translateY(-50%); width: 20px; height: 60px; background: linear-gradient(180deg, #6366f1, #8b5cf6); border: 1px solid rgba(255,255,255,0.3); border-radius: 0 8px 8px 0; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100; transition: all 0.3s ease; box-shadow: 2px 0 10px rgba(99, 102, 241, 0.5);">
+                                    <span id="leftToggleIcon" style="color: white; font-size: 12px; font-weight: bold; text-shadow: 0 1px 2px rgba(0,0,0,0.4);">◀</span>
                                 </button>
                                 <div style="padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: space-between; align-items: center;">
                                     <h4 style="font-size: 12px; color: #64748b; text-transform: uppercase; letter-spacing: 1px; margin: 0;">🎨 素材库</h4>
@@ -3246,11 +3232,10 @@
                             </div>
                             
                             <!-- 右侧：属性面板 -->
-                            <div class="properties-panel" id="rightPanel" style="width: 280px; background: rgba(15, 23, 42, 0.9); border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); display: flex; flex-direction: column; overflow: hidden; position: relative; transition: all 0.3s ease;">
-                                <!-- 折叠按钮 - 右侧 -->
-                                <button class="panel-toggle-btn" id="toggleRightPanel" title="点击收起属性面板 (快捷键: ])" style="position: absolute; left: -28px; top: 50%; transform: translateY(-50%); width: 28px; height: 100px; background: linear-gradient(180deg, #6366f1, #8b5cf6); border: 2px solid rgba(255,255,255,0.4); border-radius: 12px 0 0 12px; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100; transition: all 0.3s ease; box-shadow: -4px 0 20px rgba(99, 102, 241, 0.6), 0 0 30px rgba(99, 102, 241, 0.3);">
-                                    <span style="color: white; font-size: 16px; font-weight: bold; text-shadow: 0 1px 3px rgba(0,0,0,0.4); margin-bottom: 4px;">▶</span>
-                                    <span style="color: white; font-size: 9px; font-weight: 600; text-shadow: 0 1px 2px rgba(0,0,0,0.4); writing-mode: vertical-rl; letter-spacing: 2px;">收起</span>
+                            <div class="properties-panel" id="rightPanel" style="width: 280px; background: rgba(15, 23, 42, 0.9); border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); display: flex; flex-direction: column; overflow: visible; position: relative; transition: all 0.3s ease;">
+                                <!-- 折叠按钮 - 缩小版 -->
+                                <button class="panel-toggle-btn" id="toggleRightPanel" title="点击收起属性面板" style="position: absolute; left: -20px; top: 50%; transform: translateY(-50%); width: 20px; height: 60px; background: linear-gradient(180deg, #6366f1, #8b5cf6); border: 1px solid rgba(255,255,255,0.3); border-radius: 8px 0 0 8px; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100; transition: all 0.3s ease; box-shadow: -2px 0 10px rgba(99, 102, 241, 0.5);">
+                                    <span id="rightToggleIcon" style="color: white; font-size: 12px; font-weight: bold; text-shadow: 0 1px 2px rgba(0,0,0,0.4);">▶</span>
                                 </button>
                                 <div style="padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: space-between; align-items: center;">
                                     <h4 style="font-size: 12px; color: #64748b; text-transform: uppercase; letter-spacing: 1px; margin: 0;">⚙️ 属性</h4>
@@ -3561,7 +3546,7 @@
     <!-- Toast 通知 -->
     <div id="toastContainer" class="toast-container"></div>
 
-    <script src="/static/js/short-drama-studio.js?v=25"></script>
+    <script src="/static/js/short-drama-studio.js?v=26"></script>
     <script src="/static/js/confirm-dialog.js"></script>
     <script>
         // 补充缺失的故事节拍功能
@@ -4116,22 +4101,12 @@
                     leftPanel.classList.toggle('collapsed');
                     const isCollapsed = leftPanel.classList.contains('collapsed');
                     
-                    // 更新按钮样式
-                    if (isCollapsed) {
-                        toggleLeftBtn.style.right = '0';
-                        toggleLeftBtn.innerHTML = `
-                            <span style="color: white; font-size: 16px; font-weight: bold; text-shadow: 0 1px 3px rgba(0,0,0,0.4); margin-bottom: 4px;">▶</span>
-                            <span style="color: white; font-size: 9px; font-weight: 600; text-shadow: 0 1px 2px rgba(0,0,0,0.4); writing-mode: vertical-rl; letter-spacing: 2px;">展开</span>
-                        `;
-                        toggleLeftBtn.title = '点击展开素材面板';
-                    } else {
-                        toggleLeftBtn.style.right = '-28px';
-                        toggleLeftBtn.innerHTML = `
-                            <span style="color: white; font-size: 16px; font-weight: bold; text-shadow: 0 1px 3px rgba(0,0,0,0.4); margin-bottom: 4px;">◀</span>
-                            <span style="color: white; font-size: 9px; font-weight: 600; text-shadow: 0 1px 2px rgba(0,0,0,0.4); writing-mode: vertical-rl; letter-spacing: 2px;">收起</span>
-                        `;
-                        toggleLeftBtn.title = '点击收起素材面板';
+                    // 更新按钮图标
+                    const icon = document.getElementById('leftToggleIcon');
+                    if (icon) {
+                        icon.textContent = isCollapsed ? '▶' : '◀';
                     }
+                    toggleLeftBtn.title = isCollapsed ? '点击展开素材面板' : '点击收起素材面板';
                     
                     // 触发画布重绘
                     setTimeout(() => {
@@ -4147,22 +4122,12 @@
                     rightPanel.classList.toggle('collapsed');
                     const isCollapsed = rightPanel.classList.contains('collapsed');
                     
-                    // 更新按钮样式
-                    if (isCollapsed) {
-                        toggleRightBtn.style.left = '0';
-                        toggleRightBtn.innerHTML = `
-                            <span style="color: white; font-size: 16px; font-weight: bold; text-shadow: 0 1px 3px rgba(0,0,0,0.4); margin-bottom: 4px;">◀</span>
-                            <span style="color: white; font-size: 9px; font-weight: 600; text-shadow: 0 1px 2px rgba(0,0,0,0.4); writing-mode: vertical-rl; letter-spacing: 2px;">展开</span>
-                        `;
-                        toggleRightBtn.title = '点击展开属性面板';
-                    } else {
-                        toggleRightBtn.style.left = '-28px';
-                        toggleRightBtn.innerHTML = `
-                            <span style="color: white; font-size: 16px; font-weight: bold; text-shadow: 0 1px 3px rgba(0,0,0,0.4); margin-bottom: 4px;">▶</span>
-                            <span style="color: white; font-size: 9px; font-weight: 600; text-shadow: 0 1px 2px rgba(0,0,0,0.4); writing-mode: vertical-rl; letter-spacing: 2px;">收起</span>
-                        `;
-                        toggleRightBtn.title = '点击收起属性面板';
+                    // 更新按钮图标
+                    const icon = document.getElementById('rightToggleIcon');
+                    if (icon) {
+                        icon.textContent = isCollapsed ? '◀' : '▶';
                     }
+                    toggleRightBtn.title = isCollapsed ? '点击展开属性面板' : '点击收起属性面板';
                     
                     // 触发画布重绘
                     setTimeout(() => {

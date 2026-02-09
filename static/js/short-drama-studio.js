@@ -766,6 +766,12 @@ class ShortDramaStudio {
                     this.loadedSteps.add('check-portraits');
                 }
                 break;
+            case 'story-beats':
+                if (!this.loadedSteps.has('story-beats') || forceReload) {
+                    this.renderStoryBeatsStep();
+                    this.loadedSteps.add('story-beats');
+                }
+                break;
             case 'storyboard':
                 if (!this.loadedSteps.has('storyboard') || forceReload) {
                     this.loadStoryboardStep();
