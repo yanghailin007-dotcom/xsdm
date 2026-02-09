@@ -86,6 +86,107 @@
             color: #fca5a5;
         }
 
+        /* ==================== 用户头像下拉菜单 ==================== */
+        .user-menu {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+        }
+
+        .user-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            overflow: hidden;
+        }
+
+        .user-avatar:hover {
+            transform: scale(1.05);
+            border-color: rgba(255, 255, 255, 0.3);
+            box-shadow: 0 0 20px rgba(99, 102, 241, 0.4);
+        }
+
+        .user-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .user-avatar .avatar-text {
+            font-size: 16px;
+            font-weight: 600;
+            color: white;
+            text-transform: uppercase;
+        }
+
+        .user-dropdown {
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            min-width: 180px;
+            background: rgba(30, 41, 59, 0.98);
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            border-radius: 12px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-10px);
+            transition: all 0.2s ease;
+            z-index: 1000;
+            backdrop-filter: blur(10px);
+        }
+
+        .user-dropdown.active {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .dropdown-header {
+            padding: 12px 16px;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+        }
+
+        .dropdown-header span {
+            color: #f1f5f9;
+            font-weight: 600;
+            font-size: 14px;
+            display: block;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .dropdown-divider {
+            height: 1px;
+            background: rgba(148, 163, 184, 0.1);
+            margin: 4px 0;
+        }
+
+        .dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 16px;
+            color: #94a3b8;
+            text-decoration: none;
+            font-size: 14px;
+            transition: all 0.15s ease;
+            cursor: pointer;
+        }
+
+        .dropdown-item:hover {
+            background: rgba(99, 102, 241, 0.1);
+            color: #f1f5f9;
+        }
+
         /* ==================== 按钮 ==================== */
         .btn-primary {
             background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%) !important;
