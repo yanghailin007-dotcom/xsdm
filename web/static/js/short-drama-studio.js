@@ -24,6 +24,13 @@ class ShortDramaStudio {
         // 后台任务跟踪
         this.backgroundTasks = new Map(); // taskId -> { shotIndex, shot, startTime, progress, status }
 
+        // Konva 无限画布相关
+        this.portraitStage = null;
+        this.portraitLayer = null;
+        this.portraitTransformer = null;
+        this.portraitScale = 1;
+        this.portraitCanvasItems = [];
+
         this.init();
     }
 
@@ -903,6 +910,11 @@ class ShortDramaStudio {
             }).join('');
 
             console.log('✅ [角色剧照] 渲染完成，共', characters.length, '个角色');
+
+            // 初始化并渲染无限画布
+            setTimeout(() => {
+                this.initPortraitCanvas(characters);
+            }, 100);
 
             // 更新项目状态
             this.updateProjectStatus();
@@ -8667,6 +8679,536 @@ saveGeminiConfig(config) {
             document.body.removeChild(textarea);
             this.showToast('已复制到剪贴板', 'success');
         });
+    }
+
+    // ==================== 角色剧照无限画布方法 ====================
+
+    /**
+     * 初始化角色剧照无限画布
+     */
+    initPortraitCanvas(characters) {
+        if (typeof Konva === 'undefined') {
+            console.warn('⚠️ Konva.js 未加载，跳过画布初始化');
+            return;
+        }
+
+        const container = document.getElementById('portrait-konva-container');
+        if (!container) {
+            console.warn('⚠️ 找不到画布容器');
+            return;
+        }
+
+        // 如果已有舞台，先清空
+        if (this.portraitStage) {
+            this.portraitStage.destroy();
+            this.portraitStage = null;
+        }
+
+        const { width, height } = container.getBoundingClientRect();
+
+        // 创建舞台
+        this.portraitStage = new Konva.Stage({
+            container: 'portrait-konva-container',
+            width: width,
+            height: height,
+            draggable: false
+        });
+
+        // 创建主图层
+        this.portraitLayer = new Konva.Layer();
+        this.portraitStage.add(this.portraitLayer);
+
+        // 创建变换器
+        this.portraitTransformer = new Konva.Transformer({
+            borderStroke: '#6366f1',
+            borderStrokeWidth: 2,
+            anchorStroke: '#6366f1',
+            anchorFill: '#0f172a',
+            anchorSize: 8,
+            padding: 4,
+            keepRatio: true,
+            enabledAnchors: ['top-left', 'top-right', 'bottom-left', 'bottom-right']
+        });
+        this.portraitLayer.add(this.portraitTransformer);
+
+        // 创建格子背景
+        this.createPortraitGridBackground();
+
+        // 绑定事件
+        this.bindPortraitCanvasEvents();
+
+        // 渲染角色到画布
+        this.renderCharactersToCanvas(characters);
+
+        // 初始化工具栏
+        this.initPortraitToolbar();
+
+        console.log('✅ [角色剧照画布] 初始化完成');
+    }
+
+    /**
+     * 创建格子背景
+     */
+    createPortraitGridBackground() {
+        const gridLayer = new Konva.Layer();
+        const gridSize = 50;
+        const stageWidth = 3000;
+        const stageHeight = 2000;
+
+        // 垂直线
+        for (let x = 0; x <= stageWidth; x += gridSize) {
+            gridLayer.add(new Konva.Line({
+                points: [x, 0, x, stageHeight],
+                stroke: 'rgba(99, 102, 241, 0.1)',
+                strokeWidth: 1
+            }));
+        }
+
+        // 水平线
+        for (let y = 0; y <= stageHeight; y += gridSize) {
+            gridLayer.add(new Konva.Line({
+                points: [0, y, stageWidth, y],
+                stroke: 'rgba(99, 102, 241, 0.1)',
+                strokeWidth: 1
+            }));
+        }
+
+        // 三大区域标记
+        const regions = [
+            { x: 500, y: 200, name: '🎭 角色区', color: 'rgba(236, 72, 153, 0.15)' },
+            { x: 1500, y: 200, name: '🏞 ️场景区', color: 'rgba(34, 197, 94, 0.15)' },
+            { x: 2500, y: 200, name: '🎒 道具区', color: 'rgba(245, 158, 11, 0.15)' }
+        ];
+
+        regions.forEach(region => {
+            gridLayer.add(new Konva.Rect({
+                x: region.x - 400,
+                y: region.y - 150,
+                width: 800,
+                height: 1700,
+                fill: region.color,
+                stroke: region.color.replace('0.15', '0.3'),
+                strokeWidth: 2,
+                cornerRadius: 12
+            }));
+
+            gridLayer.add(new Konva.Text({
+                x: region.x,
+                y: region.y - 120,
+                text: region.name,
+                fontSize: 24,
+                fontStyle: 'bold',
+                fill: 'rgba(255, 255, 255, 0.6)',
+                align: 'center'
+            }));
+        });
+
+        this.portraitStage.add(gridLayer);
+        gridLayer.moveToBottom();
+
+        // 居中显示
+        const container = document.getElementById('portrait-konva-container');
+        const viewWidth = container.offsetWidth;
+        const viewHeight = container.offsetHeight;
+        
+        this.portraitStage.x((viewWidth - stageWidth) / 2);
+        this.portraitStage.y((viewHeight - stageHeight) / 2);
+    }
+
+    /**
+     * 渲染角色到画布
+     */
+    renderCharactersToCanvas(characters) {
+        if (!characters || characters.length === 0) return;
+
+        // 角色区起始位置
+        let startX = 200;
+        let startY = 300;
+        const gapX = 220;
+        const gapY = 320;
+        const perRow = 3;
+
+        characters.forEach((char, idx) => {
+            const charName = char.name || `角色${idx + 1}`;
+            
+            // 查找剧照
+            let portraitUrl = null;
+            const portraitInfo = this.characterPortraits.get(charName);
+            if (portraitInfo && portraitInfo.mainPortrait) {
+                portraitUrl = portraitInfo.mainPortrait.url;
+            }
+
+            // 计算位置（网格布局）
+            const row = Math.floor(idx / perRow);
+            const col = idx % perRow;
+            const x = startX + col * gapX;
+            const y = startY + row * gapY;
+
+            // 创建角色卡片组
+            this.createCharacterCard(charName, char, portraitUrl, x, y);
+        });
+
+        this.portraitLayer.batchDraw();
+    }
+
+    /**
+     * 创建角色卡片
+     */
+    createCharacterCard(name, charData, imageUrl, x, y) {
+        const group = new Konva.Group({
+            x: x,
+            y: y,
+            draggable: true,
+            name: 'character-card'
+        });
+
+        // 卡片背景
+        const cardWidth = 180;
+        const cardHeight = imageUrl ? 260 : 120;
+
+        group.add(new Konva.Rect({
+            width: cardWidth,
+            height: cardHeight,
+            fill: 'rgba(30, 41, 59, 0.9)',
+            stroke: 'rgba(99, 102, 241, 0.3)',
+            strokeWidth: 1,
+            cornerRadius: 12,
+            shadowColor: 'rgba(0, 0, 0, 0.3)',
+            shadowBlur: 10,
+            shadowOffset: { x: 0, y: 4 }
+        }));
+
+        if (imageUrl) {
+            // 有剧照 - 加载图片
+            const imageObj = new Image();
+            imageObj.onload = () => {
+                const imgHeight = 180;
+                const img = new Konva.Image({
+                    x: 10,
+                    y: 10,
+                    image: imageObj,
+                    width: cardWidth - 20,
+                    height: imgHeight,
+                    cornerRadius: 8
+                });
+                group.add(img);
+
+                // 角色名
+                group.add(new Konva.Text({
+                    x: 10,
+                    y: imgHeight + 20,
+                    text: name,
+                    fontSize: 14,
+                    fontStyle: 'bold',
+                    fill: '#f1f5f9',
+                    width: cardWidth - 20,
+                    ellipsis: true
+                }));
+
+                // 角色角色
+                if (charData.role) {
+                    group.add(new Konva.Text({
+                        x: 10,
+                        y: imgHeight + 40,
+                        text: charData.role,
+                        fontSize: 11,
+                        fill: '#94a3b8',
+                        width: cardWidth - 20
+                    }));
+                }
+
+                this.portraitLayer.batchDraw();
+            };
+            imageObj.src = imageUrl;
+        } else {
+            // 无剧照 - 显示占位符
+            group.add(new Konva.Rect({
+                x: 10,
+                y: 10,
+                width: cardWidth - 20,
+                height: 60,
+                fill: 'rgba(99, 102, 241, 0.1)',
+                cornerRadius: 8
+            }));
+
+            group.add(new Konva.Text({
+                x: 0,
+                y: 35,
+                text: '👤',
+                fontSize: 24,
+                fill: '#64748b',
+                width: cardWidth,
+                align: 'center'
+            }));
+
+            group.add(new Konva.Text({
+                x: 10,
+                y: 80,
+                text: name,
+                fontSize: 14,
+                fontStyle: 'bold',
+                fill: '#f1f5f9',
+                width: cardWidth - 20,
+                ellipsis: true
+            }));
+
+            group.add(new Konva.Text({
+                x: 10,
+                y: 100,
+                text: '点击生成剧照',
+                fontSize: 11,
+                fill: '#6366f1',
+                width: cardWidth - 20
+            }));
+        }
+
+        // 添加点击事件
+        group.on('click tap', () => {
+            this.selectPortraitCard(group);
+        });
+
+        group.on('dblclick dbltap', () => {
+            // 双击打开生成/查看剧照
+            const portraitInfo = this.characterPortraits.get(name);
+            if (portraitInfo) {
+                this.viewPortrait(name);
+            } else {
+                this.generatePortrait(name);
+            }
+        });
+
+        // 拖拽事件
+        group.on('dragstart', () => {
+            group.shadowBlur(20);
+        });
+
+        group.on('dragend', () => {
+            group.shadowBlur(10);
+        });
+
+        // 存储元数据
+        group.setAttr('meta', {
+            name: name,
+            charData: charData,
+            hasPortrait: !!imageUrl
+        });
+
+        this.portraitLayer.add(group);
+        this.portraitCanvasItems.push(group);
+    }
+
+    /**
+     * 绑定画布事件
+     */
+    bindPortraitCanvasEvents() {
+        const stage = this.portraitStage;
+        const container = document.getElementById('portrait-konva-container');
+
+        // 滚轮缩放
+        container.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            
+            const oldScale = stage.scaleX();
+            const pointer = stage.getPointerPosition();
+            
+            const mousePointTo = {
+                x: (pointer.x - stage.x()) / oldScale,
+                y: (pointer.y - stage.y()) / oldScale
+            };
+
+            const zoomDirection = e.deltaY > 0 ? -1 : 1;
+            const newScale = Math.max(0.3, Math.min(2, oldScale + zoomDirection * 0.1));
+
+            stage.scale({ x: newScale, y: newScale });
+            
+            const newPos = {
+                x: pointer.x - mousePointTo.x * newScale,
+                y: pointer.y - mousePointTo.y * newScale
+            };
+            
+            stage.position(newPos);
+            this.portraitScale = newScale;
+            this.updatePortraitZoomDisplay();
+            
+            stage.batchDraw();
+        });
+
+        // 鼠标事件用于平移
+        let isPanning = false;
+        let lastPos = { x: 0, y: 0 };
+
+        stage.on('mousedown', (e) => {
+            if (e.target === stage || e.target.hasName('grid-bg')) {
+                isPanning = true;
+                lastPos = { x: e.evt.clientX, y: e.evt.clientY };
+                container.classList.add('panning');
+            } else {
+                // 点击空白处取消选择
+                this.portraitTransformer.nodes([]);
+            }
+        });
+
+        stage.on('mousemove', (e) => {
+            if (isPanning) {
+                const dx = e.evt.clientX - lastPos.x;
+                const dy = e.evt.clientY - lastPos.y;
+                
+                stage.x(stage.x() + dx);
+                stage.y(stage.y() + dy);
+                
+                lastPos = { x: e.evt.clientX, y: e.evt.clientY };
+                stage.batchDraw();
+            }
+        });
+
+        stage.on('mouseup', () => {
+            isPanning = false;
+            container.classList.remove('panning');
+        });
+    }
+
+    /**
+     * 选中卡片
+     */
+    selectPortraitCard(group) {
+        this.portraitTransformer.nodes([group]);
+        this.portraitTransformer.moveToTop();
+        this.portraitLayer.batchDraw();
+    }
+
+    /**
+     * 初始化工具栏
+     */
+    initPortraitToolbar() {
+        // 工具切换
+        document.getElementById('pc-tool-select')?.addEventListener('click', () => {
+            this.setPortraitTool('select');
+        });
+
+        document.getElementById('pc-tool-hand')?.addEventListener('click', () => {
+            this.setPortraitTool('hand');
+        });
+
+        document.getElementById('pc-tool-fit')?.addEventListener('click', () => {
+            this.fitPortraitCanvas();
+        });
+
+        document.getElementById('pc-tool-export')?.addEventListener('click', () => {
+            this.exportPortraitCanvas();
+        });
+
+        // 缩放控制
+        document.getElementById('pc-zoom-in')?.addEventListener('click', () => {
+            this.zoomPortraitCanvas(0.2);
+        });
+
+        document.getElementById('pc-zoom-out')?.addEventListener('click', () => {
+            this.zoomPortraitCanvas(-0.2);
+        });
+    }
+
+    /**
+     * 设置工具
+     */
+    setPortraitTool(tool) {
+        document.querySelectorAll('.pc-tool-btn').forEach(btn => btn.classList.remove('active'));
+        document.getElementById(`pc-tool-${tool}`)?.classList.add('active');
+        
+        const container = document.getElementById('portrait-konva-container');
+        if (tool === 'hand') {
+            container.style.cursor = 'grab';
+        } else {
+            container.style.cursor = 'default';
+        }
+    }
+
+    /**
+     * 适应画布
+     */
+    fitPortraitCanvas() {
+        if (!this.portraitStage) return;
+        
+        const stage = this.portraitStage;
+        const container = document.getElementById('portrait-konva-container');
+        
+        stage.scale({ x: 0.5, y: 0.5 });
+        stage.position({
+            x: (container.offsetWidth - 3000 * 0.5) / 2,
+            y: (container.offsetHeight - 2000 * 0.5) / 2
+        });
+        
+        this.portraitScale = 0.5;
+        this.updatePortraitZoomDisplay();
+        stage.batchDraw();
+    }
+
+    /**
+     * 缩放画布
+     */
+    zoomPortraitCanvas(delta) {
+        if (!this.portraitStage) return;
+        
+        const stage = this.portraitStage;
+        const oldScale = stage.scaleX();
+        const newScale = Math.max(0.3, Math.min(2, oldScale + delta));
+        
+        const center = {
+            x: stage.width() / 2,
+            y: stage.height() / 2
+        };
+        
+        const mousePointTo = {
+            x: (center.x - stage.x()) / oldScale,
+            y: (center.y - stage.y()) / oldScale
+        };
+        
+        stage.scale({ x: newScale, y: newScale });
+        stage.position({
+            x: center.x - mousePointTo.x * newScale,
+            y: center.y - mousePointTo.y * newScale
+        });
+        
+        this.portraitScale = newScale;
+        this.updatePortraitZoomDisplay();
+        stage.batchDraw();
+    }
+
+    /**
+     * 更新缩放显示
+     */
+    updatePortraitZoomDisplay() {
+        const percentage = Math.round(this.portraitScale * 100);
+        const zoomValue = document.getElementById('pc-zoom-value');
+        if (zoomValue) {
+            zoomValue.textContent = percentage + '%';
+        }
+    }
+
+    /**
+     * 导出画布
+     */
+    exportPortraitCanvas() {
+        if (!this.portraitStage) return;
+        
+        // 隐藏变换器
+        this.portraitTransformer.visible(false);
+        this.portraitLayer.batchDraw();
+        
+        const dataURL = this.portraitStage.toDataURL({
+            pixelRatio: 2,
+            x: 0,
+            y: 0,
+            width: 3000,
+            height: 2000
+        });
+        
+        this.portraitTransformer.visible(true);
+        this.portraitLayer.batchDraw();
+        
+        const link = document.createElement('a');
+        link.download = `角色剧照画布_${new Date().toISOString().slice(0, 10)}.png`;
+        link.href = dataURL;
+        link.click();
     }
 }
 
