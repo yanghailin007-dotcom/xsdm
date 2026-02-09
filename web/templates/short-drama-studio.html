@@ -3026,6 +3026,9 @@
                                 <button class="btn btn-sm btn-secondary" onclick="shortDramaStudio.loadCharacterPortraitsStep()">
                                     🔄 刷新画布
                                 </button>
+                                <button class="btn btn-sm btn-warning" onclick="shortDramaStudio.regenerateVisualAssets()">
+                                    🔄 重新生成资产
+                                </button>
                                 <button class="btn btn-sm btn-primary" onclick="shortDramaStudio.fitPortraitCanvas()">
                                     ⛶ 适应画布
                                 </button>
@@ -3423,7 +3426,7 @@
     <!-- Toast 通知 -->
     <div id="toastContainer" class="toast-container"></div>
 
-    <script src="/static/js/short-drama-studio.js?v=22"></script>
+    <script src="/static/js/short-drama-studio.js?v=23"></script>
     <script src="/static/js/confirm-dialog.js"></script>
     <script>
         // 补充缺失的故事节拍功能

@@ -793,6 +793,17 @@ def create_from_idea():
         logger.info(f'   - 场景: {len(visual_assets.get("scenes", []))} 个')
         logger.info(f'   - 道具: {len(visual_assets.get("props", []))} 个')
 
+        # 🔥 生成帧序列提示词 (Step 7)
+        logger.info(f'🎬 [创意导入] 开始生成帧序列提示词...')
+        frame_sequences = generate_frame_sequences_from_shots(shots_en, shots_cn, visual_assets, title)
+
+        # 保存帧序列到文件
+        frame_sequences_file = episode_dir / 'frame_sequences.json'
+        with open(frame_sequences_file, 'w', encoding='utf-8') as f:
+            json.dump(frame_sequences, f, ensure_ascii=False, indent=2)
+        logger.info(f'✅ [创意导入] 帧序列已保存: {frame_sequences_file}')
+        logger.info(f'   - 总镜头数: {len(frame_sequences.get("sequences", []))} 个')
+
         # 🔥 合并中英文数据，保存完整的 shots 到项目信息
         merged_shots = []
         for i, (shot_cn, shot_en) in enumerate(zip(shots_cn, shots_en), 1):
@@ -2479,6 +2490,216 @@ def extract_visual_assets_from_shots(shots_en: list, shots_cn: list, title: str)
         }
 
 
+def extract_first_last_frames(grid_image_path, grid_layout, output_dir):
+    """
+    从网格图中提取第一帧和最后一帧
+
+    Args:
+        grid_image_path: 网格图路径
+        grid_layout: 网格布局 ('1x3', '2x3', '3x3')
+        output_dir: 输出目录
+
+    Returns:
+        包含第一帧和最后一帧路径的字典
+    """
+    try:
+        from PIL import Image
+
+        logger.info(f'🖼️ [帧提取] 从 {grid_layout} 网格图提取首尾帧...')
+
+        # 打开网格图
+        img = Image.open(grid_image_path)
+        width, height = img.size
+
+        # 根据网格布局计算单帧尺寸
+        if grid_layout == '1x3':
+            cols, rows = 3, 1
+        elif grid_layout == '2x3':
+            cols, rows = 3, 2
+        elif grid_layout == '3x3':
+            cols, rows = 3, 3
+        else:
+            raise ValueError(f'不支持的网格布局: {grid_layout}')
+
+        frame_width = width // cols
+        frame_height = height // rows
+
+        # 提取第一帧 (左上角)
+        first_frame = img.crop((0, 0, frame_width, frame_height))
+        first_frame_path = os.path.join(output_dir, 'first_frame.png')
+        first_frame.save(first_frame_path)
+
+        # 提取最后一帧 (右下角)
+        last_col = cols - 1
+        last_row = rows - 1
+        last_frame = img.crop((
+            last_col * frame_width,
+            last_row * frame_height,
+            (last_col + 1) * frame_width,
+            (last_row + 1) * frame_height
+        ))
+        last_frame_path = os.path.join(output_dir, 'last_frame.png')
+        last_frame.save(last_frame_path)
+
+        logger.info(f'✅ [帧提取] 提取完成')
+
+        return {
+            'first_frame': first_frame_path,
+            'last_frame': last_frame_path
+        }
+
+    except Exception as e:
+        logger.error(f'提取首尾帧失败: {e}')
+        import traceback
+        logger.error(traceback.format_exc())
+        return None
+
+
+def generate_frame_sequences_from_shots(shots_en, shots_cn, visual_assets, title):
+    """
+    从分镜头脚本生成帧序列提示词
+
+    根据镜头时长动态决定帧数:
+    - ≤5秒: 3帧 (1x3网格)
+    - ≤8秒: 5帧 (2x3网格，中间一列只有2帧)
+    - >8秒: 9帧 (3x3网格)
+
+    Args:
+        shots_en: 英文分镜头列表
+        shots_cn: 中文分镜头列表
+        visual_assets: 视觉资产数据
+        title: 剧集标题
+
+    Returns:
+        包含帧序列数据的字典
+    """
+    if not shots_en or not api_client:
+        logger.warning('无法生成帧序列：数据为空或AI客户端未初始化')
+        return {
+            'version': '1.0',
+            'generated_at': datetime.now().isoformat(),
+            'sequences': []
+        }
+
+    try:
+        logger.info(f'🎬 [帧序列] 开始生成帧序列提示词...')
+
+        frame_sequences = []
+
+        for idx, (shot_en, shot_cn) in enumerate(zip(shots_en, shots_cn), 1):
+            shot_id = shot_en.get('shot_id', f'shot_{idx}')
+            duration = shot_en.get('duration', 5)
+
+            # 根据时长决定帧数和网格布局
+            if duration <= 5:
+                frame_count = 3
+                grid_layout = '1x3'
+            elif duration <= 8:
+                frame_count = 5
+                grid_layout = '2x3'
+            else:
+                frame_count = 9
+                grid_layout = '3x3'
+
+            logger.info(f'  处理 {shot_id} (时长: {duration}s, 帧数: {frame_count})')
+
+            # 构建AI提示词
+            system_prompt = f"""你是一个专业的视频分镜设计师。请为短剧分镜头生成{frame_count}个连续的画面提示词，用于生成{grid_layout}网格图。
+
+每个提示词应该:
+1. 描述具体的画面内容（角色位置、动作、表情、场景细节）
+2. 保持视觉风格一致
+3. 体现时间的连续性和动作的流畅性
+4. 使用英文，适合直接用于图像生成（FLUX/DALL-E等）
+
+返回JSON格式:
+{{
+    "frames": [
+        {{
+            "frame_number": 1,
+            "prompt": "详细的英文画面描述",
+            "description_cn": "中文画面描述"
+        }},
+        ...
+    ]
+}}"""
+
+            user_prompt = f"""剧集标题: {title}
+
+分镜头信息:
+- 镜头ID: {shot_id}
+- 时长: {duration}秒
+- 场景标题: {shot_cn.get('scene_title', '')}
+- 视觉描述: {shot_cn.get('visual_description_standard', '')}
+- VEO提示词: {shot_en.get('veo_prompt_standard', '')}
+- 对话: {json.dumps(shot_cn.get('dialogue', {}), ensure_ascii=False)}
+
+视觉资产参考:
+- 角色: {json.dumps([c.get('name', '') for c in visual_assets.get('characters', [])], ensure_ascii=False)}
+- 场景: {json.dumps([s.get('name', '') for s in visual_assets.get('scenes', [])], ensure_ascii=False)}
+- 道具: {json.dumps([p.get('name', '') for p in visual_assets.get('props', [])], ensure_ascii=False)}
+
+请生成{frame_count}个连续的画面提示词。"""
+
+            # 调用AI生成
+            response = api_client.generate_content(
+                contents=[{
+                    'role': 'user',
+                    'parts': [{'text': user_prompt}]
+                }],
+                config={
+                    'system_instruction': system_prompt,
+                    'temperature': 0.7,
+                    'response_mime_type': 'application/json'
+                }
+            )
+            result_text = response.text.strip()
+
+            # 清理markdown代码块标记
+            if result_text.startswith('```'):
+                result_text = result_text.split('```')[1]
+                if result_text.startswith('json'):
+                    result_text = result_text[4:]
+                result_text = result_text.strip()
+
+            frame_data = json.loads(result_text)
+
+            # 构建帧序列数据
+            sequence = {
+                'shot_id': shot_id,
+                'duration': duration,
+                'frame_count': frame_count,
+                'grid_layout': grid_layout,
+                'frames': frame_data.get('frames', []),
+                'scene': shot_cn.get('scene', ''),
+                'characters': shot_cn.get('characters', ''),
+                'visual_style': shot_cn.get('visual_style', '')
+            }
+
+            frame_sequences.append(sequence)
+            logger.info(f'  ✅ {shot_id} 生成完成 ({frame_count}帧)')
+
+        result = {
+            'version': '1.0',
+            'generated_at': datetime.now().isoformat(),
+            'title': title,
+            'sequences': frame_sequences
+        }
+
+        logger.info(f'✅ [帧序列] 生成完成: {len(frame_sequences)} 个镜头')
+        return result
+
+    except Exception as e:
+        logger.error(f'生成帧序列失败: {e}')
+        import traceback
+        logger.error(traceback.format_exc())
+        return {
+            'version': '1.0',
+            'generated_at': datetime.now().isoformat(),
+            'sequences': []
+        }
+
+
 # ============================================================
 # Shots V2 API 路由 - 用于加载和保存优化格式的分镜头数据
 # ============================================================
@@ -2973,8 +3194,8 @@ def save_image_gen_config():
 # ============================================================
 
 @short_drama_api.route('/visual-assets', methods=['GET'])
-def get_visual_assets():
-    """获取视觉资产清单"""
+def get_visual_assets_from_file():
+    """获取视觉资产清单（从文件）"""
     try:
         novel = request.args.get('novel', '').strip()
         episode = request.args.get('episode', '').strip()
@@ -3012,6 +3233,209 @@ def get_visual_assets():
 
     except Exception as e:
         logger.error(f'获取视觉资产失败: {e}')
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@short_drama_api.route('/frame-sequences', methods=['GET'])
+def get_frame_sequences():
+    """获取帧序列数据"""
+    try:
+        novel = request.args.get('novel', '').strip()
+        episode = request.args.get('episode', '').strip()
+
+        if not novel or not episode:
+            return jsonify({
+                'success': False,
+                'error': '缺少 novel 或 episode 参数'
+            }), 400
+
+        # 构建文件路径
+        base_dir = Path(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+        novel_dir = base_dir / '视频项目' / novel
+        episode_dir = novel_dir / episode
+        sequences_file = episode_dir / 'frame_sequences.json'
+
+        if not sequences_file.exists():
+            return jsonify({
+                'success': True,
+                'sequences': {
+                    'sequences': []
+                },
+                'message': '帧序列文件不存在'
+            }), 200
+
+        with open(sequences_file, 'r', encoding='utf-8') as f:
+            sequences = json.load(f)
+
+        return jsonify({
+            'success': True,
+            'sequences': sequences
+        }), 200
+
+    except Exception as e:
+        logger.error(f'获取帧序列失败: {e}')
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@short_drama_api.route('/visual-assets/regenerate', methods=['POST'])
+def regenerate_visual_assets():
+    """重新生成视觉资产清单"""
+    try:
+        data = request.get_json()
+        novel = data.get('novel', '').strip()
+        episode = data.get('episode', '').strip()
+
+        if not novel or not episode:
+            return jsonify({
+                'success': False,
+                'error': '缺少 novel 或 episode 参数'
+            }), 400
+
+        # 构建文件路径
+        base_dir = Path(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+        novel_dir = base_dir / '视频项目' / novel
+        episode_dir = novel_dir / episode
+
+        # 检查分镜头文件是否存在
+        shots_en_file = episode_dir / 'shots_v2.json'
+        shots_cn_file = episode_dir / 'shots_v2_cn.json'
+
+        if not shots_en_file.exists() or not shots_cn_file.exists():
+            return jsonify({
+                'success': False,
+                'error': '分镜头文件不存在，无法重新生成视觉资产'
+            }), 404
+
+        # 读取分镜头数据
+        with open(shots_en_file, 'r', encoding='utf-8') as f:
+            shots_en_data = json.load(f)
+            shots_en = shots_en_data.get('shots', [])
+
+        with open(shots_cn_file, 'r', encoding='utf-8') as f:
+            shots_cn_data = json.load(f)
+            shots_cn = shots_cn_data.get('shots', [])
+
+        # 获取标题
+        title = shots_en_data.get('title', episode)
+
+        logger.info(f'🔄 [重新生成] 开始重新生成视觉资产: {novel}/{episode}')
+
+        # 调用视觉资产提取函数
+        visual_assets = extract_visual_assets_from_shots(shots_en, shots_cn, title)
+
+        # 保存到文件
+        assets_file = episode_dir / 'visual_assets.json'
+        with open(assets_file, 'w', encoding='utf-8') as f:
+            json.dump(visual_assets, f, ensure_ascii=False, indent=2)
+
+        logger.info(f'✅ [重新生成] 视觉资产已保存: {assets_file}')
+
+        return jsonify({
+            'success': True,
+            'message': '视觉资产重新生成成功',
+            'assets': visual_assets,
+            'stats': {
+                'characters': len(visual_assets.get('characters', [])),
+                'scenes': len(visual_assets.get('scenes', [])),
+                'props': len(visual_assets.get('props', []))
+            }
+        }), 200
+
+    except Exception as e:
+        logger.error(f'重新生成视觉资产失败: {e}')
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@short_drama_api.route('/frame-sequences/regenerate', methods=['POST'])
+def regenerate_frame_sequences():
+    """重新生成帧序列"""
+    try:
+        data = request.get_json()
+        novel = data.get('novel', '').strip()
+        episode = data.get('episode', '').strip()
+
+        if not novel or not episode:
+            return jsonify({
+                'success': False,
+                'error': '缺少 novel 或 episode 参数'
+            }), 400
+
+        # 构建文件路径
+        base_dir = Path(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+        novel_dir = base_dir / '视频项目' / novel
+        episode_dir = novel_dir / episode
+
+        # 检查必需文件是否存在
+        shots_en_file = episode_dir / 'shots_v2.json'
+        shots_cn_file = episode_dir / 'shots_v2_cn.json'
+        assets_file = episode_dir / 'visual_assets.json'
+
+        if not shots_en_file.exists() or not shots_cn_file.exists():
+            return jsonify({
+                'success': False,
+                'error': '分镜头文件不存在，无法重新生成帧序列'
+            }), 404
+
+        # 读取分镜头数据
+        with open(shots_en_file, 'r', encoding='utf-8') as f:
+            shots_en_data = json.load(f)
+            shots_en = shots_en_data.get('shots', [])
+
+        with open(shots_cn_file, 'r', encoding='utf-8') as f:
+            shots_cn_data = json.load(f)
+            shots_cn = shots_cn_data.get('shots', [])
+
+        # 读取视觉资产（如果存在）
+        if assets_file.exists():
+            with open(assets_file, 'r', encoding='utf-8') as f:
+                visual_assets = json.load(f)
+        else:
+            logger.warning('视觉资产文件不存在，使用空资产')
+            visual_assets = {
+                'characters': [],
+                'scenes': [],
+                'props': []
+            }
+
+        # 获取标题
+        title = shots_en_data.get('title', episode)
+
+        logger.info(f'🔄 [重新生成] 开始重新生成帧序列: {novel}/{episode}')
+
+        # 调用帧序列生成函数
+        frame_sequences = generate_frame_sequences_from_shots(shots_en, shots_cn, visual_assets, title)
+
+        # 保存到文件
+        sequences_file = episode_dir / 'frame_sequences.json'
+        with open(sequences_file, 'w', encoding='utf-8') as f:
+            json.dump(frame_sequences, f, ensure_ascii=False, indent=2)
+
+        logger.info(f'✅ [重新生成] 帧序列已保存: {sequences_file}')
+
+        return jsonify({
+            'success': True,
+            'message': '帧序列重新生成成功',
+            'sequences': frame_sequences,
+            'stats': {
+                'total_shots': len(frame_sequences.get('sequences', []))
+            }
+        }), 200
+
+    except Exception as e:
+        logger.error(f'重新生成帧序列失败: {e}')
+        import traceback
+        logger.error(traceback.format_exc())
         return jsonify({
             'success': False,
             'error': str(e)

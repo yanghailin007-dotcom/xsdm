@@ -10079,6 +10079,107 @@ saveGeminiConfig(config) {
         link.href = dataURL;
         link.click();
     }
+
+    /**
+     * 重新生成视觉资产
+     */
+    async regenerateVisualAssets() {
+        if (!this.currentProject) {
+            this.showToast('请先选择项目', 'warning');
+            return;
+        }
+
+        const novel = this.currentProject.novel;
+        const episode = this.currentProject.episode;
+
+        if (!novel || !episode) {
+            this.showToast('项目信息不完整', 'error');
+            return;
+        }
+
+        // 确认对话框
+        if (!confirm('确定要重新生成视觉资产吗？这将覆盖现有的视觉资产数据。')) {
+            return;
+        }
+
+        try {
+            this.showToast('🔄 正在重新生成视觉资产...', 'info');
+
+            const response = await fetch('/api/short-drama/visual-assets/regenerate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    novel: novel,
+                    episode: episode
+                })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                this.showToast(`✅ 视觉资产重新生成成功！角色: ${result.stats.characters}, 场景: ${result.stats.scenes}, 道具: ${result.stats.props}`, 'success');
+
+                // 刷新画布
+                this.loadCharacterPortraitsStep();
+            } else {
+                this.showToast(`❌ 重新生成失败: ${result.error}`, 'error');
+            }
+        } catch (error) {
+            console.error('重新生成视觉资产失败:', error);
+            this.showToast(`❌ 重新生成失败: ${error.message}`, 'error');
+        }
+    }
+
+    /**
+     * 重新生成帧序列
+     */
+    async regenerateFrameSequences() {
+        if (!this.currentProject) {
+            this.showToast('请先选择项目', 'warning');
+            return;
+        }
+
+        const novel = this.currentProject.novel;
+        const episode = this.currentProject.episode;
+
+        if (!novel || !episode) {
+            this.showToast('项目信息不完整', 'error');
+            return;
+        }
+
+        // 确认对话框
+        if (!confirm('确定要重新生成帧序列吗？这将覆盖现有的帧序列数据。')) {
+            return;
+        }
+
+        try {
+            this.showToast('🔄 正在重新生成帧序列...', 'info');
+
+            const response = await fetch('/api/short-drama/frame-sequences/regenerate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    novel: novel,
+                    episode: episode
+                })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                this.showToast(`✅ 帧序列重新生成成功！共 ${result.stats.total_shots} 个镜头`, 'success');
+            } else {
+                this.showToast(`❌ 重新生成失败: ${result.error}`, 'error');
+            }
+        } catch (error) {
+            console.error('重新生成帧序列失败:', error);
+            this.showToast(`❌ 重新生成失败: ${error.message}`, 'error');
+        }
+    }
 }
 
 // 初始化
