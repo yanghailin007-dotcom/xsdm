@@ -2598,6 +2598,201 @@
             height: 12px;
             border-radius: 3px;
         }
+
+        /* ==================== 视觉资产库样式 ==================== */
+        
+        /* 左侧素材面板 */
+        .assets-panel {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .va-category-tab {
+            position: relative;
+            transition: all 0.2s;
+        }
+
+        .va-category-tab:hover {
+            background: rgba(255, 255, 255, 0.05) !important;
+        }
+
+        .va-category-tab.active {
+            background: rgba(99, 102, 241, 0.15) !important;
+        }
+
+        .va-category-tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 20%;
+            right: 20%;
+            height: 2px;
+            background: #6366f1;
+            border-radius: 2px;
+        }
+
+        /* 素材卡片 */
+        .va-asset-card {
+            aspect-ratio: 3/4;
+            background: rgba(30, 41, 59, 0.8);
+            border: 2px solid rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            overflow: hidden;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .va-asset-card:hover {
+            border-color: #6366f1;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(99, 102, 246, 0.2);
+        }
+
+        .va-asset-card img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .va-asset-card .asset-label {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 6px 8px;
+            background: linear-gradient(transparent, rgba(0,0,0,0.8));
+            font-size: 11px;
+            color: #e2e8f0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .va-asset-card.type-scene {
+            aspect-ratio: 4/3;
+        }
+
+        .va-asset-card.type-prop {
+            aspect-ratio: 1/1;
+        }
+
+        /* 右侧属性面板 */
+        .properties-panel {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .va-property-group {
+            margin-bottom: 20px;
+        }
+
+        .va-property-group h5 {
+            font-size: 11px;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin: 0 0 12px 0;
+        }
+
+        .va-form-row {
+            margin-bottom: 12px;
+        }
+
+        .va-form-row label {
+            display: block;
+            font-size: 12px;
+            color: #94a3b8;
+            margin-bottom: 4px;
+        }
+
+        .va-form-row input,
+        .va-form-row textarea {
+            width: 100%;
+            padding: 8px 10px;
+            background: rgba(30, 41, 59, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            color: #e2e8f0;
+            font-size: 13px;
+            font-family: inherit;
+        }
+
+        .va-form-row input:focus,
+        .va-form-row textarea:focus {
+            outline: none;
+            border-color: #6366f1;
+        }
+
+        .va-form-row textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+
+        .va-hint {
+            font-size: 11px;
+            color: #64748b;
+            margin-top: 4px;
+        }
+
+        .va-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 8px;
+        }
+
+        .va-tag {
+            padding: 4px 8px;
+            background: rgba(99, 102, 241, 0.2);
+            border-radius: 4px;
+            font-size: 11px;
+            color: #818cf8;
+        }
+
+        /* 空状态 */
+        .va-empty-state {
+            text-align: center;
+        }
+
+        /* 选中素材的属性显示 */
+        .va-asset-preview {
+            width: 100%;
+            aspect-ratio: 1;
+            background: rgba(30, 41, 59, 0.8);
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 16px;
+        }
+
+        .va-asset-preview img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .va-asset-type-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+
+        .va-asset-type-badge.character {
+            background: rgba(236, 72, 153, 0.2);
+            color: #ec4899;
+        }
+
+        .va-asset-type-badge.scene {
+            background: rgba(34, 197, 94, 0.2);
+            color: #22c55e;
+        }
+
+        .va-asset-type-badge.prop {
+            background: rgba(245, 158, 11, 0.2);
+            color: #f59e0b;
+        }
     </style>
 </head>
 <body>
@@ -2742,7 +2937,7 @@
                 <div class="step-line"></div>
                 <div class="step-item" data-step="check-portraits" onclick="shortDramaStudio.goToStep('check-portraits')">
                     <div class="step-circle">2</div>
-                    <div class="step-label">角色剧照</div>
+                    <div class="step-label">视觉资产库</div>
                 </div>
                 <div class="step-line"></div>
                 <div class="step-item" data-step="story-beats" onclick="shortDramaStudio.goToStep('story-beats')">
@@ -2820,12 +3015,12 @@
                         </div>
                     </div>
 
-                    <!-- 角色剧照步骤 -->
+                    <!-- 视觉资产库步骤 -->
                     <div id="check-portraitsStep" class="step-content">
                         <div class="step-header">
                             <div>
-                                <h2>👥 角色剧照</h2>
-                                <p>在画布上管理和查看角色剧照，支持拖拽调整位置</p>
+                                <h2>🎨 视觉资产库</h2>
+                                <p>管理角色、场景、道具的标准化描述，确保分镜一致性</p>
                             </div>
                             <div style="display: flex; gap: 0.5rem;">
                                 <button class="btn btn-sm btn-secondary" onclick="shortDramaStudio.loadCharacterPortraitsStep()">
@@ -2837,52 +3032,104 @@
                             </div>
                         </div>
                         
-                        <!-- 无限画布区域 -->
-                        <div class="portrait-canvas-container" id="portraitCanvasContainer">
-                            <div class="portrait-canvas-bg"></div>
-                            <div id="portrait-konva-container"></div>
+                        <!-- 三栏布局：左侧素材面板 | 中间画布 | 右侧属性面板 -->
+                        <div style="display: flex; gap: 1rem; height: 600px;">
                             
-                            <!-- 图例 -->
-                            <div class="portrait-canvas-legend">
-                                <div class="pc-legend-item">
-                                    <div class="pc-legend-color" style="background: rgba(236, 72, 153, 0.3);"></div>
-                                    <span>🎭 角色区</span>
+                            <!-- 左侧：素材面板 -->
+                            <div class="assets-panel" style="width: 240px; background: rgba(15, 23, 42, 0.9); border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); display: flex; flex-direction: column; overflow: hidden;">
+                                <div style="padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,0.1);">
+                                    <h4 style="font-size: 12px; color: #64748b; text-transform: uppercase; letter-spacing: 1px; margin: 0;">🎨 素材库</h4>
                                 </div>
-                                <div class="pc-legend-item">
-                                    <div class="pc-legend-color" style="background: rgba(34, 197, 94, 0.3);"></div>
-                                    <span>🏞 ️场景区</span>
+                                
+                                <!-- 分类标签 -->
+                                <div style="display: flex; border-bottom: 1px solid rgba(255,255,255,0.1);">
+                                    <button class="va-category-tab active" data-category="characters" style="flex: 1; padding: 12px 4px; background: transparent; border: none; color: #6366f1; font-size: 11px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; transition: all 0.2s;">
+                                        <span style="font-size: 16px;">🎭</span>
+                                        <span>角色</span>
+                                    </button>
+                                    <button class="va-category-tab" data-category="scenes" style="flex: 1; padding: 12px 4px; background: transparent; border: none; color: #64748b; font-size: 11px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; transition: all 0.2s;">
+                                        <span style="font-size: 16px;">🏞️</span>
+                                        <span>场景</span>
+                                    </button>
+                                    <button class="va-category-tab" data-category="props" style="flex: 1; padding: 12px 4px; background: transparent; border: none; color: #64748b; font-size: 11px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; transition: all 0.2s;">
+                                        <span style="font-size: 16px;">🎒</span>
+                                        <span>道具</span>
+                                    </button>
                                 </div>
-                                <div class="pc-legend-item">
-                                    <div class="pc-legend-color" style="background: rgba(245, 158, 11, 0.3);"></div>
-                                    <span>🎒 道具区</span>
+                                
+                                <!-- 素材列表 -->
+                                <div id="visualAssetsGrid" style="flex: 1; overflow-y: auto; padding: 12px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;">
+                                    <!-- 动态加载 -->
+                                </div>
+                                
+                                <!-- 底部操作 -->
+                                <div style="padding: 12px; border-top: 1px solid rgba(255,255,255,0.1); display: flex; gap: 8px;">
+                                    <button class="btn btn-sm" id="vaUploadBtn" style="flex: 1; font-size: 11px; padding: 6px;">⬆️ 上传</button>
+                                    <button class="btn btn-sm btn-primary" id="vaGenerateBtn" style="flex: 1; font-size: 11px; padding: 6px;">✨ 生成</button>
                                 </div>
                             </div>
                             
-                            <!-- 工具栏 -->
-                            <div class="portrait-canvas-toolbar">
-                                <button class="pc-tool-btn active" id="pc-tool-select" title="选择 (V)">↖️</button>
-                                <button class="pc-tool-btn" id="pc-tool-hand" title="抓手 (H)">✋</button>
-                                <div style="width: 1px; height: 20px; background: rgba(255,255,255,0.1); margin: 6px 2px;"></div>
-                                <button class="pc-tool-btn" id="pc-tool-fit" title="适应画布">⛶</button>
-                                <button class="pc-tool-btn" id="pc-tool-export" title="导出图片">💾</button>
+                            <!-- 中间：无限画布 -->
+                            <div class="portrait-canvas-container" id="portraitCanvasContainer" style="flex: 1;">
+                                <div class="portrait-canvas-bg"></div>
+                                <div id="portrait-konva-container"></div>
+                                
+                                <!-- 图例 -->
+                                <div class="portrait-canvas-legend">
+                                    <div class="pc-legend-item">
+                                        <div class="pc-legend-color" style="background: rgba(236, 72, 153, 0.3);"></div>
+                                        <span>🎭 角色区</span>
+                                    </div>
+                                    <div class="pc-legend-item">
+                                        <div class="pc-legend-color" style="background: rgba(34, 197, 94, 0.3);"></div>
+                                        <span>🏞️场景区</span>
+                                    </div>
+                                    <div class="pc-legend-item">
+                                        <div class="pc-legend-color" style="background: rgba(245, 158, 11, 0.3);"></div>
+                                        <span>🎒 道具区</span>
+                                    </div>
+                                </div>
+                                
+                                <!-- 工具栏 -->
+                                <div class="portrait-canvas-toolbar">
+                                    <button class="pc-tool-btn active" id="pc-tool-select" title="选择 (V)">↖️</button>
+                                    <button class="pc-tool-btn" id="pc-tool-hand" title="抓手 (H)">✋</button>
+                                    <div style="width: 1px; height: 20px; background: rgba(255,255,255,0.1); margin: 6px 2px;"></div>
+                                    <button class="pc-tool-btn" id="pc-tool-fit" title="适应画布">⛶</button>
+                                    <button class="pc-tool-btn" id="pc-tool-export" title="导出图片">💾</button>
+                                </div>
+                                
+                                <!-- 缩放控制 -->
+                                <div class="pc-zoom-control">
+                                    <button class="pc-zoom-btn" id="pc-zoom-out">−</button>
+                                    <span class="pc-zoom-value" id="pc-zoom-value">100%</span>
+                                    <button class="pc-zoom-btn" id="pc-zoom-in">+</button>
+                                </div>
+                                
+                                <!-- 提示 -->
+                                <div class="pc-hint">
+                                    <kbd>滚轮</kbd> 缩放 <kbd>空格+拖拽</kbd> 平移
+                                </div>
                             </div>
                             
-                            <!-- 缩放控制 -->
-                            <div class="pc-zoom-control">
-                                <button class="pc-zoom-btn" id="pc-zoom-out">−</button>
-                                <span class="pc-zoom-value" id="pc-zoom-value">100%</span>
-                                <button class="pc-zoom-btn" id="pc-zoom-in">+</button>
-                            </div>
-                            
-                            <!-- 提示 -->
-                            <div class="pc-hint">
-                                <kbd>滚轮</kbd> 缩放 <kbd>空格+拖拽</kbd> 平移
+                            <!-- 右侧：属性面板 -->
+                            <div class="properties-panel" id="vaPropertiesPanel" style="width: 280px; background: rgba(15, 23, 42, 0.9); border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); display: flex; flex-direction: column; overflow: hidden;">
+                                <div style="padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,0.1);">
+                                    <h4 style="font-size: 12px; color: #64748b; text-transform: uppercase; letter-spacing: 1px; margin: 0;">⚙️ 属性</h4>
+                                </div>
+                                
+                                <div id="vaPropertiesContent" style="flex: 1; overflow-y: auto; padding: 16px;">
+                                    <!-- 空状态 -->
+                                    <div class="va-empty-state" style="text-align: center; padding: 40px 20px; color: #64748b;">
+                                        <div style="font-size: 48px; margin-bottom: 16px;">👀</div>
+                                        <p style="font-size: 13px; line-height: 1.6;">点击画布上的素材<br>查看和编辑属性</p>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                         
-                        <!-- 角色列表（缩略图） -->
+                        <!-- 角色列表（缩略图）- 隐藏保留 -->
                         <div id="charactersGrid" class="characters-grid" style="margin-top: 1rem; display: none;">
-                            <!-- 角色卡片 - 隐藏，保留以备后端兼容 -->
                         </div>
                     </div>
 

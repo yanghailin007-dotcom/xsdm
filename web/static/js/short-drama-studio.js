@@ -136,7 +136,7 @@ class ShortDramaStudio {
         window.addEventListener('storage', (e) => {
             if (e.key === 'portraitStudio_result' && e.newValue) {
                 console.log('📸 检测到剧照已保存，刷新角色剧照列表');
-                this.loadCharacterPortraitsStep();
+                this.loadVisualAssetsStep();
             }
         });
 
@@ -144,7 +144,7 @@ class ShortDramaStudio {
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'visible' && this.currentStep === 'check-portraits') {
                 console.log('📸 页面重新可见，刷新角色剧照列表');
-                this.loadCharacterPortraitsStep();
+                this.loadVisualAssetsStep();
             }
         });
     }
@@ -754,7 +754,7 @@ class ShortDramaStudio {
         switch (step) {
             case 'check-portraits':
                 if (!this.loadedSteps.has('check-portraits') || forceReload) {
-                    this.loadCharacterPortraitsStep();
+                    this.loadVisualAssetsStep();
                     this.loadedSteps.add('check-portraits');
                 }
                 break;
@@ -786,151 +786,270 @@ class ShortDramaStudio {
     }
 
     /**
-     * 加载角色剧照步骤
+     * 加载视觉资产库步骤
      */
-    async loadCharacterPortraitsStep() {
+    async loadVisualAssetsStep() {
         try {
-            const container = document.getElementById('charactersGrid');
-            if (!container) {
-                console.error('❌ 找不到 charactersGrid 容器');
-                return;
-            }
-
-            container.innerHTML = '<div class="loading-state"><div class="spinner"></div><p>加载角色信息...</p></div>';
+            console.log('🎨 [视觉资产库] 开始初始化');
 
             // 如果角色还没加载，先加载角色数据
             if (!this.characters || this.characters.length === 0) {
-                console.log('🎭 [角色剧照] 角色数据为空，正在加载...');
+                console.log('🎭 [视觉资产库] 角色数据为空，正在加载...');
                 await this.loadEventsAndCharacters();
-            }
-
-            console.log('🎭 [角色剧照] 开始加载');
-            console.log('🎭 [角色剧照] this.characters:', this.characters);
-            console.log('🎭 [角色剧照] selectedEpisodes:', Array.from(this.selectedEpisodes));
-
-            // 直接使用全局角色列表（API 已经返回了所有角色）
-            let characters = [];
-
-            if (this.characters && this.characters.length > 0) {
-                characters = [...this.characters];
-                console.log('🎭 [角色剧照] 使用全局角色列表:', characters.length);
-            } else {
-                // 尝试从选中的集中提取角色
-                characters = this.extractCharactersFromEpisodes();
-                console.log('🎭 [角色剧照] 从集数提取角色:', characters.length);
-            }
-
-            if (characters.length === 0) {
-                container.innerHTML = `
-                    <div class="empty-state">
-                        <p style="font-size: 2rem;">👥</p>
-                        <p>没有找到角色</p>
-                        <p style="font-size: 0.85rem; color: var(--text-secondary);">
-                            请先在小说中配置角色信息
-                        </p>
-                    </div>
-                `;
-                return;
             }
 
             // 加载剧照信息
             await this.loadPortraits();
 
-            console.log('🎭 [角色剧照] 最终角色列表:', characters.length);
-            console.log('🎭 [角色剧照] 剧照映射:', this.characterPortraits);
-
-            // 渲染角色卡片
-            container.innerHTML = characters.map((char, idx) => {
-                const charName = char.name || `角色${idx + 1}`;
-                const charRole = char.role || '角色';
-
-                // 🔥 宽松匹配：查找包含角色名的剧照
-                let portraitInfo = this.characterPortraits.get(charName);
-                if (!portraitInfo) {
-                    // 精确匹配失败，尝试模糊匹配
-                    for (const [key, value] of this.characterPortraits.entries()) {
-                        if (key.includes(charName) || charName.includes(key)) {
-                            portraitInfo = value;
-                            console.log(`🎭 [剧照] 模糊匹配: "${charName}" <- "${key}"`);
-                            break;
-                        }
-                    }
-                }
-
-                // 提取角色外观描述
-                let appearanceDesc = '';
-                if (char.living_characteristics?.physical_presence) {
-                    appearanceDesc = char.living_characteristics.physical_presence;
-                } else if (char.initial_state?.description) {
-                    appearanceDesc = char.initial_state.description;
-                } else if (char.appearance) {
-                    appearanceDesc = char.appearance;
-                } else if (char.description) {
-                    appearanceDesc = char.description;
-                }
-
-                // 限制描述长度
-                if (appearanceDesc.length > 50) {
-                    appearanceDesc = appearanceDesc.substring(0, 50) + '...';
-                }
-
-                // 🔥 检查是否为三视图（优先级剧照）
-                const isThreeView = portraitInfo && portraitInfo.mainPortrait && portraitInfo.mainPortrait.isPriority;
-
-                return `
-                    <div class="character-card ${portraitInfo ? 'has-portrait' : ''}">
-                        <div class="character-card-header">
-                            <div class="character-avatar" style="position: relative;">
-                                ${portraitInfo
-                                    ? `<img src="${portraitInfo.mainPortrait.url}" alt="${charName}" onerror="this.parentElement.innerHTML='<span style=\\'font-size: 2rem;\\'>👤</span>'">`
-                                    : '<span style="font-size: 2rem;">👤</span>'
-                                }
-                                ${isThreeView ? `
-                                    <div style="position: absolute; top: -5px; right: -5px; background: linear-gradient(135deg, #ff6b6b, #feca57); color: white; font-size: 10px; padding: 2px 6px; border-radius: 10px; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.2); z-index: 1;">三视图</div>
-                                ` : ''}
-                            </div>
-                            <div class="character-info">
-                                <div class="character-name">${charName}</div>
-                                <div class="character-role">${charRole}</div>
-                                ${appearanceDesc ? `<div class="character-appearance" title="${char.living_characteristics?.physical_presence || char.initial_state?.description || char.appearance || char.description}">${appearanceDesc}</div>` : ''}
-                                ${portraitInfo && portraitInfo.portraits.length > 1
-                                    ? `<div class="portrait-count">${portraitInfo.portraits.length} 个造型</div>`
-                                    : ''
-                                }
-                            </div>
-                        </div>
-                        <div class="character-actions">
-                            ${portraitInfo
-                                ? `<button class="btn btn-sm btn-secondary" onclick="shortDramaStudio.viewPortrait('${charName}')">查看</button>`
-                                : `<button class="btn btn-sm btn-primary" onclick="shortDramaStudio.generatePortrait('${charName}')">📸 生成剧照</button>`
-                            }
-                        </div>
-                    </div>
-                `;
-            }).join('');
-
-            console.log('✅ [角色剧照] 渲染完成，共', characters.length, '个角色');
-
-            // 初始化并渲染无限画布
+            // 初始化并渲染视觉资产库
             setTimeout(() => {
-                this.initPortraitCanvas(characters);
+                this.initVisualAssetsPanel();
+                this.initPortraitCanvas(this.characters);
             }, 100);
 
             // 更新项目状态
             this.updateProjectStatus();
+
+            console.log('✅ [视觉资产库] 初始化完成');
         } catch (error) {
-            console.error('❌ [角色剧照] 加载失败:', error);
-            const container = document.getElementById('charactersGrid');
-            if (container) {
-                container.innerHTML = `
-                    <div class="empty-state">
-                        <p style="font-size: 2rem;">❌</p>
-                        <p>加载角色失败</p>
-                        <p style="font-size: 0.85rem; color: var(--text-secondary);">${error.message}</p>
-                    </div>
-                `;
-            }
+            console.error('❌ [视觉资产库] 加载失败:', error);
         }
+    }
+
+    /**
+     * 初始化视觉资产库面板
+     */
+    initVisualAssetsPanel() {
+        // 绑定分类切换
+        document.querySelectorAll('.va-category-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.va-category-tab').forEach(t => {
+                    t.classList.remove('active');
+                    t.style.color = '#64748b';
+                });
+                tab.classList.add('active');
+                tab.style.color = '#6366f1';
+                
+                const category = tab.dataset.category;
+                this.loadVisualAssetsGrid(category);
+            });
+        });
+
+        // 初始化加载角色类别
+        this.loadVisualAssetsGrid('characters');
+
+        // 绑定上传/生成按钮
+        document.getElementById('vaUploadBtn')?.addEventListener('click', () => {
+            this.uploadVisualAsset();
+        });
+
+        document.getElementById('vaGenerateBtn')?.addEventListener('click', () => {
+            this.generateVisualAsset();
+        });
+    }
+
+    /**
+     * 加载素材网格
+     */
+    loadVisualAssetsGrid(category) {
+        const grid = document.getElementById('visualAssetsGrid');
+        if (!grid) return;
+
+        grid.innerHTML = '';
+
+        if (category === 'characters') {
+            // 加载角色
+            this.characters.forEach((char, idx) => {
+                const charName = char.name || `角色${idx + 1}`;
+                const portraitInfo = this.characterPortraits.get(charName);
+                const imageUrl = portraitInfo?.mainPortrait?.url;
+
+                const card = document.createElement('div');
+                card.className = 'va-asset-card';
+                card.innerHTML = `
+                    ${imageUrl 
+                        ? `<img src="${imageUrl}" alt="${charName}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">`
+                        : ''}
+                    <div style="display: ${imageUrl ? 'none' : 'flex'}; align-items: center; justify-content: center; height: 100%; font-size: 24px;">👤</div>
+                    <div class="asset-label">${charName}</div>
+                `;
+                card.addEventListener('click', () => {
+                    this.selectVisualAsset('character', char, imageUrl);
+                });
+                grid.appendChild(card);
+            });
+        } else if (category === 'scenes') {
+            // 场景 - 暂时显示占位
+            grid.innerHTML = `
+                <div style="grid-column: span 2; text-align: center; padding: 40px 20px; color: #64748b;">
+                    <p style="font-size: 32px; margin-bottom: 12px;">🏞️</p>
+                    <p style="font-size: 13px;">暂无场景</p>
+                    <p style="font-size: 11px; margin-top: 8px; color: #475569;">点击下方"生成"创建</p>
+                </div>
+            `;
+        } else if (category === 'props') {
+            // 道具 - 暂时显示占位
+            grid.innerHTML = `
+                <div style="grid-column: span 2; text-align: center; padding: 40px 20px; color: #64748b;">
+                    <p style="font-size: 32px; margin-bottom: 12px;">🎒</p>
+                    <p style="font-size: 13px;">暂无道具</p>
+                    <p style="font-size: 11px; margin-top: 8px; color: #475569;">点击下方"生成"创建</p>
+                </div>
+            `;
+        }
+    }
+
+    /**
+     * 选中视觉资产
+     */
+    selectVisualAsset(type, data, imageUrl) {
+        const panel = document.getElementById('vaPropertiesContent');
+        if (!panel) return;
+
+        const typeMap = {
+            'character': { icon: '🎭', label: '角色', color: '#ec4899' },
+            'scene': { icon: '🏞️', label: '场景', color: '#22c55e' },
+            'prop': { icon: '🎒', label: '道具', color: '#f59e0b' }
+        };
+        const typeInfo = typeMap[type] || typeMap['character'];
+
+        // 提取标准描述
+        let description = '';
+        if (type === 'character') {
+            description = data.living_characteristics?.physical_presence 
+                || data.initial_state?.description 
+                || data.appearance 
+                || data.description 
+                || '';
+        }
+
+        panel.innerHTML = `
+            <div class="va-asset-preview">
+                ${imageUrl 
+                    ? `<img src="${imageUrl}" alt="${data.name || data}">`
+                    : `<div style="display: flex; align-items: center; justify-content: center; height: 100%; font-size: 48px;">${typeInfo.icon}</div>`}
+            </div>
+
+            <div class="va-property-group">
+                <h5>📋 基本信息</h5>
+                <div class="va-form-row">
+                    <span class="va-asset-type-badge ${type}">${typeInfo.icon} ${typeInfo.label}</span>
+                </div>
+                <div class="va-form-row">
+                    <label>名称</label>
+                    <input type="text" value="${data.name || data}" readonly>
+                </div>
+                ${data.role ? `
+                <div class="va-form-row">
+                    <label>角色</label>
+                    <input type="text" value="${data.role}" readonly>
+                </div>
+                ` : ''}
+            </div>
+
+            <div class="va-property-group">
+                <h5>📝 标准描述</h5>
+                <p class="va-hint">用于分镜生成的标准化描述</p>
+                <div class="va-form-row">
+                    <textarea id="vaAssetDescription" placeholder="详细描述外观特征、颜色、风格...">${description}</textarea>
+                </div>
+                <button class="btn btn-sm btn-primary" onclick="shortDramaStudio.saveAssetDescription('${data.name || data}', '${type}')" style="width: 100%;">
+                    💾 保存描述
+                </button>
+            </div>
+
+            ${type === 'character' ? `
+            <div class="va-property-group">
+                <h5>🎨 角色特征</h5>
+                <div class="va-form-row">
+                    <label>服装</label>
+                    <input type="text" id="vaCharClothing" placeholder="例如：青色长袍、白色内衫">
+                </div>
+                <div class="va-form-row">
+                    <label>标志性表情</label>
+                    <input type="text" id="vaCharExpression" placeholder="例如：沉稳、坚毅">
+                </div>
+            </div>
+            ` : ''}
+
+            ${type === 'scene' ? `
+            <div class="va-property-group">
+                <h5>🌟 场景特征</h5>
+                <div class="va-form-row">
+                    <label>光线</label>
+                    <input type="text" id="vaSceneLighting" placeholder="例如：晨光、柔和">
+                </div>
+                <div class="va-form-row">
+                    <label>色调</label>
+                    <input type="text" id="vaSceneColorTone" placeholder="例如：青绿色调">
+                </div>
+            </div>
+            ` : ''}
+        `;
+    }
+
+    /**
+     * 保存资产描述
+     */
+    saveAssetDescription(name, type) {
+        const description = document.getElementById('vaAssetDescription')?.value;
+        if (!description) {
+            this.showToast('请输入描述', 'warning');
+            return;
+        }
+
+        // 存储到项目数据
+        if (!this.currentProject.visualAssets) {
+            this.currentProject.visualAssets = {};
+        }
+        if (!this.currentProject.visualAssets[type + 's']) {
+            this.currentProject.visualAssets[type + 's'] = {};
+        }
+
+        this.currentProject.visualAssets[type + 's'][name] = {
+            standardDescription: description,
+            updatedAt: new Date().toISOString()
+        };
+
+        this.showToast('✓ 描述已保存', 'success');
+    }
+
+    /**
+     * 上传视觉资产
+     */
+    uploadVisualAsset() {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        input.onchange = (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    // TODO: 上传到服务器
+                    this.showToast('图片已选择，正在上传...', 'info');
+                };
+                reader.readAsDataURL(file);
+            }
+        };
+        input.click();
+    }
+
+    /**
+     * 生成视觉资产
+     */
+    generateVisualAsset() {
+        const activeTab = document.querySelector('.va-category-tab.active');
+        const category = activeTab?.dataset.category || 'characters';
+        
+        const categoryMap = {
+            'characters': { name: '角色', icon: '🎭' },
+            'scenes': { name: '场景', icon: '🏞️' },
+            'props': { name: '道具', icon: '🎒' }
+        };
+        
+        const info = categoryMap[category];
+        this.showToast(`${info.icon} ${info.name}生成功能即将上线`, 'info');
     }
 
     /**
