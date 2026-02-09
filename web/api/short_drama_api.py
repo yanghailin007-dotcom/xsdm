@@ -780,6 +780,19 @@ def create_from_idea():
             json.dump(shots_v2_cn_data, f, ensure_ascii=False, indent=2)
         logger.info(f'✅ [创意导入] 中文分镜头已保存: {shots_v2_cn_file}')
 
+        # 🔥 提取视觉资产清单 (Step 6)
+        logger.info(f'🎨 [创意导入] 开始提取视觉资产...')
+        visual_assets = extract_visual_assets_from_shots(shots_en, shots_cn, title)
+
+        # 保存视觉资产到文件
+        visual_assets_file = episode_dir / 'visual_assets.json'
+        with open(visual_assets_file, 'w', encoding='utf-8') as f:
+            json.dump(visual_assets, f, ensure_ascii=False, indent=2)
+        logger.info(f'✅ [创意导入] 视觉资产已保存: {visual_assets_file}')
+        logger.info(f'   - 角色: {len(visual_assets.get("characters", []))} 个')
+        logger.info(f'   - 场景: {len(visual_assets.get("scenes", []))} 个')
+        logger.info(f'   - 道具: {len(visual_assets.get("props", []))} 个')
+
         # 🔥 合并中英文数据，保存完整的 shots 到项目信息
         merged_shots = []
         for i, (shot_cn, shot_en) in enumerate(zip(shots_cn, shots_en), 1):
@@ -2310,6 +2323,162 @@ def translate_shots_to_chinese(shots: list) -> list:
         return shots
 
 
+def extract_visual_assets_from_shots(shots_en: list, shots_cn: list, title: str) -> dict:
+    """
+    从分镜脚本中提取视觉资产清单（角色、场景、道具）
+
+    Args:
+        shots_en: 英文分镜脚本
+        shots_cn: 中文分镜脚本
+        title: 项目标题
+
+    Returns:
+        视觉资产字典
+    """
+    if not shots_en or not api_client:
+        logger.warning('无法提取视觉资产：数据为空或AI客户端未初始化')
+        return {
+            'version': '1.0',
+            'generated_at': datetime.now().isoformat(),
+            'characters': [],
+            'scenes': [],
+            'props': []
+        }
+
+    try:
+        logger.info(f'🎨 [视觉资产] 开始从 {len(shots_en)} 个镜头中提取...')
+
+        # 构建提取指令
+        system_prompt = f"""你是一个专业的视觉资产分析师。请分析以下分镜脚本，提取所有出现的角色、场景和道具。
+
+## 分析要求
+
+1. **角色 (Characters)**
+   - 提取所有出现的人物或生物
+   - 包含主要角色和次要角色
+   - 记录外貌特征、服装、表情等关键特征
+   - 生成适合图片生成的 reference_prompt（英文）
+
+2. **场景 (Scenes)**
+   - 提取所有不同的场景/地点
+   - 描述环境特征、光线、氛围
+   - 记录关键元素（建筑、地形、天气等）
+   - 生成适合图片生成的 reference_prompt（英文）
+
+3. **道具 (Props)**
+   - 提取重要的物品、工具、装备
+   - 描述外观、材质、特征
+   - 生成适合图片生成的 reference_prompt（英文）
+
+## 输出格式
+
+只输出JSON，格式如下：
+{{
+  "characters": [
+    {{
+      "name": "角色中文名",
+      "name_en": "Character English Name",
+      "description": "中文描述",
+      "description_en": "English description",
+      "appearances": [1, 3, 4],
+      "key_features": ["特征1", "特征2"],
+      "reference_prompt": "cinematic character portrait, detailed English prompt for image generation, photorealistic, 8k"
+    }}
+  ],
+  "scenes": [
+    {{
+      "name": "场景中文名",
+      "name_en": "Scene English Name",
+      "description": "中文描述",
+      "description_en": "English description",
+      "appearances": [1, 2],
+      "key_elements": ["元素1", "元素2"],
+      "reference_prompt": "cinematic scene background, detailed English prompt, no people, empty scene, 8k"
+    }}
+  ],
+  "props": [
+    {{
+      "name": "道具中文名",
+      "name_en": "Prop English Name",
+      "description": "中文描述",
+      "description_en": "English description",
+      "appearances": [3],
+      "reference_prompt": "cinematic object close up, detailed English prompt, 8k"
+    }}
+  ]
+}}
+
+## 注意事项
+- reference_prompt 必须是英文，适合 FLUX/DALL-E 等图片生成模型
+- 只提取真正重要的资产，避免过于细碎
+- appearances 数组记录该资产出现在哪些镜头（shot_number）
+"""
+
+        # 准备分镜数据（只发送关键信息以节省token）
+        shots_summary = []
+        for shot_en, shot_cn in zip(shots_en, shots_cn):
+            shots_summary.append({
+                'shot_number': shot_en.get('shot_number'),
+                'scene_title': shot_cn.get('scene_title'),
+                'scene_title_en': shot_en.get('scene_title'),
+                'veo_prompt': shot_en.get('veo_prompt_standard', ''),
+                'visual_description': shot_cn.get('visual_description_standard', ''),
+                'dialogue': shot_cn.get('dialogue', {})
+            })
+
+        user_prompt = f"""项目：{title}
+
+分镜脚本：
+{json.dumps(shots_summary, ensure_ascii=False, indent=2)}
+
+请分析并提取视觉资产清单。"""
+
+        # 调用AI
+        response = api_client.generate_content(
+            contents=[{
+                'role': 'user',
+                'parts': [{'text': user_prompt}]
+            }],
+            config={
+                'system_instruction': system_prompt,
+                'temperature': 0.3,
+                'response_mime_type': 'application/json'
+            }
+        )
+
+        result_text = response.text.strip()
+
+        # 清理可能的markdown代码块标记
+        if result_text.startswith('```'):
+            result_text = result_text.split('```')[1]
+            if result_text.startswith('json'):
+                result_text = result_text[4:]
+            result_text = result_text.strip()
+
+        assets = json.loads(result_text)
+
+        # 添加元数据
+        assets['version'] = '1.0'
+        assets['generated_at'] = datetime.now().isoformat()
+        assets['title'] = title
+
+        logger.info(f'✅ [视觉资产] 提取完成: {len(assets.get("characters", []))} 角色, {len(assets.get("scenes", []))} 场景, {len(assets.get("props", []))} 道具')
+
+        return assets
+
+    except Exception as e:
+        logger.error(f'提取视觉资产失败: {e}')
+        import traceback
+        logger.error(traceback.format_exc())
+        return {
+            'version': '1.0',
+            'generated_at': datetime.now().isoformat(),
+            'characters': [],
+            'scenes': [],
+            'props': []
+        }
+
+
 # ============================================================
 # Shots V2 API 路由 - 用于加载和保存优化格式的分镜头数据
 # ============================================================
@@ -2793,6 +2962,56 @@ def save_image_gen_config():
 
     except Exception as e:
         logger.error(f'保存图片配置失败: {e}')
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+# ============================================================
+# 视觉资产 API
+# ============================================================
+
+@short_drama_api.route('/visual-assets', methods=['GET'])
+def get_visual_assets():
+    """获取视觉资产清单"""
+    try:
+        novel = request.args.get('novel', '').strip()
+        episode = request.args.get('episode', '').strip()
+
+        if not novel or not episode:
+            return jsonify({
+                'success': False,
+                'error': '缺少 novel 或 episode 参数'
+            }), 400
+
+        # 构建文件路径
+        base_dir = Path(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+        novel_dir = base_dir / '视频项目' / novel
+        episode_dir = novel_dir / episode
+        assets_file = episode_dir / 'visual_assets.json'
+
+        if not assets_file.exists():
+            return jsonify({
+                'success': True,
+                'assets': {
+                    'characters': [],
+                    'scenes': [],
+                    'props': []
+                },
+                'message': '视觉资产文件不存在'
+            }), 200
+
+        with open(assets_file, 'r', encoding='utf-8') as f:
+            assets = json.load(f)
+
+        return jsonify({
+            'success': True,
+            'assets': assets
+        }), 200
+
+    except Exception as e:
+        logger.error(f'获取视觉资产失败: {e}')
         return jsonify({
             'success': False,
             'error': str(e)
