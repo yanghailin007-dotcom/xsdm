@@ -145,11 +145,15 @@ class ShortDramaStudio {
             }
         });
 
-        // 页面重新可见时刷新剧照
+        // 页面重新可见时刷新剧照（带防重复加载锁）
+        this._refreshingAssets = false;
         document.addEventListener('visibilitychange', () => {
-            if (document.visibilityState === 'visible' && this.currentStep === 'check-portraits') {
+            if (document.visibilityState === 'visible' && this.currentStep === 'check-portraits' && !this._refreshingAssets) {
+                this._refreshingAssets = true;
                 console.log('📸 页面重新可见，刷新角色剧照列表');
-                this.loadVisualAssetsStep();
+                this.loadVisualAssetsStep().finally(() => {
+                    this._refreshingAssets = false;
+                });
             }
         });
 
