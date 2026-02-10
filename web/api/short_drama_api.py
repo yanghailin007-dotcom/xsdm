@@ -799,9 +799,11 @@ def _sync_characters_to_visual_assets_obj(characters, visual_assets):
         for char in characters:
             if isinstance(char, dict):
                 char_name = char.get('name')
-                # 🔥 清理角色名中的非法字符
-                char_name = _sanitize_filename(char_name)
-                if char_name and char_name not in characters_assets:
+                # 🔥 保留原始名称用于显示
+                original_name = char_name
+                # 清理角色名中的非法字符（仅用于内部键）
+                safe_name = _sanitize_filename(char_name)
+                if safe_name and safe_name not in characters_assets:
                     # 提取角色描述
                     description = char.get('living_characteristics', {}).get('physical_presence', '')
                     if not description:
@@ -811,9 +813,9 @@ def _sync_characters_to_visual_assets_obj(characters, visual_assets):
                     if not description:
                         description = char.get('description', '')
                     
-                    characters_assets[char_name] = {
+                    characters_assets[safe_name] = {
                         'id': str(uuid.uuid4())[:8],
-                        'name': char_name,
+                        'name': original_name,
                         'description': description,
                         'tags': [char.get('role', '')] if char.get('role') else [],
                         'referenceUrl': '',
@@ -838,9 +840,11 @@ def _sync_characters_to_visual_assets(project):
         for char in project.characters:
             if isinstance(char, dict):
                 char_name = char.get('name')
-                # 🔥 清理角色名中的非法字符
-                char_name = _sanitize_filename(char_name)
-                if char_name and char_name not in characters_assets:
+                # 🔥 保留原始名称用于显示
+                original_name = char_name
+                # 清理角色名中的非法字符（仅用于内部键）
+                safe_name = _sanitize_filename(char_name)
+                if safe_name and safe_name not in characters_assets:
                     # 提取角色描述
                     description = char.get('living_characteristics', {}).get('physical_presence', '')
                     if not description:
@@ -850,9 +854,9 @@ def _sync_characters_to_visual_assets(project):
                     if not description:
                         description = char.get('description', '')
                     
-                    characters_assets[char_name] = {
+                    characters_assets[safe_name] = {
                         'id': str(uuid.uuid4())[:8],
-                        'name': char_name,
+                        'name': original_name,
                         'description': description,
                         'tags': [char.get('role', '')] if char.get('role') else [],
                         'referenceUrl': '',
@@ -1080,6 +1084,10 @@ def create_from_idea():
         # 🔥 创建主角角色信息
         protagonist_role = protagonist.get('role', '主角')
         protagonist_age = protagonist.get('age', '')
+        
+        # Log original name for debugging
+        logger.info(f'[create-from-idea] Original protagonist name: {repr(protagonist_name)}')
+        
         protagonist_character = {
             'id': 'protagonist_001',
             'name': protagonist_name,
