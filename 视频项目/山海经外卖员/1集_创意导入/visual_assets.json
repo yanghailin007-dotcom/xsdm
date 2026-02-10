@@ -1,0 +1,166 @@
+{
+  "characters": [
+    {
+      "name": "林小满",
+      "name_en": "Lin Xiaoman",
+      "description": "22岁，外表看似普通的都市外卖员，实则是穿梭两界的送餐人。性格又飒又痞，遇事冷静，唯利是图（表面）。",
+      "description_en": "22 years old, an interdimensional delivery rider. She looks like a standard courier but possesses a cool, cynical, and fearless demeanor.",
+      "appearances": [
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ],
+      "key_features": [
+        "黄色战术冲锋衣",
+        "黑色齐肩发",
+        "碎裂的黑框眼镜",
+        "手臂山海经图腾"
+      ],
+      "reference_prompt": "cinematic character portrait, Lin Xiaoman, 22 year old Asian female, wearing bright yellow tactical delivery windbreaker with reflective strips, black shoulder-length hair tied back, wearing black-framed glasses with a cracked left lens, determined and slightly cynical expression, wet skin from rain, cyberpunk city lighting, photorealistic, 8k, high detail"
+    },
+    {
+      "name": "黑影巨兽 / 萌兽",
+      "name_en": "Shadow Beast / Mythical Creature",
+      "description": "初登场为巨大的恐怖黑影，由烟雾和黑暗构成，拥有发光的眼睛和利爪；被驯服后变成圆滚滚的毛绒萌物。",
+      "description_en": "Initially a massive, terrifying shadow monster made of smoke and darkness with glowing eyes; transforms into a small, cute, fluffy round creature after being fed.",
+      "appearances": [
+        7,
+        8,
+        11
+      ],
+      "key_features": [
+        "巨大黑影",
+        "发光眼睛",
+        "利爪",
+        "变身萌物"
+      ],
+      "reference_prompt": "massive monstrous shadow beast, formed from dark smoke and ink, glowing ominous yellow eyes, sharp claws, terrifying silhouette, volumetric lighting, cinematic fantasy horror style, 8k"
+    },
+    {
+      "name": "狰（五尾一角兽）",
+      "name_en": "Zheng (Five-tailed One-horned Beast)",
+      "description": "《山海经》中记载的上古神兽，形似赤豹，有五条尾巴和一只角，居住在章莪山。平时温顺，战斗时凶猛，能与外卖员产生感应。",
+      "description_en": "An ancient mythical beast from Shan Hai Jing, resembling a red leopard with five tails and one horn, inhabiting Zhang'e Mountain. Gentle normally but fierce in battle, can sense connection with delivery riders.",
+      "appearances": [
+        5,
+        6,
+        10,
+        11
+      ],
+      "key_features": [
+        "赤豹外形",
+        "五条尾巴",
+        "一只独角",
+        "红色皮毛黑色斑纹",
+        "金色眼睛"
+      ],
+      "reference_prompt": "cinematic creature portrait, Zheng mythical beast from Shan Hai Jing, red leopard-like body with black spots, five flowing tails, single majestic horn on forehead, piercing golden eyes, ancient Chinese fantasy style, majestic and powerful stance, volumetric lighting, photorealistic creature design, 8k, high detail fur texture"
+    }
+  ],
+  "scenes": [
+    {
+      "name": "赛博雨夜都市",
+      "name_en": "Cyberpunk Rainy City",
+      "description": "霓虹闪烁的现代都市，暴雨倾盆，充满压抑感和科技感，路面湿滑反光。",
+      "description_en": "Neon-lit modern city in heavy rain, oppressive and high-tech atmosphere, wet asphalt reflecting lights.",
+      "appearances": [
+        1,
+        2,
+        3,
+        12
+      ],
+      "key_elements": [
+        "霓虹灯",
+        "暴雨",
+        "湿滑路面",
+        "高楼"
+      ],
+      "reference_prompt": "cinematic urban street at night, heavy rain, cyberpunk neon signs reflecting on wet asphalt, futuristic skyscrapers in background, dark moody atmosphere, blue and red lighting, photorealistic, 8k"
+    },
+    {
+      "name": "结界通道",
+      "name_en": "Dimension Barrier Tunnel",
+      "description": "连接现实与异界的通道，光线扭曲，几何图形飞逝，现实崩塌的视觉效果。",
+      "description_en": "A tunnel connecting reality and the otherworld, warping lights, shifting geometric shapes, reality glitching.",
+      "appearances": [
+        4
+      ],
+      "key_elements": [
+        "光流",
+        "几何图形",
+        "空间扭曲"
+      ],
+      "reference_prompt": "abstract dimension tunnel, warping speed lines, glitching reality, floating geometric embers, high speed motion blur, psychedelic colors, cinematic sci-fi effect, 8k"
+    },
+    {
+      "name": "远古废墟工地",
+      "name_en": "Ancient Ruin Construction Site",
+      "description": "被迷雾笼罩的废弃工地，钢筋扭曲成龙骨形状，透着诡异的月光，现代工业与远古恐怖结合。",
+      "description_en": "Abandoned construction site shrouded in fog, rebar twisted into dragon shapes, eerie moonlight, blend of modern industrial and ancient horror.",
+      "appearances": [
+        5,
+        7,
+        8,
+        9,
+        11
+      ],
+      "key_elements": [
+        "浓雾",
+        "扭曲钢筋",
+        "月光",
+        "废墟"
+      ],
+      "reference_prompt": "abandoned construction site at night, thick supernatural fog, twisted steel rebar resembling dragon skeletons, eerie moonlight, desolate atmosphere, mysterious ancient ruins blending with modern concrete, cinematic lighting, 8k"
+    }
+  ],
+  "props": [
+    {
+      "name": "改装外卖摩托",
+      "name_en": "Modified Delivery Motorcycle",
+      "description": "重型机车，带有送餐箱支架，行驶时拖曳出魔法蓝色粒子流。",
+      "description_en": "Heavy-duty motorcycle, equipped with delivery box mount, leaves a trail of magical blue particles.",
+      "appearances": [
+        1,
+        3,
+        4,
+        5
+      ],
+      "reference_prompt": "futuristic heavy motorcycle, matte black with yellow accents, rain-slicked, magical blue particle trail behind wheels, detailed mechanical parts, cinematic vehicle shot, 8k"
+    },
+    {
+      "name": "乾坤外卖箱",
+      "name_en": "Qiankun Delivery Box",
+      "description": "看似普通的黑色外卖箱，表面浮现金色符文，开启时爆发出耀眼金光。",
+      "description_en": "Looks like a standard black delivery box, but glows with golden runes and bursts with blinding golden light when opened.",
+      "appearances": [
+        7,
+        9,
+        10
+      ],
+      "reference_prompt": "close-up of a mystical delivery box, black cubic container, glowing golden ancient runes on the surface, magical energy radiating, high-tech meets ancient magic artifact, detailed texture, 8k"
+    },
+    {
+      "name": "故障智能手机",
+      "name_en": "Glitching Smartphone",
+      "description": "屏幕布满裂纹，显示红色故障雪花和警告字样。",
+      "description_en": "Screen covered in cracks, displaying red static glitch and warning text.",
+      "appearances": [
+        1,
+        13
+      ],
+      "reference_prompt": "close-up of smartphone screen, cracked glass, displaying red digital static and glitch text 'ERROR', rain droplets on screen, ominous red lighting, macro photography, 8k"
+    }
+  ],
+  "version": "1.0",
+  "generated_at": "2026-02-10T19:19:49.236875",
+  "title": "山海经外卖员"
+}
