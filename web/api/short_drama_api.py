@@ -3656,6 +3656,7 @@ def _generate_image_sync(project_id, category, name, data):
             return {'success': False, 'error': '图片生成服务未配置'}
         
         # 生成图片保存路径 - 使用统一的清理函数
+        # 路径: 视频项目/{title}/visual_assets/{category}/{name}_{timestamp}.png
         safe_title = _sanitize_filename(project.title)
         safe_name = _sanitize_filename(name)
         category_dirs = {
@@ -3664,7 +3665,7 @@ def _generate_image_sync(project_id, category, name, data):
             'props': '道具'
         }
         category_dir = category_dirs.get(category, category)
-        project_dir = BASE_DIR / '视频项目' / safe_title / category_dir
+        project_dir = BASE_DIR / '视频项目' / safe_title / 'visual_assets' / category_dir
         project_dir.mkdir(parents=True, exist_ok=True)
         save_path = str(project_dir / f"{safe_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png")
         
