@@ -3450,7 +3450,7 @@
     <div id="ideaImportModal" class="modal" style="display: none;">
         <div class="modal-content">
             <div class="modal-header">
-                <h3>📝 单集创意导入</h3>
+                <h3>📝 创意导入（支持单集/多集）</h3>
                 <button class="modal-close" onclick="shortDramaStudio.closeIdeaModal()">&times;</button>
             </div>
             
@@ -3592,34 +3592,41 @@
                         <span style="color: var(--text-tertiary);">点击展开/收起</span>
                     </div>
                     <div id="jsonSchemaHelp" style="display: none; margin-top: 0.75rem; font-size: 0.8rem;">
-                        <pre style="background: rgba(0,0,0,0.2); padding: 0.75rem; border-radius: 0.25rem; overflow-x: auto; color: var(--text-secondary);">{
+                        <div style="margin-bottom: 1rem;">
+                            <strong style="color: var(--primary);">📺 多集格式（推荐）：</strong>
+                            <pre style="background: rgba(0,0,0,0.2); padding: 0.75rem; border-radius: 0.25rem; overflow-x: auto; color: var(--text-secondary); margin-top: 0.5rem;">{
   "title": "剧集名称 [必填]",
-  "episode": 1,
-  "description": "本集创意描述 [必填]",
   "world_setting": "世界观设定 [可选]",
-  "style": "风格: 通用/玄幻/都市/废土...",
-  "shot_duration": 5,
+  "style": "风格",
   "protagonist": {
     "name": "主角姓名 [必填]",
-    "age": "年龄 [可选]",
-    "appearance": "外观描述 [必填]",
-    "role": "身份/性格 [可送]"
+    "appearance": "外观描述 [必填]"
   },
-  "shots": [
+  "episodes": [
     {
-      "shot_number": 1,
-      "content": "镜头内容描述",
-      "duration": 5,
-      "camera_angle": "视角: 广角/中景/特写...",
-      "camera_movement": "运镜: 推/拉/摇/移...",
-      "dialogues": [
-        {"speaker": "角色名", "text": "对话内容"}
-      ]
+      "episode": 1,
+      "episode_title": "第一集标题",
+      "description": "本集创意描述 [必填]",
+      "shot_duration": 5,
+      "status": "pending"
     }
   ]
 }</pre>
+                        </div>
+                        <div>
+                            <strong style="color: var(--text-secondary);">📄 单集格式：</strong>
+                            <pre style="background: rgba(0,0,0,0.2); padding: 0.75rem; border-radius: 0.25rem; overflow-x: auto; color: var(--text-secondary); margin-top: 0.5rem;">{
+  "title": "剧集名称 [必填]",
+  "episode": 1,
+  "description": "本集创意描述 [必填]",
+  "protagonist": {
+    "name": "主角姓名 [必填]",
+    "appearance": "外观描述 [必填]"
+  }
+}</pre>
+                        </div>
                         <p style="margin-top: 0.5rem; color: var(--text-tertiary);">
-                            💡 <strong>tips:</strong> 只填写基础信息(标级[必填])，系统会自动AI生成分镜；如果填写了shots字段，则直接使用你的分镜数据
+                            💡 <strong>tips:</strong> 多集格式支持批量生成，系统会自动跳过已生成的集数
                         </p>
                     </div>
                 </div>
@@ -3659,7 +3666,7 @@
     <!-- Toast 通知 -->
     <div id="toastContainer" class="toast-container"></div>
 
-    <script src="/static/js/short-drama-studio.js?v=29"></script>
+    <script src="/static/js/short-drama-studio.js?v=30"></script>
     <script src="/static/js/confirm-dialog.js"></script>
     <script>
         // 补充缺失的故事节拍功能

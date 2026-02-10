@@ -9312,18 +9312,51 @@ saveGeminiConfig(config) {
         const input = document.getElementById('jsonImportInput');
         const resultDiv = document.getElementById('jsonValidationResult');
         const value = input.value.trim();
-        
+
         if (!value) {
             resultDiv.style.display = 'none';
             return false;
         }
-        
+
         try {
             const data = JSON.parse(value);
-            
-            // 使用智能解析检查字段
+
+            // 🔥 检查是否为多集结构
+            if (data.episodes && Array.isArray(data.episodes) && data.episodes.length > 0) {
+                // 验证多集结构
+                if (!data.title) {
+                    resultDiv.style.display = 'block';
+                    resultDiv.style.background = 'rgba(239, 68, 68, 0.1)';
+                    resultDiv.style.color = '#ef4444';
+                    resultDiv.textContent = '❌ 缺少必填字段: title';
+                    return false;
+                }
+
+                // 验证每一集的必填字段
+                for (const ep of data.episodes) {
+                    if (!ep.episode || !ep.description) {
+                        resultDiv.style.display = 'block';
+                        resultDiv.style.background = 'rgba(239, 68, 68, 0.1)';
+                        resultDiv.style.color = '#ef4444';
+                        resultDiv.textContent = `❌ 第${ep.episode || '?'}集缺少必填字段`;
+                        return false;
+                    }
+                }
+
+                // 显示多集验证成功信息
+                resultDiv.style.display = 'block';
+                resultDiv.style.background = 'rgba(34, 197, 94, 0.1)';
+                resultDiv.style.color = '#22c55e';
+                const hasProtagonist = data.protagonist && data.protagonist.name;
+                const protagonist = hasProtagonist ? `主角：${data.protagonist.name}` : '无主角信息';
+                const pendingCount = data.episodes.filter(ep => ep.status === 'pending').length;
+                resultDiv.innerHTML = `✅ 多集格式正确 | ${protagonist} | 共${data.episodes.length}集 | <span style="color: var(--primary);">待生成${pendingCount}集</span>`;
+                return true;
+            }
+
+            // 使用智能解析检查字段（单集结构）
             const parsed = this.parseVariousFormats(data);
-            
+
             if (!parsed) {
                 resultDiv.style.display = 'block';
                 resultDiv.style.background = 'rgba(239, 68, 68, 0.1)';
@@ -9331,10 +9364,10 @@ saveGeminiConfig(config) {
                 resultDiv.textContent = '❌ 无法识别JSON格式，请点击「智能解析」尝试自动转换';
                 return false;
             }
-            
+
             const required = ['title', 'description'];
             const missing = required.filter(key => !parsed[key]);
-            
+
             if (missing.length > 0) {
                 resultDiv.style.display = 'block';
                 resultDiv.style.background = 'rgba(239, 68, 68, 0.1)';
@@ -9342,11 +9375,11 @@ saveGeminiConfig(config) {
                 resultDiv.textContent = `❌ 缺少必填字段: ${missing.join(', ')}`;
                 return false;
             }
-            
+
             resultDiv.style.display = 'block';
             resultDiv.style.background = 'rgba(34, 197, 94, 0.1)';
             resultDiv.style.color = '#22c55e';
-            
+
             const shotCount = parsed.shots ? parsed.shots.length : 0;
             const hasProtagonist = parsed.protagonist && parsed.protagonist.name;
             const protagonist = hasProtagonist ? `主角：${parsed.protagonist.name}` : '无主角信息';
