@@ -3189,7 +3189,7 @@ def extract_first_last_frames(grid_image_path, grid_layout, output_dir):
         return None
 
 
-def generate_frame_sequences_from_shots(shots_en, shots_cn, visual_assets, title):
+def generate_frame_sequences_from_shots(shots_en, shots_cn, visual_assets, title, batch_size=6):
     """
     从分镜头脚本生成帧序列提示词
 
@@ -3203,6 +3203,7 @@ def generate_frame_sequences_from_shots(shots_en, shots_cn, visual_assets, title
         shots_cn: 中文分镜头列表
         visual_assets: 视觉资产数据
         title: 剧集标题
+        batch_size: 每批次生成的镜头数量，默认6个
 
     Returns:
         包含帧序列数据的字典
@@ -3219,99 +3220,26 @@ def generate_frame_sequences_from_shots(shots_en, shots_cn, visual_assets, title
         logger.info(f'🎬 [帧序列] 开始生成帧序列提示词...')
 
         frame_sequences = []
-
-        for idx, (shot_en, shot_cn) in enumerate(zip(shots_en, shots_cn), 1):
-            shot_id = shot_en.get('shot_id', f'shot_{idx}')
-            duration = shot_en.get('duration', 5)
-
-            # 根据时长决定帧数和网格布局
-            if duration <= 5:
-                frame_count = 3
-                grid_layout = '1x3'
-            elif duration <= 8:
-                frame_count = 5
-                grid_layout = '2x3'
-            else:
-                frame_count = 9
-                grid_layout = '3x3'
-
-            logger.info(f'  处理 {shot_id} (时长: {duration}s, 帧数: {frame_count})')
-
-            # 构建AI提示词
-            system_prompt = f"""你是一个专业的视频分镜设计师。请为短剧分镜头生成{frame_count}个连续的画面提示词，用于生成{grid_layout}网格图。
-
-每个提示词应该:
-1. 描述具体的画面内容(角色位置、动作、表情、场景细节)
-2. 保持视觉风格一致
-3. 体现时间的连续性和动作的流畅性
-4. 使用英文，适合直接用于图像生成(FLUX/DALL-E等)
-
-返回JSON格式:
-{{
-    "frames": [
-        {{
-            "frame_number": 1,
-            "prompt": "详细的英文画面描述",
-            "description_cn": "中文画面描述"
-        }},
-        ...
-    ]
-}}"""
-
-            user_prompt = f"""剧集标题: {title}
-
-分镜头信息:
-- 镜头ID: {shot_id}
-- 时长: {duration}秒
-- 场景标题: {shot_cn.get('scene_title', '')}
-- 视觉描述: {shot_cn.get('visual_description_standard', '')}
-- VEO提示词: {shot_en.get('veo_prompt_standard', '')}
-- 对话: {json.dumps(shot_cn.get('dialogue', {}), ensure_ascii=False)}
-
-视觉资产参考:
-- 角色: {json.dumps([c.get('name', '') for c in visual_assets.get('characters', [])], ensure_ascii=False)}
-- 场景: {json.dumps([s.get('name', '') for s in visual_assets.get('scenes', [])], ensure_ascii=False)}
-- 道具: {json.dumps([p.get('name', '') for p in visual_assets.get('props', [])], ensure_ascii=False)}
-
-请生成{frame_count}个连续的画面提示词。"""
-
-            # 调用AI生成
-            result_text = api_client.call_api(
-                system_prompt=system_prompt,
-                user_prompt=user_prompt,
-                temperature=0.7,
-                purpose=f"生成帧序列-{shot_id}"
+        total_shots = len(shots_en)
+        
+        # 计算批次数量
+        num_batches = (total_shots + batch_size - 1) // batch_size
+        logger.info(f'  总共{total_shots}个镜头，分{num_batches}批次生成(每批{batch_size}个)')
+        
+        for batch_idx in range(num_batches):
+            start_idx = batch_idx * batch_size
+            end_idx = min(start_idx + batch_size, total_shots)
+            batch_shots_en = shots_en[start_idx:end_idx]
+            batch_shots_cn = shots_cn[start_idx:end_idx]
+            
+            logger.info(f'  批次{batch_idx+1}/{num_batches}: 生成镜头{start_idx+1}-{end_idx}')
+            
+            # 批量生成该批次的帧序列
+            batch_sequences = _generate_frame_sequences_batch(
+                batch_shots_en, batch_shots_cn, visual_assets, title, 
+                start_idx=start_idx
             )
-
-            if not result_text:
-                logger.warning(f'  ⚠️ {shot_id} AI调用失败，跳过')
-                continue
-
-            result_text = result_text.strip()
-
-            # 清理markdown代码块标记
-            if result_text.startswith('```'):
-                result_text = result_text.split('```')[1]
-                if result_text.startswith('json'):
-                    result_text = result_text[4:]
-                result_text = result_text.strip()
-
-            frame_data = json.loads(result_text)
-
-            # 构建帧序列数据
-            sequence = {
-                'shot_id': shot_id,
-                'duration': duration,
-                'frame_count': frame_count,
-                'grid_layout': grid_layout,
-                'frames': frame_data.get('frames', []),
-                'scene': shot_cn.get('scene', ''),
-                'characters': shot_cn.get('characters', ''),
-                'visual_style': shot_cn.get('visual_style', '')
-            }
-
-            frame_sequences.append(sequence)
-            logger.info(f'  ✅ {shot_id} 生成完成 ({frame_count}帧)')
+            frame_sequences.extend(batch_sequences)
 
         result = {
             'version': '1.0',
@@ -3332,6 +3260,151 @@ def generate_frame_sequences_from_shots(shots_en, shots_cn, visual_assets, title
             'generated_at': datetime.now().isoformat(),
             'sequences': []
         }
+
+
+def _generate_frame_sequences_batch(batch_shots_en, batch_shots_cn, visual_assets, title, start_idx=0):
+    """
+    批量生成帧序列（一次API调用生成多个镜头）
+    """
+    frame_sequences = []
+    
+    try:
+        # 构建批量提示词
+        shots_info = []
+        for idx, (shot_en, shot_cn) in enumerate(zip(batch_shots_en, batch_shots_cn), start_idx + 1):
+            shot_id = shot_en.get('shot_id', f'shot_{idx}')
+            duration = shot_en.get('duration', 5)
+
+            # 根据时长决定帧数和网格布局
+            if duration <= 5:
+                frame_count = 3
+                grid_layout = '1x3'
+            elif duration <= 8:
+                frame_count = 5
+                grid_layout = '2x3'
+            else:
+                frame_count = 9
+                grid_layout = '3x3'
+
+            logger.info(f'  准备 {shot_id} (时长: {duration}s, 帧数: {frame_count})')
+
+            shots_info.append({
+                'shot_id': shot_id,
+                'duration': duration,
+                'frame_count': frame_count,
+                'grid_layout': grid_layout,
+                'scene_title': shot_cn.get('scene_title', ''),
+                'visual_description': shot_cn.get('visual_description_standard', ''),
+                'veo_prompt': shot_en.get('veo_prompt_standard', ''),
+                'dialogue': shot_cn.get('dialogue', {})
+            })
+
+        # 构建批量系统提示词
+        system_prompt = """你是一个专业的视频分镜设计师。请为多个短剧分镜头批量生成帧序列提示词。
+
+每个提示词应该:
+1. 描述具体的画面内容(角色位置、动作、表情、场景细节)
+2. 保持视觉风格一致
+3. 体现时间的连续性和动作的流畅性
+4. 使用英文，适合直接用于图像生成(FLUX/DALL-E等)
+5. 相邻镜头之间要有视觉连贯性
+
+返回JSON格式:
+{
+    "sequences": [
+        {
+            "shot_id": "shot_1",
+            "frames": [
+                {"frame_number": 1, "prompt": "英文画面描述", "description_cn": "中文描述"},
+                ...
+            ]
+        },
+        ...
+    ]
+}"""
+
+        # 构建用户提示词
+        shots_details = []
+        for info in shots_info:
+            shots_details.append(f"""
+镜头ID: {info['shot_id']}
+- 时长: {info['duration']}秒
+- 需要帧数: {info['frame_count']} (网格: {info['grid_layout']})
+- 场景标题: {info['scene_title']}
+- 视觉描述: {info['visual_description']}
+- VEO提示词: {info['veo_prompt']}
+""")
+
+        user_prompt = f"""剧集标题: {title}
+
+需要生成帧序列的镜头 ({len(shots_info)}个):
+{chr(10).join(shots_details)}
+
+视觉资产参考:
+- 角色: {json.dumps([c.get('name', '') for c in visual_assets.get('characters', [])], ensure_ascii=False)}
+- 场景: {json.dumps([s.get('name', '') for s in visual_assets.get('scenes', [])], ensure_ascii=False)}
+- 道具: {json.dumps([p.get('name', '') for p in visual_assets.get('props', [])], ensure_ascii=False)}
+
+请为上述每个镜头生成对应数量的帧序列提示词。确保相邻镜头之间有视觉连贯性。"""
+
+        # 调用AI批量生成
+        logger.info(f'  🚀 发起批量API调用 ({len(shots_info)}个镜头)...')
+        result_text = api_client.call_api(
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            temperature=0.7,
+            purpose=f"批量生成帧序列-{len(shots_info)}个镜头"
+        )
+
+        if not result_text:
+            logger.warning(f'  ⚠️ 批量API调用失败，跳过{len(shots_info)}个镜头')
+            return frame_sequences
+
+        result_text = result_text.strip()
+
+        # 清理markdown代码块标记
+        if result_text.startswith('```'):
+            result_text = result_text.split('```')[1]
+            if result_text.startswith('json'):
+                result_text = result_text[4:]
+            result_text = result_text.strip()
+
+        batch_data = json.loads(result_text)
+
+        # 处理批量返回结果
+        sequences_data = batch_data.get('sequences', [])
+        if not sequences_data and 'frames' in batch_data:
+            # 兼容旧格式(只有一个镜头的结果)
+            sequences_data = [{'shot_id': shots_info[0]['shot_id'], 'frames': batch_data.get('frames', [])}]
+
+        for seq_data in sequences_data:
+            shot_id = seq_data.get('shot_id', '')
+            # 找到对应的镜头信息
+            shot_info = next((s for s in shots_info if s['shot_id'] == shot_id), None)
+            if not shot_info:
+                shot_info = shots_info[0] if shots_info else {}
+
+            sequence = {
+                'shot_id': shot_id or shot_info.get('shot_id', ''),
+                'duration': shot_info.get('duration', 5),
+                'frame_count': shot_info.get('frame_count', 3),
+                'grid_layout': shot_info.get('grid_layout', '1x3'),
+                'frames': seq_data.get('frames', []),
+                'scene': shot_info.get('scene_title', ''),
+                'characters': '',
+                'visual_style': ''
+            }
+            frame_sequences.append(sequence)
+            logger.info(f'  ✅ {shot_id} 生成完成 ({len(sequence["frames"])}帧)')
+
+        logger.info(f'  批次完成: {len(frame_sequences)}/{len(shots_info)} 个镜头')
+
+    except Exception as e:
+        logger.error(f'  批量生成帧序列失败: {e}')
+        import traceback
+        logger.error(traceback.format_exc())
+
+    return frame_sequences
 
 
 # ============================================================
