@@ -3221,21 +3221,30 @@ def get_visual_assets(project_id):
             visual_assets = project.visualAssets or {'characters': {}, 'scenes': {}, 'props': {}}
             logger.info('使用项目对象中的视觉资产')
         
-        # 🔥修复URL：如果referenceUrl包含乱码，从localPath重新生成
+        # 🔥修复URL：根据localPath生成正确的访问URL
         for category in ['characters', 'scenes', 'props']:
             if category in visual_assets:
                 for name, asset in visual_assets[category].items():
                     local_path = asset.get('localPath', '')
                     reference_url = asset.get('referenceUrl', '')
-                    if local_path and 'generated_images' in local_path:
-                        # 从localPath生成正确的URL
+                    correct_url = None
+                    
+                    if local_path and '视频项目' in local_path:
+                        # 从视频项目路径生成URL
+                        rel_path = local_path.split('视频项目')[-1].replace('\\', '/')
+                        if rel_path.startswith('/'):
+                            rel_path = rel_path[1:]
+                        correct_url = f"/project-files/{rel_path}"
+                    elif local_path and 'generated_images' in local_path:
+                        # 从generated_images路径生成URL（兼容旧数据）
                         rel_path = local_path.split('generated_images')[-1].replace('\\', '/')
                         if rel_path.startswith('/'):
                             rel_path = rel_path[1:]
                         correct_url = f"/generated_images/{rel_path}"
-                        if reference_url != correct_url:
-                            logger.info(f'修复URL: {name} - {reference_url} -> {correct_url}')
-                            asset['referenceUrl'] = correct_url
+                    
+                    if correct_url and reference_url != correct_url:
+                        logger.info(f'修复URL: {name} - {reference_url} -> {correct_url}')
+                        asset['referenceUrl'] = correct_url
 
         return jsonify({
             'success': True,
@@ -3457,11 +3466,13 @@ def generate_visual_asset(project_id):
                     'error': '图片生成服务未配置，请在 config/config.py 中配置 nanobanana.api_key'
                 }), 500
             
-            # 生成图片保存路径 - 使用ID避免中文编码问题
+            # 🔥生成图片保存路径 - 保存到项目目录下，方便管理
             asset_id = str(uuid.uuid4())[:8]
-            save_dir = BASE_DIR / 'generated_images' / 'visual_assets' / project_id
-            save_dir.mkdir(parents=True, exist_ok=True)
-            save_path = str(save_dir / f"{category}_{asset_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png")
+            # 使用项目标题（小说名）作为目录
+            safe_title = re.sub(r'[\\/*?:"<>|]', '_', project.title)
+            project_dir = BASE_DIR / '视频项目' / safe_title / 'visual_assets'
+            project_dir.mkdir(parents=True, exist_ok=True)
+            save_path = str(project_dir / f"{category}_{asset_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png")
             
             logger.info(f'🎨 开始生成视觉资产: {category}/{name}, 比例: {aspect_ratio}, 尺寸: {image_size}')
             
@@ -3519,7 +3530,17 @@ def generate_visual_asset(project_id):
             
             # 获取生成的图片路径
             local_path = result.get('local_path', '')
-            image_url = result.get('url', '')
+            
+            # 🔥使用项目路径构建URL（使用/project-files/路径）
+            if local_path and '视频项目' in local_path:
+                # 从localPath提取相对路径
+                rel_path = local_path.split('视频项目')[-1].replace('\\', '/')
+                if rel_path.startswith('/'):
+                    rel_path = rel_path[1:]
+                image_url = f"/project-files/{rel_path}"
+            else:
+                # 回退到生成器返回的URL
+                image_url = result.get('url', '')
             
             logger.info(f'✅ 图片生成成功: {image_url}')
             
