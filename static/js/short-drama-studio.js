@@ -132,6 +132,11 @@ class ShortDramaStudio {
             this.onSettingChange();
         });
 
+        // JSON导入输入监听（实时验证）
+        document.getElementById('jsonImportInput')?.addEventListener('input', () => {
+            this.validateJson();
+        });
+
         // 监听从剧照工作室返回
         window.addEventListener('storage', (e) => {
             if (e.key === 'portraitStudio_result' && e.newValue) {
@@ -8880,6 +8885,13 @@ saveGeminiConfig(config) {
             document.getElementById('ideaProtagonistAge').value = '';
             document.getElementById('ideaProtagonistAppearance').value = '';
             document.getElementById('ideaProtagonistRole').value = '';
+            // 清空JSON输入
+            const jsonInput = document.getElementById('jsonImportInput');
+            if (jsonInput) jsonInput.value = '';
+            const validationResult = document.getElementById('jsonValidationResult');
+            if (validationResult) validationResult.style.display = 'none';
+            // 默认切换到表单模式
+            this.switchImportMode('form');
         }
     }
 
@@ -8894,9 +8906,475 @@ saveGeminiConfig(config) {
     }
 
     /**
+     * 切换导入模式
+     */
+    switchImportMode(mode) {
+        const formTab = document.getElementById('formModeTab');
+        const jsonTab = document.getElementById('jsonModeTab');
+        const formArea = document.querySelector('#ideaImportModal .modal-body');
+        const jsonArea = document.getElementById('jsonImportArea');
+        
+        if (mode === 'form') {
+            // 切换到表单模式
+            formTab.classList.add('active');
+            formTab.style.color = 'var(--primary)';
+            formTab.style.borderBottom = '2px solid var(--primary)';
+            jsonTab.classList.remove('active');
+            jsonTab.style.color = 'var(--text-secondary)';
+            jsonTab.style.borderBottom = 'none';
+            
+            formArea.style.display = 'block';
+            jsonArea.style.display = 'none';
+        } else {
+            // 切换到JSON模式
+            jsonTab.classList.add('active');
+            jsonTab.style.color = 'var(--primary)';
+            jsonTab.style.borderBottom = '2px solid var(--primary)';
+            formTab.classList.remove('active');
+            formTab.style.color = 'var(--text-secondary)';
+            formTab.style.borderBottom = 'none';
+            
+            formArea.style.display = 'none';
+            jsonArea.style.display = 'block';
+        }
+        
+        this.currentImportMode = mode;
+    }
+
+    /**
+     * 加载Demo文件 - 验证全流程
+     */
+    async loadDemoFile() {
+        try {
+            const response = await fetch('/static/demo/idea_import_demo.json');
+            if (!response.ok) {
+                // 如果静态文件不存在，使用内置的demo数据
+                this.loadBuiltinDemo();
+                return;
+            }
+            const data = await response.json();
+            document.getElementById('jsonImportInput').value = JSON.stringify(data, null, 2);
+            this.validateJson();
+            this.showToast('✅ Demo文件加载成功！点击「开始创作」验证全流程', 'success');
+        } catch (error) {
+            console.log('Demo文件加载失败，使用内置数据:', error);
+            this.loadBuiltinDemo();
+        }
+    }
+
+    /**
+     * 加载内置Demo数据
+     */
+    loadBuiltinDemo() {
+        const demoData = {
+            "title": "废土：开局徒手掹高达",
+            "episode": 1,
+            "description": "2145年，核战后的末世废土。主角林小满是一名底层外卖骑手，在垃圾场发现一台神秘机甲残骸。他凭借机械改造天赋修复机甲，却遭遇掠夺者小队袭击。关键时刻，机甲启动，林小满驾驶机甲反杀敌人，开启废土霸主之路。",
+            "world_setting": "2145年，核战后的末世废土，灵气复苏导致生物变异，旧时代科技遗迹散落各地。幸存者建立移动要塞，赏金猎人和机械师成为最吃香的职业。",
+            "style": "废土",
+            "shot_duration": 5,
+            "protagonist": {
+                "name": "林小满",
+                "age": "22岁",
+                "appearance": "黄色战术外卖服（改装版，有防刺钢板），黑色低马尾（用红色发绳扎起），戴黑框眼镜（左镜片有裂痕），左臂有红色山海经图腾胎记，腰间挂满机械工具，右手是机械义肢",
+                "role": "底层外卖骑手，性格贪媚但勇敢，擅长机械改造，梦想成为废土机械大师"
+            }
+            // 不提供 shots 字段，让AI自动生成分镜
+        };
+
+        document.getElementById('jsonImportInput').value = JSON.stringify(demoData, null, 2);
+        this.validateJson();
+        this.showToast('✅ Demo加载成功！点击「开始创作」验证全流程', 'success');
+    }
+
+    /**
+     * 加载JSON示例
+     */
+    loadJsonExample(type = 'full') {
+        if (type === 'minimal') {
+            // 简洁示例 - 只包含必填字段，让AI生成分镜
+            const example = {
+                "title": "废土：开局徒手搓高达",
+                "episode": 1,
+                "description": "主角在废土垃圾场发现神秘机甲残骸，凭借机械改造能力修复机甲，遭遇掠夺者袭击，驾驶机甲反杀。",
+                "protagonist": {
+                    "name": "林小满",
+                    "appearance": "黄色战术外卖服（改装），黑色低马尾，戴黑框眼镜，左臂有红色山海经图腾胎记"
+                }
+            };
+            document.getElementById('jsonImportInput').value = JSON.stringify(example, null, 2);
+        } else {
+            // 完整示例 - 包含分镜数据
+            const example = {
+                "title": "废土：开局徒手搓高达",
+                "episode": 1,
+                "description": "主角在废土垃圾场发现神秘机甲残骸，凭借机械改造能力修复机甲，遭遇掠夺者袭击，驾驶机甲反杀。",
+                "world_setting": "2145年，核战后的末世废土，灵气复苏导致生物变异，旧时代科技遗迹散落各地。",
+                "style": "废土",
+                "shot_duration": 5,
+                "protagonist": {
+                    "name": "林小满",
+                    "age": "22岁",
+                    "appearance": "黄色战术外卖服（改装），黑色低马尾，戴黑框眼镜，左臂有红色山海经图腾胎记，机械工具腰带",
+                    "role": "底层外卖骑手，性格贪婪但勇敢，擅长机械改造"
+                },
+                "shots": [
+                    {
+                        "shot_number": 1,
+                        "scene_title": "开场-废土场景",
+                        "content": "广角：荒芜的废土垃圾场，天空呈现诡异的紫红色，远处可见坍塌的高楼废墟",
+                        "duration": 6,
+                        "camera_angle": "广角",
+                        "camera_movement": "慢推进",
+                        "scene_type": "environment"
+                    },
+                    {
+                        "shot_number": 2,
+                        "scene_title": "发现机甲",
+                        "content": "中景：林小满蹲在机甲残骸旁，眼镜反射着金属光泽，手中工具在发光",
+                        "duration": 5,
+                        "camera_angle": "中景",
+                        "camera_movement": "固定",
+                        "scene_type": "dialogue",
+                        "dialogues": [
+                            {
+                                "speaker": "林小满",
+                                "text": "这玩意儿...至少值三百信用点！"
+                            }
+                        ]
+                    },
+                    {
+                        "shot_number": 3,
+                        "scene_title": "敌人出现",
+                        "content": "过肩：强盗小队从废墟后出现，手持改装武器，面具下露出策略性微笑",
+                        "duration": 4,
+                        "camera_angle": "过肩",
+                        "camera_movement": "横摇",
+                        "scene_type": "action",
+                        "dialogues": [
+                            {
+                                "speaker": "强盗头目",
+                                "text": "那台机甲，是我们的了。"
+                            }
+                        ]
+                    }
+                ]
+            };
+            document.getElementById('jsonImportInput').value = JSON.stringify(example, null, 2);
+        }
+        this.validateJson();
+    }
+
+    /**
+     * 智能解析JSON - 支持多种常见格式
+     */
+    autoParseJson() {
+        const input = document.getElementById('jsonImportInput');
+        const value = input.value.trim();
+        
+        if (!value) {
+            this.showToast('请先粘贴JSON内容', 'warning');
+            return;
+        }
+        
+        try {
+            let data = JSON.parse(value);
+            let parsed = this.parseVariousFormats(data);
+            
+            if (parsed) {
+                // 用标准格式替换原始内容
+                input.value = JSON.stringify(parsed, null, 2);
+                this.showToast('✅ 智能解析成功！已转换为标准格式', 'success');
+                this.validateJson();
+            }
+        } catch (e) {
+            this.showToast('解析失败: ' + e.message, 'error');
+        }
+    }
+
+    /**
+     * 解析多种常见格式为标准格式
+     */
+    parseVariousFormats(data) {
+        // 已经是标准格式
+        if (data.title && data.description) {
+            return this.normalizeToStandard(data);
+        }
+        
+        // 格式1: 小说/故事结构
+        if (data.story || data.plot || data.chapters) {
+            return this.parseStoryFormat(data);
+        }
+        
+        // 格式2: 分镜表/脚本结构
+        if (data.shots || data.scenes || data.script) {
+            return this.parseScriptFormat(data);
+        }
+        
+        // 格式3: 视频描述结构
+        if (data.video || data.timeline || data.segments) {
+            return this.parseVideoFormat(data);
+        }
+        
+        // 格式4: 简化结构
+        if (data.name || data.idea || data.concept) {
+            return this.parseSimpleFormat(data);
+        }
+        
+        // 尝试从数组解析
+        if (Array.isArray(data)) {
+            return this.parseArrayFormat(data);
+        }
+        
+        return null;
+    }
+
+    /**
+     * 将数据标准化为统一格式
+     */
+    normalizeToStandard(data) {
+        return {
+            title: data.title || data.name || '未命名剧集',
+            episode: parseInt(data.episode) || parseInt(data.ep) || 1,
+            description: data.description || data.desc || data.summary || data.plot || '',
+            world_setting: data.world_setting || data.world || data.background || data.setting || '',
+            style: data.style || data.genre || data.type || '通用',
+            shot_duration: parseInt(data.shot_duration) || parseInt(data.duration) || 5,
+            protagonist: this.normalizeProtagonist(data.protagonist || data.character || data.hero || data.main_character || {}),
+            shots: this.normalizeShots(data.shots || data.scenes || data.frames || [])
+        };
+    }
+
+    /**
+     * 标准化主角信息
+     */
+    normalizeProtagonist(protagonist) {
+        if (typeof protagonist === 'string') {
+            return { name: protagonist, appearance: '' };
+        }
+        return {
+            name: protagonist.name || protagonist.title || protagonist.character_name || '',
+            age: protagonist.age || protagonist.years || '',
+            appearance: protagonist.appearance || protagonist.looks || protagonist.description || protagonist.desc || '',
+            role: protagonist.role || protagonist.identity || protagonist.personality || protagonist.character || ''
+        };
+    }
+
+    /**
+     * 标准化分镜列表
+     */
+    normalizeShots(shots) {
+        if (!Array.isArray(shots) || shots.length === 0) return [];
+        
+        return shots.map((shot, index) => {
+            if (typeof shot === 'string') {
+                return {
+                    shot_number: index + 1,
+                    content: shot,
+                    duration: 5
+                };
+            }
+            
+            return {
+                shot_number: shot.shot_number || shot.number || shot.id || shot.index || (index + 1),
+                scene_title: shot.scene_title || shot.scene || shot.title || shot.name || '',
+                content: shot.content || shot.description || shot.desc || shot.prompt || shot.text || '',
+                duration: parseInt(shot.duration) || parseInt(shot.length) || parseInt(shot.time) || 5,
+                camera_angle: shot.camera_angle || shot.angle || shot.view || '',
+                camera_movement: shot.camera_movement || shot.movement || shot.motion || '',
+                scene_type: shot.scene_type || shot.type || 'standard',
+                dialogues: this.normalizeDialogues(shot.dialogues || shot.dialogue || shot.lines || shot.conversation || [])
+            };
+        });
+    }
+
+    /**
+     * 标准化对话
+     */
+    normalizeDialogues(dialogues) {
+        if (!Array.isArray(dialogues) || dialogues.length === 0) return [];
+        
+        return dialogues.map(d => {
+            if (typeof d === 'string') {
+                return { speaker: '角色', text: d };
+            }
+            return {
+                speaker: d.speaker || d.character || d.role || d.name || d.person || '角色',
+                text: d.text || d.line || d.content || d.dialogue || d.words || ''
+            };
+        }).filter(d => d.text);
+    }
+
+    /**
+     * 解析小说/故事格式
+     */
+    parseStoryFormat(data) {
+        const story = data.story || data.plot || '';
+        const chapters = data.chapters || data.acts || data.parts || [];
+        
+        return this.normalizeToStandard({
+            title: data.title || data.name || '未命名剧集',
+            episode: 1,
+            description: story,
+            protagonist: data.main_character || data.protagonist || {},
+            shots: chapters.flatMap((ch, i) => {
+                const scenes = ch.scenes || ch.shots || [ch];
+                return scenes.map((scene, j) => ({
+                    shot_number: i * 100 + j + 1,
+                    scene_title: ch.title || ch.name || `第${i+1}章`,
+                    content: typeof scene === 'string' ? scene : (scene.content || scene.description || ''),
+                    dialogues: scene.dialogues || scene.dialogue || []
+                }));
+            })
+        });
+    }
+
+    /**
+     * 解析脚本/分镜格式
+     */
+    parseScriptFormat(data) {
+        const script = data.script || data;
+        const shots = data.shots || data.scenes || [];
+        
+        return this.normalizeToStandard({
+            title: data.title || script.title || '未命名剧集',
+            episode: data.episode || script.episode || 1,
+            description: data.description || script.description || script.summary || '',
+            world_setting: data.world_setting || script.setting || '',
+            protagonist: data.protagonist || script.character || script.main_character || {},
+            shots: shots
+        });
+    }
+
+    /**
+     * 解析视频格式
+     */
+    parseVideoFormat(data) {
+        const video = data.video || data;
+        const segments = data.timeline || data.segments || data.scenes || [];
+        
+        return this.normalizeToStandard({
+            title: data.title || video.title || '未命名视频',
+            episode: 1,
+            description: data.description || video.description || '',
+            shots: segments.map((seg, i) => ({
+                shot_number: i + 1,
+                scene_title: seg.title || seg.name || `片段${i+1}`,
+                content: seg.content || seg.description || seg.text || '',
+                duration: seg.duration || seg.length || 5
+            }))
+        });
+    }
+
+    /**
+     * 解析简化格式
+     */
+    parseSimpleFormat(data) {
+        return this.normalizeToStandard({
+            title: data.title || data.name || '未命名剧集',
+            episode: data.episode || 1,
+            description: data.idea || data.concept || data.description || data.plot || '',
+            style: data.style || data.genre || '',
+            protagonist: data.character || data.protagonist || data.main || {},
+            shots: data.shots || data.frames || []
+        });
+    }
+
+    /**
+     * 解析数组格式
+     */
+    parseArrayFormat(data) {
+        // 如果是纯文本数组，当作分镜列表
+        if (data.every(item => typeof item === 'string')) {
+            return this.normalizeToStandard({
+                title: '从分镜列表导入',
+                episode: 1,
+                description: data.join('\n'),
+                shots: data.map((content, i) => ({ content, shot_number: i + 1 }))
+            });
+        }
+        
+        // 如果是对象数组，使用第一个对象
+        if (data.length > 0 && typeof data[0] === 'object') {
+            return this.normalizeToStandard(data[0]);
+        }
+        
+        return null;
+    }
+
+    /**
+     * 验证JSON格式
+     */
+    validateJson() {
+        const input = document.getElementById('jsonImportInput');
+        const resultDiv = document.getElementById('jsonValidationResult');
+        const value = input.value.trim();
+        
+        if (!value) {
+            resultDiv.style.display = 'none';
+            return false;
+        }
+        
+        try {
+            const data = JSON.parse(value);
+            
+            // 使用智能解析检查字段
+            const parsed = this.parseVariousFormats(data);
+            
+            if (!parsed) {
+                resultDiv.style.display = 'block';
+                resultDiv.style.background = 'rgba(239, 68, 68, 0.1)';
+                resultDiv.style.color = '#ef4444';
+                resultDiv.textContent = '❌ 无法识别JSON格式，请点击「智能解析」尝试自动转换';
+                return false;
+            }
+            
+            const required = ['title', 'description'];
+            const missing = required.filter(key => !parsed[key]);
+            
+            if (missing.length > 0) {
+                resultDiv.style.display = 'block';
+                resultDiv.style.background = 'rgba(239, 68, 68, 0.1)';
+                resultDiv.style.color = '#ef4444';
+                resultDiv.textContent = `❌ 缺少必填字段: ${missing.join(', ')}`;
+                return false;
+            }
+            
+            resultDiv.style.display = 'block';
+            resultDiv.style.background = 'rgba(34, 197, 94, 0.1)';
+            resultDiv.style.color = '#22c55e';
+            
+            const shotCount = parsed.shots ? parsed.shots.length : 0;
+            const hasProtagonist = parsed.protagonist && parsed.protagonist.name;
+            const protagonist = hasProtagonist ? `主角：${parsed.protagonist.name}` : '无主角信息';
+            const mode = shotCount > 0 ? '导入分镜' : 'AI生成分镜';
+            resultDiv.innerHTML = `✅ 格式正确 | ${protagonist} | 分镜：${shotCount} | <span style="color: var(--primary);">${mode}</span>`;
+            return true;
+        } catch (e) {
+            resultDiv.style.display = 'block';
+            resultDiv.style.background = 'rgba(239, 68, 68, 0.1)';
+            resultDiv.style.color = '#ef4444';
+            resultDiv.textContent = `❌ JSON格式错误: ${e.message}`;
+            return false;
+        }
+    }
+
+    /**
      * 提交创意导入
      */
     async submitIdeaImport() {
+        // 根据当前模式决定如何提交
+        if (this.currentImportMode === 'json') {
+            await this.submitJsonImport();
+        } else {
+            await this.submitFormImport();
+        }
+    }
+
+    /**
+     * 表单模式提交
+     */
+    async submitFormImport() {
         const title = document.getElementById('ideaTitle').value.trim();
         const episode = parseInt(document.getElementById('ideaEpisode').value) || 1;
         const description = document.getElementById('ideaDescription').value.trim();
@@ -8931,6 +9409,78 @@ saveGeminiConfig(config) {
             return;
         }
 
+        await this.doCreateFromIdea({
+            title,
+            episode,
+            description,
+            style,
+            shot_duration: shotDuration,
+            protagonist: {
+                name: protagonistName,
+                age: protagonistAge,
+                appearance: protagonistAppearance,
+                role: protagonistRole
+            }
+        });
+    }
+
+    /**
+     * JSON模式提交
+     */
+    async submitJsonImport() {
+        const input = document.getElementById('jsonImportInput');
+        const value = input.value.trim();
+        
+        if (!value) {
+            this.showToast('请输入JSON内容', 'warning');
+            return;
+        }
+        
+        let data;
+        try {
+            data = JSON.parse(value);
+        } catch (e) {
+            this.showToast('JSON格式错误: ' + e.message, 'error');
+            return;
+        }
+        
+        // 使用智能解析器处理数据
+        const parsed = this.parseVariousFormats(data);
+        
+        if (!parsed) {
+            this.showToast('无法识别JSON格式，请点击「智能解析」尝试自动转换', 'error');
+            return;
+        }
+        
+        // 验证必填字段
+        if (!parsed.title) {
+            this.showToast('解析后缺少title字段', 'warning');
+            return;
+        }
+        if (!parsed.description) {
+            this.showToast('解析后缺少description字段', 'warning');
+            return;
+        }
+        
+        // 构建请求数据
+        const requestData = {
+            title: parsed.title,
+            episode: parsed.episode || 1,
+            description: parsed.description,
+            style: parsed.style || '通用',
+            shot_duration: parsed.shot_duration || 5,
+            world_setting: parsed.world_setting || '',
+            protagonist: parsed.protagonist || null,
+            shots: parsed.shots || null  // 可选的完整分镜列表
+        };
+        
+        await this.doCreateFromIdea(requestData);
+    }
+
+    /**
+     * 执行创意导入请求
+     */
+    async doCreateFromIdea(requestData) {
         // 显示加载状态
         const submitBtn = document.querySelector('#ideaImportModal .btn-primary');
         const originalText = submitBtn.textContent;
@@ -8941,32 +9491,20 @@ saveGeminiConfig(config) {
             const response = await fetch('/api/short-drama/create-from-idea', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    title,
-                    episode,
-                    description,
-                    style,
-                    shot_duration: shotDuration,
-                    protagonist: {
-                        name: protagonistName,
-                        age: protagonistAge,
-                        appearance: protagonistAppearance,
-                        role: protagonistRole
-                    }
-                })
+                body: JSON.stringify(requestData)
             });
 
             const data = await response.json();
 
             if (data.success) {
-                this.showToast(`第${episode}集分镜头生成成功！`, 'success');
+                this.showToast(`第${requestData.episode}集分镜头生成成功！`, 'success');
                 this.closeIdeaModal();
 
                 // 重新加载项目列表
                 await this.loadProjects();
 
                 // 打开新创建的项目
-                const newProject = this.projects.find(p => p.title === title);
+                const newProject = this.projects.find(p => p.title === requestData.title);
                 if (newProject) {
                     await this.openProject(newProject.id);
                 }
