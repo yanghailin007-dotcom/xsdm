@@ -84,7 +84,7 @@ class EventOptimizerOptimized:
             opt_name = opt_major.get("name")
             
             if opt_name not in original_major_map:
-                self.logger.warn(f"  ⚠️ 优化结果中找不到事件 '{opt_name}'，跳过")
+                self.logger.warning(f"  ⚠️ 优化结果中找不到事件 '{opt_name}'，跳过")
                 continue
             
             orig_major = original_major_map[opt_name]
@@ -126,7 +126,7 @@ class EventOptimizerOptimized:
                             orig_medium["chapter_range"] = opt_medium["chapter_range"]
                         # 保留其他所有字段（detailed_description, scene_planning等）
                     else:
-                        self.logger.warn(f"  ⚠️ 找不到中型事件 '{opt_medium_name}'，跳过")
+                        self.logger.warning(f"  ⚠️ 找不到中型事件 '{opt_medium_name}'，跳过")
         
         self.logger.info(f"  ✅ 成功合并优化结果，保留了所有原始字段")
         return merged
@@ -246,7 +246,7 @@ class EventOptimizerOptimized:
                 summary = optimization_result.get("summary_of_continuity_changes", "AI未提供修改摘要。")
                 self.logger.info(f"  📝 修改摘要: {summary}")
             else:
-                self.logger.warn("  ⚠️ AI连续性优化失败，未能返回有效的优化后事件系统。")
+                self.logger.warning("  ⚠️ AI连续性优化失败，未能返回有效的优化后事件系统。")
                 
         except Exception as e:
             self.logger.error(f"  ❌ 在执行AI连续性优化时发生错误: {e}")

@@ -197,8 +197,8 @@ CONFIG = {
     },
     # Nano Banana文生图API配置 (用于角色生成)
     "nanobanana": {
-        "base_url": "https://newapi.xiaochuang.cc/v1beta/models/gemini-3-pro-image-preview:generateContent/",
-        "api_key": "sk-mDqCm1AByrVbtN6EGmN638SSyNFOsGUdjzVZrdjNz1xGq8TC",
+        "base_url": "http://intoai.xiaochuang.cc/v1beta/models/gemini-3-pro-image-preview:generateContent",
+        "api_key": "sk-i7g2FApDs7X5cdIgpjDMcgIbCCaACIfgzmkIocX2xZBbqnSH",
         "enabled": True,
         "default_config": {
             "responseModalities": ["TEXT", "IMAGE"],

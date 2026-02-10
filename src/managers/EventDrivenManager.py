@@ -776,9 +776,9 @@ class EventDrivenManager:
                     self.update_from_stage_plan({"event_system": event_system})
                     return
                 else:
-                    self.logger.warn(f"⚠️ 阶段 {current_stage} 的事件系统为空")
+                    self.logger.warning(f"⚠️ 阶段 {current_stage} 的事件系统为空")
             else:
-                self.logger.warn(f"⚠️ 无法从StagePlanManager获取 {current_stage} 的计划")
+                self.logger.warning(f"⚠️ 无法从StagePlanManager获取 {current_stage} 的计划")
         
         # 如果找不到当前阶段，尝试从所有阶段中查找
         self.logger.info("🔍 尝试从所有阶段查找适合当前章节的事件...")
@@ -814,7 +814,7 @@ class EventDrivenManager:
                     self.update_from_stage_plan({"event_system": event_system})
                     return
         
-        self.logger.warn("⚠️ 没有可用的阶段写作计划或事件系统")
+        self.logger.warning("⚠️ 没有可用的阶段写作计划或事件系统")
         # 创建回退事件确保系统能工作
         self._create_fallback_events(current_chapter)
     def _get_current_stage_from_plans(self, chapter_number: int) -> str:

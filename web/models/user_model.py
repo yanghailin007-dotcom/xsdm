@@ -322,13 +322,13 @@ class VerificationCodeModel:
                 ).fetchone()
                 
                 if not record:
-                    logger.warn(f"⚠️ 验证码不存在或已使用: {phone}")
+                    logger.warning(f"⚠️ 验证码不存在或已使用: {phone}")
                     return False
                 
                 # 检查是否过期
                 expires_at = datetime.fromisoformat(record['expires_at'])
                 if datetime.now() > expires_at:
-                    logger.warn(f"⚠️ 验证码已过期: {phone}")
+                    logger.warning(f"⚠️ 验证码已过期: {phone}")
                     return False
                 
                 # 标记为已使用
@@ -373,7 +373,7 @@ class VerificationCodeModel:
                 ).fetchone()['count']
                 
                 if count >= max_attempts:
-                    logger.warn(f"⚠️ 超过验证码请求限制: {phone} ({count}次)")
+                    logger.warning(f"⚠️ 超过验证码请求限制: {phone} ({count}次)")
                     return False
                 
                 return True

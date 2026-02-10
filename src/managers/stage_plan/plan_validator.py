@@ -55,7 +55,7 @@ class PlanValidator:
                 self.logger.info(f"  ✅ 【网文白金策划师】评估{stage_name}阶段目标层级一致性完成。")
                 return coherence_assessment
             else:
-                self.logger.warn(f"  ⚠️ 【网文白金策划师】评估{stage_name}阶段目标层级一致性失败，使用默认结果。")
+                self.logger.warning(f"  ⚠️ 【网文白金策划师】评估{stage_name}阶段目标层级一致性失败，使用默认结果。")
                 return self._create_default_coherence_assessment()
                 
         except Exception as e:
@@ -145,7 +145,7 @@ class PlanValidator:
                 )
 
         if incomplete_chapters:
-            self.logger.warn(f"  ⚠️ 场景完整性检查：{len(incomplete_chapters)}个章节场景内容不完整: {incomplete_chapters}")
+            self.logger.warning(f"  ⚠️ 场景完整性检查：{len(incomplete_chapters)}个章节场景内容不完整: {incomplete_chapters}")
 
         return coverage_analysis
 
@@ -260,7 +260,7 @@ class PlanValidator:
         
         target_range_str = major_event_skeleton.get("chapter_range")
         if not target_range_str:
-            self.logger.warn(f"  ⚠️ 警告：重大事件骨架 '{major_event_skeleton.get('name')}' 缺少 'chapter_range'")
+            self.logger.warning(f"  ⚠️ 警告：重大事件骨架 '{major_event_skeleton.get('name')}' 缺少 'chapter_range'")
             return fleshed_out_major_event
         
         try:
@@ -285,7 +285,7 @@ class PlanValidator:
             all_sub_events.extend(special_events)
         
         if not all_sub_events:
-            self.logger.warn(f"  ⚠️ 警告：重大事件 '{fleshed_out_major_event.get('name')}' 内部分解后没有任何子事件")
+            self.logger.warning(f"  ⚠️ 警告：重大事件 '{fleshed_out_major_event.get('name')}' 内部分解后没有任何子事件")
             return fleshed_out_major_event
         
         for event in all_sub_events:
@@ -480,7 +480,7 @@ class PlanValidator:
                 self.logger.info(f"  ✅ 【网文白金策划师】评估{stage_name}阶段事件连续性完成。")
                 return continuity_assessment
             else:
-                self.logger.warn(f"  ⚠️ 【网文白金策划师】评估{stage_name}阶段事件连续性失败，使用默认结果。")
+                self.logger.warning(f"  ⚠️ 【网文白金策划师】评估{stage_name}阶段事件连续性失败，使用默认结果。")
                 return self._create_default_continuity_assessment()
                 
         except Exception as e:
@@ -745,7 +745,7 @@ class PlanValidator:
                     "chapters": set(range(e_start, e_end + 1))
                 })
             except Exception as e:
-                self.logger.warn(f"  ⚠️ 跳过事件 '{event_name}': 无法解析章节范围 '{range_str}'")
+                self.logger.warning(f"  ⚠️ 跳过事件 '{event_name}': 无法解析章节范围 '{range_str}'")
 
         # 检测问题
         all_covered = set()
@@ -1080,9 +1080,9 @@ class PlanValidator:
         }
 
         if not is_valid:
-            self.logger.warn(f"  ⚠️ 重大事件 '{major_event_name}' 的中型事件范围存在问题:")
+            self.logger.warning(f"  ⚠️ 重大事件 '{major_event_name}' 的中型事件范围存在问题:")
             for issue in issues:
-                self.logger.warn(f"     - {issue['message']}")
+                self.logger.warning(f"     - {issue['message']}")
         else:
             self.logger.info(f"  ✅ 重大事件 '{major_event_name}' 的中型事件范围验证通过")
 

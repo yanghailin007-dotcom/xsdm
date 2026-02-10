@@ -68,7 +68,7 @@ def test_task_persistence():
     tasks = test_list_tasks()
     
     if not tasks:
-        logger.warn("⚠️  没有找到任何任务")
+        logger.warning("⚠️  没有找到任何任务")
         return False
     
     logger.info(f"✅ 成功加载 {len(tasks)} 个任务")
@@ -80,7 +80,7 @@ def test_task_persistence():
         if task_id.startswith("veo_"):
             valid_count += 1
         else:
-            logger.warn(f"⚠️  发现无效ID格式: {task_id}")
+            logger.warning(f"⚠️  发现无效ID格式: {task_id}")
     
     logger.info(f"✅ {valid_count}/{len(tasks)} 个任务ID格式正确")
     
@@ -95,7 +95,7 @@ def test_delete_flow():
     tasks = test_list_tasks()
     
     if not tasks:
-        logger.warn("⚠️  没有可删除的任务")
+        logger.warning("⚠️  没有可删除的任务")
         return True
     
     # 选择第一个任务进行删除测试

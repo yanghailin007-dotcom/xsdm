@@ -51,7 +51,7 @@ class StagePlanPersistence:
         self.logger.info(f"  💾 (日志) 从计划数据中提取到的小说标题为: '{novel_title}'")
         
         if novel_title == "unknown":
-            self.logger.warn(f"  ⚠️ 警告：无法从计划数据中提取到有效的小说标题，文件名将使用 'unknown'。")
+            self.logger.warning(f"  ⚠️ 警告：无法从计划数据中提取到有效的小说标题，文件名将使用 'unknown'。")
         
         # 3. 构建小说项目目录路径
         safe_title = self._sanitize_filename(novel_title)
@@ -108,7 +108,7 @@ class StagePlanPersistence:
         self.logger.info(f"    - 用于构建路径的小说标题: '{novel_title}'")
         
         if novel_title == "unknown":
-            self.logger.warn(f"    - ⚠️ 警告: 小说标题为 'unknown'，可能导致无法找到正确文件。")
+            self.logger.warning(f"    - ⚠️ 警告: 小说标题为 'unknown'，可能导致无法找到正确文件。")
         
         safe_title = self._sanitize_filename(novel_title)
         novel_project_dir = self.plans_dir / safe_title
@@ -180,7 +180,7 @@ class StagePlanPersistence:
             self.logger.info(f"    - ℹ️ 在 novel_data 中未找到 '{stage_name}' 的记录路径。")
         
         # 如果所有策略都失败
-        self.logger.warn(f"  ⚠️ (日志) 加载失败: 未能从任何已知位置找到或加载 '{stage_name}' 的计划文件。")
+        self.logger.warning(f"  ⚠️ (日志) 加载失败: 未能从任何已知位置找到或加载 '{stage_name}' 的计划文件。")
         return None
     
     def _sanitize_filename(self, filename: str) -> str:

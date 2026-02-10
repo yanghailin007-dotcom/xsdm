@@ -60,7 +60,7 @@ class PlanGenerator:
             # 检查是否存在复杂设定问题
             complexity_issues = self._check_setting_complexity(result)
             if complexity_issues:
-                self.logger.warn(f"  ⚠️ 检测到复杂设定问题: {', '.join(complexity_issues)}")
+                self.logger.warning(f"  ⚠️ 检测到复杂设定问题: {', '.join(complexity_issues)}")
                 freshness_score = max(0, freshness_score - 2)
             
             if freshness_score >= 8.5:
@@ -86,7 +86,7 @@ class PlanGenerator:
                         result = optimized_result
                         break
                     else:
-                        self.logger.warn(f"  ⚠️ 优化后新鲜度仍不足，继续重新生成...")
+                        self.logger.warning(f"  ⚠️ 优化后新鲜度仍不足，继续重新生成...")
         
         if result:
             result = self.cg._ensure_main_character_in_content(result, "one_plans")
@@ -102,7 +102,7 @@ class PlanGenerator:
                 result["immersion_score"] = immersion_score
                 self.logger.info(f"  💫 代入感评分: {immersion_score:.1f}/10")
             else:
-                self.logger.warn(f"  ⚠️ QualityAssessor 未初始化，跳过代入感评估。")
+                self.logger.warning(f"  ⚠️ QualityAssessor 未初始化，跳过代入感评估。")
                 result["immersion_score"] = 0
         
         return result
@@ -228,7 +228,7 @@ class PlanGenerator:
             
         elif design_level == "supplementary":
             if not existing_characters or not stage_info:
-                self.logger.warn("  ⚠️ 补充角色模式缺少'已有角色'或'阶段信息'，操作已取消。")
+                self.logger.warning("  ⚠️ 补充角色模式缺少'已有角色'或'阶段信息'，操作已取消。")
                 return existing_characters
             
             prompt_type = "character_design_supplementary"
@@ -294,7 +294,7 @@ class PlanGenerator:
         elif design_level == "supplementary":
             new_characters = result_json.get("newly_added_characters", [])
             if not new_characters:
-                self.logger.warn("  ⚠️ 补充角色API调用成功，但未返回新角色。")
+                self.logger.warning("  ⚠️ 补充角色API调用成功，但未返回新角色。")
                 return existing_characters
             
             self.logger.info(f"  ✅ 成功生成 {len(new_characters)} 个补充角色，正在合并...")

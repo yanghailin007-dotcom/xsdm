@@ -127,7 +127,7 @@ class EventDecomposer:
                 })
                 decomposed_medium_events.append(decomposed_event)
             else:
-                self.logger.warn(f"      ⚠️ 中型事件'{medium_event['name']}'分解失败，保留原始结构")
+                self.logger.warning(f"      ⚠️ 中型事件'{medium_event['name']}'分解失败，保留原始结构")
                 decomposed_medium_events.append(medium_event)
         
         # 更新重大事件的composition
@@ -178,7 +178,7 @@ class EventDecomposer:
 {current_stage_plan_str}
 """
         except Exception as e:
-            self.logger.warn(f"构建顶层上下文时发生错误: {e}, 使用简化版上下文。")
+            self.logger.warning(f"构建顶层上下文时发生错误: {e}, 使用简化版上下文。")
             return "# 顶层战略背景\n简化版上下文"
 
     def _build_comprehensive_scene_context(self, global_novel_data: Dict, major_event: Dict,
@@ -1148,7 +1148,7 @@ class EventDecomposer:
                 }]
                 self.logger.info(f"      ✅ 成功为单章事件生成完整起承转合场景（旧格式，{len(scenes)}个场景）")
             else:
-                self.logger.warn(f"      ⚠️ API返回数据格式不符合预期")
+                self.logger.warning(f"      ⚠️ API返回数据格式不符合预期")
                 self.logger.info(f"      📋 返回的键: {list(result.keys())}")
                 self.logger.info(f"      📋 完整数据: {json.dumps(result, ensure_ascii=False)[:500]}")
         else:

@@ -183,7 +183,7 @@ def create_app():
                             return send_from_directory(local_video_dir, local_filename)
                         else:
                             # 本地路径指向的文件不存在，可能是旧任务
-                            logger.warn(f"⚠️ JSON中的本地路径不存在: {local_file_check}")
+                            logger.warning(f"⚠️ JSON中的本地路径不存在: {local_file_check}")
                             # 尝试从元数据中获取原始远程URL
                             if hasattr(task, 'metadata') and task.metadata:
                                 original_url = task.metadata.get('original_url')
@@ -201,7 +201,7 @@ def create_app():
                         # 重定向到真实的视频URL
                         return redirect(video_url)
                 else:
-                    logger.warn(f"⚠️ 未找到任务或视频结果: {task_id}")
+                    logger.warning(f"⚠️ 未找到任务或视频结果: {task_id}")
                     return jsonify({
                         "error": "Video not found",
                         "message": f"VeO task {task_id} not found or not completed"
@@ -227,7 +227,7 @@ def create_app():
                 return send_from_directory(generated_videos_dir, filename)
                 
         except FileNotFoundError:
-            logger.warn(f"⚠️ 本地视频文件不存在: {filename}")
+            logger.warning(f"⚠️ 本地视频文件不存在: {filename}")
             return jsonify({
                 "error": "File not found",
                 "message": f"Video file {filename} not found"
@@ -253,7 +253,7 @@ def create_app():
             return send_from_directory(os.path.join(BASE_DIR, 'generated_videos'), filename)
         
         # 如果都不存在，返回404
-        logger.warn(f"⚠️ 视频文件不存在: {filename}")
+        logger.warning(f"⚠️ 视频文件不存在: {filename}")
         return jsonify({
             "error": "File not found",
             "message": f"Video file {filename} not found"
@@ -405,7 +405,7 @@ def register_fanqie_routes(app):
             if validation_result.get("valid"):
                 logger.info(f"✅ 验证通过，章节数: {validation_result.get('chapter_count', 0)}")
             else:
-                logger.warn(f"⚠️ 验证失败: {validation_result.get('error', '未知错误')}")
+                logger.warning(f"⚠️ 验证失败: {validation_result.get('error', '未知错误')}")
             
             if not validation_result["valid"]:
                 error_msg = validation_result.get("error", "验证失败")
@@ -663,7 +663,7 @@ def register_contract_routes(app):
         logger.info(f"✅ 客户端队列ID: task_queue={id(contract_api.client.task_queue)}, result_queue={id(contract_api.client.result_queue)}")
     else:
         contract_api_available = False
-        logger.warn("⚠️ 签约上传API未初始化")
+        logger.warning("⚠️ 签约上传API未初始化")
 
     @app.route('/contract')
     def contract_page():
@@ -817,7 +817,7 @@ def register_contract_routes(app):
                     os.remove(status_file)
                     logger.info(f"✅ 已删除状态文件: {status_file}")
                 except Exception as e:
-                    logger.warn(f"⚠️ 删除状态文件失败: {e}")
+                    logger.warning(f"⚠️ 删除状态文件失败: {e}")
             
             return jsonify({
                 "success": True,
@@ -978,12 +978,12 @@ def print_startup_info():
     if MODULE_STATUS["contract_api_available"]:
         logger.info("✅ 签约上传独立进程服务已集成")
     else:
-        logger.warn("⚠️ 签约上传独立进程服务不可用")
+        logger.warning("⚠️ 签约上传独立进程服务不可用")
     
     if MODULE_STATUS["service_monitor_available"]:
         logger.info("✅ 服务监控模块已集成")
     else:
-        logger.warn("⚠️ 服务监控模块不可用")
+        logger.warning("⚠️ 服务监控模块不可用")
     
     logger.info("=" * 60)
 
@@ -1044,8 +1044,8 @@ def signal_handler(signum, frame):
     else:
         # 第一次 Ctrl+C，只警告不退出
         remaining = _EXIT_SIGNALS_REQUIRED - _signal_count
-        logger.warn(f"⚠️  检测到中断信号！如需退出请再次按下 Ctrl+C ({remaining}/{_EXIT_SIGNALS_REQUIRED})")
-        logger.warn("💡 如果是想复制日志，请使用：右键 -> 标记 -> 选择文本 -> Enter")
+        logger.warning(f"⚠️  检测到中断信号！如需退出请再次按下 Ctrl+C ({remaining}/{_EXIT_SIGNALS_REQUIRED})")
+        logger.warning("💡 如果是想复制日志，请使用：右键 -> 标记 -> 选择文本 -> Enter")
 
 
 def main():

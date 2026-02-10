@@ -57,7 +57,7 @@ class AliyunSMSProvider(SMSProvider):
             template_code = config.get("template_code")
             
             if not all([access_key_id, access_key_secret, sign_name, template_code]):
-                logger.warn("⚠️ 阿里云短信配置不完整，使用模拟发送")
+                logger.warning("⚠️ 阿里云短信配置不完整，使用模拟发送")
                 return self._mock_send(phone, code)
             
             # 构建请求参数
@@ -100,7 +100,7 @@ class TencentSMSProvider(SMSProvider):
             template_id = config.get("template_id")
             
             if not all([secret_id, secret_key, app_id, sign_name, template_id]):
-                logger.warn("⚠️ 腾讯云短信配置不完整，使用模拟发送")
+                logger.warning("⚠️ 腾讯云短信配置不完整，使用模拟发送")
                 return self._mock_send(phone, code)
             
             logger.info(f"📱 [腾讯云] 发送短信至 {phone}: 验证码 {code}")

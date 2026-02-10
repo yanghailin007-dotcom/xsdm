@@ -259,7 +259,7 @@ def get_novel_content():
         novel_detail = manager.get_novel_detail(title)
         if not novel_detail:
             # 如果精确匹配失败，尝试模糊匹配
-            logger.warn(f"⚠️ [VIDEO] 精确匹配失败，尝试模糊匹配: {title}")
+            logger.warning(f"⚠️ [VIDEO] 精确匹配失败，尝试模糊匹配: {title}")
             for available_title in manager.novel_projects.keys():
                 if title.strip() == available_title.strip():
                     logger.info(f"✅ [VIDEO] 通过去除空白匹配成功: {available_title}")
@@ -301,7 +301,7 @@ def get_novel_content():
                                     if isinstance(storyboard_data, list):
                                         all_scenes.extend(storyboard_data)
                         except Exception as e:
-                            logger.warn(f"⚠️ [VIDEO] 读取storyboard文件失败: {sb_file}, {e}")
+                            logger.warning(f"⚠️ [VIDEO] 读取storyboard文件失败: {sb_file}, {e}")
 
                     # 为创意导入项目构建虚拟事件数据
                     creative_events = []
@@ -603,7 +603,7 @@ def generate_prompt():
                                     break
 
                             if not found:
-                                logger.warn(f"⚠️ [VIDEO] 无法在复合ID '{selected_event}' 中找到子事件，直接使用父事件")
+                                logger.warning(f"⚠️ [VIDEO] 无法在复合ID '{selected_event}' 中找到子事件，直接使用父事件")
                                 # 🔥 修复：如果找不到子事件，展开父事件的所有中级事件
                                 medium_events_from_extractor = event_extractor.extract_medium_events(major_event)
                                 for medium_event in medium_events_from_extractor:
@@ -611,7 +611,7 @@ def generate_prompt():
                                     medium_event_copy["parent_major"] = major_event.get("name", major_event.get("title", ""))
                                     expanded_events.append(medium_event_copy)
                         else:
-                            logger.warn(f"⚠️ [VIDEO] 无法在复合ID '{selected_event}' 中找到父事件 '{parent_id}'，尝试从索引提取")
+                            logger.warning(f"⚠️ [VIDEO] 无法在复合ID '{selected_event}' 中找到父事件 '{parent_id}'，尝试从索引提取")
                             # 🔥 修复：尝试从parent_id中提取索引直接访问
                             try:
                                 parent_idx = int(parent_id.replace("major_event_", ""))
@@ -644,7 +644,7 @@ def generate_prompt():
                             logger.info(f"📊 [VIDEO] 通过ID '{selected_event}' 展开重大事件 '{major_event.get('name')}' 为 {len([e for e in expanded_events if e.get('parent_major') == major_event.get('name')])} 个中级事件")
                         else:
                             # 🔥 修复：尝试从selected_event中提取索引作为备用方案
-                            logger.warn(f"⚠️ [VIDEO] 未找到ID为 '{selected_event}' 的事件，尝试从索引提取")
+                            logger.warning(f"⚠️ [VIDEO] 未找到ID为 '{selected_event}' 的事件，尝试从索引提取")
                             try:
                                 # 尝试从 major_event_X 格式中提取索引
                                 event_idx = int(selected_event.replace("major_event_", "").replace("event_", ""))
@@ -680,10 +680,10 @@ def generate_prompt():
                         expanded_events.append(selected_event)
                     
                     else:
-                        logger.warn(f"⚠️ [VIDEO] 未知的事件格式: {selected_event}")
+                        logger.warning(f"⚠️ [VIDEO] 未知的事件格式: {selected_event}")
                 
                 else:
-                    logger.warn(f"⚠️ [VIDEO] 跳过不支持的事件类型: {type(selected_event)}")
+                    logger.warning(f"⚠️ [VIDEO] 跳过不支持的事件类型: {type(selected_event)}")
         
         # 使用展开后的中级事件
         selected_events = expanded_events
@@ -982,7 +982,7 @@ def _filter_selected_events(all_events: List[Dict], selected_event_ids: List[str
 
     # 如果没有选中任何事件，返回空列表
     if not selected_major_indices:
-        logger.warn("⚠️ 没有选中任何有效事件")
+        logger.warning("⚠️ 没有选中任何有效事件")
         return []
 
     # 🔥 第二步：根据选中的重大事件索引构建结果
@@ -1187,7 +1187,7 @@ def generate_storyboard():
 
                     logger.info(f"✅ [AI分镜头] {medium_event['title']} 生成完成，{len(scenes)} 场景，{sum(len(s.get('shot_sequence', [])) for s in scenes)} 镜头")
                 else:
-                    logger.warn(f"⚠️ [AI分镜头] {medium_event['title']} 生成失败")
+                    logger.warning(f"⚠️ [AI分镜头] {medium_event['title']} 生成失败")
 
         # 🔥 构建前端期望的返回格式
         units = []
@@ -2515,7 +2515,7 @@ def generate_character_portrait():
                 
                 # 验证文件存在
                 if ref_image_path and not os.path.exists(ref_image_path):
-                    logger.warn(f"⚠️ [VIDEO] 参考图像{idx+1}不存在，将跳过: {ref_image_path}")
+                    logger.warning(f"⚠️ [VIDEO] 参考图像{idx+1}不存在，将跳过: {ref_image_path}")
                     ref_image_path = None
                 
                 if ref_image_path:
@@ -2919,7 +2919,7 @@ def generate_scene_portrait():
             
             # 验证文件存在
             if ref_image_path and not os.path.exists(ref_image_path):
-                logger.warn(f"⚠️ [SCENE] 参考图像不存在，将使用纯文本模式: {ref_image_path}")
+                logger.warning(f"⚠️ [SCENE] 参考图像不存在，将使用纯文本模式: {ref_image_path}")
                 ref_image_path = None
         
         # 使用NanoBananaImageGenerator生成图像
@@ -3179,7 +3179,7 @@ def list_video_projects():
                 projects.append(project_info)
                 
             except Exception as e:
-                logger.warn(f"⚠️ [VIDEO] 无法读取项目 {project_path.name}: {e}")
+                logger.warning(f"⚠️ [VIDEO] 无法读取项目 {project_path.name}: {e}")
                 continue
         
         # 按创建时间倒序排序
@@ -3389,7 +3389,7 @@ def generate_portrait_first_workflow():
                         "status": "failed",
                         "error": result.get('error', '未知错误')
                     })
-                    logger.warn(f"  ⚠️ {char_name} 剧照生成失败")
+                    logger.warning(f"  ⚠️ {char_name} 剧照生成失败")
 
             except Exception as e:
                 logger.error(f"  ❌ {char_name} 剧照生成异常: {e}")
@@ -4219,13 +4219,13 @@ def generate_batch_portraits():
                     break
 
             if not char_detail:
-                logger.warn(f"⚠️ [批量剧照] 找不到角色详情: {char_name}")
+                logger.warning(f"⚠️ [批量剧照] 找不到角色详情: {char_name}")
                 continue
 
             # 生成角色提示词
             character_prompts = event_extractor.generate_character_prompts([char_detail])
             if not character_prompts:
-                logger.warn(f"⚠️ [批量剧照] 生成角色提示词失败: {char_name}")
+                logger.warning(f"⚠️ [批量剧照] 生成角色提示词失败: {char_name}")
                 continue
 
             prompt = character_prompts[0].get('generation_prompt', '')
@@ -4333,7 +4333,7 @@ def get_video_projects():
                             'progress': calculate_progress(task_data)
                         })
                     except Exception as e:
-                        logger.warn(f"读取项目文件 {task_file} 失败: {e}")
+                        logger.warning(f"读取项目文件 {task_file} 失败: {e}")
 
         # 同时也检查直接创建的项目文件
         projects_dir = os.path.join(BASE_DIR, 'video_projects')
@@ -4361,7 +4361,7 @@ def get_video_projects():
                             'progress': 0
                         })
                     except Exception as e:
-                        logger.warn(f"读取项目文件 {proj_file} 失败: {e}")
+                        logger.warning(f"读取项目文件 {proj_file} 失败: {e}")
 
         return jsonify({
             'success': True,
@@ -4415,7 +4415,7 @@ def get_video_stats():
                 portrait_files = [f for f in os.listdir(images_dir) if f.endswith('.png') or f.endswith('.jpg')]
                 stats['portrait_count'] = len(portrait_files)
         except Exception as e:
-            logger.warn(f"统计剧照失败: {e}")
+            logger.warning(f"统计剧照失败: {e}")
 
         # 统计视频数量（检查generated_videos目录）
         try:
@@ -4424,7 +4424,7 @@ def get_video_stats():
                 video_files = [f for f in os.listdir(videos_dir) if f.endswith('.mp4')]
                 stats['video_count'] = len(video_files)
         except Exception as e:
-            logger.warn(f"统计视频失败: {e}")
+            logger.warning(f"统计视频失败: {e}")
 
         # 统计任务数量（检查tasks目录）
         try:
@@ -4433,7 +4433,7 @@ def get_video_stats():
                 task_files = [f for f in os.listdir(tasks_dir) if f.endswith('.json')]
                 stats['task_count'] = len(task_files)
         except Exception as e:
-            logger.warn(f"统计任务失败: {e}")
+            logger.warning(f"统计任务失败: {e}")
 
         return jsonify({
             'success': True,
@@ -4791,7 +4791,7 @@ def generate_episode_storyboard():
                 logger.info(f"  ✅ [按集制作] AI生成分镜头成功: {len(scenes)} 个场景, {len(character_images)} 个角色")
             else:
                 # AI生成失败，回退到原有逻辑
-                logger.warn(f"  ⚠️ [按集制作] AI生成失败，使用备用方案")
+                logger.warning(f"  ⚠️ [按集制作] AI生成失败，使用备用方案")
 
                 # 根据剧集的阶段调整内容风格
                 stage_descriptions = {
@@ -5464,14 +5464,14 @@ def _load_writing_plan_file(novel_title: str, episode_id: str = None) -> dict:
         plans_dir = novel_dir / 'plans'
 
         if not plans_dir.exists():
-            logger.warn(f"⚠️ plans目录不存在: {plans_dir}")
+            logger.warning(f"⚠️ plans目录不存在: {plans_dir}")
             return {}
 
         # 查找所有写作计划文件
         plan_files = list(plans_dir.glob('*writing_plan.json'))
 
         if not plan_files:
-            logger.warn(f"⚠️ 未找到写作计划文件: {plans_dir}/*writing_plan.json")
+            logger.warning(f"⚠️ 未找到写作计划文件: {plans_dir}/*writing_plan.json")
             return {}
 
         # 🔥 根据episode_id确定应该加载哪个阶段的文件
@@ -5569,7 +5569,7 @@ def _find_event_in_writing_plan(writing_plan: dict, episode_id: str, episode_sta
         major_events = event_system.get('major_events', [])
 
         if not major_events or major_idx >= len(major_events):
-            logger.warn(f"⚠️ 未找到major_event[{major_idx}]，总数: {len(major_events)}")
+            logger.warning(f"⚠️ 未找到major_event[{major_idx}]，总数: {len(major_events)}")
             return {}
 
         major_event = major_events[major_idx]
@@ -5580,12 +5580,12 @@ def _find_event_in_writing_plan(writing_plan: dict, episode_id: str, episode_sta
         stage_events = composition.get(target_stage, [])
 
         if not stage_events:
-            logger.warn(f"⚠️ 未找到{target_stage}阶段的事件，可用阶段: {list(composition.keys())}")
+            logger.warning(f"⚠️ 未找到{target_stage}阶段的事件，可用阶段: {list(composition.keys())}")
             return {}
 
         # 使用sub_idx作为该阶段内的事件索引
         if sub_idx >= len(stage_events):
-            logger.warn(f"⚠️ 未找到{target_stage}阶段的第{sub_idx}个事件，总数: {len(stage_events)}")
+            logger.warning(f"⚠️ 未找到{target_stage}阶段的第{sub_idx}个事件，总数: {len(stage_events)}")
             # 如果超出范围，使用第一个事件
             sub_idx = 0
 
@@ -5680,7 +5680,7 @@ def _generate_storyboard_with_ai(novel_title: str, episode: dict) -> dict:
         plot_points = plot_outline if plot_outline else [event_description]
     else:
         # 🔥 回退方案：使用 episode 参数中传递的数据
-        logger.warn(f"⚠️ [AI分镜头] 写作计划中未找到对应事件，使用 episode 参数数据")
+        logger.warning(f"⚠️ [AI分镜头] 写作计划中未找到对应事件，使用 episode 参数数据")
 
         event_name = episode.get('title', episode_title)
         major_event_name = episode.get('major_event', '')
@@ -5972,7 +5972,7 @@ def _load_project_config(novel_title: str) -> dict:
             }
         }
     except Exception as e:
-        logger.warn(f"⚠️ 加载项目配置失败: {e}")
+        logger.warning(f"⚠️ 加载项目配置失败: {e}")
         return {
             'settings': {
                 'aspect_ratio': '9:16',
@@ -6000,7 +6000,7 @@ def _load_character_design_file(novel_title: str) -> dict:
         character_file = novel_dir / 'characters' / f'{novel_title}_角色设计.json'
 
         if not character_file.exists():
-            logger.warn(f"⚠️ [角色加载] 未找到角色设计文件: {character_file}")
+            logger.warning(f"⚠️ [角色加载] 未找到角色设计文件: {character_file}")
             return {}
 
         with open(character_file, 'r', encoding='utf-8') as f:

@@ -444,7 +444,7 @@ class LongSeriesStrategy(VideoGenerationStrategy):
         composition = major_event.get("composition", {})
         
         if not composition:
-            self.logger.warn(f"  ⚠️ 重大事件'{major_event.get('name')}'没有composition字段")
+            self.logger.warning(f"  ⚠️ 重大事件'{major_event.get('name')}'没有composition字段")
             return medium_events
         
         # 🔥 支持多种叙事阶段的命名方式
@@ -468,7 +468,7 @@ class LongSeriesStrategy(VideoGenerationStrategy):
             if stage_order:
                 self.logger.debug(f"    📋 使用动态格式: {stage_order}")
             else:
-                self.logger.warn(f"    ⚠️ composition为空或无效: {list(composition.keys())}")
+                self.logger.warning(f"    ⚠️ composition为空或无效: {list(composition.keys())}")
                 return medium_events
         
         # 按叙事顺序提取
@@ -476,7 +476,7 @@ class LongSeriesStrategy(VideoGenerationStrategy):
             events = composition.get(stage, [])
             
             if not isinstance(events, list):
-                self.logger.warn(f"    ⚠️ stage '{stage}' 的 events 不是列表: {type(events)}")
+                self.logger.warning(f"    ⚠️ stage '{stage}' 的 events 不是列表: {type(events)}")
                 continue
             
             if not events:
@@ -492,7 +492,7 @@ class LongSeriesStrategy(VideoGenerationStrategy):
                         "parent_major_event": major_event.get("name")
                     })
                 else:
-                    self.logger.warn(f"    ⚠️ 事件不是字典类型: {type(event)}")
+                    self.logger.warning(f"    ⚠️ 事件不是字典类型: {type(event)}")
         
         self.logger.info(f"    📊 从'{major_event.get('name')}'提取了{len(medium_events)}个中级事件")
         return medium_events
@@ -1204,7 +1204,7 @@ class VideoAdapterManager:
                     self.logger.info(f"🎬 [Storyboard]   ✓ 场景生成成功: {scene.get('scene_title')}")
                     storyboard["scenes"].append(scene)
                 else:
-                    self.logger.warn(f"🎬 [Storyboard]   ✗ 场景生成失败")
+                    self.logger.warning(f"🎬 [Storyboard]   ✗ 场景生成失败")
                     # 🔥 添加默认场景，防止完全失败
                     storyboard["scenes"].append({
                         "scene_number": event_idx,
@@ -1244,7 +1244,7 @@ class VideoAdapterManager:
         
         # 使用当前策略生成镜头序列
         if self.current_strategy is None:
-            self.logger.warn("策略未初始化，使用默认镜头序列")
+            self.logger.warning("策略未初始化，使用默认镜头序列")
             shot_sequence = self._generate_default_shots(medium_event)
         else:
             shot_sequence = self.current_strategy.generate_shot_sequence(medium_event, context)
@@ -1317,13 +1317,13 @@ class VideoAdapterManager:
 
         # 使用当前策略生成镜头序列
         if self.current_strategy is None:
-            self.logger.warn("策略未初始化，使用默认镜头序列")
+            self.logger.warning("策略未初始化，使用默认镜头序列")
             shot_sequence = self._generate_default_shots(event)
         else:
             shot_sequence = self.current_strategy.generate_shot_sequence(event, context)
 
         if not shot_sequence:
-            self.logger.warn(f"⚠️ 事件 {event_name} 没有生成任何镜头")
+            self.logger.warning(f"⚠️ 事件 {event_name} 没有生成任何镜头")
             return None
 
         # 计算场景时长

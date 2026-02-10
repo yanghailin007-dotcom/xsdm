@@ -76,7 +76,7 @@ class StillImageManager:
                     self.logger.debug(f"✅ 加载图片元数据: {image.image_id} (状态: {image.status})")
                 
                 except Exception as e:
-                    self.logger.warn(f"加载图片元数据失败 {metadata_file}: {e}")
+                    self.logger.warning(f"加载图片元数据失败 {metadata_file}: {e}")
             
             self.logger.info(f"✅ 从磁盘加载了 {loaded_count} 个图片元数据")
             
@@ -90,7 +90,7 @@ class StillImageManager:
         """扫描 generated_images 目录并为没有元数据的图片创建元数据"""
         try:
             if not self.storage_dir.exists():
-                self.logger.warn(f"⚠️ 图片存储目录不存在: {self.storage_dir}")
+                self.logger.warning(f"⚠️ 图片存储目录不存在: {self.storage_dir}")
                 return
             
             # 获取所有图片文件
@@ -153,7 +153,7 @@ class StillImageManager:
                     self.logger.info(f"✅ 自动导入图片: {image_file.name} -> {image.image_id}")
                 
                 except Exception as e:
-                    self.logger.warn(f"导入图片失败 {image_file.name}: {e}")
+                    self.logger.warning(f"导入图片失败 {image_file.name}: {e}")
             
             if created_count > 0:
                 self.logger.info(f"✅ 自动导入了 {created_count} 个现有图片")
@@ -312,7 +312,7 @@ class StillImageManager:
             image = self.images.pop(image_id, None)
         
         if not image:
-            self.logger.warn(f"⚠️ 图片不存在: {image_id}")
+            self.logger.warning(f"⚠️ 图片不存在: {image_id}")
             return False
         
         # 删除元数据文件

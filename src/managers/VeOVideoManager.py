@@ -155,7 +155,7 @@ def get_episode_number(novel_title: str, event_name: str, episode_title: str = N
                 return seq_num
 
     # 默认返回1
-    logger.warn(f"⚠️ 无法确定 {event_name} 的序号，使用默认值1")
+    logger.warning(f"⚠️ 无法确定 {event_name} 的序号，使用默认值1")
     return 1
 
 
@@ -377,8 +377,8 @@ class VeOVideoManager:
         # 验证配置
         is_valid, message = validate_config()
         if not is_valid:
-            self.logger.warn(f"⚠️  配置验证失败: {message}")
-            self.logger.warn("⚠️  VeO 视频生成功能可能无法正常工作")
+            self.logger.warning(f"⚠️  配置验证失败: {message}")
+            self.logger.warning("⚠️  VeO 视频生成功能可能无法正常工作")
         
         # 🔥 重新启用任务加载，以便素材库可以显示历史视频
         self._load_tasks()
@@ -402,7 +402,7 @@ class VeOVideoManager:
                     
                     # 验证ID格式（必须以veo_开头）
                     if not task_id.startswith("veo_"):
-                        self.logger.warn(f"⚠️  跳过无效文件名: {task_file.name}")
+                        self.logger.warning(f"⚠️  跳过无效文件名: {task_file.name}")
                         continue
                     
                     with open(task_file, 'r', encoding='utf-8') as f:
@@ -412,7 +412,7 @@ class VeOVideoManager:
                     # 如果JSON中的ID与文件名不同，使用文件名（作为真实来源）
                     json_id = task_data.get("id")
                     if json_id and json_id != task_id:
-                        self.logger.warn(f"⚠️  ID不匹配: 文件名={task_id}, JSON={json_id}，使用文件名")
+                        self.logger.warning(f"⚠️  ID不匹配: 文件名={task_id}, JSON={json_id}，使用文件名")
                     
                     # 🔥 关键修复：从保存的JSON中读取prompt
                     saved_prompt = task_data.get("prompt", "")
@@ -450,7 +450,7 @@ class VeOVideoManager:
                     try:
                         task.status = VideoStatus(status_str)
                     except ValueError:
-                        self.logger.warn(f"⚠️  无效状态: {status_str}，使用默认值")
+                        self.logger.warning(f"⚠️  无效状态: {status_str}，使用默认值")
                         task.status = VideoStatus.PENDING
 
                     # 🔥 跳过已完成的任务（不需要加载到内存）
@@ -493,7 +493,7 @@ class VeOVideoManager:
                                 )
                                 self.logger.info(f"✅ 恢复任务 {task_id} 的视频结果: {len(videos)} 个视频")
                         except Exception as e:
-                            self.logger.warn(f"⚠️ 恢复任务 {task_id} 的结果失败: {e}")
+                            self.logger.warning(f"⚠️ 恢复任务 {task_id} 的结果失败: {e}")
                     
                     self.tasks[task_id] = task
                     loaded_count += 1
@@ -501,7 +501,7 @@ class VeOVideoManager:
                     self.logger.debug(f"✅ 加载任务: {task_id} (状态: {task.status})")
                 
                 except Exception as e:
-                    self.logger.warn(f"加载任务文件失败 {task_file}: {e}")
+                    self.logger.warning(f"加载任务文件失败 {task_file}: {e}")
             
             self.logger.info(f"✅ 从磁盘加载了 {loaded_count} 个任务")
 
@@ -872,7 +872,7 @@ class VeOVideoManager:
                             self.logger.info(f"💾 原始URL已保存: {original_url}")
                             return
                         else:
-                            self.logger.warn(f"⚠️ 未找到视频URL")
+                            self.logger.warning(f"⚠️ 未找到视频URL")
                     
                     elif query_response.is_failed():
                         # 任务失败
@@ -904,7 +904,7 @@ class VeOVideoManager:
                         self.logger.info(f"📊 当前状态: {query_response.status}, 进度: {api_progress}%")
                 
                 else:
-                    self.logger.warn(f"⚠️ 请求失败: HTTP {response.status_code}")
+                    self.logger.warning(f"⚠️ 请求失败: HTTP {response.status_code}")
                     # 继续轮询
                     time.sleep(poll_interval)
             
@@ -925,8 +925,8 @@ class VeOVideoManager:
             
             if total_time >= max_total_time:
                 # 达到总超时时间
-                self.logger.warn(f"⚠️  任务轮询超时: {task_id} (已轮询 {total_time/60:.1f} 分钟)")
-                self.logger.warn(f"💡 提示：任务可能仍在后台生成，请稍后使用任务ID查询状态")
+                self.logger.warning(f"⚠️  任务轮询超时: {task_id} (已轮询 {total_time/60:.1f} 分钟)")
+                self.logger.warning(f"💡 提示：任务可能仍在后台生成，请稍后使用任务ID查询状态")
                 task.error = f"轮询超时（已{total_time/60:.1f}分钟），任务可能仍在处理中"
                 break
     
@@ -1231,7 +1231,7 @@ class VeOVideoManager:
             self.logger.info(f"✅ 任务删除成功: {generation_id}")
             return True
         
-        self.logger.warn(f"⚠️ 任务不存在: {generation_id}")
+        self.logger.warning(f"⚠️ 任务不存在: {generation_id}")
         return False
     
     def stream_generation(

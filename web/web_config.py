@@ -88,14 +88,14 @@ def check_module_availability():
         MODULE_STATUS["autopush_available"] = True
         logger.info("✅ 番茄自动上传模块(main_controller)加载成功")
     except ImportError as e:
-        logger.warn(f"⚠️ 无法导入番茄自动上传模块(main_controller): {e}")
+        logger.warning(f"⚠️ 无法导入番茄自动上传模块(main_controller): {e}")
         try:
             # 备用：尝试导入autopush_legacy
             import Chrome.automation.legacy.autopush_legacy as autopush
             MODULE_STATUS["autopush_available"] = True
             logger.info("✅ 番茄自动上传模块(autopush_legacy)加载成功")
         except ImportError as e2:
-            logger.warn(f"⚠️ 无法导入番茄自动上传模块(autopush_legacy): {e2}")
+            logger.warning(f"⚠️ 无法导入番茄自动上传模块(autopush_legacy): {e2}")
             MODULE_STATUS["autopush_available"] = False
 
     # 检查签约上传API
@@ -104,7 +104,7 @@ def check_module_availability():
         MODULE_STATUS["contract_api_available"] = True
         logger.info("✅ 签约上传API加载成功")
     except ImportError as e:
-        logger.warn(f"⚠️ 无法导入签约上传API: {e}")
+        logger.warning(f"⚠️ 无法导入签约上传API: {e}")
         MODULE_STATUS["contract_api_available"] = False
 
     # 检查服务监控模块
@@ -113,7 +113,7 @@ def check_module_availability():
         MODULE_STATUS["service_monitor_available"] = True
         logger.info("✅ 服务监控模块加载成功")
     except ImportError as e:
-        logger.warn(f"⚠️ 无法导入服务监控模块: {e}")
+        logger.warning(f"⚠️ 无法导入服务监控模块: {e}")
         MODULE_STATUS["service_monitor_available"] = False
 
 # 初始化模块状态

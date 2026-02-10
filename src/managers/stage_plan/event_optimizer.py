@@ -63,7 +63,7 @@ class EventOptimizer:
                 summary = optimization_result.get("summary_of_hierarchy_changes", "AI未提供修改摘要。")
                 self.logger.info(f"  ✅ AI目标层级优化执行完成。修改摘要: {summary}")
             else:
-                self.logger.warn("  ⚠️ AI目标层级优化失败，未能返回有效的优化后事件系统。")
+                self.logger.warning("  ⚠️ AI目标层级优化失败，未能返回有效的优化后事件系统。")
                 
         except Exception as e:
             self.logger.error(f"  ❌ 在执行AI目标层级优化时发生错误: {e}")
@@ -119,7 +119,7 @@ class EventOptimizer:
                 summary = optimization_result.get("summary_of_continuity_changes", "AI未提供修改摘要。")
                 self.logger.info(f"  ✅ AI连续性优化执行完成。修改摘要: {summary}")
             else:
-                self.logger.warn("  ⚠️ AI连续性优化失败，未能返回有效的优化后事件系统。")
+                self.logger.warning("  ⚠️ AI连续性优化失败，未能返回有效的优化后事件系统。")
                 
         except Exception as e:
             self.logger.error(f"  ❌ 在执行AI连续性优化时发生错误: {e}")

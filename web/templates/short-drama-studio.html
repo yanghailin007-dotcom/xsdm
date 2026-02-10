@@ -3626,7 +3626,7 @@
 }</pre>
                         </div>
                         <p style="margin-top: 0.5rem; color: var(--text-tertiary);">
-                            💡 <strong>tips:</strong> 多集格式支持批量生成，系统会自动跳过已生成的集数
+                            💡 <strong>tips:</strong> 多集格式仅供选择，每次只生成选中的<strong>单一集数</strong>，不会批量生成
                         </p>
                     </div>
                 </div>
@@ -3635,8 +3635,11 @@
                     <label style="display: flex; align-items: center; justify-content: space-between;">
                         <span>📄 JSON内容 <span class="required">*</span></span>
                         <div style="display: flex; gap: 0.5rem;">
-                            <button type="button" onclick="shortDramaStudio.loadDemoFile()" style="font-size: 0.75rem; color: #f59e0b; background: rgba(245, 158, 11, 0.1); border: none; cursor: pointer; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-weight: 500;">
-                                🎯 加载Demo
+                            <button type="button" onclick="shortDramaStudio.loadDemoFile('single')" style="font-size: 0.75rem; color: #f59e0b; background: rgba(245, 158, 11, 0.1); border: none; cursor: pointer; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-weight: 500;" title="加载单集Demo">
+                                🎯 单集Demo
+                            </button>
+                            <button type="button" onclick="shortDramaStudio.loadDemoFile('multi')" style="font-size: 0.75rem; color: #8b5cf6; background: rgba(139, 92, 246, 0.1); border: none; cursor: pointer; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-weight: 500;" title="加载多集Demo，可选择生成其中一集">
+                                📺 多集Demo
                             </button>
                             <button type="button" onclick="shortDramaStudio.autoParseJson()" style="font-size: 0.75rem; color: #22c55e; background: none; border: none; cursor: pointer;">
                                 🧠 智能解析

@@ -67,12 +67,12 @@ class SceneAssembler:
             # 2. 遍历重大事件的 'composition'，收集中型事件信息和特殊情感事件
             composition = major_event.get("composition", {})
             if not composition:
-                self.logger.warn(f"      ⚠️ 警告: 重大事件 '{major_event.get('name')}' 缺少 'composition' 字段。")
+                self.logger.warning(f"      ⚠️ 警告: 重大事件 '{major_event.get('name')}' 缺少 'composition' 字段。")
                 continue
             
             for phase_name, phase_events in composition.items():
                 if not isinstance(phase_events, list):
-                    self.logger.warn(f"      ⚠️ 警告: 重大事件 '{major_event.get('name')}' 的 '{phase_name}' 部分不是一个列表。")
+                    self.logger.warning(f"      ⚠️ 警告: 重大事件 '{major_event.get('name')}' 的 '{phase_name}' 部分不是一个列表。")
                     continue
                 
                 for medium_event in phase_events:
@@ -94,7 +94,7 @@ class SceneAssembler:
                             total_special_events += len(special_events)
                             self.logger.info(f"         💫 包含 {len(special_events)} 个特殊情感事件")
                         else:
-                            self.logger.warn(f"         ⚠️ 中型事件 '{medium_event.get('name')}' 的 special_emotional_events 字段为空或不是列表")
+                            self.logger.warning(f"         ⚠️ 中型事件 '{medium_event.get('name')}' 的 special_emotional_events 字段为空或不是列表")
         
         self.logger.info(f"  ✅ 第一阶段统计：共 {len(final_major_events)} 个重大事件，{total_medium_events} 个中型事件，{total_special_events} 个特殊情感事件")
         
@@ -193,7 +193,7 @@ class SceneAssembler:
         """从分解的事件中累积场景到章节映射"""
         chapter_range = decomposed_event_data.get("chapter_range")
         if not chapter_range:
-            self.logger.warn(f"  ⚠️ 分解事件缺少 'chapter_range'，跳过场景累积: {decomposed_event_data.get('name', '未知事件')}")
+            self.logger.warning(f"  ⚠️ 分解事件缺少 'chapter_range'，跳过场景累积: {decomposed_event_data.get('name', '未知事件')}")
             return
         
         start_chapter, end_chapter = parse_chapter_range(chapter_range)
@@ -226,7 +226,7 @@ class SceneAssembler:
             # 处理直接场景序列类型
             scene_sequences = decomposed_event_data.get("scene_sequences", [])
             if not scene_sequences:
-                self.logger.warn(f"  ⚠️ direct_scene 类型中型事件缺少场景序列: {decomposed_event_data.get('name', '未知事件')}")
+                self.logger.warning(f"  ⚠️ direct_scene 类型中型事件缺少场景序列: {decomposed_event_data.get('name', '未知事件')}")
                 return
             
             for sequence in scene_sequences:

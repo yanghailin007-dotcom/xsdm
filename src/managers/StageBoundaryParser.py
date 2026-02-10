@@ -85,7 +85,7 @@ class StageBoundaryParser:
         
         # 验证边界连续性
         if not self._validate_stage_continuity(stage_ranges, total_chapters):
-            self.logger.warn("⚠️ 章节范围验证失败，将使用固定比例")
+            self.logger.warning("⚠️ 章节范围验证失败，将使用固定比例")
             return None
         
         # 构建边界字典
@@ -141,29 +141,29 @@ class StageBoundaryParser:
         
         for stage_key in expected_order:
             if stage_key not in stage_ranges:
-                self.logger.warn(f"❌ 缺少 {stage_key} 阶段")
+                self.logger.warning(f"❌ 缺少 {stage_key} 阶段")
                 return False
             
             start, end = stage_ranges[stage_key]
             
             # 检查范围有效性
             if start > end:
-                self.logger.warn(f"❌ {stage_key} 阶段起始章节({start})大于结束章节({end})")
+                self.logger.warning(f"❌ {stage_key} 阶段起始章节({start})大于结束章节({end})")
                 return False
             
             # 检查连续性（允许+1的间隔，即前一阶段结束+1 = 下一阶段开始）
             if start != last_end + 1:
-                self.logger.warn(f"⚠️ {stage_key} 阶段不连续: 前一阶段结束于{last_end}，当前阶段开始于{start}")
+                self.logger.warning(f"⚠️ {stage_key} 阶段不连续: 前一阶段结束于{last_end}，当前阶段开始于{start}")
                 # 对于小误差，可以自动修正
                 if start > last_end + 1:
-                    self.logger.warn(f"⚠️ 间隙过大，验证失败")
+                    self.logger.warning(f"⚠️ 间隙过大，验证失败")
                     return False
             
             last_end = end
         
         # 检查是否覆盖到总章节数
         if last_end != total_chapters:
-            self.logger.warn(f"⚠️ 阶段划分覆盖范围({last_end})与总章节数({total_chapters})不一致")
+            self.logger.warning(f"⚠️ 阶段划分覆盖范围({last_end})与总章节数({total_chapters})不一致")
             # 这里不返回False，允许有差异
         
         return True
@@ -211,7 +211,7 @@ class StageBoundaryParser:
         # 确保比例总和为1
         total_ratio = sum(ratios)
         if abs(total_ratio - 1.0) > 0.01:
-            self.logger.warn(f"⚠️ 比例总和({total_ratio})不为1，将进行归一化")
+            self.logger.warning(f"⚠️ 比例总和({total_ratio})不为1，将进行归一化")
             ratios = [r / total_ratio for r in ratios]
         
         # 计算累积章节数

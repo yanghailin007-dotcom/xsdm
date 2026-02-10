@@ -95,7 +95,7 @@ def generate_expectation_for_novel(novel_title: str):
         if match:
             stage_name = match.group(1)
         else:
-            logger.warn(f"  ⚠️ 无法从文件名提取阶段名称，跳过")
+            logger.warning(f"  ⚠️ 无法从文件名提取阶段名称，跳过")
             continue
         
         logger.info(f"  阶段名称: {stage_name}")

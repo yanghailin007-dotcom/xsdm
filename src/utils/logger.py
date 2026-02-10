@@ -39,7 +39,7 @@ class Logger:
         logger = Logger("NovelGenerator")
         logger.info("开始生成章节")
         logger.debug("详细的调试信息")
-        logger.warn("可能有问题的情况")
+        logger.warning("可能有问题的情况")
         logger.error("发生了错误")
     """
     
@@ -213,6 +213,14 @@ class Logger:
             log_line = self._format_message(LogLevel.WARN, message)
             self._output(log_line, error=True)
     
+    def warning(self, message: str):
+        """记录警告信息（与 warn 方法一致，兼容标准 logging 模块）
+        
+        Args:
+            message: 日志消息
+        """
+        self.warn(message)
+    
     def safe_print_traceback(self):
         """安全地打印traceback，处理编码问题"""
         try:
@@ -322,7 +330,7 @@ def log_info(msg: str):
 
 def log_warn(msg: str):
     """全局警告日志"""
-    _default_logger.warn(msg)
+    _default_logger.warning(msg)
 
 def log_error(msg: str, exception: Exception = None):
     """全局错误日志"""

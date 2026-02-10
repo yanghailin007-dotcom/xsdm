@@ -102,7 +102,7 @@ class GenerationCheckpoint:
                     import shutil
                     shutil.copy2(self.checkpoint_file, self.backup_file)
                 except Exception as e:
-                    self.logger.warn(f"备份旧检查点失败: {e}")
+                    self.logger.warning(f"备份旧检查点失败: {e}")
             
             # 原子写入新检查点
             temp_file = self.checkpoint_file.with_suffix('.tmp')
@@ -250,7 +250,7 @@ class CheckpointRecoveryManager:
         projects_dir = self.workspace_dir / "小说项目"
         
         if not projects_dir.exists():
-            self.logger.warn(f"⚠️ 项目目录不存在: {projects_dir}")
+            self.logger.warning(f"⚠️ 项目目录不存在: {projects_dir}")
             return resumable_tasks
         
         self.logger.info(f"🔍 开始扫描项目目录查找检查点...")
@@ -295,7 +295,7 @@ class CheckpointRecoveryManager:
                         resumable_tasks.append(resume_info)
                         self.logger.info(f"    ✅ 成功添加到任务列表")
                     else:
-                        self.logger.warn(f"    ⚠️ get_resume_info() 返回 None")
+                        self.logger.warning(f"    ⚠️ get_resume_info() 返回 None")
                         
                 except json.JSONDecodeError as e:
                     self.logger.error(f"    ❌ JSON解析失败: {project_dir.name}")
@@ -346,7 +346,7 @@ class CheckpointRecoveryManager:
         checkpoint_mgr = GenerationCheckpoint(novel_title, self.workspace_dir)
         
         if not checkpoint_mgr.can_resume():
-            self.logger.warn(f"任务 {novel_title} 没有可用的检查点")
+            self.logger.warning(f"任务 {novel_title} 没有可用的检查点")
             return None
         
         self.current_checkpoint = checkpoint_mgr

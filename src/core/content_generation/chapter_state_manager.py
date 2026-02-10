@@ -459,7 +459,7 @@ class SceneTimelineTracker:
                     f"   【语义分析】两个时间点完全相同\n"
                     f"   建议：本章应该从 '{prev_end_time}' 之后继续"
                 )
-                self.logger.warn(warning_msg)
+                self.logger.warning(warning_msg)
                 return False, warning_msg
             else:
                 # 语义相同但表述不同（如"次日清晨" vs "第二天早上"）
@@ -470,7 +470,7 @@ class SceneTimelineTracker:
                     f"   【语义分析】两个时间点语义相同，可能重复\n"
                     f"   建议：确保本章内容从上一章结束后继续，而非重新开始"
                 )
-                self.logger.warn(warning_msg)
+                self.logger.warning(warning_msg)
                 return False, warning_msg
 
         elif time_relation == "before":
@@ -493,7 +493,7 @@ class SceneTimelineTracker:
                     f"   上一章结束: {prev_end_time}\n"
                     f"   本章开始: {current_start_time}"
                 )
-                self.logger.warn(warning_msg)
+                self.logger.warning(warning_msg)
                 return False, warning_msg
             # 未知但字符串不同，通过检查
             info_msg = (
@@ -578,7 +578,7 @@ class SceneTimelineTracker:
                             return self._convert_end_state_to_timeline(chapter_number, end_state)
                     i += 1
             except (json.JSONDecodeError, ValueError) as e:
-                self.logger.warn(f"  ⚠️ 解析章节{chapter_number}的结尾状态失败: {e}")
+                self.logger.warning(f"  ⚠️ 解析章节{chapter_number}的结尾状态失败: {e}")
 
         # 如果无法从JSON提取，使用简单的规则提取
         return self._simple_extract_timeline(chapter_number, chapter_content)
@@ -737,9 +737,9 @@ class SceneTimelineTracker:
         is_valid = len(issues) == 0
 
         if not is_valid:
-            self.logger.warn(f"  ⚠️ 第{chapter_number}章场景时间递进验证发现问题:")
+            self.logger.warning(f"  ⚠️ 第{chapter_number}章场景时间递进验证发现问题:")
             for issue in issues:
-                self.logger.warn(f"     - {issue['message']}")
+                self.logger.warning(f"     - {issue['message']}")
         else:
             self.logger.info(f"  ✅ 第{chapter_number}章场景时间递进验证通过")
 

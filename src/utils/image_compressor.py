@@ -178,7 +178,7 @@ def compress_image(
                 return f"data:image/png;base64,{base64_data}"
             else:
                 # PNG 太大，尝试降采样
-                logger.warn(f"⚠️  PNG 格式仍然超过大小限制 ({compressed_size_mb:.2f} MB)，尝试降采样...")
+                logger.warning(f"⚠️  PNG 格式仍然超过大小限制 ({compressed_size_mb:.2f} MB)，尝试降采样...")
                 
                 # 逐步降低分辨率
                 scale_factors = [0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3]
@@ -208,7 +208,7 @@ def compress_image(
                         return f"data:image/png;base64,{base64_data}"
                 
                 # 最后尝试：使用 JPEG 格式
-                logger.warn(f"⚠️  PNG 降采样后仍然超过大小限制，改用 JPEG 格式")
+                logger.warning(f"⚠️  PNG 降采样后仍然超过大小限制，改用 JPEG 格式")
                 return compress_image(image_data, max_size_mb, quality, max_dimension, 'JPEG')
     
     except Exception as e:
@@ -262,13 +262,13 @@ def validate_and_compress_images(
     for i, img in enumerate(images):
         try:
             if not img or not isinstance(img, str):
-                logger.warn(f"⚠️  图片 {i} 数据无效，跳过")
+                logger.warning(f"⚠️  图片 {i} 数据无效，跳过")
                 stats['failed'] += 1
                 continue
 
             # 🔥 检查是否是有效的 base64 数据
             if not is_valid_base64(img):
-                logger.warn(f"⚠️  图片 {i} 不是有效的 base64 数据，跳过. 预览: {img[:100]}...")
+                logger.warning(f"⚠️  图片 {i} 不是有效的 base64 数据，跳过. 预览: {img[:100]}...")
                 stats['failed'] += 1
                 continue
 

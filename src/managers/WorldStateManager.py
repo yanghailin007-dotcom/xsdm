@@ -2931,7 +2931,7 @@ class WorldStateManager:
             return generation_tx
 
         except Exception as e:
-            self.logger.warn(f"  ⚠️ 加载第{chapter_number}章生成时交易记录失败: {e}")
+            self.logger.warning(f"  ⚠️ 加载第{chapter_number}章生成时交易记录失败: {e}")
             return []
     def _find_related_transactions(self, character_name: str, transactions: Dict, money_change: float) -> List[Dict]:
         """查找与角色相关的交易记录"""

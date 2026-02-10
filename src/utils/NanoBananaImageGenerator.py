@@ -10,6 +10,7 @@ import base64
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any, Optional, List
+from urllib.parse import quote
 
 # 🔥 图像处理导入
 try:
@@ -494,10 +495,14 @@ class NanoBananaImageGenerator:
                 rel_path = save_path.split('generated_images')[-1].replace('\\', '/')
                 if rel_path.startswith('/'):
                     rel_path = rel_path[1:]
-                image_url = f"/generated_images/{rel_path}"
+                # 🔥 对路径进行URL编码，支持中文字符
+                encoded_path = quote(rel_path, safe='/')
+                image_url = f"/generated_images/{encoded_path}"
             else:
                 # 回退到只使用文件名
-                image_url = f"/generated_images/{os.path.basename(save_path)}"
+                filename = os.path.basename(save_path)
+                encoded_filename = quote(filename, safe='')
+                image_url = f"/generated_images/{encoded_filename}"
 
             return {
                 "success": True,

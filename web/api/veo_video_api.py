@@ -94,7 +94,7 @@ def create_video_generation():
             logger.info(f"📦 使用 base64 图片模式: {len(images)} 张图片")
             for i, img in enumerate(images):
                 if not img or not isinstance(img, str):
-                    logger.warn(f"⚠️  图片 {i} 数据无效")
+                    logger.warning(f"⚠️  图片 {i} 数据无效")
                     continue
                 
                 # 检查是否是 URL
@@ -103,7 +103,7 @@ def create_video_generation():
                 elif len(img) > 100:
                     logger.info(f"  - 图片 {i+1}: base64 长度 {len(img)} 字符")
                 else:
-                    logger.warn(f"  - 图片 {i+1}: 数据太短，可能无效")
+                    logger.warning(f"  - 图片 {i+1}: 数据太短，可能无效")
         
         # 创建 VeO 原生请求
         # 🔥 统一使用 veo_3_1-fast 模型，首尾帧模式和参考图模式调用方式完全一致

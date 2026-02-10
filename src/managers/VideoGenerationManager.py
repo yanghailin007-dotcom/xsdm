@@ -155,8 +155,8 @@ class VideoGenerationManager:
         # 验证配置
         is_valid, message = validate_config()
         if not is_valid:
-            self.logger.warn(f"⚠️  配置验证失败: {message}")
-            self.logger.warn("⚠️  视频生成功能可能无法正常工作")
+            self.logger.warning(f"⚠️  配置验证失败: {message}")
+            self.logger.warning("⚠️  视频生成功能可能无法正常工作")
         
         # 加载已保存的任务
         self._load_tasks()
@@ -256,7 +256,7 @@ class VideoGenerationManager:
                             self.logger.info(f"✅ 成功恢复任务 {task_id}，包含 {len(videos)} 个视频结果")
                 
                 except Exception as e:
-                    self.logger.warn(f"加载任务文件失败 {task_file}: {e}")
+                    self.logger.warning(f"加载任务文件失败 {task_file}: {e}")
         
         except Exception as e:
             self.logger.error(f"加载任务失败: {e}")
@@ -464,10 +464,10 @@ class VideoGenerationManager:
                         break
                     
                 except json.JSONDecodeError as e:
-                    self.logger.warn(f"⚠️  无法解析JSON块: {e}")
+                    self.logger.warning(f"⚠️  无法解析JSON块: {e}")
                     continue
                 except Exception as e:
-                    self.logger.warn(f"⚠️  处理响应块时出错: {e}")
+                    self.logger.warning(f"⚠️  处理响应块时出错: {e}")
                     continue
             
             # 如果有视频URL，创建结果
@@ -494,8 +494,8 @@ class VideoGenerationManager:
             
             # 如果没有视频URL但有文本内容，记录警告
             if accumulated_content:
-                self.logger.warn(f"⚠️  只收到文本响应，没有视频数据")
-                self.logger.warn(f"📝 文本内容: {''.join(accumulated_content)[:200]}...")
+                self.logger.warning(f"⚠️  只收到文本响应，没有视频数据")
+                self.logger.warning(f"📝 文本内容: {''.join(accumulated_content)[:200]}...")
             
             return None
             

@@ -93,7 +93,7 @@ class EventExtractor:
                 # 3. 🔥 最后尝试：直接从项目文件读取旧格式的 writing_plan
                 title = novel_data.get("novel_title", "") or novel_data.get("title", "")
                 if not title:
-                    self.logger.warn("⚠️ 无法确定项目标题，跳过直接文件读取")
+                    self.logger.warning("⚠️ 无法确定项目标题，跳过直接文件读取")
                 else:
                     all_events = self._extract_from_project_files(title, novel_data)
 
@@ -206,7 +206,7 @@ class EventExtractor:
             event["_start_chapter"] = start_ch
             event["_end_chapter"] = end_ch
         except Exception as e:
-            self.logger.warn(f"解析章节范围失败: {chapter_range}, {e}")
+            self.logger.warning(f"解析章节范围失败: {chapter_range}, {e}")
             event["_start_chapter"] = 1
             event["_end_chapter"] = 10
     
@@ -325,7 +325,7 @@ class EventExtractor:
         title = novel_data.get("novel_title", "") or novel_data.get("title", "")
         
         if not title:
-            self.logger.warn("⚠️ 无法确定项目标题，跳过角色文件读取")
+            self.logger.warning("⚠️ 无法确定项目标题，跳过角色文件读取")
             return characters
         
         # 清理标题中的特殊字符

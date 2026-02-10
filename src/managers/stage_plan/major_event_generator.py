@@ -91,7 +91,7 @@ class MajorEventGenerator:
             # 2. 注入全书成长规划
             global_growth_plan = global_novel_data.get("global_growth_plan", {})
             if not global_growth_plan:
-                self.logger.warn("    ⚠️ 警告：无法从 novel_data 中获取'global_growth_plan'。")
+                self.logger.warning("    ⚠️ 警告：无法从 novel_data 中获取'global_growth_plan'。")
             global_growth_plan_str = json.dumps(global_growth_plan, ensure_ascii=False, indent=2)
             
             # 3. 注入整体阶段计划

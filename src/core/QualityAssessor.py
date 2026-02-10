@@ -1020,7 +1020,7 @@ class QualityAssessor:
             self.logger.error(f"❌ chapter_content 类型错误: {type(chapter_content)}, 值: {chapter_content}")
             # 如果是 slice 对象或其他非字符串类型，转换为字符串表示
             chapter_content = str(chapter_content) if chapter_content else ""
-            self.logger.warn(f"⚠️ 已将 chapter_content 强制转换为字符串: {chapter_content[:100]}...")
+            self.logger.warning(f"⚠️ 已将 chapter_content 强制转换为字符串: {chapter_content[:100]}...")
 
         # 加载之前的世界状态
         self.world_state_manager.current_world_state = self.world_state_manager.load_previous_assessments(novel_title, novel_data)

@@ -71,9 +71,9 @@ def find_project_dir_by_title(novel_title: str) -> Optional[Path]:
                     logger.info(f"✅ 模糊匹配找到项目目录: {item}")
                     return item
     except Exception as e:
-        logger.warn(f"遍历项目目录时出错: {e}")
+        logger.warning(f"遍历项目目录时出错: {e}")
 
-    logger.warn(f"⚠️ 未找到项目目录: {novel_title}")
+    logger.warning(f"⚠️ 未找到项目目录: {novel_title}")
     return None
 
 
@@ -81,7 +81,7 @@ def load_project_info(novel_title: str) -> Dict:
     """加载项目信息"""
     project_dir = find_project_dir_by_title(novel_title)
     if not project_dir:
-        logger.warn(f"未找到项目目录: {novel_title}")
+        logger.warning(f"未找到项目目录: {novel_title}")
         return {}
 
     # 查找项目信息文件
@@ -98,7 +98,7 @@ def load_project_info(novel_title: str) -> Dict:
                     logger.info(f"✅ 成功加载项目信息: {info_file}")
                     return data
             except Exception as e:
-                logger.warn(f"无法加载项目信息 {info_file}: {e}")
+                logger.warning(f"无法加载项目信息 {info_file}: {e}")
 
     return {}
 
@@ -107,7 +107,7 @@ def load_worldview(novel_title: str) -> Dict:
     """加载世界观信息"""
     project_dir = find_project_dir_by_title(novel_title)
     if not project_dir:
-        logger.warn(f"load_worldview: 未找到项目目录: {novel_title}")
+        logger.warning(f"load_worldview: 未找到项目目录: {novel_title}")
         return {}
 
     logger.info(f"load_worldview: 项目目录 = {project_dir}")
@@ -127,7 +127,7 @@ def load_worldview(novel_title: str) -> Dict:
                     logger.info(f"✅ 成功加载世界观: {path}")
                     return data
             except Exception as e:
-                logger.warn(f"无法加载世界观 {path}: {e}")
+                logger.warning(f"无法加载世界观 {path}: {e}")
 
     # 尝试glob模式
     for pattern in [project_dir / "worldview" / f"{novel_title}_世界观*.json",
@@ -143,7 +143,7 @@ def load_worldview(novel_title: str) -> Dict:
                             logger.info(f"✅ 成功加载世界观: {f}")
                             return data
                     except Exception as e:
-                        logger.warn(f"无法加载世界观 {f}: {e}")
+                        logger.warning(f"无法加载世界观 {f}: {e}")
 
     # 直接glob搜索
     for f in project_dir.rglob("*世界观*.json"):
@@ -155,7 +155,7 @@ def load_worldview(novel_title: str) -> Dict:
         except Exception as e:
             continue
 
-    logger.warn(f"⚠️ 未找到世界观文件，项目目录: {project_dir}")
+    logger.warning(f"⚠️ 未找到世界观文件，项目目录: {project_dir}")
     return {}
 
 
@@ -163,7 +163,7 @@ def load_character_design(novel_title: str) -> Dict:
     """加载完整的角色设计信息"""
     project_dir = find_project_dir_by_title(novel_title)
     if not project_dir:
-        logger.warn(f"load_character_design: 未找到项目目录: {novel_title}")
+        logger.warning(f"load_character_design: 未找到项目目录: {novel_title}")
         return {}
 
     logger.info(f"load_character_design: 项目目录 = {project_dir}")
@@ -184,7 +184,7 @@ def load_character_design(novel_title: str) -> Dict:
                 logger.info(f"✅ 成功加载角色设计: {f}")
                 return data
         except Exception as e:
-            logger.warn(f"无法加载角色设计 {f}: {e}")
+            logger.warning(f"无法加载角色设计 {f}: {e}")
 
     # 也尝试查找characters目录
     characters_dir = project_dir / "characters"
@@ -196,9 +196,9 @@ def load_character_design(novel_title: str) -> Dict:
                     logger.info(f"✅ 成功加载角色设计: {f}")
                     return data
             except Exception as e:
-                logger.warn(f"无法加载角色设计 {f}: {e}")
+                logger.warning(f"无法加载角色设计 {f}: {e}")
 
-    logger.warn(f"⚠️ 未找到角色设计文件，项目目录: {project_dir}")
+    logger.warning(f"⚠️ 未找到角色设计文件，项目目录: {project_dir}")
     return {}
 
 
@@ -206,7 +206,7 @@ def load_growth_plan(novel_title: str) -> Dict:
     """加载成长路线/人物成长计划"""
     project_dir = find_project_dir_by_title(novel_title)
     if not project_dir:
-        logger.warn(f"load_growth_plan: 未找到项目目录: {novel_title}")
+        logger.warning(f"load_growth_plan: 未找到项目目录: {novel_title}")
         return {}
 
     logger.info(f"load_growth_plan: 项目目录 = {project_dir}")
@@ -219,7 +219,7 @@ def load_growth_plan(novel_title: str) -> Dict:
                 logger.info(f"✅ 成功加载成长路线: {f}")
                 return data
         except Exception as e:
-            logger.warn(f"无法加载成长路线 {f}: {e}")
+            logger.warning(f"无法加载成长路线 {f}: {e}")
 
     # 尝试materials目录
     materials_dir = project_dir / "materials" / "phase_one_products"
@@ -231,9 +231,9 @@ def load_growth_plan(novel_title: str) -> Dict:
                     logger.info(f"✅ 成功加载成长路线: {f}")
                     return data
             except Exception as e:
-                logger.warn(f"无法加载成长路线 {f}: {e}")
+                logger.warning(f"无法加载成长路线 {f}: {e}")
 
-    logger.warn(f"⚠️ 未找到成长路线文件，项目目录: {project_dir}")
+    logger.warning(f"⚠️ 未找到成长路线文件，项目目录: {project_dir}")
     return {}
 
 
@@ -241,7 +241,7 @@ def load_market_analysis(novel_title: str) -> Dict:
     """加载市场分析信息"""
     project_dir = find_project_dir_by_title(novel_title)
     if not project_dir:
-        logger.warn(f"load_market_analysis: 未找到项目目录: {novel_title}")
+        logger.warning(f"load_market_analysis: 未找到项目目录: {novel_title}")
         return {}
 
     logger.info(f"load_market_analysis: 项目目录 = {project_dir}")
@@ -254,7 +254,7 @@ def load_market_analysis(novel_title: str) -> Dict:
                 logger.info(f"✅ 成功加载市场分析: {f}")
                 return data
         except Exception as e:
-            logger.warn(f"无法加载市场分析 {f}: {e}")
+            logger.warning(f"无法加载市场分析 {f}: {e}")
 
     # 也可能在market_analysis目录下
     market_dir = project_dir / "market_analysis"
@@ -280,7 +280,7 @@ def load_market_analysis(novel_title: str) -> Dict:
             except Exception as e:
                 continue
 
-    logger.warn(f"⚠️ 未找到市场分析文件，项目目录: {project_dir}")
+    logger.warning(f"⚠️ 未找到市场分析文件，项目目录: {project_dir}")
     return {}
 
 
@@ -315,7 +315,7 @@ def load_stage_plans(novel_title: str) -> Dict:
                         logger.info(f"✅ 成功加载{stage_name}阶段计划: {f}")
                         break
                 except Exception as e:
-                    logger.warn(f"无法加载{stage_name}阶段计划 {f}: {e}")
+                    logger.warning(f"无法加载{stage_name}阶段计划 {f}: {e}")
 
     return all_stages
 
@@ -740,13 +740,13 @@ def _save_shots_to_file(novel_title: str, episode_title: str, shots: list) -> bo
                                     break
 
         if not episode_dir:
-            logger.warn(f"未找到分集目录: {novel_title}/{episode_title}")
+            logger.warning(f"未找到分集目录: {novel_title}/{episode_title}")
             return False
 
         # 查找storyboards目录
         storyboards_dir = episode_dir / "storyboards"
         if not storyboards_dir.exists():
-            logger.warn(f"未找到storyboards目录: {storyboards_dir}")
+            logger.warning(f"未找到storyboards目录: {storyboards_dir}")
             return False
 
         logger.info(f"_save_shots_to_file: storyboards目录 = {storyboards_dir}")
@@ -756,7 +756,7 @@ def _save_shots_to_file(novel_title: str, episode_title: str, shots: list) -> bo
         logger.info(f"_save_shots_to_file: 找到 {len(storyboard_files)} 个storyboard文件")
 
         if not storyboard_files:
-            logger.warn(f"_save_shots_to_file: 没有找到storyboard文件")
+            logger.warning(f"_save_shots_to_file: 没有找到storyboard文件")
             return False
 
         # 统计每个storyboard文件的匹配数量，找到最匹配的文件
@@ -770,7 +770,7 @@ def _save_shots_to_file(novel_title: str, episode_title: str, shots: list) -> bo
         logger.info(f"_save_shots_to_file: 文件匹配统计: {[(f.name, c) for f, c in file_match_counts.items()]}")
 
         if not file_match_counts:
-            logger.warn(f"_save_shots_to_file: 没有找到匹配的storyboard文件")
+            logger.warning(f"_save_shots_to_file: 没有找到匹配的storyboard文件")
             return False
 
         # 找到匹配数量最多的文件，只更新这个文件
@@ -782,7 +782,7 @@ def _save_shots_to_file(novel_title: str, episode_title: str, shots: list) -> bo
             with open(best_file, 'r', encoding='utf-8') as f:
                 file_data = json.load(f)
         except:
-            logger.warn(f"无法读取文件: {best_file.name}")
+            logger.warning(f"无法读取文件: {best_file.name}")
             return False
 
         existing_shots = file_data.get("shots", [])
@@ -815,7 +815,7 @@ def _save_shots_to_file(novel_title: str, episode_title: str, shots: list) -> bo
             logger.info(f"  ✅ 已保存文件: {best_file.name}")
             return True
         else:
-            logger.warn(f"没有镜头需要更新")
+            logger.warning(f"没有镜头需要更新")
             return False
 
     except Exception as e:
@@ -835,12 +835,12 @@ def _apply_design_file_change(novel_title: str, change: dict) -> bool:
         logger.info(f"_apply_design_file_change: file={file_name}, issue={issue}, suggestion={suggestion[:100] if suggestion else ''}")
 
         if not suggestion:
-            logger.warn("_apply_design_file_change: 缺少suggestion内容")
+            logger.warning("_apply_design_file_change: 缺少suggestion内容")
             return False
 
         project_dir = find_project_dir_by_title(novel_title)
         if not project_dir:
-            logger.warn(f"_apply_design_file_change: 未找到项目目录: {novel_title}")
+            logger.warning(f"_apply_design_file_change: 未找到项目目录: {novel_title}")
             return False
 
         logger.info(f"_apply_design_file_change: 项目目录 = {project_dir}")
@@ -907,7 +907,7 @@ def _apply_design_file_change(novel_title: str, change: dict) -> bool:
                 logger.info(f"_apply_design_file_change: 默认使用角色设计文件: {design_file}")
 
         if not design_file:
-            logger.warn(f"未找到设计文件: {file_name}")
+            logger.warning(f"未找到设计文件: {file_name}")
             return False
 
         # 读取现有数据
@@ -1202,7 +1202,7 @@ class ScriptQualityChecker:
         for idx, shot in enumerate(shots[:50]):  # 分析最多50个镜头
             # Defensive: ensure shot is a dict
             if not isinstance(shot, dict):
-                logger.warn(f"  跳过非字典类型的镜头: {type(shot)}")
+                logger.warning(f"  跳过非字典类型的镜头: {type(shot)}")
                 continue
             desc = shot.get("description", "")
             prompt_text = shot.get("veo_prompt", "") or shot.get("generation_prompt", "") or shot.get("screen_action", "")
@@ -1260,7 +1260,7 @@ class ScriptQualityChecker:
         thread.join(timeout=timeout)
 
         if thread.is_alive():
-            logger.warn(f"AI检查超时（{timeout}秒），使用基础检查")
+            logger.warning(f"AI检查超时（{timeout}秒），使用基础检查")
             # 线程仍在运行，返回基础检查结果
             return self._basic_check(shots, episode_title)
 
@@ -1306,7 +1306,7 @@ class ScriptQualityChecker:
             )
 
             if not response:
-                logger.warn("AI调用失败，返回空响应")
+                logger.warning("AI调用失败，返回空响应")
                 return self._basic_check(shots, episode_title)
 
             logger.info(f"🤖 AI响应: {response[:500]}...")
@@ -1482,7 +1482,7 @@ class ScriptQualityChecker:
             }
 
         except json.JSONDecodeError as e:
-            logger.warn(f"AI响应JSON解析失败: {e}, 响应内容: {response[:500]}")
+            logger.warning(f"AI响应JSON解析失败: {e}, 响应内容: {response[:500]}")
             # 返回默认结果
             return {
                 "success": True,
@@ -1717,7 +1717,7 @@ JSON格式示例：
                 elif idx == 0:
                     array_idx = 0
                 else:
-                    logger.warn(f"  跳过无效index: {idx}")
+                    logger.warning(f"  跳过无效index: {idx}")
                     continue
 
                 if 0 <= array_idx < len(shots):
@@ -1736,7 +1736,7 @@ JSON格式示例：
                     improved_shots.append(improved_shot)
                     logger.info(f"  ✅ 解析镜头 {idx}: screen_action长度={len(improved_shot.get('screen_action', ''))}")
                 else:
-                    logger.warn(f"  索引 {array_idx} 超出范围 (0-{len(shots)-1})")
+                    logger.warning(f"  索引 {array_idx} 超出范围 (0-{len(shots)-1})")
 
             design_changes = []
             for change in parsed_data.get("design_change_suggestions", []):

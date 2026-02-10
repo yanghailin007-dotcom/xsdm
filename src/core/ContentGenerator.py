@@ -200,7 +200,7 @@ class ContentGenerator:
 
         novel_title = novel_data.get("novel_title")
         if not novel_title:
-            self.logger.warn("  ⚠️ 无法初始化 ChapterStateManager：novel_title 为空")
+            self.logger.warning("  ⚠️ 无法初始化 ChapterStateManager：novel_title 为空")
             return
 
         try:
@@ -219,7 +219,7 @@ class ContentGenerator:
 
         novel_title = novel_data.get("novel_title")
         if not novel_title:
-            self.logger.warn("  ⚠️ 无法初始化 SceneTimelineTracker：novel_title 为空")
+            self.logger.warning("  ⚠️ 无法初始化 SceneTimelineTracker：novel_title 为空")
             return
 
         try:
@@ -240,7 +240,7 @@ class ContentGenerator:
         self._ensure_chapter_state_manager_initialized(novel_data)
 
         if not self._chapter_state_manager:
-            self.logger.warn(f"  ⚠️ [衔接系统] 状态管理器未初始化")
+            self.logger.warning(f"  ⚠️ [衔接系统] 状态管理器未初始化")
             return None
 
         # 尝试从状态管理器获取
@@ -263,9 +263,9 @@ class ContentGenerator:
                         self.logger.info(f"  ✅ [衔接系统] 从文件加载并保存结尾状态: {end_state}")
                         return end_state
                     except Exception as e:
-                        self.logger.warn(f"  ⚠️ 解析上一章结尾状态失败: {e}")
+                        self.logger.warning(f"  ⚠️ 解析上一章结尾状态失败: {e}")
                 else:
-                    self.logger.warn(f"  ⚠️ [衔接系统] 第{current_chapter-1}章文件中没有end_state字段")
+                    self.logger.warning(f"  ⚠️ [衔接系统] 第{current_chapter-1}章文件中没有end_state字段")
 
         self.logger.info(f"  ℹ️ [衔接系统] 未找到上一章结尾状态，将使用默认衔接")
         return None
@@ -492,7 +492,7 @@ class ContentGenerator:
             # 检查是否存在复杂设定问题
             complexity_issues = self._check_setting_complexity(result)
             if complexity_issues:
-                self.logger.warn(f"  ⚠️ 检测到复杂设定问题: {', '.join(complexity_issues)}")
+                self.logger.warning(f"  ⚠️ 检测到复杂设定问题: {', '.join(complexity_issues)}")
                 freshness_score = max(0, freshness_score - 2)  # 复杂设定扣分
             # 如果新鲜度达标，使用该方案
             if freshness_score >= 8.5:  # 稍微降低阈值，更注重故事性
@@ -519,7 +519,7 @@ class ContentGenerator:
                         result = optimized_result
                         break
                     else:
-                        self.logger.warn(f"  ⚠️ 优化后新鲜度仍不足，继续重新生成...")
+                        self.logger.warning(f"  ⚠️ 优化后新鲜度仍不足，继续重新生成...")
                 # 如果优化失败或优化后仍不达标，更新提示词重新生成
                 if suggestions:
                     first_suggestion = suggestions[0]
@@ -544,7 +544,7 @@ class ContentGenerator:
                 result["immersion_score"] = immersion_score
                 self.logger.info(f"  💫 代入感评分: {immersion_score:.1f}/10")
             else:
-                self.logger.warn(f"  ⚠️ QualityAssessor 未初始化，跳过代入感评估。")
+                self.logger.warning(f"  ⚠️ QualityAssessor 未初始化，跳过代入感评估。")
                 result["immersion_score"] = 0 # 默认值为 0 如果未评估
         return result
     def generate_market_analysis(self, creative_seed: str, selected_plan: Dict) -> Optional[Dict]:
@@ -730,7 +730,7 @@ class ContentGenerator:
         elif design_level == "supplementary":
             # ▼▼▼ 核心修改区域开始 ▼▼▼
             if not existing_characters or not stage_info:
-                self.logger.warn("  ⚠️ 补充角色模式缺少'已有角色'或'阶段信息'，操作已取消。")
+                self.logger.warning("  ⚠️ 补充角色模式缺少'已有角色'或'阶段信息'，操作已取消。")
                 return existing_characters
             prompt_type = "character_design_supplementary"
             # 【智能推断】: 不再使用写死的角色，而是根据情节动态推断
@@ -805,7 +805,7 @@ class ContentGenerator:
             # 补充模式需要将新角色合并到旧数据中
             new_characters = result_json.get("newly_added_characters", [])
             if not new_characters:
-                self.logger.warn("  ⚠️ 补充角色API调用成功，但未返回新角色。")
+                self.logger.warning("  ⚠️ 补充角色API调用成功，但未返回新角色。")
                 return existing_characters
             self.logger.info(f"  ✅ 成功生成 {len(new_characters)} 个补充角色，正在合并...")
             # 使用深拷贝以确保数据安全
@@ -920,7 +920,7 @@ class ContentGenerator:
                     self.logger.info(f"    -> ✅ 推断成功，需要角色: {', '.join(required_roles)}")
                     return required_roles
         except Exception as e:
-            self.logger.warn(f"    -> ⚠️ 角色推断API调用失败: {e}")
+            self.logger.warning(f"    -> ⚠️ 角色推断API调用失败: {e}")
         
         # 🆕 改进的回退逻辑：基于事件类型生成更智能的默认角色
         self.logger.info("    -> 使用智能默认值生成角色需求")
@@ -1050,7 +1050,7 @@ class ContentGenerator:
                     self.logger.info("  ✅ “名场面导演”成功生成【风格一致的】场景片段。")
                     return scene_snippet.strip()
                 else:
-                    self.logger.warn("  ⚠️ “名场面导演”返回的JSON中snippet为空或过短。")
+                    self.logger.warning("  ⚠️ “名场面导演”返回的JSON中snippet为空或过短。")
                     return None
             else:
                 self.logger.error(f"  ❌ “名场面导演”返回结果格式错误，期望是字典但收到了: {type(result)}")
@@ -1062,7 +1062,7 @@ class ContentGenerator:
         if "main_character" in character_design and "name" in character_design["main_character"]:
             original_name = character_design["main_character"]["name"]
             if original_name != custom_name:
-                self.logger.warn(f"⚠️  将主角名字从 '{original_name}' 改为 '{custom_name}'")
+                self.logger.warning(f"⚠️  将主角名字从 '{original_name}' 改为 '{custom_name}'")
                 character_design["main_character"]["name"] = custom_name
                 character_design["main_character"]["original_name"] = original_name
         return character_design
@@ -1149,10 +1149,10 @@ class ContentGenerator:
                     self.logger.info(f"  ✅ {original_purpose}优化完成")
                     return optimized_content
                 else:
-                    self.logger.warn(f"  ⚠️ {original_purpose}优化失败，使用原内容")
+                    self.logger.warning(f"  ⚠️ {original_purpose}优化失败，使用原内容")
             return content
         except Exception as e:
-            self.logger.warn(f"  ⚠️ 评估过程中出错: {e}")
+            self.logger.warning(f"  ⚠️ 评估过程中出错: {e}")
             import traceback
             traceback.print_exc()
             return content
@@ -1233,7 +1233,7 @@ class ContentGenerator:
                 )
                 # 修复：处理 assessment 为 None 的情况
                 if assessment is None:
-                    self.logger.warn(f"⚠️ 质量评估失败（API调用失败），使用默认评分")
+                    self.logger.warning(f"⚠️ 质量评估失败（API调用失败），使用默认评分")
                     assessment = {
                         "overall_score": 6.0,
                         "quality_verdict": "API调用失败，使用默认评分",
@@ -1267,7 +1267,7 @@ class ContentGenerator:
                                 self.logger.info(f"  ✅ 第{retry+1}次优化成功")
                                 break
                             else:
-                                self.logger.warn(f"  ⚠️ 第{retry+1}次优化失败，返回空结果")
+                                self.logger.warning(f"  ⚠️ 第{retry+1}次优化失败，返回空结果")
                                 optimized_data = None
                         except Exception as e:
                             self.logger.error(f"  ❌ 第{retry+1}次优化过程异常: {e}")
@@ -1294,7 +1294,7 @@ class ContentGenerator:
                         chapter_data["quality_score"] = new_score
                         chapter_data["quality_assessment"] = new_assessment
                     else:
-                        self.logger.warn(f"  ⚠️ 所有优化尝试均失败，保持原内容")
+                        self.logger.warning(f"  ⚠️ 所有优化尝试均失败，保持原内容")
                         chapter_data["optimization_info"] = {
                             "optimized": False,
                             "reason": "优化过程失败",
@@ -1310,7 +1310,7 @@ class ContentGenerator:
                 if end_state:
                     self.logger.info(f"  ✅ [衔接系统] 第{chapter_number}章结尾状态已保存")
                 else:
-                    self.logger.warn(f"  ⚠️ [衔接系统] 第{chapter_number}章结尾状态提取失败")
+                    self.logger.warning(f"  ⚠️ [衔接系统] 第{chapter_number}章结尾状态提取失败")
 
                 # AI俏皮开场白
                 if chapter_number == 1:
@@ -1319,7 +1319,7 @@ class ContentGenerator:
                             chapter_data, novel_data.get("novel_title", ""), novel_data.get("novel_synopsis", ""), novel_data.get("category", "默认")
                         )
                     except Exception as e:
-                        self.logger.warn(f"  ⚠️ AI开场白生成异常，使用备用模板: {e}")
+                        self.logger.warning(f"  ⚠️ AI开场白生成异常，使用备用模板: {e}")
                 # ==================== 成功！返回章节数据并跳出重试循环 ====================
                 self.logger.info(f"🎉 第 {chapter_number} 章在第 {attempt + 1} 次尝试中生成成功！")
                 return chapter_data
@@ -1448,7 +1448,7 @@ class ContentGenerator:
             
             chapters_dir = Path(f"小说项目/{safe_title}/chapters")
             if not chapters_dir.exists():
-                self.logger.warn(f"  ⚠️ 章节目录不存在: {chapters_dir}")
+                self.logger.warning(f"  ⚠️ 章节目录不存在: {chapters_dir}")
                 return None
             
             # 查找可能的章节文件
@@ -1476,7 +1476,7 @@ class ContentGenerator:
                     
                     return chapter_data
             
-            self.logger.warn(f"  ⚠️ 未找到第{chapter_number}章的文件")
+            self.logger.warning(f"  ⚠️ 未找到第{chapter_number}章的文件")
             return None
             
         except Exception as e:
@@ -1501,11 +1501,11 @@ class ContentGenerator:
                     self.logger.info(f"  ✅ 成功提取结尾: {ending[:100]}...")
                     return ending
             except Exception as e:
-                self.logger.warn(f"  ⚠️  方法 '{method.__name__}' 提取失败: {e}")
+                self.logger.warning(f"  ⚠️  方法 '{method.__name__}' 提取失败: {e}")
                 continue
         # 所有方法都失败，使用最后200字作为备选
         fallback_ending = content[-200:] if content_length > 200 else content
-        self.logger.warn(f"  ⚠️  所有提取方法失败，使用备选结尾: {fallback_ending[:100]}...")
+        self.logger.warning(f"  ⚠️  所有提取方法失败，使用备选结尾: {fallback_ending[:100]}...")
         return fallback_ending
     def _extract_by_paragraphs(self, content: str) -> str:
         """通过段落分割提取结尾"""
@@ -1614,7 +1614,7 @@ class ContentGenerator:
             novel_data["used_chapter_titles"].add(original_title)
             chapter_data["title_was_changed"] = False
             return chapter_data
-        self.logger.warn(f"⚠️  章节标题重复: '{original_title}' 与第{duplicate_chapter}章重复，正在生成新标题...")
+        self.logger.warning(f"⚠️  章节标题重复: '{original_title}' 与第{duplicate_chapter}章重复，正在生成新标题...")
         # 使用智能重命名
         new_title = self._generate_unique_chapter_title(original_title, chapter_number, novel_data)
         if new_title != original_title:
@@ -1836,7 +1836,7 @@ class ContentGenerator:
         end_state = chapter_data.get("end_state")
 
         if not end_state:
-            self.logger.warn(f"  ⚠️ [衔接系统] 章节生成结果中无end_state字段")
+            self.logger.warning(f"  ⚠️ [衔接系统] 章节生成结果中无end_state字段")
             return None
 
         try:
@@ -1848,7 +1848,7 @@ class ContentGenerator:
                 self.logger.info(f"  📌 [衔接系统] 第{chapter_number}章结尾状态已保存")
                 return end_state
         except Exception as e:
-            self.logger.warn(f"  ⚠️ [衔接系统] 保存结尾状态失败: {e}")
+            self.logger.warning(f"  ⚠️ [衔接系统] 保存结尾状态失败: {e}")
 
         return end_state
 
@@ -2133,7 +2133,7 @@ class ContentGenerator:
                 else:
                     scene['name'] = f'场景{i+1}'
                 
-                self.logger.warn(f"  ⚠️ 场景{i+1}缺少name字段，已自动补充: {scene['name']}")
+                self.logger.warning(f"  ⚠️ 场景{i+1}缺少name字段，已自动补充: {scene['name']}")
         
         for attempt in range(max_retries):
             self.logger.info(f"  ✍️ 第{attempt + 1}/{max_retries}次尝试直接生成第{chapter_number}章内容...")
@@ -2162,7 +2162,7 @@ class ContentGenerator:
                 break
             else:
                 word_count = len(content_result.get("content", "")) if content_result else 0
-                self.logger.warn(f"  ⚠️ 第{attempt + 1}次尝试失败或字数不足 ({word_count}字)。")
+                self.logger.warning(f"  ⚠️ 第{attempt + 1}次尝试失败或字数不足 ({word_count}字)。")
         if final_result:
             self.logger.info(f"  [诊断] 成功返回最终结果")
             return final_result
@@ -2213,7 +2213,7 @@ class ContentGenerator:
                     self.logger.info(f"  📝 优化说明: {notes}")
                 # 如果字数变化过大，给出警告但继续使用
                 if abs(change_percent) > 20:
-                    self.logger.warn(f"  ⚠️ 字数变化较大，建议检查内容完整性")
+                    self.logger.warning(f"  ⚠️ 字数变化较大，建议检查内容完整性")
                 # 只更新content和word_count字段，保留其他所有字段
                 updated_content = chapter_content.copy()
                 updated_content["content"] = new_content
@@ -2229,7 +2229,7 @@ class ContentGenerator:
                 })
                 return updated_content
             else:
-                self.logger.warn(f"  ⚠️ 优化结果验证失败，使用原始内容")
+                self.logger.warning(f"  ⚠️ 优化结果验证失败，使用原始内容")
                 return chapter_content  # 直接返回原始内容，不做任何修改
         except Exception as e:
             self.logger.error(f"  ❌ 章节优化过程中出错: {e}")
@@ -2407,7 +2407,7 @@ class ContentGenerator:
         if writing_style_guide:
             self.logger.info(f"  ✅ 写作风格指南已加载，包含键: {list(writing_style_guide.keys())}")
         else:
-            self.logger.warn(f"  ⚠️ 写作风格指南为空！novel_data中未找到writing_style_guide键或值为空")
+            self.logger.warning(f"  ⚠️ 写作风格指南为空！novel_data中未找到writing_style_guide键或值为空")
 
         # 🔧 修复：安全获取 novel_synopsis，处理不同的数据结构
         novel_synopsis = None
@@ -2421,7 +2421,7 @@ class ContentGenerator:
         # 如果还是找不到，使用默认值
         if not novel_synopsis:
             novel_synopsis = novel_data.get("novel_title", "未知小说")
-            self.logger.warn(f"  ⚠️  未能找到 novel_synopsis，使用标题作为替代")
+            self.logger.warning(f"  ⚠️  未能找到 novel_synopsis，使用标题作为替代")
 
         # 🆕 使用分层角色信息优化token使用
         character_design = novel_data.get("character_design")
@@ -2492,7 +2492,7 @@ class ContentGenerator:
         for major_event in major_events:
             major_start, major_end = self.parse_chapter_range(major_event.get("chapter_range", "0-0"))
             if major_start <= chapter_number <= major_end:
-                self.logger.warn(f"  ⚠️ 动态查找：未找到具体的中型事件，返回覆盖此章节的重大事件 '{major_event.get('name')}'。")
+                self.logger.warning(f"  ⚠️ 动态查找：未找到具体的中型事件，返回覆盖此章节的重大事件 '{major_event.get('name')}'。")
                 return major_event
         self.logger.error(f"  ❌ 动态查找失败: 在整个计划中都未找到任何覆盖第 {chapter_number} 章的事件。")
         return None
@@ -2543,7 +2543,7 @@ class ContentGenerator:
 
         # 🔥 新增：降级处理 - 阶段计划获取失败
         if not plan_container:
-            self.logger.warn(f"  ⚠️ [降级] 从 StagePlanManager 未能获取到第 {chapter_number} 章的阶段计划，尝试生成默认场景...")
+            self.logger.warning(f"  ⚠️ [降级] 从 StagePlanManager 未能获取到第 {chapter_number} 章的阶段计划，尝试生成默认场景...")
             return self._generate_fallback_scenes_for_chapter(chapter_number, novel_data, consistency_guidance,
                                                            reason="阶段计划获取失败")
 
@@ -2572,8 +2572,8 @@ class ContentGenerator:
 
         # 🔥 新增：降级处理 - 找不到中型事件
         if not medium_event:
-            self.logger.warn(f"  ⚠️ [降级] 在阶段 '{plan_container.get('stage_name')}' 的计划中，未能找到任何覆盖第 {chapter_number} 章的中型事件。")
-            self.logger.warn(f"  ⚠️ [降级] 尝试使用阶段计划信息生成紧急场景...")
+            self.logger.warning(f"  ⚠️ [降级] 在阶段 '{plan_container.get('stage_name')}' 的计划中，未能找到任何覆盖第 {chapter_number} 章的中型事件。")
+            self.logger.warning(f"  ⚠️ [降级] 尝试使用阶段计划信息生成紧急场景...")
             # 尝试从阶段计划中获取一些上下文信息
             stage_goal = plan_container.get("stage_overview", "推进剧情发展")
             return self._generate_fallback_scenes_for_chapter(chapter_number, novel_data, consistency_guidance,
@@ -2651,7 +2651,7 @@ class ContentGenerator:
                 chapter_number, newly_generated_scenes
             )
             if not validation_result.get("is_valid"):
-                self.logger.warn(f"  ⚠️ 场景时间递进验证发现问题，但仍然使用生成的场景")
+                self.logger.warning(f"  ⚠️ 场景时间递进验证发现问题，但仍然使用生成的场景")
             for warning in validation_result.get("warnings", []):
                 self.logger.info(f"  ℹ️ {warning}")
 
@@ -2819,7 +2819,7 @@ class ContentGenerator:
                 chapter_number, newly_generated_scenes
             )
             if not validation_result.get("is_valid"):
-                self.logger.warn(f"  ⚠️ 场景时间递进验证发现问题，但仍然使用生成的场景")
+                self.logger.warning(f"  ⚠️ 场景时间递进验证发现问题，但仍然使用生成的场景")
             for warning in validation_result.get("warnings", []):
                 self.logger.info(f"  ℹ️ {warning}")
 
@@ -3085,7 +3085,7 @@ class ContentGenerator:
                 pass
 
         # 如果JSON解析失败，尝试其他方法
-        self.logger.warn("      >> JSON解析失败，尝试备用解析方法")
+        self.logger.warning("      >> JSON解析失败，尝试备用解析方法")
         # 简化版：为每章生成默认场景
         for ch in range(start_ch, end_ch + 1):
             scenes_by_chapter[ch] = [
@@ -3193,8 +3193,8 @@ class ContentGenerator:
         Returns:
             (场景列表, 章节目标, 写作重点)
         """
-        self.logger.warn(f"  🚨 [降级模式] 启动，为第{chapter_number}章生成紧急场景")
-        self.logger.warn(f"  🚨 [降级原因] {reason}")
+        self.logger.warning(f"  🚨 [降级模式] 启动，为第{chapter_number}章生成紧急场景")
+        self.logger.warning(f"  🚨 [降级原因] {reason}")
 
         # 尝试获取基本信息
         novel_title = novel_data.get("novel_title", "未知")
@@ -3499,7 +3499,7 @@ class ContentGenerator:
         """从伏笔上下文中生成指导 - 修复版本"""
         self.logger.info(f"  🎭 生成第{chapter_number}章伏笔指导...")
         if not foreshadowing_context:
-            self.logger.warn("  ⚠️ 伏笔上下文为空，返回默认指导")
+            self.logger.warning("  ⚠️ 伏笔上下文为空，返回默认指导")
             return "# 🎭 伏笔铺垫指导\n\n本章暂无特定的伏笔任务。"
         guidance_parts = ["# 🎭 伏笔铺垫指导"]
         # 添加伏笔焦点
@@ -3512,7 +3512,7 @@ class ContentGenerator:
             guidance_parts.append("## 🆕 需要引入的元素:")
             for i, element in enumerate(elements_to_introduce):
                 if not isinstance(element, dict):
-                    self.logger.warn(f"  ⚠️ 元素{i}不是字典类型: {type(element)}")
+                    self.logger.warning(f"  ⚠️ 元素{i}不是字典类型: {type(element)}")
                     continue
                 element_name = element.get('name', f'未知元素{i}')
                 element_type = element.get('type', '未知类型')
@@ -3528,7 +3528,7 @@ class ContentGenerator:
             guidance_parts.append("## 📈 需要发展的元素:")
             for i, element in enumerate(elements_to_develop):
                 if not isinstance(element, dict):
-                    self.logger.warn(f"  ⚠️ 发展元素{i}不是字典类型: {type(element)}")
+                    self.logger.warning(f"  ⚠️ 发展元素{i}不是字典类型: {type(element)}")
                     continue
                 element_name = element.get('name', f'未知元素{i}')
                 element_type = element.get('type', '未知类型')
@@ -3641,7 +3641,7 @@ class ContentGenerator:
         else:
             # 回退到旧逻辑，以防万一
             characters = world_state.get('characters', {})
-            self.logger.warn("   ⚠️ [ContentGenerator] 未能加载最新角色数据，回退使用 world_state 中的角色数据。")
+            self.logger.warning("   ⚠️ [ContentGenerator] 未能加载最新角色数据，回退使用 world_state 中的角色数据。")
         # ▲▲▲ 核心修复结束 ▲▲▲
         # 1. 【最高优先级】死亡/退场名单
         dead_or_exited_chars = [
@@ -3772,7 +3772,7 @@ class ContentGenerator:
     def _refine_chapter_plan_with_world_state(self, chapter_number: int, novel_title: str, original_scenes: List[Dict], world_state: Dict, consistency_guidance: str) -> List[Dict]:
         self.logger.info(f"  🧠 [计划精炼] 开始根据世界状态，主动修正第 {chapter_number} 章的场景计划...")
         if not original_scenes:
-            self.logger.warn("  ⚠️ 原始场景计划为空，跳过精炼。")
+            self.logger.warning("  ⚠️ 原始场景计划为空，跳过精炼。")
             return []
         # 将核心数据打包成JSON字符串
         original_scenes_str = json.dumps(original_scenes, ensure_ascii=False, indent=2)
@@ -3970,7 +3970,7 @@ class ContentGenerator:
             self._save_failure_to_local(failure_record)
             self.logger.info(f"💾 已保存第{chapter_number}章失败记录: {failure_reason}")
         except Exception as e:
-            self.logger.warn(f"⚠️ 保存失败记录时出错: {e}")
+            self.logger.warning(f"⚠️ 保存失败记录时出错: {e}")
     def _save_failure_to_local(self, failure_record: Dict):
         """保存失败记录到本地文件"""
         try:
@@ -4032,7 +4032,7 @@ class ContentGenerator:
 - 状态: 背景资料存在但可信度验证未通过
 - 建议: 请谨慎使用背景资料，以创意种子中的核心设定为准
 """
-                        self.logger.warn(f"  ⚠️ 背景资料验证未通过，仍将包含在提示中")
+                        self.logger.warning(f"  ⚠️ 背景资料验证未通过，仍将包含在提示中")
         except (json.JSONDecodeError, Exception) as e:
             self.logger.debug(f"  📝 创意种子解析失败或无背景资料: {e}")
         
@@ -4242,7 +4242,7 @@ class ContentGenerator:
             self.logger.info(f"  💾 第{chapter_number}章生成提示词已保存: {prompt_file}")
             
         except Exception as e:
-            self.logger.warn(f"  ⚠️ 保存第{chapter_number}章生成提示词失败: {e}")
+            self.logger.warning(f"  ⚠️ 保存第{chapter_number}章生成提示词失败: {e}")
     
     def _get_current_timestamp(self) -> str:
         """获取当前时间戳"""

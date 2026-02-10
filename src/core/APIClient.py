@@ -91,9 +91,9 @@ class APIClient:
         # 检查是否超过最大请求数
         if self.request_count >= self.rate_limit_max_requests:
             wait_time = self.rate_limit_interval - elapsed
-            self.logger.warn(f"⚠️ 频率限制触发!")
-            self.logger.warn(f"   - 请求计数: {self.request_count} >= {self.rate_limit_max_requests}")
-            self.logger.warn(f"   - 需要等待: {wait_time:.2f}s")
+            self.logger.warning(f"⚠️ 频率限制触发!")
+            self.logger.warning(f"   - 请求计数: {self.request_count} >= {self.rate_limit_max_requests}")
+            self.logger.warning(f"   - 需要等待: {wait_time:.2f}s")
             
             if wait_time > 0:
                 self.logger.info(f"⏰ 频率限制: 等待 {wait_time:.1f} 秒...")
@@ -297,18 +297,18 @@ class APIClient:
         
         # 如果内容为空但有数据块，输出调试信息
         if len(full_content) == 0 and data_count > 0:
-            self.logger.warn(f"  ⚠️ 警告: 接收到 {data_count} 个数据块，但内容为空！")
-            self.logger.warn(f"  🔍 前5个数据块样本:")
+            self.logger.warning(f"  ⚠️ 警告: 接收到 {data_count} 个数据块，但内容为空！")
+            self.logger.warning(f"  🔍 前5个数据块样本:")
             for i, data in enumerate(sample_data, 1):
-                self.logger.warn(f"    数据块 #{i}: {data[:300]}...")
+                self.logger.warning(f"    数据块 #{i}: {data[:300]}...")
                 # 尝试解析并显示结构
                 try:
                     parsed = json.loads(data)
-                    self.logger.warn(f"      结构: {list(parsed.keys())}")
+                    self.logger.warning(f"      结构: {list(parsed.keys())}")
                     if 'choices' in parsed:
-                        self.logger.warn(f"      choices结构: {list(parsed['choices'][0].keys()) if parsed['choices'] else '空'}")
+                        self.logger.warning(f"      choices结构: {list(parsed['choices'][0].keys()) if parsed['choices'] else '空'}")
                 except:
-                    self.logger.warn(f"      (无法解析为JSON)")
+                    self.logger.warning(f"      (无法解析为JSON)")
         
         return full_content
     def _save_api_call_debug(self, system_prompt: str, user_prompt: str, response: str,
@@ -480,7 +480,7 @@ class APIClient:
                 
                 if attempt < self.config["defaults"]["max_retries"] - 1:
                     delay = 30
-                    self.logger.warn(f"  ⏳ 超时重试策略: 等待{delay}秒后进行第{attempt+2}次尝试...")
+                    self.logger.warning(f"  ⏳ 超时重试策略: 等待{delay}秒后进行第{attempt+2}次尝试...")
                     time.sleep(delay)
                 else:
                     self.logger.error(f"  💥 所有重试尝试均已超时失败")
@@ -524,7 +524,7 @@ class APIClient:
                 
                 if attempt < self.config["defaults"]["max_retries"] - 1:
                     delay = 30
-                    self.logger.warn(f"  ⏳ 网络异常重试策略: 等待{delay}秒后进行第{attempt+2}次尝试...")
+                    self.logger.warning(f"  ⏳ 网络异常重试策略: 等待{delay}秒后进行第{attempt+2}次尝试...")
                     time.sleep(delay)
                 else:
                     self.logger.error(f"  💥 所有重试尝试均因网络异常失败")
@@ -547,7 +547,7 @@ class APIClient:
                 
                 if attempt < self.config["defaults"]["max_retries"] - 1:
                     delay = 30
-                    self.logger.warn(f"  ⏳ 未知异常重试策略: 等待{delay}秒后进行第{attempt+2}次尝试...")
+                    self.logger.warning(f"  ⏳ 未知异常重试策略: 等待{delay}秒后进行第{attempt+2}次尝试...")
                     time.sleep(delay)
                 else:
                     self.logger.error(f"  💥 所有重试尝试均因未知异常失败")

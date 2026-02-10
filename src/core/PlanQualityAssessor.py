@@ -113,7 +113,7 @@ class PlanQualityAssessor:
         else:
             self.client = None
             self.use_ai = False
-            self.logger.warn("AI评估未启用，将使用规则式评估")
+            self.logger.warning("AI评估未启用，将使用规则式评估")
 
     def assess(self, plan_path: Path, use_deep_analysis: bool = False) -> AssessmentResult:
         """评估写作计划

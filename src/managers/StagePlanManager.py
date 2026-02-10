@@ -368,7 +368,7 @@ class StagePlanManager:
             stage_plan_dict = overall_plans
         
         if not stage_plan_dict:
-            self.logger.warn("  ⚠️ 在 overall_stage_plans 中未找到阶段定义")
+            self.logger.warning("  ⚠️ 在 overall_stage_plans 中未找到阶段定义")
             return 0
         
         available_stages = list(stage_plan_dict.keys())
@@ -382,7 +382,7 @@ class StagePlanManager:
         if loaded_count > 0:
             self.logger.info(f"  ✅ 成功加载 {loaded_count}/{len(available_stages)} 个阶段的写作计划")
         else:
-            self.logger.warn("  ⚠️ 未能加载任何阶段的写作计划")
+            self.logger.warning("  ⚠️ 未能加载任何阶段的写作计划")
         
         return loaded_count
     
@@ -409,7 +409,7 @@ class StagePlanManager:
             self.logger.info("  ✅ 场景覆盖完整，无需修复。")
             return repaired_plan, False
         
-        self.logger.warn(f"  ⚠️ 检测到 {len(missing_chapters)} 个章节缺少场景，正在尝试修复")
+        self.logger.warning(f"  ⚠️ 检测到 {len(missing_chapters)} 个章节缺少场景，正在尝试修复")
         
         # 获取必要上下文
         final_major_events = plan_data.get("event_system", {}).get("major_events", [])
@@ -564,12 +564,12 @@ class StagePlanManager:
         """为指定章节获取阶段计划"""
         current_stage = self._get_current_stage(chapter_number)
         if not current_stage:
-            self.logger.warn(f"  ⚠️ 无法确定第{chapter_number}章所属的阶段")
+            self.logger.warning(f"  ⚠️ 无法确定第{chapter_number}章所属的阶段")
             return {}
         
         stage_plan_data = self.get_stage_writing_plan_by_name(current_stage)
         if not stage_plan_data:
-            self.logger.warn(f"  ⚠️ 没有找到或加载 {current_stage} 的写作计划")
+            self.logger.warning(f"  ⚠️ 没有找到或加载 {current_stage} 的写作计划")
             return {}
         
         return stage_plan_data.get("stage_writing_plan", stage_plan_data)
@@ -591,7 +591,7 @@ class StagePlanManager:
                 return chapter == target_chapter
         except (ValueError, AttributeError, IndexError):
             logger = get_logger("StagePlanManager")
-            logger.warn(f"⚠️ 解析章节范围失败: '{range_str}'，返回False")
+            logger.warning(f"⚠️ 解析章节范围失败: '{range_str}'，返回False")
             return False
         
         # 确保所有路径都有返回值
@@ -670,7 +670,7 @@ class StagePlanManager:
                 if result:
                     return result
                 else:
-                    self.logger.warn(f"    ⚠️ 第{attempt+1}次生成主龙骨失败")
+                    self.logger.warning(f"    ⚠️ 第{attempt+1}次生成主龙骨失败")
             except Exception as e:
                 self.logger.error(f"    ❌ 第{attempt+1}次生成主龙骨出错: {e}")
                 if attempt < 2:
@@ -694,7 +694,7 @@ class StagePlanManager:
         if stage_emotional_arc:
             self.logger.info(f"    💭 使用阶段情绪弧线指导: {stage_emotional_arc.get('start_emotion', '未定义')} → {stage_emotional_arc.get('end_emotion', '未定义')}")
         else:
-            self.logger.warn(f"    ⚠️ 未找到 {stage_name} 的情绪弧线，将仅基于事件分解")
+            self.logger.warning(f"    ⚠️ 未找到 {stage_name} 的情绪弧线，将仅基于事件分解")
         
         # 🔥 新增：初始化情节状态管理器
         from src.managers.PlotStateManager import PlotStateManager
@@ -731,7 +731,7 @@ class StagePlanManager:
                         self.logger.info(f"      ✅ 成功分解为中型事件（第一阶段到此为止）")
                         break
                     else:
-                        self.logger.warn(f"      ⚠️ 第{attempt+1}次解剖失败")
+                        self.logger.warning(f"      ⚠️ 第{attempt+1}次解剖失败")
                 except Exception as e:
                     self.logger.error(f"      ❌ 第{attempt+1}次解剖出错: {e}")
                     if attempt < 2:
@@ -742,7 +742,7 @@ class StagePlanManager:
                 # 🔥 新增：检查情节重复
                 duplication_issues = plot_manager.check_plot_duplication(fleshed_out_event)
                 if duplication_issues:
-                    self.logger.warn(f"       ⚠️ 检测到情节重复问题：{duplication_issues}")
+                    self.logger.warning(f"       ⚠️ 检测到情节重复问题：{duplication_issues}")
                 else:
                     self.logger.info(f"       ✅ 情节唯一性检查通过")
 
@@ -819,7 +819,7 @@ class StagePlanManager:
         )
 
         if not coverage_validation.get("is_valid"):
-            self.logger.warn(f"  ⚠️ 重大事件覆盖验证发现问题，已自动修正")
+            self.logger.warning(f"  ⚠️ 重大事件覆盖验证发现问题，已自动修正")
             # 如果进行了自动修正，使用修正后的事件
             if "corrected_events" in coverage_validation:
                 fleshed_out_major_events = coverage_validation["corrected_events"]
@@ -836,7 +836,7 @@ class StagePlanManager:
                 # 可以在这里添加自动修正逻辑
 
         if not medium_events_valid:
-            self.logger.warn(f"  ⚠️ 部分重大事件的中型事件范围存在问题")
+            self.logger.warning(f"  ⚠️ 部分重大事件的中型事件范围存在问题")
 
         # 根据验证结果优化
         try:
@@ -845,7 +845,7 @@ class StagePlanManager:
             coherence_score = 10
         
         if coherence_score < 8.0:
-            self.logger.warn(f"  ⚠️ 目标层级一致性评分较低 ({coherence_score:.1f})，进行优化...")
+            self.logger.warning(f"  ⚠️ 目标层级一致性评分较低 ({coherence_score:.1f})，进行优化...")
             temp_plan = self.event_optimizer.optimize_based_on_coherence_assessment(
                 temp_plan, goal_coherence, stage_name, stage_range
             )
@@ -853,7 +853,7 @@ class StagePlanManager:
         
         continuity_score = float(continuity_assessment.get("overall_continuity_score", 10))
         if continuity_score < 9.5:
-            self.logger.warn(f"  ⚠️ 阶段事件连续性评分较低 ({continuity_score:.1f})，进行优化...")
+            self.logger.warning(f"  ⚠️ 阶段事件连续性评分较低 ({continuity_score:.1f})，进行优化...")
             temp_plan = self.event_optimizer.optimize_based_on_continuity_assessment(
                 temp_plan, continuity_assessment, stage_name, stage_range
             )
@@ -867,14 +867,14 @@ class StagePlanManager:
         self.logger.info(f"  🔍 [第一阶段] 对 {stage_name} 进行中型事件覆盖率验证...")
         
         if not writing_plan or "stage_writing_plan" not in writing_plan:
-            self.logger.warn(f"  ⚠️ {stage_name} 写作计划为空或结构错误")
+            self.logger.warning(f"  ⚠️ {stage_name} 写作计划为空或结构错误")
             return writing_plan
         
         event_system = writing_plan["stage_writing_plan"].get("event_system", {})
         major_events = event_system.get("major_events", [])
         
         if not major_events:
-            self.logger.warn(f"  ⚠️ {stage_name} 计划中不包含任何重大事件")
+            self.logger.warning(f"  ⚠️ {stage_name} 计划中不包含任何重大事件")
             return writing_plan
         
         try:
@@ -909,7 +909,7 @@ class StagePlanManager:
                             pass
         
         if not all_event_ranges:
-            self.logger.warn(f"  ⚠️ {stage_name} 计划中未找到任何有效的事件章节范围")
+            self.logger.warning(f"  ⚠️ {stage_name} 计划中未找到任何有效的事件章节范围")
             return writing_plan
         
         # 检查中型事件的覆盖率
@@ -926,7 +926,7 @@ class StagePlanManager:
         if not uncovered_chapters:
             self.logger.info(f"  ✅ 第一阶段中型事件覆盖率验证通过！")
         else:
-            self.logger.warn(f"  ⚠️ 第一阶段存在未覆盖章节: {uncovered_chapters}")
+            self.logger.warning(f"  ⚠️ 第一阶段存在未覆盖章节: {uncovered_chapters}")
             self.logger.info(f"     这些章节将在第二阶段通过进一步分解来覆盖")
         
         return writing_plan
@@ -989,7 +989,7 @@ class StagePlanManager:
             stage_plan_dict = overall_plans
         
         if not stage_plan_dict:
-            self.logger.warn("  ⚠️ 没有可用的整体阶段计划")
+            self.logger.warning("  ⚠️ 没有可用的整体阶段计划")
             return ""
         
         for stage_name, stage_info in stage_plan_dict.items():
@@ -997,7 +997,7 @@ class StagePlanManager:
             if is_chapter_in_range(chapter_number, chapter_range_str):
                 return stage_name
         
-        self.logger.warn(f"  ⚠️ 第{chapter_number}章不在任何已定义的阶段范围内")
+        self.logger.warning(f"  ⚠️ 第{chapter_number}章不在任何已定义的阶段范围内")
         return ""
     
     def _get_stage_start_chapter(self, stage_name: str) -> int:
@@ -1034,7 +1034,7 @@ class StagePlanManager:
             self.logger.info(f"  ✅ 【网文白金策划师】评估{stage_name}阶段事件连续性完成。")
             return assessment
         else:
-            self.logger.warn(f"  ⚠️ 【网文白金策划师】评估{stage_name}阶段事件连续性失败，使用默认结果。")
+            self.logger.warning(f"  ⚠️ 【网文白金策划师】评估{stage_name}阶段事件连续性失败，使用默认结果。")
             return self._create_default_continuity_assessment()
     
     def _create_default_continuity_assessment(self) -> Dict:
@@ -1104,7 +1104,7 @@ class StagePlanManager:
         # 获取已有角色
         existing_characters = self.generator.novel_data.get("character_design", {})
         if not existing_characters or not existing_characters.get("main_character"):
-            self.logger.warn("    ⚠️ 尚未生成主角，跳过补充角色生成")
+            self.logger.warning("    ⚠️ 尚未生成主角，跳过补充角色生成")
             return writing_plan
         
         # 获取势力系统信息
@@ -1242,7 +1242,7 @@ class StagePlanManager:
                     
                     self.logger.info(f"      ✅ 期待感映射已保存: {expectation_map_file}")
             except Exception as save_error:
-                self.logger.warn(f"      ⚠️ 保存期待感映射文件失败: {save_error}")
+                self.logger.warning(f"      ⚠️ 保存期待感映射文件失败: {save_error}")
             
             self.logger.info(f"    ✅ 成功为【{stage_name}】的 {total_tagged} 个事件生成期待感标签")
             
@@ -1319,7 +1319,7 @@ class StagePlanManager:
                     self.logger.info(f"  ✅ 成功生成 {len(scene_events)} 个场景")
                     return scene_events
             
-            self.logger.warn(f"  ⚠️ 场景生成未返回有效结果")
+            self.logger.warning(f"  ⚠️ 场景生成未返回有效结果")
             return []
             
         except Exception as e:

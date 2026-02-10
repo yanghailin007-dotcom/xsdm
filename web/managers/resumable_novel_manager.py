@@ -233,7 +233,7 @@ class ResumableNovelGenerationManager:
         # 🔥 如果还是没有 creative_seed，记录警告但不阻止恢复
         # 因为检查点中可能已经包含了必要的中间数据
         if not generation_params.get('creative_seed'):
-            self.logger.warn(f"⚠️ 恢复任务时缺少 creative_seed，将从检查点继续")
+            self.logger.warning(f"⚠️ 恢复任务时缺少 creative_seed，将从检查点继续")
             # 设置一个最小的配置以允许继续
             generation_params['creative_seed'] = {
                 'resume_mode': True,

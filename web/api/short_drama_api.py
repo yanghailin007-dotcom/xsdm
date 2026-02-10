@@ -13,7 +13,7 @@ import os
 import shutil
 import sys
 from datetime import datetime
-from urllib.parse import unquote
+from urllib.parse import unquote, quote
 
 from src.utils.logger import get_logger
 from src.core.APIClient import APIClient
@@ -3234,13 +3234,17 @@ def get_visual_assets(project_id):
                         rel_path = local_path.split('视频项目')[-1].replace('\\', '/')
                         if rel_path.startswith('/'):
                             rel_path = rel_path[1:]
-                        correct_url = f"/project-files/{rel_path}"
+                        # 🔥对中文路径进行URL编码
+                        encoded_path = quote(rel_path, safe='/')
+                        correct_url = f"/project-files/{encoded_path}"
                     elif local_path and 'generated_images' in local_path:
                         # 从generated_images路径生成URL（兼容旧数据）
                         rel_path = local_path.split('generated_images')[-1].replace('\\', '/')
                         if rel_path.startswith('/'):
                             rel_path = rel_path[1:]
-                        correct_url = f"/generated_images/{rel_path}"
+                        # 🔥对中文路径进行URL编码
+                        encoded_path = quote(rel_path, safe='/')
+                        correct_url = f"/generated_images/{encoded_path}"
                     
                     if correct_url and reference_url != correct_url:
                         logger.info(f'修复URL: {name} - {reference_url} -> {correct_url}')
@@ -3466,8 +3470,7 @@ def generate_visual_asset(project_id):
                     'error': '图片生成服务未配置，请在 config/config.py 中配置 nanobanana.api_key'
                 }), 500
             
-            # 🔥生成图片保存路径 - 按类别分目录保存，方便管理
-            asset_id = str(uuid.uuid4())[:8]
+            # 🔥生成图片保存路径 - 按类别分目录，使用中文名称保存，方便识别
             # 使用项目标题（小说名）作为基础目录
             safe_title = re.sub(r'[\\/*?:"<>|]', '_', project.title)
             # 类别目录映射：characters->角色, scenes->场景, props->道具
@@ -3479,7 +3482,8 @@ def generate_visual_asset(project_id):
             category_dir = category_dirs.get(category, category)
             project_dir = BASE_DIR / '视频项目' / safe_title / category_dir
             project_dir.mkdir(parents=True, exist_ok=True)
-            save_path = str(project_dir / f"{asset_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png")
+            # 使用中文名称保存，方便识别（保留时间戳避免重名）
+            save_path = str(project_dir / f"{name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png")
             
             logger.info(f'🎨 开始生成视觉资产: {category}/{name}, 比例: {aspect_ratio}, 尺寸: {image_size}')
             
@@ -3538,13 +3542,15 @@ def generate_visual_asset(project_id):
             # 获取生成的图片路径
             local_path = result.get('local_path', '')
             
-            # 🔥使用项目路径构建URL（使用/project-files/路径）
+            # 🔥使用项目路径构建URL（使用/project-files/路径，对中文进行URL编码）
             if local_path and '视频项目' in local_path:
                 # 从localPath提取相对路径
                 rel_path = local_path.split('视频项目')[-1].replace('\\', '/')
                 if rel_path.startswith('/'):
                     rel_path = rel_path[1:]
-                image_url = f"/project-files/{rel_path}"
+                # 🔥对中文路径进行URL编码
+                encoded_path = quote(rel_path, safe='/')
+                image_url = f"/project-files/{encoded_path}"
             else:
                 # 回退到生成器返回的URL
                 image_url = result.get('url', '')

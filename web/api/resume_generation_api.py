@@ -108,9 +108,9 @@ def get_resume_info(title):
                 "file_exists": checkpoint_mgr.checkpoint_file.exists()
             }
              
-            logger.warn(f"⚠️ 未找到检查点: {title}")
-            logger.warn(f"  检查点目录: {response_data['checkpoint_dir']} (存在: {response_data['dir_exists']})")
-            logger.warn(f"  检查点文件: {response_data['checkpoint_file']} (存在: {response_data['file_exists']})")
+            logger.warning(f"⚠️ 未找到检查点: {title}")
+            logger.warning(f"  检查点目录: {response_data['checkpoint_dir']} (存在: {response_data['dir_exists']})")
+            logger.warning(f"  检查点文件: {response_data['checkpoint_file']} (存在: {response_data['file_exists']})")
              
             # 如果目录存在但文件不存在，提供额外提示
             if response_data['dir_exists'] and not response_data['file_exists']:

@@ -30,7 +30,7 @@ class NovelGenerationManager:
             logger.info("✅ 检查点功能已启用")
         except Exception as e:
             self.checkpoint_enabled = False
-            logger.warn(f"⚠️ 检查点功能未启用: {e}")
+            logger.warning(f"⚠️ 检查点功能未启用: {e}")
         
         logger.info("🔧 NovelGenerationManager 初始化开始")
         self.load_existing_novels()
@@ -298,10 +298,10 @@ class NovelGenerationManager:
                     if novel_data.get("writing_style_guide"):
                         logger.info(f"  ✅ 从项目信息中获取写作风格指南")
                     else:
-                        logger.warn(f"  ⚠️ 写作风格指南文件不存在: {writing_style_path}")
+                        logger.warning(f"  ⚠️ 写作风格指南文件不存在: {writing_style_path}")
                         novel_data["writing_style_guide"] = {}
             except Exception as e:
-                logger.warn(f"  ⚠️ 加载写作风格指南失败: {e}")
+                logger.warning(f"  ⚠️ 加载写作风格指南失败: {e}")
                 novel_data["writing_style_guide"] = novel_data.get("writing_style_guide", {})
 
             # 添加到项目集合
@@ -634,10 +634,10 @@ class NovelGenerationManager:
                     standardized_data["writing_style_guide"] = writing_style_guide
                     logger.info(f"✅ 动态加载写作风格指南成功: {len(writing_style_guide)} 个键")
                 else:
-                    logger.warn(f"⚠️ 写作风格指南文件不存在: {writing_style_path}")
+                    logger.warning(f"⚠️ 写作风格指南文件不存在: {writing_style_path}")
                     standardized_data["writing_style_guide"] = {}
             except Exception as e:
-                logger.warn(f"⚠️ 动态加载写作风格指南失败: {e}")
+                logger.warning(f"⚠️ 动态加载写作风格指南失败: {e}")
                 standardized_data["writing_style_guide"] = {}
 
         return standardized_data

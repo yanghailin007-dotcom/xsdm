@@ -160,8 +160,8 @@ class AiWxVideoManager:
         # 验证配置
         is_valid, message = validate_config()
         if not is_valid:
-            self.logger.warn(f"⚠️  配置验证失败: {message}")
-            self.logger.warn("⚠️  AI-WX 视频生成功能可能无法正常工作")
+            self.logger.warning(f"⚠️  配置验证失败: {message}")
+            self.logger.warning("⚠️  AI-WX 视频生成功能可能无法正常工作")
         
         # 加载已保存的任务
         self._load_tasks()
@@ -191,7 +191,7 @@ class AiWxVideoManager:
                         self.tasks[task_id].status = GenerationStatus.PROCESSING
                 
                 except Exception as e:
-                    self.logger.warn(f"加载任务文件失败 {task_file}: {e}")
+                    self.logger.warning(f"加载任务文件失败 {task_file}: {e}")
         
         except Exception as e:
             self.logger.error(f"加载任务失败: {e}")
@@ -427,10 +427,10 @@ class AiWxVideoManager:
                         time.sleep(poll_interval)
                     
                     else:
-                        self.logger.warn(f"⚠️  未知状态: {status}")
+                        self.logger.warning(f"⚠️  未知状态: {status}")
                         time.sleep(poll_interval)
                 else:
-                    self.logger.warn(f"⚠️  查询状态失败: HTTP {response.status_code}")
+                    self.logger.warning(f"⚠️  查询状态失败: HTTP {response.status_code}")
                     time.sleep(poll_interval)
             
             except Exception as e:

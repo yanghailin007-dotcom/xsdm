@@ -100,7 +100,7 @@ class ChapterGenerator:
                 
                 # 处理评估失败的情况
                 if assessment is None:
-                    self.logger.warn(f"⚠️ 质量评估失败，使用默认评分")
+                    self.logger.warning(f"⚠️ 质量评估失败，使用默认评分")
                     assessment = {
                         "overall_score": 6.0,
                         "quality_verdict": "API调用失败，使用默认评分",
@@ -136,7 +136,7 @@ class ChapterGenerator:
                             novel_data.get("category", "默认")
                         )
                     except Exception as e:
-                        self.logger.warn(f"  ⚠️ AI开场白生成异常，使用备用模板: {e}")
+                        self.logger.warning(f"  ⚠️ AI开场白生成异常，使用备用模板: {e}")
 
                 # 提取并保存结尾状态（用于下一章衔接）
                 chapter_content = chapter_data.get("content", "")
@@ -147,7 +147,7 @@ class ChapterGenerator:
                         chapter_data["end_state"] = end_state
                         self.logger.info(f"  ✅ [衔接系统] 第{chapter_number}章结尾状态已添加到chapter_data")
                     else:
-                        self.logger.warn(f"  ⚠️ [衔接系统] 第{chapter_number}章结尾状态提取失败")
+                        self.logger.warning(f"  ⚠️ [衔接系统] 第{chapter_number}章结尾状态提取失败")
 
                 # 成功返回
                 self.logger.info(f"🎉 第 {chapter_number} 章在第 {attempt + 1} 次尝试中生成成功！")
@@ -211,7 +211,7 @@ class ChapterGenerator:
                     self.logger.info(f"  ✅ 第{retry+1}次优化成功")
                     break
                 else:
-                    self.logger.warn(f"  ⚠️ 第{retry+1}次优化失败，返回空结果")
+                    self.logger.warning(f"  ⚠️ 第{retry+1}次优化失败，返回空结果")
                     optimized_data = None
             except Exception as e:
                 self.logger.error(f"  ❌ 第{retry+1}次优化过程异常: {e}")
@@ -244,7 +244,7 @@ class ChapterGenerator:
                 "retry_count": retry + 1
             }
         else:
-            self.logger.warn(f"  ⚠️ 所有优化尝试均失败，保持原内容")
+            self.logger.warning(f"  ⚠️ 所有优化尝试均失败，保持原内容")
             chapter_data["optimization_info"] = {
                 "optimized": False,
                 "reason": "优化过程失败",
@@ -297,7 +297,7 @@ class ChapterGenerator:
                 return content_result
             else:
                 word_count = len(content_result.get("content", "")) if content_result else 0
-                self.logger.warn(f"  ⚠️ 第{attempt + 1}次尝试失败或字数不足 ({word_count}字)。")
+                self.logger.warning(f"  ⚠️ 第{attempt + 1}次尝试失败或字数不足 ({word_count}字)。")
         
         self.logger.error(f"  ❌ 第{chapter_number}章所有直接生成尝试均失败")
         return None
@@ -601,7 +601,7 @@ class ChapterGenerator:
                 end_state = json.loads(match.group(1))
                 self.logger.info(f"  ✅ [衔接系统] 从JSON代码块中提取到结尾状态")
             except json.JSONDecodeError as e:
-                self.logger.warn(f"  ⚠️ [衔接系统] JSON解析失败: {e}")
+                self.logger.warning(f"  ⚠️ [衔接系统] JSON解析失败: {e}")
 
         # 模式2: 查找没有代码块包裹的JSON对象
         if not end_state:
@@ -626,21 +626,21 @@ class ChapterGenerator:
                                 break
                         i += 1
                 except (json.JSONDecodeError, ValueError) as e:
-                    self.logger.warn(f"  ⚠️ [衔接系统] 模式2解析失败: {e}")
+                    self.logger.warning(f"  ⚠️ [衔接系统] 模式2解析失败: {e}")
 
         # ============ 🔥 P0-1修复：降级策略3 - AI专门提取结尾状态 ============
         if not end_state:
-            self.logger.warn(f"  ⚠️ [衔接系统] JSON提取失败，使用AI专门提取结尾状态...")
+            self.logger.warning(f"  ⚠️ [衔接系统] JSON提取失败，使用AI专门提取结尾状态...")
             end_state = self._extract_end_state_by_ai(content, chapter_number, novel_data)
 
         # ============ 🔥 P0-1修复：降级策略4 - 增强模式匹配提取 ============
         if not end_state:
-            self.logger.warn(f"  ⚠️ [衔接系统] AI提取失败，尝试增强模式匹配提取...")
+            self.logger.warning(f"  ⚠️ [衔接系统] AI提取失败，尝试增强模式匹配提取...")
             end_state = self._extract_end_state_by_enhanced_pattern_matching(content, chapter_number)
 
         # ============ 🔥 P0-1修复：降级策略5 - 智能内容分析默认值 ============
         if not end_state:
-            self.logger.warn(f"  ⚠️ [衔接系统] 模式匹配也失败，使用智能内容分析...")
+            self.logger.warning(f"  ⚠️ [衔接系统] 模式匹配也失败，使用智能内容分析...")
             end_state = self._generate_intelligent_default_end_state(content, chapter_number, novel_data)
 
         # ============ 新增：记录时间线信息 ============
@@ -659,10 +659,10 @@ class ChapterGenerator:
                     self.cg._timeline_tracker.record_chapter_timeline(timeline_info)
                     self.logger.info(f"  📍 [时间线追踪] 第{chapter_number}章时间线已记录")
             except Exception as e:
-                self.logger.warn(f"  ⚠️ [时间线追踪] 记录时间线失败: {e}")
+                self.logger.warning(f"  ⚠️ [时间线追踪] 记录时间线失败: {e}")
 
         if not end_state:
-            self.logger.warn(f"  ⚠️ [衔接系统] 所有提取方法均失败，返回None")
+            self.logger.warning(f"  ⚠️ [衔接系统] 所有提取方法均失败，返回None")
             return None
 
         # 保存结尾状态
@@ -675,7 +675,7 @@ class ChapterGenerator:
                 self.logger.info(f"  📌 [衔接系统] 第{chapter_number}章结尾状态已保存到管理器")
                 return end_state
         except Exception as e:
-            self.logger.warn(f"  ⚠️ [衔接系统] 保存结尾状态失败: {e}")
+            self.logger.warning(f"  ⚠️ [衔接系统] 保存结尾状态失败: {e}")
 
         return end_state
 
@@ -761,7 +761,7 @@ class ChapterGenerator:
                 required_fields = ["time_point", "location", "atmosphere"]
                 missing = [f for f in required_fields if not result.get(f)]
                 if missing:
-                    self.logger.warn(f"  ⚠️ AI提取缺少必需字段: {missing}")
+                    self.logger.warning(f"  ⚠️ AI提取缺少必需字段: {missing}")
                     # 补充缺失字段
                     if "time_point" in missing:
                         result["time_point"] = self._infer_time_from_content(sample)
@@ -780,11 +780,11 @@ class ChapterGenerator:
                 self.logger.info(f"  ✅ [衔接系统] AI专门提取成功: {result.get('time_point')} @ {result.get('location')}")
                 return result
             else:
-                self.logger.warn(f"  ⚠️ [衔接系统] AI提取返回无效结果")
+                self.logger.warning(f"  ⚠️ [衔接系统] AI提取返回无效结果")
                 return None
 
         except Exception as e:
-            self.logger.warn(f"  ⚠️ [衔接系统] AI提取异常: {e}")
+            self.logger.warning(f"  ⚠️ [衔接系统] AI提取异常: {e}")
             return None
 
     def _extract_end_state_by_enhanced_pattern_matching(self, content: str, chapter_number: int) -> Optional[Dict]:
