@@ -8946,9 +8946,12 @@ saveGeminiConfig(config) {
      */
     async loadDemoFile() {
         try {
-            const response = await fetch('/static/demo/idea_import_demo.json');
+            // 添加时间戳参数防止缓存
+            const timestamp = new Date().getTime();
+            const response = await fetch(`/static/demo/idea_import_demo.json?t=${timestamp}`);
             if (!response.ok) {
                 // 如果静态文件不存在，使用内置的demo数据
+                console.log('Demo文件加载失败，使用内置数据');
                 this.loadBuiltinDemo();
                 return;
             }
