@@ -725,6 +725,37 @@ class ShortDramaStudio {
      * 切换工作流步骤
      */
     goToStep(step, forceReload = false) {
+        // 🔥 步骤依赖检查
+        const dependencies = {
+            'select-episodes': [],
+            'check-portraits': ['select-episodes'],
+            'story-beats': ['select-episodes'],
+            'storyboard': ['select-episodes', 'check-portraits'],
+            'video': ['storyboard'],
+            'dubbing': ['storyboard'],
+            'export': ['video', 'dubbing']
+        };
+
+        // 检查依赖是否满足
+        const requiredSteps = dependencies[step] || [];
+        for (const requiredStep of requiredSteps) {
+            if (!this.checkStepCompleted(requiredStep)) {
+                const stepNames = {
+                    'select-episodes': '选集',
+                    'check-portraits': '视觉资产库',
+                    'story-beats': '故事节拍',
+                    'storyboard': '分镜生成',
+                    'video': '生成视频',
+                    'dubbing': '配音制作',
+                    'export': '导出'
+                };
+
+                this.showToast(`⚠️ 请先完成"${stepNames[requiredStep]}"步骤`, 'warning');
+                console.warn(`⚠️ [步骤检查] 无法进入"${stepNames[step]}"，需要先完成"${stepNames[requiredStep]}"`);
+                return;
+            }
+        }
+
         this.currentStep = step;
 
         // 更新步骤导航状态
@@ -805,6 +836,42 @@ class ShortDramaStudio {
                     this.loadedSteps.add('export');
                 }
                 break;
+        }
+    }
+
+    /**
+     * 检查步骤是否已完成
+     */
+    checkStepCompleted(step) {
+        switch (step) {
+            case 'select-episodes':
+                // 检查是否选择了集数
+                return this.selectedEpisodes && this.selectedEpisodes.length > 0;
+
+            case 'check-portraits':
+                // 检查是否有视觉资产数据
+                return this.currentProject?.visualAssets &&
+                    (Object.keys(this.currentProject.visualAssets.characters || {}).length > 0 ||
+                     Object.keys(this.currentProject.visualAssets.scenes || {}).length > 0);
+
+            case 'story-beats':
+                // 故事节拍步骤是可选的，总是返回true
+                return true;
+
+            case 'storyboard':
+                // 检查是否有分镜数据
+                return this.currentProject?.shots?.length > 0 || this.shots?.length > 0;
+
+            case 'video':
+                // 检查是否有视频文件（至少生成了一个视频）
+                return this.shots?.some(shot => shot.video_url || shot.status === 'completed');
+
+            case 'dubbing':
+                // 配音步骤依赖分镜数据，不需要视频完成
+                return this.currentProject?.shots?.length > 0 || this.shots?.length > 0;
+
+            default:
+                return true;
         }
     }
 
@@ -3458,35 +3525,19 @@ class ShortDramaStudio {
         let allShots = [];
 
         try {
-            // 🔥 优先级1: 内存中的优化数据（数据流A）
-            if (this.currentProject?.shots?.length > 0) {
-                console.log('✅ [视频步骤] 使用内存中的优化数据（数据流A）, 镜头数:', this.currentProject.shots.length);
-                allShots = this.normalizeShots(this.currentProject.shots);
-            }
-            // 🔥 优先级2: 文件系统中的优化数据（shots_v2.json）
-            else {
-                const v2Data = await this.loadShotsV2();
-                if (v2Data?.shots?.length > 0) {
-                    console.log('✅ [视频步骤] 使用文件系统中的优化数据（shots_v2.json）, 镜头数:', v2Data.shots.length);
-                    allShots = this.normalizeShots(v2Data.shots);
-                }
-                // 🔥 优先级3: 回退到旧格式（storyboards/*.json）
-                else {
-                    console.log('⚠️ [视频步骤] 回退到旧格式数据（数据流B）');
-                    const response = await fetch(`/api/short-drama/storyboards?novel=${encodeURIComponent(this.selectedNovel)}&episode=${encodeURIComponent(episodeDirectoryName)}`);
-                    const data = await response.json();
+            // 🔥 统一数据源：只使用 shots_v2.json
+            const v2Data = await this.loadShotsV2();
+            if (v2Data?.shots?.length > 0) {
+                console.log('✅ [视频步骤] 从 shots_v2.json 加载成功, 镜头数:', v2Data.shots.length);
+                allShots = this.normalizeShots(v2Data.shots);
 
-                    console.log('📊 [视频步骤] API返回:', data);
-                    console.log('📊 [视频步骤] storyboards数量:', data.storyboards?.length);
-
-                    if (data.success && data.storyboards && data.storyboards.length > 0) {
-                        // 使用 renderStoryboard 解析数据
-                        this.currentStoryboard = data.storyboards;
-                        this.renderStoryboard(data.storyboards);
-                        allShots = this.shots;
-                        console.log('✅ [视频步骤] 旧格式数据已加载, this.shots.length:', this.shots?.length);
-                    }
+                // 缓存到内存中
+                if (!this.currentProject) {
+                    this.currentProject = {};
                 }
+                this.currentProject.shots = allShots;
+            } else {
+                console.log('⚠️ [视频步骤] shots_v2.json 不存在或为空');
             }
 
             if (allShots.length === 0) {
@@ -3495,8 +3546,11 @@ class ShortDramaStudio {
                         <p style="font-size: 2rem;">🎬</p>
                         <p>还没有分镜头数据</p>
                         <p style="font-size: 0.85rem; color: var(--text-secondary);">
-                            请先在"分镜头"步骤生成分镜头
+                            请先在"分镜生成"步骤生成分镜头
                         </p>
+                        <button class="btn btn-primary" onclick="shortDramaStudio.goToStep('storyboard')" style="margin-top: 1rem;">
+                            前往分镜生成
+                        </button>
                     </div>
                 `;
                 return;
@@ -3511,6 +3565,12 @@ class ShortDramaStudio {
                 <div class="empty-state">
                     <p style="font-size: 2rem;">❌</p>
                     <p>加载分镜头数据失败</p>
+                    <p style="font-size: 0.85rem; color: var(--text-secondary);">
+                        ${error.message || '未知错误'}
+                    </p>
+                    <button class="btn btn-secondary" onclick="shortDramaStudio.loadVideoStep()" style="margin-top: 1rem;">
+                        重试
+                    </button>
                 </div>
             `;
             return;
@@ -8803,19 +8863,12 @@ saveGeminiConfig(config) {
         const container = document.getElementById('dubbingContent');
         if (!container) return;
 
-        // 🔥 如果没有镜头数据，尝试从 storyboard 加载
+        // 🔥 统一数据源：从 shots_v2.json 加载或使用内存缓存
         if (!this.shots || this.shots.length === 0) {
-            const episodeDirectoryName = this.getEpisodeDirectoryName();
-            try {
-                const response = await fetch(`/api/short-drama/storyboards?novel=${encodeURIComponent(this.selectedNovel)}&episode=${encodeURIComponent(episodeDirectoryName)}`);
-                const data = await response.json();
-                if (data.success && data.storyboards) {
-                    this.currentStoryboard = data.storyboards;
-                    this.renderStoryboard(data.storyboards);
-                    console.log('🎙️ [配音] 已加载 storyboard 数据');
-                }
-            } catch (error) {
-                console.error('🎙️ [配音] 加载 storyboard 失败:', error);
+            const v2Data = await this.loadShotsV2();
+            if (v2Data?.shots?.length > 0) {
+                this.shots = this.normalizeShots(v2Data.shots);
+                console.log('🎙️ [配音] 从 shots_v2.json 加载成功, 镜头数:', this.shots.length);
             }
         }
 
@@ -8825,8 +8878,11 @@ saveGeminiConfig(config) {
                     <p style="font-size: 2rem;">🎙️</p>
                     <p>还没有分镜头数据</p>
                     <p style="font-size: 0.85rem; color: var(--text-secondary);">
-                        请先在"分镜头"步骤生成分镜头
+                        请先在"分镜生成"步骤生成分镜头
                     </p>
+                    <button class="btn btn-primary" onclick="shortDramaStudio.goToStep('storyboard')" style="margin-top: 1rem;">
+                        前往分镜生成
+                    </button>
                 </div>
             `;
             return;

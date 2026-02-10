@@ -5481,6 +5481,20 @@ li>选择角色，输入提示词，生成剧照</li>
                             <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.25rem;">
                                 已选择 <span id="selectedCount">${selectedImages.length}</span> 张参考图
                             </p>
+
+                            <!-- 🔥 九宫格参考图选项 -->
+                            <div style="margin-top: 1rem; padding: 0.75rem; background: rgba(99, 102, 241, 0.1); border-radius: 6px; border: 1px solid rgba(99, 102, 241, 0.3);">
+                                <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                                    <input type="checkbox" id="useGridImageCheck" style="margin: 0;">
+                                    <span style="font-weight: bold;">🎨 使用九宫格作为参考图</span>
+                                </label>
+                                <p style="font-size: 0.75rem; color: var(--text-secondary); margin: 0.5rem 0 0 1.5rem;">
+                                    如果该镜头已生成九宫格图片，勾选后将自动作为参考图传递给视频生成
+                                </p>
+                                <div id="gridImagePreview" style="margin-top: 0.5rem; display: none;">
+                                    <img id="gridImageThumb" style="max-width: 200px; border-radius: 4px; border: 2px solid var(--primary-color);">
+                                </div>
+                            </div>
                         </div>
 
                         <div class="params-section" style="margin-bottom: 1rem;">
@@ -5576,6 +5590,40 @@ li>选择角色，输入提示词，生成剧照</li>
 
             document.body.appendChild(modal);
 
+            // 🔥 检查并加载九宫格图片
+            const useGridCheck = document.getElementById('useGridImageCheck');
+            const gridPreview = document.getElementById('gridImagePreview');
+            const gridThumb = document.getElementById('gridImageThumb');
+            let gridImageUrl = null;
+
+            // 尝试加载九宫格图片
+            (async () => {
+                try {
+                    const episodeDirectoryName = this.getEpisodeDirectoryName();
+                    const shotId = shot.id || `shot_${shot.shot_number}`;
+
+                    // 构建九宫格图片URL
+                    const gridUrl = `/api/short-drama/project-files?novel=${encodeURIComponent(this.selectedNovel)}&episode=${encodeURIComponent(episodeDirectoryName)}&path=frame_grids/${shotId}_grid.png`;
+
+                    // 检查图片是否存在
+                    const response = await fetch(gridUrl, { method: 'HEAD' });
+                    if (response.ok) {
+                        gridImageUrl = gridUrl;
+                        gridThumb.src = gridUrl;
+                        gridPreview.style.display = 'block';
+                        console.log('✅ [九宫格] 找到九宫格图片:', gridUrl);
+                    } else {
+                        useGridCheck.disabled = true;
+                        useGridCheck.parentElement.style.opacity = '0.5';
+                        useGridCheck.parentElement.title = '该镜头还未生成九宫格图片';
+                        console.log('⚠️ [九宫格] 未找到九宫格图片');
+                    }
+                } catch (error) {
+                    console.error('❌ [九宫格] 检查图片失败:', error);
+                    useGridCheck.disabled = true;
+                }
+            })();
+
             // 绑定事件
             const closeBtn = modal.querySelector('.btn-close');
             const cancelBtn = modal.querySelector('.btn-cancel');
@@ -5642,8 +5690,15 @@ li>选择角色，输入提示词，生成剧照</li>
             // 生成 - 保存修改的提示词
             generateBtn.onclick = () => {
                 const editedPrompt = promptArea.value;
-                const checkedImages = Array.from(modal.querySelectorAll('.portrait-check:checked'))
+                let checkedImages = Array.from(modal.querySelectorAll('.portrait-check:checked'))
                     .map(check => check.dataset.url);
+
+                // 🔥 如果勾选了九宫格，添加到参考图列表
+                if (useGridCheck.checked && gridImageUrl) {
+                    checkedImages.push(gridImageUrl);
+                    console.log('✅ [九宫格] 已添加九宫格图片到参考图:', gridImageUrl);
+                }
+
                 const model = document.getElementById('paramModel').value;
                 const orientation = document.getElementById('paramOrientation').value;
                 const size = document.getElementById('paramSize').value;
