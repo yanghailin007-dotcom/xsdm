@@ -173,9 +173,9 @@ def _get_image_worker():
     """获取或创建图片生成Worker"""
     global _image_worker
     if _image_worker is None or not _image_worker.is_alive():
-        _image_worker = ImageGenerationWorker(_image_task_queue, max_concurrent=2)
+        _image_worker = ImageGenerationWorker(_image_task_queue, max_concurrent=5)
         _image_worker.start()
-        logger.info("🚀 [图片任务] Worker已启动")
+        logger.info("🚀 [图片任务] Worker已启动（最大并发: 5）")
     return _image_worker
 
 def _add_image_task(project_id, category, name, data):

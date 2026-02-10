@@ -884,6 +884,9 @@ class ShortDramaStudio {
      * 初始化视觉资产库面板
      */
     initVisualAssetsPanel() {
+        // 🔥 初始化图片生成任务管理器
+        this.initImageTaskManager();
+        
         // 绑定分类切换
         document.querySelectorAll('.va-category-tab').forEach(tab => {
             tab.addEventListener('click', () => {
@@ -1828,10 +1831,133 @@ class ShortDramaStudio {
     }
 
     /**
-     * 为视觉资产生成图片 - 调用后端API
+     * 🔥 图片生成任务管理器
+     */
+    imageTasks = new Map();  // task_id -> task info
+    imageTaskPolling = null; // 轮询计时器
+    
+    /**
+     * 初始化图片任务管理器
+     */
+    initImageTaskManager() {
+        // 开始轮询任务状态
+        this.startImageTaskPolling();
+    }
+    
+    /**
+     * 开始轮询任务状态
+     */
+    startImageTaskPolling() {
+        if (this.imageTaskPolling) return;
+        
+        this.imageTaskPolling = setInterval(() => {
+            this.pollImageTasks();
+        }, 2000); // 每2秒轮询一次
+    }
+    
+    /**
+     * 停止轮询
+     */
+    stopImageTaskPolling() {
+        if (this.imageTaskPolling) {
+            clearInterval(this.imageTaskPolling);
+            this.imageTaskPolling = null;
+        }
+    }
+    
+    /**
+     * 轮询所有进行中的任务
+     */
+    async pollImageTasks() {
+        const pendingTasks = Array.from(this.imageTasks.values())
+            .filter(t => t.status === 'pending' || t.status === 'running');
+        
+        if (pendingTasks.length === 0) return;
+        
+        for (const task of pendingTasks) {
+            try {
+                const response = await fetch(
+                    `/api/short-drama/projects/${this.currentProject.id}/visual-assets/tasks/${task.task_id}`
+                );
+                const result = await response.json();
+                
+                if (result.success) {
+                    const serverTask = result.task;
+                    
+                    // 更新本地状态
+                    if (serverTask.status !== task.status) {
+                        task.status = serverTask.status;
+                        task.result = serverTask.result;
+                        task.error = serverTask.error;
+                        
+                        // 状态变化通知
+                        if (serverTask.status === 'completed') {
+                            this.handleImageTaskCompleted(task);
+                        } else if (serverTask.status === 'failed') {
+                            this.handleImageTaskFailed(task);
+                        }
+                        
+                        // 刷新任务列表显示
+                        this.updateImageTaskList();
+                    }
+                }
+            } catch (error) {
+                console.error(`轮询任务 ${task.task_id} 失败:`, error);
+            }
+        }
+    }
+    
+    /**
+     * 处理任务完成
+     */
+    handleImageTaskCompleted(task) {
+        const result = task.result;
+        if (!result?.success) return;
+        
+        const { category, name, data } = task;
+        const asset = this.currentProject?.visualAssets?.[category]?.[name];
+        if (!asset) return;
+        
+        // 更新资产数据
+        const imageUrl = result.data?.referenceUrl;
+        const localPath = result.data?.localPath;
+        if (imageUrl) {
+            asset.referenceUrl = imageUrl;
+            asset.localPath = localPath;
+            asset.updatedAt = new Date().toISOString();
+            
+            // 更新 characterPortraits
+            if (category === 'characters') {
+                if (!this.characterPortraits.has(name)) {
+                    this.characterPortraits.set(name, {});
+                }
+                this.characterPortraits.get(name).mainPortrait = {
+                    url: imageUrl,
+                    path: localPath,
+                    generatedAt: new Date().toISOString()
+                };
+                this.refreshPortraitCanvas();
+            }
+            
+            // 刷新显示
+            this.selectVisualAsset(category.slice(0, -1), asset, imageUrl);
+            this.loadVisualAssetsGrid(category);
+            
+            this.showToast(`✅ ${name} 图片生成完成`, 'success');
+        }
+    }
+    
+    /**
+     * 处理任务失败
+     */
+    handleImageTaskFailed(task) {
+        this.showToast(`❌ ${task.name} 生成失败: ${task.error || '未知错误'}`, 'error');
+    }
+    
+    /**
+     * 为视觉资产生成图片 - 异步任务
      */
     async generateAssetImage(name, type) {
-        // 获取资产数据
         const typeMap = {
             'character': 'characters',
             'scene': 'scenes', 
@@ -1845,89 +1971,81 @@ class ShortDramaStudio {
             return;
         }
         
+        // 检查是否已有进行中的任务
+        const existingTask = Array.from(this.imageTasks.values())
+            .find(t => t.name === name && t.category === category && 
+                 (t.status === 'pending' || t.status === 'running'));
+        if (existingTask) {
+            this.showToast(`⚠️ ${name} 正在生成中，请耐心等待`, 'warning');
+            return;
+        }
+        
         // 构建生成提示词
         let prompt = '';
         const description = asset.description || '';
         
         if (type === 'character') {
-            // 🔥 角色：前端只传递角色ID和基础信息
-            // 后端会：1)调用AI生成中英双语描述 2)构建标准四视图提示词
             prompt = JSON.stringify({
                 type: 'character',
-                id: name,  // 角色ID（唯一标识）
-                name: name,  // 角色名
-                raw_description: description || '',  // 原始描述（中文）
+                id: name,
+                name: name,
+                raw_description: description || '',
                 raw_clothing: asset.clothing || '',
                 raw_expression: asset.expression || ''
             });
-            
         } else if (type === 'scene') {
             const lighting = asset.lighting || '';
             const colorTone = asset.colorTone || '';
             let sceneDesc = description;
-            // 如果描述是中文，提取关键信息
             if (sceneDesc && /[\u4e00-\u9fa5]/.test(sceneDesc)) {
                 sceneDesc = 'detailed environment';
             }
-            // 🔥 增加视觉识别标签
             prompt = `Cinematic scene "${name}"`;
             prompt += `, SCENE_TAG: LOCATION_${name.replace(/\s+/g, '_').toUpperCase()}`;
             if (sceneDesc) prompt += `, ${sceneDesc}`;
             if (lighting) prompt += `, ${lighting} lighting`;
             if (colorTone) prompt += `, ${colorTone} color tone`;
             prompt += `, high quality, detailed environment, cinematic composition, photorealistic, 8k, sharp focus`;
-            prompt += `, location identifier "${name}" subtly integrated`;
         } else if (type === 'prop') {
             const propCategory = asset.category || '';
             let propDesc = description;
             if (propDesc && /[\u4e00-\u9fa5]/.test(propDesc)) {
                 propDesc = 'detailed object';
             }
-            // 🔥 增加视觉识别标签
             prompt = `Detailed product shot of "${name}"`;
             prompt += `, PROP_TAG: ITEM_${name.replace(/\s+/g, '_').toUpperCase()}`;
             if (propDesc) prompt += `, ${propDesc}`;
             if (propCategory) prompt += `, ${propCategory}`;
-            prompt += `, high quality, detailed, product photography style, clean background, photorealistic, 8k, sharp focus, studio lighting`;
-            prompt += `, item label "${name}" visible`;
+            prompt += `, high quality, detailed, product photography style, clean background, photorealistic, 8k`;
         }
         
-        // 获取项目的视频设置
+        // 获取视频设置
         const settings = this.currentProject?.settings || {};
-        
-        // 角色图使用16:9比例（设计表布局），4K分辨率
-        // 场景和道具使用项目设置的比例
         let aspectRatio, imageSize;
         if (type === 'character') {
-            aspectRatio = '16:9';  // 角色设计表用16:9（左30%头部特写 + 右70%三视图）
-            imageSize = '4K';       // 角色图默认4K
+            aspectRatio = '16:9';
+            imageSize = '4K';
         } else {
             aspectRatio = settings.aspect_ratio || '9:16';
             const quality = settings.quality || '2K';
             imageSize = quality === '4K' ? '4K' : (quality === '2K' ? '2K' : '1K');
         }
         
-        // 显示生成中状态
-        this.showToast(`🎨 正在生成 ${name} 的图片...`, 'info');
+        // 构建请求体
+        const requestBody = {
+            category: category,
+            name: name,
+            prompt: prompt,
+            aspect_ratio: aspectRatio,
+            image_size: imageSize
+        };
+        if (type === 'character') {
+            requestBody.description = asset.description || '';
+            requestBody.clothing = asset.clothing || '';
+            requestBody.expression = asset.expression || '';
+        }
         
         try {
-            // 构建请求体
-            const requestBody = {
-                category: category,
-                name: name,
-                prompt: prompt,
-                aspect_ratio: aspectRatio,
-                image_size: imageSize
-            };
-            
-            // 🔥 角色类型额外传递描述信息（用于四视图生成）
-            if (type === 'character') {
-                requestBody.description = asset.description || '';
-                requestBody.clothing = asset.clothing || '';
-                requestBody.expression = asset.expression || '';
-            }
-            
-            // 调用后端API生成图片
             const response = await fetch(`/api/short-drama/projects/${this.currentProject.id}/visual-assets/generate`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -1937,50 +2055,205 @@ class ShortDramaStudio {
             const result = await response.json();
             
             if (result.success) {
-                // 更新本地资产数据
-                const imageUrl = result.data?.referenceUrl;
-                const localPath = result.data?.localPath;
-                if (imageUrl) {
-                    asset.referenceUrl = imageUrl;
-                    asset.localPath = localPath;
-                    asset.updatedAt = new Date().toISOString();
-                    
-                    // 🔥 同时更新 characterPortraits（用于画布显示）
-                    if (type === 'character') {
-                        if (!this.characterPortraits.has(name)) {
-                            this.characterPortraits.set(name, {});
-                        }
-                        const portraitInfo = this.characterPortraits.get(name);
-                        portraitInfo.mainPortrait = {
-                            url: imageUrl,
-                            path: localPath,
-                            generatedAt: new Date().toISOString()
-                        };
-                        // 刷新画布显示
-                        this.refreshPortraitCanvas();
-                    }
-                    
-                    // 刷新网格显示
-                    this.selectVisualAsset(type, asset, imageUrl);
-                    this.loadVisualAssetsGrid(category);
-                    
-                    this.showToast(`✅ ${name} 图片已生成并保存`, 'success');
-                } else {
-                    this.showToast('图片生成成功，但未返回图片地址', 'warning');
-                }
-            } else {
-                const errorMsg = result.error || '生成失败';
-                this.showToast(`❌ ${errorMsg}`, 'error');
+                // 添加到本地任务列表
+                const task = {
+                    task_id: result.task_id,
+                    project_id: this.currentProject.id,
+                    category: category,
+                    name: name,
+                    type: type,
+                    status: result.status,
+                    created_at: new Date().toISOString(),
+                    result: null,
+                    error: null
+                };
+                this.imageTasks.set(result.task_id, task);
                 
-                // 如果是未配置错误，提示用户配置
-                if (errorMsg.includes('未配置') || errorMsg.includes('api_key')) {
-                    this.showToast('请在 config/config.py 中配置 nanobanana.api_key', 'info', 5000);
-                }
+                this.showToast(`🚀 ${name} 生成任务已提交（队列）`, 'success');
+                
+                // 显示任务列表
+                this.showImageTaskList();
+                
+                // 立即轮询一次
+                this.pollImageTasks();
+            } else {
+                this.showToast(`❌ ${result.error || '提交失败'}`, 'error');
             }
         } catch (error) {
-            console.error('生成图片失败:', error);
-            this.showToast(`❌ 生成失败: ${error.message}`, 'error');
+            console.error('提交生成任务失败:', error);
+            this.showToast(`❌ 提交失败: ${error.message}`, 'error');
         }
+    }
+    
+    /**
+     * 显示图片生成任务列表
+     */
+    showImageTaskList() {
+        // 检查是否已有面板
+        let panel = document.getElementById('image-task-panel');
+        if (panel) {
+            this.updateImageTaskList();
+            return;
+        }
+        
+        // 创建面板
+        panel = document.createElement('div');
+        panel.id = 'image-task-panel';
+        panel.className = 'image-task-panel';
+        panel.innerHTML = `
+            <div class="task-panel-header">
+                <h4>🎨 图片生成队列</h4>
+                <button class="btn-close" onclick="shortDramaStudio.hideImageTaskList()">✕</button>
+            </div>
+            <div class="task-panel-body" id="task-panel-body">
+                <div class="task-empty">暂无生成任务</div>
+            </div>
+        `;
+        
+        document.body.appendChild(panel);
+        this.updateImageTaskList();
+        
+        // 添加样式
+        if (!document.getElementById('image-task-panel-styles')) {
+            const styles = document.createElement('style');
+            styles.id = 'image-task-panel-styles';
+            styles.textContent = `
+                .image-task-panel {
+                    position: fixed;
+                    right: 20px;
+                    top: 80px;
+                    width: 320px;
+                    background: rgba(15, 23, 42, 0.95);
+                    border: 1px solid rgba(99, 102, 241, 0.3);
+                    border-radius: 12px;
+                    box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+                    z-index: 9999;
+                    backdrop-filter: blur(10px);
+                }
+                .task-panel-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    padding: 12px 16px;
+                    border-bottom: 1px solid rgba(99, 102, 241, 0.2);
+                }
+                .task-panel-header h4 {
+                    margin: 0;
+                    color: #fff;
+                    font-size: 14px;
+                }
+                .task-panel-body {
+                    max-height: 400px;
+                    overflow-y: auto;
+                    padding: 8px;
+                }
+                .task-item {
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                    padding: 10px 12px;
+                    margin-bottom: 6px;
+                    background: rgba(30, 41, 59, 0.8);
+                    border-radius: 8px;
+                    border-left: 3px solid #6366f1;
+                    transition: all 0.3s;
+                }
+                .task-item.pending { border-left-color: #f59e0b; }
+                .task-item.running { border-left-color: #3b82f6; }
+                .task-item.completed { border-left-color: #10b981; }
+                .task-item.failed { border-left-color: #ef4444; }
+                .task-item-icon {
+                    font-size: 20px;
+                }
+                .task-item-info {
+                    flex: 1;
+                    min-width: 0;
+                }
+                .task-item-name {
+                    font-size: 13px;
+                    color: #fff;
+                    white-space: nowrap;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                }
+                .task-item-status {
+                    font-size: 11px;
+                    color: rgba(255,255,255,0.6);
+                    margin-top: 2px;
+                }
+                .task-item.spinner::after {
+                    content: '';
+                    width: 14px;
+                    height: 14px;
+                    border: 2px solid rgba(99, 102, 241, 0.3);
+                    border-top-color: #6366f1;
+                    border-radius: 50%;
+                    animation: spin 0.8s linear infinite;
+                }
+                @keyframes spin {
+                    to { transform: rotate(360deg); }
+                }
+                .task-empty {
+                    text-align: center;
+                    padding: 30px;
+                    color: rgba(255,255,255,0.5);
+                    font-size: 13px;
+                }
+            `;
+            document.head.appendChild(styles);
+        }
+    }
+    
+    /**
+     * 隐藏任务列表
+     */
+    hideImageTaskList() {
+        const panel = document.getElementById('image-task-panel');
+        if (panel) {
+            panel.remove();
+        }
+    }
+    
+    /**
+     * 更新任务列表显示
+     */
+    updateImageTaskList() {
+        const body = document.getElementById('task-panel-body');
+        if (!body) return;
+        
+        const tasks = Array.from(this.imageTasks.values())
+            .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        
+        if (tasks.length === 0) {
+            body.innerHTML = '<div class="task-empty">暂无生成任务</div>';
+            return;
+        }
+        
+        const statusIcons = {
+            'pending': '⏳',
+            'running': '🎨',
+            'completed': '✅',
+            'failed': '❌'
+        };
+        const statusText = {
+            'pending': '等待中',
+            'running': '生成中...',
+            'completed': '完成',
+            'failed': '失败'
+        };
+        
+        // 只显示最近的10个任务
+        const recentTasks = tasks.slice(0, 10);
+        
+        body.innerHTML = recentTasks.map(task => `
+            <div class="task-item ${task.status} ${task.status === 'pending' || task.status === 'running' ? 'spinner' : ''}">
+                <div class="task-item-icon">${statusIcons[task.status]}</div>
+                <div class="task-item-info">
+                    <div class="task-item-name">${task.name}</div>
+                    <div class="task-item-status">${statusText[task.status]}</div>
+                </div>
+            </div>
+        `).join('');
     }
 
     /**
