@@ -768,6 +768,18 @@ def update_project(project_id):
         }), 500
 
 
+def _sanitize_filename(name):
+    """清理文件名，移除非法字符"""
+    if not name:
+        return ''
+    # 移除路径分隔符和其他非法字符
+    illegal_chars = ['\\', '/', '*', '?', ':', '"', '<', '>', '|']
+    result = name
+    for char in illegal_chars:
+        result = result.replace(char, '_')
+    return result.strip()
+
+
 def _sync_characters_to_visual_assets_obj(characters, visual_assets):
     """将角色列表同步到视觉资产字典
     
@@ -787,6 +799,8 @@ def _sync_characters_to_visual_assets_obj(characters, visual_assets):
         for char in characters:
             if isinstance(char, dict):
                 char_name = char.get('name')
+                # 🔥 清理角色名中的非法字符
+                char_name = _sanitize_filename(char_name)
                 if char_name and char_name not in characters_assets:
                     # 提取角色描述
                     description = char.get('living_characteristics', {}).get('physical_presence', '')
@@ -824,6 +838,8 @@ def _sync_characters_to_visual_assets(project):
         for char in project.characters:
             if isinstance(char, dict):
                 char_name = char.get('name')
+                # 🔥 清理角色名中的非法字符
+                char_name = _sanitize_filename(char_name)
                 if char_name and char_name not in characters_assets:
                     # 提取角色描述
                     description = char.get('living_characteristics', {}).get('physical_presence', '')
@@ -3432,6 +3448,28 @@ def get_visual_assets(project_id):
 
 
 @short_drama_api.route('/projects/<project_id>/visual-assets/<category>', methods=['POST'])
+def _validate_asset_name(name):
+    """验证资产名称是否合法
+    
+    返回: (is_valid, error_message)
+    """
+    if not name or not name.strip():
+        return False, '名称不能为空'
+    
+    # 检查非法字符
+    illegal_chars = ['\\', '/', '*', '?', ':', '"', '<', '>', '|']
+    for char in illegal_chars:
+        if char in name:
+            return False, f'名称不能包含特殊字符: {char}'
+    
+    # 检查长度
+    if len(name) > 50:
+        return False, '名称长度不能超过50个字符'
+    
+    return True, None
+
+
+@short_drama_api.route('/projects/<project_id>/visual-assets/<category>', methods=['POST'])
 def create_visual_asset(project_id, category):
     """
     创建新的视觉资产
@@ -3458,6 +3496,11 @@ def create_visual_asset(project_id, category):
             return jsonify({'success': False, 'error': '缺少资产名称'}), 400
         
         asset_name = data['name']
+        
+        # 🔥 验证名称合法性
+        is_valid, error_msg = _validate_asset_name(asset_name)
+        if not is_valid:
+            return jsonify({'success': False, 'error': error_msg}), 400
         
         # 创建资产数据
         asset_data = {
@@ -3604,9 +3647,9 @@ def _generate_image_sync(project_id, category, name, data):
         if not generator.is_available():
             return {'success': False, 'error': '图片生成服务未配置'}
         
-        # 生成图片保存路径
-        safe_title = re.sub(r'[\\/*?:"<>|]', '_', project.title)
-        safe_name = re.sub(r'[\\/*?:"<>|]', '_', name)
+        # 生成图片保存路径 - 使用统一的清理函数
+        safe_title = _sanitize_filename(project.title)
+        safe_name = _sanitize_filename(name)
         category_dirs = {
             'characters': '角色',
             'scenes': '场景', 
