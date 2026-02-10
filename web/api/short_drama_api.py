@@ -1026,11 +1026,35 @@ def create_from_idea():
             description = episode_data.get('description', '').strip()
             shot_duration = episode_data.get('shot_duration', 5)
             episode_focus = episode_data.get('focus', {})
+            
+            # 提取新版格式的剧情结构
+            plot_structure = episode_data.get('plot_structure', {})
+            key_scenes = episode_data.get('key_scenes', [])
+            character_arc = episode_data.get('character_arc', '')
+            logline = episode_data.get('logline', '')
+            theme = episode_data.get('theme', '')
 
             # 从根级别获取共享数据
             world_setting = data.get('world_setting', '').strip()
+            # 兼容新旧格式：world_setting可能是字符串或字典
+            if isinstance(world_setting, dict):
+                world_setting_str = world_setting.get('time', '') + ' ' + world_setting.get('background', '')
+                world_setting = world_setting_str.strip()
             style = data.get('style', '通用')
             protagonist = data.get('protagonist', {})
+            # 兼容新格式：protagonist可能包含更多字段
+            if isinstance(protagonist, dict):
+                protagonist = {
+                    'name': protagonist.get('name', ''),
+                    'age': protagonist.get('age', ''),
+                    'appearance': protagonist.get('appearance', '') or protagonist.get('description', ''),
+                    'role': protagonist.get('role', '') or protagonist.get('personality', ''),
+                    'gender': protagonist.get('gender', ''),
+                    'occupation': protagonist.get('occupation', ''),
+                    'abilities': protagonist.get('abilities', []),
+                    'goal': protagonist.get('goal', ''),
+                    'catchphrase': protagonist.get('catchphrase', '')
+                }
             shot_count = 3
 
         # 验证必填字段
@@ -1167,13 +1191,21 @@ def create_from_idea():
         else:
             # 2. 调用AI生成故事节拍 (Step 3)
             logger.info(f'[创意导入] 开始生成故事节拍...')
+            # 提取主角基础信息用于故事节拍生成
+            protagonist_for_beats = protagonist_character.get('living_characteristics', {}).get('physical_presence', '') or protagonist_appearance
             story_beats = generate_story_beats_from_idea(
                 title=f"{title} 第{episode}集",
                 description=description,
                 world_setting=world_setting,
                 style=style,
                 total_duration=total_duration,
-                protagonist=protagonist_character
+                protagonist=protagonist_character,
+                plot_structure=plot_structure,
+                key_scenes=key_scenes,
+                character_arc=character_arc,
+                logline=logline,
+                theme=theme,
+                episode_title=episode_title
             )
 
             # 3. 基于故事节拍生成专业分镜头(全英文)(Step 4)
@@ -1346,7 +1378,11 @@ def create_from_idea():
         }), 500
 
 
-def generate_story_beats_from_idea(title: str, description: str, world_setting: str, style: str, total_duration: int = 80, protagonist: dict = None) -> dict:
+def generate_story_beats_from_idea(title: str, description: str, world_setting: str, style: str, 
+                                     total_duration: int = 80, protagonist: dict = None,
+                                     plot_structure: dict = None, key_scenes: list = None,
+                                     character_arc: str = None, logline: str = None, 
+                                     theme: str = None, episode_title: str = None) -> dict:
     """
     根据创意描述生成故事节拍 (Step 3)
     
@@ -1447,17 +1483,68 @@ def generate_story_beats_from_idea(title: str, description: str, world_setting: 
             protagonist_name = protagonist.get('name', '主角')
             protagonist_age = protagonist.get('age', '')
             protagonist_appearance = protagonist.get('appearance', '')
-            protagonist_role = protagonist.get('role', '主角')
+            protagonist_role = protagonist.get('role', '')
+            protagonist_occupation = protagonist.get('occupation', '')
+            protagonist_goal = protagonist.get('goal', '')
+            protagonist_catchphrase = protagonist.get('catchphrase', '')
+            protagonist_abilities = protagonist.get('abilities', [])
+            
             protagonist_section = f"""
 主角信息：
 - 姓名：{protagonist_name}
 - 年龄：{protagonist_age or '未指定'}
-- 身份/性格：{protagonist_role}
+- 身份/职业：{protagonist_occupation or protagonist_role or '未指定'}
 - 外观特征：{protagonist_appearance}
+- 人生目标：{protagonist_goal or '未指定'}
+- 口头禅：{protagonist_catchphrase or '无'}
+- 特殊能力：{、'.join(protagonist_abilities) if protagonist_abilities else '无'}
 
 **重要：在对话中直接使用主角姓名"{protagonist_name}"，不要使用"主角"这个词。**
 """
+        
+        # 🔥 构建剧情结构部分（如果有）
+        plot_structure_section = ""
+        if plot_structure and isinstance(plot_structure, dict):
+            hook = plot_structure.get('hook', {})
+            inciting_incident = plot_structure.get('inciting_incident', {})
+            rising_action = plot_structure.get('rising_action', {})
+            climax = plot_structure.get('climax', {})
+            falling_action = plot_structure.get('falling_action', {})
+            resolution = plot_structure.get('resolution', {})
+            
+            plot_structure_section = f"""
+剧情结构设计：
+【开场】{hook.get('setup', '')}
+【激发事件】{inciting_incident.get('event', '')}
+【升级冲突】{rising_action.get('chase', '') or rising_action.get('attempts', '')}
+【高潮】{climax.get('turning_point', '')}
+【落幅】{falling_action.get('deal', '')}
+【结局】{resolution.get('twist', '')}
+"""
+        
+        # 🔥 关键场景列表（如果有）
+        key_scenes_section = ""
+        if key_scenes and isinstance(key_scenes, list) and len(key_scenes) > 0:
+            key_scenes_text = "\n".join([
+                f"- 场景{i+1}：{scene.get('scene_title', scene.get('title', f'场景{i+1}'))} - {scene.get('key_visuals', scene.get('description', ''))}"
+                for i, scene in enumerate(key_scenes[:6])  # 最多取前6个关键场景
+            ])
+            key_scenes_section = f"""
+关键场景设计（必须包含以下场景）：
+{key_scenes_text}
+"""
 
+        # 副本信息
+        metadata_section = ""
+        if logline:
+            metadata_section += f"\n一句话概括：{logline}\n"
+        if theme:
+            metadata_section += f"主题：{theme}\n"
+        if character_arc:
+            metadata_section += f"角色成长弧：{character_arc}\n"
+        if episode_title and episode_title != f"第{episode}集":
+            metadata_section += f"本集标题：{episode_title}\n"
+        
         user_prompt = f"""
 剧集标题：{title}
 风格：{style}
@@ -1465,17 +1552,22 @@ def generate_story_beats_from_idea(title: str, description: str, world_setting: 
 建议场景数：{min_scenes}-{max_scenes}个(AI根据创意复杂度自由决定)
 {world_setting_section}
 {protagonist_section}
+{metadata_section}
+{plot_structure_section}
+{key_scenes_section}
 
 ## 🔥 核心创意(必须紧紧围绕此展开)
 {description}
 
 ## 生成要求：
 1. **AI自由决定场景数量**：根据创意复杂度生成{min_scenes}-{max_scenes}个场景
-2. **每个场景必须有明确的情绪标签**：如"疑惑→贪婪→决绝"
-3. **相邻场景情绪必须不同**：形成情绪过山车
-4. **场景时长由AI决定**：快节奏3-5秒，对白5-8秒，高潮8-12秒
-5. **必须有强钩子开场和悬念结尾**
-6. **对白中的speaker必须使用角色真实姓名**，如"{protagonist.get('name', '主角') if protagonist else '主角'}"，而不是"主角"
+2. **严格遵循剧情结构设计**：按照【开场】→【激发事件】→【升级冲突】→【高潮】→【落幅】→【结局】的顺序
+3. **必须包含关键场景**：确保上面列出的关键场景都在输出中
+4. **每个场景必须有明确的情绪标签**：如"疑惑→贪婪→决绝"
+5. **相邻场景情绪必须不同**：形成情绪过山车
+6. **场景时长由AI决定**：快节奏3-5秒，对白5-8秒，高潮8-12秒
+7. **必须有强钩子开场和悬念结尾**
+8. **对白中的speaker必须使用角色真实姓名**，如"{protagonist_name}"，而不是"主角"
 
 请生成故事节拍JSON。
 """

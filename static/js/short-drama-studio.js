@@ -10025,7 +10025,7 @@ saveGeminiConfig(config) {
      * 将数据标准化为统一格式
      */
     normalizeToStandard(data) {
-        return {
+        const normalized = {
             title: data.title || data.name || '未命名剧集',
             episode: parseInt(data.episode) || parseInt(data.ep) || 1,
             description: data.description || data.desc || data.summary || data.plot || '',
@@ -10035,6 +10035,26 @@ saveGeminiConfig(config) {
             protagonist: this.normalizeProtagonist(data.protagonist || data.character || data.hero || data.main_character || {}),
             shots: this.normalizeShots(data.shots || data.scenes || data.frames || [])
         };
+        
+        // 提取新版格式的额外字段
+        if (data.episodes && Array.isArray(data.episodes)) {
+            normalized.episodes = data.episodes.map(ep => ({
+                episode: parseInt(ep.episode) || parseInt(ep.ep) || 1,
+                episode_title: ep.episode_title || ep.title || `第${parseInt(ep.episode) || 1}集`,
+                description: ep.description || ep.desc || ep.summary || '',
+                shot_duration: parseInt(ep.shot_duration) || parseInt(ep.duration) || 5,
+                focus: ep.focus || ep.plot_structure || {},
+                // 新版格式字段
+                plot_structure: ep.plot_structure || null,
+                key_scenes: ep.key_scenes || null,
+                character_arc: ep.character_arc || '',
+                logline: ep.logline || '',
+                theme: ep.theme || '',
+                status: ep.status || 'pending'
+            }));
+        }
+        
+        return normalized;
     }
 
     /**
@@ -10540,7 +10560,14 @@ saveGeminiConfig(config) {
             style: data.style || '通用',
             shot_duration: episode.shot_duration || data.shot_duration || 5,
             protagonist: data.protagonist || null,
-            shots: episode.shots || null
+            shots: episode.shots || null,
+            // 新版格式字段
+            episode_title: episode.episode_title || episode.title || `第${episodeNum}集`,
+            plot_structure: episode.plot_structure || null,
+            key_scenes: episode.key_scenes || null,
+            character_arc: episode.character_arc || '',
+            logline: episode.logline || '',
+            theme: episode.theme || ''
         };
 
         // 关闭选择界面
