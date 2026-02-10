@@ -3466,13 +3466,20 @@ def generate_visual_asset(project_id):
                     'error': '图片生成服务未配置，请在 config/config.py 中配置 nanobanana.api_key'
                 }), 500
             
-            # 🔥生成图片保存路径 - 保存到项目目录下，方便管理
+            # 🔥生成图片保存路径 - 按类别分目录保存，方便管理
             asset_id = str(uuid.uuid4())[:8]
-            # 使用项目标题（小说名）作为目录
+            # 使用项目标题（小说名）作为基础目录
             safe_title = re.sub(r'[\\/*?:"<>|]', '_', project.title)
-            project_dir = BASE_DIR / '视频项目' / safe_title / 'visual_assets'
+            # 类别目录映射：characters->角色, scenes->场景, props->道具
+            category_dirs = {
+                'characters': '角色',
+                'scenes': '场景', 
+                'props': '道具'
+            }
+            category_dir = category_dirs.get(category, category)
+            project_dir = BASE_DIR / '视频项目' / safe_title / category_dir
             project_dir.mkdir(parents=True, exist_ok=True)
-            save_path = str(project_dir / f"{category}_{asset_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png")
+            save_path = str(project_dir / f"{asset_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png")
             
             logger.info(f'🎨 开始生成视觉资产: {category}/{name}, 比例: {aspect_ratio}, 尺寸: {image_size}')
             
