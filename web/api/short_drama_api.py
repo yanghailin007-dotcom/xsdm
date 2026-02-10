@@ -12,8 +12,11 @@ import uuid
 import os
 import shutil
 import sys
-from datetime import datetime
+from datetime import datetime, timedelta
 from urllib.parse import unquote, quote
+import threading
+import queue
+import time
 
 from src.utils.logger import get_logger
 from src.core.APIClient import APIClient
@@ -39,6 +42,173 @@ VIDEO_PROJECTS_DIR.mkdir(exist_ok=True)
 # 小说项目目录
 NOVEL_PROJECTS_DIR = BASE_DIR / '小说项目'
 NOVEL_PROJECTS_DIR.mkdir(exist_ok=True)
+
+# ============================================
+# 图片生成任务队列
+# ============================================
+
+class ImageGenerationTask:
+    """图片生成任务"""
+    STATUS_PENDING = 'pending'
+    STATUS_RUNNING = 'running'
+    STATUS_COMPLETED = 'completed'
+    STATUS_FAILED = 'failed'
+    
+    def __init__(self, task_id, project_id, category, name, data):
+        self.task_id = task_id
+        self.project_id = project_id
+        self.category = category
+        self.name = name
+        self.data = data
+        self.status = self.STATUS_PENDING
+        self.result = None
+        self.error = None
+        self.created_at = datetime.now().isoformat()
+        self.started_at = None
+        self.completed_at = None
+    
+    def to_dict(self):
+        return {
+            'task_id': self.task_id,
+            'project_id': self.project_id,
+            'category': self.category,
+            'name': self.name,
+            'status': self.status,
+            'result': self.result,
+            'error': self.error,
+            'created_at': self.created_at,
+            'started_at': self.started_at,
+            'completed_at': self.completed_at
+        }
+
+class ImageGenerationWorker(threading.Thread):
+    """图片生成工作器（后台线程）"""
+    
+    def __init__(self, task_queue, max_concurrent=2):
+        super().__init__(daemon=True)
+        self.task_queue = task_queue
+        self.max_concurrent = max_concurrent
+        self.running = True
+        self.active_tasks = {}
+        self.lock = threading.Lock()
+        
+    def run(self):
+        """主循环：监控任务队列并执行任务"""
+        logger.info(f"🚀 [图片Worker] 启动，最大并发: {self.max_concurrent}")
+        
+        while self.running:
+            try:
+                # 等待可甧的任务空位
+                with self.lock:
+                    active_count = len(self.active_tasks)
+                
+                if active_count >= self.max_concurrent:
+                    time.sleep(0.5)
+                    continue
+                
+                # 获取任务（阻塞式，超时1秒）
+                try:
+                    task = self.task_queue.get(timeout=1)
+                except queue.Empty:
+                    continue
+                
+                # 在单独线程中执行任务
+                thread = threading.Thread(
+                    target=self._execute_task,
+                    args=(task,),
+                    daemon=True
+                )
+                thread.start()
+                
+                with self.lock:
+                    self.active_tasks[task.task_id] = thread
+                
+            except Exception as e:
+                logger.error(f"❌ [图片Worker] 错误: {e}")
+                time.sleep(1)
+    
+    def _execute_task(self, task):
+        """执行单个任务"""
+        try:
+            with self.lock:
+                task.status = ImageGenerationTask.STATUS_RUNNING
+                task.started_at = datetime.now().isoformat()
+            
+            logger.info(f"🎨 [图片任务] 开始执行: {task.task_id} - {task.category}/{task.name}")
+            
+            # 调用实际的图片生成函数
+            result = _generate_image_sync(
+                task.project_id,
+                task.category,
+                task.name,
+                task.data
+            )
+            
+            task.result = result
+            task.status = ImageGenerationTask.STATUS_COMPLETED if result.get('success') else ImageGenerationTask.STATUS_FAILED
+            task.error = result.get('error')
+            
+            logger.info(f"✅ [图片任务] 完成: {task.task_id}")
+            
+        except Exception as e:
+            logger.error(f"❌ [图片任务] 执行失败: {task.task_id} - {e}")
+            task.status = ImageGenerationTask.STATUS_FAILED
+            task.error = str(e)
+        finally:
+            task.completed_at = datetime.now().isoformat()
+            with self.lock:
+                self.active_tasks.pop(task.task_id, None)
+    
+    def stop(self):
+        """停止Worker"""
+        self.running = False
+
+# 全局任务队列和管理器
+_image_task_queue = queue.Queue()
+_image_tasks = {}
+_image_tasks_lock = threading.Lock()
+_image_worker = None
+
+def _get_image_worker():
+    """获取或创建图片生成Worker"""
+    global _image_worker
+    if _image_worker is None or not _image_worker.is_alive():
+        _image_worker = ImageGenerationWorker(_image_task_queue, max_concurrent=2)
+        _image_worker.start()
+        logger.info("🚀 [图片任务] Worker已启动")
+    return _image_worker
+
+def _add_image_task(project_id, category, name, data):
+    """添加图片生成任务到队列"""
+    task_id = f"img_{uuid.uuid4().hex[:12]}"
+    task = ImageGenerationTask(task_id, project_id, category, name, data)
+    
+    with _image_tasks_lock:
+        _image_tasks[task_id] = task
+    
+    _image_task_queue.put(task)
+    _get_image_worker()  # 确保Worker已启动
+    
+    logger.info(f"📝 [图片任务] 已添加: {task_id} - {category}/{name}")
+    return task
+
+def _get_image_task(task_id):
+    """获取任务状态"""
+    with _image_tasks_lock:
+        return _image_tasks.get(task_id)
+
+def _cleanup_old_tasks(max_age_hours=24):
+    """清理超过指定时间的旧任务"""
+    cutoff = datetime.now() - timedelta(hours=max_age_hours)
+    with _image_tasks_lock:
+        to_remove = [
+            task_id for task_id, task in _image_tasks.items()
+            if datetime.fromisoformat(task.created_at) < cutoff
+        ]
+        for task_id in to_remove:
+            del _image_tasks[task_id]
+        if to_remove:
+            logger.info(f"🚮 [图片任务] 清理了 {len(to_remove)} 个旧任务")
 
 
 def _translate_to_chinese_sync(text: str) -> str:
@@ -3412,180 +3582,113 @@ def delete_visual_asset(project_id, category, asset_name):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
-@short_drama_api.route('/projects/<project_id>/visual-assets/generate', methods=['POST'])
-def generate_visual_asset(project_id):
+def _generate_image_sync(project_id, category, name, data):
     """
-    AI 生成视觉资产(角色、场景或道具)
+    同步执行图片生成（用于后台任务队列）
     
-    请求体: {
-        'category': 'characters' | 'scenes' | 'props',
-        'name': '名称',
-        'prompt': '生成提示词(英文)',
-        'aspect_ratio': '16:9' | '9:16' | '1:1' | '4:3',  # 仅用于场景和道具
-        'image_size': '1K' | '2K' | '4K',
-        # 角色特有字段(用于生成四视图):
-        'description': '角色描述',
-        'clothing': '服装描述',
-        'expression': '表情描述'
-    }
-    
-    注意：角色图(character)生成流程:
-    1. 前端传递角色特征(description, clothing, expression)
-    2. 后端自动翻译中文描述为英文(如果需要)
-    3. 后端构建完整的四视图提示词(Character Design Sheet)
-    4. AI生成单张16:9图片，包含:
-       - 左30%: 头部特写(正面)
-       - 右70%: 正面/背面/侧面全身视图(垂直排列)
-
-    前端只需提供简单特征，复杂的提示词工程由后端自动处理。
+    Returns:
+        dict: 生成结果
     """
     try:
-        data = request.json
-        category = data.get('category')
-        
-        if category not in ['characters', 'scenes', 'props']:
-            return jsonify({'success': False, 'error': '不支持的类别'}), 400
+        prompt = data.get('prompt', '')
+        aspect_ratio = data.get('aspect_ratio', '9:16')
+        image_size = data.get('image_size', '2K')
         
         project = ShortDramaProject.load(project_id)
         if not project:
-            return jsonify({'success': False, 'error': '项目不存在'}), 404
+            return {'success': False, 'error': '项目不存在'}
         
-        name = data.get('name')
-        prompt = data.get('prompt', '')
-        aspect_ratio = data.get('aspect_ratio', '9:16')  # 默认竖屏
-        image_size = data.get('image_size', '2K')  # 默认2K
+        from src.utils.NanoBananaImageGenerator import NanoBananaImageGenerator
+        generator = NanoBananaImageGenerator()
         
-        if not name:
-            return jsonify({'success': False, 'error': '缺少名称'}), 400
+        if not generator.is_available():
+            return {'success': False, 'error': '图片生成服务未配置'}
         
-        # 调用 NanoBanana 生成图像
-        try:
-            from src.utils.NanoBananaImageGenerator import NanoBananaImageGenerator
+        # 生成图片保存路径
+        safe_title = re.sub(r'[\\/*?:"<>|]', '_', project.title)
+        safe_name = re.sub(r'[\\/*?:"<>|]', '_', name)
+        category_dirs = {
+            'characters': '角色',
+            'scenes': '场景', 
+            'props': '道具'
+        }
+        category_dir = category_dirs.get(category, category)
+        project_dir = BASE_DIR / '视频项目' / safe_title / category_dir
+        project_dir.mkdir(parents=True, exist_ok=True)
+        save_path = str(project_dir / f"{safe_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png")
+        
+        logger.info(f'🎨 [任务执行] 生成: {category}/{name}')
+        
+        # 角色使用四视图生成，场景和道具使用单图生成
+        if category == 'characters':
+            char_id = name
+            raw_description = data.get('description', '')
+            raw_clothing = data.get('clothing', '')
+            raw_expression = data.get('expression', '')
             
-            generator = NanoBananaImageGenerator()
-            
-            if not generator.is_available():
-                return jsonify({
-                    'success': False, 
-                    'error': '图片生成服务未配置，请在 config/config.py 中配置 nanobanana.api_key'
-                }), 500
-            
-            # 🔥生成图片保存路径 - 按类别分目录，使用中文名称保存，方便识别
-            # 使用项目标题（小说名）作为基础目录
-            safe_title = re.sub(r'[\\/*?:"<>|]', '_', project.title)
-            # 类别目录映射：characters->角色, scenes->场景, props->道具
-            category_dirs = {
-                'characters': '角色',
-                'scenes': '场景', 
-                'props': '道具'
-            }
-            category_dir = category_dirs.get(category, category)
-            project_dir = BASE_DIR / '视频项目' / safe_title / category_dir
-            project_dir.mkdir(parents=True, exist_ok=True)
-            # 使用中文名称保存，方便识别（保留时间戳避免重名）
-            save_path = str(project_dir / f"{name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png")
-            
-            logger.info(f'🎨 开始生成视觉资产: {category}/{name}, 比例: {aspect_ratio}, 尺寸: {image_size}')
-            
-            # 🔥 角色使用四视图生成，场景和道具使用单图生成
-            if category == 'characters':
-                # 🔥🔥🔥 新流程：后端调用AI生成中英双语角色描述，然后构建四视图提示词
-                char_id = name  # 角色ID
-                raw_description = data.get('description', '')
-                raw_clothing = data.get('clothing', '')
-                raw_expression = data.get('expression', '')
-                
-                logger.info(f'🎭 角色 [{char_id}] 生成流程开始...')
-                logger.info(f'📝 原始描述: {raw_description[:50]}...')
-                
-                # Step 1: 调用AI生成标准中英双语角色描述
-                try:
-                    bilingual_desc = _generate_bilingual_character_description(
-                        char_id=char_id,
-                        name=name,
-                        raw_description=raw_description,
-                        raw_clothing=raw_clothing,
-                        raw_expression=raw_expression
-                    )
-                    logger.info(f'✅ 生成双语描述: {bilingual_desc["english"][:80]}...')
-                except Exception as e:
-                    logger.error(f'❌ 生成双语描述失败: {e}')
-                    # 回退到简单描述
-                    bilingual_desc = {
-                        'character_id': char_id,
-                        'chinese': f'{name}，{raw_description}',
-                        'english': f'{name}, {raw_description}',
-                        'tags': []
-                    }
-                
-                # Step 2: 使用生成的英文描述构建四视图提示词
-                result = generator.generate_character_model_sheet(
+            try:
+                bilingual_desc = _generate_bilingual_character_description(
+                    char_id=char_id,
                     name=name,
-                    character_id=char_id,
-                    bilingual_desc=bilingual_desc,
-                    save_path=save_path,
-                    image_size=image_size
+                    raw_description=raw_description,
+                    raw_clothing=raw_clothing,
+                    raw_expression=raw_expression
                 )
-            else:
-                result = generator.generate_image(
-                    prompt=prompt,
-                    aspect_ratio=aspect_ratio,
-                    image_size=image_size,
-                    save_path=save_path
+            except Exception as e:
+                logger.error(f'生成双语描述失败: {e}')
+                bilingual_desc = {
+                    'character_id': char_id,
+                    'chinese': f'{name}，{raw_description}',
+                    'english': f'{name}, {raw_description}',
+                    'tags': []
+                }
+            
+            result = generator.generate_character_model_sheet(
+                name=name,
+                character_id=char_id,
+                bilingual_desc=bilingual_desc,
+                save_path=save_path,
+                image_size=image_size
+            )
+        else:
+            result = generator.generate_image(
+                prompt=prompt,
+                aspect_ratio=aspect_ratio,
+                image_size=image_size,
+                save_path=save_path
+            )
+        
+        if not result.get('success'):
+            return {'success': False, 'error': result.get('error', '生成失败')}
+        
+        local_path = result.get('local_path', '')
+        
+        # 构建URL
+        if local_path and '视频项目' in local_path:
+            rel_path = local_path.split('视频项目')[-1].replace('\\', '/')
+            if rel_path.startswith('/'):
+                rel_path = rel_path[1:]
+            encoded_path = quote(rel_path, safe='/')
+            image_url = f"/project-files/{encoded_path}"
+        else:
+            image_url = result.get('url', '')
+        
+        # 场景和道具添加水印
+        if category != 'characters':
+            try:
+                category_cn = {'scenes': '场景', 'props': '道具'}.get(category, '资产')
+                watermark_text = f"{category_cn}: {name}"
+                generator.add_text_watermark(
+                    image_path=local_path,
+                    text=watermark_text,
+                    position='bottom_right',
+                    font_size=32,
+                    text_color=(255, 255, 255),
+                    bg_color=(0, 0, 0, 200),
+                    padding=15
                 )
-            
-            if not result.get('success'):
-                error_msg = result.get('error', '生成失败')
-                logger.error(f'❌ 图片生成失败: {error_msg}')
-                return jsonify({'success': False, 'error': f'图片生成失败: {error_msg}'}), 500
-            
-            # 获取生成的图片路径
-            local_path = result.get('local_path', '')
-            
-            # 🔥使用项目路径构建URL（使用/project-files/路径，对中文进行URL编码）
-            if local_path and '视频项目' in local_path:
-                # 从localPath提取相对路径
-                rel_path = local_path.split('视频项目')[-1].replace('\\', '/')
-                if rel_path.startswith('/'):
-                    rel_path = rel_path[1:]
-                # 🔥对中文路径进行URL编码
-                encoded_path = quote(rel_path, safe='/')
-                image_url = f"/project-files/{encoded_path}"
-            else:
-                # 回退到生成器返回的URL
-                image_url = result.get('url', '')
-            
-            logger.info(f'✅ 图片生成成功: {image_url}')
-            
-            # 🔥 场景和道具添加文字水印，角色四视图已经有中文标签
-            if category != 'characters':
-                try:
-                    # 构建水印文字
-                    category_cn = {'scenes': '场景', 'props': '道具'}.get(category, '资产')
-                    watermark_text = f"{category_cn}: {name}"
-                    
-                    # 添加水印
-                    generator.add_text_watermark(
-                        image_path=local_path,
-                        text=watermark_text,
-                        position='bottom_right',
-                        font_size=32,
-                        text_color=(255, 255, 255),
-                        bg_color=(0, 0, 0, 200),
-                        padding=15
-                    )
-                    logger.info(f'✅ 已添加水印: {watermark_text}')
-                except Exception as watermark_error:
-                    logger.warning(f'⚠️ 添加水印失败(不影响主流程): {watermark_error}')
-            
-        except ImportError as e:
-            logger.error(f'❌ 图片生成模块导入失败: {e}')
-            return jsonify({'success': False, 'error': '图片生成模块未安装'}), 500
-        except Exception as gen_error:
-            logger.error(f'❌ 图片生成异常: {gen_error}')
-            import traceback
-            logger.error(traceback.format_exc())
-            return jsonify({'success': False, 'error': f'图片生成异常: {str(gen_error)}'}), 500
+            except Exception as e:
+                logger.warning(f'添加水印失败: {e}')
         
         # 构建资产数据
         asset_data = {
@@ -3601,9 +3704,7 @@ def generate_visual_asset(project_id):
             'status': 'completed'
         }
         
-        # 获取现有的额外字段
         existing_asset = project.visualAssets.get(category, {}).get(name, {})
-        
         if category == 'characters':
             asset_data['clothing'] = existing_asset.get('clothing', '')
             asset_data['expression'] = existing_asset.get('expression', '')
@@ -3613,28 +3714,107 @@ def generate_visual_asset(project_id):
         elif category == 'props':
             asset_data['category'] = existing_asset.get('category', '')
         
-        # 保存到项目
         if not project.visualAssets:
             project.visualAssets = {'characters': {}, 'scenes': {}, 'props': {}}
         
-        # 合并新数据和现有数据
-        project.visualAssets[category][name] = {
-            **existing_asset,
-            **asset_data
-        }
+        project.visualAssets[category][name] = {**existing_asset, **asset_data}
         project.updated_at = datetime.now().isoformat()
         project.save()
         
-        logger.info(f'✅ AI生成视觉资产完成: {category}/{name}')
+        logger.info(f'✅ [任务完成] {category}/{name}')
+        return {'success': True, 'data': asset_data}
+        
+    except Exception as e:
+        logger.error(f'❌ [任务失败] {category}/{name}: {e}')
+        return {'success': False, 'error': str(e)}
+
+
+@short_drama_api.route('/projects/<project_id>/visual-assets/generate', methods=['POST'])
+def generate_visual_asset(project_id):
+    """
+    AI 生成视觉资产(异步任务)
+    
+    立即返回任务ID，后台执行生成任务
+    """
+    try:
+        data = request.json
+        category = data.get('category')
+        name = data.get('name')
+        
+        if category not in ['characters', 'scenes', 'props']:
+            return jsonify({'success': False, 'error': '不支持的类别'}), 400
+        
+        if not name:
+            return jsonify({'success': False, 'error': '缺少名称'}), 400
+        
+        project = ShortDramaProject.load(project_id)
+        if not project:
+            return jsonify({'success': False, 'error': '项目不存在'}), 404
+        
+        # 创建异步任务
+        task = _add_image_task(project_id, category, name, data)
         
         return jsonify({
             'success': True,
-            'message': '视觉资产生成成功',
-            'data': asset_data
+            'message': '图片生成任务已提交',
+            'task_id': task.task_id,
+            'status': task.status
         })
         
     except Exception as e:
-        logger.error(f'生成视觉资产失败: {e}')
+        logger.error(f'提交图片生成任务失败: {e}')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@short_drama_api.route('/projects/<project_id>/visual-assets/tasks/<task_id>', methods=['GET'])
+def get_image_task_status(project_id, task_id):
+    """
+    获取图片生成任务状态
+    """
+    try:
+        task = _get_image_task(task_id)
+        if not task:
+            return jsonify({'success': False, 'error': '任务不存在'}), 404
+        
+        # 验证项目ID
+        if task.project_id != project_id:
+            return jsonify({'success': False, 'error': '任务不属于该项目'}), 403
+        
+        return jsonify({
+            'success': True,
+            'task': task.to_dict()
+        })
+        
+    except Exception as e:
+        logger.error(f'获取任务状态失败: {e}')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@short_drama_api.route('/projects/<project_id>/visual-assets/tasks', methods=['GET'])
+def list_image_tasks(project_id):
+    """
+    列出项目的所有图片生成任务
+    """
+    try:
+        project = ShortDramaProject.load(project_id)
+        if not project:
+            return jsonify({'success': False, 'error': '项目不存在'}), 404
+        
+        with _image_tasks_lock:
+            tasks = [
+                task.to_dict() for task in _image_tasks.values()
+                if task.project_id == project_id
+            ]
+        
+        return jsonify({
+            'success': True,
+            'tasks': tasks,
+            'total': len(tasks)
+        })
+        
+    except Exception as e:
+        logger.error(f'列出任务失败: {e}')
+        return jsonify({'success': False, 'error': str(e)}), 500
         import traceback
         logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': str(e)}), 500
