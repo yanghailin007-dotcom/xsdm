@@ -1331,11 +1331,40 @@ class ShortDramaStudio {
     }
 
     /**
+     * 验证资产名称是否合法
+     */
+    validateAssetName(name) {
+        if (!name || !name.trim()) {
+            return { valid: false, error: '名称不能为空' };
+        }
+        
+        const illegalChars = ['\\', '/', '*', '?', ':', '"', '<', '>', '|'];
+        for (const char of illegalChars) {
+            if (name.includes(char)) {
+                return { valid: false, error: `名称不能包含特殊字符: "${char}"` };
+            }
+        }
+        
+        if (name.length > 50) {
+            return { valid: false, error: '名称长度不能超过50个字符' };
+        }
+        
+        return { valid: true };
+    }
+
+    /**
      * 创建新的视觉资产（用于场景和道具）
      */
     async createVisualAsset(category, name, description, options = {}) {
         if (!this.currentProject?.id) {
             this.showToast('请先创建项目', 'warning');
+            return null;
+        }
+        
+        // 🔥 验证名称合法性
+        const validation = this.validateAssetName(name);
+        if (!validation.valid) {
+            this.showToast(`⚠️ ${validation.error}`, 'warning');
             return null;
         }
         
