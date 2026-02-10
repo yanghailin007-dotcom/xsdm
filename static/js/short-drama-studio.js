@@ -466,7 +466,13 @@ class ShortDramaStudio {
                 // 🔥 如果是创意导入项目且只有一个事件，自动选择它
                 if (isCreativeProject && this.events.length === 1) {
                     this.selectedMajorEvent = this.events[0];
+                    // 同时添加到 selectedEpisodes，确保步骤依赖检查通过
+                    const eventId = this.events[0].id;
+                    if (eventId && !this.selectedEpisodes.includes(eventId)) {
+                        this.selectedEpisodes.push(eventId);
+                    }
                     console.log('📝 [创意导入] 自动选择唯一事件:', this.selectedMajorEvent);
+                    console.log('📝 [创意导入] 已自动加入selectedEpisodes:', this.selectedEpisodes);
                 }
 
                 // 加载角色数据
