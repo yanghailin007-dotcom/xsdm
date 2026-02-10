@@ -1517,7 +1517,7 @@ def generate_story_beats_from_idea(title: str, description: str, world_setting: 
 - 外观特征：{protagonist_appearance}
 - 人生目标：{protagonist_goal or '未指定'}
 - 口头禅：{protagonist_catchphrase or '无'}
-- 特殊能力：{、'.join(protagonist_abilities) if protagonist_abilities else '无'}
+- 特殊能力：{'、'.join(protagonist_abilities) if protagonist_abilities else '无'}
 
 **重要：在对话中直接使用主角姓名"{protagonist_name}"，不要使用"主角"这个词。**
 """
