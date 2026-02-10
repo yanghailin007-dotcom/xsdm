@@ -11,6 +11,13 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any, Optional, List
 
+# 🔥 图像处理导入
+try:
+    from PIL import Image, ImageDraw, ImageFont
+    PIL_AVAILABLE = True
+except ImportError:
+    PIL_AVAILABLE = False
+
 # 添加项目根目录到Python路径
 BASE_DIR = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(BASE_DIR))
@@ -117,7 +124,7 @@ class NanoBananaImageGenerator:
         
         # 验证API密钥
         if not self.api_key:
-            self.logger.warn("⚠️ 未配置Nano Banana API密钥，请在config/config.py中配置nanobanana.api_key")
+            self.logger.warning("⚠️ 未配置Nano Banana API密钥，请在config/config.py中配置nanobanana.api_key")
         else:
             # API密钥已配置，无需打印详细信息
             pass
@@ -195,13 +202,13 @@ class NanoBananaImageGenerator:
             except ImportError:
                 compress_image = None
                 max_size_mb = None
-                self.logger.warn("⚠️  图像压缩工具未找到，将使用原始图像")
+                self.logger.warning("⚠️  图像压缩工具未找到，将使用原始图像")
             
             for idx, ref_path in enumerate(all_reference_images):
                 try:
                     # 读取并编码参考图像
                     if not os.path.exists(ref_path):
-                        self.logger.warn(f"⚠️ 参考图像{idx+1}不存在: {ref_path}")
+                        self.logger.warning(f"⚠️ 参考图像{idx+1}不存在: {ref_path}")
                         continue
                     
                     with open(ref_path, 'rb') as f:
@@ -237,7 +244,7 @@ class NanoBananaImageGenerator:
                             self.logger.info(f"🗜️  参考图{idx+1}压缩: {original_size / (1024*1024):.2f} MB -> "
                                            f"{compressed_size / (1024*1024):.2f} MB (压缩率: {compression_ratio:.1f}%)")
                         except Exception as compress_error:
-                            self.logger.warn(f"⚠️  参考图{idx+1}压缩失败，使用原始数据: {compress_error}")
+                            self.logger.warning(f"⚠️  参考图{idx+1}压缩失败，使用原始数据: {compress_error}")
                             ref_image_base64 = base64.b64encode(ref_image_data).decode('utf-8')
                     else:
                         # 不压缩，直接使用原始数据
@@ -481,10 +488,21 @@ class NanoBananaImageGenerator:
                 self.logger.info(f"  - 文本响应: {text_response[:100]}...")
             
             # 返回结果
+            # 🔥 修复URL路径：如果save_path包含generated_images目录，则使用相对路径
+            if 'generated_images' in save_path:
+                # 提取从generated_images开始的相对路径
+                rel_path = save_path.split('generated_images')[-1].replace('\\', '/')
+                if rel_path.startswith('/'):
+                    rel_path = rel_path[1:]
+                image_url = f"/generated_images/{rel_path}"
+            else:
+                # 回退到只使用文件名
+                image_url = f"/generated_images/{os.path.basename(save_path)}"
+
             return {
                 "success": True,
                 "local_path": save_path,
-                "url": f"/generated_images/{os.path.basename(save_path)}",
+                "url": image_url,
                 "prompt": prompt,
                 "aspect_ratio": aspect_ratio,
                 "image_size": image_size,
@@ -577,6 +595,238 @@ class NanoBananaImageGenerator:
             bool: 服务是否可用
         """
         return self.enabled and bool(self.api_key)
+    
+    def add_text_watermark(
+        self,
+        image_path: str,
+        text: str,
+        position: str = 'bottom_right',
+        font_size: int = 24,
+        text_color: tuple = (255, 255, 255),
+        bg_color: tuple = (0, 0, 0, 180),
+        padding: int = 10
+    ) -> str:
+        """
+        给图片添加文字水印
+        
+        Args:
+            image_path: 图片路径
+            text: 要添加的文字
+            position: 位置 ('bottom_right', 'bottom_left', 'top_right', 'top_left', 'center')
+            font_size: 字体大小
+            text_color: 文字颜色 (R, G, B)
+            bg_color: 背景颜色 (R, G, B, A)
+            padding: 内边距
+            
+        Returns:
+            str: 处理后图片的路径
+        """
+        if not PIL_AVAILABLE:
+            self.logger.warning("⚠️ PIL未安装，无法添加文字水印")
+            return image_path
+        
+        try:
+            # 打开图片
+            img = Image.open(image_path)
+            
+            # 转换为RGBA模式（支持透明）
+            if img.mode != 'RGBA':
+                img = img.convert('RGBA')
+            
+            # 创建绘图对象
+            draw = ImageDraw.Draw(img)
+            
+            # 尝试使用系统字体，如果不存在则使用默认字体
+            try:
+                # 尝试使用常见的系统字体
+                font_paths = [
+                    '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',  # Linux
+                    '/System/Library/Fonts/Helvetica.ttc',  # macOS
+                    'C:/Windows/Fonts/arial.ttf',  # Windows
+                    'C:/Windows/Fonts/simhei.ttf',  # Windows 黑体（支持中文）
+                    'C:/Windows/Fonts/simsun.ttc',  # Windows 宋体
+                ]
+                font = None
+                for font_path in font_paths:
+                    if os.path.exists(font_path):
+                        font = ImageFont.truetype(font_path, font_size)
+                        break
+                
+                if font is None:
+                    font = ImageFont.load_default()
+            except Exception:
+                font = ImageFont.load_default()
+            
+            # 计算文字尺寸
+            bbox = draw.textbbox((0, 0), text, font=font)
+            text_width = bbox[2] - bbox[0]
+            text_height = bbox[3] - bbox[1]
+            
+            # 计算位置
+            img_width, img_height = img.size
+            
+            if position == 'bottom_right':
+                x = img_width - text_width - padding * 2
+                y = img_height - text_height - padding * 2
+            elif position == 'bottom_left':
+                x = padding
+                y = img_height - text_height - padding * 2
+            elif position == 'top_right':
+                x = img_width - text_width - padding * 2
+                y = padding
+            elif position == 'top_left':
+                x = padding
+                y = padding
+            elif position == 'center':
+                x = (img_width - text_width) // 2
+                y = (img_height - text_height) // 2
+            else:
+                x = img_width - text_width - padding * 2
+                y = img_height - text_height - padding * 2
+            
+            # 绘制半透明背景
+            overlay = Image.new('RGBA', img.size, (0, 0, 0, 0))
+            overlay_draw = ImageDraw.Draw(overlay)
+            overlay_draw.rectangle(
+                [x - padding, y - padding, x + text_width + padding, y + text_height + padding],
+                fill=bg_color
+            )
+            
+            # 合并图层
+            img = Image.alpha_composite(img, overlay)
+            
+            # 重新创建绘图对象
+            draw = ImageDraw.Draw(img)
+            
+            # 绘制文字
+            draw.text((x, y), text, font=font, fill=text_color)
+            
+            # 转换回RGB（去除透明通道）
+            img = img.convert('RGB')
+            
+            # 保存图片
+            img.save(image_path, 'PNG')
+            
+            self.logger.info(f"✅ 已添加文字水印: {text}")
+            return image_path
+            
+        except Exception as e:
+            self.logger.error(f"❌ 添加文字水印失败: {e}")
+            import traceback
+            self.logger.error(traceback.format_exc())
+            return image_path
+    
+    def generate_character_model_sheet(
+        self,
+        name: str,
+        character_id: str = '',
+        bilingual_desc: dict = None,
+        save_path: Optional[str] = None,
+        image_size: str = '4K'
+    ) -> Dict[str, Any]:
+        """
+        生成角色设计表 (Character Design Sheet) - 使用中英双语描述和角色ID
+        
+        Args:
+            name: 角色名称
+            character_id: 角色唯一ID（用于AI识别匹配）
+            bilingual_desc: 中英双语描述字典 {chinese, english, tags}
+            save_path: 保存路径
+            image_size: 图片尺寸 (1K/2K/4K)
+            
+        Returns:
+            dict: 包含生成结果的字典
+        """
+        if not self.is_available():
+            return {"success": False, "error": "服务不可用"}
+        
+        if not bilingual_desc:
+            return {"success": False, "error": "缺少双语描述"}
+        
+        self.logger.info(f"🎨 开始生成角色设计表: {name} (ID: {character_id})")
+        
+        # 提取双语描述
+        chinese_desc = bilingual_desc.get('chinese', name)
+        english_desc = bilingual_desc.get('english', name)
+        tags = bilingual_desc.get('tags', [name])
+        
+        # 构建角色ID标签（用于AI识别匹配）
+        char_tag = f"CHARACTER_ID_{character_id.upper().replace(' ', '_')}"
+        
+        # ============================================
+        # 构建标准四视图提示词
+        # ============================================
+        final_prompt = f"""[CHARACTER DESIGN SHEET] [ID: {char_tag}]
+
+CHARACTER: {name}
+Chinese: {chinese_desc}
+English: {english_desc}
+Tags: {', '.join(tags)}
+
+---
+
+LAYOUT SPECIFICATION:
+This image shows FOUR views of the SAME character "{name}" arranged in a reference sheet format:
+
+[LEFT 30%] - HEADSHOT CLOSE-UP:
+- Large detailed portrait of {name}'s face
+- Front view, showing exact facial features
+- High detail on eyes, expression, and unique features
+- Same hairstyle as full body views
+
+[RIGHT 70% - VERTICAL STACK]:
+1. TOP - FRONT FULL BODY:
+   - {name} standing in T-pose, facing camera
+   - Complete head-to-toe view
+   - Showing: {english_desc}
+   
+2. MIDDLE - BACK FULL BODY:
+   - {name} from behind, back view
+   - Same outfit, showing back details
+   - Same hairstyle from behind
+   
+3. BOTTOM - SIDE PROFILE FULL BODY:
+   - {name} in side view, full profile
+   - Showing silhouette and body shape
+   - Same outfit from the side
+
+---
+
+CRITICAL REQUIREMENTS:
+- SAME character in all four views (ID: {char_tag})
+- IDENTICAL outfit in all views
+- IDENTICAL hairstyle in all views
+- IDENTICAL face in all views
+- White background, clean line art style
+- Anime model sheet, professional reference
+- 8k, highly detailed, sharp focus
+- Consistent proportions across all views
+
+DO NOT:
+- Change the character between views
+- Alter outfit or hairstyle
+- Crop any body parts
+- Use different art styles
+- Add background elements"""
+
+        self.logger.info(f"📝 四视图提示词长度: {len(final_prompt)} chars")
+        self.logger.info(f"📝 提示词预览: {final_prompt[:300]}...")
+        
+        # 使用16:9比例生成单张四视图
+        result = self.generate_image(
+            prompt=final_prompt,
+            aspect_ratio='16:9',
+            image_size=image_size,
+            save_path=save_path
+        )
+        
+        if result.get('success'):
+            self.logger.info(f"✅ 角色设计表生成成功: {result.get('local_path')}")
+        else:
+            self.logger.error(f"❌ 角色设计表生成失败: {result.get('error')}")
+        
+        return result
+
 
 
 def main():
