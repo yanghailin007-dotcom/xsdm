@@ -3196,7 +3196,7 @@ class ShortDramaStudio {
             </div>
             <div class="shots-list">
                 ${allShots.map((shot, idx) => `
-                    <div class="shot-item" id="storyboardShot_${idx}">
+                    <div class="shot-item" id="storyboardShot_${idx}" style="position: relative;">
                         <div class="shot-number">S${shot._scene_number || shot.scene_number || 1}-#${shot.shot_number || 1}</div>
                         <div class="shot-info">
                             <div class="shot-type">${shot.shot_type || '镜头'}</div>
@@ -3205,7 +3205,15 @@ class ShortDramaStudio {
                             <div class="shot-desc">${shot.veo_prompt?.substring(0, 100) || shot.screen_action?.substring(0, 100) || ''}...</div>
                             ${shot._dialogue_data && shot._dialogue_data.speaker ? `<div class="shot-dialogue" style="font-size: 0.75rem; color: var(--accent);">💬 ${shot._dialogue_data.speaker}: ${shot._dialogue_data.lines?.substring(0, 30) || ''}...</div>` : ''}
                         </div>
-                        <button class="btn btn-sm btn-primary" onclick="shortDramaStudio.generateShotVideo(${idx})">生成视频</button>
+                        <div style="display: flex; gap: 8px; flex-direction: column;">
+                            <button class="btn btn-sm btn-primary" onclick="shortDramaStudio.openMultiImageModal(${idx})">
+                                🎨 多图生成
+                            </button>
+                            <button class="btn btn-sm" onclick="shortDramaStudio.generateShotVideo(${idx})" style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color: white; border: none;">
+                                🎬 生成视频
+                            </button>
+                        </div>
+                        ${shot.generatedImages ? `<div class="generated-images-indicator" style="position: absolute; top: 8px; right: 8px; background: #10b981; color: white; border-radius: 50%; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; font-size: 12px; cursor: pointer;" onclick="shortDramaStudio.openMultiImageModal(${idx})">📷</div>` : ''}
                     </div>
                 `).join('')}
             </div>
@@ -7609,6 +7617,307 @@ saveGeminiConfig(config) {
             shot.veo_prompt = newPrompt.trim();
             this.updateVideoCard(idx);
             this.showToast('提示词已更新', 'success');
+        }
+    }
+
+    /**
+     * 打开多图生成弹窗
+     */
+    openMultiImageModal(idx) {
+        const shot = this.shots[idx];
+        if (!shot) return;
+
+        // 获取当前提示词
+        const promptText = shot.veo_prompt || shot.screen_action || '';
+        
+        // 创建弹窗
+        const modal = document.createElement('div');
+        modal.id = 'multiImageModal';
+        modal.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            padding: 20px;
+        `;
+
+        modal.innerHTML = `
+            <div style="
+                background: var(--surface, #1e293b);
+                border-radius: 12px;
+                max-width: 900px;
+                width: 100%;
+                max-height: 90vh;
+                overflow-y: auto;
+                padding: 24px;
+            ">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h3 style="margin: 0; color: var(--text-primary, #f1f5f9);">🎨 生成多图 - 镜头 ${shot.shot_number || idx + 1}</h3>
+                    <button onclick="document.getElementById('multiImageModal').remove()" style="
+                        background: none;
+                        border: none;
+                        color: var(--text-secondary, #94a3b8);
+                        font-size: 24px;
+                        cursor: pointer;
+                    ">×</button>
+                </div>
+                
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 8px; color: var(--text-secondary, #94a3b8);">提示词</label>
+                    <textarea id="multiImagePrompt" style="
+                        width: 100%;
+                        min-height: 80px;
+                        padding: 12px;
+                        background: var(--surface-light, #334155);
+                        border: 1px solid var(--border, #475569);
+                        border-radius: 8px;
+                        color: var(--text-primary, #f1f5f9);
+                        resize: vertical;
+                    ">${promptText}</textarea>
+                </div>
+                
+                <div style="display: flex; gap: 16px; margin-bottom: 20px;">
+                    <div style="flex: 1;">
+                        <label style="display: block; margin-bottom: 8px; color: var(--text-secondary, #94a3b8);">图片数量</label>
+                        <select id="multiImageCount" style="
+                            width: 100%;
+                            padding: 10px;
+                            background: var(--surface-light, #334155);
+                            border: 1px solid var(--border, #475569);
+                            border-radius: 8px;
+                            color: var(--text-primary, #f1f5f9);
+                        ">
+                            <option value="3">3宫格 (3张)</option>
+                            <option value="6">6宫格 (6张)</option>
+                            <option value="9">9宫格 (9张)</option>
+                        </select>
+                    </div>
+                    <div style="flex: 1;">
+                        <label style="display: block; margin-bottom: 8px; color: var(--text-secondary, #94a3b8);">图片比例</label>
+                        <select id="multiImageRatio" style="
+                            width: 100%;
+                            padding: 10px;
+                            background: var(--surface-light, #334155);
+                            border: 1px solid var(--border, #475569);
+                            border-radius: 8px;
+                            color: var(--text-primary, #f1f5f9);
+                        ">
+                            <option value="16:9">16:9 (宽屏)</option>
+                            <option value="9:16" selected>9:16 (竖屏)</option>
+                            <option value="1:1">1:1 (方形)</option>
+                        </select>
+                    </div>
+                    <div style="flex: 1;">
+                        <label style="display: block; margin-bottom: 8px; color: var(--text-secondary, #94a3b8);">画质</label>
+                        <select id="multiImageQuality" style="
+                            width: 100%;
+                            padding: 10px;
+                            background: var(--surface-light, #334155);
+                            border: 1px solid var(--border, #475569);
+                            border-radius: 8px;
+                            color: var(--text-primary, #f1f5f9);
+                        ">
+                            <option value="2K">2K</option>
+                            <option value="4K" selected>4K</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div style="display: flex; gap: 12px; justify-content: flex-end;">
+                    <button onclick="document.getElementById('multiImageModal').remove()" style="
+                        padding: 10px 20px;
+                        background: var(--surface-light, #334155);
+                        border: 1px solid var(--border, #475569);
+                        border-radius: 8px;
+                        color: var(--text-primary, #f1f5f9);
+                        cursor: pointer;
+                    ">取消</button>
+                    <button onclick="shortDramaStudio.generateMultiImages(${idx})" style="
+                        padding: 10px 24px;
+                        background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+                        border: none;
+                        border-radius: 8px;
+                        color: white;
+                        font-weight: 500;
+                        cursor: pointer;
+                    ">🎨 开始生成</button>
+                </div>
+                
+                <div id="multiImageResults" style="margin-top: 24px; display: none;">
+                    <h4 style="color: var(--text-primary, #f1f5f9); margin-bottom: 16px;">生成结果</h4>
+                    <div id="multiImageGrid" style="
+                        display: grid;
+                        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+                        gap: 16px;
+                    "></div>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+        
+        // 如果已有生成的图片，显示它们
+        if (shot.generatedImages && shot.generatedImages.length > 0) {
+            this.displayMultiImageResults(shot.generatedImages);
+        }
+    }
+
+    /**
+     * 生成多图
+     */
+    async generateMultiImages(idx) {
+        const shot = this.shots[idx];
+        if (!shot) return;
+
+        const prompt = document.getElementById('multiImagePrompt').value;
+        const count = parseInt(document.getElementById('multiImageCount').value);
+        const ratio = document.getElementById('multiImageRatio').value;
+        const quality = document.getElementById('multiImageQuality').value;
+
+        if (!prompt.trim()) {
+            this.showToast('请输入提示词', 'warning');
+            return;
+        }
+
+        // 显示生成中状态
+        const resultsDiv = document.getElementById('multiImageResults');
+        const gridDiv = document.getElementById('multiImageGrid');
+        resultsDiv.style.display = 'block';
+        gridDiv.innerHTML = `
+            <div style="grid-column: 1 / -1; text-align: center; padding: 40px;">
+                <div class="spinner" style="width: 40px; height: 40px; border: 3px solid rgba(99, 102, 241, 0.3); border-top-color: #6366f1; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 16px;"></div>
+                <p style="color: var(--text-secondary, #94a3b8);">正在生成 ${count} 张图片...</p>
+            </div>
+        `;
+
+        try {
+            // 生成多个提示词变体
+            const prompts = [];
+            for (let i = 0; i < count; i++) {
+                prompts.push(`${prompt}, variation ${i + 1}, different angle and lighting`);
+            }
+
+            // 调用批量生成API
+            const response = await fetch('/api/nanobanana/batch-generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    prompts: prompts,
+                    aspect_ratio: ratio,
+                    image_size: quality,
+                    delay: 1.0
+                })
+            });
+
+            const result = await response.json();
+
+            if (result.success && result.results) {
+                // 保存生成的图片到shot
+                shot.generatedImages = result.results.map((r, i) => ({
+                    url: r.url,
+                    path: r.local_path,
+                    prompt: prompts[i],
+                    index: i
+                }));
+                
+                // 显示结果
+                this.displayMultiImageResults(shot.generatedImages);
+                this.showToast(`成功生成 ${shot.generatedImages.length} 张图片`, 'success');
+                
+                // 刷新分镜列表以显示指示器
+                this.renderStoryboards(this.currentStoryboards || []);
+            } else {
+                throw new Error(result.error || '生成失败');
+            }
+        } catch (error) {
+            console.error('生成多图失败:', error);
+            gridDiv.innerHTML = `
+                <div style="grid-column: 1 / -1; text-align: center; padding: 40px; color: var(--danger, #ef4444);">
+                    <p>❌ 生成失败: ${error.message}</p>
+                    <button onclick="shortDramaStudio.generateMultiImages(${idx})" style="margin-top: 16px;" class="btn btn-primary">重试</button>
+                </div>
+            `;
+            this.showToast('生成失败: ' + error.message, 'error');
+        }
+    }
+
+    /**
+     * 显示多图生成结果
+     */
+    displayMultiImageResults(images) {
+        const gridDiv = document.getElementById('multiImageGrid');
+        if (!gridDiv) return;
+
+        gridDiv.innerHTML = images.map((img, idx) => `
+            <div style="
+                background: var(--surface-light, #334155);
+                border-radius: 8px;
+                overflow: hidden;
+                position: relative;
+            ">
+                <img src="${img.url}" style="width: 100%; height: 200px; object-fit: cover;" 
+                    onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+                    onclick="window.open('${img.url}', '_blank')"
+                >
+                <div style="display: none; height: 200px; align-items: center; justify-content: center; color: var(--text-secondary, #94a3b8);">
+                    加载失败
+                </div>
+                <div style="padding: 12px;">
+                    <div style="font-size: 0.75rem; color: var(--text-secondary, #94a3b8); margin-bottom: 8px;">
+                        图片 ${idx + 1}
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <button onclick="window.open('${img.url}', '_blank')" style="
+                            flex: 1;
+                            padding: 6px 12px;
+                            background: var(--primary, #6366f1);
+                            border: none;
+                            border-radius: 4px;
+                            color: white;
+                            font-size: 0.75rem;
+                            cursor: pointer;
+                        ">查看</button>
+                        <button onclick="shortDramaStudio.downloadImage('${img.url}')" style="
+                            flex: 1;
+                            padding: 6px 12px;
+                            background: var(--surface, #1e293b);
+                            border: 1px solid var(--border, #475569);
+                            border-radius: 4px;
+                            color: var(--text-primary, #f1f5f9);
+                            font-size: 0.75rem;
+                            cursor: pointer;
+                        ">下载</button>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    /**
+     * 下载图片
+     */
+    async downloadImage(url) {
+        try {
+            const response = await fetch(url);
+            const blob = await response.blob();
+            const downloadUrl = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = downloadUrl;
+            a.download = `image_${Date.now()}.png`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(downloadUrl);
+            this.showToast('下载开始', 'success');
+        } catch (error) {
+            console.error('下载失败:', error);
+            this.showToast('下载失败', 'error');
         }
     }
 

@@ -3323,6 +3323,22 @@
                                 💡 提示：首尾帧模式会自动优化提示词，强调动态过程，保持人物外观一致
                             </p>
                         </div>
+
+                        <!-- 🔥 九宫格批量生成面板 -->
+                        <div class="frame-grid-panel" style="background: rgba(245, 158, 11, 0.05); border: 1px solid rgba(245, 158, 11, 0.2); border-radius: 0.5rem; padding: 1rem; margin-bottom: 1.5rem;">
+                            <h4 style="margin: 0 0 0.75rem 0; font-size: 0.9rem; color: var(--text-primary);">🖼️ 九宫格图片生成</h4>
+                            <p style="margin: 0 0 0.75rem 0; font-size: 0.8rem; color: var(--text-tertiary);">
+                                根据 frame_sequences.json 生成九宫格图片，用于预览分镜效果
+                            </p>
+                            <div style="display: flex; gap: 0.75rem;">
+                                <button class="btn btn-sm btn-warning" onclick="shortDramaStudio.loadFrameSequences()" style="flex: 1;">
+                                    📂 加载帧序列
+                                </button>
+                                <button class="btn btn-sm btn-warning" onclick="shortDramaStudio.generateAllFrameGrids()" style="flex: 1;">
+                                    🚀 批量生成所有九宫格
+                                </button>
+                            </div>
+                        </div>
                         
                         <div id="storyboardContent">
                             <!-- 分镜头内容 -->
@@ -3985,21 +4001,25 @@
                         const shotId = shot.id || `shot_${sceneNum}_${idx}`;
                         
                         html += `
-                            <div class="shot-item" style="background: rgba(0, 0, 0, 0.2); border-radius: 0.5rem; padding: 0.75rem; border-left: 3px solid #6366f1;">
-                                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem;">
-                                    <span style="font-size: 0.75rem; color: #818cf8; background: rgba(99, 102, 241, 0.2); padding: 0.125rem 0.5rem; border-radius: 0.25rem;">镜头 ${shot.shot_number}</span>
-                                    <span style="font-size: 0.75rem; color: var(--text-tertiary);">${shot.duration || 8}秒</span>
+                            <div class="shot-item">
+                                <!-- 左侧：镜头编号 -->
+                                <div class="shot-number">
+                                    镜头<br>${shot.shot_number}
                                 </div>
-                                
+
+                                <!-- 中间：镜头信息 -->
+                                <div class="shot-info">
+
                                 <!-- 🔥 模式选择器 -->
                                 <div style="margin-bottom: 0.75rem; display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
                                     <span style="font-size: 0.75rem; color: var(--text-tertiary);">提示词模式：</span>
-                                    <select id="mode-select-${shotId}" onchange="shortDramaStudio.switchPromptMode('${shotId}')" 
+                                    <select id="mode-select-${shotId}" onchange="shortDramaStudio.switchPromptMode('${shotId}')"
                                             style="font-size: 0.75rem; padding: 0.25rem 0.5rem; border-radius: 0.25rem; background: rgba(0,0,0,0.3); color: var(--text-primary); border: 1px solid rgba(255,255,255,0.1);">
                                         <option value="standard" ${shot.preferred_mode === 'standard' ? 'selected' : ''}>📋 标准模式</option>
                                         <option value="reference" ${shot.preferred_mode === 'reference' ? 'selected' : ''}>🖼️ 参考图模式</option>
                                         <option value="frames" ${shot.preferred_mode === 'frames' ? 'selected' : ''}>🎞️ 首尾帧模式</option>
                                     </select>
+                                    <span style="font-size: 0.75rem; color: var(--text-tertiary); margin-left: auto;">⏱️ ${shot.duration || 8}秒</span>
                                 </div>
                                 
                                 <!-- 🔥 三种模式的中文描述（根据选择显示） -->
@@ -4086,6 +4106,16 @@
                                         </div>
                                     </details>
                                 ` : ''}
+                                </div>
+
+                                <!-- 右侧：操作按钮 -->
+                                <div class="shot-actions" style="display: flex; flex-direction: column; gap: 0.5rem; align-items: flex-end;">
+                                    <button class="btn btn-sm btn-primary" onclick="shortDramaStudio.generateFrameGrid('${shotId}')" style="white-space: nowrap; font-size: 0.75rem; padding: 0.5rem 0.75rem;">
+                                        🖼️ 生成九宫格
+                                    </button>
+                                    <span id="grid-status-${shotId}" style="font-size: 0.7rem; color: var(--text-tertiary); text-align: right;">未生成</span>
+                                    <div id="grid-preview-${shotId}" style="max-width: 120px;"></div>
+                                </div>
                             </div>
                         `;
                     });
@@ -4156,7 +4186,7 @@
                 const textarea = document.createElement('textarea');
                 textarea.innerHTML = text;
                 const decodedText = textarea.value;
-                
+
                 navigator.clipboard.writeText(decodedText).then(() => {
                     this.showToast('已复制到剪贴板', 'success');
                 }).catch(err => {
@@ -4171,8 +4201,408 @@
                     this.showToast('已复制到剪贴板', 'success');
                 });
             };
-            
+
+            // ============================================
+            // 🔥 九宫格图片生成功能
+            // ============================================
+
+            // 加载 frame_sequences.json 文件
+            shortDramaStudio.loadFrameSequences = async function() {
+                if (!this.currentProject || !this.currentEpisode) {
+                    console.warn('未选择项目或集');
+                    return null;
+                }
+
+                try {
+                    const response = await fetch(`/api/short-drama/projects/${this.currentProject.id}/episodes/${this.currentEpisode.name}/frame_sequences.json`);
+                    if (!response.ok) {
+                        console.warn('frame_sequences.json 文件不存在');
+                        return null;
+                    }
+
+                    const data = await response.json();
+                    this.frameSequences = data;
+                    return data;
+                } catch (error) {
+                    console.error('加载 frame_sequences.json 失败:', error);
+                    return null;
+                }
+            };
+
+            // 生成九宫格图片
+            shortDramaStudio.generateFrameGrid = async function(shotId) {
+                if (!this.frameSequences) {
+                    await this.loadFrameSequences();
+                }
+
+                if (!this.frameSequences) {
+                    this.showToast('请先生成帧序列数据', 'warning');
+                    return;
+                }
+
+                // 查找对应的 sequence
+                const sequence = this.frameSequences.sequences.find(s => s.shot_id === shotId);
+                if (!sequence) {
+                    this.showToast(`未找到 ${shotId} 的帧序列数据`, 'error');
+                    return;
+                }
+
+                // 🔥 显示弹窗，让用户选择参数
+                const dialogResult = await this.showFrameGridDialog(shotId, sequence);
+
+                if (!dialogResult) {
+                    // 用户取消
+                    return;
+                }
+
+                // 显示加载状态
+                const statusEl = document.getElementById(`grid-status-${shotId}`);
+                if (statusEl) {
+                    statusEl.innerHTML = '<span style="color: #818cf8;">⏳ 生成中...</span>';
+                }
+
+                this.showToast(`正在生成 ${shotId} 的九宫格图片...`, 'info');
+
+                try {
+                    const response = await fetch('/api/short-drama/storyboard/generate-frame-grid', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            project_id: this.currentProject.id,
+                            episode_name: this.currentEpisode.name,
+                            shot_id: shotId,
+                            grid_layout: sequence.grid_layout,
+                            frame_count: sequence.frame_count,
+                            frames: sequence.frames,
+                            reference_image: dialogResult.referenceImage,
+                            aspect_ratio: dialogResult.aspectRatio,
+                            image_size: dialogResult.imageSize
+                        })
+                    });
+
+                    const data = await response.json();
+
+                    if (data.success) {
+                        this.showToast(`${shotId} 九宫格生成成功！`, 'success');
+
+                        // 更新显示
+                        if (statusEl) {
+                            statusEl.innerHTML = '<span style="color: #22c55e;">✅ 已生成</span>';
+                        }
+
+                        // 显示生成的图片
+                        this.displayFrameGrid(shotId, data);
+                    } else {
+                        throw new Error(data.message || '生成失败');
+                    }
+                } catch (error) {
+                    console.error('生成九宫格失败:', error);
+                    this.showToast(`生成失败: ${error.message}`, 'error');
+
+                    if (statusEl) {
+                        statusEl.innerHTML = '<span style="color: #ef4444;">❌ 生成失败</span>';
+                    }
+                }
+            };
+
+            // 显示九宫格生成对话框
+            shortDramaStudio.showFrameGridDialog = function(shotId, sequence) {
+                return new Promise((resolve) => {
+                    const modal = document.createElement('div');
+                    modal.id = 'frameGridModal';
+                    modal.className = 'video-confirm-modal';
+                    modal.style.cssText = `
+                        position: fixed;
+                        top: 0;
+                        left: 0;
+                        right: 0;
+                        bottom: 0;
+                        background: rgba(0, 0, 0, 0.8);
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        z-index: 10000;
+                    `;
+
+                    modal.innerHTML = `
+                        <div class="modal-content" style="
+                            background: var(--bg-secondary);
+                            border-radius: 12px;
+                            max-width: 700px;
+                            max-height: 90vh;
+                            overflow-y: auto;
+                            padding: 1.5rem;
+                            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+                        ">
+                            <div class="modal-header" style="
+                                display: flex;
+                                justify-content: space-between;
+                                align-items: center;
+                                margin-bottom: 1rem;
+                                border-bottom: 1px solid var(--border);
+                                padding-bottom: 1rem;
+                            ">
+                                <h3 style="margin: 0; color: var(--text-primary);">🎨 生成九宫格图片</h3>
+                                <button class="btn-close" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-secondary);">×</button>
+                            </div>
+
+                            <div class="modal-body">
+                                <div class="shot-info-section" style="margin-bottom: 1rem;">
+                                    <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
+                                        <span class="badge" style="background: rgba(99, 102, 241, 0.2); color: #818cf8; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.875rem;">${shotId}</span>
+                                        <span class="badge" style="background: rgba(245, 158, 11, 0.2); color: #fbbf24; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.875rem;">${sequence.grid_layout} (${sequence.frame_count} 帧)</span>
+                                    </div>
+                                    <p style="color: var(--text-secondary); margin: 0; font-size: 0.875rem;">📍 时长: ${sequence.duration}秒</p>
+                                </div>
+
+                                <div class="reference-section" style="margin-bottom: 1rem;">
+                                    <label style="font-weight: bold; display: block; margin-bottom: 0.5rem; color: var(--text-primary);">🖼️ 参考图（可选）：</label>
+                                    <div style="
+                                        padding: 1rem;
+                                        background: var(--bg-dark);
+                                        border-radius: 6px;
+                                        border: 1px solid var(--border);
+                                    ">
+                                        <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; margin-bottom: 0.75rem;">
+                                            <input type="checkbox" id="useReferenceImage" style="width: 18px; height: 18px; cursor: pointer;">
+                                            <span style="color: var(--text-primary); font-weight: 500;">使用参考图</span>
+                                        </label>
+                                        <div id="referenceImageSection" style="display: none;">
+                                            <input type="file" id="referenceImageInput" accept="image/*" style="
+                                                width: 100%;
+                                                padding: 0.5rem;
+                                                background: rgba(255, 255, 255, 0.05);
+                                                border: 1px solid var(--border);
+                                                border-radius: 4px;
+                                                color: var(--text-primary);
+                                                cursor: pointer;
+                                            ">
+                                            <div id="referenceImagePreview" style="margin-top: 0.75rem;"></div>
+                                        </div>
+                                        <p style="font-size: 0.8rem; color: var(--text-secondary); margin: 0.5rem 0 0 0;">
+                                            💡 添加参考图可以提高生成质量和一致性
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div class="params-section" style="margin-bottom: 1rem;">
+                                    <label style="font-weight: bold; display: block; margin-bottom: 0.5rem; color: var(--text-primary);">⚙️ 生成参数：</label>
+                                    <div style="
+                                        padding: 1rem;
+                                        background: var(--bg-dark);
+                                        border-radius: 6px;
+                                        border: 1px solid var(--border);
+                                    ">
+                                        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem;">
+                                            <div>
+                                                <label style="font-size: 0.85rem; color: var(--text-secondary); display: block; margin-bottom: 0.25rem;">图片比例：</label>
+                                                <select id="paramAspectRatio" style="
+                                                    width: 100%;
+                                                    padding: 0.5rem;
+                                                    background: rgba(255, 255, 255, 0.05);
+                                                    border: 1px solid var(--border);
+                                                    border-radius: 4px;
+                                                    color: var(--text-primary);
+                                                ">
+                                                    <option value="1:1" selected>1:1 (正方形)</option>
+                                                    <option value="16:9">16:9 (横向)</option>
+                                                    <option value="9:16">9:16 (竖向)</option>
+                                                    <option value="4:3">4:3 (标准)</option>
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label style="font-size: 0.85rem; color: var(--text-secondary); display: block; margin-bottom: 0.25rem;">图片尺寸：</label>
+                                                <select id="paramImageSize" style="
+                                                    width: 100%;
+                                                    padding: 0.5rem;
+                                                    background: rgba(255, 255, 255, 0.05);
+                                                    border: 1px solid var(--border);
+                                                    border-radius: 4px;
+                                                    color: var(--text-primary);
+                                                ">
+                                                    <option value="4K" selected>4K (推荐)</option>
+                                                    <option value="2K">2K</option>
+                                                    <option value="1K">1K</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="frames-preview-section" style="margin-bottom: 1rem;">
+                                    <label style="font-weight: bold; display: block; margin-bottom: 0.5rem; color: var(--text-primary);">🎞️ 帧预览：</label>
+                                    <div style="
+                                        max-height: 200px;
+                                        overflow-y: auto;
+                                        padding: 0.75rem;
+                                        background: var(--bg-dark);
+                                        border-radius: 6px;
+                                        border: 1px solid var(--border);
+                                    ">
+                                        ${sequence.frames.map((frame, idx) => `
+                                            <div style="margin-bottom: 0.5rem; padding: 0.5rem; background: rgba(0, 0, 0, 0.3); border-radius: 4px;">
+                                                <div style="font-size: 0.75rem; color: #818cf8; margin-bottom: 0.25rem;">Frame ${frame.frame_number}</div>
+                                                <div style="font-size: 0.7rem; color: var(--text-secondary); line-height: 1.4;">${frame.description_cn || frame.prompt.substring(0, 100) + '...'}</div>
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="modal-footer" style="
+                                display: flex;
+                                gap: 0.75rem;
+                                justify-content: flex-end;
+                                padding-top: 1rem;
+                                border-top: 1px solid var(--border);
+                            ">
+                                <button class="btn btn-secondary" id="cancelBtn" style="padding: 0.5rem 1.5rem;">
+                                    取消
+                                </button>
+                                <button class="btn btn-primary" id="confirmBtn" style="padding: 0.5rem 1.5rem;">
+                                    🚀 开始生成
+                                </button>
+                            </div>
+                        </div>
+                    `;
+
+                    document.body.appendChild(modal);
+
+                    // 监听参考图复选框
+                    const checkbox = modal.querySelector('#useReferenceImage');
+                    const section = modal.querySelector('#referenceImageSection');
+                    checkbox.addEventListener('change', () => {
+                        section.style.display = checkbox.checked ? 'block' : 'none';
+                    });
+
+                    // 监听文件选择
+                    const fileInput = modal.querySelector('#referenceImageInput');
+                    const preview = modal.querySelector('#referenceImagePreview');
+                    fileInput.addEventListener('change', (e) => {
+                        const file = e.target.files[0];
+                        if (file) {
+                            const reader = new FileReader();
+                            reader.onload = (e) => {
+                                preview.innerHTML = `
+                                    <img src="${e.target.result}" style="max-width: 100%; border-radius: 4px; border: 1px solid var(--border);">
+                                `;
+                            };
+                            reader.readAsDataURL(file);
+                        }
+                    });
+
+                    // 关闭按钮
+                    modal.querySelector('.btn-close').addEventListener('click', () => {
+                        document.body.removeChild(modal);
+                        resolve(null);
+                    });
+
+                    // 取消按钮
+                    modal.querySelector('#cancelBtn').addEventListener('click', () => {
+                        document.body.removeChild(modal);
+                        resolve(null);
+                    });
+
+                    // 确认按钮
+                    modal.querySelector('#confirmBtn').addEventListener('click', async () => {
+                        const useReference = checkbox.checked;
+                        const aspectRatio = modal.querySelector('#paramAspectRatio').value;
+                        const imageSize = modal.querySelector('#paramImageSize').value;
+                        let referenceImageData = null;
+
+                        if (useReference && fileInput.files[0]) {
+                            const file = fileInput.files[0];
+                            referenceImageData = await new Promise((resolve) => {
+                                const reader = new FileReader();
+                                reader.onload = (e) => resolve(e.target.result);
+                                reader.readAsDataURL(file);
+                            });
+                        }
+
+                        document.body.removeChild(modal);
+                        resolve({
+                            referenceImage: referenceImageData,
+                            aspectRatio: aspectRatio,
+                            imageSize: imageSize
+                        });
+                    });
+
+                    // 点击遮罩关闭
+                    modal.addEventListener('click', (e) => {
+                        if (e.target === modal) {
+                            document.body.removeChild(modal);
+                            resolve(null);
+                        }
+                    });
+                });
+            };
+
+            // 确认生成九宫格
+            // 显示生成的九宫格和帧图片
+            shortDramaStudio.displayFrameGrid = function(shotId, data) {
+                const container = document.getElementById(`grid-preview-${shotId}`);
+                if (!container) return;
+
+                let html = `
+                    <div style="margin-top: 1rem; padding: 1rem; background: rgba(0, 0, 0, 0.3); border-radius: 0.5rem;">
+                        <h5 style="margin: 0 0 0.75rem 0; color: var(--text-primary); font-size: 0.875rem;">🖼️ 九宫格图片</h5>
+                        <img src="${data.grid_image_url}" alt="Grid" style="width: 100%; border-radius: 0.375rem; margin-bottom: 1rem;">
+
+                        <h5 style="margin: 0 0 0.75rem 0; color: var(--text-primary); font-size: 0.875rem;">🎞️ 分割后的帧 (${data.frame_images.length})</h5>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0.5rem;">
+                `;
+
+                data.frame_images.forEach(frame => {
+                    html += `
+                        <div style="text-align: center;">
+                            <img src="${frame.url}" alt="Frame ${frame.frame_number}" style="width: 100%; border-radius: 0.25rem; border: 1px solid rgba(255, 255, 255, 0.1);">
+                            <span style="font-size: 0.75rem; color: var(--text-tertiary); display: block; margin-top: 0.25rem;">Frame ${frame.frame_number}</span>
+                        </div>
+                    `;
+                });
+
+                html += `
+                        </div>
+                    </div>
+                `;
+
+                container.innerHTML = html;
+            };
+
+            // 批量生成所有九宫格
+            shortDramaStudio.generateAllFrameGrids = async function() {
+                if (!this.frameSequences) {
+                    await this.loadFrameSequences();
+                }
+
+                if (!this.frameSequences || !this.frameSequences.sequences) {
+                    this.showToast('没有可生成的帧序列', 'warning');
+                    return;
+                }
+
+                const sequences = this.frameSequences.sequences;
+                this.showToast(`开始批量生成 ${sequences.length} 个九宫格...`, 'info');
+
+                let successCount = 0;
+                let failCount = 0;
+
+                for (const sequence of sequences) {
+                    try {
+                        await this.generateFrameGrid(sequence.shot_id);
+                        successCount++;
+                        // 延迟1秒，避免请求过快
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                    } catch (error) {
+                        console.error(`生成 ${sequence.shot_id} 失败:`, error);
+                        failCount++;
+                    }
+                }
+
+                this.showToast(`批量生成完成！成功: ${successCount}, 失败: ${failCount}`, 'success');
+            };
+
             console.log('✅ 故事节拍功能已补充');
+            console.log('✅ 九宫格生成功能已加载');
         }
         
         // 退出登录功能

@@ -4310,6 +4310,252 @@ def generate_story_beats_from_shots(title: str, description: str, shots: list, p
     return story_beats
 
 
+# ============================================
+# 九宫格图片生成功能
+# ============================================
+
+def combine_frame_prompts_for_grid(frames, grid_layout):
+    """
+    将多个帧的 prompts 合并成一个九宫格提示词
+
+    Args:
+        frames: 帧列表，每个帧包含 prompt
+        grid_layout: '1x3', '2x3', '3x3'
+
+    Returns:
+        合并后的提示词字符串
+    """
+    # 根据 grid_layout 确定布局描述
+    layout_descriptions = {
+        '1x3': 'A 1 row by 3 columns storyboard grid layout',
+        '2x3': 'A 2 rows by 3 columns storyboard grid layout (6 panels total)',
+        '3x3': 'A 3x3 storyboard grid layout (9 panels total)'
+    }
+
+    layout_desc = layout_descriptions.get(grid_layout, 'A storyboard grid layout')
+
+    # 构建九宫格提示词
+    grid_prompt = f"{layout_desc}. "
+
+    # 添加每个帧的描述
+    for i, frame in enumerate(frames, 1):
+        prompt = frame.get('prompt', '')
+        grid_prompt += f"Panel {i}: {prompt}. "
+
+    # 添加统一风格要求
+    grid_prompt += "Each panel should be clearly separated with thin black borders. Maintain consistent visual style, lighting, and color palette across all panels. Professional storyboard composition."
+
+    return grid_prompt
+
+
+def split_grid_image_to_frames(grid_image_path, grid_layout, output_dir, frame_count):
+    """
+    将九宫格图片分割成多个帧
+
+    Args:
+        grid_image_path: 九宫格图片路径
+        grid_layout: '1x3', '2x3', '3x3'
+        output_dir: 输出目录
+        frame_count: 实际帧数（用于处理 2x3 布局只有5帧的情况）
+
+    Returns:
+        帧图片路径列表
+    """
+    try:
+        from PIL import Image
+
+        logger.info(f'🖼️ [帧分割] 开始分割 {grid_layout} 网格图...')
+
+        # 打开图片
+        img = Image.open(grid_image_path)
+        width, height = img.size
+
+        # 根据布局计算行列数
+        if grid_layout == '1x3':
+            cols, rows = 3, 1
+        elif grid_layout == '2x3':
+            cols, rows = 3, 2
+        elif grid_layout == '3x3':
+            cols, rows = 3, 3
+        else:
+            raise ValueError(f'不支持的网格布局: {grid_layout}')
+
+        frame_width = width // cols
+        frame_height = height // rows
+
+        # 确保输出目录存在
+        os.makedirs(output_dir, exist_ok=True)
+
+        # 分割图片
+        frame_paths = []
+        frame_number = 1
+
+        for row in range(rows):
+            for col in range(cols):
+                # 如果已经达到所需帧数，停止
+                if frame_number > frame_count:
+                    break
+
+                # 计算裁剪区域
+                left = col * frame_width
+                top = row * frame_height
+                right = (col + 1) * frame_width
+                bottom = (row + 1) * frame_height
+
+                # 裁剪并保存
+                frame = img.crop((left, top, right, bottom))
+                frame_path = os.path.join(output_dir, f'frame_{frame_number}.png')
+                frame.save(frame_path)
+
+                frame_paths.append({
+                    'frame_number': frame_number,
+                    'path': frame_path,
+                    'url': frame_path.replace('\\', '/')  # 转换为URL格式
+                })
+
+                logger.info(f'  ✓ Frame {frame_number} 已保存')
+                frame_number += 1
+
+            # 如果已经达到所需帧数，停止外层循环
+            if frame_number > frame_count:
+                break
+
+        logger.info(f'✅ [帧分割] 完成，共分割 {len(frame_paths)} 帧')
+        return frame_paths
+
+    except Exception as e:
+        logger.error(f'❌ [帧分割] 失败: {e}')
+        import traceback
+        logger.error(traceback.format_exc())
+        return []
+
+
+@short_drama_api.route('/storyboard/generate-frame-grid', methods=['POST'])
+def generate_frame_grid():
+    """
+    根据 frame_sequences.json 生成九宫格图片并分割
+
+    请求参数:
+    {
+        "project_id": "项目ID",
+        "episode_name": "集名称",
+        "shot_id": "shot_1",
+        "grid_layout": "1x3",
+        "frame_count": 3,
+        "frames": [
+            {"frame_number": 1, "prompt": "..."},
+            {"frame_number": 2, "prompt": "..."},
+            {"frame_number": 3, "prompt": "..."}
+        ],
+        "reference_image": "base64...",  # 可选
+        "aspect_ratio": "1:1",  # 可选，默认 1:1
+        "image_size": "4K"  # 可选，默认 4K
+    }
+
+    返回:
+    {
+        "success": true,
+        "grid_image_url": "/path/to/grid.png",
+        "frame_images": [
+            {"frame_number": 1, "url": "/path/to/frame_1.png"},
+            {"frame_number": 2, "url": "/path/to/frame_2.png"},
+            {"frame_number": 3, "url": "/path/to/frame_3.png"}
+        ]
+    }
+    """
+    try:
+        data = request.json
+        project_id = data.get('project_id')
+        episode_name = data.get('episode_name')
+        shot_id = data.get('shot_id')
+        grid_layout = data.get('grid_layout')
+        frame_count = data.get('frame_count', 3)
+        frames = data.get('frames', [])
+        reference_image = data.get('reference_image')
+        aspect_ratio = data.get('aspect_ratio', '1:1')
+        image_size = data.get('image_size', '4K')
+
+        # 验证参数
+        if not all([project_id, episode_name, shot_id, grid_layout, frames]):
+            return jsonify({
+                'success': False,
+                'message': '缺少必需参数'
+            }), 400
+
+        logger.info(f'🎬 [九宫格生成] 开始生成 {shot_id} ({grid_layout})')
+        logger.info(f'   参数: aspect_ratio={aspect_ratio}, image_size={image_size}')
+
+        # 1. 合并提示词
+        grid_prompt = combine_frame_prompts_for_grid(frames, grid_layout)
+        logger.info(f'📝 [九宫格生成] 提示词长度: {len(grid_prompt)} 字符')
+
+        # 2. 调用 NanoBanana 生成九宫格图片
+        from web.services.nanobanana_service import NanoBananaService
+        nanobanana_service = NanoBananaService()
+
+        result = nanobanana_service.generate_image({
+            'prompt': grid_prompt,
+            'aspect_ratio': aspect_ratio,
+            'image_size': image_size
+        })
+
+        if not result.get('success'):
+            return jsonify({
+                'success': False,
+                'message': f'图片生成失败: {result.get("error")}'
+            }), 500
+
+        # 3. 移动图片到项目目录
+        project_dir = VIDEO_PROJECTS_DIR / project_id / episode_name / 'frames' / shot_id
+        project_dir.mkdir(parents=True, exist_ok=True)
+
+        # 复制生成的图片到项目目录
+        grid_image_path = project_dir / 'grid.png'
+        source_path = result.get('local_path')
+
+        if source_path and os.path.exists(source_path):
+            shutil.copy2(source_path, grid_image_path)
+            logger.info(f'✅ [九宫格生成] 图片已保存: {grid_image_path}')
+        else:
+            return jsonify({
+                'success': False,
+                'message': '生成的图片文件不存在'
+            }), 500
+
+        # 4. 分割图片
+        frame_images = split_grid_image_to_frames(
+            str(grid_image_path),
+            grid_layout,
+            str(project_dir),
+            frame_count
+        )
+
+        if not frame_images:
+            return jsonify({
+                'success': False,
+                'message': '图片分割失败'
+            }), 500
+
+        # 5. 返回结果
+        logger.info(f'🎉 [九宫格生成] {shot_id} 生成完成')
+
+        return jsonify({
+            'success': True,
+            'grid_image_url': str(grid_image_path).replace('\\', '/'),
+            'frame_images': frame_images,
+            'message': f'成功生成 {len(frame_images)} 帧'
+        })
+
+    except Exception as e:
+        logger.error(f'❌ [九宫格生成] 失败: {e}')
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({
+            'success': False,
+            'message': f'生成失败: {str(e)}'
+        }), 500
+
+
 def register_short_drama_routes(app):
     """注册短剧工作台路由"""
     app.register_blueprint(short_drama_api)
