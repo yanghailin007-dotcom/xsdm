@@ -61,11 +61,30 @@ class ImageGenerationTask:
         self.name = name
         self.data = data
         self.status = self.STATUS_PENDING
+        self.progress = 0  # 进度百分比 0-100
         self.result = None
         self.error = None
         self.created_at = datetime.now().isoformat()
         self.started_at = None
         self.completed_at = None
+    
+    def get_progress(self):
+        """根据状态返回进度"""
+        if self.status == self.STATUS_PENDING:
+            return 0
+        elif self.status == self.STATUS_RUNNING:
+            # 运行中显示50%，或根据时间计算伪进度
+            if self.started_at:
+                elapsed = (datetime.now() - datetime.fromisoformat(self.started_at)).total_seconds()
+                # 假设图片生成通常需要10-30秒，最多显示90%
+                pseudo_progress = min(90, int(elapsed / 30 * 100))
+                return max(10, pseudo_progress)
+            return 10
+        elif self.status == self.STATUS_COMPLETED:
+            return 100
+        elif self.status == self.STATUS_FAILED:
+            return 0
+        return self.progress
     
     def to_dict(self):
         return {
@@ -74,6 +93,7 @@ class ImageGenerationTask:
             'category': self.category,
             'name': self.name,
             'status': self.status,
+            'progress': self.get_progress(),
             'result': self.result,
             'error': self.error,
             'created_at': self.created_at,

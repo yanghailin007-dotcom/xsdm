@@ -236,7 +236,7 @@ class ShortDramaStudio {
                     </div>
                     <div class="project-card-actions">
                         <button class="btn btn-sm btn-secondary" onclick="event.stopPropagation(); shortDramaStudio.openProject('${project.id}')">📂 打开</button>
-                        <button class="btn btn-sm btn-danger" onclick="event.stopPropagation(); shortDramaStudio.deleteProject('${project.id}')">🗑️ 删除</button>
+                        <button class="btn btn-sm btn-danger" onclick="shortDramaStudio.handleDeleteProject(event, '${project.id}')">🗑️ 删除</button>
                     </div>
                 </div>
             `;
@@ -1985,23 +1985,25 @@ class ShortDramaStudio {
                 
                 if (result.success) {
                     const serverTask = result.task;
+                    const oldStatus = task.status;
                     
                     // 更新本地状态
-                    if (serverTask.status !== task.status) {
-                        task.status = serverTask.status;
-                        task.result = serverTask.result;
-                        task.error = serverTask.error;
-                        
-                        // 状态变化通知
+                    task.status = serverTask.status;
+                    task.progress = serverTask.progress || 0;
+                    task.result = serverTask.result;
+                    task.error = serverTask.error;
+                    
+                    // 状态变化通知
+                    if (serverTask.status !== oldStatus) {
                         if (serverTask.status === 'completed') {
                             this.handleImageTaskCompleted(task);
                         } else if (serverTask.status === 'failed') {
                             this.handleImageTaskFailed(task);
                         }
-                        
-                        // 刷新任务列表显示
-                        this.updateImageTaskList();
                     }
+                    
+                    // 刷新任务列表显示（进度更新也触发刷新）
+                    this.updateImageTaskList();
                 }
             } catch (error) {
                 console.error(`轮询任务 ${task.task_id} 失败:`, error);
@@ -2283,17 +2285,25 @@ class ShortDramaStudio {
                     color: rgba(255,255,255,0.6);
                     margin-top: 2px;
                 }
-                .task-item.spinner::after {
-                    content: '';
-                    width: 14px;
-                    height: 14px;
-                    border: 2px solid rgba(99, 102, 241, 0.3);
-                    border-top-color: #6366f1;
-                    border-radius: 50%;
-                    animation: spin 0.8s linear infinite;
+                .task-item-progress {
+                    width: 60px;
+                    height: 4px;
+                    background: rgba(255,255,255,0.1);
+                    border-radius: 2px;
+                    overflow: hidden;
                 }
-                @keyframes spin {
-                    to { transform: rotate(360deg); }
+                .task-item-progress-bar {
+                    height: 100%;
+                    background: linear-gradient(90deg, #6366f1, #8b5cf6);
+                    border-radius: 2px;
+                    transition: width 0.3s ease;
+                }
+                .task-item-running .task-item-progress-bar {
+                    animation: progress-pulse 1.5s ease-in-out infinite;
+                }
+                @keyframes progress-pulse {
+                    0%, 100% { opacity: 0.6; }
+                    50% { opacity: 1; }
                 }
                 .task-empty {
                     text-align: center;
@@ -2347,15 +2357,24 @@ class ShortDramaStudio {
         // 只显示最近的10个任务
         const recentTasks = tasks.slice(0, 10);
         
-        body.innerHTML = recentTasks.map(task => `
-            <div class="task-item ${task.status} ${task.status === 'pending' || task.status === 'running' ? 'spinner' : ''}">
+        body.innerHTML = recentTasks.map(task => {
+            const progress = task.progress || 0;
+            const showProgress = task.status === 'running' || task.status === 'pending';
+            const runningClass = task.status === 'running' ? 'task-item-running' : '';
+            return `
+            <div class="task-item ${task.status} ${runningClass}">
                 <div class="task-item-icon">${statusIcons[task.status]}</div>
                 <div class="task-item-info">
                     <div class="task-item-name">${task.name}</div>
-                    <div class="task-item-status">${statusText[task.status]}</div>
+                    <div class="task-item-status">${statusText[task.status]}${showProgress && progress > 0 ? ` ${progress}%` : ''}</div>
                 </div>
+                ${showProgress ? `
+                <div class="task-item-progress">
+                    <div class="task-item-progress-bar" style="width: ${progress}%"></div>
+                </div>
+                ` : ''}
             </div>
-        `).join('');
+        `}).join('');
     }
 
     /**
@@ -9528,10 +9547,25 @@ saveGeminiConfig(config) {
     }
 
     /**
+     * 处理删除按钮点击
+     */
+    handleDeleteProject(event, projectId) {
+        // 阻止事件冒泡和默认行为
+        if (event) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+        // 调用删除逻辑
+        this.deleteProject(projectId);
+    }
+
+    /**
      * 删除项目
      */
     async deleteProject(projectId) {
-        if (!confirm('确定要删除这个项目吗？')) {
+        // 显示确认对话框
+        const confirmed = confirm('确定要删除这个项目吗？\n\n此操作不可撤销！');
+        if (!confirmed) {
             return;
         }
 
