@@ -1005,6 +1005,12 @@ def create_from_idea():
             protagonist = data.get('protagonist', {})
             episode_title = f'第{episode}集'
             episode_focus = data.get('first_episode_focus', {})
+            # 旧格式下新增字段使用空值
+            plot_structure = {}
+            key_scenes = []
+            character_arc = ''
+            logline = ''
+            theme = ''
         else:
             # 🔥 从episodes数组中提取数据
             if selected_episode_number is None:
@@ -1225,8 +1231,17 @@ def create_from_idea():
                 character_arc=character_arc,
                 logline=logline,
                 theme=theme,
-                episode_title=episode_title
+                episode_title=episode_title,
+                episode=episode
             )
+            
+            # 检查故事节拍是否成功生成
+            if not story_beats or not story_beats.get('scenes'):
+                logger.error('[创意导入] 故事节拍生成失败，中止后续操作')
+                return jsonify({
+                    'success': False,
+                    'error': '故事节拍生成失败，请稍后重试'
+                }), 500
 
             # 3. 基于故事节拍生成专业分镜头(全英文)(Step 4)
             logger.info(f'[创意导入] 基于故事节拍生成分镜头(全英文)...')
@@ -1402,7 +1417,8 @@ def generate_story_beats_from_idea(title: str, description: str, world_setting: 
                                      total_duration: int = 80, protagonist: dict = None,
                                      plot_structure: dict = None, key_scenes: list = None,
                                      character_arc: str = None, logline: str = None, 
-                                     theme: str = None, episode_title: str = None) -> dict:
+                                     theme: str = None, episode_title: str = None,
+                                     episode: int = 1) -> dict:
     """
     根据创意描述生成故事节拍 (Step 3)
     
@@ -1562,7 +1578,7 @@ def generate_story_beats_from_idea(title: str, description: str, world_setting: 
             metadata_section += f"主题：{theme}\n"
         if character_arc:
             metadata_section += f"角色成长弧：{character_arc}\n"
-        if episode_title and episode_title != f"第{episode}集":
+        if episode_title and episode != 1:
             metadata_section += f"本集标题：{episode_title}\n"
         
         user_prompt = f"""

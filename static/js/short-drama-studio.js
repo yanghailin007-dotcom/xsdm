@@ -236,7 +236,7 @@ class ShortDramaStudio {
                     </div>
                     <div class="project-card-actions">
                         <button class="btn btn-sm btn-secondary" onclick="event.stopPropagation(); shortDramaStudio.openProject('${project.id}')">📂 打开</button>
-                        <button class="btn btn-sm btn-danger" onclick="shortDramaStudio.handleDeleteProject(event, '${project.id}')">🗑️ 删除</button>
+                        <button class="btn btn-sm btn-danger" onclick="event && event.stopPropagation(); event && event.preventDefault(); return shortDramaStudio.deleteProject('${project.id}');">🗑️ 删除</button>
                     </div>
                 </div>
             `;
@@ -9547,27 +9547,19 @@ saveGeminiConfig(config) {
     }
 
     /**
-     * 处理删除按钮点击
-     */
-    handleDeleteProject(event, projectId) {
-        // 阻止事件冒泡和默认行为
-        if (event) {
-            event.preventDefault();
-            event.stopPropagation();
-        }
-        // 调用删除逻辑
-        this.deleteProject(projectId);
-    }
-
-    /**
      * 删除项目
      */
     async deleteProject(projectId) {
-        // 显示确认对话框
-        const confirmed = confirm('确定要删除这个项目吗？\n\n此操作不可撤销！');
-        if (!confirmed) {
-            return;
+        // 显示确认对话框 - 确保用户确认
+        const message = '确定要删除这个项目吗？\n\n此操作不可撤销！';
+        const confirmed = window.confirm(message);
+        
+        if (confirmed !== true) {
+            console.log('[删除] 用户取消删除, projectId:', projectId);
+            return false;
         }
+        
+        console.log('[删除] 用户确认删除, projectId:', projectId);
 
         try {
             const response = await fetch(`/api/short-drama/projects/${projectId}`, {
