@@ -682,13 +682,68 @@ def create_from_idea():
     try:
         data = request.json or {}
         title = data.get('title', '').strip()
-        episode = data.get('episode', 1)
-        description = data.get('description', '').strip()
-        world_setting = data.get('world_setting', '').strip()
-        style = data.get('style', '通用')
-        shot_count = data.get('shot_count', 3)
-        shot_duration = data.get('shot_duration', 8)
-        protagonist = data.get('protagonist', {})
+
+        # 🔥 支持多集数据结构
+        episodes_data = data.get('episodes', [])
+        selected_episode_number = data.get('episode_number')  # 指定要生成的集数
+
+        # 兼容旧的单集格式
+        if not episodes_data:
+            episode = data.get('episode', 1)
+            description = data.get('description', '').strip()
+            world_setting = data.get('world_setting', '').strip()
+            style = data.get('style', '通用')
+            shot_count = data.get('shot_count', 3)
+            shot_duration = data.get('shot_duration', 8)
+            protagonist = data.get('protagonist', {})
+            episode_title = f'第{episode}集'
+            episode_focus = data.get('first_episode_focus', {})
+        else:
+            # 🔥 从episodes数组中提取数据
+            if selected_episode_number is None:
+                # 如果没有指定集数，生成第一个未生成的集
+                selected_episode_number = 1
+
+            # 查找指定的集数据
+            episode_data = None
+            for ep in episodes_data:
+                if ep.get('episode') == selected_episode_number:
+                    episode_data = ep
+                    break
+
+            if not episode_data:
+                return jsonify({
+                    'success': False,
+                    'error': f'未找到第{selected_episode_number}集的数据'
+                }), 400
+
+            # 🔥 检查该集是否已经生成
+            project_dir = VIDEO_PROJECTS_DIR / title
+            episode_name = f'{selected_episode_number}集_创意导入'
+            episode_dir = project_dir / episode_name
+            shots_v2_file = episode_dir / 'shots_v2.json'
+
+            if shots_v2_file.exists() and episode_data.get('status') != 'pending':
+                logger.info(f'⏭️ [创意导入] 第{selected_episode_number}集已生成，跳过')
+                return jsonify({
+                    'success': True,
+                    'message': f'第{selected_episode_number}集已生成，无需重复生成',
+                    'skipped': True,
+                    'episode': selected_episode_number
+                })
+
+            # 提取集数据
+            episode = selected_episode_number
+            episode_title = episode_data.get('episode_title', f'第{episode}集')
+            description = episode_data.get('description', '').strip()
+            shot_duration = episode_data.get('shot_duration', 5)
+            episode_focus = episode_data.get('focus', {})
+
+            # 从根级别获取共享数据
+            world_setting = data.get('world_setting', '').strip()
+            style = data.get('style', '通用')
+            protagonist = data.get('protagonist', {})
+            shot_count = 3
 
         # 验证必填字段
         if not title:
@@ -754,70 +809,134 @@ def create_from_idea():
             'is_protagonist': True
         }
 
-        # 2. 调用AI生成故事节拍 (Step 3)
-        logger.info(f'[创意导入] 开始生成故事节拍...')
-        story_beats = generate_story_beats_from_idea(
-            title=f"{title} 第{episode}集",
-            description=description,
-            world_setting=world_setting,
-            style=style,
-            total_duration=total_duration,
-            protagonist=protagonist_character
-        )
-
-        # 3. 基于故事节拍生成专业分镜头（全英文）(Step 4)
-        logger.info(f'[创意导入] 基于故事节拍生成分镜头（全英文）...')
+        # 检查是否提供了完整的分镜列表
+        provided_shots = data.get('shots')
         
-        # 🔥 创建基础视觉资产（包含主角信息）
-        visual_assets = {
-            'characters': {
-                'protagonist': protagonist_character
-            },
-            'scenes': {},
-            'props': {}
-        }
-        
-        shots_en = generate_shots_from_storybeats(
-            title=title,
-            story_beats=story_beats,
-            style=style,
-            shot_duration=shot_duration,
-            visual_assets=visual_assets
-        )
+        if provided_shots and len(provided_shots) > 0:
+            # 🔥 使用用户提供的完整分镜数据
+            logger.info(f'[创意导入] 使用用户提供的分镜数据，共{len(provided_shots)}个镜头')
+            
+            # 从分镜生成故事节拍（用于兼容）
+            story_beats = generate_story_beats_from_shots(
+                title=f"{title} 第{episode}集",
+                description=description,
+                shots=provided_shots,
+                protagonist=protagonist_character
+            )
+            
+            # 转换用户提供的分镜为标准格式
+            shots_en = []
+            shots_cn = []
+            for i, shot in enumerate(provided_shots, 1):
+                # 构建标准英文分镜格式
+                shot_en = {
+                    'shot_number': shot.get('shot_number', i),
+                    'scene_title': shot.get('scene_title', f'Scene {i}'),
+                    'shot_type': shot.get('shot_type', 'standard'),
+                    'duration_seconds': shot.get('duration', 5),
+                    'veo_prompt_standard': shot.get('veo_prompt', shot.get('content', '')),
+                    'veo_prompt_reference': shot.get('veo_prompt', shot.get('content', '')),
+                    'veo_prompt_frames': shot.get('veo_prompt', shot.get('content', '')),
+                    'dialogue': shot.get('dialogues', [])
+                }
+                shots_en.append(shot_en)
+                
+                # 构建中文分镜格式（复用英文或翻译）
+                shot_cn = {
+                    'shot_number': shot.get('shot_number', i),
+                    'scene_title': shot.get('scene_title', f'场景 {i}'),
+                    'shot_type': shot.get('shot_type', 'standard'),
+                    'duration_seconds': shot.get('duration', 5),
+                    'visual_description_standard': shot.get('content', ''),
+                    'visual_description_reference': shot.get('content', ''),
+                    'visual_description_frames': shot.get('content', ''),
+                    'dialogue': shot.get('dialogues', [])
+                }
+                shots_cn.append(shot_cn)
+            
+            # 保存用户提供的分镜
+            shots_v2_data = {
+                'version': '2.0',
+                'generated_at': datetime.now().isoformat(),
+                'source': 'user_import',
+                'title': title,
+                'episode': episode,
+                'total_shots': len(shots_en),
+                'shots': shots_en
+            }
+            shots_v2_file = episode_dir / 'shots_v2.json'
+            with open(shots_v2_file, 'w', encoding='utf-8') as f:
+                json.dump(shots_v2_data, f, ensure_ascii=False, indent=2)
+                
+            shots_v2_cn_file = episode_dir / 'shots_v2_cn.json'
+            with open(shots_v2_cn_file, 'w', encoding='utf-8') as f:
+                json.dump({**shots_v2_data, 'language': 'cn', 'shots': shots_cn}, f, ensure_ascii=False, indent=2)
+                
+        else:
+            # 2. 调用AI生成故事节拍 (Step 3)
+            logger.info(f'[创意导入] 开始生成故事节拍...')
+            story_beats = generate_story_beats_from_idea(
+                title=f"{title} 第{episode}集",
+                description=description,
+                world_setting=world_setting,
+                style=style,
+                total_duration=total_duration,
+                protagonist=protagonist_character
+            )
 
-        # 4. 保存英文版 shots_v2.json
-        shots_v2_data = {
-            'version': '2.0',
-            'generated_at': datetime.now().isoformat(),
-            'language': 'en',
-            'title': title,
-            'episode': episode,
-            'total_shots': len(shots_en),
-            'shots': shots_en
-        }
-        shots_v2_file = episode_dir / 'shots_v2.json'
-        with open(shots_v2_file, 'w', encoding='utf-8') as f:
-            json.dump(shots_v2_data, f, ensure_ascii=False, indent=2)
-        logger.info(f'✅ [创意导入] 英文分镜头已保存: {shots_v2_file}')
+            # 3. 基于故事节拍生成专业分镜头（全英文）(Step 4)
+            logger.info(f'[创意导入] 基于故事节拍生成分镜头（全英文）...')
+            
+            # 🔥 创建基础视觉资产（包含主角信息）
+            visual_assets = {
+                'characters': {
+                    'protagonist': protagonist_character
+                },
+                'scenes': {},
+                'props': {}
+            }
+            
+            shots_en = generate_shots_from_storybeats(
+                title=title,
+                story_beats=story_beats,
+                style=style,
+                shot_duration=shot_duration,
+                visual_assets=visual_assets
+            )
 
-        # 5. 调用AI将分镜头翻译成中文 (Step 5)
-        logger.info(f'[创意导入] 调用AI翻译分镜头为中文...')
-        shots_cn = translate_shots_to_chinese(shots_en)
+            # 4. 保存英文版 shots_v2.json
+            shots_v2_data = {
+                'version': '2.0',
+                'generated_at': datetime.now().isoformat(),
+                'language': 'en',
+                'title': title,
+                'episode': episode,
+                'total_shots': len(shots_en),
+                'shots': shots_en
+            }
+            shots_v2_file = episode_dir / 'shots_v2.json'
+            with open(shots_v2_file, 'w', encoding='utf-8') as f:
+                json.dump(shots_v2_data, f, ensure_ascii=False, indent=2)
+            logger.info(f'✅ [创意导入] 英文分镜头已保存: {shots_v2_file}')
 
-        # 6. 保存中文版 shots_v2_cn.json
-        shots_v2_cn_data = {
-            'version': '2.0',
-            'generated_at': datetime.now().isoformat(),
-            'language': 'cn',
-            'title': title,
-            'episode': episode,
-            'total_shots': len(shots_cn),
-            'shots': shots_cn
-        }
-        shots_v2_cn_file = episode_dir / 'shots_v2_cn.json'
-        with open(shots_v2_cn_file, 'w', encoding='utf-8') as f:
-            json.dump(shots_v2_cn_data, f, ensure_ascii=False, indent=2)
-        logger.info(f'✅ [创意导入] 中文分镜头已保存: {shots_v2_cn_file}')
+            # 5. 调用AI将分镜头翻译成中文 (Step 5)
+            logger.info(f'[创意导入] 调用AI翻译分镜头为中文...')
+            shots_cn = translate_shots_to_chinese(shots_en)
+
+            # 6. 保存中文版 shots_v2_cn.json
+            shots_v2_cn_data = {
+                'version': '2.0',
+                'generated_at': datetime.now().isoformat(),
+                'language': 'cn',
+                'title': title,
+                'episode': episode,
+                'total_shots': len(shots_cn),
+                'shots': shots_cn
+            }
+            shots_v2_cn_file = episode_dir / 'shots_v2_cn.json'
+            with open(shots_v2_cn_file, 'w', encoding='utf-8') as f:
+                json.dump(shots_v2_cn_data, f, ensure_ascii=False, indent=2)
+            logger.info(f'✅ [创意导入] 中文分镜头已保存: {shots_v2_cn_file}')
 
         # 🔥 提取视觉资产清单 (Step 6)
         logger.info(f'🎨 [创意导入] 开始提取视觉资产...')
@@ -883,7 +1002,7 @@ def create_from_idea():
             'status': 'draft',
             'episodes': [{
                 'id': episode_name,
-                'title': f'第{episode}集',
+                'title': episode_title if 'episode_title' in locals() else f'第{episode}集',
                 'name': episode_name,
                 'content': description,
                 'shot_count': len(merged_shots),
@@ -912,7 +1031,9 @@ def create_from_idea():
             'success': True,
             'project': project_data,
             'storyBeats': story_beats,
-            'message': f'成功创建项目并生成故事节拍，共{len(story_beats.get("scenes", []))}个场景'
+            'episode': episode,
+            'episode_title': episode_title if 'episode_title' in locals() else f'第{episode}集',
+            'message': f'成功创建第{episode}集并生成故事节拍，共{len(story_beats.get("scenes", []))}个场景'
         }), 201
 
     except Exception as e:
@@ -3582,6 +3703,73 @@ def regenerate_frame_sequences():
             'success': False,
             'error': str(e)
         }), 500
+
+
+def generate_story_beats_from_shots(title: str, description: str, shots: list, protagonist: dict = None) -> dict:
+    """
+    根据用户提供的分镜生成故事节拍（用于JSON导入模式）
+    
+    Args:
+        title: 剧集标题
+        description: 创意描述
+        shots: 用户提供的分镜列表
+        protagonist: 主角信息字典
+        
+    Returns:
+        dict: 故事节拍数据
+    """
+    scenes = []
+    current_scene = {
+        'scene_number': 1,
+        'title': '场景 1',
+        'shots': []
+    }
+    
+    for shot in shots:
+        shot_number = shot.get('shot_number', len(current_scene['shots']) + 1)
+        
+        # 构建镜头数据
+        shot_data = {
+            'shot_number': shot_number,
+            'description': shot.get('content', shot.get('veo_prompt', '')),
+            'camera_angle': shot.get('camera_angle', '中景'),
+            'camera_movement': shot.get('camera_movement', '固定'),
+            'duration': shot.get('duration', 5)
+        }
+        
+        # 添加对话信息
+        dialogues = shot.get('dialogues', [])
+        if dialogues:
+            shot_data['dialogues'] = dialogues
+        
+        current_scene['shots'].append(shot_data)
+    
+    # 设置场景标题为第一个镜头的场景标题（如果有）
+    if shots and shots[0].get('scene_title'):
+        current_scene['title'] = shots[0]['scene_title']
+    
+    scenes.append(current_scene)
+    
+    # 构建完整的故事节拍
+    story_beats = {
+        'title': title,
+        'description': description,
+        'total_scenes': len(scenes),
+        'total_shots': len(shots),
+        'source': 'user_import',
+        'scenes': scenes
+    }
+    
+    # 添加主角信息
+    if protagonist:
+        story_beats['protagonist'] = {
+            'name': protagonist.get('name', '主角'),
+            'appearance': protagonist.get('appearance', ''),
+            'role': protagonist.get('role', '')
+        }
+    
+    logger.info(f'✅ [故事节拍] 从用户分镜生成: {len(scenes)}场景, {len(shots)}镜头')
+    return story_beats
 
 
 def register_short_drama_routes(app):

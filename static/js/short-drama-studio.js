@@ -9433,12 +9433,12 @@ saveGeminiConfig(config) {
     async submitJsonImport() {
         const input = document.getElementById('jsonImportInput');
         const value = input.value.trim();
-        
+
         if (!value) {
             this.showToast('请输入JSON内容', 'warning');
             return;
         }
-        
+
         let data;
         try {
             data = JSON.parse(value);
@@ -9446,15 +9446,22 @@ saveGeminiConfig(config) {
             this.showToast('JSON格式错误: ' + e.message, 'error');
             return;
         }
-        
-        // 使用智能解析器处理数据
+
+        // 🔥 检查是否为多集结构
+        if (data.episodes && Array.isArray(data.episodes) && data.episodes.length > 0) {
+            // 多集结构 - 显示集数选择界面
+            await this.showEpisodeSelection(data);
+            return;
+        }
+
+        // 使用智能解析器处理数据（单集结构）
         const parsed = this.parseVariousFormats(data);
-        
+
         if (!parsed) {
             this.showToast('无法识别JSON格式，请点击「智能解析」尝试自动转换', 'error');
             return;
         }
-        
+
         // 验证必填字段
         if (!parsed.title) {
             this.showToast('解析后缺少title字段', 'warning');
@@ -9464,8 +9471,8 @@ saveGeminiConfig(config) {
             this.showToast('解析后缺少description字段', 'warning');
             return;
         }
-        
-        // 构建请求数据
+
+        // 构建请求数据（单集）
         const requestData = {
             title: parsed.title,
             episode: parsed.episode || 1,
@@ -9476,8 +9483,179 @@ saveGeminiConfig(config) {
             protagonist: parsed.protagonist || null,
             shots: parsed.shots || null  // 可选的完整分镜列表
         };
-        
+
         await this.doCreateFromIdea(requestData);
+    }
+
+    /**
+     * 显示集数选择界面
+     */
+    async showEpisodeSelection(data) {
+        const modal = document.getElementById('ideaImportModal');
+        const modalBody = modal.querySelector('.modal-body');
+
+        // 保存原始内容
+        if (!this.originalModalContent) {
+            this.originalModalContent = modalBody.innerHTML;
+        }
+
+        // 构建集数选择界面
+        let html = `
+            <div class="episode-selection">
+                <h4>📺 ${data.title}</h4>
+                <p class="text-secondary">${data.world_setting || ''}</p>
+                <hr>
+                <h5>选择要生成的集数：</h5>
+                <div class="episode-list">
+        `;
+
+        for (const ep of data.episodes) {
+            const episodeNum = ep.episode;
+            const episodeTitle = ep.episode_title || `第${episodeNum}集`;
+            const status = ep.status || 'pending';
+            const statusText = status === 'completed' ? '✅ 已生成' : '⏳ 待生成';
+            const statusClass = status === 'completed' ? 'text-success' : 'text-warning';
+
+            html += `
+                <div class="episode-item" data-episode="${episodeNum}">
+                    <div class="episode-header">
+                        <input type="checkbox" id="ep${episodeNum}" value="${episodeNum}" ${status === 'pending' ? 'checked' : ''}>
+                        <label for="ep${episodeNum}">
+                            <strong>第${episodeNum}集：${episodeTitle}</strong>
+                            <span class="${statusClass}">${statusText}</span>
+                        </label>
+                    </div>
+                    <div class="episode-desc">${ep.description || ''}</div>
+                    ${ep.focus ? `<div class="episode-focus"><strong>重点：</strong>${ep.focus.hook || ''}</div>` : ''}
+                </div>
+            `;
+        }
+
+        html += `
+                </div>
+                <div class="episode-actions">
+                    <button class="btn btn-secondary" onclick="app.cancelEpisodeSelection()">取消</button>
+                    <button class="btn btn-primary" onclick="app.generateSelectedEpisodes()">生成选中集数</button>
+                </div>
+            </div>
+            <style>
+                .episode-selection { padding: 20px; }
+                .episode-list { max-height: 400px; overflow-y: auto; margin: 20px 0; }
+                .episode-item {
+                    border: 1px solid var(--border-color);
+                    border-radius: 8px;
+                    padding: 15px;
+                    margin-bottom: 15px;
+                    background: var(--bg-secondary);
+                }
+                .episode-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+                .episode-header input[type="checkbox"] { width: 20px; height: 20px; }
+                .episode-header label { flex: 1; margin: 0; cursor: pointer; display: flex; justify-content: space-between; }
+                .episode-desc { color: var(--text-secondary); font-size: 0.9em; margin-left: 30px; }
+                .episode-focus { color: var(--text-secondary); font-size: 0.85em; margin-left: 30px; margin-top: 5px; }
+                .episode-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+            </style>
+        `;
+
+        modalBody.innerHTML = html;
+
+        // 保存数据供后续使用
+        this.multiEpisodeData = data;
+    }
+
+    /**
+     * 取消集数选择
+     */
+    cancelEpisodeSelection() {
+        const modal = document.getElementById('ideaImportModal');
+        const modalBody = modal.querySelector('.modal-body');
+        if (this.originalModalContent) {
+            modalBody.innerHTML = this.originalModalContent;
+        }
+        this.multiEpisodeData = null;
+    }
+
+    /**
+     * 生成选中的集数
+     */
+    async generateSelectedEpisodes() {
+        if (!this.multiEpisodeData) {
+            this.showToast('数据丢失，请重新导入', 'error');
+            return;
+        }
+
+        // 获取选中的集数
+        const checkboxes = document.querySelectorAll('.episode-item input[type="checkbox"]:checked');
+        const selectedEpisodes = Array.from(checkboxes).map(cb => parseInt(cb.value));
+
+        if (selectedEpisodes.length === 0) {
+            this.showToast('请至少选择一集', 'warning');
+            return;
+        }
+
+        // 按顺序生成每一集
+        for (const episodeNum of selectedEpisodes.sort((a, b) => a - b)) {
+            await this.generateEpisode(this.multiEpisodeData, episodeNum);
+        }
+
+        // 恢复界面
+        this.cancelEpisodeSelection();
+        this.closeIdeaModal();
+
+        // 重新加载项目列表
+        await this.loadProjects();
+
+        // 打开项目
+        const newProject = this.projects.find(p => p.title === this.multiEpisodeData.title);
+        if (newProject) {
+            await this.openProject(newProject.id);
+        }
+    }
+
+    /**
+     * 生成单集
+     */
+    async generateEpisode(data, episodeNum) {
+        const episode = data.episodes.find(ep => ep.episode === episodeNum);
+        if (!episode) {
+            this.showToast(`未找到第${episodeNum}集数据`, 'error');
+            return;
+        }
+
+        // 构建请求数据
+        const requestData = {
+            title: data.title,
+            world_setting: data.world_setting || '',
+            style: data.style || '通用',
+            protagonist: data.protagonist || null,
+            episodes: data.episodes,  // 🔥 传递完整的episodes数组
+            episode_number: episodeNum  // 🔥 指定要生成的集数
+        };
+
+        this.showToast(`正在生成第${episodeNum}集：${episode.episode_title || ''}...`, 'info');
+
+        try {
+            const response = await fetch('/api/short-drama/create-from-idea', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(requestData)
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                if (result.skipped) {
+                    this.showToast(`第${episodeNum}集已存在，跳过生成`, 'info');
+                } else {
+                    this.showToast(`第${episodeNum}集生成成功！`, 'success');
+                }
+            } else {
+                this.showToast(`第${episodeNum}集生成失败: ${result.error}`, 'error');
+            }
+        } catch (error) {
+            console.error(`第${episodeNum}集生成失败:`, error);
+            this.showToast(`第${episodeNum}集生成失败`, 'error');
+        }
     }
 
     /**
