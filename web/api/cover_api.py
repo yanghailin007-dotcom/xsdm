@@ -169,12 +169,30 @@ def register_cover_routes(app):
             if not full_path.exists():
                 logger.info(f"🔍 [project-files] 文件不存在，尝试智能匹配...")
 
-                # 解析路径：小说名/集名/文件名
+                # 解析路径：小说名/集名/文件名 或 小说名/visual_assets/类别/文件名
                 path_parts = decoded_filepath.split('\\') if '\\' in decoded_filepath else decoded_filepath.split('/')
                 if len(path_parts) >= 3:
                     requested_novel = path_parts[0]
-                    requested_episode = path_parts[1]
-                    requested_file = path_parts[2]
+                    requested_middle = path_parts[1]
+                    
+                    # Check if this is visual_assets path
+                    if requested_middle == 'visual_assets' and len(path_parts) >= 4:
+                        # Handle visual_assets path
+                        category = path_parts[2]
+                        requested_file = path_parts[3]
+                        
+                        # Find novel directory
+                        for novel_dir in base_path.iterdir():
+                            if not novel_dir.is_dir():
+                                continue
+                            if requested_novel in novel_dir.name:
+                                va_dir = novel_dir / 'visual_assets' / category
+                                if va_dir.exists():
+                                    full_path = va_dir / requested_file
+                                    break
+                    else:
+                        requested_episode = requested_middle
+                        requested_file = path_parts[2]
 
                     # 尝试找到实际的小说目录（优先选择包含中文冒号的目录）
                     actual_novel_dir = None
