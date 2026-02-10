@@ -3220,6 +3220,22 @@ def get_visual_assets(project_id):
 
             visual_assets = project.visualAssets or {'characters': {}, 'scenes': {}, 'props': {}}
             logger.info('使用项目对象中的视觉资产')
+        
+        # 🔥修复URL：如果referenceUrl包含乱码，从localPath重新生成
+        for category in ['characters', 'scenes', 'props']:
+            if category in visual_assets:
+                for name, asset in visual_assets[category].items():
+                    local_path = asset.get('localPath', '')
+                    reference_url = asset.get('referenceUrl', '')
+                    if local_path and 'generated_images' in local_path:
+                        # 从localPath生成正确的URL
+                        rel_path = local_path.split('generated_images')[-1].replace('\\', '/')
+                        if rel_path.startswith('/'):
+                            rel_path = rel_path[1:]
+                        correct_url = f"/generated_images/{rel_path}"
+                        if reference_url != correct_url:
+                            logger.info(f'修复URL: {name} - {reference_url} -> {correct_url}')
+                            asset['referenceUrl'] = correct_url
 
         return jsonify({
             'success': True,
@@ -3441,11 +3457,11 @@ def generate_visual_asset(project_id):
                     'error': '图片生成服务未配置，请在 config/config.py 中配置 nanobanana.api_key'
                 }), 500
             
-            # 生成图片保存路径
-            safe_name = re.sub(r'[\\/*?:"<>|]', '_', name)
+            # 生成图片保存路径 - 使用ID避免中文编码问题
+            asset_id = str(uuid.uuid4())[:8]
             save_dir = BASE_DIR / 'generated_images' / 'visual_assets' / project_id
             save_dir.mkdir(parents=True, exist_ok=True)
-            save_path = str(save_dir / f"{category}_{safe_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png")
+            save_path = str(save_dir / f"{category}_{asset_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png")
             
             logger.info(f'🎨 开始生成视觉资产: {category}/{name}, 比例: {aspect_ratio}, 尺寸: {image_size}')
             
