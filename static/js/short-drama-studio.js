@@ -2720,6 +2720,7 @@ class ShortDramaStudio {
             // 🔥 后端返回的是数组格式
             if (data.success && data.storyboards && data.storyboards.length > 0) {
                 console.log('✅ [分镜头] 从本地加载分镜头:', data.storyboards.length, '个文件');
+                this.currentStoryboards = data.storyboards;
                 this.renderStoryboards(data.storyboards);
             } else {
                 console.log('❌ [分镜头] 没有找到分镜头数据');
@@ -2795,6 +2796,7 @@ class ShortDramaStudio {
             const storyboard = this.extractEmbeddedStoryboard(selectedEpisodesList);
             this.currentProject = { ...this.currentProject, storyboard: storyboard };
             await this.saveProject();
+            this.currentStoryboard = storyboard;
             this.renderStoryboard(storyboard);
             return;
         }
@@ -2827,6 +2829,7 @@ class ShortDramaStudio {
                 this.currentProject = { ...this.currentProject, storyboard: data.storyboard };
                 // 🔥 保存项目到文件系统，这样后续剧照API才能找到目录
                 await this.saveProject();
+                this.currentStoryboard = data.storyboard;
                 this.renderStoryboard(data.storyboard);
             } else {
                 container.innerHTML = `
@@ -3320,7 +3323,15 @@ class ShortDramaStudio {
                             <div class="shot-desc">${shot.veo_prompt?.substring(0, 100)}...</div>
                             ${shot._dialogue_data && shot._dialogue_data.speaker ? `<div class="shot-dialogue" style="font-size: 0.75rem; color: var(--accent);">💬 ${shot._dialogue_data.speaker}: ${shot._dialogue_data.lines?.substring(0, 30) || ''}...</div>` : ''}
                         </div>
-                        <button class="btn btn-sm btn-primary" onclick="shortDramaStudio.generateShotVideo(${idx})">生成视频</button>
+                        <div style="display: flex; gap: 8px; flex-direction: column;">
+                            <button class="btn btn-sm btn-primary" onclick="shortDramaStudio.openMultiImageModal(${idx})">
+                                🎨 多图生成
+                            </button>
+                            <button class="btn btn-sm" onclick="shortDramaStudio.generateShotVideo(${idx})" style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color: white; border: none;">
+                                🎬 生成视频
+                            </button>
+                        </div>
+                        ${shot.generatedImages ? `<div class="generated-images-indicator" style="position: absolute; top: 8px; right: 8px; background: #10b981; color: white; border-radius: 50%; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; font-size: 12px; cursor: pointer;" onclick="shortDramaStudio.openMultiImageModal(${idx})">📷</div>` : ''}
                     </div>
                 `).join('')}
             </div>
@@ -3470,6 +3481,7 @@ class ShortDramaStudio {
 
                     if (data.success && data.storyboards && data.storyboards.length > 0) {
                         // 使用 renderStoryboard 解析数据
+                        this.currentStoryboard = data.storyboards;
                         this.renderStoryboard(data.storyboards);
                         allShots = this.shots;
                         console.log('✅ [视频步骤] 旧格式数据已加载, this.shots.length:', this.shots?.length);
@@ -7621,6 +7633,63 @@ saveGeminiConfig(config) {
     }
 
     /**
+     * 通过 shotId 打开多图生成弹窗
+     * @param {string} shotId - 镜头ID (格式: shot_sceneNum_idx)
+     */
+    openMultiImageModalByShotId(shotId) {
+        // 优先使用 this.currentProject.shots（renderShotsList 使用的数据源）
+        const shots = this.currentProject?.shots || this.shots || [];
+        
+        if (!shots || shots.length === 0) {
+            this.showToast('没有可用的镜头数据', 'error');
+            return;
+        }
+        
+        // 从 shotId 提取索引信息
+        // shotId 格式: shot_${sceneNum}_${idx} 或 shot_1_2
+        let idx = -1;
+        
+        // 尝试从 shots 中查找匹配的 shot
+        idx = shots.findIndex(s => s.id === shotId || s.shot_id === shotId);
+        
+        // 如果没找到，尝试解析 shotId 提取索引
+        if (idx === -1 && shotId.startsWith('shot_')) {
+            const parts = shotId.split('_');
+            if (parts.length >= 3) {
+                const sceneNum = parseInt(parts[1]);
+                const shotIdx = parseInt(parts[2]);
+                // 计算全局索引
+                idx = shots.findIndex(s => 
+                    (s._scene_number || s.scene_number) == sceneNum && 
+                    (s.shot_number == (shotIdx + 1) || s.idx == shotIdx)
+                );
+            }
+        }
+        
+        // 如果还是没找到，尝试通过 scene_number 和 shot_number 查找
+        if (idx === -1 && shotId.startsWith('shot_')) {
+            const parts = shotId.split('_');
+            if (parts.length >= 3) {
+                const sceneNum = parseInt(parts[1]);
+                const shotNum = parseInt(parts[2]) + 1; // idx 是从 0 开始的，shot_number 是从 1 开始的
+                idx = shots.findIndex(s => 
+                    (s.scene_number || s._scene_number) == sceneNum && 
+                    s.shot_number == shotNum
+                );
+            }
+        }
+        
+        if (idx === -1) {
+            this.showToast('未找到对应的镜头: ' + shotId, 'error');
+            return;
+        }
+        
+        // 将找到的镜头设置到 this.shots 中，以便 openMultiImageModal 使用
+        this.shots = shots;
+        this.openMultiImageModal(idx);
+    }
+
+    /**
      * 打开多图生成弹窗
      */
     openMultiImageModal(idx) {
@@ -7708,9 +7777,9 @@ saveGeminiConfig(config) {
                             border-radius: 8px;
                             color: var(--text-primary, #f1f5f9);
                         ">
+                            <option value="1:1" selected>1:1 (方形)</option>
                             <option value="16:9">16:9 (宽屏)</option>
-                            <option value="9:16" selected>9:16 (竖屏)</option>
-                            <option value="1:1">1:1 (方形)</option>
+                            <option value="9:16">9:16 (竖屏)</option>
                         </select>
                     </div>
                     <div style="flex: 1;">
@@ -7831,7 +7900,13 @@ saveGeminiConfig(config) {
                 this.showToast(`成功生成 ${shot.generatedImages.length} 张图片`, 'success');
                 
                 // 刷新分镜列表以显示指示器
-                this.renderStoryboards(this.currentStoryboards || []);
+                if (this.currentStoryboards && this.currentStoryboards.length > 0) {
+                    this.renderStoryboards(this.currentStoryboards);
+                } else if (this.currentStoryboard) {
+                    this.renderStoryboard(this.currentStoryboard);
+                } else if (this.currentProject?.shots) {
+                    this.renderShotsList();
+                }
             } else {
                 throw new Error(result.error || '生成失败');
             }
@@ -8735,6 +8810,7 @@ saveGeminiConfig(config) {
                 const response = await fetch(`/api/short-drama/storyboards?novel=${encodeURIComponent(this.selectedNovel)}&episode=${encodeURIComponent(episodeDirectoryName)}`);
                 const data = await response.json();
                 if (data.success && data.storyboards) {
+                    this.currentStoryboard = data.storyboards;
                     this.renderStoryboard(data.storyboards);
                     console.log('🎙️ [配音] 已加载 storyboard 数据');
                 }
@@ -10968,6 +11044,14 @@ saveGeminiConfig(config) {
                                     </div>
                                 </details>
                             ` : ''}
+                        </div>
+                        
+                        <!-- 右侧：操作按钮 -->
+                        <div class="shot-actions" style="display: flex; flex-direction: column; gap: 0.5rem; align-items: flex-end; margin-left: 1rem; min-width: 100px;">
+                            <button class="btn btn-sm" onclick="shortDramaStudio.openMultiImageModalByShotId('${shotId}')" style="white-space: nowrap; background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color: white; border: none; padding: 0.5rem 0.75rem; border-radius: 0.375rem; cursor: pointer; font-size: 0.8rem;">
+                                🎨 多图生成
+                            </button>
+                            ${shot.generatedImages?.length > 0 ? `<span style="font-size: 0.7rem; color: #10b981;">✓ 已生成${shot.generatedImages.length}张</span>` : ''}
                         </div>
                     </div>
                 `;

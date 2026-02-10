@@ -4110,7 +4110,10 @@
 
                                 <!-- 右侧：操作按钮 -->
                                 <div class="shot-actions" style="display: flex; flex-direction: column; gap: 0.5rem; align-items: flex-end;">
-                                    <button class="btn btn-sm btn-primary" onclick="shortDramaStudio.generateFrameGrid('${shotId}')" style="white-space: nowrap; font-size: 0.75rem; padding: 0.5rem 0.75rem;">
+                                    <button class="btn btn-sm btn-primary" onclick="shortDramaStudio.openMultiImageModalByShotId('${shotId}')" style="white-space: nowrap; font-size: 0.75rem; padding: 0.5rem 0.75rem; background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); border: none; color: white;">
+                                        🎨 多图生成
+                                    </button>
+                                    <button class="btn btn-sm" onclick="shortDramaStudio.generateFrameGrid('${shotId}')" style="white-space: nowrap; font-size: 0.75rem; padding: 0.5rem 0.75rem; background: rgba(245, 158, 11, 0.2); border: 1px solid rgba(245, 158, 11, 0.4); color: #f59e0b;">
                                         🖼️ 生成九宫格
                                     </button>
                                     <span id="grid-status-${shotId}" style="font-size: 0.7rem; color: var(--text-tertiary); text-align: right;">未生成</span>
