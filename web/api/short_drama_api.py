@@ -1,3 +1,4 @@
+﻿# -*- coding: utf-8 -*-
 """
 短剧工作台 API
 处理项目、角色、分镜头、视频生成等操作
@@ -41,7 +42,7 @@ NOVEL_PROJECTS_DIR.mkdir(exist_ok=True)
 
 
 def _translate_to_chinese_sync(text: str) -> str:
-    """同步翻译英文到中文（内部使用）"""
+    """同步翻译英文到中文(内部使用)"""
     try:
         if not api_client:
             logger.warning('AI客户端未初始化，跳过翻译')
@@ -50,7 +51,7 @@ def _translate_to_chinese_sync(text: str) -> str:
         system_prompt = """你是一个专业的视频提示词翻译专家。
 请将英文视频生成提示词翻译成流畅的中文，保持专业术语的准确性。
 注意：
-- 保持技术术语的准确性（如 cinematic, photorealistic, 8k 等可以保留或翻译为"电影级"、"写实风格"、"8K超清"）
+- 保持技术术语的准确性(如 cinematic, photorealistic, 8k 等可以保留或翻译为"电影级"、"写实风格"、"8K超清")
 - 翻译要自然流畅，符合中文表达习惯
 - 保持原文的结构和重点
 - 只返回翻译结果，不要添加任何解释"""
@@ -68,6 +69,100 @@ def _translate_to_chinese_sync(text: str) -> str:
     except Exception as e:
         logger.error(f'翻译失败: {e}')
         return text  # 翻译失败返回原文
+
+
+def _generate_bilingual_character_description(
+    char_id: str,
+    name: str,
+    raw_description: str,
+    raw_clothing: str,
+    raw_expression: str
+) -> dict:
+    """
+    生成标准中英双语角色描述
+    
+    Returns:
+        {
+            'character_id': '角色ID',
+            'chinese': '中文描述',
+            'english': '英文描述(用于AI生成)',
+            'tags': ['标签1', '标签2']
+        }
+    """
+    try:
+        if not api_client:
+            logger.warning('AI客户端未初始化，使用简单描述')
+            return {
+                'character_id': char_id,
+                'chinese': f'{name}，{raw_description}，穿着{raw_clothing}，{raw_expression}',
+                'english': f'{name}, {raw_description}, wearing {raw_clothing}, {raw_expression} expression',
+                'tags': []
+            }
+        
+        system_prompt = """You are a professional character description engineer.
+Based on the provided character information, generate a STANDARDIZED bilingual character description.
+
+OUTPUT FORMAT (JSON):
+{
+    "chinese": "完整的中文角色描述，包含外貌、服装、气质",
+    "english": "Complete English character description for AI image generation, include appearance, clothing, personality",
+    "tags": ["tag1", "tag2", "tag3"]
+}
+
+GUIDELINES:
+- Chinese: Natural, descriptive, suitable for display
+- English: Detailed, vivid adjectives, suitable for Stable Diffusion/Midjourney prompts
+- Include age, gender, distinctive features, clothing details
+- Tags should be key visual identifiers
+- Character name should appear in both languages"""
+
+        user_prompt = f"""Generate bilingual description for character:
+
+Character ID: {char_id}
+Name: {name}
+Raw Description: {raw_description}
+Clothing: {raw_clothing}
+Expression: {raw_expression}
+
+Provide JSON output with chinese, english, and tags."""
+
+        response = api_client.call_api(
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            json_mode=True
+        )
+        
+        if response:
+            import json
+            try:
+                result = json.loads(response)
+                result['character_id'] = char_id
+                return result
+            except json.JSONDecodeError:
+                # 如果不是JSON，手动构建
+                return {
+                    'character_id': char_id,
+                    'chinese': f'{name}，{raw_description}',
+                    'english': response.strip(),
+                    'tags': [name]
+                }
+        
+        # 回退
+        return {
+            'character_id': char_id,
+            'chinese': f'{name}，{raw_description}',
+            'english': f'{name}, {raw_description}',
+            'tags': [name]
+        }
+        
+    except Exception as e:
+        logger.error(f'生成双语描述失败: {e}')
+        return {
+            'character_id': char_id,
+            'chinese': f'{name}，{raw_description}',
+            'english': f'{name}, {raw_description}',
+            'tags': []
+        }
 
 
 def get_project_dir(novel_title: str) -> Path:
@@ -179,8 +274,9 @@ class ShortDramaProject:
                             project.episodes = data.get('episodes', [])
                             project.characters = data.get('characters', [])
                             project.storyBeats = data.get('storyBeats')
+                            project.visualAssets = data.get('visualAssets', {'characters': {}, 'scenes': {}, 'props': {}})
                             project.settings = data.get('settings', project.settings)
-                            logger.info(f"[ShortDramaProject.load] 加载后storyBeats: {project.storyBeats is not None}")
+                            logger.info(f"[ShortDramaProject.load] 加载后storyBeats: {project.storyBeats is not None}, visualAssets: {len(project.visualAssets.get('characters', {}))}角色")
 
                             # 🔥 加载每个episode的storyboard数据
                             project._load_episode_storyboards(project_dir)
@@ -205,17 +301,17 @@ class ShortDramaProject:
                 episode_dir = project_dir / episode_name
                 episode_dir_name = episode_name
 
-            # 🔥 优先检查是否存在 shots_v2_cn.json（创意导入格式）
+            # 🔥 优先检查是否存在 shots_v2_cn.json(创意导入格式)
             shots_v2_cn_file = episode_dir / 'shots_v2_cn.json'
             shots_v2_en_file = episode_dir / 'shots_v2.json'
 
             if shots_v2_cn_file.exists() and shots_v2_en_file.exists():
                 try:
-                    # 加载中文版本（用于显示）
+                    # 加载中文版本(用于显示)
                     with open(shots_v2_cn_file, 'r', encoding='utf-8') as f:
                         shots_cn_data = json.load(f)
 
-                    # 加载英文版本（用于AI提示词）
+                    # 加载英文版本(用于AI提示词)
                     with open(shots_v2_en_file, 'r', encoding='utf-8') as f:
                         shots_en_data = json.load(f)
 
@@ -242,17 +338,17 @@ class ShortDramaProject:
                             'scene_title': shot_cn.get('scene_title', ''),
                             'shot_type': shot_cn.get('shot_type', ''),
                             'duration': shot_cn.get('duration_seconds', 8),
-                            # 🔥 英文提示词（用于AI生成）
+                            # 🔥 英文提示词(用于AI生成)
                             'veo_prompt_standard': shot_en.get('veo_prompt_standard', ''),
                             'veo_prompt_reference': shot_en.get('veo_prompt_reference', ''),
                             'veo_prompt_frames': shot_en.get('veo_prompt_frames', ''),
-                            # 🔥 中文描述（用于显示）
+                            # 🔥 中文描述(用于显示)
                             'visual_description_standard': shot_cn.get('visual_description_standard', ''),
                             'visual_description_reference': shot_cn.get('visual_description_reference', ''),
                             'visual_description_frames': shot_cn.get('visual_description_frames', ''),
-                            # 🔥 四种图片提示词（英文，用于AI生成）
+                            # 🔥 四种图片提示词(英文，用于AI生成)
                             'image_prompts': shot_en.get('image_prompts', {}),
-                            # 🔥 四种图片提示词（中文，用于显示）
+                            # 🔥 四种图片提示词(中文，用于显示)
                             'image_prompts_cn': shot_cn.get('image_prompts_cn', {}),
                             # 兼容旧模式
                             'image_prompt': shot_cn.get('image_prompt', ''),
@@ -273,7 +369,7 @@ class ShortDramaProject:
                 except Exception as e:
                     logger.error(f'加载 shots_v2 文件失败 {episode_dir_name}: {e}')
 
-            # 如果已经是字典对象（有shots），直接使用
+            # 如果已经是字典对象(有shots)，直接使用
             if isinstance(episode_name, dict):
                 enriched_episodes.append(episode_name)
                 continue
@@ -368,6 +464,7 @@ class ShortDramaProject:
         project.episodes = data.get('episodes', [])
         project.characters = data.get('characters', [])
         project.storyBeats = data.get('storyBeats')
+        project.visualAssets = data.get('visualAssets', {'characters': {}, 'scenes': {}, 'props': {}})
         project.settings = data.get('settings', project.settings)
 
         # 🔥 加载每个episode的storyboard数据
@@ -506,7 +603,7 @@ def _sync_characters_to_visual_assets_obj(characters, visual_assets):
     
     Args:
         characters: 角色列表
-        visual_assets: 视觉资产字典（将被修改）
+        visual_assets: 视觉资产字典(将被修改)
     """
     try:
         if not characters:
@@ -678,7 +775,7 @@ def create_from_novel():
 
 @short_drama_api.route('/create-from-idea', methods=['POST'])
 def create_from_idea():
-    """从创意创建项目，先生成故事节拍（Step 3）"""
+    """从创意创建项目，先生成故事节拍(Step 3)"""
     try:
         data = request.json or {}
         title = data.get('title', '').strip()
@@ -704,10 +801,11 @@ def create_from_idea():
                 # 如果没有指定集数，生成第一个未生成的集
                 selected_episode_number = 1
 
-            # 查找指定的集数据
+            # 查找指定的集数据(兼容 episode 和 ep 字段)
             episode_data = None
             for ep in episodes_data:
-                if ep.get('episode') == selected_episode_number:
+                ep_num = ep.get('episode') or ep.get('ep')
+                if ep_num == selected_episode_number:
                     episode_data = ep
                     break
 
@@ -776,7 +874,7 @@ def create_from_idea():
         # 🔥 移除 shot_count 限制，让AI自由决定分镜数量
         shot_duration = max(3, min(10, int(shot_duration)))  # 短视频节奏：3-10秒/镜头
         
-        # 🔥 基于故事复杂度预估总时长（不再用 shot_count * shot_duration）
+        # 🔥 基于故事复杂度预估总时长(不再用 shot_count * shot_duration)
         # 让AI先决定分镜数量，再计算总时长
         total_duration = 60  # 默认60秒，实际由故事节拍决定
 
@@ -816,7 +914,7 @@ def create_from_idea():
             # 🔥 使用用户提供的完整分镜数据
             logger.info(f'[创意导入] 使用用户提供的分镜数据，共{len(provided_shots)}个镜头')
             
-            # 从分镜生成故事节拍（用于兼容）
+            # 从分镜生成故事节拍(用于兼容)
             story_beats = generate_story_beats_from_shots(
                 title=f"{title} 第{episode}集",
                 description=description,
@@ -841,7 +939,7 @@ def create_from_idea():
                 }
                 shots_en.append(shot_en)
                 
-                # 构建中文分镜格式（复用英文或翻译）
+                # 构建中文分镜格式(复用英文或翻译)
                 shot_cn = {
                     'shot_number': shot.get('shot_number', i),
                     'scene_title': shot.get('scene_title', f'场景 {i}'),
@@ -884,10 +982,10 @@ def create_from_idea():
                 protagonist=protagonist_character
             )
 
-            # 3. 基于故事节拍生成专业分镜头（全英文）(Step 4)
-            logger.info(f'[创意导入] 基于故事节拍生成分镜头（全英文）...')
+            # 3. 基于故事节拍生成专业分镜头(全英文)(Step 4)
+            logger.info(f'[创意导入] 基于故事节拍生成分镜头(全英文)...')
             
-            # 🔥 创建基础视觉资产（包含主角信息）
+            # 🔥 创建基础视觉资产(包含主角信息)
             visual_assets = {
                 'characters': {
                     'protagonist': protagonist_character
@@ -972,17 +1070,17 @@ def create_from_idea():
                 'scene_title': shot_cn.get('scene_title', ''),
                 'shot_type': shot_cn.get('shot_type', ''),
                 'duration': shot_cn.get('duration_seconds', 8),
-                # 🔥 英文提示词（用于AI生成）
+                # 🔥 英文提示词(用于AI生成)
                 'veo_prompt_standard': shot_en.get('veo_prompt_standard', ''),
                 'veo_prompt_reference': shot_en.get('veo_prompt_reference', ''),
                 'veo_prompt_frames': shot_en.get('veo_prompt_frames', ''),
-                # 🔥 中文描述（用于显示）
+                # 🔥 中文描述(用于显示)
                 'visual_description_standard': shot_cn.get('visual_description_standard', ''),
                 'visual_description_reference': shot_cn.get('visual_description_reference', ''),
                 'visual_description_frames': shot_cn.get('visual_description_frames', ''),
-                # 🔥 四种图片提示词（英文，用于AI生成）
+                # 🔥 四种图片提示词(英文，用于AI生成)
                 'image_prompts': shot_en.get('image_prompts', {}),
-                # 🔥 四种图片提示词（中文，用于显示）
+                # 🔥 四种图片提示词(中文，用于显示)
                 'image_prompts_cn': shot_cn.get('image_prompts_cn', {}),
                 # 兼容旧模式
                 'veo_prompt': shot_en.get('veo_prompt_standard', ''),
@@ -993,7 +1091,14 @@ def create_from_idea():
             }
             merged_shots.append(merged_shot)
 
-        # 6. 创建项目信息（兼容前端格式）
+        # 将视觉资产转换为字典格式(兼容存储)
+        visual_assets_dict = {
+            'characters': {item.get('name', f'char_{i}'): item for i, item in enumerate(visual_assets.get('characters', []))},
+            'scenes': {item.get('name', f'scene_{i}'): item for i, item in enumerate(visual_assets.get('scenes', []))},
+            'props': {item.get('name', f'prop_{i}'): item for i, item in enumerate(visual_assets.get('props', []))}
+        }
+
+        # 6. 创建项目信息(兼容前端格式)
         project_data = {
             'id': str(uuid.uuid4())[:8],
             'title': title,
@@ -1010,6 +1115,7 @@ def create_from_idea():
                 'shots': merged_shots  # 🔥 保存合并后的完整数据
             }],
             'characters': [protagonist_character],  # 🔥 保存主角信息
+            'visualAssets': visual_assets_dict,  # 🔥 保存视觉资产
             'settings': {
                 'aspect_ratio': '9:16',
                 'quality': '1080p',
@@ -1055,7 +1161,7 @@ def generate_story_beats_from_idea(title: str, description: str, world_setting: 
         description: 创意描述
         world_setting: 世界观设定
         style: 风格
-        total_duration: 总时长（秒）
+        total_duration: 总时长(秒)
         protagonist: 主角信息字典
         
     Returns:
@@ -1067,7 +1173,7 @@ def generate_story_beats_from_idea(title: str, description: str, world_setting: 
     max_scenes = 15
     suggested_duration = total_duration or 60  # 默认60秒
     
-    # 计算参考场景数和时长分配（用于回退逻辑）
+    # 计算参考场景数和时长分配(用于回退逻辑)
     scene_count = max(min_scenes, min(max_scenes, suggested_duration // 8))
     base_duration = suggested_duration // scene_count
     remainder = suggested_duration % scene_count
@@ -1076,21 +1182,21 @@ def generate_story_beats_from_idea(title: str, description: str, world_setting: 
         
         system_prompt = f"""你是一个专业的【短视频短剧】编剧。请根据以下创意描述，生成故事节拍(Story Beats)。
 
-## 🎬 场景设计原则（AI自由决定）
+## 🎬 场景设计原则(AI自由决定)
 
 1. **场景数量由AI根据故事复杂度决定**
-   - 简单故事（单线叙事）：6-8个场景
-   - 标准故事（有转折）：8-10个场景  
-   - 复杂故事（多冲突、多转折）：10-15个场景
+   - 简单故事(单线叙事)：6-8个场景
+   - 标准故事(有转折)：8-10个场景  
+   - 复杂故事(多冲突、多转折)：10-15个场景
    - **关键：每个情绪转折都应该是一个独立场景**
 
 2. **场景时长原则**
    - 快节奏/动作场景：3-5秒
    - 对白/情绪场景：5-8秒
    - 高潮/关键转折：8-12秒
-   - **总时长约{suggested_duration}秒（可上下浮动20%）**
+   - **总时长约{suggested_duration}秒(可上下浮动20%)**
 
-3. **短视频叙事结构（不是传统三幕）**
+3. **短视频叙事结构(不是传统三幕)**
    - **0-10%：黄金3秒钩子** - 炸裂开场，立即抓住注意力
    - **10-30%：快速铺垫** - 用画面快速建立人物和背景
    - **30-50%：第一次转折** - 小高潮或意外事件
@@ -1098,14 +1204,14 @@ def generate_story_beats_from_idea(title: str, description: str, world_setting: 
    - **70-90%：大高潮** - 情绪顶点，解决核心冲突
    - **90-100%：强钩子结尾** - 引出下集或留下悬念
 
-4. **情绪过山车设计（关键）**
-   - 相邻场景情绪必须不同（如：紧张→幽默→紧张）
+4. **情绪过山车设计(关键)**
+   - 相邻场景情绪必须不同(如：紧张→幽默→紧张)
    - 禁止连续3个场景同一情绪
    - 必须有至少一次180°情绪反转
 
 5. **对白设计**
    - 每个场景1-2句对白，简短有力
-   - 对白必须是"钩子型"（留悬念、带情绪）
+   - 对白必须是"钩子型"(留悬念、带情绪)
    - 提供中英文双语
 
 4. **输出格式**
@@ -1161,12 +1267,12 @@ def generate_story_beats_from_idea(title: str, description: str, world_setting: 
         user_prompt = f"""
 剧集标题：{title}
 风格：{style}
-参考总时长：{suggested_duration}秒（AI可根据故事需要调整±20%）
-建议场景数：{min_scenes}-{max_scenes}个（AI根据创意复杂度自由决定）
+参考总时长：{suggested_duration}秒(AI可根据故事需要调整±20%)
+建议场景数：{min_scenes}-{max_scenes}个(AI根据创意复杂度自由决定)
 {world_setting_section}
 {protagonist_section}
 
-## 🔥 核心创意（必须紧紧围绕此展开）
+## 🔥 核心创意(必须紧紧围绕此展开)
 {description}
 
 ## 生成要求：
@@ -1238,7 +1344,7 @@ def generate_story_beats_from_idea(title: str, description: str, world_setting: 
 
 
 def _get_default_story_beats_for_idea(scene_count: int, base_duration: int, remainder: int, protagonist: dict = None):
-    """获取默认故事节拍（用于创意导入）"""
+    """获取默认故事节拍(用于创意导入)"""
     # 🔥 获取主角名字
     protagonist_name = protagonist.get('name', '主角') if protagonist else '主角'
     
@@ -1282,35 +1388,35 @@ def generate_storyboard_from_idea(title: str, description: str, style: str,
     """
     try:
         # 构建生成提示词
-        system_prompt = """你是一位专业的影视分镜头设计师，擅长为AI视频生成工具（如Sora、Runway、Veo）设计高质量的分镜头脚本。
+        system_prompt = """你是一位专业的影视分镜头设计师，擅长为AI视频生成工具(如Sora、Runway、Veo)设计高质量的分镜头脚本。
 
 每个镜头需要包含：
-1. shot_number: 镜头编号（从1开始）
-2. shot_type: 镜头类型（特写/主观视角/近景/中景/全景/远景）
-3. veo_prompt: 画面描述（静态画面）- 这是最关键的部分，需要包含：
+1. shot_number: 镜头编号(从1开始)
+2. shot_type: 镜头类型(特写/主观视角/近景/中景/全景/远景)
+3. veo_prompt: 画面描述(静态画面)- 这是最关键的部分，需要包含：
 
    【画面构成】
-   - 描述在这个镜头范围内看到什么（人物状态、表情、服装、环境）
+   - 描述在这个镜头范围内看到什么(人物状态、表情、服装、环境)
    - 用姿态词表达空间关系：站立/坐下/跪地/悬空/倒地/扑向/后退/侧身
    - 不要描述动作过程，只描述画面定格时的样子
 
-   【运镜指令】（提升电影感的关键）
-   - 推镜头（Push in）：从远到近，增强紧张感和代入感
-   - 拉镜头（Pull out）：从近到远，展现环境和空间关系
-   - 环绕镜头（Orbit）：围绕主体旋转，展现立体感
-   - 跟随镜头（Follow）：跟随人物移动，增强动态感
-   - 升降镜头（Crane up/down）：垂直移动，展现宏大场景
+   【运镜指令】(提升电影感的关键)
+   - 推镜头(Push in)：从远到近，增强紧张感和代入感
+   - 拉镜头(Pull out)：从近到远，展现环境和空间关系
+   - 环绕镜头(Orbit)：围绕主体旋转，展现立体感
+   - 跟随镜头(Follow)：跟随人物移动，增强动态感
+   - 升降镜头(Crane up/down)：垂直移动，展现宏大场景
    - 示例："缓慢推镜头，从全景推至面部特写"、"环绕镜头，360度展现人物"
 
-   【光影细节】（提升画面质感）
-   - 体积光（Volumetric lighting）：光束穿透烟雾/尘埃的效果
-   - 丁达尔效应（God rays）：光线透过缝隙形成的光柱
-   - 边缘光（Rim light）：勾勒人物轮廓的背光
-   - 戏剧性光影（Dramatic lighting）：强烈的明暗对比
-   - 色温对比（Color temperature）：冷暖光源的对比
+   【光影细节】(提升画面质感)
+   - 体积光(Volumetric lighting)：光束穿透烟雾/尘埃的效果
+   - 丁达尔效应(God rays)：光线透过缝隙形成的光柱
+   - 边缘光(Rim light)：勾勒人物轮廓的背光
+   - 戏剧性光影(Dramatic lighting)：强烈的明暗对比
+   - 色温对比(Color temperature)：冷暖光源的对比
    - 示例："体积光穿透石室缝隙，形成明显的丁达尔效应"、"金色边缘光勾勒人物轮廓"
 
-   【材质质感】（增强真实感）
+   【材质质感】(增强真实感)
    - 皮肤质感：细腻的毛孔、汗珠、血管
    - 服装材质：丝绸的光泽、布料的褶皱、金属的反光
    - 环境质感：石材的粗糙、水面的波纹、尘埃的漂浮
@@ -1320,21 +1426,21 @@ def generate_storyboard_from_idea(title: str, description: str, style: str,
    【完整示例】
    "幽暗封闭的石室内部，缓慢推镜头从全景推至中景，地面刻画着繁复发光的聚灵阵法，慕佩灵身着素白长裙盘膝坐于阵眼中心，体积光从石室顶部缝隙射入形成明显的丁达尔效应，金色边缘光勾勒出人物轮廓，四周摆放着五色灵石散发柔和光晕，空气中漂浮着肉眼可见的灵气光尘如萤火虫般流动，皮肤呈现出玉质般的细腻光泽，衣料质感柔软飘逸，压抑而神圣的氛围。"
 
-4. visual.description: 动作序列（动态过程）
+4. visual.description: 动作序列(动态过程)
    - 描述镜头中发生的动作变化，用箭头 → 连接
    - 格式：状态A → 状态B → 状态C
    - 示例："阵法光芒骤然亮起 → 灵石开始剧烈颤抖 → 灵气光尘疯狂涌向慕佩灵"
 
-5. dialogue: 对话信息（可选，如果无对话则speaker为"无"，lines为""，tone为"无"）
+5. dialogue: 对话信息(可选，如果无对话则speaker为"无"，lines为""，tone为"无")
    - speaker: 说话者
-   - lines: 台词（中文）- 根据镜头时长合理安排台词量
-   - lines_en: 台词（英文）
-   - tone: 语气（中文）
-   - tone_en: 语气（英文）
-   - audio_note: 音效描述（中文）
-   - audio_note_en: 音效描述（英文）
+   - lines: 台词(中文)- 根据镜头时长合理安排台词量
+   - lines_en: 台词(英文)
+   - tone: 语气(中文)
+   - tone_en: 语气(英文)
+   - audio_note: 音效描述(中文)
+   - audio_note_en: 音效描述(英文)
 
-6. duration_seconds: 镜头时长（秒）- 根据镜头内容调整时长
+6. duration_seconds: 镜头时长(秒)- 根据镜头内容调整时长
    - 快节奏动作场景：4-6秒
    - 对话场景：6-8秒
    - 情绪渲染场景：8-10秒
@@ -1348,7 +1454,7 @@ def generate_storyboard_from_idea(title: str, description: str, style: str,
 
 【对话设计原则】
 - 短剧节奏快，对话要密集
-- 8秒镜头建议2-3句台词（每句2-3秒）
+- 8秒镜头建议2-3句台词(每句2-3秒)
 - 10秒以上镜头建议3-5句台词
 - 对话要推动剧情，不要空洞
 - 台词要符合人物性格和情境
@@ -1384,7 +1490,7 @@ def generate_storyboard_from_idea(title: str, description: str, style: str,
 请以JSON格式返回，结构如下：
 {
     "video_title": "视频标题",
-    "hook": "开篇钩子（一句话吸引眼球）",
+    "hook": "开篇钩子(一句话吸引眼球)",
     "total_duration": 总时长,
     "scenes": [
         {
@@ -1409,8 +1515,8 @@ def generate_storyboard_from_idea(title: str, description: str, style: str,
 创意描述：{description}
 
 要求：
-- 生成 {shot_count} 个镜头，每个镜头一个独立场景（scene_number从1开始）
-- 每个镜头时长根据内容调整（快节奏4-6秒，对话6-8秒，情绪渲染8-10秒，宏大场景10-12秒）
+- 生成 {shot_count} 个镜头，每个镜头一个独立场景(scene_number从1开始)
+- 每个镜头时长根据内容调整(快节奏4-6秒，对话6-8秒，情绪渲染8-10秒，宏大场景10-12秒)
 - 风格要符合{style}特色
 - 保持画面连贯性和节奏感，利用长短镜头交替制造节奏
 - 确保视觉冲击力和电影感
@@ -1437,7 +1543,7 @@ def generate_storyboard_from_idea(title: str, description: str, style: str,
         logger.info(f"   - 风格: {style}")
         logger.info(f"   - 镜头数: {shot_count}")
 
-        # 使用APIClient调用AI（不使用流式，需要JSON格式）
+        # 使用APIClient调用AI(不使用流式，需要JSON格式)
         response_text = api_client.call_api(
             system_prompt=system_prompt,
             user_prompt=user_prompt,
@@ -1450,7 +1556,7 @@ def generate_storyboard_from_idea(title: str, description: str, style: str,
 
         # 解析JSON响应
         try:
-            # 尝试提取JSON（可能被```json包裹）
+            # 尝试提取JSON(可能被```json包裹)
             json_text = response_text.strip()
             if json_text.startswith("```json"):
                 json_text = json_text[7:]
@@ -1480,7 +1586,7 @@ def generate_storyboard_from_idea(title: str, description: str, style: str,
 
 
 def _get_default_storyboard(title: str, description: str, shot_count: int, shot_duration: int) -> dict:
-    """生成默认分镜头模板（AI失败时的兜底方案）"""
+    """生成默认分镜头模板(AI失败时的兜底方案)"""
     shots = []
     for i in range(1, shot_count + 1):
         shots.append({
@@ -1572,7 +1678,7 @@ def generate_story_beats():
         # 获取角色信息
         characters = project_data.get('characters', [])
 
-        # 🔥 获取视觉资产库（同步角色到视觉资产）
+        # 🔥 获取视觉资产库(同步角色到视觉资产)
         visual_assets = project_data.get('visualAssets', {'characters': {}, 'scenes': {}, 'props': {}})
         if not visual_assets:
             visual_assets = {'characters': {}, 'scenes': {}, 'props': {}}
@@ -1583,7 +1689,7 @@ def generate_story_beats():
         # 调用AI生成故事节拍
         logger.info(f"[故事节拍] 开始生成: {episode_title}")
 
-        # 🔥 获取项目的初始创意和世界观（如果有）
+        # 🔥 获取项目的初始创意和世界观(如果有)
         initial_idea = episode_content  # 这就是初始创意
         world_setting = project_data.get('world_setting', '') or project_data.get('settings', {}).get('world_setting', '')
         
@@ -1653,7 +1759,7 @@ def _generate_story_beats_with_ai(episode_title, episode_content, characters, to
     va_characters = visual_assets.get('characters', {})
     va_scenes = visual_assets.get('scenes', {})
     
-    # 构建角色字符串（使用视觉资产的标准描述）
+    # 构建角色字符串(使用视觉资产的标准描述)
     characters_str = ""
     if characters:
         char_list = []
@@ -1703,7 +1809,7 @@ def _generate_story_beats_with_ai(episode_title, episode_content, characters, to
 
     # 🔥 构建场景资产部分
     scenes_section = f"""
-## 预设场景库（可使用）
+## 预设场景库(可使用)
 {scenes_str}
 """ if scenes_str else ""
 
@@ -1714,19 +1820,19 @@ def _generate_story_beats_with_ai(episode_title, episode_content, characters, to
     
     prompt = f"""你是一个专业的【抖音/快手短剧】编剧。请基于以下**核心创意**生成{total_duration}秒的高密度故事节拍。
 
-## 🔥 核心创意（必须紧紧围绕此展开）
-{core_concept[:2000] if core_concept else '（暂无详细内容，请根据标题生成）'}
+## 🔥 核心创意(必须紧紧围绕此展开)
+{core_concept[:2000] if core_concept else '(暂无详细内容，请根据标题生成)'}
 
 ## 补充信息
 集数标题：{episode_title}
 {world_setting_section}{scenes_section}
-角色设定（使用标准描述）：
+角色设定(使用标准描述)：
 {characters_str}
 
 总时长要求：{total_duration}秒
-场景密度：{scene_count}个场景（约每{base_duration}秒一个）
+场景密度：{scene_count}个场景(约每{base_duration}秒一个)
 
-## 🎬 短视频节奏铁律（必须遵守）
+## 🎬 短视频节奏铁律(必须遵守)
 
 ### 1. 黄金3秒法则
 - **第1个场景必须是"炸裂开场"** - 冲突、悬念、或视觉冲击
@@ -1735,35 +1841,35 @@ def _generate_story_beats_with_ai(episode_title, episode_content, characters, to
 ### 2. 节奏密度要求
 - 生成{scene_count}个场景
 - **每3秒必须有：情绪转折 或 视觉变化 或 新信息**
-- 相邻场景之间必须有强烈对比（情绪/视觉/节奏）
+- 相邻场景之间必须有强烈对比(情绪/视觉/节奏)
 
-### 3. 情绪过山车设计（关键）
+### 3. 情绪过山车设计(关键)
 每个场景必须标注情绪，且整体形成波浪：
 ```
 例：平静→惊讶→恐惧→荒诞→紧张→爆笑→悬疑
 ```
 - 禁止连续3个场景同一情绪
-- 必须有至少一次180°情绪反转（如恐惧→爆笑）
+- 必须有至少一次180°情绪反转(如恐惧→爆笑)
 
-### 4. 短视频结构（不是三幕）
-- **0-10%：超级钩子**（炸裂开场，颠覆预期）
-- **10-30%：快速铺垫**（用画面而非对话交代背景）
-- **30-50%：第一次转折**（小高潮或意外）
-- **50-70%：第二次转折**（升级或反转）
-- **70-90%：大高潮**（情绪顶点）
-- **90-100%：强钩子结尾**（必须引出下集/悬念）
+### 4. 短视频结构(不是三幕)
+- **0-10%：超级钩子**(炸裂开场，颠覆预期)
+- **10-30%：快速铺垫**(用画面而非对话交代背景)
+- **30-50%：第一次转折**(小高潮或意外)
+- **50-70%：第二次转折**(升级或反转)
+- **70-90%：大高潮**(情绪顶点)
+- **90-100%：强钩子结尾**(必须引出下集/悬念)
 
 ### 5. 视觉变化要求
 - 每个场景必须有明确的【视觉变化描述】
-- 镜头类型必须交替（特写→全景→POV等），禁止连续同类型
-- 必须有"视觉冲击点"（炸裂特效、夸张表情、反转画面）
+- 镜头类型必须交替(特写→全景→POV等)，禁止连续同类型
+- 必须有"视觉冲击点"(炸裂特效、夸张表情、反转画面)
 
 ### 6. 对白设计
-- 每个场景最多2句对白（短视频节奏快）
-- 对白必须是"钩子型"（留悬念、带情绪、有反转）
+- 每个场景最多2句对白(短视频节奏快)
+- 对白必须是"钩子型"(留悬念、带情绪、有反转)
 - 严禁解释性对白
 
-### 7. 视觉资产使用规范（关键）
+### 7. 视觉资产使用规范(关键)
 **生成分镜时必须严格使用以上角色标准描述，确保视觉一致性：**
 - 角色外观必须与标准描述完全一致
 - 服装必须使用规定的服装描述
@@ -1772,12 +1878,12 @@ def _generate_story_beats_with_ai(episode_title, episode_content, characters, to
 ## 输出要求
 每个场景包含：
 - sceneNumber: 场景序号
-- sceneTitleCn/En: 中英文标题（突出情绪或转折）
-- storyBeatCn/En: 叙事目的 + 视觉变化描述（必须使用标准角色描述）
+- sceneTitleCn/En: 中英文标题(突出情绪或转折)
+- storyBeatCn/En: 叙事目的 + 视觉变化描述(必须使用标准角色描述)
 - durationSeconds: 时长(秒)
-- emotionalArc: 情绪曲线（如：绝决→紧张→希望）
-- visualChange: 画面如何变化（如：从特写拉远到全景）
-- dialogues: 对白列表（最多2句，简短有力）
+- emotionalArc: 情绪曲线(如：绝决→紧张→希望)
+- visualChange: 画面如何变化(如：从特写拉远到全景)
+- dialogues: 对白列表(最多2句，简短有力)
 
 只输出JSON格式，不要解释。
 """
@@ -1941,7 +2047,7 @@ def get_story_beats(project_id):
 def generate_storyboard_from_beats():
     """
     从故事节拍生成分镜头 (Step 4)
-    🔥 使用 AI 生成高质量提示词（与创意导入一致）
+    🔥 使用 AI 生成高质量提示词(与创意导入一致)
     """
     try:
         data = request.get_json()
@@ -1983,8 +2089,8 @@ def generate_storyboard_from_beats():
         with open(project_file, 'r', encoding='utf-8') as f:
             project_data = json.load(f)
 
-        # 🔥 使用 AI 生成分镜头（与创意导入一致）
-        logger.info(f'🤖 [生成分镜] 使用 AI 生成高质量分镜头（全英文）...')
+        # 🔥 使用 AI 生成分镜头(与创意导入一致)
+        logger.info(f'🤖 [生成分镜] 使用 AI 生成高质量分镜头(全英文)...')
 
         title = project_data.get('title', '')
         style = project_data.get('settings', {}).get('style', 'cinematic')
@@ -1998,7 +2104,7 @@ def generate_storyboard_from_beats():
         characters = project_data.get('characters', [])
         _sync_characters_to_visual_assets_obj(characters, visual_assets)
 
-        # 调用 AI 生成分镜头（全英文，传递视觉资产）
+        # 调用 AI 生成分镜头(全英文，传递视觉资产)
         shots_en = generate_shots_from_storybeats(
             title=title,
             story_beats=story_beats,
@@ -2022,7 +2128,7 @@ def generate_storyboard_from_beats():
 
         logger.info(f'✅ [生成分镜] 翻译完成')
 
-        # 🔥 合并中英文数据（与 _load_episode_storyboards 一致）
+        # 🔥 合并中英文数据(与 _load_episode_storyboards 一致)
         merged_shots = []
         for i, (shot_cn, shot_en) in enumerate(zip(shots_cn, shots_en), 1):
             merged_shot = {
@@ -2032,15 +2138,15 @@ def generate_storyboard_from_beats():
                 'scene_title': shot_cn.get('scene_title', ''),
                 'shot_type': shot_cn.get('shot_type', ''),
                 'duration': shot_cn.get('duration_seconds', 8),
-                # 🔥 英文提示词（用于AI生成）
+                # 🔥 英文提示词(用于AI生成)
                 'veo_prompt_standard': shot_en.get('veo_prompt_standard', ''),
                 'veo_prompt_reference': shot_en.get('veo_prompt_reference', ''),
                 'veo_prompt_frames': shot_en.get('veo_prompt_frames', ''),
-                # 🔥 中文描述（用于显示）
+                # 🔥 中文描述(用于显示)
                 'visual_description_standard': shot_cn.get('visual_description_standard', ''),
                 'visual_description_reference': shot_cn.get('visual_description_reference', ''),
                 'visual_description_frames': shot_cn.get('visual_description_frames', ''),
-                # 🔥 图片生成提示词（四种类型）
+                # 🔥 图片生成提示词(四种类型)
                 'image_prompts': shot_en.get('image_prompts', {}),
                 'image_prompts_cn': shot_cn.get('image_prompts_cn', {}),
                 # 兼容旧格式
@@ -2075,7 +2181,7 @@ def generate_storyboard_from_beats():
             # 🔥 创意导入项目：更新 episodes[0].shots 和 shots_v2 文件
             logger.info(f'📝 [生成分镜] 检测到创意导入项目，更新 episodes 和 shots_v2 文件')
 
-            # 更新 episodes[0].shots（使用合并后的数据）
+            # 更新 episodes[0].shots(使用合并后的数据)
             project_data['episodes'][0]['shots'] = merged_shots
 
             # 保存英文版 shots_v2.json
@@ -2108,7 +2214,7 @@ def generate_storyboard_from_beats():
                 json.dump(shots_v2_cn_data, f, ensure_ascii=False, indent=2)
             logger.info(f'✅ [生成分镜] 已更新中文版: {shots_v2_cn_file}')
         else:
-            # 🔥 非创意导入项目：保存到项目根级别的 shots 字段（使用合并后的数据）
+            # 🔥 非创意导入项目：保存到项目根级别的 shots 字段(使用合并后的数据)
             logger.info(f'📝 [生成分镜] 普通项目，保存到项目根级别 shots 字段')
             project_data['shots'] = merged_shots
 
@@ -2135,7 +2241,7 @@ def generate_storyboard_from_beats():
 
 def generate_shots_from_storybeats(title: str, story_beats: dict, style: str, shot_duration: int = 8, visual_assets: dict = None) -> list:
     """
-    基于故事节拍生成专业分镜头（全英文版本）
+    基于故事节拍生成专业分镜头(全英文版本)
     
     Args:
         title: 剧集标题
@@ -2307,7 +2413,7 @@ Dialogues:
 {chr(10).join(dialogue_summary) if dialogue_summary else 'No dialogue'}
 """)
 
-        # 计算参考分镜数（给AI参考，不限制）
+        # 计算参考分镜数(给AI参考，不限制)
         estimated_shots = len(scenes) * 2  # 建议每个场景2个分镜左右
         
         user_prompt = f"""Generate professional video shots based on these story beats:
@@ -2387,7 +2493,7 @@ Generate shots now:
 
 
 def _get_default_shots_from_storybeats(scenes: list, shot_duration: int) -> list:
-    """默认分镜头生成（AI失败时的充底方案）"""
+    """默认分镜头生成(AI失败时的充底方案)"""
     shots = []
     for i, scene in enumerate(scenes, 1):
         story_beat = scene.get('storyBeatEn', scene.get('storyBeatCn', f'Scene {i}'))
@@ -2450,7 +2556,7 @@ def translate_shots_to_chinese(shots: list) -> list:
             return shots
         
         # 构建翻译指令，明确指定哪些字段需要翻译
-        translation_instruction = """请翻译以下JSON中所有指定字段的值（只翻译值，不翻译key）：
+        translation_instruction = """请翻译以下JSON中所有指定字段的值(只翻译值，不翻译key)：
 
 【需要翻译的字段】
 1. shot级别字段：
@@ -2466,9 +2572,9 @@ def translate_shots_to_chinese(shots: list) -> list:
 
 2. dialogue对象内的字段：
    - speaker (说话者名称，如果是英文人名进行音译或意译为中文名)
-   - lines_en → 翻译后存到 lines（保留lines_en原文）
-   - tone_en → 翻译后存到 tone（保留tone_en原文）
-   - audio_note_en → 翻译后存到 audio_note（保留audio_note_en原文）
+   - lines_en → 翻译后存到 lines(保留lines_en原文)
+   - tone_en → 翻译后存到 tone(保留tone_en原文)
+   - audio_note_en → 翻译后存到 audio_note(保留audio_note_en原文)
 
 3. image_prompts对象内的所有字段
 
@@ -2477,7 +2583,7 @@ def translate_shots_to_chinese(shots: list) -> list:
 - 只翻译指定字段的值，其他字段保持不变
 - 技术术语：cinematic→电影级, photorealistic→写实风格, 8k→8K超清
 - shot_type常见翻译：Wide shot→全景, Close-up→特写, Medium shot→中景, Extreme close-up→极特写, POV→第一人称视角, Establishing shot→定场镜头, Over-the-shoulder→过肩镜头
-- speaker翻译：英文人名进行音译或意译为中文名（如 Zheng→郑, Li→李）
+- speaker翻译：英文人名进行音译或意译为中文名(如 Zheng→郑, Li→李)
 - 翻译要自然流畅，符合中文表达习惯
 
 【重要】
@@ -2533,7 +2639,7 @@ def translate_shots_to_chinese(shots: list) -> list:
 
 def extract_visual_assets_from_shots(shots_en: list, shots_cn: list, title: str) -> dict:
     """
-    从分镜脚本中提取视觉资产清单（角色、场景、道具）
+    从分镜脚本中提取视觉资产清单(角色、场景、道具)
 
     Args:
         shots_en: 英文分镜脚本
@@ -2565,18 +2671,18 @@ def extract_visual_assets_from_shots(shots_en: list, shots_cn: list, title: str)
    - 提取所有出现的人物或生物
    - 包含主要角色和次要角色
    - 记录外貌特征、服装、表情等关键特征
-   - 生成适合图片生成的 reference_prompt（英文）
+   - 生成适合图片生成的 reference_prompt(英文)
 
 2. **场景 (Scenes)**
    - 提取所有不同的场景/地点
    - 描述环境特征、光线、氛围
-   - 记录关键元素（建筑、地形、天气等）
-   - 生成适合图片生成的 reference_prompt（英文）
+   - 记录关键元素(建筑、地形、天气等)
+   - 生成适合图片生成的 reference_prompt(英文)
 
 3. **道具 (Props)**
    - 提取重要的物品、工具、装备
    - 描述外观、材质、特征
-   - 生成适合图片生成的 reference_prompt（英文）
+   - 生成适合图片生成的 reference_prompt(英文)
 
 ## 输出格式
 
@@ -2619,10 +2725,10 @@ def extract_visual_assets_from_shots(shots_en: list, shots_cn: list, title: str)
 ## 注意事项
 - reference_prompt 必须是英文，适合 FLUX/DALL-E 等图片生成模型
 - 只提取真正重要的资产，避免过于细碎
-- appearances 数组记录该资产出现在哪些镜头（shot_number）
+- appearances 数组记录该资产出现在哪些镜头(shot_number)
 """
 
-        # 准备分镜数据（只发送关键信息以节省token）
+        # 准备分镜数据(只发送关键信息以节省token)
         shots_summary = []
         for shot_en, shot_cn in zip(shots_en, shots_cn):
             shots_summary.append({
@@ -2809,10 +2915,10 @@ def generate_frame_sequences_from_shots(shots_en, shots_cn, visual_assets, title
             system_prompt = f"""你是一个专业的视频分镜设计师。请为短剧分镜头生成{frame_count}个连续的画面提示词，用于生成{grid_layout}网格图。
 
 每个提示词应该:
-1. 描述具体的画面内容（角色位置、动作、表情、场景细节）
+1. 描述具体的画面内容(角色位置、动作、表情、场景细节)
 2. 保持视觉风格一致
 3. 体现时间的连续性和动作的流畅性
-4. 使用英文，适合直接用于图像生成（FLUX/DALL-E等）
+4. 使用英文，适合直接用于图像生成(FLUX/DALL-E等)
 
 返回JSON格式:
 {{
@@ -2996,7 +3102,7 @@ def get_shots_v2_cn():
 
 @short_drama_api.route('/shots-v2', methods=['POST'])
 def save_shots_v2():
-    """保存 shots_v2.json 数据（英文版）"""
+    """保存 shots_v2.json 数据(英文版)"""
     try:
         data = request.json or {}
         novel = data.get('novel', '').strip()
@@ -3067,20 +3173,23 @@ def get_visual_assets(project_id):
         if not project:
             return jsonify({'success': False, 'error': '项目不存在'}), 404
 
-        # 🔥 优先从文件加载视觉资产（如果存在）
+        # 🔥 优先从文件加载视觉资产(如果存在)
         visual_assets = None
 
         # 尝试从文件加载
         try:
             base_dir = Path(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
             novel_dir = base_dir / '视频项目' / project.title
+            logger.info(f'[视觉资产] 尝试从目录加载: {novel_dir}')
 
             # 查找第一个集的视觉资产文件
             if project.episodes and len(project.episodes) > 0:
                 first_episode = project.episodes[0]
                 episode_id = first_episode.get('id') or first_episode.get('name')
+                logger.info(f'[视觉资产] 找到集: episode_id={episode_id}')
                 if episode_id:
                     assets_file = novel_dir / episode_id / 'visual_assets.json'
+                    logger.info(f'[视觉资产] 检查文件: {assets_file}, 存在={assets_file.exists()}')
                     if assets_file.exists():
                         with open(assets_file, 'r', encoding='utf-8') as f:
                             file_assets = json.load(f)
@@ -3090,9 +3199,17 @@ def get_visual_assets(project_id):
                                 'scenes': {item.get('name', f'scene_{i}'): item for i, item in enumerate(file_assets.get('scenes', []))},
                                 'props': {item.get('name', f'prop_{i}'): item for i, item in enumerate(file_assets.get('props', []))}
                             }
-                            logger.info(f'✅ 从文件加载视觉资产: {assets_file}')
+                            logger.info(f'✅ 从文件加载视觉资产: {assets_file}, 角色={len(visual_assets["characters"])}, 场景={len(visual_assets["scenes"])}')
+                    else:
+                        logger.warning(f'[视觉资产] 文件不存在: {assets_file}')
+                else:
+                    logger.warning(f'[视觉资产] 无法获取集ID: {first_episode}')
+            else:
+                logger.warning(f'[视觉资产] 项目没有集数据: episodes={project.episodes}')
         except Exception as e:
             logger.warning(f'从文件加载视觉资产失败: {e}')
+            import traceback
+            logger.warning(traceback.format_exc())
 
         # 如果文件加载失败，使用项目对象中的数据
         if not visual_assets:
@@ -3269,72 +3386,207 @@ def delete_visual_asset(project_id, category, asset_name):
 @short_drama_api.route('/projects/<project_id>/visual-assets/generate', methods=['POST'])
 def generate_visual_asset(project_id):
     """
-    AI 生成视觉资产（场景或道具）
+    AI 生成视觉资产(角色、场景或道具)
     
     请求体: {
-        'category': 'scenes' | 'props',
+        'category': 'characters' | 'scenes' | 'props',
         'name': '名称',
-        'prompt': '生成提示词',
-        'style': '风格描述'
+        'prompt': '生成提示词(英文)',
+        'aspect_ratio': '16:9' | '9:16' | '1:1' | '4:3',  # 仅用于场景和道具
+        'image_size': '1K' | '2K' | '4K',
+        # 角色特有字段(用于生成四视图):
+        'description': '角色描述',
+        'clothing': '服装描述',
+        'expression': '表情描述'
     }
+    
+    注意：角色图(character)生成流程:
+    1. 前端传递角色特征(description, clothing, expression)
+    2. 后端自动翻译中文描述为英文(如果需要)
+    3. 后端构建完整的四视图提示词(Character Design Sheet)
+    4. AI生成单张16:9图片，包含:
+       - 左30%: 头部特写(正面)
+       - 右70%: 正面/背面/侧面全身视图(垂直排列)
+
+    前端只需提供简单特征，复杂的提示词工程由后端自动处理。
     """
     try:
         data = request.json
         category = data.get('category')
         
-        if category not in ['scenes', 'props']:
-            return jsonify({'success': False, 'error': '仅支持生成场景和道具'}), 400
+        if category not in ['characters', 'scenes', 'props']:
+            return jsonify({'success': False, 'error': '不支持的类别'}), 400
         
         project = ShortDramaProject.load(project_id)
         if not project:
             return jsonify({'success': False, 'error': '项目不存在'}), 404
         
         name = data.get('name')
-        prompt = data.get('prompt')
-        style = data.get('style', '')
+        prompt = data.get('prompt', '')
+        aspect_ratio = data.get('aspect_ratio', '9:16')  # 默认竖屏
+        image_size = data.get('image_size', '2K')  # 默认2K
         
-        if not name or not prompt:
-            return jsonify({'success': False, 'error': '缺少名称或提示词'}), 400
+        if not name:
+            return jsonify({'success': False, 'error': '缺少名称'}), 400
         
-        # 调用 AI 生成图像
-        # TODO: 集成实际的 AI 图像生成服务
+        # 调用 NanoBanana 生成图像
+        try:
+            from src.utils.NanoBananaImageGenerator import NanoBananaImageGenerator
+            
+            generator = NanoBananaImageGenerator()
+            
+            if not generator.is_available():
+                return jsonify({
+                    'success': False, 
+                    'error': '图片生成服务未配置，请在 config/config.py 中配置 nanobanana.api_key'
+                }), 500
+            
+            # 生成图片保存路径
+            safe_name = re.sub(r'[\\/*?:"<>|]', '_', name)
+            save_dir = BASE_DIR / 'generated_images' / 'visual_assets' / project_id
+            save_dir.mkdir(parents=True, exist_ok=True)
+            save_path = str(save_dir / f"{category}_{safe_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png")
+            
+            logger.info(f'🎨 开始生成视觉资产: {category}/{name}, 比例: {aspect_ratio}, 尺寸: {image_size}')
+            
+            # 🔥 角色使用四视图生成，场景和道具使用单图生成
+            if category == 'characters':
+                # 🔥🔥🔥 新流程：后端调用AI生成中英双语角色描述，然后构建四视图提示词
+                char_id = name  # 角色ID
+                raw_description = data.get('description', '')
+                raw_clothing = data.get('clothing', '')
+                raw_expression = data.get('expression', '')
+                
+                logger.info(f'🎭 角色 [{char_id}] 生成流程开始...')
+                logger.info(f'📝 原始描述: {raw_description[:50]}...')
+                
+                # Step 1: 调用AI生成标准中英双语角色描述
+                try:
+                    bilingual_desc = _generate_bilingual_character_description(
+                        char_id=char_id,
+                        name=name,
+                        raw_description=raw_description,
+                        raw_clothing=raw_clothing,
+                        raw_expression=raw_expression
+                    )
+                    logger.info(f'✅ 生成双语描述: {bilingual_desc["english"][:80]}...')
+                except Exception as e:
+                    logger.error(f'❌ 生成双语描述失败: {e}')
+                    # 回退到简单描述
+                    bilingual_desc = {
+                        'character_id': char_id,
+                        'chinese': f'{name}，{raw_description}',
+                        'english': f'{name}, {raw_description}',
+                        'tags': []
+                    }
+                
+                # Step 2: 使用生成的英文描述构建四视图提示词
+                result = generator.generate_character_model_sheet(
+                    name=name,
+                    character_id=char_id,
+                    bilingual_desc=bilingual_desc,
+                    save_path=save_path,
+                    image_size=image_size
+                )
+            else:
+                result = generator.generate_image(
+                    prompt=prompt,
+                    aspect_ratio=aspect_ratio,
+                    image_size=image_size,
+                    save_path=save_path
+                )
+            
+            if not result.get('success'):
+                error_msg = result.get('error', '生成失败')
+                logger.error(f'❌ 图片生成失败: {error_msg}')
+                return jsonify({'success': False, 'error': f'图片生成失败: {error_msg}'}), 500
+            
+            # 获取生成的图片路径
+            local_path = result.get('local_path', '')
+            image_url = result.get('url', '')
+            
+            logger.info(f'✅ 图片生成成功: {image_url}')
+            
+            # 🔥 场景和道具添加文字水印，角色四视图已经有中文标签
+            if category != 'characters':
+                try:
+                    # 构建水印文字
+                    category_cn = {'scenes': '场景', 'props': '道具'}.get(category, '资产')
+                    watermark_text = f"{category_cn}: {name}"
+                    
+                    # 添加水印
+                    generator.add_text_watermark(
+                        image_path=local_path,
+                        text=watermark_text,
+                        position='bottom_right',
+                        font_size=32,
+                        text_color=(255, 255, 255),
+                        bg_color=(0, 0, 0, 200),
+                        padding=15
+                    )
+                    logger.info(f'✅ 已添加水印: {watermark_text}')
+                except Exception as watermark_error:
+                    logger.warning(f'⚠️ 添加水印失败(不影响主流程): {watermark_error}')
+            
+        except ImportError as e:
+            logger.error(f'❌ 图片生成模块导入失败: {e}')
+            return jsonify({'success': False, 'error': '图片生成模块未安装'}), 500
+        except Exception as gen_error:
+            logger.error(f'❌ 图片生成异常: {gen_error}')
+            import traceback
+            logger.error(traceback.format_exc())
+            return jsonify({'success': False, 'error': f'图片生成异常: {str(gen_error)}'}), 500
         
-        # 模拟生成结果
+        # 构建资产数据
         asset_data = {
             'id': str(uuid.uuid4())[:8],
             'name': name,
-            'description': f'{style} {prompt}'.strip(),
-            'tags': [style] if style else [],
-            'referenceUrl': '',  # 生成的图像 URL
+            'description': prompt,
+            'referenceUrl': image_url,
+            'localPath': local_path,
+            'aspectRatio': aspect_ratio,
+            'imageSize': image_size,
             'createdAt': datetime.now().isoformat(),
             'updatedAt': datetime.now().isoformat(),
-            'status': 'generating'  # 生成中状态
+            'status': 'completed'
         }
         
-        if category == 'scenes':
-            asset_data['lighting'] = ''
-            asset_data['colorTone'] = ''
+        # 获取现有的额外字段
+        existing_asset = project.visualAssets.get(category, {}).get(name, {})
+        
+        if category == 'characters':
+            asset_data['clothing'] = existing_asset.get('clothing', '')
+            asset_data['expression'] = existing_asset.get('expression', '')
+        elif category == 'scenes':
+            asset_data['lighting'] = existing_asset.get('lighting', '')
+            asset_data['colorTone'] = existing_asset.get('colorTone', '')
         elif category == 'props':
-            asset_data['category'] = ''
+            asset_data['category'] = existing_asset.get('category', '')
         
         # 保存到项目
         if not project.visualAssets:
             project.visualAssets = {'characters': {}, 'scenes': {}, 'props': {}}
         
-        project.visualAssets[category][name] = asset_data
+        # 合并新数据和现有数据
+        project.visualAssets[category][name] = {
+            **existing_asset,
+            **asset_data
+        }
         project.updated_at = datetime.now().isoformat()
         project.save()
         
-        logger.info(f'🎨 AI生成视觉资产: {category}/{name}')
+        logger.info(f'✅ AI生成视觉资产完成: {category}/{name}')
         
         return jsonify({
             'success': True,
-            'message': '开始生成视觉资产',
+            'message': '视觉资产生成成功',
             'data': asset_data
         })
         
     except Exception as e:
         logger.error(f'生成视觉资产失败: {e}')
+        import traceback
+        logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
@@ -3428,7 +3680,7 @@ def save_image_gen_config():
 
 @short_drama_api.route('/visual-assets', methods=['GET'])
 def get_visual_assets_from_file():
-    """获取视觉资产清单（从文件）"""
+    """获取视觉资产清单(从文件)"""
     try:
         novel = request.args.get('novel', '').strip()
         episode = request.args.get('episode', '').strip()
@@ -3659,7 +3911,7 @@ def regenerate_frame_sequences():
             shots_cn_data = json.load(f)
             shots_cn = shots_cn_data.get('shots', [])
 
-        # 读取视觉资产（如果存在）
+        # 读取视觉资产(如果存在)
         if assets_file.exists():
             with open(assets_file, 'r', encoding='utf-8') as f:
                 visual_assets = json.load(f)
@@ -3707,7 +3959,7 @@ def regenerate_frame_sequences():
 
 def generate_story_beats_from_shots(title: str, description: str, shots: list, protagonist: dict = None) -> dict:
     """
-    根据用户提供的分镜生成故事节拍（用于JSON导入模式）
+    根据用户提供的分镜生成故事节拍(用于JSON导入模式)
     
     Args:
         title: 剧集标题
@@ -3744,7 +3996,7 @@ def generate_story_beats_from_shots(title: str, description: str, shots: list, p
         
         current_scene['shots'].append(shot_data)
     
-    # 设置场景标题为第一个镜头的场景标题（如果有）
+    # 设置场景标题为第一个镜头的场景标题(如果有)
     if shots and shots[0].get('scene_title'):
         current_scene['title'] = shots[0]['scene_title']
     
