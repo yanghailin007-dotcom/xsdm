@@ -918,26 +918,39 @@ class ShortDramaStudio {
         grid.innerHTML = '';
 
         if (category === 'characters') {
-            // 加载角色
-            this.characters.forEach((char, idx) => {
-                const charName = char.name || `角色${idx + 1}`;
-                const portraitInfo = this.characterPortraits.get(charName);
-                const imageUrl = portraitInfo?.mainPortrait?.url;
-
-                const card = document.createElement('div');
-                card.className = 'va-asset-card';
-                card.innerHTML = `
-                    ${imageUrl 
-                        ? `<img src="${imageUrl}" alt="${charName}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">`
-                        : ''}
-                    <div style="display: ${imageUrl ? 'none' : 'flex'}; align-items: center; justify-content: center; height: 100%; font-size: 24px;">👤</div>
-                    <div class="asset-label">${charName}</div>
+            // 加载角色 - 从 visualAssets 加载
+            const characters = this.currentProject?.visualAssets?.characters || {};
+            const charNames = Object.keys(characters);
+            
+            if (charNames.length === 0) {
+                grid.innerHTML = `
+                    <div style="grid-column: span 2; text-align: center; padding: 40px 20px; color: #64748b;">
+                        <p style="font-size: 32px; margin-bottom: 12px;">🎭</p>
+                        <p style="font-size: 13px;">暂无角色</p>
+                        <p style="font-size: 11px; margin-top: 8px; color: #475569;">点击下方"生成"创建</p>
+                    </div>
                 `;
-                card.addEventListener('click', () => {
-                    this.selectVisualAsset('character', char, imageUrl);
+            } else {
+                charNames.forEach(charName => {
+                    const char = characters[charName];
+                    // 🔥 优先使用 visualAssets 中的新生成图片
+                    const imageUrl = char.referenceUrl || this.characterPortraits.get(charName)?.mainPortrait?.url;
+
+                    const card = document.createElement('div');
+                    card.className = 'va-asset-card';
+                    card.innerHTML = `
+                        ${imageUrl 
+                            ? `<img src="${imageUrl}" alt="${charName}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">`
+                            : ''}
+                        <div style="display: ${imageUrl ? 'none' : 'flex'}; align-items: center; justify-content: center; height: 100%; font-size: 24px;">🎭</div>
+                        <div class="asset-label">${charName}</div>
+                    `;
+                    card.addEventListener('click', () => {
+                        this.selectVisualAsset('character', char, imageUrl);
+                    });
+                    grid.appendChild(card);
                 });
-                grid.appendChild(card);
-            });
+            }
         } else if (category === 'scenes') {
             // 场景 - 从 visualAssets 加载
             const scenes = this.currentProject?.visualAssets?.scenes || {};
@@ -1515,6 +1528,19 @@ class ShortDramaStudio {
     }
 
     /**
+     * 获取系统默认图片生成配置（从CONFIG）
+     */
+    getSystemImageGenConfig() {
+        // 这些是与config/config.py中nanobanana配置对应的默认值
+        return {
+            provider: 'nano-banana',
+            apiUrl: 'https://newapi.xiaochuang.cc/v1beta/models/gemini-3-pro-image-preview:generateContent',
+            model: 'gemini-3-pro-image-preview',
+            size: '2K'  // 默认2K竖屏 (1440x2560)，可选 1K/2K/4K
+        };
+    }
+
+    /**
      * Show image generation config modal
      */
     async showImageGenConfig() {
@@ -1526,6 +1552,9 @@ class ShortDramaStudio {
             justify-content: center; align-items: center; z-index: 10000;
         `;
 
+        // 获取系统默认配置
+        const systemConfig = this.getSystemImageGenConfig();
+        
         // 从后端获取当前配置
         let config = this.getImageGenConfig();
         try {
@@ -1543,6 +1572,22 @@ class ShortDramaStudio {
         } catch (e) {
             console.log('获取后端配置失败，使用本地缓存:', e);
         }
+        
+        // 优先级：已保存配置 > 系统默认配置
+        const finalConfig = {
+            provider: config.provider || systemConfig.provider,
+            apiUrl: config.apiUrl || systemConfig.apiUrl,
+            apiKey: config.apiKey || '',
+            model: config.model || systemConfig.model,
+            size: config.size || systemConfig.size
+        };
+        
+        // 获取项目方向设置
+        const settings = this.currentProject?.settings || {};
+        const aspectRatio = settings.aspect_ratio || '9:16';
+        const isLandscape = aspectRatio === '16:9';
+        const isSquare = aspectRatio === '1:1';
+        const orientationText = isLandscape ? '横屏' : (isSquare ? '方形' : '竖屏');
 
         modal.innerHTML = `
             <div class="modal-content" style="
@@ -1557,23 +1602,23 @@ class ShortDramaStudio {
 
                 <div style="margin-bottom: 1rem;">
                     <label style="font-weight: 600; display: block; margin-bottom: 0.5rem;">服务提供商</label>
-                    <select id="imgGenProviderModal" style="
+                    <select id="imgGenProviderModal" class="form-select" style="
                         width: 100%; padding: 10px; background: var(--bg-dark);
                         border: 1px solid var(--border); border-radius: 8px;
                         color: var(--text-primary); font-size: 1rem;
                     ">
-                        <option value="">-- 请选择 --</option>
-                        <option value="nano-banana" ${config.provider === 'nano-banana' ? 'selected' : ''}>Nano Banana (推荐)</option>
-                        <option value="openai" ${config.provider === 'openai' ? 'selected' : ''}>OpenAI (DALL-E)</option>
-                        <option value="stability" ${config.provider === 'stability' ? 'selected' : ''}>Stability AI</option>
-                        <option value="midjourney" ${config.provider === 'midjourney' ? 'selected' : ''}>Midjourney API</option>
-                        <option value="custom" ${config.provider === 'custom' ? 'selected' : ''}>自定义</option>
+                        <option value="" style="background: var(--bg-dark); color: var(--text-primary);">-- 请选择 --</option>
+                        <option value="nano-banana" style="background: var(--bg-dark); color: var(--text-primary);" ${finalConfig.provider === 'nano-banana' ? 'selected' : ''}>Nano Banana (推荐)</option>
+                        <option value="openai" style="background: var(--bg-dark); color: var(--text-primary);" ${finalConfig.provider === 'openai' ? 'selected' : ''}>OpenAI (DALL-E)</option>
+                        <option value="stability" style="background: var(--bg-dark); color: var(--text-primary);" ${finalConfig.provider === 'stability' ? 'selected' : ''}>Stability AI</option>
+                        <option value="midjourney" style="background: var(--bg-dark); color: var(--text-primary);" ${finalConfig.provider === 'midjourney' ? 'selected' : ''}>Midjourney API</option>
+                        <option value="custom" style="background: var(--bg-dark); color: var(--text-primary);" ${finalConfig.provider === 'custom' ? 'selected' : ''}>自定义</option>
                     </select>
                 </div>
 
                 <div style="margin-bottom: 1rem;">
                     <label style="font-weight: 600; display: block; margin-bottom: 0.5rem;">API URL</label>
-                    <input type="text" id="imgGenApiUrlModal" value="${config.apiUrl || ''}" placeholder="https://api.nanobanana.com/v1/images" style="
+                    <input type="text" id="imgGenApiUrlModal" value="${finalConfig.apiUrl || ''}" placeholder="https://api.nanobanana.com/v1/images" style="
                         width: 100%; padding: 10px; background: var(--bg-dark);
                         border: 1px solid var(--border); border-radius: 8px;
                         color: var(--text-primary); font-size: 1rem;
@@ -1582,7 +1627,7 @@ class ShortDramaStudio {
 
                 <div style="margin-bottom: 1rem;">
                     <label style="font-weight: 600; display: block; margin-bottom: 0.5rem;">API Key</label>
-                    <input type="password" id="imgGenApiKeyModal" value="${config.apiKey || ''}" placeholder="请输入API Key" style="
+                    <input type="password" id="imgGenApiKeyModal" value="${finalConfig.apiKey || ''}" placeholder="请输入API Key" style="
                         width: 100%; padding: 10px; background: var(--bg-dark);
                         border: 1px solid var(--border); border-radius: 8px;
                         color: var(--text-primary); font-size: 1rem;
@@ -1594,42 +1639,43 @@ class ShortDramaStudio {
 
                 <div style="margin-bottom: 1rem;">
                     <label style="font-weight: 600; display: block; margin-bottom: 0.5rem;">默认模型</label>
-                    <select id="imgGenModelModal" style="
+                    <select id="imgGenModelModal" class="form-select" style="
                         width: 100%; padding: 10px; background: var(--bg-dark);
                         border: 1px solid var(--border); border-radius: 8px;
                         color: var(--text-primary); font-size: 1rem;
                     ">
-                        <option value="">-- 请选择 --</option>
-                        <optgroup label="Nano Banana">
-                            <option value="flux-1.1-pro" ${config.model === 'flux-1.1-pro' ? 'selected' : ''}>FLUX 1.1 Pro (推荐)</option>
-                            <option value="flux-pro" ${config.model === 'flux-pro' ? 'selected' : ''}>FLUX Pro</option>
-                            <option value="flux-dev" ${config.model === 'flux-dev' ? 'selected' : ''}>FLUX Dev</option>
-                            <option value="flux-schnell" ${config.model === 'flux-schnell' ? 'selected' : ''}>FLUX Schnell (快速)</option>
+                        <option value="" style="background: var(--bg-dark); color: var(--text-primary);">-- 请选择 --</option>
+                        <optgroup label="Nano Banana" style="background: var(--bg-dark); color: var(--text-primary);">
+                            <option value="flux-1.1-pro" style="background: var(--bg-dark); color: var(--text-primary);" ${finalConfig.model === 'flux-1.1-pro' ? 'selected' : ''}>FLUX 1.1 Pro (推荐)</option>
+                            <option value="flux-pro" style="background: var(--bg-dark); color: var(--text-primary);" ${finalConfig.model === 'flux-pro' ? 'selected' : ''}>FLUX Pro</option>
+                            <option value="flux-dev" style="background: var(--bg-dark); color: var(--text-primary);" ${finalConfig.model === 'flux-dev' ? 'selected' : ''}>FLUX Dev</option>
+                            <option value="flux-schnell" style="background: var(--bg-dark); color: var(--text-primary);" ${finalConfig.model === 'flux-schnell' ? 'selected' : ''}>FLUX Schnell (快速)</option>
                         </optgroup>
-                        <optgroup label="OpenAI">
-                            <option value="dall-e-3" ${config.model === 'dall-e-3' ? 'selected' : ''}>DALL-E 3</option>
-                            <option value="dall-e-2" ${config.model === 'dall-e-2' ? 'selected' : ''}>DALL-E 2</option>
+                        <optgroup label="OpenAI" style="background: var(--bg-dark); color: var(--text-primary);">
+                            <option value="dall-e-3" style="background: var(--bg-dark); color: var(--text-primary);" ${finalConfig.model === 'dall-e-3' ? 'selected' : ''}>DALL-E 3</option>
+                            <option value="dall-e-2" style="background: var(--bg-dark); color: var(--text-primary);" ${finalConfig.model === 'dall-e-2' ? 'selected' : ''}>DALL-E 2</option>
                         </optgroup>
-                        <optgroup label="Stability AI">
-                            <option value="sd-xl" ${config.model === 'sd-xl' ? 'selected' : ''}>Stable Diffusion XL</option>
-                            <option value="sd-3" ${config.model === 'sd-3' ? 'selected' : ''}>Stable Diffusion 3</option>
+                        <optgroup label="Stability AI" style="background: var(--bg-dark); color: var(--text-primary);">
+                            <option value="sd-xl" style="background: var(--bg-dark); color: var(--text-primary);" ${finalConfig.model === 'sd-xl' ? 'selected' : ''}>Stable Diffusion XL</option>
+                            <option value="sd-3" style="background: var(--bg-dark); color: var(--text-primary);" ${finalConfig.model === 'sd-3' ? 'selected' : ''}>Stable Diffusion 3</option>
                         </optgroup>
                     </select>
                 </div>
 
                 <div style="margin-bottom: 1rem;">
-                    <label style="font-weight: 600; display: block; margin-bottom: 0.5rem;">默认尺寸</label>
-                    <select id="imgGenSizeModal" style="
+                    <label style="font-weight: 600; display: block; margin-bottom: 0.5rem;">默认尺寸 (${orientationText})</label>
+                    <select id="imgGenSizeModal" class="form-select" style="
                         width: 100%; padding: 10px; background: var(--bg-dark);
                         border: 1px solid var(--border); border-radius: 8px;
                         color: var(--text-primary); font-size: 1rem;
                     ">
-                        <option value="1024x1024" ${config.size === '1024x1024' ? 'selected' : ''}>1024x1024 (正方形)</option>
-                        <option value="1024x1792" ${config.size === '1024x1792' ? 'selected' : ''}>1024x1792 (竖屏)</option>
-                        <option value="1792x1024" ${config.size === '1792x1024' ? 'selected' : ''}>1792x1024 (横屏)</option>
-                        <option value="1440x2560" ${config.size === '1440x2560' ? 'selected' : ''}>1440x2560 (2K竖屏)</option>
-                        <option value="2560x1440" ${config.size === '2560x1440' ? 'selected' : ''}>2560x1440 (2K横屏)</option>
+                        <option value="4K" style="background: var(--bg-dark); color: var(--text-primary);" ${finalConfig.size === '4K' ? 'selected' : ''}>4K (${isLandscape ? '3840x2160' : (isSquare ? '2160x2160' : '2160x3840')} ${orientationText} 推荐)</option>
+                        <option value="2K" style="background: var(--bg-dark); color: var(--text-primary);" ${finalConfig.size === '2K' ? 'selected' : ''}>2K (${isLandscape ? '2560x1440' : (isSquare ? '1440x1440' : '1440x2560')} ${orientationText})</option>
+                        <option value="1K" style="background: var(--bg-dark); color: var(--text-primary);" ${finalConfig.size === '1K' ? 'selected' : ''}>1K (${isLandscape ? '1920x1080' : (isSquare ? '1080x1080' : '1080x1920')} ${orientationText})</option>
                     </select>
+                    <div style="font-size: 0.75rem; color: var(--text-tertiary); margin-top: 4px;">
+                        💡 当前项目设置为${orientationText} (${aspectRatio})，尺寸对应 NanoBanana 服务的 1K/2K/4K 规格
+                    </div>
                 </div>
 
                 <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
@@ -1778,7 +1824,7 @@ class ShortDramaStudio {
     }
 
     /**
-     * 为视觉资产生成图片
+     * 为视觉资产生成图片 - 调用后端API
      */
     async generateAssetImage(name, type) {
         // 获取资产数据
@@ -1800,54 +1846,136 @@ class ShortDramaStudio {
         const description = asset.description || '';
         
         if (type === 'character') {
-            const clothing = asset.clothing || '';
-            const expression = asset.expression || '';
-            prompt = `Professional character portrait of ${name}`;
-            if (description) prompt += `, ${description}`;
-            if (clothing) prompt += `, wearing ${clothing}`;
-            if (expression) prompt += `, ${expression} expression`;
-            prompt += `, high quality, detailed, cinematic lighting, portrait photography style`;
+            // 🔥 角色：前端只传递角色ID和基础信息
+            // 后端会：1)调用AI生成中英双语描述 2)构建标准四视图提示词
+            prompt = JSON.stringify({
+                type: 'character',
+                id: name,  // 角色ID（唯一标识）
+                name: name,  // 角色名
+                raw_description: description || '',  // 原始描述（中文）
+                raw_clothing: asset.clothing || '',
+                raw_expression: asset.expression || ''
+            });
+            
         } else if (type === 'scene') {
             const lighting = asset.lighting || '';
             const colorTone = asset.colorTone || '';
-            prompt = `Cinematic scene of ${name}`;
-            if (description) prompt += `, ${description}`;
+            let sceneDesc = description;
+            // 如果描述是中文，提取关键信息
+            if (sceneDesc && /[\u4e00-\u9fa5]/.test(sceneDesc)) {
+                sceneDesc = 'detailed environment';
+            }
+            // 🔥 增加视觉识别标签
+            prompt = `Cinematic scene "${name}"`;
+            prompt += `, SCENE_TAG: LOCATION_${name.replace(/\s+/g, '_').toUpperCase()}`;
+            if (sceneDesc) prompt += `, ${sceneDesc}`;
             if (lighting) prompt += `, ${lighting} lighting`;
             if (colorTone) prompt += `, ${colorTone} color tone`;
-            prompt += `, high quality, detailed environment, cinematic composition`;
+            prompt += `, high quality, detailed environment, cinematic composition, photorealistic, 8k, sharp focus`;
+            prompt += `, location identifier "${name}" subtly integrated`;
         } else if (type === 'prop') {
             const propCategory = asset.category || '';
-            prompt = `Detailed image of ${name}`;
-            if (description) prompt += `, ${description}`;
+            let propDesc = description;
+            if (propDesc && /[\u4e00-\u9fa5]/.test(propDesc)) {
+                propDesc = 'detailed object';
+            }
+            // 🔥 增加视觉识别标签
+            prompt = `Detailed product shot of "${name}"`;
+            prompt += `, PROP_TAG: ITEM_${name.replace(/\s+/g, '_').toUpperCase()}`;
+            if (propDesc) prompt += `, ${propDesc}`;
             if (propCategory) prompt += `, ${propCategory}`;
-            prompt += `, high quality, detailed, product photography style, clean background`;
+            prompt += `, high quality, detailed, product photography style, clean background, photorealistic, 8k, sharp focus, studio lighting`;
+            prompt += `, item label "${name}" visible`;
         }
         
-        // 生成图片
-        const imageUrl = await this.generateImage(prompt);
+        // 获取项目的视频设置
+        const settings = this.currentProject?.settings || {};
         
-        if (imageUrl) {
-            // 更新资产的图片 URL
-            asset.referenceUrl = imageUrl;
-            asset.updatedAt = new Date().toISOString();
+        // 角色图使用16:9比例（设计表布局），4K分辨率
+        // 场景和道具使用项目设置的比例
+        let aspectRatio, imageSize;
+        if (type === 'character') {
+            aspectRatio = '16:9';  // 角色设计表用16:9（左30%头部特写 + 右70%三视图）
+            imageSize = '4K';       // 角色图默认4K
+        } else {
+            aspectRatio = settings.aspect_ratio || '9:16';
+            const quality = settings.quality || '2K';
+            imageSize = quality === '4K' ? '4K' : (quality === '2K' ? '2K' : '1K');
+        }
+        
+        // 显示生成中状态
+        this.showToast(`🎨 正在生成 ${name} 的图片...`, 'info');
+        
+        try {
+            // 构建请求体
+            const requestBody = {
+                category: category,
+                name: name,
+                prompt: prompt,
+                aspect_ratio: aspectRatio,
+                image_size: imageSize
+            };
             
-            // 保存到后端
-            try {
-                await fetch(`/api/projects/${this.currentProject.id}/visual-assets/${category}/${encodeURIComponent(name)}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ referenceUrl: imageUrl })
-                });
-                
-                // 刷新显示
-                this.selectVisualAsset(type, asset, imageUrl);
-                this.loadVisualAssetsGrid(category);
-                
-                this.showToast(`✅ ${name} 图片已生成并保存`, 'success');
-            } catch (error) {
-                console.error('保存图片 URL 失败:', error);
-                this.showToast('图片生成成功，但保存失败', 'warning');
+            // 🔥 角色类型额外传递描述信息（用于四视图生成）
+            if (type === 'character') {
+                requestBody.description = asset.description || '';
+                requestBody.clothing = asset.clothing || '';
+                requestBody.expression = asset.expression || '';
             }
+            
+            // 调用后端API生成图片
+            const response = await fetch(`/api/short-drama/projects/${this.currentProject.id}/visual-assets/generate`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(requestBody)
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                // 更新本地资产数据
+                const imageUrl = result.data?.referenceUrl;
+                const localPath = result.data?.localPath;
+                if (imageUrl) {
+                    asset.referenceUrl = imageUrl;
+                    asset.localPath = localPath;
+                    asset.updatedAt = new Date().toISOString();
+                    
+                    // 🔥 同时更新 characterPortraits（用于画布显示）
+                    if (type === 'character') {
+                        if (!this.characterPortraits.has(name)) {
+                            this.characterPortraits.set(name, {});
+                        }
+                        const portraitInfo = this.characterPortraits.get(name);
+                        portraitInfo.mainPortrait = {
+                            url: imageUrl,
+                            path: localPath,
+                            generatedAt: new Date().toISOString()
+                        };
+                        // 刷新画布显示
+                        this.refreshPortraitCanvas();
+                    }
+                    
+                    // 刷新网格显示
+                    this.selectVisualAsset(type, asset, imageUrl);
+                    this.loadVisualAssetsGrid(category);
+                    
+                    this.showToast(`✅ ${name} 图片已生成并保存`, 'success');
+                } else {
+                    this.showToast('图片生成成功，但未返回图片地址', 'warning');
+                }
+            } else {
+                const errorMsg = result.error || '生成失败';
+                this.showToast(`❌ ${errorMsg}`, 'error');
+                
+                // 如果是未配置错误，提示用户配置
+                if (errorMsg.includes('未配置') || errorMsg.includes('api_key')) {
+                    this.showToast('请在 config/config.py 中配置 nanobanana.api_key', 'info', 5000);
+                }
+            }
+        } catch (error) {
+            console.error('生成图片失败:', error);
+            this.showToast(`❌ 生成失败: ${error.message}`, 'error');
         }
     }
 
@@ -8943,12 +9071,14 @@ saveGeminiConfig(config) {
 
     /**
      * 加载Demo文件 - 验证全流程
+     * @param {string} type - 'single' 单集示例或 'multi' 多集示例
      */
-    async loadDemoFile() {
+    async loadDemoFile(type = 'single') {
+        const demoFile = type === 'multi' ? '/static/demo/multi_episode_demo.json' : '/static/demo/idea_import_demo.json';
         try {
             // 添加时间戳参数防止缓存
             const timestamp = new Date().getTime();
-            const response = await fetch(`/static/demo/idea_import_demo.json?t=${timestamp}`);
+            const response = await fetch(`${demoFile}?t=${timestamp}`);
             if (!response.ok) {
                 // 如果静态文件不存在，使用内置的demo数据
                 console.log('Demo文件加载失败，使用内置数据');
@@ -8958,7 +9088,13 @@ saveGeminiConfig(config) {
             const data = await response.json();
             document.getElementById('jsonImportInput').value = JSON.stringify(data, null, 2);
             this.validateJson();
-            this.showToast('✅ Demo文件加载成功！点击「开始创作」验证全流程', 'success');
+            
+            // 根据类型显示不同提示
+            if (type === 'multi' || (data.episodes && data.episodes.length > 0)) {
+                this.showToast('✅ 多集Demo加载成功！请选择要生成的单一集数', 'success');
+            } else {
+                this.showToast('✅ 单集Demo加载成功！点击「开始创作」验证全流程', 'success');
+            }
         } catch (error) {
             console.log('Demo文件加载失败，使用内置数据:', error);
             this.loadBuiltinDemo();
@@ -9480,10 +9616,10 @@ saveGeminiConfig(config) {
             return;
         }
 
-        // 🔥 检查是否为多集结构
+        // 🔥 处理多集结构 - 用户选择其中一集生成
         if (data.episodes && Array.isArray(data.episodes) && data.episodes.length > 0) {
-            // 多集结构 - 显示集数选择界面
-            await this.showEpisodeSelection(data);
+            // 显示集数选择界面，让用户选择要生成哪一集
+            await this.showEpisodeSelectionForGeneration(data);
             return;
         }
 
@@ -9521,135 +9657,122 @@ saveGeminiConfig(config) {
     }
 
     /**
-     * 显示集数选择界面
+     * 显示集数选择界面（仅选择一集生成）
      */
-    async showEpisodeSelection(data) {
+    async showEpisodeSelectionForGeneration(data) {
         const modal = document.getElementById('ideaImportModal');
         const modalBody = modal.querySelector('.modal-body');
+        const jsonArea = document.getElementById('jsonImportArea');
 
         // 保存原始内容
         if (!this.originalModalContent) {
-            this.originalModalContent = modalBody.innerHTML;
+            this.originalModalContent = jsonArea.innerHTML;
         }
 
-        // 构建集数选择界面
+        // 构建集数选择界面 - 单选模式
         let html = `
-            <div class="episode-selection">
-                <h4>📺 ${data.title}</h4>
-                <p class="text-secondary">${data.world_setting || ''}</p>
-                <hr>
-                <h5>选择要生成的集数：</h5>
-                <div class="episode-list">
+            <div class="episode-selection" style="padding: 1rem;">
+                <h4 style="margin-bottom: 0.5rem;">📺 ${data.title}</h4>
+                <p style="color: var(--text-secondary); font-size: 0.9rem;">${data.world_setting || ''}</p>
+                <hr style="margin: 1rem 0; border-color: rgba(255,255,255,0.1);">
+                <h5 style="margin-bottom: 1rem;">选择要生成的集数（单选）：</h5>
+                <div class="episode-list" style="max-height: 300px; overflow-y: auto;">
         `;
 
         for (const ep of data.episodes) {
-            const episodeNum = ep.episode;
-            const episodeTitle = ep.episode_title || `第${episodeNum}集`;
-            const status = ep.status || 'pending';
-            const statusText = status === 'completed' ? '✅ 已生成' : '⏳ 待生成';
-            const statusClass = status === 'completed' ? 'text-success' : 'text-warning';
+            const episodeNum = ep.episode || ep.ep;
+            const episodeTitle = ep.episode_title || ep.title || `第${episodeNum}集`;
+            const description = ep.description || ep.desc || ep.summary || '';
 
             html += `
-                <div class="episode-item" data-episode="${episodeNum}">
-                    <div class="episode-header">
-                        <input type="checkbox" id="ep${episodeNum}" value="${episodeNum}" ${status === 'pending' ? 'checked' : ''}>
-                        <label for="ep${episodeNum}">
-                            <strong>第${episodeNum}集：${episodeTitle}</strong>
-                            <span class="${statusClass}">${statusText}</span>
-                        </label>
+                <div class="episode-option" style="
+                    border: 2px solid rgba(99, 102, 241, 0.2);
+                    border-radius: 8px;
+                    padding: 12px;
+                    margin-bottom: 10px;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                    background: rgba(0,0,0,0.2);
+                " onclick="shortDramaStudio.selectEpisodeForGeneration(${episodeNum})" data-episode="${episodeNum}">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <input type="radio" name="selectedEpisode" value="${episodeNum}" style="width: 18px; height: 18px;">
+                        <div style="flex: 1;">
+                            <strong style="color: var(--primary);">第${episodeNum}集：${episodeTitle}</strong>
+                            <div style="color: var(--text-secondary); font-size: 0.85rem; margin-top: 4px;">${description.substring(0, 80)}${description.length > 80 ? '...' : ''}</div>
+                        </div>
                     </div>
-                    <div class="episode-desc">${ep.description || ''}</div>
-                    ${ep.focus ? `<div class="episode-focus"><strong>重点：</strong>${ep.focus.hook || ''}</div>` : ''}
                 </div>
             `;
         }
 
         html += `
                 </div>
-                <div class="episode-actions">
-                    <button class="btn btn-secondary" onclick="app.cancelEpisodeSelection()">取消</button>
-                    <button class="btn btn-primary" onclick="app.generateSelectedEpisodes()">生成选中集数</button>
+                <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+                    <button class="btn btn-secondary" onclick="shortDramaStudio.cancelEpisodeSelection()">取消</button>
+                    <button class="btn btn-primary" onclick="shortDramaStudio.generateSelectedEpisode()">生成该集</button>
                 </div>
             </div>
-            <style>
-                .episode-selection { padding: 20px; }
-                .episode-list { max-height: 400px; overflow-y: auto; margin: 20px 0; }
-                .episode-item {
-                    border: 1px solid var(--border-color);
-                    border-radius: 8px;
-                    padding: 15px;
-                    margin-bottom: 15px;
-                    background: var(--bg-secondary);
-                }
-                .episode-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
-                .episode-header input[type="checkbox"] { width: 20px; height: 20px; }
-                .episode-header label { flex: 1; margin: 0; cursor: pointer; display: flex; justify-content: space-between; }
-                .episode-desc { color: var(--text-secondary); font-size: 0.9em; margin-left: 30px; }
-                .episode-focus { color: var(--text-secondary); font-size: 0.85em; margin-left: 30px; margin-top: 5px; }
-                .episode-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
-            </style>
         `;
 
-        modalBody.innerHTML = html;
+        jsonArea.innerHTML = html;
 
         // 保存数据供后续使用
         this.multiEpisodeData = data;
+        this.selectedEpisodeNum = null;
+    }
+
+    /**
+     * 选择要生成的集
+     */
+    selectEpisodeForGeneration(episodeNum) {
+        this.selectedEpisodeNum = episodeNum;
+        // 更新UI显示
+        document.querySelectorAll('.episode-option').forEach(el => {
+            el.style.borderColor = 'rgba(99, 102, 241, 0.2)';
+            el.style.background = 'rgba(0,0,0,0.2)';
+        });
+        const selected = document.querySelector(`.episode-option[data-episode="${episodeNum}"]`);
+        if (selected) {
+            selected.style.borderColor = 'var(--primary)';
+            selected.style.background = 'rgba(99, 102, 241, 0.1)';
+            selected.querySelector('input[type="radio"]').checked = true;
+        }
     }
 
     /**
      * 取消集数选择
      */
     cancelEpisodeSelection() {
-        const modal = document.getElementById('ideaImportModal');
-        const modalBody = modal.querySelector('.modal-body');
+        const jsonArea = document.getElementById('jsonImportArea');
         if (this.originalModalContent) {
-            modalBody.innerHTML = this.originalModalContent;
+            jsonArea.innerHTML = this.originalModalContent;
+            // 重新绑定事件
+            document.getElementById('jsonImportInput')?.addEventListener('input', () => {
+                this.validateJson();
+            });
         }
         this.multiEpisodeData = null;
+        this.selectedEpisodeNum = null;
     }
 
     /**
-     * 生成选中的集数
+     * 生成选中的单集
      */
-    async generateSelectedEpisodes() {
+    async generateSelectedEpisode() {
         if (!this.multiEpisodeData) {
             this.showToast('数据丢失，请重新导入', 'error');
             return;
         }
 
         // 获取选中的集数
-        const checkboxes = document.querySelectorAll('.episode-item input[type="checkbox"]:checked');
-        const selectedEpisodes = Array.from(checkboxes).map(cb => parseInt(cb.value));
-
-        if (selectedEpisodes.length === 0) {
-            this.showToast('请至少选择一集', 'warning');
+        const episodeNum = this.selectedEpisodeNum;
+        if (!episodeNum) {
+            this.showToast('请选择要生成的集数', 'warning');
             return;
         }
 
-        // 按顺序生成每一集
-        for (const episodeNum of selectedEpisodes.sort((a, b) => a - b)) {
-            await this.generateEpisode(this.multiEpisodeData, episodeNum);
-        }
-
-        // 恢复界面
-        this.cancelEpisodeSelection();
-        this.closeIdeaModal();
-
-        // 重新加载项目列表
-        await this.loadProjects();
-
-        // 打开项目
-        const newProject = this.projects.find(p => p.title === this.multiEpisodeData.title);
-        if (newProject) {
-            await this.openProject(newProject.id);
-        }
-    }
-
-    /**
-     * 生成单集
-     */
-    async generateEpisode(data, episodeNum) {
-        const episode = data.episodes.find(ep => ep.episode === episodeNum);
+        const data = this.multiEpisodeData;
+        const episode = data.episodes.find(ep => (ep.episode || ep.ep) === episodeNum);
         if (!episode) {
             this.showToast(`未找到第${episodeNum}集数据`, 'error');
             return;
@@ -9658,37 +9781,20 @@ saveGeminiConfig(config) {
         // 构建请求数据
         const requestData = {
             title: data.title,
-            world_setting: data.world_setting || '',
+            episode: episodeNum,
+            description: episode.description || episode.desc || episode.summary || '',
+            world_setting: data.world_setting || data.world || '',
             style: data.style || '通用',
+            shot_duration: episode.shot_duration || data.shot_duration || 5,
             protagonist: data.protagonist || null,
-            episodes: data.episodes,  // 🔥 传递完整的episodes数组
-            episode_number: episodeNum  // 🔥 指定要生成的集数
+            shots: episode.shots || null
         };
 
-        this.showToast(`正在生成第${episodeNum}集：${episode.episode_title || ''}...`, 'info');
+        // 关闭选择界面
+        this.cancelEpisodeSelection();
 
-        try {
-            const response = await fetch('/api/short-drama/create-from-idea', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(requestData)
-            });
-
-            const result = await response.json();
-
-            if (result.success) {
-                if (result.skipped) {
-                    this.showToast(`第${episodeNum}集已存在，跳过生成`, 'info');
-                } else {
-                    this.showToast(`第${episodeNum}集生成成功！`, 'success');
-                }
-            } else {
-                this.showToast(`第${episodeNum}集生成失败: ${result.error}`, 'error');
-            }
-        } catch (error) {
-            console.error(`第${episodeNum}集生成失败:`, error);
-            this.showToast(`第${episodeNum}集生成失败`, 'error');
-        }
+        // 调用单集生成
+        await this.doCreateFromIdea(requestData);
     }
 
     /**
@@ -10476,7 +10582,20 @@ saveGeminiConfig(config) {
      * 渲染角色到画布
      */
     renderCharactersToCanvas(characters) {
-        if (!characters || characters.length === 0) return;
+        // 🔥 如果没有传入角色数组，尝试从 visualAssets 获取
+        if (!characters || characters.length === 0) {
+            const visualAssetChars = this.currentProject?.visualAssets?.characters;
+            if (visualAssetChars && Object.keys(visualAssetChars).length > 0) {
+                characters = Object.entries(visualAssetChars).map(([name, data]) => ({
+                    name: name,
+                    ...data
+                }));
+                console.log('🎭 [画布] 从 visualAssets 加载角色:', characters.length);
+            } else {
+                console.log('🎭 [画布] 没有角色可渲染');
+                return;
+            }
+        }
 
         // 角色区起始位置
         let startX = 200;
@@ -10488,11 +10607,18 @@ saveGeminiConfig(config) {
         characters.forEach((char, idx) => {
             const charName = char.name || `角色${idx + 1}`;
             
-            // 查找剧照
+            // 🔥 查找剧照 - 优先从 visualAssets 获取新生成的图片
             let portraitUrl = null;
-            const portraitInfo = this.characterPortraits.get(charName);
-            if (portraitInfo && portraitInfo.mainPortrait) {
-                portraitUrl = portraitInfo.mainPortrait.url;
+            const visualAsset = this.currentProject?.visualAssets?.characters?.[charName];
+            if (visualAsset?.referenceUrl) {
+                // 优先使用 visualAssets 中的新生成图片
+                portraitUrl = visualAsset.referenceUrl;
+            } else {
+                // 回退到 characterPortraits
+                const portraitInfo = this.characterPortraits.get(charName);
+                if (portraitInfo?.mainPortrait) {
+                    portraitUrl = portraitInfo.mainPortrait.url;
+                }
             }
 
             // 计算位置（网格布局）
@@ -10652,6 +10778,32 @@ saveGeminiConfig(config) {
 
         this.portraitLayer.add(group);
         this.portraitCanvasItems.push(group);
+    }
+
+    /**
+     * 刷新画布显示（重新渲染所有角色）
+     */
+    refreshPortraitCanvas() {
+        if (!this.portraitStage || !this.portraitLayer) return;
+        
+        console.log('🎨 [画布] 刷新角色显示');
+        
+        // 清除现有角色卡片（保留网格背景）
+        const charactersToRemove = [];
+        this.portraitLayer.children.forEach(child => {
+            if (child.hasName('character-card')) {
+                charactersToRemove.push(child);
+            }
+        });
+        charactersToRemove.forEach(child => child.destroy());
+        
+        // 清空变换器
+        this.portraitTransformer.nodes([]);
+        
+        // 重新渲染角色
+        this.renderCharactersToCanvas(this.characters);
+        
+        this.portraitLayer.batchDraw();
     }
 
     /**
