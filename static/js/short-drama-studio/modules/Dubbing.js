@@ -285,13 +285,11 @@
 
             // 更新项目状态
             this.updateProjectStatus();
-        }
+        },
 
         /**
-         * 轮询视频生成状态
+         * 渲染单个配音场景（支持更新和返回模板）
          */
-        pollVideoStatus(taskId, shotIndex) {
-
         renderDubbingScene(shot, idx) {
             const dialogue = shot._dialogue_data || shot.dialogue || {};
             const { speaker, lines, tone } = this.parseDialogue(dialogue);

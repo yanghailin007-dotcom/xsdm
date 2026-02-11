@@ -5474,13 +5474,6 @@ saveGeminiConfig(config) {
     }
 }
 
-        if (step) {
-            this.loadedSteps.delete(step);
-        } else {
-            this.loadedSteps.clear();
-        }
-    }
-
     /**
      * 刷新当前步骤
      */
