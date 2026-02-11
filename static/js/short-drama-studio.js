@@ -12118,6 +12118,11 @@ if (typeof ExportMixin !== 'undefined') {
     console.log('✅ [模块] Export 模块已加载');
 }
 
+if (typeof StoryBeatsMixin !== 'undefined') {
+    Object.assign(ShortDramaStudio.prototype, StoryBeatsMixin);
+    console.log('✅ [模块] StoryBeats 模块已加载');
+}
+
 // 初始化
 const shortDramaStudio = new ShortDramaStudio();
 // 暴露到全局作用域供inline onclick使用
