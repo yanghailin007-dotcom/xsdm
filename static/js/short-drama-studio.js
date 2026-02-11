@@ -9412,6 +9412,16 @@ if (typeof ProjectManagerMixin !== 'undefined') {
     console.log('✅ [模块] ProjectManager 模块已加载');
 }
 
+if (typeof ImageGenerationMixin !== 'undefined') {
+    Object.assign(ShortDramaStudio.prototype, ImageGenerationMixin);
+    console.log('✅ [模块] ImageGeneration 模块已加载');
+}
+
+if (typeof VideoGenerationMixin !== 'undefined') {
+    Object.assign(ShortDramaStudio.prototype, VideoGenerationMixin);
+    console.log('✅ [模块] VideoGeneration 模块已加载');
+}
+
 // 初始化
 const shortDramaStudio = new ShortDramaStudio();
 // 暴露到全局作用域供inline onclick使用
