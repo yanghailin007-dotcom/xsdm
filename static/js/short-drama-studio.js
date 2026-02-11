@@ -3536,6 +3536,43 @@ class ShortDramaStudio {
     }
 
     /**
+     * 🔥 统一加载镜头数据（视频和配音步骤复用）
+     */
+    async loadShotsData() {
+        // 如果已经有缓存数据，直接返回
+        if (this.shots && this.shots.length > 0) {
+            console.log('🔄 [数据加载] 使用缓存的镜头数据:', this.shots.length);
+            return this.shots;
+        }
+
+        const episodeDirectoryName = this.getEpisodeDirectoryName();
+        console.log('📚 [数据加载] 开始加载镜头数据, 剧集:', episodeDirectoryName);
+
+        try {
+            // 统一数据源：只使用 shots_v2.json
+            const v2Data = await this.loadShotsV2();
+            if (v2Data?.shots?.length > 0) {
+                console.log('✅ [数据加载] 从 shots_v2.json 加载成功, 镜头数:', v2Data.shots.length);
+                this.shots = this.normalizeShots(v2Data.shots);
+
+                // 缓存到项目中
+                if (!this.currentProject) {
+                    this.currentProject = {};
+                }
+                this.currentProject.shots = this.shots;
+                
+                return this.shots;
+            } else {
+                console.log('⚠️ [数据加载] shots_v2.json 不存在或为空');
+            }
+        } catch (error) {
+            console.error('❌ [数据加载] 加载镜头数据失败:', error);
+        }
+
+        return [];
+    }
+
+    /**
      * 加载视频步骤
      */
     async loadVideoStep() {
@@ -3544,62 +3581,26 @@ class ShortDramaStudio {
 
         container.innerHTML = '<div class="loading-state"><div class="spinner"></div><p>加载分镜头数据...</p></div>';
 
-        const episodeDirectoryName = this.getEpisodeDirectoryName();
-        console.log('🎬 [视频步骤] 开始加载分镜头数据, 剧集:', episodeDirectoryName);
+        // 调用统一的数据加载方法
+        const allShots = await this.loadShotsData();
 
-        let allShots = [];
-
-        try {
-            // 🔥 统一数据源：只使用 shots_v2.json
-            const v2Data = await this.loadShotsV2();
-            if (v2Data?.shots?.length > 0) {
-                console.log('✅ [视频步骤] 从 shots_v2.json 加载成功, 镜头数:', v2Data.shots.length);
-                allShots = this.normalizeShots(v2Data.shots);
-
-                // 缓存到内存中
-                if (!this.currentProject) {
-                    this.currentProject = {};
-                }
-                this.currentProject.shots = allShots;
-            } else {
-                console.log('⚠️ [视频步骤] shots_v2.json 不存在或为空');
-            }
-
-            if (allShots.length === 0) {
-                container.innerHTML = `
-                    <div class="empty-state">
-                        <p style="font-size: 2rem;">🎬</p>
-                        <p>还没有分镜头数据</p>
-                        <p style="font-size: 0.85rem; color: var(--text-secondary);">
-                            请先在"分镜生成"步骤生成分镜头
-                        </p>
-                        <button class="btn btn-primary" onclick="shortDramaStudio.goToStep('storyboard')" style="margin-top: 1rem;">
-                            前往分镜生成
-                        </button>
-                    </div>
-                `;
-                return;
-            }
-
-            this.shots = allShots;
-            console.log('✅ [视频步骤] 最终加载的镜头数:', this.shots.length);
-
-        } catch (error) {
-            console.error('❌ [视频步骤] 加载分镜头失败:', error);
+        if (allShots.length === 0) {
             container.innerHTML = `
                 <div class="empty-state">
-                    <p style="font-size: 2rem;">❌</p>
-                    <p>加载分镜头数据失败</p>
+                    <p style="font-size: 2rem;">🎬</p>
+                    <p>还没有分镜头数据</p>
                     <p style="font-size: 0.85rem; color: var(--text-secondary);">
-                        ${error.message || '未知错误'}
+                        请先在"分镜生成"步骤生成分镜头
                     </p>
-                    <button class="btn btn-secondary" onclick="shortDramaStudio.loadVideoStep()" style="margin-top: 1rem;">
-                        重试
+                    <button class="btn btn-primary" onclick="shortDramaStudio.goToStep('storyboard')" style="margin-top: 1rem;">
+                        前往分镜生成
                     </button>
                 </div>
             `;
             return;
         }
+
+        console.log('✅ [视频步骤] 最终加载的镜头数:', this.shots.length);
 
         container.innerHTML = '<div class="loading-state"><div class="spinner"></div><p>检查视频文件...</p></div>';
 
@@ -8888,14 +8889,14 @@ saveGeminiConfig(config) {
         const container = document.getElementById('dubbingContent');
         if (!container) return;
 
-        // 🔥 统一数据源：从 shots_v2.json 加载或使用内存缓存
+        // 🔥 统一数据源：复用视频步骤已加载的数据
         if (!this.shots || this.shots.length === 0) {
-            const v2Data = await this.loadShotsV2();
-            if (v2Data?.shots?.length > 0) {
-                this.shots = this.normalizeShots(v2Data.shots);
-                console.log('🎙️ [配音] 从 shots_v2.json 加载成功, 镜头数:', this.shots.length);
-            }
+            // 如果视频步骤没有加载过，调用统一的数据加载方法
+            await this.loadShotsData();
         }
+        
+        if (!this.shots || this.shots.length === 0) {
+            console.log('⚠️ [配音] 没有可用的镜头数据');
 
         if (!this.shots || this.shots.length === 0) {
             container.innerHTML = `
@@ -8991,7 +8992,8 @@ saveGeminiConfig(config) {
         const expandedDialogueShots = [];
         for (let i = 0; i < this.shots.length; i++) {
             const shot = this.shots[i];
-            // 检查是否是对话场景（有dialogues数组）
+            
+            // 优先检查 dialogues 数组（多个对话）
             if (shot.dialogues && Array.isArray(shot.dialogues) && shot.dialogues.length > 0) {
                 // 🔥 初始化子镜头音频状态数组（如果不存在）
                 if (!shot._sub_audios || !Array.isArray(shot._sub_audios)) {
@@ -9048,12 +9050,26 @@ saveGeminiConfig(config) {
                     });
                 });
             } else {
-                // 普通镜头：直接检查是否有台词
+                // 检查单个 dialogue 对象
                 const dialogue = shot._dialogue_data || shot.dialogue || {};
                 const { speaker, lines } = this.parseDialogue(dialogue);
-                if (speaker && speaker !== '无' && speaker !== '未知' && lines) {
+                
+                // 如果有有效台词（说话人不是"无"或"未知"，且有台词内容）
+                if (speaker && speaker !== '无' && speaker !== '未知' && lines && lines !== '无') {
+                    // 初始化子镜头音频状态
+                    if (!shot._sub_audios || !Array.isArray(shot._sub_audios)) {
+                        shot._sub_audios = [null];
+                    }
+                    
                     // 添加原始索引
                     shot._original_shot_index = i;
+                    shot._sub_dialogue_index = 0;
+                    shot._dialogue_data = dialogue;
+                    shot.dialogue_index = 1;
+                    shot.dialogue_count = 1;
+                    shot.original_scene_number = shot.shot_number;
+                    shot.is_dialogue_scene = true;
+                    
                     expandedDialogueShots.push(shot);
                 }
             }
