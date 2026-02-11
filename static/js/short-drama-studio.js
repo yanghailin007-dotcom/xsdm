@@ -10911,7 +10911,9 @@ saveGeminiConfig(config) {
             const firstEpisode = this.currentProject.episodes[0];
             if (firstEpisode.shots && firstEpisode.shots.length > 0) {
                 console.log('✅ [分镜头] 从 episodes 加载 shots 数据（创意导入）');
-                this.currentProject.shots = firstEpisode.shots;
+                // 调用 normalizeShots 确保数据格式统一
+                this.currentProject.shots = this.normalizeShots(firstEpisode.shots);
+                this.shots = this.currentProject.shots;
                 this.renderShotsList();
                 return;
             }
