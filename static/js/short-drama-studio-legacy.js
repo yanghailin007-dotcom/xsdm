@@ -9209,6 +9209,26 @@ saveGeminiConfig(config) {
     }
 
     /**
+     * 加载导出步骤
+     */
+    loadExportStep() {
+        const container = document.getElementById('exportContent');
+        if (!container) return;
+
+        container.innerHTML = `
+            <div class="export-section">
+                <div class="empty-state">
+                    <p style="font-size: 2rem;">📤</p>
+                    <p>导出功能</p>
+                    <p style="font-size: 0.85rem; color: var(--text-secondary);">
+                        完成视频生成后，可以在这里导出最终成片
+                    </p>
+                </div>
+            </div>
+        `;
+    }
+
+    /**
      * 轮询视频生成状态
      */
     pollVideoStatus(taskId, shotIndex) {
@@ -11256,6 +11276,16 @@ saveGeminiConfig(config) {
     }
 
     /**
+     * HTML转义
+     */
+    escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML.replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+    }
+
+    /**
      * 保存镜头模式
      */
     saveShotModes() {
@@ -12105,17 +12135,6 @@ saveGeminiConfig(config) {
             this.togglePanel('right');
         }
     }
-}
-
-// 🔥 混入模块功能
-if (typeof UtilsMixin !== 'undefined') {
-    Object.assign(ShortDramaStudio.prototype, UtilsMixin);
-    console.log('✅ [模块] Utils 模块已加载');
-}
-
-if (typeof ExportMixin !== 'undefined') {
-    Object.assign(ShortDramaStudio.prototype, ExportMixin);
-    console.log('✅ [模块] Export 模块已加载');
 }
 
 // 初始化
