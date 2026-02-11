@@ -3514,6 +3514,7 @@ class ShortDramaStudio {
 
                 visual_elements: shot.visual_elements || {},
                 dialogue: shot.dialogue || shot._dialogue_data,
+                dialogues: shot.dialogues || [],
                 image_prompts: shot.image_prompts || {},
                 reference_images: shot.reference_images || [],
 
