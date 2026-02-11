@@ -2641,8 +2641,8 @@ class ShortDramaStudio {
                 <div class="task-content">
                     ${modeSelectorHtml}
                     <div class="task-prompt">
-                        <span class="prompt-label">AI提示:</span>
-                        <span class="prompt-text" id="prompt-text-${idx}">${(currentPrompt || shot.screen_action || '').substring(0, 150)}${(currentPrompt || shot.screen_action || '').length > 150 ? '...' : ''}</span>
+                        <span class="prompt-label">画面描述:</span>
+                        <span class="prompt-text" id="prompt-text-${idx}">${(currentVisualDesc || shot.visual_description || shot.screen_action || '').substring(0, 150)}${(currentVisualDesc || shot.visual_description || shot.screen_action || '').length > 150 ? '...' : ''}</span>
                     </div>
                     ${shot.plot_content ? `
                     <div class="task-plot">
@@ -2995,7 +2995,7 @@ class ShortDramaStudio {
                             <span class="badge" style="background: var(--bg-tertiary); padding: 4px 12px; border-radius: 6px; font-size: 0.85rem;">⏱️ ${shot.duration || 5}秒</span>
                         </div>
                         <p style="color: var(--text-secondary); margin: 0; font-size: 0.85rem;">
-                            🎬 画面: ${(shot.veo_prompt || shot.screen_action || '').substring(0, 100)}...
+                            🎬 画面: ${(shot.visual_description || shot.screen_action || '').substring(0, 100)}...
                         </p>
                     </div>
 

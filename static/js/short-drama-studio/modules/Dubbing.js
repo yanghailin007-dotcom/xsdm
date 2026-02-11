@@ -329,7 +329,7 @@
                 <div class="scene-content">
                     <div class="scene-visual">
                         <div class="visual-label">🎬 画面</div>
-                        <div class="visual-desc">${(shot.veo_prompt || shot.screen_action || '').substring(0, 100)}...</div>
+                        <div class="visual-desc">${(shot.visual_description || shot.screen_action || '').substring(0, 100)}...</div>
                     </div>
 
                     <div class="scene-dialogue">
