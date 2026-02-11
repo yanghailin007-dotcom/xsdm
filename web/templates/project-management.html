@@ -1525,7 +1525,8 @@
             }
 
             try {
-                const response = await fetch(`/api/project/${encodeURIComponent(projectTitle)}`, {
+                // 使用专门的小说项目删除API
+                const response = await fetch(`/api/novel-project/${encodeURIComponent(projectTitle)}`, {
                     method: 'DELETE'
                 });
 

@@ -1514,6 +1514,61 @@ def register_additional_routes(app):
             return jsonify({"success": False, "error": str(e)}), 500
     
     
+    @app.route('/api/novel-project/<title>', methods=['DELETE'])
+    def delete_novel_project(title):
+        """删除小说项目
+        
+        通过标题删除小说项目及其所有相关数据
+        """
+        try:
+            from urllib.parse import unquote
+            title = unquote(title)
+            
+            logger.info(f"🗑️ 请求删除小说项目: {title}")
+            
+            if not manager:
+                return jsonify({"success": False, "error": "Manager not initialized"}), 500
+            
+            # 检查项目是否存在
+            if title not in manager.novel_projects:
+                logger.warning(f"⚠️ 项目不存在: {title}")
+                return jsonify({"success": False, "error": "项目不存在"}), 404
+            
+            # 从内存中删除项目
+            del manager.novel_projects[title]
+            
+            # 保存更改（序列化到文件）
+            manager._save_projects()
+            
+            # 删除项目目录
+            import shutil
+            from pathlib import Path
+            
+            # 小说项目目录
+            novel_project_dir = Path(manager.base_dir) / title
+            if novel_project_dir.exists():
+                shutil.rmtree(novel_project_dir)
+                logger.info(f"✅ 已删除小说项目目录: {novel_project_dir}")
+            
+            # 如果存在视频项目目录，也一并删除
+            video_project_dir = VIDEO_PROJECTS_DIR / title
+            if video_project_dir.exists():
+                shutil.rmtree(video_project_dir)
+                logger.info(f"✅ 已删除视频项目目录: {video_project_dir}")
+            
+            logger.info(f"✅ 成功删除小说项目: {title}")
+            return jsonify({
+                "success": True,
+                "message": f"项目 '{title}' 已删除"
+            })
+            
+        except Exception as e:
+            logger.error(f"❌ 删除小说项目失败: {e}")
+            import traceback
+            logger.error(f"错误堆栈: {traceback.format_exc()}")
+            return jsonify({"success": False, "error": str(e)}), 500
+    
+    
     @app.route('/templates/components/<component_name>', methods=['GET'])
     def get_template_component(component_name):
         """提供模板组件文件（用于前端动态加载）"""

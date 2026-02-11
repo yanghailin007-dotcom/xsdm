@@ -43,6 +43,16 @@ VIDEO_PROJECTS_DIR.mkdir(exist_ok=True)
 NOVEL_PROJECTS_DIR = BASE_DIR / '小说项目'
 NOVEL_PROJECTS_DIR.mkdir(exist_ok=True)
 
+# 🔥 导入多轮优化管道
+try:
+    from src.core.script_optimization.pipeline import ScriptOptimizationPipeline
+    from src.core.script_optimization.config import OptimizationConfig
+    logger.info("✅ [短剧API] 多轮优化模块加载成功")
+except ImportError as e:
+    logger.warning(f"⚠️ [短剧API] 多轮优化模块加载失败: {e}")
+    ScriptOptimizationPipeline = None
+    OptimizationConfig = None
+
 # ============================================
 # 图片生成任务队列
 # ============================================
@@ -893,26 +903,55 @@ def _sync_characters_to_visual_assets(project):
         logger.error(f'同步角色到视觉资产失败: {e}')
 
 
-@short_drama_api.route('/projects/<project_id>', methods=['DELETE'])
-def delete_project(project_id):
-    """删除项目"""
+@short_drama_api.route('/projects/<project_identifier>', methods=['DELETE'])
+@short_drama_api.route('/project/<project_identifier>', methods=['DELETE'])
+def delete_project(project_identifier):
+    """删除项目
+    
+    支持通过项目ID或项目标题查找并删除项目
+    """
     try:
-        # 查找项目目录
-        project = ShortDramaProject.load(project_id)
-        if project:
-            project_dir = get_project_dir(project.title)
+        # URL解码
+        from urllib.parse import unquote
+        project_identifier = unquote(project_identifier)
+        
+        # 查找项目目录（通过遍历找到匹配该项目ID或标题的目录）
+        project_dir = None
+        matched_project = None
+        
+        for p_dir in VIDEO_PROJECTS_DIR.iterdir():
+            if p_dir.is_dir():
+                project_file = p_dir / '项目信息.json'
+                if project_file.exists():
+                    try:
+                        with open(project_file, 'r', encoding='utf-8') as f:
+                            data = json.load(f)
+                            # 匹配ID或标题
+                            if data.get('id') == project_identifier or data.get('title') == project_identifier:
+                                project_dir = p_dir
+                                matched_project = data
+                                break
+                    except Exception as e:
+                        logger.warning(f'读取项目文件失败: {project_file}, 错误: {e}')
+                        continue
+        
+        if project_dir and project_dir.exists():
             # 删除整个项目目录
             import shutil
-            if project_dir.exists():
-                shutil.rmtree(project_dir)
-                logger.info(f'✅ 删除项目: {project_id} - {project.title}')
+            shutil.rmtree(project_dir)
+            project_title = matched_project.get('title', 'Unknown') if matched_project else 'Unknown'
+            logger.info(f'✅ 删除项目: {project_identifier} (标题: {project_title}) - 目录: {project_dir.name}')
+            return jsonify({
+                'success': True,
+                'message': '项目已删除'
+            }), 200
         else:
-            logger.warning(f'⚠️ 项目不存在: {project_id}')
+            logger.warning(f'⚠️ 项目不存在: {project_identifier}')
+            return jsonify({
+                'success': False,
+                'error': '项目不存在'
+            }), 404
 
-        return jsonify({
-            'success': True,
-            'message': '项目已删除'
-        }), 200
     except Exception as e:
         logger.error(f'删除项目失败: {e}')
         return jsonify({
@@ -1215,7 +1254,7 @@ def create_from_idea():
                 json.dump({**shots_v2_data, 'language': 'cn', 'shots': shots_cn}, f, ensure_ascii=False, indent=2)
                 
         else:
-            # 2. 调用AI生成故事节拍 (Step 3)
+            # 2. 调用AI生成故事节拍
             logger.info(f'[创意导入] 开始生成故事节拍...')
             # 提取主角基础信息用于故事节拍生成
             protagonist_for_beats = protagonist_character.get('living_characteristics', {}).get('physical_presence', '') or protagonist_appearance
@@ -1243,7 +1282,13 @@ def create_from_idea():
                     'error': '故事节拍生成失败，请稍后重试'
                 }), 500
 
-            # 3. 基于故事节拍生成专业分镜头(全英文)(Step 4)
+            # 🔥 3. AI优化故事节拍 (第1轮优化 - 新增)
+            logger.info(f'🔧 [创意导入] 开始AI优化故事节拍...')
+            story_beats, beat_opt_log = optimize_story_beats_with_ai(story_beats, title, style)
+            if beat_opt_log.get('changes_count', 0) > 0:
+                logger.info(f'✅ [创意导入] 故事节拍优化完成: {beat_opt_log["changes_count"]} 处改动')
+
+            # 4. 基于故事节拍生成专业分镜头(全英文)
             logger.info(f'[创意导入] 基于故事节拍生成分镜头(全英文)...')
             
             # 🔥 创建基础视觉资产(包含主角信息)
@@ -1263,7 +1308,13 @@ def create_from_idea():
                 visual_assets=visual_assets
             )
 
-            # 4. 保存英文版 shots_v2.json
+            # 🔥 5. AI优化分镜 (第2轮优化 - 替代规则优化)
+            logger.info(f'🔧 [创意导入] 开始AI优化分镜...')
+            shots_en, shot_opt_log = optimize_shots_with_ai(shots_en, title, style)
+            if shot_opt_log.get('changes_count', 0) > 0:
+                logger.info(f'✅ [创意导入] 分镜AI优化完成: {shot_opt_log["changes_count"]} 处改动')
+
+            # 6. 保存英文版 shots_v2.json
             shots_v2_data = {
                 'version': '2.0',
                 'generated_at': datetime.now().isoformat(),
@@ -1278,11 +1329,11 @@ def create_from_idea():
                 json.dump(shots_v2_data, f, ensure_ascii=False, indent=2)
             logger.info(f'✅ [创意导入] 英文分镜头已保存: {shots_v2_file}')
 
-            # 5. 调用AI将分镜头翻译成中文 (Step 5)
+            # 7. 调用AI将分镜头翻译成中文
             logger.info(f'[创意导入] 调用AI翻译分镜头为中文...')
             shots_cn = translate_shots_to_chinese(shots_en)
 
-            # 6. 保存中文版 shots_v2_cn.json
+            # 8. 保存中文版 shots_v2_cn.json
             shots_v2_cn_data = {
                 'version': '2.0',
                 'generated_at': datetime.now().isoformat(),
@@ -1297,7 +1348,7 @@ def create_from_idea():
                 json.dump(shots_v2_cn_data, f, ensure_ascii=False, indent=2)
             logger.info(f'✅ [创意导入] 中文分镜头已保存: {shots_v2_cn_file}')
 
-        # 🔥 提取视觉资产清单 (Step 6)
+        # 9. 提取视觉资产清单
         logger.info(f'🎨 [创意导入] 开始提取视觉资产...')
         visual_assets = extract_visual_assets_from_shots(shots_en, shots_cn, title)
 
@@ -1310,7 +1361,7 @@ def create_from_idea():
         logger.info(f'   - 场景: {len(visual_assets.get("scenes", []))} 个')
         logger.info(f'   - 道具: {len(visual_assets.get("props", []))} 个')
 
-        # 🔥 生成帧序列提示词 (Step 7)
+        # 10. 生成帧序列提示词
         logger.info(f'🎬 [创意导入] 开始生成帧序列提示词...')
         frame_sequences = generate_frame_sequences_from_shots(shots_en, shots_cn, visual_assets, title)
 
@@ -1359,7 +1410,7 @@ def create_from_idea():
             'props': {item.get('name', f'prop_{i}'): item for i, item in enumerate(visual_assets.get('props', []))}
         }
 
-        # 6. 创建项目信息(兼容前端格式)
+        # 10. 创建项目信息(兼容前端格式)
         project_data = {
             'id': str(uuid.uuid4())[:8],
             'title': title,
@@ -1386,7 +1437,7 @@ def create_from_idea():
             'storyBeats': story_beats  # 保存原始故事节拍
         }
 
-        # 7. 保存项目JSON
+        # 11. 保存项目JSON
         project_file = project_dir / '项目信息.json'
         with open(project_file, 'w', encoding='utf-8') as f:
             json.dump(project_data, f, ensure_ascii=False, indent=2)
@@ -3308,6 +3359,7 @@ def _generate_frame_sequences_batch(batch_shots_en, batch_shots_cn, visual_asset
 3. 体现时间的连续性和动作的流畅性
 4. 使用英文，适合直接用于图像生成(FLUX/DALL-E等)
 5. 相邻镜头之间要有视觉连贯性
+6. description_cn 必须是 prompt 的准确中文翻译，保持专业术语和细节
 
 返回JSON格式:
 {
@@ -3315,7 +3367,7 @@ def _generate_frame_sequences_batch(batch_shots_en, batch_shots_cn, visual_asset
         {
             "shot_id": "shot_1",
             "frames": [
-                {"frame_number": 1, "prompt": "英文画面描述", "description_cn": "中文描述"},
+                {"frame_number": 1, "prompt": "英文画面描述", "description_cn": "prompt的中文翻译"},
                 ...
             ]
         },
@@ -3384,12 +3436,26 @@ def _generate_frame_sequences_batch(batch_shots_en, batch_shots_cn, visual_asset
             if not shot_info:
                 shot_info = shots_info[0] if shots_info else {}
 
+            # 🔥 确保 description_cn 是 prompt 的准确翻译
+            frames = seq_data.get('frames', [])
+            for frame in frames:
+                prompt = frame.get('prompt', '')
+                description_cn = frame.get('description_cn', '')
+                # 如果 description_cn 为空或与 prompt 明显不对应，使用翻译
+                if not description_cn or len(description_cn) < len(prompt) * 0.3:
+                    # 使用同步翻译函数
+                    try:
+                        frame['description_cn'] = _translate_to_chinese_sync(prompt)
+                    except Exception as e:
+                        logger.warning(f'  翻译失败，使用原文: {e}')
+                        frame['description_cn'] = prompt  # 回退到原文
+
             sequence = {
                 'shot_id': shot_id or shot_info.get('shot_id', ''),
                 'duration': shot_info.get('duration', 5),
                 'frame_count': shot_info.get('frame_count', 3),
                 'grid_layout': shot_info.get('grid_layout', '1x3'),
-                'frames': seq_data.get('frames', []),
+                'frames': frames,
                 'scene': shot_info.get('scene_title', ''),
                 'characters': '',
                 'visual_style': ''
@@ -4755,6 +4821,217 @@ def generate_frame_grid():
             'success': False,
             'message': f'生成失败: {str(e)}'
         }), 500
+
+
+def optimize_story_beats_with_ai(story_beats: dict, title: str, style: str = "cinematic") -> tuple:
+    """
+    🔥 使用AI优化故事节拍 (第1轮优化)
+    
+    Args:
+        story_beats: 原始故事节拍
+        title: 剧集标题
+        style: 风格
+        
+    Returns:
+        (优化后的story_beats, 优化日志)
+    """
+    if not api_client:
+        logger.warning('⚠️ [AI优化] API客户端未初始化，跳过故事节拍优化')
+        return story_beats, {'stage': 'beat_structure', 'changes_count': 0, 'method': 'skipped'}
+    
+    scenes = story_beats.get('scenes', [])
+    if not scenes:
+        return story_beats, {'stage': 'beat_structure', 'changes_count': 0, 'method': 'none'}
+    
+    try:
+        logger.info(f'🔧 [AI优化] 开始优化故事节拍，共{len(scenes)}个场景...')
+        
+        system_prompt = """你是一位专业的短剧剧本医生，擅长优化故事节奏和情绪曲线。
+你的任务是优化故事节拍表，确保：
+1. 情绪曲线有完整的起伏（平静→紧张→高潮→回落/悬念）
+2. 3秒钩子足够吸引人（强冲突/强悬念）
+3. 每个场景的情绪标签准确且相邻场景情绪不同
+4. 场景时长分配合理（快节奏3-5秒，对白5-8秒，高潮8-12秒）
+5. 结尾有悬念或余韵
+
+优化原则：
+- 增强情绪对比度
+- 删除平淡的过渡
+- 强化关键转折点
+- 确保对白自然不说教
+
+直接返回优化后的JSON，保持原格式不变。"""
+
+        user_prompt = f"""请优化以下故事节拍表：
+
+剧集标题：{title}
+风格：{style}
+
+原始故事节拍：
+{json.dumps(story_beats, ensure_ascii=False, indent=2)}
+
+优化要求：
+1. 检查并修正情绪曲线，确保有完整的情绪起伏
+2. 优化场景时长分配，使总时长合理
+3. 确保相邻场景情绪不同，形成情绪过山车
+4. 强化3秒钩子和结尾悬念
+5. 修正任何不自然的对白
+
+请直接返回优化后的完整JSON（保持相同的字段结构）。"""
+
+        response = api_client.call_api(
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            temperature=0.7,
+            purpose="故事节拍优化"
+        )
+        
+        content = response.get('content', '') if isinstance(response, dict) else str(response)
+        
+        # 提取JSON
+        import re
+        json_match = re.search(r'\{[\s\S]*\}', content)
+        if json_match:
+            optimized_beats = json.loads(json_match.group())
+        else:
+            optimized_beats = json.loads(content)
+        
+        # 计算改动
+        original_scenes = len(story_beats.get('scenes', []))
+        optimized_scenes = len(optimized_beats.get('scenes', []))
+        
+        changes_count = abs(optimized_scenes - original_scenes)
+        
+        # 检查情绪变化
+        for i, (orig, opt) in enumerate(zip(story_beats.get('scenes', []), optimized_beats.get('scenes', []))):
+            if orig.get('emotion') != opt.get('emotion'):
+                changes_count += 1
+            if orig.get('durationSeconds') != opt.get('durationSeconds'):
+                changes_count += 1
+        
+        optimization_log = {
+            'stage': 'beat_structure',
+            'method': 'ai',
+            'changes_count': changes_count,
+            'original_scenes': original_scenes,
+            'optimized_scenes': optimized_scenes
+        }
+        
+        logger.info(f'✅ [AI优化] 故事节拍优化完成，共{changes_count}处改动')
+        return optimized_beats, optimization_log
+        
+    except Exception as e:
+        logger.error(f'❌ [AI优化] 故事节拍优化失败: {e}')
+        return story_beats, {'stage': 'beat_structure', 'changes_count': 0, 'method': 'failed', 'error': str(e)}
+
+
+def optimize_shots_with_ai(shots: list, title: str, style: str = "cinematic") -> tuple:
+    """
+    🔥 使用AI优化分镜 (第2轮优化 - 替代规则优化)
+    
+    Args:
+        shots: 原始分镜列表
+        title: 剧集标题
+        style: 风格
+        
+    Returns:
+        (优化后的shots, 优化日志)
+    """
+    if not api_client:
+        logger.warning('⚠️ [AI优化] API客户端未初始化，跳过分镜优化')
+        return shots, {'stage': 'shots', 'changes_count': 0, 'method': 'skipped'}
+    
+    if not shots:
+        return shots, {'stage': 'shots', 'changes_count': 0, 'method': 'none'}
+    
+    try:
+        logger.info(f'🔧 [AI优化] 开始优化分镜，共{len(shots)}个镜头...')
+        
+        system_prompt = """你是一位专业的短剧分镜优化师，擅长视觉叙事和提示词工程。
+你的任务是优化分镜剧本，确保：
+
+1. 对白自然真实，不说教、不直白解说
+2. 删除"应该""下次记住"等说教台词
+3. 删除"这是...""原来..."等直白解说
+4. 情绪标签改为身体语言和表情
+5. 视觉描述电影化、有质感
+6. VEO提示词符合视频生成模型要求
+7. 镜头类型多样化，形成视觉节奏
+8. 竖屏9:16构图（主体居中）
+
+优化原则：
+- 展示而非告诉
+- 用视觉讲故事
+- 保持简洁有力
+- 每句对白都有戏剧冲突
+
+直接返回优化后的JSON数组。"""
+
+        user_prompt = f"""请优化以下分镜剧本：
+
+剧集标题：{title}
+风格：{style}
+镜头数：{len(shots)}
+
+原始分镜：
+{json.dumps(shots, ensure_ascii=False, indent=2)}
+
+优化要求：
+1. 检查所有对白，删除说教和直白解说的台词
+2. 优化视觉描述，使其更电影化
+3. 增强VEO提示词的质量
+4. 确保镜头类型多样化
+5. 添加竖屏构图提示（主体居中）
+
+请直接返回优化后的完整分镜数组（保持相同的字段结构）。"""
+
+        response = api_client.call_api(
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            temperature=0.7,
+            purpose="分镜AI优化"
+        )
+        
+        content = response.get('content', '') if isinstance(response, dict) else str(response)
+        
+        # 提取JSON数组
+        import re
+        json_match = re.search(r'\[[\s\S]*\]', content)
+        if json_match:
+            optimized_shots = json.loads(json_match.group())
+        else:
+            # 尝试直接解析
+            optimized_shots = json.loads(content)
+        
+        # 确保返回的是列表
+        if not isinstance(optimized_shots, list):
+            logger.warning('⚠️ [AI优化] AI返回格式不正确，使用原始分镜')
+            return shots, {'stage': 'shots', 'changes_count': 0, 'method': 'format_error'}
+        
+        # 计算改动（简单对比关键字段）
+        changes_count = 0
+        for i, (orig, opt) in enumerate(zip(shots, optimized_shots)):
+            if orig.get('dialogue', {}).get('lines_en') != opt.get('dialogue', {}).get('lines_en'):
+                changes_count += 1
+            if orig.get('veo_prompt_standard') != opt.get('veo_prompt_standard'):
+                changes_count += 1
+        
+        optimization_log = {
+            'stage': 'shots',
+            'method': 'ai',
+            'changes_count': changes_count,
+            'original_shots': len(shots),
+            'optimized_shots': len(optimized_shots)
+        }
+        
+        logger.info(f'✅ [AI优化] 分镜优化完成，共{changes_count}处改动')
+        return optimized_shots, optimization_log
+        
+    except Exception as e:
+        logger.error(f'❌ [AI优化] 分镜优化失败: {e}')
+        import traceback
+        logger.error(traceback.format_exc())
+        return shots, {'stage': 'shots', 'changes_count': 0, 'method': 'failed', 'error': str(e)}
 
 
 def register_short_drama_routes(app):
