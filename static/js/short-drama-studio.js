@@ -869,8 +869,8 @@ class ShortDramaStudio {
                 return this.currentProject?.shots?.length > 0 || this.shots?.length > 0;
 
             case 'video':
-                // 检查是否有视频文件（至少生成了一个视频）
-                return this.shots?.some(shot => shot.video_url || shot.status === 'completed');
+                // 视频步骤依赖分镜数据，不需要已生成视频
+                return this.currentProject?.shots?.length > 0 || this.shots?.length > 0;
 
             case 'dubbing':
                 // 配音步骤依赖分镜数据，不需要视频完成
@@ -8897,8 +8897,6 @@ saveGeminiConfig(config) {
         
         if (!this.shots || this.shots.length === 0) {
             console.log('⚠️ [配音] 没有可用的镜头数据');
-
-        if (!this.shots || this.shots.length === 0) {
             container.innerHTML = `
                 <div class="empty-state">
                     <p style="font-size: 2rem;">🎙️</p>
