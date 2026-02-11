@@ -642,6 +642,9 @@
     },
 
     showImageTaskList() {
+        // 🔥 清理本地缓存中超过1小时的失败任务
+        this.cleanupLocalFailedTasks();
+        
         // 检查是否已有面板
         let panel = document.getElementById('image-task-panel');
         if (panel) {
@@ -656,7 +659,10 @@
         panel.innerHTML = `
             <div class="task-panel-header">
                 <h4>🎨 图片生成队列</h4>
-                <button class="btn-close" onclick="shortDramaStudio.hideImageTaskList()">✕</button>
+                <div class="task-panel-actions">
+                    <button class="btn-cleanup" onclick="shortDramaStudio.cleanupFailedTasks()" title="清理失败任务">🧹</button>
+                    <button class="btn-close" onclick="shortDramaStudio.hideImageTaskList()">✕</button>
+                </div>
             </div>
             <div class="task-panel-body" id="task-panel-body">
                 <div class="task-empty">暂无生成任务</div>
@@ -694,6 +700,27 @@
                     margin: 0;
                     color: #fff;
                     font-size: 14px;
+                }
+                .task-panel-actions {
+                    display: flex;
+                    gap: 8px;
+                    align-items: center;
+                }
+                .task-panel-actions button {
+                    background: rgba(255,255,255,0.1);
+                    border: none;
+                    color: #fff;
+                    cursor: pointer;
+                    padding: 4px 8px;
+                    border-radius: 4px;
+                    font-size: 12px;
+                    transition: all 0.2s;
+                }
+                .task-panel-actions button:hover {
+                    background: rgba(255,255,255,0.2);
+                }
+                .btn-cleanup {
+                    font-size: 14px !important;
                 }
                 .task-panel-body {
                     max-height: 400px;
@@ -769,6 +796,58 @@
         const panel = document.getElementById('image-task-panel');
         if (panel) {
             panel.remove();
+        }
+    },
+
+    // 🔥 清理本地缓存中的失败任务（超过1小时）
+    cleanupLocalFailedTasks() {
+        const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+        let cleanedCount = 0;
+        
+        for (const [taskId, task] of this.imageTasks.entries()) {
+            if (task.status === 'failed' && new Date(task.created_at) < oneHourAgo) {
+                this.imageTasks.delete(taskId);
+                cleanedCount++;
+            }
+        }
+        
+        if (cleanedCount > 0) {
+            console.log(`🚮 [图片任务] 清理了 ${cleanedCount} 个本地失败任务`);
+        }
+    },
+
+    // 🔥 手动清理失败任务（调用后端API）
+    async cleanupFailedTasks() {
+        if (!this.currentProject) return;
+        
+        try {
+            const response = await fetch(
+                `/api/short-drama/projects/${this.currentProject.id}/visual-assets/tasks/cleanup`,
+                {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ max_age_minutes: 0, status: 'failed' })
+                }
+            );
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                // 同时清理本地缓存
+                for (const [taskId, task] of this.imageTasks.entries()) {
+                    if (task.status === 'failed') {
+                        this.imageTasks.delete(taskId);
+                    }
+                }
+                
+                this.showToast(`🧹 已清理 ${result.cleaned_count} 个失败任务`, 'success');
+                this.updateImageTaskList();
+            } else {
+                this.showToast('❌ 清理失败', 'error');
+            }
+        } catch (error) {
+            console.error('清理失败任务失败:', error);
+            this.showToast('❌ 清理失败', 'error');
         }
     },
 

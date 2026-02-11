@@ -4117,16 +4117,28 @@ def get_image_task_status(project_id, task_id):
 def list_image_tasks(project_id):
     """
     列出项目的所有图片生成任务
+    
+    Query参数:
+        - include_failed: 是否包含失败任务 (默认true)
+        - cleanup_failed: 是否清理1小时前的失败任务 (默认true)
     """
     try:
         project = ShortDramaProject.load(project_id)
         if not project:
             return jsonify({'success': False, 'error': '项目不存在'}), 404
         
+        include_failed = request.args.get('include_failed', 'true').lower() == 'true'
+        cleanup_failed = request.args.get('cleanup_failed', 'true').lower() == 'true'
+        
+        # 🔥 自动清理1小时前的失败任务
+        if cleanup_failed:
+            _cleanup_failed_tasks(project_id, max_age_minutes=60)
+        
         with _image_tasks_lock:
             tasks = [
                 task.to_dict() for task in _image_tasks.values()
                 if task.project_id == project_id
+                and (include_failed or task.status != ImageGenerationTask.STATUS_FAILED)
             ]
         
         return jsonify({
@@ -4137,7 +4149,88 @@ def list_image_tasks(project_id):
         
     except Exception as e:
         logger.error(f'列出任务失败: {e}')
+        import traceback
+        logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+def _cleanup_failed_tasks(project_id=None, max_age_minutes=60):
+    """
+    清理失败任务
+    
+    Args:
+        project_id: 指定项目ID(为None则清理所有项目)
+        max_age_minutes: 失败任务保留时间(分钟)
+    """
+    cutoff = datetime.now() - timedelta(minutes=max_age_minutes)
+    with _image_tasks_lock:
+        to_remove = []
+        for task_id, task in _image_tasks.items():
+            if task.status == ImageGenerationTask.STATUS_FAILED:
+                # 检查项目ID匹配
+                if project_id and task.project_id != project_id:
+                    continue
+                # 检查是否超过保留时间
+                task_time = datetime.fromisoformat(task.created_at)
+                if task_time < cutoff:
+                    to_remove.append(task_id)
+        
+        for task_id in to_remove:
+            del _image_tasks[task_id]
+        
+        if to_remove:
+            logger.info(f"🚮 [图片任务] 清理了 {len(to_remove)} 个失败任务")
+
+
+@short_drama_api.route('/projects/<project_id>/visual-assets/tasks/cleanup', methods=['POST'])
+def cleanup_failed_tasks_api(project_id):
+    """
+    手动清理失败任务
+    
+    Request Body:
+        - max_age_minutes: 失败任务保留时间(默认60分钟)
+        - status: 指定要清理的状态(默认'failed', 可选'all')
+    """
+    try:
+        data = request.json or {}
+        max_age_minutes = data.get('max_age_minutes', 60)
+        status = data.get('status', 'failed')
+        
+        cutoff = datetime.now() - timedelta(minutes=max_age_minutes)
+        
+        with _image_tasks_lock:
+            to_remove = []
+            for task_id, task in _image_tasks.items():
+                if task.project_id != project_id:
+                    continue
+                
+                # 根据状态过滤
+                if status == 'failed' and task.status != ImageGenerationTask.STATUS_FAILED:
+                    continue
+                elif status == 'completed' and task.status != ImageGenerationTask.STATUS_COMPLETED:
+                    continue
+                elif status == 'pending' and task.status != ImageGenerationTask.STATUS_PENDING:
+                    continue
+                # status='all' 则清理所有状态
+                
+                # 检查是否超过保留时间
+                task_time = datetime.fromisoformat(task.created_at)
+                if task_time < cutoff:
+                    to_remove.append(task_id)
+            
+            for task_id in to_remove:
+                del _image_tasks[task_id]
+        
+        logger.info(f"🚮 [图片任务] 手动清理: {len(to_remove)} 个任务")
+        
+        return jsonify({
+            'success': True,
+            'message': f'已清理 {len(to_remove)} 个任务',
+            'cleaned_count': len(to_remove)
+        })
+        
+    except Exception as e:
+        logger.error(f'清理任务失败: {e}')
         import traceback
         logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': str(e)}), 500
