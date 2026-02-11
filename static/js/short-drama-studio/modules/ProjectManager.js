@@ -27,7 +27,7 @@
             } catch (error) {
                 console.error('加载项目失败:', error);
             }
-        }
+        },
 
         renderProjectsList() {
             const container = document.getElementById('projectsList');
@@ -84,7 +84,7 @@
                     </div>
                 `;
             }).join('');
-        }
+        },
 
         async loadEventsAndCharacters() {
             try {
@@ -129,7 +129,7 @@
                 console.error('加载数据失败:', error);
                 this.showToast('加载数据失败', 'error');
             }
-        }
+        },
 
         loadProjectSettings(settings) {
             if (!settings) return;
@@ -152,7 +152,7 @@
                 this.characterVoiceMap = this.currentProject.character_voice_map;
                 console.log('🎙️ [配音] 恢复角色-音色映射:', this.characterVoiceMap);
             }
-        }
+        },
 
         async deleteProject(projectId) {
             // 显示确认对话框 - 确保用户确认
@@ -182,14 +182,14 @@
                 console.error('删除项目失败:', error);
                 this.showToast('删除项目失败', 'error');
             }
-        }
+        },
 
         backToProjects() {
             document.getElementById('projectWorkspaceView').classList.remove('active');
             document.getElementById('projectListView').classList.add('active');
             this.currentProject = null;
             this.currentStep = 'select-episodes';
-        }
+        },
 
         async saveProject() {
             if (!this.selectedNovel) {
@@ -257,7 +257,7 @@
                 console.error('保存项目失败:', error);
                 this.showToast('保存项目失败', 'error');
             }
-        }
+        },
 
         getProjectSettings() {
             return {
@@ -265,7 +265,7 @@
                 quality: document.getElementById('settingQuality')?.value || '4K',
                 model: document.getElementById('settingModel')?.value || 'veo_3_1-fast'
             };
-        }
+        },
 
         updateProjectStatus() {
             const episodesEl = document.getElementById('statusEpisodes');
@@ -277,7 +277,7 @@
             if (portraitsEl) portraitsEl.textContent = this.characterPortraits.size;
             if (shotsEl) shotsEl.textContent = this.shots?.length || 0;
             if (videosEl) videosEl.textContent = '0'; // TODO: 计算已完成视频数
-        }
+        },
 
         toggleProjectsSection() {
             const section = document.getElementById('projectsSection');

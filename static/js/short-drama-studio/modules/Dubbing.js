@@ -399,13 +399,11 @@
                     ${innerHTML}
                 </div>
             `;
-        }
+        },
 
         /**
          * 更新配音统计数字
          */
-        updateDubbingStats() {
-
         updateDubbingStats() {
             const dialogueShots = this.shots.filter(shot => {
                 const dialogue = shot._dialogue_data || shot.dialogue || {};
@@ -430,12 +428,13 @@
                     <span class="stat-item pending">待生成 ${pendingCount}</span>
                 `;
             }
-        }
+        },
 
         /**
          * 清除步骤缓存（用于数据更新后强制刷新）
          */
         invalidateStepCache(step = null) {
             if (!this.loadedSteps) return;
+        }
     };
 }));

@@ -44,7 +44,7 @@
             } catch (error) {
                 console.error('❌ [视觉资产库] 加载失败:', error);
             }
-        }
+        },
 
         initVisualAssetsPanel() {
             // 🔥 初始化图片生成任务管理器
@@ -76,7 +76,7 @@
             document.getElementById('vaGenerateBtn')?.addEventListener('click', () => {
                 this.generateVisualAsset();
             });
-        }
+        },
 
         loadVisualAssetsGrid(category) {
             const grid = document.getElementById('visualAssetsGrid');
@@ -185,7 +185,7 @@
                     });
                 }
             }
-        }
+        },
 
         selectVisualAsset(type, data, imageUrl) {
             const panel = document.getElementById('vaPropertiesContent');
@@ -301,7 +301,7 @@
                 </div>
                 ` : ''}
             `;
-        }
+        },
 
         async saveVisualAssetsToProject() {
             if (!this.currentProject?.id || !this.currentProject?.visualAssets) {
@@ -327,7 +327,7 @@
             } catch (error) {
                 console.error('保存视觉资产失败:', error);
             }
-        }
+        },
 
         uploadVisualAsset() {
             const input = document.createElement('input');
@@ -345,7 +345,7 @@
                 }
             };
             input.click();
-        }
+        },
 
         extractCharactersFromEpisodes() {
             const characters = [];
@@ -369,7 +369,7 @@
             }
 
             return characters;
-        }
+        },
 
         async generatePortrait(characterName) {
             const character = this.characters.find(c => c.name === characterName);
@@ -404,7 +404,7 @@
 
             // 打开剧照工作台（新窗口）
             window.open('/portrait-studio?mode=episode', '_blank');
-        }
+        },
 
         generateCharacterPortraitPrompt(character) {
             const name = character.name || '';
@@ -550,7 +550,7 @@
             prompt += `- 空气中弥漫灵气粒子效果\n`;
 
             return prompt;
-        }
+        },
 
         viewPortrait(characterName) {
             // 🔥 宽松匹配：查找包含角色名的剧照

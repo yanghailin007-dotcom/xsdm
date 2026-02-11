@@ -84,7 +84,7 @@
                     episode_order: order
                 };
             }
-        }
+        },
 
         async saveShotsV2(shots) {
             try {
@@ -111,7 +111,7 @@
             } catch (error) {
                 console.error('❌ [保存] shots_v2.json 保存异常:', error);
             }
-        }
+        },
 
         async loadShotsV2() {
             try {
@@ -132,7 +132,7 @@
                 console.error('❌ [加载] shots_v2.json 加载异常:', error);
                 return null;
             }
-        }
+        },
 
         normalizeShots(shots) {
             console.log('🔄 [格式化] 开始格式化镜头数据, 原始数量:', shots.length);
@@ -181,7 +181,7 @@
 
                 return normalized;
             });
-        }
+        },
 
         async loadShotsData() {
             // 如果已经有缓存数据，直接返回
@@ -215,7 +215,7 @@
             }
 
             return [];
-        }
+        },
 
         groupShotsByEvent(shots) {
             const groups = [];
@@ -239,7 +239,7 @@
             });
 
             return groups;
-        }
+        },
 
         updateShotMode(shotIndex) {
             const selectElement = document.getElementById(`mode-select-${shotIndex}`);
@@ -261,7 +261,7 @@
             }
 
             console.log(`🎨 [模式切换] 镜头${shotIndex} 切换到 ${newMode} 模式`);
-        }
+        },
 
         normalizeShotsForImport(shots) {
             if (!Array.isArray(shots) || shots.length === 0) return [];
@@ -286,7 +286,7 @@
                     dialogues: this.normalizeDialogues(shot.dialogues || shot.dialogue || shot.lines || shot.conversation || [])
                 };
             });
-        }
+        },
 
         async loadStoryboardStep() {
             const container = document.getElementById('storyboardContent');
@@ -332,7 +332,7 @@
                     </button>
                 </div>
             `;
-        }
+        },
 
         async generateStoryboard() {
             const container = document.getElementById('storyboardContent');
@@ -395,7 +395,7 @@
                     </div>
                 `;
             }
-        }
+        },
 
         renderShotsList() {
             const container = document.getElementById('storyboardContent');
@@ -583,7 +583,7 @@
             `;
             
             container.innerHTML = html;
-        }
+        },
 
         saveShotModes() {
             if (!this.currentProject?.shots) return;
