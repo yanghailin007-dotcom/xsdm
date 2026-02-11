@@ -882,6 +882,56 @@ class ShortDramaStudio {
     }
 
     /**
+     * 显示 Toast 通知
+     */
+    showToast(message, type = 'info') {
+        const toast = document.createElement('div');
+        toast.style.cssText = `
+            position: fixed;
+            top: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 12px 24px;
+            background: ${type === 'warning' ? '#f59e0b' : type === 'error' ? '#ef4444' : '#6366f1'};
+            color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            z-index: 10001;
+            font-size: 14px;
+            font-weight: 500;
+            animation: slideDown 0.3s ease;
+        `;
+        toast.textContent = message;
+
+        // 添加动画样式
+        if (!document.getElementById('toast-animation-style')) {
+            const style = document.createElement('style');
+            style.id = 'toast-animation-style';
+            style.textContent = `
+                @keyframes slideDown {
+                    from {
+                        opacity: 0;
+                        transform: translateX(-50%) translateY(-20px);
+                    }
+                    to {
+                        opacity: 1;
+                        transform: translateX(-50%) translateY(0);
+                    }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+
+        document.body.appendChild(toast);
+
+        // 3秒后自动移除
+        setTimeout(() => {
+            toast.style.animation = 'slideDown 0.3s ease reverse';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+
+    /**
      * 加载视觉资产库步骤
      */
     async loadVisualAssetsStep() {
@@ -10074,7 +10124,7 @@ saveGeminiConfig(config) {
             style: data.style || data.genre || data.type || '通用',
             shot_duration: parseInt(data.shot_duration) || parseInt(data.duration) || 5,
             protagonist: this.normalizeProtagonist(data.protagonist || data.character || data.hero || data.main_character || {}),
-            shots: this.normalizeShots(data.shots || data.scenes || data.frames || [])
+            shots: this.normalizeShotsForImport(data.shots || data.scenes || data.frames || [])
         };
         
         // 提取新版格式的额外字段
@@ -10114,9 +10164,9 @@ saveGeminiConfig(config) {
     }
 
     /**
-     * 标准化分镜列表
+     * 标准化分镜列表（专门用于创意导入）
      */
-    normalizeShots(shots) {
+    normalizeShotsForImport(shots) {
         if (!Array.isArray(shots) || shots.length === 0) return [];
         
         return shots.map((shot, index) => {
@@ -11533,6 +11583,46 @@ saveGeminiConfig(config) {
 
                 this.portraitLayer.batchDraw();
             };
+
+            // 🔥 添加错误处理
+            imageObj.onerror = () => {
+                console.error('❌ [画布] 图片加载失败:', imageUrl);
+                // 显示占位符
+                group.add(new Konva.Rect({
+                    x: 10,
+                    y: 10,
+                    width: cardWidth - 20,
+                    height: 180,
+                    fill: 'rgba(239, 68, 68, 0.1)',
+                    stroke: 'rgba(239, 68, 68, 0.3)',
+                    strokeWidth: 1,
+                    cornerRadius: 8
+                }));
+
+                group.add(new Konva.Text({
+                    x: 0,
+                    y: 90,
+                    text: '❌',
+                    fontSize: 32,
+                    fill: '#ef4444',
+                    width: cardWidth,
+                    align: 'center'
+                }));
+
+                group.add(new Konva.Text({
+                    x: 10,
+                    y: 200,
+                    text: name,
+                    fontSize: 14,
+                    fontStyle: 'bold',
+                    fill: '#f1f5f9',
+                    width: cardWidth - 20,
+                    ellipsis: true
+                }));
+
+                this.portraitLayer.batchDraw();
+            };
+
             imageObj.src = imageUrl;
         } else {
             // 无剧照 - 显示占位符
