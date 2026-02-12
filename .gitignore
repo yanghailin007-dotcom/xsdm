@@ -104,24 +104,3 @@ static/generated_videos/
 视频项目/**/audio/
 视频项目/**/subtitles/
 视频项目/**/.backups/
-
-# ============================================
-# 敏感配置文件 - 包含API密钥等机密信息
-# ============================================
-config/config.py
-config/*.json
-config/*config*.py
-!config/config.template.py
-!config/config.json.example
-!config/__init__.py
-
-# 环境变量文件
-.env
-.env.local
-.env.*.local
-
-# 其他敏感文件
-*.secret
-*.credentials
-secrets/
-credentials/
