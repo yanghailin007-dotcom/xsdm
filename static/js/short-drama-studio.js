@@ -2024,6 +2024,14 @@ class ShortDramaStudio {
         const aspectRatio = settings.aspect_ratio || '9:16';
         const quality = settings.quality || '4K';
 
+        console.log('🎬 [getVideoSettings] 调试:', {
+            currentProject: this.currentProject?.title,
+            settingsQuality: settings.quality,
+            finalQuality: quality,
+            aspectRatio: aspectRatio,
+            useFirstLastFrame: settings.use_first_last_frame
+        });
+
         // 根据比例和质量计算实际分辨率
         let size = '1920x1080'; // 默认 1080p
         if (aspectRatio === '16:9') {
