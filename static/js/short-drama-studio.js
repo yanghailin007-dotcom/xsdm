@@ -5174,9 +5174,8 @@ saveGeminiConfig(config) {
                                         color: var(--text-primary);
                                         font-size: 0.95rem;
                                     ">
-                                        <option value="veo_3_1-fast-components-4K" ${videoSettings.model === 'veo_3_1-fast-components-4K' ? 'selected' : ''}>4K参考图模式</option>
-                                        <option value="veo_3_1-fast-components" ${videoSettings.model === 'veo_3_1-fast-components' ? 'selected' : ''}>1080p参考图模式</option>
-                                        <option value="veo_3_1-fast" ${videoSettings.model === 'veo_3_1-fast' ? 'selected' : ''}>首尾帧模式</option>
+                                        <option value="veo_3_1-fast-components" ${videoSettings.model === 'veo_3_1-fast-components' || videoSettings.model === 'veo_3_1-fast-components-4K' ? 'selected' : ''}>1080p参考图模式</option>
+                                        <option value="veo_3_1-fast" ${videoSettings.model === 'veo_3_1-fast' ? 'selected' : ''}>无参考图模式</option>
                                     </select>
                                 </div>
                                 <div>
@@ -5812,13 +5811,20 @@ saveGeminiConfig(config) {
             // 获取对话数据中的英文台词
             const dialogueData = shot._dialogue_data || shot.dialogue;
 
+            // 🔥 根据是否有参考图选择模型
+            const selectedImages = result.selectedImages || [];
+            const finalModel = selectedImages.length > 0
+                ? (result.model || 'veo_3_1-fast-components')  // 有参考图：使用用户选择的模型
+                : 'veo_3_1-fast';  // 无参考图：强制使用 veo_3_1-fast
+            console.log('  - 模型:', finalModel, selectedImages.length > 0 ? '(参考图模式)' : '(无参考图模式)');
+
             const response = await fetch('/api/veo/generate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    model: result.model || 'veo_3_1-fast-components',
+                    model: finalModel,
                     prompt: promptForApi,  // 🔥 使用当前模式的 veo_prompt
-                    image_urls: result.selectedImages || [],
+                    image_urls: selectedImages,
                     orientation: result.orientation || 'portrait',
                     size: result.size || 'large',
                     watermark: false,
@@ -7575,11 +7581,15 @@ saveGeminiConfig(config) {
             console.log('  - 提示词长度:', prompt.length, '字符');
             console.log('  - 提示词内容:\n' + prompt);
 
+            // 🔥 无参考图模式：强制使用 veo_3_1-fast 模型
+            const finalModel = 'veo_3_1-fast';
+            console.log('  - 模型: ' + finalModel + ' (无参考图模式)');
+
             const response = await fetch('/api/veo/generate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    model: videoSettings.model,
+                    model: finalModel,
                     prompt: prompt,
                     image_urls: [],
                     orientation: videoSettings.orientation,
