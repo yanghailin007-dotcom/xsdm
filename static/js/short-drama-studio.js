@@ -6639,13 +6639,12 @@ saveGeminiConfig(config) {
         const frameSeqFrames = shot._multiImageFrames || [];
         
         if (frameSeqFrames.length > 0) {
-            // 使用 frame_sequences.json 中的 frames 数据
+            // 使用 frame_sequences.json 中的 frames 数据（只传递英文prompt）
             for (let i = 0; i < count; i++) {
                 const frameData = frameSeqFrames[i % frameSeqFrames.length]; // 循环使用
                 frames.push({
                     frame_number: i + 1,
-                    prompt: frameData.prompt || prompt,
-                    prompt_cn: frameData.prompt_cn || ''
+                    prompt: frameData.prompt || prompt
                 });
             }
         } else {
