@@ -6410,63 +6410,14 @@ saveGeminiConfig(config) {
     }
 
     /**
-     * 切换多图生成弹窗的提示词模式
-     */
-    switchPromptMode(mode, idx) {
-        const shot = this.shots[idx];
-        if (!shot) return;
-
-        // 更新按钮状态
-        document.querySelectorAll('.prompt-mode-btn').forEach(btn => {
-            const isActive = btn.dataset.mode === mode;
-            btn.style.background = isActive 
-                ? 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)' 
-                : 'var(--surface-light, #334155)';
-            btn.style.color = isActive ? 'white' : 'var(--text-primary, #f1f5f9)';
-        });
-
-        // 根据模式更新提示词
-        let enPrompt = '', cnPrompt = '';
-        switch(mode) {
-            case 'standard':
-                enPrompt = shot.veo_prompt_standard || shot.veo_prompt || '';
-                cnPrompt = shot.visual_description_standard || shot.visual_description || '';
-                break;
-            case 'reference':
-                enPrompt = shot.veo_prompt_reference || '';
-                cnPrompt = shot.visual_description_reference || '';
-                break;
-            case 'frames':
-                enPrompt = shot.veo_prompt_frames || '';
-                cnPrompt = shot.visual_description_frames || '';
-                break;
-        }
-
-        // 更新 textarea
-        const enTextarea = document.getElementById('multiImagePrompt');
-        const cnTextarea = document.getElementById('multiImagePromptCn');
-        if (enTextarea) enTextarea.value = enPrompt;
-        if (cnTextarea) cnTextarea.value = cnPrompt;
-    }
-
-    /**
      * 打开多图生成弹窗
      */
     openMultiImageModal(idx) {
         const shot = this.shots[idx];
         if (!shot) return;
 
-        // 获取中英双语提示词
-        const promptModes = [
-            { key: 'standard', label: '标准模式', en: shot.veo_prompt_standard || '', cn: shot.visual_description_standard || '' },
-            { key: 'reference', label: '参考模式', en: shot.veo_prompt_reference || '', cn: shot.visual_description_reference || '' },
-            { key: 'frames', label: '分镜模式', en: shot.veo_prompt_frames || '', cn: shot.visual_description_frames || '' }
-        ];
-        
-        // 找到第一个有内容的模式作为默认
-        const defaultMode = promptModes.find(m => m.en || m.cn) || promptModes[0];
-        const defaultPromptEn = defaultMode.en || shot.veo_prompt || shot.screen_action || '';
-        const defaultPromptCn = defaultMode.cn || shot.visual_description || '';
+        // 获取当前提示词
+        const promptText = shot.veo_prompt || shot.screen_action || '';
         
         // 创建弹窗
         const modal = document.createElement('div');
@@ -6506,70 +6457,18 @@ saveGeminiConfig(config) {
                     ">×</button>
                 </div>
                 
-                <!-- 提示词模式选择 -->
-                <div style="margin-bottom: 16px;">
-                    <label style="display: block; margin-bottom: 8px; color: var(--text-secondary, #94a3b8);">提示词模式</label>
-                    <div style="display: flex; gap: 8px;">
-                        ${promptModes.map(mode => `
-                            <button type="button" 
-                                onclick="shortDramaStudio.switchPromptMode('${mode.key}', ${idx})"
-                                class="prompt-mode-btn ${mode.key === defaultMode.key ? 'active' : ''}"
-                                data-mode="${mode.key}"
-                                style="
-                                    padding: 8px 16px;
-                                    background: ${mode.key === defaultMode.key ? 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)' : 'var(--surface-light, #334155)'};
-                                    border: 1px solid var(--border, #475569);
-                                    border-radius: 6px;
-                                    color: ${mode.key === defaultMode.key ? 'white' : 'var(--text-primary, #f1f5f9)'};
-                                    cursor: pointer;
-                                    font-size: 14px;
-                                "
-                                ${!mode.en && !mode.cn ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : ''}
-                            >
-                                ${mode.label}
-                            </button>
-                        `).join('')}
-                    </div>
-                </div>
-                
-                <!-- 英文提示词 -->
-                <div style="margin-bottom: 16px;">
-                    <label style="display: flex; justify-content: space-between; margin-bottom: 8px; color: var(--text-secondary, #94a3b8);">
-                        <span>英文提示词 (Prompt)</span>
-                        <span style="font-size: 12px; color: var(--text-tertiary, #64748b);">用于图像生成</span>
-                    </label>
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 8px; color: var(--text-secondary, #94a3b8);">提示词</label>
                     <textarea id="multiImagePrompt" style="
                         width: 100%;
-                        min-height: 100px;
+                        min-height: 80px;
                         padding: 12px;
                         background: var(--surface-light, #334155);
                         border: 1px solid var(--border, #475569);
                         border-radius: 8px;
                         color: var(--text-primary, #f1f5f9);
                         resize: vertical;
-                        font-size: 14px;
-                        line-height: 1.5;
-                    ">${defaultPromptEn}</textarea>
-                </div>
-                
-                <!-- 中文提示词 -->
-                <div style="margin-bottom: 20px;">
-                    <label style="display: flex; justify-content: space-between; margin-bottom: 8px; color: var(--text-secondary, #94a3b8);">
-                        <span>中文提示词 (参考)</span>
-                        <span style="font-size: 12px; color: var(--text-tertiary, #64748b);">仅作参考，不会用于生成</span>
-                    </label>
-                    <textarea id="multiImagePromptCn" readonly style="
-                        width: 100%;
-                        min-height: 80px;
-                        padding: 12px;
-                        background: var(--surface-dark, #1e293b);
-                        border: 1px solid var(--border, #475569);
-                        border-radius: 8px;
-                        color: var(--text-secondary, #94a3b8);
-                        resize: vertical;
-                        font-size: 14px;
-                        line-height: 1.5;
-                    ">${defaultPromptCn}</textarea>
+                    ">${promptText}</textarea>
                 </div>
                 
                 <div style="display: flex; gap: 16px; margin-bottom: 20px;">
