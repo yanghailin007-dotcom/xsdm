@@ -516,9 +516,7 @@
                     ${videoPreviewHtml}
                 </div>
                 <div class="task-actions">
-                    <button class="task-btn edit-btn" onclick="shortDramaStudio.editShotPrompt(${idx})" title="编辑提示词">
-                        <span>✏️</span>
-                    </button>
+                    <button class="task-btn" onclick="shortDramaStudio.showBilingualPromptModal(${idx})" title="编辑中英文提示词" style="font-size: 11px; font-weight: bold; color: #6366f1;">EN</button>
                     ${isCompleted ? `
                     <button class="task-btn view-btn" onclick="shortDramaStudio.previewVideo(${idx})" title="查看视频">
                         <span>👁️</span>
@@ -709,6 +707,227 @@
 
     stopBatchGeneration() {
         this.stopBatchGeneration = true;
+    },
+
+    /**
+     * 显示中英文提示词对照编辑弹窗
+     */
+    showBilingualPromptModal(idx) {
+        console.log(`🖊️ [EN弹窗] 点击索引: ${idx}, shots数量: ${this.shots?.length || 0}`);
+        const shot = this.shots[idx];
+        if (!shot) {
+            console.error(`❌ [EN弹窗] 找不到镜头: idx=${idx}, shots=${this.shots?.length}`);
+            this.showToast('找不到镜头数据', 'error');
+            return;
+        }
+
+        const mode = shot.preferred_mode || 'standard';
+        const modeNames = {
+            'standard': '标准模式',
+            'reference': '参考图模式',
+            'frames': '首尾帧模式'
+        };
+
+        // 获取当前模式的中英文提示词
+        let veoPrompt, visualDesc;
+        if (mode === 'reference') {
+            veoPrompt = shot.veo_prompt_reference || shot.veo_prompt || '';
+            visualDesc = shot.visual_description_reference || shot.visual_description || '';
+        } else if (mode === 'frames') {
+            veoPrompt = shot.veo_prompt_frames || shot.veo_prompt || '';
+            visualDesc = shot.visual_description_frames || shot.visual_description || '';
+        } else {
+            veoPrompt = shot.veo_prompt_standard || shot.veo_prompt || '';
+            visualDesc = shot.visual_description_standard || shot.visual_description || '';
+        }
+
+        // 创建弹窗
+        const modal = document.createElement('div');
+        modal.id = 'bilingualPromptModal';
+        modal.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+        `;
+
+        modal.innerHTML = `
+            <div style="
+                background: var(--bg-secondary, #1e1e2e);
+                border-radius: 12px;
+                width: 90%;
+                max-width: 900px;
+                max-height: 85vh;
+                overflow: hidden;
+                display: flex;
+                flex-direction: column;
+            ">
+                <!-- 头部 -->
+                <div style="
+                    padding: 16px 20px;
+                    border-bottom: 1px solid var(--border, #333);
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                ">
+                    <div>
+                        <h3 style="margin: 0; color: #fff; font-size: 1.1rem;">编辑提示词 - S${shot.scene_number || 1}#${shot.shot_number || idx+1}</h3>
+                        <span style="color: #6366f1; font-size: 0.85rem;">${modeNames[mode]}</span>
+                    </div>
+                    <button onclick="document.getElementById('bilingualPromptModal').remove()" style="
+                        background: none;
+                        border: none;
+                        color: #888;
+                        font-size: 1.5rem;
+                        cursor: pointer;
+                    ">×</button>
+                </div>
+
+                <!-- 内容区 -->
+                <div style="padding: 20px; overflow-y: auto; flex: 1;">
+                    <!-- 中文视觉描述 -->
+                    <div style="margin-bottom: 20px;">
+                        <label style="
+                            display: block;
+                            color: #10b981;
+                            font-size: 0.85rem;
+                            font-weight: 600;
+                            margin-bottom: 8px;
+                        ">🇨🇳 中文视觉描述 (Visual Description)</label>
+                        <textarea id="bilingual-visual-desc" style="
+                            width: 100%;
+                            min-height: 80px;
+                            padding: 12px;
+                            background: var(--bg-dark, #0f0f1a);
+                            border: 1px solid var(--border, #333);
+                            border-radius: 8px;
+                            color: #fff;
+                            font-size: 0.9rem;
+                            line-height: 1.5;
+                            resize: vertical;
+                        " placeholder="中文画面描述...">${visualDesc}</textarea>
+                        <div style="color: #888; font-size: 0.75rem; margin-top: 4px;">用于前端显示，帮助理解画面内容</div>
+                    </div>
+
+                    <!-- 英文VEO提示词 -->
+                    <div style="margin-bottom: 20px;">
+                        <label style="
+                            display: block;
+                            color: #6366f1;
+                            font-size: 0.85rem;
+                            font-weight: 600;
+                            margin-bottom: 8px;
+                        ">🇺🇸 英文VEO提示词 (Video Prompt)</label>
+                        <textarea id="bilingual-veo-prompt" style="
+                            width: 100%;
+                            min-height: 120px;
+                            padding: 12px;
+                            background: var(--bg-dark, #0f0f1a);
+                            border: 1px solid var(--border, #333);
+                            border-radius: 8px;
+                            color: #fff;
+                            font-size: 0.9rem;
+                            line-height: 1.5;
+                            resize: vertical;
+                            font-family: monospace;
+                        " placeholder="英文视频生成提示词...">${veoPrompt}</textarea>
+                        <div style="color: #888; font-size: 0.75rem; margin-top: 4px;">发送给VEO/AI视频生成模型的提示词</div>
+                    </div>
+
+                    <!-- 其他信息 -->
+                    <div style="
+                        background: rgba(99, 102, 241, 0.1);
+                        padding: 12px;
+                        border-radius: 8px;
+                        font-size: 0.8rem;
+                        color: #888;
+                    ">
+                        <div style="margin-bottom: 4px;"><strong>镜头类型:</strong> ${shot.shot_type || 'N/A'}</div>
+                        <div style="margin-bottom: 4px;"><strong>时长:</strong> ${shot.duration || 5}秒</div>
+                        ${shot.scene_title ? `<div><strong>场景:</strong> ${shot.scene_title}</div>` : ''}
+                    </div>
+                </div>
+
+                <!-- 底部按钮 -->
+                <div style="
+                    padding: 16px 20px;
+                    border-top: 1px solid var(--border, #333);
+                    display: flex;
+                    justify-content: flex-end;
+                    gap: 12px;
+                ">
+                    <button onclick="document.getElementById('bilingualPromptModal').remove()" style="
+                        padding: 10px 20px;
+                        background: transparent;
+                        border: 1px solid var(--border, #333);
+                        border-radius: 8px;
+                        color: #888;
+                        cursor: pointer;
+                        font-size: 0.9rem;
+                    ">取消</button>
+                    <button onclick="shortDramaStudio.saveBilingualPrompt(${idx})" style="
+                        padding: 10px 24px;
+                        background: linear-gradient(135deg, #6366f1, #8b5cf6);
+                        border: none;
+                        border-radius: 8px;
+                        color: #fff;
+                        cursor: pointer;
+                        font-size: 0.9rem;
+                        font-weight: 600;
+                    ">保存</button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+    },
+
+    /**
+     * 保存中英文提示词
+     */
+    saveBilingualPrompt(idx) {
+        const shot = this.shots[idx];
+        if (!shot) return;
+
+        const visualDesc = document.getElementById('bilingual-visual-desc').value.trim();
+        const veoPrompt = document.getElementById('bilingual-veo-prompt').value.trim();
+
+        if (!visualDesc && !veoPrompt) {
+            this.showToast('提示词不能为空', 'warning');
+            return;
+        }
+
+        const mode = shot.preferred_mode || 'standard';
+
+        // 根据当前模式保存到对应的字段
+        if (mode === 'reference') {
+            shot.visual_description_reference = visualDesc;
+            shot.veo_prompt_reference = veoPrompt;
+        } else if (mode === 'frames') {
+            shot.visual_description_frames = visualDesc;
+            shot.veo_prompt_frames = veoPrompt;
+        } else {
+            shot.visual_description_standard = visualDesc;
+            shot.veo_prompt_standard = veoPrompt;
+        }
+
+        // 同时更新兼容字段
+        shot.visual_description = visualDesc;
+        shot.veo_prompt = veoPrompt;
+
+        // 关闭弹窗
+        const modal = document.getElementById('bilingualPromptModal');
+        if (modal) modal.remove();
+
+        // 刷新显示
+        this.renderVideoCards();
+        this.showToast('提示词已更新', 'success');
     }
     };
 }));

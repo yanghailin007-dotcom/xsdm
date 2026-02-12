@@ -2736,13 +2736,13 @@ Generate four types of prompts for external image generation:
    - Complete scene with character in starting position
    - Static composition, frozen moment
    - Include character, environment, lighting
-   - Example: "cinematic film frame, medium shot, young delivery rider looking at phone in demolition zone, dusk lighting, photorealistic, 8k, still image, frozen moment, vertical 9:16 format"
+   - Example: "cinematic film frame, medium shot, young delivery rider looking at phone in demolition zone, dusk lighting, photorealistic, 8k, still image, frozen moment"
 
 4. last_frame: Ending frame of the shot
    - Complete scene with character in ending position
    - Show action completion or transition
    - Should connect naturally with first_frame
-   - Example: "cinematic film frame, medium shot, young delivery rider looking up from phone with concerned expression, demolition zone, dusk lighting, photorealistic, 8k, action completed, still image, vertical 9:16 format"
+   - Example: "cinematic film frame, medium shot, young delivery rider looking up from phone with concerned expression, demolition zone, dusk lighting, photorealistic, 8k, action completed, still image"
 
 Output JSON format:
 {{
@@ -5058,9 +5058,9 @@ def optimize_shots_with_ai(shots: list, title: str, style: str = "cinematic") ->
 3. 删除"这是...""原来..."等直白解说
 4. 情绪标签改为身体语言和表情
 5. 视觉描述电影化、有质感
-6. VEO提示词符合视频生成模型要求
+6. VEO提示词符合视频生成模型要求（纯英文，不含画面比例信息）
 7. 镜头类型多样化，形成视觉节奏
-8. 竖屏9:16构图（主体居中）
+8. 提示词中不包含画面比例、竖屏横屏等格式信息（这些由系统统一配置）
 
 优化原则：
 - 展示而非告诉
@@ -5082,9 +5082,9 @@ def optimize_shots_with_ai(shots: list, title: str, style: str = "cinematic") ->
 优化要求：
 1. 检查所有对白，删除说教和直白解说的台词
 2. 优化视觉描述，使其更电影化
-3. 增强VEO提示词的质量
+3. 增强VEO提示词的质量（纯英文，不含画面比例）
 4. 确保镜头类型多样化
-5. 添加竖屏构图提示（主体居中）
+5. 不要在提示词中添加画面比例、竖屏横屏等格式信息（由系统统一配置）
 
 请直接返回优化后的完整分镜数组（保持相同的字段结构）。"""
 

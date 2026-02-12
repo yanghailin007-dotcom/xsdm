@@ -256,7 +256,7 @@
             // 更新显示的提示词
             const promptTextElement = document.getElementById(`prompt-text-${shotIndex}`);
             if (promptTextElement) {
-                const newPrompt = this.getCurrentVeoPrompt(shot);
+                const newPrompt = this.getCurrentVisualDescription(shot);
                 promptTextElement.textContent = `${newPrompt.substring(0, 150)}${newPrompt.length > 150 ? '...' : ''}`;
             }
 
