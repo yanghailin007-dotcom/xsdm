@@ -6488,9 +6488,9 @@ saveGeminiConfig(config) {
             <div style="
                 background: var(--surface, #1e293b);
                 border-radius: 12px;
-                max-width: 900px;
+                max-width: 1000px;
                 width: 100%;
-                max-height: 90vh;
+                max-height: 95vh;
                 overflow-y: auto;
                 padding: 24px;
             ">
