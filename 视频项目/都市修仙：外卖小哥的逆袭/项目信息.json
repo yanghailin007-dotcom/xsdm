@@ -1,0 +1,895 @@
+{
+  "id": "96aa5bee",
+  "title": "都市修仙：外卖小哥的逆袭",
+  "created_at": "2026-02-11T22:06:49.416846",
+  "updated_at": "2026-02-11T22:06:49.416851",
+  "status": "draft",
+  "episodes": [
+    {
+      "id": "1集_创意导入",
+      "title": "第1集",
+      "name": "1集_创意导入",
+      "content": "陈凡在送餐途中遭遇车祸，危急时刻体内灵气觉醒，救下路人。他发现自己能看到普通人看不到的灵气流动。",
+      "shot_count": 15,
+      "shot_duration": 5,
+      "shots": [
+        {
+          "id": "shot_1",
+          "shot_number": 1,
+          "scene_number": 1,
+          "scene_title": "生死时速",
+          "shot_type": "第一人称视角/大范围延时",
+          "duration": 2,
+          "veo_prompt_standard": "Vertical 9:16 POV shot from a speeding electric scooter handle bars. Weaving dangerously through gridlocked traffic at sunset. Speed lines, motion blur. In the side mirror, a young delivery rider Chen Fan (24yo, blue uniform, buzz cut) gritting teeth, veins popping on forehead. High octane energy, cinematic lighting.",
+          "veo_prompt_reference": "POV scooter riding, heavy traffic, sunset, Chen Fan reflection in mirror, intense focus.",
+          "veo_prompt_frames": "Camera accelerates through narrow gap between two buses, horizon tilts aggressively.",
+          "visual_description_standard": "电动车如针般穿过车流 → 倒影显示汗水滴入眼睛 → 指关节因用力握把而发白",
+          "visual_description_reference": "电动车如针般穿过车流 → 倒影显示汗水滴入眼睛 → 指关节因用力握把而发白",
+          "visual_description_frames": "电动车如针般穿过车流 → 倒影显示汗水滴入眼睛 → 指关节因用力握把而发白",
+          "image_prompts": {
+            "scene": "vertical 9:16, cinematic city street POV, traffic jam, sunset glare, asphalt blur, hyper-realistic, 8k",
+            "character": "vertical 9:16, cinematic reflection in mirror, Chen Fan, delivery rider, intense eyes, sweat, blue uniform, photorealistic",
+            "first_frame": "vertical 9:16, POV between cars, motion blur, sunset",
+            "last_frame": "vertical 9:16, POV tilting, mirror showing Chen Fan's gritty expression"
+          },
+          "image_prompts_cn": {},
+          "veo_prompt": "Vertical 9:16 POV shot from a speeding electric scooter handle bars. Weaving dangerously through gridlocked traffic at sunset. Speed lines, motion blur. In the side mirror, a young delivery rider Chen Fan (24yo, blue uniform, buzz cut) gritting teeth, veins popping on forehead. High octane energy, cinematic lighting.",
+          "visual_description": "电动车如针般穿过车流 → 倒影显示汗水滴入眼睛 → 指关节因用力握把而发白",
+          "preferred_mode": "standard",
+          "dialogue": {
+            "speaker": "陈凡",
+            "lines": "快点……再快一点……",
+            "lines_en": "Faster... just a little faster...",
+            "tone": "气喘吁吁，如念咒般",
+            "tone_en": "Breathless, mantra-like",
+            "audio_note": "沉重的呼吸声，风切声，电机啸叫声",
+            "audio_note_en": "Heavy breathing, wind shear, engine whine"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "shot_2",
+          "shot_number": 2,
+          "scene_number": 1,
+          "scene_title": "绝命倒计时",
+          "shot_type": "极特写",
+          "duration": 2,
+          "veo_prompt_standard": "Vertical 9:16 Extreme close-up on Chen Fan's eyes. Reflection of a countdown timer turning RED in his pupil. Sweat beads roll down temple. Background is a streaking blur of city lights. High contrast, anxiety inducing.",
+          "veo_prompt_reference": "Chen Fan eyes extreme close up, red digital numbers reflected in eye, sweat, blurred background.",
+          "veo_prompt_frames": "Camera shakes with road vibration, focus locked on the panic in eyes.",
+          "visual_description_standard": "瞳孔放大 → 红光在瞳孔中反射 → 下颚死死咬紧",
+          "visual_description_reference": "瞳孔放大 → 红光在瞳孔中反射 → 下颚死死咬紧",
+          "visual_description_frames": "瞳孔放大 → 红光在瞳孔中反射 → 下颚死死咬紧",
+          "image_prompts": {
+            "scene": "vertical 9:16, abstract city blur, bokeh, red warning light ambiance",
+            "character": "vertical 9:16, macro shot eyes, Chen Fan, sweat texture, red digital reflection in iris, desperate, photorealistic 8k",
+            "first_frame": "vertical 9:16, eyes looking forward, sweat drop falling",
+            "last_frame": "vertical 9:16, eyes widening, red light reflection intensifies"
+          },
+          "image_prompts_cn": {},
+          "veo_prompt": "Vertical 9:16 Extreme close-up on Chen Fan's eyes. Reflection of a countdown timer turning RED in his pupil. Sweat beads roll down temple. Background is a streaking blur of city lights. High contrast, anxiety inducing.",
+          "visual_description": "瞳孔放大 → 红光在瞳孔中反射 → 下颚死死咬紧",
+          "preferred_mode": "standard",
+          "dialogue": {
+            "speaker": "陈凡",
+            "lines": "妈，撑住……",
+            "lines_en": "Hang on, Mom...",
+            "tone": "低语，声音破碎",
+            "tone_en": "Whispered, cracking",
+            "audio_note": "数字计时器的“滴滴”声加速，心跳声重击",
+            "audio_note_en": "Digital timer 'beep' accelerates, heartbeat thumping"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "shot_3",
+          "shot_number": 3,
+          "scene_number": 1,
+          "scene_title": "钢铁猛兽",
+          "shot_type": "低角度/荷兰角",
+          "duration": 2,
+          "veo_prompt_standard": "Vertical 9:16 Low angle shot from the asphalt up. A red supercar drifts around a corner, tires smoking, heading straight for the camera. In the foreground, a child's dropped teddy bear lies on the crosswalk. Sense of impending impact.",
+          "veo_prompt_reference": "Red supercar drifting towards camera, low angle, teddy bear in foreground on asphalt.",
+          "veo_prompt_frames": "Car looms larger rapidly, shadow engulfs the frame.",
+          "visual_description_standard": "汽车疯狂漂移 → 烟雾吞没背景 → 阴影覆盖泰迪熊",
+          "visual_description_reference": "汽车疯狂漂移 → 烟雾吞没背景 → 阴影覆盖泰迪熊",
+          "visual_description_frames": "汽车疯狂漂移 → 烟雾吞没背景 → 阴影覆盖泰迪熊",
+          "image_prompts": {
+            "scene": "vertical 9:16, low angle street, asphalt texture, skid marks, red supercar blurring, sunset shadows, dramatic",
+            "character": "vertical 9:16, teddy bear on ground, focus foreground, car blurring background",
+            "first_frame": "vertical 9:16, car in distance, teddy bear sharp focus",
+            "last_frame": "vertical 9:16, car grille filling frame, dark shadow"
+          },
+          "image_prompts_cn": {},
+          "veo_prompt": "Vertical 9:16 Low angle shot from the asphalt up. A red supercar drifts around a corner, tires smoking, heading straight for the camera. In the foreground, a child's dropped teddy bear lies on the crosswalk. Sense of impending impact.",
+          "visual_description": "汽车疯狂漂移 → 烟雾吞没背景 → 阴影覆盖泰迪熊",
+          "preferred_mode": "standard",
+          "dialogue": {
+            "speaker": "无",
+            "lines": "",
+            "lines_en": "",
+            "tone": "寂静",
+            "tone_en": "Silence",
+            "audio_note": "剧烈的轮胎摩擦声，引擎轰鸣声盖过环境音",
+            "audio_note_en": "Tires screeching violently, engine roar cuts out ambient noise"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "shot_4",
+          "shot_number": 4,
+          "scene_number": 1,
+          "scene_title": "舍身",
+          "shot_type": "慢动作/动作",
+          "duration": 2,
+          "veo_prompt_standard": "Vertical 9:16 Slow motion. Chen Fan (blue uniform) is mid-air, body horizontal, diving between the car and a blurred small figure (the girl). His scooter crashes into a wall in the background. Debris floats in the air. Face twisted in exertion.",
+          "veo_prompt_reference": "Chen Fan mid-air dive, slow motion, blue uniform, scooter crashing background, debris floating.",
+          "veo_prompt_frames": "Character floats through frame, time frozen, hand reaching out.",
+          "visual_description_standard": "陈凡水平冲入画面 → 玻璃碎片悬浮在空中 → 手伸向撞击点",
+          "visual_description_reference": "陈凡水平冲入画面 → 玻璃碎片悬浮在空中 → 手伸向撞击点",
+          "visual_description_frames": "陈凡水平冲入画面 → 玻璃碎片悬浮在空中 → 手伸向撞击点",
+          "image_prompts": {
+            "scene": "vertical 9:16, cinematic action freeze, floating debris, sunset backlighting, scooter sparks background",
+            "character": "vertical 9:16, Chen Fan diving, horizontal pose, intense facial muscle tension, blue uniform, photorealistic 8k",
+            "first_frame": "vertical 9:16, Chen Fan launching off screen left",
+            "last_frame": "vertical 9:16, Chen Fan blocking the view, hand extended"
+          },
+          "image_prompts_cn": {},
+          "veo_prompt": "Vertical 9:16 Slow motion. Chen Fan (blue uniform) is mid-air, body horizontal, diving between the car and a blurred small figure (the girl). His scooter crashes into a wall in the background. Debris floats in the air. Face twisted in exertion.",
+          "visual_description": "陈凡水平冲入画面 → 玻璃碎片悬浮在空中 → 手伸向撞击点",
+          "preferred_mode": "standard",
+          "dialogue": {
+            "speaker": "陈凡",
+            "lines": "小心！",
+            "lines_en": "WATCH OUT!",
+            "tone": "喉咙深处的嘶吼",
+            "tone_en": "Guttural roar",
+            "audio_note": "声音变慢成低沉的嗡鸣（多普勒效应）",
+            "audio_note_en": "Sound slows down to a deep drone (Doppler effect)"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "shot_5",
+          "shot_number": 5,
+          "scene_number": 1,
+          "scene_title": "血契觉醒",
+          "shot_type": "微距/特效",
+          "duration": 3,
+          "veo_prompt_standard": "Vertical 9:16 Macro shot. Chen Fan's wrist slams onto the car hood. The jade pendant shatters. A drop of blood mixes with the green dust. Golden runes ignite from the blood mixture, spiraling up his arm. Magical realism.",
+          "veo_prompt_reference": "Wrist hitting car hood, jade shattering, blood mixing, golden runes appearing on skin.",
+          "veo_prompt_frames": "Impact causes dust shockwave, runes glow and travel up arm.",
+          "visual_description_standard": "玉佩炸裂 → 血液接触粉尘 → 金色脉络爬上皮肤",
+          "visual_description_reference": "玉佩炸裂 → 血液接触粉尘 → 金色脉络爬上皮肤",
+          "visual_description_frames": "玉佩炸裂 → 血液接触粉尘 → 金色脉络爬上皮肤",
+          "image_prompts": {
+            "scene": "vertical 9:16, macro detail, metallic car hood texture, magical particles, glowing runes, dark atmosphere",
+            "character": "vertical 9:16, arm detail, veins glowing gold, blood splatters, jade shards",
+            "first_frame": "vertical 9:16, jade shattering impact",
+            "last_frame": "vertical 9:16, golden light consuming the arm"
+          },
+          "image_prompts_cn": {},
+          "veo_prompt": "Vertical 9:16 Macro shot. Chen Fan's wrist slams onto the car hood. The jade pendant shatters. A drop of blood mixes with the green dust. Golden runes ignite from the blood mixture, spiraling up his arm. Magical realism.",
+          "visual_description": "玉佩炸裂 → 血液接触粉尘 → 金色脉络爬上皮肤",
+          "preferred_mode": "standard",
+          "dialogue": {
+            "speaker": "远古之声",
+            "lines": "封印……破了。",
+            "lines_en": "The seal... is broken.",
+            "tone": "灵魂共鸣，古老，回荡",
+            "tone_en": "Internal resonance, ancient, echoing",
+            "audio_note": "尖锐的耳鸣声转变为低沉的雷鸣",
+            "audio_note_en": "High-pitched ringing morphing into a deep thunder rumble"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "shot_6",
+          "shot_number": 6,
+          "scene_number": 1,
+          "scene_title": "王者归来",
+          "shot_type": "滑动变焦/特写",
+          "duration": 3,
+          "veo_prompt_standard": "Vertical 9:16 Dolly zoom (Vertigo effect) on Chen Fan's face. His buzz cut hair blows back from an invisible energy source. Eyes snap open - irises are molten gold. The panic is gone, replaced by terrifying calmness. Atmosphere shifts from warm sunset to cold blue.",
+          "veo_prompt_reference": "Chen Fan face dolly zoom, eyes opening gold, hair blowing back, color grade shift to cold.",
+          "veo_prompt_frames": "Background compresses while face remains constant, lighting shifts drastically.",
+          "visual_description_standard": "猛然抬头 → 双眼金光爆射 → 背景扭曲 → 表情变得冷酷",
+          "visual_description_reference": "猛然抬头 → 双眼金光爆射 → 背景扭曲 → 表情变得冷酷",
+          "visual_description_frames": "猛然抬头 → 双眼金光爆射 → 背景扭曲 → 表情变得冷酷",
+          "image_prompts": {
+            "scene": "vertical 9:16, energy distortion background, cold color grading, cinematic lighting",
+            "character": "vertical 9:16, Chen Fan portrait, glowing golden eyes, god-like expression, aura visible, photorealistic 8k",
+            "first_frame": "vertical 9:16, face down, shadow",
+            "last_frame": "vertical 9:16, face up, golden eyes, intense stare"
+          },
+          "image_prompts_cn": {},
+          "veo_prompt": "Vertical 9:16 Dolly zoom (Vertigo effect) on Chen Fan's face. His buzz cut hair blows back from an invisible energy source. Eyes snap open - irises are molten gold. The panic is gone, replaced by terrifying calmness. Atmosphere shifts from warm sunset to cold blue.",
+          "visual_description": "猛然抬头 → 双眼金光爆射 → 背景扭曲 → 表情变得冷酷",
+          "preferred_mode": "standard",
+          "dialogue": {
+            "speaker": "远古之声",
+            "lines": "终于。",
+            "lines_en": "Finally.",
+            "tone": "如释重负的叹息，充满力量",
+            "tone_en": "Sigh of relief, powerful",
+            "audio_note": "超低音下潜，随后寂静",
+            "audio_note_en": "Sub-bass drop, silence follows"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "shot_7",
+          "shot_number": 7,
+          "scene_number": 1,
+          "scene_title": "只手擎天",
+          "shot_type": "全景/固定镜头",
+          "duration": 4,
+          "veo_prompt_standard": "Vertical 9:16 Wide shot. The red supercar is crumpled like an accordion against Chen Fan's single hand. The car's rear wheels are suspended in the air. Chen Fan stands perfectly still, feet embedded in cracked asphalt. Steam rises from the car. Cinematic composition.",
+          "veo_prompt_reference": "Chen Fan stopping car with one hand, car wrecked, rear wheels up, ground cracked, steam rising.",
+          "veo_prompt_frames": "Static shot with drifting smoke and spinning car wheels.",
+          "visual_description_standard": "汽车尾部在空中弹跳 → 引擎嘶嘶喷出蒸汽 → 陈凡纹丝不动",
+          "visual_description_reference": "汽车尾部在空中弹跳 → 引擎嘶嘶喷出蒸汽 → 陈凡纹丝不动",
+          "visual_description_frames": "汽车尾部在空中弹跳 → 引擎嘶嘶喷出蒸汽 → 陈凡纹丝不动",
+          "image_prompts": {
+            "scene": "vertical 9:16, wrecked supercar, cracked street, steam, sunset dust, wide angle, photorealistic",
+            "character": "vertical 9:16, Chen Fan full body, standing straight, hand extended, blue uniform, powerful silhouette",
+            "first_frame": "vertical 9:16, car rear high in air",
+            "last_frame": "vertical 9:16, car settling slightly, steam covering frame"
+          },
+          "image_prompts_cn": {},
+          "veo_prompt": "Vertical 9:16 Wide shot. The red supercar is crumpled like an accordion against Chen Fan's single hand. The car's rear wheels are suspended in the air. Chen Fan stands perfectly still, feet embedded in cracked asphalt. Steam rises from the car. Cinematic composition.",
+          "visual_description": "汽车尾部在空中弹跳 → 引擎嘶嘶喷出蒸汽 → 陈凡纹丝不动",
+          "preferred_mode": "standard",
+          "dialogue": {
+            "speaker": "无",
+            "lines": "",
+            "lines_en": "",
+            "tone": "寂静",
+            "tone_en": "Silence",
+            "audio_note": "蒸汽嘶嘶声，金属扭曲声",
+            "audio_note_en": "Hissing steam, creaking metal"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "shot_8",
+          "shot_number": 8,
+          "scene_number": 1,
+          "scene_title": "神之俯视",
+          "shot_type": "中景/低角度",
+          "duration": 4,
+          "veo_prompt_standard": "Vertical 9:16 Low angle medium shot looking up at Chen Fan. He slowly withdraws his hand, dusting off his blue uniform. He looks down at the driver with the indifference of a god looking at an ant. Golden glow in eyes fades but sharpness remains.",
+          "veo_prompt_reference": "Chen Fan low angle, dusting off uniform, looking down with indifference, sharp eyes.",
+          "veo_prompt_frames": "Hand swipes dust off shoulder, head tilts down slowly.",
+          "visual_description_standard": "手弹去肩上的灰尘 → 下巴微收 → 眼睛微微眯起",
+          "visual_description_reference": "手弹去肩上的灰尘 → 下巴微收 → 眼睛微微眯起",
+          "visual_description_frames": "手弹去肩上的灰尘 → 下巴微收 → 眼睛微微眯起",
+          "image_prompts": {
+            "scene": "vertical 9:16, low angle sky background, sunset clouds, cinematic lighting",
+            "character": "vertical 9:16, Chen Fan medium shot, looking down, arrogant/calm expression, blue uniform, photorealistic 8k",
+            "first_frame": "vertical 9:16, hand cleaning shoulder",
+            "last_frame": "vertical 9:16, face looking directly into lens (at driver)"
+          },
+          "image_prompts_cn": {},
+          "veo_prompt": "Vertical 9:16 Low angle medium shot looking up at Chen Fan. He slowly withdraws his hand, dusting off his blue uniform. He looks down at the driver with the indifference of a god looking at an ant. Golden glow in eyes fades but sharpness remains.",
+          "visual_description": "手弹去肩上的灰尘 → 下巴微收 → 眼睛微微眯起",
+          "preferred_mode": "standard",
+          "dialogue": {
+            "speaker": "陈凡",
+            "lines": "开车长点眼。",
+            "lines_en": "Careful where you drive.",
+            "tone": "平静，毫无感情",
+            "tone_en": "Calm, devoid of emotion",
+            "audio_note": "清晰、干脆的声音穿透耳鸣",
+            "audio_note_en": "Clear, crisp voice cutting through the ringing ears"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "shot_9",
+          "shot_number": 9,
+          "scene_number": 1,
+          "scene_title": "纨绔子弟",
+          "shot_type": "手持镜头/中景",
+          "duration": 3,
+          "veo_prompt_standard": "Vertical 9:16 Handheld shaky cam. The Rich Second Gen (20s, flashy suit) kicks the jammed door open. He stumbles out, face red, veins popping. He ignores the miracle of his survival and stares at the scratches. Hysterical anger.",
+          "veo_prompt_reference": "Rich kid kicking car door, stumbling out, angry face, pointing at car scratches.",
+          "veo_prompt_frames": "Door forces open, character lunges towards camera/car.",
+          "visual_description_standard": "车门被踹开 → 富二代摔出来 → 踢轮胎 → 手指颤抖地指着",
+          "visual_description_reference": "车门被踹开 → 富二代摔出来 → 踢轮胎 → 手指颤抖地指着",
+          "visual_description_frames": "车门被踹开 → 富二代摔出来 → 踢轮胎 → 手指颤抖地指着",
+          "image_prompts": {
+            "scene": "vertical 9:16, wrecked car side, smoke, urban street, chaotic",
+            "character": "vertical 9:16, rich young man, expensive suit, disheveled, furious expression, spitting while talking",
+            "first_frame": "vertical 9:16, door flying open",
+            "last_frame": "vertical 9:16, rich kid screaming face close up"
+          },
+          "image_prompts_cn": {},
+          "veo_prompt": "Vertical 9:16 Handheld shaky cam. The Rich Second Gen (20s, flashy suit) kicks the jammed door open. He stumbles out, face red, veins popping. He ignores the miracle of his survival and stares at the scratches. Hysterical anger.",
+          "visual_description": "车门被踹开 → 富二代摔出来 → 踢轮胎 → 手指颤抖地指着",
+          "preferred_mode": "standard",
+          "dialogue": {
+            "speaker": "富二代",
+            "lines": "你瞎啊？！老子的限量版法拉利！",
+            "lines_en": "Are you blind?! My limited edition Ferrari!",
+            "tone": "尖叫，破音",
+            "tone_en": "Screaming, cracking voice",
+            "audio_note": "剧烈咳嗽，歇斯底里的尖叫",
+            "audio_note_en": "Violent coughing, hysterical screaming"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "shot_10",
+          "shot_number": 10,
+          "scene_number": 1,
+          "scene_title": "阶级碰撞",
+          "shot_type": "过肩镜头",
+          "duration": 3,
+          "veo_prompt_standard": "Vertical 9:16 OTS shot from behind the screaming Rich Kid. Chen Fan stands composed, hands behind his back, blue uniform fluttering in the wind. The contrast between the frantic rich kid and the statue-like Chen Fan is stark.",
+          "veo_prompt_reference": "OTS rich kid pointing at Chen Fan, Chen Fan standing calm hands behind back, wind blowing uniform.",
+          "veo_prompt_frames": "Rich kid gesticulates wildly, Chen Fan remains perfectly still.",
+          "visual_description_standard": "富二代挥舞手臂 → 陈凡如雕像般站立 → 风只吹动陈凡的衣角",
+          "visual_description_reference": "富二代挥舞手臂 → 陈凡如雕像般站立 → 风只吹动陈凡的衣角",
+          "visual_description_frames": "富二代挥舞手臂 → 陈凡如雕像般站立 → 风只吹动陈凡的衣角",
+          "image_prompts": {
+            "scene": "vertical 9:16, street scene, depth of field, sunset backlight",
+            "character": "vertical 9:16, Chen Fan full body, calm stance, blue uniform, rich kid blurred foreground",
+            "first_frame": "vertical 9:16, rich kid shoulder and hand in frame",
+            "last_frame": "vertical 9:16, focus pull to Chen Fan's cold eyes"
+          },
+          "image_prompts_cn": {},
+          "veo_prompt": "Vertical 9:16 OTS shot from behind the screaming Rich Kid. Chen Fan stands composed, hands behind his back, blue uniform fluttering in the wind. The contrast between the frantic rich kid and the statue-like Chen Fan is stark.",
+          "visual_description": "富二代挥舞手臂 → 陈凡如雕像般站立 → 风只吹动陈凡的衣角",
+          "preferred_mode": "standard",
+          "dialogue": {
+            "speaker": "富二代",
+            "lines": "你个送外卖的烂命，赔得起这车一个螺丝吗！",
+            "lines_en": "A delivery rat's life isn't worth a single screw on this car!",
+            "tone": "恶毒，唾沫横飞",
+            "tone_en": "Vicious, spitting",
+            "audio_note": "人群倒吸一口凉气",
+            "audio_note_en": "Crowd gasps"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "shot_11",
+          "shot_number": 11,
+          "scene_number": 1,
+          "scene_title": "死亡凝视",
+          "shot_type": "第一人称视角/X光特效",
+          "duration": 3,
+          "veo_prompt_standard": "Vertical 9:16 POV from Chen Fan. The world turns grey/monochrome. A thick, black, skull-shaped mist (Death Qi) coils tightly around the Rich Kid's neck and forehead. The mist pulses like a heartbeat. Supernatural horror vibe.",
+          "veo_prompt_reference": "POV monochrome world, black skull mist around rich kid's neck, pulsating mist.",
+          "veo_prompt_frames": "Black mist tightens, pulsating rhythmically.",
+          "visual_description_standard": "世界褪色成灰白 → 黑烟在富二代头上形成骷髅 → 烟雾如绞索般收紧",
+          "visual_description_reference": "世界褪色成灰白 → 黑烟在富二代头上形成骷髅 → 烟雾如绞索般收紧",
+          "visual_description_frames": "世界褪色成灰白 → 黑烟在富二代头上形成骷髅 → 烟雾如绞索般收紧",
+          "image_prompts": {
+            "scene": "vertical 9:16, desaturated city street, high contrast, spooky, supernatural",
+            "character": "vertical 9:16, rich kid in grey, black smoke VFX on head, glowing white eyes (blind to fate)",
+            "first_frame": "vertical 9:16, normal color fading out",
+            "last_frame": "vertical 9:16, black mist fully formed, scary"
+          },
+          "image_prompts_cn": {},
+          "veo_prompt": "Vertical 9:16 POV from Chen Fan. The world turns grey/monochrome. A thick, black, skull-shaped mist (Death Qi) coils tightly around the Rich Kid's neck and forehead. The mist pulses like a heartbeat. Supernatural horror vibe.",
+          "visual_description": "世界褪色成灰白 → 黑烟在富二代头上形成骷髅 → 烟雾如绞索般收紧",
+          "preferred_mode": "standard",
+          "dialogue": {
+            "speaker": "陈凡",
+            "lines": "你已经是个死人了。",
+            "lines_en": "You're already dead.",
+            "tone": "平淡，陈述事实",
+            "tone_en": "Flat, factual",
+            "audio_note": "空灵的风啸声，心跳声",
+            "audio_note_en": "Ethereal wind howl, heartbeat sound"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "shot_12",
+          "shot_number": 12,
+          "scene_number": 1,
+          "scene_title": "午夜宣判",
+          "shot_type": "特写/平视",
+          "duration": 3,
+          "veo_prompt_standard": "Vertical 9:16 Close-up. Chen Fan tilts his head slightly. The golden glow is gone, but his pupils are vertical slits for a split second. He smiles—a cold, terrifying smile that doesn't reach his eyes.",
+          "veo_prompt_reference": "Chen Fan close up, head tilt, vertical pupils momentary, cold smile.",
+          "veo_prompt_frames": "Slow push in on the smile.",
+          "visual_description_standard": "头歪斜 → 嘴角上扬 → 眼神依旧死寂冰冷",
+          "visual_description_reference": "头歪斜 → 嘴角上扬 → 眼神依旧死寂冰冷",
+          "visual_description_frames": "头歪斜 → 嘴角上扬 → 眼神依旧死寂冰冷",
+          "image_prompts": {
+            "scene": "vertical 9:16, city bokeh background, evening lights",
+            "character": "vertical 9:16, Chen Fan face, handsome, cold smile, sharp jawline, blue collar, photorealistic 8k",
+            "first_frame": "vertical 9:16, neutral expression",
+            "last_frame": "vertical 9:16, chilling smile, vertical pupils"
+          },
+          "image_prompts_cn": {},
+          "veo_prompt": "Vertical 9:16 Close-up. Chen Fan tilts his head slightly. The golden glow is gone, but his pupils are vertical slits for a split second. He smiles—a cold, terrifying smile that doesn't reach his eyes.",
+          "visual_description": "头歪斜 → 嘴角上扬 → 眼神依旧死寂冰冷",
+          "preferred_mode": "standard",
+          "dialogue": {
+            "speaker": "陈凡",
+            "lines": "午夜十二点，记得给自己买口棺材。",
+            "lines_en": "Midnight. Don't forget to buy a coffin.",
+            "tone": "轻柔但刺骨",
+            "tone_en": "Soft but piercing",
+            "audio_note": "时钟滴答声回响一次",
+            "audio_note_en": "Ticking clock sound echoes once"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "shot_13",
+          "shot_number": 13,
+          "scene_number": 1,
+          "scene_title": "本能恐惧",
+          "shot_type": "中景/反应镜头",
+          "duration": 4,
+          "veo_prompt_standard": "Vertical 9:16 Medium shot. The Rich Kid freezes mid-shout. His face drains of color instantly. He steps back, tripping over his own feet, terrified by an invisible pressure. He clutches his chest.",
+          "veo_prompt_reference": "Rich kid freezing, face pale, stepping back, tripping, clutching chest, terrified.",
+          "veo_prompt_frames": "Character stumbles backward, hand trembling as it raises to defend.",
+          "visual_description_standard": "嘴巴张大僵住 → 皮肤变白 → 踉跄后退 → 双手颤抖",
+          "visual_description_reference": "嘴巴张大僵住 → 皮肤变白 → 踉跄后退 → 双手颤抖",
+          "visual_description_frames": "嘴巴张大僵住 → 皮肤变白 → 踉跄后退 → 双手颤抖",
+          "image_prompts": {
+            "scene": "vertical 9:16, street background, crowd watching, evening",
+            "character": "vertical 9:16, rich kid, pale face, sweat, eyes wide with terror, suit messy",
+            "first_frame": "vertical 9:16, rich kid angry",
+            "last_frame": "vertical 9:16, rich kid terrified, tripping"
+          },
+          "image_prompts_cn": {},
+          "veo_prompt": "Vertical 9:16 Medium shot. The Rich Kid freezes mid-shout. His face drains of color instantly. He steps back, tripping over his own feet, terrified by an invisible pressure. He clutches his chest.",
+          "visual_description": "嘴巴张大僵住 → 皮肤变白 → 踉跄后退 → 双手颤抖",
+          "preferred_mode": "standard",
+          "dialogue": {
+            "speaker": "富二代",
+            "lines": "你……你是什么东西……",
+            "lines_en": "You... what are you...",
+            "tone": "颤抖，声音微弱",
+            "tone_en": "Trembling, small voice",
+            "audio_note": "吞咽声，人群寂静",
+            "audio_note_en": "Gulping sound, silence from crowd"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "shot_14",
+          "shot_number": 14,
+          "scene_number": 1,
+          "scene_title": "现实暴击",
+          "shot_type": "插入镜头/屏幕特写",
+          "duration": 2,
+          "veo_prompt_standard": "Vertical 9:16 Insert shot. A cracked smartphone screen fills the frame. A bright red notification banner drops down: 'ORDER FAILED. DEDUCTION: 50 RMB'. The background is the asphalt road.",
+          "veo_prompt_reference": "Phone screen close up, red notification banner 'Order Failed -50 RMB', cracked screen.",
+          "veo_prompt_frames": "Notification banner animates down with a bounce.",
+          "visual_description_standard": "屏幕静止 → 红色横幅猛然落下 → 文字脉冲闪烁一次",
+          "visual_description_reference": "屏幕静止 → 红色横幅猛然落下 → 文字脉冲闪烁一次",
+          "visual_description_frames": "屏幕静止 → 红色横幅猛然落下 → 文字脉冲闪烁一次",
+          "image_prompts": {
+            "scene": "vertical 9:16, macro phone screen, cracked glass, asphalt background blur",
+            "character": "vertical 9:16, hand holding phone, dirty fingernails",
+            "first_frame": "vertical 9:16, map interface",
+            "last_frame": "vertical 9:16, red failure notification overlay"
+          },
+          "image_prompts_cn": {},
+          "veo_prompt": "Vertical 9:16 Insert shot. A cracked smartphone screen fills the frame. A bright red notification banner drops down: 'ORDER FAILED. DEDUCTION: 50 RMB'. The background is the asphalt road.",
+          "visual_description": "屏幕静止 → 红色横幅猛然落下 → 文字脉冲闪烁一次",
+          "preferred_mode": "standard",
+          "dialogue": {
+            "speaker": "手机系统",
+            "lines": "订单失败。已执行处罚。",
+            "lines_en": "Order Failed. Penalty applied.",
+            "tone_en": "Cheery but cruel robotic voice",
+            "tone": "欢快但残忍的机械音",
+            "audio_note": "响亮刺耳的“错误”蜂鸣声",
+            "audio_note_en": "Loud, jarring 'Error' buzzer"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "shot_15",
+          "shot_number": 15,
+          "scene_number": 1,
+          "scene_title": "为钱狂奔",
+          "shot_type": "跟踪镜头/喜剧",
+          "duration": 3,
+          "veo_prompt_standard": "Vertical 9:16 Tracking shot. The god-like aura vanishes instantly. Chen Fan's face contorts into comic horror. He grabs his delivery box and sprints away from the camera at impossible speed, leaving a trail of dust. The rich kid is left confused in the foreground.",
+          "veo_prompt_reference": "Chen Fan sprinting away panic, holding box, dust trail, rich kid confused foreground.",
+          "veo_prompt_frames": "Camera pans rapidly to follow the runner, leaving the scene behind.",
+          "visual_description_standard": "陈凡抱头 → 猛然转身 → 狂奔向远方 → 富二代眨眼困惑",
+          "visual_description_reference": "陈凡抱头 → 猛然转身 → 狂奔向远方 → 富二代眨眼困惑",
+          "visual_description_frames": "陈凡抱头 → 猛然转身 → 狂奔向远方 → 富二代眨眼困惑",
+          "image_prompts": {
+            "scene": "vertical 9:16, city street, wide angle, evening, motion blur on runner",
+            "character": "vertical 9:16, Chen Fan running back view, funny posture, rich kid foreground out of focus",
+            "first_frame": "vertical 9:16, Chen Fan panic face",
+            "last_frame": "vertical 9:16, Chen Fan as a dot in distance, dust cloud"
+          },
+          "image_prompts_cn": {},
+          "veo_prompt": "Vertical 9:16 Tracking shot. The god-like aura vanishes instantly. Chen Fan's face contorts into comic horror. He grabs his delivery box and sprints away from the camera at impossible speed, leaving a trail of dust. The rich kid is left confused in the foreground.",
+          "visual_description": "陈凡抱头 → 猛然转身 → 狂奔向远方 → 富二代眨眼困惑",
+          "preferred_mode": "standard",
+          "dialogue": {
+            "speaker": "陈凡",
+            "lines": "我的五十块！等等，别投诉啊！！",
+            "lines_en": "My 50 Yuan! Wait, don't file the complaint!!",
+            "tone": "尖锐的恐慌",
+            "tone_en": "High-pitched panic",
+            "audio_note": "卡通风格的极速溜走音效",
+            "audio_note_en": "Wile E. Coyote style zip-away sound"
+          },
+          "status": "pending"
+        }
+      ]
+    }
+  ],
+  "characters": [
+    {
+      "id": "protagonist_001",
+      "name": "陈凡",
+      "role": "外卖小哥，隐藏修仙者，性格沉稳但关键时刻霸气外露",
+      "age": "24岁",
+      "description": "陈凡，24岁，蓝色外卖服（有灵气纹路），寸头，眼神锐利，右手腕有神秘玉佩，腰间挂着古剑（伪装成雨伞）",
+      "appearance": "蓝色外卖服（有灵气纹路），寸头，眼神锐利，右手腕有神秘玉佩，腰间挂着古剑（伪装成雨伞）",
+      "living_characteristics": {
+        "physical_presence": "蓝色外卖服（有灵气纹路），寸头，眼神锐利，右手腕有神秘玉佩，腰间挂着古剑（伪装成雨伞）"
+      },
+      "is_protagonist": true
+    }
+  ],
+  "visualAssets": {
+    "characters": {
+      "陈凡": {
+        "name": "陈凡",
+        "name_en": "Chen Fan",
+        "description": "24岁男性外卖小哥，寸头发型，身穿蓝色外卖制服，身材中等，右手腕戴有神秘玉佩。",
+        "description_en": "24-year-old Chinese male delivery rider, buzz cut hairstyle, wearing a blue delivery uniform, medium build, mysterious jade pendant on right wrist.",
+        "appearances": [
+          1,
+          2,
+          4,
+          5,
+          6,
+          7,
+          8,
+          10,
+          11,
+          12,
+          15
+        ],
+        "key_features": [
+          "蓝色外卖制服",
+          "寸头",
+          "金瞳(觉醒态)",
+          "金色符文手臂(觉醒态)",
+          "竖瞳(威慑态)"
+        ],
+        "reference_prompt": "cinematic character portrait of a 24-year-old Chinese delivery man, buzz cut hairstyle, wearing a blue uniform with a helmet, sweat on face, intense expression, photorealistic, 8k, dramatic lighting. Variation for awakened state: glowing molten gold irises, golden runes glowing on skin, calm and god-like aura."
+      },
+      "富二代": {
+        "name": "富二代",
+        "name_en": "Rich Second Gen",
+        "description": "20多岁男性，身穿浮夸的名牌西装，发型整齐，身材偏瘦。",
+        "description_en": "Wealthy young man in his 20s, wearing a flashy designer suit, neat hairstyle, slender build.",
+        "appearances": [
+          9,
+          10,
+          11,
+          13,
+          15
+        ],
+        "key_features": [
+          "浮夸西装",
+          "愤怒表情",
+          "恐惧表情",
+          "黑色骷髅死气(缠绕颈部)"
+        ],
+        "reference_prompt": "cinematic medium shot of a wealthy young Chinese man, flashy expensive suit, arrogant and angry face, shouting, veins popping. Variation for horror scene: pale face, terrified expression, black smoke forming a skull shape coiling around his neck, dark atmosphere."
+      },
+      "小女孩": {
+        "name": "小女孩",
+        "name_en": "The Little Girl",
+        "description": "小女孩，约6-8岁，穿粉色连衣裙，扎双马尾，身形娇小。",
+        "description_en": "Little girl, around 6-8 years old, wearing a pink dress, pigtails, small stature.",
+        "appearances": [
+          4
+        ],
+        "key_features": [
+          "模糊身影",
+          "渺小"
+        ],
+        "reference_prompt": "blurred small figure of a child in the distance, cinematic motion blur, sense of danger, low detail background character."
+      }
+    },
+    "scenes": {
+      "拥堵的城市街道": {
+        "name": "拥堵的城市街道",
+        "name_en": "Gridlocked City Street",
+        "description": "日落时分的繁忙都市街道，车流如织，光影斑驳。充满紧迫感。",
+        "description_en": "Busy urban street at sunset, heavy traffic, dappled light and shadow. High urgency atmosphere.",
+        "appearances": [
+          1,
+          2,
+          9,
+          10,
+          13,
+          14,
+          15
+        ],
+        "key_elements": [
+          "日落光线",
+          "车流",
+          "柏油路面",
+          "城市建筑背景"
+        ],
+        "reference_prompt": "cinematic street view, busy Chinese city at sunset, gridlocked traffic, golden hour lighting, asphalt road, urban skyscrapers in background, motion blur, 8k, photorealistic."
+      },
+      "车祸撞击点": {
+        "name": "车祸撞击点",
+        "name_en": "Crash Impact Zone",
+        "description": "街道的一角，柏油路面龟裂，有明显的刹车痕迹和散落的碎片。",
+        "description_en": "A corner of the street, cracked asphalt, visible skid marks and scattered debris.",
+        "appearances": [
+          3,
+          4,
+          5,
+          6,
+          7,
+          8
+        ],
+        "key_elements": [
+          "龟裂的地面",
+          "刹车痕",
+          "漂浮的碎片",
+          "烟雾/蒸汽"
+        ],
+        "reference_prompt": "cinematic low angle shot of cracked asphalt road, skid marks, debris floating in air, smoke and steam rising, dramatic destruction aftermath, hyper-realistic texture, 8k."
+      }
+    },
+    "props": {
+      "电动车": {
+        "name": "电动车",
+        "name_en": "Electric Scooter",
+        "description": "陈凡的送餐工具，旧款，带有外卖箱。",
+        "description_en": "Chen Fan's delivery vehicle, worn out, equipped with a delivery box.",
+        "appearances": [
+          1,
+          4
+        ],
+        "reference_prompt": "close up of an electric scooter handle bars, worn texture, delivery box attached, motion blur background, realistic vehicle details."
+      },
+      "红色超跑": {
+        "name": "红色超跑",
+        "name_en": "Red Supercar",
+        "description": "法拉利风格的红色跑车，先是漂移，后车头严重损毁，像手风琴一样皱起。",
+        "description_en": "Ferrari-style red sports car. First drifting, then severely damaged front, crumpled like an accordion.",
+        "appearances": [
+          3,
+          4,
+          7,
+          9
+        ],
+        "reference_prompt": "luxury red supercar, aggressive design. Variation: crumpled front hood, metal twisted, steam rising from engine, realistic car crash damage, cinematic lighting."
+      },
+      "玉佩": {
+        "name": "玉佩",
+        "name_en": "Jade Pendant",
+        "description": "古老的绿色玉佩，碎裂瞬间爆发出金色符文。",
+        "description_en": "Ancient green jade pendant, exploding into golden runes at the moment of shattering.",
+        "appearances": [
+          5
+        ],
+        "reference_prompt": "macro shot of a green jade pendant shattering, glowing golden magical runes emerging from the cracks, mixture of blood and jade dust, magical realism style, 8k."
+      },
+      "泰迪熊": {
+        "name": "泰迪熊",
+        "name_en": "Teddy Bear",
+        "description": "掉落在斑马线上的儿童玩具，象征无辜与危险。",
+        "description_en": "A child's toy dropped on the crosswalk, symbolizing innocence and danger.",
+        "appearances": [
+          3
+        ],
+        "reference_prompt": "close up of a lonely teddy bear lying on asphalt crosswalk, shadow of a car looming over it, dramatic lighting, emotional focus."
+      },
+      "智能手机": {
+        "name": "智能手机",
+        "name_en": "Smartphone",
+        "description": "屏幕碎裂的手机，显示扣款通知。",
+        "description_en": "Smartphone with a cracked screen, displaying a penalty notification.",
+        "appearances": [
+          14
+        ],
+        "reference_prompt": "close up of a cracked smartphone screen lying on the ground, bright red notification banner with text 'ORDER FAILED', digital glare, realistic glass texture."
+      }
+    }
+  },
+  "settings": {
+    "aspect_ratio": "9:16",
+    "quality": "1080p",
+    "model": "veo_3_1-fast",
+    "use_first_last_frame": true
+  },
+  "storyBeats": {
+    "scenes": [
+      {
+        "sceneNumber": 1,
+        "sceneTitleCn": "夺命倒计时",
+        "sceneTitleEn": "Countdown to Death",
+        "storyBeatCn": "黄金3秒钩子：电动车极速穿梭车流，展示底层挣扎与极致紧迫",
+        "storyBeatEn": "Golden 3s Hook: Weaving through traffic at high speed, showing struggle and extreme urgency",
+        "durationSeconds": 4,
+        "emotionalArc": "紧迫→焦躁",
+        "dialogues": [
+          {
+            "timestamp": 0,
+            "speaker": "陈凡",
+            "linesCn": "让开！都让开！！最后这单要是超时，我妈的医药费就断了！",
+            "linesEn": "Move! Everybody move!! If this order is late, my mom's medical bills are gone!",
+            "toneCn": "声嘶力竭，混杂着风声与喇叭声",
+            "toneEn": "Hoarse screaming, mixed with wind and honking"
+          }
+        ]
+      },
+      {
+        "sceneNumber": 2,
+        "sceneTitleCn": "死神降临",
+        "sceneTitleEn": "Death Descends",
+        "storyBeatCn": "激发事件：失控超跑冲向斑马线上的小女孩，路人吓傻",
+        "storyBeatEn": "Inciting Incident: Out-of-control supercar rushes at little girl on crosswalk, bystanders frozen",
+        "durationSeconds": 4,
+        "emotionalArc": "焦躁→极度惊恐",
+        "dialogues": [
+          {
+            "timestamp": 0,
+            "speaker": "小女孩",
+            "linesCn": "（呆立，手中气球飞走）",
+            "linesEn": "(Stands frozen, balloon flies away)",
+            "toneCn": "无声的恐惧，只有刺耳的刹车声",
+            "toneEn": "Silent terror, only ear-piercing screeching"
+          },
+          {
+            "timestamp": 2,
+            "speaker": "陈凡",
+            "linesCn": "不！！",
+            "linesEn": "NO!!",
+            "toneCn": "绝望怒吼，瞳孔地震",
+            "toneEn": "Desperate roar, pupils dilated"
+          }
+        ]
+      },
+      {
+        "sceneNumber": 3,
+        "sceneTitleCn": "仙尊归来",
+        "sceneTitleEn": "Immortal Returns",
+        "storyBeatCn": "第一次转折：撞击瞬间，祖传玉佩饮血碎裂，万年记忆瞬回",
+        "storyBeatEn": "First Twist: Moment of impact, heirloom jade drinks blood and shatters, 10,000 years of memory returns",
+        "durationSeconds": 6,
+        "emotionalArc": "惊恐→神性/静止",
+        "dialogues": [
+          {
+            "timestamp": 0,
+            "speaker": "古老旁白/心声",
+            "linesCn": "（混响）本尊历劫万载，今日……归位！",
+            "linesEn": "(Reverb) I have suffered for ten thousand years, today... I return!",
+            "toneCn": "威严，洪钟大吕，震慑灵魂",
+            "toneEn": "Majestic, resonant, soul-shaking"
+          }
+        ]
+      },
+      {
+        "sceneNumber": 4,
+        "sceneTitleCn": "只手遮天",
+        "sceneTitleEn": "Stopping the Sky",
+        "storyBeatCn": "大高潮：陈凡单手按住疾驰跑车车头，车身折叠，地面崩裂",
+        "storyBeatEn": "Climax: Chen Fan stops the speeding car with one hand, hood crumples, ground cracks",
+        "durationSeconds": 8,
+        "emotionalArc": "静止→视觉炸裂",
+        "dialogues": [
+          {
+            "timestamp": 0,
+            "speaker": "音效",
+            "linesCn": "（钢铁扭曲的刺耳爆鸣，地面塌陷声）",
+            "linesEn": "(Ear-piercing sound of twisting steel, ground collapsing)",
+            "toneCn": "极具冲击力的物理音效",
+            "toneEn": "High-impact physical sound effects"
+          },
+          {
+            "timestamp": 5,
+            "speaker": "陈凡",
+            "linesCn": "给我……停下！",
+            "linesEn": "STAY... DOWN!",
+            "toneCn": "低沉霸气，如神谕般不可违抗",
+            "toneEn": "Deep and domineering, undeniable like a divine decree"
+          }
+        ]
+      },
+      {
+        "sceneNumber": 5,
+        "sceneTitleCn": "凡人如蚁",
+        "sceneTitleEn": "Mortals like Ants",
+        "storyBeatCn": "反派登场：富二代狼狈爬出，不顾女孩死活，只心疼车",
+        "storyBeatEn": "Villain Entry: Rich kid crawls out, ignores the girl, only cares about the car",
+        "durationSeconds": 6,
+        "emotionalArc": "炸裂→愤怒/恶心",
+        "dialogues": [
+          {
+            "timestamp": 0,
+            "speaker": "富二代",
+            "linesCn": "妈的！我的限量版法拉利！臭送外卖的，你这条烂命赔得起吗？！",
+            "linesEn": "Damn it! My limited edition Ferrari! You stinking delivery rat, is your rotten life enough to pay for this?!",
+            "toneCn": "歇斯底里，极度嚣张",
+            "toneEn": "Hysterical, extremely arrogant"
+          }
+        ]
+      },
+      {
+        "sceneNumber": 6,
+        "sceneTitleCn": "一眼万年",
+        "sceneTitleEn": "Eternal Gaze",
+        "storyBeatCn": "核心设定：陈凡眼中世界变色，看到富二代头顶的死气",
+        "storyBeatEn": "Core Setting: World changes color in Chen Fan's eyes, seeing death aura over rich kid",
+        "durationSeconds": 6,
+        "emotionalArc": "愤怒→冷漠/蔑视",
+        "dialogues": [
+          {
+            "timestamp": 0,
+            "speaker": "陈凡",
+            "linesCn": "聒噪。印堂死气缭绕，你活不过今晚三更。",
+            "linesEn": "Noisy. Death aura surrounds your forehead, you won't live past midnight.",
+            "toneCn": "冷漠，仿佛在看一只将死的虫子",
+            "toneEn": "Indifferent, like looking at a dying bug"
+          }
+        ]
+      },
+      {
+        "sceneNumber": 7,
+        "sceneTitleCn": "全场死寂",
+        "sceneTitleEn": "Dead Silence",
+        "storyBeatCn": "情绪反应：富二代被陈凡的气势吓退半步，周围人目瞪口呆",
+        "storyBeatEn": "Reaction: Rich kid steps back in fear of Chen Fan's aura, crowd stunned",
+        "durationSeconds": 4,
+        "emotionalArc": "蔑视→压抑(暴风雨前)",
+        "dialogues": [
+          {
+            "timestamp": 0,
+            "speaker": "富二代",
+            "linesCn": "你……你胡说什么……",
+            "linesEn": "You... what nonsense are you...",
+            "toneCn": "色厉内荏，莫名感到恐惧",
+            "toneEn": "Cowardly but trying to look tough, inexplicably terrified"
+          }
+        ]
+      },
+      {
+        "sceneNumber": 8,
+        "sceneTitleCn": "为五斗米折腰",
+        "sceneTitleEn": "Bowing for Rice",
+        "storyBeatCn": "强反转结尾：仙尊气场瞬间崩塌，变回因为超时而崩溃的打工人",
+        "storyBeatEn": "Strong Twist Ending: Immortal aura collapses instantly, reverting to worker crashing over late delivery",
+        "durationSeconds": 5,
+        "emotionalArc": "压抑→滑稽/崩溃",
+        "dialogues": [
+          {
+            "timestamp": 0,
+            "speaker": "手机提示音",
+            "linesCn": "“订单已超时，扣款50元，差评警告。”",
+            "linesEn": "\"Order overdue. 50 RMB deducted. Negative review warning.\"",
+            "toneCn": "冰冷机械音",
+            "toneEn": "Cold mechanical voice"
+          },
+          {
+            "timestamp": 2,
+            "speaker": "陈凡",
+            "linesCn": "卧槽！我的全勤奖！老板，这真不怪我啊！！",
+            "linesEn": "Holy sh*t! My attendance bonus! Boss, this really isn't my fault!!",
+            "toneCn": "瞬间破防，捡起外卖箱狂奔，留下风中凌乱的众人",
+            "toneEn": "Instantly losing cool, grabbing delivery box and sprinting, leaving crowd confused"
+          }
+        ]
+      }
+    ]
+  }
+}
