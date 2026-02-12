@@ -5177,8 +5177,8 @@ saveGeminiConfig(config) {
                                         font-size: 0.95rem;
                                         cursor: pointer;
                                     ">
-                                        <option value="veo_3_1-fast-components" ${videoSettings.model === 'veo_3_1-fast-components' || videoSettings.model === 'veo_3_1-fast-components-4K' ? 'selected' : ''} style="background: #1e1e2e; color: #fff;">1080p参考图模式</option>
-                                        <option value="veo_3_1-fast" ${videoSettings.model === 'veo_3_1-fast' ? 'selected' : ''} style="background: #1e1e2e; color: #fff;">首尾帧模式</option>
+                                        <option value="veo_3_1-fast" ${videoSettings.model === 'veo_3_1-fast' ? 'selected' : ''} style="background: #1e1e2e; color: #fff;">VeO 3.1 Fast</option>
+                                        <option value="veo_3_1" ${videoSettings.model === 'veo_3_1' ? 'selected' : ''} style="background: #1e1e2e; color: #fff;">VeO 3.1</option>
                                     </select>
                                 </div>
                                 <div>
