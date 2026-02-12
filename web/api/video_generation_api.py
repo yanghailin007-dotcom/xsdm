@@ -280,47 +280,69 @@ def get_novel_content():
             video_project_dir = Path('视频项目') / title
             if video_project_dir.exists():
                 logger.info(f"✅ [VIDEO] 找到视频项目目录: {video_project_dir}")
-                # 查找storyboard文件
-                storyboard_files = list(video_project_dir.glob('*/storyboards/*.json'))
-                if not storyboard_files:
-                    storyboard_files = list(video_project_dir.glob('*/**/*.json'))
-
-                if storyboard_files:
-                    logger.info(f"📜 [VIDEO] 找到 {len(storyboard_files)} 个storyboard文件")
-                    # 读取所有storyboard文件
-                    all_scenes = []
-                    for sb_file in storyboard_files:
+                
+                # 🔥 优先查找创意导入项目的分镜文件
+                all_scenes = []
+                shots_v2_files = list(video_project_dir.glob('*/shots_v2.json'))
+                frame_sequences_files = list(video_project_dir.glob('*/frame_sequences.json'))
+                
+                # 从 shots_v2.json 读取分镜数据
+                for sb_file in shots_v2_files:
+                    try:
+                        logger.info(f"📜 [VIDEO] 读取分镜文件: {sb_file}")
+                        with open(sb_file, 'r', encoding='utf-8') as f:
+                            data = json.load(f)
+                            shots = data.get('shots', [])
+                            if shots:
+                                # 将 shots 转换为 scenes 格式
+                                for shot in shots:
+                                    all_scenes.append({
+                                        'id': shot.get('id', f"shot_{shot.get('shot_number', 0)}"),
+                                        'name': shot.get('scene_title', ''),
+                                        'description': shot.get('visual_description_standard', ''),
+                                        'shot_number': shot.get('shot_number', 0)
+                                    })
+                                logger.info(f"✅ [VIDEO] 从 {sb_file.name} 读取了 {len(shots)} 个镜头")
+                    except Exception as e:
+                        logger.warning(f"⚠️ [VIDEO] 读取分镜文件失败: {sb_file}, {e}")
+                
+                # 如果没有找到 shots_v2.json，尝试从 frame_sequences.json 读取
+                if not all_scenes and frame_sequences_files:
+                    for sb_file in frame_sequences_files:
                         try:
+                            logger.info(f"📜 [VIDEO] 读取帧序列文件: {sb_file}")
                             with open(sb_file, 'r', encoding='utf-8') as f:
-                                storyboard_data = json.load(f)
-                                # 从storyboard中提取场景/镜头数据
-                                if 'scenes' in storyboard_data:
-                                    all_scenes.extend(storyboard_data['scenes'])
-                                else:
-                                    # 如果是旧格式，整个文件就是一个场景列表
-                                    if isinstance(storyboard_data, list):
-                                        all_scenes.extend(storyboard_data)
+                                data = json.load(f)
+                                sequences = data.get('sequences', [])
+                                if sequences:
+                                    for seq in sequences:
+                                        all_scenes.append({
+                                            'id': seq.get('shot_id', ''),
+                                            'name': seq.get('scene', ''),
+                                            'description': f"镜头包含 {seq.get('frame_count', 0)} 帧"
+                                        })
+                                    logger.info(f"✅ [VIDEO] 从 {sb_file.name} 读取了 {len(sequences)} 个镜头")
                         except Exception as e:
-                            logger.warning(f"⚠️ [VIDEO] 读取storyboard文件失败: {sb_file}, {e}")
+                            logger.warning(f"⚠️ [VIDEO] 读取帧序列文件失败: {sb_file}, {e}")
 
-                    # 为创意导入项目构建虚拟事件数据
-                    creative_events = []
-                    if all_scenes:
-                        # 将所有场景作为一个"创意导入"事件
-                        creative_events.append({
-                            "id": "creative_import_1",
-                            "name": "创意导入",
-                            "description": "从创意直接导入的分镜头",
-                            "chapters": [{"start": 1, "end": len(all_scenes)}],
-                            "composition": {
-                                "起": all_scenes[:max(1, len(all_scenes)//4)],
-                                "承": all_scenes[max(1, len(all_scenes)//4):max(1, len(all_scenes)//2)],
-                                "转": all_scenes[max(1, len(all_scenes)//2):max(1, 3*len(all_scenes)//4)],
-                                "合": all_scenes[max(1, 3*len(all_scenes)//4):]
-                            }
-                        })
-
-                    logger.info(f"📊 [VIDEO] 创意导入项目: {len(creative_events)} 个事件, {len(all_scenes)} 个场景")
+                # 为创意导入项目构建虚拟事件数据
+                creative_events = []
+                if all_scenes:
+                    # 将所有场景作为一个"创意导入"事件
+                    creative_events.append({
+                        "id": "creative_import_1",
+                        "name": "创意导入",
+                        "description": "从创意直接导入的分镜头",
+                        "chapters": [{"start": 1, "end": len(all_scenes)}],
+                        "composition": {
+                            "起": all_scenes[:max(1, len(all_scenes)//4)],
+                            "承": all_scenes[max(1, len(all_scenes)//4):max(1, len(all_scenes)//2)],
+                            "转": all_scenes[max(1, len(all_scenes)//2):max(1, 3*len(all_scenes)//4)],
+                            "合": all_scenes[max(1, 3*len(all_scenes)//4):]
+                        }
+                    })
+                    
+                    logger.info(f"📊 [VIDEO] 创意导入项目: {len(creative_events)} 个事件, {len(all_scenes)} 个镜头")
 
                     # 返回创意导入项目的数据
                     return jsonify({
@@ -332,6 +354,8 @@ def get_novel_content():
                         "total_events": len(creative_events),
                         "all_scenes": all_scenes  # 包含所有场景数据
                     })
+                else:
+                    logger.warning(f"⚠️ [VIDEO] 创意导入项目没有找到任何分镜数据")
 
         if not novel_detail:
             logger.error(f"❌ [VIDEO] 小说项目不存在: {title}")
