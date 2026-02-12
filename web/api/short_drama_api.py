@@ -299,30 +299,42 @@ def _generate_bilingual_character_description(
                 'tags': []
             }
         
-        system_prompt = """You are a professional character description engineer.
+        system_prompt = """You are a professional character description engineer for AI image generation.
 Based on the provided character information, generate a STANDARDIZED bilingual character description.
+
+⚠️ CRITICAL: ONLY include VISUAL appearance descriptions. DO NOT include:
+- Character personality traits or psychological states
+- Character development arcs or story progression
+- Internal emotions or feelings
+- Abstract concepts like "anxiety", "confidence", "divine presence", "aloofness"
 
 OUTPUT FORMAT (JSON):
 {
-    "chinese": "完整的中文角色描述，包含外貌、服装、气质",
-    "english": "Complete English character description for AI image generation, include appearance, clothing, personality",
+    "chinese": "完整的中文角色外貌描述，只包含视觉可见的特征：年龄、身材、发型、面部特征、服装、配饰等",
+    "english": "Complete English character visual description for AI image generation, ONLY physical appearance: age, build, hairstyle, facial features, clothing, accessories",
     "tags": ["tag1", "tag2", "tag3"]
 }
 
 GUIDELINES:
 - Chinese: Natural, descriptive, suitable for display
-- English: Detailed, vivid adjectives, suitable for Stable Diffusion/Midjourney prompts
-- Include age, gender, distinctive features, clothing details
-- Tags should be key visual identifiers
+- English: Detailed visual adjectives, suitable for Stable Diffusion/Midjourney prompts
+- MUST focus on: age, gender, body type, hairstyle, facial features, clothing details, accessories
+- MUST NOT include: personality, emotions, character development, internal states
+- Tags should be key visual identifiers only
 - Character name should appear in both languages"""
 
-        user_prompt = f"""Generate bilingual description for character:
+        user_prompt = f"""Generate bilingual VISUAL description for character:
 
 Character ID: {char_id}
 Name: {name}
 Raw Description: {raw_description}
 Clothing: {raw_clothing}
 Expression: {raw_expression}
+
+⚠️ IMPORTANT: Extract ONLY visual/physical appearance features from the description.
+- If description contains personality/emotions/development arcs, IGNORE them
+- Focus on: physical build, hairstyle, facial features, clothing style, colors, accessories
+- Expression should be described visually (e.g., "neutral face", "slight smile", "furrowed brows") not emotionally
 
 Provide JSON output with chinese, english, and tags."""
 
