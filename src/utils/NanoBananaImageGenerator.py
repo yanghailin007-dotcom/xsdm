@@ -263,6 +263,9 @@ class NanoBananaImageGenerator:
         if provider_name == 'ai-wx' and response.status_code == 200:
             try:
                 response_data = response.json()
+                self.logger.info(f"📋 异步响应数据: {response_data}")
+                self.logger.info(f"📋 响应键: {list(response_data.keys()) if isinstance(response_data, dict) else 'not dict'}")
+                
                 # 如果返回了任务ID，需要轮询查询结果
                 if 'task_id' in response_data or (isinstance(response_data, dict) and 'id' in response_data):
                     task_id = response_data.get('task_id') or response_data.get('id')
@@ -303,9 +306,13 @@ class NanoBananaImageGenerator:
                                 self.logger.info(f"  - 任务状态: {status}，继续轮询...")
                         else:
                             self.logger.warning(f"⚠️ 查询失败: {query_response.status_code}")
+                else:
+                    self.logger.info(f"ℹ️ 响应中没有任务ID，可能已同步完成")
                             
             except Exception as e:
                 self.logger.warning(f"⚠️ 处理异步响应失败: {e}，使用原始响应")
+                import traceback
+                self.logger.warning(traceback.format_exc())
 
         return {
             'response': response,
