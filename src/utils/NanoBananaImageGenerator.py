@@ -759,60 +759,25 @@ class NanoBananaImageGenerator:
         char_tag = f"CHARACTER_ID_{character_id.upper().replace(' ', '_')}"
         
         # ============================================
-        # 构建标准四视图提示词
+        # 构建3D角色模型表格提示词（单张图四视图）
         # ============================================
-        final_prompt = f"""[CHARACTER DESIGN SHEET] [ID: {char_tag}]
+        final_prompt = f"""[3D CHARACTER MODEL SHEET] [ID: {char_tag}]
 
-CHARACTER: {name}
-Chinese: {chinese_desc}
-English: {english_desc}
-Tags: {', '.join(tags)}
+Character: {name} - {english_desc}
+Ethnicity: East Asian, Chinese facial features
+Style: 3D stylized render, Unreal Engine 5 quality, PBR materials
 
----
+SINGLE IMAGE containing four views of the same character arranged in a grid:
+- Top-left: Front headshot close-up, neutral expression
+- Top-right: Front full body in T-pose (0° angle)
+- Bottom-left: Side full body in T-pose (90° side profile)
+- Bottom-right: Back full body in T-pose (180° back view)
 
-LAYOUT SPECIFICATION:
-This image shows FOUR views of the SAME character "{name}" arranged in a reference sheet format:
+All four views in ONE image, same character, same outfit, same hairstyle. Character turnaround reference sheet format.
 
-[LEFT 30%] - HEADSHOT CLOSE-UP:
-- Large detailed portrait of {name}'s face
-- Front view, showing exact facial features
-- High detail on eyes, expression, and unique features
-- Same hairstyle as full body views
+TECHNICAL: 3D render, Octane quality, ray tracing, PBR textures, orthographic views, white background, 8k, professional model sheet, {', '.join(tags[:3])}
 
-[RIGHT 70% - VERTICAL STACK]:
-1. TOP - FRONT FULL BODY:
-   - {name} standing in T-pose, facing camera
-   - Complete head-to-toe view
-   - Showing: {english_desc}
-   
-2. MIDDLE - BACK FULL BODY:
-   - {name} from behind, back view
-   - Same outfit, showing back details
-   - Same hairstyle from behind
-   
-3. BOTTOM - SIDE PROFILE FULL BODY:
-   - {name} in side view, full profile
-   - Showing silhouette and body shape
-   - Same outfit from the side
-
----
-
-CRITICAL REQUIREMENTS:
-- SAME character in all four views (ID: {char_tag})
-- IDENTICAL outfit in all views
-- IDENTICAL hairstyle in all views
-- IDENTICAL face in all views
-- White background, clean line art style
-- Anime model sheet, professional reference
-- 8k, highly detailed, sharp focus
-- Consistent proportions across all views
-
-DO NOT:
-- Change the character between views
-- Alter outfit or hairstyle
-- Crop any body parts
-- Use different art styles
-- Add background elements"""
+NEGATIVE: 2D illustration, sketch, anime drawing, flat color, manga, painting, watercolor, cel-shaded, chibi, hand-drawn, Western face, separate images, multiple images, low quality"""
 
         self.logger.info(f"📝 四视图提示词长度: {len(final_prompt)} chars")
         self.logger.info(f"📝 提示词预览: {final_prompt[:300]}...")
