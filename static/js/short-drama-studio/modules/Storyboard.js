@@ -338,7 +338,7 @@
             const container = document.getElementById('storyboardContent');
             if (!container) return;
 
-            const settings = this.getVideoSettings();
+            const settings = this.getStoryboardSettings();
             let modeText = '标准模式';
             if (settings.useFirstLastFrame) {
                 modeText = '首尾帧模式（保持人物一致性）';

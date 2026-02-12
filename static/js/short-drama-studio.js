@@ -4814,6 +4814,8 @@ saveGeminiConfig(config) {
 
         // 获取项目视频设置作为默认值
         const videoSettings = this.getVideoSettings();
+        console.log('🎬 [showGenerateConfirmModal] videoSettings:', videoSettings);
+        console.log('🎬 [showGenerateConfirmModal] currentProject.settings:', this.currentProject?.settings);
 
         // 🔥 自动加载 reference_images 目录中的图片
         let referenceImages = [];
@@ -8751,9 +8753,9 @@ saveGeminiConfig(config) {
     }
 
     /**
-     * 获取视频设置
+     * 获取分镜设置（用于分镜步骤）
      */
-    getVideoSettings() {
+    getStoryboardSettings() {
         const sbFirstLastFrame = document.getElementById('sbUseFirstLastFrame');
         const sbReferenceImage = document.getElementById('sbUseReferenceImage');
         
