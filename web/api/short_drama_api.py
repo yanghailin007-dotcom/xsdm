@@ -5162,3 +5162,101 @@ def register_short_drama_routes(app):
         logger.warning(f'⚠️ 导出功能 API 注册失败: {e}')
     
     logger.info('✅ 短剧工作台 API 已注册')
+
+@short_drama_api.route('/portraits', methods=['GET'])
+def get_portraits():
+    """
+    获取角色剧照列表
+    
+    请求参数:
+    - novel: 小说/项目标题
+    - episode: 剧集目录名
+    
+    返回:
+    {
+        "success": true,
+        "portraits": [
+            {
+                "character": "角色名",
+                "portraits": [{"url": "...", "number": 1}],
+                "mainPortrait": {"url": "..."}
+            }
+        ]
+    }
+    """
+    try:
+        novel = request.args.get('novel')
+        episode = request.args.get('episode')
+        
+        if not novel or not episode:
+            return jsonify({
+                'success': False,
+                'error': '缺少 novel 或 episode 参数'
+            }), 400
+        
+        # 构建路径
+        import urllib.parse
+        novel_decoded = urllib.parse.unquote(novel)
+        episode_decoded = urllib.parse.unquote(episode)
+        
+        portraits_dir = VIDEO_PROJECTS_DIR / novel_decoded / 'visual_assets' / '角色'
+        
+        if not portraits_dir.exists():
+            return jsonify({
+                'success': True,
+                'portraits': []
+            })
+        
+        # 扫描角色图片
+        portraits = []
+        for img_file in sorted(portraits_dir.glob('*.png')):
+            # 解析文件名: 角色名_时间戳.png
+            stem = img_file.stem  # 去掉扩展名
+            parts = stem.split('_')
+            character_name = parts[0] if parts else stem
+            
+            # 查找或创建角色条目
+            char_entry = None
+            for p in portraits:
+                if p['character'] == character_name:
+                    char_entry = p
+                    break
+            
+            if not char_entry:
+                char_entry = {
+                    'character': character_name,
+                    'portraits': [],
+                    'mainPortrait': None
+                }
+                portraits.append(char_entry)
+            
+            # 构建URL
+            relative_path = img_file.relative_to(BASE_DIR).as_posix()
+            url = f'/project-files/{urllib.parse.quote(novel_decoded)}/visual_assets/角色/{img_file.name}'
+            
+            portrait_info = {
+                'url': url,
+                'number': len(char_entry['portraits']) + 1,
+                'path': str(img_file),
+                'isPriority': '_三视图' in stem or len(char_entry['portraits']) == 0
+            }
+            
+            char_entry['portraits'].append(portrait_info)
+            
+            # 设置主剧照（优先三视图或第一个）
+            if portrait_info['isPriority'] or char_entry['mainPortrait'] is None:
+                char_entry['mainPortrait'] = portrait_info
+        
+        return jsonify({
+            'success': True,
+            'portraits': portraits
+        })
+        
+    except Exception as e:
+        logger.error(f'获取角色剧照失败: {e}')
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500

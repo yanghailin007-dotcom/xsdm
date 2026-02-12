@@ -34,7 +34,8 @@
                 // 初始化并渲染视觉资产库
                 setTimeout(() => {
                     this.initVisualAssetsPanel();
-                    this.initPortraitCanvas(this.characters);
+                    // 🔥 不传characters参数，让renderCharactersToCanvas从visualAssets获取所有角色
+                    this.initPortraitCanvas();
                 }, 100);
 
                 // 更新项目状态
