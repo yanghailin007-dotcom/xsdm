@@ -77,21 +77,44 @@ class NanoBananaImageGenerator:
     def __init__(self, api_key: Optional[str] = None, base_url: Optional[str] = None):
         """
         初始化Nano Banana文生图客户端
-        
+
         Args:
             api_key: API密钥，如果为None则从配置获取
             base_url: API基础URL，如果为None则从配置获取
         """
         self.logger = get_logger("NanoBananaImageGenerator")
         self.logger.info(f"📝 详细日志已启用，文件位置: {_log_file}")
-        
+
         # 从配置导入或使用传入的参数
         try:
             from config.config import CONFIG
             config = CONFIG.get('nanobanana', {})
-            
-            self.base_url = base_url or config.get('base_url', 'https://newapi.xiaochuang.cc/v1beta/models/gemini-3-pro-image-preview:generateContent')
-            self.api_key = api_key or config.get('api_key', '')
+
+            # 🔥 多供应商配置
+            self.providers = config.get('providers', [
+                {
+                    'name': 'xiaochuang',
+                    'base_url': 'https://newapi.xiaochuang.cc/v1beta/models/gemini-3-pro-image-preview:generateContent',
+                    'api_key': config.get('api_key', ''),
+                    'enabled': True
+                },
+                {
+                    'name': 'ai-wx',
+                    'base_url': 'https://jyapi.ai-wx.cn/v1/images/generations',
+                    'model': 'gemini-3-pro-image-preview-1K',
+                    'api_key': config.get('api_key_aiwx', config.get('api_key', '')),  # 可以使用相同或不同的key
+                    'enabled': True
+                }
+            ])
+
+            # 兼容旧配置：如果传入了base_url或api_key，使用第一个provider
+            if base_url or api_key:
+                self.providers[0]['base_url'] = base_url or self.providers[0]['base_url']
+                self.providers[0]['api_key'] = api_key or self.providers[0]['api_key']
+
+            self.base_url = self.providers[0]['base_url']  # 保持向后兼容
+            self.api_key = self.providers[0]['api_key']  # 保持向后兼容
+
             # 🔥 增加默认超时时间，特别是处理包含参考图像的请求
             default_timeout = config.get('timeout', 60)
             self.timeout_without_ref = default_timeout  # 无参考图像时的超时
@@ -99,7 +122,7 @@ class NanoBananaImageGenerator:
             self.timeout = default_timeout
             self.max_retries = config.get('max_retries', 3)
             self.enabled = config.get('enabled', True)
-            
+
             self.default_config = config.get('default_config', {
                 "responseModalities": ["TEXT", "IMAGE"],
                 "imageConfig": {
@@ -107,10 +130,25 @@ class NanoBananaImageGenerator:
                     "imageSize": "4K"
                 }
             })
-            
+
         except ImportError:
             # 如果配置导入失败，使用默认值（不从环境变量读取）
-            self.base_url = base_url or 'https://newapi.xiaochuang.cc/v1beta/models/gemini-3-pro-image-preview:generateContent'
+            self.providers = [
+                {
+                    'name': 'xiaochuang',
+                    'base_url': 'https://newapi.xiaochuang.cc/v1beta/models/gemini-3-pro-image-preview:generateContent',
+                    'api_key': api_key or '',
+                    'enabled': True
+                },
+                {
+                    'name': 'ai-wx',
+                    'base_url': 'https://jyapi.ai-wx.cn/v1/images/generations',
+                    'model': 'gemini-3-pro-image-preview-1K',
+                    'api_key': api_key or '',
+                    'enabled': True
+                }
+            ]
+            self.base_url = base_url or self.providers[0]['base_url']
             self.api_key = api_key or ''  # 不再从环境变量读取
             self.timeout = 60
             self.max_retries = 3
@@ -135,7 +173,91 @@ class NanoBananaImageGenerator:
         self.output_dir.mkdir(parents=True, exist_ok=True)
         
         self.logger.debug(f"✅ Nano Banana客户端初始化完成 (enabled={self.enabled})")
-    
+        self.logger.info(f"🔧 已配置 {len(self.providers)} 个图像生成供应商")
+        for idx, provider in enumerate(self.providers):
+            status = "✅ 启用" if provider.get('enabled', True) else "❌ 禁用"
+            self.logger.info(f"  供应商{idx+1}: {provider['name']} - {status}")
+
+    def _call_provider_api(
+        self,
+        provider: Dict[str, Any],
+        prompt: str,
+        aspect_ratio: str,
+        image_size: str,
+        all_reference_images: List[str],
+        parts: List[Dict[str, Any]]
+    ) -> Dict[str, Any]:
+        """
+        调用单个供应商的API
+
+        Args:
+            provider: 供应商配置
+            prompt: 提示词
+            aspect_ratio: 图片比例
+            image_size: 图片尺寸
+            all_reference_images: 参考图像列表
+            parts: 请求parts（包含文本和图像）
+
+        Returns:
+            dict: API响应结果
+        """
+        provider_name = provider.get('name', 'unknown')
+        base_url = provider['base_url']
+        api_key = provider['api_key']
+
+        self.logger.info(f"🔌 使用供应商: {provider_name}")
+        self.logger.info(f"  - API URL: {base_url}")
+
+        # 根据供应商类型构建不同的请求体
+        if provider_name == 'ai-wx':
+            # AI-WX 使用 OpenAI 兼容格式
+            request_body = {
+                "model": provider.get('model', 'gemini-3-pro-image-preview-1K'),
+                "prompt": prompt,
+                "size": f"{image_size.lower()}",  # 1k, 2k, 4k
+                "aspect_ratio": aspect_ratio,
+                "n": 1
+            }
+        else:
+            # 默认使用 Gemini 格式
+            request_body = {
+                "contents": [
+                    {
+                        "parts": parts
+                    }
+                ],
+                "generationConfig": {
+                    "responseModalities": ["TEXT", "IMAGE"],
+                    "imageConfig": {
+                        "aspectRatio": aspect_ratio,
+                        "imageSize": image_size
+                    }
+                }
+            }
+
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {api_key}"
+        }
+
+        self.logger.info(f"🚀 发送POST请求到 {provider_name} API...")
+
+        response = requests.post(
+            base_url,
+            json=request_body,
+            headers=headers,
+            timeout=self.timeout
+        )
+
+        self.logger.info(f"📥 收到 {provider_name} API响应:")
+        self.logger.info(f"  - 状态码: {response.status_code}")
+        self.logger.info(f"  - 响应大小: {len(response.content)} 字节")
+
+        return {
+            'response': response,
+            'provider_name': provider_name
+        }
+
     def generate_image(
         self,
         prompt: str,
@@ -144,11 +266,12 @@ class NanoBananaImageGenerator:
         save_path: Optional[str] = None,
         retry_count: int = 0,
         reference_image: Optional[str] = None,
-        reference_images: Optional[List[str]] = None
+        reference_images: Optional[List[str]] = None,
+        provider_index: int = 0
     ) -> Dict[str, Any]:
         """
-        生成图像
-        
+        生成图像（支持多供应商自动切换）
+
         Args:
             prompt: 提示词描述
             aspect_ratio: 图片比例 (16:9, 4:3, 1:1, 9:16)
@@ -157,7 +280,8 @@ class NanoBananaImageGenerator:
             retry_count: 当前重试次数
             reference_image: 参考图像路径（单张，兼容旧版本）
             reference_images: 参考图像路径列表（多张，最多5张，优先使用）
-            
+            provider_index: 当前使用的供应商索引
+
         Returns:
             dict: 包含生成结果的字典
         """
@@ -285,43 +409,97 @@ class NanoBananaImageGenerator:
         try:
             self.logger.info(f"🎨 开始生成图像")
             self.logger.info(f"📋 请求配置:")
-            self.logger.info(f"  - API URL: {self.base_url}")
             self.logger.info(f"  - 比例: {aspect_ratio}")
             self.logger.info(f"  - 尺寸: {image_size}")
             self.logger.info(f"  - 超时: {self.timeout}秒")
             self.logger.info(f"  - 提示词长度: {len(prompt)} 字符")
             self.logger.info(f"  - 提示词内容: {prompt}")  # 显示完整提示词
-            
+
             # 🔥 显示参考图像信息
             if all_reference_images:
                 self.logger.info(f"  - 参考图像数量: {len(all_reference_images)} 张")
                 for idx, ref_path in enumerate(all_reference_images):
                     self.logger.info(f"    参考图{idx+1}: {ref_path}")
-            
-            # 发送请求
-            headers = {
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {self.api_key}"  # 使用完整的 API key
-            }
-            
-            self.logger.info(f"🚀 发送POST请求到API...")
-            
-            # 计算请求体大小（不打印完整内容以避免显示base64数据）
-            request_body_size = len(json.dumps(request_body))
-            self.logger.debug(f"请求体大小: {request_body_size} 字节")
-            
-            # 🔥 如果有参考图像，单独记录
-            if all_reference_images:
-                self.logger.debug(f"  - 包含 {len(all_reference_images)} 张参考图像")
-            self.logger.debug(f"Authorization Header: Bearer {self.api_key[:20]}...{self.api_key[-4:]}")  # 日志中只显示部分
-            
-            response = requests.post(
-                self.base_url,
-                json=request_body,  # 使用 json 参数，requests 会自动序列化并设置 Content-Type
-                headers=headers,
-                timeout=self.timeout
-            )
-            
+
+            # 🔥 多供应商自动切换逻辑
+            last_error = None
+            response = None
+            provider_name = None
+
+            for attempt_idx in range(provider_index, len(self.providers)):
+                provider = self.providers[attempt_idx]
+
+                # 跳过禁用的供应商
+                if not provider.get('enabled', True):
+                    self.logger.info(f"⏭️  跳过禁用的供应商: {provider.get('name', 'unknown')}")
+                    continue
+
+                # 检查API密钥
+                if not provider.get('api_key'):
+                    self.logger.warning(f"⚠️ 供应商 {provider.get('name', 'unknown')} 未配置API密钥，跳过")
+                    continue
+
+                try:
+                    # 调用供应商API
+                    result = self._call_provider_api(
+                        provider,
+                        prompt,
+                        aspect_ratio,
+                        image_size,
+                        all_reference_images,
+                        parts
+                    )
+                    response = result['response']
+                    provider_name = result['provider_name']
+
+                    # 检查响应状态
+                    if response.status_code == 200:
+                        self.logger.info(f"✅ 供应商 {provider_name} 请求成功")
+                        break
+                    else:
+                        error_msg = f"供应商 {provider_name} 返回错误状态码: {response.status_code}"
+                        self.logger.warning(f"⚠️ {error_msg}")
+                        self.logger.debug(f"响应内容: {response.text[:500]}")
+                        last_error = error_msg
+
+                        # 如果是5xx错误且还有其他供应商，尝试下一个
+                        if response.status_code >= 500 and attempt_idx < len(self.providers) - 1:
+                            self.logger.info(f"🔄 尝试切换到下一个供应商...")
+                            continue
+                        else:
+                            # 没有更多供应商或不是5xx错误，返回错误
+                            break
+
+                except requests.exceptions.Timeout as e:
+                    error_msg = f"供应商 {provider.get('name', 'unknown')} 请求超时"
+                    self.logger.warning(f"⏱️ {error_msg}: {e}")
+                    last_error = error_msg
+                    if attempt_idx < len(self.providers) - 1:
+                        self.logger.info(f"🔄 尝试切换到下一个供应商...")
+                        continue
+                    else:
+                        break
+
+                except Exception as e:
+                    error_msg = f"供应商 {provider.get('name', 'unknown')} 请求失败"
+                    self.logger.error(f"❌ {error_msg}: {e}")
+                    last_error = str(e)
+                    if attempt_idx < len(self.providers) - 1:
+                        self.logger.info(f"🔄 尝试切换到下一个供应商...")
+                        continue
+                    else:
+                        break
+
+            # 如果所有供应商都失败
+            if not response or response.status_code != 200:
+                error_msg = f"所有供应商都失败，最后错误: {last_error}"
+                self.logger.error(f"❌ {error_msg}")
+                return {
+                    "success": False,
+                    "error": error_msg,
+                    "details": response.text if response else None
+                }
+
             self.logger.info(f"📥 收到API响应:")
             self.logger.info(f"  - 状态码: {response.status_code}")
             self.logger.info(f"  - 响应大小: {len(response.content)} 字节")
@@ -332,23 +510,7 @@ class NanoBananaImageGenerator:
                 self.logger.info(f"  - 响应预览: {response_preview}...")
             except:
                 pass
-            
-            # 检查响应状态
-            if response.status_code != 200:
-                error_msg = f"API请求失败 (状态码: {response.status_code})"
-                self.logger.error(f"{error_msg}\n响应: {response.text[:500]}")
-                
-                # 如果是可重试的错误，尝试重试
-                if retry_count < self.max_retries and response.status_code >= 500:
-                    self.logger.info(f"尝试重试 ({retry_count + 1}/{self.max_retries})...")
-                    return self.generate_image(prompt, aspect_ratio, image_size, save_path, retry_count + 1, reference_image, reference_images)
-                
-                return {
-                    "success": False,
-                    "error": error_msg,
-                    "details": response.text
-                }
-            
+
             # 解析响应
             try:
                 response_data = response.json()
@@ -379,20 +541,20 @@ class NanoBananaImageGenerator:
             # 🔥 支持多种响应格式
             image_data = None
             text_response = None
-            
+
             # 格式1: 标准 Gemini API 格式
             if 'candidates' in response_data and response_data['candidates']:
                 candidate = response_data['candidates'][0]
                 self.logger.debug(f"📋 候选响应结构")
-                
+
                 if 'content' in candidate and 'parts' in candidate['content']:
                     parts_count = len(candidate['content']['parts'])
                     self.logger.info(f"  - Parts数量: {parts_count}")
-                    
+
                     for idx, part in enumerate(candidate['content']['parts']):
                         part_keys = list(part.keys())
                         self.logger.info(f"  - Part {idx} 键: {part_keys}")
-                        
+
                         # 兼容 inlineData 和 inline_data 两种格式
                         if 'inlineData' in part:
                             image_data = part['inlineData'].get('data')
@@ -403,19 +565,36 @@ class NanoBananaImageGenerator:
                         elif 'text' in part:
                             text_response = part['text']
                             self.logger.info(f"📝 提取到文本响应: {text_response[:100]}...")
-            
-            # 格式2: 直接包含 base64Image 字段
+
+            # 格式2: OpenAI 兼容格式 (AI-WX)
+            elif 'data' in response_data and isinstance(response_data['data'], list):
+                if response_data['data'] and 'b64_json' in response_data['data'][0]:
+                    image_data = response_data['data'][0]['b64_json']
+                    self.logger.info(f"✅ 从 OpenAI 格式提取到图像数据 (长度: {len(image_data) if image_data else 0})")
+                elif response_data['data'] and 'url' in response_data['data'][0]:
+                    # 如果返回的是URL，需要下载
+                    image_url = response_data['data'][0]['url']
+                    self.logger.info(f"📥 从URL下载图像: {image_url}")
+                    try:
+                        img_response = requests.get(image_url, timeout=30)
+                        if img_response.status_code == 200:
+                            image_data = base64.b64encode(img_response.content).decode('utf-8')
+                            self.logger.info(f"✅ 成功下载并转换图像")
+                    except Exception as e:
+                        self.logger.error(f"❌ 下载图像失败: {e}")
+
+            # 格式3: 直接包含 base64Image 字段
             elif 'base64Image' in response_data:
                 image_data = response_data['base64Image']
                 self.logger.debug(f"✅ 从 base64Image 字段提取到图像数据")
-            
-            # 格式3: 包含在 image 字段中
+
+            # 格式4: 包含在 image 字段中
             elif 'image' in response_data:
                 image_data = response_data['image']
                 self.logger.debug(f"✅ 从 image 字段提取到图像数据")
-            
-            # 格式4: 包含在 data 字段中
-            elif 'data' in response_data:
+
+            # 格式5: 包含在 data 字段中（字符串格式）
+            elif 'data' in response_data and isinstance(response_data['data'], str):
                 image_data = response_data['data']
                 self.logger.debug(f"✅ 从 data 字段提取到图像数据")
             
