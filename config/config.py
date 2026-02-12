@@ -196,7 +196,24 @@ CONFIG = {
         }
     },
     # Nano Banana文生图API配置 (用于角色生成)
+    # 🔥 多供应商配置 - 支持自动故障切换
     "nanobanana": {
+        "providers": [
+            {
+                "name": "xiaochuang",
+                "base_url": "https://newapi.xiaochuang.cc/v1beta/models/gemini-3-pro-image-preview:generateContent",
+                "api_key": "sk-i7g2FApDs7X5cdIgpjDMcgIbCCaACIfgzmkIocX2xZBbqnSH",
+                "enabled": True
+            },
+            {
+                "name": "ai-wx",
+                "base_url": "https://jyapi.ai-wx.cn/v1/images/generations",
+                "model": "gemini-3-pro-image-preview-1K",
+                "api_key": "sk-zO9XLgXnznOLwFEM2cE7543942F94dFa92EcBe4a8bF483C8",
+                "enabled": True
+            }
+        ],
+        # 兼容旧配置
         "base_url": "http://intoai.xiaochuang.cc/v1beta/models/gemini-3-pro-image-preview:generateContent",
         "api_key": "sk-i7g2FApDs7X5cdIgpjDMcgIbCCaACIfgzmkIocX2xZBbqnSH",
         "enabled": True,
