@@ -2748,8 +2748,27 @@ class ShortDramaStudio {
     }
 
     /**
-     * 更新镜头的提示词模式
+     * 更新镜头的提示词模式（视频生成页面使用）
      */
+    updateShotMode(idx) {
+        const shot = this.shots[idx];
+        if (!shot) return;
+        
+        const select = document.getElementById(`mode-select-${idx}`);
+        if (!select) return;
+        
+        const mode = select.value;
+        shot.preferred_mode = mode;
+        
+        // 更新显示的画面描述
+        const promptTextEl = document.getElementById(`prompt-text-${idx}`);
+        if (promptTextEl) {
+            const newDesc = this.getCurrentVisualDescription(shot);
+            promptTextEl.textContent = newDesc ? (newDesc.substring(0, 150) + (newDesc.length > 150 ? '...' : '')) : '';
+        }
+        
+        console.log(`🎨 镜头 ${idx} 切换到模式:`, mode === 'standard' ? '标准模式' : mode === 'reference' ? '参考图模式' : '首尾帧模式');
+    }
 
     /**
      * 解析台词数据，返回 {speaker, lines, tone}
