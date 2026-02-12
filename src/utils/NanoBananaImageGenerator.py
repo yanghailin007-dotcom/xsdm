@@ -94,7 +94,7 @@ class NanoBananaImageGenerator:
             self.providers = config.get('providers', [
                 {
                     'name': 'xiaochuang',
-                    'base_url': 'https://newapi.xiaochuang.cc/v1beta/models/gemini-3-pro-image-preview:generateContent',
+                    'base_url': 'http://intoai.xiaochuang.cc/v1beta/models/gemini-3-pro-image-preview:generateContent',
                     'api_key': config.get('api_key', ''),
                     'enabled': True
                 },
@@ -136,7 +136,7 @@ class NanoBananaImageGenerator:
             self.providers = [
                 {
                     'name': 'xiaochuang',
-                    'base_url': 'https://newapi.xiaochuang.cc/v1beta/models/gemini-3-pro-image-preview:generateContent',
+                    'base_url': 'http://intoai.xiaochuang.cc/v1beta/models/gemini-3-pro-image-preview:generateContent',
                     'api_key': api_key or '',
                     'enabled': True
                 },
