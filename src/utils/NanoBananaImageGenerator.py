@@ -462,12 +462,12 @@ class NanoBananaImageGenerator:
                         self.logger.debug(f"响应内容: {response.text[:500]}")
                         last_error = error_msg
 
-                        # 如果是5xx错误且还有其他供应商，尝试下一个
-                        if response.status_code >= 500 and attempt_idx < len(self.providers) - 1:
-                            self.logger.info(f"🔄 尝试切换到下一个供应商...")
+                        # 如果是5xx错误或401认证错误，且还有其他供应商，尝试下一个
+                        if (response.status_code >= 500 or response.status_code == 401) and attempt_idx < len(self.providers) - 1:
+                            self.logger.info(f"🔄 状态码{response.status_code}，尝试切换到下一个供应商...")
                             continue
                         else:
-                            # 没有更多供应商或不是5xx错误，返回错误
+                            # 没有更多供应商或不是可切换的错误，返回错误
                             break
 
                 except requests.exceptions.Timeout as e:
