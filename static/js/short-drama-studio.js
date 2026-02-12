@@ -6426,19 +6426,24 @@ saveGeminiConfig(config) {
             const projectTitle = this.currentProject?.title;
             const episodeId = this.currentEpisode?.id || '1';
             if (projectTitle) {
-                // 使用 API 路径而非直接文件路径
-                const frameSeqPath = `/api/short-drama/frame-sequences?project=${encodeURIComponent(projectTitle)}&episode=${episodeId}`;
+                // 使用现有的 API
+                const frameSeqPath = `/api/short-drama/frame-sequences?novel=${encodeURIComponent(projectTitle)}&episode=${episodeId}集_创意导入`;
                 console.log('Loading frame sequences from:', frameSeqPath);
                 const response = await fetch(frameSeqPath);
                 if (response.ok) {
-                    const frameSeqData = await response.json();
-                    const shotId = `shot_${shot.shot_number || idx + 1}`;
-                    const sequence = frameSeqData.sequences?.find(s => s.shot_id === shotId);
-                    if (sequence?.frames?.length > 0) {
-                        frames = sequence.frames;
-                        console.log('Loaded', frames.length, 'frames for', shotId);
+                    const result = await response.json();
+                    if (result.success && result.sequences) {
+                        const frameSeqData = result.sequences;
+                        const shotId = `shot_${shot.shot_number || idx + 1}`;
+                        const sequence = frameSeqData.sequences?.find(s => s.shot_id === shotId);
+                        if (sequence?.frames?.length > 0) {
+                            frames = sequence.frames;
+                            console.log('Loaded', frames.length, 'frames for', shotId);
+                        } else {
+                            console.log('No frames found for', shotId);
+                        }
                     } else {
-                        console.log('No frames found for', shotId);
+                        console.log('API returned no data:', result.message || 'unknown error');
                     }
                 } else {
                     console.log('Failed to load frame_sequences.json:', response.status);
