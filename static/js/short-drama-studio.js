@@ -5173,9 +5173,10 @@ saveGeminiConfig(config) {
                                         border-radius: 8px;
                                         color: var(--text-primary);
                                         font-size: 0.95rem;
+                                        cursor: pointer;
                                     ">
-                                        <option value="veo_3_1-fast-components" ${videoSettings.model === 'veo_3_1-fast-components' || videoSettings.model === 'veo_3_1-fast-components-4K' ? 'selected' : ''}>1080p参考图模式</option>
-                                        <option value="veo_3_1-fast" ${videoSettings.model === 'veo_3_1-fast' ? 'selected' : ''}>首尾帧模式</option>
+                                        <option value="veo_3_1-fast-components" ${videoSettings.model === 'veo_3_1-fast-components' || videoSettings.model === 'veo_3_1-fast-components-4K' ? 'selected' : ''} style="background: #1e1e2e; color: #fff;">1080p参考图模式</option>
+                                        <option value="veo_3_1-fast" ${videoSettings.model === 'veo_3_1-fast' ? 'selected' : ''} style="background: #1e1e2e; color: #fff;">首尾帧模式</option>
                                     </select>
                                 </div>
                                 <div>
@@ -5188,9 +5189,10 @@ saveGeminiConfig(config) {
                                         border-radius: 8px;
                                         color: var(--text-primary);
                                         font-size: 0.95rem;
+                                        cursor: pointer;
                                     ">
-                                        <option value="portrait" ${videoSettings.orientation === 'portrait' ? 'selected' : ''}>竖屏 (9:16)</option>
-                                        <option value="landscape" ${videoSettings.orientation === 'landscape' ? 'selected' : ''}>横屏 (16:9)</option>
+                                        <option value="portrait" ${videoSettings.orientation === 'portrait' ? 'selected' : ''} style="background: #1e1e2e; color: #fff;">竖屏 (9:16)</option>
+                                        <option value="landscape" ${videoSettings.orientation === 'landscape' ? 'selected' : ''} style="background: #1e1e2e; color: #fff;">横屏 (16:9)</option>
                                     </select>
                                 </div>
                                 <div>
@@ -5203,13 +5205,14 @@ saveGeminiConfig(config) {
                                         border-radius: 8px;
                                         color: var(--text-primary);
                                         font-size: 0.95rem;
+                                        cursor: pointer;
                                     ">
-                                        <option value="2160x3840" ${videoSettings.size === '2160x3840' ? 'selected' : ''}>4K竖屏 (2160x3840)</option>
-                                        <option value="3840x2160" ${videoSettings.size === '3840x2160' ? 'selected' : ''}>4K横屏 (3840x2160)</option>
-                                        <option value="1440x2560" ${videoSettings.size === '1440x2560' ? 'selected' : ''}>2K竖屏 (1440x2560)</option>
-                                        <option value="2560x1440" ${videoSettings.size === '2560x1440' ? 'selected' : ''}>2K横屏 (2560x1440)</option>
-                                        <option value="1080x1920" ${videoSettings.size === '1080x1920' ? 'selected' : ''}>1080p竖屏 (1080x1920)</option>
-                                        <option value="1920x1080" ${videoSettings.size === '1920x1080' ? 'selected' : ''}>1080p横屏 (1920x1080)</option>
+                                        <option value="2160x3840" ${videoSettings.size === '2160x3840' ? 'selected' : ''} style="background: #1e1e2e; color: #fff;">4K竖屏 (2160x3840)</option>
+                                        <option value="3840x2160" ${videoSettings.size === '3840x2160' ? 'selected' : ''} style="background: #1e1e2e; color: #fff;">4K横屏 (3840x2160)</option>
+                                        <option value="1440x2560" ${videoSettings.size === '1440x2560' ? 'selected' : ''} style="background: #1e1e2e; color: #fff;">2K竖屏 (1440x2560)</option>
+                                        <option value="2560x1440" ${videoSettings.size === '2560x1440' ? 'selected' : ''} style="background: #1e1e2e; color: #fff;">2K横屏 (2560x1440)</option>
+                                        <option value="1080x1920" ${videoSettings.size === '1080x1920' ? 'selected' : ''} style="background: #1e1e2e; color: #fff;">1080p竖屏 (1080x1920)</option>
+                                        <option value="1920x1080" ${videoSettings.size === '1920x1080' ? 'selected' : ''} style="background: #1e1e2e; color: #fff;">1080p横屏 (1920x1080)</option>
                                     </select>
                                 </div>
                             </div>
