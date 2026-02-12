@@ -507,11 +507,21 @@ class ShortDramaProject:
 
             if shots_v2_cn_file.exists() and shots_v2_en_file.exists():
                 try:
-                    # 加载中文版本(用于显示)
-                    with open(shots_v2_cn_file, 'r', encoding='utf-8') as f:
-                        shots_cn_data = json.load(f)
+                    # 🔥 加载中文版本(用于显示) - 尝试多种编码
+                    shots_cn_data = None
+                    for encoding in ['utf-8-sig', 'utf-8', 'gbk', 'latin-1']:
+                        try:
+                            with open(shots_v2_cn_file, 'r', encoding=encoding) as f:
+                                shots_cn_data = json.load(f)
+                            logger.info(f'✅ [Episode] 使用 {encoding} 编码读取中文文件')
+                            break
+                        except UnicodeDecodeError:
+                            continue
+                    
+                    if shots_cn_data is None:
+                        raise Exception('无法解码中文文件')
 
-                    # 加载英文版本(用于AI提示词)
+                    # 🔥 加载英文版本(用于AI提示词)
                     with open(shots_v2_en_file, 'r', encoding='utf-8') as f:
                         shots_en_data = json.load(f)
 
