@@ -2024,14 +2024,6 @@ class ShortDramaStudio {
         const aspectRatio = settings.aspect_ratio || '9:16';
         const quality = settings.quality || '4K';
 
-        console.log('🎬 [getVideoSettings] 调试:', {
-            currentProject: this.currentProject?.title,
-            settingsQuality: settings.quality,
-            finalQuality: quality,
-            aspectRatio: aspectRatio,
-            useFirstLastFrame: settings.use_first_last_frame
-        });
-
         // 根据比例和质量计算实际分辨率
         let size = '1920x1080'; // 默认 1080p
         if (aspectRatio === '16:9') {
@@ -2046,11 +2038,8 @@ class ShortDramaStudio {
             else size = '1080x1920';
         }
 
-        // 4K需要使用专门的4K模型
-        let model = 'veo_3_1-fast-components';
-        if (quality === '4K') {
-            model = 'veo_3_1-fast-components-4K';
-        }
+        // 使用项目设置的模型，默认使用参考图模式
+        let model = settings.model || 'veo_3_1-fast-components';
 
         // 🔥 首尾帧模式设置（默认开启）
         const useFirstLastFrame = settings.use_first_last_frame !== false;  // 默认 true
