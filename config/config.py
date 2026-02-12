@@ -210,7 +210,7 @@ CONFIG = {
                 "base_url": "https://jyapi.ai-wx.cn/v1/images/generations",
                 "model": "gemini-3-pro-image-preview-1K",
                 "api_key": "sk-zO9XLgXnznOLwFEM2cE7543942F94dFa92EcBe4a8bF483C8",
-                "enabled": True
+                "enabled": False
             }
         ],
         # 兼容旧配置
