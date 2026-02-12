@@ -2720,45 +2720,17 @@ class ShortDramaStudio {
     }
 
     /**
-     * 获取当前模式的视觉描述（中文）
+     * 获取当前模式的视觉描述
      */
     getCurrentVisualDescription(shot) {
         const mode = shot.preferred_mode || 'standard';
-        
-        // 🔥 检查字符串是否包含乱码（�）
-        const isGarbled = (str) => {
-            if (!str || typeof str !== 'string') return true;
-            return str.includes('�') || str.match(/^[^\u4e00-\u9fa5a-zA-Z0-9\s\p{P}]*$/u);
-        };
-        
-        // 🔥 获取有效描述（非乱码）
-        const getValidDesc = (desc) => {
-            if (!desc || typeof desc !== 'string') return '';
-            if (isGarbled(desc)) return '';
-            return desc;
-        };
-        
-        let desc = '';
-        if (mode === 'reference') {
-            desc = getValidDesc(shot.visual_description_reference);
-        } else if (mode === 'frames') {
-            desc = getValidDesc(shot.visual_description_frames);
-        } else {
-            desc = getValidDesc(shot.visual_description_standard) 
-                || getValidDesc(shot.visual_description);
+        if (mode === 'reference' && shot.visual_description_reference) {
+            return shot.visual_description_reference;
         }
-        
-        // 🔥 如果描述是乱码或为空，使用场景标题+提示
-        if (!desc) {
-            const sceneTitle = shot.scene_title || '';
-            // 如果场景标题也是乱码，使用默认提示
-            if (isGarbled(sceneTitle)) {
-                return `镜头 ${shot.shot_number || 1}：请查看下方英文提示词`;
-            }
-            return `${sceneTitle} - 暂无中文描述`;
+        if (mode === 'frames' && shot.visual_description_frames) {
+            return shot.visual_description_frames;
         }
-        
-        return desc;
+        return shot.visual_description_standard || shot.visual_description || shot.screen_action || '';
     }
 
     /**
