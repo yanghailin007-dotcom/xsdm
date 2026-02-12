@@ -6422,11 +6422,12 @@ saveGeminiConfig(config) {
         // 尝试加载 frame_sequences.json 获取 frames 数据
         let frames = [];
         try {
-            // 使用项目 id 作为文件夹名（实际的文件夹名）
-            const projectId = this.currentProject?.id;
+            // 使用项目 title 作为文件夹名
+            const projectTitle = this.currentProject?.title;
             const episodeId = this.currentEpisode?.id || '1';
-            if (projectId) {
-                const frameSeqPath = `视频项目/${projectId}/${episodeId}集_创意导入/frame_sequences.json`;
+            if (projectTitle) {
+                // 使用 API 路径而非直接文件路径
+                const frameSeqPath = `/api/short-drama/frame-sequences?project=${encodeURIComponent(projectTitle)}&episode=${episodeId}`;
                 console.log('Loading frame sequences from:', frameSeqPath);
                 const response = await fetch(frameSeqPath);
                 if (response.ok) {
@@ -6443,7 +6444,7 @@ saveGeminiConfig(config) {
                     console.log('Failed to load frame_sequences.json:', response.status);
                 }
             } else {
-                console.log('No project id available');
+                console.log('No project title available');
             }
         } catch (e) {
             console.log('无法加载 frame_sequences.json，使用默认提示词:', e);
