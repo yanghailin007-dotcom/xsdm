@@ -6421,12 +6421,13 @@ saveGeminiConfig(config) {
         
         // 尝试加载 frame_sequences.json 获取 frames 数据
         let frames = [];
-        let currentFrameIdx = 0;
         try {
-            const projectId = this.currentProject?.id;
+            // 使用项目 title 作为文件夹名（和文件系统一致）
+            const projectName = this.currentProject?.title || this.currentProject?.id;
             const episodeId = this.currentEpisode?.id || '1';
-            if (projectId) {
-                const frameSeqPath = `视频项目/${projectId}/${episodeId}集_创意导入/frame_sequences.json`;
+            if (projectName) {
+                const frameSeqPath = `视频项目/${projectName}/${episodeId}集_创意导入/frame_sequences.json`;
+                console.log('Loading frame sequences from:', frameSeqPath);
                 const response = await fetch(frameSeqPath);
                 if (response.ok) {
                     const frameSeqData = await response.json();
@@ -6434,11 +6435,18 @@ saveGeminiConfig(config) {
                     const sequence = frameSeqData.sequences?.find(s => s.shot_id === shotId);
                     if (sequence?.frames?.length > 0) {
                         frames = sequence.frames;
+                        console.log('Loaded', frames.length, 'frames for', shotId);
+                    } else {
+                        console.log('No frames found for', shotId);
                     }
+                } else {
+                    console.log('Failed to load frame_sequences.json:', response.status);
                 }
+            } else {
+                console.log('No project name available');
             }
         } catch (e) {
-            console.log('无法加载 frame_sequences.json，使用默认提示词');
+            console.log('无法加载 frame_sequences.json，使用默认提示词:', e);
         }
         
         // 如果没有 frames，创建一个默认的
