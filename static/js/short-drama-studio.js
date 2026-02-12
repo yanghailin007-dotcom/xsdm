@@ -4174,11 +4174,15 @@ saveGeminiConfig(config) {
             console.log('  - 提示词长度:', prompt.length, '字符');
             console.log('  - 提示词内容:\n' + prompt);
 
+            // 🔥 无参考图模式：强制使用 veo_3_1-fast 模型
+            const finalModel = 'veo_3_1-fast';
+            console.log('  - 模型: ' + finalModel + ' (无参考图模式)');
+
             const response = await fetch('/api/veo/generate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    model: videoSettings.model,
+                    model: finalModel,
                     prompt: prompt,
                     image_urls: [],
                     orientation: videoSettings.orientation,
