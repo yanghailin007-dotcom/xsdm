@@ -275,8 +275,9 @@ class NanoBananaImageGenerator:
                     for poll_idx in range(max_polls):
                         time.sleep(poll_interval)
                         
-                        # 构建查询URL
-                        query_url = f"{provider['base_url']}/status/{task_id}"
+                        # 🔥 构建查询URL - 参考视频生成逻辑 /v1/images/query?id={task_id}
+                        base_url_without_path = provider['base_url'].replace('/v1/images/generations', '')
+                        query_url = f"{base_url_without_path}/v1/images/query?id={task_id}"
                         self.logger.info(f"  - 第{poll_idx+1}次轮询: {query_url}")
                         
                         query_response = requests.get(
