@@ -6482,7 +6482,7 @@ saveGeminiConfig(config) {
         
         // 组合所有 frames 的提示词（就像发送给 AI 的那样）
         const combinedPromptEn = frames.map((f, i) => `Scene ${i+1}: ${f.prompt || ''}`).join('\n\n');
-        const combinedPromptCn = frames.map((f, i) => `画面${i+1}：${f.prompt_cn || ''}`).join(' → ');
+        const combinedPromptCn = frames.map((f, i) => `画面${i+1}：${f.prompt_cn || ''}`).join('\n\n');
 
         modal.innerHTML = `
             <div style="
