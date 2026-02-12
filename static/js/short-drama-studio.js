@@ -5175,7 +5175,7 @@ saveGeminiConfig(config) {
                                         font-size: 0.95rem;
                                     ">
                                         <option value="veo_3_1-fast-components" ${videoSettings.model === 'veo_3_1-fast-components' || videoSettings.model === 'veo_3_1-fast-components-4K' ? 'selected' : ''}>1080p参考图模式</option>
-                                        <option value="veo_3_1-fast" ${videoSettings.model === 'veo_3_1-fast' ? 'selected' : ''}>无参考图模式</option>
+                                        <option value="veo_3_1-fast" ${videoSettings.model === 'veo_3_1-fast' ? 'selected' : ''}>首尾帧模式</option>
                                     </select>
                                 </div>
                                 <div>
