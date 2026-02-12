@@ -999,25 +999,35 @@ class NanoBananaImageGenerator:
         char_tag = f"CHARACTER_ID_{character_id.upper().replace(' ', '_')}"
         
         # ============================================
-        # 构建3D角色模型表格提示词（单张图四视图）
+        # 构建角色参考图提示词（横向宽幅布局）
         # ============================================
-        final_prompt = f"""[3D CHARACTER MODEL SHEET] [ID: {char_tag}]
+        final_prompt = f"""Character reference sheet for AI video generation, photorealistic style.
 
-Character: {name} - {english_desc}
+SINGLE WIDE IMAGE showing ONE character in multiple angles, arranged HORIZONTALLY from left to right:
+
+- LEFT section (40% width): FULL BODY FRONT VIEW, standing naturally, complete outfit visible, feet to head, neutral expression, facing camera directly
+- CENTER-LEFT section (20% width): FULL BODY SIDE VIEW, 90 degree profile, showing silhouette and side details, facing right
+- CENTER-RIGHT section (20% width): FULL BODY BACK VIEW, showing back of outfit, hairstyle from behind
+- RIGHT section (20% width): FACE CLOSE-UP PORTRAIT, front facing, neutral expression, head and shoulders only, clear facial features
+
+CHARACTER: {name}, {english_desc}
+IMPORTANT - KEY VISUAL FEATURES (must be visible): Extract and emphasize all physical features from description
 Ethnicity: East Asian, Chinese facial features
-Style: 3D stylized render, Unreal Engine 5 quality, PBR materials
+Character Type: Short drama protagonist, cinematic leading role, memorable screen presence
 
-SINGLE IMAGE containing four views of the same character arranged in a grid:
-- Top-left: Front headshot close-up, neutral expression
-- Top-right: Front full body in T-pose (0° angle)
-- Bottom-left: Side full body in T-pose (90° side profile)
-- Bottom-right: Back full body in T-pose (180° back view)
+CRITICAL REQUIREMENTS:
+- ALL sections show THE SAME CHARACTER with consistent clothing, hairstyle, and appearance
+- MUST DISPLAY ALL KEY FEATURES from description: accessories, jewelry, distinctive marks, clothing details - make them VISIBLE and CLEAR
+- Character should have PROTAGONIST APPEARANCE: distinctive face, screen presence, leading role quality, not generic
+- Consistent lighting across all sections (soft diffused light from upper left)
+- Neutral gray studio background, no environment
+- Photorealistic photographic style, NOT 3D render or illustration
+- Natural relaxed poses, NOT T-pose
+- High detail, professional photography quality
 
-All four views in ONE image, same character, same outfit, same hairstyle. Character turnaround reference sheet format.
+Style: Cinematic character portrait for short drama, movie protagonist lighting, heroic angle, screen-ready appearance, distinctive memorable face, professional film production still, 8k, sharp focus, consistent character across all angles
 
-TECHNICAL: 3D render, Octane quality, ray tracing, PBR textures, orthographic views, white background, 8k, professional model sheet, {', '.join(tags[:3])}
-
-NEGATIVE: 2D illustration, sketch, anime drawing, flat color, manga, painting, watercolor, cel-shaded, chibi, hand-drawn, Western face, separate images, multiple images, low quality"""
+NEGATIVE: 2D illustration, sketch, anime, manga, painting, 3D render, T-pose, grid lines, multiple different characters, inconsistent clothing between sections"""
 
         self.logger.info(f"📝 四视图提示词长度: {len(final_prompt)} chars")
         self.logger.info(f"📝 提示词预览: {final_prompt[:300]}...")
