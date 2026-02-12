@@ -6313,7 +6313,7 @@ saveGeminiConfig(config) {
     }
 
     /**
-     * 生成多图
+     * 生成多图 - 🔥 使用九宫格大图生成后分割
      */
     async generateMultiImages(idx) {
         const shot = this.shots[idx];
@@ -6329,6 +6329,24 @@ saveGeminiConfig(config) {
             return;
         }
 
+        // 🔥 确定网格布局
+        let gridLayout;
+        switch (count) {
+            case 3: gridLayout = '1x3'; break;
+            case 6: gridLayout = '2x3'; break;
+            case 9: gridLayout = '3x3'; break;
+            default: gridLayout = '1x3';
+        }
+
+        // 🔥 构建 frames 数组（同一镜头的不同变体描述）
+        const frames = [];
+        for (let i = 1; i <= count; i++) {
+            frames.push({
+                frame_number: i,
+                prompt: `${prompt}, variation ${i}, different angle and lighting`
+            });
+        }
+
         // 显示生成中状态
         const resultsDiv = document.getElementById('multiImageResults');
         const gridDiv = document.getElementById('multiImageGrid');
@@ -6336,43 +6354,47 @@ saveGeminiConfig(config) {
         gridDiv.innerHTML = `
             <div style="grid-column: 1 / -1; text-align: center; padding: 40px;">
                 <div class="spinner" style="width: 40px; height: 40px; border: 3px solid rgba(99, 102, 241, 0.3); border-top-color: #6366f1; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 16px;"></div>
-                <p style="color: var(--text-secondary, #94a3b8);">正在生成 ${count} 张图片...</p>
+                <p style="color: var(--text-secondary, #94a3b8);">正在生成 ${count} 宫格大图并分割...</p>
             </div>
         `;
 
         try {
-            // 生成多个提示词变体
-            const prompts = [];
-            for (let i = 0; i < count; i++) {
-                prompts.push(`${prompt}, variation ${i + 1}, different angle and lighting`);
-            }
+            // 🔥 获取项目信息
+            const projectId = this.currentProject?.id || this.projectId;
+            const episodeName = this.getEpisodeDirectoryName?.() || this.currentEpisode || '1集_创意导入';
+            const shotId = `shot_${shot.shot_number || idx + 1}`;
 
-            // 调用批量生成API
-            const response = await fetch('/api/nanobanana/batch-generate', {
+            // 🔥 调用九宫格生成API
+            const response = await fetch('/api/short-drama/storyboard/generate-frame-grid', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    prompts: prompts,
+                    project_id: projectId,
+                    episode_name: episodeName,
+                    shot_id: shotId,
+                    grid_layout: gridLayout,
+                    frame_count: count,
+                    frames: frames,
                     aspect_ratio: ratio,
-                    image_size: quality,
-                    delay: 1.0
+                    image_size: quality
                 })
             });
 
             const result = await response.json();
 
-            if (result.success && result.results) {
-                // 保存生成的图片到shot
-                shot.generatedImages = result.results.map((r, i) => ({
-                    url: r.url,
-                    path: r.local_path,
-                    prompt: prompts[i],
-                    index: i
+            if (result.success && result.frame_images) {
+                // 🔥 保存生成的图片到shot（分割后的小图）
+                shot.generatedImages = result.frame_images.map((frame, i) => ({
+                    url: frame.url,
+                    path: frame.url, // 分割后的图片路径
+                    prompt: frames[i].prompt,
+                    index: i,
+                    grid_image_url: result.grid_image_url // 保留大图URL
                 }));
                 
                 // 显示结果
                 this.displayMultiImageResults(shot.generatedImages);
-                this.showToast(`成功生成 ${shot.generatedImages.length} 张图片`, 'success');
+                this.showToast(`✅ 成功生成九宫格并分割为 ${shot.generatedImages.length} 张图片`, 'success');
                 
                 // 刷新分镜列表以显示指示器
                 if (this.currentStoryboards && this.currentStoryboards.length > 0) {
@@ -6383,7 +6405,7 @@ saveGeminiConfig(config) {
                     this.renderShotsList();
                 }
             } else {
-                throw new Error(result.error || '生成失败');
+                throw new Error(result.message || result.error || '生成失败');
             }
         } catch (error) {
             console.error('生成多图失败:', error);
