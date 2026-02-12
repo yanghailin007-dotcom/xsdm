@@ -4,6 +4,7 @@ Nano Banana文生图API客户端
 """
 import os
 import sys
+import time
 import requests
 import json
 import base64
@@ -242,6 +243,11 @@ class NanoBananaImageGenerator:
 
         self.logger.info(f"🚀 发送POST请求到 {provider_name} API...")
 
+        # 🔥 AI-WX 支持异步模式，添加 async=true 参数
+        if provider_name == 'ai-wx':
+            base_url = f"{base_url}?async=true"
+            self.logger.info(f"  - 使用异步模式: {base_url}")
+
         response = requests.post(
             base_url,
             json=request_body,
@@ -252,6 +258,53 @@ class NanoBananaImageGenerator:
         self.logger.info(f"📥 收到 {provider_name} API响应:")
         self.logger.info(f"  - 状态码: {response.status_code}")
         self.logger.info(f"  - 响应大小: {len(response.content)} 字节")
+
+        # 🔥 处理 AI-WX 异步模式 - 如果返回任务ID需要轮询
+        if provider_name == 'ai-wx' and response.status_code == 200:
+            try:
+                response_data = response.json()
+                # 如果返回了任务ID，需要轮询查询结果
+                if 'task_id' in response_data or (isinstance(response_data, dict) and 'id' in response_data):
+                    task_id = response_data.get('task_id') or response_data.get('id')
+                    self.logger.info(f"⏳ 异步任务已创建: {task_id}，开始轮询...")
+                    
+                    # 轮询查询结果
+                    max_polls = 60  # 最多轮询60次
+                    poll_interval = 2  # 每2秒轮询一次
+                    
+                    for poll_idx in range(max_polls):
+                        time.sleep(poll_interval)
+                        
+                        # 构建查询URL
+                        query_url = f"{provider['base_url']}/status/{task_id}"
+                        self.logger.info(f"  - 第{poll_idx+1}次轮询: {query_url}")
+                        
+                        query_response = requests.get(
+                            query_url,
+                            headers=headers,
+                            timeout=30
+                        )
+                        
+                        if query_response.status_code == 200:
+                            query_data = query_response.json()
+                            status = query_data.get('status', 'unknown')
+                            
+                            if status == 'completed':
+                                self.logger.info(f"✅ 异步任务完成")
+                                # 用查询结果替换原始响应
+                                response._content = query_response.content
+                                break
+                            elif status == 'failed':
+                                error_msg = query_data.get('error', '任务失败')
+                                self.logger.error(f"❌ 异步任务失败: {error_msg}")
+                                break
+                            else:
+                                self.logger.info(f"  - 任务状态: {status}，继续轮询...")
+                        else:
+                            self.logger.warning(f"⚠️ 查询失败: {query_response.status_code}")
+                            
+            except Exception as e:
+                self.logger.warning(f"⚠️ 处理异步响应失败: {e}，使用原始响应")
 
         return {
             'response': response,
