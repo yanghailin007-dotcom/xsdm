@@ -6353,6 +6353,32 @@ saveGeminiConfig(config) {
     }
 
     /**
+     * 切换多图生成弹窗中的画面(frame)
+     */
+    switchMultiImageFrame(shotIdx, frameIdx) {
+        const shot = this.shots[shotIdx];
+        if (!shot || !shot._multiImageFrames) return;
+
+        const frame = shot._multiImageFrames[frameIdx];
+        if (!frame) return;
+
+        // 更新按钮状态
+        document.querySelectorAll('.frame-select-btn').forEach(btn => {
+            const isActive = parseInt(btn.dataset.frameIdx) === frameIdx;
+            btn.style.background = isActive 
+                ? 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)' 
+                : 'var(--surface-light, #334155)';
+            btn.style.color = isActive ? 'white' : 'var(--text-primary, #f1f5f9)';
+        });
+
+        // 更新提示词
+        const enTextarea = document.getElementById('multiImagePrompt');
+        const cnTextarea = document.getElementById('multiImagePromptCn');
+        if (enTextarea) enTextarea.value = frame.prompt || '';
+        if (cnTextarea) cnTextarea.value = frame.prompt_cn || '';
+    }
+
+    /**
      * 通过 shotId 打开多图生成弹窗
      * @param {string} shotId - 镜头ID (格式: shot_sceneNum_idx)
      */
@@ -6412,12 +6438,39 @@ saveGeminiConfig(config) {
     /**
      * 打开多图生成弹窗
      */
-    openMultiImageModal(idx) {
+    async openMultiImageModal(idx) {
         const shot = this.shots[idx];
         if (!shot) return;
 
-        // 获取当前提示词
-        const promptText = shot.veo_prompt || shot.screen_action || '';
+        // 获取当前提示词（作为默认）
+        const defaultPrompt = shot.veo_prompt || shot.screen_action || '';
+        
+        // 尝试加载 frame_sequences.json 获取 frames 数据
+        let frames = [];
+        let currentFrameIdx = 0;
+        try {
+            const projectId = this.currentProject?.id;
+            const episodeId = this.currentEpisode?.id || '1';
+            if (projectId) {
+                const frameSeqPath = `视频项目/${projectId}/${episodeId}集_创意导入/frame_sequences.json`;
+                const response = await fetch(frameSeqPath);
+                if (response.ok) {
+                    const frameSeqData = await response.json();
+                    const shotId = `shot_${shot.shot_number || idx + 1}`;
+                    const sequence = frameSeqData.sequences?.find(s => s.shot_id === shotId);
+                    if (sequence?.frames?.length > 0) {
+                        frames = sequence.frames;
+                    }
+                }
+            }
+        } catch (e) {
+            console.log('无法加载 frame_sequences.json，使用默认提示词');
+        }
+        
+        // 如果没有 frames，创建一个默认的
+        if (frames.length === 0) {
+            frames = [{ frame_number: 1, prompt: defaultPrompt, prompt_cn: '' }];
+        }
         
         // 创建弹窗
         const modal = document.createElement('div');
@@ -6435,6 +6488,33 @@ saveGeminiConfig(config) {
             z-index: 10000;
             padding: 20px;
         `;
+
+        // 生成 frame 选择按钮
+        const frameButtonsHtml = frames.map((frame, i) => `
+            <button type="button" 
+                onclick="shortDramaStudio.switchMultiImageFrame(${idx}, ${i})"
+                class="frame-select-btn ${i === 0 ? 'active' : ''}"
+                data-frame-idx="${i}"
+                style="
+                    padding: 8px 16px;
+                    background: ${i === 0 ? 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)' : 'var(--surface-light, #334155)'};
+                    border: 1px solid var(--border, #475569);
+                    border-radius: 6px;
+                    color: ${i === 0 ? 'white' : 'var(--text-primary, #f1f5f9)'};
+                    cursor: pointer;
+                    font-size: 14px;
+                "
+            >
+                画面 ${frame.frame_number || i + 1}
+            </button>
+        `).join('');
+        
+        // 存储 frames 数据到 shot 对象供切换使用
+        shot._multiImageFrames = frames;
+        
+        const firstFrame = frames[0] || {};
+        const promptEn = firstFrame.prompt || defaultPrompt;
+        const promptCn = firstFrame.prompt_cn || '';
 
         modal.innerHTML = `
             <div style="
@@ -6457,18 +6537,50 @@ saveGeminiConfig(config) {
                     ">×</button>
                 </div>
                 
-                <div style="margin-bottom: 20px;">
-                    <label style="display: block; margin-bottom: 8px; color: var(--text-secondary, #94a3b8);">提示词</label>
+                <!-- Frame 选择 -->
+                <div style="margin-bottom: 16px;">
+                    <label style="display: block; margin-bottom: 8px; color: var(--text-secondary, #94a3b8);">选择画面</label>
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        ${frameButtonsHtml}
+                    </div>
+                </div>
+                
+                <!-- 英文提示词（用于生成） -->
+                <div style="margin-bottom: 16px;">
+                    <label style="display: flex; justify-content: space-between; margin-bottom: 8px; color: var(--text-secondary, #94a3b8);">
+                        <span>英文提示词（用于AI生成）</span>
+                    </label>
                     <textarea id="multiImagePrompt" style="
                         width: 100%;
-                        min-height: 80px;
+                        min-height: 100px;
                         padding: 12px;
                         background: var(--surface-light, #334155);
                         border: 1px solid var(--border, #475569);
                         border-radius: 8px;
                         color: var(--text-primary, #f1f5f9);
                         resize: vertical;
-                    ">${promptText}</textarea>
+                        font-size: 14px;
+                        line-height: 1.5;
+                    ">${promptEn}</textarea>
+                </div>
+                
+                <!-- 中文提示词（参考） -->
+                <div style="margin-bottom: 20px;">
+                    <label style="display: flex; justify-content: space-between; margin-bottom: 8px; color: var(--text-secondary, #94a3b8);">
+                        <span>中文提示词（仅供参考）</span>
+                    </label>
+                    <textarea id="multiImagePromptCn" readonly style="
+                        width: 100%;
+                        min-height: 80px;
+                        padding: 12px;
+                        background: var(--surface-dark, #1e293b);
+                        border: 1px solid var(--border, #475569);
+                        border-radius: 8px;
+                        color: var(--text-secondary, #94a3b8);
+                        resize: vertical;
+                        font-size: 14px;
+                        line-height: 1.5;
+                    ">${promptCn}</textarea>
                 </div>
                 
                 <div style="display: flex; gap: 16px; margin-bottom: 20px;">
