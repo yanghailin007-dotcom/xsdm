@@ -9223,7 +9223,7 @@ saveGeminiConfig(config) {
         const stage = this.portraitStage;
         const container = document.getElementById('portrait-konva-container');
 
-        // 滚轮缩放
+        // 滚轮缩放（使用 passive: false 因为我们确实需要阻止默认滚动行为）
         container.addEventListener('wheel', (e) => {
             e.preventDefault();
             
@@ -9250,7 +9250,7 @@ saveGeminiConfig(config) {
             this.updatePortraitZoomDisplay();
             
             stage.batchDraw();
-        });
+        }, { passive: false });
 
         // 鼠标事件用于平移
         let isPanning = false;
