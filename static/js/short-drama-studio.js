@@ -6480,30 +6480,9 @@ saveGeminiConfig(config) {
         // 存储 frames 数据到 shot 对象供生成时使用
         shot._multiImageFrames = frames;
         
-        // 生成 frames 列表 HTML
-        const framesListHtml = frames.map((frame, i) => `
-            <div style="
-                background: var(--surface-light, #334155);
-                border: 1px solid var(--border, #475569);
-                border-radius: 8px;
-                padding: 12px;
-                margin-bottom: 12px;
-            ">
-                <div style="font-weight: 600; color: var(--primary, #6366f1); margin-bottom: 8px;">
-                    画面 ${frame.frame_number || i + 1}
-                </div>
-                <div style="margin-bottom: 8px;">
-                    <div style="font-size: 12px; color: var(--text-tertiary, #64748b); margin-bottom: 4px;">英文 Prompt</div>
-                    <div style="color: var(--text-primary, #f1f5f9); font-size: 13px; line-height: 1.4;">${frame.prompt || ''}</div>
-                </div>
-                ${frame.prompt_cn ? `
-                <div>
-                    <div style="font-size: 12px; color: var(--text-tertiary, #64748b); margin-bottom: 4px;">中文对照</div>
-                    <div style="color: var(--text-secondary, #94a3b8); font-size: 13px; line-height: 1.4;">${frame.prompt_cn}</div>
-                </div>
-                ` : ''}
-            </div>
-        `).join('');
+        // 组合所有 frames 的提示词（就像发送给 AI 的那样）
+        const combinedPromptEn = frames.map((f, i) => `Scene ${i+1}: ${f.prompt || ''}`).join('\n\n');
+        const combinedPromptCn = frames.map((f, i) => `画面${i+1}：${f.prompt_cn || ''}`).join(' → ');
 
         modal.innerHTML = `
             <div style="
@@ -6526,13 +6505,41 @@ saveGeminiConfig(config) {
                     ">×</button>
                 </div>
                 
-                <!-- Frames 列表 -->
+                <!-- 组合提示词 -->
                 <div style="margin-bottom: 20px;">
                     <label style="display: block; margin-bottom: 12px; color: var(--text-secondary, #94a3b8);">
-                        将生成以下 ${frames.length} 个画面的组合图
+                        将生成 ${frames.length} 宫格组合图，使用的提示词如下：
                     </label>
-                    <div style="max-height: 300px; overflow-y: auto;">
-                        ${framesListHtml}
+                    
+                    <!-- 英文组合提示词 -->
+                    <div style="margin-bottom: 16px;">
+                        <div style="font-size: 12px; color: var(--text-tertiary, #64748b); margin-bottom: 8px;">英文 Prompt（用于AI生成）</div>
+                        <textarea readonly style="
+                            width: 100%;
+                            min-height: 120px;
+                            padding: 12px;
+                            background: var(--surface-light, #334155);
+                            border: 1px solid var(--border, #475569);
+                            border-radius: 8px;
+                            color: var(--text-primary, #f1f5f9);
+                            font-size: 13px;
+                            line-height: 1.5;
+                            resize: vertical;
+                        ">${combinedPromptEn}</textarea>
+                    </div>
+                    
+                    <!-- 中文组合提示词 -->
+                    <div>
+                        <div style="font-size: 12px; color: var(--text-tertiary, #64748b); margin-bottom: 8px;">中文对照（仅供参考）</div>
+                        <div style="
+                            padding: 12px;
+                            background: var(--surface-dark, #1e293b);
+                            border: 1px solid var(--border, #475569);
+                            border-radius: 8px;
+                            color: var(--text-secondary, #94a3b8);
+                            font-size: 13px;
+                            line-height: 1.6;
+                        ">${combinedPromptCn}</div>
                     </div>
                 </div>
                 
