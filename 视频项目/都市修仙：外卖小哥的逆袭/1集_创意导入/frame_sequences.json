@@ -12,20 +12,17 @@
         {
           "frame_number": 1,
           "prompt": "POV shot from a speeding electric scooter handle bars. Weaving dangerously through gridlocked traffic at sunset. Speed lines, motion blur. In the side mirror, a young delivery rider Chen Fan (24yo, blue uniform, buzz cut) gritting teeth, veins popping on forehead. High octane energy, cinematic lighting.",
-          "prompt_cn": "电动车如针般穿过车流 → 倒影显示汗水滴入眼睛 → 指关节因用力握把而发白",
-          "description_cn": "电动车如针般穿过车流"
+          "prompt_cn": "电动车如针般穿过车流 → 倒影显示汗水滴入眼睛 → 指关节因用力握把而发白"
         },
         {
           "frame_number": 2,
           "prompt": "POV scooter riding, heavy traffic, sunset, Chen Fan reflection in mirror, intense focus.",
-          "prompt_cn": "电动车如针般穿过车流 → 倒影显示汗水滴入眼睛 → 指关节因用力握把而发白",
-          "description_cn": "倒影显示汗水滴入眼睛"
+          "prompt_cn": "电动车如针般穿过车流 → 倒影显示汗水滴入眼睛 → 指关节因用力握把而发白"
         },
         {
           "frame_number": 3,
           "prompt": "Camera accelerates through narrow gap between two buses, horizon tilts aggressively.",
-          "prompt_cn": "电动车如针般穿过车流 → 倒影显示汗水滴入眼睛 → 指关节因用力握把而发白",
-          "description_cn": "指关节因用力握把而发白"
+          "prompt_cn": "电动车如针般穿过车流 → 倒影显示汗水滴入眼睛 → 指关节因用力握把而发白"
         }
       ],
       "scene": "生死时速",
@@ -41,20 +38,17 @@
         {
           "frame_number": 1,
           "prompt": "Extreme close-up on Chen Fan's eyes. Reflection of a countdown timer turning RED in his pupil. Sweat beads roll down temple. Background is a streaking blur of city lights. High contrast, anxiety inducing.",
-          "prompt_cn": "瞳孔放大 → 红光在瞳孔中反射 → 下颚死死咬紧",
-          "description_cn": "瞳孔放大"
+          "prompt_cn": "瞳孔放大 → 红光在瞳孔中反射 → 下颚死死咬紧"
         },
         {
           "frame_number": 2,
           "prompt": "Chen Fan eyes extreme close up, red digital numbers reflected in eye, sweat, blurred background.",
-          "prompt_cn": "瞳孔放大 → 红光在瞳孔中反射 → 下颚死死咬紧",
-          "description_cn": "红光在瞳孔中反射"
+          "prompt_cn": "瞳孔放大 → 红光在瞳孔中反射 → 下颚死死咬紧"
         },
         {
           "frame_number": 3,
           "prompt": "Camera shakes with road vibration, focus locked on the panic in eyes.",
-          "prompt_cn": "瞳孔放大 → 红光在瞳孔中反射 → 下颚死死咬紧",
-          "description_cn": "下颚死死咬紧"
+          "prompt_cn": "瞳孔放大 → 红光在瞳孔中反射 → 下颚死死咬紧"
         }
       ],
       "scene": "绝命倒计时",
@@ -70,20 +64,17 @@
         {
           "frame_number": 1,
           "prompt": "Low angle shot from the asphalt up. A red supercar drifts around a corner, tires smoking, heading straight for the camera. In the foreground, a child's dropped teddy bear lies on the crosswalk. Sense of impending impact.",
-          "prompt_cn": "汽车疯狂漂移 → 烟雾吞没背景 → 阴影覆盖泰迪熊",
-          "description_cn": "汽车疯狂漂移"
+          "prompt_cn": "汽车疯狂漂移 → 烟雾吞没背景 → 阴影覆盖泰迪熊"
         },
         {
           "frame_number": 2,
           "prompt": "Red supercar drifting towards camera, low angle, teddy bear in foreground on asphalt.",
-          "prompt_cn": "汽车疯狂漂移 → 烟雾吞没背景 → 阴影覆盖泰迪熊",
-          "description_cn": "烟雾吞没背景"
+          "prompt_cn": "汽车疯狂漂移 → 烟雾吞没背景 → 阴影覆盖泰迪熊"
         },
         {
           "frame_number": 3,
           "prompt": "Car looms larger rapidly, shadow engulfs the frame.",
-          "prompt_cn": "汽车疯狂漂移 → 烟雾吞没背景 → 阴影覆盖泰迪熊",
-          "description_cn": "阴影覆盖泰迪熊"
+          "prompt_cn": "汽车疯狂漂移 → 烟雾吞没背景 → 阴影覆盖泰迪熊"
         }
       ],
       "scene": "钢铁猛兽",
@@ -99,20 +90,17 @@
         {
           "frame_number": 1,
           "prompt": "Slow motion. Chen Fan (blue uniform) is mid-air, body horizontal, diving between the car and a blurred small figure (the girl). His scooter crashes into a wall in the background. Debris floats in the air. Face twisted in exertion.",
-          "prompt_cn": "陈凡水平冲入画面 → 玻璃碎片悬浮在空中 → 手伸向撞击点",
-          "description_cn": "陈凡水平冲入画面"
+          "prompt_cn": "陈凡水平冲入画面 → 玻璃碎片悬浮在空中 → 手伸向撞击点"
         },
         {
           "frame_number": 2,
           "prompt": "Chen Fan mid-air dive, slow motion, blue uniform, scooter crashing background, debris floating.",
-          "prompt_cn": "陈凡水平冲入画面 → 玻璃碎片悬浮在空中 → 手伸向撞击点",
-          "description_cn": "玻璃碎片悬浮在空中"
+          "prompt_cn": "陈凡水平冲入画面 → 玻璃碎片悬浮在空中 → 手伸向撞击点"
         },
         {
           "frame_number": 3,
           "prompt": "Character floats through frame, time frozen, hand reaching out.",
-          "prompt_cn": "陈凡水平冲入画面 → 玻璃碎片悬浮在空中 → 手伸向撞击点",
-          "description_cn": "手伸向撞击点"
+          "prompt_cn": "陈凡水平冲入画面 → 玻璃碎片悬浮在空中 → 手伸向撞击点"
         }
       ],
       "scene": "舍身",
@@ -128,20 +116,17 @@
         {
           "frame_number": 1,
           "prompt": "Macro shot. Chen Fan's wrist slams onto the car hood. The jade pendant shatters. A drop of blood mixes with the green dust. Golden runes ignite from the blood mixture, spiraling up his arm. Magical realism.",
-          "prompt_cn": "玉佩炸裂 → 血液接触粉尘 → 金色脉络爬上皮肤",
-          "description_cn": "玉佩炸裂"
+          "prompt_cn": "玉佩炸裂 → 血液接触粉尘 → 金色脉络爬上皮肤"
         },
         {
           "frame_number": 2,
           "prompt": "Wrist hitting car hood, jade shattering, blood mixing, golden runes appearing on skin.",
-          "prompt_cn": "玉佩炸裂 → 血液接触粉尘 → 金色脉络爬上皮肤",
-          "description_cn": "血液接触粉尘"
+          "prompt_cn": "玉佩炸裂 → 血液接触粉尘 → 金色脉络爬上皮肤"
         },
         {
           "frame_number": 3,
           "prompt": "Impact causes dust shockwave, runes glow and travel up arm.",
-          "prompt_cn": "玉佩炸裂 → 血液接触粉尘 → 金色脉络爬上皮肤",
-          "description_cn": "金色脉络爬上皮肤"
+          "prompt_cn": "玉佩炸裂 → 血液接触粉尘 → 金色脉络爬上皮肤"
         }
       ],
       "scene": "血契觉醒",
@@ -157,20 +142,17 @@
         {
           "frame_number": 1,
           "prompt": "Dolly zoom (Vertigo effect) on Chen Fan's face. His buzz cut hair blows back from an invisible energy source. Eyes snap open - irises are molten gold. The panic is gone, replaced by terrifying calmness. Atmosphere shifts from warm sunset to cold blue.",
-          "prompt_cn": "猛然抬头 → 双眼金光爆射 → 背景扭曲 → 表情变得冷酷",
-          "description_cn": "猛然抬头"
+          "prompt_cn": "猛然抬头 → 双眼金光爆射 → 背景扭曲 → 表情变得冷酷"
         },
         {
           "frame_number": 2,
           "prompt": "Chen Fan face dolly zoom, eyes opening gold, hair blowing back, color grade shift to cold.",
-          "prompt_cn": "猛然抬头 → 双眼金光爆射 → 背景扭曲 → 表情变得冷酷",
-          "description_cn": "双眼金光爆射"
+          "prompt_cn": "猛然抬头 → 双眼金光爆射 → 背景扭曲 → 表情变得冷酷"
         },
         {
           "frame_number": 3,
           "prompt": "Background compresses while face remains constant, lighting shifts drastically.",
-          "prompt_cn": "猛然抬头 → 双眼金光爆射 → 背景扭曲 → 表情变得冷酷",
-          "description_cn": "背景扭曲"
+          "prompt_cn": "猛然抬头 → 双眼金光爆射 → 背景扭曲 → 表情变得冷酷"
         }
       ],
       "scene": "王者归来",
@@ -186,20 +168,17 @@
         {
           "frame_number": 1,
           "prompt": "Wide shot. The red supercar is crumpled like an accordion against Chen Fan's single hand. The car's rear wheels are suspended in the air. Chen Fan stands perfectly still, feet embedded in cracked asphalt. Steam rises from the car. Cinematic composition.",
-          "prompt_cn": "汽车尾部在空中弹跳 → 引擎嘶嘶喷出蒸汽 → 陈凡纹丝不动",
-          "description_cn": "汽车尾部在空中弹跳"
+          "prompt_cn": "汽车尾部在空中弹跳 → 引擎嘶嘶喷出蒸汽 → 陈凡纹丝不动"
         },
         {
           "frame_number": 2,
           "prompt": "Chen Fan stopping car with one hand, car wrecked, rear wheels up, ground cracked, steam rising.",
-          "prompt_cn": "汽车尾部在空中弹跳 → 引擎嘶嘶喷出蒸汽 → 陈凡纹丝不动",
-          "description_cn": "引擎嘶嘶喷出蒸汽"
+          "prompt_cn": "汽车尾部在空中弹跳 → 引擎嘶嘶喷出蒸汽 → 陈凡纹丝不动"
         },
         {
           "frame_number": 3,
           "prompt": "Static shot with drifting smoke and spinning car wheels.",
-          "prompt_cn": "汽车尾部在空中弹跳 → 引擎嘶嘶喷出蒸汽 → 陈凡纹丝不动",
-          "description_cn": "陈凡纹丝不动"
+          "prompt_cn": "汽车尾部在空中弹跳 → 引擎嘶嘶喷出蒸汽 → 陈凡纹丝不动"
         }
       ],
       "scene": "只手擎天",
@@ -215,20 +194,17 @@
         {
           "frame_number": 1,
           "prompt": "Low angle medium shot looking up at Chen Fan. He slowly withdraws his hand, dusting off his blue uniform. He looks down at the driver with the indifference of a god looking at an ant. Golden glow in eyes fades but sharpness remains.",
-          "prompt_cn": "手弹去肩上的灰尘 → 下巴微收 → 眼睛微微眯起",
-          "description_cn": "手弹去肩上的灰尘"
+          "prompt_cn": "手弹去肩上的灰尘 → 下巴微收 → 眼睛微微眯起"
         },
         {
           "frame_number": 2,
           "prompt": "Chen Fan low angle, dusting off uniform, looking down with indifference, sharp eyes.",
-          "prompt_cn": "手弹去肩上的灰尘 → 下巴微收 → 眼睛微微眯起",
-          "description_cn": "下巴微收"
+          "prompt_cn": "手弹去肩上的灰尘 → 下巴微收 → 眼睛微微眯起"
         },
         {
           "frame_number": 3,
           "prompt": "Hand swipes dust off shoulder, head tilts down slowly.",
-          "prompt_cn": "手弹去肩上的灰尘 → 下巴微收 → 眼睛微微眯起",
-          "description_cn": "眼睛微微眯起"
+          "prompt_cn": "手弹去肩上的灰尘 → 下巴微收 → 眼睛微微眯起"
         }
       ],
       "scene": "神之俯视",
@@ -244,20 +220,17 @@
         {
           "frame_number": 1,
           "prompt": "Handheld shaky cam. The Rich Second Gen (20s, flashy suit) kicks the jammed door open. He stumbles out, face red, veins popping. He ignores the miracle of his survival and stares at the scratches. Hysterical anger.",
-          "prompt_cn": "车门被踹开 → 富二代摔出来 → 踢轮胎 → 手指颤抖地指着",
-          "description_cn": "车门被踹开"
+          "prompt_cn": "车门被踹开 → 富二代摔出来 → 踢轮胎 → 手指颤抖地指着"
         },
         {
           "frame_number": 2,
           "prompt": "Rich kid kicking car door, stumbling out, angry face, pointing at car scratches.",
-          "prompt_cn": "车门被踹开 → 富二代摔出来 → 踢轮胎 → 手指颤抖地指着",
-          "description_cn": "富二代摔出来"
+          "prompt_cn": "车门被踹开 → 富二代摔出来 → 踢轮胎 → 手指颤抖地指着"
         },
         {
           "frame_number": 3,
           "prompt": "Door forces open, character lunges towards camera/car.",
-          "prompt_cn": "车门被踹开 → 富二代摔出来 → 踢轮胎 → 手指颤抖地指着",
-          "description_cn": "踢轮胎"
+          "prompt_cn": "车门被踹开 → 富二代摔出来 → 踢轮胎 → 手指颤抖地指着"
         }
       ],
       "scene": "纨绔子弟",
@@ -273,20 +246,17 @@
         {
           "frame_number": 1,
           "prompt": "OTS shot from behind the screaming Rich Kid. Chen Fan stands composed, hands behind his back, blue uniform fluttering in the wind. The contrast between the frantic rich kid and the statue-like Chen Fan is stark.",
-          "prompt_cn": "富二代挥舞手臂 → 陈凡如雕像般站立 → 风只吹动陈凡的衣角",
-          "description_cn": "富二代挥舞手臂"
+          "prompt_cn": "富二代挥舞手臂 → 陈凡如雕像般站立 → 风只吹动陈凡的衣角"
         },
         {
           "frame_number": 2,
           "prompt": "OTS rich kid pointing at Chen Fan, Chen Fan standing calm hands behind back, wind blowing uniform.",
-          "prompt_cn": "富二代挥舞手臂 → 陈凡如雕像般站立 → 风只吹动陈凡的衣角",
-          "description_cn": "陈凡如雕像般站立"
+          "prompt_cn": "富二代挥舞手臂 → 陈凡如雕像般站立 → 风只吹动陈凡的衣角"
         },
         {
           "frame_number": 3,
           "prompt": "Rich kid gesticulates wildly, Chen Fan remains perfectly still.",
-          "prompt_cn": "富二代挥舞手臂 → 陈凡如雕像般站立 → 风只吹动陈凡的衣角",
-          "description_cn": "风只吹动陈凡的衣角"
+          "prompt_cn": "富二代挥舞手臂 → 陈凡如雕像般站立 → 风只吹动陈凡的衣角"
         }
       ],
       "scene": "阶级碰撞",
@@ -302,20 +272,17 @@
         {
           "frame_number": 1,
           "prompt": "POV from Chen Fan. The world turns grey/monochrome. A thick, black, skull-shaped mist (Death Qi) coils tightly around the Rich Kid's neck and forehead. The mist pulses like a heartbeat. Supernatural horror vibe.",
-          "prompt_cn": "世界褪色成灰白 → 黑烟在富二代头上形成骷髅 → 烟雾如绞索般收紧",
-          "description_cn": "世界褪色成灰白"
+          "prompt_cn": "世界褪色成灰白 → 黑烟在富二代头上形成骷髅 → 烟雾如绞索般收紧"
         },
         {
           "frame_number": 2,
           "prompt": "POV monochrome world, black skull mist around rich kid's neck, pulsating mist.",
-          "prompt_cn": "世界褪色成灰白 → 黑烟在富二代头上形成骷髅 → 烟雾如绞索般收紧",
-          "description_cn": "黑烟在富二代头上形成骷髅"
+          "prompt_cn": "世界褪色成灰白 → 黑烟在富二代头上形成骷髅 → 烟雾如绞索般收紧"
         },
         {
           "frame_number": 3,
           "prompt": "Black mist tightens, pulsating rhythmically.",
-          "prompt_cn": "世界褪色成灰白 → 黑烟在富二代头上形成骷髅 → 烟雾如绞索般收紧",
-          "description_cn": "烟雾如绞索般收紧"
+          "prompt_cn": "世界褪色成灰白 → 黑烟在富二代头上形成骷髅 → 烟雾如绞索般收紧"
         }
       ],
       "scene": "死亡凝视",
@@ -331,20 +298,17 @@
         {
           "frame_number": 1,
           "prompt": "Close-up. Chen Fan tilts his head slightly. The golden glow is gone, but his pupils are vertical slits for a split second. He smiles—a cold, terrifying smile that doesn't reach his eyes.",
-          "prompt_cn": "头歪斜 → 嘴角上扬 → 眼神依旧死寂冰冷",
-          "description_cn": "头歪斜"
+          "prompt_cn": "头歪斜 → 嘴角上扬 → 眼神依旧死寂冰冷"
         },
         {
           "frame_number": 2,
           "prompt": "Chen Fan close up, head tilt, vertical pupils momentary, cold smile.",
-          "prompt_cn": "头歪斜 → 嘴角上扬 → 眼神依旧死寂冰冷",
-          "description_cn": "嘴角上扬"
+          "prompt_cn": "头歪斜 → 嘴角上扬 → 眼神依旧死寂冰冷"
         },
         {
           "frame_number": 3,
           "prompt": "Slow push in on the smile.",
-          "prompt_cn": "头歪斜 → 嘴角上扬 → 眼神依旧死寂冰冷",
-          "description_cn": "眼神依旧死寂冰冷"
+          "prompt_cn": "头歪斜 → 嘴角上扬 → 眼神依旧死寂冰冷"
         }
       ],
       "scene": "午夜宣判",
@@ -360,20 +324,17 @@
         {
           "frame_number": 1,
           "prompt": "Medium shot. The Rich Kid freezes mid-shout. His face drains of color instantly. He steps back, tripping over his own feet, terrified by an invisible pressure. He clutches his chest.",
-          "prompt_cn": "嘴巴张大僵住 → 皮肤变白 → 踉跄后退 → 双手颤抖",
-          "description_cn": "嘴巴张大僵住"
+          "prompt_cn": "嘴巴张大僵住 → 皮肤变白 → 踉跄后退 → 双手颤抖"
         },
         {
           "frame_number": 2,
           "prompt": "Rich kid freezing, face pale, stepping back, tripping, clutching chest, terrified.",
-          "prompt_cn": "嘴巴张大僵住 → 皮肤变白 → 踉跄后退 → 双手颤抖",
-          "description_cn": "皮肤变白"
+          "prompt_cn": "嘴巴张大僵住 → 皮肤变白 → 踉跄后退 → 双手颤抖"
         },
         {
           "frame_number": 3,
           "prompt": "Character stumbles backward, hand trembling as it raises to defend.",
-          "prompt_cn": "嘴巴张大僵住 → 皮肤变白 → 踉跄后退 → 双手颤抖",
-          "description_cn": "踉跄后退"
+          "prompt_cn": "嘴巴张大僵住 → 皮肤变白 → 踉跄后退 → 双手颤抖"
         }
       ],
       "scene": "本能恐惧",
@@ -389,20 +350,17 @@
         {
           "frame_number": 1,
           "prompt": "Insert shot. A cracked smartphone screen fills the frame. A bright red notification banner drops down: 'ORDER FAILED. DEDUCTION: 50 RMB'. The background is the asphalt road.",
-          "prompt_cn": "屏幕静止 → 红色横幅猛然落下 → 文字脉冲闪烁一次",
-          "description_cn": "屏幕静止"
+          "prompt_cn": "屏幕静止 → 红色横幅猛然落下 → 文字脉冲闪烁一次"
         },
         {
           "frame_number": 2,
           "prompt": "Phone screen close up, red notification banner 'Order Failed -50 RMB', cracked screen.",
-          "prompt_cn": "屏幕静止 → 红色横幅猛然落下 → 文字脉冲闪烁一次",
-          "description_cn": "红色横幅猛然落下"
+          "prompt_cn": "屏幕静止 → 红色横幅猛然落下 → 文字脉冲闪烁一次"
         },
         {
           "frame_number": 3,
           "prompt": "Notification banner animates down with a bounce.",
-          "prompt_cn": "屏幕静止 → 红色横幅猛然落下 → 文字脉冲闪烁一次",
-          "description_cn": "文字脉冲闪烁一次"
+          "prompt_cn": "屏幕静止 → 红色横幅猛然落下 → 文字脉冲闪烁一次"
         }
       ],
       "scene": "现实暴击",
@@ -418,20 +376,17 @@
         {
           "frame_number": 1,
           "prompt": "Tracking shot. The god-like aura vanishes instantly. Chen Fan's face contorts into comic horror. He grabs his delivery box and sprints away from the camera at impossible speed, leaving a trail of dust. The rich kid is left confused in the foreground.",
-          "prompt_cn": "陈凡抱头 → 猛然转身 → 狂奔向远方 → 富二代眨眼困惑",
-          "description_cn": "陈凡抱头"
+          "prompt_cn": "陈凡抱头 → 猛然转身 → 狂奔向远方 → 富二代眨眼困惑"
         },
         {
           "frame_number": 2,
           "prompt": "Chen Fan sprinting away panic, holding box, dust trail, rich kid confused foreground.",
-          "prompt_cn": "陈凡抱头 → 猛然转身 → 狂奔向远方 → 富二代眨眼困惑",
-          "description_cn": "猛然转身"
+          "prompt_cn": "陈凡抱头 → 猛然转身 → 狂奔向远方 → 富二代眨眼困惑"
         },
         {
           "frame_number": 3,
           "prompt": "Camera pans rapidly to follow the runner, leaving the scene behind.",
-          "prompt_cn": "陈凡抱头 → 猛然转身 → 狂奔向远方 → 富二代眨眼困惑",
-          "description_cn": "狂奔向远方"
+          "prompt_cn": "陈凡抱头 → 猛然转身 → 狂奔向远方 → 富二代眨眼困惑"
         }
       ],
       "scene": "为钱狂奔",
