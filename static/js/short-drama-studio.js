@@ -445,15 +445,25 @@ class ShortDramaStudio {
             return;
         }
 
-        container.innerHTML = this.events.map((event, idx) => `
-            <div class="major-event-item" data-event-id="${event.id}">
+        container.innerHTML = this.events.map((event, idx) => {
+            // 🔥 判断是否是创意导入项目的事件
+            const isCreativeImport = event.id && event.id.includes('creative_import');
+            
+            // 🔥 对于创意导入项目，显示"第X集"而不是"X集"
+            // children_count 在这里表示镜头数，不是集数
+            const countLabel = isCreativeImport 
+                ? `第${idx + 1}集 · ${event.children_count || 0}镜头`
+                : `${event.children_count || 0}集`;
+            
+            return `
+            <div class="major-event-item ${isCreativeImport ? 'creative-import' : ''}" data-event-id="${event.id}">
                 <div class="event-name">${event.title}</div>
                 <div class="event-info">
-                    <span class="episode-count">${event.children_count}集</span>
+                    <span class="episode-count">${countLabel}</span>
                     ${event.description ? `<span class="event-desc">${event.description.substring(0, 40)}${event.description.length > 40 ? '...' : ''}</span>` : ''}
                 </div>
             </div>
-        `).join('');
+        `}).join('');
     }
 
     /**
