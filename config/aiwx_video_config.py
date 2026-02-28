@@ -27,8 +27,9 @@ AIWX_VIDEO_CREATE_URL = f"{AIWX_BASE_URL}/v1/video/create"
 # 视频查询端点 - 标准查询接口
 AIWX_VIDEO_QUERY_URL = f"{AIWX_BASE_URL}/v1/video/query"
 
-# API密钥配置 - 使用官方提供的密钥
-AIWX_API_KEY = 'sk-0dDn3ajqtCc0PTMmD045Ff7902774431Ad0304E396C856E7'
+# API密钥配置 - 从环境变量读取，默认使用硬编码密钥
+import os
+AIWX_API_KEY = os.getenv('AIWX_API_KEY', 'sk-0dDn3ajqtCc0PTMmD045Ff7902774431Ad0304E396C856E7')
 
 # 模型配置 - Veo 3.1 系列
 AIWX_MODEL_VEO_3_1 = "veo_3_1"

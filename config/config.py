@@ -1,9 +1,17 @@
 import sys
+import os
 from pathlib import Path
 
 # 添加项目根目录到Python路径
 BASE_DIR = Path(__file__).parent.parent
 sys.path.insert(0, str(BASE_DIR))
+
+# 尝试加载环境变量（如果存在）
+try:
+    from dotenv import load_dotenv
+    load_dotenv(BASE_DIR / '.env')
+except:
+    pass
 
 # 创意文件路径
 CREATIVE_IDEAS_FILE = BASE_DIR / "data" / "creative_ideas" / "novel_ideas.txt"
@@ -14,13 +22,11 @@ from src.utils.logger import get_logger
 CONFIG = {
     # 默认提供商配置
     "default_provider": "gemini",  # 默认使用deepseek
-    
+
     "api_keys": {
-        "deepseek": "sk-1342f04c85c5452ab46c673aa1a12c0b",
-        "yuanbao": "sk-1342f04c85c5452ab46c673aa1a12c0b",
-        #"gemini": "sk-JNZV0iCTR3BTgpQIs5MunDRACurpVzKhEl4cuhXRPkMKHkKD"        
-        #"gemini": "sk-Zyu3h7C7JrCu0sMhLUKT0oib4xVQn8QnkWKojImKWIJ2ALv0"
-        "gemini": "sk-zwgxnnUut1E7zJMxXjCAQ3zeUefeM8tm9HYQCY50lVTM53CD"
+        "deepseek": os.getenv('DEEPSEEK_API_KEY', 'sk-1342f04c85c5452ab46c673aa1a12c0b'),
+        "yuanbao": os.getenv('DEEPSEEK_API_KEY', 'sk-1342f04c85c5452ab46c673aa1a12c0b'),
+        "gemini": os.getenv('GEMINI_API_KEY', 'sk-zwgxnnUut1E7zJMxXjCAQ3zeUefeM8tm9HYQCY50lVTM53CD')
     },
     "api_urls": {
         "deepseek": "https://api.deepseek.com/v1/chat/completions",
@@ -202,20 +208,20 @@ CONFIG = {
             {
                 "name": "xiaochuang",
                 "base_url": "http://intoai.xiaochuang.cc/v1beta/models/gemini-3-pro-image-preview:generateContent",
-                "api_key": "sk-i7g2FApDs7X5cdIgpjDMcgIbCCaACIfgzmkIocX2xZBbqnSH",
+                "api_key": os.getenv('NANOBANANA_XIAOCHUANG_KEY', 'sk-i7g2FApDs7X5cdIgpjDMcgIbCCaACIfgzmkIocX2xZBbqnSH'),
                 "enabled": True
             },
             {
                 "name": "ai-wx",
                 "base_url": "https://jyapi.ai-wx.cn/v1/images/generations",
                 "model": "gemini-3-pro-image-preview-1K",
-                "api_key": "sk-zO9XLgXnznOLwFEM2cE7543942F94dFa92EcBe4a8bF483C8",
+                "api_key": os.getenv('NANOBANANA_AIWX_KEY', 'sk-zO9XLgXnznOLwFEM2cE7543942F94dFa92EcBe4a8bF483C8'),
                 "enabled": False
             }
         ],
         # 兼容旧配置
         "base_url": "http://intoai.xiaochuang.cc/v1beta/models/gemini-3-pro-image-preview:generateContent",
-        "api_key": "sk-i7g2FApDs7X5cdIgpjDMcgIbCCaACIfgzmkIocX2xZBbqnSH",
+        "api_key": os.getenv('NANOBANANA_XIAOCHUANG_KEY', 'sk-i7g2FApDs7X5cdIgpjDMcgIbCCaACIfgzmkIocX2xZBbqnSH'),
         "enabled": True,
         "default_config": {
             "responseModalities": ["TEXT", "IMAGE"],
@@ -233,7 +239,7 @@ CONFIG = {
     # MiniMax TTS语音合成配置 (用于配音制作)
     "minimax_tts": {
         "group_id": "2017772342268141667",
-        "api_key": "sk-api-aomH3HEEi6b-QcE_ZdQHJJ2gHqKmuoI_0MLPls7bBhKusdA3ief8Zar6x2IHOj7Cjuv7vvGVFnnwYL1czCY7iKOguMt0YAV-2JPoxjPXShcUL8u1zQLa8eo",
+        "api_key": os.getenv('MINIMAX_TTS_API_KEY', 'sk-api-aomH3HEEi6b-QcE_ZdQHJJ2gHqKmuoI_0MLPls7bBhKusdA3ief8Zar6x2IHOj7Cjuv7vvGVFnnwYL1czCY7iKOguMt0YAV-2JPoxjPXShcUL8u1zQLa8eo'),
         "model": "speech-2.8-turbo",
         "default_sample_rate": 32000,
         "default_bitrate": 128000,

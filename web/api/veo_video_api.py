@@ -106,12 +106,26 @@ def create_video_generation():
                     logger.warning(f"  - 图片 {i+1}: 数据太短，可能无效")
         
         # 创建 VeO 原生请求
-        # 🔥 统一使用 veo_3_1-fast 模型，首尾帧模式和参考图模式调用方式完全一致
-        # 唯一的区别只是图片数量不同
+        # 🔥 根据是否有参考图自动选择模型（强制覆盖用户配置）
+        # - 有参考图：强制使用 veo_3_1-fast-components（参考图模式）
+        # - 无参考图：强制使用 veo_3_1-fast（首尾帧模式）
         user_provided_model = data.get('model')
 
-        # 使用用户指定的模型，如果没有则使用默认的 fast 模型
-        auto_model = user_provided_model if user_provided_model else DEFAULT_AIWX_MODEL
+        # 自动选择模型：根据是否有图片强制设置正确的模型
+        if images:
+            # 有参考图：强制使用 veo_3_1-fast-components
+            auto_model = 'veo_3_1-fast-components'
+            if user_provided_model and user_provided_model != auto_model:
+                logger.info(f"⚠️  用户指定模型 {user_provided_model}，但检测到参考图，自动切换为: {auto_model}")
+            else:
+                logger.info(f"🖼️  检测到参考图，使用模型: {auto_model}")
+        else:
+            # 无参考图：强制使用 veo_3_1-fast
+            auto_model = 'veo_3_1-fast'
+            if user_provided_model and user_provided_model != auto_model:
+                logger.info(f"⚠️  用户指定模型 {user_provided_model}，但无参考图，自动切换为: {auto_model}")
+            else:
+                logger.info(f"📝 无参考图，使用模型: {auto_model}")
 
         # 🔥 提取元数据（用于按项目/分集组织视频）
         metadata = data.get('metadata', {})

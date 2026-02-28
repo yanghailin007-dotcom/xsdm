@@ -5177,6 +5177,7 @@ saveGeminiConfig(config) {
                                         font-size: 0.95rem;
                                         cursor: pointer;
                                     ">
+                                        <option value="veo_3_1-fast-components" ${videoSettings.model === 'veo_3_1-fast-components' || !videoSettings.model ? 'selected' : ''} style="background: #1e1e2e; color: #fff;">VeO 3.1 Fast Components (推荐)</option>
                                         <option value="veo_3_1-fast" ${videoSettings.model === 'veo_3_1-fast' ? 'selected' : ''} style="background: #1e1e2e; color: #fff;">VeO 3.1 Fast</option>
                                         <option value="veo_3_1" ${videoSettings.model === 'veo_3_1' ? 'selected' : ''} style="background: #1e1e2e; color: #fff;">VeO 3.1</option>
                                     </select>
@@ -5819,7 +5820,7 @@ saveGeminiConfig(config) {
             // 🔥 根据是否有参考图选择模型
             const selectedImages = result.selectedImages || [];
             const finalModel = selectedImages.length > 0
-                ? (result.model || 'veo_3_1-fast-components')  // 有参考图：使用用户选择的模型
+                ? 'veo_3_1-fast-components'  // 有参考图：强制使用 veo_3_1-fast-components
                 : 'veo_3_1-fast';  // 无参考图：强制使用 veo_3_1-fast
             console.log('  - 模型:', finalModel, selectedImages.length > 0 ? '(参考图模式)' : '(无参考图模式)');
 
