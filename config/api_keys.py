@@ -1,7 +1,24 @@
 """
 API 密钥和 URL 配置文件
 本文件包含所有 API 密钥和端点 URL
-不应提交到版本控制系统（已在 .gitignore 中）
+
+⚠️ 安全警告 ⚠️
+- 生产环境必须设置对应的环境变量，不要使用默认值
+- 默认值仅用于本地开发环境
+- 确保此文件不被提交到版本控制（已在 .gitignore 中）
+
+必要的环境变量：
+- GEMINI_API_KEY: Gemini API 密钥
+- DEEPSEEK_API_KEY: DeepSeek API 密钥
+
+可选的环境变量：
+- GEMINI_BASE_URL: Gemini API 基础 URL
+- DEEPSEEK_BASE_URL: DeepSeek API 基础 URL
+- YUANBAO_API_KEY: Yuanbao API 密钥
+- AIWX_API_KEY: AI-WX 视频生成 API 密钥
+- ARK_API_KEY: 豆包 API 密钥
+- NANOBANANA_XIAOCHUANG_KEY: NanoBanana 图像生成密钥
+- MINIMAX_TTS_API_KEY: MiniMax TTS API 密钥
 """
 import os
 

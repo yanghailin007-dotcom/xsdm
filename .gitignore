@@ -89,6 +89,9 @@ temp_fanqie_upload/
 # 生成的视频文件
 static/generated_videos/
 
+# 配置文件（包含敏感信息）
+config/api_keys.py
+
 # 视频项目中的音视频文件（不应版本控制）
 视频项目/*/
 视频项目/*/

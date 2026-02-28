@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  novel-generator:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    container_name: novel-generator
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    volumes:
+      - ../logs:/app/logs
+      - "../小说项目:/app/小说项目"
+      - ../generated_images:/app/generated_images
+      - ../.env:/app/.env:ro  # 只读挂载环境变量
+    environment:
+      - PYTHONUNBUFFERED=1
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # 可选：添加 Redis 用于任务队列
+  redis:
+    image: redis:7-alpine
+    container_name: novel-generator-redis
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+
+volumes:
+  redis_data:

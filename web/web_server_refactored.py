@@ -963,6 +963,52 @@ def register_monitoring_routes(app):
             logger.error(f"❌ 获取监控仪表板数据失败: {e}")
             return jsonify({"success": False, "error": str(e)}), 500
 
+    @app.route('/health', methods=['GET'])
+    def health_check():
+        """健康检查端点 - 用于负载均衡和监控"""
+        try:
+            # 基础健康检查
+            health_data = {
+                "status": "healthy",
+                "timestamp": datetime.now().isoformat(),
+                "version": APP_INFO.get('version', 'unknown'),
+                "checks": {
+                    "api": "ok",
+                    "static_files": os.path.exists(os.path.join(BASE_DIR, 'static'))
+                }
+            }
+            
+            # 检查关键目录可写
+            critical_dirs = ['logs', 'generated_images', '小说项目']
+            dir_status = {}
+            for dir_name in critical_dirs:
+                dir_path = os.path.join(BASE_DIR, dir_name)
+                try:
+                    os.makedirs(dir_path, exist_ok=True)
+                    # 测试写入
+                    test_file = os.path.join(dir_path, '.health_check')
+                    with open(test_file, 'w') as f:
+                        f.write('ok')
+                    os.remove(test_file)
+                    dir_status[dir_name] = "ok"
+                except Exception as e:
+                    dir_status[dir_name] = f"error: {str(e)}"
+                    health_data["status"] = "degraded"
+            
+            health_data["checks"]["directories"] = dir_status
+            
+            # 如果所有检查都通过，返回 200，否则返回 503
+            status_code = 200 if health_data["status"] == "healthy" else 503
+            return jsonify(health_data), status_code
+            
+        except Exception as e:
+            logger.error(f"❌ 健康检查失败: {e}")
+            return jsonify({
+                "status": "unhealthy",
+                "error": str(e),
+                "timestamp": datetime.now().isoformat()
+            }), 503
+
 
 def print_startup_info():
     """打印启动信息"""
