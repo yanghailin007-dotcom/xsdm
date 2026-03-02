@@ -459,6 +459,8 @@ class ProjectManager:
         paths = path_config.get_project_paths(novel_title)
         
         # 构建完整的项目数据（不包含成长路线和写作计划,因为已保存到独立文件）
+        # 预编译正则表达式避免f-string中的反斜杠问题
+        _invalid_chars_pattern = re.compile(r'[\\/*?:"<>|]')
         data = {
             "novel_info": {
                 "title": novel_data.get("novel_title", "未命名"),
@@ -479,7 +481,7 @@ class ProjectManager:
                 {
                     "chapter_number": chapter_num,
                     "chapter_title": chapter_data["chapter_title"],
-                    "filename": f"第{int(chapter_num):03d}章_{re.sub(r'[\\/*?:\"<>|]', '_', chapter_data['chapter_title'])}.txt",
+                    "filename": f"第{int(chapter_num):03d}章_{_invalid_chars_pattern.sub('_', chapter_data['chapter_title'])}.txt",
                     "quality_score": chapter_data.get("quality_assessment", {}).get("overall_score", 0),
                     "word_count": chapter_data.get("word_count", 0)
                 }
@@ -590,6 +592,8 @@ class ProjectManager:
     def export_novel_overview(self, novel_data: Dict):
         """导出小说总览文件"""
         safe_title = re.sub(r'[\\/*?:"<>|]', "_", novel_data.get("novel_title", "未命名小说"))
+        # 预编译正则表达式避免f-string中的反斜杠问题
+        _invalid_chars_pattern = re.compile(r'[\\/*?:"<>|]')
         # 获取当前进度信息，提供默认值
         current_progress = novel_data.get("current_progress", {})
         generated_chapters = novel_data.get("generated_chapters", {})
@@ -622,7 +626,7 @@ class ProjectManager:
                     "quality_score": data.get("quality_assessment", {}).get("overall_score", 0),
                     "ai_score": data.get("quality_assessment", {}).get("detailed_scores", {}).get("ai_artifacts_detected", 2),
                     "was_optimized": data.get("optimization_info", {}).get("optimized", False),
-                    "filename": f"第{int(num):03d}章_{re.sub(r'[\\/*?:\"<>|]', '_', data.get('chapter_title', '未命名'))}.txt"
+                    "filename": f"第{int(num):03d}章_{_invalid_chars_pattern.sub('_', data.get('chapter_title', '未命名'))}.txt"
                 }
                 for num, data in sorted(generated_chapters.items(), key=lambda x: int(x[0]))
             ],
