@@ -82,12 +82,12 @@ function fillFromCreativeIdea() {
         previewDiv.style.display = 'block';
 
         let previewHtml = `
-            <div style="background: #f9fafb; padding: 16px; border-radius: 8px; margin-top: 12px;">
-                <p style="margin: 0 0 8px 0; font-weight: 600; color: #374151;">📋 核心设定</p>
-                <p style="margin: 0 0 16px 12px; color: #4b5563; line-height: 1.6;">${idea.core_setting || '暂无设定'}</p>
+            <div class="creative-detail-card" style="background: var(--card-bg, rgba(255,255,255,0.05)); padding: 16px; border-radius: 8px; margin-top: 12px; border: 1px solid var(--border-color, rgba(255,255,255,0.1));">
+                <p style="margin: 0 0 8px 0; font-weight: 600; color: var(--text-primary, #f8fafc);">📋 核心设定</p>
+                <p style="margin: 0 0 16px 12px; color: var(--text-secondary, #cbd5e1); line-height: 1.6;">${idea.core_setting || '暂无设定'}</p>
                 
-                <p style="margin: 0 0 8px 0; font-weight: 600; color: #374151;">💎 核心卖点</p>
-                <p style="margin: 0 0 16px 12px; color: #4b5563; line-height: 1.6;">${idea.core_selling_points || '暂无卖点'}</p>
+                <p style="margin: 0 0 8px 0; font-weight: 600; color: var(--text-primary, #f8fafc);">💎 核心卖点</p>
+                <p style="margin: 0 0 16px 12px; color: var(--text-secondary, #cbd5e1); line-height: 1.6;">${idea.core_selling_points || '暂无卖点'}</p>
         `;
 
         // 获取故事阶段信息
@@ -112,16 +112,16 @@ function fillFromCreativeIdea() {
             };
 
             previewHtml += `
-                <p style="margin: 0 0 8px 0; font-weight: 600; color: #374151;">🎭 故事阶段</p>
+                <p style="margin: 0 0 8px 0; font-weight: 600; color: var(--text-primary, #f8fafc);">🎭 故事阶段</p>
                 <div style="margin-left: 12px;">
             `;
 
             stages.forEach(stage => {
                 const icon = stageIcons[stage.key] || '📖';
                 previewHtml += `
-                    <div style="margin-bottom: 12px;">
-                        <div style="font-weight: 600; color: #1f2937; margin-bottom: 4px;">${icon} ${stage.name}</div>
-                        <div style="color: #6b7280; font-size: 14px; line-height: 1.5;">${stage.summary.substring(0, 150)}${stage.summary.length > 150 ? '...' : ''}</div>
+                    <div style="margin-bottom: 12px; padding: 8px; background: var(--card-bg-secondary, rgba(255,255,255,0.03)); border-radius: 6px;">
+                        <div style="font-weight: 600; color: var(--text-primary, #f8fafc); margin-bottom: 4px;">${icon} ${stage.name}</div>
+                        <div style="color: var(--text-secondary, #94a3b8); font-size: 14px; line-height: 1.5;">${stage.summary.substring(0, 150)}${stage.summary.length > 150 ? '...' : ''}</div>
                     </div>
                 `;
             });
