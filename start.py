@@ -183,7 +183,11 @@ def main():
     # 启动 Flask
     os.chdir(project_dir)
     try:
-        os.system(f'"{python_exe}" "{web_server_path}"')
+        print(f"{Colors.BLUE}[INFO]{Colors.RESET} 正在启动 Flask 服务...")
+        print(f"{Colors.BLUE}[INFO]{Colors.RESET} 按 Ctrl+C 两次可停止服务\n")
+        # 使用 subprocess.run 代替 os.system，更好地处理中断
+        import subprocess
+        subprocess.run([python_exe, str(web_server_path)], check=False)
     except KeyboardInterrupt:
         print(f"\n{Colors.YELLOW}[INFO]{Colors.RESET} 服务已停止")
 
