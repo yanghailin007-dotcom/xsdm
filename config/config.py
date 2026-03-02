@@ -26,7 +26,7 @@ CONFIG = {
     "api_keys": {
         "deepseek": os.getenv('DEEPSEEK_API_KEY', 'sk-1342f04c85c5452ab46c673aa1a12c0b'),
         "yuanbao": os.getenv('DEEPSEEK_API_KEY', 'sk-1342f04c85c5452ab46c673aa1a12c0b'),
-        "gemini": os.getenv('GEMINI_API_KEY', 'sk-zwgxnnUut1E7zJMxXjCAQ3zeUefeM8tm9HYQCY50lVTM53CD')
+        "gemini": os.getenv('GEMINI_API_KEY', 'sk-zQHbJRdcVeNKX2ZqR18AMj5qutH4lDCZSmgE7WPP3aBdDdbw')
     },
     "api_urls": {
         "deepseek": "https://api.deepseek.com/v1/chat/completions",
