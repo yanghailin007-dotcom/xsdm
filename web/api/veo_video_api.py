@@ -776,7 +776,8 @@ def check_video_exists():
         if video_path.exists():
             # 构造HTTP URL路径
             relative_path = video_path.relative_to(VIDEO_PROJECT_BASE_DIR)
-            video_url = f"/project-files/{str(relative_path).replace('\\', '/')}"
+            path_str = str(relative_path).replace('\\', '/')
+            video_url = f"/project-files/{path_str}"
 
             logger.info(f"✅ 视频文件已存在: {video_path}")
 
