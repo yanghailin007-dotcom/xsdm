@@ -337,33 +337,6 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="phone-input">手机号</label>
-                    <div class="input-group">
-                        <input
-                            type="text"
-                            id="phone-input"
-                            name="phone"
-                            placeholder="请输入手机号"
-                            required
-                            autocomplete="tel"
-                        >
-                        <button type="button" id="sendCodeBtn" class="code-btn">发送验证码</button>
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <label for="code-input">验证码</label>
-                    <input
-                        type="text"
-                        id="code-input"
-                        name="code"
-                        placeholder="请输入验证码"
-                        required
-                        maxlength="6"
-                    >
-                </div>
-
-                <div class="form-group">
                     <label for="email-input">邮箱（可选）</label>
                     <input
                         type="email"
@@ -479,70 +452,6 @@
             passwordStrengthText.textContent = password ? texts[strength - 1] || '' : '';
         }
 
-        // 发送验证码
-        sendCodeBtn.addEventListener('click', async () => {
-            const phone = phoneInput.value.trim();
-            
-            if (!phone) {
-                showMessage('请输入手机号', 'error');
-                return;
-            }
-
-            // 验证手机号格式
-            const phoneRegex = /^1[3-9]\d{9}$/;
-            if (!phoneRegex.test(phone)) {
-                showMessage('手机号格式不正确', 'error');
-                return;
-            }
-
-            hideMessage();
-            sendCodeBtn.disabled = true;
-            sendCodeBtn.textContent = '发送中...';
-
-            try {
-                const response = await fetch('/api/register/send-code', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ phone })
-                });
-
-                const data = await response.json();
-
-                if (data.success) {
-                    showMessage(data.message, 'success');
-                    
-                    // 开发模式显示验证码
-                    if (data.dev_mode && data.code) {
-                        setTimeout(() => {
-                            showMessage(`开发模式验证码: ${data.code}`, 'info');
-                        }, 2000);
-                    }
-
-                    // 倒计时
-                    let countdown = 60;
-                    sendCodeBtn.disabled = true;
-                    codeCountdown = setInterval(() => {
-                        sendCodeBtn.textContent = `${countdown}秒后重试`;
-                        countdown--;
-                        if (countdown < 0) {
-                            clearInterval(codeCountdown);
-                            sendCodeBtn.disabled = false;
-                            sendCodeBtn.textContent = '发送验证码';
-                        }
-                    }, 1000);
-                } else {
-                    showMessage(data.error || '发送失败', 'error');
-                    sendCodeBtn.disabled = false;
-                    sendCodeBtn.textContent = '发送验证码';
-                }
-            } catch (error) {
-                console.error('发送验证码错误:', error);
-                showMessage('发送失败，请稍后重试', 'error');
-                sendCodeBtn.disabled = false;
-                sendCodeBtn.textContent = '发送验证码';
-            }
-        });
-
         // 提交注册
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -550,8 +459,6 @@
             const username = usernameInput.value.trim();
             const password = passwordInput.value;
             const passwordConfirm = passwordConfirmInput.value;
-            const phone = phoneInput.value.trim();
-            const code = codeInput.value.trim();
             const email = emailInput.value.trim();
 
             // 验证
@@ -570,17 +477,6 @@
                 return;
             }
 
-            const phoneRegex = /^1[3-9]\d{9}$/;
-            if (!phoneRegex.test(phone)) {
-                showMessage('手机号格式不正确', 'error');
-                return;
-            }
-
-            if (code.length !== 6) {
-                showMessage('请输入6位验证码', 'error');
-                return;
-            }
-
             hideMessage();
             registerBtn.disabled = true;
             loading.classList.add('show');
@@ -592,8 +488,6 @@
                     body: JSON.stringify({
                         username,
                         password,
-                        phone,
-                        code,
                         email: email || null
                     })
                 });

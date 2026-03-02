@@ -43,7 +43,7 @@ class UserModel:
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     username TEXT UNIQUE NOT NULL,
                     password_hash TEXT NOT NULL,
-                    phone TEXT UNIQUE NOT NULL,
+                    phone TEXT UNIQUE,
                     email TEXT,
                     is_active INTEGER DEFAULT 1,
                     is_admin INTEGER DEFAULT 0,
@@ -89,14 +89,14 @@ class UserModel:
         """使用SHA256哈希密码（生产环境建议使用bcrypt）"""
         return hashlib.sha256(password.encode()).hexdigest()
     
-    def create_user(self, username: str, password: str, phone: str, email: Optional[str] = None) -> Dict[str, Any]:
+    def create_user(self, username: str, password: str, phone: Optional[str] = None, email: Optional[str] = None) -> Dict[str, Any]:
         """
         创建新用户
         
         Args:
             username: 用户名
             password: 密码
-            phone: 手机号
+            phone: 手机号（可选）
             email: 邮箱（可选）
             
         Returns:
@@ -111,8 +111,8 @@ class UserModel:
             if len(password) < 6:
                 return {"success": False, "error": "密码长度至少6个字符"}
             
-            # 验证手机号格式
-            if not self._validate_phone(phone):
+            # 验证手机号格式（如果提供了手机号）
+            if phone and not self._validate_phone(phone):
                 return {"success": False, "error": "手机号格式不正确"}
             
             # 检查用户名是否已存在
