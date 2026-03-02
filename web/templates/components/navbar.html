@@ -1,8 +1,30 @@
 <!-- 顶部导航 -->
 <nav class="navbar">
+    <style>
+        /* 统一返回首页按钮样式 */
+        .btn-back {
+            padding: 8px 16px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            color: #cbd5e1;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin-right: 12px;
+        }
+        .btn-back:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: #f8fafc;
+        }
+    </style>
     <div class="navbar-content">
         <div class="navbar-title">
-            <button class="btn btn-secondary btn-small" onclick="location.href='/landing'" style="margin-right: 12px;">
+            <button class="btn-back" onclick="location.href='/landing'">
                 🏠 返回首页
             </button>
             📋 第一阶段：设定生成
