@@ -59,6 +59,31 @@ def get_python_executable():
     
     return None
 
+def is_service_running(port=5000):
+    """检测服务是否已经在运行"""
+    try:
+        import socket
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(2)
+        result = sock.connect_ex(('127.0.0.1', port))
+        sock.close()
+        return result == 0  # 如果连接成功，说明服务在运行
+    except:
+        return False
+
+def check_service_status():
+    """检查服务状态，返回 (是否运行, 是否可访问)"""
+    if not is_service_running(5000):
+        return False, False
+    
+    # 进一步检查 HTTP 服务是否可用
+    try:
+        import urllib.request
+        response = urllib.request.urlopen('http://127.0.0.1:5000/', timeout=3)
+        return True, True
+    except:
+        return True, False  # 端口被占用但可能不是我们的服务
+
 def stop_port_5000():
     """清理端口5000的进程"""
     try:
@@ -81,7 +106,7 @@ def stop_port_5000():
             print(f"  {Colors.GREEN}[OK]{Colors.RESET} 端口 5000 空闲")
             return
 
-        print(f"  {Colors.YELLOW}⚠{Colors.RESET} 发现占用进程: {', '.join(pids)}")
+        print(f"  {Colors.YELLOW}[WARN]{Colors.RESET} 发现占用进程: {', '.join(pids)}")
 
         # 杀死进程
         killed = 0
@@ -145,8 +170,34 @@ def main():
     
     print(f"  {Colors.GREEN}[OK]{Colors.RESET} 依赖检查通过")
     
-    # 清理端口
-    stop_port_5000()
+    # 检查服务是否已在运行
+    print(f"\n{Colors.BLUE}[INFO]{Colors.RESET} 检查服务状态...")
+    is_running, is_accessible = check_service_status()
+    
+    if is_running and is_accessible:
+        print(f"  {Colors.GREEN}[OK]{Colors.RESET} 服务已在运行!")
+        print(f"\n{Colors.GREEN}{'='*60}{Colors.RESET}")
+        print(f"  {Colors.BOLD}Web 服务运行中{Colors.RESET}")
+        print(f"  {Colors.CYAN}• 首页:{Colors.RESET} http://localhost:5000/landing")
+        print(f"  {Colors.CYAN}• 创作:{Colors.RESET} http://localhost:5000/")
+        print(f"  {Colors.CYAN}• API:{Colors.RESET}  http://localhost:5000/api")
+        print(f"{Colors.GREEN}{'='*60}{Colors.RESET}\n")
+        
+        # 直接打开浏览器
+        try:
+            webbrowser.open('http://localhost:5000/landing')
+            print(f"{Colors.GREEN}[OK]{Colors.RESET} 浏览器已打开\n")
+        except Exception as e:
+            print(f"{Colors.YELLOW}[INFO]{Colors.RESET} 请手动访问: http://localhost:5000/landing\n")
+        
+        input("按 Enter 键退出...")
+        return
+    elif is_running:
+        print(f"  {Colors.YELLOW}[WARN]{Colors.RESET} 端口被占用但服务不可访问，尝试清理...")
+        stop_port_5000()
+    else:
+        print(f"  {Colors.GREEN}[OK]{Colors.RESET} 服务未启动，准备启动...")
+    
     time.sleep(0.5)
     
     # 获取 web_server 路径
