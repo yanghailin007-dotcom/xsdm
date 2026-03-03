@@ -66,7 +66,14 @@ def print_error(message):
 
 def get_python_executable():
     """获取 Python 可执行文件路径"""
-    # 优先使用系统 Python (通过 bat 脚本传递或环境检测)
+    project_dir = Path(__file__).parent
+    
+    # 优先使用项目内的 .venv
+    venv_python = project_dir / ".venv" / "Scripts" / "python.exe"
+    if venv_python.exists():
+        return str(venv_python)
+    
+    # 检查当前运行的 Python
     if sys.executable and "python.exe" in sys.executable.lower():
         return sys.executable
     

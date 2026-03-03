@@ -4,19 +4,17 @@ requests==2.31.0
 python-dotenv==1.0.0
 openai>=1.50.0
 
-# Web 服务器（部署用）
+# Web server (deployment)
 gunicorn==21.2.0
 Werkzeug>=3.1.0
 
-# 番茄上传功能依赖
+# Fanqie upload dependencies
 PyYAML>=6.0
 playwright>=1.40.0
-# playwright 的浏览器驱动
 playwright-stealth>=1.0.6
 
-# 其他依赖
+# Other dependencies
 click==8.1.7
 itsdangerous==2.1.2
 Jinja2==3.1.2
 MarkupSafe==2.1.3
-urllib3==2.1.0
