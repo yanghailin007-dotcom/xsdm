@@ -135,3 +135,72 @@ if (document.readyState === 'loading') {
 window.toggleUserMenu = toggleUserMenu;
 window.closeUserMenu = closeUserMenu;
 window.DEFAULT_AVATAR = DEFAULT_AVATAR;
+
+// ==================== 点数系统功能 ====================
+
+// 加载用户点数
+async function loadUserPoints() {
+    try {
+        const response = await fetch('/api/points/balance');
+        if (response.ok) {
+            const result = await response.json();
+            if (result.success) {
+                const pointsDisplay = document.getElementById('dropdownPoints');
+                if (pointsDisplay) {
+                    pointsDisplay.innerHTML = `💰 ${result.data.balance} 点`;
+                }
+            }
+        }
+    } catch (error) {
+        console.error('加载点数失败:', error);
+        const pointsDisplay = document.getElementById('dropdownPoints');
+        if (pointsDisplay) {
+            pointsDisplay.innerHTML = '💰 --';
+        }
+    }
+}
+
+// 检查签到状态
+async function checkCheckinStatus() {
+    try {
+        const response = await fetch('/api/points/checkin/status');
+        if (response.ok) {
+            const result = await response.json();
+            if (result.success) {
+                const checkinItem = document.getElementById('checkinItem');
+                const checkinDesc = document.getElementById('checkinDesc');
+                
+                if (checkinItem && checkinDesc) {
+                    if (result.data.can_checkin) {
+                        checkinItem.style.opacity = '1';
+                        checkinDesc.textContent = result.data.streak > 0 
+                            ? `连续${result.data.streak}天，点击签到` 
+                            : '点击领取今日奖励';
+                    } else {
+                        checkinItem.style.opacity = '0.5';
+                        checkinDesc.textContent = '今日已签到';
+                    }
+                }
+            }
+        }
+    } catch (error) {
+        console.error('检查签到状态失败:', error);
+    }
+}
+
+// 页面加载时也加载点数
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        loadCurrentUser();
+        setTimeout(() => {
+            loadUserPoints();
+            checkCheckinStatus();
+        }, 100);
+    });
+} else {
+    loadCurrentUser();
+    setTimeout(() => {
+        loadUserPoints();
+        checkCheckinStatus();
+    }, 100);
+}
