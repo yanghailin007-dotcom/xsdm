@@ -707,7 +707,7 @@
     <footer class="footer">
         <p class="footer-text">
             © 2024 大文娱系统 v2.0 
-            <a href="/login" class="footer-link">管理登录</a>
+            <a href="/login" class="footer-link" id="manageAccountLink">管理登录</a>
         </p>
     </footer>
 
@@ -736,7 +736,29 @@
 
         document.addEventListener('DOMContentLoaded', function() {
             createParticles();
+            checkLoginStatus();
         });
+
+        // 检查登录状态并更新链接
+        async function checkLoginStatus() {
+            try {
+                const response = await fetch('/api/current-user');
+                const data = await response.json();
+                const link = document.getElementById('manageAccountLink');
+                
+                if (data.success) {
+                    // 已登录，跳转到账户管理页
+                    link.href = '/account';
+                    link.textContent = '账户管理';
+                } else {
+                    // 未登录，保持登录页
+                    link.href = '/login';
+                    link.textContent = '管理登录';
+                }
+            } catch (error) {
+                console.error('检查登录状态失败:', error);
+            }
+        }
 
         function enterNovel() {
             document.body.style.transition = 'opacity 0.5s';
