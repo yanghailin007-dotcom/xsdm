@@ -1693,6 +1693,71 @@
             });
         }
 
+        // 加载用户创造点余额
+        async function loadUserPoints() {
+            try {
+                console.log('阶段二页面：开始加载余额...');
+                const response = await fetch('/api/points/balance');
+                console.log('阶段二页面：余额API响应:', response.status);
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    console.log('阶段二页面：余额API返回:', result);
+                    
+                    if (result.success && result.data) {
+                        const balance = result.data.balance || 0;
+                        console.log('阶段二页面：解析到余额:', balance);
+                        
+                        // 更新成本估算区域的余额显示
+                        const currentBalanceEl = document.getElementById('points-current-balance');
+                        if (currentBalanceEl) {
+                            currentBalanceEl.textContent = balance + ' 点';
+                            console.log('阶段二页面：更新成本区域余额:', balance);
+                        }
+                        
+                        // 更新侧边栏余额显示
+                        const sidebarBalanceEl = document.getElementById('sidebar-balance-amount');
+                        if (sidebarBalanceEl) {
+                            sidebarBalanceEl.textContent = balance;
+                            console.log('阶段二页面：更新侧边栏余额:', balance);
+                        }
+                        
+                        // 检查余额是否充足
+                        updateBalanceStatus(balance);
+                    }
+                } else {
+                    console.error('阶段二页面：余额API请求失败:', response.status);
+                }
+            } catch (error) {
+                console.error('阶段二页面：加载余额失败:', error);
+            }
+        }
+        
+        // 更新余额状态（检查是否充足）
+        function updateBalanceStatus(balance) {
+            const totalCostEl = document.getElementById('points-total-cost');
+            const balanceEl = document.getElementById('points-current-balance');
+            
+            if (totalCostEl && balanceEl) {
+                const totalCostText = totalCostEl.textContent;
+                const totalCost = parseInt(totalCostText) || 0;
+                
+                if (balance < totalCost) {
+                    balanceEl.classList.add('insufficient');
+                    balanceEl.title = '余额不足，请充值';
+                } else {
+                    balanceEl.classList.remove('insufficient');
+                    balanceEl.title = '余额充足';
+                }
+            }
+        }
+
+        // 页面加载时执行
+        document.addEventListener('DOMContentLoaded', function() {
+            // 加载余额
+            loadUserPoints();
+        });
+
         // 动态加载创意编辑器模态框
         fetch('/templates/components/creative-editor-modal.html')
             .then(response => response.text())
