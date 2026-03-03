@@ -117,3 +117,12 @@ data/users_backup_*.db
 deploy*.bat
 deploy.ps1
 DEPLOY_README.md
+
+# 本地启动脚本和日志
+start-daemon.bat
+stop-service.bat
+view-logs.bat
+service-status.bat
+START_README.md
+logs/*.log
+server_*.log  # 根目录下的日志文件
