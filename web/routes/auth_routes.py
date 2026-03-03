@@ -28,9 +28,19 @@ def register_auth_routes(app):
     def login():
         """登录页面和登录处理"""
         if request.method == 'POST':
-            data = request.json if request.is_json else request.form
+            logger.info(f"🔍 登录请求 - is_json: {request.is_json}, content-type: {request.content_type}")
+            
+            if request.is_json:
+                data = request.json
+                logger.info(f"🔍 JSON数据: {data}")
+            else:
+                data = request.form
+                logger.info(f"🔍 Form数据: {dict(data)}")
+            
             username = (data.get('username') or '').strip() if data else ''
             password = data.get('password') or '' if data else ''
+            
+            logger.info(f"🔍 提取的用户名: '{username}', 密码长度: {len(password) if password else 0}")
 
             # 特殊处理：如果用户名是 "test"，允许空密码或任意密码登录（测试模式）
             if username.lower() == 'test':
@@ -44,7 +54,11 @@ def register_auth_routes(app):
                 return redirect('/landing')
 
             # 正常验证流程
-            if user_auth.verify_user(username, password):
+            logger.info(f"🔍 开始验证用户: '{username}'")
+            verify_result = user_auth.verify_user(username, password)
+            logger.info(f"🔍 验证结果: {verify_result}")
+            
+            if verify_result:
                 session['logged_in'] = True
                 session['username'] = username
                 session.permanent = True
