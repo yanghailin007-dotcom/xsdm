@@ -370,10 +370,10 @@ async function loadPointsConfig() {
         }
     } catch (error) {
         console.error('加载点数配置失败:', error);
-        // 使用默认配置
+        // 使用默认配置：生成1点 + 质检1点 = 2点/章
         pointsConfig = {
-            phase2_chapter_batch: 1,
-            phase2_chapter_refined: 2
+            phase2_chapter_batch: 2,
+            phase2_chapter_refined: 3
         };
     }
 }
@@ -396,11 +396,10 @@ async function loadUserBalance() {
 function updateBalanceDisplay() {
     const balanceElement = document.getElementById('points-current-balance');
     if (balanceElement) {
-        balanceElement.textContent = userBalance + ' 点';
-        
         // 检查是否足够
         const chaptersToGenerate = parseInt(document.getElementById('chapters-to-generate').value) || 0;
-        const costPerChapter = pointsConfig?.phase2_chapter_batch || 1;
+        // 默认：生成1点 + 质检1点 = 2点/章
+        const costPerChapter = pointsConfig?.phase2_chapter_batch || 2;
         const totalCost = chaptersToGenerate * costPerChapter;
         
         if (userBalance < totalCost && totalCost > 0) {
@@ -408,25 +407,23 @@ function updateBalanceDisplay() {
             balanceElement.textContent = userBalance + ' 点 (不足)';
         } else {
             balanceElement.classList.remove('insufficient');
+            balanceElement.textContent = userBalance + ' 点';
         }
     }
 }
 
 // 更新创造点消耗估算
 function updatePointsCostEstimate(chapterCount) {
-    const costPerChapter = pointsConfig?.phase2_chapter_batch || 1;
+    // 默认配置：生成1点 + 质检1点 = 2点/章
+    const costPerChapter = pointsConfig?.phase2_chapter_batch || 2;
     const totalCost = chapterCount * costPerChapter;
     
     // 更新显示
     const chapterCountElement = document.getElementById('points-chapter-count');
-    const perChapterElement = document.getElementById('points-per-chapter');
     const totalCostElement = document.getElementById('points-total-cost');
     
     if (chapterCountElement) {
         chapterCountElement.textContent = chapterCount + ' 章';
-    }
-    if (perChapterElement) {
-        perChapterElement.textContent = costPerChapter + ' 点/章';
     }
     if (totalCostElement) {
         totalCostElement.textContent = totalCost + ' 点';

@@ -27,8 +27,8 @@ class PointModel:
         'phase1_validation': 1,      # 质量评估
         
         # 第二阶段消耗
-        'phase2_chapter_batch': 1,   # 批量模式(每章)
-        'phase2_chapter_refined': 2, # 精修模式(每章)
+        'phase2_chapter_batch': 2,   # 批量模式(每章) = 生成1点 + 质量检查1点
+        'phase2_chapter_refined': 3, # 精修模式(每章) = 生成1点 + 质量检查1点 + 精修1点
         'phase2_regenerate': 1,      # 单章重生成
         
         # 其他功能
