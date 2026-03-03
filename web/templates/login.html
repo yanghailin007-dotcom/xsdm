@@ -3,6 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- 强制禁用缓存 -->
+    <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>登录 - 大文娱创作平台</title>
     <style>
         /* ==================== 完整设计系统内联版 ==================== */
@@ -591,6 +595,16 @@
     </div>
 
     <script>
+        // 清理浏览器缓存（强制刷新）
+        (function() {
+            // 如果URL没有t参数，添加时间戳强制刷新
+            if (!window.location.search.includes('t=')) {
+                const url = new URL(window.location.href);
+                url.searchParams.set('t', Date.now());
+                window.history.replaceState({}, '', url);
+            }
+        })();
+        
         // 填充演示账户
         function fillDemo(username, password) {
             document.getElementById('username').value = username;
