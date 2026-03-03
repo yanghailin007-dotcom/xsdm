@@ -147,6 +147,29 @@ def register_novel_routes(app, manager: NovelGenerationManager):
             logger.error(f"❌ 获取统计数据失败: {e}")
             return jsonify({"error": str(e)}), 500
 
+    @app.route('/api/stats', methods=['GET'])
+    @login_required
+    def get_stats():
+        """获取首页统计数据（兼容接口）"""
+        try:
+            projects = manager.get_novel_projects()
+            
+            total_projects = len(projects)
+            total_chapters = sum(p.get("completed_chapters", 0) for p in projects)
+            
+            # 获取活动任务数
+            active_tasks = len([task for task in manager.get_all_tasks()
+                               if task.get("status") in ["initializing", "generating", "generator_ready", "creative_ready"]])
+            
+            return jsonify({
+                "total_projects": total_projects,
+                "total_chapters": total_chapters,
+                "active_tasks": active_tasks
+            })
+        except Exception as e:
+            logger.error(f"❌ 获取统计数据失败: {e}")
+            return jsonify({"total_projects": 0, "total_chapters": 0, "active_tasks": 0}), 500
+
     @app.route('/api/project/<title>', methods=['GET'])
     def get_novel_detail(title):
         """获取小说详情"""
