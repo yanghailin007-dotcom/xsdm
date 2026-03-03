@@ -544,4 +544,10 @@ async function checkCheckinStatus() {
 
 // 页面加载时初始化
 document.addEventListener('DOMContentLoaded', initUserMenu);
+
+// 导出到全局，供HTML内联事件使用
+window.toggleUserMenu = toggleUserMenu;
+window.closeUserMenu = closeUserMenu;
+window.loadUserPoints = loadUserPoints;
+window.checkCheckinStatus = checkCheckinStatus;
 </script>
