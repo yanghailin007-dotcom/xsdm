@@ -590,7 +590,7 @@
                 <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                     <div class="form-group">
                         <label>总章节数</label>
-                        <input type="number" id="total-chapters" class="form-control" value="200" min="10" max="1000">
+                        <input type="number" id="form-total-chapters" class="form-control" value="200" min="10" max="1000">
                     </div>
                     
                     <div class="form-group">
@@ -791,7 +791,7 @@
                 title: document.getElementById('title').value,
                 summary: document.getElementById('summary').value,
                 settings: document.getElementById('settings').value,
-                total_chapters: parseInt(document.getElementById('total-chapters').value),
+                total_chapters: parseInt(document.getElementById('form-total-chapters').value),
                 batch_size: parseInt(document.getElementById('batch-size').value)
             };
 
@@ -858,7 +858,7 @@
             }
 
             const idea = window.creativeIdeasData[selectedCreativeId];
-            const totalChapters = parseInt(document.getElementById('total-chapters')?.value || 200);
+            const totalChapters = parseInt(document.getElementById('form-total-chapters')?.value || 200);
 
             try {
                 const overlay = document.getElementById('loading-overlay');
