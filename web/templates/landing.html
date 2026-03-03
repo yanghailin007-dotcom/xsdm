@@ -902,29 +902,29 @@
                     return;
                 }
                 
-                // 查询用户交易记录，检查是否领取过注册奖励
-                const txResponse = await fetch(`/api/points/transactions?limit=10`);
-                const txData = await txResponse.json();
+                // 获取用户余额信息
+                const balanceResponse = await fetch('/api/points/balance');
+                const balanceData = await balanceResponse.json();
                 
-                let hasRegisterBonus = false;
-                if (txData.success && txData.data && txData.data.transactions) {
-                    // 检查是否有register_bonus来源的收入记录
-                    hasRegisterBonus = txData.data.transactions.some(tx => 
-                        tx.type === 'earn' && tx.source === 'register_bonus'
-                    );
-                }
+                if (!balanceData.success) return;
                 
-                // 如果有注册奖励记录且未显示过弹窗
-                if (hasRegisterBonus) {
+                const balance = balanceData.data.balance || 0;
+                const totalEarned = balanceData.data.total_earned || 0;
+                
+                // 如果用户有余额且是首次获得奖励（总赚取包含注册奖励）
+                // 或者用户余额>=88（注册奖励金额）
+                if (balance >= 88 && totalEarned >= 88) {
                     // 显示弹窗
                     const modal = document.getElementById('firstLoginModal');
-                    modal.style.display = 'flex';
-                    
-                    // 标记为已显示（按用户隔离）
-                    localStorage.setItem(storageKey, 'true');
-                    
-                    // 添加礼花效果
-                    createConfetti();
+                    if (modal) {
+                        modal.style.display = 'flex';
+                        
+                        // 标记为已显示（按用户隔离）
+                        localStorage.setItem(storageKey, 'true');
+                        
+                        // 添加礼花效果
+                        createConfetti();
+                    }
                 }
             } catch (error) {
                 console.error('显示首次登录奖励失败:', error);

@@ -61,6 +61,7 @@ def register_auth_routes(app):
             if verify_result:
                 # 从数据库获取用户ID
                 from web.models.user_model import user_model
+                from web.models.point_model import point_model
                 user = user_model.get_user_by_username(username)
                 user_id = user.get('id') if user else None
                 
@@ -69,6 +70,27 @@ def register_auth_routes(app):
                 session['user_id'] = user_id
                 session.permanent = True
                 logger.info(f"✅ 用户登录成功: {username} (ID: {user_id})")
+                
+                # 检查并补发注册奖励（首次登录）
+                if user_id:
+                    try:
+                        user_points = point_model.get_user_points(user_id)
+                        # 如果用户没有获得注册奖励（余额为0且没有交易记录），则补发
+                        if user_points.get('balance', 0) == 0 and user_points.get('total_earned', 0) == 0:
+                            bonus_amount = point_model.get_config('register_bonus', 88)
+                            point_result = point_model.add_points(
+                                user_id=user_id,
+                                amount=bonus_amount,
+                                source='register_bonus',
+                                description='新用户注册奖励（首次登录补发）'
+                            )
+                            if point_result['success']:
+                                logger.info(f"✅ 首次登录补发注册奖励{bonus_amount}点给用户{user_id}")
+                                session['first_login_bonus'] = bonus_amount
+                            else:
+                                logger.error(f"❌ 首次登录补发注册奖励失败: {point_result.get('error')}")
+                    except Exception as e:
+                        logger.error(f"❌ 检查/补发注册奖励失败: {e}")
 
                 if request.is_json:
                     return jsonify({'success': True, 'message': '登录成功', 'redirect': '/landing'})
