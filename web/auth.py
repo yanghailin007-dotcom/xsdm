@@ -9,34 +9,56 @@ class UserAuth:
     """用户认证类"""
     
     def __init__(self):
-        # 保留内存中的默认账户（向后兼容）
+        # 默认账户配置（用于初始化数据库）
         self.default_users = {
-            "admin": "admin",  # 默认管理员账户
-            "test": ""         # 测试账户（空密码）
+            "admin": {"password": "admin", "is_admin": True, "phone": None},
+            "test": {"password": "", "is_admin": False, "phone": None}  # 空密码表示任意密码
         }
+        # 初始化默认用户到数据库
+        self._init_default_users()
+    
+    def _init_default_users(self):
+        """将默认用户初始化到数据库（如果不存在）"""
+        try:
+            from web.models.user_model import user_model
+            
+            for username, config in self.default_users.items():
+                # 检查用户是否已存在
+                existing = user_model.get_user_by_username(username)
+                if not existing:
+                    # 创建默认用户
+                    result = user_model.create_user(
+                        username=username,
+                        password=config["password"] if config["password"] else "test123",  # test用户给一个默认密码
+                        phone=config["phone"],
+                        email=None
+                    )
+                    if result.get("success"):
+                        logger.info(f"✅ 初始化默认用户: {username}")
+                    else:
+                        logger.warning(f"⚠️ 初始化用户失败: {username} - {result.get('error')}")
+                else:
+                    logger.info(f"✅ 默认用户已存在: {username}")
+                    
+        except Exception as e:
+            logger.error(f"❌ 初始化默认用户失败: {e}")
     
     def verify_user(self, username: str, password: str) -> bool:
         """验证用户身份"""
         if not username:
             return False
         
-        # 特殊处理：测试用户（向后兼容）
+        # 特殊处理：test用户允许任意密码（开发测试用）
         if username.lower() == 'test':
             logger.info(f"✅ 测试用户登录成功: {username}")
             return True
         
-        # 优先检查内存中的默认账户（向后兼容）
-        stored_password = self.default_users.get(username)
-        if stored_password is not None and password == stored_password:
-            logger.info(f"✅ 用户登录成功: {username}")
-            return True
-        
-        # 从数据库验证用户
+        # 从数据库验证所有用户（包括admin和新注册用户）
         try:
             from web.models.user_model import user_model
             user = user_model.verify_user(username, password)
             if user:
-                logger.info(f"✅ 数据库用户登录成功: {username}")
+                logger.info(f"✅ 用户登录成功: {username}")
                 return True
         except Exception as e:
             logger.error(f"❌ 数据库验证失败: {e}")
@@ -44,11 +66,11 @@ class UserAuth:
         logger.info(f"❌ 登录失败: {username}")
         return False
     
-    def add_user(self, username: str, password: str) -> bool:
+    def add_user(self, username: str, password: str, phone: str = None, email: str = None) -> bool:
         """添加用户（使用数据库）"""
         try:
             from web.models.user_model import user_model
-            result = user_model.create_user(username, password)
+            result = user_model.create_user(username, password, phone, email)
             if result.get('success'):
                 logger.info(f"✅ 添加用户: {username}")
                 return True
@@ -60,24 +82,19 @@ class UserAuth:
             return False
     
     def get_user_list(self) -> list:
-        """获取用户列表（仅返回默认用户，数据库用户请直接查询）"""
+        """获取用户列表（仅返回内存中的默认用户列表）"""
         return list(self.default_users.keys())
     
     def update_password(self, username: str, new_password: str) -> bool:
-        """更新用户密码"""
-        # 特殊用户不允许修改密码
+        """更新用户密码（需要在user_model中实现）"""
+        # test用户不允许修改密码
         if username.lower() == 'test':
             logger.warning(f"⚠️ 尝试修改测试用户密码被拒绝: {username}")
             return False
         
-        # 默认账户在内存中修改
-        if username in self.default_users:
-            self.default_users[username] = new_password
-            logger.info(f"🔐 默认用户密码已更新: {username}")
-            return True
-        
-        # 数据库用户在数据库中修改（需要额外实现）
-        logger.warning(f"⚠️ 数据库用户密码修改未实现: {username}")
+        # TODO: 需要在user_model中实现update_password方法
+        # 目前暂时返回失败，提示用户通过其他方式修改
+        logger.warning(f"⚠️ 密码修改功能需要在user_model中实现: {username}")
         return False
 
 # 创建全局认证实例
