@@ -98,17 +98,18 @@
             background: #5568d3;
         }
     </style>
-
-    <style>
-        /* 为导航栏留出空间 */
-        body {
-            padding-top: 64px !important;
-        }
-    </style>
 </head>
 <body>
-    {% include 'components/navbar.html' %}
     <!-- 导航栏 -->
+    <nav class="navbar">
+        <div class="navbar-content">
+            <div class="navbar-title">🌍 世界观查看器</div>
+            <div class="navbar-actions">
+                <a href="/project-management" class="btn btn-secondary">← 返回项目管理</a>
+            </div>
+        </div>
+    </nav>
+
     <div class="simple-viewer">
         <a href="/project-management" class="back-btn">← 返回项目管理</a>
         

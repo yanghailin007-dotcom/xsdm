@@ -664,17 +664,28 @@
             margin-bottom: 0;
         }
     </style>
-
-    <style>
-        /* 为导航栏留出空间 */
-        body {
-            padding-top: 64px !important;
-        }
-    </style>
 </head>
 <body>
-    {% include 'components/navbar.html' %}
     <!-- Navigation -->
+    <nav class="navbar">
+        <div class="navbar-content">
+            <div class="navbar-title">
+                <button class="btn-back" onclick="location.href='/landing'">
+                    🏠 返回首页
+                </button>
+                📝 番茄自动签约管理
+            </div>
+            <div class="navbar-actions">
+                <button class="btn btn-secondary" onclick="location.href='/dashboard'">
+                    📊 仪表板
+                </button>
+                <button class="btn btn-danger" onclick="logout()">
+                    🚪 退出登录
+                </button>
+            </div>
+        </div>
+    </nav>
+
     <!-- Main Container -->
     <div class="contract-container">
         <!-- Header -->

@@ -1177,17 +1177,52 @@
             border-radius: 0 0 12px 12px;
         }
     </style>
-
-    <style>
-        /* 为导航栏留出空间 */
-        body {
-            padding-top: 64px !important;
-        }
-    </style>
 </head>
 <body>
-    {% include 'components/navbar.html' %}
     <!-- 导航栏 -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-left" style="display: flex; align-items: center; gap: 1rem;">
+                <button class="btn-back" onclick="window.location.href='/landing'" style="
+                    padding: 8px 16px;
+                    background: rgba(255, 255, 255, 0.05);
+                    border: 1px solid var(--border);
+                    border-radius: 8px;
+                    color: var(--text-secondary);
+                    cursor: pointer;
+                    font-size: 14px;
+                    font-weight: 500;
+                    transition: all 0.2s;
+                    display: flex;
+                    align-items: center;
+                    gap: 6px;
+                ">🏠 返回首页</button>
+                <a href="/" class="nav-logo">
+                    <div class="logo-icon">🎬</div>
+                    <span class="logo-text">大文娱创作平台</span>
+                </a>
+            </div>
+            <div class="nav-center">
+                <a href="/short-drama-studio" class="nav-item">短剧工作台</a>
+                <a href="/fanqie-upload" class="nav-item active">番茄上传</a>
+            </div>
+            <!-- 用户头像下拉菜单 -->
+            <div class="user-menu">
+                <div class="user-avatar" onclick="toggleUserMenu(event)">
+                    <span class="avatar-text" id="avatarText">用</span>
+                </div>
+                <div class="user-dropdown" id="userDropdown">
+                    <div class="dropdown-header">
+                        <span id="dropdownUsername">加载中...</span>
+                    </div>
+                    <div class="dropdown-divider"></div>
+                    <a href="/account" class="dropdown-item">⚙️ 管理账户</a>
+                    <a href="#" class="dropdown-item" onclick="logout(); return false;">🚪 退出登录</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
     <!-- 主容器 -->
     <div class="main-container">
         <!-- 页面头部 -->

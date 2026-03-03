@@ -906,17 +906,39 @@
             }
         }
     </style>
-
-    <style>
-        /* 为导航栏留出空间 */
-        body {
-            padding-top: 64px !important;
-        }
-    </style>
 </head>
 <body>
-    {% include 'components/navbar.html' %}
     <!-- 顶部导航 -->
+    <nav class="navbar">
+        <div class="navbar-content">
+            <div class="navbar-title">
+                <button class="btn-back" onclick="location.href='/landing'" style="margin-right: 12px;">
+                    🏠 返回首页
+                </button>
+                🗂️ 项目管理
+            </div>
+            <div class="navbar-actions">
+                <button class="btn btn-secondary btn-small" onclick="location.href='/phase-one-setup'">🎨 第一阶段</button>
+                <button class="btn btn-secondary btn-small" onclick="location.href='/phase-two-generation'">📝 第二阶段</button>
+                <button class="btn btn-secondary btn-small" onclick="location.href='/novels'">📚 查看生成</button>
+                <!-- 用户头像下拉菜单 -->
+                <div class="user-menu">
+                    <div class="user-avatar" onclick="toggleUserMenu(event)">
+                        <span class="avatar-text" id="avatarText">用</span>
+                    </div>
+                    <div class="user-dropdown" id="userDropdown">
+                        <div class="dropdown-header">
+                            <span id="dropdownUsername">加载中...</span>
+                        </div>
+                        <div class="dropdown-divider"></div>
+                        <a href="/account" class="dropdown-item">⚙️ 管理账户</a>
+                        <a href="#" class="dropdown-item" onclick="logout(); return false;">🚪 退出登录</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
     <!-- 主容器 -->
     <div class="project-management-container">
         <!-- 页面头部 -->

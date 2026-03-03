@@ -684,17 +684,50 @@
             }
         }
     </style>
-
-    <style>
-        /* 为导航栏留出空间 */
-        body {
-            padding-top: 64px !important;
-        }
-    </style>
 </head>
 <body>
-    {% include 'components/navbar.html' %}
     <!-- 顶部导航 -->
+    <nav class="navbar" id="navbar">
+        <div class="navbar-content">
+            <div class="navbar-title">
+                <button class="btn-back" onclick="location.href='/landing'" style="margin-right: 12px;">
+                    🏠 返回首页
+                </button>
+                <button class="btn btn-secondary btn-small" onclick="location.href='/novels'" style="margin-right: 12px;">
+                    📚 作品列表
+                </button>
+                📖 阅读页面
+            </div>
+            <div class="navbar-actions">
+                <!-- 阅读模式切换 -->
+                <button class="btn btn-primary btn-small" id="mode-toggle-btn" onclick="toggleReadingMode()">
+                    <span id="mode-text">📖 沉浸阅读</span>
+                </button>
+                <!-- 阅读设置（仅在阅读模式下显示） -->
+                <button class="btn btn-secondary btn-small" id="reading-settings-btn" onclick="toggleReadingSettings()" style="display: none;">
+                    ⚙️ 阅读设置
+                </button>
+                <!-- 调试模式功能 -->
+                <button class="btn btn-secondary btn-small" id="export-json-btn" onclick="exportJSON()">导出 JSON</button>
+                <button class="btn btn-secondary btn-small" id="print-btn" onclick="window.print()">打印</button>
+                <!-- 用户头像下拉菜单 -->
+                <div class="user-menu">
+                    <div class="user-avatar" onclick="toggleUserMenu(event)">
+                        <span class="avatar-text" id="avatarText">用</span>
+                    </div>
+                    <div class="user-dropdown" id="userDropdown">
+                        <div class="dropdown-header">
+                            <span id="dropdownUsername">加载中...</span>
+                        </div>
+                        <div class="dropdown-divider"></div>
+                        <a href="/account" class="dropdown-item">⚙️ 管理账户</a>
+                        <a href="#" class="dropdown-item" onclick="logout(); return false;">🚪 退出登录</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
     <!-- 阅读设置面板 -->
     <div class="reading-settings-panel" id="reading-settings-panel" style="display: none;">
         <div class="settings-content">

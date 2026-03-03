@@ -6,16 +6,8 @@
     <title>人物剧照生成 - 小说AI创作系统</title>
     <link rel="stylesheet" href="/static/css/style.css">
     <link rel="stylesheet" href="/static/css/character-portrait.css">
-
-    <style>
-        /* 为导航栏留出空间 */
-        body {
-            padding-top: 64px !important;
-        }
-    </style>
 </head>
 <body>
-    {% include 'components/navbar.html' %}
     <div class="container">
         <!-- 顶部导航 -->
         <header class="page-header">

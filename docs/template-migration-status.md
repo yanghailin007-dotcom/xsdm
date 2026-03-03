@@ -16,30 +16,30 @@
 | 页面 | 文件名 | 状态 | 负责人 | 备注 |
 |------|--------|------|--------|------|
 | 首页 | `index.html` | ✅ 已迁移 | - | ✅ 已使用模板继承，统一导航栏+用户菜单正常工作 |
-| 第一阶段设置 | `phase-one-setup-new.html` | ⬜ 待迁移 | - | 两阶段生成入口 |
-| 第二阶段生成 | `phase-two-generation.html` | ⬜ 待迁移 | - | 核心功能页面 |
-| 项目管理 | `project-management.html` | ⬜ 待迁移 | - | 高频访问 |
+| 第一阶段设置 | `phase-one-setup-new.html` | ✅ 已迁移 | - | 使用模板继承，保留所有原有功能 |
+| 第二阶段生成 | `phase-two-generation.html` | ✅ 已添加导航栏 | - | 核心功能页面 |
+| 项目管理 | `project-management.html` | ✅ 已添加导航栏 | - | 高频访问 |
 
 ### 中优先级页面
 
 | 页面 | 文件名 | 状态 | 负责人 | 备注 |
 |------|--------|------|--------|------|
-| 小说列表 | `novels.html` | ⬜ 待迁移 | - | |
-| 小说阅读 | `novel_view.html` | ⬜ 待迁移 | - | |
-| 封面制作 | `cover_maker.html` | ⬜ 待迁移 | - | |
-| 番茄上传 | `fanqie_upload.html` | ⬜ 待迁移 | - | |
-| 章节阅读 | `chapter-view.html` | ⬜ 待迁移 | - | |
-| 角色画像 | `character-portrait.html` | ⬜ 待迁移 | - | |
-| 世界观查看 | `worldview-viewer.html` | ⬜ 待迁移 | - | |
+| 小说列表 | `novels.html` | ✅ 已添加导航栏 | - | |
+| 小说阅读 | `novel_view.html` | ✅ 已添加导航栏 | - | |
+| 封面制作 | `cover_maker.html` | ✅ 已添加导航栏 | - | |
+| 番茄上传 | `fanqie_upload.html` | ✅ 已添加导航栏 | - | |
+| 章节阅读 | `chapter-view.html` | ✅ 已添加导航栏 | - | |
+| 角色画像 | `character-portrait.html` | ✅ 已添加导航栏 | - | |
+| 世界观查看 | `worldview-viewer.html` | ✅ 已添加导航栏 | - | |
 
 ### 低优先级页面（工具/管理页面）
 
 | 页面 | 文件名 | 状态 | 负责人 | 备注 |
 |------|--------|------|--------|------|
-| 签约管理 | `contract_management.html` | ⬜ 待迁移 | - | |
+| 签约管理 | `contract_management.html` | ✅ 已添加导航栏 | - | |
 | 签约测试 | `contract_test.html` | ⬜ 待迁移 | - | 可暂缓 |
 | 封面生成器 | `cover_generator.html` | ⬜ 待迁移 | - | 可暂缓 |
-| 仪表板 | `dashboard.html` | ⬜ 待迁移 | - | |
+| 仪表板 | `dashboard.html` | ✅ 已添加导航栏 | - | |
 | 项目管理旧版 | `phase-one-setup.html` | ⬜ 待迁移 | - | 已废弃？ |
 | 画像工作室新版 | `portrait-studio-new.html` | ⬜ 待迁移 | - | |
 | 画像工作室 | `portrait-studio.html` | ⬜ 待迁移 | - | 可暂缓 |
@@ -60,7 +60,7 @@
 | 登录页新版 | `login-new.html` | ⬜ 待迁移 | - | 无导航栏 |
 | 登录页 | `login.html` | ⬜ 待迁移 | - | 无导航栏 |
 | 注册页 | `register.html` | ⬜ 待迁移 | - | 无导航栏 |
-| 账户管理 | `account.html` | ⬜ 待迁移 | - | 可考虑使用完整导航栏 |
+| 账户管理 | `account.html` | ✅ 已添加导航栏 | - | 可考虑使用完整导航栏 |
 
 ---
 

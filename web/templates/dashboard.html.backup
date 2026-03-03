@@ -733,22 +733,46 @@
         }
     </style>
     <link rel="stylesheet" href="/static/css/confirm-dialog.css">
-
-    <style>
-        /* 为导航栏留出空间 */
-        body {
-            padding-top: 64px !important;
-        }
-    </style>
 </head>
 <body>
-    {% include 'components/navbar.html' %}
     <!-- 背景 -->
     <div class="universe">
         <div class="stars"></div>
     </div>
 
     <!-- 顶部导航 -->
+    <nav class="top-nav">
+        <div class="nav-title">
+            <button class="btn-back" onclick="location.href='/landing'">🏠 返回首页</button>
+            <span>📊 仪表板</span>
+        </div>
+        <div class="nav-actions">
+            <a href="/novels" class="nav-btn primary">
+                <span>📚</span> 查看作品
+            </a>
+            <a href="/cover-maker" class="nav-btn">
+                <span>🎨</span> 封面制作
+            </a>
+            <button class="nav-btn" onclick="refreshData()">
+                <span>🔄</span> 刷新
+            </button>
+            <!-- 用户头像下拉菜单 -->
+            <div class="user-menu">
+                <div class="user-avatar" onclick="toggleUserMenu(event)">
+                    <span class="avatar-text" id="avatarText">用</span>
+                </div>
+                <div class="user-dropdown" id="userDropdown">
+                    <div class="dropdown-header">
+                        <span id="dropdownUsername">加载中...</span>
+                    </div>
+                    <div class="dropdown-divider"></div>
+                    <a href="/account" class="dropdown-item">⚙️ 管理账户</a>
+                    <a href="#" class="dropdown-item" onclick="logout(); return false;">🚪 退出登录</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
     <!-- 主内容 -->
     <main class="main-content">
         <!-- 页面标题 -->

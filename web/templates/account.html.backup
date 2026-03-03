@@ -409,17 +409,33 @@
             color: var(--accent-500);
         }
     </style>
-
-    <style>
-        /* 为导航栏留出空间 */
-        body {
-            padding-top: 64px !important;
-        }
-    </style>
 </head>
 <body>
-    {% include 'components/navbar.html' %}
     <!-- 导航栏 -->
+    <nav class="top-nav">
+        <div class="nav-title">
+            <button class="btn-back" onclick="location.href='/landing'">🏠 返回首页</button>
+            <span>⚙️ 账户管理</span>
+        </div>
+        <div class="nav-actions">
+                <!-- 用户头像下拉菜单 -->
+                <div class="user-menu">
+                    <div class="user-avatar" onclick="toggleUserMenu(event)">
+                        <span class="avatar-text" id="avatarText">用</span>
+                    </div>
+                    <div class="user-dropdown" id="userDropdown">
+                        <div class="dropdown-header">
+                            <span id="dropdownUsername">加载中...</span>
+                        </div>
+                        <div class="dropdown-divider"></div>
+                        <a href="/account" class="dropdown-item">⚙️ 管理账户</a>
+                        <a href="#" class="dropdown-item" onclick="logout(); return false;">🚪 退出登录</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
     <!-- 主内容 -->
     <main class="main-container">
         <div class="page-header">

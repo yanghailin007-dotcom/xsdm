@@ -6,17 +6,25 @@
     <title>章节内容查看 - 小说生成系统</title>
     <link rel="stylesheet" href="/static/css/style.css">
     <link rel="stylesheet" href="/static/css/chapter-view.css">
-
-    <style>
-        /* 为导航栏留出空间 */
-        body {
-            padding-top: 64px !important;
-        }
-    </style>
 </head>
 <body>
-    {% include 'components/navbar.html' %}
     <!-- 顶部导航 -->
+    <nav class="navbar">
+        <div class="navbar-content">
+            <div class="navbar-title">
+                <button class="btn btn-secondary btn-small" onclick="goBack()" style="margin-right: 12px;">
+                    ← 返回
+                </button>
+                📖 章节内容查看
+            </div>
+            <div class="navbar-actions">
+                <span id="current-project-title" style="margin-right: 16px; color: #9ca3af;">-</span>
+                <button class="btn btn-secondary btn-small" onclick="showRawFiles()">📁 原始文件</button>
+                <button class="btn btn-secondary btn-small" onclick="location.href='/phase-two-generation'">🔙 返回生成页</button>
+            </div>
+        </div>
+    </nav>
+
     <!-- 主容器 -->
     <div class="chapter-view-container">
         <!-- 左侧章节列表 -->
