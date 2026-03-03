@@ -107,3 +107,8 @@ config/api_keys.py
 视频项目/**/audio/
 视频项目/**/subtitles/
 视频项目/**/.backups/
+
+# ���ݿ��ļ�
+data/*.db
+data/*.db-journal
+data/users_backup_*.db
