@@ -1,5 +1,5 @@
 <!-- 生成表单 -->
-<form id="phase-one-form" onsubmit="startPhaseOneGenerationWithResume(event)">
+<form id="phase-one-form" onsubmit="checkPointsBeforeSubmit(event)">
     <div class="form-group">
         <label for="novel-title">小说标题</label>
         <input type="text" id="novel-title" name="title" 
@@ -52,12 +52,65 @@
         <div class="form-hint">💡 不同平台有不同的读者偏好，选择目标平台将优化生成风格</div>
     </div>
 
+    <!-- 创造点消耗提示 -->
+    <div class="points-cost-hint" style="
+        background: linear-gradient(135deg, rgba(251, 191, 36, 0.15) 0%, rgba(245, 158, 11, 0.08) 100%);
+        border: 2px solid rgba(251, 191, 36, 0.4);
+        border-radius: 0.75rem;
+        padding: 1rem 1.25rem;
+        margin: 1.5rem 0;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        box-shadow: 0 4px 15px rgba(251, 191, 36, 0.15);
+    ">
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <span style="font-size: 1.5rem;">⚡</span>
+            <span style="color: var(--text-secondary); font-size: 0.875rem; font-weight: 500;">预估消耗</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <span id="points-cost-display" style="
+                font-size: 1.5rem;
+                font-weight: 800;
+                color: #fbbf24;
+                text-shadow: 0 0 15px rgba(251, 191, 36, 0.5);
+            ">39</span>
+            <span style="color: #fbbf24; font-size: 0.875rem; font-weight: 600;">创造点</span>
+        </div>
+    </div>
+    
+    <div style="
+        font-size: 0.75rem;
+        color: var(--text-tertiary);
+        text-align: center;
+        margin-bottom: 1rem;
+        padding: 0.5rem 0.75rem;
+        background: rgba(0, 0, 0, 0.2);
+        border-radius: 0.5rem;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+    ">
+        <i class="fas fa-info-circle" style="color: #fbbf24;"></i> 
+        共39次API调用：基础设定(14次) + 4阶段详细计划(24次) + 评估(1次)
+    </div>
+
     <div class="action-buttons">
         <button type="button" class="btn btn-secondary" onclick="resetForm()">
             🔄 重置
         </button>
-        <button type="submit" class="btn btn-primary">
-            🚀 开始生成设定
+        <button type="submit" class="btn btn-primary" style="position: relative;">
+            <span>🚀 开始生成设定</span>
+            <span style="
+                position: absolute;
+                right: 1rem;
+                top: 50%;
+                transform: translateY(-50%);
+                font-size: 0.75rem;
+                opacity: 0.9;
+                background: rgba(0,0,0,0.3);
+                padding: 0.25rem 0.5rem;
+                border-radius: 0.25rem;
+            ">-39⚡</span>
         </button>
     </div>
 </form>
