@@ -383,8 +383,10 @@ async function loadUserBalance() {
     try {
         const response = await fetch('/api/points/balance');
         if (response.ok) {
-            const data = await response.json();
-            userBalance = data.balance || 0;
+            const result = await response.json();
+            // API 返回结构: { success: true, data: { balance: xx, ... } }
+            userBalance = result.data?.balance || 0;
+            console.log('加载余额成功:', userBalance);
             updateBalanceDisplay();
         }
     } catch (error) {
