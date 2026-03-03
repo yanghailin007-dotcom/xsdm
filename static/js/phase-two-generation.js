@@ -10,8 +10,23 @@ document.addEventListener('DOMContentLoaded', function() {
     checkLoginStatus();
     loadAvailableProjects();
     
+    // 加载点数配置和用户余额
+    loadPointsConfig();
+    loadUserBalance();
+    
     // 检查URL参数中是否有项目标题，如果有则自动选择
     checkUrlParameterForProject();
+    
+    // 添加表单事件监听器，用于更新创造点估算
+    const fromChapterInput = document.getElementById('from-chapter');
+    const chaptersToGenerateInput = document.getElementById('chapters-to-generate');
+    
+    if (fromChapterInput) {
+        fromChapterInput.addEventListener('input', updateChapterRange);
+    }
+    if (chaptersToGenerateInput) {
+        chaptersToGenerateInput.addEventListener('input', updateChapterRange);
+    }
     
     // 测试goToContentReview函数是否可用
     console.log('🧪 [TEST] goToContentReview函数是否存在:', typeof goToContentReview);
@@ -317,7 +332,7 @@ function displayProjectInfo(projectData) {
     updateChapterRange();
 }
 
-// 更新章节范围显示
+// 更新章节范围显示和创造点消耗估算
 function updateChapterRange() {
     const fromChapter = parseInt(document.getElementById('from-chapter').value) || 1;
     const chaptersToGenerate = parseInt(document.getElementById('chapters-to-generate').value) || 0;
@@ -336,6 +351,89 @@ function updateChapterRange() {
             rangeEnd.textContent = fromChapter;
         }
     }
+    
+    // 更新创造点消耗估算
+    updatePointsCostEstimate(chaptersToGenerate);
+}
+
+// 创造点配置缓存
+let pointsConfig = null;
+let userBalance = 0;
+
+// 获取点数配置
+async function loadPointsConfig() {
+    try {
+        const response = await fetch('/api/points/config');
+        if (response.ok) {
+            const data = await response.json();
+            pointsConfig = data.config || {};
+        }
+    } catch (error) {
+        console.error('加载点数配置失败:', error);
+        // 使用默认配置
+        pointsConfig = {
+            phase2_chapter_batch: 1,
+            phase2_chapter_refined: 2
+        };
+    }
+}
+
+// 获取用户当前余额
+async function loadUserBalance() {
+    try {
+        const response = await fetch('/api/points/balance');
+        if (response.ok) {
+            const data = await response.json();
+            userBalance = data.balance || 0;
+            updateBalanceDisplay();
+        }
+    } catch (error) {
+        console.error('加载用户余额失败:', error);
+    }
+}
+
+// 更新余额显示
+function updateBalanceDisplay() {
+    const balanceElement = document.getElementById('points-current-balance');
+    if (balanceElement) {
+        balanceElement.textContent = userBalance + ' 点';
+        
+        // 检查是否足够
+        const chaptersToGenerate = parseInt(document.getElementById('chapters-to-generate').value) || 0;
+        const costPerChapter = pointsConfig?.phase2_chapter_batch || 1;
+        const totalCost = chaptersToGenerate * costPerChapter;
+        
+        if (userBalance < totalCost && totalCost > 0) {
+            balanceElement.classList.add('insufficient');
+            balanceElement.textContent = userBalance + ' 点 (不足)';
+        } else {
+            balanceElement.classList.remove('insufficient');
+        }
+    }
+}
+
+// 更新创造点消耗估算
+function updatePointsCostEstimate(chapterCount) {
+    const costPerChapter = pointsConfig?.phase2_chapter_batch || 1;
+    const totalCost = chapterCount * costPerChapter;
+    
+    // 更新显示
+    const chapterCountElement = document.getElementById('points-chapter-count');
+    const perChapterElement = document.getElementById('points-per-chapter');
+    const totalCostElement = document.getElementById('points-total-cost');
+    
+    if (chapterCountElement) {
+        chapterCountElement.textContent = chapterCount + ' 章';
+    }
+    if (perChapterElement) {
+        perChapterElement.textContent = costPerChapter + ' 点/章';
+    }
+    if (totalCostElement) {
+        totalCostElement.textContent = totalCost + ' 点';
+    }
+    
+    // 检查余额是否足够
+    updateBalanceDisplay();
 }
 
 function displayProjectDetails(projectData) {

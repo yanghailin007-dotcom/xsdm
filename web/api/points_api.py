@@ -273,6 +273,38 @@ def internal_grant_points():
         }), 400
 
 
+# ==================== 公共配置API（无需登录） ====================
+
+@points_api.route('/config', methods=['GET'])
+def get_public_config():
+    """
+    获取点数配置（公开）
+    返回消耗配置信息，用于前端估算
+    """
+    try:
+        # 获取第二阶段相关配置
+        phase2_batch = point_model.get_config('phase2_chapter_batch', 1)
+        phase2_refined = point_model.get_config('phase2_chapter_refined', 2)
+        
+        return jsonify({
+            'success': True,
+            'config': {
+                'phase2_chapter_batch': phase2_batch,
+                'phase2_chapter_refined': phase2_refined
+            }
+        })
+    except Exception as e:
+        logger.error(f"获取配置失败: {e}")
+        # 返回默认配置
+        return jsonify({
+            'success': True,
+            'config': {
+                'phase2_chapter_batch': 1,
+                'phase2_chapter_refined': 2
+            }
+        })
+
+
 # ==================== 管理员API ====================
 
 @points_api.route('/admin/config', methods=['GET'])

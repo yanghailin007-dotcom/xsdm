@@ -1128,6 +1128,108 @@
             font-size: 13px;
         }
 
+        /* ==================== 大厂级创造点消耗区域 ==================== */
+        .points-cost-section {
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(34, 211, 238, 0.05) 100%);
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            border-radius: 12px;
+            padding: 20px 24px;
+            margin: 24px 0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .points-cost-section::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));
+            opacity: 0.6;
+        }
+
+        .points-cost-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .points-icon {
+            font-size: 20px;
+        }
+
+        .points-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .points-cost-content {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .points-cost-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 13px;
+        }
+
+        .points-cost-item.total {
+            font-weight: 600;
+        }
+
+        .points-label {
+            color: var(--text-secondary);
+        }
+
+        .points-value {
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+
+        .points-value.highlight {
+            color: var(--accent-primary-light);
+            font-size: 18px;
+            font-weight: 700;
+            text-shadow: 0 0 20px rgba(99, 102, 241, 0.3);
+        }
+
+        .points-cost-divider {
+            height: 1px;
+            background: var(--border-subtle);
+            margin: 4px 0;
+        }
+
+        .points-balance-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 12px;
+            border-top: 1px dashed var(--border-subtle);
+            margin-top: 4px;
+        }
+
+        .points-balance-label {
+            font-size: 12px;
+            color: var(--text-tertiary);
+        }
+
+        .points-balance-value {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--accent-success);
+        }
+
+        .points-balance-value.insufficient {
+            color: var(--accent-danger);
+        }
+
         /* 大厂级状态指示器 */
         .product-category-card .status-indicator {
             width: 8px;
@@ -1394,6 +1496,33 @@
                         <label for="generation-notes">生成说明（可选）</label>
                         <textarea id="generation-notes" name="generation_notes" rows="3"
                                   placeholder="可以添加特殊的生成要求或注意事项..."></textarea>
+                    </div>
+
+                    <!-- 创造点消耗估算区域 -->
+                    <div class="points-cost-section" id="points-cost-section">
+                        <div class="points-cost-header">
+                            <span class="points-icon">💰</span>
+                            <span class="points-title">创造点消耗估算</span>
+                        </div>
+                        <div class="points-cost-content">
+                            <div class="points-cost-item">
+                                <span class="points-label">章节数量</span>
+                                <span class="points-value" id="points-chapter-count">0 章</span>
+                            </div>
+                            <div class="points-cost-item">
+                                <span class="points-label">每章消耗</span>
+                                <span class="points-value" id="points-per-chapter">1 点/章</span>
+                            </div>
+                            <div class="points-cost-divider"></div>
+                            <div class="points-cost-item total">
+                                <span class="points-label">预计总消耗</span>
+                                <span class="points-value highlight" id="points-total-cost">0 点</span>
+                            </div>
+                            <div class="points-balance-info">
+                                <span class="points-balance-label">当前余额:</span>
+                                <span class="points-balance-value" id="points-current-balance">加载中...</span>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="action-buttons">
