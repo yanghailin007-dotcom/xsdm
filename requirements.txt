@@ -1,20 +1,13 @@
 flask>=3.1.0
 flask-cors>=5.0.0
-requests==2.31.0
-python-dotenv==1.0.0
+requests>=2.31.0
+python-dotenv>=1.0.0
 openai>=1.50.0
 
 # Web server (deployment)
-gunicorn==21.2.0
-Werkzeug>=3.1.0
+gunicorn>=21.2.0
 
 # Fanqie upload dependencies
 PyYAML>=6.0
 playwright>=1.40.0
 playwright-stealth>=1.0.6
-
-# Other dependencies
-click==8.1.7
-itsdangerous==2.1.2
-Jinja2==3.1.2
-MarkupSafe==2.1.3
