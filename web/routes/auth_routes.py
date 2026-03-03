@@ -59,10 +59,16 @@ def register_auth_routes(app):
             logger.info(f"🔍 验证结果: {verify_result}")
             
             if verify_result:
+                # 从数据库获取用户ID
+                from web.models.user_model import user_model
+                user = user_model.get_user_by_username(username)
+                user_id = user.get('id') if user else None
+                
                 session['logged_in'] = True
                 session['username'] = username
+                session['user_id'] = user_id
                 session.permanent = True
-                logger.info(f"✅ 用户登录成功: {username}")
+                logger.info(f"✅ 用户登录成功: {username} (ID: {user_id})")
 
                 if request.is_json:
                     return jsonify({'success': True, 'message': '登录成功', 'redirect': '/landing'})
