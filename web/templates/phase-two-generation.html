@@ -666,33 +666,7 @@
             box-shadow: 0 0 10px rgba(99, 102, 241, 0.3);
         }
 
-        #current-chapter-info {
-            background: var(--bg-card) !important;
-            border: 1px solid var(--border-subtle) !important;
-            border-radius: 10px;
-            padding: 16px 20px;
-            margin-bottom: 20px;
-        }
-
-        #current-chapter-info h4 {
-            color: var(--text-primary) !important;
-            font-size: 14px;
-            margin: 0 0 8px 0;
-        }
-
-        #current-chapter-info p {
-            color: var(--text-tertiary) !important;
-            font-size: 13px;
-            margin: 0;
-        }
-
-        /* 章节网格 */
-        .chapter-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-            gap: 8px;
-            margin-top: 16px;
-        }
+        /* 注意：当前章节信息和章节网格样式已移至下方统一定义 */
 
         /* ==================== 大厂级统计网格 ==================== */
         .stats-grid {
@@ -780,37 +754,193 @@
             background: var(--accent-danger);
         }
 
-        /* ==================== 大厂级章节进度卡片 ==================== */
+        /* ==================== 大厂级当前章节卡片 ==================== */
+        .current-chapter-card {
+            display: none; /* 默认隐藏，通过JS显示 */
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(34, 211, 238, 0.05) 100%);
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            border-radius: 12px;
+            padding: 20px 24px;
+            margin: 20px 0;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            animation: pulse-glow 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.2); }
+            50% { box-shadow: 0 0 20px 2px rgba(99, 102, 241, 0.3); }
+        }
+
+        .chapter-status-icon {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            flex-shrink: 0;
+        }
+
+        .chapter-status-content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .chapter-status-label {
+            font-size: 12px;
+            color: var(--text-tertiary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+
+        .chapter-status-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .chapter-status-number {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        /* ==================== 章节进度包装器 ==================== */
+        .chapter-progress-wrapper {
+            margin: 24px 0;
+            padding: 20px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-subtle);
+            border-radius: 12px;
+        }
+
+        .chapter-progress-label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .chapter-progress-count {
+            font-size: 13px;
+            color: var(--text-tertiary);
+            background: var(--bg-tertiary);
+            padding: 4px 12px;
+            border-radius: 20px;
+        }
+
+        /* ==================== 大厂级章节进度网格 ==================== */
+        .chapter-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 10px;
+        }
+
         .chapter-card {
-            background: var(--bg-tertiary) !important;
-            border: 1px solid var(--border-subtle) !important;
-            border-radius: 8px;
-            padding: 12px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-subtle);
+            border-radius: 10px;
+            padding: 12px 8px;
             text-align: center;
             transition: all 0.2s ease;
+            cursor: pointer;
         }
 
         .chapter-card:hover {
             border-color: var(--border-default);
-            transform: scale(1.05);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
         }
 
         .chapter-card.completed {
-            background: rgba(52, 211, 153, 0.1) !important;
-            border-color: var(--accent-success) !important;
+            background: rgba(34, 197, 94, 0.15);
+            border-color: var(--accent-success);
+        }
+
+        .chapter-card.generating {
+            background: rgba(99, 102, 241, 0.15);
+            border-color: var(--accent-primary);
+            animation: generating-pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes generating-pulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.3); }
+            50% { box-shadow: 0 0 10px 2px rgba(99, 102, 241, 0.5); }
         }
 
         .chapter-card h4 {
-            color: var(--text-primary) !important;
+            color: var(--text-primary);
             font-size: 13px;
             font-weight: 600;
-            margin: 0 0 4px 0;
+            margin: 0 0 6px 0;
         }
 
         .chapter-card p {
-            color: var(--text-tertiary) !important;
+            color: var(--text-tertiary);
             font-size: 11px;
             margin: 0;
+        }
+
+        .chapter-card .chapter-status-badge {
+            display: inline-block;
+            margin-top: 6px;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 10px;
+            font-weight: 500;
+        }
+
+        .chapter-card.completed .chapter-status-badge {
+            background: rgba(34, 197, 94, 0.2);
+            color: var(--accent-success);
+        }
+
+        .chapter-card.generating .chapter-status-badge {
+            background: rgba(99, 102, 241, 0.2);
+            color: var(--accent-primary);
+        }
+
+        /* ==================== 进度操作按钮区域 ==================== */
+        .progress-actions {
+            margin-top: 24px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border-subtle);
+            text-align: center;
+        }
+
+        .btn-stop-generation {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 32px;
+            font-size: 14px;
+            font-weight: 600;
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            border: none;
+            border-radius: 10px;
+            color: white;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-stop-generation:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(239, 68, 68, 0.4);
+        }
+
+        .btn-stop-generation .btn-icon {
+            font-size: 16px;
         }
 
         /* ==================== 大厂级结果区域 ==================== */
@@ -1576,18 +1706,34 @@
                         <div class="progress-bar-fill" id="progress-bar-fill"></div>
                     </div>
                     
-                    <div id="current-chapter-info" style="margin: 20px 0; padding: 16px; background: #f9fafb; border-radius: 8px; display: none;">
-                        <h4>正在生成: <span id="current-chapter-title">-</span></h4>
-                        <p>第 <span id="current-chapter-number">-</span> / <span id="total-chapters">-</span> 章</p>
+                    <!-- 当前章节信息 -->
+                    <div id="current-chapter-info" class="current-chapter-card">
+                        <div class="chapter-status-icon">📝</div>
+                        <div class="chapter-status-content">
+                            <div class="chapter-status-label">正在生成</div>
+                            <div class="chapter-status-title" id="current-chapter-title">-</div>
+                            <div class="chapter-status-number">
+                                第 <span id="current-chapter-number">-</span> / <span id="total-chapters">-</span> 章
+                            </div>
+                        </div>
                     </div>
                     
-                    <div class="chapter-grid" id="chapter-progress-grid">
-                        <!-- 章节进度卡片将在这里动态生成 -->
+                    <!-- 章节进度网格 -->
+                    <div class="chapter-progress-wrapper">
+                        <div class="chapter-progress-label">
+                            <span>📚 章节进度</span>
+                            <span class="chapter-progress-count" id="chapter-progress-count">0 / 0</span>
+                        </div>
+                        <div class="chapter-grid" id="chapter-progress-grid">
+                            <!-- 章节进度卡片将在这里动态生成 -->
+                        </div>
                     </div>
                     
-                    <div style="margin-top: 20px; text-align: center;">
-                        <button type="button" class="btn btn-danger" onclick="stopGeneration()" id="stop-btn">
-                            ⏹️ 停止生成
+                    <!-- 停止按钮 -->
+                    <div class="progress-actions">
+                        <button type="button" class="btn btn-danger btn-stop-generation" onclick="stopGeneration()" id="stop-btn">
+                            <span class="btn-icon">⏹️</span>
+                            <span class="btn-text">停止生成</span>
                         </button>
                     </div>
                 </div>
