@@ -546,9 +546,38 @@ async function checkCheckinStatus() {
 // 页面加载时初始化
 document.addEventListener('DOMContentLoaded', initUserMenu);
 
+// 退出登录
+async function logout() {
+    try {
+        const response = await fetch('/logout', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (response.ok || response.redirected) {
+            // 清除本地存储的用户信息
+            localStorage.removeItem('current_user');
+            
+            // 跳转到登录页
+            window.location.href = '/login';
+        } else {
+            console.error('退出登录失败');
+            alert('退出登录失败，请重试');
+        }
+    } catch (error) {
+        console.error('退出登录出错:', error);
+        // 即使请求失败，也清除本地状态并跳转
+        localStorage.removeItem('current_user');
+        window.location.href = '/login';
+    }
+}
+
 // 导出到全局，供HTML内联事件使用
 window.toggleUserMenu = toggleUserMenu;
 window.closeUserMenu = closeUserMenu;
 window.loadUserPoints = loadUserPoints;
 window.checkCheckinStatus = checkCheckinStatus;
+window.logout = logout;
 </script>
