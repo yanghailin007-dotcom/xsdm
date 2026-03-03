@@ -711,7 +711,259 @@
         </p>
     </footer>
 
+    <!-- 首次登录奖励弹窗 -->
+    <div id="firstLoginModal" style="
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.8);
+        backdrop-filter: blur(8px);
+        z-index: 99999;
+        align-items: center;
+        justify-content: center;
+        animation: fadeIn 0.3s ease;
+    ">
+        <div style="
+            background: linear-gradient(145deg, #1e293b 0%, #0f172a 100%);
+            border: 2px solid #fbbf24;
+            border-radius: 1.5rem;
+            padding: 2.5rem;
+            max-width: 420px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 30px rgba(251, 191, 36, 0.2);
+            animation: slideUp 0.4s ease;
+            position: relative;
+            overflow: hidden;
+        ">
+            <!-- 背景装饰 -->
+            <div style="
+                position: absolute;
+                top: -50%;
+                left: -50%;
+                width: 200%;
+                height: 200%;
+                background: radial-gradient(circle, rgba(251, 191, 36, 0.1) 0%, transparent 70%);
+                animation: pulse 2s ease-in-out infinite;
+            "></div>
+            
+            <!-- 图标 -->
+            <div style="
+                width: 90px;
+                height: 90px;
+                margin: 0 auto 1.5rem;
+                background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                box-shadow: 0 10px 30px rgba(251, 191, 36, 0.5);
+                position: relative;
+                z-index: 1;
+                animation: bounce 0.6s ease;
+            ">
+                <span style="font-size: 2.5rem;">🎁</span>
+            </div>
+            
+            <!-- 标题 -->
+            <h2 style="
+                color: #fbbf24;
+                font-size: 1.75rem;
+                font-weight: 800;
+                margin-bottom: 0.75rem;
+                position: relative;
+                z-index: 1;
+                text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            ">
+                欢迎加入大文娱！
+            </h2>
+            
+            <!-- 副标题 -->
+            <p style="
+                color: #94a3b8;
+                font-size: 1rem;
+                margin-bottom: 1.5rem;
+                position: relative;
+                z-index: 1;
+            ">
+                新用户专属奖励已到账
+            </p>
+            
+            <!-- 奖励金额 -->
+            <div style="
+                background: linear-gradient(135deg, rgba(251, 191, 36, 0.15) 0%, rgba(245, 158, 11, 0.1) 100%);
+                border: 2px solid rgba(251, 191, 36, 0.3);
+                border-radius: 1rem;
+                padding: 1.5rem;
+                margin-bottom: 1.5rem;
+                position: relative;
+                z-index: 1;
+            ">
+                <div style="
+                    font-size: 3.5rem;
+                    font-weight: 800;
+                    color: #fbbf24;
+                    text-shadow: 0 0 20px rgba(251, 191, 36, 0.5);
+                    line-height: 1;
+                    margin-bottom: 0.5rem;
+                ">
+                    +88
+                </div>
+                <div style="
+                    font-size: 1.25rem;
+                    color: #fbbf24;
+                    font-weight: 600;
+                ">
+                    ⚡ 创造点
+                </div>
+            </div>
+            
+            <!-- 说明文字 -->
+            <p style="
+                color: #64748b;
+                font-size: 0.875rem;
+                margin-bottom: 1.5rem;
+                position: relative;
+                z-index: 1;
+                line-height: 1.6;
+            ">
+                创造点可用于小说生成、封面制作等功能<br>
+                每日签到还可额外获得奖励哦～
+            </p>
+            
+            <!-- 按钮 -->
+            <button onclick="closeFirstLoginModal()" style="
+                width: 100%;
+                padding: 1rem 1.5rem;
+                background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+                border: none;
+                border-radius: 0.75rem;
+                color: #0f172a;
+                font-size: 1rem;
+                font-weight: 700;
+                cursor: pointer;
+                box-shadow: 0 4px 15px rgba(251, 191, 36, 0.4);
+                transition: all 0.2s;
+                position: relative;
+                z-index: 1;
+            " onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 6px 20px rgba(251, 191, 36, 0.5)'" 
+            onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='0 4px 15px rgba(251, 191, 36, 0.4)'">
+                🚀 开始创作之旅
+            </button>
+        </div>
+    </div>
+
+    <style>
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        @keyframes slideUp {
+            from { 
+                opacity: 0;
+                transform: translateY(30px) scale(0.95);
+            }
+            to { 
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+        @keyframes bounce {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 0.5; }
+            50% { transform: scale(1.1); opacity: 0.8; }
+        }
+    </style>
+
     <script>
+        // 显示首次登录奖励弹窗
+        async function showFirstLoginBonus() {
+            try {
+                // 获取当前用户信息
+                const response = await fetch('/api/current-user');
+                const data = await response.json();
+                
+                if (!data.success) return;
+                
+                const username = data.username;
+                const storageKey = `first_login_shown_${username}`;
+                
+                // 检查是否已经显示过
+                if (localStorage.getItem(storageKey)) {
+                    return;
+                }
+                
+                // 获取用户点数信息
+                const pointsResponse = await fetch('/api/points/balance');
+                const pointsData = await pointsResponse.json();
+                
+                if (pointsData.success && pointsData.data.balance >= 88) {
+                    // 显示弹窗
+                    const modal = document.getElementById('firstLoginModal');
+                    modal.style.display = 'flex';
+                    
+                    // 标记为已显示
+                    localStorage.setItem(storageKey, 'true');
+                    
+                    // 添加礼花效果
+                    createConfetti();
+                }
+            } catch (error) {
+                console.error('显示首次登录奖励失败:', error);
+            }
+        }
+        
+        // 关闭弹窗
+        function closeFirstLoginModal() {
+            const modal = document.getElementById('firstLoginModal');
+            modal.style.opacity = '0';
+            setTimeout(() => {
+                modal.style.display = 'none';
+                modal.style.opacity = '1';
+            }, 300);
+        }
+        
+        // 礼花效果
+        function createConfetti() {
+            const colors = ['#fbbf24', '#f59e0b', '#fcd34d', '#fbbf24', '#fff'];
+            for (let i = 0; i < 50; i++) {
+                setTimeout(() => {
+                    const confetti = document.createElement('div');
+                    confetti.style.cssText = `
+                        position: fixed;
+                        width: 10px;
+                        height: 10px;
+                        background: ${colors[Math.floor(Math.random() * colors.length)]};
+                        left: ${Math.random() * 100}vw;
+                        top: -10px;
+                        border-radius: 50%;
+                        z-index: 999999;
+                        animation: confettiFall ${2 + Math.random() * 2}s linear forwards;
+                    `;
+                    document.body.appendChild(confetti);
+                    setTimeout(() => confetti.remove(), 4000);
+                }, i * 30);
+            }
+        }
+        
+        // 添加礼花动画
+        const confettiStyle = document.createElement('style');
+        confettiStyle.textContent = `
+            @keyframes confettiFall {
+                to {
+                    transform: translateY(100vh) rotate(720deg);
+                    opacity: 0;
+                }
+            }
+        `;
+        document.head.appendChild(confettiStyle);
+
         function createParticles() {
             const container = document.getElementById('particles');
             const colors = [
@@ -737,6 +989,8 @@
         document.addEventListener('DOMContentLoaded', function() {
             createParticles();
             checkLoginStatus();
+            // 检查并显示首次登录奖励
+            setTimeout(showFirstLoginBonus, 500);
         });
 
         // 检查登录状态并更新链接
