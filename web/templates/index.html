@@ -130,53 +130,47 @@
 
         .user-dropdown {
             position: absolute;
-            top: calc(100% + 8px);
+            top: calc(100% + 10px);
             right: 0;
-            min-width: 180px;
-            background: rgba(30, 41, 59, 0.98);
-            border: 1px solid rgba(148, 163, 184, 0.2);
-            border-radius: 12px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+            min-width: 240px;
+            background: rgba(15, 23, 42, 0.98);
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            border-radius: 16px;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(99, 102, 241, 0.1);
             opacity: 0;
             visibility: hidden;
-            transform: translateY(-10px);
-            transition: all 0.2s ease;
+            transform: translateY(-10px) scale(0.95);
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
             z-index: 1000;
-            backdrop-filter: blur(10px);
+            backdrop-filter: blur(20px);
+            overflow: hidden;
         }
 
         .user-dropdown.active {
             opacity: 1;
             visibility: visible;
-            transform: translateY(0);
+            transform: translateY(0) scale(1);
         }
 
         .dropdown-header {
-            padding: 12px 16px;
-            border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+            padding: 20px;
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(139, 92, 246, 0.1));
+            border-bottom: 1px solid rgba(99, 102, 241, 0.2);
         }
 
-        .dropdown-header {
-            padding: 12px 16px;
-            border-bottom: 1px solid rgba(148, 163, 184, 0.1);
-        }
-
-        .dropdown-header span {
+        .dropdown-header .username {
             color: #f1f5f9;
-            font-weight: 600;
-            font-size: 14px;
+            font-weight: 700;
+            font-size: 16px;
             display: block;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
+            margin-bottom: 8px;
         }
 
         .user-points-display {
-            display: flex !important;
+            display: inline-flex !important;
             align-items: center;
             gap: 6px;
-            margin-top: 4px;
-            font-size: 13px !important;
+            font-size: 14px !important;
             color: #fbbf24 !important;
             font-weight: 500;
         }
@@ -216,25 +210,28 @@
 
         .dropdown-divider {
             height: 1px;
-            background: rgba(148, 163, 184, 0.1);
-            margin: 4px 0;
+            background: linear-gradient(90deg, transparent, rgba(148, 163, 184, 0.2), transparent);
+            margin: 8px 16px;
         }
 
-        .dropdown-item {
-            display: flex;
+        .dropdown-item span:first-child {
+            font-size: 18px;
+            width: 24px;
+            text-align: center;
+        }
+
+        /* 点数徽章样式 */
+        .points-badge {
+            display: inline-flex;
             align-items: center;
-            gap: 10px;
-            padding: 10px 16px;
-            color: #94a3b8;
-            text-decoration: none;
-            font-size: 14px;
-            transition: all 0.15s ease;
-            cursor: pointer;
-        }
-
-        .dropdown-item:hover {
-            background: rgba(99, 102, 241, 0.1);
-            color: #f1f5f9;
+            gap: 4px;
+            background: linear-gradient(135deg, rgba(251, 191, 36, 0.2), rgba(245, 158, 11, 0.1));
+            border: 1px solid rgba(251, 191, 36, 0.3);
+            color: #fbbf24;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
         }
 
         /* ==================== 按钮样式 ==================== */
@@ -1323,28 +1320,61 @@
                         <span class="avatar-text" id="avatarText">用</span>
                     </div>
                     <div class="user-dropdown" id="userDropdown">
+                        <!-- 用户信息头部 -->
                         <div class="dropdown-header">
-                            <span id="dropdownUsername">加载中...</span>
-                            <span id="dropdownPoints" class="user-points-display">💰 加载中...</span>
+                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                                <span class="username" id="dropdownUsername">加载中...</span>
+                                <span class="points-badge" id="dropdownPoints">💰 --</span>
+                            </div>
+                            <div style="display: flex; gap: 8px;">
+                                <button onclick="showPointsModal(); closeUserMenu();" style="
+                                    flex: 1;
+                                    padding: 8px 12px;
+                                    background: rgba(99, 102, 241, 0.2);
+                                    border: 1px solid rgba(99, 102, 241, 0.3);
+                                    border-radius: 8px;
+                                    color: #a5b4fc;
+                                    font-size: 13px;
+                                    cursor: pointer;
+                                    transition: all 0.2s;
+                                " onmouseover="this.style.background='rgba(99, 102, 241, 0.3)'; this.style.color='#e0e7ff'" 
+                                onmouseout="this.style.background='rgba(99, 102, 241, 0.2)'; this.style.color='#a5b4fc'">
+                                    💰 查看详情
+                                </button>
+                                <button onclick="dailyCheckin(); closeUserMenu();" id="checkinBtn" style="
+                                    flex: 1;
+                                    padding: 8px 12px;
+                                    background: rgba(16, 185, 129, 0.2);
+                                    border: 1px solid rgba(16, 185, 129, 0.3);
+                                    border-radius: 8px;
+                                    color: #6ee7b7;
+                                    font-size: 13px;
+                                    cursor: pointer;
+                                    transition: all 0.2s;
+                                " onmouseover="this.style.background='rgba(16, 185, 129, 0.3)'; this.style.color='#d1fae5'" 
+                                onmouseout="this.style.background='rgba(16, 185, 129, 0.2)'; this.style.color='#6ee7b7'">
+                                    📅 签到
+                                </button>
+                            </div>
                         </div>
+                        
                         <div class="dropdown-divider"></div>
-                        <a href="#" class="dropdown-item" onclick="showPointsModal(); return false;">
-                            <span>💰</span>
+                        
+                        <!-- 菜单项 -->
+                        <a href="/account" class="dropdown-item" onclick="closeUserMenu()">
+                            <span>⚙️</span>
                             <div class="item-content">
-                                <span class="item-title">我的点数</span>
-                                <span class="item-desc">查看余额和消费记录</span>
+                                <span class="item-title">管理账户</span>
+                                <span class="item-desc">修改密码和设置</span>
                             </div>
                         </a>
-                        <a href="#" class="dropdown-item" onclick="dailyCheckin(); return false;" id="checkinItem">
-                            <span>📅</span>
+                        <a href="#" class="dropdown-item" onclick="logout(); return false;">
+                            <span>🚪</span>
                             <div class="item-content">
-                                <span class="item-title">每日签到</span>
-                                <span class="item-desc" id="checkinDesc">领取今日奖励</span>
+                                <span class="item-title">退出登录</span>
+                                <span class="item-desc">安全退出当前账号</span>
                             </div>
                         </a>
-                        <div class="dropdown-divider"></div>
-                        <a href="/account" class="dropdown-item">⚙️ 管理账户</a>
-                        <a href="#" class="dropdown-item" onclick="logout(); return false;">🚪 退出登录</a>
                     </div>
                 </div>
             </div>

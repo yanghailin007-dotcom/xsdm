@@ -167,18 +167,23 @@ async function checkCheckinStatus() {
         if (response.ok) {
             const result = await response.json();
             if (result.success) {
-                const checkinItem = document.getElementById('checkinItem');
-                const checkinDesc = document.getElementById('checkinDesc');
+                const checkinBtn = document.getElementById('checkinBtn');
                 
-                if (checkinItem && checkinDesc) {
+                if (checkinBtn) {
                     if (result.data.can_checkin) {
-                        checkinItem.style.opacity = '1';
-                        checkinDesc.textContent = result.data.streak > 0 
-                            ? `连续${result.data.streak}天，点击签到` 
-                            : '点击领取今日奖励';
+                        checkinBtn.style.opacity = '1';
+                        checkinBtn.style.cursor = 'pointer';
+                        checkinBtn.innerHTML = result.data.streak > 0 
+                            ? `📅 签到 (+连续${result.data.streak}天)` 
+                            : '📅 签到 (+10点)';
                     } else {
-                        checkinItem.style.opacity = '0.5';
-                        checkinDesc.textContent = '今日已签到';
+                        checkinBtn.style.opacity = '0.5';
+                        checkinBtn.style.cursor = 'not-allowed';
+                        checkinBtn.innerHTML = `✅ 已签到 (连续${result.data.streak}天)`;
+                        checkinBtn.onclick = (e) => {
+                            e.stopPropagation();
+                            alert('今天已经签到过了，明天再来吧！');
+                        };
                     }
                 }
             }
