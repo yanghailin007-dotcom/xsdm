@@ -330,6 +330,26 @@
             transform: none;
         }
 
+        .btn-danger {
+            padding: 12px 24px;
+            background: var(--danger);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-danger:hover {
+            background: #dc2626;
+            transform: translateY(-1px);
+        }
+
         /* ==================== 消息提示 ==================== */
         .message {
             padding: 12px 16px;
@@ -473,6 +493,15 @@
                 <li>避免使用与其他网站相同的密码</li>
                 <li>不要在公共设备上保存密码</li>
             </ul>
+        </div>
+
+        <!-- 退出登录 -->
+        <div class="account-section" style="border-color: rgba(239, 68, 68, 0.2);">
+            <h2 class="section-title" style="color: var(--danger);">🚪 退出登录</h2>
+            <p style="color: var(--text-secondary); margin-bottom: 1rem;">退出当前账户，返回登录页面</p>
+            <button class="btn-danger" onclick="logout()">
+                退出登录
+            </button>
         </div>
     </main>
 
