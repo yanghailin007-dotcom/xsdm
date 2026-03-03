@@ -662,7 +662,7 @@
         // ==================== 统计加载 ====================
         async function loadStats() {
             try {
-                const response = await fetch('/api/stats');
+                const response = await fetch('/api/dashboard-stats');
                 if (response.ok) {
                     const data = await response.json();
                     document.getElementById('total-projects').textContent = data.total_projects || 0;
