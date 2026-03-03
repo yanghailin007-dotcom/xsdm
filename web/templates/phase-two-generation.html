@@ -1843,6 +1843,16 @@
         async function loadUserPoints() {
             try {
                 console.log('阶段二页面：开始加载余额...');
+                
+                // 获取余额元素
+                const currentBalanceEl = document.getElementById('points-current-balance');
+                const sidebarBalanceEl = document.getElementById('sidebar-balance-amount');
+                
+                if (!currentBalanceEl || !sidebarBalanceEl) {
+                    console.error('阶段二页面：找不到余额显示元素');
+                    return;
+                }
+                
                 const response = await fetch('/api/points/balance');
                 console.log('阶段二页面：余额API响应:', response.status);
                 
@@ -1851,31 +1861,35 @@
                     console.log('阶段二页面：余额API返回:', result);
                     
                     if (result.success && result.data) {
-                        const balance = result.data.balance || 0;
+                        const balance = result.data.balance !== undefined ? result.data.balance : (result.data.data?.balance || 0);
                         console.log('阶段二页面：解析到余额:', balance);
                         
                         // 更新成本估算区域的余额显示
-                        const currentBalanceEl = document.getElementById('points-current-balance');
-                        if (currentBalanceEl) {
-                            currentBalanceEl.textContent = balance + ' 点';
-                            console.log('阶段二页面：更新成本区域余额:', balance);
-                        }
+                        currentBalanceEl.textContent = balance + ' 点';
+                        console.log('阶段二页面：更新成本区域余额:', balance);
                         
                         // 更新侧边栏余额显示
-                        const sidebarBalanceEl = document.getElementById('sidebar-balance-amount');
-                        if (sidebarBalanceEl) {
-                            sidebarBalanceEl.textContent = balance;
-                            console.log('阶段二页面：更新侧边栏余额:', balance);
-                        }
+                        sidebarBalanceEl.textContent = balance;
+                        console.log('阶段二页面：更新侧边栏余额:', balance);
                         
                         // 检查余额是否充足
                         updateBalanceStatus(balance);
+                    } else {
+                        console.error('阶段二页面：API返回数据格式错误:', result);
+                        currentBalanceEl.textContent = '获取失败';
+                        sidebarBalanceEl.textContent = '-';
                     }
                 } else {
                     console.error('阶段二页面：余额API请求失败:', response.status);
+                    currentBalanceEl.textContent = '获取失败';
+                    sidebarBalanceEl.textContent = '-';
                 }
             } catch (error) {
                 console.error('阶段二页面：加载余额失败:', error);
+                const currentBalanceEl = document.getElementById('points-current-balance');
+                const sidebarBalanceEl = document.getElementById('sidebar-balance-amount');
+                if (currentBalanceEl) currentBalanceEl.textContent = '获取失败';
+                if (sidebarBalanceEl) sidebarBalanceEl.textContent = '-';
             }
         }
         

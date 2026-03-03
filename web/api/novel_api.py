@@ -170,6 +170,45 @@ def register_novel_routes(app, manager: NovelGenerationManager):
             logger.error(f"❌ 获取统计数据失败: {e}")
             return jsonify({"total_projects": 0, "total_chapters": 0, "active_tasks": 0}), 500
 
+    @app.route('/api/generation/<task_id>/stop', methods=['POST'])
+    @login_required
+    def stop_generation_task(task_id):
+        """停止生成任务"""
+        try:
+            logger.info(f"🛑 请求停止生成任务: {task_id}")
+            
+            # 获取所有任务
+            all_tasks = manager.get_all_tasks()
+            task_found = False
+            
+            for task in all_tasks:
+                if task.get('id') == task_id or task.get('task_id') == task_id:
+                    task_found = True
+                    # 将任务状态设置为 stopped
+                    task['status'] = 'stopped'
+                    task['stopped_at'] = datetime.now().isoformat()
+                    logger.info(f"✅ 任务 {task_id} 已标记为停止")
+                    break
+            
+            if task_found:
+                return jsonify({
+                    'success': True,
+                    'message': '任务已停止',
+                    'task_id': task_id
+                })
+            else:
+                return jsonify({
+                    'success': False,
+                    'message': '任务不存在或已完成'
+                }), 404
+                
+        except Exception as e:
+            logger.error(f"❌ 停止任务失败: {e}")
+            return jsonify({
+                'success': False,
+                'message': f'停止任务失败: {str(e)}'
+            }), 500
+
     @app.route('/api/project/<title>', methods=['GET'])
     def get_novel_detail(title):
         """获取小说详情"""

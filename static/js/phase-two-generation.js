@@ -1740,12 +1740,49 @@ function resumeGeneration() {
     showStatusMessage('▶️ 恢复功能开发中...', 'info');
 }
 
-function stopGeneration() {
-    if (!currentTaskId) return;
+async function stopGeneration() {
+    if (!currentTaskId) {
+        showStatusMessage('❌ 没有正在运行的生成任务', 'error');
+        return;
+    }
     
-    if (confirm('确定要停止当前生成任务吗？已生成的章节将被保留。')) {
-        // 停止功能需要后端支持
-        showStatusMessage('⏹️ 停止功能开发中...', 'info');
+    if (!confirm('确定要停止当前生成任务吗？已生成的章节将被保留。')) {
+        return;
+    }
+    
+    showStatusMessage('⏹️ 正在停止生成任务...', 'info');
+    
+    try {
+        // 调用停止生成 API
+        const response = await fetch(`/api/generation/${currentTaskId}/stop`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (response.ok) {
+            const result = await response.json();
+            showStatusMessage('✅ 生成任务已停止', 'success');
+            
+            // 重置 UI 状态
+            currentTaskId = null;
+            document.getElementById('stop-btn').style.display = 'none';
+            document.getElementById('start-btn').disabled = false;
+            document.getElementById('start-btn').textContent = '🚀 开始生成章节';
+        } else {
+            const error = await response.json();
+            showStatusMessage(`❌ 停止失败: ${error.message || '未知错误'}`, 'error');
+        }
+    } catch (error) {
+        console.error('停止生成失败:', error);
+        showStatusMessage('❌ 停止请求失败，请稍后重试', 'error');
+        
+        // 即使没有后端支持，也要重置前端状态
+        currentTaskId = null;
+        document.getElementById('stop-btn').style.display = 'none';
+        document.getElementById('start-btn').disabled = false;
+        showStatusMessage('⏹️ 已重置生成状态', 'info');
     }
 }
 
