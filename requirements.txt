@@ -3,6 +3,7 @@ flask-cors>=5.0.0
 requests>=2.31.0
 python-dotenv>=1.0.0
 openai>=1.50.0
+pillow>=10.0.0
 
 # Web server (deployment)
 gunicorn>=21.2.0

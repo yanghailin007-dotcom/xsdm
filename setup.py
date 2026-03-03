@@ -66,15 +66,8 @@ def print_error(message):
 
 def get_python_executable():
     """获取 Python 可执行文件路径"""
-    project_dir = Path(__file__).parent
-    
-    # 优先使用项目内的 .venv
-    venv_python = project_dir / ".venv" / "Scripts" / "python.exe"
-    if venv_python.exists():
-        return str(venv_python)
-    
-    # 检查当前运行的 Python
-    if sys.executable and "python.exe" in sys.executable.lower():
+    # 优先使用当前运行的 Python（确保一致性）
+    if sys.executable and "python" in sys.executable.lower():
         return sys.executable
     
     # 检查系统 Python
@@ -187,6 +180,14 @@ def main():
         return
     
     print_ok(f"找到 Python: {python_exe}")
+    
+    # 显示 Python 版本
+    try:
+        result = subprocess.run([python_exe, "--version"], capture_output=True, text=True)
+        if result.returncode == 0:
+            print(f"  {result.stdout.strip()}")
+    except:
+        pass
     
     # 步骤 2: 检查 pip
     print_step(2, total_steps, "检查 pip 包管理器...")

@@ -42,7 +42,11 @@ class Colors:
 
 def get_python_executable():
     """获取 Python 可执行文件路径"""
-    # 优先使用系统 Python
+    # 优先使用当前运行的 Python（确保一致性）
+    if sys.executable and "python" in sys.executable.lower():
+        return sys.executable
+    
+    # 尝试系统 Python
     try:
         result = subprocess.run(["python", "--version"], capture_output=True, text=True)
         if result.returncode == 0:
@@ -130,6 +134,7 @@ def check_quick():
     try:
         import flask
         import flask_cors
+        from PIL import Image
         return True
     except ImportError:
         return False
