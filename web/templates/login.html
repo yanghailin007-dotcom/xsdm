@@ -441,55 +441,6 @@
             background: rgba(255, 255, 255, 0.1);
         }
 
-        /* 演示账户 */
-        .demo-accounts {
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            border-radius: 1rem;
-            padding: 1.25rem;
-            margin-bottom: 1.5rem;
-        }
-
-        .demo-title {
-            font-size: 0.75rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
-            color: var(--text-tertiary);
-            margin-bottom: 1rem;
-            text-align: center;
-        }
-
-        .demo-list {
-            display: flex;
-            flex-direction: column;
-            gap: 0.75rem;
-        }
-
-        .demo-item {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0.75rem 1rem;
-            background: rgba(255, 255, 255, 0.03);
-            border-radius: 0.75rem;
-            cursor: pointer;
-            transition: all 0.15s;
-        }
-
-        .demo-item:hover {
-            background: rgba(99, 102, 241, 0.1);
-        }
-
-        .demo-info {
-            font-size: 0.875rem;
-            color: var(--text-secondary);
-        }
-
-        .demo-info strong {
-            color: var(--text-primary);
-        }
-
         /* 注册链接 */
         .register-prompt {
             text-align: center;
@@ -625,24 +576,6 @@
                         <div id="loadingSpinner" class="loading-spinner" style="display: none;"></div>
                     </button>
                 </form>
-
-                <!-- 分隔线 -->
-                <div class="divider-text">快速登录</div>
-
-                <!-- 演示账户 -->
-                <div class="demo-accounts">
-                    <div class="demo-title">演示账户</div>
-                    <div class="demo-list">
-                        <div class="demo-item" onclick="fillDemo('test', 'test')">
-                            <span class="demo-info"><strong>test</strong> / 任意密码</span>
-                            <button class="btn btn-secondary">使用</button>
-                        </div>
-                        <div class="demo-item" onclick="fillDemo('admin', 'admin')">
-                            <span class="demo-info"><strong>admin</strong> / admin</span>
-                            <button class="btn btn-secondary">使用</button>
-                        </div>
-                    </div>
-                </div>
 
                 <!-- 注册 -->
                 <div class="register-prompt">
