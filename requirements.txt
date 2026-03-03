@@ -1,12 +1,12 @@
-flask==2.3.0
-flask-cors==4.0.0
+flask>=3.1.0
+flask-cors>=5.0.0
 requests==2.31.0
 python-dotenv==1.0.0
 openai>=1.50.0
 
 # Web 服务器（部署用）
 gunicorn==21.2.0
-Werkzeug==3.0.1
+Werkzeug>=3.1.0
 
 # 番茄上传功能依赖
 PyYAML>=6.0
