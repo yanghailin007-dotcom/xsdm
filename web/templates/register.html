@@ -502,6 +502,17 @@
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
+        
+        @keyframes pulse {
+            0%, 100% { 
+                transform: scale(1);
+                box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.4);
+            }
+            50% { 
+                transform: scale(1.02);
+                box-shadow: 0 0 20px 5px rgba(251, 191, 36, 0.2);
+            }
+        }
 
         /* 页脚 */
         .register-footer {
@@ -533,6 +544,29 @@
                     <div class="register-logo">🚀</div>
                     <h1 class="register-title">创建账户</h1>
                     <p class="register-subtitle">加入大文娱创作平台，开启AI创作之旅</p>
+                    
+                    <!-- 注册奖励提示 -->
+                    <div style="
+                        background: linear-gradient(135deg, rgba(251, 191, 36, 0.15) 0%, rgba(245, 158, 11, 0.1) 100%);
+                        border: 1px solid rgba(251, 191, 36, 0.3);
+                        border-radius: 0.75rem;
+                        padding: 0.75rem 1rem;
+                        margin-top: 1rem;
+                        display: inline-flex;
+                        align-items: center;
+                        gap: 0.5rem;
+                        animation: pulse 2s ease-in-out infinite;
+                    ">
+                        <span style="font-size: 1.25rem;">🎁</span>
+                        <span style="color: #fbbf24; font-weight: 600; font-size: 0.875rem;">注册即送</span>
+                        <span style="
+                            color: #fbbf24;
+                            font-weight: 800;
+                            font-size: 1.25rem;
+                            text-shadow: 0 0 10px rgba(251, 191, 36, 0.5);
+                        ">88</span>
+                        <span style="color: #fbbf24; font-weight: 600; font-size: 0.875rem;">创造点</span>
+                    </div>
                 </div>
 
                 <!-- 消息提示 -->
