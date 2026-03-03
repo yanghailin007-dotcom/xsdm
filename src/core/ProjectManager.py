@@ -83,9 +83,9 @@ class ProjectManager:
             return False
     # ^^^ 以上是新添加的方法 ^^^
     def find_existing_projects(self, creative_seed: Optional[str] = None) -> List[Dict]:
-        """查找现有项目 - 使用绝对路径"""
+        """查找现有项目 - 使用相对路径"""
         projects = []
-        base_dir = Path("D:/work6.05/小说项目")
+        base_dir = Path("小说项目")
         
         if not base_dir.exists():
             return projects
@@ -202,11 +202,11 @@ class ProjectManager:
                 # 尝试多个可能的路径
                 possible_paths = [
                     # 新路径：小说项目/小说名/小说名_项目信息.json
-                    f"D:/work6.05/小说项目/{safe_title}/{safe_title}_项目信息.json",
+                    f"小说项目/{safe_title}/{safe_title}_项目信息.json",
                     # 备选路径：小说项目/小说名/project_info.json
-                    f"D:/work6.05/小说项目/{safe_title}/project_info.json",
+                    f"小说项目/{safe_title}/project_info.json",
                     # 旧路径：小说项目/小说名_项目信息.json
-                    f"D:/work6.05/小说项目/{safe_title}_项目信息.json",
+                    f"小说项目/{safe_title}_项目信息.json",
                 ]
                 
                 for old_path in possible_paths:
@@ -651,7 +651,7 @@ class ProjectManager:
         """保存章节元素引入计划"""
         try:
             safe_title = re.sub(r'[\\/*?:"<>|]', "_", novel_title)
-            file_path = f"D:/work6.05/小说项目/{safe_title}_元素引入计划.json"
+            file_path = f"小说项目/{safe_title}_元素引入计划.json"
             # 加载现有计划或创建新的
             existing_schedule = self.load_element_introduction_schedule(novel_title)
             # 更新指定章节范围的计划
