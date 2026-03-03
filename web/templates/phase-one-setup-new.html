@@ -350,6 +350,21 @@
         .char-counter.success {
             color: #10b981;
         }
+
+        /* 创造点显示动画 */
+        #points-cost-display {
+            transition: transform 0.2s ease, color 0.3s ease;
+        }
+
+        /* 创造点提示框悬停效果 */
+        .points-cost-hint {
+            transition: all 0.3s ease;
+        }
+
+        .points-cost-hint:hover {
+            border-color: rgba(251, 191, 36, 0.5) !important;
+            box-shadow: 0 0 20px rgba(251, 191, 36, 0.1);
+        }
     </style>
 {% endblock %}
 
@@ -460,7 +475,34 @@
                             </div>
                         </div>
 
-                        <div class="form-actions" style="margin-top: 2rem;">
+                        <!-- 创造点消耗提示 -->
+                        <div class="points-cost-hint" style="
+                            background: linear-gradient(135deg, rgba(251, 191, 36, 0.1) 0%, rgba(245, 158, 11, 0.05) 100%);
+                            border: 1px solid rgba(251, 191, 36, 0.3);
+                            border-radius: 0.75rem;
+                            padding: 1rem 1.25rem;
+                            margin-bottom: 1rem;
+                            display: flex;
+                            align-items: center;
+                            justify-content: space-between;
+                            gap: 1rem;
+                        ">
+                            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                <span style="font-size: 1.25rem;">⭐</span>
+                                <span style="color: var(--dark-text-secondary); font-size: 0.875rem;">预估消耗</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                <span id="points-cost-display" style="
+                                    font-size: 1.25rem;
+                                    font-weight: 700;
+                                    color: #fbbf24;
+                                    text-shadow: 0 0 10px rgba(251, 191, 36, 0.3);
+                                ">5</span>
+                                <span style="color: var(--dark-text-tertiary); font-size: 0.75rem;">创造点</span>
+                            </div>
+                        </div>
+
+                        <div class="form-actions" style="margin-top: 0.5rem;">
                             <button type="submit" class="btn btn-primary" style="width: 100%;">
                                 🚀 开始生成设定
                             </button>
@@ -538,6 +580,9 @@
             // 初始化字符计数功能
             initCharCounter();
             
+            // 初始化创造点计算
+            initPointsCalculator();
+            
             // 绑定打开创意编辑器按钮
             const openEditorBtn = document.getElementById('open-creative-editor-btn');
             if (openEditorBtn) {
@@ -546,6 +591,62 @@
                 });
             }
         });
+
+        // ==================== 创造点计算器 ====================
+        function initPointsCalculator() {
+            const totalChaptersInput = document.getElementById('total-chapters');
+            const generationModeSelect = document.getElementById('generation-mode');
+            const targetPlatformSelect = document.getElementById('target-platform');
+            const pointsDisplay = document.getElementById('points-cost-display');
+            
+            if (!pointsDisplay) return;
+            
+            // 计算创造点消耗
+            function calculatePoints() {
+                const totalChapters = parseInt(totalChaptersInput?.value) || 200;
+                const generationMode = generationModeSelect?.value || 'phase_one_only';
+                const platform = targetPlatformSelect?.value || 'fanqie';
+                
+                // 基础消耗：阶段一设定生成
+                let points = 5;
+                
+                // 根据总章节数增加消耗（每50章+1点）
+                points += Math.floor(totalChapters / 50);
+                
+                // 完整两阶段模式额外消耗
+                if (generationMode === 'full_two_phase') {
+                    points += 10; // 阶段二额外消耗
+                }
+                
+                // 平台系数（番茄小说要求更高质量，消耗略多）
+                if (platform === 'fanqie') {
+                    points += 2;
+                }
+                
+                // 更新显示
+                pointsDisplay.textContent = points;
+                
+                // 添加动画效果
+                pointsDisplay.style.transform = 'scale(1.2)';
+                setTimeout(() => {
+                    pointsDisplay.style.transform = 'scale(1)';
+                }, 200);
+            }
+            
+            // 绑定事件监听
+            if (totalChaptersInput) {
+                totalChaptersInput.addEventListener('input', calculatePoints);
+            }
+            if (generationModeSelect) {
+                generationModeSelect.addEventListener('change', calculatePoints);
+            }
+            if (targetPlatformSelect) {
+                targetPlatformSelect.addEventListener('change', calculatePoints);
+            }
+            
+            // 初始计算
+            calculatePoints();
+        }
 
         // 初始化字符计数器
         function initCharCounter() {
@@ -570,9 +671,9 @@
             }
         }
 
-        // 全局变量
-        let currentEditingIdea = null;
-        let originalIdeaData = null;
+        // 页面级别的创意编辑状态（避免与creative-editor.js冲突）
+        window.pageCurrentEditingIdea = null;
+        window.pageOriginalIdeaData = null;
 
         // 为新创意打开编辑器
         function openCreativeEditorForNewIdea() {
@@ -593,8 +694,8 @@
             };
             
             // 设置当前编辑的创意
-            currentEditingIdea = tempIdea;
-            originalIdeaData = JSON.parse(JSON.stringify(tempIdea));
+            window.pageCurrentEditingIdea = tempIdea;
+            window.pageOriginalIdeaData = JSON.parse(JSON.stringify(tempIdea));
             
             // 填充编辑器
             if (typeof populateCreativeEditor === 'function') {
