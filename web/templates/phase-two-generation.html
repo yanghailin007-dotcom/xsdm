@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="/static/css/style.css">
     <link rel="stylesheet" href="/static/css/phase-two-generation.css">
     <link rel="stylesheet" href="/static/css/confirm-dialog.css">
+    <link rel="stylesheet" href="/static/css/guide-system.css">
     <style>
         /* ==================== 暗色科技主题 ==================== */
         :root {
@@ -1080,6 +1081,9 @@
     <script src="/static/js/confirm-dialog.js"></script>
     <link rel="stylesheet" href="/static/css/character-editor.css">
     <link rel="stylesheet" href="/static/css/character-editor-json-based.css">
+    <!-- 引导系统 -->
+    <script src="/static/js/guide-system.js"></script>
+    <script src="/static/js/guides/phase2-guide.js"></script>
     <script>
         // 退出登录函数
         function logout() {
@@ -1099,6 +1103,13 @@
             .catch(error => {
                 console.error('加载创意编辑器失败:', error);
             });
+        
+        // 显示第二阶段引导（如果用户未看过）
+        setTimeout(() => {
+            if (typeof GuideSystem !== 'undefined' && typeof Phase2GuideConfig !== 'undefined') {
+                GuideSystem.show(Phase2GuideConfig);
+            }
+        }, 800);
     </script>
 <script src="/static/js/user-info.js"></script>
 </body>

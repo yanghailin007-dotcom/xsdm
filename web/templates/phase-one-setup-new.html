@@ -8,6 +8,7 @@
     <!-- CSS样式文件 -->
     <link rel="stylesheet" href="/static/css/style.css">
     <link rel="stylesheet" href="/static/css/phase-one-setup-new.css">
+    <link rel="stylesheet" href="/static/css/guide-system.css">
 </head>
 <body>
     <!-- 导入导航栏组件 -->
@@ -615,11 +616,21 @@
     <script src="/static/js/user-info.js"></script>
     <script src="/static/js/phase-one-setup-new.js"></script>
     <script src="/static/js/creative-editor.js"></script>
+    <!-- 引导系统 -->
+    <script src="/static/js/guide-system.js"></script>
+    <script src="/static/js/guides/phase1-guide.js"></script>
     
     <script>
         // 页面加载完成后执行
         document.addEventListener('DOMContentLoaded', function() {
             PhaseOneSetup.init();
+            
+            // 显示第一阶段引导（如果用户未看过）
+            setTimeout(() => {
+                if (typeof GuideSystem !== 'undefined' && typeof Phase1GuideConfig !== 'undefined') {
+                    GuideSystem.show(Phase1GuideConfig);
+                }
+            }, 500);
             
             // 初始化字符计数功能
             initCharCounter();
