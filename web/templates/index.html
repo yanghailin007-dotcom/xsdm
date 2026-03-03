@@ -634,6 +634,7 @@
         document.addEventListener('DOMContentLoaded', async function() {
             loadStats();
             loadCreativeIdeas();
+            loadUserPoints(); // 加载用户余额
             
             // 初始化用户引导
             await initUserGuide();
@@ -951,6 +952,42 @@
         function showPointsModal() {
             // 跳转到账户管理页面查看点数明细
             window.location.href = '/account';
+        }
+        
+        // 加载用户创造点余额
+        async function loadUserPoints() {
+            try {
+                console.log('首页开始加载用户余额...');
+                const response = await fetch('/api/points/balance');
+                console.log('余额API响应:', response.status);
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    console.log('余额API返回:', result);
+                    
+                    if (result.success && result.data) {
+                        const balance = result.data.balance || 0;
+                        console.log('解析到余额:', balance);
+                        
+                        // 更新导航栏余额显示
+                        const navPointsValue = document.getElementById('nav-points-value');
+                        const dropdownPointsValue = document.getElementById('dropdown-points-value');
+                        
+                        if (navPointsValue) {
+                            navPointsValue.textContent = balance;
+                            console.log('更新导航栏余额:', balance);
+                        }
+                        if (dropdownPointsValue) {
+                            dropdownPointsValue.textContent = balance;
+                            console.log('更新下拉框余额:', balance);
+                        }
+                    }
+                } else {
+                    console.error('余额API请求失败:', response.status);
+                }
+            } catch (error) {
+                console.error('加载用户余额失败:', error);
+            }
         }
     </script>
 {% endblock %}
