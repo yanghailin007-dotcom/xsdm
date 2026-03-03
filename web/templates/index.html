@@ -3238,6 +3238,20 @@
         }
     </script>
     <script src="/static/js/confirm-dialog.js"></script>
-<script src="/static/js/user-info.js"></script>
+    <script src="/static/js/user-info.js"></script>
+    
+    <!-- 引导系统 -->
+    <script src="/static/js/guide-system.js"></script>
+    <script src="/static/js/guides/index-guide.js"></script>
+    <script>
+        // 显示首次欢迎引导（如果用户未看过）
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(() => {
+                if (typeof GuideSystem !== 'undefined' && typeof IndexGuideConfig !== 'undefined') {
+                    GuideSystem.show(IndexGuideConfig);
+                }
+            }, 500);
+        });
+    </script>
 </body>
 </html>
