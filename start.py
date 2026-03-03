@@ -42,18 +42,19 @@ class Colors:
 
 def get_python_executable():
     """获取 Python 可执行文件路径"""
-    project_dir = Path(__file__).parent
-    
-    # 优先使用嵌入式 Python
-    embed_python = project_dir / "python-embed" / "python.exe"
-    if embed_python.exists():
-        return str(embed_python)
-    
-    # 检查系统 Python
+    # 优先使用系统 Python
     try:
         result = subprocess.run(["python", "--version"], capture_output=True, text=True)
         if result.returncode == 0:
             return "python"
+    except:
+        pass
+    
+    # 尝试 py 启动器
+    try:
+        result = subprocess.run(["py", "--version"], capture_output=True, text=True)
+        if result.returncode == 0:
+            return "py"
     except:
         pass
     
@@ -237,7 +238,6 @@ def main():
         print(f"{Colors.BLUE}[INFO]{Colors.RESET} 正在启动 Flask 服务...")
         print(f"{Colors.BLUE}[INFO]{Colors.RESET} 按 Ctrl+C 两次可停止服务\n")
         # 使用 subprocess.run 代替 os.system，更好地处理中断
-        import subprocess
         subprocess.run([python_exe, str(web_server_path)], check=False)
     except KeyboardInterrupt:
         print(f"\n{Colors.YELLOW}[INFO]{Colors.RESET} 服务已停止")

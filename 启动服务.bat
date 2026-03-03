@@ -12,14 +12,7 @@ REM 获取脚本所在目录
 set "SCRIPT_DIR=%~dp0"
 cd /d "%SCRIPT_DIR%"
 
-REM 尝试使用嵌入式 Python（优先）
-if exist "%SCRIPT_DIR%python-embed\python.exe" (
-    echo [INFO] 使用嵌入式 Python...
-    "%SCRIPT_DIR%python-embed\python.exe" "%SCRIPT_DIR%start.py"
-    goto end
-)
-
-REM 尝试使用系统 Python
+REM 尝试使用系统 Python（优先）
 python --version >nul 2>&1
 if %errorlevel% == 0 (
     echo [INFO] 使用系统 Python...
