@@ -891,24 +891,36 @@
                 
                 if (!data.success) return;
                 
+                const userId = data.user_id || data.username;
                 const username = data.username;
-                const storageKey = `first_login_shown_${username}`;
                 
-                // 检查是否已经显示过
+                // 按用户隔离的localStorage key
+                const storageKey = `register_bonus_shown_${userId}`;
+                
+                // 检查是否已经显示过（本地缓存）
                 if (localStorage.getItem(storageKey)) {
                     return;
                 }
                 
-                // 获取用户点数信息
-                const pointsResponse = await fetch('/api/points/balance');
-                const pointsData = await pointsResponse.json();
+                // 查询用户交易记录，检查是否领取过注册奖励
+                const txResponse = await fetch(`/api/points/transactions?limit=10`);
+                const txData = await txResponse.json();
                 
-                if (pointsData.success && pointsData.data.balance >= 88) {
+                let hasRegisterBonus = false;
+                if (txData.success && txData.data && txData.data.transactions) {
+                    // 检查是否有register_bonus来源的收入记录
+                    hasRegisterBonus = txData.data.transactions.some(tx => 
+                        tx.type === 'earn' && tx.source === 'register_bonus'
+                    );
+                }
+                
+                // 如果有注册奖励记录且未显示过弹窗
+                if (hasRegisterBonus) {
                     // 显示弹窗
                     const modal = document.getElementById('firstLoginModal');
                     modal.style.display = 'flex';
                     
-                    // 标记为已显示
+                    // 标记为已显示（按用户隔离）
                     localStorage.setItem(storageKey, 'true');
                     
                     // 添加礼花效果
