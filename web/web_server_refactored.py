@@ -63,6 +63,7 @@ from web.api.still_image_api import register_still_image_routes
 from web.api.short_drama_api import register_short_drama_routes
 from web.api.script_quality_check import register_script_quality_routes
 from web.api.tts_api import register_tts_routes
+from web.api.points_api import points_api
 
 # 导入页面路由模块
 from web.routes.auth_routes import register_auth_routes, register_page_routes
@@ -323,6 +324,9 @@ def create_app():
 
     # 19. TTS配音制作 API 路由
     register_tts_routes(app)
+
+    # 20. 点数系统 API 路由
+    app.register_blueprint(points_api)
 
     return app, manager
 

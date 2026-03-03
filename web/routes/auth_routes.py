@@ -6,6 +6,19 @@ from datetime import datetime
 
 from web.auth import user_auth, login_required
 from web.web_config import logger
+from functools import wraps
+
+
+def admin_required(f):
+    """管理员权限验证装饰器"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not session.get('logged_in'):
+            return redirect(url_for('login'))
+        if not session.get('is_admin'):
+            return jsonify({'success': False, 'error': '需要管理员权限'}), 403
+        return f(*args, **kwargs)
+    return decorated_function
 
 
 def register_auth_routes(app):
@@ -304,6 +317,13 @@ def register_page_routes(app):
     def video_workflow():
         """流程控制器"""
         return render_template('video/workflow.html')
+
+    @app.route('/admin/points-config', methods=['GET'])
+    @login_required
+    @admin_required
+    def admin_points_config():
+        """点数配置管理页面（管理员）"""
+        return render_template('admin/points-config.html')
 
     @app.route('/account', methods=['GET'])
     @login_required

@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>点数配置管理 - 大文娱系统</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0f172a;
+            color: #f1f5f9;
+            min-height: 100vh;
+            padding: 40px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            font-size: 28px;
+            margin-bottom: 8px;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .subtitle {
+            color: #64748b;
+            margin-bottom: 32px;
+        }
+        
+        .card {
+            background: rgba(30, 41, 59, 0.8);
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+        
+        .card-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #e2e8f0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .config-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 16px;
+        }
+        
+        .config-item {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 16px;
+        }
+        
+        .config-label {
+            font-size: 14px;
+            color: #94a3b8;
+            margin-bottom: 8px;
+        }
+        
+        .config-input-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .config-input {
+            flex: 1;
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            border-radius: 8px;
+            padding: 10px 14px;
+            color: #f1f5f9;
+            font-size: 16px;
+            width: 100px;
+        }
+        
+        .config-input:focus {
+            outline: none;
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+        
+        .unit {
+            color: #64748b;
+            font-size: 14px;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+        }
+        
+        .btn-save {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+        }
+        
+        .btn-save:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+        }
+        
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 16px 24px;
+            border-radius: 12px;
+            font-weight: 500;
+            animation: slideIn 0.3s ease;
+            z-index: 10000;
+        }
+        
+        .toast.success {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+        }
+        
+        .toast.error {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            color: white;
+        }
+        
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        
+        .nav-bar {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+        
+        .nav-bar a {
+            color: #94a3b8;
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            transition: all 0.2s;
+        }
+        
+        .nav-bar a:hover {
+            color: #f1f5f9;
+            background: rgba(255, 255, 255, 0.05);
+        }
+        
+        .nav-bar a.active {
+            color: #6366f1;
+            background: rgba(99, 102, 241, 0.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>💰 点数系统配置</h1>
+        <p class="subtitle">配置用户点数的获取和消耗规则</p>
+        
+        <div class="nav-bar">
+            <a href="/admin/points-config" class="active">配置管理</a>
+            <a href="/">返回首页</a>
+        </div>
+        
+        <!-- 点数获取配置 -->
+        <div class="card">
+            <div class="card-title">📥 点数获取配置</div>
+            <div class="config-grid">
+                <div class="config-item">
+                    <div class="config-label">新用户注册赠送</div>
+                    <div class="config-input-wrapper">
+                        <input type="number" class="config-input" id="register_bonus" value="88" min="0">
+                        <span class="unit">点</span>
+                        <button class="btn btn-save" onclick="saveConfig('register_bonus')">保存</button>
+                    </div>
+                </div>
+                <div class="config-item">
+                    <div class="config-label">每日签到奖励</div>
+                    <div class="config-input-wrapper">
+                        <input type="number" class="config-input" id="daily_checkin" value="10" min="0">
+                        <span class="unit">点</span>
+                        <button class="btn btn-save" onclick="saveConfig('daily_checkin')">保存</button>
+                    </div>
+                </div>
+                <div class="config-item">
+                    <div class="config-label">连续签到额外奖励</div>
+                    <div class="config-input-wrapper">
+                        <input type="number" class="config-input" id="checkin_streak_bonus" value="5" min="0">
+                        <span class="unit">点</span>
+                        <button class="btn btn-save" onclick="saveConfig('checkin_streak_bonus')">保存</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 第一阶段消耗配置 -->
+        <div class="card">
+            <div class="card-title">📋 第一阶段消耗配置（设定生成）</div>
+            <div class="config-grid">
+                <div class="config-item">
+                    <div class="config-label">规划阶段</div>
+                    <div class="config-input-wrapper">
+                        <input type="number" class="config-input" id="phase1_planning" value="1" min="0">
+                        <span class="unit">点/次</span>
+                        <button class="btn btn-save" onclick="saveConfig('phase1_planning')">保存</button>
+                    </div>
+                </div>
+                <div class="config-item">
+                    <div class="config-label">世界观生成</div>
+                    <div class="config-input-wrapper">
+                        <input type="number" class="config-input" id="phase1_worldview" value="3" min="0">
+                        <span class="unit">点/次</span>
+                        <button class="btn btn-save" onclick="saveConfig('phase1_worldview')">保存</button>
+                    </div>
+                </div>
+                <div class="config-item">
+                    <div class="config-label">角色设计（每个）</div>
+                    <div class="config-input-wrapper">
+                        <input type="number" class="config-input" id="phase1_characters" value="2" min="0">
+                        <span class="unit">点/个</span>
+                        <button class="btn btn-save" onclick="saveConfig('phase1_characters')">保存</button>
+                    </div>
+                </div>
+                <div class="config-item">
+                    <div class="config-label">大纲生成（每10章）</div>
+                    <div class="config-input-wrapper">
+                        <input type="number" class="config-input" id="phase1_outline" value="1" min="0">
+                        <span class="unit">点/10章</span>
+                        <button class="btn btn-save" onclick="saveConfig('phase1_outline')">保存</button>
+                    </div>
+                </div>
+                <div class="config-item">
+                    <div class="config-label">质量评估</div>
+                    <div class="config-input-wrapper">
+                        <input type="number" class="config-input" id="phase1_validation" value="1" min="0">
+                        <span class="unit">点/次</span>
+                        <button class="btn btn-save" onclick="saveConfig('phase1_validation')">保存</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 第二阶段消耗配置 -->
+        <div class="card">
+            <div class="card-title">✍️ 第二阶段消耗配置（章节生成）</div>
+            <div class="config-grid">
+                <div class="config-item">
+                    <div class="config-label">批量模式（每章）</div>
+                    <div class="config-input-wrapper">
+                        <input type="number" class="config-input" id="phase2_chapter_batch" value="1" min="0">
+                        <span class="unit">点/章</span>
+                        <button class="btn btn-save" onclick="saveConfig('phase2_chapter_batch')">保存</button>
+                    </div>
+                </div>
+                <div class="config-item">
+                    <div class="config-label">精修模式（每章）</div>
+                    <div class="config-input-wrapper">
+                        <input type="number" class="config-input" id="phase2_chapter_refined" value="2" min="0">
+                        <span class="unit">点/章</span>
+                        <button class="btn btn-save" onclick="saveConfig('phase2_chapter_refined')">保存</button>
+                    </div>
+                </div>
+                <div class="config-item">
+                    <div class="config-label">单章重生成</div>
+                    <div class="config-input-wrapper">
+                        <input type="number" class="config-input" id="phase2_regenerate" value="1" min="0">
+                        <span class="unit">点/次</span>
+                        <button class="btn btn-save" onclick="saveConfig('phase2_regenerate')">保存</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 其他功能消耗 -->
+        <div class="card">
+            <div class="card-title">🎨 其他功能消耗配置</div>
+            <div class="config-grid">
+                <div class="config-item">
+                    <div class="config-label">封面生成</div>
+                    <div class="config-input-wrapper">
+                        <input type="number" class="config-input" id="cover_generation" value="5" min="0">
+                        <span class="unit">点/张</span>
+                        <button class="btn btn-save" onclick="saveConfig('cover_generation')">保存</button>
+                    </div>
+                </div>
+                <div class="config-item">
+                    <div class="config-label">番茄上传</div>
+                    <div class="config-input-wrapper">
+                        <input type="number" class="config-input" id="fanqie_upload" value="2" min="0">
+                        <span class="unit">点/次</span>
+                        <button class="btn btn-save" onclick="saveConfig('fanqie_upload')">保存</button>
+                    </div>
+                </div>
+                <div class="config-item">
+                    <div class="config-label">签约辅助</div>
+                    <div class="config-input-wrapper">
+                        <input type="number" class="config-input" id="contract_assist" value="3" min="0">
+                        <span class="unit">点/次</span>
+                        <button class="btn btn-save" onclick="saveConfig('contract_assist')">保存</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // 显示提示
+        function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.remove();
+            }, 3000);
+        }
+        
+        // 保存配置
+        async function saveConfig(key) {
+            const input = document.getElementById(key);
+            const value = parseInt(input.value);
+            
+            if (isNaN(value) || value < 0) {
+                showToast('请输入有效的非负整数', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/points/admin/config', {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        config_key: key,
+                        config_value: value
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showToast(result.message);
+                } else {
+                    showToast(result.error || '保存失败', 'error');
+                }
+            } catch (error) {
+                showToast('网络错误', 'error');
+                console.error(error);
+            }
+        }
+        
+        // 页面加载时获取当前配置
+        async function loadConfig() {
+            try {
+                const response = await fetch('/api/points/admin/config');
+                const result = await response.json();
+                
+                if (result.success && result.data) {
+                    // 填充配置值
+                    Object.keys(result.data).forEach(category => {
+                        Object.keys(result.data[category]).forEach(key => {
+                            const input = document.getElementById(key);
+                            if (input) {
+                                input.value = result.data[category][key];
+                            }
+                        });
+                    });
+                }
+            } catch (error) {
+                console.error('加载配置失败:', error);
+            }
+        }
+        
+        // 页面加载完成后执行
+        document.addEventListener('DOMContentLoaded', loadConfig);
+    </script>
+</body>
+</html>

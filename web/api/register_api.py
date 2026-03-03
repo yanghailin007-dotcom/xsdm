@@ -8,6 +8,7 @@ import re
 
 from web.web_config import logger
 from web.models.user_model import user_model
+from web.models.point_model import point_model
 
 
 def register_register_routes(app):
@@ -68,12 +69,28 @@ def register_register_routes(app):
             )
             
             if result.get("success"):
-                logger.info(f"✅ 用户注册成功: {username}")
+                user_id = result.get("user_id")
+                logger.info(f"✅ 用户注册成功: {username} (ID: {user_id})")
+                
+                # 发放注册奖励点数
+                bonus_amount = point_model.get_config('register_bonus', 88)
+                point_result = point_model.add_points(
+                    user_id=user_id,
+                    amount=bonus_amount,
+                    source='register_bonus',
+                    description='新用户注册奖励'
+                )
+                
+                if point_result['success']:
+                    logger.info(f"✅ 发放注册奖励{bonus_amount}点给用户{user_id}")
+                else:
+                    logger.error(f"❌ 发放注册奖励失败: {point_result.get('error')}")
                 
                 return jsonify({
                     "success": True,
-                    "message": "注册成功，请登录",
-                    "user_id": result.get("user_id")
+                    "message": f"注册成功，赠送{bonus_amount}点创作点数！",
+                    "user_id": user_id,
+                    "points_bonus": bonus_amount
                 })
             else:
                 return jsonify({
