@@ -1,0 +1,547 @@
+<!-- 
+  用户菜单组件 - 参考大厂设计(阿里云/腾讯云控制台风格)
+  已登录: 显示头像+下拉菜单
+  未登录: 显示登录/注册按钮
+-->
+
+<!-- 未登录状态 -->
+<div id="guest-nav" style="display: none;">
+    <a href="/login" class="nav-btn nav-btn-outline">登录</a>
+    <a href="/register" class="nav-btn nav-btn-primary">免费注册</a>
+</div>
+
+<!-- 已登录状态 -->
+<div class="user-menu" id="user-menu-container" style="display: none;">
+    <!-- 通知铃铛 -->
+    <button class="nav-icon-btn" title="通知">
+        <span class="bell-icon">🔔</span>
+        <span class="badge-dot" id="notify-dot" style="display: none;"></span>
+    </button>
+    
+    <!-- 点数快速预览 -->
+    <div class="points-preview" id="nav-points-preview" onclick="showPointsModal()">
+        <span class="points-icon">💰</span>
+        <span class="points-value" id="nav-points-value">--</span>
+    </div>
+    
+    <!-- 用户头像下拉 -->
+    <div class="user-dropdown-wrapper">
+        <button class="user-trigger" onclick="toggleUserMenu(event)">
+            <div class="avatar" id="nav-avatar">
+                <span>用</span>
+            </div>
+            <span class="username" id="nav-username">--</span>
+            <span class="arrow">▼</span>
+        </button>
+        
+        <div class="dropdown-menu" id="user-dropdown">
+            <!-- 头部：用户基本信息 -->
+            <div class="dropdown-header">
+                <div class="user-info">
+                    <div class="avatar-large" id="dropdown-avatar">用</div>
+                    <div class="user-meta">
+                        <div class="name" id="dropdown-username">--</div>
+                        <div class="id" id="dropdown-userid">ID: --</div>
+                    </div>
+                </div>
+                
+                <!-- 点数卡片 -->
+                <div class="points-card" onclick="showPointsModal()">
+                    <div class="points-label">可用点数</div>
+                    <div class="points-value-large">
+                        <span class="currency">💰</span>
+                        <span id="dropdown-points-value">--</span>
+                    </div>
+                    <div class="points-actions">
+                        <span class="action-link">查看明细 →</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 快捷入口 -->
+            <div class="dropdown-section">
+                <div class="section-title">快捷入口</div>
+                <div class="quick-actions">
+                    <button class="action-item" onclick="dailyCheckin(); closeUserMenu();">
+                        <span class="icon">📅</span>
+                        <span class="text">每日签到</span>
+                        <span class="badge" id="checkin-badge">+10</span>
+                    </button>
+                    <a href="/account" class="action-item" onclick="closeUserMenu()">
+                        <span class="icon">⚙️</span>
+                        <span class="text">账户设置</span>
+                    </a>
+                    <a href="/project-management" class="action-item" onclick="closeUserMenu()">
+                        <span class="icon">📂</span>
+                        <span class="text">我的项目</span>
+                    </a>
+                </div>
+            </div>
+            
+            <!-- 底部：退出 -->
+            <div class="dropdown-footer">
+                <button class="logout-btn" onclick="logout(); closeUserMenu();">
+                    <span>🚪</span>
+                    <span>退出登录</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* ===== 导航按钮 ===== */
+.nav-btn {
+    display: inline-flex;
+    align-items: center;
+    padding: 8px 20px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    text-decoration: none;
+    transition: all 0.2s;
+    margin-left: 8px;
+}
+
+.nav-btn-outline {
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #94a3b8;
+    background: transparent;
+}
+
+.nav-btn-outline:hover {
+    border-color: rgba(255, 255, 255, 0.4);
+    color: #f1f5f9;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.nav-btn-primary {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: white;
+    border: none;
+}
+
+.nav-btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+}
+
+/* ===== 已登录用户区域 ===== */
+.user-menu {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* 图标按钮 */
+.nav-icon-btn {
+    position: relative;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    border: none;
+    background: rgba(255, 255, 255, 0.05);
+    color: #94a3b8;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.nav-icon-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #f1f5f9;
+}
+
+.bell-icon {
+    font-size: 16px;
+}
+
+.badge-dot {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 8px;
+    height: 8px;
+    background: #ef4444;
+    border-radius: 50%;
+    border: 2px solid #0f172a;
+}
+
+/* 点数预览 */
+.points-preview {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 12px;
+    background: rgba(251, 191, 36, 0.1);
+    border: 1px solid rgba(251, 191, 36, 0.2);
+    border-radius: 20px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.points-preview:hover {
+    background: rgba(251, 191, 36, 0.15);
+    border-color: rgba(251, 191, 36, 0.3);
+}
+
+.points-icon {
+    font-size: 14px;
+}
+
+.points-value {
+    font-size: 13px;
+    font-weight: 600;
+    color: #fbbf24;
+}
+
+/* 用户触发器 */
+.user-trigger {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 4px 4px 12px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 24px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.user-trigger:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.user-trigger .avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 600;
+    color: white;
+}
+
+.user-trigger .username {
+    font-size: 14px;
+    color: #e2e8f0;
+    max-width: 80px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.user-trigger .arrow {
+    font-size: 10px;
+    color: #64748b;
+    margin-right: 4px;
+}
+
+/* 下拉菜单 */
+.user-dropdown-wrapper {
+    position: relative;
+}
+
+.dropdown-menu {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    width: 280px;
+    background: rgba(15, 23, 42, 0.98);
+    border: 1px solid rgba(99, 102, 241, 0.2);
+    border-radius: 16px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-8px);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 1000;
+    overflow: hidden;
+}
+
+.dropdown-menu.active {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+/* 头部 */
+.dropdown-header {
+    padding: 20px;
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.05));
+    border-bottom: 1px solid rgba(99, 102, 241, 0.1);
+}
+
+.user-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.avatar-large {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    font-weight: 600;
+    color: white;
+}
+
+.user-meta .name {
+    font-size: 16px;
+    font-weight: 600;
+    color: #f1f5f9;
+    margin-bottom: 2px;
+}
+
+.user-meta .id {
+    font-size: 12px;
+    color: #64748b;
+}
+
+/* 点数卡片 */
+.points-card {
+    background: linear-gradient(135deg, rgba(251, 191, 36, 0.1), rgba(245, 158, 11, 0.05));
+    border: 1px solid rgba(251, 191, 36, 0.2);
+    border-radius: 12px;
+    padding: 16px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.points-card:hover {
+    background: linear-gradient(135deg, rgba(251, 191, 36, 0.15), rgba(245, 158, 11, 0.1));
+    border-color: rgba(251, 191, 36, 0.3);
+}
+
+.points-label {
+    font-size: 12px;
+    color: #94a3b8;
+    margin-bottom: 4px;
+}
+
+.points-value-large {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+    margin-bottom: 8px;
+}
+
+.points-value-large .currency {
+    font-size: 20px;
+}
+
+.points-value-large span:last-child {
+    font-size: 28px;
+    font-weight: 700;
+    color: #fbbf24;
+}
+
+.points-actions {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.action-link {
+    font-size: 12px;
+    color: #fbbf24;
+}
+
+/* 快捷入口 */
+.dropdown-section {
+    padding: 16px 0;
+}
+
+.section-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 0 20px;
+    margin-bottom: 8px;
+}
+
+.quick-actions {
+    display: flex;
+    flex-direction: column;
+}
+
+.action-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 20px;
+    background: none;
+    border: none;
+    color: #e2e8f0;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-decoration: none;
+}
+
+.action-item:hover {
+    background: rgba(99, 102, 241, 0.1);
+}
+
+.action-item .icon {
+    font-size: 18px;
+    width: 24px;
+    text-align: center;
+}
+
+.action-item .text {
+    flex: 1;
+}
+
+.action-item .badge {
+    padding: 2px 8px;
+    background: linear-gradient(135deg, #10b981, #059669);
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    color: white;
+}
+
+/* 底部 */
+.dropdown-footer {
+    padding: 12px 20px;
+    border-top: 1px solid rgba(99, 102, 241, 0.1);
+}
+
+.logout-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 10px;
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    border-radius: 8px;
+    color: #f87171;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.logout-btn:hover {
+    background: rgba(239, 68, 68, 0.2);
+}
+</style>
+
+<script>
+// 初始化用户菜单
+async function initUserMenu() {
+    try {
+        const response = await fetch('/api/current-user');
+        const data = await response.json();
+        
+        const guestNav = document.getElementById('guest-nav');
+        const userNav = document.getElementById('user-menu-container');
+        
+        if (data.success) {
+            // 已登录
+            guestNav.style.display = 'none';
+            userNav.style.display = 'flex';
+            
+            // 更新用户信息
+            document.getElementById('nav-username').textContent = data.username;
+            document.getElementById('dropdown-username').textContent = data.username;
+            document.getElementById('dropdown-userid').textContent = 'ID: ' + data.user_id;
+            
+            // 更新头像
+            const initials = data.username.charAt(0).toUpperCase();
+            document.getElementById('nav-avatar').innerHTML = `<span>${initials}</span>`;
+            document.getElementById('dropdown-avatar').innerHTML = `<span>${initials}</span>`;
+            
+            // 加载点数
+            loadUserPoints();
+            
+            // 检查签到状态
+            checkCheckinStatus();
+        } else {
+            // 未登录
+            guestNav.style.display = 'flex';
+            userNav.style.display = 'none';
+        }
+    } catch (error) {
+        console.error('初始化用户菜单失败:', error);
+    }
+}
+
+// 切换下拉菜单
+function toggleUserMenu(event) {
+    if (event) event.stopPropagation();
+    const dropdown = document.getElementById('user-dropdown');
+    if (dropdown) {
+        dropdown.classList.toggle('active');
+    }
+}
+
+// 关闭下拉菜单
+function closeUserMenu() {
+    const dropdown = document.getElementById('user-dropdown');
+    if (dropdown) {
+        dropdown.classList.remove('active');
+    }
+}
+
+// 点击外部关闭
+document.addEventListener('click', function(event) {
+    const wrapper = document.querySelector('.user-dropdown-wrapper');
+    if (wrapper && !wrapper.contains(event.target)) {
+        closeUserMenu();
+    }
+});
+
+// 加载点数
+async function loadUserPoints() {
+    try {
+        const response = await fetch('/api/points/balance');
+        if (response.ok) {
+            const result = await response.json();
+            if (result.success) {
+                document.getElementById('nav-points-value').textContent = result.data.balance;
+                document.getElementById('dropdown-points-value').textContent = result.data.balance;
+            }
+        }
+    } catch (error) {
+        console.error('加载点数失败:', error);
+    }
+}
+
+// 检查签到状态
+async function checkCheckinStatus() {
+    try {
+        const response = await fetch('/api/points/checkin/status');
+        if (response.ok) {
+            const result = await response.json();
+            if (result.success) {
+                const badge = document.getElementById('checkin-badge');
+                if (!result.data.can_checkin) {
+                    badge.textContent = '✓';
+                    badge.style.background = '#64748b';
+                }
+            }
+        }
+    } catch (error) {
+        console.error('检查签到状态失败:', error);
+    }
+}
+
+// 页面加载时初始化
+document.addEventListener('DOMContentLoaded', initUserMenu);
+</script>
