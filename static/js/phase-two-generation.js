@@ -381,13 +381,23 @@ async function loadPointsConfig() {
 // 获取用户当前余额
 async function loadUserBalance() {
     try {
+        console.log('开始加载余额...');
         const response = await fetch('/api/points/balance');
+        console.log('余额API响应:', response.status);
         if (response.ok) {
             const result = await response.json();
+            console.log('余额API返回:', result);
             // API 返回结构: { success: true, data: { balance: xx, ... } }
-            userBalance = result.data?.balance || 0;
-            console.log('加载余额成功:', userBalance);
+            if (result.success && result.data) {
+                userBalance = result.data.balance || 0;
+                console.log('解析余额成功:', userBalance);
+            } else {
+                console.error('余额API返回异常:', result);
+                userBalance = 0;
+            }
             updateBalanceDisplay();
+        } else {
+            console.error('余额API请求失败:', response.status);
         }
     } catch (error) {
         console.error('加载用户余额失败:', error);
@@ -396,6 +406,9 @@ async function loadUserBalance() {
 
 // 更新余额显示
 function updateBalanceDisplay() {
+    console.log('更新余额显示:', userBalance);
+    
+    // 更新消耗估算区域的余额
     const balanceElement = document.getElementById('points-current-balance');
     if (balanceElement) {
         // 检查是否足够
@@ -411,6 +424,12 @@ function updateBalanceDisplay() {
             balanceElement.classList.remove('insufficient');
             balanceElement.textContent = userBalance + ' 点';
         }
+    }
+    
+    // 更新侧边栏的余额显示
+    const sidebarBalanceElement = document.getElementById('sidebar-balance-amount');
+    if (sidebarBalanceElement) {
+        sidebarBalanceElement.textContent = userBalance + ' 点';
     }
 }
 
