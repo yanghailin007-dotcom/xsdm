@@ -34,9 +34,9 @@ def register_register_routes(app):
         """
         try:
             data = request.json or {}
-            username = data.get('username', '').strip()
-            password = data.get('password', '')
-            email = data.get('email', '').strip() or None
+            username = (data.get('username') or '').strip()
+            password = data.get('password') or ''
+            email = (data.get('email') or '').strip() or None
             
             # 验证必填字段
             if not all([username, password]):
@@ -106,7 +106,7 @@ def register_register_routes(app):
         """
         try:
             data = request.json or {}
-            username = data.get('username', '').strip()
+            username = (data.get('username') or '').strip()
             
             if not username:
                 return jsonify({
