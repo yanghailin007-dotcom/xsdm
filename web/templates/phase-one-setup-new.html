@@ -596,13 +596,6 @@
         document.addEventListener('DOMContentLoaded', function() {
             PhaseOneSetup.init();
             
-            // 显示第一阶段引导（如果用户未看过）
-            setTimeout(() => {
-                if (typeof GuideSystem !== 'undefined' && typeof Phase1GuideConfig !== 'undefined') {
-                    GuideSystem.show(Phase1GuideConfig);
-                }
-            }, 500);
-            
             // 初始化字符计数功能
             initCharCounter();
             

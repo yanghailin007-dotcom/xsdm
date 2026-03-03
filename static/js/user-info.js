@@ -33,6 +33,11 @@ async function loadCurrentUser() {
         const username = data.success ? data.username : '访客';
         const avatarUrl = data.success ? data.avatar_url : null;
         
+        // 同步设置到引导系统（如果存在）
+        if (data.success && typeof GuideSystem !== 'undefined') {
+            GuideSystem.setUser({ username: data.username, id: data.user_id });
+        }
+        
         // 更新所有用户名显示元素
         const usernameElements = document.querySelectorAll('#usernameText, .username-text');
         usernameElements.forEach(el => {

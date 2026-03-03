@@ -15,6 +15,65 @@ const GuideSystem = {
     steps: [],
     onComplete: null,
     storageKey: '',
+    currentUser: null,
+    
+    /**
+     * 获取当前用户标识
+     * @returns {string} 用户标识，未登录返回 'guest'
+     */
+    getUserId() {
+        // 优先使用已设置的用户
+        if (this.currentUser) {
+            return this.currentUser;
+        }
+        // 尝试从页面全局变量获取
+        if (typeof window !== 'undefined' && window.currentUser) {
+            return window.currentUser.username || window.currentUser.id || 'guest';
+        }
+        // 尝试从 localStorage 获取缓存的用户信息
+        try {
+            const cached = localStorage.getItem('current_user');
+            if (cached) {
+                const user = JSON.parse(cached);
+                return user.username || user.id || 'guest';
+            }
+        } catch (e) {
+            console.warn('无法读取缓存用户信息:', e);
+        }
+        return 'guest';
+    },
+    
+    /**
+     * 设置当前用户
+     * @param {Object|string} user - 用户对象或用户标识
+     */
+    setUser(user) {
+        if (typeof user === 'string') {
+            this.currentUser = user;
+        } else if (user && (user.username || user.id)) {
+            this.currentUser = user.username || user.id;
+            // 缓存到 localStorage 供其他页面使用
+            try {
+                localStorage.setItem('current_user', JSON.stringify({
+                    username: user.username,
+                    id: user.id,
+                    timestamp: Date.now()
+                }));
+            } catch (e) {
+                console.warn('无法缓存用户信息:', e);
+            }
+        }
+    },
+    
+    /**
+     * 生成用户特定的存储 key
+     * @param {string} guideId - 引导标识
+     * @returns {string}
+     */
+    getStorageKey(guideId) {
+        const userId = this.getUserId();
+        return `guide_seen_${userId}_${guideId}`;
+    },
     
     /**
      * 检查用户是否已看过引导
@@ -23,7 +82,8 @@ const GuideSystem = {
      */
     hasSeen(guideId) {
         try {
-            const seen = localStorage.getItem(`guide_seen_${guideId}`);
+            const key = this.getStorageKey(guideId);
+            const seen = localStorage.getItem(key);
             return seen === 'true';
         } catch (e) {
             return false;
@@ -36,7 +96,8 @@ const GuideSystem = {
      */
     markAsSeen(guideId) {
         try {
-            localStorage.setItem(`guide_seen_${guideId}`, 'true');
+            const key = this.getStorageKey(guideId);
+            localStorage.setItem(key, 'true');
         } catch (e) {
             console.warn('无法保存引导状态:', e);
         }
@@ -48,13 +109,16 @@ const GuideSystem = {
      */
     reset(guideId) {
         try {
+            const userId = this.getUserId();
             if (guideId) {
-                localStorage.removeItem(`guide_seen_${guideId}`);
+                // 重置特定引导
+                localStorage.removeItem(`guide_seen_${userId}_${guideId}`);
             } else {
-                // 重置所有引导
+                // 重置当前用户的所有引导
+                const prefix = `guide_seen_${userId}_`;
                 for (let i = localStorage.length - 1; i >= 0; i--) {
                     const key = localStorage.key(i);
-                    if (key && key.startsWith('guide_seen_')) {
+                    if (key && key.startsWith(prefix)) {
                         localStorage.removeItem(key);
                     }
                 }

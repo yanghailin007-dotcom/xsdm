@@ -1088,13 +1088,6 @@
             .catch(error => {
                 console.error('加载创意编辑器失败:', error);
             });
-        
-        // 显示第二阶段引导（如果用户未看过）
-        setTimeout(() => {
-            if (typeof GuideSystem !== 'undefined' && typeof Phase2GuideConfig !== 'undefined') {
-                GuideSystem.show(Phase2GuideConfig);
-            }
-        }, 800);
     </script>
 <script src="/static/js/user-info.js"></script>
 </body>
