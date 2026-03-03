@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}大文娱系统{% endblock %}</title>
+    
+    <!-- 全局样式 -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/common.css') }}">
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- 导航栏 -->
+    {% include 'components/navbar.html' %}
+    
+    <!-- 消息提示 -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="flash-messages">
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+    
+    <!-- 主内容区 -->
+    <main class="{% block main_class %}main-content{% endblock %}">
+        {% block content %}{% endblock %}
+    </main>
+    
+    <!-- 页脚 -->
+    {% block footer %}
+    <footer class="site-footer">
+        <p>&copy; 2024 大文娱系统 v2.0</p>
+    </footer>
+    {% endblock %}
+    
+    <!-- 全局脚本 -->
+    <script src="{{ url_for('static', filename='js/confirm-dialog.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/user-info.js') }}"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

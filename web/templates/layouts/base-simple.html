@@ -1,0 +1,42 @@
+{#
+    简化版基础模板 - 用于登录页、注册页、落地页等不需要导航栏的页面
+    使用方式：{% extends "layouts/base-simple.html" %}
+#}
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}大文娱系统{% endblock %}</title>
+    
+    <!-- 全局样式 -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/common.css') }}">
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- Flash 消息 -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="flash-container">
+                {% for category, message in messages %}
+                    <div class="flash-message flash-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+    
+    <!-- 主内容区 -->
+    <main class="{% block main_class %}{% endblock %}">
+        {% block content %}{% endblock %}
+    </main>
+    
+    <!-- 页脚 -->
+    {% block footer %}
+    <footer class="simple-footer">
+        <p>&copy; 2024 大文娱系统 v2.0</p>
+    </footer>
+    {% endblock %}
+    
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

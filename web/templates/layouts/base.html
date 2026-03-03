@@ -1,0 +1,60 @@
+{#
+    标准基础模板 - 适用于大多数页面
+    包含：导航栏、Flash消息、页脚
+    
+    使用方式：{% extends "layouts/base.html" %}
+    
+    可覆盖的块：
+    - title: 页面标题
+    - extra_css: 额外CSS
+    - content: 页面主内容（必填）
+    - footer: 页脚（可选覆盖）
+    - extra_js: 额外JS
+    - main_class: 主容器额外CSS类
+#}
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}大文娱系统{% endblock %}</title>
+    
+    <!-- 全局样式 -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/common.css') }}">
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- 统一导航栏（包含用户菜单） -->
+    {% include 'components/navbar.html' %}
+    
+    <!-- Flash 消息 -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="flash-container">
+                {% for category, message in messages %}
+                    <div class="flash-message flash-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+    
+    <!-- 主内容区 -->
+    <main class="main-container {% block main_class %}{% endblock %}">
+        {% block content %}{% endblock %}
+    </main>
+    
+    <!-- 页脚 -->
+    {% block footer %}
+    <footer class="site-footer">
+        <div class="footer-content">
+            <p>&copy; 2024 大文娱系统 v2.0</p>
+        </div>
+    </footer>
+    {% endblock %}
+    
+    <!-- 全局脚本 -->
+    <script src="{{ url_for('static', filename='js/confirm-dialog.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/user-info.js') }}"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

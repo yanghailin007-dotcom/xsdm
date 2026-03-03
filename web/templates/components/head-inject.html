@@ -1,0 +1,97 @@
+{#
+    导航栏注入组件 - 用于快速给现有页面添加统一导航
+    使用方法：在现有页面的 <body> 开始处插入 {% include 'components/head-inject.html' %}
+    
+    注意：这是过渡方案，最终应迁移到模板继承架构
+#}
+
+<!-- 导航栏样式 -->
+<style>
+/* ===== 统一导航栏样式 ===== */
+.unified-navbar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 64px;
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    border-bottom: 1px solid rgba(99, 102, 241, 0.2);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    padding: 0 24px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.unified-navbar .nav-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.unified-navbar .nav-right {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.unified-navbar .nav-btn {
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    text-decoration: none;
+    transition: all 0.2s;
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #94a3b8;
+    cursor: pointer;
+}
+
+.unified-navbar .nav-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #f1f5f9;
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.unified-navbar .nav-btn.primary {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: white;
+    border: none;
+}
+
+.unified-navbar .nav-btn.primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+}
+
+/* 页面内容需要加上顶部间距 */
+body.has-unified-navbar {
+    padding-top: 64px;
+}
+</style>
+
+<!-- 导航栏 HTML -->
+<nav class="unified-navbar">
+    <div class="nav-left">
+        <a href="/" class="nav-brand">🏠 返回首页</a>
+        <span style="color: rgba(255,255,255,0.2)">|</span>
+        <span style="color: #6366f1; font-weight: 600;">小说生成系统</span>
+    </div>
+    <div class="nav-right">
+        <a href="/phase-one-setup-new" class="nav-btn">🎨 两阶段生成</a>
+        <a href="/project-management" class="nav-btn">📂 项目管理</a>
+        <a href="/novels" class="nav-btn">📚 查看生成</a>
+        <a href="/cover_maker" class="nav-btn">🎨 封面制作</a>
+        <a href="/fanqie_upload" class="nav-btn">🍅 番茄上传</a>
+        <a href="/contract_management" class="nav-btn">📝 番茄签约</a>
+        <a href="/dashboard" class="nav-btn">📊 仪表板</a>
+        {% include 'components/user-menu.html' %}
+    </div>
+</nav>
+
+<!-- 为 body 添加顶部间距 -->
+<script>
+    document.body.classList.add('has-unified-navbar');
+</script>

@@ -102,7 +102,7 @@ function toggleUserMenu(event) {
     if (event) {
         event.stopPropagation();
     }
-    const dropdown = document.getElementById('userDropdown');
+    const dropdown = document.getElementById('user-dropdown');
     if (dropdown) {
         dropdown.classList.toggle('active');
     }
@@ -110,7 +110,7 @@ function toggleUserMenu(event) {
 
 // 关闭用户下拉菜单
 function closeUserMenu() {
-    const dropdown = document.getElementById('userDropdown');
+    const dropdown = document.getElementById('user-dropdown');
     if (dropdown) {
         dropdown.classList.remove('active');
     }

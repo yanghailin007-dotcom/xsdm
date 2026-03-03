@@ -1,0 +1,122 @@
+- generic [ref=e1]:
+  - navigation [ref=e2]:
+    - generic [ref=e3]:
+      - generic [ref=e4]:
+        - button "🏠 返回首页" [ref=e5] [cursor=pointer]
+        - generic [ref=e6]: 小说生成系统
+      - generic [ref=e7]:
+        - button "🎨 两阶段生成" [ref=e8] [cursor=pointer]
+        - button "📂 项目管理" [ref=e9] [cursor=pointer]
+        - button "📚 查看生成" [ref=e10] [cursor=pointer]
+        - button "🎨 封面制作" [ref=e11] [cursor=pointer]
+        - button "🍅 番茄上传" [ref=e12] [cursor=pointer]
+        - button "📝 番茄签约" [ref=e13] [cursor=pointer]
+        - button "📊 仪表板" [ref=e14] [cursor=pointer]
+        - generic [ref=e108]:
+          - button "🔔" [ref=e109] [cursor=pointer]:
+            - generic [ref=e110]: 🔔
+          - generic [ref=e111] [cursor=pointer]:
+            - generic [ref=e112]: 💰
+            - generic [ref=e113]: "--"
+          - button "T test ▼" [ref=e115] [cursor=pointer]:
+            - generic [ref=e117]: T
+            - generic [ref=e118]: test
+            - generic [ref=e119]: ▼
+  - main [ref=e15]:
+    - generic [ref=e16]:
+      - generic [ref=e18]:
+        - generic [ref=e19]:
+          - generic [ref=e20]: 🎨
+          - generic [ref=e21]: 创意生成工作台
+        - heading "📖 小说创意生成" [level=1] [ref=e22]
+        - paragraph [ref=e23]: 从这里开始您的AI小说创作之旅
+        - generic [ref=e24]:
+          - generic [ref=e25]:
+            - generic [ref=e26]: "0"
+            - generic [ref=e27]: 创作项目
+          - generic [ref=e28]:
+            - generic [ref=e29]: "0"
+            - generic [ref=e30]: 生成章节
+          - generic [ref=e31]:
+            - generic [ref=e32]: "0"
+            - generic [ref=e33]: 进行中
+      - generic [ref=e34]:
+        - generic [ref=e35]:
+          - heading "快速开始" [level=2] [ref=e36]
+          - paragraph [ref=e37]: 选择一种方式开始您的创作
+        - generic [ref=e38]:
+          - generic [ref=e39] [cursor=pointer]:
+            - generic [ref=e40]: 🎨
+            - heading "两阶段生成" [level=3] [ref=e41]
+            - paragraph [ref=e42]: 使用新的两阶段模式，先完善设定再生成内容，质量更可控
+            - generic [ref=e43]: 开始两阶段生成 →
+          - generic [ref=e44] [cursor=pointer]:
+            - generic [ref=e45]: 📂
+            - heading "项目管理" [level=3] [ref=e46]
+            - paragraph [ref=e47]: 管理两阶段生成的项目，查看进度和继续生成
+            - generic [ref=e48]: 管理项目 →
+          - generic [ref=e49] [cursor=pointer]:
+            - generic [ref=e50]: ✨
+            - heading "自定义创作" [level=3] [ref=e51]
+            - paragraph [ref=e52]: 输入您自己的创意和设定，开始全新的小说创作
+            - generic [ref=e53]: 开始创作 →
+          - generic [ref=e54] [cursor=pointer]:
+            - generic [ref=e55]: 💡
+            - heading "创意库" [level=3] [ref=e56]
+            - paragraph [ref=e57]: 从预设的创意库中选择灵感，快速启动创作
+            - generic [ref=e58]: 浏览创意 →
+          - generic [ref=e59] [cursor=pointer]:
+            - generic [ref=e60]: 📚
+            - heading "查看作品" [level=3] [ref=e61]
+            - paragraph [ref=e62]: 浏览和管理您已创作的小说项目
+            - generic [ref=e63]: 查看作品 →
+          - generic [ref=e64] [cursor=pointer]:
+            - generic [ref=e65]: 🎨
+            - heading "封面制作" [level=3] [ref=e66]
+            - paragraph [ref=e67]: 为您的小说作品生成精美的AI封面设计
+            - generic [ref=e68]: 制作封面 →
+          - generic [ref=e69] [cursor=pointer]:
+            - generic [ref=e70]: 🍅
+            - heading "番茄上传" [level=3] [ref=e71]
+            - paragraph [ref=e72]: 将完成的小说一键上传到番茄小说平台
+            - generic [ref=e73]: 开始上传 →
+      - generic [ref=e74]:
+        - heading "🚀 开始新的创作" [level=2] [ref=e75]
+        - generic [ref=e76]:
+          - heading "💡 从创意库选择" [level=3] [ref=e77]
+          - button "🔄 加载创意列表" [active] [ref=e79] [cursor=pointer]
+          - generic [ref=e80]:
+            - generic [ref=e81]: "选择创意:"
+            - combobox [ref=e82] [cursor=pointer]:
+              - option "-- 请选择一个创意 --" [selected]
+              - 'option "创意 #1: 创意 #1..."'
+              - 'option "创意 #2: 创意 #2..."'
+        - separator [ref=e83]
+        - heading "📝 自定义创作" [level=3] [ref=e84]
+        - generic [ref=e85]:
+          - generic [ref=e86]:
+            - generic [ref=e87]: 小说标题
+            - textbox "例：凡人修仙同人·观战者" [ref=e88]: 凡人修仙同人·观战者
+          - generic [ref=e89]:
+            - generic [ref=e90]: 小说简介
+            - textbox "简要描述小说内容..." [ref=e91]: 穿越者李尘身具观战悟道体质，通过观摩强者对战获得修行启悟。在乱星海见证韩立与温天仁的巅峰大战后，与梅凝陷入阴冥之地的险地。
+          - generic [ref=e92]:
+            - generic [ref=e93]: 核心设定
+            - textbox "描述故事的核心背景设定..." [ref=e94]: 凡人修仙传同人，时间线从韩立与温天仁结丹巅峰大战开始。主角为穿越者，身负'观战悟道'特殊体质，可通过观摩强者对战获得修行启悟。
+          - generic [ref=e95]:
+            - generic [ref=e96]:
+              - generic [ref=e97]: 总章节数
+              - spinbutton [ref=e98]: "200"
+            - generic [ref=e99]:
+              - generic [ref=e100]: 本次生成章节数
+              - combobox [ref=e101] [cursor=pointer]:
+                - option "5章" [selected]
+                - option "10章"
+                - option "20章"
+                - option "30章"
+                - option "50章"
+          - generic [ref=e102]:
+            - button "重置" [ref=e103] [cursor=pointer]
+            - button "🚀 开始生成" [ref=e104] [cursor=pointer]
+  - contentinfo [ref=e105]:
+    - paragraph [ref=e107]: © 2024 大文娱系统 v2.0

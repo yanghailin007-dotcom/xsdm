@@ -338,6 +338,7 @@ def register_page_routes(app):
             return jsonify({
                 'success': True,
                 'username': session.get('username', 'unknown'),
+                'user_id': session.get('user_id'),
                 'logged_in': True
             })
         return jsonify({

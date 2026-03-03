@@ -1,7 +1,19 @@
 {# 
   统一导航栏组件
   所有页面共享此导航栏，保持一致的用户体验
-  使用方法: {% include 'components/navbar.html' %}
+  
+  使用方法: 
+    {% include 'components/navbar.html' %}
+  
+  或者带自定义参数:
+    {% with show_back_btn=true, title="自定义标题" %}
+      {% include 'components/navbar.html' %}
+    {% endwith %}
+  
+  可选参数:
+    - show_back_btn: 是否显示返回首页按钮 (默认: true)
+    - title: 导航栏标题 (默认: "小说生成系统")
+    - active_page: 当前激活的页面标识 (用于高亮)
 #}
 
 <!-- 导航栏 -->

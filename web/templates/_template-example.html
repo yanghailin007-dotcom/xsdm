@@ -1,0 +1,75 @@
+{#
+    页面模板示例
+    创建新页面时复制此文件并重命名
+    
+    使用方法：
+    1. 复制：cp _template-example.html your-page.html
+    2. 修改 title 和 content 块
+    3. 根据需要添加 extra_css 和 extra_js
+#}
+
+{% extends "layouts/base.html" %}
+
+{# 页面标题 #}
+{% block title %}页面标题 - 大文娱系统{% endblock %}
+
+{# 页面特有CSS #}
+{% block extra_css %}
+    {# <link rel="stylesheet" href="{{ url_for('static', filename='css/your-page.css') }}"> #}
+    <style>
+        .page-wrapper {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+        
+        .page-header {
+            margin-bottom: 32px;
+        }
+        
+        .page-header h1 {
+            font-size: 28px;
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 8px;
+        }
+        
+        .page-header p {
+            color: #64748b;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            margin-bottom: 24px;
+        }
+    </style>
+{% endblock %}
+
+{# 页面主内容 #}
+{% block content %}
+<div class="page-wrapper">
+    <header class="page-header">
+        <h1>📄 页面标题</h1>
+        <p>页面描述文字</p>
+    </header>
+    
+    <div class="card">
+        <h2>卡片标题</h2>
+        <p>这里是页面内容...</p>
+    </div>
+</div>
+{% endblock %}
+
+{# 页面特有JS #}
+{% block extra_js %}
+    {# <script src="{{ url_for('static', filename='js/your-page.js') }}"></script> #}
+    <script>
+        // 页面初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('页面加载完成');
+        });
+    </script>
+{% endblock %}
