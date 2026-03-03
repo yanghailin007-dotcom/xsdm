@@ -117,25 +117,33 @@ class UserModel:
             
             # 检查用户名是否已存在
             with self._get_connection() as conn:
-                existing = conn.execute(
-                    "SELECT id FROM users WHERE username = ? OR phone = ?",
-                    (username, phone)
+                # 检查用户名
+                existing_user = conn.execute(
+                    "SELECT id FROM users WHERE username = ?",
+                    (username,)
                 ).fetchone()
+                if existing_user:
+                    return {"success": False, "error": "用户名已存在"}
                 
-                if existing:
-                    if existing['username'] == username:
-                        return {"success": False, "error": "用户名已存在"}
-                    else:
+                # 如果提供了手机号，检查手机号是否已存在
+                if phone:
+                    existing_phone = conn.execute(
+                        "SELECT id FROM users WHERE phone = ?",
+                        (phone,)
+                    ).fetchone()
+                    if existing_phone:
                         return {"success": False, "error": "该手机号已注册"}
                 
-                # 创建用户
+                # 创建用户（phone 为 None 时使用唯一占位符避免 NOT NULL + UNIQUE 冲突）
+                import time
+                actual_phone = phone if phone else f'NULL_{username}_{int(time.time())}'
                 password_hash = self._hash_password(password)
                 cursor = conn.execute(
                     """
                     INSERT INTO users (username, password_hash, phone, email)
                     VALUES (?, ?, ?, ?)
                     """,
-                    (username, password_hash, phone, email)
+                    (username, password_hash, actual_phone, email)
                 )
                 user_id = cursor.lastrowid
                 conn.commit()
