@@ -1,51 +1,169 @@
-<!-- 顶部导航 -->
+{# 
+  统一导航栏组件
+  所有页面共享此导航栏，保持一致的用户体验
+  使用方法: {% include 'components/navbar.html' %}
+#}
+
+<!-- 导航栏 -->
 <nav class="navbar">
-    <style>
-        /* 统一返回首页按钮样式 */
-        .btn-back {
-            padding: 8px 16px;
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 8px;
-            color: #cbd5e1;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: 500;
-            transition: all 0.2s;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            margin-right: 12px;
-        }
-        .btn-back:hover {
-            background: rgba(255, 255, 255, 0.1);
-            color: #f8fafc;
-        }
-    </style>
-    <div class="navbar-content">
-        <div class="navbar-title">
-            <button class="btn-back" onclick="location.href='/landing'">
-                🏠 返回首页
-            </button>
-            📋 第一阶段：设定生成
+    <div class="navbar-container">
+        <!-- 左侧：Logo和标题 -->
+        <div class="navbar-brand">
+            <button class="btn-back" onclick="location.href='/landing'">🏠 返回首页</button>
+            <span class="navbar-title">小说生成系统</span>
         </div>
+        
+        <!-- 右侧：操作按钮和用户菜单 -->
         <div class="navbar-actions">
+            <button class="btn btn-primary btn-small" onclick="location.href='/phase-one-setup'">🎨 两阶段生成</button>
             <button class="btn btn-secondary btn-small" onclick="location.href='/project-management'">📂 项目管理</button>
             <button class="btn btn-secondary btn-small" onclick="location.href='/novels'">📚 查看生成</button>
-            <!-- 用户头像下拉菜单 -->
-            <div class="user-menu">
-                <div class="user-avatar" onclick="toggleUserMenu(event)">
-                    <span class="avatar-text" id="avatarText">用</span>
-                </div>
-                <div class="user-dropdown" id="userDropdown">
-                    <div class="dropdown-header">
-                        <span id="dropdownUsername">加载中...</span>
-                    </div>
-                    <div class="dropdown-divider"></div>
-                    <a href="/account" class="dropdown-item">⚙️ 管理账户</a>
-                    <a href="#" class="dropdown-item" onclick="logout(); return false;">🚪 退出登录</a>
-                </div>
-            </div>
+            <button class="btn btn-secondary btn-small" onclick="location.href='/cover-maker'">🎨 封面制作</button>
+            <button class="btn btn-warning btn-small" onclick="location.href='/fanqie-upload'">🍅 番茄上传</button>
+            <button class="btn btn-success btn-small" onclick="location.href='/contract'">📝 番茄签约</button>
+            <button class="btn btn-secondary btn-small" onclick="location.href='/dashboard'">📊 仪表板</button>
+            
+            <!-- 用户菜单组件 -->
+            {% include 'components/user-menu.html' %}
         </div>
     </div>
 </nav>
+
+<style>
+/* ===== 导航栏基础样式 ===== */
+.navbar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 64px;
+    background: rgba(15, 23, 42, 0.95);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+    z-index: 100;
+}
+
+.navbar-container {
+    max-width: 1800px;
+    margin: 0 auto;
+    padding: 0 24px;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+/* 品牌区域 */
+.navbar-brand {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.btn-back {
+    padding: 8px 16px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    color: #94a3b8;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.btn-back:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #f1f5f9;
+}
+
+.navbar-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: #f1f5f9;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+/* 操作按钮区域 */
+.navbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* 按钮样式 */
+.btn {
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: white;
+}
+
+.btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+}
+
+.btn-secondary {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #94a3b8;
+}
+
+.btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #f1f5f9;
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.btn-success {
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: white;
+}
+
+.btn-success:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+}
+
+.btn-warning {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    color: white;
+}
+
+.btn-warning:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
+}
+
+/* 响应式 */
+@media (max-width: 1200px) {
+    .navbar-actions .btn-small {
+        padding: 6px 12px;
+        font-size: 12px;
+    }
+}
+
+@media (max-width: 992px) {
+    .navbar-actions .btn-small:not(.btn-primary) {
+        display: none;
+    }
+}
+</style>

@@ -458,9 +458,10 @@ async function initUserMenu() {
             userNav.style.display = 'flex';
             
             // 更新用户信息
+            const userId = data.user_id || data.id || '未知';
             document.getElementById('nav-username').textContent = data.username;
             document.getElementById('dropdown-username').textContent = data.username;
-            document.getElementById('dropdown-userid').textContent = 'ID: ' + data.user_id;
+            document.getElementById('dropdown-userid').textContent = 'ID: ' + userId;
             
             // 更新头像
             const initials = data.username.charAt(0).toUpperCase();
