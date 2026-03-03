@@ -497,9 +497,22 @@
                                     font-weight: 700;
                                     color: #fbbf24;
                                     text-shadow: 0 0 10px rgba(251, 191, 36, 0.3);
-                                ">5</span>
+                                ">39</span>
                                 <span style="color: var(--dark-text-tertiary); font-size: 0.75rem;">创造点</span>
                             </div>
+                        </div>
+                        
+                        <div style="
+                            font-size: 0.75rem;
+                            color: var(--dark-text-tertiary);
+                            text-align: center;
+                            margin: 0.5rem 0;
+                            padding: 0.5rem;
+                            background: rgba(0, 0, 0, 0.2);
+                            border-radius: 0.375rem;
+                        ">
+                            <i class="fas fa-info-circle"></i> 
+                            共39次API调用：基础设定(14次) + 4阶段详细计划(24次) + 评估(1次)
                         </div>
 
                         <div class="form-actions" style="margin-top: 0.5rem;">
@@ -612,7 +625,30 @@
         });
 
         // ==================== 创造点计算器 ====================
-        let currentPointsCost = 5;
+        // 第一阶段设定生成 - API调用统计（基于实际代码分析）
+        // 
+        // 【基础设定】
+        // 1. 写作风格指南: 1次
+        // 2. 市场分析: 1次 + 质量评估: 1次 + 新鲜度: 1次 = 3次
+        // 3. 核心世界观: 1次 + 质量评估: 1次 + 新鲜度: 1次 = 3次  
+        // 4. 势力/阵营系统: 1次 + 质量评估: 1次 + 新鲜度: 1次 = 3次
+        // 5. 核心角色设计: 1次（无评估）
+        // 6. 情绪蓝图: 1次
+        // 7. 全局成长规划: 1次
+        // 8. 全书阶段计划: 1次
+        //
+        // 【4个阶段详细计划 - 每阶段约6次调用】
+        // - 生成重大事件骨架: 1次 × 4阶段 = 4次
+        // - 分解重大事件为中型事件: 4次 × 4阶段 = 16次（每阶段平均4个重大事件）
+        // - 生成阶段补充角色: 1次 × 4阶段 = 4次
+        //
+        // 【最终评估】
+        // 整体质量评估: 1次
+        //
+        // 总计: 1+3+3+3+1+1+1+1 + 24 + 1 = 39点创造点
+        
+        const PHASE_ONE_BASE_COST = 39; // 第一阶段实际消耗（约39次API调用）
+        let currentPointsCost = PHASE_ONE_BASE_COST;
         let userPointsBalance = 0;
         
         async function loadUserPointsBalance() {
@@ -634,7 +670,6 @@
         function initPointsCalculator() {
             const totalChaptersInput = document.getElementById('total-chapters');
             const generationModeSelect = document.getElementById('generation-mode');
-            const targetPlatformSelect = document.getElementById('target-platform');
             const pointsDisplay = document.getElementById('points-cost-display');
             const pointsHint = document.querySelector('.points-cost-hint');
             
@@ -645,24 +680,22 @@
             
             // 计算创造点消耗
             function calculatePoints() {
-                const totalChapters = parseInt(totalChaptersInput?.value) || 200;
                 const generationMode = generationModeSelect?.value || 'phase_one_only';
-                const platform = targetPlatformSelect?.value || 'fanqie';
                 
-                // 基础消耗：阶段一设定生成
-                let points = 5;
+                // 基础消耗：第一阶段设定生成（12次API调用）
+                // - 写作风格指南、市场分析、核心世界观
+                // - 势力/阵营系统、核心角色设计
+                // - 情绪蓝图、全局成长规划、全书阶段计划
+                // - 4个阶段详细计划、质量评估
+                let points = PHASE_ONE_BASE_COST;
                 
-                // 根据总章节数增加消耗（每50章+1点）
-                points += Math.floor(totalChapters / 50);
-                
-                // 完整两阶段模式额外消耗
+                // 如果选择完整两阶段，需要额外消耗
                 if (generationMode === 'full_two_phase') {
-                    points += 10; // 阶段二额外消耗
-                }
-                
-                // 平台系数（番茄小说要求更高质量，消耗略多）
-                if (platform === 'fanqie') {
-                    points += 2;
+                    // 第二阶段每章都需要调用API生成内容
+                    // 预估：每章约1-2次API调用，这里按平均值估算
+                    const totalChapters = parseInt(totalChaptersInput?.value) || 200;
+                    // 第二阶段：每10章约10-15点（批量生成优化后）
+                    points += Math.ceil(totalChapters / 10) * 8;
                 }
                 
                 currentPointsCost = points;
@@ -694,9 +727,6 @@
             }
             if (generationModeSelect) {
                 generationModeSelect.addEventListener('change', calculatePoints);
-            }
-            if (targetPlatformSelect) {
-                targetPlatformSelect.addEventListener('change', calculatePoints);
             }
             
             // 初始计算
@@ -733,61 +763,152 @@
                     left: 0;
                     right: 0;
                     bottom: 0;
-                    background: rgba(15, 23, 42, 0.9);
-                    backdrop-filter: blur(10px);
+                    background: rgba(0, 0, 0, 0.8);
+                    backdrop-filter: blur(8px);
                     display: flex;
                     align-items: center;
                     justify-content: center;
                     z-index: 99999;
+                    animation: fadeIn 0.2s ease;
                 ">
                     <div style="
-                        background: var(--dark-bg-card);
-                        border: 1px solid var(--dark-border);
+                        background: linear-gradient(145deg, #1e293b 0%, #0f172a 100%);
+                        border: 2px solid #fbbf24;
                         border-radius: 1rem;
                         padding: 2rem;
-                        max-width: 400px;
+                        max-width: 380px;
                         width: 90%;
                         text-align: center;
-                        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+                        box-shadow: 
+                            0 25px 50px -12px rgba(0, 0, 0, 0.8),
+                            0 0 0 1px rgba(251, 191, 36, 0.2),
+                            0 0 30px rgba(251, 191, 36, 0.15);
+                        animation: slideUp 0.3s ease;
                     ">
-                        <div style="font-size: 3rem; margin-bottom: 1rem;">⭐</div>
-                        <h3 style="color: var(--dark-text-primary); margin-bottom: 1rem; font-size: 1.25rem;">
-                            创造点不足
+                        <!-- 图标 -->
+                        <div style="
+                            width: 70px;
+                            height: 70px;
+                            margin: 0 auto 1.25rem;
+                            background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+                            border-radius: 50%;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            box-shadow: 0 10px 25px rgba(251, 191, 36, 0.4);
+                        ">
+                            <span style="font-size: 2rem;">⚡</span>
+                        </div>
+                        
+                        <!-- 标题 -->
+                        <h3 style="
+                            color: #fbbf24;
+                            margin-bottom: 1.25rem;
+                            font-size: 1.35rem;
+                            font-weight: 700;
+                            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+                        ">
+                            创造点余额不足
                         </h3>
-                        <p style="color: var(--dark-text-secondary); margin-bottom: 1.5rem; line-height: 1.6;">
-                            当前余额: <strong style="color: #fbbf24;">${userPointsBalance}</strong> 点<br>
-                            需要消耗: <strong style="color: #fbbf24;">${currentPointsCost}</strong> 点<br>
-                            还差: <strong style="color: #ef4444;">${needed}</strong> 点
-                        </p>
+                        
+                        <!-- 消耗明细卡片 -->
+                        <div style="
+                            background: rgba(0, 0, 0, 0.4);
+                            border-radius: 0.75rem;
+                            padding: 1rem;
+                            margin-bottom: 1.25rem;
+                            border: 1px solid rgba(255, 255, 255, 0.1);
+                        ">
+                            <div style="
+                                display: flex;
+                                justify-content: space-between;
+                                align-items: center;
+                                margin-bottom: 0.5rem;
+                                padding-bottom: 0.5rem;
+                                border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+                            ">
+                                <span style="color: #94a3b8; font-size: 0.875rem;">当前余额</span>
+                                <span style="color: #e2e8f0; font-size: 1rem; font-weight: 600;">${userPointsBalance} 点</span>
+                            </div>
+                            <div style="
+                                display: flex;
+                                justify-content: space-between;
+                                align-items: center;
+                                margin-bottom: 0.5rem;
+                                padding-bottom: 0.5rem;
+                                border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+                            ">
+                                <span style="color: #94a3b8; font-size: 0.875rem;">本次需要</span>
+                                <span style="color: #fbbf24; font-size: 1rem; font-weight: 600;">${currentPointsCost} 点</span>
+                            </div>
+                            <div style="
+                                display: flex;
+                                justify-content: space-between;
+                                align-items: center;
+                                padding-top: 0.25rem;
+                            ">
+                                <span style="color: #f87171; font-size: 0.875rem; font-weight: 500;">⚠️ 还差</span>
+                                <span style="
+                                    color: #ef4444;
+                                    font-size: 1.25rem;
+                                    font-weight: 700;
+                                    text-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
+                                ">${needed} 点</span>
+                            </div>
+                        </div>
+                        
+                        <!-- 按钮组 -->
                         <div style="display: flex; gap: 0.75rem;">
                             <button onclick="closeInsufficientPointsModal()" style="
                                 flex: 1;
-                                padding: 0.75rem 1rem;
-                                background: rgba(255, 255, 255, 0.1);
+                                padding: 0.875rem 1rem;
+                                background: rgba(255, 255, 255, 0.08);
                                 border: 1px solid rgba(255, 255, 255, 0.2);
                                 border-radius: 0.5rem;
-                                color: var(--dark-text-secondary);
-                                cursor: pointer;
-                                font-size: 0.875rem;
-                            ">
-                                取消
-                            </button>
-                            <button onclick="goToRecharge()" style="
-                                flex: 1;
-                                padding: 0.75rem 1rem;
-                                background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-                                border: none;
-                                border-radius: 0.5rem;
-                                color: white;
+                                color: #94a3b8;
                                 cursor: pointer;
                                 font-size: 0.875rem;
                                 font-weight: 500;
-                            ">
+                                transition: all 0.2s;
+                            " onmouseover="this.style.background='rgba(255,255,255,0.15)';this.style.color='#e2e8f0'" 
+                            onmouseout="this.style.background='rgba(255,255,255,0.08)';this.style.color='#94a3b8'">
+                                取消
+                            </button>
+                            <button onclick="goToRecharge()" style="
+                                flex: 1.2;
+                                padding: 0.875rem 1rem;
+                                background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+                                border: none;
+                                border-radius: 0.5rem;
+                                color: #0f172a;
+                                cursor: pointer;
+                                font-size: 0.875rem;
+                                font-weight: 700;
+                                box-shadow: 0 4px 15px rgba(251, 191, 36, 0.4);
+                                transition: all 0.2s;
+                            " onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 6px 20px rgba(251, 191, 36, 0.5)'" 
+                            onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='0 4px 15px rgba(251, 191, 36, 0.4)'">
                                 💎 立即兑换
                             </button>
                         </div>
                     </div>
                 </div>
+                <style>
+                    @keyframes fadeIn {
+                        from { opacity: 0; }
+                        to { opacity: 1; }
+                    }
+                    @keyframes slideUp {
+                        from { 
+                            opacity: 0;
+                            transform: translateY(20px) scale(0.95);
+                        }
+                        to { 
+                            opacity: 1;
+                            transform: translateY(0) scale(1);
+                        }
+                    }
+                </style>
             `;
             document.body.appendChild(modal);
             document.body.style.overflow = 'hidden';
