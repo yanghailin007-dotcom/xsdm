@@ -998,7 +998,7 @@ def start_phase_one_generation():
 @phase_api.route('/phase-one/generate', methods=['POST'])
 @login_required
 def start_phase_one_generate():
-    """启动第一阶段生成任务"""
+    """启动第一阶段生成任务（带点数扣除）"""
     try:
         data = request.json or {}
         
@@ -1033,6 +1033,46 @@ def start_phase_one_generate():
         if not manager:
             return jsonify({"success": False, "error": "管理器未初始化"}), 500
         
+        # ===== 创造点扣除逻辑 =====
+        from web.models.point_model import point_model
+        from flask import session
+        
+        # 计算第一阶段消耗（固定消耗）
+        cost_breakdown = point_model.calculate_phase1_cost(total_chapters)
+        total_cost = cost_breakdown['total']
+        
+        user_id = session.get('user_id')
+        logger.info(f"💰 [PHASE_ONE] 需要消耗创造点: {total_cost}")
+        
+        # 检查余额
+        user_points = point_model.get_user_points(user_id)
+        if user_points['balance'] < total_cost:
+            return jsonify({
+                "success": False, 
+                "error": f"创造点不足，需要{total_cost}点，当前余额{user_points['balance']}点",
+                "required": total_cost,
+                "balance": user_points['balance']
+            }), 402  # Payment Required
+        
+        # 扣除点数
+        spend_result = point_model.spend_points(
+            user_id=user_id,
+            amount=total_cost,
+            source='phase1_generation',
+            description=f'第一阶段生成小说设定: {title}',
+            related_id=title
+        )
+        
+        if not spend_result['success']:
+            logger.error(f"❌ [PHASE_ONE] 扣除创造点失败: {spend_result.get('error')}")
+            return jsonify({
+                "success": False, 
+                "error": f"扣除创造点失败: {spend_result.get('error')}"
+            }), 500
+        
+        logger.info(f"✅ [PHASE_ONE] 已扣除创造点: {total_cost}，剩余: {spend_result['balance']}")
+        # ===== 创造点扣除结束 =====
+        
         # 构建创意种子（如果没有提供的话）
         if not creative_seed:
             creative_seed = {
@@ -1066,8 +1106,10 @@ def start_phase_one_generate():
         return jsonify({
             "success": True,
             "task_id": task_id,
-            "message": "第一阶段生成任务已启动",
-            "status": "initializing"
+            "message": f"第一阶段生成任务已启动，已消耗{total_cost}创造点",
+            "status": "initializing",
+            "points_spent": total_cost,
+            "balance_after": spend_result['balance']
         })
         
     except Exception as e:
@@ -2142,7 +2184,7 @@ def register_additional_routes(app):
     @app.route('/api/phase-two/start-generation', methods=['POST'])
     @login_required
     def start_phase_two_generation():
-        """启动第二阶段章节生成任务"""
+        """启动第二阶段章节生成任务（带点数扣除）"""
         try:
             data = request.json or {}
             
@@ -2166,8 +2208,46 @@ def register_additional_routes(app):
             if not manager:
                 return jsonify({"success": False, "error": "管理器未初始化"}), 500
             
+            # ===== 创造点扣除逻辑 =====
+            from web.models.point_model import point_model
+            
+            # 计算消耗点数（批量模式：每章2点 = 生成1点 + 质量检查1点）
+            cost_per_chapter = point_model.get_config('phase2_chapter_batch', 2)
+            total_cost = chapters_to_generate * cost_per_chapter
+            
+            user_id = session.get('user_id')
+            logger.info(f"💰 [PHASE_TWO] 需要消耗创造点: {total_cost} (每章{cost_per_chapter}点 × {chapters_to_generate}章)")
+            
+            # 检查余额
+            user_points = point_model.get_user_points(user_id)
+            if user_points['balance'] < total_cost:
+                return jsonify({
+                    "success": False, 
+                    "error": f"创造点不足，需要{total_cost}点，当前余额{user_points['balance']}点",
+                    "required": total_cost,
+                    "balance": user_points['balance']
+                }), 402  # Payment Required
+            
+            # 扣除点数
+            spend_result = point_model.spend_points(
+                user_id=user_id,
+                amount=total_cost,
+                source='phase2_generation',
+                description=f'第二阶段生成{chapters_to_generate}章小说内容',
+                related_id=f"{novel_title}_{from_chapter}"
+            )
+            
+            if not spend_result['success']:
+                logger.error(f"❌ [PHASE_TWO] 扣除创造点失败: {spend_result.get('error')}")
+                return jsonify({
+                    "success": False, 
+                    "error": f"扣除创造点失败: {spend_result.get('error')}"
+                }), 500
+            
+            logger.info(f"✅ [PHASE_TWO] 已扣除创造点: {total_cost}，剩余: {spend_result['balance']}")
+            # ===== 创造点扣除结束 =====
+            
             # 调用管理器启动第二阶段生成任务
-            # 构建config字典传递给manager
             generation_config = {
                 "novel_title": novel_title,
                 "from_chapter": from_chapter,
@@ -2184,17 +2264,28 @@ def register_additional_routes(app):
                 return jsonify({
                     "success": True,
                     "task_id": task_id,
-                    "message": "第二阶段生成任务已启动",
-                    "status": "initializing"
+                    "message": f"第二阶段生成任务已启动，已消耗{total_cost}创造点",
+                    "status": "initializing",
+                    "points_spent": total_cost,
+                    "balance_after": spend_result['balance']
                 })
             except AttributeError as e:
-                # 如果管理器还没有实现该方法，返回错误提示
+                # 如果管理器还没有实现该方法，回滚点数并返回错误
                 logger.error(f"❌ [PHASE_TWO] 管理器方法调用失败: {e}")
+                
+                # 回滚点数
+                rollback_result = point_model.rollback_transaction(
+                    user_id=user_id,
+                    related_id=f"{novel_title}_{from_chapter}"
+                )
+                if rollback_result['success']:
+                    logger.info(f"✅ [PHASE_TWO] 已回滚创造点: {total_cost}")
+                
                 import traceback
                 logger.error(f"错误堆栈: {traceback.format_exc()}")
                 return jsonify({
                     "success": False,
-                    "error": "第二阶段生成功能尚未实现"
+                    "error": "第二阶段生成功能尚未实现，已退还创造点"
                 }), 501
             
         except Exception as e:
