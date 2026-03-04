@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>大文娱系统 - AI小说创作平台</title>
+    <style>
+        /* ===== 基础重置 ===== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        /* ===== 设计系统 - 颜色变量 ===== */
+        :root {
+            /* 主色调 */
+            --primary-500: #6366f1;
+            --primary-600: #4f46e5;
+            --accent-purple: #8b5cf6;
+            --accent-pink: #ec4899;
+            
+            /* 背景色 */
+            --bg-primary: #0a0a0a;
+            --bg-secondary: #111111;
+            --bg-tertiary: #1a1a1a;
+            --bg-elevated: #161616;
+            
+            /* 边框色 */
+            --border-subtle: rgba(255, 255, 255, 0.06);
+            --border-default: rgba(255, 255, 255, 0.1);
+            --border-hover: rgba(255, 255, 255, 0.15);
+            --border-glow: rgba(99, 102, 241, 0.4);
+            
+            /* 文字色 */
+            --text-primary: #fafafa;
+            --text-secondary: #a1a1aa;
+            --text-tertiary: #71717a;
+            --text-muted: #52525b;
+            
+            /* 状态色 */
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --error: #ef4444;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        /* ===== 导航栏 ===== */
+        .navbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 64px;
+            background: rgba(10, 10, 10, 0.8);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border-subtle);
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+        }
+
+        .navbar-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 600;
+            font-size: 18px;
+        }
+
+        .navbar-brand .logo {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, var(--primary-500), var(--accent-purple));
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+
+        .navbar-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .nav-btn {
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .nav-btn:hover {
+            color: var(--text-primary);
+            background: var(--bg-tertiary);
+        }
+
+        .nav-btn-primary {
+            background: linear-gradient(135deg, var(--primary-500), var(--primary-600));
+            color: white;
+        }
+
+        .nav-btn-primary:hover {
+            box-shadow: 0 4px 16px rgba(99, 102, 241, 0.4);
+        }
+
+        /* ===== Hero 区域 ===== */
+        .hero {
+            position: relative;
+            padding: 140px 24px 80px;
+            text-align: center;
+            overflow: hidden;
+        }
+
+        /* 微光背景 */
+        .hero-glow {
+            position: absolute;
+            inset: 0;
+            background: 
+                radial-gradient(
+                    ellipse 80% 50% at 50% -20%,
+                    rgba(99, 102, 241, 0.15),
+                    transparent
+                ),
+                radial-gradient(
+                    ellipse 60% 40% at 80% 30%,
+                    rgba(139, 92, 246, 0.08),
+                    transparent
+                ),
+                radial-gradient(
+                    ellipse 40% 30% at 20% 60%,
+                    rgba(236, 72, 153, 0.05),
+                    transparent
+                );
+            animation: pulse-glow 8s ease-in-out infinite;
+        }
+
+        @keyframes pulse-glow {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 1; }
+        }
+
+        .hero-content {
+            position: relative;
+            z-index: 1;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        /* 标签 */
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-default);
+            border-radius: 20px;
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-bottom: 24px;
+        }
+
+        .hero-badge .dot {
+            width: 6px;
+            height: 6px;
+            background: var(--success);
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* 标题 */
+        .hero-title {
+            font-size: 56px;
+            font-weight: 700;
+            line-height: 1.1;
+            margin-bottom: 16px;
+            letter-spacing: -0.02em;
+        }
+
+        .gradient-text {
+            background: linear-gradient(
+                135deg,
+                #fafafa 0%,
+                #a78bfa 50%,
+                #6366f1 100%
+            );
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        /* 副标题 */
+        .hero-subtitle {
+            font-size: 20px;
+            color: var(--text-secondary);
+            margin-bottom: 32px;
+            font-weight: 400;
+        }
+
+        /* 统计数字 */
+        .hero-stats {
+            display: flex;
+            justify-content: center;
+            gap: 48px;
+            margin-bottom: 40px;
+            padding: 24px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-subtle);
+            border-radius: 16px;
+            max-width: 500px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 48px;
+            font-weight: 300;
+            color: var(--text-primary);
+            line-height: 1;
+            margin-bottom: 4px;
+        }
+
+        .stat-label {
+            font-size: 14px;
+            color: var(--text-tertiary);
+        }
+
+        /* CTA 按钮 */
+        .hero-cta {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 14px 32px;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary-500), var(--primary-600));
+            color: white;
+            box-shadow: 
+                0 0 0 1px rgba(255, 255, 255, 0.1) inset,
+                0 4px 20px rgba(99, 102, 241, 0.4);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 
+                0 0 0 1px rgba(255, 255, 255, 0.15) inset,
+                0 8px 30px rgba(99, 102, 241, 0.5);
+        }
+
+        .btn-secondary {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-default);
+        }
+
+        .btn-secondary:hover {
+            background: var(--bg-elevated);
+            border-color: var(--border-hover);
+        }
+
+        /* ===== 主容器 ===== */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 24px 80px;
+        }
+
+        /* ===== Section 标题 ===== */
+        .section-header {
+            margin-bottom: 32px;
+        }
+
+        .section-label {
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-tertiary);
+            margin-bottom: 8px;
+        }
+
+        .section-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        /* ===== 功能卡片网格 ===== */
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 64px;
+        }
+
+        @media (max-width: 1024px) {
+            .features-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 640px) {
+            .features-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* 渐变边框卡片 */
+        .feature-card {
+            position: relative;
+            background: var(--bg-secondary);
+            border-radius: 16px;
+            padding: 24px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            
+            /* 基础边框 */
+            box-shadow: 
+                0 0 0 1px var(--border-subtle),
+                0 4px 24px rgba(0, 0, 0, 0.3);
+        }
+
+        /* 渐变边框效果 */
+        .feature-card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: 16px;
+            padding: 1px;
+            background: linear-gradient(
+                135deg,
+                rgba(99, 102, 241, 0.4),
+                transparent 50%,
+                rgba(139, 92, 246, 0.2)
+            );
+            -webkit-mask: 
+                linear-gradient(#fff 0 0) content-box,
+                linear-gradient(#fff 0 0);
+            mask: 
+                linear-gradient(#fff 0 0) content-box,
+                linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor;
+            mask-composite: exclude;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .feature-card:hover::before {
+            opacity: 1;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 
+                0 0 0 1px var(--border-hover),
+                0 12px 40px rgba(99, 102, 241, 0.12);
+        }
+
+        /* 卡片图标 */
+        .feature-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            margin-bottom: 16px;
+        }
+
+        .feature-icon.purple {
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(99, 102, 241, 0.05));
+            border: 1px solid rgba(99, 102, 241, 0.3);
+        }
+
+        .feature-icon.blue {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(59, 130, 246, 0.05));
+            border: 1px solid rgba(59, 130, 246, 0.3);
+        }
+
+        .feature-icon.green {
+            background: linear-gradient(135deg, rgba(34, 197, 94, 0.2), rgba(34, 197, 94, 0.05));
+            border: 1px solid rgba(34, 197, 94, 0.3);
+        }
+
+        .feature-icon.orange {
+            background: linear-gradient(135deg, rgba(249, 115, 22, 0.2), rgba(249, 115, 22, 0.05));
+            border: 1px solid rgba(249, 115, 22, 0.3);
+        }
+
+        .feature-icon.pink {
+            background: linear-gradient(135deg, rgba(236, 72, 153, 0.2), rgba(236, 72, 153, 0.05));
+            border: 1px solid rgba(236, 72, 153, 0.3);
+        }
+
+        .feature-icon.cyan {
+            background: linear-gradient(135deg, rgba(6, 182, 212, 0.2), rgba(6, 182, 212, 0.05));
+            border: 1px solid rgba(6, 182, 212, 0.3);
+        }
+
+        .feature-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+
+        .feature-desc {
+            font-size: 13px;
+            color: var(--text-tertiary);
+            line-height: 1.5;
+            margin-bottom: 16px;
+        }
+
+        .feature-meta {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .feature-arrow {
+            margin-left: auto;
+            opacity: 0;
+            transform: translateX(-4px);
+            transition: all 0.2s;
+        }
+
+        .feature-card:hover .feature-arrow {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        /* ===== 创作表单区域 ===== */
+        .creation-section {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-subtle);
+            border-radius: 20px;
+            padding: 32px;
+        }
+
+        /* 标签页 */
+        .tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 32px;
+            padding: 4px;
+            background: var(--bg-tertiary);
+            border-radius: 10px;
+            width: fit-content;
+        }
+
+        .tab {
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+            background: transparent;
+        }
+
+        .tab:hover {
+            color: var(--text-primary);
+        }
+
+        .tab.active {
+            background: var(--bg-elevated);
+            color: var(--text-primary);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+        }
+
+        /* 表单样式 */
+        .form-group {
+            margin-bottom: 24px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 12px 16px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-default);
+            border-radius: 10px;
+            font-size: 15px;
+            color: var(--text-primary);
+            transition: all 0.2s;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--primary-500);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+
+        .form-input::placeholder {
+            color: var(--text-muted);
+        }
+
+        textarea.form-input {
+            min-height: 120px;
+            resize: vertical;
+        }
+
+        /* 表单行 */
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        @media (max-width: 640px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* 成本估算卡片 */
+        .cost-card {
+            margin-top: 32px;
+            padding: 20px 24px;
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(139, 92, 246, 0.04));
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            border-radius: 12px;
+        }
+
+        .cost-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .cost-info {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .cost-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 14px;
+        }
+
+        .cost-label {
+            color: var(--text-tertiary);
+        }
+
+        .cost-value {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .cost-value.primary {
+            color: var(--primary-500);
+        }
+
+        .submit-btn {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, var(--primary-500), var(--primary-600));
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 
+                0 0 0 1px rgba(255, 255, 255, 0.1) inset,
+                0 4px 20px rgba(99, 102, 241, 0.4);
+        }
+
+        .submit-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 
+                0 0 0 1px rgba(255, 255, 255, 0.15) inset,
+                0 8px 30px rgba(99, 102, 241, 0.5);
+        }
+
+        /* ===== 页脚 ===== */
+        .footer {
+            text-align: center;
+            padding: 40px 24px;
+            color: var(--text-muted);
+            font-size: 13px;
+            border-top: 1px solid var(--border-subtle);
+            margin-top: 80px;
+        }
+    </style>
+</head>
+<body>
+    <!-- 导航栏 -->
+    <nav class="navbar">
+        <div class="navbar-brand">
+            <div class="logo">🎨</div>
+            <span>大文娱系统</span>
+        </div>
+        <div class="navbar-actions">
+            <button class="nav-btn">两阶段生成</button>
+            <button class="nav-btn">项目管理</button>
+            <button class="nav-btn">查看生成</button>
+            <button class="nav-btn">封面制作</button>
+            <button class="nav-btn">番茄上传</button>
+            <button class="nav-btn">番茄签约</button>
+            <button class="nav-btn">仪表板</button>
+            <button class="nav-btn nav-btn-primary">🚀 开始创作</button>
+        </div>
+    </nav>
+
+    <!-- Hero 区域 -->
+    <section class="hero">
+        <div class="hero-glow"></div>
+        <div class="hero-content">
+            <div class="hero-badge">
+                <span class="dot"></span>
+                创意生成工作台
+            </div>
+            <h1 class="hero-title">
+                <span class="gradient-text">用 AI 将创意变成畅销小说</span>
+            </h1>
+            <p class="hero-subtitle">两阶段生成 · 智能世界观 · 自动化发布</p>
+            
+            <div class="hero-stats">
+                <div class="stat-item">
+                    <div class="stat-value">1</div>
+                    <div class="stat-label">创作项目</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">14</div>
+                    <div class="stat-label">生成章节</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">0</div>
+                    <div class="stat-label">进行中</div>
+                </div>
+            </div>
+            
+            <div class="hero-cta">
+                <button class="btn btn-primary">🚀 开始创作</button>
+                <button class="btn btn-secondary">📖 查看教程</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- 主内容区 -->
+    <div class="container">
+        <!-- 快捷入口 -->
+        <div class="section-header">
+            <div class="section-label">Quick Start</div>
+            <h2 class="section-title">快速开始</h2>
+        </div>
+        
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-icon purple">🎨</div>
+                <h3 class="feature-title">两阶段生成</h3>
+                <p class="feature-desc">从设定到内容，AI 全流程辅助创作</p>
+                <div class="feature-meta">
+                    <span>开始创作</span>
+                    <span class="feature-arrow">→</span>
+                </div>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-icon blue">📁</div>
+                <h3 class="feature-title">项目管理</h3>
+                <p class="feature-desc">管理所有小说项目，查看进度和继续生成</p>
+                <div class="feature-meta">
+                    <span>3 个项目</span>
+                    <span class="feature-arrow">→</span>
+                </div>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-icon green">✨</div>
+                <h3 class="feature-title">创意库</h3>
+                <p class="feature-desc">从预设创意中选择灵感，快速启动</p>
+                <div class="feature-meta">
+                    <span>12 个创意</span>
+                    <span class="feature-arrow">→</span>
+                </div>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-icon orange">📚</div>
+                <h3 class="feature-title">查看作品</h3>
+                <p class="feature-desc">浏览和管理已创作的小说章节</p>
+                <div class="feature-meta">
+                    <span>14 章节</span>
+                    <span class="feature-arrow">→</span>
+                </div>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-icon pink">🎨</div>
+                <h3 class="feature-title">封面制作</h3>
+                <p class="feature-desc">为小说生成精美的 AI 封面设计</p>
+                <div class="feature-meta">
+                    <span>AI 设计</span>
+                    <span class="feature-arrow">→</span>
+                </div>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-icon cyan">🍅</div>
+                <h3 class="feature-title">番茄上传</h3>
+                <p class="feature-desc">一键上传小说到番茄小说平台</p>
+                <div class="feature-meta">
+                    <span>自动发布</span>
+                    <span class="feature-arrow">→</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 创作表单 -->
+        <div class="section-header">
+            <div class="section-label">New Creation</div>
+            <h2 class="section-title">开始新的创作</h2>
+        </div>
+        
+        <div class="creation-section">
+            <div class="tabs">
+                <button class="tab active">📝 从空白开始</button>
+                <button class="tab">💡 从创意库</button>
+                <button class="tab">📋 从模板</button>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">小说标题</label>
+                <input type="text" class="form-input" placeholder="输入小说标题">
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">小说简介</label>
+                <textarea class="form-input" placeholder="简要描述小说的故事梗概..."></textarea>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">总章节数</label>
+                    <input type="text" class="form-input" value="200 章">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">本次生成章节</label>
+                    <input type="text" class="form-input" value="5 章">
+                </div>
+            </div>
+            
+            <div class="cost-card">
+                <div class="cost-header">
+                    <div class="cost-info">
+                        <div class="cost-item">
+                            <span class="cost-label">💰 预计消耗:</span>
+                            <span class="cost-value primary">10 创造点</span>
+                        </div>
+                        <div class="cost-item">
+                            <span class="cost-label">当前余额:</span>
+                            <span class="cost-value">88 点</span>
+                        </div>
+                    </div>
+                </div>
+                <button class="submit-btn">🚀 开始生成</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 页脚 -->
+    <footer class="footer">
+        © 2024 大文娱系统 v2.0
+    </footer>
+</body>
+</html>
