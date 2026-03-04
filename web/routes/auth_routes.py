@@ -139,23 +139,46 @@ def register_page_routes(app):
     
     @app.route('/landing', methods=['GET'])
     def landing():
-        """大文娱系统首页"""
-        logger.info("📄 Loading landing.html")
-        return render_template('landing.html')
+        """大文娱系统首页 - 默认 V2 UI，支持切换回 V1"""
+        # 检查是否请求 V1 版本（V2 为默认）
+        ui_version = request.args.get('ui', '').lower()
+        if ui_version == 'v1':
+            logger.info("📄 Loading landing.html (V1 UI)")
+            return render_template('landing.html')
+        
+        logger.info("📄 Loading landing-v2.html (V2 UI - 默认)")
+        return render_template('pages/v2/landing-v2.html')
+    
+    @app.route('/landing-v2-test', methods=['GET'])
+    def landing_v2_test():
+        """V2 UI 测试页面"""
+        return render_template('landing-v2-test.html')
     
     @app.route('/', methods=['GET'])
     @login_required
     def index():
-        """小说创意生成入口"""
-        logger.info(f"📄 Loading index.html from template folder: {app.template_folder}")
-        return render_template('index.html')
+        """小说创意生成入口 - 默认 V2 UI"""
+        # 检查是否请求 V1 版本（V2 为默认）
+        ui_version = request.args.get('ui', '').lower()
+        if ui_version == 'v1':
+            logger.info("📄 Loading index.html (V1 UI)")
+            return render_template('index.html')
+        
+        logger.info("📄 Loading index-v2.html (V2 UI - 默认)")
+        return render_template('pages/v2/index-v2.html')
     
     @app.route('/home', methods=['GET'])
     def home():
-        """首页 - 根据登录状态决定跳转"""
+        """首页 - 默认 V2 UI，支持切换回 V1"""
         if session.get('logged_in'):
-            logger.info("📄 User logged in, loading index.html")
-            return render_template('index.html')
+            # 检查是否请求 V1 版本（V2 为默认）
+            ui_version = request.args.get('ui', '').lower()
+            if ui_version == 'v1':
+                logger.info("📄 Loading index.html (V1 UI)")
+                return render_template('index.html')
+            
+            logger.info("📄 Loading index-v2.html (V2 UI - 默认)")
+            return render_template('pages/v2/index-v2.html')
         else:
             logger.info("📄 User not logged in, redirecting to login")
             return redirect(url_for('login'))

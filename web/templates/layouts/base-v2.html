@@ -1,0 +1,53 @@
+{#
+    大文娱系统 V2 基础模板
+#}
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}大文娱系统{% endblock %}</title>
+    
+    <!-- V2 设计系统 CSS -->
+    <link rel="stylesheet" href="/static/css/v2/design-system.css">
+    <link rel="stylesheet" href="/static/css/v2/components.css">
+    <link rel="stylesheet" href="/static/css/v2/layouts.css">
+    
+    {% block extra_css %}{% endblock %}
+</head>
+<body class="v2-body">
+    
+    <!-- 导航栏 -->
+    {% include 'components/v2/navbar.html' %}
+    
+    <!-- Flash 消息 -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <div class="v2-flash-container">
+            {% for category, message in messages %}
+                <div class="v2-flash v2-flash--{{ category }}">
+                    <span>{{ message }}</span>
+                    <button class="v2-flash__close" onclick="this.parentElement.remove()">&times;</button>
+                </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    {% endwith %}
+    
+    <!-- 主内容 -->
+    <main class="v2-main">
+        {% block content %}{% endblock %}
+    </main>
+    
+    <!-- 页脚 -->
+    {% include 'components/v2/footer.html' %}
+    
+    <!-- UI版本切换器 -->
+    <div class="v2-version-switcher" title="切换UI版本">
+        <a href="?ui=v1" class="v2-version-switcher__link">V1</a>
+        <span class="v2-version-switcher__current">V2</span>
+    </div>
+    
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

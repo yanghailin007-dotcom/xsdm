@@ -120,6 +120,121 @@
             box-shadow: 0 4px 16px rgba(99, 102, 241, 0.4);
         }
 
+        /* ===== 用户菜单 ===== */
+        .user-menu {
+            position: relative;
+            margin-left: 8px;
+        }
+
+        .user-trigger {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 6px 12px 6px 6px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-default);
+            border-radius: 24px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .user-trigger:hover {
+            background: var(--bg-elevated);
+            border-color: var(--border-hover);
+        }
+
+        .user-avatar {
+            width: 28px;
+            height: 28px;
+            background: linear-gradient(135deg, var(--primary-500), var(--accent-purple));
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+        }
+
+        .user-name {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .user-arrow {
+            font-size: 12px;
+            color: var(--text-tertiary);
+            transition: transform 0.2s;
+        }
+
+        .user-menu.active .user-arrow {
+            transform: rotate(180deg);
+        }
+
+        .user-dropdown {
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            width: 200px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-default);
+            border-radius: 12px;
+            padding: 8px;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-8px);
+            transition: all 0.2s;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        .user-menu.active .user-dropdown {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .dropdown-header {
+            padding: 12px;
+            border-bottom: 1px solid var(--border-subtle);
+            margin-bottom: 8px;
+        }
+
+        .dropdown-email {
+            font-size: 12px;
+            color: var(--text-tertiary);
+            margin-top: 4px;
+        }
+
+        .dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 12px;
+            border-radius: 8px;
+            font-size: 14px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .dropdown-item:hover {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+        }
+
+        .dropdown-divider {
+            height: 1px;
+            background: var(--border-subtle);
+            margin: 8px 0;
+        }
+
+        .dropdown-item.logout {
+            color: var(--error);
+        }
+
+        .dropdown-item.logout:hover {
+            background: rgba(239, 68, 68, 0.1);
+        }
+
         /* ===== Hero 区域 ===== */
         .hero {
             position: relative;
@@ -655,6 +770,48 @@
             <button class="nav-btn">番茄签约</button>
             <button class="nav-btn">仪表板</button>
             <button class="nav-btn nav-btn-primary">🚀 开始创作</button>
+            
+            <!-- 用户菜单 -->
+            <div class="user-menu" id="userMenu">
+                <div class="user-trigger" onclick="toggleUserMenu()">
+                    <div class="user-avatar">👤</div>
+                    <span class="user-name">创作者</span>
+                    <span class="user-arrow">▼</span>
+                </div>
+                <div class="user-dropdown">
+                    <div class="dropdown-header">
+                        <div class="user-name">创作者</div>
+                        <div class="dropdown-email">creator@example.com</div>
+                    </div>
+                    <div class="dropdown-item">
+                        <span>📊</span>
+                        <span>仪表板</span>
+                    </div>
+                    <div class="dropdown-item">
+                        <span>👤</span>
+                        <span>账户设置</span>
+                    </div>
+                    <div class="dropdown-item">
+                        <span>💰</span>
+                        <span>余额管理</span>
+                        <span style="margin-left: auto; color: var(--primary-500); font-weight: 600;">88 点</span>
+                    </div>
+                    <div class="dropdown-divider"></div>
+                    <div class="dropdown-item">
+                        <span>📚</span>
+                        <span>使用教程</span>
+                    </div>
+                    <div class="dropdown-item">
+                        <span>❓</span>
+                        <span>帮助中心</span>
+                    </div>
+                    <div class="dropdown-divider"></div>
+                    <div class="dropdown-item logout">
+                        <span>🚪</span>
+                        <span>退出登录</span>
+                    </div>
+                </div>
+            </div>
         </div>
     </nav>
 
@@ -819,5 +976,20 @@
     <footer class="footer">
         © 2024 大文娱系统 v2.0
     </footer>
+    <script>
+        // 用户菜单切换
+        function toggleUserMenu() {
+            const menu = document.getElementById('userMenu');
+            menu.classList.toggle('active');
+        }
+
+        // 点击外部关闭菜单
+        document.addEventListener('click', function(e) {
+            const menu = document.getElementById('userMenu');
+            if (!menu.contains(e.target)) {
+                menu.classList.remove('active');
+            }
+        });
+    </script>
 </body>
 </html>

@@ -1,0 +1,166 @@
+{#
+    Landing 页面 V2 - 使用新设计系统
+    访问地址: /landing?ui=v2
+#}
+{% extends "layouts/base-v2.html" %}
+
+{% block hide_navbar %}{{ false }}{% endblock %}
+{% block hide_footer %}{{ false }}{% endblock %}
+
+{% block title %}大文娱系统 - AI 创作平台{% endblock %}
+
+{% block content %}
+<!-- Hero 区域 -->
+<section class="v2-hero">
+    <div class="v2-hero__glow"></div>
+    
+    <div class="v2-hero__content">
+        <!-- Logo - 创意火花 -->
+        <div class="v2-hero__logo">
+            <div class="v2-hero__logo-inner">
+                <svg class="v2-logo-svg" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <!-- 外圈光环 -->
+                    <circle cx="50" cy="50" r="45" stroke="white" stroke-width="2" stroke-opacity="0.3"/>
+                    <circle cx="50" cy="50" r="35" stroke="white" stroke-width="1.5" stroke-opacity="0.5"/>
+                    
+                    <!-- 四角星主体 -->
+                    <path d="M50 5 L55 40 L95 50 L55 60 L50 95 L45 60 L5 50 L45 40 Z" fill="white"/>
+                    
+                    <!-- 中心圆点 -->
+                    <circle cx="50" cy="50" r="12" fill="url(#logoGradient)"/>
+                    
+                    <!-- 小装饰点 -->
+                    <circle cx="50" cy="18" r="3" fill="white"/>
+                    <circle cx="50" cy="82" r="3" fill="white"/>
+                    <circle cx="18" cy="50" r="3" fill="white"/>
+                    <circle cx="82" cy="50" r="3" fill="white"/>
+                    
+                    <!-- 渐变定义 -->
+                    <defs>
+                        <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" style="stop-color:#6366f1"/>
+                            <stop offset="100%" style="stop-color:#8b5cf6"/>
+                        </linearGradient>
+                    </defs>
+                </svg>
+            </div>
+        </div>
+        
+        <!-- Badge -->
+        <div class="v2-hero__badge">
+            <span class="v2-hero__badge-dot"></span>
+            <span>AI 驱动的创作平台</span>
+        </div>
+        
+        <!-- 标题 -->
+        <h1 class="v2-hero__title">
+            <span class="v2-gradient-text">用 AI 将创意变成作品</span>
+        </h1>
+        
+        <p class="v2-hero__subtitle">小说 · 视频 · 动漫 · 一站式创作体验</p>
+        
+        <p class="v2-hero__description">
+            大文娱系统提供全流程 AI 辅助创作工具，从创意构思到成品输出，让创作变得简单高效
+        </p>
+        
+        <!-- CTA 按钮 -->
+        <div class="v2-hero__actions">
+            <a href="/login" class="v2-btn v2-btn--primary v2-btn--lg">
+                <span>🚀</span>
+                <span>开始创作</span>
+            </a>
+            <a href="#features" class="v2-btn v2-btn--secondary v2-btn--lg">
+                <span>📖</span>
+                <span>了解更多</span>
+            </a>
+        </div>
+        
+        <!-- 统计数据 -->
+        <div class="v2-hero__stats">
+            <div class="v2-hero-stat">
+                <div class="v2-hero-stat__value">10+</div>
+                <div class="v2-hero-stat__label">创作工具</div>
+            </div>
+            <div class="v2-hero-stat">
+                <div class="v2-hero-stat__value">AI</div>
+                <div class="v2-hero-stat__label">全流程辅助</div>
+            </div>
+            <div class="v2-hero-stat">
+                <div class="v2-hero-stat__value">1</div>
+                <div class="v2-hero-stat__label">站式平台</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- 功能区域 -->
+<section class="v2-features" id="features">
+    <div class="v2-section-header">
+        <div class="v2-section__label">Quick Start</div>
+        <h2 class="v2-section__title">选择创作入口</h2>
+    </div>
+    
+    <div class="v2-features__grid v2-features__grid--2col">
+        <!-- 小说创作 -->
+        <a href="/" class="v2-card v2-card--gradient">
+            <div class="v2-card__icon v2-card__icon--purple">📖</div>
+            <h3 class="v2-card__title">小说创作</h3>
+            <p class="v2-card__desc">
+                AI 驱动的智能小说生成系统，从设定到内容，全程智能辅助创作。支持两阶段生成、世界观构建。
+            </p>
+            <div class="v2-card__footer">
+                <span style="color: var(--v2-text-tertiary);">两阶段生成 · 智能世界观</span>
+                <span class="v2-card__link">
+                    进入
+                    <span>→</span>
+                </span>
+            </div>
+        </a>
+        
+        <!-- 视频制作 -->
+        <a href="/video" class="v2-card v2-card--gradient">
+            <div class="v2-card__icon v2-card__icon--pink">🎬</div>
+            <h3 class="v2-card__title">视频制作</h3>
+            <p class="v2-card__desc">
+                多模式视频生成系统，短片·剧集·短视频，AI 一键转换。支持文本生成、图像生成、视频编辑。
+            </p>
+            <div class="v2-card__footer">
+                <span style="color: var(--v2-text-tertiary);">多模式生成 · 自动剪辑</span>
+                <span class="v2-card__link">
+                    进入
+                    <span>→</span>
+                </span>
+            </div>
+        </a>
+    </div>
+</section>
+
+<!-- 特性展示 -->
+<section class="v2-section v2-section--alt">
+    <div class="v2-section__content">
+        <div class="v2-section-header">
+            <div class="v2-section__label">Features</div>
+            <h2 class="v2-section__title">为什么选择大文娱</h2>
+        </div>
+        
+        <div class="v2-features__grid">
+            <div class="v2-stat-card">
+                <div class="v2-stat__value">⚡</div>
+                <div class="v2-stat__label">高效创作</div>
+            </div>
+            <div class="v2-stat-card">
+                <div class="v2-stat__value">🎯</div>
+                <div class="v2-stat__label">精准生成</div>
+            </div>
+            <div class="v2-stat-card">
+                <div class="v2-stat__value">🔒</div>
+                <div class="v2-stat__label">数据安全</div>
+            </div>
+            <div class="v2-stat-card">
+                <div class="v2-stat__value">🌟</div>
+                <div class="v2-stat__label">持续更新</div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

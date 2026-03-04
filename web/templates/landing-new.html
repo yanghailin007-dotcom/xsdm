@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>大文娱系统 - AI 创作平台</title>
+    <style>
+        /* ===== 设计系统变量 ===== */
+        :root {
+            --primary-500: #6366f1;
+            --primary-600: #4f46e5;
+            --accent-purple: #8b5cf6;
+            --accent-pink: #ec4899;
+            
+            --bg-primary: #0a0a0a;
+            --bg-secondary: #111111;
+            --bg-tertiary: #1a1a1a;
+            --bg-elevated: #161616;
+            
+            --border-subtle: rgba(255, 255, 255, 0.06);
+            --border-default: rgba(255, 255, 255, 0.1);
+            --border-hover: rgba(255, 255, 255, 0.15);
+            --border-glow: rgba(99, 102, 241, 0.4);
+            
+            --text-primary: #fafafa;
+            --text-secondary: #a1a1aa;
+            --text-tertiary: #71717a;
+            --text-muted: #52525b;
+            
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --error: #ef4444;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        /* ===== 导航栏 ===== */
+        .navbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 64px;
+            background: rgba(10, 10, 10, 0.8);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border-subtle);
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+        }
+
+        .navbar-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 600;
+            font-size: 18px;
+        }
+
+        .navbar-brand .logo {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, var(--primary-500), var(--accent-purple));
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+
+        .navbar-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .nav-btn {
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .nav-btn:hover {
+            color: var(--text-primary);
+            background: var(--bg-tertiary);
+        }
+
+        .nav-btn-primary {
+            background: linear-gradient(135deg, var(--primary-500), var(--primary-600));
+            color: white;
+        }
+
+        .nav-btn-primary:hover {
+            box-shadow: 0 4px 16px rgba(99, 102, 241, 0.4);
+        }
+
+        /* ===== Hero 区域 ===== */
+        .hero {
+            position: relative;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 140px 24px 80px;
+            text-align: center;
+            overflow: hidden;
+        }
+
+        /* 微光背景 */
+        .hero-glow {
+            position: absolute;
+            inset: 0;
+            background: 
+                radial-gradient(
+                    ellipse 80% 50% at 50% -20%,
+                    rgba(99, 102, 241, 0.15),
+                    transparent
+                ),
+                radial-gradient(
+                    ellipse 60% 40% at 80% 30%,
+                    rgba(139, 92, 246, 0.08),
+                    transparent
+                ),
+                radial-gradient(
+                    ellipse 40% 30% at 20% 60%,
+                    rgba(236, 72, 153, 0.05),
+                    transparent
+                );
+            animation: pulse-glow 8s ease-in-out infinite;
+        }
+
+        @keyframes pulse-glow {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 1; }
+        }
+
+        .hero-content {
+            position: relative;
+            z-index: 1;
+            max-width: 900px;
+        }
+
+        /* 大 Logo - 立体方块 */
+        .hero-logo {
+            width: 100px;
+            height: 100px;
+            margin: 0 auto 32px;
+            position: relative;
+            animation: logo-float 6s ease-in-out infinite;
+        }
+
+        .hero-logo-inner {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, var(--primary-500), var(--accent-purple));
+            border-radius: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            box-shadow: 
+                0 20px 60px rgba(99, 102, 241, 0.3),
+                0 0 100px rgba(99, 102, 241, 0.15),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+        }
+
+        /* 立体方块图标 - 代表创作构建 */
+        .cube-stack {
+            width: 44px;
+            height: 44px;
+            position: relative;
+        }
+
+        .cube {
+            position: absolute;
+            background: white;
+            border-radius: 4px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        /* 底层大方块 */
+        .cube-1 {
+            width: 32px;
+            height: 32px;
+            bottom: 0;
+            left: 0;
+            opacity: 0.9;
+        }
+
+        /* 上层小方块 */
+        .cube-2 {
+            width: 20px;
+            height: 20px;
+            top: 0;
+            right: 0;
+            opacity: 0.6;
+        }
+
+        /* 中间过渡块 */
+        .cube-3 {
+            width: 16px;
+            height: 16px;
+            bottom: 8px;
+            right: 4px;
+            opacity: 0.4;
+        }
+
+        /* Logo 光晕 */
+        .hero-logo::before {
+            content: '';
+            position: absolute;
+            inset: -20px;
+            background: radial-gradient(
+                circle,
+                rgba(99, 102, 241, 0.3) 0%,
+                transparent 70%
+            );
+            animation: logo-glow 4s ease-in-out infinite;
+            z-index: -1;
+        }
+
+        @keyframes logo-float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-8px); }
+        }
+
+        @keyframes logo-glow {
+            0%, 100% { opacity: 0.5; transform: scale(1); }
+            50% { opacity: 0.8; transform: scale(1.1); }
+        }
+
+        /* 标签 */
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-default);
+            border-radius: 20px;
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-bottom: 24px;
+        }
+
+        .hero-badge .dot {
+            width: 6px;
+            height: 6px;
+            background: var(--success);
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* 标题 */
+        .hero-title {
+            font-size: clamp(2.5rem, 6vw, 4rem);
+            font-weight: 700;
+            line-height: 1.1;
+            margin-bottom: 16px;
+            letter-spacing: -0.02em;
+        }
+
+        .gradient-text {
+            background: linear-gradient(
+                135deg,
+                #fafafa 0%,
+                #a78bfa 50%,
+                #6366f1 100%
+            );
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        /* 副标题 */
+        .hero-subtitle {
+            font-size: 18px;
+            color: var(--text-secondary);
+            margin-bottom: 16px;
+            font-weight: 400;
+        }
+
+        .hero-description {
+            font-size: 16px;
+            color: var(--text-tertiary);
+            max-width: 500px;
+            margin: 0 auto 40px;
+            line-height: 1.8;
+        }
+
+        /* CTA 按钮 */
+        .hero-cta {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            margin-bottom: 60px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 14px 32px;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+            text-decoration: none;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary-500), var(--primary-600));
+            color: white;
+            box-shadow: 
+                0 0 0 1px rgba(255, 255, 255, 0.1) inset,
+                0 4px 20px rgba(99, 102, 241, 0.4);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 
+                0 0 0 1px rgba(255, 255, 255, 0.15) inset,
+                0 8px 30px rgba(99, 102, 241, 0.5);
+        }
+
+        .btn-secondary {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-default);
+        }
+
+        .btn-secondary:hover {
+            background: var(--bg-elevated);
+            border-color: var(--border-hover);
+        }
+
+        /* ===== 功能卡片区域 ===== */
+        .features-section {
+            width: 100%;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        .section-header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .section-label {
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--primary-500);
+            margin-bottom: 8px;
+        }
+
+        .section-title {
+            font-size: 28px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        /* 玻璃拟态卡片 */
+        .feature-card {
+            position: relative;
+            background: var(--bg-secondary);
+            border-radius: 16px;
+            padding: 32px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            overflow: hidden;
+            text-align: left;
+            border: 1px solid transparent;
+            background-clip: padding-box;
+            box-shadow: 
+                0 0 0 1px var(--border-subtle),
+                0 4px 24px rgba(0, 0, 0, 0.3);
+        }
+
+        .feature-card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: 16px;
+            padding: 1px;
+            background: linear-gradient(
+                135deg,
+                rgba(99, 102, 241, 0.3),
+                transparent 50%,
+                rgba(139, 92, 246, 0.2)
+            );
+            -webkit-mask: 
+                linear-gradient(#fff 0 0) content-box,
+                linear-gradient(#fff 0 0);
+            mask: 
+                linear-gradient(#fff 0 0) content-box,
+                linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor;
+            mask-composite: exclude;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .feature-card:hover::before {
+            opacity: 1;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 
+                0 0 0 1px var(--border-hover),
+                0 8px 32px rgba(99, 102, 241, 0.15);
+        }
+
+        .feature-icon {
+            width: 56px;
+            height: 56px;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            margin-bottom: 20px;
+        }
+
+        .feature-icon.purple {
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(99, 102, 241, 0.05));
+            box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.2);
+        }
+
+        .feature-icon.pink {
+            background: linear-gradient(135deg, rgba(236, 72, 153, 0.15), rgba(236, 72, 153, 0.05));
+            box-shadow: 0 0 0 1px rgba(236, 72, 153, 0.2);
+        }
+
+        .feature-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+        }
+
+        .feature-desc {
+            font-size: 14px;
+            color: var(--text-secondary);
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+
+        .feature-meta {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .feature-link {
+            color: var(--primary-500);
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            transition: gap 0.2s;
+        }
+
+        .feature-card:hover .feature-link {
+            gap: 8px;
+        }
+
+        .feature-arrow {
+            transition: transform 0.2s;
+        }
+
+        .feature-card:hover .feature-arrow {
+            transform: translateX(4px);
+        }
+
+        /* ===== 特性展示 ===== */
+        .highlights-section {
+            padding: 100px 24px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .highlights-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 24px;
+        }
+
+        .highlight-item {
+            text-align: center;
+            padding: 32px 24px;
+        }
+
+        .highlight-number {
+            font-size: 48px;
+            font-weight: 300;
+            background: linear-gradient(135deg, var(--primary-500), var(--accent-purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 8px;
+        }
+
+        .highlight-label {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        /* ===== 页脚 ===== */
+        .footer {
+            text-align: center;
+            padding: 40px 24px;
+            color: var(--text-muted);
+            font-size: 13px;
+            border-top: 1px solid var(--border-subtle);
+        }
+
+        .footer-links {
+            display: flex;
+            justify-content: center;
+            gap: 24px;
+            margin-bottom: 16px;
+        }
+
+        .footer-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .footer-links a:hover {
+            color: var(--text-primary);
+        }
+
+        /* ===== 响应式 ===== */
+        @media (max-width: 768px) {
+            .navbar {
+                padding: 0 16px;
+            }
+
+            .nav-btn:not(.nav-btn-primary) {
+                display: none;
+            }
+
+            .hero {
+                padding: 120px 20px 60px;
+            }
+
+            .hero-logo {
+                width: 80px;
+                height: 80px;
+                font-size: 36px;
+                border-radius: 20px;
+            }
+
+            .hero-cta {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .btn {
+                width: 100%;
+                max-width: 280px;
+                justify-content: center;
+            }
+
+            .features-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 导航栏 -->
+    <nav class="navbar">
+        <div class="navbar-brand">
+            <div class="logo">🎨</div>
+            <span>大文娱系统</span>
+        </div>
+        <div class="navbar-actions">
+            <button class="nav-btn" onclick="scrollToFeatures()">功能介绍</button>
+            <button class="nav-btn" onclick="showLogin()">登录</button>
+            <button class="nav-btn nav-btn-primary" onclick="showLogin()">免费开始</button>
+        </div>
+    </nav>
+
+    <!-- Hero 区域 -->
+    <section class="hero">
+        <div class="hero-glow"></div>
+        <div class="hero-content">
+            <div class="hero-logo">
+                <div class="hero-logo-inner">
+                    <div class="cube-stack">
+                        <div class="cube cube-1"></div>
+                        <div class="cube cube-2"></div>
+                        <div class="cube cube-3"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="hero-badge">
+                <span class="dot"></span>
+                AI 驱动的创作平台
+            </div>
+            
+            <h1 class="hero-title">
+                <span class="gradient-text">用 AI 将创意变成作品</span>
+            </h1>
+            
+            <p class="hero-subtitle">小说 · 视频 · 动漫 · 一站式创作体验</p>
+            
+            <p class="hero-description">
+                大文娱系统提供全流程 AI 辅助创作工具，从创意构思到成品输出，让创作变得简单高效
+            </p>
+            
+            <div class="hero-cta">
+                <a href="/login" class="btn btn-primary">
+                    <span>🚀</span>
+                    <span>开始创作</span>
+                </a>
+                <a href="#features" class="btn btn-secondary">
+                    <span>📖</span>
+                    <span>了解更多</span>
+                </a>
+            </div>
+
+            <!-- 功能卡片 -->
+            <div class="features-section" id="features">
+                <div class="section-header">
+                    <div class="section-label">Quick Start</div>
+                    <h2 class="section-title">选择创作入口</h2>
+                </div>
+                
+                <div class="features-grid">
+                    <div class="feature-card" onclick="enterNovel()">
+                        <div class="feature-icon purple">📖</div>
+                        <h3 class="feature-title">小说创作</h3>
+                        <p class="feature-desc">
+                            AI 驱动的智能小说生成系统，从设定到内容，全程智能辅助创作
+                        </p>
+                        <div class="feature-meta">
+                            <span style="color: var(--text-tertiary);">两阶段生成 · 智能世界观</span>
+                            <span class="feature-link">
+                                进入
+                                <span class="feature-arrow">→</span>
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <div class="feature-card" onclick="enterVideo()">
+                        <div class="feature-icon pink">🎬</div>
+                        <h3 class="feature-title">视频制作</h3>
+                        <p class="feature-desc">
+                            多模式视频生成系统，短片·剧集·短视频，AI 一键转换
+                        </p>
+                        <div class="feature-meta">
+                            <span style="color: var(--text-tertiary);">多模式生成 · 自动剪辑</span>
+                            <span class="feature-link">
+                                进入
+                                <span class="feature-arrow">→</span>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 数据亮点 -->
+    <section class="highlights-section">
+        <div class="highlights-grid">
+            <div class="highlight-item">
+                <div class="highlight-number">10+</div>
+                <div class="highlight-label">创作工具</div>
+            </div>
+            <div class="highlight-item">
+                <div class="highlight-number">AI</div>
+                <div class="highlight-label">全流程辅助</div>
+            </div>
+            <div class="highlight-item">
+                <div class="highlight-number">1</div>
+                <div class="highlight-label">站式平台</div>
+            </div>
+            <div class="highlight-item">
+                <div class="highlight-number">∞</div>
+                <div class="highlight-label">创意可能</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 页脚 -->
+    <footer class="footer">
+        <div class="footer-links">
+            <a href="/login">登录系统</a>
+            <a href="#">使用条款</a>
+            <a href="#">隐私政策</a>
+            <a href="#">联系我们</a>
+        </div>
+        <p>© 2024 大文娱系统 - AI 创作平台</p>
+    </footer>
+
+    <script>
+        function scrollToFeatures() {
+            document.getElementById('features').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function showLogin() {
+            window.location.href = '/login';
+        }
+
+        function enterNovel() {
+            window.location.href = '/login';
+        }
+
+        function enterVideo() {
+            window.location.href = '/login';
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,69 @@
+{#
+    用户下拉菜单组件 (V2)
+    使用 session 获取用户信息
+#}
+<div class="v2-user-menu" id="userMenu">
+    <div class="v2-user-menu__trigger" onclick="toggleUserMenu()">
+        <div class="v2-user-menu__avatar">
+            {{ session.username[:1]|upper if session.username else '👤' }}
+        </div>
+        <span class="v2-user-menu__name">{{ session.username or '用户' }}</span>
+        <span class="v2-user-menu__arrow">▼</span>
+    </div>
+    
+    <div class="v2-user-menu__dropdown">
+        <div class="v2-dropdown__header">
+            <div class="v2-dropdown__name">{{ session.username or '用户' }}</div>
+            <div class="v2-dropdown__email">{{ session.username + '@example.com' if session.username else 'user@example.com' }}</div>
+        </div>
+        
+        <a href="/dashboard" class="v2-dropdown__item">
+            <span>📊</span>
+            <span>仪表板</span>
+        </a>
+        
+        <a href="/account" class="v2-dropdown__item">
+            <span>👤</span>
+            <span>账户设置</span>
+        </a>
+        
+        <a href="/points" class="v2-dropdown__item">
+            <span>💰</span>
+            <span>余额管理</span>
+            <span style="margin-left: auto; color: var(--v2-primary-500); font-weight: 600;">88 点</span>
+        </a>
+        
+        <div class="v2-dropdown__divider"></div>
+        
+        <a href="/help" class="v2-dropdown__item">
+            <span>📚</span>
+            <span>使用教程</span>
+        </a>
+        
+        <a href="/settings" class="v2-dropdown__item">
+            <span>⚙️</span>
+            <span>偏好设置</span>
+        </a>
+        
+        <div class="v2-dropdown__divider"></div>
+        
+        <a href="/logout" class="v2-dropdown__item v2-dropdown__item--danger">
+            <span>🚪</span>
+            <span>退出登录</span>
+        </a>
+    </div>
+</div>
+
+<script>
+function toggleUserMenu() {
+    document.getElementById('userMenu').classList.toggle('active');
+}
+
+// 点击外部关闭菜单
+document.addEventListener('click', function(e) {
+    const menu = document.getElementById('userMenu');
+    if (menu && !menu.contains(e.target)) {
+        menu.classList.remove('active');
+    }
+});
+</script>
