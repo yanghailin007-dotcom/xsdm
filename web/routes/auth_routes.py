@@ -110,7 +110,12 @@ def register_auth_routes(app):
         # GET 请求 - 显示登录页面
         if 'logged_in' in session and session['logged_in']:
             return redirect('/landing')
-        return render_template('login.html')
+        
+        # V2 版本切换支持
+        ui_version = request.args.get('ui', '').lower()
+        if ui_version == 'v1':
+            return render_template('login.html')
+        return render_template('pages/v2/login-v2.html')
 
     @app.route('/logout', methods=['GET', 'POST'])
     def logout():

@@ -1,0 +1,610 @@
+{#
+    大文娱系统 V2 - 登录页
+    继承 base-v2.html 但隐藏导航栏，实现全屏登录效果
+#}
+{% extends "layouts/base-v2.html" %}
+
+{% block title %}登录 - 大文娱创作平台{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ==================== V2 登录页样式 ==================== */
+/* 隐藏导航栏和页脚，实现全屏登录 */
+.v2-navbar,
+.v2-footer,
+.v2-version-switcher {
+    display: none !important;
+}
+
+.v2-main {
+    padding: 0 !important;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* 登录页面容器 */
+.v2-login-page {
+    width: 100%;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-6);
+    position: relative;
+    overflow: hidden;
+    background: 
+        radial-gradient(ellipse at top, var(--v2-gray-800) 0%, var(--v2-gray-900) 100%);
+}
+
+/* 动态背景效果 */
+.v2-login-page::before {
+    content: '';
+    position: fixed;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: 
+        radial-gradient(circle at 30% 30%, rgba(99, 102, 241, 0.15) 0%, transparent 40%),
+        radial-gradient(circle at 70% 70%, rgba(6, 182, 212, 0.15) 0%, transparent 40%),
+        radial-gradient(circle at 50% 50%, rgba(168, 85, 247, 0.1) 0%, transparent 50%);
+    animation: v2-rotate 30s linear infinite;
+    z-index: 0;
+    pointer-events: none;
+}
+
+/* 星星背景 */
+.v2-login-page::after {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image: 
+        radial-gradient(2px 2px at 20px 30px, rgba(255,255,255,0.6), transparent),
+        radial-gradient(2px 2px at 40px 70px, rgba(255,255,255,0.4), transparent),
+        radial-gradient(1px 1px at 90px 40px, rgba(255,255,255,0.5), transparent),
+        radial-gradient(2px 2px at 130px 80px, rgba(255,255,255,0.3), transparent);
+    background-repeat: repeat;
+    background-size: 200px 200px;
+    animation: v2-twinkle 8s infinite linear;
+    z-index: 0;
+    pointer-events: none;
+    opacity: 0.6;
+}
+
+@keyframes v2-rotate {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+@keyframes v2-twinkle {
+    0%, 100% { opacity: 0.6; }
+    50% { opacity: 0.3; }
+}
+
+/* 登录容器 */
+.v2-login-container {
+    width: 100%;
+    max-width: 420px;
+    position: relative;
+    z-index: 10;
+    animation: v2-fade-in-up 0.6s ease-out;
+}
+
+@keyframes v2-fade-in-up {
+    from { 
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to { 
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* 登录卡片 */
+.v2-login-card {
+    background: rgba(30, 41, 59, 0.7);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: var(--v2-radius-2xl);
+    padding: var(--space-10);
+    position: relative;
+    overflow: hidden;
+    box-shadow: 
+        0 25px 50px -12px rgba(0, 0, 0, 0.5),
+        0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+.v2-login-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+}
+
+/* 装饰发光 */
+.v2-login-glow {
+    position: absolute;
+    width: 200px;
+    height: 200px;
+    border-radius: 50%;
+    filter: blur(80px);
+    opacity: 0.3;
+    pointer-events: none;
+}
+
+.v2-login-glow--1 {
+    top: -100px;
+    right: -100px;
+    background: var(--v2-primary-500);
+}
+
+.v2-login-glow--2 {
+    bottom: -100px;
+    left: -100px;
+    background: var(--v2-accent-500);
+}
+
+/* 头部 */
+.v2-login-header {
+    text-align: center;
+    margin-bottom: var(--space-8);
+    position: relative;
+    z-index: 1;
+}
+
+.v2-login-logo {
+    width: 80px;
+    height: 80px;
+    background: linear-gradient(135deg, var(--v2-primary-500) 0%, var(--v2-purple-500) 50%, var(--v2-accent-500) 100%);
+    border-radius: var(--v2-radius-xl);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 40px;
+    margin: 0 auto var(--space-6);
+    box-shadow: 0 10px 40px rgba(99, 102, 241, 0.4);
+    animation: v2-float 3s ease-in-out infinite;
+}
+
+@keyframes v2-float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+}
+
+.v2-login-title {
+    font-size: var(--v2-text-2xl);
+    font-weight: 800;
+    margin-bottom: var(--space-2);
+    background: linear-gradient(135deg, var(--v2-primary-400) 0%, var(--v2-purple-400) 50%, var(--v2-accent-400) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.v2-login-subtitle {
+    font-size: var(--v2-text-sm);
+    color: var(--v2-gray-400);
+}
+
+/* 表单样式 - 使用 V2 设计系统 */
+.v2-login-form {
+    position: relative;
+    z-index: 1;
+}
+
+.v2-form-group {
+    margin-bottom: var(--space-5);
+}
+
+.v2-form-label {
+    display: block;
+    margin-bottom: var(--space-2);
+    font-size: var(--v2-text-sm);
+    font-weight: 500;
+    color: var(--v2-gray-300);
+}
+
+.v2-input-wrapper {
+    position: relative;
+}
+
+.v2-input-icon {
+    position: absolute;
+    left: var(--space-4);
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 18px;
+    color: var(--v2-gray-500);
+    pointer-events: none;
+    transition: color var(--v2-transition-fast);
+}
+
+.v2-form-input {
+    width: 100%;
+    padding: var(--space-3) var(--space-4) var(--space-3) var(--space-12);
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: var(--v2-radius-lg);
+    color: var(--v2-gray-100);
+    font-size: var(--v2-text-sm);
+    transition: all var(--v2-transition-fast);
+}
+
+.v2-form-input::placeholder {
+    color: var(--v2-gray-500);
+}
+
+.v2-form-input:focus {
+    outline: none;
+    border-color: var(--v2-primary-500);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.v2-form-input:focus + .v2-input-icon {
+    color: var(--v2-primary-400);
+}
+
+/* 记住我和忘记密码 */
+.v2-form-options {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--space-6);
+}
+
+.v2-checkbox-wrapper {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    cursor: pointer;
+}
+
+.v2-checkbox-wrapper input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--v2-primary-500);
+    cursor: pointer;
+}
+
+.v2-checkbox-label {
+    font-size: var(--v2-text-sm);
+    color: var(--v2-gray-300);
+}
+
+.v2-forgot-link {
+    font-size: var(--v2-text-sm);
+    color: var(--v2-primary-400);
+    text-decoration: none;
+    transition: color var(--v2-transition-fast);
+}
+
+.v2-forgot-link:hover {
+    color: var(--v2-primary-300);
+}
+
+/* 登录按钮 - 使用 V2 主按钮样式 */
+.v2-login-btn {
+    width: 100%;
+    padding: var(--space-4);
+    font-size: var(--v2-text-base);
+    font-weight: 600;
+    background: linear-gradient(135deg, var(--v2-primary-500) 0%, var(--v2-purple-500) 50%, var(--v2-accent-500) 100%);
+    color: white;
+    border: none;
+    border-radius: var(--v2-radius-lg);
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    transition: all var(--v2-transition-fast);
+    box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+    margin-bottom: var(--space-6);
+}
+
+.v2-login-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    transition: left 0.5s;
+}
+
+.v2-login-btn:hover::before {
+    left: 100%;
+}
+
+.v2-login-btn:hover {
+    box-shadow: 0 10px 30px rgba(99, 102, 241, 0.5);
+    transform: translateY(-2px);
+}
+
+.v2-login-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* 加载动画 */
+.v2-loading-spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: v2-spin 0.8s linear infinite;
+    display: inline-block;
+    margin-left: var(--space-2);
+    vertical-align: middle;
+}
+
+@keyframes v2-spin {
+    to { transform: rotate(360deg); }
+}
+
+/* 注册链接 */
+.v2-register-prompt {
+    text-align: center;
+    font-size: var(--v2-text-sm);
+    color: var(--v2-gray-300);
+}
+
+.v2-register-link {
+    color: var(--v2-primary-400);
+    text-decoration: none;
+    font-weight: 600;
+    transition: color var(--v2-transition-fast);
+}
+
+.v2-register-link:hover {
+    color: var(--v2-primary-300);
+}
+
+/* 错误提示 */
+.v2-alert {
+    display: none;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-3) var(--space-4);
+    border-radius: var(--v2-radius-lg);
+    margin-bottom: var(--space-5);
+    font-size: var(--v2-text-sm);
+    animation: v2-shake 0.5s ease-out;
+}
+
+.v2-alert--show {
+    display: flex;
+}
+
+.v2-alert--error {
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    color: #f87171;
+}
+
+@keyframes v2-shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-5px); }
+    75% { transform: translateX(5px); }
+}
+
+/* 页脚 */
+.v2-login-footer {
+    text-align: center;
+    margin-top: var(--space-8);
+    font-size: var(--v2-text-xs);
+    color: var(--v2-gray-500);
+}
+
+/* 响应式 */
+@media (max-width: 480px) {
+    .v2-login-page {
+        padding: var(--space-4);
+    }
+    
+    .v2-login-card {
+        padding: var(--space-6);
+    }
+    
+    .v2-form-options {
+        flex-direction: column;
+        gap: var(--space-3);
+        align-items: flex-start;
+    }
+}
+
+/* 演示账户按钮 */
+.v2-demo-accounts {
+    display: flex;
+    gap: var(--space-2);
+    justify-content: center;
+    margin-top: var(--space-4);
+}
+
+.v2-demo-btn {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--v2-gray-400);
+    padding: var(--space-1) var(--space-3);
+    border-radius: var(--v2-radius);
+    font-size: var(--v2-text-xs);
+    cursor: pointer;
+    transition: all var(--v2-transition-fast);
+}
+
+.v2-demo-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: var(--v2-primary-500);
+    color: var(--v2-primary-400);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="v2-login-page">
+    <div class="v2-login-container">
+        <div class="v2-login-card">
+            <!-- 装饰发光 -->
+            <div class="v2-login-glow v2-login-glow--1"></div>
+            <div class="v2-login-glow v2-login-glow--2"></div>
+
+            <!-- 头部 -->
+            <div class="v2-login-header">
+                <div class="v2-login-logo">🎨</div>
+                <h1 class="v2-login-title">大文娱创作平台</h1>
+                <p class="v2-login-subtitle">AI驱动的全能娱乐创作系统</p>
+            </div>
+
+            <!-- 错误提示（默认隐藏） -->
+            <div id="errorAlert" class="v2-alert v2-alert--error">
+                <span>⚠️</span>
+                <span id="errorMessage">用户名或密码错误</span>
+            </div>
+
+            <!-- 登录表单 -->
+            <form class="v2-login-form" id="loginForm">
+                <div class="v2-form-group">
+                    <label class="v2-form-label">用户名</label>
+                    <div class="v2-input-wrapper">
+                        <input type="text" id="username" class="v2-form-input" placeholder="请输入用户名" required autocomplete="username">
+                        <span class="v2-input-icon">👤</span>
+                    </div>
+                </div>
+
+                <div class="v2-form-group">
+                    <label class="v2-form-label">密码</label>
+                    <div class="v2-input-wrapper">
+                        <input type="password" id="password" class="v2-form-input" placeholder="请输入密码" required autocomplete="current-password">
+                        <span class="v2-input-icon">🔒</span>
+                    </div>
+                </div>
+
+                <div class="v2-form-options">
+                    <label class="v2-checkbox-wrapper">
+                        <input type="checkbox" id="remember">
+                        <span class="v2-checkbox-label">记住我</span>
+                    </label>
+                    <a href="#" class="v2-forgot-link">忘记密码？</a>
+                </div>
+
+                <button type="submit" class="v2-login-btn" id="loginBtn">
+                    <span>登录</span>
+                    <div id="loadingSpinner" class="v2-loading-spinner" style="display: none;"></div>
+                </button>
+            </form>
+
+            <!-- 注册 -->
+            <div class="v2-register-prompt">
+                还没有账户？<a href="/register" class="v2-register-link">立即注册</a>
+            </div>
+            
+            <!-- 演示账户 -->
+            <div class="v2-demo-accounts">
+                <button type="button" class="v2-demo-btn" onclick="fillDemo('test', 'test123')">测试账户</button>
+            </div>
+        </div>
+
+        <!-- 页脚 -->
+        <div class="v2-login-footer">
+            <p>&copy; 2024 大文娱系统 | 版本 2.0</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // ==================== 登录功能 ====================
+    
+    // 清理浏览器缓存（强制刷新）
+    (function() {
+        // 如果URL没有t参数，添加时间戳强制刷新
+        if (!window.location.search.includes('t=')) {
+            const url = new URL(window.location.href);
+            url.searchParams.set('t', Date.now());
+            window.history.replaceState({}, '', url);
+        }
+    })();
+    
+    // 填充演示账户
+    function fillDemo(username, password) {
+        document.getElementById('username').value = username;
+        document.getElementById('password').value = password;
+        document.getElementById('username').focus();
+    }
+
+    // 表单提交
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const username = document.getElementById('username').value.trim();
+        const password = document.getElementById('password').value;
+        const loginBtn = document.getElementById('loginBtn');
+        const spinner = document.getElementById('loadingSpinner');
+        const errorAlert = document.getElementById('errorAlert');
+        
+        // 隐藏错误提示
+        errorAlert.classList.remove('v2-alert--show');
+        
+        // 显示加载状态
+        loginBtn.disabled = true;
+        spinner.style.display = 'inline-block';
+        
+        try {
+            const response = await fetch('/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ username, password })
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                // 成功动画
+                loginBtn.innerHTML = '<span>✓ 登录成功</span>';
+                loginBtn.style.background = 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)';
+                
+                setTimeout(() => {
+                    window.location.href = data.redirect || '/landing';
+                }, 500);
+            } else {
+                const data = await response.json();
+                throw new Error(data.error || '登录失败');
+            }
+        } catch (error) {
+            // 显示错误
+            document.getElementById('errorMessage').textContent = error.message;
+            errorAlert.classList.add('v2-alert--show');
+            
+            // 重置按钮
+            loginBtn.disabled = false;
+            spinner.style.display = 'none';
+        }
+    });
+
+    // 输入时清除错误
+    document.getElementById('username').addEventListener('input', () => {
+        document.getElementById('errorAlert').classList.remove('v2-alert--show');
+    });
+    document.getElementById('password').addEventListener('input', () => {
+        document.getElementById('errorAlert').classList.remove('v2-alert--show');
+    });
+
+    // 页面加载完成后聚焦到用户名
+    document.addEventListener('DOMContentLoaded', () => {
+        document.getElementById('username').focus();
+    });
+</script>
+{% endblock %}
