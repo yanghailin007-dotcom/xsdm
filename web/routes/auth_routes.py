@@ -77,33 +77,7 @@ def register_auth_routes(app):
                 session.permanent = True
                 logger.info(f"✅ 用户登录成功: {username} (ID: {user_id})")
                 
-                # 检查并补发注册奖励（首次登录）
-                if user_id:
-                    try:
-                        # 检查用户是否已有注册奖励记录
-                        transactions = point_model.get_transactions(user_id, page=1, limit=10)
-                        has_register_bonus = False
-                        bonus_amount = point_model.get_config('register_bonus', 88)
-                        if transactions and transactions.get('transactions'):
-                            for t in transactions['transactions']:
-                                if t.get('source') == 'register_bonus':
-                                    has_register_bonus = True
-                                    break
-                        
-                        # 如果没有注册奖励记录，则补发
-                        if not has_register_bonus:
-                            point_result = point_model.add_points(
-                                user_id=user_id,
-                                amount=bonus_amount,
-                                source='register_bonus',
-                                description='新用户注册奖励（首次登录）'
-                            )
-                            if point_result['success']:
-                                logger.info(f"✅ 首次登录发放注册奖励{bonus_amount}点给用户{user_id}")
-                            else:
-                                logger.error(f"❌ 首次登录发放注册奖励失败: {point_result.get('error')}")
-                    except Exception as e:
-                        logger.error(f"❌ 检查/发放注册奖励失败: {e}")
+                # 注：注册奖励改为在用户关闭欢迎弹窗时领取，不再自动发放
 
                 if request.is_json:
                     return jsonify({'success': True, 'message': '登录成功', 'redirect': '/landing'})
