@@ -83,6 +83,7 @@ def register_auth_routes(app):
                         # 检查用户是否已有注册奖励记录
                         transactions = point_model.get_transactions(user_id, page=1, limit=10)
                         has_register_bonus = False
+                        bonus_amount = point_model.get_config('register_bonus', 88)
                         if transactions and transactions.get('transactions'):
                             for t in transactions['transactions']:
                                 if t.get('source') == 'register_bonus':
@@ -91,7 +92,6 @@ def register_auth_routes(app):
                         
                         # 如果没有注册奖励记录，则补发
                         if not has_register_bonus:
-                            bonus_amount = point_model.get_config('register_bonus', 88)
                             point_result = point_model.add_points(
                                 user_id=user_id,
                                 amount=bonus_amount,
@@ -100,7 +100,6 @@ def register_auth_routes(app):
                             )
                             if point_result['success']:
                                 logger.info(f"✅ 首次登录发放注册奖励{bonus_amount}点给用户{user_id}")
-                                session['first_login_bonus'] = bonus_amount
                             else:
                                 logger.error(f"❌ 首次登录发放注册奖励失败: {point_result.get('error')}")
                     except Exception as e:
@@ -170,8 +169,35 @@ def register_page_routes(app):
             logger.info("📄 Loading landing.html (V1 UI)")
             return render_template('landing.html')
         
-        logger.info("📄 Loading landing-v2.html (V2 UI - 默认)")
-        return render_template('pages/v2/landing-v2.html')
+        # 检查是否需要显示欢迎弹窗（基于数据库，不依赖 session）
+        show_welcome = False
+        welcome_bonus = 0
+        if session.get('logged_in') and session.get('user_id'):
+            try:
+                from web.models.user_model import user_model
+                from web.models.point_model import point_model
+                user_id = session['user_id']
+                
+                # 检查用户是否已看过欢迎弹窗
+                if not user_model.has_seen_welcome(user_id):
+                    # 检查用户是否有注册奖励
+                    transactions = point_model.get_transactions(user_id, page=1, limit=10)
+                    if transactions and transactions.get('transactions'):
+                        for t in transactions['transactions']:
+                            if t.get('source') == 'register_bonus':
+                                show_welcome = True
+                                welcome_bonus = t.get('amount', 88)
+                                break
+                    
+                    if show_welcome:
+                        logger.info(f"✅ 用户 {user_id} 将显示欢迎弹窗，奖励: {welcome_bonus}点")
+            except Exception as e:
+                logger.error(f"❌ 检查欢迎弹窗状态失败: {e}")
+        
+        logger.info(f"📄 Loading landing-v2.html (V2 UI - 默认), show_welcome={show_welcome}")
+        return render_template('pages/v2/landing-v2.html', 
+                               show_welcome=show_welcome, 
+                               welcome_bonus=welcome_bonus)
     
     @app.route('/landing-v2-test', methods=['GET'])
     def landing_v2_test():
@@ -541,6 +567,22 @@ def register_page_routes(app):
                 
         except Exception as e:
             logger.error(f"修改密码失败: {e}")
+            return jsonify({'success': False, 'error': '服务器错误'}), 500
+
+    # 清除首次登录标记
+    @app.route('/api/clear-first-login-flag', methods=['POST'])
+    @login_required
+    def clear_first_login_flag():
+        """标记用户已看过欢迎弹窗，记录在数据库中"""
+        try:
+            user_id = session.get('user_id')
+            if user_id:
+                from web.models.user_model import user_model
+                user_model.mark_welcome_shown(user_id)
+                logger.info(f"✅ 用户 {user_id} 已标记为看过欢迎弹窗")
+            return jsonify({'success': True})
+        except Exception as e:
+            logger.error(f"标记欢迎弹窗状态失败: {e}")
             return jsonify({'success': False, 'error': '服务器错误'}), 500
 
     # 错误处理

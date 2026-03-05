@@ -248,6 +248,33 @@ class UserModel:
             logger.error(f"❌ 获取用户失败: {e}")
             return None
     
+    def mark_welcome_shown(self, user_id: int) -> bool:
+        """标记用户已显示欢迎弹窗"""
+        try:
+            with self._get_connection() as conn:
+                conn.execute(
+                    "UPDATE users SET welcome_shown_at = ? WHERE id = ?",
+                    (datetime.now(), user_id)
+                )
+                conn.commit()
+                return True
+        except Exception as e:
+            logger.error(f"❌ 标记欢迎弹窗状态失败: {e}")
+            return False
+    
+    def has_seen_welcome(self, user_id: int) -> bool:
+        """检查用户是否已看过欢迎弹窗"""
+        try:
+            with self._get_connection() as conn:
+                result = conn.execute(
+                    "SELECT welcome_shown_at FROM users WHERE id = ?",
+                    (user_id,)
+                ).fetchone()
+                return result and result['welcome_shown_at'] is not None
+        except Exception as e:
+            logger.error(f"❌ 检查欢迎弹窗状态失败: {e}")
+            return False
+    
     def _validate_phone(self, phone: str) -> bool:
         """验证手机号格式（中国手机号）"""
         import re

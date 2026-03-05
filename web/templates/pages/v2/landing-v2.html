@@ -164,82 +164,120 @@
     </div>
 </section>
 
-<!-- 首次登录欢迎弹窗 -->
-{% if session.get('first_login_bonus') %}
-<div class="v2-welcome-modal" id="welcomeModal">
-    <div class="v2-welcome-backdrop" onclick="closeWelcomeModal()"></div>
-    <div class="v2-welcome-content">
-        <div class="v2-welcome-close" onclick="closeWelcomeModal()">×</div>
+<!-- 首次登录欢迎弹窗 - V2 设计系统 -->
+{% if show_welcome %}
+<div class="v2-modal-overlay" id="welcomeModal" role="dialog" aria-modal="true">
+    <div class="v2-modal-backdrop" onclick="closeWelcomeModal()"></div>
+    
+    <div class="v2-modal-container">
+        <!-- 关闭按钮 -->
+        <button class="v2-modal-close" onclick="closeWelcomeModal()" aria-label="关闭">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+        </button>
         
-        <div class="v2-welcome-icon">🎉</div>
-        <h2 class="v2-welcome-title">欢迎加入大文娱系统！</h2>
-        <p class="v2-welcome-subtitle">{{ session.username }}，感谢您的注册</p>
-        
-        <div class="v2-bonus-card">
-            <div class="v2-bonus-label">获得创作点数</div>
-            <div class="v2-bonus-value">+{{ session.first_login_bonus }}</div>
-            <div class="v2-bonus-desc">新用户注册奖励</div>
-        </div>
-        
-        <div class="v2-guide-steps">
-            <div class="v2-guide-step">
-                <div class="v2-guide-step__num">1</div>
-                <div class="v2-guide-step__text">点击"开始创作"输入您的创意</div>
-            </div>
-            <div class="v2-guide-step">
-                <div class="v2-guide-step__num">2</div>
-                <div class="v2-guide-step__text">AI将为您生成完整小说设定</div>
-            </div>
-            <div class="v2-guide-step">
-                <div class="v2-guide-step__num">3</div>
-                <div class="v2-guide-step__text">一键生成章节内容</div>
+        <!-- 头部图标 -->
+        <div class="v2-modal-header">
+            <div class="v2-welcome-avatar">
+                <span class="v2-welcome-emoji">🎉</span>
+                <div class="v2-welcome-glow"></div>
             </div>
         </div>
         
-        <a href="/" class="v2-welcome-btn">开始创作之旅</a>
+        <!-- 标题 -->
+        <h2 class="v2-modal-title">欢迎加入大文娱系统</h2>
+        <p class="v2-modal-subtitle">{{ session.username }}，开启您的 AI 创作之旅</p>
+        
+        <!-- 奖励卡片 -->
+        <div class="v2-bonus-showcase">
+            <div class="v2-bonus-badge">
+                <span class="v2-bonus-icon">💎</span>
+                <span class="v2-bonus-label">注册奖励</span>
+            </div>
+            <div class="v2-bonus-amount">+{{ welcome_bonus }}</div>
+            <div class="v2-bonus-unit">创作点数</div>
+        </div>
+        
+        <!-- 引导步骤 -->
+        <div class="v2-guide-list">
+            <div class="v2-guide-item">
+                <div class="v2-guide-number">1</div>
+                <div class="v2-guide-content">
+                    <div class="v2-guide-title">输入创意</div>
+                    <div class="v2-guide-desc">在工作台输入您的小说创意或概念</div>
+                </div>
+            </div>
+            <div class="v2-guide-item">
+                <div class="v2-guide-number">2</div>
+                <div class="v2-guide-content">
+                    <div class="v2-guide-title">AI 生成设定</div>
+                    <div class="v2-guide-desc">系统自动生成世界观、角色、大纲</div>
+                </div>
+            </div>
+            <div class="v2-guide-item">
+                <div class="v2-guide-number">3</div>
+                <div class="v2-guide-content">
+                    <div class="v2-guide-title">一键成书</div>
+                    <div class="v2-guide-desc">批量生成章节，完成您的小说</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 行动按钮 -->
+        <a href="/" class="v2-btn v2-btn--primary v2-btn--lg v2-welcome-cta">
+            <span>开始创作</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+                <polyline points="12,5 19,12 12,19"></polyline>
+            </svg>
+        </a>
     </div>
 </div>
 
 <style>
-.v2-welcome-modal {
+/* V2 欢迎弹窗 - 使用设计系统变量 */
+.v2-modal-overlay {
     position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 10000;
+    inset: 0;
+    z-index: var(--v2-z-modal, 1000);
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 20px;
+    padding: var(--v2-space-6, 24px);
+    animation: v2-modal-fade-in 0.3s ease;
 }
 
-.v2-welcome-backdrop {
+.v2-modal-backdrop {
     position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.8);
-    backdrop-filter: blur(4px);
+    inset: 0;
+    background: var(--v2-bg-overlay, rgba(0, 0, 0, 0.8));
+    backdrop-filter: blur(8px);
 }
 
-.v2-welcome-content {
+.v2-modal-container {
     position: relative;
-    background: linear-gradient(135deg, #1e1e2e 0%, #2d2d44 100%);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 24px;
-    padding: 40px;
-    max-width: 480px;
     width: 100%;
+    max-width: 420px;
+    background: var(--v2-bg-secondary, #111);
+    border: 1px solid var(--v2-border-default, rgba(255,255,255,0.1));
+    border-radius: var(--v2-radius-2xl, 20px);
+    padding: var(--v2-space-10, 40px);
     text-align: center;
-    animation: welcomeSlideIn 0.4s ease;
+    animation: v2-modal-slide-up 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: var(--v2-shadow-lg, 0 10px 15px rgba(0,0,0,0.5));
 }
 
-@keyframes welcomeSlideIn {
+@keyframes v2-modal-fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes v2-modal-slide-up {
     from {
         opacity: 0;
-        transform: translateY(30px) scale(0.95);
+        transform: translateY(20px) scale(0.98);
     }
     to {
         opacity: 1;
@@ -247,139 +285,227 @@
     }
 }
 
-.v2-welcome-close {
+/* 关闭按钮 */
+.v2-modal-close {
     position: absolute;
-    top: 16px;
-    right: 16px;
+    top: var(--v2-space-4, 16px);
+    right: var(--v2-space-4, 16px);
     width: 32px;
     height: 32px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 24px;
-    color: rgba(255, 255, 255, 0.5);
+    background: transparent;
+    border: none;
+    border-radius: var(--v2-radius-md, 8px);
+    color: var(--v2-text-tertiary, #71717a);
     cursor: pointer;
-    transition: color 0.2s;
+    transition: all 0.2s;
 }
 
-.v2-welcome-close:hover {
-    color: #fff;
+.v2-modal-close:hover {
+    background: var(--v2-bg-tertiary, #1a1a1a);
+    color: var(--v2-text-primary, #fafafa);
 }
 
-.v2-welcome-icon {
-    font-size: 64px;
-    margin-bottom: 16px;
+/* 头部 */
+.v2-modal-header {
+    margin-bottom: var(--v2-space-6, 24px);
 }
 
-.v2-welcome-title {
-    font-size: 24px;
-    font-weight: 700;
-    color: #fff;
-    margin-bottom: 8px;
-}
-
-.v2-welcome-subtitle {
-    font-size: 15px;
-    color: rgba(255, 255, 255, 0.6);
-    margin-bottom: 24px;
-}
-
-.v2-bonus-card {
-    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-    border-radius: 16px;
-    padding: 24px;
-    margin-bottom: 24px;
-}
-
-.v2-bonus-label {
-    font-size: 13px;
-    color: rgba(255, 255, 255, 0.8);
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    margin-bottom: 4px;
-}
-
-.v2-bonus-value {
-    font-size: 48px;
-    font-weight: 800;
-    color: #fff;
-    line-height: 1;
-}
-
-.v2-bonus-desc {
-    font-size: 13px;
-    color: rgba(255, 255, 255, 0.7);
-    margin-top: 4px;
-}
-
-.v2-guide-steps {
-    text-align: left;
-    margin-bottom: 24px;
-}
-
-.v2-guide-step {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 12px 0;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-.v2-guide-step:last-child {
-    border-bottom: none;
-}
-
-.v2-guide-step__num {
-    width: 28px;
-    height: 28px;
+.v2-welcome-avatar {
+    position: relative;
+    width: 80px;
+    height: 80px;
+    margin: 0 auto;
     display: flex;
     align-items: center;
     justify-content: center;
+}
+
+.v2-welcome-emoji {
+    font-size: 48px;
+    z-index: 1;
+}
+
+.v2-welcome-glow {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, var(--v2-primary-500, #6366f1), var(--v2-accent-purple, #8b5cf6));
+    border-radius: var(--v2-radius-full, 9999px);
+    opacity: 0.3;
+    filter: blur(20px);
+}
+
+/* 标题 */
+.v2-modal-title {
+    font-size: var(--v2-text-2xl, 24px);
+    font-weight: var(--v2-font-bold, 700);
+    color: var(--v2-text-primary, #fafafa);
+    margin-bottom: var(--v2-space-2, 8px);
+    letter-spacing: -0.02em;
+}
+
+.v2-modal-subtitle {
+    font-size: var(--v2-text-base, 16px);
+    color: var(--v2-text-secondary, #a1a1aa);
+    margin-bottom: var(--v2-space-8, 32px);
+}
+
+/* 奖励展示 */
+.v2-bonus-showcase {
+    background: linear-gradient(135deg, 
+        rgba(99, 102, 241, 0.15) 0%, 
+        rgba(139, 92, 246, 0.15) 100%);
+    border: 1px solid rgba(99, 102, 241, 0.2);
+    border-radius: var(--v2-radius-xl, 16px);
+    padding: var(--v2-space-8, 32px);
+    margin-bottom: var(--v2-space-8, 32px);
+    position: relative;
+    overflow: hidden;
+}
+
+.v2-bonus-showcase::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, 
+        transparent, 
+        rgba(99, 102, 241, 0.5), 
+        transparent);
+}
+
+.v2-bonus-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--v2-space-2, 8px);
+    padding: var(--v2-space-1, 4px) var(--v2-space-3, 12px);
     background: rgba(99, 102, 241, 0.2);
-    border: 1px solid rgba(99, 102, 241, 0.4);
-    border-radius: 50%;
-    font-size: 13px;
-    font-weight: 600;
-    color: #6366f1;
-    flex-shrink: 0;
+    border: 1px solid rgba(99, 102, 241, 0.3);
+    border-radius: var(--v2-radius-full, 9999px);
+    margin-bottom: var(--v2-space-4, 16px);
 }
 
-.v2-guide-step__text {
+.v2-bonus-icon {
     font-size: 14px;
-    color: rgba(255, 255, 255, 0.8);
 }
 
-.v2-welcome-btn {
-    display: block;
+.v2-bonus-label {
+    font-size: var(--v2-text-xs, 12px);
+    font-weight: var(--v2-font-semibold, 600);
+    color: var(--v2-primary-400, #818cf8);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.v2-bonus-amount {
+    font-size: 56px;
+    font-weight: 800;
+    background: linear-gradient(135deg, var(--v2-primary-400, #818cf8), var(--v2-accent-purple, #c4b5fd));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    line-height: 1;
+    margin-bottom: var(--v2-space-1, 4px);
+}
+
+.v2-bonus-unit {
+    font-size: var(--v2-text-sm, 14px);
+    color: var(--v2-text-tertiary, #71717a);
+}
+
+/* 引导列表 */
+.v2-guide-list {
+    text-align: left;
+    margin-bottom: var(--v2-space-8, 32px);
+}
+
+.v2-guide-item {
+    display: flex;
+    gap: var(--v2-space-4, 16px);
+    padding: var(--v2-space-4, 16px) 0;
+    border-bottom: 1px solid var(--v2-border-subtle, rgba(255,255,255,0.06));
+}
+
+.v2-guide-item:last-child {
+    border-bottom: none;
+}
+
+.v2-guide-number {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    background: var(--v2-bg-tertiary, #1a1a1a);
+    border: 1px solid var(--v2-border-default, rgba(255,255,255,0.1));
+    border-radius: var(--v2-radius-lg, 12px);
+    font-size: var(--v2-text-sm, 14px);
+    font-weight: var(--v2-font-semibold, 600);
+    color: var(--v2-primary-400, #818cf8);
+}
+
+.v2-guide-content {
+    flex: 1;
+}
+
+.v2-guide-title {
+    font-size: var(--v2-text-sm, 14px);
+    font-weight: var(--v2-font-semibold, 600);
+    color: var(--v2-text-primary, #fafafa);
+    margin-bottom: var(--v2-space-1, 4px);
+}
+
+.v2-guide-desc {
+    font-size: var(--v2-text-xs, 12px);
+    color: var(--v2-text-tertiary, #71717a);
+    line-height: var(--v2-leading-relaxed, 1.625);
+}
+
+/* 行动按钮 */
+.v2-welcome-cta {
     width: 100%;
-    padding: 14px 24px;
-    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-    color: #fff;
-    text-decoration: none;
-    border-radius: 12px;
-    font-size: 15px;
-    font-weight: 600;
-    transition: transform 0.2s, box-shadow 0.2s;
+    justify-content: center;
+    gap: var(--v2-space-2, 8px);
 }
 
-.v2-welcome-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(99, 102, 241, 0.4);
+.v2-welcome-cta svg {
+    transition: transform 0.2s;
+}
+
+.v2-welcome-cta:hover svg {
+    transform: translateX(2px);
 }
 </style>
 
 <script>
-function closeWelcomeModal() {
-    const modal = document.getElementById('welcomeModal');
-    if (modal) {
-        modal.style.opacity = '0';
-        modal.style.transition = 'opacity 0.3s';
-        setTimeout(() => modal.remove(), 300);
+(function() {
+    'use strict';
+    
+    function closeWelcomeModal() {
+        const modal = document.getElementById('welcomeModal');
+        if (!modal) return;
+        
+        modal.style.animation = 'v2-modal-fade-in 0.2s ease reverse';
+        modal.querySelector('.v2-modal-container').style.animation = 'v2-modal-slide-up 0.2s ease reverse';
+        
+        setTimeout(() => modal.remove(), 200);
+        
+        // 发送请求清除 session 标记
+        fetch('/api/clear-first-login-flag', { method: 'POST' }).catch(() => {});
     }
-}
-
-// 5秒后自动关闭（可选）
-// setTimeout(closeWelcomeModal, 10000);
+    
+    // ESC 键关闭
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') closeWelcomeModal();
+    });
+    
+    // 暴露到全局
+    window.closeWelcomeModal = closeWelcomeModal;
+})();
 </script>
 {% endif %}
 {% endblock %}

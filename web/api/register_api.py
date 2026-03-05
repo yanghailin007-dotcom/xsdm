@@ -83,6 +83,11 @@ def register_register_routes(app):
                 
                 if point_result['success']:
                     logger.info(f"✅ 发放注册奖励{bonus_amount}点给用户{user_id}")
+                    # 注册时自动登录
+                    session['username'] = username
+                    session['user_id'] = user_id
+                    session['logged_in'] = True
+                    session.permanent = True
                 else:
                     logger.error(f"❌ 发放注册奖励失败: {point_result.get('error')}")
                 
