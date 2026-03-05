@@ -77,6 +77,14 @@ def register_auth_routes(app):
                 session.permanent = True
                 logger.info(f"✅ 用户登录成功: {username} (ID: {user_id})")
                 
+                # 为用户创建小说项目目录（如果不存在）
+                try:
+                    from web.utils.path_utils import get_user_novel_dir
+                    user_novel_dir = get_user_novel_dir(username, create=True)
+                    logger.info(f"📁 用户小说目录: {user_novel_dir}")
+                except Exception as e:
+                    logger.warning(f"⚠️ 创建用户小说目录失败: {e}")
+                
                 # 注：注册奖励改为在用户关闭欢迎弹窗时领取，不再自动发放
 
                 if request.is_json:
