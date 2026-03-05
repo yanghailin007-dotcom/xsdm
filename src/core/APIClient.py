@@ -25,7 +25,7 @@ class APIClient:
         # 频率限制相关属性 - 安全访问配置
         rate_limit_config = self.config.get("rate_limit", {})
         self.rate_limit_enabled = rate_limit_config.get("enabled", False)
-        self.rate_limit_interval = rate_limit_config.get("interval", 20)
+        self.rate_limit_interval = rate_limit_config.get("interval", 3)
         self.rate_limit_max_requests = rate_limit_config.get("max_requests", 1)
         self.last_request_time = 0  # 上次请求时间戳
         self.request_count = 0      # 当前间隔内的请求计数

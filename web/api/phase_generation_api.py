@@ -1154,6 +1154,18 @@ def get_phase_one_task_status(task_id):
             "updated_at": task_status.get("updated_at", "")
         }
         
+        # 添加详细的步骤状态（如果存在）
+        if "step_status" in task_status:
+            response["step_status"] = task_status["step_status"]
+        
+        # 添加创造点消耗信息
+        response["points_consumed"] = task_status.get("points_consumed", 0)
+        response["points_total"] = task_status.get("points_total", 400)
+        
+        # 添加状态消息
+        if "status_message" in task_status:
+            response["status_message"] = task_status["status_message"]
+        
         # 如果任务完成，包含结果
         if task_status.get("status") == "completed" and "result" in task_status:
             response["result"] = task_status["result"]

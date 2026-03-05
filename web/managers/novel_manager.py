@@ -45,8 +45,9 @@ class NovelGenerationManager:
         self.load_existing_novels()
         logger.info(f"🔧 NovelGenerationManager 初始化完成，加载了 {len(self.novel_projects)} 个小说项目")
 
-    def _update_task_status(self, task_id: str, status: str, progress: int, error: Optional[str] = None):
-        """更新任务状态和进度"""
+    def _update_task_status(self, task_id: str, status: str, progress: int, error: Optional[str] = None, 
+                            current_step: str = None, step_status: Dict = None, points_consumed: int = None):
+        """更新任务状态和进度 - 支持详细步骤状态和创造点消耗"""
         # 🔥 修复：即使task_id不在task_results中，也要初始化它（防止任务初始化失败导致的404）
         if task_id not in self.task_results:
             logger.info(f"⚠️ 任务 {task_id} 不在 task_results 中，初始化基础结构")
@@ -55,7 +56,10 @@ class NovelGenerationManager:
                 "status": status,
                 "progress": progress,
                 "created_at": datetime.now().isoformat(),
-                "updated_at": datetime.now().isoformat()
+                "updated_at": datetime.now().isoformat(),
+                "step_status": {},
+                "points_consumed": 0,
+                "points_total": 400
             }
         else:
             self.task_results[task_id].update({
@@ -74,35 +78,64 @@ class NovelGenerationManager:
         }
         if error:
             self.task_progress[task_id]["error"] = error
-            
-            # 添加当前步骤信息（从novel_data中获取）
-            try:
-                # 这里可以通过事件总线或其他方式获取当前步骤
-                # 暂时使用状态映射
-                step_mapping = {
-                    20: "planning",
-                    40: "planning",
-                    45: "worldview_generation",
-                    60: "character_design",
-                    65: "story_outline",
-                    68: "global_growth_planning",
-                    70: "global_growth_planning",
-                    72: "global_growth_planning",
-                    75: "stage_planning",
-                    80: "story_outline",
-                    85: "validation",
-                    95: "validation",
-                    100: "completed"
-                }
-                
-                current_step = step_mapping.get(progress, "initialization")
-                self.task_results[task_id]["current_step"] = current_step
-                self.task_progress[task_id]["current_step"] = current_step
-                
-                logger.info(f"任务 {task_id}: 进度更新 {progress}% - 当前步骤: {current_step}")
-                
-            except Exception as e:
-                logger.debug(f"任务 {task_id}: 更新当前步骤失败: {e}")
+        
+        # 更新当前步骤（如果提供了）
+        if current_step:
+            self.task_results[task_id]["current_step"] = current_step
+            self.task_progress[task_id]["current_step"] = current_step
+        else:
+            # 使用进度映射
+            step_mapping = {
+                0: "initialization",
+                10: "initialization",
+                20: "planning",
+                40: "planning",
+                45: "worldview_generation",
+                60: "character_design",
+                65: "story_outline",
+                68: "global_growth_planning",
+                70: "global_growth_planning",
+                72: "global_growth_planning",
+                75: "stage_planning",
+                80: "story_outline",
+                85: "validation",
+                95: "validation",
+                100: "completed"
+            }
+            current_step = step_mapping.get(progress, "initialization")
+            self.task_results[task_id]["current_step"] = current_step
+            self.task_progress[task_id]["current_step"] = current_step
+        
+        # 更新详细步骤状态（如果提供了）
+        if step_status:
+            if "step_status" not in self.task_results[task_id]:
+                self.task_results[task_id]["step_status"] = {}
+            self.task_results[task_id]["step_status"].update(step_status)
+        
+        # 更新创造点消耗（如果提供了）
+        if points_consumed is not None:
+            self.task_results[task_id]["points_consumed"] = points_consumed
+        
+        logger.info(f"任务 {task_id}: 进度更新 {progress}% - 当前步骤: {current_step}")
+
+    def update_step_status(self, task_id: str, step_name: str, status: str, points_cost: int = 0):
+        """更新特定步骤的状态和创造点消耗"""
+        if task_id not in self.task_results:
+            return
+        
+        # 初始化步骤状态
+        if "step_status" not in self.task_results[task_id]:
+            self.task_results[task_id]["step_status"] = {}
+        
+        # 更新步骤状态
+        self.task_results[task_id]["step_status"][step_name] = status
+        
+        # 累加创造点消耗
+        if points_cost > 0:
+            current_points = self.task_results[task_id].get("points_consumed", 0)
+            self.task_results[task_id]["points_consumed"] = current_points + points_cost
+        
+        logger.info(f"任务 {task_id}: 步骤 {step_name} 更新为 {status}, 创造点: +{points_cost}")
 
     def get_task_status(self, task_id: str) -> Dict[str, Any]:
         """获取任务状态"""

@@ -501,3 +501,169 @@ body {
         justify-content: center;
     }
 }
+
+/* ==================== 改进版进度显示样式 ==================== */
+
+/* 创造点消耗显示 - 补充样式 */
+.points-cost-section {
+    margin-bottom: 20px;
+}
+
+/* 步骤列表样式补充 */
+.progress-steps-container {
+    margin: 20px 0;
+}
+
+.progress-steps-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.progress-step-item {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 15px;
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-color);
+    transition: all 0.3s ease;
+}
+
+.progress-step-item:hover {
+    transform: translateX(5px);
+}
+
+.step-indicator {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: var(--bg-secondary);
+    border: 2px solid var(--border-color);
+    font-weight: 600;
+    color: var(--text-secondary);
+    transition: all 0.3s ease;
+}
+
+.step-content {
+    flex: 1;
+}
+
+.step-content h4 {
+    margin: 0 0 5px 0;
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.step-content p {
+    margin: 0;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.step-points {
+    margin-top: 5px;
+    font-size: 0.8rem;
+    color: var(--text-tertiary);
+}
+
+.step-status-badge {
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+}
+
+/* 进行中的步骤样式 */
+.progress-step-item[data-status="running"] {
+    border-color: var(--primary-color);
+    background: rgba(59, 130, 246, 0.1);
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.2);
+}
+
+.progress-step-item[data-status="running"] .step-indicator {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+    color: white;
+    animation: pulse 1.5s infinite;
+}
+
+.progress-step-item[data-status="running"] .step-status-badge {
+    background: var(--primary-color);
+    color: white;
+}
+
+/* 已完成的步骤样式 */
+.progress-step-item[data-status="completed"] {
+    border-color: var(--success-color);
+    background: rgba(16, 185, 129, 0.1);
+    opacity: 0.8;
+}
+
+.progress-step-item[data-status="completed"] .step-indicator {
+    background: var(--success-color);
+    border-color: var(--success-color);
+    color: white;
+}
+
+.progress-step-item[data-status="completed"] .step-status-badge {
+    background: var(--success-color);
+    color: white;
+}
+
+/* 当前步骤详情 */
+.current-step-detail {
+    margin-top: 20px;
+    padding: 20px;
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.1));
+    border-radius: var(--radius-md);
+    border: 1px solid rgba(99, 102, 241, 0.3);
+    text-align: center;
+}
+
+.current-step-label {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 8px;
+}
+
+.current-step-name {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 5px;
+}
+
+.current-step-desc {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+    .progress-step-item {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .step-indicator {
+        margin-bottom: 10px;
+    }
+}
+

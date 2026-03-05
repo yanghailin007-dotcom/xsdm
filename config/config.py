@@ -80,7 +80,7 @@ CONFIG = {
     # 在 config.py 或配置文件中添加
     "rate_limit": {
         "enabled": True,  # 频率限制开关
-        "interval": 20,   # 限制间隔（秒），默认60秒=1分钟
+        "interval": 3,    # 限制间隔（秒），默认3秒
         "max_requests": 1 # 间隔内最大请求次数
     },
     "website_style_adaptation": {

@@ -325,8 +325,15 @@ class PhaseOneSetup {
             this.updateProgressMessage(this.getStepMessage(taskStatus.current_step));
         }
 
-        // 更新步骤指示器
-        this.updateProgressSteps(taskStatus.current_step);
+        // 更新步骤指示器 - 传递详细状态
+        this.updateProgressSteps(taskStatus.current_step, taskStatus.step_status);
+        
+        // 更新创造点消耗
+        if (taskStatus.points_consumed !== undefined || taskStatus.points_cost) {
+            const consumed = taskStatus.points_consumed || taskStatus.points_cost || 0;
+            const total = taskStatus.points_total || 400;
+            this.updatePointsCost(consumed, total);
+        }
     }
 
     getStepMessage(step) {
@@ -343,32 +350,173 @@ class PhaseOneSetup {
         return stepMessages[step] || '处理中...';
     }
 
-    updateProgressSteps(currentStep) {
-        const steps = document.querySelectorAll('.progress-step');
+    updateProgressSteps(currentStep, stepStatus = null) {
+        // 步骤映射：API 返回的步骤名 -> HTML data-step 属性
+        const stepMapping = {
+            'planning': 'planning',
+            'worldview_generation': 'worldview',
+            'worldview': 'worldview',
+            'character_design': 'characters',
+            'characters': 'characters',
+            'story_outline': 'outlines',
+            'outlines': 'outlines',
+            'validation': 'validation',
+            'completed': 'validation'
+        };
+        
         const stepOrder = [
             'planning',
-            'worldview_generation', 
-            'character_design',
-            'story_outline',
+            'worldview', 
+            'characters',
+            'planning-detailed',
+            'outlines',
             'validation'
         ];
-
-        const currentIndex = stepOrder.indexOf(currentStep);
         
-        steps.forEach((step, index) => {
-            const stepKey = step.dataset.step;
+        const currentStepKey = stepMapping[currentStep] || currentStep;
+        const currentIndex = stepOrder.indexOf(currentStepKey);
+        
+        // 更新步骤列表项
+        const stepItems = document.querySelectorAll('.progress-step-item');
+        let completedCount = 0;
+        
+        stepItems.forEach((item) => {
+            const stepKey = item.dataset.step;
             const stepIndex = stepOrder.indexOf(stepKey);
+            const statusBadge = item.querySelector('.step-status-badge');
+            const icon = item.querySelector('.step-icon');
             
-            if (stepIndex < currentIndex) {
-                step.classList.add('completed');
-                step.classList.remove('active');
-            } else if (stepIndex === currentIndex) {
-                step.classList.add('active');
-                step.classList.remove('completed');
+            if (stepStatus && stepStatus[stepKey]) {
+                // 使用服务器返回的详细状态
+                const status = stepStatus[stepKey];
+                item.dataset.status = status;
+                
+                if (status === 'completed') {
+                    statusBadge.textContent = '已完成';
+                    icon.textContent = '✓';
+                    completedCount++;
+                } else if (status === 'running') {
+                    statusBadge.textContent = '进行中';
+                    icon.textContent = '⏳';
+                } else if (status === 'failed') {
+                    statusBadge.textContent = '失败';
+                    icon.textContent = '✗';
+                } else {
+                    statusBadge.textContent = '等待中';
+                    icon.textContent = '⏳';
+                }
             } else {
-                step.classList.remove('active', 'completed');
+                // 使用简单的进度计算
+                if (stepIndex < currentIndex) {
+                    item.dataset.status = 'completed';
+                    statusBadge.textContent = '已完成';
+                    icon.textContent = '✓';
+                    completedCount++;
+                } else if (stepIndex === currentIndex) {
+                    item.dataset.status = 'running';
+                    statusBadge.textContent = '进行中';
+                    icon.textContent = '⏳';
+                } else {
+                    item.dataset.status = 'waiting';
+                    statusBadge.textContent = '等待中';
+                    icon.textContent = '⏳';
+                }
             }
         });
+        
+        // 更新步骤状态文本
+        const stepsStatusEl = document.getElementById('steps-status');
+        if (stepsStatusEl) {
+            stepsStatusEl.textContent = `${completedCount}/${stepOrder.length} 完成`;
+        }
+        
+        // 更新当前步骤详情
+        this.updateCurrentStepDetail(currentStep);
+    }
+    
+    updateCurrentStepDetail(currentStep) {
+        const stepDetails = {
+            'planning': {
+                name: '📋 基础规划',
+                desc: '正在分析创意种子，制定写作风格和市场定位...'
+            },
+            'worldview_generation': {
+                name: '🌍 世界观设计',
+                desc: '正在构建完整的世界观和背景设定...'
+            },
+            'worldview': {
+                name: '🌍 世界观设计',
+                desc: '正在构建完整的世界观和背景设定...'
+            },
+            'character_design': {
+                name: '👥 角色设计',
+                desc: '正在设计主要角色和人物关系...'
+            },
+            'characters': {
+                name: '👥 角色设计',
+                desc: '正在设计主要角色和人物关系...'
+            },
+            'story_outline': {
+                name: '📝 详细规划',
+                desc: '正在制定情绪蓝图和阶段计划...'
+            },
+            'outlines': {
+                name: '📚 章节大纲',
+                desc: '正在生成详细的章节情节大纲...'
+            },
+            'validation': {
+                name: '✅ 验证完善',
+                desc: '正在验证设定完整性和一致性...'
+            },
+            'completed': {
+                name: '✅ 生成完成',
+                desc: '所有步骤已完成！'
+            },
+            'initialization': {
+                name: '🚀 初始化',
+                desc: '正在初始化生成环境...'
+            }
+        };
+        
+        const detail = stepDetails[currentStep] || { name: '处理中...', desc: '' };
+        
+        const nameEl = document.getElementById('current-step-name');
+        const descEl = document.getElementById('current-step-desc');
+        
+        if (nameEl) nameEl.textContent = detail.name;
+        if (descEl) descEl.textContent = detail.desc;
+    }
+    
+    updatePointsCost(consumed, total) {
+        const consumedEl = document.getElementById('points-consumed');
+        const totalEl = document.getElementById('points-total');
+        
+        if (consumedEl) {
+            // 数字动画
+            const current = parseInt(consumedEl.textContent) || 0;
+            this.animateNumber(current, consumed, consumedEl);
+        }
+        if (totalEl) totalEl.textContent = total || 400;
+    }
+    
+    animateNumber(from, to, element) {
+        const duration = 500;
+        const start = performance.now();
+        
+        const animate = (now) => {
+            const elapsed = now - start;
+            const progress = Math.min(elapsed / duration, 1);
+            const easeProgress = 1 - Math.pow(1 - progress, 3);
+            const current = Math.round(from + (to - from) * easeProgress);
+            
+            element.textContent = current;
+            
+            if (progress < 1) {
+                requestAnimationFrame(animate);
+            }
+        };
+        
+        requestAnimationFrame(animate);
     }
 
     async handleTaskCompletion(taskStatus) {
@@ -683,7 +831,17 @@ class PhaseOneSetup {
         const progressSection = document.getElementById('progress-section');
         if (progressSection) {
             progressSection.style.display = 'block';
+            progressSection.classList.add('active');
         }
+        
+        // 初始化创造点显示
+        this.updatePointsCost(0, 400);
+        
+        // 初始化步骤状态
+        this.updateProgressSteps('initialization');
+        
+        // 重置当前步骤详情
+        this.updateCurrentStepDetail('initialization');
     }
 
     hideProgress() {

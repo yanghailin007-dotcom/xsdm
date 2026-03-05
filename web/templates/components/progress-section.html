@@ -1,39 +1,121 @@
-<!-- 进度显示区域 -->
+<!-- 进度显示区域 - 改进版：显示所有步骤和创造点消耗 -->
 <div class="progress-section" id="progress-section">
     <div class="progress-header">
         <h3>🔄 正在生成设定...</h3>
         <div class="progress-percentage" id="progress-percentage">0%</div>
     </div>
     
+    <!-- 创造点消耗显示 -->
+    <div class="points-cost-section" id="points-cost-section">
+        <div class="points-cost-label">
+            <span class="points-icon">💎</span>
+            <span>创造点消耗</span>
+        </div>
+        <div class="points-cost-value">
+            <span id="points-consumed">0</span>
+            <span class="points-separator">/</span>
+            <span id="points-total">0</span>
+            <span class="points-unit">点</span>
+        </div>
+    </div>
+    
     <div class="progress-bar-container">
         <div class="progress-bar-fill" id="progress-bar-fill"></div>
     </div>
     
-    <div class="progress-steps" id="progress-steps">
-        <div class="progress-step active" data-step="planning">
-            <h4>📋 基础规划</h4>
-            <p>分析创意种子，制定写作风格和市场定位</p>
+    <!-- 步骤状态列表 - 详细显示每个步骤 -->
+    <div class="progress-steps-container">
+        <div class="progress-steps-header">
+            <span>生成步骤</span>
+            <span class="steps-status" id="steps-status">0/6 完成</span>
         </div>
-        <div class="progress-step" data-step="worldview">
-            <h4>🌍 世界观设计</h4>
-            <p>构建完整的世界观和背景设定</p>
+        
+        <div class="progress-steps-list" id="progress-steps-list">
+            <div class="progress-step-item" data-step="planning" data-status="waiting">
+                <div class="step-indicator">
+                    <span class="step-number">1</span>
+                    <span class="step-icon">⏳</span>
+                </div>
+                <div class="step-content">
+                    <h4>📋 基础规划</h4>
+                    <p>分析创意种子，制定写作风格和市场定位</p>
+                    <div class="step-points">预计消耗: <span class="points-value">50</span> 点</div>
+                </div>
+                <div class="step-status-badge">等待中</div>
+            </div>
+            
+            <div class="progress-step-item" data-step="worldview" data-status="waiting">
+                <div class="step-indicator">
+                    <span class="step-number">2</span>
+                    <span class="step-icon">⏳</span>
+                </div>
+                <div class="step-content">
+                    <h4>🌍 世界观设计</h4>
+                    <p>构建完整的世界观和背景设定</p>
+                    <div class="step-points">预计消耗: <span class="points-value">80</span> 点</div>
+                </div>
+                <div class="step-status-badge">等待中</div>
+            </div>
+            
+            <div class="progress-step-item" data-step="characters" data-status="waiting">
+                <div class="step-indicator">
+                    <span class="step-number">3</span>
+                    <span class="step-icon">⏳</span>
+                </div>
+                <div class="step-content">
+                    <h4>👥 角色设计</h4>
+                    <p>设计主要角色和人物关系</p>
+                    <div class="step-points">预计消耗: <span class="points-value">60</span> 点</div>
+                </div>
+                <div class="step-status-badge">等待中</div>
+            </div>
+            
+            <div class="progress-step-item" data-step="planning-detailed" data-status="waiting">
+                <div class="step-indicator">
+                    <span class="step-number">4</span>
+                    <span class="step-icon">⏳</span>
+                </div>
+                <div class="step-content">
+                    <h4>📝 详细规划</h4>
+                    <p>制定情绪蓝图和阶段计划</p>
+                    <div class="step-points">预计消耗: <span class="points-value">70</span> 点</div>
+                </div>
+                <div class="step-status-badge">等待中</div>
+            </div>
+            
+            <div class="progress-step-item" data-step="outlines" data-status="waiting">
+                <div class="step-indicator">
+                    <span class="step-number">5</span>
+                    <span class="step-icon">⏳</span>
+                </div>
+                <div class="step-content">
+                    <h4>📚 章节大纲</h4>
+                    <p>生成详细的章节情节大纲</p>
+                    <div class="step-points">预计消耗: <span class="points-value">90</span> 点</div>
+                </div>
+                <div class="step-status-badge">等待中</div>
+            </div>
+            
+            <div class="progress-step-item" data-step="validation" data-status="waiting">
+                <div class="step-indicator">
+                    <span class="step-number">6</span>
+                    <span class="step-icon">⏳</span>
+                </div>
+                <div class="step-content">
+                    <h4>✅ 验证完善</h4>
+                    <p>验证设定完整性和一致性</p>
+                    <div class="step-points">预计消耗: <span class="points-value">50</span> 点</div>
+                </div>
+                <div class="step-status-badge">等待中</div>
+            </div>
         </div>
-        <div class="progress-step" data-step="characters">
-            <h4>👥 角色设计</h4>
-            <p>设计主要角色和人物关系</p>
-        </div>
-        <div class="progress-step" data-step="planning-detailed">
-            <h4>📝 详细规划</h4>
-            <p>制定情绪蓝图和阶段计划</p>
-        </div>
-        <div class="progress-step" data-step="outlines">
-            <h4>📚 章节大纲</h4>
-            <p>生成详细的章节情节大纲</p>
-        </div>
-        <div class="progress-step" data-step="validation">
-            <h4>✅ 验证完善</h4>
-            <p>验证设定完整性和一致性</p>
-        </div>
+    </div>
+    
+    <!-- 当前步骤详细信息 -->
+    <div class="current-step-detail" id="current-step-detail">
+        <div class="current-step-label">当前步骤</div>
+        <div class="current-step-name" id="current-step-name">准备开始...</div>
+        <div class="current-step-desc" id="current-step-desc">正在初始化生成环境</div>
     </div>
     
     <div style="margin-top: 20px; text-align: center;">
@@ -42,3 +124,268 @@
         </button>
     </div>
 </div>
+
+<style>
+/* 创造点消耗显示 */
+.points-cost-section {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.1));
+    border: 1px solid rgba(99, 102, 241, 0.3);
+    border-radius: 12px;
+    padding: 12px 20px;
+    margin-bottom: 16px;
+}
+
+.points-cost-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-secondary);
+    font-size: 14px;
+}
+
+.points-icon {
+    font-size: 18px;
+}
+
+.points-cost-value {
+    font-size: 18px;
+    font-weight: 700;
+    color: #818cf8;
+}
+
+.points-separator {
+    margin: 0 4px;
+    color: var(--text-tertiary);
+}
+
+.points-unit {
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin-left: 4px;
+}
+
+/* 步骤列表容器 */
+.progress-steps-container {
+    background: var(--bg-tertiary);
+    border-radius: 12px;
+    padding: 16px;
+    margin-top: 16px;
+}
+
+.progress-steps-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border-color);
+    font-size: 14px;
+    color: var(--text-secondary);
+}
+
+.steps-status {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+/* 步骤列表 */
+.progress-steps-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.progress-step-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    border-radius: 10px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-secondary);
+    transition: all 0.3s ease;
+}
+
+.progress-step-item:hover {
+    border-color: rgba(99, 102, 241, 0.3);
+}
+
+/* 步骤指示器 */
+.step-indicator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--bg-tertiary);
+    border: 2px solid var(--border-color);
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--text-secondary);
+    flex-shrink: 0;
+}
+
+.step-icon {
+    display: none;
+}
+
+/* 步骤内容 */
+.step-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.step-content h4 {
+    margin: 0 0 4px 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.step-content p {
+    margin: 0;
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.4;
+}
+
+.step-points {
+    margin-top: 4px;
+    font-size: 11px;
+    color: var(--text-tertiary);
+}
+
+.points-value {
+    color: #818cf8;
+    font-weight: 600;
+}
+
+/* 状态徽章 */
+.step-status-badge {
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    flex-shrink: 0;
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+}
+
+/* 步骤状态样式 - 等待中 */
+.progress-step-item[data-status="waiting"] {
+    opacity: 0.6;
+}
+
+/* 步骤状态样式 - 进行中 */
+.progress-step-item[data-status="running"] {
+    border-color: rgba(99, 102, 241, 0.5);
+    background: rgba(99, 102, 241, 0.1);
+    box-shadow: 0 0 20px rgba(99, 102, 241, 0.1);
+}
+
+.progress-step-item[data-status="running"] .step-indicator {
+    background: rgba(99, 102, 241, 0.2);
+    border-color: #6366f1;
+    color: #818cf8;
+}
+
+.progress-step-item[data-status="running"] .step-number {
+    display: none;
+}
+
+.progress-step-item[data-status="running"] .step-icon {
+    display: block;
+    animation: pulse 1.5s infinite;
+}
+
+.progress-step-item[data-status="running"] .step-status-badge {
+    background: rgba(99, 102, 241, 0.2);
+    color: #818cf8;
+}
+
+/* 步骤状态样式 - 已完成 */
+.progress-step-item[data-status="completed"] {
+    border-color: rgba(16, 185, 129, 0.4);
+    background: rgba(16, 185, 129, 0.05);
+}
+
+.progress-step-item[data-status="completed"] .step-indicator {
+    background: rgba(16, 185, 129, 0.2);
+    border-color: #10b981;
+    color: #10b981;
+}
+
+.progress-step-item[data-status="completed"] .step-number {
+    display: none;
+}
+
+.progress-step-item[data-status="completed"] .step-icon {
+    display: block;
+}
+
+.progress-step-item[data-status="completed"] .step-icon::before {
+    content: "✓";
+}
+
+.progress-step-item[data-status="completed"] .step-status-badge {
+    background: rgba(16, 185, 129, 0.2);
+    color: #10b981;
+}
+
+/* 步骤状态样式 - 失败 */
+.progress-step-item[data-status="failed"] {
+    border-color: rgba(239, 68, 68, 0.4);
+    background: rgba(239, 68, 68, 0.05);
+}
+
+.progress-step-item[data-status="failed"] .step-indicator {
+    background: rgba(239, 68, 68, 0.2);
+    border-color: #ef4444;
+    color: #ef4444;
+}
+
+.progress-step-item[data-status="failed"] .step-status-badge {
+    background: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+}
+
+/* 当前步骤详情 */
+.current-step-detail {
+    margin-top: 16px;
+    padding: 16px;
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.1));
+    border-radius: 12px;
+    border: 1px solid rgba(99, 102, 241, 0.2);
+    text-align: center;
+}
+
+.current-step-label {
+    font-size: 12px;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 8px;
+}
+
+.current-step-name {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+}
+
+.current-step-desc {
+    font-size: 14px;
+    color: var(--text-secondary);
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+</style>
