@@ -11,6 +11,14 @@ from pathlib import Path
 from typing import Optional, Dict, Any, Union
 from web.web_config import logger, BASE_DIR
 
+# 尝试导入bcrypt，如果不存在则使用fallback
+try:
+    import bcrypt
+    BCRYPT_AVAILABLE = True
+except ImportError:
+    BCRYPT_AVAILABLE = False
+    logger.warning("bcrypt not installed, using SHA256 fallback (not recommended for production)")
+
 
 class UserModel:
     """用户数据库模型"""
@@ -86,8 +94,22 @@ class UserModel:
             logger.info(f"✅ 数据库初始化完成: {self.db_path}")
     
     def _hash_password(self, password: str) -> str:
-        """使用SHA256哈希密码（生产环境建议使用bcrypt）"""
-        return hashlib.sha256(password.encode()).hexdigest()
+        """哈希密码 - 优先使用bcrypt，降级到SHA256（用于兼容旧数据）"""
+        if BCRYPT_AVAILABLE:
+            # bcrypt 自动处理盐值，推荐用于生产环境
+            return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+        else:
+            # 兼容旧数据，但会记录警告
+            return hashlib.sha256(password.encode()).hexdigest()
+    
+    def _verify_password(self, password: str, hashed: str) -> bool:
+        """验证密码 - 支持bcrypt和SHA256（兼容旧数据）"""
+        if BCRYPT_AVAILABLE and hashed.startswith('$2'):
+            # bcrypt 格式: $2b$10$...
+            return bcrypt.checkpw(password.encode(), hashed.encode())
+        else:
+            # 兼容旧版 SHA256
+            return hashlib.sha256(password.encode()).hexdigest() == hashed
     
     def create_user(self, username: str, password: str, phone: Optional[str] = None, email: Optional[str] = None) -> Dict[str, Any]:
         """
@@ -174,20 +196,30 @@ class UserModel:
             用户信息字典，验证失败返回None
         """
         try:
-            password_hash = self._hash_password(password)
-            
             with self._get_connection() as conn:
+                # 先查询用户信息
                 user = conn.execute(
                     """
                     SELECT id, username, password_hash, phone, email, 
                            is_active, is_admin, last_login_at
                     FROM users 
-                    WHERE (username = ? OR phone = ?) AND password_hash = ?
+                    WHERE username = ? OR phone = ?
                     """,
-                    (username, username, password_hash)
+                    (username, username)
                 ).fetchone()
                 
-                if user:
+                # 验证密码
+                if user and self._verify_password(password, user['password_hash']):
+                    # [安全升级] 如果是旧版SHA256哈希，自动升级到bcrypt
+                    if BCRYPT_AVAILABLE and not user['password_hash'].startswith('$2'):
+                        new_hash = self._hash_password(password)
+                        conn.execute(
+                            "UPDATE users SET password_hash = ? WHERE id = ?",
+                            (new_hash, user['id'])
+                        )
+                        conn.commit()
+                        logger.info(f"用户 {username} 密码哈希已自动升级到bcrypt")
+                    
                     # 更新最后登录时间
                     conn.execute(
                         "UPDATE users SET last_login_at = ? WHERE id = ?",

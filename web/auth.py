@@ -48,10 +48,8 @@ class UserAuth:
         if not username:
             return False
         
-        # 特殊处理：test用户允许任意密码（开发测试用）
-        if username.lower() == 'test':
-            logger.info(f"✅ 测试用户登录成功: {username}")
-            return True
+        # [安全修复] 已删除 test 用户任意密码登录后门
+        # 所有用户（包括test）必须通过数据库验证
         
         # 从数据库验证所有用户（包括admin和新注册用户）
         try:

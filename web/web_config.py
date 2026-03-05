@@ -56,10 +56,13 @@ except ImportError as e:
     CREATIVE_IDEAS_FILE = os.path.join(BASE_DIR, "data", "creative_ideas", "novel_ideas.txt")
 
 # Flask应用配置
+import secrets
+
 class FlaskConfig:
     """Flask应用配置"""
-    SECRET_KEY = 'your-secret-key-here'  # 应该从配置文件读取
-    DEBUG = True
+    # 优先从环境变量读取，否则生成随机密钥（每次重启会失效会话）
+    SECRET_KEY = os.environ.get('FLASK_SECRET_KEY') or secrets.token_hex(32)
+    DEBUG = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
     HOST = '0.0.0.0'
     PORT = 5000  # 
     

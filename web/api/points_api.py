@@ -2,10 +2,14 @@
 点数系统API
 提供用户点数查询、签到、消费等功能
 """
+import os
 from flask import Blueprint, request, jsonify, session
 from functools import wraps
 from web.models.point_model import point_model
 from web.web_config import logger
+
+# 从环境变量读取内部API密钥
+INTERNAL_API_KEY = os.environ.get('INTERNAL_API_KEY')
 
 points_api = Blueprint('points_api', __name__, url_prefix='/api/points')
 
@@ -182,7 +186,7 @@ def internal_spend_points():
     """
     # 验证API密钥
     api_key = request.headers.get('X-API-Key')
-    if api_key != 'your-internal-api-key':  # 应该放在配置中
+    if not INTERNAL_API_KEY or api_key != INTERNAL_API_KEY:
         return jsonify({'success': False, 'error': '无效的API密钥'}), 403
     
     data = request.get_json()
@@ -222,7 +226,7 @@ def internal_rollback_points():
     AI调用失败时使用
     """
     api_key = request.headers.get('X-API-Key')
-    if api_key != 'your-internal-api-key':
+    if not INTERNAL_API_KEY or api_key != INTERNAL_API_KEY:
         return jsonify({'success': False, 'error': '无效的API密钥'}), 403
     
     data = request.get_json()
@@ -257,7 +261,7 @@ def internal_grant_points():
     用于注册奖励等场景
     """
     api_key = request.headers.get('X-API-Key')
-    if api_key != 'your-internal-api-key':
+    if not INTERNAL_API_KEY or api_key != INTERNAL_API_KEY:
         return jsonify({'success': False, 'error': '无效的API密钥'}), 403
     
     data = request.get_json()
