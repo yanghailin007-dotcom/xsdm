@@ -437,6 +437,14 @@ def register_page_routes(app):
             return render_template('help.html')
         return render_template('pages/v2/help-v2.html')
 
+    @app.route('/terms', methods=['GET'])
+    def terms():
+        """使用条款页面"""
+        ui_version = request.args.get('ui', '').lower()
+        if ui_version == 'v1':
+            return render_template('terms.html')
+        return render_template('pages/v2/terms-v2.html')
+
     @app.route('/account', methods=['GET'])
     @login_required
     def account():
