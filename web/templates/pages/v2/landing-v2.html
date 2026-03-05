@@ -246,7 +246,8 @@
     align-items: center;
     justify-content: center;
     padding: var(--v2-space-6, 24px);
-    animation: v2-modal-fade-in 0.3s ease;
+    opacity: 1;
+    visibility: visible;
 }
 
 .v2-modal-backdrop {
@@ -265,7 +266,7 @@
     border-radius: var(--v2-radius-2xl, 20px);
     padding: var(--v2-space-10, 40px);
     text-align: center;
-    animation: v2-modal-slide-up 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    animation: v2-modal-slide-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
     box-shadow: var(--v2-shadow-lg, 0 10px 15px rgba(0,0,0,0.5));
 }
 
