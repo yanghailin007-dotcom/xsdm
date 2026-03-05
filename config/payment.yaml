@@ -30,28 +30,35 @@ yipay:
 exchange_rate: 1
 
 # 充值选项（用户可选择的面额）
+# 规则：30起充，100开始送，多充多送
 recharge_options:
-  - amount: 10
-    bonus: 0      # 赠送点数
-    label: "10点"
   - amount: 30
-    bonus: 3      # 充30送3
+    bonus: 0      # 起充门槛，不送
     label: "30点"
   - amount: 50
-    bonus: 8      # 充50送8
+    bonus: 2      # 小额少送
     label: "50点"
   - amount: 100
-    bonus: 20     # 充100送20
+    bonus: 10     # 100起送
     label: "100点"
   - amount: 200
-    bonus: 50     # 充200送50
+    bonus: 30     # 充200送30
     label: "200点"
   - amount: 500
-    bonus: 150    # 充500送150
+    bonus: 100    # 充500送100
     label: "500点"
+  - amount: 1000
+    bonus: 250    # 充1000送250
+    label: "1000点"
+  - amount: 3000
+    bonus: 900    # 充3000送900
+    label: "3000点"
+  - amount: 5000
+    bonus: 1800   # 充5000送1800（最划算）
+    label: "5000点"
 
 # 最低充值金额
-min_amount: 1
+min_amount: 30
 
 # 最高充值金额
 max_amount: 5000
