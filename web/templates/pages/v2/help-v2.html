@@ -1,0 +1,250 @@
+{% extends "layouts/base-v2.html" %}
+
+{% block title %}帮助中心{% endblock %}
+
+{% block extra_css %}
+<style>
+.help-container {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 40px 24px;
+}
+
+.help-header {
+    text-align: center;
+    margin-bottom: 60px;
+}
+
+.help-title {
+    font-size: 42px;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 16px;
+}
+
+.help-subtitle {
+    font-size: 18px;
+    color: rgba(255,255,255,0.6);
+}
+
+.help-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 24px;
+    margin-bottom: 60px;
+}
+
+.help-card {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 12px;
+    padding: 32px;
+    transition: all 0.3s ease;
+}
+
+.help-card:hover {
+    background: rgba(255,255,255,0.05);
+    border-color: rgba(255,255,255,0.1);
+    transform: translateY(-2px);
+}
+
+.help-icon {
+    width: 48px;
+    height: 48px;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    margin-bottom: 20px;
+}
+
+.help-card h3 {
+    font-size: 20px;
+    font-weight: 600;
+    color: #fff;
+    margin-bottom: 12px;
+}
+
+.help-card p {
+    font-size: 15px;
+    color: rgba(255,255,255,0.5);
+    line-height: 1.6;
+}
+
+.help-section {
+    margin-bottom: 48px;
+}
+
+.help-section h2 {
+    font-size: 24px;
+    font-weight: 600;
+    color: #fff;
+    margin-bottom: 24px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+.faq-item {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 8px;
+    margin-bottom: 12px;
+    overflow: hidden;
+}
+
+.faq-question {
+    padding: 20px 24px;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: #fff;
+    font-weight: 500;
+    transition: background 0.2s;
+}
+
+.faq-question:hover {
+    background: rgba(255,255,255,0.02);
+}
+
+.faq-answer {
+    padding: 0 24px 20px;
+    color: rgba(255,255,255,0.6);
+    line-height: 1.6;
+    display: none;
+}
+
+.faq-item.active .faq-answer {
+    display: block;
+}
+
+.faq-item.active .faq-toggle {
+    transform: rotate(180deg);
+}
+
+.contact-section {
+    text-align: center;
+    padding: 48px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 16px;
+}
+
+.contact-section h2 {
+    font-size: 28px;
+    font-weight: 600;
+    color: #fff;
+    margin-bottom: 12px;
+}
+
+.contact-section p {
+    color: rgba(255,255,255,0.5);
+    margin-bottom: 24px;
+}
+
+.btn-contact {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 28px;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: #fff;
+    text-decoration: none;
+    border-radius: 8px;
+    font-weight: 500;
+    transition: all 0.3s;
+}
+
+.btn-contact:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(99, 102, 241, 0.3);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="help-container">
+    <div class="help-header">
+        <h1 class="help-title">帮助中心</h1>
+        <p class="help-subtitle">了解如何使用大文娱系统的各项功能</p>
+    </div>
+
+    <div class="help-grid">
+        <div class="help-card">
+            <div class="help-icon">🚀</div>
+            <h3>快速开始</h3>
+            <p>了解如何创建您的第一个AI小说项目，从创意到成品的完整流程。</p>
+        </div>
+        <div class="help-card">
+            <div class="help-icon">✍️</div>
+            <h3>创作指南</h3>
+            <p>学习如何编写有效的提示词，让AI生成更符合您期望的内容。</p>
+        </div>
+        <div class="help-card">
+            <div class="help-icon">📚</div>
+            <h3>项目管理</h3>
+            <p>掌握项目创建、编辑、续写和导出的各种操作技巧。</p>
+        </div>
+        <div class="help-card">
+            <div class="help-icon">⚙️</div>
+            <h3>系统设置</h3>
+            <p>配置您的账户信息、修改密码和管理个人偏好设置。</p>
+        </div>
+    </div>
+
+    <div class="help-section">
+        <h2>常见问题</h2>
+        
+        <div class="faq-item">
+            <div class="faq-question" onclick="this.parentElement.classList.toggle('active')">
+                <span>如何创建新的小说项目？</span>
+                <span class="faq-toggle">▼</span>
+            </div>
+            <div class="faq-answer">
+                点击导航栏中的"新建创作"按钮，或在首页点击"开始创作"。输入您的创意概念，AI将帮您生成详细的小说设定和章节大纲。
+            </div>
+        </div>
+        
+        <div class="faq-item">
+            <div class="faq-question" onclick="this.parentElement.classList.toggle('active')">
+                <span>生成的小说可以导出吗？</span>
+                <span class="faq-toggle">▼</span>
+            </div>
+            <div class="faq-answer">
+                是的，您可以在作品列表或阅读页面点击"导出"按钮，将小说内容导出为TXT格式文件。
+            </div>
+        </div>
+        
+        <div class="faq-item">
+            <div class="faq-question" onclick="this.parentElement.classList.toggle('active')">
+                <span>如何继续生成已暂停的项目？</span>
+                <span class="faq-toggle">▼</span>
+            </div>
+            <div class="faq-answer">
+                在"我的作品"页面找到您的项目，点击"续写"按钮，选择起始章节和续写数量即可继续生成。
+            </div>
+        </div>
+        
+        <div class="faq-item">
+            <div class="faq-question" onclick="this.parentElement.classList.toggle('active')">
+                <span>生成的内容不满意怎么办？</span>
+                <span class="faq-toggle">▼</span>
+            </div>
+            <div class="faq-answer">
+                您可以重新生成特定章节，或在续写时调整提示词来获得更符合预期的内容。建议在初始设定阶段尽可能详细地描述您的需求。
+            </div>
+        </div>
+    </div>
+
+    <div class="contact-section">
+        <h2>需要更多帮助？</h2>
+        <p>如果您在使用过程中遇到其他问题，欢迎联系我们</p>
+        <a href="mailto:support@example.com" class="btn-contact">
+            <span>📧</span>
+            <span>联系客服</span>
+        </a>
+    </div>
+</div>
+{% endblock %}

@@ -429,6 +429,14 @@ def register_page_routes(app):
         """点数配置管理页面（管理员）"""
         return render_template('admin/points-config.html')
 
+    @app.route('/help', methods=['GET'])
+    def help_center():
+        """帮助中心页面"""
+        ui_version = request.args.get('ui', '').lower()
+        if ui_version == 'v1':
+            return render_template('help.html')
+        return render_template('pages/v2/help-v2.html')
+
     @app.route('/account', methods=['GET'])
     @login_required
     def account():
