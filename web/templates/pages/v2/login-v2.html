@@ -35,7 +35,7 @@
     position: relative;
     overflow: hidden;
     background: 
-        radial-gradient(ellipse at top, var(--v2-gray-800) 0%, var(--v2-gray-900) 100%);
+        radial-gradient(ellipse at top, var(--v2-bg-secondary) 0%, var(--v2-bg-primary) 100%);
 }
 
 /* 动态背景效果 */
@@ -150,7 +150,7 @@
 .v2-login-glow--2 {
     bottom: -100px;
     left: -100px;
-    background: var(--v2-accent-500);
+    background: var(--v2-accent-cyan);
 }
 
 /* 头部 */
@@ -164,7 +164,7 @@
 .v2-login-logo {
     width: 80px;
     height: 80px;
-    background: linear-gradient(135deg, var(--v2-primary-500) 0%, var(--v2-purple-500) 50%, var(--v2-accent-500) 100%);
+    background: linear-gradient(135deg, var(--v2-primary-500) 0%, var(--v2-accent-purple) 50%, var(--v2-accent-cyan) 100%);
     border-radius: var(--v2-radius-xl);
     display: flex;
     align-items: center;
@@ -184,7 +184,7 @@
     font-size: var(--v2-text-2xl);
     font-weight: 800;
     margin-bottom: var(--space-2);
-    background: linear-gradient(135deg, var(--v2-primary-400) 0%, var(--v2-purple-400) 50%, var(--v2-accent-400) 100%);
+    background: linear-gradient(135deg, var(--v2-primary-400) 0%, var(--v2-accent-purple) 50%, var(--v2-accent-cyan) 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -192,7 +192,7 @@
 
 .v2-login-subtitle {
     font-size: var(--v2-text-sm);
-    color: var(--v2-gray-400);
+    color: var(--v2-text-tertiary);
 }
 
 /* 表单样式 - 使用 V2 设计系统 */
@@ -210,7 +210,7 @@
     margin-bottom: var(--space-2);
     font-size: var(--v2-text-sm);
     font-weight: 500;
-    color: var(--v2-gray-300);
+    color: var(--v2-text-secondary);
 }
 
 .v2-input-wrapper {
@@ -223,24 +223,24 @@
     top: 50%;
     transform: translateY(-50%);
     font-size: 18px;
-    color: var(--v2-gray-500);
+    color: var(--v2-text-muted);
     pointer-events: none;
     transition: color var(--v2-transition-fast);
 }
 
 .v2-form-input {
     width: 100%;
-    padding: var(--space-3) var(--space-4) var(--space-3) var(--space-12);
+    padding: var(--space-3) var(--space-4) var(--space-3) 44px;
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: var(--v2-radius-lg);
-    color: var(--v2-gray-100);
+    color: var(--v2-text-primary);
     font-size: var(--v2-text-sm);
     transition: all var(--v2-transition-fast);
 }
 
 .v2-form-input::placeholder {
-    color: var(--v2-gray-500);
+    color: var(--v2-text-muted);
 }
 
 .v2-form-input:focus {
@@ -248,10 +248,6 @@
     border-color: var(--v2-primary-500);
     box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
     background: rgba(255, 255, 255, 0.08);
-}
-
-.v2-form-input:focus + .v2-input-icon {
-    color: var(--v2-primary-400);
 }
 
 /* 记住我和忘记密码 */
@@ -278,7 +274,7 @@
 
 .v2-checkbox-label {
     font-size: var(--v2-text-sm);
-    color: var(--v2-gray-300);
+    color: var(--v2-text-secondary);
 }
 
 .v2-forgot-link {
@@ -289,7 +285,7 @@
 }
 
 .v2-forgot-link:hover {
-    color: var(--v2-primary-300);
+    color: var(--v2-primary-400);
 }
 
 /* 登录按钮 - 使用 V2 主按钮样式 */
@@ -298,7 +294,7 @@
     padding: var(--space-4);
     font-size: var(--v2-text-base);
     font-weight: 600;
-    background: linear-gradient(135deg, var(--v2-primary-500) 0%, var(--v2-purple-500) 50%, var(--v2-accent-500) 100%);
+    background: linear-gradient(135deg, var(--v2-primary-500) 0%, var(--v2-accent-purple) 50%, var(--v2-accent-cyan) 100%);
     color: white;
     border: none;
     border-radius: var(--v2-radius-lg);
@@ -357,7 +353,7 @@
 .v2-register-prompt {
     text-align: center;
     font-size: var(--v2-text-sm);
-    color: var(--v2-gray-300);
+    color: var(--v2-text-secondary);
 }
 
 .v2-register-link {
@@ -368,7 +364,7 @@
 }
 
 .v2-register-link:hover {
-    color: var(--v2-primary-300);
+    color: var(--v2-primary-400);
 }
 
 /* 错误提示 */
@@ -404,7 +400,7 @@
     text-align: center;
     margin-top: var(--space-8);
     font-size: var(--v2-text-xs);
-    color: var(--v2-gray-500);
+    color: var(--v2-text-muted);
 }
 
 /* 响应式 */
@@ -435,7 +431,7 @@
 .v2-demo-btn {
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.1);
-    color: var(--v2-gray-400);
+    color: var(--v2-text-tertiary);
     padding: var(--space-1) var(--space-3);
     border-radius: var(--v2-radius);
     font-size: var(--v2-text-xs);
@@ -477,16 +473,16 @@
                 <div class="v2-form-group">
                     <label class="v2-form-label">用户名</label>
                     <div class="v2-input-wrapper">
-                        <input type="text" id="username" class="v2-form-input" placeholder="请输入用户名" required autocomplete="username">
                         <span class="v2-input-icon">👤</span>
+                        <input type="text" id="username" class="v2-form-input" placeholder="请输入用户名" required autocomplete="username">
                     </div>
                 </div>
 
                 <div class="v2-form-group">
                     <label class="v2-form-label">密码</label>
                     <div class="v2-input-wrapper">
-                        <input type="password" id="password" class="v2-form-input" placeholder="请输入密码" required autocomplete="current-password">
                         <span class="v2-input-icon">🔒</span>
+                        <input type="password" id="password" class="v2-form-input" placeholder="请输入密码" required autocomplete="current-password">
                     </div>
                 </div>
 
