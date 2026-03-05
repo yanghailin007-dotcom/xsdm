@@ -1531,6 +1531,20 @@ async function startPhaseTwoGeneration(event) {
         generation_notes: document.getElementById('generation-notes').value
     };
 
+    // 计算所需点数
+    const costPerChapter = pointsConfig?.phase2_chapter_batch || 2;
+    const totalCost = formData.chapters_to_generate * costPerChapter;
+
+    // 检查点数余额
+    if (userBalance < totalCost) {
+        const deficit = totalCost - userBalance;
+        const confirmed = await showPointsInsufficientDialog(userBalance, totalCost, deficit);
+        if (confirmed) {
+            window.open('/recharge', '_blank');
+        }
+        return;
+    }
+
     try {
         // 显示进度区域
         showProgressSection();
@@ -2015,3 +2029,113 @@ window.addEventListener('beforeunload', function() {
         clearInterval(progressInterval);
     }
 });
+
+// ==================== 点数不足弹窗 ====================
+function showPointsInsufficientDialog(currentBalance, requiredPoints, deficit) {
+    return new Promise((resolve) => {
+        // 创建弹窗背景
+        const modalOverlay = document.createElement('div');
+        modalOverlay.id = 'points-insufficient-modal';
+        modalOverlay.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+            backdrop-filter: blur(4px);
+        `;
+        
+        // 创建弹窗内容
+        const modalContent = document.createElement('div');
+        modalContent.style.cssText = `
+            background: linear-gradient(135deg, #1e1e2e 0%, #2d2d44 100%);
+            border-radius: 16px;
+            padding: 32px;
+            max-width: 420px;
+            width: 90%;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        `;
+        
+        modalContent.innerHTML = `
+            <div style="font-size: 48px; margin-bottom: 16px;">💎</div>
+            <h3 style="font-size: 20px; font-weight: 600; color: #fff; margin-bottom: 8px;">点数不足</h3>
+            <p style="font-size: 14px; color: rgba(255,255,255,0.6); margin-bottom: 24px;">
+                当前余额不足以完成本次生成
+            </p>
+            
+            <div style="background: rgba(0,0,0,0.2); border-radius: 12px; padding: 20px; margin-bottom: 24px;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
+                    <span style="color: rgba(255,255,255,0.6); font-size: 14px;">当前余额</span>
+                    <span style="color: #fff; font-weight: 500;">${currentBalance} 点</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
+                    <span style="color: rgba(255,255,255,0.6); font-size: 14px;">需要点数</span>
+                    <span style="color: #fff; font-weight: 500;">${requiredPoints} 点</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.1);">
+                    <span style="color: #ff6b6b; font-size: 14px;">还需充值</span>
+                    <span style="color: #ff6b6b; font-weight: 600;">${deficit} 点</span>
+                </div>
+            </div>
+            
+            <div style="display: flex; gap: 12px;">
+                <button id="btn-cancel-recharge" style="
+                    flex: 1;
+                    padding: 12px 20px;
+                    background: rgba(255,255,255,0.1);
+                    border: 1px solid rgba(255,255,255,0.2);
+                    border-radius: 8px;
+                    color: #fff;
+                    font-size: 14px;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                ">稍后再说</button>
+                <button id="btn-go-recharge" style="
+                    flex: 1;
+                    padding: 12px 20px;
+                    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+                    border: none;
+                    border-radius: 8px;
+                    color: #fff;
+                    font-size: 14px;
+                    font-weight: 500;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                ">立即充值</button>
+            </div>
+            
+            <p style="margin-top: 16px; font-size: 12px; color: rgba(255,255,255,0.4);">
+                💡 充值后可立即继续生成
+            </p>
+        `;
+        
+        modalOverlay.appendChild(modalContent);
+        document.body.appendChild(modalOverlay);
+        
+        // 绑定按钮事件
+        document.getElementById('btn-cancel-recharge').addEventListener('click', () => {
+            document.body.removeChild(modalOverlay);
+            resolve(false);
+        });
+        
+        document.getElementById('btn-go-recharge').addEventListener('click', () => {
+            document.body.removeChild(modalOverlay);
+            resolve(true);
+        });
+        
+        // 点击背景关闭
+        modalOverlay.addEventListener('click', (e) => {
+            if (e.target === modalOverlay) {
+                document.body.removeChild(modalOverlay);
+                resolve(false);
+            }
+        });
+    });
+}
