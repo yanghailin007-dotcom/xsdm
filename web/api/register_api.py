@@ -72,15 +72,10 @@ def register_register_routes(app):
                 user_id = result.get("user_id")
                 logger.info(f"✅ 用户注册成功: {username} (ID: {user_id})")
                 
-                # 注册时自动登录（奖励在首次关闭欢迎弹窗时发放）
-                session['username'] = username
-                session['user_id'] = user_id
-                session['logged_in'] = True
-                session.permanent = True
-                
+                # 不自动登录，用户需要手动登录后领取奖励
                 return jsonify({
                     "success": True,
-                    "message": "注册成功！首次登录可领取创作点数奖励",
+                    "message": "注册成功！请登录后领取创作点数奖励",
                     "user_id": user_id
                 })
             else:

@@ -642,13 +642,14 @@
             const data = await response.json();
             
             if (data.success) {
-                showMessage('注册成功！正在跳转...', 'success');
+                showMessage('注册成功！正在跳转到登录...', 'success');
                 registerBtn.innerHTML = '<span>✓ 注册成功</span>';
                 registerBtn.style.background = 'linear-gradient(135deg, #22c55e, #16a34a)';
                 
                 setTimeout(() => {
-                    // 注册API已自动登录，直接跳转到首页显示欢迎弹窗
-                    window.location.href = '/landing';
+                    // 跳转到登录页，带上用户名自动填写
+                    const username = document.getElementById('username-input').value.trim();
+                    window.location.href = '/login?username=' + encodeURIComponent(username);
                 }, 1500);
             } else {
                 throw new Error(data.error || '注册失败');
