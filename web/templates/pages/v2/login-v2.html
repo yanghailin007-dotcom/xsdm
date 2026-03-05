@@ -169,10 +169,15 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 40px;
     margin: 0 auto var(--space-6);
     box-shadow: 0 10px 40px rgba(99, 102, 241, 0.4);
     animation: v2-float 3s ease-in-out infinite;
+    padding: 16px;
+}
+
+.v2-login-logo svg {
+    width: 100%;
+    height: 100%;
 }
 
 @keyframes v2-float {
@@ -457,7 +462,24 @@
 
             <!-- 头部 -->
             <div class="v2-login-header">
-                <div class="v2-login-logo">🎨</div>
+                <div class="v2-login-logo">
+                    <svg class="v2-logo-svg" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="50" cy="50" r="45" stroke="white" stroke-width="2" stroke-opacity="0.3"/>
+                        <circle cx="50" cy="50" r="35" stroke="white" stroke-width="1.5" stroke-opacity="0.5"/>
+                        <path d="M50 5 L55 40 L95 50 L55 60 L50 95 L45 60 L5 50 L45 40 Z" fill="white"/>
+                        <circle cx="50" cy="50" r="12" fill="url(#loginLogoGradient)"/>
+                        <circle cx="50" cy="18" r="3" fill="white"/>
+                        <circle cx="50" cy="82" r="3" fill="white"/>
+                        <circle cx="18" cy="50" r="3" fill="white"/>
+                        <circle cx="82" cy="50" r="3" fill="white"/>
+                        <defs>
+                            <linearGradient id="loginLogoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" style="stop-color:#6366f1"/>
+                                <stop offset="100%" style="stop-color:#8b5cf6"/>
+                            </linearGradient>
+                        </defs>
+                    </svg>
+                </div>
                 <h1 class="v2-login-title">大文娱创作平台</h1>
                 <p class="v2-login-subtitle">AI驱动的全能娱乐创作系统</p>
             </div>
