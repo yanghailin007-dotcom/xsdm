@@ -453,6 +453,14 @@ def register_page_routes(app):
             return render_template('privacy.html')
         return render_template('pages/v2/privacy-v2.html')
 
+    @app.route('/contact', methods=['GET'])
+    def contact():
+        """联系我们页面"""
+        ui_version = request.args.get('ui', '').lower()
+        if ui_version == 'v1':
+            return render_template('contact.html')
+        return render_template('pages/v2/contact-v2.html')
+
     @app.route('/account', methods=['GET'])
     @login_required
     def account():

@@ -1,0 +1,266 @@
+{% extends "layouts/base-v2.html" %}
+
+{% block title %}联系我们{% endblock %}
+
+{% block extra_css %}
+<style>
+.contact-container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 60px 24px;
+}
+
+.contact-header {
+    text-align: center;
+    margin-bottom: 48px;
+}
+
+.contact-title {
+    font-size: 36px;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 12px;
+}
+
+.contact-subtitle {
+    font-size: 16px;
+    color: rgba(255,255,255,0.5);
+}
+
+.contact-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 24px;
+    margin-bottom: 48px;
+}
+
+.contact-card {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 12px;
+    padding: 32px;
+    text-align: center;
+    transition: all 0.3s ease;
+}
+
+.contact-card:hover {
+    background: rgba(255,255,255,0.05);
+    border-color: rgba(255,255,255,0.1);
+    transform: translateY(-2px);
+}
+
+.contact-icon {
+    width: 56px;
+    height: 56px;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    margin: 0 auto 20px;
+}
+
+.contact-card h3 {
+    font-size: 18px;
+    font-weight: 600;
+    color: #fff;
+    margin-bottom: 8px;
+}
+
+.contact-card p {
+    font-size: 14px;
+    color: rgba(255,255,255,0.5);
+    line-height: 1.6;
+}
+
+.contact-form-section {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 16px;
+    padding: 48px;
+}
+
+.contact-form-section h2 {
+    font-size: 24px;
+    font-weight: 600;
+    color: #fff;
+    margin-bottom: 8px;
+    text-align: center;
+}
+
+.contact-form-section > p {
+    text-align: center;
+    color: rgba(255,255,255,0.5);
+    margin-bottom: 32px;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    font-size: 14px;
+    font-weight: 500;
+    color: rgba(255,255,255,0.8);
+    margin-bottom: 8px;
+}
+
+.form-group input,
+.form-group textarea {
+    width: 100%;
+    padding: 12px 16px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 8px;
+    color: #fff;
+    font-size: 15px;
+    transition: all 0.2s;
+}
+
+.form-group input:focus,
+.form-group textarea:focus {
+    outline: none;
+    border-color: #6366f1;
+    background: rgba(255,255,255,0.08);
+}
+
+.form-group input::placeholder,
+.form-group textarea::placeholder {
+    color: rgba(255,255,255,0.3);
+}
+
+.form-group textarea {
+    min-height: 120px;
+    resize: vertical;
+}
+
+.btn-submit {
+    display: block;
+    width: 100%;
+    padding: 14px 24px;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.btn-submit:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(99, 102, 241, 0.3);
+}
+
+.social-links {
+    text-align: center;
+    margin-top: 48px;
+    padding-top: 32px;
+    border-top: 1px solid rgba(255,255,255,0.1);
+}
+
+.social-links h3 {
+    font-size: 16px;
+    font-weight: 500;
+    color: rgba(255,255,255,0.6);
+    margin-bottom: 16px;
+}
+
+.social-icons {
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+}
+
+.social-icon {
+    width: 44px;
+    height: 44px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    transition: all 0.2s;
+}
+
+.social-icon:hover {
+    background: rgba(255,255,255,0.1);
+    transform: translateY(-2px);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="contact-container">
+    <div class="contact-header">
+        <h1 class="contact-title">联系我们</h1>
+        <p class="contact-subtitle">有任何问题或建议？我们期待听到您的声音</p>
+    </div>
+
+    <div class="contact-grid">
+        <div class="contact-card">
+            <div class="contact-icon">📧</div>
+            <h3>邮件联系</h3>
+            <p>发送邮件至 support@example.com<br>我们会在24小时内回复</p>
+        </div>
+        <div class="contact-card">
+            <div class="contact-icon">💬</div>
+            <h3>在线客服</h3>
+            <p>工作日 9:00-18:00<br>实时为您解答问题</p>
+        </div>
+        <div class="contact-card">
+            <div class="contact-icon">📱</div>
+            <h3>微信公众号</h3>
+            <p>关注我们的公众号<br>获取最新动态和教程</p>
+        </div>
+    </div>
+
+    <div class="contact-form-section">
+        <h2>发送消息</h2>
+        <p>填写以下表单，我们会尽快与您联系</p>
+        
+        <form onsubmit="submitForm(event)">
+            <div class="form-group">
+                <label for="name">您的姓名</label>
+                <input type="text" id="name" name="name" placeholder="请输入您的姓名" required>
+            </div>
+            <div class="form-group">
+                <label for="email">邮箱地址</label>
+                <input type="email" id="email" name="email" placeholder="请输入您的邮箱" required>
+            </div>
+            <div class="form-group">
+                <label for="subject">主题</label>
+                <input type="text" id="subject" name="subject" placeholder="请输入消息主题" required>
+            </div>
+            <div class="form-group">
+                <label for="message">消息内容</label>
+                <textarea id="message" name="message" placeholder="请详细描述您的问题或建议..." required></textarea>
+            </div>
+            <button type="submit" class="btn-submit">发送消息</button>
+        </form>
+    </div>
+
+    <div class="social-links">
+        <h3>关注我们的社交媒体</h3>
+        <div class="social-icons">
+            <a href="#" class="social-icon" title="微信">📱</a>
+            <a href="#" class="social-icon" title="微博">📝</a>
+            <a href="#" class="social-icon" title="知乎">❓</a>
+            <a href="#" class="social-icon" title="B站">📺</a>
+        </div>
+    </div>
+</div>
+
+<script>
+function submitForm(event) {
+    event.preventDefault();
+    alert('感谢您的留言！我们会尽快与您联系。');
+    event.target.reset();
+}
+</script>
+{% endblock %}
