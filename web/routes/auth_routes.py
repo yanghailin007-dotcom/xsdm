@@ -461,6 +461,15 @@ def register_page_routes(app):
             return render_template('contact.html')
         return render_template('pages/v2/contact-v2.html')
 
+    @app.route('/recharge', methods=['GET'])
+    @login_required
+    def recharge():
+        """充值页面"""
+        ui_version = request.args.get('ui', '').lower()
+        if ui_version == 'v1':
+            return render_template('recharge.html')
+        return render_template('pages/v2/recharge-v2.html')
+
     @app.route('/account', methods=['GET'])
     @login_required
     def account():

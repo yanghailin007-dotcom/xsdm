@@ -328,6 +328,10 @@ def create_app():
     # 20. 点数系统 API 路由
     app.register_blueprint(points_api)
 
+    # 21. 支付系统 API 路由
+    from web.api.payment_api import payment_api
+    app.register_blueprint(payment_api)
+
     return app, manager
 
 

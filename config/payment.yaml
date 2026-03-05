@@ -1,0 +1,57 @@
+# 易支付（YiiPay）配置
+# 1:1 充值比例：1元 = 1点
+
+# 支付开关
+enabled: true
+
+# 易支付接口配置
+yipay:
+  # 易支付接口地址（请替换为您的易支付平台地址）
+  # 例如: https://pay.example.com
+  api_url: "https://pay.example.com"
+  
+  # 商户ID
+  merchant_id: "YOUR_MERCHANT_ID"
+  
+  # 商户密钥（重要：请妥善保管，不要泄露）
+  merchant_key: "YOUR_MERCHANT_KEY"
+  
+  # 支付方式
+  pay_type: "alipay"  # 可选: alipay, wxpay, qqpay
+  
+  # 异步回调URL（服务器内部回调）
+  notify_url: "/api/payment/notify"
+  
+  # 同步回调URL（支付完成后跳转）
+  return_url: "/payment/success"
+
+# 充值比例配置
+# 1元 = 1点
+exchange_rate: 1
+
+# 充值选项（用户可选择的面额）
+recharge_options:
+  - amount: 10
+    bonus: 0      # 赠送点数
+    label: "10点"
+  - amount: 30
+    bonus: 3      # 充30送3
+    label: "30点"
+  - amount: 50
+    bonus: 8      # 充50送8
+    label: "50点"
+  - amount: 100
+    bonus: 20     # 充100送20
+    label: "100点"
+  - amount: 200
+    bonus: 50     # 充200送50
+    label: "200点"
+  - amount: 500
+    bonus: 150    # 充500送150
+    label: "500点"
+
+# 最低充值金额
+min_amount: 1
+
+# 最高充值金额
+max_amount: 5000
