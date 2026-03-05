@@ -211,8 +211,11 @@ def register_page_routes(app):
     @app.route('/novel', methods=['GET'])
     @login_required
     def novel_view():
-        """小说阅读页面"""
-        return render_template('novel_view.html')
+        """小说阅读页面 - 默认 V2 UI"""
+        ui_version = request.args.get('ui', '').lower()
+        if ui_version == 'v1':
+            return render_template('novel_view.html')
+        return render_template('pages/v2/novel-v2.html')
 
     @app.route('/dashboard', methods=['GET'])
     @login_required
