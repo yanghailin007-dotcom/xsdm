@@ -163,4 +163,223 @@
         </div>
     </div>
 </section>
+
+<!-- 首次登录欢迎弹窗 -->
+{% if session.get('first_login_bonus') %}
+<div class="v2-welcome-modal" id="welcomeModal">
+    <div class="v2-welcome-backdrop" onclick="closeWelcomeModal()"></div>
+    <div class="v2-welcome-content">
+        <div class="v2-welcome-close" onclick="closeWelcomeModal()">×</div>
+        
+        <div class="v2-welcome-icon">🎉</div>
+        <h2 class="v2-welcome-title">欢迎加入大文娱系统！</h2>
+        <p class="v2-welcome-subtitle">{{ session.username }}，感谢您的注册</p>
+        
+        <div class="v2-bonus-card">
+            <div class="v2-bonus-label">获得创作点数</div>
+            <div class="v2-bonus-value">+{{ session.first_login_bonus }}</div>
+            <div class="v2-bonus-desc">新用户注册奖励</div>
+        </div>
+        
+        <div class="v2-guide-steps">
+            <div class="v2-guide-step">
+                <div class="v2-guide-step__num">1</div>
+                <div class="v2-guide-step__text">点击"开始创作"输入您的创意</div>
+            </div>
+            <div class="v2-guide-step">
+                <div class="v2-guide-step__num">2</div>
+                <div class="v2-guide-step__text">AI将为您生成完整小说设定</div>
+            </div>
+            <div class="v2-guide-step">
+                <div class="v2-guide-step__num">3</div>
+                <div class="v2-guide-step__text">一键生成章节内容</div>
+            </div>
+        </div>
+        
+        <a href="/" class="v2-welcome-btn">开始创作之旅</a>
+    </div>
+</div>
+
+<style>
+.v2-welcome-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.v2-welcome-backdrop {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(4px);
+}
+
+.v2-welcome-content {
+    position: relative;
+    background: linear-gradient(135deg, #1e1e2e 0%, #2d2d44 100%);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 24px;
+    padding: 40px;
+    max-width: 480px;
+    width: 100%;
+    text-align: center;
+    animation: welcomeSlideIn 0.4s ease;
+}
+
+@keyframes welcomeSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(30px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.v2-welcome-close {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    color: rgba(255, 255, 255, 0.5);
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.v2-welcome-close:hover {
+    color: #fff;
+}
+
+.v2-welcome-icon {
+    font-size: 64px;
+    margin-bottom: 16px;
+}
+
+.v2-welcome-title {
+    font-size: 24px;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 8px;
+}
+
+.v2-welcome-subtitle {
+    font-size: 15px;
+    color: rgba(255, 255, 255, 0.6);
+    margin-bottom: 24px;
+}
+
+.v2-bonus-card {
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 24px;
+}
+
+.v2-bonus-label {
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.8);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 4px;
+}
+
+.v2-bonus-value {
+    font-size: 48px;
+    font-weight: 800;
+    color: #fff;
+    line-height: 1;
+}
+
+.v2-bonus-desc {
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.7);
+    margin-top: 4px;
+}
+
+.v2-guide-steps {
+    text-align: left;
+    margin-bottom: 24px;
+}
+
+.v2-guide-step {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.v2-guide-step:last-child {
+    border-bottom: none;
+}
+
+.v2-guide-step__num {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(99, 102, 241, 0.2);
+    border: 1px solid rgba(99, 102, 241, 0.4);
+    border-radius: 50%;
+    font-size: 13px;
+    font-weight: 600;
+    color: #6366f1;
+    flex-shrink: 0;
+}
+
+.v2-guide-step__text {
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.v2-welcome-btn {
+    display: block;
+    width: 100%;
+    padding: 14px 24px;
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+    color: #fff;
+    text-decoration: none;
+    border-radius: 12px;
+    font-size: 15px;
+    font-weight: 600;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.v2-welcome-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(99, 102, 241, 0.4);
+}
+</style>
+
+<script>
+function closeWelcomeModal() {
+    const modal = document.getElementById('welcomeModal');
+    if (modal) {
+        modal.style.opacity = '0';
+        modal.style.transition = 'opacity 0.3s';
+        setTimeout(() => modal.remove(), 300);
+    }
+}
+
+// 5秒后自动关闭（可选）
+// setTimeout(closeWelcomeModal, 10000);
+</script>
+{% endif %}
 {% endblock %}

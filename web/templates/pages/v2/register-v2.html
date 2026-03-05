@@ -647,7 +647,9 @@
                 registerBtn.style.background = 'linear-gradient(135deg, #22c55e, #16a34a)';
                 
                 setTimeout(() => {
-                    window.location.href = data.redirect || '/login';
+                    // 跳转到登录页并带上用户名，方便用户直接登录
+                    const username = document.getElementById('username-input').value.trim();
+                    window.location.href = '/login?username=' + encodeURIComponent(username);
                 }, 1500);
             } else {
                 throw new Error(data.error || '注册失败');

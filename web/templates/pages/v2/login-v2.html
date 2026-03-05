@@ -541,7 +541,26 @@
 
     // 页面加载完成后聚焦到用户名
     document.addEventListener('DOMContentLoaded', () => {
-        document.getElementById('username').focus();
+        // 检查URL参数，如果有用户名则自动填充（从注册页跳转过来）
+        const urlParams = new URLSearchParams(window.location.search);
+        const prefillUsername = urlParams.get('username');
+        
+        if (prefillUsername) {
+            // 填充用户名并聚焦到密码输入框
+            document.getElementById('username').value = prefillUsername;
+            document.getElementById('password').focus();
+            
+            // 显示提示信息
+            const messageDiv = document.getElementById('message');
+            if (messageDiv) {
+                messageDiv.textContent = '欢迎回来！请直接输入密码登录';
+                messageDiv.className = 'v2-message v2-message--info';
+                messageDiv.style.display = 'block';
+            }
+        } else {
+            // 普通情况，聚焦到用户名输入框
+            document.getElementById('username').focus();
+        }
     });
 </script>
 {% endblock %}
