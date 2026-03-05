@@ -130,7 +130,12 @@ def register_auth_routes(app):
         """注册页面"""
         if 'logged_in' in session and session['logged_in']:
             return redirect('/')
-        return render_template('register.html')
+        
+        # V2 版本切换支持
+        ui_version = request.args.get('ui', '').lower()
+        if ui_version == 'v1':
+            return render_template('register.html')
+        return render_template('pages/v2/register-v2.html')
 
 
 def register_page_routes(app):
