@@ -50,7 +50,7 @@ def register_register_routes(app):
             if not re.match(r'^[a-zA-Z0-9_]{3,20}$', username):
                 return jsonify({
                     "success": False,
-                    "error": "用户名只能包含字母、数字和下划线，长度3-20个字符"
+                    "error": "用户名只能包含字母、数字和下划线，长度3-20个字符，不支持中文"
                 }), 400
             
             # 验证密码强度（至少6个字符）

@@ -419,12 +419,15 @@
                         type="text" 
                         id="username-input" 
                         class="v2-form-input" 
-                        placeholder="请输入用户名（至少3个字符）" 
+                        placeholder="请输入用户名（3-20位字母、数字或下划线）" 
                         required 
                         minlength="3"
                         maxlength="20"
                         autocomplete="username">
                     <div class="v2-username-status" id="usernameStatus"></div>
+                    <div class="v2-input-hint" style="margin-top: 6px; font-size: 12px; color: var(--v2-text-tertiary);">
+                        💡 用户名只能包含字母、数字和下划线，不支持中文
+                    </div>
                 </div>
 
                 <div class="v2-form-group">
@@ -510,6 +513,14 @@
         if (username.length < 3) {
             statusEl.textContent = '';
             statusEl.className = 'v2-username-status';
+            return;
+        }
+        
+        // 验证用户名格式（只能是字母、数字、下划线）
+        const usernameRegex = /^[a-zA-Z0-9_]+$/;
+        if (!usernameRegex.test(username)) {
+            statusEl.textContent = '✗ 只能包含字母、数字和下划线';
+            statusEl.className = 'v2-username-status v2-username-status--taken';
             return;
         }
         
