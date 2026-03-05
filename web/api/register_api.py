@@ -72,30 +72,16 @@ def register_register_routes(app):
                 user_id = result.get("user_id")
                 logger.info(f"✅ 用户注册成功: {username} (ID: {user_id})")
                 
-                # 发放注册奖励点数
-                bonus_amount = point_model.get_config('register_bonus', 88)
-                point_result = point_model.add_points(
-                    user_id=user_id,
-                    amount=bonus_amount,
-                    source='register_bonus',
-                    description='新用户注册奖励'
-                )
-                
-                if point_result['success']:
-                    logger.info(f"✅ 发放注册奖励{bonus_amount}点给用户{user_id}")
-                    # 注册时自动登录
-                    session['username'] = username
-                    session['user_id'] = user_id
-                    session['logged_in'] = True
-                    session.permanent = True
-                else:
-                    logger.error(f"❌ 发放注册奖励失败: {point_result.get('error')}")
+                # 注册时自动登录（奖励在首次关闭欢迎弹窗时发放）
+                session['username'] = username
+                session['user_id'] = user_id
+                session['logged_in'] = True
+                session.permanent = True
                 
                 return jsonify({
                     "success": True,
-                    "message": f"注册成功，赠送{bonus_amount}点创作点数！",
-                    "user_id": user_id,
-                    "points_bonus": bonus_amount
+                    "message": "注册成功！首次登录可领取创作点数奖励",
+                    "user_id": user_id
                 })
             else:
                 return jsonify({

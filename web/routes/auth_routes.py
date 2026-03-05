@@ -169,7 +169,7 @@ def register_page_routes(app):
             logger.info("📄 Loading landing.html (V1 UI)")
             return render_template('landing.html')
         
-        # 检查是否需要显示欢迎弹窗（基于数据库，不依赖 session）
+        # 检查是否需要显示欢迎弹窗（未领取注册奖励的用户）
         show_welcome = False
         welcome_bonus = 0
         if session.get('logged_in') and session.get('user_id'):
@@ -178,19 +178,21 @@ def register_page_routes(app):
                 from web.models.point_model import point_model
                 user_id = session['user_id']
                 
-                # 检查用户是否已看过欢迎弹窗
-                if not user_model.has_seen_welcome(user_id):
-                    # 检查用户是否有注册奖励
-                    transactions = point_model.get_transactions(user_id, page=1, limit=10)
-                    if transactions and transactions.get('transactions'):
-                        for t in transactions['transactions']:
-                            if t.get('source') == 'register_bonus':
-                                show_welcome = True
-                                welcome_bonus = t.get('amount', 88)
-                                break
+                # 检查用户是否已领取注册奖励（有交易记录表示已领取）
+                transactions = point_model.get_transactions(user_id, page=1, limit=10)
+                has_claimed_bonus = False
+                if transactions and transactions.get('transactions'):
+                    for t in transactions['transactions']:
+                        if t.get('source') == 'register_bonus':
+                            has_claimed_bonus = True
+                            break
+                
+                # 如果没有领取过奖励，显示欢迎弹窗
+                if not has_claimed_bonus:
+                    welcome_bonus = point_model.get_config('register_bonus', 88)
+                    show_welcome = True
+                    logger.info(f"✅ 用户 {user_id} 未领取注册奖励，将显示欢迎弹窗")
                     
-                    if show_welcome:
-                        logger.info(f"✅ 用户 {user_id} 将显示欢迎弹窗，奖励: {welcome_bonus}点")
             except Exception as e:
                 logger.error(f"❌ 检查欢迎弹窗状态失败: {e}")
         
@@ -570,19 +572,49 @@ def register_page_routes(app):
             return jsonify({'success': False, 'error': '服务器错误'}), 500
 
     # 清除首次登录标记
-    @app.route('/api/clear-first-login-flag', methods=['POST'])
+    @app.route('/api/claim-register-bonus', methods=['POST'])
     @login_required
-    def clear_first_login_flag():
-        """标记用户已看过欢迎弹窗，记录在数据库中"""
+    def claim_register_bonus():
+        """用户关闭欢迎弹窗时领取注册奖励"""
         try:
             user_id = session.get('user_id')
-            if user_id:
-                from web.models.user_model import user_model
+            if not user_id:
+                return jsonify({'success': False, 'error': '未登录'}), 401
+                
+            from web.models.user_model import user_model
+            from web.models.point_model import point_model
+            
+            # 检查是否已领取过
+            transactions = point_model.get_transactions(user_id, page=1, limit=10)
+            if transactions and transactions.get('transactions'):
+                for t in transactions['transactions']:
+                    if t.get('source') == 'register_bonus':
+                        return jsonify({'success': False, 'error': '奖励已领取'}), 400
+            
+            # 发放注册奖励
+            bonus_amount = point_model.get_config('register_bonus', 88)
+            point_result = point_model.add_points(
+                user_id=user_id,
+                amount=bonus_amount,
+                source='register_bonus',
+                description='新用户注册奖励（首次登录）'
+            )
+            
+            if point_result['success']:
+                # 标记已看过弹窗（作为领取记录）
                 user_model.mark_welcome_shown(user_id)
-                logger.info(f"✅ 用户 {user_id} 已标记为看过欢迎弹窗")
-            return jsonify({'success': True})
+                logger.info(f"✅ 用户 {user_id} 领取注册奖励 {bonus_amount} 点")
+                return jsonify({
+                    'success': True, 
+                    'message': f'成功领取 {bonus_amount} 点创作点数',
+                    'amount': bonus_amount
+                })
+            else:
+                logger.error(f"❌ 发放注册奖励失败: {point_result.get('error')}")
+                return jsonify({'success': False, 'error': '发放奖励失败'}), 500
+                
         except Exception as e:
-            logger.error(f"标记欢迎弹窗状态失败: {e}")
+            logger.error(f"领取注册奖励失败: {e}")
             return jsonify({'success': False, 'error': '服务器错误'}), 500
 
     # 错误处理
