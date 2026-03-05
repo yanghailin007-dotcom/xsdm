@@ -445,6 +445,14 @@ def register_page_routes(app):
             return render_template('terms.html')
         return render_template('pages/v2/terms-v2.html')
 
+    @app.route('/privacy', methods=['GET'])
+    def privacy():
+        """隐私政策页面"""
+        ui_version = request.args.get('ui', '').lower()
+        if ui_version == 'v1':
+            return render_template('privacy.html')
+        return render_template('pages/v2/privacy-v2.html')
+
     @app.route('/account', methods=['GET'])
     @login_required
     def account():
