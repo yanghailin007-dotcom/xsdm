@@ -833,12 +833,13 @@
                 const data = await response.json();
 
                 if (data.success) {
-                    showMessage('注册成功！正在跳转到登录页面...', 'success');
+                    showMessage('注册成功！正在跳转到首页...', 'success');
                     registerBtn.innerHTML = '<span>✓ 注册成功</span>';
                     registerBtn.style.background = 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)';
                     
                     setTimeout(() => {
-                        window.location.href = '/login';
+                        // 注册API已自动登录，直接跳转到首页显示欢迎弹窗
+                        window.location.href = '/landing';
                     }, 2000);
                 } else {
                     showMessage(data.error || '注册失败', 'error');
