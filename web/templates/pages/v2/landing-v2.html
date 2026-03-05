@@ -237,7 +237,7 @@
 </div>
 
 <style>
-/* V2 欢迎弹窗 - 使用设计系统变量 */
+/* V2 欢迎弹窗 - 炫酷动画效果 */
 .v2-modal-overlay {
     position: fixed;
     inset: 0;
@@ -248,42 +248,86 @@
     padding: var(--v2-space-6, 24px);
     opacity: 1;
     visibility: visible;
+    perspective: 1000px;
+}
+
+/* 背景光晕动画 */
+.v2-modal-overlay::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at 50% 50%, rgba(99, 102, 241, 0.15) 0%, transparent 50%);
+    animation: bgPulse 3s ease-in-out infinite;
+}
+
+@keyframes bgPulse {
+    0%, 100% { opacity: 0.5; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.1); }
 }
 
 .v2-modal-backdrop {
     position: absolute;
     inset: 0;
-    background: var(--v2-bg-overlay, rgba(0, 0, 0, 0.8));
-    backdrop-filter: blur(8px);
+    background: var(--v2-bg-overlay, rgba(0, 0, 0, 0.85));
+    backdrop-filter: blur(12px);
+    animation: backdropFade 0.5s ease forwards;
+}
+
+@keyframes backdropFade {
+    from { opacity: 0; }
+    to { opacity: 1; }
 }
 
 .v2-modal-container {
     position: relative;
     width: 100%;
     max-width: 420px;
-    background: var(--v2-bg-secondary, #111);
-    border: 1px solid var(--v2-border-default, rgba(255,255,255,0.1));
+    background: linear-gradient(135deg, rgba(30, 30, 40, 0.95), rgba(20, 20, 30, 0.98));
+    border: 1px solid rgba(99, 102, 241, 0.3);
     border-radius: var(--v2-radius-2xl, 20px);
     padding: var(--v2-space-10, 40px);
     text-align: center;
-    animation: v2-modal-slide-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-    box-shadow: var(--v2-shadow-lg, 0 10px 15px rgba(0,0,0,0.5));
+    animation: modalBounceIn 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    box-shadow: 
+        0 0 0 1px rgba(99, 102, 241, 0.2),
+        0 20px 60px rgba(0, 0, 0, 0.6),
+        0 0 60px rgba(99, 102, 241, 0.15);
+    transform-style: preserve-3d;
 }
 
-@keyframes v2-modal-fade-in {
-    from { opacity: 0; }
-    to { opacity: 1; }
-}
-
-@keyframes v2-modal-slide-up {
-    from {
+/* 弹窗弹性入场动画 */
+@keyframes modalBounceIn {
+    0% {
         opacity: 0;
-        transform: translateY(20px) scale(0.98);
+        transform: translateY(60px) scale(0.8) rotateX(-10deg);
     }
-    to {
+    40% {
         opacity: 1;
-        transform: translateY(0) scale(1);
+        transform: translateY(-10px) scale(1.05) rotateX(2deg);
     }
+    70% {
+        transform: translateY(5px) scale(0.98) rotateX(-1deg);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0) scale(1) rotateX(0deg);
+    }
+}
+
+/* 容器边框发光效果 */
+.v2-modal-container::before {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border-radius: var(--v2-radius-2xl, 20px);
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.5), rgba(139, 92, 246, 0.3), transparent 50%);
+    z-index: -1;
+    animation: borderGlow 2s ease-in-out infinite alternate;
+}
+
+@keyframes borderGlow {
+    from { opacity: 0.5; }
+    to { opacity: 1; }
 }
 
 /* 关闭按钮 */
@@ -325,17 +369,52 @@
 }
 
 .v2-welcome-emoji {
-    font-size: 48px;
+    font-size: 52px;
     z-index: 1;
+    animation: emojiFloat 3s ease-in-out infinite, emojiRotate 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.2s backwards;
+    display: block;
+}
+
+/* Emoji 浮动动画 */
+@keyframes emojiFloat {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    25% { transform: translateY(-8px) rotate(5deg); }
+    50% { transform: translateY(0) rotate(0deg); }
+    75% { transform: translateY(-5px) rotate(-3deg); }
+}
+
+/* Emoji 入场旋转 */
+@keyframes emojiRotate {
+    from { 
+        opacity: 0;
+        transform: scale(0) rotate(-180deg);
+    }
+    to { 
+        opacity: 1;
+        transform: scale(1) rotate(0deg);
+    }
 }
 
 .v2-welcome-glow {
     position: absolute;
-    inset: 0;
+    inset: -10px;
     background: linear-gradient(135deg, var(--v2-primary-500, #6366f1), var(--v2-accent-purple, #8b5cf6));
     border-radius: var(--v2-radius-full, 9999px);
-    opacity: 0.3;
-    filter: blur(20px);
+    opacity: 0.4;
+    filter: blur(25px);
+    animation: glowPulse 2s ease-in-out infinite alternate;
+}
+
+/* 光晕脉冲 */
+@keyframes glowPulse {
+    from { 
+        opacity: 0.3;
+        transform: scale(0.9);
+    }
+    to { 
+        opacity: 0.5;
+        transform: scale(1.1);
+    }
 }
 
 /* 标题 */
@@ -403,13 +482,39 @@
 }
 
 .v2-bonus-amount {
-    font-size: 56px;
+    font-size: 64px;
     font-weight: 800;
     background: linear-gradient(135deg, var(--v2-primary-400, #818cf8), var(--v2-accent-purple, #c4b5fd));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     line-height: 1;
     margin-bottom: var(--v2-space-1, 4px);
+    animation: numberPulse 1.5s ease-in-out infinite, numberScale 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.3s backwards;
+    display: inline-block;
+}
+
+/* 数字脉冲发光 */
+@keyframes numberPulse {
+    0%, 100% { 
+        filter: drop-shadow(0 0 20px rgba(99, 102, 241, 0.3));
+        transform: scale(1);
+    }
+    50% { 
+        filter: drop-shadow(0 0 40px rgba(99, 102, 241, 0.6));
+        transform: scale(1.05);
+    }
+}
+
+/* 数字入场缩放 */
+@keyframes numberScale {
+    from { 
+        opacity: 0;
+        transform: scale(0.5) rotate(-10deg);
+    }
+    to { 
+        opacity: 1;
+        transform: scale(1) rotate(0deg);
+    }
 }
 
 .v2-bonus-unit {
@@ -466,15 +571,61 @@
     line-height: var(--v2-leading-relaxed, 1.625);
 }
 
-/* 行动按钮 */
+/* 行动按钮 - 炫酷发光效果 */
 .v2-welcome-cta {
     width: 100%;
     justify-content: center;
     gap: var(--v2-space-2, 8px);
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6) !important;
+    border: none !important;
+    animation: btnGlow 2s ease-in-out infinite alternate;
+}
+
+/* 按钮光晕动画 */
+@keyframes btnGlow {
+    from {
+        box-shadow: 0 0 20px rgba(99, 102, 241, 0.4), 0 0 40px rgba(99, 102, 241, 0.2);
+    }
+    to {
+        box-shadow: 0 0 30px rgba(99, 102, 241, 0.6), 0 0 60px rgba(139, 92, 246, 0.4);
+    }
+}
+
+/* 按钮悬停效果 */
+.v2-welcome-cta:hover {
+    transform: translateY(-2px) scale(1.02);
+    box-shadow: 0 0 40px rgba(99, 102, 241, 0.8), 0 0 80px rgba(139, 92, 246, 0.5) !important;
+}
+
+/* 按钮点击效果 */
+.v2-welcome-cta:active {
+    transform: translateY(0) scale(0.98);
+}
+
+/* 按钮内部光效 */
+.v2-welcome-cta::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+    transition: left 0.5s;
+}
+
+.v2-welcome-cta:hover::before {
+    left: 100%;
 }
 
 .v2-welcome-cta svg {
-    transition: transform 0.2s;
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.v2-welcome-cta:hover svg {
+    transform: translateX(4px);
 }
 
 .v2-welcome-cta:hover svg {
