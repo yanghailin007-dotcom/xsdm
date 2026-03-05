@@ -470,6 +470,15 @@ def register_page_routes(app):
             return render_template('recharge.html')
         return render_template('pages/v2/recharge-v2.html')
 
+    @app.route('/settings', methods=['GET'])
+    @login_required
+    def settings():
+        """偏好设置页面"""
+        ui_version = request.args.get('ui', '').lower()
+        if ui_version == 'v1':
+            return render_template('settings.html')
+        return render_template('pages/v2/settings-v2.html')
+
     @app.route('/account', methods=['GET'])
     @login_required
     def account():

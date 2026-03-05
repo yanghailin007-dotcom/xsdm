@@ -1,0 +1,397 @@
+{% extends "layouts/base-v2.html" %}
+
+{% block title %}偏好设置{% endblock %}
+
+{% block extra_css %}
+<style>
+.settings-container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 40px 24px;
+}
+
+.settings-header {
+    text-align: center;
+    margin-bottom: 40px;
+}
+
+.settings-title {
+    font-size: 32px;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 8px;
+}
+
+.settings-subtitle {
+    font-size: 15px;
+    color: rgba(255,255,255,0.5);
+}
+
+.settings-card {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 16px;
+    padding: 32px;
+    margin-bottom: 24px;
+}
+
+.settings-card h2 {
+    font-size: 18px;
+    font-weight: 600;
+    color: #fff;
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+.setting-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
+.setting-item:last-child {
+    border-bottom: none;
+}
+
+.setting-info h3 {
+    font-size: 15px;
+    font-weight: 500;
+    color: #fff;
+    margin-bottom: 4px;
+}
+
+.setting-info p {
+    font-size: 13px;
+    color: rgba(255,255,255,0.4);
+}
+
+/* 开关样式 */
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 48px;
+    height: 26px;
+}
+
+.switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(255,255,255,0.1);
+    transition: .3s;
+    border-radius: 26px;
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 20px;
+    width: 20px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: .3s;
+    border-radius: 50%;
+}
+
+input:checked + .slider {
+    background-color: #6366f1;
+}
+
+input:checked + .slider:before {
+    transform: translateX(22px);
+}
+
+/* 选择框样式 */
+.setting-select {
+    padding: 8px 16px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 8px;
+    color: #fff;
+    font-size: 14px;
+    cursor: pointer;
+    min-width: 140px;
+}
+
+.setting-select:focus {
+    outline: none;
+    border-color: #6366f1;
+}
+
+.setting-select option {
+    background: #1a1a1a;
+    color: #fff;
+}
+
+.coming-soon {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    background: rgba(99, 102, 241, 0.1);
+    color: #6366f1;
+    font-size: 12px;
+    border-radius: 20px;
+}
+
+.btn-save {
+    display: block;
+    width: 100%;
+    padding: 14px 24px;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+    margin-top: 32px;
+}
+
+.btn-save:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(99, 102, 241, 0.3);
+}
+
+.toast {
+    position: fixed;
+    top: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 12px 24px;
+    background: rgba(34, 197, 94, 0.9);
+    color: #fff;
+    border-radius: 8px;
+    font-weight: 500;
+    z-index: 1001;
+    animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="settings-container">
+    <div class="settings-header">
+        <h1 class="settings-title">偏好设置</h1>
+        <p class="settings-subtitle">自定义您的使用体验</p>
+    </div>
+
+    <!-- 界面设置 -->
+    <div class="settings-card">
+        <h2>🎨 界面设置</h2>
+        
+        <div class="setting-item">
+            <div class="setting-info">
+                <h3>深色模式</h3>
+                <p>使用深色主题保护眼睛</p>
+            </div>
+            <label class="switch">
+                <input type="checkbox" id="dark-mode" checked disabled>
+                <span class="slider"></span>
+            </label>
+        </div>
+        
+        <div class="setting-item">
+            <div class="setting-info">
+                <h3>语言</h3>
+                <p>选择界面显示语言</p>
+            </div>
+            <select class="setting-select" id="language">
+                <option value="zh-CN">简体中文</option>
+                <option value="zh-TW">繁体中文</option>
+                <option value="en">English</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- 通知设置 -->
+    <div class="settings-card">
+        <h2>🔔 通知设置</h2>
+        
+        <div class="setting-item">
+            <div class="setting-info">
+                <h3>邮件通知</h3>
+                <p>接收重要更新和提醒</p>
+            </div>
+            <label class="switch">
+                <input type="checkbox" id="email-notify" checked>
+                <span class="slider"></span>
+            </label>
+        </div>
+        
+        <div class="setting-item">
+            <div class="setting-info">
+                <h3>生成完成提醒</h3>
+                <p>AI生成任务完成时通知我</p>
+            </div>
+            <label class="switch">
+                <input type="checkbox" id="generation-notify" checked>
+                <span class="slider"></span>
+            </label>
+        </div>
+    </div>
+
+    <!-- 创作设置 -->
+    <div class="settings-card">
+        <h2>✍️ 创作设置</h2>
+        
+        <div class="setting-item">
+            <div class="setting-info">
+                <h3>自动保存</h3>
+                <p>编辑时自动保存草稿</p>
+            </div>
+            <label class="switch">
+                <input type="checkbox" id="auto-save" checked>
+                <span class="slider"></span>
+            </label>
+        </div>
+        
+        <div class="setting-item">
+            <div class="setting-info">
+                <h3>默认生成模式</h3>
+                <p>选择章节生成的默认模式</p>
+            </div>
+            <select class="setting-select" id="default-mode">
+                <option value="batch">批量模式</option>
+                <option value="refined">精修模式</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- 隐私设置 -->
+    <div class="settings-card">
+        <h2>🔒 隐私设置</h2>
+        
+        <div class="setting-item">
+            <div class="setting-info">
+                <h3>公开我的作品</h3>
+                <p>允许其他用户查看您的作品</p>
+            </div>
+            <label class="switch">
+                <input type="checkbox" id="public-works">
+                <span class="slider"></span>
+            </label>
+        </div>
+        
+        <div class="setting-item">
+            <div class="setting-info">
+                <h3>数据分享</h3>
+                <p>贡献匿名数据帮助改进AI</p>
+            </div>
+            <label class="switch">
+                <input type="checkbox" id="data-share" checked>
+                <span class="slider"></span>
+            </label>
+        </div>
+    </div>
+
+    <!-- 高级功能 -->
+    <div class="settings-card">
+        <h2>⚙️ 高级功能</h2>
+        
+        <div class="setting-item">
+            <div class="setting-info">
+                <h3>实验性功能</h3>
+                <p>提前体验新功能</p>
+            </div>
+            <div class="coming-soon">
+                <span>🔧</span>
+                <span>即将上线</span>
+            </div>
+        </div>
+        
+        <div class="setting-item">
+            <div class="setting-info">
+                <h3>开发者模式</h3>
+                <p>显示调试信息和API日志</p>
+            </div>
+            <div class="coming-soon">
+                <span>🔧</span>
+                <span>即将上线</span>
+            </div>
+        </div>
+    </div>
+
+    <button class="btn-save" onclick="saveSettings()">保存设置</button>
+</div>
+
+<script>
+// 页面加载时读取本地存储的设置
+document.addEventListener('DOMContentLoaded', function() {
+    const settings = JSON.parse(localStorage.getItem('userSettings') || '{}');
+    
+    if (settings.emailNotify !== undefined) {
+        document.getElementById('email-notify').checked = settings.emailNotify;
+    }
+    if (settings.generationNotify !== undefined) {
+        document.getElementById('generation-notify').checked = settings.generationNotify;
+    }
+    if (settings.autoSave !== undefined) {
+        document.getElementById('auto-save').checked = settings.autoSave;
+    }
+    if (settings.language) {
+        document.getElementById('language').value = settings.language;
+    }
+    if (settings.defaultMode) {
+        document.getElementById('default-mode').value = settings.defaultMode;
+    }
+    if (settings.publicWorks !== undefined) {
+        document.getElementById('public-works').checked = settings.publicWorks;
+    }
+    if (settings.dataShare !== undefined) {
+        document.getElementById('data-share').checked = settings.dataShare;
+    }
+});
+
+function saveSettings() {
+    const settings = {
+        emailNotify: document.getElementById('email-notify').checked,
+        generationNotify: document.getElementById('generation-notify').checked,
+        autoSave: document.getElementById('auto-save').checked,
+        language: document.getElementById('language').value,
+        defaultMode: document.getElementById('default-mode').value,
+        publicWorks: document.getElementById('public-works').checked,
+        dataShare: document.getElementById('data-share').checked
+    };
+    
+    localStorage.setItem('userSettings', JSON.stringify(settings));
+    showToast('设置已保存');
+}
+
+function showToast(message) {
+    const toast = document.createElement('div');
+    toast.className = 'toast';
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.remove();
+    }, 3000);
+}
+</script>
+{% endblock %}
