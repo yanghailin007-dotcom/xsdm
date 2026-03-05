@@ -424,7 +424,10 @@ def register_page_routes(app):
     @login_required
     def account():
         """账户管理页面"""
-        return render_template('account.html')
+        ui_version = request.args.get('ui', '').lower()
+        if ui_version == 'v1':
+            return render_template('account.html')
+        return render_template('pages/v2/account-v2.html')
 
     @app.route('/api/current-user', methods=['GET'])
     def get_current_user():
