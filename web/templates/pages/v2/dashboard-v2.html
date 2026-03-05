@@ -479,7 +479,8 @@
             if (!projectsResponse.ok) throw new Error('获取项目列表失败');
             
             const projectsData = await projectsResponse.json();
-            const projects = projectsData.projects || [];
+            // API 返回的是直接数组
+            const projects = Array.isArray(projectsData) ? projectsData : (projectsData.projects || [])
             
             // 更新项目数量
             document.getElementById('projectCount').textContent = projects.length;
