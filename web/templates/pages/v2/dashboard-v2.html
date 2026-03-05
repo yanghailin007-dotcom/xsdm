@@ -1,0 +1,584 @@
+{#
+    大文娱系统 V2 - 仪表板
+    数据统计总览页面
+#}
+{% extends "layouts/base-v2.html" %}
+
+{% block title %}仪表板 - 大文娱创作平台{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ==================== V2 仪表板 ==================== */
+
+.v2-dashboard-page {
+    min-height: calc(100vh - 64px);
+    padding: var(--v2-space-8) var(--v2-space-6);
+    background: var(--v2-bg-primary);
+}
+
+/* 页面标题 */
+.v2-page-header {
+    max-width: 1200px;
+    margin: 0 auto var(--v2-space-8);
+}
+
+.v2-page-title {
+    font-size: var(--v2-text-2xl);
+    font-weight: var(--v2-font-bold);
+    color: var(--v2-text-primary);
+    margin-bottom: var(--v2-space-2);
+}
+
+.v2-page-subtitle {
+    font-size: var(--v2-text-base);
+    color: var(--v2-text-tertiary);
+}
+
+/* 内容容器 */
+.v2-dashboard-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: var(--v2-space-6);
+}
+
+/* 统计卡片网格 */
+.v2-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: var(--v2-space-4);
+}
+
+/* 卡片 - 与主页一致 */
+.v2-stat-card {
+    position: relative;
+    background: var(--v2-bg-secondary);
+    border-radius: var(--v2-radius-xl);
+    padding: var(--v2-space-6);
+    border: 1px solid var(--v2-border-subtle);
+    overflow: hidden;
+    transition: all var(--v2-transition-normal);
+}
+
+.v2-stat-card:hover {
+    transform: translateY(-2px);
+    border-color: var(--v2-border-hover);
+}
+
+/* 卡片渐变边框 */
+.v2-stat-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(
+        135deg,
+        rgba(99, 102, 241, 0.3),
+        transparent 50%,
+        rgba(139, 92, 246, 0.2)
+    );
+    -webkit-mask: 
+        linear-gradient(#fff 0 0) content-box, 
+        linear-gradient(#fff 0 0);
+    mask: 
+        linear-gradient(#fff 0 0) content-box, 
+        linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    opacity: 0.6;
+    transition: opacity var(--v2-transition-normal);
+    pointer-events: none;
+}
+
+.v2-stat-card:hover::before {
+    opacity: 1;
+}
+
+/* 卡片头部 */
+.v2-stat-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--v2-space-4);
+    position: relative;
+    z-index: 1;
+}
+
+.v2-stat-label {
+    font-size: var(--v2-text-sm);
+    color: var(--v2-text-tertiary);
+}
+
+.v2-stat-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: var(--v2-radius-lg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+}
+
+.v2-stat-icon--blue {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(99, 102, 241, 0.05));
+    box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.2);
+}
+
+.v2-stat-icon--green {
+    background: linear-gradient(135deg, rgba(34, 197, 94, 0.15), rgba(34, 197, 94, 0.05));
+    box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.2);
+}
+
+.v2-stat-icon--orange {
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(245, 158, 11, 0.05));
+    box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.2);
+}
+
+.v2-stat-icon--purple {
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(139, 92, 246, 0.05));
+    box-shadow: 0 0 0 1px rgba(139, 92, 246, 0.2);
+}
+
+/* 数值 */
+.v2-stat-value {
+    font-size: var(--v2-text-3xl);
+    font-weight: var(--v2-font-bold);
+    color: var(--v2-text-primary);
+    position: relative;
+    z-index: 1;
+}
+
+.v2-stat-value--success {
+    color: var(--v2-success);
+}
+
+.v2-stat-value--warning {
+    color: var(--v2-warning);
+}
+
+.v2-stat-value--loading {
+    opacity: 0.5;
+}
+
+/* 详情区域 */
+.v2-details-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: var(--v2-space-6);
+}
+
+/* 详情卡片 */
+.v2-detail-card {
+    position: relative;
+    background: var(--v2-bg-secondary);
+    border-radius: var(--v2-radius-xl);
+    padding: var(--v2-space-6);
+    border: 1px solid var(--v2-border-subtle);
+    overflow: hidden;
+}
+
+.v2-detail-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(
+        135deg,
+        rgba(99, 102, 241, 0.3),
+        transparent 50%,
+        rgba(139, 92, 246, 0.2)
+    );
+    -webkit-mask: 
+        linear-gradient(#fff 0 0) content-box, 
+        linear-gradient(#fff 0 0);
+    mask: 
+        linear-gradient(#fff 0 0) content-box, 
+        linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    opacity: 0.6;
+    transition: opacity var(--v2-transition-normal);
+    pointer-events: none;
+}
+
+.v2-detail-card:hover::before {
+    opacity: 1;
+}
+
+.v2-detail-header {
+    display: flex;
+    align-items: center;
+    gap: var(--v2-space-3);
+    margin-bottom: var(--v2-space-6);
+    position: relative;
+    z-index: 1;
+}
+
+.v2-detail-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: var(--v2-radius-lg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(99, 102, 241, 0.05));
+    box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.2);
+}
+
+.v2-detail-title {
+    font-size: var(--v2-text-lg);
+    font-weight: var(--v2-font-semibold);
+    color: var(--v2-text-primary);
+}
+
+/* 信息列表 */
+.v2-info-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--v2-space-3);
+    position: relative;
+    z-index: 1;
+}
+
+.v2-info-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--v2-space-3) var(--v2-space-4);
+    background: var(--v2-bg-tertiary);
+    border-radius: var(--v2-radius-lg);
+    border: 1px solid var(--v2-border-subtle);
+}
+
+.v2-info-label {
+    font-size: var(--v2-text-sm);
+    color: var(--v2-text-tertiary);
+}
+
+.v2-info-value {
+    font-size: var(--v2-text-sm);
+    font-weight: var(--v2-font-medium);
+    color: var(--v2-text-primary);
+}
+
+.v2-info-value--success {
+    color: var(--v2-success);
+}
+
+.v2-info-value--warning {
+    color: var(--v2-warning);
+}
+
+/* 空状态 */
+.v2-empty-state {
+    text-align: center;
+    padding: var(--v2-space-12);
+    color: var(--v2-text-tertiary);
+}
+
+.v2-empty-icon {
+    font-size: 48px;
+    margin-bottom: var(--v2-space-4);
+    opacity: 0.5;
+}
+
+.v2-empty-text {
+    font-size: var(--v2-text-base);
+}
+
+/* 加载状态 */
+.v2-skeleton {
+    background: linear-gradient(
+        90deg,
+        var(--v2-bg-tertiary) 25%,
+        var(--v2-bg-elevated) 50%,
+        var(--v2-bg-tertiary) 75%
+    );
+    background-size: 200% 100%;
+    animation: v2-skeleton-loading 1.5s infinite;
+    border-radius: var(--v2-radius);
+}
+
+@keyframes v2-skeleton-loading {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+/* 按钮 */
+.v2-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--v2-space-2);
+    padding: var(--v2-space-3) var(--v2-space-6);
+    border-radius: var(--v2-radius-md);
+    font-size: var(--v2-text-sm);
+    font-weight: var(--v2-font-medium);
+    cursor: pointer;
+    transition: all var(--v2-transition-fast);
+    border: none;
+    text-decoration: none;
+    position: relative;
+    z-index: 1;
+}
+
+.v2-btn--primary {
+    background: linear-gradient(135deg, var(--v2-primary-500), var(--v2-primary-600));
+    color: white;
+    box-shadow: 
+        0 0 0 1px rgba(255, 255, 255, 0.1) inset,
+        0 4px 12px rgba(99, 102, 241, 0.4);
+}
+
+.v2-btn--primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 
+        0 0 0 1px rgba(255, 255, 255, 0.15) inset,
+        0 6px 20px rgba(99, 102, 241, 0.5);
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+    .v2-dashboard-page {
+        padding: var(--v2-space-4);
+    }
+    
+    .v2-stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .v2-details-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 480px) {
+    .v2-stats-grid {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="v2-dashboard-page">
+    <!-- 页面标题 -->
+    <div class="v2-page-header">
+        <h1 class="v2-page-title">📊 创作仪表板</h1>
+        <p class="v2-page-subtitle">查看你的创作数据统计和分析</p>
+    </div>
+
+    <!-- 内容区域 -->
+    <div class="v2-dashboard-container">
+        <!-- 统计卡片 -->
+        <div class="v2-stats-grid" id="statsGrid">
+            <!-- 项目数量 -->
+            <div class="v2-stat-card">
+                <div class="v2-stat-header">
+                    <span class="v2-stat-label">创作项目</span>
+                    <div class="v2-stat-icon v2-stat-icon--blue">📁</div>
+                </div>
+                <div class="v2-stat-value v2-stat-value--loading" id="projectCount">-</div>
+            </div>
+
+            <!-- 章节数量 -->
+            <div class="v2-stat-card">
+                <div class="v2-stat-header">
+                    <span class="v2-stat-label">生成章节</span>
+                    <div class="v2-stat-icon v2-stat-icon--green">📝</div>
+                </div>
+                <div class="v2-stat-value v2-stat-value--loading" id="chapterCount">-</div>
+            </div>
+
+            <!-- 总字数 -->
+            <div class="v2-stat-card">
+                <div class="v2-stat-header">
+                    <span class="v2-stat-label">总字数</span>
+                    <div class="v2-stat-icon v2-stat-icon--purple">📖</div>
+                </div>
+                <div class="v2-stat-value v2-stat-value--loading" id="totalWords">-</div>
+            </div>
+
+            <!-- 平均评分 -->
+            <div class="v2-stat-card">
+                <div class="v2-stat-header">
+                    <span class="v2-stat-label">平均评分</span>
+                    <div class="v2-stat-icon v2-stat-icon--orange">⭐</div>
+                </div>
+                <div class="v2-stat-value v2-stat-value--loading" id="avgScore">-</div>
+            </div>
+        </div>
+
+        <!-- 详情区域 -->
+        <div class="v2-details-grid" id="detailsGrid">
+            <!-- 最近项目 -->
+            <div class="v2-detail-card">
+                <div class="v2-detail-header">
+                    <div class="v2-detail-icon">🚀</div>
+                    <h2 class="v2-detail-title">最近项目</h2>
+                </div>
+                <div class="v2-info-list" id="latestProject">
+                    <div class="v2-empty-state">
+                        <div class="v2-empty-icon">📭</div>
+                        <div class="v2-empty-text">暂无项目数据</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 质量统计 -->
+            <div class="v2-detail-card">
+                <div class="v2-detail-header">
+                    <div class="v2-detail-icon">📈</div>
+                    <h2 class="v2-detail-title">质量统计</h2>
+                </div>
+                <div class="v2-info-list" id="qualityStats">
+                    <div class="v2-info-item">
+                        <span class="v2-info-label">最高评分</span>
+                        <span class="v2-info-value v2-info-value--success" id="maxScore">-</span>
+                    </div>
+                    <div class="v2-info-item">
+                        <span class="v2-info-label">最低评分</span>
+                        <span class="v2-info-value v2-info-value--warning" id="minScore">-</span>
+                    </div>
+                    <div class="v2-info-item">
+                        <span class="v2-info-label">平均字数</span>
+                        <span class="v2-info-value" id="avgWords">-</span>
+                    </div>
+                    <div class="v2-info-item">
+                        <span class="v2-info-label">生成时间</span>
+                        <span class="v2-info-value" id="generationTime">-</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // ==================== 仪表板功能 ====================
+    
+    // 格式化数字
+    function formatNumber(num) {
+        if (num >= 10000) {
+            return (num / 10000).toFixed(1) + '万';
+        }
+        return num.toString();
+    }
+    
+    // 加载仪表板数据
+    async function loadDashboardData() {
+        try {
+            // 获取项目列表
+            const projectsResponse = await fetch('/api/projects');
+            if (!projectsResponse.ok) throw new Error('获取项目列表失败');
+            
+            const projectsData = await projectsResponse.json();
+            const projects = projectsData.projects || [];
+            
+            // 更新项目数量
+            document.getElementById('projectCount').textContent = projects.length;
+            document.getElementById('projectCount').classList.remove('v2-stat-value--loading');
+            
+            if (projects.length === 0) {
+                document.getElementById('chapterCount').textContent = '0';
+                document.getElementById('totalWords').textContent = '0';
+                document.getElementById('avgScore').textContent = '-';
+                return;
+            }
+            
+            // 获取最近项目的详情
+            const latestProject = projects[0];
+            
+            // 显示最近项目信息
+            const latestProjectEl = document.getElementById('latestProject');
+            latestProjectEl.innerHTML = `
+                <div class="v2-info-item">
+                    <span class="v2-info-label">项目名称</span>
+                    <span class="v2-info-value">${latestProject.title || '未命名'}</span>
+                </div>
+                <div class="v2-info-item">
+                    <span class="v2-info-label">当前阶段</span>
+                    <span class="v2-info-value">${latestProject.phase === 'phase_two' ? '第二阶段' : '第一阶段'}</span>
+                </div>
+                <div class="v2-info-item">
+                    <span class="v2-info-label">章节进度</span>
+                    <span class="v2-info-value">${latestProject.current_chapter || 0} / ${latestProject.total_chapters || 0}</span>
+                </div>
+                <div class="v2-info-item">
+                    <span class="v2-info-label">状态</span>
+                    <span class="v2-info-value v2-info-value--success">${latestProject.status === 'completed' ? '已完成' : '进行中'}</span>
+                </div>
+            `;
+            
+            // 获取项目详情
+            try {
+                const detailResponse = await fetch(`/api/project/${encodeURIComponent(latestProject.title)}`);
+                if (detailResponse.ok) {
+                    const detail = await detailResponse.json();
+                    
+                    // 计算统计数据
+                    const chapters = detail.chapters || [];
+                    const chapterCount = chapters.length;
+                    
+                    let totalWords = 0;
+                    let totalScore = 0;
+                    let scoreCount = 0;
+                    let maxScore = 0;
+                    let minScore = 100;
+                    
+                    chapters.forEach(chapter => {
+                        if (chapter.word_count) {
+                            totalWords += chapter.word_count;
+                        }
+                        if (chapter.quality_score) {
+                            const score = parseFloat(chapter.quality_score);
+                            totalScore += score;
+                            scoreCount++;
+                            maxScore = Math.max(maxScore, score);
+                            minScore = Math.min(minScore, score);
+                        }
+                    });
+                    
+                    const avgScore = scoreCount > 0 ? (totalScore / scoreCount).toFixed(1) : '-';
+                    const avgWords = chapterCount > 0 ? Math.round(totalWords / chapterCount) : 0;
+                    
+                    // 更新统计卡片
+                    document.getElementById('chapterCount').textContent = chapterCount;
+                    document.getElementById('chapterCount').classList.remove('v2-stat-value--loading');
+                    
+                    document.getElementById('totalWords').textContent = formatNumber(totalWords);
+                    document.getElementById('totalWords').classList.remove('v2-stat-value--loading');
+                    
+                    document.getElementById('avgScore').textContent = avgScore;
+                    document.getElementById('avgScore').classList.remove('v2-stat-value--loading');
+                    
+                    // 更新质量统计
+                    document.getElementById('maxScore').textContent = maxScore > 0 ? maxScore.toFixed(1) : '-';
+                    document.getElementById('minScore').textContent = minScore < 100 ? minScore.toFixed(1) : '-';
+                    document.getElementById('avgWords').textContent = formatNumber(avgWords);
+                    document.getElementById('generationTime').textContent = latestProject.created_at ? new Date(latestProject.created_at).toLocaleDateString() : '-';
+                }
+            } catch (error) {
+                console.error('获取项目详情失败:', error);
+            }
+            
+        } catch (error) {
+            console.error('加载仪表板数据失败:', error);
+            // 显示错误状态
+            document.querySelectorAll('.v2-stat-value').forEach(el => {
+                el.textContent = 'Error';
+                el.classList.remove('v2-stat-value--loading');
+            });
+        }
+    }
+    
+    // 页面加载时获取数据
+    document.addEventListener('DOMContentLoaded', loadDashboardData);
+</script>
+{% endblock %}

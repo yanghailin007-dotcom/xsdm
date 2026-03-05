@@ -215,7 +215,10 @@ def register_page_routes(app):
     @login_required
     def dashboard():
         """仪表板"""
-        return render_template('dashboard.html')
+        ui_version = request.args.get('ui', '').lower()
+        if ui_version == 'v1':
+            return render_template('dashboard.html')
+        return render_template('pages/v2/dashboard-v2.html')
 
     @app.route('/test_layout_improvements.html', methods=['GET'])
     @login_required
