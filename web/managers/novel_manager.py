@@ -11,6 +11,15 @@ from pathlib import Path
 from typing import Dict, Any, List, Optional
 
 from web.web_config import logger, BASE_DIR, CREATIVE_IDEAS_FILE
+from web.utils.path_utils import (
+    get_user_novel_dir,
+    get_public_projects_dir,
+    find_novel_project,
+    list_user_projects,
+    is_admin,
+    get_current_username,
+    NOVEL_PROJECTS_ROOT
+)
 
 
 class NovelGenerationManager:
@@ -122,89 +131,49 @@ class NovelGenerationManager:
             self._load_existing_novels_impl()
     
     def _load_existing_novels_impl(self):
-        """实际加载小说项目的实现"""
+        """实际加载小说项目的实现 - 支持用户隔离"""
         try:
             # 导入路径配置
             from src.config.path_config import path_config
             
-            novel_dir = Path("小说项目")
-            if not novel_dir.exists():
-                logger.info("📁 小说项目目录不存在，将在首次生成时创建")
+            username = get_current_username()
+            logger.info(f"👤 当前用户: {username} (管理员: {is_admin(username)})")
+            
+            # 获取所有可访问的项目
+            projects = list_user_projects(username, include_public=True)
+            
+            if not projects:
+                logger.info("📁 没有找到小说项目")
                 return
+            
+            logger.info(f"🔍 扫描到 {len(projects)} 个可访问的小说项目...")
 
-            logger.info("🔍 扫描已存在的小说项目...")
-
-            # 1. 首先扫描新路径结构（项目目录中的 小说名_项目信息.json）
-            for item in novel_dir.iterdir():
-                if item.is_dir():
-                    # 🔥 修复：优先查找 项目目录/小说名_项目信息.json
-                    project_info_path = item / f"{item.name}_项目信息.json"
+            for project in projects:
+                try:
+                    project_path = Path(project['path'])
+                    title = project['title']
+                    owner = project['owner']
                     
-                    # 备选方案1：检查 project_info.json
-                    if not project_info_path.exists():
-                        project_info_path = item / "project_info.json"
+                    # 查找项目信息文件
+                    project_info_path = self._find_project_info_file(project_path)
                     
-                    # 备选方案2：检查 project_info/ 子目录
-                    if not project_info_path.exists():
-                        project_info_dir = item / "project_info"
-                        if project_info_dir.is_dir():
-                            # 查找 project_info 目录中的 JSON 文件
-                            json_files = list(project_info_dir.glob("*_项目信息*.json"))
-                            if json_files:
-                                project_info_path = json_files[0]  # 使用第一个找到的文件
-                    
-                    if project_info_path.exists():
-                        novel_data = None
-                        try:
-                            # 使用完整的文件读取流程，确保文件正确关闭
-                            with open(project_info_path, 'r', encoding='utf-8') as f:
-                                content = f.read()
-                                novel_data = json.loads(content)
-                            
-                            # 🔥 修复：支持多种标题字段
-                            title = (
-                                novel_data.get("novel_title") or
-                                novel_data.get("novel_info", {}).get("title", item.name) or
-                                item.name
-                            )
-                            self._load_project_from_data(title, novel_data, item.name)
-                            logger.info(f"✅ 加载小说项目(新路径): {title}")
-                        except json.JSONDecodeError as e:
-                            logger.error(f"❌ JSON解析失败 {project_info_path}: {e}")
-                        except IOError as e:
-                            logger.error(f"❌ 文件读取失败 {project_info_path}: {e}")
-                        except Exception as e:
-                            logger.error(f"❌ 加载新路径项目文件 {project_info_path} 失败: {e}")
-                            import traceback
-                            logger.error(f"❌ 错误堆栈: {traceback.format_exc()}")
-
-            # 2. 扫描旧路径结构（根目录下的 *_项目信息.json 文件）
-            for item in novel_dir.iterdir():
-                if item.is_file() and item.name.endswith("_项目信息.json"):
-                    # 提取小说标题
-                    title = item.name.replace("_项目信息.json", "")
-                    project_file = item
-
-                    novel_data = None
-                    try:
-                        # 使用完整的文件读取流程，确保文件正确关闭
-                        with open(project_file, 'r', encoding='utf-8') as f:
+                    if project_info_path and project_info_path.exists():
+                        with open(project_info_path, 'r', encoding='utf-8') as f:
                             content = f.read()
                             novel_data = json.loads(content)
                         
-                        # 检查是否已经从新路径加载过（避免重复）
-                        if title not in self.novel_projects:
-                            self._load_project_from_data(title, novel_data, title)
-                            logger.info(f"✅ 加载小说项目(旧路径): {title}")
-
-                    except json.JSONDecodeError as e:
-                        logger.error(f"❌ JSON解析失败 {project_file}: {e}")
-                    except IOError as e:
-                        logger.error(f"❌ 文件读取失败 {project_file}: {e}")
-                    except Exception as e:
-                        logger.error(f"❌ 加载旧路径项目文件 {project_file} 失败: {e}")
-                        import traceback
-                        logger.error(f"❌ 错误堆栈: {traceback.format_exc()}")
+                        # 加载项目数据，添加 owner 信息
+                        self._load_project_from_data(title, novel_data, title, owner=owner)
+                        
+                        owner_label = "[公共]" if project['is_public'] else f"[{owner}]"
+                        logger.info(f"✅ 加载小说项目 {owner_label}: {title}")
+                    else:
+                        logger.warning(f"⚠️ 项目信息文件不存在: {project_path}")
+                        
+                except json.JSONDecodeError as e:
+                    logger.error(f"❌ JSON解析失败 {project['path']}: {e}")
+                except Exception as e:
+                    logger.error(f"❌ 加载项目失败 {project['title']}: {e}")
 
             logger.info(f"📚 总共加载了 {len(self.novel_projects)} 个小说项目")
 
@@ -212,11 +181,36 @@ class NovelGenerationManager:
             logger.error(f"❌ 加载已存在小说项目失败: {e}")
             import traceback
             logger.error(f"❌ 错误堆栈: {traceback.format_exc()}")
+    
+    def _find_project_info_file(self, project_path: Path) -> Optional[Path]:
+        """查找项目信息文件"""
+        # 优先查找 小说名_项目信息.json
+        info_file = project_path / f"{project_path.name}_项目信息.json"
+        if info_file.exists():
+            return info_file
+        
+        # 备选：project_info.json
+        info_file = project_path / "project_info.json"
+        if info_file.exists():
+            return info_file
+        
+        # 备选：project_info/ 子目录
+        info_dir = project_path / "project_info"
+        if info_dir.is_dir():
+            json_files = list(info_dir.glob("*_项目信息*.json"))
+            if json_files:
+                return json_files[0]
+        
+        return None
 
-    def _load_project_from_data(self, title: str, novel_data: Dict, path_key: str):
+    def _load_project_from_data(self, title: str, novel_data: Dict, path_key: str, owner: str = None):
         """从已加载的数据中提取并加载项目信息（辅助方法）"""
         try:
             from src.config.path_config import path_config
+            
+            # 添加所有者信息
+            if owner:
+                novel_data['owner'] = owner
             
             # 使用新的路径配置系统获取章节目录
             paths = path_config.get_project_paths(title)
@@ -512,6 +506,10 @@ class NovelGenerationManager:
             core_setting = creative_seed.get("coreSetting", "") if isinstance(creative_seed, dict) else str(creative_seed)[:200]
             synopsis = data.get("novel_synopsis", "") or data.get("synopsis", "")
             
+            # 获取项目所有者
+            owner = data.get('owner', 'unknown')
+            is_public = owner == 'public'
+            
             projects.append({
                 "title": title,
                 "novel_title": title,  # 🔥 修复：添加 novel_title 字段以匹配前端期望
@@ -525,7 +523,11 @@ class NovelGenerationManager:
                 # 添加前端需要的字段
                 "story_synopsis": synopsis,
                 "core_setting": core_setting,
-                "synopsis": synopsis  # 保留向后兼容
+                "synopsis": synopsis,  # 保留向后兼容
+                # 用户隔离相关字段
+                "owner": owner,
+                "is_public": is_public,
+                "is_owner": owner == get_current_username() or is_public
             })
         return sorted(projects, key=lambda x: x["last_updated"], reverse=True)
 

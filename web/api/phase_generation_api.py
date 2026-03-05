@@ -25,6 +25,15 @@ from src.utils.logger import get_logger
 # 初始化日志记录器
 logger = get_logger(__name__)
 
+# 导入路径工具
+from web.utils.path_utils import (
+    get_user_novel_dir,
+    get_novel_project_dir,
+    find_novel_project,
+    get_current_username,
+    is_admin
+)
+
 # 导入管理器
 try:
     from web.managers.novel_manager import NovelGenerationManager
@@ -209,20 +218,21 @@ class ProductLoader:
         self.safe_title = re.sub(r'[\\/*?"<>|]', "_", title)
         self.logger = logger_instance
         
-        # 🔥 修复：先尝试使用original_title（因为实际文件系统保留了中文标点）
-        self.project_dir = Path("小说项目") / self.original_title
-        if not self.project_dir.exists():
-            # 如果original_title不存在，再尝试safe_title
-            self.project_dir = Path("小说项目") / self.safe_title
+        # 🔥 用户隔离：使用新的路径查找方法
+        username = get_current_username()
+        found_path = find_novel_project(self.original_title, username)
         
-        # 🔥 修复：如果还是找不到，列出所有目录用于调试
-        if not self.project_dir.exists():
-            novels_root = Path("小说项目")
-            if novels_root.exists():
-                existing_dirs = [d.name for d in novels_root.iterdir() if d.is_dir()]
-                self.logger.info(f"[PATH_DEBUG] 项目目录'{self.original_title}'不存在，已存在的目录: {existing_dirs[:10]}")
+        if found_path:
+            self.project_dir = found_path
+        else:
+            # 默认使用用户目录下的路径（用于新建项目）
+            self.project_dir = get_novel_project_dir(self.original_title, username, create=False)
         
-        # 🔥 修复：使用original_title而不是safe_title，因为实际目录保留了中文标点
+        # 🔥 调试信息
+        if not self.project_dir.exists():
+            self.logger.info(f"[PATH_DEBUG] 项目目录不存在，将使用: {self.project_dir}")
+        
+        # 兼容旧路径
         self.legacy_phase_one_dir = Path("小说项目") / f"{self.original_title}_第一阶段设定"
     
     def load_all_products(self):
