@@ -19,7 +19,14 @@ def load_payment_config():
     """加载支付配置"""
     try:
         with open('config/payment.yaml', 'r', encoding='utf-8') as f:
-            return yaml.safe_load(f)
+            config = yaml.safe_load(f)
+        
+        # 从环境变量覆盖敏感配置
+        config['yipay']['merchant_id'] = os.environ.get('YIPAY_MERCHANT_ID', config['yipay']['merchant_id'])
+        config['yipay']['merchant_key'] = os.environ.get('YIPAY_MERCHANT_KEY', config['yipay']['merchant_key'])
+        config['yipay']['api_url'] = os.environ.get('YIPAY_API_URL', config['yipay']['api_url'])
+        
+        return config
     except Exception as e:
         logger.error(f"加载支付配置失败: {e}")
         return {'enabled': False}

@@ -3,6 +3,19 @@ Web应用配置和基础工具
 """
 import os
 import sys
+from pathlib import Path
+
+# 加载 .env 文件
+try:
+    from dotenv import load_dotenv
+    env_path = Path(__file__).parent.parent / '.env'
+    if env_path.exists():
+        load_dotenv(env_path)
+        print(f"✅ 已加载环境变量: {env_path}")
+    else:
+        print(f"⚠️  .env 文件不存在: {env_path}")
+except ImportError:
+    print("⚠️  python-dotenv 未安装，跳过 .env 加载")
 
 def fix_console_encoding():
     """修复控制台编码问题"""
