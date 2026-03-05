@@ -44,7 +44,7 @@
                 </svg>
             </div>
             <div class="stat-value" id="total-words">-</div>
-            <div class="stat-label">总字数</div>
+            <div class="stat-label">总字�?/div>
         </div>
         <div class="stat-card">
             <div class="stat-icon" style="background: linear-gradient(135deg, #f59e0b 0%, #f97316 100%);">
@@ -54,11 +54,11 @@
                 </svg>
             </div>
             <div class="stat-value" id="completed-novels">-</div>
-            <div class="stat-label">已完成</div>
+            <div class="stat-label">已完�?/div>
         </div>
     </div>
 
-    <!-- 筛选区域 -->
+    <!-- 筛选区�?-->
     <div class="filter-section">
         <div class="filter-header">
             <div class="filter-title">
@@ -101,9 +101,9 @@
         
         <div class="filter-tags">
             <button class="filter-tag active" data-filter="all" onclick="setFilter('all')">全部</button>
-            <button class="filter-tag" data-filter="completed" onclick="setFilter('completed')">已完成</button>
-            <button class="filter-tag" data-filter="generating" onclick="setFilter('generating')">生成中</button>
-            <button class="filter-tag" data-filter="paused" onclick="setFilter('paused')">已暂停</button>
+            <button class="filter-tag" data-filter="completed" onclick="setFilter('completed')">已完�?/button>
+            <button class="filter-tag" data-filter="generating" onclick="setFilter('generating')">生成�?/button>
+            <button class="filter-tag" data-filter="paused" onclick="setFilter('paused')">已暂�?/button>
         </div>
     </div>
 
@@ -115,64 +115,64 @@
         <div class="loading-skeleton" style="height: 320px;"></div>
     </div>
 
-    <!-- 空状态 -->
+    <!-- 空状�?-->
     <div class="empty-state" id="empty-state" style="display: none;">
         <div class="empty-icon">📝</div>
-        <div class="empty-title">还没有创作作品</div>
+        <div class="empty-title">还没有创作作�?/div>
         <div class="empty-description">
-            开始您的第一个AI小说创作之旅吧！点击上方"新建创作"按钮开始。
+            开始您的第一个AI小说创作之旅吧！点击上方"新建创作"按钮开始�?
         </div>
-        <a href="/" class="btn btn-primary">🚀 开始创作</a>
+        <a href="/" class="btn btn-primary">🚀 开始创�?/a>
     </div>
 </div>
 
 <style>
 /* 页面内容区域 */
 .page-content {
-    padding: var(--space-8) 0;
+    padding: var(--v2-space-8) 0;
     max-width: 1400px;
     margin: 0 auto;
 }
 
 .page-header {
     text-align: center;
-    margin-bottom: var(--space-8);
+    margin-bottom: var(--v2-space-8);
 }
 
 .page-title {
-    font-size: var(--text-3xl);
+    font-size: var(--v2-text-3xl);
     font-weight: 800;
     background: linear-gradient(135deg, #6366f1 0%, #06b6d4 50%, #8b5cf6 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
-    margin-bottom: var(--space-3);
+    margin-bottom: var(--v2-space-3);
 }
 
 .page-subtitle {
-    font-size: var(--text-lg);
-    color: var(--gray-400);
+    font-size: var(--v2-text-lg);
+    color: var(--v2-text-secondary);
 }
 
 /* 统计卡片 */
 .stats-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: var(--space-6);
-    margin-bottom: var(--space-8);
+    gap: var(--v2-space-6);
+    margin-bottom: var(--v2-space-8);
 }
 
 .stat-card {
-    background: var(--gray-900);
-    border: 1px solid var(--gray-800);
-    border-radius: var(--radius-xl);
-    padding: var(--space-6);
+    background: var(--v2-bg-secondary);
+    border: 1px solid var(--v2-border-default);
+    border-radius: var(--v2-radius-xl);
+    padding: var(--v2-space-6);
     text-align: center;
     transition: all 0.3s ease;
 }
 
 .stat-card:hover {
-    border-color: var(--primary-500);
+    border-color: var(--v2-primary-500);
     transform: translateY(-4px);
     box-shadow: 0 20px 40px rgba(99, 102, 241, 0.15);
 }
@@ -180,149 +180,149 @@
 .stat-icon {
     width: 48px;
     height: 48px;
-    border-radius: var(--radius-lg);
+    border-radius: var(--v2-radius-lg);
     display: flex;
     align-items: center;
     justify-content: center;
-    margin: 0 auto var(--space-4);
+    margin: 0 auto var(--v2-space-4);
     color: white;
 }
 
 .stat-value {
-    font-size: var(--text-3xl);
+    font-size: var(--v2-text-3xl);
     font-weight: 800;
     background: linear-gradient(135deg, #6366f1 0%, #06b6d4 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
-    margin-bottom: var(--space-2);
+    margin-bottom: var(--v2-space-2);
 }
 
 .stat-label {
-    font-size: var(--text-sm);
-    color: var(--gray-400);
+    font-size: var(--v2-text-sm);
+    color: var(--v2-text-secondary);
     font-weight: 500;
 }
 
-/* 筛选区域 */
+/* 筛选区�?*/
 .filter-section {
-    background: var(--gray-900);
-    border: 1px solid var(--gray-800);
-    border-radius: var(--radius-xl);
-    padding: var(--space-6);
-    margin-bottom: var(--space-8);
+    background: var(--v2-bg-secondary);
+    border: 1px solid var(--v2-border-default);
+    border-radius: var(--v2-radius-xl);
+    padding: var(--v2-space-6);
+    margin-bottom: var(--v2-space-8);
 }
 
 .filter-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: var(--space-5);
+    margin-bottom: var(--v2-space-5);
     flex-wrap: wrap;
-    gap: var(--space-4);
+    gap: var(--v2-space-4);
 }
 
 .filter-title {
-    font-size: var(--text-lg);
+    font-size: var(--v2-text-lg);
     font-weight: 600;
-    color: var(--gray-100);
+    color: var(--v2-text-primary);
     display: flex;
     align-items: center;
-    gap: var(--space-2);
+    gap: var(--v2-space-2);
 }
 
 .filter-title svg {
-    color: var(--primary-400);
+    color: var(--v2-primary-400);
 }
 
 .view-controls {
     display: flex;
-    gap: var(--space-2);
+    gap: var(--v2-space-2);
 }
 
 .view-btn {
     display: flex;
     align-items: center;
-    gap: var(--space-2);
-    padding: var(--space-2) var(--space-4);
-    background: var(--gray-800);
-    border: 1px solid var(--gray-700);
-    border-radius: var(--radius-lg);
-    color: var(--gray-400);
-    font-size: var(--text-sm);
+    gap: var(--v2-space-2);
+    padding: var(--v2-space-2) var(--v2-space-4);
+    background: var(--v2-border-default);
+    border: 1px solid var(--v2-border-hover);
+    border-radius: var(--v2-radius-lg);
+    color: var(--v2-text-secondary);
+    font-size: var(--v2-text-sm);
     font-weight: 500;
     cursor: pointer;
     transition: all 0.2s ease;
 }
 
 .view-btn:hover {
-    border-color: var(--primary-500);
-    color: var(--gray-200);
+    border-color: var(--v2-primary-500);
+    color: var(--v2-text-primary);
 }
 
 .view-btn.active {
-    background: var(--primary-600);
-    border-color: var(--primary-500);
+    background: var(--v2-primary-600);
+    border-color: var(--v2-primary-500);
     color: white;
 }
 
-/* 搜索框 */
+/* 搜索�?*/
 .search-box {
     position: relative;
-    margin-bottom: var(--space-4);
+    margin-bottom: var(--v2-space-4);
 }
 
 .search-box input {
     width: 100%;
-    padding: var(--space-3) var(--space-4) var(--space-3) var(--space-12);
-    background: var(--gray-800);
-    border: 1px solid var(--gray-700);
-    border-radius: var(--radius-lg);
-    color: var(--gray-100);
-    font-size: var(--text-base);
+    padding: var(--v2-space-3) var(--v2-space-4) var(--v2-space-3) var(--v2-space-12);
+    background: var(--v2-border-default);
+    border: 1px solid var(--v2-border-hover);
+    border-radius: var(--v2-radius-lg);
+    color: var(--v2-text-primary);
+    font-size: var(--v2-text-base);
     transition: all 0.2s ease;
 }
 
 .search-box input::placeholder {
-    color: var(--gray-500);
+    color: var(--v2-text-tertiary);
 }
 
 .search-box input:focus {
     outline: none;
-    border-color: var(--primary-500);
+    border-color: var(--v2-primary-500);
     box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
 }
 
 .search-icon {
     position: absolute;
-    left: var(--space-4);
+    left: var(--v2-space-4);
     top: 50%;
     transform: translateY(-50%);
-    color: var(--gray-500);
+    color: var(--v2-text-tertiary);
     pointer-events: none;
 }
 
-/* 筛选标签 */
+/* 筛选标�?*/
 .filter-tags {
     display: flex;
-    gap: var(--space-3);
+    gap: var(--v2-space-3);
     flex-wrap: wrap;
 }
 
 .filter-tag {
-    padding: var(--space-2) var(--space-4);
-    background: var(--gray-800);
-    border: 1px solid var(--gray-700);
+    padding: var(--v2-space-2) var(--v2-space-4);
+    background: var(--v2-border-default);
+    border: 1px solid var(--v2-border-hover);
     border-radius: 9999px;
-    font-size: var(--text-sm);
-    color: var(--gray-400);
+    font-size: var(--v2-text-sm);
+    color: var(--v2-text-secondary);
     cursor: pointer;
     transition: all 0.2s ease;
 }
 
 .filter-tag:hover {
-    border-color: var(--primary-500);
-    color: var(--gray-200);
+    border-color: var(--v2-primary-500);
+    color: var(--v2-text-primary);
 }
 
 .filter-tag.active {
@@ -335,7 +335,7 @@
 .novels-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
-    gap: var(--space-6);
+    gap: var(--v2-space-6);
 }
 
 .novels-grid.list-view {
@@ -344,9 +344,9 @@
 
 /* 小说卡片 */
 .novel-card {
-    background: var(--gray-900);
-    border: 1px solid var(--gray-800);
-    border-radius: var(--radius-xl);
+    background: var(--v2-bg-secondary);
+    border: 1px solid var(--v2-border-default);
+    border-radius: var(--v2-radius-xl);
     overflow: hidden;
     transition: all 0.3s ease;
     position: relative;
@@ -365,7 +365,7 @@
 }
 
 .novel-card:hover {
-    border-color: var(--primary-500);
+    border-color: var(--v2-primary-500);
     transform: translateY(-4px);
     box-shadow: 0 20px 60px rgba(99, 102, 241, 0.15);
 }
@@ -375,18 +375,18 @@
 }
 
 .novel-header {
-    padding: var(--space-6);
-    border-bottom: 1px solid var(--gray-800);
+    padding: var(--v2-space-6);
+    border-bottom: 1px solid var(--v2-border-default);
     position: relative;
 }
 
 .novel-status {
     position: absolute;
-    top: var(--space-5);
-    right: var(--space-5);
-    padding: var(--space-1) var(--space-3);
+    top: var(--v2-space-5);
+    right: var(--v2-space-5);
+    padding: var(--v2-space-1) var(--v2-space-3);
     border-radius: 9999px;
-    font-size: var(--text-xs);
+    font-size: var(--v2-text-xs);
     font-weight: 600;
 }
 
@@ -402,14 +402,14 @@
 
 .status-paused {
     background: rgba(148, 163, 184, 0.15);
-    color: var(--gray-400);
+    color: var(--v2-text-secondary);
 }
 
 .novel-title {
-    font-size: var(--text-lg);
+    font-size: var(--v2-text-lg);
     font-weight: 700;
-    color: var(--gray-100);
-    margin-bottom: var(--space-3);
+    color: var(--v2-text-primary);
+    margin-bottom: var(--v2-space-3);
     line-height: 1.4;
     padding-right: 6rem;
 }
@@ -417,26 +417,26 @@
 .novel-meta {
     display: flex;
     flex-wrap: wrap;
-    gap: var(--space-4);
-    font-size: var(--text-sm);
-    color: var(--gray-500);
+    gap: var(--v2-space-4);
+    font-size: var(--v2-text-sm);
+    color: var(--v2-text-tertiary);
 }
 
 .novel-meta-item {
     display: flex;
     align-items: center;
-    gap: var(--space-1);
+    gap: var(--v2-space-1);
 }
 
 .novel-body {
-    padding: var(--space-5) var(--space-6);
+    padding: var(--v2-space-5) var(--v2-space-6);
 }
 
 .novel-description {
-    color: var(--gray-400);
-    font-size: var(--text-sm);
+    color: var(--v2-text-secondary);
+    font-size: var(--v2-text-sm);
     line-height: 1.6;
-    margin-bottom: var(--space-5);
+    margin-bottom: var(--v2-space-5);
     display: -webkit-box;
     -webkit-line-clamp: 3;
     -webkit-box-orient: vertical;
@@ -444,29 +444,29 @@
 }
 
 .novel-progress {
-    margin-bottom: var(--space-5);
+    margin-bottom: var(--v2-space-5);
 }
 
 .progress-info {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: var(--space-2);
-    font-size: var(--text-sm);
+    margin-bottom: var(--v2-space-2);
+    font-size: var(--v2-text-sm);
 }
 
 .progress-label {
-    color: var(--gray-500);
+    color: var(--v2-text-tertiary);
 }
 
 .progress-value {
-    color: var(--primary-400);
+    color: var(--v2-primary-400);
     font-weight: 600;
 }
 
 .progress-bar {
     height: 6px;
-    background: var(--gray-800);
+    background: var(--v2-border-default);
     border-radius: 9999px;
     overflow: hidden;
 }
@@ -497,15 +497,15 @@
 
 .novel-actions {
     display: flex;
-    gap: var(--space-3);
+    gap: var(--v2-space-3);
 }
 
 .novel-btn {
     flex: 1;
-    padding: var(--space-3) var(--space-4);
+    padding: var(--v2-space-3) var(--v2-space-4);
     border: none;
-    border-radius: var(--radius-lg);
-    font-size: var(--text-sm);
+    border-radius: var(--v2-radius-lg);
+    font-size: var(--v2-text-sm);
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s ease;
@@ -523,23 +523,23 @@
 }
 
 .novel-btn-secondary {
-    background: var(--gray-800);
-    color: var(--gray-400);
-    border: 1px solid var(--gray-700);
+    background: var(--v2-border-default);
+    color: var(--v2-text-secondary);
+    border: 1px solid var(--v2-border-hover);
 }
 
 .novel-btn-secondary:hover {
-    background: var(--gray-700);
-    color: var(--gray-200);
-    border-color: var(--gray-600);
+    background: var(--v2-border-hover);
+    color: var(--v2-text-primary);
+    border-color: var(--v2-border-hover);
 }
 
 /* 加载骨架 */
 .loading-skeleton {
-    background: linear-gradient(90deg, var(--gray-800) 25%, var(--gray-700) 50%, var(--gray-800) 75%);
+    background: linear-gradient(90deg, var(--v2-border-default) 25%, var(--v2-border-hover) 50%, var(--v2-border-default) 75%);
     background-size: 200% 100%;
     animation: loading 1.5s infinite;
-    border-radius: var(--radius-xl);
+    border-radius: var(--v2-radius-xl);
 }
 
 @keyframes loading {
@@ -547,38 +547,38 @@
     100% { background-position: -200% 0; }
 }
 
-/* 空状态 */
+/* 空状�?*/
 .empty-state {
     text-align: center;
-    padding: var(--space-16) var(--space-8);
-    background: var(--gray-900);
-    border: 1px dashed var(--gray-800);
-    border-radius: var(--radius-xl);
+    padding: var(--v2-space-16) var(--v2-space-8);
+    background: var(--v2-bg-secondary);
+    border: 1px dashed var(--v2-border-default);
+    border-radius: var(--v2-radius-xl);
 }
 
 .empty-icon {
     font-size: 4rem;
-    margin-bottom: var(--space-6);
+    margin-bottom: var(--v2-space-6);
     opacity: 0.5;
 }
 
 .empty-title {
-    font-size: var(--text-xl);
+    font-size: var(--v2-text-xl);
     font-weight: 700;
-    color: var(--gray-100);
-    margin-bottom: var(--space-3);
+    color: var(--v2-text-primary);
+    margin-bottom: var(--v2-space-3);
 }
 
 .empty-description {
-    font-size: var(--text-base);
-    color: var(--gray-500);
-    margin-bottom: var(--space-6);
+    font-size: var(--v2-text-base);
+    color: var(--v2-text-tertiary);
+    margin-bottom: var(--v2-space-6);
     max-width: 400px;
     margin-left: auto;
     margin-right: auto;
 }
 
-/* 对话框样式 */
+/* 对话框样�?*/
 .dialog-overlay {
     position: fixed;
     top: 0;
@@ -594,84 +594,84 @@
 }
 
 .dialog-content {
-    background: var(--gray-900);
-    border-radius: var(--radius-xl);
+    background: var(--v2-bg-secondary);
+    border-radius: var(--v2-radius-xl);
     box-shadow: 0 25px 80px rgba(0,0,0,0.5);
     max-width: 500px;
     width: 90%;
     max-height: 80vh;
     overflow-y: auto;
-    border: 1px solid var(--gray-800);
+    border: 1px solid var(--v2-border-default);
 }
 
 .dialog-header {
     background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
     color: white;
-    padding: var(--space-5);
-    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+    padding: var(--v2-space-5);
+    border-radius: var(--v2-radius-xl) var(--v2-radius-xl) 0 0;
 }
 
 .dialog-header h3 {
     margin: 0;
-    font-size: var(--text-lg);
+    font-size: var(--v2-text-lg);
 }
 
 .dialog-header p {
-    margin: var(--space-2) 0 0;
+    margin: var(--v2-space-2) 0 0;
     opacity: 0.9;
-    font-size: var(--text-sm);
+    font-size: var(--v2-text-sm);
 }
 
 .dialog-body {
-    padding: var(--space-6);
+    padding: var(--v2-space-6);
 }
 
 .form-group {
-    margin-bottom: var(--space-5);
+    margin-bottom: var(--v2-space-5);
 }
 
 .form-group label {
     display: block;
-    margin-bottom: var(--space-2);
+    margin-bottom: var(--v2-space-2);
     font-weight: 600;
-    color: var(--gray-100);
+    color: var(--v2-text-primary);
 }
 
 .form-group input,
 .form-group select {
     width: 100%;
-    padding: var(--space-3) var(--space-4);
-    background: var(--gray-800);
-    border: 1px solid var(--gray-700);
-    border-radius: var(--radius-lg);
-    color: var(--gray-100);
-    font-size: var(--text-base);
+    padding: var(--v2-space-3) var(--v2-space-4);
+    background: var(--v2-border-default);
+    border: 1px solid var(--v2-border-hover);
+    border-radius: var(--v2-radius-lg);
+    color: var(--v2-text-primary);
+    font-size: var(--v2-text-base);
 }
 
 .form-group input:focus,
 .form-group select:focus {
     outline: none;
-    border-color: var(--primary-500);
+    border-color: var(--v2-primary-500);
     box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
 }
 
 .form-hint {
-    font-size: var(--text-xs);
-    color: var(--gray-500);
-    margin-top: var(--space-1);
+    font-size: var(--v2-text-xs);
+    color: var(--v2-text-tertiary);
+    margin-top: var(--v2-space-1);
 }
 
 .dialog-actions {
     display: flex;
-    gap: var(--space-3);
-    padding: 0 var(--space-6) var(--space-6);
+    gap: var(--v2-space-3);
+    padding: 0 var(--v2-space-6) var(--v2-space-6);
 }
 
 .dialog-btn {
     flex: 1;
-    padding: var(--space-3);
+    padding: var(--v2-space-3);
     border: none;
-    border-radius: var(--radius-lg);
+    border-radius: var(--v2-radius-lg);
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s ease;
@@ -683,16 +683,16 @@
 }
 
 .dialog-btn.secondary {
-    background: var(--gray-800);
-    color: var(--gray-400);
-    border: 1px solid var(--gray-700);
+    background: var(--v2-border-default);
+    color: var(--v2-text-secondary);
+    border: 1px solid var(--v2-border-hover);
 }
 
 .dialog-btn:hover {
     transform: translateY(-2px);
 }
 
-/* 加载覆盖层 */
+/* 加载覆盖�?*/
 .loading-overlay {
     position: fixed;
     top: 0;
@@ -708,21 +708,21 @@
 }
 
 .loading-content {
-    background: var(--gray-900);
-    padding: var(--space-8);
-    border-radius: var(--radius-xl);
+    background: var(--v2-bg-secondary);
+    padding: var(--v2-space-8);
+    border-radius: var(--v2-radius-xl);
     text-align: center;
-    border: 1px solid var(--gray-800);
+    border: 1px solid var(--v2-border-default);
 }
 
 .loading-spinner {
     width: 50px;
     height: 50px;
-    border: 4px solid var(--gray-800);
-    border-top-color: var(--primary-500);
+    border: 4px solid var(--v2-border-default);
+    border-top-color: var(--v2-primary-500);
     border-radius: 50%;
     animation: spin 1s linear infinite;
-    margin: 0 auto var(--space-4);
+    margin: 0 auto var(--v2-space-4);
 }
 
 @keyframes spin {
@@ -735,10 +735,10 @@
     top: 100px;
     left: 50%;
     transform: translateX(-50%);
-    padding: var(--space-4) var(--space-8);
-    background: var(--gray-900);
+    padding: var(--v2-space-4) var(--v2-space-8);
+    background: var(--v2-bg-secondary);
     border: 1px solid rgba(34, 197, 94, 0.3);
-    border-radius: var(--radius-lg);
+    border-radius: var(--v2-radius-lg);
     color: #4ade80;
     font-weight: 600;
     z-index: 10002;
@@ -756,7 +756,7 @@
     }
 }
 
-/* 响应式 */
+/* 响应�?*/
 @media (max-width: 1200px) {
     .stats-grid {
         grid-template-columns: repeat(2, 1fr);
@@ -765,16 +765,16 @@
 
 @media (max-width: 768px) {
     .page-content {
-        padding: var(--space-4) var(--space-4);
+        padding: var(--v2-space-4) var(--v2-space-4);
     }
     
     .stats-grid {
         grid-template-columns: repeat(2, 1fr);
-        gap: var(--space-4);
+        gap: var(--v2-space-4);
     }
     
     .stat-card {
-        padding: var(--space-4);
+        padding: var(--v2-space-4);
     }
     
     .novels-grid {
@@ -833,7 +833,7 @@ async function loadStats() {
 
 function formatNumber(num) {
     if (num >= 10000) {
-        return (num / 10000).toFixed(1) + '万';
+        return (num / 10000).toFixed(1) + '�?;
     }
     return num.toLocaleString();
 }
@@ -856,11 +856,11 @@ function renderNovels() {
         emptyState.style.display = 'block';
         
         if (searchTerm || currentFilter !== 'all') {
-            emptyState.querySelector('.empty-title').textContent = '没有找到匹配的作品';
-            emptyState.querySelector('.empty-description').textContent = '尝试调整搜索关键词或筛选条件。';
+            emptyState.querySelector('.empty-title').textContent = '没有找到匹配的作�?;
+            emptyState.querySelector('.empty-description').textContent = '尝试调整搜索关键词或筛选条件�?;
         } else {
-            emptyState.querySelector('.empty-title').textContent = '还没有创作作品';
-            emptyState.querySelector('.empty-description').textContent = '开始您的第一个AI小说创作之旅吧！点击上方"新建创作"按钮开始。';
+            emptyState.querySelector('.empty-title').textContent = '还没有创作作�?;
+            emptyState.querySelector('.empty-description').textContent = '开始您的第一个AI小说创作之旅吧！点击上方"新建创作"按钮开始�?;
         }
         return;
     }
@@ -894,22 +894,22 @@ function createNovelCard(novel) {
                     </div>
                     <div class="novel-meta-item">
                         <span>📖</span>
-                        <span>${novel.completed_chapters}/${novel.total_chapters}章</span>
+                        <span>${novel.completed_chapters}/${novel.total_chapters}�?/span>
                     </div>
                     <div class="novel-meta-item">
-                        <span>⭐</span>
+                        <span>�?/span>
                         <span>${novel.average_score || '-'}/10</span>
                     </div>
                     <div class="novel-meta-item">
                         <span>📝</span>
-                        <span>${formatNumber(novel.word_count || 0)}字</span>
+                        <span>${formatNumber(novel.word_count || 0)}�?/span>
                     </div>
                 </div>
             </div>
             
             <div class="novel-body">
                 <p class="novel-description">
-                    ${escapeHtml(novel.synopsis || novel.core_setting || '暂无简介')}
+                    ${escapeHtml(novel.synopsis || novel.core_setting || '暂无简�?)}
                 </p>
                 
                 <div class="novel-progress">
@@ -927,7 +927,7 @@ function createNovelCard(novel) {
                         📖 阅读
                     </button>
                     <button class="novel-btn novel-btn-secondary" onclick="continueNovel('${escapeHtml(novel.title)}')">
-                        ➕ 续写
+                        �?续写
                     </button>
                     <button class="novel-btn novel-btn-secondary" onclick="exportNovel('${escapeHtml(novel.title)}')">
                         📥 导出
@@ -949,9 +949,9 @@ function getStatusClass(status) {
 
 function getStatusText(status) {
     const statusMap = {
-        'completed': '已完成',
-        'generating': '生成中',
-        'paused': '已暂停'
+        'completed': '已完�?,
+        'generating': '生成�?,
+        'paused': '已暂�?
     };
     return statusMap[status] || '未知';
 }
@@ -1004,7 +1004,7 @@ function showContinueDialog(title) {
             <div class="dialog-content">
                 <div class="dialog-header">
                     <h3>📝 续写小说</h3>
-                    <p>继续生成小说《${escapeHtml(title)}》</p>
+                    <p>继续生成小说�?{escapeHtml(title)}�?/p>
                 </div>
                 
                 <div class="dialog-body">
@@ -1014,25 +1014,25 @@ function showContinueDialog(title) {
                     </div>
                     
                     <div class="form-group">
-                        <label>从第几章开始续写</label>
+                        <label>从第几章开始续�?/label>
                         <input type="number" id="continue-from-chapter" value="1" min="1">
                         <div class="form-hint">可以从任何章节开始，包括重新生成已有章节</div>
                     </div>
                     
                     <div class="form-group">
-                        <label>续写章节数</label>
+                        <label>续写章节�?/label>
                         <select id="continue-chapters-count">
-                            <option value="5">5章</option>
-                            <option value="10" selected>10章</option>
-                            <option value="20">20章</option>
-                            <option value="50">50章</option>
+                            <option value="5">5�?/option>
+                            <option value="10" selected>10�?/option>
+                            <option value="20">20�?/option>
+                            <option value="50">50�?/option>
                         </select>
                     </div>
                 </div>
                 
                 <div class="dialog-actions">
                     <button class="dialog-btn secondary" onclick="closeContinueDialog()">取消</button>
-                    <button class="dialog-btn primary" onclick="startContinueGeneration()">🚀 开始续写</button>
+                    <button class="dialog-btn primary" onclick="startContinueGeneration()">🚀 开始续�?/button>
                 </div>
             </div>
         </div>
@@ -1068,11 +1068,11 @@ async function loadNovelInfoForContinue(title) {
             }
             
             const progressInfo = document.createElement('div');
-            progressInfo.style.cssText = 'background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.3); border-radius: var(--radius-lg); padding: var(--space-3); margin-bottom: var(--space-4); font-size: var(--text-sm); color: var(--primary-400);';
+            progressInfo.style.cssText = 'background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.3); border-radius: var(--v2-radius-lg); padding: var(--v2-space-3); margin-bottom: var(--v2-space-4); font-size: var(--v2-text-sm); color: var(--v2-primary-400);';
             progressInfo.innerHTML = `
-                <div style="font-weight: 600; margin-bottom: var(--space-1);">📊 当前进度</div>
-                <div>已生成: ${chapterNumbers.length} 章 | 建议从第 ${nextChapter} 章开始续写</div>
-                <div style="margin-top: var(--space-1); color: var(--accent-400);">💡 提示：可以从任何章节开始，包括重新生成已有章节</div>
+                <div style="font-weight: 600; margin-bottom: var(--v2-space-1);">📊 当前进度</div>
+                <div>已生�? ${chapterNumbers.length} �?| 建议从第 ${nextChapter} 章开始续�?/div>
+                <div style="margin-top: var(--v2-space-1); color: var(--v2-accent-cyan);">💡 提示：可以从任何章节开始，包括重新生成已有章节</div>
             `;
             
             const fromChapterContainer = document.getElementById('continue-from-chapter').parentElement;
@@ -1099,12 +1099,12 @@ async function startContinueGeneration() {
     const additionalChapters = parseInt(document.getElementById('continue-chapters-count').value);
     
     if (isNaN(fromChapter) || fromChapter < 1) {
-        alert('请输入有效的起始章节数');
+        alert('请输入有效的起始章节�?);
         return;
     }
     
     if (isNaN(additionalChapters) || additionalChapters < 1) {
-        alert('请输入有效的续写章节数');
+        alert('请输入有效的续写章节�?);
         return;
     }
     
@@ -1122,7 +1122,7 @@ async function startContinueGeneration() {
         
         if (response.status === 401) {
             hideLoadingOverlay();
-            alert('请先登录后再试');
+            alert('请先登录后再�?);
             window.location.href = '/login';
             return;
         }
@@ -1161,7 +1161,7 @@ function showLoadingOverlay(message) {
     overlay.innerHTML = `
         <div class="loading-content">
             <div class="loading-spinner"></div>
-            <h3 style="color: var(--gray-100); margin: 0;">${message}</h3>
+            <h3 style="color: var(--v2-text-primary); margin: 0;">${message}</h3>
         </div>
     `;
     
